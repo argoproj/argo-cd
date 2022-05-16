@@ -26,6 +26,7 @@ import {
 } from '../utils';
 import {NodeUpdateAnimation} from './node-update-animation';
 import {PodGroup} from '../application-pod-view/pod-view';
+import {ArrowConnector} from './arrow-connector';
 
 function treeNodeKey(node: NodeId & {uid?: string}) {
     return node.uid || nodeKey(node);
@@ -43,6 +44,7 @@ export interface ResourceTreeNode extends models.ResourceNode {
     requiresPruning?: boolean;
     orphaned?: boolean;
     podGroup?: PodGroup;
+    isExpanded?: boolean;
 }
 
 export interface ApplicationResourceTreeProps {
@@ -62,6 +64,8 @@ export interface ApplicationResourceTreeProps {
     filters?: string[];
     setTreeFilterGraph?: (filterGraph: any[]) => void;
     nameDirection: boolean;
+    setNodeExpansion: (node: string, isExpanded: boolean) => any;
+    getNodeExpansion: (node: string) => boolean;
 }
 
 interface Line {
@@ -363,7 +367,7 @@ function processPodGroup(targetPodGroup: ResourceTreeNode, child: ResourceTreeNo
     }
 }
 
-function renderPodGroup(props: ApplicationResourceTreeProps, id: string, node: ResourceTreeNode & dagre.Node) {
+function renderPodGroup(props: ApplicationResourceTreeProps, id: string, node: ResourceTreeNode & dagre.Node, childMap: Map<string, ResourceTreeNode[]>) {
     const fullName = nodeKey(node);
     let comparisonStatus: models.SyncStatusCode = null;
     let healthState: models.HealthStatus = null;
@@ -377,6 +381,14 @@ function renderPodGroup(props: ApplicationResourceTreeProps, id: string, node: R
     if (rootNode) {
         extLinks = getExternalUrls(props.app.metadata.annotations, props.app.status.summary.externalURLs);
     }
+    const podGroupChildren = childMap.get(treeNodeKey(node));
+    const nonPodChildren = podGroupChildren?.reduce((acc, child) => {
+        if (child.kind !== 'Pod') {
+            acc.push(child);
+        }
+        return acc;
+    }, []);
+    const childCount = nonPodChildren?.length;
     const margin = 8;
     let topExtra = 0;
     const podGroup = node.podGroup;
@@ -411,7 +423,6 @@ function renderPodGroup(props: ApplicationResourceTreeProps, id: string, node: R
                         })}>
                         {node.name}
                     </span>
-                    <br />
                     <span
                         className={classNames('application-resource-tree__node-status-icon', {
                             'application-resource-tree__node-status-icon--offset': rootNode
@@ -430,6 +441,20 @@ function renderPodGroup(props: ApplicationResourceTreeProps, id: string, node: R
                         )}
                         <ApplicationURLs urls={rootNode ? extLinks : node.networkingInfo && node.networkingInfo.externalURLs} />
                     </span>
+                    {childCount > 0 && (
+                        <>
+                            <br />
+                            <div
+                                style={{top: node.height / 2 - 6}}
+                                className='application-resource-tree__node--podgroup--expansion'
+                                onClick={event => {
+                                    expandCollapse(node, props);
+                                    event.stopPropagation();
+                                }}>
+                                {props.getNodeExpansion(node.uid) ? <div className='fa fa-minus' /> : <div className='fa fa-plus' />}
+                            </div>
+                        </>
+                    )}
                 </div>
                 <div className='application-resource-tree__node-labels'>
                     {node.createdAt || rootNode ? (
@@ -565,7 +590,13 @@ function renderPodGroup(props: ApplicationResourceTreeProps, id: string, node: R
     );
 }
 
-function renderResourceNode(props: ApplicationResourceTreeProps, id: string, node: ResourceTreeNode & dagre.Node) {
+function expandCollapse(node: ResourceTreeNode, props: ApplicationResourceTreeProps) {
+    const isExpanded = !props.getNodeExpansion(node.uid);
+    node.isExpanded = isExpanded;
+    props.setNodeExpansion(node.uid, isExpanded);
+}
+
+function renderResourceNode(props: ApplicationResourceTreeProps, id: string, node: ResourceTreeNode & dagre.Node, nodesHavingChildren: Map<string, number>) {
     const fullName = nodeKey(node);
     let comparisonStatus: models.SyncStatusCode = null;
     let healthState: models.HealthStatus = null;
@@ -576,13 +607,14 @@ function renderResourceNode(props: ApplicationResourceTreeProps, id: string, nod
     const appNode = isAppNode(node);
     const rootNode = !node.root;
     let extLinks: string[] = props.app.status.summary.externalURLs;
+    const childCount = nodesHavingChildren.get(node.uid);
     if (rootNode) {
         extLinks = getExternalUrls(props.app.metadata.annotations, props.app.status.summary.externalURLs);
     }
     return (
         <div
             onClick={() => props.onNodeClick && props.onNodeClick(fullName)}
-            className={classNames('application-resource-tree__node', {
+            className={classNames('application-resource-tree__node', 'application-resource-tree__node--' + node.kind.toLowerCase(), {
                 'active': fullName === props.selectedNodeFullName,
                 'application-resource-tree__node--orphaned': node.orphaned
             })}
@@ -628,6 +660,16 @@ function renderResourceNode(props: ApplicationResourceTreeProps, id: string, nod
                     )}
                     <ApplicationURLs urls={rootNode ? extLinks : node.networkingInfo && node.networkingInfo.externalURLs} />
                 </div>
+                {childCount > 0 && (
+                    <div
+                        className='application-resource-tree__node--expansion'
+                        onClick={event => {
+                            expandCollapse(node, props);
+                            event.stopPropagation();
+                        }}>
+                        {props.getNodeExpansion(node.uid) ? <div className='fa fa-minus' /> : <div className='fa fa-plus' />}
+                    </div>
+                )}
             </div>
             <div className='application-resource-tree__node-labels'>
                 {node.createdAt || rootNode ? (
@@ -692,7 +734,7 @@ function findNetworkTargets(nodes: ResourceTreeNode[], networkingInfo: models.Re
 }
 export const ApplicationResourceTree = (props: ApplicationResourceTreeProps) => {
     const graph = new dagre.graphlib.Graph();
-    graph.setGraph({nodesep: 15, rankdir: 'LR', marginy: 45, marginx: -100});
+    graph.setGraph({nodesep: 25, rankdir: 'LR', marginy: 45, marginx: -100, ranksep: 80});
     graph.setDefaultEdgeLabel(() => ({}));
     const overridesCount = getAppOverridesCount(props.app);
     const appNode = {
@@ -705,6 +747,7 @@ export const ApplicationResourceTree = (props: ApplicationResourceTreeProps) => 
         children: Array(),
         status: props.app.status.sync.status,
         health: props.app.status.health,
+        uid: props.app.kind + '-' + props.app.metadata.namespace + '-' + props.app.metadata.name,
         info:
             overridesCount > 0
                 ? [
@@ -736,7 +779,8 @@ export const ApplicationResourceTree = (props: ApplicationResourceTreeProps) => 
     const nodes = Array.from(nodeByKey.values());
     let roots: ResourceTreeNode[] = [];
     const childrenByParentKey = new Map<string, ResourceTreeNode[]>();
-
+    const nodesHavingChildren = new Map<string, number>();
+    const childrenMap = new Map<string, ResourceTreeNode[]>();
     const [filters, setFilters] = React.useState(props.filters);
     const [filteredGraph, setFilteredGraph] = React.useState([]);
     const filteredNodes: any[] = [];
@@ -777,19 +821,37 @@ export const ApplicationResourceTree = (props: ApplicationResourceTreeProps) => 
         // Network view
         const hasParents = new Set<string>();
         const networkNodes = nodes.filter(node => node.networkingInfo);
+        const hiddenNodes: ResourceTreeNode[] = [];
         networkNodes.forEach(parent => {
             findNetworkTargets(networkNodes, parent.networkingInfo).forEach(child => {
                 const children = childrenByParentKey.get(treeNodeKey(parent)) || [];
                 hasParents.add(treeNodeKey(child));
+                const parentId = parent.uid;
+                if (nodesHavingChildren.has(parentId)) {
+                    nodesHavingChildren.set(parentId, nodesHavingChildren.get(parentId) + children.length);
+                } else {
+                    nodesHavingChildren.set(parentId, 1);
+                }
                 if (child.kind !== 'Pod' || !props.showCompactNodes) {
-                    children.push(child);
-                    childrenByParentKey.set(treeNodeKey(parent), children);
+                    if (props.getNodeExpansion(parentId)) {
+                        hasParents.add(treeNodeKey(child));
+                        children.push(child);
+                        childrenByParentKey.set(treeNodeKey(parent), children);
+                    } else {
+                        hiddenNodes.push(child);
+                    }
                 } else {
                     processPodGroup(parent, child, props);
                 }
             });
         });
         roots = networkNodes.filter(node => !hasParents.has(treeNodeKey(node)));
+        roots = roots.reduce((acc, curr) => {
+            if (hiddenNodes.indexOf(curr) < 0) {
+                acc.push(curr);
+            }
+            return acc;
+        }, []);
         const externalRoots = roots.filter(root => (root.networkingInfo.ingress || []).length > 0).sort(compareNodes);
         const internalRoots = roots.filter(root => (root.networkingInfo.ingress || []).length === 0).sort(compareNodes);
         const colorsBySource = new Map<string, string>();
@@ -852,25 +914,46 @@ export const ApplicationResourceTree = (props: ApplicationResourceTreeProps) => 
         const managedKeys = new Set(props.app.status.resources.map(nodeKey));
         const orphanedKeys = new Set(props.tree.orphanedNodes?.map(nodeKey));
         const orphans: ResourceTreeNode[] = [];
-        nodes.forEach(node => {
-            if ((node.parentRefs || []).length === 0 || managedKeys.has(nodeKey(node))) {
-                roots.push(node);
-            } else {
-                if (orphanedKeys.has(nodeKey(node))) {
-                    orphans.push(node);
-                }
-                node.parentRefs.forEach(parent => {
-                    const children = childrenByParentKey.get(treeNodeKey(parent)) || [];
-                    if (node.kind !== 'Pod' || !props.showCompactNodes) {
-                        children.push(node);
-                        childrenByParentKey.set(treeNodeKey(parent), children);
-                    } else {
-                        const parentTreeNode = nodeByKey.get(treeNodeKey(parent));
-                        processPodGroup(parentTreeNode, node, props);
+        let allChildNodes: ResourceTreeNode[] = [];
+        nodesHavingChildren.set(appNode.uid, 1);
+        if (props.getNodeExpansion(appNode.uid)) {
+            nodes.forEach(node => {
+                allChildNodes = [];
+                if ((node.parentRefs || []).length === 0 || managedKeys.has(nodeKey(node))) {
+                    roots.push(node);
+                } else {
+                    if (orphanedKeys.has(nodeKey(node))) {
+                        orphans.push(node);
                     }
-                });
-            }
-        });
+                    node.parentRefs.forEach(parent => {
+                        const parentId = treeNodeKey(parent);
+                        const children = childrenByParentKey.get(parentId) || [];
+                        if (nodesHavingChildren.has(parentId)) {
+                            nodesHavingChildren.set(parentId, nodesHavingChildren.get(parentId) + children.length);
+                        } else {
+                            nodesHavingChildren.set(parentId, 1);
+                        }
+                        allChildNodes.push(node);
+                        if (node.kind !== 'Pod' || !props.showCompactNodes) {
+                            if (props.getNodeExpansion(parentId)) {
+                                children.push(node);
+                                childrenByParentKey.set(parentId, children);
+                            }
+                        } else {
+                            const parentTreeNode = nodeByKey.get(parentId);
+                            processPodGroup(parentTreeNode, node, props);
+                        }
+                        if (props.showCompactNodes) {
+                            if (childrenMap.has(parentId)) {
+                                childrenMap.set(parentId, childrenMap.get(parentId).concat(allChildNodes));
+                            } else {
+                                childrenMap.set(parentId, allChildNodes);
+                            }
+                        }
+                    });
+                }
+            });
+        }
         roots.sort(compareNodes).forEach(node => {
             processNode(node, node);
             graph.setEdge(appNodeKey(props.app), treeNodeKey(node));
@@ -906,7 +989,22 @@ export const ApplicationResourceTree = (props: ApplicationResourceTreeProps) => 
     }
     dagre.layout(graph);
 
-    const edges: {from: string; to: string; lines: Line[]; backgroundImage?: string}[] = [];
+    const edges: {from: string; to: string; lines: Line[]; backgroundImage?: string; color?: string; colors?: string | {[key: string]: any}}[] = [];
+    const nodeOffset = new Map<string, number>();
+    const reverseEdge = new Map<string, number>();
+    graph.edges().forEach(edgeInfo => {
+        const edge = graph.edge(edgeInfo);
+        if (edge.points.length > 1) {
+            if (!reverseEdge.has(edgeInfo.w)) {
+                reverseEdge.set(edgeInfo.w, 1);
+            } else {
+                reverseEdge.set(edgeInfo.w, reverseEdge.get(edgeInfo.w) + 1);
+            }
+            if (!nodeOffset.has(edgeInfo.v)) {
+                nodeOffset.set(edgeInfo.v, reverseEdge.get(edgeInfo.w) - 1);
+            }
+        }
+    });
     graph.edges().forEach(edgeInfo => {
         const edge = graph.edge(edgeInfo);
         const colors = (edge.colors as string[]) || [];
@@ -925,11 +1023,29 @@ export const ApplicationResourceTree = (props: ApplicationResourceTreeProps) => 
             return;
         }
         if (edge.points.length > 1) {
-            for (let i = 1; i < edge.points.length; i++) {
-                lines.push({x1: edge.points[i - 1].x, y1: edge.points[i - 1].y, x2: edge.points[i].x, y2: edge.points[i].y});
+            const startNode = graph.node(edgeInfo.v);
+            const endNode = graph.node(edgeInfo.w);
+            const offset = nodeOffset.get(edgeInfo.v);
+            const startNodeRight = props.useNetworkingHierarchy ? 162 : 142;
+            const endNodeLeft = 140;
+            if (edgeInfo.v.startsWith(EXTERNAL_TRAFFIC_NODE)) {
+                lines.push({x1: startNode.x, y1: startNode.y, x2: endNode.x - endNodeLeft, y2: endNode.y});
+            } else {
+                const len = reverseEdge.get(edgeInfo.w) + 1;
+                const yEnd = endNode.y - endNode.height / 2 + (endNode.height / len + (endNode.height / len) * offset);
+                const firstBend =
+                    startNode.x +
+                    startNodeRight +
+                    (endNode.x - startNode.x - startNodeRight - endNodeLeft) / len +
+                    ((endNode.x - startNode.x - startNodeRight - endNodeLeft) / len) * offset;
+                lines.push({x1: startNode.x + startNodeRight, y1: startNode.y, x2: firstBend, y2: startNode.y});
+                if (startNode.y - yEnd >= 1 || yEnd - startNode.y >= 1) {
+                    lines.push({x1: firstBend, y1: startNode.y, x2: firstBend, y2: yEnd});
+                }
+                lines.push({x1: firstBend, y1: yEnd, x2: endNode.x - endNodeLeft, y2: yEnd});
             }
         }
-        edges.push({from: edgeInfo.v, to: edgeInfo.w, lines, backgroundImage});
+        edges.push({from: edgeInfo.v, to: edgeInfo.w, lines, backgroundImage, colors: [{colors}]});
     });
     const graphNodes = graph.nodes();
     const size = getGraphSize(graphNodes.map(id => graph.node(id)));
@@ -958,9 +1074,9 @@ export const ApplicationResourceTree = (props: ApplicationResourceTreeProps) => 
                         case NODE_TYPES.groupedNodes:
                             return <React.Fragment key={key}>{renderGroupedNodes(props, node as any)}</React.Fragment>;
                         case NODE_TYPES.podGroup:
-                            return <React.Fragment key={key}>{renderPodGroup(props, key, node as ResourceTreeNode & dagre.Node)}</React.Fragment>;
+                            return <React.Fragment key={key}>{renderPodGroup(props, key, node as ResourceTreeNode & dagre.Node, childrenMap)}</React.Fragment>;
                         default:
-                            return <React.Fragment key={key}>{renderResourceNode(props, key, node as ResourceTreeNode & dagre.Node)}</React.Fragment>;
+                            return <React.Fragment key={key}>{renderResourceNode(props, key, node as ResourceTreeNode & dagre.Node, nodesHavingChildren)}</React.Fragment>;
                     }
                 })}
                 {edges.map(edge => (
@@ -970,6 +1086,16 @@ export const ApplicationResourceTree = (props: ApplicationResourceTreeProps) => 
                             const xMid = (line.x1 + line.x2) / 2;
                             const yMid = (line.y1 + line.y2) / 2;
                             const angle = (Math.atan2(line.y1 - line.y2, line.x1 - line.x2) * 180) / Math.PI;
+                            const lastLine = i === edge.lines.length - 1 ? line : null;
+                            let arrowColor = null;
+                            if (edge.colors) {
+                                if (Array.isArray(edge.colors)) {
+                                    const firstColor = edge.colors[0];
+                                    if (firstColor.colors) {
+                                        arrowColor = firstColor.colors;
+                                    }
+                                }
+                            }
                             return (
                                 <div
                                     className='application-resource-tree__line'
@@ -979,9 +1105,10 @@ export const ApplicationResourceTree = (props: ApplicationResourceTreeProps) => 
                                         left: xMid - distance / 2,
                                         top: yMid,
                                         backgroundImage: edge.backgroundImage,
-                                        transform: `translate(150px, 35px) rotate(${angle}deg)`
-                                    }}
-                                />
+                                        transform: props.useNetworkingHierarchy ? `translate(140px, 35px) rotate(${angle}deg)` : `translate(150px, 35px) rotate(${angle}deg)`
+                                    }}>
+                                    {lastLine && props.useNetworkingHierarchy && <ArrowConnector color={arrowColor} left={xMid + distance / 2} top={yMid} angle={angle} />}
+                                </div>
                             );
                         })}
                     </div>
