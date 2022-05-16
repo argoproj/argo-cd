@@ -4,6 +4,8 @@ import (
 	"context"
 	"io"
 	"net/http"
+	"net/url"
+	"strings"
 
 	"github.com/argoproj/gitops-engine/pkg/utils/kube"
 	log "github.com/sirupsen/logrus"
@@ -79,13 +81,19 @@ func isValidContainerName(name string) bool {
 	return len(isQualified) == 0
 }
 
+// GetQueryValue returns a value for a given url key
+// and strips newline to prevent go/log-injection
+func GetQueryValue(q url.Values, key string) string {
+	return strings.Replace(q.Get(key), "\n", "", -1)
+}
+
 func (s *terminalHandler) ServeHTTP(w http.ResponseWriter, r *http.Request) {
 	q := r.URL.Query()
-	podName := q.Get("pod")
-	container := q.Get("container")
-	app := q.Get("appName")
-	namespace := q.Get("namespace")
-	shell := q.Get("shell")
+	podName := GetQueryValue(q, "pod")
+	container := GetQueryValue(q, "container")
+	app := GetQueryValue(q, "appName")
+	namespace := GetQueryValue(q, "namespace")
+	shell := GetQueryValue(q, "shell")
 
 	if podName == "" || container == "" || app == "" || namespace == "" {
 		http.Error(w, "Missing required parameters", http.StatusBadRequest)
