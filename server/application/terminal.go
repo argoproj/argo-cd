@@ -8,6 +8,7 @@ import (
 	"github.com/argoproj/gitops-engine/pkg/utils/kube"
 	log "github.com/sirupsen/logrus"
 	v1 "k8s.io/api/core/v1"
+	apimachineryvalidation "k8s.io/apimachinery/pkg/api/validation"
 	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
 	"k8s.io/apimachinery/pkg/util/validation"
 	"k8s.io/client-go/kubernetes"
@@ -57,8 +58,22 @@ func (s *terminalHandler) getApplicationClusterRawConfig(ctx context.Context, a 
 	return clst.RawRestConfig(), nil
 }
 
-// isValidKubernetesResourceName checks for valid kubernetes resource names
-func isValidKubernetesResourceName(name string) bool {
+// isValidPodName checks that a podName is valid
+func isValidPodName(name string) bool {
+	// https://github.com/kubernetes/kubernetes/blob/976a940f4a4e84fe814583848f97b9aafcdb083f/pkg/apis/core/validation/validation.go#L241
+	isValid := apimachineryvalidation.NameIsDNSSubdomain(name, false)
+	return len(isValid) == 0
+}
+
+// isValidNamespaceName checks that a namespace name is valid
+func isValidNamespaceName(name string) bool {
+	// https://github.com/kubernetes/kubernetes/blob/976a940f4a4e84fe814583848f97b9aafcdb083f/pkg/apis/core/validation/validation.go#L262
+	isValid := apimachineryvalidation.ValidateNamespaceName(name, false)
+	return len(isValid) == 0
+}
+
+// isValidContainerName checks that a containerName is valid
+func isValidContainerName(name string) bool {
 	// quick check to ensure we aren't passing along anything unsafe
 	isQualified := validation.IsQualifiedName(name)
 	return len(isQualified) == 0
@@ -78,8 +93,16 @@ func (s *terminalHandler) ServeHTTP(w http.ResponseWriter, r *http.Request) {
 	}
 
 	// validate query string parameters to prevent unsafe usage
-	if !isValidKubernetesResourceName(namespace) || !isValidKubernetesResourceName(podName) || !isValidKubernetesResourceName(container) {
-		http.Error(w, "Pod, Namespace, or Container name not valid", http.StatusBadRequest)
+	if !isValidNamespaceName(namespace) {
+		http.Error(w, "Namespace name is not valid", http.StatusBadRequest)
+		return
+	}
+	if !isValidPodName(podName) {
+		http.Error(w, "Pod name is not valid", http.StatusBadRequest)
+		return
+	}
+	if !isValidContainerName(container) {
+		http.Error(w, "Container name is not valid", http.StatusBadRequest)
 		return
 	}
 
@@ -127,7 +150,7 @@ func (s *terminalHandler) ServeHTTP(w http.ResponseWriter, r *http.Request) {
 
 	pod, err := kubeClientset.CoreV1().Pods(namespace).Get(ctx, podName, metav1.GetOptions{})
 	if err != nil {
-		http.Error(w, "Cannot find pod", http.StatusBadRequest)
+		http.Error(w, "Cannot find pod: "+podName, http.StatusBadRequest)
 		return
 	}
 
@@ -144,7 +167,7 @@ func (s *terminalHandler) ServeHTTP(w http.ResponseWriter, r *http.Request) {
 		}
 	}
 	if foundContainerName == "" {
-		http.Error(w, "Cannot find container", http.StatusBadRequest)
+		http.Error(w, "Cannot find container: "+container, http.StatusBadRequest)
 		return
 	}
 
