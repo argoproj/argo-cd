@@ -40,15 +40,17 @@ func Test_isValidRBACResource(t *testing.T) {
 }
 
 func Test_PolicyFromCSV(t *testing.T) {
-	uPol, dRole := getPolicy("testdata/rbac/policy.csv", nil, "")
+	uPol, dRole, matchMode := getPolicy("testdata/rbac/policy.csv", nil, "")
 	require.NotEmpty(t, uPol)
 	require.Empty(t, dRole)
+	require.Empty(t, matchMode)
 }
 
 func Test_PolicyFromYAML(t *testing.T) {
-	uPol, dRole := getPolicy("testdata/rbac/argocd-rbac-cm.yaml", nil, "")
+	uPol, dRole, matchMode := getPolicy("testdata/rbac/argocd-rbac-cm.yaml", nil, "")
 	require.NotEmpty(t, uPol)
 	require.Equal(t, "role:unknown", dRole)
+	require.Equal(t, "regex", matchMode)
 }
 
 func Test_PolicyFromK8s(t *testing.T) {
@@ -60,32 +62,34 @@ func Test_PolicyFromK8s(t *testing.T) {
 			Namespace: "argocd",
 		},
 		Data: map[string]string{
-			"policy.csv":     string(data),
-			"policy.default": "role:unknown",
+			"policy.csv":       string(data),
+			"policy.default":   "role:unknown",
+			"policy.matchMode": "regex",
 		},
 	})
-	uPol, dRole := getPolicy("", kubeclientset, "argocd")
+	uPol, dRole, matchMode := getPolicy("", kubeclientset, "argocd")
 	require.NotEmpty(t, uPol)
 	require.Equal(t, "role:unknown", dRole)
+	require.Equal(t, "regex", matchMode)
 
 	t.Run("get applications", func(t *testing.T) {
-		ok := checkPolicy("role:user", "get", "applications", "*/*", assets.BuiltinPolicyCSV, uPol, dRole, true)
+		ok := checkPolicy("role:user", "get", "applications", "*/*", assets.BuiltinPolicyCSV, uPol, dRole, "", true)
 		require.True(t, ok)
 	})
 	t.Run("get clusters", func(t *testing.T) {
-		ok := checkPolicy("role:user", "get", "clusters", "*", assets.BuiltinPolicyCSV, uPol, dRole, true)
+		ok := checkPolicy("role:user", "get", "clusters", "*", assets.BuiltinPolicyCSV, uPol, dRole, "", true)
 		require.True(t, ok)
 	})
 	t.Run("get certificates", func(t *testing.T) {
-		ok := checkPolicy("role:user", "get", "certificates", "*", assets.BuiltinPolicyCSV, uPol, dRole, true)
+		ok := checkPolicy("role:user", "get", "certificates", "*", assets.BuiltinPolicyCSV, uPol, dRole, "", true)
 		require.False(t, ok)
 	})
 	t.Run("get certificates by default role", func(t *testing.T) {
-		ok := checkPolicy("role:user", "get", "certificates", "*", assets.BuiltinPolicyCSV, uPol, "role:readonly", true)
+		ok := checkPolicy("role:user", "get", "certificates", "*", assets.BuiltinPolicyCSV, uPol, "role:readonly", "glob", true)
 		require.True(t, ok)
 	})
 	t.Run("get certificates by default role without builtin policy", func(t *testing.T) {
-		ok := checkPolicy("role:user", "get", "certificates", "*", "", uPol, "role:readonly", true)
+		ok := checkPolicy("role:user", "get", "certificates", "*", "", uPol, "role:readonly", "regex", true)
 		require.False(t, ok)
 	})
 }
