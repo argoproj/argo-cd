@@ -161,7 +161,7 @@ func (s *terminalHandler) ServeHTTP(w http.ResponseWriter, r *http.Request) {
 
 	pod, err := kubeClientset.CoreV1().Pods(namespace).Get(ctx, podName, metav1.GetOptions{})
 	if err != nil {
-		fieldLog.Warn("Terminal Pod Not Found")
+		fieldLog.Errorf("error retrieving pod: %s", err)
 		http.Error(w, "Cannot find pod", http.StatusBadRequest)
 		return
 	}
@@ -179,12 +179,12 @@ func (s *terminalHandler) ServeHTTP(w http.ResponseWriter, r *http.Request) {
 		}
 	}
 	if !findContainer {
-		fieldLog.Warn("Terminal Container Not Found")
+		fieldLog.Warn("terminal container not found")
 		http.Error(w, "Cannot find container", http.StatusBadRequest)
 		return
 	}
 
-	fieldLog.Info("Serving Terminal")
+	fieldLog.Info("terminal session starting")
 
 	session, err := newTerminalSession(w, r, nil)
 	if err != nil {
