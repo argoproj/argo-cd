@@ -117,7 +117,7 @@ export const ResourceDetails = (props: ResourceDetailsProps) => {
                         key: 'exec',
                         icon: 'fa fa-terminal',
                         title: 'Terminal',
-                        content: <PodTerminalViewer applicationName={application.metadata.name} podState={podState} selectedNode={selectedNode} />
+                        content: <PodTerminalViewer applicationName={application.metadata.name} projectName={application.spec.project} podState={podState} selectedNode={selectedNode} />
                     }
                 ]);
             }

@@ -2,6 +2,7 @@ package application
 
 import (
 	"context"
+	"fmt"
 	"io"
 	"net/http"
 	"net/url"
@@ -22,7 +23,6 @@ import (
 	applisters "github.com/argoproj/argo-cd/v2/pkg/client/listers/application/v1alpha1"
 	servercache "github.com/argoproj/argo-cd/v2/server/cache"
 	"github.com/argoproj/argo-cd/v2/server/rbacpolicy"
-	apputil "github.com/argoproj/argo-cd/v2/util/app"
 	"github.com/argoproj/argo-cd/v2/util/argo"
 	"github.com/argoproj/argo-cd/v2/util/db"
 	"github.com/argoproj/argo-cd/v2/util/rbac"
@@ -92,6 +92,7 @@ func (s *terminalHandler) ServeHTTP(w http.ResponseWriter, r *http.Request) {
 	podName := GetQueryValue(q, "pod")
 	container := GetQueryValue(q, "container")
 	app := GetQueryValue(q, "appName")
+	project := GetQueryValue(q, "projectName")
 	namespace := GetQueryValue(q, "namespace")
 	shell := GetQueryValue(q, "shell")
 
@@ -115,16 +116,8 @@ func (s *terminalHandler) ServeHTTP(w http.ResponseWriter, r *http.Request) {
 	}
 
 	ctx := r.Context()
-	a, err := s.appLister.Get(app)
-	if err != nil {
-		http.Error(w, "Cannot get app", http.StatusBadRequest)
-		return
-	}
 
-	fieldLog := log.WithFields(log.Fields{"userName": sessionmgr.Username(ctx), "container": container,
-		"podName": podName, "namespace": namespace, "cluster": a.Spec.Destination.Name})
-
-	appRBACName := apputil.AppRBACName(*a)
+	appRBACName := fmt.Sprintf("%s/%s", project, app)
 	if err := s.enf.EnforceErr(ctx.Value("claims"), rbacpolicy.ResourceApplications, rbacpolicy.ActionGet, appRBACName); err != nil {
 		http.Error(w, err.Error(), http.StatusUnauthorized)
 		return
@@ -134,6 +127,15 @@ func (s *terminalHandler) ServeHTTP(w http.ResponseWriter, r *http.Request) {
 		http.Error(w, err.Error(), http.StatusUnauthorized)
 		return
 	}
+
+	a, err := s.appLister.Get(app)
+	if err != nil {
+		http.Error(w, "Cannot get app", http.StatusBadRequest)
+		return
+	}
+
+	fieldLog := log.WithFields(log.Fields{"userName": sessionmgr.Username(ctx), "container": container,
+		"podName": podName, "namespace": namespace, "cluster": a.Spec.Destination.Name})
 
 	config, err := s.getApplicationClusterRawConfig(ctx, a)
 	if err != nil {
