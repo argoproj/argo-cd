@@ -1522,18 +1522,19 @@ func (s *Server) Sync(ctx context.Context, syncReq *application.ApplicationSyncR
 	}
 
 	a, err = argo.SetAppOperation(appIf, *syncReq.Name, &op)
-	if err == nil {
-		partial := ""
-		if len(syncReq.Resources) > 0 {
-			partial = "partial "
-		}
-		reason := fmt.Sprintf("initiated %ssync to %s", partial, displayRevision)
-		if syncReq.Manifests != nil {
-			reason = fmt.Sprintf("initiated %ssync locally", partial)
-		}
-		s.logAppEvent(a, ctx, argo.EventReasonOperationStarted, reason)
+	if err != nil {
+		return nil, fmt.Errorf("error setting app operation: %w", err)
 	}
-	return a, fmt.Errorf("error setting app operation: %w", err)
+	partial := ""
+	if len(syncReq.Resources) > 0 {
+		partial = "partial "
+	}
+	reason := fmt.Sprintf("initiated %ssync to %s", partial, displayRevision)
+	if syncReq.Manifests != nil {
+		reason = fmt.Sprintf("initiated %ssync locally", partial)
+	}
+	s.logAppEvent(a, ctx, argo.EventReasonOperationStarted, reason)
+	return a, nil
 }
 
 func (s *Server) Rollback(ctx context.Context, rollbackReq *application.ApplicationRollbackRequest) (*appv1.Application, error) {
