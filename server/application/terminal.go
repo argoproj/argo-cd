@@ -134,8 +134,11 @@ func (s *terminalHandler) ServeHTTP(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 
-	fieldLog := log.WithFields(log.Fields{"userName": sessionmgr.Username(ctx), "container": container,
-		"podName": podName, "namespace": namespace, "cluster": a.Spec.Destination.Name})
+
+	if a.Spec.Project != project {
+		http.Error(w, "The wrong project was specified for the app", http.StatusBadRequest)
+		return
+	}
 
 	config, err := s.getApplicationClusterRawConfig(ctx, a)
 	if err != nil {
@@ -160,6 +163,9 @@ func (s *terminalHandler) ServeHTTP(w http.ResponseWriter, r *http.Request) {
 		http.Error(w, "Pod doesn't belong to specified app", http.StatusBadRequest)
 		return
 	}
+
+	fieldLog := log.WithFields(log.Fields{"userName": sessionmgr.Username(ctx), "container": container,
+		"podName": podName, "namespace": namespace, "cluster": a.Spec.Destination.Name})
 
 	pod, err := kubeClientset.CoreV1().Pods(namespace).Get(ctx, podName, metav1.GetOptions{})
 	if err != nil {
