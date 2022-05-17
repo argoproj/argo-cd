@@ -55,7 +55,7 @@ type Application struct {
 // ApplicationSpec represents desired application state. Contains link to repository with application definition and additional parameters link definition revision.
 type ApplicationSpec struct {
 	// Source is a reference to the location of the application's manifests or chart
-	Source ApplicationSource `json:"source" protobuf:"bytes,1,opt,name=source"`
+	Source ApplicationSource `json:"source,omitempty" protobuf:"bytes,1,opt,name=source"`
 	// Destination is a reference to the target Kubernetes server and namespace
 	Destination ApplicationDestination `json:"destination" protobuf:"bytes,2,name=destination"`
 	// Project is a reference to the project this application belongs to.
@@ -73,6 +73,9 @@ type ApplicationSpec struct {
 	// Increasing will increase the space used to store the history, so we do not recommend increasing it.
 	// Default is 10.
 	RevisionHistoryLimit *int64 `json:"revisionHistoryLimit,omitempty" protobuf:"bytes,7,name=revisionHistoryLimit"`
+
+	// Sources is a reference to the location of the application's manifests or chart
+	Sources []ApplicationSource `json:"sources,omitempty" protobuf:"bytes,8,opt,name=sources"`
 }
 
 type TrackingMethod string
@@ -911,6 +914,8 @@ type RevisionHistory struct {
 	Source ApplicationSource `json:"source,omitempty" protobuf:"bytes,6,opt,name=source"`
 	// DeployStartedAt holds the time the sync operation started
 	DeployStartedAt *metav1.Time `json:"deployStartedAt,omitempty" protobuf:"bytes,7,opt,name=deployStartedAt"`
+	// Source is a reference to the application source used for the sync operation
+	Sources []ApplicationSource `json:"sources,omitempty" protobuf:"bytes,8,opt,name=sources"`
 }
 
 // ApplicationWatchEvent contains information about application change.

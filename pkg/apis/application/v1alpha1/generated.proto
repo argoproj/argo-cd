@@ -288,6 +288,9 @@ message ApplicationSpec {
   // Increasing will increase the space used to store the history, so we do not recommend increasing it.
   // Default is 10.
   optional int64 revisionHistoryLimit = 7;
+
+  // Sources is a reference to the location of the application's manifests or chart
+  repeated ApplicationSource sources = 8;
 }
 
 // ApplicationStatus contains status information for the application
@@ -1168,6 +1171,9 @@ message RevisionHistory {
 
   // DeployStartedAt holds the time the sync operation started
   optional k8s.io.apimachinery.pkg.apis.meta.v1.Time deployStartedAt = 7;
+
+  // Source is a reference to the application source used for the sync operation
+  repeated ApplicationSource sources = 8;
 }
 
 // RevisionMetadata contains metadata for a specific revision in a Git repository

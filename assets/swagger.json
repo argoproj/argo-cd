@@ -5080,6 +5080,13 @@
         "source": {
           "$ref": "#/definitions/v1alpha1ApplicationSource"
         },
+        "sources": {
+          "type": "array",
+          "title": "Sources is a reference to the location of the application's manifests or chart",
+          "items": {
+            "$ref": "#/definitions/v1alpha1ApplicationSource"
+          }
+        },
         "syncPolicy": {
           "$ref": "#/definitions/v1alpha1SyncPolicy"
         }
@@ -6421,6 +6428,13 @@
         },
         "source": {
           "$ref": "#/definitions/v1alpha1ApplicationSource"
+        },
+        "sources": {
+          "type": "array",
+          "title": "Source is a reference to the application source used for the sync operation",
+          "items": {
+            "$ref": "#/definitions/v1alpha1ApplicationSource"
+          }
         }
       }
     },

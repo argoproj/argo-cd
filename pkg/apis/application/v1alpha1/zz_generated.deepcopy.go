@@ -491,6 +491,13 @@ func (in *ApplicationSpec) DeepCopyInto(out *ApplicationSpec) {
 		*out = new(int64)
 		**out = **in
 	}
+	if in.Sources != nil {
+		in, out := &in.Sources, &out.Sources
+		*out = make([]ApplicationSource, len(*in))
+		for i := range *in {
+			(*in)[i].DeepCopyInto(&(*out)[i])
+		}
+	}
 	return
 }
 
@@ -1954,6 +1961,13 @@ func (in *RevisionHistory) DeepCopyInto(out *RevisionHistory) {
 	if in.DeployStartedAt != nil {
 		in, out := &in.DeployStartedAt, &out.DeployStartedAt
 		*out = (*in).DeepCopy()
+	}
+	if in.Sources != nil {
+		in, out := &in.Sources, &out.Sources
+		*out = make([]ApplicationSource, len(*in))
+		for i := range *in {
+			(*in)[i].DeepCopyInto(&(*out)[i])
+		}
 	}
 	return
 }
