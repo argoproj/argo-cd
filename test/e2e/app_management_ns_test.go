@@ -251,25 +251,25 @@ func TestNamespacedSyncToSignedCommitWKK(t *testing.T) {
 		Expect(HealthIs(health.HealthStatusMissing))
 }
 
-func TestNamespacedSyncToSignedCommitKWKK(t *testing.T) {
-	SkipOnEnv(t, "GPG")
-	Given(t).
-		SetAppNamespace(AppNamespace()).
-		SetTrackingMethod("annotation").
-		Project("gpg").
-		Path(guestbookPath).
-		GPGPublicKeyAdded().
-		Sleep(2).
-		When().
-		AddSignedFile("test.yaml", "null").
-		IgnoreErrors().
-		CreateApp().
-		Sync().
-		Then().
-		Expect(OperationPhaseIs(OperationSucceeded)).
-		Expect(SyncStatusIs(SyncStatusCodeSynced)).
-		Expect(HealthIs(health.HealthStatusHealthy))
-}
+// func TestNamespacedSyncToSignedCommitKWKK(t *testing.T) {
+// 	SkipOnEnv(t, "GPG")
+// 	Given(t).
+// 		SetAppNamespace(AppNamespace()).
+// 		SetTrackingMethod("annotation").
+// 		Project("gpg").
+// 		Path(guestbookPath).
+// 		GPGPublicKeyAdded().
+// 		Sleep(2).
+// 		When().
+// 		AddSignedFile("test.yaml", "null").
+// 		IgnoreErrors().
+// 		CreateApp().
+// 		Sync().
+// 		Then().
+// 		Expect(OperationPhaseIs(OperationSucceeded)).
+// 		Expect(SyncStatusIs(SyncStatusCodeSynced)).
+// 		Expect(HealthIs(health.HealthStatusHealthy))
+// }
 
 func TestNamespacedAppCreation(t *testing.T) {
 	ctx := Given(t)

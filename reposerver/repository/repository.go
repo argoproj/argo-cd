@@ -428,7 +428,7 @@ func (s *Service) GenerateManifest(ctx context.Context, q *apiclient.ManifestReq
 	var err error
 
 	cacheFn := func(cacheKey string, firstInvocation bool) (bool, error) {
-		ok, resp, err := s.getManifestCacheEntry(cacheKey, q, firstInvocation)
+		ok, resp, err := s.getManifestCacheEntries(cacheKey, q, firstInvocation)
 		res = resp
 		return ok, err
 	}
@@ -654,13 +654,38 @@ func (s *Service) runManifestGenAsync(ctx context.Context, repoRoot, commitSHA, 
 	ch.responseCh <- manifestGenCacheEntry.ManifestResponse
 }
 
+func (s *Service) getManifestCacheEntries(cacheKey string, q *apiclient.ManifestRequest, firstInvocation bool) (bool, *apiclient.ManifestResponse, error) {
+	if q.ApplicationSources != nil && len(q.ApplicationSources) > 0 {
+		resp := make([]*apiclient.ManifestResponse, 0)
+		for _, source := range q.ApplicationSources {
+			ok, manifestResponse, err := s.getManifestCacheEntry(cacheKey, q, source, firstInvocation)
+			if !ok || err != nil {
+				return ok, nil, err
+			}
+			resp = append(resp, manifestResponse)
+		}
+
+		manifests := make([]string, 0)
+		for _, mr := range resp {
+			manifests = append(manifests, mr.Manifests...)
+		}
+		manifestResp := &apiclient.ManifestResponse{
+			Manifests: manifests,
+		}
+
+		return true, manifestResp, nil
+	} else {
+		return s.getManifestCacheEntry(cacheKey, q, q.ApplicationSource, firstInvocation)
+	}
+}
+
 // getManifestCacheEntry returns false if the 'generate manifests' operation should be run by runRepoOperation, e.g.:
 // - If the cache result is empty for the requested key
 // - If the cache is not empty, but the cached value is a manifest generation error AND we have not yet met the failure threshold (e.g. res.NumberOfConsecutiveFailures > 0 && res.NumberOfConsecutiveFailures <  s.initConstants.PauseGenerationAfterFailedGenerationAttempts)
 // - If the cache is not empty, but the cache value is an error AND that generation error has expired
 // and returns true otherwise.
 // If true is returned, either the second or third parameter (but not both) will contain a value from the cache (a ManifestResponse, or error, respectively)
-func (s *Service) getManifestCacheEntry(cacheKey string, q *apiclient.ManifestRequest, firstInvocation bool) (bool, *apiclient.ManifestResponse, error) {
+func (s *Service) getManifestCacheEntry(cacheKey string, q *apiclient.ManifestRequest, source *v1alpha1.ApplicationSource, firstInvocation bool) (bool, *apiclient.ManifestResponse, error) {
 	cache.LogDebugManifestCacheKeyFields("getting manifests cache", "GenerateManifest API call", cacheKey, q.ApplicationSource, q, q.Namespace, q.TrackingMethod, q.AppLabelKey, q.AppName)
 
 	res := cache.CachedManifestResponse{}
@@ -1779,6 +1804,15 @@ func populateHelmAppDetails(res *apiclient.RepoAppDetailsResponse, appPath strin
 
 	if q.Source.Helm != nil {
 		selectedValueFiles = q.Source.Helm.ValueFiles
+
+		for i, file := range selectedValueFiles {
+			// update path of value file if value file is referencing another ApplicationSource
+			if strings.HasPrefix(file, "$") {
+				pathStrings := strings.Split(file, "/")
+				pathStrings[0] = os.Getenv(strings.Split(file, "/")[0])
+				selectedValueFiles[i] = strings.Join(pathStrings, "/")
+			}
+		}
 	}
 
 	availableValueFiles, err := findHelmValueFilesInPath(appPath)

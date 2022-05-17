@@ -1856,7 +1856,25 @@ func schema_pkg_apis_application_v1alpha1_ApplicationSummary(ref common.Referenc
 							},
 						},
 					},
+					"sources": {
+						SchemaProps: spec.SchemaProps{
+							Description: "Sources is a reference to the application's multiple sources used for comparison",
+							Type:        []string{"array"},
+							Items: &spec.SchemaOrArray{
+								Schema: &spec.Schema{
+									SchemaProps: spec.SchemaProps{
+										Default: map[string]interface{}{},
+										Ref:     ref("github.com/argoproj/argo-cd/v2/pkg/apis/application/v1alpha1.ApplicationSource"),
+									},
+								},
+							},
+						},
+					},
 				},
+<<<<<<< HEAD
+=======
+				Required: []string{"destination"},
+>>>>>>> 3393440ef (feat: support multiple sources for application)
 			},
 		},
 	}
@@ -6127,6 +6145,20 @@ func schema_pkg_apis_application_v1alpha1_SyncOperation(ref common.ReferenceCall
 							},
 						},
 					},
+					"sources": {
+						SchemaProps: spec.SchemaProps{
+							Description: "Sources overrides the source definition set in the application. This is typically set in a Rollback operation and is nil during a Sync operation",
+							Type:        []string{"array"},
+							Items: &spec.SchemaOrArray{
+								Schema: &spec.Schema{
+									SchemaProps: spec.SchemaProps{
+										Default: map[string]interface{}{},
+										Ref:     ref("github.com/argoproj/argo-cd/v2/pkg/apis/application/v1alpha1.ApplicationSource"),
+									},
+								},
+							},
+						},
+					},
 				},
 			},
 		},
@@ -6208,6 +6240,20 @@ func schema_pkg_apis_application_v1alpha1_SyncOperationResult(ref common.Referen
 							Description: "Source records the application source information of the sync, used for comparing auto-sync",
 							Default:     map[string]interface{}{},
 							Ref:         ref("github.com/argoproj/argo-cd/v2/pkg/apis/application/v1alpha1.ApplicationSource"),
+						},
+					},
+					"sources": {
+						SchemaProps: spec.SchemaProps{
+							Description: "Source records the application source information of the sync, used for comparing auto-sync",
+							Type:        []string{"array"},
+							Items: &spec.SchemaOrArray{
+								Schema: &spec.Schema{
+									SchemaProps: spec.SchemaProps{
+										Default: map[string]interface{}{},
+										Ref:     ref("github.com/argoproj/argo-cd/v2/pkg/apis/application/v1alpha1.ApplicationSource"),
+									},
+								},
+							},
 						},
 					},
 				},

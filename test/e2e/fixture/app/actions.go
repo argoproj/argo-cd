@@ -342,6 +342,8 @@ func (a *Actions) Then() *Consequences {
 func (a *Actions) runCli(args ...string) {
 	a.context.t.Helper()
 	a.lastOutput, a.lastError = fixture.RunCli(args...)
+	fmt.Printf(a.lastOutput)
+	fmt.Printf("%s", a.lastError)
 	a.verifyAction()
 }
 
