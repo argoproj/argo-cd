@@ -5906,6 +5906,13 @@
         "source": {
           "$ref": "#/definitions/v1alpha1ApplicationSource"
         },
+        "sources": {
+          "type": "array",
+          "title": "Sources is a reference to the location of the application's manifests or chart",
+          "items": {
+            "$ref": "#/definitions/v1alpha1ApplicationSource"
+          }
+        },
         "syncPolicy": {
           "$ref": "#/definitions/v1alpha1SyncPolicy"
         }
@@ -6253,6 +6260,13 @@
         },
         "source": {
           "$ref": "#/definitions/v1alpha1ApplicationSource"
+        },
+        "sources": {
+          "type": "array",
+          "title": "Sources is a reference to the application's multiple sources used for comparison",
+          "items": {
+            "$ref": "#/definitions/v1alpha1ApplicationSource"
+          }
         }
       }
     },
@@ -7582,6 +7596,13 @@
         },
         "source": {
           "$ref": "#/definitions/v1alpha1ApplicationSource"
+        },
+        "sources": {
+          "type": "array",
+          "title": "Source is a reference to the application source used for the sync operation",
+          "items": {
+            "$ref": "#/definitions/v1alpha1ApplicationSource"
+          }
         }
       }
     },
@@ -7885,6 +7906,13 @@
         "source": {
           "$ref": "#/definitions/v1alpha1ApplicationSource"
         },
+        "sources": {
+          "type": "array",
+          "title": "Sources overrides the source definition set in the application.\nThis is typically set in a Rollback operation and is nil during a Sync operation",
+          "items": {
+            "$ref": "#/definitions/v1alpha1ApplicationSource"
+          }
+        },
         "syncOptions": {
           "type": "array",
           "title": "SyncOptions provide per-sync sync-options, e.g. Validate=false",
@@ -7932,6 +7960,13 @@
         },
         "source": {
           "$ref": "#/definitions/v1alpha1ApplicationSource"
+        },
+        "sources": {
+          "type": "array",
+          "title": "Source records the application source information of the sync, used for comparing auto-sync",
+          "items": {
+            "$ref": "#/definitions/v1alpha1ApplicationSource"
+          }
         }
       }
     },

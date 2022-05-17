@@ -148,17 +148,23 @@ func TestValidatePermissionsEmptyDestination(t *testing.T) {
 }
 
 func TestValidateChartWithoutRevision(t *testing.T) {
-	conditions, err := ValidatePermissions(context.Background(), &argoappv1.ApplicationSpec{
+	appSpec := &argoappv1.ApplicationSpec{
 		Source: argoappv1.ApplicationSource{RepoURL: "https://charts.helm.sh/incubator/", Chart: "myChart", TargetRevision: ""},
 		Destination: argoappv1.ApplicationDestination{
 			Server: "https://kubernetes.default.svc", Namespace: "default",
 		},
-	}, &argoappv1.AppProject{
+	}
+	cluster := &argoappv1.Cluster{Server: "https://kubernetes.default.svc"}
+	db := &dbmocks.ArgoDB{}
+	ctx := context.Background()
+	db.On("GetCluster", ctx, appSpec.Destination.Server).Return(cluster, nil)
+
+	conditions, err := ValidatePermissions(ctx, appSpec, &argoappv1.AppProject{
 		Spec: argoappv1.AppProjectSpec{
 			SourceRepos:  []string{"*"},
 			Destinations: []argoappv1.ApplicationDestination{{Server: "*", Namespace: "*"}},
 		},
-	}, nil)
+	}, db)
 	assert.NoError(t, err)
 	assert.Equal(t, 1, len(conditions))
 	assert.Equal(t, argoappv1.ApplicationConditionInvalidSpecError, conditions[0].Type)

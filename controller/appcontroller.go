@@ -415,11 +415,11 @@ func isKnownOrphanedResourceExclusion(key kube.ResourceKey, proj *appv1.AppProje
 
 func (ctrl *ApplicationController) getResourceTree(a *appv1.Application, managedResources []*appv1.ResourceDiff) (*appv1.ApplicationTree, error) {
 	nodes := make([]appv1.ResourceNode, 0)
-
 	proj, err := ctrl.getAppProj(a)
 	if err != nil {
 		return nil, err
 	}
+
 	orphanedNodesMap := make(map[kube.ResourceKey]appv1.ResourceNode)
 	warnOrphaned := true
 	if proj.Spec.OrphanedResources != nil {
@@ -429,7 +429,6 @@ func (ctrl *ApplicationController) getResourceTree(a *appv1.Application, managed
 		}
 		warnOrphaned = proj.Spec.OrphanedResources.IsWarn()
 	}
-
 	for i := range managedResources {
 		managedResource := managedResources[i]
 		delete(orphanedNodesMap, kube.NewResourceKey(managedResource.Group, managedResource.Kind, managedResource.Namespace, managedResource.Name))
@@ -751,6 +750,7 @@ func (ctrl *ApplicationController) Run(ctx context.Context, statusProcessors int
 // needs to be the qualified name of the application, i.e. <namespace>/<name>.
 func (ctrl *ApplicationController) requestAppRefresh(appName string, compareWith *CompareWith, after *time.Duration) {
 	key := ctrl.toAppKey(appName)
+
 	if compareWith != nil && after != nil {
 		ctrl.appComparisonTypeRefreshQueue.AddAfter(fmt.Sprintf("%s/%d", key, compareWith), *after)
 	} else {
@@ -1313,7 +1313,6 @@ func (ctrl *ApplicationController) processAppRefreshQueueItem() (processNext boo
 		}
 		ctrl.appRefreshQueue.Done(appKey)
 	}()
-
 	obj, exists, err := ctrl.appInformer.GetIndexer().GetByKey(appKey.(string))
 	if err != nil {
 		log.Errorf("Failed to get application '%s' from informer index: %+v", appKey, err)
@@ -1334,9 +1333,9 @@ func (ctrl *ApplicationController) processAppRefreshQueueItem() (processNext boo
 	if !needRefresh {
 		return
 	}
-
 	app := origApp.DeepCopy()
 	logCtx := log.WithFields(log.Fields{"application": app.QualifiedName()})
+
 	startTime := time.Now()
 	defer func() {
 		reconcileDuration := time.Since(startTime)
@@ -1393,9 +1392,9 @@ func (ctrl *ApplicationController) processAppRefreshQueueItem() (processNext boo
 	if comparisonLevel == CompareWithRecent {
 		revision = app.Status.Sync.Revision
 	}
-
 	now := metav1.Now()
-	compareResult := ctrl.appStateManager.CompareAppState(app, project, revision, app.Spec.Source,
+
+	compareResult := ctrl.appStateManager.CompareAppState(app, project, revision, app.Spec.Source, app.Spec.Sources,
 		refreshType == appv1.RefreshTypeHard,
 		comparisonLevel == CompareWithLatestForceResolve, localManifests)
 	for k, v := range compareResult.timings {
@@ -1463,27 +1462,34 @@ func (ctrl *ApplicationController) needRefreshAppStatus(app *appv1.Application, 
 		// user requested app refresh.
 		refreshType = requestedType
 		reason = fmt.Sprintf("%s refresh requested", refreshType)
-	} else if !app.Spec.Source.Equals(app.Status.Sync.ComparedTo.Source) {
-		reason = "spec.source differs"
-		compareWith = CompareWithLatestForceResolve
-	} else if hardExpired || softExpired {
-		// The commented line below mysteriously crashes if app.Status.ReconciledAt is nil
-		// reason = fmt.Sprintf("comparison expired. reconciledAt: %v, expiry: %v", app.Status.ReconciledAt, statusRefreshTimeout)
-		//TODO: find existing Golang bug or create a new one
-		reconciledAtStr := "never"
-		if app.Status.ReconciledAt != nil {
-			reconciledAtStr = app.Status.ReconciledAt.String()
+	} else {
+		if app.Spec.Sources != nil && len(app.Spec.Sources) > 0 {
+			if (len(app.Spec.Sources) != len(app.Status.Sync.ComparedTo.Sources)) || !reflect.DeepEqual(app.Spec.Sources, app.Status.Sync.ComparedTo.Sources) {
+				reason = "atleast one of the spec.sources differs"
+				compareWith = CompareWithLatestForceResolve
+			}
+		} else if !app.Spec.Source.Equals(app.Status.Sync.ComparedTo.Source) {
+			reason = "spec.source differs"
+			compareWith = CompareWithLatestForceResolve
+		} else if hardExpired || softExpired {
+			// The commented line below mysteriously crashes if app.Status.ReconciledAt is nil
+			// reason = fmt.Sprintf("comparison expired. reconciledAt: %v, expiry: %v", app.Status.ReconciledAt, statusRefreshTimeout)
+			//TODO: find existing Golang bug or create a new one
+			reconciledAtStr := "never"
+			if app.Status.ReconciledAt != nil {
+				reconciledAtStr = app.Status.ReconciledAt.String()
+			}
+			reason = fmt.Sprintf("comparison expired, requesting refresh. reconciledAt: %v, expiry: %v", reconciledAtStr, statusRefreshTimeout)
+			if hardExpired {
+				reason = fmt.Sprintf("comparison expired, requesting hard refresh. reconciledAt: %v, expiry: %v", reconciledAtStr, statusHardRefreshTimeout)
+				refreshType = appv1.RefreshTypeHard
+			}
+		} else if !app.Spec.Destination.Equals(app.Status.Sync.ComparedTo.Destination) {
+			reason = "spec.destination differs"
+		} else if requested, level := ctrl.isRefreshRequested(app.QualifiedName()); requested {
+			compareWith = level
+			reason = "controller refresh requested"
 		}
-		reason = fmt.Sprintf("comparison expired, requesting refresh. reconciledAt: %v, expiry: %v", reconciledAtStr, statusRefreshTimeout)
-		if hardExpired {
-			reason = fmt.Sprintf("comparison expired, requesting hard refresh. reconciledAt: %v, expiry: %v", reconciledAtStr, statusHardRefreshTimeout)
-			refreshType = appv1.RefreshTypeHard
-		}
-	} else if !app.Spec.Destination.Equals(app.Status.Sync.ComparedTo.Destination) {
-		reason = "spec.destination differs"
-	} else if requested, level := ctrl.isRefreshRequested(app.QualifiedName()); requested {
-		compareWith = level
-		reason = "controller refresh requested"
 	}
 
 	if reason != "" {
@@ -1520,7 +1526,9 @@ func (ctrl *ApplicationController) refreshAppConditions(app *appv1.Application) 
 func (ctrl *ApplicationController) normalizeApplication(orig, app *appv1.Application) {
 	logCtx := log.WithFields(log.Fields{"application": app.QualifiedName()})
 	app.Spec = *argo.NormalizeApplicationSpec(&app.Spec)
+
 	patch, modified, err := diff.CreateTwoWayMergePatch(orig, app, appv1.Application{})
+
 	if err != nil {
 		logCtx.Errorf("error constructing app spec patch: %v", err)
 	} else if modified {
@@ -1564,7 +1572,6 @@ func (ctrl *ApplicationController) persistAppStatus(orig *appv1.Application, new
 		logCtx.Infof("No status changes. Skipping patch")
 		return
 	}
-	logCtx.Debugf("patch: %s", string(patch))
 	appClient := ctrl.applicationClientset.ArgoprojV1alpha1().Applications(orig.Namespace)
 	_, err = appClient.Patch(context.Background(), orig.Name, types.MergePatchType, patch, metav1.PatchOptions{})
 	if err != nil {
@@ -1580,6 +1587,7 @@ func (ctrl *ApplicationController) autoSync(app *appv1.Application, syncStatus *
 		return nil
 	}
 	logCtx := log.WithFields(log.Fields{"application": app.QualifiedName()})
+
 	if app.Operation != nil {
 		logCtx.Infof("Skipping auto-sync: another operation is in progress")
 		return nil
@@ -1669,7 +1677,6 @@ func (ctrl *ApplicationController) autoSync(app *appv1.Application, syncStatus *
 			return &appv1.ApplicationCondition{Type: appv1.ApplicationConditionSyncError, Message: message}
 		}
 	}
-
 	appIf := ctrl.applicationClientset.ArgoprojV1alpha1().Applications(app.Namespace)
 	_, err := argo.SetAppOperation(appIf, app.Name, &op)
 	if err != nil {
@@ -1691,13 +1698,20 @@ func alreadyAttemptedSync(app *appv1.Application, commitSHA string) (bool, syncc
 	if app.Status.OperationState.SyncResult.Revision != commitSHA {
 		return false, ""
 	}
-	// Ignore differences in target revision, since we already just verified commitSHAs are equal,
-	// and we do not want to trigger auto-sync due to things like HEAD != master
-	specSource := app.Spec.Source.DeepCopy()
-	specSource.TargetRevision = ""
-	syncResSource := app.Status.OperationState.SyncResult.Source.DeepCopy()
-	syncResSource.TargetRevision = ""
-	return reflect.DeepEqual(app.Spec.Source, app.Status.OperationState.SyncResult.Source), app.Status.OperationState.Phase
+
+	if app.Spec.Sources != nil && len(app.Spec.Sources) > 0 {
+		// Ignore differences in target revision, since we already just verified commitSHAs are equal,
+		// and we do not want to trigger auto-sync due to things like HEAD != master
+		return reflect.DeepEqual(app.Spec.Sources, app.Status.OperationState.SyncResult.Sources), app.Status.OperationState.Phase
+	} else {
+		// Ignore differences in target revision, since we already just verified commitSHAs are equal,
+		// and we do not want to trigger auto-sync due to things like HEAD != master
+		specSource := app.Spec.Source.DeepCopy()
+		specSource.TargetRevision = ""
+		syncResSource := app.Status.OperationState.SyncResult.Source.DeepCopy()
+		syncResSource.TargetRevision = ""
+		return reflect.DeepEqual(app.Spec.Source, app.Status.OperationState.SyncResult.Source), app.Status.OperationState.Phase
+	}
 }
 
 func (ctrl *ApplicationController) shouldSelfHeal(app *appv1.Application) (bool, time.Duration) {

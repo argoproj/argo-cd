@@ -65,6 +65,7 @@ func (m *appStateManager) SyncAppState(app *v1alpha1.Application, state *v1alpha
 	var syncOp v1alpha1.SyncOperation
 	var syncRes *v1alpha1.SyncOperationResult
 	var source v1alpha1.ApplicationSource
+	var sources []v1alpha1.ApplicationSource
 
 	if state.Operation.Sync == nil {
 		state.Phase = common.OperationFailed
@@ -82,12 +83,23 @@ func (m *appStateManager) SyncAppState(app *v1alpha1.Application, state *v1alpha
 		return
 	}
 
-	if syncOp.Source == nil {
+	if syncOp.Source == nil || (syncOp.Sources != nil && len(syncOp.Sources) > 0) {
 		// normal sync case (where source is taken from app.spec.source)
-		source = app.Spec.Source
+		if app.Spec.Sources != nil && len(app.Spec.Sources) > 0 {
+			sources = app.Spec.Sources
+		} else {
+			source = app.Spec.Source
+			sources = make([]v1alpha1.ApplicationSource, 0)
+		}
 	} else {
 		// rollback case
-		source = *state.Operation.Sync.Source
+		if app.Spec.Sources != nil && len(app.Spec.Sources) > 0 {
+			sources = state.Operation.Sync.Sources
+		} else {
+			source = *state.Operation.Sync.Source
+			sources = make([]v1alpha1.ApplicationSource, 0)
+		}
+
 	}
 
 	if state.SyncResult != nil {
@@ -98,7 +110,11 @@ func (m *appStateManager) SyncAppState(app *v1alpha1.Application, state *v1alpha
 		// status.operationState.syncResult.source. must be set properly since auto-sync relies
 		// on this information to decide if it should sync (if source is different than the last
 		// sync attempt)
-		syncRes.Source = source
+		if len(sources) > 0 {
+			syncRes.Sources = sources
+		} else {
+			syncRes.Source = source
+		}
 		state.SyncResult = syncRes
 	}
 
@@ -116,7 +132,7 @@ func (m *appStateManager) SyncAppState(app *v1alpha1.Application, state *v1alpha
 		return
 	}
 
-	compareResult := m.CompareAppState(app, proj, revision, source, false, true, syncOp.Manifests)
+	compareResult := m.CompareAppState(app, proj, revision, source, sources, false, true, syncOp.Manifests)
 	// We now have a concrete commit SHA. Save this in the sync result revision so that we remember
 	// what we should be syncing to when resuming operations.
 	syncRes.Revision = compareResult.syncStatus.Revision
