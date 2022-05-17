@@ -32,7 +32,7 @@ func TestDeployment(t *testing.T) {
     {
         "op": "replace",
         "path": "/spec/template/spec/containers/0/image",
-        "value": "nginx:1.17.4-alpine"
+        "value": "nginx:1.21.6-alpine"
     }
 ]`).
 		Sync()

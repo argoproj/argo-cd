@@ -27,7 +27,7 @@ spec:
         app: nginx
     spec:
       containers:
-      - image: nginx:1.7.9
+      - image: nginx:1.21.6
         name: nginx
         ports:
         - containerPort: 80
@@ -48,7 +48,7 @@ spec:
         app: nginx
     spec:
       containers:
-      - image: nginx:1.7.9
+      - image: nginx:1.21.6
         name: nginx
         ports:
         - containerPort: 80

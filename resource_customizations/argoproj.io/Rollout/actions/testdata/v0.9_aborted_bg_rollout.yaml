@@ -27,7 +27,7 @@ spec:
         app: bluegreen
     spec:
       containers:
-      - image: nginx:1.18-alpine
+      - image: nginx:1.21-alpine
         name: bluegreen
         resources:
           requests:

@@ -29,7 +29,7 @@ spec:
         app: rollout-bluegreen
     spec:
       containers:
-        - image: 'nginx:1.19-alpine'
+        - image: 'nginx:1.21-alpine'
           imagePullPolicy: Always
           name: rollouts-demo
           ports:

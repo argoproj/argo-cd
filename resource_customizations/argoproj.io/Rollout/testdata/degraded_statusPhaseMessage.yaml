@@ -25,7 +25,7 @@ spec:
         app: basic
     spec:
       containers:
-        - image: nginx:1.19-alpine
+        - image: nginx:1.21-alpine
           name: basic
           resources:
             requests:

@@ -47,7 +47,7 @@ spec:
                       - sh
                       - '-c'
                       - '-x'
-                    image: 'nginx:1.19-alpine'
+                    image: 'nginx:1.21-alpine'
                     name: sleep-job
                     resources: {}
                 restartPolicy: Never

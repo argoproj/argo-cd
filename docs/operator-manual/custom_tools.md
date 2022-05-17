@@ -27,7 +27,7 @@ the helm binary with a different version than what is bundled in Argo CD:
       # 2. Use an init container to download/copy custom binaries into the emptyDir
       initContainers:
       - name: download-tools
-        image: alpine:3.8
+        image: alpine:3.15
         command: [sh, -c]
         args:
         - wget -qO- https://storage.googleapis.com/kubernetes-helm/helm-v2.12.3-linux-amd64.tar.gz | tar -xvzf - &&

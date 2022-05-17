@@ -16,6 +16,6 @@ spec:
       containers:
         - name: main
           command: ["sleep", "999"]
-          image: alpine:3.10.2
+          image: alpine:3.15.4
           imagePullPolicy: IfNotPresent
 
