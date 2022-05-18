@@ -309,7 +309,7 @@ func Test_DexReverseProxy(t *testing.T) {
 		assert.Equal(t, http.StatusSeeOther, resp.StatusCode)
 		location, _ := resp.Location()
 		fmt.Printf("%s %s\n", resp.Status, location.RequestURI())
-		assert.True(t, strings.HasPrefix(location.RequestURI(), "/login?sso_error"))
+		assert.True(t, strings.HasPrefix(location.RequestURI(), "/login?has_sso_error=true"))
 	})
 
 	t.Run("Invalid URL for Dex reverse proxy", func(t *testing.T) {
