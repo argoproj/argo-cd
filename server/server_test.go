@@ -614,7 +614,8 @@ func TestAuthenticate_3rd_party_JWTs(t *testing.T) {
 				assert.Equal(t, testDataCopy.expectedClaims, claims)
 			}
 			if testDataCopy.expectedErrorContains != "" {
-				assert.ErrorContains(t, err, testDataCopy.expectedErrorContains, "Authenticate should have thrown an error and blocked the request")
+				assert.Error(t, err, "Authenticate should have thrown an error and blocked the request")
+				assert.Contains(t, err.Error(), testDataCopy.expectedErrorContains)
 			} else {
 				assert.NoError(t, err)
 			}
@@ -657,7 +658,8 @@ func TestAuthenticate_no_request_metadata(t *testing.T) {
 			claims := ctx.Value("claims")
 			assert.Equal(t, testDataCopy.expectedClaims, claims)
 			if testDataCopy.expectedErrorContains != "" {
-				assert.ErrorContains(t, err, testDataCopy.expectedErrorContains, "Authenticate should have thrown an error and blocked the request")
+				assert.Error(t, err, "Authenticate should have thrown an error and blocked the request")
+				assert.Contains(t, err.Error(), testDataCopy.expectedErrorContains)
 			} else {
 				assert.NoError(t, err)
 			}
@@ -704,7 +706,8 @@ func TestAuthenticate_no_SSO(t *testing.T) {
 			claims := ctx.Value("claims")
 			assert.Equal(t, testDataCopy.expectedClaims, claims)
 			if testDataCopy.expectedErrorMessage != "" {
-				assert.ErrorContains(t, err, testDataCopy.expectedErrorMessage, "Authenticate should have thrown an error and blocked the request")
+				assert.Error(t, err, "Authenticate should have thrown an error and blocked the request")
+				assert.Contains(t, err.Error(), testDataCopy.expectedErrorMessage)
 			} else {
 				assert.NoError(t, err)
 			}
@@ -807,7 +810,8 @@ func TestAuthenticate_bad_request_metadata(t *testing.T) {
 			claims := ctx.Value("claims")
 			assert.Equal(t, testDataCopy.expectedClaims, claims)
 			if testDataCopy.expectedErrorMessage != "" {
-				assert.ErrorContains(t, err, testDataCopy.expectedErrorMessage, "Authenticate should have thrown an error and blocked the request")
+				assert.Error(t, err, "Authenticate should have thrown an error and blocked the request")
+				assert.Contains(t, err.Error(), testDataCopy.expectedErrorMessage)
 			} else {
 				assert.NoError(t, err)
 			}
