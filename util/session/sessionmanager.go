@@ -246,7 +246,7 @@ func (mgr *SessionManager) Parse(tokenString string) (jwt.Claims, string, error)
 	token, err := jwt.ParseWithClaims(tokenString, &claims, func(token *jwt.Token) (interface{}, error) {
 		// Don't forget to validate the alg is what you expect:
 		if _, ok := token.Method.(*jwt.SigningMethodHMAC); !ok {
-			return nil, fmt.Errorf("Unexpected signing method: %v", token.Header["alg"])
+			return nil, fmt.Errorf("unexpected signing method: %v", token.Header["alg"])
 		}
 		return argoCDSettings.ServerSignature, nil
 	})
@@ -298,7 +298,7 @@ func (mgr *SessionManager) Parse(tokenString string) (jwt.Claims, string, error)
 	}
 
 	if account.PasswordMtime != nil && issuedAt.Before(*account.PasswordMtime) {
-		return nil, "", fmt.Errorf("Account password has changed since token issued")
+		return nil, "", fmt.Errorf("account password has changed since token issued")
 	}
 
 	newToken := ""
@@ -515,7 +515,7 @@ func (mgr *SessionManager) VerifyToken(tokenString string) (jwt.Claims, string, 
 		// IDP signed token
 		prov, err := mgr.provider()
 		if err != nil {
-			return claims, "", err
+			return nil, "", err
 		}
 
 		// Token must be verified for at least one audience
@@ -527,16 +527,30 @@ func (mgr *SessionManager) VerifyToken(tokenString string) (jwt.Claims, string, 
 				break
 			}
 		}
+
+		// The token verification has failed. If the token has expired, we will
+		// return a dummy claims only containing a value for the issuer, so the
+		// UI can handle expired tokens appropriately.
 		if err != nil {
-			return claims, "", err
+			if strings.HasPrefix(err.Error(), "oidc: token is expired") {
+				claims = jwt.StandardClaims{
+					Issuer: "sso",
+				}
+				return claims, "", err
+			}
+			return nil, "", err
 		}
+
 		if idToken == nil {
-			return claims, "", fmt.Errorf("No audience found in the token")
+			return nil, "", fmt.Errorf("no audience found in the token")
 		}
 
 		var claims jwt.MapClaims
 		err = idToken.Claims(&claims)
-		return claims, "", err
+		if err != nil {
+			return nil, "", err
+		}
+		return claims, "", nil
 	}
 }
 
