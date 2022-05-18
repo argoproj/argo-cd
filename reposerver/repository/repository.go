@@ -18,6 +18,8 @@ import (
 	"strings"
 	"time"
 
+	"github.com/argoproj/argo-cd/v2/util/io/files"
+
 	"github.com/Masterminds/semver/v3"
 	"github.com/TomOnTime/utfutil"
 	"github.com/argoproj/gitops-engine/pkg/utils/kube"
@@ -810,7 +812,8 @@ func GenerateManifests(ctx context.Context, appPath, repoRoot, revision string, 
 		if directory = q.ApplicationSource.Directory; directory == nil {
 			directory = &v1alpha1.ApplicationSourceDirectory{}
 		}
-		targetObjs, err = findManifests(appPath, repoRoot, env, *directory, q.EnabledSourceTypes)
+		logCtx := log.WithField("application", q.AppName)
+		targetObjs, err = findManifests(logCtx, appPath, repoRoot, env, *directory, q.EnabledSourceTypes)
 	}
 	if err != nil {
 		return nil, err
@@ -1012,11 +1015,31 @@ func ksShow(appLabelKey, appPath string, ksonnetOpts *v1alpha1.ApplicationSource
 var manifestFile = regexp.MustCompile(`^.*\.(yaml|yml|json|jsonnet)$`)
 
 // findManifests looks at all yaml files in a directory and unmarshals them into a list of unstructured objects
-func findManifests(appPath string, repoRoot string, env *v1alpha1.Env, directory v1alpha1.ApplicationSourceDirectory, enabledManifestGeneration map[string]bool) ([]*unstructured.Unstructured, error) {
+func findManifests(logCtx *log.Entry, appPath string, repoRoot string, env *v1alpha1.Env, directory v1alpha1.ApplicationSourceDirectory, enabledManifestGeneration map[string]bool) ([]*unstructured.Unstructured, error) {
 	var objs []*unstructured.Unstructured
 	err := filepath.Walk(appPath, func(path string, f os.FileInfo, err error) error {
 		if err != nil {
 			return err
+		}
+		relPath, err := filepath.Rel(appPath, path)
+		if err != nil {
+			return fmt.Errorf("failed to get relative path of symlink: %w", err)
+		}
+		if files.IsSymlink(f) {
+			realPath, err := filepath.EvalSymlinks(path)
+			if err != nil {
+				logCtx.Debugf("error checking symlink realpath: %s", err)
+				if os.IsNotExist(err) {
+					log.Warnf("ignoring out-of-bounds symlink at %q: %s", relPath, err)
+					return nil
+				} else {
+					return fmt.Errorf("failed to evaluate symlink at %q: %w", relPath, err)
+				}
+			}
+			if !files.Inbound(realPath, appPath) {
+				logCtx.Warnf("illegal filepath in symlink: %s", realPath)
+				return fmt.Errorf("illegal filepath in symlink at %q", relPath)
+			}
 		}
 		if f.IsDir() {
 			if path != appPath && !directory.Recurse {
@@ -1030,10 +1053,6 @@ func findManifests(appPath string, repoRoot string, env *v1alpha1.Env, directory
 			return nil
 		}
 
-		relPath, err := filepath.Rel(appPath, path)
-		if err != nil {
-			return err
-		}
 		if directory.Exclude != "" && glob.Match(directory.Exclude, relPath) {
 			return nil
 		}
