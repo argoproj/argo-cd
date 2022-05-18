@@ -8,11 +8,14 @@ import (
 	"io/ioutil"
 	"os"
 	"os/exec"
+	"path"
 	"path/filepath"
 	"regexp"
 	"strings"
 	"testing"
 	"time"
+
+	log "github.com/sirupsen/logrus"
 
 	"github.com/ghodss/yaml"
 	"github.com/stretchr/testify/assert"
@@ -27,6 +30,7 @@ import (
 	"github.com/argoproj/argo-cd/v2/reposerver/cache"
 	"github.com/argoproj/argo-cd/v2/reposerver/metrics"
 	fileutil "github.com/argoproj/argo-cd/v2/test/fixture/path"
+	"github.com/argoproj/argo-cd/v2/util/argo"
 	cacheutil "github.com/argoproj/argo-cd/v2/util/cache"
 	"github.com/argoproj/argo-cd/v2/util/git"
 	gitmocks "github.com/argoproj/argo-cd/v2/util/git/mocks"
@@ -50,7 +54,7 @@ func newServiceWithMocks(root string, signed bool) (*Service, *gitmocks.Client) 
 	return newServiceWithOpt(func(gitClient *gitmocks.Client) {
 		gitClient.On("Init").Return(nil)
 		gitClient.On("Fetch", mock.Anything).Return(nil)
-		gitClient.On("Checkout", mock.Anything).Return(nil)
+		gitClient.On("Checkout", mock.Anything, mock.Anything).Return(nil)
 		gitClient.On("LsRemote", mock.Anything).Return(mock.Anything, nil)
 		gitClient.On("CommitSHA").Return(mock.Anything, nil)
 		gitClient.On("Root").Return(root)
@@ -79,7 +83,6 @@ func newServiceWithOpt(cf clientFunc) (*Service, *gitmocks.Client) {
 	}}, nil)
 	helmClient.On("ExtractChart", chart, version).Return("./testdata/my-chart", io.NopCloser, nil)
 	helmClient.On("CleanChartCache", chart, version).Return(nil)
-
 	service.newGitClient = func(rawRepoURL string, creds git.Creds, insecure bool, enableLfs bool, prosy string, opts ...git.ClientOpts) (client git.Client, e error) {
 		return gitClient, nil
 	}
@@ -110,7 +113,7 @@ func newServiceWithCommitSHA(root, revision string) *Service {
 	service, gitClient := newServiceWithOpt(func(gitClient *gitmocks.Client) {
 		gitClient.On("Init").Return(nil)
 		gitClient.On("Fetch", mock.Anything).Return(nil)
-		gitClient.On("Checkout", mock.Anything).Return(nil)
+		gitClient.On("Checkout", mock.Anything, mock.Anything).Return(nil)
 		gitClient.On("LsRemote", revision).Return(revision, revisionErr)
 		gitClient.On("CommitSHA").Return("632039659e542ed7de0c170a4fcc1c571b288fc0", nil)
 		gitClient.On("Root").Return(root)
@@ -130,7 +133,7 @@ func TestGenerateYamlManifestInDir(t *testing.T) {
 	q := apiclient.ManifestRequest{Repo: &argoappv1.Repository{}, ApplicationSource: &src}
 
 	// update this value if we add/remove manifests
-	const countOfManifests = 34
+	const countOfManifests = 41
 
 	res1, err := service.GenerateManifest(context.Background(), &q)
 
@@ -141,6 +144,76 @@ func TestGenerateYamlManifestInDir(t *testing.T) {
 	res2, err := GenerateManifests("./testdata/concatenated", "/", "", &q, false)
 	assert.NoError(t, err)
 	assert.Equal(t, 3, len(res2.Manifests))
+}
+
+func Test_GenerateManifests_NoOutOfBoundsAccess(t *testing.T) {
+	testCases := []struct {
+		name                    string
+		outOfBoundsFilename     string
+		outOfBoundsFileContents string
+		mustNotContain          string // Optional string that must not appear in error or manifest output. If empty, use outOfBoundsFileContents.
+	}{
+		{
+			name:                    "out of bounds JSON file should not appear in error output",
+			outOfBoundsFilename:     "test.json",
+			outOfBoundsFileContents: `{"some": "json"}`,
+		},
+		{
+			name:                    "malformed JSON file contents should not appear in error output",
+			outOfBoundsFilename:     "test.json",
+			outOfBoundsFileContents: "$",
+		},
+		{
+			name:                "out of bounds JSON manifest should not appear in manifest output",
+			outOfBoundsFilename: "test.json",
+			// JSON marshalling is deterministic. So if there's a leak, exactly this should appear in the manifests.
+			outOfBoundsFileContents: `{"apiVersion":"v1","kind":"Secret","metadata":{"name":"test","namespace":"default"},"type":"Opaque"}`,
+		},
+		{
+			name:                    "out of bounds YAML manifest should not appear in manifest output",
+			outOfBoundsFilename:     "test.yaml",
+			outOfBoundsFileContents: "apiVersion: v1\nkind: Secret\nmetadata:\n  name: test\n  namespace: default\ntype: Opaque",
+			mustNotContain:          `{"apiVersion":"v1","kind":"Secret","metadata":{"name":"test","namespace":"default"},"type":"Opaque"}`,
+		},
+	}
+
+	for _, testCase := range testCases {
+		testCaseCopy := testCase
+		t.Run(testCaseCopy.name, func(t *testing.T) {
+			t.Parallel()
+
+			outOfBoundsDir := t.TempDir()
+			outOfBoundsFile := path.Join(outOfBoundsDir, testCaseCopy.outOfBoundsFilename)
+			err := os.WriteFile(outOfBoundsFile, []byte(testCaseCopy.outOfBoundsFileContents), os.FileMode(0444))
+			require.NoError(t, err)
+
+			repoDir := t.TempDir()
+			err = os.Symlink(outOfBoundsFile, path.Join(repoDir, testCaseCopy.outOfBoundsFilename))
+			require.NoError(t, err)
+
+			var mustNotContain = testCaseCopy.outOfBoundsFileContents
+			if testCaseCopy.mustNotContain != "" {
+				mustNotContain = testCaseCopy.mustNotContain
+			}
+
+			q := apiclient.ManifestRequest{Repo: &argoappv1.Repository{}, ApplicationSource: &argoappv1.ApplicationSource{}}
+			res, err := GenerateManifests(repoDir, "", "", &q, false)
+			require.Error(t, err)
+			assert.NotContains(t, err.Error(), mustNotContain)
+			assert.Contains(t, err.Error(), "illegal filepath")
+			assert.Nil(t, res)
+		})
+	}
+}
+
+func TestGenerateManifests_MissingSymlinkDestination(t *testing.T) {
+	repoDir := t.TempDir()
+	err := os.Symlink("/obviously/does/not/exist", path.Join(repoDir, "test.yaml"))
+	require.NoError(t, err)
+
+	q := apiclient.ManifestRequest{Repo: &argoappv1.Repository{}, ApplicationSource: &argoappv1.ApplicationSource{}}
+	_, err = GenerateManifests(repoDir, "", "", &q, false)
+	require.NoError(t, err)
 }
 
 func TestGenerateManifests_K8SAPIResetCache(t *testing.T) {
@@ -1610,7 +1683,7 @@ func TestFindResources(t *testing.T) {
 	for i := range testCases {
 		tc := testCases[i]
 		t.Run(tc.name, func(t *testing.T) {
-			objs, err := findManifests("testdata/app-include-exclude", ".", nil, argoappv1.ApplicationSourceDirectory{
+			objs, err := findManifests(&log.Entry{}, "testdata/app-include-exclude", ".", nil, argoappv1.ApplicationSourceDirectory{
 				Recurse: true,
 				Include: tc.include,
 				Exclude: tc.exclude,
@@ -1628,7 +1701,7 @@ func TestFindResources(t *testing.T) {
 }
 
 func TestFindManifests_Exclude(t *testing.T) {
-	objs, err := findManifests("testdata/app-include-exclude", ".", nil, argoappv1.ApplicationSourceDirectory{
+	objs, err := findManifests(&log.Entry{}, "testdata/app-include-exclude", ".", nil, argoappv1.ApplicationSourceDirectory{
 		Recurse: true,
 		Exclude: "subdir/deploymentSub.yaml",
 	})
@@ -1641,7 +1714,7 @@ func TestFindManifests_Exclude(t *testing.T) {
 }
 
 func TestFindManifests_Exclude_NothingMatches(t *testing.T) {
-	objs, err := findManifests("testdata/app-include-exclude", ".", nil, argoappv1.ApplicationSourceDirectory{
+	objs, err := findManifests(&log.Entry{}, "testdata/app-include-exclude", ".", nil, argoappv1.ApplicationSourceDirectory{
 		Recurse: true,
 		Exclude: "nothing.yaml",
 	})
