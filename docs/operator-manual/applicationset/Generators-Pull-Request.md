@@ -53,6 +53,40 @@ spec:
 * `tokenRef`: A `Secret` name and key containing the GitHub access token to use for requests. If not specified, will make anonymous requests which have a lower rate limit and can only see public repositories. (Optional)
 * `labels`: Labels is used to filter the PRs that you want to target. (Optional)
 
+## GitLab
+
+Specify the project from which to fetch the GitLab merge requests.
+
+```yaml
+apiVersion: argoproj.io/v1alpha1
+kind: ApplicationSet
+metadata:
+  name: myapps
+spec:
+  generators:
+  - pullRequest:
+      gitlab:
+        # The GitLab project.
+        project: myproject
+        # For self-hosted GitLab (optional)
+        api: https://git.example.com/
+        # Reference to a Secret containing an access token. (optional)
+        tokenRef:
+          secretName: gitlab-token
+          key: token
+        # Labels is used to filter the MRs that you want to target. (optional)
+        labels:
+        - preview
+  requeueAfterSeconds: 1800
+  template:
+  # ...
+```
+
+* `project`: Required name of the GitLab project.
+* `api`: If using self-hosted GitLab, the URL to access it. (Optional)
+* `tokenRef`: A `Secret` name and key containing the GitLab access token to use for requests. If not specified, will make anonymous requests which have a lower rate limit and can only see public repositories. (Optional)
+* `labels`: Labels is used to filter the MRs that you want to target. (Optional)
+
 ## Gitea
 
 Specify the repository from which to fetch the Gitea Pull requests.

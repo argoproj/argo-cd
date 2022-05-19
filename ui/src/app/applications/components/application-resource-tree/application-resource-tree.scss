@@ -49,8 +49,7 @@
             .application-resource-tree__line {
                 &:last-child {
                     &:after {
-                        color: $argo-color-teal-6;
-                        top: -8px;
+                        content: none;
                     }
                 }
             }
@@ -91,6 +90,33 @@
         &--load-balancer {
             cursor: default;
             background-color: $argo-color-teal-2;
+        }
+
+        &--expansion {
+            position: absolute;
+            flex-shrink: 0px;
+            z-index: 10;
+            font-size: 0.5em;
+            padding: 2px;
+            box-shadow: 1px 1px 1px $argo-color-gray-4;
+            background-color: white;
+            margin-top: 9px;
+            margin-left: 215px;
+        }
+    
+        &--podgroup--expansion {
+            position: absolute;
+            flex-shrink: 0px;
+            z-index: 10;
+            font-size: 0.5em;
+            padding: 2px;
+            box-shadow: 1px 1px 1px $argo-color-gray-4;
+            background-color: white;
+            margin-left: 215px;
+        }
+
+        &--pod {
+            background-color: lightcyan;
         }
 
         &--lower-section {

@@ -392,6 +392,7 @@ type SCMProviderGeneratorFilter struct {
 type PullRequestGenerator struct {
 	// Which provider to use and config for it.
 	Github          *PullRequestGeneratorGithub          `json:"github,omitempty"`
+	GitLab          *PullRequestGeneratorGitLab          `json:"gitlab,omitempty"`
 	Gitea           *PullRequestGeneratorGitea           `json:"gitea,omitempty"`
 	BitbucketServer *PullRequestGeneratorBitbucketServer `json:"bitbucketServer,omitempty"`
 	// Filters for which pull requests should be considered.
@@ -426,6 +427,18 @@ type PullRequestGeneratorGithub struct {
 	// Authentication token reference.
 	TokenRef *SecretRef `json:"tokenRef,omitempty"`
 	// Labels is used to filter the PRs that you want to target
+	Labels []string `json:"labels,omitempty"`
+}
+
+// PullRequestGeneratorGitLab defines connection info specific to GitLab.
+type PullRequestGeneratorGitLab struct {
+	// GitLab project to scan. Required.
+	Project string `json:"project"`
+	// The GitLab API URL to talk to. If blank, uses https://gitlab.com/.
+	API string `json:"api,omitempty"`
+	// Authentication token reference.
+	TokenRef *SecretRef `json:"tokenRef,omitempty"`
+	// Labels is used to filter the MRs that you want to target
 	Labels []string `json:"labels,omitempty"`
 }
 
