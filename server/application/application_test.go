@@ -644,7 +644,7 @@ p, admin, applications, update, default/test-app, allow
 p, admin, applications, update, my-proj/test-app, allow
 `)
 	_, err = appServer.Update(ctx, &application.ApplicationUpdateRequest{Application: testApp})
-	statusErr := grpc.ErrToGRPCStatus(err)
+	statusErr := grpc.UnwrapGRPCStatus(err)
 	assert.NotNil(t, statusErr)
 	assert.Equal(t, codes.PermissionDenied, statusErr.Code())
 
@@ -662,7 +662,7 @@ p, admin, applications, create, my-proj/test-app, allow
 p, admin, applications, update, my-proj/test-app, allow
 `)
 	_, err = appServer.Update(ctx, &application.ApplicationUpdateRequest{Application: testApp})
-	statusErr = grpc.ErrToGRPCStatus(err)
+	statusErr = grpc.UnwrapGRPCStatus(err)
 	assert.NotNil(t, statusErr)
 	assert.Equal(t, codes.PermissionDenied, statusErr.Code())
 
