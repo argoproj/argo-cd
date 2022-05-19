@@ -20,8 +20,8 @@ func gitErrToGRPC(err error) error {
 		return err
 	}
 	var errMsg = err.Error()
-	if se, ok := err.(interface{ GRPCStatus() *status.Status }); ok {
-		errMsg = se.GRPCStatus().Message()
+	if grpcStatus := UnwrapGRPCStatus(err); grpcStatus != nil {
+		errMsg = grpcStatus.Message()
 	}
 
 	switch errMsg {
@@ -29,6 +29,20 @@ func gitErrToGRPC(err error) error {
 		err = rewrapError(errors.New(errMsg), codes.NotFound)
 	}
 	return err
+}
+
+// UnwrapGRPCStatus will attempt to cast the given error into a grpc Status
+// object unwrapping all existing inner errors. Will return nil if none of the
+// nested errors can be casted.
+func UnwrapGRPCStatus(err error) *status.Status {
+	if se, ok := err.(interface{ GRPCStatus() *status.Status }); ok {
+		return se.GRPCStatus()
+	}
+	e := errors.Unwrap(err)
+	if e == nil {
+		return nil
+	}
+	return UnwrapGRPCStatus(e)
 }
 
 func kubeErrToGRPC(err error) error {
@@ -73,6 +87,11 @@ func kubeErrToGRPC(err error) error {
 	case apierr.IsInternalError(err):
 		err = rewrapError(err, codes.Internal)
 
+	}
+	// This is necessary as GRPC Status don't support wrapped errors:
+	// https://github.com/grpc/grpc-go/issues/2934
+	if statusErr := UnwrapGRPCStatus(err); statusErr != nil {
+		err = rewrapError(err, statusErr.Code())
 	}
 	return err
 }

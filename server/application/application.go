@@ -440,7 +440,7 @@ func (s *Server) Get(ctx context.Context, q *application.ApplicationQuery) (*app
 			})
 			return err
 		}); err != nil {
-			log.Warnf("failed to force refresh application details: %v", err)
+			log.Warnf("Failed to force refresh application details: %v", err)
 		}
 	}
 
@@ -1586,10 +1586,11 @@ func (s *Server) Rollback(ctx context.Context, rollbackReq *application.Applicat
 		},
 	}
 	a, err = argo.SetAppOperation(appIf, *rollbackReq.Name, &op)
-	if err == nil {
-		s.logAppEvent(a, ctx, argo.EventReasonOperationStarted, fmt.Sprintf("initiated rollback to %d", rollbackReq.GetId()))
+	if err != nil {
+		return a, fmt.Errorf("error setting app operation: %w", err)
 	}
-	return a, fmt.Errorf("error setting app operation: %w", err)
+	s.logAppEvent(a, ctx, argo.EventReasonOperationStarted, fmt.Sprintf("initiated rollback to %d", rollbackReq.GetId()))
+	return a, nil
 }
 
 // resolveRevision resolves the revision specified either in the sync request, or the
