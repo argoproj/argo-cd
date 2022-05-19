@@ -91,7 +91,7 @@ func kubeErrToGRPC(err error) error {
 	// This is necessary as GRPC Status don't support wrapped errors:
 	// https://github.com/grpc/grpc-go/issues/2934
 	if statusErr := UnwrapGRPCStatus(err); statusErr != nil {
-		err = rewrapError(err, statusErr.Code())
+		err = status.Error(statusErr.Code(), statusErr.Message())
 	}
 	return err
 }
