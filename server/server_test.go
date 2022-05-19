@@ -508,7 +508,7 @@ func getTestServer(t *testing.T, anonymousEnabled bool, withFakeSSO bool) (argoc
 		cm.Data["users.anonymous.enabled"] = "true"
 	}
 	ts := httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
-		return  // Start with a placeholder. We need the server URL before setting up the real handler.
+		// Start with a placeholder. We need the server URL before setting up the real handler.
 	}))
 	ts.Config.Handler = http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
 		dexMockHandler(t, ts.URL)(w, r)
