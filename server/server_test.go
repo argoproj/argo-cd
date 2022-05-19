@@ -504,7 +504,7 @@ func getTestServer(t *testing.T, anonymousEnabled bool, withFakeSSO bool) (argoc
 		cm.Data["users.anonymous.enabled"] = "true"
 	}
 	ts := httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
-		return // Start with a placeholder. We need the server URL before setting up the real handler.
+		// Start with a placeholder. We need the server URL before setting up the real handler.
 	}))
 	ts.Config.Handler = http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
 		dexMockHandler(t, ts.URL)(w, r)
@@ -597,12 +597,11 @@ func TestAuthenticate_3rd_party_JWTs(t *testing.T) {
 			t.Parallel()
 
 			argocd, dexURL := getTestServer(t, testDataCopy.anonymousEnabled, true)
-			ctx := context.Background()
 			testDataCopy.claims.Issuer = fmt.Sprintf("%s/api/dex", dexURL)
 			token := jwt.NewWithClaims(jwt.SigningMethodHS256, testDataCopy.claims)
 			tokenString, err := token.SignedString([]byte("key"))
 			require.NoError(t, err)
-			ctx = metadata.NewIncomingContext(context.Background(), metadata.Pairs(apiclient.MetaDataTokenKey, tokenString))
+			ctx := metadata.NewIncomingContext(context.Background(), metadata.Pairs(apiclient.MetaDataTokenKey, tokenString))
 
 			ctx, err = argocd.Authenticate(ctx)
 			claims := ctx.Value("claims")
@@ -692,11 +691,10 @@ func TestAuthenticate_no_SSO(t *testing.T) {
 			t.Parallel()
 
 			argocd, dexURL := getTestServer(t, testDataCopy.anonymousEnabled, false)
-			ctx := context.Background()
 			token := jwt.NewWithClaims(jwt.SigningMethodHS256, jwt.StandardClaims{Issuer: fmt.Sprintf("%s/api/dex", dexURL)})
 			tokenString, err := token.SignedString([]byte("key"))
 			require.NoError(t, err)
-			ctx = metadata.NewIncomingContext(context.Background(), metadata.Pairs(apiclient.MetaDataTokenKey, tokenString))
+			ctx := metadata.NewIncomingContext(context.Background(), metadata.Pairs(apiclient.MetaDataTokenKey, tokenString))
 
 			ctx, err = argocd.Authenticate(ctx)
 			claims := ctx.Value("claims")
@@ -798,8 +796,7 @@ func TestAuthenticate_bad_request_metadata(t *testing.T) {
 			t.Parallel()
 
 			argocd, _ := getTestServer(t, testDataCopy.anonymousEnabled, true)
-			ctx := context.Background()
-			ctx = metadata.NewIncomingContext(context.Background(), testDataCopy.metadata)
+			ctx := metadata.NewIncomingContext(context.Background(), testDataCopy.metadata)
 
 			ctx, err := argocd.Authenticate(ctx)
 			claims := ctx.Value("claims")
