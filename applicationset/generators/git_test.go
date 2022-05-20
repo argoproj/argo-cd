@@ -238,6 +238,7 @@ func TestGitGenerateParamsFromFiles(t *testing.T) {
 					"path":                    "cluster-config/production",
 					"path.basename":           "production",
 					"path[0]":                 "cluster-config",
+					"filepath":                "cluster-config/production/config.json",
 					"path.basenameNormalized": "production",
 				},
 				{
@@ -247,6 +248,7 @@ func TestGitGenerateParamsFromFiles(t *testing.T) {
 					"path":                    "cluster-config/staging",
 					"path.basename":           "staging",
 					"path[0]":                 "cluster-config",
+					"filepath":                "cluster-config/staging/config.json",
 					"path.basenameNormalized": "staging",
 				},
 			},

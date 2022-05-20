@@ -160,6 +160,7 @@ func (g *GitGenerator) generateParamsFromGitFile(filePath string, fileContent []
 		for k, v := range flat {
 			params[k] = fmt.Sprintf("%v", v)
 		}
+		params["filepath"] = filePath
 		params["path"] = path.Dir(filePath)
 		params["path.basename"] = path.Base(params["path"])
 		params["path.basenameNormalized"] = sanitizeName(path.Base(params["path"]))
