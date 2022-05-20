@@ -86,12 +86,12 @@ func kubeErrToGRPC(err error) error {
 		err = rewrapError(err, codes.DeadlineExceeded)
 	case apierr.IsInternalError(err):
 		err = rewrapError(err, codes.Internal)
-
-	}
-	// This is necessary as GRPC Status don't support wrapped errors:
-	// https://github.com/grpc/grpc-go/issues/2934
-	if statusErr := UnwrapGRPCStatus(err); statusErr != nil {
-		err = status.Error(statusErr.Code(), statusErr.Message())
+	default:
+		// This is necessary as GRPC Status don't support wrapped errors:
+		// https://github.com/grpc/grpc-go/issues/2934
+		if grpcStatus := UnwrapGRPCStatus(err); grpcStatus != nil {
+			err = status.Error(grpcStatus.Code(), grpcStatus.Message())
+		}
 	}
 	return err
 }
