@@ -598,6 +598,9 @@ func TestAuthenticate_3rd_party_JWTs(t *testing.T) {
 		t.Run(testDataCopy.test, func(t *testing.T) {
 			t.Parallel()
 
+			// Must be declared here to avoid race.
+			ctx := context.Background()  //nolint:ineffassign,staticcheck
+
 			argocd, dexURL := getTestServer(t, testDataCopy.anonymousEnabled, true)
 			ctx := context.Background()
 			testDataCopy.claims.Issuer = fmt.Sprintf("%s/api/dex", dexURL)
@@ -694,6 +697,9 @@ func TestAuthenticate_no_SSO(t *testing.T) {
 
 		t.Run(testDataCopy.test, func(t *testing.T) {
 			t.Parallel()
+
+			// Must be declared here to avoid race.
+			ctx := context.Background()  //nolint:ineffassign,staticcheck
 
 			argocd, dexURL := getTestServer(t, testDataCopy.anonymousEnabled, false)
 			ctx := context.Background()
