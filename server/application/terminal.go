@@ -11,6 +11,7 @@ import (
 	"github.com/argoproj/gitops-engine/pkg/utils/kube"
 	log "github.com/sirupsen/logrus"
 	v1 "k8s.io/api/core/v1"
+	apierr "k8s.io/apimachinery/pkg/api/errors"
 	apimachineryvalidation "k8s.io/apimachinery/pkg/api/validation"
 	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
 	"k8s.io/apimachinery/pkg/util/validation"
@@ -128,14 +129,19 @@ func (s *terminalHandler) ServeHTTP(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 
-	a, err := s.appLister.Get(app)
-	if err != nil {
-		http.Error(w, "Cannot get app", http.StatusBadRequest)
-		return
-	}
-
 	fieldLog := log.WithFields(log.Fields{"application": app, "userName": sessionmgr.Username(ctx), "container": container,
 		"podName": podName, "namespace": namespace, "cluster": a.Spec.Destination.Name})
+
+	a, err := s.appLister.Get(app)
+	if err != nil {
+		if apierr.IsNotFound(err) {
+			http.Error(w, "App not found", http.StatusNotFound)
+			return
+		}
+		fieldLog.Errorf("Error when getting app %q when launching a terminal: %s", app, err)
+		http.Error(w, "Cannot get app", http.StatusInternalServerError)
+		return
+	}
 
 	if a.Spec.Project != project {
 		fieldLog.Warnf("The wrong project (%q) was specified for the app %q when launching a terminal", project, app)
