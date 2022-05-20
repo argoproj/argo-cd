@@ -87,6 +87,14 @@ func (g *PullRequestGenerator) selectServiceProvider(ctx context.Context, genera
 		}
 		return pullrequest.NewGithubService(ctx, token, providerConfig.API, providerConfig.Owner, providerConfig.Repo, providerConfig.Labels)
 	}
+	if generatorConfig.GitLab != nil {
+		providerConfig := generatorConfig.GitLab
+		token, err := g.getSecretRef(ctx, providerConfig.TokenRef, applicationSetInfo.Namespace)
+		if err != nil {
+			return nil, fmt.Errorf("error fetching Secret token: %v", err)
+		}
+		return pullrequest.NewGitLabService(ctx, token, providerConfig.API, providerConfig.Project, providerConfig.Labels)
+	}
 	if generatorConfig.Gitea != nil {
 		providerConfig := generatorConfig.Gitea
 		token, err := g.getSecretRef(ctx, providerConfig.TokenRef, applicationSetInfo.Namespace)
