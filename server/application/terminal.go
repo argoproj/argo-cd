@@ -130,7 +130,7 @@ func (s *terminalHandler) ServeHTTP(w http.ResponseWriter, r *http.Request) {
 	}
 
 	fieldLog := log.WithFields(log.Fields{"application": app, "userName": sessionmgr.Username(ctx), "container": container,
-		"podName": podName, "namespace": namespace, "cluster": a.Spec.Destination.Name})
+		"podName": podName, "namespace": namespace, "cluster": project})
 
 	a, err := s.appLister.Get(app)
 	if err != nil {
