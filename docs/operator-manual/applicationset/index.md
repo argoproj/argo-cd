@@ -15,6 +15,9 @@ The ApplicationSet controller, supplements Argo CD by adding additional features
 - Improved support for monorepos: in the context of Argo CD, a monorepo is multiple Argo CD Application resources defined within a single Git repository
 - Within multitenant clusters, improves the ability of individual cluster tenants to deploy applications using Argo CD (without needing to involve privileged cluster administrators in enabling the destination clusters/namespaces)
 
+!!! note
+    Be aware of the [security implications](./Security.md) of ApplicationSets before using them.
+
 ## The ApplicationSet resource
 
 This example defines a new `guestbook` resource of kind `ApplicationSet`:
@@ -37,6 +40,7 @@ spec:
     metadata:
       name: '{{cluster}}-guestbook'
     spec:
+      project: my-project
       source:
         repoURL: https://github.com/infra-team/cluster-deployments.git
         targetRevision: HEAD
