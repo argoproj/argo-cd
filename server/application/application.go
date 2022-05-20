@@ -263,12 +263,12 @@ func (s *Server) queryRepoServer(ctx context.Context, a *v1alpha1.Application, a
 
 	helmRepos, err := s.db.ListHelmRepositories(ctx)
 	if err != nil {
-		return fmt.Errorf("error listing help repositories: %w", err)
+		return fmt.Errorf("error listing helm repositories: %w", err)
 	}
 
 	permittedHelmRepos, err := argo.GetPermittedRepos(proj, helmRepos)
 	if err != nil {
-		return fmt.Errorf("error retrieving permitter repos: %w", err)
+		return fmt.Errorf("error retrieving permitted repos: %w", err)
 	}
 	helmRepositoryCredentials, err := s.db.GetAllHelmRepositoryCredentials(ctx)
 	if err != nil {
@@ -1055,7 +1055,7 @@ func (s *Server) PatchResource(ctx context.Context, q *application.ApplicationRe
 	if err != nil {
 		// don't expose real error for secrets since it might contain secret data
 		if res.Kind == kube.SecretKind && res.Group == "" {
-			return nil, fmt.Errorf("failed to patch Secret %s/%s: %w", res.Namespace, res.Name, err)
+			return nil, fmt.Errorf("failed to patch Secret %s/%s", res.Namespace, res.Name)
 		}
 		return nil, fmt.Errorf("error patching resource: %w", err)
 	}
@@ -1587,7 +1587,7 @@ func (s *Server) Rollback(ctx context.Context, rollbackReq *application.Applicat
 	}
 	a, err = argo.SetAppOperation(appIf, *rollbackReq.Name, &op)
 	if err != nil {
-		return a, fmt.Errorf("error setting app operation: %w", err)
+		return nil, fmt.Errorf("error setting app operation: %w", err)
 	}
 	s.logAppEvent(a, ctx, argo.EventReasonOperationStarted, fmt.Sprintf("initiated rollback to %d", rollbackReq.GetId()))
 	return a, nil
