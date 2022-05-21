@@ -411,8 +411,7 @@ Once we create this service, we can configure the Ingress to conditionally route
     annotations:
       alb.ingress.kubernetes.io/backend-protocol: HTTPS
       # Use this annotation (which must match a service name) to route traffic to HTTP2 backends.
-      alb.ingress.kubernetes.io/conditions.argogrpc: |
-        [{"field":"http-header","httpHeaderConfig":{"httpHeaderName": "Content-Type", "values":["application/grpc"]}}]
+      alb.ingress.kubernetes.io/conditions.argogrpc: '[{"field":"http-header","httpHeaderConfig":{"httpHeaderName": "Content-Type", "values":["application/grpc"]}}]'
       alb.ingress.kubernetes.io/listen-ports: '[{"HTTPS":443}]'
     name: argocd
     namespace: argocd
