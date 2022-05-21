@@ -8,13 +8,13 @@ So you can just use them instead of reinventing new ones.
 
 ## Getting Started
 
-* Install Triggers and Templates from the catalog
+* Install Triggers and Templates from the catalog:
 
 ```
 kubectl apply -n argocd -f https://raw.githubusercontent.com/argoproj/argo-cd/stable/notifications_catalog/install.yaml
 ```
 
-* Add Email username and password token to `argocd-notifications-secret` secret
+* Add Email username and password token to `argocd-notifications-secret` secret:
 
 ```bash
 export EMAIL_USER=<your-username>
@@ -25,22 +25,22 @@ kind: Secret
 metadata:
   name: argocd-notifications-secret
 stringData:
-  email-username: $EMAIL_USER
-  email-password: $PASSWORD
+  email-username: <email_address>
+  email-password: <email_password>
 type: Opaque
 EOF
 ```
 
-* Register Email notification service
+* Register Email notification service:
 
 ```bash
-kubectl patch cm argocd-notifications-cm -n argocd --type merge -p '{"data": {"service.email.gmail": "{ username: $email-username, password: $email-password, host: smtp.gmail.com, port: 465, from: $email-username }" }}'
+kubectl patch cm argocd-notifications-cm -n argocd --type merge -p '{"data": {"service.email.gmail": "{ username: <email_address>, password: <email_password>, host: smtp.gmail.com, port: 465, from: <email_username> }" }}'
 ```
 
 * Subscribe to notifications by adding the `notifications.argoproj.io/subscribe.on-sync-succeeded.slack` annotation to the Argo CD application or project:
 
 ```bash
-kubectl patch app <my-app> -n argocd -p '{"metadata": {"annotations": {"notifications.argoproj.io/subscribe.on-sync-succeeded.slack":"<my-channel>"}}}' --type merge
+kubectl patch app <app_name> -n argocd -p '{"metadata": {"annotations": {"notifications.argoproj.io/subscribe.on-sync-succeeded.gmail":"<email_address>"}}}' --type merge
 ```
 
-Try syncing and application and get the notification once sync is completed.
+Test the notification by deleting the Deployment in Argo CD and sync it back again, once sync is completed you should receive a notification in your email.
