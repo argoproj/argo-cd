@@ -19,6 +19,12 @@ spec:
 
 * `cloneProtocol`: Which protocol to use for the SCM URL. Default is provider-specific but ssh if possible. Not all providers necessarily support all protocols, see provider documentation below for available options.
 
+!!! note
+    Know the security implications of using SCM generators. [Only admins may create ApplicationSets](./Security.md#only-admins-may-createupdatedelete-applicationsets) 
+    to avoid leaking Secrets, and [only admins may create repos/branches](./Security.md#templated-project-field) if the 
+    `project` field of an ApplicationSet with an SCM generator is templated, to avoid granting management of 
+    out-of-bounds resources.
+
 ## GitHub
 
 The GitHub mode uses the GitHub API to scan and organization in either github.com or GitHub Enterprise.
