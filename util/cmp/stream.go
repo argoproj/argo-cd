@@ -2,7 +2,6 @@ package cmp
 
 import (
 	"bufio"
-	"bytes"
 	"context"
 	"crypto/sha256"
 	"encoding/hex"
@@ -199,8 +198,11 @@ func compressFiles(appPath string) (*os.File, string, error) {
 // Returns error if checksum doesn't match the one provided in the fileMetadata.
 // It is responsibility of the caller to close the returned file.
 func receiveFile(ctx context.Context, receiver StreamReceiver, checksum, dst string) (*os.File, error) {
-	fileBuffer := bytes.Buffer{}
 	hasher := sha256.New()
+	file, err := ioutil.TempFile(dst, "")
+	if err != nil {
+		return nil, fmt.Errorf("error creating file: %w", err)
+	}
 	for {
 		if ctx != nil {
 			if err := ctx.Err(); err != nil {
@@ -218,9 +220,9 @@ func receiveFile(ctx context.Context, receiver StreamReceiver, checksum, dst str
 		if f == nil {
 			return nil, fmt.Errorf("stream request file is nil")
 		}
-		_, err = fileBuffer.Write(f.Chunk)
+		_, err = file.Write(f.Chunk)
 		if err != nil {
-			return nil, fmt.Errorf("error writing file buffer: %w", err)
+			return nil, fmt.Errorf("error writing file: %w", err)
 		}
 		_, err = hasher.Write(f.Chunk)
 		if err != nil {
@@ -231,15 +233,6 @@ func receiveFile(ctx context.Context, receiver StreamReceiver, checksum, dst str
 		return nil, fmt.Errorf("file checksum validation error")
 	}
 
-	file, err := ioutil.TempFile(dst, "")
-	if err != nil {
-		return nil, fmt.Errorf("error creating file: %w", err)
-	}
-	_, err = fileBuffer.WriteTo(file)
-	if err != nil {
-		closeAndDelete(file)
-		return nil, fmt.Errorf("error writing file: %w", err)
-	}
 	_, err = file.Seek(0, io.SeekStart)
 	if err != nil {
 		closeAndDelete(file)

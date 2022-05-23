@@ -75,6 +75,7 @@ nav:
     - Introduction: operator-manual/applicationset/index.md
     - Installations: operator-manual/applicationset/Getting-Started.md
     - Use Cases: operator-manual/applicationset/Use-Cases.md
+    - Security: operator-manual/applicationset/Security.md
     - How ApplicationSet controller interacts with Argo CD: operator-manual/applicationset/Argo-CD-Integration.md
     - Generators:
       - operator-manual/applicationset/Generators.md
@@ -97,6 +98,7 @@ nav:
     - operator-manual/server-commands/additional-configuration-method.md
   - Upgrading:
     - operator-manual/upgrading/overview.md
+    - operator-manual/upgrading/2.3-2.4.md
     - operator-manual/upgrading/2.2-2.3.md
     - operator-manual/upgrading/2.1-2.2.md
     - operator-manual/upgrading/2.0-2.1.md

@@ -5,11 +5,10 @@ Argo CD allows integrating more config management tools using config management 
 ## Installing a CMP
 
 There are two ways to install a Config Management Plugin (CMP):
-1. Add the plugin config to the Argo CD ConfigMap. The repo-server container will run your plugin's commands.
 
+1. Add the plugin config to the Argo CD ConfigMap. The repo-server container will run your plugin's commands.
    This is a good option for a simple plugin that requires only a few lines of code that fit nicely in the Argo CD ConfigMap.
 2. Add the plugin as a sidecar to the repo-server Pod.
-
    This is a good option for a more complex plugin that would clutter the Argo CD ConfigMap.
 
 ### Option 1: Configure plugins via Argo CD configmap
@@ -141,10 +140,16 @@ containers:
     - mountPath: /home/argocd/cmp-server/config/plugin.yaml
       subPath: plugin.yaml
       name: cmp-plugin
-  volumes:
-    - configMap:
-        name: cmp-plugin
+    # Starting with v2.4, do NOT mount the same tmp volume as the repo-server container. The filesystem separation helps 
+    # mitigate path traversal attacks.
+    - mountPath: /tmp
+      name: cmp-tmp
+volumes:
+  - configMap:
       name: cmp-plugin
+    name: cmp-plugin
+  - emptyDir: {}
+    name: cmp-tmp
 ``` 
 
 !!! important "Double-check these items"

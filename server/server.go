@@ -721,6 +721,8 @@ func (a *ArgoCDServer) newHTTPServer(ctx context.Context, port int, grpcWebHandl
 	var dOpts []grpc.DialOption
 	dOpts = append(dOpts, grpc.WithDefaultCallOptions(grpc.MaxCallRecvMsgSize(apiclient.MaxGRPCMessageSize)))
 	dOpts = append(dOpts, grpc.WithUserAgent(fmt.Sprintf("%s/%s", common.ArgoCDUserAgentName, common.GetVersion().Version)))
+	dOpts = append(dOpts, grpc.WithUnaryInterceptor(otelgrpc.UnaryClientInterceptor()))
+	dOpts = append(dOpts, grpc.WithStreamInterceptor(otelgrpc.StreamClientInterceptor()))
 	if a.useTLS() {
 		// The following sets up the dial Options for grpc-gateway to talk to gRPC server over TLS.
 		// grpc-gateway is just translating HTTP/HTTPS requests as gRPC requests over localhost,
@@ -752,30 +754,34 @@ func (a *ArgoCDServer) newHTTPServer(ctx context.Context, port int, grpcWebHandl
 		handler = compressHandler(handler)
 	}
 	mux.Handle("/api/", handler)
-	terminalHandler := application.NewHandler(a.appLister, a.db, a.enf, a.Cache, appResourceTreeFn)
-	mux.HandleFunc("/terminal", func(writer http.ResponseWriter, request *http.Request) {
-		if !a.DisableAuth {
-			ctx := request.Context()
-			cookies := request.Cookies()
-			tokenString, err := httputil.JoinCookies(common.AuthCookieName, cookies)
-			if err == nil && jwtutil.IsValid(tokenString) {
-				claims, _, err := a.sessionMgr.VerifyToken(tokenString)
-				if err != nil {
-					// nolint:staticcheck
-					ctx = context.WithValue(ctx, util_session.AuthErrorCtxKey, err)
-				} else if claims != nil {
-					// Add claims to the context to inspect for RBAC
-					// nolint:staticcheck
-					ctx = context.WithValue(ctx, "claims", claims)
+	if a.settings.ExecEnabled {
+		terminalHandler := application.NewHandler(a.appLister, a.db, a.enf, a.Cache, appResourceTreeFn)
+		mux.HandleFunc("/terminal", func(writer http.ResponseWriter, request *http.Request) {
+			if !a.DisableAuth {
+				ctx := request.Context()
+				cookies := request.Cookies()
+				tokenString, err := httputil.JoinCookies(common.AuthCookieName, cookies)
+				if err == nil && jwtutil.IsValid(tokenString) {
+					claims, _, err := a.sessionMgr.VerifyToken(tokenString)
+					if err != nil {
+						// nolint:staticcheck
+						ctx = context.WithValue(ctx, util_session.AuthErrorCtxKey, err)
+					} else if claims != nil {
+						// Add claims to the context to inspect for RBAC
+						// nolint:staticcheck
+						ctx = context.WithValue(ctx, "claims", claims)
+					}
+					request = request.WithContext(ctx)
+				} else {
+					writer.WriteHeader(http.StatusUnauthorized)
+					return
 				}
-				request = request.WithContext(ctx)
-			} else {
-				writer.WriteHeader(http.StatusUnauthorized)
-				return
 			}
-		}
-		terminalHandler.ServeHTTP(writer, request)
-	})
+			terminalHandler.ServeHTTP(writer, request)
+		})
+	} else {
+		log.Info("exec is disabled, and /terminal will return a 404")
+	}
 
 	mustRegisterGWHandler(versionpkg.RegisterVersionServiceHandlerFromEndpoint, ctx, gwmux, endpoint, dOpts)
 	mustRegisterGWHandler(clusterpkg.RegisterClusterServiceHandlerFromEndpoint, ctx, gwmux, endpoint, dOpts)
@@ -996,6 +1002,9 @@ func (a *ArgoCDServer) Authenticate(ctx context.Context) (context.Context, error
 		}
 		if !argoCDSettings.AnonymousUserEnabled {
 			return ctx, claimsErr
+		} else {
+			// nolint:staticcheck
+			ctx = context.WithValue(ctx, "claims", "")
 		}
 	}
 

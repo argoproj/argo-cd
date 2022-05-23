@@ -4,10 +4,15 @@ import (
 	"context"
 	"io"
 	"net/http"
+	"net/url"
+	"strings"
 
 	"github.com/argoproj/gitops-engine/pkg/utils/kube"
+	log "github.com/sirupsen/logrus"
 	v1 "k8s.io/api/core/v1"
+	apimachineryvalidation "k8s.io/apimachinery/pkg/api/validation"
 	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
+	"k8s.io/apimachinery/pkg/util/validation"
 	"k8s.io/client-go/kubernetes"
 	"k8s.io/client-go/kubernetes/scheme"
 	"k8s.io/client-go/rest"
@@ -21,6 +26,7 @@ import (
 	"github.com/argoproj/argo-cd/v2/util/argo"
 	"github.com/argoproj/argo-cd/v2/util/db"
 	"github.com/argoproj/argo-cd/v2/util/rbac"
+	sessionmgr "github.com/argoproj/argo-cd/v2/util/session"
 )
 
 type terminalHandler struct {
@@ -54,16 +60,57 @@ func (s *terminalHandler) getApplicationClusterRawConfig(ctx context.Context, a 
 	return clst.RawRestConfig(), nil
 }
 
+// isValidPodName checks that a podName is valid
+func isValidPodName(name string) bool {
+	// https://github.com/kubernetes/kubernetes/blob/976a940f4a4e84fe814583848f97b9aafcdb083f/pkg/apis/core/validation/validation.go#L241
+	isValid := apimachineryvalidation.NameIsDNSSubdomain(name, false)
+	return len(isValid) == 0
+}
+
+// isValidNamespaceName checks that a namespace name is valid
+func isValidNamespaceName(name string) bool {
+	// https://github.com/kubernetes/kubernetes/blob/976a940f4a4e84fe814583848f97b9aafcdb083f/pkg/apis/core/validation/validation.go#L262
+	isValid := apimachineryvalidation.ValidateNamespaceName(name, false)
+	return len(isValid) == 0
+}
+
+// isValidContainerName checks that a containerName is valid
+func isValidContainerName(name string) bool {
+	// quick check to ensure we aren't passing along anything unsafe
+	isQualified := validation.IsQualifiedName(name)
+	return len(isQualified) == 0
+}
+
+// GetQueryValue returns a value for a given url key
+// and strips newline to prevent go/log-injection
+func GetQueryValue(q url.Values, key string) string {
+	return strings.Replace(q.Get(key), "\n", "", -1)
+}
+
 func (s *terminalHandler) ServeHTTP(w http.ResponseWriter, r *http.Request) {
 	q := r.URL.Query()
-	podName := q.Get("pod")
-	container := q.Get("container")
-	app := q.Get("appName")
-	namespace := q.Get("namespace")
-	shell := q.Get("shell")
+	podName := GetQueryValue(q, "pod")
+	container := GetQueryValue(q, "container")
+	app := GetQueryValue(q, "appName")
+	namespace := GetQueryValue(q, "namespace")
+	shell := GetQueryValue(q, "shell")
 
 	if podName == "" || container == "" || app == "" || namespace == "" {
 		http.Error(w, "Missing required parameters", http.StatusBadRequest)
+		return
+	}
+
+	// validate query string parameters to prevent unsafe usage
+	if !isValidNamespaceName(namespace) {
+		http.Error(w, "Namespace name is not valid", http.StatusBadRequest)
+		return
+	}
+	if !isValidPodName(podName) {
+		http.Error(w, "Pod name is not valid", http.StatusBadRequest)
+		return
+	}
+	if !isValidContainerName(container) {
+		http.Error(w, "Container name is not valid", http.StatusBadRequest)
 		return
 	}
 
@@ -74,13 +121,16 @@ func (s *terminalHandler) ServeHTTP(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 
+	fieldLog := log.WithFields(log.Fields{"userName": sessionmgr.Username(ctx), "container": container,
+		"podName": podName, "namespace": namespace, "cluster": a.Spec.Destination.Name})
+
 	appRBACName := apputil.AppRBACName(*a)
 	if err := s.enf.EnforceErr(ctx.Value("claims"), rbacpolicy.ResourceApplications, rbacpolicy.ActionGet, appRBACName); err != nil {
 		http.Error(w, err.Error(), http.StatusUnauthorized)
 		return
 	}
 
-	if err := s.enf.EnforceErr(ctx.Value("claims"), rbacpolicy.ResourceExec, rbacpolicy.ActionGet, appRBACName); err != nil {
+	if err := s.enf.EnforceErr(ctx.Value("claims"), rbacpolicy.ResourceExec, rbacpolicy.ActionCreate, appRBACName); err != nil {
 		http.Error(w, err.Error(), http.StatusUnauthorized)
 		return
 	}
@@ -111,6 +161,7 @@ func (s *terminalHandler) ServeHTTP(w http.ResponseWriter, r *http.Request) {
 
 	pod, err := kubeClientset.CoreV1().Pods(namespace).Get(ctx, podName, metav1.GetOptions{})
 	if err != nil {
+		fieldLog.Errorf("error retrieving pod: %s", err)
 		http.Error(w, "Cannot find pod", http.StatusBadRequest)
 		return
 	}
@@ -128,9 +179,12 @@ func (s *terminalHandler) ServeHTTP(w http.ResponseWriter, r *http.Request) {
 		}
 	}
 	if !findContainer {
+		fieldLog.Warn("terminal container not found")
 		http.Error(w, "Cannot find container", http.StatusBadRequest)
 		return
 	}
+
+	fieldLog.Info("terminal session starting")
 
 	session, err := newTerminalSession(w, r, nil)
 	if err != nil {

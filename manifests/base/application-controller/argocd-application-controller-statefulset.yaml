@@ -119,6 +119,12 @@ spec:
                 name: argocd-cmd-params-cm
                 key: controller.default.cache.expiration
                 optional: true
+        - name: ARGOCD_APPLICATION_CONTROLLER_OTLP_ADDRESS
+          valueFrom:
+              configMapKeyRef:
+                name: argocd-cmd-params-cm
+                key: otlp.address
+                optional: true
         image: quay.io/argoproj/argocd:latest
         imagePullPolicy: Always
         name: argocd-application-controller
