@@ -10,7 +10,7 @@ require (
 	github.com/alicebob/miniredis v2.5.0+incompatible
 	github.com/alicebob/miniredis/v2 v2.14.2
 	github.com/argoproj/gitops-engine v0.6.1-0.20220328190556-73bcea9c8c8f
-	github.com/argoproj/notifications-engine v0.3.1-0.20220322174744-ac18ca10234c
+	github.com/argoproj/notifications-engine v0.3.1-0.20220430155844-567361917320
 	github.com/argoproj/pkg v0.11.1-0.20211203175135-36c59d8fafe0
 	github.com/aws/aws-sdk-go v1.38.49
 	github.com/bombsimon/logrusr/v2 v2.0.1
@@ -237,6 +237,7 @@ require (
 )
 
 require (
+	github.com/PagerDuty/go-pagerduty v1.5.0 // indirect
 	github.com/cenkalti/backoff/v4 v4.1.2 // indirect
 	github.com/go-logr/stdr v1.2.2 // indirect
 	github.com/grpc-ecosystem/grpc-gateway/v2 v2.7.0 // indirect
