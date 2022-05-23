@@ -1178,6 +1178,12 @@ func getResourceEventPayload(
 		actualState.Manifest = ""
 	}
 
+	if a.ObjectMeta.DeletionTimestamp != nil {
+		// resource should be deleted in case if application in process of deletion
+		desiredState.CompiledManifest = ""
+		actualState.Manifest = ""
+	}
+
 	if a.Status.OperationState != nil {
 		syncStarted = a.Status.OperationState.StartedAt
 		syncFinished = a.Status.OperationState.FinishedAt
