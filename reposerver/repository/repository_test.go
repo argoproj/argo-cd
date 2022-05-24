@@ -1721,12 +1721,6 @@ func Test_findManifests(t *testing.T) {
 	logCtx := log.WithField("test", "test")
 	noRecurse := argoappv1.ApplicationSourceDirectory{Recurse: false}
 
-	t.Run("empty dir returns no manifests", func(t *testing.T) {
-		manifests, err := findManifests(logCtx, "./testdata/empty-dir", "./testdata/empty-dir", nil, noRecurse, nil)
-		assert.Empty(t, manifests)
-		assert.NoError(t, err)
-	})
-
 	t.Run("unreadable file throws error", func(t *testing.T) {
 		appDir := t.TempDir()
 		unreadablePath := filepath.Join(appDir, "unreadable.json")
