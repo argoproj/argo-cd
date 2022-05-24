@@ -127,7 +127,7 @@ func TestMatrixGenerate(t *testing.T) {
 		testCaseCopy := testCase // Since tests may run in parallel
 
 		t.Run(testCaseCopy.name, func(t *testing.T) {
-			mock := &generatorMock{}
+			generatorMock := &generatorMock{}
 			appSet := &argoprojiov1alpha1.ApplicationSet{}
 
 			for _, g := range testCaseCopy.baseGenerators {
@@ -136,7 +136,7 @@ func TestMatrixGenerate(t *testing.T) {
 					Git:  g.Git,
 					List: g.List,
 				}
-				mock.On("GenerateParams", &gitGeneratorSpec, appSet).Return([]map[string]string{
+				generatorMock.On("GenerateParams", mock.AnythingOfType("*v1alpha1.ApplicationSetGenerator"), appSet).Return([]map[string]string{
 					{
 						"path":                    "app1",
 						"path.basename":           "app1",
@@ -149,13 +149,13 @@ func TestMatrixGenerate(t *testing.T) {
 					},
 				}, nil)
 
-				mock.On("GetTemplate", &gitGeneratorSpec).
+				generatorMock.On("GetTemplate", &gitGeneratorSpec).
 					Return(&argoprojiov1alpha1.ApplicationSetTemplate{})
 			}
 
 			var matrixGenerator = NewMatrixGenerator(
 				map[string]Generator{
-					"Git":  mock,
+					"Git":  generatorMock,
 					"List": &ListGenerator{},
 				},
 			)
