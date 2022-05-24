@@ -79,31 +79,31 @@ func TestIsValidPodName(t *testing.T) {
 	for _, tcase := range []struct {
 		name           string
 		resourceName   string
-		expectedResult bool
+		expectedResult string
 	}{
 		{
 			name:           "valid pod name",
 			resourceName:   "argocd-server-794644486d-r8v9d",
-			expectedResult: true,
+			expectedResult: "argocd-server-794644486d-r8v9d",
 		},
 		{
 			name:           "not valid contains spaces",
 			resourceName:   "kubectl delete pods",
-			expectedResult: false,
+			expectedResult: "",
 		},
 		{
 			name:           "not valid",
 			resourceName:   "kubectl -n kube-system delete pods --all",
-			expectedResult: false,
+			expectedResult: "",
 		},
 		{
 			name:           "not valid contains special characters",
 			resourceName:   "delete+*+from+etcd%3b",
-			expectedResult: false,
+			expectedResult: "",
 		},
 	} {
 		t.Run(tcase.name, func(t *testing.T) {
-			result := isValidPodName(tcase.resourceName)
+			result := getValidPodName(tcase.resourceName)
 			if result != tcase.expectedResult {
 				t.Errorf("Expected result %v, but got %v", tcase.expectedResult, result)
 			}
@@ -115,26 +115,26 @@ func TestIsValidNamespaceName(t *testing.T) {
 	for _, tcase := range []struct {
 		name           string
 		resourceName   string
-		expectedResult bool
+		expectedResult string
 	}{
 		{
 			name:           "valid pod namespace name",
 			resourceName:   "argocd",
-			expectedResult: true,
+			expectedResult: "argocd",
 		},
 		{
 			name:           "not valid contains spaces",
 			resourceName:   "kubectl delete ns argocd",
-			expectedResult: false,
+			expectedResult: "",
 		},
 		{
 			name:           "not valid contains special characters",
 			resourceName:   "delete+*+from+etcd%3b",
-			expectedResult: false,
+			expectedResult: "",
 		},
 	} {
 		t.Run(tcase.name, func(t *testing.T) {
-			result := isValidNamespaceName(tcase.resourceName)
+			result := getValidNamespaceName(tcase.resourceName)
 			if result != tcase.expectedResult {
 				t.Errorf("Expected result %v, but got %v", tcase.expectedResult, result)
 			}
@@ -146,26 +146,26 @@ func TestIsValidContainerNameName(t *testing.T) {
 	for _, tcase := range []struct {
 		name           string
 		resourceName   string
-		expectedResult bool
+		expectedResult string
 	}{
 		{
 			name:           "valid container name",
 			resourceName:   "argocd-server",
-			expectedResult: true,
+			expectedResult: "argocd-server",
 		},
 		{
 			name:           "not valid contains spaces",
 			resourceName:   "kubectl delete pods",
-			expectedResult: false,
+			expectedResult: "",
 		},
 		{
 			name:           "not valid contains special characters",
 			resourceName:   "delete+*+from+etcd%3b",
-			expectedResult: false,
+			expectedResult: "",
 		},
 	} {
 		t.Run(tcase.name, func(t *testing.T) {
-			result := isValidContainerName(tcase.resourceName)
+			result := getValidContainerName(tcase.resourceName)
 			if result != tcase.expectedResult {
 				t.Errorf("Expected result %v, but got %v", tcase.expectedResult, result)
 			}
