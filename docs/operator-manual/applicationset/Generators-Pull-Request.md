@@ -1,7 +1,6 @@
 # Pull Request Generator
 
-The Pull Request generator uses the API of an SCMaaS provider (eg GitHub/GitLab) to automatically discover open pull requests within an repository. This fits well with the style of building a test environment when you create a pull request.
-
+The Pull Request generator uses the API of an SCMaaS provider (GitHub, Gitea, or Bitbucket Server) to automatically discover open pull requests within a repository. This fits well with the style of building a test environment when you create a pull request.
 
 ```yaml
 apiVersion: argoproj.io/v1alpha1
@@ -16,9 +15,15 @@ spec:
         # ...
 ```
 
+!!! note
+    Know the security implications of PR generators in ApplicationSets. 
+    [Only admins may create ApplicationSets](./Security.md#only-admins-may-createupdatedelete-applicationsets) to avoid
+    leaking Secrets, and [only admins may create PRs](./Security.md#templated-project-field) if the `project` field of 
+    an ApplicationSet with a PR generator is templated, to avoid granting management of out-of-bounds resources.
+
 ## GitHub
 
-Specify the repository from which to fetch the Github Pull requests.
+Specify the repository from which to fetch the GitHub Pull requests.
 
 ```yaml
 apiVersion: argoproj.io/v1alpha1
@@ -48,7 +53,7 @@ spec:
 ```
 
 * `owner`: Required name of the GitHub organization or user.
-* `repo`: Required name of the Github repository.
+* `repo`: Required name of the GitHub repository.
 * `api`: If using GitHub Enterprise, the URL to access it. (Optional)
 * `tokenRef`: A `Secret` name and key containing the GitHub access token to use for requests. If not specified, will make anonymous requests which have a lower rate limit and can only see public repositories. (Optional)
 * `labels`: Labels is used to filter the PRs that you want to target. (Optional)
@@ -182,7 +187,7 @@ spec:
           parameters:
           - name: "image.tag"
             value: "pull-{{head_sha}}"
-      project: default
+      project: "my-project"
       destination:
         server: https://kubernetes.default.svc
         namespace: default
@@ -213,7 +218,7 @@ spec:
             app.kubernetes.io/instance: {{branch}}-{{number}}
           images:
           - ghcr.io/myorg/myrepo:{{head_sha}}
-      project: default
+      project: "my-project"
       destination:
         server: https://kubernetes.default.svc
         namespace: default
@@ -230,6 +235,7 @@ When using a Pull Request generator, the ApplicationSet controller polls every `
 The configuration is almost the same as the one described [in the Git generator](Generators-Git.md), but there is one difference: if you want to use the Pull Request Generator as well, additionally configure the following settings.
 
 In section 1, _"Create the webhook in the Git provider"_, add an event so that a webhook request will be sent when a pull request is created, closed, or label changed.
+
 Select `Let me select individual events` and enable the checkbox for `Pull requests`.
 
 ![Add Webhook](../../assets/applicationset/webhook-config-pull-request.png "Add Webhook Pull Request")
