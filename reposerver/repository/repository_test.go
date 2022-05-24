@@ -5,7 +5,6 @@ import (
 	"encoding/json"
 	"errors"
 	"fmt"
-	log "github.com/sirupsen/logrus"
 	goio "io"
 	"io/ioutil"
 	"os"
@@ -16,6 +15,8 @@ import (
 	"strings"
 	"testing"
 	"time"
+
+	log "github.com/sirupsen/logrus"
 
 	"github.com/ghodss/yaml"
 	"github.com/stretchr/testify/assert"
@@ -151,33 +152,33 @@ func TestGenerateYamlManifestInDir(t *testing.T) {
 }
 
 func Test_GenerateManifests_NoOutOfBoundsAccess(t *testing.T) {
-	testCases := []struct{
-		name string
-		outOfBoundsFilename string
+	testCases := []struct {
+		name                    string
+		outOfBoundsFilename     string
 		outOfBoundsFileContents string
-		mustNotContain string  // Optional string that must not appear in error or manifest output. If empty, use outOfBoundsFileContents.
+		mustNotContain          string // Optional string that must not appear in error or manifest output. If empty, use outOfBoundsFileContents.
 	}{
 		{
-			name: "out of bounds JSON file should not appear in error output",
-			outOfBoundsFilename: "test.json",
+			name:                    "out of bounds JSON file should not appear in error output",
+			outOfBoundsFilename:     "test.json",
 			outOfBoundsFileContents: `{"some": "json"}`,
 		},
 		{
-			name: "malformed JSON file contents should not appear in error output",
-			outOfBoundsFilename: "test.json",
+			name:                    "malformed JSON file contents should not appear in error output",
+			outOfBoundsFilename:     "test.json",
 			outOfBoundsFileContents: "$",
 		},
 		{
-			name: "out of bounds JSON manifest should not appear in manifest output",
+			name:                "out of bounds JSON manifest should not appear in manifest output",
 			outOfBoundsFilename: "test.json",
 			// JSON marshalling is deterministic. So if there's a leak, exactly this should appear in the manifests.
 			outOfBoundsFileContents: `{"apiVersion":"v1","kind":"Secret","metadata":{"name":"test","namespace":"default"},"type":"Opaque"}`,
 		},
 		{
-			name: "out of bounds YAML manifest should not appear in manifest output",
-			outOfBoundsFilename: "test.yaml",
+			name:                    "out of bounds YAML manifest should not appear in manifest output",
+			outOfBoundsFilename:     "test.yaml",
 			outOfBoundsFileContents: "apiVersion: v1\nkind: Secret\nmetadata:\n  name: test\n  namespace: default\ntype: Opaque",
-			mustNotContain: `{"apiVersion":"v1","kind":"Secret","metadata":{"name":"test","namespace":"default"},"type":"Opaque"}`,
+			mustNotContain:          `{"apiVersion":"v1","kind":"Secret","metadata":{"name":"test","namespace":"default"},"type":"Opaque"}`,
 		},
 	}
 
@@ -1469,6 +1470,7 @@ func mkTempParameters(source string) string {
 func runWithTempTestdata(t *testing.T, path string, runner func(t *testing.T, path string)) {
 	tempDir := mkTempParameters("./testdata/app-parameters")
 	runner(t, filepath.Join(tempDir, "app-parameters", path))
+	os.RemoveAll(tempDir)
 }
 
 func TestGenerateManifestsWithAppParameterFile(t *testing.T) {
