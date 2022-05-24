@@ -1036,7 +1036,7 @@ func findManifests(logCtx *log.Entry, appPath string, repoRoot string, env *v1al
 					return fmt.Errorf("failed to evaluate symlink at %q: %w", relPath, err)
 				}
 			}
-			if !files.Inbound(realPath, appPath) {
+			if !files.Inbound(realPath, repoRoot) {
 				logCtx.Warnf("illegal filepath in symlink: %s", realPath)
 				return fmt.Errorf("illegal filepath in symlink at %q", relPath)
 			}
