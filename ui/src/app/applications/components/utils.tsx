@@ -128,7 +128,7 @@ export async function confirmSyncingAppOfApps(apps: appModels.Application[], api
             <div>
                 <p>
                     Are you sure you want to sync the application '{appNameList}' which contain(s) multiple apps with 'replace' option? This action will delete and recreate
-                    multiple apps linked to '{appNameList}'.
+                    all apps linked to '{appNameList}'.
                 </p>
                 <div className='argo-form-row'>
                     <FormField
