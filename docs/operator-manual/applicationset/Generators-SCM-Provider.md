@@ -185,9 +185,13 @@ metadata:
 spec:
   generators:
   - scmProvider:
-      azureDevops:
+      azureDevOps:
         # The Azure DevOps organization.
         organization: myorg
+        # URL to Azure DevOps. Optional. Defaults to https://dev.azure.com.
+        api: https://dev.azure.com
+        # If true, scan every branch of eligible repositories. If false, check only the default branch of the eligible repositories. Defaults to false.
+        allBranches: true
         # The team project within the specified Azure DevOps organization.
         teamProject: myProject
         # Reference to a Secret containing the Azure DevOps Personal Access Token (PAT) used for accessing Azure DevOps.
@@ -201,6 +205,8 @@ spec:
 * `organization`: Required. Name of the Azure DevOps organization.
 * `teamProject`: Required. The name of the team project within the specified `organization`.
 * `accessTokenRef`: Required. A `Secret` name and key containing the Azure DevOps Personal Access Token (PAT) to use for requests.
+* `api`: Optional. URL to Azure DevOps. If not set, `https://dev.azure.com` is used.
+* `allBranches`: Optional, default `false`. If `true`, scans every branch of eligible repositories. If `false`, check only the default branch of the eligible repositories.
 
 
 ## Filters

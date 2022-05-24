@@ -101,12 +101,12 @@ func (g *SCMProviderGenerator) GenerateParams(appSetGenerator *argoprojiov1alpha
 		if scmError != nil {
 			return nil, fmt.Errorf("error initializing Bitbucket Server service: %v", scmError)
 		}
-	} else if providerConfig.AzureDevops != nil {
-		token, err := g.getSecretRef(ctx, providerConfig.AzureDevops.AccessTokenRef, applicationSetInfo.Namespace)
+	} else if providerConfig.AzureDevOps != nil {
+		token, err := g.getSecretRef(ctx, providerConfig.AzureDevOps.AccessTokenRef, applicationSetInfo.Namespace)
 		if err != nil {
 			return nil, fmt.Errorf("error fetching Azure Devops access token: %v", err)
 		}
-		provider, err = scm_provider.NewAzureDevopsProvider(ctx, token, providerConfig.AzureDevops.Organization, providerConfig.AzureDevops.TeamProject)
+		provider, err = scm_provider.NewAzureDevOpsProvider(ctx, token, providerConfig.AzureDevOps.Organization, providerConfig.AzureDevOps.API, providerConfig.AzureDevOps.TeamProject, providerConfig.AzureDevOps.AllBranches)
 		if err != nil {
 			return nil, fmt.Errorf("error initializing Azure Devops service: %v", err)
 		}

@@ -2654,7 +2654,7 @@ spec:
                                 type: object
                               scmProvider:
                                 properties:
-                                  azureDevops:
+                                  azureDevOps:
                                     properties:
                                       accessTokenRef:
                                         properties:
@@ -2666,6 +2666,10 @@ spec:
                                         - key
                                         - secretName
                                         type: object
+                                      allBranches:
+                                        type: boolean
+                                      api:
+                                        type: string
                                       organization:
                                         type: string
                                       teamProject:
@@ -4828,7 +4832,7 @@ spec:
                                 type: object
                               scmProvider:
                                 properties:
-                                  azureDevops:
+                                  azureDevOps:
                                     properties:
                                       accessTokenRef:
                                         properties:
@@ -4840,6 +4844,10 @@ spec:
                                         - key
                                         - secretName
                                         type: object
+                                      allBranches:
+                                        type: boolean
+                                      api:
+                                        type: string
                                       organization:
                                         type: string
                                       teamProject:
@@ -5867,7 +5875,7 @@ spec:
                       type: object
                     scmProvider:
                       properties:
-                        azureDevops:
+                        azureDevOps:
                           properties:
                             accessTokenRef:
                               properties:
@@ -5879,6 +5887,10 @@ spec:
                               - key
                               - secretName
                               type: object
+                            allBranches:
+                              type: boolean
+                            api:
+                              type: string
                             organization:
                               type: string
                             teamProject:

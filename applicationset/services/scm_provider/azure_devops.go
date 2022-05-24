@@ -3,16 +3,17 @@ package scm_provider
 import (
 	"context"
 	"fmt"
-	"net/url"
-	"os"
+	netUrl "net/url"
+	"strings"
 
+	"github.com/google/uuid"
 	"github.com/microsoft/azure-devops-go-api/azuredevops"
 	azureGit "github.com/microsoft/azure-devops-go-api/azuredevops/git"
 )
 
 const AZURE_DEVOPS_DEFAULT_URL = "https://dev.azure.com"
 
-type AzureDevopsClientFactory interface {
+type AzureDevOpsClientFactory interface {
 	// Returns an Azure Devops Client interface.
 	GetClient(ctx context.Context) (azureGit.Client, error)
 }
@@ -24,7 +25,7 @@ type devopsFactoryImpl struct {
 func (factory *devopsFactoryImpl) GetClient(ctx context.Context) (azureGit.Client, error) {
 	gitClient, err := azureGit.NewClient(ctx, factory.connection)
 	if err != nil {
-		return nil, err
+		return nil, fmt.Errorf("failed to get new Azure DevOps git client for SCM generator: %w", err)
 	}
 	return gitClient, nil
 }
@@ -32,34 +33,37 @@ func (factory *devopsFactoryImpl) GetClient(ctx context.Context) (azureGit.Clien
 // Contains Azure Devops REST API implementation of SCMProviderService.
 // See https://docs.microsoft.com/en-us/rest/api/azure/devops
 
-type AzureDevopsProvider struct {
+type AzureDevOpsProvider struct {
 	organization  string
 	teamProject   string
 	accessToken   string
-	clientFactory AzureDevopsClientFactory
+	clientFactory AzureDevOpsClientFactory
+	allBranches   bool
 }
 
-var _ SCMProviderService = &AzureDevopsProvider{}
-var _ AzureDevopsClientFactory = &devopsFactoryImpl{}
+var _ SCMProviderService = &AzureDevOpsProvider{}
+var _ AzureDevOpsClientFactory = &devopsFactoryImpl{}
 
-func NewAzureDevopsProvider(ctx context.Context, accessToken string, org string, project string) (*AzureDevopsProvider, error) {
+func NewAzureDevOpsProvider(ctx context.Context, accessToken string, org string, url string, project string, allBranches bool) (*AzureDevOpsProvider, error) {
 	if accessToken == "" {
-		return nil, fmt.Errorf("No access token provided")
+		return nil, fmt.Errorf("no access token provided")
 	}
 
-	baseUrl, err := getBaseUrl()
+	devOpsURL, err := getValidDevOpsURL(url, org)
+
 	if err != nil {
 		return nil, err
 	}
-	url := fmt.Sprintf("%s/%s", *baseUrl, org)
-	connection := azuredevops.NewPatConnection(url, accessToken)
-	return &AzureDevopsProvider{organization: org, teamProject: project, accessToken: accessToken, clientFactory: &devopsFactoryImpl{connection: connection}}, nil
+
+	connection := azuredevops.NewPatConnection(devOpsURL, accessToken)
+
+	return &AzureDevOpsProvider{organization: org, teamProject: project, accessToken: accessToken, clientFactory: &devopsFactoryImpl{connection: connection}, allBranches: allBranches}, nil
 }
 
-func (g *AzureDevopsProvider) ListRepos(ctx context.Context, cloneProtocol string) ([]*Repository, error) {
+func (g *AzureDevOpsProvider) ListRepos(ctx context.Context, cloneProtocol string) ([]*Repository, error) {
 	gitClient, err := g.clientFactory.GetClient(ctx)
 	if err != nil {
-		return nil, err
+		return nil, fmt.Errorf("failed to get Azure DevOps client: %w", err)
 	}
 	getRepoArgs := azureGit.GetRepositoriesArgs{Project: &g.teamProject}
 	azureRepos, err := gitClient.GetRepositories(ctx, getRepoArgs)
@@ -85,45 +89,78 @@ func (g *AzureDevopsProvider) ListRepos(ctx context.Context, cloneProtocol strin
 	return repos, nil
 }
 
-func (g *AzureDevopsProvider) RepoHasPath(ctx context.Context, repo *Repository, path string) (bool, error) {
+func (g *AzureDevOpsProvider) RepoHasPath(ctx context.Context, repo *Repository, path string) (bool, error) {
 	gitClient, err := g.clientFactory.GetClient(ctx)
 	if err != nil {
-		return false, err
+		return false, fmt.Errorf("failed to get Azure DevOps client: %w", err)
 	}
 
-	idAsString := fmt.Sprintf("%v", repo.RepositoryId)
+	var repoId string
+	if uuid, isUuid := repo.RepositoryId.(uuid.UUID); isUuid { //most likely an UUID, but do type-safe check anyway. Do %v fallback if not expected type.
+		repoId = uuid.String()
+	} else {
+		repoId = fmt.Sprintf("%v", repo.RepositoryId)
+	}
+
 	branchName := repo.Branch
-	getItemArgs := azureGit.GetItemArgs{RepositoryId: &idAsString, Project: &g.teamProject, Path: &path, VersionDescriptor: &azureGit.GitVersionDescriptor{Version: &branchName}}
+	getItemArgs := azureGit.GetItemArgs{RepositoryId: &repoId, Project: &g.teamProject, Path: &path, VersionDescriptor: &azureGit.GitVersionDescriptor{Version: &branchName}}
 	_, err = gitClient.GetItem(ctx, getItemArgs)
 
 	if err != nil {
-		if wrappedError, isWrappedError := err.(azuredevops.WrappedError); isWrappedError {
+		if wrappedError, isWrappedError := err.(azuredevops.WrappedError); isWrappedError && wrappedError.TypeKey != nil {
 			if *wrappedError.TypeKey == "GitItemNotFoundException" {
 				return false, nil
 			}
 		}
-		return false, err
+
+		return false, fmt.Errorf("failed to check for path existence in Azure DevOps: %w", err)
 	}
 
 	return true, nil
 }
 
-func (g *AzureDevopsProvider) GetBranches(ctx context.Context, repo *Repository) ([]*Repository, error) {
+func (g *AzureDevOpsProvider) GetBranches(ctx context.Context, repo *Repository) ([]*Repository, error) {
 	gitClient, err := g.clientFactory.GetClient(ctx)
 	if err != nil {
-		return nil, err
+		return nil, fmt.Errorf("failed to get Azure DevOps client: %w", err)
+	}
+
+	repos := []*Repository{}
+
+	if !g.allBranches {
+		getBranchArgs := azureGit.GetBranchArgs{RepositoryId: &repo.Repository, Project: &g.teamProject, Name: &repo.Branch}
+		branchResult, err := gitClient.GetBranch(ctx, getBranchArgs)
+		if err != nil {
+			return nil, fmt.Errorf("could not get default branch %v from repository %v: %w", repo.Branch, repo.Repository, err)
+		}
+
+		if branchResult.Name == nil || branchResult.Commit == nil {
+			return nil, fmt.Errorf("invalid branch result after requesting branch %v from repository %v", repo.Branch, repo.Repository)
+		}
+
+		repos = append(repos, &Repository{
+			Branch:       *branchResult.Name,
+			SHA:          *branchResult.Commit.CommitId,
+			Organization: repo.Organization,
+			Repository:   repo.Repository,
+			URL:          repo.URL,
+			Labels:       []string{},
+			RepositoryId: repo.RepositoryId,
+		})
+
+		return repos, nil
 	}
 
 	getBranchesRequest := azureGit.GetBranchesArgs{RepositoryId: &repo.Repository, Project: &g.teamProject}
 	branches, err := gitClient.GetBranches(ctx, getBranchesRequest)
 	if err != nil {
-		return []*Repository{}, nil //Repo might be locked/unavailable, branch authz; all sorts of reasons why this would fail. Just return empty result.
+		return nil, fmt.Errorf("failed getting branches from repository %v, project %v: %w", repo.Repository, g.teamProject, err)
 	}
-	repos := []*Repository{}
+
 	for _, azureBranch := range *branches {
 		repos = append(repos, &Repository{
 			Branch:       *azureBranch.Name,
-			SHA:          shortCommitSHA(*azureBranch.Commit.CommitId),
+			SHA:          *azureBranch.Commit.CommitId,
 			Organization: repo.Organization,
 			Repository:   repo.Repository,
 			URL:          repo.URL,
@@ -135,23 +172,23 @@ func (g *AzureDevopsProvider) GetBranches(ctx context.Context, repo *Repository)
 	return repos, nil
 }
 
-func shortCommitSHA(commitId string) string {
-	if len(commitId) < 8 {
-		return commitId
+func getValidDevOpsURL(url string, org string) (string, error) {
+	if url == "" {
+		url = AZURE_DEVOPS_DEFAULT_URL
 	}
-	r := commitId[0:8]
-	return r
-}
+	separator := ""
+	if !strings.HasSuffix(url, "/") {
+		separator = "/"
+	}
 
-func getBaseUrl() (*string, error) {
-	baseUrl := os.Getenv("AZURE_DEVOPS_BASE_URL")
-	if baseUrl == "" {
-		baseUrl = AZURE_DEVOPS_DEFAULT_URL
-	}
-	urlCheck, err := url.Parse(baseUrl)
+	devOpsURL := fmt.Sprintf("%s%s%s", url, separator, org)
+
+	urlCheck, err := netUrl.ParseRequestURI(devOpsURL)
+
 	if err != nil {
-		return nil, err
+		return "", fmt.Errorf("got an invalid URL for the Azure SCM generator: %w", err)
 	}
+
 	ret := urlCheck.String()
-	return &ret, nil
+	return ret, nil
 }

@@ -8,24 +8,15 @@ import (
 	"github.com/google/uuid"
 	"github.com/stretchr/testify/assert"
 	"github.com/stretchr/testify/mock"
+	"k8s.io/utils/pointer"
 
 	azureMock "github.com/argoproj/argo-cd/v2/applicationset/services/scm_provider/azure_devops/git/mocks"
 	"github.com/microsoft/azure-devops-go-api/azuredevops"
 	azureGit "github.com/microsoft/azure-devops-go-api/azuredevops/git"
 )
 
-type uuidHolder struct {
-	uuid uuid.UUID
-	err  error
-}
-
-func getUuidHolder() uuidHolder {
-	uuid, err := uuid.NewUUID()
-	return uuidHolder{uuid: uuid, err: err}
-}
-
 func s(input string) *string {
-	return &input
+	return pointer.String(input)
 }
 
 func TestAzureDevopsRepoHasPath(t *testing.T) {
@@ -35,35 +26,50 @@ func TestAzureDevopsRepoHasPath(t *testing.T) {
 	path := "dir/subdir/item.yaml"
 	branchName := "my/featurebranch"
 
-	ctx := context.TODO()
-	uuidHolder := getUuidHolder()
+	ctx := context.Background()
+	uuid := uuid.New().String()
 
 	testCases := []struct {
 		name             string
 		pathFound        bool
 		azureDevopsError error
 		returnError      bool
+		errorMessage     string
+		clientError      error
 	}{
 		{
-			name:      "repo_has_path_found_returns_true",
+			name:        "RepoHasPath when Azure DevOps client factory fails returns error",
+			clientError: fmt.Errorf("Client factory error"),
+		},
+		{
+			name:      "RepoHasPath when found returns true",
 			pathFound: true,
 		},
 		{
-			name:             "repo_has_path_not_found_empty_search_result_returns_false",
+			name:             "RepoHasPath when no path found returns false",
 			pathFound:        false,
 			azureDevopsError: azuredevops.WrappedError{TypeKey: s("GitItemNotFoundException")},
 		},
 		{
-			name:             "repo_has_path_not_found_other_azure_devops_error_returns_error",
+			name:             "RepoHasPath when unknown Azure DevOps WrappedError occurs returns error",
 			pathFound:        false,
 			azureDevopsError: azuredevops.WrappedError{TypeKey: s("OtherAzureDevopsException")},
 			returnError:      true,
+			errorMessage:     "failed to check for path existence",
 		},
 		{
-			name:             "repo_has_path_not_found_other_error_returns_error",
+			name:             "RepoHasPath when unknown Azure DevOps error occurs returns error",
 			pathFound:        false,
 			azureDevopsError: fmt.Errorf("Undefined error from Azure Devops"),
 			returnError:      true,
+			errorMessage:     "failed to check for path existence",
+		},
+		{
+			name:             "RepoHasPath when wrapped Azure DevOps error occurs without TypeKey returns error",
+			pathFound:        false,
+			azureDevopsError: azuredevops.WrappedError{},
+			returnError:      true,
+			errorMessage:     "failed to check for path existence",
 		},
 	}
 
@@ -72,25 +78,104 @@ func TestAzureDevopsRepoHasPath(t *testing.T) {
 			gitClientMock := azureMock.Client{}
 
 			clientFactoryMock := &AzureClientFactoryMock{mock: &mock.Mock{}}
-			clientFactoryMock.mock.On("GetClient", mock.Anything).Return(&gitClientMock, nil)
+			clientFactoryMock.mock.On("GetClient", mock.Anything).Return(&gitClientMock, testCase.clientError)
 
-			repoIdAsString := fmt.Sprintf("%v", uuidHolder.uuid)
-			gitClientMock.On("GetItem", ctx, azureGit.GetItemArgs{Project: &teamProject, Path: &path, VersionDescriptor: &azureGit.GitVersionDescriptor{Version: &branchName}, RepositoryId: &repoIdAsString}).Return(nil, testCase.azureDevopsError)
+			repoId := &uuid
+			gitClientMock.On("GetItem", ctx, azureGit.GetItemArgs{Project: &teamProject, Path: &path, VersionDescriptor: &azureGit.GitVersionDescriptor{Version: &branchName}, RepositoryId: repoId}).Return(nil, testCase.azureDevopsError)
 
-			provider := AzureDevopsProvider{organization: organization, teamProject: teamProject, clientFactory: clientFactoryMock}
+			provider := AzureDevOpsProvider{organization: organization, teamProject: teamProject, clientFactory: clientFactoryMock}
 
-			repo := &Repository{Organization: organization, Repository: repoName, RepositoryId: uuidHolder.uuid, Branch: branchName}
+			repo := &Repository{Organization: organization, Repository: repoName, RepositoryId: uuid, Branch: branchName}
 			hasPath, err := provider.RepoHasPath(ctx, repo, path)
 
+			if testCase.clientError != nil {
+				assert.ErrorContains(t, err, testCase.clientError.Error())
+				gitClientMock.AssertNotCalled(t, "GetItem", ctx, azureGit.GetItemArgs{Project: &teamProject, Path: &path, VersionDescriptor: &azureGit.GitVersionDescriptor{Version: &branchName}, RepositoryId: repoId})
+
+				return
+			}
+
 			if testCase.returnError {
-				assert.Error(t, err)
+				assert.ErrorContains(t, err, testCase.errorMessage)
 			} else {
 				assert.NoError(t, err)
 			}
 
 			assert.Equal(t, testCase.pathFound, hasPath)
 
-			gitClientMock.AssertExpectations(t)
+			gitClientMock.AssertCalled(t, "GetItem", ctx, azureGit.GetItemArgs{Project: &teamProject, Path: &path, VersionDescriptor: &azureGit.GitVersionDescriptor{Version: &branchName}, RepositoryId: repoId})
+
+		})
+	}
+}
+
+func TestAzureDevOpsGetBranchesDefultBranchOnly(t *testing.T) {
+	organization := "myorg"
+	teamProject := "myorg_project"
+	repoName := "myorg_project_repo"
+
+	ctx := context.Background()
+	uuid := uuid.New().String()
+
+	defaultBranch := "main"
+
+	testCases := []struct {
+		name                string
+		expectedBranch      azureGit.GitBranchStats
+		getBranchesApiError error
+		clientError         error
+	}{
+		{
+			name:           "GetBranches AllBranches false when single branch returned returns branch",
+			expectedBranch: azureGit.GitBranchStats{Name: &defaultBranch, Commit: &azureGit.GitCommitRef{CommitId: s("abc123233223")}},
+		},
+		{
+			name:                "GetBranches AllBranches false when request fails returns error and empty result",
+			getBranchesApiError: fmt.Errorf("Remote Azure Devops GetBranches error"),
+		},
+		{
+			name:        "GetBranches AllBranches false when Azure DevOps client fails returns error",
+			clientError: fmt.Errorf("Could not get Azure Devops API client"),
+		},
+		{
+			name:           "GetBranches AllBranches false when branch returned with long commit SHA",
+			expectedBranch: azureGit.GitBranchStats{Name: &defaultBranch, Commit: &azureGit.GitCommitRef{CommitId: s("53863052ADF24229AB72154B4D83DAB7")}},
+		},
+	}
+
+	for _, testCase := range testCases {
+		t.Run(testCase.name, func(t *testing.T) {
+			gitClientMock := azureMock.Client{}
+
+			clientFactoryMock := &AzureClientFactoryMock{mock: &mock.Mock{}}
+			clientFactoryMock.mock.On("GetClient", mock.Anything).Return(&gitClientMock, testCase.clientError)
+
+			gitClientMock.On("GetBranch", ctx, azureGit.GetBranchArgs{RepositoryId: &repoName, Project: &teamProject, Name: &defaultBranch}).Return(&testCase.expectedBranch, testCase.getBranchesApiError)
+
+			repo := &Repository{Organization: organization, Repository: repoName, RepositoryId: uuid, Branch: defaultBranch}
+
+			provider := AzureDevOpsProvider{organization: organization, teamProject: teamProject, clientFactory: clientFactoryMock, allBranches: false}
+			branches, err := provider.GetBranches(ctx, repo)
+
+			if testCase.clientError != nil {
+				assert.ErrorContains(t, err, testCase.clientError.Error())
+				gitClientMock.AssertNotCalled(t, "GetBranch", ctx, azureGit.GetBranchArgs{RepositoryId: &repoName, Project: &teamProject, Name: &defaultBranch})
+
+				return
+			}
+
+			if testCase.getBranchesApiError != nil {
+				assert.Empty(t, branches)
+				assert.ErrorContains(t, err, testCase.getBranchesApiError.Error())
+			} else {
+				if &testCase.expectedBranch != nil {
+					assert.NotEmpty(t, branches)
+				}
+				assert.Len(t, branches, 1)
+				assert.Equal(t, repo.RepositoryId, branches[0].RepositoryId)
+			}
+
+			gitClientMock.AssertCalled(t, "GetBranch", ctx, azureGit.GetBranchArgs{RepositoryId: &repoName, Project: &teamProject, Name: &defaultBranch})
 		})
 	}
 }
@@ -100,37 +185,43 @@ func TestAzureDevopsGetBranches(t *testing.T) {
 	teamProject := "myorg_project"
 	repoName := "myorg_project_repo"
 
-	ctx := context.TODO()
-	uuidHolder := getUuidHolder()
+	ctx := context.Background()
+	uuid := uuid.New().String()
 
 	testCases := []struct {
 		name                string
 		expectedBranches    []azureGit.GitBranchStats
 		getBranchesApiError error
-		expectedError       error
+		clientError         error
+		allBranches         bool
 	}{
 		{
-			name:             "get_branches_single_branch_returns_branch",
+			name:             "GetBranches when single branch returned returns this branch info",
 			expectedBranches: []azureGit.GitBranchStats{{Name: s("feature-feat1"), Commit: &azureGit.GitCommitRef{CommitId: s("abc123233223")}}},
+			allBranches:      true,
 		},
 		{
-			name:                "get_branches_fails_return_empty_result",
+			name:                "GetBranches when Azure DevOps request fails returns error and empty result",
 			getBranchesApiError: fmt.Errorf("Remote Azure Devops GetBranches error"),
+			allBranches:         true,
 		},
 		{
-			name: "get_branches_no_branches_returned",
+			name:        "GetBranches when no branches returned returns empty set",
+			allBranches: true,
 		},
 		{
-			name:          "get_branches_get_client_fails",
-			expectedError: fmt.Errorf("Could not get Azure Devops API client"),
+			name:        "GetBranches when git client retrievel fails returns error",
+			clientError: fmt.Errorf("Could not get Azure Devops API client"),
+			allBranches: true,
 		},
 		{
-			name: "get_branches_multiple_branches_returns_branches",
+			name: "GetBranches when multiple branches returned returns branch info for all branches",
 			expectedBranches: []azureGit.GitBranchStats{
 				{Name: s("feature-feat1"), Commit: &azureGit.GitCommitRef{CommitId: s("abc123233223")}},
 				{Name: s("feature/feat2"), Commit: &azureGit.GitCommitRef{CommitId: s("4334")}},
 				{Name: s("feature/feat2"), Commit: &azureGit.GitCommitRef{CommitId: s("53863052ADF24229AB72154B4D83DAB7")}},
 			},
+			allBranches: true,
 		},
 	}
 
@@ -139,36 +230,37 @@ func TestAzureDevopsGetBranches(t *testing.T) {
 			gitClientMock := azureMock.Client{}
 
 			clientFactoryMock := &AzureClientFactoryMock{mock: &mock.Mock{}}
-			clientFactoryMock.mock.On("GetClient", mock.Anything).Return(&gitClientMock, testCase.expectedError)
+			clientFactoryMock.mock.On("GetClient", mock.Anything).Return(&gitClientMock, testCase.clientError)
 
-			setup := gitClientMock.On("GetBranches", ctx, azureGit.GetBranchesArgs{RepositoryId: &repoName, Project: &teamProject}).Return(&testCase.expectedBranches, testCase.getBranchesApiError)
-			if testCase.expectedError != nil {
-				setup.Maybe()
-			}
+			gitClientMock.On("GetBranches", ctx, azureGit.GetBranchesArgs{RepositoryId: &repoName, Project: &teamProject}).Return(&testCase.expectedBranches, testCase.getBranchesApiError)
 
-			repo := &Repository{Organization: organization, Repository: repoName, RepositoryId: uuidHolder.uuid}
+			repo := &Repository{Organization: organization, Repository: repoName, RepositoryId: uuid}
 
-			provider := AzureDevopsProvider{organization: organization, teamProject: teamProject, clientFactory: clientFactoryMock}
+			provider := AzureDevOpsProvider{organization: organization, teamProject: teamProject, clientFactory: clientFactoryMock, allBranches: testCase.allBranches}
 			branches, err := provider.GetBranches(ctx, repo)
 
-			if testCase.expectedError != nil {
-				assert.Error(t, err, "Expected error to occur on test case %s", testCase.name)
+			if testCase.clientError != nil {
+				assert.ErrorContains(t, err, testCase.clientError.Error())
+				gitClientMock.AssertNotCalled(t, "GetBranches", ctx, azureGit.GetBranchesArgs{RepositoryId: &repoName, Project: &teamProject})
+				return
+
+			}
+
+			if testCase.getBranchesApiError != nil {
+				assert.Empty(t, branches)
+				assert.ErrorContains(t, err, testCase.getBranchesApiError.Error())
 			} else {
-				if testCase.getBranchesApiError != nil {
-					assert.Empty(t, branches)
-				} else {
-					if len(testCase.expectedBranches) > 0 {
-						assert.NotEmpty(t, branches)
-					}
-					assert.Equal(t, len(testCase.expectedBranches), len(branches))
-					for _, branch := range branches {
-						assert.NotEmpty(t, branch.RepositoryId)
-						assert.Equal(t, repo.RepositoryId, branch.RepositoryId)
-					}
+				if len(testCase.expectedBranches) > 0 {
+					assert.NotEmpty(t, branches)
+				}
+				assert.Len(t, branches, len(testCase.expectedBranches))
+				for _, branch := range branches {
+					assert.NotEmpty(t, branch.RepositoryId)
+					assert.Equal(t, repo.RepositoryId, branch.RepositoryId)
 				}
 			}
 
-			gitClientMock.AssertExpectations(t)
+			gitClientMock.AssertCalled(t, "GetBranches", ctx, azureGit.GetBranchesArgs{RepositoryId: &repoName, Project: &teamProject})
 		})
 	}
 }
@@ -177,51 +269,49 @@ func TestGetAzureDevopsRepositories(t *testing.T) {
 	organization := "myorg"
 	teamProject := "myorg_project"
 
-	uuidHolder := getUuidHolder()
-	ctx := context.TODO()
+	uuid := uuid.New()
+	ctx := context.Background()
+
+	repoId := &uuid
 
 	testCases := []struct {
 		name                  string
 		getRepositoriesError  error
 		repositories          []azureGit.GitRepository
-		expectEmptyRepoList   bool
 		expectedNumberOfRepos int
 	}{
 		{
-			name:         "get_repositories_single_repo_returns_repo",
-			repositories: []azureGit.GitRepository{{Name: s("repo1"), DefaultBranch: s("main"), RemoteUrl: s("https://remoteurl.u"), Id: &uuidHolder.uuid}},
+			name:                  "ListRepos when single repo found returns repo info",
+			repositories:          []azureGit.GitRepository{{Name: s("repo1"), DefaultBranch: s("main"), RemoteUrl: s("https://remoteurl.u"), Id: repoId}},
+			expectedNumberOfRepos: 1,
 		},
 		{
-			name:                "get_repositories_repo_without_default_branch_returns_empty",
-			repositories:        []azureGit.GitRepository{{Name: s("repo2"), RemoteUrl: s("https://remoteurl.u"), Id: &uuidHolder.uuid}},
-			expectEmptyRepoList: true,
+			name:         "ListRepos when repo has no default branch returns empty list",
+			repositories: []azureGit.GitRepository{{Name: s("repo2"), RemoteUrl: s("https://remoteurl.u"), Id: repoId}},
 		},
 		{
-			name:                 "get_repositories_fails_returns_error",
+			name:                 "ListRepos when Azure DevOps request fails returns error",
 			getRepositoriesError: fmt.Errorf("Could not get repos"),
 		},
 		{
-			name:                "get_repositories_repo_without_name_returns_empty",
-			repositories:        []azureGit.GitRepository{{DefaultBranch: s("main"), RemoteUrl: s("https://remoteurl.u"), Id: &uuidHolder.uuid}},
-			expectEmptyRepoList: true,
+			name:         "ListRepos when repo has no name returns empty list",
+			repositories: []azureGit.GitRepository{{DefaultBranch: s("main"), RemoteUrl: s("https://remoteurl.u"), Id: repoId}},
 		},
 		{
-			name:                "get_repositories_repo_without_remoteurl_returns_empty",
-			repositories:        []azureGit.GitRepository{{DefaultBranch: s("main"), Name: s("repo_name"), Id: &uuidHolder.uuid}},
-			expectEmptyRepoList: true,
+			name:         "ListRepos when repo has no remote URL returns empty list",
+			repositories: []azureGit.GitRepository{{DefaultBranch: s("main"), Name: s("repo_name"), Id: repoId}},
 		},
 		{
-			name:                "get_repositories_repo_without_id_returns_empty",
-			repositories:        []azureGit.GitRepository{{DefaultBranch: s("main"), Name: s("repo_name"), RemoteUrl: s("https://remoteurl.u")}},
-			expectEmptyRepoList: true,
+			name:         "ListRepos when repo has no ID returns empty list",
+			repositories: []azureGit.GitRepository{{DefaultBranch: s("main"), Name: s("repo_name"), RemoteUrl: s("https://remoteurl.u")}},
 		},
 		{
-			name: "get_repositories_multiple_results_returns_eligible",
+			name: "ListRepos when multiple repos returned returns list of eligible repos only",
 			repositories: []azureGit.GitRepository{
-				{Name: s("returned1"), DefaultBranch: s("main"), RemoteUrl: s("https://remoteurl.u"), Id: &uuidHolder.uuid},
-				{Name: s("missing_default_branch"), RemoteUrl: s("https://remoteurl.u"), Id: &uuidHolder.uuid},
-				{DefaultBranch: s("missing_name"), RemoteUrl: s("https://remoteurl.u"), Id: &uuidHolder.uuid},
-				{Name: s("missing_remote_url"), DefaultBranch: s("main"), Id: &uuidHolder.uuid},
+				{Name: s("returned1"), DefaultBranch: s("main"), RemoteUrl: s("https://remoteurl.u"), Id: repoId},
+				{Name: s("missing_default_branch"), RemoteUrl: s("https://remoteurl.u"), Id: repoId},
+				{DefaultBranch: s("missing_name"), RemoteUrl: s("https://remoteurl.u"), Id: repoId},
+				{Name: s("missing_remote_url"), DefaultBranch: s("main"), Id: repoId},
 				{Name: s("missing_id"), DefaultBranch: s("main"), RemoteUrl: s("https://remoteurl.u")}},
 			expectedNumberOfRepos: 1,
 		},
@@ -236,24 +326,23 @@ func TestGetAzureDevopsRepositories(t *testing.T) {
 			clientFactoryMock := &AzureClientFactoryMock{mock: &mock.Mock{}}
 			clientFactoryMock.mock.On("GetClient", mock.Anything).Return(&gitClientMock)
 
-			provider := AzureDevopsProvider{organization: organization, teamProject: teamProject, clientFactory: clientFactoryMock}
+			provider := AzureDevOpsProvider{organization: organization, teamProject: teamProject, clientFactory: clientFactoryMock}
 
 			repositories, err := provider.ListRepos(ctx, "https")
 
-			if err != nil {
-				if testCase.getRepositoriesError != nil {
-					assert.Error(t, fmt.Errorf("Error getting repos in test %s, %v", testCase.name, err))
-				}
+			if testCase.getRepositoriesError != nil {
+				assert.Error(t, err, "Expected an error from test case %v", testCase.name)
 			} else {
-				if testCase.expectEmptyRepoList {
-					assert.Empty(t, repositories)
-				} else {
-					assert.NotEmpty(t, repositories)
-					if testCase.expectedNumberOfRepos > 0 {
-						assert.Equal(t, testCase.expectedNumberOfRepos, len(repositories))
-					}
-				}
+				assert.NoError(t, err, "Did not expect an error from test case %v", testCase.name)
 			}
+
+			if testCase.expectedNumberOfRepos == 0 {
+				assert.Empty(t, repositories)
+			} else {
+				assert.NotEmpty(t, repositories)
+				assert.Len(t, repositories, testCase.expectedNumberOfRepos)
+			}
+
 			gitClientMock.AssertExpectations(t)
 		})
 	}
