@@ -20,7 +20,7 @@ spec:
     metadata:
       name: '{{cluster}}-guestbook'
     spec:
-      project: default
+      project: "my-project"
       source:
         repoURL: https://github.com/argoproj/argo-cd.git
         targetRevision: HEAD
