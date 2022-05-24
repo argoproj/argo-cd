@@ -157,6 +157,10 @@ func (g *AzureDevOpsProvider) GetBranches(ctx context.Context, repo *Repository)
 		return nil, fmt.Errorf("failed getting branches from repository %v, project %v: %w", repo.Repository, g.teamProject, err)
 	}
 
+	if branches == nil {
+		return nil, fmt.Errorf("got empty branch result from repository %v, project %v: %w", repo.Repository, g.teamProject, err)
+	}
+
 	for _, azureBranch := range *branches {
 		repos = append(repos, &Repository{
 			Branch:       *azureBranch.Name,

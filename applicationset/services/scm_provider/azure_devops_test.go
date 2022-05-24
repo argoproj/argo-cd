@@ -121,13 +121,13 @@ func TestAzureDevOpsGetBranchesDefultBranchOnly(t *testing.T) {
 
 	testCases := []struct {
 		name                string
-		expectedBranch      azureGit.GitBranchStats
+		expectedBranch      *azureGit.GitBranchStats
 		getBranchesApiError error
 		clientError         error
 	}{
 		{
 			name:           "GetBranches AllBranches false when single branch returned returns branch",
-			expectedBranch: azureGit.GitBranchStats{Name: &defaultBranch, Commit: &azureGit.GitCommitRef{CommitId: s("abc123233223")}},
+			expectedBranch: &azureGit.GitBranchStats{Name: &defaultBranch, Commit: &azureGit.GitCommitRef{CommitId: s("abc123233223")}},
 		},
 		{
 			name:                "GetBranches AllBranches false when request fails returns error and empty result",
@@ -139,7 +139,7 @@ func TestAzureDevOpsGetBranchesDefultBranchOnly(t *testing.T) {
 		},
 		{
 			name:           "GetBranches AllBranches false when branch returned with long commit SHA",
-			expectedBranch: azureGit.GitBranchStats{Name: &defaultBranch, Commit: &azureGit.GitCommitRef{CommitId: s("53863052ADF24229AB72154B4D83DAB7")}},
+			expectedBranch: &azureGit.GitBranchStats{Name: &defaultBranch, Commit: &azureGit.GitCommitRef{CommitId: s("53863052ADF24229AB72154B4D83DAB7")}},
 		},
 	}
 
@@ -150,7 +150,7 @@ func TestAzureDevOpsGetBranchesDefultBranchOnly(t *testing.T) {
 			clientFactoryMock := &AzureClientFactoryMock{mock: &mock.Mock{}}
 			clientFactoryMock.mock.On("GetClient", mock.Anything).Return(&gitClientMock, testCase.clientError)
 
-			gitClientMock.On("GetBranch", ctx, azureGit.GetBranchArgs{RepositoryId: &repoName, Project: &teamProject, Name: &defaultBranch}).Return(&testCase.expectedBranch, testCase.getBranchesApiError)
+			gitClientMock.On("GetBranch", ctx, azureGit.GetBranchArgs{RepositoryId: &repoName, Project: &teamProject, Name: &defaultBranch}).Return(testCase.expectedBranch, testCase.getBranchesApiError)
 
 			repo := &Repository{Organization: organization, Repository: repoName, RepositoryId: uuid, Branch: defaultBranch}
 
@@ -168,7 +168,7 @@ func TestAzureDevOpsGetBranchesDefultBranchOnly(t *testing.T) {
 				assert.Empty(t, branches)
 				assert.ErrorContains(t, err, testCase.getBranchesApiError.Error())
 			} else {
-				if &testCase.expectedBranch != nil {
+				if testCase.expectedBranch != nil {
 					assert.NotEmpty(t, branches)
 				}
 				assert.Len(t, branches, 1)
@@ -189,15 +189,16 @@ func TestAzureDevopsGetBranches(t *testing.T) {
 	uuid := uuid.New().String()
 
 	testCases := []struct {
-		name                string
-		expectedBranches    []azureGit.GitBranchStats
-		getBranchesApiError error
-		clientError         error
-		allBranches         bool
+		name                       string
+		expectedBranches           *[]azureGit.GitBranchStats
+		getBranchesApiError        error
+		clientError                error
+		allBranches                bool
+		expectedProcessingErrorMsg string
 	}{
 		{
 			name:             "GetBranches when single branch returned returns this branch info",
-			expectedBranches: []azureGit.GitBranchStats{{Name: s("feature-feat1"), Commit: &azureGit.GitCommitRef{CommitId: s("abc123233223")}}},
+			expectedBranches: &[]azureGit.GitBranchStats{{Name: s("feature-feat1"), Commit: &azureGit.GitCommitRef{CommitId: s("abc123233223")}}},
 			allBranches:      true,
 		},
 		{
@@ -206,8 +207,9 @@ func TestAzureDevopsGetBranches(t *testing.T) {
 			allBranches:         true,
 		},
 		{
-			name:        "GetBranches when no branches returned returns empty set",
-			allBranches: true,
+			name:                       "GetBranches when no branches returned returns error",
+			allBranches:                true,
+			expectedProcessingErrorMsg: "empty branch result",
 		},
 		{
 			name:        "GetBranches when git client retrievel fails returns error",
@@ -216,7 +218,7 @@ func TestAzureDevopsGetBranches(t *testing.T) {
 		},
 		{
 			name: "GetBranches when multiple branches returned returns branch info for all branches",
-			expectedBranches: []azureGit.GitBranchStats{
+			expectedBranches: &[]azureGit.GitBranchStats{
 				{Name: s("feature-feat1"), Commit: &azureGit.GitCommitRef{CommitId: s("abc123233223")}},
 				{Name: s("feature/feat2"), Commit: &azureGit.GitCommitRef{CommitId: s("4334")}},
 				{Name: s("feature/feat2"), Commit: &azureGit.GitCommitRef{CommitId: s("53863052ADF24229AB72154B4D83DAB7")}},
@@ -232,13 +234,19 @@ func TestAzureDevopsGetBranches(t *testing.T) {
 			clientFactoryMock := &AzureClientFactoryMock{mock: &mock.Mock{}}
 			clientFactoryMock.mock.On("GetClient", mock.Anything).Return(&gitClientMock, testCase.clientError)
 
-			gitClientMock.On("GetBranches", ctx, azureGit.GetBranchesArgs{RepositoryId: &repoName, Project: &teamProject}).Return(&testCase.expectedBranches, testCase.getBranchesApiError)
+			gitClientMock.On("GetBranches", ctx, azureGit.GetBranchesArgs{RepositoryId: &repoName, Project: &teamProject}).Return(testCase.expectedBranches, testCase.getBranchesApiError)
 
 			repo := &Repository{Organization: organization, Repository: repoName, RepositoryId: uuid}
 
 			provider := AzureDevOpsProvider{organization: organization, teamProject: teamProject, clientFactory: clientFactoryMock, allBranches: testCase.allBranches}
 			branches, err := provider.GetBranches(ctx, repo)
 
+			if testCase.expectedProcessingErrorMsg != "" {
+				assert.ErrorContains(t, err, testCase.expectedProcessingErrorMsg)
+				assert.Nil(t, branches)
+
+				return
+			}
 			if testCase.clientError != nil {
 				assert.ErrorContains(t, err, testCase.clientError.Error())
 				gitClientMock.AssertNotCalled(t, "GetBranches", ctx, azureGit.GetBranchesArgs{RepositoryId: &repoName, Project: &teamProject})
@@ -250,10 +258,10 @@ func TestAzureDevopsGetBranches(t *testing.T) {
 				assert.Empty(t, branches)
 				assert.ErrorContains(t, err, testCase.getBranchesApiError.Error())
 			} else {
-				if len(testCase.expectedBranches) > 0 {
+				if len(*testCase.expectedBranches) > 0 {
 					assert.NotEmpty(t, branches)
 				}
-				assert.Len(t, branches, len(testCase.expectedBranches))
+				assert.Len(t, branches, len(*testCase.expectedBranches))
 				for _, branch := range branches {
 					assert.NotEmpty(t, branch.RepositoryId)
 					assert.Equal(t, repo.RepositoryId, branch.RepositoryId)
@@ -369,8 +377,4 @@ func (m *AzureClientFactoryMock) GetClient(ctx context.Context) (azureGit.Client
 	}
 
 	return client, err
-}
-
-type AzureGitClientMock struct {
-	mock *mock.Mock
 }
