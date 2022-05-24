@@ -2,6 +2,7 @@ package app
 
 import (
 	"fmt"
+
 	appv1 "github.com/argoproj/argo-cd/v2/pkg/apis/application/v1alpha1"
 )
 
@@ -9,3 +10,7 @@ import (
 func AppRBACName(app appv1.Application) string {
 	return fmt.Sprintf("%s/%s", app.Spec.GetProject(), app.Name)
 }
+
+// func AppRBACNameWithNamespace(app appv1.Application, defaultNs string) {
+// 	if app.Namespace
+// }

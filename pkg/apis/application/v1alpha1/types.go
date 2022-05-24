@@ -1669,6 +1669,8 @@ type AppProjectSpec struct {
 	SignatureKeys []SignatureKey `json:"signatureKeys,omitempty" protobuf:"bytes,10,opt,name=signatureKeys"`
 	// ClusterResourceBlacklist contains list of blacklisted cluster level resources
 	ClusterResourceBlacklist []metav1.GroupKind `json:"clusterResourceBlacklist,omitempty" protobuf:"bytes,11,opt,name=clusterResourceBlacklist"`
+	// SourceNamespaces defines the namespaces application resources are allowed to be created in
+	SourceNamespaces []string `json:"sourceNamespaces,omitempty" protobuf:"bytes,12,opt,name=sourceNamespaces"`
 }
 
 // SyncWindows is a collection of sync windows in this project
@@ -2519,4 +2521,35 @@ func (d *ApplicationDestination) MarshalJSON() ([]byte, error) {
 		dest.Server = ""
 	}
 	return json.Marshal(&struct{ *Alias }{Alias: (*Alias)(dest)})
+}
+
+// InstanceName returns the name of the application that can be used as value
+// for a tracking label
+func (a *Application) InstanceName() string {
+	// When app has no namespace set, or the namespace is the default ns, we
+	// return just the application name
+	if a.Namespace == "" {
+		return a.Name
+	}
+	return a.Namespace + "_" + a.Name
+}
+
+func (a *Application) InstanceNameWithDefault(defaultNs string) string {
+	// When app has no namespace set, or the namespace is the default ns, we
+	// return just the application name
+	if a.Namespace == "" || a.Namespace == defaultNs {
+		return a.Name
+	}
+	return a.Namespace + "_" + a.Name
+}
+
+// QualifiedName returns the full qualified name of the application, including
+// the name of the namespace it is created in. The format returned is
+// namespace/appname
+func (a *Application) QualifiedName() string {
+	if a.Namespace == "" {
+		return a.Name
+	} else {
+		return a.Namespace + "/" + a.Name
+	}
 }

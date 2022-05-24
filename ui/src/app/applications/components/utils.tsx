@@ -45,7 +45,7 @@ export function helpTip(text: string) {
         </Tooltip>
     );
 }
-export async function deleteApplication(appName: string, apis: ContextApis): Promise<boolean> {
+export async function deleteApplication(appName: string, appNamespace: string, apis: ContextApis): Promise<boolean> {
     let confirmed = false;
     const propagationPolicies: {name: string; message: string}[] = [
         {
@@ -100,7 +100,7 @@ export async function deleteApplication(appName: string, apis: ContextApis): Pro
             }),
             submit: async (vals, _, close) => {
                 try {
-                    await services.applications.delete(appName, vals.propagationPolicy);
+                    await services.applications.delete(appName, appNamespace, vals.propagationPolicy);
                     confirmed = true;
                     close();
                 } catch (e) {
@@ -288,7 +288,7 @@ export function findChildPod(node: appModels.ResourceNode, tree: appModels.Appli
     });
 }
 
-export const deletePodAction = async (pod: appModels.Pod, appContext: AppContext, appName: string) => {
+export const deletePodAction = async (pod: appModels.Pod, appContext: AppContext, appName: string, appNamespace: string) => {
     appContext.apis.popup.prompt(
         'Delete pod',
         () => (
@@ -304,7 +304,7 @@ export const deletePodAction = async (pod: appModels.Pod, appContext: AppContext
         {
             submit: async (vals, _, close) => {
                 try {
-                    await services.applications.deleteResource(appName, pod, !!vals.force, false);
+                    await services.applications.deleteResource(appName, appNamespace, pod, !!vals.force, false);
                     close();
                 } catch (e) {
                     appContext.apis.notifications.show({
@@ -370,9 +370,9 @@ export const deletePopup = async (ctx: ContextApis, resource: ResourceTreeNode, 
                 const force = deleteOptions.option === 'force';
                 const orphan = deleteOptions.option === 'orphan';
                 try {
-                    await services.applications.deleteResource(application.metadata.name, resource, !!force, !!orphan);
+                    await services.applications.deleteResource(application.metadata.name, application.metadata.namespace, resource, !!force, !!orphan);
                     if (appChanged) {
-                        appChanged.next(await services.applications.get(application.metadata.name));
+                        appChanged.next(await services.applications.get(application.metadata.name, application.metadata.namespace));
                     }
                     close();
                 } catch (e) {
@@ -441,7 +441,7 @@ function getActionItems(
         return from([items]);
     }
     const resourceActions = services.applications
-        .getResourceActions(application.metadata.name, resource)
+        .getResourceActions(application.metadata.name, application.metadata.namespace, resource)
         .then(actions => {
             return items.concat(
                 actions.map(action => ({
@@ -451,7 +451,7 @@ function getActionItems(
                         try {
                             const confirmed = await appContext.apis.popup.confirm(`Execute '${action.name}' action?`, `Are you sure you want to execute '${action.name}' action?`);
                             if (confirmed) {
-                                await services.applications.runResourceAction(application.metadata.name, resource, action.name);
+                                await services.applications.runResourceAction(application.metadata.name, application.metadata.namespace, resource, action.name);
                             }
                         } catch (e) {
                             appContext.apis.notifications.show({
@@ -1087,3 +1087,11 @@ export const urlPattern = new RegExp(
         'gi'
     )
 );
+
+export function appQualifiedName(app: appModels.Application): string {
+    return app.metadata.namespace + '/' + app.metadata.name;
+}
+
+export function appInstanceName(app: appModels.Application): string {
+    return app.metadata.namespace + '_' + app.metadata.name;
+}

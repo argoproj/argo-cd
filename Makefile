@@ -81,6 +81,7 @@ define run-in-test-server
 		-e ARGOCD_TLS_DATA_PATH=${ARGOCD_TLS_DATA_PATH:-/tmp/argocd-local/tls} \
 		-e ARGOCD_SSH_DATA_PATH=${ARGOCD_SSH_DATA_PATH:-/tmp/argocd-local/ssh} \
 		-e ARGOCD_GPG_DATA_PATH=${ARGOCD_GPG_DATA_PATH:-/tmp/argocd-local/gpg/source} \
+		-e ARGOCD_APPLICATION_NAMESPACES \
 		-e GITHUB_TOKEN \
 		-v ${DOCKER_SRC_MOUNT} \
 		-v ${GOPATH}/pkg/mod:/go/pkg/mod${VOLUME_MOUNT} \
@@ -118,7 +119,7 @@ endef
 
 # 
 define exec-in-test-server
-	docker exec -it -u $(shell id -u):$(shell id -g) -e ARGOCD_E2E_K3S=$(ARGOCD_E2E_K3S) argocd-test-server $(1)
+	docker exec -it -u $(shell id -u):$(shell id -g) -e ARGOCD_E2E_RECORD=$(ARGOCD_E2E_RECORD) -e ARGOCD_E2E_K3S=$(ARGOCD_E2E_K3S) argocd-test-server $(1)
 endef
 
 PATH:=$(PATH):$(PWD)/hack
@@ -403,7 +404,7 @@ test-e2e:
 test-e2e-local: cli-local
 	# NO_PROXY ensures all tests don't go out through a proxy if one is configured on the test system
 	export GO111MODULE=off
-	ARGOCD_GPG_ENABLED=true NO_PROXY=* ./hack/test.sh -timeout $(ARGOCD_E2E_TEST_TIMEOUT) -v ./test/e2e
+	ARGOCD_E2E_RECORD=${ARGOCD_E2E_RECORD} ARGOCD_GPG_ENABLED=true NO_PROXY=* ./hack/test.sh -timeout $(ARGOCD_E2E_TEST_TIMEOUT) -v ./test/e2e
 
 # Spawns a shell in the test server container for debugging purposes
 debug-test-server: test-tools-image
@@ -444,6 +445,7 @@ start-e2e-local: mod-vendor-local dep-ui-local cli-local
 	ARGOCD_ZJWT_FEATURE_FLAG=always \
 	ARGOCD_IN_CI=$(ARGOCD_IN_CI) \
 	BIN_MODE=$(ARGOCD_BIN_MODE) \
+	ARGOCD_APPLICATION_NAMESPACES=argocd-e2e-external \
 	ARGOCD_E2E_TEST=true \
 		goreman -f $(ARGOCD_PROCFILE) start ${ARGOCD_START}
 
@@ -475,6 +477,7 @@ start-local: mod-vendor-local dep-ui-local cli-local
 	ARGOCD_IN_CI=false \
 	ARGOCD_GPG_ENABLED=$(ARGOCD_GPG_ENABLED) \
 	ARGOCD_E2E_TEST=false \
+	ARGOCD_APPLICATION_NAMESPACES=$(ARGOCD_APPLICATION_NAMESPACES) \
 		goreman -f $(ARGOCD_PROCFILE) start ${ARGOCD_START}
 
 # Run goreman start with exclude option , provide exclude env variable with list of services

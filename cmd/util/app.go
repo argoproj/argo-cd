@@ -21,6 +21,7 @@ import (
 
 	"github.com/argoproj/argo-cd/v2/pkg/apis/application"
 	argoappv1 "github.com/argoproj/argo-cd/v2/pkg/apis/application/v1alpha1"
+	"github.com/argoproj/argo-cd/v2/util/argo"
 	"github.com/argoproj/argo-cd/v2/util/config"
 	"github.com/argoproj/argo-cd/v2/util/errors"
 	"github.com/argoproj/argo-cd/v2/util/text/label"
@@ -561,6 +562,7 @@ func constructAppsFromStdin() ([]*argoappv1.Application, error) {
 
 func constructAppsBaseOnName(appName string, labels, annotations, args []string, appOpts AppOptions, flags *pflag.FlagSet) ([]*argoappv1.Application, error) {
 	var app *argoappv1.Application
+
 	// read arguments
 	if len(args) == 1 {
 		if appName != "" && appName != args[0] {
@@ -568,13 +570,15 @@ func constructAppsBaseOnName(appName string, labels, annotations, args []string,
 		}
 		appName = args[0]
 	}
+	appName, appNs := argo.ParseAppQualifiedName(appName, "")
 	app = &argoappv1.Application{
 		TypeMeta: v1.TypeMeta{
 			Kind:       application.ApplicationKind,
 			APIVersion: application.Group + "/v1alpha1",
 		},
 		ObjectMeta: v1.ObjectMeta{
-			Name: appName,
+			Name:      appName,
+			Namespace: appNs,
 		},
 	}
 	SetAppSpecOptions(flags, &app.Spec, &appOpts)

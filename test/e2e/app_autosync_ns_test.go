@@ -16,9 +16,12 @@ import (
 	"github.com/argoproj/argo-cd/v2/util/errors"
 )
 
-func TestAutoSyncSelfHealDisabled(t *testing.T) {
+func TestNSAutoSyncSelfHealDisabled(t *testing.T) {
 	Given(t).
 		Path(guestbookPath).
+		SetAppNamespace(fixture.AppNamespace()).
+		// TODO: There is a bug with annotation tracking method that prevents
+		// controller from picking up changes in the cluster.
 		When().
 		// app should be auto-synced once created
 		CreateFromFile(func(app *Application) {
@@ -38,14 +41,14 @@ func TestAutoSyncSelfHealDisabled(t *testing.T) {
 			errors.FailOnErr(fixture.KubeClientset.AppsV1().Deployments(fixture.DeploymentNamespace()).Patch(context.Background(),
 				"guestbook-ui", types.MergePatchType, []byte(`{"spec": {"revisionHistoryLimit": 0}}`), v1.PatchOptions{}))
 		}).
-		Refresh(RefreshTypeNormal).
 		Then().
 		Expect(SyncStatusIs(SyncStatusCodeOutOfSync))
 }
 
-func TestAutoSyncSelfHealEnabled(t *testing.T) {
+func TestNSAutoSyncSelfHealEnabled(t *testing.T) {
 	Given(t).
 		Path(guestbookPath).
+		SetAppNamespace(fixture.AppNamespace()).
 		When().
 		// app should be auto-synced once created
 		CreateFromFile(func(app *Application) {

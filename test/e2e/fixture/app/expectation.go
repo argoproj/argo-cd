@@ -218,12 +218,12 @@ func pods() (*v1.PodList, error) {
 	return pods, err
 }
 
-func Event(reason string, message string) Expectation {
+func event(namespace string, reason string, message string) Expectation {
 	return func(c *Consequences) (state, string) {
-		list, err := fixture.KubeClientset.CoreV1().Events(fixture.ArgoCDNamespace).List(context.Background(), metav1.ListOptions{
+		list, err := fixture.KubeClientset.CoreV1().Events(namespace).List(context.Background(), metav1.ListOptions{
 			FieldSelector: fields.SelectorFromSet(map[string]string{
-				"involvedObject.name":      c.context.name,
-				"involvedObject.namespace": fixture.ArgoCDNamespace,
+				"involvedObject.name":      c.context.AppShortName(),
+				"involvedObject.namespace": namespace,
 			}).String(),
 		})
 		if err != nil {
@@ -238,6 +238,14 @@ func Event(reason string, message string) Expectation {
 		}
 		return failed, fmt.Sprintf("unable to find event with reason=%s; message=%s", reason, message)
 	}
+}
+
+func Event(reason string, message string) Expectation {
+	return event(fixture.ArgoCDNamespace, reason, message)
+}
+
+func NamespacedEvent(namespace string, reason string, message string) Expectation {
+	return event(namespace, reason, message)
 }
 
 // asserts that the last command was successful

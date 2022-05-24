@@ -3186,6 +3186,15 @@ func (m *AppProjectSpec) MarshalToSizedBuffer(dAtA []byte) (int, error) {
 	_ = i
 	var l int
 	_ = l
+	if len(m.SourceNamespaces) > 0 {
+		for iNdEx := len(m.SourceNamespaces) - 1; iNdEx >= 0; iNdEx-- {
+			i -= len(m.SourceNamespaces[iNdEx])
+			copy(dAtA[i:], m.SourceNamespaces[iNdEx])
+			i = encodeVarintGenerated(dAtA, i, uint64(len(m.SourceNamespaces[iNdEx])))
+			i--
+			dAtA[i] = 0x62
+		}
+	}
 	if len(m.ClusterResourceBlacklist) > 0 {
 		for iNdEx := len(m.ClusterResourceBlacklist) - 1; iNdEx >= 0; iNdEx-- {
 			{
@@ -8235,6 +8244,12 @@ func (m *AppProjectSpec) Size() (n int) {
 			n += 1 + l + sovGenerated(uint64(l))
 		}
 	}
+	if len(m.SourceNamespaces) > 0 {
+		for _, s := range m.SourceNamespaces {
+			l = len(s)
+			n += 1 + l + sovGenerated(uint64(l))
+		}
+	}
 	return n
 }
 
@@ -10132,6 +10147,7 @@ func (this *AppProjectSpec) String() string {
 		`NamespaceResourceWhitelist:` + repeatedStringForNamespaceResourceWhitelist + `,`,
 		`SignatureKeys:` + repeatedStringForSignatureKeys + `,`,
 		`ClusterResourceBlacklist:` + repeatedStringForClusterResourceBlacklist + `,`,
+		`SourceNamespaces:` + fmt.Sprintf("%v", this.SourceNamespaces) + `,`,
 		`}`,
 	}, "")
 	return s
@@ -12283,6 +12299,38 @@ func (m *AppProjectSpec) Unmarshal(dAtA []byte) error {
 			if err := m.ClusterResourceBlacklist[len(m.ClusterResourceBlacklist)-1].Unmarshal(dAtA[iNdEx:postIndex]); err != nil {
 				return err
 			}
+			iNdEx = postIndex
+		case 12:
+			if wireType != 2 {
+				return fmt.Errorf("proto: wrong wireType = %d for field SourceNamespaces", wireType)
+			}
+			var stringLen uint64
+			for shift := uint(0); ; shift += 7 {
+				if shift >= 64 {
+					return ErrIntOverflowGenerated
+				}
+				if iNdEx >= l {
+					return io.ErrUnexpectedEOF
+				}
+				b := dAtA[iNdEx]
+				iNdEx++
+				stringLen |= uint64(b&0x7F) << shift
+				if b < 0x80 {
+					break
+				}
+			}
+			intStringLen := int(stringLen)
+			if intStringLen < 0 {
+				return ErrInvalidLengthGenerated
+			}
+			postIndex := iNdEx + intStringLen
+			if postIndex < 0 {
+				return ErrInvalidLengthGenerated
+			}
+			if postIndex > l {
+				return io.ErrUnexpectedEOF
+			}
+			m.SourceNamespaces = append(m.SourceNamespaces, string(dAtA[iNdEx:postIndex]))
 			iNdEx = postIndex
 		default:
 			iNdEx = preIndex
