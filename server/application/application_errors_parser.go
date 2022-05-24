@@ -1,11 +1,13 @@
 package application
 
 import (
-	"github.com/argoproj/argo-cd/v2/pkg/apiclient/events"
-	appv1 "github.com/argoproj/argo-cd/v2/pkg/apis/application/v1alpha1"
+	"strings"
+
 	"github.com/argoproj/gitops-engine/pkg/health"
 	"github.com/argoproj/gitops-engine/pkg/sync/common"
-	"strings"
+
+	"github.com/argoproj/argo-cd/v2/pkg/apiclient/events"
+	appv1 "github.com/argoproj/argo-cd/v2/pkg/apis/application/v1alpha1"
 )
 
 func parseResourceSyncResultErrors(rs *appv1.ResourceStatus, os *appv1.OperationState) []*events.ObjectError {
