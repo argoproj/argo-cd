@@ -5,8 +5,6 @@ import (
 	"fmt"
 	"io"
 	"net/http"
-	"net/url"
-	"strings"
 
 	"github.com/argoproj/gitops-engine/pkg/utils/kube"
 	log "github.com/sirupsen/logrus"
@@ -14,7 +12,6 @@ import (
 	apierr "k8s.io/apimachinery/pkg/api/errors"
 	apimachineryvalidation "k8s.io/apimachinery/pkg/api/validation"
 	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
-	"k8s.io/apimachinery/pkg/util/validation"
 	"k8s.io/client-go/kubernetes"
 	"k8s.io/client-go/kubernetes/scheme"
 	"k8s.io/client-go/rest"
@@ -61,60 +58,80 @@ func (s *terminalHandler) getApplicationClusterRawConfig(ctx context.Context, a 
 	return clst.RawRestConfig(), nil
 }
 
-// isValidPodName checks that a podName is valid
-func isValidPodName(name string) bool {
+// getValidPodName checks that a podName is valid
+func getValidPodName(name string) string {
 	// https://github.com/kubernetes/kubernetes/blob/976a940f4a4e84fe814583848f97b9aafcdb083f/pkg/apis/core/validation/validation.go#L241
-	isValid := apimachineryvalidation.NameIsDNSSubdomain(name, false)
-	return len(isValid) == 0
+	validationErrors := apimachineryvalidation.NameIsDNSSubdomain(name, false)
+	if len(validationErrors) == 0 {
+		return name
+	}
+	return ""
 }
 
-// isValidNamespaceName checks that a namespace name is valid
-func isValidNamespaceName(name string) bool {
+func getValidAppName(name string) string {
+	// app names have the same rules as pods.
+	return getValidPodName(name)
+}
+
+func getValidProjectName(name string) string {
+	// project names have the same rules as pods.
+	return getValidPodName(name)
+}
+
+// getValidNamespaceName checks that a namespace name is valid
+func getValidNamespaceName(name string) string {
 	// https://github.com/kubernetes/kubernetes/blob/976a940f4a4e84fe814583848f97b9aafcdb083f/pkg/apis/core/validation/validation.go#L262
-	isValid := apimachineryvalidation.ValidateNamespaceName(name, false)
-	return len(isValid) == 0
+	validationErrors := apimachineryvalidation.ValidateNamespaceName(name, false)
+	if len(validationErrors) == 0 {
+		return name
+	}
+	return ""
 }
 
-// isValidContainerName checks that a containerName is valid
-func isValidContainerName(name string) bool {
-	// quick check to ensure we aren't passing along anything unsafe
-	isQualified := validation.IsQualifiedName(name)
-	return len(isQualified) == 0
-}
-
-// GetQueryValue returns a value for a given url key
-// and strips newline to prevent go/log-injection
-func GetQueryValue(q url.Values, key string) string {
-	return strings.Replace(q.Get(key), "\n", "", -1)
+// getValidContainerName checks that a containerName is valid
+func getValidContainerName(name string) string {
+	// https://github.com/kubernetes/kubernetes/blob/53a9d106c4aabcd550cc32ae4e8004f32fb0ae7b/pkg/api/validation/validation.go#L280
+	validationErrors := apimachineryvalidation.NameIsDNSLabel(name, false)
+	if len(validationErrors) == 0 {
+		return name
+	}
+	return ""
 }
 
 func (s *terminalHandler) ServeHTTP(w http.ResponseWriter, r *http.Request) {
 	q := r.URL.Query()
-	podName := GetQueryValue(q, "pod")
-	container := GetQueryValue(q, "container")
-	app := GetQueryValue(q, "appName")
-	project := GetQueryValue(q, "projectName")
-	namespace := GetQueryValue(q, "namespace")
-	shell := GetQueryValue(q, "shell")
 
-	if podName == "" || container == "" || app == "" || namespace == "" {
+	if q.Get("pod") == "" || q.Get("container") == "" || q.Get("app") == "" || q.Get("project") == "" || q.Get("namespace") == "" {
 		http.Error(w, "Missing required parameters", http.StatusBadRequest)
 		return
 	}
 
-	// validate query string parameters to prevent unsafe usage
-	if !isValidNamespaceName(namespace) {
-		http.Error(w, "Namespace name is not valid", http.StatusBadRequest)
-		return
-	}
-	if !isValidPodName(podName) {
+	podName := getValidPodName(q.Get("pod"))
+	if podName == "" {
 		http.Error(w, "Pod name is not valid", http.StatusBadRequest)
 		return
 	}
-	if !isValidContainerName(container) {
+	container := getValidContainerName(q.Get("container"))
+	if podName == "" {
 		http.Error(w, "Container name is not valid", http.StatusBadRequest)
 		return
 	}
+	app := getValidAppName(q.Get("appName"))
+	if podName == "" {
+		http.Error(w, "App name is not valid", http.StatusBadRequest)
+		return
+	}
+	project := getValidProjectName(q.Get("projectName"))
+	if podName == "" {
+		http.Error(w, "Project name is not valid", http.StatusBadRequest)
+		return
+	}
+	namespace := getValidNamespaceName(q.Get("namespace"))
+	if podName == "" {
+		http.Error(w, "Namespace name is not valid", http.StatusBadRequest)
+		return
+	}
+	shell := q.Get("shell")  // No need to validate. Will only buse used if it's in the allow-list.
 
 	ctx := r.Context()
 
