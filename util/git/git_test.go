@@ -10,6 +10,7 @@ import (
 
 	"github.com/stretchr/testify/assert"
 
+	"github.com/argoproj/argo-cd/v2/common"
 	"github.com/argoproj/argo-cd/v2/test/fixture/log"
 	"github.com/argoproj/argo-cd/v2/test/fixture/path"
 	"github.com/argoproj/argo-cd/v2/test/fixture/test"
@@ -151,14 +152,14 @@ func TestCustomHTTPClient(t *testing.T) {
 	assert.NotNil(t, client)
 	assert.NotNil(t, client.Transport)
 	if client.Transport != nil {
-		httpClient := client.Transport.(*http.Transport)
-		assert.NotNil(t, httpClient.TLSClientConfig)
-
-		assert.Equal(t, false, httpClient.TLSClientConfig.InsecureSkipVerify)
-
-		assert.NotNil(t, httpClient.TLSClientConfig.GetClientCertificate)
-		if httpClient.TLSClientConfig.GetClientCertificate != nil {
-			cert, err := httpClient.TLSClientConfig.GetClientCertificate(nil)
+		transport := client.Transport.(*http.Transport)
+		assert.NotNil(t, transport.TLSClientConfig)
+		assert.Equal(t, true, transport.DisableKeepAlives)
+		assert.Equal(t, false, transport.TLSClientConfig.InsecureSkipVerify)
+		assert.NotNil(t, transport.TLSClientConfig.GetClientCertificate)
+		assert.Nil(t, transport.TLSClientConfig.RootCAs)
+		if transport.TLSClientConfig.GetClientCertificate != nil {
+			cert, err := transport.TLSClientConfig.GetClientCertificate(nil)
 			assert.NoError(t, err)
 			if err == nil {
 				assert.NotNil(t, cert)
@@ -166,7 +167,7 @@ func TestCustomHTTPClient(t *testing.T) {
 				assert.NotNil(t, cert.PrivateKey)
 			}
 		}
-		proxy, err := httpClient.Proxy(nil)
+		proxy, err := transport.Proxy(nil)
 		assert.Nil(t, err)
 		assert.Equal(t, "http://proxy:5000", proxy.String())
 	}
@@ -182,14 +183,14 @@ func TestCustomHTTPClient(t *testing.T) {
 	assert.NotNil(t, client)
 	assert.NotNil(t, client.Transport)
 	if client.Transport != nil {
-		httpClient := client.Transport.(*http.Transport)
-		assert.NotNil(t, httpClient.TLSClientConfig)
-
-		assert.Equal(t, true, httpClient.TLSClientConfig.InsecureSkipVerify)
-
-		assert.NotNil(t, httpClient.TLSClientConfig.GetClientCertificate)
-		if httpClient.TLSClientConfig.GetClientCertificate != nil {
-			cert, err := httpClient.TLSClientConfig.GetClientCertificate(nil)
+		transport := client.Transport.(*http.Transport)
+		assert.NotNil(t, transport.TLSClientConfig)
+		assert.Equal(t, true, transport.DisableKeepAlives)
+		assert.Equal(t, true, transport.TLSClientConfig.InsecureSkipVerify)
+		assert.NotNil(t, transport.TLSClientConfig.GetClientCertificate)
+		assert.Nil(t, transport.TLSClientConfig.RootCAs)
+		if transport.TLSClientConfig.GetClientCertificate != nil {
+			cert, err := transport.TLSClientConfig.GetClientCertificate(nil)
 			assert.NoError(t, err)
 			if err == nil {
 				assert.NotNil(t, cert)
@@ -199,9 +200,27 @@ func TestCustomHTTPClient(t *testing.T) {
 		}
 		req, err := http.NewRequest("GET", "http://proxy-from-env:7878", nil)
 		assert.Nil(t, err)
-		proxy, err := httpClient.Proxy(req)
+		proxy, err := transport.Proxy(req)
 		assert.Nil(t, err)
 		assert.Equal(t, "http://proxy-from-env:7878", proxy.String())
+	}
+	// GetRepoHTTPClient with root ca
+	cert, err := ioutil.ReadFile("../../test/fixture/certs/argocd-test-server.crt")
+	assert.NoError(t, err)
+	temppath := t.TempDir()
+	defer os.RemoveAll(temppath)
+	err = ioutil.WriteFile(filepath.Join(temppath, "127.0.0.1"), cert, 0666)
+	assert.NoError(t, err)
+	os.Setenv(common.EnvVarTLSDataPath, temppath)
+	client = GetRepoHTTPClient("https://127.0.0.1", false, creds, "")
+	assert.NotNil(t, client)
+	assert.NotNil(t, client.Transport)
+	if client.Transport != nil {
+		transport := client.Transport.(*http.Transport)
+		assert.NotNil(t, transport.TLSClientConfig)
+		assert.Equal(t, true, transport.DisableKeepAlives)
+		assert.Equal(t, false, transport.TLSClientConfig.InsecureSkipVerify)
+		assert.NotNil(t, transport.TLSClientConfig.RootCAs)
 	}
 }
 
