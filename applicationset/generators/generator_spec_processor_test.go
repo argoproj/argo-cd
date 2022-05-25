@@ -17,28 +17,6 @@ import (
 	argoprojiov1alpha1 "github.com/argoproj/argo-cd/v2/pkg/apis/applicationset/v1alpha1"
 )
 
-type genProcessorMock struct {
-	mock.Mock
-}
-
-func (g *genProcessorMock) Transform(requestedGenerator argoprojiov1alpha1.ApplicationSetGenerator, allGenerators map[string]Generator, baseTemplate argoprojiov1alpha1.ApplicationSetTemplate, appSet *argoprojiov1alpha1.ApplicationSet, genParams []map[string]string) ([]TransformResult, error) {
-	args := g.Called(requestedGenerator)
-
-	return args.Get(0).([]TransformResult), args.Error(1)
-}
-
-func (g *genProcessorMock) GetRelevantGenerators(requestedGenerator argoprojiov1alpha1.ApplicationSetGenerator, generators map[string]Generator) []Generator {
-	args := g.Called(requestedGenerator)
-
-	return args.Get(0).([]Generator)
-}
-
-func (g *genProcessorMock) interpolateGenerator(requestedGenerator *argoprojiov1alpha1.ApplicationSetGenerator, params []map[string]string) error {
-	args := g.Called(requestedGenerator)
-
-	return args.Error(1)
-}
-
 func getMockClusterGenerator() Generator {
 	clusters := []crtclient.Object{
 		&corev1.Secret{
