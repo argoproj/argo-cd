@@ -3,7 +3,7 @@ import {ActionButton} from 'argo-ui/v2';
 import * as classNames from 'classnames';
 import * as React from 'react';
 import * as ReactForm from 'react-form';
-import {Text} from 'react-form';
+import {FormApi, Text} from 'react-form';
 import * as moment from 'moment';
 import {BehaviorSubject, from, fromEvent, merge, Observable, Observer, Subscription} from 'rxjs';
 import {debounceTime} from 'rxjs/operators';
@@ -114,6 +114,52 @@ export async function deleteApplication(appName: string, apis: ContextApis): Pro
         {name: 'argo-icon-warning', color: 'warning'},
         'yellow',
         {propagationPolicy: 'foreground'}
+    );
+    return confirmed;
+}
+
+export async function confirmSyncingAppOfApps(apps: appModels.Application[], apis: ContextApis, form: FormApi): Promise<boolean> {
+    let confirmed = false;
+    const appNames: string[] = apps.map(app => app.metadata.name);
+    const appNameList = appNames.join(', ');
+    await apis.popup.prompt(
+        'Warning: Synchronize App of Multiple Apps using replace?',
+        api => (
+            <div>
+                <p>
+                    Are you sure you want to sync the application '{appNameList}' which contain(s) multiple apps with 'replace' option? This action will delete and recreate all
+                    apps linked to '{appNameList}'.
+                </p>
+                <div className='argo-form-row'>
+                    <FormField
+                        label={`Please type '${appNameList}' to confirm the Syncing of the resource`}
+                        formApi={api}
+                        field='applicationName'
+                        qeId='name-field-delete-confirmation'
+                        component={Text}
+                    />
+                </div>
+            </div>
+        ),
+        {
+            validate: vals => ({
+                applicationName: vals.applicationName !== appNameList && 'Enter the application name(s) to confirm syncing'
+            }),
+            submit: async (_vals, _, close) => {
+                try {
+                    await form.submitForm(null);
+                    confirmed = true;
+                    close();
+                } catch (e) {
+                    apis.notifications.show({
+                        content: <ErrorNotification title='Unable to sync application' e={e} />,
+                        type: NotificationType.Error
+                    });
+                }
+            }
+        },
+        {name: 'argo-icon-warning', color: 'warning'},
+        'yellow'
     );
     return confirmed;
 }
