@@ -333,6 +333,11 @@ func (m *nativeGitClient) Fetch(revision string) error {
 		defer done()
 	}
 
+	// Prune any deleted refs before fetching
+	if err := m.runCredentialedCmd("git", "remote", "prune", "origin"); err != nil {
+		return err
+	}
+
 	var err error
 	if revision != "" {
 		err = m.runCredentialedCmd("git", "fetch", "origin", revision, "--tags", "--force")
