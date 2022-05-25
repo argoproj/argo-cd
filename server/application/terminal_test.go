@@ -1,9 +1,13 @@
 package application
 
 import (
+	"net/http"
+	"net/http/httptest"
+	"strings"
 	"testing"
 
 	"github.com/argoproj/gitops-engine/pkg/utils/kube"
+	"github.com/stretchr/testify/assert"
 
 	appv1 "github.com/argoproj/argo-cd/v2/pkg/apis/application/v1alpha1"
 )
@@ -79,31 +83,31 @@ func TestIsValidPodName(t *testing.T) {
 	for _, tcase := range []struct {
 		name           string
 		resourceName   string
-		expectedResult string
+		expectedResult bool
 	}{
 		{
 			name:           "valid pod name",
 			resourceName:   "argocd-server-794644486d-r8v9d",
-			expectedResult: "argocd-server-794644486d-r8v9d",
+			expectedResult: true,
 		},
 		{
 			name:           "not valid contains spaces",
 			resourceName:   "kubectl delete pods",
-			expectedResult: "",
+			expectedResult: false,
 		},
 		{
 			name:           "not valid",
 			resourceName:   "kubectl -n kube-system delete pods --all",
-			expectedResult: "",
+			expectedResult: false,
 		},
 		{
 			name:           "not valid contains special characters",
 			resourceName:   "delete+*+from+etcd%3b",
-			expectedResult: "",
+			expectedResult: false,
 		},
 	} {
 		t.Run(tcase.name, func(t *testing.T) {
-			result := getValidPodName(tcase.resourceName)
+			result := isValidPodName(tcase.resourceName)
 			if result != tcase.expectedResult {
 				t.Errorf("Expected result %v, but got %v", tcase.expectedResult, result)
 			}
@@ -115,26 +119,26 @@ func TestIsValidNamespaceName(t *testing.T) {
 	for _, tcase := range []struct {
 		name           string
 		resourceName   string
-		expectedResult string
+		expectedResult bool
 	}{
 		{
 			name:           "valid pod namespace name",
 			resourceName:   "argocd",
-			expectedResult: "argocd",
+			expectedResult: true,
 		},
 		{
 			name:           "not valid contains spaces",
 			resourceName:   "kubectl delete ns argocd",
-			expectedResult: "",
+			expectedResult: false,
 		},
 		{
 			name:           "not valid contains special characters",
 			resourceName:   "delete+*+from+etcd%3b",
-			expectedResult: "",
+			expectedResult: false,
 		},
 	} {
 		t.Run(tcase.name, func(t *testing.T) {
-			result := getValidNamespaceName(tcase.resourceName)
+			result := isValidNamespaceName(tcase.resourceName)
 			if result != tcase.expectedResult {
 				t.Errorf("Expected result %v, but got %v", tcase.expectedResult, result)
 			}
@@ -146,29 +150,74 @@ func TestIsValidContainerNameName(t *testing.T) {
 	for _, tcase := range []struct {
 		name           string
 		resourceName   string
-		expectedResult string
+		expectedResult bool
 	}{
 		{
 			name:           "valid container name",
 			resourceName:   "argocd-server",
-			expectedResult: "argocd-server",
+			expectedResult: true,
 		},
 		{
 			name:           "not valid contains spaces",
 			resourceName:   "kubectl delete pods",
-			expectedResult: "",
+			expectedResult: false,
 		},
 		{
 			name:           "not valid contains special characters",
 			resourceName:   "delete+*+from+etcd%3b",
-			expectedResult: "",
+			expectedResult: false,
 		},
 	} {
 		t.Run(tcase.name, func(t *testing.T) {
-			result := getValidContainerName(tcase.resourceName)
+			result := isValidContainerName(tcase.resourceName)
 			if result != tcase.expectedResult {
 				t.Errorf("Expected result %v, but got %v", tcase.expectedResult, result)
 			}
 		})
+	}
+}
+
+func TestTerminalHandler_ServeHTTP_empty_params(t *testing.T) {
+	testKeys := []string{
+		"pod",
+		"container",
+		"app",
+		"project",
+		"namespace",
+	}
+
+	// test both empty and invalid
+	testValues := []string{"", "invalid%20name"}
+
+	for _, testKey := range testKeys {
+		testKeyCopy := testKey
+
+		for _, testValue := range testValues {
+			testValueCopy := testValue
+
+			t.Run(testKeyCopy+ " " + testValueCopy, func(t *testing.T) {
+				t.Parallel()
+
+				handler := terminalHandler{}
+				params := map[string]string{
+					"pod": "valid",
+					"container": "valid",
+					"app": "valid",
+					"project": "valid",
+					"namespace": "valid",
+				}
+				params[testKeyCopy] = testValueCopy
+				var paramsArray []string
+				for key, value := range params {
+					paramsArray = append(paramsArray, key + "=" + value)
+				}
+				paramsString := strings.Join(paramsArray, "&")
+				request := httptest.NewRequest("GET", "https://argocd.example.com/api/v1/terminal?" + paramsString, nil)
+				recorder := httptest.NewRecorder()
+				handler.ServeHTTP(recorder, request)
+				response := recorder.Result()
+				assert.Equal(t, http.StatusBadRequest, response.StatusCode)
+			})
+		}
 	}
 }
