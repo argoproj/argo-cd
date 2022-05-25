@@ -97,8 +97,6 @@ func TestAzureDevopsRepoHasPath(t *testing.T) {
 
 			if testCase.returnError {
 				assert.ErrorContains(t, err, testCase.errorMessage)
-			} else {
-				assert.NoError(t, err)
 			}
 
 			assert.Equal(t, testCase.pathFound, hasPath)
@@ -340,8 +338,6 @@ func TestGetAzureDevopsRepositories(t *testing.T) {
 
 			if testCase.getRepositoriesError != nil {
 				assert.Error(t, err, "Expected an error from test case %v", testCase.name)
-			} else {
-				assert.NoError(t, err, "Did not expect an error from test case %v", testCase.name)
 			}
 
 			if testCase.expectedNumberOfRepos == 0 {
