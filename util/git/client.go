@@ -34,6 +34,8 @@ import (
 	"github.com/argoproj/argo-cd/v2/util/proxy"
 )
 
+var ErrInvalidRepoURL = fmt.Errorf("repo URL is invalid")
+
 type RevisionMetadata struct {
 	Author  string
 	Date    time.Time
@@ -136,9 +138,13 @@ func WithEventHandlers(handlers EventHandlers) ClientOpts {
 
 func NewClient(rawRepoURL string, creds Creds, insecure bool, enableLfs bool, proxy string, opts ...ClientOpts) (Client, error) {
 	r := regexp.MustCompile("(/|:)")
-	root := filepath.Join(os.TempDir(), r.ReplaceAllString(NormalizeGitURL(rawRepoURL), "_"))
+	normalizedGitURL := NormalizeGitURL(rawRepoURL)
+	if normalizedGitURL == "" {
+		return nil, fmt.Errorf("repository %q cannot be initialized: %w", rawRepoURL, ErrInvalidRepoURL)
+	}
+	root := filepath.Join(os.TempDir(), r.ReplaceAllString(normalizedGitURL, "_"))
 	if root == os.TempDir() {
-		return nil, fmt.Errorf("Repository '%s' cannot be initialized, because its root would be system temp at %s", rawRepoURL, root)
+		return nil, fmt.Errorf("repository %q cannot be initialized, because its root would be system temp at %s", rawRepoURL, root)
 	}
 	return NewClientExt(rawRepoURL, root, creds, insecure, enableLfs, proxy, opts...)
 }
