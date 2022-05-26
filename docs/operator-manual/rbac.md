@@ -18,11 +18,11 @@ These default built-in role definitions can be seen in [builtin-policy.csv](http
 
 Breaking down the permissions definition differs slightly between applications and every other resource type in Argo CD.
 
-* All resources *except* applications permissions (see next bullet):
+* All resources *except* application-specific permissions (see next bullet):
 
     `p, <role/user/group>, <resource>, <action>, <object>`
 
-* Applications (which belong to an AppProject):
+* Applications, logs, and exec (which belong to an AppProject):
 
     `p, <role/user/group>, <resource>, <action>, <appproject>/<object>`
 
@@ -79,7 +79,7 @@ data:
     p, role:org-admin, repositories, update, *, allow
     p, role:org-admin, repositories, delete, *, allow
     p, role:org-admin, logs, get, *, allow
-    p, role:org-admin, exec, create, *, allow
+    p, role:org-admin, exec, create, */*, allow
 
     g, your-github-org:your-team, role:org-admin
 ```
