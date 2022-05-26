@@ -1,9 +1,13 @@
 package application
 
 import (
+	"net/http"
+	"net/http/httptest"
+	"strings"
 	"testing"
 
 	"github.com/argoproj/gitops-engine/pkg/utils/kube"
+	"github.com/stretchr/testify/assert"
 
 	appv1 "github.com/argoproj/argo-cd/v2/pkg/apis/application/v1alpha1"
 )
@@ -170,5 +174,50 @@ func TestIsValidContainerNameName(t *testing.T) {
 				t.Errorf("Expected result %v, but got %v", tcase.expectedResult, result)
 			}
 		})
+	}
+}
+
+func TestTerminalHandler_ServeHTTP_empty_params(t *testing.T) {
+	testKeys := []string{
+		"pod",
+		"container",
+		"app",
+		"project",
+		"namespace",
+	}
+
+	// test both empty and invalid
+	testValues := []string{"", "invalid%20name"}
+
+	for _, testKey := range testKeys {
+		testKeyCopy := testKey
+
+		for _, testValue := range testValues {
+			testValueCopy := testValue
+
+			t.Run(testKeyCopy+ " " + testValueCopy, func(t *testing.T) {
+				t.Parallel()
+
+				handler := terminalHandler{}
+				params := map[string]string{
+					"pod": "valid",
+					"container": "valid",
+					"app": "valid",
+					"project": "valid",
+					"namespace": "valid",
+				}
+				params[testKeyCopy] = testValueCopy
+				var paramsArray []string
+				for key, value := range params {
+					paramsArray = append(paramsArray, key + "=" + value)
+				}
+				paramsString := strings.Join(paramsArray, "&")
+				request := httptest.NewRequest("GET", "https://argocd.example.com/api/v1/terminal?" + paramsString, nil)
+				recorder := httptest.NewRecorder()
+				handler.ServeHTTP(recorder, request)
+				response := recorder.Result()
+				assert.Equal(t, http.StatusBadRequest, response.StatusCode)
+			})
+		}
 	}
 }
