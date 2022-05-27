@@ -208,3 +208,4 @@ Currently, the following organizations are **officially** using Argo CD:
 1. [ZOZO](https://corp.zozo.com/)
 1. [Trendyol](https://www.trendyol.com/)
 1. [RapidAPI](https://www.rapidapi.com/)
+1. [Pismo](https://pismo.io/)
