@@ -295,8 +295,9 @@ export const deletePodAction = async (pod: appModels.Pod, appContext: AppContext
             <div>
                 <p>Are you sure you want to delete Pod '{pod.name}'?</p>
                 <div className='argo-form-row' style={{paddingLeft: '30px'}}>
-                    <CheckboxField id='force-delete-checkbox' field='force' />
-                    <label htmlFor='force-delete-checkbox'>Force delete</label>
+                    <CheckboxField id='force-delete-checkbox' field='force'>
+                        <label htmlFor='force-delete-checkbox'>Force delete</label>
+                    </CheckboxField>
                 </div>
             </div>
         ),
