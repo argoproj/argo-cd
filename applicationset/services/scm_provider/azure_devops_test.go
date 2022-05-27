@@ -48,7 +48,7 @@ func TestAzureDevopsRepoHasPath(t *testing.T) {
 		{
 			name:             "RepoHasPath when no path found returns false",
 			pathFound:        false,
-			azureDevopsError: azuredevops.WrappedError{TypeKey: s("GitItemNotFoundException")},
+			azureDevopsError: azuredevops.WrappedError{TypeKey: s(AzureDevOpsErrorsTypeKeyValues.GitItemNotFound)},
 		},
 		{
 			name:             "RepoHasPath when unknown Azure DevOps WrappedError occurs returns error",
@@ -105,6 +105,160 @@ func TestAzureDevopsRepoHasPath(t *testing.T) {
 
 		})
 	}
+}
+
+func TestGetDefaultBranchOnDisabledRepo(t *testing.T) {
+
+	organization := "myorg"
+	teamProject := "myorg_project"
+	repoName := "myorg_project_repo"
+	defaultBranch := "main"
+
+	ctx := context.Background()
+
+	testCases := []struct {
+		name              string
+		azureDevOpsError  error
+		shouldReturnError bool
+	}{
+		{
+			name:              "azure devops error when disabled repo causes empty return value",
+			azureDevOpsError:  azuredevops.WrappedError{TypeKey: s(AzureDevOpsErrorsTypeKeyValues.GitRepositoryNotFound)},
+			shouldReturnError: false,
+		},
+		{
+			name:              "azure devops error with unknown error type returns error",
+			azureDevOpsError:  azuredevops.WrappedError{TypeKey: s("OtherError")},
+			shouldReturnError: true,
+		},
+		{
+			name:              "other error when calling azure devops returns error",
+			azureDevOpsError:  fmt.Errorf("some unknown error"),
+			shouldReturnError: true,
+		},
+	}
+
+	for _, testCase := range testCases {
+		t.Run(testCase.name, func(t *testing.T) {
+			uuid := uuid.New().String()
+
+			gitClientMock := azureMock.Client{}
+
+			clientFactoryMock := &AzureClientFactoryMock{mock: &mock.Mock{}}
+			clientFactoryMock.mock.On("GetClient", mock.Anything).Return(&gitClientMock, nil)
+
+			gitClientMock.On("GetBranch", ctx, azureGit.GetBranchArgs{RepositoryId: &repoName, Project: &teamProject, Name: &defaultBranch}).Return(nil, testCase.azureDevOpsError)
+
+			repo := &Repository{Organization: organization, Repository: repoName, RepositoryId: uuid, Branch: defaultBranch}
+
+			provider := AzureDevOpsProvider{organization: organization, teamProject: teamProject, clientFactory: clientFactoryMock, allBranches: false}
+			branches, err := provider.GetBranches(ctx, repo)
+
+			if testCase.shouldReturnError {
+				assert.Error(t, err)
+			} else {
+				assert.NoError(t, err)
+			}
+
+			assert.Empty(t, branches)
+
+			gitClientMock.AssertExpectations(t)
+		})
+	}
+}
+
+func TestGetAllBranchesOnDisabledRepo(t *testing.T) {
+
+	organization := "myorg"
+	teamProject := "myorg_project"
+	repoName := "myorg_project_repo"
+	defaultBranch := "main"
+
+	ctx := context.Background()
+
+	testCases := []struct {
+		name              string
+		azureDevOpsError  error
+		shouldReturnError bool
+	}{
+		{
+			name:              "azure devops error when disabled repo causes empty return value",
+			azureDevOpsError:  azuredevops.WrappedError{TypeKey: s(AzureDevOpsErrorsTypeKeyValues.GitRepositoryNotFound)},
+			shouldReturnError: false,
+		},
+		{
+			name:              "azure devops error with unknown error type returns error",
+			azureDevOpsError:  azuredevops.WrappedError{TypeKey: s("OtherError")},
+			shouldReturnError: true,
+		},
+		{
+			name:              "other error when calling azure devops returns error",
+			azureDevOpsError:  fmt.Errorf("some unknown error"),
+			shouldReturnError: true,
+		},
+	}
+
+	for _, testCase := range testCases {
+		t.Run(testCase.name, func(t *testing.T) {
+			uuid := uuid.New().String()
+
+			gitClientMock := azureMock.Client{}
+
+			clientFactoryMock := &AzureClientFactoryMock{mock: &mock.Mock{}}
+			clientFactoryMock.mock.On("GetClient", mock.Anything).Return(&gitClientMock, nil)
+
+			gitClientMock.On("GetBranches", ctx, azureGit.GetBranchesArgs{RepositoryId: &repoName, Project: &teamProject}).Return(nil, testCase.azureDevOpsError)
+
+			repo := &Repository{Organization: organization, Repository: repoName, RepositoryId: uuid, Branch: defaultBranch}
+
+			provider := AzureDevOpsProvider{organization: organization, teamProject: teamProject, clientFactory: clientFactoryMock, allBranches: true}
+			branches, err := provider.GetBranches(ctx, repo)
+
+			if testCase.shouldReturnError {
+				assert.Error(t, err)
+			} else {
+				assert.NoError(t, err)
+			}
+
+			assert.Empty(t, branches)
+
+			gitClientMock.AssertExpectations(t)
+		})
+	}
+}
+
+func TestAzureDevOpsGetDefaultBranchStripsRefsName(t *testing.T) {
+
+	t.Run("Get branches only default branch removes characters before querying azure devops", func(t *testing.T) {
+
+		organization := "myorg"
+		teamProject := "myorg_project"
+		repoName := "myorg_project_repo"
+
+		ctx := context.Background()
+		uuid := uuid.New().String()
+		strippedBranchName := "somebranch"
+		defaultBranch := fmt.Sprintf("refs/heads/%v", strippedBranchName)
+
+		branchReturn := &azureGit.GitBranchStats{Name: &strippedBranchName, Commit: &azureGit.GitCommitRef{CommitId: s("abc123233223")}}
+		repo := &Repository{Organization: organization, Repository: repoName, RepositoryId: uuid, Branch: defaultBranch}
+
+		gitClientMock := azureMock.Client{}
+
+		clientFactoryMock := &AzureClientFactoryMock{mock: &mock.Mock{}}
+		clientFactoryMock.mock.On("GetClient", mock.Anything).Return(&gitClientMock, nil)
+
+		gitClientMock.On("GetBranch", ctx, azureGit.GetBranchArgs{RepositoryId: &repoName, Project: &teamProject, Name: &strippedBranchName}).Return(branchReturn, nil)
+
+		provider := AzureDevOpsProvider{organization: organization, teamProject: teamProject, clientFactory: clientFactoryMock, allBranches: false}
+		branches, err := provider.GetBranches(ctx, repo)
+
+		assert.NoError(t, err)
+		assert.Len(t, branches, 1)
+		assert.Equal(t, strippedBranchName, branches[0].Branch)
+
+		gitClientMock.AssertCalled(t, "GetBranch", ctx, azureGit.GetBranchArgs{RepositoryId: &repoName, Project: &teamProject, Name: &strippedBranchName})
+	})
 }
 
 func TestAzureDevOpsGetBranchesDefultBranchOnly(t *testing.T) {

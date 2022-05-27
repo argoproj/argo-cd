@@ -13,6 +13,16 @@ import (
 
 const AZURE_DEVOPS_DEFAULT_URL = "https://dev.azure.com"
 
+type azureDevOpsErrorTypeKeyValuesType struct {
+	GitRepositoryNotFound string
+	GitItemNotFound       string
+}
+
+var AzureDevOpsErrorsTypeKeyValues = azureDevOpsErrorTypeKeyValuesType{
+	GitRepositoryNotFound: "GitRepositoryNotFoundException",
+	GitItemNotFound:       "GitItemNotFoundException",
+}
+
 type AzureDevOpsClientFactory interface {
 	// Returns an Azure Devops Client interface.
 	GetClient(ctx context.Context) (azureGit.Client, error)
@@ -108,7 +118,7 @@ func (g *AzureDevOpsProvider) RepoHasPath(ctx context.Context, repo *Repository,
 
 	if err != nil {
 		if wrappedError, isWrappedError := err.(azuredevops.WrappedError); isWrappedError && wrappedError.TypeKey != nil {
-			if *wrappedError.TypeKey == "GitItemNotFoundException" {
+			if *wrappedError.TypeKey == AzureDevOpsErrorsTypeKeyValues.GitItemNotFound {
 				return false, nil
 			}
 		}
@@ -128,10 +138,16 @@ func (g *AzureDevOpsProvider) GetBranches(ctx context.Context, repo *Repository)
 	repos := []*Repository{}
 
 	if !g.allBranches {
-		getBranchArgs := azureGit.GetBranchArgs{RepositoryId: &repo.Repository, Project: &g.teamProject, Name: &repo.Branch}
+		defaultBranchName := strings.Replace(repo.Branch, "refs/heads/", "", 1) //Azure DevOps returns default branch info like 'refs/heads/main', but does not support branch lookup of this format.
+		getBranchArgs := azureGit.GetBranchArgs{RepositoryId: &repo.Repository, Project: &g.teamProject, Name: &defaultBranchName}
 		branchResult, err := gitClient.GetBranch(ctx, getBranchArgs)
 		if err != nil {
-			return nil, fmt.Errorf("could not get default branch %v from repository %v: %w", repo.Branch, repo.Repository, err)
+			if wrappedError, isWrappedError := err.(azuredevops.WrappedError); isWrappedError && wrappedError.TypeKey != nil {
+				if *wrappedError.TypeKey == AzureDevOpsErrorsTypeKeyValues.GitRepositoryNotFound {
+					return repos, nil
+				}
+			}
+			return nil, fmt.Errorf("could not get default branch %v (%v) from repository %v: %w", defaultBranchName, repo.Branch, repo.Repository, err)
 		}
 
 		if branchResult.Name == nil || branchResult.Commit == nil {
@@ -154,6 +170,11 @@ func (g *AzureDevOpsProvider) GetBranches(ctx context.Context, repo *Repository)
 	getBranchesRequest := azureGit.GetBranchesArgs{RepositoryId: &repo.Repository, Project: &g.teamProject}
 	branches, err := gitClient.GetBranches(ctx, getBranchesRequest)
 	if err != nil {
+		if wrappedError, isWrappedError := err.(azuredevops.WrappedError); isWrappedError && wrappedError.TypeKey != nil {
+			if *wrappedError.TypeKey == AzureDevOpsErrorsTypeKeyValues.GitRepositoryNotFound {
+				return repos, nil
+			}
+		}
 		return nil, fmt.Errorf("failed getting branches from repository %v, project %v: %w", repo.Repository, g.teamProject, err)
 	}
 
