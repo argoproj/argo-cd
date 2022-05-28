@@ -1,7 +1,6 @@
 # Pull Request Generator
 
-The Pull Request generator uses the API of an SCMaaS provider (eg GitHub/GitLab) to automatically discover open pull requests within an repository. This fits well with the style of building a test environment when you create a pull request.
-
+The Pull Request generator uses the API of an SCMaaS provider (GitHub, Gitea, or Bitbucket Server) to automatically discover open pull requests within a repository. This fits well with the style of building a test environment when you create a pull request.
 
 ```yaml
 apiVersion: argoproj.io/v1alpha1
@@ -16,9 +15,15 @@ spec:
         # ...
 ```
 
+!!! note
+    Know the security implications of PR generators in ApplicationSets. 
+    [Only admins may create ApplicationSets](./Security.md#only-admins-may-createupdatedelete-applicationsets) to avoid
+    leaking Secrets, and [only admins may create PRs](./Security.md#templated-project-field) if the `project` field of 
+    an ApplicationSet with a PR generator is templated, to avoid granting management of out-of-bounds resources.
+
 ## GitHub
 
-Specify the repository from which to fetch the Github Pull requests.
+Specify the repository from which to fetch the GitHub Pull requests.
 
 ```yaml
 apiVersion: argoproj.io/v1alpha1
@@ -48,7 +53,7 @@ spec:
 ```
 
 * `owner`: Required name of the GitHub organization or user.
-* `repo`: Required name of the Github repository.
+* `repo`: Required name of the GitHub repository.
 * `api`: If using GitHub Enterprise, the URL to access it. (Optional)
 * `tokenRef`: A `Secret` name and key containing the GitHub access token to use for requests. If not specified, will make anonymous requests which have a lower rate limit and can only see public repositories. (Optional)
 * `labels`: Labels is used to filter the PRs that you want to target. (Optional)
@@ -216,7 +221,7 @@ spec:
           parameters:
           - name: "image.tag"
             value: "pull-{{head_sha}}"
-      project: default
+      project: "my-project"
       destination:
         server: https://kubernetes.default.svc
         namespace: default
@@ -247,7 +252,7 @@ spec:
             app.kubernetes.io/instance: {{branch}}-{{number}}
           images:
           - ghcr.io/myorg/myrepo:{{head_sha}}
-      project: default
+      project: "my-project"
       destination:
         server: https://kubernetes.default.svc
         namespace: default
