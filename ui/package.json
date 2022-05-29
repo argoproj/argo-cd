@@ -54,7 +54,8 @@
   "resolutions": {
     "@types/react": "^16.9.3",
     "@types/react-dom": "^16.8.2",
-    "normalize-url": "4.3.0"
+    "normalize-url": "4.3.0",
+    "formidable": "3.2.4"
   },
   "devDependencies": {
     "@babel/core": "^7.7.2",

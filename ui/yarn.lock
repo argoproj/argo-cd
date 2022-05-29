@@ -4468,15 +4468,14 @@ form-data@^4.0.0:
     combined-stream "^1.0.8"
     mime-types "^2.1.12"
 
-formidable@^2.0.1:
-  version "2.0.1"
-  resolved "https://registry.yarnpkg.com/formidable/-/formidable-2.0.1.tgz#4310bc7965d185536f9565184dee74fbb75557ff"
-  integrity sha512-rjTMNbp2BpfQShhFbR3Ruk3qk2y9jKpvMW78nJgx8QKtxjDVrwbZG+wvDOmVbifHyOUOQJXxqEy6r0faRrPzTQ==
+formidable@3.2.4, formidable@^2.0.1:
+  version "3.2.4"
+  resolved "https://registry.yarnpkg.com/formidable/-/formidable-3.2.4.tgz#c0019368718de33ecb637c66d03b6342a677893a"
+  integrity sha512-8/5nJsq+o2o1+Dryx1k5gLTDaw0dNE9kL4P3srKArO6zhoerGm42/R8zq+L5EkV7kckNTvJpJke0kI8JseL3RQ==
   dependencies:
     dezalgo "1.0.3"
     hexoid "1.0.0"
     once "1.4.0"
-    qs "6.9.3"
 
 forwarded@0.2.0:
   version "0.2.0"
@@ -7400,11 +7399,6 @@ qs@6.7.0:
   version "6.7.0"
   resolved "https://registry.yarnpkg.com/qs/-/qs-6.7.0.tgz#41dc1a015e3d581f1621776be31afb2876a9b1bc"
   integrity sha512-VCdBRNFTX1fyE7Nb6FYoURo/SPe62QCaAyzJvUjwRaIsc+NePBEniHlvxFmmX56+HZphIGtV0XeCirBtpDrTyQ==
-
-qs@6.9.3:
-  version "6.9.3"
-  resolved "https://registry.yarnpkg.com/qs/-/qs-6.9.3.tgz#bfadcd296c2d549f1dffa560619132c977f5008e"
-  integrity sha512-EbZYNarm6138UKKq46tdx08Yo/q9ZhFoAXAI1meAFd2GtbRDhbZY2WQSICskT0c5q99aFzLG1D4nvTk9tqfXIw==
 
 qs@^6.10.3:
   version "6.10.3"
