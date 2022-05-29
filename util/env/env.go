@@ -2,12 +2,15 @@ package env
 
 import (
 	"os"
+	"regexp"
 	"strconv"
 	"strings"
 	"time"
 
 	log "github.com/sirupsen/logrus"
 )
+
+var dayRegexp = regexp.MustCompile(`^[+-]?([0-9]*[.]?[0-9]+d)?(.*)$`)
 
 // Helper function to parse a number from an environment variable. Returns a
 // default if env is not set, is not parseable to a number, exceeds max (if
@@ -100,10 +103,34 @@ func ParseDurationFromEnv(env string, defaultValue, min, max time.Duration) time
 		return defaultValue
 	}
 
-	dur, err := time.ParseDuration(str)
-	if err != nil {
+	matches := dayRegexp.FindStringSubmatch(str)
+	if len(matches) != 3 {
 		log.Warnf("Could not parse '%s' as a duration string from environment %s", str, env)
 		return defaultValue
+	}
+
+	dayStr := matches[1]
+	timeStr := matches[2]
+
+	var dur time.Duration
+	if dayStr != "" {
+		amount, err := strconv.ParseFloat(strings.TrimSuffix(dayStr, "d"), 32)
+		if err != nil {
+			log.Warnf("Could not parse '%s' as a duration string from environment %s", str, env)
+			return defaultValue
+		}
+
+		dur += time.Duration(24*amount) * time.Hour
+	}
+
+	if timeStr != "" {
+		amount, err := time.ParseDuration(timeStr)
+		if err != nil {
+			log.Warnf("Could not parse '%s' as a duration string from environment %s", str, env)
+			return defaultValue
+		}
+
+		dur += amount
 	}
 
 	if dur < min {

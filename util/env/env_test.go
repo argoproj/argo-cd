@@ -145,31 +145,61 @@ func TestParseInt64FromEnv(t *testing.T) {
 func TestParseDurationFromEnv(t *testing.T) {
 	testKey := "key"
 	defaultVal := 2 * time.Second
-	min := 1 * time.Second
-	max := 3 * time.Second
 
 	testCases := []struct {
 		name     string
 		env      string
+		min      time.Duration
+		max      time.Duration
 		expected time.Duration
 	}{{
 		name:     "EnvNotSet",
 		expected: defaultVal,
 	}, {
-		name:     "ValidValueSet",
-		env:      "2s",
-		expected: time.Second * 2,
+		name:     "InvalidSet",
+		env:      "hello",
+		expected: defaultVal,
+	}, {
+		name:     "ValidTimeValueSet",
+		env:      "10s",
+		max:      math.MaxInt64,
+		expected: time.Second * 10,
+	}, {
+		name:     "ValidSignedValueSet",
+		env:      "+10s",
+		max:      math.MaxInt64,
+		expected: time.Second * 10,
+	}, {
+		name:     "ValidTimeFractionValueSet",
+		env:      "1.5m",
+		max:      math.MaxInt64,
+		expected: time.Second * 90,
+	}, {
+		name:     "ValidDayValueSet",
+		env:      "1d",
+		max:      math.MaxInt64,
+		expected: time.Hour * 24,
+	}, {
+		name:     "ValidDayFractionValueSet",
+		env:      "1.5d",
+		max:      math.MaxInt64,
+		expected: time.Hour * 36,
+	}, {
+		name:     "ValidComplexDurationSet",
+		env:      "1d2h",
+		max:      math.MaxInt64,
+		expected: time.Hour * 26,
 	}, {
 		name:     "MoreThanMaxSet",
 		env:      "5s",
+		min:      2 * time.Second,
+		max:      3 * time.Second,
 		expected: defaultVal,
 	}, {
 		name:     "LessThanMinSet",
 		env:      "-1s",
-		expected: defaultVal,
-	}, {
-		name:     "InvalidSet",
-		env:      "hello",
+		min:      2 * time.Second,
+		max:      3 * time.Second,
 		expected: defaultVal,
 	}}
 
@@ -178,7 +208,7 @@ func TestParseDurationFromEnv(t *testing.T) {
 			tc = testCases[i]
 			setEnv(t, testKey, tc.env)
 
-			val := ParseDurationFromEnv(testKey, defaultVal, min, max)
+			val := ParseDurationFromEnv(testKey, defaultVal, tc.min, tc.max)
 			assert.Equal(t, tc.expected, val)
 		})
 	}
