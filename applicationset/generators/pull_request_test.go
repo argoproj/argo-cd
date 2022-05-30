@@ -18,6 +18,7 @@ func TestPullRequestGithubGenerateParams(t *testing.T) {
 	ctx := context.Background()
 	cases := []struct {
 		selectFunc  func(context.Context, *argoprojiov1alpha1.PullRequestGenerator, *argoprojiov1alpha1.ApplicationSet) (pullrequest.PullRequestService, error)
+		branchSlug  bool
 		expected    []map[string]string
 		expectedErr error
 	}{
@@ -35,6 +36,7 @@ func TestPullRequestGithubGenerateParams(t *testing.T) {
 					nil,
 				)
 			},
+			branchSlug: false,
 			expected: []map[string]string{
 				{
 					"number":   "1",
@@ -58,6 +60,7 @@ func TestPullRequestGithubGenerateParams(t *testing.T) {
 					nil,
 				)
 			},
+			branchSlug: true,
 			expected: []map[string]string{
 				{
 					"number":   "2",
@@ -75,6 +78,7 @@ func TestPullRequestGithubGenerateParams(t *testing.T) {
 					fmt.Errorf("fake error"),
 				)
 			},
+			branchSlug:  false,
 			expected:    nil,
 			expectedErr: fmt.Errorf("error listing repos: fake error"),
 		},
@@ -86,6 +90,9 @@ func TestPullRequestGithubGenerateParams(t *testing.T) {
 		}
 		generatorConfig := argoprojiov1alpha1.ApplicationSetGenerator{
 			PullRequest: &argoprojiov1alpha1.PullRequestGenerator{},
+		}
+		if c.branchSlug {
+			generatorConfig.PullRequest.BranchSlug = true
 		}
 		got, gotErr := gen.GenerateParams(&generatorConfig, nil)
 		assert.Equal(t, c.expectedErr, gotErr)
