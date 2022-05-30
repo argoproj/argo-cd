@@ -9,14 +9,15 @@ import (
 )
 
 type GitLabService struct {
-	client  *gitlab.Client
-	project string
-	labels  []string
+	client           *gitlab.Client
+	project          string
+	labels           []string
+	pullRequestState string
 }
 
 var _ PullRequestService = (*GitLabService)(nil)
 
-func NewGitLabService(ctx context.Context, token, url, project string, labels []string) (PullRequestService, error) {
+func NewGitLabService(ctx context.Context, token, url, project string, labels []string, pullRequestState string) (PullRequestService, error) {
 	var clientOptionFns []gitlab.ClientOptionFunc
 
 	// Set a custom Gitlab base URL if one is provided
@@ -34,9 +35,10 @@ func NewGitLabService(ctx context.Context, token, url, project string, labels []
 	}
 
 	return &GitLabService{
-		client:  client,
-		project: project,
-		labels:  labels,
+		client:           client,
+		project:          project,
+		labels:           labels,
+		pullRequestState: pullRequestState,
 	}, nil
 }
 
@@ -53,6 +55,10 @@ func (g *GitLabService) List(ctx context.Context) ([]*PullRequest, error) {
 			PerPage: 100,
 		},
 		Labels: labels,
+	}
+
+	if g.pullRequestState != "" {
+		opts.State = &g.pullRequestState
 	}
 
 	pullRequests := []*PullRequest{}

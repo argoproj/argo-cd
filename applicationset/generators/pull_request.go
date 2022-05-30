@@ -107,7 +107,7 @@ func (g *PullRequestGenerator) selectServiceProvider(ctx context.Context, genera
 		if err != nil {
 			return nil, fmt.Errorf("error fetching Secret token: %v", err)
 		}
-		return pullrequest.NewGitLabService(ctx, token, providerConfig.API, providerConfig.Project, providerConfig.Labels)
+		return pullrequest.NewGitLabService(ctx, token, providerConfig.API, providerConfig.Project, providerConfig.Labels, providerConfig.PullRequestState)
 	}
 	if generatorConfig.Gitea != nil {
 		providerConfig := generatorConfig.Gitea
