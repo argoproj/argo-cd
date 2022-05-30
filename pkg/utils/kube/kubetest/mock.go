@@ -8,6 +8,7 @@ import (
 	"k8s.io/apimachinery/pkg/apis/meta/v1/unstructured"
 	"k8s.io/apimachinery/pkg/runtime/schema"
 	"k8s.io/apimachinery/pkg/types"
+	"k8s.io/apimachinery/pkg/util/managedfields"
 	"k8s.io/apimachinery/pkg/watch"
 	"k8s.io/client-go/dynamic"
 	"k8s.io/client-go/rest"
@@ -173,8 +174,8 @@ func (k *MockKubectlCmd) GetServerVersion(config *rest.Config) (string, error) {
 	return k.Version, nil
 }
 
-func (k *MockKubectlCmd) LoadOpenAPISchema(config *rest.Config) (openapi.Resources, error) {
-	return nil, nil
+func (k *MockKubectlCmd) LoadOpenAPISchema(config *rest.Config) (openapi.Resources, *managedfields.GvkParser, error) {
+	return nil, nil, nil
 }
 
 func (k *MockKubectlCmd) SetOnKubectlRun(onKubectlRun kube.OnKubectlRunFunc) {

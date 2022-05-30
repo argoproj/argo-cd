@@ -18,6 +18,7 @@ import (
 	"k8s.io/apimachinery/pkg/runtime"
 	"k8s.io/apimachinery/pkg/runtime/schema"
 	"k8s.io/apimachinery/pkg/types"
+	"k8s.io/apimachinery/pkg/util/managedfields"
 	"k8s.io/apimachinery/pkg/util/wait"
 	"k8s.io/apimachinery/pkg/watch"
 	"k8s.io/client-go/dynamic"
@@ -96,6 +97,9 @@ type ClusterCache interface {
 	GetAPIResources() []kube.APIResourceInfo
 	// GetOpenAPISchema returns open API schema of supported API resources
 	GetOpenAPISchema() openapi.Resources
+	// GetGVKParser returns a parser able to build a TypedValue used in
+	// structured merge diffs.
+	GetGVKParser() *managedfields.GvkParser
 	// Invalidate cache and executes callback that optionally might update cache settings
 	Invalidate(opts ...UpdateSettingsFunc)
 	// FindResources returns resources that matches given list of predicates from specified namespace or everywhere if specified namespace is empty
@@ -203,6 +207,7 @@ type clusterCache struct {
 	resourceUpdatedHandlers     map[uint64]OnResourceUpdatedHandler
 	eventHandlers               map[uint64]OnEventHandler
 	openAPISchema               openapi.Resources
+	gvkParser                   *managedfields.GvkParser
 }
 
 type clusterCacheSync struct {
@@ -290,6 +295,12 @@ func (c *clusterCache) GetAPIResources() []kube.APIResourceInfo {
 // GetOpenAPISchema returns open API schema of supported API resources
 func (c *clusterCache) GetOpenAPISchema() openapi.Resources {
 	return c.openAPISchema
+}
+
+// GetGVKParser returns a parser able to build a TypedValue used in
+// structured merge diffs.
+func (c *clusterCache) GetGVKParser() *managedfields.GvkParser {
+	return c.gvkParser
 }
 
 func (c *clusterCache) appendAPIResource(info kube.APIResourceInfo) {
@@ -649,9 +660,16 @@ func (c *clusterCache) watchEvents(ctx context.Context, api kube.APIResourceInfo
 						}
 					}
 					err = runSynced(&c.lock, func() error {
-						openAPISchema, err := c.kubectl.LoadOpenAPISchema(c.config)
+						openAPISchema, gvkParser, err := c.kubectl.LoadOpenAPISchema(c.config)
 						if err != nil {
-							return err
+							e, ok := err.(*kube.CreateGVKParserError)
+							if !ok {
+								return err
+							}
+							c.log.Error(e, "warning loading openapi schema")
+						}
+						if gvkParser != nil {
+							c.gvkParser = gvkParser
 						}
 						c.openAPISchema = openAPISchema
 						return nil
@@ -706,10 +724,19 @@ func (c *clusterCache) sync() error {
 	}
 	c.apiResources = apiResources
 
-	openAPISchema, err := c.kubectl.LoadOpenAPISchema(config)
+	openAPISchema, gvkParser, err := c.kubectl.LoadOpenAPISchema(config)
 	if err != nil {
-		return err
+		e, ok := err.(*kube.CreateGVKParserError)
+		if !ok {
+			return err
+		}
+		c.log.Error(e, "warning loading openapi schema")
 	}
+
+	if gvkParser != nil {
+		c.gvkParser = gvkParser
+	}
+
 	c.openAPISchema = openAPISchema
 
 	apis, err := c.kubectl.GetAPIResources(c.config, true, c.settings.ResourcesFilter)

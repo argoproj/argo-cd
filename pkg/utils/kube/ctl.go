@@ -11,9 +11,11 @@ import (
 	"k8s.io/apimachinery/pkg/apis/meta/v1/unstructured"
 	"k8s.io/apimachinery/pkg/runtime/schema"
 	"k8s.io/apimachinery/pkg/types"
+	"k8s.io/apimachinery/pkg/util/managedfields"
 	"k8s.io/client-go/discovery"
 	"k8s.io/client-go/dynamic"
 	"k8s.io/client-go/rest"
+	"k8s.io/kube-openapi/pkg/util/proto"
 	"k8s.io/kubectl/pkg/util/openapi"
 
 	utils "github.com/argoproj/gitops-engine/pkg/utils/io"
@@ -26,7 +28,7 @@ type OnKubectlRunFunc func(command string) (CleanupFunc, error)
 
 type Kubectl interface {
 	ManageResources(config *rest.Config, openAPISchema openapi.Resources) (ResourceOperations, func(), error)
-	LoadOpenAPISchema(config *rest.Config) (openapi.Resources, error)
+	LoadOpenAPISchema(config *rest.Config) (openapi.Resources, *managedfields.GvkParser, error)
 	ConvertToVersion(obj *unstructured.Unstructured, group, version string) (*unstructured.Unstructured, error)
 	DeleteResource(ctx context.Context, config *rest.Config, gvk schema.GroupVersionKind, name string, namespace string, deleteOptions metav1.DeleteOptions) error
 	GetResource(ctx context.Context, config *rest.Config, gvk schema.GroupVersionKind, name string, namespace string) (*unstructured.Unstructured, error)
@@ -110,13 +112,60 @@ func isSupportedVerb(apiResource *metav1.APIResource, verb string) bool {
 	return false
 }
 
-func (k *KubectlCmd) LoadOpenAPISchema(config *rest.Config) (openapi.Resources, error) {
+type CreateGVKParserError struct {
+	err error
+}
+
+func NewCreateGVKParserError(err error) *CreateGVKParserError {
+	return &CreateGVKParserError{
+		err: err,
+	}
+}
+
+func (e *CreateGVKParserError) Error() string {
+	return fmt.Sprintf("error creating gvk parser: %s", e.err)
+}
+
+// LoadOpenAPISchema will load all existing resource schemas from the cluster
+// and return:
+// - openapi.Resources: used for getting the proto.Schema from a GVK
+// - managedfields.GvkParser: used for building a ParseableType to be used in
+// structured-merge-diffs
+func (k *KubectlCmd) LoadOpenAPISchema(config *rest.Config) (openapi.Resources, *managedfields.GvkParser, error) {
 	disco, err := discovery.NewDiscoveryClientForConfig(config)
+	if err != nil {
+		return nil, nil, err
+	}
+
+	oapiGetter := openapi.NewOpenAPIGetter(disco)
+	oapiResources, err := openapi.NewOpenAPIParser(oapiGetter).Parse()
+	if err != nil {
+		return nil, nil, fmt.Errorf("error getting openapi resources: %s", err)
+	}
+	gvkParser, err := newGVKParser(oapiGetter)
+	if err != nil {
+		// return a specific error type to allow gracefully handle
+		// creating GVK Parser bug:
+		// https://github.com/kubernetes/kubernetes/issues/103597
+		return oapiResources, nil, NewCreateGVKParserError(err)
+	}
+	return oapiResources, gvkParser, nil
+}
+
+func newGVKParser(oapiGetter *openapi.CachedOpenAPIGetter) (*managedfields.GvkParser, error) {
+	doc, err := oapiGetter.OpenAPISchema()
+	if err != nil {
+		return nil, fmt.Errorf("error getting openapi schema: %s", err)
+	}
+	models, err := proto.NewOpenAPIData(doc)
+	if err != nil {
+		return nil, fmt.Errorf("error getting openapi data: %s", err)
+	}
+	gvkParser, err := managedfields.NewGVKParser(models, false)
 	if err != nil {
 		return nil, err
 	}
-
-	return openapi.NewOpenAPIParser(openapi.NewOpenAPIGetter(disco)).Parse()
+	return gvkParser, nil
 }
 
 func (k *KubectlCmd) GetAPIResources(config *rest.Config, preferred bool, resourceFilter ResourceFilter) ([]APIResourceInfo, error) {

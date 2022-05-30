@@ -6,6 +6,8 @@ import (
 	cache "github.com/argoproj/gitops-engine/pkg/cache"
 	kube "github.com/argoproj/gitops-engine/pkg/utils/kube"
 
+	managedfields "k8s.io/apimachinery/pkg/util/managedfields"
+
 	mock "github.com/stretchr/testify/mock"
 
 	openapi "k8s.io/kubectl/pkg/util/openapi"
@@ -82,6 +84,22 @@ func (_m *ClusterCache) GetClusterInfo() cache.ClusterInfo {
 		r0 = rf()
 	} else {
 		r0 = ret.Get(0).(cache.ClusterInfo)
+	}
+
+	return r0
+}
+
+// GetGVKParser provides a mock function with given fields:
+func (_m *ClusterCache) GetGVKParser() *managedfields.GvkParser {
+	ret := _m.Called()
+
+	var r0 *managedfields.GvkParser
+	if rf, ok := ret.Get(0).(func() *managedfields.GvkParser); ok {
+		r0 = rf()
+	} else {
+		if ret.Get(0) != nil {
+			r0 = ret.Get(0).(*managedfields.GvkParser)
+		}
 	}
 
 	return r0
