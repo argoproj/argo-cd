@@ -5,6 +5,7 @@ import (
 	"fmt"
 
 	autoscalingv1 "k8s.io/api/autoscaling/v1"
+	autoscalingv2 "k8s.io/api/autoscaling/v2"
 	autoscalingv2beta1 "k8s.io/api/autoscaling/v2beta1"
 	autoscalingv2beta2 "k8s.io/api/autoscaling/v2beta2"
 	"k8s.io/apimachinery/pkg/apis/meta/v1/unstructured"
@@ -53,9 +54,31 @@ func getHPAHealth(obj *unstructured.Unstructured) (*HealthStatus, error) {
 			return nil, fmt.Errorf(failedConversionMsg, err)
 		}
 		return getAutoScalingV2beta2HPAHealth(&hpa)
+	case autoscalingv2.SchemeGroupVersion.WithKind(kube.HorizontalPodAutoscalerKind):
+		var hpa autoscalingv2.HorizontalPodAutoscaler
+		err := runtime.DefaultUnstructuredConverter.FromUnstructured(obj.Object, &hpa)
+		if err != nil {
+			return nil, fmt.Errorf(failedConversionMsg, err)
+		}
+		return getAutoScalingV2HPAHealth(&hpa)
 	default:
 		return nil, fmt.Errorf("unsupported HPA GVK: %s", gvk)
 	}
+}
+
+func getAutoScalingV2HPAHealth(hpa *autoscalingv2.HorizontalPodAutoscaler) (*HealthStatus, error) {
+	statusConditions := hpa.Status.Conditions
+	conditions := make([]hpaCondition, 0, len(statusConditions))
+	for _, statusCondition := range statusConditions {
+		conditions = append(conditions, hpaCondition{
+			Type:    string(statusCondition.Type),
+			Reason:  statusCondition.Reason,
+			Message: statusCondition.Message,
+			Status:  string(statusCondition.Status),
+		})
+	}
+
+	return checkConditions(conditions, progressingStatus)
 }
 
 func getAutoScalingV2beta2HPAHealth(hpa *autoscalingv2beta2.HorizontalPodAutoscaler) (*HealthStatus, error) {

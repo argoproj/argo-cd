@@ -78,6 +78,9 @@ func TestJob(t *testing.T) {
 }
 
 func TestHPA(t *testing.T) {
+	assertAppHealth(t, "./testdata/hpa-v2-healthy.yaml", HealthStatusHealthy)
+	assertAppHealth(t, "./testdata/hpa-v2-degraded.yaml", HealthStatusDegraded)
+	assertAppHealth(t, "./testdata/hpa-v2-progressing.yaml", HealthStatusProgressing)
 	assertAppHealth(t, "./testdata/hpa-v2beta2-healthy.yaml", HealthStatusHealthy)
 	assertAppHealth(t, "./testdata/hpa-v2beta1-healthy-disabled.yaml", HealthStatusHealthy)
 	assertAppHealth(t, "./testdata/hpa-v2beta1-healthy.yaml", HealthStatusHealthy)
