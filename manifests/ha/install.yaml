@@ -4487,6 +4487,8 @@ spec:
                                     - project
                                     - repo
                                     type: object
+                                  branchSlug:
+                                    type: boolean
                                   filters:
                                     items:
                                       properties:
@@ -6663,6 +6665,8 @@ spec:
                                     - project
                                     - repo
                                     type: object
+                                  branchSlug:
+                                    type: boolean
                                   filters:
                                     items:
                                       properties:
@@ -7704,6 +7708,8 @@ spec:
                           - project
                           - repo
                           type: object
+                        branchSlug:
+                          type: boolean
                         filters:
                           items:
                             properties:

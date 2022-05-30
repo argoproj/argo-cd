@@ -198,6 +198,8 @@ spec:
 
 As with all generators, several keys are available for replacement in the generated application.
 
+`{{branch}}`: The branch name will be cleaned to be conform to the DNS label standard as defined in [RFC 1123](https://kubernetes.io/docs/concepts/overview/working-with-objects/names/#dns-label-names), and truncated to 50 characters to give room to append/suffix-ing it with 13 more characters. 
+
 The following is a comprehensive Helm Application example;
 
 ```yaml

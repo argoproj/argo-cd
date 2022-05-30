@@ -12,6 +12,7 @@ import (
 	"github.com/argoproj/argo-cd/v2/applicationset/services/pull_request"
 	pullrequest "github.com/argoproj/argo-cd/v2/applicationset/services/pull_request"
 	argoprojiov1alpha1 "github.com/argoproj/argo-cd/v2/pkg/apis/applicationset/v1alpha1"
+	"github.com/gosimple/slug"
 )
 
 var _ Generator = (*PullRequestGenerator)(nil)
@@ -67,10 +68,27 @@ func (g *PullRequestGenerator) GenerateParams(appSetGenerator *argoprojiov1alpha
 		return nil, fmt.Errorf("error listing repos: %v", err)
 	}
 	params := make([]map[string]string, 0, len(pulls))
+
+	if appSetGenerator.PullRequest.BranchSlug {
+		// In order to follow the DNS label standard as defined in RFC 1123,
+		// we need to limit the 'branch' to 50 to give room to append/suffix-ing it
+		// with 13 more characters. Also, there is the need to clean it as recommended
+		// here https://kubernetes.io/docs/concepts/overview/working-with-objects/names/#dns-label-names
+
+		// Converting underscores to dashes
+		slug.CustomSub = map[string]string{
+			"_": "-",
+		}
+		slug.MaxLength = 50
+	}
 	for _, pull := range pulls {
+		pullBranchName := pull.Branch
+		if appSetGenerator.PullRequest.BranchSlug {
+			pullBranchName = slug.Make(pull.Branch)
+		}
 		params = append(params, map[string]string{
 			"number":   strconv.Itoa(pull.Number),
-			"branch":   pull.Branch,
+			"branch":   pullBranchName,
 			"head_sha": pull.HeadSHA,
 		})
 	}

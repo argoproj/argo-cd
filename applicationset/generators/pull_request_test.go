@@ -48,6 +48,29 @@ func TestPullRequestGithubGenerateParams(t *testing.T) {
 			selectFunc: func(context.Context, *argoprojiov1alpha1.PullRequestGenerator, *argoprojiov1alpha1.ApplicationSet) (pullrequest.PullRequestService, error) {
 				return pullrequest.NewFakeService(
 					ctx,
+					[]*pullrequest.PullRequest{
+						&pullrequest.PullRequest{
+							Number:  2,
+							Branch:  "feat/areally+long_pull_request_name_to_test_argo_slugification_and_branch_name_shortening_feature",
+							HeadSHA: "9b34ff5bd418e57d58891eb0aa0728043ca1e8be",
+						},
+					},
+					nil,
+				)
+			},
+			expected: []map[string]string{
+				{
+					"number":   "2",
+					"branch":   "feat-areally-long-pull-request-name-to-test-argo",
+					"head_sha": "9b34ff5bd418e57d58891eb0aa0728043ca1e8be",
+				},
+			},
+			expectedErr: nil,
+		},
+		{
+			selectFunc: func(context.Context, *argoprojiov1alpha1.PullRequestGenerator, *argoprojiov1alpha1.ApplicationSet) (pullrequest.PullRequestService, error) {
+				return pullrequest.NewFakeService(
+					ctx,
 					nil,
 					fmt.Errorf("fake error"),
 				)

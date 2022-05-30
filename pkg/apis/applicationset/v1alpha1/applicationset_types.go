@@ -397,6 +397,10 @@ type PullRequestGenerator struct {
 	BitbucketServer *PullRequestGeneratorBitbucketServer `json:"bitbucketServer,omitempty"`
 	// Filters for which pull requests should be considered.
 	Filters []PullRequestGeneratorFilter `json:"filters,omitempty"`
+
+	// If BranchSlug is set to true, the PR generator will slugify the branch name to be conform to RFC 1123
+	BranchSlug bool `json:"branchSlug,omitempty"`
+
 	// Standard parameters.
 	RequeueAfterSeconds *int64                 `json:"requeueAfterSeconds,omitempty"`
 	Template            ApplicationSetTemplate `json:"template,omitempty"`
