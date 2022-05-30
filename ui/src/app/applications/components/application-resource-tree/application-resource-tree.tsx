@@ -877,7 +877,11 @@ export const ApplicationResourceTree = (props: ApplicationResourceTreeProps) => 
                 (childrenByParentKey.get(treeNodeKey(root)) || []).sort(compareNodes).forEach((child, i) => {
                     processNode(child, root, [colorByService.get(treeNodeKey(child))]);
                 });
-                graph.setNode(treeNodeKey(root), {...root, width: NODE_WIDTH, height: NODE_HEIGHT, root});
+                if (root.podGroup && props.showCompactNodes) {
+                    setPodGroupNode(root, root);
+                } else {
+                    graph.setNode(treeNodeKey(root), {...root, width: NODE_WIDTH, height: NODE_HEIGHT, root});
+                }
                 (childrenByParentKey.get(treeNodeKey(root)) || []).forEach(child => {
                     if (root.namespace === child.namespace) {
                         graph.setEdge(treeNodeKey(root), treeNodeKey(child), {colors: [colorByService.get(treeNodeKey(child))]});
@@ -970,10 +974,14 @@ export const ApplicationResourceTree = (props: ApplicationResourceTreeProps) => 
         }
     }
 
+    function setPodGroupNode(node: ResourceTreeNode, root: ResourceTreeNode) {
+        const numberOfRows = Math.ceil(node.podGroup.pods.length / 8);
+        graph.setNode(treeNodeKey(node), {...node, type: NODE_TYPES.podGroup, width: NODE_WIDTH, height: POD_NODE_HEIGHT + 30 * numberOfRows, root});
+    }
+
     function processNode(node: ResourceTreeNode, root: ResourceTreeNode, colors?: string[]) {
         if (props.showCompactNodes && node.podGroup) {
-            const numberOfRows = Math.ceil(node.podGroup.pods.length / 8);
-            graph.setNode(treeNodeKey(node), {...node, type: NODE_TYPES.podGroup, width: NODE_WIDTH, height: POD_NODE_HEIGHT + 30 * numberOfRows, root});
+            setPodGroupNode(node, root);
         } else {
             graph.setNode(treeNodeKey(node), {...node, width: NODE_WIDTH, height: NODE_HEIGHT, root});
         }
@@ -1026,14 +1034,20 @@ export const ApplicationResourceTree = (props: ApplicationResourceTreeProps) => 
             const startNode = graph.node(edgeInfo.v);
             const endNode = graph.node(edgeInfo.w);
             const offset = nodeOffset.get(edgeInfo.v);
-            const startNodeRight = props.useNetworkingHierarchy ? 162 : 142;
+            let startNodeRight = props.useNetworkingHierarchy ? 162 : 142;
             const endNodeLeft = 140;
-            if (edgeInfo.v.startsWith(EXTERNAL_TRAFFIC_NODE)) {
-                lines.push({x1: startNode.x, y1: startNode.y, x2: endNode.x - endNodeLeft, y2: endNode.y});
+            let spaceForExpansionIcon = 0;
+            if (edgeInfo.v.startsWith(EXTERNAL_TRAFFIC_NODE) && !edgeInfo.v.startsWith(EXTERNAL_TRAFFIC_NODE + ':')) {
+                lines.push({x1: startNode.x + 10, y1: startNode.y, x2: endNode.x - endNodeLeft, y2: endNode.y});
             } else {
+                if (edgeInfo.v.startsWith(EXTERNAL_TRAFFIC_NODE + ':')) {
+                    startNodeRight = 152;
+                    spaceForExpansionIcon = 5;
+                }
                 const len = reverseEdge.get(edgeInfo.w) + 1;
                 const yEnd = endNode.y - endNode.height / 2 + (endNode.height / len + (endNode.height / len) * offset);
                 const firstBend =
+                    spaceForExpansionIcon +
                     startNode.x +
                     startNodeRight +
                     (endNode.x - startNode.x - startNodeRight - endNodeLeft) / len +

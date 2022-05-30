@@ -41,6 +41,7 @@ import (
 	"github.com/argoproj/argo-cd/v2/util/cache"
 	"github.com/argoproj/argo-cd/v2/util/db"
 	"github.com/argoproj/argo-cd/v2/util/errors"
+	"github.com/argoproj/argo-cd/v2/util/grpc"
 	"github.com/argoproj/argo-cd/v2/util/rbac"
 	"github.com/argoproj/argo-cd/v2/util/settings"
 )
@@ -643,7 +644,9 @@ p, admin, applications, update, default/test-app, allow
 p, admin, applications, update, my-proj/test-app, allow
 `)
 	_, err = appServer.Update(ctx, &application.ApplicationUpdateRequest{Application: testApp})
-	assert.Equal(t, status.Code(err), codes.PermissionDenied)
+	statusErr := grpc.UnwrapGRPCStatus(err)
+	assert.NotNil(t, statusErr)
+	assert.Equal(t, codes.PermissionDenied, statusErr.Code())
 
 	// Verify inability to change projects without update privileges in new project
 	_ = appServer.enf.SetBuiltinPolicy(`
@@ -659,7 +662,9 @@ p, admin, applications, create, my-proj/test-app, allow
 p, admin, applications, update, my-proj/test-app, allow
 `)
 	_, err = appServer.Update(ctx, &application.ApplicationUpdateRequest{Application: testApp})
-	assert.Equal(t, status.Code(err), codes.PermissionDenied)
+	statusErr = grpc.UnwrapGRPCStatus(err)
+	assert.NotNil(t, statusErr)
+	assert.Equal(t, codes.PermissionDenied, statusErr.Code())
 
 	// Verify can update project with proper permissions
 	_ = appServer.enf.SetBuiltinPolicy(`

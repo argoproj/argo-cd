@@ -754,34 +754,41 @@ func (a *ArgoCDServer) newHTTPServer(ctx context.Context, port int, grpcWebHandl
 		handler = compressHandler(handler)
 	}
 	mux.Handle("/api/", handler)
-	if a.settings.ExecEnabled {
-		terminalHandler := application.NewHandler(a.appLister, a.db, a.enf, a.Cache, appResourceTreeFn)
-		mux.HandleFunc("/terminal", func(writer http.ResponseWriter, request *http.Request) {
-			if !a.DisableAuth {
-				ctx := request.Context()
-				cookies := request.Cookies()
-				tokenString, err := httputil.JoinCookies(common.AuthCookieName, cookies)
-				if err == nil && jwtutil.IsValid(tokenString) {
-					claims, _, err := a.sessionMgr.VerifyToken(tokenString)
-					if err != nil {
-						// nolint:staticcheck
-						ctx = context.WithValue(ctx, util_session.AuthErrorCtxKey, err)
-					} else if claims != nil {
-						// Add claims to the context to inspect for RBAC
-						// nolint:staticcheck
-						ctx = context.WithValue(ctx, "claims", claims)
-					}
-					request = request.WithContext(ctx)
-				} else {
-					writer.WriteHeader(http.StatusUnauthorized)
-					return
+
+	terminalHandler := application.NewHandler(a.appLister, a.db, a.enf, a.Cache, appResourceTreeFn)
+	mux.HandleFunc("/terminal", func(writer http.ResponseWriter, request *http.Request) {
+		argocdSettings, err := a.settingsMgr.GetSettings()
+		if err != nil {
+			http.Error(writer, fmt.Sprintf("Failed to get settings: %v", err), http.StatusBadRequest)
+			return
+		}
+		if !argocdSettings.ExecEnabled {
+			writer.WriteHeader(http.StatusNotFound)
+			return
+		}
+
+		if !a.DisableAuth {
+			ctx := request.Context()
+			cookies := request.Cookies()
+			tokenString, err := httputil.JoinCookies(common.AuthCookieName, cookies)
+			if err == nil && jwtutil.IsValid(tokenString) {
+				claims, _, err := a.sessionMgr.VerifyToken(tokenString)
+				if err != nil {
+					// nolint:staticcheck
+					ctx = context.WithValue(ctx, util_session.AuthErrorCtxKey, err)
+				} else if claims != nil {
+					// Add claims to the context to inspect for RBAC
+					// nolint:staticcheck
+					ctx = context.WithValue(ctx, "claims", claims)
 				}
+				request = request.WithContext(ctx)
+			} else {
+				writer.WriteHeader(http.StatusUnauthorized)
+				return
 			}
-			terminalHandler.ServeHTTP(writer, request)
-		})
-	} else {
-		log.Info("exec is disabled, and /terminal will return a 404")
-	}
+		}
+		terminalHandler.ServeHTTP(writer, request)
+	})
 
 	mustRegisterGWHandler(versionpkg.RegisterVersionServiceHandlerFromEndpoint, ctx, gwmux, endpoint, dOpts)
 	mustRegisterGWHandler(clusterpkg.RegisterClusterServiceHandlerFromEndpoint, ctx, gwmux, endpoint, dOpts)

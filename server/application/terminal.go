@@ -2,17 +2,16 @@ package application
 
 import (
 	"context"
+	"fmt"
 	"io"
 	"net/http"
-	"net/url"
-	"strings"
 
 	"github.com/argoproj/gitops-engine/pkg/utils/kube"
 	log "github.com/sirupsen/logrus"
 	v1 "k8s.io/api/core/v1"
+	apierr "k8s.io/apimachinery/pkg/api/errors"
 	apimachineryvalidation "k8s.io/apimachinery/pkg/api/validation"
 	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
-	"k8s.io/apimachinery/pkg/util/validation"
 	"k8s.io/client-go/kubernetes"
 	"k8s.io/client-go/kubernetes/scheme"
 	"k8s.io/client-go/rest"
@@ -22,7 +21,6 @@ import (
 	applisters "github.com/argoproj/argo-cd/v2/pkg/client/listers/application/v1alpha1"
 	servercache "github.com/argoproj/argo-cd/v2/server/cache"
 	"github.com/argoproj/argo-cd/v2/server/rbacpolicy"
-	apputil "github.com/argoproj/argo-cd/v2/util/app"
 	"github.com/argoproj/argo-cd/v2/util/argo"
 	"github.com/argoproj/argo-cd/v2/util/db"
 	"github.com/argoproj/argo-cd/v2/util/rbac"
@@ -63,48 +61,48 @@ func (s *terminalHandler) getApplicationClusterRawConfig(ctx context.Context, a 
 // isValidPodName checks that a podName is valid
 func isValidPodName(name string) bool {
 	// https://github.com/kubernetes/kubernetes/blob/976a940f4a4e84fe814583848f97b9aafcdb083f/pkg/apis/core/validation/validation.go#L241
-	isValid := apimachineryvalidation.NameIsDNSSubdomain(name, false)
-	return len(isValid) == 0
+	validationErrors := apimachineryvalidation.NameIsDNSSubdomain(name, false)
+	return len(validationErrors) == 0
+}
+
+func isValidAppName(name string) bool {
+	// app names have the same rules as pods.
+	return isValidPodName(name)
+}
+
+func isValidProjectName(name string) bool {
+	// project names have the same rules as pods.
+	return isValidPodName(name)
 }
 
 // isValidNamespaceName checks that a namespace name is valid
 func isValidNamespaceName(name string) bool {
 	// https://github.com/kubernetes/kubernetes/blob/976a940f4a4e84fe814583848f97b9aafcdb083f/pkg/apis/core/validation/validation.go#L262
-	isValid := apimachineryvalidation.ValidateNamespaceName(name, false)
-	return len(isValid) == 0
+	validationErrors := apimachineryvalidation.ValidateNamespaceName(name, false)
+	return len(validationErrors) == 0
 }
 
 // isValidContainerName checks that a containerName is valid
 func isValidContainerName(name string) bool {
-	// quick check to ensure we aren't passing along anything unsafe
-	isQualified := validation.IsQualifiedName(name)
-	return len(isQualified) == 0
-}
-
-// GetQueryValue returns a value for a given url key
-// and strips newline to prevent go/log-injection
-func GetQueryValue(q url.Values, key string) string {
-	return strings.Replace(q.Get(key), "\n", "", -1)
+	// https://github.com/kubernetes/kubernetes/blob/53a9d106c4aabcd550cc32ae4e8004f32fb0ae7b/pkg/api/validation/validation.go#L280
+	validationErrors := apimachineryvalidation.NameIsDNSLabel(name, false)
+	return len(validationErrors) == 0
 }
 
 func (s *terminalHandler) ServeHTTP(w http.ResponseWriter, r *http.Request) {
 	q := r.URL.Query()
-	podName := GetQueryValue(q, "pod")
-	container := GetQueryValue(q, "container")
-	app := GetQueryValue(q, "appName")
-	namespace := GetQueryValue(q, "namespace")
-	shell := GetQueryValue(q, "shell")
 
-	if podName == "" || container == "" || app == "" || namespace == "" {
+	podName := q.Get("pod")
+	container := q.Get("container")
+	app := q.Get("app")
+	project := q.Get("project")
+	namespace := q.Get("namespace")
+
+	if podName == "" || container == "" || app == "" || project == "" || namespace == "" {
 		http.Error(w, "Missing required parameters", http.StatusBadRequest)
 		return
 	}
 
-	// validate query string parameters to prevent unsafe usage
-	if !isValidNamespaceName(namespace) {
-		http.Error(w, "Namespace name is not valid", http.StatusBadRequest)
-		return
-	}
 	if !isValidPodName(podName) {
 		http.Error(w, "Pod name is not valid", http.StatusBadRequest)
 		return
@@ -113,18 +111,23 @@ func (s *terminalHandler) ServeHTTP(w http.ResponseWriter, r *http.Request) {
 		http.Error(w, "Container name is not valid", http.StatusBadRequest)
 		return
 	}
-
-	ctx := r.Context()
-	a, err := s.appLister.Get(app)
-	if err != nil {
-		http.Error(w, "Cannot get app", http.StatusBadRequest)
+	if !isValidAppName(app) {
+		http.Error(w, "App name is not valid", http.StatusBadRequest)
 		return
 	}
+	if !isValidProjectName(project) {
+		http.Error(w, "Project name is not valid", http.StatusBadRequest)
+		return
+	}
+	if !isValidNamespaceName(namespace) {
+		http.Error(w, "Namespace name is not valid", http.StatusBadRequest)
+		return
+	}
+	shell := q.Get("shell")  // No need to validate. Will only buse used if it's in the allow-list.
 
-	fieldLog := log.WithFields(log.Fields{"userName": sessionmgr.Username(ctx), "container": container,
-		"podName": podName, "namespace": namespace, "cluster": a.Spec.Destination.Name})
+	ctx := r.Context()
 
-	appRBACName := apputil.AppRBACName(*a)
+	appRBACName := fmt.Sprintf("%s/%s", project, app)
 	if err := s.enf.EnforceErr(ctx.Value("claims"), rbacpolicy.ResourceApplications, rbacpolicy.ActionGet, appRBACName); err != nil {
 		http.Error(w, err.Error(), http.StatusUnauthorized)
 		return
@@ -132,6 +135,26 @@ func (s *terminalHandler) ServeHTTP(w http.ResponseWriter, r *http.Request) {
 
 	if err := s.enf.EnforceErr(ctx.Value("claims"), rbacpolicy.ResourceExec, rbacpolicy.ActionCreate, appRBACName); err != nil {
 		http.Error(w, err.Error(), http.StatusUnauthorized)
+		return
+	}
+
+	fieldLog := log.WithFields(log.Fields{"application": app, "userName": sessionmgr.Username(ctx), "container": container,
+		"podName": podName, "namespace": namespace, "cluster": project})
+
+	a, err := s.appLister.Get(app)
+	if err != nil {
+		if apierr.IsNotFound(err) {
+			http.Error(w, "App not found", http.StatusNotFound)
+			return
+		}
+		fieldLog.Errorf("Error when getting app %q when launching a terminal: %s", app, err)
+		http.Error(w, "Cannot get app", http.StatusInternalServerError)
+		return
+	}
+
+	if a.Spec.Project != project {
+		fieldLog.Warnf("The wrong project (%q) was specified for the app %q when launching a terminal", project, app)
+		http.Error(w, "The wrong project was specified for the app", http.StatusBadRequest)
 		return
 	}
 
