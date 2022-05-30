@@ -63,7 +63,7 @@ require (
 	github.com/soheilhy/cmux v0.1.5
 	github.com/spf13/cobra v1.2.1
 	github.com/spf13/pflag v1.0.5
-	github.com/stretchr/testify v1.7.0
+	github.com/stretchr/testify v1.7.1
 	github.com/undefinedlabs/go-mpatch v1.0.6
 	github.com/whilp/git-urls v0.0.0-20191001220047-6db9661140c0
 	github.com/yuin/gopher-lua v0.0.0-20200816102855-ee81675732da

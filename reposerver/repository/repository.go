@@ -18,6 +18,8 @@ import (
 	"strings"
 	"time"
 
+	"github.com/argoproj/argo-cd/v2/util/io/files"
+
 	"github.com/Masterminds/semver/v3"
 	"github.com/TomOnTime/utfutil"
 	"github.com/argoproj/gitops-engine/pkg/utils/kube"
@@ -68,9 +70,6 @@ const (
 	appSourceFile                  = ".argocd-source-%s.yaml"
 	ociPrefix                      = "oci://"
 )
-
-// List of protocol schemes allowed for fetching remote value files
-var allowedHelmRemoteProtocols = []string{"http", "https"}
 
 // Service implements ManifestService interface
 type Service struct {
@@ -676,153 +675,6 @@ func runHelmBuild(appPath string, h helm.Helm) error {
 	return ioutil.WriteFile(markerFile, []byte("marker"), 0644)
 }
 
-// resolveSymbolicLinkRecursive resolves the symlink path recursively to its
-// canonical path on the file system, with a maximum nesting level of maxDepth.
-// If path is not a symlink, returns the verbatim copy of path and err of nil.
-func resolveSymbolicLinkRecursive(path string, maxDepth int) (string, error) {
-	resolved, err := os.Readlink(path)
-	if err != nil {
-		// path is not a symbolic link
-		_, ok := err.(*os.PathError)
-		if ok {
-			return path, nil
-		}
-		// Other error has occured
-		return "", err
-	}
-
-	if maxDepth == 0 {
-		return "", fmt.Errorf("maximum nesting level reached")
-	}
-
-	// If we resolved to a relative symlink, make sure we use the absolute
-	// path for further resolving
-	if !strings.HasPrefix(resolved, "/") {
-		basePath := filepath.Dir(path)
-		resolved = filepath.Join(basePath, resolved)
-	}
-
-	return resolveSymbolicLinkRecursive(resolved, maxDepth-1)
-}
-
-// isURLSchemeAllowed returns true if the protocol scheme is in the list of
-// allowed URL schemes.
-func isURLSchemeAllowed(scheme string, allowed []string) bool {
-	isAllowed := false
-	if len(allowed) > 0 {
-		for _, s := range allowed {
-			if strings.EqualFold(scheme, s) {
-				isAllowed = true
-				break
-			}
-		}
-	}
-
-	// Empty scheme means local file
-	return isAllowed && scheme != ""
-}
-
-// resolveHelmValueFilePath will inspect and resolve a path to a Helm value
-// file, and make sure that its final path is within the boundaries of the
-// path specified in repoRoot.
-//
-// appPath is the path we're operating in, e.g. where a Helm chart was unpacked
-// to. repoRoot is the path to the root of the repository.
-//
-// If either appPath or repoRoot is relative, it will be treated as relative
-// to the current working directory.
-//
-// valueFile is the path to a value file, relative to appPath. If valueFile is
-// specified as an absolute path (i.e. leading slash), it will be treated as
-// relative to the repoRoot. In case valueFile is a symlink in the extracted
-// chart, it will be resolved recursively and the decision of whether it is in
-// the boundary of repoRoot will be made using the final resolved path.
-// valueFile can also be a remote URL with a protocol scheme as prefix,
-// in which case the scheme must be included in the list of allowed schemes
-// specified by allowedURLSchemes.
-//
-// Will return an error if either valueFile is outside the boundaries of the
-// repoRoot, valueFile is an URL with a forbidden protocol scheme or if
-// valueFile is a recursive symlink nested too deep. May return errors for
-// other reasons as well.
-//
-// resolvedPath will hold the absolute, resolved path for valueFile on success
-// or set to the empty string on failure.
-//
-// isRemote will be set to true if valueFile is an URL using an allowed
-// protocol scheme, or to false if it resolved to a local file.
-func resolveHelmValueFilePath(appPath, repoRoot, valueFile string, allowedURLSchemes []string) (resolvedPath string, isRemote bool, err error) {
-
-	// We do not provide the path in the error message, because it will be
-	// returned to the user and could be used for information gathering.
-	// Instead, we log the concrete error details.
-	resolveFailure := func(path string, err error) error {
-		log.Errorf("failed to resolve path '%s': %v", path, err)
-		return fmt.Errorf("internal error: failed to resolve path. Check logs for more details")
-	}
-
-	// A value file can be specified as an URL to a remote resource.
-	// We only allow certain URL schemes for remote value files.
-	url, err := url.Parse(valueFile)
-	if err == nil {
-		// If scheme is empty, it means we parsed a path only
-		if url.Scheme != "" {
-			if isURLSchemeAllowed(url.Scheme, allowedURLSchemes) {
-				return valueFile, true, nil
-			} else {
-				return "", false, fmt.Errorf("the URL scheme '%s' is not allowed", url.Scheme)
-			}
-		}
-	}
-
-	// Ensure that our repository root is absolute
-	absRepoPath, err := filepath.Abs(repoRoot)
-	if err != nil {
-		return "", false, resolveFailure(repoRoot, err)
-	}
-
-	// If the path to the file is relative, join it with the current working directory (appPath)
-	// Otherwise, join it with the repository's root
-	path := valueFile
-	if !filepath.IsAbs(path) {
-		absWorkDir, err := filepath.Abs(appPath)
-		if err != nil {
-			return "", false, resolveFailure(repoRoot, err)
-		}
-		path = filepath.Join(absWorkDir, path)
-	} else {
-		path = filepath.Join(absRepoPath, path)
-	}
-
-	// Ensure any symbolic link is resolved before we
-	delinkedPath, err := resolveSymbolicLinkRecursive(path, 10)
-	if err != nil {
-		return "", false, resolveFailure(path, err)
-	}
-	path = delinkedPath
-
-	// Resolve the joined path to an absolute path
-	path, err = filepath.Abs(path)
-	if err != nil {
-		return "", false, resolveFailure(path, err)
-	}
-
-	// Ensure our root path has a trailing slash, otherwise the following check
-	// would return true if root is /foo and path would be /foo2
-	requiredRootPath := absRepoPath
-	if !strings.HasSuffix(requiredRootPath, "/") {
-		requiredRootPath += "/"
-	}
-
-	// Make sure that the resolved path to values file is within the repository's root path
-	if !strings.HasPrefix(path, requiredRootPath) {
-		return "", false, fmt.Errorf("value file '%s' resolved to outside repository root", valueFile)
-	}
-
-	return path, false, nil
-
-}
-
 func helmTemplate(appPath string, repoRoot string, env *v1alpha1.Env, q *apiclient.ManifestRequest, isLocal bool) ([]manifest, error) {
 	concurrencyAllowed := isConcurrencyAllowed(appPath)
 	if !concurrencyAllowed {
@@ -1040,7 +892,7 @@ func GenerateManifests(ctx context.Context, appPath, repoRoot, revision string, 
 	case v1alpha1.ApplicationSourceTypeHelm:
 		manifests, err = helmTemplate(appPath, repoRoot, env, q, isLocal)
 	case v1alpha1.ApplicationSourceTypeKustomize:
-		manifests, err = kustomizeBuild(repoURL, repoRoot, appPath, q.Repo.GetGitCreds(gitCredsStore), q.ApplicationSource.Kustomize, q.KustomizeOptions, env)
+		manifests, err = kustomizeBuild(repoURL, repoRoot, appPath, q.Repo.GetGitCreds(gitCredsStore), q.ApplicationSource.Kustomize, q.KustomizeOptions, env, q.Namespace)
 	case v1alpha1.ApplicationSourceTypePlugin:
 		if q.ApplicationSource.Plugin != nil && q.ApplicationSource.Plugin.Name != "" {
 			manifests, err = runConfigManagementPlugin(appPath, repoRoot, env, q, q.Repo.GetGitCreds(gitCredsStore))
@@ -1055,7 +907,8 @@ func GenerateManifests(ctx context.Context, appPath, repoRoot, revision string, 
 		if directory = q.ApplicationSource.Directory; directory == nil {
 			directory = &v1alpha1.ApplicationSourceDirectory{}
 		}
-		manifests, err = findManifests(appPath, repoRoot, env, *directory, q.EnabledSourceTypes)
+		logCtx := log.WithField("application", q.AppName)
+		manifests, err = findManifests(logCtx, appPath, repoRoot, env, *directory, q.EnabledSourceTypes)
 	}
 	if err != nil {
 		return nil, err
@@ -1282,6 +1135,7 @@ func kustomizeBuild(
 	opts *v1alpha1.ApplicationSourceKustomize,
 	kustomizeOptions *v1alpha1.KustomizeOptions,
 	env *v1alpha1.Env,
+	namespace string,
 ) ([]manifest, error) {
 	var targetObjs []*unstructured.Unstructured
 	kustomizeBinary := ""
@@ -1295,7 +1149,7 @@ func kustomizeBuild(
 	relPath, _ := filepath.Rel(repoRoot, appPath)
 
 	k := kustomize.NewKustomizeApp(appPath, gitCreds, repoURL, kustomizeBinary)
-	targetObjs, _, err = k.Build(opts, kustomizeOptions, env)
+	targetObjs, _, err = k.Build(opts, kustomizeOptions, env, namespace)
 	if err != nil {
 		return nil, err
 	}
@@ -1321,13 +1175,8 @@ func kustomizeBuild(
 var manifestFile = regexp.MustCompile(`^.*\.(yaml|yml|json|jsonnet)$`)
 
 // findManifests looks at all yaml files in a directory and unmarshals them into a list of unstructured objects
-func findManifests(appPath string, repoRoot string, env *v1alpha1.Env, directory v1alpha1.ApplicationSourceDirectory, enabledManifestGeneration map[string]bool) ([]manifest, error) {
+func findManifests(logCtx *log.Entry, appPath string, repoRoot string, env *v1alpha1.Env, directory v1alpha1.ApplicationSourceDirectory, enabledManifestGeneration map[string]bool) ([]manifest, error) {
 	var manifests []manifest
-
-	absAppPath, err := filepath.Abs(appPath)
-	if err != nil {
-		return nil, err
-	}
 
 	absRepoRoot, err := filepath.Abs(repoRoot)
 	if err != nil {
@@ -1337,6 +1186,26 @@ func findManifests(appPath string, repoRoot string, env *v1alpha1.Env, directory
 	err = filepath.Walk(appPath, func(path string, f os.FileInfo, err error) error {
 		if err != nil {
 			return err
+		}
+		relPath, err := filepath.Rel(appPath, path)
+		if err != nil {
+			return fmt.Errorf("failed to get relative path of symlink: %w", err)
+		}
+		if files.IsSymlink(f) {
+			realPath, err := filepath.EvalSymlinks(path)
+			if err != nil {
+				logCtx.Debugf("error checking symlink realpath: %s", err)
+				if os.IsNotExist(err) {
+					log.Warnf("ignoring out-of-bounds symlink at %q: %s", relPath, err)
+					return nil
+				} else {
+					return fmt.Errorf("failed to evaluate symlink at %q: %w", relPath, err)
+				}
+			}
+			if !files.Inbound(realPath, appPath) {
+				logCtx.Warnf("illegal filepath in symlink: %s", realPath)
+				return fmt.Errorf("illegal filepath in symlink at %q", relPath)
+			}
 		}
 		if f.IsDir() {
 			if path != appPath && !directory.Recurse {
@@ -1354,8 +1223,6 @@ func findManifests(appPath string, repoRoot string, env *v1alpha1.Env, directory
 		if !manifestFile.MatchString(f.Name()) {
 			return nil
 		}
-
-		relPath, _ := filepath.Rel(absAppPath, absPath)
 
 		repoRelPath, _ := filepath.Rel(absRepoRoot, absPath)
 

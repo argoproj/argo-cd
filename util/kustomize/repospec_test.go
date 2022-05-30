@@ -10,7 +10,6 @@ import (
 	"fmt"
 	"path/filepath"
 	"testing"
-	"time"
 
 	"github.com/stretchr/testify/assert"
 )
@@ -63,7 +62,7 @@ func TestNewRepoSpecFromUrl(t *testing.T) {
 			for _, pathName := range pathNames {
 				for _, hrefArg := range hrefArgs {
 					uri := makeURL(hostRaw, orgRepo, pathName, hrefArg)
-					host, org, path, ref, _, _, _ := parseGitURL(uri)
+					host, org, path, ref := parseGitURL(uri)
 					if host != hostSpec {
 						bad = append(bad, []string{"host", uri, host, hostSpec})
 					}
@@ -90,14 +89,6 @@ func TestNewRepoSpecFromUrl(t *testing.T) {
 		}
 		t.Fail()
 	}
-}
-
-var badData = [][]string{
-	{"/tmp", "uri looks like abs path"},
-	{"iauhsdiuashduas", "url lacks orgRepo"},
-	{"htxxxtp://github.com/", "url lacks host"},
-	{"ssh://git.example.com", "url lacks orgRepo"},
-	{"git::___", "url lacks orgRepo"},
 }
 
 func TestIsAzureHost(t *testing.T) {
@@ -132,132 +123,98 @@ func TestIsAzureHost(t *testing.T) {
 
 func TestPeelQuery(t *testing.T) {
 	testcases := map[string]struct {
-		input      string
-		path       string
-		ref        string
-		submodules bool
-		timeout    time.Duration
+		input string
+		path  string
+		ref   string
 	}{
 		"t1": {
 			// All empty.
-			input:      "somerepos",
-			path:       "somerepos",
-			ref:        "",
-			submodules: defaultSubmodules,
-			timeout:    defaultTimeout,
+			input: "somerepos",
+			path:  "somerepos",
+			ref:   "",
 		},
 		"t2": {
-			input:      "somerepos?ref=v1.0.0",
-			path:       "somerepos",
-			ref:        "v1.0.0",
-			submodules: defaultSubmodules,
-			timeout:    defaultTimeout,
+			input: "somerepos?ref=v1.0.0",
+			path:  "somerepos",
+			ref:   "v1.0.0",
 		},
 		"t3": {
-			input:      "somerepos?version=master",
-			path:       "somerepos",
-			ref:        "master",
-			submodules: defaultSubmodules,
-			timeout:    defaultTimeout,
+			input: "somerepos?version=master",
+			path:  "somerepos",
+			ref:   "master",
 		},
 		"t4": {
 			// A ref value takes precedence over a version value.
-			input:      "somerepos?version=master&ref=v1.0.0",
-			path:       "somerepos",
-			ref:        "v1.0.0",
-			submodules: defaultSubmodules,
-			timeout:    defaultTimeout,
+			input: "somerepos?version=master&ref=v1.0.0",
+			path:  "somerepos",
+			ref:   "v1.0.0",
 		},
 		"t5": {
 			// Empty submodules value uses default.
-			input:      "somerepos?version=master&submodules=",
-			path:       "somerepos",
-			ref:        "master",
-			submodules: defaultSubmodules,
-			timeout:    defaultTimeout,
+			input: "somerepos?version=master&submodules=",
+			path:  "somerepos",
+			ref:   "master",
 		},
 		"t6": {
 			// Malformed submodules value uses default.
-			input:      "somerepos?version=master&submodules=maybe",
-			path:       "somerepos",
-			ref:        "master",
-			submodules: defaultSubmodules,
-			timeout:    defaultTimeout,
+			input: "somerepos?version=master&submodules=maybe",
+			path:  "somerepos",
+			ref:   "master",
 		},
 		"t7": {
-			input:      "somerepos?version=master&submodules=true",
-			path:       "somerepos",
-			ref:        "master",
-			submodules: true,
-			timeout:    defaultTimeout,
+			input: "somerepos?version=master&submodules=true",
+			path:  "somerepos",
+			ref:   "master",
 		},
 		"t8": {
-			input:      "somerepos?version=master&submodules=false",
-			path:       "somerepos",
-			ref:        "master",
-			submodules: false,
-			timeout:    defaultTimeout,
+			input: "somerepos?version=master&submodules=false",
+			path:  "somerepos",
+			ref:   "master",
 		},
 		"t9": {
 			// Empty timeout value uses default.
-			input:      "somerepos?version=master&timeout=",
-			path:       "somerepos",
-			ref:        "master",
-			submodules: defaultSubmodules,
-			timeout:    defaultTimeout,
+			input: "somerepos?version=master&timeout=",
+			path:  "somerepos",
+			ref:   "master",
 		},
 		"t10": {
 			// Malformed timeout value uses default.
-			input:      "somerepos?version=master&timeout=jiffy",
-			path:       "somerepos",
-			ref:        "master",
-			submodules: defaultSubmodules,
-			timeout:    defaultTimeout,
+			input: "somerepos?version=master&timeout=jiffy",
+			path:  "somerepos",
+			ref:   "master",
 		},
 		"t11": {
 			// Zero timeout value uses default.
-			input:      "somerepos?version=master&timeout=0",
-			path:       "somerepos",
-			ref:        "master",
-			submodules: defaultSubmodules,
-			timeout:    defaultTimeout,
+			input: "somerepos?version=master&timeout=0",
+			path:  "somerepos",
+			ref:   "master",
 		},
 		"t12": {
-			input:      "somerepos?version=master&timeout=0s",
-			path:       "somerepos",
-			ref:        "master",
-			submodules: defaultSubmodules,
-			timeout:    defaultTimeout,
+			input: "somerepos?version=master&timeout=0s",
+			path:  "somerepos",
+			ref:   "master",
 		},
 		"t13": {
-			input:      "somerepos?version=master&timeout=61",
-			path:       "somerepos",
-			ref:        "master",
-			submodules: defaultSubmodules,
-			timeout:    61 * time.Second,
+			input: "somerepos?version=master&timeout=61",
+			path:  "somerepos",
+			ref:   "master",
 		},
 		"t14": {
-			input:      "somerepos?version=master&timeout=1m1s",
-			path:       "somerepos",
-			ref:        "master",
-			submodules: defaultSubmodules,
-			timeout:    61 * time.Second,
+			input: "somerepos?version=master&timeout=1m1s",
+			path:  "somerepos",
+			ref:   "master",
 		},
 		"t15": {
-			input:      "somerepos?version=master&submodules=false&timeout=1m1s",
-			path:       "somerepos",
-			ref:        "master",
-			submodules: false,
-			timeout:    61 * time.Second,
+			input: "somerepos?version=master&submodules=false&timeout=1m1s",
+			path:  "somerepos",
+			ref:   "master",
 		},
 	}
 	for tn, tc := range testcases {
 		t.Run(tn, func(t *testing.T) {
-			path, ref, timeout, submodules := peelQuery(tc.input)
+			path, ref := peelQuery(tc.input)
 			assert.Equal(t, tc.path, path, "path mismatch")
 			assert.Equal(t, tc.ref, ref, "ref mismatch")
-			assert.Equal(t, tc.timeout, timeout, "timeout mismatch")
-			assert.Equal(t, tc.submodules, submodules, "submodules mismatch")
 		})
 	}
 }

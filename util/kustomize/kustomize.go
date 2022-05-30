@@ -13,8 +13,8 @@ import (
 	"sync"
 
 	"github.com/Masterminds/semver/v3"
-
 	"github.com/argoproj/gitops-engine/pkg/utils/kube"
+	"github.com/ghodss/yaml"
 	"github.com/pkg/errors"
 	log "github.com/sirupsen/logrus"
 	"k8s.io/apimachinery/pkg/apis/meta/v1/unstructured"
@@ -103,6 +103,12 @@ func (k *kustomize) Build(opts *v1alpha1.ApplicationSourceKustomize, kustomizeOp
 	}
 	defer func() { _ = closer.Close() }()
 
+	kustPath, clean, err := k.createTempKustomization()
+	if err != nil {
+		return nil, nil, fmt.Errorf("failed to create temp kustomization file: %w", err)
+	}
+	defer clean()
+
 	// If we were passed a HTTPS URL, make sure that we also check whether there
 	// is a custom CA bundle configured for connecting to the server.
 	if k.repo != "" && git.IsHTTPSURL(k.repo) {
@@ -126,19 +132,19 @@ func (k *kustomize) Build(opts *v1alpha1.ApplicationSourceKustomize, kustomizeOp
 
 	env = append(env, environ...)
 
-	if namespace != "" {
-		cmd := exec.Command(k.getBinaryPath(), "edit", "set", "namespace", "--", namespace)
-		cmd.Dir = k.path
-		_, err := executil.Run(cmd)
-		if err != nil {
-			return nil, nil, err
-		}
-	}
-
 	if opts != nil {
+		if opts.ForceNamespace && namespace != "" {
+			cmd := exec.Command(k.getBinaryPath(), "edit", "set", "namespace", "--", namespace)
+			cmd.Dir = kustPath
+			_, err := executil.Run(cmd)
+			if err != nil {
+				return nil, nil, err
+			}
+		}
+
 		if opts.NamePrefix != "" {
 			cmd := exec.Command(k.getBinaryPath(), "edit", "set", "nameprefix", "--", opts.NamePrefix)
-			cmd.Dir = k.path
+			cmd.Dir = kustPath
 			_, err := executil.Run(cmd)
 			if err != nil {
 				return nil, nil, err
@@ -146,7 +152,7 @@ func (k *kustomize) Build(opts *v1alpha1.ApplicationSourceKustomize, kustomizeOp
 		}
 		if opts.NameSuffix != "" {
 			cmd := exec.Command(k.getBinaryPath(), "edit", "set", "namesuffix", "--", opts.NameSuffix)
-			cmd.Dir = k.path
+			cmd.Dir = kustPath
 			_, err := executil.Run(cmd)
 			if err != nil {
 				return nil, nil, err
@@ -160,7 +166,7 @@ func (k *kustomize) Build(opts *v1alpha1.ApplicationSourceKustomize, kustomizeOp
 				args = append(args, string(image))
 			}
 			cmd := exec.Command(k.getBinaryPath(), args...)
-			cmd.Dir = k.path
+			cmd.Dir = kustPath
 			_, err := executil.Run(cmd)
 			if err != nil {
 				return nil, nil, err
@@ -174,7 +180,7 @@ func (k *kustomize) Build(opts *v1alpha1.ApplicationSourceKustomize, kustomizeOp
 				args = append(args, "--force")
 			}
 			cmd := exec.Command(k.getBinaryPath(), append(args, mapToEditAddArgs(opts.CommonLabels)...)...)
-			cmd.Dir = k.path
+			cmd.Dir = kustPath
 			_, err := executil.Run(cmd)
 			if err != nil {
 				return nil, nil, err
@@ -188,7 +194,7 @@ func (k *kustomize) Build(opts *v1alpha1.ApplicationSourceKustomize, kustomizeOp
 				args = append(args, "--force")
 			}
 			cmd := exec.Command(k.getBinaryPath(), append(args, mapToEditAddArgs(opts.CommonAnnotations)...)...)
-			cmd.Dir = k.path
+			cmd.Dir = kustPath
 			_, err := executil.Run(cmd)
 			if err != nil {
 				return nil, nil, err
@@ -204,29 +210,23 @@ func (k *kustomize) Build(opts *v1alpha1.ApplicationSourceKustomize, kustomizeOp
 
 			// add components
 			args := []string{"edit", "add", "component"}
-			for _, component := range opts.Components {
-				args = append(args, component)
-			}
+			args = append(args, opts.Components...)
 			cmd := exec.Command(k.getBinaryPath(), args...)
-			cmd.Dir = k.path
+			cmd.Dir = kustPath
 			cmd.Env = env
 			_, err := executil.Run(cmd)
 			if err != nil {
 				return nil, nil, err
 			}
-
-			data, _ := ioutil.ReadFile(k.path + "/" + "kustomization.yaml")
-
-			log.Info("****", string(data), "****")
 		}
 	}
 
 	var cmd *exec.Cmd
 	if kustomizeOptions != nil && kustomizeOptions.BuildOptions != "" {
-		params := parseKustomizeBuildOptions(k.path, kustomizeOptions.BuildOptions)
+		params := parseKustomizeBuildOptions(kustPath, kustomizeOptions.BuildOptions)
 		cmd = exec.Command(k.getBinaryPath(), params...)
 	} else {
-		cmd = exec.Command(k.getBinaryPath(), "build", k.path)
+		cmd = exec.Command(k.getBinaryPath(), "build", kustPath)
 	}
 
 	cmd.Env = env
@@ -254,7 +254,7 @@ func (k *kustomize) GetCacheKeyWithComponents(revision string, source *v1alpha1.
 			continue // local files are not part of the cache key
 		}
 
-		_, _, path, ref, _, _, _ := parseGitURL(c)
+		_, _, path, ref := parseGitURL(c)
 		if ref == "" {
 			ref = "HEAD"
 		}
@@ -282,6 +282,82 @@ func (k *kustomize) GetCacheKeyWithComponents(revision string, source *v1alpha1.
 	}
 
 	return fmt.Sprintf("%s|%s", revision, cacheKey), nil
+}
+
+// creates a temp kustomization.yaml that points to the original kustomization.yaml
+// this is to avoid mutations to the original kustomization which can affect other
+// applications.
+func (k *kustomize) createTempKustomization() (kustPath string, clean func(), err error) {
+	kustPath, err = ioutil.TempDir("", "")
+	if err != nil {
+		return "", func() {}, err
+	}
+
+	clean = func() {
+		_ = os.RemoveAll(kustPath)
+	}
+
+	{
+		// creates the temporary kustomization.yaml in a temp dir
+		cmd := exec.Command(k.getBinaryPath(), "create")
+		cmd.Dir = kustPath
+		if _, err = executil.Run(cmd); err != nil {
+			return
+		}
+	}
+
+	absPath, err := filepath.Abs(k.path)
+	if err != nil {
+		return
+	}
+
+	// get the relative path to the original kustomization
+	resPath, err := filepath.Rel(kustPath, absPath)
+	if err != nil {
+		return
+	}
+
+	{
+		cmd := exec.Command(k.getBinaryPath(), "edit", "add", "resource", resPath)
+		cmd.Dir = kustPath
+		if _, err = executil.Run(cmd); err != nil {
+			return
+		}
+	}
+
+	origKustData, err := ioutil.ReadFile(filepath.Join(k.path, "kustomization.yaml"))
+	if err != nil {
+		return
+	}
+
+	origKustYaml := map[string]interface{}{}
+	if err = yaml.Unmarshal(origKustData, &origKustYaml); err != nil {
+		return
+	}
+
+	kustData, err := ioutil.ReadFile(filepath.Join(kustPath, "kustomization.yaml"))
+	if err != nil {
+		return
+	}
+
+	kustYaml := map[string]interface{}{}
+	if err = yaml.Unmarshal(kustData, &kustYaml); err != nil {
+		return
+	}
+
+	kustYaml["commonLabels"] = origKustYaml["commonLabels"]
+	kustYaml["commonAnnotations"] = origKustYaml["commonAnnotations"]
+
+	data, err := yaml.Marshal(kustYaml)
+	if err != nil {
+		return
+	}
+
+	if err = ioutil.WriteFile(filepath.Join(kustPath, "kustomization.yaml"), data, 0644); err != nil {
+		return
+	}
+
+	return
 }
 
 func parseKustomizeBuildOptions(path, buildOptions string) []string {

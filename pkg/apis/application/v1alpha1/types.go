@@ -388,8 +388,10 @@ type ApplicationSourceKustomize struct {
 	ForceCommonLabels bool `json:"forceCommonLabels,omitempty" protobuf:"bytes,7,opt,name=forceCommonLabels"`
 	// ForceCommonAnnotations specifies whether to force applying common annotations to resources for Kustomize apps
 	ForceCommonAnnotations bool `json:"forceCommonAnnotations,omitempty" protobuf:"bytes,8,opt,name=forceCommonAnnotations"`
+	// ForceNamespace if true, will use the application's destination namespace as a kustomization file namespace
+	ForceNamespace bool `json:"forceNamespace,omitempty" protobuf:"bytes,9,opt,name=forceNamespace"`
 	// Components specifies a list of kustomize components to add to the kustmization before building
-	Components []string `json:"components,omitempty" protobuf:"bytes,9,rep,name=components"`
+	Components []string `json:"components,omitempty" protobuf:"bytes,10,rep,name=components"`
 }
 
 // AllowsConcurrentProcessing returns true if multiple processes can run Kustomize builds on the same source at the same time
@@ -410,7 +412,8 @@ func (k *ApplicationSourceKustomize) IsZero() bool {
 			len(k.Images) == 0 &&
 			len(k.CommonLabels) == 0 &&
 			len(k.CommonAnnotations) == 0 &&
-			len(k.Components) == 0
+			len(k.Components) == 0 &&
+			!k.ForceNamespace
 }
 
 // MergeImage merges a new Kustomize image identifier in to a list of images

@@ -341,6 +341,10 @@ spec:
                             description: ForceCommonLabels specifies whether to force
                               applying common labels to resources for Kustomize apps
                             type: boolean
+                          forceNamespace:
+                            description: ForceNamespace if true, will use the application's
+                              destination namespace as a kustomization file namespace
+                            type: boolean
                           images:
                             description: Images is a list of Kustomize image override
                               specifications
@@ -717,6 +721,10 @@ spec:
                       forceCommonLabels:
                         description: ForceCommonLabels specifies whether to force
                           applying common labels to resources for Kustomize apps
+                        type: boolean
+                      forceNamespace:
+                        description: ForceNamespace if true, will use the application's
+                          destination namespace as a kustomization file namespace
                         type: boolean
                       images:
                         description: Images is a list of Kustomize image override
@@ -1105,6 +1113,10 @@ spec:
                               description: ForceCommonLabels specifies whether to
                                 force applying common labels to resources for Kustomize
                                 apps
+                              type: boolean
+                            forceNamespace:
+                              description: ForceNamespace if true, will use the application's
+                                destination namespace as a kustomization file namespace
                               type: boolean
                             images:
                               description: Images is a list of Kustomize image override
@@ -1510,6 +1522,11 @@ spec:
                                       to force applying common labels to resources
                                       for Kustomize apps
                                     type: boolean
+                                  forceNamespace:
+                                    description: ForceNamespace if true, will use
+                                      the application's destination namespace as a
+                                      kustomization file namespace
+                                    type: boolean
                                   images:
                                     description: Images is a list of Kustomize image
                                       override specifications
@@ -1887,6 +1904,11 @@ spec:
                                   force applying common labels to resources for Kustomize
                                   apps
                                 type: boolean
+                              forceNamespace:
+                                description: ForceNamespace if true, will use the
+                                  application's destination namespace as a kustomization
+                                  file namespace
+                                type: boolean
                               images:
                                 description: Images is a list of Kustomize image override
                                   specifications
@@ -2252,6 +2274,11 @@ spec:
                                 description: ForceCommonLabels specifies whether to
                                   force applying common labels to resources for Kustomize
                                   apps
+                                type: boolean
+                              forceNamespace:
+                                description: ForceNamespace if true, will use the
+                                  application's destination namespace as a kustomization
+                                  file namespace
                                 type: boolean
                               images:
                                 description: Images is a list of Kustomize image override

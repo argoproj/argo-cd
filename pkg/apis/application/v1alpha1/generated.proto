@@ -265,8 +265,11 @@ message ApplicationSourceKustomize {
   // ForceCommonAnnotations specifies whether to force applying common annotations to resources for Kustomize apps
   optional bool forceCommonAnnotations = 8;
 
+  // ForceNamespace if true, will use the application's destination namespace as a kustomization file namespace
+  optional bool forceNamespace = 9;
+
   // Components specifies a list of kustomize components to add to the kustmization before building
-  repeated string components = 9;
+  repeated string components = 10;
 }
 
 // ApplicationSourcePlugin holds options specific to config management plugins

@@ -17,10 +17,12 @@ import (
 	"time"
 
 	"github.com/ghodss/yaml"
+	log "github.com/sirupsen/logrus"
 	"github.com/stretchr/testify/assert"
 	"github.com/stretchr/testify/mock"
 	"github.com/stretchr/testify/require"
 	v1 "k8s.io/api/apps/v1"
+	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
 	"k8s.io/apimachinery/pkg/apis/meta/v1/unstructured"
 	"k8s.io/apimachinery/pkg/runtime"
 
@@ -161,6 +163,76 @@ func TestGenerateYamlManifestInDir(t *testing.T) {
 	assert.Equal(t, 3, len(res2.Manifests))
 }
 
+func Test_GenerateManifests_NoOutOfBoundsAccess(t *testing.T) {
+	testCases := []struct {
+		name                    string
+		outOfBoundsFilename     string
+		outOfBoundsFileContents string
+		mustNotContain          string // Optional string that must not appear in error or manifest output. If empty, use outOfBoundsFileContents.
+	}{
+		{
+			name:                    "out of bounds JSON file should not appear in error output",
+			outOfBoundsFilename:     "test.json",
+			outOfBoundsFileContents: `{"some": "json"}`,
+		},
+		{
+			name:                    "malformed JSON file contents should not appear in error output",
+			outOfBoundsFilename:     "test.json",
+			outOfBoundsFileContents: "$",
+		},
+		{
+			name:                "out of bounds JSON manifest should not appear in manifest output",
+			outOfBoundsFilename: "test.json",
+			// JSON marshalling is deterministic. So if there's a leak, exactly this should appear in the manifests.
+			outOfBoundsFileContents: `{"apiVersion":"v1","kind":"Secret","metadata":{"name":"test","namespace":"default"},"type":"Opaque"}`,
+		},
+		{
+			name:                    "out of bounds YAML manifest should not appear in manifest output",
+			outOfBoundsFilename:     "test.yaml",
+			outOfBoundsFileContents: "apiVersion: v1\nkind: Secret\nmetadata:\n  name: test\n  namespace: default\ntype: Opaque",
+			mustNotContain:          `{"apiVersion":"v1","kind":"Secret","metadata":{"name":"test","namespace":"default"},"type":"Opaque"}`,
+		},
+	}
+
+	for _, testCase := range testCases {
+		testCaseCopy := testCase
+		t.Run(testCaseCopy.name, func(t *testing.T) {
+			t.Parallel()
+
+			outOfBoundsDir := t.TempDir()
+			outOfBoundsFile := path.Join(outOfBoundsDir, testCaseCopy.outOfBoundsFilename)
+			err := os.WriteFile(outOfBoundsFile, []byte(testCaseCopy.outOfBoundsFileContents), os.FileMode(0444))
+			require.NoError(t, err)
+
+			repoDir := t.TempDir()
+			err = os.Symlink(outOfBoundsFile, path.Join(repoDir, testCaseCopy.outOfBoundsFilename))
+			require.NoError(t, err)
+
+			var mustNotContain = testCaseCopy.outOfBoundsFileContents
+			if testCaseCopy.mustNotContain != "" {
+				mustNotContain = testCaseCopy.mustNotContain
+			}
+
+			q := apiclient.ManifestRequest{Repo: &argoappv1.Repository{}, ApplicationSource: &argoappv1.ApplicationSource{}}
+			res, err := GenerateManifests(context.Background(), repoDir, "", "", &q, false, &git.NoopCredsStore{}, &gitmocks.Client{})
+			require.Error(t, err)
+			assert.NotContains(t, err.Error(), mustNotContain)
+			assert.Contains(t, err.Error(), "illegal filepath")
+			assert.Nil(t, res)
+		})
+	}
+}
+
+func TestGenerateManifests_MissingSymlinkDestination(t *testing.T) {
+	repoDir := t.TempDir()
+	err := os.Symlink("/obviously/does/not/exist", path.Join(repoDir, "test.yaml"))
+	require.NoError(t, err)
+
+	q := apiclient.ManifestRequest{Repo: &argoappv1.Repository{}, ApplicationSource: &argoappv1.ApplicationSource{}}
+	_, err = GenerateManifests(context.Background(), repoDir, "", "", &q, false, &git.NoopCredsStore{}, nil)
+	require.NoError(t, err)
+}
+
 func TestGenerateManifests_K8SAPIResetCache(t *testing.T) {
 	service := newService("../..")
 
@@ -224,9 +296,9 @@ func TestHelmManifestFromChartRepo(t *testing.T) {
 			},
 		},
 		Namespace:     "",
-		CommitDate:    nil,
-		CommitMessage: "",
-		CommitAuthor:  "",
+		CommitDate:    &metav1.Time{},
+		CommitMessage: "test",
+		CommitAuthor:  "author",
 		Server:        "",
 		Revision:      "1.1.0",
 		SourceType:    "Helm",
@@ -794,9 +866,9 @@ func TestHelmManifestFromChartRepoWithValueFile(t *testing.T) {
 		Server:        "",
 		Revision:      "1.1.0",
 		SourceType:    "Helm",
-		CommitDate:    nil,
-		CommitMessage: "",
-		CommitAuthor:  "",
+		CommitDate:    &metav1.Time{},
+		CommitMessage: "test",
+		CommitAuthor:  "author",
 	}, response)
 }
 
@@ -1679,7 +1751,7 @@ func TestFindResources(t *testing.T) {
 	for i := range testCases {
 		tc := testCases[i]
 		t.Run(tc.name, func(t *testing.T) {
-			manifests, err := findManifests("testdata/app-include-exclude", ".", nil, argoappv1.ApplicationSourceDirectory{
+			manifests, err := findManifests(&log.Entry{}, "testdata/app-include-exclude", ".", nil, argoappv1.ApplicationSourceDirectory{
 				Recurse: true,
 				Include: tc.include,
 				Exclude: tc.exclude,
@@ -1697,7 +1769,7 @@ func TestFindResources(t *testing.T) {
 }
 
 func TestFindManifests_Exclude(t *testing.T) {
-	manifests, err := findManifests("testdata/app-include-exclude", ".", nil, argoappv1.ApplicationSourceDirectory{
+	manifests, err := findManifests(&log.Entry{}, "testdata/app-include-exclude", ".", nil, argoappv1.ApplicationSourceDirectory{
 		Recurse: true,
 		Exclude: "subdir/deploymentSub.yaml",
 	}, map[string]bool{})
@@ -1710,7 +1782,7 @@ func TestFindManifests_Exclude(t *testing.T) {
 }
 
 func TestFindManifests_Exclude_NothingMatches(t *testing.T) {
-	manifests, err := findManifests("testdata/app-include-exclude", ".", nil, argoappv1.ApplicationSourceDirectory{
+	manifests, err := findManifests(&log.Entry{}, "testdata/app-include-exclude", ".", nil, argoappv1.ApplicationSourceDirectory{
 		Recurse: true,
 		Exclude: "nothing.yaml",
 	}, map[string]bool{})

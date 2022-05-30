@@ -52,7 +52,7 @@ func TestKustomizeBuild(t *testing.T) {
 			"app.kubernetes.io/part-of":    "argo-cd-tests",
 		},
 	}
-	objs, images, err := kustomize.Build(&kustomizeSource, nil, nil)
+	objs, images, err := kustomize.Build(&kustomizeSource, nil, nil, "")
 	assert.Nil(t, err)
 	if err != nil {
 		assert.Equal(t, len(objs), 2)
@@ -165,7 +165,7 @@ func TestKustomizeBuildForceCommonLabels(t *testing.T) {
 		appPath, err := testDataDir(tc.TestData)
 		assert.Nil(t, err)
 		kustomize := NewKustomizeApp(appPath, git.NopCreds{}, "", "")
-		objs, _, err := kustomize.Build(&tc.KustomizeSource, nil, nil)
+		objs, _, err := kustomize.Build(&tc.KustomizeSource, nil, nil, "")
 		switch tc.ExpectErr {
 		case true:
 			assert.Error(t, err)
@@ -214,7 +214,7 @@ func TestKustomizeBuildForceCommonAnnotations(t *testing.T) {
 		appPath, err := testDataDir(tc.TestData)
 		assert.Nil(t, err)
 		kustomize := NewKustomizeApp(appPath, git.NopCreds{}, "", "")
-		objs, _, err := kustomize.Build(&tc.KustomizeSource, nil, nil)
+		objs, _, err := kustomize.Build(&tc.KustomizeSource, nil, nil, "")
 		switch tc.ExpectErr {
 		case true:
 			assert.Error(t, err)
@@ -240,7 +240,7 @@ func TestKustomizeCustomVersion(t *testing.T) {
 	env := &v1alpha1.Env{
 		&v1alpha1.EnvEntry{Name: "ARGOCD_APP_NAME", Value: "argo-cd-tests"},
 	}
-	objs, images, err := kustomize.Build(&kustomizeSource, nil, env)
+	objs, images, err := kustomize.Build(&kustomizeSource, nil, env, "")
 	assert.Nil(t, err)
 	if err != nil {
 		assert.Equal(t, len(objs), 2)
