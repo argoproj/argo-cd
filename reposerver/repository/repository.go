@@ -1271,7 +1271,7 @@ func runConfigManagementPlugin(appPath, repoRoot string, envVars *v1alpha1.Env, 
 		}
 	}
 
-	env, err := getPluginEnvs(envVars, q, creds)
+	env, err := getPluginEnvs(envVars, q, creds, false)
 	if err != nil {
 		return nil, err
 	}
@@ -1289,8 +1289,14 @@ func runConfigManagementPlugin(appPath, repoRoot string, envVars *v1alpha1.Env, 
 	return kube.SplitYAML([]byte(out))
 }
 
-func getPluginEnvs(envVars *v1alpha1.Env, q *apiclient.ManifestRequest, creds git.Creds) ([]string, error) {
-	env := append(os.Environ(), envVars.Environ()...)
+func getPluginEnvs(envVars *v1alpha1.Env, q *apiclient.ManifestRequest, creds git.Creds, remote bool) ([]string, error) {
+	env := envVars.Environ()
+	// Local plugins need also to have access to the local environment variables.
+	// Remote side car plugins will use the environment in the side car
+	// container.
+	if !remote {
+		env = append(os.Environ(), env...)
+	}
 	if creds != nil {
 		closer, environ, err := creds.Environ()
 		if err != nil {
@@ -1313,27 +1319,29 @@ func getPluginEnvs(envVars *v1alpha1.Env, q *apiclient.ManifestRequest, creds gi
 
 	if q.ApplicationSource.Plugin != nil {
 		pluginEnv := q.ApplicationSource.Plugin.Env
-		for i, j := range pluginEnv {
-			pluginEnv[i].Value = parsedEnv.Envsubst(j.Value)
+		for _, entry := range pluginEnv {
+			newValue := parsedEnv.Envsubst(entry.Value)
+			env = append(env, fmt.Sprintf("ARGOCD_ENV_%s=%s", entry.Name, newValue))
 		}
-		env = append(env, pluginEnv.Environ()...)
 	}
 	return env, nil
 }
 
 func runConfigManagementPluginSidecars(ctx context.Context, appPath, repoPath string, envVars *v1alpha1.Env, q *apiclient.ManifestRequest, creds git.Creds, tarDoneCh chan<- bool) ([]*unstructured.Unstructured, error) {
+	// compute variables.
+	env, err := getPluginEnvs(envVars, q, creds, true)
+	if err != nil {
+		return nil, err
+	}
+
 	// detect config management plugin server (sidecar)
-	conn, cmpClient, err := discovery.DetectConfigManagementPlugin(ctx, appPath)
+	conn, cmpClient, err := discovery.DetectConfigManagementPlugin(ctx, appPath, env)
 	if err != nil {
 		return nil, err
 	}
 	defer io.Close(conn)
 
 	// generate manifests using commands provided in plugin config file in detected cmp-server sidecar
-	env, err := getPluginEnvs(envVars, q, creds)
-	if err != nil {
-		return nil, err
-	}
 	cmpManifests, err := generateManifestsCMP(ctx, appPath, repoPath, env, cmpClient, tarDoneCh)
 	if err != nil {
 		return nil, fmt.Errorf("error generating manifests in cmp: %s", err)
