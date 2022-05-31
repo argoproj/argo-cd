@@ -143,14 +143,13 @@ func (s *Server) List(ctx context.Context, q *application.ApplicationQuery) (*ap
 			newItems = append(newItems, *a)
 		}
 	}
-	if q.Name != nil {
-		newItems, err = argoutil.FilterByName(newItems, *q.Name)
-		if err != nil {
-			return nil, fmt.Errorf("error filtering applications by name: %w", err)
-		}
+	// Filter applications by name
+	newItems, err = argoutil.FilterByName(newItems, q.GetName())
+	if err != nil {
+		return nil, fmt.Errorf("error filtering applications by name: %w", err)
 	}
 
-	// Filter applications by name
+	// Filter applications by project
 	newItems = argoutil.FilterByProjects(newItems, q.Projects)
 
 	// Filter applications by source repo URL
