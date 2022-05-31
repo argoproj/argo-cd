@@ -62,7 +62,7 @@ func isChildApp(a *appv1.Application) bool {
 	return false
 }
 
-func getAppAsResource(a *appv1.Application) (*appv1.ResourceStatus, error) {
+func getAppAsResource(a *appv1.Application) *appv1.ResourceStatus {
 	return &appv1.ResourceStatus{
 		Name:      a.Name,
 		Namespace: a.Namespace,
@@ -71,7 +71,7 @@ func getAppAsResource(a *appv1.Application) (*appv1.ResourceStatus, error) {
 		Group:     "argoproj.io",
 		Status:    a.Status.Sync.Status,
 		Health:    &a.Status.Health,
-	}, nil
+	}
 }
 
 func (s *applicationEventReporter) getDesiredManifests(ctx context.Context, a *appv1.Application, logCtx *log.Entry) (*apiclient.ManifestResponse, error, bool) {
@@ -139,10 +139,7 @@ func (s *applicationEventReporter) streamApplicationEvents(
 			return fmt.Errorf("failed to get application event: %w", err)
 		}
 
-		rs, err := getAppAsResource(a)
-		if err != nil {
-			return fmt.Errorf("failed to get application as resource: %w", err)
-		}
+		rs := getAppAsResource(a)
 
 		desiredManifests, err, manifestGenErr := s.getDesiredManifests(ctx, parentApplicationEntity, logCtx)
 		if err != nil {
