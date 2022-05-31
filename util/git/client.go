@@ -209,46 +209,30 @@ func GetRepoHTTPClient(repoURL string, insecure bool, creds Creds, proxyURL stri
 
 		return &cert, nil
 	}
-
-	if insecure {
-		customHTTPClient.Transport = &http.Transport{
-			Proxy: proxyFunc,
-			TLSClientConfig: &tls.Config{
-				InsecureSkipVerify:   true,
-				GetClientCertificate: clientCertFunc,
-			},
-			DisableKeepAlives: true,
-		}
-	} else {
-		parsedURL, err := url.Parse(repoURL)
-		if err != nil {
-			return customHTTPClient
-		}
-		serverCertificatePem, err := certutil.GetCertificateForConnect(parsedURL.Host)
-		if err != nil {
-			return customHTTPClient
-		} else if len(serverCertificatePem) > 0 {
-			certPool := certutil.GetCertPoolFromPEMData(serverCertificatePem)
-			customHTTPClient.Transport = &http.Transport{
-				Proxy: proxyFunc,
-				TLSClientConfig: &tls.Config{
-					RootCAs:              certPool,
-					GetClientCertificate: clientCertFunc,
-				},
-				DisableKeepAlives: true,
-			}
-		} else {
-			// else no custom certificate stored.
-			customHTTPClient.Transport = &http.Transport{
-				Proxy: proxyFunc,
-				TLSClientConfig: &tls.Config{
-					GetClientCertificate: clientCertFunc,
-				},
-				DisableKeepAlives: true,
-			}
-		}
+	transport := &http.Transport{
+		Proxy: proxyFunc,
+		TLSClientConfig: &tls.Config{
+			GetClientCertificate: clientCertFunc,
+		},
+		DisableKeepAlives: true,
 	}
-
+	customHTTPClient.Transport = transport
+	if insecure {
+		transport.TLSClientConfig.InsecureSkipVerify = true
+		return customHTTPClient
+	}
+	parsedURL, err := url.Parse(repoURL)
+	if err != nil {
+		return customHTTPClient
+	}
+	serverCertificatePem, err := certutil.GetCertificateForConnect(parsedURL.Host)
+	if err != nil {
+		return customHTTPClient
+	}
+	if len(serverCertificatePem) > 0 {
+		certPool := certutil.GetCertPoolFromPEMData(serverCertificatePem)
+		transport.TLSClientConfig.RootCAs = certPool
+	}
 	return customHTTPClient
 }
 
@@ -332,6 +316,16 @@ func (m *nativeGitClient) IsLFSEnabled() bool {
 	return m.enableLfs
 }
 
+func (m *nativeGitClient) fetch(revision string) error {
+	var err error
+	if revision != "" {
+		err = m.runCredentialedCmd("git", "fetch", "origin", revision, "--tags", "--force")
+	} else {
+		err = m.runCredentialedCmd("git", "fetch", "origin", "--tags", "--force")
+	}
+	return err
+}
+
 // Fetch fetches latest updates from origin
 func (m *nativeGitClient) Fetch(revision string) error {
 	if m.OnFetch != nil {
@@ -340,11 +334,19 @@ func (m *nativeGitClient) Fetch(revision string) error {
 	}
 
 	var err error
-	if revision != "" {
-		err = m.runCredentialedCmd("git", "fetch", "origin", revision, "--tags", "--force")
-	} else {
-		err = m.runCredentialedCmd("git", "fetch", "origin", "--tags", "--force")
+
+	err = m.fetch(revision)
+	if err != nil {
+		errMsg := strings.ReplaceAll(err.Error(), "\n", "")
+		if strings.Contains(errMsg, "try running 'git remote prune origin'") {
+			// Prune any deleted refs, then try fetching again
+			if err := m.runCredentialedCmd("git", "remote", "prune", "origin"); err != nil {
+				return err
+			}
+			err = m.fetch(revision)
+		}
 	}
+
 	// When we have LFS support enabled, check for large files and fetch them too.
 	if err == nil && m.IsLFSEnabled() {
 		largeFiles, err := m.LsLargeFiles()
@@ -355,6 +357,7 @@ func (m *nativeGitClient) Fetch(revision string) error {
 			}
 		}
 	}
+
 	return err
 }
 
