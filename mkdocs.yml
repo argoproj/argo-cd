@@ -64,6 +64,7 @@ nav:
       - operator-manual/notifications/services/mattermost.md
       - operator-manual/notifications/services/opsgenie.md
       - operator-manual/notifications/services/overview.md
+      - operator-manual/notifications/services/pagerduty.md
       - operator-manual/notifications/services/pushover.md
       - operator-manual/notifications/services/rocketchat.md
       - operator-manual/notifications/services/slack.md
@@ -75,6 +76,7 @@ nav:
     - Introduction: operator-manual/applicationset/index.md
     - Installations: operator-manual/applicationset/Getting-Started.md
     - Use Cases: operator-manual/applicationset/Use-Cases.md
+    - Security: operator-manual/applicationset/Security.md
     - How ApplicationSet controller interacts with Argo CD: operator-manual/applicationset/Argo-CD-Integration.md
     - Generators:
       - operator-manual/applicationset/Generators.md

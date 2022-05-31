@@ -3,6 +3,8 @@ package server
 import (
 	"context"
 	"fmt"
+	"io"
+	"net/http"
 	"net/http/httptest"
 	"net/url"
 	"strings"
@@ -13,6 +15,7 @@ import (
 	"github.com/golang-jwt/jwt/v4"
 	log "github.com/sirupsen/logrus"
 	"github.com/stretchr/testify/assert"
+	"github.com/stretchr/testify/require"
 	"google.golang.org/grpc/metadata"
 	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
 	"k8s.io/client-go/kubernetes/fake"
@@ -430,6 +433,391 @@ func TestAuthenticate(t *testing.T) {
 				assert.NoError(t, err)
 			}
 
+		})
+	}
+}
+
+func dexMockHandler(t *testing.T, url string) func(http.ResponseWriter, *http.Request) {
+	return func(w http.ResponseWriter, r *http.Request) {
+		w.Header().Set("Content-Type", "application/json")
+		switch r.RequestURI {
+		case "/api/dex/.well-known/openid-configuration":
+			_, err := io.WriteString(w, fmt.Sprintf(`
+{
+  "issuer": "%[1]s/api/dex",
+  "authorization_endpoint": "%[1]s/api/dex/auth",
+  "token_endpoint": "%[1]s/api/dex/token",
+  "jwks_uri": "%[1]s/api/dex/keys",
+  "userinfo_endpoint": "%[1]s/api/dex/userinfo",
+  "device_authorization_endpoint": "%[1]s/api/dex/device/code",
+  "grant_types_supported": [
+    "authorization_code",
+    "refresh_token",
+    "urn:ietf:params:oauth:grant-type:device_code"
+  ],
+  "response_types_supported": [
+    "code"
+  ],
+  "subject_types_supported": [
+    "public"
+  ],
+  "id_token_signing_alg_values_supported": [
+    "RS256", "HS256"
+  ],
+  "code_challenge_methods_supported": [
+    "S256",
+    "plain"
+  ],
+  "scopes_supported": [
+    "openid",
+    "email",
+    "groups",
+    "profile",
+    "offline_access"
+  ],
+  "token_endpoint_auth_methods_supported": [
+    "client_secret_basic",
+    "client_secret_post"
+  ],
+  "claims_supported": [
+    "iss",
+    "sub",
+    "aud",
+    "iat",
+    "exp",
+    "email",
+    "email_verified",
+    "locale",
+    "name",
+    "preferred_username",
+    "at_hash"
+  ]
+}`, url))
+			if err != nil {
+				t.Fail()
+			}
+		default:
+			w.WriteHeader(404)
+		}
+	}
+}
+
+func getTestServer(t *testing.T, anonymousEnabled bool, withFakeSSO bool) (argocd *ArgoCDServer, dexURL string) {
+	cm := test.NewFakeConfigMap()
+	if anonymousEnabled {
+		cm.Data["users.anonymous.enabled"] = "true"
+	}
+	ts := httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+		// Start with a placeholder. We need the server URL before setting up the real handler.
+	}))
+	ts.Config.Handler = http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+		dexMockHandler(t, ts.URL)(w, r)
+	})
+	if withFakeSSO {
+		cm.Data["url"] = ts.URL
+		cm.Data["dex.config"] = `
+connectors:
+  # OIDC
+  - type: OIDC
+    id: oidc
+    name: OIDC
+    config:
+    issuer: https://auth.example.gom
+    clientID: test-client
+    clientSecret: $dex.oidc.clientSecret`
+	}
+	secret := test.NewFakeSecret()
+	kubeclientset := fake.NewSimpleClientset(cm, secret)
+	appClientSet := apps.NewSimpleClientset()
+	argoCDOpts := ArgoCDServerOpts{
+		Namespace:     test.FakeArgoCDNamespace,
+		KubeClientset: kubeclientset,
+		AppClientset:  appClientSet,
+	}
+	if withFakeSSO {
+		argoCDOpts.DexServerAddr = ts.URL
+	}
+	argocd = NewServer(context.Background(), argoCDOpts)
+	return argocd, ts.URL
+}
+
+func TestAuthenticate_3rd_party_JWTs(t *testing.T) {
+	type testData struct {
+		test                  string
+		anonymousEnabled      bool
+		claims                jwt.RegisteredClaims
+		expectedErrorContains string
+		expectedClaims        interface{}
+	}
+	var tests = []testData{
+		{
+			test:                  "anonymous disabled, no audience",
+			anonymousEnabled:      false,
+			claims:                jwt.RegisteredClaims{},
+			expectedErrorContains: "no audience found in the token",
+			expectedClaims:        nil,
+		},
+		{
+			test:                  "anonymous enabled, no audience",
+			anonymousEnabled:      true,
+			claims:                jwt.RegisteredClaims{},
+			expectedErrorContains: "",
+			expectedClaims:        "",
+		},
+		{
+			test:                  "anonymous disabled, unexpired token, admin claim",
+			anonymousEnabled:      false,
+			claims:                jwt.RegisteredClaims{Audience: jwt.ClaimStrings{"test-client"}, Subject: "admin", ExpiresAt: jwt.NewNumericDate(time.Now().Add(time.Hour * 24))},
+			expectedErrorContains: "id token signed with unsupported algorithm",
+			expectedClaims:        nil,
+		},
+		{
+			test:                  "anonymous enabled, unexpired token, admin claim",
+			anonymousEnabled:      true,
+			claims:                jwt.RegisteredClaims{Audience: jwt.ClaimStrings{"test-client"}, Subject: "admin", ExpiresAt: jwt.NewNumericDate(time.Now().Add(time.Hour * 24))},
+			expectedErrorContains: "",
+			expectedClaims:        "",
+		},
+		{
+			test:                  "anonymous disabled, expired token, admin claim",
+			anonymousEnabled:      false,
+			claims:                jwt.RegisteredClaims{Audience: jwt.ClaimStrings{"test-client"}, Subject: "admin", ExpiresAt: jwt.NewNumericDate(time.Now())},
+			expectedErrorContains: "token is expired",
+			expectedClaims:        jwt.RegisteredClaims{Issuer:"sso"},
+		},
+		{
+			test:                  "anonymous enabled, expired token, admin claim",
+			anonymousEnabled:      true,
+			claims:                jwt.RegisteredClaims{Audience: jwt.ClaimStrings{"test-client"}, Subject: "admin", ExpiresAt: jwt.NewNumericDate(time.Now())},
+			expectedErrorContains: "",
+			expectedClaims:        "",
+		},
+	}
+
+	for _, testData := range tests {
+		testDataCopy := testData
+
+		t.Run(testDataCopy.test, func(t *testing.T) {
+			t.Parallel()
+
+			// Must be declared here to avoid race.
+			ctx := context.Background()  //nolint:ineffassign,staticcheck
+
+			argocd, dexURL := getTestServer(t, testDataCopy.anonymousEnabled, true)
+			testDataCopy.claims.Issuer = fmt.Sprintf("%s/api/dex", dexURL)
+			token := jwt.NewWithClaims(jwt.SigningMethodHS256, testDataCopy.claims)
+			tokenString, err := token.SignedString([]byte("key"))
+			require.NoError(t, err)
+			ctx = metadata.NewIncomingContext(context.Background(), metadata.Pairs(apiclient.MetaDataTokenKey, tokenString))
+
+			ctx, err = argocd.Authenticate(ctx)
+			claims := ctx.Value("claims")
+			if testDataCopy.expectedClaims == nil {
+				assert.Nil(t, claims)
+			} else {
+				assert.Equal(t, testDataCopy.expectedClaims, claims)
+			}
+			if testDataCopy.expectedErrorContains != "" {
+				assert.ErrorContains(t, err, testDataCopy.expectedErrorContains, "Authenticate should have thrown an error and blocked the request")
+			} else {
+				assert.NoError(t, err)
+			}
+		})
+	}
+}
+
+func TestAuthenticate_no_request_metadata(t *testing.T) {
+	type testData struct {
+		test                  string
+		anonymousEnabled      bool
+		expectedErrorContains string
+		expectedClaims        interface{}
+	}
+	var tests = []testData{
+		{
+			test:                  "anonymous disabled",
+			anonymousEnabled:      false,
+			expectedErrorContains: "no session information",
+			expectedClaims:        nil,
+		},
+		{
+			test:                  "anonymous enabled",
+			anonymousEnabled:      true,
+			expectedErrorContains: "",
+			expectedClaims:        "",
+		},
+	}
+
+	for _, testData := range tests {
+		testDataCopy := testData
+
+		t.Run(testDataCopy.test, func(t *testing.T) {
+			t.Parallel()
+
+			argocd, _ := getTestServer(t, testDataCopy.anonymousEnabled, true)
+			ctx := context.Background()
+
+			ctx, err := argocd.Authenticate(ctx)
+			claims := ctx.Value("claims")
+			assert.Equal(t, testDataCopy.expectedClaims, claims)
+			if testDataCopy.expectedErrorContains != "" {
+				assert.ErrorContains(t, err, testDataCopy.expectedErrorContains, "Authenticate should have thrown an error and blocked the request")
+			} else {
+				assert.NoError(t, err)
+			}
+		})
+	}
+}
+
+func TestAuthenticate_no_SSO(t *testing.T) {
+	type testData struct {
+		test                 string
+		anonymousEnabled     bool
+		expectedErrorMessage string
+		expectedClaims       interface{}
+	}
+	var tests = []testData{
+		{
+			test:                 "anonymous disabled",
+			anonymousEnabled:     false,
+			expectedErrorMessage: "SSO is not configured",
+			expectedClaims:       nil,
+		},
+		{
+			test:                 "anonymous enabled",
+			anonymousEnabled:     true,
+			expectedErrorMessage: "",
+			expectedClaims:       "",
+		},
+	}
+
+	for _, testData := range tests {
+		testDataCopy := testData
+
+		t.Run(testDataCopy.test, func(t *testing.T) {
+			t.Parallel()
+
+			// Must be declared here to avoid race.
+			ctx := context.Background()  //nolint:ineffassign,staticcheck
+
+			argocd, dexURL := getTestServer(t, testDataCopy.anonymousEnabled, false)
+			token := jwt.NewWithClaims(jwt.SigningMethodHS256, jwt.RegisteredClaims{Issuer: fmt.Sprintf("%s/api/dex", dexURL)})
+			tokenString, err := token.SignedString([]byte("key"))
+			require.NoError(t, err)
+			ctx = metadata.NewIncomingContext(context.Background(), metadata.Pairs(apiclient.MetaDataTokenKey, tokenString))
+
+			ctx, err = argocd.Authenticate(ctx)
+			claims := ctx.Value("claims")
+			assert.Equal(t, testDataCopy.expectedClaims, claims)
+			if testDataCopy.expectedErrorMessage != "" {
+				assert.ErrorContains(t, err, testDataCopy.expectedErrorMessage, "Authenticate should have thrown an error and blocked the request")
+			} else {
+				assert.NoError(t, err)
+			}
+		})
+	}
+}
+
+func TestAuthenticate_bad_request_metadata(t *testing.T) {
+	type testData struct {
+		test                 string
+		anonymousEnabled     bool
+		metadata             metadata.MD
+		expectedErrorMessage string
+		expectedClaims       interface{}
+	}
+	var tests = []testData{
+		{
+			test:                 "anonymous disabled, empty metadata",
+			anonymousEnabled:     false,
+			metadata:             metadata.MD{},
+			expectedErrorMessage: "no session information",
+			expectedClaims:       nil,
+		},
+		{
+			test:                 "anonymous enabled, empty metadata",
+			anonymousEnabled:     true,
+			metadata:             metadata.MD{},
+			expectedErrorMessage: "",
+			expectedClaims:       "",
+		},
+		{
+			test:                 "anonymous disabled, empty tokens",
+			anonymousEnabled:     false,
+			metadata:             metadata.MD{apiclient.MetaDataTokenKey: []string{}},
+			expectedErrorMessage: "no session information",
+			expectedClaims:       nil,
+		},
+		{
+			test:                 "anonymous enabled, empty tokens",
+			anonymousEnabled:     true,
+			metadata:             metadata.MD{apiclient.MetaDataTokenKey: []string{}},
+			expectedErrorMessage: "",
+			expectedClaims:       "",
+		},
+		{
+			test:                 "anonymous disabled, bad tokens",
+			anonymousEnabled:     false,
+			metadata:             metadata.Pairs(apiclient.MetaDataTokenKey, "bad"),
+			expectedErrorMessage: "token contains an invalid number of segments",
+			expectedClaims:       nil,
+		},
+		{
+			test:                 "anonymous enabled, bad tokens",
+			anonymousEnabled:     true,
+			metadata:             metadata.Pairs(apiclient.MetaDataTokenKey, "bad"),
+			expectedErrorMessage: "",
+			expectedClaims:       "",
+		},
+		{
+			test:                 "anonymous disabled, bad auth header",
+			anonymousEnabled:     false,
+			metadata:             metadata.MD{"authorization": []string{"Bearer eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJzdWIiOiJhZG1pbiJ9.TGGTTHuuGpEU8WgobXxkrBtW3NiR3dgw5LR-1DEW3BQ"}},
+			expectedErrorMessage: "no audience found in the token",
+			expectedClaims:       nil,
+		},
+		{
+			test:                 "anonymous enabled, bad auth header",
+			anonymousEnabled:     true,
+			metadata:             metadata.MD{"authorization": []string{"Bearer eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJzdWIiOiJhZG1pbiJ9.TGGTTHuuGpEU8WgobXxkrBtW3NiR3dgw5LR-1DEW3BQ"}},
+			expectedErrorMessage: "",
+			expectedClaims:       "",
+		},
+		{
+			test:                 "anonymous disabled, bad auth cookie",
+			anonymousEnabled:     false,
+			metadata:             metadata.MD{"grpcgateway-cookie": []string{"argocd.token=eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJzdWIiOiJhZG1pbiJ9.TGGTTHuuGpEU8WgobXxkrBtW3NiR3dgw5LR-1DEW3BQ"}},
+			expectedErrorMessage: "no audience found in the token",
+			expectedClaims:       nil,
+		},
+		{
+			test:                 "anonymous enabled, bad auth cookie",
+			anonymousEnabled:     true,
+			metadata:             metadata.MD{"grpcgateway-cookie": []string{"argocd.token=eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJzdWIiOiJhZG1pbiJ9.TGGTTHuuGpEU8WgobXxkrBtW3NiR3dgw5LR-1DEW3BQ"}},
+			expectedErrorMessage: "",
+			expectedClaims:       "",
+		},
+	}
+
+	ctx := context.Background()
+
+	for _, testData := range tests {
+		testDataCopy := testData
+
+		t.Run(testDataCopy.test, func(t *testing.T) {
+			t.Parallel()
+
+			argocd, _ := getTestServer(t, testDataCopy.anonymousEnabled, true)
+			ctx = metadata.NewIncomingContext(context.Background(), testDataCopy.metadata)
+
+			ctx, err := argocd.Authenticate(ctx)
+			claims := ctx.Value("claims")
+			assert.Equal(t, testDataCopy.expectedClaims, claims)
+			if testDataCopy.expectedErrorMessage != "" {
+				assert.ErrorContains(t, err, testDataCopy.expectedErrorMessage, "Authenticate should have thrown an error and blocked the request")
+			} else {
+				assert.NoError(t, err)
+			}
 		})
 	}
 }

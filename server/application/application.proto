@@ -44,9 +44,9 @@ message RevisionMetadataQuery{
 // ApplicationEventsQuery is a query for application resource events
 message ApplicationResourceEventsQuery {
 	required string name = 1;
-	required string resourceNamespace = 2;
-	required string resourceName = 3;
-	required string resourceUID = 4;
+	optional string resourceNamespace = 2;
+	optional string resourceName = 3;
+	optional string resourceUID = 4;
 }
 
 // ManifestQuery is a query for manifest resources
@@ -115,7 +115,7 @@ message ApplicationRollbackRequest {
 
 message ApplicationResourceRequest {
 	required string name = 1;
-	required string namespace = 2;
+	optional string namespace = 2;
 	required string resourceName = 3;
 	required string version = 4;
 	optional string group = 5;
@@ -124,7 +124,7 @@ message ApplicationResourceRequest {
 
 message ApplicationResourcePatchRequest {
 	required string name = 1;
-	required string namespace = 2;
+	optional string namespace = 2;
 	required string resourceName = 3;
 	required string version = 4;
 	optional string group = 5;
@@ -135,7 +135,7 @@ message ApplicationResourcePatchRequest {
 
 message ApplicationResourceDeleteRequest {
 	required string name = 1;
-	required string namespace = 2;
+	optional string namespace = 2;
 	required string resourceName = 3;
 	required string version = 4;
 	optional string group = 5;
@@ -146,7 +146,7 @@ message ApplicationResourceDeleteRequest {
 
 message ResourceActionRunRequest {
 	required string name = 1;
-	required string namespace = 2;
+	optional string namespace = 2;
 	required string resourceName = 3;
 	required string version = 4;
 	optional string group = 5;
@@ -164,7 +164,7 @@ message ApplicationResourceResponse {
 
 message ApplicationPodLogsQuery {
 	required string name = 1;
-	required string namespace = 2;
+	optional string namespace = 2;
 	optional string podName = 3;
 	optional string container = 4;
 	optional int64 sinceSeconds = 5;

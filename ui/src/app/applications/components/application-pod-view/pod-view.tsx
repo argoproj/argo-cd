@@ -191,7 +191,7 @@ export class PodView extends React.Component<PodViewProps> {
                                                                             key={pod.metadata.name}>
                                                                             <div style={{position: 'relative'}}>
                                                                                 {isYoungerThanXMinutes(pod, 30) && (
-                                                                                    <i className='fas fa-star pod-view__node__pod pod-view__node__pod__star-icon' />
+                                                                                    <i className='fas fa-circle pod-view__node__pod pod-view__node__pod__new-pod-icon' />
                                                                                 )}
                                                                                 <div className={`pod-view__node__pod pod-view__node__pod--${pod.health.toLowerCase()}`}>
                                                                                     <PodHealthIcon state={{status: pod.health, message: ''}} />
