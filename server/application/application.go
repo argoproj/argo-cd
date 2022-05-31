@@ -906,7 +906,7 @@ func (s *Server) StartEventSource(es *events.EventSource, stream events.Eventing
 			return
 		}
 
-		err := s.applicationEventReporter.streamApplicationEvents(stream.Context(), &a, es, stream, ts, shouldProcessNonRootApp())
+		err := s.applicationEventReporter.streamApplicationEvents(stream.Context(), &a, es, stream, ts)
 		if err != nil {
 			logCtx.WithError(err).Error("failed to stream application events")
 			return
