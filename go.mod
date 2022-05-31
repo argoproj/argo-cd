@@ -9,7 +9,7 @@ require (
 	github.com/TomOnTime/utfutil v0.0.0-20180511104225-09c41003ee1d
 	github.com/alicebob/miniredis v2.5.0+incompatible
 	github.com/alicebob/miniredis/v2 v2.14.2
-	github.com/argoproj/gitops-engine v0.6.1-0.20220328190556-73bcea9c8c8f
+	github.com/argoproj/gitops-engine v0.7.0
 	github.com/argoproj/notifications-engine v0.3.1-0.20220430155844-567361917320
 	github.com/argoproj/pkg v0.11.1-0.20211203175135-36c59d8fafe0
 	github.com/aws/aws-sdk-go v1.38.49
@@ -249,10 +249,6 @@ require (
 )
 
 replace (
-	//TODO: remove the line bellow before releasing argocd
-	//      merge/release https://github.com/argoproj/gitops-engine/pull/404
-	github.com/argoproj/gitops-engine => github.com/leoluz/gitops-engine v0.4.1-0.20220506155926-8d7183d80265
-
 	// https://github.com/golang/go/issues/33546#issuecomment-519656923
 	github.com/go-check/check => github.com/go-check/check v0.0.0-20180628173108-788fd7840127
 
