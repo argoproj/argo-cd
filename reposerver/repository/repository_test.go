@@ -374,29 +374,6 @@ func TestGenerateKsonnetManifest(t *testing.T) {
 	assert.Equal(t, "https://kubernetes.default.svc", res.Server)
 }
 
-func TestGenerateHelmChartWithDependencies(t *testing.T) {
-	service := newService("../..")
-
-	cleanup := func() {
-		_ = os.Remove(filepath.Join("../../util/helm/testdata/helm2-dependency", helmDepUpMarkerFile))
-		_ = os.RemoveAll(filepath.Join("../../util/helm/testdata/helm2-dependency", "charts"))
-	}
-	cleanup()
-	defer cleanup()
-
-	helmRepo := argoappv1.Repository{Name: "bitnami", Type: "helm", Repo: "https://charts.bitnami.com/bitnami"}
-	q := apiclient.ManifestRequest{
-		Repo: &argoappv1.Repository{},
-		ApplicationSource: &argoappv1.ApplicationSource{
-			Path: "./util/helm/testdata/helm2-dependency",
-		},
-		Repos: []*argoappv1.Repository{&helmRepo},
-	}
-	res1, err := service.GenerateManifest(context.Background(), &q)
-	assert.Nil(t, err)
-	assert.Len(t, res1.Manifests, 10)
-}
-
 func TestManifestGenErrorCacheByNumRequests(t *testing.T) {
 
 	// Returns the state of the manifest generation cache, by querying the cache for the previously set result
