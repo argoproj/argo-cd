@@ -65,6 +65,9 @@ data:
     oncePer: app.status.sync.revision
     send: [app-sync-succeeded]
 ```
+**Mono Repo Usage**
+
+In case one repo is used to sync multiple applications `oncePer: app.status.sync.revision` field will trigger a notification for each commit. Therefore better approach will be using `oncePer: app.status.operationState.syncResult.revision` statement. This way notification will be sent only for a particular Application's revision.
 
 ### oncePer
 
