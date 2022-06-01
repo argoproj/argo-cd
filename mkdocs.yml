@@ -56,7 +56,7 @@ nav:
     - Sync states: syncing/states.md
     - Sync policy: syncing/policy.md
     - Sync options: syncing/options.md
-    - Sync waves: syncing/waves.md
+    - Sync phases/waves: syncing/waves.md
     - Sync windows: syncing/windows.md
     - Tracking strategies: syncing/tracking.md
     - Application health: syncing/health.md
