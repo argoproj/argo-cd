@@ -255,6 +255,12 @@ $header: 120px;
             }    
         }
 
+        .separator {
+            border-right: 1px solid $argo-color-gray-4;
+            padding-top: 6px;
+            padding-bottom: 6px;
+        }
+
         .zoom-value {
             user-select: none;
             margin-top: 3px;

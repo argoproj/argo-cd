@@ -33,10 +33,10 @@ func init() {
 					return
 				}
 				if logEntry, ok := msg.(*LogEntry); ok {
-					if logEntry.Last {
+					if logEntry.GetLast() {
 						return
 					}
-					if _, err = w.Write([]byte(logEntry.Content + "\n")); err != nil {
+					if _, err = w.Write([]byte(logEntry.GetContent() + "\n")); err != nil {
 						return
 					}
 				}

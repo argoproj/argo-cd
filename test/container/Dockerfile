@@ -1,10 +1,12 @@
-FROM redis:6.2.6 as redis
+FROM docker.io/library/redis:7.0.0 as redis
 
-FROM node:12.18.4 as node
+FROM docker.io/library/node:12.18.4-buster as node
 
-FROM golang:1.17.6 as golang
+FROM docker.io/library/golang:1.18 as golang
 
-FROM registry:2.7.1 as registry
+FROM docker.io/library/registry:2.8 as registry
+
+FROM docker.io/bitnami/kubectl:1.23.6 as kubectl
 
 FROM ubuntu:21.10
 
@@ -22,6 +24,7 @@ RUN  apt-get update && apt-get install --fix-missing -y \
         make \
         wget \
         gcc \
+        g++ \
         sudo \
         tini \
         zip && \
@@ -30,21 +33,18 @@ RUN  apt-get update && apt-get install --fix-missing -y \
 
 COPY --from=golang /usr/local/go /usr/local/go
 
-ENV PATH /dist:/go/bin:/usr/local/go/bin:$PATH
+COPY --from=kubectl /opt/bitnami/kubectl/bin/kubectl /usr/local/bin/kubectl
+
+ENV PATH /dist:/go/bin:/usr/local/go/bin:/go/src/github.com/argoproj/argo-cd/dist:$PATH
 ENV GOROOT /usr/local/go
 ENV GOPATH /go
 
 # Install build and test dependencies
-ADD ./hack/tool-versions.sh .
-ADD ./hack/install.sh .
-ADD ./hack/installers installers
-ADD go.mod go.mod
-ADD go.sum go.sum
+COPY hack/install.sh hack/tool-versions.sh go.* ./
+COPY hack/installers installers
 
-RUN ./install.sh helm2-linux && \
-    ./install.sh helm-linux && \
-    ./install.sh kubectl-linux && \
-    ./install.sh kustomize-linux && \
+RUN ./install.sh helm-linux && \
+    ./install.sh kustomize && \
     ./install.sh codegen-tools && \
     ./install.sh codegen-go-tools && \
     ./install.sh lint-tools && \
@@ -53,7 +53,6 @@ RUN ./install.sh helm2-linux && \
     go install github.com/jstemmer/go-junit-report@latest && \
     rm -rf /tmp/dl && \
     rm -rf /tmp/helm && \
-    rm -rf /tmp/helm2 && \
     rm -rf /tmp/ks_*
 
 # These are required for running end-to-end tests
@@ -82,11 +81,12 @@ ARG UID
 # Prepare user configuration & build environments
 RUN useradd -l -u ${UID} -d /home/user -s /bin/bash user && \
     echo "user ALL=(ALL) NOPASSWD:ALL" > /etc/sudoers.d/user && \
-    HELM_HOME=/home/user/.helm helm2 init --client-only && \
+    mkdir -p /home/user/.kube && chmod 777 /home/user/.kube && \
+    chown -R user /home/user && \
+    chgrp -R user /home/user && \
     HOME=/home/user git config --global user.name "ArgoCD Test User" && \
     HOME=/home/user git config --global user.email "noreply@example.com" && \
     mkdir -p /go/pkg && chmod 777 /go/pkg && \
-    mkdir -p /home/user/.kube && chmod 777 /home/user/.kube && \
     mkdir -p /var/run/sshd && \
     mkdir -p /root/.ssh && \
     mkdir -p /go && \
@@ -95,8 +95,6 @@ RUN useradd -l -u ${UID} -d /home/user -s /bin/bash user && \
     chmod 0600 /etc/ssh/ssh_host_*_key && \
     mkdir -p /tmp/go-build-cache && chmod -R 777 /tmp/go-build-cache && \
     mkdir -p /home/user/.cache && chmod 777 /home/user/.cache && \
-    chown -R user /home/user && \
-    chgrp -R user /home/user && \
     chmod -R 777 /usr/local/go && \
     ln -s /usr/local/bin/node /usr/local/bin/nodejs && \
     ln -s /usr/local/lib/node_modules/npm/bin/npm-cli.js /usr/local/bin/npm && \

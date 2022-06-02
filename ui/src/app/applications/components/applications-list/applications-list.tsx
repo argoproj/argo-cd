@@ -37,7 +37,8 @@ const APP_FIELDS = [
     'status.health',
     'status.operationState.phase',
     'status.operationState.operation.sync',
-    'status.summary'
+    'status.summary',
+    'status.resources'
 ];
 const APP_LIST_FIELDS = ['metadata.resourceVersion', ...APP_FIELDS.map(field => `items.${field}`)];
 const APP_WATCH_FIELDS = ['result.type', ...APP_FIELDS.map(field => `result.application.${field}`)];
@@ -146,6 +147,16 @@ const ViewPref = ({children}: {children: (pref: AppsListPreferences & {page: num
 );
 
 function filterApps(applications: models.Application[], pref: AppsListPreferences, search: string): {filteredApps: models.Application[]; filterResults: FilteredApp[]} {
+    applications = applications.map(app => {
+        let isAppOfAppsPattern = false;
+        for (const resource of app.status.resources) {
+            if (resource.kind === 'Application') {
+                isAppOfAppsPattern = true;
+                break;
+            }
+        }
+        return {...app, isAppOfAppsPattern};
+    });
     const filterResults = getFilterResults(applications, pref);
     return {
         filterResults,

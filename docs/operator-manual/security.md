@@ -211,3 +211,8 @@ can be found in [server/server.go](https://github.com/argoproj/argo-cd/blob/abba
 
 Argo CD does not log IP addresses of clients requesting API endpoints, since the API server is typically behind a proxy. Instead, it is recommended
 to configure IP addresses logging in the proxy server that sits in front of the API server.
+
+## ApplicationSets
+
+Argo CD's ApplicationSets feature has its own [security considerations](./applicationset/Security.md). Be aware of those
+issues before using ApplicationSets.

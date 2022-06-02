@@ -21,6 +21,12 @@ case $OS in
       arm64|arm)
         protoc_arch=aarch_64
         ;;
+      s390x)
+        protoc_arch=s390_64
+        ;;
+      ppc64le)
+        protoc_arch=ppcle_64
+        ;;
       *)
         protoc_arch=x86_64
         ;;

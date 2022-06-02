@@ -2,14 +2,18 @@
 
 Argo CD allows integrating more config management tools using config management plugins.
 
+!!! warning
+    Plugins are granted a level of trust in the Argo CD system, so it is important to implement plugins securely. Argo 
+    CD administrators should only install plugins from trusted sources, and they should audit plugins to weigh their 
+    particular risks and benefits.
+
 ## Installing a CMP
 
 There are two ways to install a Config Management Plugin (CMP):
-1. Add the plugin config to the Argo CD ConfigMap. The repo-server container will run your plugin's commands.
 
+1. Add the plugin config to the Argo CD ConfigMap. The repo-server container will run your plugin's commands.
    This is a good option for a simple plugin that requires only a few lines of code that fit nicely in the Argo CD ConfigMap.
 2. Add the plugin as a sidecar to the repo-server Pod.
-
    This is a good option for a more complex plugin that would clutter the Argo CD ConfigMap.
 
 ### Option 1: Configure plugins via Argo CD configmap
@@ -32,7 +36,7 @@ The following changes are required to configure a new plugin:
                 args: ["sample args"]
               lockRepo: true                 # Defaults to false. See below.
     
-    The `generate` command must print a valid YAML or JSON stream to stdout. Both `init` and `generate` commands are executed inside the application source directory.
+    The `generate` command must print a valid YAML or JSON stream to stdout. Both `init` and `generate` commands are executed inside the application source directory or in `path` when specified for the app.
 
 3. [Create an Application which uses your new CMP](#using-a-cmp).
 
@@ -141,10 +145,16 @@ containers:
     - mountPath: /home/argocd/cmp-server/config/plugin.yaml
       subPath: plugin.yaml
       name: cmp-plugin
-  volumes:
-    - configMap:
-        name: cmp-plugin
+    # Starting with v2.4, do NOT mount the same tmp volume as the repo-server container. The filesystem separation helps 
+    # mitigate path traversal attacks.
+    - mountPath: /tmp
+      name: cmp-tmp
+volumes:
+  - configMap:
       name: cmp-plugin
+    name: cmp-plugin
+  - emptyDir: {}
+    name: cmp-tmp
 ``` 
 
 !!! important "Double-check these items"
