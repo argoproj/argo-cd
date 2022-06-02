@@ -11,6 +11,7 @@ import (
 )
 
 // ResolvedFilePath represents a resolved file path and intended to prevent unintentional use of not verified file path.
+// It is always either a URL or an absolute path.
 type ResolvedFilePath string
 
 // resolveSymbolicLinkRecursive resolves the symlink path recursively to its
