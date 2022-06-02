@@ -134,6 +134,7 @@ All following goals should be achieve in order to conclude this proposal:
 #### [G-2] Strategic merge patch while diffing
 
 - Diffing needs to support strategic merge patch (see [ISSUE-2268][7])
+- Make sure Services can be patched correctly ([more details][14])
 
 #### [G-3] Admission Controllers compatibility
 
@@ -235,3 +236,4 @@ Slight increase in ArgoCD code base complexity.
 [11]: https://github.com/argoproj/gitops-engine/pull/363#issuecomment-1013289982
 [12]: https://github.com/kubernetes/enhancements/blob/master/keps/sig-api-machinery/555-server-side-apply/README.md#upgrade--downgrade-strategy
 [13]: https://github.com/kubernetes/enhancements/blob/master/keps/sig-api-machinery/555-server-side-apply/README.md
+[14]: https://github.com/argoproj/argo-cd/pull/8812#discussion_r849140565
