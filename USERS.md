@@ -52,6 +52,7 @@ Currently, the following organizations are **officially** using Argo CD:
 1. [Devtron Labs](https://github.com/devtron-labs/devtron)
 1. [EDF Renewables](https://www.edf-re.com/)
 1. [edX](https://edx.org)
+1. [Elementor](https://elementor.com/)
 1. [Electronic Arts Inc. ](https://www.ea.com)
 1. [Elium](https://www.elium.com)
 1. [END.](https://www.endclothing.com/)
@@ -208,3 +209,4 @@ Currently, the following organizations are **officially** using Argo CD:
 1. [ZOZO](https://corp.zozo.com/)
 1. [Trendyol](https://www.trendyol.com/)
 1. [RapidAPI](https://www.rapidapi.com/)
+1. [Pismo](https://pismo.io/)

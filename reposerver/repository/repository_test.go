@@ -355,28 +355,6 @@ func TestGenerateJsonnetLibOutside(t *testing.T) {
 	require.Contains(t, err.Error(), "value file '../../../testdata/jsonnet/vendor' resolved to outside repository root")
 }
 
-func TestGenerateHelmChartWithDependencies(t *testing.T) {
-	service := newService("../..")
-
-	cleanup := func() {
-		_ = os.Remove(filepath.Join("../../util/helm/testdata/dependency", helmDepUpMarkerFile))
-		_ = os.RemoveAll(filepath.Join("../../util/helm/testdata/dependency", "charts"))
-	}
-	cleanup()
-	defer cleanup()
-
-	helmRepo := argoappv1.Repository{Name: "bitnami", Type: "helm", Repo: "https://charts.bitnami.com/bitnami"}
-	q := apiclient.ManifestRequest{
-		Repo: &argoappv1.Repository{},
-		ApplicationSource: &argoappv1.ApplicationSource{
-			Path: "./util/helm/testdata/dependency",
-		},
-		Repos: []*argoappv1.Repository{&helmRepo},
-	}
-	res1, err := service.GenerateManifest(context.Background(), &q)
-	assert.Nil(t, err)
-	assert.Len(t, res1.Manifests, 10)
-}
 func TestManifestGenErrorCacheByNumRequests(t *testing.T) {
 
 	// Returns the state of the manifest generation cache, by querying the cache for the previously set result
@@ -1103,7 +1081,7 @@ func TestRunCustomTool(t *testing.T) {
 			Name: "test",
 			Generate: argoappv1.Command{
 				Command: []string{"sh", "-c"},
-				Args:    []string{`echo "{\"kind\": \"FakeObject\", \"metadata\": { \"name\": \"$ARGOCD_APP_NAME\", \"namespace\": \"$ARGOCD_APP_NAMESPACE\", \"annotations\": {\"GIT_ASKPASS\": \"$GIT_ASKPASS\", \"GIT_USERNAME\": \"$GIT_USERNAME\", \"GIT_PASSWORD\": \"$GIT_PASSWORD\"}, \"labels\": {\"revision\": \"$TEST_REVISION\"}}}"`},
+				Args:    []string{`echo "{\"kind\": \"FakeObject\", \"metadata\": { \"name\": \"$ARGOCD_APP_NAME\", \"namespace\": \"$ARGOCD_APP_NAMESPACE\", \"annotations\": {\"GIT_ASKPASS\": \"$GIT_ASKPASS\", \"GIT_USERNAME\": \"$GIT_USERNAME\", \"GIT_PASSWORD\": \"$GIT_PASSWORD\"}, \"labels\": {\"revision\": \"$ARGOCD_ENV_TEST_REVISION\"}}}"`},
 			},
 		}},
 		Repo: &argoappv1.Repository{
@@ -1715,8 +1693,6 @@ func TestFindManifests_Exclude_NothingMatches(t *testing.T) {
 	assert.ElementsMatch(t,
 		[]string{"nginx-deployment", "nginx-deployment-sub"}, []string{objs[0].GetName(), objs[1].GetName()})
 }
-
-
 
 func Test_findManifests(t *testing.T) {
 	logCtx := log.WithField("test", "test")
