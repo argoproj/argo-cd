@@ -30,7 +30,29 @@ Breaking down the permissions definition differs slightly between applications a
 
 Resources: `clusters`, `projects`, `applications`, `repositories`, `certificates`, `accounts`, `gpgkeys`, `logs`, `exec`
 
-Actions: `get`, `create`, `update`, `delete`, `sync`, `override`, `action`
+Actions: `get`, `create`, `update`, `delete`, `sync`, `override`,
+`action/<group/kind/action-name>`
+
+#### Application resources
+
+The resource path for application objects is of the form
+`<project-name>/<application-name>`.
+
+Delete access to sub-resources of a project, such as a rollout or a pod, cannot
+be managed granularly. `<project-name>/<application-name>` grants access to all
+subresources of an application.
+
+#### The `action` action
+
+The `action` action corresponds to either built-in resource customizations defined
+[in the Argo CD repository](https://github.com/argoproj/argo-cd/search?q=filename%3Aaction.lua+path%3Aresource_customizations),
+or to [custom resource actions](resource_actions.md#custom-resource-actions) defined by you.
+The `action` path is of the form `action/<api-group>/<Kind>/<action-name>`. For
+example, a resource customization path
+`resource_customizations/extensions/DaemonSet/actions/restart/action.lua`
+corresponds to the `action` path `action/extensions/DaemonSet/restart`. You can
+also use glob patterns in the action path: `action/*` (or regex patterns if you have
+[enabled the `regex` match mode](https://github.com/argoproj/argo-cd/blob/master/docs/operator-manual/argocd-rbac-cm.yaml)).
 
 #### `exec` resource
 
