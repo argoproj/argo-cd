@@ -17,6 +17,7 @@ package controllers
 import (
 	"context"
 	"fmt"
+	"github.com/argoproj/argo-cd/v2/applicationset/controllers/sharding"
 	"time"
 
 	"github.com/go-logr/logr"
@@ -58,13 +59,14 @@ const (
 // ApplicationSetReconciler reconciles a ApplicationSet object
 type ApplicationSetReconciler struct {
 	client.Client
-	Log              logr.Logger
-	Scheme           *runtime.Scheme
-	Recorder         record.EventRecorder
-	Generators       map[string]generators.Generator
-	ArgoDB           db.ArgoDB
-	ArgoAppClientset appclientset.Interface
-	KubeClientset    kubernetes.Interface
+	Log                  logr.Logger
+	Scheme               *runtime.Scheme
+	Recorder             record.EventRecorder
+	Generators           map[string]generators.Generator
+	ArgoDB               db.ArgoDB
+	ArgoAppClientset     appclientset.Interface
+	KubeClientset        kubernetes.Interface
+	ApplicationSetFilter sharding.ApplicationSetFilter
 	utils.Policy
 	utils.Renderer
 }
@@ -90,6 +92,13 @@ func (r *ApplicationSetReconciler) Reconcile(ctx context.Context, req ctrl.Reque
 	if applicationSetInfo.ObjectMeta.DeletionTimestamp != nil {
 		return ctrl.Result{}, nil
 	}
+
+	if r.ApplicationSetFilter != nil && !r.ApplicationSetFilter(&applicationSetInfo) {
+		return ctrl.Result{}, nil
+	}
+
+	log.Debugf("Starting to process applicationset: %s", req.String())
+	defer log.Debugf("Completing to process applicationset: %s", req.String())
 
 	// Log a warning if there are unrecognized generators
 	utils.CheckInvalidGenerators(&applicationSetInfo)

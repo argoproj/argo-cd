@@ -3,6 +3,7 @@ package command
 import (
 	"context"
 	"fmt"
+	"github.com/argoproj/argo-cd/v2/applicationset/controllers/sharding"
 	"net/http"
 	"os"
 	"strings"
@@ -164,17 +165,24 @@ func NewCommand() *cobra.Command {
 				"Merge":                   generators.NewMergeGenerator(nestedGenerators),
 			}
 
+			applicationSetFilter, err := sharding.GenerateApplicationSetFilterForStatefulSet(os.Hostname)
+			if err != nil {
+				log.Error(err, "could not generate applicationset filter for sharding")
+				os.Exit(1)
+			}
+
 			if err = (&controllers.ApplicationSetReconciler{
-				Generators:       topLevelGenerators,
-				Client:           mgr.GetClient(),
-				Log:              ctrl.Log.WithName("controllers").WithName("ApplicationSet"),
-				Scheme:           mgr.GetScheme(),
-				Recorder:         mgr.GetEventRecorderFor("applicationset-controller"),
-				Renderer:         &utils.Render{},
-				Policy:           policyObj,
-				ArgoAppClientset: appSetConfig,
-				KubeClientset:    k8sClient,
-				ArgoDB:           argoCDDB,
+				Generators:           topLevelGenerators,
+				Client:               mgr.GetClient(),
+				Log:                  ctrl.Log.WithName("controllers").WithName("ApplicationSet"),
+				Scheme:               mgr.GetScheme(),
+				Recorder:             mgr.GetEventRecorderFor("applicationset-controller"),
+				Renderer:             &utils.Render{},
+				Policy:               policyObj,
+				ArgoAppClientset:     appSetConfig,
+				KubeClientset:        k8sClient,
+				ArgoDB:               argoCDDB,
+				ApplicationSetFilter: applicationSetFilter,
 			}).SetupWithManager(mgr); err != nil {
 				log.Error(err, "unable to create controller", "controller", "ApplicationSet")
 				os.Exit(1)
