@@ -7,11 +7,13 @@ import (
 	"os"
 	"strings"
 
+	"github.com/argoproj/argo-cd/v2/common"
+
 	service "github.com/argoproj/argo-cd/v2/util/notification/argocd"
 
 	notificationscontroller "github.com/argoproj/argo-cd/v2/notification_controller/controller"
 
-	controller "github.com/argoproj/notifications-engine/pkg/controller"
+	"github.com/argoproj/notifications-engine/pkg/controller"
 	"github.com/prometheus/client_golang/prometheus"
 	"github.com/prometheus/client_golang/prometheus/promhttp"
 	log "github.com/sirupsen/logrus"
@@ -59,6 +61,8 @@ func NewCommand() *cobra.Command {
 			if err != nil {
 				return err
 			}
+			vers := common.GetVersion()
+			restConfig.UserAgent = fmt.Sprintf("argocd-notifications-controller/%s (%s)", vers.Version, vers.Platform)
 			dynamicClient, err := dynamic.NewForConfig(restConfig)
 			if err != nil {
 				return err

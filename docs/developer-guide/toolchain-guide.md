@@ -63,12 +63,6 @@ We use the [Semantic PR title checker](https://github.com/zeke/semantic-pull-req
 
 Please prefix the title of your PR with one of the valid categories. For example, if you chose the title your PR `Add documentation for GitHub SSO integration`, please use `docs: Add documentation for GitHub SSO integration` instead.
 
-### Contributor License Agreement
-
-Every contributor to Argo CD must have signed the current Contributor License Agreement (CLA). You only have to sign the CLA when you are a first time contributor, or when the agreement has changed since your last time signing it. The main purpose of the CLA is to ensure that you hold the required rights for your contribution. The CLA signing is an automated process.
-
-You can read the current version of the CLA [here](https://cla-assistant.io/argoproj/argo-cd).
-
 ### PR template checklist
 
 Upon opening a PR, the details will contain a checklist from a template. Please read the checklist, and tick those marks that apply to you.
@@ -193,6 +187,8 @@ you should edit your `~/.kube/config` and modify the `server` option to point to
 ```
 k3d cluster create my-cluster --wait --k3s-server-arg '--disable=traefik' --api-port $IP:6550 -p 443:443@loadbalancer
 ```
+
+Starting from k3d v5.0.0 the example command flags `--k3s-server-arg` and `'--disable=traefik'` would have to be changed to `--k3s-arg` and `'--disable=traefik@server:*'`, respectively. 
 
 ## The development cycle
 

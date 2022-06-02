@@ -1,5 +1,4 @@
-import {Checkbox} from 'argo-ui';
-import {useData} from 'argo-ui/v2';
+import {useData, Checkbox} from 'argo-ui/v2';
 import * as minimatch from 'minimatch';
 import * as React from 'react';
 import {Context} from '../../../shared/context';
@@ -31,7 +30,7 @@ export function getFilterResults(applications: Application[], pref: AppsListPref
             sync: pref.syncFilter.length === 0 || pref.syncFilter.includes(app.status.sync.status),
             health: pref.healthFilter.length === 0 || pref.healthFilter.includes(app.status.health.status),
             namespaces: pref.namespacesFilter.length === 0 || pref.namespacesFilter.some(ns => app.spec.destination.namespace && minimatch(app.spec.destination.namespace, ns)),
-            favourite: !pref.showFavorites || pref.favoritesAppList.includes(app.metadata.name),
+            favourite: !pref.showFavorites || (pref.favoritesAppList && pref.favoritesAppList.includes(app.metadata.name)),
             clusters:
                 pref.clustersFilter.length === 0 ||
                 pref.clustersFilter.some(filterString => {
@@ -218,16 +217,22 @@ const NamespaceFilter = (props: AppFilterProps) => {
 const FavoriteFilter = (props: AppFilterProps) => {
     const ctx = React.useContext(Context);
     return (
-        <div className='filter'>
+        <div className={`filter filter__item ${props.pref.showFavorites ? 'filter__item--selected' : ''}`}>
             <Checkbox
-                checked={!!props.pref.showFavorites}
-                id='favouriteFilter'
+                value={!!props.pref.showFavorites}
                 onChange={val => {
                     ctx.navigation.goto('.', {showFavorites: val}, {replace: true});
                     services.viewPreferences.updatePreferences({appList: {...props.pref, showFavorites: val}});
                 }}
-            />{' '}
-            <label htmlFor='favouriteFilter'>FAVORITES ONLY</label>
+                style={{
+                    marginRight: '8px',
+                    marginLeft: '8px'
+                }}
+            />
+            <div style={{marginRight: '5px'}}>
+                <i style={{color: '#FFCE25'}} className='fas fa-star' />
+            </div>
+            <div className='filter__item__label'>Favorites Only</div>
         </div>
     );
 };

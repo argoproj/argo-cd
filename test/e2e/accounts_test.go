@@ -2,17 +2,19 @@ package e2e
 
 import (
 	"context"
+	"strings"
 	"testing"
 
-	"github.com/argoproj/argo-cd/v2/pkg/apiclient/account"
-
 	"github.com/argoproj/pkg/errors"
+	"github.com/spf13/cobra"
 	"github.com/stretchr/testify/assert"
 	"google.golang.org/grpc/codes"
 	"google.golang.org/grpc/status"
 
-	argocdclient "github.com/argoproj/argo-cd/v2/pkg/apiclient"
+	"github.com/argoproj/argo-cd/v2/cmd/argocd/commands/headless"
+	"github.com/argoproj/argo-cd/v2/pkg/apiclient/account"
 	"github.com/argoproj/argo-cd/v2/pkg/apiclient/session"
+	"github.com/argoproj/argo-cd/v2/test/e2e/fixture"
 	. "github.com/argoproj/argo-cd/v2/test/e2e/fixture"
 	accountFixture "github.com/argoproj/argo-cd/v2/test/e2e/fixture/account"
 	"github.com/argoproj/argo-cd/v2/util/io"
@@ -35,6 +37,78 @@ func TestCreateAndUseAccount(t *testing.T) {
 		CurrentUser(func(user *session.GetUserInfoResponse, err error) {
 			assert.Equal(t, user.LoggedIn, true)
 			assert.Equal(t, user.Username, ctx.GetName())
+		})
+}
+
+func TestCanIGetLogsAllowNoSwitch(t *testing.T) {
+	ctx := accountFixture.Given(t)
+	ctx.
+		Name("test").
+		When().
+		Create().
+		Login().
+		CanIGetLogs().
+		Then().
+		AndCLIOutput(func(output string, err error) {
+			assert.True(t, strings.Contains(output, "yes"))
+		})
+}
+
+func TestCanIGetLogsDenySwitchOn(t *testing.T) {
+	ctx := accountFixture.Given(t)
+	ctx.
+		Name("test").
+		When().
+		Create().
+		Login().
+		SetParamInSettingConfigMap("server.rbac.log.enforce.enable", "true").
+		CanIGetLogs().
+		Then().
+		AndCLIOutput(func(output string, err error) {
+			assert.True(t, strings.Contains(output, "no"))
+		})
+}
+
+func TestCanIGetLogsAllowSwitchOn(t *testing.T) {
+	ctx := accountFixture.Given(t)
+	ctx.
+		Name("test").
+		Project(ProjectName).
+		When().
+		Create().
+		Login().
+		SetPermissions([]fixture.ACL{
+			{
+				Resource: "logs",
+				Action:   "get",
+				Scope:    ProjectName + "/*",
+			},
+			{
+				Resource: "apps",
+				Action:   "get",
+				Scope:    ProjectName + "/*",
+			},
+		}, "log-viewer").
+		SetParamInSettingConfigMap("server.rbac.log.enforce.enable", "true").
+		CanIGetLogs().
+		Then().
+		AndCLIOutput(func(output string, err error) {
+			assert.True(t, strings.Contains(output, "yes"))
+		})
+}
+
+func TestCanIGetLogsAllowSwitchOff(t *testing.T) {
+	ctx := accountFixture.Given(t)
+	ctx.
+		Name("test").
+		When().
+		Create().
+		Login().
+		SetParamInSettingConfigMap("server.rbac.log.enforce.enable", "false").
+		CanIGetLogs().
+		Then().
+		AndCLIOutput(func(output string, err error) {
+			assert.True(t, strings.Contains(output, "yes"))
 		})
 }
 
@@ -63,7 +137,7 @@ test   true     login, apiKey`, output)
 
 	clientOpts := ArgoCDClientset.ClientOptions()
 	clientOpts.AuthToken = token
-	testAccountClientset := argocdclient.NewClientOrDie(&clientOpts)
+	testAccountClientset := headless.NewClientOrDie(&clientOpts, &cobra.Command{})
 
 	closer, client := testAccountClientset.NewSessionClientOrDie()
 	defer io.Close(closer)

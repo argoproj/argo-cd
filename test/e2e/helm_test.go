@@ -7,7 +7,6 @@ import (
 	"net"
 	"net/http"
 	"os"
-	"strings"
 	"testing"
 
 	"github.com/argoproj/gitops-engine/pkg/health"
@@ -159,7 +158,7 @@ func TestHelmIgnoreMissingValueFiles(t *testing.T) {
 		IgnoreErrors().
 		Sync().
 		Then().
-		Expect(Error("Error: open does-not-exist-values.yaml: no such file or directory", ""))
+		Expect(ErrorRegex("Error: open .*does-not-exist-values.yaml: no such file or directory", ""))
 }
 
 func TestHelmValuesMultipleUnset(t *testing.T) {
@@ -401,11 +400,6 @@ func TestHelmWithMultipleDependencies(t *testing.T) {
 		Expect(SyncStatusIs(SyncStatusCodeSynced))
 }
 
-func TestHelm2WithDependencies(t *testing.T) {
-	SkipOnEnv(t, "HELM", "HELM2")
-	testHelmWithDependencies(t, "helm2-with-dependencies", false)
-}
-
 func TestHelmWithDependenciesLegacyRepo(t *testing.T) {
 	SkipOnEnv(t, "HELM")
 	testHelmWithDependencies(t, "helm-with-dependencies", true)
@@ -443,9 +437,7 @@ func testHelmWithDependencies(t *testing.T, chartPath string, legacyRepo bool) {
 	}
 
 	helmVer := ""
-	if strings.Contains(chartPath, "helm2") {
-		helmVer = "v2"
-	}
+
 	ctx.Path(chartPath).
 		When().
 		CreateApp("--helm-version", helmVer).
@@ -468,8 +460,7 @@ func TestHelm3CRD(t *testing.T) {
 
 func TestHelmRepoDiffLocal(t *testing.T) {
 	SkipOnEnv(t, "HELM")
-	helmTmp, err := ioutil.TempDir("", "argocd-helm-repo-diff-local-test")
-	assert.NoError(t, err)
+	helmTmp := t.TempDir()
 	Given(t).
 		CustomCACertAdded().
 		HelmRepoAdded("custom-repo").
