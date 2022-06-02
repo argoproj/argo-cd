@@ -1,7 +1,6 @@
 # Pull Request Generator
 
-The Pull Request generator uses the API of an SCMaaS provider (eg GitHub/GitLab) to automatically discover open pull requests within an repository. This fits well with the style of building a test environment when you create a pull request.
-
+The Pull Request generator uses the API of an SCMaaS provider (GitHub, Gitea, or Bitbucket Server) to automatically discover open pull requests within a repository. This fits well with the style of building a test environment when you create a pull request.
 
 ```yaml
 apiVersion: argoproj.io/v1alpha1
@@ -16,9 +15,15 @@ spec:
         # ...
 ```
 
+!!! note
+    Know the security implications of PR generators in ApplicationSets. 
+    [Only admins may create ApplicationSets](./Security.md#only-admins-may-createupdatedelete-applicationsets) to avoid
+    leaking Secrets, and [only admins may create PRs](./Security.md#templated-project-field) if the `project` field of 
+    an ApplicationSet with a PR generator is templated, to avoid granting management of out-of-bounds resources.
+
 ## GitHub
 
-Specify the repository from which to fetch the Github Pull requests.
+Specify the repository from which to fetch the GitHub Pull requests.
 
 ```yaml
 apiVersion: argoproj.io/v1alpha1
@@ -48,10 +53,44 @@ spec:
 ```
 
 * `owner`: Required name of the GitHub organization or user.
-* `repo`: Required name of the Github repositry.
+* `repo`: Required name of the GitHub repository.
 * `api`: If using GitHub Enterprise, the URL to access it. (Optional)
 * `tokenRef`: A `Secret` name and key containing the GitHub access token to use for requests. If not specified, will make anonymous requests which have a lower rate limit and can only see public repositories. (Optional)
 * `labels`: Labels is used to filter the PRs that you want to target. (Optional)
+
+## GitLab
+
+Specify the project from which to fetch the GitLab merge requests.
+
+```yaml
+apiVersion: argoproj.io/v1alpha1
+kind: ApplicationSet
+metadata:
+  name: myapps
+spec:
+  generators:
+  - pullRequest:
+      gitlab:
+        # The GitLab project.
+        project: myproject
+        # For self-hosted GitLab (optional)
+        api: https://git.example.com/
+        # Reference to a Secret containing an access token. (optional)
+        tokenRef:
+          secretName: gitlab-token
+          key: token
+        # Labels is used to filter the MRs that you want to target. (optional)
+        labels:
+        - preview
+  requeueAfterSeconds: 1800
+  template:
+  # ...
+```
+
+* `project`: Required name of the GitLab project.
+* `api`: If using self-hosted GitLab, the URL to access it. (Optional)
+* `tokenRef`: A `Secret` name and key containing the GitLab access token to use for requests. If not specified, will make anonymous requests which have a lower rate limit and can only see public repositories. (Optional)
+* `labels`: Labels is used to filter the MRs that you want to target. (Optional)
 
 ## Gitea
 
@@ -84,7 +123,7 @@ spec:
 ```
 
 * `owner`: Required name of the Gitea organization or user.
-* `repo`: Required name of the Gitea repositry.
+* `repo`: Required name of the Gitea repository.
 * `api`: The url of the Gitea instance.
 * `tokenRef`: A `Secret` name and key containing the Gitea access token to use for requests. If not specified, will make anonymous requests which have a lower rate limit and can only see public repositories. (Optional)
 * `insecure`: `Allow for self-signed certificates, primarily for testing.`
@@ -125,7 +164,7 @@ spec:
 * `project`: Required name of the Bitbucket project
 * `repo`: Required name of the Bitbucket repository.
 * `api`: Required URL to access the Bitbucket REST API. For the example above, an API request would be made to `https://mycompany.bitbucket.org/rest/api/1.0/projects/myproject/repos/myrepository/pull-requests`
-* `branchMatch`: Optional regexp filter which should match the source branch name. This is an alternative to labels which are not supported by Bitbucket server. 
+* `branchMatch`: Optional regexp filter which should match the source branch name. This is an alternative to labels which are not supported by Bitbucket server.
 
 If you want to access a private repository, you must also provide the credentials for Basic auth (this is the only auth supported currently):
 * `username`: The username to authenticate with. It only needs read access to the relevant repo.
@@ -182,7 +221,7 @@ spec:
           parameters:
           - name: "image.tag"
             value: "pull-{{head_sha}}"
-      project: default
+      project: "my-project"
       destination:
         server: https://kubernetes.default.svc
         namespace: default
@@ -213,7 +252,7 @@ spec:
             app.kubernetes.io/instance: {{branch}}-{{number}}
           images:
           - ghcr.io/myorg/myrepo:{{head_sha}}
-      project: default
+      project: "my-project"
       destination:
         server: https://kubernetes.default.svc
         namespace: default
@@ -230,6 +269,10 @@ When using a Pull Request generator, the ApplicationSet controller polls every `
 The configuration is almost the same as the one described [in the Git generator](Generators-Git.md), but there is one difference: if you want to use the Pull Request Generator as well, additionally configure the following settings.
 
 In section 1, _"Create the webhook in the Git provider"_, add an event so that a webhook request will be sent when a pull request is created, closed, or label changed.
+
+Add Webhook URL with uri `/api/webhook` and select content-type as json
+![Add Webhook URL](../../assets/applicationset/webhook-config-pullrequest-generator.png "Add Webhook URL")
+
 Select `Let me select individual events` and enable the checkbox for `Pull requests`.
 
 ![Add Webhook](../../assets/applicationset/webhook-config-pull-request.png "Add Webhook Pull Request")

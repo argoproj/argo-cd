@@ -34,6 +34,7 @@ import (
 	"github.com/improbable-eng/grpc-web/go/grpcweb"
 	log "github.com/sirupsen/logrus"
 	"github.com/soheilhy/cmux"
+	"go.opentelemetry.io/contrib/instrumentation/google.golang.org/grpc/otelgrpc"
 	netCtx "golang.org/x/net/context"
 	"google.golang.org/grpc"
 	"google.golang.org/grpc/codes"
@@ -559,6 +560,7 @@ func (a *ArgoCDServer) newGRPCServer() (*grpc.Server, application.AppResourceTre
 	// NOTE: notice we do not configure the gRPC server here with TLS (e.g. grpc.Creds(creds))
 	// This is because TLS handshaking occurs in cmux handling
 	sOpts = append(sOpts, grpc.StreamInterceptor(grpc_middleware.ChainStreamServer(
+		otelgrpc.StreamServerInterceptor(),
 		grpc_logrus.StreamServerInterceptor(a.log),
 		grpc_prometheus.StreamServerInterceptor,
 		grpc_auth.StreamServerInterceptor(a.Authenticate),
@@ -572,6 +574,7 @@ func (a *ArgoCDServer) newGRPCServer() (*grpc.Server, application.AppResourceTre
 	)))
 	sOpts = append(sOpts, grpc.UnaryInterceptor(grpc_middleware.ChainUnaryServer(
 		bug21955WorkaroundInterceptor,
+		otelgrpc.UnaryServerInterceptor(),
 		grpc_logrus.UnaryServerInterceptor(a.log),
 		grpc_prometheus.UnaryServerInterceptor,
 		grpc_auth.UnaryServerInterceptor(a.Authenticate),
@@ -718,6 +721,8 @@ func (a *ArgoCDServer) newHTTPServer(ctx context.Context, port int, grpcWebHandl
 	var dOpts []grpc.DialOption
 	dOpts = append(dOpts, grpc.WithDefaultCallOptions(grpc.MaxCallRecvMsgSize(apiclient.MaxGRPCMessageSize)))
 	dOpts = append(dOpts, grpc.WithUserAgent(fmt.Sprintf("%s/%s", common.ArgoCDUserAgentName, common.GetVersion().Version)))
+	dOpts = append(dOpts, grpc.WithUnaryInterceptor(otelgrpc.UnaryClientInterceptor()))
+	dOpts = append(dOpts, grpc.WithStreamInterceptor(otelgrpc.StreamClientInterceptor()))
 	if a.useTLS() {
 		// The following sets up the dial Options for grpc-gateway to talk to gRPC server over TLS.
 		// grpc-gateway is just translating HTTP/HTTPS requests as gRPC requests over localhost,
@@ -749,8 +754,19 @@ func (a *ArgoCDServer) newHTTPServer(ctx context.Context, port int, grpcWebHandl
 		handler = compressHandler(handler)
 	}
 	mux.Handle("/api/", handler)
+
 	terminalHandler := application.NewHandler(a.appLister, a.db, a.enf, a.Cache, appResourceTreeFn)
 	mux.HandleFunc("/terminal", func(writer http.ResponseWriter, request *http.Request) {
+		argocdSettings, err := a.settingsMgr.GetSettings()
+		if err != nil {
+			http.Error(writer, fmt.Sprintf("Failed to get settings: %v", err), http.StatusBadRequest)
+			return
+		}
+		if !argocdSettings.ExecEnabled {
+			writer.WriteHeader(http.StatusNotFound)
+			return
+		}
+
 		if !a.DisableAuth {
 			ctx := request.Context()
 			cookies := request.Cookies()
@@ -993,6 +1009,9 @@ func (a *ArgoCDServer) Authenticate(ctx context.Context) (context.Context, error
 		}
 		if !argoCDSettings.AnonymousUserEnabled {
 			return ctx, claimsErr
+		} else {
+			// nolint:staticcheck
+			ctx = context.WithValue(ctx, "claims", "")
 		}
 	}
 

@@ -202,8 +202,9 @@ jobs:
           set -ue
           git clean -fd
           mkdir -p dist/
-          docker buildx build --platform linux/amd64,linux/arm64 --push -t ${IMAGE_NAMESPACE}/argocd:v${TARGET_VERSION} -t argoproj/argocd:v${TARGET_VERSION} .
+          docker buildx build --platform linux/amd64,linux/arm64,linux/s390x,linux/ppc64le --push -t ${IMAGE_NAMESPACE}/argocd:v${TARGET_VERSION} -t argoproj/argocd:v${TARGET_VERSION} .
           make release-cli
+          make checksums
           chmod +x ./dist/argocd-linux-amd64
           ./dist/argocd-linux-amd64 version --client
         if: ${{ env.DRY_RUN != 'true' }}
@@ -220,7 +221,7 @@ jobs:
           git push origin ${TARGET_BRANCH}
           git push origin ${RELEASE_TAG}
 
-      - name: Create GitHub release
+      - name: Dry run GitHub release
         uses: actions/create-release@v1
         env:
           GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
@@ -231,61 +232,7 @@ jobs:
           draft: ${{ env.DRAFT_RELEASE }}
           prerelease: ${{ env.PRE_RELEASE }}
           body: ${{ steps.release-notes.outputs.content }}
-
-      - name: Upload argocd-linux-amd64 binary to release assets
-        uses: actions/upload-release-asset@v1
-        env:
-          GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
-        with:
-          upload_url: ${{ steps.create_release.outputs.upload_url }}
-          asset_path: ./dist/argocd-linux-amd64
-          asset_name: argocd-linux-amd64
-          asset_content_type: application/octet-stream
-        if: ${{ env.DRY_RUN != 'true' }}
-
-      - name: Upload argocd-linux-arm64 binary to release assets
-        uses: actions/upload-release-asset@v1
-        env:
-          GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
-        with:
-          upload_url: ${{ steps.create_release.outputs.upload_url }}
-          asset_path: ./dist/argocd-linux-arm64
-          asset_name: argocd-linux-arm64
-          asset_content_type: application/octet-stream
-        if: ${{ env.DRY_RUN != 'true' }}
-
-      - name: Upload argocd-darwin-amd64 binary to release assets
-        uses: actions/upload-release-asset@v1
-        env:
-          GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
-        with:
-          upload_url: ${{ steps.create_release.outputs.upload_url }}
-          asset_path: ./dist/argocd-darwin-amd64
-          asset_name: argocd-darwin-amd64
-          asset_content_type: application/octet-stream
-        if: ${{ env.DRY_RUN != 'true' }}
-
-      - name: Upload argocd-darwin-arm64 binary to release assets
-        uses: actions/upload-release-asset@v1
-        env:
-          GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
-        with:
-          upload_url: ${{ steps.create_release.outputs.upload_url }}
-          asset_path: ./dist/argocd-darwin-arm64
-          asset_name: argocd-darwin-arm64
-          asset_content_type: application/octet-stream
-        if: ${{ env.DRY_RUN != 'true' }}
-
-      - name: Upload argocd-windows-amd64 binary to release assets
-        uses: actions/upload-release-asset@v1
-        env:
-          GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
-        with:
-          upload_url: ${{ steps.create_release.outputs.upload_url }}
-          asset_path: ./dist/argocd-windows-amd64.exe
-          asset_name: argocd-windows-amd64.exe
-          asset_content_type: application/octet-stream
-        if: ${{ env.DRY_RUN != 'true' }}
+        if: ${{ env.DRY_RUN == 'true' }}
 
       - name: Generate SBOM (spdx)
         id: spdx-builder
@@ -318,15 +265,19 @@ jobs:
           cd /tmp && tar -zcf sbom.tar.gz *.spdx
         if: ${{ env.DRY_RUN != 'true' }}
 
-      - name: Upload SBOM to release assets
-        uses: actions/upload-release-asset@v1
+      - name: Create GitHub release
+        uses: softprops/action-gh-release@v1
         env:
           GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
         with:
-          upload_url: ${{ steps.create_release.outputs.upload_url }}
-          asset_path: /tmp/sbom.tar.gz
-          asset_name: sbom.tar.gz
-          asset_content_type: application/octet-stream
+          name: ${{ env.RELEASE_TAG }}
+          tag_name: ${{ env.RELEASE_TAG }}
+          draft: ${{ env.DRAFT_RELEASE }}
+          prerelease: ${{ env.PRE_RELEASE }}
+          body: ${{ steps.release-notes.outputs.content }}
+          files: |
+            dist/argocd-*
+            /tmp/sbom.tar.gz
         if: ${{ env.DRY_RUN != 'true' }}
 
       - name: Update homebrew formula

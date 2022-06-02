@@ -233,12 +233,12 @@ func (s *Service) MatchRepository(stream apiclient.ConfigManagementPluginService
 		}
 	}()
 
-	_, err = cmp.ReceiveRepoStream(bufferedCtx, stream, workDir)
+	metadata, err := cmp.ReceiveRepoStream(bufferedCtx, stream, workDir)
 	if err != nil {
 		return fmt.Errorf("match repository error receiving stream: %s", err)
 	}
 
-	isSupported, err := s.matchRepository(bufferedCtx, workDir)
+	isSupported, err := s.matchRepository(bufferedCtx, workDir, metadata.GetEnv())
 	if err != nil {
 		return fmt.Errorf("match repository error: %s", err)
 	}
@@ -251,7 +251,7 @@ func (s *Service) MatchRepository(stream apiclient.ConfigManagementPluginService
 	return nil
 }
 
-func (s *Service) matchRepository(ctx context.Context, workdir string) (bool, error) {
+func (s *Service) matchRepository(ctx context.Context, workdir string, envEntries []*apiclient.EnvEntry) (bool, error) {
 	config := s.initConstants.PluginConfig
 	if config.Spec.Discover.FileName != "" {
 		log.Debugf("config.Spec.Discover.FileName is provided")
@@ -284,7 +284,9 @@ func (s *Service) matchRepository(ctx context.Context, workdir string) (bool, er
 	}
 
 	log.Debugf("Going to try runCommand.")
-	find, err := runCommand(ctx, config.Spec.Discover.Find.Command, workdir, os.Environ())
+	env := append(os.Environ(), environ(envEntries)...)
+
+	find, err := runCommand(ctx, config.Spec.Discover.Find.Command, workdir, env)
 	if err != nil {
 		return false, fmt.Errorf("error running find command: %s", err)
 	}

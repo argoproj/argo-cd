@@ -21,12 +21,12 @@ last-updated: 2022-04-01
 
 Support more than one source for creating an Application.
 
-Related Issues: 
+Related Issues:
 * [Proposal: Support multiple sources for an application](https://github.com/argoproj/argo-cd/issues/677)
 * [Helm chart + values from Git](https://github.com/argoproj/argo-cd/issues/2789)
 
 ## Open Questions
-* Adding external sources to the Application reource would add additional latencies for creation/reconcilation process. Should we add it to the doc in Risks?
+* Adding external sources to the Application resource would add additional latencies for creation/reconciliation process. Should we add it to the doc in Risks?
 
 ## Summary
 
@@ -64,13 +64,13 @@ The UI should allow users to add multiple sources while creating the application
 The cli would need to support adding a list of resources instead of just one while creating the application. `values` field should allow referencing value files from other sources. We would need a separate proposal for changes to cli.
 
 ### Non-goals
-* 
+*
 
 ## Proposal
 
 ### Add new `sources` field in Application Spec
 
-The proposal is to add a new field `sources` which would allow users to input list of `ApplicationSource`s. We would mark field `source` as deprecated and would ignore the details under `source` with details under `sources` field. 
+The proposal is to add a new field `sources` which would allow users to input list of `ApplicationSource`s. We would mark field `source` as deprecated and would ignore the details under `source` with details under `sources` field.
 
 Below example shows how the yaml would look like for `source` and `sources` field. We would ignore the `source` field and apply the resources mentioned under `sources` field.
 
@@ -174,12 +174,12 @@ In scenarios, where you have same resource mentioned multiple times in the appli
 
 Add a list of detailed use cases this enhancement intends to take care of.
 
-#### Use case 1: 
+#### Use case 1:
 As a user, I have an Application that uses the [elasticsearch](https://github.com/helm/charts/tree/master/incubator/elasticsearch) helm chart as source. Today, user needs to create a separate Application to configure the [elasticsearch-exporter](https://github.com/helm/charts/tree/master/stable/elasticsearch-exporter
 ) to expose Prometheus metrics.
 https://github.com/argoproj/argo-cd/issues/677
 
-#### Use case 2: 
+#### Use case 2:
 As per one of the [comment]((https://github.com/argoproj/argo-cd/issues/2789#issuecomment-562495307)) on the issue [Helm chart + values files from Git](https://github.com/argoproj/argo-cd/issues/2789):
 ```
 We have a Helm Chart which is used in 30+ Services and each of them is customized for 3 possible environments.
@@ -191,7 +191,7 @@ Modifying the Application definition is not an option since the whole goal is to
 
 #### Attach multiple sources to the Application
 
-To allow multiple sources to the Application, we would add a new field `sources` which would allow users to input list of `ApplicationSource`s. As part of this update and to support backward compatibilty, we would mark field `source` as deprecated and remove it in later revisions.
+To allow multiple sources to the Application, we would add a new field `sources` which would allow users to input list of `ApplicationSource`s. As part of this update and to support backward compatibility, we would mark field `source` as deprecated and remove it in later revisions.
 
 To avoid complexity on the deciding the list of sources, if both `source` and `sources` fields are specified, we would override the source under `source` field with all the sources under `sources` field.
 
@@ -206,7 +206,7 @@ Argo CD benefits from the assumption of a single repo per application to detect 
 As we would have multiple sources as part of the same Application, we would need to track updates to each source and reconcile the Application for each source. When one of the sources change, we would need to ensure that target revisions of other sources are up-to-date, e.g. force a simple refresh to see if target revision of the source (e.g. HEAD), still points to revisionX for example.
 
 #### Updates to UI
-Today, we allow users to add only one source in the UI. We would need to update the UI to add multiple sources and configure specific 
+Today, we allow users to add only one source in the UI. We would need to update the UI to add multiple sources and configure specific
 
 #### Updates to cli
 
@@ -222,7 +222,7 @@ Good unit- and end-to-end tests need to be in place for this functionality to en
 
 #### Uncontrolled number of sources added to Application
 
-The users might add a huge number of external sources to the Application, with a potential performance impact on the Argo CD creation/reconcilation processes. This would apply even for the external value files for Helm projects.
+The users might add a huge number of external sources to the Application, with a potential performance impact on the Argo CD creation/reconciliation processes. This would apply even for the external value files for Helm projects.
 
 A possible mitigation to this would be to enforce the number of external sources allowed per Application.
 
@@ -237,7 +237,7 @@ A possible solution would be to check for the source repository to be whiteliste
 
 Upgrading to a version implementing this proposal should be frictionless and wouldn't require administrators to perform any changes in the configuration to keep the current behaviour. Application created without the new field `.spec.sources` being set will keep their behaviour, since they will allow Application resources to be created the same way they are today.
 
-Downgrading would not be easily possible once users start to make use of the feature and create Applications with the new field `.spec.sources` being set. The Application would no longer be able to recognize the resources and will fail the reconcilation/creation step.
+Downgrading would not be easily possible once users start to make use of the feature and create Applications with the new field `.spec.sources` being set. The Application would no longer be able to recognize the resources and will fail the reconciliation/creation step.
 
 
 ## Drawbacks

@@ -270,10 +270,6 @@ func InitializeGnuPG() error {
 	return err
 }
 
-func ParsePGPKeyBlock(keyFile string) ([]string, error) {
-	return nil, nil
-}
-
 func ImportPGPKeysFromString(keyData string) ([]*appsv1.GnuPGPublicKey, error) {
 	f, err := ioutil.TempFile("", "gpg-key-import")
 	if err != nil {

@@ -18,11 +18,11 @@ These default built-in role definitions can be seen in [builtin-policy.csv](http
 
 Breaking down the permissions definition differs slightly between applications and every other resource type in Argo CD.
 
-* All resources *except* applications permissions (see next bullet):
+* All resources *except* application-specific permissions (see next bullet):
 
     `p, <role/user/group>, <resource>, <action>, <object>`
 
-* Applications (which belong to an AppProject):
+* Applications, logs, and exec (which belong to an AppProject):
 
     `p, <role/user/group>, <resource>, <action>, <appproject>/<object>`
 
@@ -31,6 +31,28 @@ Breaking down the permissions definition differs slightly between applications a
 Resources: `clusters`, `projects`, `applications`, `repositories`, `certificates`, `accounts`, `gpgkeys`, `logs`, `exec`
 
 Actions: `get`, `create`, `update`, `delete`, `sync`, `override`, `action`
+
+#### `exec` resource
+
+`exec` is a special resource. When enabled with the `create` action, this privilege allows a user to `exec` into Pods via 
+the Argo CD UI. The functionality is similar to `kubectl exec`.
+
+`exec` is a powerful privilege. It allows the user to run arbitrary code on any Pod managed by an Application for which
+they have `create` privileges. If the Pod mounts a ServiceAccount token (which is the default behavior of Kubernetes),
+then the user effectively has the same privileges as that ServiceAccount.
+
+The exec feature is disabled entirely by default. To enable it, set the `exec.enabled` key to "true" on the argocd-cm 
+ConfigMap. You will also need to add the following to the argocd-api-server Role (if you're using Argo CD in namespaced
+mode) or ClusterRole (if you're using Argo CD in cluster mode).
+
+```yaml
+- apiGroups:
+  - ""
+  resources:
+  - pods/exec
+  verbs:
+  - create
+```
 
 ## Tying It All Together
 
@@ -57,7 +79,7 @@ data:
     p, role:org-admin, repositories, update, *, allow
     p, role:org-admin, repositories, delete, *, allow
     p, role:org-admin, logs, get, *, allow
-    p, role:org-admin, exec, get, *, allow
+    p, role:org-admin, exec, create, */*, allow
 
     g, your-github-org:your-team, role:org-admin
 ```
@@ -73,12 +95,12 @@ p, role:staging-db-admins, applications, override, staging-db-admins/*, allow
 p, role:staging-db-admins, applications, sync, staging-db-admins/*, allow
 p, role:staging-db-admins, applications, update, staging-db-admins/*, allow
 p, role:staging-db-admins, logs, get, staging-db-admins/*, allow
-p, role:staging-db-admins, exec, get, staging-db-admins/*, allow
+p, role:staging-db-admins, exec, create, staging-db-admins/*, allow
 p, role:staging-db-admins, projects, get, staging-db-admins, allow
 g, db-admins, role:staging-db-admins
 ```
 
-This example defines a *role* called `staging-db-admins` with *eight permissions* that allow that role to perform the *actions* (`create`/`delete`/`get`/`override`/`sync`/`update` applications, `get` logs, `get` exec and `get` appprojects) against `*` (all) objects in the `staging-db-admins` Argo CD AppProject.
+This example defines a *role* called `staging-db-admins` with *eight permissions* that allow that role to perform the *actions* (`create`/`delete`/`get`/`override`/`sync`/`update` applications, `get` logs, `create` exec and `get` appprojects) against `*` (all) objects in the `staging-db-admins` Argo CD AppProject.
 
 ## Anonymous Access
 

@@ -11,8 +11,10 @@ import (
 
 	argov1alpha1 "github.com/argoproj/argo-cd/v2/pkg/apis/application/v1alpha1"
 	"github.com/argoproj/argo-cd/v2/pkg/apis/applicationset/v1alpha1"
+	"github.com/argoproj/argo-cd/v2/test/e2e/fixture"
 	. "github.com/argoproj/argo-cd/v2/test/e2e/fixture/applicationsets"
 	"github.com/argoproj/argo-cd/v2/test/e2e/fixture/applicationsets/utils"
+	. "github.com/argoproj/argo-cd/v2/util/errors"
 )
 
 var (
@@ -613,4 +615,79 @@ func TestSimplePullRequestGenerator(t *testing.T) {
 			},
 		},
 	}).Then().Expect(ApplicationsExist([]argov1alpha1.Application{expectedApp}))
+}
+
+func TestGitGeneratorPrivateRepo(t *testing.T) {
+	FailOnErr(fixture.RunCli("repo", "add", fixture.RepoURL(fixture.RepoURLTypeHTTPS), "--username", fixture.GitUsername, "--password", fixture.GitPassword, "--insecure-skip-server-verification"))
+	generateExpectedApp := func(name string) argov1alpha1.Application {
+		return argov1alpha1.Application{
+			TypeMeta: metav1.TypeMeta{
+				Kind:       "Application",
+				APIVersion: "argoproj.io/v1alpha1",
+			},
+			ObjectMeta: metav1.ObjectMeta{
+				Name:       name,
+				Namespace:  utils.ArgoCDNamespace,
+				Finalizers: []string{"resources-finalizer.argocd.argoproj.io"},
+			},
+			Spec: argov1alpha1.ApplicationSpec{
+				Project: "default",
+				Source: argov1alpha1.ApplicationSource{
+					RepoURL:        fixture.RepoURL(fixture.RepoURLTypeHTTPS),
+					TargetRevision: "HEAD",
+					Path:           name,
+				},
+				Destination: argov1alpha1.ApplicationDestination{
+					Server:    "https://kubernetes.default.svc",
+					Namespace: name,
+				},
+			},
+		}
+	}
+
+	expectedApps := []argov1alpha1.Application{
+		generateExpectedApp("https-kustomize-base"),
+	}
+
+	var expectedAppsNewNamespace []argov1alpha1.Application
+
+	Given(t).
+		When().
+		// Create a GitGenerator-based ApplicationSet
+		Create(v1alpha1.ApplicationSet{ObjectMeta: metav1.ObjectMeta{
+			Name: "simple-git-generator-private",
+		},
+			Spec: v1alpha1.ApplicationSetSpec{
+				Template: v1alpha1.ApplicationSetTemplate{
+					ApplicationSetTemplateMeta: v1alpha1.ApplicationSetTemplateMeta{Name: "{{path.basename}}"},
+					Spec: argov1alpha1.ApplicationSpec{
+						Project: "default",
+						Source: argov1alpha1.ApplicationSource{
+							RepoURL:        fixture.RepoURL(fixture.RepoURLTypeHTTPS),
+							TargetRevision: "HEAD",
+							Path:           "{{path}}",
+						},
+						Destination: argov1alpha1.ApplicationDestination{
+							Server:    "https://kubernetes.default.svc",
+							Namespace: "{{path.basename}}",
+						},
+					},
+				},
+				Generators: []v1alpha1.ApplicationSetGenerator{
+					{
+						Git: &v1alpha1.GitGenerator{
+							RepoURL: fixture.RepoURL(fixture.RepoURLTypeHTTPS),
+							Directories: []v1alpha1.GitDirectoryGeneratorItem{
+								{
+									Path: "*kustomize*",
+								},
+							},
+						},
+					},
+				},
+			},
+		}).Then().Expect(ApplicationsExist(expectedApps)).
+		// Delete the ApplicationSet, and verify it deletes the Applications
+		When().
+		Delete().Then().Expect(ApplicationsDoNotExist(expectedAppsNewNamespace))
 }

@@ -2,6 +2,12 @@
 
 The Git generator contains two subtypes: the Git directory generator, and Git file generator.
 
+!!! warning
+    Git generators are often used to make it easier for (non-admin) developers to create Applications.
+    If the `project` field in your ApplicationSet is templated, developers may be able to create Applications under Projects with excessive permissions.
+    For ApplicationSets with a templated `project` field, [the source of truth _must_ be controlled by admins](./Security.md#templated-project-field)
+    - in the case of git generators, PRs must require admin approval.
+
 ## Git Generator: Directories
 
 The Git directory generator, one of two subtypes of the Git generator, generates parameters using the directory structure of a specified Git repository.
@@ -41,7 +47,7 @@ spec:
     metadata:
       name: '{{path[0]}}'
     spec:
-      project: default
+      project: "my-project"
       source:
         repoURL: https://github.com/argoproj/argo-cd.git
         targetRevision: HEAD
@@ -88,7 +94,7 @@ spec:
     metadata:
       name: '{{path.basename}}'
     spec:
-      project: default
+      project: "my-project"
       source:
         repoURL: https://github.com/argoproj/argo-cd.git
         targetRevision: HEAD

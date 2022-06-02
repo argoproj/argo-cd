@@ -1,10 +1,12 @@
-FROM redis:6.2.6 as redis
+FROM docker.io/library/redis:7.0.0 as redis
 
-FROM node:12.18.4 as node
+FROM docker.io/library/node:12.18.4-buster as node
 
-FROM golang:1.18 as golang
+FROM docker.io/library/golang:1.18 as golang
 
-FROM registry:2.7.1 as registry
+FROM docker.io/library/registry:2.8 as registry
+
+FROM docker.io/bitnami/kubectl:1.23.6 as kubectl
 
 FROM ubuntu:21.10
 
@@ -22,6 +24,7 @@ RUN  apt-get update && apt-get install --fix-missing -y \
         make \
         wget \
         gcc \
+        g++ \
         sudo \
         tini \
         zip && \
@@ -30,7 +33,9 @@ RUN  apt-get update && apt-get install --fix-missing -y \
 
 COPY --from=golang /usr/local/go /usr/local/go
 
-ENV PATH /dist:/go/bin:/usr/local/go/bin:$PATH
+COPY --from=kubectl /opt/bitnami/kubectl/bin/kubectl /usr/local/bin/kubectl
+
+ENV PATH /dist:/go/bin:/usr/local/go/bin:/go/src/github.com/argoproj/argo-cd/dist:$PATH
 ENV GOROOT /usr/local/go
 ENV GOPATH /go
 
@@ -39,7 +44,6 @@ COPY hack/install.sh hack/tool-versions.sh go.* ./
 COPY hack/installers installers
 
 RUN ./install.sh helm-linux && \
-    ./install.sh kubectl-linux && \
     ./install.sh kustomize && \
     ./install.sh codegen-tools && \
     ./install.sh codegen-go-tools && \

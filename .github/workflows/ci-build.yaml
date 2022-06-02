@@ -14,6 +14,10 @@ env:
   # Golang version to use across CI steps
   GOLANG_VERSION: '1.18'
 
+concurrency:
+  group: ${{ github.workflow }}-${{ github.ref }}
+  cancel-in-progress: true
+
 jobs:
   check-go:
     name: Ensure Go modules synchronicity
@@ -67,7 +71,7 @@ jobs:
       - name: Run golangci-lint
         uses: golangci/golangci-lint-action@v3
         with:
-          version: v1.45.2
+          version: v1.46.2
           args: --timeout 10m --exclude SA5011 --verbose
 
   test-go:
@@ -76,7 +80,7 @@ jobs:
     needs:
       - build-go
     env:
-      GITHUB_TOKEN: ${{ secrets.E2E_TEST_GITHUB_TOKEN }}
+      GITHUB_TOKEN: ${{ secrets.E2E_TEST_GITHUB_TOKEN || secrets.GITHUB_TOKEN }}
       GITLAB_TOKEN: ${{ secrets.E2E_TEST_GITLAB_TOKEN }}      
     steps:
       - name: Create checkout directory
@@ -139,7 +143,7 @@ jobs:
     needs:
       - build-go
     env:
-      GITHUB_TOKEN: ${{ secrets.E2E_TEST_GITHUB_TOKEN }}
+      GITHUB_TOKEN: ${{ secrets.E2E_TEST_GITHUB_TOKEN || secrets.GITHUB_TOKEN }}
       GITLAB_TOKEN: ${{ secrets.E2E_TEST_GITLAB_TOKEN }}  
     steps:
       - name: Create checkout directory
@@ -351,7 +355,7 @@ jobs:
       ARGOCD_IN_CI: "true"
       ARGOCD_E2E_APISERVER_PORT: "8088"
       ARGOCD_SERVER: "127.0.0.1:8088"
-      GITHUB_TOKEN: ${{ secrets.E2E_TEST_GITHUB_TOKEN }}
+      GITHUB_TOKEN: ${{ secrets.E2E_TEST_GITHUB_TOKEN || secrets.GITHUB_TOKEN }}
       GITLAB_TOKEN: ${{ secrets.E2E_TEST_GITLAB_TOKEN }}  
     steps:
       - name: Checkout code
@@ -403,7 +407,7 @@ jobs:
         run: |
           docker pull quay.io/dexidp/dex:v2.25.0
           docker pull argoproj/argo-cd-ci-builder:v1.0.0
-          docker pull redis:6.2.6-alpine
+          docker pull redis:7.0.0-alpine
       - name: Create target directory for binaries in the build-process
         run: |
           mkdir -p dist
@@ -416,7 +420,6 @@ jobs:
           # port 8080 which is not visible in netstat -tulpen, but still there
           # with a HTTP listener. We have API server listening on port 8088
           # instead.
-          make controller repo-server server applicationset-controller
           make start-e2e-local 2>&1 | sed -r "s/[[:cntrl:]]\[[0-9]{1,3}m//g" > /tmp/e2e-server.log &
           count=1
           until curl -f http://127.0.0.1:8088/healthz; do

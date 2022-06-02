@@ -166,7 +166,7 @@ func (g *ClusterGenerator) getSecretsByClusterName(appSetGenerator *argoappsetv1
 
 }
 
-// santize the name in accordance with the below rules
+// sanitize the name in accordance with the below rules
 // 1. contain no more than 253 characters
 // 2. contain only lowercase alphanumeric characters, '-' or '.'
 // 3. start and end with an alphanumeric character

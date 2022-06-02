@@ -15,6 +15,9 @@ The ApplicationSet controller, supplements Argo CD by adding additional features
 - Improved support for monorepos: in the context of Argo CD, a monorepo is multiple Argo CD Application resources defined within a single Git repository
 - Within multitenant clusters, improves the ability of individual cluster tenants to deploy applications using Argo CD (without needing to involve privileged cluster administrators in enabling the destination clusters/namespaces)
 
+!!! note
+    Be aware of the [security implications](./Security.md) of ApplicationSets before using them.
+
 ## The ApplicationSet resource
 
 This example defines a new `guestbook` resource of kind `ApplicationSet`:
@@ -37,6 +40,7 @@ spec:
     metadata:
       name: '{{cluster}}-guestbook'
     spec:
+      project: my-project
       source:
         repoURL: https://github.com/infra-team/cluster-deployments.git
         targetRevision: HEAD
@@ -56,8 +60,8 @@ There are multiple generators currently supported by the ApplicationSet controll
 
 - **List generator**: Generates parameters based on a fixed list of cluster name/URL values, as seen in the example above.
 - **Cluster generator**: Rather than a literal list of clusters (as with the list generator), the cluster generator automatically generates cluster parameters based on the clusters that are defined within Argo CD.
-- **Git generator**: The Git generator generates parameters based on files or folders that are contained within the Git repository defined within the generator resource. 
-    - Files containing JSON values will be parsed and converted into template parameters. 
+- **Git generator**: The Git generator generates parameters based on files or folders that are contained within the Git repository defined within the generator resource.
+    - Files containing JSON values will be parsed and converted into template parameters.
     - Individual directory paths within the Git repository may be used as parameter values, as well.
 - **Matrix generator**: The Matrix generators combines the generated parameters of two other generators.
 
@@ -75,7 +79,7 @@ After substitution, this `guestbook` `ApplicationSet` resource is applied to the
 4. Finally, the Argo CD controller is notified of these `Application` resources and is responsible for handling them.
 
 
-With the three different clusters defined in our example -- `engineering-dev`, `engineering-prod`, and `finance-preprod` -- this will produce three new Argo CD `Application` resources: one for each cluster. 
+With the three different clusters defined in our example -- `engineering-dev`, `engineering-prod`, and `finance-preprod` -- this will produce three new Argo CD `Application` resources: one for each cluster.
 
 Here is an example of one of the `Application` resources that would be created, for the `engineering-dev` cluster at `1.2.3.4`:
 ```yaml
@@ -98,7 +102,7 @@ The Applications are now also visible from within the Argo CD UI:
 
 ![List generator example in Argo CD Web UI](../../assets/applicationset/Introduction/List-Example-In-Argo-CD-Web-UI.png)
 
-The ApplicationSet controller will ensure that any changes, updates, or deletions made to `ApplicationSet` resources are automatically applied to the corresponding `Application`(s). 
+The ApplicationSet controller will ensure that any changes, updates, or deletions made to `ApplicationSet` resources are automatically applied to the corresponding `Application`(s).
 
 For instance, if a new cluster/URL list entry was added to the List generator, a new Argo CD `Application` resource would be accordingly created for this new cluster. Any edits made to the `guestbook` `ApplicationSet` resource will affect all the Argo CD Applications that were instantiated by that resource, including the new Application.
 

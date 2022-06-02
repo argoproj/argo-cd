@@ -19,6 +19,12 @@ spec:
 
 * `cloneProtocol`: Which protocol to use for the SCM URL. Default is provider-specific but ssh if possible. Not all providers necessarily support all protocols, see provider documentation below for available options.
 
+!!! note
+    Know the security implications of using SCM generators. [Only admins may create ApplicationSets](./Security.md#only-admins-may-createupdatedelete-applicationsets) 
+    to avoid leaking Secrets, and [only admins may create repos/branches](./Security.md#templated-project-field) if the 
+    `project` field of an ApplicationSet with an SCM generator is templated, to avoid granting management of 
+    out-of-bounds resources.
+
 ## GitHub
 
 The GitHub mode uses the GitHub API to scan and organization in either github.com or GitHub Enterprise.
@@ -46,7 +52,7 @@ spec:
   # ...
 ```
 
-* `organization`: Required name of the GitHub organization to scan. If you have multiple orgs, use multiple generators.
+* `organization`: Required name of the GitHub organization to scan. If you have multiple organizations, use multiple generators.
 * `api`: If using GitHub Enterprise, the URL to access it.
 * `allBranches`: By default (false) the template will only be evaluated for the default branch of each repo. If this is true, every branch of every repository will be passed to the filters. If using this flag, you likely want to use a `branchMatch` filter.
 * `tokenRef`: A `Secret` name and key containing the GitHub access token to use for requests. If not specified, will make anonymous requests which have a lower rate limit and can only see public repositories.
@@ -57,7 +63,7 @@ Available clone protocols are `ssh` and `https`.
 
 ## Gitlab
 
-The Gitlab mode uses the Gitlab API to scan and organization in either gitlab.com or self-hosted gitlab.
+The GitLab mode uses the GitLab API to scan and organization in either gitlab.com or self-hosted GitLab.
 
 ```yaml
 apiVersion: argoproj.io/v1alpha1
@@ -68,7 +74,7 @@ spec:
   generators:
   - scmProvider:
       gitlab:
-        # The base Gitlab group to scan.  You can either use the group id or the full namespaced path.
+        # The base GitLab group to scan.  You can either use the group id or the full namespaced path.
         group: "8675309"
         # For GitLab Enterprise:
         api: https://gitlab.example.com/
@@ -84,11 +90,11 @@ spec:
   # ...
 ```
 
-* `group`: Required name of the base Gitlab group to scan. If you have multiple base groups, use multiple generators.
+* `group`: Required name of the base GitLab group to scan. If you have multiple base groups, use multiple generators.
 * `api`: If using GitHub Enterprise, the URL to access it.
 * `allBranches`: By default (false) the template will only be evaluated for the default branch of each repo. If this is true, every branch of every repository will be passed to the filters. If using this flag, you likely want to use a `branchMatch` filter.
 * `includeSubgroups`: By default (false) the controller will only search for repos directly in the base group. If this is true, it will recurse through all the subgroups searching for repos to scan.
-* `tokenRef`: A `Secret` name and key containing the Gitlab access token to use for requests. If not specified, will make anonymous requests which have a lower rate limit and can only see public repositories.
+* `tokenRef`: A `Secret` name and key containing the GitLab access token to use for requests. If not specified, will make anonymous requests which have a lower rate limit and can only see public repositories.
 
 For label filtering, the repository tags are used.
 
@@ -121,7 +127,7 @@ spec:
   # ...
 ```
 
-* `owner`: Required name of the Gitea organization to scan. If you have multiple orgs, use multiple generators.
+* `owner`: Required name of the Gitea organization to scan. If you have multiple organizations, use multiple generators.
 * `api`: The URL of the Gitea instance you are using.
 * `allBranches`: By default (false) the template will only be evaluated for the default branch of each repo. If this is true, every branch of every repository will be passed to the filters. If using this flag, you likely want to use a `branchMatch` filter.
 * `tokenRef`: A `Secret` name and key containing the Gitea access token to use for requests. If not specified, will make anonymous requests which have a lower rate limit and can only see public repositories.
@@ -143,7 +149,7 @@ metadata:
 spec:
   generators:
   - scmProvider:
-      bitbucketServer:       
+      bitbucketServer:
         project: myproject
         # URL of the Bitbucket Server. Required.
         api: https://mycompany.bitbucket.org

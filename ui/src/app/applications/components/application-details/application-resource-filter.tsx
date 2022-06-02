@@ -1,5 +1,5 @@
 import * as React from 'react';
-import {Checkbox} from 'argo-ui';
+import {Checkbox} from 'argo-ui/v2';
 import {ApplicationTree, HealthStatusCode, HealthStatuses, SyncStatusCode, SyncStatuses} from '../../../shared/models';
 import {AppDetailsPreferences, services} from '../../../shared/services';
 import {Context} from '../../../shared/context';
@@ -153,16 +153,19 @@ export const Filters = (props: {
             })}
             {namespaces.length > 1 && ResourceFilter({label: 'NAMESPACES', prefix: 'namespace', options: (namespaces || []).filter(l => l && l !== '').map(toOption), field: true})}
             {(tree.orphanedNodes || []).length > 0 && (
-                <div className='filter'>
+                <div className={`filter filter__item ${pref.orphanedResources ? 'filter__item--selected' : ''}`}>
                     <Checkbox
-                        checked={!!pref.orphanedResources}
-                        id='orphanedFilter'
+                        value={!!pref.orphanedResources}
                         onChange={val => {
                             ctx.navigation.goto('.', {orphaned: val}, {replace: true});
                             services.viewPreferences.updatePreferences({appDetails: {...pref, orphanedResources: val}});
                         }}
-                    />{' '}
-                    <label htmlFor='orphanedFilter'>SHOW ORPHANED</label>
+                        style={{
+                            marginRight: '8px',
+                            marginLeft: '8px'
+                        }}
+                    />
+                    <div className='filter__item__label'>Show Orphaned</div>
                 </div>
             )}
         </FiltersGroup>
