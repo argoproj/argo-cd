@@ -185,8 +185,9 @@ Before reaching the `init.command`, `generate.command`, and `discover.command` c
 user-supplied environment variables (#3 above) with `ARGOCD_ENV_`. This prevents users from directly setting 
 potentially-sensitive environment variables.
 
-If your plugin was written before 2.3 and depends on user-supplied environment variables, then you will need to update
-your plugin's behavior to work with 2.4.
+If your plugin was written before 2.4 and depends on user-supplied environment variables, then you will need to update
+your plugin's behavior to work with 2.4. If you use a third-party plugin, make sure they explicitly advertise support
+for 2.4.
 
 ## Using a CMP
 
