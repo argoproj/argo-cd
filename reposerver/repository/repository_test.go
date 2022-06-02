@@ -1152,6 +1152,7 @@ func TestListApps(t *testing.T) {
 		"kustomization_yml":              "Kustomize",
 		"my-chart":                       "Helm",
 		"my-chart-2":                     "Helm",
+		"values-files":                   "Helm",
 	}
 	assert.Equal(t, expectedApps, res.Apps)
 }

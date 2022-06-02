@@ -3,7 +3,10 @@ package helm
 import (
 	"fmt"
 	"os"
+	"path/filepath"
 	"testing"
+
+	"github.com/stretchr/testify/require"
 
 	"github.com/argoproj/argo-cd/v2/util/io/path"
 
@@ -53,11 +56,16 @@ func TestHelmTemplateParams(t *testing.T) {
 }
 
 func TestHelmTemplateValues(t *testing.T) {
-	h, err := NewHelmApp("./testdata/redis", []HelmRepository{}, false, "", "", false)
+	repoRoot := "./testdata/redis"
+	repoRootAbs, err := filepath.Abs(repoRoot)
+	require.NoError(t, err)
+	h, err := NewHelmApp(repoRootAbs, []HelmRepository{}, false, "", "", false)
 	assert.NoError(t, err)
+	valuesPath, _, err := path.ResolveFilePath(repoRootAbs, repoRootAbs, "values-production.yaml", nil)
+	require.NoError(t, err)
 	opts := TemplateOpts{
 		Name:   "test",
-		Values: []path.ResolvedFilePath{"values-production.yaml"},
+		Values: []path.ResolvedFilePath{valuesPath},
 	}
 	objs, err := template(h, &opts)
 	assert.Nil(t, err)
@@ -74,33 +82,48 @@ func TestHelmTemplateValues(t *testing.T) {
 }
 
 func TestHelmGetParams(t *testing.T) {
-	h, err := NewHelmApp("./testdata/redis", nil, false, "", "", false)
+	repoRoot := "./testdata/redis"
+	repoRootAbs, err := filepath.Abs(repoRoot)
+	require.NoError(t, err)
+	h, err := NewHelmApp(repoRootAbs, nil, false, "", "", false)
 	assert.NoError(t, err)
 	params, err := h.GetParameters(nil)
 	assert.Nil(t, err)
 
 	slaveCountParam := params["cluster.slaveCount"]
-	assert.Equal(t, slaveCountParam, "1")
+	assert.Equal(t, "1", slaveCountParam)
 }
 
 func TestHelmGetParamsValueFiles(t *testing.T) {
-	h, err := NewHelmApp("./testdata/redis", nil, false, "", "", false)
+	repoRoot := "./testdata/redis"
+	repoRootAbs, err := filepath.Abs(repoRoot)
+	require.NoError(t, err)
+	h, err := NewHelmApp(repoRootAbs, nil, false, "", "", false)
 	assert.NoError(t, err)
-	params, err := h.GetParameters([]path.ResolvedFilePath{"values-production.yaml"})
+	valuesPath, _, err := path.ResolveFilePath(repoRootAbs, repoRootAbs, "values-production.yaml", nil)
+	require.NoError(t, err)
+	params, err := h.GetParameters([]path.ResolvedFilePath{valuesPath})
 	assert.Nil(t, err)
 
 	slaveCountParam := params["cluster.slaveCount"]
-	assert.Equal(t, slaveCountParam, "3")
+	assert.Equal(t, "3", slaveCountParam)
 }
 
 func TestHelmGetParamsValueFilesThatExist(t *testing.T) {
-	h, err := NewHelmApp("./testdata/redis", nil, false, "", "", false)
+	repoRoot := "./testdata/redis"
+	repoRootAbs, err := filepath.Abs(repoRoot)
+	require.NoError(t, err)
+	h, err := NewHelmApp(repoRootAbs, nil, false, "", "", false)
 	assert.NoError(t, err)
-	params, err := h.GetParameters([]path.ResolvedFilePath{"values-missing.yaml", "values-production.yaml"})
+	valuesMissingPath, _, err := path.ResolveFilePath(repoRootAbs, repoRootAbs, "values-missing.yaml", nil)
+	require.NoError(t, err)
+	valuesProductionPath, _, err := path.ResolveFilePath(repoRootAbs, repoRootAbs, "values-production.yaml", nil)
+	require.NoError(t, err)
+	params, err := h.GetParameters([]path.ResolvedFilePath{valuesMissingPath, valuesProductionPath})
 	assert.Nil(t, err)
 
 	slaveCountParam := params["cluster.slaveCount"]
-	assert.Equal(t, slaveCountParam, "3")
+	assert.Equal(t, "3", slaveCountParam)
 }
 
 func TestHelmDependencyBuild(t *testing.T) {
