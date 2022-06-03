@@ -94,8 +94,8 @@ func (s *terminalHandler) ServeHTTP(w http.ResponseWriter, r *http.Request) {
 
 	podName := q.Get("pod")
 	container := q.Get("container")
-	app := q.Get("app")
-	project := q.Get("project")
+	app := q.Get("appName")
+	project := q.Get("projectName")
 	namespace := q.Get("namespace")
 
 	if podName == "" || container == "" || app == "" || project == "" || namespace == "" {
@@ -123,7 +123,7 @@ func (s *terminalHandler) ServeHTTP(w http.ResponseWriter, r *http.Request) {
 		http.Error(w, "Namespace name is not valid", http.StatusBadRequest)
 		return
 	}
-	shell := q.Get("shell")  // No need to validate. Will only buse used if it's in the allow-list.
+	shell := q.Get("shell") // No need to validate. Will only buse used if it's in the allow-list.
 
 	ctx := r.Context()
 
