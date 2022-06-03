@@ -44,7 +44,7 @@ func (m *MatrixGenerator) GenerateParams(appSetGenerator *argoprojiov1alpha1.App
 
 	res := []map[string]string{}
 
-	g0, err := m.getParams(appSetGenerator.Matrix.Generators[0], appSet, map[string]string{})
+	g0, err := m.getParams(appSetGenerator.Matrix.Generators[0], appSet, nil)
 	if err != nil {
 		return nil, err
 	}
