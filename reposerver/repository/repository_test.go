@@ -1174,6 +1174,7 @@ func TestListApps(t *testing.T) {
 		"kustomization_yml":              "Kustomize",
 		"my-chart":                       "Helm",
 		"my-chart-2":                     "Helm",
+		"values-files":                   "Helm",
 	}
 	assert.Equal(t, expectedApps, res.Apps)
 }
@@ -1935,4 +1936,33 @@ func runGit(t *testing.T, workDir string, args ...string) string {
 	stringOut := string(out)
 	require.NoError(t, err, stringOut)
 	return stringOut
+}
+
+func Test_findHelmValueFilesInPath(t *testing.T) {
+	t.Run("does not exist", func(t *testing.T) {
+		files, err := findHelmValueFilesInPath("/obviously/does/not/exist")
+		assert.Error(t, err)
+		assert.Empty(t, files)
+	})
+	t.Run("values files", func(t *testing.T) {
+		files, err := findHelmValueFilesInPath("./testdata/values-files")
+		assert.NoError(t, err)
+		assert.Len(t, files, 4)
+	})
+}
+
+func Test_populateHelmAppDetails(t *testing.T) {
+	res := apiclient.RepoAppDetailsResponse{}
+	q := apiclient.RepoServerAppDetailsQuery{
+		Repo: &argoappv1.Repository{},
+		Source: &argoappv1.ApplicationSource{
+			Helm: &argoappv1.ApplicationSourceHelm{ValueFiles: []string{"exclude.yaml", "has-the-word-values.yaml"}},
+		},
+	}
+	appPath, err := filepath.Abs("./testdata/values-files/")
+	require.NoError(t, err)
+	err = populateHelmAppDetails(&res, appPath, appPath, &q)
+	require.NoError(t, err)
+	assert.Len(t, res.Helm.Parameters, 3)
+	assert.Len(t, res.Helm.ValueFiles, 4)
 }

@@ -802,6 +802,9 @@ func TestAuthenticate_bad_request_metadata(t *testing.T) {
 		t.Run(testDataCopy.test, func(t *testing.T) {
 			t.Parallel()
 
+			// Must be declared here to avoid race.
+			ctx := context.Background()  //nolint:ineffassign,staticcheck
+
 			argocd, _ := getTestServer(t, testDataCopy.anonymousEnabled, true)
 			ctx := context.Background()
 			ctx = metadata.NewIncomingContext(context.Background(), testDataCopy.metadata)
