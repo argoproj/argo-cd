@@ -1,4 +1,4 @@
-ARG BASE_IMAGE=docker.io/library/ubuntu:21.10
+ARG BASE_IMAGE=docker.io/library/ubuntu:22.04
 ####################################################################################################
 # Builder image
 # Initial stage which pulls prepares build dependencies and CLI tooling we need for our final image
@@ -69,7 +69,7 @@ RUN ln -s /usr/local/aws-cli/v2/current/dist/aws /usr/local/bin/aws
 # support for mounting configuration from a configmap
 RUN mkdir -p /app/config/ssh && \
     touch /app/config/ssh/ssh_known_hosts && \
-    ln -s /app/config/ssh/ssh_known_hosts /etc/ssh/ssh_known_hosts 
+    ln -s /app/config/ssh/ssh_known_hosts /etc/ssh/ssh_known_hosts
 
 RUN mkdir -p /app/config/tls
 RUN mkdir -p /app/config/gpg/source && \
