@@ -2,13 +2,13 @@
 
 ## v2.4.0 (Unreleased)
 
-### Web Terminal In Argo CD UI
+### Web Terminal In Argo CD UI
 
 Feature enables engineers to start a shell in the running application container without leaving the web interface. Just find the required Kubernetes
 Pod using the Application Details page, click on it and select the Terminal tab. The shell starts automatically and enables you to execute the required
 commands, and helps to troubleshoot the application state.
 
-### Access Control For Pod Logs & Web Terminal
+### Access Control For Pod Logs & Web Terminal
 
 Argo CD is used to manage the critical infrastructure of multiple organizations, which makes security the top priority of the project. We've listened to
 your feedback and introduced additional access control settings that control access to Kubernetes Pod logs and the new Web Terminal feature.
@@ -22,12 +22,12 @@ Currently, upon pressing the "LOGS" tab in pod view by users who don't have an e
 The new feature allows emitting richer telemetry data that might make identifying performance bottlenecks easier. The new feature is available for argocd-server
 and argocd-repo-server components and can be enabled using the --otlp-address flag.
 
-### Power PC and IBM Z Support
+### Power PC and IBM Z Support
 
 The list of supported architectures has been expanded, and now includes IBM Z (s390x) and PowerPC (ppc64le). Starting with the v2.4 release the official quay.io
 repository is going to have images for amd64, arm64, ppc64le, and s390x architectures.
 
-### Other Notable Changes
+### Other Notable Changes
 
 Overall v2.4 release includes more than 300 hundred commits from nearly 90 contributors. Here is a short sample of the contributions:
 
