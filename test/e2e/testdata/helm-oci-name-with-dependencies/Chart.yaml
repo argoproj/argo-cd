@@ -1,0 +1,7 @@
+apiVersion: v2
+name: helm-oci-with-dependencies
+version: 1.0.0
+dependencies:
+  - name: helm-values
+    repository: "@myrepo"
+    version: 1.0.0

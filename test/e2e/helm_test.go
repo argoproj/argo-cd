@@ -523,6 +523,22 @@ func TestGitWithHelmOCIRegistryDependencies(t *testing.T) {
 		Expect(SyncStatusIs(SyncStatusCodeSynced))
 }
 
+func TestGitWithHelmOCIRegistryNameDependencies(t *testing.T) {
+	Given(t).
+		PushChartToOCIRegistry("helm-values", "helm-values", "1.0.0").
+		HelmOCIRepoAdded("myrepo").
+		Path("helm-oci-name-with-dependencies").
+		When().
+		CreateApp().
+		Then().
+		When().
+		Sync().
+		Then().
+		Expect(OperationPhaseIs(OperationSucceeded)).
+		Expect(HealthIs(health.HealthStatusHealthy)).
+		Expect(SyncStatusIs(SyncStatusCodeSynced))
+}
+
 func TestHelmOCIRegistryWithDependencies(t *testing.T) {
 	Given(t).
 		PushChartToOCIRegistry("helm-values", "helm-values", "1.0.0").
