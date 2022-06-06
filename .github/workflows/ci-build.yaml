@@ -21,7 +21,7 @@ concurrency:
 jobs:
   check-go:
     name: Ensure Go modules synchronicity
-    runs-on: ubuntu-latest
+    runs-on: ubuntu-22.04
     steps:
       - name: Checkout code
         uses: actions/checkout@v2
@@ -39,7 +39,7 @@ jobs:
 
   build-go:
     name: Build & cache Go code
-    runs-on: ubuntu-latest
+    runs-on: ubuntu-22.04
     steps:
       - name: Checkout code
         uses: actions/checkout@v2
@@ -60,7 +60,7 @@ jobs:
 
   lint-go:
     name: Lint Go code
-    runs-on: ubuntu-latest
+    runs-on: ubuntu-22.04
     steps:
       - name: Checkout code
         uses: actions/checkout@v2
@@ -76,7 +76,7 @@ jobs:
 
   test-go:
     name: Run unit tests for Go packages
-    runs-on: ubuntu-latest
+    runs-on: ubuntu-22.04
     needs:
       - build-go
     env:
@@ -139,7 +139,7 @@ jobs:
 
   test-go-race:
     name: Run unit tests with -race, for Go packages
-    runs-on: ubuntu-latest
+    runs-on: ubuntu-22.04
     needs:
       - build-go
     env:
@@ -197,7 +197,7 @@ jobs:
 
   codegen:
     name: Check changes to generated code
-    runs-on: ubuntu-latest
+    runs-on: ubuntu-22.04
     steps:
       - name: Checkout code
         uses: actions/checkout@v2
@@ -241,7 +241,7 @@ jobs:
 
   build-ui:
     name: Build, test & lint UI code
-    runs-on: ubuntu-latest
+    runs-on: ubuntu-22.04
     steps:
       - name: Checkout code
         uses: actions/checkout@v2
@@ -273,7 +273,7 @@ jobs:
 
   analyze:
     name: Process & analyze test artifacts
-    runs-on: ubuntu-latest
+    runs-on: ubuntu-22.04
     needs:
       - test-go
       - build-ui
@@ -339,7 +339,7 @@ jobs:
 
   test-e2e:
     name: Run end-to-end tests
-    runs-on: ubuntu-latest
+    runs-on: ubuntu-22.04
     strategy:
       matrix:
         k3s-version: [v1.23.3, v1.22.6, v1.21.2]
