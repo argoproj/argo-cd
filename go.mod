@@ -9,7 +9,7 @@ require (
 	github.com/TomOnTime/utfutil v0.0.0-20180511104225-09c41003ee1d
 	github.com/alicebob/miniredis v2.5.0+incompatible
 	github.com/alicebob/miniredis/v2 v2.14.2
-	github.com/argoproj/gitops-engine v0.6.1-0.20220328190556-73bcea9c8c8f
+	github.com/argoproj/gitops-engine v0.7.0
 	github.com/argoproj/notifications-engine v0.3.1-0.20220430155844-567361917320
 	github.com/argoproj/pkg v0.11.1-0.20211203175135-36c59d8fafe0
 	github.com/aws/aws-sdk-go v1.38.49
@@ -75,7 +75,7 @@ require (
 	github.com/whilp/git-urls v0.0.0-20191001220047-6db9661140c0
 	github.com/xanzy/go-gitlab v0.60.0
 	github.com/yuin/gopher-lua v0.0.0-20200816102855-ee81675732da
-	golang.org/x/crypto v0.0.0-20210817164053-32db794688a5
+	golang.org/x/crypto v0.0.0-20220525230936-793ad666bf5e
 	golang.org/x/net v0.0.0-20211209124913-491a49abca63
 	golang.org/x/oauth2 v0.0.0-20211104180415-d3ed0bb246c8
 	golang.org/x/sync v0.0.0-20210220032951-036812b2e83c

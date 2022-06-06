@@ -6,7 +6,6 @@ import (
 	"net/url"
 	"os"
 	"os/exec"
-	"path"
 	"strings"
 
 	"github.com/ghodss/yaml"
@@ -143,11 +142,10 @@ func (h *helm) GetParameters(valuesFiles []pathutil.ResolvedFilePath) (map[strin
 		if err == nil && (parsedURL.Scheme == "http" || parsedURL.Scheme == "https") {
 			fileValues, err = config.ReadRemoteFile(file)
 		} else {
-			filePath := path.Join(h.cmd.WorkDir, file)
-			if _, err := os.Stat(filePath); os.IsNotExist(err) {
+			if _, err := os.Stat(file); os.IsNotExist(err) {
 				continue
 			}
-			fileValues, err = ioutil.ReadFile(filePath)
+			fileValues, err = ioutil.ReadFile(file)
 		}
 		if err != nil {
 			return nil, fmt.Errorf("failed to read value file %s: %s", file, err)

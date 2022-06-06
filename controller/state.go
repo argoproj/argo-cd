@@ -461,7 +461,14 @@ func (m *appStateManager) CompareAppState(app *v1alpha1.Application, project *ap
 	} else {
 		diffConfigBuilder.WithCache(m.cache, app.GetName())
 	}
-	// it necessary to ignore the error at this point to avoid creating duplicated
+
+	gvkParser, err := m.getGVKParser(app.Spec.Destination.Server)
+	if err != nil {
+		conditions = append(conditions, v1alpha1.ApplicationCondition{Type: v1alpha1.ApplicationConditionUnknownError, Message: err.Error(), LastTransitionTime: &now})
+	}
+	diffConfigBuilder.WithGVKParser(gvkParser)
+
+	// it is necessary to ignore the error at this point to avoid creating duplicated
 	// application conditions as argo.StateDiffs will validate this diffConfig again.
 	diffConfig, _ := diffConfigBuilder.Build()
 
