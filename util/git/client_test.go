@@ -92,3 +92,9 @@ func Test_nativeGitClient_Fetch_Prune(t *testing.T) {
 	err = client.Fetch("")
 	assert.NoError(t, err)
 }
+
+func TestNewClient_invalidSSHURL(t *testing.T) {
+	client, err := NewClient("ssh://bitbucket.org:org/repo", NopCreds{}, false, false, "")
+	assert.Nil(t, client)
+	assert.ErrorIs(t, err, ErrInvalidRepoURL)
+}
