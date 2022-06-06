@@ -116,36 +116,65 @@ data:
   scopes: '[email,groups]'
 ```
 
-## OIDC (without Dex)
+## OIDC
 
 !!! warning "Do you want groups for RBAC later?"
     If you want `groups` scope returned from Okta you need to unfortunately contact support to enable [API Access Management with Okta](https://developer.okta.com/docs/concepts/api-access-management/) or [_just use SAML above!_](#saml-with-dex)
 
     Next you may need the API Access Management feature, which the support team can enable for your OktaPreview domain for testing, to enable "custom scopes" and a separate endpoint to use instead of the "public" `/oauth2/v1/authorize` API Access Management endpoint. This might be a paid feature if you want OIDC unfortunately. The free alternative I found was SAML.
 
+# Set up your Authorization Server in OKTA
 1. On the `Okta Admin` page, navigate to the Okta API Management at `Security > API`.
     ![Okta API Management](../../assets/api-management.png)
-1. Choose your `default` authorization server.
+1. Choose your `default` authorization server, or create a new one called `argo`, which an audience of `api://argo`.
 1. Click `Scopes > Add Scope`
     1. Add a scope called `groups`.
     ![Groups Scope](../../assets/groups-scope.png)
+1. Click `Access Policies > Edit default Rule`
+    1. Add the following, make sure `Implicit` and `Authorization Code` is selected, and you can edit the others:
+    ![Policy](../../assets/okta-access-rule.png)
 1. Click `Claims > Add Claim.`
     1. Add a claim called `groups`
     1. Choose the matching options you need, one example is:
         * e.g. to match groups starting with `argocd-` you'd return an `ID Token` using your scope name from step 3 (e.g. `groups`) where the groups name `matches` the `regex` `argocd-.*`
     ![Groups Claim](../../assets/groups-claim.png)
-1. Edit the `argocd-cm` and configure the `data.oidc.config` section:
+
+# Set up your Argo Application in OKTA
+1. On the `Okta Admin` page, navigate to the Applications at `Applications > Applications`.
+1. Click on `Create App Integration`.
+    1. Select `OIDC - OpenID connect` as your sign-in method.
+    1. Select `Web Application` as your application type.
+1. On the `New Web app integration` page, do the following:
+    1. Enter `ArgoCD` as the app integration name
+    1. Select `Authorization Code` and `Implicit(hybrid)` for `Grant Type`
+    1. For `Sign-in redirect URIs`, enter `https://${your.fqdn.com}/auth/callback` and `http://localhost:8085/auth/callback` (this is for signing in with CLI)
+    1. For `Assignments`, select `Allow everyone in your organization to access`, or choose `Limit access to selected groups` if desired.
+    1. Click `Save` and on the next page, save the information for `ClientID` and `Client Secret`.
+    ![Application](../../assets/okta-application.png)
+    1. On the `Sign On` tab, edit `OpenID Connect ID Token` and add a `Groups Claim Filter`.  Add `groups` and `matches regex` to be `.*`. This will give all the groups for the user, you can edit as needed, such as `argocd-users` as your OKTA group.
+    ![Group filter](../../assets/okta-application-group-filter.png)
+    1. On the `OKTA API Scopes` tab, grant the following: `okta.groups.read` and `okta.users.read.self`.
+
+# Edit your ConfigMaps in Argo
+
+1. Base64 encode your `Client Secret` from above.
+1. Edit your `argocd-secret` (`kubectl edit secrets/argocd-secret -n argocd`) to have the following key: `oidc.okta.clientSecret` and the value should be your base64 encoded string.
+1. Edit your `kubectl edit configmap/argocd-rbac-cm -n argocd` to have the following group assignment in `policy.csv`:
+`g, "${YOUR_OKTA_GROUP_HERE}, role: ${WHATEVER_ROLE_YOU_WANT}`, e.g; " `g, "argocd-users", role: admin`.
+1. Edit the `argocd-cm` and configure the `data.oidc.config` section (`kubectl edit configmap/argocd-cm -n argocd`)
 
 <!-- markdownlint-disable MD046 -->
 ```yaml
+url: https://${your.fqdn.com}
 oidc.config: |
   name: Okta
   issuer: https://yourorganization.oktapreview.com
   clientID: 0oaltaqg3oAIf2NOa0h3
-  clientSecret: ZXF_CfUc-rtwNfzFecGquzdeJ_MxM4sGc8pDT2Tg6t
+  clientSecret: $oidc.okta.clientSecret
   requestedScopes: ["openid", "profile", "email", "groups"]
   requestedIDTokenClaims: {"groups": {"essential": true}}
 ```
 <!-- markdownlint-enable MD046 -->
 
+1. Note, if you see `grpc client` errors, you might want to restart your argocd server: `kubectl rollout restart deploy/argocd-server -n argocd`
 
