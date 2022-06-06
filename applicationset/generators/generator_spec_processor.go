@@ -1,12 +1,14 @@
 package generators
 
 import (
+	"encoding/json"
+	"github.com/argoproj/argo-cd/v2/applicationset/utils"
+	"github.com/valyala/fasttemplate"
 	"reflect"
 
+	argoprojiov1alpha1 "github.com/argoproj/argo-cd/v2/pkg/apis/applicationset/v1alpha1"
 	"github.com/imdario/mergo"
 	log "github.com/sirupsen/logrus"
-
-	argoprojiov1alpha1 "github.com/argoproj/argo-cd/v2/pkg/apis/applicationset/v1alpha1"
 )
 
 type TransformResult struct {
@@ -15,9 +17,10 @@ type TransformResult struct {
 }
 
 //Transform a spec generator to list of paramSets and a template
-func Transform(requestedGenerator argoprojiov1alpha1.ApplicationSetGenerator, allGenerators map[string]Generator, baseTemplate argoprojiov1alpha1.ApplicationSetTemplate, appSet *argoprojiov1alpha1.ApplicationSet) ([]TransformResult, error) {
+func Transform(requestedGenerator argoprojiov1alpha1.ApplicationSetGenerator, allGenerators map[string]Generator, baseTemplate argoprojiov1alpha1.ApplicationSetTemplate, appSet *argoprojiov1alpha1.ApplicationSet, genParams map[string]string) ([]TransformResult, error) {
 	res := []TransformResult{}
 	var firstError error
+	interpolatedGenerator := requestedGenerator.DeepCopy()
 
 	generators := GetRelevantGenerators(&requestedGenerator, allGenerators)
 	for _, g := range generators {
@@ -31,8 +34,20 @@ func Transform(requestedGenerator argoprojiov1alpha1.ApplicationSetGenerator, al
 			}
 			continue
 		}
-
-		params, err := g.GenerateParams(&requestedGenerator, appSet)
+		var params []map[string]string
+		if len(genParams) != 0 {
+			tempInterpolatedGenerator, err := interpolateGenerator(&requestedGenerator, genParams)
+			interpolatedGenerator = &tempInterpolatedGenerator
+			if err != nil {
+				log.WithError(err).WithField("genParams", genParams).
+					Error("error interpolating params for generator")
+				if firstError == nil {
+					firstError = err
+				}
+				continue
+			}
+		}
+		params, err = g.GenerateParams(interpolatedGenerator, appSet)
 		if err != nil {
 			log.WithError(err).WithField("generator", g).
 				Error("error generating params")
@@ -46,11 +61,9 @@ func Transform(requestedGenerator argoprojiov1alpha1.ApplicationSetGenerator, al
 			Params:   params,
 			Template: mergedTemplate,
 		})
-
 	}
 
 	return res, firstError
-
 }
 
 func GetRelevantGenerators(requestedGenerator *argoprojiov1alpha1.ApplicationSetGenerator, generators map[string]Generator) []Generator {
@@ -80,4 +93,30 @@ func mergeGeneratorTemplate(g Generator, requestedGenerator *argoprojiov1alpha1.
 	err := mergo.Merge(dest, applicationSetTemplate)
 
 	return *dest, err
+}
+
+// Currently for Matrix Generator. Allows interpolating the matrix's 2nd child generator with values from the 1st child generator
+// "params" parameter is an array, where each index corresponds to a generator. Each index contains a map w/ that generator's parameters.
+func interpolateGenerator(requestedGenerator *argoprojiov1alpha1.ApplicationSetGenerator, params map[string]string) (argoprojiov1alpha1.ApplicationSetGenerator, error) {
+	interpolatedGenerator := requestedGenerator.DeepCopy()
+	tmplBytes, err := json.Marshal(interpolatedGenerator)
+	if err != nil {
+		log.WithError(err).WithField("requestedGenerator", interpolatedGenerator).Error("error marshalling requested generator for interpolation")
+		return *interpolatedGenerator, err
+	}
+
+	render := utils.Render{}
+	fstTmpl := fasttemplate.New(string(tmplBytes), "{{", "}}")
+	replacedTmplStr, err := render.Replace(fstTmpl, params, true)
+	if err != nil {
+		log.WithError(err).WithField("interpolatedGeneratorString", replacedTmplStr).Error("error interpolating generator with other generator's parameter")
+		return *interpolatedGenerator, err
+	}
+
+	err = json.Unmarshal([]byte(replacedTmplStr), interpolatedGenerator)
+	if err != nil {
+		log.WithError(err).WithField("requestedGenerator", interpolatedGenerator).Error("error unmarshalling requested generator for interpolation")
+		return *interpolatedGenerator, err
+	}
+	return *interpolatedGenerator, nil
 }

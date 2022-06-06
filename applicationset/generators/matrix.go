@@ -44,16 +44,15 @@ func (m *MatrixGenerator) GenerateParams(appSetGenerator *argoprojiov1alpha1.App
 
 	res := []map[string]string{}
 
-	g0, err := m.getParams(appSetGenerator.Matrix.Generators[0], appSet)
+	g0, err := m.getParams(appSetGenerator.Matrix.Generators[0], appSet, nil)
 	if err != nil {
 		return nil, err
 	}
-	g1, err := m.getParams(appSetGenerator.Matrix.Generators[1], appSet)
-	if err != nil {
-		return nil, err
-	}
-
 	for _, a := range g0 {
+		g1, err := m.getParams(appSetGenerator.Matrix.Generators[1], appSet, a)
+		if err != nil {
+			return nil, err
+		}
 		for _, b := range g1 {
 			val, err := utils.CombineStringMaps(a, b)
 			if err != nil {
@@ -66,7 +65,7 @@ func (m *MatrixGenerator) GenerateParams(appSetGenerator *argoprojiov1alpha1.App
 	return res, nil
 }
 
-func (m *MatrixGenerator) getParams(appSetBaseGenerator argoprojiov1alpha1.ApplicationSetNestedGenerator, appSet *argoprojiov1alpha1.ApplicationSet) ([]map[string]string, error) {
+func (m *MatrixGenerator) getParams(appSetBaseGenerator argoprojiov1alpha1.ApplicationSetNestedGenerator, appSet *argoprojiov1alpha1.ApplicationSet, params map[string]string) ([]map[string]string, error) {
 	var matrix *argoprojiov1alpha1.MatrixGenerator
 	if appSetBaseGenerator.Matrix != nil {
 		// Since nested matrix generator is represented as a JSON object in the CRD, we unmarshall it back to a Go struct here.
@@ -104,7 +103,8 @@ func (m *MatrixGenerator) getParams(appSetBaseGenerator argoprojiov1alpha1.Appli
 		},
 		m.supportedGenerators,
 		argoprojiov1alpha1.ApplicationSetTemplate{},
-		appSet)
+		appSet,
+		params)
 
 	if err != nil {
 		return nil, fmt.Errorf("child generator returned an error on parameter generation: %v", err)
