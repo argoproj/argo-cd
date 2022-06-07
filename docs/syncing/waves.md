@@ -37,8 +37,8 @@ separated list.
 Once you have assigned resources to different phases, during a sync operation Argo CD will do the following.
 
 1. Apply all the resources marked as `PreSync` hooks. If _any_ of them fails the whole sync process will stop
-1. Apply all the resources marked as `Sync` hooks. If _any_ of them fails the whole sync process mark as failed. Hooks marked with the `SyncFail` will also run
-1. Apply all the resources marked as `PostSync` hooks. If _any_ of them fails the whole sync process mark as failed. 
+1. Apply all the resources marked as `Sync` hooks. If _any_ of them fails the whole sync process will be marked as failed. Hooks marked with `SyncFail` will also run
+1. Apply all the resources marked as `PostSync` hooks. If _any_ of them fails the whole sync process will be marked as failed. 
 1. Hooks marked with `Skip` will not be applied.
 
 
@@ -109,7 +109,7 @@ OutOfSync even though the Job or Workflow was deleted after completion.
 
 ## Sync Waves
 
-Argo CD also offers an alternative method of changing the sync order of resources. These are sync waves. They are defined by the `argocd.argoproj.io/sync-wave` annotation. The value is an integer that defines the ordering (ArgoCD will start deploying from the smallest number and finish with the larger number).
+Argo CD also offers an alternative method of changing the sync order of resources. These are sync waves. They are defined by the `argocd.argoproj.io/sync-wave` annotation. The value is an integer that defines the ordering (ArgoCD will start deploying from the lowest number and finish with the highest number).
 
 ```yaml
 metadata:
@@ -121,7 +121,7 @@ Hooks and resources are assigned to wave 0 by default. The wave can be negative,
 
 When a sync operation takes place, Argo CD will:
 
-1. Order all resources according their wave (lowest to highest)
+1. Order all resources according to their wave (lowest to highest)
 1. Apply the resources according to the resulting sequence
 
 !!! note
