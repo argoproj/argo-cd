@@ -5,10 +5,10 @@ import (
 	"encoding/json"
 	"fmt"
 	"reflect"
+	"sigs.k8s.io/yaml"
 	"strings"
 
 	"github.com/argoproj/argo-cd/v2/common"
-	"sigs.k8s.io/yaml"
 
 	"github.com/argoproj/gitops-engine/pkg/health"
 	"github.com/argoproj/gitops-engine/pkg/utils/kube"
