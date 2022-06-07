@@ -16,6 +16,7 @@ import (
 	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
 	"k8s.io/apimachinery/pkg/apis/meta/v1/unstructured"
 	"k8s.io/apimachinery/pkg/watch"
+	"sigs.k8s.io/yaml"
 
 	"github.com/argoproj/argo-cd/v2/pkg/apiclient/application"
 	"github.com/argoproj/argo-cd/v2/pkg/apiclient/events"
@@ -352,6 +353,14 @@ func getResourceEventPayload(
 		syncStarted = a.Status.OperationState.StartedAt
 		syncFinished = a.Status.OperationState.FinishedAt
 		errors = append(errors, parseResourceSyncResultErrors(rs, a.Status.OperationState)...)
+	}
+
+	if len(desiredState.RawManifest) == 0 && len(desiredState.CompiledManifest) != 0 {
+		// for handling helm defined resources, etc...
+		y, err := yaml.JSONToYAML([]byte(desiredState.CompiledManifest))
+		if err == nil {
+			desiredState.RawManifest = string(y)
+		}
 	}
 
 	source := events.ObjectSource{
