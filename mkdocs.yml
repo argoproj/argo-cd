@@ -63,7 +63,6 @@ nav:
     - Diffing behavior: syncing/diffing.md
     - GnuPG commit verification: syncing/gnupg.md
     - Git refresh webhooks: syncing/git_webhooks.md
-    - Resource Hooks: syncing/hooks.md
   - Tools:
     - Overview: tools/index.md
     - Helm: tools/helm.md

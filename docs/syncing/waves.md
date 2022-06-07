@@ -241,8 +241,3 @@ spec:
 ```
 
 For more information at possible scenarios look at [Kubernetes Jobs](https://kubernetes.io/docs/concepts/workloads/controllers/job/) and [Argo Workflows](https://argoproj.github.io/workflows/).
-
-
-
-
-

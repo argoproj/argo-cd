@@ -69,7 +69,7 @@ details about the different tracking strategies available.
 * CLI for automation and CI integration
 * [Webhook integration](syncing/git_webhooks.md) (GitHub, BitBucket, GitLab)
 * Access tokens for automation
-* [PreSync, Sync, PostSync hooks](syncing/hooks.md) to support complex application rollouts (e.g.blue/green & canary upgrades)
+* [PreSync, Sync, PostSync hooks](syncing/waves.md) to support complex application rollouts (e.g.blue/green & canary upgrades)
 * [Sync waves](syncing/waves.md) to control order of resource deployment
 * Audit trails for application events and API calls
 * [Prometheus metrics](operations/metrics.md)
