@@ -126,7 +126,7 @@ data:
 # Set up your Authorization Server in OKTA
 1. On the `Okta Admin` page, navigate to the Okta API Management at `Security > API`.
     ![Okta API Management](../../assets/api-management.png)
-1. Choose your `default` authorization server, or create a new one called `argo`, which an audience of `api://argo`.
+1. Choose your `default` authorization server, or create a new one called `argo`, with an audience of `api://argo`.
 1. Click `Scopes > Add Scope`
     1. Add a scope called `groups`.
     ![Groups Scope](../../assets/groups-scope.png)
