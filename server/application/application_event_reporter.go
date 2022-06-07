@@ -8,6 +8,7 @@ import (
 	"strings"
 
 	"github.com/argoproj/argo-cd/v2/common"
+	"sigs.k8s.io/yaml"
 
 	"github.com/argoproj/gitops-engine/pkg/health"
 	"github.com/argoproj/gitops-engine/pkg/utils/kube"
@@ -352,6 +353,14 @@ func getResourceEventPayload(
 		syncStarted = a.Status.OperationState.StartedAt
 		syncFinished = a.Status.OperationState.FinishedAt
 		errors = append(errors, parseResourceSyncResultErrors(rs, a.Status.OperationState)...)
+	}
+
+	if len(desiredState.RawManifest) == 0 && len(desiredState.CompiledManifest) != 0 {
+		// for handling helm defined resources, etc.
+		y, err := yaml.JSONToYAML([]byte(desiredState.CompiledManifest))
+		if err == nil {
+			desiredState.RawManifest = string(y)
+		}
 	}
 
 	source := events.ObjectSource{
