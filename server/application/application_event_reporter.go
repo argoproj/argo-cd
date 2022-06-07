@@ -356,7 +356,7 @@ func getResourceEventPayload(
 	}
 
 	if len(desiredState.RawManifest) == 0 && len(desiredState.CompiledManifest) != 0 {
-		// for handling helm defined resources, etc.
+		// for handling helm defined resources, etc...
 		y, err := yaml.JSONToYAML([]byte(desiredState.CompiledManifest))
 		if err == nil {
 			desiredState.RawManifest = string(y)
