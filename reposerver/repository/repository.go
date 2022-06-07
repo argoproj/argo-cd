@@ -873,7 +873,11 @@ func GenerateManifests(ctx context.Context, appPath, repoRoot, revision string, 
 	var dest *v1alpha1.ApplicationDestination
 
 	resourceTracking := argo.NewResourceTracking()
-	appSourceType, err := GetAppSourceType(ctx, q.ApplicationSource, appPath, q.AppName, q.EnabledSourceTypes)
+
+	// Apply overrides, but don't mutate the given source. The un-overridden source should be used to generate the
+	// manifest cache key.
+	overriddenApplicationSource := q.ApplicationSource.DeepCopy()
+	appSourceType, err := GetAppSourceType(ctx, overriddenApplicationSource, appPath, q.AppName, q.EnabledSourceTypes)
 	if err != nil {
 		return nil, err
 	}
@@ -892,9 +896,9 @@ func GenerateManifests(ctx context.Context, appPath, repoRoot, revision string, 
 			kustomizeBinary = q.KustomizeOptions.BinaryPath
 		}
 		k := kustomize.NewKustomizeApp(appPath, q.Repo.GetGitCreds(gitCredsStore), repoURL, kustomizeBinary)
-		targetObjs, _, err = k.Build(q.ApplicationSource.Kustomize, q.KustomizeOptions, env)
+		targetObjs, _, err = k.Build(overriddenApplicationSource.Kustomize, q.KustomizeOptions, env)
 	case v1alpha1.ApplicationSourceTypePlugin:
-		if q.ApplicationSource.Plugin != nil && q.ApplicationSource.Plugin.Name != "" {
+		if overriddenApplicationSource.Plugin != nil && overriddenApplicationSource.Plugin.Name != "" {
 			targetObjs, err = runConfigManagementPlugin(appPath, repoRoot, env, q, q.Repo.GetGitCreds(gitCredsStore))
 		} else {
 			targetObjs, err = runConfigManagementPluginSidecars(ctx, appPath, repoRoot, env, q, q.Repo.GetGitCreds(gitCredsStore), opt.cmpTarDoneCh)
@@ -904,7 +908,7 @@ func GenerateManifests(ctx context.Context, appPath, repoRoot, revision string, 
 		}
 	case v1alpha1.ApplicationSourceTypeDirectory:
 		var directory *v1alpha1.ApplicationSourceDirectory
-		if directory = q.ApplicationSource.Directory; directory == nil {
+		if directory = overriddenApplicationSource.Directory; directory == nil {
 			directory = &v1alpha1.ApplicationSourceDirectory{}
 		}
 		logCtx := log.WithField("application", q.AppName)
@@ -985,7 +989,7 @@ func mergeSourceParameters(source *v1alpha1.ApplicationSource, path, appName str
 		overrides = append(overrides, filepath.Join(path, fmt.Sprintf(appSourceFile, appName)))
 	}
 
-	var merged v1alpha1.ApplicationSource = *source.DeepCopy()
+	var merged = *source.DeepCopy()
 
 	for _, filename := range overrides {
 		info, err := os.Stat(filename)
