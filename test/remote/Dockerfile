@@ -23,8 +23,6 @@ RUN  apt-get update && apt-get install --no-install-recommends -y \
         apt-get clean && \
         rm -rf /var/lib/apt/lists/* /tmp/* /var/tmp/*
 
-WORKDIR /etc/certs
-
 # These are required for running end-to-end tests
 COPY ./test/fixture/testrepos/id_rsa.pub /root/.ssh/authorized_keys
 COPY ./test/fixture/testrepos/nginx.conf /etc/nginx/nginx.conf
