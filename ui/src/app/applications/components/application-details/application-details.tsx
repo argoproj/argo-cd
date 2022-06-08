@@ -36,6 +36,7 @@ interface ApplicationDetailsState {
     slidingPanelPage?: number;
     filteredGraph?: any[];
     truncateNameOnRight?: boolean;
+    collapsedNodes?: string[];
 }
 
 interface FilterInput {
@@ -70,11 +71,28 @@ export class ApplicationDetails extends React.Component<RouteComponentProps<{nam
 
     constructor(props: RouteComponentProps<{name: string}>) {
         super(props);
-        this.state = {page: 0, groupedResources: [], slidingPanelPage: 0, filteredGraph: [], truncateNameOnRight: false};
+        this.state = {page: 0, groupedResources: [], slidingPanelPage: 0, filteredGraph: [], truncateNameOnRight: false, collapsedNodes: []};
     }
 
     private get showOperationState() {
         return new URLSearchParams(this.props.history.location.search).get('operation') === 'true';
+    }
+
+    private setNodeExpansion(node: string, isExpanded: boolean) {
+        const index = this.state.collapsedNodes.indexOf(node);
+        if (isExpanded && index >= 0) {
+            this.state.collapsedNodes.splice(index, 1);
+            const updatedNodes = this.state.collapsedNodes.slice();
+            this.setState({collapsedNodes: updatedNodes});
+        } else if (!isExpanded && index < 0) {
+            const updatedNodes = this.state.collapsedNodes.slice();
+            updatedNodes.push(node);
+            this.setState({collapsedNodes: updatedNodes});
+        }
+    }
+
+    private getNodeExpansion(node: string): boolean {
+        return this.state.collapsedNodes.indexOf(node) < 0;
     }
 
     private get showConditions() {
@@ -229,6 +247,44 @@ export class ApplicationDetails extends React.Component<RouteComponentProps<{nam
                             const toggleNameDirection = () => {
                                 this.setState({truncateNameOnRight: !this.state.truncateNameOnRight});
                             };
+                            const expandAll = () => {
+                                this.setState({collapsedNodes: []});
+                            };
+                            const collapseAll = () => {
+                                const nodes = new Array<ResourceTreeNode>();
+                                tree.nodes
+                                    .map(node => ({...node, orphaned: false}))
+                                    .concat((tree.orphanedNodes || []).map(node => ({...node, orphaned: true})))
+                                    .forEach(node => {
+                                        const resourceNode: ResourceTreeNode = {...node};
+                                        nodes.push(resourceNode);
+                                    });
+                                const collapsedNodesList = this.state.collapsedNodes.slice();
+                                if (pref.view === 'network') {
+                                    const networkNodes = nodes.filter(node => node.networkingInfo);
+                                    networkNodes.forEach(parent => {
+                                        const parentId = parent.uid;
+                                        if (collapsedNodesList.indexOf(parentId) < 0) {
+                                            collapsedNodesList.push(parentId);
+                                        }
+                                    });
+                                    this.setState({collapsedNodes: collapsedNodesList});
+                                } else {
+                                    const managedKeys = new Set(application.status.resources.map(AppUtils.nodeKey));
+                                    nodes.forEach(node => {
+                                        if (!((node.parentRefs || []).length === 0 || managedKeys.has(AppUtils.nodeKey(node)))) {
+                                            node.parentRefs.forEach(parent => {
+                                                const parentId = parent.uid;
+                                                if (collapsedNodesList.indexOf(parentId) < 0) {
+                                                    collapsedNodesList.push(parentId);
+                                                }
+                                            });
+                                        }
+                                    });
+                                    collapsedNodesList.push(application.kind + '-' + application.metadata.namespace + '-' + application.metadata.name);
+                                    this.setState({collapsedNodes: collapsedNodesList});
+                                }
+                            };
                             return (
                                 <div className='application-details'>
                                     <Page
@@ -306,14 +362,22 @@ export class ApplicationDetails extends React.Component<RouteComponentProps<{nam
                                                                 })}
                                                             />
                                                         </a>
-                                                        {pref.view === 'tree' && (
+                                                        {(pref.view === 'tree' || pref.view === 'network') && (
                                                             <a
                                                                 className={`group-nodes-button group-nodes-button${!pref.groupNodes ? '' : '-on'}`}
-                                                                title='Group Nodes'
+                                                                title={pref.view === 'tree' ? 'Group Nodes' : 'Collapse Pods'}
                                                                 onClick={() => this.toggleCompactView(pref)}>
                                                                 <i className={classNames('fa fa-object-group fa-fw')} />
                                                             </a>
                                                         )}
+                                                        <span className={`separator`} />
+                                                        <a className={`group-nodes-button`} onClick={() => expandAll()} title='Expand all child nodes of all parent nodes'>
+                                                            <i className='fa fa-plus fa-fw' />
+                                                        </a>
+                                                        <a className={`group-nodes-button`} onClick={() => collapseAll()} title='Collapse all child nodes of all parent nodes'>
+                                                            <i className='fa fa-minus fa-fw' />
+                                                        </a>
+                                                        <span className={`separator`} />
                                                         <a className={`group-nodes-button`} onClick={() => setZoom(0.1)} title='Zoom in'>
                                                             <i className='fa fa-search-plus fa-fw' />
                                                         </a>
@@ -339,9 +403,12 @@ export class ApplicationDetails extends React.Component<RouteComponentProps<{nam
                                                         onClearFilter={clearFilter}
                                                         onGroupdNodeClick={groupdedNodeIds => openGroupNodeDetails(groupdedNodeIds)}
                                                         zoom={pref.zoom}
+                                                        appContext={this.appContext}
                                                         nameDirection={this.state.truncateNameOnRight}
                                                         filters={pref.resourceFilter}
                                                         setTreeFilterGraph={setFilterGraph}
+                                                        setNodeExpansion={(node, isExpanded) => this.setNodeExpansion(node, isExpanded)}
+                                                        getNodeExpansion={node => this.getNodeExpansion(node)}
                                                     />
                                                 </Filters>
                                             )) ||

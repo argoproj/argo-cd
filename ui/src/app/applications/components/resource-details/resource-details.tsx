@@ -43,7 +43,15 @@ export const ResourceDetails = (props: ResourceDetailsProps) => {
     const page = parseInt(new URLSearchParams(appContext.history.location.search).get('page'), 10) || 0;
     const untilTimes = (new URLSearchParams(appContext.history.location.search).get('untilTimes') || '').split(',') || [];
 
-    const getResourceTabs = (node: ResourceNode, state: State, podState: State, events: Event[], ExtensionComponent: React.ComponentType<ExtensionComponentProps>, tabs: Tab[]) => {
+    const getResourceTabs = (
+        node: ResourceNode,
+        state: State,
+        podState: State,
+        events: Event[],
+        ExtensionComponent: React.ComponentType<ExtensionComponentProps>,
+        tabs: Tab[],
+        execEnabled: boolean
+    ) => {
         if (!node || node === undefined) {
             return [];
         }
@@ -101,14 +109,20 @@ export const ResourceDetails = (props: ResourceDetailsProps) => {
                             />
                         </div>
                     )
-                },
-                {
-                    key: 'exec',
-                    icon: 'fa fa-terminal',
-                    title: 'Terminal',
-                    content: <PodTerminalViewer applicationName={application.metadata.name} podState={podState} selectedNode={selectedNode} />
                 }
             ]);
+            if (execEnabled) {
+                tabs = tabs.concat([
+                    {
+                        key: 'exec',
+                        icon: 'fa fa-terminal',
+                        title: 'Terminal',
+                        content: (
+                            <PodTerminalViewer applicationName={application.metadata.name} projectName={application.spec.project} podState={podState} selectedNode={selectedNode} />
+                        )
+                    }
+                ]);
+            }
         }
         if (ExtensionComponent && state) {
             tabs.push({
@@ -250,7 +264,10 @@ export const ResourceDetails = (props: ResourceDetailsProps) => {
                             }
                         }
 
-                        return {controlledState, liveState, events, podState};
+                        const settings = await services.authService.settings();
+                        const execEnabled = settings.execEnabled;
+
+                        return {controlledState, liveState, events, podState, execEnabled};
                     }}>
                     {data => (
                         <React.Fragment>
@@ -280,14 +297,22 @@ export const ResourceDetails = (props: ResourceDetailsProps) => {
                             </div>
                             <Tabs
                                 navTransparent={true}
-                                tabs={getResourceTabs(selectedNode, data.liveState, data.podState, data.events, error.state ? null : extension?.component, [
-                                    {
-                                        title: 'SUMMARY',
-                                        icon: 'fa fa-file-alt',
-                                        key: 'summary',
-                                        content: <ApplicationNodeInfo application={application} live={data.liveState} controlled={data.controlledState} node={selectedNode} />
-                                    }
-                                ])}
+                                tabs={getResourceTabs(
+                                    selectedNode,
+                                    data.liveState,
+                                    data.podState,
+                                    data.events,
+                                    error.state ? null : extension?.component,
+                                    [
+                                        {
+                                            title: 'SUMMARY',
+                                            icon: 'fa fa-file-alt',
+                                            key: 'summary',
+                                            content: <ApplicationNodeInfo application={application} live={data.liveState} controlled={data.controlledState} node={selectedNode} />
+                                        }
+                                    ],
+                                    data.execEnabled
+                                )}
                                 selectedTabKey={props.tab}
                                 onTabSelected={selected => appContext.navigation.goto('.', {tab: selected}, {replace: true})}
                             />

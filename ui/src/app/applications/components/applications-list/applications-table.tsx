@@ -73,11 +73,11 @@ export const ApplicationsTable = (props: {
                                                                         services.viewPreferences.updatePreferences({appList: {...pref.appList, favoritesAppList: favList}});
                                                                     }}>
                                                                     <i
-                                                                        className={'fas fa-star'}
+                                                                        className={favList?.includes(app.metadata.name) ? 'fas fa-star' : 'far fa-star'}
                                                                         style={{
                                                                             cursor: 'pointer',
                                                                             marginRight: '7px',
-                                                                            color: favList?.includes(app.metadata.name) ? '#1FBDD0' : 'grey'
+                                                                            color: favList?.includes(app.metadata.name) ? '#FFCE25' : '#8fa4b1'
                                                                         }}
                                                                     />
                                                                 </button>

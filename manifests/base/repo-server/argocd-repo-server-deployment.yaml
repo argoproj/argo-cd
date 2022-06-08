@@ -15,6 +15,7 @@ spec:
       labels:
         app.kubernetes.io/name: argocd-repo-server
     spec:
+      serviceAccountName: argocd-repo-server
       automountServiceAccountToken: false
       containers:
       - name: argocd-repo-server
@@ -97,6 +98,12 @@ spec:
                 configMapKeyRef:
                   name: argocd-cmd-params-cm
                   key: reposerver.default.cache.expiration
+                  optional: true
+          - name: ARGOCD_REPO_SERVER_OTLP_ADDRESS
+            valueFrom:
+                configMapKeyRef:
+                  name: argocd-cmd-params-cm
+                  key: otlp.address
                   optional: true
           - name: HELM_CACHE_HOME
             value: /helm-working-dir

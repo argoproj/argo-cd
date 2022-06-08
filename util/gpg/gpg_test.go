@@ -28,10 +28,24 @@ var syncTestSources = map[string]string{
 }
 
 // Helper function to create temporary GNUPGHOME
-func initTempDir(tb testing.TB) string {
-	p := tb.TempDir()
+func initTempDir(t *testing.T) string {
+	// Intentionally avoid using t.TempDir. That function creates really long paths, which can exceed the socket file
+	// path length on some OSes. The GPG tests rely on sockets.
+	p, err := ioutil.TempDir(os.TempDir(), "")
+	if err != nil {
+		panic(err)
+	}
 	fmt.Printf("-> Using %s as GNUPGHOME\n", p)
-	os.Setenv(common.EnvGnuPGHome, p)
+	err = os.Setenv(common.EnvGnuPGHome, p)
+	if err != nil {
+		panic(err)
+	}
+	t.Cleanup(func() {
+		err := os.RemoveAll(p)
+		if err != nil {
+			panic(err)
+		}
+	})
 	return p
 }
 

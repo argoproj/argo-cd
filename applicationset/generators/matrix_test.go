@@ -1,6 +1,13 @@
 package generators
 
 import (
+	"context"
+	corev1 "k8s.io/api/core/v1"
+	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
+	"k8s.io/apimachinery/pkg/runtime"
+	kubefake "k8s.io/client-go/kubernetes/fake"
+	"sigs.k8s.io/controller-runtime/pkg/client"
+	"sigs.k8s.io/controller-runtime/pkg/client/fake"
 	"testing"
 	"time"
 
@@ -127,7 +134,7 @@ func TestMatrixGenerate(t *testing.T) {
 		testCaseCopy := testCase // Since tests may run in parallel
 
 		t.Run(testCaseCopy.name, func(t *testing.T) {
-			mock := &generatorMock{}
+			genMock := &generatorMock{}
 			appSet := &argoprojiov1alpha1.ApplicationSet{}
 
 			for _, g := range testCaseCopy.baseGenerators {
@@ -136,7 +143,7 @@ func TestMatrixGenerate(t *testing.T) {
 					Git:  g.Git,
 					List: g.List,
 				}
-				mock.On("GenerateParams", &gitGeneratorSpec, appSet).Return([]map[string]string{
+				genMock.On("GenerateParams", mock.AnythingOfType("*v1alpha1.ApplicationSetGenerator"), appSet).Return([]map[string]string{
 					{
 						"path":                    "app1",
 						"path.basename":           "app1",
@@ -149,13 +156,13 @@ func TestMatrixGenerate(t *testing.T) {
 					},
 				}, nil)
 
-				mock.On("GetTemplate", &gitGeneratorSpec).
+				genMock.On("GetTemplate", &gitGeneratorSpec).
 					Return(&argoprojiov1alpha1.ApplicationSetTemplate{})
 			}
 
 			var matrixGenerator = NewMatrixGenerator(
 				map[string]Generator{
-					"Git":  mock,
+					"Git":  genMock,
 					"List": &ListGenerator{},
 				},
 			)
@@ -254,6 +261,156 @@ func TestMatrixGetRequeueAfter(t *testing.T) {
 			})
 
 			assert.Equal(t, testCaseCopy.expected, got)
+
+		})
+
+	}
+}
+
+func TestInterpolatedMatrixGenerate(t *testing.T) {
+	interpolatedGitGenerator := &argoprojiov1alpha1.GitGenerator{
+		RepoURL:  "RepoURL",
+		Revision: "Revision",
+		Files: []argoprojiov1alpha1.GitFileGeneratorItem{
+			{Path: "examples/git-generator-files-discovery/cluster-config/dev/config.json"},
+			{Path: "examples/git-generator-files-discovery/cluster-config/prod/config.json"},
+		},
+	}
+
+	interpolatedClusterGenerator := &argoprojiov1alpha1.ClusterGenerator{
+		Selector: metav1.LabelSelector{
+			MatchLabels:      map[string]string{"environment": "{{path.basename}}"},
+			MatchExpressions: nil,
+		},
+	}
+	testCases := []struct {
+		name           string
+		baseGenerators []argoprojiov1alpha1.ApplicationSetNestedGenerator
+		expectedErr    error
+		expected       []map[string]string
+		clientError    bool
+	}{
+		{
+			name: "happy flow - generate interpolated params",
+			baseGenerators: []argoprojiov1alpha1.ApplicationSetNestedGenerator{
+				{
+					Git: interpolatedGitGenerator,
+				},
+				{
+					Clusters: interpolatedClusterGenerator,
+				},
+			},
+			expected: []map[string]string{
+				{"path": "examples/git-generator-files-discovery/cluster-config/dev/config.json", "path.basename": "dev", "path.basenameNormalized": "dev", "name": "dev-01", "nameNormalized": "dev-01", "server": "https://dev-01.example.com", "metadata.labels.environment": "dev", "metadata.labels.argocd.argoproj.io/secret-type": "cluster"},
+				{"path": "examples/git-generator-files-discovery/cluster-config/prod/config.json", "path.basename": "prod", "path.basenameNormalized": "prod", "name": "prod-01", "nameNormalized": "prod-01", "server": "https://prod-01.example.com", "metadata.labels.environment": "prod", "metadata.labels.argocd.argoproj.io/secret-type": "cluster"},
+			},
+			clientError: false,
+		},
+	}
+	clusters := []client.Object{
+		&corev1.Secret{
+			TypeMeta: metav1.TypeMeta{
+				Kind:       "Secret",
+				APIVersion: "v1",
+			},
+			ObjectMeta: metav1.ObjectMeta{
+				Name:      "dev-01",
+				Namespace: "namespace",
+				Labels: map[string]string{
+					"argocd.argoproj.io/secret-type": "cluster",
+					"environment":                    "dev",
+				},
+			},
+			Data: map[string][]byte{
+				"config": []byte("{}"),
+				"name":   []byte("dev-01"),
+				"server": []byte("https://dev-01.example.com"),
+			},
+			Type: corev1.SecretType("Opaque"),
+		},
+		&corev1.Secret{
+			TypeMeta: metav1.TypeMeta{
+				Kind:       "Secret",
+				APIVersion: "v1",
+			},
+			ObjectMeta: metav1.ObjectMeta{
+				Name:      "prod-01",
+				Namespace: "namespace",
+				Labels: map[string]string{
+					"argocd.argoproj.io/secret-type": "cluster",
+					"environment":                    "prod",
+				},
+			},
+			Data: map[string][]byte{
+				"config": []byte("{}"),
+				"name":   []byte("prod-01"),
+				"server": []byte("https://prod-01.example.com"),
+			},
+			Type: corev1.SecretType("Opaque"),
+		},
+	}
+	// convert []client.Object to []runtime.Object, for use by kubefake package
+	runtimeClusters := []runtime.Object{}
+	for _, clientCluster := range clusters {
+		runtimeClusters = append(runtimeClusters, clientCluster)
+	}
+
+	for _, testCase := range testCases {
+		testCaseCopy := testCase // Since tests may run in parallel
+
+		t.Run(testCaseCopy.name, func(t *testing.T) {
+			genMock := &generatorMock{}
+			appSet := &argoprojiov1alpha1.ApplicationSet{}
+
+			appClientset := kubefake.NewSimpleClientset(runtimeClusters...)
+			fakeClient := fake.NewClientBuilder().WithObjects(clusters...).Build()
+			cl := &possiblyErroringFakeCtrlRuntimeClient{
+				fakeClient,
+				testCase.clientError,
+			}
+			var clusterGenerator = NewClusterGenerator(cl, context.Background(), appClientset, "namespace")
+
+			for _, g := range testCaseCopy.baseGenerators {
+
+				gitGeneratorSpec := argoprojiov1alpha1.ApplicationSetGenerator{
+					Git:      g.Git,
+					Clusters: g.Clusters,
+				}
+				genMock.On("GenerateParams", mock.AnythingOfType("*v1alpha1.ApplicationSetGenerator"), appSet).Return([]map[string]string{
+					{
+						"path":                    "examples/git-generator-files-discovery/cluster-config/dev/config.json",
+						"path.basename":           "dev",
+						"path.basenameNormalized": "dev",
+					},
+					{
+						"path":                    "examples/git-generator-files-discovery/cluster-config/prod/config.json",
+						"path.basename":           "prod",
+						"path.basenameNormalized": "prod",
+					},
+				}, nil)
+				genMock.On("GetTemplate", &gitGeneratorSpec).
+					Return(&argoprojiov1alpha1.ApplicationSetTemplate{})
+			}
+			var matrixGenerator = NewMatrixGenerator(
+				map[string]Generator{
+					"Git":      genMock,
+					"Clusters": clusterGenerator,
+				},
+			)
+
+			got, err := matrixGenerator.GenerateParams(&argoprojiov1alpha1.ApplicationSetGenerator{
+				Matrix: &argoprojiov1alpha1.MatrixGenerator{
+					Generators: testCaseCopy.baseGenerators,
+					Template:   argoprojiov1alpha1.ApplicationSetTemplate{},
+				},
+			}, appSet)
+
+			if testCaseCopy.expectedErr != nil {
+				assert.EqualError(t, err, testCaseCopy.expectedErr.Error())
+			} else {
+				assert.NoError(t, err)
+				assert.Equal(t, testCaseCopy.expected, got)
+			}
 
 		})
 

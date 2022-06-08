@@ -1,12 +1,14 @@
-FROM redis:7.0.0 as redis
+FROM docker.io/library/redis:7.0.0 as redis
 
-FROM node:12.18.4-buster as node
+FROM docker.io/library/node:12.18.4-buster as node
 
-FROM golang:1.18 as golang
+FROM docker.io/library/golang:1.18 as golang
 
-FROM registry:2.8 as registry
+FROM docker.io/library/registry:2.8 as registry
 
-FROM ubuntu:21.10
+FROM docker.io/bitnami/kubectl:1.23.6 as kubectl
+
+FROM ubuntu:22.04
 
 ENV DEBIAN_FRONTEND=noninteractive
 RUN  apt-get update && apt-get install --fix-missing -y \
@@ -31,7 +33,9 @@ RUN  apt-get update && apt-get install --fix-missing -y \
 
 COPY --from=golang /usr/local/go /usr/local/go
 
-ENV PATH /dist:/go/bin:/usr/local/go/bin:$PATH
+COPY --from=kubectl /opt/bitnami/kubectl/bin/kubectl /usr/local/bin/kubectl
+
+ENV PATH /dist:/go/bin:/usr/local/go/bin:/go/src/github.com/argoproj/argo-cd/dist:$PATH
 ENV GOROOT /usr/local/go
 ENV GOPATH /go
 
@@ -40,7 +44,6 @@ COPY hack/install.sh hack/tool-versions.sh go.* ./
 COPY hack/installers installers
 
 RUN ./install.sh helm-linux && \
-    ./install.sh kubectl-linux && \
     ./install.sh kustomize && \
     ./install.sh codegen-tools && \
     ./install.sh codegen-go-tools && \
@@ -60,6 +63,11 @@ COPY ./test/fixture/testrepos/ssh_host_*_key* /etc/ssh/
 
 # Copy redis binaries to the image
 COPY --from=redis /usr/local/bin/* /usr/local/bin/
+
+# Copy redis dependencies/shared libraries
+# Ubuntu 22.04+ has moved to OpenSSL3 and no longer provides these libraries
+COPY --from=redis /usr/lib/x86_64-linux-gnu/libssl.so.1.1 /usr/lib/x86_64-linux-gnu/
+COPY --from=redis /usr/lib/x86_64-linux-gnu/libcrypto.so.1.1 /usr/lib/x86_64-linux-gnu/
 
 # Copy registry binaries to the image
 COPY --from=registry /bin/registry /usr/local/bin/

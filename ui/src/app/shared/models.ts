@@ -131,6 +131,7 @@ export interface Application {
     spec: ApplicationSpec;
     status: ApplicationStatus;
     operation?: Operation;
+    isAppOfAppsPattern?: boolean;
 }
 
 export type WatchType = 'ADDED' | 'MODIFIED' | 'DELETED' | 'ERROR';
@@ -451,6 +452,7 @@ export interface AuthSettings {
     uiBannerURL: string;
     uiBannerPermanent: boolean;
     uiBannerPosition: string;
+    execEnabled: boolean;
 }
 
 export interface UserInfo {

@@ -27,7 +27,6 @@ import (
 	"google.golang.org/grpc/status"
 	"k8s.io/apimachinery/pkg/apis/meta/v1/unstructured"
 	"k8s.io/apimachinery/pkg/runtime/schema"
-	"k8s.io/apimachinery/pkg/types"
 	"k8s.io/utils/pointer"
 
 	"github.com/argoproj/argo-cd/v2/cmd/argocd/commands/headless"
@@ -738,19 +737,6 @@ func targetObjects(resources []*argoappv1.ResourceDiff) ([]*unstructured.Unstruc
 	return objs, nil
 }
 
-// liveObjects deserializes the list of live states into unstructured objects
-func liveObjects(resources []*argoappv1.ResourceDiff) ([]*unstructured.Unstructured, error) {
-	objs := make([]*unstructured.Unstructured, len(resources))
-	for i, resState := range resources {
-		obj, err := resState.LiveObject()
-		if err != nil {
-			return nil, err
-		}
-		objs[i] = obj
-	}
-	return objs, nil
-}
-
 func getLocalObjects(app *argoappv1.Application, local, localRepoRoot, appLabelKey, kubeVersion string, apiVersions []string, kustomizeOptions *argoappv1.KustomizeOptions,
 	configManagementPlugins []*argoappv1.ConfigManagementPlugin, trackingMethod string) []*unstructured.Unstructured {
 	manifestStrings := getLocalObjectsString(app, local, localRepoRoot, appLabelKey, kubeVersion, apiVersions, kustomizeOptions, configManagementPlugins, trackingMethod)
@@ -899,7 +885,7 @@ type DifferenceOption struct {
 // findandPrintDiff ... Prints difference between application current state and state stored in git or locally, returns boolean as true if difference is found else returns false
 func findandPrintDiff(app *argoappv1.Application, resources *applicationpkg.ManagedResourcesResponse, argoSettings *settingspkg.Settings, appName string, diffOptions *DifferenceOption) bool {
 	var foundDiffs bool
-	liveObjs, err := liveObjects(resources.Items)
+	liveObjs, err := cmdutil.LiveObjects(resources.Items)
 	errors.CheckError(err)
 	items := make([]objKeyLiveTarget, 0)
 	if diffOptions.local != "" {
@@ -1684,6 +1670,7 @@ func groupResourceStates(app *argoappv1.Application, selectedResources []*argoap
 	return resStates
 }
 
+// check if resource health, sync and operation statuses matches watch options
 func checkResourceStatus(watch watchOpts, healthStatus string, syncStatus string, operationStatus *argoappv1.Operation) bool {
 	healthCheckPassed := true
 	if watch.suspended && watch.health {
@@ -2039,7 +2026,7 @@ func NewApplicationManifestsCommand(clientOpts *argocdclient.ClientOptions) *cob
 					unstructureds = targetObjs
 				}
 			case "live":
-				liveObjs, err := liveObjects(resources.Items)
+				liveObjs, err := cmdutil.LiveObjects(resources.Items)
 				errors.CheckError(err)
 				unstructureds = liveObjs
 			default:
@@ -2124,45 +2111,6 @@ func NewApplicationEditCommand(clientOpts *argocdclient.ClientOptions) *cobra.Co
 	return command
 }
 
-func NewApplicationListResourcesCommand(clientOpts *argocdclient.ClientOptions) *cobra.Command {
-	var orphaned bool
-	var command = &cobra.Command{
-		Use:   "resources APPNAME",
-		Short: "List resource of application",
-		Run: func(c *cobra.Command, args []string) {
-			if len(args) != 1 {
-				c.HelpFunc()(c, args)
-				os.Exit(1)
-			}
-			listAll := !c.Flag("orphaned").Changed
-			appName := args[0]
-			conn, appIf := headless.NewClientOrDie(clientOpts, c).NewApplicationClientOrDie()
-			defer argoio.Close(conn)
-			appResourceTree, err := appIf.ResourceTree(context.Background(), &applicationpkg.ResourcesQuery{ApplicationName: &appName})
-			errors.CheckError(err)
-			w := tabwriter.NewWriter(os.Stdout, 0, 0, 2, ' ', 0)
-			headers := []interface{}{"GROUP", "KIND", "NAMESPACE", "NAME", "ORPHANED"}
-			fmtStr := "%s\t%s\t%s\t%s\t%s\n"
-			_, _ = fmt.Fprintf(w, fmtStr, headers...)
-			if !orphaned || listAll {
-				for _, res := range appResourceTree.Nodes {
-					if len(res.ParentRefs) == 0 {
-						_, _ = fmt.Fprintf(w, fmtStr, res.Group, res.Kind, res.Namespace, res.Name, "No")
-					}
-				}
-			}
-			if orphaned || listAll {
-				for _, res := range appResourceTree.OrphanedNodes {
-					_, _ = fmt.Fprintf(w, fmtStr, res.Group, res.Kind, res.Namespace, res.Name, "Yes")
-				}
-			}
-			_ = w.Flush()
-		},
-	}
-	command.Flags().BoolVar(&orphaned, "orphaned", false, "Lists only orphaned resources")
-	return command
-}
-
 func NewApplicationPatchCommand(clientOpts *argocdclient.ClientOptions) *cobra.Command {
 	var patch string
 	var patchType string
@@ -2202,152 +2150,4 @@ func NewApplicationPatchCommand(clientOpts *argocdclient.ClientOptions) *cobra.C
 	command.Flags().StringVar(&patch, "patch", "", "Patch body")
 	command.Flags().StringVar(&patchType, "type", "json", "The type of patch being provided; one of [json merge]")
 	return &command
-}
-
-func filterResources(groupChanged bool, resources []*argoappv1.ResourceDiff, group, kind, namespace, resourceName string, all bool) []*unstructured.Unstructured {
-	liveObjs, err := liveObjects(resources)
-	errors.CheckError(err)
-	filteredObjects := make([]*unstructured.Unstructured, 0)
-	for i := range liveObjs {
-		obj := liveObjs[i]
-		if obj == nil {
-			continue
-		}
-		gvk := obj.GroupVersionKind()
-		if groupChanged && group != gvk.Group {
-			continue
-		}
-		if namespace != "" && namespace != obj.GetNamespace() {
-			continue
-		}
-		if resourceName != "" && resourceName != obj.GetName() {
-			continue
-		}
-		if kind != "" && kind != gvk.Kind {
-			continue
-		}
-		deepCopy := obj.DeepCopy()
-		filteredObjects = append(filteredObjects, deepCopy)
-	}
-	if len(filteredObjects) == 0 {
-		log.Fatal("No matching resource found")
-	}
-	if len(filteredObjects) > 1 && !all {
-		log.Fatal("Multiple resources match inputs. Use the --all flag to patch multiple resources")
-	}
-	return filteredObjects
-}
-
-func NewApplicationPatchResourceCommand(clientOpts *argocdclient.ClientOptions) *cobra.Command {
-	var patch string
-	var patchType string
-	var resourceName string
-	var namespace string
-	var kind string
-	var group string
-	var all bool
-	command := &cobra.Command{
-		Use:   "patch-resource APPNAME",
-		Short: "Patch resource in an application",
-	}
-
-	command.Flags().StringVar(&patch, "patch", "", "Patch")
-	err := command.MarkFlagRequired("patch")
-	errors.CheckError(err)
-	command.Flags().StringVar(&patchType, "patch-type", string(types.MergePatchType), "Which Patching strategy to use: 'application/json-patch+json', 'application/merge-patch+json', or 'application/strategic-merge-patch+json'. Defaults to 'application/merge-patch+json'")
-	command.Flags().StringVar(&resourceName, "resource-name", "", "Name of resource")
-	command.Flags().StringVar(&kind, "kind", "", "Kind")
-	err = command.MarkFlagRequired("kind")
-	errors.CheckError(err)
-	command.Flags().StringVar(&group, "group", "", "Group")
-	command.Flags().StringVar(&namespace, "namespace", "", "Namespace")
-	command.Flags().BoolVar(&all, "all", false, "Indicates whether to patch multiple matching of resources")
-	command.Run = func(c *cobra.Command, args []string) {
-		if len(args) != 1 {
-			c.HelpFunc()(c, args)
-			os.Exit(1)
-		}
-		appName := args[0]
-
-		conn, appIf := headless.NewClientOrDie(clientOpts, c).NewApplicationClientOrDie()
-		defer argoio.Close(conn)
-		ctx := context.Background()
-		resources, err := appIf.ManagedResources(ctx, &applicationpkg.ResourcesQuery{ApplicationName: &appName})
-		errors.CheckError(err)
-		objectsToPatch := filterResources(command.Flags().Changed("group"), resources.Items, group, kind, namespace, resourceName, all)
-		for i := range objectsToPatch {
-			obj := objectsToPatch[i]
-			gvk := obj.GroupVersionKind()
-			_, err = appIf.PatchResource(ctx, &applicationpkg.ApplicationResourcePatchRequest{
-				Name:         &appName,
-				Namespace:    pointer.String(obj.GetNamespace()),
-				ResourceName: pointer.String(obj.GetName()),
-				Version:      pointer.String(gvk.Version),
-				Group:        pointer.String(gvk.Group),
-				Kind:         pointer.String(gvk.Kind),
-				Patch:        pointer.String(patch),
-				PatchType:    pointer.String(patchType),
-			})
-			errors.CheckError(err)
-			log.Infof("Resource '%s' patched", obj.GetName())
-		}
-	}
-
-	return command
-}
-
-func NewApplicationDeleteResourceCommand(clientOpts *argocdclient.ClientOptions) *cobra.Command {
-	var resourceName string
-	var namespace string
-	var kind string
-	var group string
-	var force bool
-	var orphan bool
-	var all bool
-	command := &cobra.Command{
-		Use:   "delete-resource APPNAME",
-		Short: "Delete resource in an application",
-	}
-
-	command.Flags().StringVar(&resourceName, "resource-name", "", "Name of resource")
-	command.Flags().StringVar(&kind, "kind", "", "Kind")
-	err := command.MarkFlagRequired("kind")
-	errors.CheckError(err)
-	command.Flags().StringVar(&group, "group", "", "Group")
-	command.Flags().StringVar(&namespace, "namespace", "", "Namespace")
-	command.Flags().BoolVar(&force, "force", false, "Indicates whether to orphan the dependents of the deleted resource")
-	command.Flags().BoolVar(&orphan, "orphan", false, "Indicates whether to force delete the resource")
-	command.Flags().BoolVar(&all, "all", false, "Indicates whether to patch multiple matching of resources")
-	command.Run = func(c *cobra.Command, args []string) {
-		if len(args) != 1 {
-			c.HelpFunc()(c, args)
-			os.Exit(1)
-		}
-		appName := args[0]
-
-		conn, appIf := headless.NewClientOrDie(clientOpts, c).NewApplicationClientOrDie()
-		defer argoio.Close(conn)
-		ctx := context.Background()
-		resources, err := appIf.ManagedResources(ctx, &applicationpkg.ResourcesQuery{ApplicationName: &appName})
-		errors.CheckError(err)
-		objectsToDelete := filterResources(command.Flags().Changed("group"), resources.Items, group, kind, namespace, resourceName, all)
-		for i := range objectsToDelete {
-			obj := objectsToDelete[i]
-			gvk := obj.GroupVersionKind()
-			_, err = appIf.DeleteResource(ctx, &applicationpkg.ApplicationResourceDeleteRequest{
-				Name:         &appName,
-				Namespace:    pointer.String(obj.GetNamespace()),
-				ResourceName: pointer.String(obj.GetName()),
-				Version:      pointer.String(gvk.Version),
-				Group:        pointer.String(gvk.Group),
-				Kind:         pointer.String(gvk.Kind),
-				Force:        &force,
-				Orphan:       &orphan,
-			})
-			errors.CheckError(err)
-			log.Infof("Resource '%s' deleted", obj.GetName())
-		}
-	}
-
-	return command
 }

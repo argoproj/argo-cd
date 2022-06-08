@@ -20,7 +20,7 @@ interface State {
     loginError: string;
     loginInProgress: boolean;
     returnUrl: string;
-    ssoLoginError: string;
+    hasSsoLoginError: boolean;
 }
 
 export class Login extends React.Component<RouteComponentProps<{}>, State> {
@@ -31,13 +31,13 @@ export class Login extends React.Component<RouteComponentProps<{}>, State> {
     public static getDerivedStateFromProps(props: RouteComponentProps<{}>): Partial<State> {
         const search = new URLSearchParams(props.history.location.search);
         const returnUrl = search.get('return_url') || '';
-        const ssoLoginError = search.get('sso_error') || '';
-        return {ssoLoginError, returnUrl};
+        const hasSsoLoginError = search.get('has_sso_error') === 'true';
+        return {hasSsoLoginError, returnUrl};
     }
 
     constructor(props: RouteComponentProps<{}>) {
         super(props);
-        this.state = {authSettings: null, loginError: null, returnUrl: null, ssoLoginError: null, loginInProgress: false};
+        this.state = {authSettings: null, loginError: null, returnUrl: null, hasSsoLoginError: false, loginInProgress: false};
     }
 
     public async componentDidMount() {
@@ -69,7 +69,7 @@ export class Login extends React.Component<RouteComponentProps<{}>, State> {
                                         )}
                                 </button>
                             </a>
-                            {this.state.ssoLoginError && <div className='argo-form-row__error-msg'>{this.state.ssoLoginError}</div>}
+                            {this.state.hasSsoLoginError && <div className='argo-form-row__error-msg'>Login failed.</div>}
                             {authSettings && !authSettings.userLoginsDisabled && (
                                 <div className='login__saml-separator'>
                                     <span>or</span>
