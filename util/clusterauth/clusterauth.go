@@ -297,13 +297,13 @@ func getOrCreateServiceAccountTokenSecret(clientset kubernetes.Interface, sa, ns
 	return createServiceAccountToken(clientset, serviceAccount)
 }
 
-func createServiceAccountToken(clientset kubernetes.Interface, sa *corev1.ServiceAccount) (string, error) {
+func createServiceAccountToken(clientset kubernetes.Interface, serviceAccount *corev1.ServiceAccount) (string, error) {
 	secret := &corev1.Secret{
 		ObjectMeta: metav1.ObjectMeta{
-			GenerateName: sa.Name + "-token-",
-			Namespace:    sa.Namespace,
+			GenerateName: serviceAccount.Name + "-token-",
+			Namespace:    serviceAccount.Namespace,
 			Annotations: map[string]string{
-				corev1.ServiceAccountNameKey: sa.Name,
+				corev1.ServiceAccountNameKey: serviceAccount.Name,
 			},
 		},
 		Type: corev1.SecretTypeServiceAccountToken,
@@ -311,24 +311,24 @@ func createServiceAccountToken(clientset kubernetes.Interface, sa *corev1.Servic
 
 	ctx, cancel := context.WithTimeout(context.Background(), common.ClusterAuthRequestTimeout)
 	defer cancel()
-	secret, err := clientset.CoreV1().Secrets(sa.Namespace).Create(ctx, secret, metav1.CreateOptions{})
+	secret, err := clientset.CoreV1().Secrets(serviceAccount.Namespace).Create(ctx, secret, metav1.CreateOptions{})
 	if err != nil {
-		return "", fmt.Errorf("failed to create secret for serviceaccount %q: %w", sa, err)
+		return "", fmt.Errorf("failed to create secret for serviceaccount %q: %w", serviceAccount.Name, err)
 	}
 
-	log.Infof("Created bearer token secret for ServiceAccount %q", sa)
-	sa.Secrets = []corev1.ObjectReference{{
+	log.Infof("Created bearer token secret for ServiceAccount %q", serviceAccount.Name)
+	serviceAccount.Secrets = []corev1.ObjectReference{{
 		Name:      secret.Name,
 		Namespace: secret.Namespace,
 	}}
-	patch, err := json.Marshal(sa)
+	patch, err := json.Marshal(serviceAccount)
 	if err != nil {
-		return "", fmt.Errorf("failed marshaling patch for serviceaccount %q: %w", sa, err)
+		return "", fmt.Errorf("failed marshaling patch for serviceaccount %q: %w", serviceAccount.Name, err)
 	}
 
-	_, err = clientset.CoreV1().ServiceAccounts(sa.Namespace).Patch(ctx, sa.Name, types.StrategicMergePatchType, patch, metav1.PatchOptions{})
+	_, err = clientset.CoreV1().ServiceAccounts(serviceAccount.Namespace).Patch(ctx, serviceAccount.Name, types.StrategicMergePatchType, patch, metav1.PatchOptions{})
 	if err != nil {
-		return "", fmt.Errorf("failed to patch serviceaccount %q with bearer token secret: %w", sa, err)
+		return "", fmt.Errorf("failed to patch serviceaccount %q with bearer token secret: %w", serviceAccount.Name, err)
 	}
 
 	return secret.Name, nil
