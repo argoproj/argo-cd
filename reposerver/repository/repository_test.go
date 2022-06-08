@@ -1124,7 +1124,7 @@ func TestListApps(t *testing.T) {
 		"app-parameters/multi":              "Kustomize",
 		"app-parameters/single-app-only":    "Kustomize",
 		"app-parameters/single-global":      "Kustomize",
-		"app-parameters/single-global-helm": "Kustomize",
+		"app-parameters/single-global-helm": "Helm",
 		"invalid-helm":                      "Helm",
 		"invalid-kustomize":                 "Kustomize",
 		"kustomization_yaml":                "Kustomize",
