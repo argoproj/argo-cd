@@ -450,6 +450,11 @@ func (s *Service) runManifestGenAsync(ctx context.Context, repoRoot, commitSHA, 
 		close(ch.errCh)
 		close(ch.responseCh)
 	}()
+
+	// GenerateManifests mutates the source (applies overrides). Those overrides shouldn't be reflected in the cache
+	// key. Overrides will break the cache anyway, because changes to overrides will change the revision.
+	appSourceCopy := q.ApplicationSource.DeepCopy()
+
 	var manifestGenResult *apiclient.ManifestResponse
 	opContext, err := opContextSrc()
 	if err == nil {
@@ -462,9 +467,9 @@ func (s *Service) runManifestGenAsync(ctx context.Context, repoRoot, commitSHA, 
 			// Retrieve a new copy (if available) of the cached response: this ensures we are updating the latest copy of the cache,
 			// rather than a copy of the cache that occurred before (a potentially lengthy) manifest generation.
 			innerRes := &cache.CachedManifestResponse{}
-			cacheErr := s.cache.GetManifests(cacheKey, q.ApplicationSource, q, q.Namespace, q.TrackingMethod, q.AppLabelKey, q.AppName, innerRes)
+			cacheErr := s.cache.GetManifests(cacheKey, appSourceCopy, q, q.Namespace, q.TrackingMethod, q.AppLabelKey, q.AppName, innerRes)
 			if cacheErr != nil && cacheErr != reposervercache.ErrCacheMiss {
-				log.Warnf("manifest cache set error %s: %v", q.ApplicationSource.String(), cacheErr)
+				log.Warnf("manifest cache set error %s: %v", appSourceCopy.String(), cacheErr)
 				ch.errCh <- cacheErr
 				return
 			}
@@ -478,9 +483,9 @@ func (s *Service) runManifestGenAsync(ctx context.Context, repoRoot, commitSHA, 
 			// Update the cache to include failure information
 			innerRes.NumberOfConsecutiveFailures++
 			innerRes.MostRecentError = err.Error()
-			cacheErr = s.cache.SetManifests(cacheKey, q.ApplicationSource, q, q.Namespace, q.TrackingMethod, q.AppLabelKey, q.AppName, innerRes)
+			cacheErr = s.cache.SetManifests(cacheKey, appSourceCopy, q, q.Namespace, q.TrackingMethod, q.AppLabelKey, q.AppName, innerRes)
 			if cacheErr != nil {
-				log.Warnf("manifest cache set error %s: %v", q.ApplicationSource.String(), cacheErr)
+				log.Warnf("manifest cache set error %s: %v", appSourceCopy.String(), cacheErr)
 				ch.errCh <- cacheErr
 				return
 			}
@@ -499,9 +504,9 @@ func (s *Service) runManifestGenAsync(ctx context.Context, repoRoot, commitSHA, 
 	}
 	manifestGenResult.Revision = commitSHA
 	manifestGenResult.VerifyResult = opContext.verificationResult
-	err = s.cache.SetManifests(cacheKey, q.ApplicationSource, q, q.Namespace, q.TrackingMethod, q.AppLabelKey, q.AppName, &manifestGenCacheEntry)
+	err = s.cache.SetManifests(cacheKey, appSourceCopy, q, q.Namespace, q.TrackingMethod, q.AppLabelKey, q.AppName, &manifestGenCacheEntry)
 	if err != nil {
-		log.Warnf("manifest cache set error %s/%s: %v", q.ApplicationSource.String(), cacheKey, err)
+		log.Warnf("manifest cache set error %s/%s: %v", appSourceCopy.String(), cacheKey, err)
 	}
 	ch.responseCh <- manifestGenCacheEntry.ManifestResponse
 }
@@ -866,7 +871,7 @@ func WithCMPTarDoneChannel(ch chan<- bool) GenerateManifestOpt {
 	}
 }
 
-// GenerateManifests generates manifests from a path
+// GenerateManifests generates manifests from a path. Overrides are applied as a side effect on the given ApplicationSource.
 func GenerateManifests(ctx context.Context, appPath, repoRoot, revision string, q *apiclient.ManifestRequest, isLocal bool, gitCredsStore git.CredsStore, opts ...GenerateManifestOpt) (*apiclient.ManifestResponse, error) {
 	opt := newGenerateManifestOpt(opts...)
 	var targetObjs []*unstructured.Unstructured
@@ -874,10 +879,7 @@ func GenerateManifests(ctx context.Context, appPath, repoRoot, revision string, 
 
 	resourceTracking := argo.NewResourceTracking()
 
-	// Apply overrides, but don't mutate the given source. The un-overridden source should be used to generate the
-	// manifest cache key.
-	overriddenApplicationSource := q.ApplicationSource.DeepCopy()
-	appSourceType, err := GetAppSourceType(ctx, overriddenApplicationSource, appPath, q.AppName, q.EnabledSourceTypes)
+	appSourceType, err := GetAppSourceType(ctx, q.ApplicationSource, appPath, q.AppName, q.EnabledSourceTypes)
 	if err != nil {
 		return nil, err
 	}
@@ -896,9 +898,9 @@ func GenerateManifests(ctx context.Context, appPath, repoRoot, revision string, 
 			kustomizeBinary = q.KustomizeOptions.BinaryPath
 		}
 		k := kustomize.NewKustomizeApp(appPath, q.Repo.GetGitCreds(gitCredsStore), repoURL, kustomizeBinary)
-		targetObjs, _, err = k.Build(overriddenApplicationSource.Kustomize, q.KustomizeOptions, env)
+		targetObjs, _, err = k.Build(q.ApplicationSource.Kustomize, q.KustomizeOptions, env)
 	case v1alpha1.ApplicationSourceTypePlugin:
-		if overriddenApplicationSource.Plugin != nil && overriddenApplicationSource.Plugin.Name != "" {
+		if q.ApplicationSource.Plugin != nil && q.ApplicationSource.Plugin.Name != "" {
 			targetObjs, err = runConfigManagementPlugin(appPath, repoRoot, env, q, q.Repo.GetGitCreds(gitCredsStore))
 		} else {
 			targetObjs, err = runConfigManagementPluginSidecars(ctx, appPath, repoRoot, env, q, q.Repo.GetGitCreds(gitCredsStore), opt.cmpTarDoneCh)
@@ -908,7 +910,7 @@ func GenerateManifests(ctx context.Context, appPath, repoRoot, revision string, 
 		}
 	case v1alpha1.ApplicationSourceTypeDirectory:
 		var directory *v1alpha1.ApplicationSourceDirectory
-		if directory = overriddenApplicationSource.Directory; directory == nil {
+		if directory = q.ApplicationSource.Directory; directory == nil {
 			directory = &v1alpha1.ApplicationSourceDirectory{}
 		}
 		logCtx := log.WithField("application", q.AppName)

@@ -1482,6 +1482,35 @@ func TestGenerateManifestsWithAppParameterFile(t *testing.T) {
 		})
 	})
 
+	t.Run("Single global override Helm", func(t *testing.T) {
+		runWithTempTestdata(t, "single-global-helm", func(t *testing.T, path string) {
+			service := newService(".")
+			manifests, err := service.GenerateManifest(context.Background(), &apiclient.ManifestRequest{
+				Repo: &argoappv1.Repository{},
+				ApplicationSource: &argoappv1.ApplicationSource{
+					Path: path,
+				},
+			})
+			require.NoError(t, err)
+			resourceByKindName := make(map[string]*unstructured.Unstructured)
+			for _, manifest := range manifests.Manifests {
+				var un unstructured.Unstructured
+				err := yaml.Unmarshal([]byte(manifest), &un)
+				if !assert.NoError(t, err) {
+					return
+				}
+				resourceByKindName[fmt.Sprintf("%s/%s", un.GetKind(), un.GetName())] = &un
+			}
+			deployment, ok := resourceByKindName["Deployment/guestbook-ui"]
+			require.True(t, ok)
+			containers, ok, _ := unstructured.NestedSlice(deployment.Object, "spec", "template", "spec", "containers")
+			require.True(t, ok)
+			image, ok, _ := unstructured.NestedString(containers[0].(map[string]interface{}), "image")
+			require.True(t, ok)
+			assert.Equal(t, "gcr.io/heptio-images/ks-guestbook-demo:0.2", image)
+		})
+	})
+
 	t.Run("Application specific override", func(t *testing.T) {
 		service := newService(".")
 		runWithTempTestdata(t, "single-app-only", func(t *testing.T, path string) {
