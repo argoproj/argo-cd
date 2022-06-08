@@ -11,6 +11,7 @@ argocd-dex gendexcfg [flags]
 ```
       --as string                      Username to impersonate for the operation
       --as-group stringArray           Group to impersonate for the operation, this flag can be repeated to specify multiple groups.
+      --as-uid string                  UID to impersonate for the operation
       --certificate-authority string   Path to a cert file for the certificate authority
       --client-certificate string      Path to a client certificate file for TLS
       --client-key string              Path to a client key file for TLS
@@ -19,6 +20,8 @@ argocd-dex gendexcfg [flags]
   -h, --help                           help for gendexcfg
       --insecure-skip-tls-verify       If true, the server's certificate will not be checked for validity. This will make your HTTPS connections insecure
       --kubeconfig string              Path to a kube config. Only required if out-of-cluster
+      --logformat string               Set the logging format. One of: text|json (default "text")
+      --loglevel string                Set the logging level. One of: debug|info|warn|error (default "info")
   -n, --namespace string               If present, the namespace scope for this CLI request
   -o, --out string                     Output to the specified file instead of stdout
       --password string                Password for basic authentication to the API server

@@ -11,20 +11,27 @@ import (
 	"strings"
 	"time"
 
-	gocache "github.com/patrickmn/go-cache"
-
 	argoio "github.com/argoproj/gitops-engine/pkg/utils/io"
+	"github.com/argoproj/gitops-engine/pkg/utils/text"
 	"github.com/bradleyfalzon/ghinstallation/v2"
+	gocache "github.com/patrickmn/go-cache"
 	log "github.com/sirupsen/logrus"
 
 	"github.com/argoproj/argo-cd/v2/common"
-
 	certutil "github.com/argoproj/argo-cd/v2/util/cert"
+	argoioutils "github.com/argoproj/argo-cd/v2/util/io"
 )
 
-// In memory cache for storing github APP api token credentials
 var (
+	// In memory cache for storing github APP api token credentials
 	githubAppTokenCache *gocache.Cache
+)
+
+const (
+	// ASKPASS_NONCE_ENV is the environment variable that is used to pass the nonce to the askpass script
+	ASKPASS_NONCE_ENV = "ARGOCD_GIT_ASKPASS_NONCE"
+	// githubAccessTokenUsername is a username that is used to with the github access token
+	githubAccessTokenUsername = "x-access-token"
 )
 
 func init() {
@@ -38,8 +45,32 @@ func init() {
 	githubAppTokenCache = gocache.New(githubAppCredsExp, 1*time.Minute)
 }
 
+type NoopCredsStore struct {
+}
+
+func (d NoopCredsStore) Add(username string, password string) string {
+	return ""
+}
+
+func (d NoopCredsStore) Remove(id string) {
+}
+
+type CredsStore interface {
+	Add(username string, password string) string
+	Remove(id string)
+}
+
 type Creds interface {
 	Environ() (io.Closer, []string, error)
+}
+
+func getGitAskPassEnv(id string) []string {
+	return []string{
+		fmt.Sprintf("GIT_ASKPASS=%s", "argocd"),
+		fmt.Sprintf("%s=%s", ASKPASS_NONCE_ENV, id),
+		"GIT_TERMINAL_PROMPT=0",
+		"ARGOCD_BINARY_NAME=argocd-git-ask-pass",
+	}
 }
 
 // nop implementation
@@ -84,9 +115,11 @@ type HTTPSCreds struct {
 	clientCertKey string
 	// HTTP/HTTPS proxy used to access repository
 	proxy string
+	// temporal credentials store
+	store CredsStore
 }
 
-func NewHTTPSCreds(username string, password string, clientCertData string, clientCertKey string, insecure bool, proxy string) GenericHTTPSCreds {
+func NewHTTPSCreds(username string, password string, clientCertData string, clientCertKey string, insecure bool, proxy string, store CredsStore) GenericHTTPSCreds {
 	return HTTPSCreds{
 		username,
 		password,
@@ -94,18 +127,15 @@ func NewHTTPSCreds(username string, password string, clientCertData string, clie
 		clientCertData,
 		clientCertKey,
 		proxy,
+		store,
 	}
 }
 
 // Get additional required environment variables for executing git client to
 // access specific repository via HTTPS.
 func (c HTTPSCreds) Environ() (io.Closer, []string, error) {
-	env := []string{fmt.Sprintf("GIT_ASKPASS=%s", "git-ask-pass.sh"), fmt.Sprintf("GIT_USERNAME=%s", c.username), fmt.Sprintf("GIT_PASSWORD=%s", c.password)}
-	if c.username != "" {
-		env = append(env, fmt.Sprintf("GIT_USERNAME=%s", c.username))
-	} else {
-		env = append(env, fmt.Sprintf("GIT_USERNAME=%s", "x-access-token"))
-	}
+	var env []string
+
 	httpCloser := authFilePaths(make([]string, 0))
 
 	// GIT_SSL_NO_VERIFY is used to tell git not to validate the server's cert at
@@ -157,9 +187,13 @@ func (c HTTPSCreds) Environ() (io.Closer, []string, error) {
 		}
 		// GIT_SSL_KEY is the full path to a client certificate's key to be used
 		env = append(env, fmt.Sprintf("GIT_SSL_KEY=%s", keyFile.Name()))
-
 	}
-	return httpCloser, env, nil
+	nonce := c.store.Add(text.FirstNonEmpty(c.username, githubAccessTokenUsername), c.password)
+	env = append(env, getGitAskPassEnv(nonce)...)
+	return argoioutils.NewCloser(func() error {
+		c.store.Remove(nonce)
+		return httpCloser.Close()
+	}), env, nil
 }
 
 func (g HTTPSCreds) HasClientCert() bool {
@@ -179,10 +213,11 @@ type SSHCreds struct {
 	sshPrivateKey string
 	caPath        string
 	insecure      bool
+	store         CredsStore
 }
 
-func NewSSHCreds(sshPrivateKey string, caPath string, insecureIgnoreHostKey bool) SSHCreds {
-	return SSHCreds{sshPrivateKey, caPath, insecureIgnoreHostKey}
+func NewSSHCreds(sshPrivateKey string, caPath string, insecureIgnoreHostKey bool, store CredsStore) SSHCreds {
+	return SSHCreds{sshPrivateKey, caPath, insecureIgnoreHostKey, store}
 }
 
 type sshPrivateKeyFile string
@@ -249,11 +284,12 @@ type GitHubAppCreds struct {
 	clientCertKey  string
 	insecure       bool
 	proxy          string
+	store          CredsStore
 }
 
 // NewGitHubAppCreds provide github app credentials
-func NewGitHubAppCreds(appID int64, appInstallId int64, privateKey string, baseURL string, repoURL string, clientCertData string, clientCertKey string, insecure bool) GenericHTTPSCreds {
-	return GitHubAppCreds{appID: appID, appInstallId: appInstallId, privateKey: privateKey, baseURL: baseURL, repoURL: repoURL, clientCertData: clientCertData, clientCertKey: clientCertKey, insecure: insecure}
+func NewGitHubAppCreds(appID int64, appInstallId int64, privateKey string, baseURL string, repoURL string, clientCertData string, clientCertKey string, insecure bool, store CredsStore) GenericHTTPSCreds {
+	return GitHubAppCreds{appID: appID, appInstallId: appInstallId, privateKey: privateKey, baseURL: baseURL, repoURL: repoURL, clientCertData: clientCertData, clientCertKey: clientCertKey, insecure: insecure, store: store}
 }
 
 func (g GitHubAppCreds) Environ() (io.Closer, []string, error) {
@@ -261,8 +297,7 @@ func (g GitHubAppCreds) Environ() (io.Closer, []string, error) {
 	if err != nil {
 		return NopCloser{}, nil, err
 	}
-
-	env := []string{fmt.Sprintf("GIT_ASKPASS=%s", "git-ask-pass.sh"), "GIT_USERNAME=x-access-token", fmt.Sprintf("GIT_PASSWORD=%s", token)}
+	var env []string
 	httpCloser := authFilePaths(make([]string, 0))
 
 	// GIT_SSL_NO_VERIFY is used to tell git not to validate the server's cert at
@@ -316,7 +351,12 @@ func (g GitHubAppCreds) Environ() (io.Closer, []string, error) {
 		env = append(env, fmt.Sprintf("GIT_SSL_KEY=%s", keyFile.Name()))
 
 	}
-	return httpCloser, env, nil
+	nonce := g.store.Add(githubAccessTokenUsername, token)
+	env = append(env, getGitAskPassEnv(nonce)...)
+	return argoioutils.NewCloser(func() error {
+		g.store.Remove(nonce)
+		return httpCloser.Close()
+	}), env, nil
 }
 
 // getAccessToken fetches GitHub token using the app id, install id, and private key.

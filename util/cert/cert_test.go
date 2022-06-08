@@ -472,10 +472,7 @@ func TestGetSSHKnownHostsDataPath(t *testing.T) {
 
 func TestGetCertificateForConnect(t *testing.T) {
 	t.Run("Success", func(t *testing.T) {
-		temppath, err := ioutil.TempDir("", "argocd-cert-test")
-		if err != nil {
-			panic(err)
-		}
+		temppath := t.TempDir()
 		cert, err := ioutil.ReadFile("../../test/fixture/certs/argocd-test-server.crt")
 		if err != nil {
 			panic(err)
@@ -484,7 +481,6 @@ func TestGetCertificateForConnect(t *testing.T) {
 		if err != nil {
 			panic(err)
 		}
-		defer os.RemoveAll(temppath)
 		os.Setenv(common.EnvVarTLSDataPath, temppath)
 		certs, err := GetCertificateForConnect("127.0.0.1")
 		assert.NoError(t, err)
@@ -492,11 +488,7 @@ func TestGetCertificateForConnect(t *testing.T) {
 	})
 
 	t.Run("No cert found", func(t *testing.T) {
-		temppath, err := ioutil.TempDir("", "argocd-cert-test")
-		if err != nil {
-			panic(err)
-		}
-		defer os.RemoveAll(temppath)
+		temppath := t.TempDir()
 		os.Setenv(common.EnvVarTLSDataPath, temppath)
 		certs, err := GetCertificateForConnect("127.0.0.1")
 		assert.NoError(t, err)
@@ -504,30 +496,23 @@ func TestGetCertificateForConnect(t *testing.T) {
 	})
 
 	t.Run("No valid cert in file", func(t *testing.T) {
-		temppath, err := ioutil.TempDir("", "argocd-cert-test")
+		temppath := t.TempDir()
+		err := ioutil.WriteFile(path.Join(temppath, "127.0.0.1"), []byte("foobar"), 0666)
 		if err != nil {
 			panic(err)
 		}
-		err = ioutil.WriteFile(path.Join(temppath, "127.0.0.1"), []byte("foobar"), 0666)
-		if err != nil {
-			panic(err)
-		}
-		defer os.RemoveAll(temppath)
 		os.Setenv(common.EnvVarTLSDataPath, temppath)
 		certs, err := GetCertificateForConnect("127.0.0.1")
 		assert.Error(t, err)
 		assert.Len(t, certs, 0)
-		assert.Contains(t, err.Error(), "No certificates found")
+		assert.Contains(t, err.Error(), "no certificates found")
 	})
 
 }
 
 func TestGetCertBundlePathForRepository(t *testing.T) {
 	t.Run("Success", func(t *testing.T) {
-		temppath, err := ioutil.TempDir("", "argocd-cert-test")
-		if err != nil {
-			panic(err)
-		}
+		temppath := t.TempDir()
 		cert, err := ioutil.ReadFile("../../test/fixture/certs/argocd-test-server.crt")
 		if err != nil {
 			panic(err)
@@ -536,7 +521,6 @@ func TestGetCertBundlePathForRepository(t *testing.T) {
 		if err != nil {
 			panic(err)
 		}
-		defer os.RemoveAll(temppath)
 		os.Setenv(common.EnvVarTLSDataPath, temppath)
 		certpath, err := GetCertBundlePathForRepository("127.0.0.1")
 		assert.NoError(t, err)
@@ -544,11 +528,7 @@ func TestGetCertBundlePathForRepository(t *testing.T) {
 	})
 
 	t.Run("No cert found", func(t *testing.T) {
-		temppath, err := ioutil.TempDir("", "argocd-cert-test")
-		if err != nil {
-			panic(err)
-		}
-		defer os.RemoveAll(temppath)
+		temppath := t.TempDir()
 		os.Setenv(common.EnvVarTLSDataPath, temppath)
 		certpath, err := GetCertBundlePathForRepository("127.0.0.1")
 		assert.NoError(t, err)
@@ -556,15 +536,11 @@ func TestGetCertBundlePathForRepository(t *testing.T) {
 	})
 
 	t.Run("No valid cert in file", func(t *testing.T) {
-		temppath, err := ioutil.TempDir("", "argocd-cert-test")
+		temppath := t.TempDir()
+		err := ioutil.WriteFile(path.Join(temppath, "127.0.0.1"), []byte("foobar"), 0666)
 		if err != nil {
 			panic(err)
 		}
-		err = ioutil.WriteFile(path.Join(temppath, "127.0.0.1"), []byte("foobar"), 0666)
-		if err != nil {
-			panic(err)
-		}
-		defer os.RemoveAll(temppath)
 		os.Setenv(common.EnvVarTLSDataPath, temppath)
 		certpath, err := GetCertBundlePathForRepository("127.0.0.1")
 		assert.NoError(t, err)

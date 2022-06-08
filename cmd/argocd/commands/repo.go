@@ -10,6 +10,7 @@ import (
 	log "github.com/sirupsen/logrus"
 	"github.com/spf13/cobra"
 
+	"github.com/argoproj/argo-cd/v2/cmd/argocd/commands/headless"
 	cmdutil "github.com/argoproj/argo-cd/v2/cmd/util"
 	argocdclient "github.com/argoproj/argo-cd/v2/pkg/apiclient"
 	repositorypkg "github.com/argoproj/argo-cd/v2/pkg/apiclient/repository"
@@ -150,7 +151,7 @@ func NewRepoAddCommand(clientOpts *argocdclient.ClientOptions) *cobra.Command {
 				errors.CheckError(fmt.Errorf("Must specify --name for repos of type 'helm'"))
 			}
 
-			conn, repoIf := argocdclient.NewClientOrDie(clientOpts).NewRepoClientOrDie()
+			conn, repoIf := headless.NewClientOrDie(clientOpts, c).NewRepoClientOrDie()
 			defer io.Close(conn)
 
 			// If the user set a username, but didn't supply password via --password,
@@ -192,7 +193,7 @@ func NewRepoAddCommand(clientOpts *argocdclient.ClientOptions) *cobra.Command {
 				Upsert: repoOpts.Upsert,
 			}
 
-			createdRepo, err := repoIf.Create(context.Background(), &repoCreateReq)
+			createdRepo, err := repoIf.CreateRepository(context.Background(), &repoCreateReq)
 			errors.CheckError(err)
 			fmt.Printf("Repository '%s' added\n", createdRepo.Repo)
 		},
@@ -202,7 +203,7 @@ func NewRepoAddCommand(clientOpts *argocdclient.ClientOptions) *cobra.Command {
 	return command
 }
 
-// NewRepoRemoveCommand returns a new instance of an `argocd repo list` command
+// NewRepoRemoveCommand returns a new instance of an `argocd repo remove` command
 func NewRepoRemoveCommand(clientOpts *argocdclient.ClientOptions) *cobra.Command {
 	var command = &cobra.Command{
 		Use:   "rm REPO",
@@ -212,10 +213,10 @@ func NewRepoRemoveCommand(clientOpts *argocdclient.ClientOptions) *cobra.Command
 				c.HelpFunc()(c, args)
 				os.Exit(1)
 			}
-			conn, repoIf := argocdclient.NewClientOrDie(clientOpts).NewRepoClientOrDie()
+			conn, repoIf := headless.NewClientOrDie(clientOpts, c).NewRepoClientOrDie()
 			defer io.Close(conn)
 			for _, repoURL := range args {
-				_, err := repoIf.Delete(context.Background(), &repositorypkg.RepoQuery{Repo: repoURL})
+				_, err := repoIf.DeleteRepository(context.Background(), &repositorypkg.RepoQuery{Repo: repoURL})
 				errors.CheckError(err)
 				fmt.Printf("Repository '%s' removed\n", repoURL)
 			}
@@ -251,7 +252,7 @@ func printRepoUrls(repos appsv1.Repositories) {
 	}
 }
 
-// NewRepoListCommand returns a new instance of an `argocd repo rm` command
+// NewRepoListCommand returns a new instance of an `argocd repo list` command
 func NewRepoListCommand(clientOpts *argocdclient.ClientOptions) *cobra.Command {
 	var (
 		output  string
@@ -261,7 +262,7 @@ func NewRepoListCommand(clientOpts *argocdclient.ClientOptions) *cobra.Command {
 		Use:   "list",
 		Short: "List configured repositories",
 		Run: func(c *cobra.Command, args []string) {
-			conn, repoIf := argocdclient.NewClientOrDie(clientOpts).NewRepoClientOrDie()
+			conn, repoIf := headless.NewClientOrDie(clientOpts, c).NewRepoClientOrDie()
 			defer io.Close(conn)
 			forceRefresh := false
 			switch refresh {
@@ -272,7 +273,7 @@ func NewRepoListCommand(clientOpts *argocdclient.ClientOptions) *cobra.Command {
 				err := fmt.Errorf("--refresh must be one of: 'hard'")
 				errors.CheckError(err)
 			}
-			repos, err := repoIf.List(context.Background(), &repositorypkg.RepoQuery{ForceRefresh: forceRefresh})
+			repos, err := repoIf.ListRepositories(context.Background(), &repositorypkg.RepoQuery{ForceRefresh: forceRefresh})
 			errors.CheckError(err)
 			switch output {
 			case "yaml", "json":
@@ -293,7 +294,7 @@ func NewRepoListCommand(clientOpts *argocdclient.ClientOptions) *cobra.Command {
 	return command
 }
 
-// NewRepoGetCommand returns a new instance of an `argocd repo rm` command
+// NewRepoGetCommand returns a new instance of an `argocd repo get` command
 func NewRepoGetCommand(clientOpts *argocdclient.ClientOptions) *cobra.Command {
 	var (
 		output  string
@@ -310,7 +311,7 @@ func NewRepoGetCommand(clientOpts *argocdclient.ClientOptions) *cobra.Command {
 
 			// Repository URL
 			repoURL := args[0]
-			conn, repoIf := argocdclient.NewClientOrDie(clientOpts).NewRepoClientOrDie()
+			conn, repoIf := headless.NewClientOrDie(clientOpts, c).NewRepoClientOrDie()
 			defer io.Close(conn)
 			forceRefresh := false
 			switch refresh {

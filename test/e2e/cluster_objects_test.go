@@ -15,7 +15,7 @@ func TestClusterRoleBinding(t *testing.T) {
 	Given(t).
 		Path("cluster-role").
 		When().
-		Create().
+		CreateApp().
 		Sync().
 		Then().
 		Expect(OperationPhaseIs(OperationSucceeded)).

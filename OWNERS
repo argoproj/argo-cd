@@ -8,16 +8,22 @@ approvers:
 - jannfis
 - jessesuen
 - jgwest
+- keithchong
 - mayzhang2000
 - rbreeze
+- leoluz
+- crenshaw-dev
+- pasha-codefresh
 
 reviewers:
 - dthomson25
 - tetchel
+- terrytangyuan
 - wtam2018
 - ishitasequeira
 - reginapizza
 - hblixt
 - chetan-rns
 - wanghong230
-- pasha-codefresh
+- ciiay
+- saumeya

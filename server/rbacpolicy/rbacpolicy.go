@@ -3,7 +3,7 @@ package rbacpolicy
 import (
 	"strings"
 
-	jwt "github.com/dgrijalva/jwt-go/v4"
+	jwt "github.com/golang-jwt/jwt/v4"
 	log "github.com/sirupsen/logrus"
 
 	"github.com/argoproj/argo-cd/v2/pkg/apis/application/v1alpha1"
@@ -21,6 +21,8 @@ const (
 	ResourceCertificates = "certificates"
 	ResourceAccounts     = "accounts"
 	ResourceGPGKeys      = "gpgkeys"
+	ResourceLogs         = "logs"
+	ResourceExec         = "exec"
 
 	// please add new items to Actions
 	ActionGet      = "get"
@@ -40,6 +42,8 @@ var (
 		ResourceApplications,
 		ResourceRepositories,
 		ResourceCertificates,
+		ResourceLogs,
+		ResourceExec,
 	}
 	Actions = []string{
 		ActionGet,
@@ -167,8 +171,8 @@ func (p *RBACPolicyEnforcer) getProjectFromRequest(rvals ...interface{}) *v1alph
 	if res, ok := rvals[1].(string); ok {
 		if obj, ok := rvals[3].(string); ok {
 			switch res {
-			case ResourceApplications:
-				if objSplit := strings.Split(obj, "/"); len(objSplit) == 2 {
+			case ResourceApplications, ResourceRepositories, ResourceClusters, ResourceLogs, ResourceExec:
+				if objSplit := strings.Split(obj, "/"); len(objSplit) >= 2 {
 					return getProjectByName(objSplit[0])
 				}
 			case ResourceProjects:

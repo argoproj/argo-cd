@@ -17,7 +17,7 @@ import (
 	"time"
 
 	"github.com/coreos/go-oidc"
-	"github.com/dgrijalva/jwt-go/v4"
+	"github.com/golang-jwt/jwt/v4"
 	"github.com/golang/protobuf/ptypes/empty"
 	grpc_middleware "github.com/grpc-ecosystem/go-grpc-middleware"
 	grpc_retry "github.com/grpc-ecosystem/go-grpc-middleware/retry"
@@ -392,15 +392,13 @@ func (c *client) refreshAuthToken(localCfg *localconfig.LocalConfig, ctxName, co
 	if err != nil {
 		return err
 	}
-	parser := &jwt.Parser{
-		ValidationHelper: jwt.NewValidationHelper(jwt.WithoutClaimsValidation(), jwt.WithoutAudienceValidation()),
-	}
-	var claims jwt.StandardClaims
+	parser := jwt.NewParser(jwt.WithoutClaimsValidation())
+	var claims jwt.RegisteredClaims
 	_, _, err = parser.ParseUnverified(configCtx.User.AuthToken, &claims)
 	if err != nil {
 		return err
 	}
-	if claims.Valid(parser.ValidationHelper) == nil {
+	if claims.Valid() == nil {
 		// token is still valid
 		return nil
 	}
@@ -774,7 +772,7 @@ func (c *client) WatchApplicationWithRetry(ctx context.Context, appName string, 
 			conn, appIf, err := c.NewApplicationClient()
 			if err == nil {
 				var wc applicationpkg.ApplicationService_WatchClient
-				wc, err = appIf.Watch(ctx, &applicationpkg.ApplicationQuery{Name: &appName, ResourceVersion: revision})
+				wc, err = appIf.Watch(ctx, &applicationpkg.ApplicationQuery{Name: &appName, ResourceVersion: &revision})
 				if err == nil {
 					for {
 						var appEvent *v1alpha1.ApplicationWatchEvent
@@ -817,11 +815,12 @@ func isCanceledContextErr(err error) bool {
 func parseHeaders(headerStrings []string) (http.Header, error) {
 	headers := http.Header{}
 	for _, kv := range headerStrings {
-		items := strings.Split(kv, ":")
-		if len(items)%2 == 1 {
+		i := strings.IndexByte(kv, ':')
+		// zero means meaningless empty header name
+		if i <= 0 {
 			return nil, fmt.Errorf("additional headers must be colon(:)-separated: %s", kv)
 		}
-		headers.Add(items[0], items[1])
+		headers.Add(kv[0:i], kv[i+1:])
 	}
 	return headers, nil
 }

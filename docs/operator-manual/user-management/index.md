@@ -95,7 +95,7 @@ argocd account generate-token --account <username>
 Argo CD rejects login attempts after too many failed in order to prevent password brute-forcing.
 The following environments variables are available to control throttling settings:
 
-* `ARGOCD_SESSION_MAX_FAIL_COUNT`: Maximum number of failed logins before Argo CD starts
+* `ARGOCD_SESSION_FAILURE_MAX_FAIL_COUNT`: Maximum number of failed logins before Argo CD starts
 rejecting login attempts. Default: 5.
 
 * `ARGOCD_SESSION_FAILURE_WINDOW_SECONDS`: Number of seconds for the failure window.
@@ -219,12 +219,13 @@ data:
   dex.config: |
     connectors:
       # OIDC
-      - type: OIDC
+      - type: oidc
         id: oidc
         name: OIDC
-        issuer: https://example-OIDC-provider.com
-        clientID: aaaabbbbccccddddeee
-        clientSecret: $dex.oidc.clientSecret
+        config:
+          issuer: https://example-OIDC-provider.com
+          clientID: aaaabbbbccccddddeee
+          clientSecret: $dex.oidc.clientSecret
 ```
 
 ### Requesting additional ID token claims
@@ -243,14 +244,15 @@ data:
       - type: OIDC
         id: oidc
         name: OIDC
-        issuer: https://example-OIDC-provider.com
-        clientID: aaaabbbbccccddddeee
-        clientSecret: $dex.oidc.clientSecret
-        insecureEnableGroups: true
-        scopes:
-        - profile
-        - email
-        - groups
+        config:
+          issuer: https://example-OIDC-provider.com
+          clientID: aaaabbbbccccddddeee
+          clientSecret: $dex.oidc.clientSecret
+          insecureEnableGroups: true
+          scopes:
+          - profile
+          - email
+          - groups
 ```
 
 !!! warning
@@ -272,15 +274,16 @@ data:
       - type: OIDC
         id: oidc
         name: OIDC
-        issuer: https://example-OIDC-provider.com
-        clientID: aaaabbbbccccddddeee
-        clientSecret: $dex.oidc.clientSecret
-        insecureEnableGroups: true
-        scopes:
-        - profile
-        - email
-        - groups
-        getUserInfo: true
+        config:
+          issuer: https://example-OIDC-provider.com
+          clientID: aaaabbbbccccddddeee
+          clientSecret: $dex.oidc.clientSecret
+          insecureEnableGroups: true
+          scopes:
+          - profile
+          - email
+          - groups
+          getUserInfo: true
 ```
 
 ## Existing OIDC Provider
@@ -373,23 +376,35 @@ You are not required to specify a logoutRedirectURL as this is automatically gen
 !!! note
    The post logout redirect URI may need to be whitelisted against your OIDC provider's client settings for ArgoCD.
 
+### Configuring a custom root CA certificate for communicating with the OIDC provider
+
+If your OIDC provider is setup with a certificate which is not signed by one of the well known certificate authorities
+you can provide a custom certificate which will be used in verifying the OIDC provider's TLS certificate when
+communicating with it.  
+Add a `rootCA` to your `oidc.config` which contains the PEM encoded root certificate:
+
+```yaml
+  oidc.config: |
+    ...
+    rootCA: |
+      -----BEGIN CERTIFICATE-----
+      ... encoded certificate data here ...
+      -----END CERTIFICATE-----
+```
 
 
 ## SSO Further Reading
 
 ### Sensitive Data and SSO Client Secrets
 
-You can use the `argocd-secret` to store any sensitive data. ArgoCD knows to check the keys under `data` in the `argocd-secret` secret for a corresponding key whenever a value in a configmap starts with `$`. This can be used to store things such as your `clientSecret`. 
-* Any values which start with `$` will :
-  - If value is in form of `$<secret>:a.key.in.k8s.secret`, look to a key in K8S `<secret>` of the same name (minus the `$`), and reads it value.
-  - Otherwise, look to a key in `argocd-secret` of the same name (minus the `$`),
-  to obtain the actual value. This allows you to store the `clientSecret` as a kubernetes secret.
-  Kubernetes secrets must be base64 encoded. To base64 encode your secret, you can run
-  `printf RAW_STRING | base64`.
+`argocd-secret` can be used to store sensitive data which can be referenced by ArgoCD. Values starting with `$` in configmaps are interpreted as follows:
 
-Data should be base64 encoded before it is added to `argocd-secret`. You can do so by running `printf RAW_SECRET_STRING | base64`.
+- If value has the form: `$<secret>:a.key.in.k8s.secret`, look for a k8s secret with the name `<secret>` (minus the `$`), and read its value. 
+- Otherwise, look for a key in the k8s secret named `argocd-secret`. 
 
 #### Example
+
+SSO `clientSecret` can thus be stored as a kubernetes secret with the following manifests
 
 `argocd-secret`:
 ```yaml
@@ -404,9 +419,9 @@ metadata:
 type: Opaque
 data:
   ...
-  # Store client secret like below.
-  # Ensure the secret is base64 encoded
-  oidc.auth0.clientSecret: <client-secret-base64-encoded>
+  # The secret value must be base64 encoded **once** 
+  # this value corresponds to: `printf "hello-world" | base64`
+  oidc.auth0.clientSecret: "aGVsbG8td29ybGQ="
   ...
 ```
 
@@ -425,6 +440,7 @@ data:
   oidc.config: |
     name: Auth0
     clientID: aabbccddeeff00112233
+
     # Reference key in argocd-secret
     clientSecret: $oidc.auth0.clientSecret
   ...

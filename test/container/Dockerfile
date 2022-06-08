@@ -1,12 +1,14 @@
-FROM redis:6.2.4 as redis
+FROM docker.io/library/redis:7.0.0 as redis
 
-FROM node:12.18.4 as node
+FROM docker.io/library/node:12.18.4-buster as node
 
-FROM golang:1.16.11 as golang
+FROM docker.io/library/golang:1.18 as golang
 
-FROM registry:2.7.1 as registry
+FROM docker.io/library/registry:2.8 as registry
 
-FROM ubuntu:21.04
+FROM docker.io/bitnami/kubectl:1.23.6 as kubectl
+
+FROM ubuntu:22.04
 
 ENV DEBIAN_FRONTEND=noninteractive
 RUN  apt-get update && apt-get install --fix-missing -y \
@@ -18,9 +20,11 @@ RUN  apt-get update && apt-get install --fix-missing -y \
         git \
         git-lfs \
         gpg \
+        jq \
         make \
         wget \
         gcc \
+        g++ \
         sudo \
         tini \
         zip && \
@@ -29,30 +33,26 @@ RUN  apt-get update && apt-get install --fix-missing -y \
 
 COPY --from=golang /usr/local/go /usr/local/go
 
-ENV PATH /go/bin:/usr/local/go/bin:$PATH
+COPY --from=kubectl /opt/bitnami/kubectl/bin/kubectl /usr/local/bin/kubectl
+
+ENV PATH /dist:/go/bin:/usr/local/go/bin:/go/src/github.com/argoproj/argo-cd/dist:$PATH
 ENV GOROOT /usr/local/go
 ENV GOPATH /go
 
 # Install build and test dependencies
-ADD ./hack/tool-versions.sh .
-ADD ./hack/install.sh .
-ADD ./hack/installers installers
+COPY hack/install.sh hack/tool-versions.sh go.* ./
+COPY hack/installers installers
 
-RUN ./install.sh dep-linux && \
-    ./install.sh ksonnet-linux && \
-    ./install.sh helm2-linux && \
-    ./install.sh helm-linux && \
-    ./install.sh kubectl-linux && \
-    ./install.sh kustomize-linux && \
+RUN ./install.sh helm-linux && \
+    ./install.sh kustomize && \
     ./install.sh codegen-tools && \
     ./install.sh codegen-go-tools && \
     ./install.sh lint-tools && \
-    go get github.com/mattn/goreman && \
-    go get github.com/kisielk/godepgraph && \
-    go get github.com/jstemmer/go-junit-report && \
+    go install github.com/mattn/goreman@latest && \
+    go install github.com/kisielk/godepgraph@latest && \
+    go install github.com/jstemmer/go-junit-report@latest && \
     rm -rf /tmp/dl && \
     rm -rf /tmp/helm && \
-    rm -rf /tmp/helm2 && \
     rm -rf /tmp/ks_*
 
 # These are required for running end-to-end tests
@@ -63,6 +63,11 @@ COPY ./test/fixture/testrepos/ssh_host_*_key* /etc/ssh/
 
 # Copy redis binaries to the image
 COPY --from=redis /usr/local/bin/* /usr/local/bin/
+
+# Copy redis dependencies/shared libraries
+# Ubuntu 22.04+ has moved to OpenSSL3 and no longer provides these libraries
+COPY --from=redis /usr/lib/x86_64-linux-gnu/libssl.so.1.1 /usr/lib/x86_64-linux-gnu/
+COPY --from=redis /usr/lib/x86_64-linux-gnu/libcrypto.so.1.1 /usr/lib/x86_64-linux-gnu/
 
 # Copy registry binaries to the image
 COPY --from=registry /bin/registry /usr/local/bin/
@@ -81,11 +86,12 @@ ARG UID
 # Prepare user configuration & build environments
 RUN useradd -l -u ${UID} -d /home/user -s /bin/bash user && \
     echo "user ALL=(ALL) NOPASSWD:ALL" > /etc/sudoers.d/user && \
-    HELM_HOME=/home/user/.helm helm2 init --client-only && \
+    mkdir -p /home/user/.kube && chmod 777 /home/user/.kube && \
+    chown -R user /home/user && \
+    chgrp -R user /home/user && \
     HOME=/home/user git config --global user.name "ArgoCD Test User" && \
     HOME=/home/user git config --global user.email "noreply@example.com" && \
     mkdir -p /go/pkg && chmod 777 /go/pkg && \
-    mkdir -p /home/user/.kube && chmod 777 /home/user/.kube && \
     mkdir -p /var/run/sshd && \
     mkdir -p /root/.ssh && \
     mkdir -p /go && \
@@ -94,8 +100,6 @@ RUN useradd -l -u ${UID} -d /home/user -s /bin/bash user && \
     chmod 0600 /etc/ssh/ssh_host_*_key && \
     mkdir -p /tmp/go-build-cache && chmod -R 777 /tmp/go-build-cache && \
     mkdir -p /home/user/.cache && chmod 777 /home/user/.cache && \
-    chown -R user /home/user && \
-    chgrp -R user /home/user && \
     chmod -R 777 /usr/local/go && \
     ln -s /usr/local/bin/node /usr/local/bin/nodejs && \
     ln -s /usr/local/lib/node_modules/npm/bin/npm-cli.js /usr/local/bin/npm && \

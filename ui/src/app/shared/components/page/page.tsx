@@ -45,13 +45,21 @@ interface PageProps extends React.Props<any> {
     title: string;
     hideAuth?: boolean;
     toolbar?: Toolbar | Observable<Toolbar>;
+    topBarTitle?: string;
+    useTitleOnly?: boolean;
 }
 
 export const Page = (props: PageProps) => {
     const ctx = React.useContext(Context);
     return (
         <div className={`${props.hideAuth ? 'page-wrapper' : ''}`}>
-            <ArgoPage title={props.title} children={props.children} toolbar={!props.hideAuth ? AddAuthToToolbar(props.toolbar, ctx) : props.toolbar} />
+            <ArgoPage
+                title={props.title}
+                children={props.children}
+                topBarTitle={props.topBarTitle}
+                useTitleOnly={props.useTitleOnly}
+                toolbar={!props.hideAuth ? AddAuthToToolbar(props.toolbar, ctx) : props.toolbar}
+            />
         </div>
     );
 };

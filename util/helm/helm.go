@@ -6,13 +6,13 @@ import (
 	"net/url"
 	"os"
 	"os/exec"
-	"path"
 	"strings"
 
 	"github.com/ghodss/yaml"
 
 	"github.com/argoproj/argo-cd/v2/util/config"
 	executil "github.com/argoproj/argo-cd/v2/util/exec"
+	pathutil "github.com/argoproj/argo-cd/v2/util/io/path"
 )
 
 type HelmRepository struct {
@@ -27,7 +27,7 @@ type Helm interface {
 	// Template returns a list of unstructured objects from a `helm template` command
 	Template(opts *TemplateOpts) (string, error)
 	// GetParameters returns a list of chart parameters taking into account values in provided YAML files.
-	GetParameters(valuesFiles []string) (map[string]string, error)
+	GetParameters(valuesFiles []pathutil.ResolvedFilePath) (map[string]string, error)
 	// DependencyBuild runs `helm dependency build` to download a chart's dependencies
 	DependencyBuild() error
 	// Init runs `helm init --client-only`
@@ -129,23 +129,23 @@ func Version(shortForm bool) (string, error) {
 	return strings.TrimSpace(version), nil
 }
 
-func (h *helm) GetParameters(valuesFiles []string) (map[string]string, error) {
+func (h *helm) GetParameters(valuesFiles []pathutil.ResolvedFilePath) (map[string]string, error) {
 	out, err := h.cmd.inspectValues(".")
 	if err != nil {
 		return nil, err
 	}
 	values := []string{out}
-	for _, file := range valuesFiles {
+	for i := range valuesFiles {
+		file := string(valuesFiles[i])
 		var fileValues []byte
 		parsedURL, err := url.ParseRequestURI(file)
 		if err == nil && (parsedURL.Scheme == "http" || parsedURL.Scheme == "https") {
 			fileValues, err = config.ReadRemoteFile(file)
 		} else {
-			filePath := path.Join(h.cmd.WorkDir, file)
-			if _, err := os.Stat(filePath); os.IsNotExist(err) {
+			if _, err := os.Stat(file); os.IsNotExist(err) {
 				continue
 			}
-			fileValues, err = ioutil.ReadFile(filePath)
+			fileValues, err = ioutil.ReadFile(file)
 		}
 		if err != nil {
 			return nil, fmt.Errorf("failed to read value file %s: %s", file, err)
