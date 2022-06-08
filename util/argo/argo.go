@@ -160,18 +160,18 @@ func ValidateRepo(
 	}
 	defer io.Close(conn)
 
-	errMessage := nil
+	errMessage := ""
 	if spec.Sources != nil {
-		for source := range spec.Sources {
-			repo, err := db.GetRepository(ctx, source)
+		for _, source := range spec.Sources {
+			repo, err := db.GetRepository(ctx, source.RepoURL)
 			if err != nil {
 				return nil, err
 			}
-			errRepos[string]
+			errRepos := make([]string, 0)
 			if err := TestRepoWithKnownType(ctx, repoClient, repo, app.Spec.Source.IsHelm(), app.Spec.Source.IsHelmOci()); err != nil {
-				errRepos = append(errRepos, repo)
+				errRepos = append(errRepos, repo.Repo)
 			}
-			if errRepos.size > 0 {
+			if len(errRepos) > 0 {
 				errMessage = fmt.Sprintf("repositories not accessible: %v", strings.Join(errRepos, ", "))
 			}
 
@@ -187,7 +187,7 @@ func ValidateRepo(
 	}
 	repoAccessible := false
 
-	if errMessage != nil {
+	if errMessage != "" {
 		conditions = append(conditions, argoappv1.ApplicationCondition{
 			Type:    argoappv1.ApplicationConditionInvalidSpecError,
 			Message: fmt.Sprintf("repository not accessible: %v", errMessage),
@@ -448,10 +448,10 @@ func verifyGenerateManifests(ctx context.Context, repoRes *argoappv1.Repository,
 		})
 	}
 
-	errMessage := nil
+	errMessage := make([]string, 0)
 
 	if &spec.Sources != nil {
-		for source := range &spec.Sources {
+		for _, source := range &spec.Sources {
 			req := apiclient.ManifestRequest{
 				Repo: &argoappv1.Repository{
 					Repo:  spec.Source.RepoURL,
@@ -479,8 +479,9 @@ func verifyGenerateManifests(ctx context.Context, repoRes *argoappv1.Repository,
 
 			// Only check whether we can access the application's path,
 			// and not whether it actually contains any manifests.
-			_, err := repoClient.GenerateManifest(ctx, &req)
-			errMessage = append(errMessage, fmt.Sprintf("Unable to generate manifests in %s: %v.", spec.Source.Path, err))
+			if _, err := repoClient.GenerateManifest(ctx, &req); err != nil {
+				errMessage = append(errMessage, fmt.Sprintf("Unable to generate manifests in %s: %v.", spec.Source.Path, err))
+			}
 		}
 	} else {
 		req := apiclient.ManifestRequest{
