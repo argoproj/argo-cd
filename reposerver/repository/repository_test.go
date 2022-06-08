@@ -1120,17 +1120,18 @@ func TestListApps(t *testing.T) {
 	assert.NoError(t, err)
 
 	expectedApps := map[string]string{
-		"Kustomization":                  "Kustomize",
-		"app-parameters/multi":           "Kustomize",
-		"app-parameters/single-app-only": "Kustomize",
-		"app-parameters/single-global":   "Kustomize",
-		"invalid-helm":                   "Helm",
-		"invalid-kustomize":              "Kustomize",
-		"kustomization_yaml":             "Kustomize",
-		"kustomization_yml":              "Kustomize",
-		"my-chart":                       "Helm",
-		"my-chart-2":                     "Helm",
-		"values-files":                   "Helm",
+		"Kustomization":                     "Kustomize",
+		"app-parameters/multi":              "Kustomize",
+		"app-parameters/single-app-only":    "Kustomize",
+		"app-parameters/single-global":      "Kustomize",
+		"app-parameters/single-global-helm": "Kustomize",
+		"invalid-helm":                      "Helm",
+		"invalid-kustomize":                 "Kustomize",
+		"kustomization_yaml":                "Kustomize",
+		"kustomization_yml":                 "Kustomize",
+		"my-chart":                          "Helm",
+		"my-chart-2":                        "Helm",
+		"values-files":                      "Helm",
 	}
 	assert.Equal(t, expectedApps, res.Apps)
 }
