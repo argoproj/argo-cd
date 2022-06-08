@@ -69,27 +69,23 @@ func (g *PullRequestGenerator) GenerateParams(appSetGenerator *argoprojiov1alpha
 	}
 	params := make([]map[string]string, 0, len(pulls))
 
-	if appSetGenerator.PullRequest.BranchSlug {
-		// In order to follow the DNS label standard as defined in RFC 1123,
-		// we need to limit the 'branch' to 50 to give room to append/suffix-ing it
-		// with 13 more characters. Also, there is the need to clean it as recommended
-		// here https://kubernetes.io/docs/concepts/overview/working-with-objects/names/#dns-label-names
+	// In order to follow the DNS label standard as defined in RFC 1123,
+	// we need to limit the 'branch' to 50 to give room to append/suffix-ing it
+	// with 13 more characters. Also, there is the need to clean it as recommended
+	// here https://kubernetes.io/docs/concepts/overview/working-with-objects/names/#dns-label-names
+	slug.MaxLength = 50
 
-		// Converting underscores to dashes
-		slug.CustomSub = map[string]string{
-			"_": "-",
-		}
-		slug.MaxLength = 50
+	// Converting underscores to dashes
+	slug.CustomSub = map[string]string{
+		"_": "-",
 	}
+
 	for _, pull := range pulls {
-		pullBranchName := pull.Branch
-		if appSetGenerator.PullRequest.BranchSlug {
-			pullBranchName = slug.Make(pull.Branch)
-		}
 		params = append(params, map[string]string{
-			"number":   strconv.Itoa(pull.Number),
-			"branch":   pullBranchName,
-			"head_sha": pull.HeadSHA,
+			"number":      strconv.Itoa(pull.Number),
+			"branch":      pull.Branch,
+			"branch_slug": slug.Make(pull.Branch),
+			"head_sha":    pull.HeadSHA,
 		})
 	}
 	return params, nil
