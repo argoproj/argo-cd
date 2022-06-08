@@ -88,8 +88,7 @@ You can configure your Git repository using SSH either using the CLI or the UI.
 !!! note
     Argo CD 2.4 upgraded to OpenSSH 8.9. OpenSSH 8.8 
     [dropped support for the `ssh-rsa` SHA-1 signature scheme](https://www.openssh.com/txt/release-8.8).
-    SHA-2 algorithms are still acceptable. To check your key signature scheme hash algorithm, use
-    `ssh-keygen -l -f <your key filename>`.
+    SHA-2 algorithms are still acceptable.
 
 Using the CLI:
 
