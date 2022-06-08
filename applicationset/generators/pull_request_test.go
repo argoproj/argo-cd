@@ -18,7 +18,6 @@ func TestPullRequestGithubGenerateParams(t *testing.T) {
 	ctx := context.Background()
 	cases := []struct {
 		selectFunc  func(context.Context, *argoprojiov1alpha1.PullRequestGenerator, *argoprojiov1alpha1.ApplicationSet) (pullrequest.PullRequestService, error)
-		branchSlug  bool
 		expected    []map[string]string
 		expectedErr error
 	}{
@@ -36,12 +35,12 @@ func TestPullRequestGithubGenerateParams(t *testing.T) {
 					nil,
 				)
 			},
-			branchSlug: false,
 			expected: []map[string]string{
 				{
-					"number":   "1",
-					"branch":   "branch1",
-					"head_sha": "089d92cbf9ff857a39e6feccd32798ca700fb958",
+					"number":      "1",
+					"branch":      "branch1",
+					"branch_slug": "branch1",
+					"head_sha":    "089d92cbf9ff857a39e6feccd32798ca700fb958",
 				},
 			},
 			expectedErr: nil,
@@ -60,12 +59,12 @@ func TestPullRequestGithubGenerateParams(t *testing.T) {
 					nil,
 				)
 			},
-			branchSlug: true,
 			expected: []map[string]string{
 				{
-					"number":   "2",
-					"branch":   "feat-areally-long-pull-request-name-to-test-argo",
-					"head_sha": "9b34ff5bd418e57d58891eb0aa0728043ca1e8be",
+					"number":      "2",
+					"branch":      "feat/areally+long_pull_request_name_to_test_argo_slugification_and_branch_name_shortening_feature",
+					"branch_slug": "feat-areally-long-pull-request-name-to-test-argo",
+					"head_sha":    "9b34ff5bd418e57d58891eb0aa0728043ca1e8be",
 				},
 			},
 			expectedErr: nil,
@@ -78,7 +77,6 @@ func TestPullRequestGithubGenerateParams(t *testing.T) {
 					fmt.Errorf("fake error"),
 				)
 			},
-			branchSlug:  false,
 			expected:    nil,
 			expectedErr: fmt.Errorf("error listing repos: fake error"),
 		},
@@ -91,9 +89,7 @@ func TestPullRequestGithubGenerateParams(t *testing.T) {
 		generatorConfig := argoprojiov1alpha1.ApplicationSetGenerator{
 			PullRequest: &argoprojiov1alpha1.PullRequestGenerator{},
 		}
-		if c.branchSlug {
-			generatorConfig.PullRequest.BranchSlug = true
-		}
+
 		got, gotErr := gen.GenerateParams(&generatorConfig, nil)
 		assert.Equal(t, c.expectedErr, gotErr)
 		assert.ElementsMatch(t, c.expected, got)
