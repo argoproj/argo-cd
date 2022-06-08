@@ -313,22 +313,22 @@ func createServiceAccountToken(clientset kubernetes.Interface, sa *corev1.Servic
 	defer cancel()
 	secret, err := clientset.CoreV1().Secrets(sa.Namespace).Create(ctx, secret, metav1.CreateOptions{})
 	if err != nil {
-		return "", fmt.Errorf("failed to create secret for serviceaccount %q: %w", sa, err)
+		return "", fmt.Errorf("failed to create secret for serviceaccount %q: %w", sa.Name, err)
 	}
 
-	log.Infof("Created bearer token secret for ServiceAccount %q", sa)
+	log.Infof("Created bearer token secret for ServiceAccount %q", sa.Name)
 	sa.Secrets = []corev1.ObjectReference{{
 		Name:      secret.Name,
 		Namespace: secret.Namespace,
 	}}
 	patch, err := json.Marshal(sa)
 	if err != nil {
-		return "", fmt.Errorf("failed marshaling patch for serviceaccount %q: %w", sa, err)
+		return "", fmt.Errorf("failed marshaling patch for serviceaccount %q: %w", sa.Name, err)
 	}
 
 	_, err = clientset.CoreV1().ServiceAccounts(sa.Namespace).Patch(ctx, sa.Name, types.StrategicMergePatchType, patch, metav1.PatchOptions{})
 	if err != nil {
-		return "", fmt.Errorf("failed to patch serviceaccount %q with bearer token secret: %w", sa, err)
+		return "", fmt.Errorf("failed to patch serviceaccount %q with bearer token secret: %w", sa.Name, err)
 	}
 
 	return secret.Name, nil
