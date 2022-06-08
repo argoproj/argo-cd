@@ -203,7 +203,7 @@ require (
 	gopkg.in/square/go-jose.v2 v2.2.2 // indirect
 	gopkg.in/warnings.v0 v0.1.2 // indirect
 	gopkg.in/yaml.v3 v3.0.0-20210107192922-496545a6307b // indirect
-	k8s.io/apiserver v0.23.1 // indirect
+	k8s.io/apiserver v0.23.1
 	k8s.io/cli-runtime v0.23.1 // indirect
 	k8s.io/component-base v0.23.1 // indirect
 	k8s.io/component-helpers v0.23.1 // indirect
