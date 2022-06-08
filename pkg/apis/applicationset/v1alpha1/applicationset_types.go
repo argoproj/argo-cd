@@ -441,6 +441,8 @@ type PullRequestGeneratorGitLab struct {
 	TokenRef *SecretRef `json:"tokenRef,omitempty"`
 	// Labels is used to filter the MRs that you want to target
 	Labels []string `json:"labels,omitempty"`
+	// PullRequestState is an additional MRs filter to get only those with a certain state. Default: "" (all states)
+	PullRequestState string `json:"pullRequestState,omitempty"`
 }
 
 // PullRequestGenerator defines connection info specific to BitbucketServer.

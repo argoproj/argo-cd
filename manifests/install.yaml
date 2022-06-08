@@ -4555,6 +4555,8 @@ spec:
                                         type: array
                                       project:
                                         type: string
+                                      pullRequestState:
+                                        type: string
                                       tokenRef:
                                         properties:
                                           key:
@@ -6731,6 +6733,8 @@ spec:
                                         type: array
                                       project:
                                         type: string
+                                      pullRequestState:
+                                        type: string
                                       tokenRef:
                                         properties:
                                           key:
@@ -7771,6 +7775,8 @@ spec:
                                 type: string
                               type: array
                             project:
+                              type: string
+                            pullRequestState:
                               type: string
                             tokenRef:
                               properties:
