@@ -260,6 +260,7 @@ spec:
 
 * `number`: The ID number of the pull request.
 * `branch`: The name of the branch of the pull request head.
+* `branch_slug`: The branch name will be cleaned to be conform to the DNS label standard as defined in [RFC 1123](https://kubernetes.io/docs/concepts/overview/working-with-objects/names/#dns-label-names), and truncated to 50 characters to give room to append/suffix-ing it with 13 more characters. 
 * `head_sha`: This is the SHA of the head of the pull request.
 
 ## Webhook Configuration

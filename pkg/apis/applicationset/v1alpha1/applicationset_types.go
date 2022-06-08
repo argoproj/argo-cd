@@ -397,6 +397,7 @@ type PullRequestGenerator struct {
 	BitbucketServer *PullRequestGeneratorBitbucketServer `json:"bitbucketServer,omitempty"`
 	// Filters for which pull requests should be considered.
 	Filters []PullRequestGeneratorFilter `json:"filters,omitempty"`
+
 	// Standard parameters.
 	RequeueAfterSeconds *int64                 `json:"requeueAfterSeconds,omitempty"`
 	Template            ApplicationSetTemplate `json:"template,omitempty"`
