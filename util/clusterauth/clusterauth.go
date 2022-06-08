@@ -273,7 +273,7 @@ func getOrCreateServiceAccountTokenSecret(clientset kubernetes.Interface, sa, ns
 		return true, nil
 	})
 	if err != nil && err != wait.ErrWaitTimeout {
-		return "", fmt.Errorf("failed to create serviceaccount token secret: %w", err)
+		return "", fmt.Errorf("failed to get serviceaccount token secret: %w", err)
 	}
 	if serviceAccount == nil {
 		log.Errorf("Unexpected nil serviceaccount '%s/%s' with no error returned", ns, sa)
