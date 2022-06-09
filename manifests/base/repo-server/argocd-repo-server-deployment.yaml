@@ -21,11 +21,7 @@ spec:
       - name: argocd-repo-server
         image: quay.io/argoproj/argocd:latest
         imagePullPolicy: Always
-        command:
-        - entrypoint.sh
-        - argocd-repo-server
-        - --redis
-        - $(ARGOCD_REDIS_SERVICE):6379
+        command: [ "sh", "-c", "entrypoint.sh argocd-repo-server --redis $(ARGOCD_REDIS_SERVICE):6379"]
         env:
           - name: ARGOCD_RECONCILIATION_TIMEOUT
             valueFrom:
