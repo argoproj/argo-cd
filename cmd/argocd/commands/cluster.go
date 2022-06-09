@@ -12,6 +12,7 @@ import (
 	log "github.com/sirupsen/logrus"
 	"github.com/spf13/cobra"
 	"k8s.io/client-go/kubernetes"
+	"k8s.io/client-go/rest"
 	"k8s.io/client-go/tools/clientcmd"
 
 	"github.com/argoproj/argo-cd/v2/cmd/argocd/commands/headless"
@@ -45,7 +46,7 @@ func NewClusterCommand(clientOpts *argocdclient.ClientOptions, pathOpts *clientc
   # Get specific details about a cluster in plain text (wide) format:
   argocd cluster get example-cluster -o wide
 
-  #	Remove a target cluster context from ArgoCD
+  # Remove a target cluster context from ArgoCD
   argocd cluster rm example-cluster
 `,
 	}
@@ -53,7 +54,7 @@ func NewClusterCommand(clientOpts *argocdclient.ClientOptions, pathOpts *clientc
 	command.AddCommand(NewClusterAddCommand(clientOpts, pathOpts))
 	command.AddCommand(NewClusterGetCommand(clientOpts))
 	command.AddCommand(NewClusterListCommand(clientOpts))
-	command.AddCommand(NewClusterRemoveCommand(clientOpts))
+	command.AddCommand(NewClusterRemoveCommand(clientOpts, pathOpts))
 	command.AddCommand(NewClusterRotateAuthCommand(clientOpts))
 	return command
 }
@@ -76,21 +77,9 @@ func NewClusterAddCommand(clientOpts *argocdclient.ClientOptions, pathOpts *clie
 				cmdutil.PrintKubeContexts(configAccess)
 				os.Exit(1)
 			}
-			config, err := configAccess.GetStartingConfig()
-			errors.CheckError(err)
 			contextName := args[0]
-			clstContext := config.Contexts[contextName]
-			if clstContext == nil {
-				log.Fatalf("Context %s does not exist in kubeconfig", contextName)
-			}
-
-			overrides := clientcmd.ConfigOverrides{
-				Context: *clstContext,
-			}
-			clientConfig := clientcmd.NewDefaultClientConfig(*config, &overrides)
-			conf, err := clientConfig.ClientConfig()
+			conf, err := getRestConfig(pathOpts, contextName)
 			errors.CheckError(err)
-
 			managerBearerToken := ""
 			var awsAuthConf *argoappv1.AWSAuthConfig
 			var execProviderConf *argoappv1.ExecProviderConfig
@@ -112,17 +101,21 @@ func NewClusterAddCommand(clientOpts *argocdclient.ClientOptions, pathOpts *clie
 				clientset, err := kubernetes.NewForConfig(conf)
 				errors.CheckError(err)
 				if clusterOpts.ServiceAccount != "" {
-					managerBearerToken, err = clusterauth.GetServiceAccountBearerToken(clientset, clusterOpts.SystemNamespace, clusterOpts.ServiceAccount)
+					managerBearerToken, err = clusterauth.GetServiceAccountBearerToken(clientset, clusterOpts.SystemNamespace, clusterOpts.ServiceAccount, common.BearerTokenTimeout)
 				} else {
 					isTerminal := isatty.IsTerminal(os.Stdout.Fd()) || isatty.IsCygwinTerminal(os.Stdout.Fd())
 
 					if isTerminal && !skipConfirmation {
-						message := fmt.Sprintf("WARNING: This will create a service account `argocd-manager` on the cluster referenced by context `%s` with full cluster level admin privileges. Do you want to continue [y/N]? ", contextName)
+						accessLevel := "cluster"
+						if len(clusterOpts.Namespaces) > 0 {
+							accessLevel = "namespace"
+						}
+						message := fmt.Sprintf("WARNING: This will create a service account `argocd-manager` on the cluster referenced by context `%s` with full %s level privileges. Do you want to continue [y/N]? ", contextName, accessLevel)
 						if !cli.AskToProceed(message) {
 							os.Exit(1)
 						}
 					}
-					managerBearerToken, err = clusterauth.InstallClusterManagerRBAC(clientset, clusterOpts.SystemNamespace, clusterOpts.Namespaces)
+					managerBearerToken, err = clusterauth.InstallClusterManagerRBAC(clientset, clusterOpts.SystemNamespace, clusterOpts.Namespaces, common.BearerTokenTimeout)
 				}
 				errors.CheckError(err)
 			}
@@ -165,6 +158,30 @@ func NewClusterAddCommand(clientOpts *argocdclient.ClientOptions, pathOpts *clie
 	command.Flags().StringArrayVar(&annotations, "annotation", nil, "Set metadata annotations (e.g. --annotation key=value)")
 	cmdutil.AddClusterFlags(command, &clusterOpts)
 	return command
+}
+
+func getRestConfig(pathOpts *clientcmd.PathOptions, ctxName string) (*rest.Config, error) {
+	config, err := pathOpts.GetStartingConfig()
+	if err != nil {
+		return nil, err
+	}
+
+	clstContext := config.Contexts[ctxName]
+	if clstContext == nil {
+		return nil, fmt.Errorf("Context %s does not exist in kubeconfig", ctxName)
+	}
+
+	overrides := clientcmd.ConfigOverrides{
+		Context: *clstContext,
+	}
+
+	clientConfig := clientcmd.NewDefaultClientConfig(*config, &overrides)
+	conf, err := clientConfig.ClientConfig()
+	if err != nil {
+		return nil, err
+	}
+
+	return conf, nil
 }
 
 // NewClusterGetCommand returns a new instance of an `argocd cluster get` command
@@ -240,12 +257,13 @@ func printClusterDetails(clusters []argoappv1.Cluster) {
 	}
 }
 
-// NewClusterRemoveCommand returns a new instance of an `argocd cluster list` command
-func NewClusterRemoveCommand(clientOpts *argocdclient.ClientOptions) *cobra.Command {
+// NewClusterRemoveCommand returns a new instance of an `argocd cluster rm` command
+func NewClusterRemoveCommand(clientOpts *argocdclient.ClientOptions, pathOpts *clientcmd.PathOptions) *cobra.Command {
 	var command = &cobra.Command{
-		Use:     "rm SERVER",
-		Short:   "Remove cluster credentials",
-		Example: `argocd cluster rm https://12.34.567.89`,
+		Use:   "rm SERVER/NAME",
+		Short: "Remove cluster credentials",
+		Example: `argocd cluster rm https://12.34.567.89
+argocd cluster rm cluster-name`,
 		Run: func(c *cobra.Command, args []string) {
 			if len(args) == 0 {
 				c.HelpFunc()(c, args)
@@ -254,16 +272,27 @@ func NewClusterRemoveCommand(clientOpts *argocdclient.ClientOptions) *cobra.Comm
 			conn, clusterIf := headless.NewClientOrDie(clientOpts, c).NewClusterClientOrDie()
 			defer io.Close(conn)
 
-			// clientset, err := kubernetes.NewForConfig(conf)
-			// errors.CheckError(err)
+			for _, clusterSelector := range args {
+				clusterQuery := getQueryBySelector(clusterSelector)
 
-			for _, clusterName := range args {
-				// TODO(jessesuen): find the right context and remove manager RBAC artifacts
-				// err := clusterauth.UninstallClusterManagerRBAC(clientset)
-				// errors.CheckError(err)
-				_, err := clusterIf.Delete(context.Background(), &clusterpkg.ClusterQuery{Server: clusterName})
+				// get the cluster name to use as context to delete RBAC on cluster
+				clst, err := clusterIf.Get(context.Background(), clusterQuery)
 				errors.CheckError(err)
-				fmt.Printf("Cluster '%s' removed\n", clusterName)
+
+				// remove cluster
+				_, err = clusterIf.Delete(context.Background(), clusterQuery)
+				errors.CheckError(err)
+				fmt.Printf("Cluster '%s' removed\n", clusterSelector)
+
+				// remove RBAC from cluster
+				conf, err := getRestConfig(pathOpts, clst.Name)
+				errors.CheckError(err)
+
+				clientset, err := kubernetes.NewForConfig(conf)
+				errors.CheckError(err)
+
+				err = clusterauth.UninstallClusterManagerRBAC(clientset)
+				errors.CheckError(err)
 			}
 		},
 	}

@@ -121,6 +121,8 @@ export interface ResourceResult {
 }
 
 export const AnnotationRefreshKey = 'argocd.argoproj.io/refresh';
+export const AnnotationHookKey = 'argocd.argoproj.io/hook';
+export const AnnotationSyncWaveKey = 'argocd.argoproj.io/sync-wave';
 
 export interface Application {
     apiVersion?: string;
@@ -129,6 +131,7 @@ export interface Application {
     spec: ApplicationSpec;
     status: ApplicationStatus;
     operation?: Operation;
+    isAppOfAppsPattern?: boolean;
 }
 
 export type WatchType = 'ADDED' | 'MODIFIED' | 'DELETED' | 'ERROR';
@@ -309,6 +312,7 @@ export interface ResourceStatus {
     health: HealthStatus;
     hook?: boolean;
     requiresPruning?: boolean;
+    syncOrder?: string;
 }
 
 export interface ResourceRef {
@@ -448,6 +452,7 @@ export interface AuthSettings {
     uiBannerURL: string;
     uiBannerPermanent: boolean;
     uiBannerPosition: string;
+    execEnabled: boolean;
 }
 
 export interface UserInfo {

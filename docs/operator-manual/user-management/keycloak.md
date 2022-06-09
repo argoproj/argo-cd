@@ -85,7 +85,7 @@ data:
   url: https://argocd.example.com
   oidc.config: |
     name: Keycloak
-    issuer: https://keycloak.example.com/auth/realms/master
+    issuer: https://keycloak.example.com/realms/master
     clientID: argocd
     clientSecret: $oidc.keycloak.clientSecret
     requestedScopes: ["openid", "profile", "email", "groups"]
@@ -93,6 +93,7 @@ data:
 
 Make sure that:
 - __issuer__ ends with the correct realm (in this example _master_)
+- __issuer__ on Keycloak releases older than version 17 the URL must include /auth (in this expample /auth/realms/master)
 - __clientID__ is set to the Client ID you configured in Keycloak
 - __clientSecret__ points to the right key you created in the _argocd-secret_ Secret
 - __requestedScopes__ contains the _groups_ claim if you didn't add it to the Default scopes

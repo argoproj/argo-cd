@@ -16,6 +16,8 @@ import (
 	"testing"
 	"time"
 
+	log "github.com/sirupsen/logrus"
+
 	"github.com/ghodss/yaml"
 	"github.com/stretchr/testify/assert"
 	"github.com/stretchr/testify/mock"
@@ -136,7 +138,7 @@ func TestGenerateYamlManifestInDir(t *testing.T) {
 	q := apiclient.ManifestRequest{Repo: &argoappv1.Repository{}, ApplicationSource: &src}
 
 	// update this value if we add/remove manifests
-	const countOfManifests = 41
+	const countOfManifests = 47
 
 	res1, err := service.GenerateManifest(context.Background(), &q)
 
@@ -147,6 +149,76 @@ func TestGenerateYamlManifestInDir(t *testing.T) {
 	res2, err := GenerateManifests(context.Background(), "./testdata/concatenated", "/", "", &q, false, &git.NoopCredsStore{})
 	assert.NoError(t, err)
 	assert.Equal(t, 3, len(res2.Manifests))
+}
+
+func Test_GenerateManifests_NoOutOfBoundsAccess(t *testing.T) {
+	testCases := []struct {
+		name                    string
+		outOfBoundsFilename     string
+		outOfBoundsFileContents string
+		mustNotContain          string // Optional string that must not appear in error or manifest output. If empty, use outOfBoundsFileContents.
+	}{
+		{
+			name:                    "out of bounds JSON file should not appear in error output",
+			outOfBoundsFilename:     "test.json",
+			outOfBoundsFileContents: `{"some": "json"}`,
+		},
+		{
+			name:                    "malformed JSON file contents should not appear in error output",
+			outOfBoundsFilename:     "test.json",
+			outOfBoundsFileContents: "$",
+		},
+		{
+			name:                "out of bounds JSON manifest should not appear in manifest output",
+			outOfBoundsFilename: "test.json",
+			// JSON marshalling is deterministic. So if there's a leak, exactly this should appear in the manifests.
+			outOfBoundsFileContents: `{"apiVersion":"v1","kind":"Secret","metadata":{"name":"test","namespace":"default"},"type":"Opaque"}`,
+		},
+		{
+			name:                    "out of bounds YAML manifest should not appear in manifest output",
+			outOfBoundsFilename:     "test.yaml",
+			outOfBoundsFileContents: "apiVersion: v1\nkind: Secret\nmetadata:\n  name: test\n  namespace: default\ntype: Opaque",
+			mustNotContain:          `{"apiVersion":"v1","kind":"Secret","metadata":{"name":"test","namespace":"default"},"type":"Opaque"}`,
+		},
+	}
+
+	for _, testCase := range testCases {
+		testCaseCopy := testCase
+		t.Run(testCaseCopy.name, func(t *testing.T) {
+			t.Parallel()
+
+			outOfBoundsDir := t.TempDir()
+			outOfBoundsFile := path.Join(outOfBoundsDir, testCaseCopy.outOfBoundsFilename)
+			err := os.WriteFile(outOfBoundsFile, []byte(testCaseCopy.outOfBoundsFileContents), os.FileMode(0444))
+			require.NoError(t, err)
+
+			repoDir := t.TempDir()
+			err = os.Symlink(outOfBoundsFile, path.Join(repoDir, testCaseCopy.outOfBoundsFilename))
+			require.NoError(t, err)
+
+			var mustNotContain = testCaseCopy.outOfBoundsFileContents
+			if testCaseCopy.mustNotContain != "" {
+				mustNotContain = testCaseCopy.mustNotContain
+			}
+
+			q := apiclient.ManifestRequest{Repo: &argoappv1.Repository{}, ApplicationSource: &argoappv1.ApplicationSource{}}
+			res, err := GenerateManifests(context.Background(), repoDir, "", "", &q, false, &git.NoopCredsStore{})
+			require.Error(t, err)
+			assert.NotContains(t, err.Error(), mustNotContain)
+			assert.Contains(t, err.Error(), "illegal filepath")
+			assert.Nil(t, res)
+		})
+	}
+}
+
+func TestGenerateManifests_MissingSymlinkDestination(t *testing.T) {
+	repoDir := t.TempDir()
+	err := os.Symlink("/obviously/does/not/exist", path.Join(repoDir, "test.yaml"))
+	require.NoError(t, err)
+
+	q := apiclient.ManifestRequest{Repo: &argoappv1.Repository{}, ApplicationSource: &argoappv1.ApplicationSource{}}
+	_, err = GenerateManifests(context.Background(), repoDir, "", "", &q, false, &git.NoopCredsStore{})
+	require.NoError(t, err)
 }
 
 func TestGenerateManifests_K8SAPIResetCache(t *testing.T) {
@@ -254,7 +326,7 @@ func TestGenerateJsonnetManifestInDir(t *testing.T) {
 				Jsonnet: argoappv1.ApplicationSourceJsonnet{
 					ExtVars: []argoappv1.JsonnetVar{{Name: "extVarString", Value: "extVarString"}, {Name: "extVarCode", Value: "\"extVarCode\"", Code: true}},
 					TLAs:    []argoappv1.JsonnetVar{{Name: "tlaString", Value: "tlaString"}, {Name: "tlaCode", Value: "\"tlaCode\"", Code: true}},
-					Libs:    []string{"./vendor"},
+					Libs:    []string{"testdata/jsonnet/vendor"},
 				},
 			},
 		},
@@ -281,29 +353,6 @@ func TestGenerateJsonnetLibOutside(t *testing.T) {
 	_, err := service.GenerateManifest(context.Background(), &q)
 	require.Error(t, err)
 	require.Contains(t, err.Error(), "value file '../../../testdata/jsonnet/vendor' resolved to outside repository root")
-}
-
-func TestGenerateHelmChartWithDependencies(t *testing.T) {
-	service := newService("../..")
-
-	cleanup := func() {
-		_ = os.Remove(filepath.Join("../../util/helm/testdata/helm2-dependency", helmDepUpMarkerFile))
-		_ = os.RemoveAll(filepath.Join("../../util/helm/testdata/helm2-dependency", "charts"))
-	}
-	cleanup()
-	defer cleanup()
-
-	helmRepo := argoappv1.Repository{Name: "bitnami", Type: "helm", Repo: "https://charts.bitnami.com/bitnami"}
-	q := apiclient.ManifestRequest{
-		Repo: &argoappv1.Repository{},
-		ApplicationSource: &argoappv1.ApplicationSource{
-			Path: "./util/helm/testdata/helm2-dependency",
-		},
-		Repos: []*argoappv1.Repository{&helmRepo},
-	}
-	res1, err := service.GenerateManifest(context.Background(), &q)
-	assert.Nil(t, err)
-	assert.Len(t, res1.Manifests, 10)
 }
 
 func TestManifestGenErrorCacheByNumRequests(t *testing.T) {
@@ -433,9 +482,7 @@ func TestManifestGenErrorCacheByNumRequests(t *testing.T) {
 
 func TestManifestGenErrorCacheFileContentsChange(t *testing.T) {
 
-	tmpDir, err := ioutil.TempDir("", "repository-test-")
-	assert.NoError(t, err)
-	defer os.RemoveAll(tmpDir)
+	tmpDir := t.TempDir()
 
 	service := newService(tmpDir)
 
@@ -455,7 +502,7 @@ func TestManifestGenErrorCacheFileContentsChange(t *testing.T) {
 		errorExpected := step%2 == 0
 
 		// Ensure that the target directory will succeed or fail, so we can verify the cache correctly handles it
-		err = os.RemoveAll(tmpDir)
+		err := os.RemoveAll(tmpDir)
 		assert.NoError(t, err)
 		err = os.MkdirAll(tmpDir, 0777)
 		assert.NoError(t, err)
@@ -1034,7 +1081,7 @@ func TestRunCustomTool(t *testing.T) {
 			Name: "test",
 			Generate: argoappv1.Command{
 				Command: []string{"sh", "-c"},
-				Args:    []string{`echo "{\"kind\": \"FakeObject\", \"metadata\": { \"name\": \"$ARGOCD_APP_NAME\", \"namespace\": \"$ARGOCD_APP_NAMESPACE\", \"annotations\": {\"GIT_ASKPASS\": \"$GIT_ASKPASS\", \"GIT_USERNAME\": \"$GIT_USERNAME\", \"GIT_PASSWORD\": \"$GIT_PASSWORD\"}, \"labels\": {\"revision\": \"$TEST_REVISION\"}}}"`},
+				Args:    []string{`echo "{\"kind\": \"FakeObject\", \"metadata\": { \"name\": \"$ARGOCD_APP_NAME\", \"namespace\": \"$ARGOCD_APP_NAMESPACE\", \"annotations\": {\"GIT_ASKPASS\": \"$GIT_ASKPASS\", \"GIT_USERNAME\": \"$GIT_USERNAME\", \"GIT_PASSWORD\": \"$GIT_PASSWORD\"}, \"labels\": {\"revision\": \"$ARGOCD_ENV_TEST_REVISION\"}}}"`},
 			},
 		}},
 		Repo: &argoappv1.Repository{
@@ -1083,6 +1130,7 @@ func TestListApps(t *testing.T) {
 		"kustomization_yml":              "Kustomize",
 		"my-chart":                       "Helm",
 		"my-chart-2":                     "Helm",
+		"values-files":                   "Helm",
 	}
 	assert.Equal(t, expectedApps, res.Apps)
 }
@@ -1093,7 +1141,7 @@ func TestGetAppDetailsHelm(t *testing.T) {
 	res, err := service.GetAppDetails(context.Background(), &apiclient.RepoServerAppDetailsQuery{
 		Repo: &argoappv1.Repository{},
 		Source: &argoappv1.ApplicationSource{
-			Path: "./util/helm/testdata/helm2-dependency",
+			Path: "./util/helm/testdata/dependency",
 		},
 	})
 
@@ -1103,7 +1151,6 @@ func TestGetAppDetailsHelm(t *testing.T) {
 	assert.Equal(t, "Helm", res.Type)
 	assert.EqualValues(t, []string{"values-production.yaml", "values.yaml"}, res.Helm.ValueFiles)
 }
-
 func TestGetAppDetailsHelm_WithNoValuesFile(t *testing.T) {
 	service := newService("../..")
 
@@ -1401,8 +1448,8 @@ func mkTempParameters(source string) string {
 // the test would modify the data when run.
 func runWithTempTestdata(t *testing.T, path string, runner func(t *testing.T, path string)) {
 	tempDir := mkTempParameters("./testdata/app-parameters")
-	defer os.RemoveAll(tempDir)
 	runner(t, filepath.Join(tempDir, "app-parameters", path))
+	os.RemoveAll(tempDir)
 }
 
 func TestGenerateManifestsWithAppParameterFile(t *testing.T) {
@@ -1604,7 +1651,7 @@ func TestFindResources(t *testing.T) {
 	for i := range testCases {
 		tc := testCases[i]
 		t.Run(tc.name, func(t *testing.T) {
-			objs, err := findManifests("testdata/app-include-exclude", ".", nil, argoappv1.ApplicationSourceDirectory{
+			objs, err := findManifests(&log.Entry{}, "testdata/app-include-exclude", ".", nil, argoappv1.ApplicationSourceDirectory{
 				Recurse: true,
 				Include: tc.include,
 				Exclude: tc.exclude,
@@ -1622,7 +1669,7 @@ func TestFindResources(t *testing.T) {
 }
 
 func TestFindManifests_Exclude(t *testing.T) {
-	objs, err := findManifests("testdata/app-include-exclude", ".", nil, argoappv1.ApplicationSourceDirectory{
+	objs, err := findManifests(&log.Entry{}, "testdata/app-include-exclude", ".", nil, argoappv1.ApplicationSourceDirectory{
 		Recurse: true,
 		Exclude: "subdir/deploymentSub.yaml",
 	}, map[string]bool{})
@@ -1635,7 +1682,7 @@ func TestFindManifests_Exclude(t *testing.T) {
 }
 
 func TestFindManifests_Exclude_NothingMatches(t *testing.T) {
-	objs, err := findManifests("testdata/app-include-exclude", ".", nil, argoappv1.ApplicationSourceDirectory{
+	objs, err := findManifests(&log.Entry{}, "testdata/app-include-exclude", ".", nil, argoappv1.ApplicationSourceDirectory{
 		Recurse: true,
 		Exclude: "nothing.yaml",
 	}, map[string]bool{})
@@ -1646,6 +1693,125 @@ func TestFindManifests_Exclude_NothingMatches(t *testing.T) {
 
 	assert.ElementsMatch(t,
 		[]string{"nginx-deployment", "nginx-deployment-sub"}, []string{objs[0].GetName(), objs[1].GetName()})
+}
+
+func Test_findManifests(t *testing.T) {
+	logCtx := log.WithField("test", "test")
+	noRecurse := argoappv1.ApplicationSourceDirectory{Recurse: false}
+
+	t.Run("unreadable file throws error", func(t *testing.T) {
+		appDir := t.TempDir()
+		unreadablePath := filepath.Join(appDir, "unreadable.json")
+		err := os.WriteFile(unreadablePath, []byte{}, 0666)
+		require.NoError(t, err)
+		err = os.Chmod(appDir, 0000)
+		require.NoError(t, err)
+
+		manifests, err := findManifests(logCtx, appDir, appDir, nil, noRecurse, nil)
+		assert.Empty(t, manifests)
+		assert.Error(t, err)
+
+		// allow cleanup
+		err = os.Chmod(appDir, 0777)
+		if err != nil {
+			panic(err)
+		}
+	})
+
+	t.Run("no recursion when recursion is disabled", func(t *testing.T) {
+		manifests, err := findManifests(logCtx, "./testdata/recurse", "./testdata/recurse", nil, noRecurse, nil)
+		assert.Len(t, manifests, 2)
+		assert.NoError(t, err)
+	})
+
+	t.Run("recursion when recursion is enabled", func(t *testing.T) {
+		recurse := argoappv1.ApplicationSourceDirectory{Recurse: true}
+		manifests, err := findManifests(logCtx, "./testdata/recurse", "./testdata/recurse", nil, recurse, nil)
+		assert.Len(t, manifests, 4)
+		assert.NoError(t, err)
+	})
+
+	t.Run("non-JSON/YAML is skipped", func(t *testing.T) {
+		manifests, err := findManifests(logCtx, "./testdata/non-manifest-file", "./testdata/non-manifest-file", nil, noRecurse, nil)
+		assert.Empty(t, manifests)
+		assert.NoError(t, err)
+	})
+
+	t.Run("circular link should throw an error", func(t *testing.T) {
+		require.DirExists(t, "./testdata/circular-link")
+		manifests, err := findManifests(logCtx, "./testdata/circular-link", "./testdata/circular-link", nil, noRecurse, nil)
+		assert.Empty(t, manifests)
+		assert.Error(t, err)
+	})
+
+	t.Run("out-of-bounds symlink should throw an error", func(t *testing.T) {
+		require.DirExists(t, "./testdata/out-of-bounds-link")
+		manifests, err := findManifests(logCtx, "./testdata/out-of-bounds-link", "./testdata/out-of-bounds-link", nil, noRecurse, nil)
+		assert.Empty(t, manifests)
+		assert.Error(t, err)
+	})
+
+	t.Run("symlink to a regular file works", func(t *testing.T) {
+		repoRoot, err := filepath.Abs("./testdata/in-bounds-link")
+		require.NoError(t, err)
+		appPath, err := filepath.Abs("./testdata/in-bounds-link/app")
+		require.NoError(t, err)
+		manifests, err := findManifests(logCtx, appPath, repoRoot, nil, noRecurse, nil)
+		assert.Len(t, manifests, 1)
+		assert.NoError(t, err)
+	})
+
+	t.Run("symlink to nowhere should be ignored", func(t *testing.T) {
+		manifests, err := findManifests(logCtx, "./testdata/link-to-nowhere", "./testdata/link-to-nowhere", nil, noRecurse, nil)
+		assert.Empty(t, manifests)
+		assert.NoError(t, err)
+	})
+
+	t.Run("partially valid YAML file throws an error", func(t *testing.T) {
+		require.DirExists(t, "./testdata/partially-valid-yaml")
+		manifests, err := findManifests(logCtx, "./testdata/partially-valid-yaml", "./testdata/partially-valid-yaml", nil, noRecurse, nil)
+		assert.Empty(t, manifests)
+		assert.Error(t, err)
+	})
+
+	t.Run("invalid manifest throws an error", func(t *testing.T) {
+		require.DirExists(t, "./testdata/invalid-manifests")
+		manifests, err := findManifests(logCtx, "./testdata/invalid-manifests", "./testdata/invalid-manifests", nil, noRecurse, nil)
+		assert.Empty(t, manifests)
+		assert.Error(t, err)
+	})
+
+	t.Run("irrelevant YAML gets skipped, relevant YAML gets parsed", func(t *testing.T) {
+		manifests, err := findManifests(logCtx, "./testdata/irrelevant-yaml", "./testdata/irrelevant-yaml", nil, noRecurse, nil)
+		assert.Len(t, manifests, 1)
+		assert.NoError(t, err)
+	})
+
+	t.Run("multiple JSON objects in one file throws an error", func(t *testing.T) {
+		require.DirExists(t, "./testdata/json-list")
+		manifests, err := findManifests(logCtx, "./testdata/json-list", "./testdata/json-list", nil, noRecurse, nil)
+		assert.Empty(t, manifests)
+		assert.Error(t, err)
+	})
+
+	t.Run("invalid JSON throws an error", func(t *testing.T) {
+		require.DirExists(t, "./testdata/invalid-json")
+		manifests, err := findManifests(logCtx, "./testdata/invalid-json", "./testdata/invalid-json", nil, noRecurse, nil)
+		assert.Empty(t, manifests)
+		assert.Error(t, err)
+	})
+
+	t.Run("valid JSON returns manifest and no error", func(t *testing.T) {
+		manifests, err := findManifests(logCtx, "./testdata/valid-json", "./testdata/valid-json", nil, noRecurse, nil)
+		assert.Len(t, manifests, 1)
+		assert.NoError(t, err)
+	})
+
+	t.Run("YAML with an empty document doesn't throw an error", func(t *testing.T) {
+		manifests, err := findManifests(logCtx, "./testdata/yaml-with-empty-document", "./testdata/yaml-with-empty-document", nil, noRecurse, nil)
+		assert.Len(t, manifests, 1)
+		assert.NoError(t, err)
+	})
 }
 
 func TestTestRepoOCI(t *testing.T) {
@@ -1717,11 +1883,7 @@ func TestResolveRevisionNegativeScenarios(t *testing.T) {
 }
 
 func TestDirectoryPermissionInitializer(t *testing.T) {
-	dir, err := ioutil.TempDir("", "")
-	require.NoError(t, err)
-	defer func() {
-		_ = os.RemoveAll(dir)
-	}()
+	dir := t.TempDir()
 
 	file, err := ioutil.TempFile(dir, "")
 	require.NoError(t, err)
@@ -1729,9 +1891,15 @@ func TestDirectoryPermissionInitializer(t *testing.T) {
 
 	// remove read permissions
 	assert.NoError(t, os.Chmod(dir, 0000))
-	closer := directoryPermissionInitializer(dir)
+
+	// Remember to restore permissions when the test finishes so dir can
+	// be removed properly.
+	t.Cleanup(func() {
+		require.NoError(t, os.Chmod(dir, 0777))
+	})
 
 	// make sure permission are restored
+	closer := directoryPermissionInitializer(dir)
 	_, err = ioutil.ReadFile(file.Name())
 	require.NoError(t, err)
 
@@ -1757,11 +1925,13 @@ func initGitRepo(repoPath string, remote string) error {
 }
 
 func TestInit(t *testing.T) {
-	dir, err := ioutil.TempDir("", "")
-	require.NoError(t, err)
-	defer func() {
-		_ = os.RemoveAll(dir)
-	}()
+	dir := t.TempDir()
+
+	// service.Init sets permission to 0300. Restore permissions when the test
+	// finishes so dir can be removed properly.
+	t.Cleanup(func() {
+		require.NoError(t, os.Chmod(dir, 0777))
+	})
 
 	repoPath := path.Join(dir, "repo1")
 	require.NoError(t, initGitRepo(repoPath, "https://github.com/argo-cd/test-repo1"))
@@ -1778,4 +1948,80 @@ func TestInit(t *testing.T) {
 	_, err = ioutil.ReadDir(dir)
 	require.Error(t, err)
 	require.NoError(t, initGitRepo(path.Join(dir, "repo2"), "https://github.com/argo-cd/test-repo2"))
+}
+
+// TestCheckoutRevisionCanGetNonstandardRefs shows that we can fetch a revision that points to a non-standard ref. In
+// other words, we haven't regressed and caused this issue again: https://github.com/argoproj/argo-cd/issues/4935
+func TestCheckoutRevisionCanGetNonstandardRefs(t *testing.T) {
+	rootPath := t.TempDir()
+
+	sourceRepoPath, err := ioutil.TempDir(rootPath, "")
+	require.NoError(t, err)
+
+	// Create a repo such that one commit is on a non-standard ref _and nowhere else_. This is meant to simulate, for
+	// example, a GitHub ref for a pull into one repo from a fork of that repo.
+	runGit(t, sourceRepoPath, "init")
+	runGit(t, sourceRepoPath, "checkout", "-b", "main") // make sure there's a main branch to switch back to
+	runGit(t, sourceRepoPath, "commit", "-m", "empty", "--allow-empty")
+	runGit(t, sourceRepoPath, "checkout", "-b", "branch")
+	runGit(t, sourceRepoPath, "commit", "-m", "empty", "--allow-empty")
+	sha := runGit(t, sourceRepoPath, "rev-parse", "HEAD")
+	runGit(t, sourceRepoPath, "update-ref", "refs/pull/123/head", strings.TrimSuffix(sha, "\n"))
+	runGit(t, sourceRepoPath, "checkout", "main")
+	runGit(t, sourceRepoPath, "branch", "-D", "branch")
+
+	destRepoPath, err := ioutil.TempDir(rootPath, "")
+	require.NoError(t, err)
+
+	gitClient, err := git.NewClientExt("file://"+sourceRepoPath, destRepoPath, &git.NopCreds{}, true, false, "")
+	require.NoError(t, err)
+
+	pullSha, err := gitClient.LsRemote("refs/pull/123/head")
+	require.NoError(t, err)
+
+	err = checkoutRevision(gitClient, "does-not-exist", false)
+	assert.Error(t, err)
+
+	err = checkoutRevision(gitClient, pullSha, false)
+	assert.NoError(t, err)
+}
+
+// runGit runs a git command in the given working directory. If the command succeeds, it returns the combined standard
+// and error output. If it fails, it stops the test with a failure message.
+func runGit(t *testing.T, workDir string, args ...string) string {
+	cmd := exec.Command("git", args...)
+	cmd.Dir = workDir
+	out, err := cmd.CombinedOutput()
+	stringOut := string(out)
+	require.NoError(t, err, stringOut)
+	return stringOut
+}
+
+func Test_findHelmValueFilesInPath(t *testing.T) {
+	t.Run("does not exist", func(t *testing.T) {
+		files, err := findHelmValueFilesInPath("/obviously/does/not/exist")
+		assert.Error(t, err)
+		assert.Empty(t, files)
+	})
+	t.Run("values files", func(t *testing.T) {
+		files, err := findHelmValueFilesInPath("./testdata/values-files")
+		assert.NoError(t, err)
+		assert.Len(t, files, 4)
+	})
+}
+
+func Test_populateHelmAppDetails(t *testing.T) {
+	res := apiclient.RepoAppDetailsResponse{}
+	q := apiclient.RepoServerAppDetailsQuery{
+		Repo: &argoappv1.Repository{},
+		Source: &argoappv1.ApplicationSource{
+			Helm: &argoappv1.ApplicationSourceHelm{ValueFiles: []string{"exclude.yaml", "has-the-word-values.yaml"}},
+		},
+	}
+	appPath, err := filepath.Abs("./testdata/values-files/")
+	require.NoError(t, err)
+	err = populateHelmAppDetails(&res, appPath, appPath, &q)
+	require.NoError(t, err)
+	assert.Len(t, res.Helm.Parameters, 3)
+	assert.Len(t, res.Helm.ValueFiles, 4)
 }
