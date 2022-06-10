@@ -375,11 +375,11 @@ type SCMProviderGeneratorBitbucketServer struct {
 
 // SCMProviderGeneratorAzureDevOps defines connection info specific to Azure DevOps.
 type SCMProviderGeneratorAzureDevOps struct {
-	// Azure Devops organization. Required. E.g. https://dev.azure.com/organization
+	// Azure Devops organization. Required. E.g. "my-organization".
 	Organization string `json:"organization"`
 	// The URL to Azure DevOps. If blank, use https://dev.azure.com.
 	API string `json:"api,omitempty"`
-	// Azure Devops team project. Required. E.g. https://dev.azure.com/organization/my-team
+	// Azure Devops team project. Required. E.g. "my-team".
 	TeamProject string `json:"teamProject"`
 	// The Personal Access Token (PAT) to use when connecting. Required.
 	AccessTokenRef *SecretRef `json:"accessTokenRef"`
