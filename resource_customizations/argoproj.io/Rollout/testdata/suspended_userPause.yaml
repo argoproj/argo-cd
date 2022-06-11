@@ -1,0 +1,46 @@
+apiVersion: argoproj.io/v1alpha1
+kind: Rollout
+metadata:
+  name: example-rollout-canary
+  namespace: default
+spec:
+  paused: true
+  replicas: 5
+  selector:
+    matchLabels:
+      app: guestbook
+  strategy:
+    canary:
+      steps:
+      - setWeight: 20
+      - pause: {}
+  template:
+    metadata:
+      labels:
+        app: guestbook
+    spec:
+      containers:
+      - image: gcr.io/heptio-images/ks-guestbook-demo:0.2
+        name: guestbook
+status:
+  HPAReplicas: 5
+  availableReplicas: 5
+  blueGreen: {}
+  canary:
+    stableRS: df986d68
+  conditions:
+  - lastTransitionTime: 2019-04-26T20:18:38Z
+    lastUpdateTime: 2019-04-26T20:18:38Z
+    message: Rollout is paused
+    reason: RolloutPaused
+    status: Unknown
+    type: Progressing
+  currentPodHash: 6b566f47b7
+  currentStepHash: 6567fc959c
+  currentStepIndex: 1
+  observedGeneration: 5c788f4484
+  pauseStartTime: 2019-04-26T20:18:38Z
+  readyReplicas: 5
+  replicas: 5
+  selector: app=guestbook
+  updatedReplicas: 1

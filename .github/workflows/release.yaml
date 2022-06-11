@@ -1,0 +1,296 @@
+name: Create ArgoCD release
+on:
+  push:
+    tags:
+      - "release-v*"
+      - "!release-v1.5*"
+      - "!release-v1.4*"
+      - "!release-v1.3*"
+      - "!release-v1.2*"
+      - "!release-v1.1*"
+      - "!release-v1.0*"
+      - "!release-v0*"
+
+env:
+    GOLANG_VERSION: '1.18'
+
+jobs:
+  prepare-release:
+    name: Perform automatic release on trigger ${{ github.ref }}
+    if: github.repository == 'argoproj/argo-cd'
+    runs-on: ubuntu-latest
+    env:
+      # The name of the tag as supplied by the GitHub event
+      SOURCE_TAG: ${{ github.ref }}
+      # The image namespace where Docker image will be published to
+      IMAGE_NAMESPACE: quay.io/argoproj
+      # Whether to create & push image and release assets
+      DRY_RUN: false
+      # Whether a draft release should be created, instead of public one
+      DRAFT_RELEASE: false
+      # Whether to update homebrew with this release as well
+      # Set RELEASE_HOMEBREW_TOKEN secret in repository for this to work - needs
+      # access to public repositories
+      UPDATE_HOMEBREW: false
+      # Name of the GitHub user for Git config
+      GIT_USERNAME: argo-bot
+      # E-Mail of the GitHub user for Git config
+      GIT_EMAIL: argoproj@gmail.com
+    steps:
+      - name: Checkout code
+        uses: actions/checkout@v2
+        with:
+          fetch-depth: 0
+          token: ${{ secrets.GITHUB_TOKEN }}
+
+      - name: Check if the published tag is well formed and setup vars
+        run: |
+          set -xue
+          # Target version must match major.minor.patch and optional -rcX suffix
+          # where X must be a number.
+          TARGET_VERSION=${SOURCE_TAG#*release-v}
+          if ! echo "${TARGET_VERSION}" | egrep '^[0-9]+\.[0-9]+\.[0-9]+(-rc[0-9]+)*$'; then
+            echo "::error::Target version '${TARGET_VERSION}' is malformed, refusing to continue." >&2
+            exit 1
+          fi
+
+          # Target branch is the release branch we're going to operate on
+          # Its name is 'release-<major>.<minor>'
+          TARGET_BRANCH="release-${TARGET_VERSION%\.[0-9]*}"
+
+          # The release tag is the source tag, minus the release- prefix
+          RELEASE_TAG="${SOURCE_TAG#*release-}"
+
+          # Whether this is a pre-release (indicated by -rc suffix)
+          PRE_RELEASE=false
+          if echo "${RELEASE_TAG}" | egrep -- '-rc[0-9]+$'; then
+            PRE_RELEASE=true
+          fi
+
+          # We must not have a release trigger within the same release branch,
+          # because that means a release for this branch is already running.
+          if git tag -l | grep "release-v${TARGET_VERSION%\.[0-9]*}" | grep -v "release-v${TARGET_VERSION}"; then
+            echo "::error::Another release for branch ${TARGET_BRANCH} is currently in progress."
+            exit 1
+          fi
+
+          # Ensure that release do not yet exist
+          if git rev-parse ${RELEASE_TAG}; then
+            echo "::error::Release tag ${RELEASE_TAG} already exists in repository. Refusing to continue."
+            exit 1
+          fi
+
+          # Make the variables available in follow-up steps
+          echo "TARGET_VERSION=${TARGET_VERSION}" >> $GITHUB_ENV
+          echo "TARGET_BRANCH=${TARGET_BRANCH}" >> $GITHUB_ENV
+          echo "RELEASE_TAG=${RELEASE_TAG}" >> $GITHUB_ENV
+          echo "PRE_RELEASE=${PRE_RELEASE}" >> $GITHUB_ENV
+
+      - name: Check if our release tag has a correct annotation
+        run: |
+          set -ue
+          # Fetch all tag information as well
+          git fetch --prune --tags --force
+
+          echo "=========== BEGIN COMMIT MESSAGE ============="
+          git show ${SOURCE_TAG}
+          echo "============ END COMMIT MESSAGE =============="
+
+          # Quite dirty hack to get the release notes from the annotated tag
+          # into a temporary file.
+          RELEASE_NOTES=$(mktemp -p /tmp release-notes.XXXXXX)
+
+          prefix=true
+          begin=false
+          git show ${SOURCE_TAG} | while read line; do
+            # Whatever is in commit history for the tag, we only want that
+            # annotation from our tag. We discard everything else.
+            if test "$begin" = "false"; then
+              if echo "$line" | grep -q "tag ${SOURCE_TAG#refs/tags/}"; then begin="true"; fi
+              continue
+            fi
+            if test "$prefix" = "true"; then
+                  if test -z "$line"; then prefix=false; fi
+            else
+                  if echo "$line" | egrep -q '^commit [0-9a-f]+'; then
+                          break
+                  fi
+                  echo "$line" >> ${RELEASE_NOTES}
+            fi
+          done
+
+          # For debug purposes
+          echo "============BEGIN RELEASE NOTES================="
+          cat ${RELEASE_NOTES}
+          echo "=============END RELEASE NOTES=================="
+
+          # Too short release notes are suspicious. We need at least 100 bytes.
+          relNoteLen=$(stat -c '%s' $RELEASE_NOTES)
+          if test $relNoteLen -lt 100; then
+            echo "::error::No release notes provided in tag annotation (or tag is not annotated)"
+            exit 1
+          fi
+
+          # Check for magic string '## Quick Start' in head of release notes
+          if ! head -2 ${RELEASE_NOTES} | grep -iq '## Quick Start'; then
+            echo "::error::Release notes seem invalid, quick start section not found."
+            exit 1
+          fi
+
+          # We store path to temporary release notes file for later reading, we
+          # need it when creating release.
+          echo "RELEASE_NOTES=${RELEASE_NOTES}" >> $GITHUB_ENV
+
+      - name: Setup Golang
+        uses: actions/setup-go@v2
+        with:
+          go-version: ${{ env.GOLANG_VERSION }}
+
+      - name: Setup Git author information
+        run: |
+          set -ue
+          git config --global user.email "${GIT_EMAIL}"
+          git config --global user.name "${GIT_USERNAME}"
+
+      - name: Checkout corresponding release branch
+        run: |
+          set -ue
+          echo "Switching to release branch '${TARGET_BRANCH}'"
+          if ! git checkout ${TARGET_BRANCH}; then
+            echo "::error::Checking out release branch '${TARGET_BRANCH}' for target version '${TARGET_VERSION}' (tagged '${RELEASE_TAG}') failed. Does it exist in repo?"
+            exit 1
+          fi
+
+      - name: Create VERSION information
+        run: |
+          set -ue
+          echo "Bumping version from $(cat VERSION) to ${TARGET_VERSION}"
+          echo "${TARGET_VERSION}" > VERSION
+          git commit -m "Bump version to ${TARGET_VERSION}" VERSION
+
+      - name: Generate new set of manifests
+        run: |
+          set -ue
+          make install-codegen-tools-local
+          make manifests-local VERSION=${TARGET_VERSION}
+          git diff
+          git commit manifests/ -m "Bump version to ${TARGET_VERSION}"
+
+      - name: Create the release tag
+        run: |
+          set -ue
+          echo "Creating release ${RELEASE_TAG}"
+          git tag ${RELEASE_TAG}
+
+      - name: Login to docker repositories
+        env:
+          DOCKER_USERNAME: ${{ secrets.RELEASE_DOCKERHUB_USERNAME }}
+          DOCKER_TOKEN: ${{ secrets.RELEASE_DOCKERHUB_TOKEN }}
+          QUAY_USERNAME: ${{ secrets.RELEASE_QUAY_USERNAME }}
+          QUAY_TOKEN: ${{ secrets.RELEASE_QUAY_TOKEN }}
+        run: |
+          set -ue
+          docker login quay.io --username "${QUAY_USERNAME}" --password "${QUAY_TOKEN}"
+          # Remove the following when Docker Hub is gone
+          docker login --username "${DOCKER_USERNAME}" --password "${DOCKER_TOKEN}"
+        if: ${{ env.DRY_RUN != 'true' }}
+
+      - uses: docker/setup-qemu-action@v1
+      - uses: docker/setup-buildx-action@v1
+      - name: Build and push Docker image for release
+        run: |
+          set -ue
+          git clean -fd
+          mkdir -p dist/
+          docker buildx build --platform linux/amd64,linux/arm64,linux/s390x,linux/ppc64le --push -t ${IMAGE_NAMESPACE}/argocd:v${TARGET_VERSION} -t argoproj/argocd:v${TARGET_VERSION} .
+          make release-cli
+          make checksums
+          chmod +x ./dist/argocd-linux-amd64
+          ./dist/argocd-linux-amd64 version --client
+        if: ${{ env.DRY_RUN != 'true' }}
+
+      - name: Read release notes file
+        id: release-notes
+        uses: juliangruber/read-file-action@v1
+        with:
+          path: ${{ env.RELEASE_NOTES }}
+
+      - name: Push changes to release branch
+        run: |
+          set -ue
+          git push origin ${TARGET_BRANCH}
+          git push origin ${RELEASE_TAG}
+
+      - name: Dry run GitHub release
+        uses: actions/create-release@v1
+        env:
+          GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+        id: create_release
+        with:
+          tag_name: ${{ env.RELEASE_TAG }}
+          release_name: ${{ env.RELEASE_TAG }}
+          draft: ${{ env.DRAFT_RELEASE }}
+          prerelease: ${{ env.PRE_RELEASE }}
+          body: ${{ steps.release-notes.outputs.content }}
+        if: ${{ env.DRY_RUN == 'true' }}
+
+      - name: Generate SBOM (spdx)
+        id: spdx-builder
+        env:
+          # defines the spdx/spdx-sbom-generator version to use.
+          SPDX_GEN_VERSION: v0.0.13
+          # defines the sigs.k8s.io/bom version to use.
+          SIGS_BOM_VERSION: v0.2.1
+          # comma delimited list of project relative folders to inspect for package
+          # managers (gomod, yarn, npm).
+          PROJECT_FOLDERS: ".,./ui" 
+          # full qualified name of the docker image to be inspected
+          DOCKER_IMAGE: ${{env.IMAGE_NAMESPACE}}/argocd:v${{env.TARGET_VERSION}}
+        run: |
+          yarn install --cwd ./ui
+          go install github.com/spdx/spdx-sbom-generator/cmd/generator@$SPDX_GEN_VERSION
+          go install sigs.k8s.io/bom/cmd/bom@$SIGS_BOM_VERSION
+
+          # Generate SPDX for project dependencies analyzing package managers
+          for folder in $(echo $PROJECT_FOLDERS | sed "s/,/ /g")
+          do
+            generator -p $folder -o /tmp
+          done
+
+          # Generate SPDX for binaries analyzing the docker image
+          if [[ ! -z $DOCKER_IMAGE ]]; then
+            bom generate -o /tmp/bom-docker-image.spdx -i $DOCKER_IMAGE
+          fi
+
+          cd /tmp && tar -zcf sbom.tar.gz *.spdx
+        if: ${{ env.DRY_RUN != 'true' }}
+
+      - name: Create GitHub release
+        uses: softprops/action-gh-release@v1
+        env:
+          GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+        with:
+          name: ${{ env.RELEASE_TAG }}
+          tag_name: ${{ env.RELEASE_TAG }}
+          draft: ${{ env.DRAFT_RELEASE }}
+          prerelease: ${{ env.PRE_RELEASE }}
+          body: ${{ steps.release-notes.outputs.content }}
+          files: |
+            dist/argocd-*
+            /tmp/sbom.tar.gz
+        if: ${{ env.DRY_RUN != 'true' }}
+
+      - name: Update homebrew formula
+        env:
+          HOMEBREW_TOKEN: ${{ secrets.RELEASE_HOMEBREW_TOKEN }}
+        uses: dawidd6/action-homebrew-bump-formula@v3
+        with:
+          token: ${{env.HOMEBREW_TOKEN}}
+          formula: argocd
+        if: ${{ env.HOMEBREW_TOKEN != '' && env.UPDATE_HOMEBREW == 'true' && env.PRE_RELEASE != 'true' }}
+
+      - name: Delete original request tag from repository
+        run: |
+          set -ue
+          git push --delete origin ${SOURCE_TAG}
+        if: ${{ always() }}

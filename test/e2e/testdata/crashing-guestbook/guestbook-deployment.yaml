@@ -1,0 +1,12 @@
+apiVersion: apps/v1
+kind: Deployment
+metadata:
+  name: guestbook-ui
+spec:
+  replicas: 0
+  progressDeadlineSeconds: 3
+  template:
+    spec:
+      containers:
+        - name: guestbook-ui
+          command: ["fail"]

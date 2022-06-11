@@ -1,0 +1,84 @@
+syntax = "proto3";
+option go_package = "github.com/argoproj/argo-cd/v2/pkg/apiclient/cluster";
+
+// Cluster Service
+//
+// Cluster Service API performs CRUD actions against cluster resources 
+package cluster;
+
+import "google/api/annotations.proto";
+import "github.com/argoproj/argo-cd/v2/pkg/apis/application/v1alpha1/generated.proto";
+
+// ClusterID holds a cluster server URL or cluster name
+message ClusterID {
+	// type is the type of the specified cluster identifier ( "server" - default, "name" )
+	string type = 1;
+	// value holds the cluster server URL or cluster name
+	string value = 2;
+}
+
+// ClusterQuery is a query for cluster resources
+message ClusterQuery {
+	string server = 1;
+	string name = 2;
+	ClusterID id = 3;
+}
+
+message ClusterResponse {}
+
+message ClusterCreateRequest {
+	github.com.argoproj.argo_cd.v2.pkg.apis.application.v1alpha1.Cluster cluster = 1;
+	bool upsert = 2;
+}
+
+message ClusterUpdateRequest {
+	github.com.argoproj.argo_cd.v2.pkg.apis.application.v1alpha1.Cluster cluster = 1;
+	repeated string updatedFields = 2;
+	ClusterID id = 3;
+}
+
+// ClusterService 
+service ClusterService {
+
+	// List returns list of clusters
+	rpc List(ClusterQuery) returns (github.com.argoproj.argo_cd.v2.pkg.apis.application.v1alpha1.ClusterList) {
+		option (google.api.http).get = "/api/v1/clusters";
+	}
+
+	// Create creates a cluster
+	rpc Create(ClusterCreateRequest) returns (github.com.argoproj.argo_cd.v2.pkg.apis.application.v1alpha1.Cluster) {
+		option (google.api.http) = {
+			post: "/api/v1/clusters"
+			body: "cluster"
+		};
+	}
+
+	// Get returns a cluster by server address
+	rpc Get(ClusterQuery) returns (github.com.argoproj.argo_cd.v2.pkg.apis.application.v1alpha1.Cluster) {
+		option (google.api.http).get = "/api/v1/clusters/{id.value}";
+	}
+
+	// Update updates a cluster
+	rpc Update(ClusterUpdateRequest) returns (github.com.argoproj.argo_cd.v2.pkg.apis.application.v1alpha1.Cluster) {
+		option (google.api.http) = {
+			put: "/api/v1/clusters/{id.value}"
+			body: "cluster"
+		};
+	}
+
+	// Delete deletes a cluster
+	rpc Delete(ClusterQuery) returns (ClusterResponse) {
+		option (google.api.http).delete = "/api/v1/clusters/{id.value}";
+	}
+
+	// RotateAuth rotates the bearer token used for a cluster
+	rpc RotateAuth(ClusterQuery) returns (ClusterResponse) {
+		option (google.api.http).post = "/api/v1/clusters/{id.value}/rotate-auth";
+	}
+
+	// InvalidateCache invalidates cluster cache
+	rpc InvalidateCache(ClusterQuery) returns (github.com.argoproj.argo_cd.v2.pkg.apis.application.v1alpha1.Cluster) {
+		option (google.api.http).post = "/api/v1/clusters/{id.value}/invalidate-cache";
+	}
+	
+}

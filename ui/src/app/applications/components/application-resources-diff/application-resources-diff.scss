@@ -1,0 +1,23 @@
+.application-resources-diff {
+    &__checkboxes {
+        text-align: right;
+        label {
+            padding-right: 2em;
+        }
+    }
+    &__diff {
+        font-size: 10pt;
+        &__title {
+            font-weight: bold;
+            .diff__collapse {
+                position: absolute;
+                right: 0;
+                cursor: pointer;
+                margin-left: auto;
+                margin-right: 1.5rem;
+                color: #495763;
+                font-size: 20px;
+            }
+        }
+    }
+}

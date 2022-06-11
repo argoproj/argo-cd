@@ -1,0 +1,4 @@
+gpg: Signature made Mon Aug 26 20:59:48 2019 CEST
+gpg:                using RSA key 4AEE18F83AFDEB23
+gpg:                issuer "j.doe@example.com"
+gpg: Can't check signature: No public key

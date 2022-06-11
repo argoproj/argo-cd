@@ -1,0 +1,17 @@
+tests:
+- healthStatus:
+    status: Progressing
+    message: "Kafka Cluster is Reconciling."
+  inputPath: testdata/reconciling.yaml
+- healthStatus:
+    status: Progressing
+    message: "Waiting for KafkaCluster"
+  inputPath: testdata/updating.yaml
+- healthStatus:
+    status: Degraded
+    message: "Broker Config is out of Sync or CruiseControlState is not Ready"
+  inputPath: testdata/degraded.yaml
+- healthStatus:
+    status: Healthy
+    message: "Kafka Brokers, CruiseControl and cluster are in Healthy State."
+  inputPath: testdata/healthy.yaml

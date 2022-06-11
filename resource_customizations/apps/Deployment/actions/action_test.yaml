@@ -1,0 +1,10 @@
+actionTests:
+- action: restart
+  inputPath: testdata/deployment.yaml
+  expectedOutputPath: testdata/deployment-restarted.yaml
+- action: pause
+  inputPath: testdata/deployment.yaml
+  expectedOutputPath: testdata/deployment-pause.yaml
+- action: resume
+  inputPath: testdata/deployment-pause.yaml
+  expectedOutputPath: testdata/deployment-resume.yaml

@@ -1,0 +1,55 @@
+apiVersion: argoproj.io/v1alpha1
+kind: Rollout
+metadata:
+  annotations:
+    rollout.argoproj.io/revision: "1"
+  clusterName: ""
+  creationTimestamp: 2019-01-25T16:19:09Z
+  generation: 1
+  labels:
+    app.kubernetes.io/instance: guestbook-default
+    ksonnet.io/component: guestbook-ui
+  name: ks-guestbook-ui
+  namespace: default
+  resourceVersion: "164590"
+  selfLink: /apis/argoproj.io/v1alpha1/namespaces/default/rollouts/ks-guestbook-ui
+  uid: f1b99cb0-20bc-11e9-a811-025000000001
+spec:
+  minReadySeconds: 30
+  replicas: 3
+  selector:
+    matchLabels:
+      app: ks-guestbook-ui
+  strategy:
+    blueGreen:
+      activeService: ks-guestbook-ui-active
+      previewService: ks-guestbook-ui-preview
+    type: BlueGreenUpdate
+  template:
+    metadata:
+      creationTimestamp: null
+      labels:
+        app: ks-guestbook-ui
+    spec:
+      containers:
+      - image: gcr.io/heptio-images/ks-guestbook-demo:0.1
+        name: ks-guestbook-ui
+        ports:
+        - containerPort: 83
+        resources: {}
+status:
+  activeSelector: 697fb9575c
+  availableReplicas: 0
+  conditions:
+  - lastTransitionTime: 2019-01-25T16:19:09Z
+    lastUpdateTime: 2019-01-25T16:19:09Z
+    message: Rollout is not serving traffic from the active service.
+    reason: Available
+    status: "False"
+    type: Available
+  currentPodHash: 697fb9575c
+  observedGeneration: 767f98959f
+  previewSelector: ""
+  readyReplicas: 3
+  replicas: 3
+  updatedReplicas: 3

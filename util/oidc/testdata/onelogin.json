@@ -1,0 +1,87 @@
+{
+  "acr_values_supported": [
+    "onelogin:nist:level:1:re-auth"
+  ],
+  "authorization_endpoint": "https://argocd-dev.onelogin.com/oidc/auth",
+  "claims_parameter_supported": true,
+  "claims_supported": [
+    "acr",
+    "auth_time",
+    "company",
+    "custom_fields",
+    "department",
+    "email",
+    "family_name",
+    "given_name",
+    "groups",
+    "iss",
+    "locale_code",
+    "name",
+    "phone_number",
+    "preferred_username",
+    "sub",
+    "title",
+    "updated_at"
+  ],
+  "grant_types_supported": [
+    "authorization_code",
+    "implicit",
+    "refresh_token",
+    "password"
+  ],
+  "id_token_signing_alg_values_supported": [
+    "RS256"
+  ],
+  "issuer": "https://openid-connect.onelogin.com/oidc",
+  "jwks_uri": "https://argocd-dev.onelogin.com/oidc/certs",
+  "request_parameter_supported": false,
+  "request_uri_parameter_supported": false,
+  "response_modes_supported": [
+    "form_post",
+    "fragment",
+    "query"
+  ],
+  "response_types_supported": [
+    "code",
+    "id_token token",
+    "id_token"
+  ],
+  "scopes_supported": [
+    "openid",
+    "name",
+    "profile",
+    "groups",
+    "email",
+    "phone"
+  ],
+  "subject_types_supported": [
+    "public"
+  ],
+  "token_endpoint": "https://argocd-dev.onelogin.com/oidc/token",
+  "token_endpoint_auth_methods_supported": [
+    "client_secret_basic",
+    "client_secret_post",
+    "none"
+  ],
+  "userinfo_endpoint": "https://argocd-dev.onelogin.com/oidc/me",
+  "userinfo_signing_alg_values_supported": [],
+  "code_challenge_methods_supported": [
+    "plain",
+    "S256"
+  ],
+  "introspection_endpoint": "https://argocd-dev.onelogin.com/oidc/token/introspection",
+  "introspection_endpoint_auth_methods_supported": [
+    "client_secret_basic",
+    "client_secret_post",
+    "none"
+  ],
+  "revocation_endpoint": "https://argocd-dev.onelogin.com/oidc/token/revocation",
+  "revocation_endpoint_auth_methods_supported": [
+    "client_secret_basic",
+    "client_secret_post",
+    "none"
+  ],
+  "claim_types_supported": [
+    "normal"
+  ]
+}

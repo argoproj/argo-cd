@@ -1,0 +1,4 @@
+actionTests:
+- action: restart
+  inputPath: testdata/statefulset.yaml
+  expectedOutputPath: testdata/statefulset-restarted.yaml

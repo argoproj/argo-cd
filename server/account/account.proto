@@ -1,0 +1,113 @@
+syntax = "proto3";
+option go_package = "github.com/argoproj/argo-cd/v2/pkg/apiclient/account";
+
+// Account Service
+//
+// Account Service API updates Argo CD account settings
+
+package account;
+
+import "google/api/annotations.proto";
+
+message UpdatePasswordRequest {
+	string newPassword = 1;
+	string currentPassword = 2;
+	string name = 3;
+}
+
+message UpdatePasswordResponse {}
+
+message CanIRequest {
+	string resource = 1;
+	string action = 2;
+	string subresource = 3;
+}
+
+message CanIResponse {
+	string value = 1;
+}
+
+message GetAccountRequest {
+    string name = 1;
+}
+
+message Account {
+	string name = 1;
+	bool enabled = 2;
+	repeated string capabilities = 3;
+	repeated Token tokens = 4;
+}
+
+message AccountsList {
+	repeated Account items = 1;
+}
+
+message Token {
+	string id = 1;
+	int64 issuedAt = 2;
+	int64 expiresAt = 3;
+}
+
+message TokensList {
+	repeated Token items = 1;
+}
+
+message CreateTokenRequest {
+	string name = 1;
+	// expiresIn represents a duration in seconds
+    int64 expiresIn = 2;
+	string id = 3;
+}
+
+message CreateTokenResponse {
+	string token = 1;
+}
+
+message DeleteTokenRequest {
+	string name = 1;
+	string id = 2;
+}
+
+message ListAccountRequest {
+}
+
+message EmptyResponse {}
+
+service AccountService {
+
+	// CanI checks if the current account has permission to perform an action
+	rpc CanI(CanIRequest) returns (CanIResponse) {
+		option (google.api.http).get = "/api/v1/account/can-i/{resource}/{action}/{subresource=**}";
+	}
+
+	// UpdatePassword updates an account's password to a new value
+	rpc UpdatePassword(UpdatePasswordRequest) returns (UpdatePasswordResponse) {
+		option (google.api.http) = {
+			put: "/api/v1/account/password"
+			body: "*"
+		};
+	}
+
+	// ListAccounts returns the list of accounts
+	rpc ListAccounts(ListAccountRequest) returns (AccountsList) {
+		option (google.api.http).get = "/api/v1/account";
+	}
+
+	// GetAccount returns an account
+	rpc GetAccount(GetAccountRequest) returns (Account) {
+		option (google.api.http).get = "/api/v1/account/{name}";
+	}
+
+	// CreateToken creates a token
+	rpc CreateToken(CreateTokenRequest) returns (CreateTokenResponse) {
+		option (google.api.http) = {
+			post: "/api/v1/account/{name}/token"
+			body: "*"
+		};
+	}
+
+	// DeleteToken deletes a token
+	rpc DeleteToken(DeleteTokenRequest) returns (EmptyResponse) {
+		option (google.api.http).delete = "/api/v1/account/{name}/token/{id}";
+	}
+}

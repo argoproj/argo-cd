@@ -1,0 +1,18 @@
+apiVersion: kustomize.config.k8s.io/v1beta1
+kind: Kustomization
+
+resources:
+- argocd-redis-deployment.yaml
+- argocd-redis-rolebinding.yaml
+- argocd-redis-sa.yaml
+- argocd-redis-service.yaml
+- argocd-redis-network-policy.yaml
+
+vars:
+- name: ARGOCD_REDIS_SERVICE
+  objref:
+    kind: Service
+    name: argocd-redis
+    apiVersion: v1
+  fieldref:
+    fieldpath: metadata.name

@@ -1,0 +1,54 @@
+@import 'node_modules/argo-ui/src/styles/config';
+
+.paginate {
+    position: relative;
+
+    @media (max-width: map-get($breakpoints, medium)) {
+        & {
+            position: initial;
+            height: auto;
+            text-align: center;
+        }
+
+        li.previous,
+        li.next {
+            display: none;
+        }
+
+        &__size-menu {
+            position: initial;
+        }
+    }
+
+    &__paginator {
+        display: inline-block;
+        padding: 0;
+        margin-bottom: 0;
+
+        li {
+            display: inline-block;
+            margin-right: 1em;
+        }
+    }
+
+    li.disabled {
+        a {
+            cursor: default;
+            color: $argo-color-gray-5;
+        }
+    }
+
+    li.selected {
+        a {
+            cursor: default;
+            color: $argo-color-gray-8;
+        }
+    }
+
+    &__size-menu {
+        margin-left: auto;
+        li {
+            display: block;
+        }
+    }
+}

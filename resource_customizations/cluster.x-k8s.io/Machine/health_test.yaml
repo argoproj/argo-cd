@@ -1,0 +1,13 @@
+tests:
+- healthStatus:
+    status: Progressing
+    message: '1 of 2 completed'
+  inputPath: testdata/progressing_boot.yaml
+- healthStatus:
+    status: Degraded
+    message: 'Error message'
+  inputPath: testdata/degraded_failed.yaml
+- healthStatus:
+    status: Healthy
+    message: 'Machine is running'
+  inputPath: testdata/healthy_running.yaml

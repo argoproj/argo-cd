@@ -1,0 +1,65 @@
+{
+  "object_kind": "push",
+  "event_name": "push",
+  "before": "e5ba5f6c13b64670048daa88e4c053d60b0e115a",
+  "after": "bb0748feaa336d841c251017e4e374c22d0c8a98",
+  "ref": "refs/heads/master",
+  "checkout_sha": "bb0748feaa336d841c251017e4e374c22d0c8a98",
+  "message": null,
+  "user_id": 1,
+  "user_name": "name",
+  "user_username": "username",
+  "user_email": "",
+  "user_avatar": "",
+  "project_id": 1,
+  "project": {
+    "id": 1,
+    "name": "project",
+    "description": "",
+    "web_url": "https://gitlab/group/name",
+    "avatar_url": null,
+    "git_ssh_url": "ssh://git@gitlab:2222/group/name.git",
+    "git_http_url": "https://gitlab/group/name.git",
+    "namespace": "group",
+    "visibility_level": 1,
+    "path_with_namespace": "group/name",
+    "default_branch": "master",
+    "ci_config_path": null,
+    "homepage": "https://gitlab/group/name",
+    "url": "ssh://git@gitlab:2222/group/name.git",
+    "ssh_url": "ssh://git@gitlab:2222/group/name.git",
+    "http_url": "https://gitlab/group/name.git"
+  },
+  "commits": [
+    {
+      "id": "bb0748feaa336d841c251017e4e374c22d0c8a98",
+      "message": "Test commit message\n",
+      "timestamp": "2020-01-06T03:47:55Z",
+      "url": "https://gitlab/group/name/commit/bb0748feaa336d841c251017e4e374c22d0c8a98",
+      "author": {
+        "name": "User",
+        "email": "user@example.com"
+      },
+      "added": [
+        "file.yaml"
+      ],
+      "modified": [
+      ],
+      "removed": [
+
+      ]
+    }
+  ],
+  "total_commits_count": 1,
+  "push_options": {
+  },
+  "repository": {
+    "name": "name",
+    "url": "ssh://git@gitlab:2222/group/name.git",
+    "description": "",
+    "homepage": "https://gitlab/group/name",
+    "git_http_url": "https://gitlab/group/name.git",
+    "git_ssh_url": "ssh://git@gitlab:2222/group/name.git",
+    "visibility_level": 10
+  }
+}

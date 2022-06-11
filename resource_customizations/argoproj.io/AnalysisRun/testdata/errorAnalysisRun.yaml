@@ -1,0 +1,47 @@
+apiVersion: argoproj.io/v1alpha1
+kind: AnalysisRun
+metadata:
+  name: canary-demo-analysis-template-6c6bb7cf6f-btpgc
+  namespace: default
+spec:
+  analysisSpec:
+    metrics:
+      - failureCondition: result < 92
+        interval: 10
+        name: memory-usage
+        provider:
+          prometheus:
+            address: 'http://prometheus-operator-prometheus.prometheus-operator:9090'
+            query: >
+              sum(rate(nginx_ingress_controller_requests{ingress="canary-demo-preview",status!~"[4-5].*"}[2m]))
+              /
+              sum(rate(nginx_ingress_controller_requests{ingress="canary-demo-preview"}[2m]))
+        successCondition: result > 95
+status:
+  metricResults:
+    - consecutiveError: 5
+      error: 5
+      measurements:
+        - finishedAt: '2019-10-28T18:13:01Z'
+          startedAt: '2019-10-28T18:13:01Z'
+          phase: Error
+          value: '[0.9832775919732442]'
+        - finishedAt: '2019-10-28T18:13:11Z'
+          startedAt: '2019-10-28T18:13:11Z'
+          phase: Error
+          value: '[0.9832775919732442]'
+        - finishedAt: '2019-10-28T18:13:21Z'
+          startedAt: '2019-10-28T18:13:21Z'
+          phase: Error
+          value: '[0.9722530521642618]'
+        - finishedAt: '2019-10-28T18:13:31Z'
+          startedAt: '2019-10-28T18:13:31Z'
+          phase: Error
+          value: '[0.9722530521642618]'
+        - finishedAt: '2019-10-28T18:13:41Z'
+          startedAt: '2019-10-28T18:13:41Z'
+          phase: Error
+          value: '[0.9722530521642618]'
+      name: memory-usage
+      phase: Error
+  phase: Error

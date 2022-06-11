@@ -1,0 +1,60 @@
+syntax = "proto3";
+option go_package = "github.com/argoproj/argo-cd/v2/pkg/apiclient/session";
+
+// Session Service
+//
+// Session Service API performs CRUD actions against session resources
+package session;
+
+import "google/api/annotations.proto";
+
+// SessionCreateRequest is for logging in.
+message SessionCreateRequest {
+  string username = 1;
+  string password = 2;
+  string token = 3;
+}
+
+// SessionDeleteRequest is for logging out.
+message SessionDeleteRequest {}
+
+// SessionResponse wraps the created token or returns an empty string if deleted.
+message SessionResponse {
+  string token = 1;
+}
+
+// Get the current user's userInfo info
+message GetUserInfoRequest {
+}
+
+// The current user's userInfo info
+message GetUserInfoResponse {
+  bool loggedIn = 1;
+  string username = 2;
+  string iss = 3;
+  repeated string groups = 4;
+}
+
+// SessionService 
+service SessionService {
+
+  // Get the current user's info
+  rpc GetUserInfo (GetUserInfoRequest) returns (GetUserInfoResponse) {
+    option (google.api.http).get = "/api/v1/session/userinfo";
+  }
+
+  // Create a new JWT for authentication and set a cookie if using HTTP
+  rpc Create(SessionCreateRequest) returns (SessionResponse) {
+    option (google.api.http) = {
+      post: "/api/v1/session"
+      body: "*"
+    };
+  }
+
+  // Delete an existing JWT cookie if using HTTP
+  rpc Delete(SessionDeleteRequest) returns (SessionResponse) {
+    option (google.api.http) = {
+      delete: "/api/v1/session"
+    };
+  }
+}

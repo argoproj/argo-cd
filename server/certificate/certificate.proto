@@ -1,0 +1,51 @@
+syntax = "proto3";
+option go_package = "github.com/argoproj/argo-cd/v2/pkg/apiclient/certificate";
+
+// Certificate Service
+//
+// Certificate Service API performs CRUD actions against repository certificate
+// resources.
+package certificate;
+
+import "google/api/annotations.proto";
+import "github.com/argoproj/argo-cd/v2/pkg/apis/application/v1alpha1/generated.proto";
+
+// Message to query the server for configured repository certificates
+message RepositoryCertificateQuery {
+  // A file-glob pattern (not regular expression) the host name has to match
+  string hostNamePattern = 1;
+  // The type of the certificate to match (ssh or https)
+  string certType = 2;
+  // The sub type of the certificate to match (protocol dependent, usually only used for ssh certs)
+  string certSubType = 3;
+}
+
+// Request to create a set of certificates
+message RepositoryCertificateCreateRequest {
+  // List of certificates to be created
+  github.com.argoproj.argo_cd.v2.pkg.apis.application.v1alpha1.RepositoryCertificateList certificates = 1;
+  // Whether to upsert already existing certificates
+  bool upsert = 2;
+}
+
+message RepositoryCertificateResponse {}
+
+service CertificateService {
+  // List all available repository certificates
+  rpc ListCertificates(RepositoryCertificateQuery) returns (github.com.argoproj.argo_cd.v2.pkg.apis.application.v1alpha1.RepositoryCertificateList) {
+    option (google.api.http).get = "/api/v1/certificates";
+  }
+
+  // Creates repository certificates on the server 
+  rpc CreateCertificate(RepositoryCertificateCreateRequest) returns (github.com.argoproj.argo_cd.v2.pkg.apis.application.v1alpha1.RepositoryCertificateList) {
+    option (google.api.http) = {
+      post: "/api/v1/certificates"
+      body: "certificates"
+    };
+  }
+
+  // Delete the certificates that match the RepositoryCertificateQuery
+  rpc DeleteCertificate(RepositoryCertificateQuery) returns (github.com.argoproj.argo_cd.v2.pkg.apis.application.v1alpha1.RepositoryCertificateList) {
+    option (google.api.http).delete = "/api/v1/certificates";
+  }
+}

@@ -1,0 +1,61 @@
+apiVersion: argoproj.io/v1alpha1
+kind: Rollout
+metadata:
+  annotations:
+    kubectl.kubernetes.io/last-applied-configuration: |
+      {"apiVersion":"argoproj.io/v1alpha1","kind":"Rollout","metadata":{"annotations":{},"name":"example-rollout-canary","namespace":"default"},"spec":{"minReadySeconds":30,"replicas":5,"revisionHistoryLimit":3,"selector":{"matchLabels":{"app":"guestbook"}},"strategy":{"canary":{"steps":[{"setWeight":20},{"pause":{"duration":20}},{"setWeight":40},{"pause":{}}]}},"template":{"metadata":{"labels":{"app":"guestbook"}},"spec":{"containers":[{"image":"gcr.io/heptio-images/ks-guestbook-demo:0.1","name":"guestbook","ports":[{"containerPort":80}]}]}}}}
+    rollout.argoproj.io/revision: "3"
+  creationTimestamp: "2019-10-20T15:42:26Z"
+  generation: 101
+  name: example-rollout-canary
+  namespace: default
+  resourceVersion: "1779901"
+  selfLink: /apis/argoproj.io/v1alpha1/namespaces/default/rollouts/example-rollout-canary
+  uid: f8ebf794-8b4e-4a1f-a2d1-a85bc1d206ef
+spec:
+  minReadySeconds: 30
+  replicas: 5
+  revisionHistoryLimit: 3
+  selector:
+    matchLabels:
+      app: guestbook
+  strategy:
+    canary: {}
+  template:
+    metadata:
+      creationTimestamp: null
+      labels:
+        app: guestbook
+    spec:
+      containers:
+      - image: gcr.io/heptio-images/ks-guestbook-demo:0.1
+        name: guestbook
+        ports:
+        - containerPort: 80
+        resources: {}
+status:
+  HPAReplicas: 6
+  availableReplicas: 5
+  blueGreen: {}
+  canary:
+    stableRS: 74d6dc8544
+  conditions:
+  - lastTransitionTime: "2019-10-25T16:08:02Z"
+    lastUpdateTime: "2019-10-25T16:08:02Z"
+    message: Rollout has minimum availability
+    reason: AvailableReason
+    status: "True"
+    type: Available
+  - lastTransitionTime: "2019-10-25T16:50:19Z"
+    lastUpdateTime: "2019-11-07T18:19:25Z"
+    message: ReplicaSet "example-rollout-canary-694fb7759c" is progressing.
+    reason: ReplicaSetUpdated
+    status: "True"
+    type: Progressing
+  currentPodHash: 694fb7759c
+  currentStepHash: 5ffbfbbd64
+  observedGeneration: 7fcc96c7b7
+  readyReplicas: 6
+  replicas: 6
+  selector: app=guestbook
+  updatedReplicas: 5

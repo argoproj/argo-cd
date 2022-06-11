@@ -1,0 +1,40 @@
+apiVersion: argoproj.io/v1alpha1
+kind: Experiment
+metadata:
+  name: example-experiment
+  namespace: argo-rollouts
+spec:
+  duration: 60
+  templates:
+    - name: baseline
+      selector:
+        matchLabels:
+          app: rollouts-demo
+          color: blue
+      template:
+        metadata:
+          labels:
+            app: rollouts-demo
+            color: blue
+        spec:
+          containers:
+            - image: 'argoproj/rollouts-demo:blue'
+              name: guestbook
+status:
+  availableAt: '2019-10-28T20:15:02Z'
+  conditions:
+    - lastTransitionTime: '2019-10-28T20:14:59Z'
+      lastUpdateTime: '2019-10-28T20:15:02Z'
+      message: Experiment "example-experiment" is running.
+      reason: NewReplicaSetAvailable
+      phase: 'True'
+      type: Progressing
+  phase: Running
+  templateStatuses:
+    - availableReplicas: 1
+      lastTransitionTime: '2019-10-28T20:15:02Z'
+      name: baseline
+      readyReplicas: 1
+      replicas: 1
+      phase: Running
+      updatedReplicas: 1

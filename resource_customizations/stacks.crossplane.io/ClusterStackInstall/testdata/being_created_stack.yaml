@@ -1,0 +1,34 @@
+apiVersion: stacks.crossplane.io/v1alpha1
+kind: ClusterStackInstall
+metadata:
+  creationTimestamp: "2020-05-13T09:35:26Z"
+  finalizers:
+  - finalizer.stackinstall.crossplane.io
+  generation: 1
+  labels:
+    argocd.argoproj.io/instance: crossplane-cloudscale
+    name: stack-cloudscale
+  name: stack-cloudscale
+  namespace: syn-crossplane
+  resourceVersion: "20004"
+  selfLink: /apis/stacks.crossplane.io/v1alpha1/namespaces/syn-crossplane/clusterstackinstalls/stack-cloudscale
+  uid: cce4dfb5-185f-421d-be97-338408e0c712
+spec:
+  package: docker.io/vshn/stack-cloudscale:v0.0.2@sha256:8a9a94c3ef557da951d5c7f5bb0286a2f36c79f7ece499f61a8807383caed59b
+status:
+  conditionedStatus:
+    conditions:
+    - lastTransitionTime: "2020-05-13T09:35:26Z"
+      reason: Resource is being created
+      status: "False"
+      type: Ready
+    - lastTransitionTime: "2020-05-13T09:35:26Z"
+      reason: Successfully reconciled resource
+      status: "True"
+      type: Synced
+  installJob:
+    apiVersion: batch/v1
+    kind: Job
+    name: stack-cloudscale
+    namespace: syn-crossplane
+    uid: e9c2d5d5-41b1-4b11-8193-e5029c37cc52

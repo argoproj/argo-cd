@@ -1,0 +1,15 @@
+# This manifest will always be out of sync because the empty string for apiGroup will get defaulted
+# to rbac.authorization.k8s.io by kubernetes, resulting in a difference. This manifest is useful for
+# testing auto-sync and ensuring sure it does not fall into a sync loop.
+apiVersion: rbac.authorization.k8s.io/v1
+kind: RoleBinding
+metadata:
+  name: always-outofsync
+subjects:
+- apiGroup: ""
+  kind: User
+  name: jane
+roleRef:
+  apiGroup: ""
+  kind: Role
+  name: does-not-matter

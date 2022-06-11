@@ -1,0 +1,94 @@
+tests:
+- healthStatus:
+    status: Progressing
+    message: "Waiting for rollout spec update to be observed"
+  inputPath: testdata/newRolloutWithoutStatus.yaml
+- healthStatus:
+    status: Progressing
+    message: "Waiting for rollout spec update to be observed"
+  inputPath: testdata/progressing_newGeneration.yaml
+- healthStatus:
+    status: Progressing
+    message: "Waiting for rollout spec update to be observed"
+  inputPath: testdata/progressing_newWorkloadGeneration.yaml
+- healthStatus:
+    status: Degraded
+    message: "InvalidSpec"
+  inputPath: testdata/degraded_statusPhaseMessage.yaml
+- healthStatus:
+    status: Healthy
+    message: ""
+  inputPath: testdata/healthy_legacy_v0.9_observedGeneration.yaml
+- healthStatus:
+    status: Healthy
+    message: ""
+  inputPath: testdata/healthy_legacy_v0.9_observedGeneration_numeric.yaml
+- healthStatus:
+    status: Healthy
+    message: ""
+  inputPath: testdata/healthy_legacy_v1.0_newWorkloadGeneration.yaml
+- healthStatus:
+    status: Healthy
+    message: ""
+  inputPath: testdata/healthy_newWorkloadGeneration.yaml
+- healthStatus:
+    status: Degraded
+    message: "The Rollout \"basic\" is invalid: spec.strategy.strategy: Required value: Rollout has missing field '.spec.strategy.canary or .spec.strategy.blueGreen'"
+  inputPath: testdata/degraded_invalidSpec.yaml
+- healthStatus:
+    status: Degraded
+    message: ReplicaSet "guestbook-bluegreen-helm-guestbook-6b8cf6f7db" has timed out progressing.
+  inputPath: testdata/degraded_rolloutTimeout.yaml
+- healthStatus:
+    status: Degraded
+    message: Rollout is aborted
+  inputPath: testdata/degraded_abortedRollout.yaml
+#BlueGreen
+- healthStatus:
+    status: Healthy
+  inputPath: testdata/bluegreen/healthy_servingActiveService.yaml
+- healthStatus:
+    status: Progressing
+    message: "Waiting for roll out to finish: More replicas need to be updated"
+  inputPath: testdata/bluegreen/progressing_addingMoreReplicas.yaml
+- healthStatus:
+    status: Progressing
+    message: "Waiting for roll out to finish: updated replicas are still becoming available"
+  inputPath: testdata/bluegreen/progressing_waitingUntilAvailable.yaml
+#Canary
+- healthStatus:
+    status: Progressing
+    message: "Waiting for roll out to finish: More replicas need to be updated"
+  inputPath: testdata/canary/progressing_setWeightStep.yaml
+- healthStatus:
+    status: Progressing
+    message: "Waiting for roll out to finish: old replicas are pending termination"
+  inputPath: testdata/canary/progressing_killingOldReplicas.yaml
+- healthStatus:
+    status: Suspended
+    message: Rollout is paused
+  inputPath: testdata/suspended_controllerPause.yaml
+- healthStatus:
+    status: Suspended
+    message: Rollout is paused
+  inputPath: testdata/suspended_userPause.yaml
+- healthStatus:
+    status: Suspended
+    message: CanaryPauseStep
+  inputPath: testdata/suspended_v1.0_pausedRollout.yaml
+- healthStatus:
+    status: Healthy
+  inputPath: testdata/canary/healthy_executedAllStepsPreV0.8.yaml
+- healthStatus:
+     status: Healthy
+  inputPath: testdata/canary/healthy_executedAllSteps.yaml
+- healthStatus:
+    status: Progressing
+    message: 'Waiting for roll out to finish: updated replicas are still becoming available'
+  inputPath: testdata/canary/progressing_noSteps.yaml
+- healthStatus:
+    status: Healthy
+  inputPath: testdata/canary/healthy_noSteps.yaml
+- healthStatus:
+    status: Healthy
+  inputPath: testdata/canary/healthy_emptyStepsList.yaml

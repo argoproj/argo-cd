@@ -1,0 +1,27 @@
+{{- if .Values.metrics.enabled }}
+apiVersion: v1
+kind: Service
+metadata:
+  name: {{ template "redis.fullname" . }}-metrics
+  labels:
+    app: {{ template "redis.name" . }}
+    chart: {{ template "redis.chart" . }}
+    release: "{{ .Release.Name }}"
+    heritage: "{{ .Release.Service }}"
+  annotations:
+{{ toYaml .Values.metrics.service.annotations | indent 4 }}
+spec:
+  type: {{ .Values.metrics.service.type }}
+  {{ if eq .Values.metrics.service.type "LoadBalancer" -}} {{ if .Values.metrics.service.loadBalancerIP -}}
+  loadBalancerIP: {{ .Values.metrics.service.loadBalancerIP }}
+  {{ end -}}
+  {{- end -}}
+  ports:
+  - name: metrics
+    port: 9121
+    targetPort: metrics
+  selector:
+    app: {{ template "redis.name" . }}
+    release: {{ .Release.Name }}
+    role: metrics
+{{- end }}

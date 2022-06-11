@@ -1,0 +1,312 @@
+apiVersion: apiextensions.k8s.io/v1
+kind: CustomResourceDefinition
+metadata:
+  labels:
+    app.kubernetes.io/name: appprojects.argoproj.io
+    app.kubernetes.io/part-of: argocd
+  name: appprojects.argoproj.io
+spec:
+  group: argoproj.io
+  names:
+    kind: AppProject
+    listKind: AppProjectList
+    plural: appprojects
+    shortNames:
+    - appproj
+    - appprojs
+    singular: appproject
+  scope: Namespaced
+  versions:
+  - name: v1alpha1
+    schema:
+      openAPIV3Schema:
+        description: 'AppProject provides a logical grouping of applications, providing
+          controls for: * where the apps may deploy to (cluster whitelist) * what
+          may be deployed (repository whitelist, resource whitelist/blacklist) * who
+          can access these applications (roles, OIDC group claims bindings) * and
+          what they can do (RBAC policies) * automation access to these roles (JWT
+          tokens)'
+        properties:
+          apiVersion:
+            description: 'APIVersion defines the versioned schema of this representation
+              of an object. Servers should convert recognized schemas to the latest
+              internal value, and may reject unrecognized values. More info: https://git.k8s.io/community/contributors/devel/sig-architecture/api-conventions.md#resources'
+            type: string
+          kind:
+            description: 'Kind is a string value representing the REST resource this
+              object represents. Servers may infer this from the endpoint the client
+              submits requests to. Cannot be updated. In CamelCase. More info: https://git.k8s.io/community/contributors/devel/sig-architecture/api-conventions.md#types-kinds'
+            type: string
+          metadata:
+            type: object
+          spec:
+            description: AppProjectSpec is the specification of an AppProject
+            properties:
+              clusterResourceBlacklist:
+                description: ClusterResourceBlacklist contains list of blacklisted
+                  cluster level resources
+                items:
+                  description: GroupKind specifies a Group and a Kind, but does not
+                    force a version.  This is useful for identifying concepts during
+                    lookup stages without having partially valid types
+                  properties:
+                    group:
+                      type: string
+                    kind:
+                      type: string
+                  required:
+                  - group
+                  - kind
+                  type: object
+                type: array
+              clusterResourceWhitelist:
+                description: ClusterResourceWhitelist contains list of whitelisted
+                  cluster level resources
+                items:
+                  description: GroupKind specifies a Group and a Kind, but does not
+                    force a version.  This is useful for identifying concepts during
+                    lookup stages without having partially valid types
+                  properties:
+                    group:
+                      type: string
+                    kind:
+                      type: string
+                  required:
+                  - group
+                  - kind
+                  type: object
+                type: array
+              description:
+                description: Description contains optional project description
+                type: string
+              destinations:
+                description: Destinations contains list of destinations available
+                  for deployment
+                items:
+                  description: ApplicationDestination holds information about the
+                    application's destination
+                  properties:
+                    name:
+                      description: Name is an alternate way of specifying the target
+                        cluster by its symbolic name
+                      type: string
+                    namespace:
+                      description: Namespace specifies the target namespace for the
+                        application's resources. The namespace will only be set for
+                        namespace-scoped resources that have not set a value for .metadata.namespace
+                      type: string
+                    server:
+                      description: Server specifies the URL of the target cluster
+                        and must be set to the Kubernetes control plane API
+                      type: string
+                  type: object
+                type: array
+              namespaceResourceBlacklist:
+                description: NamespaceResourceBlacklist contains list of blacklisted
+                  namespace level resources
+                items:
+                  description: GroupKind specifies a Group and a Kind, but does not
+                    force a version.  This is useful for identifying concepts during
+                    lookup stages without having partially valid types
+                  properties:
+                    group:
+                      type: string
+                    kind:
+                      type: string
+                  required:
+                  - group
+                  - kind
+                  type: object
+                type: array
+              namespaceResourceWhitelist:
+                description: NamespaceResourceWhitelist contains list of whitelisted
+                  namespace level resources
+                items:
+                  description: GroupKind specifies a Group and a Kind, but does not
+                    force a version.  This is useful for identifying concepts during
+                    lookup stages without having partially valid types
+                  properties:
+                    group:
+                      type: string
+                    kind:
+                      type: string
+                  required:
+                  - group
+                  - kind
+                  type: object
+                type: array
+              orphanedResources:
+                description: OrphanedResources specifies if controller should monitor
+                  orphaned resources of apps in this project
+                properties:
+                  ignore:
+                    description: Ignore contains a list of resources that are to be
+                      excluded from orphaned resources monitoring
+                    items:
+                      description: OrphanedResourceKey is a reference to a resource
+                        to be ignored from
+                      properties:
+                        group:
+                          type: string
+                        kind:
+                          type: string
+                        name:
+                          type: string
+                      type: object
+                    type: array
+                  warn:
+                    description: Warn indicates if warning condition should be created
+                      for apps which have orphaned resources
+                    type: boolean
+                type: object
+              roles:
+                description: Roles are user defined RBAC roles associated with this
+                  project
+                items:
+                  description: ProjectRole represents a role that has access to a
+                    project
+                  properties:
+                    description:
+                      description: Description is a description of the role
+                      type: string
+                    groups:
+                      description: Groups are a list of OIDC group claims bound to
+                        this role
+                      items:
+                        type: string
+                      type: array
+                    jwtTokens:
+                      description: JWTTokens are a list of generated JWT tokens bound
+                        to this role
+                      items:
+                        description: JWTToken holds the issuedAt and expiresAt values
+                          of a token
+                        properties:
+                          exp:
+                            format: int64
+                            type: integer
+                          iat:
+                            format: int64
+                            type: integer
+                          id:
+                            type: string
+                        required:
+                        - iat
+                        type: object
+                      type: array
+                    name:
+                      description: Name is a name for this role
+                      type: string
+                    policies:
+                      description: Policies Stores a list of casbin formatted strings
+                        that define access policies for the role in the project
+                      items:
+                        type: string
+                      type: array
+                  required:
+                  - name
+                  type: object
+                type: array
+              signatureKeys:
+                description: SignatureKeys contains a list of PGP key IDs that commits
+                  in Git must be signed with in order to be allowed for sync
+                items:
+                  description: SignatureKey is the specification of a key required
+                    to verify commit signatures with
+                  properties:
+                    keyID:
+                      description: The ID of the key in hexadecimal notation
+                      type: string
+                  required:
+                  - keyID
+                  type: object
+                type: array
+              sourceRepos:
+                description: SourceRepos contains list of repository URLs which can
+                  be used for deployment
+                items:
+                  type: string
+                type: array
+              syncWindows:
+                description: SyncWindows controls when syncs can be run for apps in
+                  this project
+                items:
+                  description: SyncWindow contains the kind, time, duration and attributes
+                    that are used to assign the syncWindows to apps
+                  properties:
+                    applications:
+                      description: Applications contains a list of applications that
+                        the window will apply to
+                      items:
+                        type: string
+                      type: array
+                    clusters:
+                      description: Clusters contains a list of clusters that the window
+                        will apply to
+                      items:
+                        type: string
+                      type: array
+                    duration:
+                      description: Duration is the amount of time the sync window
+                        will be open
+                      type: string
+                    kind:
+                      description: Kind defines if the window allows or blocks syncs
+                      type: string
+                    manualSync:
+                      description: ManualSync enables manual syncs when they would
+                        otherwise be blocked
+                      type: boolean
+                    namespaces:
+                      description: Namespaces contains a list of namespaces that the
+                        window will apply to
+                      items:
+                        type: string
+                      type: array
+                    schedule:
+                      description: Schedule is the time the window will begin, specified
+                        in cron format
+                      type: string
+                    timeZone:
+                      description: TimeZone of the sync that will be applied to the
+                        schedule
+                      type: string
+                  type: object
+                type: array
+            type: object
+          status:
+            description: AppProjectStatus contains status information for AppProject
+              CRs
+            properties:
+              jwtTokensByRole:
+                additionalProperties:
+                  description: JWTTokens represents a list of JWT tokens
+                  properties:
+                    items:
+                      items:
+                        description: JWTToken holds the issuedAt and expiresAt values
+                          of a token
+                        properties:
+                          exp:
+                            format: int64
+                            type: integer
+                          iat:
+                            format: int64
+                            type: integer
+                          id:
+                            type: string
+                        required:
+                        - iat
+                        type: object
+                      type: array
+                  type: object
+                description: JWTTokensByRole contains a list of JWT tokens issued
+                  for a given role
+                type: object
+            type: object
+        required:
+        - metadata
+        - spec
+        type: object
+    served: true
+    storage: true

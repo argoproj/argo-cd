@@ -1,0 +1,27 @@
+apiVersion: kiali.io/v1alpha1
+kind: Kiali
+metadata:
+  finalizers:
+  - finalizer.kiali
+  generation: 1
+  labels:
+    argocd.argoproj.io/instance: kiali-default
+  name: kiali
+  namespace: kiali
+  resourceVersion: "344752"
+  selfLink: /apis/kiali.io/v1alpha1/namespaces/2269-kiali/kialis/kiali
+  uid: a59d8dac-900b-4e05-9cb7-cf96a0bf4b6b
+spec: {}
+status:
+  conditions:
+  - ansibleResult:
+      changed: 1
+      completion: 2020-06-08T13:41:20.133525
+      failures: 0
+      ok: 56
+      skipped: 82
+    lastTransitionTime: "2020-06-04T17:47:31Z"
+    message: Error Reconciling
+    reason: null 
+    status: "True"
+    type: Running

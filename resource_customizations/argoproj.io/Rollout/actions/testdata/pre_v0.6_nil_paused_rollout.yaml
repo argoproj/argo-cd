@@ -1,0 +1,51 @@
+apiVersion: argoproj.io/v1alpha1
+kind: Rollout
+metadata:
+  clusterName: ""
+  creationTimestamp: 2019-03-22T21:04:31Z
+  generation: 1
+  labels:
+    app.kubernetes.io/instance: guestbook-bluegreen
+  name: guestbook-bluegreen
+  namespace: default
+  resourceVersion: "888906"
+  selfLink: /apis/argoproj.io/v1alpha1/namespaces/default/rollouts/guestbook-bluegreen
+  uid: 16a1edf0-4ce6-11e9-994f-025000000001
+spec:
+  minReadySeconds: 30
+  replicas: 1
+  revisionHistoryLimit: 2
+  selector:
+    matchLabels:
+      app: guestbook-bluegreen
+  strategy:
+    blueGreen:
+      activeService: guestbook-bluegreen-active
+      previewService: guestbook-bluegreen-preview
+  template:
+    metadata:
+      labels:
+        app: guestbook-bluegreen
+    spec:
+      containers:
+      - image: gcr.io/heptio-images/ks-guestbook-demo:0.2
+        name: guestbook-bluegreen
+        ports:
+        - containerPort: 80
+status:
+  availableReplicas: 1
+  blueGreen:
+    activeSelector: 6c767bd46c
+  conditions:
+  - lastTransitionTime: 2019-04-01T22:31:44Z
+    lastUpdateTime: 2019-04-01T22:31:44Z
+    message: Rollout is serving traffic from the active service.
+    reason: Available
+    status: "True"
+    type: Available
+  currentPodHash: 6c767bd46c
+  observedGeneration: 869957df4b
+  pauseStartTime: 2019-03-26T05:47:32Z
+  readyReplicas: 1
+  replicas: 1
+  updatedReplicas: 1

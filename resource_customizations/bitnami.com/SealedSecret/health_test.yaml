@@ -1,0 +1,13 @@
+tests:
+- healthStatus:
+    status: Progressing
+    message: "Waiting for Sealed Secret to be decrypted"
+  inputPath: testdata/progressing.yaml
+- healthStatus:
+    status: Degraded
+    message: "no key could decrypt secret (.dockerconfigjson)"
+  inputPath: testdata/degraded.yaml
+- healthStatus:
+    status: Healthy
+    message: ""
+  inputPath: testdata/healthy.yaml

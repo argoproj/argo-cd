@@ -1,0 +1,140 @@
+apiVersion: v1
+kind: ConfigMap
+metadata:
+  name: {{ template "minio.fullname" . }}
+  labels:
+    app: {{ template "minio.name" . }}
+    chart: {{ template "minio.chart" . }}
+    release: {{ .Release.Name }}
+    heritage: {{ .Release.Service }}
+data:
+  initialize: |-
+{{ include (print $.Template.BasePath "/_helper_create_bucket.txt") . | indent 4 }}
+  config.json: |-
+    {
+      "version": "26",
+      "credential": {
+        "accessKey": {{ .Values.accessKey | quote }},
+        "secretKey": {{ .Values.secretKey | quote }}
+      },
+      "region": {{ .Values.minioConfig.region | quote }},
+      "browser": {{ .Values.minioConfig.browser | quote }},
+      "worm": {{ .Values.minioConfig.worm | quote }},
+      "domain": {{ .Values.minioConfig.domain | quote }},
+      "storageclass": {
+        "standard": {{ .Values.minioConfig.storageClass.standardStorageClass | quote }},
+        "rrs": {{ .Values.minioConfig.storageClass.reducedRedundancyStorageClass | quote }}
+      },
+      "cache": {
+        "drives": {{ .Values.minioConfig.cache.drives }},
+        "expiry": {{ .Values.minioConfig.cache.expiry | int }},
+        "maxuse": {{ .Values.minioConfig.cache.maxuse | int }},
+        "exclude": {{ .Values.minioConfig.cache.exclude }}
+      },
+      "notify": {
+        "amqp": {
+          "1": {
+            "enable": {{ .Values.minioConfig.aqmp.enable }},
+            "url": {{ .Values.minioConfig.aqmp.url | quote }},
+            "exchange": {{ .Values.minioConfig.aqmp.exchange | quote }},
+            "routingKey": {{ .Values.minioConfig.aqmp.routingKey | quote }},
+            "exchangeType": {{ .Values.minioConfig.aqmp.exchangeType | quote }},
+            "deliveryMode": {{ .Values.minioConfig.aqmp.deliveryMode }},
+            "mandatory": {{ .Values.minioConfig.aqmp.mandatory }},
+            "immediate": {{ .Values.minioConfig.aqmp.immediate }},
+            "durable": {{ .Values.minioConfig.aqmp.durable }},
+            "internal": {{ .Values.minioConfig.aqmp.internal }},
+            "noWait": {{ .Values.minioConfig.aqmp.noWait }},
+            "autoDeleted": {{ .Values.minioConfig.aqmp.autoDeleted }}
+          }
+        },
+        "nats": {
+          "1": {
+            "enable": {{ .Values.minioConfig.nats.enable }},
+            "address": {{ .Values.minioConfig.nats.address | quote }},
+            "subject": {{ .Values.minioConfig.nats.subject | quote }},
+            "username": {{ .Values.minioConfig.nats.username | quote }},
+            "password": {{ .Values.minioConfig.nats.password | quote }},
+            "token": {{ .Values.minioConfig.nats.token | quote }},
+            "secure": {{ .Values.minioConfig.nats.secure }},
+            "pingInterval": {{ .Values.minioConfig.nats.pingInterval | int64 }},
+            "streaming": {
+              "enable": {{ .Values.minioConfig.nats.enableStreaming }},
+              "clusterID": {{ .Values.minioConfig.nats.clusterID | quote }},
+              "clientID": {{ .Values.minioConfig.nats.clientID | quote }},
+              "async": {{ .Values.minioConfig.nats.async }},
+              "maxPubAcksInflight": {{ .Values.minioConfig.nats.maxPubAcksInflight | int }}
+            }
+          }
+        },
+        "elasticsearch": {
+          "1": {
+            "enable": {{ .Values.minioConfig.elasticsearch.enable }},
+            "format": {{ .Values.minioConfig.elasticsearch.format | quote }},
+            "url": {{ .Values.minioConfig.elasticsearch.url | quote }},
+            "index": {{ .Values.minioConfig.elasticsearch.index | quote }}
+          }
+        },
+        "redis": {
+          "1": {
+            "enable": {{ .Values.minioConfig.redis.enable }},
+            "format": {{ .Values.minioConfig.redis.format | quote }},
+            "address": {{ .Values.minioConfig.redis.address | quote }},
+            "password": {{ .Values.minioConfig.redis.password | quote }},
+            "key": {{ .Values.minioConfig.redis.key | quote }}
+          }
+        },
+        "postgresql": {
+          "1": {
+            "enable": {{ .Values.minioConfig.postgresql.enable }},
+            "format": {{ .Values.minioConfig.postgresql.format | quote }},
+            "connectionString": {{ .Values.minioConfig.postgresql.connectionString | quote }},
+            "table": {{ .Values.minioConfig.postgresql.table | quote }},
+            "host": {{ .Values.minioConfig.postgresql.host | quote }},
+            "port": {{ .Values.minioConfig.postgresql.port | quote }},
+            "user": {{ .Values.minioConfig.postgresql.user | quote }},
+            "password": {{ .Values.minioConfig.postgresql.password | quote }},
+            "database": {{ .Values.minioConfig.postgresql.database | quote }}
+          }
+        },
+        "kafka": {
+          "1": {
+            "enable": {{ .Values.minioConfig.kafka.enable }},
+            "brokers": {{ .Values.minioConfig.kafka.brokers }},
+            "topic": {{ .Values.minioConfig.kafka.topic | quote }}
+          }
+        },
+        "webhook": {
+          "1": {
+            "enable": {{ .Values.minioConfig.webhook.enable }},
+            "endpoint": {{ .Values.minioConfig.webhook.endpoint | quote }}
+          }
+        },
+        "mysql": {
+          "1": {
+            "enable": {{ .Values.minioConfig.mysql.enable }},
+            "format": {{ .Values.minioConfig.mysql.format | quote }},
+            "dsnString": {{ .Values.minioConfig.mysql.dsnString | quote }},
+            "table": {{ .Values.minioConfig.mysql.table | quote }},
+            "host": {{ .Values.minioConfig.mysql.host | quote }},
+            "port": {{ .Values.minioConfig.mysql.port | quote }},
+            "user": {{ .Values.minioConfig.mysql.user | quote }},
+            "password": {{ .Values.minioConfig.mysql.password | quote }},
+            "database": {{ .Values.minioConfig.mysql.database | quote }}
+          }
+        },
+        "mqtt": {
+          "1": {
+            "enable": {{ .Values.minioConfig.mqtt.enable }},
+            "broker": {{ .Values.minioConfig.mqtt.broker | quote }},
+            "topic": {{ .Values.minioConfig.mqtt.topic | quote }},
+            "qos": {{ .Values.minioConfig.mqtt.qos | int }},
+            "clientId": {{ .Values.minioConfig.mqtt.clientId | quote }},
+            "username": {{ .Values.minioConfig.mqtt.username | quote }},
+            "password": {{ .Values.minioConfig.mqtt.password | quote }},
+            "reconnectInterval": {{ .Values.minioConfig.mqtt.reconnectInterval | int }},
+            "keepAliveInterval": {{ .Values.minioConfig.mqtt.keepAliveInterval | int }}
+          }
+        }
+      }
+    }

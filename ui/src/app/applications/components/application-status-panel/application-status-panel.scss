@@ -1,0 +1,183 @@
+@import 'node_modules/argo-ui/src/styles/config';
+@import 'node_modules/foundation-sites/scss/util/util';
+
+.help-tip {
+    color: $argo-color-gray-4;
+}
+
+@mixin responsive-widths {
+    @include breakpoint(large up) {
+        max-width: 250px;
+    }
+    @include breakpoint(xlarge up) {
+        min-width: 250px;
+        max-width: 300px;
+    }
+    @include breakpoint(xxlarge up) {
+        min-width: 325px;
+        max-width: 350px;
+    }
+    @include breakpoint(xxxlarge up) {
+        min-width: 375px;
+        max-width: 450px;
+    }
+}
+
+.application-status-panel {
+    font-size: 0.875em;
+    color: $argo-color-gray-7;
+    background-color: white;
+    box-shadow: 1px 2px 3px rgba(0, 0, 0, 0.1);
+    flex-wrap: nowrap;
+    flex-shrink: 1;
+    overflow-x: auto;
+
+    $row-width: 250px;
+
+    &__conditions {
+        display: flex;
+        max-width: 250px;
+        margin: auto;
+        flex-wrap: wrap;
+        justify-content: center;
+        line-height: 1.5em;
+        a {
+            display: block;
+            margin-right: 12px;
+        }
+    }
+
+    &__more-button {
+        margin-left: auto;
+        font-size: 12px;
+        line-height: 20px;
+        padding: 0;
+    }
+
+    &__item {
+        height: 105px;
+        margin-top: 5px;
+        padding: 5px 20px;
+        font-size: 0.8em;
+        line-height: 1.2;
+        color: $argo-color-gray-7;
+        display: flex;
+        flex-direction: column;
+        flex-shrink: 0;
+        flex-grow: 0;
+
+        &__row {
+            display: flex;
+            max-width: $row-width;
+            flex-shrink: 1;
+            div:first-child {
+                margin-right: 10px;
+            }
+            div:last-child {
+                font-weight: 500;
+                margin-left: auto;
+                white-space: nowrap;
+                overflow: hidden;
+                text-overflow: ellipsis;
+            }
+
+            @include responsive-widths();
+        }
+
+        &:first-child {
+            margin-top: 7px;
+        }
+
+        &:not(:first-child) {
+            border-left: 1px solid $argo-color-gray-3;
+        }
+
+        & {
+            a.error {
+                color: $argo-failed-color-dark;
+            }
+        }
+        & {
+            a.warning {
+                color: $argo-status-warning-color;
+            }
+        }
+        & {
+            a.info {
+                color: $argo-success-color;
+            }
+        }
+
+        label {
+            display: block;
+            color: $argo-color-gray-7;
+            font-size: 13px;
+            margin-right: 10px;
+        }
+
+        max-width: 100%;
+        width: auto;
+    }
+
+    &__item-value {
+        display: flex;
+        align-items: center;
+        .fa {
+            font-size: 1em;
+        }
+
+        font-size: 2em;
+        color: $argo-color-gray-7;
+
+        &--highlight {
+            color: $argo-color-teal-6;
+        }
+
+        &--Running a,
+        &--Terminating a {
+            color: $argo-running-color;
+        }
+
+        &--Error a,
+        &--Failed a {
+            color: $argo-failed-color;
+        }
+
+        &--Succeeded a {
+            color: $argo-success-color;
+        }
+
+        i {
+            font-size: 0.6em;
+        }
+
+        &__revision {
+            font-size: 14px;
+            color: $argo-color-gray-7;
+            font-weight: 500;
+            margin-left: auto;
+            padding-left: 5px;
+            a {
+                color: $argo-color-teal-6;
+            }
+        }
+    }
+
+    &__item-name {
+        margin: auto 0;
+        max-width: $row-width;
+        display: -webkit-box;
+        -webkit-line-clamp: 2;
+        -webkit-box-orient: vertical;
+        i {
+            position: relative;
+            top: -2px;
+        }
+        @include responsive-widths();
+    }
+    &__item-name,
+    &__item-value {
+        overflow: hidden;
+        text-overflow: ellipsis;
+    }
+}
