@@ -56,14 +56,13 @@ nav:
     - Sync states: syncing/states.md
     - Sync policy: syncing/policy.md
     - Sync options: syncing/options.md
-    - Sync waves: syncing/waves.md
+    - Sync phases/waves: syncing/waves.md
     - Sync windows: syncing/windows.md
     - Tracking strategies: syncing/tracking.md
     - Application health: syncing/health.md
     - Diffing behavior: syncing/diffing.md
     - GnuPG commit verification: syncing/gnupg.md
     - Git refresh webhooks: syncing/git_webhooks.md
-    - Resource Hooks: syncing/hooks.md
   - Tools:
     - Overview: tools/index.md
     - Helm: tools/helm.md
