@@ -602,7 +602,6 @@ func TestAuthenticate_3rd_party_JWTs(t *testing.T) {
 			ctx := context.Background()  //nolint:ineffassign,staticcheck
 
 			argocd, dexURL := getTestServer(t, testDataCopy.anonymousEnabled, true)
-			ctx := context.Background()
 			testDataCopy.claims.Issuer = fmt.Sprintf("%s/api/dex", dexURL)
 			token := jwt.NewWithClaims(jwt.SigningMethodHS256, testDataCopy.claims)
 			tokenString, err := token.SignedString([]byte("key"))
@@ -702,7 +701,6 @@ func TestAuthenticate_no_SSO(t *testing.T) {
 			ctx := context.Background()  //nolint:ineffassign,staticcheck
 
 			argocd, dexURL := getTestServer(t, testDataCopy.anonymousEnabled, false)
-			ctx := context.Background()
 			token := jwt.NewWithClaims(jwt.SigningMethodHS256, jwt.RegisteredClaims{Issuer: fmt.Sprintf("%s/api/dex", dexURL)})
 			tokenString, err := token.SignedString([]byte("key"))
 			require.NoError(t, err)
@@ -812,7 +810,6 @@ func TestAuthenticate_bad_request_metadata(t *testing.T) {
 			ctx := context.Background()  //nolint:ineffassign,staticcheck
 
 			argocd, _ := getTestServer(t, testDataCopy.anonymousEnabled, true)
-			ctx := context.Background()
 			ctx = metadata.NewIncomingContext(context.Background(), testDataCopy.metadata)
 
 			ctx, err := argocd.Authenticate(ctx)
