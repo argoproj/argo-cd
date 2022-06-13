@@ -129,6 +129,7 @@ nav:
   - user-guide/compare-options.md
   - user-guide/sync-options.md
   - user-guide/parameters.md
+  - user-guide/environment-variables.md
   - user-guide/build-environment.md
   - user-guide/tracking_strategies.md
   - user-guide/resource_tracking.md
