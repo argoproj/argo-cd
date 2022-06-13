@@ -368,7 +368,7 @@ const (
 	kustomizePathPrefixKey = "kustomize.path"
 	// anonymousUserEnabledKey is the key which enables or disables anonymous user
 	anonymousUserEnabledKey = "users.anonymous.enabled"
-	// anonymousUserEnabledKey is the key which specifies token expiration duration
+	// userSessionDurationKey is the key which specifies token expiration duration
 	userSessionDurationKey = "users.session.duration"
 	// diffOptions is the key where diff options are configured
 	resourceCompareOptionsKey = "resource.compareoptions"
