@@ -596,6 +596,16 @@ function expandCollapse(node: ResourceTreeNode, props: ApplicationResourceTreePr
     props.setNodeExpansion(node.uid, isExpanded);
 }
 
+function onDragStart(ev: React.DragEvent, node: ResourceTreeNode & dagre.Node) {
+    if (ev.target instanceof HTMLElement) {
+        ev.dataTransfer.setDragImage(ev.target, 2, 2);
+        ev.dataTransfer.setData('name', node.name);
+        ev.dataTransfer.setData('kind', node.kind);
+        ev.dataTransfer.setData('namespace', node.namespace);
+        ev.dataTransfer.setData('uid', node.uid);
+    }
+}
+
 function renderResourceNode(props: ApplicationResourceTreeProps, id: string, node: ResourceTreeNode & dagre.Node, nodesHavingChildren: Map<string, number>) {
     const fullName = nodeKey(node);
     let comparisonStatus: models.SyncStatusCode = null;
@@ -613,6 +623,8 @@ function renderResourceNode(props: ApplicationResourceTreeProps, id: string, nod
     }
     return (
         <div
+            onDragStart={e => onDragStart(e, node)}
+            draggable='true'
             onClick={() => props.onNodeClick && props.onNodeClick(fullName)}
             className={classNames('application-resource-tree__node', 'application-resource-tree__node--' + node.kind.toLowerCase(), {
                 'active': fullName === props.selectedNodeFullName,
@@ -632,7 +644,11 @@ function renderResourceNode(props: ApplicationResourceTreeProps, id: string, nod
                 })}>
                 <ResourceIcon kind={node.kind} />
                 <br />
-                {!rootNode && <div className='application-resource-tree__node-kind'>{ResourceLabel({kind: node.kind})}</div>}
+                {!rootNode && (
+                    <div className='application-resource-tree__node-kind' draggable='false'>
+                        {ResourceLabel({kind: node.kind})}
+                    </div>
+                )}
             </div>
             <div className='application-resource-tree__node-content'>
                 <div

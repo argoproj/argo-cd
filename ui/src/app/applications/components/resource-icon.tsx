@@ -3,14 +3,21 @@ import {resourceIcons} from './resources';
 
 export const ResourceIcon = ({kind, customStyle}: {kind: string; customStyle?: React.CSSProperties}) => {
     if (kind === 'node') {
-        return <img src={'assets/images/infrastructure_components/' + kind + '.svg'} alt={kind} style={{padding: '2px', width: '40px', height: '32px', ...customStyle}} />;
+        return (
+            <img
+                src={'assets/images/infrastructure_components/' + kind + '.svg'}
+                alt={kind}
+                style={{padding: '2px', width: '40px', height: '32px', ...customStyle}}
+                draggable='false'
+            />
+        );
     }
     const i = resourceIcons.get(kind);
     if (i !== undefined) {
-        return <img src={'assets/images/resources/' + i + '.svg'} alt={kind} style={{padding: '2px', width: '40px', height: '32px', ...customStyle}} />;
+        return <img src={'assets/images/resources/' + i + '.svg'} alt={kind} style={{padding: '2px', width: '40px', height: '32px', ...customStyle}} draggable='false' />;
     }
     if (kind === 'Application') {
-        return <i title={kind} className={`icon argo-icon-application`} style={customStyle} />;
+        return <i title={kind} className={`icon argo-icon-application`} style={customStyle} draggable='false' />;
     }
     const initials = kind.replace(/[a-z]/g, '');
     const n = initials.length;
@@ -27,7 +34,7 @@ export const ResourceIcon = ({kind, customStyle}: {kind: string; customStyle?: R
         ...customStyle
     };
     return (
-        <div style={style}>
+        <div style={style} draggable='false'>
             <span style={{color: 'white', fontSize: `${n <= 2 ? 1 : 0.6}em`}}>{initials}</span>
         </div>
     );

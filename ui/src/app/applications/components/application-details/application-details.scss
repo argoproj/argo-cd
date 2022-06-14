@@ -209,70 +209,111 @@ $header: 120px;
         }
     }
 
-    .graph-options-panel {
-        margin-left: 10px;
+    .graph-options {
         z-index: 1;
         padding: 5px;
+        margin-left: 10px;
         display: inline-block;
-        background-color: $argo-color-gray-1;
-        box-shadow: 1px 1px 3px $argo-color-gray-5;
         position: fixed;
-      
-        a {
+
+        &__panel {
+            z-index: 1;
             padding: 5px;
-            margin: 2px;
-            color: $argo-color-gray-6;
-            border: 1px solid transparent;
-            border-radius: 5px;
-
-            &.group-nodes-button {
-                cursor: pointer;
-                position: relative;
-                display: inline-block;
-                vertical-align: middle;
-                font-size: 13px;
-                font-weight: 500;
-                line-height: 1.4;
-                text-align: center;
-                user-select: none;
-                transition: background-color .2s, border .2s, color .2s;
-                text-transform: uppercase;
-                &:hover {
-                    background-color: #d1d5d9;
-                }
-                &:active {
-                    transition: background-color .2s, border .2s, color .2s;
-                    border: 1px $argo-color-teal-5 solid;
-                }
-            }
+            display: inline-block;
+            background-color: $argo-color-gray-1;
+            box-shadow: 1px 1px 3px $argo-color-gray-5;
         
-            &.group-nodes-button-on {
-                color: $argo-color-gray-1;
-                background-color: $argo-color-gray-6;
-                &:hover {
-                    background-color: $argo-color-gray-5;
+            a {
+                padding: 5px;
+                margin: 2px;
+                color: $argo-color-gray-6;
+                border: 1px solid transparent;
+                border-radius: 5px;
+
+                &.group-nodes-button {
+                    cursor: pointer;
+                    position: relative;
+                    display: inline-block;
+                    vertical-align: middle;
+                    font-size: 13px;
+                    font-weight: 500;
+                    line-height: 1.4;
+                    text-align: center;
+                    user-select: none;
+                    transition: background-color .2s, border .2s, color .2s;
+                    text-transform: uppercase;
+                    &:hover {
+                        background-color: #d1d5d9;
+                    }
+                    &:active {
+                        transition: background-color .2s, border .2s, color .2s;
+                        border: 1px $argo-color-teal-5 solid;
+                    }
                 }
-            }    
+            
+                &.group-nodes-button-on {
+                    color: $argo-color-gray-1;
+                    background-color: $argo-color-gray-6;
+                    &:hover {
+                        background-color: $argo-color-gray-5;
+                    }
+                }    
+            }
+
+            .separator {
+                border-right: 1px solid $argo-color-gray-4;
+                padding-top: 6px;
+                padding-bottom: 6px;
+            }
+
+            .zoom-value {
+                user-select: none;
+                margin-top: 3px;
+                margin-right: 6px;
+                margin-left: 4px;
+                font-size: 14px;
+                text-align-last: right;
+                float: right;
+                width: 40px;
+                border: 1px $argo-color-gray-5 solid;
+                background-color: $argo-color-gray-3;
+                padding: 2px;
+            }        
         }
 
-        .separator {
-            border-right: 1px solid $argo-color-gray-4;
-            padding-top: 6px;
-            padding-bottom: 6px;
-        }
-
-        .zoom-value {
-            user-select: none;
-            margin-top: 3px;
-            margin-right: 6px;
-            margin-left: 4px;
-            font-size: 14px;
-            text-align-last: right;
-            float: right;
-            width: 40px;
-            border: 1px $argo-color-gray-5 solid;
+        .trashcan {
+            margin-left: 10px;
+            display: inline-block;
+            padding: 10px;
+            text-align: center;
+            border: 1px solid $argo-color-gray-5;
             background-color: $argo-color-gray-3;
-            padding: 2px;
+            position: fixed;
+
+            &__icon {
+                pointer-events: none;
+            }
         }
-     }  
+
+        .trashcan.drag-entered {
+            background-color: $argo-color-gray-5;
+        }
+
+        .trashcan:before {
+            content: attr(data-hover);
+            visibility: hidden;
+            font-size: 75%;
+            background-color: $argo-color-gray-7;
+            color: $argo-color-gray-1;
+            padding: 1px 6px;
+            text-align: center;
+            position: absolute;
+            left: -4%;
+            top: -22px;
+        }
+
+        .trashcan.drag-entered:before {
+            visibility: visible;
+        }
+    }
 }

@@ -136,6 +136,60 @@ export class ApplicationDetails extends React.Component<RouteComponentProps<{nam
         return '';
     }
 
+    private onDragOver(ev: React.DragEvent) {
+        ev.dataTransfer.dropEffect = 'move';
+        ev.preventDefault();
+        ev.stopPropagation();
+    }
+
+    private onDrop(ev: React.DragEvent, appCon: AppContext, application: appModels.Application, resourceTreeNodes: ResourceTreeNode[]) {
+        if (ev.currentTarget instanceof HTMLElement) {
+            const elem = ev.currentTarget as HTMLElement;
+            elem.classList.remove('drag-entered');
+            const dragNodeName = ev.dataTransfer.getData('name');
+            const dragNodeKind = ev.dataTransfer.getData('kind');
+            const dragNodeNamespace = ev.dataTransfer.getData('namespace');
+            const dragNodeUid = ev.dataTransfer.getData('uid');
+            const resources: ResourceTreeNode[] = resourceTreeNodes.reduce((acc, node) => {
+                if (node && node.name === dragNodeName && node.kind === dragNodeKind && node.namespace === dragNodeNamespace && node.uid === dragNodeUid) {
+                    acc.push(node);
+                }
+                return acc;
+            }, []);
+            if (dragNodeKind === 'Application') {
+                this.deleteApplication();
+            } else {
+                if (resources && resources.length === 1) {
+                    AppUtils.deletePopup(appCon.apis, resources[0], application);
+                }
+            }
+        }
+        ev.preventDefault();
+        ev.stopPropagation();
+    }
+
+    private onDragEndOrLeave(ev: React.DragEvent) {
+        if (ev.target instanceof HTMLElement) {
+            const elem = ev.target as HTMLElement;
+            if (elem.classList.contains('trashcan')) {
+                elem.classList.remove('drag-entered');
+            }
+        }
+        ev.preventDefault();
+        ev.stopPropagation();
+    }
+
+    private onDragEnter(ev: React.DragEvent) {
+        if (ev.target instanceof HTMLElement) {
+            const elem = ev.target as HTMLElement;
+            if (elem.className === 'trashcan') {
+                elem.classList.add('drag-entered');
+            }
+        }
+        ev.preventDefault();
+        ev.stopPropagation();
+    }
+
     public render() {
         return (
             <ObservableQuery>
@@ -348,43 +402,58 @@ export class ApplicationDetails extends React.Component<RouteComponentProps<{nam
                                             {refreshing && <p className='application-details__refreshing-label'>Refreshing</p>}
                                             {((pref.view === 'tree' || pref.view === 'network') && (
                                                 <Filters pref={pref} tree={tree} resourceNodes={this.state.filteredGraph} onSetFilter={setFilter} onClearFilter={clearFilter}>
-                                                    <div className='graph-options-panel'>
-                                                        <a
-                                                            className={`group-nodes-button`}
-                                                            onClick={() => {
-                                                                toggleNameDirection();
-                                                            }}
-                                                            title={this.state.truncateNameOnRight ? 'Truncate resource name right' : 'Truncate resource name left'}>
-                                                            <i
-                                                                className={classNames({
-                                                                    'fa fa-align-right': this.state.truncateNameOnRight,
-                                                                    'fa fa-align-left': !this.state.truncateNameOnRight
-                                                                })}
-                                                            />
-                                                        </a>
-                                                        {(pref.view === 'tree' || pref.view === 'network') && (
+                                                    <div className='graph-options'>
+                                                        <div className='graph-options__panel'>
                                                             <a
-                                                                className={`group-nodes-button group-nodes-button${!pref.groupNodes ? '' : '-on'}`}
-                                                                title={pref.view === 'tree' ? 'Group Nodes' : 'Collapse Pods'}
-                                                                onClick={() => this.toggleCompactView(pref)}>
-                                                                <i className={classNames('fa fa-object-group fa-fw')} />
+                                                                className={`group-nodes-button`}
+                                                                onClick={() => {
+                                                                    toggleNameDirection();
+                                                                }}
+                                                                title={this.state.truncateNameOnRight ? 'Truncate resource name right' : 'Truncate resource name left'}>
+                                                                <i
+                                                                    className={classNames({
+                                                                        'fa fa-align-right': this.state.truncateNameOnRight,
+                                                                        'fa fa-align-left': !this.state.truncateNameOnRight
+                                                                    })}
+                                                                />
                                                             </a>
-                                                        )}
-                                                        <span className={`separator`} />
-                                                        <a className={`group-nodes-button`} onClick={() => expandAll()} title='Expand all child nodes of all parent nodes'>
-                                                            <i className='fa fa-plus fa-fw' />
-                                                        </a>
-                                                        <a className={`group-nodes-button`} onClick={() => collapseAll()} title='Collapse all child nodes of all parent nodes'>
-                                                            <i className='fa fa-minus fa-fw' />
-                                                        </a>
-                                                        <span className={`separator`} />
-                                                        <a className={`group-nodes-button`} onClick={() => setZoom(0.1)} title='Zoom in'>
-                                                            <i className='fa fa-search-plus fa-fw' />
-                                                        </a>
-                                                        <a className={`group-nodes-button`} onClick={() => setZoom(-0.1)} title='Zoom out'>
-                                                            <i className='fa fa-search-minus fa-fw' />
-                                                        </a>
-                                                        <div className={`zoom-value`}>{zoomNum}%</div>
+                                                            {(pref.view === 'tree' || pref.view === 'network') && (
+                                                                <a
+                                                                    className={`group-nodes-button group-nodes-button${!pref.groupNodes ? '' : '-on'}`}
+                                                                    title={pref.view === 'tree' ? 'Group Nodes' : 'Collapse Pods'}
+                                                                    onClick={() => this.toggleCompactView(pref)}>
+                                                                    <i className={classNames('fa fa-object-group fa-fw')} />
+                                                                </a>
+                                                            )}
+                                                            <span className={`separator`} />
+                                                            <a className={`group-nodes-button`} onClick={() => expandAll()} title='Expand all child nodes of all parent nodes'>
+                                                                <i className='fa fa-plus fa-fw' />
+                                                            </a>
+                                                            <a className={`group-nodes-button`} onClick={() => collapseAll()} title='Collapse all child nodes of all parent nodes'>
+                                                                <i className='fa fa-minus fa-fw' />
+                                                            </a>
+                                                            <span className={`separator`} />
+                                                            <a className={`group-nodes-button`} onClick={() => setZoom(0.1)} title='Zoom in'>
+                                                                <i className='fa fa-search-plus fa-fw' />
+                                                            </a>
+                                                            <a className={`group-nodes-button`} onClick={() => setZoom(-0.1)} title='Zoom out'>
+                                                                <i className='fa fa-search-minus fa-fw' />
+                                                            </a>
+                                                            <div className={`zoom-value`}>{zoomNum}%</div>
+                                                        </div>
+                                                        <div
+                                                            title='Drag and drop resources here to delete'
+                                                            className='trashcan'
+                                                            onDragEnter={e => this.onDragEnter(e)}
+                                                            onDragLeave={e => this.onDragEndOrLeave(e)}
+                                                            onDragEnd={e => this.onDragEndOrLeave(e)}
+                                                            onDrop={e => {
+                                                                this.onDrop(e, this.context as AppContext, application, resourceNodes());
+                                                            }}
+                                                            onDragOver={e => this.onDragOver(e)}
+                                                            data-hover={'Trash'}>
+                                                            <i className='trashcan__icon fa fa-trash fa-lg' />
+                                                        </div>
                                                     </div>
                                                     <ApplicationResourceTree
                                                         nodeFilter={node => this.filterTreeNode(node, treeFilter)}
