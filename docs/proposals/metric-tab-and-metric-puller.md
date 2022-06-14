@@ -1,7 +1,7 @@
 ---
 title: Metric T
 authors:
-  - "@sbose78" # Authors' github accounts here.
+  - `@sarabala1979` and  `dsmithco` # Authors' github accounts here.
 sponsors:
   - TBD        # List all interested parties here.
 reviewers:
@@ -11,101 +11,124 @@ approvers:
   - "@alexmt"
   - TBD
 
-creation-date: yyyy-mm-dd
-last-updated: yyyy-mm-dd
+creation-date: 2022-06-13
+last-updated: 2022-06-13
 ---
-
-# Neat Enhancement Idea
-
-This is the title of the enhancement. Keep it simple and descriptive. A good title can help
-communicate what the enhancement is and should be considered as part of any review.
-
-
-## Open Questions [optional]
-
-This is where to call out areas of the design that require closure before deciding to implement the
-design.
-
 
 ## Summary
 
-The `Summary` is required for producing accurate user-focused documentation
-such as release notes or a development roadmap. It should be possible to collect this information
-before implementation begins in order to avoid requiring implementors to split their attention
-between writing release notes and implementing the feature itself. Before you get started with this document,
-please feel free to have a conversation on this with the maintainers/community on Github that would help
-drive a more organized thought process for the formal proposal here.
+Enhancing ArgoCD UI to display the Resource Metrics on the Resource Page will help the user to quickly triage 
+the resource status and make decisions instead of viewing other metrics tools.
+ 
 
 ## Motivation
 
-This section is for explicitly listing the motivation, goals and non-goals of this proposal.
-Describe why the change is important and the benefits to users.
+Currently, ArgoCD user needs to go to third-party tools to view the resource KPI for triaging the issue which is 
+time-consuming to decide on application recovery.
 
 ### Goals
+1. Show the Metrics tab in Resource tab
+2. Show the configured dashboard in Metrics tab
+3. Able to configure the dashboard for each application and resources
+4. Support Prometheus as metrics provide in MVP release
 
-List the specific goals of the proposal and their measurable results. How will we know that this has succeeded?
 
 ### Non-Goals
 
-What is out of scope for this proposal? Listing non-goals helps to focus discussion and make
-progress.
+1. Adding Caching layer to improve the API performance
 
 ## Proposal
 
-This is where we get down to details of what the proposal is about.
+#####ArgoCD UI:
+Enhancing ArgoCD UI to support the Metrics tab on the resource page. This Tab will be enabled and disabled using the feature flag. 
+This Metrics component will make an API call to render the metrics dashboard from the new Metrics Server.
+
+#####ArgoCD Server:
+Enhancing ArgoCD Server to have metrics puller and will expose the APIs to provide the Dashboard and Metrics information. Metrics Puller will read the Dashboard, Graph, and metrics provider configuration from Configmap.  
+
+#####Authentication:
+No need for separate implementation
+
+#####Defining Metrics page:
+The metrics page is fully configurable. UI will call API to get the dashboard layout and graph information from the server. User
+
+#####Enable/Disable the feature:
+The server will return HTTP resource code:405  if the feature is not enabled. UI will show/hide the metrics tab.
+
 
 ### Use cases
-
-Add a list of detailed use cases this enhancement intends to take care of.
-
-#### Use case 1: 
-As a user, I would like to understand the drift. (This is an example)
-
-#### Use case 2: 
-As a user, I would like to take an action on the deviation/drift. (This is an example)
+1. User can compare KPIs for rollout releases  quickly.
+2. User can review the service performance.
 
 ### Implementation Details/Notes/Constraints [optional]
 
-What are the caveats to the implementation? What are some important details that didn't come across
-above. Go in to as much detail as necessary here. This might be a good place to talk about core
-concepts and how they relate.
+##### Metrics Tap:
+This feature is going to be first class citizen in ArgoCDUI. Adding Metrics Component in Resource page. Implement Metrics
+Service  to make API call to query the Dashboard configuration and Graph data.
 
-You may have a work-in-progress Pull Request to demonstrate the functioning of the enhancement you are proposing.
+#####Metrics Puller:
+Metrics Puller module will be implemented in ArgoCD Server. ArgoCD API server to expose the APIs for Metrics Dashboard and Graph data.
 
+Metric Dashboard and Graph query can be fully configurable.  All Dashboard and Graph query  will be configure in Configmap. 
+Metric puller will read the appropriate dashboard configuration based on application/resource kind. Metrics puller will read the graph
+query from configmap and execute it in configured metrics provider(`prometheus`).
+
+#####Architecture:
+![Architecture](images/ArgoCD_Metrics_Proposal.jpeg)
+
+
+New APIs:
+`/api/metrics/:application/:cluster/:group/:kind/dashboard → Get Dashboard config`
+`/api/metrics/:application/:cluster/:group/:kind/:row/:graph→ Get Metrics for Graph`
+
+Dashboard and Graph Configuration:
+
+Application, Dashboard and cluster has `default` element.  Default Application will be return if there is not special config for application.
+Metrics puller will execute query on default cluster if there is no config for the cluster.
+
+```yaml
+{
+  "prometheus": {
+    "applications": [
+      {
+        "name": "default",
+        "default": true,
+        "dashboards": [
+          {
+            "group": "v1",
+            "kind": "pod",
+            "rows": [
+              {
+                "name": "HTTP",
+                "graphs": [
+                  {
+                    "name": "http_duration",
+                    "title": "HTTP duration",
+                    "graphType": "pie",
+                    "duration": "1d",
+                    "queryExpression": "rate(container_cpu_user_seconds_total{pod=\"{{.name}}\", namespace={{.namespace}}}[30s])*100"
+                  }
+                ]
+              }
+            ]
+          }
+        ],
+        "clusters": [
+          {
+            "Name": "default",
+            "default": true,
+            "address": "http://localhost:9001"
+          }
+          {
+            "Name": "cluster",
+            "address": "http://localhost:9002"
+          }
+        ]
+      }
+    ]
+  }
+}
+```
 ### Detailed examples
+POC demo : https://github.com/argoproj/argo-cd/issues/9562
 
-### Security Considerations
-
-* How does this proposal impact the security aspects of Argo CD workloads ?
-* Are there any unresolved follow-ups that need to be done to make the enhancement more robust ?  
-
-### Risks and Mitigations
-
-What are the risks of this proposal and how do we mitigate. Think broadly. 
-
-For example, consider
-both security and how this will impact the larger Kubernetes ecosystem.
-
-Consider including folks that also work outside your immediate sub-project.
-
-
-### Upgrade / Downgrade Strategy
-
-If applicable, how will the component be upgraded and downgraded? Make sure this is in the test
-plan.
-
-Consider the following in developing an upgrade/downgrade strategy for this enhancement:
-
-- What changes (in invocations, configurations, API use, etc.) is an existing cluster required to
-  make on upgrade in order to keep previous behavior?
-- What changes (in invocations, configurations, API use, etc.) is an existing cluster required to
-  make on upgrade in order to make use of the enhancement?
-
-## Drawbacks
-
-The idea is to find the best form of an argument why this enhancement should _not_ be implemented.
-
-## Alternatives
-
-Similar to the `Drawbacks` section the `Alternatives` section is used to highlight and record other
-possible approaches to delivering the value proposed by an enhancement.
