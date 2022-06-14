@@ -43,7 +43,7 @@ export const Help = () => {
                                             &nbsp;
                                             {Object.keys(binaryUrls || {}).map(binaryName => {
                                                 const url = binaryUrls[binaryName];
-                                                const match = binaryName.match(/.*(darwin|windows|linux)-(amd64|arm64)/);
+                                                const match = binaryName.match(/.*(darwin|windows|linux)-(amd64|arm64|ppc64le|s390x)/);
                                                 const [platform, arch] = match ? match.slice(1) : ['', ''];
                                                 return (
                                                     <>
