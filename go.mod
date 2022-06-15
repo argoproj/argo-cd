@@ -230,8 +230,8 @@ require (
 )
 
 require (
-	github.com/microsoft/azure-devops-go-api/azuredevops v1.0.0-b5
 	github.com/gosimple/slug v1.12.0
+	github.com/microsoft/azure-devops-go-api/azuredevops v1.0.0-b5
 	go.opentelemetry.io/contrib/instrumentation/google.golang.org/grpc/otelgrpc v0.31.0
 	go.opentelemetry.io/otel v1.6.3
 	go.opentelemetry.io/otel/exporters/otlp/otlptrace/otlptracegrpc v1.6.3
