@@ -51,6 +51,7 @@ ARGOCD_E2E_TEST_TIMEOUT?=30m
 
 ARGOCD_IN_CI?=false
 ARGOCD_TEST_E2E?=true
+ARGOCD_BIN_MODE?=true
 
 ARGOCD_LINT_GOGC?=20
 
@@ -80,6 +81,7 @@ define run-in-test-server
 		-e ARGOCD_TLS_DATA_PATH=${ARGOCD_TLS_DATA_PATH:-/tmp/argocd-local/tls} \
 		-e ARGOCD_SSH_DATA_PATH=${ARGOCD_SSH_DATA_PATH:-/tmp/argocd-local/ssh} \
 		-e ARGOCD_GPG_DATA_PATH=${ARGOCD_GPG_DATA_PATH:-/tmp/argocd-local/gpg/source} \
+		-e GITHUB_TOKEN \
 		-v ${DOCKER_SRC_MOUNT} \
 		-v ${GOPATH}/pkg/mod:/go/pkg/mod${VOLUME_MOUNT} \
 		-v ${GOCACHE}:/tmp/go-build-cache${VOLUME_MOUNT} \
@@ -101,6 +103,7 @@ define run-in-test-client
 		-e HOME=/home/user \
 		-e GOPATH=/go \
 		-e ARGOCD_E2E_K3S=$(ARGOCD_E2E_K3S) \
+		-e GITHUB_TOKEN \
 		-e GOCACHE=/tmp/go-build-cache \
 		-e ARGOCD_LINT_GOGC=$(ARGOCD_LINT_GOGC) \
 		-v ${DOCKER_SRC_MOUNT} \
@@ -233,6 +236,8 @@ release-cli: clean-debug build-ui
 	make BIN_NAME=argocd-darwin-arm64 GOOS=darwin GOARCH=arm64 argocd-all
 	make BIN_NAME=argocd-linux-amd64 GOOS=linux argocd-all
 	make BIN_NAME=argocd-linux-arm64 GOOS=linux GOARCH=arm64 argocd-all
+	make BIN_NAME=argocd-linux-ppc64le GOOS=linux GOARCH=ppc64le argocd-all
+	make BIN_NAME=argocd-linux-s390x GOOS=linux GOARCH=s390x argocd-all
 	make BIN_NAME=argocd-windows-amd64.exe GOOS=windows argocd-all
 
 .PHONY: test-tools-image
@@ -267,7 +272,7 @@ controller:
 
 .PHONY: build-ui
 build-ui:
-	docker build -t argocd-ui --target argocd-ui .
+	DOCKER_BUILDKIT=1 docker build -t argocd-ui --target argocd-ui .
 	find ./ui/dist -type f -not -name gitkeep -delete
 	docker run -v ${CURRENT_DIR}/ui/dist/app:/tmp/app --rm -t argocd-ui sh -c 'cp -r ./dist/app/* /tmp/app/'
 
@@ -417,7 +422,7 @@ start-e2e: test-tools-image
 
 # Starts e2e server locally (or within a container)
 .PHONY: start-e2e-local
-start-e2e-local: mod-vendor-local dep-ui-local
+start-e2e-local: mod-vendor-local dep-ui-local cli-local
 	kubectl create ns argocd-e2e || true
 	kubectl config set-context --current --namespace=argocd-e2e
 	kustomize build test/manifests/base | kubectl apply -f -
@@ -438,6 +443,7 @@ start-e2e-local: mod-vendor-local dep-ui-local
 	ARGOCD_E2E_DISABLE_AUTH=false \
 	ARGOCD_ZJWT_FEATURE_FLAG=always \
 	ARGOCD_IN_CI=$(ARGOCD_IN_CI) \
+	BIN_MODE=$(ARGOCD_BIN_MODE) \
 	ARGOCD_E2E_TEST=true \
 		goreman -f $(ARGOCD_PROCFILE) start ${ARGOCD_START}
 
@@ -457,7 +463,7 @@ start: test-tools-image
 
 # Starts a local instance of ArgoCD
 .PHONY: start-local
-start-local: mod-vendor-local dep-ui-local
+start-local: mod-vendor-local dep-ui-local cli-local
 	# check we can connect to Docker to start Redis
 	killall goreman || true
 	kubectl create ns argocd || true
@@ -561,3 +567,7 @@ list:
 .PHONY: applicationset-controller
 applicationset-controller:
 	CGO_ENABLED=0 go build -v -ldflags '${LDFLAGS}' -o ${DIST_DIR}/argocd-applicationset-controller ./cmd
+
+.PHONY: checksums
+checksums:
+	for f in ./dist/$(BIN_NAME)-*; do openssl dgst -sha256 "$$f" | awk ' { print $$2 }' > "$$f".sha256 ; done

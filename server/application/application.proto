@@ -44,9 +44,9 @@ message RevisionMetadataQuery{
 // ApplicationEventsQuery is a query for application resource events
 message ApplicationResourceEventsQuery {
 	required string name = 1;
-	required string resourceNamespace = 2;
-	required string resourceName = 3;
-	required string resourceUID = 4;
+	optional string resourceNamespace = 2;
+	optional string resourceName = 3;
+	optional string resourceUID = 4;
 }
 
 // ManifestQuery is a query for manifest resources
@@ -115,19 +115,19 @@ message ApplicationRollbackRequest {
 
 message ApplicationResourceRequest {
 	required string name = 1;
-	required string namespace = 2;
+	optional string namespace = 2;
 	required string resourceName = 3;
 	required string version = 4;
-	required string group = 5;
+	optional string group = 5;
 	required string kind = 6;
 }
 
 message ApplicationResourcePatchRequest {
 	required string name = 1;
-	required string namespace = 2;
+	optional string namespace = 2;
 	required string resourceName = 3;
 	required string version = 4;
-	required string group = 5;
+	optional string group = 5;
 	required string kind = 6;
 	required string patch = 7;
 	required string patchType = 8;
@@ -135,10 +135,10 @@ message ApplicationResourcePatchRequest {
 
 message ApplicationResourceDeleteRequest {
 	required string name = 1;
-	required string namespace = 2;
+	optional string namespace = 2;
 	required string resourceName = 3;
 	required string version = 4;
-	required string group = 5;
+	optional string group = 5;
 	required string kind = 6;
 	optional bool force = 7;
 	optional bool orphan = 8;
@@ -146,10 +146,10 @@ message ApplicationResourceDeleteRequest {
 
 message ResourceActionRunRequest {
 	required string name = 1;
-	required string namespace = 2;
+	optional string namespace = 2;
 	required string resourceName = 3;
 	required string version = 4;
-	required string group = 5;
+	optional string group = 5;
 	required string kind = 6;
 	required string action = 7;
 }
@@ -164,13 +164,13 @@ message ApplicationResourceResponse {
 
 message ApplicationPodLogsQuery {
 	required string name = 1;
-	required string namespace = 2;
+	optional string namespace = 2;
 	optional string podName = 3;
-	required string container = 4;
-	required int64 sinceSeconds = 5;
+	optional string container = 4;
+	optional int64 sinceSeconds = 5;
 	optional k8s.io.apimachinery.pkg.apis.meta.v1.Time sinceTime = 6;
-	required int64 tailLines = 7;
-	required bool follow = 8;
+	optional int64 tailLines = 7;
+	optional bool follow = 8;
 	optional string untilTime = 9;
 	optional string filter = 10;
 	optional string kind = 11;

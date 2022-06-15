@@ -18,6 +18,8 @@ import (
 	"strings"
 	"time"
 
+	"github.com/argoproj/argo-cd/v2/util/io/files"
+
 	"github.com/Masterminds/semver/v3"
 	"github.com/TomOnTime/utfutil"
 	"github.com/argoproj/gitops-engine/pkg/utils/kube"
@@ -610,7 +612,7 @@ type repositories struct {
 
 func getHelmDependencyRepos(appPath string) ([]*v1alpha1.Repository, error) {
 	repos := make([]*v1alpha1.Repository, 0)
-	f, err := ioutil.ReadFile(fmt.Sprintf("%s/%s", appPath, "Chart.yaml"))
+	f, err := ioutil.ReadFile(filepath.Join(appPath, "Chart.yaml"))
 	if err != nil {
 		return nil, err
 	}
@@ -905,7 +907,8 @@ func GenerateManifests(ctx context.Context, appPath, repoRoot, revision string, 
 		if directory = q.ApplicationSource.Directory; directory == nil {
 			directory = &v1alpha1.ApplicationSourceDirectory{}
 		}
-		targetObjs, err = findManifests(appPath, repoRoot, env, *directory, q.EnabledSourceTypes)
+		logCtx := log.WithField("application", q.AppName)
+		targetObjs, err = findManifests(logCtx, appPath, repoRoot, env, *directory, q.EnabledSourceTypes)
 	}
 	if err != nil {
 		return nil, err
@@ -1075,11 +1078,31 @@ func isNullList(obj *unstructured.Unstructured) bool {
 var manifestFile = regexp.MustCompile(`^.*\.(yaml|yml|json|jsonnet)$`)
 
 // findManifests looks at all yaml files in a directory and unmarshals them into a list of unstructured objects
-func findManifests(appPath string, repoRoot string, env *v1alpha1.Env, directory v1alpha1.ApplicationSourceDirectory, enabledManifestGeneration map[string]bool) ([]*unstructured.Unstructured, error) {
+func findManifests(logCtx *log.Entry, appPath string, repoRoot string, env *v1alpha1.Env, directory v1alpha1.ApplicationSourceDirectory, enabledManifestGeneration map[string]bool) ([]*unstructured.Unstructured, error) {
 	var objs []*unstructured.Unstructured
 	err := filepath.Walk(appPath, func(path string, f os.FileInfo, err error) error {
 		if err != nil {
 			return err
+		}
+		relPath, err := filepath.Rel(appPath, path)
+		if err != nil {
+			return fmt.Errorf("failed to get relative path of symlink: %w", err)
+		}
+		if files.IsSymlink(f) {
+			realPath, err := filepath.EvalSymlinks(path)
+			if err != nil {
+				logCtx.Debugf("error checking symlink realpath: %s", err)
+				if os.IsNotExist(err) {
+					log.Warnf("ignoring out-of-bounds symlink at %q: %s", relPath, err)
+					return nil
+				} else {
+					return fmt.Errorf("failed to evaluate symlink at %q: %w", relPath, err)
+				}
+			}
+			if !files.Inbound(realPath, repoRoot) {
+				logCtx.Warnf("illegal filepath in symlink: %s", realPath)
+				return fmt.Errorf("illegal filepath in symlink at %q", relPath)
+			}
 		}
 		if f.IsDir() {
 			if path != appPath && !directory.Recurse {
@@ -1093,10 +1116,6 @@ func findManifests(appPath string, repoRoot string, env *v1alpha1.Env, directory
 			return nil
 		}
 
-		relPath, err := filepath.Rel(appPath, path)
-		if err != nil {
-			return err
-		}
 		if directory.Exclude != "" && glob.Match(directory.Exclude, relPath) {
 			return nil
 		}
@@ -1252,7 +1271,7 @@ func runConfigManagementPlugin(appPath, repoRoot string, envVars *v1alpha1.Env, 
 		}
 	}
 
-	env, err := getPluginEnvs(envVars, q, creds)
+	env, err := getPluginEnvs(envVars, q, creds, false)
 	if err != nil {
 		return nil, err
 	}
@@ -1270,8 +1289,14 @@ func runConfigManagementPlugin(appPath, repoRoot string, envVars *v1alpha1.Env, 
 	return kube.SplitYAML([]byte(out))
 }
 
-func getPluginEnvs(envVars *v1alpha1.Env, q *apiclient.ManifestRequest, creds git.Creds) ([]string, error) {
-	env := append(os.Environ(), envVars.Environ()...)
+func getPluginEnvs(envVars *v1alpha1.Env, q *apiclient.ManifestRequest, creds git.Creds, remote bool) ([]string, error) {
+	env := envVars.Environ()
+	// Local plugins need also to have access to the local environment variables.
+	// Remote side car plugins will use the environment in the side car
+	// container.
+	if !remote {
+		env = append(os.Environ(), env...)
+	}
 	if creds != nil {
 		closer, environ, err := creds.Environ()
 		if err != nil {
@@ -1294,27 +1319,29 @@ func getPluginEnvs(envVars *v1alpha1.Env, q *apiclient.ManifestRequest, creds gi
 
 	if q.ApplicationSource.Plugin != nil {
 		pluginEnv := q.ApplicationSource.Plugin.Env
-		for i, j := range pluginEnv {
-			pluginEnv[i].Value = parsedEnv.Envsubst(j.Value)
+		for _, entry := range pluginEnv {
+			newValue := parsedEnv.Envsubst(entry.Value)
+			env = append(env, fmt.Sprintf("ARGOCD_ENV_%s=%s", entry.Name, newValue))
 		}
-		env = append(env, pluginEnv.Environ()...)
 	}
 	return env, nil
 }
 
 func runConfigManagementPluginSidecars(ctx context.Context, appPath, repoPath string, envVars *v1alpha1.Env, q *apiclient.ManifestRequest, creds git.Creds, tarDoneCh chan<- bool) ([]*unstructured.Unstructured, error) {
+	// compute variables.
+	env, err := getPluginEnvs(envVars, q, creds, true)
+	if err != nil {
+		return nil, err
+	}
+
 	// detect config management plugin server (sidecar)
-	conn, cmpClient, err := discovery.DetectConfigManagementPlugin(ctx, appPath)
+	conn, cmpClient, err := discovery.DetectConfigManagementPlugin(ctx, appPath, env)
 	if err != nil {
 		return nil, err
 	}
 	defer io.Close(conn)
 
 	// generate manifests using commands provided in plugin config file in detected cmp-server sidecar
-	env, err := getPluginEnvs(envVars, q, creds)
-	if err != nil {
-		return nil, err
-	}
 	cmpManifests, err := generateManifestsCMP(ctx, appPath, repoPath, env, cmpClient, tarDoneCh)
 	if err != nil {
 		return nil, fmt.Errorf("error generating manifests in cmp: %s", err)

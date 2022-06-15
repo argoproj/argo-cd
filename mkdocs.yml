@@ -64,6 +64,7 @@ nav:
       - operator-manual/notifications/services/mattermost.md
       - operator-manual/notifications/services/opsgenie.md
       - operator-manual/notifications/services/overview.md
+      - operator-manual/notifications/services/pagerduty.md
       - operator-manual/notifications/services/pushover.md
       - operator-manual/notifications/services/rocketchat.md
       - operator-manual/notifications/services/slack.md
@@ -75,6 +76,7 @@ nav:
     - Introduction: operator-manual/applicationset/index.md
     - Installations: operator-manual/applicationset/Getting-Started.md
     - Use Cases: operator-manual/applicationset/Use-Cases.md
+    - Security: operator-manual/applicationset/Security.md
     - How ApplicationSet controller interacts with Argo CD: operator-manual/applicationset/Argo-CD-Integration.md
     - Generators:
       - operator-manual/applicationset/Generators.md
@@ -97,6 +99,7 @@ nav:
     - operator-manual/server-commands/additional-configuration-method.md
   - Upgrading:
     - operator-manual/upgrading/overview.md
+    - operator-manual/upgrading/2.3-2.4.md
     - operator-manual/upgrading/2.2-2.3.md
     - operator-manual/upgrading/2.1-2.2.md
     - operator-manual/upgrading/2.0-2.1.md
@@ -126,6 +129,7 @@ nav:
   - user-guide/compare-options.md
   - user-guide/sync-options.md
   - user-guide/parameters.md
+  - user-guide/environment-variables.md
   - user-guide/build-environment.md
   - user-guide/tracking_strategies.md
   - user-guide/resource_tracking.md

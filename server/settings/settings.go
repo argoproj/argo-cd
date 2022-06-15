@@ -108,6 +108,7 @@ func (s *Server) Get(ctx context.Context, q *settingspkg.SettingsQuery) (*settin
 		UiCssURL:           argoCDSettings.UiCssURL,
 		PasswordPattern:    argoCDSettings.PasswordPattern,
 		TrackingMethod:     trackingMethod,
+		ExecEnabled:        argoCDSettings.ExecEnabled,
 	}
 
 	if sessionmgr.LoggedIn(ctx) || s.disableAuth {

@@ -22,9 +22,9 @@ Follow the [Argo CD Getting Started](../../getting_started.md) instructions for 
 
 ### B) Install ApplicationSet into an existing Argo CD install (pre-Argo CD v2.3)
 
-**Note**: These instruction only apply to versions of Argo CD before v2.3.0.
+**Note**: These instructions only apply to versions of Argo CD before v2.3.0.
 
-The ApplicationSet controller *must* be installed into the same namespace as the Argo CD it is targetting.
+The ApplicationSet controller *must* be installed into the same namespace as the Argo CD it is targeting.
 
 Presuming that Argo CD is installed into the `argocd` namespace, run the following command:
 

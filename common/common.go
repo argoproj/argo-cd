@@ -229,6 +229,12 @@ const (
 	CacheVersion = "1.8.3"
 )
 
+// Constants used by util/clusterauth package
+const (
+	ClusterAuthRequestTimeout = 10 * time.Second
+	BearerTokenTimeout        = 30 * time.Second
+)
+
 const (
 	DefaultGitRetryMaxDuration time.Duration = time.Second * 5        // 5s
 	DefaultGitRetryDuration    time.Duration = time.Millisecond * 250 // 0.25s

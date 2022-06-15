@@ -19,7 +19,7 @@ concurrency:
 jobs:
   publish:
     if: github.repository == 'argoproj/argo-cd'
-    runs-on: ubuntu-latest
+    runs-on: ubuntu-22.04
     env:
       GOPATH: /home/runner/work/argo-cd/argo-cd
     steps:
@@ -50,24 +50,6 @@ jobs:
       - uses: docker/setup-qemu-action@v1
       - uses: docker/setup-buildx-action@v1
 
-      - name: Setup cache for argocd-ui docker layer
-        uses: actions/cache@v2
-        with:
-          path: /tmp/.buildx-cache
-          key: ${{ runner.os }}-single-buildx-${{ github.sha }}
-          restore-keys: |
-            ${{ runner.os }}-single-buildx
-
-      - name: Build cache for argocd-ui stage
-        uses: docker/build-push-action@v2
-        with:
-          context: ./src/github.com/argoproj/argo-cd
-          target: argocd-ui
-          push: false
-          cache-from: type=local,src=/tmp/.buildx-cache
-          cache-to: type=local,dest=/tmp/.buildx-cache-new,mode=max
-        if: github.event_name == 'push' || contains(github.event.pull_request.labels.*.name, 'test-arm-image')
-
       - name: Run non-container Snyk scans
         if: github.event_name == 'push'
         working-directory: ./src/github.com/argoproj/argo-cd
@@ -88,7 +70,6 @@ jobs:
           fi
           echo "Building image for platforms: $IMAGE_PLATFORMS"
           docker buildx build --platform $IMAGE_PLATFORMS --push="${{ github.event_name == 'push' }}" \
-            --cache-from "type=local,src=/tmp/.buildx-cache" \
             -t ghcr.io/argoproj/argocd:${{ steps.image.outputs.tag }} \
             -t quay.io/argoproj/argocd:latest .
         working-directory: ./src/github.com/argoproj/argo-cd
@@ -100,15 +81,6 @@ jobs:
           SNYK_TOKEN: ${{ secrets.SNYK_TOKEN }}
         run: |
           snyk container test quay.io/argoproj/argocd:latest --org=argoproj --file=Dockerfile --severity-threshold=high
-
-        # Temp fix
-        # https://github.com/docker/build-push-action/issues/252
-        # https://github.com/moby/buildkit/issues/1896
-      - name: Clean up build cache
-        run: |
-          rm -rf /tmp/.buildx-cache
-          mv /tmp/.buildx-cache-new /tmp/.buildx-cache
-        if: github.event_name == 'push' || contains(github.event.pull_request.labels.*.name, 'test-arm-image')
 
       # deploy
       - run: git clone "https://$TOKEN@github.com/argoproj/argoproj-deployments"

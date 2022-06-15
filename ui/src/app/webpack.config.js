@@ -28,17 +28,19 @@ const config = {
         alias: { react: require.resolve('react') },
         fallback: { fs: false }
     },
-
+    ignoreWarnings: [
+        (warning) => true,
+    ],
     module: {
-        rules: [{
+        rules: [
+            {
                 test: /\.tsx?$/,
-                use: ['esbuild-loader', {
-                    loader: 'ts-loader',
-                    options: {
-                        allowTsInNodeModules: true,
-                        configFile: `${path.resolve('./src/app/tsconfig.json')}`
-                    },
-                }]
+                loader: 'esbuild-loader',
+                options: {
+                    loader: 'tsx',
+                    target: 'es2015',
+                    tsconfigRaw: require('./tsconfig.json')
+                }
             },
             {
                 enforce: 'pre',
@@ -96,6 +98,7 @@ const config = {
         })
     ],
     devServer: {
+        compress: false,
         historyApiFallback: {
             disableDotRule: true
         },

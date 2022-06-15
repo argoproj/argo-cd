@@ -45,7 +45,7 @@ spec:
     metadata:
       name: '{{name}}-guestbook' # 'name' field of the Secret
     spec:
-      project: "default"
+      project: "my-project"
       source:
         repoURL: https://github.com/argoproj/argocd-example-apps/
         targetRevision: HEAD
@@ -144,7 +144,7 @@ spec:
     metadata:
       name: '{{name}}-guestbook'
     spec:
-      project: "default"
+      project: "my-project"
       source:
         repoURL: https://github.com/argoproj/argocd-example-apps/
         # The cluster values field for each generator will be substituted here:
