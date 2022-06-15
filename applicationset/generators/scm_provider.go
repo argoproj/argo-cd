@@ -101,6 +101,15 @@ func (g *SCMProviderGenerator) GenerateParams(appSetGenerator *argoprojiov1alpha
 		if scmError != nil {
 			return nil, fmt.Errorf("error initializing Bitbucket Server service: %v", scmError)
 		}
+	} else if providerConfig.AzureDevOps != nil {
+		token, err := g.getSecretRef(ctx, providerConfig.AzureDevOps.AccessTokenRef, applicationSetInfo.Namespace)
+		if err != nil {
+			return nil, fmt.Errorf("error fetching Azure Devops access token: %v", err)
+		}
+		provider, err = scm_provider.NewAzureDevOpsProvider(ctx, token, providerConfig.AzureDevOps.Organization, providerConfig.AzureDevOps.API, providerConfig.AzureDevOps.TeamProject, providerConfig.AzureDevOps.AllBranches)
+		if err != nil {
+			return nil, fmt.Errorf("error initializing Azure Devops service: %v", err)
+		}
 	} else {
 		return nil, fmt.Errorf("no SCM provider implementation configured")
 	}
@@ -113,12 +122,13 @@ func (g *SCMProviderGenerator) GenerateParams(appSetGenerator *argoprojiov1alpha
 	params := make([]map[string]string, 0, len(repos))
 	for _, repo := range repos {
 		params = append(params, map[string]string{
-			"organization": repo.Organization,
-			"repository":   repo.Repository,
-			"url":          repo.URL,
-			"branch":       repo.Branch,
-			"sha":          repo.SHA,
-			"labels":       strings.Join(repo.Labels, ","),
+			"organization":     repo.Organization,
+			"repository":       repo.Repository,
+			"url":              repo.URL,
+			"branch":           repo.Branch,
+			"sha":              repo.SHA,
+			"labels":           strings.Join(repo.Labels, ","),
+			"branchNormalized": sanitizeName(repo.Branch),
 		})
 	}
 	return params, nil

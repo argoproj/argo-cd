@@ -298,6 +298,7 @@ type SCMProviderGenerator struct {
 	Bitbucket       *SCMProviderGeneratorBitbucket       `json:"bitbucket,omitempty"`
 	BitbucketServer *SCMProviderGeneratorBitbucketServer `json:"bitbucketServer,omitempty"`
 	Gitea           *SCMProviderGeneratorGitea           `json:"gitea,omitempty"`
+	AzureDevOps     *SCMProviderGeneratorAzureDevOps     `json:"azureDevOps,omitempty"`
 	// Filters for which repos should be considered.
 	Filters []SCMProviderGeneratorFilter `json:"filters,omitempty"`
 	// Which protocol to use for the SCM URL. Default is provider-specific but ssh if possible. Not all providers
@@ -368,6 +369,20 @@ type SCMProviderGeneratorBitbucketServer struct {
 	API string `json:"api"`
 	// Credentials for Basic auth
 	BasicAuth *BasicAuthBitbucketServer `json:"basicAuth,omitempty"`
+	// Scan all branches instead of just the default branch.
+	AllBranches bool `json:"allBranches,omitempty"`
+}
+
+// SCMProviderGeneratorAzureDevOps defines connection info specific to Azure DevOps.
+type SCMProviderGeneratorAzureDevOps struct {
+	// Azure Devops organization. Required. E.g. "my-organization".
+	Organization string `json:"organization"`
+	// The URL to Azure DevOps. If blank, use https://dev.azure.com.
+	API string `json:"api,omitempty"`
+	// Azure Devops team project. Required. E.g. "my-team".
+	TeamProject string `json:"teamProject"`
+	// The Personal Access Token (PAT) to use when connecting. Required.
+	AccessTokenRef *SecretRef `json:"accessTokenRef"`
 	// Scan all branches instead of just the default branch.
 	AllBranches bool `json:"allBranches,omitempty"`
 }
