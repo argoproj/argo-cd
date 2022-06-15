@@ -1122,19 +1122,20 @@ func TestListApps(t *testing.T) {
 	assert.NoError(t, err)
 
 	expectedApps := map[string]string{
-		"Kustomization":                  "Kustomize",
-		"app-parameters/multi":           "Kustomize",
-		"app-parameters/single-app-only": "Kustomize",
-		"app-parameters/single-global":   "Kustomize",
-		"invalid-helm":                   "Helm",
-		"in-bounds-values-file-link":     "Helm",
-		"invalid-kustomize":              "Kustomize",
-		"kustomization_yaml":             "Kustomize",
-		"kustomization_yml":              "Kustomize",
-		"my-chart":                       "Helm",
-		"my-chart-2":                     "Helm",
-		"out-of-bounds-values-file-link": "Helm",
-		"values-files":                   "Helm",
+		"Kustomization":                     "Kustomize",
+		"app-parameters/multi":              "Kustomize",
+		"app-parameters/single-app-only":    "Kustomize",
+		"app-parameters/single-global":      "Kustomize",
+		"app-parameters/single-global-helm": "Helm",
+		"invalid-helm":                      "Helm",
+		"in-bounds-values-file-link":        "Helm",
+		"invalid-kustomize":                 "Kustomize",
+		"kustomization_yaml":                "Kustomize",
+		"kustomization_yml":                 "Kustomize",
+		"my-chart":                          "Helm",
+		"my-chart-2":                        "Helm",
+		"out-of-bounds-values-file-link":    "Helm",
+		"values-files":                      "Helm",
 	}
 	assert.Equal(t, expectedApps, res.Apps)
 }
@@ -1486,6 +1487,35 @@ func TestGenerateManifestsWithAppParameterFile(t *testing.T) {
 		})
 	})
 
+	t.Run("Single global override Helm", func(t *testing.T) {
+		runWithTempTestdata(t, "single-global-helm", func(t *testing.T, path string) {
+			service := newService(".")
+			manifests, err := service.GenerateManifest(context.Background(), &apiclient.ManifestRequest{
+				Repo: &argoappv1.Repository{},
+				ApplicationSource: &argoappv1.ApplicationSource{
+					Path: path,
+				},
+			})
+			require.NoError(t, err)
+			resourceByKindName := make(map[string]*unstructured.Unstructured)
+			for _, manifest := range manifests.Manifests {
+				var un unstructured.Unstructured
+				err := yaml.Unmarshal([]byte(manifest), &un)
+				if !assert.NoError(t, err) {
+					return
+				}
+				resourceByKindName[fmt.Sprintf("%s/%s", un.GetKind(), un.GetName())] = &un
+			}
+			deployment, ok := resourceByKindName["Deployment/guestbook-ui"]
+			require.True(t, ok)
+			containers, ok, _ := unstructured.NestedSlice(deployment.Object, "spec", "template", "spec", "containers")
+			require.True(t, ok)
+			image, ok, _ := unstructured.NestedString(containers[0].(map[string]interface{}), "image")
+			require.True(t, ok)
+			assert.Equal(t, "gcr.io/heptio-images/ks-guestbook-demo:0.2", image)
+		})
+	})
+
 	t.Run("Application specific override", func(t *testing.T) {
 		service := newService(".")
 		runWithTempTestdata(t, "single-app-only", func(t *testing.T, path string) {
@@ -1543,6 +1573,28 @@ func TestGenerateManifestsWithAppParameterFile(t *testing.T) {
 			image, ok, _ := unstructured.NestedString(containers[0].(map[string]interface{}), "image")
 			require.True(t, ok)
 			assert.Equal(t, "gcr.io/heptio-images/ks-guestbook-demo:0.1", image)
+		})
+	})
+
+	t.Run("Override info does not appear in cache key", func(t *testing.T) {
+		service := newService(".")
+		runWithTempTestdata(t, "single-global", func(t *testing.T, path string) {
+			source := &argoappv1.ApplicationSource{
+				Path: path,
+			}
+			sourceCopy := source.DeepCopy()  // make a copy in case GenerateManifest mutates it.
+			_, err := service.GenerateManifest(context.Background(), &apiclient.ManifestRequest{
+				Repo:              &argoappv1.Repository{},
+				ApplicationSource: sourceCopy,
+				AppName:           "test",
+			})
+			assert.NoError(t, err)
+			res := &cache.CachedManifestResponse{}
+			// Try to pull from the cache with a `source` that does not include any overrides. Overrides should not be
+			// part of the cache key, because you can't get the overrides without a repo operation. And avoiding repo
+			// operations is the point of the cache.
+			err = service.cache.GetManifests(mock.Anything, source, &argoappv1.ClusterInfo{}, "", "", "", "test", res)
+			assert.NoError(t, err)
 		})
 	})
 }
