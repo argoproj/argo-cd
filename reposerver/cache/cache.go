@@ -162,7 +162,7 @@ func trackingKey(appLabelKey string, trackingMethod string) string {
 	return trackingKey
 }
 
-func logEntryWithManifestCacheKeyFields(revision string, appSrc *appv1.ApplicationSource, clusterInfo ClusterRuntimeInfo, namespace string, trackingMethod string, appLabelKey string, appName string, reason string) *log.Entry {
+func LogEntryWithManifestCacheKeyFields(revision string, appSrc *appv1.ApplicationSource, clusterInfo ClusterRuntimeInfo, namespace string, trackingMethod string, appLabelKey string, appName string, reason string) *log.Entry {
 	return log.WithFields(log.Fields{
 		"revision":    revision,
 		"appSrc":      appSourceKeyJSON(appSrc),
@@ -174,11 +174,7 @@ func logEntryWithManifestCacheKeyFields(revision string, appSrc *appv1.Applicati
 	})
 }
 
-func (c *Cache) GetManifests(revision string, appSrc *appv1.ApplicationSource, clusterInfo ClusterRuntimeInfo, namespace string, trackingMethod string, appLabelKey string, appName string, res *CachedManifestResponse, getReason string) error {
-	if log.IsLevelEnabled(log.DebugLevel) {
-		logEntryWithManifestCacheKeyFields(revision, appSrc, clusterInfo, namespace, trackingMethod, appLabelKey, appName, getReason).Debugf("getting manifests cache")
-	}
-
+func (c *Cache) GetManifests(revision string, appSrc *appv1.ApplicationSource, clusterInfo ClusterRuntimeInfo, namespace string, trackingMethod string, appLabelKey string, appName string, res *CachedManifestResponse) error {
 	err := c.cache.GetItem(manifestCacheKey(revision, appSrc, namespace, trackingMethod, appLabelKey, appName, clusterInfo), res)
 
 	if err != nil {
@@ -194,7 +190,12 @@ func (c *Cache) GetManifests(revision string, appSrc *appv1.ApplicationSource, c
 	if hash != res.CacheEntryHash || res.ManifestResponse == nil && res.MostRecentError == "" {
 		log.Warnf("Manifest hash did not match expected value or cached manifests response is empty, treating as a cache miss: %s", appName)
 
-		err = c.DeleteManifests(revision, appSrc, clusterInfo, namespace, trackingMethod, appLabelKey, appName, "manifest hash did not match or cached response is empty")
+		if log.IsLevelEnabled(log.DebugLevel) {
+			deleteReason := "manifest hash did not match or cached response is empty"
+			LogEntryWithManifestCacheKeyFields(revision, appSrc, clusterInfo, namespace, trackingMethod, appLabelKey, appName, deleteReason).
+				Debugf("deleting manifests cache")
+		}
+		err = c.DeleteManifests(revision, appSrc, clusterInfo, namespace, trackingMethod, appLabelKey, appName)
 		if err != nil {
 			return fmt.Errorf("Unable to delete manifest after hash mismatch, %v", err)
 		}
@@ -209,8 +210,7 @@ func (c *Cache) GetManifests(revision string, appSrc *appv1.ApplicationSource, c
 	return nil
 }
 
-func (c *Cache) SetManifests(revision string, appSrc *appv1.ApplicationSource, clusterInfo ClusterRuntimeInfo, namespace string, trackingMethod string, appLabelKey string, appName string, res *CachedManifestResponse, setReason string) error {
-
+func (c *Cache) SetManifests(revision string, appSrc *appv1.ApplicationSource, clusterInfo ClusterRuntimeInfo, namespace string, trackingMethod string, appLabelKey string, appName string, res *CachedManifestResponse) error {
 	// Generate and apply the cache entry hash, before writing
 	if res != nil {
 		res = res.shallowCopy()
@@ -221,16 +221,10 @@ func (c *Cache) SetManifests(revision string, appSrc *appv1.ApplicationSource, c
 		res.CacheEntryHash = hash
 	}
 
-	if log.IsLevelEnabled(log.DebugLevel) {
-		logEntryWithManifestCacheKeyFields(revision, appSrc, clusterInfo, namespace, trackingMethod, appLabelKey, appName, setReason).Debugf("setting manifests cache")
-	}
 	return c.cache.SetItem(manifestCacheKey(revision, appSrc, namespace, trackingMethod, appLabelKey, appName, clusterInfo), res, c.repoCacheExpiration, res == nil)
 }
 
-func (c *Cache) DeleteManifests(revision string, appSrc *appv1.ApplicationSource, clusterInfo ClusterRuntimeInfo, namespace, trackingMethod, appLabelKey, appName, deleteReason string) error {
-	if log.IsLevelEnabled(log.DebugLevel) {
-		logEntryWithManifestCacheKeyFields(revision, appSrc, clusterInfo, namespace, trackingMethod, appLabelKey, appName, deleteReason).Debugf("deleting manifests cache")
-	}
+func (c *Cache) DeleteManifests(revision string, appSrc *appv1.ApplicationSource, clusterInfo ClusterRuntimeInfo, namespace, trackingMethod, appLabelKey, appName string) error {
 	return c.cache.SetItem(manifestCacheKey(revision, appSrc, namespace, trackingMethod, appLabelKey, appName, clusterInfo), "", c.repoCacheExpiration, true)
 }
 
