@@ -2,7 +2,7 @@
 
 ArgoCD allows users to customize some aspects of how it syncs the desired state in the target cluster. Some Sync Options can defined as annotations in a specific resource. Most of the Sync Options are configured in the Application resource `spec.syncPolicy.syncOptions` attribute.
 
-Bellow you can find details about each available Sync Option:
+Below you can find details about each available Sync Option:
 
 ## No Prune Resources
 
