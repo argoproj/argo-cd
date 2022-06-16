@@ -2,7 +2,7 @@
 
 Argo CD allows integrating more config management tools using config management plugins.
 
-!!! warning
+!!!! warning
     Plugins are granted a level of trust in the Argo CD system, so it is important to implement plugins securely. Argo 
     CD administrators should only install plugins from trusted sources, and they should audit plugins to weigh their 
     particular risks and benefits.
