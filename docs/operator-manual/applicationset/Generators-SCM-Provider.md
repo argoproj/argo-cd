@@ -181,7 +181,7 @@ Available clone protocols are `ssh` and `https`.
 ## Azure DevOps
 
 Uses the Azure DevOps API to look up eligible repositories based on a team project within an Azure DevOps organization. 
-The default Azure DevOps URL is `https://dev.azure.com`, but this can be overridden with the environment variable `AZURE_DEVOPS_BASE_URL`.
+The default Azure DevOps URL is `https://dev.azure.com`, but this can be overridden with the field `azureDevOps.api`.
 
 ```yaml
 apiVersion: argoproj.io/v1alpha1
