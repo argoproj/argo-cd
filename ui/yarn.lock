@@ -1087,29 +1087,29 @@
   resolved "https://registry.yarnpkg.com/@discoveryjs/json-ext/-/json-ext-0.5.7.tgz#1d572bfbbe14b7704e0ba0f39b74815b84870d70"
   integrity sha512-dBVuXR082gk3jsFp7Rd/JI4kytwGHecnCoTtXFb7DB6CNHp4rg5k1bhg0nWdLGLnOV71lmDzGQaLMy8iPLY0pw==
 
-"@esbuild-kit/cjs-loader@^2.0.0":
-  version "2.0.0"
-  resolved "https://registry.yarnpkg.com/@esbuild-kit/cjs-loader/-/cjs-loader-2.0.0.tgz#f385aed0ba482cb9de28880e7401259311cacbd7"
-  integrity sha512-1ijCpmiCQcOcr0dmwwwCpzv0inWpNtEgiXDWc74AL52AhvY108M26suhWe9PMDcF1esnPJf0YSeVBLLZS6SQvg==
+"@esbuild-kit/cjs-loader@^2.1.0":
+  version "2.1.0"
+  resolved "https://registry.yarnpkg.com/@esbuild-kit/cjs-loader/-/cjs-loader-2.1.0.tgz#cab80920ae6b9c3afdb426711755f6f6a4fc650c"
+  integrity sha512-KyX25VcC2564K5FnEhNDdzonC87VeSZoLz3h6R8x3d1myhxqGdoQkTQba3VCcuAkgdkn69d3Zhvj3xtGWldbEQ==
   dependencies:
-    "@esbuild-kit/core-utils" "^1.1.0"
-    get-tsconfig "^3.0.1"
+    "@esbuild-kit/core-utils" "^1.3.0"
+    get-tsconfig "^4.0.0"
 
-"@esbuild-kit/core-utils@^1.1.0", "@esbuild-kit/core-utils@^1.1.1", "@esbuild-kit/core-utils@^1.1.2":
-  version "1.1.2"
-  resolved "https://registry.yarnpkg.com/@esbuild-kit/core-utils/-/core-utils-1.1.2.tgz#42e2bdccd61e8ff43b3015e617602122379e9a7f"
-  integrity sha512-t5uqG23MYDR0e664jP4B6aPXnX1/mJVxbvJKgQDMzOS3NblKZEwwOG1D/JM7Sju+R+gpV6fD1N7L3ouHCLTAAA==
+"@esbuild-kit/core-utils@^1.3.0", "@esbuild-kit/core-utils@^1.3.1":
+  version "1.3.1"
+  resolved "https://registry.yarnpkg.com/@esbuild-kit/core-utils/-/core-utils-1.3.1.tgz#9a35e1d30eae63dfa7f791abbea9a3802a0b4252"
+  integrity sha512-QXWJKf3mEIs+jgUCrY2YWJ2cr9e9asRYRwDhxit+wkCaQbSfV6fCCgs8KjRsrkIdMBcWsjbWnFKfwZ9kjILPrw==
   dependencies:
     esbuild "0.14.38"
+    source-map-support "^0.5.21"
 
-"@esbuild-kit/esm-loader@^2.1.0":
-  version "2.1.1"
-  resolved "https://registry.yarnpkg.com/@esbuild-kit/esm-loader/-/esm-loader-2.1.1.tgz#b0f98cf1ac553f0b6bc9354214c5ce2457629b66"
-  integrity sha512-SzB7wsSsKZToEvP29gslW6cjudrABMe6q4ZuDk9SDahdWg8QPo3HelLJu97VglhfVXm3gS6iCZbXyfjIWK6LHg==
+"@esbuild-kit/esm-loader@^2.2.0":
+  version "2.2.0"
+  resolved "https://registry.yarnpkg.com/@esbuild-kit/esm-loader/-/esm-loader-2.2.0.tgz#fb48bcfa3bbb1021784b3f9093f6223b3f76f21e"
+  integrity sha512-DA9v3nkmvUIledvp4Uuf0bq8rWsGB611PwKx8FPTQkWRJe4GrqcoqemiSIXFzteQJIqaDveez9/jJQLZME/5rg==
   dependencies:
-    "@esbuild-kit/core-utils" "^1.1.2"
-    es-module-lexer "^0.10.5"
-    get-tsconfig "^3.0.1"
+    "@esbuild-kit/core-utils" "^1.3.1"
+    get-tsconfig "^4.0.0"
 
 "@exodus/schemasafe@^1.0.0-rc.2":
   version "1.0.0-rc.3"
@@ -3781,11 +3781,6 @@ es-abstract@^1.18.0-next.2:
     string.prototype.trimstart "^1.0.4"
     unbox-primitive "^1.0.1"
 
-es-module-lexer@^0.10.5:
-  version "0.10.5"
-  resolved "https://registry.yarnpkg.com/es-module-lexer/-/es-module-lexer-0.10.5.tgz#06f76d51fa53b1f78e3bd8bb36dd275eda2fdd53"
-  integrity sha512-+7IwY/kiGAacQfY+YBhKMvEmyAJnw5grTUgjG85Pe7vcUI/6b7pZjZG8nQ7+48YhzEAEqrEgD2dCz/JIK+AYvw==
-
 es-module-lexer@^0.9.0:
   version "0.9.3"
   resolved "https://registry.yarnpkg.com/es-module-lexer/-/es-module-lexer-0.9.3.tgz#6f13db00cc38417137daf74366f535c8eb438f19"
@@ -4583,10 +4578,10 @@ get-stream@^6.0.0:
   resolved "https://registry.yarnpkg.com/get-stream/-/get-stream-6.0.1.tgz#a262d8eef67aced57c2852ad6167526a43cbf7b7"
   integrity sha512-ts6Wi+2j3jQjqi70w5AlN8DFnkSwC+MqmxEzdEALB2qXZYV3X/b1CTfgPLGJNMeAWxdPfU8FO1ms3NUfaHCPYg==
 
-get-tsconfig@^3.0.1:
-  version "3.0.1"
-  resolved "https://registry.yarnpkg.com/get-tsconfig/-/get-tsconfig-3.0.1.tgz#02cadb5abc5f0d53033c8b2f3005b84134ba22e9"
-  integrity sha512-+m30eQjbcf3xMNdnacXH5IDAKUMbI7Mhbf3e1BHif1FzBlUhBzBlmOVc7kL4+kB035l8OCyBdI3dNXZ3of9HqA==
+get-tsconfig@^4.0.0:
+  version "4.0.2"
+  resolved "https://registry.yarnpkg.com/get-tsconfig/-/get-tsconfig-4.0.2.tgz#3011ec4d688d7e4c8a54b694b00f9efb010ab6ad"
+  integrity sha512-mId66O9RChjqWtUrq793OhYTJGUM1InYWw9wLQ4APAazEbN/BAAAcR+/X7dPBNy6om1vdGFTP5RGHste86ZOqQ==
 
 get-value@^2.0.3, get-value@^2.0.6:
   version "2.0.6"
@@ -8911,18 +8906,18 @@ source-map-resolve@^0.5.0:
     source-map-url "^0.4.0"
     urix "^0.1.0"
 
-source-map-support@^0.5.6:
-  version "0.5.19"
-  resolved "https://registry.yarnpkg.com/source-map-support/-/source-map-support-0.5.19.tgz#a98b62f86dcaf4f67399648c085291ab9e8fed61"
-  integrity sha512-Wonm7zOCIJzBGQdB+thsPar0kYuCIzYvxZwlBa87yi/Mdjv7Tip2cyVbLj5o0cFPN4EVkuTwb3GDDyUx2DGnGw==
+source-map-support@^0.5.21, source-map-support@~0.5.20:
+  version "0.5.21"
+  resolved "https://registry.yarnpkg.com/source-map-support/-/source-map-support-0.5.21.tgz#04fe7c7f9e1ed2d662233c28cb2b35b9f63f6e4f"
+  integrity sha512-uBHU3L3czsIyYXKX88fdrGovxdSCoTGDRZ6SYXtSRxLZUzHg5P/66Ht6uoUlHu9EZod+inXhKo3qQgwXUT/y1w==
   dependencies:
     buffer-from "^1.0.0"
     source-map "^0.6.0"
 
-source-map-support@~0.5.20:
-  version "0.5.21"
-  resolved "https://registry.yarnpkg.com/source-map-support/-/source-map-support-0.5.21.tgz#04fe7c7f9e1ed2d662233c28cb2b35b9f63f6e4f"
-  integrity sha512-uBHU3L3czsIyYXKX88fdrGovxdSCoTGDRZ6SYXtSRxLZUzHg5P/66Ht6uoUlHu9EZod+inXhKo3qQgwXUT/y1w==
+source-map-support@^0.5.6:
+  version "0.5.19"
+  resolved "https://registry.yarnpkg.com/source-map-support/-/source-map-support-0.5.19.tgz#a98b62f86dcaf4f67399648c085291ab9e8fed61"
+  integrity sha512-Wonm7zOCIJzBGQdB+thsPar0kYuCIzYvxZwlBa87yi/Mdjv7Tip2cyVbLj5o0cFPN4EVkuTwb3GDDyUx2DGnGw==
   dependencies:
     buffer-from "^1.0.0"
     source-map "^0.6.0"
@@ -9587,14 +9582,14 @@ tsutils@^2.13.1, tsutils@^2.29.0:
   dependencies:
     tslib "^1.8.1"
 
-tsx@^3.4.0:
-  version "3.4.0"
-  resolved "https://registry.yarnpkg.com/tsx/-/tsx-3.4.0.tgz#20aed3831464c0183396d7c4f7c813a8c8429647"
-  integrity sha512-WWakMoC5OqUXvOVZuyAySyETjAZ9rJxZXRbbOhYXDCeHF95hQUBa07UwUFu1yprlnrJ/W7XWfA99YTNKO//KxQ==
+tsx@^3.4.2:
+  version "3.4.3"
+  resolved "https://registry.yarnpkg.com/tsx/-/tsx-3.4.3.tgz#c9a30c85db250003c147eb47c2251d5c0f950783"
+  integrity sha512-2joLNBKxg6Jn+qEMlzMrS2K6uxBG2faQNX7J/w8cO56ysCxJPbfeyWX5Qxbv0l8GeCkkc0Q0/wlH9eEI5LkZeQ==
   dependencies:
-    "@esbuild-kit/cjs-loader" "^2.0.0"
-    "@esbuild-kit/core-utils" "^1.1.1"
-    "@esbuild-kit/esm-loader" "^2.1.0"
+    "@esbuild-kit/cjs-loader" "^2.1.0"
+    "@esbuild-kit/core-utils" "^1.3.1"
+    "@esbuild-kit/esm-loader" "^2.2.0"
   optionalDependencies:
     fsevents "~2.3.2"
 
