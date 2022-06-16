@@ -458,11 +458,7 @@ func (s *Service) runManifestGenAsync(ctx context.Context, repoRoot, commitSHA, 
 	if err != nil {
 		// If manifest generation error caching is enabled
 		if s.initConstants.PauseGenerationAfterFailedGenerationAttempts > 0 {
-			if log.IsLevelEnabled(log.DebugLevel) {
-				getReason := "GenerateManifests error"
-				cache.LogEntryWithManifestCacheKeyFields(cacheKey, q.ApplicationSource, q, q.Namespace, q.TrackingMethod, q.AppLabelKey, q.AppName, getReason).
-					Debugf("getting manifests cache")
-			}
+			cache.LogDebugManifestCacheKeyFields("getting manifests cache", "GenerateManifests error", cacheKey, q.ApplicationSource, q, q.Namespace, q.TrackingMethod, q.AppLabelKey, q.AppName)
 
 			// Retrieve a new copy (if available) of the cached response: this ensures we are updating the latest copy of the cache,
 			// rather than a copy of the cache that occurred before (a potentially lengthy) manifest generation.
@@ -480,11 +476,7 @@ func (s *Service) runManifestGenAsync(ctx context.Context, repoRoot, commitSHA, 
 				innerRes.FirstFailureTimestamp = s.now().Unix()
 			}
 
-			if log.IsLevelEnabled(log.DebugLevel) {
-				setReason := "GenerateManifests error"
-				cache.LogEntryWithManifestCacheKeyFields(cacheKey, q.ApplicationSource, q, q.Namespace, q.TrackingMethod, q.AppLabelKey, q.AppName, setReason).
-					Debugf("setting manifests cache")
-			}
+			cache.LogDebugManifestCacheKeyFields("setting manifests cache", "GenerateManifests error", cacheKey, q.ApplicationSource, q, q.Namespace, q.TrackingMethod, q.AppLabelKey, q.AppName)
 
 			// Update the cache to include failure information
 			innerRes.NumberOfConsecutiveFailures++
@@ -501,11 +493,7 @@ func (s *Service) runManifestGenAsync(ctx context.Context, repoRoot, commitSHA, 
 		return
 	}
 
-	if log.IsLevelEnabled(log.DebugLevel) {
-		setReason := "fresh GenerateManifests response"
-		cache.LogEntryWithManifestCacheKeyFields(cacheKey, q.ApplicationSource, q, q.Namespace, q.TrackingMethod, q.AppLabelKey, q.AppName, setReason).
-			Debugf("setting manifests cache")
-	}
+	cache.LogDebugManifestCacheKeyFields("setting manifests cache", "fresh GenerateManifests response", cacheKey, q.ApplicationSource, q, q.Namespace, q.TrackingMethod, q.AppLabelKey, q.AppName)
 
 	// Otherwise, no error occurred, so ensure the manifest generation error data in the cache entry is reset before we cache the value
 	manifestGenCacheEntry := cache.CachedManifestResponse{
@@ -531,10 +519,7 @@ func (s *Service) runManifestGenAsync(ctx context.Context, repoRoot, commitSHA, 
 // and returns true otherwise.
 // If true is returned, either the second or third parameter (but not both) will contain a value from the cache (a ManifestResponse, or error, respectively)
 func (s *Service) getManifestCacheEntry(cacheKey string, q *apiclient.ManifestRequest, firstInvocation bool) (bool, *apiclient.ManifestResponse, error) {
-	if log.IsLevelEnabled(log.DebugLevel) {
-		getReason := "GenerateManifest API call"
-		cache.LogEntryWithManifestCacheKeyFields(cacheKey, q.ApplicationSource, q, q.Namespace, q.TrackingMethod, q.AppLabelKey, q.AppName, getReason).Debugf("getting manifests cache")
-	}
+	cache.LogDebugManifestCacheKeyFields("getting manifests cache", "GenerateManifest API call", cacheKey, q.ApplicationSource, q, q.Namespace, q.TrackingMethod, q.AppLabelKey, q.AppName)
 
 	res := cache.CachedManifestResponse{}
 	err := s.cache.GetManifests(cacheKey, q.ApplicationSource, q, q.Namespace, q.TrackingMethod, q.AppLabelKey, q.AppName, &res)
@@ -555,11 +540,8 @@ func (s *Service) getManifestCacheEntry(cacheKey string, q *apiclient.ManifestRe
 
 					// After X minutes, reset the cache and retry the operation (e.g. perhaps the error is ephemeral and has passed)
 					if elapsedTimeInMinutes >= s.initConstants.PauseGenerationOnFailureForMinutes {
-						if log.IsLevelEnabled(log.DebugLevel) {
-							deleteReason := "manifest hash did not match or cached response is empty"
-							cache.LogEntryWithManifestCacheKeyFields(cacheKey, q.ApplicationSource, q, q.Namespace, q.TrackingMethod, q.AppLabelKey, q.AppName, deleteReason).
-								Debugf("deleting manifests cache")
-						}
+						cache.LogDebugManifestCacheKeyFields("deleting manifests cache", "manifest hash did not match or cached response is empty", cacheKey, q.ApplicationSource, q, q.Namespace, q.TrackingMethod, q.AppLabelKey, q.AppName)
+
 						// We can now try again, so reset the cache state and run the operation below
 						err = s.cache.DeleteManifests(cacheKey, q.ApplicationSource, q, q.Namespace, q.TrackingMethod, q.AppLabelKey, q.AppName)
 						if err != nil {
@@ -574,10 +556,8 @@ func (s *Service) getManifestCacheEntry(cacheKey string, q *apiclient.ManifestRe
 				if s.initConstants.PauseGenerationOnFailureForRequests > 0 && res.NumberOfCachedResponsesReturned > 0 {
 
 					if res.NumberOfCachedResponsesReturned >= s.initConstants.PauseGenerationOnFailureForRequests {
-						if log.IsLevelEnabled(log.DebugLevel) {
-							deleteReason := "reset after paused generation count"
-							cache.LogEntryWithManifestCacheKeyFields(cacheKey, q.ApplicationSource, q, q.Namespace, q.TrackingMethod, q.AppLabelKey, q.AppName, deleteReason).Debugf("deleting manifests cache")
-						}
+						cache.LogDebugManifestCacheKeyFields("deleting manifests cache", "reset after paused generation count", cacheKey, q.ApplicationSource, q, q.Namespace, q.TrackingMethod, q.AppLabelKey, q.AppName)
+
 						// We can now try again, so reset the error cache state and run the operation below
 						err = s.cache.DeleteManifests(cacheKey, q.ApplicationSource, q, q.Namespace, q.TrackingMethod, q.AppLabelKey, q.AppName)
 						if err != nil {
@@ -594,11 +574,7 @@ func (s *Service) getManifestCacheEntry(cacheKey string, q *apiclient.ManifestRe
 				cachedErrorResponse := fmt.Errorf(cachedManifestGenerationPrefix+": %s", res.MostRecentError)
 
 				if firstInvocation {
-					if log.IsLevelEnabled(log.DebugLevel) {
-						setReason := "update error count"
-						cache.LogEntryWithManifestCacheKeyFields(cacheKey, q.ApplicationSource, q, q.Namespace, q.TrackingMethod, q.AppLabelKey, q.AppName, setReason).
-							Debugf("setting manifests cache")
-					}
+					cache.LogDebugManifestCacheKeyFields("setting manifests cache", "update error count", cacheKey, q.ApplicationSource, q, q.Namespace, q.TrackingMethod, q.AppLabelKey, q.AppName)
 
 					// Increment the number of returned cached responses and push that new value to the cache
 					// (if we have not already done so previously in this function)

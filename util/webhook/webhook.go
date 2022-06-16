@@ -283,22 +283,14 @@ func (a *ArgoCDWebhookHandler) storePreviouslyCachedManifests(app *v1alpha1.Appl
 		return err
 	}
 
-	if log.IsLevelEnabled(log.DebugLevel) {
-		getReason := "webhook app revision changed"
-		cache.LogEntryWithManifestCacheKeyFields(change.shaBefore, &app.Spec.Source, &clusterInfo, app.Spec.Destination.Namespace, trackingMethod, appInstanceLabelKey, app.Name, getReason).
-			Debugf("getting manifests cache")
-	}
+	cache.LogDebugManifestCacheKeyFields("getting manifests cache", "webhook app revision changed", change.shaBefore, &app.Spec.Source, &clusterInfo, app.Spec.Destination.Namespace, trackingMethod, appInstanceLabelKey, app.Name)
 
 	var cachedManifests cache.CachedManifestResponse
 	if err := a.repoCache.GetManifests(change.shaBefore, &app.Spec.Source, &clusterInfo, app.Spec.Destination.Namespace, trackingMethod, appInstanceLabelKey, app.Name, &cachedManifests); err == nil {
 		return err
 	}
 
-	if log.IsLevelEnabled(log.DebugLevel) {
-		setReason := "webhook app revision changed"
-		cache.LogEntryWithManifestCacheKeyFields(change.shaAfter, &app.Spec.Source, &clusterInfo, app.Spec.Destination.Namespace, trackingMethod, appInstanceLabelKey, app.Name, setReason).
-			Debugf("setting manifests cache")
-	}
+	cache.LogDebugManifestCacheKeyFields("setting manifests cache", "webhook app revision changed", change.shaAfter, &app.Spec.Source, &clusterInfo, app.Spec.Destination.Namespace, trackingMethod, appInstanceLabelKey, app.Name)
 
 	if err = a.repoCache.SetManifests(change.shaAfter, &app.Spec.Source, &clusterInfo, app.Spec.Destination.Namespace, trackingMethod, appInstanceLabelKey, app.Name, &cachedManifests); err != nil {
 		return err

@@ -162,16 +162,20 @@ func trackingKey(appLabelKey string, trackingMethod string) string {
 	return trackingKey
 }
 
-func LogEntryWithManifestCacheKeyFields(revision string, appSrc *appv1.ApplicationSource, clusterInfo ClusterRuntimeInfo, namespace string, trackingMethod string, appLabelKey string, appName string, reason string) *log.Entry {
-	return log.WithFields(log.Fields{
-		"revision":    revision,
-		"appSrc":      appSourceKeyJSON(appSrc),
-		"namespace":   namespace,
-		"trackingKey": trackingKey(appLabelKey, trackingMethod),
-		"appName":     appName,
-		"clusterInfo": clusterRuntimeInfoKeyUnhashed(clusterInfo),
-		"reason":      reason,
-	})
+// LogDebugManifestCacheKeyFields logs all the information included in a manifest cache key. It's intended to be run
+// before every manifest cache operation to help debug cache misses.
+func LogDebugManifestCacheKeyFields(message string, reason string, revision string, appSrc *appv1.ApplicationSource, clusterInfo ClusterRuntimeInfo, namespace string, trackingMethod string, appLabelKey string, appName string) {
+	if log.IsLevelEnabled(log.DebugLevel) {
+		log.WithFields(log.Fields{
+			"revision":    revision,
+			"appSrc":      appSourceKeyJSON(appSrc),
+			"namespace":   namespace,
+			"trackingKey": trackingKey(appLabelKey, trackingMethod),
+			"appName":     appName,
+			"clusterInfo": clusterRuntimeInfoKeyUnhashed(clusterInfo),
+			"reason":      reason,
+		}).Debug(message)
+	}
 }
 
 func (c *Cache) GetManifests(revision string, appSrc *appv1.ApplicationSource, clusterInfo ClusterRuntimeInfo, namespace string, trackingMethod string, appLabelKey string, appName string, res *CachedManifestResponse) error {
@@ -190,11 +194,8 @@ func (c *Cache) GetManifests(revision string, appSrc *appv1.ApplicationSource, c
 	if hash != res.CacheEntryHash || res.ManifestResponse == nil && res.MostRecentError == "" {
 		log.Warnf("Manifest hash did not match expected value or cached manifests response is empty, treating as a cache miss: %s", appName)
 
-		if log.IsLevelEnabled(log.DebugLevel) {
-			deleteReason := "manifest hash did not match or cached response is empty"
-			LogEntryWithManifestCacheKeyFields(revision, appSrc, clusterInfo, namespace, trackingMethod, appLabelKey, appName, deleteReason).
-				Debugf("deleting manifests cache")
-		}
+		LogDebugManifestCacheKeyFields("deleting manifests cache", "manifest hash did not match or cached response is empty", revision, appSrc, clusterInfo, namespace, trackingMethod, appLabelKey, appName)
+
 		err = c.DeleteManifests(revision, appSrc, clusterInfo, namespace, trackingMethod, appLabelKey, appName)
 		if err != nil {
 			return fmt.Errorf("Unable to delete manifest after hash mismatch, %v", err)
