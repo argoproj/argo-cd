@@ -1,6 +1,6 @@
 @import 'node_modules/argo-ui/src/styles/config';
 @import 'node_modules/foundation-sites/scss/util/util';
-
+@import 'node_modules/argo-ui/src/styles/theme';
 .help-tip {
     color: $argo-color-gray-4;
 }
@@ -25,8 +25,12 @@
 
 .application-status-panel {
     font-size: 0.875em;
-    color: $argo-color-gray-7;
-    background-color: white;
+    //color: $argo-color-gray-7;
+    //background-color: white;
+    @include themify($themes) {                  
+        background-color: themed('top-bg');
+        color: themed('body-text');
+    }
     box-shadow: 1px 2px 3px rgba(0, 0, 0, 0.1);
     flex-wrap: nowrap;
     flex-shrink: 1;
@@ -60,7 +64,10 @@
         padding: 5px 20px;
         font-size: 0.8em;
         line-height: 1.2;
-        color: $argo-color-gray-7;
+        //color: $argo-color-gray-7;
+        @include themify($themes) {     
+           color: themed('top-text');
+        }
         display: flex;
         flex-direction: column;
         flex-shrink: 0;
@@ -110,7 +117,10 @@
 
         label {
             display: block;
-            color: $argo-color-gray-7;
+           // color: $argo-color-gray-7;
+            @include themify($themes) {                
+                color: themed('body-text');
+            }
             font-size: 13px;
             margin-right: 10px;
         }
@@ -127,8 +137,10 @@
         }
 
         font-size: 2em;
-        color: $argo-color-gray-7;
-
+       // color: $argo-color-gray-7;
+        @include themify($themes) {   
+            color: themed('body-text');
+        }
         &--highlight {
             color: $argo-color-teal-6;
         }
@@ -153,7 +165,10 @@
 
         &__revision {
             font-size: 14px;
-            color: $argo-color-gray-7;
+            //color: $argo-color-gray-7;
+            @include themify($themes) { 
+                color: themed('body-text');
+            }
             font-weight: 500;
             margin-left: auto;
             padding-left: 5px;

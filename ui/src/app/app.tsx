@@ -184,8 +184,11 @@ export class App extends React.Component<{}, {popupProps: PopupProps; showVersio
                                                         <route.component {...routeProps} />
                                                     </div>
                                                 ) : (
+                                                    <DataLoader load={() => services.viewPreferences.getPreferences()}>
+                                                    {pref => (
                                                     <Layout
                                                         navItems={navItems}
+                                                        theme={pref.theme}
                                                         version={() => (
                                                             <DataLoader load={() => versionLoader}>
                                                                 {version => {
@@ -206,6 +209,8 @@ export class App extends React.Component<{}, {popupProps: PopupProps; showVersio
                                                             <route.component {...routeProps} />
                                                         </Banner>
                                                     </Layout>
+                                                    )}
+                                                    </DataLoader>
                                                 )
                                             }
                                         />

@@ -1,8 +1,13 @@
 @import 'node_modules/argo-ui/src/styles/config';
 @import 'node_modules/foundation-sites/scss/util/util';
+@import 'node_modules/argo-ui/src/styles/theme';
 
 .filter {
-    background-color: white;
+    // background-color: white;
+    @include themify($themes) {
+        background: themed('top-bg');
+        color: themed('top-text');
+    }
     padding: 10px;
     box-shadow: 1px 1px 2px 0 rgba(0, 0, 0, 0.1);
     border-radius: 5px;
@@ -50,7 +55,11 @@
         border-radius: 5px;
         display: flex;
         align-items: center;
-        background-color: white;
+        // background-color: white;
+        @include themify($themes) {
+            background: themed('top-bg');
+            color: themed('top-text');
+        }
         transition: background-color 200ms ease;
         margin: 0.25em 0;
         cursor: pointer;
@@ -87,7 +96,11 @@
 
     &__panel {
         transition: width 0.2s ease-in-out;
-        background-color: $argo-color-gray-3;
+        // background-color: $argo-color-gray-3;
+        @include themify($themes) {
+            background: themed('body-bg');
+            color: themed('body-text');
+        }
         box-shadow: 1px 1px 2px 0 rgba(0, 0, 0, 0.1);
         padding: 10px;
         overflow-y: hidden;
