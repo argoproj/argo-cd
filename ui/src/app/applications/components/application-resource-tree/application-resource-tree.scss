@@ -1,4 +1,5 @@
 @import 'node_modules/argo-ui/src/styles/config';
+@import 'node_modules/argo-ui/src/styles/theme';
 
 .application-resource-tree {
     position: relative;
@@ -70,7 +71,11 @@
         padding-right: 1em;
         margin: 10px;
         box-shadow: 1px 1px 1px $argo-color-gray-4;
-        background-color: white;
+        //background-color: white;
+        @include themify($themes) {                  
+            background-color: themed('top-bg');
+            color: themed('top-text');
+        }
         border-radius: 4px;
         border: 1px solid transparent;
         cursor: pointer;
@@ -121,7 +126,10 @@
         }
 
         &--pod {
-            background-color: lightcyan;
+            //background-color: pink;
+            @include themify($themes) {                  
+                background-color: themed('cyan');
+            }
         }
 
         &--lower-section {
@@ -346,6 +354,7 @@
 
     &__node-label {
         background-color: $argo-color-gray-4;
+        color: $argo-color-gray-7;
         border: 1px solid $argo-color-gray-5;
         border-radius: 5px;
         padding: 0 5px;
@@ -356,6 +365,7 @@
 
     &__node-kind {
         font-size: 0.7em;
+        color: $argo-color-gray-6;
     }
 
     &__node-content {

@@ -10,9 +10,7 @@
 .application-labels {
     .application-labels__item {
         background-color: $argo-color-gray-4;
-        @include themify($themes) {           
-            color: themed('bg');
-        }
+        color: black;
         border-radius: 5px;
         padding: 0 2px;
         margin-right: 2px;

@@ -11,7 +11,7 @@ import {ProjectDetails} from './project-details/project-details';
 import {ProjectsList} from './projects-list/projects-list';
 import {ReposList} from './repos-list/repos-list';
 import {SettingsOverview} from './settings-overview/settings-overview';
-import { AppearanceList } from './appearance-list/appearance-list';
+import {AppearanceList} from './appearance-list/appearance-list';
 
 export const SettingsContainer = (props: RouteComponentProps<any>) => (
     <Switch>

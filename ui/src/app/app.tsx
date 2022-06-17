@@ -185,31 +185,31 @@ export class App extends React.Component<{}, {popupProps: PopupProps; showVersio
                                                     </div>
                                                 ) : (
                                                     <DataLoader load={() => services.viewPreferences.getPreferences()}>
-                                                    {pref => (
-                                                    <Layout
-                                                        navItems={navItems}
-                                                        theme={pref.theme}
-                                                        version={() => (
-                                                            <DataLoader load={() => versionLoader}>
-                                                                {version => {
-                                                                    const versionString = version ? version.Version : 'Unknown';
-                                                                    return (
-                                                                        <React.Fragment>
-                                                                            <Tooltip content={versionString}>
-                                                                                <a style={{color: 'white'}} onClick={() => this.setState({showVersionPanel: true})}>
-                                                                                    {versionString}
-                                                                                </a>
-                                                                            </Tooltip>
-                                                                        </React.Fragment>
-                                                                    );
-                                                                }}
-                                                            </DataLoader>
-                                                        )}>
-                                                        <Banner>
-                                                            <route.component {...routeProps} />
-                                                        </Banner>
-                                                    </Layout>
-                                                    )}
+                                                        {pref => (
+                                                            <Layout
+                                                                navItems={navItems}
+                                                                theme={pref.theme}
+                                                                version={() => (
+                                                                    <DataLoader load={() => versionLoader}>
+                                                                        {version => {
+                                                                            const versionString = version ? version.Version : 'Unknown';
+                                                                            return (
+                                                                                <React.Fragment>
+                                                                                    <Tooltip content={versionString}>
+                                                                                        <a style={{color: 'white'}} onClick={() => this.setState({showVersionPanel: true})}>
+                                                                                            {versionString}
+                                                                                        </a>
+                                                                                    </Tooltip>
+                                                                                </React.Fragment>
+                                                                            );
+                                                                        }}
+                                                                    </DataLoader>
+                                                                )}>
+                                                                <Banner>
+                                                                    <route.component {...routeProps} />
+                                                                </Banner>
+                                                            </Layout>
+                                                        )}
                                                     </DataLoader>
                                                 )
                                             }
