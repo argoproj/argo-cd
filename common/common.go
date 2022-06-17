@@ -78,6 +78,8 @@ const (
 	ArgoCDAdminUsername = "admin"
 	// ArgoCDUserAgentName is the default user-agent name used by the gRPC API client library and grpc-gateway
 	ArgoCDUserAgentName = "argocd-client"
+	// ArgoCDSSAManager is the default argocd manager name used by server-side apply syncs
+	ArgoCDSSAManager = "argocd-controller"
 	// AuthCookieName is the HTTP cookie name where we store our auth token
 	AuthCookieName = "argocd.token"
 	// StateCookieName is the HTTP cookie name that holds temporary nonce tokens for CSRF protection
