@@ -69,7 +69,9 @@ function loadApplications(projects: string[]): Observable<models.Application[]> 
                                         if (index > -1) {
                                             applications[index] = appChange.application;
                                         } else {
-                                            applications.unshift(appChange.application);
+                                            if (!(projects.length > 0 && projects.indexOf(appChange.application.spec.project) === -1)) {
+                                                applications.unshift(appChange.application);
+                                            }
                                         }
                                         break;
                                 }
