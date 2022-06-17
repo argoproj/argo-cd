@@ -530,6 +530,8 @@ export interface Cluster {
         connectionState: ConnectionState;
         cacheInfo: ClusterCacheInfo;
     };
+    annotations?: {[name: string]: string};
+    labels?: {[name: string]: string};
 }
 
 export interface ClusterCacheInfo {
