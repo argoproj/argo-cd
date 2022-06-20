@@ -637,7 +637,7 @@ func (mgr *SettingsManager) GetAppsAllowedToDeliverIncluster() ([]string, error)
 		return nil, err
 	}
 	config := argoCDCM.Data[settingsAppsAllowedDeliverToIncluster]
-	apps := make([]string, 0)
+	var apps []string
 	err = yaml.Unmarshal([]byte(config), &apps)
 	if err != nil {
 		return nil, err
