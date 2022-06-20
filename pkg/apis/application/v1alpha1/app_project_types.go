@@ -357,14 +357,21 @@ func (proj AppProject) IsSourcePermitted(src ApplicationSource) bool {
 
 // IsDestinationPermitted validates if the provided application's destination is one of the allowed destinations for the project
 func (proj AppProject) IsDestinationPermitted(dst ApplicationDestination, applicationName string, appsThatAllowedRunInCluster []string) bool {
-	// in case if application destination is in-cluster and allowed apps defined in argo-cm
-	if dst.Server == KubernetesInternalAPIServerAddr && len(appsThatAllowedRunInCluster) > 0 {
+	applicationExistsFunc := func() bool {
 		for _, appNameFromSettings := range appsThatAllowedRunInCluster {
 			if appNameFromSettings == applicationName {
 				return true
 			}
 		}
 		return false
+	}
+
+	// in case if application destination is in-cluster and allowed apps defined in argo-cm
+	if dst.Server == KubernetesInternalAPIServerAddr && len(appsThatAllowedRunInCluster) > 0 {
+		applicationExists := applicationExistsFunc()
+		if !applicationExists {
+			return false
+		}
 	}
 
 	for _, item := range proj.Spec.Destinations {
