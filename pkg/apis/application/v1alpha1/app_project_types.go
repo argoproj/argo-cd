@@ -321,7 +321,7 @@ func (proj AppProject) IsResourcePermitted(groupKind schema.GroupKind, namespace
 		return false
 	}
 	if namespace != "" {
-		return proj.IsDestinationPermitted(ApplicationDestination{Server: dest.Server, Name: dest.Name, Namespace: namespace})
+		return proj.IsDestinationPermitted(ApplicationDestination{Server: dest.Server, Name: dest.Name, Namespace: namespace}, "", nil)
 	}
 	return true
 }
@@ -356,7 +356,17 @@ func (proj AppProject) IsSourcePermitted(src ApplicationSource) bool {
 }
 
 // IsDestinationPermitted validates if the provided application's destination is one of the allowed destinations for the project
-func (proj AppProject) IsDestinationPermitted(dst ApplicationDestination) bool {
+func (proj AppProject) IsDestinationPermitted(dst ApplicationDestination, applicationName string, appsThatAllowedRunInCluster []string) bool {
+	// in case if application destination is in-cluster and allowed apps defined in argo-cm
+	if dst.Server == KubernetesInternalAPIServerAddr && len(appsThatAllowedRunInCluster) > 0 {
+		for _, appNameFromSettings := range appsThatAllowedRunInCluster {
+			if appNameFromSettings == applicationName {
+				return true
+			}
+		}
+		return false
+	}
+
 	for _, item := range proj.Spec.Destinations {
 		dstNameMatched := dst.Name != "" && globMatch(item.Name, dst.Name)
 		dstServerMatched := dst.Server != "" && globMatch(item.Server, dst.Server)
