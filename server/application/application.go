@@ -1584,6 +1584,7 @@ func (s *Server) Rollback(ctx context.Context, rollbackReq *application.Applicat
 			SyncStrategy: &appv1.SyncStrategy{Apply: &appv1.SyncStrategyApply{}},
 			Source:       &deploymentInfo.Source,
 		},
+		InitiatedBy: appv1.OperationInitiator{Username: session.Username(ctx)},
 	}
 	a, err = argo.SetAppOperation(appIf, *rollbackReq.Name, &op)
 	if err != nil {
