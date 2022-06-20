@@ -10,6 +10,7 @@ import (
 	"github.com/stretchr/testify/require"
 	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
 
+	"github.com/argoproj/argo-cd/v2/cmpserver/apiclient"
 	"github.com/argoproj/argo-cd/v2/test"
 )
 
@@ -62,6 +63,7 @@ func TestMatchRepository(t *testing.T) {
 	type fixture struct {
 		service *Service
 		path    string
+		env     []*apiclient.EnvEntry
 	}
 	setup := func(t *testing.T, opts ...pluginOpt) *fixture {
 		t.Helper()
@@ -71,6 +73,7 @@ func TestMatchRepository(t *testing.T) {
 		return &fixture{
 			service: s,
 			path:    path,
+			env:     []*apiclient.EnvEntry{{Name: "ENV_VAR", Value: "1"}},
 		}
 	}
 	t.Run("will match plugin by filename", func(t *testing.T) {
@@ -81,7 +84,7 @@ func TestMatchRepository(t *testing.T) {
 		f := setup(t, withDiscover(d))
 
 		// when
-		match, err := f.service.matchRepository(context.Background(), f.path)
+		match, err := f.service.matchRepository(context.Background(), f.path, f.env)
 
 		// then
 		assert.NoError(t, err)
@@ -95,7 +98,7 @@ func TestMatchRepository(t *testing.T) {
 		f := setup(t, withDiscover(d))
 
 		// when
-		match, err := f.service.matchRepository(context.Background(), f.path)
+		match, err := f.service.matchRepository(context.Background(), f.path, f.env)
 
 		// then
 		assert.NoError(t, err)
@@ -111,7 +114,7 @@ func TestMatchRepository(t *testing.T) {
 		f := setup(t, withDiscover(d))
 
 		// when
-		match, err := f.service.matchRepository(context.Background(), f.path)
+		match, err := f.service.matchRepository(context.Background(), f.path, f.env)
 
 		// then
 		assert.NoError(t, err)
@@ -127,7 +130,7 @@ func TestMatchRepository(t *testing.T) {
 		f := setup(t, withDiscover(d))
 
 		// when
-		match, err := f.service.matchRepository(context.Background(), f.path)
+		match, err := f.service.matchRepository(context.Background(), f.path, f.env)
 
 		// then
 		assert.NoError(t, err)
@@ -145,7 +148,7 @@ func TestMatchRepository(t *testing.T) {
 		f := setup(t, withDiscover(d))
 
 		// when
-		match, err := f.service.matchRepository(context.Background(), f.path)
+		match, err := f.service.matchRepository(context.Background(), f.path, f.env)
 
 		// then
 		assert.NoError(t, err)
@@ -163,7 +166,44 @@ func TestMatchRepository(t *testing.T) {
 		f := setup(t, withDiscover(d))
 
 		// when
-		match, err := f.service.matchRepository(context.Background(), f.path)
+		match, err := f.service.matchRepository(context.Background(), f.path, f.env)
+
+		// then
+		assert.NoError(t, err)
+		assert.False(t, match)
+	})
+	t.Run("will match plugin because env var defined", func(t *testing.T) {
+		// given
+		d := Discover{
+			Find: Find{
+				Command: Command{
+					Command: []string{"sh", "-c", "echo -n $ENV_VAR"},
+				},
+			},
+		}
+		f := setup(t, withDiscover(d))
+
+		// when
+		match, err := f.service.matchRepository(context.Background(), f.path, f.env)
+
+		// then
+		assert.NoError(t, err)
+		assert.True(t, match)
+	})
+	t.Run("will not match plugin because no env var defined", func(t *testing.T) {
+		// given
+		d := Discover{
+			Find: Find{
+				Command: Command{
+					// Use printf instead of echo since OSX prints the "-n" when there's no additional arg.
+					Command: []string{"sh", "-c", `printf "%s" "$ENV_NO_VAR"`},
+				},
+			},
+		}
+		f := setup(t, withDiscover(d))
+
+		// when
+		match, err := f.service.matchRepository(context.Background(), f.path, f.env)
 
 		// then
 		assert.NoError(t, err)
@@ -181,7 +221,7 @@ func TestMatchRepository(t *testing.T) {
 		f := setup(t, withDiscover(d))
 
 		// when
-		match, err := f.service.matchRepository(context.Background(), f.path)
+		match, err := f.service.matchRepository(context.Background(), f.path, f.env)
 
 		// then
 		assert.Error(t, err)

@@ -3,14 +3,14 @@ import {ActionButton} from 'argo-ui/v2';
 import * as classNames from 'classnames';
 import * as React from 'react';
 import * as ReactForm from 'react-form';
-import {Text} from 'react-form';
+import {FormApi, Text} from 'react-form';
 import * as moment from 'moment';
 import {BehaviorSubject, from, fromEvent, merge, Observable, Observer, Subscription} from 'rxjs';
 import {debounceTime} from 'rxjs/operators';
 import {AppContext, Context, ContextApis} from '../../shared/context';
 import {ResourceTreeNode} from './application-resource-tree/application-resource-tree';
 
-import {COLORS, ErrorNotification, Revision} from '../../shared/components';
+import {CheckboxField, COLORS, ErrorNotification, Revision} from '../../shared/components';
 import * as appModels from '../../shared/models';
 import {services} from '../../shared/services';
 
@@ -114,6 +114,52 @@ export async function deleteApplication(appName: string, apis: ContextApis): Pro
         {name: 'argo-icon-warning', color: 'warning'},
         'yellow',
         {propagationPolicy: 'foreground'}
+    );
+    return confirmed;
+}
+
+export async function confirmSyncingAppOfApps(apps: appModels.Application[], apis: ContextApis, form: FormApi): Promise<boolean> {
+    let confirmed = false;
+    const appNames: string[] = apps.map(app => app.metadata.name);
+    const appNameList = appNames.join(', ');
+    await apis.popup.prompt(
+        'Warning: Synchronize App of Multiple Apps using replace?',
+        api => (
+            <div>
+                <p>
+                    Are you sure you want to sync the application '{appNameList}' which contain(s) multiple apps with 'replace' option? This action will delete and recreate all
+                    apps linked to '{appNameList}'.
+                </p>
+                <div className='argo-form-row'>
+                    <FormField
+                        label={`Please type '${appNameList}' to confirm the Syncing of the resource`}
+                        formApi={api}
+                        field='applicationName'
+                        qeId='name-field-delete-confirmation'
+                        component={Text}
+                    />
+                </div>
+            </div>
+        ),
+        {
+            validate: vals => ({
+                applicationName: vals.applicationName !== appNameList && 'Enter the application name(s) to confirm syncing'
+            }),
+            submit: async (_vals, _, close) => {
+                try {
+                    await form.submitForm(null);
+                    confirmed = true;
+                    close();
+                } catch (e) {
+                    apis.notifications.show({
+                        content: <ErrorNotification title='Unable to sync application' e={e} />,
+                        type: NotificationType.Error
+                    });
+                }
+            }
+        },
+        {name: 'argo-icon-warning', color: 'warning'},
+        'yellow'
     );
     return confirmed;
 }
@@ -242,6 +288,35 @@ export function findChildPod(node: appModels.ResourceNode, tree: appModels.Appli
     });
 }
 
+export const deletePodAction = async (pod: appModels.Pod, appContext: AppContext, appName: string) => {
+    appContext.apis.popup.prompt(
+        'Delete pod',
+        () => (
+            <div>
+                <p>Are you sure you want to delete Pod '{pod.name}'?</p>
+                <div className='argo-form-row' style={{paddingLeft: '30px'}}>
+                    <CheckboxField id='force-delete-checkbox' field='force'>
+                        <label htmlFor='force-delete-checkbox'>Force delete</label>
+                    </CheckboxField>
+                </div>
+            </div>
+        ),
+        {
+            submit: async (vals, _, close) => {
+                try {
+                    await services.applications.deleteResource(appName, pod, !!vals.force, false);
+                    close();
+                } catch (e) {
+                    appContext.apis.notifications.show({
+                        content: <ErrorNotification title='Unable to delete resource' e={e} />,
+                        type: NotificationType.Error
+                    });
+                }
+            }
+        }
+    );
+};
+
 export const deletePopup = async (ctx: ContextApis, resource: ResourceTreeNode, application: appModels.Application, appChanged?: BehaviorSubject<appModels.Application>) => {
     const isManaged = !!resource.status;
     const deleteOptions = {
@@ -272,15 +347,16 @@ export const deletePopup = async (ctx: ContextApis, resource: ResourceTreeNode, 
                         onChange={() => handleStateChange('foreground')}
                         defaultChecked={true}
                         style={{marginRight: '5px'}}
+                        id='foreground-delete-radio'
                     />
                     <label htmlFor='foreground-delete-radio' style={{paddingRight: '30px'}}>
                         Foreground Delete {helpTip('Deletes the resource and dependent resources using the cascading policy in the foreground')}
                     </label>
-                    <input type='radio' name='deleteOptions' value='force' onChange={() => handleStateChange('force')} style={{marginRight: '5px'}} />
+                    <input type='radio' name='deleteOptions' value='force' onChange={() => handleStateChange('force')} style={{marginRight: '5px'}} id='force-delete-radio' />
                     <label htmlFor='force-delete-radio' style={{paddingRight: '30px'}}>
                         Force Delete {helpTip('Deletes the resource and its dependent resources in the background')}
                     </label>
-                    <input type='radio' name='deleteOptions' value='orphan' onChange={() => handleStateChange('orphan')} style={{marginRight: '5px'}} />
+                    <input type='radio' name='deleteOptions' value='orphan' onChange={() => handleStateChange('orphan')} style={{marginRight: '5px'}} id='cascade-delete-radio' />
                     <label htmlFor='cascade-delete-radio'>Non-cascading (Orphan) Delete {helpTip('Deletes the resource and orphans the dependent resources')}</label>
                 </div>
             </div>
@@ -352,6 +428,13 @@ function getActionItems(
             title: 'Logs',
             iconClassName: 'fa fa-align-left',
             action: () => appContext.apis.navigation.goto('.', {node: nodeKey(resource), tab: 'logs'}, {replace: true})
+        });
+    }
+    if (resource.kind === 'Pod') {
+        items.push({
+            title: 'Exec',
+            iconClassName: 'fa fa-terminal',
+            action: () => appContext.apis.navigation.goto('.', {node: nodeKey(resource), tab: 'exec'}, {replace: true})
         });
     }
     if (isQuickStart) {

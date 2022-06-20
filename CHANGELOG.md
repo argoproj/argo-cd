@@ -1,6 +1,59 @@
 # Changelog
 
-## v2.3.0 (Unreleased)
+## v2.4.0 (Unreleased)
+
+### Web Terminal In Argo CD UI
+
+Feature enables engineers to start a shell in the running application container without leaving the web interface. Just find the required Kubernetes
+Pod using the Application Details page, click on it and select the Terminal tab. The shell starts automatically and enables you to execute the required
+commands, and helps to troubleshoot the application state.
+
+### Access Control For Pod Logs & Web Terminal
+
+Argo CD is used to manage the critical infrastructure of multiple organizations, which makes security the top priority of the project. We've listened to
+your feedback and introduced additional access control settings that control access to Kubernetes Pod logs and the new Web Terminal feature.
+
+#### Known UI Issue for Pod Logs Access
+
+Currently, upon pressing the "LOGS" tab in pod view by users who don't have an explicit allow get logs policy, the red "unable to load data: Internal error" is received in the bottom of the screen, and "Failed to load data, please try again" is displayed.
+
+### OpenTelemetry Tracing Integration
+
+The new feature allows emitting richer telemetry data that might make identifying performance bottlenecks easier. The new feature is available for argocd-server
+and argocd-repo-server components and can be enabled using the --otlp-address flag.
+
+### Power PC and IBM Z Support
+
+The list of supported architectures has been expanded, and now includes IBM Z (s390x) and PowerPC (ppc64le). Starting with the v2.4 release the official quay.io
+repository is going to have images for amd64, arm64, ppc64le, and s390x architectures.
+
+### Other Notable Changes
+
+Overall v2.4 release includes more than 300 hundred commits from nearly 90 contributors. Here is a short sample of the contributions:
+
+* Enforce the deployment to remote clusters only
+* Native support of GCP authentication for GKE
+* Secured Redis connection
+* ApplicationSet Gitea support
+
+
+## v2.3.3 (2022-03-29)
+
+- fix: prevent excessive repo-server disk usage for large repos (#8845) (#8897)
+- fix: Set QPS and burst rate for resource ops client (#8915)
+
+## v2.3.2 (2022-03-22)
+
+- fix: application resource APIs must enforce project restrictions
+
+## v2.3.1 (2022-03-10)
+
+- fix: Retry checkbox unchecked unexpectedly; Sync up with YAML (#8682) (#8720)
+- chore: Bump stable version of application set addon (#8744)
+- fix: correct jsonnet paths resolution (#8721)
+- fix(ui): Applications page incorrectly resets to tiles view. Fixes #8702 (#8718)
+
+## v2.3.0 (2022-03-05)
 
 ### Argo CD ApplicationSet and Notifications are now part of Argo CD
 

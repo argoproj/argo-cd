@@ -3,13 +3,14 @@
 Remove cluster credentials
 
 ```
-argocd cluster rm SERVER [flags]
+argocd cluster rm SERVER/NAME [flags]
 ```
 
 ### Examples
 
 ```
 argocd cluster rm https://12.34.567.89
+argocd cluster rm cluster-name
 ```
 
 ### Options
@@ -31,6 +32,7 @@ argocd cluster rm https://12.34.567.89
   -H, --header strings                  Sets additional header to all requests made by Argo CD CLI. (Can be repeated multiple times to add multiple headers, also supports comma separated headers)
       --http-retry-max int              Maximum number of retries to establish http connection to Argo CD server
       --insecure                        Skip server certificate and domain verification
+      --kube-context string             Directs the command to the given kube-context
       --logformat string                Set the logging format. One of: text|json (default "text")
       --loglevel string                 Set the logging level. One of: debug|info|warn|error (default "info")
       --plaintext                       Disable TLS

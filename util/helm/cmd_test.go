@@ -23,12 +23,6 @@ func TestCmd_template_kubeVersion(t *testing.T) {
 	assert.NotEmpty(t, s)
 }
 
-func TestNewCmd_helmV2(t *testing.T) {
-	cmd, err := NewCmd(".", "v2", "")
-	assert.NoError(t, err)
-	assert.Equal(t, "helm2", cmd.HelmVer.binaryName)
-}
-
 func TestNewCmd_helmV3(t *testing.T) {
 	cmd, err := NewCmd(".", "v3", "")
 	assert.NoError(t, err)

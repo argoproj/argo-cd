@@ -1,7 +1,7 @@
 # Built-in policy which defines two roles: role:readonly and role:admin,
 # and additionally assigns the admin user to the role:admin role.
 # There are two policy formats:
-# 1. Applications (which belong to a project):
+# 1. Applications, logs, and exec (which belong to a project):
 # p, <user/group>, <resource>, <action>, <project>/<object>
 # 2. All other resources:
 # p, <user/group>, <resource>, <action>, <object>
@@ -36,6 +36,7 @@ p, role:admin, projects, delete, *, allow
 p, role:admin, accounts, update, *, allow
 p, role:admin, gpgkeys, create, *, allow
 p, role:admin, gpgkeys, delete, *, allow
+p, role:admin, exec, create, */*, allow
 
 g, role:admin, role:readonly
 g, admin, role:admin

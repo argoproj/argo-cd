@@ -229,6 +229,12 @@ const (
 	CacheVersion = "1.8.3"
 )
 
+// Constants used by util/clusterauth package
+const (
+	ClusterAuthRequestTimeout = 10 * time.Second
+	BearerTokenTimeout        = 30 * time.Second
+)
+
 const (
 	DefaultGitRetryMaxDuration time.Duration = time.Second * 5        // 5s
 	DefaultGitRetryDuration    time.Duration = time.Millisecond * 250 // 0.25s
@@ -275,3 +281,8 @@ func GetCMPWorkDir() string {
 	}
 	return filepath.Join(os.TempDir(), DefaultCMPWorkDirName)
 }
+
+const (
+	// AnnotationApplicationRefresh is an annotation that is added when an ApplicationSet is requested to be refreshed by a webhook. The ApplicationSet controller will remove this annotation at the end of reconcilation.
+	AnnotationApplicationSetRefresh = "argocd.argoproj.io/application-set-refresh"
+)
