@@ -132,7 +132,7 @@ var backoff = wait.Backoff{
 
 var (
 	clientConstraint = fmt.Sprintf(">= %s", common.MinClientVersion)
-	baseHRefRegex    = regexp.MustCompile(`<base href="(.*)">`)
+	baseHRefRegex    = regexp.MustCompile(`<base href="(.*?)">`)
 	// limits number of concurrent login requests to prevent password brute forcing. If set to 0 then no limit is enforced.
 	maxConcurrentLoginRequestsCount = 50
 	replicasCount                   = 1
