@@ -140,7 +140,13 @@ func (m *appStateManager) SyncAppState(app *v1alpha1.Application, state *v1alpha
 	}
 
 	atomic.AddUint64(&syncIdPrefix, 1)
-	syncId := fmt.Sprintf("%05d-%s", syncIdPrefix, rand.RandString(5))
+	randSuffix, err := rand.String(5)
+	if err != nil {
+		state.Phase = common.OperationError
+		state.Message = fmt.Sprintf("Failed generate random sync ID: %v", err)
+		return
+	}
+	syncId := fmt.Sprintf("%05d-%s", syncIdPrefix, randSuffix)
 
 	logEntry := log.WithFields(log.Fields{"application": app.Name, "syncId": syncId})
 	initialResourcesRes := make([]common.ResourceSyncResult, 0)

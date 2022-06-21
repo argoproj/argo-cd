@@ -200,7 +200,10 @@ func oauth2Login(ctx context.Context, port int, oidcSettings *settingspkg.OIDCCo
 	// completionChan is to signal flow completed. Non-empty string indicates error
 	completionChan := make(chan string)
 	// stateNonce is an OAuth2 state nonce
-	stateNonce := rand.RandString(10)
+	// According to the spec (https://www.rfc-editor.org/rfc/rfc6749#section-10.10), this must be guessable with
+	// probability <= 2^(-128). The following call generates one of 52^24 random strings, ~= 2^136 possibilities.
+	stateNonce, err := rand.String(24)
+	errors.CheckError(err)
 	var tokenString string
 	var refreshToken string
 
@@ -210,7 +213,8 @@ func oauth2Login(ctx context.Context, port int, oidcSettings *settingspkg.OIDCCo
 	}
 
 	// PKCE implementation of https://tools.ietf.org/html/rfc7636
-	codeVerifier := rand.RandStringCharset(43, "ABCDEFGHIJKLMNOPQRSTUVWXYZabcdefghijklmnopqrstuvwxyz0123456789-._~")
+	codeVerifier, err := rand.StringFromCharset(43, "ABCDEFGHIJKLMNOPQRSTUVWXYZabcdefghijklmnopqrstuvwxyz0123456789-._~")
+	errors.CheckError(err)
 	codeChallengeHash := sha256.Sum256([]byte(codeVerifier))
 	codeChallenge := base64.RawURLEncoding.EncodeToString(codeChallengeHash[:])
 
@@ -294,7 +298,8 @@ func oauth2Login(ctx context.Context, port int, oidcSettings *settingspkg.OIDCCo
 		opts = append(opts, oauth2.SetAuthURLParam("code_challenge_method", "S256"))
 		url = oauth2conf.AuthCodeURL(stateNonce, opts...)
 	case oidcutil.GrantTypeImplicit:
-		url = oidcutil.ImplicitFlowURL(oauth2conf, stateNonce, opts...)
+		url, err = oidcutil.ImplicitFlowURL(oauth2conf, stateNonce, opts...)
+		errors.CheckError(err)
 	default:
 		log.Fatalf("Unsupported grant type: %v", grantType)
 	}
