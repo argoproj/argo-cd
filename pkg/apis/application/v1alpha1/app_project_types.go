@@ -367,7 +367,7 @@ func (proj AppProject) IsDestinationPermitted(dst ApplicationDestination, applic
 	}
 
 	// in case if application destination is in-cluster and allowed apps defined in argo-cm
-	if dst.Server == KubernetesInternalAPIServerAddr && len(appsThatAllowedRunInCluster) > 0 {
+	if (dst.Server == KubernetesInternalAPIServerAddr || dst.Name == "in-cluster") && len(appsThatAllowedRunInCluster) > 0 {
 		applicationExists := applicationExistsFunc()
 		if !applicationExists {
 			return false
