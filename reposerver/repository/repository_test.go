@@ -5,6 +5,7 @@ import (
 	"encoding/json"
 	"errors"
 	"fmt"
+	"io/fs"
 	"io/ioutil"
 	"os"
 	"os/exec"
@@ -16,6 +17,7 @@ import (
 	"time"
 
 	log "github.com/sirupsen/logrus"
+	"k8s.io/apimachinery/pkg/api/resource"
 
 	"github.com/ghodss/yaml"
 	"github.com/stretchr/testify/assert"
@@ -140,7 +142,7 @@ func TestGenerateYamlManifestInDir(t *testing.T) {
 	assert.Equal(t, countOfManifests, len(res1.Manifests))
 
 	// this will test concatenated manifests to verify we split YAMLs correctly
-	res2, err := GenerateManifests("./testdata/concatenated", "/", "", &q, false)
+	res2, err := GenerateManifests("./testdata/concatenated", "/", "", &q, false, resource.MustParse("0"))
 	assert.NoError(t, err)
 	assert.Equal(t, 3, len(res2.Manifests))
 }
@@ -196,7 +198,7 @@ func Test_GenerateManifests_NoOutOfBoundsAccess(t *testing.T) {
 			}
 
 			q := apiclient.ManifestRequest{Repo: &argoappv1.Repository{}, ApplicationSource: &argoappv1.ApplicationSource{}}
-			res, err := GenerateManifests(repoDir, "", "", &q, false)
+			res, err := GenerateManifests(repoDir, "", "", &q, false, resource.MustParse("0"))
 			require.Error(t, err)
 			assert.NotContains(t, err.Error(), mustNotContain)
 			assert.Contains(t, err.Error(), "illegal filepath")
@@ -211,7 +213,7 @@ func TestGenerateManifests_MissingSymlinkDestination(t *testing.T) {
 	require.NoError(t, err)
 
 	q := apiclient.ManifestRequest{Repo: &argoappv1.Repository{}, ApplicationSource: &argoappv1.ApplicationSource{}}
-	_, err = GenerateManifests(repoDir, "", "", &q, false)
+	_, err = GenerateManifests(repoDir, "", "", &q, false, resource.MustParse("0"))
 	require.NoError(t, err)
 }
 
@@ -1098,7 +1100,7 @@ func TestGenerateFromUTF16(t *testing.T) {
 		Repo:              &argoappv1.Repository{},
 		ApplicationSource: &argoappv1.ApplicationSource{},
 	}
-	res1, err := GenerateManifests("./testdata/utf-16", "/", "", &q, false)
+	res1, err := GenerateManifests("./testdata/utf-16", "/", "", &q, false, resource.MustParse("0"))
 	assert.Nil(t, err)
 	assert.Equal(t, 2, len(res1.Manifests))
 }
@@ -1667,7 +1669,7 @@ func TestFindResources(t *testing.T) {
 				Recurse: true,
 				Include: tc.include,
 				Exclude: tc.exclude,
-			})
+			}, resource.MustParse("0"))
 			if !assert.NoError(t, err) {
 				return
 			}
@@ -1684,7 +1686,7 @@ func TestFindManifests_Exclude(t *testing.T) {
 	objs, err := findManifests(&log.Entry{}, "testdata/app-include-exclude", ".", nil, argoappv1.ApplicationSourceDirectory{
 		Recurse: true,
 		Exclude: "subdir/deploymentSub.yaml",
-	})
+	}, resource.MustParse("0"))
 
 	if !assert.NoError(t, err) || !assert.Len(t, objs, 1) {
 		return
@@ -1697,7 +1699,7 @@ func TestFindManifests_Exclude_NothingMatches(t *testing.T) {
 	objs, err := findManifests(&log.Entry{}, "testdata/app-include-exclude", ".", nil, argoappv1.ApplicationSourceDirectory{
 		Recurse: true,
 		Exclude: "nothing.yaml",
-	})
+	}, resource.MustParse("0"))
 
 	if !assert.NoError(t, err) || !assert.Len(t, objs, 2) {
 		return
@@ -1707,7 +1709,316 @@ func TestFindManifests_Exclude_NothingMatches(t *testing.T) {
 		[]string{"nginx-deployment", "nginx-deployment-sub"}, []string{objs[0].GetName(), objs[1].GetName()})
 }
 
+func tempDir(t *testing.T) string {
+	dir, err := ioutil.TempDir(".", "")
+	require.NoError(t, err)
+	t.Cleanup(func() {
+		err = os.RemoveAll(dir)
+		if err != nil {
+			panic(err)
+		}
+	})
+	absDir, err := filepath.Abs(dir)
+	require.NoError(t, err)
+	return absDir
+}
 
+func walkFor(t *testing.T, root string, testPath string, run func(info fs.FileInfo)) {
+	var hitExpectedPath = false
+	err := filepath.Walk(root, func(path string, info fs.FileInfo, err error) error {
+		if path == testPath {
+			require.NoError(t, err)
+			hitExpectedPath = true
+			run(info)
+		}
+		return nil
+	})
+	require.NoError(t, err)
+	assert.True(t, hitExpectedPath, "did not hit expected path when walking directory")
+}
+
+func Test_getPotentiallyValidManifestFile(t *testing.T) {
+	// These tests use filepath.Walk instead of os.Stat to get file info, because FileInfo from os.Stat does not return
+	// true for IsSymlink like os.Walk does.
+
+	// These tests do not use t.TempDir() because those directories can contain symlinks which cause test to fail
+	// InBound checks.
+
+	t.Run("non-JSON/YAML is skipped with an empty ignore message", func(t *testing.T) {
+		appDir := tempDir(t)
+		filePath := filepath.Join(appDir, "not-json-or-yaml")
+		file, err := os.OpenFile(filePath, os.O_RDONLY|os.O_CREATE, 0644)
+		require.NoError(t, err)
+		err = file.Close()
+		require.NoError(t, err)
+
+		walkFor(t, appDir, filePath, func(info fs.FileInfo) {
+			realFileInfo, ignoreMessage, err := getPotentiallyValidManifestFile(filePath, info, appDir, appDir, "", "")
+			assert.Nil(t, realFileInfo)
+			assert.Empty(t, ignoreMessage)
+			assert.NoError(t, err)
+		})
+	})
+
+	t.Run("circular link should throw an error", func(t *testing.T) {
+		appDir := tempDir(t)
+
+		aPath := filepath.Join(appDir, "a.json")
+		bPath := filepath.Join(appDir, "b.json")
+		err := os.Symlink(bPath, aPath)
+		require.NoError(t, err)
+		err = os.Symlink(aPath, bPath)
+		require.NoError(t, err)
+
+		walkFor(t, appDir, aPath, func(info fs.FileInfo) {
+			realFileInfo, ignoreMessage, err := getPotentiallyValidManifestFile(aPath, info, appDir, appDir, "", "")
+			assert.Nil(t, realFileInfo)
+			assert.Empty(t, ignoreMessage)
+			assert.Error(t, err)
+			assert.Contains(t, err.Error(), "too many links")
+		})
+	})
+
+	t.Run("symlink with missing destination should throw an error", func(t *testing.T) {
+		appDir := tempDir(t)
+
+		aPath := filepath.Join(appDir, "a.json")
+		bPath := filepath.Join(appDir, "b.json")
+		err := os.Symlink(bPath, aPath)
+		require.NoError(t, err)
+
+		walkFor(t, appDir, aPath, func(info fs.FileInfo) {
+			realFileInfo, ignoreMessage, err := getPotentiallyValidManifestFile(aPath, info, appDir, appDir, "", "")
+			assert.Nil(t, realFileInfo)
+			assert.NotEmpty(t, ignoreMessage)
+			assert.NoError(t, err)
+		})
+	})
+
+	t.Run("out-of-bounds symlink should throw an error", func(t *testing.T) {
+		appDir := tempDir(t)
+
+		linkPath := filepath.Join(appDir, "a.json")
+		err := os.Symlink("..", linkPath)
+		require.NoError(t, err)
+
+		walkFor(t, appDir, linkPath, func(info fs.FileInfo) {
+			realFileInfo, ignoreMessage, err := getPotentiallyValidManifestFile(linkPath, info, appDir, appDir, "", "")
+			assert.Nil(t, realFileInfo)
+			assert.Empty(t, ignoreMessage)
+			assert.Error(t, err)
+			assert.Contains(t, err.Error(), "illegal filepath in symlink")
+		})
+	})
+
+	t.Run("symlink to a non-regular file should be skipped with warning", func(t *testing.T) {
+		appDir := tempDir(t)
+
+		dirPath := filepath.Join(appDir, "test.dir")
+		err := os.MkdirAll(dirPath, 0644)
+		require.NoError(t, err)
+		linkPath := filepath.Join(appDir, "test.json")
+		err = os.Symlink(dirPath, linkPath)
+		require.NoError(t, err)
+
+		walkFor(t, appDir, linkPath, func(info fs.FileInfo) {
+			realFileInfo, ignoreMessage, err := getPotentiallyValidManifestFile(linkPath, info, appDir, appDir, "", "")
+			assert.Nil(t, realFileInfo)
+			assert.Contains(t, ignoreMessage, "non-regular file")
+			assert.NoError(t, err)
+		})
+	})
+
+	t.Run("non-included file should be skipped with no message", func(t *testing.T) {
+		appDir := tempDir(t)
+
+		filePath := filepath.Join(appDir, "not-included.yaml")
+		file, err := os.OpenFile(filePath, os.O_RDONLY|os.O_CREATE, 0644)
+		require.NoError(t, err)
+		err = file.Close()
+		require.NoError(t, err)
+
+		walkFor(t, appDir, filePath, func(info fs.FileInfo) {
+			realFileInfo, ignoreMessage, err := getPotentiallyValidManifestFile(filePath, info, appDir, appDir, "*.json", "")
+			assert.Nil(t, realFileInfo)
+			assert.Empty(t, ignoreMessage)
+			assert.NoError(t, err)
+		})
+	})
+
+	t.Run("excluded file should be skipped with no message", func(t *testing.T) {
+		appDir := tempDir(t)
+
+		filePath := filepath.Join(appDir, "excluded.json")
+		file, err := os.OpenFile(filePath, os.O_RDONLY|os.O_CREATE, 0644)
+		require.NoError(t, err)
+		err = file.Close()
+		require.NoError(t, err)
+
+		walkFor(t, appDir, filePath, func(info fs.FileInfo) {
+			realFileInfo, ignoreMessage, err := getPotentiallyValidManifestFile(filePath, info, appDir, appDir, "", "excluded.*")
+			assert.Nil(t, realFileInfo)
+			assert.Empty(t, ignoreMessage)
+			assert.NoError(t, err)
+		})
+	})
+
+	t.Run("symlink to a regular file is potentially valid", func(t *testing.T) {
+		appDir := tempDir(t)
+
+		filePath := filepath.Join(appDir, "regular-file")
+		file, err := os.OpenFile(filePath, os.O_RDONLY|os.O_CREATE, 0644)
+		require.NoError(t, err)
+		err = file.Close()
+		require.NoError(t, err)
+
+		linkPath := filepath.Join(appDir, "link.json")
+		err = os.Symlink(filePath, linkPath)
+		require.NoError(t, err)
+
+		walkFor(t, appDir, linkPath, func(info fs.FileInfo) {
+			realFileInfo, ignoreMessage, err := getPotentiallyValidManifestFile(linkPath, info, appDir, appDir, "", "")
+			assert.NotNil(t, realFileInfo)
+			assert.Empty(t, ignoreMessage)
+			assert.NoError(t, err)
+		})
+	})
+
+	t.Run("a regular file is potentially valid", func(t *testing.T) {
+		appDir := tempDir(t)
+
+		filePath := filepath.Join(appDir, "regular-file.json")
+		file, err := os.OpenFile(filePath, os.O_RDONLY|os.O_CREATE, 0644)
+		require.NoError(t, err)
+		err = file.Close()
+		require.NoError(t, err)
+
+		walkFor(t, appDir, filePath, func(info fs.FileInfo) {
+			realFileInfo, ignoreMessage, err := getPotentiallyValidManifestFile(filePath, info, appDir, appDir, "", "")
+			assert.NotNil(t, realFileInfo)
+			assert.Empty(t, ignoreMessage)
+			assert.NoError(t, err)
+		})
+	})
+
+	t.Run("realFileInfo is for the destination rather than the symlink", func(t *testing.T) {
+		appDir := tempDir(t)
+
+		filePath := filepath.Join(appDir, "regular-file")
+		file, err := os.OpenFile(filePath, os.O_RDONLY|os.O_CREATE, 0644)
+		require.NoError(t, err)
+		err = file.Close()
+		require.NoError(t, err)
+
+		linkPath := filepath.Join(appDir, "link.json")
+		err = os.Symlink(filePath, linkPath)
+		require.NoError(t, err)
+
+		walkFor(t, appDir, linkPath, func(info fs.FileInfo) {
+			realFileInfo, ignoreMessage, err := getPotentiallyValidManifestFile(linkPath, info, appDir, appDir, "", "")
+			assert.NotNil(t, realFileInfo)
+			assert.Equal(t, filepath.Base(filePath), realFileInfo.Name())
+			assert.Empty(t, ignoreMessage)
+			assert.NoError(t, err)
+		})
+	})
+}
+
+func Test_getPotentiallyValidManifests(t *testing.T) {
+	// Tests which return no manifests and an error check to make sure the directory exists before running. A missing
+	// directory would produce those same results.
+
+	logCtx := log.WithField("test", "test")
+
+	t.Run("unreadable file throws error", func(t *testing.T) {
+		appDir := t.TempDir()
+		unreadablePath := filepath.Join(appDir, "unreadable.json")
+		err := os.WriteFile(unreadablePath, []byte{}, 0666)
+		require.NoError(t, err)
+		err = os.Chmod(appDir, 0000)
+		require.NoError(t, err)
+
+		manifests, err := getPotentiallyValidManifests(logCtx, appDir, appDir, false, "", "", resource.MustParse("0"))
+		assert.Empty(t, manifests)
+		assert.Error(t, err)
+
+		// allow cleanup
+		err = os.Chmod(appDir, 0777)
+		if err != nil {
+			panic(err)
+		}
+	})
+
+	t.Run("no recursion when recursion is disabled", func(t *testing.T) {
+		manifests, err := getPotentiallyValidManifests(logCtx, "./testdata/recurse", "./testdata/recurse", false, "", "", resource.MustParse("0"))
+		assert.Len(t, manifests, 1)
+		assert.NoError(t, err)
+	})
+
+	t.Run("recursion when recursion is enabled", func(t *testing.T) {
+		manifests, err := getPotentiallyValidManifests(logCtx, "./testdata/recurse", "./testdata/recurse", true, "", "", resource.MustParse("0"))
+		assert.Len(t, manifests, 2)
+		assert.NoError(t, err)
+	})
+
+	t.Run("non-JSON/YAML is skipped", func(t *testing.T) {
+		manifests, err := getPotentiallyValidManifests(logCtx, "./testdata/non-manifest-file", "./testdata/non-manifest-file", false, "", "", resource.MustParse("0"))
+		assert.Empty(t, manifests)
+		assert.NoError(t, err)
+	})
+
+	t.Run("circular link should throw an error", func(t *testing.T) {
+		require.DirExists(t, "./testdata/circular-link")
+		manifests, err := getPotentiallyValidManifests(logCtx, "./testdata/circular-link", "./testdata/circular-link", false, "", "", resource.MustParse("0"))
+		assert.Empty(t, manifests)
+		assert.Error(t, err)
+	})
+
+	t.Run("out-of-bounds symlink should throw an error", func(t *testing.T) {
+		require.DirExists(t, "./testdata/out-of-bounds-link")
+		manifests, err := getPotentiallyValidManifests(logCtx, "./testdata/out-of-bounds-link", "./testdata/out-of-bounds-link", false, "", "", resource.MustParse("0"))
+		assert.Empty(t, manifests)
+		assert.Error(t, err)
+	})
+
+	t.Run("symlink to a regular file works", func(t *testing.T) {
+		repoRoot, err := filepath.Abs("./testdata/in-bounds-link")
+		require.NoError(t, err)
+		appPath, err := filepath.Abs("./testdata/in-bounds-link/app")
+		require.NoError(t, err)
+		manifests, err := getPotentiallyValidManifests(logCtx, appPath, repoRoot, false, "", "", resource.MustParse("0"))
+		assert.Len(t, manifests, 1)
+		assert.NoError(t, err)
+	})
+
+	t.Run("symlink to nowhere should be ignored", func(t *testing.T) {
+		manifests, err := getPotentiallyValidManifests(logCtx, "./testdata/link-to-nowhere", "./testdata/link-to-nowhere", false, "", "", resource.MustParse("0"))
+		assert.Empty(t, manifests)
+		assert.NoError(t, err)
+	})
+
+	t.Run("link to over-sized manifest fails", func(t *testing.T) {
+		repoRoot, err := filepath.Abs("./testdata/in-bounds-link")
+		require.NoError(t, err)
+		appPath, err := filepath.Abs("./testdata/in-bounds-link/app")
+		require.NoError(t, err)
+		// The file is 35 bytes.
+		manifests, err := getPotentiallyValidManifests(logCtx, appPath, repoRoot, false, "", "", resource.MustParse("34"))
+		assert.Empty(t, manifests)
+		assert.ErrorIs(t, err, ErrExceededMaxCombinedManifestFileSize)
+	})
+
+	t.Run("group of files should be limited at precisely the sum of their size", func(t *testing.T) {
+		// There is a total of 10 files, ech file being 10 bytes.
+		manifests, err := getPotentiallyValidManifests(logCtx, "./testdata/several-files", "./testdata/several-files", false, "", "", resource.MustParse("365"))
+		assert.Len(t, manifests, 10)
+		assert.NoError(t, err)
+
+		manifests, err = getPotentiallyValidManifests(logCtx, "./testdata/several-files", "./testdata/several-files", false, "", "", resource.MustParse("100"))
+		assert.Empty(t, manifests)
+		assert.ErrorIs(t, err, ErrExceededMaxCombinedManifestFileSize)
+	})
+}
 
 func Test_findManifests(t *testing.T) {
 	logCtx := log.WithField("test", "test")
@@ -1721,7 +2032,7 @@ func Test_findManifests(t *testing.T) {
 		err = os.Chmod(appDir, 0000)
 		require.NoError(t, err)
 
-		manifests, err := findManifests(logCtx, appDir, appDir, nil, noRecurse)
+		manifests, err := findManifests(logCtx, appDir, appDir, nil, noRecurse, resource.MustParse("0"))
 		assert.Empty(t, manifests)
 		assert.Error(t, err)
 
@@ -1733,34 +2044,34 @@ func Test_findManifests(t *testing.T) {
 	})
 
 	t.Run("no recursion when recursion is disabled", func(t *testing.T) {
-		manifests, err := findManifests(logCtx, "./testdata/recurse", "./testdata/recurse", nil, noRecurse)
+		manifests, err := findManifests(logCtx, "./testdata/recurse", "./testdata/recurse", nil, noRecurse, resource.MustParse("0"))
 		assert.Len(t, manifests, 2)
 		assert.NoError(t, err)
 	})
 
 	t.Run("recursion when recursion is enabled", func(t *testing.T) {
 		recurse := argoappv1.ApplicationSourceDirectory{Recurse: true}
-		manifests, err := findManifests(logCtx, "./testdata/recurse", "./testdata/recurse", nil, recurse)
+		manifests, err := findManifests(logCtx, "./testdata/recurse", "./testdata/recurse", nil, recurse, resource.MustParse("0"))
 		assert.Len(t, manifests, 4)
 		assert.NoError(t, err)
 	})
 
 	t.Run("non-JSON/YAML is skipped", func(t *testing.T) {
-		manifests, err := findManifests(logCtx, "./testdata/non-manifest-file", "./testdata/non-manifest-file", nil, noRecurse)
+		manifests, err := findManifests(logCtx, "./testdata/non-manifest-file", "./testdata/non-manifest-file", nil, noRecurse, resource.MustParse("0"))
 		assert.Empty(t, manifests)
 		assert.NoError(t, err)
 	})
 
 	t.Run("circular link should throw an error", func(t *testing.T) {
 		require.DirExists(t, "./testdata/circular-link")
-		manifests, err := findManifests(logCtx, "./testdata/circular-link", "./testdata/circular-link", nil, noRecurse)
+		manifests, err := findManifests(logCtx, "./testdata/circular-link", "./testdata/circular-link", nil, noRecurse, resource.MustParse("0"))
 		assert.Empty(t, manifests)
 		assert.Error(t, err)
 	})
 
 	t.Run("out-of-bounds symlink should throw an error", func(t *testing.T) {
 		require.DirExists(t, "./testdata/out-of-bounds-link")
-		manifests, err := findManifests(logCtx, "./testdata/out-of-bounds-link", "./testdata/out-of-bounds-link", nil, noRecurse)
+		manifests, err := findManifests(logCtx, "./testdata/out-of-bounds-link", "./testdata/out-of-bounds-link", nil, noRecurse, resource.MustParse("0"))
 		assert.Empty(t, manifests)
 		assert.Error(t, err)
 	})
@@ -1770,59 +2081,92 @@ func Test_findManifests(t *testing.T) {
 		require.NoError(t, err)
 		appPath, err := filepath.Abs("./testdata/in-bounds-link/app")
 		require.NoError(t, err)
-		manifests, err := findManifests(logCtx, appPath, repoRoot, nil, noRecurse)
+		manifests, err := findManifests(logCtx, appPath, repoRoot, nil, noRecurse, resource.MustParse("0"))
 		assert.Len(t, manifests, 1)
 		assert.NoError(t, err)
 	})
 
 	t.Run("symlink to nowhere should be ignored", func(t *testing.T) {
-		manifests, err := findManifests(logCtx, "./testdata/link-to-nowhere", "./testdata/link-to-nowhere", nil, noRecurse)
+		manifests, err := findManifests(logCtx, "./testdata/link-to-nowhere", "./testdata/link-to-nowhere", nil, noRecurse, resource.MustParse("0"))
 		assert.Empty(t, manifests)
 		assert.NoError(t, err)
 	})
 
+	t.Run("link to over-sized manifest fails", func(t *testing.T) {
+		repoRoot, err := filepath.Abs("./testdata/in-bounds-link")
+		require.NoError(t, err)
+		appPath, err := filepath.Abs("./testdata/in-bounds-link/app")
+		require.NoError(t, err)
+		// The file is 35 bytes.
+		manifests, err := findManifests(logCtx, appPath, repoRoot, nil, noRecurse, resource.MustParse("34"))
+		assert.Empty(t, manifests)
+		assert.ErrorIs(t, err, ErrExceededMaxCombinedManifestFileSize)
+	})
+
+	t.Run("group of files should be limited at precisely the sum of their size", func(t *testing.T) {
+		// There is a total of 10 files, each file being 10 bytes.
+		manifests, err := findManifests(logCtx, "./testdata/several-files", "./testdata/several-files", nil, noRecurse, resource.MustParse("365"))
+		assert.Len(t, manifests, 10)
+		assert.NoError(t, err)
+
+		manifests, err = findManifests(logCtx, "./testdata/several-files", "./testdata/several-files", nil, noRecurse, resource.MustParse("364"))
+		assert.Empty(t, manifests)
+		assert.ErrorIs(t, err, ErrExceededMaxCombinedManifestFileSize)
+	})
+
+	t.Run("jsonnet isn't counted against size limit", func(t *testing.T) {
+		// Each file is 36 bytes. Only the 36-byte json file should be counted against the limit.
+		manifests, err := findManifests(logCtx, "./testdata/jsonnet-and-json", "./testdata/jsonnet-and-json", nil, noRecurse, resource.MustParse("36"))
+		assert.Len(t, manifests, 2)
+		assert.NoError(t, err)
+
+		manifests, err = findManifests(logCtx, "./testdata/jsonnet-and-json", "./testdata/jsonnet-and-json", nil, noRecurse, resource.MustParse("35"))
+		assert.Empty(t, manifests)
+		assert.ErrorIs(t, err, ErrExceededMaxCombinedManifestFileSize)
+	})
+
 	t.Run("partially valid YAML file throws an error", func(t *testing.T) {
 		require.DirExists(t, "./testdata/partially-valid-yaml")
-		manifests, err := findManifests(logCtx, "./testdata/partially-valid-yaml", "./testdata/partially-valid-yaml", nil, noRecurse)
+		manifests, err := findManifests(logCtx, "./testdata/partially-valid-yaml", "./testdata/partially-valid-yaml", nil, noRecurse, resource.MustParse("0"))
 		assert.Empty(t, manifests)
 		assert.Error(t, err)
 	})
 
 	t.Run("invalid manifest throws an error", func(t *testing.T) {
 		require.DirExists(t, "./testdata/invalid-manifests")
-		manifests, err := findManifests(logCtx, "./testdata/invalid-manifests", "./testdata/invalid-manifests", nil, noRecurse)
+		manifests, err := findManifests(logCtx, "./testdata/invalid-manifests", "./testdata/invalid-manifests", nil, noRecurse, resource.MustParse("0"))
 		assert.Empty(t, manifests)
 		assert.Error(t, err)
 	})
 
 	t.Run("irrelevant YAML gets skipped, relevant YAML gets parsed", func(t *testing.T) {
-		manifests, err := findManifests(logCtx, "./testdata/irrelevant-yaml", "./testdata/irrelevant-yaml", nil, noRecurse)
+		manifests, err := findManifests(logCtx, "./testdata/irrelevant-yaml", "./testdata/irrelevant-yaml", nil, noRecurse, resource.MustParse("0"))
 		assert.Len(t, manifests, 1)
 		assert.NoError(t, err)
 	})
 
 	t.Run("multiple JSON objects in one file throws an error", func(t *testing.T) {
 		require.DirExists(t, "./testdata/json-list")
-		manifests, err := findManifests(logCtx, "./testdata/json-list", "./testdata/json-list", nil, noRecurse)
+		manifests, err := findManifests(logCtx, "./testdata/json-list", "./testdata/json-list", nil, noRecurse, resource.MustParse("0"))
 		assert.Empty(t, manifests)
 		assert.Error(t, err)
 	})
 
 	t.Run("invalid JSON throws an error", func(t *testing.T) {
 		require.DirExists(t, "./testdata/invalid-json")
-		manifests, err := findManifests(logCtx, "./testdata/invalid-json", "./testdata/invalid-json", nil, noRecurse)
+		manifests, err := findManifests(logCtx, "./testdata/invalid-json", "./testdata/invalid-json", nil, noRecurse, resource.MustParse("0"))
 		assert.Empty(t, manifests)
 		assert.Error(t, err)
 	})
 
 	t.Run("valid JSON returns manifest and no error", func(t *testing.T) {
-		manifests, err := findManifests(logCtx, "./testdata/valid-json", "./testdata/valid-json", nil, noRecurse)
+		manifests, err := findManifests(logCtx, "./testdata/valid-json", "./testdata/valid-json", nil, noRecurse, resource.MustParse("0"))
 		assert.Len(t, manifests, 1)
 		assert.NoError(t, err)
 	})
 
 	t.Run("YAML with an empty document doesn't throw an error", func(t *testing.T) {
-		manifests, err := findManifests(logCtx, "./testdata/yaml-with-empty-document", "./testdata/yaml-with-empty-document", nil, noRecurse)
+		manifests, err := findManifests(logCtx, "./testdata/yaml-with-empty-document", "./testdata/yaml-with-empty-document", nil, noRecurse, resource.MustParse("0"))
 		assert.Len(t, manifests, 1)
 		assert.NoError(t, err)
 	})
