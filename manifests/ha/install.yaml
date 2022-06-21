@@ -10766,7 +10766,11 @@ spec:
             topologyKey: kubernetes.io/hostname
       automountServiceAccountToken: false
       containers:
-      - command:
+      - args:
+        - argocd-repo-server
+        - --redis
+        - $(ARGOCD_REDIS_SERVICE):6379
+        command:
         - entrypoint.sh
         - argocd-repo-server
         - --redis

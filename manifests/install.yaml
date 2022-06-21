@@ -10107,10 +10107,12 @@ spec:
             weight: 5
       automountServiceAccountToken: false
       containers:
-      - command:
-        - sh
-        - -c
-        - entrypoint.sh argocd-repo-server --redis argocd-redis:6379
+      - args:
+        - argocd-repo-server
+        - --redis
+        - argocd-redis:6379
+        command:
+        - entrypoint.sh
         env:
         - name: ARGOCD_RECONCILIATION_TIMEOUT
           valueFrom:
