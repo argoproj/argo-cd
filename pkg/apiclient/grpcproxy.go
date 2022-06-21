@@ -100,7 +100,11 @@ func (c *client) executeRequest(fullMethodName string, msg []byte, md metadata.M
 }
 
 func (c *client) startGRPCProxy() (*grpc.Server, net.Listener, error) {
-	serverAddr := fmt.Sprintf("%s/argocd-%s.sock", os.TempDir(), rand.RandString(16))
+	randSuffix, err := rand.String(16)
+	if err != nil {
+		return nil, nil, fmt.Errorf("failed to generate random socket filename: %w", err)
+	}
+	serverAddr := fmt.Sprintf("%s/argocd-%s.sock", os.TempDir(), randSuffix)
 	ln, err := net.Listen("unix", serverAddr)
 
 	if err != nil {

@@ -152,17 +152,23 @@ func (a *ClientApp) oauth2Config(scopes []string) (*oauth2.Config, error) {
 }
 
 // generateAppState creates an app state nonce
-func (a *ClientApp) generateAppState(returnURL string) string {
-	randStr := rand.RandString(10)
+func (a *ClientApp) generateAppState(returnURL string) (string, error) {
+	// According to the spec (https://www.rfc-editor.org/rfc/rfc6749#section-10.10), this must be guessable with
+	// probability <= 2^(-128). The following call generates one of 52^24 random strings, ~= 2^136 possibilities.
+	randStr, err := rand.String(24)
+	if err != nil {
+		return "", fmt.Errorf("failed to generate app state: %w", err)
+	}
 	if returnURL == "" {
 		returnURL = a.baseHRef
 	}
-	err := a.cache.SetOIDCState(randStr, &OIDCState{ReturnURL: returnURL})
+	err = a.cache.SetOIDCState(randStr, &OIDCState{ReturnURL: returnURL})
 	if err != nil {
 		// This should never happen with the in-memory cache
 		log.Errorf("Failed to set app state: %v", err)
+		return "", fmt.Errorf("failed to set app state: %v", err)
 	}
-	return randStr
+	return randStr, nil
 }
 
 func (a *ClientApp) verifyAppState(state string) (*OIDCState, error) {
@@ -251,14 +257,24 @@ func (a *ClientApp) HandleLogin(w http.ResponseWriter, r *http.Request) {
 		http.Error(w, "Invalid return_url", http.StatusBadRequest)
 		return
 	}
-	stateNonce := a.generateAppState(returnURL)
+	stateNonce, err := a.generateAppState(returnURL)
+	if err != nil {
+		log.Errorf("Failed to initiate login flow: %v", err)
+		http.Error(w, "Failed to initiate login flow", http.StatusInternalServerError)
+		return
+	}
 	grantType := InferGrantType(oidcConf)
 	var url string
 	switch grantType {
 	case GrantTypeAuthorizationCode:
 		url = oauth2Config.AuthCodeURL(stateNonce, opts...)
 	case GrantTypeImplicit:
-		url = ImplicitFlowURL(oauth2Config, stateNonce, opts...)
+		url, err = ImplicitFlowURL(oauth2Config, stateNonce, opts...)
+		if err != nil {
+			log.Errorf("Failed to initiate implicit login flow: %v", err)
+			http.Error(w, "Failed to initiate implicit login flow", http.StatusInternalServerError)
+			return
+		}
 	default:
 		http.Error(w, fmt.Sprintf("Unsupported grant type: %v", grantType), http.StatusInternalServerError)
 		return
@@ -390,10 +406,14 @@ func (a *ClientApp) handleImplicitFlow(w http.ResponseWriter, state string) {
 
 // ImplicitFlowURL is an adaptation of oauth2.Config::AuthCodeURL() which returns a URL
 // appropriate for an OAuth2 implicit login flow (as opposed to authorization code flow).
-func ImplicitFlowURL(c *oauth2.Config, state string, opts ...oauth2.AuthCodeOption) string {
+func ImplicitFlowURL(c *oauth2.Config, state string, opts ...oauth2.AuthCodeOption) (string, error) {
 	opts = append(opts, oauth2.SetAuthURLParam("response_type", "id_token"))
-	opts = append(opts, oauth2.SetAuthURLParam("nonce", rand.RandString(10)))
-	return c.AuthCodeURL(state, opts...)
+	randString, err := rand.String(24)
+	if err != nil {
+		return "", fmt.Errorf("failed to generate nonce for implicit flow URL: %w", err)
+	}
+	opts = append(opts, oauth2.SetAuthURLParam("nonce", randString))
+	return c.AuthCodeURL(state, opts...), nil
 }
 
 // OfflineAccess returns whether or not 'offline_access' is a supported scope
