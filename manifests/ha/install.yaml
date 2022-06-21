@@ -3709,7 +3709,7 @@ spec:
         - -n
         - /usr/local/bin/argocd
         - /shared/argocd-dex
-        image: quay.io/argoproj/argocd:v2.2.9
+        image: quay.io/argoproj/argocd:v2.2.10
         imagePullPolicy: Always
         name: copyutil
         volumeMounts:
@@ -3932,7 +3932,7 @@ spec:
           value: /helm-working-dir
         - name: HELM_DATA_HOME
           value: /helm-working-dir
-        image: quay.io/argoproj/argocd:v2.2.9
+        image: quay.io/argoproj/argocd:v2.2.10
         imagePullPolicy: Always
         livenessProbe:
           failureThreshold: 3
@@ -3981,7 +3981,7 @@ spec:
         - -n
         - /usr/local/bin/argocd
         - /var/run/argocd/argocd-cmp-server
-        image: quay.io/argoproj/argocd:v2.2.9
+        image: quay.io/argoproj/argocd:v2.2.10
         name: copyutil
         volumeMounts:
         - mountPath: /var/run/argocd
@@ -4208,7 +4208,7 @@ spec:
               key: server.http.cookie.maxnumber
               name: argocd-cmd-params-cm
               optional: true
-        image: quay.io/argoproj/argocd:v2.2.9
+        image: quay.io/argoproj/argocd:v2.2.10
         imagePullPolicy: Always
         livenessProbe:
           httpGet:
@@ -4404,7 +4404,7 @@ spec:
               key: controller.default.cache.expiration
               name: argocd-cmd-params-cm
               optional: true
-        image: quay.io/argoproj/argocd:v2.2.9
+        image: quay.io/argoproj/argocd:v2.2.10
         imagePullPolicy: Always
         livenessProbe:
           httpGet:
