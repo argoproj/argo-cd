@@ -27,6 +27,7 @@ import (
 	"github.com/spf13/cobra"
 	"google.golang.org/grpc/codes"
 	"google.golang.org/grpc/status"
+	"k8s.io/apimachinery/pkg/api/resource"
 	"k8s.io/apimachinery/pkg/apis/meta/v1/unstructured"
 	"k8s.io/apimachinery/pkg/runtime/schema"
 	"k8s.io/apimachinery/pkg/types"
@@ -766,7 +767,7 @@ func getLocalObjectsString(app *argoappv1.Application, local, localRepoRoot, app
 		KubeVersion:       kubeVersion,
 		Plugins:           configManagementPlugins,
 		TrackingMethod:    trackingMethod,
-	}, true)
+	}, true, resource.MustParse("0"))
 	errors.CheckError(err)
 
 	return res.Manifests
