@@ -25,6 +25,18 @@ func StartInformer(informer cache.SharedIndexInformer) context.CancelFunc {
 	return cancel
 }
 
+func StartRandomListener(ctx context.Context) (net.Listener, error) {
+	ln, err := net.Listen("tcp", "[::]:0")
+	if err != nil {
+		return nil, err
+	}
+	go func() {
+		<-ctx.Done()
+		_ = ln.Close()
+	}()
+	return ln, nil
+}
+
 // GetFreePort finds an available free port on the OS
 func GetFreePort() (int, error) {
 	ln, err := net.Listen("tcp", "[::]:0")

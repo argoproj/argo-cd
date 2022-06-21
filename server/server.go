@@ -271,6 +271,26 @@ const (
 	notObjectErrMsg = "object does not implement the Object interfaces"
 )
 
+func StartListener(ctx context.Context, host string, port int) (net.Listener, error) {
+	// Start listener
+	var conn net.Listener
+	var realErr error
+	_ = wait.ExponentialBackoff(backoff, func() (bool, error) {
+		conn, realErr = net.Listen("tcp", fmt.Sprintf("%s:%d", host, port))
+		if realErr != nil {
+			return false, nil
+		}
+		return true, nil
+	})
+	if realErr != nil {
+		go func() {
+			<-ctx.Done()
+			_ = conn.Close()
+		}()
+	}
+	return conn, realErr
+}
+
 func (a *ArgoCDServer) healthCheck(r *http.Request) error {
 	if val, ok := r.URL.Query()["full"]; ok && len(val) > 0 && val[0] == "true" {
 		argoDB := db.NewDB(a.Namespace, a.settingsMgr, a.KubeClientset)
@@ -286,7 +306,7 @@ func (a *ArgoCDServer) healthCheck(r *http.Request) error {
 // We use k8s.io/code-generator/cmd/go-to-protobuf to generate the .proto files from the API types.
 // k8s.io/ go-to-protobuf uses protoc-gen-gogo, which comes from gogo/protobuf (a fork of
 // golang/protobuf).
-func (a *ArgoCDServer) Run(ctx context.Context, port int, metricsPort int) {
+func (a *ArgoCDServer) Run(ctx context.Context, conn net.Listener, metricsConn net.Listener) {
 	a.userStateStorage.Init(ctx)
 
 	grpcS, appResourceTreeFn := a.newGRPCServer()
@@ -294,10 +314,10 @@ func (a *ArgoCDServer) Run(ctx context.Context, port int, metricsPort int) {
 	var httpS *http.Server
 	var httpsS *http.Server
 	if a.useTLS() {
-		httpS = newRedirectServer(port, a.RootPath)
-		httpsS = a.newHTTPServer(ctx, port, grpcWebS, appResourceTreeFn)
+		httpS = newRedirectServer(a.ListenPort, a.RootPath)
+		httpsS = a.newHTTPServer(ctx, a.ListenPort, grpcWebS, appResourceTreeFn)
 	} else {
-		httpS = a.newHTTPServer(ctx, port, grpcWebS, appResourceTreeFn)
+		httpS = a.newHTTPServer(ctx, a.ListenPort, grpcWebS, appResourceTreeFn)
 	}
 	if a.RootPath != "" {
 		httpS.Handler = withRootPath(httpS.Handler, a)
@@ -311,23 +331,10 @@ func (a *ArgoCDServer) Run(ctx context.Context, port int, metricsPort int) {
 		httpsS.Handler = &bug21955Workaround{handler: httpsS.Handler}
 	}
 
-	metricsServ := metrics.NewMetricsServer(a.ListenHost, metricsPort)
+	metricsServ := metrics.NewMetricsServer()
 	if a.RedisClient != nil {
 		cacheutil.CollectMetrics(a.RedisClient, metricsServ)
 	}
-
-	// Start listener
-	var conn net.Listener
-	var realErr error
-	_ = wait.ExponentialBackoff(backoff, func() (bool, error) {
-		conn, realErr = net.Listen("tcp", fmt.Sprintf("%s:%d", a.ListenHost, port))
-		if realErr != nil {
-			a.log.Warnf("failed listen: %v", realErr)
-			return false, nil
-		}
-		return true, nil
-	})
-	errors.CheckError(realErr)
 
 	// CMux is used to support servicing gRPC and HTTP1.1+JSON on the same port
 	tcpm := cmux.New(conn)
@@ -360,7 +367,7 @@ func (a *ArgoCDServer) Run(ctx context.Context, port int, metricsPort int) {
 
 	// Start the muxed listeners for our servers
 	log.Infof("argocd %s serving on port %d (url: %s, tls: %v, namespace: %s, sso: %v)",
-		common.GetVersion(), port, a.settings.URL, a.useTLS(), a.Namespace, a.settings.IsSSOConfigured())
+		common.GetVersion(), a.ListenPort, a.settings.URL, a.useTLS(), a.Namespace, a.settings.IsSSOConfigured())
 
 	go a.projInformer.Run(ctx.Done())
 	go a.appInformer.Run(ctx.Done())
@@ -374,17 +381,13 @@ func (a *ArgoCDServer) Run(ctx context.Context, port int, metricsPort int) {
 	go a.watchSettings()
 	go a.rbacPolicyLoader(ctx)
 	go func() { a.checkServeErr("tcpm", tcpm.Serve()) }()
-	go func() { a.checkServeErr("metrics", metricsServ.ListenAndServe()) }()
+	go func() { a.checkServeErr("metrics", metricsServ.Serve(metricsConn)) }()
 	if !cache.WaitForCacheSync(ctx.Done(), a.projInformer.HasSynced, a.appInformer.HasSynced) {
 		log.Fatal("Timed out waiting for project cache to sync")
 	}
 
 	a.stopCh = make(chan struct{})
 	<-a.stopCh
-	errors.CheckError(conn.Close())
-	if err := metricsServ.Shutdown(ctx); err != nil {
-		log.Fatalf("Failed to gracefully shutdown metrics server: %v", err)
-	}
 }
 
 func (a *ArgoCDServer) Initialized() bool {

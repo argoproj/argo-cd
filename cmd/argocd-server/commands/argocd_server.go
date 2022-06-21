@@ -152,6 +152,10 @@ func NewCommand() *cobra.Command {
 			stats.RegisterStackDumper()
 			stats.StartStatsTicker(10 * time.Minute)
 			stats.RegisterHeapDumper("memprofile")
+			conn, err := server.StartListener(context.Background(), "", listenPort)
+			errors.CheckError(err)
+			metricsConn, err := server.StartListener(context.Background(), "", metricsPort)
+			errors.CheckError(err)
 
 			for {
 				var closer func()
@@ -164,7 +168,7 @@ func NewCommand() *cobra.Command {
 					}
 				}
 				argocd := server.NewServer(ctx, argoCDOpts)
-				argocd.Run(ctx, listenPort, metricsPort)
+				argocd.Run(ctx, conn, metricsConn)
 				cancel()
 				if closer != nil {
 					closer()

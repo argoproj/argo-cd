@@ -1,7 +1,6 @@
 package metrics
 
 import (
-	"fmt"
 	"net/http"
 	"strconv"
 	"time"
@@ -37,7 +36,7 @@ var (
 )
 
 // NewMetricsServer returns a new prometheus server which collects api server metrics
-func NewMetricsServer(host string, port int) *MetricsServer {
+func NewMetricsServer() *MetricsServer {
 	mux := http.NewServeMux()
 	registry := prometheus.NewRegistry()
 	mux.Handle("/metrics", promhttp.HandlerFor(prometheus.Gatherers{
@@ -51,7 +50,6 @@ func NewMetricsServer(host string, port int) *MetricsServer {
 
 	return &MetricsServer{
 		Server: &http.Server{
-			Addr:    fmt.Sprintf("%s:%d", host, port),
 			Handler: mux,
 		},
 		redisRequestCounter:   redisRequestCounter,

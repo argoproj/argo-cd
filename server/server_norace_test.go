@@ -21,6 +21,8 @@ import (
 )
 
 func TestUserAgent(t *testing.T) {
+	ctx, cancel := context.WithCancel(context.Background())
+	defer cancel()
 
 	// !race:
 	// A data race in go-client's `shared_informer.go`, between `sharedProcessor.run(...)` and itself. Based on
@@ -31,16 +33,15 @@ func TestUserAgent(t *testing.T) {
 	defer closer()
 	cancelInformer := test.StartInformer(s.projInformer)
 	defer cancelInformer()
-	port, err := test.GetFreePort()
+	conn, err := test.StartRandomListener(ctx)
 	assert.NoError(t, err)
-	metricsPort, err := test.GetFreePort()
+	metricsConn, err := test.StartRandomListener(ctx)
 	assert.NoError(t, err)
-	ctx, cancel := context.WithCancel(context.Background())
-	defer cancel()
-	go s.Run(ctx, port, metricsPort)
+
+	go s.Run(ctx, conn, metricsConn)
 	defer func() { time.Sleep(3 * time.Second) }()
 
-	err = test.WaitForPortListen(fmt.Sprintf("127.0.0.1:%d", port), 10*time.Second)
+	err = test.WaitForPortListen(fmt.Sprintf("127.0.0.1:%d", conn), 10*time.Second)
 	assert.NoError(t, err)
 
 	type testData struct {
@@ -72,7 +73,7 @@ func TestUserAgent(t *testing.T) {
 
 	for _, test := range tests {
 		opts := apiclient.ClientOptions{
-			ServerAddr: fmt.Sprintf("localhost:%d", port),
+			ServerAddr: fmt.Sprintf("localhost:%d", conn),
 			PlainText:  true,
 			UserAgent:  test.userAgent,
 		}
@@ -91,6 +92,8 @@ func TestUserAgent(t *testing.T) {
 }
 
 func Test_StaticHeaders(t *testing.T) {
+	ctx, cancel := context.WithCancel(context.Background())
+	defer cancel()
 
 	// !race:
 	// Same as TestUserAgent
@@ -101,23 +104,23 @@ func Test_StaticHeaders(t *testing.T) {
 		defer closer()
 		cancelInformer := test.StartInformer(s.projInformer)
 		defer cancelInformer()
-		port, err := test.GetFreePort()
+		conn, err := test.StartRandomListener(ctx)
 		assert.NoError(t, err)
-		metricsPort, err := test.GetFreePort()
+		metricsConn, err := test.StartRandomListener(ctx)
 		assert.NoError(t, err)
 		ctx, cancel := context.WithCancel(context.Background())
 		defer cancel()
-		go s.Run(ctx, port, metricsPort)
+		go s.Run(ctx, conn, metricsConn)
 		defer func() { time.Sleep(3 * time.Second) }()
 
-		err = test.WaitForPortListen(fmt.Sprintf("127.0.0.1:%d", port), 10*time.Second)
+		err = test.WaitForPortListen(fmt.Sprintf("127.0.0.1:%d", conn), 10*time.Second)
 		assert.NoError(t, err)
 
 		// Allow server startup
 		time.Sleep(1 * time.Second)
 
 		client := http.Client{}
-		url := fmt.Sprintf("http://127.0.0.1:%d/test.html", port)
+		url := fmt.Sprintf("http://127.0.0.1:%d/test.html", conn)
 		req, err := http.NewRequest("GET", url, nil)
 		assert.NoError(t, err)
 		resp, err := client.Do(req)
@@ -134,23 +137,23 @@ func Test_StaticHeaders(t *testing.T) {
 		s.ContentSecurityPolicy = "frame-ancestors 'none';"
 		cancelInformer := test.StartInformer(s.projInformer)
 		defer cancelInformer()
-		port, err := test.GetFreePort()
+		conn, err := test.StartRandomListener(ctx)
 		assert.NoError(t, err)
-		metricsPort, err := test.GetFreePort()
+		metricsConn, err := test.StartRandomListener(ctx)
 		assert.NoError(t, err)
 		ctx, cancel := context.WithCancel(context.Background())
 		defer cancel()
-		go s.Run(ctx, port, metricsPort)
+		go s.Run(ctx, conn, metricsConn)
 		defer func() { time.Sleep(3 * time.Second) }()
 
-		err = test.WaitForPortListen(fmt.Sprintf("127.0.0.1:%d", port), 10*time.Second)
+		err = test.WaitForPortListen(fmt.Sprintf("127.0.0.1:%d", conn), 10*time.Second)
 		assert.NoError(t, err)
 
 		// Allow server startup
 		time.Sleep(1 * time.Second)
 
 		client := http.Client{}
-		url := fmt.Sprintf("http://127.0.0.1:%d/test.html", port)
+		url := fmt.Sprintf("http://127.0.0.1:%d/test.html", conn)
 		req, err := http.NewRequest("GET", url, nil)
 		assert.NoError(t, err)
 		resp, err := client.Do(req)
@@ -167,23 +170,23 @@ func Test_StaticHeaders(t *testing.T) {
 		s.ContentSecurityPolicy = ""
 		cancelInformer := test.StartInformer(s.projInformer)
 		defer cancelInformer()
-		port, err := test.GetFreePort()
+		conn, err := test.StartRandomListener(ctx)
 		assert.NoError(t, err)
-		metricsPort, err := test.GetFreePort()
+		metricsConn, err := test.StartRandomListener(ctx)
 		assert.NoError(t, err)
 		ctx, cancel := context.WithCancel(context.Background())
 		defer cancel()
-		go s.Run(ctx, port, metricsPort)
+		go s.Run(ctx, conn, metricsConn)
 		defer func() { time.Sleep(3 * time.Second) }()
 
-		err = test.WaitForPortListen(fmt.Sprintf("127.0.0.1:%d", port), 10*time.Second)
+		err = test.WaitForPortListen(fmt.Sprintf("127.0.0.1:%d", conn), 10*time.Second)
 		assert.NoError(t, err)
 
 		// Allow server startup
 		time.Sleep(1 * time.Second)
 
 		client := http.Client{}
-		url := fmt.Sprintf("http://127.0.0.1:%d/test.html", port)
+		url := fmt.Sprintf("http://127.0.0.1:%d/test.html", conn)
 		req, err := http.NewRequest("GET", url, nil)
 		assert.NoError(t, err)
 		resp, err := client.Do(req)
