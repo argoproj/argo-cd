@@ -1356,8 +1356,12 @@ func populateHelmAppDetails(res *apiclient.RepoAppDetailsResponse, appPath strin
 		return err
 	}
 
-	if err := loadFileIntoIfExists(filepath.Join(appPath, "values.yaml"), &res.Helm.Values); err != nil {
-		return err
+	if resolvedValuesPath, _, err := pathutil.ResolveFilePath(appPath, repoRoot, "values.yaml", []string{}); err == nil {
+		if err := loadFileIntoIfExists(resolvedValuesPath, &res.Helm.Values); err != nil {
+			return err
+		}
+	} else {
+		log.Warnf("Values file %s is not allowed: %v", filepath.Join(appPath, "values.yaml"), err)
 	}
 	var resolvedSelectedValueFiles []pathutil.ResolvedFilePath
 	// drop not allowed values files
@@ -1365,10 +1369,10 @@ func populateHelmAppDetails(res *apiclient.RepoAppDetailsResponse, appPath strin
 		if resolvedFile, _, err := pathutil.ResolveFilePath(appPath, repoRoot, file, q.GetValuesFileSchemes()); err == nil {
 			resolvedSelectedValueFiles = append(resolvedSelectedValueFiles, resolvedFile)
 		} else {
-			log.Debugf("Values file %s is not allowed: %v", file, err)
+			log.Warnf("Values file %s is not allowed: %v", file, err)
 		}
 	}
-	params, err := h.GetParameters(resolvedSelectedValueFiles)
+	params, err := h.GetParameters(resolvedSelectedValueFiles, appPath, repoRoot)
 	if err != nil {
 		return err
 	}
@@ -1387,15 +1391,16 @@ func populateHelmAppDetails(res *apiclient.RepoAppDetailsResponse, appPath strin
 	return nil
 }
 
-func loadFileIntoIfExists(path string, destination *string) error {
-	info, err := os.Stat(path)
+func loadFileIntoIfExists(path pathutil.ResolvedFilePath, destination *string) error {
+	stringPath := string(path)
+	info, err := os.Stat(stringPath)
 
 	if err == nil && !info.IsDir() {
-		if bytes, err := ioutil.ReadFile(path); err != nil {
-			*destination = string(bytes)
-		} else {
+		bytes, err := ioutil.ReadFile(stringPath);
+		if err != nil {
 			return err
 		}
+		*destination = string(bytes)
 	}
 
 	return nil

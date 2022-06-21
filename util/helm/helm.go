@@ -6,9 +6,11 @@ import (
 	"net/url"
 	"os"
 	"os/exec"
+	"path/filepath"
 	"strings"
 
 	"github.com/ghodss/yaml"
+	log "github.com/sirupsen/logrus"
 
 	"github.com/argoproj/argo-cd/v2/util/config"
 	executil "github.com/argoproj/argo-cd/v2/util/exec"
@@ -27,7 +29,7 @@ type Helm interface {
 	// Template returns a list of unstructured objects from a `helm template` command
 	Template(opts *TemplateOpts) (string, error)
 	// GetParameters returns a list of chart parameters taking into account values in provided YAML files.
-	GetParameters(valuesFiles []pathutil.ResolvedFilePath) (map[string]string, error)
+	GetParameters(valuesFiles []pathutil.ResolvedFilePath, appPath, repoRoot string) (map[string]string, error)
 	// DependencyBuild runs `helm dependency build` to download a chart's dependencies
 	DependencyBuild() error
 	// Init runs `helm init --client-only`
@@ -129,12 +131,19 @@ func Version(shortForm bool) (string, error) {
 	return strings.TrimSpace(version), nil
 }
 
-func (h *helm) GetParameters(valuesFiles []pathutil.ResolvedFilePath) (map[string]string, error) {
-	out, err := h.cmd.inspectValues(".")
-	if err != nil {
-		return nil, err
+func (h *helm) GetParameters(valuesFiles []pathutil.ResolvedFilePath, appPath, repoRoot string) (map[string]string, error) {
+	var values []string
+	// Don't load values.yaml if it's an out-of-bounds link.
+	if resolved, _, err := pathutil.ResolveFilePath(appPath, repoRoot, "values.yaml", []string{}); err == nil {
+		fmt.Println(resolved)
+		out, err := h.cmd.inspectValues(".")
+		if err != nil {
+			return nil, err
+		}
+		values = append(values, out)
+	} else {
+		log.Warnf("Values file %s is not allowed: %v", filepath.Join(appPath, "values.yaml"), err)
 	}
-	values := []string{out}
 	for i := range valuesFiles {
 		file := string(valuesFiles[i])
 		var fileValues []byte
@@ -156,7 +165,7 @@ func (h *helm) GetParameters(valuesFiles []pathutil.ResolvedFilePath) (map[strin
 	output := map[string]string{}
 	for _, file := range values {
 		values := map[string]interface{}{}
-		if err = yaml.Unmarshal([]byte(file), &values); err != nil {
+		if err := yaml.Unmarshal([]byte(file), &values); err != nil {
 			return nil, fmt.Errorf("failed to parse values: %s", err)
 		}
 		flatVals(values, output)
