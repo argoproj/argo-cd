@@ -1,8 +1,9 @@
 package v1alpha1
 
 import (
-	"github.com/stretchr/testify/assert"
 	"testing"
+
+	"github.com/stretchr/testify/assert"
 )
 
 func TestIsDestinationPermitted(t *testing.T) {
