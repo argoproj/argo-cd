@@ -25,9 +25,6 @@ DOCKER_WORKDIR?=/go/src/github.com/argoproj/argo-cd
 
 ARGOCD_PROCFILE?=Procfile
 
-# Strict mode has been disabled in latest versions of mkdocs-material. 
-# Thus pointing to the older image of mkdocs-material matching the version used by argo-cd.
-MKDOCS_DOCKER_IMAGE?=squidfunk/mkdocs-material:4.1.1
 MKDOCS_RUN_ARGS?=
 
 # Configuration for building argocd-test-tools image
@@ -188,28 +185,13 @@ openapigen: ensure-gopath
 	export GO111MODULE=off
 	./hack/update-openapi.sh
 
-.PHONY: notification-catalog
-notification-catalog:
-	go run ./hack/gen-catalog catalog
-
-.PHONY: notification-docs
-notification-docs:
-	go run ./hack/gen-docs
-	go run ./hack/gen-catalog docs
-
-
 .PHONY: clientgen
 clientgen: ensure-gopath
 	export GO111MODULE=off
 	./hack/update-codegen.sh
 
-.PHONY: clidocsgen
-clidocsgen: ensure-gopath
-	go run tools/cmd-docs/main.go	
-
-
 .PHONY: codegen-local
-codegen-local: ensure-gopath mod-vendor-local gogen protogen clientgen openapigen clidocsgen manifests-local notification-docs notification-catalog
+codegen-local: ensure-gopath mod-vendor-local gogen protogen clientgen openapigen manifests-local
 	rm -rf vendor/
 
 .PHONY: codegen
@@ -492,23 +474,6 @@ release-precheck: manifests
 
 .PHONY: release
 release: pre-commit release-precheck image release-cli
-
-.PHONY: build-docs-local
-build-docs-local:
-	mkdocs build
-
-.PHONY: build-docs
-build-docs:
-	docker run ${MKDOCS_RUN_ARGS} --rm -it -p 8000:8000 -v ${CURRENT_DIR}:/docs ${MKDOCS_DOCKER_IMAGE} build
-
-.PHONY: serve-docs-local
-serve-docs-local:
-	mkdocs serve
-
-.PHONY: serve-docs
-serve-docs:
-	docker run ${MKDOCS_RUN_ARGS} --rm -it -p 8000:8000 -v ${CURRENT_DIR}:/docs ${MKDOCS_DOCKER_IMAGE} serve -a 0.0.0.0:8000
-
 
 # Verify that kubectl can connect to your K8s cluster from Docker
 .PHONY: verify-kube-connect
