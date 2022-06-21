@@ -211,3 +211,44 @@ can be found in [server/server.go](https://github.com/argoproj/argo-cd/blob/abba
 
 Argo CD does not log IP addresses of clients requesting API endpoints, since the API server is typically behind a proxy. Instead, it is recommended
 to configure IP addresses logging in the proxy server that sits in front of the API server.
+
+## Limiting Directory App Memory Usage
+
+> >2.2.10, 2.1.16, >2.3.5
+
+Directory-type Applications (those whose source is raw JSON or YAML files) can consume significant
+[repo-server](architecture.md#repository-server) memory, depending on the size and structure of the YAML files.
+
+To avoid over-using memory in the repo-server (potentially causing a crash and denial of service), set the
+`reposerver.max.combined.directory.manifests.size` config option in [argocd-cmd-params-cm](argocd-cmd-params-cm.yaml).
+
+This option limits the combined size of all JSON or YAML files in an individual app. Note that the in-memory
+representation of a manifest may be as much as 300x the size of the manifest on disk. Also note that the limit is per
+Application. If manifests are generated for multiple applications at once, memory usage will be higher.
+
+**Example:**
+
+Suppose your repo-server has a 10G memory limit, and you have ten Applications which use raw JSON or YAML files. To
+calculate the max safe combined file size per Application, divide 10G by 300 * 10 Apps (300 being the worst-case memory
+growth factor for the manifests).
+
+```
+10G / 300 * 10 = 3M
+```
+
+So a reasonably safe configuration for this setup would be a 3M limit per app.
+
+```yaml
+apiVersion: v1
+kind: ConfigMap
+metadata:
+  name: argocd-cmd-params-cm
+data:
+  reposerver.max.combined.directory.manifests.size: '3M'
+```
+
+The 300x ratio assumes a maliciously-crafted manifest file. If you only want to protect against accidental excessive
+memory use, it is probably safe to use a smaller ratio.
+
+Keep in mind that if a malicious user can create additional Applications, they can increase the total memory usage.
+Grant [App creation privileges](rbac.md) carefully.
