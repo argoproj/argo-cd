@@ -1125,11 +1125,13 @@ func TestListApps(t *testing.T) {
 		"app-parameters/single-app-only": "Kustomize",
 		"app-parameters/single-global":   "Kustomize",
 		"invalid-helm":                   "Helm",
+		"in-bounds-values-file-link":     "Helm",
 		"invalid-kustomize":              "Kustomize",
 		"kustomization_yaml":             "Kustomize",
 		"kustomization_yml":              "Kustomize",
 		"my-chart":                       "Helm",
 		"my-chart-2":                     "Helm",
+		"out-of-bounds-values-file-link": "Helm",
 		"values-files":                   "Helm",
 	}
 	assert.Equal(t, expectedApps, res.Apps)
@@ -2026,4 +2028,24 @@ func Test_populateHelmAppDetails(t *testing.T) {
 	require.NoError(t, err)
 	assert.Len(t, res.Helm.Parameters, 3)
 	assert.Len(t, res.Helm.ValueFiles, 4)
+}
+
+func Test_populateHelmAppDetails_values_symlinks(t *testing.T) {
+	t.Run("inbound", func(t *testing.T) {
+		res := apiclient.RepoAppDetailsResponse{}
+		q := apiclient.RepoServerAppDetailsQuery{Repo: &argoappv1.Repository{}, Source: &argoappv1.ApplicationSource{}}
+		err := populateHelmAppDetails(&res, "./testdata/in-bounds-values-file-link/", "./testdata/in-bounds-values-file-link/", &q)
+		require.NoError(t, err)
+		assert.NotEmpty(t, res.Helm.Values)
+		assert.NotEmpty(t, res.Helm.Parameters)
+	})
+
+	t.Run("out of bounds", func(t *testing.T) {
+		res := apiclient.RepoAppDetailsResponse{}
+		q := apiclient.RepoServerAppDetailsQuery{Repo: &argoappv1.Repository{}, Source: &argoappv1.ApplicationSource{}}
+		err := populateHelmAppDetails(&res, "./testdata/out-of-bounds-values-file-link/", "./testdata/out-of-bounds-values-file-link/", &q)
+		require.NoError(t, err)
+		assert.Empty(t, res.Helm.Values)
+		assert.Empty(t, res.Helm.Parameters)
+	})
 }
