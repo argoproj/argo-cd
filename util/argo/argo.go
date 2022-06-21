@@ -382,7 +382,7 @@ func ValidatePermissions(ctx context.Context, spec *argoappv1.ApplicationSpec, p
 	}
 
 	if spec.Destination.Server != "" {
-		if !proj.IsDestinationPermitted(spec.Destination) {
+		if !proj.IsDestinationPermitted(spec.Destination, "", nil) {
 			conditions = append(conditions, argoappv1.ApplicationCondition{
 				Type:    argoappv1.ApplicationConditionInvalidSpecError,
 				Message: fmt.Sprintf("application destination {%s %s} is not permitted in project '%s'", spec.Destination.Server, spec.Destination.Namespace, spec.Project),

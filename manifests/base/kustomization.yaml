@@ -12,4 +12,3 @@ resources:
 - ./server
 - ./config
 - ./redis
-- ./notification
