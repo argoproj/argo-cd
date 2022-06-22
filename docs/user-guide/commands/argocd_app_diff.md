@@ -15,14 +15,13 @@ argocd app diff APPNAME [flags]
 ### Options
 
 ```
-      --controller-namespace string   Argo CD installation namespace (default "argocd")
-      --exit-code                     Return non-zero exit code when there is a diff (default true)
-      --hard-refresh                  Refresh application data as well as target manifests cache
-  -h, --help                          help for diff
-      --local string                  Compare live app to a local manifests
-      --local-repo-root string        Path to the repository root. Used together with --local allows setting the repository root (default "/")
-      --refresh                       Refresh application data when retrieving
-      --revision string               Compare live app to a particular revision
+      --exit-code                Return non-zero exit code when there is a diff (default true)
+      --hard-refresh             Refresh application data as well as target manifests cache
+  -h, --help                     help for diff
+      --local string             Compare live app to a local manifests
+      --local-repo-root string   Path to the repository root. Used together with --local allows setting the repository root (default "/")
+      --refresh                  Refresh application data when retrieving
+      --revision string          Compare live app to a particular revision
 ```
 
 ### Options inherited from parent commands
