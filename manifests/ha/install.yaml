@@ -10466,9 +10466,10 @@ spec:
         app.kubernetes.io/name: argocd-applicationset-controller
     spec:
       containers:
-      - command:
-        - entrypoint.sh
+      - args:
         - argocd-applicationset-controller
+        command:
+        - entrypoint.sh
         env:
         - name: NAMESPACE
           valueFrom:
@@ -10769,12 +10770,9 @@ spec:
       - args:
         - argocd-repo-server
         - --redis
-        - $(ARGOCD_REDIS_SERVICE):6379
+        - argocd-redis-ha-haproxy:6379
         command:
         - entrypoint.sh
-        - argocd-repo-server
-        - --redis
-        - argocd-redis-ha-haproxy:6379
         env:
         - name: ARGOCD_RECONCILIATION_TIMEOUT
           valueFrom:

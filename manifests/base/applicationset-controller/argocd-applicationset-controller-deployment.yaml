@@ -18,6 +18,7 @@ spec:
       containers:
         - command:
             - entrypoint.sh
+          args:
             - argocd-applicationset-controller
           image: quay.io/argoproj/argocd:latest
           imagePullPolicy: Always

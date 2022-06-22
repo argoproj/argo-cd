@@ -83,6 +83,7 @@ spec:
       containers:
       - command:
         - entrypoint.sh
+        args:
         - argocd-applicationset-controller
         # Insert new parameters here, for example:
         # --policy create-only

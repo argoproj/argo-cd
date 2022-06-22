@@ -9838,9 +9838,10 @@ spec:
         app.kubernetes.io/name: argocd-applicationset-controller
     spec:
       containers:
-      - command:
-        - entrypoint.sh
+      - args:
         - argocd-applicationset-controller
+        command:
+        - entrypoint.sh
         env:
         - name: NAMESPACE
           valueFrom:

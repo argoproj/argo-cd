@@ -83,6 +83,7 @@ do following changes in manifests/install.yaml
       containers:
       - command:
         - entrypoint.sh
+      - args:  
         - argocd-applicationset-controller
         - --enable-leader-election=true
 ```

@@ -24,6 +24,7 @@ spec:
       - name: argocd-repo-server
         command:
         - entrypoint.sh
+        args:
         - argocd-repo-server
         - --redis
         - "argocd-redis-ha-haproxy:6379"
