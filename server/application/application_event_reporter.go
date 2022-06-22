@@ -363,19 +363,13 @@ func getResourceEventPayload(
 		}
 	}
 
-	revision := a.Status.Sync.Revision
-
-	if !isApp(*rs) {
-		revision = manifestsResponse.Revision
-	}
-
 	source := events.ObjectSource{
 		DesiredManifest: desiredState.CompiledManifest,
 		ActualManifest:  actualState.Manifest,
 		GitManifest:     desiredState.RawManifest,
 		RepoURL:         a.Status.Sync.ComparedTo.Source.RepoURL,
 		Path:            desiredState.Path,
-		Revision:        revision,
+		Revision:        a.Status.Sync.Revision,
 		CommitMessage:   manifestsResponse.CommitMessage,
 		CommitAuthor:    manifestsResponse.CommitAuthor,
 		CommitDate:      manifestsResponse.CommitDate,
