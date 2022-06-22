@@ -2,9 +2,8 @@ package application
 
 import (
 	"encoding/json"
-	"testing"
-
 	"github.com/argoproj/argo-cd/v2/pkg/apis/application"
+	"testing"
 
 	"github.com/stretchr/testify/assert"
 	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
