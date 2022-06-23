@@ -87,10 +87,10 @@ export const ResourceDetails = (props: ResourceDetailsProps) => {
                 });
             }
 
-            const onClickContainer = (group: any, i: number, tab: string) => {
+            const onClickContainer = (group: any, i: number, activeTab: string) => {
                 setActiveContainer(group.offset + i);
-                SelectNode(selectedNodeKey, activeContainer, tab, appContext);
-            }
+                SelectNode(selectedNodeKey, activeContainer, activeTab, appContext);
+            };
 
             tabs = tabs.concat([
                 {
@@ -126,8 +126,8 @@ export const ResourceDetails = (props: ResourceDetailsProps) => {
                             <PodTerminalViewer
                                 applicationName={application.metadata.name}
                                 projectName={application.spec.project}
-                                podState={podState} 
-                                selectedNode={selectedNode} 
+                                podState={podState}
+                                selectedNode={selectedNode}
                                 containerName={AppUtils.getContainerName(podState, activeContainer)}
                                 onClickContainer={onClickContainer}
                             />

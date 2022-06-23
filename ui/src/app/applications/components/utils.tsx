@@ -1060,7 +1060,7 @@ export function parseApiVersion(apiVersion: string): {group: string; version: st
 }
 
 export function getContainerName(pod: any, containerIndex: number | null): string {
-    if(containerIndex == null && pod.metadata?.annotations?.['kubectl.kubernetes.io/default-container']) {
+    if (containerIndex == null && pod.metadata?.annotations?.['kubectl.kubernetes.io/default-container']) {
         return pod.metadata?.annotations?.['kubectl.kubernetes.io/default-container'];
     }
     const containers = (pod.spec.containers || []).concat(pod.spec.initContainers || []);
