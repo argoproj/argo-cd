@@ -851,10 +851,10 @@ spec:
             drop:
             - ALL
       securityContext:
-          runAsNonRoot: true
-          runAsUser: 999
-          seccompProfile:
-            type: RuntimeDefault
+        runAsNonRoot: true
+        runAsUser: 999
+        seccompProfile:
+          type: RuntimeDefault
       serviceAccountName: argocd-redis
 ---
 apiVersion: apps/v1
