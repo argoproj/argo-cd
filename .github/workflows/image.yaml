@@ -19,7 +19,7 @@ concurrency:
 jobs:
   publish:
     if: github.repository == 'argoproj/argo-cd'
-    runs-on: ubuntu-latest
+    runs-on: ubuntu-22.04
     env:
       GOPATH: /home/runner/work/argo-cd/argo-cd
     steps:

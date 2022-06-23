@@ -132,7 +132,7 @@ var backoff = wait.Backoff{
 
 var (
 	clientConstraint = fmt.Sprintf(">= %s", common.MinClientVersion)
-	baseHRefRegex    = regexp.MustCompile(`<base href="(.*)">`)
+	baseHRefRegex    = regexp.MustCompile(`<base href="(.*?)">`)
 	// limits number of concurrent login requests to prevent password brute forcing. If set to 0 then no limit is enforced.
 	maxConcurrentLoginRequestsCount = 50
 	replicasCount                   = 1
@@ -893,7 +893,7 @@ func (s *ArgoCDServer) getIndexData() ([]byte, error) {
 		if s.BaseHRef == "/" || s.BaseHRef == "" {
 			s.indexData = data
 		} else {
-			s.indexData = []byte(baseHRefRegex.ReplaceAllString(string(data), fmt.Sprintf(`<base href="/%s/">`, strings.Trim(s.BaseHRef, "/"))))
+			s.indexData = []byte(replaceBaseHRef(string(data), fmt.Sprintf(`<base href="/%s/">`, strings.Trim(s.BaseHRef, "/"))))
 		}
 	})
 
@@ -976,6 +976,10 @@ func mustRegisterGWHandler(register registerFunc, ctx context.Context, mux *runt
 	if err != nil {
 		panic(err)
 	}
+}
+
+func replaceBaseHRef(data string, replaceWith string) string {
+	return baseHRefRegex.ReplaceAllString(data, replaceWith)
 }
 
 // Authenticate checks for the presence of a valid token when accessing server-side resources.

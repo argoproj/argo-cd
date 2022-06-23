@@ -158,7 +158,7 @@ argocd admin settings rbac can someuser create application 'default/app' --defau
 				log.Fatalf("could not create k8s client: %v", err)
 			}
 
-			userPolicy, newDefaultRole = getPolicy(policyFile, realClientset, namespace)
+			userPolicy, newDefaultRole, matchMode := getPolicy(policyFile, realClientset, namespace)
 
 			// Use built-in policy as augmentation if requested
 			if useBuiltin {
@@ -171,7 +171,7 @@ argocd admin settings rbac can someuser create application 'default/app' --defau
 				defaultRole = newDefaultRole
 			}
 
-			res := checkPolicy(subject, action, resource, subResource, builtinPolicy, userPolicy, defaultRole, strict)
+			res := checkPolicy(subject, action, resource, subResource, builtinPolicy, userPolicy, defaultRole, matchMode, strict)
 			if res {
 				if !quiet {
 					fmt.Println("Yes")
@@ -213,7 +213,7 @@ a local file, and in either CSV or K8s ConfigMap format.
 				c.HelpFunc()(c, args)
 				log.Fatalf("Please specify policy to validate using --policy-file")
 			}
-			userPolicy, _ := getPolicy(policyFile, nil, "")
+			userPolicy, _, _ := getPolicy(policyFile, nil, "")
 			if userPolicy != "" {
 				if err := rbac.ValidatePolicy(userPolicy); err == nil {
 					fmt.Printf("Policy is valid.\n")
@@ -232,11 +232,11 @@ a local file, and in either CSV or K8s ConfigMap format.
 
 // Load user policy file if requested or use Kubernetes client to get the
 // appropriate ConfigMap from the current context
-func getPolicy(policyFile string, kubeClient kubernetes.Interface, namespace string) (userPolicy string, defaultRole string) {
+func getPolicy(policyFile string, kubeClient kubernetes.Interface, namespace string) (userPolicy string, defaultRole string, matchMode string) {
 	var err error
 	if policyFile != "" {
 		// load from file
-		userPolicy, defaultRole, err = getPolicyFromFile(policyFile)
+		userPolicy, defaultRole, matchMode, err = getPolicyFromFile(policyFile)
 		if err != nil {
 			log.Fatalf("could not read policy file: %v", err)
 		}
@@ -245,23 +245,24 @@ func getPolicy(policyFile string, kubeClient kubernetes.Interface, namespace str
 		if err != nil {
 			log.Fatalf("could not get configmap: %v", err)
 		}
-		userPolicy, defaultRole = getPolicyFromConfigMap(cm)
+		userPolicy, defaultRole, matchMode = getPolicyFromConfigMap(cm)
 	}
 
-	return userPolicy, defaultRole
+	return userPolicy, defaultRole, matchMode
 }
 
 // getPolicyFromFile loads a RBAC policy from given path
-func getPolicyFromFile(policyFile string) (string, string, error) {
+func getPolicyFromFile(policyFile string) (string, string, string, error) {
 	var (
 		userPolicy  string
 		defaultRole string
+		matchMode   string
 	)
 
 	upol, err := ioutil.ReadFile(policyFile)
 	if err != nil {
 		log.Fatalf("error opening policy file: %v", err)
-		return "", "", err
+		return "", "", "", err
 	}
 
 	// Try to unmarshal the input file as ConfigMap first. If it succeeds, we
@@ -271,14 +272,14 @@ func getPolicyFromFile(policyFile string) (string, string, error) {
 	if err != nil {
 		userPolicy = string(upol)
 	} else {
-		userPolicy, defaultRole = getPolicyFromConfigMap(upolCM)
+		userPolicy, defaultRole, matchMode = getPolicyFromConfigMap(upolCM)
 	}
 
-	return userPolicy, defaultRole, nil
+	return userPolicy, defaultRole, matchMode, nil
 }
 
 // Retrieve policy information from a ConfigMap
-func getPolicyFromConfigMap(cm *corev1.ConfigMap) (string, string) {
+func getPolicyFromConfigMap(cm *corev1.ConfigMap) (string, string, string) {
 	var (
 		userPolicy  string
 		defaultRole string
@@ -295,7 +296,7 @@ func getPolicyFromConfigMap(cm *corev1.ConfigMap) (string, string) {
 		}
 	}
 
-	return userPolicy, defaultRole
+	return userPolicy, defaultRole, cm.Data[rbac.ConfigMapMatchModeKey]
 }
 
 // getPolicyConfigMap fetches the RBAC config map from K8s cluster
@@ -309,9 +310,10 @@ func getPolicyConfigMap(client kubernetes.Interface, namespace string) (*corev1.
 
 // checkPolicy checks whether given subject is allowed to execute specified
 // action against specified resource
-func checkPolicy(subject, action, resource, subResource, builtinPolicy, userPolicy, defaultRole string, strict bool) bool {
+func checkPolicy(subject, action, resource, subResource, builtinPolicy, userPolicy, defaultRole, matchMode string, strict bool) bool {
 	enf := rbac.NewEnforcer(nil, "argocd", "argocd-rbac-cm", nil)
 	enf.SetDefaultRole(defaultRole)
+	enf.SetMatchMode(matchMode)
 	if builtinPolicy != "" {
 		if err := enf.SetBuiltinPolicy(builtinPolicy); err != nil {
 			log.Fatalf("could not set built-in policy: %v", err)

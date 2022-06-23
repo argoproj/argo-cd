@@ -583,7 +583,7 @@ func TestAuthenticate_3rd_party_JWTs(t *testing.T) {
 			anonymousEnabled:      false,
 			claims:                jwt.RegisteredClaims{Audience: jwt.ClaimStrings{"test-client"}, Subject: "admin", ExpiresAt: jwt.NewNumericDate(time.Now())},
 			expectedErrorContains: "token is expired",
-			expectedClaims:        jwt.RegisteredClaims{Issuer:"sso"},
+			expectedClaims:        jwt.RegisteredClaims{Issuer: "sso"},
 		},
 		{
 			test:                  "anonymous enabled, expired token, admin claim",
@@ -601,7 +601,7 @@ func TestAuthenticate_3rd_party_JWTs(t *testing.T) {
 			t.Parallel()
 
 			// Must be declared here to avoid race.
-			ctx := context.Background()  //nolint:ineffassign,staticcheck
+			ctx := context.Background() //nolint:ineffassign,staticcheck
 
 			argocd, dexURL := getTestServer(t, testDataCopy.anonymousEnabled, true)
 			testDataCopy.claims.Issuer = fmt.Sprintf("%s/api/dex", dexURL)
@@ -698,7 +698,7 @@ func TestAuthenticate_no_SSO(t *testing.T) {
 			t.Parallel()
 
 			// Must be declared here to avoid race.
-			ctx := context.Background()  //nolint:ineffassign,staticcheck
+			ctx := context.Background() //nolint:ineffassign,staticcheck
 
 			argocd, dexURL := getTestServer(t, testDataCopy.anonymousEnabled, false)
 			token := jwt.NewWithClaims(jwt.SigningMethodHS256, jwt.RegisteredClaims{Issuer: fmt.Sprintf("%s/api/dex", dexURL)})
@@ -799,13 +799,14 @@ func TestAuthenticate_bad_request_metadata(t *testing.T) {
 		},
 	}
 
-	ctx := context.Background()
-
 	for _, testData := range tests {
 		testDataCopy := testData
 
 		t.Run(testDataCopy.test, func(t *testing.T) {
 			t.Parallel()
+
+			// Must be declared here to avoid race.
+			ctx := context.Background() //nolint:ineffassign,staticcheck
 
 			argocd, _ := getTestServer(t, testDataCopy.anonymousEnabled, true)
 			ctx = metadata.NewIncomingContext(context.Background(), testDataCopy.metadata)
@@ -1064,39 +1065,39 @@ func TestOIDCConfigChangeDetection_NoChange(t *testing.T) {
 }
 
 func TestIsMainJsBundle(t *testing.T) {
-	testCases := []struct{
+	testCases := []struct {
 		name           string
 		url            string
 		isMainJsBundle bool
 	}{
 		{
-			name: "localhost with valid main bundle",
-			url: "https://localhost:8080/main.e4188e5adc97bbfc00c3.js",
+			name:           "localhost with valid main bundle",
+			url:            "https://localhost:8080/main.e4188e5adc97bbfc00c3.js",
 			isMainJsBundle: true,
 		},
 		{
-			name: "localhost and deep path with valid main bundle",
-			url: "https://localhost:8080/some/argo-cd-instance/main.e4188e5adc97bbfc00c3.js",
+			name:           "localhost and deep path with valid main bundle",
+			url:            "https://localhost:8080/some/argo-cd-instance/main.e4188e5adc97bbfc00c3.js",
 			isMainJsBundle: true,
 		},
 		{
-			name: "font file",
-			url: "https://localhost:8080/assets/fonts/google-fonts/Heebo-Bols.woff2",
+			name:           "font file",
+			url:            "https://localhost:8080/assets/fonts/google-fonts/Heebo-Bols.woff2",
 			isMainJsBundle: false,
 		},
 		{
-			name: "no dot after main",
-			url: "https://localhost:8080/main/e4188e5adc97bbfc00c3.js",
+			name:           "no dot after main",
+			url:            "https://localhost:8080/main/e4188e5adc97bbfc00c3.js",
 			isMainJsBundle: false,
 		},
 		{
-			name: "wrong extension character",
-			url: "https://localhost:8080/main.e4188e5adc97bbfc00c3/js",
+			name:           "wrong extension character",
+			url:            "https://localhost:8080/main.e4188e5adc97bbfc00c3/js",
 			isMainJsBundle: false,
 		},
 		{
-			name: "wrong hash length",
-			url: "https://localhost:8080/main.e4188e5adc97bbfc00c3abcdefg.js",
+			name:           "wrong hash length",
+			url:            "https://localhost:8080/main.e4188e5adc97bbfc00c3abcdefg.js",
 			isMainJsBundle: false,
 		},
 	}
@@ -1107,6 +1108,126 @@ func TestIsMainJsBundle(t *testing.T) {
 			testUrl, _ := url.Parse(testCaseCopy.url)
 			isMainJsBundle := isMainJsBundle(testUrl)
 			assert.Equal(t, testCaseCopy.isMainJsBundle, isMainJsBundle)
+		})
+	}
+}
+
+func TestReplaceBaseHRef(t *testing.T) {
+	testCases := []struct {
+		name        string
+		data        string
+		expected    string
+		replaceWith string
+	}{
+		{
+			name: "non-root basepath",
+			data: `<!DOCTYPE html>
+<html lang="en">
+
+<head>
+    <meta charset="UTF-8">
+    <title>Argo CD</title>
+    <base href="/">
+    <meta name="viewport" content="width=device-width, initial-scale=1">
+    <link rel='icon' type='image/png' href='assets/favicon/favicon-32x32.png' sizes='32x32'/>
+    <link rel='icon' type='image/png' href='assets/favicon/favicon-16x16.png' sizes='16x16'/>
+    <link href="assets/fonts.css" rel="stylesheet">
+</head>
+
+<body>
+    <noscript>
+        <p>
+        Your browser does not support JavaScript. Please enable JavaScript to view the site. 
+        Alternatively, Argo CD can be used with the <a href="https://argoproj.github.io/argo-cd/cli_installation/">Argo CD CLI</a>.
+        </p>
+    </noscript>
+    <div id="app"></div>
+</body>
+
+</html>`,
+			expected: `<!DOCTYPE html>
+<html lang="en">
+
+<head>
+    <meta charset="UTF-8">
+    <title>Argo CD</title>
+    <base href="/path1/path2/path3/">
+    <meta name="viewport" content="width=device-width, initial-scale=1">
+    <link rel='icon' type='image/png' href='assets/favicon/favicon-32x32.png' sizes='32x32'/>
+    <link rel='icon' type='image/png' href='assets/favicon/favicon-16x16.png' sizes='16x16'/>
+    <link href="assets/fonts.css" rel="stylesheet">
+</head>
+
+<body>
+    <noscript>
+        <p>
+        Your browser does not support JavaScript. Please enable JavaScript to view the site. 
+        Alternatively, Argo CD can be used with the <a href="https://argoproj.github.io/argo-cd/cli_installation/">Argo CD CLI</a>.
+        </p>
+    </noscript>
+    <div id="app"></div>
+</body>
+
+</html>`,
+			replaceWith: `<base href="/path1/path2/path3/">`,
+		},
+		{
+			name: "root basepath",
+			data: `<!DOCTYPE html>
+<html lang="en">
+
+<head>
+    <meta charset="UTF-8">
+    <title>Argo CD</title>
+    <base href="/any/path/test/">
+    <meta name="viewport" content="width=device-width, initial-scale=1">
+    <link rel='icon' type='image/png' href='assets/favicon/favicon-32x32.png' sizes='32x32'/>
+    <link rel='icon' type='image/png' href='assets/favicon/favicon-16x16.png' sizes='16x16'/>
+    <link href="assets/fonts.css" rel="stylesheet">
+</head>
+
+<body>
+    <noscript>
+        <p>
+        Your browser does not support JavaScript. Please enable JavaScript to view the site. 
+        Alternatively, Argo CD can be used with the <a href="https://argoproj.github.io/argo-cd/cli_installation/">Argo CD CLI</a>.
+        </p>
+    </noscript>
+    <div id="app"></div>
+</body>
+
+</html>`,
+			expected: `<!DOCTYPE html>
+<html lang="en">
+
+<head>
+    <meta charset="UTF-8">
+    <title>Argo CD</title>
+    <base href="/">
+    <meta name="viewport" content="width=device-width, initial-scale=1">
+    <link rel='icon' type='image/png' href='assets/favicon/favicon-32x32.png' sizes='32x32'/>
+    <link rel='icon' type='image/png' href='assets/favicon/favicon-16x16.png' sizes='16x16'/>
+    <link href="assets/fonts.css" rel="stylesheet">
+</head>
+
+<body>
+    <noscript>
+        <p>
+        Your browser does not support JavaScript. Please enable JavaScript to view the site. 
+        Alternatively, Argo CD can be used with the <a href="https://argoproj.github.io/argo-cd/cli_installation/">Argo CD CLI</a>.
+        </p>
+    </noscript>
+    <div id="app"></div>
+</body>
+
+</html>`,
+			replaceWith: `<base href="/">`,
+		},
+	}
+	for _, testCase := range testCases {
+		t.Run(testCase.name, func(t *testing.T) {
+			result := replaceBaseHRef(testCase.data, testCase.replaceWith)
+			assert.Equal(t, testCase.expected, result)
 		})
 	}
 }

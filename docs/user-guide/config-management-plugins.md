@@ -67,8 +67,6 @@ spec:
     command: [sh, -c, 'echo "{\"kind\": \"ConfigMap\", \"apiVersion\": \"v1\", \"metadata\": { \"name\": \"$ARGOCD_APP_NAME\", \"namespace\": \"$ARGOCD_APP_NAMESPACE\", \"annotations\": {\"Foo\": \"$FOO\", \"KubeVersion\": \"$KUBE_VERSION\", \"KubeApiVersion\": \"$KUBE_API_VERSIONS\",\"Bar\": \"baz\"}}}"']
   discover:
     fileName: "./subdir/s*.yaml"
-  allowConcurrency: true
-  lockRepo: false
 ```
 
 !!! note
@@ -89,9 +87,6 @@ application repository is supported by the plugin or not.
 If `discover.fileName` is not provided, the `discover.find.command` is executed in order to determine whether an
 application repository is supported by the plugin or not. The `find` command should return a non-error exit code
 and produce output to stdout when the application source type is supported.
-
-If your plugin makes use of `git` (e.g. `git crypt`), it is advised to set `lockRepo` to `true` so that your plugin will have exclusive access to the
-repository at the time it is executed. Otherwise, two applications synced at the same time may result in a race condition and sync failure.
 
 #### 2. Place the plugin configuration file in the sidecar
 
@@ -119,8 +114,6 @@ data:
         command: [sh, -c, 'echo "{\"kind\": \"ConfigMap\", \"apiVersion\": \"v1\", \"metadata\": { \"name\": \"$ARGOCD_APP_NAME\", \"namespace\": \"$ARGOCD_APP_NAMESPACE\", \"annotations\": {\"Foo\": \"$FOO\", \"KubeVersion\": \"$KUBE_VERSION\", \"KubeApiVersion\": \"$KUBE_API_VERSIONS\",\"Bar\": \"baz\"}}}"']
       discover:
         fileName: "./subdir/s*.yaml"
-      allowConcurrency: true
-      lockRepo: false
 ```
 
 #### 3. Register the plugin sidecar
@@ -166,7 +159,7 @@ volumes:
 
 CMP commands have access to
 
-1. The system environment variables
+1. The system environment variables (of the repo-server container for argocd-cm plugins or of the sidecar for sidecar plugins)
 2. [Standard build environment](build-environment.md)
 3. Variables in the application spec (References to system and build variables will get interpolated in the variables' values):
 
@@ -182,6 +175,19 @@ spec:
         - name: REV
           value: test-$ARGOCD_APP_REVISION
 ```
+
+!!! note
+    The `discover.command` command only has access to the above environment starting with v2.4.
+
+> v2.4
+
+Before reaching the `init.command`, `generate.command`, and `discover.command` commands, Argo CD prefixes all 
+user-supplied environment variables (#3 above) with `ARGOCD_ENV_`. This prevents users from directly setting 
+potentially-sensitive environment variables.
+
+If your plugin was written before 2.4 and depends on user-supplied environment variables, then you will need to update
+your plugin's behavior to work with 2.4. If you use a third-party plugin, make sure they explicitly advertise support
+for 2.4.
 
 ## Using a CMP
 

@@ -207,7 +207,7 @@ clientgen: ensure-gopath
 
 .PHONY: clidocsgen
 clidocsgen: ensure-gopath
-	go run tools/cmd-docs/main.go	
+	go run tools/cmd-docs/main.go
 
 
 .PHONY: codegen-local

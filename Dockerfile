@@ -1,4 +1,4 @@
-ARG BASE_IMAGE=docker.io/library/ubuntu:21.10
+ARG BASE_IMAGE=docker.io/library/ubuntu:22.04
 ####################################################################################################
 # Builder image
 # Initial stage which pulls prepares build dependencies and CLI tooling we need for our final image
@@ -63,7 +63,7 @@ RUN ln -s /usr/local/bin/entrypoint.sh /usr/local/bin/uid_entrypoint.sh
 # support for mounting configuration from a configmap
 WORKDIR /app/config/ssh
 RUN touch ssh_known_hosts && \
-    ln -s ssh_known_hosts /etc/ssh/ssh_known_hosts 
+    ln -s /app/config/ssh/ssh_known_hosts /etc/ssh/ssh_known_hosts
 
 WORKDIR /app/config
 RUN mkdir -p tls && \

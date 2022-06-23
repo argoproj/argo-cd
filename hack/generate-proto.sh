@@ -43,7 +43,7 @@ if [ -d /dist/protoc-include ]; then
     # containerized codegen build
     protoc_include=/dist/protoc-include
 else
-    # local codegen build 
+    # local codegen build
     protoc_include=${PROJECT_ROOT}/dist/protoc-include
 fi
 

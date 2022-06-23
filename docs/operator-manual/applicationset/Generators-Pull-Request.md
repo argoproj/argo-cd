@@ -82,6 +82,8 @@ spec:
         # Labels is used to filter the MRs that you want to target. (optional)
         labels:
         - preview
+        # MR state is used to filter MRs only with a certain state. (optional) 
+        pullRequestState: opened
   requeueAfterSeconds: 1800
   template:
   # ...
@@ -91,6 +93,7 @@ spec:
 * `api`: If using self-hosted GitLab, the URL to access it. (Optional)
 * `tokenRef`: A `Secret` name and key containing the GitLab access token to use for requests. If not specified, will make anonymous requests which have a lower rate limit and can only see public repositories. (Optional)
 * `labels`: Labels is used to filter the MRs that you want to target. (Optional)
+* `pullRequestState`: PullRequestState is an additional MRs filter to get only those with a certain state. Default: "" (all states)
 
 ## Gitea
 
@@ -260,6 +263,7 @@ spec:
 
 * `number`: The ID number of the pull request.
 * `branch`: The name of the branch of the pull request head.
+* `branch_slug`: The branch name will be cleaned to be conform to the DNS label standard as defined in [RFC 1123](https://kubernetes.io/docs/concepts/overview/working-with-objects/names/#dns-label-names), and truncated to 50 characters to give room to append/suffix-ing it with 13 more characters. 
 * `head_sha`: This is the SHA of the head of the pull request.
 
 ## Webhook Configuration

@@ -4555,6 +4555,8 @@ spec:
                                         type: array
                                       project:
                                         type: string
+                                      pullRequestState:
+                                        type: string
                                       tokenRef:
                                         properties:
                                           key:
@@ -4829,6 +4831,31 @@ spec:
                                 type: object
                               scmProvider:
                                 properties:
+                                  azureDevOps:
+                                    properties:
+                                      accessTokenRef:
+                                        properties:
+                                          key:
+                                            type: string
+                                          secretName:
+                                            type: string
+                                        required:
+                                        - key
+                                        - secretName
+                                        type: object
+                                      allBranches:
+                                        type: boolean
+                                      api:
+                                        type: string
+                                      organization:
+                                        type: string
+                                      teamProject:
+                                        type: string
+                                    required:
+                                    - accessTokenRef
+                                    - organization
+                                    - teamProject
+                                    type: object
                                   bitbucket:
                                     properties:
                                       allBranches:
@@ -6731,6 +6758,8 @@ spec:
                                         type: array
                                       project:
                                         type: string
+                                      pullRequestState:
+                                        type: string
                                       tokenRef:
                                         properties:
                                           key:
@@ -7005,6 +7034,31 @@ spec:
                                 type: object
                               scmProvider:
                                 properties:
+                                  azureDevOps:
+                                    properties:
+                                      accessTokenRef:
+                                        properties:
+                                          key:
+                                            type: string
+                                          secretName:
+                                            type: string
+                                        required:
+                                        - key
+                                        - secretName
+                                        type: object
+                                      allBranches:
+                                        type: boolean
+                                      api:
+                                        type: string
+                                      organization:
+                                        type: string
+                                      teamProject:
+                                        type: string
+                                    required:
+                                    - accessTokenRef
+                                    - organization
+                                    - teamProject
+                                    type: object
                                   bitbucket:
                                     properties:
                                       allBranches:
@@ -7772,6 +7826,8 @@ spec:
                               type: array
                             project:
                               type: string
+                            pullRequestState:
+                              type: string
                             tokenRef:
                               properties:
                                 key:
@@ -8046,6 +8102,31 @@ spec:
                       type: object
                     scmProvider:
                       properties:
+                        azureDevOps:
+                          properties:
+                            accessTokenRef:
+                              properties:
+                                key:
+                                  type: string
+                                secretName:
+                                  type: string
+                              required:
+                              - key
+                              - secretName
+                              type: object
+                            allBranches:
+                              type: boolean
+                            api:
+                              type: string
+                            organization:
+                              type: string
+                            teamProject:
+                              type: string
+                          required:
+                          - accessTokenRef
+                          - organization
+                          - teamProject
+                          type: object
                         bitbucket:
                           properties:
                             allBranches:
@@ -10027,10 +10108,9 @@ spec:
       automountServiceAccountToken: false
       containers:
       - command:
-        - entrypoint.sh
-        - argocd-repo-server
-        - --redis
-        - argocd-redis:6379
+        - sh
+        - -c
+        - entrypoint.sh argocd-repo-server --redis argocd-redis:6379
         env:
         - name: ARGOCD_RECONCILIATION_TIMEOUT
           valueFrom:
@@ -10108,6 +10188,12 @@ spec:
           valueFrom:
             configMapKeyRef:
               key: otlp.address
+              name: argocd-cmd-params-cm
+              optional: true
+        - name: ARGOCD_REPO_SERVER_MAX_COMBINED_DIRECTORY_MANIFESTS_SIZE
+          valueFrom:
+            configMapKeyRef:
+              key: reposerver.max.combined.directory.manifests.size
               name: argocd-cmd-params-cm
               optional: true
         - name: HELM_CACHE_HOME
@@ -10612,12 +10698,6 @@ spec:
               optional: true
         image: quay.io/argoproj/argocd:latest
         imagePullPolicy: Always
-        livenessProbe:
-          httpGet:
-            path: /healthz
-            port: 8082
-          initialDelaySeconds: 5
-          periodSeconds: 10
         name: argocd-application-controller
         ports:
         - containerPort: 8082
