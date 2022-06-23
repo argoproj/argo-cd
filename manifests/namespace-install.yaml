@@ -783,8 +783,8 @@ spec:
         workingDir: /app
       securityContext:
         runAsNonRoot: true
-          seccompProfile:
-            type: RuntimeDefault
+        seccompProfile:
+          type: RuntimeDefault
       serviceAccountName: argocd-notifications-controller
       volumes:
       - configMap:
