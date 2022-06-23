@@ -13,6 +13,7 @@ import {RevisionFormField} from '../revision-form-field/revision-form-field';
 import {ComparisonStatusIcon, HealthStatusIcon, syncStatusMessage, urlPattern} from '../utils';
 import {ApplicationRetryOptions} from '../application-retry-options/application-retry-options';
 import {ApplicationRetryView} from '../application-retry-view/application-retry-view';
+import {Link} from "react-router-dom";
 
 require('./application-summary.scss');
 
@@ -31,7 +32,7 @@ export const ApplicationSummary = (props: {app: models.Application; updateApp: (
     const attributes = [
         {
             title: 'PROJECT',
-            view: <a href={'/settings/projects/' + app.spec.project}>{app.spec.project}</a>,
+            view: <Link to={'/settings/projects/' + app.spec.project}>{app.spec.project}</Link>,
             edit: (formApi: FormApi) => (
                 <DataLoader load={() => services.projects.list('items.metadata.name').then(projs => projs.map(item => item.metadata.name))}>
                     {projects => <FormField formApi={formApi} field='spec.project' component={FormSelect} componentProps={{options: projects}} />}
@@ -276,9 +277,9 @@ export const ApplicationSummary = (props: {app: models.Application; updateApp: (
                     {urls
                         .map(item => item.split('|'))
                         .map((parts, i) => (
-                            <a key={i} href={parts.length > 1 ? parts[1] : parts[0]} target='__blank'>
+                            <Link key={i} to={parts.length > 1 ? parts[1] : parts[0]} target='__blank'>
                                 {parts[0]} &nbsp;
-                            </a>
+                            </Link>
                         ))}
                 </React.Fragment>
             )
@@ -357,9 +358,9 @@ export const ApplicationSummary = (props: {app: models.Application; updateApp: (
             key: i.toString(),
             title: info.name,
             view: info.value.match(urlPattern) ? (
-                <a href={info.value} target='__blank'>
+                <Link to={info.value} target='__blank'>
                     {info.value}
-                </a>
+                </Link>
             ) : (
                 info.value
             ),
