@@ -1504,8 +1504,6 @@ spec:
         fsGroup: 1000
         runAsNonRoot: true
         runAsUser: 1000
-        seccompProfile:
-          type: RuntimeDefault
       serviceAccountName: argocd-redis-ha-haproxy
       volumes:
       - configMap:
@@ -2330,8 +2328,6 @@ spec:
         fsGroup: 1000
         runAsNonRoot: true
         runAsUser: 1000
-        seccompProfile:
-          type: RuntimeDefault
       serviceAccountName: argocd-redis-ha
       terminationGracePeriodSeconds: 60
       volumes:
