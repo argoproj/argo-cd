@@ -277,9 +277,9 @@ export const ApplicationSummary = (props: {app: models.Application; updateApp: (
                     {urls
                         .map(item => item.split('|'))
                         .map((parts, i) => (
-                            <Link key={i} to={parts.length > 1 ? parts[1] : parts[0]} target='__blank'>
+                            <a key={i} href={parts.length > 1 ? parts[1] : parts[0]} target='__blank'>
                                 {parts[0]} &nbsp;
-                            </Link>
+                            </a>
                         ))}
                 </React.Fragment>
             )
@@ -358,9 +358,9 @@ export const ApplicationSummary = (props: {app: models.Application; updateApp: (
             key: i.toString(),
             title: info.name,
             view: info.value.match(urlPattern) ? (
-                <Link to={info.value} target='__blank'>
+                <a href={info.value} target='__blank'>
                     {info.value}
-                </Link>
+                </a>
             ) : (
                 info.value
             ),
