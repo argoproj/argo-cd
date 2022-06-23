@@ -33,6 +33,8 @@ spec:
           allowPrivilegeEscalation: false
           readOnlyRootFilesystem: true
           runAsNonRoot: true
+          seccompProfile:
+            type: RuntimeDefault
       containers:
       - name: dex
         image: ghcr.io/dexidp/dex:v2.30.2
