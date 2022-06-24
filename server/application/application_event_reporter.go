@@ -114,24 +114,7 @@ func (s *applicationEventReporter) streamApplicationEvents(
 		return fmt.Errorf("failed to get application resources tree: %w", err)
 	}
 
-	if !isChildApp(a) {
-		// application events for child apps would be sent by its parent app
-		// as resource event
-		appEvent, err := s.getApplicationEventPayload(ctx, a, es, ts)
-		if err != nil {
-			return fmt.Errorf("failed to get application event: %w", err)
-		}
-
-		if appEvent == nil {
-			// event did not have an OperationState - skip all events
-			return nil
-		}
-
-		logWithAppStatus(a, logCtx, ts).Info("sending application event")
-		if err := stream.Send(appEvent); err != nil {
-			return fmt.Errorf("failed to send event for resource %s/%s: %w", a.Namespace, a.Name, err)
-		}
-	} else {
+	if isChildApp(a) {
 		parentApp := a.Labels[common.LabelKeyAppInstance]
 
 		parentApplicationEntity, err := s.server.Get(ctx, &application.ApplicationQuery{
@@ -149,6 +132,23 @@ func (s *applicationEventReporter) streamApplicationEvents(
 		}
 
 		s.processResource(ctx, *rs, parentApplicationEntity, logCtx, ts, desiredManifests, stream, appTree, es, manifestGenErr)
+	} else {
+		// application events for child apps would be sent by its parent app
+		// as resource event
+		appEvent, err := s.getApplicationEventPayload(ctx, a, es, ts)
+		if err != nil {
+			return fmt.Errorf("failed to get application event: %w", err)
+		}
+
+		if appEvent == nil {
+			// event did not have an OperationState - skip all events
+			return nil
+		}
+
+		logWithAppStatus(a, logCtx, ts).Info("sending application event")
+		if err := stream.Send(appEvent); err != nil {
+			return fmt.Errorf("failed to send event for resource %s/%s: %w", a.Namespace, a.Name, err)
+		}
 	}
 
 	desiredManifests, err, manifestGenErr := s.getDesiredManifests(ctx, a, logCtx)
