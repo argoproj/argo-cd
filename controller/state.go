@@ -468,6 +468,11 @@ func (m *appStateManager) CompareAppState(app *v1alpha1.Application, project *ap
 	}
 	diffConfigBuilder.WithGVKParser(gvkParser)
 
+	// enable structured merge diff if application syncs with server-side apply
+	if app.Spec.SyncPolicy != nil && app.Spec.SyncPolicy.SyncOptions.HasOption("ServerSideApply=true") {
+		diffConfigBuilder.WithStructuredMergeDiff(true)
+	}
+
 	// it is necessary to ignore the error at this point to avoid creating duplicated
 	// application conditions as argo.StateDiffs will validate this diffConfig again.
 	diffConfig, _ := diffConfigBuilder.Build()
