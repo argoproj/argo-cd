@@ -292,13 +292,6 @@ func logWithAppStatus(a *appv1.Application, logCtx *log.Entry, ts string) *log.E
 	})
 }
 
-func getRevision(a *appv1.Application, rs *appv1.ResourceStatus, manifestsResponse *apiclient.ManifestResponse) string {
-	if !isApp(*rs) {
-		return manifestsResponse.Revision
-	}
-	return a.Status.Sync.Revision
-}
-
 func getResourceEventPayload(
 	a *appv1.Application,
 	rs *appv1.ResourceStatus,
@@ -376,7 +369,7 @@ func getResourceEventPayload(
 		GitManifest:     desiredState.RawManifest,
 		RepoURL:         a.Status.Sync.ComparedTo.Source.RepoURL,
 		Path:            desiredState.Path,
-		Revision:        getRevision(a, rs, manifestsResponse),
+		Revision:        a.Status.Sync.Revision,
 		CommitMessage:   manifestsResponse.CommitMessage,
 		CommitAuthor:    manifestsResponse.CommitAuthor,
 		CommitDate:      manifestsResponse.CommitDate,
