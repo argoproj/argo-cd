@@ -13,7 +13,7 @@ import {RevisionFormField} from '../revision-form-field/revision-form-field';
 import {ComparisonStatusIcon, HealthStatusIcon, syncStatusMessage, urlPattern} from '../utils';
 import {ApplicationRetryOptions} from '../application-retry-options/application-retry-options';
 import {ApplicationRetryView} from '../application-retry-view/application-retry-view';
-import {Link} from "react-router-dom";
+import {Link} from 'react-router-dom';
 
 require('./application-summary.scss');
 
