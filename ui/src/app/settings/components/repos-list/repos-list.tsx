@@ -173,7 +173,6 @@ export class ReposList extends React.Component<
     private SlidingPanelHeader() {
         return (
             <>
-                (
                 {this.showConnectRepo && (
                     <>
                         <button
@@ -198,13 +197,11 @@ export class ReposList extends React.Component<
                         </button>
                     </>
                 )}
-                (
                 {this.state.displayEditPanel && (
                     <button onClick={() => this.setState({displayEditPanel: false})} className='argo-button argo-button--base-o'>
                         Cancel
                     </button>
                 )}
-                )
             </>
         );
     }
