@@ -109,10 +109,12 @@ func (s *applicationEventReporter) streamApplicationEvents(
 
 	logCtx.Info("streaming application events")
 
-	appTree, _ := s.server.getAppResources(ctx, a)
-	//if err != nil {
-	//	return fmt.Errorf("failed to get application resources tree: %w", err)
-	//}
+	appTree, err := s.server.getAppResources(ctx, a)
+	if err != nil {
+		// we still need process app even without tree, it is in case if app yaml originally contain error,
+		// we still want show it on codefresh ui and erors that related to it
+		logCtx.WithError(err).Error("failed to get application tree")
+	}
 
 	if !isChildApp(a) {
 		// application events for child apps would be sent by its parent app
@@ -503,10 +505,6 @@ func (s *applicationEventReporter) getApplicationEventPayload(ctx context.Contex
 			LastSeen: lastSeen,
 		})
 	}
-
-	//for _, cnd := range a.Status.OperationState.SyncResult.Resources {
-	//
-	//}
 
 	payload := events.EventPayload{
 		Timestamp: ts,
