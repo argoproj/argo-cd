@@ -1,10 +1,12 @@
 package application
 
 import (
-	"github.com/argoproj/argo-cd/v2/pkg/apis/application/v1alpha1"
+	"testing"
+
 	"github.com/argoproj/gitops-engine/pkg/sync/common"
 	"github.com/stretchr/testify/assert"
-	"testing"
+
+	"github.com/argoproj/argo-cd/v2/pkg/apis/application/v1alpha1"
 )
 
 func TestParseResourceSyncResultErrors(t *testing.T) {
