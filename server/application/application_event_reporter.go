@@ -359,6 +359,12 @@ func getResourceEventPayload(
 		actualState.Manifest = ""
 	}
 
+	if parentApplication.Status.OperationState != nil {
+		syncStarted = parentApplication.Status.OperationState.StartedAt
+		syncFinished = parentApplication.Status.OperationState.FinishedAt
+		errors = append(errors, parseResourceSyncResultErrors(rs, parentApplication.Status.OperationState, false)...)
+	}
+
 	// parent application not include errors in application originally was created with broken state, for example in destination missed namespace
 	if originalApplication != nil && originalApplication.Status.OperationState != nil {
 		errors = append(errors, parseResourceSyncResultErrors(rs, originalApplication.Status.OperationState, true)...)
