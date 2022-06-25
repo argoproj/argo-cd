@@ -377,7 +377,7 @@ func getResourceEventPayload(
 		GitManifest:     desiredState.RawManifest,
 		RepoURL:         parentApplication.Status.Sync.ComparedTo.Source.RepoURL,
 		Path:            desiredState.Path,
-		Revision:        a.Status.Sync.Revision,
+		Revision:        parentApplication.Status.Sync.Revision,
 		CommitMessage:   manifestsResponse.CommitMessage,
 		CommitAuthor:    manifestsResponse.CommitAuthor,
 		CommitDate:      manifestsResponse.CommitDate,
