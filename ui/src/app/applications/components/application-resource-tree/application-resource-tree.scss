@@ -71,10 +71,9 @@
         padding-right: 1em;
         margin: 10px;
         box-shadow: 1px 1px 1px $argo-color-gray-4;
-        //background-color: white;
         @include themify($themes) {                  
-            background-color: themed('top-bg');
-            color: themed('top-text');
+            background-color: themed('background-2');
+            color: themed('text-2');
         }
         border-radius: 4px;
         border: 1px solid transparent;
@@ -109,7 +108,9 @@
             font-size: 0.5em;
             padding: 2px;
             box-shadow: 1px 1px 1px $argo-color-gray-4;
-            background-color: white;
+            @include themify($themes) {                  
+                background-color: themed('background-2');
+            }
             margin-top: 9px;
             margin-left: 215px;
         }
@@ -126,9 +127,8 @@
         }
 
         &--pod {
-            //background-color: pink;
             @include themify($themes) {                  
-                background-color: themed('cyan');
+                background-color: themed('pod-cyan') !important;
             }
         }
 

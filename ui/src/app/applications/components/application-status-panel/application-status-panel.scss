@@ -28,8 +28,8 @@
     //color: $argo-color-gray-7;
     //background-color: white;
     @include themify($themes) {                  
-        background-color: themed('top-bg');
-        color: themed('body-text');
+        background-color: themed('background-2');
+        color: themed('text-1');
     }
     box-shadow: 1px 2px 3px rgba(0, 0, 0, 0.1);
     flex-wrap: nowrap;
@@ -66,7 +66,7 @@
         line-height: 1.2;
         //color: $argo-color-gray-7;
         @include themify($themes) {     
-           color: themed('top-text');
+           color: themed('text-2');
         }
         display: flex;
         flex-direction: column;
@@ -119,7 +119,7 @@
             display: block;
            // color: $argo-color-gray-7;
             @include themify($themes) {                
-                color: themed('body-text');
+                color: themed('text-1');
             }
             font-size: 13px;
             margin-right: 10px;
@@ -139,7 +139,7 @@
         font-size: 2em;
        // color: $argo-color-gray-7;
         @include themify($themes) {   
-            color: themed('body-text');
+            color: themed('text-1');
         }
         &--highlight {
             color: $argo-color-teal-6;
@@ -167,7 +167,7 @@
             font-size: 14px;
             //color: $argo-color-gray-7;
             @include themify($themes) { 
-                color: themed('body-text');
+                color: themed('text-1');
             }
             font-weight: 500;
             margin-left: auto;

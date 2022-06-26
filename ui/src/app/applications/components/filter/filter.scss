@@ -3,10 +3,9 @@
 @import 'node_modules/argo-ui/src/styles/theme';
 
 .filter {
-    // background-color: white;
     @include themify($themes) {
-        background: themed('top-bg');
-        color: themed('top-text');
+        background: themed('background-2');
+        color: themed('text-2');
     }
     padding: 10px;
     box-shadow: 1px 1px 2px 0 rgba(0, 0, 0, 0.1);
@@ -55,10 +54,9 @@
         border-radius: 5px;
         display: flex;
         align-items: center;
-        // background-color: white;
         @include themify($themes) {
-            background: themed('top-bg');
-            color: themed('top-text');
+            background: themed('background-2');
+            color: themed('text-2');
         }
         transition: background-color 200ms ease;
         margin: 0.25em 0;
@@ -98,8 +96,8 @@
         transition: width 0.2s ease-in-out;
         // background-color: $argo-color-gray-3;
         @include themify($themes) {
-            background: themed('body-bg');
-            color: themed('body-text');
+            background: themed('background-1');
+            color: themed('text-1');
         }
         box-shadow: 1px 1px 2px 0 rgba(0, 0, 0, 0.1);
         padding: 10px;

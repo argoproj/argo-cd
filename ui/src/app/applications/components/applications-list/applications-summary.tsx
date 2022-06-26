@@ -89,7 +89,7 @@ export const ApplicationsSummary = ({applications}: {applications: models.Applic
                                         <div className='row chart'>
                                             <div className='large-8 small-6'>
                                                 <h4 style={{textAlign: 'center'}}>{chart.title}</h4>
-                                                <PieChart data={chart.data} />
+                                                <PieChart data={chart.data} strokeColor={'#ffffff00'} viewBoxSize={104} />
                                             </div>
                                             <div className='large-3 small-1'>
                                                 <ul>

@@ -4,12 +4,13 @@
 
 .applications-list {
     padding: 1em;
+    min-height: 88vh;
     &__title {
         font-weight: bolder;
         font-size: 15px;
         // color: $argo-color-gray-7;
         @include themify($themes) {           
-            color: themed('body-text');
+            color: themed('text-1');
         }
         padding-top: 0.25em;
         padding-bottom: 0.5em;
@@ -116,7 +117,10 @@
 
     &__search {
         border: 1px solid $argo-color-gray-4;
-        background-color: $argo-color-gray-2;
+        @include themify($themes){
+            background-color: themed('light-argo-gray-2');
+        }
+        // background-color: $argo-color-gray-2;
         border-radius: 7px;
         position: relative;
         padding: 0 10px;
