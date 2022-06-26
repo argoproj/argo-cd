@@ -234,3 +234,12 @@ If you don't need to set any environment variables, you can set an empty plugin 
     Each CMP command will also independently timeout on the `ARGOCD_EXEC_TIMEOUT` set for the CMP sidecar. The default
     is 90s. So if you increase the repo server timeout greater than 90s, be sure to set `ARGOCD_EXEC_TIMEOUT` on the
     sidecar.
+
+## Tarball stream filtering
+
+In order to increase the speed of manifest generation, certain files and folders can be excluded from being sent to your
+CMP sidecar by using the `--cmp-tar-exclude` argument on the repo server.
+
+!!! important
+    By default, the `.git` folder is not transmitted. This is usually where the bulk of unnecessary data lies. If you for
+    some reason require the `.git` folder, simply override the default `--cmp-tar-exclude` with a dummy filter.

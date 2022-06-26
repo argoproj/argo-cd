@@ -86,7 +86,7 @@ func (m *streamMock) sendFile(ctx context.Context, t *testing.T, basedir string,
 	defer func() {
 		m.done <- true
 	}()
-	err := cmp.SendRepoStream(ctx, basedir, basedir, sender, env)
+	err := cmp.SendRepoStream(ctx, basedir, basedir, sender, env, []string{})
 	require.NoError(t, err)
 }
 
