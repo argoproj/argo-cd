@@ -10,7 +10,22 @@ import (
 	appv1 "github.com/argoproj/argo-cd/v2/pkg/apis/application/v1alpha1"
 )
 
-func parseResourceSyncResultErrors(rs *appv1.ResourceStatus, os *appv1.OperationState, applicationEntity bool) []*events.ObjectError {
+func parseApplicationSyncResultErrors(os *appv1.OperationState) []*events.ObjectError {
+	var errors []*events.ObjectError
+	// mean that resource not found as sync result but application can contain error inside operation state itself,
+	// for example app created with invalid yaml
+	if os.Phase == common.OperationError || os.Phase == common.OperationFailed {
+		errors = append(errors, &events.ObjectError{
+			Type:     "sync",
+			Level:    "error",
+			Message:  os.Message,
+			LastSeen: os.StartedAt,
+		})
+	}
+	return errors
+}
+
+func parseResourceSyncResultErrors(rs *appv1.ResourceStatus, os *appv1.OperationState) []*events.ObjectError {
 	errors := []*events.ObjectError{}
 	if os.SyncResult == nil {
 		return errors
@@ -23,18 +38,6 @@ func parseResourceSyncResultErrors(rs *appv1.ResourceStatus, os *appv1.Operation
 		rs.Name,
 		common.SyncPhaseSync,
 	)
-
-	// mean that resource not found as sync result but application can contain error inside operation state itself,
-	// for example app created with invalid yaml
-	if sr == nil && applicationEntity && os.Phase == common.OperationError {
-		errors = append(errors, &events.ObjectError{
-			Type:     "sync",
-			Level:    "error",
-			Message:  os.Message,
-			LastSeen: os.StartedAt,
-		})
-		return errors
-	}
 
 	if sr == nil || !(sr.HookPhase == common.OperationFailed || sr.HookPhase == common.OperationError || sr.Status == common.ResultCodeSyncFailed) {
 		return errors

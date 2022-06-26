@@ -39,7 +39,7 @@ func TestParseResourceSyncResultErrors(t *testing.T) {
 				Revision: "123",
 				Source:   v1alpha1.ApplicationSource{},
 			},
-		}, false)
+		})
 
 		assert.Len(t, errors, 1)
 		assert.Equal(t, errors[0].Message, "error message")
@@ -75,24 +75,19 @@ func TestParseResourceSyncResultErrors(t *testing.T) {
 				Revision: "123",
 				Source:   v1alpha1.ApplicationSource{},
 			},
-		}, false)
+		})
 
 		assert.Len(t, errors, 0)
 	})
 	t.Run("App of app contain error", func(t *testing.T) {
-		errors := parseResourceSyncResultErrors(&v1alpha1.ResourceStatus{
-			Group:     "group",
-			Kind:      "application",
-			Namespace: "namespace",
-			Name:      "name",
-		}, &v1alpha1.OperationState{
+		errors := parseApplicationSyncResultErrors(&v1alpha1.OperationState{
 			Phase:   common.OperationError,
 			Message: "error message",
 			SyncResult: &v1alpha1.SyncOperationResult{
 				Revision: "123",
 				Source:   v1alpha1.ApplicationSource{},
 			},
-		}, true)
+		})
 
 		assert.Len(t, errors, 1)
 		assert.Equal(t, errors[0].Message, "error message")
