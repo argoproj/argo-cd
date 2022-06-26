@@ -111,7 +111,9 @@ func (s *applicationEventReporter) streamApplicationEvents(
 
 	appTree, err := s.server.getAppResources(ctx, a)
 	if err != nil {
-		return fmt.Errorf("failed to get application resources tree: %w", err)
+		// we still need process app even without tree, it is in case if app yaml originally contain error,
+		// we still want show it on codefresh ui and erors that related to it
+		logCtx.WithError(err).Error("failed to get application tree")
 	}
 
 	if !isChildApp(a) {
@@ -148,7 +150,7 @@ func (s *applicationEventReporter) streamApplicationEvents(
 			return err
 		}
 
-		s.processResource(ctx, *rs, parentApplicationEntity, logCtx, ts, desiredManifests, stream, appTree, es, manifestGenErr)
+		s.processResource(ctx, *rs, parentApplicationEntity, logCtx, ts, desiredManifests, stream, appTree, es, manifestGenErr, a)
 	}
 
 	desiredManifests, err, manifestGenErr := s.getDesiredManifests(ctx, a, logCtx)
@@ -162,19 +164,19 @@ func (s *applicationEventReporter) streamApplicationEvents(
 		if isApp(rs) {
 			continue
 		}
-		s.processResource(ctx, rs, a, logCtx, ts, desiredManifests, stream, appTree, es, manifestGenErr)
+		s.processResource(ctx, rs, a, logCtx, ts, desiredManifests, stream, appTree, es, manifestGenErr, nil)
 	}
 
 	return nil
 }
 
-func (s *applicationEventReporter) processResource(ctx context.Context, rs appv1.ResourceStatus, a *appv1.Application, logCtx *log.Entry, ts string, desiredManifests *apiclient.ManifestResponse, stream events.Eventing_StartEventSourceServer, appTree *appv1.ApplicationTree, es *events.EventSource, manifestGenErr bool) {
+func (s *applicationEventReporter) processResource(ctx context.Context, rs appv1.ResourceStatus, parentApplication *appv1.Application, logCtx *log.Entry, ts string, desiredManifests *apiclient.ManifestResponse, stream events.Eventing_StartEventSourceServer, appTree *appv1.ApplicationTree, es *events.EventSource, manifestGenErr bool, originalApplication *appv1.Application) {
 	logCtx = logCtx.WithFields(log.Fields{
 		"gvk":      fmt.Sprintf("%s/%s/%s", rs.Group, rs.Version, rs.Kind),
 		"resource": fmt.Sprintf("%s/%s", rs.Namespace, rs.Name),
 	})
 
-	if !s.shouldSendResourceEvent(a, rs) {
+	if !s.shouldSendResourceEvent(parentApplication, rs) {
 		return
 	}
 
@@ -183,7 +185,7 @@ func (s *applicationEventReporter) processResource(ctx context.Context, rs appv1
 
 	// get resource actual state
 	actualState, err := s.server.GetResource(ctx, &application.ApplicationResourceRequest{
-		Name:         &a.Name,
+		Name:         &parentApplication.Name,
 		Namespace:    rs.Namespace,
 		ResourceName: rs.Name,
 		Version:      rs.Version,
@@ -204,20 +206,20 @@ func (s *applicationEventReporter) processResource(ctx context.Context, rs appv1
 	if isApp(rs) {
 		app := &appv1.Application{}
 		if err := json.Unmarshal([]byte(actualState.Manifest), app); err != nil {
-			logWithAppStatus(a, logCtx, ts).WithError(err).Error("failed to unmarshal child application resource")
+			logWithAppStatus(parentApplication, logCtx, ts).WithError(err).Error("failed to unmarshal child application resource")
 		}
 		resourceDesiredManifests, err := s.server.GetManifests(ctx, &application.ApplicationManifestQuery{
 			Name:     &rs.Name,
 			Revision: app.Status.Sync.Revision,
 		})
 		if err != nil {
-			logWithAppStatus(a, logCtx, ts).WithError(err).Error("failed to get resource desired manifest")
+			logWithAppStatus(parentApplication, logCtx, ts).WithError(err).Error("failed to get resource desired manifest")
 		} else {
 			mr = resourceDesiredManifests
 		}
 	}
 
-	ev, err := getResourceEventPayload(a, &rs, es, actualState, desiredState, mr, appTree, manifestGenErr, ts)
+	ev, err := getResourceEventPayload(parentApplication, &rs, es, actualState, desiredState, mr, appTree, manifestGenErr, ts, originalApplication)
 	if err != nil {
 		logCtx.WithError(err).Error("failed to get event payload")
 		return
@@ -235,7 +237,7 @@ func (s *applicationEventReporter) processResource(ctx context.Context, rs appv1
 		return
 	}
 
-	if err := s.server.cache.SetLastResourceEvent(a, rs, resourceEventCacheExpiration); err != nil {
+	if err := s.server.cache.SetLastResourceEvent(parentApplication, rs, resourceEventCacheExpiration); err != nil {
 		logCtx.WithError(err).Error("failed to cache resource event")
 	}
 }
@@ -293,7 +295,7 @@ func logWithAppStatus(a *appv1.Application, logCtx *log.Entry, ts string) *log.E
 }
 
 func getResourceEventPayload(
-	a *appv1.Application,
+	parentApplication *appv1.Application,
 	rs *appv1.ResourceStatus,
 	es *events.EventSource,
 	actualState *application.ApplicationResourceResponse,
@@ -302,6 +304,7 @@ func getResourceEventPayload(
 	apptree *appv1.ApplicationTree,
 	manifestGenErr bool,
 	ts string,
+	originalApplication *appv1.Application,
 ) (*events.Event, error) {
 	var (
 		err          error
@@ -343,16 +346,21 @@ func getResourceEventPayload(
 		actualState.Manifest = ""
 	}
 
-	if a.ObjectMeta.DeletionTimestamp != nil {
+	if parentApplication.ObjectMeta.DeletionTimestamp != nil {
 		// resource should be deleted in case if application in process of deletion
 		desiredState.CompiledManifest = ""
 		actualState.Manifest = ""
 	}
 
-	if a.Status.OperationState != nil {
-		syncStarted = a.Status.OperationState.StartedAt
-		syncFinished = a.Status.OperationState.FinishedAt
-		errors = append(errors, parseResourceSyncResultErrors(rs, a.Status.OperationState)...)
+	if parentApplication.Status.OperationState != nil {
+		syncStarted = parentApplication.Status.OperationState.StartedAt
+		syncFinished = parentApplication.Status.OperationState.FinishedAt
+		errors = append(errors, parseResourceSyncResultErrors(rs, parentApplication.Status.OperationState)...)
+	}
+
+	// parent application not include errors in application originally was created with broken state, for example in destination missed namespace
+	if originalApplication != nil && originalApplication.Status.OperationState != nil {
+		errors = append(errors, parseApplicationSyncResultErrors(originalApplication.Status.OperationState)...)
 	}
 
 	if len(desiredState.RawManifest) == 0 && len(desiredState.CompiledManifest) != 0 {
@@ -367,18 +375,18 @@ func getResourceEventPayload(
 		DesiredManifest: desiredState.CompiledManifest,
 		ActualManifest:  actualState.Manifest,
 		GitManifest:     desiredState.RawManifest,
-		RepoURL:         a.Status.Sync.ComparedTo.Source.RepoURL,
+		RepoURL:         parentApplication.Status.Sync.ComparedTo.Source.RepoURL,
 		Path:            desiredState.Path,
-		Revision:        a.Status.Sync.Revision,
+		Revision:        parentApplication.Status.Sync.Revision,
 		CommitMessage:   manifestsResponse.CommitMessage,
 		CommitAuthor:    manifestsResponse.CommitAuthor,
 		CommitDate:      manifestsResponse.CommitDate,
-		AppName:         a.Name,
-		AppLabels:       a.Labels,
+		AppName:         parentApplication.Name,
+		AppLabels:       parentApplication.Labels,
 		SyncStatus:      string(rs.Status),
 		SyncStartedAt:   syncStarted,
 		SyncFinishedAt:  syncFinished,
-		Cluster:         a.Spec.Destination.Server,
+		Cluster:         parentApplication.Spec.Destination.Server,
 	}
 
 	if rs.Health != nil {
