@@ -302,6 +302,16 @@ func getResourceRevision(a *appv1.Application) string {
 	return revision
 }
 
+func getLatestAppHistoryId(a *appv1.Application) int64 {
+	id := int64(0)
+
+	if a.Status.History != nil && len(a.Status.History) > 0 {
+		id = a.Status.History[len(a.Status.History)-1].ID
+	}
+
+	return id
+}
+
 func getResourceEventPayload(
 	a *appv1.Application,
 	rs *appv1.ResourceStatus,
@@ -380,6 +390,7 @@ func getResourceEventPayload(
 		RepoURL:         a.Status.Sync.ComparedTo.Source.RepoURL,
 		Path:            desiredState.Path,
 		Revision:        getResourceRevision(a),
+		HistoryId:       getLatestAppHistoryId(a),
 		CommitMessage:   manifestsResponse.CommitMessage,
 		CommitAuthor:    manifestsResponse.CommitAuthor,
 		CommitDate:      manifestsResponse.CommitDate,
@@ -478,6 +489,7 @@ func (s *applicationEventReporter) getApplicationEventPayload(ctx context.Contex
 		CommitAuthor:    "",
 		Path:            "",
 		Revision:        "",
+		HistoryId:       0,
 		AppName:         "",
 		AppLabels:       map[string]string{},
 		SyncStatus:      string(a.Status.Sync.Status),
