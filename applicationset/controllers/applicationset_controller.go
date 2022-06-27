@@ -361,6 +361,15 @@ func (r *ApplicationSetReconciler) validateGeneratedApplications(ctx context.Con
 			continue
 		}
 
+		_, err := r.ArgoAppClientset.ArgoprojV1alpha1().AppProjects(namespace).Get(ctx, app.Spec.GetProject(), metav1.GetOptions{})
+		if err != nil {
+			if apierr.IsNotFound(err) {
+				errorsByIndex[i] = fmt.Errorf("application references project %s which does not exist", app.Spec.Project)
+				continue
+			}
+			return nil, err
+		}
+
 		if err := utils.ValidateDestination(ctx, &app.Spec.Destination, r.KubeClientset, namespace); err != nil {
 			errorsByIndex[i] = fmt.Errorf("application destination spec is invalid: %s", err.Error())
 			continue
