@@ -72,6 +72,7 @@ message ObjectSource {
     optional string healthStatus = 15;
     optional string healthMessage = 16;
     optional string cluster = 17 [(gogoproto.nullable) = false];
+    optional int64 historyId = 18 [(gogoproto.nullable) = false];
 }
 
 /**
