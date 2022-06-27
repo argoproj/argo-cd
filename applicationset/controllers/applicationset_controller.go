@@ -40,11 +40,10 @@ import (
 	ctrl "sigs.k8s.io/controller-runtime"
 	"sigs.k8s.io/controller-runtime/pkg/client"
 
+	apierr "k8s.io/apimachinery/pkg/api/errors"
+
 	argoprojiov1alpha1 "github.com/argoproj/argo-cd/v2/pkg/apis/applicationset/v1alpha1"
 	appclientset "github.com/argoproj/argo-cd/v2/pkg/client/clientset/versioned"
-	argoutil "github.com/argoproj/argo-cd/v2/util/argo"
-
-	apierr "k8s.io/apimachinery/pkg/api/errors"
 )
 
 const (
@@ -355,7 +354,6 @@ func (r *ApplicationSetReconciler) validateGeneratedApplications(ctx context.Con
 	errorsByIndex := map[int]error{}
 	namesSet := map[string]bool{}
 	for i, app := range desiredApplications {
-
 		if !namesSet[app.Name] {
 			namesSet[app.Name] = true
 		} else {
@@ -363,29 +361,10 @@ func (r *ApplicationSetReconciler) validateGeneratedApplications(ctx context.Con
 			continue
 		}
 
-		proj, err := r.ArgoAppClientset.ArgoprojV1alpha1().AppProjects(namespace).Get(ctx, app.Spec.GetProject(), metav1.GetOptions{})
-		if err != nil {
-			if apierr.IsNotFound(err) {
-				errorsByIndex[i] = fmt.Errorf("application references project %s which does not exist", app.Spec.Project)
-				continue
-			}
-			return nil, err
-		}
-
 		if err := utils.ValidateDestination(ctx, &app.Spec.Destination, r.KubeClientset, namespace); err != nil {
 			errorsByIndex[i] = fmt.Errorf("application destination spec is invalid: %s", err.Error())
 			continue
 		}
-
-		conditions, err := argoutil.ValidatePermissions(ctx, &app.Spec, proj, r.ArgoDB)
-		if err != nil {
-			return nil, err
-		}
-		if len(conditions) > 0 {
-			errorsByIndex[i] = fmt.Errorf("application spec is invalid: %s", argoutil.FormatAppConditions(conditions))
-			continue
-		}
-
 	}
 
 	return errorsByIndex, nil
