@@ -7,13 +7,11 @@
         position: relative;
         @include themify($themes) {
             background: themed('background-2');
-            color: themed('text-2');
+            color: themed('text-1');
         }
-        //color: $argo-color-gray-7;
         border-radius: $border-radius;
         box-shadow: 1px 1px 3px $argo-color-gray-5;
         margin-top: 1em;
-        //background: white;
         overflow: hidden;
 
         & > .columns {
@@ -22,10 +20,9 @@
 
         & > .columns:first-child {
             border-top-left-radius: $border-radius;
-            border-bottom-left-radius: $border-radius;
-            //background-color: $argo-color-teal-1;
+            border-bottom-left-radius: $border-radius;            
             @include themify($themes) {
-                background: themed('background-2');
+                background: themed('light-argo-teal-1');
                 color: themed('text-2');
             }
         }

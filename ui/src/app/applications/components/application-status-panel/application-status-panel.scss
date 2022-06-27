@@ -1,6 +1,7 @@
 @import 'node_modules/argo-ui/src/styles/config';
 @import 'node_modules/foundation-sites/scss/util/util';
 @import 'node_modules/argo-ui/src/styles/theme';
+
 .help-tip {
     color: $argo-color-gray-4;
 }
@@ -62,9 +63,8 @@
         padding: 5px 20px;
         font-size: 0.8em;
         line-height: 1.2;
-        //color: $argo-color-gray-7;
         @include themify($themes) {     
-           color: themed('text-2');
+           color: themed('text-1');
         }
         display: flex;
         flex-direction: column;
