@@ -294,21 +294,31 @@ func logWithAppStatus(a *appv1.Application, logCtx *log.Entry, ts string) *log.E
 	})
 }
 
+func getLatestAppHistoryItem(a *appv1.Application) *appv1.RevisionHistory {
+	if a.Status.History != nil && len(a.Status.History) > 0 {
+		return &a.Status.History[len(a.Status.History)-1]
+	}
+
+	return nil
+}
+
 func getResourceRevision(a *appv1.Application) string {
 	revision := a.Status.Sync.Revision
+	lastHistory := getLatestAppHistoryItem(a)
 
-	if a.Status.History != nil && len(a.Status.History) > 0 {
-		revision = a.Status.History[len(a.Status.History)-1].Revision
+	if lastHistory != nil {
+		revision = lastHistory.Revision
 	}
 
 	return revision
 }
 
 func getLatestAppHistoryId(a *appv1.Application) int64 {
-	id := int64(0)
+	var id int64
+	lastHistory := getLatestAppHistoryItem(a)
 
-	if a.Status.History != nil && len(a.Status.History) > 0 {
-		id = a.Status.History[len(a.Status.History)-1].ID
+	if lastHistory != nil {
+		id = lastHistory.ID
 	}
 
 	return id
