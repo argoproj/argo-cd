@@ -1,3 +1,5 @@
+//go:build !windows
+
 package localconfig
 
 import (
@@ -83,7 +85,7 @@ func TestFilePermission(t *testing.T) {
 			if err := getFilePermission(fi); err != nil {
 				assert.EqualError(t, err, c.expectedError.Error())
 			} else {
-				require.Nil(t, err)
+				require.Nil(t, c.expectedError)
 			}
 		})
 	}

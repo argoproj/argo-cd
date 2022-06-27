@@ -69,7 +69,7 @@ func GetServiceAccountBearerToken(clientset kubernetes.Interface, ns string, sa 
 	var serviceAccount *corev1.ServiceAccount
 	var secret *corev1.Secret
 	var err error
-	err = wait.Poll(500*time.Millisecond, 30*time.Second, func() (bool, error) {
+	err = wait.Poll(500*time.Millisecond, 5*time.Second, func() (bool, error) {
 		serviceAccount, err = clientset.CoreV1().ServiceAccounts(ns).Get(context.Background(), sa, metav1.GetOptions{})
 		if err != nil {
 			return false, err

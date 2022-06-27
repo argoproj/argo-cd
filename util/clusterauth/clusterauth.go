@@ -2,16 +2,19 @@ package clusterauth
 
 import (
 	"context"
+	"encoding/json"
 	"fmt"
 	"strings"
 	"time"
 
+	"github.com/argoproj/argo-cd/v2/common"
 	jwt "github.com/golang-jwt/jwt/v4"
 	log "github.com/sirupsen/logrus"
 	corev1 "k8s.io/api/core/v1"
 	rbacv1 "k8s.io/api/rbac/v1"
 	apierr "k8s.io/apimachinery/pkg/api/errors"
 	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
+	"k8s.io/apimachinery/pkg/types"
 	"k8s.io/apimachinery/pkg/util/wait"
 	"k8s.io/client-go/kubernetes"
 )
@@ -173,7 +176,7 @@ func upsertRoleBinding(clientset kubernetes.Interface, name string, roleName str
 }
 
 // InstallClusterManagerRBAC installs RBAC resources for a cluster manager to operate a cluster. Returns a token
-func InstallClusterManagerRBAC(clientset kubernetes.Interface, ns string, namespaces []string) (string, error) {
+func InstallClusterManagerRBAC(clientset kubernetes.Interface, ns string, namespaces []string, bearerTokenTimeout time.Duration) (string, error) {
 
 	err := CreateServiceAccount(clientset, ArgoCDManagerServiceAccount, ns)
 	if err != nil {
@@ -212,42 +215,123 @@ func InstallClusterManagerRBAC(clientset kubernetes.Interface, ns string, namesp
 		}
 	}
 
-	return GetServiceAccountBearerToken(clientset, ns, ArgoCDManagerServiceAccount)
+	return GetServiceAccountBearerToken(clientset, ns, ArgoCDManagerServiceAccount, bearerTokenTimeout)
 }
 
-// GetServiceAccountBearerToken will attempt to get the provided service account until it
-// exists, iterate the secrets associated with it looking for one of type
-// kubernetes.io/service-account-token, and return it's token if found.
-func GetServiceAccountBearerToken(clientset kubernetes.Interface, ns string, sa string) (string, error) {
-	var serviceAccount *corev1.ServiceAccount
+// GetServiceAccountBearerToken determines if a ServiceAccount has a
+// bearer token secret to use or if a secret should be created. It then
+// waits for the secret to have a bearer token if a secret needs to
+// be created and returns the token in encoded base64.
+func GetServiceAccountBearerToken(clientset kubernetes.Interface, ns string, sa string, timeout time.Duration) (string, error) {
+	secretName, err := getOrCreateServiceAccountTokenSecret(clientset, sa, ns)
+	if err != nil {
+		return "", err
+	}
+
 	var secret *corev1.Secret
-	var err error
-	err = wait.Poll(500*time.Millisecond, 30*time.Second, func() (bool, error) {
-		serviceAccount, err = clientset.CoreV1().ServiceAccounts(ns).Get(context.Background(), sa, metav1.GetOptions{})
+	err = wait.PollImmediate(500*time.Millisecond, timeout, func() (bool, error) {
+		ctx, cancel := context.WithTimeout(context.Background(), common.ClusterAuthRequestTimeout)
+		defer cancel()
+		secret, err = clientset.CoreV1().Secrets(ns).Get(ctx, secretName, metav1.GetOptions{})
 		if err != nil {
-			return false, err
+			return false, fmt.Errorf("failed to get secret %q for serviceaccount %q: %w", secretName, sa, err)
 		}
-		// Scan all secrets looking for one of the correct type:
-		for _, oRef := range serviceAccount.Secrets {
-			var getErr error
-			secret, err = clientset.CoreV1().Secrets(ns).Get(context.Background(), oRef.Name, metav1.GetOptions{})
-			if err != nil {
-				return false, fmt.Errorf("Failed to retrieve secret %q: %v", oRef.Name, getErr)
-			}
-			if secret.Type == corev1.SecretTypeServiceAccountToken {
-				return true, nil
-			}
+
+		_, ok := secret.Data["token"]
+		if !ok {
+			return false, nil
 		}
-		return false, nil
+
+		return true, nil
 	})
 	if err != nil {
-		return "", fmt.Errorf("Failed to wait for service account secret: %v", err)
+		return "", fmt.Errorf("failed to get token for serviceaccount %q: %w", sa, err)
 	}
-	token, ok := secret.Data["token"]
-	if !ok {
-		return "", fmt.Errorf("Secret %q for service account %q did not have a token", secret.Name, serviceAccount)
+
+	return string(secret.Data["token"]), nil
+}
+
+// getOrCreateServiceAccountTokenSecret will check if a ServiceAccount
+// already has a kubernetes.io/service-account-token secret associated
+// with it or creates one if the ServiceAccount doesn't have one. This
+// was added to help add k8s v1.24+ clusters.
+func getOrCreateServiceAccountTokenSecret(clientset kubernetes.Interface, sa, ns string) (string, error) {
+	// Wait for sa to have secret, but don't wait too
+	// long for 1.24+ clusters
+	var serviceAccount *corev1.ServiceAccount
+	err := wait.PollImmediate(500*time.Millisecond, 5*time.Second, func() (bool, error) {
+		ctx, cancel := context.WithTimeout(context.Background(), common.ClusterAuthRequestTimeout)
+		defer cancel()
+		var getErr error
+		serviceAccount, getErr = clientset.CoreV1().ServiceAccounts(ns).Get(ctx, sa, metav1.GetOptions{})
+		if getErr != nil {
+			return false, fmt.Errorf("failed to get serviceaccount %q: %w", sa, getErr)
+		}
+		if len(serviceAccount.Secrets) == 0 {
+			return false, nil
+		}
+		return true, nil
+	})
+	if err != nil && err != wait.ErrWaitTimeout {
+		return "", fmt.Errorf("failed to get serviceaccount token secret: %w", err)
 	}
-	return string(token), nil
+	if serviceAccount == nil {
+		log.Errorf("Unexpected nil serviceaccount '%s/%s' with no error returned", ns, sa)
+		return "", fmt.Errorf("failed to create serviceaccount token secret: nil serviceaccount returned for '%s/%s' with no error", ns, sa)
+	}
+
+	outerCtx, cancel := context.WithTimeout(context.Background(), 30*time.Second)
+	defer cancel()
+	for _, s := range serviceAccount.Secrets {
+		innerCtx, cancel := context.WithTimeout(outerCtx, common.ClusterAuthRequestTimeout)
+		defer cancel()
+		existingSecret, err := clientset.CoreV1().Secrets(ns).Get(innerCtx, s.Name, metav1.GetOptions{})
+		if err != nil {
+			return "", fmt.Errorf("failed to retrieve secret %q: %w", s.Name, err)
+		}
+		if existingSecret.Type == corev1.SecretTypeServiceAccountToken {
+			return existingSecret.Name, nil
+		}
+	}
+
+	return createServiceAccountToken(clientset, serviceAccount)
+}
+
+func createServiceAccountToken(clientset kubernetes.Interface, serviceAccount *corev1.ServiceAccount) (string, error) {
+	secret := &corev1.Secret{
+		ObjectMeta: metav1.ObjectMeta{
+			GenerateName: serviceAccount.Name + "-token-",
+			Namespace:    serviceAccount.Namespace,
+			Annotations: map[string]string{
+				corev1.ServiceAccountNameKey: serviceAccount.Name,
+			},
+		},
+		Type: corev1.SecretTypeServiceAccountToken,
+	}
+
+	ctx, cancel := context.WithTimeout(context.Background(), common.ClusterAuthRequestTimeout)
+	defer cancel()
+	secret, err := clientset.CoreV1().Secrets(serviceAccount.Namespace).Create(ctx, secret, metav1.CreateOptions{})
+	if err != nil {
+		return "", fmt.Errorf("failed to create secret for serviceaccount %q: %w", serviceAccount.Name, err)
+	}
+
+	log.Infof("Created bearer token secret for ServiceAccount %q", serviceAccount.Name)
+	serviceAccount.Secrets = []corev1.ObjectReference{{
+		Name:      secret.Name,
+		Namespace: secret.Namespace,
+	}}
+	patch, err := json.Marshal(serviceAccount)
+	if err != nil {
+		return "", fmt.Errorf("failed marshaling patch for serviceaccount %q: %w", serviceAccount.Name, err)
+	}
+
+	_, err = clientset.CoreV1().ServiceAccounts(serviceAccount.Namespace).Patch(ctx, serviceAccount.Name, types.StrategicMergePatchType, patch, metav1.PatchOptions{})
+	if err != nil {
+		return "", fmt.Errorf("failed to patch serviceaccount %q with bearer token secret: %w", serviceAccount.Name, err)
+	}
+
+	return secret.Name, nil
 }
 
 // UninstallClusterManagerRBAC removes RBAC resources for a cluster manager to operate a cluster

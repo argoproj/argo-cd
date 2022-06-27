@@ -150,6 +150,41 @@ Or, a shorter way (using [path.Match](https://golang.org/pkg/path/#Match) syntax
   exclude: true
 ```
 
+### Root Of Git Repo
+
+The Git directory generator can be configured to deploy from the root of the git repository by providing `'*'` as the `path`.
+
+To exclude directories, you only need to put the name/[path.Match](https://golang.org/pkg/path/#Match) of the directory you do not want to deploy.
+
+```yaml
+apiVersion: argoproj.io/v1alpha1
+kind: ApplicationSet
+metadata:
+  name: cluster-addons
+  namespace: argocd
+spec:
+  generators:
+  - git:
+      repoURL: https://github.com/example/example-repo.git
+      revision: HEAD
+      directories:
+      - path: '*'
+      - path: donotdeploy
+        exclude: true
+  template:
+    metadata:
+      name: '{{path.basename}}'
+    spec:
+      project: "my-project"
+      source:
+        repoURL: https://github.com/example/example-repo.git
+        targetRevision: HEAD
+        path: '{{path}}'
+      destination:
+        server: https://kubernetes.default.svc
+        namespace: '{{path.basename}}'
+```
+
 ## Git Generator: Files
 
 The Git file generator is the second subtype of the Git generator. The Git file generator generates parameters using the contents of JSON/YAML files found within a specified repository.

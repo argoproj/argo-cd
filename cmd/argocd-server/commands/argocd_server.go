@@ -152,7 +152,9 @@ func NewCommand() *cobra.Command {
 			stats.RegisterStackDumper()
 			stats.StartStatsTicker(10 * time.Minute)
 			stats.RegisterHeapDumper("memprofile")
-
+			argocd := server.NewServer(context.Background(), argoCDOpts)
+			lns, err := argocd.Listen()
+			errors.CheckError(err)
 			for {
 				var closer func()
 				ctx := context.Background()
@@ -163,8 +165,7 @@ func NewCommand() *cobra.Command {
 						log.Fatalf("failed to initialize tracing: %v", err)
 					}
 				}
-				argocd := server.NewServer(ctx, argoCDOpts)
-				argocd.Run(ctx, listenPort, metricsPort)
+				argocd.Run(ctx, lns)
 				cancel()
 				if closer != nil {
 					closer()

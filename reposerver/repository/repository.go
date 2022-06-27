@@ -18,6 +18,10 @@ import (
 	"strings"
 	"time"
 
+	kubeyaml "k8s.io/apimachinery/pkg/util/yaml"
+
+	"k8s.io/apimachinery/pkg/api/resource"
+
 	"github.com/argoproj/argo-cd/v2/util/io/files"
 
 	"github.com/Masterminds/semver/v3"
@@ -71,6 +75,8 @@ const (
 	ociPrefix                      = "oci://"
 )
 
+var ErrExceededMaxCombinedManifestFileSize = errors.New("exceeded max combined manifest file size")
+
 // Service implements ManifestService interface
 type Service struct {
 	gitCredsStore             git.CredsStore
@@ -96,6 +102,7 @@ type RepoServerInitConstants struct {
 	PauseGenerationOnFailureForMinutes           int
 	PauseGenerationOnFailureForRequests          int
 	SubmoduleEnabled                             bool
+	MaxCombinedDirectoryManifestsSize            resource.Quantity
 }
 
 // NewService returns a new instance of the Manifest service
@@ -450,21 +457,27 @@ func (s *Service) runManifestGenAsync(ctx context.Context, repoRoot, commitSHA, 
 		close(ch.errCh)
 		close(ch.responseCh)
 	}()
+
+	// GenerateManifests mutates the source (applies overrides). Those overrides shouldn't be reflected in the cache
+	// key. Overrides will break the cache anyway, because changes to overrides will change the revision.
+	appSourceCopy := q.ApplicationSource.DeepCopy()
+
 	var manifestGenResult *apiclient.ManifestResponse
 	opContext, err := opContextSrc()
 	if err == nil {
-		manifestGenResult, err = GenerateManifests(ctx, opContext.appPath, repoRoot, commitSHA, q, false, s.gitCredsStore, WithCMPTarDoneChannel(ch.tarDoneCh))
+		manifestGenResult, err = GenerateManifests(ctx, opContext.appPath, repoRoot, commitSHA, q, false, s.gitCredsStore, s.initConstants.MaxCombinedDirectoryManifestsSize, WithCMPTarDoneChannel(ch.tarDoneCh))
 	}
 	if err != nil {
 		// If manifest generation error caching is enabled
 		if s.initConstants.PauseGenerationAfterFailedGenerationAttempts > 0 {
+			cache.LogDebugManifestCacheKeyFields("getting manifests cache", "GenerateManifests error", cacheKey, q.ApplicationSource, q, q.Namespace, q.TrackingMethod, q.AppLabelKey, q.AppName)
 
 			// Retrieve a new copy (if available) of the cached response: this ensures we are updating the latest copy of the cache,
 			// rather than a copy of the cache that occurred before (a potentially lengthy) manifest generation.
 			innerRes := &cache.CachedManifestResponse{}
-			cacheErr := s.cache.GetManifests(cacheKey, q.ApplicationSource, q, q.Namespace, q.TrackingMethod, q.AppLabelKey, q.AppName, innerRes)
+			cacheErr := s.cache.GetManifests(cacheKey, appSourceCopy, q, q.Namespace, q.TrackingMethod, q.AppLabelKey, q.AppName, innerRes)
 			if cacheErr != nil && cacheErr != reposervercache.ErrCacheMiss {
-				log.Warnf("manifest cache set error %s: %v", q.ApplicationSource.String(), cacheErr)
+				log.Warnf("manifest cache set error %s: %v", appSourceCopy.String(), cacheErr)
 				ch.errCh <- cacheErr
 				return
 			}
@@ -475,12 +488,14 @@ func (s *Service) runManifestGenAsync(ctx context.Context, repoRoot, commitSHA, 
 				innerRes.FirstFailureTimestamp = s.now().Unix()
 			}
 
+			cache.LogDebugManifestCacheKeyFields("setting manifests cache", "GenerateManifests error", cacheKey, q.ApplicationSource, q, q.Namespace, q.TrackingMethod, q.AppLabelKey, q.AppName)
+
 			// Update the cache to include failure information
 			innerRes.NumberOfConsecutiveFailures++
 			innerRes.MostRecentError = err.Error()
-			cacheErr = s.cache.SetManifests(cacheKey, q.ApplicationSource, q, q.Namespace, q.TrackingMethod, q.AppLabelKey, q.AppName, innerRes)
+			cacheErr = s.cache.SetManifests(cacheKey, appSourceCopy, q, q.Namespace, q.TrackingMethod, q.AppLabelKey, q.AppName, innerRes)
 			if cacheErr != nil {
-				log.Warnf("manifest cache set error %s: %v", q.ApplicationSource.String(), cacheErr)
+				log.Warnf("manifest cache set error %s: %v", appSourceCopy.String(), cacheErr)
 				ch.errCh <- cacheErr
 				return
 			}
@@ -489,6 +504,9 @@ func (s *Service) runManifestGenAsync(ctx context.Context, repoRoot, commitSHA, 
 		ch.errCh <- err
 		return
 	}
+
+	cache.LogDebugManifestCacheKeyFields("setting manifests cache", "fresh GenerateManifests response", cacheKey, q.ApplicationSource, q, q.Namespace, q.TrackingMethod, q.AppLabelKey, q.AppName)
+
 	// Otherwise, no error occurred, so ensure the manifest generation error data in the cache entry is reset before we cache the value
 	manifestGenCacheEntry := cache.CachedManifestResponse{
 		ManifestResponse:                manifestGenResult,
@@ -499,9 +517,9 @@ func (s *Service) runManifestGenAsync(ctx context.Context, repoRoot, commitSHA, 
 	}
 	manifestGenResult.Revision = commitSHA
 	manifestGenResult.VerifyResult = opContext.verificationResult
-	err = s.cache.SetManifests(cacheKey, q.ApplicationSource, q, q.Namespace, q.TrackingMethod, q.AppLabelKey, q.AppName, &manifestGenCacheEntry)
+	err = s.cache.SetManifests(cacheKey, appSourceCopy, q, q.Namespace, q.TrackingMethod, q.AppLabelKey, q.AppName, &manifestGenCacheEntry)
 	if err != nil {
-		log.Warnf("manifest cache set error %s/%s: %v", q.ApplicationSource.String(), cacheKey, err)
+		log.Warnf("manifest cache set error %s/%s: %v", appSourceCopy.String(), cacheKey, err)
 	}
 	ch.responseCh <- manifestGenCacheEntry.ManifestResponse
 }
@@ -513,6 +531,8 @@ func (s *Service) runManifestGenAsync(ctx context.Context, repoRoot, commitSHA, 
 // and returns true otherwise.
 // If true is returned, either the second or third parameter (but not both) will contain a value from the cache (a ManifestResponse, or error, respectively)
 func (s *Service) getManifestCacheEntry(cacheKey string, q *apiclient.ManifestRequest, firstInvocation bool) (bool, *apiclient.ManifestResponse, error) {
+	cache.LogDebugManifestCacheKeyFields("getting manifests cache", "GenerateManifest API call", cacheKey, q.ApplicationSource, q, q.Namespace, q.TrackingMethod, q.AppLabelKey, q.AppName)
+
 	res := cache.CachedManifestResponse{}
 	err := s.cache.GetManifests(cacheKey, q.ApplicationSource, q, q.Namespace, q.TrackingMethod, q.AppLabelKey, q.AppName, &res)
 	if err == nil {
@@ -532,6 +552,8 @@ func (s *Service) getManifestCacheEntry(cacheKey string, q *apiclient.ManifestRe
 
 					// After X minutes, reset the cache and retry the operation (e.g. perhaps the error is ephemeral and has passed)
 					if elapsedTimeInMinutes >= s.initConstants.PauseGenerationOnFailureForMinutes {
+						cache.LogDebugManifestCacheKeyFields("deleting manifests cache", "manifest hash did not match or cached response is empty", cacheKey, q.ApplicationSource, q, q.Namespace, q.TrackingMethod, q.AppLabelKey, q.AppName)
+
 						// We can now try again, so reset the cache state and run the operation below
 						err = s.cache.DeleteManifests(cacheKey, q.ApplicationSource, q, q.Namespace, q.TrackingMethod, q.AppLabelKey, q.AppName)
 						if err != nil {
@@ -546,6 +568,8 @@ func (s *Service) getManifestCacheEntry(cacheKey string, q *apiclient.ManifestRe
 				if s.initConstants.PauseGenerationOnFailureForRequests > 0 && res.NumberOfCachedResponsesReturned > 0 {
 
 					if res.NumberOfCachedResponsesReturned >= s.initConstants.PauseGenerationOnFailureForRequests {
+						cache.LogDebugManifestCacheKeyFields("deleting manifests cache", "reset after paused generation count", cacheKey, q.ApplicationSource, q, q.Namespace, q.TrackingMethod, q.AppLabelKey, q.AppName)
+
 						// We can now try again, so reset the error cache state and run the operation below
 						err = s.cache.DeleteManifests(cacheKey, q.ApplicationSource, q, q.Namespace, q.TrackingMethod, q.AppLabelKey, q.AppName)
 						if err != nil {
@@ -562,6 +586,8 @@ func (s *Service) getManifestCacheEntry(cacheKey string, q *apiclient.ManifestRe
 				cachedErrorResponse := fmt.Errorf(cachedManifestGenerationPrefix+": %s", res.MostRecentError)
 
 				if firstInvocation {
+					cache.LogDebugManifestCacheKeyFields("setting manifests cache", "update error count", cacheKey, q.ApplicationSource, q, q.Namespace, q.TrackingMethod, q.AppLabelKey, q.AppName)
+
 					// Increment the number of returned cached responses and push that new value to the cache
 					// (if we have not already done so previously in this function)
 					res.NumberOfCachedResponsesReturned++
@@ -866,13 +892,14 @@ func WithCMPTarDoneChannel(ch chan<- bool) GenerateManifestOpt {
 	}
 }
 
-// GenerateManifests generates manifests from a path
-func GenerateManifests(ctx context.Context, appPath, repoRoot, revision string, q *apiclient.ManifestRequest, isLocal bool, gitCredsStore git.CredsStore, opts ...GenerateManifestOpt) (*apiclient.ManifestResponse, error) {
+// GenerateManifests generates manifests from a path. Overrides are applied as a side effect on the given ApplicationSource.
+func GenerateManifests(ctx context.Context, appPath, repoRoot, revision string, q *apiclient.ManifestRequest, isLocal bool, gitCredsStore git.CredsStore, maxCombinedManifestQuantity resource.Quantity, opts ...GenerateManifestOpt) (*apiclient.ManifestResponse, error) {
 	opt := newGenerateManifestOpt(opts...)
 	var targetObjs []*unstructured.Unstructured
 	var dest *v1alpha1.ApplicationDestination
 
 	resourceTracking := argo.NewResourceTracking()
+
 	appSourceType, err := GetAppSourceType(ctx, q.ApplicationSource, appPath, q.AppName, q.EnabledSourceTypes)
 	if err != nil {
 		return nil, err
@@ -908,7 +935,7 @@ func GenerateManifests(ctx context.Context, appPath, repoRoot, revision string, 
 			directory = &v1alpha1.ApplicationSourceDirectory{}
 		}
 		logCtx := log.WithField("application", q.AppName)
-		targetObjs, err = findManifests(logCtx, appPath, repoRoot, env, *directory, q.EnabledSourceTypes)
+		targetObjs, err = findManifests(logCtx, appPath, repoRoot, env, *directory, q.EnabledSourceTypes, maxCombinedManifestQuantity)
 	}
 	if err != nil {
 		return nil, err
@@ -985,7 +1012,7 @@ func mergeSourceParameters(source *v1alpha1.ApplicationSource, path, appName str
 		overrides = append(overrides, filepath.Join(path, fmt.Sprintf(appSourceFile, appName)))
 	}
 
-	var merged v1alpha1.ApplicationSource = *source.DeepCopy()
+	var merged = *source.DeepCopy()
 
 	for _, filename := range overrides {
 		info, err := os.Stat(filename)
@@ -1078,63 +1105,30 @@ func isNullList(obj *unstructured.Unstructured) bool {
 var manifestFile = regexp.MustCompile(`^.*\.(yaml|yml|json|jsonnet)$`)
 
 // findManifests looks at all yaml files in a directory and unmarshals them into a list of unstructured objects
-func findManifests(logCtx *log.Entry, appPath string, repoRoot string, env *v1alpha1.Env, directory v1alpha1.ApplicationSourceDirectory, enabledManifestGeneration map[string]bool) ([]*unstructured.Unstructured, error) {
+func findManifests(logCtx *log.Entry, appPath string, repoRoot string, env *v1alpha1.Env, directory v1alpha1.ApplicationSourceDirectory, enabledManifestGeneration map[string]bool, maxCombinedManifestQuantity resource.Quantity) ([]*unstructured.Unstructured, error) {
+	// Validate the directory before loading any manifests to save memory.
+	potentiallyValidManifests, err := getPotentiallyValidManifests(logCtx, appPath, repoRoot, directory.Recurse, directory.Include, directory.Exclude, maxCombinedManifestQuantity)
+	if err != nil {
+		logCtx.Errorf("failed to get potentially valid manifests: %s", err)
+		return nil, fmt.Errorf("failed to get potentially valid manifests: %w", err)
+	}
+
 	var objs []*unstructured.Unstructured
-	err := filepath.Walk(appPath, func(path string, f os.FileInfo, err error) error {
-		if err != nil {
-			return err
-		}
-		relPath, err := filepath.Rel(appPath, path)
-		if err != nil {
-			return fmt.Errorf("failed to get relative path of symlink: %w", err)
-		}
-		if files.IsSymlink(f) {
-			realPath, err := filepath.EvalSymlinks(path)
-			if err != nil {
-				logCtx.Debugf("error checking symlink realpath: %s", err)
-				if os.IsNotExist(err) {
-					log.Warnf("ignoring out-of-bounds symlink at %q: %s", relPath, err)
-					return nil
-				} else {
-					return fmt.Errorf("failed to evaluate symlink at %q: %w", relPath, err)
-				}
-			}
-			if !files.Inbound(realPath, repoRoot) {
-				logCtx.Warnf("illegal filepath in symlink: %s", realPath)
-				return fmt.Errorf("illegal filepath in symlink at %q", relPath)
-			}
-		}
-		if f.IsDir() {
-			if path != appPath && !directory.Recurse {
-				return filepath.SkipDir
-			} else {
-				return nil
-			}
-		}
+	for _, potentiallyValidManifest := range potentiallyValidManifests {
+		manifestPath := potentiallyValidManifest.path
+		manifestFileInfo := potentiallyValidManifest.fileInfo
 
-		if !manifestFile.MatchString(f.Name()) {
-			return nil
-		}
-
-		if directory.Exclude != "" && glob.Match(directory.Exclude, relPath) {
-			return nil
-		}
-
-		if directory.Include != "" && !glob.Match(directory.Include, relPath) {
-			return nil
-		}
-
-		if strings.HasSuffix(f.Name(), ".jsonnet") {
+		if strings.HasSuffix(manifestFileInfo.Name(), ".jsonnet") {
 			if !discovery.IsManifestGenerationEnabled(v1alpha1.ApplicationSourceTypeDirectory, enabledManifestGeneration) {
-				return nil
+				continue
 			}
 			vm, err := makeJsonnetVm(appPath, repoRoot, directory.Jsonnet, env)
 			if err != nil {
-				return err
+				return nil, err
 			}
-			jsonStr, err := vm.EvaluateFile(path)
+			jsonStr, err := vm.EvaluateFile(manifestPath)
 			if err != nil {
-				return status.Errorf(codes.FailedPrecondition, "Failed to evaluate jsonnet %q: %v", f.Name(), err)
+				return nil, status.Errorf(codes.FailedPrecondition, "Failed to evaluate jsonnet %q: %v", manifestFileInfo.Name(), err)
 			}
 
 			// attempt to unmarshal either array or single object
@@ -1146,49 +1140,207 @@ func findManifests(logCtx *log.Entry, appPath string, repoRoot string, env *v1al
 				var jsonObj unstructured.Unstructured
 				err = json.Unmarshal([]byte(jsonStr), &jsonObj)
 				if err != nil {
-					return status.Errorf(codes.FailedPrecondition, "Failed to unmarshal generated json %q: %v", f.Name(), err)
+					return nil, status.Errorf(codes.FailedPrecondition, "Failed to unmarshal generated json %q: %v", manifestFileInfo.Name(), err)
 				}
 				objs = append(objs, &jsonObj)
 			}
 		} else {
-			out, err := utfutil.ReadFile(path, utfutil.UTF8)
+			err := getObjsFromYAMLOrJson(logCtx, manifestPath, manifestFileInfo.Name(), &objs)
 			if err != nil {
-				return err
-			}
-			if strings.HasSuffix(f.Name(), ".json") {
-				var obj unstructured.Unstructured
-				err = json.Unmarshal(out, &obj)
-				if err != nil {
-					return status.Errorf(codes.FailedPrecondition, "Failed to unmarshal %q: %v", f.Name(), err)
-				}
-				objs = append(objs, &obj)
-			} else {
-				yamlObjs, err := kube.SplitYAML(out)
-				if err != nil {
-					if len(yamlObjs) > 0 {
-						// If we get here, we had a multiple objects in a single YAML file which had some
-						// valid k8s objects, but errors parsing others (within the same file). It's very
-						// likely the user messed up a portion of the YAML, so report on that.
-						return status.Errorf(codes.FailedPrecondition, "Failed to unmarshal %q: %v", f.Name(), err)
-					}
-					// Otherwise, let's see if it looks like a resource, if yes, we return error
-					if bytes.Contains(out, []byte("apiVersion:")) &&
-						bytes.Contains(out, []byte("kind:")) &&
-						bytes.Contains(out, []byte("metadata:")) {
-						return status.Errorf(codes.FailedPrecondition, "Failed to unmarshal %q: %v", f.Name(), err)
-					}
-					// Otherwise, it might be a unrelated YAML file which we will ignore
-					return nil
-				}
-				objs = append(objs, yamlObjs...)
+				return nil, err
 			}
 		}
+	}
+	return objs, nil
+}
+
+// getObjsFromYAMLOrJson unmarshals the given yaml or json file and appends it to the given list of objects.
+func getObjsFromYAMLOrJson(logCtx *log.Entry, manifestPath string, filename string, objs *[]*unstructured.Unstructured) error {
+	reader, err := utfutil.OpenFile(manifestPath, utfutil.UTF8)
+	if err != nil {
+		return status.Errorf(codes.FailedPrecondition, "Failed to open %q", manifestPath)
+	}
+	defer func() {
+		err := reader.Close()
+		if err != nil {
+			logCtx.Errorf("failed to close %q - potential memory leak", manifestPath)
+		}
+	}()
+	if strings.HasSuffix(filename, ".json") {
+		var obj unstructured.Unstructured
+		decoder := json.NewDecoder(reader)
+		err = decoder.Decode(&obj)
+		if err != nil {
+			return status.Errorf(codes.FailedPrecondition, "Failed to unmarshal %q: %v", filename, err)
+		}
+		if decoder.More() {
+			return status.Errorf(codes.FailedPrecondition, "Found multiple objects in %q. Only single objects are allowed in JSON files.", filename)
+		}
+		*objs = append(*objs, &obj)
+	} else {
+		yamlObjs, err := splitYAMLOrJSON(reader)
+		if err != nil {
+			if len(yamlObjs) > 0 {
+				// If we get here, we had a multiple objects in a single YAML file which had some
+				// valid k8s objects, but errors parsing others (within the same file). It's very
+				// likely the user messed up a portion of the YAML, so report on that.
+				return status.Errorf(codes.FailedPrecondition, "Failed to unmarshal %q: %v", filename, err)
+			}
+			// Read the whole file to check whether it looks like a manifest.
+			out, err := utfutil.ReadFile(manifestPath, utfutil.UTF8)
+			// Otherwise, let's see if it looks like a resource, if yes, we return error
+			if bytes.Contains(out, []byte("apiVersion:")) &&
+				bytes.Contains(out, []byte("kind:")) &&
+				bytes.Contains(out, []byte("metadata:")) {
+				return status.Errorf(codes.FailedPrecondition, "Failed to unmarshal %q: %v", filename, err)
+			}
+			// Otherwise, it might be an unrelated YAML file which we will ignore
+		}
+		*objs = append(*objs, yamlObjs...)
+	}
+	return nil
+}
+
+// splitYAMLOrJSON reads a YAML or JSON file and gets each document as an unstructured object. If the unmarshaller
+// encounters an error, objects read up until the error are returned.
+func splitYAMLOrJSON(reader goio.Reader) ([]*unstructured.Unstructured, error) {
+	d := kubeyaml.NewYAMLOrJSONDecoder(reader, 4096)
+	var objs []*unstructured.Unstructured
+	for {
+		u := &unstructured.Unstructured{}
+		if err := d.Decode(&u); err != nil {
+			if err == goio.EOF {
+				break
+			}
+			return objs, fmt.Errorf("failed to unmarshal manifest: %v", err)
+		}
+		if u == nil {
+			continue
+		}
+		objs = append(objs, u)
+	}
+	return objs, nil
+}
+
+// getPotentiallyValidManifestFile checks whether the given path/FileInfo may be a valid manifest file. Returns a non-nil error if
+// there was an error that should not be handled by ignoring the file. Returns non-nil realFileInfo if the file is a
+// potential manifest. Returns a non-empty ignoreMessage if there's a message that should be logged about why the file
+// was skipped. If realFileInfo is nil and the ignoreMessage is empty, there's no need to log the ignoreMessage; the
+// file was skipped for a mundane reason.
+//
+// The file is still only a "potentially" valid manifest file because it could be invalid JSON or YAML, or it might not
+// be a valid Kubernetes resource. This function tests everything possible without actually reading the file.
+//
+// repoPath must be absolute.
+func getPotentiallyValidManifestFile(path string, f os.FileInfo, appPath, repoRoot, include, exclude string) (realFileInfo os.FileInfo, warning string, err error) {
+	relPath, err := filepath.Rel(appPath, path)
+	if err != nil {
+		return nil, "", fmt.Errorf("failed to get relative path of %q: %w", path, err)
+	}
+
+	if !manifestFile.MatchString(f.Name()) {
+		return nil, "", nil
+	}
+
+	// If the file is a symlink, these will be overridden with the destination file's info.
+	var relRealPath = relPath
+	realFileInfo = f
+
+	if files.IsSymlink(f) {
+		realPath, err := filepath.EvalSymlinks(path)
+		if err != nil {
+			if os.IsNotExist(err) {
+				return nil, fmt.Sprintf("destination of symlink %q is missing", relPath), nil
+			}
+			return nil, "", fmt.Errorf("failed to evaluate symlink at %q: %w", relPath, err)
+		}
+		if !files.Inbound(realPath, repoRoot) {
+			return nil, "", fmt.Errorf("illegal filepath in symlink at %q", relPath)
+		}
+		realFileInfo, err = os.Stat(realPath)
+		if err != nil {
+			if os.IsNotExist(err) {
+				// This should have been caught by filepath.EvalSymlinks, but check again since that function's docs
+				// don't promise to return this error.
+				return nil, fmt.Sprintf("destination of symlink %q is missing at %q", relPath, realPath), nil
+			}
+			return nil, "", fmt.Errorf("failed to get file info for symlink at %q to %q: %w", relPath, realPath, err)
+		}
+		relRealPath, err = filepath.Rel(repoRoot, realPath)
+		if err != nil {
+			return nil, "", fmt.Errorf("failed to get relative path of %q: %w", realPath, err)
+		}
+	}
+
+	// FileInfo.Size() behavior is platform-specific for non-regular files. Allow only regular files, so we guarantee
+	// accurate file sizes.
+	if !realFileInfo.Mode().IsRegular() {
+		return nil, fmt.Sprintf("ignoring symlink at %q to non-regular file %q", relPath, relRealPath), nil
+	}
+
+	if exclude != "" && glob.Match(exclude, relPath) {
+		return nil, "", nil
+	}
+
+	if include != "" && !glob.Match(include, relPath) {
+		return nil, "", nil
+	}
+
+	return realFileInfo, "", nil
+}
+
+type potentiallyValidManifest struct {
+	path     string
+	fileInfo os.FileInfo
+}
+
+// getPotentiallyValidManifests ensures that 1) there are no errors while checking for potential manifest files in the given dir
+// and 2) the combined file size of the potentially-valid manifest files does not exceed the limit.
+func getPotentiallyValidManifests(logCtx *log.Entry, appPath string, repoRoot string, recurse bool, include string, exclude string, maxCombinedManifestQuantity resource.Quantity) ([]potentiallyValidManifest, error) {
+	maxCombinedManifestFileSize := maxCombinedManifestQuantity.Value()
+	var currentCombinedManifestFileSize = int64(0)
+
+	var potentiallyValidManifests []potentiallyValidManifest
+	err := filepath.Walk(appPath, func(path string, f os.FileInfo, err error) error {
+		if err != nil {
+			return err
+		}
+
+		if f.IsDir() {
+			if path != appPath && !recurse {
+				return filepath.SkipDir
+			}
+			return nil
+		}
+
+		realFileInfo, warning, err := getPotentiallyValidManifestFile(path, f, appPath, repoRoot, include, exclude)
+		if err != nil {
+			return fmt.Errorf("invalid manifest file %q: %w", path, err)
+		}
+		if realFileInfo == nil {
+			if warning != "" {
+				logCtx.Warnf("skipping manifest file %q: %s", path, warning)
+			}
+			return nil
+		}
+		// Don't count jsonnet file size against max. It's jsonnet's responsibility to manage memory usage.
+		if !strings.HasSuffix(f.Name(), ".jsonnet") {
+			// We use the realFileInfo size (which is guaranteed to be a regular file instead of a symlink or other
+			// non-regular file) because .Size() behavior is platform-specific for non-regular files.
+			currentCombinedManifestFileSize += realFileInfo.Size()
+			if maxCombinedManifestFileSize != 0 && currentCombinedManifestFileSize > maxCombinedManifestFileSize {
+				return ErrExceededMaxCombinedManifestFileSize
+			}
+		}
+		potentiallyValidManifests = append(potentiallyValidManifests, potentiallyValidManifest{path: path, fileInfo: f})
 		return nil
 	})
 	if err != nil {
+		// Not wrapping, because this error should be wrapped by the caller.
 		return nil, err
 	}
-	return objs, nil
+
+	return potentiallyValidManifests, nil
 }
 
 func makeJsonnetVm(appPath string, repoRoot string, sourceJsonnet v1alpha1.ApplicationSourceJsonnet, env *v1alpha1.Env) (*jsonnet.VM, error) {
@@ -1461,8 +1613,12 @@ func populateHelmAppDetails(res *apiclient.RepoAppDetailsResponse, appPath strin
 		return err
 	}
 
-	if err := loadFileIntoIfExists(filepath.Join(appPath, "values.yaml"), &res.Helm.Values); err != nil {
-		return err
+	if resolvedValuesPath, _, err := pathutil.ResolveFilePath(appPath, repoRoot, "values.yaml", []string{}); err == nil {
+		if err := loadFileIntoIfExists(resolvedValuesPath, &res.Helm.Values); err != nil {
+			return err
+		}
+	} else {
+		log.Warnf("Values file %s is not allowed: %v", filepath.Join(appPath, "values.yaml"), err)
 	}
 	var resolvedSelectedValueFiles []pathutil.ResolvedFilePath
 	// drop not allowed values files
@@ -1470,10 +1626,10 @@ func populateHelmAppDetails(res *apiclient.RepoAppDetailsResponse, appPath strin
 		if resolvedFile, _, err := pathutil.ResolveFilePath(appPath, repoRoot, file, q.GetValuesFileSchemes()); err == nil {
 			resolvedSelectedValueFiles = append(resolvedSelectedValueFiles, resolvedFile)
 		} else {
-			log.Debugf("Values file %s is not allowed: %v", file, err)
+			log.Warnf("Values file %s is not allowed: %v", file, err)
 		}
 	}
-	params, err := h.GetParameters(resolvedSelectedValueFiles)
+	params, err := h.GetParameters(resolvedSelectedValueFiles, appPath, repoRoot)
 	if err != nil {
 		return err
 	}
@@ -1492,15 +1648,16 @@ func populateHelmAppDetails(res *apiclient.RepoAppDetailsResponse, appPath strin
 	return nil
 }
 
-func loadFileIntoIfExists(path string, destination *string) error {
-	info, err := os.Stat(path)
+func loadFileIntoIfExists(path pathutil.ResolvedFilePath, destination *string) error {
+	stringPath := string(path)
+	info, err := os.Stat(stringPath)
 
 	if err == nil && !info.IsDir() {
-		if bytes, err := ioutil.ReadFile(path); err != nil {
-			*destination = string(bytes)
-		} else {
+		bytes, err := ioutil.ReadFile(stringPath);
+		if err != nil {
 			return err
 		}
+		*destination = string(bytes)
 	}
 
 	return nil
