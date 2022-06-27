@@ -494,7 +494,7 @@ func (m *appStateManager) CompareAppState(app *v1alpha1.Application, project *ap
 		}
 		gvk := obj.GroupVersionKind()
 
-		isManagedLiveObj := m.isManagedLiveObj(liveObj, appLabelKey, trackingMethod)
+		isSelfReferencedObj := m.isSelfReferencedObj(liveObj, appLabelKey, trackingMethod)
 
 		resState := v1alpha1.ResourceStatus{
 			Namespace:       obj.GetNamespace(),
@@ -503,7 +503,7 @@ func (m *appStateManager) CompareAppState(app *v1alpha1.Application, project *ap
 			Version:         gvk.Version,
 			Group:           gvk.Group,
 			Hook:            hookutil.IsHook(obj),
-			RequiresPruning: targetObj == nil && liveObj != nil && isManagedLiveObj,
+			RequiresPruning: targetObj == nil && liveObj != nil && isSelfReferencedObj,
 		}
 
 		var diffResult diff.DiffResult
@@ -512,7 +512,7 @@ func (m *appStateManager) CompareAppState(app *v1alpha1.Application, project *ap
 		} else {
 			diffResult = diff.DiffResult{Modified: false, NormalizedLive: []byte("{}"), PredictedLive: []byte("{}")}
 		}
-		if resState.Hook || ignore.Ignore(obj) || (targetObj != nil && hookutil.Skip(targetObj)) || !isManagedLiveObj {
+		if resState.Hook || ignore.Ignore(obj) || (targetObj != nil && hookutil.Skip(targetObj)) || !isSelfReferencedObj {
 			// For resource hooks, skipped resources or objects that may have
 			// been created by another controller with annotations copied from
 			// the source object, don't store sync status, and do not affect
@@ -673,12 +673,12 @@ func NewAppStateManager(
 	}
 }
 
-// isManagedLiveObj returns whether the given obj is managed by the application
+// isSelfReferencedObj returns whether the given obj is managed by the application
 // according to the values in the tracking annotation. It returns true when all
 // of the properties in the annotation (name, namespace, group and kind) match
 // the properties of the inspected object, or if the tracking method used does
 // not provide the required properties for matching.
-func (m *appStateManager) isManagedLiveObj(obj *unstructured.Unstructured, appLabelKey string, trackingMethod v1alpha1.TrackingMethod) bool {
+func (m *appStateManager) isSelfReferencedObj(obj *unstructured.Unstructured, appLabelKey string, trackingMethod v1alpha1.TrackingMethod) bool {
 	if obj == nil {
 		return true
 	}
