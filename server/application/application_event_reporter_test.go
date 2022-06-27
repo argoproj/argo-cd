@@ -72,3 +72,94 @@ func TestGetResourceEventPayload(t *testing.T) {
 		assert.Equal(t, "", eventPayload.Source.ActualManifest)
 	})
 }
+
+func TestGetResourceRevision(t *testing.T) {
+	appRevision := "a-revision"
+	history1Revision := "history-revision-1"
+	history2Revision := "history-revision-2"
+
+	t.Run("resource revision should be taken from sync.revision", func(t *testing.T) {
+		noStatusHistoryAppMock := v1alpha1.Application{
+			Status: v1alpha1.ApplicationStatus{
+				Sync: v1alpha1.SyncStatus{
+					Revision: appRevision,
+				},
+			},
+		}
+
+		revisionResult := getResourceRevision(&noStatusHistoryAppMock)
+		assert.Equal(t, revisionResult, appRevision)
+
+		emptyStatusHistoryAppMock := v1alpha1.Application{
+			Status: v1alpha1.ApplicationStatus{
+				Sync: v1alpha1.SyncStatus{
+					Revision: appRevision,
+				},
+				History: []v1alpha1.RevisionHistory{},
+			},
+		}
+
+		revision2Result := getResourceRevision(&emptyStatusHistoryAppMock)
+		assert.Equal(t, revision2Result, appRevision)
+	})
+
+	t.Run("resource revision should be taken from latest history.revision", func(t *testing.T) {
+		appMock := v1alpha1.Application{
+			Status: v1alpha1.ApplicationStatus{
+				Sync: v1alpha1.SyncStatus{
+					Revision: appRevision,
+				},
+				History: []v1alpha1.RevisionHistory{
+					v1alpha1.RevisionHistory{
+						Revision: history1Revision,
+					},
+					v1alpha1.RevisionHistory{
+						Revision: history2Revision,
+					},
+				},
+			},
+		}
+
+		revisionResult := getResourceRevision(&appMock)
+		assert.Equal(t, revisionResult, history2Revision)
+	})
+}
+
+func TestGetLatestAppHistoryId(t *testing.T) {
+	history1Id := int64(1)
+	history2Id := int64(2)
+
+	t.Run("resource revision should be 0", func(t *testing.T) {
+		noStatusHistoryAppMock := v1alpha1.Application{}
+
+		idResult := getLatestAppHistoryId(&noStatusHistoryAppMock)
+		assert.Equal(t, idResult, int64(0))
+
+		emptyStatusHistoryAppMock := v1alpha1.Application{
+			Status: v1alpha1.ApplicationStatus{
+				History: []v1alpha1.RevisionHistory{},
+			},
+		}
+
+		id2Result := getLatestAppHistoryId(&emptyStatusHistoryAppMock)
+		assert.Equal(t, id2Result, int64(0))
+	})
+
+	t.Run("resource revision should be taken from latest history.Id", func(t *testing.T) {
+		appMock := v1alpha1.Application{
+			Status: v1alpha1.ApplicationStatus{
+				History: []v1alpha1.RevisionHistory{
+					v1alpha1.RevisionHistory{
+						ID: history1Id,
+					},
+					v1alpha1.RevisionHistory{
+						ID: history2Id,
+					},
+				},
+			},
+		}
+
+		revisionResult := getLatestAppHistoryId(&appMock)
+		assert.Equal(t, revisionResult, history2Id)
+	})
+}

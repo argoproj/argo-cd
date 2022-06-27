@@ -116,24 +116,7 @@ func (s *applicationEventReporter) streamApplicationEvents(
 		logCtx.WithError(err).Error("failed to get application tree")
 	}
 
-	if !isChildApp(a) {
-		// application events for child apps would be sent by its parent app
-		// as resource event
-		appEvent, err := s.getApplicationEventPayload(ctx, a, es, ts)
-		if err != nil {
-			return fmt.Errorf("failed to get application event: %w", err)
-		}
-
-		if appEvent == nil {
-			// event did not have an OperationState - skip all events
-			return nil
-		}
-
-		logWithAppStatus(a, logCtx, ts).Info("sending application event")
-		if err := stream.Send(appEvent); err != nil {
-			return fmt.Errorf("failed to send event for resource %s/%s: %w", a.Namespace, a.Name, err)
-		}
-	} else {
+	if isChildApp(a) {
 		parentApp := a.Labels[common.LabelKeyAppInstance]
 
 		parentApplicationEntity, err := s.server.Get(ctx, &application.ApplicationQuery{
@@ -151,6 +134,23 @@ func (s *applicationEventReporter) streamApplicationEvents(
 		}
 
 		s.processResource(ctx, *rs, parentApplicationEntity, logCtx, ts, desiredManifests, stream, appTree, es, manifestGenErr, a)
+	} else {
+		// application events for child apps would be sent by its parent app
+		// as resource event
+		appEvent, err := s.getApplicationEventPayload(ctx, a, es, ts)
+		if err != nil {
+			return fmt.Errorf("failed to get application event: %w", err)
+		}
+
+		if appEvent == nil {
+			// event did not have an OperationState - skip all events
+			return nil
+		}
+
+		logWithAppStatus(a, logCtx, ts).Info("sending application event")
+		if err := stream.Send(appEvent); err != nil {
+			return fmt.Errorf("failed to send event for resource %s/%s: %w", a.Namespace, a.Name, err)
+		}
 	}
 
 	desiredManifests, err, manifestGenErr := s.getDesiredManifests(ctx, a, logCtx)
@@ -294,6 +294,36 @@ func logWithAppStatus(a *appv1.Application, logCtx *log.Entry, ts string) *log.E
 	})
 }
 
+func getLatestAppHistoryItem(a *appv1.Application) *appv1.RevisionHistory {
+	if a.Status.History != nil && len(a.Status.History) > 0 {
+		return &a.Status.History[len(a.Status.History)-1]
+	}
+
+	return nil
+}
+
+func getResourceRevision(a *appv1.Application) string {
+	revision := a.Status.Sync.Revision
+	lastHistory := getLatestAppHistoryItem(a)
+
+	if lastHistory != nil {
+		revision = lastHistory.Revision
+	}
+
+	return revision
+}
+
+func getLatestAppHistoryId(a *appv1.Application) int64 {
+	var id int64
+	lastHistory := getLatestAppHistoryItem(a)
+
+	if lastHistory != nil {
+		id = lastHistory.ID
+	}
+
+	return id
+}
+
 func getResourceEventPayload(
 	parentApplication *appv1.Application,
 	rs *appv1.ResourceStatus,
@@ -377,7 +407,8 @@ func getResourceEventPayload(
 		GitManifest:     desiredState.RawManifest,
 		RepoURL:         parentApplication.Status.Sync.ComparedTo.Source.RepoURL,
 		Path:            desiredState.Path,
-		Revision:        parentApplication.Status.Sync.Revision,
+		Revision:        getResourceRevision(parentApplication),
+		HistoryId:       getLatestAppHistoryId(parentApplication),
 		CommitMessage:   manifestsResponse.CommitMessage,
 		CommitAuthor:    manifestsResponse.CommitAuthor,
 		CommitDate:      manifestsResponse.CommitDate,
@@ -476,6 +507,7 @@ func (s *applicationEventReporter) getApplicationEventPayload(ctx context.Contex
 		CommitAuthor:    "",
 		Path:            "",
 		Revision:        "",
+		HistoryId:       0,
 		AppName:         "",
 		AppLabels:       map[string]string{},
 		SyncStatus:      string(a.Status.Sync.Status),
