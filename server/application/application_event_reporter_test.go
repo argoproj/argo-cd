@@ -29,7 +29,7 @@ func TestGetResourceEventPayload(t *testing.T) {
 		manifestResponse := apiclient.ManifestResponse{}
 		appTree := v1alpha1.ApplicationTree{}
 
-		event, err := getResourceEventPayload(&app, &rs, &es, &actualState, &desiredState, &manifestResponse, &appTree, true, "")
+		event, err := getResourceEventPayload(&app, &rs, &es, &actualState, &desiredState, &manifestResponse, &appTree, true, "", nil)
 		assert.NoError(t, err)
 
 		var eventPayload events.EventPayload
@@ -60,7 +60,7 @@ func TestGetResourceEventPayload(t *testing.T) {
 		manifestResponse := apiclient.ManifestResponse{}
 		appTree := v1alpha1.ApplicationTree{}
 
-		event, err := getResourceEventPayload(&app, &rs, &es, &actualState, &desiredState, &manifestResponse, &appTree, true, "")
+		event, err := getResourceEventPayload(&app, &rs, &es, &actualState, &desiredState, &manifestResponse, &appTree, true, "", nil)
 		assert.NoError(t, err)
 
 		var eventPayload events.EventPayload
