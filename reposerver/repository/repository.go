@@ -214,7 +214,7 @@ func (s *Service) ListApps(ctx context.Context, q *apiclient.ListAppsRequest) (*
 	}
 
 	defer io.Close(closer)
-	apps, err := discovery.Discover(ctx, gitClient.Root(), q.EnabledSourceTypes)
+	apps, err := discovery.Discover(ctx, gitClient.Root(), q.EnabledSourceTypes, s.initConstants.CMPTarExcludedGlobs)
 	if err != nil {
 		return nil, err
 	}
@@ -910,7 +910,7 @@ func GenerateManifests(ctx context.Context, appPath, repoRoot, revision string, 
 
 	resourceTracking := argo.NewResourceTracking()
 
-	appSourceType, err := GetAppSourceType(ctx, q.ApplicationSource, appPath, q.AppName, q.EnabledSourceTypes)
+	appSourceType, err := GetAppSourceType(ctx, q.ApplicationSource, appPath, q.AppName, q.EnabledSourceTypes, opt.cmpTarExcludedGlobs)
 	if err != nil {
 		return nil, err
 	}
@@ -1068,7 +1068,7 @@ func mergeSourceParameters(source *v1alpha1.ApplicationSource, path, appName str
 }
 
 // GetAppSourceType returns explicit application source type or examines a directory and determines its application source type
-func GetAppSourceType(ctx context.Context, source *v1alpha1.ApplicationSource, path, appName string, enableGenerateManifests map[string]bool) (v1alpha1.ApplicationSourceType, error) {
+func GetAppSourceType(ctx context.Context, source *v1alpha1.ApplicationSource, path, appName string, enableGenerateManifests map[string]bool, tarExcludedGlobs []string) (v1alpha1.ApplicationSourceType, error) {
 	err := mergeSourceParameters(source, path, appName)
 	if err != nil {
 		return "", fmt.Errorf("error while parsing source parameters: %v", err)
@@ -1085,7 +1085,7 @@ func GetAppSourceType(ctx context.Context, source *v1alpha1.ApplicationSource, p
 		}
 		return *appSourceType, nil
 	}
-	appType, err := discovery.AppType(ctx, path, enableGenerateManifests)
+	appType, err := discovery.AppType(ctx, path, enableGenerateManifests, tarExcludedGlobs)
 	if err != nil {
 		return "", err
 	}
@@ -1548,7 +1548,7 @@ func (s *Service) GetAppDetails(ctx context.Context, q *apiclient.RepoServerAppD
 			return err
 		}
 
-		appSourceType, err := GetAppSourceType(ctx, q.Source, opContext.appPath, q.AppName, q.EnabledSourceTypes)
+		appSourceType, err := GetAppSourceType(ctx, q.Source, opContext.appPath, q.AppName, q.EnabledSourceTypes, s.initConstants.CMPTarExcludedGlobs)
 		if err != nil {
 			return err
 		}
@@ -1663,7 +1663,7 @@ func loadFileIntoIfExists(path pathutil.ResolvedFilePath, destination *string) e
 	info, err := os.Stat(stringPath)
 
 	if err == nil && !info.IsDir() {
-		bytes, err := ioutil.ReadFile(stringPath);
+		bytes, err := ioutil.ReadFile(stringPath)
 		if err != nil {
 			return err
 		}

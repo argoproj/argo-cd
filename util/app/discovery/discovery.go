@@ -29,11 +29,11 @@ func IsManifestGenerationEnabled(sourceType v1alpha1.ApplicationSourceType, enab
 	return enabled
 }
 
-func Discover(ctx context.Context, repoPath string, enableGenerateManifests map[string]bool) (map[string]string, error) {
+func Discover(ctx context.Context, repoPath string, enableGenerateManifests map[string]bool, tarExcludedGlobs []string) (map[string]string, error) {
 	apps := make(map[string]string)
 
 	// Check if it is CMP
-	conn, _, err := DetectConfigManagementPlugin(ctx, repoPath, []string{}, []string{})
+	conn, _, err := DetectConfigManagementPlugin(ctx, repoPath, []string{}, tarExcludedGlobs)
 	if err == nil {
 		// Found CMP
 		io.Close(conn)
@@ -65,8 +65,8 @@ func Discover(ctx context.Context, repoPath string, enableGenerateManifests map[
 	return apps, err
 }
 
-func AppType(ctx context.Context, path string, enableGenerateManifests map[string]bool) (string, error) {
-	apps, err := Discover(ctx, path, enableGenerateManifests)
+func AppType(ctx context.Context, path string, enableGenerateManifests map[string]bool, tarExcludedGlobs []string) (string, error) {
+	apps, err := Discover(ctx, path, enableGenerateManifests, tarExcludedGlobs)
 	if err != nil {
 		return "", err
 	}
