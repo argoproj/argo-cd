@@ -47,7 +47,6 @@
 
         &__description {
             font-size: .8125em;
-            //color: $argo-color-gray-7;
             @include themify($themes) {                
                 color: themed('text-1');;                
             }

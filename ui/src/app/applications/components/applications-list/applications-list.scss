@@ -8,7 +8,6 @@
     &__title {
         font-weight: bolder;
         font-size: 15px;
-        // color: $argo-color-gray-7;
         @include themify($themes) {           
             color: themed('text-1');
         }
@@ -120,7 +119,6 @@
         @include themify($themes){
             background-color: themed('light-argo-gray-2');
         }
-        // background-color: $argo-color-gray-2;
         border-radius: 7px;
         position: relative;
         padding: 0 10px;
