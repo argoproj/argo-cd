@@ -41,8 +41,13 @@ func fakeServer() (*ArgoCDServer, func()) {
 	kubeclientset := fake.NewSimpleClientset(cm, secret)
 	appClientSet := apps.NewSimpleClientset()
 	redis, closer := test.NewInMemoryRedis()
+	port, err := test.GetFreePort()
+	if err != nil {
+		panic(err)
+	}
 
 	argoCDOpts := ArgoCDServerOpts{
+		ListenPort:            port,
 		Namespace:             test.FakeArgoCDNamespace,
 		KubeClientset:         kubeclientset,
 		AppClientset:          appClientSet,

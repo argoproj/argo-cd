@@ -94,15 +94,23 @@ func TestGenerateParams(t *testing.T) {
 		{
 			name:     "no label selector",
 			selector: metav1.LabelSelector{},
-			values:   nil,
-			expected: []map[string]string{
-				{"name": "production_01/west", "nameNormalized": "production-01-west", "server": "https://production-01.example.com", "metadata.labels.environment": "production", "metadata.labels.org": "bar",
+			values: map[string]string{
+				"lol1":  "lol",
+				"lol2":  "{{values.lol1}}{{values.lol1}}",
+				"lol3":  "{{values.lol2}}{{values.lol2}}{{values.lol2}}",
+				"foo":   "bar",
+				"bar":   "{{ metadata.annotations.foo.argoproj.io }}",
+				"bat":   "{{ metadata.labels.environment }}",
+				"aaa":   "{{ server }}",
+				"no-op": "{{ this-does-not-exist }}",
+			}, expected: []map[string]string{
+				{"values.lol1": "lol", "values.lol2": "{{values.lol1}}{{values.lol1}}", "values.lol3": "{{values.lol2}}{{values.lol2}}{{values.lol2}}", "values.foo": "bar", "values.bar": "production", "values.no-op": "{{ this-does-not-exist }}", "values.bat": "production", "values.aaa": "https://production-01.example.com", "name": "production_01/west", "nameNormalized": "production-01-west", "server": "https://production-01.example.com", "metadata.labels.environment": "production", "metadata.labels.org": "bar",
 					"metadata.labels.argocd.argoproj.io/secret-type": "cluster", "metadata.annotations.foo.argoproj.io": "production"},
 
-				{"name": "staging-01", "nameNormalized": "staging-01", "server": "https://staging-01.example.com", "metadata.labels.environment": "staging", "metadata.labels.org": "foo",
+				{"values.lol1": "lol", "values.lol2": "{{values.lol1}}{{values.lol1}}", "values.lol3": "{{values.lol2}}{{values.lol2}}{{values.lol2}}", "values.foo": "bar", "values.bar": "staging", "values.no-op": "{{ this-does-not-exist }}", "values.bat": "staging", "values.aaa": "https://staging-01.example.com", "name": "staging-01", "nameNormalized": "staging-01", "server": "https://staging-01.example.com", "metadata.labels.environment": "staging", "metadata.labels.org": "foo",
 					"metadata.labels.argocd.argoproj.io/secret-type": "cluster", "metadata.annotations.foo.argoproj.io": "staging"},
 
-				{"name": "in-cluster", "nameNormalized": "in-cluster", "server": "https://kubernetes.default.svc"},
+				{"values.lol1": "lol", "values.lol2": "{{values.lol1}}{{values.lol1}}", "values.lol3": "{{values.lol2}}{{values.lol2}}{{values.lol2}}", "values.foo": "bar", "values.bar": "{{ metadata.annotations.foo.argoproj.io }}", "values.no-op": "{{ this-does-not-exist }}", "values.bat": "{{ metadata.labels.environment }}", "values.aaa": "https://kubernetes.default.svc", "nameNormalized": "in-cluster", "name": "in-cluster", "server": "https://kubernetes.default.svc"},
 			},
 			clientError:   false,
 			expectedError: nil,
