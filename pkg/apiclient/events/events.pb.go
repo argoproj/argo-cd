@@ -250,6 +250,7 @@ type ObjectSource struct {
 	HealthStatus         *string           `protobuf:"bytes,15,opt,name=healthStatus" json:"healthStatus,omitempty"`
 	HealthMessage        *string           `protobuf:"bytes,16,opt,name=healthMessage" json:"healthMessage,omitempty"`
 	Cluster              string            `protobuf:"bytes,17,opt,name=cluster" json:"cluster"`
+	HistoryId            int64             `protobuf:"bytes,18,opt,name=historyId" json:"historyId"`
 	XXX_NoUnkeyedLiteral struct{}          `json:"-"`
 	XXX_unrecognized     []byte            `json:"-"`
 	XXX_sizecache        int32             `json:"-"`
