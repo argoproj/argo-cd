@@ -680,7 +680,7 @@ func NewAppStateManager(
 // not provide the required properties for matching.
 func (m *appStateManager) isManagedLiveObj(obj *unstructured.Unstructured, appLabelKey string, trackingMethod v1alpha1.TrackingMethod) bool {
 	if obj == nil {
-		return false
+		return true
 	}
 
 	// If tracking method doesn't contain required metadata for this check,
@@ -700,5 +700,5 @@ func (m *appStateManager) isManagedLiveObj(obj *unstructured.Unstructured, appLa
 			obj.GetObjectKind().GroupVersionKind().Kind == appInstance.Kind
 	}
 
-	return false
+	return true
 }

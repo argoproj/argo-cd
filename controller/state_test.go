@@ -895,5 +895,5 @@ func TestIsLiveResourceManaged(t *testing.T) {
 	assert.False(t, manager.isManagedLiveObj(unmanagedObjWrongNamespace, common.AnnotationKeyAppInstance, argo.TrackingMethodAnnotationAndLabel))
 
 	// Nil resource
-	assert.False(t, manager.isManagedLiveObj(nil, common.AnnotationKeyAppInstance, argo.TrackingMethodAnnotation))
+	assert.True(t, manager.isManagedLiveObj(nil, common.AnnotationKeyAppInstance, argo.TrackingMethodAnnotation))
 }
