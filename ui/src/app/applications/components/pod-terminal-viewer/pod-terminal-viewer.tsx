@@ -141,8 +141,9 @@ export const PodTerminalViewer: React.FC<PodTerminalViewerProps> = ({selectedNod
 
     function setupConnection() {
         const {name = '', namespace = ''} = selectedNode || {};
+        const url = `${location.host}${appContext.baseHref}`.replace(/\/$/, '');
         webSocket = new WebSocket(
-            `${location.protocol === 'https:' ? 'wss' : 'ws'}://${location.host}/terminal?pod=${name}&container=${AppUtils.getContainerName(
+            `${location.protocol === 'https:' ? 'wss' : 'ws'}://${url}/terminal?pod=${name}&container=${AppUtils.getContainerName(
                 podState,
                 activeContainer
             )}&appName=${applicationName}&projectName=${projectName}&namespace=${namespace}`
