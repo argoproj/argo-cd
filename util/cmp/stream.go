@@ -162,9 +162,9 @@ func closeAndDelete(f *os.File) {
 }
 
 // compressFiles will create a tgz file with all contents of appPath
-// directory excluding the .git folder. Returns the file alongside
-// its sha256 hash to be used as checksum. It is the responsibility
-// of the caller to close the file.
+// directory excluding globs in the excluded array. Returns the file
+// alongside its sha256 hash to be used as checksum. It is the
+// responsibility of the caller to close the file.
 func compressFiles(appPath string, excluded []string) (*os.File, string, error) {
 	appName := filepath.Base(appPath)
 	tempDir, err := files.CreateTempDir(os.TempDir())

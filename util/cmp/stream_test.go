@@ -60,7 +60,7 @@ func TestReceiveApplicationStream(t *testing.T) {
 			close(streamMock.messages)
 			os.RemoveAll(workdir)
 		}()
-		go streamMock.sendFile(context.Background(), t, appDir, streamMock, []string{"env1", "env2"})
+		go streamMock.sendFile(context.Background(), t, appDir, streamMock, []string{"env1", "env2"}, []string{"DUMMY.md", "dummy/*"})
 
 		// when
 		env, err := cmp.ReceiveRepoStream(context.Background(), streamMock, workdir)
@@ -77,16 +77,18 @@ func TestReceiveApplicationStream(t *testing.T) {
 		}
 		assert.Contains(t, names, "README.md")
 		assert.Contains(t, names, "applicationset")
+		assert.NotContains(t, names, "DUMMY.md")
+		assert.NotContains(t, names, "dummy")
 		assert.NotNil(t, env)
 	})
 }
 
-func (m *streamMock) sendFile(ctx context.Context, t *testing.T, basedir string, sender cmp.StreamSender, env []string) {
+func (m *streamMock) sendFile(ctx context.Context, t *testing.T, basedir string, sender cmp.StreamSender, env []string, excludedGlobs []string) {
 	t.Helper()
 	defer func() {
 		m.done <- true
 	}()
-	err := cmp.SendRepoStream(ctx, basedir, basedir, sender, env, []string{})
+	err := cmp.SendRepoStream(ctx, basedir, basedir, sender, env, excludedGlobs)
 	require.NoError(t, err)
 }
 
