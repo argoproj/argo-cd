@@ -13,7 +13,7 @@ argocd-repo-server [flags]
 ### Options
 
 ```
-      --cmp-tar-exclude stringArray                    Globs to filter when sending tarballs to sidecar CMPs. (default [.git])
+      --plugin-tar-exclude stringArray                 Globs to filter when sending tarballs to sidecar plugins. (default [.git])
       --default-cache-expiration duration              Cache expiration default (default 24h0m0s)
       --disable-tls                                    Disable TLS on the gRPC endpoint
   -h, --help                                           help for argocd-repo-server

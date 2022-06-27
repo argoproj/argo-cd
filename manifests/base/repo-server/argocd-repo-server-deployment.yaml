@@ -107,11 +107,11 @@ spec:
                 name: argocd-cmd-params-cm
                 key: reposerver.max.combined.directory.manifests.size
                 optional: true
-          - name: ARGOCD_REPO_SERVER_CMP_TAR_EXCLUSIONS
+          - name: ARGOCD_REPO_SERVER_PLUGIN_TAR_EXCLUSIONS
             valueFrom:
               configMapKeyRef:
                 name: argocd-cmd-params-cm
-                key: reposerver.cmp.tar.exclusions
+                key: reposerver.plugin.tar.exclusions
                 optional: true
           - name: HELM_CACHE_HOME
             value: /helm-working-dir

@@ -238,8 +238,5 @@ If you don't need to set any environment variables, you can set an empty plugin 
 ## Tarball stream filtering
 
 In order to increase the speed of manifest generation, certain files and folders can be excluded from being sent to your
-CMP sidecar by using the `--cmp-tar-exclude` argument on the repo server.
-
-!!! important
-    By default, the `.git` folder is not transmitted. This is usually where the bulk of unnecessary data lies. If you for
-    some reason require the `.git` folder, simply override the default `--cmp-tar-exclude` with a dummy filter.
+plugin by using the `--plugin-tar-exclude` argument on the repo server or the `reposerver.plugin.tar.exclusions` key
+in `argocd-cmd-params-cm`.
