@@ -231,6 +231,6 @@ If you don't need to set any environment variables, you can set an empty plugin 
     respects the timeouts set by the `server.repo.server.timeout.seconds` and `controller.repo.server.timeout.seconds` 
     items in `argocd-cm`. Increase their values from the default of 60s.
 
-    Each CMP command will also independently timeout on the `ARGOCD_EXEC_TIMEOUT` set for the CMP sidecar. The default
-    is 90s. So if you increase the repo server timeout greater than 90s, be sure to set `ARGOCD_EXEC_TIMEOUT` on the
+    Each CMP command will also independently timeout on the `ARGOCD_CMP_SERVER_EXEC_TIMEOUT` set for the CMP sidecar. The default
+    is 90s. So if you increase the repo server timeout greater than 90s, be sure to set `ARGOCD_CMP_SERVER_EXEC_TIMEOUT` on the
     sidecar.

@@ -184,7 +184,7 @@ spec:
                 name: argocd-cmd-params-cm
                 key: otlp.address
                 optional: true
-        - name: ARGOCD_SERVER_CMD_TIMEOUT
+        - name: ARGOCD_SERVER_EXEC_TIMEOUT
           valueFrom:
             configMapKeyRef:
               name: argocd-cmd-params-cm

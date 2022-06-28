@@ -107,7 +107,7 @@ spec:
                 name: argocd-cmd-params-cm
                 key: reposerver.max.combined.directory.manifests.size
                 optional: true
-          - name: ARGOCD_REPO_SERVER_CMD_TIMEOUT
+          - name: ARGOCD_REPO_SERVER_EXEC_TIMEOUT
             valueFrom:
               configMapKeyRef:
                 name: argocd-cmd-params-cm

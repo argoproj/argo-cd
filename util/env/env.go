@@ -119,6 +119,18 @@ func ParseDurationFromEnv(env string, defaultValue, min, max time.Duration) time
 	return dur
 }
 
+func ParseDurationFromEnvs(defaultValue, min, max time.Duration, env string, fallbackEnvs ...string) time.Duration {
+	envs := append([]string{env}, fallbackEnvs...)
+
+	for _, e := range envs {
+		if os.Getenv(e) != "" {
+			return ParseDurationFromEnv(e, defaultValue, min, max)
+		}
+	}
+
+	return defaultValue
+}
+
 func StringFromEnv(env string, defaultValue string) string {
 	if str := os.Getenv(env); str != "" {
 		return str
