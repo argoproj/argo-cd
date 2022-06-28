@@ -67,6 +67,16 @@ func NewCommand() *cobra.Command {
 		Long:              "ArgoCD application controller is a Kubernetes controller that continuously monitors running applications and compares the current, live state against the desired target state (as specified in the repo). This command runs Application Controller in the foreground.  It can be configured by following options.",
 		DisableAutoGenTag: true,
 		RunE: func(c *cobra.Command, args []string) error {
+			vers := common.GetVersion()
+			namespace, _, err := clientConfig.Namespace()
+			errors.CheckError(err)
+			log.WithFields(log.Fields{
+				"version":   vers.Version,
+				"commit":    vers.GitCommit,
+				"built":     vers.BuildDate,
+				"namespace": namespace,
+			}).Info("ArgoCD Application Controller is starting")
+
 			cli.SetLogFormat(cmdutil.LogFormat)
 			cli.SetLogLevel(cmdutil.LogLevel)
 			cli.SetGLogLevel(glogLevel)
@@ -74,14 +84,10 @@ func NewCommand() *cobra.Command {
 			config, err := clientConfig.ClientConfig()
 			errors.CheckError(err)
 			errors.CheckError(v1alpha1.SetK8SConfigDefaults(config))
-			vers := common.GetVersion()
 			config.UserAgent = fmt.Sprintf("argocd-application-controller/%s (%s)", vers.Version, vers.Platform)
 
 			kubeClient := kubernetes.NewForConfigOrDie(config)
 			appClient := appclientset.NewForConfigOrDie(config)
-
-			namespace, _, err := clientConfig.Namespace()
-			errors.CheckError(err)
 
 			hardResyncDuration := time.Duration(appHardResyncPeriod) * time.Second
 
@@ -146,7 +152,6 @@ func NewCommand() *cobra.Command {
 			errors.CheckError(err)
 			cacheutil.CollectMetrics(redisClient, appController.GetMetricsServer())
 
-			log.Infof("Application Controller (version: %s, built: %s) starting (namespace: %s)", vers.Version, vers.BuildDate, namespace)
 			stats.RegisterStackDumper()
 			stats.StartStatsTicker(10 * time.Minute)
 			stats.RegisterHeapDumper("memprofile")

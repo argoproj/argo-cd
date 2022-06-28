@@ -34,6 +34,13 @@ func NewCommand() *cobra.Command {
 		Long:              "ArgoCD ConfigManagementPlugin Server is an internal service which runs as sidecar container in reposerver deployment. It can be configured by following options.",
 		DisableAutoGenTag: true,
 		RunE: func(c *cobra.Command, args []string) error {
+			vers := common.GetVersion()
+			log.WithFields(log.Fields{
+				"version": vers.Version,
+				"commit":  vers.GitCommit,
+				"built":   vers.BuildDate,
+			}).Info("ArgoCD ConfigManagementPlugin Server is starting")
+
 			cli.SetLogFormat(cmdutil.LogFormat)
 			cli.SetLogLevel(cmdutil.LogLevel)
 

@@ -9,6 +9,7 @@ import (
 
 	"github.com/argoproj/argo-cd/v2/common"
 
+	"github.com/argoproj/argo-cd/v2/util/errors"
 	service "github.com/argoproj/argo-cd/v2/util/notification/argocd"
 
 	notificationscontroller "github.com/argoproj/argo-cd/v2/notification_controller/controller"
@@ -57,11 +58,20 @@ func NewCommand() *cobra.Command {
 		Use:   "controller",
 		Short: "Starts Argo CD Notifications controller",
 		RunE: func(c *cobra.Command, args []string) error {
+			vers := common.GetVersion()
+			namespace, _, err := clientConfig.Namespace()
+			errors.CheckError(err)
+			log.WithFields(log.Fields{
+				"version":   vers.Version,
+				"commit":    vers.GitCommit,
+				"built":     vers.BuildDate,
+				"namespace": namespace,
+			}).Info("ArgoCD Notifications Controller is starting")
+
 			restConfig, err := clientConfig.ClientConfig()
 			if err != nil {
 				return err
 			}
-			vers := common.GetVersion()
 			restConfig.UserAgent = fmt.Sprintf("argocd-notifications-controller/%s (%s)", vers.Version, vers.Platform)
 			dynamicClient, err := dynamic.NewForConfig(restConfig)
 			if err != nil {

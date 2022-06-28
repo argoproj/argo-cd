@@ -74,6 +74,17 @@ func NewCommand() *cobra.Command {
 		Long:              "The API server is a gRPC/REST server which exposes the API consumed by the Web UI, CLI, and CI/CD systems.  This command runs API server in the foreground.  It can be configured by following options.",
 		DisableAutoGenTag: true,
 		Run: func(c *cobra.Command, args []string) {
+			vers := common.GetVersion()
+			namespace, _, err := clientConfig.Namespace()
+			errors.CheckError(err)
+			log.WithFields(log.Fields{
+				"version":   vers.Version,
+				"commit":    vers.GitCommit,
+				"built":     vers.BuildDate,
+				"namespace": namespace,
+				"port":      listenPort,
+			}).Info("ArgoCD API Server is starting")
+
 			cli.SetLogFormat(cmdutil.LogFormat)
 			cli.SetLogLevel(cmdutil.LogLevel)
 			cli.SetGLogLevel(glogLevel)
@@ -81,9 +92,6 @@ func NewCommand() *cobra.Command {
 			config, err := clientConfig.ClientConfig()
 			errors.CheckError(err)
 			errors.CheckError(v1alpha1.SetK8SConfigDefaults(config))
-
-			namespace, _, err := clientConfig.Namespace()
-			errors.CheckError(err)
 
 			tlsConfigCustomizer, err := tlsConfigCustomizerSrc()
 			errors.CheckError(err)
@@ -95,7 +103,6 @@ func NewCommand() *cobra.Command {
 			appclientsetConfig, err := clientConfig.ClientConfig()
 			errors.CheckError(err)
 			errors.CheckError(v1alpha1.SetK8SConfigDefaults(appclientsetConfig))
-			vers := common.GetVersion()
 			config.UserAgent = fmt.Sprintf("argocd-server/%s (%s)", vers.Version, vers.Platform)
 
 			if failureRetryCount > 0 {

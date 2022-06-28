@@ -60,24 +60,28 @@ func NewCommand() *cobra.Command {
 		Use:   "controller",
 		Short: "Starts Argo CD ApplicationSet controller",
 		RunE: func(c *cobra.Command, args []string) error {
+			vers := common.GetVersion()
+			namespace, _, err := clientConfig.Namespace()
+			errors.CheckError(err)
+			log.WithFields(log.Fields{
+				"version":   vers.Version,
+				"commit":    vers.GitCommit,
+				"built":     vers.BuildDate,
+				"namespace": namespace,
+			}).Info("ArgoCD ApplicationSet Controller is starting")
+
 			restConfig, err := clientConfig.ClientConfig()
 			if err != nil {
 				return err
 			}
-			vers := common.GetVersion()
+
 			restConfig.UserAgent = fmt.Sprintf("argocd-applicationset-controller/%s (%s)", vers.Version, vers.Platform)
-			if namespace == "" {
-				namespace, _, err = clientConfig.Namespace()
-				if err != nil {
-					return err
-				}
-			}
+
 			level, err := log.ParseLevel(logLevel)
 			if err != nil {
 				return err
 			}
 			log.SetLevel(level)
-			log.Info(fmt.Sprintf("ApplicationSet controller %s using namespace '%s' ", vers.Version, namespace), "namespace", namespace, "COMMIT_ID", vers.GitCommit)
 			switch strings.ToLower(logFormat) {
 			case "json":
 				log.SetFormatter(&log.JSONFormatter{})
