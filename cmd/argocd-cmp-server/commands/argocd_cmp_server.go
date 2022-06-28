@@ -35,11 +35,7 @@ func NewCommand() *cobra.Command {
 		DisableAutoGenTag: true,
 		RunE: func(c *cobra.Command, args []string) error {
 			vers := common.GetVersion()
-			log.WithFields(log.Fields{
-				"version": vers.Version,
-				"commit":  vers.GitCommit,
-				"built":   vers.BuildDate,
-			}).Info("ArgoCD ConfigManagementPlugin Server is starting")
+			vers.LogStartupInfo("ArgoCD ConfigManagementPlugin Server", nil)
 
 			cli.SetLogFormat(cmdutil.LogFormat)
 			cli.SetLogLevel(cmdutil.LogLevel)

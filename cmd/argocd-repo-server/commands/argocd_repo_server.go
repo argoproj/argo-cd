@@ -89,12 +89,12 @@ func NewCommand() *cobra.Command {
 		DisableAutoGenTag: true,
 		RunE: func(c *cobra.Command, args []string) error {
 			vers := common.GetVersion()
-			log.WithFields(log.Fields{
-				"version": vers.Version,
-				"commit":  vers.GitCommit,
-				"built":   vers.BuildDate,
-				"port":    listenPort,
-			}).Info("ArgoCD Repository Server is starting")
+			vers.LogStartupInfo(
+				"ArgoCD Repository Server",
+				map[string]any{
+					"port": listenPort,
+				},
+			)
 
 			cli.SetLogFormat(cmdutil.LogFormat)
 			cli.SetLogLevel(cmdutil.LogLevel)

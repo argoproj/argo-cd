@@ -77,13 +77,13 @@ func NewCommand() *cobra.Command {
 			vers := common.GetVersion()
 			namespace, _, err := clientConfig.Namespace()
 			errors.CheckError(err)
-			log.WithFields(log.Fields{
-				"version":   vers.Version,
-				"commit":    vers.GitCommit,
-				"built":     vers.BuildDate,
-				"namespace": namespace,
-				"port":      listenPort,
-			}).Info("ArgoCD API Server is starting")
+			vers.LogStartupInfo(
+				"ArgoCD API Server",
+				map[string]any{
+					"namespace": namespace,
+					"port":      listenPort,
+				},
+			)
 
 			cli.SetLogFormat(cmdutil.LogFormat)
 			cli.SetLogLevel(cmdutil.LogLevel)

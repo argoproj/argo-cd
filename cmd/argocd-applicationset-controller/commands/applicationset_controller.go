@@ -63,12 +63,12 @@ func NewCommand() *cobra.Command {
 			vers := common.GetVersion()
 			namespace, _, err := clientConfig.Namespace()
 			errors.CheckError(err)
-			log.WithFields(log.Fields{
-				"version":   vers.Version,
-				"commit":    vers.GitCommit,
-				"built":     vers.BuildDate,
-				"namespace": namespace,
-			}).Info("ArgoCD ApplicationSet Controller is starting")
+			vers.LogStartupInfo(
+				"ArgoCD ApplicationSet Controller",
+				map[string]any{
+					"namespace": namespace,
+				},
+			)
 
 			restConfig, err := clientConfig.ClientConfig()
 			if err != nil {
