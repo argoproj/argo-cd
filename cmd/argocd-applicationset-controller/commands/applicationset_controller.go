@@ -50,8 +50,8 @@ func NewCommand() *cobra.Command {
 		debugLog             bool
 		dryRun               bool
 		logFormat            string
-		logLevel             string
-		cmdTimeout           time.Duration
+		logLevel    string
+		execTimeout time.Duration
 	)
 	scheme := runtime.NewScheme()
 	_ = clientgoscheme.AddToScheme(scheme)
@@ -137,7 +137,7 @@ func NewCommand() *cobra.Command {
 			terminalGenerators := map[string]generators.Generator{
 				"List":                    generators.NewListGenerator(),
 				"Clusters":                generators.NewClusterGenerator(mgr.GetClient(), context.Background(), k8sClient, namespace),
-				"Git":                     generators.NewGitGenerator(services.NewArgoCDService(argoCDDB, askPassServer, cmdTimeout)),
+				"Git":                     generators.NewGitGenerator(services.NewArgoCDService(argoCDDB, askPassServer, execTimeout)),
 				"SCMProvider":             generators.NewSCMProviderGenerator(mgr.GetClient()),
 				"ClusterDecisionResource": generators.NewDuckTypeGenerator(context.Background(), dynamicClient, k8sClient, namespace),
 				"PullRequest":             generators.NewPullRequestGenerator(mgr.GetClient()),
@@ -204,7 +204,7 @@ func NewCommand() *cobra.Command {
 	command.Flags().StringVar(&logLevel, "loglevel", "info", "Set the logging level. One of: debug|info|warn|error")
 	command.Flags().BoolVar(&dryRun, "dry-run", false, "Enable dry run mode")
 	command.Flags().StringVar(&logFormat, "logformat", "text", "Set the logging format. One of: text|json")
-	command.Flags().DurationVar(&cmdTimeout, "cmd-timeout", common.DefaultCmdTimeout, "per-command timeout for external commands invoked by the applicationset controller (such as git)")
+	command.Flags().DurationVar(&execTimeout, "exec-timeout", common.DefaultExecTimeout, "per-command timeout for external commands invoked by the applicationset controller (such as git)")
 
 	return &command
 }

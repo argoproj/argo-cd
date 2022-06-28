@@ -92,8 +92,8 @@ func IsHTTPURL(url string) bool {
 }
 
 // TestRepo tests if a repo exists and is accessible with the given credentials
-func TestRepo(repo string, creds Creds, insecure bool, enableLfs bool, proxy string, cmdTimeout time.Duration) error {
-	clnt, err := NewClient(repo, creds, insecure, enableLfs, proxy, cmdTimeout)
+func TestRepo(repo string, creds Creds, insecure bool, enableLfs bool, proxy string, execTimeout time.Duration) error {
+	clnt, err := NewClient(repo, creds, insecure, enableLfs, proxy, execTimeout)
 	if err != nil {
 		return err
 	}

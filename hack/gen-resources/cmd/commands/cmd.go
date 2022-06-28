@@ -53,8 +53,8 @@ func NewCommand() *cobra.Command {
 
 func NewGenerateCommand(opts *util.GenerateOpts) *cobra.Command {
 	var (
-		file       string
-		cmdTimeout time.Duration
+		file        string
+		execTimeout time.Duration
 	)
 	var command = &cobra.Command{
 		Use:   "generate [-f file]",
@@ -75,7 +75,7 @@ func NewGenerateCommand(opts *util.GenerateOpts) *cobra.Command {
 			pg := generator.NewProjectGenerator(argoClientSet)
 			ag := generator.NewApplicationGenerator(argoClientSet, clientSet, argoDB)
 			rg := generator.NewRepoGenerator(util.ConnectToK8sClientSet())
-			cg := generator.NewClusterGenerator(argoDB, util.ConnectToK8sClientSet(), util.ConnectToK8sConfig(), cmdTimeout)
+			cg := generator.NewClusterGenerator(argoDB, util.ConnectToK8sClientSet(), util.ConnectToK8sConfig(), execTimeout)
 
 			err = pg.Generate(opts)
 			if err != nil {
@@ -96,13 +96,13 @@ func NewGenerateCommand(opts *util.GenerateOpts) *cobra.Command {
 		},
 	}
 	command.Flags().StringVarP(&file, "file", "f", "", "")
-	command.Flags().DurationVar(&cmdTimeout, "cmd-timeout", env.ParseDurationFromEnv("ARGOCD_EXEC_TIMEOUT", common.DefaultCmdTimeout, 0 * time.Second, 24 * time.Hour), "per-command timeout for external commands invoked by the repo server (such as git)")
+	command.Flags().DurationVar(&execTimeout, "exec-timeout", env.ParseDurationFromEnv("ARGOCD_EXEC_TIMEOUT", common.DefaultExecTimeout, 0 * time.Second, 24 * time.Hour), "per-command timeout for external commands invoked by the repo server (such as git)")
 
 	return command
 }
 
 func NewCleanCommand(opts *util.GenerateOpts) *cobra.Command {
-	var cmdTimeout time.Duration
+	var execTimeout time.Duration
 	var command = &cobra.Command{
 		Use:   "clean",
 		Short: "Clean entities",
@@ -115,7 +115,7 @@ func NewCleanCommand(opts *util.GenerateOpts) *cobra.Command {
 
 			pg := generator.NewProjectGenerator(argoClientSet)
 			ag := generator.NewApplicationGenerator(argoClientSet, clientSet, argoDB)
-			cg := generator.NewClusterGenerator(argoDB, clientSet, util.ConnectToK8sConfig(), cmdTimeout)
+			cg := generator.NewClusterGenerator(argoDB, clientSet, util.ConnectToK8sConfig(), execTimeout)
 			rg := generator.NewRepoGenerator(clientSet)
 
 			err := pg.Clean(opts)
@@ -137,7 +137,7 @@ func NewCleanCommand(opts *util.GenerateOpts) *cobra.Command {
 		},
 	}
 	command.PersistentFlags().StringVar(&opts.Namespace, "kube-namespace", "argocd", "Name of the namespace where argocd is running [$KUBE_NAMESPACE]")
-	command.Flags().DurationVar(&cmdTimeout, "cmd-timeout", env.ParseDurationFromEnv("ARGOCD_EXEC_TIMEOUT", common.DefaultCmdTimeout, 0 * time.Second, 24 * time.Hour), "per-command timeout for external commands invoked by the repo server (such as git)")
+	command.Flags().DurationVar(&execTimeout, "exec-timeout", env.ParseDurationFromEnv("ARGOCD_EXEC_TIMEOUT", common.DefaultExecTimeout, 0 * time.Second, 24 * time.Hour), "per-command timeout for external commands invoked by the repo server (such as git)")
 
 	return command
 }

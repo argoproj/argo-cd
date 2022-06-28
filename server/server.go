@@ -193,8 +193,8 @@ type ArgoCDServerOpts struct {
 	TLSConfigCustomizer   tlsutil.ConfigCustomizer
 	XFrameOptions         string
 	ContentSecurityPolicy string
-	ListenHost            string
-	CmdTimeout            time.Duration
+	ListenHost  string
+	ExecTimeout time.Duration
 }
 
 // initializeDefaultProject creates the default project if it does not already exist
@@ -679,7 +679,7 @@ func (a *ArgoCDServer) newGRPCServer() (*grpc.Server, application.AppResourceTre
 	settingsService := settings.NewServer(a.settingsMgr, a, a.DisableAuth)
 	accountService := account.NewServer(a.sessionMgr, a.settingsMgr, a.enf)
 	certificateService := certificate.NewServer(a.RepoClientset, a.db, a.enf)
-	gpgkeyService := gpgkey.NewServer(a.RepoClientset, a.db, a.enf, a.CmdTimeout)
+	gpgkeyService := gpgkey.NewServer(a.RepoClientset, a.db, a.enf, a.ExecTimeout)
 	versionpkg.RegisterVersionServiceServer(grpcS, version.NewServer(a, func() (bool, error) {
 		if a.DisableAuth {
 			return true, nil
@@ -689,7 +689,7 @@ func (a *ArgoCDServer) newGRPCServer() (*grpc.Server, application.AppResourceTre
 			return false, err
 		}
 		return sett.AnonymousUserEnabled, err
-	}, a.CmdTimeout))
+	}, a.ExecTimeout))
 	clusterpkg.RegisterClusterServiceServer(grpcS, clusterService)
 	applicationpkg.RegisterApplicationServiceServer(grpcS, applicationService)
 	repositorypkg.RegisterRepositoryServiceServer(grpcS, repoService)

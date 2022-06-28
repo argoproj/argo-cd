@@ -115,7 +115,7 @@ func (a *ArgoCDRepoServer) CreateGRPC() *grpc.Server {
 	server := grpc.NewServer(a.opts...)
 	versionpkg.RegisterVersionServiceServer(server, version.NewServer(nil, func() (bool, error) {
 		return true, nil
-	}, a.initConstants.CmdTimeout))
+	}, a.initConstants.ExecTimeout))
 	apiclient.RegisterRepoServerServiceServer(server, a.repoService)
 
 	healthService := health.NewServer()

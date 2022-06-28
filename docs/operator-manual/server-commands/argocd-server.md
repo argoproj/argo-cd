@@ -22,7 +22,7 @@ argocd-server [flags]
       --client-certificate string                     Path to a client certificate file for TLS
       --client-key string                             Path to a client key file for TLS
       --cluster string                                The name of the kubeconfig cluster to use
-      --cmd-timeout duration                          per-command timeout for external commands invoked by the server (such as gpg) (default 1m30s)
+      --exec-timeout duration                          per-command timeout for external commands invoked by the server (such as gpg) (default 1m30s)
       --connection-status-cache-expiration duration   Cache expiration for cluster/repo connection status (default 1h0m0s)
       --content-security-policy value                 Set Content-Security-Policy header in HTTP responses to value. To disable, set to "". (default "frame-ancestors 'self';")
       --context string                                The name of the kubeconfig context to use

@@ -18,13 +18,13 @@ type ArgoDB struct {
 	mock.Mock
 }
 
-// AddGPGPublicKey provides a mock function with given fields: ctx, keyData, cmdTimeout
-func (_m *ArgoDB) AddGPGPublicKey(ctx context.Context, keyData string, cmdTimeout time.Duration) (map[string]*v1alpha1.GnuPGPublicKey, []string, error) {
-	ret := _m.Called(ctx, keyData, cmdTimeout)
+// AddGPGPublicKey provides a mock function with given fields: ctx, keyData, execTimeout
+func (_m *ArgoDB) AddGPGPublicKey(ctx context.Context, keyData string, execTimeout time.Duration) (map[string]*v1alpha1.GnuPGPublicKey, []string, error) {
+	ret := _m.Called(ctx, keyData, execTimeout)
 
 	var r0 map[string]*v1alpha1.GnuPGPublicKey
 	if rf, ok := ret.Get(0).(func(context.Context, string, time.Duration) map[string]*v1alpha1.GnuPGPublicKey); ok {
-		r0 = rf(ctx, keyData, cmdTimeout)
+		r0 = rf(ctx, keyData, execTimeout)
 	} else {
 		if ret.Get(0) != nil {
 			r0 = ret.Get(0).(map[string]*v1alpha1.GnuPGPublicKey)
@@ -33,7 +33,7 @@ func (_m *ArgoDB) AddGPGPublicKey(ctx context.Context, keyData string, cmdTimeou
 
 	var r1 []string
 	if rf, ok := ret.Get(1).(func(context.Context, string, time.Duration) []string); ok {
-		r1 = rf(ctx, keyData, cmdTimeout)
+		r1 = rf(ctx, keyData, execTimeout)
 	} else {
 		if ret.Get(1) != nil {
 			r1 = ret.Get(1).([]string)
@@ -42,7 +42,7 @@ func (_m *ArgoDB) AddGPGPublicKey(ctx context.Context, keyData string, cmdTimeou
 
 	var r2 error
 	if rf, ok := ret.Get(2).(func(context.Context, string, time.Duration) error); ok {
-		r2 = rf(ctx, keyData, cmdTimeout)
+		r2 = rf(ctx, keyData, execTimeout)
 	} else {
 		r2 = ret.Error(2)
 	}
@@ -382,13 +382,13 @@ func (_m *ArgoDB) ListClusters(ctx context.Context) (*v1alpha1.ClusterList, erro
 	return r0, r1
 }
 
-// ListConfiguredGPGPublicKeys provides a mock function with given fields: ctx, cmdTimeout
-func (_m *ArgoDB) ListConfiguredGPGPublicKeys(ctx context.Context, cmdTimeout time.Duration) (map[string]*v1alpha1.GnuPGPublicKey, error) {
-	ret := _m.Called(ctx, cmdTimeout)
+// ListConfiguredGPGPublicKeys provides a mock function with given fields: ctx, execTimeout
+func (_m *ArgoDB) ListConfiguredGPGPublicKeys(ctx context.Context, execTimeout time.Duration) (map[string]*v1alpha1.GnuPGPublicKey, error) {
+	ret := _m.Called(ctx, execTimeout)
 
 	var r0 map[string]*v1alpha1.GnuPGPublicKey
 	if rf, ok := ret.Get(0).(func(context.Context, time.Duration) map[string]*v1alpha1.GnuPGPublicKey); ok {
-		r0 = rf(ctx, cmdTimeout)
+		r0 = rf(ctx, execTimeout)
 	} else {
 		if ret.Get(0) != nil {
 			r0 = ret.Get(0).(map[string]*v1alpha1.GnuPGPublicKey)
@@ -397,7 +397,7 @@ func (_m *ArgoDB) ListConfiguredGPGPublicKeys(ctx context.Context, cmdTimeout ti
 
 	var r1 error
 	if rf, ok := ret.Get(1).(func(context.Context, time.Duration) error); ok {
-		r1 = rf(ctx, cmdTimeout)
+		r1 = rf(ctx, execTimeout)
 	} else {
 		r1 = ret.Error(1)
 	}

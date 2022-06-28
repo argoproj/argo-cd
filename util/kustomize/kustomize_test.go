@@ -35,7 +35,7 @@ func TestKustomizeBuild(t *testing.T) {
 	assert.Nil(t, err)
 	namePrefix := "namePrefix-"
 	nameSuffix := "-nameSuffix"
-	kustomize := NewKustomizeApp(appPath, git.NopCreds{}, "", "", common.DefaultCmdTimeout)
+	kustomize := NewKustomizeApp(appPath, git.NopCreds{}, "", "", common.DefaultExecTimeout)
 	kustomizeSource := v1alpha1.ApplicationSourceKustomize{
 		NamePrefix: namePrefix,
 		NameSuffix: nameSuffix,
@@ -115,13 +115,13 @@ func TestParseKustomizeBuildOptions(t *testing.T) {
 }
 
 func TestVersion(t *testing.T) {
-	ver, err := Version(false, common.DefaultCmdTimeout)
+	ver, err := Version(false, common.DefaultExecTimeout)
 	assert.NoError(t, err)
 	assert.NotEmpty(t, ver)
 }
 
 func TestGetSemver(t *testing.T) {
-	ver, err := getSemver(common.DefaultCmdTimeout)
+	ver, err := getSemver(common.DefaultExecTimeout)
 	assert.NoError(t, err)
 	assert.NotEmpty(t, ver)
 }
@@ -161,7 +161,7 @@ func TestKustomizeBuildForceCommonLabels(t *testing.T) {
 	for _, tc := range testCases {
 		appPath, err := testDataDir(t, tc.TestData)
 		assert.Nil(t, err)
-		kustomize := NewKustomizeApp(appPath, git.NopCreds{}, "", "", common.DefaultCmdTimeout)
+		kustomize := NewKustomizeApp(appPath, git.NopCreds{}, "", "", common.DefaultExecTimeout)
 		objs, _, err := kustomize.Build(&tc.KustomizeSource, nil, nil)
 		switch tc.ExpectErr {
 		case true:
@@ -210,7 +210,7 @@ func TestKustomizeBuildForceCommonAnnotations(t *testing.T) {
 	for _, tc := range testCases {
 		appPath, err := testDataDir(t, tc.TestData)
 		assert.Nil(t, err)
-		kustomize := NewKustomizeApp(appPath, git.NopCreds{}, "", "", common.DefaultCmdTimeout)
+		kustomize := NewKustomizeApp(appPath, git.NopCreds{}, "", "", common.DefaultExecTimeout)
 		objs, _, err := kustomize.Build(&tc.KustomizeSource, nil, nil)
 		switch tc.ExpectErr {
 		case true:
@@ -230,7 +230,7 @@ func TestKustomizeCustomVersion(t *testing.T) {
 	kustomizePath, err := testDataDir(t, kustomization4)
 	assert.Nil(t, err)
 	envOutputFile := kustomizePath + "/env_output"
-	kustomize := NewKustomizeApp(appPath, git.NopCreds{}, "", kustomizePath+"/kustomize.special", common.DefaultCmdTimeout)
+	kustomize := NewKustomizeApp(appPath, git.NopCreds{}, "", kustomizePath+"/kustomize.special", common.DefaultExecTimeout)
 	kustomizeSource := v1alpha1.ApplicationSourceKustomize{
 		Version: "special",
 	}

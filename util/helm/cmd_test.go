@@ -16,7 +16,7 @@ func Test_cmd_redactor(t *testing.T) {
 }
 
 func TestCmd_template_kubeVersion(t *testing.T) {
-	cmd, err := NewCmdWithVersion(".", HelmV3, false, "", common.DefaultCmdTimeout)
+	cmd, err := NewCmdWithVersion(".", HelmV3, false, "", common.DefaultExecTimeout)
 	assert.NoError(t, err)
 	s, err := cmd.template("testdata/redis", &TemplateOpts{
 		KubeVersion: "1.14",
@@ -26,25 +26,25 @@ func TestCmd_template_kubeVersion(t *testing.T) {
 }
 
 func TestNewCmd_helmV3(t *testing.T) {
-	cmd, err := NewCmd(".", "v3", "", common.DefaultCmdTimeout)
+	cmd, err := NewCmd(".", "v3", "", common.DefaultExecTimeout)
 	assert.NoError(t, err)
 	assert.Equal(t, "helm", cmd.HelmVer.binaryName)
 }
 
 func TestNewCmd_helmDefaultVersion(t *testing.T) {
-	cmd, err := NewCmd(".", "", "", common.DefaultCmdTimeout)
+	cmd, err := NewCmd(".", "", "", common.DefaultExecTimeout)
 	assert.NoError(t, err)
 	assert.Equal(t, "helm", cmd.HelmVer.binaryName)
 }
 
 func TestNewCmd_helmInvalidVersion(t *testing.T) {
-	_, err := NewCmd(".", "abcd", "", common.DefaultCmdTimeout)
+	_, err := NewCmd(".", "abcd", "", common.DefaultExecTimeout)
 	log.Println(err)
 	assert.EqualError(t, err, "helm chart version 'abcd' is not supported")
 }
 
 func TestNewCmd_withProxy(t *testing.T) {
-	cmd, err := NewCmd(".", "", "https://proxy:8888", common.DefaultCmdTimeout)
+	cmd, err := NewCmd(".", "", "https://proxy:8888", common.DefaultExecTimeout)
 	assert.NoError(t, err)
 	assert.Equal(t, "https://proxy:8888", cmd.proxy)
 }

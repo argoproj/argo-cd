@@ -100,7 +100,7 @@ func (a *ArgoCDCMPServer) CreateGRPC() (*grpc.Server, error) {
 	server := grpc.NewServer(a.opts...)
 	versionpkg.RegisterVersionServiceServer(server, version.NewServer(nil, func() (bool, error) {
 		return true, nil
-	}, a.initConstants.CmdTimeout))
+	}, a.initConstants.ExecTimeout))
 	pluginService := plugin.NewService(a.initConstants)
 	err := pluginService.Init()
 	if err != nil {

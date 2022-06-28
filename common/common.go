@@ -35,8 +35,8 @@ const (
 const (
 	DefaultSystemNamespace = "kube-system"
 	DefaultRepoType        = "git"
-	// DefaultCmdTimeout is the default amount of time an external binary call may take before timing out.
-	DefaultCmdTimeout      = 90 * time.Second
+	// DefaultExecTimeout is the default amount of time an external binary call may take before timing out.
+	DefaultExecTimeout = 90 * time.Second
 )
 
 // Default listener ports for ArgoCD components

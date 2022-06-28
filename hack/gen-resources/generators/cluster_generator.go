@@ -62,12 +62,12 @@ type Config struct {
 type ClusterGenerator struct {
 	db         db.ArgoDB
 	clientSet  *kubernetes.Clientset
-	config     *rest.Config
-	cmdTimeout time.Duration
+	config      *rest.Config
+	execTimeout time.Duration
 }
 
-func NewClusterGenerator(db db.ArgoDB, clientSet *kubernetes.Clientset, config *rest.Config, cmdTimeout time.Duration) Generator {
-	return &ClusterGenerator{db, clientSet, config, cmdTimeout}
+func NewClusterGenerator(db db.ArgoDB, clientSet *kubernetes.Clientset, config *rest.Config, execTimeout time.Duration) Generator {
+	return &ClusterGenerator{db, clientSet, config, execTimeout}
 }
 
 func (cg *ClusterGenerator) getClusterCredentials(namespace string, releaseSuffix string) ([]byte, []byte, []byte, error) {
@@ -186,7 +186,7 @@ func (cg *ClusterGenerator) Generate(opts *util.GenerateOpts) error {
 
 		log.Printf("Release suffix is %s", namespace)
 
-		err := cg.installVCluster(opts, namespace, POD_PREFIX+"-"+releaseSuffix, cg.cmdTimeout)
+		err := cg.installVCluster(opts, namespace, POD_PREFIX+"-"+releaseSuffix, cg.execTimeout)
 		if err != nil {
 			log.Printf("Skip cluster installation due error %v", err.Error())
 			continue

@@ -20,12 +20,12 @@ type server struct {
 	helmVersion      string
 	jsonnetVersion   string
 	authenticator    settings.Authenticator
-	disableAuth      func() (bool, error)
-	cmdTimeout       time.Duration
+	disableAuth func() (bool, error)
+	execTimeout time.Duration
 }
 
-func NewServer(authenticator settings.Authenticator, disableAuth func() (bool, error), cmdTimeout time.Duration) *server {
-	return &server{authenticator: authenticator, disableAuth: disableAuth, cmdTimeout: cmdTimeout}
+func NewServer(authenticator settings.Authenticator, disableAuth func() (bool, error), execTimeout time.Duration) *server {
+	return &server{authenticator: authenticator, disableAuth: disableAuth, execTimeout: execTimeout}
 }
 
 // Version returns the version of the API server
@@ -41,7 +41,7 @@ func (s *server) Version(ctx context.Context, _ *empty.Empty) (*version.VersionM
 	}
 
 	if s.kustomizeVersion == "" {
-		kustomizeVersion, err := kustomize.Version(true, s.cmdTimeout)
+		kustomizeVersion, err := kustomize.Version(true, s.execTimeout)
 		if err == nil {
 			s.kustomizeVersion = kustomizeVersion
 		} else {
@@ -49,7 +49,7 @@ func (s *server) Version(ctx context.Context, _ *empty.Empty) (*version.VersionM
 		}
 	}
 	if s.helmVersion == "" {
-		helmVersion, err := helm.Version(true, s.cmdTimeout)
+		helmVersion, err := helm.Version(true, s.execTimeout)
 		if err == nil {
 			s.helmVersion = helmVersion
 		} else {

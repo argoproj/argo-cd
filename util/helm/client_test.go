@@ -30,12 +30,12 @@ func (f *fakeIndexCache) GetHelmIndex(_ string, indexData *[]byte) error {
 
 func TestIndex(t *testing.T) {
 	t.Run("Invalid", func(t *testing.T) {
-		client := NewClient("", Creds{}, false, "", common.DefaultCmdTimeout)
+		client := NewClient("", Creds{}, false, "", common.DefaultExecTimeout)
 		_, err := client.GetIndex(false)
 		assert.Error(t, err)
 	})
 	t.Run("Stable", func(t *testing.T) {
-		client := NewClient("https://argoproj.github.io/argo-helm", Creds{}, false, "", common.DefaultCmdTimeout)
+		client := NewClient("https://argoproj.github.io/argo-helm", Creds{}, false, "", common.DefaultExecTimeout)
 		index, err := client.GetIndex(false)
 		assert.NoError(t, err)
 		assert.NotNil(t, index)
@@ -44,7 +44,7 @@ func TestIndex(t *testing.T) {
 		client := NewClient("https://argoproj.github.io/argo-helm", Creds{
 			Username: "my-password",
 			Password: "my-username",
-		}, false, "", common.DefaultCmdTimeout)
+		}, false, "", common.DefaultExecTimeout)
 		index, err := client.GetIndex(false)
 		assert.NoError(t, err)
 		assert.NotNil(t, index)
@@ -56,7 +56,7 @@ func TestIndex(t *testing.T) {
 		err := yaml.NewEncoder(&data).Encode(fakeIndex)
 		require.NoError(t, err)
 
-		client := NewClient("https://argoproj.github.io/argo-helm", Creds{}, false, "", common.DefaultCmdTimeout, WithIndexCache(&fakeIndexCache{data: data.Bytes()}))
+		client := NewClient("https://argoproj.github.io/argo-helm", Creds{}, false, "", common.DefaultExecTimeout, WithIndexCache(&fakeIndexCache{data: data.Bytes()}))
 		index, err := client.GetIndex(false)
 
 		assert.NoError(t, err)
@@ -66,7 +66,7 @@ func TestIndex(t *testing.T) {
 }
 
 func Test_nativeHelmChart_ExtractChart(t *testing.T) {
-	client := NewClient("https://argoproj.github.io/argo-helm", Creds{}, false, "", common.DefaultCmdTimeout)
+	client := NewClient("https://argoproj.github.io/argo-helm", Creds{}, false, "", common.DefaultExecTimeout)
 	path, closer, err := client.ExtractChart("argo-cd", "0.7.1", false)
 	assert.NoError(t, err)
 	defer io.Close(closer)
@@ -76,7 +76,7 @@ func Test_nativeHelmChart_ExtractChart(t *testing.T) {
 }
 
 func Test_nativeHelmChart_ExtractChart_insecure(t *testing.T) {
-	client := NewClient("https://argoproj.github.io/argo-helm", Creds{InsecureSkipVerify: true}, false, "", common.DefaultCmdTimeout)
+	client := NewClient("https://argoproj.github.io/argo-helm", Creds{InsecureSkipVerify: true}, false, "", common.DefaultExecTimeout)
 	path, closer, err := client.ExtractChart("argo-cd", "0.7.1", false)
 	assert.NoError(t, err)
 	defer io.Close(closer)

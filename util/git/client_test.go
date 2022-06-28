@@ -30,7 +30,7 @@ func Test_nativeGitClient_Fetch(t *testing.T) {
 	err = cmd.Run()
 	require.NoError(t, err)
 
-	client, err := NewClient(fmt.Sprintf("file://%s", tempDir), NopCreds{}, true, false, "", common.DefaultCmdTimeout)
+	client, err := NewClient(fmt.Sprintf("file://%s", tempDir), NopCreds{}, true, false, "", common.DefaultExecTimeout)
 	require.NoError(t, err)
 
 	err = client.Init()
@@ -58,7 +58,7 @@ func Test_nativeGitClient_Fetch_Prune(t *testing.T) {
 	err = cmd.Run()
 	require.NoError(t, err)
 
-	client, err := NewClient(fmt.Sprintf("file://%s", tempDir), NopCreds{}, true, false, "", common.DefaultCmdTimeout)
+	client, err := NewClient(fmt.Sprintf("file://%s", tempDir), NopCreds{}, true, false, "", common.DefaultExecTimeout)
 	require.NoError(t, err)
 
 	err = client.Init()
@@ -96,7 +96,7 @@ func Test_nativeGitClient_Fetch_Prune(t *testing.T) {
 }
 
 func TestNewClient_invalidSSHURL(t *testing.T) {
-	client, err := NewClient("ssh://bitbucket.org:org/repo", NopCreds{}, false, false, "", common.DefaultCmdTimeout)
+	client, err := NewClient("ssh://bitbucket.org:org/repo", NopCreds{}, false, false, "", common.DefaultExecTimeout)
 	assert.Nil(t, client)
 	assert.ErrorIs(t, err, ErrInvalidRepoURL)
 }
