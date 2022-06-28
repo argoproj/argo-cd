@@ -68,17 +68,11 @@ func WithChartPaths(chartPaths *io.TempPaths) ClientOpts {
 	}
 }
 
-func WithCmdTimeout(timeout time.Duration) ClientOpts {
-	return func(c *nativeHelmChart) {
-		c.cmdTimeout = timeout
-	}
+func NewClient(repoURL string, creds Creds, enableOci bool, proxy string, cmdTimeout time.Duration, opts ...ClientOpts) Client {
+	return NewClientWithLock(repoURL, creds, globalLock, enableOci, proxy, cmdTimeout, opts...)
 }
 
-func NewClient(repoURL string, creds Creds, enableOci bool, proxy string, opts ...ClientOpts) Client {
-	return NewClientWithLock(repoURL, creds, globalLock, enableOci, proxy, opts...)
-}
-
-func NewClientWithLock(repoURL string, creds Creds, repoLock sync.KeyLock, enableOci bool, proxy string, opts ...ClientOpts) Client {
+func NewClientWithLock(repoURL string, creds Creds, repoLock sync.KeyLock, enableOci bool, proxy string, cmdTimeout time.Duration, opts ...ClientOpts) Client {
 	c := &nativeHelmChart{
 		repoURL:         repoURL,
 		creds:           creds,
@@ -86,6 +80,7 @@ func NewClientWithLock(repoURL string, creds Creds, repoLock sync.KeyLock, enabl
 		enableOci:       enableOci,
 		proxy:           proxy,
 		chartCachePaths: io.NewTempPaths(os.TempDir()),
+		cmdTimeout:      cmdTimeout,
 	}
 	for i := range opts {
 		opts[i](c)

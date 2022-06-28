@@ -137,7 +137,6 @@ func NewCleanCommand(opts *util.GenerateOpts) *cobra.Command {
 		},
 	}
 	command.PersistentFlags().StringVar(&opts.Namespace, "kube-namespace", "argocd", "Name of the namespace where argocd is running [$KUBE_NAMESPACE]")
-	durationFromEnv := env.ParseDurationFromEnvs(common.DefaultCmdTimeout, 0*time.Second, 24*time.Hour, "ARGOCD_SERVER_EXEC_TIMEOUT", "ARGOCD_EXEC_TIMEOUT")
 	command.Flags().DurationVar(&cmdTimeout, "cmd-timeout", env.ParseDurationFromEnv("ARGOCD_EXEC_TIMEOUT", common.DefaultCmdTimeout, 0 * time.Second, 24 * time.Hour), "per-command timeout for external commands invoked by the repo server (such as git)")
 
 	return command

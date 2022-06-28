@@ -138,13 +138,7 @@ func WithEventHandlers(handlers EventHandlers) ClientOpts {
 	}
 }
 
-func WithCmdTimeout(timeout time.Duration) ClientOpts {
-	return func(c *nativeGitClient) {
-		c.cmdTimeout = timeout
-	}
-}
-
-func NewClient(rawRepoURL string, creds Creds, insecure bool, enableLfs bool, proxy string, opts ...ClientOpts) (Client, error) {
+func NewClient(rawRepoURL string, creds Creds, insecure bool, enableLfs bool, proxy string, cmdTimeout time.Duration, opts ...ClientOpts) (Client, error) {
 	r := regexp.MustCompile("(/|:)")
 	normalizedGitURL := NormalizeGitURL(rawRepoURL)
 	if normalizedGitURL == "" {
@@ -154,10 +148,10 @@ func NewClient(rawRepoURL string, creds Creds, insecure bool, enableLfs bool, pr
 	if root == os.TempDir() {
 		return nil, fmt.Errorf("repository %q cannot be initialized, because its root would be system temp at %s", rawRepoURL, root)
 	}
-	return NewClientExt(rawRepoURL, root, creds, insecure, enableLfs, proxy, opts...)
+	return NewClientExt(rawRepoURL, root, creds, insecure, enableLfs, proxy, cmdTimeout, opts...)
 }
 
-func NewClientExt(rawRepoURL string, root string, creds Creds, insecure bool, enableLfs bool, proxy string, opts ...ClientOpts) (Client, error) {
+func NewClientExt(rawRepoURL string, root string, creds Creds, insecure bool, enableLfs bool, proxy string, cmdTimeout time.Duration, opts ...ClientOpts) (Client, error) {
 	client := &nativeGitClient{
 		repoURL:   rawRepoURL,
 		root:      root,

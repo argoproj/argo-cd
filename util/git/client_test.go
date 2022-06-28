@@ -8,6 +8,8 @@ import (
 
 	"github.com/stretchr/testify/assert"
 	"github.com/stretchr/testify/require"
+
+	"github.com/argoproj/argo-cd/v2/common"
 )
 
 func Test_nativeGitClient_Fetch(t *testing.T) {
@@ -28,7 +30,7 @@ func Test_nativeGitClient_Fetch(t *testing.T) {
 	err = cmd.Run()
 	require.NoError(t, err)
 
-	client, err := NewClient(fmt.Sprintf("file://%s", tempDir), NopCreds{}, true, false, "")
+	client, err := NewClient(fmt.Sprintf("file://%s", tempDir), NopCreds{}, true, false, "", common.DefaultCmdTimeout)
 	require.NoError(t, err)
 
 	err = client.Init()
@@ -56,7 +58,7 @@ func Test_nativeGitClient_Fetch_Prune(t *testing.T) {
 	err = cmd.Run()
 	require.NoError(t, err)
 
-	client, err := NewClient(fmt.Sprintf("file://%s", tempDir), NopCreds{}, true, false, "")
+	client, err := NewClient(fmt.Sprintf("file://%s", tempDir), NopCreds{}, true, false, "", common.DefaultCmdTimeout)
 	require.NoError(t, err)
 
 	err = client.Init()
@@ -94,7 +96,7 @@ func Test_nativeGitClient_Fetch_Prune(t *testing.T) {
 }
 
 func TestNewClient_invalidSSHURL(t *testing.T) {
-	client, err := NewClient("ssh://bitbucket.org:org/repo", NopCreds{}, false, false, "")
+	client, err := NewClient("ssh://bitbucket.org:org/repo", NopCreds{}, false, false, "", common.DefaultCmdTimeout)
 	assert.Nil(t, client)
 	assert.ErrorIs(t, err, ErrInvalidRepoURL)
 }

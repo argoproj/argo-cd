@@ -225,7 +225,7 @@ func TestCustomHTTPClient(t *testing.T) {
 }
 
 func TestLsRemote(t *testing.T) {
-	clnt, err := NewClientExt("https://github.com/argoproj/argo-cd.git", "/tmp", NopCreds{}, false, false, "")
+	clnt, err := NewClientExt("https://github.com/argoproj/argo-cd.git", "/tmp", NopCreds{}, false, false, "", common.DefaultCmdTimeout)
 	assert.NoError(t, err)
 	xpass := []string{
 		"HEAD",
@@ -266,7 +266,7 @@ func TestLFSClient(t *testing.T) {
 
 	tempDir := t.TempDir()
 
-	client, err := NewClientExt("https://github.com/argoproj-labs/argocd-testrepo-lfs", tempDir, NopCreds{}, false, true, "")
+	client, err := NewClientExt("https://github.com/argoproj-labs/argocd-testrepo-lfs", tempDir, NopCreds{}, false, true, "", common.DefaultCmdTimeout)
 	assert.NoError(t, err)
 
 	commitSHA, err := client.LsRemote("HEAD")
@@ -301,7 +301,7 @@ func TestLFSClient(t *testing.T) {
 func TestVerifyCommitSignature(t *testing.T) {
 	p := t.TempDir()
 
-	client, err := NewClientExt("https://github.com/argoproj/argo-cd.git", p, NopCreds{}, false, false, "")
+	client, err := NewClientExt("https://github.com/argoproj/argo-cd.git", p, NopCreds{}, false, false, "", common.DefaultCmdTimeout)
 	assert.NoError(t, err)
 
 	err = client.Init()
@@ -356,7 +356,7 @@ func TestNewFactory(t *testing.T) {
 
 		dirName := t.TempDir()
 
-		client, err := NewClientExt(tt.args.url, dirName, NopCreds{}, tt.args.insecureIgnoreHostKey, false, "")
+		client, err := NewClientExt(tt.args.url, dirName, NopCreds{}, tt.args.insecureIgnoreHostKey, false, "", common.DefaultCmdTimeout)
 		assert.NoError(t, err)
 		commitSHA, err := client.LsRemote("HEAD")
 		assert.NoError(t, err)
@@ -393,7 +393,7 @@ func TestListRevisions(t *testing.T) {
 	dir := t.TempDir()
 
 	repoURL := "https://github.com/argoproj/argo-cd.git"
-	client, err := NewClientExt(repoURL, dir, NopCreds{}, false, false, "")
+	client, err := NewClientExt(repoURL, dir, NopCreds{}, false, false, "", common.DefaultCmdTimeout)
 	assert.NoError(t, err)
 
 	lsResult, err := client.LsRefs()

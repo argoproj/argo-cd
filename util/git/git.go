@@ -93,7 +93,7 @@ func IsHTTPURL(url string) bool {
 
 // TestRepo tests if a repo exists and is accessible with the given credentials
 func TestRepo(repo string, creds Creds, insecure bool, enableLfs bool, proxy string, cmdTimeout time.Duration) error {
-	clnt, err := NewClient(repo, creds, insecure, enableLfs, proxy, WithCmdTimeout(cmdTimeout))
+	clnt, err := NewClient(repo, creds, insecure, enableLfs, proxy, cmdTimeout)
 	if err != nil {
 		return err
 	}
