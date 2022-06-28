@@ -88,6 +88,14 @@ func NewCommand() *cobra.Command {
 		Long:              "ArgoCD Repository Server is an internal service which maintains a local cache of the Git repository holding the application manifests, and is responsible for generating and returning the Kubernetes manifests.  This command runs Repository Server in the foreground.  It can be configured by following options.",
 		DisableAutoGenTag: true,
 		RunE: func(c *cobra.Command, args []string) error {
+			vers := common.GetVersion()
+			vers.LogStartupInfo(
+				"ArgoCD Repository Server",
+				map[string]any{
+					"port": listenPort,
+				},
+			)
+
 			cli.SetLogFormat(cmdutil.LogFormat)
 			cli.SetLogLevel(cmdutil.LogLevel)
 
@@ -107,7 +115,7 @@ func NewCommand() *cobra.Command {
 			metricsServer := metrics.NewMetricsServer()
 			cacheutil.CollectMetrics(redisClient, metricsServer)
 			server, err := reposerver.NewServer(metricsServer, cache, tlsConfigCustomizer, repository.RepoServerInitConstants{
-				ParallelismLimit:                             parallelismLimit,
+				ParallelismLimit: parallelismLimit,
 				PauseGenerationAfterFailedGenerationAttempts: getPauseGenerationAfterFailedGenerationAttempts(),
 				PauseGenerationOnFailureForMinutes:           getPauseGenerationOnFailureForMinutes(),
 				PauseGenerationOnFailureForRequests:          getPauseGenerationOnFailureForRequests(),
@@ -169,7 +177,7 @@ func NewCommand() *cobra.Command {
 				go func() { errors.CheckError(reposerver.StartGPGWatcher(getGnuPGSourcePath())) }()
 			}
 
-			log.Infof("argocd-repo-server %s serving on %s", common.GetVersion(), listener.Addr())
+			log.Infof("argocd-repo-server is listening on %s", listener.Addr())
 			stats.RegisterStackDumper()
 			stats.StartStatsTicker(10 * time.Minute)
 			stats.RegisterHeapDumper("memprofile")

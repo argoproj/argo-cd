@@ -3,6 +3,8 @@ package common
 import (
 	"fmt"
 	"runtime"
+
+	log "github.com/sirupsen/logrus"
 )
 
 // Version information set by link flags during build. We fall back to these sane
@@ -31,6 +33,16 @@ type Version struct {
 
 func (v Version) String() string {
 	return v.Version
+}
+
+func (v Version) LogStartupInfo(componentName string, fields map[string]any) {
+	if fields == nil {
+		fields = map[string]any{}
+	}
+	fields["version"] = v.Version
+	fields["commit"] = v.GitCommit
+	fields["built"] = v.BuildDate
+	log.WithFields(log.Fields(fields)).Infof("%s is starting", componentName)
 }
 
 // GetVersion returns the version information
