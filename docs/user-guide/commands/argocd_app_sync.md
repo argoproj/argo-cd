@@ -31,8 +31,8 @@ argocd app sync [APPNAME... | -l selector] [flags]
 ```
       --assumeYes                             Assume yes as answer for all user queries or prompts
       --async                                 Do not wait for application to sync before continuing
-      --exec-timeout duration                  Timeout for external commands invoked during manifest generation (such as git) (default 1m30s)
       --dry-run                               Preview apply without affecting cluster
+      --exec-timeout duration                 Timeout for external commands invoked during manifest generation (such as git) (default 1m30s)
       --force                                 Use a force apply
   -h, --help                                  help for sync
       --info stringArray                      A list of key-value pairs during sync process. These infos will be persisted in app.
