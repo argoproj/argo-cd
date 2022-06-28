@@ -3,6 +3,7 @@ package gpgkey
 import (
 	"fmt"
 	"strings"
+	"time"
 
 	"golang.org/x/net/context"
 
@@ -20,6 +21,7 @@ type Server struct {
 	db            db.ArgoDB
 	repoClientset apiclient.Clientset
 	enf           *rbac.Enforcer
+	cmdTimeout    time.Duration
 }
 
 // NewServer returns a new instance of the service with type GPGKeyService
@@ -27,11 +29,13 @@ func NewServer(
 	repoClientset apiclient.Clientset,
 	db db.ArgoDB,
 	enf *rbac.Enforcer,
+	cmdTimeout time.Duration,
 ) *Server {
 	return &Server{
 		db:            db,
 		repoClientset: repoClientset,
 		enf:           enf,
+		cmdTimeout:    cmdTimeout,
 	}
 }
 
@@ -40,7 +44,7 @@ func (s *Server) List(ctx context.Context, q *gpgkeypkg.GnuPGPublicKeyQuery) (*a
 	if err := s.enf.EnforceErr(ctx.Value("claims"), rbacpolicy.ResourceGPGKeys, rbacpolicy.ActionGet, ""); err != nil {
 		return nil, err
 	}
-	keys, err := s.db.ListConfiguredGPGPublicKeys(ctx)
+	keys, err := s.db.ListConfiguredGPGPublicKeys(ctx, s.cmdTimeout)
 	if err != nil {
 		return nil, err
 	}
@@ -64,7 +68,7 @@ func (s *Server) Get(ctx context.Context, q *gpgkeypkg.GnuPGPublicKeyQuery) (*ap
 		return nil, fmt.Errorf("KeyID is malformed or empty")
 	}
 
-	keys, err := s.db.ListConfiguredGPGPublicKeys(ctx)
+	keys, err := s.db.ListConfiguredGPGPublicKeys(ctx, s.cmdTimeout)
 	if err != nil {
 		return nil, err
 	}
@@ -87,7 +91,7 @@ func (s *Server) Create(ctx context.Context, q *gpgkeypkg.GnuPGPublicKeyCreateRe
 		return nil, fmt.Errorf("Submitted key data is empty")
 	}
 
-	added, skipped, err := s.db.AddGPGPublicKey(ctx, q.Publickey.KeyData)
+	added, skipped, err := s.db.AddGPGPublicKey(ctx, q.Publickey.KeyData, s.cmdTimeout)
 	if err != nil {
 		return nil, err
 	}

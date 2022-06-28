@@ -117,7 +117,7 @@ func getGPGKeysClientset(gpgCM v1.ConfigMap) *fake.Clientset {
 func Test_ValidatePGPKey(t *testing.T) {
 	// Good case - single PGP key
 	{
-		key, err := validatePGPKey(testdata.Github_asc)
+		key, err := validatePGPKey(testdata.Github_asc, common.DefaultCmdTimeout)
 		assert.NoError(t, err)
 		assert.NotNil(t, key)
 		assert.Equal(t, "4AEE18F83AFDEB23", key.KeyID)
@@ -127,13 +127,13 @@ func Test_ValidatePGPKey(t *testing.T) {
 	}
 	// Bad case - Garbage
 	{
-		key, err := validatePGPKey(testdata.Garbage_asc)
+		key, err := validatePGPKey(testdata.Garbage_asc, common.DefaultCmdTimeout)
 		assert.Error(t, err)
 		assert.Nil(t, key)
 	}
 	// Bad case - more than one key
 	{
-		key, err := validatePGPKey(testdata.Multi_asc)
+		key, err := validatePGPKey(testdata.Multi_asc, common.DefaultCmdTimeout)
 		assert.Error(t, err)
 		assert.Nil(t, key)
 	}
@@ -148,7 +148,7 @@ func Test_ListConfiguredGPGPublicKeys(t *testing.T) {
 		if db == nil {
 			panic("could not get database")
 		}
-		keys, err := db.ListConfiguredGPGPublicKeys(context.Background())
+		keys, err := db.ListConfiguredGPGPublicKeys(context.Background(), common.DefaultCmdTimeout)
 		assert.NoError(t, err)
 		assert.Len(t, keys, 1)
 	}
@@ -160,7 +160,7 @@ func Test_ListConfiguredGPGPublicKeys(t *testing.T) {
 		if db == nil {
 			panic("could not get database")
 		}
-		keys, err := db.ListConfiguredGPGPublicKeys(context.Background())
+		keys, err := db.ListConfiguredGPGPublicKeys(context.Background(), common.DefaultCmdTimeout)
 		assert.NoError(t, err)
 		assert.Len(t, keys, 0)
 	}
@@ -172,7 +172,7 @@ func Test_ListConfiguredGPGPublicKeys(t *testing.T) {
 		if db == nil {
 			panic("could not get database")
 		}
-		keys, err := db.ListConfiguredGPGPublicKeys(context.Background())
+		keys, err := db.ListConfiguredGPGPublicKeys(context.Background(), common.DefaultCmdTimeout)
 		assert.Error(t, err)
 		assert.Len(t, keys, 0)
 	}
@@ -184,7 +184,7 @@ func Test_ListConfiguredGPGPublicKeys(t *testing.T) {
 		if db == nil {
 			panic("could not get database")
 		}
-		keys, err := db.ListConfiguredGPGPublicKeys(context.Background())
+		keys, err := db.ListConfiguredGPGPublicKeys(context.Background(), common.DefaultCmdTimeout)
 		assert.Error(t, err)
 		assert.Len(t, keys, 0)
 	}
@@ -196,7 +196,7 @@ func Test_ListConfiguredGPGPublicKeys(t *testing.T) {
 		if db == nil {
 			panic("could not get database")
 		}
-		keys, err := db.ListConfiguredGPGPublicKeys(context.Background())
+		keys, err := db.ListConfiguredGPGPublicKeys(context.Background(), common.DefaultCmdTimeout)
 		assert.Error(t, err)
 		assert.Len(t, keys, 0)
 	}
@@ -210,7 +210,7 @@ func Test_AddGPGPublicKey(t *testing.T) {
 		db := NewDB(testNamespace, settings, clientset)
 
 		// Key should be added
-		new, skipped, err := db.AddGPGPublicKey(context.Background(), testdata.Github_asc)
+		new, skipped, err := db.AddGPGPublicKey(context.Background(), testdata.Github_asc, common.DefaultCmdTimeout)
 		assert.NoError(t, err)
 		assert.Len(t, new, 1)
 		assert.Len(t, skipped, 0)
@@ -219,7 +219,7 @@ func Test_AddGPGPublicKey(t *testing.T) {
 		assert.Len(t, cm.Data, 1)
 
 		// Same key should not be added, but skipped
-		new, skipped, err = db.AddGPGPublicKey(context.Background(), testdata.Github_asc)
+		new, skipped, err = db.AddGPGPublicKey(context.Background(), testdata.Github_asc, common.DefaultCmdTimeout)
 		assert.NoError(t, err)
 		assert.Len(t, new, 0)
 		assert.Len(t, skipped, 1)
@@ -228,7 +228,7 @@ func Test_AddGPGPublicKey(t *testing.T) {
 		assert.Len(t, cm.Data, 1)
 
 		// New keys should be added
-		new, skipped, err = db.AddGPGPublicKey(context.Background(), testdata.Multi_asc)
+		new, skipped, err = db.AddGPGPublicKey(context.Background(), testdata.Multi_asc, common.DefaultCmdTimeout)
 		assert.NoError(t, err)
 		assert.Len(t, new, 2)
 		assert.Len(t, skipped, 0)
@@ -237,7 +237,7 @@ func Test_AddGPGPublicKey(t *testing.T) {
 		assert.Len(t, cm.Data, 3)
 
 		// Same new keys should be skipped
-		new, skipped, err = db.AddGPGPublicKey(context.Background(), testdata.Multi_asc)
+		new, skipped, err = db.AddGPGPublicKey(context.Background(), testdata.Multi_asc, common.DefaultCmdTimeout)
 		assert.NoError(t, err)
 		assert.Len(t, new, 0)
 		assert.Len(t, skipped, 2)
@@ -246,7 +246,7 @@ func Test_AddGPGPublicKey(t *testing.T) {
 		assert.Len(t, cm.Data, 3)
 
 		// Garbage input should result in error
-		new, skipped, err = db.AddGPGPublicKey(context.Background(), testdata.Garbage_asc)
+		new, skipped, err = db.AddGPGPublicKey(context.Background(), testdata.Garbage_asc, common.DefaultCmdTimeout)
 		assert.Error(t, err)
 		assert.Nil(t, new)
 		assert.Nil(t, skipped)
@@ -273,7 +273,7 @@ func Test_DeleteGPGPublicKey(t *testing.T) {
 		assert.Error(t, err)
 
 		// One key left in configuration
-		n, err := db.ListConfiguredGPGPublicKeys(context.Background())
+		n, err := db.ListConfiguredGPGPublicKeys(context.Background(), common.DefaultCmdTimeout)
 		assert.NoError(t, err)
 		assert.Len(t, n, 1)
 
@@ -286,7 +286,7 @@ func Test_DeleteGPGPublicKey(t *testing.T) {
 		assert.Error(t, err)
 
 		// No key left in configuration
-		n, err = db.ListConfiguredGPGPublicKeys(context.Background())
+		n, err = db.ListConfiguredGPGPublicKeys(context.Background(), common.DefaultCmdTimeout)
 		assert.NoError(t, err)
 		assert.Len(t, n, 0)
 

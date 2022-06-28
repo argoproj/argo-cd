@@ -68,6 +68,12 @@ func WithChartPaths(chartPaths *io.TempPaths) ClientOpts {
 	}
 }
 
+func WithCmdTimeout(timeout time.Duration) ClientOpts {
+	return func(c *nativeHelmChart) {
+		c.cmdTimeout = timeout
+	}
+}
+
 func NewClient(repoURL string, creds Creds, enableOci bool, proxy string, opts ...ClientOpts) Client {
 	return NewClientWithLock(repoURL, creds, globalLock, enableOci, proxy, opts...)
 }
@@ -97,6 +103,7 @@ type nativeHelmChart struct {
 	enableOci       bool
 	indexCache      indexCache
 	proxy           string
+	cmdTimeout      time.Duration
 }
 
 func fileExist(filePath string) (bool, error) {
@@ -120,7 +127,7 @@ func (c *nativeHelmChart) CleanChartCache(chart string, version string) error {
 
 func (c *nativeHelmChart) ExtractChart(chart string, version string, passCredentials bool) (string, io.Closer, error) {
 	// always use Helm V3 since we don't have chart content to determine correct Helm version
-	helmCmd, err := NewCmdWithVersion("", HelmV3, c.enableOci, c.proxy)
+	helmCmd, err := NewCmdWithVersion("", HelmV3, c.enableOci, c.proxy, c.cmdTimeout)
 
 	if err != nil {
 		return "", nil, err
@@ -200,7 +207,7 @@ func (c *nativeHelmChart) ExtractChart(chart string, version string, passCredent
 
 	cmd := exec.Command("tar", "-zxvf", cachedChartPath)
 	cmd.Dir = tempDir
-	_, err = executil.Run(cmd)
+	_, err = executil.Run(cmd, c.cmdTimeout)
 	if err != nil {
 		_ = os.RemoveAll(tempDir)
 		return "", nil, err
@@ -255,7 +262,7 @@ func (c *nativeHelmChart) TestHelmOCI() (bool, error) {
 	}
 	defer func() { _ = os.RemoveAll(tmpDir) }()
 
-	helmCmd, err := NewCmdWithVersion(tmpDir, HelmV3, c.enableOci, c.proxy)
+	helmCmd, err := NewCmdWithVersion(tmpDir, HelmV3, c.enableOci, c.proxy, c.cmdTimeout)
 	if err != nil {
 		return false, err
 	}

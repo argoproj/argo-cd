@@ -6,6 +6,7 @@ import (
 
 	"github.com/stretchr/testify/require"
 
+	"github.com/argoproj/argo-cd/v2/common"
 	"github.com/argoproj/argo-cd/v2/util/io/path"
 
 	"github.com/argoproj/gitops-engine/pkg/utils/kube"
@@ -25,7 +26,7 @@ func template(h Helm, opts *TemplateOpts) ([]*unstructured.Unstructured, error) 
 }
 
 func TestHelmTemplateParams(t *testing.T) {
-	h, err := NewHelmApp("./testdata/minio", []HelmRepository{}, false, "", "", false)
+	h, err := NewHelmApp("./testdata/minio", []HelmRepository{}, false, "", "", false, common.DefaultCmdTimeout)
 	assert.NoError(t, err)
 	opts := TemplateOpts{
 		Name: "test",
@@ -57,7 +58,7 @@ func TestHelmTemplateValues(t *testing.T) {
 	repoRoot := "./testdata/redis"
 	repoRootAbs, err := filepath.Abs(repoRoot)
 	require.NoError(t, err)
-	h, err := NewHelmApp(repoRootAbs, []HelmRepository{}, false, "", "", false)
+	h, err := NewHelmApp(repoRootAbs, []HelmRepository{}, false, "", "", false, common.DefaultCmdTimeout)
 	assert.NoError(t, err)
 	valuesPath, _, err := path.ResolveFilePath(repoRootAbs, repoRootAbs, "values-production.yaml", nil)
 	require.NoError(t, err)
@@ -83,7 +84,7 @@ func TestHelmGetParams(t *testing.T) {
 	repoRoot := "./testdata/redis"
 	repoRootAbs, err := filepath.Abs(repoRoot)
 	require.NoError(t, err)
-	h, err := NewHelmApp(repoRootAbs, nil, false, "", "", false)
+	h, err := NewHelmApp(repoRootAbs, nil, false, "", "", false, common.DefaultCmdTimeout)
 	assert.NoError(t, err)
 	params, err := h.GetParameters(nil, repoRootAbs, repoRootAbs)
 	assert.Nil(t, err)
@@ -96,7 +97,7 @@ func TestHelmGetParamsValueFiles(t *testing.T) {
 	repoRoot := "./testdata/redis"
 	repoRootAbs, err := filepath.Abs(repoRoot)
 	require.NoError(t, err)
-	h, err := NewHelmApp(repoRootAbs, nil, false, "", "", false)
+	h, err := NewHelmApp(repoRootAbs, nil, false, "", "", false, common.DefaultCmdTimeout)
 	assert.NoError(t, err)
 	valuesPath, _, err := path.ResolveFilePath(repoRootAbs, repoRootAbs, "values-production.yaml", nil)
 	require.NoError(t, err)
@@ -111,7 +112,7 @@ func TestHelmGetParamsValueFilesThatExist(t *testing.T) {
 	repoRoot := "./testdata/redis"
 	repoRootAbs, err := filepath.Abs(repoRoot)
 	require.NoError(t, err)
-	h, err := NewHelmApp(repoRootAbs, nil, false, "", "", false)
+	h, err := NewHelmApp(repoRootAbs, nil, false, "", "", false, common.DefaultCmdTimeout)
 	assert.NoError(t, err)
 	valuesMissingPath, _, err := path.ResolveFilePath(repoRootAbs, repoRootAbs, "values-missing.yaml", nil)
 	require.NoError(t, err)
@@ -125,7 +126,7 @@ func TestHelmGetParamsValueFilesThatExist(t *testing.T) {
 }
 
 func TestHelmTemplateReleaseNameOverwrite(t *testing.T) {
-	h, err := NewHelmApp("./testdata/redis", nil, false, "", "", false)
+	h, err := NewHelmApp("./testdata/redis", nil, false, "", "", false, common.DefaultCmdTimeout)
 	assert.NoError(t, err)
 
 	objs, err := template(h, &TemplateOpts{Name: "my-release"})
@@ -143,7 +144,7 @@ func TestHelmTemplateReleaseNameOverwrite(t *testing.T) {
 }
 
 func TestHelmTemplateReleaseName(t *testing.T) {
-	h, err := NewHelmApp("./testdata/redis", nil, false, "", "", false)
+	h, err := NewHelmApp("./testdata/redis", nil, false, "", "", false, common.DefaultCmdTimeout)
 	assert.NoError(t, err)
 	objs, err := template(h, &TemplateOpts{Name: "test"})
 	assert.Nil(t, err)
@@ -172,7 +173,7 @@ func TestHelmArgCleaner(t *testing.T) {
 }
 
 func TestVersion(t *testing.T) {
-	ver, err := Version(false)
+	ver, err := Version(false, common.DefaultCmdTimeout)
 	assert.NoError(t, err)
 	assert.NotEmpty(t, ver)
 }
@@ -202,7 +203,7 @@ func Test_flatVals(t *testing.T) {
 }
 
 func TestAPIVersions(t *testing.T) {
-	h, err := NewHelmApp("./testdata/api-versions", nil, false, "", "", false)
+	h, err := NewHelmApp("./testdata/api-versions", nil, false, "", "", false, common.DefaultCmdTimeout)
 	if !assert.NoError(t, err) {
 		return
 	}
@@ -221,7 +222,7 @@ func TestAPIVersions(t *testing.T) {
 }
 
 func TestSkipCrds(t *testing.T) {
-	h, err := NewHelmApp("./testdata/crds", nil, false, "", "", false)
+	h, err := NewHelmApp("./testdata/crds", nil, false, "", "", false, common.DefaultCmdTimeout)
 	if !assert.NoError(t, err) {
 		return
 	}

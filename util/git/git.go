@@ -4,6 +4,7 @@ import (
 	"net/url"
 	"regexp"
 	"strings"
+	"time"
 )
 
 // EnsurePrefix idempotently ensures that a base string has a given prefix.
@@ -91,8 +92,8 @@ func IsHTTPURL(url string) bool {
 }
 
 // TestRepo tests if a repo exists and is accessible with the given credentials
-func TestRepo(repo string, creds Creds, insecure bool, enableLfs bool, proxy string) error {
-	clnt, err := NewClient(repo, creds, insecure, enableLfs, proxy)
+func TestRepo(repo string, creds Creds, insecure bool, enableLfs bool, proxy string, cmdTimeout time.Duration) error {
+	clnt, err := NewClient(repo, creds, insecure, enableLfs, proxy, WithCmdTimeout(cmdTimeout))
 	if err != nil {
 		return err
 	}

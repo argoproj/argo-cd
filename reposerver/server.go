@@ -3,9 +3,10 @@ package reposerver
 import (
 	"crypto/tls"
 	"fmt"
-	"go.opentelemetry.io/contrib/instrumentation/google.golang.org/grpc/otelgrpc"
 	"os"
 	"path/filepath"
+
+	"go.opentelemetry.io/contrib/instrumentation/google.golang.org/grpc/otelgrpc"
 
 	grpc_middleware "github.com/grpc-ecosystem/go-grpc-middleware"
 	grpc_logrus "github.com/grpc-ecosystem/go-grpc-middleware/logging/logrus"
@@ -114,7 +115,7 @@ func (a *ArgoCDRepoServer) CreateGRPC() *grpc.Server {
 	server := grpc.NewServer(a.opts...)
 	versionpkg.RegisterVersionServiceServer(server, version.NewServer(nil, func() (bool, error) {
 		return true, nil
-	}))
+	}, a.initConstants.CmdTimeout))
 	apiclient.RegisterRepoServerServiceServer(server, a.repoService)
 
 	healthService := health.NewServer()

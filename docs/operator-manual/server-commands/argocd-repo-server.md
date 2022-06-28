@@ -13,6 +13,7 @@ argocd-repo-server [flags]
 ### Options
 
 ```
+      --cmd-timeout duration                           per-command timeout for external commands invoked by the repo server (such as git) (default 1m30s)
       --default-cache-expiration duration              Cache expiration default (default 24h0m0s)
       --disable-tls                                    Disable TLS on the gRPC endpoint
   -h, --help                                           help for argocd-repo-server

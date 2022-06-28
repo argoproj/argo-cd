@@ -1047,6 +1047,7 @@ spec:
 apiVersion: v1
 kind: Service
 metadata:
+  annotations: null
   labels:
     app.kubernetes.io/component: redis
     app.kubernetes.io/name: argocd-redis-ha
@@ -1148,6 +1149,7 @@ spec:
 apiVersion: v1
 kind: Service
 metadata:
+  annotations: null
   labels:
     app.kubernetes.io/component: redis
     app.kubernetes.io/name: argocd-redis-ha-haproxy
@@ -1630,6 +1632,12 @@ spec:
               key: reposerver.max.combined.directory.manifests.size
               name: argocd-cmd-params-cm
               optional: true
+        - name: ARGOCD_REPO_SERVER_CMD_TIMEOUT
+          valueFrom:
+            configMapKeyRef:
+              key: reposerver.cmd.timeout
+              name: argocd-cmd-params-cm
+              optional: true
         - name: HELM_CACHE_HOME
           value: /helm-working-dir
         - name: HELM_CONFIG_HOME
@@ -1932,6 +1940,12 @@ spec:
               key: otlp.address
               name: argocd-cmd-params-cm
               optional: true
+        - name: ARGOCD_SERVER_CMD_TIMEOUT
+          valueFrom:
+            configMapKeyRef:
+              key: server.cmd.timeout
+              name: argocd-cmd-params-cm
+              optional: true
         image: quay.io/argoproj/argocd:latest
         imagePullPolicy: Always
         livenessProbe:
@@ -2183,6 +2197,7 @@ spec:
 apiVersion: apps/v1
 kind: StatefulSet
 metadata:
+  annotations: {}
   labels:
     app.kubernetes.io/component: redis
     app.kubernetes.io/name: argocd-redis-ha

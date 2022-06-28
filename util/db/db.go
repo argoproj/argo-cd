@@ -3,6 +3,7 @@ package db
 import (
 	"context"
 	"strings"
+	"time"
 
 	v1 "k8s.io/api/core/v1"
 	"k8s.io/client-go/kubernetes"
@@ -78,9 +79,9 @@ type ArgoDB interface {
 	ListHelmRepositories(ctx context.Context) ([]*appv1.Repository, error)
 
 	// ListConfiguredGPGPublicKeys returns all GPG public key IDs that are configured
-	ListConfiguredGPGPublicKeys(ctx context.Context) (map[string]*appv1.GnuPGPublicKey, error)
+	ListConfiguredGPGPublicKeys(ctx context.Context, cmdTimeout time.Duration) (map[string]*appv1.GnuPGPublicKey, error)
 	// AddGPGPublicKey adds one ore more GPG public keys to the configuration
-	AddGPGPublicKey(ctx context.Context, keyData string) (map[string]*appv1.GnuPGPublicKey, []string, error)
+	AddGPGPublicKey(ctx context.Context, keyData string, cmdTimeout time.Duration) (map[string]*appv1.GnuPGPublicKey, []string, error)
 	// DeleteGPGPublicKey removes a GPG public key from the configuration
 	DeleteGPGPublicKey(ctx context.Context, keyID string) error
 }

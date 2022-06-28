@@ -86,6 +86,8 @@ data:
   server.app.state.cache.expiration: "1h0m0s"
   # Cache expiration default (default 24h0m0s)
   server.default.cache.expiration: "24h0m0s"
+  # Max amount of time any single external binary call (e.g. gpg) may run in the repo-server.
+  server.cmd.timeout: "90s"
 
   ## Repo-server properties
   # Set the logging format. One of: text|json (default "text")
@@ -111,3 +113,5 @@ data:
   # for 300x memory expansion and N Applications running at the same time.
   # (example 10M max * 300 expansion * 10 Apps = 30G max theoretical memory usage).
   reposerver.max.combined.directory.manifests.size: '10M'
+  # Max amount of time any single external binary call (e.g. git) may run in the repo-server.
+  reposerver.cmd.timeout: "90s"

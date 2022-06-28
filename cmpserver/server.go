@@ -2,11 +2,12 @@ package cmpserver
 
 import (
 	"fmt"
-	"go.opentelemetry.io/contrib/instrumentation/google.golang.org/grpc/otelgrpc"
 	"net"
 	"os"
 	"os/signal"
 	"syscall"
+
+	"go.opentelemetry.io/contrib/instrumentation/google.golang.org/grpc/otelgrpc"
 
 	grpc_middleware "github.com/grpc-ecosystem/go-grpc-middleware"
 	grpc_logrus "github.com/grpc-ecosystem/go-grpc-middleware/logging/logrus"
@@ -99,7 +100,7 @@ func (a *ArgoCDCMPServer) CreateGRPC() (*grpc.Server, error) {
 	server := grpc.NewServer(a.opts...)
 	versionpkg.RegisterVersionServiceServer(server, version.NewServer(nil, func() (bool, error) {
 		return true, nil
-	}))
+	}, a.initConstants.CmdTimeout))
 	pluginService := plugin.NewService(a.initConstants)
 	err := pluginService.Init()
 	if err != nil {

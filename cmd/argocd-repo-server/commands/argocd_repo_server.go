@@ -81,6 +81,7 @@ func NewCommand() *cobra.Command {
 		redisClient                       *redis.Client
 		disableTLS                        bool
 		maxCombinedDirectoryManifestsSize string
+		cmdTimeout                        time.Duration
 	)
 	var command = cobra.Command{
 		Use:               cliName,
@@ -113,6 +114,7 @@ func NewCommand() *cobra.Command {
 				PauseGenerationOnFailureForRequests:          getPauseGenerationOnFailureForRequests(),
 				SubmoduleEnabled:                             getSubmoduleEnabled(),
 				MaxCombinedDirectoryManifestsSize:            maxCombinedDirectoryManifestsQuantity,
+				CmdTimeout:                                   cmdTimeout,
 			}, askPassServer)
 			errors.CheckError(err)
 
@@ -158,15 +160,15 @@ func NewCommand() *cobra.Command {
 
 			if gpg.IsGPGEnabled() {
 				log.Infof("Initializing GnuPG keyring at %s", common.GetGnuPGHomePath())
-				err = gpg.InitializeGnuPG()
+				err = gpg.InitializeGnuPG(cmdTimeout)
 				errors.CheckError(err)
 
 				log.Infof("Populating GnuPG keyring with keys from %s", getGnuPGSourcePath())
-				added, removed, err := gpg.SyncKeyRingFromDirectory(getGnuPGSourcePath())
+				added, removed, err := gpg.SyncKeyRingFromDirectory(getGnuPGSourcePath(), cmdTimeout)
 				errors.CheckError(err)
 				log.Infof("Loaded %d (and removed %d) keys from keyring", len(added), len(removed))
 
-				go func() { errors.CheckError(reposerver.StartGPGWatcher(getGnuPGSourcePath())) }()
+				go func() { errors.CheckError(reposerver.StartGPGWatcher(getGnuPGSourcePath(), cmdTimeout)) }()
 			}
 
 			log.Infof("argocd-repo-server %s serving on %s", common.GetVersion(), listener.Addr())
@@ -189,6 +191,7 @@ func NewCommand() *cobra.Command {
 	command.Flags().StringVar(&otlpAddress, "otlp-address", env.StringFromEnv("ARGOCD_REPO_SERVER_OTLP_ADDRESS", ""), "OpenTelemetry collector address to send traces to")
 	command.Flags().BoolVar(&disableTLS, "disable-tls", env.ParseBoolFromEnv("ARGOCD_REPO_SERVER_DISABLE_TLS", false), "Disable TLS on the gRPC endpoint")
 	command.Flags().StringVar(&maxCombinedDirectoryManifestsSize, "max-combined-directory-manifests-size", env.StringFromEnv("ARGOCD_REPO_SERVER_MAX_COMBINED_DIRECTORY_MANIFESTS_SIZE", "10M"), "Max combined size of manifest files in a directory-type Application")
+	cmdTimeout = *command.Flags().Duration("cmd-timeout", env.ParseDurationFromEnv("ARGOCD_REPO_SERVER_CMD_TIMEOUT", common.DefaultCmdTimeout, 0 * time.Second, 24 * time.Hour), "per-command timeout for external commands invoked by the repo server (such as git)")
 
 	tlsConfigCustomizerSrc = tls.AddTLSFlagsToCmd(&command)
 	cacheSrc = reposervercache.AddCacheFlagsToCmd(&command, func(client *redis.Client) {

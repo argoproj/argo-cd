@@ -13,12 +13,6 @@ import (
 	ctrl "sigs.k8s.io/controller-runtime"
 	"sigs.k8s.io/controller-runtime/pkg/cache"
 
-	"github.com/argoproj/argo-cd/v2/applicationset/controllers"
-	"github.com/argoproj/argo-cd/v2/applicationset/generators"
-	"github.com/argoproj/argo-cd/v2/applicationset/utils"
-	"github.com/argoproj/argo-cd/v2/common"
-	"github.com/argoproj/argo-cd/v2/reposerver/askpass"
-
 	log "github.com/sirupsen/logrus"
 	"github.com/spf13/cobra"
 	"k8s.io/client-go/dynamic"
@@ -26,6 +20,12 @@ import (
 	clientgoscheme "k8s.io/client-go/kubernetes/scheme"
 	_ "k8s.io/client-go/plugin/pkg/client/auth/gcp"
 	"k8s.io/client-go/tools/clientcmd"
+
+	"github.com/argoproj/argo-cd/v2/applicationset/controllers"
+	"github.com/argoproj/argo-cd/v2/applicationset/generators"
+	"github.com/argoproj/argo-cd/v2/applicationset/utils"
+	"github.com/argoproj/argo-cd/v2/common"
+	"github.com/argoproj/argo-cd/v2/reposerver/askpass"
 
 	"github.com/argoproj/argo-cd/v2/applicationset/services"
 	appv1alpha1 "github.com/argoproj/argo-cd/v2/pkg/apis/application/v1alpha1"
@@ -51,6 +51,7 @@ func NewCommand() *cobra.Command {
 		dryRun               bool
 		logFormat            string
 		logLevel             string
+		cmdTimeout           time.Duration
 	)
 	scheme := runtime.NewScheme()
 	_ = clientgoscheme.AddToScheme(scheme)
@@ -136,7 +137,7 @@ func NewCommand() *cobra.Command {
 			terminalGenerators := map[string]generators.Generator{
 				"List":                    generators.NewListGenerator(),
 				"Clusters":                generators.NewClusterGenerator(mgr.GetClient(), context.Background(), k8sClient, namespace),
-				"Git":                     generators.NewGitGenerator(services.NewArgoCDService(argoCDDB, askPassServer, argocdRepoServer)),
+				"Git":                     generators.NewGitGenerator(services.NewArgoCDService(argoCDDB, askPassServer, cmdTimeout)),
 				"SCMProvider":             generators.NewSCMProviderGenerator(mgr.GetClient()),
 				"ClusterDecisionResource": generators.NewDuckTypeGenerator(context.Background(), dynamicClient, k8sClient, namespace),
 				"PullRequest":             generators.NewPullRequestGenerator(mgr.GetClient()),
@@ -203,6 +204,8 @@ func NewCommand() *cobra.Command {
 	command.Flags().StringVar(&logLevel, "loglevel", "info", "Set the logging level. One of: debug|info|warn|error")
 	command.Flags().BoolVar(&dryRun, "dry-run", false, "Enable dry run mode")
 	command.Flags().StringVar(&logFormat, "logformat", "text", "Set the logging format. One of: text|json")
+	cmdTimeout = *command.Flags().Duration("cmd-timeout", common.DefaultCmdTimeout, "per-command timeout for external commands invoked by the applicationset controller (such as git)")
+
 	return &command
 }
 

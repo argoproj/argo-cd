@@ -67,6 +67,7 @@ func NewCommand() *cobra.Command {
 		repoServerPlaintext      bool
 		repoServerStrictTLS      bool
 		staticAssetsDir          string
+		cmdTimeout               time.Duration
 	)
 	var command = &cobra.Command{
 		Use:               cliName,
@@ -147,6 +148,7 @@ func NewCommand() *cobra.Command {
 				ContentSecurityPolicy: contentSecurityPolicy,
 				RedisClient:           redisClient,
 				StaticAssetsDir:       staticAssetsDir,
+				CmdTimeout:            cmdTimeout,
 			}
 
 			stats.RegisterStackDumper()
@@ -195,6 +197,8 @@ func NewCommand() *cobra.Command {
 	command.Flags().StringVar(&contentSecurityPolicy, "content-security-policy", env.StringFromEnv("ARGOCD_SERVER_CONTENT_SECURITY_POLICY", "frame-ancestors 'self';"), "Set Content-Security-Policy header in HTTP responses to `value`. To disable, set to \"\".")
 	command.Flags().BoolVar(&repoServerPlaintext, "repo-server-plaintext", env.ParseBoolFromEnv("ARGOCD_SERVER_REPO_SERVER_PLAINTEXT", false), "Use a plaintext client (non-TLS) to connect to repository server")
 	command.Flags().BoolVar(&repoServerStrictTLS, "repo-server-strict-tls", env.ParseBoolFromEnv("ARGOCD_SERVER_REPO_SERVER_STRICT_TLS", false), "Perform strict validation of TLS certificates when connecting to repo server")
+	cmdTimeout = *command.Flags().Duration("cmd-timeout", env.ParseDurationFromEnv("ARGOCD_SERVER_CMD_TIMEOUT", common.DefaultCmdTimeout, 0 * time.Second, 24 * time.Hour), "per-command timeout for external commands invoked by the server (such as gpg)")
+
 	tlsConfigCustomizerSrc = tls.AddTLSFlagsToCmd(command)
 	cacheSrc = servercache.AddCacheFlagsToCmd(command, func(client *redis.Client) {
 		redisClient = client

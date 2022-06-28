@@ -36,6 +36,7 @@ type Service struct {
 
 type CMPServerInitConstants struct {
 	PluginConfig PluginConfig
+	CmdTimeout   time.Duration
 }
 
 // NewService returns a new instance of the ConfigManagementPluginService

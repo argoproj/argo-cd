@@ -95,6 +95,8 @@ type nativeGitClient struct {
 	loadRefFromCache bool
 	// HTTP/HTTPS proxy used to access repository
 	proxy string
+	// cmdTimeout determines the timeout for each external command invoked by the git client.
+	cmdTimeout time.Duration
 }
 
 var (
@@ -133,6 +135,12 @@ func WithCache(cache gitRefCache, loadRefFromCache bool) ClientOpts {
 func WithEventHandlers(handlers EventHandlers) ClientOpts {
 	return func(c *nativeGitClient) {
 		c.EventHandlers = handlers
+	}
+}
+
+func WithCmdTimeout(timeout time.Duration) ClientOpts {
+	return func(c *nativeGitClient) {
+		c.cmdTimeout = timeout
 	}
 }
 
@@ -292,7 +300,7 @@ func (m *nativeGitClient) Init() error {
 		return err
 	}
 	log.Infof("Initializing %s to %s", m.repoURL, m.root)
-	_, err = executil.Run(exec.Command("rm", "-rf", m.root))
+	_, err = executil.Run(exec.Command("rm", "-rf", m.root), m.cmdTimeout)
 	if err != nil {
 		return fmt.Errorf("unable to clean repo at %s: %v", m.root, err)
 	}
@@ -662,5 +670,5 @@ func (m *nativeGitClient) runCmdOutput(cmd *exec.Cmd) (string, error) {
 
 	cmd.Env = proxy.UpsertEnv(cmd, m.proxy)
 
-	return executil.Run(cmd)
+	return executil.Run(cmd, m.cmdTimeout)
 }

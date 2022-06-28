@@ -27,6 +27,7 @@ func NewCommand() *cobra.Command {
 	var (
 		configFilePath string
 		otlpAddress    string
+		cmdTimeout     time.Duration
 	)
 	var command = cobra.Command{
 		Use:               cliName,
@@ -52,6 +53,7 @@ func NewCommand() *cobra.Command {
 
 			server, err := cmpserver.NewServer(plugin.CMPServerInitConstants{
 				PluginConfig: *config,
+				CmdTimeout: cmdTimeout,
 			})
 			errors.CheckError(err)
 
@@ -70,5 +72,6 @@ func NewCommand() *cobra.Command {
 	command.Flags().StringVar(&cmdutil.LogLevel, "loglevel", "info", "Set the logging level. One of: debug|info|warn|error")
 	command.Flags().StringVar(&configFilePath, "config-dir-path", common.DefaultPluginConfigFilePath, "Config management plugin configuration file location, Default is '/home/argocd/cmp-server/config/'")
 	command.Flags().StringVar(&otlpAddress, "otlp-address", env.StringFromEnv("ARGOCD_CMP_SERVER_OTLP_ADDRESS", ""), "OpenTelemetry collector address to send traces to")
+	cmdTimeout = *command.Flags().Duration("cmd-timeout", env.ParseDurationFromEnv("ARGOCD_CMP_SERVER_CMD_TIMEOUT", common.DefaultCmdTimeout, 0 * time.Second, 24 * time.Hour), "per-command timeout for external commands invoked by the repo server (such as git)")
 	return &command
 }

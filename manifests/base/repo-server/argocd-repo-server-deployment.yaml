@@ -107,6 +107,12 @@ spec:
                 name: argocd-cmd-params-cm
                 key: reposerver.max.combined.directory.manifests.size
                 optional: true
+          - name: ARGOCD_REPO_SERVER_CMD_TIMEOUT
+            valueFrom:
+              configMapKeyRef:
+                name: argocd-cmd-params-cm
+                key: reposerver.cmd.timeout
+                optional: true
           - name: HELM_CACHE_HOME
             value: /helm-working-dir
           - name: HELM_CONFIG_HOME

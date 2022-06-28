@@ -10,6 +10,7 @@ import (
 	"github.com/argoproj/pkg/exec"
 	"github.com/stretchr/testify/assert"
 
+	"github.com/argoproj/argo-cd/v2/common"
 	"github.com/argoproj/argo-cd/v2/pkg/apis/application/v1alpha1"
 	"github.com/argoproj/argo-cd/v2/util/git"
 )
@@ -34,7 +35,7 @@ func TestKustomizeBuild(t *testing.T) {
 	assert.Nil(t, err)
 	namePrefix := "namePrefix-"
 	nameSuffix := "-nameSuffix"
-	kustomize := NewKustomizeApp(appPath, git.NopCreds{}, "", "")
+	kustomize := NewKustomizeApp(appPath, git.NopCreds{}, "", "", common.DefaultCmdTimeout)
 	kustomizeSource := v1alpha1.ApplicationSourceKustomize{
 		NamePrefix: namePrefix,
 		NameSuffix: nameSuffix,
@@ -114,13 +115,13 @@ func TestParseKustomizeBuildOptions(t *testing.T) {
 }
 
 func TestVersion(t *testing.T) {
-	ver, err := Version(false)
+	ver, err := Version(false, common.DefaultCmdTimeout)
 	assert.NoError(t, err)
 	assert.NotEmpty(t, ver)
 }
 
 func TestGetSemver(t *testing.T) {
-	ver, err := getSemver()
+	ver, err := getSemver(common.DefaultCmdTimeout)
 	assert.NoError(t, err)
 	assert.NotEmpty(t, ver)
 }
@@ -160,7 +161,7 @@ func TestKustomizeBuildForceCommonLabels(t *testing.T) {
 	for _, tc := range testCases {
 		appPath, err := testDataDir(t, tc.TestData)
 		assert.Nil(t, err)
-		kustomize := NewKustomizeApp(appPath, git.NopCreds{}, "", "")
+		kustomize := NewKustomizeApp(appPath, git.NopCreds{}, "", "", common.DefaultCmdTimeout)
 		objs, _, err := kustomize.Build(&tc.KustomizeSource, nil, nil)
 		switch tc.ExpectErr {
 		case true:
@@ -209,7 +210,7 @@ func TestKustomizeBuildForceCommonAnnotations(t *testing.T) {
 	for _, tc := range testCases {
 		appPath, err := testDataDir(t, tc.TestData)
 		assert.Nil(t, err)
-		kustomize := NewKustomizeApp(appPath, git.NopCreds{}, "", "")
+		kustomize := NewKustomizeApp(appPath, git.NopCreds{}, "", "", common.DefaultCmdTimeout)
 		objs, _, err := kustomize.Build(&tc.KustomizeSource, nil, nil)
 		switch tc.ExpectErr {
 		case true:
@@ -229,7 +230,7 @@ func TestKustomizeCustomVersion(t *testing.T) {
 	kustomizePath, err := testDataDir(t, kustomization4)
 	assert.Nil(t, err)
 	envOutputFile := kustomizePath + "/env_output"
-	kustomize := NewKustomizeApp(appPath, git.NopCreds{}, "", kustomizePath+"/kustomize.special")
+	kustomize := NewKustomizeApp(appPath, git.NopCreds{}, "", kustomizePath+"/kustomize.special", common.DefaultCmdTimeout)
 	kustomizeSource := v1alpha1.ApplicationSourceKustomize{
 		Version: "special",
 	}

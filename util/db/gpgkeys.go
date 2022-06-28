@@ -5,6 +5,7 @@ import (
 	"fmt"
 	"io/ioutil"
 	"os"
+	"time"
 
 	log "github.com/sirupsen/logrus"
 
@@ -14,7 +15,7 @@ import (
 )
 
 // Validates a single GnuPG key and returns the key's ID
-func validatePGPKey(keyData string) (*appsv1.GnuPGPublicKey, error) {
+func validatePGPKey(keyData string, cmdTimeout time.Duration) (*appsv1.GnuPGPublicKey, error) {
 	f, err := ioutil.TempFile("", "gpg-public-key")
 	if err != nil {
 		return nil, err
@@ -27,7 +28,7 @@ func validatePGPKey(keyData string) (*appsv1.GnuPGPublicKey, error) {
 	}
 	defer f.Close()
 
-	parsed, err := gpg.ValidatePGPKeys(f.Name())
+	parsed, err := gpg.ValidatePGPKeys(f.Name(), cmdTimeout)
 	if err != nil {
 		return nil, err
 	}
@@ -52,7 +53,7 @@ func validatePGPKey(keyData string) (*appsv1.GnuPGPublicKey, error) {
 }
 
 // ListConfiguredGPGPublicKeys returns a list of all configured GPG public keys from the ConfigMap
-func (db *db) ListConfiguredGPGPublicKeys(ctx context.Context) (map[string]*appsv1.GnuPGPublicKey, error) {
+func (db *db) ListConfiguredGPGPublicKeys(ctx context.Context, cmdTimeout time.Duration) (map[string]*appsv1.GnuPGPublicKey, error) {
 	log.Debugf("Loading PGP public keys from config map")
 	result := make(map[string]*appsv1.GnuPGPublicKey)
 	keysCM, err := db.settingsMgr.GetConfigMapByName(common.ArgoCDGPGKeysConfigMapName)
@@ -66,7 +67,7 @@ func (db *db) ListConfiguredGPGPublicKeys(ctx context.Context) (map[string]*apps
 	// stdin of the forked process. So for now, we must live with that.
 	for k, p := range keysCM.Data {
 		if expectedKeyID := gpg.KeyID(k); expectedKeyID != "" {
-			parsedKey, err := validatePGPKey(p)
+			parsedKey, err := validatePGPKey(p, cmdTimeout)
 			if err != nil {
 				return nil, fmt.Errorf("Could not parse GPG key for entry '%s': %s", expectedKeyID, err.Error())
 			}
@@ -83,11 +84,11 @@ func (db *db) ListConfiguredGPGPublicKeys(ctx context.Context) (map[string]*apps
 }
 
 // AddGPGPublicKey adds one or more public keys to the configuration
-func (db *db) AddGPGPublicKey(ctx context.Context, keyData string) (map[string]*appsv1.GnuPGPublicKey, []string, error) {
+func (db *db) AddGPGPublicKey(ctx context.Context, keyData string, cmdTimeout time.Duration) (map[string]*appsv1.GnuPGPublicKey, []string, error) {
 	result := make(map[string]*appsv1.GnuPGPublicKey)
 	skipped := make([]string, 0)
 
-	keys, err := gpg.ValidatePGPKeysFromString(keyData)
+	keys, err := gpg.ValidatePGPKeysFromString(keyData, cmdTimeout)
 	if err != nil {
 		return nil, nil, err
 	}

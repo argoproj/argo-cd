@@ -2,7 +2,6 @@ package exec
 
 import (
 	"fmt"
-	"os"
 	"os/exec"
 	"time"
 
@@ -12,25 +11,11 @@ import (
 	"github.com/argoproj/argo-cd/v2/util/log"
 )
 
-var timeout time.Duration
-
-func init() {
-	initTimeout()
+func Run(cmd *exec.Cmd, timeout time.Duration) (string, error) {
+	return RunWithRedactor(cmd, nil, timeout)
 }
 
-func initTimeout() {
-	var err error
-	timeout, err = time.ParseDuration(os.Getenv("ARGOCD_EXEC_TIMEOUT"))
-	if err != nil {
-		timeout = 90 * time.Second
-	}
-}
-
-func Run(cmd *exec.Cmd) (string, error) {
-	return RunWithRedactor(cmd, nil)
-}
-
-func RunWithRedactor(cmd *exec.Cmd, redactor func(text string) string) (string, error) {
+func RunWithRedactor(cmd *exec.Cmd, redactor func(text string) string, timeout time.Duration) (string, error) {
 	opts := argoexec.CmdOpts{Timeout: timeout}
 	span := tracing.NewLoggingTracer(log.NewLogrusLogger(log.NewWithCurrentConfig())).StartSpan(fmt.Sprintf("exec %v", cmd.Args[0]))
 	span.SetBaggageItem("dir", fmt.Sprintf("%v", cmd.Dir))

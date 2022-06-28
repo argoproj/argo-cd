@@ -10,6 +10,7 @@ import (
 	"sort"
 	"strings"
 	"sync"
+	"time"
 
 	"github.com/Masterminds/semver/v3"
 
@@ -34,12 +35,13 @@ type Kustomize interface {
 }
 
 // NewKustomizeApp create a new wrapper to run commands on the `kustomize` command-line tool.
-func NewKustomizeApp(path string, creds git.Creds, fromRepo string, binaryPath string) Kustomize {
+func NewKustomizeApp(path string, creds git.Creds, fromRepo string, binaryPath string, cmdTimeout time.Duration) Kustomize {
 	return &kustomize{
 		path:       path,
 		creds:      creds,
 		repo:       fromRepo,
 		binaryPath: binaryPath,
+		cmdTimeout: cmdTimeout,
 	}
 }
 
@@ -52,6 +54,8 @@ type kustomize struct {
 	repo string
 	// optional kustomize binary path
 	binaryPath string
+	// cmdTimeout determines how long each external binary call make take before timing out.
+	cmdTimeout time.Duration
 }
 
 var _ Kustomize = &kustomize{}
@@ -65,9 +69,9 @@ func (k *kustomize) getBinaryPath() string {
 
 // kustomize v3.8.5 patch release introduced a breaking change in "edit add <label/annotation>" commands:
 // https://github.com/kubernetes-sigs/kustomize/commit/b214fa7d5aa51d7c2ae306ec15115bf1c044fed8#diff-0328c59bcd29799e365ff0647653b886f17c8853df008cd54e7981db882c1b36
-func mapToEditAddArgs(val map[string]string) []string {
+func mapToEditAddArgs(val map[string]string, cmdTimeout time.Duration) []string {
 	var args []string
-	if getSemverSafe().LessThan(semver.MustParse("v3.8.5")) {
+	if getSemverSafe(cmdTimeout).LessThan(semver.MustParse("v3.8.5")) {
 		arg := ""
 		for labelName, labelValue := range val {
 			if arg != "" {
@@ -90,7 +94,7 @@ func (k *kustomize) Build(opts *v1alpha1.ApplicationSourceKustomize, kustomizeOp
 		if opts.NamePrefix != "" {
 			cmd := exec.Command(k.getBinaryPath(), "edit", "set", "nameprefix", "--", opts.NamePrefix)
 			cmd.Dir = k.path
-			_, err := executil.Run(cmd)
+			_, err := executil.Run(cmd, k.cmdTimeout)
 			if err != nil {
 				return nil, nil, err
 			}
@@ -98,7 +102,7 @@ func (k *kustomize) Build(opts *v1alpha1.ApplicationSourceKustomize, kustomizeOp
 		if opts.NameSuffix != "" {
 			cmd := exec.Command(k.getBinaryPath(), "edit", "set", "namesuffix", "--", opts.NameSuffix)
 			cmd.Dir = k.path
-			_, err := executil.Run(cmd)
+			_, err := executil.Run(cmd, k.cmdTimeout)
 			if err != nil {
 				return nil, nil, err
 			}
@@ -112,7 +116,7 @@ func (k *kustomize) Build(opts *v1alpha1.ApplicationSourceKustomize, kustomizeOp
 			}
 			cmd := exec.Command(k.getBinaryPath(), args...)
 			cmd.Dir = k.path
-			_, err := executil.Run(cmd)
+			_, err := executil.Run(cmd, k.cmdTimeout)
 			if err != nil {
 				return nil, nil, err
 			}
@@ -124,9 +128,9 @@ func (k *kustomize) Build(opts *v1alpha1.ApplicationSourceKustomize, kustomizeOp
 			if opts.ForceCommonLabels {
 				args = append(args, "--force")
 			}
-			cmd := exec.Command(k.getBinaryPath(), append(args, mapToEditAddArgs(opts.CommonLabels)...)...)
+			cmd := exec.Command(k.getBinaryPath(), append(args, mapToEditAddArgs(opts.CommonLabels, k.cmdTimeout)...)...)
 			cmd.Dir = k.path
-			_, err := executil.Run(cmd)
+			_, err := executil.Run(cmd, k.cmdTimeout)
 			if err != nil {
 				return nil, nil, err
 			}
@@ -138,9 +142,9 @@ func (k *kustomize) Build(opts *v1alpha1.ApplicationSourceKustomize, kustomizeOp
 			if opts.ForceCommonAnnotations {
 				args = append(args, "--force")
 			}
-			cmd := exec.Command(k.getBinaryPath(), append(args, mapToEditAddArgs(opts.CommonAnnotations)...)...)
+			cmd := exec.Command(k.getBinaryPath(), append(args, mapToEditAddArgs(opts.CommonAnnotations, k.cmdTimeout)...)...)
 			cmd.Dir = k.path
-			_, err := executil.Run(cmd)
+			_, err := executil.Run(cmd, k.cmdTimeout)
 			if err != nil {
 				return nil, nil, err
 			}
@@ -188,7 +192,7 @@ func (k *kustomize) Build(opts *v1alpha1.ApplicationSourceKustomize, kustomizeOp
 	}
 
 	cmd.Env = append(cmd.Env, environ...)
-	out, err := executil.Run(cmd)
+	out, err := executil.Run(cmd, k.cmdTimeout)
 	if err != nil {
 		return nil, nil, err
 	}
@@ -242,8 +246,8 @@ var (
 )
 
 // getSemver returns parsed kustomize version
-func getSemver() (*semver.Version, error) {
-	verStr, err := Version(true)
+func getSemver(cmdTimeout time.Duration) (*semver.Version, error) {
+	verStr, err := Version(true, cmdTimeout)
 	if err != nil {
 		return nil, err
 	}
@@ -259,12 +263,12 @@ func getSemver() (*semver.Version, error) {
 // getSemverSafe returns parsed kustomize version;
 // if version cannot be parsed assumes that "kustomize version" output format changed again
 //  and fallback to latest ( v99.99.99 )
-func getSemverSafe() *semver.Version {
+func getSemverSafe(cmdTimeout time.Duration) *semver.Version {
 	if semVer == nil {
 		semVerLock.Lock()
 		defer semVerLock.Unlock()
 
-		if ver, err := getSemver(); err != nil {
+		if ver, err := getSemver(cmdTimeout); err != nil {
 			semVer = unknownVersion
 			log.Warnf("Failed to parse kustomize version: %v", err)
 		} else {
@@ -274,7 +278,7 @@ func getSemverSafe() *semver.Version {
 	return semVer
 }
 
-func Version(shortForm bool) (string, error) {
+func Version(shortForm bool, cmdTimeout time.Duration) (string, error) {
 	executable := "kustomize"
 	cmdArgs := []string{"version"}
 	if shortForm {
@@ -284,7 +288,7 @@ func Version(shortForm bool) (string, error) {
 	// example version output:
 	// long: "{Version:kustomize/v3.8.1 GitCommit:0b359d0ef0272e6545eda0e99aacd63aef99c4d0 BuildDate:2020-07-16T00:58:46Z GoOs:linux GoArch:amd64}"
 	// short: "{kustomize/v3.8.1  2020-07-16T00:58:46Z  }"
-	version, err := executil.Run(cmd)
+	version, err := executil.Run(cmd, cmdTimeout)
 	if err != nil {
 		return "", fmt.Errorf("could not get kustomize version: %s", err)
 	}

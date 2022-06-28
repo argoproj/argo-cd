@@ -6,6 +6,7 @@ import (
 	"os"
 	"path/filepath"
 	"strings"
+	"time"
 
 	"github.com/argoproj/argo-cd/v2/pkg/apis/application/v1alpha1"
 	"github.com/argoproj/argo-cd/v2/util/db"
@@ -21,6 +22,7 @@ type RepositoryDB interface {
 type argoCDService struct {
 	repositoriesDB RepositoryDB
 	storecreds     git.CredsStore
+	cmdTimeout     time.Duration
 }
 
 type Repos interface {
@@ -32,11 +34,11 @@ type Repos interface {
 	GetDirectories(ctx context.Context, repoURL string, revision string) ([]string, error)
 }
 
-func NewArgoCDService(db db.ArgoDB, gitCredStore git.CredsStore, repoServerAddress string) Repos {
-
+func NewArgoCDService(db db.ArgoDB, gitCredStore git.CredsStore, cmdTimeout time.Duration) Repos {
 	return &argoCDService{
 		repositoriesDB: db.(RepositoryDB),
 		storecreds:     gitCredStore,
+		cmdTimeout:     cmdTimeout,
 	}
 }
 
@@ -46,7 +48,7 @@ func (a *argoCDService) GetFiles(ctx context.Context, repoURL string, revision s
 		return nil, fmt.Errorf("Error in GetRepository: %w", err)
 	}
 
-	gitRepoClient, err := git.NewClient(repo.Repo, repo.GetGitCreds(a.storecreds), repo.IsInsecure(), repo.IsLFSEnabled(), repo.Proxy)
+	gitRepoClient, err := git.NewClient(repo.Repo, repo.GetGitCreds(a.storecreds), repo.IsInsecure(), repo.IsLFSEnabled(), repo.Proxy, git.WithCmdTimeout(a.cmdTimeout))
 
 	if err != nil {
 		return nil, err
@@ -81,7 +83,7 @@ func (a *argoCDService) GetDirectories(ctx context.Context, repoURL string, revi
 		return nil, fmt.Errorf("Error in GetRepository: %w", err)
 	}
 
-	gitRepoClient, err := git.NewClient(repo.Repo, repo.GetGitCreds(a.storecreds), repo.IsInsecure(), repo.IsLFSEnabled(), repo.Proxy)
+	gitRepoClient, err := git.NewClient(repo.Repo, repo.GetGitCreds(a.storecreds), repo.IsInsecure(), repo.IsLFSEnabled(), repo.Proxy, git.WithCmdTimeout(a.cmdTimeout))
 	if err != nil {
 		return nil, err
 	}

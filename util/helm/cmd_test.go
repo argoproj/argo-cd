@@ -5,6 +5,8 @@ import (
 	"testing"
 
 	"github.com/stretchr/testify/assert"
+
+	"github.com/argoproj/argo-cd/v2/common"
 )
 
 func Test_cmd_redactor(t *testing.T) {
@@ -14,7 +16,7 @@ func Test_cmd_redactor(t *testing.T) {
 }
 
 func TestCmd_template_kubeVersion(t *testing.T) {
-	cmd, err := NewCmdWithVersion(".", HelmV3, false, "")
+	cmd, err := NewCmdWithVersion(".", HelmV3, false, "", common.DefaultCmdTimeout)
 	assert.NoError(t, err)
 	s, err := cmd.template("testdata/redis", &TemplateOpts{
 		KubeVersion: "1.14",
@@ -24,25 +26,25 @@ func TestCmd_template_kubeVersion(t *testing.T) {
 }
 
 func TestNewCmd_helmV3(t *testing.T) {
-	cmd, err := NewCmd(".", "v3", "")
+	cmd, err := NewCmd(".", "v3", "", common.DefaultCmdTimeout)
 	assert.NoError(t, err)
 	assert.Equal(t, "helm", cmd.HelmVer.binaryName)
 }
 
 func TestNewCmd_helmDefaultVersion(t *testing.T) {
-	cmd, err := NewCmd(".", "", "")
+	cmd, err := NewCmd(".", "", "", common.DefaultCmdTimeout)
 	assert.NoError(t, err)
 	assert.Equal(t, "helm", cmd.HelmVer.binaryName)
 }
 
 func TestNewCmd_helmInvalidVersion(t *testing.T) {
-	_, err := NewCmd(".", "abcd", "")
+	_, err := NewCmd(".", "abcd", "", common.DefaultCmdTimeout)
 	log.Println(err)
 	assert.EqualError(t, err, "helm chart version 'abcd' is not supported")
 }
 
 func TestNewCmd_withProxy(t *testing.T) {
-	cmd, err := NewCmd(".", "", "https://proxy:8888")
+	cmd, err := NewCmd(".", "", "https://proxy:8888", common.DefaultCmdTimeout)
 	assert.NoError(t, err)
 	assert.Equal(t, "https://proxy:8888", cmd.proxy)
 }
