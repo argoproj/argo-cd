@@ -204,7 +204,7 @@ func NewCommand() *cobra.Command {
 	command.Flags().StringVar(&logLevel, "loglevel", "info", "Set the logging level. One of: debug|info|warn|error")
 	command.Flags().BoolVar(&dryRun, "dry-run", false, "Enable dry run mode")
 	command.Flags().StringVar(&logFormat, "logformat", "text", "Set the logging format. One of: text|json")
-	cmdTimeout = *command.Flags().Duration("cmd-timeout", common.DefaultCmdTimeout, "per-command timeout for external commands invoked by the applicationset controller (such as git)")
+	command.Flags().DurationVar(&cmdTimeout, "cmd-timeout", common.DefaultCmdTimeout, "per-command timeout for external commands invoked by the applicationset controller (such as git)")
 
 	return &command
 }

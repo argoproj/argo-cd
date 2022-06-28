@@ -466,7 +466,7 @@ func (s *Service) runManifestGenAsync(ctx context.Context, repoRoot, commitSHA, 
 	var manifestGenResult *apiclient.ManifestResponse
 	opContext, err := opContextSrc()
 	if err == nil {
-		manifestGenResult, err = GenerateManifests(ctx, opContext.appPath, repoRoot, commitSHA, q, false, s.gitCredsStore, s.initConstants.MaxCombinedDirectoryManifestsSize, WithCMPTarDoneChannel(ch.tarDoneCh), WithCmdTimeout(cmdTimeout))
+		manifestGenResult, err = GenerateManifests(ctx, opContext.appPath, repoRoot, commitSHA, q, false, s.gitCredsStore, s.initConstants.MaxCombinedDirectoryManifestsSize, cmdTimeout, WithCMPTarDoneChannel(ch.tarDoneCh))
 	}
 	if err != nil {
 		// If manifest generation error caching is enabled
@@ -874,8 +874,6 @@ func getRepoCredential(repoCredentials []*v1alpha1.RepoCreds, repoURL string) *v
 type GenerateManifestOpt func(*generateManifestOpt)
 type generateManifestOpt struct {
 	cmpTarDoneCh chan<- bool
-	// cmdTimeout is the per-command timeout for commands executed as part of manifest generation.
-	cmdTimeout   time.Duration
 }
 
 func newGenerateManifestOpt(opts ...GenerateManifestOpt) *generateManifestOpt {
@@ -895,15 +893,8 @@ func WithCMPTarDoneChannel(ch chan<- bool) GenerateManifestOpt {
 	}
 }
 
-// WithCmdTimeout sets the timeout for commands executed as part of manifest generation.
-func WithCmdTimeout(timeout time.Duration) GenerateManifestOpt {
-	return func(o *generateManifestOpt) {
-		o.cmdTimeout = timeout
-	}
-}
-
 // GenerateManifests generates manifests from a path. Overrides are applied as a side effect on the given ApplicationSource.
-func GenerateManifests(ctx context.Context, appPath, repoRoot, revision string, q *apiclient.ManifestRequest, isLocal bool, gitCredsStore git.CredsStore, maxCombinedManifestQuantity resource.Quantity, opts ...GenerateManifestOpt) (*apiclient.ManifestResponse, error) {
+func GenerateManifests(ctx context.Context, appPath, repoRoot, revision string, q *apiclient.ManifestRequest, isLocal bool, gitCredsStore git.CredsStore, maxCombinedManifestQuantity resource.Quantity, cmdTimeout time.Duration, opts ...GenerateManifestOpt) (*apiclient.ManifestResponse, error) {
 	opt := newGenerateManifestOpt(opts...)
 	var targetObjs []*unstructured.Unstructured
 	var dest *v1alpha1.ApplicationDestination
@@ -922,17 +913,17 @@ func GenerateManifests(ctx context.Context, appPath, repoRoot, revision string, 
 
 	switch appSourceType {
 	case v1alpha1.ApplicationSourceTypeHelm:
-		targetObjs, err = helmTemplate(appPath, repoRoot, env, q, isLocal, opt.cmdTimeout)
+		targetObjs, err = helmTemplate(appPath, repoRoot, env, q, isLocal, cmdTimeout)
 	case v1alpha1.ApplicationSourceTypeKustomize:
 		kustomizeBinary := ""
 		if q.KustomizeOptions != nil {
 			kustomizeBinary = q.KustomizeOptions.BinaryPath
 		}
-		k := kustomize.NewKustomizeApp(appPath, q.Repo.GetGitCreds(gitCredsStore), repoURL, kustomizeBinary, opt.cmdTimeout)
+		k := kustomize.NewKustomizeApp(appPath, q.Repo.GetGitCreds(gitCredsStore), repoURL, kustomizeBinary, cmdTimeout)
 		targetObjs, _, err = k.Build(q.ApplicationSource.Kustomize, q.KustomizeOptions, env)
 	case v1alpha1.ApplicationSourceTypePlugin:
 		if q.ApplicationSource.Plugin != nil && q.ApplicationSource.Plugin.Name != "" {
-			targetObjs, err = runConfigManagementPlugin(appPath, repoRoot, env, q, q.Repo.GetGitCreds(gitCredsStore), opt.cmdTimeout)
+			targetObjs, err = runConfigManagementPlugin(appPath, repoRoot, env, q, q.Repo.GetGitCreds(gitCredsStore), cmdTimeout)
 		} else {
 			targetObjs, err = runConfigManagementPluginSidecars(ctx, appPath, repoRoot, env, q, q.Repo.GetGitCreds(gitCredsStore), opt.cmpTarDoneCh)
 			if err != nil {
