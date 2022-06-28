@@ -128,10 +128,7 @@ func (s *applicationEventReporter) streamApplicationEvents(
 
 		rs := getAppAsResource(a)
 
-		desiredManifests, err, manifestGenErr := s.getDesiredManifests(ctx, parentApplicationEntity, logCtx)
-		if err != nil {
-			return err
-		}
+		desiredManifests, _, manifestGenErr := s.getDesiredManifests(ctx, parentApplicationEntity, logCtx)
 
 		s.processResource(ctx, *rs, parentApplicationEntity, logCtx, ts, desiredManifests, stream, appTree, es, manifestGenErr, a)
 	} else {
