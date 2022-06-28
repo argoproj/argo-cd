@@ -18,7 +18,7 @@ func TestIsDestinationPermitted(t *testing.T) {
 			},
 		}
 
-		rs := pr.IsDestinationPermitted(ApplicationDestination{Server: KubernetesInternalAPIServerAddr}, "test", []string{"test"})
+		rs := pr.IsDestinationPermitted(ApplicationDestination{Server: KubernetesInternalAPIServerAddr})
 		assert.True(t, rs)
 	})
 	t.Run("rejected", func(t *testing.T) {
@@ -32,7 +32,7 @@ func TestIsDestinationPermitted(t *testing.T) {
 			},
 		}
 
-		rs := pr.IsDestinationPermitted(ApplicationDestination{Server: KubernetesInternalAPIServerAddr}, "test", []string{"test2"})
+		rs := pr.IsDestinationPermitted(ApplicationDestination{Server: KubernetesInternalAPIServerAddr})
 		assert.False(t, rs)
 	})
 	t.Run("allowed-name", func(t *testing.T) {
@@ -46,7 +46,7 @@ func TestIsDestinationPermitted(t *testing.T) {
 			},
 		}
 
-		rs := pr.IsDestinationPermitted(ApplicationDestination{Name: "in-cluster"}, "test", []string{"test"})
+		rs := pr.IsDestinationPermitted(ApplicationDestination{Name: "in-cluster"})
 		assert.True(t, rs)
 	})
 	t.Run("rejected-name", func(t *testing.T) {
@@ -60,7 +60,7 @@ func TestIsDestinationPermitted(t *testing.T) {
 			},
 		}
 
-		rs := pr.IsDestinationPermitted(ApplicationDestination{Name: "in-cluster"}, "test", []string{"test2"})
+		rs := pr.IsDestinationPermitted(ApplicationDestination{Name: "in-cluster"})
 		assert.False(t, rs)
 	})
 }

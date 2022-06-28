@@ -1,6 +1,7 @@
 package application
 
 import (
+	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
 	"strings"
 
 	"github.com/argoproj/gitops-engine/pkg/health"
@@ -23,6 +24,28 @@ func parseApplicationSyncResultErrors(os *appv1.OperationState) []*events.Object
 		})
 	}
 	return errors
+}
+
+func parseApplicationSyncResultErrorsFromConditions(conditions []appv1.ApplicationCondition) []*events.ObjectError {
+	var errs []*events.ObjectError
+	for _, cnd := range conditions {
+		if !strings.Contains(strings.ToLower(cnd.Type), "error") {
+			continue
+		}
+
+		lastSeen := metav1.Now()
+		if cnd.LastTransitionTime != nil {
+			lastSeen = *cnd.LastTransitionTime
+		}
+
+		errs = append(errs, &events.ObjectError{
+			Type:     "sync",
+			Level:    "error",
+			Message:  cnd.Message,
+			LastSeen: lastSeen,
+		})
+	}
+	return errs
 }
 
 func parseResourceSyncResultErrors(rs *appv1.ResourceStatus, os *appv1.OperationState) []*events.ObjectError {

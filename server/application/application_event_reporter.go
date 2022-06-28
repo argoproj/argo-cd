@@ -390,6 +390,10 @@ func getResourceEventPayload(
 		errors = append(errors, parseApplicationSyncResultErrors(originalApplication.Status.OperationState)...)
 	}
 
+	if originalApplication != nil && originalApplication.Status.Conditions != nil {
+		errors = append(errors, parseApplicationSyncResultErrorsFromConditions(originalApplication.Status.Conditions)...)
+	}
+
 	if len(desiredState.RawManifest) == 0 && len(desiredState.CompiledManifest) != 0 {
 		// for handling helm defined resources, etc...
 		y, err := yaml.JSONToYAML([]byte(desiredState.CompiledManifest))
@@ -515,30 +519,11 @@ func (s *applicationEventReporter) getApplicationEventPayload(ctx context.Contex
 		Cluster:         a.Spec.Destination.Server,
 	}
 
-	errs := []*events.ObjectError{}
-	for _, cnd := range a.Status.Conditions {
-		if !strings.Contains(strings.ToLower(cnd.Type), "error") {
-			continue
-		}
-
-		lastSeen := metav1.Now()
-		if cnd.LastTransitionTime != nil {
-			lastSeen = *cnd.LastTransitionTime
-		}
-
-		errs = append(errs, &events.ObjectError{
-			Type:     "sync",
-			Level:    "error",
-			Message:  cnd.Message,
-			LastSeen: lastSeen,
-		})
-	}
-
 	payload := events.EventPayload{
 		Timestamp: ts,
 		Object:    object,
 		Source:    source,
-		Errors:    errs,
+		Errors:    parseApplicationSyncResultErrorsFromConditions(a.Status.Conditions),
 	}
 
 	payloadBytes, err := json.Marshal(&payload)
