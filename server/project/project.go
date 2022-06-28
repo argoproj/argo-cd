@@ -341,7 +341,7 @@ func (s *Server) Update(ctx context.Context, q *project.ProjectUpdateRequest) (*
 		if oldProj.IsSourcePermitted(a.Spec.Source) {
 			srcValidatedApps = append(srcValidatedApps, a)
 		}
-		if oldProj.IsDestinationPermitted(a.Spec.Destination, "", nil) {
+		if oldProj.IsDestinationPermitted(a.Spec.Destination) {
 			dstValidatedApps = append(dstValidatedApps, a)
 		}
 	}
@@ -355,7 +355,7 @@ func (s *Server) Update(ctx context.Context, q *project.ProjectUpdateRequest) (*
 		}
 	}
 	for _, a := range dstValidatedApps {
-		if !q.Project.IsDestinationPermitted(a.Spec.Destination, "", nil) {
+		if !q.Project.IsDestinationPermitted(a.Spec.Destination) {
 			invalidDstCount++
 		}
 	}

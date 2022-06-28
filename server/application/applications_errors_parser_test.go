@@ -96,6 +96,22 @@ func TestParseResourceSyncResultErrors(t *testing.T) {
 	})
 }
 
+func TestParseApplicationSyncResultErrorsFromConditions(t *testing.T) {
+	t.Run("conditions exists", func(t *testing.T) {
+		errors := parseApplicationSyncResultErrorsFromConditions([]v1alpha1.ApplicationCondition{
+			{
+				Type:    "error",
+				Message: "error message",
+			},
+		})
+
+		assert.Len(t, errors, 1)
+		assert.Equal(t, errors[0].Message, "error message")
+		assert.Equal(t, errors[0].Type, "sync")
+		assert.Equal(t, errors[0].Level, "error")
+	})
+}
+
 func TestParseAggregativeHealthErrors(t *testing.T) {
 	t.Run("application tree is nil", func(t *testing.T) {
 		errs := parseAggregativeHealthErrors(&v1alpha1.ResourceStatus{
