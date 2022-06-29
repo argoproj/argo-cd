@@ -346,3 +346,8 @@ func (a *Actions) SetTrackingMethod(trackingMethod string) *Actions {
 	fixture.SetTrackingMethod(trackingMethod)
 	return a
 }
+
+func (a *Actions) SetTrackingLabel(trackingLabel string) *Actions {
+	fixture.SetTrackingLabel(trackingLabel)
+	return a
+}

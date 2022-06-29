@@ -27,7 +27,6 @@ import (
 	"k8s.io/apimachinery/pkg/watch"
 	"k8s.io/client-go/tools/cache"
 
-	"github.com/argoproj/argo-cd/v2/common"
 	"github.com/argoproj/argo-cd/v2/controller/metrics"
 	appv1 "github.com/argoproj/argo-cd/v2/pkg/apis/application/v1alpha1"
 	"github.com/argoproj/argo-cd/v2/util/argo"
@@ -404,15 +403,7 @@ func (c *liveStateCache) getCluster(server string) (clustercache.ClusterCache, e
 			cacheSettings := c.cacheSettings
 			res.Health, _ = health.GetResourceHealth(un, cacheSettings.clusterSettings.ResourceHealthOverride)
 
-			// Tracking key is different between tracking methods.
-			var trackingKey string
-			switch cacheSettings.trackingMethod {
-			case argo.TrackingMethodLabel:
-				trackingKey = cacheSettings.appInstanceLabelKey
-			case argo.TrackingMethodAnnotation, argo.TrackingMethodAnnotationAndLabel:
-				trackingKey = common.AnnotationKeyAppInstance
-			}
-			appName := c.resourceTracking.GetAppName(un, trackingKey, cacheSettings.trackingMethod)
+			appName := c.resourceTracking.GetAppName(un, cacheSettings.appInstanceLabelKey, cacheSettings.trackingMethod)
 			if isRoot && appName != "" {
 				res.AppName = appName
 			}

@@ -357,6 +357,13 @@ func SetTrackingMethod(trackingMethod string) {
 	})
 }
 
+func SetTrackingLabel(trackingLabel string) {
+	updateSettingConfigMap(func(cm *corev1.ConfigMap) error {
+		cm.Data["application.instanceLabelKey"] = trackingLabel
+		return nil
+	})
+}
+
 func SetResourceOverridesSplitKeys(overrides map[string]v1alpha1.ResourceOverride) {
 	updateSettingConfigMap(func(cm *corev1.ConfigMap) error {
 		for k, v := range overrides {
