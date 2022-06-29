@@ -126,6 +126,13 @@ func StringFromEnv(env string, defaultValue string) string {
 	return defaultValue
 }
 
+func StringsFromEnv(env string, defaultValue []string, separator string) []string {
+	if str := os.Getenv(env); str != "" {
+		return strings.Split(str, separator)
+	}
+	return defaultValue
+}
+
 // ParseBoolFromEnv retrieves a boolean value from given environment envVar.
 // Returns default value if envVar is not set.
 //
