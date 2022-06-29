@@ -29,11 +29,11 @@ func IsManifestGenerationEnabled(sourceType v1alpha1.ApplicationSourceType, enab
 	return enabled
 }
 
-func Discover(ctx context.Context, repoPath string, enableGenerateManifests map[string]bool) (map[string]string, error) {
+func Discover(ctx context.Context, repoPath string, enableGenerateManifests map[string]bool, tarExcludedGlobs []string) (map[string]string, error) {
 	apps := make(map[string]string)
 
 	// Check if it is CMP
-	conn, _, err := DetectConfigManagementPlugin(ctx, repoPath, []string{})
+	conn, _, err := DetectConfigManagementPlugin(ctx, repoPath, []string{}, tarExcludedGlobs)
 	if err == nil {
 		// Found CMP
 		io.Close(conn)
@@ -65,8 +65,8 @@ func Discover(ctx context.Context, repoPath string, enableGenerateManifests map[
 	return apps, err
 }
 
-func AppType(ctx context.Context, path string, enableGenerateManifests map[string]bool) (string, error) {
-	apps, err := Discover(ctx, path, enableGenerateManifests)
+func AppType(ctx context.Context, path string, enableGenerateManifests map[string]bool, tarExcludedGlobs []string) (string, error) {
+	apps, err := Discover(ctx, path, enableGenerateManifests, tarExcludedGlobs)
 	if err != nil {
 		return "", err
 	}
@@ -82,7 +82,7 @@ func AppType(ctx context.Context, path string, enableGenerateManifests map[strin
 // 3. check isSupported(path)?
 // 4.a if no then close connection
 // 4.b if yes then return conn for detected plugin
-func DetectConfigManagementPlugin(ctx context.Context, repoPath string, env []string) (io.Closer, pluginclient.ConfigManagementPluginServiceClient, error) {
+func DetectConfigManagementPlugin(ctx context.Context, repoPath string, env []string, tarExcludedGlobs []string) (io.Closer, pluginclient.ConfigManagementPluginServiceClient, error) {
 	var conn io.Closer
 	var cmpClient pluginclient.ConfigManagementPluginServiceClient
 
@@ -106,7 +106,7 @@ func DetectConfigManagementPlugin(ctx context.Context, repoPath string, env []st
 				continue
 			}
 
-			isSupported, err := matchRepositoryCMP(ctx, repoPath, cmpClient, env)
+			isSupported, err := matchRepositoryCMP(ctx, repoPath, cmpClient, env, tarExcludedGlobs)
 			if err != nil {
 				log.Errorf("repository %s is not the match because %v", repoPath, err)
 				continue
@@ -131,13 +131,13 @@ func DetectConfigManagementPlugin(ctx context.Context, repoPath string, env []st
 // matchRepositoryCMP will send the repoPath to the cmp-server. The cmp-server will
 // inspect the files and return true if the repo is supported for manifest generation.
 // Will return false otherwise.
-func matchRepositoryCMP(ctx context.Context, repoPath string, client pluginclient.ConfigManagementPluginServiceClient, env []string) (bool, error) {
+func matchRepositoryCMP(ctx context.Context, repoPath string, client pluginclient.ConfigManagementPluginServiceClient, env []string, tarExcludedGlobs []string) (bool, error) {
 	matchRepoStream, err := client.MatchRepository(ctx, grpc_retry.Disable())
 	if err != nil {
 		return false, fmt.Errorf("error getting stream client: %s", err)
 	}
 
-	err = cmp.SendRepoStream(ctx, repoPath, repoPath, matchRepoStream, env)
+	err = cmp.SendRepoStream(ctx, repoPath, repoPath, matchRepoStream, env, tarExcludedGlobs)
 	if err != nil {
 		return false, fmt.Errorf("error sending stream: %s", err)
 	}
