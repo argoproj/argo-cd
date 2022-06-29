@@ -405,7 +405,10 @@ func (m *nativeGitClient) Checkout(revision string, submoduleEnabled bool) error
 	}
 	if _, err := os.Stat(m.root + "/.gitmodules"); !os.IsNotExist(err) {
 		if submoduleEnabled {
-			if err := m.runCredentialedCmd("git", "submodule", "update", "--init", "--recursive"); err != nil {
+			if err := m.runCredentialedCmd("git", "submodule", "sync", "--recursive"); err != nil {
+				return err
+			}
+			if err = m.runCredentialedCmd("git", "submodule", "update", "--init", "--recursive"); err != nil {
 				return err
 			}
 		}
