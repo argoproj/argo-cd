@@ -355,7 +355,8 @@ func isTransientNetworkErr(err error) bool {
 	}
 	if strings.Contains(errorString, "net/http: TLS handshake timeout") ||
 		strings.Contains(errorString, "i/o timeout") ||
-		strings.Contains(errorString, "connection timed out") {
+		strings.Contains(errorString, "connection timed out") ||
+		strings.Contains(errorString, "connection reset by peer") {
 		return true
 	}
 	return false
