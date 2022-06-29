@@ -341,3 +341,8 @@ func (a *Actions) verifyAction() {
 		a.Then().Expect(Success(""))
 	}
 }
+
+func (a *Actions) SetTrackingMethod(trackingMethod string) *Actions {
+	fixture.SetTrackingMethod(trackingMethod)
+	return a
+}
