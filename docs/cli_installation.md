@@ -4,10 +4,10 @@ You can download the latest Argo CD version from [the latest release page of thi
 
 ## Linux and WSL
 
-### ArchLinux User Repository ([AUR](https://aur.archlinux.org/packages/))
+### ArchLinux
 
 ```bash
-yay -Sy argocd-bin
+pacman -S argocd
 ```
 
 ### Homebrew
