@@ -240,7 +240,8 @@ func isApp(rs appv1.ResourceStatus) bool {
 
 func logWithAppStatus(a *appv1.Application, logCtx *log.Entry, ts string) *log.Entry {
 	return logCtx.WithFields(log.Fields{
-		"status":          a.Status.Sync.Status,
+		"syncStatus":      a.Status.Sync.Status,
+		"healthStatus":    a.Status.Health.Status,
 		"resourceVersion": a.ResourceVersion,
 		"ts":              ts,
 	})
