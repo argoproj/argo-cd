@@ -88,6 +88,13 @@ func (b *DiffConfigBuilder) WithStructuredMergeDiff(smd bool) *DiffConfigBuilder
 	return b
 }
 
+// WithManager defines the manager that should be using during structured
+// merge diffs.
+func (b *DiffConfigBuilder) WithManager(manager string) *DiffConfigBuilder {
+	b.diffConfig.manager = manager
+	return b
+}
+
 // Build will first validate the current state of the diff config and return the
 // DiffConfig implementation if no errors are found. Will return nil and the error
 // details otherwise.
@@ -130,6 +137,9 @@ type DiffConfig interface {
 	// structured merge diffs. Will use standard 3-way merge diffs if
 	// returns false.
 	StructuredMergeDiff() bool
+	// Manager returns the manager that should be used by the diff while
+	// calculating the structured merge diff.
+	Manager() string
 }
 
 // diffConfig defines the configurations used while applying diffs.
@@ -145,6 +155,7 @@ type diffConfig struct {
 	logger                *logr.Logger
 	gvkParser             *k8smanagedfields.GvkParser
 	structuredMergeDiff   bool
+	manager               string
 }
 
 func (c *diffConfig) Ignores() []v1alpha1.ResourceIgnoreDifferences {
@@ -179,6 +190,9 @@ func (c *diffConfig) GVKParser() *k8smanagedfields.GvkParser {
 }
 func (c *diffConfig) StructuredMergeDiff() bool {
 	return c.structuredMergeDiff
+}
+func (c *diffConfig) Manager() string {
+	return c.manager
 }
 
 // Validate will check the current state of this diffConfig and return
@@ -239,6 +253,7 @@ func StateDiffs(lives, configs []*unstructured.Unstructured, diffConfig DiffConf
 		diff.IgnoreAggregatedRoles(diffConfig.IgnoreAggregatedRoles()),
 		diff.WithStructuredMergeDiff(diffConfig.StructuredMergeDiff()),
 		diff.WithGVKParser(diffConfig.GVKParser()),
+		diff.WithManager(diffConfig.Manager()),
 	}
 
 	if diffConfig.Logger() != nil {
