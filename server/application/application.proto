@@ -93,6 +93,10 @@ message ApplicationSyncRequest {
 	optional SyncOptions syncOptions = 11;
 }
 
+message ApplicationValidationRequest {
+	required github.com.argoproj.argo_cd.v2.pkg.apis.application.v1alpha1.Application application = 1;
+}
+
 // ApplicationUpdateSpecRequest is a request to update application spec
 message ApplicationUpdateSpecRequest {
 	required string name = 1;
@@ -371,6 +375,15 @@ service ApplicationService {
 	rpc DeleteResource(ApplicationResourceDeleteRequest) returns (ApplicationResponse) {
 		option (google.api.http).delete = "/api/v1/applications/{name}/resource";
 	}
+
+	// Create creates an application
+	rpc ValidateSrcAndDst(ApplicationValidationRequest) returns (ApplicationResponse) {
+		option (google.api.http) = {
+			post: "/api/v1/application-validate"
+			body: "application"
+		};
+	}
+
 
 	// PodLogs returns stream of log entries for the specified pod. Pod
 	rpc PodLogs(ApplicationPodLogsQuery) returns (stream LogEntry) {

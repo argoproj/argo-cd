@@ -218,6 +218,39 @@
         }
       }
     },
+    "/api/v1/application-validate": {
+      "post": {
+        "tags": [
+          "ApplicationService"
+        ],
+        "summary": "Create creates an application",
+        "operationId": "ApplicationService_ValidateSrcAndDst",
+        "parameters": [
+          {
+            "name": "body",
+            "in": "body",
+            "required": true,
+            "schema": {
+              "$ref": "#/definitions/v1alpha1Application"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "A successful response.",
+            "schema": {
+              "$ref": "#/definitions/applicationApplicationResponse"
+            }
+          },
+          "default": {
+            "description": "An unexpected error response.",
+            "schema": {
+              "$ref": "#/definitions/runtimeError"
+            }
+          }
+        }
+      }
+    },
     "/api/v1/applications": {
       "get": {
         "tags": [

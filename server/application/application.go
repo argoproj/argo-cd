@@ -923,6 +923,45 @@ func (s *Server) StartEventSource(es *events.EventSource, stream events.Eventing
 	}
 }
 
+func (s *Server) ValidateSrcAndDst(ctx context.Context, requset *application.ApplicationValidationRequest) (*application.ApplicationResponse, error) {
+	app := requset.Application
+	proj, err := argo.GetAppProject(&app.Spec, applisters.NewAppProjectLister(s.projInformer.GetIndexer()), s.ns, s.settingsMgr, s.db, ctx)
+	if err != nil {
+		if apierr.IsNotFound(err) {
+			return nil, status.Errorf(codes.InvalidArgument, "application references project %s which does not exist", app.Spec.Project)
+		}
+		return nil, err
+	}
+
+	if err := argo.ValidateDestination(ctx, &app.Spec.Destination, s.db); err != nil {
+		return nil, status.Errorf(codes.InvalidArgument, "application destination spec for %s is invalid: %s", app.Name, err.Error())
+	}
+
+	// If source is Kustomize add build options
+	kustomizeSettings, err := s.settingsMgr.GetKustomizeSettings()
+	if err != nil {
+		return nil, err
+	}
+	kustomizeOptions, err := kustomizeSettings.GetOptions(app.Spec.Source)
+	if err != nil {
+		return nil, err
+	}
+	plugins, err := s.plugins()
+	if err != nil {
+		return nil, err
+	}
+
+	var conditions []appv1.ApplicationCondition
+	conditions, err = argo.ValidateRepo(ctx, app, s.repoClientset, s.db, kustomizeOptions, plugins, s.kubectl, proj, s.settingsMgr)
+	if err != nil {
+		return nil, err
+	}
+	if len(conditions) > 0 {
+		return nil, status.Errorf(codes.InvalidArgument, "application spec for %s is invalid: %s", app.Name, argo.FormatAppConditions(conditions))
+	}
+	return &application.ApplicationResponse{}, nil
+}
+
 func (s *Server) validateAndNormalizeApp(ctx context.Context, app *appv1.Application, validate bool) error {
 	proj, err := argo.GetAppProject(&app.Spec, applisters.NewAppProjectLister(s.projInformer.GetIndexer()), s.ns, s.settingsMgr, s.db, ctx)
 	if err != nil {
