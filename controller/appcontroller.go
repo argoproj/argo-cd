@@ -295,7 +295,7 @@ func (ctrl *ApplicationController) getAppProj(app *appv1.Application) (*appv1.Ap
 	projCache, _ := ctrl.projByNameCache.LoadOrStore(app.Spec.GetProject(), ctrl.newAppProjCache(app.Spec.GetProject()))
 	proj, err := projCache.(*appProjCache).GetAppProject(context.TODO())
 	if err != nil {
-		return nil, err
+		return nil, fmt.Errorf("could not retrieve AppProject '%s' from cache: %v", app.Spec.Project, err)
 	}
 	if !proj.IsAppNamespacePermitted(app, ctrl.namespace) {
 		return nil, argo.ErrProjectNotPermitted(app.GetName(), app.GetNamespace(), proj.GetName())
