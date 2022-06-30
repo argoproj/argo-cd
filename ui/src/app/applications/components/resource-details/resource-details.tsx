@@ -1,5 +1,4 @@
 import {DataLoader, Tab, Tabs} from 'argo-ui';
-import {useData} from 'argo-ui/v2';
 import * as React from 'react';
 import {EventsList, YamlEditor} from '../../../shared/components';
 import * as models from '../../../shared/models';
@@ -7,7 +6,7 @@ import {ErrorBoundary} from '../../../shared/components/error-boundary/error-bou
 import {Context} from '../../../shared/context';
 import {Application, ApplicationTree, AppSourceType, Event, RepoAppDetails, ResourceNode, State, SyncStatuses} from '../../../shared/models';
 import {services} from '../../../shared/services';
-import {ExtensionComponentProps} from '../../../shared/services/extensions-service';
+import {ResourceTabExtension} from '../../../shared/services/extensions-service';
 import {NodeInfo, SelectNode} from '../application-details/application-details';
 import {ApplicationNodeInfo} from '../application-node-info/application-node-info';
 import {ApplicationParameters} from '../application-parameters/application-parameters';
@@ -43,15 +42,7 @@ export const ResourceDetails = (props: ResourceDetailsProps) => {
     const page = parseInt(new URLSearchParams(appContext.history.location.search).get('page'), 10) || 0;
     const untilTimes = (new URLSearchParams(appContext.history.location.search).get('untilTimes') || '').split(',') || [];
 
-    const getResourceTabs = (
-        node: ResourceNode,
-        state: State,
-        podState: State,
-        events: Event[],
-        ExtensionComponent: React.ComponentType<ExtensionComponentProps>,
-        tabs: Tab[],
-        execEnabled: boolean
-    ) => {
+    const getResourceTabs = (node: ResourceNode, state: State, podState: State, events: Event[], extensionTabs: ResourceTabExtension[], tabs: Tab[], execEnabled: boolean) => {
         if (!node || node === undefined) {
             return [];
         }
@@ -124,15 +115,17 @@ export const ResourceDetails = (props: ResourceDetailsProps) => {
                 ]);
             }
         }
-        if (ExtensionComponent && state) {
-            tabs.push({
-                title: 'More',
-                key: 'extension',
-                content: (
-                    <ErrorBoundary message={`Something went wrong with Extension for ${state.kind}`}>
-                        <ExtensionComponent tree={tree} resource={state} />
-                    </ErrorBoundary>
-                )
+        if (state) {
+            extensionTabs.forEach((tabExtensions, i) => {
+                tabs.push({
+                    title: tabExtensions.title,
+                    key: `extension-${i}`,
+                    content: (
+                        <ErrorBoundary message={`Something went wrong with Extension for ${state.kind}`}>
+                            <tabExtensions.component tree={tree} resource={state} />
+                        </ErrorBoundary>
+                    )
+                });
             });
         }
         return tabs;
@@ -212,16 +205,7 @@ export const ResourceDetails = (props: ResourceDetailsProps) => {
         return tabs;
     };
 
-    const [extension, , error] = useData(
-        async () => {
-            if (selectedNode?.kind && selectedNode?.group) {
-                return await services.extensions.loadResourceExtension(selectedNode?.group || '', selectedNode?.kind || '');
-            }
-        },
-        null,
-        null,
-        [selectedNode]
-    );
+    const extensions = selectedNode?.kind && selectedNode?.group ? services.extensions.getResourceTabs(selectedNode?.group, selectedNode?.kind) : [];
 
     return (
         <div style={{width: '100%', height: '100%'}}>
@@ -302,7 +286,7 @@ export const ResourceDetails = (props: ResourceDetailsProps) => {
                                     data.liveState,
                                     data.podState,
                                     data.events,
-                                    error.state ? null : extension?.component,
+                                    extensions,
                                     [
                                         {
                                             title: 'SUMMARY',

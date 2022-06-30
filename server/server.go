@@ -5,6 +5,7 @@ import (
 	"crypto/tls"
 	"fmt"
 	"io/fs"
+	"io/ioutil"
 	"math"
 	"net"
 	"net/http"
@@ -12,6 +13,7 @@ import (
 	"os"
 	"os/exec"
 	"path"
+	"path/filepath"
 	"reflect"
 	"regexp"
 	go_runtime "runtime"
@@ -861,11 +863,11 @@ func (a *ArgoCDServer) newHTTPServer(ctx context.Context, port int, grpcWebHandl
 	registerDownloadHandlers(mux, "/download")
 
 	// Serve extensions
-	var extensionsApiPath = "/extensions/"
 	var extensionsSharedPath = "/tmp/extensions/"
 
-	extHandler := http.StripPrefix(extensionsApiPath, http.FileServer(http.Dir(extensionsSharedPath)))
-	mux.HandleFunc(extensionsApiPath, extHandler.ServeHTTP)
+	mux.HandleFunc("/extensions.js", func(writer http.ResponseWriter, _ *http.Request) {
+		a.serveExtensions(extensionsSharedPath, writer)
+	})
 
 	// Serve UI static assets
 	var assetsHandler http.Handler = http.HandlerFunc(a.newStaticAssetsHandler())
@@ -874,6 +876,34 @@ func (a *ArgoCDServer) newHTTPServer(ctx context.Context, port int, grpcWebHandl
 	}
 	mux.Handle("/", assetsHandler)
 	return &httpS
+}
+
+var extensionsPattern = regexp.MustCompile(`^extension(.*).js$`)
+
+func (a *ArgoCDServer) serveExtensions(extensionsSharedPath string, w http.ResponseWriter) {
+	w.Header().Set("Content-Type", "application/javascript")
+
+	content := ""
+	if err := filepath.Walk(extensionsSharedPath, func(filePath string, info os.FileInfo, err error) error {
+		if err != nil {
+			return err
+		}
+		if !info.IsDir() && extensionsPattern.MatchString(info.Name()) {
+			data, err := ioutil.ReadFile(filePath)
+			if err != nil {
+				return err
+			}
+			content = content + fmt.Sprintf(`
+// source: %s/%s 
+`, filePath, info.Name()) + string(data)
+		}
+		return nil
+	}); err != nil && !os.IsNotExist(err) {
+		log.Errorf("Failed to walk extensions directory: %v", err)
+		http.Error(w, "Internal error", http.StatusInternalServerError)
+		return
+	}
+	_, _ = fmt.Fprintln(w, content)
 }
 
 // registerDexHandlers will register dex HTTP handlers, creating the the OAuth client app
