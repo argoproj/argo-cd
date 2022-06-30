@@ -76,5 +76,5 @@ argocd cluster [flags]
 * [argocd cluster get](argocd_cluster_get.md)	 - Get cluster information
 * [argocd cluster list](argocd_cluster_list.md)	 - List configured clusters
 * [argocd cluster rm](argocd_cluster_rm.md)	 - Remove cluster credentials
-* [argocd cluster rotate-auth](argocd_cluster_rotate-auth.md)	 - argocd cluster rotate-auth SERVER
+* [argocd cluster rotate-auth](argocd_cluster_rotate-auth.md)	 - argocd cluster rotate-auth SERVER/NAME
 

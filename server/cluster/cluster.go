@@ -298,56 +298,75 @@ func (s *Server) RotateAuth(ctx context.Context, q *cluster.ClusterQuery) (*clus
 	if err != nil {
 		return nil, err
 	}
-	if err := s.enf.EnforceErr(ctx.Value("claims"), rbacpolicy.ResourceClusters, rbacpolicy.ActionUpdate, createRBACObject(clust.Project, q.Server)); err != nil {
-		return nil, err
-	}
-	logCtx := log.WithField("cluster", q.Server)
-	logCtx.Info("Rotating auth")
-	restCfg := clust.RESTConfig()
-	if restCfg.BearerToken == "" {
-		return nil, status.Errorf(codes.InvalidArgument, "Cluster '%s' does not use bearer token authentication", q.Server)
-	}
-	claims, err := clusterauth.ParseServiceAccountToken(restCfg.BearerToken)
-	if err != nil {
-		return nil, err
-	}
-	kubeclientset, err := kubernetes.NewForConfig(restCfg)
-	if err != nil {
-		return nil, err
-	}
-	newSecret, err := clusterauth.GenerateNewClusterManagerSecret(kubeclientset, claims)
-	if err != nil {
-		return nil, err
-	}
-	// we are using token auth, make sure we don't store client-cert information
-	clust.Config.KeyData = nil
-	clust.Config.CertData = nil
-	clust.Config.BearerToken = string(newSecret.Data["token"])
 
-	// Test the token we just created before persisting it
-	serverVersion, err := s.kubectl.GetServerVersion(clust.RESTConfig())
-	if err != nil {
-		return nil, err
+	var servers []string
+	if q.Name != "" {
+		servers, err = s.db.GetClusterServersByName(ctx, q.Name)
+		if err != nil {
+			return nil, err
+		}
+		for _, server := range servers {
+			if err := s.enf.EnforceErr(ctx.Value("claims"), rbacpolicy.ResourceClusters, rbacpolicy.ActionUpdate, createRBACObject(clust.Project, server)); err != nil {
+				return nil, err
+			}
+		}
+	} else {
+		if err := s.enf.EnforceErr(ctx.Value("claims"), rbacpolicy.ResourceClusters, rbacpolicy.ActionUpdate, createRBACObject(clust.Project, q.Server)); err != nil {
+			return nil, err
+		}
+		servers = append(servers, q.Server)
 	}
-	_, err = s.db.UpdateCluster(ctx, clust)
-	if err != nil {
-		return nil, err
+
+	for _, server := range servers {
+		logCtx := log.WithField("cluster", server)
+		logCtx.Info("Rotating auth")
+		restCfg := clust.RESTConfig()
+		if restCfg.BearerToken == "" {
+			return nil, status.Errorf(codes.InvalidArgument, "Cluster '%s' does not use bearer token authentication", server)
+		}
+
+		claims, err := clusterauth.ParseServiceAccountToken(restCfg.BearerToken)
+		if err != nil {
+			return nil, err
+		}
+		kubeclientset, err := kubernetes.NewForConfig(restCfg)
+		if err != nil {
+			return nil, err
+		}
+		newSecret, err := clusterauth.GenerateNewClusterManagerSecret(kubeclientset, claims)
+		if err != nil {
+			return nil, err
+		}
+		// we are using token auth, make sure we don't store client-cert information
+		clust.Config.KeyData = nil
+		clust.Config.CertData = nil
+		clust.Config.BearerToken = string(newSecret.Data["token"])
+
+		// Test the token we just created before persisting it
+		serverVersion, err := s.kubectl.GetServerVersion(clust.RESTConfig())
+		if err != nil {
+			return nil, err
+		}
+		_, err = s.db.UpdateCluster(ctx, clust)
+		if err != nil {
+			return nil, err
+		}
+		err = s.cache.SetClusterInfo(clust.Server, &appv1.ClusterInfo{
+			ServerVersion: serverVersion,
+			ConnectionState: appv1.ConnectionState{
+				Status:     appv1.ConnectionStatusSuccessful,
+				ModifiedAt: &v1.Time{Time: time.Now()},
+			},
+		})
+		if err != nil {
+			return nil, err
+		}
+		err = clusterauth.RotateServiceAccountSecrets(kubeclientset, claims, newSecret)
+		if err != nil {
+			return nil, err
+		}
+		logCtx.Infof("Rotated auth (old: %s, new: %s)", claims.SecretName, newSecret.Name)
 	}
-	err = s.cache.SetClusterInfo(clust.Server, &appv1.ClusterInfo{
-		ServerVersion: serverVersion,
-		ConnectionState: appv1.ConnectionState{
-			Status:     appv1.ConnectionStatusSuccessful,
-			ModifiedAt: &v1.Time{Time: time.Now()},
-		},
-	})
-	if err != nil {
-		return nil, err
-	}
-	err = clusterauth.RotateServiceAccountSecrets(kubeclientset, claims, newSecret)
-	if err != nil {
-		return nil, err
-	}
-	logCtx.Infof("Rotated auth (old: %s, new: %s)", claims.SecretName, newSecret.Name)
 	return &cluster.ClusterResponse{}, nil
 }
 
