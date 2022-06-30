@@ -205,6 +205,5 @@ func ConstructAppProj(fileURL string, args []string, opts ProjectOpts, c *cobra.
 		proj.Name = args[0]
 	}
 	SetProjSpecOptions(c.Flags(), &proj.Spec, &opts)
-	fmt.Printf("PROJ: %q", &proj.Spec)
 	return &proj, nil
 }
