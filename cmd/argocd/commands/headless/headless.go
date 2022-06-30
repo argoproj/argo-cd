@@ -215,6 +215,7 @@ func StartLocalServer(clientOpts *apiclient.ClientOptions, ctxStr string, port *
 		ListenHost:    *address,
 		RepoClientset: &forwardRepoClientset{namespace: namespace, context: ctxStr},
 	})
+	srv.Init(ctx)
 
 	lns, err := srv.Listen()
 	if err != nil {
