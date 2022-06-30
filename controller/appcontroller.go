@@ -1743,7 +1743,7 @@ func (ctrl *ApplicationController) newApplicationInformerAndLister() (cache.Shar
 				}
 				newItems := []appv1.Application{}
 				for _, app := range appList.Items {
-					if glob.MatchStringInList(ctrl.applicationNamespaces, app.Namespace, false) || ctrl.namespace == app.Namespace {
+					if ctrl.namespace == app.Namespace || glob.MatchStringInList(ctrl.applicationNamespaces, app.Namespace, false) {
 						newItems = append(newItems, app)
 					}
 				}
