@@ -2914,6 +2914,27 @@ func TestAppProjectIsSourceNamespacePermitted(t *testing.T) {
 		},
 		Spec: ApplicationSpec{},
 	}
+	app5 := &Application{
+		ObjectMeta: metav1.ObjectMeta{
+			Name:      "app2",
+			Namespace: "some-ns1",
+		},
+		Spec: ApplicationSpec{},
+	}
+	app6 := &Application{
+		ObjectMeta: metav1.ObjectMeta{
+			Name:      "app2",
+			Namespace: "some-ns2",
+		},
+		Spec: ApplicationSpec{},
+	}
+	app7 := &Application{
+		ObjectMeta: metav1.ObjectMeta{
+			Name:      "app2",
+			Namespace: "someotherns",
+		},
+		Spec: ApplicationSpec{},
+	}
 	t.Run("App in same namespace as controller", func(t *testing.T) {
 		proj := &AppProject{
 			ObjectMeta: metav1.ObjectMeta{
@@ -2961,6 +2982,24 @@ func TestAppProjectIsSourceNamespacePermitted(t *testing.T) {
 		assert.True(t, proj.IsAppNamespacePermitted(app2, "argocd"))
 		// app4 is installed to other-ns, controller running in argocd
 		assert.False(t, proj.IsAppNamespacePermitted(app4, "argocd"))
+	})
+
+	t.Run("App permitted by glob pattern", func(t *testing.T) {
+		proj := &AppProject{
+			ObjectMeta: metav1.ObjectMeta{
+				Name:      "default",
+				Namespace: "argocd",
+			},
+			Spec: AppProjectSpec{
+				SourceNamespaces: []string{"some-*"},
+			},
+		}
+		// app5 is installed to some-ns1, controller running in argocd
+		assert.True(t, proj.IsAppNamespacePermitted(app5, "argocd"))
+		// app6 is installed to some-ns2, controller running in argocd
+		assert.True(t, proj.IsAppNamespacePermitted(app6, "argocd"))
+		// app7 is installed to someotherns, controller running in argocd
+		assert.False(t, proj.IsAppNamespacePermitted(app7, "argocd"))
 	})
 
 }
