@@ -198,7 +198,7 @@ func NewApplicationCreateCommand(clientOpts *argocdclient.ClientOptions) *cobra.
 	if err != nil {
 		log.Fatal(err)
 	}
-	command.Flags().StringVarP(&appNamespace, "app-namespace", "N", "", "Namespace of the application resource")
+	command.Flags().StringVarP(&appNamespace, "app-namespace", "N", "", "Namespace where the application will be created in")
 	cmdutil.AddAppFlags(command, &appOpts)
 	return command
 }
