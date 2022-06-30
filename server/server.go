@@ -362,6 +362,12 @@ func (a *ArgoCDServer) Listen() (*Listeners, error) {
 	return &Listeners{Main: mainLn, Metrics: metricsLn, GatewayConn: conn}, nil
 }
 
+// Init starts informers used by the API server
+func (a *ArgoCDServer) Init(ctx context.Context) {
+	go a.projInformer.Run(ctx.Done())
+	go a.appInformer.Run(ctx.Done())
+}
+
 // Run runs the API Server
 // We use k8s.io/code-generator/cmd/go-to-protobuf to generate the .proto files from the API types.
 // k8s.io/ go-to-protobuf uses protoc-gen-gogo, which comes from gogo/protobuf (a fork of
@@ -428,9 +434,6 @@ func (a *ArgoCDServer) Run(ctx context.Context, listeners *Listeners) {
 	// Start the muxed listeners for our servers
 	log.Infof("argocd %s serving on port %d (url: %s, tls: %v, namespace: %s, sso: %v)",
 		common.GetVersion(), a.ListenPort, a.settings.URL, a.useTLS(), a.Namespace, a.settings.IsSSOConfigured())
-
-	go a.projInformer.Run(ctx.Done())
-	go a.appInformer.Run(ctx.Done())
 
 	go func() { a.checkServeErr("grpcS", grpcS.Serve(grpcL)) }()
 	go func() { a.checkServeErr("httpS", httpS.Serve(httpL)) }()

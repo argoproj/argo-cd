@@ -153,6 +153,7 @@ func NewCommand() *cobra.Command {
 			stats.StartStatsTicker(10 * time.Minute)
 			stats.RegisterHeapDumper("memprofile")
 			argocd := server.NewServer(context.Background(), argoCDOpts)
+			argocd.Init(context.Background())
 			lns, err := argocd.Listen()
 			errors.CheckError(err)
 			for {
