@@ -275,6 +275,8 @@ In addition to the flattened key/value pairs from the configuration file, the fo
 - `{{path[n]}}`: The path to the matching configuration file within the Git repository, split into array elements (`n` - array index). Example: `path[0]: clusters`, `path[1]: clusterA`
 - `{{path.basename}}`: Basename of the path to the folder containing the configuration file (e.g. `clusterA`, with the above example.)
 - `{{path.basenameNormalized}}`: This field is the same as `path.basename` with unsupported characters replaced with `-` (e.g. a `path` of `/directory/directory_2`, and `path.basename` of `directory_2` would produce `directory-2` here).
+- `{{path.filename}}`: The matched filename. e.g., `config.json` in the above example.
+- `{{path.filenameNormalized}}`: The matched filename with unsupported characters replaced with `-`.
 
 **Note**: The right-most path name always becomes `{{path.basename}}`. For example, to use `four` as a parameter from `- path: /one/two/three/four/config.json`, use `{{path.basename}}` not `{{path[3]}}`.
 
