@@ -179,6 +179,142 @@ spec:
         - --insecure
 ```
 
+## [Gloo Edge](https://www.solo.io/products/gloo-edge)
+
+### Simple example exposing Argo CD UI without TLS termination:
+```
+apiVersion: gateway.solo.io/v1
+kind: VirtualService
+metadata:
+  name: argocd-ui
+  namespace: 'gloo-system'
+spec:
+  virtualHost:
+    domains:
+    - 'argocd.example.com'
+    routes:
+    - matchers:
+      - prefix: /
+      routeAction:
+        single:
+          upstream:
+            name: argocd-argocd-server-80
+            namespace: gloo-system
+```
+
+### TLS Termination at the Edge:
+The API server should be run with TLS disabled when terminating at the edge. Edit the argocd-server deployment to add the `--insecure` flag to the argocd-server command:
+```
+spec:
+  template:
+    spec:
+      containers:
+      - name: argocd-server
+        command:
+        - /argocd-server
+        - --repo-server
+        - argocd-repo-server:8081
+        - --insecure
+```
+
+Create a VirtualService to redirect http requests to https:
+```
+apiVersion: gateway.solo.io/v1
+kind: VirtualService
+metadata:
+  name: argocd-ui-http
+  namespace: gloo-system
+spec:
+  virtualHost:
+    domains:
+    - argocd.example.com
+    routes:
+    - matchers:
+      - prefix: /
+      redirectAction:
+        hostRedirect: 'argocd.example.com'
+        httpsRedirect: true
+```
+
+Create a VirtualService with `sslConfig` reference pointing to a valid SSL cert
+```
+apiVersion: gateway.solo.io/v1
+kind: VirtualService
+metadata:
+  name: argocd-ui-tls
+  namespace: 'gloo-system'
+spec:
+  sslConfig:
+    secretRef:
+      name: argocd-tls
+      namespace: gloo-system
+  virtualHost:
+    domains:
+    - 'argocd.example.com'
+    routes:
+    - matchers:
+      - prefix: /
+      routeAction:
+        single:
+          upstream:
+            name: argocd-argocd-server-80
+            namespace: gloo-system
+```
+
+### Exposing argocd CLI:
+Since argocd CLI expects the connection to be grpc, we will create a static upstream to specify grpc using the `useHttp2: true` parameter
+```
+apiVersion: gloo.solo.io/v1
+kind: Upstream
+metadata:
+  name: static-argocd-argogrpc-443
+  namespace: gloo-system
+spec:
+  kube:
+    selector:
+      app.kubernetes.io/name: argocd-server
+    serviceName: argocd-server
+    serviceNamespace: argocd
+    servicePort: 443
+  # setting this to force grpc connection on this upstream  
+  useHttp2: true
+```
+
+Create a VS to route to this static upstream:
+```
+apiVersion: gateway.solo.io/v1
+kind: VirtualService
+metadata:
+  name: argocd-cli
+  namespace: gloo-system
+spec:
+  sslConfig:
+    secretRef:
+      name: argocd-tls
+      namespace: gloo-system
+  virtualHost:
+    domains:
+    - 'argogrpc.example.com'
+    - 'argogrpc.example.com:443'    
+    routes:
+    - matchers:
+      - prefix: /
+      routeAction:
+        single:
+          upstream:
+            name: static-argocd-argogrpc-443
+            namespace: gloo-system
+```
+
+Now you should be able to login using argocd CLI:
+```
+% argocd login argogrpc.example.com:443
+Username: admin
+Password: 
+'admin:login' logged in successfully
+Context 'argogrpc.example.com:443' updated
+```
+
 ## [kubernetes/ingress-nginx](https://github.com/kubernetes/ingress-nginx)
 
 ### Option 1: SSL-Passthrough
