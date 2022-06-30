@@ -1653,7 +1653,7 @@ func loadFileIntoIfExists(path pathutil.ResolvedFilePath, destination *string) e
 	info, err := os.Stat(stringPath)
 
 	if err == nil && !info.IsDir() {
-		bytes, err := ioutil.ReadFile(stringPath);
+		bytes, err := ioutil.ReadFile(stringPath)
 		if err != nil {
 			return err
 		}
