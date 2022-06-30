@@ -15,8 +15,6 @@ import (
 	"github.com/argoproj/argo-cd/v2/pkg/apis/application/v1alpha1"
 
 	argokube "github.com/argoproj/argo-cd/v2/util/kube"
-
-	log "github.com/sirupsen/logrus"
 )
 
 const (
@@ -170,7 +168,6 @@ func (rt *resourceTracking) ParseAppInstanceValue(value string) (*AppInstanceVal
 	appInstanceValue.Kind = groupParts[1]
 	appInstanceValue.Namespace = nsParts[0]
 	appInstanceValue.Name = nsParts[1]
-	log.Warnf("appInstance: %q", appInstanceValue)
 	return &appInstanceValue, nil
 }
 
