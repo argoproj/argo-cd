@@ -197,6 +197,7 @@ NOTES:
 * There is no need to set `redirectURI` in the `connectors.config` as shown in the dex documentation.
   Argo CD will automatically use the correct `redirectURI` for any OAuth2 connectors, to match the
   correct external callback URL (e.g. `https://argocd.example.com/api/dex/callback`)
+* When using a custom secret (e.g., `some_K8S_secret` above,) it *must* have the label `app.kubernetes.io/part-of: argocd`.
 
 ## OIDC Configuration with DEX
 
