@@ -40,7 +40,7 @@ func (s *applicationEventReporter) shouldSendResourceEvent(a *appv1.Application,
 		"resource": fmt.Sprintf("%s/%s", rs.Namespace, rs.Name),
 	})
 
-	cachedRes, err := s.server.cache.GetLastResourceEvent(a, rs)
+	cachedRes, err := s.server.cache.GetLastResourceEvent(a, rs, getApplicationLatestRevision(a))
 	if err != nil {
 		logCtx.Debug("resource not in cache")
 		return true
@@ -238,7 +238,7 @@ func (s *applicationEventReporter) processResource(
 		return
 	}
 
-	if err := s.server.cache.SetLastResourceEvent(parentApplication, rs, resourceEventCacheExpiration); err != nil {
+	if err := s.server.cache.SetLastResourceEvent(parentApplication, rs, resourceEventCacheExpiration, getApplicationLatestRevision(parentApplication)); err != nil {
 		logCtx.WithError(err).Error("failed to cache resource event")
 	}
 }
