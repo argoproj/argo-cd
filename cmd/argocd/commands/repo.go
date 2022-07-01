@@ -3,7 +3,6 @@ package commands
 import (
 	"context"
 	"fmt"
-	"io/ioutil"
 	"os"
 	"text/tabwriter"
 
@@ -90,7 +89,7 @@ func NewRepoAddCommand(clientOpts *argocdclient.ClientOptions) *cobra.Command {
 			// Specifying ssh-private-key-path is only valid for SSH repositories
 			if repoOpts.SshPrivateKeyPath != "" {
 				if ok, _ := git.IsSSHURL(repoOpts.Repo.Repo); ok {
-					keyData, err := ioutil.ReadFile(repoOpts.SshPrivateKeyPath)
+					keyData, err := os.ReadFile(repoOpts.SshPrivateKeyPath)
 					if err != nil {
 						log.Fatal(err)
 					}
@@ -111,9 +110,9 @@ func NewRepoAddCommand(clientOpts *argocdclient.ClientOptions) *cobra.Command {
 			// Specifying tls-client-cert-path is only valid for HTTPS repositories
 			if repoOpts.TlsClientCertPath != "" {
 				if git.IsHTTPSURL(repoOpts.Repo.Repo) {
-					tlsCertData, err := ioutil.ReadFile(repoOpts.TlsClientCertPath)
+					tlsCertData, err := os.ReadFile(repoOpts.TlsClientCertPath)
 					errors.CheckError(err)
-					tlsCertKey, err := ioutil.ReadFile(repoOpts.TlsClientCertKeyPath)
+					tlsCertKey, err := os.ReadFile(repoOpts.TlsClientCertKeyPath)
 					errors.CheckError(err)
 					repoOpts.Repo.TLSClientCertData = string(tlsCertData)
 					repoOpts.Repo.TLSClientCertKey = string(tlsCertKey)
@@ -126,7 +125,7 @@ func NewRepoAddCommand(clientOpts *argocdclient.ClientOptions) *cobra.Command {
 			// Specifying github-app-private-key-path is only valid for HTTPS repositories
 			if repoOpts.GithubAppPrivateKeyPath != "" {
 				if git.IsHTTPSURL(repoOpts.Repo.Repo) {
-					githubAppPrivateKey, err := ioutil.ReadFile(repoOpts.GithubAppPrivateKeyPath)
+					githubAppPrivateKey, err := os.ReadFile(repoOpts.GithubAppPrivateKeyPath)
 					errors.CheckError(err)
 					repoOpts.Repo.GithubAppPrivateKey = string(githubAppPrivateKey)
 				} else {
