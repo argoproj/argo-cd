@@ -32,6 +32,7 @@ import (
 	cacheutil "github.com/argoproj/argo-cd/v2/util/cache"
 	appstatecache "github.com/argoproj/argo-cd/v2/util/cache/appstate"
 	"github.com/argoproj/argo-cd/v2/util/rbac"
+	"github.com/argoproj/argo-cd/v2/util/security"
 	settings_util "github.com/argoproj/argo-cd/v2/util/settings"
 )
 
@@ -53,8 +54,10 @@ func fakeServer() (*ArgoCDServer, func()) {
 		AppClientset:          appClientSet,
 		Insecure:              true,
 		DisableAuth:           true,
-		XFrameOptions:         "sameorigin",
-		ContentSecurityPolicy: "frame-ancestors 'self';",
+		SecurityHeaders: security.Headers{
+			XFrameOptions:         "sameorigin",
+			ContentSecurityPolicy: "frame-ancestors 'self';",
+		},
 		Cache: servercache.NewCache(
 			appstatecache.NewCache(
 				cacheutil.NewCache(cacheutil.NewInMemoryCache(1*time.Hour)),

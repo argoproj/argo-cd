@@ -24,6 +24,7 @@ import (
 	"github.com/argoproj/argo-cd/v2/util/env"
 	"github.com/argoproj/argo-cd/v2/util/errors"
 	"github.com/argoproj/argo-cd/v2/util/kube"
+	"github.com/argoproj/argo-cd/v2/util/security"
 	"github.com/argoproj/argo-cd/v2/util/tls"
 	traceutil "github.com/argoproj/argo-cd/v2/util/trace"
 )
@@ -150,8 +151,10 @@ func NewCommand() *cobra.Command {
 				EnableGZip:            enableGZip,
 				TLSConfigCustomizer:   tlsConfigCustomizer,
 				Cache:                 cache,
-				XFrameOptions:         frameOptions,
-				ContentSecurityPolicy: contentSecurityPolicy,
+				SecurityHeaders: security.Headers{
+					XFrameOptions:         frameOptions,
+					ContentSecurityPolicy: contentSecurityPolicy,
+				},
 				RedisClient:           redisClient,
 				StaticAssetsDir:       staticAssetsDir,
 			}

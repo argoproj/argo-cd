@@ -25,6 +25,7 @@ import (
 	"github.com/argoproj/argo-cd/v2/util/dex"
 	httputil "github.com/argoproj/argo-cd/v2/util/http"
 	"github.com/argoproj/argo-cd/v2/util/rand"
+	"github.com/argoproj/argo-cd/v2/util/security"
 	"github.com/argoproj/argo-cd/v2/util/settings"
 )
 
@@ -68,6 +69,8 @@ type ClientApp struct {
 	encryptionKey []byte
 	// provider is the OIDC provider
 	provider Provider
+	// securityHeaders are security-related headers configured for use on Argo CD API responses.
+	securityHeaders security.Headers
 }
 
 func GetScopesOrDefault(scopes []string) []string {
@@ -79,7 +82,7 @@ func GetScopesOrDefault(scopes []string) []string {
 
 // NewClientApp will register the Argo CD client app (either via Dex or external OIDC) and return an
 // object which has HTTP handlers for handling the HTTP responses for login and callback
-func NewClientApp(settings *settings.ArgoCDSettings, dexServerAddr, baseHRef string) (*ClientApp, error) {
+func NewClientApp(settings *settings.ArgoCDSettings, dexServerAddr, baseHRef string, securityHeaders security.Headers) (*ClientApp, error) {
 	redirectURL, err := settings.RedirectURL()
 	if err != nil {
 		return nil, err
@@ -89,12 +92,13 @@ func NewClientApp(settings *settings.ArgoCDSettings, dexServerAddr, baseHRef str
 		return nil, err
 	}
 	a := ClientApp{
-		clientID:      settings.OAuth2ClientID(),
-		clientSecret:  settings.OAuth2ClientSecret(),
-		redirectURI:   redirectURL,
-		issuerURL:     settings.IssuerURL(),
-		baseHRef:      baseHRef,
-		encryptionKey: encryptionKey,
+		clientID:        settings.OAuth2ClientID(),
+		clientSecret:    settings.OAuth2ClientSecret(),
+		redirectURI:     redirectURL,
+		issuerURL:       settings.IssuerURL(),
+		baseHRef:        baseHRef,
+		encryptionKey:   encryptionKey,
+		securityHeaders: securityHeaders,
 	}
 	log.Infof("Creating client app (%s)", a.clientID)
 	u, err := url.Parse(settings.URL)
@@ -254,6 +258,8 @@ func isValidRedirectURL(redirectURL string, allowedURLs []string) bool {
 // HandleLogin formulates the proper OAuth2 URL (auth code or implicit) and redirects the user to
 // the IDp login & consent page
 func (a *ClientApp) HandleLogin(w http.ResponseWriter, r *http.Request) {
+	security.SetSecurityHeaders(w, a.securityHeaders)
+
 	oidcConf, err := a.provider.ParseConfig()
 	if err != nil {
 		http.Error(w, err.Error(), http.StatusInternalServerError)
@@ -304,6 +310,8 @@ func (a *ClientApp) HandleLogin(w http.ResponseWriter, r *http.Request) {
 
 // HandleCallback is the callback handler for an OAuth2 login flow
 func (a *ClientApp) HandleCallback(w http.ResponseWriter, r *http.Request) {
+	security.SetSecurityHeaders(w, a.securityHeaders)
+
 	oauth2Config, err := a.oauth2Config(nil)
 	if err != nil {
 		http.Error(w, err.Error(), http.StatusInternalServerError)

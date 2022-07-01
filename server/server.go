@@ -102,6 +102,7 @@ import (
 	kubeutil "github.com/argoproj/argo-cd/v2/util/kube"
 	"github.com/argoproj/argo-cd/v2/util/oidc"
 	"github.com/argoproj/argo-cd/v2/util/rbac"
+	"github.com/argoproj/argo-cd/v2/util/security"
 	util_session "github.com/argoproj/argo-cd/v2/util/session"
 	settings_util "github.com/argoproj/argo-cd/v2/util/settings"
 	"github.com/argoproj/argo-cd/v2/util/swagger"
@@ -191,8 +192,7 @@ type ArgoCDServerOpts struct {
 	Cache                 *servercache.Cache
 	RedisClient           *redis.Client
 	TLSConfigCustomizer   tlsutil.ConfigCustomizer
-	XFrameOptions         string
-	ContentSecurityPolicy string
+	SecurityHeaders       security.Headers
 	ListenHost            string
 }
 
@@ -888,7 +888,7 @@ func (a *ArgoCDServer) registerDexHandlers(mux *http.ServeMux) {
 		tlsConfig := a.settings.TLSConfig()
 		tlsConfig.InsecureSkipVerify = true
 	}
-	a.ssoClientApp, err = oidc.NewClientApp(a.settings, a.DexServerAddr, a.BaseHRef)
+	a.ssoClientApp, err = oidc.NewClientApp(a.settings, a.DexServerAddr, a.BaseHRef, a.SecurityHeaders)
 	errors.CheckError(err)
 	mux.HandleFunc(common.LoginEndpoint, a.ssoClientApp.HandleLogin)
 	mux.HandleFunc(common.CallbackEndpoint, a.ssoClientApp.HandleCallback)
@@ -969,15 +969,7 @@ func (server *ArgoCDServer) newStaticAssetsHandler() func(http.ResponseWriter, *
 
 		fileRequest := r.URL.Path != "/index.html" && server.uiAssetExists(r.URL.Path)
 
-		// Set X-Frame-Options according to configuration
-		if server.XFrameOptions != "" {
-			w.Header().Set("X-Frame-Options", server.XFrameOptions)
-		}
-		// Set Content-Security-Policy according to configuration
-		if server.ContentSecurityPolicy != "" {
-			w.Header().Set("Content-Security-Policy", server.ContentSecurityPolicy)
-		}
-		w.Header().Set("X-XSS-Protection", "1")
+		security.SetSecurityHeaders(w, server.SecurityHeaders)
 
 		// serve index.html for non file requests to support HTML5 History API
 		if acceptHTML && !fileRequest && (r.Method == "GET" || r.Method == "HEAD") {

@@ -91,8 +91,7 @@ func Test_StaticHeaders(t *testing.T) {
 	// !race:
 	// Same as TestUserAgent
 
-	// Test default policy "sameorigin" and "frame-ancestors 'self';"
-	{
+	t.Run(`Test default policy "sameorigin" and "frame-ancestors 'self';"`, func(t *testing.T) {
 		s, closer := fakeServer()
 		defer closer()
 		lns, err := s.Listen()
@@ -107,22 +106,28 @@ func Test_StaticHeaders(t *testing.T) {
 		// Allow server startup
 		time.Sleep(1 * time.Second)
 
-		client := http.Client{}
-		url := fmt.Sprintf("http://127.0.0.1:%d/test.html", s.ListenPort)
-		req, err := http.NewRequest("GET", url, nil)
-		assert.NoError(t, err)
-		resp, err := client.Do(req)
-		assert.NoError(t, err)
-		assert.Equal(t, "sameorigin", resp.Header.Get("X-Frame-Options"))
-		assert.Equal(t, "frame-ancestors 'self';", resp.Header.Get("Content-Security-Policy"))
-	}
+		testCases := []struct{
+			url string
+		}{
+			{fmt.Sprintf("http://127.0.0.1:%d/test.html", s.ListenPort)},
+			{fmt.Sprintf("http://127.0.0.1:%d/auth/callback", s.ListenPort)},
+			{fmt.Sprintf("http://127.0.0.1:%d/auth/login", s.ListenPort)},
+		}
 
-	// Test custom policy for X-Frame-Options and Content-Security-Policy
-	{
+		for _, testCase := range testCases {
+			testCase := testCase
+			t.Run(testCase.url, func(t *testing.T) {
+				t.Parallel()
+				assertGotExpectedHeaders(t, testCase.url, "sameorigin", "frame-ancestors 'self';")
+			})
+		}
+	})
+
+	t.Run("Test custom policy for X-Frame-Options and Content-Security-Policy", func(t *testing.T) {
 		s, closer := fakeServer()
 		defer closer()
-		s.XFrameOptions = "deny"
-		s.ContentSecurityPolicy = "frame-ancestors 'none';"
+		s.SecurityHeaders.XFrameOptions = "deny"
+		s.SecurityHeaders.ContentSecurityPolicy = "frame-ancestors 'none';"
 		cancelInformer := test.StartInformer(s.projInformer)
 		defer cancelInformer()
 		lns, err := s.Listen()
@@ -135,22 +140,30 @@ func Test_StaticHeaders(t *testing.T) {
 		// Allow server startup
 		time.Sleep(1 * time.Second)
 
-		client := http.Client{}
-		url := fmt.Sprintf("http://127.0.0.1:%d/test.html", s.ListenPort)
-		req, err := http.NewRequest("GET", url, nil)
-		assert.NoError(t, err)
-		resp, err := client.Do(req)
-		assert.NoError(t, err)
-		assert.Equal(t, "deny", resp.Header.Get("X-Frame-Options"))
-		assert.Equal(t, "frame-ancestors 'none';", resp.Header.Get("Content-Security-Policy"))
-	}
+		testCases := []struct{
+			url string
+			expectedXFrameOptions string
+			expectedContentSecurityPolicy string
+		}{
+			{fmt.Sprintf("http://127.0.0.1:%d/test.html", s.ListenPort), "deny", "frame-ancestors 'none';"},
+			{fmt.Sprintf("http://127.0.0.1:%d/auth/callback", s.ListenPort), "deny", "frame-ancestors 'none';"},
+			{fmt.Sprintf("http://127.0.0.1:%d/auth/login", s.ListenPort), "deny", "frame-ancestors 'none';"},
+		}
 
-	// Test disabled X-Frame-Options and Content-Security-Policy
-	{
+		for _, testCase := range testCases {
+			testCase := testCase
+			t.Run(testCase.url, func(t *testing.T) {
+				t.Parallel()
+				assertGotExpectedHeaders(t, testCase.url, testCase.expectedXFrameOptions, testCase.expectedContentSecurityPolicy)
+			})
+		}
+	})
+
+	t.Run("Test disabled X-Frame-Options and Content-Security-Policy", func(t *testing.T) {
 		s, closer := fakeServer()
 		defer closer()
-		s.XFrameOptions = ""
-		s.ContentSecurityPolicy = ""
+		s.SecurityHeaders.XFrameOptions = ""
+		s.SecurityHeaders.ContentSecurityPolicy = ""
 		cancelInformer := test.StartInformer(s.projInformer)
 		defer cancelInformer()
 		lns, err := s.Listen()
@@ -166,13 +179,32 @@ func Test_StaticHeaders(t *testing.T) {
 		// Allow server startup
 		time.Sleep(1 * time.Second)
 
-		client := http.Client{}
-		url := fmt.Sprintf("http://127.0.0.1:%d/test.html", s.ListenPort)
-		req, err := http.NewRequest("GET", url, nil)
-		assert.NoError(t, err)
-		resp, err := client.Do(req)
-		assert.NoError(t, err)
-		assert.Empty(t, resp.Header.Get("X-Frame-Options"))
-		assert.Empty(t, resp.Header.Get("Content-Security-Policy"))
-	}
+		testCases := []struct{
+			url string
+			expectedXFrameOptions string
+			expectedContentSecurityPolicy string
+		}{
+			{fmt.Sprintf("http://127.0.0.1:%d/test.html", s.ListenPort), "", ""},
+			{fmt.Sprintf("http://127.0.0.1:%d/auth/callback", s.ListenPort), "", ""},
+			{fmt.Sprintf("http://127.0.0.1:%d/auth/login", s.ListenPort), "", ""},
+		}
+
+		for _, testCase := range testCases {
+			testCase := testCase
+			t.Run(testCase.url, func(t *testing.T) {
+				t.Parallel()
+				assertGotExpectedHeaders(t, testCase.url, testCase.expectedXFrameOptions, testCase.expectedContentSecurityPolicy)
+			})
+		}
+	})
+}
+
+func assertGotExpectedHeaders(t *testing.T, url string, expectedXFrameOptions string, expectedContentSecurityPolicy string) {
+	client := http.Client{}
+	req, err := http.NewRequest("GET", url, nil)
+	assert.NoError(t, err)
+	resp, err := client.Do(req)
+	assert.NoError(t, err)
+	assert.Equalf(t, expectedXFrameOptions, resp.Header.Get("X-Frame-Options"), "got the wrong X-Frame-Options for url %q", url)
+	assert.Equalf(t, expectedContentSecurityPolicy, resp.Header.Get("Content-Security-Policy"), "got the wrong Content-Security-Policy for url %q", url)
 }
