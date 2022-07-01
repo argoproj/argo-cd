@@ -2,8 +2,8 @@ package kube
 
 import (
 	"encoding/json"
-	"io/ioutil"
 	"log"
+	"os"
 	"testing"
 
 	"github.com/ghodss/yaml"
@@ -108,7 +108,7 @@ func TestSetLegacyLabels(t *testing.T) {
 }
 
 func TestSetLegacyJobLabel(t *testing.T) {
-	yamlBytes, err := ioutil.ReadFile("testdata/job.yaml")
+	yamlBytes, err := os.ReadFile("testdata/job.yaml")
 	assert.Nil(t, err)
 	var obj unstructured.Unstructured
 	err = yaml.Unmarshal(yamlBytes, &obj)
@@ -134,7 +134,7 @@ func TestSetLegacyJobLabel(t *testing.T) {
 }
 
 func TestSetSvcLabel(t *testing.T) {
-	yamlBytes, err := ioutil.ReadFile("testdata/svc.yaml")
+	yamlBytes, err := os.ReadFile("testdata/svc.yaml")
 	assert.Nil(t, err)
 	var obj unstructured.Unstructured
 	err = yaml.Unmarshal(yamlBytes, &obj)
@@ -163,7 +163,7 @@ func TestIsValidResourceName(t *testing.T) {
 }
 
 func TestSetAppInstanceAnnotation(t *testing.T) {
-	yamlBytes, err := ioutil.ReadFile("testdata/svc.yaml")
+	yamlBytes, err := os.ReadFile("testdata/svc.yaml")
 	assert.Nil(t, err)
 	var obj unstructured.Unstructured
 	err = yaml.Unmarshal(yamlBytes, &obj)
@@ -185,7 +185,7 @@ func TestSetAppInstanceAnnotation(t *testing.T) {
 }
 
 func TestGetAppInstanceAnnotation(t *testing.T) {
-	yamlBytes, err := ioutil.ReadFile("testdata/svc.yaml")
+	yamlBytes, err := os.ReadFile("testdata/svc.yaml")
 	assert.Nil(t, err)
 	var obj unstructured.Unstructured
 	err = yaml.Unmarshal(yamlBytes, &obj)
@@ -197,7 +197,7 @@ func TestGetAppInstanceAnnotation(t *testing.T) {
 }
 
 func TestGetAppInstanceLabel(t *testing.T) {
-	yamlBytes, err := ioutil.ReadFile("testdata/svc.yaml")
+	yamlBytes, err := os.ReadFile("testdata/svc.yaml")
 	assert.Nil(t, err)
 	var obj unstructured.Unstructured
 	err = yaml.Unmarshal(yamlBytes, &obj)
@@ -208,7 +208,7 @@ func TestGetAppInstanceLabel(t *testing.T) {
 }
 
 func TestRemoveLabel(t *testing.T) {
-	yamlBytes, err := ioutil.ReadFile("testdata/svc.yaml")
+	yamlBytes, err := os.ReadFile("testdata/svc.yaml")
 	assert.Nil(t, err)
 	var obj unstructured.Unstructured
 	err = yaml.Unmarshal(yamlBytes, &obj)

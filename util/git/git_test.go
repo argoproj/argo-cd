@@ -2,7 +2,7 @@ package git
 
 import (
 	"fmt"
-	"io/ioutil"
+	"io"
 	"net/http"
 	"os"
 	"path/filepath"
@@ -138,11 +138,11 @@ func TestCustomHTTPClient(t *testing.T) {
 	assert.NoError(t, err)
 	assert.NotEqual(t, "", keyFile)
 
-	certData, err := ioutil.ReadFile(certFile)
+	certData, err := os.ReadFile(certFile)
 	assert.NoError(t, err)
 	assert.NotEqual(t, "", string(certData))
 
-	keyData, err := ioutil.ReadFile(keyFile)
+	keyData, err := os.ReadFile(keyFile)
 	assert.NoError(t, err)
 	assert.NotEqual(t, "", string(keyData))
 
@@ -205,11 +205,11 @@ func TestCustomHTTPClient(t *testing.T) {
 		assert.Equal(t, "http://proxy-from-env:7878", proxy.String())
 	}
 	// GetRepoHTTPClient with root ca
-	cert, err := ioutil.ReadFile("../../test/fixture/certs/argocd-test-server.crt")
+	cert, err := os.ReadFile("../../test/fixture/certs/argocd-test-server.crt")
 	assert.NoError(t, err)
 	temppath := t.TempDir()
 	defer os.RemoveAll(temppath)
-	err = ioutil.WriteFile(filepath.Join(temppath, "127.0.0.1"), cert, 0666)
+	err = os.WriteFile(filepath.Join(temppath, "127.0.0.1"), cert, 0666)
 	assert.NoError(t, err)
 	os.Setenv(common.EnvVarTLSDataPath, temppath)
 	client = GetRepoHTTPClient("https://127.0.0.1", false, creds, "")
@@ -290,7 +290,7 @@ func TestLFSClient(t *testing.T) {
 	assert.NoError(t, err)
 	if err == nil {
 		defer fileHandle.Close()
-		text, err := ioutil.ReadAll(fileHandle)
+		text, err := io.ReadAll(fileHandle)
 		assert.NoError(t, err)
 		if err == nil {
 			assert.Equal(t, "This is not a YAML, sorry.\n", string(text))

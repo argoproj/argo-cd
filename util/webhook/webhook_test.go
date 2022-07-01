@@ -4,9 +4,10 @@ import (
 	"bytes"
 	"encoding/json"
 	"fmt"
-	"io/ioutil"
+	"io"
 	"net/http"
 	"net/http/httptest"
+	"os"
 	"testing"
 	"time"
 
@@ -59,9 +60,9 @@ func TestGitHubCommitEvent(t *testing.T) {
 	h := NewMockHandler()
 	req := httptest.NewRequest("POST", "/api/webhook", nil)
 	req.Header.Set("X-GitHub-Event", "push")
-	eventJSON, err := ioutil.ReadFile("github-commit-event.json")
+	eventJSON, err := os.ReadFile("github-commit-event.json")
 	assert.NoError(t, err)
-	req.Body = ioutil.NopCloser(bytes.NewReader(eventJSON))
+	req.Body = io.NopCloser(bytes.NewReader(eventJSON))
 	w := httptest.NewRecorder()
 	h.Handler(w, req)
 	assert.Equal(t, w.Code, http.StatusOK)
@@ -75,9 +76,9 @@ func TestGitHubTagEvent(t *testing.T) {
 	h := NewMockHandler()
 	req := httptest.NewRequest("POST", "/api/webhook", nil)
 	req.Header.Set("X-GitHub-Event", "push")
-	eventJSON, err := ioutil.ReadFile("github-tag-event.json")
+	eventJSON, err := os.ReadFile("github-tag-event.json")
 	assert.NoError(t, err)
-	req.Body = ioutil.NopCloser(bytes.NewReader(eventJSON))
+	req.Body = io.NopCloser(bytes.NewReader(eventJSON))
 	w := httptest.NewRecorder()
 	h.Handler(w, req)
 	assert.Equal(t, w.Code, http.StatusOK)
@@ -91,9 +92,9 @@ func TestBitbucketServerRepositoryReferenceChangedEvent(t *testing.T) {
 	h := NewMockHandler()
 	req := httptest.NewRequest("POST", "/api/webhook", nil)
 	req.Header.Set("X-Event-Key", "repo:refs_changed")
-	eventJSON, err := ioutil.ReadFile("bitbucket-server-event.json")
+	eventJSON, err := os.ReadFile("bitbucket-server-event.json")
 	assert.NoError(t, err)
-	req.Body = ioutil.NopCloser(bytes.NewReader(eventJSON))
+	req.Body = io.NopCloser(bytes.NewReader(eventJSON))
 	w := httptest.NewRecorder()
 	h.Handler(w, req)
 	assert.Equal(t, w.Code, http.StatusOK)
@@ -123,9 +124,9 @@ func TestGogsPushEvent(t *testing.T) {
 	h := NewMockHandler()
 	req := httptest.NewRequest("POST", "/api/webhook", nil)
 	req.Header.Set("X-Gogs-Event", "push")
-	eventJSON, err := ioutil.ReadFile("gogs-event.json")
+	eventJSON, err := os.ReadFile("gogs-event.json")
 	assert.NoError(t, err)
-	req.Body = ioutil.NopCloser(bytes.NewReader(eventJSON))
+	req.Body = io.NopCloser(bytes.NewReader(eventJSON))
 	w := httptest.NewRecorder()
 	h.Handler(w, req)
 	assert.Equal(t, w.Code, http.StatusOK)
@@ -139,9 +140,9 @@ func TestGitLabPushEvent(t *testing.T) {
 	h := NewMockHandler()
 	req := httptest.NewRequest("POST", "/api/webhook", nil)
 	req.Header.Set("X-Gitlab-Event", "Push Hook")
-	eventJSON, err := ioutil.ReadFile("gitlab-event.json")
+	eventJSON, err := os.ReadFile("gitlab-event.json")
 	assert.NoError(t, err)
-	req.Body = ioutil.NopCloser(bytes.NewReader(eventJSON))
+	req.Body = io.NopCloser(bytes.NewReader(eventJSON))
 	w := httptest.NewRecorder()
 	h.Handler(w, req)
 	assert.Equal(t, w.Code, http.StatusOK)
