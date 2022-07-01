@@ -122,6 +122,8 @@ argocd admin settings rbac can someuser create application 'default/app' --defau
 
 `,
 		Run: func(c *cobra.Command, args []string) {
+			ctx := c.Context()
+
 			if len(args) < 3 || len(args) > 4 {
 				c.HelpFunc()(c, args)
 				os.Exit(1)
@@ -158,7 +160,7 @@ argocd admin settings rbac can someuser create application 'default/app' --defau
 				log.Fatalf("could not create k8s client: %v", err)
 			}
 
-			userPolicy, newDefaultRole, matchMode := getPolicy(policyFile, realClientset, namespace)
+			userPolicy, newDefaultRole, matchMode := getPolicy(ctx, policyFile, realClientset, namespace)
 
 			// Use built-in policy as augmentation if requested
 			if useBuiltin {
@@ -209,11 +211,13 @@ Validates an RBAC policy for being syntactically correct. The policy must be
 a local file, and in either CSV or K8s ConfigMap format.
 `,
 		Run: func(c *cobra.Command, args []string) {
+			ctx := c.Context()
+
 			if policyFile == "" {
 				c.HelpFunc()(c, args)
 				log.Fatalf("Please specify policy to validate using --policy-file")
 			}
-			userPolicy, _, _ := getPolicy(policyFile, nil, "")
+			userPolicy, _, _ := getPolicy(ctx, policyFile, nil, "")
 			if userPolicy != "" {
 				if err := rbac.ValidatePolicy(userPolicy); err == nil {
 					fmt.Printf("Policy is valid.\n")
@@ -232,7 +236,7 @@ a local file, and in either CSV or K8s ConfigMap format.
 
 // Load user policy file if requested or use Kubernetes client to get the
 // appropriate ConfigMap from the current context
-func getPolicy(policyFile string, kubeClient kubernetes.Interface, namespace string) (userPolicy string, defaultRole string, matchMode string) {
+func getPolicy(ctx context.Context, policyFile string, kubeClient kubernetes.Interface, namespace string) (userPolicy string, defaultRole string, matchMode string) {
 	var err error
 	if policyFile != "" {
 		// load from file
@@ -241,7 +245,7 @@ func getPolicy(policyFile string, kubeClient kubernetes.Interface, namespace str
 			log.Fatalf("could not read policy file: %v", err)
 		}
 	} else {
-		cm, err := getPolicyConfigMap(kubeClient, namespace)
+		cm, err := getPolicyConfigMap(ctx, kubeClient, namespace)
 		if err != nil {
 			log.Fatalf("could not get configmap: %v", err)
 		}
@@ -300,8 +304,8 @@ func getPolicyFromConfigMap(cm *corev1.ConfigMap) (string, string, string) {
 }
 
 // getPolicyConfigMap fetches the RBAC config map from K8s cluster
-func getPolicyConfigMap(client kubernetes.Interface, namespace string) (*corev1.ConfigMap, error) {
-	cm, err := client.CoreV1().ConfigMaps(namespace).Get(context.Background(), common.ArgoCDRBACConfigMapName, v1.GetOptions{})
+func getPolicyConfigMap(ctx context.Context, client kubernetes.Interface, namespace string) (*corev1.ConfigMap, error) {
+	cm, err := client.CoreV1().ConfigMaps(namespace).Get(ctx, common.ArgoCDRBACConfigMapName, v1.GetOptions{})
 	if err != nil {
 		return nil, err
 	}
