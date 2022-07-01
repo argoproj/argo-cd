@@ -215,7 +215,7 @@ func (g *GitGenerator) generateParamsFromApps(requestedApps []string, _ *argopro
 		params["path"] = a
 		params["path.basename"] = path.Base(a)
 		params["path.basenameNormalized"] = sanitizeName(path.Base(a))
-		for k, v := range strings.Split(strings.TrimSuffix(params["path"], params["path.basename"]), "/") {
+		for k, v := range strings.Split(params["path"], "/") {
 			if len(v) > 0 {
 				params["path["+strconv.Itoa(k)+"]"] = v
 			}
