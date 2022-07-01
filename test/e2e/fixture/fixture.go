@@ -324,6 +324,15 @@ func updateGenericConfigMap(name string, updater func(cm *corev1.ConfigMap) erro
 	errors.CheckError(err)
 }
 
+func SetEnableManifestGeneration(val map[v1alpha1.ApplicationSourceType]bool) {
+	updateSettingConfigMap(func(cm *corev1.ConfigMap) error {
+		for k, v := range val {
+			cm.Data[fmt.Sprintf("%s.enable", strings.ToLower(string(k)))] = strconv.FormatBool(v)
+		}
+		return nil
+	})
+}
+
 func SetResourceOverrides(overrides map[string]v1alpha1.ResourceOverride) {
 	updateSettingConfigMap(func(cm *corev1.ConfigMap) error {
 		if len(overrides) > 0 {
@@ -469,6 +478,13 @@ func SetProjectSpec(project string, spec v1alpha1.AppProjectSpec) {
 	errors.CheckError(err)
 }
 
+func SetParamInSettingConfigMap(key, value string) {
+	updateSettingConfigMap(func(cm *corev1.ConfigMap) error {
+		cm.Data[key] = value
+		return nil
+	})
+}
+
 func EnsureCleanState(t *testing.T) {
 	// In large scenarios, we can skip tests that already run
 	SkipIfAlreadyRun(t)
@@ -545,7 +561,9 @@ func EnsureCleanState(t *testing.T) {
 	FailOnErr(Run("", "mkdir", "-p", TmpDir))
 
 	// random id - unique across test runs
-	postFix := "-" + strings.ToLower(rand.RandString(5))
+	randString, err := rand.String(5)
+	CheckError(err)
+	postFix := "-" + strings.ToLower(randString)
 	id = t.Name() + postFix
 	name = DnsFriendly(t.Name(), "")
 	deploymentNamespace = DnsFriendly(fmt.Sprintf("argocd-e2e-%s", t.Name()), postFix)

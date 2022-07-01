@@ -88,6 +88,12 @@ spec:
                 name: argocd-cmd-params-cm
                 key: server.x.frame.options
                 optional: true
+        - name: ARGOCD_SERVER_CONTENT_SECURITY_POLICY
+          valueFrom:
+              configMapKeyRef:
+                name: argocd-cmd-params-cm
+                key: server.content.security.policy
+                optional: true
         - name: ARGOCD_SERVER_REPO_SERVER_PLAINTEXT
           valueFrom:
               configMapKeyRef:
@@ -172,6 +178,12 @@ spec:
                 name: argocd-cmd-params-cm
                 key: server.http.cookie.maxnumber
                 optional: true
+        - name: ARGOCD_SERVER_OTLP_ADDRESS
+          valueFrom:
+              configMapKeyRef:
+                name: argocd-cmd-params-cm
+                key: otlp.address
+                optional: true
         volumeMounts:
         - name: ssh-known-hosts
           mountPath: /app/config/ssh
@@ -204,14 +216,14 @@ spec:
           runAsNonRoot: true
           capabilities:
             drop:
-              - all
+            - ALL
+          seccompProfile:
+            type: RuntimeDefault
       volumes:
       - emptyDir: {}
         name: plugins-home
       - emptyDir: {}
         name: tmp
-      - emptyDir: {}
-        name: static-files
       - name: ssh-known-hosts
         configMap:
           name: argocd-ssh-known-hosts-cm

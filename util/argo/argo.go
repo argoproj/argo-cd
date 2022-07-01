@@ -16,10 +16,8 @@ import (
 	"google.golang.org/grpc/status"
 	apierr "k8s.io/apimachinery/pkg/api/errors"
 	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
-	"k8s.io/apimachinery/pkg/fields"
 	"k8s.io/apimachinery/pkg/runtime/schema"
 	"k8s.io/apimachinery/pkg/types"
-	"k8s.io/apimachinery/pkg/watch"
 
 	argoappv1 "github.com/argoproj/argo-cd/v2/pkg/apis/application/v1alpha1"
 	"github.com/argoproj/argo-cd/v2/pkg/client/clientset/versioned/typed/application/v1alpha1"
@@ -121,38 +119,6 @@ func RefreshApp(appIf v1alpha1.ApplicationInterface, name string, refreshType ar
 	return nil, err
 }
 
-// WaitForRefresh watches an application until its comparison timestamp is after the refresh timestamp
-// If refresh timestamp is not present, will use current timestamp at time of call
-func WaitForRefresh(ctx context.Context, appIf v1alpha1.ApplicationInterface, name string, timeout *time.Duration) (*argoappv1.Application, error) {
-	var cancel context.CancelFunc
-	if timeout != nil {
-		ctx, cancel = context.WithTimeout(ctx, *timeout)
-		defer cancel()
-	}
-	ch := kube.WatchWithRetry(ctx, func() (i watch.Interface, e error) {
-		fieldSelector := fields.ParseSelectorOrDie(fmt.Sprintf("metadata.name=%s", name))
-		listOpts := metav1.ListOptions{FieldSelector: fieldSelector.String()}
-		return appIf.Watch(ctx, listOpts)
-	})
-	for next := range ch {
-		if next.Error != nil {
-			return nil, next.Error
-		}
-		app, ok := next.Object.(*argoappv1.Application)
-		if !ok {
-			return nil, fmt.Errorf("Application event object failed conversion: %v", next)
-		}
-		annotations := app.GetAnnotations()
-		if annotations == nil {
-			annotations = make(map[string]string)
-		}
-		if _, ok := annotations[argoappv1.AnnotationKeyRefresh]; !ok {
-			return app, nil
-		}
-	}
-	return nil, fmt.Errorf("application refresh deadline exceeded")
-}
-
 func TestRepoWithKnownType(ctx context.Context, repoClient apiclient.RepoServerServiceClient, repo *argoappv1.Repository, isHelm bool, isHelmOci bool) error {
 	repo = repo.DeepCopy()
 	if isHelm {
@@ -173,7 +139,6 @@ func TestRepoWithKnownType(ctx context.Context, repoClient apiclient.RepoServerS
 // * the repository is accessible
 // * the path contains valid manifests
 // * there are parameters of only one app source type
-// * ksonnet: the specified environment exists
 func ValidateRepo(
 	ctx context.Context,
 	app *argoappv1.Application,
@@ -222,6 +187,11 @@ func ValidateRepo(
 		return conditions, nil
 	}
 
+	helmOptions, err := settingsMgr.GetHelmSettings()
+	if err != nil {
+		return nil, err
+	}
+
 	helmRepos, err := db.ListHelmRepositories(ctx)
 	if err != nil {
 		return nil, err
@@ -238,25 +208,6 @@ func ValidateRepo(
 	if err != nil {
 		return nil, err
 	}
-	// get the app details, and populate the Ksonnet stuff from it
-	appDetails, err := repoClient.GetAppDetails(ctx, &apiclient.RepoServerAppDetailsQuery{
-		Repo:             repo,
-		Source:           &spec.Source,
-		Repos:            permittedHelmRepos,
-		KustomizeOptions: kustomizeOptions,
-		// don't use case during application change to make sure to fetch latest git/helm revisions
-		NoRevisionCache: true,
-		TrackingMethod:  string(GetTrackingMethod(settingsMgr)),
-	})
-	if err != nil {
-		conditions = append(conditions, argoappv1.ApplicationCondition{
-			Type:    argoappv1.ApplicationConditionInvalidSpecError,
-			Message: fmt.Sprintf("Unable to get app details: %v", err),
-		})
-		return conditions, nil
-	}
-
-	enrichSpec(spec, appDetails)
 
 	cluster, err := db.GetCluster(context.Background(), spec.Destination.Server)
 	if err != nil {
@@ -275,25 +226,26 @@ func ValidateRepo(
 	if err != nil {
 		return nil, err
 	}
+	enabledSourceTypes, err := settingsMgr.GetEnabledSourceTypes()
+	if err != nil {
+		return nil, err
+	}
 	conditions = append(conditions, verifyGenerateManifests(
-		ctx, repo, permittedHelmRepos, app, repoClient, kustomizeOptions, plugins, cluster.ServerVersion, APIResourcesToStrings(apiGroups, true), permittedHelmCredentials, settingsMgr)...)
+		ctx,
+		repo,
+		permittedHelmRepos,
+		helmOptions,
+		app,
+		repoClient,
+		kustomizeOptions,
+		plugins,
+		cluster.ServerVersion,
+		APIResourcesToStrings(apiGroups, true),
+		permittedHelmCredentials,
+		enabledSourceTypes,
+		settingsMgr)...)
 
 	return conditions, nil
-}
-
-func enrichSpec(spec *argoappv1.ApplicationSpec, appDetails *apiclient.RepoAppDetailsResponse) {
-	if spec.Source.Ksonnet != nil && appDetails.Ksonnet != nil {
-		env, ok := appDetails.Ksonnet.Environments[spec.Source.Ksonnet.Environment]
-		if ok {
-			// If server and namespace are not supplied, pull it from the app.yaml
-			if spec.Destination.Server == "" {
-				spec.Destination.Server = env.Destination.Server
-			}
-			if spec.Destination.Namespace == "" {
-				spec.Destination.Namespace = env.Destination.Namespace
-			}
-		}
-	}
 }
 
 // ValidateDestination sets the 'Server' value of the ApplicationDestination, if it is not set.
@@ -466,19 +418,7 @@ func GetAppProject(spec *argoappv1.ApplicationSpec, projLister applicationsv1.Ap
 }
 
 // verifyGenerateManifests verifies a repo path can generate manifests
-func verifyGenerateManifests(
-	ctx context.Context,
-	repoRes *argoappv1.Repository,
-	helmRepos argoappv1.Repositories,
-	app *argoappv1.Application,
-	repoClient apiclient.RepoServerServiceClient,
-	kustomizeOptions *argoappv1.KustomizeOptions,
-	plugins []*argoappv1.ConfigManagementPlugin,
-	kubeVersion string,
-	apiVersions []string,
-	repositoryCredentials []*argoappv1.RepoCreds,
-	settingsMgr *settings.SettingsManager,
-) []argoappv1.ApplicationCondition {
+func verifyGenerateManifests(ctx context.Context, repoRes *argoappv1.Repository, helmRepos argoappv1.Repositories, helmOptions *argoappv1.HelmOptions, app *argoappv1.Application, repoClient apiclient.RepoServerServiceClient, kustomizeOptions *argoappv1.KustomizeOptions, plugins []*argoappv1.ConfigManagementPlugin, kubeVersion string, apiVersions []string, repositoryCredentials []*argoappv1.RepoCreds, enableGenerateManifests map[string]bool, settingsMgr *settings.SettingsManager) []argoappv1.ApplicationCondition {
 	spec := &app.Spec
 	var conditions []argoappv1.ApplicationCondition
 	if spec.Destination.Server == "" {
@@ -495,18 +435,20 @@ func verifyGenerateManifests(
 			Name:  repoRes.Name,
 			Proxy: repoRes.Proxy,
 		},
-		Repos:             helmRepos,
-		Revision:          spec.Source.TargetRevision,
-		AppName:           app.Name,
-		Namespace:         spec.Destination.Namespace,
-		ApplicationSource: &spec.Source,
-		Plugins:           plugins,
-		KustomizeOptions:  kustomizeOptions,
-		KubeVersion:       kubeVersion,
-		ApiVersions:       apiVersions,
-		HelmRepoCreds:     repositoryCredentials,
-		TrackingMethod:    string(GetTrackingMethod(settingsMgr)),
-		NoRevisionCache:   true,
+		Repos:              helmRepos,
+		Revision:           spec.Source.TargetRevision,
+		AppName:            app.Name,
+		Namespace:          spec.Destination.Namespace,
+		ApplicationSource:  &spec.Source,
+		Plugins:            plugins,
+		KustomizeOptions:   kustomizeOptions,
+		KubeVersion:        kubeVersion,
+		ApiVersions:        apiVersions,
+		HelmOptions:        helmOptions,
+		HelmRepoCreds:      repositoryCredentials,
+		TrackingMethod:     string(GetTrackingMethod(settingsMgr)),
+		EnabledSourceTypes: enableGenerateManifests,
+		NoRevisionCache:    true,
 	}
 	req.Repo.CopyCredentialsFromRepo(repoRes)
 	req.Repo.CopySettingsFrom(repoRes)
@@ -577,9 +519,6 @@ func NormalizeApplicationSpec(spec *argoappv1.ApplicationSpec) *argoappv1.Applic
 	}
 	if spec.Source.Helm != nil && spec.Source.Helm.IsZero() {
 		spec.Source.Helm = nil
-	}
-	if spec.Source.Ksonnet != nil && spec.Source.Ksonnet.IsZero() {
-		spec.Source.Ksonnet = nil
 	}
 	if spec.Source.Directory != nil && spec.Source.Directory.IsZero() {
 		if spec.Source.Directory.Exclude != "" && spec.Source.Directory.Include != "" {

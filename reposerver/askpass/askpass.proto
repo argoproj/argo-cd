@@ -1,0 +1,20 @@
+syntax = "proto3";
+option go_package = "github.com/argoproj/argo-cd/v2/reposerver/askpass";
+
+package askpass;
+
+message CredentialsRequest {
+  string nonce = 1;
+}
+
+message CredentialsResponse {
+  string username = 1;
+  string password = 2;
+}
+
+
+// AskPassService
+service AskPassService {
+  rpc GetCredentials(CredentialsRequest) returns (CredentialsResponse) {
+  }
+}

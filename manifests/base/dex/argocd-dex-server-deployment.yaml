@@ -26,15 +26,29 @@ spec:
           name: static-files
         - mountPath: /tmp
           name: dexconfig
+        securityContext:
+          capabilities:
+            drop:
+            - ALL
+          allowPrivilegeEscalation: false
+          readOnlyRootFilesystem: true
+          runAsNonRoot: true
+          seccompProfile:
+            type: RuntimeDefault
       containers:
       - name: dex
         image: ghcr.io/dexidp/dex:v2.30.2
         imagePullPolicy: Always
         command: [/shared/argocd-dex, rundex]
         securityContext:
+          capabilities:
+            drop:
+            - ALL
           allowPrivilegeEscalation: false
           readOnlyRootFilesystem: true
           runAsNonRoot: true
+          seccompProfile:
+            type: RuntimeDefault
         ports:
         - containerPort: 5556
         - containerPort: 5557

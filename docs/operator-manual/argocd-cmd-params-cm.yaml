@@ -17,6 +17,9 @@ data:
   # Redis database
   redis.db:
 
+  # Open-Telemetry collector address: (e.g. "otel-collector:4317")
+  otlp.address:
+
   ## Controller Properties
   # Repo server RPC call timeout seconds.
   controller.repo.server.timeout.seconds: "60"
@@ -103,4 +106,10 @@ data:
   reposerver.repo.cache.expiration: "24h0m0s"
   # Cache expiration default (default 24h0m0s)
   reposerver.default.cache.expiration: "24h0m0s"
-  
+  # Max combined manifest file size for a single directory-type Application. In-memory manifest representation may be as
+  # much as 300x the manifest file size. Limit this to stay within the memory limits of the repo-server while allowing
+  # for 300x memory expansion and N Applications running at the same time.
+  # (example 10M max * 300 expansion * 10 Apps = 30G max theoretical memory usage).
+  reposerver.max.combined.directory.manifests.size: '10M'
+  # Paths to be excluded from the tarball streamed to plugins. Separate with ;
+  reposerver.plugin.tar.exclusions: ""

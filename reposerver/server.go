@@ -3,9 +3,9 @@ package reposerver
 import (
 	"crypto/tls"
 	"fmt"
+	"go.opentelemetry.io/contrib/instrumentation/google.golang.org/grpc/otelgrpc"
 	"os"
-
-	"github.com/argoproj/argo-cd/v2/util/argo"
+	"path/filepath"
 
 	grpc_middleware "github.com/grpc-ecosystem/go-grpc-middleware"
 	grpc_logrus "github.com/grpc-ecosystem/go-grpc-middleware/logging/logrus"
@@ -24,7 +24,9 @@ import (
 	"github.com/argoproj/argo-cd/v2/reposerver/metrics"
 	"github.com/argoproj/argo-cd/v2/reposerver/repository"
 	"github.com/argoproj/argo-cd/v2/server/version"
+	"github.com/argoproj/argo-cd/v2/util/argo"
 	"github.com/argoproj/argo-cd/v2/util/env"
+	"github.com/argoproj/argo-cd/v2/util/git"
 	grpc_util "github.com/argoproj/argo-cd/v2/util/grpc"
 	tlsutil "github.com/argoproj/argo-cd/v2/util/tls"
 )
@@ -32,7 +34,9 @@ import (
 // ArgoCDRepoServer is the repo server implementation
 type ArgoCDRepoServer struct {
 	log           *log.Entry
+	repoService   *repository.Service
 	metricsServer *metrics.MetricsServer
+	gitCredsStore git.CredsStore
 	cache         *reposervercache.Cache
 	opts          []grpc.ServerOption
 	initConstants repository.RepoServerInitConstants
@@ -42,7 +46,7 @@ type ArgoCDRepoServer struct {
 var tlsHostList []string = []string{"localhost", "reposerver"}
 
 // NewServer returns a new instance of the Argo CD Repo server
-func NewServer(metricsServer *metrics.MetricsServer, cache *reposervercache.Cache, tlsConfCustomizer tlsutil.ConfigCustomizer, initConstants repository.RepoServerInitConstants) (*ArgoCDRepoServer, error) {
+func NewServer(metricsServer *metrics.MetricsServer, cache *reposervercache.Cache, tlsConfCustomizer tlsutil.ConfigCustomizer, initConstants repository.RepoServerInitConstants, gitCredsStore git.CredsStore) (*ArgoCDRepoServer, error) {
 	var tlsConfig *tls.Config
 
 	// Generate or load TLS server certificates to use with this instance of
@@ -63,8 +67,19 @@ func NewServer(metricsServer *metrics.MetricsServer, cache *reposervercache.Cach
 	}
 
 	serverLog := log.NewEntry(log.StandardLogger())
-	streamInterceptors := []grpc.StreamServerInterceptor{grpc_logrus.StreamServerInterceptor(serverLog), grpc_prometheus.StreamServerInterceptor, grpc_util.PanicLoggerStreamServerInterceptor(serverLog)}
-	unaryInterceptors := []grpc.UnaryServerInterceptor{grpc_logrus.UnaryServerInterceptor(serverLog), grpc_prometheus.UnaryServerInterceptor, grpc_util.PanicLoggerUnaryServerInterceptor(serverLog)}
+	streamInterceptors := []grpc.StreamServerInterceptor{
+		otelgrpc.StreamServerInterceptor(),
+		grpc_logrus.StreamServerInterceptor(serverLog),
+		grpc_prometheus.StreamServerInterceptor,
+		grpc_util.PanicLoggerStreamServerInterceptor(serverLog),
+	}
+	unaryInterceptors := []grpc.UnaryServerInterceptor{
+		otelgrpc.UnaryServerInterceptor(),
+		grpc_logrus.UnaryServerInterceptor(serverLog),
+		grpc_prometheus.UnaryServerInterceptor,
+		grpc_util.PanicLoggerUnaryServerInterceptor(serverLog),
+		grpc_util.ErrorSanitizerUnaryServerInterceptor(),
+	}
 
 	serverOpts := []grpc.ServerOption{
 		grpc.UnaryInterceptor(grpc_middleware.ChainUnaryServer(unaryInterceptors...)),
@@ -78,6 +93,10 @@ func NewServer(metricsServer *metrics.MetricsServer, cache *reposervercache.Cach
 	if tlsConfig != nil {
 		serverOpts = append(serverOpts, grpc.Creds(credentials.NewTLS(tlsConfig)))
 	}
+	repoService := repository.NewService(metricsServer, cache, initConstants, argo.NewResourceTracking(), gitCredsStore, filepath.Join(os.TempDir(), "_argocd-repo"))
+	if err := repoService.Init(); err != nil {
+		return nil, err
+	}
 
 	return &ArgoCDRepoServer{
 		log:           serverLog,
@@ -85,6 +104,8 @@ func NewServer(metricsServer *metrics.MetricsServer, cache *reposervercache.Cach
 		cache:         cache,
 		initConstants: initConstants,
 		opts:          serverOpts,
+		gitCredsStore: gitCredsStore,
+		repoService:   repoService,
 	}, nil
 }
 
@@ -94,8 +115,7 @@ func (a *ArgoCDRepoServer) CreateGRPC() *grpc.Server {
 	versionpkg.RegisterVersionServiceServer(server, version.NewServer(nil, func() (bool, error) {
 		return true, nil
 	}))
-	manifestService := repository.NewService(a.metricsServer, a.cache, a.initConstants, argo.NewResourceTracking())
-	apiclient.RegisterRepoServerServiceServer(server, manifestService)
+	apiclient.RegisterRepoServerServiceServer(server, a.repoService)
 
 	healthService := health.NewServer()
 	grpc_health_v1.RegisterHealthServer(server, healthService)

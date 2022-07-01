@@ -93,6 +93,12 @@ type ArgoCDSettings struct {
 	PasswordPattern string `json:"passwordPattern,omitempty"`
 	// BinaryUrls contains the URLs for downloading argocd binaries
 	BinaryUrls map[string]string `json:"binaryUrls,omitempty"`
+	// InClusterEnabled indicates whether to allow in-cluster server address
+	InClusterEnabled bool `json:"inClusterEnabled"`
+	// ServerRBACLogEnforceEnable temporary var indicates whether rbac will be enforced on logs
+	ServerRBACLogEnforceEnable bool `json:"serverRBACLogEnforceEnable"`
+	// ExecEnabled indicates whether the UI exec feature is enabled
+	ExecEnabled bool `json:"execEnabled"`
 }
 
 type GoogleAnalytics struct {
@@ -362,7 +368,7 @@ const (
 	kustomizePathPrefixKey = "kustomize.path"
 	// anonymousUserEnabledKey is the key which enables or disables anonymous user
 	anonymousUserEnabledKey = "users.anonymous.enabled"
-	// anonymousUserEnabledKey is the key which specifies token expiration duration
+	// userSessionDurationKey is the key which specifies token expiration duration
 	userSessionDurationKey = "users.session.duration"
 	// diffOptions is the key where diff options are configured
 	resourceCompareOptionsKey = "resource.compareoptions"
@@ -392,6 +398,22 @@ const (
 	partOfArgoCDSelector = "app.kubernetes.io/part-of=argocd"
 	// settingsPasswordPatternKey is the key to configure user password regular expression
 	settingsPasswordPatternKey = "passwordPattern"
+	// inClusterEnabledKey is the key to configure whether to allow in-cluster server address
+	inClusterEnabledKey = "cluster.inClusterEnabled"
+	// settingsServerRBACLogEnforceEnable is a temp param, it exists in order to mitigate the breaking change introduced by RBAC enforcing on app pod logs
+	settingsServerRBACLogEnforceEnableKey = "server.rbac.log.enforce.enable"
+	// helmValuesFileSchemesKey is the key to configure the list of supported helm values file schemas
+	helmValuesFileSchemesKey = "helm.valuesFileSchemes"
+	// execEnabledKey is the key to configure whether the UI exec feature is enabled
+	execEnabledKey = "exec.enabled"
+)
+
+var (
+	sourceTypeToEnableGenerationKey = map[v1alpha1.ApplicationSourceType]string{
+		v1alpha1.ApplicationSourceTypeKustomize: "kustomize.enable",
+		v1alpha1.ApplicationSourceTypeHelm:      "helm.enable",
+		v1alpha1.ApplicationSourceTypeDirectory: "jsonnet.enable",
+	}
 )
 
 // SettingsManager holds config info for a new manager with which to access Kubernetes ConfigMaps.
@@ -634,6 +656,19 @@ func (mgr *SettingsManager) GetPasswordPattern() (string, error) {
 	return label, nil
 }
 
+func (mgr *SettingsManager) GetServerRBACLogEnforceEnable() (bool, error) {
+	argoCDCM, err := mgr.getConfigMap()
+	if err != nil {
+		return false, err
+	}
+
+	if argoCDCM.Data[settingsServerRBACLogEnforceEnableKey] == "" {
+		return false, nil
+	}
+
+	return strconv.ParseBool(argoCDCM.Data[settingsServerRBACLogEnforceEnableKey])
+}
+
 func (mgr *SettingsManager) GetConfigManagementPlugins() ([]v1alpha1.ConfigManagementPlugin, error) {
 	argoCDCM, err := mgr.getConfigMap()
 	if err != nil {
@@ -647,6 +682,25 @@ func (mgr *SettingsManager) GetConfigManagementPlugins() ([]v1alpha1.ConfigManag
 		}
 	}
 	return plugins, nil
+}
+
+func (mgr *SettingsManager) GetEnabledSourceTypes() (map[string]bool, error) {
+	argoCDCM, err := mgr.getConfigMap()
+	if err != nil {
+		return nil, err
+	}
+	res := map[string]bool{}
+	for sourceType := range sourceTypeToEnableGenerationKey {
+		res[string(sourceType)] = true
+	}
+	for sourceType, key := range sourceTypeToEnableGenerationKey {
+		if val, ok := argoCDCM.Data[key]; ok && val != "" {
+			res[string(sourceType)] = val == "true"
+		}
+	}
+	// plugin based manifest generation cannot be disabled
+	res[string(v1alpha1.ApplicationSourceTypePlugin)] = true
+	return res, nil
 }
 
 // GetResourceOverrides loads Resource Overrides from argocd-cm ConfigMap
@@ -817,6 +871,25 @@ func (mgr *SettingsManager) GetResourceCompareOptions() (ArgoCDDiffOptions, erro
 	}
 
 	return diffOptions, nil
+}
+
+// GetHelmSettings returns helm settings
+func (mgr *SettingsManager) GetHelmSettings() (*v1alpha1.HelmOptions, error) {
+	argoCDCM, err := mgr.getConfigMap()
+	if err != nil {
+		return nil, err
+	}
+	helmOptions := &v1alpha1.HelmOptions{}
+	if value, ok := argoCDCM.Data[helmValuesFileSchemesKey]; ok {
+		for _, item := range strings.Split(value, ",") {
+			if item := strings.TrimSpace(item); item != "" {
+				helmOptions.ValuesFileSchemes = append(helmOptions.ValuesFileSchemes, item)
+			}
+		}
+	} else {
+		helmOptions.ValuesFileSchemes = []string{"https", "http"}
+	}
+	return helmOptions, nil
 }
 
 // GetKustomizeSettings loads the kustomize settings from argocd-cm ConfigMap
@@ -1173,6 +1246,7 @@ func updateSettingsFromConfigMap(settings *ArgoCDSettings, argoCDCM *apiv1.Confi
 	settings.UiBannerContent = argoCDCM.Data[settingUiBannerContentKey]
 	settings.UiBannerPermanent = argoCDCM.Data[settingUiBannerPermanentKey] == "true"
 	settings.UiBannerPosition = argoCDCM.Data[settingUiBannerPositionKey]
+	settings.ServerRBACLogEnforceEnable = argoCDCM.Data[settingsServerRBACLogEnforceEnableKey] == "true"
 	settings.BinaryUrls = getDownloadBinaryUrlsFromConfigMap(argoCDCM)
 	if err := validateExternalURL(argoCDCM.Data[settingURLKey]); err != nil {
 		log.Warnf("Failed to validate URL in configmap: %v", err)
@@ -1195,6 +1269,8 @@ func updateSettingsFromConfigMap(settings *ArgoCDSettings, argoCDCM *apiv1.Confi
 	if settings.PasswordPattern == "" {
 		settings.PasswordPattern = common.PasswordPatten
 	}
+	settings.InClusterEnabled = argoCDCM.Data[inClusterEnabledKey] != "false"
+	settings.ExecEnabled = argoCDCM.Data[execEnabledKey] == "true"
 }
 
 // validateExternalURL ensures the external URL that is set on the configmap is valid
