@@ -23,7 +23,7 @@ func logRequest(entry *logrus.Entry, info string, pbMsg interface{}, ctx context
 	if p, ok := pbMsg.(proto.Message); ok {
 		entry = entry.WithField("grpc.request.content", &jsonpbMarshalleble{p})
 	}
-	entry.Info(info)
+	entry.Debug(info)
 }
 
 type jsonpbMarshalleble struct {
