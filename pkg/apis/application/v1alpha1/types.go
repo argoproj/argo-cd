@@ -1836,7 +1836,7 @@ func (w *SyncWindows) Matches(app *Application) *SyncWindows {
 		for _, w := range *w {
 			if len(w.Applications) > 0 {
 				for _, a := range w.Applications {
-					if globMatch(a, app.Name) {
+					if globMatch(a, app.Name, false) {
 						matchingWindows = append(matchingWindows, w)
 						break
 					}
@@ -1845,8 +1845,8 @@ func (w *SyncWindows) Matches(app *Application) *SyncWindows {
 			if len(w.Clusters) > 0 {
 				for _, c := range w.Clusters {
 					dst := app.Spec.Destination
-					dstNameMatched := dst.Name != "" && globMatch(c, dst.Name)
-					dstServerMatched := dst.Server != "" && globMatch(c, dst.Server)
+					dstNameMatched := dst.Name != "" && globMatch(c, dst.Name, false)
+					dstServerMatched := dst.Server != "" && globMatch(c, dst.Server, false)
 					if dstNameMatched || dstServerMatched {
 						matchingWindows = append(matchingWindows, w)
 						break
@@ -1855,7 +1855,7 @@ func (w *SyncWindows) Matches(app *Application) *SyncWindows {
 			}
 			if len(w.Namespaces) > 0 {
 				for _, n := range w.Namespaces {
-					if globMatch(n, app.Spec.Destination.Namespace) {
+					if globMatch(n, app.Spec.Destination.Namespace, false) {
 						matchingWindows = append(matchingWindows, w)
 						break
 					}
