@@ -4,8 +4,8 @@ import (
 	"fmt"
 	"hash/fnv"
 
+	"context"
 	log "github.com/sirupsen/logrus"
-	"golang.org/x/net/context"
 	"google.golang.org/grpc/codes"
 	"google.golang.org/grpc/status"
 	apiv1 "k8s.io/api/core/v1"

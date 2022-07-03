@@ -1,37 +1,30 @@
 package rand
 
 import (
-	"math/rand"
-	"time"
+	"crypto/rand"
+	"fmt"
+	"math/big"
 )
 
 const letterBytes = "abcdefghijklmnopqrstuvwxyzABCDEFGHIJKLMNOPQRSTUVWXYZ"
-const (
-	letterIdxBits = 6                    // 6 bits to represent a letter index
-	letterIdxMask = 1<<letterIdxBits - 1 // All 1-bits, as many as letterIdxBits
-	letterIdxMax  = 63 / letterIdxBits   // # of letter indices fitting in 63 bits
-)
 
-var src = rand.NewSource(time.Now().UnixNano())
-
-// RandString generates, from a given charset, a cryptographically-secure pseudo-random string of a given length.
-func RandString(n int) string {
-	return RandStringCharset(n, letterBytes)
+// String generates, from the set of capital and lowercase letters, a cryptographically-secure pseudo-random string of a given length.
+func String(n int) (string, error) {
+	return StringFromCharset(n, letterBytes)
 }
 
-func RandStringCharset(n int, charset string) string {
+// StringFromCharset generates, from a given charset, a cryptographically-secure pseudo-random string of a given length.
+func StringFromCharset(n int, charset string) (string, error) {
 	b := make([]byte, n)
-	// A src.Int63() generates 63 random bits, enough for letterIdxMax characters!
-	for i, cache, remain := n-1, src.Int63(), letterIdxMax; i >= 0; {
-		if remain == 0 {
-			cache, remain = src.Int63(), letterIdxMax
+	maxIdx := big.NewInt(int64(len(charset)))
+	for i := 0; i < n; i++ {
+		randIdx, err := rand.Int(rand.Reader, maxIdx)
+		if err != nil {
+			return "", fmt.Errorf("failed to generate random string: %w", err)
 		}
-		if idx := int(cache & letterIdxMask); idx < len(charset) {
-			b[i] = charset[idx]
-			i--
-		}
-		cache >>= letterIdxBits
-		remain--
+		// randIdx is necessarily safe to convert to int, because the max came from an int.
+		randIdxInt := int(randIdx.Int64())
+		b[i] = charset[randIdxInt]
 	}
-	return string(b)
+	return string(b), nil
 }

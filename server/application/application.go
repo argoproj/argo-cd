@@ -11,6 +11,7 @@ import (
 	"strings"
 	"time"
 
+	"context"
 	kubecache "github.com/argoproj/gitops-engine/pkg/cache"
 	"github.com/argoproj/gitops-engine/pkg/diff"
 	"github.com/argoproj/gitops-engine/pkg/sync/common"
@@ -19,7 +20,6 @@ import (
 	"github.com/argoproj/pkg/sync"
 	jsonpatch "github.com/evanphx/json-patch"
 	log "github.com/sirupsen/logrus"
-	"golang.org/x/net/context"
 	"google.golang.org/grpc/codes"
 	"google.golang.org/grpc/status"
 	v1 "k8s.io/api/core/v1"
@@ -1584,6 +1584,7 @@ func (s *Server) Rollback(ctx context.Context, rollbackReq *application.Applicat
 			SyncStrategy: &appv1.SyncStrategy{Apply: &appv1.SyncStrategyApply{}},
 			Source:       &deploymentInfo.Source,
 		},
+		InitiatedBy: appv1.OperationInitiator{Username: session.Username(ctx)},
 	}
 	a, err = argo.SetAppOperation(appIf, *rollbackReq.Name, &op)
 	if err != nil {

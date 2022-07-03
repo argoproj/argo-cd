@@ -159,3 +159,49 @@ In this example the `revision` value from the `generators.clusters` fields is pa
 
 !!! note
     The `values.` prefix is always prepended to values provided via `generators.clusters.values` field. Ensure you include this prefix in the parameter name within the `template` when using it.
+
+In `values` we can also interpolate the following parameter values (i.e. the same values as presented in the beginning of this page)
+
+- `name`
+- `nameNormalized` *('name' but normalized to contain only lowercase alphanumeric characters, '-' or '.')*
+- `server`
+- `metadata.labels.<key>` *(for each label in the Secret)*
+- `metadata.annotations.<key>` *(for each annotation in the Secret)*
+
+Extending the example above, we could do something like this:
+
+```yaml
+spec:
+  generators:
+  - clusters:
+      selector:
+        matchLabels:
+          type: 'staging'
+      # A key-value map for arbitrary parameters
+      values:
+        # If `my-custom-annotation` is in your cluster secret, `revision` will be substituted with it.
+        revision: '{{metadata.annotations.my-custom-annotation}}' 
+        clusterName: '{{name}}'
+  - clusters:
+      selector:
+        matchLabels:
+          type: 'production'
+      values:
+        # production uses a different revision value, for 'stable' branch
+        revision: stable
+        clusterName: '{{name}}'
+  template:
+    metadata:
+      name: '{{name}}-guestbook'
+    spec:
+      project: "my-project"
+      source:
+        repoURL: https://github.com/argoproj/argocd-example-apps/
+        # The cluster values field for each generator will be substituted here:
+        targetRevision: '{{values.revision}}'
+        path: guestbook
+      destination:
+        # In this case this is equivalent to just using {{name}}
+        server: '{{values.clusterName}}'
+        namespace: guestbook
+```

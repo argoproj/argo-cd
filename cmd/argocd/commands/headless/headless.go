@@ -215,8 +215,13 @@ func StartLocalServer(clientOpts *apiclient.ClientOptions, ctxStr string, port *
 		ListenHost:    *address,
 		RepoClientset: &forwardRepoClientset{namespace: namespace, context: ctxStr},
 	})
+	srv.Init(ctx)
 
-	go srv.Run(ctx, *port, 0)
+	lns, err := srv.Listen()
+	if err != nil {
+		return err
+	}
+	go srv.Run(ctx, lns)
 	clientOpts.ServerAddr = fmt.Sprintf("%s:%d", *address, *port)
 	clientOpts.PlainText = true
 	if !cache2.WaitForCacheSync(ctx.Done(), srv.Initialized) {

@@ -64,7 +64,7 @@ func (r *Render) RenderTemplateParams(tmpl *argoappsv1.Application, syncPolicy *
 }
 
 // Replace executes basic string substitution of a template with replacement values.
-// 'allowUnresolved' indicates whether or not it is acceptable to have unresolved variables
+// 'allowUnresolved' indicates whether it is acceptable to have unresolved variables
 // remaining in the substituted template.
 func (r *Render) Replace(fstTmpl *fasttemplate.Template, replaceMap map[string]string, allowUnresolved bool) (string, error) {
 	var unresolvedErr error

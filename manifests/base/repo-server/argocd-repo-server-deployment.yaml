@@ -101,6 +101,18 @@ spec:
                   name: argocd-cmd-params-cm
                   key: otlp.address
                   optional: true
+          - name: ARGOCD_REPO_SERVER_MAX_COMBINED_DIRECTORY_MANIFESTS_SIZE
+            valueFrom:
+              configMapKeyRef:
+                name: argocd-cmd-params-cm
+                key: reposerver.max.combined.directory.manifests.size
+                optional: true
+          - name: ARGOCD_REPO_SERVER_PLUGIN_TAR_EXCLUSIONS
+            valueFrom:
+              configMapKeyRef:
+                name: argocd-cmd-params-cm
+                key: reposerver.plugin.tar.exclusions
+                optional: true
           - name: HELM_CACHE_HOME
             value: /helm-working-dir
           - name: HELM_CONFIG_HOME
@@ -129,7 +141,9 @@ spec:
           allowPrivilegeEscalation: false
           capabilities:
             drop:
-              - all
+            - ALL
+          seccompProfile:
+            type: RuntimeDefault
         volumeMounts:
         - name: ssh-known-hosts
           mountPath: /app/config/ssh
@@ -161,7 +175,9 @@ spec:
           allowPrivilegeEscalation: false
           capabilities:
             drop:
-            - all
+            - ALL
+          seccompProfile:
+            type: RuntimeDefault
         volumeMounts:
         - mountPath: /var/run/argocd
           name: var-files

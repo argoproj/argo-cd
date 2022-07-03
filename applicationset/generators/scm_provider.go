@@ -120,13 +120,20 @@ func (g *SCMProviderGenerator) GenerateParams(appSetGenerator *argoprojiov1alpha
 		return nil, fmt.Errorf("error listing repos: %v", err)
 	}
 	params := make([]map[string]string, 0, len(repos))
+	var shortSHALength int
 	for _, repo := range repos {
+		shortSHALength = 8
+		if len(repo.SHA) < 8 {
+			shortSHALength = len(repo.SHA)
+		}
+
 		params = append(params, map[string]string{
 			"organization":     repo.Organization,
 			"repository":       repo.Repository,
 			"url":              repo.URL,
 			"branch":           repo.Branch,
 			"sha":              repo.SHA,
+			"short_sha":        repo.SHA[:shortSHALength],
 			"labels":           strings.Join(repo.Labels, ","),
 			"branchNormalized": sanitizeName(repo.Branch),
 		})

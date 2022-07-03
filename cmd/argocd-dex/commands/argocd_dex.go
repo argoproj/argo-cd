@@ -51,16 +51,23 @@ func NewRunDexCommand() *cobra.Command {
 		Use:   "rundex",
 		Short: "Runs dex generating a config using settings from the Argo CD configmap and secret",
 		RunE: func(c *cobra.Command, args []string) error {
+			vers := common.GetVersion()
+			namespace, _, err := clientConfig.Namespace()
+			errors.CheckError(err)
+			vers.LogStartupInfo(
+				"ArgoCD Dex Server",
+				map[string]any{
+					"namespace": namespace,
+				},
+			)
+
 			cli.SetLogFormat(cmdutil.LogFormat)
 			cli.SetLogLevel(cmdutil.LogLevel)
-			_, err := exec.LookPath("dex")
+			_, err = exec.LookPath("dex")
 			errors.CheckError(err)
 			config, err := clientConfig.ClientConfig()
 			errors.CheckError(err)
-			vers := common.GetVersion()
 			config.UserAgent = fmt.Sprintf("argocd-dex/%s (%s)", vers.Version, vers.Platform)
-			namespace, _, err := clientConfig.Namespace()
-			errors.CheckError(err)
 			kubeClientset := kubernetes.NewForConfigOrDie(config)
 
 			settingsMgr := settings.NewSettingsManager(context.Background(), kubeClientset, namespace)
