@@ -3,6 +3,17 @@ package application
 import (
 	"encoding/json"
 	"testing"
+	"time"
+
+	"k8s.io/client-go/kubernetes/fake"
+	"k8s.io/client-go/tools/cache"
+
+	apps "github.com/argoproj/argo-cd/v2/pkg/client/clientset/versioned/fake"
+	appinformers "github.com/argoproj/argo-cd/v2/pkg/client/informers/externalversions/application/v1alpha1"
+	servercache "github.com/argoproj/argo-cd/v2/server/cache"
+	"github.com/argoproj/argo-cd/v2/test"
+	cacheutil "github.com/argoproj/argo-cd/v2/util/cache"
+	appstatecache "github.com/argoproj/argo-cd/v2/util/cache/appstate"
 
 	"github.com/stretchr/testify/assert"
 	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
@@ -170,4 +181,73 @@ func TestGetLatestAppHistoryId(t *testing.T) {
 		revisionResult := getLatestAppHistoryId(&appMock)
 		assert.Equal(t, revisionResult, history2Id)
 	})
+}
+
+func fakeServer() *Server {
+	cm := test.NewFakeConfigMap()
+	secret := test.NewFakeSecret()
+	kubeclientset := fake.NewSimpleClientset(cm, secret)
+	appClientSet := apps.NewSimpleClientset()
+
+	appInformer := appinformers.NewApplicationInformer(appClientSet, "", time.Minute, cache.Indexers{})
+
+	// _, _ := test.NewInMemoryRedis()
+
+	cache := servercache.NewCache(
+		appstatecache.NewCache(
+			cacheutil.NewCache(cacheutil.NewInMemoryCache(1*time.Hour)),
+			1*time.Minute,
+		),
+		1*time.Minute,
+		1*time.Minute,
+		1*time.Minute,
+	)
+
+	return NewServer(test.FakeArgoCDNamespace, kubeclientset, appClientSet, nil, appInformer, nil, cache, nil, nil, nil, nil, nil, nil)
+}
+
+func TestShouldSendEvent(t *testing.T) {
+	serverInstance := fakeServer()
+	t.Run("should send because cache is missing", func(t *testing.T) {
+		eventReporter := applicationEventReporter{
+			server: serverInstance,
+		}
+
+		app := &v1alpha1.Application{}
+		rs := v1alpha1.ResourceStatus{}
+
+		res := eventReporter.shouldSendResourceEvent(app, rs)
+		assert.True(t, res)
+	})
+
+	t.Run("should not send - same entities", func(t *testing.T) {
+		eventReporter := applicationEventReporter{
+			server: serverInstance,
+		}
+
+		app := &v1alpha1.Application{}
+		rs := v1alpha1.ResourceStatus{}
+
+		_ = eventReporter.server.cache.SetLastResourceEvent(app, rs, time.Minute, "")
+
+		res := eventReporter.shouldSendResourceEvent(app, rs)
+		assert.False(t, res)
+	})
+
+	t.Run("should send - different entities", func(t *testing.T) {
+		eventReporter := applicationEventReporter{
+			server: serverInstance,
+		}
+
+		app := &v1alpha1.Application{}
+		rs := v1alpha1.ResourceStatus{}
+
+		_ = eventReporter.server.cache.SetLastResourceEvent(app, rs, time.Minute, "")
+
+		rs.Status = v1alpha1.SyncStatusCodeOutOfSync
+
+		res := eventReporter.shouldSendResourceEvent(app, rs)
+		assert.True(t, res)
+	})
+
 }
