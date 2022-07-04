@@ -221,9 +221,15 @@ export class ReposList extends React.Component<
                                                         <i className={'icon argo-icon-' + (repo.type || 'git')} />
                                                     </div>
                                                     <div className='columns small-1'>{repo.type || 'git'}</div>
-                                                    <div className='columns small-2'>{repo.name}</div>
+                                                    <div className='columns small-2'>
+                                                        <Tooltip content={repo.name}>
+                                                            <span>{repo.name}</span>
+                                                        </Tooltip>
+                                                    </div>
                                                     <div className='columns small-5'>
-                                                        <Repo url={repo.repo} />
+                                                        <Tooltip content={repo.repo}>
+                                                            <span>{repo.repo}</span>
+                                                        </Tooltip>
                                                     </div>
                                                     <div className='columns small-3'>
                                                         <ConnectionStateIcon state={repo.connectionState} /> {repo.connectionState.status}
