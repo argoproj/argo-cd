@@ -56,7 +56,7 @@ func TestListMergeGenerator(t *testing.T) {
 			Name: "merge-generator",
 		},
 			Spec: v1alpha1.ApplicationSetSpec{
-				Template: v1alpha1.ApplicationSetTemplate{
+				Template: &v1alpha1.ApplicationSetTemplate{
 					ApplicationSetTemplateMeta: v1alpha1.ApplicationSetTemplateMeta{Name: "{{path.basename}}-{{name-suffix}}"},
 					Spec: argov1alpha1.ApplicationSpec{
 						Project: "default",
@@ -183,7 +183,7 @@ func TestClusterMergeGenerator(t *testing.T) {
 			Name: "merge-generator",
 		},
 			Spec: v1alpha1.ApplicationSetSpec{
-				Template: v1alpha1.ApplicationSetTemplate{
+				Template: &v1alpha1.ApplicationSetTemplate{
 					ApplicationSetTemplateMeta: v1alpha1.ApplicationSetTemplateMeta{Name: "{{name}}-{{path.basename}}-{{values.name-suffix}}"},
 					Spec: argov1alpha1.ApplicationSpec{
 						Project: "default",

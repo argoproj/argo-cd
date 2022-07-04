@@ -2,9 +2,10 @@ package generators
 
 import (
 	"encoding/json"
+	"reflect"
+
 	"github.com/argoproj/argo-cd/v2/applicationset/utils"
 	"github.com/valyala/fasttemplate"
-	"reflect"
 
 	argoprojiov1alpha1 "github.com/argoproj/argo-cd/v2/pkg/apis/applicationset/v1alpha1"
 	"github.com/imdario/mergo"
@@ -90,8 +91,13 @@ func mergeGeneratorTemplate(g Generator, requestedGenerator *argoprojiov1alpha1.
 	// the provided parameter (which will touch the original resource object returned by client-go)
 	dest := g.GetTemplate(requestedGenerator).DeepCopy()
 
-	err := mergo.Merge(dest, applicationSetTemplate)
+	var err error
 
+	if &applicationSetTemplate != nil {
+		err = mergo.Merge(dest, &applicationSetTemplate)
+	} else {
+		log.Warn("generator template won't be applied when standard application template is not used")
+	}
 	return *dest, err
 }
 

@@ -6638,6 +6638,8 @@ spec:
                 - metadata
                 - spec
                 type: object
+              untypedTemplate:
+                type: string
             required:
             - generators
             - template

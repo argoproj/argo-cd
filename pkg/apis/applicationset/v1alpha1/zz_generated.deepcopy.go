@@ -243,10 +243,19 @@ func (in *ApplicationSetSpec) DeepCopyInto(out *ApplicationSetSpec) {
 			(*in)[i].DeepCopyInto(&(*out)[i])
 		}
 	}
-	in.Template.DeepCopyInto(&out.Template)
+	if in.Template != nil {
+		in, out := &in.Template, &out.Template
+		*out = new(ApplicationSetTemplate)
+		(*in).DeepCopyInto(*out)
+	}
 	if in.SyncPolicy != nil {
 		in, out := &in.SyncPolicy, &out.SyncPolicy
 		*out = new(ApplicationSetSyncPolicy)
+		**out = **in
+	}
+	if in.UntypedTemplate != nil {
+		in, out := &in.UntypedTemplate, &out.UntypedTemplate
+		*out = new(ApplicationSetUntypedTemplate)
 		**out = **in
 	}
 }

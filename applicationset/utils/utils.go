@@ -12,56 +12,8 @@ import (
 	log "github.com/sirupsen/logrus"
 	"github.com/valyala/fasttemplate"
 
-	argoappsv1 "github.com/argoproj/argo-cd/v2/pkg/apis/application/v1alpha1"
 	argoappsetv1 "github.com/argoproj/argo-cd/v2/pkg/apis/applicationset/v1alpha1"
 )
-
-type Renderer interface {
-	RenderTemplateParams(tmpl *argoappsv1.Application, syncPolicy *argoappsetv1.ApplicationSetSyncPolicy, params map[string]string) (*argoappsv1.Application, error)
-}
-
-type Render struct {
-}
-
-func (r *Render) RenderTemplateParams(tmpl *argoappsv1.Application, syncPolicy *argoappsetv1.ApplicationSetSyncPolicy, params map[string]string) (*argoappsv1.Application, error) {
-	if tmpl == nil {
-		return nil, fmt.Errorf("application template is empty ")
-	}
-
-	if len(params) == 0 {
-		return tmpl, nil
-	}
-
-	tmplBytes, err := json.Marshal(tmpl)
-	if err != nil {
-		return nil, err
-	}
-
-	fstTmpl := fasttemplate.New(string(tmplBytes), "{{", "}}")
-	replacedTmplStr, err := r.Replace(fstTmpl, params, true)
-	if err != nil {
-		return nil, err
-	}
-
-	var replacedTmpl argoappsv1.Application
-	err = json.Unmarshal([]byte(replacedTmplStr), &replacedTmpl)
-	if err != nil {
-		return nil, err
-	}
-
-	// Add the 'resources-finalizer' finalizer if:
-	// The template application doesn't have any finalizers, and:
-	// a) there is no syncPolicy, or
-	// b) there IS a syncPolicy, but preserveResourcesOnDeletion is set to false
-	// See TestRenderTemplateParamsFinalizers in util_test.go for test-based definition of behaviour
-	if (syncPolicy == nil || !syncPolicy.PreserveResourcesOnDeletion) &&
-		(replacedTmpl.ObjectMeta.Finalizers == nil || len(replacedTmpl.ObjectMeta.Finalizers) == 0) {
-
-		replacedTmpl.ObjectMeta.Finalizers = []string{"resources-finalizer.argocd.argoproj.io"}
-	}
-
-	return &replacedTmpl, nil
-}
 
 // Replace executes basic string substitution of a template with replacement values.
 // 'allowUnresolved' indicates whether it is acceptable to have unresolved variables
