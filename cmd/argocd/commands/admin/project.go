@@ -100,7 +100,7 @@ func getModification(modification string, resource string, scope string, permiss
 	return nil, fmt.Errorf("modification %s is not supported", modification)
 }
 
-func saveProject(updated v1alpha1.AppProject, orig v1alpha1.AppProject, projectsIf appclient.AppProjectInterface, dryRun bool) error {
+func saveProject(ctx context.Context, updated v1alpha1.AppProject, orig v1alpha1.AppProject, projectsIf appclient.AppProjectInterface, dryRun bool) error {
 	fmt.Printf("===== %s ======\n", updated.Name)
 	target, err := kube.ToUnstructured(&updated)
 	errors.CheckError(err)
@@ -110,7 +110,7 @@ func saveProject(updated v1alpha1.AppProject, orig v1alpha1.AppProject, projects
 	}
 	_ = cli.PrintDiff(updated.Name, target, live)
 	if !dryRun {
-		_, err = projectsIf.Update(context.Background(), &updated, v1.UpdateOptions{})
+		_, err = projectsIf.Update(ctx, &updated, v1.UpdateOptions{})
 		if err != nil {
 			return err
 		}
@@ -149,6 +149,8 @@ func NewUpdatePolicyRuleCommand() *cobra.Command {
   argocd admin projects update-role-policy '*' remove override --role '*deployer*'
 `,
 		Run: func(c *cobra.Command, args []string) {
+			ctx := c.Context()
+
 			if len(args) != 3 {
 				c.HelpFunc()(c, args)
 				os.Exit(1)
@@ -170,7 +172,7 @@ func NewUpdatePolicyRuleCommand() *cobra.Command {
 			errors.CheckError(err)
 			projIf := appclients.ArgoprojV1alpha1().AppProjects(namespace)
 
-			err = updateProjects(projIf, projectGlob, rolePattern, action, modification, dryRun)
+			err = updateProjects(ctx, projIf, projectGlob, rolePattern, action, modification, dryRun)
 			errors.CheckError(err)
 		},
 	}
@@ -183,8 +185,8 @@ func NewUpdatePolicyRuleCommand() *cobra.Command {
 	return command
 }
 
-func updateProjects(projIf appclient.AppProjectInterface, projectGlob string, rolePattern string, action string, modification func(string, string) string, dryRun bool) error {
-	projects, err := projIf.List(context.Background(), v1.ListOptions{})
+func updateProjects(ctx context.Context, projIf appclient.AppProjectInterface, projectGlob string, rolePattern string, action string, modification func(string, string) string, dryRun bool) error {
+	projects, err := projIf.List(ctx, v1.ListOptions{})
 	if err != nil {
 		return err
 	}
@@ -221,7 +223,7 @@ func updateProjects(projIf appclient.AppProjectInterface, projectGlob string, ro
 			proj.Spec.Roles[i] = role
 		}
 		if updated {
-			err = saveProject(proj, *origProj, projIf, dryRun)
+			err = saveProject(ctx, proj, *origProj, projIf, dryRun)
 			if err != nil {
 				return err
 			}
