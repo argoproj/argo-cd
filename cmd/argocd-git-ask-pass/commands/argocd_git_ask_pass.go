@@ -1,7 +1,6 @@
 package commands
 
 import (
-	"context"
 	"fmt"
 	"os"
 	"strings"
@@ -29,6 +28,8 @@ func NewCommand() *cobra.Command {
 		Short:             "Argo CD git credential helper",
 		DisableAutoGenTag: true,
 		Run: func(c *cobra.Command, args []string) {
+			ctx := c.Context()
+
 			if len(os.Args) != 2 {
 				errors.CheckError(fmt.Errorf("expected 1 argument, got %d", len(os.Args)-1))
 			}
@@ -36,12 +37,12 @@ func NewCommand() *cobra.Command {
 			if nonce == "" {
 				errors.CheckError(fmt.Errorf("%s is not set", git.ASKPASS_NONCE_ENV))
 			}
-			conn, err := grpc_util.BlockingDial(context.Background(), "unix", askpass.SocketPath, nil, grpc.WithTransportCredentials(insecure.NewCredentials()))
+			conn, err := grpc_util.BlockingDial(ctx, "unix", askpass.SocketPath, nil, grpc.WithTransportCredentials(insecure.NewCredentials()))
 			errors.CheckError(err)
 			defer io.Close(conn)
 			client := askpass.NewAskPassServiceClient(conn)
 
-			creds, err := client.GetCredentials(context.Background(), &askpass.CredentialsRequest{Nonce: nonce})
+			creds, err := client.GetCredentials(ctx, &askpass.CredentialsRequest{Nonce: nonce})
 			errors.CheckError(err)
 			switch {
 			case strings.HasPrefix(os.Args[1], "Username"):

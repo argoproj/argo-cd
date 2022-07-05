@@ -16,9 +16,9 @@ spec:
 ```
 
 !!! note
-    Know the security implications of PR generators in ApplicationSets. 
+    Know the security implications of PR generators in ApplicationSets.
     [Only admins may create ApplicationSets](./Security.md#only-admins-may-createupdatedelete-applicationsets) to avoid
-    leaking Secrets, and [only admins may create PRs](./Security.md#templated-project-field) if the `project` field of 
+    leaking Secrets, and [only admins may create PRs](./Security.md#templated-project-field) if the `project` field of
     an ApplicationSet with a PR generator is templated, to avoid granting management of out-of-bounds resources.
 
 ## GitHub
@@ -82,7 +82,7 @@ spec:
         # Labels is used to filter the MRs that you want to target. (optional)
         labels:
         - preview
-        # MR state is used to filter MRs only with a certain state. (optional) 
+        # MR state is used to filter MRs only with a certain state. (optional)
         pullRequestState: opened
   requeueAfterSeconds: 1800
   template:
@@ -263,8 +263,9 @@ spec:
 
 * `number`: The ID number of the pull request.
 * `branch`: The name of the branch of the pull request head.
-* `branch_slug`: The branch name will be cleaned to be conform to the DNS label standard as defined in [RFC 1123](https://kubernetes.io/docs/concepts/overview/working-with-objects/names/#dns-label-names), and truncated to 50 characters to give room to append/suffix-ing it with 13 more characters. 
+* `branch_slug`: The branch name will be cleaned to be conform to the DNS label standard as defined in [RFC 1123](https://kubernetes.io/docs/concepts/overview/working-with-objects/names/#dns-label-names), and truncated to 50 characters to give room to append/suffix-ing it with 13 more characters.
 * `head_sha`: This is the SHA of the head of the pull request.
+* `head_short_sha`: This is the short SHA of the head of the pull request (8 characters long or the length of the head SHA if it's shorter).
 
 ## Webhook Configuration
 

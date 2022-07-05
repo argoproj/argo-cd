@@ -1,7 +1,6 @@
 package command
 
 import (
-	"context"
 	"fmt"
 	"net/http"
 	"os"
@@ -60,24 +59,30 @@ func NewCommand() *cobra.Command {
 		Use:   "controller",
 		Short: "Starts Argo CD ApplicationSet controller",
 		RunE: func(c *cobra.Command, args []string) error {
+			ctx := c.Context()
+
+			vers := common.GetVersion()
+			namespace, _, err := clientConfig.Namespace()
+			errors.CheckError(err)
+			vers.LogStartupInfo(
+				"ArgoCD ApplicationSet Controller",
+				map[string]any{
+					"namespace": namespace,
+				},
+			)
+
 			restConfig, err := clientConfig.ClientConfig()
 			if err != nil {
 				return err
 			}
-			vers := common.GetVersion()
+
 			restConfig.UserAgent = fmt.Sprintf("argocd-applicationset-controller/%s (%s)", vers.Version, vers.Platform)
-			if namespace == "" {
-				namespace, _, err = clientConfig.Namespace()
-				if err != nil {
-					return err
-				}
-			}
+
 			level, err := log.ParseLevel(logLevel)
 			if err != nil {
 				return err
 			}
 			log.SetLevel(level)
-			log.Info(fmt.Sprintf("ApplicationSet controller %s using namespace '%s' ", vers.Version, namespace), "namespace", namespace, "COMMIT_ID", vers.GitCommit)
 			switch strings.ToLower(logFormat) {
 			case "json":
 				log.SetFormatter(&log.JSONFormatter{})
@@ -119,7 +124,7 @@ func NewCommand() *cobra.Command {
 			if err != nil {
 				return err
 			}
-			argoSettingsMgr := argosettings.NewSettingsManager(context.Background(), k8sClient, namespace)
+			argoSettingsMgr := argosettings.NewSettingsManager(ctx, k8sClient, namespace)
 			appSetConfig := appclientset.NewForConfigOrDie(mgr.GetConfig())
 			argoCDDB := db.NewDB(namespace, argoSettingsMgr, k8sClient)
 			// start a webhook server that listens to incoming webhook payloads
@@ -135,10 +140,10 @@ func NewCommand() *cobra.Command {
 			go func() { errors.CheckError(askPassServer.Run(askpass.SocketPath)) }()
 			terminalGenerators := map[string]generators.Generator{
 				"List":                    generators.NewListGenerator(),
-				"Clusters":                generators.NewClusterGenerator(mgr.GetClient(), context.Background(), k8sClient, namespace),
+				"Clusters":                generators.NewClusterGenerator(mgr.GetClient(), ctx, k8sClient, namespace),
 				"Git":                     generators.NewGitGenerator(services.NewArgoCDService(argoCDDB, askPassServer, argocdRepoServer)),
 				"SCMProvider":             generators.NewSCMProviderGenerator(mgr.GetClient()),
-				"ClusterDecisionResource": generators.NewDuckTypeGenerator(context.Background(), dynamicClient, k8sClient, namespace),
+				"ClusterDecisionResource": generators.NewDuckTypeGenerator(ctx, dynamicClient, k8sClient, namespace),
 				"PullRequest":             generators.NewPullRequestGenerator(mgr.GetClient()),
 			}
 

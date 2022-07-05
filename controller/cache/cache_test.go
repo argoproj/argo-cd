@@ -111,6 +111,7 @@ func TestIsRetryableError(t *testing.T) {
 		tlsHandshakeTimeoutErr net.Error = netError("net/http: TLS handshake timeout")
 		ioTimeoutErr           net.Error = netError("i/o timeout")
 		connectionTimedout     net.Error = netError("connection timed out")
+		connectionReset        net.Error = netError("connection reset by peer")
 	)
 	t.Run("Nil", func(t *testing.T) {
 		assert.False(t, isRetryableError(nil))
@@ -147,5 +148,8 @@ func TestIsRetryableError(t *testing.T) {
 	})
 	t.Run("ConnectionTimeout", func(t *testing.T) {
 		assert.True(t, isRetryableError(connectionTimedout))
+	})
+	t.Run("ConnectionReset", func(t *testing.T) {
+		assert.True(t, isRetryableError(connectionReset))
 	})
 }

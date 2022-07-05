@@ -1,7 +1,7 @@
 package certificate
 
 import (
-	"golang.org/x/net/context"
+	"context"
 
 	certificatepkg "github.com/argoproj/argo-cd/v2/pkg/apiclient/certificate"
 	appsv1 "github.com/argoproj/argo-cd/v2/pkg/apis/application/v1alpha1"

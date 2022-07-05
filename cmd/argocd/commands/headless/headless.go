@@ -123,7 +123,7 @@ func (c *forwardRepoClientset) NewRepoServerClient() (io.Closer, repoapiclient.R
 	return c.repoClientset.NewRepoServerClient()
 }
 
-func testAPI(clientOpts *apiclient.ClientOptions) error {
+func testAPI(ctx context.Context, clientOpts *apiclient.ClientOptions) error {
 	apiClient, err := apiclient.NewClient(clientOpts)
 	if err != nil {
 		return err
@@ -133,13 +133,13 @@ func testAPI(clientOpts *apiclient.ClientOptions) error {
 		return err
 	}
 	defer io.Close(closer)
-	_, err = versionClient.Version(context.Background(), &empty.Empty{})
+	_, err = versionClient.Version(ctx, &empty.Empty{})
 	return err
 }
 
 // StartLocalServer allows executing command in a headless mode: on the fly starts Argo CD API server and
 // changes provided client options to use started API server port
-func StartLocalServer(clientOpts *apiclient.ClientOptions, ctxStr string, port *int, address *string) error {
+func StartLocalServer(ctx context.Context, clientOpts *apiclient.ClientOptions, ctxStr string, port *int, address *string) error {
 	flags := pflag.NewFlagSet("tmp", pflag.ContinueOnError)
 	clientConfig := cli.AddKubectlFlagsToSet(flags)
 	startInProcessAPI := clientOpts.Core
@@ -200,7 +200,6 @@ func StartLocalServer(clientOpts *apiclient.ClientOptions, ctxStr string, port *
 	if err != nil {
 		return err
 	}
-	ctx := context.Background()
 	appstateCache := appstatecache.NewCache(cache.NewCache(&forwardCacheClient{namespace: namespace, context: ctxStr}), time.Hour)
 	srv := server.NewServer(ctx, server.ArgoCDServerOpts{
 		EnableGZip:    false,
@@ -215,6 +214,7 @@ func StartLocalServer(clientOpts *apiclient.ClientOptions, ctxStr string, port *
 		ListenHost:    *address,
 		RepoClientset: &forwardRepoClientset{namespace: namespace, context: ctxStr},
 	})
+	srv.Init(ctx)
 
 	lns, err := srv.Listen()
 	if err != nil {
@@ -228,7 +228,7 @@ func StartLocalServer(clientOpts *apiclient.ClientOptions, ctxStr string, port *
 	}
 	tries := 5
 	for i := 0; i < tries; i++ {
-		err = testAPI(clientOpts)
+		err = testAPI(ctx, clientOpts)
 		if err == nil {
 			break
 		}
@@ -239,8 +239,10 @@ func StartLocalServer(clientOpts *apiclient.ClientOptions, ctxStr string, port *
 
 // NewClientOrDie creates a new API client from a set of config options, or fails fatally if the new client creation fails.
 func NewClientOrDie(opts *apiclient.ClientOptions, c *cobra.Command) apiclient.Client {
+	ctx := c.Context()
+
 	ctxStr := initialize.RetrieveContextIfChanged(c.Flag("context"))
-	err := StartLocalServer(opts, ctxStr, nil, nil)
+	err := StartLocalServer(ctx, opts, ctxStr, nil, nil)
 	if err != nil {
 		log.Fatal(err)
 	}
