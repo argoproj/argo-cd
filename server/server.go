@@ -23,6 +23,7 @@ import (
 	golang_proto "github.com/golang/protobuf/proto"
 
 	netCtx "context"
+
 	"github.com/argoproj/pkg/sync"
 	"github.com/go-redis/redis/v8"
 	"github.com/golang-jwt/jwt/v4"
@@ -886,12 +887,16 @@ func (a *ArgoCDServer) registerDexHandlers(mux *http.ServeMux) {
 	}
 	// Run dex OpenID Connect Identity Provider behind a reverse proxy (served at /api/dex)
 	var err error
-	mux.HandleFunc(common.DexAPIEndpoint+"/", dexutil.NewDexHTTPReverseProxy(a.DexServerAddr, a.BaseHRef))
+	var fullAddr string
 	if a.useTLS() {
 		tlsConfig := a.settings.TLSConfig()
 		tlsConfig.InsecureSkipVerify = true
+		fullAddr = "https://" + a.DexServerAddr
+	} else {
+		fullAddr = "http://" + a.DexServerAddr
 	}
-	a.ssoClientApp, err = oidc.NewClientApp(a.settings, a.DexServerAddr, a.BaseHRef)
+	mux.HandleFunc(common.DexAPIEndpoint+"/", dexutil.NewDexHTTPReverseProxy(fullAddr, a.BaseHRef, !a.settings.CertificateIsExternal))
+	a.ssoClientApp, err = oidc.NewClientApp(a.settings, fullAddr, a.BaseHRef)
 	errors.CheckError(err)
 	mux.HandleFunc(common.LoginEndpoint, a.ssoClientApp.HandleLogin)
 	mux.HandleFunc(common.CallbackEndpoint, a.ssoClientApp.HandleCallback)

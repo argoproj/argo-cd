@@ -2,6 +2,7 @@ package dex
 
 import (
 	"bytes"
+	"crypto/tls"
 	"fmt"
 	"io/ioutil"
 	"net/http"
@@ -26,12 +27,16 @@ func decorateDirector(director func(req *http.Request), target *url.URL) func(re
 // with the external issuer URL muxed to the same path configured in server.go. In other words, if
 // Argo CD API server wants to proxy requests at /api/dex, then the dex config yaml issuer URL should
 // also be /api/dex (e.g. issuer: https://argocd.example.com/api/dex)
-func NewDexHTTPReverseProxy(serverAddr string, baseHRef string) func(writer http.ResponseWriter, request *http.Request) {
+func NewDexHTTPReverseProxy(serverAddr string, baseHRef string, skipVerify bool) func(writer http.ResponseWriter, request *http.Request) {
 	target, err := url.Parse(serverAddr)
 	errors.CheckError(err)
 	target.Path = baseHRef
 
 	proxy := httputil.NewSingleHostReverseProxy(target)
+	var insecureTransport http.RoundTripper = &http.Transport{
+		TLSClientConfig: &tls.Config{InsecureSkipVerify: skipVerify},
+	}
+	proxy.Transport = insecureTransport
 	proxy.ModifyResponse = func(resp *http.Response) error {
 		if resp.StatusCode == 500 {
 			b, err := ioutil.ReadAll(resp.Body)

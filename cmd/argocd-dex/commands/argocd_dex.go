@@ -1,6 +1,7 @@
 package commands
 
 import (
+	"bytes"
 	"fmt"
 	"io/ioutil"
 	"os"
@@ -20,6 +21,7 @@ import (
 	"github.com/argoproj/argo-cd/v2/util/dex"
 	"github.com/argoproj/argo-cd/v2/util/errors"
 	"github.com/argoproj/argo-cd/v2/util/settings"
+	"github.com/argoproj/argo-cd/v2/util/tls"
 )
 
 const (
@@ -79,13 +81,32 @@ func NewRunDexCommand() *cobra.Command {
 
 			for {
 				var cmd *exec.Cmd
+				var certificateBytes, privateKeyBytes []byte
+				if prevSettings.Certificate != nil {
+					certificateBytes, privateKeyBytes = tls.EncodeX509KeyPair(*prevSettings.Certificate)
+				}
 				dexCfgBytes, err := dex.GenerateDexConfigYAML(prevSettings)
 				errors.CheckError(err)
 				if len(dexCfgBytes) == 0 {
 					log.Infof("dex is not configured")
+					os.Remove("/tmp/tls.crt")
+					os.Remove("/tmp/tls.key")
 				} else {
 					err = ioutil.WriteFile("/tmp/dex.yaml", dexCfgBytes, 0644)
 					errors.CheckError(err)
+					if certificateBytes != nil {
+						err = ioutil.WriteFile("/tmp/tls.crt", certificateBytes, 0600)
+						errors.CheckError(err)
+					} else {
+						os.Remove("/tmp/tls.crt")
+					}
+					if privateKeyBytes != nil {
+						err = ioutil.WriteFile("/tmp/tls.key", privateKeyBytes, 0600)
+						errors.CheckError(err)
+					} else {
+						os.Remove("/tmp/tls.key")
+					}
+
 					log.Debug(redactor(string(dexCfgBytes)))
 					cmd = exec.Command("dex", "serve", "/tmp/dex.yaml")
 					cmd.Stdout = os.Stdout
@@ -99,7 +120,13 @@ func NewRunDexCommand() *cobra.Command {
 					newSettings := <-updateCh
 					newDexCfgBytes, err := dex.GenerateDexConfigYAML(newSettings)
 					errors.CheckError(err)
-					if string(newDexCfgBytes) != string(dexCfgBytes) {
+					var newCertificateBytes, newPrivateKeyBytes []byte
+					if newSettings.Certificate != nil {
+						newCertificateBytes, newPrivateKeyBytes = tls.EncodeX509KeyPair(*prevSettings.Certificate)
+					}
+					if string(newDexCfgBytes) != string(dexCfgBytes) ||
+						!bytes.Equal(newCertificateBytes, certificateBytes) ||
+						!bytes.Equal(newPrivateKeyBytes, privateKeyBytes) {
 						prevSettings = newSettings
 						log.Infof("dex config modified. restarting dex")
 						if cmd != nil && cmd.Process != nil {
