@@ -81,3 +81,16 @@ resources:
 
 The Argo CD can be installed using [Helm](https://helm.sh/). The Helm chart is currently community maintained and available at
 [argo-helm/charts/argo-cd](https://github.com/argoproj/argo-helm/tree/master/charts/argo-cd).
+
+## Supported versions
+
+At any given point in time ArgoCD versions N (latest) and N-1 are supported on the same versions of Kubernetes that are supported by Kubernetes itself (normally the last 3 released versions).
+
+For example if the latest version of ArgoCD is 2.3.2 and last Kubernetes versions are 1.24, 1.22 and 1.21 the following combinations are supported:
+
+* Argo CD 2.3.2 on Kubernetes 1.24
+* Argo CD 2.3.2 on Kubernetes 1.22
+* Argo CD 2.3.2 on Kubernetes 1.21
+* Argo CD 2.3.1 on Kubernetes 1.24
+* Argo CD 2.3.1 on Kubernetes 1.23
+* Argo CD 2.3.1 on Kubernetes 1.21
