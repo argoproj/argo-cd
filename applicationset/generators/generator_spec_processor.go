@@ -26,7 +26,7 @@ func Transform(requestedGenerator argoprojiov1alpha1.ApplicationSetGenerator, al
 	generators := GetRelevantGenerators(&requestedGenerator, allGenerators)
 	for _, g := range generators {
 		// we call mergeGeneratorTemplate first because GenerateParams might be more costly so we want to fail fast if there is an error
-		mergedTemplate, err := mergeGeneratorTemplate(g, &requestedGenerator, baseTemplate)
+		mergedTemplate, err := mergeGeneratorTemplate(g, &requestedGenerator, &baseTemplate)
 		if err != nil {
 			log.WithError(err).WithField("generator", g).
 				Error("error generating params")
@@ -85,7 +85,7 @@ func GetRelevantGenerators(requestedGenerator *argoprojiov1alpha1.ApplicationSet
 	return res
 }
 
-func mergeGeneratorTemplate(g Generator, requestedGenerator *argoprojiov1alpha1.ApplicationSetGenerator, applicationSetTemplate argoprojiov1alpha1.ApplicationSetTemplate) (argoprojiov1alpha1.ApplicationSetTemplate, error) {
+func mergeGeneratorTemplate(g Generator, requestedGenerator *argoprojiov1alpha1.ApplicationSetGenerator, applicationSetTemplate *argoprojiov1alpha1.ApplicationSetTemplate) (argoprojiov1alpha1.ApplicationSetTemplate, error) {
 
 	// Make a copy of the value from `GetTemplate()` before merge, rather than copying directly into
 	// the provided parameter (which will touch the original resource object returned by client-go)
@@ -93,8 +93,8 @@ func mergeGeneratorTemplate(g Generator, requestedGenerator *argoprojiov1alpha1.
 
 	var err error
 
-	if &applicationSetTemplate != nil {
-		err = mergo.Merge(dest, &applicationSetTemplate)
+	if applicationSetTemplate != nil {
+		err = mergo.Merge(dest, applicationSetTemplate)
 	} else {
 		log.Warn("generator template won't be applied when standard application template is not used")
 	}
