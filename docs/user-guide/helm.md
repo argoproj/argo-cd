@@ -209,53 +209,37 @@ Some users find this pattern preferable to maintaining their own version of the 
 Below is an example of how to add Helm plugins when installing ArgoCD with the [official ArgoCD helm chart](https://github.com/argoproj/argo-helm/tree/master/charts/argo-cd):
 
 ```
-# helm-gcs plugin
 repoServer:
   volumes:
-    - name: helm
-      emptyDir: {}
     - name: gcloud
       secret:
         secretName: helm-credentials
   volumeMounts:
-    - mountPath: /helm
-      name: helm
     - mountPath: /gcloud
       name: gcloud
   env:
-    - name: HELM_DATA_HOME
-      value: /helm
-    - name: HELM_CACHE_HOME
-      value: /helm/cache
-    - name: HELM_CONFIG_HOME
-      value: /helm/config
     - name: HELM_PLUGINS
-      value: /helm/plugins/
+      value: /helm-working-dir/plugins/
     - name: GOOGLE_APPLICATION_CREDENTIALS
       value: /gcloud/key.json
   initContainers:
     - name: install-helm-plugins
-      image: alpine/helm:3.6.3
+      image: alpine/helm:3.8.0
       volumeMounts:
-        - mountPath: /helm
-          name: helm
+        - mountPath: /helm-working-dir
+          name: helm-working-dir
         - mountPath: /gcloud
           name: gcloud
       env:
-        - name: HELM_DATA_HOME
-          value: /helm
-        - name: HELM_CACHE_HOME
-          value: /helm/cache
-        - name: HELM_CONFIG_HOME
-          value: /helm/config
         - name: GOOGLE_APPLICATION_CREDENTIALS
           value: /gcloud/key.json
+        - name: HELM_PLUGINS
+          value: /helm-working-dir/plugins
       command: ["/bin/sh", "-c"]
       args:
         - apk --no-cache add curl;
           helm plugin install https://github.com/hayorov/helm-gcs.git;
-          helm repo add my-gcs-repo gs://my-private-helm-gcs-repository;
-          chmod -R 777 $HELM_DATA_HOME;
+          helm repo add my-private-gcs-repo gs://my-private-gcs-repo;
 ```
 
 ## Helm Version
