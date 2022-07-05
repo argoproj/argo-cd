@@ -9,6 +9,8 @@ markdown_extensions:
 - markdown_include.include
 - codehilite
 - admonition
+- pymdownx.highlight
+- pymdownx.superfences
 - toc:
     permalink: true
 nav:
