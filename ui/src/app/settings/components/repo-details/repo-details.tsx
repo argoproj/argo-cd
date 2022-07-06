@@ -71,6 +71,7 @@ export const RepoDetails = (props: {repo: models.Repository; save?: (params: New
         <EditablePanel
             values={repo}
             validate={input => ({
+                username: !input.username && input.password && 'Username is required if password is given.',
                 password: !input.password && input.username && 'Password is required if username is given.'
             })}
             save={async input => {

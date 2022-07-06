@@ -156,6 +156,7 @@ export class ReposList extends React.Component<
                 return {
                     url: (!httpsValues.url && 'Repository URL is required') || (this.credsTemplate && !this.isHTTPSUrl(httpsValues.url) && 'Not a valid HTTPS URL'),
                     name: httpsValues.type === 'helm' && !httpsValues.name && 'Name is required',
+                    username: !httpsValues.username && httpsValues.password && 'Username is required if password is given.',
                     password: !httpsValues.password && httpsValues.username && 'Password is required if username is given.',
                     tlsClientCertKey: !httpsValues.tlsClientCertKey && httpsValues.tlsClientCertData && 'TLS client cert key is required if TLS client cert is given.'
                 };
