@@ -64,6 +64,10 @@ data:
   server.repo.server.plaintext: "false"
   # Perform strict validation of TLS certificates when connecting to repo server
   server.repo.server.strict.tls: "false"
+  # Use a plaintext client (non-TLS) to connect to dex server
+  server.dex.server.plaintext: "false"
+  # Perform strict validation of TLS certificates when connecting to dex server
+  server.dex.server.strict.tls: "false"
   # Disable client authentication
   server.disable.auth: "false"
   # Enable GZIP compression
@@ -113,3 +117,6 @@ data:
   reposerver.max.combined.directory.manifests.size: '10M'
   # Paths to be excluded from the tarball streamed to plugins. Separate with ;
   reposerver.plugin.tar.exclusions: ""
+
+  # Disable TLS on the HTTP endpoint
+  dexserver.disable.tls: "false"

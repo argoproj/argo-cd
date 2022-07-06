@@ -75,7 +75,7 @@ func getKubeClient(pass string, enabled bool, capabilities ...settings.AccountCa
 }
 
 func newSessionManager(settingsMgr *settings.SettingsManager, projectLister v1alpha1.AppProjectNamespaceLister, storage UserStateStorage) *SessionManager {
-	mgr := NewSessionManager(settingsMgr, projectLister, "", storage)
+	mgr := NewSessionManager(settingsMgr, projectLister, "", nil, storage)
 	mgr.verificationDelayNoiseEnabled = false
 	return mgr
 }
@@ -564,7 +564,7 @@ requestedScopes: ["oidc"]`, oidcTestServer.URL),
 		}
 
 		settingsMgr := settings.NewSettingsManager(context.Background(), getKubeClientWithConfig(dexConfig), "argocd")
-		mgr := NewSessionManager(settingsMgr, getProjLister(), "", NewUserStateStorage(nil))
+		mgr := NewSessionManager(settingsMgr, getProjLister(), "", nil, NewUserStateStorage(nil))
 		mgr.verificationDelayNoiseEnabled = false
 		// Use test server's client to avoid TLS issues.
 		mgr.client = oidcTestServer.Client()

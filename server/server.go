@@ -23,6 +23,7 @@ import (
 	golang_proto "github.com/golang/protobuf/proto"
 
 	netCtx "context"
+
 	"github.com/argoproj/pkg/sync"
 	"github.com/go-redis/redis/v8"
 	"github.com/golang-jwt/jwt/v4"
@@ -183,6 +184,7 @@ type ArgoCDServerOpts struct {
 	MetricsPort           int
 	Namespace             string
 	DexServerAddr         string
+	DexTLSConfig          *dex.DexTLSConfig
 	BaseHRef              string
 	RootPath              string
 	KubeClientset         kubernetes.Interface
@@ -233,7 +235,7 @@ func NewServer(ctx context.Context, opts ArgoCDServerOpts) *ArgoCDServer {
 	appLister := factory.Argoproj().V1alpha1().Applications().Lister().Applications(opts.Namespace)
 
 	userStateStorage := util_session.NewUserStateStorage(opts.RedisClient)
-	sessionMgr := util_session.NewSessionManager(settingsMgr, projLister, opts.DexServerAddr, userStateStorage)
+	sessionMgr := util_session.NewSessionManager(settingsMgr, projLister, opts.DexServerAddr, opts.DexTLSConfig, userStateStorage)
 	enf := rbac.NewEnforcer(opts.KubeClientset, opts.Namespace, common.ArgoCDRBACConfigMapName, nil)
 	enf.EnableEnforce(!opts.DisableAuth)
 	err = enf.SetBuiltinPolicy(assets.BuiltinPolicyCSV)
@@ -505,7 +507,7 @@ func (a *ArgoCDServer) watchSettings() {
 
 	prevURL := a.settings.URL
 	prevOIDCConfig := a.settings.OIDCConfig()
-	prevDexCfgBytes, err := dex.GenerateDexConfigYAML(a.settings)
+	prevDexCfgBytes, err := dex.GenerateDexConfigYAML(a.settings, a.DexTLSConfig == nil || a.DexTLSConfig.DisableTLS)
 	errors.CheckError(err)
 	prevGitHubSecret := a.settings.WebhookGitHubSecret
 	prevGitLabSecret := a.settings.WebhookGitLabSecret
@@ -520,7 +522,7 @@ func (a *ArgoCDServer) watchSettings() {
 	for {
 		newSettings := <-updateCh
 		a.settings = newSettings
-		newDexCfgBytes, err := dex.GenerateDexConfigYAML(a.settings)
+		newDexCfgBytes, err := dex.GenerateDexConfigYAML(a.settings, a.DexTLSConfig == nil || a.DexTLSConfig.DisableTLS)
 		errors.CheckError(err)
 		if string(newDexCfgBytes) != string(prevDexCfgBytes) {
 			log.Infof("dex config modified. restarting")
@@ -886,12 +888,8 @@ func (a *ArgoCDServer) registerDexHandlers(mux *http.ServeMux) {
 	}
 	// Run dex OpenID Connect Identity Provider behind a reverse proxy (served at /api/dex)
 	var err error
-	mux.HandleFunc(common.DexAPIEndpoint+"/", dexutil.NewDexHTTPReverseProxy(a.DexServerAddr, a.BaseHRef))
-	if a.useTLS() {
-		tlsConfig := a.settings.TLSConfig()
-		tlsConfig.InsecureSkipVerify = true
-	}
-	a.ssoClientApp, err = oidc.NewClientApp(a.settings, a.DexServerAddr, a.BaseHRef)
+	mux.HandleFunc(common.DexAPIEndpoint+"/", dexutil.NewDexHTTPReverseProxy(a.DexServerAddr, a.BaseHRef, a.DexTLSConfig))
+	a.ssoClientApp, err = oidc.NewClientApp(a.settings, a.DexServerAddr, a.DexTLSConfig, a.BaseHRef)
 	errors.CheckError(err)
 	mux.HandleFunc(common.LoginEndpoint, a.ssoClientApp.HandleLogin)
 	mux.HandleFunc(common.CallbackEndpoint, a.ssoClientApp.HandleCallback)

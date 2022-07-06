@@ -79,7 +79,7 @@ func GetScopesOrDefault(scopes []string) []string {
 
 // NewClientApp will register the Argo CD client app (either via Dex or external OIDC) and return an
 // object which has HTTP handlers for handling the HTTP responses for login and callback
-func NewClientApp(settings *settings.ArgoCDSettings, dexServerAddr, baseHRef string) (*ClientApp, error) {
+func NewClientApp(settings *settings.ArgoCDSettings, dexServerAddr string, dexTlsConfig *dex.DexTLSConfig, baseHRef string) (*ClientApp, error) {
 	redirectURL, err := settings.RedirectURL()
 	if err != nil {
 		return nil, err
@@ -101,21 +101,43 @@ func NewClientApp(settings *settings.ArgoCDSettings, dexServerAddr, baseHRef str
 	if err != nil {
 		return nil, fmt.Errorf("parse redirect-uri: %v", err)
 	}
-	tlsConfig := settings.OIDCTLSConfig()
-	a.client = &http.Client{
-		Transport: &http.Transport{
-			TLSClientConfig: tlsConfig,
-			Proxy:           http.ProxyFromEnvironment,
-			Dial: (&net.Dialer{
-				Timeout:   30 * time.Second,
-				KeepAlive: 30 * time.Second,
-			}).Dial,
-			TLSHandshakeTimeout:   10 * time.Second,
-			ExpectContinueTimeout: 1 * time.Second,
-		},
-	}
+
 	if settings.DexConfig != "" && settings.OIDCConfigRAW == "" {
-		a.client.Transport = dex.NewDexRewriteURLRoundTripper(dexServerAddr, a.client.Transport)
+		a.client = &http.Client{
+			Transport: &http.Transport{
+				TLSClientConfig: dex.TLSConfig(dexTlsConfig),
+				Proxy:           http.ProxyFromEnvironment,
+				Dial: (&net.Dialer{
+					Timeout:   30 * time.Second,
+					KeepAlive: 30 * time.Second,
+				}).Dial,
+				TLSHandshakeTimeout:   10 * time.Second,
+				ExpectContinueTimeout: 1 * time.Second,
+			},
+		}
+		if strings.Contains(dexServerAddr, "://") {
+			a.client.Transport = dex.NewDexRewriteURLRoundTripper(dexServerAddr, a.client.Transport)
+		} else {
+			if dexTlsConfig == nil || dexTlsConfig.DisableTLS {
+				a.client.Transport = dex.NewDexRewriteURLRoundTripper("http://"+dexServerAddr, a.client.Transport)
+			} else {
+				a.client.Transport = dex.NewDexRewriteURLRoundTripper("https://"+dexServerAddr, a.client.Transport)
+			}
+		}
+	} else {
+		tlsConfig := settings.OIDCTLSConfig()
+		a.client = &http.Client{
+			Transport: &http.Transport{
+				TLSClientConfig: tlsConfig,
+				Proxy:           http.ProxyFromEnvironment,
+				Dial: (&net.Dialer{
+					Timeout:   30 * time.Second,
+					KeepAlive: 30 * time.Second,
+				}).Dial,
+				TLSHandshakeTimeout:   10 * time.Second,
+				ExpectContinueTimeout: 1 * time.Second,
+			},
+		}
 	}
 	if os.Getenv(common.EnvVarSSODebug) == "1" {
 		a.client.Transport = httputil.DebugTransport{T: a.client.Transport}
