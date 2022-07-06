@@ -74,6 +74,8 @@ func NewCommand() *cobra.Command {
 		Long:              "The API server is a gRPC/REST server which exposes the API consumed by the Web UI, CLI, and CI/CD systems.  This command runs API server in the foreground.  It can be configured by following options.",
 		DisableAutoGenTag: true,
 		Run: func(c *cobra.Command, args []string) {
+			ctx := c.Context()
+
 			vers := common.GetVersion()
 			namespace, _, err := clientConfig.Namespace()
 			errors.CheckError(err)
@@ -159,13 +161,12 @@ func NewCommand() *cobra.Command {
 			stats.RegisterStackDumper()
 			stats.StartStatsTicker(10 * time.Minute)
 			stats.RegisterHeapDumper("memprofile")
-			argocd := server.NewServer(context.Background(), argoCDOpts)
-			argocd.Init(context.Background())
+			argocd := server.NewServer(ctx, argoCDOpts)
+			argocd.Init(ctx)
 			lns, err := argocd.Listen()
 			errors.CheckError(err)
 			for {
 				var closer func()
-				ctx := context.Background()
 				ctx, cancel := context.WithCancel(ctx)
 				if otlpAddress != "" {
 					closer, err = traceutil.InitTracer(ctx, "argocd-server", otlpAddress)

@@ -1,7 +1,6 @@
 package commands
 
 import (
-	"context"
 	"fmt"
 	"os"
 	"os/exec"
@@ -50,6 +49,8 @@ func NewRunDexCommand() *cobra.Command {
 		Use:   "rundex",
 		Short: "Runs dex generating a config using settings from the Argo CD configmap and secret",
 		RunE: func(c *cobra.Command, args []string) error {
+			ctx := c.Context()
+
 			vers := common.GetVersion()
 			namespace, _, err := clientConfig.Namespace()
 			errors.CheckError(err)
@@ -69,7 +70,7 @@ func NewRunDexCommand() *cobra.Command {
 			config.UserAgent = fmt.Sprintf("argocd-dex/%s (%s)", vers.Version, vers.Platform)
 			kubeClientset := kubernetes.NewForConfigOrDie(config)
 
-			settingsMgr := settings.NewSettingsManager(context.Background(), kubeClientset, namespace)
+			settingsMgr := settings.NewSettingsManager(ctx, kubeClientset, namespace)
 			prevSettings, err := settingsMgr.GetSettings()
 			errors.CheckError(err)
 			updateCh := make(chan *settings.ArgoCDSettings, 1)
@@ -130,6 +131,8 @@ func NewGenDexConfigCommand() *cobra.Command {
 		Use:   "gendexcfg",
 		Short: "Generates a dex config from Argo CD settings",
 		RunE: func(c *cobra.Command, args []string) error {
+			ctx := c.Context()
+
 			cli.SetLogFormat(cmdutil.LogFormat)
 			cli.SetLogLevel(cmdutil.LogLevel)
 			config, err := clientConfig.ClientConfig()
@@ -137,7 +140,7 @@ func NewGenDexConfigCommand() *cobra.Command {
 			namespace, _, err := clientConfig.Namespace()
 			errors.CheckError(err)
 			kubeClientset := kubernetes.NewForConfigOrDie(config)
-			settingsMgr := settings.NewSettingsManager(context.Background(), kubeClientset, namespace)
+			settingsMgr := settings.NewSettingsManager(ctx, kubeClientset, namespace)
 			settings, err := settingsMgr.GetSettings()
 			errors.CheckError(err)
 			dexCfgBytes, err := dex.GenerateDexConfigYAML(settings)

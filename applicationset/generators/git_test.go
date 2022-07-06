@@ -47,6 +47,28 @@ func (a argoCDServiceMock) GetDirectories(ctx context.Context, repoURL string, r
 	return args.Get(0).([]string), args.Error(1)
 }
 
+func Test_generateParamsFromGitFile(t *testing.T) {
+	params, err := (*GitGenerator)(nil).generateParamsFromGitFile("path/dir/file_name.yaml", []byte(`
+foo:
+  bar: baz
+`))
+	if err != nil {
+		t.Fatal(err)
+	}
+	assert.Equal(t, []map[string]string{
+		{
+			"foo.bar":                 "baz",
+			"path":                    "path/dir",
+			"path.basename":           "dir",
+			"path.filename":           "file_name.yaml",
+			"path.basenameNormalized": "dir",
+			"path.filenameNormalized": "file-name.yaml",
+			"path[0]":                 "path",
+			"path[1]":                 "dir",
+		},
+	}, params)
+}
+
 func TestGitGenerateParamsFromDirectories(t *testing.T) {
 
 	cases := []struct {
@@ -68,9 +90,9 @@ func TestGitGenerateParamsFromDirectories(t *testing.T) {
 			},
 			repoError: nil,
 			expected: []map[string]string{
-				{"path": "app1", "path.basename": "app1", "path.basenameNormalized": "app1"},
-				{"path": "app2", "path.basename": "app2", "path.basenameNormalized": "app2"},
-				{"path": "app_3", "path.basename": "app_3", "path.basenameNormalized": "app-3"},
+				{"path": "app1", "path.basename": "app1", "path.basenameNormalized": "app1", "path[0]": "app1"},
+				{"path": "app2", "path.basename": "app2", "path.basenameNormalized": "app2", "path[0]": "app2"},
+				{"path": "app_3", "path.basename": "app_3", "path.basenameNormalized": "app-3", "path[0]": "app_3"},
 			},
 			expectedError: nil,
 		},
@@ -85,8 +107,8 @@ func TestGitGenerateParamsFromDirectories(t *testing.T) {
 			},
 			repoError: nil,
 			expected: []map[string]string{
-				{"path": "p1/app2", "path.basename": "app2", "path[0]": "p1", "path.basenameNormalized": "app2"},
-				{"path": "p1/p2/app3", "path.basename": "app3", "path[0]": "p1", "path[1]": "p2", "path.basenameNormalized": "app3"},
+				{"path": "p1/app2", "path.basename": "app2", "path[0]": "p1", "path[1]": "app2", "path.basenameNormalized": "app2"},
+				{"path": "p1/p2/app3", "path.basename": "app3", "path[0]": "p1", "path[1]": "p2", "path[2]": "app3", "path.basenameNormalized": "app3"},
 			},
 			expectedError: nil,
 		},
@@ -102,9 +124,9 @@ func TestGitGenerateParamsFromDirectories(t *testing.T) {
 			},
 			repoError: nil,
 			expected: []map[string]string{
-				{"path": "app1", "path.basename": "app1", "path.basenameNormalized": "app1"},
-				{"path": "app2", "path.basename": "app2", "path.basenameNormalized": "app2"},
-				{"path": "p2/app3", "path.basename": "app3", "path[0]": "p2", "path.basenameNormalized": "app3"},
+				{"path": "app1", "path.basename": "app1", "path[0]": "app1", "path.basenameNormalized": "app1"},
+				{"path": "app2", "path.basename": "app2", "path[0]": "app2", "path.basenameNormalized": "app2"},
+				{"path": "p2/app3", "path.basename": "app3", "path[0]": "p2", "path[1]": "app3", "path.basenameNormalized": "app3"},
 			},
 			expectedError: nil,
 		},
@@ -120,9 +142,9 @@ func TestGitGenerateParamsFromDirectories(t *testing.T) {
 			},
 			repoError: nil,
 			expected: []map[string]string{
-				{"path": "app1", "path.basename": "app1", "path.basenameNormalized": "app1"},
-				{"path": "app2", "path.basename": "app2", "path.basenameNormalized": "app2"},
-				{"path": "p2/app3", "path.basename": "app3", "path[0]": "p2", "path.basenameNormalized": "app3"},
+				{"path": "app1", "path.basename": "app1", "path[0]": "app1", "path.basenameNormalized": "app1"},
+				{"path": "app2", "path.basename": "app2", "path[0]": "app2", "path.basenameNormalized": "app2"},
+				{"path": "p2/app3", "path.basename": "app3", "path[0]": "p2", "path[1]": "app3", "path.basenameNormalized": "app3"},
 			},
 			expectedError: nil,
 		},
@@ -238,7 +260,10 @@ func TestGitGenerateParamsFromFiles(t *testing.T) {
 					"path":                    "cluster-config/production",
 					"path.basename":           "production",
 					"path[0]":                 "cluster-config",
+					"path[1]":                 "production",
 					"path.basenameNormalized": "production",
+					"path.filename":           "config.json",
+					"path.filenameNormalized": "config.json",
 				},
 				{
 					"cluster.owner":           "foo.bar@example.com",
@@ -247,7 +272,10 @@ func TestGitGenerateParamsFromFiles(t *testing.T) {
 					"path":                    "cluster-config/staging",
 					"path.basename":           "staging",
 					"path[0]":                 "cluster-config",
+					"path[1]":                 "staging",
 					"path.basenameNormalized": "staging",
+					"path.filename":           "config.json",
+					"path.filenameNormalized": "config.json",
 				},
 			},
 			expectedError: nil,
@@ -305,7 +333,10 @@ func TestGitGenerateParamsFromFiles(t *testing.T) {
 					"path":                    "cluster-config/production",
 					"path.basename":           "production",
 					"path[0]":                 "cluster-config",
+					"path[1]":                 "production",
 					"path.basenameNormalized": "production",
+					"path.filename":           "config.json",
+					"path.filenameNormalized": "config.json",
 				},
 				{
 					"cluster.owner":           "john.doe@example.com",
@@ -314,7 +345,10 @@ func TestGitGenerateParamsFromFiles(t *testing.T) {
 					"path":                    "cluster-config/production",
 					"path.basename":           "production",
 					"path[0]":                 "cluster-config",
+					"path[1]":                 "production",
 					"path.basenameNormalized": "production",
+					"path.filename":           "config.json",
+					"path.filenameNormalized": "config.json",
 				},
 			},
 			expectedError: nil,
@@ -353,7 +387,10 @@ cluster:
 					"path":                    "cluster-config/production",
 					"path.basename":           "production",
 					"path[0]":                 "cluster-config",
+					"path[1]":                 "production",
 					"path.basenameNormalized": "production",
+					"path.filename":           "config.yaml",
+					"path.filenameNormalized": "config.yaml",
 				},
 				{
 					"cluster.owner":           "foo.bar@example.com",
@@ -362,7 +399,10 @@ cluster:
 					"path":                    "cluster-config/staging",
 					"path.basename":           "staging",
 					"path[0]":                 "cluster-config",
+					"path[1]":                 "staging",
 					"path.basenameNormalized": "staging",
+					"path.filename":           "config.yaml",
+					"path.filenameNormalized": "config.yaml",
 				},
 			},
 			expectedError: nil,
@@ -393,7 +433,10 @@ cluster:
 					"path":                    "cluster-config/production",
 					"path.basename":           "production",
 					"path[0]":                 "cluster-config",
+					"path[1]":                 "production",
 					"path.basenameNormalized": "production",
+					"path.filename":           "config.yaml",
+					"path.filenameNormalized": "config.yaml",
 				},
 				{
 					"cluster.owner":           "john.doe@example.com",
@@ -402,7 +445,10 @@ cluster:
 					"path":                    "cluster-config/production",
 					"path.basename":           "production",
 					"path[0]":                 "cluster-config",
+					"path[1]":                 "production",
 					"path.basenameNormalized": "production",
+					"path.filename":           "config.yaml",
+					"path.filenameNormalized": "config.yaml",
 				},
 			},
 			expectedError: nil,

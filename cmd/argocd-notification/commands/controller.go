@@ -1,7 +1,6 @@
 package commands
 
 import (
-	"context"
 	"fmt"
 	"net/http"
 	"os"
@@ -58,6 +57,8 @@ func NewCommand() *cobra.Command {
 		Use:   "controller",
 		Short: "Starts Argo CD Notifications controller",
 		RunE: func(c *cobra.Command, args []string) error {
+			ctx := c.Context()
+
 			vers := common.GetVersion()
 			namespace, _, err := clientConfig.Namespace()
 			errors.CheckError(err)
@@ -120,13 +121,13 @@ func NewCommand() *cobra.Command {
 			log.Infof("loading configuration %d", metricsPort)
 
 			ctrl := notificationscontroller.NewController(k8sClient, dynamicClient, argocdService, namespace, appLabelSelector, registry, secretName, configMapName)
-			err = ctrl.Init(context.Background())
+			err = ctrl.Init(ctx)
 			if err != nil {
 				return err
 			}
 
-			go ctrl.Run(context.Background(), processorsCount)
-			<-context.Background().Done()
+			go ctrl.Run(ctx, processorsCount)
+			<-ctx.Done()
 			return nil
 		},
 	}

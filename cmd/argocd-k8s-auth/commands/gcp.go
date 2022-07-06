@@ -1,7 +1,6 @@
 package commands
 
 import (
-	"context"
 	"fmt"
 	"os"
 
@@ -27,9 +26,11 @@ func newGCPCommand() *cobra.Command {
 	var command = &cobra.Command{
 		Use: "gcp",
 		Run: func(c *cobra.Command, args []string) {
+			ctx := c.Context()
+
 			// Preferred way to retrieve GCP credentials
 			// https://github.com/golang/oauth2/blob/9780585627b5122c8cc9c6a378ac9861507e7551/google/doc.go#L54-L68
-			cred, err := google.FindDefaultCredentials(context.Background(), defaultGCPScopes...)
+			cred, err := google.FindDefaultCredentials(ctx, defaultGCPScopes...)
 			errors.CheckError(err)
 			token, err := cred.TokenSource.Token()
 			errors.CheckError(err)

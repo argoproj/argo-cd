@@ -1,7 +1,6 @@
 package admin
 
 import (
-	"context"
 	"fmt"
 	"os"
 
@@ -73,6 +72,8 @@ func NewGenRepoSpecCommand() *cobra.Command {
 		Short:   "Generate declarative config for a repo",
 		Example: repoAddExamples,
 		Run: func(c *cobra.Command, args []string) {
+			ctx := c.Context()
+
 			log.SetLevel(log.WarnLevel)
 			if len(args) != 1 {
 				c.HelpFunc()(c, args)
@@ -150,13 +151,13 @@ func NewGenRepoSpecCommand() *cobra.Command {
 				},
 			}
 			kubeClientset := fake.NewSimpleClientset(argoCDCM)
-			settingsMgr := settings.NewSettingsManager(context.Background(), kubeClientset, ArgoCDNamespace)
+			settingsMgr := settings.NewSettingsManager(ctx, kubeClientset, ArgoCDNamespace)
 			argoDB := db.NewDB(ArgoCDNamespace, settingsMgr, kubeClientset)
 
-			_, err := argoDB.CreateRepository(context.Background(), &repoOpts.Repo)
+			_, err := argoDB.CreateRepository(ctx, &repoOpts.Repo)
 			errors.CheckError(err)
 
-			secret, err := kubeClientset.CoreV1().Secrets(ArgoCDNamespace).Get(context.Background(), db.RepoURLToSecretName(repoSecretPrefix, repoOpts.Repo.Repo), v1.GetOptions{})
+			secret, err := kubeClientset.CoreV1().Secrets(ArgoCDNamespace).Get(ctx, db.RepoURLToSecretName(repoSecretPrefix, repoOpts.Repo.Repo), v1.GetOptions{})
 			errors.CheckError(err)
 
 			errors.CheckError(PrintResources(outputFormat, os.Stdout, secret))

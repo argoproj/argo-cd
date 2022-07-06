@@ -1,7 +1,6 @@
 package commands
 
 import (
-	"context"
 	"fmt"
 	"os"
 	"text/tabwriter"
@@ -78,6 +77,8 @@ func NewRepoAddCommand(clientOpts *argocdclient.ClientOptions) *cobra.Command {
 		Short:   "Add git repository connection parameters",
 		Example: repoAddExamples,
 		Run: func(c *cobra.Command, args []string) {
+			ctx := c.Context()
+
 			if len(args) != 1 {
 				c.HelpFunc()(c, args)
 				os.Exit(1)
@@ -184,7 +185,7 @@ func NewRepoAddCommand(clientOpts *argocdclient.ClientOptions) *cobra.Command {
 				Proxy:                      repoOpts.Proxy,
 				Project:                    repoOpts.Repo.Project,
 			}
-			_, err := repoIf.ValidateAccess(context.Background(), &repoAccessReq)
+			_, err := repoIf.ValidateAccess(ctx, &repoAccessReq)
 			errors.CheckError(err)
 
 			repoCreateReq := repositorypkg.RepoCreateRequest{
@@ -192,7 +193,7 @@ func NewRepoAddCommand(clientOpts *argocdclient.ClientOptions) *cobra.Command {
 				Upsert: repoOpts.Upsert,
 			}
 
-			createdRepo, err := repoIf.CreateRepository(context.Background(), &repoCreateReq)
+			createdRepo, err := repoIf.CreateRepository(ctx, &repoCreateReq)
 			errors.CheckError(err)
 			fmt.Printf("Repository '%s' added\n", createdRepo.Repo)
 		},
@@ -208,6 +209,8 @@ func NewRepoRemoveCommand(clientOpts *argocdclient.ClientOptions) *cobra.Command
 		Use:   "rm REPO",
 		Short: "Remove repository credentials",
 		Run: func(c *cobra.Command, args []string) {
+			ctx := c.Context()
+
 			if len(args) == 0 {
 				c.HelpFunc()(c, args)
 				os.Exit(1)
@@ -215,7 +218,7 @@ func NewRepoRemoveCommand(clientOpts *argocdclient.ClientOptions) *cobra.Command
 			conn, repoIf := headless.NewClientOrDie(clientOpts, c).NewRepoClientOrDie()
 			defer io.Close(conn)
 			for _, repoURL := range args {
-				_, err := repoIf.DeleteRepository(context.Background(), &repositorypkg.RepoQuery{Repo: repoURL})
+				_, err := repoIf.DeleteRepository(ctx, &repositorypkg.RepoQuery{Repo: repoURL})
 				errors.CheckError(err)
 				fmt.Printf("Repository '%s' removed\n", repoURL)
 			}
@@ -261,6 +264,8 @@ func NewRepoListCommand(clientOpts *argocdclient.ClientOptions) *cobra.Command {
 		Use:   "list",
 		Short: "List configured repositories",
 		Run: func(c *cobra.Command, args []string) {
+			ctx := c.Context()
+
 			conn, repoIf := headless.NewClientOrDie(clientOpts, c).NewRepoClientOrDie()
 			defer io.Close(conn)
 			forceRefresh := false
@@ -272,7 +277,7 @@ func NewRepoListCommand(clientOpts *argocdclient.ClientOptions) *cobra.Command {
 				err := fmt.Errorf("--refresh must be one of: 'hard'")
 				errors.CheckError(err)
 			}
-			repos, err := repoIf.ListRepositories(context.Background(), &repositorypkg.RepoQuery{ForceRefresh: forceRefresh})
+			repos, err := repoIf.ListRepositories(ctx, &repositorypkg.RepoQuery{ForceRefresh: forceRefresh})
 			errors.CheckError(err)
 			switch output {
 			case "yaml", "json":
@@ -303,6 +308,8 @@ func NewRepoGetCommand(clientOpts *argocdclient.ClientOptions) *cobra.Command {
 		Use:   "get",
 		Short: "Get a configured repository by URL",
 		Run: func(c *cobra.Command, args []string) {
+			ctx := c.Context()
+
 			if len(args) != 1 {
 				c.HelpFunc()(c, args)
 				os.Exit(1)
@@ -321,7 +328,7 @@ func NewRepoGetCommand(clientOpts *argocdclient.ClientOptions) *cobra.Command {
 				err := fmt.Errorf("--refresh must be one of: 'hard'")
 				errors.CheckError(err)
 			}
-			repo, err := repoIf.Get(context.Background(), &repositorypkg.RepoQuery{Repo: repoURL, ForceRefresh: forceRefresh})
+			repo, err := repoIf.Get(ctx, &repositorypkg.RepoQuery{Repo: repoURL, ForceRefresh: forceRefresh})
 			errors.CheckError(err)
 			switch output {
 			case "yaml", "json":

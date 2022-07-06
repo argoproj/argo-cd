@@ -67,6 +67,9 @@ func NewCommand() *cobra.Command {
 		Long:              "ArgoCD application controller is a Kubernetes controller that continuously monitors running applications and compares the current, live state against the desired target state (as specified in the repo). This command runs Application Controller in the foreground.  It can be configured by following options.",
 		DisableAutoGenTag: true,
 		RunE: func(c *cobra.Command, args []string) error {
+			ctx, cancel := context.WithCancel(c.Context())
+			defer cancel()
+
 			vers := common.GetVersion()
 			namespace, _, err := clientConfig.Namespace()
 			errors.CheckError(err)
@@ -118,9 +121,6 @@ func NewCommand() *cobra.Command {
 			}
 
 			repoClientset := apiclient.NewRepoServerClientset(repoServerAddress, repoServerTimeoutSeconds, tlsConfig)
-
-			ctx, cancel := context.WithCancel(context.Background())
-			defer cancel()
 
 			cache, err := cacheSrc()
 			errors.CheckError(err)

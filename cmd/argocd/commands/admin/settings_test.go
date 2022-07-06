@@ -43,6 +43,8 @@ func captureStdout(callback func()) (string, error) {
 }
 
 func newSettingsManager(data map[string]string) *settings.SettingsManager {
+	ctx := context.Background()
+
 	clientset := fake.NewSimpleClientset(&v1.ConfigMap{
 		ObjectMeta: metav1.ObjectMeta{
 			Namespace: "default",
@@ -62,7 +64,7 @@ func newSettingsManager(data map[string]string) *settings.SettingsManager {
 			"server.secretkey": []byte("test"),
 		},
 	})
-	return settings.NewSettingsManager(context.Background(), clientset, "default")
+	return settings.NewSettingsManager(ctx, clientset, "default")
 }
 
 type fakeCmdContext struct {
@@ -75,7 +77,7 @@ func newCmdContext(data map[string]string) *fakeCmdContext {
 	return &fakeCmdContext{mgr: newSettingsManager(data)}
 }
 
-func (ctx *fakeCmdContext) createSettingsManager() (*settings.SettingsManager, error) {
+func (ctx *fakeCmdContext) createSettingsManager(context.Context) (*settings.SettingsManager, error) {
 	return ctx.mgr, nil
 }
 
@@ -87,6 +89,8 @@ type validatorTestCase struct {
 }
 
 func TestCreateSettingsManager(t *testing.T) {
+	ctx := context.Background()
+
 	f, closer, err := tempFile(`apiVersion: v1
 kind: ConfigMap
 metadata:
@@ -99,7 +103,7 @@ data:
 	defer utils.Close(closer)
 
 	opts := settingsOpts{argocdCMPath: f}
-	settingsManager, err := opts.createSettingsManager()
+	settingsManager, err := opts.createSettingsManager(ctx)
 
 	if !assert.NoError(t, err) {
 		return

@@ -3,8 +3,8 @@ package grpc
 import (
 	"errors"
 
+	"context"
 	giterr "github.com/go-git/go-git/v5/plumbing/transport"
-	"golang.org/x/net/context"
 	"google.golang.org/grpc"
 	"google.golang.org/grpc/codes"
 	"google.golang.org/grpc/status"
