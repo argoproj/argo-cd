@@ -1282,7 +1282,7 @@ func updateSettingsFromConfigMap(settings *ArgoCDSettings, argoCDCM *apiv1.Confi
 		settings.ExecShells = strings.Split(execShells, ",")
 	} else {
 		// Fall back to default. If you change this list, also change docs/operator-manual/argocd-cm.yaml.
-		settings.ExecShells = []string{"sh", "bash", "powershell", "cmd"}
+		settings.ExecShells = []string{"bash", "sh", "powershell", "cmd"}
 	}
 	settings.TrackingMethod = argoCDCM.Data[settingsResourceTrackingMethodKey]
 }

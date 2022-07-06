@@ -290,4 +290,4 @@ data:
   exec.enabled: "false"
 
   # exec.shells determines which shells are allowed for `exec`, and in which order they are attempted
-  exec.shells: "sh,bash,powershell,cmd"
+  exec.shells: "bash,sh,powershell,cmd"

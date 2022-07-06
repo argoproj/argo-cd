@@ -218,15 +218,11 @@ func (s *terminalHandler) ServeHTTP(w http.ResponseWriter, r *http.Request) {
 	}
 	defer session.Done()
 
-	validShell := isValidShell(*s.allowedShells, shell)
-	if validShell {
+	if isValidShell(*s.allowedShells, shell) {
 		cmd := []string{shell}
 		err = startProcess(kubeClientset, config, namespace, podName, container, cmd, session)
-	}
-
-	if !validShell || err != nil {
-		// No shell given, the given shell was invalid, or the given shell failed: try some shells until one succeeds or
-		// all fail
+	} else {
+		// No shell given or the given shell was not allowed: try the configured shells until one succeeds or all fail.
 		for _, testShell := range *s.allowedShells {
 			cmd := []string{testShell}
 			if err = startProcess(kubeClientset, config, namespace, podName, container, cmd, session); err == nil {
