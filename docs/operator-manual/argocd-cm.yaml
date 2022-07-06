@@ -288,3 +288,6 @@ data:
 
   # exec.enabled indicates whether the UI exec feature is enabled. It is disabled by default.
   exec.enabled: "false"
+
+  # exec.shells determines which shells are allowed for `exec`, and in which order they are attempted
+  exec.shells: "sh,bash,powershell,cmd"
