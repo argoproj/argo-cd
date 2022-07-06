@@ -208,7 +208,7 @@ func (k *kubectlResourceOperations) UpdateResource(ctx context.Context, obj *uns
 	if err != nil {
 		return nil, err
 	}
-	apiResource, err := ServerResourceForGroupVersionKind(disco, gvk)
+	apiResource, err := ServerResourceForGroupVersionKind(disco, gvk, "update")
 	if err != nil {
 		return nil, err
 	}

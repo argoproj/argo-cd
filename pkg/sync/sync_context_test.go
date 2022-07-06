@@ -28,21 +28,23 @@ import (
 	testingutils "github.com/argoproj/gitops-engine/pkg/utils/testing"
 )
 
+var standardVerbs = v1.Verbs{"create", "delete", "deletecollection", "get", "list", "patch", "update", "watch"}
+
 func newTestSyncCtx(opts ...SyncOpt) *syncContext {
 	fakeDisco := &fakedisco.FakeDiscovery{Fake: &testcore.Fake{}}
 	fakeDisco.Resources = append(make([]*v1.APIResourceList, 0),
 		&v1.APIResourceList{
 			GroupVersion: "v1",
 			APIResources: []v1.APIResource{
-				{Kind: "Pod", Group: "", Version: "v1", Namespaced: true},
-				{Kind: "Service", Group: "", Version: "v1", Namespaced: true},
-				{Kind: "Namespace", Group: "", Version: "v1", Namespaced: false},
+				{Kind: "Pod", Group: "", Version: "v1", Namespaced: true, Verbs: standardVerbs},
+				{Kind: "Service", Group: "", Version: "v1", Namespaced: true, Verbs: standardVerbs},
+				{Kind: "Namespace", Group: "", Version: "v1", Namespaced: false, Verbs: standardVerbs},
 			},
 		},
 		&v1.APIResourceList{
 			GroupVersion: "apps/v1",
 			APIResources: []v1.APIResource{
-				{Kind: "Deployment", Group: "apps", Version: "v1", Namespaced: true},
+				{Kind: "Deployment", Group: "apps", Version: "v1", Namespaced: true, Verbs: standardVerbs},
 			},
 		})
 	sc := syncContext{
@@ -161,7 +163,7 @@ func TestSyncCustomResources(t *testing.T) {
 
 			knownCustomResourceTypes := []v1.APIResource{}
 			if tt.fields.crdAlreadyPresent {
-				knownCustomResourceTypes = append(knownCustomResourceTypes, v1.APIResource{Kind: "TestCrd", Group: "argoproj.io", Version: "v1", Namespaced: true})
+				knownCustomResourceTypes = append(knownCustomResourceTypes, v1.APIResource{Kind: "TestCrd", Group: "argoproj.io", Version: "v1", Namespaced: true, Verbs: standardVerbs})
 			}
 
 			syncCtx := newTestSyncCtx()
@@ -173,7 +175,7 @@ func TestSyncCustomResources(t *testing.T) {
 				{
 					GroupVersion: "apiextensions.k8s.io/v1beta1",
 					APIResources: []v1.APIResource{
-						{Kind: "CustomResourceDefinition", Group: "apiextensions.k8s.io", Version: "v1beta1", Namespaced: true},
+						{Kind: "CustomResourceDefinition", Group: "apiextensions.k8s.io", Version: "v1beta1", Namespaced: true, Verbs: standardVerbs},
 					},
 				},
 			}

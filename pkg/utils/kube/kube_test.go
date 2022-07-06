@@ -7,8 +7,13 @@ import (
 	"github.com/stretchr/testify/assert"
 	"github.com/stretchr/testify/require"
 	extv1beta1 "k8s.io/api/extensions/v1beta1"
+	apierr "k8s.io/apimachinery/pkg/api/errors"
+	v1 "k8s.io/apimachinery/pkg/apis/meta/v1"
 	"k8s.io/apimachinery/pkg/apis/meta/v1/unstructured"
+	"k8s.io/apimachinery/pkg/runtime/schema"
+	fakedisco "k8s.io/client-go/discovery/fake"
 	"k8s.io/client-go/rest"
+	testcore "k8s.io/client-go/testing"
 	clientcmdapi "k8s.io/client-go/tools/clientcmd/api"
 	"sigs.k8s.io/yaml"
 )
@@ -32,6 +37,8 @@ spec:
         ports:
         - containerPort: 80
 `
+
+var standardVerbs = v1.Verbs{"create", "delete", "deletecollection", "get", "list", "patch", "update", "watch"}
 
 func TestUnsetLabels(t *testing.T) {
 	for _, yamlStr := range [][]byte{[]byte(depWithLabel)} {
@@ -176,4 +183,41 @@ func TestSplitYAML_TrailingNewLines(t *testing.T) {
 	objs, err := SplitYAML([]byte("\n\n\n---" + depWithLabel))
 	require.NoError(t, err)
 	assert.Len(t, objs, 1)
+}
+
+func TestServerResourceGroupForGroupVersionKind(t *testing.T) {
+	fakeDisco := &fakedisco.FakeDiscovery{Fake: &testcore.Fake{}}
+	fakeDisco.Resources = append(make([]*v1.APIResourceList, 0),
+		&v1.APIResourceList{
+			GroupVersion: "test.argoproj.io/v1alpha1",
+			APIResources: []v1.APIResource{
+				{Kind: "TestAllVerbs", Group: "test.argoproj.io", Version: "v1alpha1", Namespaced: true, Verbs: standardVerbs},
+				{Kind: "TestSomeVerbs", Group: "test.argoproj.io", Version: "v1alpha1", Namespaced: true, Verbs: []string{"get", "list"}},
+			},
+		})
+
+	t.Run("Successfully resolve for all verbs", func(t *testing.T) {
+		for _, v := range standardVerbs {
+			_, err := ServerResourceForGroupVersionKind(fakeDisco, schema.FromAPIVersionAndKind("test.argoproj.io/v1alpha1", "TestAllVerbs"), v)
+			assert.NoError(t, err, "Could not resolve verb %s", v)
+		}
+	})
+	t.Run("Successfully resolve for some verbs", func(t *testing.T) {
+		for _, v := range []string{"get", "list"} {
+			_, err := ServerResourceForGroupVersionKind(fakeDisco, schema.FromAPIVersionAndKind("test.argoproj.io/v1alpha1", "TestSomeVerbs"), v)
+			assert.NoError(t, err, "Could not resolve verb %s", v)
+		}
+	})
+	t.Run("Verb not supported", func(t *testing.T) {
+		for _, v := range []string{"patch"} {
+			_, err := ServerResourceForGroupVersionKind(fakeDisco, schema.FromAPIVersionAndKind("test.argoproj.io/v1alpha1", "TestSomeVerbs"), v)
+			assert.Equal(t, err, apierr.NewMethodNotSupported(schema.GroupResource{Group: "test.argoproj.io", Resource: "TestSomeVerbs"}, v))
+		}
+	})
+	t.Run("Resource not found", func(t *testing.T) {
+		for _, v := range standardVerbs {
+			_, err := ServerResourceForGroupVersionKind(fakeDisco, schema.FromAPIVersionAndKind("test.argoproj.io/v1alpha1", "TestNonExisting"), v)
+			assert.Equal(t, err, apierr.NewNotFound(schema.GroupResource{Group: "test.argoproj.io", Resource: "TestNonExisting"}, ""))
+		}
+	})
 }

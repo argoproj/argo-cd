@@ -690,7 +690,7 @@ func (sc *syncContext) getSyncTasks() (_ syncTasks, successful bool) {
 
 	// check permissions
 	for _, task := range tasks {
-		serverRes, err := kube.ServerResourceForGroupVersionKind(sc.disco, task.groupVersionKind())
+		serverRes, err := kube.ServerResourceForGroupVersionKind(sc.disco, task.groupVersionKind(), "get")
 		if err != nil {
 			// Special case for custom resources: if CRD is not yet known by the K8s API server,
 			// and the CRD is part of this sync or the resource is annotated with SkipDryRunOnMissingResource=true,
@@ -1000,15 +1000,15 @@ func (sc *syncContext) Terminate() {
 
 func (sc *syncContext) deleteResource(task *syncTask) error {
 	sc.log.WithValues("task", task).V(1).Info("Deleting resource")
-	resIf, err := sc.getResourceIf(task)
+	resIf, err := sc.getResourceIf(task, "delete")
 	if err != nil {
 		return err
 	}
 	return resIf.Delete(context.TODO(), task.name(), sc.getDeleteOptions())
 }
 
-func (sc *syncContext) getResourceIf(task *syncTask) (dynamic.ResourceInterface, error) {
-	apiResource, err := kube.ServerResourceForGroupVersionKind(sc.disco, task.groupVersionKind())
+func (sc *syncContext) getResourceIf(task *syncTask, verb string) (dynamic.ResourceInterface, error) {
+	apiResource, err := kube.ServerResourceForGroupVersionKind(sc.disco, task.groupVersionKind(), verb)
 	if err != nil {
 		return nil, err
 	}

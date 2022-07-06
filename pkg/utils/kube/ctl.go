@@ -4,6 +4,7 @@ import (
 	"context"
 	"fmt"
 	"io/ioutil"
+	"strings"
 
 	"github.com/go-logr/logr"
 	"golang.org/x/sync/errgroup"
@@ -102,10 +103,14 @@ func (k *KubectlCmd) filterAPIResources(config *rest.Config, preferred bool, res
 	return apiResIfs, nil
 }
 
-// isSupportedVerb returns whether or not a APIResource supports a specific verb
+// isSupportedVerb returns whether or not a APIResource supports a specific verb.
+// The verb will be matched case-insensitive.
 func isSupportedVerb(apiResource *metav1.APIResource, verb string) bool {
+	if verb == "" || verb == "*" {
+		return true
+	}
 	for _, v := range apiResource.Verbs {
-		if v == verb {
+		if strings.EqualFold(v, verb) {
 			return true
 		}
 	}
@@ -194,7 +199,7 @@ func (k *KubectlCmd) GetResource(ctx context.Context, config *rest.Config, gvk s
 	if err != nil {
 		return nil, err
 	}
-	apiResource, err := ServerResourceForGroupVersionKind(disco, gvk)
+	apiResource, err := ServerResourceForGroupVersionKind(disco, gvk, "get")
 	if err != nil {
 		return nil, err
 	}
@@ -217,7 +222,7 @@ func (k *KubectlCmd) PatchResource(ctx context.Context, config *rest.Config, gvk
 	if err != nil {
 		return nil, err
 	}
-	apiResource, err := ServerResourceForGroupVersionKind(disco, gvk)
+	apiResource, err := ServerResourceForGroupVersionKind(disco, gvk, "patch")
 	if err != nil {
 		return nil, err
 	}
@@ -240,7 +245,7 @@ func (k *KubectlCmd) DeleteResource(ctx context.Context, config *rest.Config, gv
 	if err != nil {
 		return err
 	}
-	apiResource, err := ServerResourceForGroupVersionKind(disco, gvk)
+	apiResource, err := ServerResourceForGroupVersionKind(disco, gvk, "delete")
 	if err != nil {
 		return err
 	}
