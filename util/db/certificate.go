@@ -5,8 +5,8 @@ import (
 	"regexp"
 	"strings"
 
+	"context"
 	"golang.org/x/crypto/ssh"
-	"golang.org/x/net/context"
 
 	log "github.com/sirupsen/logrus"
 
