@@ -99,6 +99,8 @@ type ArgoCDSettings struct {
 	ServerRBACLogEnforceEnable bool `json:"serverRBACLogEnforceEnable"`
 	// ExecEnabled indicates whether the UI exec feature is enabled
 	ExecEnabled bool `json:"execEnabled"`
+	// TrackingMethod defines the resource tracking method to be used
+	TrackingMethod string `json:"application.resourceTrackingMethod,omitempty"`
 }
 
 type GoogleAnalytics struct {
@@ -1271,6 +1273,7 @@ func updateSettingsFromConfigMap(settings *ArgoCDSettings, argoCDCM *apiv1.Confi
 	}
 	settings.InClusterEnabled = argoCDCM.Data[inClusterEnabledKey] != "false"
 	settings.ExecEnabled = argoCDCM.Data[execEnabledKey] == "true"
+	settings.TrackingMethod = argoCDCM.Data[settingsResourceTrackingMethodKey]
 }
 
 // validateExternalURL ensures the external URL that is set on the configmap is valid
