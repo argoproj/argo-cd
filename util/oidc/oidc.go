@@ -102,19 +102,21 @@ func NewClientApp(settings *settings.ArgoCDSettings, dexServerAddr string, dexTl
 		return nil, fmt.Errorf("parse redirect-uri: %v", err)
 	}
 
+	transport := &http.Transport{
+		Proxy: http.ProxyFromEnvironment,
+		Dial: (&net.Dialer{
+			Timeout:   30 * time.Second,
+			KeepAlive: 30 * time.Second,
+		}).Dial,
+		TLSHandshakeTimeout:   10 * time.Second,
+		ExpectContinueTimeout: 1 * time.Second,
+	}
+	a.client = &http.Client{
+		Transport: transport,
+	}
+
 	if settings.DexConfig != "" && settings.OIDCConfigRAW == "" {
-		a.client = &http.Client{
-			Transport: &http.Transport{
-				TLSClientConfig: dex.TLSConfig(dexTlsConfig),
-				Proxy:           http.ProxyFromEnvironment,
-				Dial: (&net.Dialer{
-					Timeout:   30 * time.Second,
-					KeepAlive: 30 * time.Second,
-				}).Dial,
-				TLSHandshakeTimeout:   10 * time.Second,
-				ExpectContinueTimeout: 1 * time.Second,
-			},
-		}
+		transport.TLSClientConfig = dex.TLSConfig(dexTlsConfig)
 		if strings.Contains(dexServerAddr, "://") {
 			a.client.Transport = dex.NewDexRewriteURLRoundTripper(dexServerAddr, a.client.Transport)
 		} else {
@@ -125,19 +127,7 @@ func NewClientApp(settings *settings.ArgoCDSettings, dexServerAddr string, dexTl
 			}
 		}
 	} else {
-		tlsConfig := settings.OIDCTLSConfig()
-		a.client = &http.Client{
-			Transport: &http.Transport{
-				TLSClientConfig: tlsConfig,
-				Proxy:           http.ProxyFromEnvironment,
-				Dial: (&net.Dialer{
-					Timeout:   30 * time.Second,
-					KeepAlive: 30 * time.Second,
-				}).Dial,
-				TLSHandshakeTimeout:   10 * time.Second,
-				ExpectContinueTimeout: 1 * time.Second,
-			},
-		}
+		transport.TLSClientConfig = settings.OIDCTLSConfig()
 	}
 	if os.Getenv(common.EnvVarSSODebug) == "1" {
 		a.client.Transport = httputil.DebugTransport{T: a.client.Transport}

@@ -75,16 +75,16 @@ func NewRunDexCommand() *cobra.Command {
 			kubeClientset := kubernetes.NewForConfigOrDie(config)
 
 			if !disableTLS {
-				config, err := tls.CreateServerTLSConfig("/tls/tls.crt", "/tls/tls.key", tlsHostList)
+				config, err := tls.CreateServerTLSConfig("/tls/tls.crt", "/tls/tls.key", []string{"localhost", "dexserver"})
 				if err != nil {
 					log.Fatalf("could not create TLS config: %v", err)
 				}
 				certPem, keyPem := tls.EncodeX509KeyPair(config.Certificates[0])
-				err = ioutil.WriteFile("/tmp/tls.crt", certPem, 0600)
+				err = os.WriteFile("/tmp/tls.crt", certPem, 0600)
 				if err != nil {
 					log.Fatalf("could not write TLS certificate: %v", err)
 				}
-				err = ioutil.WriteFile("/tmp/tls.key", keyPem, 0600)
+				err = os.WriteFile("/tmp/tls.key", keyPem, 0600)
 				if err != nil {
 					log.Fatalf("could not write TLS key: %v", err)
 				}
@@ -142,8 +142,6 @@ func NewRunDexCommand() *cobra.Command {
 	command.Flags().BoolVar(&disableTLS, "disable-tls", env.ParseBoolFromEnv("ARGOCD_DEX_SERVER_DISABLE_TLS", false), "Disable TLS on the HTTP endpoint")
 	return &command
 }
-
-var tlsHostList []string = []string{"localhost", "dexserver"}
 
 func NewGenDexConfigCommand() *cobra.Command {
 	var (
