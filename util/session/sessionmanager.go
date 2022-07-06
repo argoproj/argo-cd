@@ -148,11 +148,7 @@ func NewSessionManager(settingsMgr *settings.SettingsManager, projectsLister v1a
 			}
 		}
 	} else {
-		tlsConfig := settings.TLSConfig()
-		if tlsConfig != nil {
-			tlsConfig.InsecureSkipVerify = true
-		}
-		transport.TLSClientConfig = tlsConfig
+		transport.TLSClientConfig = settings.OIDCTLSConfig()
 	}
 	if os.Getenv(common.EnvVarSSODebug) == "1" {
 		s.client.Transport = httputil.DebugTransport{T: s.client.Transport}
