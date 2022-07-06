@@ -3,10 +3,10 @@ package oidc
 import (
 	"encoding/hex"
 	"encoding/json"
-	"io/ioutil"
 	"net/http"
 	"net/http/httptest"
 	"net/url"
+	"os"
 	"testing"
 
 	gooidc "github.com/coreos/go-oidc"
@@ -24,7 +24,7 @@ import (
 func TestInferGrantType(t *testing.T) {
 	for _, path := range []string{"dex", "okta", "auth0", "onelogin"} {
 		t.Run(path, func(t *testing.T) {
-			rawConfig, err := ioutil.ReadFile("testdata/" + path + ".json")
+			rawConfig, err := os.ReadFile("testdata/" + path + ".json")
 			assert.NoError(t, err)
 			var config OIDCConfiguration
 			err = json.Unmarshal(rawConfig, &config)
