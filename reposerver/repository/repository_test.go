@@ -145,15 +145,13 @@ func createSymlink(workingDir, destName, linkName string) error {
 		if err != nil {
 			return err
 		}
+		defer os.Chdir(oldWorkingDir)
 	}
 	err = os.Symlink(destName, linkName)
 	if err != nil {
 		return err
 	}
-	err = os.Chdir(oldWorkingDir)
-	if err != nil {
-		return err
-	}
+
 	return nil
 }
 
