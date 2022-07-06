@@ -12,7 +12,6 @@ import (
 	"encoding/pem"
 	"errors"
 	"fmt"
-	"io/ioutil"
 	"math/big"
 	"net"
 	"os"
@@ -349,7 +348,7 @@ func LoadX509CertPool(paths ...string) (*x509.CertPool, error) {
 			// ...but everything else is considered an error
 			return nil, fmt.Errorf("could not load TLS certificate: %v", err)
 		} else {
-			f, err := ioutil.ReadFile(path)
+			f, err := os.ReadFile(path)
 			if err != nil {
 				return nil, fmt.Errorf("failure to load TLS certificates from %s: %v", path, err)
 			}
@@ -363,7 +362,7 @@ func LoadX509CertPool(paths ...string) (*x509.CertPool, error) {
 
 // LoadX509Cert loads PEM data from a file and returns the resulting Certificate
 func LoadX509Cert(path string) (*x509.Certificate, error) {
-	bytes, err := ioutil.ReadFile(path)
+	bytes, err := os.ReadFile(path)
 	if err != nil {
 		return nil, fmt.Errorf("could not read certificate file: %v", err)
 	}
