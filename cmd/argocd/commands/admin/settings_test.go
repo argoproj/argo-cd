@@ -5,7 +5,6 @@ import (
 	"context"
 	"fmt"
 	"io"
-	"io/ioutil"
 	"os"
 	"testing"
 
@@ -35,7 +34,7 @@ func captureStdout(callback func()) (string, error) {
 	callback()
 	utils.Close(w)
 
-	data, err := ioutil.ReadAll(r)
+	data, err := io.ReadAll(r)
 
 	if err != nil {
 		return "", err
@@ -235,7 +234,7 @@ spec:
 )
 
 func tempFile(content string) (string, io.Closer, error) {
-	f, err := ioutil.TempFile("", "*.yaml")
+	f, err := os.CreateTemp("", "*.yaml")
 	if err != nil {
 		return "", nil, err
 	}

@@ -1,7 +1,6 @@
 package commands
 
 import (
-	"io/ioutil"
 	"os"
 	"testing"
 
@@ -40,7 +39,7 @@ const testConfigFilePath = "./testdata/local.config"
 
 func TestContextDelete(t *testing.T) {
 	// Write the test config file
-	err := ioutil.WriteFile(testConfigFilePath, []byte(testConfig), os.ModePerm)
+	err := os.WriteFile(testConfigFilePath, []byte(testConfig), os.ModePerm)
 	assert.NoError(t, err)
 	defer os.Remove(testConfigFilePath)
 
