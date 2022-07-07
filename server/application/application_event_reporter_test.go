@@ -251,3 +251,21 @@ func TestShouldSendEvent(t *testing.T) {
 	})
 
 }
+
+func TestGetResourceEventPayloadWithoutRevision(t *testing.T) {
+	app := v1alpha1.Application{}
+	rs := v1alpha1.ResourceStatus{}
+	es := events.EventSource{}
+
+	actualState := application.ApplicationResourceResponse{
+		Manifest: "{ \"key\" : \"manifest\" }",
+	}
+	desiredState := apiclient.Manifest{
+		CompiledManifest: "{ \"key\" : \"manifest\" }",
+	}
+	appTree := v1alpha1.ApplicationTree{}
+
+	_, err := getResourceEventPayload(&app, &rs, &es, &actualState, &desiredState, &appTree, true, "", nil, nil)
+	assert.NoError(t, err)
+
+}
