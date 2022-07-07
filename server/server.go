@@ -5,7 +5,6 @@ import (
 	"crypto/tls"
 	"fmt"
 	"io/fs"
-	"io/ioutil"
 	"math"
 	"net"
 	"net/http"
@@ -878,32 +877,36 @@ func (a *ArgoCDServer) newHTTPServer(ctx context.Context, port int, grpcWebHandl
 	return &httpS
 }
 
-var extensionsPattern = regexp.MustCompile(`^extension(.*).js$`)
+var extensionsPattern = regexp.MustCompile(`^extension(.*)\.js$`)
 
 func (a *ArgoCDServer) serveExtensions(extensionsSharedPath string, w http.ResponseWriter) {
 	w.Header().Set("Content-Type", "application/javascript")
 
 	content := ""
-	if err := filepath.Walk(extensionsSharedPath, func(filePath string, info os.FileInfo, err error) error {
+	err := filepath.Walk(extensionsSharedPath, func(filePath string, info os.FileInfo, err error) error {
 		if err != nil {
-			return err
+			return fmt.Errorf("failed to iterate files in '%s': %w", extensionsSharedPath, err)
 		}
 		if !info.IsDir() && extensionsPattern.MatchString(info.Name()) {
-			data, err := ioutil.ReadFile(filePath)
+			data, err := os.ReadFile(filePath)
 			if err != nil {
-				return err
+				return fmt.Errorf("failed to read extension file '%s': %w", filePath, err)
 			}
 			content = content + fmt.Sprintf(`
 // source: %s/%s 
 `, filePath, info.Name()) + string(data)
 		}
 		return nil
-	}); err != nil && !os.IsNotExist(err) {
+	})
+
+	if err != nil && !os.IsNotExist(err) {
 		log.Errorf("Failed to walk extensions directory: %v", err)
 		http.Error(w, "Internal error", http.StatusInternalServerError)
 		return
 	}
-	_, _ = fmt.Fprintln(w, content)
+	if _, err := fmt.Fprintln(w, content); err != nil {
+		log.Errorf("failed to serve extensions content: %v", err)
+	}
 }
 
 // registerDexHandlers will register dex HTTP handlers, creating the the OAuth client app

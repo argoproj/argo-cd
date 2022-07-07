@@ -1,7 +1,7 @@
 # UI Extensions
 
 Argo CD web user interface can be extended with additional UI elements. Extensions should be delivered as a javascript file
-in the `argocd-server` Pods that are placed in the `/tmp/extensions` directory and starts with `extension` prefix ( matches to `^extension(.*).js$` regex ).
+in the `argocd-server` Pods that are placed in the `/tmp/extensions` directory and starts with `extension` prefix ( matches to `^extension(.*)\.js$` regex ).
 
 ```
 /tmp/extensions
@@ -12,7 +12,7 @@ in the `argocd-server` Pods that are placed in the `/tmp/extensions` directory a
 ```
 
 Extensions are loaded during initial page rendering and should register themselves using API exposed in the `extensionsAPI` global variable. (See
-corresponding extention type details for additional information).
+corresponding extension type details for additional information).
 
 The extension should provide a React component that is responsible for rendering the UI element. Extension should not bundle the React library.
 Instead extension should use the `react` global variable. You can leverage `externals` setting if you are using webpack:
@@ -26,8 +26,6 @@ Instead extension should use the `react` global variable. You can leverage `exte
 ## Resource Tab Extensions
 
 Resource Tab extensions is an extension that provides an additional tab for the resource sliding panel at the Argo CD Application details page.
-
-<img width="568" alt="image" src="https://user-images.githubusercontent.com/426437/176794114-cb3707a4-1d65-4468-91d7-4fd54e9e9d42.png">
 
 The resource tab extension should be registered using the `extensionsAPI.registerResourceExtension` method:
 
