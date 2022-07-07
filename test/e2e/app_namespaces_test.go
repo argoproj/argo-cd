@@ -26,7 +26,7 @@ func TestAppCreationInOtherNamespace(t *testing.T) {
 		Then().
 		Expect(SyncStatusIs(SyncStatusCodeOutOfSync)).
 		And(func(app *Application) {
-			assert.Equal(t, ctx.AppShortName(), app.Name)
+			assert.Equal(t, ctx.AppName(), app.Name)
 			assert.Equal(t, AppNamespace(), app.Namespace)
 			assert.Equal(t, RepoURL(RepoURLTypeFile), app.Spec.Source.RepoURL)
 			assert.Equal(t, guestbookPath, app.Spec.Source.Path)
@@ -38,7 +38,7 @@ func TestAppCreationInOtherNamespace(t *testing.T) {
 			// app should be listed
 			output, err := RunCli("app", "list")
 			assert.NoError(t, err)
-			assert.Contains(t, output, ctx.AppShortName())
+			assert.Contains(t, output, ctx.AppName())
 		}).
 		When().
 		// ensure that create is idempotent
@@ -50,7 +50,7 @@ func TestAppCreationInOtherNamespace(t *testing.T) {
 		// ensure that update replaces spec and merge labels and annotations
 		And(func() {
 			FailOnErr(AppClientset.ArgoprojV1alpha1().Applications(AppNamespace()).Patch(context.Background(),
-				ctx.AppShortName(), types.MergePatchType, []byte(`{"metadata": {"labels": { "test": "label" }, "annotations": { "test": "annotation" }}}`), metav1.PatchOptions{}))
+				ctx.AppName(), types.MergePatchType, []byte(`{"metadata": {"labels": { "test": "label" }, "annotations": { "test": "annotation" }}}`), metav1.PatchOptions{}))
 		}).
 		CreateApp("--upsert").
 		Then().

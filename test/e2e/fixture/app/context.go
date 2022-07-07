@@ -1,7 +1,6 @@
 package app
 
 import (
-	"strings"
 	"testing"
 	"time"
 
@@ -77,21 +76,15 @@ func GivenWithSameState(t *testing.T) *Context {
 	}
 }
 
-func (c *Context) AppShortName() string {
-	name := c.name
-	nameLen := len(name)
-	if len(c.appNamespace)+len(c.name) > 62 && nameLen >= 62-len(c.appNamespace) {
-		name = name[:62-len(c.appNamespace)]
-	}
-	name = strings.TrimSuffix(name, "-")
-	return name
+func (c *Context) AppName() string {
+	return c.name
 }
 
-func (c *Context) AppName() string {
+func (c *Context) AppQualifiedName() string {
 	if c.appNamespace != "" {
-		return c.appNamespace + "/" + c.AppShortName()
+		return c.appNamespace + "/" + c.AppName()
 	} else {
-		return c.AppShortName()
+		return c.AppName()
 	}
 }
 

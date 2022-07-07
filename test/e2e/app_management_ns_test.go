@@ -90,7 +90,7 @@ func TestNSGetLogsDenySwitchOn(t *testing.T) {
 		Then().
 		Expect(HealthIs(health.HealthStatusHealthy)).
 		And(func(app *Application) {
-			_, err := RunCli("app", "logs", ctx.AppName(), "--kind", "Deployment", "--group", "", "--name", "guestbook-ui")
+			_, err := RunCli("app", "logs", ctx.AppQualifiedName(), "--kind", "Deployment", "--group", "", "--name", "guestbook-ui")
 			assert.Error(t, err)
 			assert.Contains(t, err.Error(), "permission denied")
 		})
@@ -143,17 +143,17 @@ func TestNSGetLogsAllowSwitchOnNS(t *testing.T) {
 		Then().
 		Expect(HealthIs(health.HealthStatusHealthy)).
 		And(func(app *Application) {
-			out, err := RunCli("app", "logs", ctx.AppName(), "--kind", "Deployment", "--group", "", "--name", "guestbook-ui")
+			out, err := RunCli("app", "logs", ctx.AppQualifiedName(), "--kind", "Deployment", "--group", "", "--name", "guestbook-ui")
 			assert.NoError(t, err)
 			assert.Contains(t, out, "Hi")
 		}).
 		And(func(app *Application) {
-			out, err := RunCli("app", "logs", ctx.AppName(), "--kind", "Pod")
+			out, err := RunCli("app", "logs", ctx.AppQualifiedName(), "--kind", "Pod")
 			assert.NoError(t, err)
 			assert.Contains(t, out, "Hi")
 		}).
 		And(func(app *Application) {
-			out, err := RunCli("app", "logs", ctx.AppName(), "--kind", "Service")
+			out, err := RunCli("app", "logs", ctx.AppQualifiedName(), "--kind", "Service")
 			assert.NoError(t, err)
 			assert.NotContains(t, out, "Hi")
 		})
@@ -201,17 +201,17 @@ func TestNSGetLogsAllowSwitchOff(t *testing.T) {
 		Then().
 		Expect(HealthIs(health.HealthStatusHealthy)).
 		And(func(app *Application) {
-			out, err := RunCli("app", "logs", ctx.AppName(), "--kind", "Deployment", "--group", "", "--name", "guestbook-ui")
+			out, err := RunCli("app", "logs", ctx.AppQualifiedName(), "--kind", "Deployment", "--group", "", "--name", "guestbook-ui")
 			assert.NoError(t, err)
 			assert.Contains(t, out, "Hi")
 		}).
 		And(func(app *Application) {
-			out, err := RunCli("app", "logs", ctx.AppName(), "--kind", "Pod")
+			out, err := RunCli("app", "logs", ctx.AppQualifiedName(), "--kind", "Pod")
 			assert.NoError(t, err)
 			assert.Contains(t, out, "Hi")
 		}).
 		And(func(app *Application) {
-			out, err := RunCli("app", "logs", ctx.AppName(), "--kind", "Service")
+			out, err := RunCli("app", "logs", ctx.AppQualifiedName(), "--kind", "Service")
 			assert.NoError(t, err)
 			assert.NotContains(t, out, "Hi")
 		})
@@ -290,7 +290,7 @@ func TestNSAppCreation(t *testing.T) {
 			// app should be listed
 			output, err := RunCli("app", "list")
 			assert.NoError(t, err)
-			assert.Contains(t, output, ctx.AppName())
+			assert.Contains(t, output, ctx.AppQualifiedName())
 		}).
 		When().
 		// ensure that create is idempotent
@@ -325,7 +325,7 @@ func TestNSAppCreationWithoutForceUpdate(t *testing.T) {
 		Then().
 		Expect(SyncStatusIs(SyncStatusCodeOutOfSync)).
 		And(func(app *Application) {
-			assert.Equal(t, ctx.AppShortName(), app.Name)
+			assert.Equal(t, ctx.AppName(), app.Name)
 			assert.Equal(t, AppNamespace(), app.Namespace)
 			assert.Equal(t, RepoURL(RepoURLTypeFile), app.Spec.Source.RepoURL)
 			assert.Equal(t, guestbookPath, app.Spec.Source.Path)
@@ -337,7 +337,7 @@ func TestNSAppCreationWithoutForceUpdate(t *testing.T) {
 			// app should be listed
 			output, err := RunCli("app", "list")
 			assert.NoError(t, err)
-			assert.Contains(t, output, ctx.AppName())
+			assert.Contains(t, output, ctx.AppQualifiedName())
 		}).
 		When().
 		IgnoreErrors().
@@ -359,7 +359,7 @@ func TestNSDeleteAppResource(t *testing.T) {
 		Expect(SyncStatusIs(SyncStatusCodeSynced)).
 		And(func(_ *Application) {
 			// app should be listed
-			if _, err := RunCli("app", "delete-resource", ctx.AppName(), "--kind", "Service", "--resource-name", "guestbook-ui"); err != nil {
+			if _, err := RunCli("app", "delete-resource", ctx.AppQualifiedName(), "--kind", "Service", "--resource-name", "guestbook-ui"); err != nil {
 				assert.NoError(t, err)
 			}
 		}).
@@ -445,7 +445,7 @@ func TestNSAppDeletion(t *testing.T) {
 
 	output, err := RunCli("app", "list")
 	assert.NoError(t, err)
-	assert.NotContains(t, output, ctx.AppName())
+	assert.NotContains(t, output, ctx.AppQualifiedName())
 }
 
 func TestNSAppLabels(t *testing.T) {
@@ -457,9 +457,9 @@ func TestNSAppLabels(t *testing.T) {
 		CreateApp("-l", "foo=bar").
 		Then().
 		And(func(app *Application) {
-			assert.Contains(t, FailOnErr(RunCli("app", "list")), ctx.AppName())
-			assert.Contains(t, FailOnErr(RunCli("app", "list", "-l", "foo=bar")), ctx.AppName())
-			assert.NotContains(t, FailOnErr(RunCli("app", "list", "-l", "foo=rubbish")), ctx.AppName())
+			assert.Contains(t, FailOnErr(RunCli("app", "list")), ctx.AppQualifiedName())
+			assert.Contains(t, FailOnErr(RunCli("app", "list", "-l", "foo=bar")), ctx.AppQualifiedName())
+			assert.NotContains(t, FailOnErr(RunCli("app", "list", "-l", "foo=rubbish")), ctx.AppQualifiedName())
 		}).
 		Given().
 		// remove both name and replace labels means nothing will sync
@@ -577,7 +577,7 @@ func TestNSManipulateApplicationResources(t *testing.T) {
 		Then().
 		Expect(SyncStatusIs(SyncStatusCodeSynced)).
 		And(func(app *Application) {
-			manifests, err := RunCli("app", "manifests", ctx.AppName(), "--source", "live")
+			manifests, err := RunCli("app", "manifests", ctx.AppQualifiedName(), "--source", "live")
 			assert.NoError(t, err)
 			resources, err := kube.SplitYAML([]byte(manifests))
 			assert.NoError(t, err)
@@ -647,11 +647,11 @@ func TestNSAppWithSecrets(t *testing.T) {
 				assetSecretDataHidden(t, manifest)
 			}
 
-			diffOutput := FailOnErr(RunCli("app", "diff", ctx.AppName())).(string)
+			diffOutput := FailOnErr(RunCli("app", "diff", ctx.AppQualifiedName())).(string)
 			assert.Empty(t, diffOutput)
 
 			// make sure resource update error does not print secret details
-			_, err = RunCli("app", "patch-resource", ctx.AppName(), "--resource-name", "test-secret",
+			_, err = RunCli("app", "patch-resource", ctx.AppQualifiedName(), "--resource-name", "test-secret",
 				"--kind", "Secret", "--patch", `{"op": "add", "path": "/data", "value": "hello"}'`,
 				"--patch-type", "application/json-patch+json")
 			require.Error(t, err)
@@ -671,13 +671,13 @@ func TestNSAppWithSecrets(t *testing.T) {
 		Then().
 		Expect(SyncStatusIs(SyncStatusCodeOutOfSync)).
 		And(func(app *Application) {
-			diffOutput, err := RunCli("app", "diff", ctx.AppName())
+			diffOutput, err := RunCli("app", "diff", ctx.AppQualifiedName())
 			assert.Error(t, err)
 			assert.Contains(t, diffOutput, "username: ++++++++")
 			assert.Contains(t, diffOutput, "password: ++++++++++++")
 
 			// local diff should ignore secrets
-			diffOutput = FailOnErr(RunCli("app", "diff", ctx.AppName(), "--local", "testdata/secrets")).(string)
+			diffOutput = FailOnErr(RunCli("app", "diff", ctx.AppQualifiedName(), "--local", "testdata/secrets")).(string)
 			assert.Empty(t, diffOutput)
 
 			// ignore missing field and make sure diff shows no difference
@@ -692,7 +692,7 @@ func TestNSAppWithSecrets(t *testing.T) {
 		Expect(OperationPhaseIs(OperationSucceeded)).
 		Expect(SyncStatusIs(SyncStatusCodeSynced)).
 		And(func(app *Application) {
-			diffOutput := FailOnErr(RunCli("app", "diff", ctx.AppName())).(string)
+			diffOutput := FailOnErr(RunCli("app", "diff", ctx.AppQualifiedName())).(string)
 			assert.Empty(t, diffOutput)
 		}).
 		// verify not committed secret also ignore during diffing
@@ -706,7 +706,7 @@ stringData:
   username: test-username`).
 		Then().
 		And(func(app *Application) {
-			diffOutput := FailOnErr(RunCli("app", "diff", ctx.AppName(), "--local", "testdata/secrets")).(string)
+			diffOutput := FailOnErr(RunCli("app", "diff", ctx.AppQualifiedName(), "--local", "testdata/secrets")).(string)
 			assert.Empty(t, diffOutput)
 		})
 }
@@ -732,7 +732,7 @@ func TestNSResourceDiffing(t *testing.T) {
 		Then().
 		Expect(SyncStatusIs(SyncStatusCodeOutOfSync)).
 		And(func(app *Application) {
-			diffOutput, err := RunCli("app", "diff", ctx.AppName(), "--local", "testdata/guestbook")
+			diffOutput, err := RunCli("app", "diff", ctx.AppQualifiedName(), "--local", "testdata/guestbook")
 			assert.Error(t, err)
 			assert.Contains(t, diffOutput, fmt.Sprintf("===== apps/Deployment %s/guestbook-ui ======", DeploymentNamespace()))
 		}).
@@ -745,7 +745,7 @@ func TestNSResourceDiffing(t *testing.T) {
 		Then().
 		Expect(SyncStatusIs(SyncStatusCodeSynced)).
 		And(func(app *Application) {
-			diffOutput, err := RunCli("app", "diff", ctx.AppName(), "--local", "testdata/guestbook")
+			diffOutput, err := RunCli("app", "diff", ctx.AppQualifiedName(), "--local", "testdata/guestbook")
 			assert.NoError(t, err)
 			assert.Empty(t, diffOutput)
 		}).
@@ -868,7 +868,7 @@ func testNSEdgeCasesApplicationResources(t *testing.T, appPath string, statusCod
 	expect.
 		Expect(HealthIs(statusCode)).
 		And(func(app *Application) {
-			diffOutput, err := RunCli("app", "diff", ctx.AppName(), "--local", path.Join("testdata", appPath))
+			diffOutput, err := RunCli("app", "diff", ctx.AppQualifiedName(), "--local", path.Join("testdata", appPath))
 			assert.Empty(t, diffOutput)
 			assert.NoError(t, err)
 		})
@@ -939,11 +939,11 @@ func TestNSSyncResourceByLabel(t *testing.T) {
 		Sync().
 		Then().
 		And(func(app *Application) {
-			_, _ = RunCli("app", "sync", ctx.AppName(), "--label", fmt.Sprintf("app.kubernetes.io/instance=%s", app.Name))
+			_, _ = RunCli("app", "sync", ctx.AppQualifiedName(), "--label", fmt.Sprintf("app.kubernetes.io/instance=%s", app.Name))
 		}).
 		Expect(SyncStatusIs(SyncStatusCodeSynced)).
 		And(func(app *Application) {
-			_, err := RunCli("app", "sync", ctx.AppName(), "--label", "this-label=does-not-exist")
+			_, err := RunCli("app", "sync", ctx.AppQualifiedName(), "--label", "this-label=does-not-exist")
 			assert.Error(t, err)
 			assert.Contains(t, err.Error(), "level=fatal")
 		})
@@ -959,7 +959,7 @@ func TestNSLocalManifestSync(t *testing.T) {
 		Sync().
 		Then().
 		And(func(app *Application) {
-			res, _ := RunCli("app", "manifests", ctx.AppName())
+			res, _ := RunCli("app", "manifests", ctx.AppQualifiedName())
 			assert.Contains(t, res, "containerPort: 80")
 			assert.Contains(t, res, "image: gcr.io/heptio-images/ks-guestbook-demo:0.2")
 		}).
@@ -970,7 +970,7 @@ func TestNSLocalManifestSync(t *testing.T) {
 		Then().
 		Expect(SyncStatusIs(SyncStatusCodeSynced)).
 		And(func(app *Application) {
-			res, _ := RunCli("app", "manifests", ctx.AppName())
+			res, _ := RunCli("app", "manifests", ctx.AppQualifiedName())
 			assert.Contains(t, res, "containerPort: 81")
 			assert.Contains(t, res, "image: gcr.io/heptio-images/ks-guestbook-demo:0.3")
 		}).
@@ -981,7 +981,7 @@ func TestNSLocalManifestSync(t *testing.T) {
 		Then().
 		Expect(SyncStatusIs(SyncStatusCodeSynced)).
 		And(func(app *Application) {
-			res, _ := RunCli("app", "manifests", ctx.AppName())
+			res, _ := RunCli("app", "manifests", ctx.AppQualifiedName())
 			assert.Contains(t, res, "containerPort: 80")
 			assert.Contains(t, res, "image: gcr.io/heptio-images/ks-guestbook-demo:0.2")
 		})
@@ -1537,7 +1537,7 @@ func TestNSNotPermittedResources(t *testing.T) {
 		ObjectMeta: metav1.ObjectMeta{
 			Name: "sample-ingress",
 			Annotations: map[string]string{
-				common.AnnotationKeyAppInstance: fmt.Sprintf("%s_%s:networking/Ingress:%s/sample-ingress", AppNamespace(), ctx.AppShortName(), DeploymentNamespace()),
+				common.AnnotationKeyAppInstance: fmt.Sprintf("%s_%s:networking/Ingress:%s/sample-ingress", AppNamespace(), ctx.AppName(), DeploymentNamespace()),
 			},
 		},
 		Spec: networkingv1.IngressSpec{
@@ -1568,7 +1568,7 @@ func TestNSNotPermittedResources(t *testing.T) {
 		ObjectMeta: metav1.ObjectMeta{
 			Name: "guestbook-ui",
 			Annotations: map[string]string{
-				common.AnnotationKeyAppInstance: fmt.Sprintf("%s_%s:Service:%s/guesbook-ui", ArgoCDNamespace, ctx.AppName(), DeploymentNamespace()),
+				common.AnnotationKeyAppInstance: fmt.Sprintf("%s_%s:Service:%s/guesbook-ui", ArgoCDNamespace, ctx.AppQualifiedName(), DeploymentNamespace()),
 			},
 		},
 		Spec: v1.ServiceSpec{

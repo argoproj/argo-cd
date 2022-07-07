@@ -222,7 +222,7 @@ func event(namespace string, reason string, message string) Expectation {
 	return func(c *Consequences) (state, string) {
 		list, err := fixture.KubeClientset.CoreV1().Events(namespace).List(context.Background(), metav1.ListOptions{
 			FieldSelector: fields.SelectorFromSet(map[string]string{
-				"involvedObject.name":      c.context.AppShortName(),
+				"involvedObject.name":      c.context.AppName(),
 				"involvedObject.namespace": namespace,
 			}).String(),
 		})

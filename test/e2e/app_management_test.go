@@ -325,7 +325,7 @@ func TestAppCreationWithoutForceUpdate(t *testing.T) {
 		Then().
 		Expect(SyncStatusIs(SyncStatusCodeOutOfSync)).
 		And(func(app *Application) {
-			assert.Equal(t, ctx.AppShortName(), app.Name)
+			assert.Equal(t, ctx.AppName(), app.Name)
 			assert.Equal(t, RepoURL(RepoURLTypeFile), app.Spec.Source.RepoURL)
 			assert.Equal(t, guestbookPath, app.Spec.Source.Path)
 			assert.Equal(t, DeploymentNamespace(), app.Spec.Destination.Namespace)
@@ -2017,7 +2017,7 @@ func TestAppWaitOperationInProgress(t *testing.T) {
 		Expect(OperationPhaseIs(OperationRunning)).
 		When().
 		And(func() {
-			_, err := RunCli("app", "wait", ctx.AppShortName(), "--suspended")
+			_, err := RunCli("app", "wait", ctx.AppName(), "--suspended")
 			errors.CheckError(err)
 		})
 }
