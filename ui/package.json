@@ -23,7 +23,7 @@
     "json-merge-patch": "^0.2.3",
     "lodash-es": "^4.17.21",
     "minimatch": "^3.0.4",
-    "moment": "^2.29.3",
+    "moment": "^2.29.4",
     "monaco-editor": "^0.15.6",
     "prop-types": "^15.6.0",
     "react": "^16.9.3",
