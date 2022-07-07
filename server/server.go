@@ -808,7 +808,7 @@ func (a *ArgoCDServer) newHTTPServer(ctx context.Context, port int, grpcWebHandl
 	}
 	mux.Handle("/api/", handler)
 
-	terminalHandler := application.NewHandler(a.appLister, a.db, a.enf, a.Cache, appResourceTreeFn)
+	terminalHandler := application.NewHandler(a.appLister, a.db, a.enf, a.Cache, appResourceTreeFn, a.settings.ExecShells)
 	mux.HandleFunc("/terminal", func(writer http.ResponseWriter, request *http.Request) {
 		argocdSettings, err := a.settingsMgr.GetSettings()
 		if err != nil {

@@ -233,6 +233,14 @@ data:
   # If omitted, Argo CD injects the app name into the label: 'app.kubernetes.io/instance'
   application.instanceLabelKey: mycompany.com/appname
 
+  # You can change the resource tracking method Argo CD uses by changing the
+  # setting application.resourceTrackingMethod to the desired method.
+  # The following methods are available:
+  # - label            : Uses the application.instanceLabelKey label for tracking
+  # - annotation       : Uses an annotation with additional metadata for tracking instead of the label
+  # - annotation+label : Also uses an annotation for tracking, but additionally labels the resource with the application name
+  application.resourceTrackingMethod: annotation
+
   # disables admin user. Admin is enabled by default
   admin.enabled: "false"
   # add an additional local user with apiKey and login capabilities
@@ -290,6 +298,9 @@ data:
 
   # exec.enabled indicates whether the UI exec feature is enabled. It is disabled by default.
   exec.enabled: "false"
+
+  # exec.shells restricts which shells are allowed for `exec`, and in which order they are attempted
+  exec.shells: "bash,sh,powershell,cmd"
 
   # oidc.tls.insecure.skip.verify determines whether certificate verification is skipped when verifying tokens with the
   # configured OIDC provider (either external or the bundled Dex instance). Setting this to "true" will cause JWT

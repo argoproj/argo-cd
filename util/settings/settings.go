@@ -99,6 +99,8 @@ type ArgoCDSettings struct {
 	ServerRBACLogEnforceEnable bool `json:"serverRBACLogEnforceEnable"`
 	// ExecEnabled indicates whether the UI exec feature is enabled
 	ExecEnabled bool `json:"execEnabled"`
+	// ExecShells restricts which shells are allowed for `exec` and in which order they are tried
+	ExecShells []string `json:"execShells"`
 	// OIDCTLSInsecureSkipVerify determines whether certificate verification is skipped when verifying tokens with the
 	// configured OIDC provider (either external or the bundled Dex instance). Setting this to `true` will cause JWT
 	// token verification to pass despite the OIDC provider having an invalid certificate. Only set to `true` if you
@@ -413,6 +415,8 @@ const (
 	helmValuesFileSchemesKey = "helm.valuesFileSchemes"
 	// execEnabledKey is the key to configure whether the UI exec feature is enabled
 	execEnabledKey = "exec.enabled"
+	// execShellsKey is the key to configure which shells are allowed for `exec` and in what order they are tried
+	execShellsKey = "exec.shells"
 	// oidcTLSInsecureSkipVerifyKey is the key to configure whether TLS cert verification is skipped for OIDC connections
 	oidcTLSInsecureSkipVerifyKey = "oidc.tls.insecure.skip.verify"
 )
@@ -1280,6 +1284,13 @@ func updateSettingsFromConfigMap(settings *ArgoCDSettings, argoCDCM *apiv1.Confi
 	}
 	settings.InClusterEnabled = argoCDCM.Data[inClusterEnabledKey] != "false"
 	settings.ExecEnabled = argoCDCM.Data[execEnabledKey] == "true"
+	execShells := argoCDCM.Data[execShellsKey]
+	if execShells != "" {
+		settings.ExecShells = strings.Split(execShells, ",")
+	} else {
+		// Fall back to default. If you change this list, also change docs/operator-manual/argocd-cm.yaml.
+		settings.ExecShells = []string{"bash", "sh", "powershell", "cmd"}
+	}
 	settings.OIDCTLSInsecureSkipVerify = argoCDCM.Data[oidcTLSInsecureSkipVerifyKey] == "true"
 	settings.TrackingMethod = argoCDCM.Data[settingsResourceTrackingMethodKey]
 }
