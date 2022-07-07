@@ -4,6 +4,7 @@ import (
 	"context"
 	"crypto/tls"
 	"fmt"
+	goio "io"
 	"io/fs"
 	"math"
 	"net"
@@ -882,19 +883,32 @@ var extensionsPattern = regexp.MustCompile(`^extension(.*)\.js$`)
 func (a *ArgoCDServer) serveExtensions(extensionsSharedPath string, w http.ResponseWriter) {
 	w.Header().Set("Content-Type", "application/javascript")
 
-	content := ""
 	err := filepath.Walk(extensionsSharedPath, func(filePath string, info os.FileInfo, err error) error {
 		if err != nil {
 			return fmt.Errorf("failed to iterate files in '%s': %w", extensionsSharedPath, err)
 		}
 		if !info.IsDir() && extensionsPattern.MatchString(info.Name()) {
-			data, err := os.ReadFile(filePath)
-			if err != nil {
-				return fmt.Errorf("failed to read extension file '%s': %w", filePath, err)
+			processFile := func() error {
+				if _, err = w.Write([]byte(fmt.Sprintf("// source: %s/%s \n", filePath, info.Name()))); err != nil {
+					return fmt.Errorf("failed to write to response: %w", err)
+				}
+
+				f, err := os.Open(filePath)
+				if err != nil {
+					return err
+				}
+				defer io.Close(f)
+
+				if _, err := goio.Copy(w, f); err != nil {
+					return err
+				}
+
+				return nil
 			}
-			content = content + fmt.Sprintf(`
-// source: %s/%s 
-`, filePath, info.Name()) + string(data)
+
+			if processFile() != nil {
+				return fmt.Errorf("failed to serve extension file '%s': %w", filePath, processFile())
+			}
 		}
 		return nil
 	})
@@ -903,9 +917,6 @@ func (a *ArgoCDServer) serveExtensions(extensionsSharedPath string, w http.Respo
 		log.Errorf("Failed to walk extensions directory: %v", err)
 		http.Error(w, "Internal error", http.StatusInternalServerError)
 		return
-	}
-	if _, err := fmt.Fprintln(w, content); err != nil {
-		log.Errorf("failed to serve extensions content: %v", err)
 	}
 }
 
