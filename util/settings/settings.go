@@ -99,7 +99,7 @@ type ArgoCDSettings struct {
 	ServerRBACLogEnforceEnable bool `json:"serverRBACLogEnforceEnable"`
 	// ExecEnabled indicates whether the UI exec feature is enabled
 	ExecEnabled bool `json:"execEnabled"`
-	// ExecShells determines which shells are allowed for `exec` and in which order they are tried
+	// ExecShells restricts which shells are allowed for `exec` and in which order they are tried
 	ExecShells []string `json:"execShells"`
 	// TrackingMethod defines the resource tracking method to be used
 	TrackingMethod string `json:"application.resourceTrackingMethod,omitempty"`
