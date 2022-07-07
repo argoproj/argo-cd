@@ -759,12 +759,12 @@ func TestHandleAppUpdated(t *testing.T) {
 	proj.Spec.SourceNamespaces = []string{test.FakeArgoCDNamespace}
 	ctrl := newFakeController(&fakeData{apps: []runtime.Object{app, proj}})
 
-	ctrl.handleObjectUpdated(map[string]bool{app.InstanceNameWithDefault(ctrl.namespace): true}, kube.GetObjectRef(kube.MustToUnstructured(app)))
+	ctrl.handleObjectUpdated(map[string]bool{app.InstanceName(ctrl.namespace): true}, kube.GetObjectRef(kube.MustToUnstructured(app)))
 	isRequested, level := ctrl.isRefreshRequested(app.QualifiedName())
 	assert.False(t, isRequested)
 	assert.Equal(t, ComparisonWithNothing, level)
 
-	ctrl.handleObjectUpdated(map[string]bool{app.InstanceNameWithDefault(ctrl.namespace): true}, corev1.ObjectReference{UID: "test", Kind: kube.DeploymentKind, Name: "test", Namespace: "default"})
+	ctrl.handleObjectUpdated(map[string]bool{app.InstanceName(ctrl.namespace): true}, corev1.ObjectReference{UID: "test", Kind: kube.DeploymentKind, Name: "test", Namespace: "default"})
 	isRequested, level = ctrl.isRefreshRequested(app.QualifiedName())
 	assert.True(t, isRequested)
 	assert.Equal(t, CompareWithRecent, level)

@@ -366,7 +366,7 @@ func (s *Server) GetManifests(ctx context.Context, q *application.ApplicationMan
 			Repo:               repo,
 			Revision:           revision,
 			AppLabelKey:        appInstanceLabelKey,
-			AppName:            a.InstanceNameWithDefault(s.ns),
+			AppName:            a.InstanceName(s.ns),
 			Namespace:          a.Spec.Destination.Namespace,
 			ApplicationSource:  &a.Spec.Source,
 			Repos:              helmRepos,
@@ -1012,7 +1012,7 @@ func (s *Server) getCachedAppState(ctx context.Context, a *appv1.Application, ge
 func (s *Server) GetAppResources(ctx context.Context, a *appv1.Application) (*appv1.ApplicationTree, error) {
 	var tree appv1.ApplicationTree
 	err := s.getCachedAppState(ctx, a, func() error {
-		return s.cache.GetAppResourcesTree(a.InstanceNameWithDefault(s.ns), &tree)
+		return s.cache.GetAppResourcesTree(a.InstanceName(s.ns), &tree)
 	})
 	if err != nil {
 		return &tree, fmt.Errorf("error getting cached app state: %w", err)
@@ -1250,7 +1250,7 @@ func (s *Server) ManagedResources(ctx context.Context, q *application.ResourcesQ
 	}
 	items := make([]*appv1.ResourceDiff, 0)
 	err = s.getCachedAppState(ctx, a, func() error {
-		return s.cache.GetAppManagedResources(a.InstanceNameWithDefault(s.ns), &items)
+		return s.cache.GetAppManagedResources(a.InstanceName(s.ns), &items)
 	})
 	if err != nil {
 		return nil, fmt.Errorf("error getting cached app state: %w", err)

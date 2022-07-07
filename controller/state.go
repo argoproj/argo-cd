@@ -178,7 +178,7 @@ func (m *appStateManager) getRepoObjs(app *v1alpha1.Application, source v1alpha1
 		NoCache:            noCache,
 		NoRevisionCache:    noRevisionCache,
 		AppLabelKey:        appLabelKey,
-		AppName:            app.InstanceNameWithDefault(m.namespace),
+		AppName:            app.InstanceName(m.namespace),
 		Namespace:          app.Spec.Destination.Namespace,
 		ApplicationSource:  &source,
 		Plugins:            tools,
@@ -428,7 +428,7 @@ func (m *appStateManager) CompareAppState(app *v1alpha1.Application, project *ap
 	for _, liveObj := range liveObjByKey {
 		if liveObj != nil {
 			appInstanceName := m.resourceTracking.GetAppName(liveObj, appLabelKey, trackingMethod)
-			if appInstanceName != "" && appInstanceName != app.InstanceNameWithDefault(m.namespace) {
+			if appInstanceName != "" && appInstanceName != app.InstanceName(m.namespace) {
 				fqInstanceName := strings.ReplaceAll(appInstanceName, "_", "/")
 				conditions = append(conditions, v1alpha1.ApplicationCondition{
 					Type:               v1alpha1.ApplicationConditionSharedResourceWarning,

@@ -964,7 +964,7 @@ func findandPrintDiff(ctx context.Context, app *argoappv1.Application, resources
 	items := make([]objKeyLiveTarget, 0)
 	if diffOptions.local != "" {
 		localObjs := groupObjsByKey(getLocalObjects(ctx, app, diffOptions.local, diffOptions.localRepoRoot, argoSettings.AppLabelKey, diffOptions.cluster.Info.ServerVersion, diffOptions.cluster.Info.APIVersions, argoSettings.KustomizeOptions, argoSettings.ConfigManagementPlugins, argoSettings.TrackingMethod), liveObjs, app.Spec.Destination.Namespace)
-		items = groupObjsForDiff(resources, localObjs, items, argoSettings, app.InstanceNameWithDefault(argoSettings.ControllerNamespace))
+		items = groupObjsForDiff(resources, localObjs, items, argoSettings, app.InstanceName(argoSettings.ControllerNamespace))
 	} else if diffOptions.revision != "" {
 		var unstructureds []*unstructured.Unstructured
 		for _, mfst := range diffOptions.res.Manifests {

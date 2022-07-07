@@ -2523,18 +2523,11 @@ func (d *ApplicationDestination) MarshalJSON() ([]byte, error) {
 	return json.Marshal(&struct{ *Alias }{Alias: (*Alias)(dest)})
 }
 
-// InstanceName returns the name of the application that can be used as value
-// for a tracking label
-func (a *Application) InstanceName() string {
-	// When app has no namespace set, or the namespace is the default ns, we
-	// return just the application name
-	if a.Namespace == "" {
-		return a.Name
-	}
-	return a.Namespace + "_" + a.Name
-}
-
-func (a *Application) InstanceNameWithDefault(defaultNs string) string {
+// InstanceName returns the name of the application as used in the instance
+// tracking values, i.e. in the format <namespace>_<name>. When the namespace
+// of the application is similar to the value of defaultNs, only the name of
+// the application is returned to keep backwards compatibility.
+func (a *Application) InstanceName(defaultNs string) string {
 	// When app has no namespace set, or the namespace is the default ns, we
 	// return just the application name
 	if a.Namespace == "" || a.Namespace == defaultNs {
@@ -2544,8 +2537,8 @@ func (a *Application) InstanceNameWithDefault(defaultNs string) string {
 }
 
 // QualifiedName returns the full qualified name of the application, including
-// the name of the namespace it is created in. The format returned is
-// namespace/appname
+// the name of the namespace it is created in delimited by a forward slash,
+// i.e. <namespace>/<appname>
 func (a *Application) QualifiedName() string {
 	if a.Namespace == "" {
 		return a.Name
