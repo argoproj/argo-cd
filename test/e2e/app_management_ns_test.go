@@ -2146,3 +2146,24 @@ func TestNamespacedNotPermittedResources(t *testing.T) {
 // 			assert.Equal(t, app.Status.SourceType, ApplicationSourceTypeDirectory)
 // 		})
 // }
+
+func TestCreateAppInNotAllowedNamespace(t *testing.T) {
+	ctx := Given(t)
+	ctx.
+		ProjectSpec(AppProjectSpec{
+			SourceRepos:      []string{"*"},
+			SourceNamespaces: []string{"default"},
+			Destinations: []ApplicationDestination{
+				{Namespace: "*", Server: "*"},
+			},
+		}).
+		Path(guestbookPath).
+		SetTrackingMethod("annotation").
+		SetAppNamespace("default").
+		When().
+		IgnoreErrors().
+		CreateApp().
+		Then().
+		Expect(DoesNotExist()).
+		Expect(Error("", "namespace 'default' is not permitted"))
+}
