@@ -18,6 +18,7 @@ import (
 
 func TestNSAutoSyncSelfHealDisabled(t *testing.T) {
 	Given(t).
+		SetTrackingMethod("annotation").
 		Path(guestbookPath).
 		SetAppNamespace(fixture.AppNamespace()).
 		// TODO: There is a bug with annotation tracking method that prevents
@@ -47,6 +48,7 @@ func TestNSAutoSyncSelfHealDisabled(t *testing.T) {
 
 func TestNSAutoSyncSelfHealEnabled(t *testing.T) {
 	Given(t).
+		SetTrackingMethod("annotation").
 		Path(guestbookPath).
 		SetAppNamespace(fixture.AppNamespace()).
 		When().

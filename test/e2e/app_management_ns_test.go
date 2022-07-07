@@ -43,12 +43,12 @@ import (
 )
 
 // This empty test is here only for clarity, to conform to logs rbac tests structure in account. This exact usecase is covered in the TestAppLogs test
-func TestNSGetLogsAllowNoSwitch(t *testing.T) {
+func TestNamespacedGetLogsAllowNoSwitch(t *testing.T) {
 }
 
 // There is some code duplication in the below GetLogs tests, the reason for that is to allow getting rid of most of those tests easily in the next release,
 // when the temporary switch would die
-func TestNSGetLogsDenySwitchOn(t *testing.T) {
+func TestNamespacedGetLogsDenySwitchOn(t *testing.T) {
 	SkipOnEnv(t, "OPENSHIFT")
 
 	accountFixture.Given(t).
@@ -83,6 +83,7 @@ func TestNSGetLogsDenySwitchOn(t *testing.T) {
 	ctx.SetAppNamespace(ArgoCDAppNamespace)
 	ctx.
 		Path("guestbook-logs").
+		SetTrackingMethod("annotation").
 		When().
 		CreateApp().
 		Sync().
@@ -96,7 +97,7 @@ func TestNSGetLogsDenySwitchOn(t *testing.T) {
 		})
 }
 
-func TestNSGetLogsAllowSwitchOnNS(t *testing.T) {
+func TestNamespacedGetLogsAllowSwitchOnNS(t *testing.T) {
 	SkipOnEnv(t, "OPENSHIFT")
 
 	accountFixture.Given(t).
@@ -136,6 +137,7 @@ func TestNSGetLogsAllowSwitchOnNS(t *testing.T) {
 	ctx.SetAppNamespace(AppNamespace())
 	ctx.
 		Path("guestbook-logs").
+		SetTrackingMethod("annotation").
 		When().
 		CreateApp().
 		Sync().
@@ -160,7 +162,7 @@ func TestNSGetLogsAllowSwitchOnNS(t *testing.T) {
 
 }
 
-func TestNSGetLogsAllowSwitchOff(t *testing.T) {
+func TestNamespacedGetLogsAllowSwitchOff(t *testing.T) {
 	SkipOnEnv(t, "OPENSHIFT")
 
 	accountFixture.Given(t).
@@ -194,6 +196,7 @@ func TestNSGetLogsAllowSwitchOff(t *testing.T) {
 	ctx.SetAppNamespace(AppNamespace())
 	ctx.
 		Path("guestbook-logs").
+		SetTrackingMethod("annotation").
 		When().
 		CreateApp().
 		Sync().
@@ -217,9 +220,10 @@ func TestNSGetLogsAllowSwitchOff(t *testing.T) {
 		})
 }
 
-func TestNSSyncToUnsignedCommit(t *testing.T) {
+func TestNamespacedSyncToUnsignedCommit(t *testing.T) {
 	SkipOnEnv(t, "GPG")
 	GivenWithNamespace(t, AppNamespace()).
+		SetTrackingMethod("annotation").
 		Project("gpg").
 		Path(guestbookPath).
 		When().
@@ -232,10 +236,11 @@ func TestNSSyncToUnsignedCommit(t *testing.T) {
 		Expect(HealthIs(health.HealthStatusMissing))
 }
 
-func TestNSSyncToSignedCommitWKK(t *testing.T) {
+func TestNamespacedSyncToSignedCommitWKK(t *testing.T) {
 	SkipOnEnv(t, "GPG")
 	Given(t).
 		SetAppNamespace(AppNamespace()).
+		SetTrackingMethod("annotation").
 		Project("gpg").
 		Path(guestbookPath).
 		When().
@@ -249,10 +254,11 @@ func TestNSSyncToSignedCommitWKK(t *testing.T) {
 		Expect(HealthIs(health.HealthStatusMissing))
 }
 
-func TestNSSyncToSignedCommitKWKK(t *testing.T) {
+func TestNamespacedSyncToSignedCommitKWKK(t *testing.T) {
 	SkipOnEnv(t, "GPG")
 	Given(t).
 		SetAppNamespace(AppNamespace()).
+		SetTrackingMethod("annotation").
 		Project("gpg").
 		Path(guestbookPath).
 		GPGPublicKeyAdded().
@@ -268,10 +274,11 @@ func TestNSSyncToSignedCommitKWKK(t *testing.T) {
 		Expect(HealthIs(health.HealthStatusHealthy))
 }
 
-func TestNSAppCreation(t *testing.T) {
+func TestNamespacedAppCreation(t *testing.T) {
 	ctx := Given(t)
 	ctx.
 		Path(guestbookPath).
+		SetTrackingMethod("annotation").
 		SetAppNamespace(AppNamespace()).
 		When().
 		CreateApp().
@@ -313,11 +320,12 @@ func TestNSAppCreation(t *testing.T) {
 		})
 }
 
-func TestNSAppCreationWithoutForceUpdate(t *testing.T) {
+func TestNamespacedAppCreationWithoutForceUpdate(t *testing.T) {
 	ctx := Given(t)
 
 	ctx.
 		Path(guestbookPath).
+		SetTrackingMethod("annotation").
 		SetAppNamespace(AppNamespace()).
 		DestName("in-cluster").
 		When().
@@ -346,11 +354,12 @@ func TestNSAppCreationWithoutForceUpdate(t *testing.T) {
 		Expect(Error("", "existing application spec is different, use upsert flag to force update"))
 }
 
-func TestNSDeleteAppResource(t *testing.T) {
+func TestNamespacedDeleteAppResource(t *testing.T) {
 	ctx := Given(t)
 
 	ctx.
 		Path(guestbookPath).
+		SetTrackingMethod("annotation").
 		SetAppNamespace(AppNamespace()).
 		When().
 		CreateApp().
@@ -368,7 +377,7 @@ func TestNSDeleteAppResource(t *testing.T) {
 }
 
 // demonstrate that we cannot use a standard sync when an immutable field is changed, we must use "force"
-func TestNSImmutableChange(t *testing.T) {
+func TestNamespacedImmutableChange(t *testing.T) {
 	SkipOnEnv(t, "OPENSHIFT")
 	text := FailOnErr(Run(".", "kubectl", "get", "service", "-n", "kube-system", "kube-dns", "-o", "jsonpath={.spec.clusterIP}")).(string)
 	parts := strings.Split(text, ".")
@@ -377,6 +386,7 @@ func TestNSImmutableChange(t *testing.T) {
 	ip2 := fmt.Sprintf("%s.%s.%s.%d", parts[0], parts[1], parts[2], n+1)
 	Given(t).
 		Path("service").
+		SetTrackingMethod("annotation").
 		SetAppNamespace(AppNamespace()).
 		When().
 		CreateApp().
@@ -416,8 +426,9 @@ func TestNSImmutableChange(t *testing.T) {
 		Expect(HealthIs(health.HealthStatusHealthy))
 }
 
-func TestNSInvalidAppProject(t *testing.T) {
+func TestNamespacedInvalidAppProject(t *testing.T) {
 	Given(t).
+		SetTrackingMethod("annotation").
 		Path(guestbookPath).
 		SetAppNamespace(AppNamespace()).
 		Project("does-not-exist").
@@ -428,10 +439,11 @@ func TestNSInvalidAppProject(t *testing.T) {
 		Expect(Error("", "application references project does-not-exist which does not exist"))
 }
 
-func TestNSAppDeletion(t *testing.T) {
+func TestNamespacedAppDeletion(t *testing.T) {
 	ctx := Given(t)
 	ctx.
 		Path(guestbookPath).
+		SetTrackingMethod("annotation").
 		SetAppNamespace(AppNamespace()).
 		When().
 		CreateApp().
@@ -448,10 +460,11 @@ func TestNSAppDeletion(t *testing.T) {
 	assert.NotContains(t, output, ctx.AppQualifiedName())
 }
 
-func TestNSAppLabels(t *testing.T) {
+func TestNamespacedAppLabels(t *testing.T) {
 	ctx := Given(t)
 	ctx.
 		Path("config-map").
+		SetTrackingMethod("annotation").
 		SetAppNamespace(AppNamespace()).
 		When().
 		CreateApp("-l", "foo=bar").
@@ -476,9 +489,10 @@ func TestNSAppLabels(t *testing.T) {
 		Sync("-l", "foo=bar")
 }
 
-func TestNSTrackAppStateAndSyncApp(t *testing.T) {
+func TestNamespacedTrackAppStateAndSyncApp(t *testing.T) {
 	Given(t).
 		Path(guestbookPath).
+		SetTrackingMethod("annotation").
 		SetAppNamespace(AppNamespace()).
 		When().
 		CreateApp().
@@ -495,10 +509,11 @@ func TestNSTrackAppStateAndSyncApp(t *testing.T) {
 		})
 }
 
-func TestNSAppRollbackSuccessful(t *testing.T) {
+func TestNamespacedAppRollbackSuccessful(t *testing.T) {
 	ctx := Given(t)
 	ctx.
 		Path(guestbookPath).
+		SetTrackingMethod("annotation").
 		SetAppNamespace(AppNamespace()).
 		When().
 		CreateApp().
@@ -542,9 +557,10 @@ func TestNSAppRollbackSuccessful(t *testing.T) {
 		})
 }
 
-func TestNSComparisonFailsIfClusterNotAdded(t *testing.T) {
+func TestNamespacedComparisonFailsIfClusterNotAdded(t *testing.T) {
 	Given(t).
 		Path(guestbookPath).
+		SetTrackingMethod("annotation").
 		SetAppNamespace(AppNamespace()).
 		DestServer("https://not-registered-cluster/api").
 		When().
@@ -554,9 +570,10 @@ func TestNSComparisonFailsIfClusterNotAdded(t *testing.T) {
 		Expect(DoesNotExist())
 }
 
-func TestNSCannotSetInvalidPath(t *testing.T) {
+func TestNamespacedCannotSetInvalidPath(t *testing.T) {
 	Given(t).
 		Path(guestbookPath).
+		SetTrackingMethod("annotation").
 		SetAppNamespace(AppNamespace()).
 		When().
 		CreateApp().
@@ -566,10 +583,11 @@ func TestNSCannotSetInvalidPath(t *testing.T) {
 		Expect(Error("", "app path does not exist"))
 }
 
-func TestNSManipulateApplicationResources(t *testing.T) {
+func TestNamespacedManipulateApplicationResources(t *testing.T) {
 	ctx := Given(t)
 	ctx.
 		Path(guestbookPath).
+		SetTrackingMethod("annotation").
 		SetAppNamespace(AppNamespace()).
 		When().
 		CreateApp().
@@ -611,7 +629,7 @@ func TestNSManipulateApplicationResources(t *testing.T) {
 		Expect(SyncStatusIs(SyncStatusCodeOutOfSync))
 }
 
-func TestNSAppWithSecrets(t *testing.T) {
+func TestNamespacedAppWithSecrets(t *testing.T) {
 	closer, client, err := ArgoCDClientset.NewApplicationClient()
 	assert.NoError(t, err)
 	defer io.Close(closer)
@@ -620,6 +638,7 @@ func TestNSAppWithSecrets(t *testing.T) {
 	ctx.
 		Path("secrets").
 		SetAppNamespace(AppNamespace()).
+		SetTrackingMethod("annotation").
 		When().
 		CreateApp().
 		Sync().
@@ -711,10 +730,11 @@ stringData:
 		})
 }
 
-func TestNSResourceDiffing(t *testing.T) {
+func TestNamespacedResourceDiffing(t *testing.T) {
 	ctx := Given(t)
 	ctx.
 		Path(guestbookPath).
+		SetTrackingMethod("annotation").
 		SetAppNamespace(AppNamespace()).
 		When().
 		CreateApp().
@@ -809,12 +829,13 @@ func TestNSResourceDiffing(t *testing.T) {
 // 	testEdgeCasesApplicationResources(t, "crd-creation", health.HealthStatusHealthy)
 // }
 
-func TestNSKnownTypesInCRDDiffing(t *testing.T) {
+func TestNamespacedKnownTypesInCRDDiffing(t *testing.T) {
 	dummiesGVR := schema.GroupVersionResource{Group: "argoproj.io", Version: "v1alpha1", Resource: "dummies"}
 
 	ctx := Given(t)
 	ctx.
 		Path("crd-creation").
+		SetTrackingMethod("annotation").
 		SetAppNamespace(AppNamespace()).
 		When().CreateApp().Sync().Then().
 		Expect(OperationPhaseIs(OperationSucceeded)).Expect(SyncStatusIs(SyncStatusCodeSynced)).
@@ -843,11 +864,11 @@ func TestNSKnownTypesInCRDDiffing(t *testing.T) {
 }
 
 // TODO(jannfis): This somehow doesn't work -- I suspect tracking method
-// func TestNSDuplicatedResources(t *testing.T) {
+// func TestNamespacedDuplicatedResources(t *testing.T) {
 // 	testNSEdgeCasesApplicationResources(t, "duplicated-resources", health.HealthStatusHealthy)
 // }
 
-func TestNSConfigMap(t *testing.T) {
+func TestNamespacedConfigMap(t *testing.T) {
 	testNSEdgeCasesApplicationResources(t, "config-map", health.HealthStatusHealthy, "my-map  Synced                configmap/my-map created")
 }
 
@@ -855,6 +876,7 @@ func testNSEdgeCasesApplicationResources(t *testing.T, appPath string, statusCod
 	ctx := Given(t)
 	expect := ctx.
 		Path(appPath).
+		SetTrackingMethod("annotation").
 		SetAppNamespace(AppNamespace()).
 		When().
 		CreateApp().
@@ -883,10 +905,11 @@ func testNSEdgeCasesApplicationResources(t *testing.T, appPath string, statusCod
 //     obj.metadata.annotations.sample = 'test'
 //     return obj`
 
-func TestNSResourceAction(t *testing.T) {
+func TestNamespacedResourceAction(t *testing.T) {
 	ctx := Given(t)
 	ctx.
 		Path(guestbookPath).
+		SetTrackingMethod("annotation").
 		SetAppNamespace(AppNamespace()).
 		ResourceOverrides(map[string]ResourceOverride{"apps/Deployment": {Actions: actionsConfig}}).
 		When().
@@ -929,10 +952,11 @@ func TestNSResourceAction(t *testing.T) {
 		})
 }
 
-func TestNSSyncResourceByLabel(t *testing.T) {
+func TestNamespacedSyncResourceByLabel(t *testing.T) {
 	ctx := Given(t)
 	ctx.
 		Path(guestbookPath).
+		SetTrackingMethod("annotation").
 		SetAppNamespace(AppNamespace()).
 		When().
 		CreateApp().
@@ -949,10 +973,11 @@ func TestNSSyncResourceByLabel(t *testing.T) {
 		})
 }
 
-func TestNSLocalManifestSync(t *testing.T) {
+func TestNamespacedLocalManifestSync(t *testing.T) {
 	ctx := Given(t)
 	ctx.
 		Path(guestbookPath).
+		SetTrackingMethod("annotation").
 		SetAppNamespace(AppNamespace()).
 		When().
 		CreateApp().
@@ -987,10 +1012,11 @@ func TestNSLocalManifestSync(t *testing.T) {
 		})
 }
 
-func TestNSLocalSync(t *testing.T) {
+func TestNamespacedLocalSync(t *testing.T) {
 	Given(t).
 		// we've got to use Helm as this uses kubeVersion
 		Path("helm").
+		SetTrackingMethod("annotation").
 		SetAppNamespace(AppNamespace()).
 		When().
 		CreateApp().
@@ -1000,9 +1026,10 @@ func TestNSLocalSync(t *testing.T) {
 		})
 }
 
-func TestNSNoLocalSyncWithAutosyncEnabled(t *testing.T) {
+func TestNamespacedNoLocalSyncWithAutosyncEnabled(t *testing.T) {
 	Given(t).
 		Path(guestbookPath).
+		SetTrackingMethod("annotation").
 		SetAppNamespace(AppNamespace()).
 		When().
 		CreateApp().
@@ -1018,9 +1045,10 @@ func TestNSNoLocalSyncWithAutosyncEnabled(t *testing.T) {
 		})
 }
 
-func TestNSLocalSyncDryRunWithASEnabled(t *testing.T) {
+func TestNamespacedLocalSyncDryRunWithASEnabled(t *testing.T) {
 	Given(t).
 		Path(guestbookPath).
+		SetTrackingMethod("annotation").
 		SetAppNamespace(AppNamespace()).
 		When().
 		CreateApp().
@@ -1039,9 +1067,10 @@ func TestNSLocalSyncDryRunWithASEnabled(t *testing.T) {
 		})
 }
 
-func TestNSSyncAsync(t *testing.T) {
+func TestNamespacedSyncAsync(t *testing.T) {
 	Given(t).
 		Path(guestbookPath).
+		SetTrackingMethod("annotation").
 		SetAppNamespace(AppNamespace()).
 		Async(true).
 		When().
@@ -1132,7 +1161,7 @@ func assertNSResourceActions(t *testing.T, appName string, successful bool) {
 	assertError(err, expectedError)
 }
 
-func TestNSPermissions(t *testing.T) {
+func TestNamespacedPermissions(t *testing.T) {
 	appCtx := Given(t)
 	projName := "argo-project"
 	projActions := projectFixture.
@@ -1147,6 +1176,7 @@ func TestNSPermissions(t *testing.T) {
 
 	appCtx.
 		Path("guestbook-logs").
+		SetTrackingMethod("annotation").
 		SetAppNamespace(AppNamespace()).
 		Project(projName).
 		When().
@@ -1209,7 +1239,7 @@ func TestNSPermissions(t *testing.T) {
 		})
 }
 
-func TestNSPermissionWithScopedRepo(t *testing.T) {
+func TestNamespacedPermissionWithScopedRepo(t *testing.T) {
 	projName := "argo-project"
 	fixture.EnsureCleanState(t)
 	projectFixture.
@@ -1230,6 +1260,7 @@ func TestNSPermissionWithScopedRepo(t *testing.T) {
 		Project(projName).
 		RepoURLType(RepoURLTypeFile).
 		Path("two-nice-pods").
+		SetTrackingMethod("annotation").
 		SetAppNamespace(AppNamespace()).
 		When().
 		PatchFile("pod-1.yaml", `[{"op": "add", "path": "/metadata/annotations", "value": {"argocd.argoproj.io/sync-options": "Prune=false"}}]`).
@@ -1249,7 +1280,7 @@ func TestNSPermissionWithScopedRepo(t *testing.T) {
 		Expect(ResourceSyncStatusIs("Pod", "pod-1", SyncStatusCodeOutOfSync))
 }
 
-func TestNSPermissionDeniedWithScopedRepo(t *testing.T) {
+func TestNamespacedPermissionDeniedWithScopedRepo(t *testing.T) {
 	projName := "argo-project"
 	projectFixture.
 		Given(t).
@@ -1267,6 +1298,7 @@ func TestNSPermissionDeniedWithScopedRepo(t *testing.T) {
 	GivenWithSameState(t).
 		Project(projName).
 		RepoURLType(RepoURLTypeFile).
+		SetTrackingMethod("annotation").
 		SetAppNamespace(AppNamespace()).
 		Path("two-nice-pods").
 		When().
@@ -1279,9 +1311,10 @@ func TestNSPermissionDeniedWithScopedRepo(t *testing.T) {
 }
 
 // make sure that if we deleted a resource from the app, it is not pruned if annotated with Prune=false
-func TestNSSyncOptionPruneFalse(t *testing.T) {
+func TestNamespacedSyncOptionPruneFalse(t *testing.T) {
 	Given(t).
 		Path("two-nice-pods").
+		SetTrackingMethod("annotation").
 		SetAppNamespace(AppNamespace()).
 		When().
 		PatchFile("pod-1.yaml", `[{"op": "add", "path": "/metadata/annotations", "value": {"argocd.argoproj.io/sync-options": "Prune=false"}}]`).
@@ -1302,10 +1335,11 @@ func TestNSSyncOptionPruneFalse(t *testing.T) {
 }
 
 // make sure that if we have an invalid manifest, we can add it if we disable validation, we get a server error rather than a client error
-func TestNSSyncOptionValidateFalse(t *testing.T) {
+func TestNamespacedSyncOptionValidateFalse(t *testing.T) {
 
 	Given(t).
 		Path("crd-validation").
+		SetTrackingMethod("annotation").
 		SetAppNamespace(AppNamespace()).
 		When().
 		CreateApp().
@@ -1326,9 +1360,10 @@ func TestNSSyncOptionValidateFalse(t *testing.T) {
 }
 
 // make sure that, if we have a resource that needs pruning, but we're ignoring it, the app is in-sync
-func TestNSCompareOptionIgnoreExtraneous(t *testing.T) {
+func TestNamespacedCompareOptionIgnoreExtraneous(t *testing.T) {
 	Given(t).
 		Prune(false).
+		SetTrackingMethod("annotation").
 		SetAppNamespace(AppNamespace()).
 		Path("two-nice-pods").
 		When().
@@ -1359,10 +1394,11 @@ func TestNSCompareOptionIgnoreExtraneous(t *testing.T) {
 		Expect(SyncStatusIs(SyncStatusCodeSynced))
 }
 
-func TestNSSelfManagedApps(t *testing.T) {
+func TestNamespacedSelfManagedApps(t *testing.T) {
 
 	Given(t).
 		Path("self-managed-app").
+		SetTrackingMethod("annotation").
 		SetAppNamespace(AppNamespace()).
 		When().
 		PatchFile("resources.yaml", fmt.Sprintf(`[{"op": "replace", "path": "/spec/source/repoURL", "value": "%s"}]`, RepoURL(RepoURLTypeFile))).
@@ -1392,9 +1428,10 @@ func TestNSSelfManagedApps(t *testing.T) {
 		})
 }
 
-func TestNSExcludedResource(t *testing.T) {
+func TestNamespacedExcludedResource(t *testing.T) {
 	Given(t).
 		ResourceOverrides(map[string]ResourceOverride{"apps/Deployment": {Actions: actionsConfig}}).
+		SetTrackingMethod("annotation").
 		SetAppNamespace(AppNamespace()).
 		Path(guestbookPath).
 		ResourceFilter(settings.ResourcesFilter{
@@ -1408,9 +1445,10 @@ func TestNSExcludedResource(t *testing.T) {
 		Expect(Condition(ApplicationConditionExcludedResourceWarning, "Resource apps/Deployment guestbook-ui is excluded in the settings"))
 }
 
-func TestNSRevisionHistoryLimit(t *testing.T) {
+func TestNamespacedRevisionHistoryLimit(t *testing.T) {
 	Given(t).
 		Path("config-map").
+		SetTrackingMethod("annotation").
 		SetAppNamespace(AppNamespace()).
 		When().
 		CreateApp().
@@ -1432,7 +1470,7 @@ func TestNSRevisionHistoryLimit(t *testing.T) {
 		})
 }
 
-func TestNSOrphanedResource(t *testing.T) {
+func TestNamespacedOrphanedResource(t *testing.T) {
 	SkipOnEnv(t, "OPENSHIFT")
 	Given(t).
 		ProjectSpec(AppProjectSpec{
@@ -1441,6 +1479,7 @@ func TestNSOrphanedResource(t *testing.T) {
 			OrphanedResources: &OrphanedResourcesMonitorSettings{Warn: pointer.BoolPtr(true)},
 			SourceNamespaces:  []string{AppNamespace()},
 		}).
+		SetTrackingMethod("annotation").
 		SetAppNamespace(AppNamespace()).
 		Path(guestbookPath).
 		When().
@@ -1529,7 +1568,7 @@ func TestNSOrphanedResource(t *testing.T) {
 		Expect(NoConditions())
 }
 
-func TestNSNotPermittedResources(t *testing.T) {
+func TestNamespacedNotPermittedResources(t *testing.T) {
 	ctx := Given(t)
 	ctx.SetAppNamespace(AppNamespace())
 	pathType := networkingv1.PathTypePrefix
