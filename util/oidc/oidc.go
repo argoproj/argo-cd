@@ -117,15 +117,8 @@ func NewClientApp(settings *settings.ArgoCDSettings, dexServerAddr string, dexTl
 
 	if settings.DexConfig != "" && settings.OIDCConfigRAW == "" {
 		transport.TLSClientConfig = dex.TLSConfig(dexTlsConfig)
-		if strings.Contains(dexServerAddr, "://") {
-			a.client.Transport = dex.NewDexRewriteURLRoundTripper(dexServerAddr, a.client.Transport)
-		} else {
-			if dexTlsConfig == nil || dexTlsConfig.DisableTLS {
-				a.client.Transport = dex.NewDexRewriteURLRoundTripper("http://"+dexServerAddr, a.client.Transport)
-			} else {
-				a.client.Transport = dex.NewDexRewriteURLRoundTripper("https://"+dexServerAddr, a.client.Transport)
-			}
-		}
+		addrWithProto := dex.DexServerAddressWithProtocol(dexServerAddr, dexTlsConfig)
+		a.client.Transport = dex.NewDexRewriteURLRoundTripper(addrWithProto, a.client.Transport)
 	} else {
 		transport.TLSClientConfig = settings.OIDCTLSConfig()
 	}

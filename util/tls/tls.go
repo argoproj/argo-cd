@@ -368,7 +368,7 @@ func LoadX509Cert(path string) (*x509.Certificate, error) {
 	}
 	block, _ := pem.Decode(bytes)
 	if block == nil {
-		return nil, fmt.Errorf("could not decode PEM: %v", err)
+		return nil, fmt.Errorf("could not decode PEM")
 	}
 	cert, err := x509.ParseCertificate(block.Bytes)
 	if err != nil {

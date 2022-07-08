@@ -59,16 +59,7 @@ func TLSConfig(tlsConfig *DexTLSConfig) *tls.Config {
 // also be /api/dex (e.g. issuer: https://argocd.example.com/api/dex)
 func NewDexHTTPReverseProxy(serverAddr string, baseHRef string, tlsConfig *DexTLSConfig) func(writer http.ResponseWriter, request *http.Request) {
 
-	var fullAddr string
-	if strings.Contains(serverAddr, "://") {
-		fullAddr = serverAddr
-	} else {
-		if tlsConfig == nil || tlsConfig.DisableTLS {
-			fullAddr = "http://" + serverAddr
-		} else {
-			fullAddr = "https://" + serverAddr
-		}
-	}
+	var fullAddr string = DexServerAddressWithProtocol(serverAddr, tlsConfig)
 
 	target, err := url.Parse(fullAddr)
 	errors.CheckError(err)
@@ -130,4 +121,16 @@ func (s DexRewriteURLRoundTripper) RoundTrip(r *http.Request) (*http.Response, e
 	r.URL.Host = s.DexURL.Host
 	r.URL.Scheme = s.DexURL.Scheme
 	return s.T.RoundTrip(r)
+}
+
+func DexServerAddressWithProtocol(orig string, tlsConfig *DexTLSConfig) string {
+	if strings.Contains(orig, "://") {
+		return orig
+	} else {
+		if tlsConfig == nil || tlsConfig.DisableTLS {
+			return "http://" + orig
+		} else {
+			return "https://" + orig
+		}
+	}
 }

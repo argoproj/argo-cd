@@ -138,15 +138,8 @@ func NewSessionManager(settingsMgr *settings.SettingsManager, projectsLister v1a
 
 	if settings.DexConfig != "" {
 		transport.TLSClientConfig = dex.TLSConfig(dexTlsConfig)
-		if strings.Contains(dexServerAddr, "://") {
-			s.client.Transport = dex.NewDexRewriteURLRoundTripper(dexServerAddr, s.client.Transport)
-		} else {
-			if dexTlsConfig == nil || dexTlsConfig.DisableTLS {
-				s.client.Transport = dex.NewDexRewriteURLRoundTripper("http://"+dexServerAddr, s.client.Transport)
-			} else {
-				s.client.Transport = dex.NewDexRewriteURLRoundTripper("https://"+dexServerAddr, s.client.Transport)
-			}
-		}
+		addrWithProto := dex.DexServerAddressWithProtocol(dexServerAddr, dexTlsConfig)
+		s.client.Transport = dex.NewDexRewriteURLRoundTripper(addrWithProto, s.client.Transport)
 	} else {
 		transport.TLSClientConfig = settings.OIDCTLSConfig()
 	}
