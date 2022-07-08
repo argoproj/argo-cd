@@ -4,6 +4,7 @@ import (
 	"time"
 
 	"context"
+
 	"github.com/argoproj/gitops-engine/pkg/utils/kube"
 	log "github.com/sirupsen/logrus"
 	"google.golang.org/grpc/codes"
@@ -303,16 +304,16 @@ func (s *Server) RotateAuth(ctx context.Context, q *cluster.ClusterQuery) (*clus
 	if q.Name != "" {
 		servers, err = s.db.GetClusterServersByName(ctx, q.Name)
 		if err != nil {
-			return nil, err
+			return nil, status.Errorf(codes.NotFound, "failed to get cluster servers by name: %v", err)
 		}
 		for _, server := range servers {
 			if err := s.enf.EnforceErr(ctx.Value("claims"), rbacpolicy.ResourceClusters, rbacpolicy.ActionUpdate, createRBACObject(clust.Project, server)); err != nil {
-				return nil, err
+				return nil, status.Errorf(codes.PermissionDenied, "encountered permissions issue while processing request: %v", err)
 			}
 		}
 	} else {
 		if err := s.enf.EnforceErr(ctx.Value("claims"), rbacpolicy.ResourceClusters, rbacpolicy.ActionUpdate, createRBACObject(clust.Project, q.Server)); err != nil {
-			return nil, err
+			return nil, status.Errorf(codes.PermissionDenied, "encountered permissions issue while processing request: %v", err)
 		}
 		servers = append(servers, q.Server)
 	}

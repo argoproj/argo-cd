@@ -385,17 +385,13 @@ argocd cluster rotate-auth cluster-name`,
 			}
 			conn, clusterIf := headless.NewClientOrDie(clientOpts, c).NewClusterClientOrDie()
 			defer io.Close(conn)
-			clusterQuery := getQueryBySelector(args[0])
+
+			cluster := args[0]
+			clusterQuery := getQueryBySelector(cluster)
 			_, err := clusterIf.RotateAuth(ctx, clusterQuery)
 			errors.CheckError(err)
 
-			var clstNameOrServer string
-			if clusterQuery.Name != "" {
-				clstNameOrServer = clusterQuery.Name
-			} else {
-				clstNameOrServer = clusterQuery.Server
-			}
-			fmt.Printf("Cluster '%s' rotated auth\n", clstNameOrServer)
+			fmt.Printf("Cluster '%s' rotated auth\n", cluster)
 		},
 	}
 	return command

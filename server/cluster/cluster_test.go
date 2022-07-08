@@ -274,7 +274,7 @@ func TestRotateAuth(t *testing.T) {
 		assert.EqualError(t, err, `rpc error: code = PermissionDenied desc = permission denied`)
 	})
 
-	// While this tests results for the next two tests result in an error, they do
+	// While the tests results for the next two tests result in an error, they do
 	// demonstrate the proper mapping of cluster names/server to server info (i.e. my-cluster-name
 	// results in https://my-cluster-name info being used and https://my-cluster-name results in https://my-cluster-name).
 	t.Run("RotateAuth by Name - Error from no such host", func(t *testing.T) {
