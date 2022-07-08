@@ -329,6 +329,22 @@ func TestAppProject_ValidateGroupName(t *testing.T) {
 	}
 }
 
+func TestAppProject_ValidateSyncWindowList(t *testing.T) {
+	t.Run("WorkingSyncWindow", func(t *testing.T) {
+		p := newTestProjectWithSyncWindows()
+		err := p.ValidateProject()
+		assert.NoError(t, err)
+	})
+	t.Run("HasNilSyncWindow", func(t *testing.T) {
+		p := newTestProjectWithSyncWindows()
+		err := p.ValidateProject()
+		assert.NoError(t, err)
+		p.Spec.SyncWindows = append(p.Spec.SyncWindows, nil)
+		err = p.ValidateProject()
+		assert.NoError(t, err)
+	})
+}
+
 // TestInvalidPolicyRules checks various errors in policy rules
 func TestAppProject_InvalidPolicyRules(t *testing.T) {
 	p := newTestProject()

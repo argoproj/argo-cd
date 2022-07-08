@@ -202,6 +202,9 @@ func (p *AppProject) ValidateProject() error {
 	if p.Spec.SyncWindows.HasWindows() {
 		existingWindows := make(map[string]bool)
 		for _, window := range p.Spec.SyncWindows {
+			if window == nil {
+				continue
+			}
 			if _, ok := existingWindows[window.Kind+window.Schedule+window.Duration]; ok {
 				return status.Errorf(codes.AlreadyExists, "window '%s':'%s':'%s' already exists, update or edit", window.Kind, window.Schedule, window.Duration)
 			}
