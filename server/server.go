@@ -100,6 +100,7 @@ import (
 	"github.com/argoproj/argo-cd/v2/util/healthz"
 	httputil "github.com/argoproj/argo-cd/v2/util/http"
 	"github.com/argoproj/argo-cd/v2/util/io"
+	"github.com/argoproj/argo-cd/v2/util/io/files"
 	jwtutil "github.com/argoproj/argo-cd/v2/util/jwt"
 	kubeutil "github.com/argoproj/argo-cd/v2/util/kube"
 	"github.com/argoproj/argo-cd/v2/util/oidc"
@@ -887,7 +888,7 @@ func (a *ArgoCDServer) serveExtensions(extensionsSharedPath string, w http.Respo
 		if err != nil {
 			return fmt.Errorf("failed to iterate files in '%s': %w", extensionsSharedPath, err)
 		}
-		if !info.IsDir() && extensionsPattern.MatchString(info.Name()) {
+		if !files.IsSymlink(info) && !info.IsDir() && extensionsPattern.MatchString(info.Name()) {
 			processFile := func() error {
 				if _, err = w.Write([]byte(fmt.Sprintf("// source: %s/%s \n", filePath, info.Name()))); err != nil {
 					return fmt.Errorf("failed to write to response: %w", err)
