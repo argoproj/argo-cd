@@ -895,12 +895,12 @@ func (a *ArgoCDServer) serveExtensions(extensionsSharedPath string, w http.Respo
 
 				f, err := os.Open(filePath)
 				if err != nil {
-					return err
+					return fmt.Errorf("failed to open file '%s': %w", filePath, err)
 				}
 				defer io.Close(f)
 
 				if _, err := goio.Copy(w, f); err != nil {
-					return err
+					return fmt.Errorf("failed to copy file '%s': %w", filePath, err)
 				}
 
 				return nil
