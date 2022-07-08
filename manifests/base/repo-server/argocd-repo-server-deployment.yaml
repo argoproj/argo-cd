@@ -107,6 +107,12 @@ spec:
                 name: argocd-cmd-params-cm
                 key: reposerver.max.combined.directory.manifests.size
                 optional: true
+          - name: ARGOCD_REPO_SERVER_PLUGIN_TAR_EXCLUSIONS
+            valueFrom:
+              configMapKeyRef:
+                name: argocd-cmd-params-cm
+                key: reposerver.plugin.tar.exclusions
+                optional: true
           - name: ARGOCD_REPO_SERVER_EXEC_TIMEOUT
             valueFrom:
               configMapKeyRef:
@@ -141,7 +147,9 @@ spec:
           allowPrivilegeEscalation: false
           capabilities:
             drop:
-              - all
+            - ALL
+          seccompProfile:
+            type: RuntimeDefault
         volumeMounts:
         - name: ssh-known-hosts
           mountPath: /app/config/ssh
@@ -173,7 +181,9 @@ spec:
           allowPrivilegeEscalation: false
           capabilities:
             drop:
-            - all
+            - ALL
+          seccompProfile:
+            type: RuntimeDefault
         volumeMounts:
         - mountPath: /var/run/argocd
           name: var-files

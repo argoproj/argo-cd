@@ -75,6 +75,19 @@ func NewCommand() *cobra.Command {
 		Long:              "The API server is a gRPC/REST server which exposes the API consumed by the Web UI, CLI, and CI/CD systems.  This command runs API server in the foreground.  It can be configured by following options.",
 		DisableAutoGenTag: true,
 		Run: func(c *cobra.Command, args []string) {
+			ctx := c.Context()
+
+			vers := common.GetVersion()
+			namespace, _, err := clientConfig.Namespace()
+			errors.CheckError(err)
+			vers.LogStartupInfo(
+				"ArgoCD API Server",
+				map[string]any{
+					"namespace": namespace,
+					"port":      listenPort,
+				},
+			)
+
 			cli.SetLogFormat(cmdutil.LogFormat)
 			cli.SetLogLevel(cmdutil.LogLevel)
 			cli.SetGLogLevel(glogLevel)
@@ -82,9 +95,6 @@ func NewCommand() *cobra.Command {
 			config, err := clientConfig.ClientConfig()
 			errors.CheckError(err)
 			errors.CheckError(v1alpha1.SetK8SConfigDefaults(config))
-
-			namespace, _, err := clientConfig.Namespace()
-			errors.CheckError(err)
 
 			tlsConfigCustomizer, err := tlsConfigCustomizerSrc()
 			errors.CheckError(err)
@@ -96,7 +106,6 @@ func NewCommand() *cobra.Command {
 			appclientsetConfig, err := clientConfig.ClientConfig()
 			errors.CheckError(err)
 			errors.CheckError(v1alpha1.SetK8SConfigDefaults(appclientsetConfig))
-			vers := common.GetVersion()
 			config.UserAgent = fmt.Sprintf("argocd-server/%s (%s)", vers.Version, vers.Platform)
 
 			if failureRetryCount > 0 {
@@ -154,12 +163,12 @@ func NewCommand() *cobra.Command {
 			stats.RegisterStackDumper()
 			stats.StartStatsTicker(10 * time.Minute)
 			stats.RegisterHeapDumper("memprofile")
-			argocd := server.NewServer(context.Background(), argoCDOpts)
+			argocd := server.NewServer(ctx, argoCDOpts)
+			argocd.Init(ctx)
 			lns, err := argocd.Listen()
 			errors.CheckError(err)
 			for {
 				var closer func()
-				ctx := context.Background()
 				ctx, cancel := context.WithCancel(ctx)
 				if otlpAddress != "" {
 					closer, err = traceutil.InitTracer(ctx, "argocd-server", otlpAddress)

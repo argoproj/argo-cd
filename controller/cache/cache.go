@@ -176,6 +176,7 @@ func NewLiveStateCache(
 type cacheSettings struct {
 	clusterSettings     clustercache.Settings
 	appInstanceLabelKey string
+	trackingMethod      appv1.TrackingMethod
 }
 
 type liveStateCache struct {
@@ -210,7 +211,7 @@ func (c *liveStateCache) loadCacheSettings() (*cacheSettings, error) {
 		ResourceHealthOverride: lua.ResourceHealthOverrides(resourceOverrides),
 		ResourcesFilter:        resourcesFilter,
 	}
-	return &cacheSettings{clusterSettings, appInstanceLabelKey}, nil
+	return &cacheSettings{clusterSettings, appInstanceLabelKey, argo.GetTrackingMethod(c.settingsMgr)}, nil
 }
 
 func asResourceNode(r *clustercache.Resource) appv1.ResourceNode {
@@ -354,7 +355,8 @@ func isTransientNetworkErr(err error) bool {
 	}
 	if strings.Contains(errorString, "net/http: TLS handshake timeout") ||
 		strings.Contains(errorString, "i/o timeout") ||
-		strings.Contains(errorString, "connection timed out") {
+		strings.Contains(errorString, "connection timed out") ||
+		strings.Contains(errorString, "connection reset by peer") {
 		return true
 	}
 	return false
@@ -387,7 +389,6 @@ func (c *liveStateCache) getCluster(server string) (clustercache.ClusterCache, e
 		return nil, fmt.Errorf("controller is configured to ignore cluster %s", cluster.Server)
 	}
 
-	trackingMethod := argo.GetTrackingMethod(c.settingsMgr)
 	clusterCacheOpts := []clustercache.UpdateSettingsFunc{
 		clustercache.SetListSemaphore(semaphore.NewWeighted(clusterCacheListSemaphoreSize)),
 		clustercache.SetListPageSize(clusterCacheListPageSize),
@@ -400,9 +401,12 @@ func (c *liveStateCache) getCluster(server string) (clustercache.ClusterCache, e
 		clustercache.SetPopulateResourceInfoHandler(func(un *unstructured.Unstructured, isRoot bool) (interface{}, bool) {
 			res := &ResourceInfo{}
 			populateNodeInfo(un, res)
+			c.lock.RLock()
+			cacheSettings := c.cacheSettings
+			c.lock.RUnlock()
 			res.Health, _ = health.GetResourceHealth(un, cacheSettings.clusterSettings.ResourceHealthOverride)
 
-			appName := c.resourceTracking.GetAppName(un, cacheSettings.appInstanceLabelKey, trackingMethod)
+			appName := c.resourceTracking.GetAppName(un, cacheSettings.appInstanceLabelKey, cacheSettings.trackingMethod)
 			if isRoot && appName != "" {
 				res.AppName = appName
 			}

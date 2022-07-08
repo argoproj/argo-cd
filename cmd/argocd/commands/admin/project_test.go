@@ -29,31 +29,35 @@ func newProj(name string, roleNames ...string) *v1alpha1.AppProject {
 }
 
 func TestUpdateProjects_FindMatchingProject(t *testing.T) {
+	ctx := context.Background()
+
 	clientset := fake.NewSimpleClientset(newProj("foo", "test"), newProj("bar", "test"))
 
 	modification, err := getModification("set", "*", "*", "allow")
 	assert.NoError(t, err)
-	err = updateProjects(clientset.ArgoprojV1alpha1().AppProjects(namespace), "ba*", "*", "set", modification, false)
+	err = updateProjects(ctx, clientset.ArgoprojV1alpha1().AppProjects(namespace), "ba*", "*", "set", modification, false)
 	assert.NoError(t, err)
 
-	fooProj, err := clientset.ArgoprojV1alpha1().AppProjects(namespace).Get(context.Background(), "foo", v1.GetOptions{})
+	fooProj, err := clientset.ArgoprojV1alpha1().AppProjects(namespace).Get(ctx, "foo", v1.GetOptions{})
 	assert.NoError(t, err)
 	assert.Len(t, fooProj.Spec.Roles[0].Policies, 0)
 
-	barProj, err := clientset.ArgoprojV1alpha1().AppProjects(namespace).Get(context.Background(), "bar", v1.GetOptions{})
+	barProj, err := clientset.ArgoprojV1alpha1().AppProjects(namespace).Get(ctx, "bar", v1.GetOptions{})
 	assert.NoError(t, err)
 	assert.EqualValues(t, barProj.Spec.Roles[0].Policies, []string{"p, proj:bar:test, *, set, bar/*, allow"})
 }
 
 func TestUpdateProjects_FindMatchingRole(t *testing.T) {
+	ctx := context.Background()
+
 	clientset := fake.NewSimpleClientset(newProj("proj", "foo", "bar"))
 
 	modification, err := getModification("set", "*", "*", "allow")
 	assert.NoError(t, err)
-	err = updateProjects(clientset.ArgoprojV1alpha1().AppProjects(namespace), "*", "fo*", "set", modification, false)
+	err = updateProjects(ctx, clientset.ArgoprojV1alpha1().AppProjects(namespace), "*", "fo*", "set", modification, false)
 	assert.NoError(t, err)
 
-	proj, err := clientset.ArgoprojV1alpha1().AppProjects(namespace).Get(context.Background(), "proj", v1.GetOptions{})
+	proj, err := clientset.ArgoprojV1alpha1().AppProjects(namespace).Get(ctx, "proj", v1.GetOptions{})
 	assert.NoError(t, err)
 	assert.EqualValues(t, proj.Spec.Roles[0].Policies, []string{"p, proj:proj:foo, *, set, proj/*, allow"})
 	assert.Len(t, proj.Spec.Roles[1].Policies, 0)

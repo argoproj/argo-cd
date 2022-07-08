@@ -23,6 +23,7 @@ argocd-repo-server [flags]
       --metrics-port int                               Start metrics server on given port (default 8084)
       --otlp-address string                            OpenTelemetry collector address to send traces to
       --parallelismlimit int                           Limit on number of concurrent manifests generate requests. Any value less the 1 means no limit.
+      --plugin-tar-exclude stringArray                 Globs to filter when sending tarballs to plugins.
       --port int                                       Listen on given port for incoming connections (default 8081)
       --redis string                                   Redis server hostname and port (e.g. argocd-redis:6379). 
       --redis-ca-certificate string                    Path to Redis server CA certificate (e.g. /etc/certs/redis/ca.crt). If not specified, system trusted CAs will be used for server certificate validation.

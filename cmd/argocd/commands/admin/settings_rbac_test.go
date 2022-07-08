@@ -1,7 +1,8 @@
 package admin
 
 import (
-	"io/ioutil"
+	"context"
+	"os"
 	"testing"
 
 	"github.com/stretchr/testify/assert"
@@ -40,21 +41,27 @@ func Test_isValidRBACResource(t *testing.T) {
 }
 
 func Test_PolicyFromCSV(t *testing.T) {
-	uPol, dRole, matchMode := getPolicy("testdata/rbac/policy.csv", nil, "")
+	ctx := context.Background()
+
+	uPol, dRole, matchMode := getPolicy(ctx, "testdata/rbac/policy.csv", nil, "")
 	require.NotEmpty(t, uPol)
 	require.Empty(t, dRole)
 	require.Empty(t, matchMode)
 }
 
 func Test_PolicyFromYAML(t *testing.T) {
-	uPol, dRole, matchMode := getPolicy("testdata/rbac/argocd-rbac-cm.yaml", nil, "")
+	ctx := context.Background()
+
+	uPol, dRole, matchMode := getPolicy(ctx, "testdata/rbac/argocd-rbac-cm.yaml", nil, "")
 	require.NotEmpty(t, uPol)
 	require.Equal(t, "role:unknown", dRole)
 	require.Empty(t, matchMode)
 }
 
 func Test_PolicyFromK8s(t *testing.T) {
-	data, err := ioutil.ReadFile("testdata/rbac/policy.csv")
+	data, err := os.ReadFile("testdata/rbac/policy.csv")
+	ctx := context.Background()
+
 	require.NoError(t, err)
 	kubeclientset := fake.NewSimpleClientset(&v1.ConfigMap{
 		ObjectMeta: metav1.ObjectMeta{
@@ -66,7 +73,7 @@ func Test_PolicyFromK8s(t *testing.T) {
 			"policy.default": "role:unknown",
 		},
 	})
-	uPol, dRole, matchMode := getPolicy("", kubeclientset, "argocd")
+	uPol, dRole, matchMode := getPolicy(ctx, "", kubeclientset, "argocd")
 	require.NotEmpty(t, uPol)
 	require.Equal(t, "role:unknown", dRole)
 	require.Equal(t, "", matchMode)
@@ -98,6 +105,8 @@ func Test_PolicyFromK8s(t *testing.T) {
 }
 
 func Test_PolicyFromK8sUsingRegex(t *testing.T) {
+	ctx := context.Background()
+
 	policy := `
 p, role:user, clusters, get, .+, allow
 p, role:user, clusters, get, https://kubernetes.*, deny
@@ -115,7 +124,7 @@ p, role:user, applications, create, .*/.*, allow`
 			"policy.matchMode": "regex",
 		},
 	})
-	uPol, dRole, matchMode := getPolicy("", kubeclientset, "argocd")
+	uPol, dRole, matchMode := getPolicy(ctx, "", kubeclientset, "argocd")
 	require.NotEmpty(t, uPol)
 	require.Equal(t, "role:unknown", dRole)
 	require.Equal(t, "regex", matchMode)

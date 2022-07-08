@@ -4,7 +4,6 @@ import (
 	"bufio"
 	"encoding/hex"
 	"fmt"
-	"io/ioutil"
 	"os"
 	"os/exec"
 	"path"
@@ -155,12 +154,12 @@ func getGPGEnviron() []string {
 
 // Helper function to write some data to a temp file and return its path
 func writeKeyToFile(keyData string) (string, error) {
-	f, err := ioutil.TempFile("", "gpg-public-key")
+	f, err := os.CreateTemp("", "gpg-public-key")
 	if err != nil {
 		return "", err
 	}
 
-	err = ioutil.WriteFile(f.Name(), []byte(keyData), 0600)
+	err = os.WriteFile(f.Name(), []byte(keyData), 0600)
 	if err != nil {
 		os.Remove(f.Name())
 		return "", err
@@ -245,12 +244,12 @@ func InitializeGnuPG(execTimeout time.Duration) error {
 		}
 	}
 
-	err = ioutil.WriteFile(filepath.Join(gnuPgHome, canaryMarkerFilename), []byte("canary"), 0644)
+	err = os.WriteFile(filepath.Join(gnuPgHome, canaryMarkerFilename), []byte("canary"), 0644)
 	if err != nil {
 		return fmt.Errorf("could not create canary: %v", err)
 	}
 
-	f, err := ioutil.TempFile("", "gpg-key-recipe")
+	f, err := os.CreateTemp("", "gpg-key-recipe")
 	if err != nil {
 		return err
 	}
@@ -272,7 +271,7 @@ func InitializeGnuPG(execTimeout time.Duration) error {
 }
 
 func ImportPGPKeysFromString(keyData string, execTimeout time.Duration) ([]*appsv1.GnuPGPublicKey, error) {
-	f, err := ioutil.TempFile("", "gpg-key-import")
+	f, err := os.CreateTemp("", "gpg-key-import")
 	if err != nil {
 		return nil, err
 	}
@@ -340,7 +339,7 @@ func ValidatePGPKeysFromString(keyData string, execTimeout time.Duration) (map[s
 // is, they contain all relevant information
 func ValidatePGPKeys(keyFile string, execTimeout time.Duration) (map[string]*appsv1.GnuPGPublicKey, error) {
 	keys := make(map[string]*appsv1.GnuPGPublicKey)
-	tempHome, err := ioutil.TempDir("", "gpg-verify-key")
+	tempHome, err := os.MkdirTemp("", "gpg-verify-key")
 	if err != nil {
 		return nil, err
 	}
@@ -387,7 +386,7 @@ func SetPGPTrustLevel(pgpKeys []*appsv1.GnuPGPublicKey, trustLevel string, execT
 	}
 
 	// We need to store ownertrust specification in a temp file. Format is <fingerprint>:<level>
-	f, err := ioutil.TempFile("", "gpg-key-fps")
+	f, err := os.CreateTemp("", "gpg-key-fps")
 	if err != nil {
 		return err
 	}

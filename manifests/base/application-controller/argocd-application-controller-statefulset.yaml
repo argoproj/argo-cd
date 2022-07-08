@@ -142,7 +142,9 @@ spec:
           allowPrivilegeEscalation: false
           capabilities:
             drop:
-              - all
+            - ALL
+          seccompProfile:
+            type: RuntimeDefault
         workingDir: /home/argocd
         volumeMounts:
         - name: argocd-repo-server-tls

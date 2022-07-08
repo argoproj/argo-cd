@@ -1,9 +1,7 @@
 package commands
 
 import (
-	"context"
 	"fmt"
-	"io/ioutil"
 	"os"
 	"os/exec"
 	"syscall"
@@ -51,19 +49,28 @@ func NewRunDexCommand() *cobra.Command {
 		Use:   "rundex",
 		Short: "Runs dex generating a config using settings from the Argo CD configmap and secret",
 		RunE: func(c *cobra.Command, args []string) error {
+			ctx := c.Context()
+
+			vers := common.GetVersion()
+			namespace, _, err := clientConfig.Namespace()
+			errors.CheckError(err)
+			vers.LogStartupInfo(
+				"ArgoCD Dex Server",
+				map[string]any{
+					"namespace": namespace,
+				},
+			)
+
 			cli.SetLogFormat(cmdutil.LogFormat)
 			cli.SetLogLevel(cmdutil.LogLevel)
-			_, err := exec.LookPath("dex")
+			_, err = exec.LookPath("dex")
 			errors.CheckError(err)
 			config, err := clientConfig.ClientConfig()
 			errors.CheckError(err)
-			vers := common.GetVersion()
 			config.UserAgent = fmt.Sprintf("argocd-dex/%s (%s)", vers.Version, vers.Platform)
-			namespace, _, err := clientConfig.Namespace()
-			errors.CheckError(err)
 			kubeClientset := kubernetes.NewForConfigOrDie(config)
 
-			settingsMgr := settings.NewSettingsManager(context.Background(), kubeClientset, namespace)
+			settingsMgr := settings.NewSettingsManager(ctx, kubeClientset, namespace)
 			prevSettings, err := settingsMgr.GetSettings()
 			errors.CheckError(err)
 			updateCh := make(chan *settings.ArgoCDSettings, 1)
@@ -76,7 +83,7 @@ func NewRunDexCommand() *cobra.Command {
 				if len(dexCfgBytes) == 0 {
 					log.Infof("dex is not configured")
 				} else {
-					err = ioutil.WriteFile("/tmp/dex.yaml", dexCfgBytes, 0644)
+					err = os.WriteFile("/tmp/dex.yaml", dexCfgBytes, 0644)
 					errors.CheckError(err)
 					log.Debug(redactor(string(dexCfgBytes)))
 					cmd = exec.Command("dex", "serve", "/tmp/dex.yaml")
@@ -124,6 +131,8 @@ func NewGenDexConfigCommand() *cobra.Command {
 		Use:   "gendexcfg",
 		Short: "Generates a dex config from Argo CD settings",
 		RunE: func(c *cobra.Command, args []string) error {
+			ctx := c.Context()
+
 			cli.SetLogFormat(cmdutil.LogFormat)
 			cli.SetLogLevel(cmdutil.LogLevel)
 			config, err := clientConfig.ClientConfig()
@@ -131,7 +140,7 @@ func NewGenDexConfigCommand() *cobra.Command {
 			namespace, _, err := clientConfig.Namespace()
 			errors.CheckError(err)
 			kubeClientset := kubernetes.NewForConfigOrDie(config)
-			settingsMgr := settings.NewSettingsManager(context.Background(), kubeClientset, namespace)
+			settingsMgr := settings.NewSettingsManager(ctx, kubeClientset, namespace)
 			settings, err := settingsMgr.GetSettings()
 			errors.CheckError(err)
 			dexCfgBytes, err := dex.GenerateDexConfigYAML(settings)
@@ -165,7 +174,7 @@ func NewGenDexConfigCommand() *cobra.Command {
 				errors.CheckError(err)
 				fmt.Print(string(maskedDexCfgBytes))
 			} else {
-				err = ioutil.WriteFile(out, dexCfgBytes, 0644)
+				err = os.WriteFile(out, dexCfgBytes, 0644)
 				errors.CheckError(err)
 			}
 			return nil

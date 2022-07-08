@@ -1,7 +1,6 @@
 package commands
 
 import (
-	"context"
 	"time"
 
 	"github.com/argoproj/pkg/stats"
@@ -35,6 +34,11 @@ func NewCommand() *cobra.Command {
 		Long:              "ArgoCD ConfigManagementPlugin Server is an internal service which runs as sidecar container in reposerver deployment. It can be configured by following options.",
 		DisableAutoGenTag: true,
 		RunE: func(c *cobra.Command, args []string) error {
+			ctx := c.Context()
+
+			vers := common.GetVersion()
+			vers.LogStartupInfo("ArgoCD ConfigManagementPlugin Server", nil)
+
 			cli.SetLogFormat(cmdutil.LogFormat)
 			cli.SetLogLevel(cmdutil.LogLevel)
 
@@ -44,7 +48,7 @@ func NewCommand() *cobra.Command {
 			if otlpAddress != "" {
 				var closer func()
 				var err error
-				closer, err = traceutil.InitTracer(context.Background(), "argocd-cmp-server", otlpAddress)
+				closer, err = traceutil.InitTracer(ctx, "argocd-cmp-server", otlpAddress)
 				if err != nil {
 					log.Fatalf("failed to initialize tracing: %v", err)
 				}

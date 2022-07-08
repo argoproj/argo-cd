@@ -1,9 +1,7 @@
 package admin
 
 import (
-	"context"
 	"fmt"
-	"io/ioutil"
 	"os"
 
 	log "github.com/sirupsen/logrus"
@@ -74,6 +72,8 @@ func NewGenRepoSpecCommand() *cobra.Command {
 		Short:   "Generate declarative config for a repo",
 		Example: repoAddExamples,
 		Run: func(c *cobra.Command, args []string) {
+			ctx := c.Context()
+
 			log.SetLevel(log.WarnLevel)
 			if len(args) != 1 {
 				c.HelpFunc()(c, args)
@@ -86,13 +86,13 @@ func NewGenRepoSpecCommand() *cobra.Command {
 			// Specifying ssh-private-key-path is only valid for SSH repositories
 			if repoOpts.SshPrivateKeyPath != "" {
 				if ok, _ := git.IsSSHURL(repoOpts.Repo.Repo); ok {
-					keyData, err := ioutil.ReadFile(repoOpts.SshPrivateKeyPath)
+					keyData, err := os.ReadFile(repoOpts.SshPrivateKeyPath)
 					if err != nil {
 						log.Fatal(err)
 					}
 					repoOpts.Repo.SSHPrivateKey = string(keyData)
 				} else {
-					err := fmt.Errorf("--ssh-private-key-path is only supported for SSH repositories.")
+					err := fmt.Errorf("--ssh-private-key-path is only supported for SSH repositories")
 					errors.CheckError(err)
 				}
 			}
@@ -107,9 +107,9 @@ func NewGenRepoSpecCommand() *cobra.Command {
 			// Specifying tls-client-cert-path is only valid for HTTPS repositories
 			if repoOpts.TlsClientCertPath != "" {
 				if git.IsHTTPSURL(repoOpts.Repo.Repo) {
-					tlsCertData, err := ioutil.ReadFile(repoOpts.TlsClientCertPath)
+					tlsCertData, err := os.ReadFile(repoOpts.TlsClientCertPath)
 					errors.CheckError(err)
-					tlsCertKey, err := ioutil.ReadFile(repoOpts.TlsClientCertKeyPath)
+					tlsCertKey, err := os.ReadFile(repoOpts.TlsClientCertKeyPath)
 					errors.CheckError(err)
 					repoOpts.Repo.TLSClientCertData = string(tlsCertData)
 					repoOpts.Repo.TLSClientCertKey = string(tlsCertKey)
@@ -151,13 +151,13 @@ func NewGenRepoSpecCommand() *cobra.Command {
 				},
 			}
 			kubeClientset := fake.NewSimpleClientset(argoCDCM)
-			settingsMgr := settings.NewSettingsManager(context.Background(), kubeClientset, ArgoCDNamespace)
+			settingsMgr := settings.NewSettingsManager(ctx, kubeClientset, ArgoCDNamespace)
 			argoDB := db.NewDB(ArgoCDNamespace, settingsMgr, kubeClientset)
 
-			_, err := argoDB.CreateRepository(context.Background(), &repoOpts.Repo)
+			_, err := argoDB.CreateRepository(ctx, &repoOpts.Repo)
 			errors.CheckError(err)
 
-			secret, err := kubeClientset.CoreV1().Secrets(ArgoCDNamespace).Get(context.Background(), db.RepoURLToSecretName(repoSecretPrefix, repoOpts.Repo.Repo), v1.GetOptions{})
+			secret, err := kubeClientset.CoreV1().Secrets(ArgoCDNamespace).Get(ctx, db.RepoURLToSecretName(repoSecretPrefix, repoOpts.Repo.Repo), v1.GetOptions{})
 			errors.CheckError(err)
 
 			errors.CheckError(PrintResources(outputFormat, os.Stdout, secret))

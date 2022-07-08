@@ -22,6 +22,7 @@ import (
 	// nolint:staticcheck
 	golang_proto "github.com/golang/protobuf/proto"
 
+	netCtx "context"
 	"github.com/argoproj/pkg/sync"
 	"github.com/go-redis/redis/v8"
 	"github.com/golang-jwt/jwt/v4"
@@ -35,7 +36,6 @@ import (
 	log "github.com/sirupsen/logrus"
 	"github.com/soheilhy/cmux"
 	"go.opentelemetry.io/contrib/instrumentation/google.golang.org/grpc/otelgrpc"
-	netCtx "golang.org/x/net/context"
 	"google.golang.org/grpc"
 	"google.golang.org/grpc/codes"
 	"google.golang.org/grpc/credentials"
@@ -363,6 +363,12 @@ func (a *ArgoCDServer) Listen() (*Listeners, error) {
 	return &Listeners{Main: mainLn, Metrics: metricsLn, GatewayConn: conn}, nil
 }
 
+// Init starts informers used by the API server
+func (a *ArgoCDServer) Init(ctx context.Context) {
+	go a.projInformer.Run(ctx.Done())
+	go a.appInformer.Run(ctx.Done())
+}
+
 // Run runs the API Server
 // We use k8s.io/code-generator/cmd/go-to-protobuf to generate the .proto files from the API types.
 // k8s.io/ go-to-protobuf uses protoc-gen-gogo, which comes from gogo/protobuf (a fork of
@@ -429,9 +435,6 @@ func (a *ArgoCDServer) Run(ctx context.Context, listeners *Listeners) {
 	// Start the muxed listeners for our servers
 	log.Infof("argocd %s serving on port %d (url: %s, tls: %v, namespace: %s, sso: %v)",
 		common.GetVersion(), a.ListenPort, a.settings.URL, a.useTLS(), a.Namespace, a.settings.IsSSOConfigured())
-
-	go a.projInformer.Run(ctx.Done())
-	go a.appInformer.Run(ctx.Done())
 
 	go func() { a.checkServeErr("grpcS", grpcS.Serve(grpcL)) }()
 	go func() { a.checkServeErr("httpS", httpS.Serve(httpL)) }()
@@ -799,7 +802,7 @@ func (a *ArgoCDServer) newHTTPServer(ctx context.Context, port int, grpcWebHandl
 	}
 	mux.Handle("/api/", handler)
 
-	terminalHandler := application.NewHandler(a.appLister, a.db, a.enf, a.Cache, appResourceTreeFn)
+	terminalHandler := application.NewHandler(a.appLister, a.db, a.enf, a.Cache, appResourceTreeFn, a.settings.ExecShells)
 	mux.HandleFunc("/terminal", func(writer http.ResponseWriter, request *http.Request) {
 		argocdSettings, err := a.settingsMgr.GetSettings()
 		if err != nil {
