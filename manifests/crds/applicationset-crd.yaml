@@ -2529,6 +2529,31 @@ spec:
                                     - owner
                                     - repo
                                     type: object
+                                  gitlab:
+                                    properties:
+                                      api:
+                                        type: string
+                                      labels:
+                                        items:
+                                          type: string
+                                        type: array
+                                      project:
+                                        type: string
+                                      pullRequestState:
+                                        type: string
+                                      tokenRef:
+                                        properties:
+                                          key:
+                                            type: string
+                                          secretName:
+                                            type: string
+                                        required:
+                                        - key
+                                        - secretName
+                                        type: object
+                                    required:
+                                    - project
+                                    type: object
                                   requeueAfterSeconds:
                                     format: int64
                                     type: integer
@@ -2807,6 +2832,31 @@ spec:
                                 type: object
                               scmProvider:
                                 properties:
+                                  azureDevOps:
+                                    properties:
+                                      accessTokenRef:
+                                        properties:
+                                          key:
+                                            type: string
+                                          secretName:
+                                            type: string
+                                        required:
+                                        - key
+                                        - secretName
+                                        type: object
+                                      allBranches:
+                                        type: boolean
+                                      api:
+                                        type: string
+                                      organization:
+                                        type: string
+                                      teamProject:
+                                        type: string
+                                    required:
+                                    - accessTokenRef
+                                    - organization
+                                    - teamProject
+                                    type: object
                                   bitbucket:
                                     properties:
                                       allBranches:
@@ -4801,6 +4851,31 @@ spec:
                                     - owner
                                     - repo
                                     type: object
+                                  gitlab:
+                                    properties:
+                                      api:
+                                        type: string
+                                      labels:
+                                        items:
+                                          type: string
+                                        type: array
+                                      project:
+                                        type: string
+                                      pullRequestState:
+                                        type: string
+                                      tokenRef:
+                                        properties:
+                                          key:
+                                            type: string
+                                          secretName:
+                                            type: string
+                                        required:
+                                        - key
+                                        - secretName
+                                        type: object
+                                    required:
+                                    - project
+                                    type: object
                                   requeueAfterSeconds:
                                     format: int64
                                     type: integer
@@ -5079,6 +5154,31 @@ spec:
                                 type: object
                               scmProvider:
                                 properties:
+                                  azureDevOps:
+                                    properties:
+                                      accessTokenRef:
+                                        properties:
+                                          key:
+                                            type: string
+                                          secretName:
+                                            type: string
+                                        required:
+                                        - key
+                                        - secretName
+                                        type: object
+                                      allBranches:
+                                        type: boolean
+                                      api:
+                                        type: string
+                                      organization:
+                                        type: string
+                                      teamProject:
+                                        type: string
+                                    required:
+                                    - accessTokenRef
+                                    - organization
+                                    - teamProject
+                                    type: object
                                   bitbucket:
                                     properties:
                                       allBranches:
@@ -5870,6 +5970,31 @@ spec:
                           - owner
                           - repo
                           type: object
+                        gitlab:
+                          properties:
+                            api:
+                              type: string
+                            labels:
+                              items:
+                                type: string
+                              type: array
+                            project:
+                              type: string
+                            pullRequestState:
+                              type: string
+                            tokenRef:
+                              properties:
+                                key:
+                                  type: string
+                                secretName:
+                                  type: string
+                              required:
+                              - key
+                              - secretName
+                              type: object
+                          required:
+                          - project
+                          type: object
                         requeueAfterSeconds:
                           format: int64
                           type: integer
@@ -6148,6 +6273,31 @@ spec:
                       type: object
                     scmProvider:
                       properties:
+                        azureDevOps:
+                          properties:
+                            accessTokenRef:
+                              properties:
+                                key:
+                                  type: string
+                                secretName:
+                                  type: string
+                              required:
+                              - key
+                              - secretName
+                              type: object
+                            allBranches:
+                              type: boolean
+                            api:
+                              type: string
+                            organization:
+                              type: string
+                            teamProject:
+                              type: string
+                          required:
+                          - accessTokenRef
+                          - organization
+                          - teamProject
+                          type: object
                         bitbucket:
                           properties:
                             allBranches:

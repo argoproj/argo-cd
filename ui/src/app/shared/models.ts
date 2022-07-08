@@ -131,6 +131,7 @@ export interface Application {
     spec: ApplicationSpec;
     status: ApplicationStatus;
     operation?: Operation;
+    isAppOfAppsPattern?: boolean;
 }
 
 export type WatchType = 'ADDED' | 'MODIFIED' | 'DELETED' | 'ERROR';

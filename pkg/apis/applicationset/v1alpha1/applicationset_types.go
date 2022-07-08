@@ -298,6 +298,7 @@ type SCMProviderGenerator struct {
 	Bitbucket       *SCMProviderGeneratorBitbucket       `json:"bitbucket,omitempty"`
 	BitbucketServer *SCMProviderGeneratorBitbucketServer `json:"bitbucketServer,omitempty"`
 	Gitea           *SCMProviderGeneratorGitea           `json:"gitea,omitempty"`
+	AzureDevOps     *SCMProviderGeneratorAzureDevOps     `json:"azureDevOps,omitempty"`
 	// Filters for which repos should be considered.
 	Filters []SCMProviderGeneratorFilter `json:"filters,omitempty"`
 	// Which protocol to use for the SCM URL. Default is provider-specific but ssh if possible. Not all providers
@@ -372,6 +373,20 @@ type SCMProviderGeneratorBitbucketServer struct {
 	AllBranches bool `json:"allBranches,omitempty"`
 }
 
+// SCMProviderGeneratorAzureDevOps defines connection info specific to Azure DevOps.
+type SCMProviderGeneratorAzureDevOps struct {
+	// Azure Devops organization. Required. E.g. "my-organization".
+	Organization string `json:"organization"`
+	// The URL to Azure DevOps. If blank, use https://dev.azure.com.
+	API string `json:"api,omitempty"`
+	// Azure Devops team project. Required. E.g. "my-team".
+	TeamProject string `json:"teamProject"`
+	// The Personal Access Token (PAT) to use when connecting. Required.
+	AccessTokenRef *SecretRef `json:"accessTokenRef"`
+	// Scan all branches instead of just the default branch.
+	AllBranches bool `json:"allBranches,omitempty"`
+}
+
 // SCMProviderGeneratorFilter is a single repository filter.
 // If multiple filter types are set on a single struct, they will be AND'd together. All filters must
 // pass for a repo to be included.
@@ -392,10 +407,12 @@ type SCMProviderGeneratorFilter struct {
 type PullRequestGenerator struct {
 	// Which provider to use and config for it.
 	Github          *PullRequestGeneratorGithub          `json:"github,omitempty"`
+	GitLab          *PullRequestGeneratorGitLab          `json:"gitlab,omitempty"`
 	Gitea           *PullRequestGeneratorGitea           `json:"gitea,omitempty"`
 	BitbucketServer *PullRequestGeneratorBitbucketServer `json:"bitbucketServer,omitempty"`
 	// Filters for which pull requests should be considered.
 	Filters []PullRequestGeneratorFilter `json:"filters,omitempty"`
+
 	// Standard parameters.
 	RequeueAfterSeconds *int64                 `json:"requeueAfterSeconds,omitempty"`
 	Template            ApplicationSetTemplate `json:"template,omitempty"`
@@ -427,6 +444,20 @@ type PullRequestGeneratorGithub struct {
 	TokenRef *SecretRef `json:"tokenRef,omitempty"`
 	// Labels is used to filter the PRs that you want to target
 	Labels []string `json:"labels,omitempty"`
+}
+
+// PullRequestGeneratorGitLab defines connection info specific to GitLab.
+type PullRequestGeneratorGitLab struct {
+	// GitLab project to scan. Required.
+	Project string `json:"project"`
+	// The GitLab API URL to talk to. If blank, uses https://gitlab.com/.
+	API string `json:"api,omitempty"`
+	// Authentication token reference.
+	TokenRef *SecretRef `json:"tokenRef,omitempty"`
+	// Labels is used to filter the MRs that you want to target
+	Labels []string `json:"labels,omitempty"`
+	// PullRequestState is an additional MRs filter to get only those with a certain state. Default: "" (all states)
+	PullRequestState string `json:"pullRequestState,omitempty"`
 }
 
 // PullRequestGenerator defines connection info specific to BitbucketServer.

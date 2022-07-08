@@ -357,6 +357,13 @@ func SetTrackingMethod(trackingMethod string) {
 	})
 }
 
+func SetTrackingLabel(trackingLabel string) {
+	updateSettingConfigMap(func(cm *corev1.ConfigMap) error {
+		cm.Data["application.instanceLabelKey"] = trackingLabel
+		return nil
+	})
+}
+
 func SetResourceOverridesSplitKeys(overrides map[string]v1alpha1.ResourceOverride) {
 	updateSettingConfigMap(func(cm *corev1.ConfigMap) error {
 		for k, v := range overrides {
@@ -561,7 +568,9 @@ func EnsureCleanState(t *testing.T) {
 	FailOnErr(Run("", "mkdir", "-p", TmpDir))
 
 	// random id - unique across test runs
-	postFix := "-" + strings.ToLower(rand.RandString(5))
+	randString, err := rand.String(5)
+	CheckError(err)
+	postFix := "-" + strings.ToLower(randString)
 	id = t.Name() + postFix
 	name = DnsFriendly(t.Name(), "")
 	deploymentNamespace = DnsFriendly(fmt.Sprintf("argocd-e2e-%s", t.Name()), postFix)

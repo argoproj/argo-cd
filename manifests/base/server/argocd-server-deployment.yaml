@@ -178,6 +178,12 @@ spec:
                 name: argocd-cmd-params-cm
                 key: server.http.cookie.maxnumber
                 optional: true
+        - name: ARGOCD_SERVER_OTLP_ADDRESS
+          valueFrom:
+              configMapKeyRef:
+                name: argocd-cmd-params-cm
+                key: otlp.address
+                optional: true
         volumeMounts:
         - name: ssh-known-hosts
           mountPath: /app/config/ssh
@@ -210,7 +216,9 @@ spec:
           runAsNonRoot: true
           capabilities:
             drop:
-              - all
+            - ALL
+          seccompProfile:
+            type: RuntimeDefault
       volumes:
       - emptyDir: {}
         name: plugins-home

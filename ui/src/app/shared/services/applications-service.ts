@@ -22,7 +22,7 @@ export class ApplicationsService {
     public list(projects: string[], options?: QueryOptions): Promise<models.ApplicationList> {
         return requests
             .get('/applications')
-            .query({project: projects, ...optionsToSearch(options)})
+            .query({projects, ...optionsToSearch(options)})
             .then(res => res.body as models.ApplicationList)
             .then(list => {
                 list.items = (list.items || []).map(app => this.parseAppFields(app));
@@ -143,7 +143,7 @@ export class ApplicationsService {
             const searchOptions = optionsToSearch(options);
             search.set('fields', searchOptions.fields);
             search.set('selector', searchOptions.selector);
-            query?.projects?.forEach(project => search.append('project', project));
+            query?.projects?.forEach(project => search.append('projects', project));
         }
         const searchStr = search.toString();
         const url = `/stream/applications${(searchStr && '?' + searchStr) || ''}`;

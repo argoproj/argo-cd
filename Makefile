@@ -207,7 +207,7 @@ clientgen: ensure-gopath
 
 .PHONY: clidocsgen
 clidocsgen: ensure-gopath
-	go run tools/cmd-docs/main.go	
+	go run tools/cmd-docs/main.go
 
 
 .PHONY: codegen-local
@@ -463,7 +463,7 @@ start: test-tools-image
 
 # Starts a local instance of ArgoCD
 .PHONY: start-local
-start-local: mod-vendor-local dep-ui-local
+start-local: mod-vendor-local dep-ui-local cli-local
 	# check we can connect to Docker to start Redis
 	killall goreman || true
 	kubectl create ns argocd || true

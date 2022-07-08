@@ -28,6 +28,7 @@ import (
 	kubeutil "github.com/argoproj/argo-cd/v2/util/kube"
 	"github.com/argoproj/argo-cd/v2/util/settings"
 	"github.com/argoproj/argo-cd/v2/util/tls"
+	"github.com/argoproj/argo-cd/v2/util/trace"
 )
 
 const (
@@ -58,6 +59,7 @@ func NewCommand() *cobra.Command {
 		redisClient              *redis.Client
 		repoServerPlaintext      bool
 		repoServerStrictTLS      bool
+		otlpAddress              string
 	)
 	var command = cobra.Command{
 		Use:               cliName,
@@ -65,6 +67,19 @@ func NewCommand() *cobra.Command {
 		Long:              "ArgoCD application controller is a Kubernetes controller that continuously monitors running applications and compares the current, live state against the desired target state (as specified in the repo). This command runs Application Controller in the foreground.  It can be configured by following options.",
 		DisableAutoGenTag: true,
 		RunE: func(c *cobra.Command, args []string) error {
+			ctx, cancel := context.WithCancel(c.Context())
+			defer cancel()
+
+			vers := common.GetVersion()
+			namespace, _, err := clientConfig.Namespace()
+			errors.CheckError(err)
+			vers.LogStartupInfo(
+				"ArgoCD Application Controller",
+				map[string]any{
+					"namespace": namespace,
+				},
+			)
+
 			cli.SetLogFormat(cmdutil.LogFormat)
 			cli.SetLogLevel(cmdutil.LogLevel)
 			cli.SetGLogLevel(glogLevel)
@@ -72,14 +87,10 @@ func NewCommand() *cobra.Command {
 			config, err := clientConfig.ClientConfig()
 			errors.CheckError(err)
 			errors.CheckError(v1alpha1.SetK8SConfigDefaults(config))
-			vers := common.GetVersion()
 			config.UserAgent = fmt.Sprintf("argocd-application-controller/%s (%s)", vers.Version, vers.Platform)
 
 			kubeClient := kubernetes.NewForConfigOrDie(config)
 			appClient := appclientset.NewForConfigOrDie(config)
-
-			namespace, _, err := clientConfig.Namespace()
-			errors.CheckError(err)
 
 			hardResyncDuration := time.Duration(appHardResyncPeriod) * time.Second
 
@@ -111,9 +122,6 @@ func NewCommand() *cobra.Command {
 
 			repoClientset := apiclient.NewRepoServerClientset(repoServerAddress, repoServerTimeoutSeconds, tlsConfig)
 
-			ctx, cancel := context.WithCancel(context.Background())
-			defer cancel()
-
 			cache, err := cacheSrc()
 			errors.CheckError(err)
 			cache.Cache.SetClient(cacheutil.NewTwoLevelClient(cache.Cache.GetClient(), 10*time.Minute))
@@ -144,10 +152,17 @@ func NewCommand() *cobra.Command {
 			errors.CheckError(err)
 			cacheutil.CollectMetrics(redisClient, appController.GetMetricsServer())
 
-			log.Infof("Application Controller (version: %s, built: %s) starting (namespace: %s)", vers.Version, vers.BuildDate, namespace)
 			stats.RegisterStackDumper()
 			stats.StartStatsTicker(10 * time.Minute)
 			stats.RegisterHeapDumper("memprofile")
+
+			if otlpAddress != "" {
+				closeTracer, err := trace.InitTracer(ctx, "argocd-controller", otlpAddress)
+				if err != nil {
+					log.Fatalf("failed to initialize tracing: %v", err)
+				}
+				defer closeTracer()
+			}
 
 			go appController.Run(ctx, statusProcessors, operationProcessors)
 
@@ -173,6 +188,7 @@ func NewCommand() *cobra.Command {
 	command.Flags().BoolVar(&repoServerPlaintext, "repo-server-plaintext", env.ParseBoolFromEnv("ARGOCD_APPLICATION_CONTROLLER_REPO_SERVER_PLAINTEXT", false), "Disable TLS on connections to repo server")
 	command.Flags().BoolVar(&repoServerStrictTLS, "repo-server-strict-tls", env.ParseBoolFromEnv("ARGOCD_APPLICATION_CONTROLLER_REPO_SERVER_STRICT_TLS", false), "Whether to use strict validation of the TLS cert presented by the repo server")
 	command.Flags().StringSliceVar(&metricsAplicationLabels, "metrics-application-labels", []string{}, "List of Application labels that will be added to the argocd_application_labels metric")
+	command.Flags().StringVar(&otlpAddress, "otlp-address", env.StringFromEnv("ARGOCD_APPLICATION_CONTROLLER_OTLP_ADDRESS", ""), "OpenTelemetry collector address to send traces to")
 	cacheSrc = appstatecache.AddCacheFlagsToCmd(&command, func(client *redis.Client) {
 		redisClient = client
 	})

@@ -119,6 +119,12 @@ spec:
                 name: argocd-cmd-params-cm
                 key: controller.default.cache.expiration
                 optional: true
+        - name: ARGOCD_APPLICATION_CONTROLLER_OTLP_ADDRESS
+          valueFrom:
+              configMapKeyRef:
+                name: argocd-cmd-params-cm
+                key: otlp.address
+                optional: true
         image: quay.io/argoproj/argocd:latest
         imagePullPolicy: Always
         name: argocd-application-controller
@@ -130,19 +136,15 @@ spec:
             port: 8082
           initialDelaySeconds: 5
           periodSeconds: 10
-        livenessProbe:
-          httpGet:
-            path: /healthz
-            port: 8082
-          initialDelaySeconds: 5
-          periodSeconds: 10
         securityContext:
           runAsNonRoot: true
           readOnlyRootFilesystem: true
           allowPrivilegeEscalation: false
           capabilities:
             drop:
-              - all
+            - ALL
+          seccompProfile:
+            type: RuntimeDefault
         workingDir: /home/argocd
         volumeMounts:
         - name: argocd-repo-server-tls

@@ -44,12 +44,14 @@ spec:
           - mountPath: /tmp
             name: tmp
           securityContext:
-           capabilities:
-             drop:
-             - ALL
-           allowPrivilegeEscalation: false
-           readOnlyRootFilesystem: true 
-           runAsNonRoot: true
+            capabilities:
+              drop:
+              - ALL
+            allowPrivilegeEscalation: false
+            readOnlyRootFilesystem: true 
+            runAsNonRoot: true
+            seccompProfile:
+              type: RuntimeDefault
       serviceAccountName: argocd-applicationset-controller
       volumes:
       - configMap:

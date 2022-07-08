@@ -27,6 +27,8 @@ kubectl -n argocd scale deployment/argocd-dex-server --replicas 0
 kubectl -n argocd scale deployment/argocd-repo-server --replicas 0
 kubectl -n argocd scale deployment/argocd-server --replicas 0
 kubectl -n argocd scale deployment/argocd-redis --replicas 0
+kubectl -n argocd scale deployment/argocd-applicationset-controller --replicas 0
+kubectl -n argocd scale deployment/argocd-notifications-controller --replicas 0
 ```
 
 ### Start local services

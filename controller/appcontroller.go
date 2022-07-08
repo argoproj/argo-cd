@@ -605,11 +605,16 @@ func (ctrl *ApplicationController) hideSecretData(app *appv1.Application, compar
 				return nil, fmt.Errorf("error getting tracking method: %s", err)
 			}
 
+			clusterCache, err := ctrl.stateCache.GetClusterCache(app.Spec.Destination.Server)
+			if err != nil {
+				return nil, fmt.Errorf("error getting cluster cache: %s", err)
+			}
 			diffConfig, err := argodiff.NewDiffConfigBuilder().
 				WithDiffSettings(app.Spec.IgnoreDifferences, resourceOverrides, compareOptions.IgnoreAggregatedRoles).
 				WithTracking(appLabelKey, trackingMethod).
 				WithNoCache().
 				WithLogger(logutils.NewLogrusLogger(logutils.NewWithCurrentConfig())).
+				WithGVKParser(clusterCache.GetGVKParser()).
 				Build()
 			if err != nil {
 				return nil, fmt.Errorf("appcontroller error building diff config: %s", err)

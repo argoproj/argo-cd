@@ -76,6 +76,7 @@ func TestMatchRepository(t *testing.T) {
 	type fixture struct {
 		service *Service
 		path    string
+		env     []*apiclient.EnvEntry
 	}
 	setup := func(t *testing.T, opts ...pluginOpt) *fixture {
 		t.Helper()
@@ -85,6 +86,7 @@ func TestMatchRepository(t *testing.T) {
 		return &fixture{
 			service: s,
 			path:    path,
+			env:     []*apiclient.EnvEntry{{Name: "ENV_VAR", Value: "1"}},
 		}
 	}
 	t.Run("will match plugin by filename", func(t *testing.T) {
@@ -95,7 +97,7 @@ func TestMatchRepository(t *testing.T) {
 		f := setup(t, withDiscover(d))
 
 		// when
-		match, err := f.service.matchRepository(context.Background(), f.path)
+		match, err := f.service.matchRepository(context.Background(), f.path, f.env)
 
 		// then
 		assert.NoError(t, err)
@@ -109,7 +111,7 @@ func TestMatchRepository(t *testing.T) {
 		f := setup(t, withDiscover(d))
 
 		// when
-		match, err := f.service.matchRepository(context.Background(), f.path)
+		match, err := f.service.matchRepository(context.Background(), f.path, f.env)
 
 		// then
 		assert.NoError(t, err)
@@ -123,7 +125,7 @@ func TestMatchRepository(t *testing.T) {
 		f := setup(t, withDiscover(d))
 
 		// when
-		_, err := f.service.matchRepository(context.Background(), f.path)
+		_, err := f.service.matchRepository(context.Background(), f.path, f.env)
 
 		// then
 		assert.ErrorContains(t, err, "syntax error")
@@ -138,7 +140,7 @@ func TestMatchRepository(t *testing.T) {
 		f := setup(t, withDiscover(d))
 
 		// when
-		match, err := f.service.matchRepository(context.Background(), f.path)
+		match, err := f.service.matchRepository(context.Background(), f.path, f.env)
 
 		// then
 		assert.NoError(t, err)
@@ -154,7 +156,7 @@ func TestMatchRepository(t *testing.T) {
 		f := setup(t, withDiscover(d))
 
 		// when
-		match, err := f.service.matchRepository(context.Background(), f.path)
+		match, err := f.service.matchRepository(context.Background(), f.path, f.env)
 
 		// then
 		assert.NoError(t, err)
@@ -170,7 +172,7 @@ func TestMatchRepository(t *testing.T) {
 		f := setup(t, withDiscover(d))
 
 		// when
-		_, err := f.service.matchRepository(context.Background(), f.path)
+		_, err := f.service.matchRepository(context.Background(), f.path, f.env)
 
 		// then
 		assert.ErrorContains(t, err, "error finding glob match for pattern")
@@ -187,7 +189,7 @@ func TestMatchRepository(t *testing.T) {
 		f := setup(t, withDiscover(d))
 
 		// when
-		match, err := f.service.matchRepository(context.Background(), f.path)
+		match, err := f.service.matchRepository(context.Background(), f.path, f.env)
 
 		// then
 		assert.NoError(t, err)
@@ -205,7 +207,44 @@ func TestMatchRepository(t *testing.T) {
 		f := setup(t, withDiscover(d))
 
 		// when
-		match, err := f.service.matchRepository(context.Background(), f.path)
+		match, err := f.service.matchRepository(context.Background(), f.path, f.env)
+
+		// then
+		assert.NoError(t, err)
+		assert.False(t, match)
+	})
+	t.Run("will match plugin because env var defined", func(t *testing.T) {
+		// given
+		d := Discover{
+			Find: Find{
+				Command: Command{
+					Command: []string{"sh", "-c", "echo -n $ENV_VAR"},
+				},
+			},
+		}
+		f := setup(t, withDiscover(d))
+
+		// when
+		match, err := f.service.matchRepository(context.Background(), f.path, f.env)
+
+		// then
+		assert.NoError(t, err)
+		assert.True(t, match)
+	})
+	t.Run("will not match plugin because no env var defined", func(t *testing.T) {
+		// given
+		d := Discover{
+			Find: Find{
+				Command: Command{
+					// Use printf instead of echo since OSX prints the "-n" when there's no additional arg.
+					Command: []string{"sh", "-c", `printf "%s" "$ENV_NO_VAR"`},
+				},
+			},
+		}
+		f := setup(t, withDiscover(d))
+
+		// when
+		match, err := f.service.matchRepository(context.Background(), f.path, f.env)
 
 		// then
 		assert.NoError(t, err)
@@ -223,7 +262,7 @@ func TestMatchRepository(t *testing.T) {
 		f := setup(t, withDiscover(d))
 
 		// when
-		match, err := f.service.matchRepository(context.Background(), f.path)
+		match, err := f.service.matchRepository(context.Background(), f.path, f.env)
 
 		// then
 		assert.Error(t, err)
@@ -466,7 +505,7 @@ type MockGenerateManifestStream struct {
 }
 
 func NewMockGenerateManifestStream(repoPath, appPath string, env []string) (*MockGenerateManifestStream, error) {
-	tgz, mr, err := cmp.GetCompressedRepoAndMetadata(repoPath, appPath, env, nil)
+	tgz, mr, err := cmp.GetCompressedRepoAndMetadata(repoPath, appPath, env, nil, nil)
 	if err != nil {
 		return nil, err
 	}
@@ -540,7 +579,7 @@ type MockMatchRepositoryStream struct {
 }
 
 func NewMockMatchRepositoryStream(repoPath, appPath string, env []string) (*MockMatchRepositoryStream, error) {
-	tgz, mr, err := cmp.GetCompressedRepoAndMetadata(repoPath, appPath, env, nil)
+	tgz, mr, err := cmp.GetCompressedRepoAndMetadata(repoPath, appPath, env, nil, nil)
 	if err != nil {
 		return nil, err
 	}
@@ -613,7 +652,7 @@ type MockParametersAnnouncementStream struct {
 }
 
 func NewMockParametersAnnouncementStream(repoPath, appPath string, env []string) (*MockParametersAnnouncementStream, error) {
-	tgz, mr, err := cmp.GetCompressedRepoAndMetadata(repoPath, appPath, env, nil)
+	tgz, mr, err := cmp.GetCompressedRepoAndMetadata(repoPath, appPath, env, nil, nil)
 	if err != nil {
 		return nil, err
 	}

@@ -19,6 +19,12 @@ spec:
 
 * `cloneProtocol`: Which protocol to use for the SCM URL. Default is provider-specific but ssh if possible. Not all providers necessarily support all protocols, see provider documentation below for available options.
 
+!!! note
+    Know the security implications of using SCM generators. [Only admins may create ApplicationSets](./Security.md#only-admins-may-createupdatedelete-applicationsets)
+    to avoid leaking Secrets, and [only admins may create repos/branches](./Security.md#templated-project-field) if the
+    `project` field of an ApplicationSet with an SCM generator is templated, to avoid granting management of
+    out-of-bounds resources.
+
 ## GitHub
 
 The GitHub mode uses the GitHub API to scan and organization in either github.com or GitHub Enterprise.
@@ -172,6 +178,43 @@ If you want to access a private repository, you must also provide the credential
 
 Available clone protocols are `ssh` and `https`.
 
+## Azure DevOps
+
+Uses the Azure DevOps API to look up eligible repositories based on a team project within an Azure DevOps organization.
+The default Azure DevOps URL is `https://dev.azure.com`, but this can be overridden with the field `azureDevOps.api`.
+
+```yaml
+apiVersion: argoproj.io/v1alpha1
+kind: ApplicationSet
+metadata:
+  name: myapps
+spec:
+  generators:
+  - scmProvider:
+      azureDevOps:
+        # The Azure DevOps organization.
+        organization: myorg
+        # URL to Azure DevOps. Optional. Defaults to https://dev.azure.com.
+        api: https://dev.azure.com
+        # If true, scan every branch of eligible repositories. If false, check only the default branch of the eligible repositories. Defaults to false.
+        allBranches: true
+        # The team project within the specified Azure DevOps organization.
+        teamProject: myProject
+        # Reference to a Secret containing the Azure DevOps Personal Access Token (PAT) used for accessing Azure DevOps.
+        accessTokenRef:
+          secretName: azure-devops-scm
+          key: accesstoken
+  template:
+  # ...
+```
+
+* `organization`: Required. Name of the Azure DevOps organization.
+* `teamProject`: Required. The name of the team project within the specified `organization`.
+* `accessTokenRef`: Required. A `Secret` name and key containing the Azure DevOps Personal Access Token (PAT) to use for requests.
+* `api`: Optional. URL to Azure DevOps. If not set, `https://dev.azure.com` is used.
+* `allBranches`: Optional, default `false`. If `true`, scans every branch of eligible repositories. If `false`, check only the default branch of the eligible repositories.
+
+
 ## Filters
 
 Filters allow selecting which repositories to generate for. Each filter can declare one or more conditions, all of which must pass. If multiple filters are present, any can match for a repository to be included. If no filters are specified, all repositories will be processed.
@@ -234,5 +277,7 @@ spec:
 * `repository`: The name of the repository.
 * `url`: The clone URL for the repository.
 * `branch`: The default branch of the repository.
-* `sha`: The Git commit SHA for the branch
-* `labels`: A comma-separated list of repository labels
+* `sha`: The Git commit SHA for the branch.
+* `short_sha`: The abbreviated Git commit SHA for the branch (8 chars or the length of the `sha` if it's shorter).
+* `labels`: A comma-separated list of repository labels.
+* `branchNormalized`: The value of `branch` normalized to contain only lowercase alphanumeric characters, '-' or '.'.

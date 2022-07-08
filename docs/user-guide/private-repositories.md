@@ -83,7 +83,13 @@ Private repositories that require an SSH private key have a URL that typically s
 
 > v1.2 or later
 
-You can configure your Git repository using HTTPS either using the CLI or the UI.
+You can configure your Git repository using SSH either using the CLI or the UI.
+
+!!! note
+    Argo CD 2.4 upgraded to OpenSSH 8.9. OpenSSH 8.8 
+    [dropped support for the `ssh-rsa` SHA-1 key signature algorithm](https://www.openssh.com/txt/release-8.8).
+    See the [2.3 to 2.4 upgrade guide](../operator-manual/upgrading/2.3-2.4.md) for details about testing SSH servers 
+    for compatibility with Argo CD and for working around servers that do not support newer algorithms.
 
 Using the CLI:
 

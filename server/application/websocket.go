@@ -4,6 +4,7 @@ import (
 	"encoding/json"
 	"fmt"
 	"net/http"
+	"sync"
 	"time"
 
 	"github.com/gorilla/websocket"
@@ -26,6 +27,7 @@ type terminalSession struct {
 	sizeChan chan remotecommand.TerminalSize
 	doneChan chan struct{}
 	tty      bool
+	readLock sync.Mutex
 }
 
 // newTerminalSession create terminalSession
@@ -60,7 +62,9 @@ func (t *terminalSession) Next() *remotecommand.TerminalSize {
 
 // Read called in a loop from remotecommand as long as the process is running
 func (t *terminalSession) Read(p []byte) (int, error) {
+	t.readLock.Lock()
 	_, message, err := t.wsConn.ReadMessage()
+	t.readLock.Unlock()
 	if err != nil {
 		log.Errorf("read message err: %v", err)
 		return copy(p, EndOfTransmission), err

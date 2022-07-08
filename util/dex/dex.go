@@ -3,19 +3,17 @@ package dex
 import (
 	"bytes"
 	"fmt"
-	"html"
-	"io/ioutil"
+	"io"
 	"net/http"
 	"net/http/httputil"
 	"net/url"
 	"path"
-	"regexp"
 	"strconv"
+
+	log "github.com/sirupsen/logrus"
 
 	"github.com/argoproj/argo-cd/v2/util/errors"
 )
-
-var messageRe = regexp.MustCompile(`<p>(.*)([\s\S]*?)<\/p>`)
 
 func decorateDirector(director func(req *http.Request), target *url.URL) func(req *http.Request) {
 	return func(req *http.Request) {
@@ -36,7 +34,7 @@ func NewDexHTTPReverseProxy(serverAddr string, baseHRef string) func(writer http
 	proxy := httputil.NewSingleHostReverseProxy(target)
 	proxy.ModifyResponse = func(resp *http.Response) error {
 		if resp.StatusCode == 500 {
-			b, err := ioutil.ReadAll(resp.Body)
+			b, err := io.ReadAll(resp.Body)
 			if err != nil {
 				return err
 			}
@@ -44,18 +42,12 @@ func NewDexHTTPReverseProxy(serverAddr string, baseHRef string) func(writer http
 			if err != nil {
 				return err
 			}
-			var message string
-			matches := messageRe.FindSubmatch(b)
-			if len(matches) > 1 {
-				message = html.UnescapeString(string(matches[1]))
-			} else {
-				message = "Unknown error"
-			}
+			log.Errorf("received error from dex: %s", string(b))
 			resp.ContentLength = 0
 			resp.Header.Set("Content-Length", strconv.Itoa(0))
-			resp.Header.Set("Location", fmt.Sprintf("%s?sso_error=%s", path.Join(baseHRef, "login"), url.QueryEscape(message)))
+			resp.Header.Set("Location", fmt.Sprintf("%s?has_sso_error=true", path.Join(baseHRef, "login")))
 			resp.StatusCode = http.StatusSeeOther
-			resp.Body = ioutil.NopCloser(bytes.NewReader(make([]byte, 0)))
+			resp.Body = io.NopCloser(bytes.NewReader(make([]byte, 0)))
 			return nil
 		}
 		return nil

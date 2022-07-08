@@ -9,8 +9,8 @@
 # SHA256 sum of the binary.
 ###############################################################################
 awscliv2_version=2.4.6
-helm3_version=3.8.1
+helm3_version=3.9.0
 kubectl_version=1.17.8
 kubectx_version=0.6.3
-kustomize4_version=4.4.1
+kustomize4_version=4.5.5
 protoc_version=3.17.3

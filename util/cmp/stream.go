@@ -2,13 +2,11 @@ package cmp
 
 import (
 	"bufio"
-	"bytes"
 	"context"
 	"crypto/sha256"
 	"encoding/hex"
 	"fmt"
 	"io"
-	"io/ioutil"
 	"os"
 	"path/filepath"
 	"strings"
@@ -85,10 +83,10 @@ func WithTarDoneChan(ch chan<- bool) SenderOption {
 
 // SendRepoStream will compress the files under the given repoPath and send
 // them using the plugin stream sender.
-func SendRepoStream(ctx context.Context, appPath, repoPath string, sender StreamSender, env []string, opts ...SenderOption) error {
+func SendRepoStream(ctx context.Context, appPath, repoPath string, sender StreamSender, env []string, excludedGlobs []string, opts ...SenderOption) error {
 	opt := newSenderOption(opts...)
 
-	tgz, mr, err := GetCompressedRepoAndMetadata(repoPath, appPath, env, opt)
+	tgz, mr, err := GetCompressedRepoAndMetadata(repoPath, appPath, env, excludedGlobs, opt)
 	if err != nil {
 		return err
 	}
@@ -106,9 +104,9 @@ func SendRepoStream(ctx context.Context, appPath, repoPath string, sender Stream
 	return nil
 }
 
-func GetCompressedRepoAndMetadata(repoPath string, appPath string, env []string, opt *senderOption) (*os.File, *pluginclient.AppStreamRequest, error) {
+func GetCompressedRepoAndMetadata(repoPath string, appPath string, env []string, excludedGlobs []string, opt *senderOption) (*os.File, *pluginclient.AppStreamRequest, error) {
 	// compress all files in appPath in tgz
-	tgz, checksum, err := compressFiles(repoPath)
+	tgz, checksum, err := compressFiles(repoPath, excludedGlobs)
 	if err != nil {
 		return nil, nil, fmt.Errorf("error compressing repo files: %w", err)
 	}
@@ -171,17 +169,16 @@ func CloseAndDelete(f *os.File) {
 }
 
 // compressFiles will create a tgz file with all contents of appPath
-// directory excluding the .git folder. Returns the file alongside
-// its sha256 hash to be used as checksum. It is the responsibility
-// of the caller to close the file.
-func compressFiles(appPath string) (*os.File, string, error) {
-	excluded := []string{".git"}
+// directory excluding globs in the excluded array. Returns the file
+// alongside its sha256 hash to be used as checksum. It is the
+// responsibility of the caller to close the file.
+func compressFiles(appPath string, excluded []string) (*os.File, string, error) {
 	appName := filepath.Base(appPath)
 	tempDir, err := files.CreateTempDir(os.TempDir())
 	if err != nil {
 		return nil, "", fmt.Errorf("error creating tempDir for compressing files: %s", err)
 	}
-	tgzFile, err := ioutil.TempFile(tempDir, appName)
+	tgzFile, err := os.CreateTemp(tempDir, appName)
 	if err != nil {
 		return nil, "", fmt.Errorf("error creating app temp tgz file: %w", err)
 	}
@@ -207,8 +204,11 @@ func compressFiles(appPath string) (*os.File, string, error) {
 // Returns error if checksum doesn't match the one provided in the fileMetadata.
 // It is responsibility of the caller to close the returned file.
 func receiveFile(ctx context.Context, receiver StreamReceiver, checksum, dst string) (*os.File, error) {
-	fileBuffer := bytes.Buffer{}
 	hasher := sha256.New()
+	file, err := os.CreateTemp(dst, "")
+	if err != nil {
+		return nil, fmt.Errorf("error creating file: %w", err)
+	}
 	for {
 		if ctx != nil {
 			if err := ctx.Err(); err != nil {
@@ -226,9 +226,9 @@ func receiveFile(ctx context.Context, receiver StreamReceiver, checksum, dst str
 		if f == nil {
 			return nil, fmt.Errorf("stream request file is nil")
 		}
-		_, err = fileBuffer.Write(f.Chunk)
+		_, err = file.Write(f.Chunk)
 		if err != nil {
-			return nil, fmt.Errorf("error writing file buffer: %w", err)
+			return nil, fmt.Errorf("error writing file: %w", err)
 		}
 		_, err = hasher.Write(f.Chunk)
 		if err != nil {
@@ -239,15 +239,6 @@ func receiveFile(ctx context.Context, receiver StreamReceiver, checksum, dst str
 		return nil, fmt.Errorf("file checksum validation error")
 	}
 
-	file, err := ioutil.TempFile(dst, "")
-	if err != nil {
-		return nil, fmt.Errorf("error creating file: %w", err)
-	}
-	_, err = fileBuffer.WriteTo(file)
-	if err != nil {
-		CloseAndDelete(file)
-		return nil, fmt.Errorf("error writing file: %w", err)
-	}
 	_, err = file.Seek(0, io.SeekStart)
 	if err != nil {
 		CloseAndDelete(file)

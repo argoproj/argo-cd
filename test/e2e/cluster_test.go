@@ -184,8 +184,6 @@ func TestClusterURLInRestAPI(t *testing.T) {
 }
 
 func TestClusterDeleteDenied(t *testing.T) {
-	EnsureCleanState(t)
-
 	accountFixture.Given(t).
 		Name("test").
 		When().

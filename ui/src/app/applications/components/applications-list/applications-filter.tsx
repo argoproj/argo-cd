@@ -230,7 +230,7 @@ const FavoriteFilter = (props: AppFilterProps) => {
                 }}
             />
             <div style={{marginRight: '5px'}}>
-                <i style={{color: '#1FBDD0'}} className='fas fa-star' />
+                <i style={{color: '#FFCE25'}} className='fas fa-star' />
             </div>
             <div className='filter__item__label'>Favorites Only</div>
         </div>

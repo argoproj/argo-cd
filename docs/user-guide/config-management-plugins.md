@@ -1,15 +1,60 @@
 # Plugins
 
 Argo CD allows integrating more config management tools using config management plugins. The following sections will
-describe how to create, install, and use plugins. Check out the 
+describe how to create, install, and use plugins. Check out the
 [example plugins](https://github.com/argoproj/argo-cd/tree/master/examples/plugins) for additional guidance.
+
+!!! warning
+    Plugins are granted a level of trust in the Argo CD system, so it is important to implement plugins securely. Argo
+    CD administrators should only install plugins from trusted sources, and they should audit plugins to weigh their
+    particular risks and benefits.
 
 ## Installing a config management plugin
 
-An operator can configure a plugin by adding a sidecar to argocd-repo-server Deployment. The following changes are 
-required to configure a new plugin:
+There are two ways to install a Config Management Plugin (CMP):
 
-### 1. Write the plugin configuration file
+1. Add the plugin config to the Argo CD ConfigMap. The repo-server container will run your plugin's commands.
+   This is a good option for a simple plugin that requires only a few lines of code that fit nicely in the Argo CD ConfigMap.
+2. Add the plugin as a sidecar to the repo-server Pod.
+   This is a good option for a more complex plugin that would clutter the Argo CD ConfigMap.
+
+### Option 1: Configure plugins via Argo CD configmap
+
+The following changes are required to configure a new plugin:
+
+1. Make sure required binaries are available in `argocd-repo-server` pod. The binaries can be added via volume mounts or 
+   using a custom image (see [custom_tools](../operator-manual/custom_tools.md) for examples of both).
+2. Register a new plugin in `argocd-cm` ConfigMap:
+
+        :::yaml
+        data:
+          configManagementPlugins: |
+            - name: pluginName
+              init:                          # Optional command to initialize application source directory
+                command: ["sample command"]
+                args: ["sample args"]
+              generate:                      # Command to generate manifests YAML
+                command: ["sample command"]
+                args: ["sample args"]
+              lockRepo: true                 # Defaults to false. See below.
+    
+    The `generate` command must print a valid YAML or JSON stream to stdout. Both `init` and `generate` commands are executed inside the application source directory or in `path` when specified for the app.
+
+3. [Create an Application which uses your new CMP](#using-a-cmp).
+
+More CMP examples are available in [argocd-example-apps](https://github.com/argoproj/argocd-example-apps/tree/master/plugins).
+
+!!!note "Repository locking"
+    If your plugin makes use of `git` (e.g. `git crypt`), it is advised to set
+    `lockRepo` to `true` so that your plugin will have exclusive access to the
+    repository at the time it is executed. Otherwise, two applications synced
+    at the same time may result in a race condition and sync failure.
+
+### Option 2: Configure plugin via sidecar
+
+An operator can configure a plugin tool via a sidecar to repo-server. The following changes are required to configure a new plugin:
+
+#### 1. Write the plugin configuration file
 
 Plugins will be configured via a ConfigManagementPlugin manifest located inside the plugin container.
 
@@ -91,7 +136,7 @@ spec:
     While the ConfigManagementPlugin _looks like_ a Kubernetes object, it is not actually a custom resource. 
     It only follows kubernetes-style spec conventions.
 
-### 2. Place the plugin configuration file in the sidecar
+#### 2. Place the plugin configuration file in the sidecar
 
 Argo CD expects the plugin configuration file to be located at `/home/argocd/cmp-server/config/plugin.yaml` in the sidecar.
 
@@ -119,7 +164,7 @@ data:
         fileName: "./subdir/s*.yaml"
 ```
 
-### 3. Register the plugin sidecar
+#### 3. Register the plugin sidecar
 
 To install a plugin, patch argocd-repo-server to run the plugin container as a sidecar, with argocd-cmp-server as its 
 entrypoint. You can use either off-the-shelf or custom-built plugin image as sidecar image. For example:
@@ -141,10 +186,16 @@ containers:
     - mountPath: /home/argocd/cmp-server/config/plugin.yaml
       subPath: plugin.yaml
       name: my-plugin-config
+    # Starting with v2.4, do NOT mount the same tmp volume as the repo-server container. The filesystem separation helps 
+    # mitigate path traversal attacks.
+    - mountPath: /tmp
+      name: cmp-tmp
 volumes:
 - configMap:
     name: my-plugin-config
   name: my-plugin-config
+- emptyDir: {}
+  name: cmp-tmp
 ``` 
 
 !!! important "Double-check these items"
@@ -152,26 +203,39 @@ volumes:
     2. Make sure that sidecar container is running as user 999.
     3. Make sure that plugin configuration file is present at `/home/argocd/cmp-server/config/plugin.yaml`. It can either be volume mapped via configmap or baked into image.
 
-## Using environment variables in your plugin
+### Using environment variables in your plugin
 
 Plugin commands have access to
 
-1. The system environment variables
+1. The system environment variables (of the repo-server container for argocd-cm plugins or of the sidecar for sidecar plugins)
 2. [Standard build environment variables](build-environment.md)
 3. Variables in the Application spec (References to system and build variables will get interpolated in the variables' values):
 
-   ```yaml
-   apiVersion: argoproj.io/v1alpha1
-   kind: Application
-   spec:
-     source:
-       plugin:
-         env:
-           - name: FOO
-             value: bar
-           - name: REV
-             value: test-$ARGOCD_APP_REVISION
-   ```
+```yaml
+apiVersion: argoproj.io/v1alpha1
+kind: Application
+spec:
+  source:
+    plugin:
+      env:
+        - name: FOO
+          value: bar
+        - name: REV
+          value: test-$ARGOCD_APP_REVISION
+```
+
+!!! note
+The `discover.command` command only has access to the above environment starting with v2.4.
+
+> v2.4
+
+Before reaching the `init.command`, `generate.command`, and `discover.command` commands, Argo CD prefixes all
+user-supplied environment variables (#3 above) with `ARGOCD_ENV_`. This prevents users from directly setting
+potentially-sensitive environment variables.
+
+If your plugin was written before 2.4 and depends on user-supplied environment variables, then you will need to update
+your plugin's behavior to work with 2.4. If you use a third-party plugin, make sure they explicitly advertise support
+for 2.4.
 
 4. (Starting in v2.4) Parameters in the Application spec:
 
@@ -188,7 +252,7 @@ Plugin commands have access to
              map:
                image.tag: v1.2.3
    ```
-   
+
    The parameters are available as JSON in the `ARGOCD_APP_PARAMETERS` environment variable. The example above would
    produce this JSON:
 
@@ -197,10 +261,10 @@ Plugin commands have access to
    ```
 
    !!! note
-       Parameter announcements, even if they specify defaults, are _not_ sent to the plugin in `ARGOCD_APP_PARAMETERS`.
-       Only parameters explicitly set in the Application spec are sent to the plugin. It is up to the plugin to apply
-       the same defaults as the ones announced to the UI.
-   
+   Parameter announcements, even if they specify defaults, are _not_ sent to the plugin in `ARGOCD_APP_PARAMETERS`.
+   Only parameters explicitly set in the Application spec are sent to the plugin. It is up to the plugin to apply
+   the same defaults as the ones announced to the UI.
+
    The same parameters are also available as individual environment variables. The names of the environment variables
    follows this convention:
 
@@ -221,13 +285,21 @@ Plugin commands have access to
    ```
 
 !!! warning Sanitize/escape user input
-    As part of Argo CD's manifest generation system, config management plugins are treated with a level of trust. Be 
-    sure to escape user input in your plugin to prevent malicious input from causing unwanted behavior.
+As part of Argo CD's manifest generation system, config management plugins are treated with a level of trust. Be
+sure to escape user input in your plugin to prevent malicious input from causing unwanted behavior.
+
 
 ## Using a config management plugin with an Application
 
-Argo CD will automatically select the correct plugin for your Application based on the plugin's configured discovery 
-rules.
+If your CMP is defined in the `argocd-cm` ConfigMap, you can create a new Application using the CLI. Replace 
+`<pluginName>` with the name configured in `argocd-cm`.
+
+```bash
+argocd app create <appName> --config-management-plugin <pluginName>
+```
+
+If your plugin is defined as a sidecar, you must manually define the Application manifest. Do not configure a `name` field
+in the `plugin` section. The plugin will be automatically matched with the Application based on its discovery rules.
 
 ```yaml
 apiVersion: argoproj.io/v1alpha1
@@ -241,24 +313,49 @@ spec:
     repoURL: https://github.com/argoproj/argocd-example-apps.git
     targetRevision: HEAD
     path: guestbook
+    plugin:
+      # For either argocd-cm- or sidecar-installed CMPs, you can pass environment variables to the CMP.
+      env:
+        - name: FOO
+          value: bar
+```
+
+If you don't need to set any environment variables, you can set an empty plugin section.
+
+```yaml
     plugin: {}
 ```
 
 !!! important
-    If your plugin's `init` or `generate` command runs too long, the command will be killed, and the UI will show an 
-    error. The plugin server respects the timeouts set by the `server.repo.server.timeout.seconds` and 
+    If your plugin's `init` or `generate` command runs too long, the command will be killed, and the UI will show an
+    error. The plugin server respects the timeouts set by the `server.repo.server.timeout.seconds` and
     `controller.repo.server.timeout.seconds` items in `argocd-cm`. Increase their values from the default of 60s.
-
+    
     Each plugin command will also independently timeout on the `ARGOCD_EXEC_TIMEOUT` set for the plugin sidecar. The 
     default is 90s. So if you increase the repo server timeout greater than 90s, be sure to set `ARGOCD_EXEC_TIMEOUT` 
     on the sidecar.
+
+## Plugin tar stream exclusions
+
+In order to increase the speed of manifest generation, certain files and folders can be excluded from being sent to your
+plugin. We recommend excluding your `.git` folder if it isn't necessary. Use Go's 
+[filepatch.Match](https://pkg.go.dev/path/filepath#Match) syntax.
+
+You can set it one of three ways:
+
+1. The `--plugin-tar-exclude` argument on the repo server.
+2. The `reposerver.plugin.tar.exclusions` key if you are using `argocd-cmd-params-cm`
+3. Directly setting `ARGOCD_REPO_SERVER_PLUGIN_TAR_EXCLUSIONS` environment variable on the repo server.
+
+For option 1, the flag can be repeated multiple times. For option 2 and 3, you can specify multiple globs by separating
+them with semicolons.
 
 ## Migrating from argocd-cm plugins
 
 Installing plugins by modifying the argocd-cm ConfigMap is deprecated as of v2.4. Support will be completely removed in
 a future release.
 
-The following will show how to convert an argocd-cm plugin to a sidecar plugin. 
+The following will show how to convert an argocd-cm plugin to a sidecar plugin.
 
 ### 1. Convert the ConfigMap entry into a config file
 
@@ -294,8 +391,8 @@ spec:
 ```
 
 !!!note
-    The `lockRepo` key is not relevant for sidecar plugins, because sidecar plugins do not share a single source repo
-    directory when generating manifests.
+The `lockRepo` key is not relevant for sidecar plugins, because sidecar plugins do not share a single source repo
+directory when generating manifests.
 
 ### 2. Write discovery rules for your plugin
 
@@ -305,8 +402,8 @@ Write rules applicable to your plugin [using the instructions above](#1-write-th
 them to your configuration file.
 
 !!!important
-    After installing your sidecar plugin, you'll need to remove the `name` field from the plugin config in your
-    Application specs. For example:
+After installing your sidecar plugin, you'll need to remove the `name` field from the plugin config in your
+Application specs. For example:
 
     ```yaml
     apiVersion: argoproj.io/v1alpha1
@@ -322,10 +419,10 @@ them to your configuration file.
 ### 3. Make sure the plugin has access to the tools it needs
 
 Plugins configured with argocd-cm ran on the Argo CD image. This gave it access to all the tools installed on that
-image by default (see the [Dockerfile](https://github.com/argoproj/argo-cd/blob/master/Dockerfile) for base image and 
+image by default (see the [Dockerfile](https://github.com/argoproj/argo-cd/blob/master/Dockerfile) for base image and
 installed tools).
 
-You can either use a stock image (like busybox) or design your own base image with the tools your plugin needs. For 
+You can either use a stock image (like busybox) or design your own base image with the tools your plugin needs. For
 security, avoid using image with more binaries installed than what your plugin actually needs.
 
 ### 4. Test the plugin

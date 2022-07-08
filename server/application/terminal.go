@@ -2,11 +2,15 @@ package application
 
 import (
 	"context"
+	"fmt"
 	"io"
 	"net/http"
 
 	"github.com/argoproj/gitops-engine/pkg/utils/kube"
+	log "github.com/sirupsen/logrus"
 	v1 "k8s.io/api/core/v1"
+	apierr "k8s.io/apimachinery/pkg/api/errors"
+	apimachineryvalidation "k8s.io/apimachinery/pkg/api/validation"
 	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
 	"k8s.io/client-go/kubernetes"
 	"k8s.io/client-go/kubernetes/scheme"
@@ -17,10 +21,10 @@ import (
 	applisters "github.com/argoproj/argo-cd/v2/pkg/client/listers/application/v1alpha1"
 	servercache "github.com/argoproj/argo-cd/v2/server/cache"
 	"github.com/argoproj/argo-cd/v2/server/rbacpolicy"
-	apputil "github.com/argoproj/argo-cd/v2/util/app"
 	"github.com/argoproj/argo-cd/v2/util/argo"
 	"github.com/argoproj/argo-cd/v2/util/db"
 	"github.com/argoproj/argo-cd/v2/util/rbac"
+	sessionmgr "github.com/argoproj/argo-cd/v2/util/session"
 )
 
 type terminalHandler struct {
@@ -29,17 +33,19 @@ type terminalHandler struct {
 	enf               *rbac.Enforcer
 	cache             *servercache.Cache
 	appResourceTreeFn func(ctx context.Context, app *appv1.Application) (*appv1.ApplicationTree, error)
+	allowedShells     []string
 }
 
 // NewHandler returns a new terminal handler.
 func NewHandler(appLister applisters.ApplicationNamespaceLister, db db.ArgoDB, enf *rbac.Enforcer, cache *servercache.Cache,
-	appResourceTree AppResourceTreeFn) *terminalHandler {
+	appResourceTree AppResourceTreeFn, allowedShells []string) *terminalHandler {
 	return &terminalHandler{
 		appLister:         appLister,
 		db:                db,
 		enf:               enf,
 		cache:             cache,
 		appResourceTreeFn: appResourceTree,
+		allowedShells:     allowedShells,
 	}
 }
 
@@ -54,27 +60,76 @@ func (s *terminalHandler) getApplicationClusterRawConfig(ctx context.Context, a 
 	return clst.RawRestConfig(), nil
 }
 
+// isValidPodName checks that a podName is valid
+func isValidPodName(name string) bool {
+	// https://github.com/kubernetes/kubernetes/blob/976a940f4a4e84fe814583848f97b9aafcdb083f/pkg/apis/core/validation/validation.go#L241
+	validationErrors := apimachineryvalidation.NameIsDNSSubdomain(name, false)
+	return len(validationErrors) == 0
+}
+
+func isValidAppName(name string) bool {
+	// app names have the same rules as pods.
+	return isValidPodName(name)
+}
+
+func isValidProjectName(name string) bool {
+	// project names have the same rules as pods.
+	return isValidPodName(name)
+}
+
+// isValidNamespaceName checks that a namespace name is valid
+func isValidNamespaceName(name string) bool {
+	// https://github.com/kubernetes/kubernetes/blob/976a940f4a4e84fe814583848f97b9aafcdb083f/pkg/apis/core/validation/validation.go#L262
+	validationErrors := apimachineryvalidation.ValidateNamespaceName(name, false)
+	return len(validationErrors) == 0
+}
+
+// isValidContainerName checks that a containerName is valid
+func isValidContainerName(name string) bool {
+	// https://github.com/kubernetes/kubernetes/blob/53a9d106c4aabcd550cc32ae4e8004f32fb0ae7b/pkg/api/validation/validation.go#L280
+	validationErrors := apimachineryvalidation.NameIsDNSLabel(name, false)
+	return len(validationErrors) == 0
+}
+
 func (s *terminalHandler) ServeHTTP(w http.ResponseWriter, r *http.Request) {
 	q := r.URL.Query()
+
 	podName := q.Get("pod")
 	container := q.Get("container")
 	app := q.Get("appName")
+	project := q.Get("projectName")
 	namespace := q.Get("namespace")
-	shell := q.Get("shell")
 
-	if podName == "" || container == "" || app == "" || namespace == "" {
+	if podName == "" || container == "" || app == "" || project == "" || namespace == "" {
 		http.Error(w, "Missing required parameters", http.StatusBadRequest)
 		return
 	}
 
-	ctx := r.Context()
-	a, err := s.appLister.Get(app)
-	if err != nil {
-		http.Error(w, "Cannot get app", http.StatusBadRequest)
+	if !isValidPodName(podName) {
+		http.Error(w, "Pod name is not valid", http.StatusBadRequest)
 		return
 	}
+	if !isValidContainerName(container) {
+		http.Error(w, "Container name is not valid", http.StatusBadRequest)
+		return
+	}
+	if !isValidAppName(app) {
+		http.Error(w, "App name is not valid", http.StatusBadRequest)
+		return
+	}
+	if !isValidProjectName(project) {
+		http.Error(w, "Project name is not valid", http.StatusBadRequest)
+		return
+	}
+	if !isValidNamespaceName(namespace) {
+		http.Error(w, "Namespace name is not valid", http.StatusBadRequest)
+		return
+	}
+	shell := q.Get("shell") // No need to validate. Will only be used if it's in the allow-list.
 
-	appRBACName := apputil.AppRBACName(*a)
+	ctx := r.Context()
+
+	appRBACName := fmt.Sprintf("%s/%s", project, app)
 	if err := s.enf.EnforceErr(ctx.Value("claims"), rbacpolicy.ResourceApplications, rbacpolicy.ActionGet, appRBACName); err != nil {
 		http.Error(w, err.Error(), http.StatusUnauthorized)
 		return
@@ -82,6 +137,26 @@ func (s *terminalHandler) ServeHTTP(w http.ResponseWriter, r *http.Request) {
 
 	if err := s.enf.EnforceErr(ctx.Value("claims"), rbacpolicy.ResourceExec, rbacpolicy.ActionCreate, appRBACName); err != nil {
 		http.Error(w, err.Error(), http.StatusUnauthorized)
+		return
+	}
+
+	fieldLog := log.WithFields(log.Fields{"application": app, "userName": sessionmgr.Username(ctx), "container": container,
+		"podName": podName, "namespace": namespace, "cluster": project})
+
+	a, err := s.appLister.Get(app)
+	if err != nil {
+		if apierr.IsNotFound(err) {
+			http.Error(w, "App not found", http.StatusNotFound)
+			return
+		}
+		fieldLog.Errorf("Error when getting app %q when launching a terminal: %s", app, err)
+		http.Error(w, "Cannot get app", http.StatusInternalServerError)
+		return
+	}
+
+	if a.Spec.Project != project {
+		fieldLog.Warnf("The wrong project (%q) was specified for the app %q when launching a terminal", project, app)
+		http.Error(w, "The wrong project was specified for the app", http.StatusBadRequest)
 		return
 	}
 
@@ -111,6 +186,7 @@ func (s *terminalHandler) ServeHTTP(w http.ResponseWriter, r *http.Request) {
 
 	pod, err := kubeClientset.CoreV1().Pods(namespace).Get(ctx, podName, metav1.GetOptions{})
 	if err != nil {
+		fieldLog.Errorf("error retrieving pod: %s", err)
 		http.Error(w, "Cannot find pod", http.StatusBadRequest)
 		return
 	}
@@ -128,9 +204,12 @@ func (s *terminalHandler) ServeHTTP(w http.ResponseWriter, r *http.Request) {
 		}
 	}
 	if !findContainer {
+		fieldLog.Warn("terminal container not found")
 		http.Error(w, "Cannot find container", http.StatusBadRequest)
 		return
 	}
+
+	fieldLog.Info("terminal session starting")
 
 	session, err := newTerminalSession(w, r, nil)
 	if err != nil {
@@ -139,14 +218,12 @@ func (s *terminalHandler) ServeHTTP(w http.ResponseWriter, r *http.Request) {
 	}
 	defer session.Done()
 
-	validShells := []string{"bash", "sh", "powershell", "cmd"}
-	if isValidShell(validShells, shell) {
+	if isValidShell(s.allowedShells, shell) {
 		cmd := []string{shell}
 		err = startProcess(kubeClientset, config, namespace, podName, container, cmd, session)
 	} else {
-		// No shell given or it was not valid: try some shells until one succeeds or all fail
-		// FIXME: if the first shell fails then the first keyboard event is lost
-		for _, testShell := range validShells {
+		// No shell given or the given shell was not allowed: try the configured shells until one succeeds or all fail.
+		for _, testShell := range s.allowedShells {
 			cmd := []string{testShell}
 			if err = startProcess(kubeClientset, config, namespace, podName, container, cmd, session); err == nil {
 				break

@@ -2548,10 +2548,19 @@ func Test_validatePolicy_projIsNotRegex(t *testing.T) {
 }
 
 func Test_validatePolicy_ValidResource(t *testing.T) {
-	err := validatePolicy("some-project", "org-admin", "p, proj:some-project:org-admin, repositories, *, some-project/*, allow")
+	err := validatePolicy("some-project", "org-admin", "p, proj:some-project:org-admin, applications, *, some-project/*, allow")
+	assert.NoError(t, err)
+	err = validatePolicy("some-project", "org-admin", "p, proj:some-project:org-admin, repositories, *, some-project/*, allow")
 	assert.NoError(t, err)
 	err = validatePolicy("some-project", "org-admin", "p, proj:some-project:org-admin, clusters, *, some-project/*, allow")
 	assert.NoError(t, err)
+	err = validatePolicy("some-project", "org-admin", "p, proj:some-project:org-admin, exec, *, some-project/*, allow")
+	assert.NoError(t, err)
+	err = validatePolicy("some-project", "org-admin", "p, proj:some-project:org-admin, logs, *, some-project/*, allow")
+	assert.NoError(t, err)
+	err = validatePolicy("some-project", "org-admin", "p, proj:some-project:org-admin, unknown, *, some-project/*, allow")
+	assert.Error(t, err)
+
 }
 
 func TestEnvsubst(t *testing.T) {

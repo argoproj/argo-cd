@@ -1,7 +1,6 @@
 package commands
 
 import (
-	"context"
 	"fmt"
 	"os"
 
@@ -48,6 +47,8 @@ func NewApplicationPatchResourceCommand(clientOpts *argocdclient.ClientOptions) 
 	command.Flags().StringVar(&namespace, "namespace", "", "Namespace")
 	command.Flags().BoolVar(&all, "all", false, "Indicates whether to patch multiple matching of resources")
 	command.Run = func(c *cobra.Command, args []string) {
+		ctx := c.Context()
+
 		if len(args) != 1 {
 			c.HelpFunc()(c, args)
 			os.Exit(1)
@@ -56,7 +57,6 @@ func NewApplicationPatchResourceCommand(clientOpts *argocdclient.ClientOptions) 
 
 		conn, appIf := headless.NewClientOrDie(clientOpts, c).NewApplicationClientOrDie()
 		defer argoio.Close(conn)
-		ctx := context.Background()
 		resources, err := appIf.ManagedResources(ctx, &applicationpkg.ResourcesQuery{ApplicationName: &appName})
 		errors.CheckError(err)
 		objectsToPatch, err := util.FilterResources(command.Flags().Changed("group"), resources.Items, group, kind, namespace, resourceName, all)
@@ -105,6 +105,8 @@ func NewApplicationDeleteResourceCommand(clientOpts *argocdclient.ClientOptions)
 	command.Flags().BoolVar(&orphan, "orphan", false, "Indicates whether to force delete the resource")
 	command.Flags().BoolVar(&all, "all", false, "Indicates whether to patch multiple matching of resources")
 	command.Run = func(c *cobra.Command, args []string) {
+		ctx := c.Context()
+
 		if len(args) != 1 {
 			c.HelpFunc()(c, args)
 			os.Exit(1)
@@ -113,7 +115,6 @@ func NewApplicationDeleteResourceCommand(clientOpts *argocdclient.ClientOptions)
 
 		conn, appIf := headless.NewClientOrDie(clientOpts, c).NewApplicationClientOrDie()
 		defer argoio.Close(conn)
-		ctx := context.Background()
 		resources, err := appIf.ManagedResources(ctx, &applicationpkg.ResourcesQuery{ApplicationName: &appName})
 		errors.CheckError(err)
 		objectsToDelete, err := util.FilterResources(command.Flags().Changed("group"), resources.Items, group, kind, namespace, resourceName, all)
@@ -165,6 +166,8 @@ func NewApplicationListResourcesCommand(clientOpts *argocdclient.ClientOptions) 
 		Use:   "resources APPNAME",
 		Short: "List resource of application",
 		Run: func(c *cobra.Command, args []string) {
+			ctx := c.Context()
+
 			if len(args) != 1 {
 				c.HelpFunc()(c, args)
 				os.Exit(1)
@@ -173,7 +176,7 @@ func NewApplicationListResourcesCommand(clientOpts *argocdclient.ClientOptions) 
 			appName := args[0]
 			conn, appIf := headless.NewClientOrDie(clientOpts, c).NewApplicationClientOrDie()
 			defer argoio.Close(conn)
-			appResourceTree, err := appIf.ResourceTree(context.Background(), &applicationpkg.ResourcesQuery{ApplicationName: &appName})
+			appResourceTree, err := appIf.ResourceTree(ctx, &applicationpkg.ResourcesQuery{ApplicationName: &appName})
 			errors.CheckError(err)
 			printResources(listAll, orphaned, appResourceTree)
 		},

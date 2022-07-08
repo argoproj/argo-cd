@@ -1,7 +1,6 @@
 package commands
 
 import (
-	"io/ioutil"
 	"os"
 	"testing"
 
@@ -36,13 +35,13 @@ users:
 - auth-token: vErrYS3c3tReFRe$hToken
   name: localhost:8080`
 
-const testConfigFilePath = "./testdata/config"
+const testConfigFilePath = "./testdata/local.config"
 
 func TestContextDelete(t *testing.T) {
-
 	// Write the test config file
-	err := ioutil.WriteFile(testConfigFilePath, []byte(testConfig), os.ModePerm)
+	err := os.WriteFile(testConfigFilePath, []byte(testConfig), os.ModePerm)
 	assert.NoError(t, err)
+	defer os.Remove(testConfigFilePath)
 
 	err = os.Chmod(testConfigFilePath, 0600)
 	require.NoError(t, err, "Could not change the file permission to 0600 %v", err)
@@ -75,9 +74,4 @@ func TestContextDelete(t *testing.T) {
 	assert.NotContains(t, localConfig.Servers, localconfig.Server{PlainText: true, Server: "localhost:8080"})
 	assert.NotContains(t, localConfig.Users, localconfig.User{AuthToken: "vErrYS3c3tReFRe$hToken", Name: "localhost:8080"})
 	assert.Contains(t, localConfig.Contexts, localconfig.ContextRef{Name: "argocd2.example.com:443", Server: "argocd2.example.com:443", User: "argocd2.example.com:443"})
-
-	// Write the file again so that no conflicts are made in git
-	err = ioutil.WriteFile(testConfigFilePath, []byte(testConfig), os.ModePerm)
-	assert.NoError(t, err)
-
 }
