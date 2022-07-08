@@ -16,7 +16,7 @@ spec:
     spec:
       containers:
         - name: helm-guestbook
-          image: quay.io/argoprojlabs/argocd-e2e-container:0.1
+          image: quay.io/argoprojlabs/argocd-e2e-container:0.2
           imagePullPolicy: IfNotPresent
           ports:
             - name: http
