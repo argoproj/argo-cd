@@ -202,7 +202,13 @@ export const ResourceDetails = (props: ResourceDetailsProps) => {
             content: <ApplicationResourceEvents applicationName={application.metadata.name} />
         });
 
-        return tabs;
+        const extensionTabs = services.extensions.getResourceTabs('argoproj.io', 'Application').map((ext, i) => ({
+            title: ext.title,
+            key: `extension-${i}`,
+            content: <ext.component resource={application} tree={tree} />
+        }));
+
+        return tabs.concat(extensionTabs);
     };
 
     const extensions = selectedNode?.kind && selectedNode?.group ? services.extensions.getResourceTabs(selectedNode?.group, selectedNode?.kind) : [];
