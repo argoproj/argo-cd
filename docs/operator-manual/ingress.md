@@ -421,20 +421,20 @@ Once we create this service, we can configure the Ingress to conditionally route
     - host: argocd.argoproj.io
       http:
         paths:
-        - path: /*
+        - path: /
           backend:
             service:
               name: argogrpc
               port:
                 number: 443
-          pathType: ImplementationSpecific
-        - path: /*
+          pathType: Prefix
+        - path: /
           backend:
             service:
               name: argocd-server
               port:
                 number: 443
-          pathType: ImplementationSpecific
+          pathType: Prefix
     tls:
     - hosts:
       - argocd.argoproj.io
