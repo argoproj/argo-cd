@@ -614,7 +614,7 @@ func (a *ArgoCDServer) newGRPCServer() (*grpc.Server, application.AppResourceTre
 		grpc.ConnectionTimeout(300 * time.Second),
 		grpc.KeepaliveEnforcementPolicy(
 			keepalive.EnforcementPolicy{
-				MinTime: (time.Duration(10) * time.Second),
+				MinTime: common.GRPCKeepAliveEnforcementMinimum,
 			},
 		),
 	}

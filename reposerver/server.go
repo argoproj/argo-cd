@@ -5,7 +5,6 @@ import (
 	"fmt"
 	"os"
 	"path/filepath"
-	"time"
 
 	"go.opentelemetry.io/contrib/instrumentation/google.golang.org/grpc/otelgrpc"
 
@@ -91,7 +90,7 @@ func NewServer(metricsServer *metrics.MetricsServer, cache *reposervercache.Cach
 		grpc.MaxSendMsgSize(apiclient.MaxGRPCMessageSize),
 		grpc.KeepaliveEnforcementPolicy(
 			keepalive.EnforcementPolicy{
-				MinTime: (time.Duration(10) * time.Second),
+				MinTime: common.GRPCKeepAliveEnforcementMinimum,
 			},
 		),
 	}
