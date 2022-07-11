@@ -9,6 +9,7 @@ import {services} from '../../../shared/services';
 import {ImageTagFieldEditor} from './kustomize';
 import * as kustomize from './kustomize-image';
 import {VarsInputField} from './vars-input-field';
+import {concatMaps} from '../../../shared/utils';
 
 const TextWithMetadataField = ReactFormField((props: {metadata: {value: string}; fieldApi: FieldApi; className: string}) => {
     const {
@@ -374,16 +375,3 @@ export const ApplicationParameters = (props: {
         />
     );
 };
-
-// concatMaps merges two maps. Later args take precedence where there's a key conflict.
-function concatMaps(...maps: (Map<string, string> | null)[]): Map<string, string> {
-    const newMap = new Map<string, string>();
-    for (const map of maps) {
-        if (map) {
-            for (const entry of Object.entries(map)) {
-                newMap.set(entry[0], entry[1]);
-            }
-        }
-    }
-    return newMap;
-}
