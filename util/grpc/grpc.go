@@ -1,13 +1,13 @@
 package grpc
 
 import (
+	"context"
 	"crypto/tls"
 	"net"
 	"runtime/debug"
 	"strings"
 	"time"
 
-	"context"
 	"github.com/sirupsen/logrus"
 	"google.golang.org/grpc"
 	"google.golang.org/grpc/codes"
@@ -115,7 +115,7 @@ type TLSTestResult struct {
 	InsecureErr error
 }
 
-func TestTLS(address string) (*TLSTestResult, error) {
+func TestTLS(address string, dialTime time.Duration) (*TLSTestResult, error) {
 	if parts := strings.Split(address, ":"); len(parts) == 1 {
 		// If port is unspecified, assume the most likely port
 		address += ":443"
@@ -124,12 +124,21 @@ func TestTLS(address string) (*TLSTestResult, error) {
 	var tlsConfig tls.Config
 	tlsConfig.InsecureSkipVerify = true
 	creds := credentials.NewTLS(&tlsConfig)
-	conn, err := BlockingDial(context.Background(), "tcp", address, creds)
+
+	// Set timeout when dialing to the server
+	// fix: https://github.com/argoproj/argo-cd/issues/9679
+	ctx, cancel := context.WithTimeout(context.Background(), dialTime)
+	defer cancel()
+
+	conn, err := BlockingDial(ctx, "tcp", address, creds)
 	if err == nil {
 		_ = conn.Close()
 		testResult.TLS = true
 		creds := credentials.NewTLS(&tls.Config{})
-		conn, err := BlockingDial(context.Background(), "tcp", address, creds)
+		ctx, cancel := context.WithTimeout(context.Background(), dialTime)
+		defer cancel()
+
+		conn, err := BlockingDial(ctx, "tcp", address, creds)
 		if err == nil {
 			_ = conn.Close()
 		} else {
@@ -142,7 +151,9 @@ func TestTLS(address string) (*TLSTestResult, error) {
 	// If we get here, we were unable to connect via TLS (even with InsecureSkipVerify: true)
 	// It may be because server is running without TLS, or because of real issues (e.g. connection
 	// refused). Test if server accepts plain-text connections
-	conn, err = BlockingDial(context.Background(), "tcp", address, nil)
+	ctx, cancel = context.WithTimeout(context.Background(), dialTime)
+	defer cancel()
+	conn, err = BlockingDial(ctx, "tcp", address, nil)
 	if err == nil {
 		_ = conn.Close()
 		testResult.TLS = false
