@@ -948,7 +948,7 @@ func TestLocalManifestSync(t *testing.T) {
 		And(func(app *Application) {
 			res, _ := RunCli("app", "manifests", app.Name)
 			assert.Contains(t, res, "containerPort: 80")
-			assert.Contains(t, res, "image: gcr.io/heptio-images/ks-guestbook-demo:0.2")
+			assert.Contains(t, res, "image: quay.io/argoprojlabs/argocd-e2e-container:0.2")
 		}).
 		Given().
 		LocalPath(guestbookPathLocal).
@@ -959,7 +959,7 @@ func TestLocalManifestSync(t *testing.T) {
 		And(func(app *Application) {
 			res, _ := RunCli("app", "manifests", app.Name)
 			assert.Contains(t, res, "containerPort: 81")
-			assert.Contains(t, res, "image: gcr.io/heptio-images/ks-guestbook-demo:0.3")
+			assert.Contains(t, res, "image: quay.io/argoprojlabs/argocd-e2e-container:0.3")
 		}).
 		Given().
 		LocalPath("").
@@ -970,7 +970,7 @@ func TestLocalManifestSync(t *testing.T) {
 		And(func(app *Application) {
 			res, _ := RunCli("app", "manifests", app.Name)
 			assert.Contains(t, res, "containerPort: 80")
-			assert.Contains(t, res, "image: gcr.io/heptio-images/ks-guestbook-demo:0.2")
+			assert.Contains(t, res, "image: quay.io/argoprojlabs/argocd-e2e-container:0.2")
 		})
 }
 
@@ -1191,7 +1191,8 @@ func TestPermissionWithScopedRepo(t *testing.T) {
 		Name(projName).
 		Destination("*,*").
 		When().
-		Create()
+		Create().
+		AddSource("*")
 
 	repoFixture.Given(t, true).
 		When().

@@ -171,7 +171,7 @@ spec:
   containers:
     - command:
         - "true"
-      image: "alpine:latest"
+      image: "quay.io/argoprojlabs/argocd-e2e-container:0.1"
       imagePullPolicy: IfNotPresent
       name: main
   restartPolicy: Never
@@ -202,7 +202,7 @@ spec:
   containers:
     - command:
         - "true"
-      image: "alpine:latest"
+      image: "quay.io/argoprojlabs/argocd-e2e-container:0.1"
       imagePullPolicy: IfNotPresent
       name: main
   restartPolicy: Never
@@ -218,7 +218,7 @@ spec:
   containers:
     - command:
         - "false"
-      image: "alpine:latest"
+      image: "quay.io/argoprojlabs/argocd-e2e-container:0.1"
       imagePullPolicy: IfNotPresent
       name: main
   restartPolicy: Never
