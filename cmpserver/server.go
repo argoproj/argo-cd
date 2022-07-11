@@ -25,6 +25,7 @@ import (
 	"github.com/argoproj/argo-cd/v2/server/version"
 	"github.com/argoproj/argo-cd/v2/util/errors"
 	grpc_util "github.com/argoproj/argo-cd/v2/util/grpc"
+	"google.golang.org/grpc/keepalive"
 )
 
 // ArgoCDCMPServer is the config management plugin server implementation
@@ -62,6 +63,11 @@ func NewServer(initConstants plugin.CMPServerInitConstants) (*ArgoCDCMPServer, e
 		grpc.StreamInterceptor(grpc_middleware.ChainStreamServer(streamInterceptors...)),
 		grpc.MaxRecvMsgSize(apiclient.MaxGRPCMessageSize),
 		grpc.MaxSendMsgSize(apiclient.MaxGRPCMessageSize),
+		grpc.KeepaliveEnforcementPolicy(
+			keepalive.EnforcementPolicy{
+				MinTime: common.GRPCKeepAliveEnforcementMinimum,
+			},
+		),
 	}
 
 	return &ArgoCDCMPServer{

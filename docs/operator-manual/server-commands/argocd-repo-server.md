@@ -13,6 +13,7 @@ argocd-repo-server [flags]
 ### Options
 
 ```
+      --allow-oob-symlinks                             Allow out-of-bounds symlinks in repositories (not recommended)
       --default-cache-expiration duration              Cache expiration default (default 24h0m0s)
       --disable-tls                                    Disable TLS on the gRPC endpoint
       --exec-timeout duration                          per-command timeout for external commands invoked by the repo server (such as git) (default 1m30s)

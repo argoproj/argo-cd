@@ -4,6 +4,7 @@ import (
 	"context"
 	"crypto/tls"
 	"fmt"
+	goio "io"
 	"io/fs"
 	"math"
 	"net"
@@ -12,6 +13,7 @@ import (
 	"os"
 	"os/exec"
 	"path"
+	"path/filepath"
 	"reflect"
 	"regexp"
 	go_runtime "runtime"
@@ -23,6 +25,7 @@ import (
 	golang_proto "github.com/golang/protobuf/proto"
 
 	netCtx "context"
+
 	"github.com/argoproj/pkg/sync"
 	"github.com/go-redis/redis/v8"
 	"github.com/golang-jwt/jwt/v4"
@@ -40,6 +43,7 @@ import (
 	"google.golang.org/grpc/codes"
 	"google.golang.org/grpc/credentials"
 	"google.golang.org/grpc/credentials/insecure"
+	"google.golang.org/grpc/keepalive"
 	"google.golang.org/grpc/metadata"
 	"google.golang.org/grpc/reflection"
 	"google.golang.org/grpc/status"
@@ -98,6 +102,7 @@ import (
 	"github.com/argoproj/argo-cd/v2/util/healthz"
 	httputil "github.com/argoproj/argo-cd/v2/util/http"
 	"github.com/argoproj/argo-cd/v2/util/io"
+	"github.com/argoproj/argo-cd/v2/util/io/files"
 	jwtutil "github.com/argoproj/argo-cd/v2/util/jwt"
 	kubeutil "github.com/argoproj/argo-cd/v2/util/kube"
 	"github.com/argoproj/argo-cd/v2/util/oidc"
@@ -608,6 +613,11 @@ func (a *ArgoCDServer) newGRPCServer() (*grpc.Server, application.AppResourceTre
 		grpc.MaxRecvMsgSize(apiclient.MaxGRPCMessageSize),
 		grpc.MaxSendMsgSize(apiclient.MaxGRPCMessageSize),
 		grpc.ConnectionTimeout(300 * time.Second),
+		grpc.KeepaliveEnforcementPolicy(
+			keepalive.EnforcementPolicy{
+				MinTime: common.GRPCKeepAliveEnforcementMinimum,
+			},
+		),
 	}
 	sensitiveMethods := map[string]bool{
 		"/cluster.ClusterService/Create":                          true,
@@ -865,11 +875,11 @@ func (a *ArgoCDServer) newHTTPServer(ctx context.Context, port int, grpcWebHandl
 	registerDownloadHandlers(mux, "/download")
 
 	// Serve extensions
-	var extensionsApiPath = "/extensions/"
 	var extensionsSharedPath = "/tmp/extensions/"
 
-	extHandler := http.StripPrefix(extensionsApiPath, http.FileServer(http.Dir(extensionsSharedPath)))
-	mux.HandleFunc(extensionsApiPath, extHandler.ServeHTTP)
+	mux.HandleFunc("/extensions.js", func(writer http.ResponseWriter, _ *http.Request) {
+		a.serveExtensions(extensionsSharedPath, writer)
+	})
 
 	// Serve UI static assets
 	var assetsHandler http.Handler = http.HandlerFunc(a.newStaticAssetsHandler())
@@ -878,6 +888,48 @@ func (a *ArgoCDServer) newHTTPServer(ctx context.Context, port int, grpcWebHandl
 	}
 	mux.Handle("/", assetsHandler)
 	return &httpS
+}
+
+var extensionsPattern = regexp.MustCompile(`^extension(.*)\.js$`)
+
+func (a *ArgoCDServer) serveExtensions(extensionsSharedPath string, w http.ResponseWriter) {
+	w.Header().Set("Content-Type", "application/javascript")
+
+	err := filepath.Walk(extensionsSharedPath, func(filePath string, info os.FileInfo, err error) error {
+		if err != nil {
+			return fmt.Errorf("failed to iterate files in '%s': %w", extensionsSharedPath, err)
+		}
+		if !files.IsSymlink(info) && !info.IsDir() && extensionsPattern.MatchString(info.Name()) {
+			processFile := func() error {
+				if _, err = w.Write([]byte(fmt.Sprintf("// source: %s/%s \n", filePath, info.Name()))); err != nil {
+					return fmt.Errorf("failed to write to response: %w", err)
+				}
+
+				f, err := os.Open(filePath)
+				if err != nil {
+					return fmt.Errorf("failed to open file '%s': %w", filePath, err)
+				}
+				defer io.Close(f)
+
+				if _, err := goio.Copy(w, f); err != nil {
+					return fmt.Errorf("failed to copy file '%s': %w", filePath, err)
+				}
+
+				return nil
+			}
+
+			if processFile() != nil {
+				return fmt.Errorf("failed to serve extension file '%s': %w", filePath, processFile())
+			}
+		}
+		return nil
+	})
+
+	if err != nil && !os.IsNotExist(err) {
+		log.Errorf("Failed to walk extensions directory: %v", err)
+		http.Error(w, "Internal error", http.StatusInternalServerError)
+		return
+	}
 }
 
 // registerDexHandlers will register dex HTTP handlers, creating the the OAuth client app
