@@ -456,7 +456,7 @@
               <div class="header-wrap">
                   <h1 class="project__header__title">Snyk test report</h1>
     
-                <p class="timestamp">July 7th 2022, 9:25:39 pm</p>
+                <p class="timestamp">July 11th 2022, 2:59:27 pm</p>
               </div>
               <div class="source-panel">
                 <span>Scanned the following path:</span>
@@ -852,6 +852,7 @@
         <li><a href="https://git.openssl.org/gitweb/?p=openssl.git;a=commitdiff;h=2c9c35870601b4a44d86ddbf512b38df38285cfa">CONFIRM</a></li>
         <li><a href="https://www.debian.org/security/2022/dsa-5169">DEBIAN</a></li>
         <li><a href="https://lists.fedoraproject.org/archives/list/package-announce@lists.fedoraproject.org/message/6WZZBKUHQFGSKGNXXKICSRPL7AMVW5M5/">FEDORA</a></li>
+        <li><a href="https://security.netapp.com/advisory/ntap-20220707-0008/">CONFIRM</a></li>
         </ul>
         
               <hr/>
@@ -1025,6 +1026,7 @@
         <li><a href="https://www.openssl.org/news/secadv/20220705.txt">CONFIRM</a></li>
         <li><a href="https://git.openssl.org/gitweb/?p=openssl.git;a=commitdiff;h=a98f339ddd7e8f487d6e0088d4a9a42324885a93">CONFIRM</a></li>
         <li><a href="https://git.openssl.org/gitweb/?p=openssl.git;a=commitdiff;h=919925673d6c9cfed3c1085497f5dfbbed5fc431">CONFIRM</a></li>
+        <li><a href="https://lists.fedoraproject.org/archives/list/package-announce@lists.fedoraproject.org/message/V6567JERRHHJW2GNGJGKDRNHR7SNPZK7/">FEDORA</a></li>
         </ul>
         
               <hr/>
@@ -1665,12 +1667,15 @@
               <hr/>
               <!-- Overview -->
               <h2 id="nvd-description">NVD Description</h2>
-        <p><em>This vulnerability has not been analyzed by NVD yet.</em></p>
+        <p><strong><em>Note:</em></strong> <em>Versions mentioned in the description apply to the upstream <code>curl</code> package.</em>
+        <em>See <code>How to fix?</code> for <code>Ubuntu:22.04</code> relevant versions.</em></p>
+        <p>When curl &lt; 7.84.0 does FTP transfers secured by krb5, it handles message verification failures wrongly. This flaw makes it possible for a Man-In-The-Middle attack to go unnoticed and even allows it to inject data to the client.</p>
         <h2 id="remediation">Remediation</h2>
         <p>Upgrade <code>Ubuntu:22.04</code> <code>curl</code> to version 7.81.0-1ubuntu1.3 or higher.</p>
         <h2 id="references">References</h2>
         <ul>
         <li><a href="http://people.ubuntu.com/~ubuntu-security/cve/CVE-2022-32208">ADVISORY</a></li>
+        <li><a href="https://hackerone.com/reports/1590071">MISC</a></li>
         </ul>
         
               <hr/>
@@ -1731,12 +1736,15 @@
               <hr/>
               <!-- Overview -->
               <h2 id="nvd-description">NVD Description</h2>
-        <p><em>This vulnerability has not been analyzed by NVD yet.</em></p>
+        <p><strong><em>Note:</em></strong> <em>Versions mentioned in the description apply to the upstream <code>curl</code> package.</em>
+        <em>See <code>How to fix?</code> for <code>Ubuntu:22.04</code> relevant versions.</em></p>
+        <p>When curl &lt; 7.84.0 saves cookies, alt-svc and hsts data to local files, it makes the operation atomic by finalizing the operation with a rename from a temporary name to the final target file name.In that rename operation, it might accidentally <em>widen</em> the permissions for the target file, leaving the updated file accessible to more users than intended.</p>
         <h2 id="remediation">Remediation</h2>
         <p>Upgrade <code>Ubuntu:22.04</code> <code>curl</code> to version 7.81.0-1ubuntu1.3 or higher.</p>
         <h2 id="references">References</h2>
         <ul>
         <li><a href="http://people.ubuntu.com/~ubuntu-security/cve/CVE-2022-32207">ADVISORY</a></li>
+        <li><a href="https://hackerone.com/reports/1573634">MISC</a></li>
         </ul>
         
               <hr/>
@@ -1797,12 +1805,15 @@
               <hr/>
               <!-- Overview -->
               <h2 id="nvd-description">NVD Description</h2>
-        <p><em>This vulnerability has not been analyzed by NVD yet.</em></p>
+        <p><strong><em>Note:</em></strong> <em>Versions mentioned in the description apply to the upstream <code>curl</code> package.</em>
+        <em>See <code>How to fix?</code> for <code>Ubuntu:22.04</code> relevant versions.</em></p>
+        <p>curl &lt; 7.84.0 supports &#34;chained&#34; HTTP compression algorithms, meaning that a serverresponse can be compressed multiple times and potentially with different algorithms. The number of acceptable &#34;links&#34; in this &#34;decompression chain&#34; was unbounded, allowing a malicious server to insert a virtually unlimited number of compression steps.The use of such a decompression chain could result in a &#34;malloc bomb&#34;, makingcurl end up spending enormous amounts of allocated heap memory, or trying toand returning out of memory errors.</p>
         <h2 id="remediation">Remediation</h2>
         <p>Upgrade <code>Ubuntu:22.04</code> <code>curl</code> to version 7.81.0-1ubuntu1.3 or higher.</p>
         <h2 id="references">References</h2>
         <ul>
         <li><a href="http://people.ubuntu.com/~ubuntu-security/cve/CVE-2022-32206">ADVISORY</a></li>
+        <li><a href="https://hackerone.com/reports/1570651">MISC</a></li>
         </ul>
         
               <hr/>
@@ -1863,12 +1874,15 @@
               <hr/>
               <!-- Overview -->
               <h2 id="nvd-description">NVD Description</h2>
-        <p><em>This vulnerability has not been analyzed by NVD yet.</em></p>
+        <p><strong><em>Note:</em></strong> <em>Versions mentioned in the description apply to the upstream <code>curl</code> package.</em>
+        <em>See <code>How to fix?</code> for <code>Ubuntu:22.04</code> relevant versions.</em></p>
+        <p>A malicious server can serve excessive amounts of <code>Set-Cookie:</code> headers in a HTTP response to curl and curl &lt; 7.84.0 stores all of them. A sufficiently large amount of (big) cookies make subsequent HTTP requests to this, or other servers to which the cookies match, create requests that become larger than the threshold that curl uses internally to avoid sending crazy large requests (1048576 bytes) and instead returns an error.This denial state might remain for as long as the same cookies are kept, match and haven&#39;t expired. Due to cookie matching rules, a server on <code>foo.example.com</code> can set cookies that also would match for <code>bar.example.com</code>, making it it possible for a &#34;sister server&#34; to effectively cause a denial of service for a sibling site on the same second level domain using this method.</p>
         <h2 id="remediation">Remediation</h2>
         <p>Upgrade <code>Ubuntu:22.04</code> <code>curl</code> to version 7.81.0-1ubuntu1.3 or higher.</p>
         <h2 id="references">References</h2>
         <ul>
         <li><a href="http://people.ubuntu.com/~ubuntu-security/cve/CVE-2022-32205">ADVISORY</a></li>
+        <li><a href="https://hackerone.com/reports/1569946">MISC</a></li>
         </ul>
         
               <hr/>
