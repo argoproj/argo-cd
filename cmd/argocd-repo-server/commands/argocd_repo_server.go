@@ -206,7 +206,8 @@ func NewCommand() *cobra.Command {
 	command.Flags().StringVar(&maxCombinedDirectoryManifestsSize, "max-combined-directory-manifests-size", env.StringFromEnv("ARGOCD_REPO_SERVER_MAX_COMBINED_DIRECTORY_MANIFESTS_SIZE", "10M"), "Max combined size of manifest files in a directory-type Application")
 	command.Flags().StringArrayVar(&cmpTarExcludedGlobs, "plugin-tar-exclude", env.StringsFromEnv("ARGOCD_REPO_SERVER_PLUGIN_TAR_EXCLUSIONS", []string{}, ";"), "Globs to filter when sending tarballs to plugins.")
 	command.Flags().BoolVar(&allowOutOfBoundsSymlinks, "allow-oob-symlinks", env.ParseBoolFromEnv("ARGOCD_REPO_SERVER_ALLOW_OUT_OF_BOUNDS_SYMLINKS", false), "Allow out-of-bounds symlinks in repositories (not recommended)")
-	durationFromEnv := env.ParseDurationFromEnvs(common.DefaultExecTimeout, 0*time.Second, 24*time.Hour, "ARGOCD_REPO_SERVER_EXEC_TIMEOUT", "ARGOCD_EXEC_TIMEOUT")
+	// Fall back to ARGOCD_EXEC_TIMEOUT for backwards compatibility.
+	durationFromEnv := env.ParseDurationFromEnvs(common.DefaultExecTimeout, 0*time.Second, 24*time.Hour, "ARGOCD_REPO_SERVER_EXEC_TIMEOUT", common.EnvExecTimeout)
 	command.Flags().DurationVar(&execTimeout, "exec-timeout", durationFromEnv, "per-command timeout for external commands invoked by the repo server (such as git)")
 
 	tlsConfigCustomizerSrc = tls.AddTLSFlagsToCmd(&command)

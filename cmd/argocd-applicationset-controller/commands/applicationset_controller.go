@@ -25,6 +25,7 @@ import (
 	"github.com/argoproj/argo-cd/v2/applicationset/utils"
 	"github.com/argoproj/argo-cd/v2/common"
 	"github.com/argoproj/argo-cd/v2/reposerver/askpass"
+	"github.com/argoproj/argo-cd/v2/util/env"
 
 	"github.com/argoproj/argo-cd/v2/applicationset/services"
 	appv1alpha1 "github.com/argoproj/argo-cd/v2/pkg/apis/application/v1alpha1"
@@ -209,7 +210,9 @@ func NewCommand() *cobra.Command {
 	command.Flags().StringVar(&logLevel, "loglevel", "info", "Set the logging level. One of: debug|info|warn|error")
 	command.Flags().BoolVar(&dryRun, "dry-run", false, "Enable dry run mode")
 	command.Flags().StringVar(&logFormat, "logformat", "text", "Set the logging format. One of: text|json")
-	command.Flags().DurationVar(&execTimeout, "exec-timeout", common.DefaultExecTimeout, "per-command timeout for external commands invoked by the applicationset controller (such as git)")
+	// Fall back to ARGOCD_EXEC_TIMEOUT for backwards compatibility.
+	durationFromEnv := env.ParseDurationFromEnvs(common.DefaultExecTimeout, 0*time.Second, 24*time.Hour, "ARGOCD_CMP_SERVER_EXEC_TIMEOUT", common.EnvExecTimeout)
+	command.Flags().DurationVar(&execTimeout, "exec-timeout", durationFromEnv, "per-command timeout for external commands invoked by the applicationset controller (such as git)")
 
 	return &command
 }

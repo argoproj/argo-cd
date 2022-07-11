@@ -210,6 +210,8 @@ const (
 	EnvCMPChunkSize = "ARGOCD_CMP_CHUNK_SIZE"
 	// EnvCMPWorkDir defines the full path of the work directory used by the CMP server
 	EnvCMPWorkDir = "ARGOCD_CMP_WORKDIR"
+	// EnvExecTimeout determines how long external commands are allowed to run when invoked by an Argo CD process
+	EnvExecTimeout = "ARGOCD_EXEC_TIMEOUT"
 )
 
 // Config Management Plugin related constants
