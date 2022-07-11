@@ -1,9 +1,18 @@
 package application
 
 import (
+	"context"
 	"encoding/json"
 	"testing"
 	"time"
+
+	"google.golang.org/grpc"
+	"k8s.io/apimachinery/pkg/runtime"
+
+	appsv1 "github.com/argoproj/argo-cd/v2/pkg/apis/application/v1alpha1"
+	fakeapps "github.com/argoproj/argo-cd/v2/pkg/client/clientset/versioned/fake"
+	appinformer "github.com/argoproj/argo-cd/v2/pkg/client/informers/externalversions"
+	applisters "github.com/argoproj/argo-cd/v2/pkg/client/listers/application/v1alpha1"
 
 	"k8s.io/client-go/kubernetes/fake"
 	"k8s.io/client-go/tools/cache"
@@ -183,6 +192,20 @@ func TestGetLatestAppHistoryId(t *testing.T) {
 	})
 }
 
+func newAppLister(objects ...runtime.Object) applisters.ApplicationNamespaceLister {
+	fakeAppsClientset := fakeapps.NewSimpleClientset(objects...)
+	factory := appinformer.NewSharedInformerFactoryWithOptions(fakeAppsClientset, 0, appinformer.WithNamespace(""), appinformer.WithTweakListOptions(func(options *metav1.ListOptions) {}))
+	appsInformer := factory.Argoproj().V1alpha1().Applications()
+	for _, obj := range objects {
+		switch obj.(type) {
+		case *appsv1.Application:
+			_ = appsInformer.Informer().GetStore().Add(obj)
+		}
+	}
+	appLister := appsInformer.Lister().Applications(testNamespace)
+	return appLister
+}
+
 func fakeServer() *Server {
 	cm := test.NewFakeConfigMap()
 	secret := test.NewFakeSecret()
@@ -191,6 +214,42 @@ func fakeServer() *Server {
 
 	appInformer := appinformers.NewApplicationInformer(appClientSet, "", time.Minute, cache.Indexers{})
 
+	guestbookApp := &appsv1.Application{
+		TypeMeta: metav1.TypeMeta{
+			Kind:       "Application",
+			APIVersion: "argoproj.io/v1alpha1",
+		},
+		ObjectMeta: metav1.ObjectMeta{
+			Name:      "guestbook",
+			Namespace: testNamespace,
+		},
+		Spec: appsv1.ApplicationSpec{
+			Project: "default",
+			Source: appsv1.ApplicationSource{
+				RepoURL:        "https://test",
+				TargetRevision: "HEAD",
+				Helm: &appsv1.ApplicationSourceHelm{
+					ValueFiles: []string{"values.yaml"},
+				},
+			},
+		},
+		Status: appsv1.ApplicationStatus{
+			History: appsv1.RevisionHistories{
+				{
+					Revision: "abcdef123567",
+					Source: appsv1.ApplicationSource{
+						RepoURL:        "https://test",
+						TargetRevision: "HEAD",
+						Helm: &appsv1.ApplicationSourceHelm{
+							ValueFiles: []string{"values-old.yaml"},
+						},
+					},
+				},
+			},
+		},
+	}
+
+	appLister := newAppLister(guestbookApp)
 	// _, _ := test.NewInMemoryRedis()
 
 	cache := servercache.NewCache(
@@ -203,7 +262,7 @@ func fakeServer() *Server {
 		1*time.Minute,
 	)
 
-	return NewServer(test.FakeArgoCDNamespace, kubeclientset, appClientSet, nil, appInformer, nil, cache, nil, nil, nil, nil, nil, nil)
+	return NewServer(test.FakeArgoCDNamespace, kubeclientset, appClientSet, appLister, appInformer, nil, cache, nil, nil, nil, nil, nil, nil)
 }
 
 func TestShouldSendEvent(t *testing.T) {
@@ -248,6 +307,46 @@ func TestShouldSendEvent(t *testing.T) {
 
 		res := eventReporter.shouldSendResourceEvent(app, rs)
 		assert.True(t, res)
+	})
+
+}
+
+type MockEventing_StartEventSourceServer struct {
+	grpc.ServerStream
+}
+
+var result func(*events.Event) error
+
+func (m *MockEventing_StartEventSourceServer) Send(event *events.Event) error {
+	return result(event)
+}
+
+func TestStreamApplicationEvent(t *testing.T) {
+	serverInstance := fakeServer()
+	t.Run("root application", func(t *testing.T) {
+		eventReporter := applicationEventReporter{
+			server: serverInstance,
+		}
+
+		app := &v1alpha1.Application{
+			TypeMeta: metav1.TypeMeta{
+				APIVersion: "argoproj.io/v1alpha1",
+				Kind:       "Application",
+			},
+		}
+		name := "name"
+
+		result = func(event *events.Event) error {
+			var payload events.EventPayload
+			_ = json.Unmarshal(event.Payload, &payload)
+
+			var actualApp v1alpha1.Application
+			_ = json.Unmarshal([]byte(payload.Source.ActualManifest), &actualApp)
+			assert.Equal(t, *app, actualApp)
+			return nil
+		}
+
+		_ = eventReporter.streamApplicationEvents(context.Background(), app, &events.EventSource{Name: &name}, &MockEventing_StartEventSourceServer{}, "")
 	})
 
 }
