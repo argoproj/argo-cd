@@ -1538,7 +1538,7 @@ func runConfigManagementPluginSidecars(ctx context.Context, appPath, repoPath st
 func generateManifestsCMP(ctx context.Context, appPath, repoPath string, env []string, cmpClient pluginclient.ConfigManagementPluginServiceClient, tarDoneCh chan<- bool, tarExcludedGlobs []string) (*pluginclient.ManifestResponse, error) {
 	generateManifestStream, err := cmpClient.GenerateManifest(ctx, grpc_retry.Disable())
 	if err != nil {
-		return nil, fmt.Errorf("error getting generateManifestStream: %s", err)
+		return nil, fmt.Errorf("error getting generateManifestStream: %w", err)
 	}
 	opts := []cmp.SenderOption{
 		cmp.WithTarDoneChan(tarDoneCh),

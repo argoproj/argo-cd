@@ -121,7 +121,7 @@ func GetCompressedRepoAndMetadata(repoPath string, appPath string, env []string,
 	}
 	appRelPath, err := files.RelativePath(appPath, repoPath)
 	if err != nil {
-		return nil, nil, fmt.Errorf("error building app relative path: %s", err)
+		return nil, nil, fmt.Errorf("error building app relative path: %w", err)
 	}
 	// send metadata first
 	mr := appMetadataRequest(filepath.Base(appPath), appRelPath, env, checksum, fi.Size())

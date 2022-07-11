@@ -49,11 +49,11 @@ func NewService(initConstants CMPServerInitConstants) *Service {
 func (s *Service) Init(workDir string) error {
 	err := os.RemoveAll(workDir)
 	if err != nil {
-		return fmt.Errorf("error removing workdir %q: %s", workDir, err)
+		return fmt.Errorf("error removing workdir %q: %w", workDir, err)
 	}
 	err = os.MkdirAll(workDir, 0700)
 	if err != nil {
-		return fmt.Errorf("error creating workdir %q: %s", workDir, err)
+		return fmt.Errorf("error creating workdir %q: %w", workDir, err)
 	}
 	return nil
 }
@@ -148,7 +148,7 @@ func environ(envVars []*apiclient.EnvEntry) []string {
 func getTempDirMustCleanup(baseDir string) (workDir string, cleanup func(), err error) {
 	workDir, err = files.CreateTempDir(baseDir)
 	if err != nil {
-		return "", nil, fmt.Errorf("error creating temp dir: %s", err)
+		return "", nil, fmt.Errorf("error creating temp dir: %w", err)
 	}
 	cleanup = func() {
 		if err := os.RemoveAll(workDir); err != nil {
@@ -179,13 +179,13 @@ func (s *Service) generateManifestGeneric(stream GenerateManifestStream) error {
 	defer cancel()
 	workDir, cleanup, err := getTempDirMustCleanup(common.GetCMPWorkDir())
 	if err != nil {
-		return fmt.Errorf("error creating workdir for manifest generation: %s", err)
+		return fmt.Errorf("error creating workdir for manifest generation: %w", err)
 	}
 	defer cleanup()
 
 	metadata, err := cmp.ReceiveRepoStream(ctx, stream, workDir)
 	if err != nil {
-		return fmt.Errorf("generate manifest error receiving stream: %s", err)
+		return fmt.Errorf("generate manifest error receiving stream: %w", err)
 	}
 
 	appPath := filepath.Clean(filepath.Join(workDir, metadata.AppRelPath))
@@ -194,11 +194,11 @@ func (s *Service) generateManifestGeneric(stream GenerateManifestStream) error {
 	}
 	response, err := s.generateManifest(ctx, appPath, metadata.GetEnv())
 	if err != nil {
-		return fmt.Errorf("error generating manifests: %s", err)
+		return fmt.Errorf("error generating manifests: %w", err)
 	}
 	err = stream.SendAndClose(response)
 	if err != nil {
-		return fmt.Errorf("error sending manifest response: %s", err)
+		return fmt.Errorf("error sending manifest response: %w", err)
 	}
 	return nil
 }
@@ -258,24 +258,24 @@ func (s *Service) matchRepositoryGeneric(stream MatchRepositoryStream) error {
 
 	workDir, cleanup, err := getTempDirMustCleanup(common.GetCMPWorkDir())
 	if err != nil {
-		return fmt.Errorf("error creating workdir for repository matching: %s", err)
+		return fmt.Errorf("error creating workdir for repository matching: %w", err)
 	}
 	defer cleanup()
 
 	metadata, err := cmp.ReceiveRepoStream(bufferedCtx, stream, workDir)
 	if err != nil {
-		return fmt.Errorf("match repository error receiving stream: %s", err)
+		return fmt.Errorf("match repository error receiving stream: %w", err)
 	}
 
 	isSupported, err := s.matchRepository(bufferedCtx, workDir, metadata.GetEnv())
 	if err != nil {
-		return fmt.Errorf("match repository error: %s", err)
+		return fmt.Errorf("match repository error: %w", err)
 	}
 	repoResponse := &apiclient.RepositoryResponse{IsSupported: isSupported}
 
 	err = stream.SendAndClose(repoResponse)
 	if err != nil {
-		return fmt.Errorf("error sending match repository response: %s", err)
+		return fmt.Errorf("error sending match repository response: %w", err)
 	}
 	return nil
 }
@@ -287,7 +287,7 @@ func (s *Service) matchRepository(ctx context.Context, workdir string, envEntrie
 		pattern := filepath.Join(workdir, config.Spec.Discover.FileName)
 		matches, err := filepath.Glob(pattern)
 		if err != nil {
-			e := fmt.Errorf("error finding filename match for pattern %q: %s", pattern, err)
+			e := fmt.Errorf("error finding filename match for pattern %q: %w", pattern, err)
 			log.Debug(e)
 			return false, e
 		}
@@ -301,7 +301,7 @@ func (s *Service) matchRepository(ctx context.Context, workdir string, envEntrie
 		// https://github.com/golang/go/issues/11862
 		matches, err := zglob.Glob(pattern)
 		if err != nil {
-			e := fmt.Errorf("error finding glob match for pattern %q: %s", pattern, err)
+			e := fmt.Errorf("error finding glob match for pattern %q: %w", pattern, err)
 			log.Debug(e)
 			return false, e
 		}
@@ -317,7 +317,7 @@ func (s *Service) matchRepository(ctx context.Context, workdir string, envEntrie
 
 	find, err := runCommand(ctx, config.Spec.Discover.Find.Command, workdir, env)
 	if err != nil {
-		return false, fmt.Errorf("error running find command: %s", err)
+		return false, fmt.Errorf("error running find command: %w", err)
 	}
 
 	if find != "" {
@@ -341,13 +341,13 @@ func (s *Service) getParametersAnnouncementGeneric(stream ParametersAnnouncement
 
 	workDir, cleanup, err := getTempDirMustCleanup(common.GetCMPWorkDir())
 	if err != nil {
-		return fmt.Errorf("error creating workdir for generating parameter announcements: %s", err)
+		return fmt.Errorf("error creating workdir for generating parameter announcements: %w", err)
 	}
 	defer cleanup()
 
 	metadata, err := cmp.ReceiveRepoStream(bufferedCtx, stream, workDir)
 	if err != nil {
-		return fmt.Errorf("parameters announcement error receiving stream: %s", err)
+		return fmt.Errorf("parameters announcement error receiving stream: %w", err)
 	}
 	appPath := filepath.Clean(filepath.Join(workDir, metadata.AppRelPath))
 	if !strings.HasPrefix(appPath, workDir) {
@@ -356,12 +356,12 @@ func (s *Service) getParametersAnnouncementGeneric(stream ParametersAnnouncement
 
 	repoResponse, err := getParametersAnnouncement(bufferedCtx, appPath, s.initConstants.PluginConfig.Spec.Parameters.Static, s.initConstants.PluginConfig.Spec.Parameters.Dynamic)
 	if err != nil {
-		return fmt.Errorf("get parameters announcement error: %s", err)
+		return fmt.Errorf("get parameters announcement error: %w", err)
 	}
 
 	err = stream.SendAndClose(repoResponse)
 	if err != nil {
-		return fmt.Errorf("error sending parameters announcement response: %s", err)
+		return fmt.Errorf("error sending parameters announcement response: %w", err)
 	}
 	return nil
 }
@@ -370,13 +370,13 @@ func getParametersAnnouncement(ctx context.Context, appDir string, announcements
 	if len(command.Command) > 0 {
 		stdout, err := runCommand(ctx, command, appDir, os.Environ())
 		if err != nil {
-			return nil, fmt.Errorf("error executing dynamic parameter output command: %s", err)
+			return nil, fmt.Errorf("error executing dynamic parameter output command: %w", err)
 		}
 
 		var dynamicParamAnnouncements []*repoclient.ParameterAnnouncement
 		err = json.Unmarshal([]byte(stdout), &dynamicParamAnnouncements)
 		if err != nil {
-			return nil, fmt.Errorf("error unmarshaling dynamic parameter output into ParametersAnnouncementResponse: %s", err)
+			return nil, fmt.Errorf("error unmarshaling dynamic parameter output into ParametersAnnouncementResponse: %w", err)
 		}
 
 		// dynamic goes first, because static should take precedence by being later.
