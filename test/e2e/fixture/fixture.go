@@ -160,7 +160,8 @@ func init() {
 	adminUsername = GetEnvWithDefault(EnvAdminUsername, defaultAdminUsername)
 	AdminPassword = GetEnvWithDefault(EnvAdminPassword, defaultAdminPassword)
 
-	tlsTestResult, err := grpcutil.TestTLS(apiServerAddress)
+	dialTime := 30 * time.Second
+	tlsTestResult, err := grpcutil.TestTLS(apiServerAddress, dialTime)
 	CheckError(err)
 
 	ArgoCDClientset, err = apiclient.NewClient(&apiclient.ClientOptions{Insecure: true, ServerAddr: apiServerAddress, PlainText: !tlsTestResult.TLS})

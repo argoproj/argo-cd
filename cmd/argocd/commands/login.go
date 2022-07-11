@@ -68,7 +68,8 @@ argocd login cd.argoproj.io --core`,
 				server = "kubernetes"
 			} else {
 				server = args[0]
-				tlsTestResult, err := grpc_util.TestTLS(server)
+				dialTime := 30 * time.Second
+				tlsTestResult, err := grpc_util.TestTLS(server, dialTime)
 				errors.CheckError(err)
 				if !tlsTestResult.TLS {
 					if !globalClientOpts.PlainText {
