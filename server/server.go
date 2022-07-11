@@ -25,6 +25,7 @@ import (
 	golang_proto "github.com/golang/protobuf/proto"
 
 	netCtx "context"
+
 	"github.com/argoproj/pkg/sync"
 	"github.com/go-redis/redis/v8"
 	"github.com/golang-jwt/jwt/v4"
@@ -42,6 +43,7 @@ import (
 	"google.golang.org/grpc/codes"
 	"google.golang.org/grpc/credentials"
 	"google.golang.org/grpc/credentials/insecure"
+	"google.golang.org/grpc/keepalive"
 	"google.golang.org/grpc/metadata"
 	"google.golang.org/grpc/reflection"
 	"google.golang.org/grpc/status"
@@ -610,6 +612,11 @@ func (a *ArgoCDServer) newGRPCServer() (*grpc.Server, application.AppResourceTre
 		grpc.MaxRecvMsgSize(apiclient.MaxGRPCMessageSize),
 		grpc.MaxSendMsgSize(apiclient.MaxGRPCMessageSize),
 		grpc.ConnectionTimeout(300 * time.Second),
+		grpc.KeepaliveEnforcementPolicy(
+			keepalive.EnforcementPolicy{
+				MinTime: common.GRPCKeepAliveEnforcementMinimum,
+			},
+		),
 	}
 	sensitiveMethods := map[string]bool{
 		"/cluster.ClusterService/Create":                          true,

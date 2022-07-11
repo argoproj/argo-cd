@@ -8,6 +8,7 @@ import (
 	"strings"
 	"time"
 
+	"github.com/argoproj/argo-cd/v2/common"
 	"github.com/sirupsen/logrus"
 	"google.golang.org/grpc"
 	"google.golang.org/grpc/codes"
@@ -87,7 +88,7 @@ func BlockingDial(ctx context.Context, network, address string, creds credential
 			grpc.FailOnNonTempDialError(true),
 			grpc.WithContextDialer(dialer),
 			grpc.WithTransportCredentials(insecure.NewCredentials()), // we are handling TLS, so tell grpc not to
-			grpc.WithKeepaliveParams(keepalive.ClientParameters{Time: 10 * time.Second}),
+			grpc.WithKeepaliveParams(keepalive.ClientParameters{Time: common.GRPCKeepAliveTime}),
 		)
 		conn, err := grpc.DialContext(ctx, address, opts...)
 		var res interface{}
