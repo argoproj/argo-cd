@@ -9543,6 +9543,7 @@ spec:
           name: webhook
         - containerPort: 8080
           name: metrics
+      - name: ARGOCD_APPLICATIONSET_CONTROLLER_EXEC_TIMEOUT
         securityContext:
           allowPrivilegeEscalation: false
           capabilities:
@@ -9552,6 +9553,11 @@ spec:
           runAsNonRoot: true
           seccompProfile:
             type: RuntimeDefault
+        valueFrom:
+          configMapKeyRef:
+            key: controller.default.cache.expiration
+            name: argocd-cmd-params-cm
+            optional: true
         volumeMounts:
         - mountPath: /app/config/ssh
           name: ssh-known-hosts

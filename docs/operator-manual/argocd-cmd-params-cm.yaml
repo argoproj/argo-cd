@@ -44,6 +44,10 @@ data:
   # Cache expiration default (default 24h0m0s)
   controller.default.cache.expiration: "24h0m0s"
 
+  ## ApplicationSet controller properties
+  # Timeout for external commands invoked by the ApplicationSet controller.
+  applicationset.controller.cmd.timeout: "90s"
+
   ## Server properties
   # Run server without TLS
   server.insecure: "false"

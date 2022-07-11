@@ -12,6 +12,7 @@ import (
 	"path"
 	"strconv"
 	"strings"
+	"time"
 
 	"github.com/argoproj/gitops-engine/pkg/utils/text"
 	"github.com/google/shlex"
@@ -26,6 +27,7 @@ import (
 	"sigs.k8s.io/yaml"
 
 	"github.com/argoproj/argo-cd/v2/common"
+	"github.com/argoproj/argo-cd/v2/util/env"
 	"github.com/argoproj/argo-cd/v2/util/errors"
 	"github.com/argoproj/argo-cd/v2/util/io"
 	utillog "github.com/argoproj/argo-cd/v2/util/log"
@@ -313,4 +315,17 @@ func PrintDiff(name string, live *unstructured.Unstructured, target *unstructure
 	cmd.Stderr = os.Stderr
 	cmd.Stdout = os.Stdout
 	return cmd.Run()
+}
+
+// GetExecTimeoutEnvVarValue gets the value of the given env var, falling back to the deprecated env var. If the
+// deprecated env var is set, log a warning.
+func GetExecTimeoutEnvVarValue(newEnvVar string) time.Duration {
+	if os.Getenv(common.EnvExecTimeout) != "" {
+		log.Warnf("The %q environment variable is deprecated in Argo CD 2.5. Use %q instead.", common.EnvExecTimeout, newEnvVar)
+		if os.Getenv(newEnvVar) != "" {
+			log.Warnf("Both %q and %q are set. Using %q.", newEnvVar, common.EnvExecTimeout, newEnvVar)
+		}
+	}
+	// Fall back to ARGOCD_EXEC_TIMEOUT for backwards compatibility.
+	return env.ParseDurationFromEnvs(common.DefaultExecTimeout, 0*time.Second, 24*time.Hour, newEnvVar, common.EnvExecTimeout)
 }

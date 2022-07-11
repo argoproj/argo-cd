@@ -1047,6 +1047,7 @@ spec:
 apiVersion: v1
 kind: Service
 metadata:
+  annotations: null
   labels:
     app.kubernetes.io/component: redis
     app.kubernetes.io/name: argocd-redis-ha
@@ -1148,6 +1149,7 @@ spec:
 apiVersion: v1
 kind: Service
 metadata:
+  annotations: null
   labels:
     app.kubernetes.io/component: redis
     app.kubernetes.io/name: argocd-redis-ha-haproxy
@@ -1256,6 +1258,7 @@ spec:
           name: webhook
         - containerPort: 8080
           name: metrics
+      - name: ARGOCD_APPLICATIONSET_CONTROLLER_EXEC_TIMEOUT
         securityContext:
           allowPrivilegeEscalation: false
           capabilities:
@@ -1265,6 +1268,11 @@ spec:
           runAsNonRoot: true
           seccompProfile:
             type: RuntimeDefault
+        valueFrom:
+          configMapKeyRef:
+            key: controller.default.cache.expiration
+            name: argocd-cmd-params-cm
+            optional: true
         volumeMounts:
         - mountPath: /app/config/ssh
           name: ssh-known-hosts
@@ -2223,6 +2231,7 @@ spec:
 apiVersion: apps/v1
 kind: StatefulSet
 metadata:
+  annotations: {}
   labels:
     app.kubernetes.io/component: redis
     app.kubernetes.io/name: argocd-redis-ha
