@@ -41,6 +41,7 @@ func Test_JSONLogging(t *testing.T) {
 
 func Test_logRequest(t *testing.T) {
 	c := context.Background()
+	//nolint:staticcheck
 	c = context.WithValue(c, "claims", jwt.MapClaims{"groups": []string{"expected-group-claim"}})
 	req := new(account.CreateTokenRequest)
 	req.Name = "create-token-name"
