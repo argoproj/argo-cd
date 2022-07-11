@@ -108,7 +108,7 @@ message RepoAppDetailsResponse {
 	HelmAppSpec helm = 3;
 	KustomizeAppSpec kustomize = 4;
 	DirectoryAppSpec directory = 5;
-  PluginAppSpec plugin = 6;
+	PluginAppSpec plugin = 6;
 }
 
 message RepoServerRevisionMetadataRequest {
