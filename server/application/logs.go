@@ -122,6 +122,9 @@ func mergeLogStreams(streams []chan logEntry, bufferingDuration time.Duration) c
 	ticker := time.NewTicker(bufferingDuration)
 	go func() {
 		for range ticker.C {
+			if isChannelClosed(merged) {
+				return
+			}
 			sentAtLock.Lock()
 			// waited long enough for logs from each streams, send everything accumulated
 			if sentAt.Add(bufferingDuration).Before(time.Now()) {
@@ -148,4 +151,9 @@ func mergeLogStreams(streams []chan logEntry, bufferingDuration time.Duration) c
 		ticker.Stop()
 	}()
 	return merged
+}
+
+func isChannelClosed(channel chan logEntry) bool {
+	_, ok := <- channel
+	return !ok
 }
