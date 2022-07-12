@@ -33,7 +33,7 @@ type DexTLSConfig struct {
 }
 
 func TLSConfig(tlsConfig *DexTLSConfig) *tls.Config {
-	if tlsConfig == nil {
+	if tlsConfig == nil || tlsConfig.DisableTLS {
 		return nil
 	}
 	if !tlsConfig.StrictValidation {

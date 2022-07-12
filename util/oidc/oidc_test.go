@@ -21,6 +21,7 @@ import (
 	"github.com/argoproj/argo-cd/v2/server/settings/oidc"
 	"github.com/argoproj/argo-cd/v2/util"
 	"github.com/argoproj/argo-cd/v2/util/crypto"
+	"github.com/argoproj/argo-cd/v2/util/dex"
 	"github.com/argoproj/argo-cd/v2/util/settings"
 	"github.com/argoproj/argo-cd/v2/util/test"
 )
@@ -178,9 +179,7 @@ requestedScopes: ["oidc"]`, oidcTestServer.URL),
 			t.Fatal("did not receive expected certificate verification failure error")
 		}
 
-		cdSettings.OIDCTLSInsecureSkipVerify = true
-
-		app, err = NewClientApp(cdSettings, dexTestServer.URL, nil, "https://argocd.example.com")
+		app, err = NewClientApp(cdSettings, dexTestServer.URL, &dex.DexTLSConfig{StrictValidation: false}, "https://argocd.example.com")
 		require.NoError(t, err)
 
 		w = httptest.NewRecorder()
@@ -262,9 +261,7 @@ requestedScopes: ["oidc"]`, oidcTestServer.URL),
 			t.Fatal("did not receive expected certificate verification failure error")
 		}
 
-		cdSettings.OIDCTLSInsecureSkipVerify = true
-
-		app, err = NewClientApp(cdSettings, dexTestServer.URL, nil, "https://argocd.example.com")
+		app, err = NewClientApp(cdSettings, dexTestServer.URL, &dex.DexTLSConfig{StrictValidation: false}, "https://argocd.example.com")
 		require.NoError(t, err)
 
 		w = httptest.NewRecorder()
