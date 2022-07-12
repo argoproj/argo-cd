@@ -156,7 +156,7 @@ func (k *kubectlResourceOperations) ReplaceResource(ctx context.Context, obj *un
 		}
 		defer cleanup()
 
-		replaceOptions, err := newReplaceOptions(k.config, f, ioStreams, fileName, obj.GetNamespace(), force, dryRunStrategy)
+		replaceOptions, err := k.newReplaceOptions(k.config, f, ioStreams, fileName, obj.GetNamespace(), force, dryRunStrategy)
 		if err != nil {
 			return err
 		}
@@ -177,7 +177,7 @@ func (k *kubectlResourceOperations) CreateResource(ctx context.Context, obj *uns
 		}
 		defer cleanup()
 
-		createOptions, err := newCreateOptions(k.config, ioStreams, fileName, dryRunStrategy)
+		createOptions, err := k.newCreateOptions(k.config, ioStreams, fileName, dryRunStrategy)
 		if err != nil {
 			return err
 		}
@@ -267,15 +267,16 @@ func (k *kubectlResourceOperations) newApplyOptions(ioStreams genericclioptions.
 		return nil, err
 	}
 	o.OpenAPISchema = k.openAPISchema
-	o.Validator, err = k.fact.Validator(validate)
+	o.DryRunVerifier = resource.NewQueryParamVerifier(dynamicClient, k.fact.OpenAPIGetter(), resource.QueryParamFieldValidation)
+	o.FieldValidationVerifier = resource.NewQueryParamVerifier(dynamicClient, k.fact.OpenAPIGetter(), resource.QueryParamFieldValidation)
+	validateDirective := metav1.FieldValidationIgnore
+	if validate {
+		validateDirective = metav1.FieldValidationStrict
+	}
+	o.Validator, err = k.fact.Validator(validateDirective, o.DryRunVerifier)
 	if err != nil {
 		return nil, err
 	}
-	discoveryClient, err := discovery.NewDiscoveryClientForConfig(k.config)
-	if err != nil {
-		return nil, err
-	}
-	o.DryRunVerifier = resource.NewDryRunVerifier(dynamicClient, discoveryClient)
 	o.Builder = k.fact.NewBuilder()
 	o.Mapper, err = k.fact.ToRESTMapper()
 	if err != nil {
@@ -305,7 +306,7 @@ func (k *kubectlResourceOperations) newApplyOptions(ioStreams genericclioptions.
 	return o, nil
 }
 
-func newCreateOptions(config *rest.Config, ioStreams genericclioptions.IOStreams, fileName string, dryRunStrategy cmdutil.DryRunStrategy) (*create.CreateOptions, error) {
+func (k *kubectlResourceOperations) newCreateOptions(config *rest.Config, ioStreams genericclioptions.IOStreams, fileName string, dryRunStrategy cmdutil.DryRunStrategy) (*create.CreateOptions, error) {
 	o := create.NewCreateOptions(ioStreams)
 
 	recorder, err := o.RecordFlags.ToRecorder()
@@ -319,11 +320,8 @@ func newCreateOptions(config *rest.Config, ioStreams genericclioptions.IOStreams
 		return nil, err
 	}
 
-	discoveryClient, err := discovery.NewDiscoveryClientForConfig(config)
-	if err != nil {
-		return nil, err
-	}
-	o.DryRunVerifier = resource.NewDryRunVerifier(dynamicClient, discoveryClient)
+	o.DryRunVerifier = resource.NewQueryParamVerifier(dynamicClient, k.fact.OpenAPIGetter(), resource.QueryParamFieldValidation)
+	o.FieldValidationVerifier = resource.NewQueryParamVerifier(dynamicClient, k.fact.OpenAPIGetter(), resource.QueryParamFieldValidation)
 
 	switch dryRunStrategy {
 	case cmdutil.DryRunClient:
@@ -350,7 +348,7 @@ func newCreateOptions(config *rest.Config, ioStreams genericclioptions.IOStreams
 	return o, nil
 }
 
-func newReplaceOptions(config *rest.Config, f cmdutil.Factory, ioStreams genericclioptions.IOStreams, fileName string, namespace string, force bool, dryRunStrategy cmdutil.DryRunStrategy) (*replace.ReplaceOptions, error) {
+func (k *kubectlResourceOperations) newReplaceOptions(config *rest.Config, f cmdutil.Factory, ioStreams genericclioptions.IOStreams, fileName string, namespace string, force bool, dryRunStrategy cmdutil.DryRunStrategy) (*replace.ReplaceOptions, error) {
 	o := replace.NewReplaceOptions(ioStreams)
 
 	recorder, err := o.RecordFlags.ToRecorder()
@@ -368,11 +366,9 @@ func newReplaceOptions(config *rest.Config, f cmdutil.Factory, ioStreams generic
 	if err != nil {
 		return nil, err
 	}
-	discoveryClient, err := discovery.NewDiscoveryClientForConfig(config)
-	if err != nil {
-		return nil, err
-	}
-	o.DryRunVerifier = resource.NewDryRunVerifier(dynamicClient, discoveryClient)
+
+	o.DryRunVerifier = resource.NewQueryParamVerifier(dynamicClient, k.fact.OpenAPIGetter(), resource.QueryParamFieldValidation)
+	o.FieldValidationVerifier = resource.NewQueryParamVerifier(dynamicClient, k.fact.OpenAPIGetter(), resource.QueryParamFieldValidation)
 	o.Builder = func() *resource.Builder {
 		return f.NewBuilder()
 	}
