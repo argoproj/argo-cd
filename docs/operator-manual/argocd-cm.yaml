@@ -265,3 +265,9 @@ data:
   # published to the repository. Reconciliation by timeout is disabled if timeout is set to 0. Three minutes by default.
   # > Note: argocd-repo-server deployment must be manually restarted after changing the setting.
   timeout.reconciliation: 180s
+
+  # oidc.tls.insecure.skip.verify determines whether certificate verification is skipped when verifying tokens with the
+  # configured OIDC provider (either external or the bundled Dex instance). Setting this to "true" will cause JWT
+  # token verification to pass despite the OIDC provider having an invalid certificate. Only set to "true" if you
+  # understand the risks.
+  oidc.tls.insecure.skip.verify: "false"

@@ -91,6 +91,11 @@ type ArgoCDSettings struct {
 	PasswordPattern string `json:"passwordPattern,omitempty"`
 	// BinaryUrls contains the URLs for downloading argocd binaries
 	BinaryUrls map[string]string `json:"binaryUrls,omitempty"`
+	// OIDCTLSInsecureSkipVerify determines whether certificate verification is skipped when verifying tokens with the
+	// configured OIDC provider (either external or the bundled Dex instance). Setting this to `true` will cause JWT
+	// token verification to pass despite the OIDC provider having an invalid certificate. Only set to `true` if you
+	// understand the risks.
+	OIDCTLSInsecureSkipVerify bool `json:"oidcTLSInsecureSkipVerify"`
 }
 
 type GoogleAnalytics struct {
@@ -390,6 +395,8 @@ const (
 	settingsPasswordPatternKey = "passwordPattern"
 	// helmValuesFileSchemesKey is the key to configure the list of supported helm values file schemas
 	helmValuesFileSchemesKey = "helm.valuesFileSchemes"
+	// oidcTLSInsecureSkipVerifyKey is the key to configure whether TLS cert verification is skipped for OIDC connections
+	oidcTLSInsecureSkipVerifyKey = "oidc.tls.insecure.skip.verify"
 )
 
 var (
@@ -1239,6 +1246,7 @@ func updateSettingsFromConfigMap(settings *ArgoCDSettings, argoCDCM *apiv1.Confi
 	if settings.PasswordPattern == "" {
 		settings.PasswordPattern = common.PasswordPatten
 	}
+	settings.OIDCTLSInsecureSkipVerify = argoCDCM.Data[oidcTLSInsecureSkipVerifyKey] == "true"
 }
 
 // validateExternalURL ensures the external URL that is set on the configmap is valid
@@ -1608,22 +1616,28 @@ func (a *ArgoCDSettings) OAuth2ClientSecret() string {
 	return ""
 }
 
+// OIDCTLSConfig returns the TLS config for the OIDC provider. If an external provider is configured, returns a TLS
+// config using the root CAs (if any) specified in the OIDC config. If an external OIDC provider is not configured,
+// returns the API server TLS config, because the API server proxies requests to Dex.
 func (a *ArgoCDSettings) OIDCTLSConfig() *tls.Config {
-	if oidcConfig := a.OIDCConfig(); oidcConfig != nil {
+	var tlsConfig *tls.Config
+
+	oidcConfig := a.OIDCConfig()
+	if oidcConfig != nil {
+		tlsConfig = &tls.Config{}
 		if oidcConfig.RootCA != "" {
 			certPool := x509.NewCertPool()
 			ok := certPool.AppendCertsFromPEM([]byte(oidcConfig.RootCA))
 			if !ok {
-				log.Warn("invalid oidc root ca cert - returning default tls.Config instead")
-				return &tls.Config{}
-			}
-			return &tls.Config{
-				RootCAs: certPool,
+				log.Warn("failed to append certificates from PEM: proceeding without custom rootCA")
+			} else {
+				tlsConfig.RootCAs = certPool
 			}
 		}
+	} else {
+		tlsConfig = a.TLSConfig()
 	}
-	tlsConfig := a.TLSConfig()
-	if tlsConfig != nil {
+	if tlsConfig != nil && a.OIDCTLSInsecureSkipVerify {
 		tlsConfig.InsecureSkipVerify = true
 	}
 	return tlsConfig
