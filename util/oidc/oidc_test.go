@@ -9,6 +9,7 @@ import (
 	"net/http"
 	"net/http/httptest"
 	"net/url"
+	"strings"
 	"testing"
 
 	gooidc "github.com/coreos/go-oidc"
@@ -133,7 +134,9 @@ requestedScopes: ["oidc"]`, oidcTestServer.URL),
 
 		app.HandleLogin(w, req)
 
-		assert.Contains(t, w.Body.String(), "certificate is not trusted")
+		if !strings.Contains(w.Body.String(), "certificate signed by unknown authority") && !strings.Contains(w.Body.String(), "certificate is not trusted") {
+			t.Fatal("did not receive expected certificate verification failure error")
+		}
 
 		cdSettings.OIDCTLSInsecureSkipVerify = true
 
@@ -145,6 +148,7 @@ requestedScopes: ["oidc"]`, oidcTestServer.URL),
 		app.HandleLogin(w, req)
 
 		assert.NotContains(t, w.Body.String(), "certificate is not trusted")
+		assert.NotContains(t, w.Body.String(), "certificate signed by unknown authority")
 	})
 
 	t.Run("dex certificate checking during login should toggle on config", func(t *testing.T) {
@@ -170,7 +174,9 @@ requestedScopes: ["oidc"]`, oidcTestServer.URL),
 
 		app.HandleLogin(w, req)
 
-		assert.Contains(t, w.Body.String(), "certificate signed by unknown authority")
+		if !strings.Contains(w.Body.String(), "certificate signed by unknown authority") && !strings.Contains(w.Body.String(), "certificate is not trusted") {
+			t.Fatal("did not receive expected certificate verification failure error")
+		}
 
 		cdSettings.OIDCTLSInsecureSkipVerify = true
 
@@ -181,6 +187,7 @@ requestedScopes: ["oidc"]`, oidcTestServer.URL),
 
 		app.HandleLogin(w, req)
 
+		assert.NotContains(t, w.Body.String(), "certificate is not trusted")
 		assert.NotContains(t, w.Body.String(), "certificate signed by unknown authority")
 	})
 }
@@ -211,7 +218,9 @@ requestedScopes: ["oidc"]`, oidcTestServer.URL),
 
 		app.HandleCallback(w, req)
 
-		assert.Contains(t, w.Body.String(), "certificate is not trusted")
+		if !strings.Contains(w.Body.String(), "certificate signed by unknown authority") && !strings.Contains(w.Body.String(), "certificate is not trusted") {
+			t.Fatal("did not receive expected certificate verification failure error")
+		}
 
 		cdSettings.OIDCTLSInsecureSkipVerify = true
 
@@ -223,6 +232,7 @@ requestedScopes: ["oidc"]`, oidcTestServer.URL),
 		app.HandleCallback(w, req)
 
 		assert.NotContains(t, w.Body.String(), "certificate is not trusted")
+		assert.NotContains(t, w.Body.String(), "certificate signed by unknown authority")
 	})
 
 	t.Run("dex certificate checking during oidc callback should toggle on config", func(t *testing.T) {
@@ -248,7 +258,9 @@ requestedScopes: ["oidc"]`, oidcTestServer.URL),
 
 		app.HandleCallback(w, req)
 
-		assert.Contains(t, w.Body.String(), "certificate signed by unknown authority")
+		if !strings.Contains(w.Body.String(), "certificate signed by unknown authority") && !strings.Contains(w.Body.String(), "certificate is not trusted") {
+			t.Fatal("did not receive expected certificate verification failure error")
+		}
 
 		cdSettings.OIDCTLSInsecureSkipVerify = true
 
@@ -259,6 +271,7 @@ requestedScopes: ["oidc"]`, oidcTestServer.URL),
 
 		app.HandleCallback(w, req)
 
+		assert.NotContains(t, w.Body.String(), "certificate is not trusted")
 		assert.NotContains(t, w.Body.String(), "certificate signed by unknown authority")
 	})
 }
