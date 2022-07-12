@@ -123,10 +123,7 @@ func NewSessionManager(settingsMgr *settings.SettingsManager, projectsLister v1a
 	if err != nil {
 		panic(err)
 	}
-	tlsConfig := settings.TLSConfig()
-	if tlsConfig != nil {
-		tlsConfig.InsecureSkipVerify = true
-	}
+	tlsConfig := settings.OIDCTLSConfig()
 	s.client = &http.Client{
 		Transport: &http.Transport{
 			TLSClientConfig: tlsConfig,
