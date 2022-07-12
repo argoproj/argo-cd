@@ -1,7 +1,6 @@
 package grpc
 
 import (
-	"context"
 	"crypto/tls"
 	"net"
 	"runtime/debug"
