@@ -28,6 +28,8 @@ import (
 	"github.com/argoproj/argo-cd/v2/util/settings"
 )
 
+var InvalidRedirectURLError = fmt.Errorf("invalid return URL")
+
 const (
 	GrantTypeAuthorizationCode = "authorization_code"
 	GrantTypeImplicit          = "implicit"
@@ -185,10 +187,18 @@ func (a *ClientApp) verifyAppState(r *http.Request, w http.ResponseWriter, state
 		return "", err
 	}
 	cookieVal := string(val)
-	returnURL := a.baseHRef
+	redirectURL := a.baseHRef
 	parts := strings.SplitN(cookieVal, ":", 2)
 	if len(parts) == 2 && parts[1] != "" {
-		returnURL = parts[1]
+		if !isValidRedirectURL(parts[1], []string{a.settings.URL}) {
+			sanitizedUrl := parts[1]
+			if len(sanitizedUrl) > 100 {
+				sanitizedUrl = sanitizedUrl[:100]
+			}
+			log.Warnf("Failed to verify app state - got invalid redirectURL %q", sanitizedUrl)
+			return "", fmt.Errorf("failed to verify app state: %w", InvalidRedirectURLError)
+		}
+		redirectURL = parts[1]
 	}
 	if parts[0] != state {
 		return "", fmt.Errorf("invalid state in '%s' cookie", common.AuthCookieName)
@@ -201,7 +211,7 @@ func (a *ClientApp) verifyAppState(r *http.Request, w http.ResponseWriter, state
 		SameSite: http.SameSiteLaxMode,
 		Secure:   a.secureCookie,
 	})
-	return returnURL, nil
+	return redirectURL, nil
 }
 
 // isValidRedirectURL checks whether the given redirectURL matches on of the

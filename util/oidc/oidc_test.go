@@ -191,7 +191,7 @@ func TestGenerateAppState(t *testing.T) {
 	signature, err := util.MakeSignature(32)
 	require.NoError(t, err)
 	expectedReturnURL := "http://argocd.example.com/"
-	app, err := NewClientApp(&settings.ArgoCDSettings{ServerSignature: signature}, "", "")
+	app, err := NewClientApp(&settings.ArgoCDSettings{ServerSignature: signature, URL: expectedReturnURL}, "", "")
 	require.NoError(t, err)
 	generateResponse := httptest.NewRecorder()
 	state, err := app.generateAppState(expectedReturnURL, generateResponse)
@@ -216,6 +216,56 @@ func TestGenerateAppState(t *testing.T) {
 
 		_, err := app.verifyAppState(req, httptest.NewRecorder(), "wrong state")
 		assert.Error(t, err)
+	})
+}
+
+func TestGenerateAppState_XSS(t *testing.T) {
+	signature, err := util.MakeSignature(32)
+	require.NoError(t, err)
+	app, err := NewClientApp(
+		&settings.ArgoCDSettings{
+			// Only return URLs starting with this base should be allowed.
+			URL: "https://argocd.example.com",
+			ServerSignature: signature,
+		},
+		"", "",
+	)
+	require.NoError(t, err)
+
+	t.Run("XSS fails", func(t *testing.T) {
+		// This attack assumes the attacker has compromised the server's secret key. We use `generateAppState` here for
+		// convenience, but an attacker with access to the server secret could write their own code to generate the
+		// malicious cookie.
+
+		expectedReturnURL := "javascript: alert('hi')"
+		generateResponse := httptest.NewRecorder()
+		state, err := app.generateAppState(expectedReturnURL, generateResponse)
+		require.NoError(t, err)
+
+		req := httptest.NewRequest("GET", "/", nil)
+		for _, cookie := range generateResponse.Result().Cookies() {
+			req.AddCookie(cookie)
+		}
+
+		returnURL, err := app.verifyAppState(req, httptest.NewRecorder(), state)
+		assert.ErrorIs(t, err, InvalidRedirectURLError)
+		assert.Empty(t, returnURL)
+	})
+
+	t.Run("valid return URL succeeds", func(t *testing.T) {
+		expectedReturnURL := "https://argocd.example.com/some/path"
+		generateResponse := httptest.NewRecorder()
+		state, err := app.generateAppState(expectedReturnURL, generateResponse)
+		require.NoError(t, err)
+
+		req := httptest.NewRequest("GET", "/", nil)
+		for _, cookie := range generateResponse.Result().Cookies() {
+			req.AddCookie(cookie)
+		}
+
+		returnURL, err := app.verifyAppState(req, httptest.NewRecorder(), state)
+		assert.NoError(t, err, InvalidRedirectURLError)
+		assert.Equal(t, expectedReturnURL, returnURL)
 	})
 }
 
