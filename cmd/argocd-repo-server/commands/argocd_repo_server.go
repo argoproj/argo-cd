@@ -81,6 +81,7 @@ func NewCommand() *cobra.Command {
 		disableTLS                        bool
 		maxCombinedDirectoryManifestsSize string
 		cmpTarExcludedGlobs               []string
+		allowOutOfBoundsSymlinks          bool
 	)
 	var command = cobra.Command{
 		Use:               cliName,
@@ -124,6 +125,7 @@ func NewCommand() *cobra.Command {
 				SubmoduleEnabled:                             getSubmoduleEnabled(),
 				MaxCombinedDirectoryManifestsSize:            maxCombinedDirectoryManifestsQuantity,
 				CMPTarExcludedGlobs:                          cmpTarExcludedGlobs,
+				AllowOutOfBoundsSymlinks:                     allowOutOfBoundsSymlinks,
 			}, askPassServer)
 			errors.CheckError(err)
 
@@ -201,6 +203,7 @@ func NewCommand() *cobra.Command {
 	command.Flags().BoolVar(&disableTLS, "disable-tls", env.ParseBoolFromEnv("ARGOCD_REPO_SERVER_DISABLE_TLS", false), "Disable TLS on the gRPC endpoint")
 	command.Flags().StringVar(&maxCombinedDirectoryManifestsSize, "max-combined-directory-manifests-size", env.StringFromEnv("ARGOCD_REPO_SERVER_MAX_COMBINED_DIRECTORY_MANIFESTS_SIZE", "10M"), "Max combined size of manifest files in a directory-type Application")
 	command.Flags().StringArrayVar(&cmpTarExcludedGlobs, "plugin-tar-exclude", env.StringsFromEnv("ARGOCD_REPO_SERVER_PLUGIN_TAR_EXCLUSIONS", []string{}, ";"), "Globs to filter when sending tarballs to plugins.")
+	command.Flags().BoolVar(&allowOutOfBoundsSymlinks, "allow-oob-symlinks", env.ParseBoolFromEnv("ARGOCD_REPO_SERVER_ALLOW_OUT_OF_BOUNDS_SYMLINKS", false), "Allow out-of-bounds symlinks in repositories (not recommended)")
 
 	tlsConfigCustomizerSrc = tls.AddTLSFlagsToCmd(&command)
 	cacheSrc = reposervercache.AddCacheFlagsToCmd(&command, func(client *redis.Client) {

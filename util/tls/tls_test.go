@@ -252,6 +252,21 @@ func TestGenerate(t *testing.T) {
 		assert.NotNil(t, cert)
 		assert.GreaterOrEqual(t, (time.Now().Unix())+int64(1*time.Hour), cert.NotBefore.Unix())
 	})
+
+	for _, year := range []int{1, 2, 3, 10} {
+		t.Run(fmt.Sprintf("Create certificate with specified ValidFor %d year", year), func(t *testing.T) {
+			validFrom, validFor := time.Now(), 365*24*time.Hour*time.Duration(year)
+			opts := CertOptions{Hosts: []string{"localhost"}, Organization: "Acme", ValidFrom: validFrom, ValidFor: validFor}
+			certBytes, privKey, err := generate(opts)
+			assert.NoError(t, err)
+			assert.NotNil(t, privKey)
+			cert, err := x509.ParseCertificate(certBytes)
+			assert.NoError(t, err)
+			assert.NotNil(t, cert)
+			t.Logf("certificate expiration time %s", cert.NotAfter)
+			assert.Equal(t, validFrom.Unix()+int64(validFor.Seconds()), cert.NotAfter.Unix())
+		})
+	}
 }
 
 func TestGeneratePEM(t *testing.T) {

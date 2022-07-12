@@ -160,7 +160,8 @@ func init() {
 	adminUsername = GetEnvWithDefault(EnvAdminUsername, defaultAdminUsername)
 	AdminPassword = GetEnvWithDefault(EnvAdminPassword, defaultAdminPassword)
 
-	tlsTestResult, err := grpcutil.TestTLS(apiServerAddress)
+	dialTime := 30 * time.Second
+	tlsTestResult, err := grpcutil.TestTLS(apiServerAddress, dialTime)
 	CheckError(err)
 
 	ArgoCDClientset, err = apiclient.NewClient(&apiclient.ClientOptions{Insecure: true, ServerAddr: apiServerAddress, PlainText: !tlsTestResult.TLS})
@@ -353,6 +354,13 @@ func SetResourceOverrides(overrides map[string]v1alpha1.ResourceOverride) {
 func SetTrackingMethod(trackingMethod string) {
 	updateSettingConfigMap(func(cm *corev1.ConfigMap) error {
 		cm.Data["application.resourceTrackingMethod"] = trackingMethod
+		return nil
+	})
+}
+
+func SetTrackingLabel(trackingLabel string) {
+	updateSettingConfigMap(func(cm *corev1.ConfigMap) error {
+		cm.Data["application.instanceLabelKey"] = trackingLabel
 		return nil
 	})
 }

@@ -31,6 +31,7 @@ kubectl apply -n argocd -f https://raw.githubusercontent.com/argoproj/argo-cd/st
 
 This default installation will have a self-signed certificate and cannot be accessed without a bit of extra work.
 Do one of:
+
 * Follow the [instructions to configure a certificate](./operator-manual/tls) (and ensure that the client OS trusts it).
 * Configure the client OS to trust the self signed certificate.
 * Use the --insecure flag on all Argo CD CLI operations in this guide.

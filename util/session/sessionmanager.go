@@ -123,6 +123,7 @@ func NewSessionManager(settingsMgr *settings.SettingsManager, projectsLister v1a
 	if err != nil {
 		panic(err)
 	}
+
 	transport := &http.Transport{
 		Proxy: http.ProxyFromEnvironment,
 		Dial: (&net.Dialer{
@@ -132,6 +133,7 @@ func NewSessionManager(settingsMgr *settings.SettingsManager, projectsLister v1a
 		TLSHandshakeTimeout:   10 * time.Second,
 		ExpectContinueTimeout: 1 * time.Second,
 	}
+
 	s.client = &http.Client{
 		Transport: transport,
 	}

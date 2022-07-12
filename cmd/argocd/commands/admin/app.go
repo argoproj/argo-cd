@@ -4,7 +4,6 @@ import (
 	"context"
 	"encoding/json"
 	"fmt"
-	"io/ioutil"
 	"net/http"
 	"os"
 	"sort"
@@ -303,7 +302,7 @@ func saveToFile(err error, outputFormat string, result reconcileResults, outputP
 		return fmt.Errorf("format %s is not supported", outputFormat)
 	}
 
-	return ioutil.WriteFile(outputPath, data, 0644)
+	return os.WriteFile(outputPath, data, 0644)
 }
 
 func getReconcileResults(ctx context.Context, appClientset appclientset.Interface, namespace string, selector string) ([]appReconcileResult, error) {

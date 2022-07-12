@@ -1,11 +1,41 @@
 import * as React from 'react';
+import * as minimatch from 'minimatch';
+
 import {ApplicationTree, State} from '../models';
 
-const extensions: {resources: {[key: string]: Extension}} = {resources: {}};
-const cache = new Map<string, Promise<Extension>>();
+const extensions = {
+    resourceExtentions: new Array<ResourceTabExtension>()
+};
+
+function registerResourceExtension(component: ExtensionComponent, group: string, kind: string, tabTitle: string) {
+    extensions.resourceExtentions.push({component, group, kind, title: tabTitle});
+}
+
+let legacyInitialized = false;
+
+function initLegacyExtensions() {
+    if (legacyInitialized) {
+        return;
+    }
+    legacyInitialized = true;
+    const resources = (window as any).extensions.resources;
+    Object.keys(resources).forEach(key => {
+        const [group, kind] = key.split('/');
+        registerResourceExtension(resources[key].component, group, kind, 'More');
+    });
+}
+
+export interface ResourceTabExtension {
+    title: string;
+    group: string;
+    kind: string;
+    component: ExtensionComponent;
+}
+
+export type ExtensionComponent = React.ComponentType<ExtensionComponentProps>;
 
 export interface Extension {
-    component: React.ComponentType<ExtensionComponentProps>;
+    component: ExtensionComponent;
 }
 
 export interface ExtensionComponentProps {
@@ -14,27 +44,17 @@ export interface ExtensionComponentProps {
 }
 
 export class ExtensionsService {
-    public async loadResourceExtension(group: string, kind: string): Promise<Extension> {
-        const key = `${group}/${kind}`;
-        const res =
-            cache.get(key) ||
-            new Promise<Extension>((resolve, reject) => {
-                const script = document.createElement('script');
-                script.src = `extensions/resources/${group}/${kind}/ui/extensions.js`;
-                script.onload = () => {
-                    const ext = extensions.resources[key];
-                    if (!ext) {
-                        reject(`Failed to load extension for ${group}/${kind}`);
-                    } else {
-                        resolve(ext);
-                    }
-                };
-                script.onerror = reject;
-                document.body.appendChild(script);
-            });
-        cache.set(key, res);
-        return res;
+    public getResourceTabs(group: string, kind: string): ResourceTabExtension[] {
+        initLegacyExtensions();
+        const items = extensions.resourceExtentions.filter(extension => minimatch(group, extension.group) && minimatch(kind, extension.kind)).slice();
+        return items.sort((a, b) => a.title.localeCompare(b.title));
     }
 }
 
-(window as any).extensions = extensions;
+((window: any) => {
+    // deprecated: kept for backwards compatibility
+    window.extensions = {resources: {}};
+    window.extensionsAPI = {
+        registerResourceExtension
+    };
+})(window);

@@ -5,7 +5,7 @@ import (
 	"crypto/tls"
 	"crypto/x509"
 	"fmt"
-	"io/ioutil"
+	"io"
 	"net/http"
 	"net/http/httputil"
 	"net/url"
@@ -75,7 +75,7 @@ func NewDexHTTPReverseProxy(serverAddr string, baseHRef string, tlsConfig *DexTL
 
 	proxy.ModifyResponse = func(resp *http.Response) error {
 		if resp.StatusCode == 500 {
-			b, err := ioutil.ReadAll(resp.Body)
+			b, err := io.ReadAll(resp.Body)
 			if err != nil {
 				return err
 			}
@@ -88,7 +88,7 @@ func NewDexHTTPReverseProxy(serverAddr string, baseHRef string, tlsConfig *DexTL
 			resp.Header.Set("Content-Length", strconv.Itoa(0))
 			resp.Header.Set("Location", fmt.Sprintf("%s?has_sso_error=true", path.Join(baseHRef, "login")))
 			resp.StatusCode = http.StatusSeeOther
-			resp.Body = ioutil.NopCloser(bytes.NewReader(make([]byte, 0)))
+			resp.Body = io.NopCloser(bytes.NewReader(make([]byte, 0)))
 			return nil
 		}
 		return nil

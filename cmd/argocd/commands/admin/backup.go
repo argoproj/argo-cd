@@ -4,7 +4,6 @@ import (
 	"bufio"
 	"fmt"
 	"io"
-	"io/ioutil"
 	"os"
 
 	"github.com/argoproj/gitops-engine/pkg/utils/kube"
@@ -139,9 +138,9 @@ func NewImportCommand() *cobra.Command {
 
 			var input []byte
 			if in := args[0]; in == "-" {
-				input, err = ioutil.ReadAll(os.Stdin)
+				input, err = io.ReadAll(os.Stdin)
 			} else {
-				input, err = ioutil.ReadFile(in)
+				input, err = os.ReadFile(in)
 			}
 			errors.CheckError(err)
 			var dryRunMsg string

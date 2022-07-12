@@ -337,8 +337,13 @@ func appFilesHaveChanged(app *v1alpha1.Application, changedFiles []string) bool 
 		f = ensureAbsPath(f)
 		for _, item := range refreshPaths {
 			item = ensureAbsPath(item)
-
-			if _, err := security.EnforceToCurrentRoot(item, f); err == nil {
+			changed := false
+			if f == item {
+				changed = true
+			} else if _, err := security.EnforceToCurrentRoot(item, f); err == nil {
+				changed = true
+			}
+			if changed {
 				log.WithField("application", app.Name).Debugf("Application uses files that have changed")
 				return true
 			}
