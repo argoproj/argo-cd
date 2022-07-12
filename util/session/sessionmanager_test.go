@@ -550,8 +550,10 @@ rootCA: |
 		require.NoError(t, err)
 
 		_, _, err = mgr.VerifyToken(tokenString)
-		// If the root CA is being respected, we won't get this error.
+		// If the root CA is being respected, we won't get this error. The error message is environment-dependent, so
+		// we check for either of the error messages associated with a failed cert check.
 		assert.NotContains(t, err.Error(), "certificate is not trusted")
+		assert.NotContains(t, err.Error(), "certificate signed by unknown authority")
 	})
 
 	t.Run("OIDC provider is Dex, TLS is configured", func(t *testing.T) {
@@ -585,7 +587,10 @@ rootCA: |
 		require.NoError(t, err)
 
 		_, _, err = mgr.VerifyToken(tokenString)
-		assert.ErrorContains(t, err, "certificate signed by unknown authority")
+		require.Error(t, err)
+		if !strings.Contains(err.Error(), "certificate signed by unknown authority") && !strings.Contains(err.Error(), "certificate is not trusted") {
+			t.Fatal("did not receive expected certificate verification failure error")
+		}
 	})
 
 	t.Run("OIDC provider is external, TLS is configured", func(t *testing.T) {
@@ -619,7 +624,10 @@ requestedScopes: ["oidc"]`, oidcTestServer.URL),
 		require.NoError(t, err)
 
 		_, _, err = mgr.VerifyToken(tokenString)
-		assert.ErrorContains(t, err, "certificate is not trusted")
+		require.Error(t, err)
+		if !strings.Contains(err.Error(), "certificate signed by unknown authority") && !strings.Contains(err.Error(), "certificate is not trusted") {
+			t.Fatal("did not receive expected certificate verification failure error")
+		}
 	})
 
 	t.Run("OIDC provider is Dex, TLS is configured", func(t *testing.T) {
@@ -653,7 +661,10 @@ requestedScopes: ["oidc"]`, oidcTestServer.URL),
 		require.NoError(t, err)
 
 		_, _, err = mgr.VerifyToken(tokenString)
-		assert.ErrorContains(t, err, "certificate signed by unknown authority")
+		require.Error(t, err)
+		if !strings.Contains(err.Error(), "certificate signed by unknown authority") && !strings.Contains(err.Error(), "certificate is not trusted") {
+			t.Fatal("did not receive expected certificate verification failure error")
+		}
 	})
 
 	t.Run("OIDC provider is external, TLS is configured, OIDCTLSInsecureSkipVerify is true", func(t *testing.T) {
@@ -688,6 +699,7 @@ requestedScopes: ["oidc"]`, oidcTestServer.URL),
 		require.NoError(t, err)
 
 		_, _, err = mgr.VerifyToken(tokenString)
+		assert.NotContains(t, err.Error(), "certificate is not trusted")
 		assert.NotContains(t, err.Error(), "certificate signed by unknown authority")
 	})
 
@@ -718,5 +730,6 @@ requestedScopes: ["oidc"]`, oidcTestServer.URL),
 		_, _, err = mgr.VerifyToken(tokenString)
 		// This is the error thrown when the test server's certificate _is_ being verified.
 		assert.NotContains(t, err.Error(), "certificate is not trusted")
+		assert.NotContains(t, err.Error(), "certificate signed by unknown authority")
 	})
 }
