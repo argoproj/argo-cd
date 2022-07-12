@@ -33,8 +33,6 @@ The resource tab extension should be registered using the `extensionsAPI.registe
 registerResourceExtension(component: ExtensionComponent, group: string, kind: string, tabTitle: string)
 ```
 
-
-
 * `component: ExtensionComponent` is a React component that receives the following properties:
 
     * resource: State - the kubernetes resource object;
@@ -57,3 +55,7 @@ Below is an example of a resource tab extension:
 })(window)
 ```
 
+## Application Tab Extensions
+
+Since the Argo CD Application is a Kubernetes resource, application tabs can be the same as any other resource tab.
+Make sure to use 'argoproj.io'/'Application' as group/kind and an extension will be used to render the application-level tab.
