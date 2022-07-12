@@ -278,6 +278,19 @@ func TestValidateRepo(t *testing.T) {
 	kubeClient := fake.NewSimpleClientset(&cm)
 	settingsMgr := settings.NewSettingsManager(context.Background(), kubeClient, test.FakeArgoCDNamespace)
 
+	t.Run("validate repo end with '/'", func(t *testing.T) {
+		app.Spec.Source.RepoURL = "http://some.repo/with/slash/"
+		_, err := ValidateRepo(context.Background(), app, repoClientSet, db, kustomizeOptions, nil, &kubetest.MockKubectlCmd{Version: kubeVersion, APIResources: apiResources}, proj, settingsMgr)
+		assert.ErrorContains(t, err, "ends with '/'")
+	})
+
+	t.Run("validate repo does not end wit '/'", func(t *testing.T) {
+		app.Spec.Source.RepoURL = fmt.Sprintf("file://%s", repoPath)
+		_, err := ValidateRepo(context.Background(), app, repoClientSet, db, kustomizeOptions, nil, &kubetest.MockKubectlCmd{Version: kubeVersion, APIResources: apiResources}, proj, settingsMgr)
+		assert.NoError(t, err)
+	})
+
+	app.Spec.Source.RepoURL = fmt.Sprintf("file://%s", repoPath)
 	conditions, err := ValidateRepo(context.Background(), app, repoClientSet, db, kustomizeOptions, nil, &kubetest.MockKubectlCmd{Version: kubeVersion, APIResources: apiResources}, proj, settingsMgr)
 
 	assert.NoError(t, err)

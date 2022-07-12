@@ -153,6 +153,10 @@ func ValidateRepo(
 	spec := &app.Spec
 	conditions := make([]argoappv1.ApplicationCondition, 0)
 
+	if strings.HasSuffix(spec.Source.RepoURL, "/") {
+		return nil, apierr.NewBadRequest(fmt.Sprintf("repository URL '%s' ends with '/', it not seems to be consistent with '%s'", spec.Source.RepoURL, strings.TrimSuffix(spec.Source.RepoURL, "/")))
+	}
+
 	// Test the repo
 	conn, repoClient, err := repoClientset.NewRepoServerClient()
 	if err != nil {
