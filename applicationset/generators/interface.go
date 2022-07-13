@@ -21,6 +21,9 @@ type Generator interface {
 
 	// GetTemplate returns the inline template from the spec if there is any, or an empty object otherwise
 	GetTemplate(appSetGenerator *argoprojiov1alpha1.ApplicationSetGenerator) *argoprojiov1alpha1.ApplicationSetTemplate
+
+	// GetParameterMapping gets this generator's parameter mapping
+	GetParameterMapping(set *argoprojiov1alpha1.ApplicationSetGenerator) []argoprojiov1alpha1.ParameterMapping
 }
 
 var EmptyAppSetGeneratorError = fmt.Errorf("ApplicationSet is empty")

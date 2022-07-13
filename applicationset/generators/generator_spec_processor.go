@@ -2,13 +2,17 @@ package generators
 
 import (
 	"encoding/json"
-	"github.com/argoproj/argo-cd/v2/applicationset/utils"
-	"github.com/valyala/fasttemplate"
+	"fmt"
 	"reflect"
 
-	argoprojiov1alpha1 "github.com/argoproj/argo-cd/v2/pkg/apis/applicationset/v1alpha1"
+	"github.com/valyala/fasttemplate"
+
+	"github.com/argoproj/argo-cd/v2/applicationset/utils"
+
 	"github.com/imdario/mergo"
 	log "github.com/sirupsen/logrus"
+
+	argoprojiov1alpha1 "github.com/argoproj/argo-cd/v2/pkg/apis/applicationset/v1alpha1"
 )
 
 type TransformResult struct {
@@ -57,6 +61,20 @@ func Transform(requestedGenerator argoprojiov1alpha1.ApplicationSetGenerator, al
 			continue
 		}
 
+		// apply the parameter mapping for this generator (renames, defaults) before it is rendered or used to merge
+		paramMapping, err := getParameterMapping(g, &requestedGenerator)
+		if err != nil {
+			log.WithError(err).WithField("generator", g).
+				Error("mapParams invalid")
+			if firstError == nil {
+				firstError = err
+			}
+			continue
+		}
+		for i := range params {
+			params[i] = paramMapping.MapParams(params[i])
+		}
+
 		res = append(res, TransformResult{
 			Params:   params,
 			Template: mergedTemplate,
@@ -64,6 +82,44 @@ func Transform(requestedGenerator argoprojiov1alpha1.ApplicationSetGenerator, al
 	}
 
 	return res, firstError
+}
+
+type compiledParam struct {
+	From *fasttemplate.Template
+	To   string
+}
+
+type compiledParams []compiledParam
+
+func (p compiledParams) MapParams(in map[string]string) map[string]string {
+	if in == nil {
+		in = make(map[string]string, len(p))
+	}
+	for _, param := range p {
+		in[param.To], _ = render.Replace(param.From, in, true)
+	}
+	return in
+}
+
+func getParameterMapping(g Generator, a *argoprojiov1alpha1.ApplicationSetGenerator) (result compiledParams, _ error) {
+	mapping := g.GetParameterMapping(a)
+	for _, m := range mapping {
+		var tmpl string
+		if json.Unmarshal([]byte(m.From), &tmpl) != nil {
+			// not a quoted string? assume From is a parameter name
+			tmpl = fmt.Sprintf("{{%s}}", m.From)
+		}
+		t, err := fasttemplate.NewTemplate(tmpl, "{{", "}}")
+		if err != nil {
+			return nil, fmt.Errorf("error parsing parameter mapping %q: %w", m.From, err)
+		}
+
+		result = append(result, compiledParam{
+			From: t,
+			To:   m.To,
+		})
+	}
+	return result, nil
 }
 
 func GetRelevantGenerators(requestedGenerator *argoprojiov1alpha1.ApplicationSetGenerator, generators map[string]Generator) []Generator {

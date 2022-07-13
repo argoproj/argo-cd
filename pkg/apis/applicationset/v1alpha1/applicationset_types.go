@@ -17,9 +17,11 @@ limitations under the License.
 package v1alpha1
 
 import (
+	"encoding"
 	"encoding/json"
 	"fmt"
 	"sort"
+	"strings"
 
 	"github.com/argoproj/argo-cd/v2/common"
 
@@ -76,6 +78,28 @@ type ApplicationSetTemplateMeta struct {
 	Annotations map[string]string `json:"annotations,omitempty"`
 	Finalizers  []string          `json:"finalizers,omitempty"`
 }
+
+// ParameterMapping copies the value of From into To. e.g., a=b, copies the value of b into a.
+type ParameterMapping struct {
+	From string
+	To   string
+}
+
+func (p ParameterMapping) UnmarshalText(text []byte) error {
+	split := strings.SplitN(string(text), "=", 2)
+	if len(split) != 2 {
+		return fmt.Errorf("invalid parameter mapping: %q", string(text))
+	}
+	p.From, p.To = split[0], split[1]
+	return nil
+}
+
+func (p ParameterMapping) MarshalText() (text []byte, err error) {
+	return []byte(fmt.Sprintf("%s=%s", p.From, p.To)), nil
+}
+
+var _ encoding.TextMarshaler = &ParameterMapping{}
+var _ encoding.TextUnmarshaler = &ParameterMapping{}
 
 // ApplicationSetGenerator represents a generator at the top level of an ApplicationSet.
 type ApplicationSetGenerator struct {
@@ -143,15 +167,17 @@ func (g ApplicationSetTerminalGenerators) toApplicationSetNestedGenerators() []A
 
 // ListGenerator include items info
 type ListGenerator struct {
-	Elements []apiextensionsv1.JSON `json:"elements"`
-	Template ApplicationSetTemplate `json:"template,omitempty"`
+	Elements         []apiextensionsv1.JSON `json:"elements"`
+	Template         ApplicationSetTemplate `json:"template,omitempty"`
+	ParameterMapping []ParameterMapping     `json:"mapParams,omitempty"`
 }
 
 // MatrixGenerator generates the cartesian product of two sets of parameters. The parameters are defined by two nested
 // generators.
 type MatrixGenerator struct {
-	Generators []ApplicationSetNestedGenerator `json:"generators"`
-	Template   ApplicationSetTemplate          `json:"template,omitempty"`
+	Generators       []ApplicationSetNestedGenerator `json:"generators"`
+	Template         ApplicationSetTemplate          `json:"template,omitempty"`
+	ParameterMapping []ParameterMapping              `json:"mapParams,omitempty"`
 }
 
 // NestedMatrixGenerator is a MatrixGenerator nested under another combination-type generator (MatrixGenerator or
@@ -253,7 +279,8 @@ type ClusterGenerator struct {
 	Template ApplicationSetTemplate `json:"template,omitempty"`
 
 	// Values contains key/value pairs which are passed directly as parameters to the template
-	Values map[string]string `json:"values,omitempty"`
+	Values           map[string]string  `json:"values,omitempty"`
+	ParameterMapping []ParameterMapping `json:"mapParams,omitempty"`
 }
 
 // DuckType defines a generator to match against clusters registered with ArgoCD.
@@ -269,7 +296,8 @@ type DuckTypeGenerator struct {
 
 	Template ApplicationSetTemplate `json:"template,omitempty"`
 	// Values contains key/value pairs which are passed directly as parameters to the template
-	Values map[string]string `json:"values,omitempty"`
+	Values           map[string]string  `json:"values,omitempty"`
+	ParameterMapping []ParameterMapping `json:"mapParams,omitempty"`
 }
 
 type GitGenerator struct {
@@ -279,6 +307,7 @@ type GitGenerator struct {
 	Revision            string                      `json:"revision"`
 	RequeueAfterSeconds *int64                      `json:"requeueAfterSeconds,omitempty"`
 	Template            ApplicationSetTemplate      `json:"template,omitempty"`
+	ParameterMapping    []ParameterMapping          `json:"mapParams,omitempty"`
 }
 
 type GitDirectoryGeneratorItem struct {
@@ -307,6 +336,7 @@ type SCMProviderGenerator struct {
 	// Standard parameters.
 	RequeueAfterSeconds *int64                 `json:"requeueAfterSeconds,omitempty"`
 	Template            ApplicationSetTemplate `json:"template,omitempty"`
+	ParameterMapping    []ParameterMapping     `json:"mapParams,omitempty"`
 }
 
 // SCMProviderGeneratorGitea defines a connection info specific to Gitea.
@@ -416,6 +446,7 @@ type PullRequestGenerator struct {
 	// Standard parameters.
 	RequeueAfterSeconds *int64                 `json:"requeueAfterSeconds,omitempty"`
 	Template            ApplicationSetTemplate `json:"template,omitempty"`
+	ParameterMapping    []ParameterMapping     `json:"mapParams,omitempty"`
 }
 
 // PullRequestGenerator defines connection info specific to Gitea.
@@ -474,7 +505,6 @@ type PullRequestGeneratorBitbucketServer struct {
 
 // BasicAuthBitbucketServer defines the username/(password or personal access token) for Basic auth.
 type BasicAuthBitbucketServer struct {
-	// Username for Basic auth
 	Username string `json:"username"`
 	// Password (or personal access token) reference.
 	PasswordRef *SecretRef `json:"passwordRef"`

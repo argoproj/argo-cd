@@ -3,10 +3,11 @@ package generators
 import (
 	"context"
 	"fmt"
-	"github.com/valyala/fasttemplate"
 	"regexp"
 	"strings"
 	"time"
+
+	"github.com/valyala/fasttemplate"
 
 	log "github.com/sirupsen/logrus"
 
@@ -60,6 +61,10 @@ func (g *ClusterGenerator) GetRequeueAfter(appSetGenerator *argoappsetv1alpha1.A
 
 func (g *ClusterGenerator) GetTemplate(appSetGenerator *argoappsetv1alpha1.ApplicationSetGenerator) *argoappsetv1alpha1.ApplicationSetTemplate {
 	return &appSetGenerator.Clusters.Template
+}
+
+func (g *ClusterGenerator) GetParameterMapping(set *argoappsetv1alpha1.ApplicationSetGenerator) []argoappsetv1alpha1.ParameterMapping {
+	return set.Clusters.ParameterMapping
 }
 
 func (g *ClusterGenerator) GenerateParams(

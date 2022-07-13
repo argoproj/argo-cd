@@ -60,6 +60,10 @@ func (g *DuckTypeGenerator) GetTemplate(appSetGenerator *argoprojiov1alpha1.Appl
 	return &appSetGenerator.ClusterDecisionResource.Template
 }
 
+func (g *DuckTypeGenerator) GetParameterMapping(set *argoprojiov1alpha1.ApplicationSetGenerator) []argoprojiov1alpha1.ParameterMapping {
+	return set.ClusterDecisionResource.ParameterMapping
+}
+
 func (g *DuckTypeGenerator) GenerateParams(appSetGenerator *argoprojiov1alpha1.ApplicationSetGenerator, _ *argoprojiov1alpha1.ApplicationSet) ([]map[string]string, error) {
 
 	if appSetGenerator == nil {

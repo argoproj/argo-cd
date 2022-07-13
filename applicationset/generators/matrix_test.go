@@ -2,14 +2,15 @@ package generators
 
 import (
 	"context"
+	"testing"
+	"time"
+
 	corev1 "k8s.io/api/core/v1"
 	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
 	"k8s.io/apimachinery/pkg/runtime"
 	kubefake "k8s.io/client-go/kubernetes/fake"
 	"sigs.k8s.io/controller-runtime/pkg/client"
 	"sigs.k8s.io/controller-runtime/pkg/client/fake"
-	"testing"
-	"time"
 
 	"github.com/stretchr/testify/assert"
 	"github.com/stretchr/testify/mock"
@@ -158,6 +159,9 @@ func TestMatrixGenerate(t *testing.T) {
 
 				genMock.On("GetTemplate", &gitGeneratorSpec).
 					Return(&argoprojiov1alpha1.ApplicationSetTemplate{})
+
+				genMock.On("GetParameterMapping", &gitGeneratorSpec).
+					Return(([]argoprojiov1alpha1.ParameterMapping)(nil))
 			}
 
 			var matrixGenerator = NewMatrixGenerator(
@@ -425,6 +429,12 @@ func (g *generatorMock) GetTemplate(appSetGenerator *argoprojiov1alpha1.Applicat
 	args := g.Called(appSetGenerator)
 
 	return args.Get(0).(*argoprojiov1alpha1.ApplicationSetTemplate)
+}
+
+func (g *generatorMock) GetParameterMapping(appSetGenerator *argoprojiov1alpha1.ApplicationSetGenerator) []argoprojiov1alpha1.ParameterMapping {
+	args := g.Called(appSetGenerator)
+
+	return args.Get(0).([]argoprojiov1alpha1.ParameterMapping)
 }
 
 func (g *generatorMock) GenerateParams(appSetGenerator *argoprojiov1alpha1.ApplicationSetGenerator, appSet *argoprojiov1alpha1.ApplicationSet) ([]map[string]string, error) {

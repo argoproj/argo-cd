@@ -155,3 +155,7 @@ func (m *MatrixGenerator) GetRequeueAfter(appSetGenerator *argoprojiov1alpha1.Ap
 func (m *MatrixGenerator) GetTemplate(appSetGenerator *argoprojiov1alpha1.ApplicationSetGenerator) *argoprojiov1alpha1.ApplicationSetTemplate {
 	return &appSetGenerator.Matrix.Template
 }
+
+func (m *MatrixGenerator) GetParameterMapping(set *argoprojiov1alpha1.ApplicationSetGenerator) []argoprojiov1alpha1.ParameterMapping {
+	return set.Matrix.ParameterMapping
+}

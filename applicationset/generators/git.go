@@ -34,6 +34,10 @@ func (g *GitGenerator) GetTemplate(appSetGenerator *argoprojiov1alpha1.Applicati
 	return &appSetGenerator.Git.Template
 }
 
+func (g *GitGenerator) GetParameterMapping(set *argoprojiov1alpha1.ApplicationSetGenerator) []argoprojiov1alpha1.ParameterMapping {
+	return set.Git.ParameterMapping
+}
+
 func (g *GitGenerator) GetRequeueAfter(appSetGenerator *argoprojiov1alpha1.ApplicationSetGenerator) time.Duration {
 
 	// Return a requeue default of 3 minutes, if no default is specified.

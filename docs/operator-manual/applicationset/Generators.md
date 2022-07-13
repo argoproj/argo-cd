@@ -16,3 +16,62 @@ As of this writing there are seven generators:
 - [Cluster Decision Resource generator](Generators-Cluster-Decision-Resource.md): The Cluster Decision Resource generator is used to interface with Kubernetes custom resources that use custom resource-specific logic to decide which set of Argo CD clusters to deploy to.
 
 If you are new to generators, begin with the **List** and **Cluster** generators. For more advanced use cases, see the documentation for the remaining generators above.
+
+
+## Parameter Mapping
+
+It is possible to map the parameters output from a generator to new names and values. There are several reasons you might want to do this:
+
+ 1. Clarity: You could rename a parameter to clarify what it represents. e.g., `app.name=path[1]`
+ 2. Custom Merge Keys: When using the merge generator, you could rename a parameter to match a parameter from another generator so it can be used as a `mergeKey`.
+     
+    ```yaml
+    - merge:
+        generators:
+          - git:
+              directories:
+                - path: "*/*/overlays/*"
+              mapParams:
+                - cluster.type=path[0]
+                - cluster.env=basename
+
+          - clusters:
+              mapParams:
+                - cluster.type=metadata.labels.cluster-type
+                - cluster.env=metadata.labels.cluster-env
+              selector: ...
+        mergeKeys:
+          - cluster.type
+          - cluster.env
+    ```
+    
+ 3. Default Values: A generator used in a merge or matrix may not always generate a value for a parameter (e.g., an empty Git file.) 
+    A default value can be taken from a prior generator that will be overridden by the later generator:
+    
+    ```yaml
+    merge:
+      generators:
+        - git:
+            directories:
+              - path: "foo/*"
+            mapParams:
+              - app.name=path[1]
+        - git:
+            files:
+              - path: "foo/*/overrides.yaml"
+    ```
+
+    overrides.yaml:
+    ```yaml
+    app.name: "bar"  # if not present, app.name would be the value of path[0]
+    ```
+
+### Templated Parameter Mapping
+
+When mapping parameters, the value supports templating. Simply enclose the value in quotes and use the `{{}}` syntax to substitute values:
+
+```yaml
+mapParams:
+  - app.name="prefix-{{path[0]}}"
+  - app.name="{{cluster.env}}-{{app.name}}"
+```

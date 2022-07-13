@@ -84,6 +84,28 @@ func TestMergeGenerate(t *testing.T) {
 			},
 		},
 		{
+			name: "custom merge keys",
+			baseGenerators: []argoprojiov1alpha1.ApplicationSetNestedGenerator{
+				{
+					// using List to simulate a more complex generator that would normally be used with ParameterMapping
+					List: &argoprojiov1alpha1.ListGenerator{
+						Elements: []apiextensionsv1.JSON{{Raw: []byte(`{"a": "same","c": "1_3"}`)}},
+						ParameterMapping: []argoprojiov1alpha1.ParameterMapping{
+							{
+								From: "a",
+								To:   "b",
+							},
+						},
+					},
+				},
+				*getNestedListGenerator(`{"a": "2_1","b": "same"}`),
+			},
+			mergeKeys: []string{"b"},
+			expected: []map[string]string{
+				{"a": "2_1", "b": "same", "c": "1_3"},
+			},
+		},
+		{
 			name: "merge keys absent - do not merge",
 			baseGenerators: []argoprojiov1alpha1.ApplicationSetNestedGenerator{
 				*getNestedListGenerator(`{"a": "a"}`),

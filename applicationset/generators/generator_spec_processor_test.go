@@ -2,6 +2,8 @@ package generators
 
 import (
 	"context"
+	"testing"
+
 	log "github.com/sirupsen/logrus"
 	"github.com/stretchr/testify/assert"
 	"github.com/stretchr/testify/mock"
@@ -12,7 +14,6 @@ import (
 	kubefake "k8s.io/client-go/kubernetes/fake"
 	crtclient "sigs.k8s.io/controller-runtime/pkg/client"
 	"sigs.k8s.io/controller-runtime/pkg/client/fake"
-	"testing"
 
 	argoprojiov1alpha1 "github.com/argoproj/argo-cd/v2/pkg/apis/applicationset/v1alpha1"
 )
@@ -177,4 +178,76 @@ func TestInterpolateGenerator(t *testing.T) {
 	}
 	assert.Equal(t, "production_01/west", interpolatedGenerator.Git.Files[0].Path)
 	assert.Equal(t, "https://production-01.example.com", interpolatedGenerator.Git.Files[1].Path)
+}
+
+func TestMapParams(t *testing.T) {
+	for _, tt := range []struct {
+		Name             string
+		ParameterMapping []argoprojiov1alpha1.ParameterMapping
+		// Parameters are the generated parameters before any mappping is applied
+		Parameters map[string]string
+		// ExpectedDiff is the parameters that should have a different value after MapParams
+		ExpectedDiff map[string]string
+	}{
+		{
+			Name: "simple rename",
+			ParameterMapping: []argoprojiov1alpha1.ParameterMapping{
+				{From: "path[0]", To: "name"},
+			},
+			Parameters:   map[string]string{"path[0]": "p1"},
+			ExpectedDiff: map[string]string{"name": "p1"},
+		},
+		{
+			Name: "templated",
+			ParameterMapping: []argoprojiov1alpha1.ParameterMapping{
+				{From: "\"foo-{{path[0]}}\"", To: "name"},
+			},
+			Parameters:   map[string]string{"path[0]": "p1"},
+			ExpectedDiff: map[string]string{"name": "foo-p1"},
+		},
+		{
+			Name: "update in place",
+			ParameterMapping: []argoprojiov1alpha1.ParameterMapping{
+				{From: "\"foo-{{path[0]}}\"", To: "path[0]"},
+			},
+			Parameters:   map[string]string{"path[0]": "p1"},
+			ExpectedDiff: map[string]string{"path[0]": "foo-p1"},
+		},
+		{
+			Name: "constant",
+			ParameterMapping: []argoprojiov1alpha1.ParameterMapping{
+				{From: "\"hello world\"", To: "c"},
+			},
+			Parameters:   map[string]string{"path[0]": "p1"},
+			ExpectedDiff: map[string]string{"c": "hello world"},
+		},
+		{
+			Name: "transitive assignment",
+			ParameterMapping: []argoprojiov1alpha1.ParameterMapping{
+				// not sure why you would want to do this, but the behavior should be well-defined
+				{From: "path[0]", To: "a"},
+				{From: "a", To: "b"},
+				{From: "path[1]", To: "a"},
+				{From: "b", To: "c"},
+			},
+			Parameters:   map[string]string{"path[0]": "p1", "path[1]": "p2"},
+			ExpectedDiff: map[string]string{"a": "p2", "b": "p1", "c": "p1"},
+		},
+	} {
+		t.Run(tt.Name, func(t *testing.T) {
+			params, err := getParameterMapping(&GitGenerator{}, &argoprojiov1alpha1.ApplicationSetGenerator{
+				Git: &argoprojiov1alpha1.GitGenerator{
+					ParameterMapping: tt.ParameterMapping,
+				},
+			})
+			assert.NoError(t, err)
+			for k, v := range tt.Parameters {
+				if _, ok := tt.ExpectedDiff[k]; !ok {
+					tt.ExpectedDiff[k] = v
+				}
+			}
+			assert.Equal(t, tt.ExpectedDiff, params.MapParams(tt.Parameters))
+		})
+	}
+
 }

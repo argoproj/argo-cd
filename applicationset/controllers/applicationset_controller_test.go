@@ -39,6 +39,12 @@ type generatorMock struct {
 	mock.Mock
 }
 
+func (g *generatorMock) GetParameterMapping(set *argoprojiov1alpha1.ApplicationSetGenerator) []argoprojiov1alpha1.ParameterMapping {
+	args := g.Called(set)
+
+	return args.Get(0).([]argoprojiov1alpha1.ParameterMapping)
+}
+
 func (g *generatorMock) GetTemplate(appSetGenerator *argoprojiov1alpha1.ApplicationSetGenerator) *argoprojiov1alpha1.ApplicationSetTemplate {
 	args := g.Called(appSetGenerator)
 
