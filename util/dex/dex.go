@@ -59,7 +59,7 @@ func TLSConfig(tlsConfig *DexTLSConfig) *tls.Config {
 // also be /api/dex (e.g. issuer: https://argocd.example.com/api/dex)
 func NewDexHTTPReverseProxy(serverAddr string, baseHRef string, tlsConfig *DexTLSConfig) func(writer http.ResponseWriter, request *http.Request) {
 
-	var fullAddr string = DexServerAddressWithProtocol(serverAddr, tlsConfig)
+	fullAddr := DexServerAddressWithProtocol(serverAddr, tlsConfig)
 
 	target, err := url.Parse(fullAddr)
 	errors.CheckError(err)
