@@ -9,6 +9,7 @@ import (
 	"sync"
 	"time"
 
+	"github.com/argoproj/argo-cd/v2/common"
 	"github.com/argoproj/argo-cd/v2/util/assets"
 	"github.com/argoproj/argo-cd/v2/util/glob"
 	jwtutil "github.com/argoproj/argo-cd/v2/util/jwt"
@@ -408,7 +409,7 @@ func (e *Enforcer) runInformer(ctx context.Context, onUpdated func(cm *apiv1.Con
 					if err != nil {
 						log.Error(err)
 					} else {
-						log.Infof("RBAC ConfigMap '%s' added", cm.Name)
+						log.WithField(common.SecurityField, common.SecurityMedium).Infof("RBAC ConfigMap '%s' added", cm.Name)
 					}
 				}
 			},
@@ -422,7 +423,7 @@ func (e *Enforcer) runInformer(ctx context.Context, onUpdated func(cm *apiv1.Con
 				if err != nil {
 					log.Error(err)
 				} else {
-					log.Infof("RBAC ConfigMap '%s' updated", newCM.Name)
+					log.WithField(common.SecurityField, common.SecurityMedium).Infof("RBAC ConfigMap '%s' updated", newCM.Name)
 				}
 			},
 		},
@@ -456,7 +457,7 @@ func (e *Enforcer) runAdditionalInformer(ctx context.Context) {
 					if err != nil {
 						log.Error(err)
 					} else {
-						log.Infof("RBAC Additional ConfigMap '%s' added", cm.Name)
+						log.WithField(common.SecurityField, common.SecurityMedium).Infof("RBAC Additional ConfigMap '%s' added", cm.Name)
 					}
 				}
 			},
@@ -470,7 +471,7 @@ func (e *Enforcer) runAdditionalInformer(ctx context.Context) {
 				if err != nil {
 					log.Error(err)
 				} else {
-					log.Infof("RBAC Additional ConfigMap '%s' updated", newCM.Name)
+					log.WithField(common.SecurityField, common.SecurityMedium).Infof("RBAC Additional ConfigMap '%s' updated", newCM.Name)
 				}
 			},
 			DeleteFunc: func(obj interface{}) {
@@ -479,7 +480,7 @@ func (e *Enforcer) runAdditionalInformer(ctx context.Context) {
 				if err != nil {
 					log.Error(err)
 				} else {
-					log.Infof("RBAC Additional ConfigMap '%s' deleted", cm.Name)
+					log.WithField(common.SecurityField, common.SecurityMedium).Infof("RBAC Additional ConfigMap '%s' deleted", cm.Name)
 				}
 			},
 		},
