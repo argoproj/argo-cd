@@ -12,6 +12,7 @@ import (
 	"time"
 
 	"context"
+
 	kubecache "github.com/argoproj/gitops-engine/pkg/cache"
 	"github.com/argoproj/gitops-engine/pkg/diff"
 	"github.com/argoproj/gitops-engine/pkg/sync/common"
@@ -896,6 +897,10 @@ func (s *Server) validateAndNormalizeApp(ctx context.Context, app *appv1.Applica
 	plugins, err := s.plugins()
 	if err != nil {
 		return fmt.Errorf("error getting plugins: %w", err)
+	}
+
+	if err := argo.ValidatePath(app.Spec.Source.Path); err != nil {
+		return status.Errorf(codes.InvalidArgument, "application source path for %s is invalid: %s", app.Name, err.Error())
 	}
 
 	if err := argo.ValidateDestination(ctx, &app.Spec.Destination, s.db); err != nil {

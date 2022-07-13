@@ -924,3 +924,45 @@ func Test_GenerateSpecIsDifferentErrorMessageWithDiff(t *testing.T) {
 	assert.Equal(t, msg, "existing repo spec is different; use upsert flag to force update; difference in keys \"Name\"")
 
 }
+
+func TestValidatePath(t *testing.T) {
+	t.Run("Path '../' is out of bounds", func(t *testing.T) {
+		err := ValidatePath("../")
+		assert.ErrorContains(t, err, "application path is out of bounds")
+	})
+
+	t.Run("Path 'dir/../..' is out of bounds", func(t *testing.T) {
+		err := ValidatePath("dir/../..")
+		assert.ErrorContains(t, err, "application path is out of bounds")
+	})
+
+	t.Run("Path 'dir/./././../..' is out of bounds", func(t *testing.T) {
+		err := ValidatePath("dir/./././../..")
+		assert.ErrorContains(t, err, "application path is out of bounds")
+	})
+
+	t.Run("Path '/dir' is out of bounds", func(t *testing.T) {
+		err := ValidatePath("/dir")
+		assert.ErrorContains(t, err, "application path is absolute")
+	})
+
+	t.Run("Path '.' is valid", func(t *testing.T) {
+		err := ValidatePath(".")
+		assert.NoError(t, err)
+	})
+
+	t.Run("Path './dir' is valid", func(t *testing.T) {
+		err := ValidatePath("./dir")
+		assert.NoError(t, err)
+	})
+
+	t.Run("Path './dir/../dir2' is valid", func(t *testing.T) {
+		err := ValidatePath("./dir/../dir2")
+		assert.NoError(t, err)
+	})
+
+	t.Run("Path './dir/dir2/../dir2/../../.' is valid", func(t *testing.T) {
+		err := ValidatePath("./dir/dir2/../dir2/../../.")
+		assert.NoError(t, err)
+	})
+}

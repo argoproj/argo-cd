@@ -4,6 +4,7 @@ import (
 	"context"
 	"encoding/json"
 	"fmt"
+	"path/filepath"
 	"sort"
 	"strings"
 	"time"
@@ -133,6 +134,29 @@ func TestRepoWithKnownType(ctx context.Context, repoClient apiclient.RepoServerS
 	})
 
 	return err
+}
+
+// ValidatePath validates the path specified in application spec. It is checked to ensure that
+// it does not leave the bounds of the repo
+func ValidatePath(path string) error {
+	cleanPath := filepath.Clean(path)
+	if filepath.IsAbs(cleanPath) {
+		return fmt.Errorf("application path is absolute")
+	}
+
+	parts := filepath.SplitList(cleanPath)
+	level := 0
+	for _, part := range parts {
+		if part == ".." {
+			level -= 1
+		} else {
+			level++
+		}
+		if level < 0 {
+			return fmt.Errorf("application path is out of bounds")
+		}
+	}
+	return nil
 }
 
 // ValidateRepo validates the repository specified in application spec. Following is checked:
