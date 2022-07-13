@@ -8,6 +8,7 @@ import (
 	"testing"
 	"time"
 
+	"github.com/argoproj/argo-cd/v2/common"
 	"github.com/stretchr/testify/assert"
 	apiv1 "k8s.io/api/core/v1"
 	"k8s.io/client-go/kubernetes/fake"
@@ -78,7 +79,7 @@ p, trudy, applications/secrets, get, foo/obj, deny
 p, danny, applications, get, */obj, allow
 p, danny, applications, get, proj1/a*p1, allow
 `
-	_ = enf.SetUserPolicy(policy)
+	_ = enf.SetUserPolicy(common.ArgoCDRBACConfigMapName, policy)
 
 	// Verify the resource wildcard
 	assert.True(t, enf.Enforce("alice", "applications", "get", "foo/obj"))
