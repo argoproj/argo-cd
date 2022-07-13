@@ -35,7 +35,7 @@ spec:
                 name: argocd-cmd-params-cm
                 key: reposerver.log.format
                 optional: true
-          - name: ARGOCD_REPO_SERVER_LOGLEVEL
+          - name: ARGOCD_SERVER_LOG_LEVEL
             valueFrom:
               configMapKeyRef:
                 name: argocd-cmd-params-cm
