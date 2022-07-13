@@ -2,12 +2,13 @@ package grpc
 
 import (
 	"bytes"
+	"context"
 	"encoding/json"
 	"fmt"
 
-	"context"
 	"github.com/gogo/protobuf/jsonpb"
 	"github.com/gogo/protobuf/proto"
+	"github.com/golang-jwt/jwt/v4"
 	grpc_logging "github.com/grpc-ecosystem/go-grpc-middleware/logging"
 	ctx_logrus "github.com/grpc-ecosystem/go-grpc-middleware/tags/logrus"
 	"github.com/sirupsen/logrus"
@@ -16,7 +17,15 @@ import (
 
 func logRequest(entry *logrus.Entry, info string, pbMsg interface{}, ctx context.Context, logClaims bool) {
 	if logClaims {
-		if data, err := json.Marshal(ctx.Value("claims")); err == nil {
+		claims := ctx.Value("claims")
+		if !entry.Logger.IsLevelEnabled(logrus.DebugLevel) {
+			mapClaims, ok := claims.(jwt.MapClaims)
+			if ok {
+				delete(mapClaims, "groups")
+				claims = mapClaims
+			}
+		}
+		if data, err := json.Marshal(claims); err == nil {
 			entry = entry.WithField("grpc.request.claims", string(data))
 		}
 	}
