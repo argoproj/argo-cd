@@ -180,6 +180,24 @@ p, mike, *, get, foo/obj, deny
 	assert.True(t, enf.Enforce(&jwt.RegisteredClaims{}, "applications/resources", "delete", "foo/obj"))
 }
 
+func TestMultiplePolicies(t *testing.T) {
+	kubeclientset := fake.NewSimpleClientset(fakeConfigMap())
+	enf := NewEnforcer(kubeclientset, fakeNamespace, fakeConfigMapName, nil)
+	policy1 := "p, alice, *, get, foo/obj, allow"
+	policy2 := "p, mike, *, get, foo/obj, allow"
+
+	_ = enf.SetUserPolicy(common.ArgoCDRBACConfigMapName, policy1)
+	_ = enf.SetUserPolicy("extra", policy2)
+	enf.SetClaimsEnforcerFunc(func(claims jwt.Claims, rvals ...interface{}) bool {
+		return false
+	})
+
+	assert.True(t, enf.Enforce("alice", "applications", "get", "foo/obj"))
+	assert.False(t, enf.Enforce("alice", "applications/resources", "delete", "foo/obj"))
+	assert.True(t, enf.Enforce("mike", "applications", "get", "foo/obj"))
+	assert.False(t, enf.Enforce("mike", "applications/resources", "delete", "foo/obj"))
+}
+
 func TestUpdatePolicy(t *testing.T) {
 	kubeclientset := fake.NewSimpleClientset(fakeConfigMap())
 	enf := NewEnforcer(kubeclientset, fakeNamespace, fakeConfigMapName, nil)
