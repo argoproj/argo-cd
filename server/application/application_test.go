@@ -382,6 +382,18 @@ func TestCreateAppWithDestName(t *testing.T) {
 	assert.Equal(t, app.Spec.Destination.Server, "https://cluster-api.com")
 }
 
+func TestCreateAppThatAlreadyExists(t *testing.T) {
+	testApp := newTestApp()
+	testApp.Spec.Project = "default"
+	appServer := newTestAppServer(testApp)
+	createReq := application.ApplicationCreateRequest{
+		Application: testApp,
+	}
+	_, err := appServer.Create(context.Background(), &createReq)
+	require.Error(t, err)
+	assert.Equal(t, "rpc error: code = AlreadyExists desc = application 'test-app' already exists and no changes needed", err.Error())
+}
+
 func TestUpdateApp(t *testing.T) {
 	testApp := newTestApp()
 	appServer := newTestAppServer(testApp)

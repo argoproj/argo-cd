@@ -1,6 +1,7 @@
 package application
 
 import (
+	"context"
 	"encoding/json"
 	"errors"
 	"fmt"
@@ -11,7 +12,6 @@ import (
 	"strings"
 	"time"
 
-	"context"
 	kubecache "github.com/argoproj/gitops-engine/pkg/cache"
 	"github.com/argoproj/gitops-engine/pkg/diff"
 	"github.com/argoproj/gitops-engine/pkg/sync/common"
@@ -211,7 +211,7 @@ func (s *Server) Create(ctx context.Context, q *application.ApplicationCreateReq
 		reflect.DeepEqual(existing.Finalizers, a.Finalizers)
 
 	if equalSpecs {
-		return existing, nil
+		return existing, status.Errorf(codes.AlreadyExists, "application '%s' already exists and no changes needed", q.Application.Name)
 	}
 	if q.Upsert == nil || !*q.Upsert {
 		return nil, status.Errorf(codes.InvalidArgument, "existing application spec is different, use upsert flag to force update")

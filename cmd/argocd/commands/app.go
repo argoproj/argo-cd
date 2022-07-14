@@ -48,6 +48,7 @@ import (
 	"github.com/argoproj/argo-cd/v2/util/cli"
 	"github.com/argoproj/argo-cd/v2/util/errors"
 	"github.com/argoproj/argo-cd/v2/util/git"
+	"github.com/argoproj/argo-cd/v2/util/grpc"
 	argoio "github.com/argoproj/argo-cd/v2/util/io"
 	"github.com/argoproj/argo-cd/v2/util/templates"
 	"github.com/argoproj/argo-cd/v2/util/text/label"
@@ -162,11 +163,15 @@ func NewApplicationCreateCommand(clientOpts *argocdclient.ClientOptions) *cobra.
 					Upsert:      &upsert,
 					Validate:    &appOpts.Validate,
 				}
-				created, err := appIf.Create(ctx, &appCreateRequest)
-				errors.CheckError(err)
-				fmt.Printf("application '%s' created\n", created.ObjectMeta.Name)
-			}
 
+				created, err := appIf.Create(ctx, &appCreateRequest)
+				if grpc.UnwrapGRPCStatus(err).Code() == codes.AlreadyExists {
+					fmt.Printf("application '%s' unchanged\n", app.Name)
+				} else {
+					errors.CheckError(err)
+					fmt.Printf("application '%s' created\n", created.ObjectMeta.Name)
+				}
+			}
 		},
 	}
 	command.Flags().StringVar(&appName, "name", "", "A name for the app, ignored if a file is set (DEPRECATED)")
