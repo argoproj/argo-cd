@@ -145,5 +145,15 @@ the allowed `parentProject`.
 
 ## Alternatives
 
-* AppProjectSet controller to enforce restrictions by hard-coding protected fields and templating user-configurable 
-  fields.
+### AppProjectSet controller
+
+Would enforce restrictions by hard-coding protected fields and templating user-configurable fields.
+
+### Global project + AppProject deny list filter
+
+By [adding jq filters to AppProject allow/deny lists](https://github.com/argoproj/argo-cd/issues/7636), we could write
+rules to require an App-of-Projects contain only AppProjects which use a 
+[global project](https://argo-cd.readthedocs.io/en/stable/user-guide/projects/#configuring-global-projects-v18).
+
+jq filters would be nice because they're general-purpose. But this treads on OPA territory and doesn't have a nice,
+native-feeling user experience.
