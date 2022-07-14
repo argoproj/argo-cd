@@ -95,7 +95,10 @@ func (t *terminalSession) Write(p []byte) (int, error) {
 		log.Errorf("write parse message err: %v", err)
 		return 0, err
 	}
-	if err := t.wsConn.WriteMessage(websocket.TextMessage, msg); err != nil {
+	t.readLock.Lock()
+	err = t.wsConn.WriteMessage(websocket.TextMessage, msg)
+	t.readLock.Unlock()
+	if err != nil {
 		log.Errorf("write message err: %v", err)
 		return 0, err
 	}
