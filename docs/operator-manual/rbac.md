@@ -214,9 +214,9 @@ Yes
 ```
 
 ### Adding additional RBAC configmaps
-Since v2.5, you now have the ability to create additional ConfigMaps to append to the policy specified in `argocd-rbac-cm`.
+Since v2.5, you now have the ability to create additional ConfigMaps to augment the policy specified in `argocd-rbac-cm`.
 
-Simply create a ConfigMap with the label `rbac.argoproj.io=additional` and specify the `policy.csv` key.
+Simply create a ConfigMap with the label `argocd.argoproj.io/cm-type=additional-rbac` and specify the `policy.csv` key.
 
 ```yaml
 apiVersion: v1
@@ -225,7 +225,7 @@ metadata:
   name: argocd-rbac-cm-extra
   namespace: argocd
   labels:
-    rbac.argoproj.io: additional
+    argocd.argoproj.io/cm-type: additional-rbac
   policy.csv: |
     p, role:org-admin, applications, *, */*, allow
     p, role:org-admin, clusters, get, *, allow
