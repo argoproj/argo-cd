@@ -83,7 +83,7 @@ func NewApplicationResourceActionsListCommand(clientOpts *argocdclient.ClientOpt
 				ResourceName: pointer.String(obj.GetName()),
 				Group:        pointer.String(gvk.Group),
 				Kind:         pointer.String(gvk.Kind),
-				Version:      pointer.String(gvk.GroupVersion().Version),
+				Version:      pointer.String(gvk.Version),
 			})
 			errors.CheckError(err)
 			for _, action := range availActionsForResource.Actions {
@@ -192,5 +192,28 @@ func getActionableResourcesForApplication(appIf applicationpkg.ApplicationServic
 		ApplicationName: appName,
 		AppNamespace:    appNs,
 	})
-	return resources.Items, err
+	if err != nil {
+		return nil, err
+	}
+	app, err := appIf.Get(ctx, &applicationpkg.ApplicationQuery{
+		Name:         appName,
+		AppNamespace: appNs,
+	})
+	if err != nil {
+		return nil, err
+	}
+	app.Kind = "Application"
+	app.APIVersion = "argoproj.io/v1alpha1"
+	appManifest, err := json.Marshal(app)
+	if err != nil {
+		return nil, err
+	}
+	appGVK := app.GroupVersionKind()
+	return append(resources.Items, &v1alpha1.ResourceDiff{
+		Group:     appGVK.Group,
+		Kind:      appGVK.Kind,
+		Namespace: app.Namespace,
+		Name:      *appName,
+		LiveState: string(appManifest),
+	}), nil
 }
