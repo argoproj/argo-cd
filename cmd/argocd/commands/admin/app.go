@@ -396,12 +396,16 @@ func reconcileApplications(
 		}
 		printLine(app.Name)
 
-		proj, err := projLister.AppProjects(namespace).Get(app.Spec.Project)
+		getProject := func(name string) (*v1alpha1.AppProject, error) {
+			return projLister.AppProjects(namespace).Get(name)
+		}
+
+		proj, err := getProject(app.Spec.Project)
 		if err != nil {
 			return nil, err
 		}
 
-		res := appStateManager.CompareAppState(&app, proj, app.Spec.Source.TargetRevision, app.Spec.Source, false, false, nil)
+		res := appStateManager.CompareAppState(&app, proj, app.Spec.Source.TargetRevision, app.Spec.Source, false, false, nil, getProject)
 		items = append(items, appReconcileResult{
 			Name:       app.Name,
 			Conditions: app.Status.Conditions,

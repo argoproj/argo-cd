@@ -284,8 +284,8 @@ func (projCache *appProjCache) GetAppProject(ctx context.Context) (*appv1.AppPro
 	return projCache.appProj, nil
 }
 
-func (ctrl *ApplicationController) getAppProj(app *appv1.Application) (*appv1.AppProject, error) {
-	projCache, _ := ctrl.projByNameCache.LoadOrStore(app.Spec.GetProject(), ctrl.newAppProjCache(app.Spec.GetProject()))
+func (ctrl *ApplicationController) getAppProj(name string) (*appv1.AppProject, error) {
+	projCache, _ := ctrl.projByNameCache.LoadOrStore(name, ctrl.newAppProjCache(name))
 	return projCache.(*appProjCache).GetAppProject(context.TODO())
 }
 
@@ -386,7 +386,11 @@ func isKnownOrphanedResourceExclusion(key kube.ResourceKey, proj *appv1.AppProje
 func (ctrl *ApplicationController) getResourceTree(a *appv1.Application, managedResources []*appv1.ResourceDiff) (*appv1.ApplicationTree, error) {
 	nodes := make([]appv1.ResourceNode, 0)
 
-	proj, err := ctrl.getAppProj(a)
+	getProject := func(name string) (*appv1.AppProject, error) {
+		return ctrl.getAppProj(name)
+	}
+
+	proj, err := getProject(a.Spec.GetProject())
 	if err != nil {
 		return nil, err
 	}
@@ -425,12 +429,16 @@ func (ctrl *ApplicationController) getResourceTree(a *appv1.Application, managed
 				},
 			})
 		} else {
-			err := ctrl.stateCache.IterateHierarchy(a.Spec.Destination.Server, kube.GetResourceKey(live), func(child appv1.ResourceNode, appName string) bool {
-				if !proj.IsResourcePermitted(schema.GroupKind{Group: child.ResourceRef.Group, Kind: child.ResourceRef.Kind}, child.Namespace, a.Spec.Destination) {
-					return false
+			err := ctrl.stateCache.IterateHierarchy(a.Spec.Destination.Server, kube.GetResourceKey(live), func(child appv1.ResourceNode, appName string) (bool, error) {
+				isPermitted, err := proj.IsResourcePermitted(schema.GroupKind{Group: child.ResourceRef.Group, Kind: child.ResourceRef.Kind}, child.Namespace, a.Spec.Destination, getProject)
+				if err != nil {
+					return false, fmt.Errorf("error encountered while checking whether resource is permitted by project %q: %w", proj.Name, err)
+				}
+				if !isPermitted {
+					return false, nil
 				}
 				nodes = append(nodes, child)
-				return true
+				return true, nil
 			})
 			if err != nil {
 				return nil, err
@@ -439,19 +447,27 @@ func (ctrl *ApplicationController) getResourceTree(a *appv1.Application, managed
 	}
 	orphanedNodes := make([]appv1.ResourceNode, 0)
 	for k := range orphanedNodesMap {
-		if k.Namespace != "" && proj.IsGroupKindPermitted(k.GroupKind(), true) && !isKnownOrphanedResourceExclusion(k, proj) {
-			err := ctrl.stateCache.IterateHierarchy(a.Spec.Destination.Server, k, func(child appv1.ResourceNode, appName string) bool {
+		isGroupKindPermitted, err := proj.IsGroupKindPermitted(k.GroupKind(), true, getProject)
+		if err != nil {
+			return nil, fmt.Errorf("error checking whether orphaned node's GroupKind is permitted: %w", err)
+		}
+		if k.Namespace != "" && isGroupKindPermitted && !isKnownOrphanedResourceExclusion(k, proj) {
+			err := ctrl.stateCache.IterateHierarchy(a.Spec.Destination.Server, k, func(child appv1.ResourceNode, appName string) (bool, error) {
 				belongToAnotherApp := false
 				if appName != "" {
 					if _, exists, err := ctrl.appInformer.GetIndexer().GetByKey(ctrl.namespace + "/" + appName); exists && err == nil {
 						belongToAnotherApp = true
 					}
 				}
-				if belongToAnotherApp || !proj.IsResourcePermitted(schema.GroupKind{Group: child.ResourceRef.Group, Kind: child.ResourceRef.Kind}, child.Namespace, a.Spec.Destination) {
-					return false
+				isPermitted, err := proj.IsResourcePermitted(schema.GroupKind{Group: child.ResourceRef.Group, Kind: child.ResourceRef.Kind}, child.Namespace, a.Spec.Destination, getProject)
+				if err != nil {
+					return false, fmt.Errorf("error checking whether orphaned node resource is permitted: %w", err)
+				}
+				if belongToAnotherApp || !isPermitted {
+					return false, nil
 				}
 				orphanedNodes = append(orphanedNodes, child)
-				return true
+				return true, nil
 			})
 			if err != nil {
 				return nil, err
@@ -902,7 +918,13 @@ func (ctrl *ApplicationController) getPermittedAppLiveObjects(app *appv1.Applica
 	}
 	// Don't delete live resources which are not permitted in the app project
 	for k, v := range objsMap {
-		if !proj.IsLiveResourcePermitted(v, app.Spec.Destination.Server, app.Spec.Destination.Name) {
+		isPermitted, err := proj.IsLiveResourcePermitted(v, app.Spec.Destination.Server, app.Spec.Destination.Name, func(name string) (*appv1.AppProject, error) {
+			return ctrl.getAppProj(name)
+		})
+		if err != nil {
+			return nil, fmt.Errorf("failed to determine whether live resource is permitted: %w", err)
+		}
+		if !isPermitted {
 			delete(objsMap, k)
 		}
 	}
@@ -920,7 +942,7 @@ func (ctrl *ApplicationController) finalizeApplicationDeletion(app *appv1.Applic
 		}
 		return nil, nil
 	}
-	proj, err := ctrl.getAppProj(app)
+	proj, err := ctrl.getAppProj(app.Spec.GetProject())
 	if err != nil {
 		return nil, err
 	}
@@ -1329,7 +1351,9 @@ func (ctrl *ApplicationController) processAppRefreshQueueItem() (processNext boo
 	now := metav1.Now()
 	compareResult := ctrl.appStateManager.CompareAppState(app, project, revision, app.Spec.Source,
 		refreshType == appv1.RefreshTypeHard,
-		comparisonLevel == CompareWithLatestForceResolve, localManifests)
+		comparisonLevel == CompareWithLatestForceResolve, localManifests, func(name string) (*appv1.AppProject, error) {
+			return ctrl.getAppProj(name)
+		})
 	for k, v := range compareResult.timings {
 		logCtx = logCtx.WithField(k, v.Milliseconds())
 	}
@@ -1427,7 +1451,7 @@ func (ctrl *ApplicationController) needRefreshAppStatus(app *appv1.Application, 
 
 func (ctrl *ApplicationController) refreshAppConditions(app *appv1.Application) (*appv1.AppProject, bool) {
 	errorConditions := make([]appv1.ApplicationCondition, 0)
-	proj, err := ctrl.getAppProj(app)
+	proj, err := ctrl.getAppProj(app.Spec.GetProject())
 	if err != nil {
 		if apierr.IsNotFound(err) {
 			errorConditions = append(errorConditions, appv1.ApplicationCondition{
@@ -1441,7 +1465,7 @@ func (ctrl *ApplicationController) refreshAppConditions(app *appv1.Application) 
 			})
 		}
 	} else {
-		specConditions, err := argo.ValidatePermissions(context.Background(), &app.Spec, proj, ctrl.db)
+		specConditions, err := argo.ValidatePermissions(context.Background(), &app.Spec, proj, ctrl.db, ctrl.appProjectGetter())
 		if err != nil {
 			errorConditions = append(errorConditions, appv1.ApplicationCondition{
 				Type:    appv1.ApplicationConditionUnknownError,
@@ -1773,6 +1797,12 @@ func (ctrl *ApplicationController) newApplicationInformerAndLister() (cache.Shar
 func (ctrl *ApplicationController) RegisterClusterSecretUpdater(ctx context.Context) {
 	updater := NewClusterInfoUpdater(ctrl.stateCache, ctrl.db, ctrl.appLister.Applications(ctrl.namespace), ctrl.cache, ctrl.clusterFilter)
 	go updater.Run(ctx)
+}
+
+func (ctrl *ApplicationController) appProjectGetter() appv1.AppProjectGetter {
+	return func(name string) (*appv1.AppProject, error) {
+		return ctrl.getAppProj(name)
+	}
 }
 
 func isOperationInProgress(app *appv1.Application) bool {

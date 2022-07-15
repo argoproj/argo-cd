@@ -8871,6 +8871,14 @@ spec:
           spec:
             description: AppProjectSpec is the specification of an AppProject
             properties:
+              allowedParentProjects:
+                description: AllowedParentProjects is a list of patterns determining
+                  which parentProjects are allowed to be set on Projects managed by
+                  Applications under this Project. If the list is empty, any value
+                  is allowed for parentProject.
+                items:
+                  type: string
+                type: array
               clusterResourceBlacklist:
                 description: ClusterResourceBlacklist contains list of blacklisted
                   cluster level resources
@@ -8988,6 +8996,10 @@ spec:
                       for apps which have orphaned resources
                     type: boolean
                 type: object
+              parentProject:
+                description: ParentProject, if set, causes the parent's restrictions
+                  to be applied to this Project
+                type: string
               roles:
                 description: Roles are user defined RBAC roles associated with this
                   project
@@ -11480,6 +11492,7 @@ spec:
 apiVersion: apps/v1
 kind: StatefulSet
 metadata:
+  annotations: {}
   labels:
     app.kubernetes.io/component: redis
     app.kubernetes.io/name: argocd-redis-ha

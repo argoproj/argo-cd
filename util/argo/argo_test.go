@@ -77,7 +77,7 @@ func TestGetAppProjectWithNoProjDefined(t *testing.T) {
 	kubeClient := fake.NewSimpleClientset(&cm)
 	settingsMgr := settings.NewSettingsManager(context.Background(), kubeClient, test.FakeArgoCDNamespace)
 	argoDB := db.NewDB("default", settingsMgr, kubeClient)
-	proj, err := GetAppProject(&testApp.Spec, applisters.NewAppProjectLister(informer.GetIndexer()), namespace, settingsMgr, argoDB, ctx)
+	proj, err := GetAppProject(testApp.Spec.GetProject(), applisters.NewAppProjectLister(informer.GetIndexer()), namespace, settingsMgr, argoDB, ctx)
 	assert.Nil(t, err)
 	assert.Equal(t, proj.Name, projName)
 }
@@ -134,6 +134,10 @@ func TestNilOutZerValueAppSources(t *testing.T) {
 	}
 }
 
+func nilProjectGetter(_ string) (*argoappv1.AppProject, error) {
+	return nil, nil
+}
+
 func TestValidatePermissionsEmptyDestination(t *testing.T) {
 	conditions, err := ValidatePermissions(context.Background(), &argoappv1.ApplicationSpec{
 		Source: argoappv1.ApplicationSource{RepoURL: "https://github.com/argoproj/argo-cd", Path: "."},
@@ -142,7 +146,7 @@ func TestValidatePermissionsEmptyDestination(t *testing.T) {
 			SourceRepos:  []string{"*"},
 			Destinations: []argoappv1.ApplicationDestination{{Server: "*", Namespace: "*"}},
 		},
-	}, nil)
+	}, nil, nilProjectGetter)
 	assert.NoError(t, err)
 	assert.ElementsMatch(t, conditions, []argoappv1.ApplicationCondition{{Type: argoappv1.ApplicationConditionInvalidSpecError, Message: "Destination server missing from app spec"}})
 }
@@ -158,7 +162,7 @@ func TestValidateChartWithoutRevision(t *testing.T) {
 			SourceRepos:  []string{"*"},
 			Destinations: []argoappv1.ApplicationDestination{{Server: "*", Namespace: "*"}},
 		},
-	}, nil)
+	}, nil, nilProjectGetter)
 	assert.NoError(t, err)
 	assert.Equal(t, 1, len(conditions))
 	assert.Equal(t, argoappv1.ApplicationConditionInvalidSpecError, conditions[0].Type)
@@ -397,7 +401,7 @@ func TestValidatePermissions(t *testing.T) {
 		}
 		proj := argoappv1.AppProject{}
 		db := &dbmocks.ArgoDB{}
-		conditions, err := ValidatePermissions(context.Background(), &spec, &proj, db)
+		conditions, err := ValidatePermissions(context.Background(), &spec, &proj, db, nilProjectGetter)
 		assert.NoError(t, err)
 		assert.Len(t, conditions, 1)
 		assert.Equal(t, argoappv1.ApplicationConditionInvalidSpecError, conditions[0].Type)
@@ -414,7 +418,7 @@ func TestValidatePermissions(t *testing.T) {
 		}
 		proj := argoappv1.AppProject{}
 		db := &dbmocks.ArgoDB{}
-		conditions, err := ValidatePermissions(context.Background(), &spec, &proj, db)
+		conditions, err := ValidatePermissions(context.Background(), &spec, &proj, db, nilProjectGetter)
 		assert.NoError(t, err)
 		assert.Len(t, conditions, 1)
 		assert.Equal(t, argoappv1.ApplicationConditionInvalidSpecError, conditions[0].Type)
@@ -431,7 +435,7 @@ func TestValidatePermissions(t *testing.T) {
 		}
 		proj := argoappv1.AppProject{}
 		db := &dbmocks.ArgoDB{}
-		conditions, err := ValidatePermissions(context.Background(), &spec, &proj, db)
+		conditions, err := ValidatePermissions(context.Background(), &spec, &proj, db, nilProjectGetter)
 		assert.NoError(t, err)
 		assert.Len(t, conditions, 1)
 		assert.Equal(t, argoappv1.ApplicationConditionInvalidSpecError, conditions[0].Type)
@@ -465,7 +469,7 @@ func TestValidatePermissions(t *testing.T) {
 		cluster := &argoappv1.Cluster{Server: "https://127.0.0.1:6443"}
 		db := &dbmocks.ArgoDB{}
 		db.On("GetCluster", context.Background(), spec.Destination.Server).Return(cluster, nil)
-		conditions, err := ValidatePermissions(context.Background(), &spec, &proj, db)
+		conditions, err := ValidatePermissions(context.Background(), &spec, &proj, db, nilProjectGetter)
 		assert.NoError(t, err)
 		assert.Len(t, conditions, 1)
 		assert.Contains(t, conditions[0].Message, "application repo http://some/where is not permitted")
@@ -498,7 +502,7 @@ func TestValidatePermissions(t *testing.T) {
 		cluster := &argoappv1.Cluster{Server: "https://127.0.0.1:6443"}
 		db := &dbmocks.ArgoDB{}
 		db.On("GetCluster", context.Background(), spec.Destination.Server).Return(cluster, nil)
-		conditions, err := ValidatePermissions(context.Background(), &spec, &proj, db)
+		conditions, err := ValidatePermissions(context.Background(), &spec, &proj, db, nilProjectGetter)
 		assert.NoError(t, err)
 		assert.Len(t, conditions, 1)
 		assert.Contains(t, conditions[0].Message, "application destination")
@@ -530,7 +534,7 @@ func TestValidatePermissions(t *testing.T) {
 		}
 		db := &dbmocks.ArgoDB{}
 		db.On("GetCluster", context.Background(), spec.Destination.Server).Return(nil, status.Errorf(codes.NotFound, "Cluster does not exist"))
-		conditions, err := ValidatePermissions(context.Background(), &spec, &proj, db)
+		conditions, err := ValidatePermissions(context.Background(), &spec, &proj, db, nilProjectGetter)
 		assert.NoError(t, err)
 		assert.Len(t, conditions, 1)
 		assert.Contains(t, conditions[0].Message, "has not been configured")
@@ -562,7 +566,7 @@ func TestValidatePermissions(t *testing.T) {
 		}
 		db := &dbmocks.ArgoDB{}
 		db.On("GetClusterServersByName", context.Background(), "does-not-exist").Return(nil, nil)
-		conditions, err := ValidatePermissions(context.Background(), &spec, &proj, db)
+		conditions, err := ValidatePermissions(context.Background(), &spec, &proj, db, nilProjectGetter)
 		assert.NoError(t, err)
 		assert.Len(t, conditions, 1)
 		assert.Contains(t, conditions[0].Message, "unable to find destination server: there are no clusters with this name: does-not-exist")
@@ -594,7 +598,7 @@ func TestValidatePermissions(t *testing.T) {
 		}
 		db := &dbmocks.ArgoDB{}
 		db.On("GetCluster", context.Background(), spec.Destination.Server).Return(nil, fmt.Errorf("Unknown error occurred"))
-		_, err := ValidatePermissions(context.Background(), &spec, &proj, db)
+		_, err := ValidatePermissions(context.Background(), &spec, &proj, db, nilProjectGetter)
 		assert.Error(t, err)
 	})
 
@@ -629,7 +633,7 @@ func TestValidatePermissions(t *testing.T) {
 		}
 		db.On("GetClusterServersByName", context.Background(), "does-exist").Return([]string{"https://127.0.0.1:6443"}, nil)
 		db.On("GetCluster", context.Background(), "https://127.0.0.1:6443").Return(&cluster, nil)
-		conditions, err := ValidatePermissions(context.Background(), &spec, &proj, db)
+		conditions, err := ValidatePermissions(context.Background(), &spec, &proj, db, nilProjectGetter)
 		assert.NoError(t, err)
 		assert.Len(t, conditions, 0)
 	})

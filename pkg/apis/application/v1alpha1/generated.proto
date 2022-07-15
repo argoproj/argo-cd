@@ -11,7 +11,7 @@ import "k8s.io/apimachinery/pkg/runtime/generated.proto";
 import "k8s.io/apimachinery/pkg/runtime/schema/generated.proto";
 
 // Package-wide variables from generator "generated".
-option go_package = "github.com/argoproj/argo-cd/v2/pkg/apis/application/v1alpha1";
+option go_package = "v1alpha1";
 
 // AWSAuthConfig is an AWS IAM authentication configuration
 message AWSAuthConfig {
@@ -82,6 +82,13 @@ message AppProjectSpec {
 
   // ClusterResourceBlacklist contains list of blacklisted cluster level resources
   repeated k8s.io.apimachinery.pkg.apis.meta.v1.GroupKind clusterResourceBlacklist = 11;
+
+  // ParentProject, if set, causes the parent's restrictions to be applied to this Project
+  optional string parentProject = 12;
+
+  // AllowedParentProjects is a list of patterns determining which parentProjects are allowed to be set on Projects
+  // managed by Applications under this Project. If the list is empty, any value is allowed for parentProject.
+  repeated string allowedParentProjects = 13;
 }
 
 // AppProjectStatus contains status information for AppProject CRs

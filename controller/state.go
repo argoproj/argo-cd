@@ -60,7 +60,7 @@ type managedResource struct {
 
 // AppStateManager defines methods which allow to compare application spec and actual application state.
 type AppStateManager interface {
-	CompareAppState(app *v1alpha1.Application, project *appv1.AppProject, revision string, source v1alpha1.ApplicationSource, noCache bool, noRevisionCache bool, localObjects []string) *comparisonResult
+	CompareAppState(app *v1alpha1.Application, project *appv1.AppProject, revision string, source v1alpha1.ApplicationSource, noCache bool, noRevisionCache bool, localObjects []string, getProject v1alpha1.AppProjectGetter) *comparisonResult
 	SyncAppState(app *v1alpha1.Application, state *v1alpha1.OperationState)
 }
 
@@ -322,7 +322,7 @@ func verifyGnuPGSignature(revision string, project *appv1.AppProject, manifestIn
 // CompareAppState compares application git state to the live app state, using the specified
 // revision and supplied source. If revision or overrides are empty, then compares against
 // revision and overrides in the app spec.
-func (m *appStateManager) CompareAppState(app *v1alpha1.Application, project *appv1.AppProject, revision string, source v1alpha1.ApplicationSource, noCache bool, noRevisionCache bool, localManifests []string) *comparisonResult {
+func (m *appStateManager) CompareAppState(app *v1alpha1.Application, project *appv1.AppProject, revision string, source v1alpha1.ApplicationSource, noCache bool, noRevisionCache bool, localManifests []string, getProject appv1.AppProjectGetter) *comparisonResult {
 	ts := stats.NewTimingStats()
 	appLabelKey, resourceOverrides, resFilter, err := m.getComparisonSettings()
 
@@ -417,7 +417,11 @@ func (m *appStateManager) CompareAppState(app *v1alpha1.Application, project *ap
 
 	// filter out all resources which are not permitted in the application project
 	for k, v := range liveObjByKey {
-		if !project.IsLiveResourcePermitted(v, app.Spec.Destination.Server, app.Spec.Destination.Name) {
+		isPermitted, err := project.IsLiveResourcePermitted(v, app.Spec.Destination.Server, app.Spec.Destination.Name, getProject)
+		if err != nil {
+			logCtx.Errorf("Failed to check whether resource is permitted: %s", err)
+		}
+		if err != nil || !isPermitted {
 			delete(liveObjByKey, k)
 		}
 	}
@@ -533,7 +537,16 @@ func (m *appStateManager) CompareAppState(app *v1alpha1.Application, project *ap
 		}
 		// set unknown status to all resource that are not permitted in the app project
 		isNamespaced, err := m.liveStateCache.IsNamespaced(app.Spec.Destination.Server, gvk.GroupKind())
-		if !project.IsGroupKindPermitted(gvk.GroupKind(), isNamespaced && err == nil) {
+		if err == nil {
+			isPermitted, err := project.IsGroupKindPermitted(gvk.GroupKind(), isNamespaced && err == nil, getProject)
+			if err != nil {
+				logCtx.Errorf("error determining whether GroupKind is permitted in project %q: %s", project.Name, err)
+			}
+			if !isPermitted || err != nil {
+				resState.Status = v1alpha1.SyncStatusCodeUnknown
+			}
+		} else {
+			logCtx.Errorf("error determining whether GroupKind is namespaced: %s", err)
 			resState.Status = v1alpha1.SyncStatusCodeUnknown
 		}
 

@@ -363,7 +363,11 @@ func (r *ApplicationSetReconciler) validateGeneratedApplications(ctx context.Con
 			continue
 		}
 
-		proj, err := r.ArgoAppClientset.ArgoprojV1alpha1().AppProjects(namespace).Get(ctx, app.Spec.GetProject(), metav1.GetOptions{})
+		getProject := func(name string) (*argov1alpha1.AppProject, error) {
+			return r.ArgoAppClientset.ArgoprojV1alpha1().AppProjects(namespace).Get(ctx, name, metav1.GetOptions{})
+		}
+
+		proj, err := getProject(app.Spec.GetProject())
 		if err != nil {
 			if apierr.IsNotFound(err) {
 				errorsByIndex[i] = fmt.Errorf("application references project %s which does not exist", app.Spec.Project)
@@ -377,7 +381,7 @@ func (r *ApplicationSetReconciler) validateGeneratedApplications(ctx context.Con
 			continue
 		}
 
-		conditions, err := argoutil.ValidatePermissions(ctx, &app.Spec, proj, r.ArgoDB)
+		conditions, err := argoutil.ValidatePermissions(ctx, &app.Spec, proj, r.ArgoDB, getProject)
 		if err != nil {
 			return nil, err
 		}

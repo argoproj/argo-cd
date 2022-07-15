@@ -377,6 +377,28 @@ func schema_pkg_apis_application_v1alpha1_AppProjectSpec(ref common.ReferenceCal
 							},
 						},
 					},
+					"parentProject": {
+						SchemaProps: spec.SchemaProps{
+							Description: "ParentProject, if set, causes the parent's restrictions to be applied to this Project",
+							Type:        []string{"string"},
+							Format:      "",
+						},
+					},
+					"allowedParentProjects": {
+						SchemaProps: spec.SchemaProps{
+							Description: "AllowedParentProjects is a list of patterns determining which parentProjects are allowed to be set on Projects managed by Applications under this Project. If the list is empty, any value is allowed for parentProject.",
+							Type:        []string{"array"},
+							Items: &spec.SchemaOrArray{
+								Schema: &spec.Schema{
+									SchemaProps: spec.SchemaProps{
+										Default: "",
+										Type:    []string{"string"},
+										Format:  "",
+									},
+								},
+							},
+						},
+					},
 				},
 			},
 		},

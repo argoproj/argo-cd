@@ -1669,6 +1669,11 @@ type AppProjectSpec struct {
 	SignatureKeys []SignatureKey `json:"signatureKeys,omitempty" protobuf:"bytes,10,opt,name=signatureKeys"`
 	// ClusterResourceBlacklist contains list of blacklisted cluster level resources
 	ClusterResourceBlacklist []metav1.GroupKind `json:"clusterResourceBlacklist,omitempty" protobuf:"bytes,11,opt,name=clusterResourceBlacklist"`
+	// ParentProject, if set, causes the parent's restrictions to be applied to this Project
+	ParentProject string `json:"parentProject,omitempty" protobuf:"bytes,12,opt,name=parentProject"`
+	// AllowedParentProjects is a list of patterns determining which parentProjects are allowed to be set on Projects
+	// managed by Applications under this Project. If the list is empty, any value is allowed for parentProject.
+	AllowedParentProjects []string `json:"allowedParentProjects,omitempty" protobuf:"bytes,13,opt,name=allowedParentProjects"`
 }
 
 // SyncWindows is a collection of sync windows in this project

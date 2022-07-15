@@ -300,7 +300,11 @@ func (s *Server) Update(ctx context.Context, q *project.ProjectUpdateRequest) (*
 	s.projectLock.Lock(q.Project.Name)
 	defer s.projectLock.Unlock(q.Project.Name)
 
-	oldProj, err := s.appclientset.ArgoprojV1alpha1().AppProjects(s.ns).Get(ctx, q.Project.Name, metav1.GetOptions{})
+	getProject := func(name string) (*v1alpha1.AppProject, error) {
+		return s.appclientset.ArgoprojV1alpha1().AppProjects(s.ns).Get(ctx, name, metav1.GetOptions{})
+	}
+
+	oldProj, err := getProject(q.Project.Name)
 	if err != nil {
 		return nil, err
 	}
@@ -341,7 +345,11 @@ func (s *Server) Update(ctx context.Context, q *project.ProjectUpdateRequest) (*
 		if oldProj.IsSourcePermitted(a.Spec.Source) {
 			srcValidatedApps = append(srcValidatedApps, a)
 		}
-		if oldProj.IsDestinationPermitted(a.Spec.Destination) {
+		isPermitted, err := oldProj.IsDestinationPermitted(a.Spec.Destination, getProject)
+		if err != nil {
+			return nil, fmt.Errorf("failed to check whether destination is permitted for project %q: %w", a.Spec.Project, err)
+		}
+		if isPermitted {
 			dstValidatedApps = append(dstValidatedApps, a)
 		}
 	}
@@ -355,7 +363,11 @@ func (s *Server) Update(ctx context.Context, q *project.ProjectUpdateRequest) (*
 		}
 	}
 	for _, a := range dstValidatedApps {
-		if !q.Project.IsDestinationPermitted(a.Spec.Destination) {
+		isPermitted, err := q.Project.IsDestinationPermitted(a.Spec.Destination, getProject)
+		if err != nil {
+			return nil, fmt.Errorf("failed to check whether destination is permitted for project %q: %w", a.Spec.Project, err)
+		}
+		if !isPermitted {
 			invalidDstCount++
 		}
 	}

@@ -1,10 +1,10 @@
 package v1alpha1
 
 import (
-	fmt "fmt"
+	"fmt"
 	"sort"
 	"strconv"
-	strings "strings"
+	"strings"
 
 	"github.com/argoproj/argo-cd/v2/util/git"
 	"github.com/argoproj/argo-cd/v2/util/glob"
@@ -292,8 +292,62 @@ func (proj *AppProject) ProjectPoliciesString() string {
 	return strings.Join(policies, "\n")
 }
 
+type AppProjectGetter func(name string) (*AppProject, error)
+
+func checkParents(proj *AppProject, getProject AppProjectGetter, check func(*AppProject) (bool, error)) (permitted bool, err error) {
+	if proj.Spec.ParentProject != "" {
+		visitedParentProjects := map[string]bool{}
+
+		var current *AppProject
+		var previous = ""
+		for {
+			if current != nil {
+				if current.Spec.ParentProject == "" {
+					// We have reached the end of the chain.
+					return true, nil
+				}
+
+				// Store for error messages.
+				previous = current.Name
+			}
+			current, err = getProject(current.Spec.ParentProject)
+			if err != nil {
+				return false, fmt.Errorf("failed to get project %q, parent of %q: %w", current.Spec.ParentProject, previous, err)
+			}
+
+			permitted, err = check(current)
+			if err != nil {
+				return false, fmt.Errorf("failed to check if GroupKind is permitted by parent project %q: %w", current.Name, err)
+			}
+
+			if !permitted {
+				return false, nil
+			}
+
+			if visitedParentProjects[current.Spec.ParentProject] {
+				// Loop detected, no denials encountered.
+				break
+			}
+
+			visitedParentProjects[current.Spec.ParentProject] = true
+		}
+	}
+
+	return true, nil
+}
+
 // IsGroupKindPermitted validates if the given resource group/kind is permitted to be deployed in the project
-func (proj AppProject) IsGroupKindPermitted(gk schema.GroupKind, namespaced bool) bool {
+func (proj AppProject) IsGroupKindPermitted(gk schema.GroupKind, namespaced bool, getProject AppProjectGetter) (permitted bool, err error) {
+	permittedByParents, err := checkParents(&proj, getProject, func(currentProj *AppProject) (bool, error) {
+		return currentProj.IsGroupKindPermitted(gk, namespaced, getProject)
+	})
+	if err != nil {
+		return false, fmt.Errorf("failed to determine whether GroupKind is permitted by parents of project %q: %w", proj.Spec.ParentProject, err)
+	}
+	if !permittedByParents {
+		return false, nil
+	}
+
 	var isWhiteListed, isBlackListed bool
 	res := metav1.GroupKind{Group: gk.Group, Kind: gk.Kind}
 
@@ -303,7 +357,7 @@ func (proj AppProject) IsGroupKindPermitted(gk schema.GroupKind, namespaced bool
 
 		isWhiteListed = namespaceWhitelist == nil || len(namespaceWhitelist) != 0 && isResourceInList(res, namespaceWhitelist)
 		isBlackListed = len(namespaceBlacklist) != 0 && isResourceInList(res, namespaceBlacklist)
-		return isWhiteListed && !isBlackListed
+		return isWhiteListed && !isBlackListed, nil
 	}
 
 	clusterWhitelist := proj.Spec.ClusterResourceWhitelist
@@ -311,22 +365,40 @@ func (proj AppProject) IsGroupKindPermitted(gk schema.GroupKind, namespaced bool
 
 	isWhiteListed = len(clusterWhitelist) != 0 && isResourceInList(res, clusterWhitelist)
 	isBlackListed = len(clusterBlacklist) != 0 && isResourceInList(res, clusterBlacklist)
-	return isWhiteListed && !isBlackListed
+	return isWhiteListed && !isBlackListed, nil
 }
 
 // IsLiveResourcePermitted returns whether a live resource found in the cluster is permitted by an AppProject
-func (proj AppProject) IsLiveResourcePermitted(un *unstructured.Unstructured, server string, name string) bool {
-	return proj.IsResourcePermitted(un.GroupVersionKind().GroupKind(), un.GetNamespace(), ApplicationDestination{Server: server, Name: name})
+func (proj AppProject) IsLiveResourcePermitted(un *unstructured.Unstructured, server string, name string, getProject AppProjectGetter) (bool, error) {
+	return proj.IsResourcePermitted(un.GroupVersionKind().GroupKind(), un.GetNamespace(), ApplicationDestination{Server: server, Name: name}, getProject)
 }
 
-func (proj AppProject) IsResourcePermitted(groupKind schema.GroupKind, namespace string, dest ApplicationDestination) bool {
-	if !proj.IsGroupKindPermitted(groupKind, namespace != "") {
-		return false
+func (proj AppProject) IsResourcePermitted(groupKind schema.GroupKind, namespace string, dest ApplicationDestination, getProject AppProjectGetter) (bool, error) {
+	permittedByParents, err := checkParents(&proj, getProject, func(parentProject *AppProject) (bool, error) {
+		return parentProject.IsResourcePermitted(groupKind, namespace, dest, getProject)
+	})
+	if err != nil {
+		return false, fmt.Errorf("failed to determine whether resource is permitted by parents of project %q: %w", proj.Name, err)
+	}
+	if !permittedByParents {
+		return false, nil
+	}
+
+	isGroupKindPermitted, err := proj.IsGroupKindPermitted(groupKind, namespace != "", getProject)
+	if err != nil {
+		return false, fmt.Errorf("failed to check whether GroupKind is permitted for project %q: %w", proj.Name, err)
+	}
+	if !isGroupKindPermitted {
+		return false, nil
 	}
 	if namespace != "" {
-		return proj.IsDestinationPermitted(ApplicationDestination{Server: dest.Server, Name: dest.Name, Namespace: namespace})
+		isDestinationPermitted, err := proj.IsDestinationPermitted(ApplicationDestination{Server: dest.Server, Name: dest.Name, Namespace: namespace}, getProject)
+		if err != nil {
+			return false, fmt.Errorf("failed to check whether destination is permitted for project %q: %w", proj.Name, err)
+		}
+		return isDestinationPermitted, nil
 	}
-	return true
+	return true, nil
 }
 
 // HasFinalizer returns true if a resource finalizer is set on an AppProject
@@ -359,15 +431,25 @@ func (proj AppProject) IsSourcePermitted(src ApplicationSource) bool {
 }
 
 // IsDestinationPermitted validates if the provided application's destination is one of the allowed destinations for the project
-func (proj AppProject) IsDestinationPermitted(dst ApplicationDestination) bool {
+func (proj AppProject) IsDestinationPermitted(dst ApplicationDestination, getProject AppProjectGetter) (bool, error) {
+	permittedByParents, err := checkParents(&proj, getProject, func(parentProject *AppProject) (bool, error) {
+		return parentProject.IsDestinationPermitted(dst, getProject)
+	})
+	if err != nil {
+		return false, fmt.Errorf("failed to determine whether destination is permitted by parents of %q: %w", proj.Name, err)
+	}
+	if !permittedByParents {
+		return false, nil
+	}
+
 	for _, item := range proj.Spec.Destinations {
 		dstNameMatched := dst.Name != "" && globMatch(item.Name, dst.Name)
 		dstServerMatched := dst.Server != "" && globMatch(item.Server, dst.Server)
 		if (dstServerMatched || dstNameMatched) && globMatch(item.Namespace, dst.Namespace) {
-			return true
+			return true, nil
 		}
 	}
-	return false
+	return false, nil
 }
 
 // TODO: document this method

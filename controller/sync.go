@@ -108,15 +108,19 @@ func (m *appStateManager) SyncAppState(app *v1alpha1.Application, state *v1alpha
 		// Take the value in the requested operation. We will resolve this to a SHA later.
 		revision = syncOp.Revision
 	}
+	
+	getProject := func(name string) (*v1alpha1.AppProject, error) {
+		return argo.GetAppProject(name, listersv1alpha1.NewAppProjectLister(m.projInformer.GetIndexer()), m.namespace, m.settingsMgr, m.db, context.TODO())
+	}
 
-	proj, err := argo.GetAppProject(&app.Spec, listersv1alpha1.NewAppProjectLister(m.projInformer.GetIndexer()), m.namespace, m.settingsMgr, m.db, context.TODO())
+	proj, err := getProject(app.Spec.GetProject())
 	if err != nil {
 		state.Phase = common.OperationError
 		state.Message = fmt.Sprintf("Failed to load application project: %v", err)
 		return
 	}
 
-	compareResult := m.CompareAppState(app, proj, revision, source, false, true, syncOp.Manifests)
+	compareResult := m.CompareAppState(app, proj, revision, source, false, true, syncOp.Manifests, getProject)
 	// We now have a concrete commit SHA. Save this in the sync result revision so that we remember
 	// what we should be syncing to when resuming operations.
 	syncRes.Revision = compareResult.syncStatus.Revision
@@ -216,11 +220,21 @@ func (m *appStateManager) SyncAppState(app *v1alpha1.Application, state *v1alpha
 		sync.WithLogr(logutils.NewLogrusLogger(logEntry)),
 		sync.WithHealthOverride(lua.ResourceHealthOverrides(resourceOverrides)),
 		sync.WithPermissionValidator(func(un *unstructured.Unstructured, res *v1.APIResource) error {
-			if !proj.IsGroupKindPermitted(un.GroupVersionKind().GroupKind(), res.Namespaced) {
-				return fmt.Errorf("Resource %s:%s is not permitted in project %s.", un.GroupVersionKind().Group, un.GroupVersionKind().Kind, proj.Name)
+			isPermitted, err := proj.IsGroupKindPermitted(un.GroupVersionKind().GroupKind(), res.Namespaced, getProject)
+			if err != nil {
+				return fmt.Errorf("error determining whether resource %s:%s is permitted in project %s: %w", un.GroupVersionKind().Group, un.GroupVersionKind().Kind, proj.Name, err)
 			}
-			if res.Namespaced && !proj.IsDestinationPermitted(v1alpha1.ApplicationDestination{Namespace: un.GetNamespace(), Server: app.Spec.Destination.Server, Name: app.Spec.Destination.Name}) {
-				return fmt.Errorf("namespace %v is not permitted in project '%s'", un.GetNamespace(), proj.Name)
+			if !isPermitted {
+				return fmt.Errorf("resource %s:%s is not permitted in project %s", un.GroupVersionKind().Group, un.GroupVersionKind().Kind, proj.Name)
+			}
+			if res.Namespaced {
+				isPermitted, err = proj.IsDestinationPermitted(v1alpha1.ApplicationDestination{Namespace: un.GetNamespace(), Server: app.Spec.Destination.Server, Name: app.Spec.Destination.Name}, getProject)
+				if err != nil {
+					return fmt.Errorf("error determining whether namespace %v is permitted in project %s: %w", un.GetNamespace(), proj.Name, err)
+				}
+				if !isPermitted {
+					return fmt.Errorf("namespace %v is not permitted in project '%s'", un.GetNamespace(), proj.Name)
+				}
 			}
 			return nil
 		}),

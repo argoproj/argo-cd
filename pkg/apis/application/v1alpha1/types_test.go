@@ -141,7 +141,12 @@ func TestAppProject_IsDestinationPermitted(t *testing.T) {
 				Destinations: data.projDest,
 			},
 		}
-		assert.Equal(t, proj.IsDestinationPermitted(data.appDest), data.isPermitted)
+		nilProjectGetter := func(_ string) (*AppProject, error) {
+			return nil, nil
+		}
+		isPermitted, err := proj.IsDestinationPermitted(data.appDest, nilProjectGetter)
+		assert.NoError(t, err)
+		assert.Equal(t, data.isPermitted, isPermitted)
 	}
 }
 
@@ -152,8 +157,13 @@ func TestAppProject_IsGroupKindPermitted(t *testing.T) {
 			NamespaceResourceBlacklist: []metav1.GroupKind{{Group: "apps", Kind: "Deployment"}},
 		},
 	}
-	assert.False(t, proj.IsGroupKindPermitted(schema.GroupKind{Group: "apps", Kind: "ReplicaSet"}, true))
-	assert.False(t, proj.IsGroupKindPermitted(schema.GroupKind{Group: "apps", Kind: "Deployment"}, true))
+	nilProjectGetter := func(_ string) (*AppProject, error) { return nil, nil }
+	isPermitted, err := proj.IsGroupKindPermitted(schema.GroupKind{Group: "apps", Kind: "ReplicaSet"}, true, nilProjectGetter)
+	assert.NoError(t, err)
+	assert.False(t, isPermitted)
+	isPermitted, err = proj.IsGroupKindPermitted(schema.GroupKind{Group: "apps", Kind: "Deployment"}, true, nilProjectGetter)
+	assert.NoError(t, err)
+	assert.False(t, isPermitted)
 
 	proj2 := AppProject{
 		Spec: AppProjectSpec{
@@ -161,15 +171,21 @@ func TestAppProject_IsGroupKindPermitted(t *testing.T) {
 			NamespaceResourceBlacklist: []metav1.GroupKind{{Group: "apps", Kind: "Deployment"}},
 		},
 	}
-	assert.True(t, proj2.IsGroupKindPermitted(schema.GroupKind{Group: "apps", Kind: "ReplicaSet"}, true))
-	assert.False(t, proj2.IsGroupKindPermitted(schema.GroupKind{Group: "apps", Kind: "Action"}, true))
+	isPermitted, err = proj2.IsGroupKindPermitted(schema.GroupKind{Group: "apps", Kind: "ReplicaSet"}, true, nilProjectGetter)
+	assert.NoError(t, err)
+	assert.True(t, isPermitted)
+	isPermitted, err = proj2.IsGroupKindPermitted(schema.GroupKind{Group: "apps", Kind: "Action"}, true, nilProjectGetter)
+	assert.NoError(t, err)
+	assert.False(t, isPermitted)
 
 	proj3 := AppProject{
 		Spec: AppProjectSpec{
 			ClusterResourceBlacklist: []metav1.GroupKind{{Group: "", Kind: "Namespace"}},
 		},
 	}
-	assert.False(t, proj3.IsGroupKindPermitted(schema.GroupKind{Group: "", Kind: "Namespace"}, false))
+	isPermitted, err = proj3.IsGroupKindPermitted(schema.GroupKind{Group: "", Kind: "Namespace"}, false, nilProjectGetter)
+	assert.NoError(t, err)
+	assert.False(t, isPermitted)
 
 	proj4 := AppProject{
 		Spec: AppProjectSpec{
@@ -177,8 +193,12 @@ func TestAppProject_IsGroupKindPermitted(t *testing.T) {
 			ClusterResourceBlacklist: []metav1.GroupKind{{Group: "*", Kind: "*"}},
 		},
 	}
-	assert.False(t, proj4.IsGroupKindPermitted(schema.GroupKind{Group: "", Kind: "Namespace"}, false))
-	assert.True(t, proj4.IsGroupKindPermitted(schema.GroupKind{Group: "apps", Kind: "Action"}, true))
+	isPermitted, err = proj4.IsGroupKindPermitted(schema.GroupKind{Group: "", Kind: "Namespace"}, false, nilProjectGetter)
+	assert.NoError(t, err)
+	assert.False(t, isPermitted)
+	isPermitted, err = proj4.IsGroupKindPermitted(schema.GroupKind{Group: "apps", Kind: "Action"}, true, nilProjectGetter)
+	assert.NoError(t, err)
+	assert.True(t, isPermitted)
 
 	proj5 := AppProject{
 		Spec: AppProjectSpec{
@@ -186,14 +206,22 @@ func TestAppProject_IsGroupKindPermitted(t *testing.T) {
 			NamespaceResourceWhitelist: []metav1.GroupKind{{Group: "*", Kind: "*"}},
 		},
 	}
-	assert.False(t, proj5.IsGroupKindPermitted(schema.GroupKind{Group: "", Kind: "Namespace"}, false))
-	assert.True(t, proj5.IsGroupKindPermitted(schema.GroupKind{Group: "apps", Kind: "Action"}, true))
+	isPermitted, err = proj5.IsGroupKindPermitted(schema.GroupKind{Group: "", Kind: "Namespace"}, false, nilProjectGetter)
+	assert.NoError(t, err)
+	assert.False(t, isPermitted)
+	isPermitted, err = proj5.IsGroupKindPermitted(schema.GroupKind{Group: "apps", Kind: "Action"}, true, nilProjectGetter)
+	assert.NoError(t, err)
+	assert.True(t, isPermitted)
 
 	proj6 := AppProject{
 		Spec: AppProjectSpec{},
 	}
-	assert.False(t, proj6.IsGroupKindPermitted(schema.GroupKind{Group: "", Kind: "Namespace"}, false))
-	assert.True(t, proj6.IsGroupKindPermitted(schema.GroupKind{Group: "apps", Kind: "Action"}, true))
+	isPermitted, err = proj6.IsGroupKindPermitted(schema.GroupKind{Group: "", Kind: "Namespace"}, false, nilProjectGetter)
+	assert.NoError(t, err)
+	assert.False(t, isPermitted)
+	isPermitted, err = proj6.IsGroupKindPermitted(schema.GroupKind{Group: "apps", Kind: "Action"}, true, nilProjectGetter)
+	assert.NoError(t, err)
+	assert.True(t, isPermitted)
 }
 
 func TestAppProject_GetRoleByName(t *testing.T) {
