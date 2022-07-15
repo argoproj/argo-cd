@@ -1171,6 +1171,7 @@ func Test_hasAppChanged(t *testing.T) {
 			args: args{
 				appReq: testApp("foo", "default", map[string]string{}, map[string]string{}, []string{}),
 				appRes: testApp("foo", "foo", nil, nil, nil),
+				upsert: true,
 			},
 			want: true,
 		},
@@ -1179,6 +1180,7 @@ func Test_hasAppChanged(t *testing.T) {
 			args: args{
 				appReq: testApp("foo", "default", map[string]string{"foo": "bar"}, map[string]string{"foo": "bar"}, []string{"foo"}),
 				appRes: testApp("foo", "default", map[string]string{"foo": "bar"}, map[string]string{"foo": "bar"}, []string{"foo"}),
+				upsert: true,
 			},
 			want: false,
 		},
@@ -1187,6 +1189,7 @@ func Test_hasAppChanged(t *testing.T) {
 			args: args{
 				appReq: testApp("foo", "default", map[string]string{}, map[string]string{}, []string{}),
 				appRes: testApp("foo", "default", nil, nil, nil),
+				upsert: true,
 			},
 			want: false,
 		},
@@ -1199,13 +1202,13 @@ func Test_hasAppChanged(t *testing.T) {
 			want: false,
 		},
 		{
-			name: "App changed - From upsert",
+			name: "App unchanged - From upsert=false",
 			args: args{
 				appReq: testApp("foo", "foo", map[string]string{}, map[string]string{}, []string{}),
 				appRes: testApp("foo", "default", nil, nil, nil),
-				upsert: true,
+				upsert: false,
 			},
-			want: true,
+			want: false,
 		},
 	}
 	for _, tt := range tests {

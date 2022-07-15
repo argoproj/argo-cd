@@ -163,14 +163,23 @@ func NewApplicationCreateCommand(clientOpts *argocdclient.ClientOptions) *cobra.
 					Validate:    &appOpts.Validate,
 				}
 
+				// Get app before creating to see if it is being updated or no change
+				existing, _ := appIf.Get(ctx, &applicationpkg.ApplicationQuery{Name: &app.Name})
+
 				created, err := appIf.Create(ctx, &appCreateRequest)
 				errors.CheckError(err)
 
-				if !hasAppChanged(appCreateRequest.Application, created, upsert) {
-					fmt.Printf("application '%s' unchanged\n", created.ObjectMeta.Name)
+				var action string
+				// App created for first time if generation==1
+				if existing == nil {
+					action = "created"
+				} else if !hasAppChanged(existing, created, upsert) {
+					action = "unchanged"
 				} else {
-					fmt.Printf("application '%s' created\n", created.ObjectMeta.Name)
+					action = "updated"
 				}
+
+				fmt.Printf("application '%s' %s\n", created.ObjectMeta.Name, action)
 			}
 		},
 	}
@@ -217,6 +226,11 @@ func getRefreshType(refresh bool, hardRefresh bool) *string {
 }
 
 func hasAppChanged(appReq, appRes *argoappv1.Application, upsert bool) bool {
+	// upsert==false means no way change occurred from create command
+	if !upsert {
+		return false
+	}
+
 	// If no project, assume default project
 	if appReq.Spec.Project == "" {
 		appReq.Spec.Project = "default"
@@ -235,8 +249,7 @@ func hasAppChanged(appReq, appRes *argoappv1.Application, upsert bool) bool {
 	if reflect.DeepEqual(appRes.Spec, appReq.Spec) &&
 		reflect.DeepEqual(appRes.Labels, appReq.Labels) &&
 		reflect.DeepEqual(appRes.ObjectMeta.Annotations, appReq.Annotations) &&
-		reflect.DeepEqual(appRes.Finalizers, appReq.Finalizers) &&
-		!upsert {
+		reflect.DeepEqual(appRes.Finalizers, appReq.Finalizers) {
 		return false
 	}
 
