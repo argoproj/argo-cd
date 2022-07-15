@@ -211,7 +211,7 @@ func (s *Server) Create(ctx context.Context, q *application.ApplicationCreateReq
 		reflect.DeepEqual(existing.Finalizers, a.Finalizers)
 
 	if equalSpecs {
-		return existing, status.Errorf(codes.AlreadyExists, "application '%s' already exists and no changes needed", q.Application.Name)
+		return existing, nil
 	}
 	if q.Upsert == nil || !*q.Upsert {
 		return nil, status.Errorf(codes.InvalidArgument, "existing application spec is different, use upsert flag to force update")

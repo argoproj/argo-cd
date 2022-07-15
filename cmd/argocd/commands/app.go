@@ -48,7 +48,6 @@ import (
 	"github.com/argoproj/argo-cd/v2/util/cli"
 	"github.com/argoproj/argo-cd/v2/util/errors"
 	"github.com/argoproj/argo-cd/v2/util/git"
-	"github.com/argoproj/argo-cd/v2/util/grpc"
 	argoio "github.com/argoproj/argo-cd/v2/util/io"
 	"github.com/argoproj/argo-cd/v2/util/templates"
 	"github.com/argoproj/argo-cd/v2/util/text/label"
@@ -165,10 +164,11 @@ func NewApplicationCreateCommand(clientOpts *argocdclient.ClientOptions) *cobra.
 				}
 
 				created, err := appIf.Create(ctx, &appCreateRequest)
-				if grpc.UnwrapGRPCStatus(err).Code() == codes.AlreadyExists {
-					fmt.Printf("application '%s' unchanged\n", app.Name)
+				errors.CheckError(err)
+
+				if hasAppChanged(appCreateRequest.Application, created, upsert) {
+					fmt.Printf("application '%s' unchanged\n", created.ObjectMeta.Name)
 				} else {
-					errors.CheckError(err)
 					fmt.Printf("application '%s' created\n", created.ObjectMeta.Name)
 				}
 			}
@@ -214,6 +214,33 @@ func getRefreshType(refresh bool, hardRefresh bool) *string {
 	}
 
 	return nil
+}
+
+func hasAppChanged(appReq, appRes *argoappv1.Application, upsert bool) bool {
+	// If no project, assume default project
+	if appReq.Spec.Project == "" {
+		appReq.Spec.Project = "default"
+	}
+	// Server will return nils for empty labels, annotations, finalizers
+	if len(appReq.Labels) == 0 {
+		appReq.Labels = nil
+	}
+	if len(appReq.Annotations) == 0 {
+		appReq.Annotations = nil
+	}
+	if len(appReq.Finalizers) == 0 {
+		appReq.Finalizers = nil
+	}
+
+	if reflect.DeepEqual(appRes.Spec, appReq.Spec) &&
+		reflect.DeepEqual(appRes.Labels, appReq.Labels) &&
+		reflect.DeepEqual(appRes.ObjectMeta.Annotations, appReq.Annotations) &&
+		reflect.DeepEqual(appRes.Finalizers, appReq.Finalizers) &&
+		!upsert {
+		return false
+	}
+
+	return true
 }
 
 // NewApplicationGetCommand returns a new instance of an `argocd app get` command
