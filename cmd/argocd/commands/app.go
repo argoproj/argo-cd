@@ -166,7 +166,7 @@ func NewApplicationCreateCommand(clientOpts *argocdclient.ClientOptions) *cobra.
 				created, err := appIf.Create(ctx, &appCreateRequest)
 				errors.CheckError(err)
 
-				if hasAppChanged(appCreateRequest.Application, created, upsert) {
+				if !hasAppChanged(appCreateRequest.Application, created, upsert) {
 					fmt.Printf("application '%s' unchanged\n", created.ObjectMeta.Name)
 				} else {
 					fmt.Printf("application '%s' created\n", created.ObjectMeta.Name)
