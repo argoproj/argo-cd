@@ -170,7 +170,6 @@ func NewApplicationCreateCommand(clientOpts *argocdclient.ClientOptions) *cobra.
 				errors.CheckError(err)
 
 				var action string
-				// App created for first time if generation==1
 				if existing == nil {
 					action = "created"
 				} else if !hasAppChanged(existing, created, upsert) {
@@ -226,7 +225,7 @@ func getRefreshType(refresh bool, hardRefresh bool) *string {
 }
 
 func hasAppChanged(appReq, appRes *argoappv1.Application, upsert bool) bool {
-	// upsert==false means no way change occurred from create command
+	// upsert==false, no change occurred from create command
 	if !upsert {
 		return false
 	}
