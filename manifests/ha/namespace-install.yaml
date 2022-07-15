@@ -1838,7 +1838,7 @@ spec:
               key: server.log.format
               name: argocd-cmd-params-cm
               optional: true
-        - name: ARGOCD_REPO_SERVER_LOGLEVEL
+        - name: ARGOCD_SERVER_LOG_LEVEL
           valueFrom:
             configMapKeyRef:
               key: server.log.level
