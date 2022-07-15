@@ -66,13 +66,14 @@ func isChildApp(a *appv1.Application) bool {
 
 func getAppAsResource(a *appv1.Application) *appv1.ResourceStatus {
 	return &appv1.ResourceStatus{
-		Name:      a.Name,
-		Namespace: a.Namespace,
-		Version:   "v1alpha1",
-		Kind:      "Application",
-		Group:     "argoproj.io",
-		Status:    a.Status.Sync.Status,
-		Health:    &a.Status.Health,
+		Name:            a.Name,
+		Namespace:       a.Namespace,
+		Version:         "v1alpha1",
+		Kind:            "Application",
+		Group:           "argoproj.io",
+		Status:          a.Status.Sync.Status,
+		Health:          &a.Status.Health,
+		RequiresPruning: a.DeletionTimestamp != nil,
 	}
 }
 
@@ -381,7 +382,7 @@ func getResourceEventPayload(
 		actualState.Manifest = ""
 	}
 
-	if parentApplication.ObjectMeta.DeletionTimestamp != nil {
+	if (originalApplication != nil && originalApplication.DeletionTimestamp != nil) || parentApplication.ObjectMeta.DeletionTimestamp != nil {
 		// resource should be deleted in case if application in process of deletion
 		desiredState.CompiledManifest = ""
 		actualState.Manifest = ""
