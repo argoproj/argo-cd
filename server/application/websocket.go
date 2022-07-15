@@ -23,11 +23,12 @@ var upgrader = func() websocket.Upgrader {
 
 // terminalSession implements PtyHandler
 type terminalSession struct {
-	wsConn   *websocket.Conn
-	sizeChan chan remotecommand.TerminalSize
-	doneChan chan struct{}
-	tty      bool
-	readLock sync.Mutex
+	wsConn    *websocket.Conn
+	sizeChan  chan remotecommand.TerminalSize
+	doneChan  chan struct{}
+	tty       bool
+	readLock  sync.Mutex
+	writeLock sync.Mutex
 }
 
 // newTerminalSession create terminalSession
@@ -95,9 +96,9 @@ func (t *terminalSession) Write(p []byte) (int, error) {
 		log.Errorf("write parse message err: %v", err)
 		return 0, err
 	}
-	t.readLock.Lock()
+	t.writeLock.Lock()
 	err = t.wsConn.WriteMessage(websocket.TextMessage, msg)
-	t.readLock.Unlock()
+	t.writeLock.Unlock()
 	if err != nil {
 		log.Errorf("write message err: %v", err)
 		return 0, err
