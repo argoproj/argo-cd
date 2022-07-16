@@ -1,7 +1,6 @@
 package commands
 
 import (
-	"context"
 	"encoding/json"
 	"fmt"
 	"os"
@@ -57,6 +56,8 @@ func NewApplicationResourceActionsListCommand(clientOpts *argocdclient.ClientOpt
 		Short: "Lists available actions on a resource",
 	}
 	command.Run = func(c *cobra.Command, args []string) {
+		ctx := c.Context()
+
 		if len(args) != 1 {
 			c.HelpFunc()(c, args)
 			os.Exit(1)
@@ -64,7 +65,6 @@ func NewApplicationResourceActionsListCommand(clientOpts *argocdclient.ClientOpt
 		appName := args[0]
 		conn, appIf := headless.NewClientOrDie(clientOpts, c).NewApplicationClientOrDie()
 		defer io.Close(conn)
-		ctx := context.Background()
 		resources, err := appIf.ManagedResources(ctx, &applicationpkg.ResourcesQuery{ApplicationName: &appName})
 		errors.CheckError(err)
 		filteredObjects, err := util.FilterResources(command.Flags().Changed("group"), resources.Items, group, kind, namespace, resourceName, true)
@@ -141,6 +141,8 @@ func NewApplicationResourceActionsRunCommand(clientOpts *argocdclient.ClientOpti
 	command.Flags().BoolVar(&all, "all", false, "Indicates whether to run the action on multiple matching resources")
 
 	command.Run = func(c *cobra.Command, args []string) {
+		ctx := c.Context()
+
 		if len(args) != 2 {
 			c.HelpFunc()(c, args)
 			os.Exit(1)
@@ -150,7 +152,6 @@ func NewApplicationResourceActionsRunCommand(clientOpts *argocdclient.ClientOpti
 
 		conn, appIf := headless.NewClientOrDie(clientOpts, c).NewApplicationClientOrDie()
 		defer io.Close(conn)
-		ctx := context.Background()
 		resources, err := appIf.ManagedResources(ctx, &applicationpkg.ResourcesQuery{ApplicationName: &appName})
 		errors.CheckError(err)
 		filteredObjects, err := util.FilterResources(command.Flags().Changed("group"), resources.Items, group, kind, namespace, resourceName, all)
@@ -166,7 +167,7 @@ func NewApplicationResourceActionsRunCommand(clientOpts *argocdclient.ClientOpti
 			obj := filteredObjects[i]
 			gvk := obj.GroupVersionKind()
 			objResourceName := obj.GetName()
-			_, err := appIf.RunResourceAction(context.Background(), &applicationpkg.ResourceActionRunRequest{
+			_, err := appIf.RunResourceAction(ctx, &applicationpkg.ResourceActionRunRequest{
 				Name:         &appName,
 				Namespace:    pointer.String(obj.GetNamespace()),
 				ResourceName: pointer.String(objResourceName),

@@ -45,3 +45,40 @@ func TestPathNotDir(t *testing.T) {
 	_, err := Path("./testdata", "file.txt")
 	assert.EqualError(t, err, "file.txt: app path is not a directory")
 }
+
+func TestGoodSymlinks(t *testing.T) {
+	err := CheckOutOfBoundsSymlinks("./testdata/goodlink")
+	assert.NoError(t, err)
+}
+
+// Simple check of leaving the repo
+func TestBadSymlinks(t *testing.T) {
+	err := CheckOutOfBoundsSymlinks("./testdata/badlink")
+	oobError := &OutOfBoundsSymlinkError{}
+	assert.ErrorAs(t, err, &oobError)
+	assert.Equal(t, oobError.File, "badlink")
+}
+
+// Crazy formatting check
+func TestBadSymlinks2(t *testing.T) {
+	err := CheckOutOfBoundsSymlinks("./testdata/badlink2")
+	oobError := &OutOfBoundsSymlinkError{}
+	assert.ErrorAs(t, err, &oobError)
+	assert.Equal(t, oobError.File, "badlink")
+}
+
+// Make sure no part of the symlink can leave the repo, even if it ultimately targets inside the repo
+func TestBadSymlinks3(t *testing.T) {
+	err := CheckOutOfBoundsSymlinks("./testdata/badlink3")
+	oobError := &OutOfBoundsSymlinkError{}
+	assert.ErrorAs(t, err, &oobError)
+	assert.Equal(t, oobError.File, "badlink")
+}
+
+// No absolute symlinks allowed
+func TestAbsSymlink(t *testing.T) {
+	err := CheckOutOfBoundsSymlinks("./testdata/abslink")
+	oobError := &OutOfBoundsSymlinkError{}
+	assert.ErrorAs(t, err, &oobError)
+	assert.Equal(t, oobError.File, "abslink")
+}

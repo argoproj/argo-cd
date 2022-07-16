@@ -13,6 +13,7 @@ import (
 	. "github.com/argoproj/gitops-engine/pkg/utils/testing"
 	"github.com/stretchr/testify/assert"
 	v1 "k8s.io/api/apps/v1"
+	corev1 "k8s.io/api/core/v1"
 	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
 	"k8s.io/apimachinery/pkg/apis/meta/v1/unstructured"
 	"k8s.io/apimachinery/pkg/runtime"
@@ -21,6 +22,7 @@ import (
 	argoappv1 "github.com/argoproj/argo-cd/v2/pkg/apis/application/v1alpha1"
 	"github.com/argoproj/argo-cd/v2/reposerver/apiclient"
 	"github.com/argoproj/argo-cd/v2/test"
+	"github.com/argoproj/argo-cd/v2/util/argo"
 )
 
 // TestCompareAppStateEmpty tests comparison when both git and live have no objects
@@ -769,4 +771,129 @@ func TestComparisonResult_GetSyncStatus(t *testing.T) {
 	}
 
 	assert.Equal(t, status, res.GetSyncStatus())
+}
+
+func TestIsLiveResourceManaged(t *testing.T) {
+	managedObj := kube.MustToUnstructured(&corev1.ConfigMap{
+		TypeMeta: metav1.TypeMeta{
+			APIVersion: "v1",
+			Kind:       "ConfigMap",
+		},
+		ObjectMeta: metav1.ObjectMeta{
+			Name:      "configmap1",
+			Namespace: "default",
+			Annotations: map[string]string{
+				common.AnnotationKeyAppInstance: "guestbook:/ConfigMap:default/configmap1",
+			},
+		},
+	})
+	managedObjWithLabel := kube.MustToUnstructured(&corev1.ConfigMap{
+		TypeMeta: metav1.TypeMeta{
+			APIVersion: "v1",
+			Kind:       "ConfigMap",
+		},
+		ObjectMeta: metav1.ObjectMeta{
+			Name:      "configmap1",
+			Namespace: "default",
+			Labels: map[string]string{
+				common.LabelKeyAppInstance: "guestbook",
+			},
+		},
+	})
+	unmanagedObjWrongName := kube.MustToUnstructured(&corev1.ConfigMap{
+		TypeMeta: metav1.TypeMeta{
+			APIVersion: "v1",
+			Kind:       "ConfigMap",
+		},
+		ObjectMeta: metav1.ObjectMeta{
+			Name:      "configmap2",
+			Namespace: "default",
+			Annotations: map[string]string{
+				common.AnnotationKeyAppInstance: "guestbook:/ConfigMap:default/configmap1",
+			},
+		},
+	})
+	unmanagedObjWrongKind := kube.MustToUnstructured(&corev1.ConfigMap{
+		TypeMeta: metav1.TypeMeta{
+			APIVersion: "v1",
+			Kind:       "ConfigMap",
+		},
+		ObjectMeta: metav1.ObjectMeta{
+			Name:      "configmap2",
+			Namespace: "default",
+			Annotations: map[string]string{
+				common.AnnotationKeyAppInstance: "guestbook:/Service:default/configmap2",
+			},
+		},
+	})
+	unmanagedObjWrongGroup := kube.MustToUnstructured(&corev1.ConfigMap{
+		TypeMeta: metav1.TypeMeta{
+			APIVersion: "v1",
+			Kind:       "ConfigMap",
+		},
+		ObjectMeta: metav1.ObjectMeta{
+			Name:      "configmap2",
+			Namespace: "default",
+			Annotations: map[string]string{
+				common.AnnotationKeyAppInstance: "guestbook:apps/ConfigMap:default/configmap2",
+			},
+		},
+	})
+	unmanagedObjWrongNamespace := kube.MustToUnstructured(&corev1.ConfigMap{
+		TypeMeta: metav1.TypeMeta{
+			APIVersion: "v1",
+			Kind:       "ConfigMap",
+		},
+		ObjectMeta: metav1.ObjectMeta{
+			Name:      "configmap2",
+			Namespace: "default",
+			Annotations: map[string]string{
+				common.AnnotationKeyAppInstance: "guestbook:/ConfigMap:fakens/configmap2",
+			},
+		},
+	})
+	ctrl := newFakeController(&fakeData{
+		apps: []runtime.Object{app, &defaultProj},
+		manifestResponse: &apiclient.ManifestResponse{
+			Manifests: []string{},
+			Namespace: test.FakeDestNamespace,
+			Server:    test.FakeClusterURL,
+			Revision:  "abc123",
+		},
+		managedLiveObjs: map[kube.ResourceKey]*unstructured.Unstructured{
+			kube.GetResourceKey(managedObj):                 managedObj,
+			kube.GetResourceKey(unmanagedObjWrongName):      unmanagedObjWrongName,
+			kube.GetResourceKey(unmanagedObjWrongKind):      unmanagedObjWrongKind,
+			kube.GetResourceKey(unmanagedObjWrongGroup):     unmanagedObjWrongGroup,
+			kube.GetResourceKey(unmanagedObjWrongNamespace): unmanagedObjWrongNamespace,
+		},
+	})
+
+	manager := ctrl.appStateManager.(*appStateManager)
+
+	// Managed resource w/ annotations
+	assert.True(t, manager.isSelfReferencedObj(managedObj, common.AnnotationKeyAppInstance, argo.TrackingMethodLabel))
+	assert.True(t, manager.isSelfReferencedObj(managedObj, common.AnnotationKeyAppInstance, argo.TrackingMethodAnnotation))
+
+	// Managed resource w/ label
+	assert.True(t, manager.isSelfReferencedObj(managedObjWithLabel, common.AnnotationKeyAppInstance, argo.TrackingMethodLabel))
+
+	// Wrong resource name
+	assert.True(t, manager.isSelfReferencedObj(unmanagedObjWrongName, common.AnnotationKeyAppInstance, argo.TrackingMethodLabel))
+	assert.False(t, manager.isSelfReferencedObj(unmanagedObjWrongName, common.AnnotationKeyAppInstance, argo.TrackingMethodAnnotation))
+
+	// Wrong resource group
+	assert.True(t, manager.isSelfReferencedObj(unmanagedObjWrongGroup, common.AnnotationKeyAppInstance, argo.TrackingMethodLabel))
+	assert.False(t, manager.isSelfReferencedObj(unmanagedObjWrongGroup, common.AnnotationKeyAppInstance, argo.TrackingMethodAnnotation))
+
+	// Wrong resource kind
+	assert.True(t, manager.isSelfReferencedObj(unmanagedObjWrongKind, common.AnnotationKeyAppInstance, argo.TrackingMethodLabel))
+	assert.False(t, manager.isSelfReferencedObj(unmanagedObjWrongKind, common.AnnotationKeyAppInstance, argo.TrackingMethodAnnotation))
+
+	// Wrong resource namespace
+	assert.True(t, manager.isSelfReferencedObj(unmanagedObjWrongNamespace, common.AnnotationKeyAppInstance, argo.TrackingMethodLabel))
+	assert.False(t, manager.isSelfReferencedObj(unmanagedObjWrongNamespace, common.AnnotationKeyAppInstance, argo.TrackingMethodAnnotationAndLabel))
+
+	// Nil resource
+	assert.True(t, manager.isSelfReferencedObj(nil, common.AnnotationKeyAppInstance, argo.TrackingMethodAnnotation))
 }
