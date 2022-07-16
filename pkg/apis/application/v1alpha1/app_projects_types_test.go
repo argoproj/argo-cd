@@ -173,8 +173,7 @@ func Test_IsGroupKindPermitted(t *testing.T) {
 			assert.True(t, isPermitted)
 		})
 
-		rootProj, _ := projects["root"]
-		rootProj.Spec.ParentProject = "does-not-exist"
+		projects["root"].Spec.ParentProject = "does-not-exist"
 
 		t.Run("error caused by non-existent project in chain", func(t *testing.T) {
 			isPermitted, err := projects["root"].IsGroupKindPermitted(schema.GroupKind{Group: "v1", Kind: "Pod"}, true, getProject)
@@ -242,8 +241,7 @@ func Test_IsDestinationPermitted(t *testing.T) {
 			assert.True(t, isPermitted)
 		})
 
-		rootProj, _ := projects["root"]
-		rootProj.Spec.ParentProject = "does-not-exist"
+		projects["root"].Spec.ParentProject = "does-not-exist"
 
 		t.Run("error because parent project does not exist", func(t *testing.T) {
 			isPermitted, err := projects["root"].IsDestinationPermitted(ApplicationDestination{Name: "dev-usw2-cluster", Namespace: "dev-usw2-namespace"}, getProject)
@@ -311,8 +309,7 @@ func Test_IsSourcePermitted(t *testing.T) {
 			assert.False(t, isPermitted)
 		})
 
-		rootProj, _ := projects["root"]
-		rootProj.Spec.ParentProject = "does-not-exist"
+		projects["root"].Spec.ParentProject = "does-not-exist"
 
 		t.Run("error because the parent project does not exist", func(t *testing.T) {
 			isPermitted, err := projects["root"].IsSourcePermitted(ApplicationSource{RepoURL: "https://github.company.com/other-org/app1-deployment.git"}, getProject)
@@ -416,8 +413,7 @@ func Test_IsResourcePermitted(t *testing.T) {
 			}
 		}
 
-		rootProj, _ := projects["root"]
-		rootProj.Spec.ParentProject = "does-not-exist"
+		projects["root"].Spec.ParentProject = "does-not-exist"
 
 		t.Run("error getting parent project", func(t *testing.T) {
 			isPermitted, err := projects["root"].IsResourcePermitted(allowedGroupKind, allowedNamespace, allowedDestination, getProject)
