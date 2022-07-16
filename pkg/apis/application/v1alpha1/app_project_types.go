@@ -417,15 +417,25 @@ func globMatch(pattern string, val string, separators ...rune) bool {
 }
 
 // IsSourcePermitted validates if the provided application's source is a one of the allowed sources for the project.
-func (proj AppProject) IsSourcePermitted(src ApplicationSource) bool {
+func (proj AppProject) IsSourcePermitted(src ApplicationSource, getProject AppProjectGetter) (bool, error) {
+	permittedByParents, err := checkParents(&proj, getProject, func(parentProject *AppProject) (bool, error) {
+		return parentProject.IsSourcePermitted(src, getProject)
+	})
+	if err != nil {
+		return false, fmt.Errorf("failed to determine whether source is permitted by parents of %q: %w", proj.Name, err)
+	}
+	if !permittedByParents {
+		return false, nil
+	}
+
 	srcNormalized := git.NormalizeGitURL(src.RepoURL)
 	for _, repoURL := range proj.Spec.SourceRepos {
 		normalized := git.NormalizeGitURL(repoURL)
 		if globMatch(normalized, srcNormalized, '/') {
-			return true
+			return true, nil
 		}
 	}
-	return false
+	return false, nil
 }
 
 // IsDestinationPermitted validates if the provided application's destination is one of the allowed destinations for the project

@@ -282,7 +282,10 @@ func TestValidateRepo(t *testing.T) {
 	kubeClient := fake.NewSimpleClientset(&cm)
 	settingsMgr := settings.NewSettingsManager(context.Background(), kubeClient, test.FakeArgoCDNamespace)
 
-	conditions, err := ValidateRepo(context.Background(), app, repoClientSet, db, kustomizeOptions, nil, &kubetest.MockKubectlCmd{Version: kubeVersion, APIResources: apiResources}, proj, settingsMgr)
+	conditions, err := ValidateRepo(context.Background(), app, repoClientSet, db, kustomizeOptions, nil, &kubetest.MockKubectlCmd{Version: kubeVersion, APIResources: apiResources}, proj, settingsMgr, func(_ string) (*argoappv1.AppProject, error) {
+		// Test project doesn't have a parent, so this line won't be hit.
+		return nil, nil
+	})
 
 	assert.NoError(t, err)
 	assert.Empty(t, conditions)

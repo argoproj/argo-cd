@@ -1,10 +1,10 @@
 package repository
 
 import (
+	"context"
 	"fmt"
 	"reflect"
 
-	"context"
 	"github.com/argoproj/gitops-engine/pkg/utils/kube"
 	"github.com/argoproj/gitops-engine/pkg/utils/text"
 	log "github.com/sirupsen/logrus"
@@ -539,11 +539,16 @@ func (s *Server) testRepo(ctx context.Context, repo *appsv1.Repository) error {
 }
 
 func (s *Server) isRepoPermittedInProject(repo string, projName string) error {
-	proj, err := s.projLister.Get(projName)
+	getProject := func(name string) (*appsv1.AppProject, error) { return s.projLister.Get(name) }
+	proj, err := getProject(projName)
 	if err != nil {
 		return err
 	}
-	if !proj.IsSourcePermitted(appsv1.ApplicationSource{RepoURL: repo}) {
+	isPermitted, err := proj.IsSourcePermitted(appsv1.ApplicationSource{RepoURL: repo}, getProject)
+	if err != nil {
+		return status.Errorf(codes.PermissionDenied, "error determining whether repository %q is permitted in project %q", repo, projName)
+	}
+	if !isPermitted {
 		return status.Errorf(codes.PermissionDenied, "repository '%s' not permitted in project '%s'", repo, projName)
 	}
 	return nil

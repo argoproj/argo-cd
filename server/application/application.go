@@ -1,6 +1,7 @@
 package application
 
 import (
+	"context"
 	"encoding/json"
 	"errors"
 	"fmt"
@@ -11,7 +12,6 @@ import (
 	"strings"
 	"time"
 
-	"context"
 	kubecache "github.com/argoproj/gitops-engine/pkg/cache"
 	"github.com/argoproj/gitops-engine/pkg/diff"
 	"github.com/argoproj/gitops-engine/pkg/sync/common"
@@ -253,7 +253,10 @@ func (s *Server) queryRepoServer(ctx context.Context, a *v1alpha1.Application, a
 	if err != nil {
 		return fmt.Errorf("error getting kustomize settings options: %w", err)
 	}
-	proj, err := argo.GetAppProject(a.Spec.GetProject(), applisters.NewAppProjectLister(s.projInformer.GetIndexer()), s.ns, s.settingsMgr, s.db, ctx)
+	getProject := func (name string) (*appv1.AppProject, error) {
+		return argo.GetAppProject(name, applisters.NewAppProjectLister(s.projInformer.GetIndexer()), s.ns, s.settingsMgr, s.db, ctx)
+	}
+	proj, err := getProject(a.Spec.GetProject())
 	if err != nil {
 		if apierr.IsNotFound(err) {
 			return status.Errorf(codes.InvalidArgument, "application references project %s which does not exist", a.Spec.Project)
@@ -266,7 +269,7 @@ func (s *Server) queryRepoServer(ctx context.Context, a *v1alpha1.Application, a
 		return fmt.Errorf("error listing helm repositories: %w", err)
 	}
 
-	permittedHelmRepos, err := argo.GetPermittedRepos(proj, helmRepos)
+	permittedHelmRepos, err := argo.GetPermittedRepos(proj, helmRepos, getProject)
 	if err != nil {
 		return fmt.Errorf("error retrieving permitted repos: %w", err)
 	}
@@ -278,7 +281,7 @@ func (s *Server) queryRepoServer(ctx context.Context, a *v1alpha1.Application, a
 	if err != nil {
 		return fmt.Errorf("error getting helm settings: %w", err)
 	}
-	permittedHelmCredentials, err := argo.GetPermittedReposCredentials(proj, helmRepositoryCredentials)
+	permittedHelmCredentials, err := argo.GetPermittedReposCredentials(proj, helmRepositoryCredentials, getProject)
 	if err != nil {
 		return fmt.Errorf("error getting permitted repos credentials: %w", err)
 	}
@@ -907,7 +910,7 @@ func (s *Server) validateAndNormalizeApp(ctx context.Context, app *appv1.Applica
 
 	var conditions []appv1.ApplicationCondition
 	if validate {
-		conditions, err = argo.ValidateRepo(ctx, app, s.repoClientset, s.db, kustomizeOptions, plugins, s.kubectl, proj, s.settingsMgr)
+		conditions, err = argo.ValidateRepo(ctx, app, s.repoClientset, s.db, kustomizeOptions, plugins, s.kubectl, proj, s.settingsMgr, getProject)
 		if err != nil {
 			return fmt.Errorf("error validating the repo: %w", err)
 		}

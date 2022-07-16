@@ -102,13 +102,13 @@ type appStateManager struct {
 	resourceTracking     argo.ResourceTracking
 }
 
-func (m *appStateManager) getRepoObjs(app *v1alpha1.Application, source v1alpha1.ApplicationSource, appLabelKey, revision string, noCache, noRevisionCache, verifySignature bool, proj *v1alpha1.AppProject) ([]*unstructured.Unstructured, *apiclient.ManifestResponse, error) {
+func (m *appStateManager) getRepoObjs(app *v1alpha1.Application, source v1alpha1.ApplicationSource, appLabelKey, revision string, noCache, noRevisionCache, verifySignature bool, proj *v1alpha1.AppProject, getProject appv1.AppProjectGetter) ([]*unstructured.Unstructured, *apiclient.ManifestResponse, error) {
 	ts := stats.NewTimingStats()
 	helmRepos, err := m.db.ListHelmRepositories(context.Background())
 	if err != nil {
 		return nil, nil, err
 	}
-	permittedHelmRepos, err := argo.GetPermittedRepos(proj, helmRepos)
+	permittedHelmRepos, err := argo.GetPermittedRepos(proj, helmRepos, getProject)
 	if err != nil {
 		return nil, nil, err
 	}
@@ -122,7 +122,7 @@ func (m *appStateManager) getRepoObjs(app *v1alpha1.Application, source v1alpha1
 	if err != nil {
 		return nil, nil, err
 	}
-	permittedHelmCredentials, err := argo.GetPermittedReposCredentials(proj, helmRepositoryCredentials)
+	permittedHelmCredentials, err := argo.GetPermittedReposCredentials(proj, helmRepositoryCredentials, getProject)
 	if err != nil {
 		return nil, nil, err
 	}
@@ -357,7 +357,7 @@ func (m *appStateManager) CompareAppState(app *v1alpha1.Application, project *ap
 	now := metav1.Now()
 
 	if len(localManifests) == 0 {
-		targetObjs, manifestInfo, err = m.getRepoObjs(app, source, appLabelKey, revision, noCache, noRevisionCache, verifySignature, project)
+		targetObjs, manifestInfo, err = m.getRepoObjs(app, source, appLabelKey, revision, noCache, noRevisionCache, verifySignature, project, getProject)
 		if err != nil {
 			targetObjs = make([]*unstructured.Unstructured, 0)
 			conditions = append(conditions, v1alpha1.ApplicationCondition{Type: v1alpha1.ApplicationConditionComparisonError, Message: err.Error(), LastTransitionTime: &now})

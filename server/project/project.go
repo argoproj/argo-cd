@@ -342,10 +342,14 @@ func (s *Server) Update(ctx context.Context, q *project.ProjectUpdateRequest) (*
 	var dstValidatedApps []v1alpha1.Application
 
 	for _, a := range argo.FilterByProjects(appsList.Items, []string{q.Project.Name}) {
-		if oldProj.IsSourcePermitted(a.Spec.Source) {
+		isPermitted, err := oldProj.IsSourcePermitted(a.Spec.Source, getProject)
+		if err != nil {
+			return nil, fmt.Errorf("failed to check whether source is permitted for project %q: %w", a.Spec.Project, err)
+		}
+		if isPermitted {
 			srcValidatedApps = append(srcValidatedApps, a)
 		}
-		isPermitted, err := oldProj.IsDestinationPermitted(a.Spec.Destination, getProject)
+		isPermitted, err = oldProj.IsDestinationPermitted(a.Spec.Destination, getProject)
 		if err != nil {
 			return nil, fmt.Errorf("failed to check whether destination is permitted for project %q: %w", a.Spec.Project, err)
 		}
@@ -358,7 +362,11 @@ func (s *Server) Update(ctx context.Context, q *project.ProjectUpdateRequest) (*
 	invalidDstCount := 0
 
 	for _, a := range srcValidatedApps {
-		if !q.Project.IsSourcePermitted(a.Spec.Source) {
+		isPermitted, err := q.Project.IsSourcePermitted(a.Spec.Source, getProject)
+		if err != nil {
+			return nil, fmt.Errorf("failed to check whether source is permitted for project %q: %w", a.Spec.Project, err)
+		}
+		if !isPermitted {
 			invalidSrcCount++
 		}
 	}

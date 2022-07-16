@@ -113,7 +113,7 @@ func Test_checkParents(t *testing.T) {
 }
 
 func Test_IsGroupKindPermitted(t *testing.T) {
-	t.Run("parent projects blocks resources when child does not", func(t *testing.T) {
+	t.Run("parent projects block resources when child does not", func(t *testing.T) {
 		projects := map[string]AppProject{
 			"root": {
 				ObjectMeta: v1.ObjectMeta{
@@ -165,3 +165,110 @@ func Test_IsGroupKindPermitted(t *testing.T) {
 		assert.True(t, isPermitted)
 	})
 }
+
+func Test_IsDestinationPermitted(t *testing.T) {
+	t.Run("parent projects block destination when child does not", func(t *testing.T) {
+		projects := map[string]AppProject{
+			"root": {
+				ObjectMeta: v1.ObjectMeta{
+					Name: "root",
+				},
+				Spec: AppProjectSpec{
+					ParentProject: "b",
+					Destinations: []ApplicationDestination{
+						{Server: "*", Name: "*", Namespace: "*"},
+					},
+				},
+			},
+			"b": {
+				ObjectMeta: v1.ObjectMeta{
+					Name: "b",
+				},
+				Spec: AppProjectSpec{
+					ParentProject: "c",
+					Destinations: []ApplicationDestination{
+						{Name: "dev-usw2-*", Namespace: "dev-usw2-*"},
+					},
+				},
+			},
+			"c": {
+				ObjectMeta: v1.ObjectMeta{
+					Name: "c",
+				},
+				Spec: AppProjectSpec{
+					Destinations: []ApplicationDestination{
+						{Name: "dev-*", Namespace: "dev-*"},
+					},
+				},
+			},
+		}
+
+		getProject := func(name string) (*AppProject, error) {
+			// No restrictions in the child app.
+			project := projects[name]
+			return &project, nil
+		}
+
+		isPermitted, err := projects["root"].IsDestinationPermitted(ApplicationDestination{Name: "dev-use2-cluster", Namespace: "dev-use2-namespace"}, getProject)
+		assert.NoError(t, err)
+		assert.False(t, isPermitted)
+
+		isPermitted, err = projects["root"].IsDestinationPermitted(ApplicationDestination{Name: "dev-usw2-cluster", Namespace: "dev-usw2-namespace"}, getProject)
+		assert.NoError(t, err)
+		assert.True(t, isPermitted)
+	})
+}
+
+func Test_IsSourcePermitted(t *testing.T) {
+	t.Run("parent projects block source when child does not", func(t *testing.T) {
+		projects := map[string]AppProject{
+			"root": {
+				ObjectMeta: v1.ObjectMeta{
+					Name: "root",
+				},
+				Spec: AppProjectSpec{
+					ParentProject: "b",
+					SourceRepos: []string{
+						"https://github.company.com/dev-org/*",
+					},
+				},
+			},
+			"b": {
+				ObjectMeta: v1.ObjectMeta{
+					Name: "b",
+				},
+				Spec: AppProjectSpec{
+					ParentProject: "c",
+					SourceRepos: []string{
+						"https://github.company.com/dev-org/*-deployment.git",
+					},
+				},
+			},
+			"c": {
+				ObjectMeta: v1.ObjectMeta{
+					Name: "c",
+				},
+				Spec: AppProjectSpec{
+					SourceRepos: []string{
+						"https://github.company.com/*/*",
+					},
+				},
+			},
+		}
+
+		getProject := func(name string) (*AppProject, error) {
+			// No restrictions in the child app.
+			project := projects[name]
+			return &project, nil
+		}
+
+		isPermitted, err := projects["root"].IsSourcePermitted(ApplicationSource{RepoURL: "https://github.company.com/dev-org/app1-deployment.git"}, getProject)
+		assert.NoError(t, err)
+		assert.True(t, isPermitted)
+
+		isPermitted, err = projects["root"].IsSourcePermitted(ApplicationSource{RepoURL: "https://github.company.com/other-org/app1-deployment.git"}, getProject)
+		assert.NoError(t, err)
+		assert.False(t, isPermitted)
+	})
+}
+

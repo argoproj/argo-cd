@@ -55,9 +55,12 @@ func TestAppProject_IsSourcePermitted(t *testing.T) {
 				SourceRepos: data.projSources,
 			},
 		}
-		assert.Equal(t, proj.IsSourcePermitted(ApplicationSource{
-			RepoURL: data.appSource,
-		}), data.isPermitted)
+		isPermitted, err := proj.IsSourcePermitted(ApplicationSource{RepoURL: data.appSource}, func(name string) (*AppProject, error) {
+			// This won't be hit, because the project has no parent.
+			return nil, nil
+		})
+		assert.NoError(t, err)
+		assert.Equal(t, data.isPermitted, isPermitted)
 	}
 }
 

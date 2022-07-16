@@ -149,6 +149,7 @@ func ValidateRepo(
 	kubectl kube.Kubectl,
 	proj *argoappv1.AppProject,
 	settingsMgr *settings.SettingsManager,
+	getProject argoappv1.AppProjectGetter,
 ) ([]argoappv1.ApplicationCondition, error) {
 	spec := &app.Spec
 	conditions := make([]argoappv1.ApplicationCondition, 0)
@@ -196,7 +197,7 @@ func ValidateRepo(
 	if err != nil {
 		return nil, err
 	}
-	permittedHelmRepos, err := GetPermittedRepos(proj, helmRepos)
+	permittedHelmRepos, err := GetPermittedRepos(proj, helmRepos, getProject)
 	if err != nil {
 		return nil, err
 	}
@@ -204,7 +205,7 @@ func ValidateRepo(
 	if err != nil {
 		return nil, err
 	}
-	permittedHelmCredentials, err := GetPermittedReposCredentials(proj, helmRepositoryCredentials)
+	permittedHelmCredentials, err := GetPermittedReposCredentials(proj, helmRepositoryCredentials, getProject)
 	if err != nil {
 		return nil, err
 	}
@@ -295,7 +296,14 @@ func ValidatePermissions(ctx context.Context, spec *argoappv1.ApplicationSpec, p
 		return conditions, nil
 	}
 
-	if !proj.IsSourcePermitted(spec.Source) {
+	isPermitted, err := proj.IsSourcePermitted(spec.Source, getProject)
+	if err != nil {
+		conditions = append(conditions, argoappv1.ApplicationCondition{
+			Type:    argoappv1.ApplicationConditionUnknownError,
+			Message: fmt.Sprintf("error while checking whether repo %q is permitted in project %q", spec.Source.RepoURL, spec.Project),
+		})
+	}
+	if !isPermitted {
 		conditions = append(conditions, argoappv1.ApplicationCondition{
 			Type:    argoappv1.ApplicationConditionInvalidSpecError,
 			Message: fmt.Sprintf("application repo %s is not permitted in project '%s'", spec.Source.RepoURL, spec.Project),
@@ -315,7 +323,7 @@ func ValidatePermissions(ctx context.Context, spec *argoappv1.ApplicationSpec, p
 		isPermitted, err := proj.IsDestinationPermitted(spec.Destination, getProject)
 		if err != nil {
 			conditions = append(conditions, argoappv1.ApplicationCondition{
-				Type:    argoappv1.ApplicationConditionInvalidSpecError,
+				Type:    argoappv1.ApplicationConditionUnknownError,
 				Message: fmt.Sprintf("error while checking whether application destination {%s %s} is permitted in project '%s': %s", spec.Destination.Server, spec.Destination.Namespace, spec.Project, err),
 			})
 		}
@@ -541,20 +549,28 @@ func NormalizeApplicationSpec(spec *argoappv1.ApplicationSpec) *argoappv1.Applic
 	return spec
 }
 
-func GetPermittedReposCredentials(proj *argoappv1.AppProject, repoCreds []*argoappv1.RepoCreds) ([]*argoappv1.RepoCreds, error) {
+func GetPermittedReposCredentials(proj *argoappv1.AppProject, repoCreds []*argoappv1.RepoCreds, getProject argoappv1.AppProjectGetter) ([]*argoappv1.RepoCreds, error) {
 	var permittedRepoCreds []*argoappv1.RepoCreds
 	for _, v := range repoCreds {
-		if proj.IsSourcePermitted(argoappv1.ApplicationSource{RepoURL: v.URL}) {
+		isPermitted, err := proj.IsSourcePermitted(argoappv1.ApplicationSource{RepoURL: v.URL}, getProject)
+		if err != nil {
+			return nil, fmt.Errorf("error while checking whether repo %q is permitted in project %q", v.URL, proj.Name)
+		}
+		if isPermitted {
 			permittedRepoCreds = append(permittedRepoCreds, v)
 		}
 	}
 	return permittedRepoCreds, nil
 }
 
-func GetPermittedRepos(proj *argoappv1.AppProject, repos []*argoappv1.Repository) ([]*argoappv1.Repository, error) {
+func GetPermittedRepos(proj *argoappv1.AppProject, repos []*argoappv1.Repository, getProject argoappv1.AppProjectGetter) ([]*argoappv1.Repository, error) {
 	var permittedRepos []*argoappv1.Repository
 	for _, v := range repos {
-		if proj.IsSourcePermitted(argoappv1.ApplicationSource{RepoURL: v.Repo}) {
+		isPermitted, err := proj.IsSourcePermitted(argoappv1.ApplicationSource{RepoURL: v.Repo}, getProject)
+		if err != nil {
+			return nil, fmt.Errorf("error while checking whether repo %q is permitted in project %q", v.Repo, proj.Name)
+		}
+		if isPermitted {
 			permittedRepos = append(permittedRepos, v)
 		}
 	}
