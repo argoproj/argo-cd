@@ -214,6 +214,7 @@ export const PodsLogsViewer = (props: PodLogsProps & {fullscreen?: boolean}) => 
                                     services.viewPreferences.updatePreferences({...prefs, appDetails: {...prefs.appDetails, wrapLines: !wrap}});
                                 }}>
                                 <i className='fa fa-paragraph' />
+                                {prefs.appDetails.wrapLines && <i className='fa fa-check' />}
                             </button>
                         </Tooltip>
                         <Tooltip content='Show previous logs'>
@@ -248,6 +249,7 @@ export const PodsLogsViewer = (props: PodLogsProps & {fullscreen?: boolean}) => 
                                         }
                                     }}>
                                     <i className='fa fa-clock' />
+                                    {viewTimestamps && <i className='fa fa-check' />}
                                 </button>
                             </Tooltip>
                         )}
