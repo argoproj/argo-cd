@@ -295,45 +295,38 @@ func (proj *AppProject) ProjectPoliciesString() string {
 type AppProjectGetter func(name string) (*AppProject, error)
 
 func checkParents(proj *AppProject, getProject AppProjectGetter, check func(*AppProject) (bool, error)) (permitted bool, err error) {
-	if proj.Spec.ParentProject != "" {
-		visitedParentProjects := map[string]bool{}
-
-		var current *AppProject
-		var previous = ""
-		for {
-			if current != nil {
-				if current.Spec.ParentProject == "" {
-					// We have reached the end of the chain.
-					return true, nil
-				}
-
-				// Store for error messages.
-				previous = current.Name
-			}
-			current, err = getProject(current.Spec.ParentProject)
-			if err != nil {
-				return false, fmt.Errorf("failed to get project %q, parent of %q: %w", current.Spec.ParentProject, previous, err)
-			}
-
-			permitted, err = check(current)
-			if err != nil {
-				return false, fmt.Errorf("failed to check if GroupKind is permitted by parent project %q: %w", current.Name, err)
-			}
-
-			if !permitted {
-				return false, nil
-			}
-
-			if visitedParentProjects[current.Spec.ParentProject] {
-				// Loop detected, no denials encountered.
-				break
-			}
-
-			visitedParentProjects[current.Spec.ParentProject] = true
-		}
+	if proj.Spec.ParentProject == "" {
+		// No parent. As far as we're concerned, check passes.
+		return true, nil
 	}
 
-	return true, nil
+	var current = proj
+	var previous string
+	var previousParent string
+	for {
+		if current.Spec.ParentProject == "" || current.Spec.ParentProject == proj.Name {
+			// We have reached the end of the chain, or the end of a loop, or the project was self-referential.
+			return true, nil
+		}
+
+		// Store for error messages.
+		previous = current.Name
+		previousParent = current.Spec.ParentProject
+
+		current, err = getProject(current.Spec.ParentProject)
+		if err != nil {
+			return false, fmt.Errorf("failed to get project %q, parent of %q: %w", previousParent, previous, err)
+		}
+
+		permitted, err = check(current)
+		if err != nil {
+			return false, fmt.Errorf("failed to check if GroupKind is permitted by parent project %q: %w", current.Name, err)
+		}
+
+		if !permitted {
+			return false, nil
+		}
+	}
 }
 
 // IsGroupKindPermitted validates if the given resource group/kind is permitted to be deployed in the project
