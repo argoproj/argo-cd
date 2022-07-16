@@ -294,6 +294,11 @@ func (proj *AppProject) ProjectPoliciesString() string {
 
 type AppProjectGetter func(name string) (*AppProject, error)
 
+// checkParents performs the given check on each parent in a chain of parents.
+// If proj does not have a parent, returns `true` for permitted and no error.
+// If proj references itself as a parent, returns `true` for permitted and no error.
+// Returns `true` if and only if all projects besides the root pass the check.
+// If either the project getter or the check returns an error, checkParents will return that error (wrapped).
 func checkParents(proj *AppProject, getProject AppProjectGetter, check func(*AppProject) (bool, error)) (permitted bool, err error) {
 	if proj.Spec.ParentProject == "" {
 		// No parent. As far as we're concerned, check passes.

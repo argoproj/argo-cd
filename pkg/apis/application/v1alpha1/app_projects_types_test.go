@@ -7,6 +7,7 @@ import (
 
 	"github.com/stretchr/testify/assert"
 	v1 "k8s.io/apimachinery/pkg/apis/meta/v1"
+	"k8s.io/apimachinery/pkg/runtime/schema"
 )
 
 func Test_checkParents(t *testing.T) {
@@ -106,6 +107,60 @@ func Test_checkParents(t *testing.T) {
 				return false, nil
 			},
 		)
+		assert.NoError(t, err)
+		assert.True(t, isPermitted)
+	})
+}
+
+func Test_IsGroupKindPermitted(t *testing.T) {
+	t.Run("parent projects blocks resources when child does not", func(t *testing.T) {
+		projects := map[string]AppProject{
+			"root": {
+				ObjectMeta: v1.ObjectMeta{
+					Name: "root",
+				},
+				Spec: AppProjectSpec{
+					ParentProject: "b",
+				},
+			},
+			"b": {
+				ObjectMeta: v1.ObjectMeta{
+					Name: "b",
+				},
+				Spec: AppProjectSpec{
+					ParentProject: "c",
+					NamespaceResourceBlacklist: []v1.GroupKind{
+						{Group: "v1", Kind: "ConfigMap"},
+					},
+				},
+			},
+			"c": {
+				ObjectMeta: v1.ObjectMeta{
+					Name: "c",
+				},
+				Spec: AppProjectSpec{
+					NamespaceResourceBlacklist: []v1.GroupKind{
+						{Group: "v1", Kind: "ServiceAccount"},
+					},
+				},
+			},
+		}
+
+		getProject := func(name string) (*AppProject, error) {
+			// No restrictions in the child app.
+			project := projects[name]
+			return &project, nil
+		}
+
+		isPermitted, err := projects["root"].IsGroupKindPermitted(schema.GroupKind{Group: "v1", Kind: "ConfigMap"}, true, getProject)
+		assert.NoError(t, err)
+		assert.False(t, isPermitted)
+
+		isPermitted, err = projects["root"].IsGroupKindPermitted(schema.GroupKind{Group: "v1", Kind: "ServiceAccount"}, true, getProject)
+		assert.NoError(t, err)
+		assert.False(t, isPermitted)
+
+		isPermitted, err = projects["root"].IsGroupKindPermitted(schema.GroupKind{Group: "v1", Kind: "Pod"}, true, getProject)
 		assert.NoError(t, err)
 		assert.True(t, isPermitted)
 	})
