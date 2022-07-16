@@ -524,10 +524,10 @@ func Test_IsResourcePermitted(t *testing.T) {
 						{Name: "*", Namespace: "*"},
 					},
 					NamespaceResourceBlacklist: []v1.GroupKind{
-						{"v1", "ConfigMap"},
+						{Group: "v1", Kind: "ConfigMap"},
 					},
 					ClusterResourceWhitelist: []v1.GroupKind{
-						{"v1", "Pod"},
+						{Group: "v1", Kind: "Pod"},
 					},
 				},
 			},
