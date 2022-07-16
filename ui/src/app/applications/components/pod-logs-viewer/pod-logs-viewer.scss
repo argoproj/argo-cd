@@ -19,6 +19,19 @@
         margin-bottom: 1em;
         .argo-button {
             margin-right: 5px;
+            border: 1px solid transparent;
+
+            .fa {
+                width: 12px;
+
+                &:nth-child(2) {
+                    position: absolute;
+                    font-size: 8px;
+                    color: $argo-success-color-light;
+                    left: 5px;
+                    top: 5px;
+                }
+            }
         }
     }
 
