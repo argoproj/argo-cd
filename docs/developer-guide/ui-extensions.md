@@ -35,14 +35,17 @@ registerResourceExtension(component: ExtensionComponent, group: string, kind: st
 
 * `component: ExtensionComponent` is a React component that receives the following properties:
 
+    * application: Application - Argo CD Application resource;
     * resource: State - the kubernetes resource object;
     * tree: ApplicationTree - includes list of all resources that comprise the application;
 
     See properties interfaces in [models.ts](https://github.com/argoproj/argo-cd/blob/master/ui/src/app/shared/models.ts)
 
-* `group: string` - the glob expression that matches the group of the resource;
+* `group: string` - the glob expression that matches the group of the resource; note: use globstar (`**`) to match all groups including empty string;
 * `kind: string` - the glob expression that matches the kind of the resource;
 * `tabTitle: string` - the extension tab title.
+* `opts: Object` - additional options:
+  * `icon: string` - the class name the represents the icon from the [https://fontawesome.com/](https://fontawesome.com/) library (e.g. 'fa-calendar-alt');
 
 Below is an example of a resource tab extension:
 
