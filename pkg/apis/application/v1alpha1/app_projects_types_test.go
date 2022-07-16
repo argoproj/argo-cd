@@ -10,16 +10,16 @@ import (
 	"k8s.io/apimachinery/pkg/runtime/schema"
 )
 
-func Test_checkParents(t *testing.T) {
+func Test_checkRestrictedBy(t *testing.T) {
 	t.Run("no parent, nothing to do", func(t *testing.T) {
-		isPermitted, err := checkParents(
+		isPermitted, err := checkRestrictedBy(
 			&AppProject{},
 			func(name string) (*AppProject, error) {
-				t.Fatal("checkParents tried to get a project, which it shouldn't do, because the root project has no parents")
+				t.Fatal("checkRestrictedBy tried to get a project, which it shouldn't do, because the root project has no parents")
 				return nil, nil
 			},
 			func(project *AppProject) (bool, error) {
-				t.Fatal("checkParents tried to check a project, which it shouldn't do, because the root project has no parents, and the root project is not checked by checkParents")
+				t.Fatal("checkRestrictedBy tried to check a project, which it shouldn't do, because the root project has no parents, and the root project is not checked by checkRestrictedBy")
 				return false, nil
 			},
 		)
@@ -33,8 +33,8 @@ func Test_checkParents(t *testing.T) {
 			testCase := testCase
 
 			t.Run(fmt.Sprintf("permitted %v", testCase), func(t *testing.T) {
-				isPermitted, err := checkParents(
-					&AppProject{Spec: AppProjectSpec{ParentProject: "parent"}},
+				isPermitted, err := checkRestrictedBy(
+					&AppProject{Spec: AppProjectSpec{RestrictedBy: []string{"parent"}}},
 					func(name string) (*AppProject, error) {
 						return &AppProject{}, nil
 					},
@@ -49,8 +49,8 @@ func Test_checkParents(t *testing.T) {
 	})
 	t.Run("one parent, error getting parent", func(t *testing.T) {
 		expectedError := errors.New("failed to get parent project")
-		isPermitted, err := checkParents(
-			&AppProject{Spec: AppProjectSpec{ParentProject: "parent"}},
+		isPermitted, err := checkRestrictedBy(
+			&AppProject{Spec: AppProjectSpec{RestrictedBy: []string{"parent"}}},
 			func(name string) (*AppProject, error) {
 				return nil, expectedError
 			},
@@ -63,8 +63,8 @@ func Test_checkParents(t *testing.T) {
 	})
 	t.Run("one parent, error checking", func(t *testing.T) {
 		expectedError := errors.New("failed to check")
-		isPermitted, err := checkParents(
-			&AppProject{Spec: AppProjectSpec{ParentProject: "parent"}},
+		isPermitted, err := checkRestrictedBy(
+			&AppProject{Spec: AppProjectSpec{RestrictedBy: []string{"parent"}}},
 			func(name string) (*AppProject, error) {
 				return &AppProject{}, nil
 			},
@@ -76,13 +76,13 @@ func Test_checkParents(t *testing.T) {
 		assert.False(t, isPermitted)
 	})
 	t.Run("loop", func(t *testing.T) {
-		isPermitted, err := checkParents(
-			&AppProject{ObjectMeta: v1.ObjectMeta{Name: "a"}, Spec: AppProjectSpec{ParentProject: "b"}},
+		isPermitted, err := checkRestrictedBy(
+			&AppProject{ObjectMeta: v1.ObjectMeta{Name: "a"}, Spec: AppProjectSpec{RestrictedBy: []string{"b"}}},
 			func(name string) (*AppProject, error) {
 				if name == "a" {
 					t.Fatal("checkProject looped back and checked the initial project - it should not do that")
 				} else if name == "b" {
-					return &AppProject{ObjectMeta: v1.ObjectMeta{Name: "b"}, Spec: AppProjectSpec{ParentProject: "a"}}, nil
+					return &AppProject{ObjectMeta: v1.ObjectMeta{Name: "b"}, Spec: AppProjectSpec{RestrictedBy: []string{"a"}}}, nil
 				} else {
 					t.Fatalf("checkProject tried to get project %q that wasn't referenced", name)
 				}
@@ -96,19 +96,110 @@ func Test_checkParents(t *testing.T) {
 		assert.True(t, isPermitted)
 	})
 	t.Run("self-referential", func(t *testing.T) {
-		isPermitted, err := checkParents(
-			&AppProject{ObjectMeta: v1.ObjectMeta{Name: "root"}, Spec: AppProjectSpec{ParentProject: "root"}},
+		isPermitted, err := checkRestrictedBy(
+			&AppProject{ObjectMeta: v1.ObjectMeta{Name: "root"}, Spec: AppProjectSpec{RestrictedBy: []string{"root"}}},
 			func(name string) (*AppProject, error) {
-				t.Fatal("checkParents tried to get a project, which it shouldn't do, because the root project has no parents")
+				t.Fatal("checkRestrictedBy tried to get a project, which it shouldn't do, because the root project has no parents")
 				return nil, nil
 			},
 			func(project *AppProject) (bool, error) {
-				t.Fatal("checkParents tried to check a project, which it shouldn't do, because the root project has no parents, and the root project is not checked by checkParents")
+				t.Fatal("checkRestrictedBy tried to check a project, which it shouldn't do, because the root project has no parents, and the root project is not checked by checkRestrictedBy")
 				return false, nil
 			},
 		)
 		assert.NoError(t, err)
 		assert.True(t, isPermitted)
+	})
+	t.Run("all Projects must be visited with no double-visits, tree with no loops", func(t *testing.T) {
+		projects := map[string]*AppProject{
+			"a": {
+				ObjectMeta: v1.ObjectMeta{Name: "a"},
+				Spec: AppProjectSpec{RestrictedBy: []string{"b", "e"}},
+			},
+			"b": {
+				ObjectMeta: v1.ObjectMeta{Name: "b"},
+				Spec: AppProjectSpec{RestrictedBy: []string{"c", "d"}},
+			},
+			"c": {
+				ObjectMeta: v1.ObjectMeta{Name: "c"},
+			},
+			"d": {
+				ObjectMeta: v1.ObjectMeta{Name: "d"},
+			},
+			"e": {
+				ObjectMeta: v1.ObjectMeta{Name: "e"},
+				Spec: AppProjectSpec{RestrictedBy: []string{"f", "g"}},
+			},
+			"f": {
+				ObjectMeta: v1.ObjectMeta{Name: "f"},
+			},
+			"g": {
+				ObjectMeta: v1.ObjectMeta{Name: "g"},
+			},
+		}
+		checkedProjects := map[string]bool{}
+		isPermitted, err := checkRestrictedBy(
+			projects["a"],
+			func(name string) (*AppProject, error) {
+				if checkedProjects[name] {
+					t.Fatalf("checkRestrictedBy tried to get project %q even though it's already been checked", name)
+				}
+				return projects[name], nil
+			},
+			func(project *AppProject) (bool, error) {
+				checkedProjects[project.Name] = true
+				return true, nil
+			},
+		)
+		assert.NoError(t, err)
+		assert.True(t, isPermitted)
+		assert.Len(t, checkedProjects, len(projects) - 1, "should have checked all but the root project")
+	})
+	t.Run("all Projects must be visited with no double-visits, tree with a loop", func(t *testing.T) {
+		projects := map[string]*AppProject{
+			"a": {
+				ObjectMeta: v1.ObjectMeta{Name: "a"},
+				Spec: AppProjectSpec{RestrictedBy: []string{"b", "e"}},
+			},
+			"b": {
+				ObjectMeta: v1.ObjectMeta{Name: "b"},
+				Spec: AppProjectSpec{RestrictedBy: []string{"c", "d"}},
+			},
+			"c": {
+				ObjectMeta: v1.ObjectMeta{Name: "c"},
+			},
+			"d": {
+				ObjectMeta: v1.ObjectMeta{Name: "d"},
+			},
+			"e": {
+				ObjectMeta: v1.ObjectMeta{Name: "e"},
+				Spec: AppProjectSpec{RestrictedBy: []string{"f", "g"}},
+			},
+			"f": {
+				ObjectMeta: v1.ObjectMeta{Name: "f"},
+			},
+			"g": {
+				ObjectMeta: v1.ObjectMeta{Name: "g"},
+				Spec: AppProjectSpec{RestrictedBy: []string{"c"}},
+			},
+		}
+		checkedProjects := map[string]bool{}
+		isPermitted, err := checkRestrictedBy(
+			projects["a"],
+			func(name string) (*AppProject, error) {
+				if checkedProjects[name] {
+					t.Fatalf("checkRestrictedBy tried to get project %q even though it's already been checked", name)
+				}
+				return projects[name], nil
+			},
+			func(project *AppProject) (bool, error) {
+				checkedProjects[project.Name] = true
+				return true, nil
+			},
+		)
+		assert.NoError(t, err)
+		assert.True(t, isPermitted)
+		assert.Len(t, checkedProjects, len(projects) - 1, "should have checked all but the root project")
 	})
 }
 
@@ -120,7 +211,7 @@ func Test_IsGroupKindPermitted(t *testing.T) {
 					Name: "root",
 				},
 				Spec: AppProjectSpec{
-					ParentProject: "b",
+					RestrictedBy: []string{"b"},
 				},
 			},
 			"b": {
@@ -128,7 +219,7 @@ func Test_IsGroupKindPermitted(t *testing.T) {
 					Name: "b",
 				},
 				Spec: AppProjectSpec{
-					ParentProject: "c",
+					RestrictedBy: []string{"c"},
 					NamespaceResourceBlacklist: []v1.GroupKind{
 						{Group: "v1", Kind: "ConfigMap"},
 					},
@@ -173,7 +264,7 @@ func Test_IsGroupKindPermitted(t *testing.T) {
 			assert.True(t, isPermitted)
 		})
 
-		projects["root"].Spec.ParentProject = "does-not-exist"
+		projects["root"].Spec.RestrictedBy = []string{"does-not-exist"}
 
 		t.Run("error caused by non-existent project in chain", func(t *testing.T) {
 			isPermitted, err := projects["root"].IsGroupKindPermitted(schema.GroupKind{Group: "v1", Kind: "Pod"}, true, getProject)
@@ -191,7 +282,7 @@ func Test_IsDestinationPermitted(t *testing.T) {
 					Name: "root",
 				},
 				Spec: AppProjectSpec{
-					ParentProject: "b",
+					RestrictedBy: []string{"b"},
 					Destinations: []ApplicationDestination{
 						{Server: "*", Name: "*", Namespace: "*"},
 					},
@@ -202,7 +293,7 @@ func Test_IsDestinationPermitted(t *testing.T) {
 					Name: "b",
 				},
 				Spec: AppProjectSpec{
-					ParentProject: "c",
+					RestrictedBy: []string{"c"},
 					Destinations: []ApplicationDestination{
 						{Name: "dev-usw2-*", Namespace: "dev-usw2-*"},
 					},
@@ -241,7 +332,7 @@ func Test_IsDestinationPermitted(t *testing.T) {
 			assert.True(t, isPermitted)
 		})
 
-		projects["root"].Spec.ParentProject = "does-not-exist"
+		projects["root"].Spec.RestrictedBy = []string{"does-not-exist"}
 
 		t.Run("error because parent project does not exist", func(t *testing.T) {
 			isPermitted, err := projects["root"].IsDestinationPermitted(ApplicationDestination{Name: "dev-usw2-cluster", Namespace: "dev-usw2-namespace"}, getProject)
@@ -259,7 +350,7 @@ func Test_IsSourcePermitted(t *testing.T) {
 					Name: "root",
 				},
 				Spec: AppProjectSpec{
-					ParentProject: "b",
+					RestrictedBy: []string{"b"},
 					SourceRepos: []string{
 						"https://github.company.com/dev-org/*",
 					},
@@ -270,7 +361,7 @@ func Test_IsSourcePermitted(t *testing.T) {
 					Name: "b",
 				},
 				Spec: AppProjectSpec{
-					ParentProject: "c",
+					RestrictedBy: []string{"c"},
 					SourceRepos: []string{
 						"https://github.company.com/dev-org/*-deployment.git",
 					},
@@ -309,7 +400,7 @@ func Test_IsSourcePermitted(t *testing.T) {
 			assert.False(t, isPermitted)
 		})
 
-		projects["root"].Spec.ParentProject = "does-not-exist"
+		projects["root"].Spec.RestrictedBy = []string{"does-not-exist"}
 
 		t.Run("error because the parent project does not exist", func(t *testing.T) {
 			isPermitted, err := projects["root"].IsSourcePermitted(ApplicationSource{RepoURL: "https://github.company.com/other-org/app1-deployment.git"}, getProject)
@@ -327,7 +418,7 @@ func Test_IsResourcePermitted(t *testing.T) {
 					Name: "root",
 				},
 				Spec: AppProjectSpec{
-					ParentProject: "b",
+					RestrictedBy: []string{"b"},
 					Destinations: []ApplicationDestination{
 						{Name: "*", Namespace: "*"},
 					},
@@ -341,7 +432,7 @@ func Test_IsResourcePermitted(t *testing.T) {
 					Name: "b",
 				},
 				Spec: AppProjectSpec{
-					ParentProject: "c",
+					RestrictedBy: []string{"c"},
 					Destinations: []ApplicationDestination{
 						{Name: "*", Namespace: "*"},
 					},
@@ -413,12 +504,96 @@ func Test_IsResourcePermitted(t *testing.T) {
 			}
 		}
 
-		projects["root"].Spec.ParentProject = "does-not-exist"
+		projects["root"].Spec.RestrictedBy = []string{"does-not-exist"}
 
 		t.Run("error getting parent project", func(t *testing.T) {
 			isPermitted, err := projects["root"].IsResourcePermitted(allowedGroupKind, allowedNamespace, allowedDestination, getProject)
 			assert.Error(t, err)
 			assert.False(t, isPermitted)
 		})
+	})
+
+	t.Run("compose a few restrictions", func(t *testing.T) {
+		projects := map[string]*AppProject{
+			"no-configmaps": {
+				ObjectMeta: v1.ObjectMeta{
+					Name: "no-configmaps",
+				},
+				Spec: AppProjectSpec{
+					Destinations: []ApplicationDestination{
+						{Name: "*", Namespace: "*"},
+					},
+					NamespaceResourceBlacklist: []v1.GroupKind{
+						{"v1", "ConfigMap"},
+					},
+					ClusterResourceWhitelist: []v1.GroupKind{
+						{"v1", "Pod"},
+					},
+				},
+			},
+			"dev-clusters-only": {
+				ObjectMeta: v1.ObjectMeta{
+					Name: "dev-clusters-only",
+				},
+				Spec: AppProjectSpec{
+					Destinations: []ApplicationDestination{
+						{Name: "dev-*", Namespace: "*"},
+					},
+				},
+			},
+			"dev-namespaces-only": {
+				ObjectMeta: v1.ObjectMeta{
+					Name: "dev-namespaces-only",
+				},
+				Spec: AppProjectSpec{
+					Destinations: []ApplicationDestination{
+						{Name: "*", Namespace: "dev-*"},
+					},
+				},
+			},
+			"no-configmaps-dev-only": {
+				ObjectMeta: v1.ObjectMeta{
+					Name: "no-configmaps-dev-only",
+				},
+				Spec: AppProjectSpec{
+					Destinations: []ApplicationDestination{
+						{Name: "*", Namespace: "*"},
+					},
+					RestrictedBy: []string{
+						"no-configmaps",
+						"dev-clusters-only",
+						"dev-namespaces-only",
+					},
+				},
+			},
+		}
+
+		getProject := func(name string) (*AppProject, error) {
+			// No restrictions in the child app.
+			project, ok := projects[name]
+			if !ok {
+				return nil, fmt.Errorf("failed to get project %q", name)
+			}
+			return project, nil
+		}
+
+		allowedGroupKind := schema.GroupKind{Group: "v1", Kind: "Pod"}
+		disallowedGroupKind := schema.GroupKind{Group: "v1", Kind: "ConfigMap"}
+		allowedDestination := ApplicationDestination{Name: "dev-usw2-cluster", Namespace: "dev-usw2-namespace"}
+		disallowedDestination := ApplicationDestination{Name: "prod-usw2-cluster", Namespace: "prod-usw2-namespace"}
+
+		for _, groupKind := range []schema.GroupKind{allowedGroupKind, disallowedGroupKind} {
+			for _, destination := range []ApplicationDestination{allowedDestination, disallowedDestination} {
+				groupKindAllowed := groupKind == allowedGroupKind
+				destinationAllowed := destination == allowedDestination
+
+				t.Run(fmt.Sprintf("GroupKind %v allowed: %v, destination %v allowed: %v", groupKind, groupKindAllowed, destination, destinationAllowed), func(t *testing.T) {
+					isPermitted, err := projects["no-configmaps-dev-only"].IsResourcePermitted(groupKind, destination.Namespace, destination, getProject)
+					resourceAllowed := groupKindAllowed && destinationAllowed
+					assert.NoError(t, err)
+					assert.Equal(t, resourceAllowed, isPermitted)
+				})
+			}
+		}
 	})
 }

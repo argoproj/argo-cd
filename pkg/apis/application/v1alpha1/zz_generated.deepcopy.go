@@ -149,8 +149,13 @@ func (in *AppProjectSpec) DeepCopyInto(out *AppProjectSpec) {
 		*out = make([]v1.GroupKind, len(*in))
 		copy(*out, *in)
 	}
-	if in.AllowedParentProjects != nil {
-		in, out := &in.AllowedParentProjects, &out.AllowedParentProjects
+	if in.RestrictedBy != nil {
+		in, out := &in.RestrictedBy, &out.RestrictedBy
+		*out = make([]string, len(*in))
+		copy(*out, *in)
+	}
+	if in.ProjectsMustBeRestrictedBy != nil {
+		in, out := &in.ProjectsMustBeRestrictedBy, &out.ProjectsMustBeRestrictedBy
 		*out = make([]string, len(*in))
 		copy(*out, *in)
 	}

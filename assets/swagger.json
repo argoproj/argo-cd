@@ -4699,13 +4699,6 @@
       "type": "object",
       "title": "AppProjectSpec is the specification of an AppProject",
       "properties": {
-        "allowedParentProjects": {
-          "description": "AllowedParentProjects is a list of patterns determining which parentProjects are allowed to be set on Projects\nmanaged by Applications under this Project. If the list is empty, any value is allowed for parentProject.",
-          "type": "array",
-          "items": {
-            "type": "string"
-          }
-        },
         "clusterResourceBlacklist": {
           "type": "array",
           "title": "ClusterResourceBlacklist contains list of blacklisted cluster level resources",
@@ -4748,9 +4741,19 @@
         "orphanedResources": {
           "$ref": "#/definitions/v1alpha1OrphanedResourcesMonitorSettings"
         },
-        "parentProject": {
-          "type": "string",
-          "title": "ParentProject, if set, causes the parent's restrictions to be applied to this Project"
+        "projectsMustBeRestrictedBy": {
+          "description": "ProjectsMustBeRestrictedBy is a list of patterns determining which parentProjects are allowed to be set on Projects\nmanaged by Applications under this Project. If the list is empty, any value is allowed for parentProject.",
+          "type": "array",
+          "items": {
+            "type": "string"
+          }
+        },
+        "restrictedBy": {
+          "type": "array",
+          "title": "RestrictedBy, if set, causes the listed Projects' restrictions to be applied to this Project",
+          "items": {
+            "type": "string"
+          }
         },
         "roles": {
           "type": "array",

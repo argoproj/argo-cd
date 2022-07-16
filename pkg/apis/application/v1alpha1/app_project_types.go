@@ -294,53 +294,74 @@ func (proj *AppProject) ProjectPoliciesString() string {
 
 type AppProjectGetter func(name string) (*AppProject, error)
 
-// checkParents performs the given check on each parent in a chain of parents.
+// checkRestrictedBy recursively performs the given check on each project restricting proj (by breadth first search).
+// The caller must perform the check on proj (i.e. the root). It will not be checked in this function.
 // If proj does not have a parent, returns `true` for permitted and no error.
 // If proj references itself as a parent, returns `true` for permitted and no error.
 // Returns `true` if and only if all projects besides the root pass the check.
-// If either the project getter or the check returns an error, checkParents will return that error (wrapped).
-func checkParents(proj *AppProject, getProject AppProjectGetter, check func(*AppProject) (bool, error)) (permitted bool, err error) {
-	if proj.Spec.ParentProject == "" {
-		// No parent. As far as we're concerned, check passes.
-		return true, nil
+// If either the project getter or the check returns an error, checkRestrictedBy will return that error (wrapped).
+func checkRestrictedBy(proj *AppProject, getProject AppProjectGetter, check func(*AppProject) (bool, error)) (permitted bool, err error) {
+	var current = proj
+
+	// Set initial list of projects to visit.
+	var toVisit []string
+	for _, project := range current.Spec.RestrictedBy {
+		if project != "" && project != current.Name {
+			// If it's a valid project name and isn't self-referential, queue it to be checked.
+			// This list could contain duplicates, those will be skipped by the alreadyCleared check after being cleared.
+			toVisit = append(toVisit, project)
+		}
 	}
 
-	var current = proj
-	var previous string
-	var previousParent string
+	// Treat the root as "already cleared," i.e. don't check it if we loop back to it. The caller must check the root.
+	alreadyCleared := map[string]bool{proj.Name: true}
+	var restrictedBy string
+	var i = 0
 	for {
-		if current.Spec.ParentProject == "" || current.Spec.ParentProject == proj.Name {
-			// We have reached the end of the chain, or the end of a loop, or the project was self-referential.
+		if i >= len(toVisit) {
+			// checked everything there is to check
 			return true, nil
 		}
+		restrictedBy = toVisit[i]
+		if alreadyCleared[restrictedBy] {
+			// already visited and cleared - ignore
+			i++
+			continue
+		}
 
-		// Store for error messages.
-		previous = current.Name
-		previousParent = current.Spec.ParentProject
-
-		current, err = getProject(current.Spec.ParentProject)
+		// TODO: Getting individual projects could get slow. Add a way to get them in batches.
+		current, err = getProject(restrictedBy)
 		if err != nil {
-			return false, fmt.Errorf("failed to get project %q, parent of %q: %w", previousParent, previous, err)
+			return false, fmt.Errorf("failed to get project %q while checking restrictions on project %q: %w", restrictedBy, proj.Name, err)
 		}
 
 		permitted, err = check(current)
 		if err != nil {
-			return false, fmt.Errorf("failed to check if GroupKind is permitted by parent project %q: %w", current.Name, err)
+			return false, fmt.Errorf("failed to check if GroupKind is permitted by project %q which restricts %q: %w", current.Name, proj.Name, err)
 		}
 
 		if !permitted {
 			return false, nil
 		}
+
+		for _, project := range current.Spec.RestrictedBy {
+			if project != "" && project != current.Name && !alreadyCleared[project] {
+				// if it's a valid project name, isn't self-referential, and hasn't already been cleared, queue it to be checked
+				toVisit = append(toVisit, project)
+			}
+		}
+		alreadyCleared[restrictedBy] = true
+		i++
 	}
 }
 
 // IsGroupKindPermitted validates if the given resource group/kind is permitted to be deployed in the project
 func (proj AppProject) IsGroupKindPermitted(gk schema.GroupKind, namespaced bool, getProject AppProjectGetter) (permitted bool, err error) {
-	permittedByParents, err := checkParents(&proj, getProject, func(currentProj *AppProject) (bool, error) {
+	permittedByParents, err := checkRestrictedBy(&proj, getProject, func(currentProj *AppProject) (bool, error) {
 		return currentProj.IsGroupKindPermitted(gk, namespaced, getProject)
 	})
 	if err != nil {
-		return false, fmt.Errorf("failed to determine whether GroupKind is permitted by parents of project %q: %w", proj.Spec.ParentProject, err)
+		return false, fmt.Errorf("failed to determine whether GroupKind is permitted by projects restricting project %q: %w", proj.Name, err)
 	}
 	if !permittedByParents {
 		return false, nil
@@ -372,7 +393,7 @@ func (proj AppProject) IsLiveResourcePermitted(un *unstructured.Unstructured, se
 }
 
 func (proj AppProject) IsResourcePermitted(groupKind schema.GroupKind, namespace string, dest ApplicationDestination, getProject AppProjectGetter) (bool, error) {
-	permittedByParents, err := checkParents(&proj, getProject, func(parentProject *AppProject) (bool, error) {
+	permittedByParents, err := checkRestrictedBy(&proj, getProject, func(parentProject *AppProject) (bool, error) {
 		return parentProject.IsResourcePermitted(groupKind, namespace, dest, getProject)
 	})
 	if err != nil {
@@ -418,7 +439,7 @@ func globMatch(pattern string, val string, separators ...rune) bool {
 
 // IsSourcePermitted validates if the provided application's source is a one of the allowed sources for the project.
 func (proj AppProject) IsSourcePermitted(src ApplicationSource, getProject AppProjectGetter) (bool, error) {
-	permittedByParents, err := checkParents(&proj, getProject, func(parentProject *AppProject) (bool, error) {
+	permittedByParents, err := checkRestrictedBy(&proj, getProject, func(parentProject *AppProject) (bool, error) {
 		return parentProject.IsSourcePermitted(src, getProject)
 	})
 	if err != nil {
@@ -440,7 +461,7 @@ func (proj AppProject) IsSourcePermitted(src ApplicationSource, getProject AppPr
 
 // IsDestinationPermitted validates if the provided application's destination is one of the allowed destinations for the project
 func (proj AppProject) IsDestinationPermitted(dst ApplicationDestination, getProject AppProjectGetter) (bool, error) {
-	permittedByParents, err := checkParents(&proj, getProject, func(parentProject *AppProject) (bool, error) {
+	permittedByParents, err := checkRestrictedBy(&proj, getProject, func(parentProject *AppProject) (bool, error) {
 		return parentProject.IsDestinationPermitted(dst, getProject)
 	})
 	if err != nil {
