@@ -23,14 +23,6 @@
 
             .fa {
                 width: 12px;
-
-                &:nth-child(2) {
-                    position: absolute;
-                    font-size: 8px;
-                    color: $argo-success-color-light;
-                    left: 5px;
-                    top: 5px;
-                }
             }
         }
     }
@@ -193,4 +185,12 @@ code {
     font-family: inherit;
     font-weight: inherit;
     color: inherit;
+}
+
+.active-icon {
+    position: absolute !important;
+    font-size: 8px !important;
+    color: $argo-success-color-light !important;
+    left: 5px !important;
+    top: 5px !important;
 }

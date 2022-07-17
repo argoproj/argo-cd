@@ -203,7 +203,7 @@ export const PodsLogsViewer = (props: PodLogsProps & {fullscreen?: boolean}) => 
                                     loader.reload();
                                 }}>
                                 <i className='fa fa-arrow-right' />
-                                {prefs.appDetails.followLogs && <i className='fa fa-check' />}
+                                {prefs.appDetails.followLogs && <i className='fa fa-check active-icon' />}
                             </button>
                         </Tooltip>
                         <Tooltip content='Wrap Lines'>
@@ -214,7 +214,7 @@ export const PodsLogsViewer = (props: PodLogsProps & {fullscreen?: boolean}) => 
                                     services.viewPreferences.updatePreferences({...prefs, appDetails: {...prefs.appDetails, wrapLines: !wrap}});
                                 }}>
                                 <i className='fa fa-paragraph' />
-                                {prefs.appDetails.wrapLines && <i className='fa fa-check' />}
+                                {prefs.appDetails.wrapLines && <i className='fa fa-check active-icon' />}
                             </button>
                         </Tooltip>
                         <Tooltip content='Show previous logs'>
@@ -225,7 +225,7 @@ export const PodsLogsViewer = (props: PodLogsProps & {fullscreen?: boolean}) => 
                                     loader.reload();
                                 }}>
                                 <i className='fa fa-backward' />
-                                {showPreviousLogs && <i className='fa fa-check' />}
+                                {showPreviousLogs && <i className='fa fa-check active-icon' />}
                             </button>
                         </Tooltip>
                         <Tooltip content={prefs.appDetails.darkMode ? 'Light Mode' : 'Dark Mode'}>
@@ -249,7 +249,7 @@ export const PodsLogsViewer = (props: PodLogsProps & {fullscreen?: boolean}) => 
                                         }
                                     }}>
                                     <i className='fa fa-clock' />
-                                    {viewTimestamps && <i className='fa fa-check' />}
+                                    {viewTimestamps && <i className='fa fa-check active-icon' />}
                                 </button>
                             </Tooltip>
                         )}
@@ -270,6 +270,7 @@ export const PodsLogsViewer = (props: PodLogsProps & {fullscreen?: boolean}) => 
                                     onClick={() => setFilter({...filter, inverse: !filter.inverse})}
                                     style={{marginRight: '10px'}}>
                                     !
+                                    {filter.inverse && <i className='fa fa-check active-icon' />}
                                 </button>
                             </Tooltip>
                             <input
