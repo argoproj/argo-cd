@@ -324,6 +324,40 @@
         }
       }
     },
+    "/api/v1/applications/manifestsWithFiles": {
+      "post": {
+        "tags": [
+          "ApplicationService"
+        ],
+        "summary": "GetManifestsWithFiles returns application manifests using provided files to generate them",
+        "operationId": "ApplicationService_GetManifestsWithFiles",
+        "parameters": [
+          {
+            "description": " (streaming inputs)",
+            "name": "body",
+            "in": "body",
+            "required": true,
+            "schema": {
+              "$ref": "#/definitions/applicationApplicationManifestQueryWithFilesWrapper"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "A successful response.",
+            "schema": {
+              "$ref": "#/definitions/repositoryManifestResponse"
+            }
+          },
+          "default": {
+            "description": "An unexpected error response.",
+            "schema": {
+              "$ref": "#/definitions/runtimeError"
+            }
+          }
+        }
+      }
+    },
     "/api/v1/applications/{application.metadata.name}": {
       "put": {
         "tags": [
@@ -3386,6 +3420,28 @@
     "accountUpdatePasswordResponse": {
       "type": "object"
     },
+    "applicationApplicationManifestQueryWithFiles": {
+      "type": "object",
+      "properties": {
+        "checksum": {
+          "type": "string"
+        },
+        "name": {
+          "type": "string"
+        }
+      }
+    },
+    "applicationApplicationManifestQueryWithFilesWrapper": {
+      "type": "object",
+      "properties": {
+        "chunk": {
+          "$ref": "#/definitions/applicationFileChunk"
+        },
+        "query": {
+          "$ref": "#/definitions/applicationApplicationManifestQueryWithFiles"
+        }
+      }
+    },
     "applicationApplicationPatchRequest": {
       "type": "object",
       "title": "ApplicationPatchRequest is a request to patch an application",
@@ -3509,6 +3565,15 @@
         },
         "canSync": {
           "type": "boolean"
+        }
+      }
+    },
+    "applicationFileChunk": {
+      "type": "object",
+      "properties": {
+        "chunk": {
+          "type": "string",
+          "format": "byte"
         }
       }
     },

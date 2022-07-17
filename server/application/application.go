@@ -4,6 +4,7 @@ import (
 	"encoding/json"
 	"errors"
 	"fmt"
+	"io"
 	"math"
 	"reflect"
 	"sort"
@@ -12,6 +13,7 @@ import (
 	"time"
 
 	"context"
+
 	kubecache "github.com/argoproj/gitops-engine/pkg/cache"
 	"github.com/argoproj/gitops-engine/pkg/diff"
 	"github.com/argoproj/gitops-engine/pkg/sync/common"
@@ -50,7 +52,6 @@ import (
 	"github.com/argoproj/argo-cd/v2/util/db"
 	"github.com/argoproj/argo-cd/v2/util/env"
 	"github.com/argoproj/argo-cd/v2/util/git"
-	"github.com/argoproj/argo-cd/v2/util/io"
 	ioutil "github.com/argoproj/argo-cd/v2/util/io"
 	"github.com/argoproj/argo-cd/v2/util/lua"
 	"github.com/argoproj/argo-cd/v2/util/rbac"
@@ -377,6 +378,160 @@ func (s *Server) GetManifests(ctx context.Context, q *application.ApplicationMan
 	}
 
 	return manifestInfo, nil
+}
+
+func (s *Server) GetManifestsWithFiles(stream application.ApplicationService_GetManifestsWithFilesServer) error {
+	ctx := stream.Context()
+	header, err := stream.Recv()
+	if err != nil {
+		return fmt.Errorf("failed to receive header: %w", err)
+	}
+	if header == nil || header.GetQuery() == nil {
+		return fmt.Errorf("error getting stream query: query is nil")
+	}
+
+	query := header.GetQuery()
+
+	a, err := s.appLister.Get(*query.Name)
+	if err != nil {
+		return fmt.Errorf("error getting application: %w", err)
+	}
+	if err := s.enf.EnforceErr(ctx.Value("claims"), rbacpolicy.ResourceApplications, rbacpolicy.ActionGet, apputil.AppRBACName(*a)); err != nil {
+		return err
+	}
+
+	var manifestInfo *apiclient.ManifestResponse
+	err = s.queryRepoServer(ctx, a, func(
+		client apiclient.RepoServerServiceClient, repo *appv1.Repository, helmRepos []*appv1.Repository, helmCreds []*appv1.RepoCreds, helmOptions *appv1.HelmOptions, kustomizeOptions *appv1.KustomizeOptions, enableGenerateManifests map[string]bool) error {
+
+		appInstanceLabelKey, err := s.settingsMgr.GetAppInstanceLabelKey()
+		if err != nil {
+			return fmt.Errorf("error getting app instance label key from settings: %w", err)
+		}
+
+		plugins, err := s.plugins()
+		if err != nil {
+			return fmt.Errorf("error getting plugins: %w", err)
+		}
+		config, err := s.getApplicationClusterConfig(ctx, a)
+		if err != nil {
+			return fmt.Errorf("error getting application cluster config: %w", err)
+		}
+
+		serverVersion, err := s.kubectl.GetServerVersion(config)
+		if err != nil {
+			return fmt.Errorf("error getting server version: %w", err)
+		}
+
+		apiResources, err := s.kubectl.GetAPIResources(config, false, kubecache.NewNoopSettings())
+		if err != nil {
+			return fmt.Errorf("error getting API resources: %w", err)
+		}
+
+		req := &apiclient.ManifestRequest{
+			Repo:               repo,
+			Revision:           a.Spec.Source.TargetRevision,
+			AppLabelKey:        appInstanceLabelKey,
+			AppName:            a.Name,
+			Namespace:          a.Spec.Destination.Namespace,
+			ApplicationSource:  &a.Spec.Source,
+			Repos:              helmRepos,
+			Plugins:            plugins,
+			KustomizeOptions:   kustomizeOptions,
+			KubeVersion:        serverVersion,
+			ApiVersions:        argo.APIResourcesToStrings(apiResources, true),
+			HelmRepoCreds:      helmCreds,
+			HelmOptions:        helmOptions,
+			TrackingMethod:     string(argoutil.GetTrackingMethod(s.settingsMgr)),
+			EnabledSourceTypes: enableGenerateManifests,
+		}
+
+		repoStreamClient, err := client.GenerateManifestWithFiles(stream.Context())
+		if err != nil {
+			return fmt.Errorf("error opening stream: %w", err)
+		}
+
+		err = repoStreamClient.Send(&apiclient.ManifestRequestWithFiles{
+			Part: &apiclient.ManifestRequestWithFiles_Request{
+				Request: req,
+			},
+		})
+
+		if err != nil {
+			return fmt.Errorf("error sending request: %w", err)
+		}
+
+		err = repoStreamClient.Send(&apiclient.ManifestRequestWithFiles{
+			Part: &apiclient.ManifestRequestWithFiles_Metadata{
+				Metadata: &apiclient.ManifestFileMetadata{
+					Checksum: query.GetChecksum(),
+				},
+			},
+		})
+
+		if err != nil {
+			return fmt.Errorf("error sending metadata: %w", err)
+		}
+
+		// start receiving file and sending to repo server
+		for {
+			part, err := stream.Recv()
+			if err != nil {
+				if err == io.EOF {
+					break
+				}
+				return fmt.Errorf("stream Recv error: %w", err)
+			}
+			if part == nil || part.GetChunk() == nil {
+				return fmt.Errorf("error getting stream chunk: chunk is nil")
+			}
+
+			err = repoStreamClient.Send(&apiclient.ManifestRequestWithFiles{
+				Part: &apiclient.ManifestRequestWithFiles_Chunk{
+					Chunk: &apiclient.ManifestFileChunk{
+						Chunk: part.GetChunk().GetChunk(),
+					},
+				},
+			})
+			if err != nil {
+				return fmt.Errorf("error sending chunk: %w", err)
+			}
+		}
+
+		resp, err := repoStreamClient.CloseAndRecv()
+		if err != nil {
+			return fmt.Errorf("error generating manifests: %w", err)
+		}
+
+		manifestInfo = resp
+		return nil
+	})
+
+	if err != nil {
+		return err
+	}
+
+	for i, manifest := range manifestInfo.Manifests {
+		obj := &unstructured.Unstructured{}
+		err = json.Unmarshal([]byte(manifest), obj)
+		if err != nil {
+			return fmt.Errorf("error unmarshaling manifest into unstructured: %w", err)
+		}
+		if obj.GetKind() == kube.SecretKind && obj.GroupVersionKind().Group == "" {
+			obj, _, err = diff.HideSecretData(obj, nil)
+			if err != nil {
+				return fmt.Errorf("error hiding secret data: %w", err)
+			}
+			data, err := json.Marshal(obj)
+			if err != nil {
+				return fmt.Errorf("error marshaling manifest: %w", err)
+			}
+			manifestInfo.Manifests[i] = string(data)
+		}
+	}
+
+	stream.SendAndClose(manifestInfo)
+	return nil
 }
 
 // Get returns an application by name
@@ -1612,7 +1767,7 @@ func (s *Server) resolveRevision(ctx context.Context, app *appv1.Application, sy
 	if err != nil {
 		return "", "", fmt.Errorf("error getting repo server client: %w", err)
 	}
-	defer io.Close(conn)
+	defer ioutil.Close(conn)
 
 	if !app.Spec.Source.IsHelm() {
 		if git.IsCommitSHA(ambiguousRevision) {

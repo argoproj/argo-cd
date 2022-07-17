@@ -55,6 +55,22 @@ message ApplicationManifestQuery {
 	optional string revision = 2;
 }
 
+message FileChunk {
+	required bytes chunk = 1;
+}
+
+message ApplicationManifestQueryWithFiles {
+	required string name = 1;
+	required string checksum = 2;
+}
+
+message ApplicationManifestQueryWithFilesWrapper {
+	oneof part {
+		ApplicationManifestQueryWithFiles query = 1;
+		FileChunk chunk = 2;
+	}
+}
+
 message ApplicationResponse {}
 
 message ApplicationCreateRequest {
@@ -271,6 +287,14 @@ service ApplicationService {
 	// GetManifests returns application manifests
 	rpc GetManifests (ApplicationManifestQuery) returns (repository.ManifestResponse) {
 		option (google.api.http).get = "/api/v1/applications/{name}/manifests";
+	}
+
+	// GetManifestsWithFiles returns application manifests using provided files to generate them
+	rpc GetManifestsWithFiles (stream ApplicationManifestQueryWithFilesWrapper) returns (repository.ManifestResponse) {
+		option (google.api.http) = {
+			post: "/api/v1/applications/manifestsWithFiles"
+			body: "*"
+		};
 	}
 
 	// Update updates an application

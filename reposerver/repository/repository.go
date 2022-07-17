@@ -447,6 +447,56 @@ func (s *Service) GenerateManifest(ctx context.Context, q *apiclient.ManifestReq
 	return res, err
 }
 
+func (s *Service) GenerateManifestWithFiles(stream apiclient.RepoServerService_GenerateManifestWithFilesServer) error {
+	workDir, err := files.CreateTempDir("")
+	if err != nil {
+		return fmt.Errorf("error creating temp dir: %w", err)
+	}
+	defer func() {
+		if err := os.RemoveAll(workDir); err != nil {
+			// we panic here as the workDir may contain sensitive information
+			panic(fmt.Sprintf("error removing generate manifest workdir: %s", err))
+		}
+	}()
+
+	req, metadata, err := ReceiveManifestFileStream(stream.Context(), stream, workDir)
+
+	if err != nil {
+		return fmt.Errorf("error receiving manifest file stream: %w", err)
+	}
+
+	if !s.initConstants.AllowOutOfBoundsSymlinks {
+		err := argopath.CheckOutOfBoundsSymlinks(workDir)
+		if err != nil {
+			oobError := &argopath.OutOfBoundsSymlinkError{}
+			if errors.As(err, &oobError) {
+				log.WithFields(log.Fields{
+					"file": oobError.File,
+				}).Warn("streamed files contains out-of-bounds symlink")
+				return fmt.Errorf("streamed files contains out-of-bounds symlinks. file: %s", oobError.File)
+			} else {
+				return err
+			}
+		}
+	}
+
+	promise := s.runManifestGen(stream.Context(), workDir, "streamed", metadata.Checksum, func() (*operationContext, error) {
+		appPath, err := argopath.Path(workDir, req.ApplicationSource.Path)
+		if err != nil {
+			return nil, err
+		}
+		return &operationContext{appPath, ""}, nil
+	}, req)
+
+	select {
+	case err := <-promise.errCh:
+		return err
+	case resp := <-promise.responseCh:
+		stream.SendAndClose(resp)
+		return nil
+	}
+}
+
 type ManifestResponsePromise struct {
 	responseCh <-chan *apiclient.ManifestResponse
 	tarDoneCh  <-chan bool
