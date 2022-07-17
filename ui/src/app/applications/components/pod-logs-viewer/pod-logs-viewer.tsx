@@ -269,13 +269,12 @@ export const PodsLogsViewer = (props: PodLogsProps & {fullscreen?: boolean}) => 
                                     className={`argo-button argo-button--base${filter.inverse ? '' : '-o'}`}
                                     onClick={() => setFilter({...filter, inverse: !filter.inverse})}
                                     style={{marginRight: '10px'}}>
-                                    !
-                                    {filter.inverse && <i className='fa fa-check active-icon' />}
+                                    ! {filter.inverse && <i className='fa fa-check active-icon' />}
                                 </button>
                             </Tooltip>
                             <input
                                 type='text'
-                                placeholder='Filter string'
+                                placeholder={`Filter ${filter.inverse ? 'out' : ''} string`}
                                 className='argo-field'
                                 value={filterText}
                                 onChange={e => setFilterText(e.target.value)}
