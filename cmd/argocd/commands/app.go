@@ -872,6 +872,8 @@ func NewApplicationDiffCommand(clientOpts *argocdclient.ClientOptions) *cobra.Co
 
 					f, checksum, err := stream.CompressFiles(local, nil)
 
+					errors.CheckError(err)
+
 					err = client.Send(&applicationpkg.ApplicationManifestQueryWithFilesWrapper{
 						Part: &applicationpkg.ApplicationManifestQueryWithFilesWrapper_Query{
 							Query: &applicationpkg.ApplicationManifestQueryWithFiles{

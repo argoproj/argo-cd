@@ -488,13 +488,29 @@ func (s *Service) GenerateManifestWithFiles(stream apiclient.RepoServerService_G
 		return &operationContext{appPath, ""}, nil
 	}, req)
 
+	var res *apiclient.ManifestResponse
+	tarConcluded := false
+
 	select {
 	case err := <-promise.errCh:
 		return err
+	case tarDone := <-promise.tarDoneCh:
+		tarConcluded = tarDone
 	case resp := <-promise.responseCh:
-		stream.SendAndClose(resp)
-		return nil
+		res = resp
 	}
+
+	if tarConcluded && res == nil {
+		select {
+		case resp := <-promise.responseCh:
+			res = resp
+		case err := <-promise.errCh:
+			return err
+		}
+	}
+
+	err = stream.SendAndClose(res)
+	return err
 }
 
 type ManifestResponsePromise struct {
@@ -1615,6 +1631,7 @@ func generateManifestsCMP(ctx context.Context, appPath, repoPath string, env []s
 	opts := []cmp.SenderOption{
 		cmp.WithTarDoneChan(tarDoneCh),
 	}
+
 	err = cmp.SendRepoStream(generateManifestStream.Context(), appPath, repoPath, generateManifestStream, env, tarExcludedGlobs, opts...)
 	if err != nil {
 		return nil, fmt.Errorf("error sending file to cmp-server: %s", err)
