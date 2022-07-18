@@ -23,6 +23,7 @@ import (
 	"k8s.io/apimachinery/pkg/api/resource"
 
 	"github.com/argoproj/argo-cd/v2/util/io/files"
+	"github.com/argoproj/argo-cd/v2/util/manifeststream"
 
 	"github.com/Masterminds/semver/v3"
 	"github.com/TomOnTime/utfutil"
@@ -459,7 +460,7 @@ func (s *Service) GenerateManifestWithFiles(stream apiclient.RepoServerService_G
 		}
 	}()
 
-	req, metadata, err := ReceiveManifestFileStream(stream.Context(), stream, workDir)
+	req, metadata, err := manifeststream.ReceiveManifestFileStream(stream.Context(), stream, workDir)
 
 	if err != nil {
 		return fmt.Errorf("error receiving manifest file stream: %w", err)

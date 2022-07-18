@@ -4,7 +4,6 @@ import (
 	"encoding/json"
 	"errors"
 	"fmt"
-	"io"
 	"math"
 	"reflect"
 	"sort"
@@ -54,6 +53,7 @@ import (
 	"github.com/argoproj/argo-cd/v2/util/git"
 	ioutil "github.com/argoproj/argo-cd/v2/util/io"
 	"github.com/argoproj/argo-cd/v2/util/lua"
+	"github.com/argoproj/argo-cd/v2/util/manifeststream"
 	"github.com/argoproj/argo-cd/v2/util/rbac"
 	"github.com/argoproj/argo-cd/v2/util/session"
 	"github.com/argoproj/argo-cd/v2/util/settings"
@@ -382,15 +382,11 @@ func (s *Server) GetManifests(ctx context.Context, q *application.ApplicationMan
 
 func (s *Server) GetManifestsWithFiles(stream application.ApplicationService_GetManifestsWithFilesServer) error {
 	ctx := stream.Context()
-	header, err := stream.Recv()
-	if err != nil {
-		return fmt.Errorf("failed to receive header: %w", err)
-	}
-	if header == nil || header.GetQuery() == nil {
-		return fmt.Errorf("error getting stream query: query is nil")
-	}
+	query, err := manifeststream.ReceiveApplicationManifestQueryWithFiles(stream)
 
-	query := header.GetQuery()
+	if err != nil {
+		return fmt.Errorf("error getting query: %w", err)
+	}
 
 	a, err := s.appLister.Get(*query.Name)
 	if err != nil {
@@ -451,52 +447,7 @@ func (s *Server) GetManifestsWithFiles(stream application.ApplicationService_Get
 			return fmt.Errorf("error opening stream: %w", err)
 		}
 
-		err = repoStreamClient.Send(&apiclient.ManifestRequestWithFiles{
-			Part: &apiclient.ManifestRequestWithFiles_Request{
-				Request: req,
-			},
-		})
-
-		if err != nil {
-			return fmt.Errorf("error sending request: %w", err)
-		}
-
-		err = repoStreamClient.Send(&apiclient.ManifestRequestWithFiles{
-			Part: &apiclient.ManifestRequestWithFiles_Metadata{
-				Metadata: &apiclient.ManifestFileMetadata{
-					Checksum: query.GetChecksum(),
-				},
-			},
-		})
-
-		if err != nil {
-			return fmt.Errorf("error sending metadata: %w", err)
-		}
-
-		// start receiving file and sending to repo server
-		for {
-			part, err := stream.Recv()
-			if err != nil {
-				if err == io.EOF {
-					break
-				}
-				return fmt.Errorf("stream Recv error: %w", err)
-			}
-			if part == nil || part.GetChunk() == nil {
-				return fmt.Errorf("error getting stream chunk: chunk is nil")
-			}
-
-			err = repoStreamClient.Send(&apiclient.ManifestRequestWithFiles{
-				Part: &apiclient.ManifestRequestWithFiles_Chunk{
-					Chunk: &apiclient.ManifestFileChunk{
-						Chunk: part.GetChunk().GetChunk(),
-					},
-				},
-			})
-			if err != nil {
-				return fmt.Errorf("error sending chunk: %w", err)
-			}
-		}
+		manifeststream.SendRepoStream(repoStreamClient, stream, req, *query.Checksum)
 
 		resp, err := repoStreamClient.CloseAndRecv()
 		if err != nil {

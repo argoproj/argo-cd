@@ -44,13 +44,13 @@ import (
 	argoappv1 "github.com/argoproj/argo-cd/v2/pkg/apis/application/v1alpha1"
 	repoapiclient "github.com/argoproj/argo-cd/v2/reposerver/apiclient"
 	"github.com/argoproj/argo-cd/v2/reposerver/repository"
-	"github.com/argoproj/argo-cd/v2/util/app/stream"
 	"github.com/argoproj/argo-cd/v2/util/argo"
 	argodiff "github.com/argoproj/argo-cd/v2/util/argo/diff"
 	"github.com/argoproj/argo-cd/v2/util/cli"
 	"github.com/argoproj/argo-cd/v2/util/errors"
 	"github.com/argoproj/argo-cd/v2/util/git"
 	argoio "github.com/argoproj/argo-cd/v2/util/io"
+	"github.com/argoproj/argo-cd/v2/util/manifeststream"
 	"github.com/argoproj/argo-cd/v2/util/templates"
 	"github.com/argoproj/argo-cd/v2/util/text/label"
 )
@@ -870,22 +870,7 @@ func NewApplicationDiffCommand(clientOpts *argocdclient.ClientOptions) *cobra.Co
 					client, err := appIf.GetManifestsWithFiles(ctx, grpc_retry.Disable())
 					errors.CheckError(err)
 
-					f, checksum, err := stream.CompressFiles(local, nil)
-
-					errors.CheckError(err)
-
-					err = client.Send(&applicationpkg.ApplicationManifestQueryWithFilesWrapper{
-						Part: &applicationpkg.ApplicationManifestQueryWithFilesWrapper_Query{
-							Query: &applicationpkg.ApplicationManifestQueryWithFiles{
-								Name:     &appName,
-								Checksum: &checksum,
-							},
-						},
-					})
-
-					errors.CheckError(err)
-
-					err = stream.SendFile(ctx, client, f)
+					err = manifeststream.SendApplicationManifestQueryWithFiles(ctx, client, appName, local)
 					errors.CheckError(err)
 
 					res, err := client.CloseAndRecv()
