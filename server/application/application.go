@@ -447,7 +447,10 @@ func (s *Server) GetManifestsWithFiles(stream application.ApplicationService_Get
 			return fmt.Errorf("error opening stream: %w", err)
 		}
 
-		manifeststream.SendRepoStream(repoStreamClient, stream, req, *query.Checksum)
+		err = manifeststream.SendRepoStream(repoStreamClient, stream, req, *query.Checksum)
+		if err != nil {
+			return fmt.Errorf("error sending repo stream: %w", err)
+		}
 
 		resp, err := repoStreamClient.CloseAndRecv()
 		if err != nil {
