@@ -2,6 +2,7 @@ package cluster
 
 import (
 	"context"
+	"encoding/json"
 	"testing"
 	"time"
 
@@ -202,6 +203,96 @@ func TestDeleteClusterByName(t *testing.T) {
 
 		_, err = db.GetCluster(context.Background(), "https://my-cluster-server")
 		assert.EqualError(t, err, `rpc error: code = NotFound desc = cluster "https://my-cluster-server" not found`)
+	})
+}
+
+func TestRotateAuth(t *testing.T) {
+	testNamespace := "kube-system"
+	token := "eyJhbGciOiJSUzI1NiIsImtpZCI6IiJ9.eyJpc3MiOiJrdWJlcm5ldGVzL3NlcnZpY2VhY2NvdW50Iiwia3ViZXJuZXRlcy5pby9zZXJ2aWNlYWNjb3VudC9uYW1lc3BhY2UiOiJrdWJlLXN5c3RlbSIsImt1YmVybmV0ZXMuaW8vc2VydmljZWFjY291bnQvc2VjcmV0Lm5hbWUiOiJhcmdvY2QtbWFuYWdlci10b2tlbi10ajc5ciIsImt1YmVybmV0ZXMuaW8vc2VydmljZWFjY291bnQvc2VydmljZS1hY2NvdW50Lm5hbWUiOiJhcmdvY2QtbWFuYWdlciIsImt1YmVybmV0ZXMuaW8vc2VydmljZWFjY291bnQvc2VydmljZS1hY2NvdW50LnVpZCI6IjkxZGQzN2NmLThkOTItMTFlOS1hMDkxLWQ2NWYyYWU3ZmE4ZCIsInN1YiI6InN5c3RlbTpzZXJ2aWNlYWNjb3VudDprdWJlLXN5c3RlbTphcmdvY2QtbWFuYWdlciJ9.ytZjt2pDV8-A7DBMR06zQ3wt9cuVEfq262TQw7sdra-KRpDpMPnziMhc8bkwvgW-LGhTWUh5iu1y-1QhEx6mtbCt7vQArlBRxfvM5ys6ClFkplzq5c2TtZ7EzGSD0Up7tdxuG9dvR6TGXYdfFcG779yCdZo2H48sz5OSJfdEriduMEY1iL5suZd3ebOoVi1fGflmqFEkZX6SvxkoArl5mtNP6TvZ1eTcn64xh4ws152hxio42E-eSnl_CET4tpB5vgP5BVlSKW2xB7w2GJxqdETA5LJRI_OilY77dTOp8cMr_Ck3EOeda3zHfh4Okflg8rZFEeAuJYahQNeAILLkcA"
+	config := v1alpha1.ClusterConfig{
+		BearerToken: token,
+	}
+
+	configMarshal, err := json.Marshal(config)
+	if err != nil {
+		t.Errorf("failed to marshal config for test: %v", err)
+	}
+
+	clientset := getClientset(nil, testNamespace,
+		&corev1.Secret{
+			ObjectMeta: metav1.ObjectMeta{
+				Name:      "my-cluster-secret",
+				Namespace: testNamespace,
+				Labels: map[string]string{
+					common.LabelKeySecretType: common.LabelValueSecretTypeCluster,
+				},
+				Annotations: map[string]string{
+					common.AnnotationKeyManagedBy: common.AnnotationValueManagedByArgoCD,
+				},
+			},
+			Data: map[string][]byte{
+				"name":   []byte("my-cluster-name"),
+				"server": []byte("https://my-cluster-name"),
+				"config": configMarshal,
+			},
+		},
+		&corev1.Namespace{
+			ObjectMeta: metav1.ObjectMeta{
+				Name: "kube-system",
+			},
+		},
+		&corev1.Secret{
+			ObjectMeta: metav1.ObjectMeta{
+				Name:      "argocd-manager-token-tj79r",
+				Namespace: "kube-system",
+			},
+			Data: map[string][]byte{
+				"token": []byte(token),
+			},
+		},
+		&corev1.ServiceAccount{
+			ObjectMeta: metav1.ObjectMeta{
+				Name:      "argocd-manager",
+				Namespace: "kube-system",
+			},
+			Secrets: []corev1.ObjectReference{
+				{
+					Kind: "Secret",
+					Name: "argocd-manager-token-tj79r",
+				},
+			},
+		})
+
+	db := db.NewDB(testNamespace, settings.NewSettingsManager(context.Background(), clientset, testNamespace), clientset)
+	server := NewServer(db, newNoopEnforcer(), newServerInMemoryCache(), &kubetest.MockKubectlCmd{})
+
+	t.Run("RotateAuth by Unknown Name", func(t *testing.T) {
+		_, err := server.RotateAuth(context.Background(), &clusterapi.ClusterQuery{
+			Name: "foo",
+		})
+
+		assert.EqualError(t, err, `rpc error: code = PermissionDenied desc = permission denied`)
+	})
+
+	// While the tests results for the next two tests result in an error, they do
+	// demonstrate the proper mapping of cluster names/server to server info (i.e. my-cluster-name
+	// results in https://my-cluster-name info being used and https://my-cluster-name results in https://my-cluster-name).
+	t.Run("RotateAuth by Name - Error from no such host", func(t *testing.T) {
+		_, err := server.RotateAuth(context.Background(), &clusterapi.ClusterQuery{
+			Name: "my-cluster-name",
+		})
+
+		require.NotNil(t, err)
+		assert.Contains(t, err.Error(), "Get \"https://my-cluster-name/")
+	})
+
+	t.Run("RotateAuth by Server - Error from no such host", func(t *testing.T) {
+		_, err := server.RotateAuth(context.Background(), &clusterapi.ClusterQuery{
+			Server: "https://my-cluster-name",
+		})
+
+		require.NotNil(t, err)
+		assert.Contains(t, err.Error(), "Get \"https://my-cluster-name/")
 	})
 }
 

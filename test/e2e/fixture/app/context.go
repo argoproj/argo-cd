@@ -308,3 +308,8 @@ func (c *Context) HelmSkipCrds() *Context {
 	c.helmSkipCrds = true
 	return c
 }
+
+func (c *Context) SetTrackingMethod(trackingMethod string) *Context {
+	fixture.SetTrackingMethod(trackingMethod)
+	return c
+}

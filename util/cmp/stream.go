@@ -7,7 +7,6 @@ import (
 	"encoding/hex"
 	"fmt"
 	"io"
-	"io/ioutil"
 	"os"
 	"path/filepath"
 	"strings"
@@ -171,7 +170,7 @@ func compressFiles(appPath string, excluded []string) (*os.File, string, error) 
 	if err != nil {
 		return nil, "", fmt.Errorf("error creating tempDir for compressing files: %s", err)
 	}
-	tgzFile, err := ioutil.TempFile(tempDir, appName)
+	tgzFile, err := os.CreateTemp(tempDir, appName)
 	if err != nil {
 		return nil, "", fmt.Errorf("error creating app temp tgz file: %w", err)
 	}
@@ -198,7 +197,7 @@ func compressFiles(appPath string, excluded []string) (*os.File, string, error) 
 // It is responsibility of the caller to close the returned file.
 func receiveFile(ctx context.Context, receiver StreamReceiver, checksum, dst string) (*os.File, error) {
 	hasher := sha256.New()
-	file, err := ioutil.TempFile(dst, "")
+	file, err := os.CreateTemp(dst, "")
 	if err != nil {
 		return nil, fmt.Errorf("error creating file: %w", err)
 	}

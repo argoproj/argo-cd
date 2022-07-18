@@ -15,6 +15,7 @@ type Context struct {
 	timeout     int
 	name        string
 	destination string
+	repos       []string
 }
 
 func Given(t *testing.T) *Context {
@@ -40,6 +41,11 @@ func (c *Context) Name(name string) *Context {
 
 func (c *Context) Destination(destination string) *Context {
 	c.destination = destination
+	return c
+}
+
+func (c *Context) SourceRepositories(repos []string) *Context {
+	c.repos = repos
 	return c
 }
 

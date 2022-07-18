@@ -2,11 +2,9 @@ package session
 
 import (
 	"context"
+	"encoding/pem"
 	"fmt"
-	"io"
 	"math"
-	"net/http"
-	"net/http/httptest"
 	"os"
 	"strconv"
 	"strings"
@@ -31,6 +29,7 @@ import (
 	"github.com/argoproj/argo-cd/v2/util/errors"
 	"github.com/argoproj/argo-cd/v2/util/password"
 	"github.com/argoproj/argo-cd/v2/util/settings"
+	utiltest "github.com/argoproj/argo-cd/v2/util/test"
 )
 
 func getProjLister(objects ...runtime.Object) v1alpha1.AppProjectNamespaceLister {
@@ -75,7 +74,7 @@ func getKubeClient(pass string, enabled bool, capabilities ...settings.AccountCa
 }
 
 func newSessionManager(settingsMgr *settings.SettingsManager, projectLister v1alpha1.AppProjectNamespaceLister, storage UserStateStorage) *SessionManager {
-	mgr := NewSessionManager(settingsMgr, projectLister, "", storage)
+	mgr := NewSessionManager(settingsMgr, projectLister, "", nil, storage)
 	mgr.verificationDelayNoiseEnabled = false
 	return mgr
 }
@@ -460,46 +459,14 @@ func TestFailedAttemptsExpiry(t *testing.T) {
 	os.Setenv(envLoginFailureWindowSeconds, "")
 }
 
-func oidcMockHandler(t *testing.T, url string) func(http.ResponseWriter, *http.Request) {
-	return func(w http.ResponseWriter, r *http.Request) {
-		w.Header().Set("Content-Type", "application/json")
-		switch r.RequestURI {
-		case "/.well-known/openid-configuration":
-			_, err := io.WriteString(w, fmt.Sprintf(`
-{
-  "issuer": "%[1]s",
-  "authorization_endpoint": "%[1]s/auth",
-  "token_endpoint": "%[1]s/token",
-  "jwks_uri": "%[1]s/keys",
-  "userinfo_endpoint": "%[1]s/userinfo",
-  "device_authorization_endpoint": "%[1]s/device/code",
-  "grant_types_supported": ["authorization_code"],
-  "response_types_supported": ["code"],
-  "subject_types_supported": ["public"],
-  "id_token_signing_alg_values_supported": ["RS512"],
-  "code_challenge_methods_supported": ["S256", "plain"],
-  "scopes_supported": ["openid"],
-  "token_endpoint_auth_methods_supported": ["client_secret_basic", "client_secret_post"],
-  "claims_supported": ["sub", "aud", "exp"]
-}`, url))
-			require.NoError(t, err)
-		default:
-			w.WriteHeader(404)
-		}
+func getKubeClientWithConfig(config map[string]string, secretConfig map[string][]byte) *fake.Clientset {
+	mergedSecretConfig := map[string][]byte{
+		"server.secretkey": []byte("Hello, world!"),
 	}
-}
+	for key, value := range secretConfig {
+		mergedSecretConfig[key] = value
+	}
 
-func getOIDCTestServer(t *testing.T) *httptest.Server {
-	ts := httptest.NewTLSServer(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
-		// Start with a placeholder. We need the server URL before setting up the real handler.
-	}))
-	ts.Config.Handler = http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
-		oidcMockHandler(t, ts.URL)(w, r)
-	})
-	return ts
-}
-
-func getKubeClientWithConfig(config map[string]string) *fake.Clientset {
 	return fake.NewSimpleClientset(&corev1.ConfigMap{
 		ObjectMeta: metav1.ObjectMeta{
 			Name:      "argocd-cm",
@@ -514,45 +481,18 @@ func getKubeClientWithConfig(config map[string]string) *fake.Clientset {
 			Name:      "argocd-secret",
 			Namespace: "argocd",
 		},
-		Data: map[string][]byte{
-			"server.secretkey": []byte("Hello, world!"),
-		},
+		Data: mergedSecretConfig,
 	})
 }
 
-// privateKey is an RSA key used only for tests.
-var privateKey = []byte(`-----BEGIN RSA PRIVATE KEY-----
-MIIEogIBAAKCAQEA2KHkp2fe0ReHqAt9BimWEec2ryWZIyg9jvB3BdP3mzFf0bOt
-WlHm1FAETFxH4h5jYASUaaWEwRNNyGlT1GhTp+jOMC4xhOSb5/SnI2dt2EITkudQ
-FKsSFUdJAndqOzkjrP2pL4fi4b7JWhuLDO36ufAP4l2m3tnAseGSSTIccWvzLFFU
-s3wsHOHxOcJGCP1Z7rizxl6mTKYL/Z+GHqN17OJslDf901uPXsUeDCYL2iigGPhD
-Ao6k8POsfbpqLG7poCDTK50FLnS5qEocjxt+J4ZjBEWTU/DOFXWYstzfbhm8OZPQ
-pSSEiBCxpg+zjtkQfCyZxXB5RQ84CY78fXOI9QIDAQABAoIBAG8jL0FLIp62qZvm
-uO9ualUo/37/lP7aaCpq50UQJ9lwjS3yNh8+IWQO4QWj2iUBXg4mi1Vf2ymKk78b
-eixgkXp1D0Lcj/8ToYBwnUami04FKDGXhhf0Y8SS27vuM4vKlqjrQd7modkangYi
-V0X82UKHDD8fuLpfkGIxzXDLypfMzjMuVpSntnWaf2YX3VR/0/66yEp9GejftF2k
-wqhGoWM6r68pN5XuCqWd5PRluSoDy/o4BAFMhYCSfp9PjgZE8aoeWHgYzlZ3gUyn
-r+HaDDNWbibhobXk/9h8lwAJ6KCZ5RZ+HFfh0HuwIxmocT9OCFgy/S0g1p+o3m9K
-VNd5AMkCgYEA5fbS5UK7FBzuLoLgr1hktmbLJhpt8y8IPHNABHcUdE+O4/1xTQNf
-pMUwkKjGG1MtrGjLOIoMGURKKn8lR1GMZueOTSKY0+mAWUGvSzl6vwtJwvJruT8M
-otEO03o0tPnRKGxbFjqxkp2b6iqJ8MxCRZ3lSidc4mdi7PHzv9lwgvsCgYEA8Siq
-7weCri9N6y+tIdORAXgRzcW54BmJyqB147c72RvbMacb6rN28KXpM3qnRXyp3Llb
-yh81TW3FH10GqrjATws7BK8lP9kkAw0Z/7kNiS1NgH3pUbO+5H2kAa/6QW35nzRe
-Jw2lyfYGWqYO4hYXH14ML1kjgS1hgd3XHOQ64M8CgYAKcjDYSzS2UC4dnMJaFLjW
-dErsGy09a7iDDnUs/r/GHMsP3jZkWi/hCzgOiiwdl6SufUAl/FdaWnjH/2iRGco3
-7nLPXC/3CFdVNp+g2iaSQRADtAFis9N+HeL/hkCYq/RtUqa8lsP0NgacF3yWnKCy
-Ct8chDc67ZlXzBHXeCgdOwKBgHHGFPbWXUHeUW1+vbiyvrupsQSanznp8oclMtkv
-Dk48hSokw9fzuU6Jh77gw9/Vk7HtxS9Tj+squZA1bDrJFPl1u+9WzkUUJZhG6xgp
-bwhj1iejv5rrKUlVOTYOlwudXeJNa4oTNz9UEeVcaLMjZt9GmIsSC90a0uDZD26z
-AlAjAoGAEoqm2DcNN7SrH6aVFzj1EVOrNsHYiXj/yefspeiEmf27PSAslP+uF820
-SDpz4h+Bov5qTKkzcxuu1QWtA4M0K8Iy6IYLwb83DZEm1OsAf4i0pODz21PY/I+O
-VHzjB10oYgaInHZgMUdyb6F571UdiYSB6a/IlZ3ngj5touy3VIM=
------END RSA PRIVATE KEY-----`)
-
 func TestSessionManager_VerifyToken(t *testing.T) {
-	t.Run("HS256 is supported", func(t *testing.T) {
-		oidcTestServer := getOIDCTestServer(t)
-		defer oidcTestServer.Close()
+	oidcTestServer := utiltest.GetOIDCTestServer(t)
+	t.Cleanup(oidcTestServer.Close)
+
+	dexTestServer := utiltest.GetDexTestServer(t)
+	t.Cleanup(dexTestServer.Close)
+
+	t.Run("RS512 is supported", func(t *testing.T) {
 		dexConfig := map[string]string{
 			"url": "",
 			"oidc.config": fmt.Sprintf(`
@@ -563,8 +503,8 @@ clientSecret: yyy
 requestedScopes: ["oidc"]`, oidcTestServer.URL),
 		}
 
-		settingsMgr := settings.NewSettingsManager(context.Background(), getKubeClientWithConfig(dexConfig), "argocd")
-		mgr := NewSessionManager(settingsMgr, getProjLister(), "", NewUserStateStorage(nil))
+		settingsMgr := settings.NewSettingsManager(context.Background(), getKubeClientWithConfig(dexConfig, nil), "argocd")
+		mgr := NewSessionManager(settingsMgr, getProjLister(), "", nil, NewUserStateStorage(nil))
 		mgr.verificationDelayNoiseEnabled = false
 		// Use test server's client to avoid TLS issues.
 		mgr.client = oidcTestServer.Client()
@@ -572,12 +512,224 @@ requestedScopes: ["oidc"]`, oidcTestServer.URL),
 		claims := jwt.RegisteredClaims{Audience: jwt.ClaimStrings{"test-client"}, Subject: "admin", ExpiresAt: jwt.NewNumericDate(time.Now().Add(time.Hour * 24))}
 		claims.Issuer = oidcTestServer.URL
 		token := jwt.NewWithClaims(jwt.SigningMethodRS512, claims)
-		key, err := jwt.ParseRSAPrivateKeyFromPEM(privateKey)
+		key, err := jwt.ParseRSAPrivateKeyFromPEM(utiltest.PrivateKey)
 		require.NoError(t, err)
 		tokenString, err := token.SignedString(key)
 		require.NoError(t, err)
 
 		_, _, err = mgr.VerifyToken(tokenString)
 		assert.NotContains(t, err.Error(), "oidc: id token signed with unsupported algorithm")
+	})
+
+	t.Run("oidcConfig.rootCA is respected", func(t *testing.T) {
+		cert := pem.EncodeToMemory(&pem.Block{Type: "CERTIFICATE", Bytes: oidcTestServer.TLS.Certificates[0].Certificate[0]})
+
+		dexConfig := map[string]string{
+			"url": "",
+			"oidc.config": fmt.Sprintf(`
+name: Test
+issuer: %s
+clientID: xxx
+clientSecret: yyy
+requestedScopes: ["oidc"]
+rootCA: |
+  %s
+`, oidcTestServer.URL, strings.Replace(string(cert), "\n", "\n  ", -1)),
+		}
+
+		settingsMgr := settings.NewSettingsManager(context.Background(), getKubeClientWithConfig(dexConfig, nil), "argocd")
+		mgr := NewSessionManager(settingsMgr, getProjLister(), "", nil, NewUserStateStorage(nil))
+		mgr.verificationDelayNoiseEnabled = false
+
+		claims := jwt.RegisteredClaims{Audience: jwt.ClaimStrings{"test-client"}, Subject: "admin", ExpiresAt: jwt.NewNumericDate(time.Now().Add(time.Hour * 24))}
+		claims.Issuer = oidcTestServer.URL
+		token := jwt.NewWithClaims(jwt.SigningMethodRS256, claims)
+		key, err := jwt.ParseRSAPrivateKeyFromPEM(utiltest.PrivateKey)
+		require.NoError(t, err)
+		tokenString, err := token.SignedString(key)
+		require.NoError(t, err)
+
+		_, _, err = mgr.VerifyToken(tokenString)
+		// If the root CA is being respected, we won't get this error. The error message is environment-dependent, so
+		// we check for either of the error messages associated with a failed cert check.
+		assert.NotContains(t, err.Error(), "certificate is not trusted")
+		assert.NotContains(t, err.Error(), "certificate signed by unknown authority")
+	})
+
+	t.Run("OIDC provider is Dex, TLS is configured", func(t *testing.T) {
+		dexConfig := map[string]string{
+			"url": dexTestServer.URL,
+			"dex.config": `connectors:
+- type: github
+  name: GitHub
+  config:
+    clientID: aabbccddeeff00112233
+    clientSecret: aabbccddeeff00112233`,
+		}
+
+		// This is not actually used in the test. The test only calls the OIDC test server. But a valid cert/key pair
+		// must be set to test VerifyToken's behavior when Argo CD is configured with TLS enabled.
+		secretConfig := map[string][]byte{
+			"tls.crt": utiltest.Cert,
+			"tls.key": utiltest.PrivateKey,
+		}
+
+		settingsMgr := settings.NewSettingsManager(context.Background(), getKubeClientWithConfig(dexConfig, secretConfig), "argocd")
+		mgr := NewSessionManager(settingsMgr, getProjLister(), dexTestServer.URL, nil, NewUserStateStorage(nil))
+		mgr.verificationDelayNoiseEnabled = false
+
+		claims := jwt.RegisteredClaims{Audience: jwt.ClaimStrings{"test-client"}, Subject: "admin", ExpiresAt: jwt.NewNumericDate(time.Now().Add(time.Hour * 24))}
+		claims.Issuer = fmt.Sprintf("%s/api/dex", dexTestServer.URL)
+		token := jwt.NewWithClaims(jwt.SigningMethodRS512, claims)
+		key, err := jwt.ParseRSAPrivateKeyFromPEM(utiltest.PrivateKey)
+		require.NoError(t, err)
+		tokenString, err := token.SignedString(key)
+		require.NoError(t, err)
+
+		_, _, err = mgr.VerifyToken(tokenString)
+		require.Error(t, err)
+		if !strings.Contains(err.Error(), "certificate signed by unknown authority") && !strings.Contains(err.Error(), "certificate is not trusted") {
+			t.Fatal("did not receive expected certificate verification failure error")
+		}
+	})
+
+	t.Run("OIDC provider is external, TLS is configured", func(t *testing.T) {
+		dexConfig := map[string]string{
+			"url": "",
+			"oidc.config": fmt.Sprintf(`
+name: Test
+issuer: %s
+clientID: xxx
+clientSecret: yyy
+requestedScopes: ["oidc"]`, oidcTestServer.URL),
+		}
+
+		// This is not actually used in the test. The test only calls the OIDC test server. But a valid cert/key pair
+		// must be set to test VerifyToken's behavior when Argo CD is configured with TLS enabled.
+		secretConfig := map[string][]byte{
+			"tls.crt": utiltest.Cert,
+			"tls.key": utiltest.PrivateKey,
+		}
+
+		settingsMgr := settings.NewSettingsManager(context.Background(), getKubeClientWithConfig(dexConfig, secretConfig), "argocd")
+		mgr := NewSessionManager(settingsMgr, getProjLister(), "", nil, NewUserStateStorage(nil))
+		mgr.verificationDelayNoiseEnabled = false
+
+		claims := jwt.RegisteredClaims{Audience: jwt.ClaimStrings{"test-client"}, Subject: "admin", ExpiresAt: jwt.NewNumericDate(time.Now().Add(time.Hour * 24))}
+		claims.Issuer = oidcTestServer.URL
+		token := jwt.NewWithClaims(jwt.SigningMethodRS512, claims)
+		key, err := jwt.ParseRSAPrivateKeyFromPEM(utiltest.PrivateKey)
+		require.NoError(t, err)
+		tokenString, err := token.SignedString(key)
+		require.NoError(t, err)
+
+		_, _, err = mgr.VerifyToken(tokenString)
+		require.Error(t, err)
+		if !strings.Contains(err.Error(), "certificate signed by unknown authority") && !strings.Contains(err.Error(), "certificate is not trusted") {
+			t.Fatal("did not receive expected certificate verification failure error")
+		}
+	})
+
+	t.Run("OIDC provider is Dex, TLS is configured", func(t *testing.T) {
+		dexConfig := map[string]string{
+			"url": dexTestServer.URL,
+			"dex.config": `connectors:
+- type: github
+  name: GitHub
+  config:
+    clientID: aabbccddeeff00112233
+    clientSecret: aabbccddeeff00112233`,
+		}
+
+		// This is not actually used in the test. The test only calls the OIDC test server. But a valid cert/key pair
+		// must be set to test VerifyToken's behavior when Argo CD is configured with TLS enabled.
+		secretConfig := map[string][]byte{
+			"tls.crt": utiltest.Cert,
+			"tls.key": utiltest.PrivateKey,
+		}
+
+		settingsMgr := settings.NewSettingsManager(context.Background(), getKubeClientWithConfig(dexConfig, secretConfig), "argocd")
+		mgr := NewSessionManager(settingsMgr, getProjLister(), dexTestServer.URL, nil, NewUserStateStorage(nil))
+		mgr.verificationDelayNoiseEnabled = false
+
+		claims := jwt.RegisteredClaims{Audience: jwt.ClaimStrings{"test-client"}, Subject: "admin", ExpiresAt: jwt.NewNumericDate(time.Now().Add(time.Hour * 24))}
+		claims.Issuer = fmt.Sprintf("%s/api/dex", dexTestServer.URL)
+		token := jwt.NewWithClaims(jwt.SigningMethodRS512, claims)
+		key, err := jwt.ParseRSAPrivateKeyFromPEM(utiltest.PrivateKey)
+		require.NoError(t, err)
+		tokenString, err := token.SignedString(key)
+		require.NoError(t, err)
+
+		_, _, err = mgr.VerifyToken(tokenString)
+		require.Error(t, err)
+		if !strings.Contains(err.Error(), "certificate signed by unknown authority") && !strings.Contains(err.Error(), "certificate is not trusted") {
+			t.Fatal("did not receive expected certificate verification failure error")
+		}
+	})
+
+	t.Run("OIDC provider is external, TLS is configured, OIDCTLSInsecureSkipVerify is true", func(t *testing.T) {
+		dexConfig := map[string]string{
+			"url": "",
+			"oidc.config": fmt.Sprintf(`
+name: Test
+issuer: %s
+clientID: xxx
+clientSecret: yyy
+requestedScopes: ["oidc"]`, oidcTestServer.URL),
+			"oidc.tls.insecure.skip.verify": "true",
+		}
+
+		// This is not actually used in the test. The test only calls the OIDC test server. But a valid cert/key pair
+		// must be set to test VerifyToken's behavior when Argo CD is configured with TLS enabled.
+		secretConfig := map[string][]byte{
+			"tls.crt": utiltest.Cert,
+			"tls.key": utiltest.PrivateKey,
+		}
+
+		settingsMgr := settings.NewSettingsManager(context.Background(), getKubeClientWithConfig(dexConfig, secretConfig), "argocd")
+		mgr := NewSessionManager(settingsMgr, getProjLister(), "", nil, NewUserStateStorage(nil))
+		mgr.verificationDelayNoiseEnabled = false
+
+		claims := jwt.RegisteredClaims{Audience: jwt.ClaimStrings{"test-client"}, Subject: "admin", ExpiresAt: jwt.NewNumericDate(time.Now().Add(time.Hour * 24))}
+		claims.Issuer = oidcTestServer.URL
+		token := jwt.NewWithClaims(jwt.SigningMethodRS512, claims)
+		key, err := jwt.ParseRSAPrivateKeyFromPEM(utiltest.PrivateKey)
+		require.NoError(t, err)
+		tokenString, err := token.SignedString(key)
+		require.NoError(t, err)
+
+		_, _, err = mgr.VerifyToken(tokenString)
+		assert.NotContains(t, err.Error(), "certificate is not trusted")
+		assert.NotContains(t, err.Error(), "certificate signed by unknown authority")
+	})
+
+	t.Run("OIDC provider is external, TLS is not configured, OIDCTLSInsecureSkipVerify is true", func(t *testing.T) {
+		dexConfig := map[string]string{
+			"url": "",
+			"oidc.config": fmt.Sprintf(`
+name: Test
+issuer: %s
+clientID: xxx
+clientSecret: yyy
+requestedScopes: ["oidc"]`, oidcTestServer.URL),
+			"oidc.tls.insecure.skip.verify": "true",
+		}
+
+		settingsMgr := settings.NewSettingsManager(context.Background(), getKubeClientWithConfig(dexConfig, nil), "argocd")
+		mgr := NewSessionManager(settingsMgr, getProjLister(), "", nil, NewUserStateStorage(nil))
+		mgr.verificationDelayNoiseEnabled = false
+
+		claims := jwt.RegisteredClaims{Audience: jwt.ClaimStrings{"test-client"}, Subject: "admin", ExpiresAt: jwt.NewNumericDate(time.Now().Add(time.Hour * 24))}
+		claims.Issuer = oidcTestServer.URL
+		token := jwt.NewWithClaims(jwt.SigningMethodRS512, claims)
+		key, err := jwt.ParseRSAPrivateKeyFromPEM(utiltest.PrivateKey)
+		require.NoError(t, err)
+		tokenString, err := token.SignedString(key)
+		require.NoError(t, err)
+
+		_, _, err = mgr.VerifyToken(tokenString)
+		// This is the error thrown when the test server's certificate _is_ being verified.
+		assert.NotContains(t, err.Error(), "certificate is not trusted")
+		assert.NotContains(t, err.Error(), "certificate signed by unknown authority")
 	})
 }

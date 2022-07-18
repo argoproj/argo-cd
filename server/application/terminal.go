@@ -33,17 +33,19 @@ type terminalHandler struct {
 	enf               *rbac.Enforcer
 	cache             *servercache.Cache
 	appResourceTreeFn func(ctx context.Context, app *appv1.Application) (*appv1.ApplicationTree, error)
+	allowedShells     []string
 }
 
 // NewHandler returns a new terminal handler.
 func NewHandler(appLister applisters.ApplicationNamespaceLister, db db.ArgoDB, enf *rbac.Enforcer, cache *servercache.Cache,
-	appResourceTree AppResourceTreeFn) *terminalHandler {
+	appResourceTree AppResourceTreeFn, allowedShells []string) *terminalHandler {
 	return &terminalHandler{
 		appLister:         appLister,
 		db:                db,
 		enf:               enf,
 		cache:             cache,
 		appResourceTreeFn: appResourceTree,
+		allowedShells:     allowedShells,
 	}
 }
 
@@ -123,7 +125,7 @@ func (s *terminalHandler) ServeHTTP(w http.ResponseWriter, r *http.Request) {
 		http.Error(w, "Namespace name is not valid", http.StatusBadRequest)
 		return
 	}
-	shell := q.Get("shell") // No need to validate. Will only buse used if it's in the allow-list.
+	shell := q.Get("shell") // No need to validate. Will only be used if it's in the allow-list.
 
 	ctx := r.Context()
 
@@ -216,14 +218,12 @@ func (s *terminalHandler) ServeHTTP(w http.ResponseWriter, r *http.Request) {
 	}
 	defer session.Done()
 
-	validShells := []string{"bash", "sh", "powershell", "cmd"}
-	if isValidShell(validShells, shell) {
+	if isValidShell(s.allowedShells, shell) {
 		cmd := []string{shell}
 		err = startProcess(kubeClientset, config, namespace, podName, container, cmd, session)
 	} else {
-		// No shell given or it was not valid: try some shells until one succeeds or all fail
-		// FIXME: if the first shell fails then the first keyboard event is lost
-		for _, testShell := range validShells {
+		// No shell given or the given shell was not allowed: try the configured shells until one succeeds or all fail.
+		for _, testShell := range s.allowedShells {
 			cmd := []string{testShell}
 			if err = startProcess(kubeClientset, config, namespace, podName, container, cmd, session); err == nil {
 				break

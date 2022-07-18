@@ -4,7 +4,6 @@ import (
 	"bytes"
 	"context"
 	"fmt"
-	"io/ioutil"
 	"os"
 	"reflect"
 	"sort"
@@ -77,7 +76,7 @@ func (opts *settingsOpts) createSettingsManager(ctx context.Context) (*settings.
 			return nil, err
 		}
 	} else {
-		data, err := ioutil.ReadFile(opts.argocdCMPath)
+		data, err := os.ReadFile(opts.argocdCMPath)
 		if err != nil {
 			return nil, err
 		}
@@ -90,7 +89,7 @@ func (opts *settingsOpts) createSettingsManager(ctx context.Context) (*settings.
 
 	var argocdSecret *corev1.Secret
 	if opts.argocdSecretPath != "" {
-		data, err := ioutil.ReadFile(opts.argocdSecretPath)
+		data, err := os.ReadFile(opts.argocdSecretPath)
 		if err != nil {
 			return nil, err
 		}
@@ -364,7 +363,7 @@ func NewResourceOverridesCommand(cmdCtx commandContext) *cobra.Command {
 }
 
 func executeResourceOverrideCommand(ctx context.Context, cmdCtx commandContext, args []string, callback func(res unstructured.Unstructured, override v1alpha1.ResourceOverride, overrides map[string]v1alpha1.ResourceOverride)) {
-	data, err := ioutil.ReadFile(args[0])
+	data, err := os.ReadFile(args[0])
 	errors.CheckError(err)
 
 	res := unstructured.Unstructured{}

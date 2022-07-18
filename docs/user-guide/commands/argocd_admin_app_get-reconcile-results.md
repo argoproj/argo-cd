@@ -24,6 +24,7 @@ argocd admin app get-reconcile-results PATH [flags]
   -n, --namespace string               If present, the namespace scope for this CLI request
       --o string                       Output format (yaml|json) (default "yaml")
       --password string                Password for basic authentication to the API server
+      --proxy-url string               If provided, this URL will be used to connect via proxy
       --refresh                        If set to true then recalculates apps reconciliation
       --repo-server string             Repo server address.
       --request-timeout string         The length of time to wait before giving up on a single server request. Non-zero values should contain a corresponding time unit (e.g. 1s, 2m, 3h). A value of zero means don't timeout requests. (default "0")

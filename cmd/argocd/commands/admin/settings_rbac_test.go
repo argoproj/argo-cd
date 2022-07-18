@@ -2,7 +2,7 @@ package admin
 
 import (
 	"context"
-	"io/ioutil"
+	"os"
 	"testing"
 
 	"github.com/stretchr/testify/assert"
@@ -59,9 +59,9 @@ func Test_PolicyFromYAML(t *testing.T) {
 }
 
 func Test_PolicyFromK8s(t *testing.T) {
+	data, err := os.ReadFile("testdata/rbac/policy.csv")
 	ctx := context.Background()
 
-	data, err := ioutil.ReadFile("testdata/rbac/policy.csv")
 	require.NoError(t, err)
 	kubeclientset := fake.NewSimpleClientset(&v1.ConfigMap{
 		ObjectMeta: metav1.ObjectMeta{

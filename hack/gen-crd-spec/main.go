@@ -3,7 +3,6 @@ package main
 import (
 	"encoding/json"
 	"fmt"
-	"io/ioutil"
 	"os"
 	"os/exec"
 	"strings"
@@ -132,7 +131,7 @@ func writeCRDintoFile(crd *extensionsobj.CustomResourceDefinition, path string) 
 	yamlBytes, err := yaml.JSONToYAML(jsonBytes)
 	checkErr(err)
 
-	err = ioutil.WriteFile(path, yamlBytes, 0644)
+	err = os.WriteFile(path, yamlBytes, 0644)
 	checkErr(err)
 }
 

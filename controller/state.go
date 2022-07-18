@@ -494,6 +494,8 @@ func (m *appStateManager) CompareAppState(app *v1alpha1.Application, project *ap
 		}
 		gvk := obj.GroupVersionKind()
 
+		isSelfReferencedObj := m.isSelfReferencedObj(liveObj, appLabelKey, trackingMethod)
+
 		resState := v1alpha1.ResourceStatus{
 			Namespace:       obj.GetNamespace(),
 			Name:            obj.GetName(),
@@ -501,7 +503,7 @@ func (m *appStateManager) CompareAppState(app *v1alpha1.Application, project *ap
 			Version:         gvk.Version,
 			Group:           gvk.Group,
 			Hook:            hookutil.IsHook(obj),
-			RequiresPruning: targetObj == nil && liveObj != nil,
+			RequiresPruning: targetObj == nil && liveObj != nil && isSelfReferencedObj,
 		}
 
 		var diffResult diff.DiffResult
@@ -510,8 +512,11 @@ func (m *appStateManager) CompareAppState(app *v1alpha1.Application, project *ap
 		} else {
 			diffResult = diff.DiffResult{Modified: false, NormalizedLive: []byte("{}"), PredictedLive: []byte("{}")}
 		}
-		if resState.Hook || ignore.Ignore(obj) || (targetObj != nil && hookutil.Skip(targetObj)) {
-			// For resource hooks or skipped resources, don't store sync status, and do not affect overall sync status
+		if resState.Hook || ignore.Ignore(obj) || (targetObj != nil && hookutil.Skip(targetObj)) || !isSelfReferencedObj {
+			// For resource hooks, skipped resources or objects that may have
+			// been created by another controller with annotations copied from
+			// the source object, don't store sync status, and do not affect
+			// overall sync status
 		} else if diffResult.Modified || targetObj == nil || liveObj == nil {
 			// Set resource state to OutOfSync since one of the following is true:
 			// * target and live resource are different
@@ -666,4 +671,34 @@ func NewAppStateManager(
 		statusRefreshTimeout: statusRefreshTimeout,
 		resourceTracking:     resourceTracking,
 	}
+}
+
+// isSelfReferencedObj returns whether the given obj is managed by the application
+// according to the values in the tracking annotation. It returns true when all
+// of the properties in the annotation (name, namespace, group and kind) match
+// the properties of the inspected object, or if the tracking method used does
+// not provide the required properties for matching.
+func (m *appStateManager) isSelfReferencedObj(obj *unstructured.Unstructured, appLabelKey string, trackingMethod v1alpha1.TrackingMethod) bool {
+	if obj == nil {
+		return true
+	}
+
+	// If tracking method doesn't contain required metadata for this check,
+	// we are not able to determine and just assume the object to be managed.
+	if trackingMethod == argo.TrackingMethodLabel {
+		return true
+	}
+
+	// In order for us to assume obj to be managed by this application, the
+	// values from the annotation have to match the properties from the live
+	// object.
+	appInstance := m.resourceTracking.GetAppInstance(obj, appLabelKey, trackingMethod)
+	if appInstance != nil {
+		return obj.GetNamespace() == appInstance.Namespace &&
+			obj.GetName() == appInstance.Name &&
+			obj.GetObjectKind().GroupVersionKind().Group == appInstance.Group &&
+			obj.GetObjectKind().GroupVersionKind().Kind == appInstance.Kind
+	}
+
+	return true
 }
