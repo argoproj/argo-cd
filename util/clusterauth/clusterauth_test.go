@@ -2,7 +2,7 @@ package clusterauth
 
 import (
 	"context"
-	"io/ioutil"
+	"os"
 	"testing"
 	"time"
 
@@ -36,7 +36,7 @@ var (
 )
 
 func newServiceAccount() *corev1.ServiceAccount {
-	saBytes, err := ioutil.ReadFile("./testdata/argocd-manager-sa.yaml")
+	saBytes, err := os.ReadFile("./testdata/argocd-manager-sa.yaml")
 	errors.CheckError(err)
 	var sa corev1.ServiceAccount
 	err = yaml.Unmarshal(saBytes, &sa)
@@ -45,7 +45,7 @@ func newServiceAccount() *corev1.ServiceAccount {
 }
 
 func newServiceAccountSecret() *corev1.Secret {
-	secretBytes, err := ioutil.ReadFile("./testdata/argocd-manager-sa-token.yaml")
+	secretBytes, err := os.ReadFile("./testdata/argocd-manager-sa-token.yaml")
 	errors.CheckError(err)
 	var secret corev1.Secret
 	err = yaml.Unmarshal(secretBytes, &secret)

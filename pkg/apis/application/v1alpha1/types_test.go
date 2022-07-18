@@ -329,6 +329,22 @@ func TestAppProject_ValidateGroupName(t *testing.T) {
 	}
 }
 
+func TestAppProject_ValidateSyncWindowList(t *testing.T) {
+	t.Run("WorkingSyncWindow", func(t *testing.T) {
+		p := newTestProjectWithSyncWindows()
+		err := p.ValidateProject()
+		assert.NoError(t, err)
+	})
+	t.Run("HasNilSyncWindow", func(t *testing.T) {
+		p := newTestProjectWithSyncWindows()
+		err := p.ValidateProject()
+		assert.NoError(t, err)
+		p.Spec.SyncWindows = append(p.Spec.SyncWindows, nil)
+		err = p.ValidateProject()
+		assert.NoError(t, err)
+	})
+}
+
 // TestInvalidPolicyRules checks various errors in policy rules
 func TestAppProject_InvalidPolicyRules(t *testing.T) {
 	p := newTestProject()
@@ -2546,10 +2562,19 @@ func Test_validatePolicy_projIsNotRegex(t *testing.T) {
 }
 
 func Test_validatePolicy_ValidResource(t *testing.T) {
-	err := validatePolicy("some-project", "org-admin", "p, proj:some-project:org-admin, repositories, *, some-project/*, allow")
+	err := validatePolicy("some-project", "org-admin", "p, proj:some-project:org-admin, applications, *, some-project/*, allow")
+	assert.NoError(t, err)
+	err = validatePolicy("some-project", "org-admin", "p, proj:some-project:org-admin, repositories, *, some-project/*, allow")
 	assert.NoError(t, err)
 	err = validatePolicy("some-project", "org-admin", "p, proj:some-project:org-admin, clusters, *, some-project/*, allow")
 	assert.NoError(t, err)
+	err = validatePolicy("some-project", "org-admin", "p, proj:some-project:org-admin, exec, *, some-project/*, allow")
+	assert.NoError(t, err)
+	err = validatePolicy("some-project", "org-admin", "p, proj:some-project:org-admin, logs, *, some-project/*, allow")
+	assert.NoError(t, err)
+	err = validatePolicy("some-project", "org-admin", "p, proj:some-project:org-admin, unknown, *, some-project/*, allow")
+	assert.Error(t, err)
+
 }
 
 func TestEnvsubst(t *testing.T) {

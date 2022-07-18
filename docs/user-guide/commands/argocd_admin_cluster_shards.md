@@ -25,6 +25,7 @@ argocd admin cluster shards [flags]
   -n, --namespace string                      If present, the namespace scope for this CLI request
       --password string                       Password for basic authentication to the API server
       --port-forward-redis                    Automatically port-forward ha proxy redis from current namespace? (default true)
+      --proxy-url string                      If provided, this URL will be used to connect via proxy
       --redis string                          Redis server hostname and port (e.g. argocd-redis:6379). 
       --redis-ca-certificate string           Path to Redis server CA certificate (e.g. /etc/certs/redis/ca.crt). If not specified, system trusted CAs will be used for server certificate validation.
       --redis-client-certificate string       Path to Redis client certificate (e.g. /etc/certs/redis/client.crt).

@@ -39,6 +39,7 @@ argocd cluster [flags]
       --kubeconfig string              Path to a kube config. Only required if out-of-cluster
   -n, --namespace string               If present, the namespace scope for this CLI request
       --password string                Password for basic authentication to the API server
+      --proxy-url string               If provided, this URL will be used to connect via proxy
       --request-timeout string         The length of time to wait before giving up on a single server request. Non-zero values should contain a corresponding time unit (e.g. 1s, 2m, 3h). A value of zero means don't timeout requests. (default "0")
       --tls-server-name string         If provided, this name will be used to validate server certificate. If this is not provided, hostname used to contact the server is used.
       --token string                   Bearer token for authentication to the API server
@@ -76,5 +77,5 @@ argocd cluster [flags]
 * [argocd cluster get](argocd_cluster_get.md)	 - Get cluster information
 * [argocd cluster list](argocd_cluster_list.md)	 - List configured clusters
 * [argocd cluster rm](argocd_cluster_rm.md)	 - Remove cluster credentials
-* [argocd cluster rotate-auth](argocd_cluster_rotate-auth.md)	 - argocd cluster rotate-auth SERVER
+* [argocd cluster rotate-auth](argocd_cluster_rotate-auth.md)	 - argocd cluster rotate-auth SERVER/NAME
 

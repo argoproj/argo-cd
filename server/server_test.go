@@ -66,7 +66,8 @@ func fakeServer() (*ArgoCDServer, func()) {
 		),
 		RedisClient: redis,
 	}
-	return NewServer(context.Background(), argoCDOpts), closer
+	srv := NewServer(context.Background(), argoCDOpts)
+	return srv, closer
 }
 
 func TestEnforceProjectToken(t *testing.T) {

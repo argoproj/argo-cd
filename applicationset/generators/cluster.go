@@ -107,6 +107,7 @@ func (g *ClusterGenerator) GenerateParams(
 			// If there is no secret for the cluster, it's the local cluster, so handle it here.
 			params := map[string]string{}
 			params["name"] = cluster.Name
+			params["nameNormalized"] = cluster.Name
 			params["server"] = cluster.Server
 
 			err = appendTemplatedValues(appSetGenerator.Clusters.Values, params)

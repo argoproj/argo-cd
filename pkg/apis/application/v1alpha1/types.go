@@ -1542,6 +1542,19 @@ func isValidAction(action string) bool {
 	return false
 }
 
+// TODO: same as validActions, refacotor to use rbacpolicy.ResourceApplications etc.
+var validResources = map[string]bool{
+	"applications": true,
+	"repositories": true,
+	"clusters":     true,
+	"exec":         true,
+	"logs":         true,
+}
+
+func isValidResource(resource string) bool {
+	return validResources[resource]
+}
+
 func validatePolicy(proj string, role string, policy string) error {
 	policyComponents := strings.Split(policy, ",")
 	if len(policyComponents) != 6 || strings.Trim(policyComponents[0], " ") != "p" {
@@ -1555,7 +1568,7 @@ func validatePolicy(proj string, role string, policy string) error {
 	}
 	// resource
 	resource := strings.Trim(policyComponents[2], " ")
-	if resource != "applications" && resource != "repositories" && resource != "clusters" {
+	if !isValidResource(resource) {
 		return status.Errorf(codes.InvalidArgument, "invalid policy rule '%s': project resource must be: 'applications', 'repositories' or 'clusters', not '%s'", policy, resource)
 	}
 	// action

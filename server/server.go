@@ -4,6 +4,7 @@ import (
 	"context"
 	"crypto/tls"
 	"fmt"
+	goio "io"
 	"io/fs"
 	"math"
 	"net"
@@ -12,6 +13,7 @@ import (
 	"os"
 	"os/exec"
 	"path"
+	"path/filepath"
 	"reflect"
 	"regexp"
 	go_runtime "runtime"
@@ -21,6 +23,8 @@ import (
 
 	// nolint:staticcheck
 	golang_proto "github.com/golang/protobuf/proto"
+
+	netCtx "context"
 
 	"github.com/argoproj/pkg/sync"
 	"github.com/go-redis/redis/v8"
@@ -35,11 +39,11 @@ import (
 	log "github.com/sirupsen/logrus"
 	"github.com/soheilhy/cmux"
 	"go.opentelemetry.io/contrib/instrumentation/google.golang.org/grpc/otelgrpc"
-	netCtx "golang.org/x/net/context"
 	"google.golang.org/grpc"
 	"google.golang.org/grpc/codes"
 	"google.golang.org/grpc/credentials"
 	"google.golang.org/grpc/credentials/insecure"
+	"google.golang.org/grpc/keepalive"
 	"google.golang.org/grpc/metadata"
 	"google.golang.org/grpc/reflection"
 	"google.golang.org/grpc/status"
@@ -98,6 +102,7 @@ import (
 	"github.com/argoproj/argo-cd/v2/util/healthz"
 	httputil "github.com/argoproj/argo-cd/v2/util/http"
 	"github.com/argoproj/argo-cd/v2/util/io"
+	"github.com/argoproj/argo-cd/v2/util/io/files"
 	jwtutil "github.com/argoproj/argo-cd/v2/util/jwt"
 	kubeutil "github.com/argoproj/argo-cd/v2/util/kube"
 	"github.com/argoproj/argo-cd/v2/util/oidc"
@@ -183,6 +188,7 @@ type ArgoCDServerOpts struct {
 	MetricsPort           int
 	Namespace             string
 	DexServerAddr         string
+	DexTLSConfig          *dex.DexTLSConfig
 	BaseHRef              string
 	RootPath              string
 	KubeClientset         kubernetes.Interface
@@ -233,7 +239,7 @@ func NewServer(ctx context.Context, opts ArgoCDServerOpts) *ArgoCDServer {
 	appLister := factory.Argoproj().V1alpha1().Applications().Lister().Applications(opts.Namespace)
 
 	userStateStorage := util_session.NewUserStateStorage(opts.RedisClient)
-	sessionMgr := util_session.NewSessionManager(settingsMgr, projLister, opts.DexServerAddr, userStateStorage)
+	sessionMgr := util_session.NewSessionManager(settingsMgr, projLister, opts.DexServerAddr, opts.DexTLSConfig, userStateStorage)
 	enf := rbac.NewEnforcer(opts.KubeClientset, opts.Namespace, common.ArgoCDRBACConfigMapName, nil)
 	enf.EnableEnforce(!opts.DisableAuth)
 	err = enf.SetBuiltinPolicy(assets.BuiltinPolicyCSV)
@@ -362,6 +368,12 @@ func (a *ArgoCDServer) Listen() (*Listeners, error) {
 	return &Listeners{Main: mainLn, Metrics: metricsLn, GatewayConn: conn}, nil
 }
 
+// Init starts informers used by the API server
+func (a *ArgoCDServer) Init(ctx context.Context) {
+	go a.projInformer.Run(ctx.Done())
+	go a.appInformer.Run(ctx.Done())
+}
+
 // Run runs the API Server
 // We use k8s.io/code-generator/cmd/go-to-protobuf to generate the .proto files from the API types.
 // k8s.io/ go-to-protobuf uses protoc-gen-gogo, which comes from gogo/protobuf (a fork of
@@ -428,9 +440,6 @@ func (a *ArgoCDServer) Run(ctx context.Context, listeners *Listeners) {
 	// Start the muxed listeners for our servers
 	log.Infof("argocd %s serving on port %d (url: %s, tls: %v, namespace: %s, sso: %v)",
 		common.GetVersion(), a.ListenPort, a.settings.URL, a.useTLS(), a.Namespace, a.settings.IsSSOConfigured())
-
-	go a.projInformer.Run(ctx.Done())
-	go a.appInformer.Run(ctx.Done())
 
 	go func() { a.checkServeErr("grpcS", grpcS.Serve(grpcL)) }()
 	go func() { a.checkServeErr("httpS", httpS.Serve(httpL)) }()
@@ -502,7 +511,7 @@ func (a *ArgoCDServer) watchSettings() {
 
 	prevURL := a.settings.URL
 	prevOIDCConfig := a.settings.OIDCConfig()
-	prevDexCfgBytes, err := dex.GenerateDexConfigYAML(a.settings)
+	prevDexCfgBytes, err := dex.GenerateDexConfigYAML(a.settings, a.DexTLSConfig == nil || a.DexTLSConfig.DisableTLS)
 	errors.CheckError(err)
 	prevGitHubSecret := a.settings.WebhookGitHubSecret
 	prevGitLabSecret := a.settings.WebhookGitLabSecret
@@ -517,7 +526,7 @@ func (a *ArgoCDServer) watchSettings() {
 	for {
 		newSettings := <-updateCh
 		a.settings = newSettings
-		newDexCfgBytes, err := dex.GenerateDexConfigYAML(a.settings)
+		newDexCfgBytes, err := dex.GenerateDexConfigYAML(a.settings, a.DexTLSConfig == nil || a.DexTLSConfig.DisableTLS)
 		errors.CheckError(err)
 		if string(newDexCfgBytes) != string(prevDexCfgBytes) {
 			log.Infof("dex config modified. restarting")
@@ -604,6 +613,11 @@ func (a *ArgoCDServer) newGRPCServer() (*grpc.Server, application.AppResourceTre
 		grpc.MaxRecvMsgSize(apiclient.MaxGRPCMessageSize),
 		grpc.MaxSendMsgSize(apiclient.MaxGRPCMessageSize),
 		grpc.ConnectionTimeout(300 * time.Second),
+		grpc.KeepaliveEnforcementPolicy(
+			keepalive.EnforcementPolicy{
+				MinTime: common.GRPCKeepAliveEnforcementMinimum,
+			},
+		),
 	}
 	sensitiveMethods := map[string]bool{
 		"/cluster.ClusterService/Create":                          true,
@@ -798,7 +812,7 @@ func (a *ArgoCDServer) newHTTPServer(ctx context.Context, port int, grpcWebHandl
 	}
 	mux.Handle("/api/", handler)
 
-	terminalHandler := application.NewHandler(a.appLister, a.db, a.enf, a.Cache, appResourceTreeFn)
+	terminalHandler := application.NewHandler(a.appLister, a.db, a.enf, a.Cache, appResourceTreeFn, a.settings.ExecShells)
 	mux.HandleFunc("/terminal", func(writer http.ResponseWriter, request *http.Request) {
 		argocdSettings, err := a.settingsMgr.GetSettings()
 		if err != nil {
@@ -861,11 +875,11 @@ func (a *ArgoCDServer) newHTTPServer(ctx context.Context, port int, grpcWebHandl
 	registerDownloadHandlers(mux, "/download")
 
 	// Serve extensions
-	var extensionsApiPath = "/extensions/"
 	var extensionsSharedPath = "/tmp/extensions/"
 
-	extHandler := http.StripPrefix(extensionsApiPath, http.FileServer(http.Dir(extensionsSharedPath)))
-	mux.HandleFunc(extensionsApiPath, extHandler.ServeHTTP)
+	mux.HandleFunc("/extensions.js", func(writer http.ResponseWriter, _ *http.Request) {
+		a.serveExtensions(extensionsSharedPath, writer)
+	})
 
 	// Serve UI static assets
 	var assetsHandler http.Handler = http.HandlerFunc(a.newStaticAssetsHandler())
@@ -876,6 +890,48 @@ func (a *ArgoCDServer) newHTTPServer(ctx context.Context, port int, grpcWebHandl
 	return &httpS
 }
 
+var extensionsPattern = regexp.MustCompile(`^extension(.*)\.js$`)
+
+func (a *ArgoCDServer) serveExtensions(extensionsSharedPath string, w http.ResponseWriter) {
+	w.Header().Set("Content-Type", "application/javascript")
+
+	err := filepath.Walk(extensionsSharedPath, func(filePath string, info os.FileInfo, err error) error {
+		if err != nil {
+			return fmt.Errorf("failed to iterate files in '%s': %w", extensionsSharedPath, err)
+		}
+		if !files.IsSymlink(info) && !info.IsDir() && extensionsPattern.MatchString(info.Name()) {
+			processFile := func() error {
+				if _, err = w.Write([]byte(fmt.Sprintf("// source: %s/%s \n", filePath, info.Name()))); err != nil {
+					return fmt.Errorf("failed to write to response: %w", err)
+				}
+
+				f, err := os.Open(filePath)
+				if err != nil {
+					return fmt.Errorf("failed to open file '%s': %w", filePath, err)
+				}
+				defer io.Close(f)
+
+				if _, err := goio.Copy(w, f); err != nil {
+					return fmt.Errorf("failed to copy file '%s': %w", filePath, err)
+				}
+
+				return nil
+			}
+
+			if processFile() != nil {
+				return fmt.Errorf("failed to serve extension file '%s': %w", filePath, processFile())
+			}
+		}
+		return nil
+	})
+
+	if err != nil && !os.IsNotExist(err) {
+		log.Errorf("Failed to walk extensions directory: %v", err)
+		http.Error(w, "Internal error", http.StatusInternalServerError)
+		return
+	}
+}
+
 // registerDexHandlers will register dex HTTP handlers, creating the the OAuth client app
 func (a *ArgoCDServer) registerDexHandlers(mux *http.ServeMux) {
 	if !a.settings.IsSSOConfigured() {
@@ -883,12 +939,8 @@ func (a *ArgoCDServer) registerDexHandlers(mux *http.ServeMux) {
 	}
 	// Run dex OpenID Connect Identity Provider behind a reverse proxy (served at /api/dex)
 	var err error
-	mux.HandleFunc(common.DexAPIEndpoint+"/", dexutil.NewDexHTTPReverseProxy(a.DexServerAddr, a.BaseHRef))
-	if a.useTLS() {
-		tlsConfig := a.settings.TLSConfig()
-		tlsConfig.InsecureSkipVerify = true
-	}
-	a.ssoClientApp, err = oidc.NewClientApp(a.settings, a.DexServerAddr, a.BaseHRef)
+	mux.HandleFunc(common.DexAPIEndpoint+"/", dexutil.NewDexHTTPReverseProxy(a.DexServerAddr, a.BaseHRef, a.DexTLSConfig))
+	a.ssoClientApp, err = oidc.NewClientApp(a.settings, a.DexServerAddr, a.DexTLSConfig, a.BaseHRef)
 	errors.CheckError(err)
 	mux.HandleFunc(common.LoginEndpoint, a.ssoClientApp.HandleLogin)
 	mux.HandleFunc(common.CallbackEndpoint, a.ssoClientApp.HandleCallback)

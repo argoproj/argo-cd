@@ -103,6 +103,8 @@ type RepoServerInitConstants struct {
 	PauseGenerationOnFailureForRequests          int
 	SubmoduleEnabled                             bool
 	MaxCombinedDirectoryManifestsSize            resource.Quantity
+	CMPTarExcludedGlobs                          []string
+	AllowOutOfBoundsSymlinks                     bool
 }
 
 // NewService returns a new instance of the Manifest service
@@ -213,7 +215,7 @@ func (s *Service) ListApps(ctx context.Context, q *apiclient.ListAppsRequest) (*
 	}
 
 	defer io.Close(closer)
-	apps, err := discovery.Discover(ctx, gitClient.Root(), q.EnabledSourceTypes)
+	apps, err := discovery.Discover(ctx, gitClient.Root(), q.EnabledSourceTypes, s.initConstants.CMPTarExcludedGlobs)
 	if err != nil {
 		return nil, err
 	}
@@ -317,6 +319,22 @@ func (s *Service) runRepoOperation(
 			return err
 		}
 		defer io.Close(closer)
+		if !s.initConstants.AllowOutOfBoundsSymlinks {
+			err := argopath.CheckOutOfBoundsSymlinks(chartPath)
+			if err != nil {
+				oobError := &argopath.OutOfBoundsSymlinkError{}
+				if errors.As(err, &oobError) {
+					log.WithFields(log.Fields{
+						"chart":    source.Chart,
+						"revision": revision,
+						"file":     oobError.File,
+					}).Warn("chart contains out-of-bounds symlink")
+					return fmt.Errorf("chart contains out-of-bounds symlinks. file: %s", oobError.File)
+				} else {
+					return err
+				}
+			}
+		}
 		return operation(chartPath, revision, revision, func() (*operationContext, error) {
 			return &operationContext{chartPath, ""}, nil
 		})
@@ -331,6 +349,23 @@ func (s *Service) runRepoOperation(
 
 		defer io.Close(closer)
 
+		if !s.initConstants.AllowOutOfBoundsSymlinks {
+			err := argopath.CheckOutOfBoundsSymlinks(gitClient.Root())
+			if err != nil {
+				oobError := &argopath.OutOfBoundsSymlinkError{}
+				if errors.As(err, &oobError) {
+					log.WithFields(log.Fields{
+						"repo":     repo.Repo,
+						"revision": revision,
+						"file":     oobError.File,
+					}).Warn("repository contains out-of-bounds symlink")
+					return fmt.Errorf("repository contains out-of-bounds symlinks. file: %s", oobError.File)
+				} else {
+					return err
+				}
+			}
+		}
+
 		commitSHA, err := gitClient.CommitSHA()
 		if err != nil {
 			return err
@@ -342,6 +377,7 @@ func (s *Service) runRepoOperation(
 				return err
 			}
 		}
+
 		// Here commitSHA refers to the SHA of the actual commit, whereas revision refers to the branch/tag name etc
 		// We use the commitSHA to generate manifests and store them in cache, and revision to retrieve them from cache
 		return operation(gitClient.Root(), commitSHA, revision, func() (*operationContext, error) {
@@ -465,7 +501,7 @@ func (s *Service) runManifestGenAsync(ctx context.Context, repoRoot, commitSHA, 
 	var manifestGenResult *apiclient.ManifestResponse
 	opContext, err := opContextSrc()
 	if err == nil {
-		manifestGenResult, err = GenerateManifests(ctx, opContext.appPath, repoRoot, commitSHA, q, false, s.gitCredsStore, s.initConstants.MaxCombinedDirectoryManifestsSize, WithCMPTarDoneChannel(ch.tarDoneCh))
+		manifestGenResult, err = GenerateManifests(ctx, opContext.appPath, repoRoot, commitSHA, q, false, s.gitCredsStore, s.initConstants.MaxCombinedDirectoryManifestsSize, WithCMPTarDoneChannel(ch.tarDoneCh), WithCMPTarExcludedGlobs(s.initConstants.CMPTarExcludedGlobs))
 	}
 	if err != nil {
 		// If manifest generation error caching is enabled
@@ -872,7 +908,8 @@ func getRepoCredential(repoCredentials []*v1alpha1.RepoCreds, repoURL string) *v
 
 type GenerateManifestOpt func(*generateManifestOpt)
 type generateManifestOpt struct {
-	cmpTarDoneCh chan<- bool
+	cmpTarDoneCh        chan<- bool
+	cmpTarExcludedGlobs []string
 }
 
 func newGenerateManifestOpt(opts ...GenerateManifestOpt) *generateManifestOpt {
@@ -892,6 +929,14 @@ func WithCMPTarDoneChannel(ch chan<- bool) GenerateManifestOpt {
 	}
 }
 
+// WithCMPTarExcludedGlobs defines globs for files to filter out when streaming the tarball
+// to a CMP sidecar.
+func WithCMPTarExcludedGlobs(excludedGlobs []string) GenerateManifestOpt {
+	return func(o *generateManifestOpt) {
+		o.cmpTarExcludedGlobs = excludedGlobs
+	}
+}
+
 // GenerateManifests generates manifests from a path. Overrides are applied as a side effect on the given ApplicationSource.
 func GenerateManifests(ctx context.Context, appPath, repoRoot, revision string, q *apiclient.ManifestRequest, isLocal bool, gitCredsStore git.CredsStore, maxCombinedManifestQuantity resource.Quantity, opts ...GenerateManifestOpt) (*apiclient.ManifestResponse, error) {
 	opt := newGenerateManifestOpt(opts...)
@@ -900,7 +945,7 @@ func GenerateManifests(ctx context.Context, appPath, repoRoot, revision string, 
 
 	resourceTracking := argo.NewResourceTracking()
 
-	appSourceType, err := GetAppSourceType(ctx, q.ApplicationSource, appPath, q.AppName, q.EnabledSourceTypes)
+	appSourceType, err := GetAppSourceType(ctx, q.ApplicationSource, appPath, q.AppName, q.EnabledSourceTypes, opt.cmpTarExcludedGlobs)
 	if err != nil {
 		return nil, err
 	}
@@ -924,7 +969,7 @@ func GenerateManifests(ctx context.Context, appPath, repoRoot, revision string, 
 		if q.ApplicationSource.Plugin != nil && q.ApplicationSource.Plugin.Name != "" {
 			targetObjs, err = runConfigManagementPlugin(appPath, repoRoot, env, q, q.Repo.GetGitCreds(gitCredsStore))
 		} else {
-			targetObjs, err = runConfigManagementPluginSidecars(ctx, appPath, repoRoot, env, q, q.Repo.GetGitCreds(gitCredsStore), opt.cmpTarDoneCh)
+			targetObjs, err = runConfigManagementPluginSidecars(ctx, appPath, repoRoot, env, q, q.Repo.GetGitCreds(gitCredsStore), opt.cmpTarDoneCh, opt.cmpTarExcludedGlobs)
 			if err != nil {
 				err = fmt.Errorf("plugin sidecar failed. %s", err.Error())
 			}
@@ -1058,7 +1103,7 @@ func mergeSourceParameters(source *v1alpha1.ApplicationSource, path, appName str
 }
 
 // GetAppSourceType returns explicit application source type or examines a directory and determines its application source type
-func GetAppSourceType(ctx context.Context, source *v1alpha1.ApplicationSource, path, appName string, enableGenerateManifests map[string]bool) (v1alpha1.ApplicationSourceType, error) {
+func GetAppSourceType(ctx context.Context, source *v1alpha1.ApplicationSource, path, appName string, enableGenerateManifests map[string]bool, tarExcludedGlobs []string) (v1alpha1.ApplicationSourceType, error) {
 	err := mergeSourceParameters(source, path, appName)
 	if err != nil {
 		return "", fmt.Errorf("error while parsing source parameters: %v", err)
@@ -1075,7 +1120,7 @@ func GetAppSourceType(ctx context.Context, source *v1alpha1.ApplicationSource, p
 		}
 		return *appSourceType, nil
 	}
-	appType, err := discovery.AppType(ctx, path, enableGenerateManifests)
+	appType, err := discovery.AppType(ctx, path, enableGenerateManifests, tarExcludedGlobs)
 	if err != nil {
 		return "", err
 	}
@@ -1479,7 +1524,7 @@ func getPluginEnvs(envVars *v1alpha1.Env, q *apiclient.ManifestRequest, creds gi
 	return env, nil
 }
 
-func runConfigManagementPluginSidecars(ctx context.Context, appPath, repoPath string, envVars *v1alpha1.Env, q *apiclient.ManifestRequest, creds git.Creds, tarDoneCh chan<- bool) ([]*unstructured.Unstructured, error) {
+func runConfigManagementPluginSidecars(ctx context.Context, appPath, repoPath string, envVars *v1alpha1.Env, q *apiclient.ManifestRequest, creds git.Creds, tarDoneCh chan<- bool, tarExcludedGlobs []string) ([]*unstructured.Unstructured, error) {
 	// compute variables.
 	env, err := getPluginEnvs(envVars, q, creds, true)
 	if err != nil {
@@ -1487,14 +1532,14 @@ func runConfigManagementPluginSidecars(ctx context.Context, appPath, repoPath st
 	}
 
 	// detect config management plugin server (sidecar)
-	conn, cmpClient, err := discovery.DetectConfigManagementPlugin(ctx, appPath, env)
+	conn, cmpClient, err := discovery.DetectConfigManagementPlugin(ctx, appPath, env, tarExcludedGlobs)
 	if err != nil {
 		return nil, err
 	}
 	defer io.Close(conn)
 
 	// generate manifests using commands provided in plugin config file in detected cmp-server sidecar
-	cmpManifests, err := generateManifestsCMP(ctx, appPath, repoPath, env, cmpClient, tarDoneCh)
+	cmpManifests, err := generateManifestsCMP(ctx, appPath, repoPath, env, cmpClient, tarDoneCh, tarExcludedGlobs)
 	if err != nil {
 		return nil, fmt.Errorf("error generating manifests in cmp: %s", err)
 	}
@@ -1512,7 +1557,7 @@ func runConfigManagementPluginSidecars(ctx context.Context, appPath, repoPath st
 // generateManifestsCMP will send the appPath files to the cmp-server over a gRPC stream.
 // The cmp-server will generate the manifests. Returns a response object with the generated
 // manifests.
-func generateManifestsCMP(ctx context.Context, appPath, repoPath string, env []string, cmpClient pluginclient.ConfigManagementPluginServiceClient, tarDoneCh chan<- bool) (*pluginclient.ManifestResponse, error) {
+func generateManifestsCMP(ctx context.Context, appPath, repoPath string, env []string, cmpClient pluginclient.ConfigManagementPluginServiceClient, tarDoneCh chan<- bool, tarExcludedGlobs []string) (*pluginclient.ManifestResponse, error) {
 	generateManifestStream, err := cmpClient.GenerateManifest(ctx, grpc_retry.Disable())
 	if err != nil {
 		return nil, fmt.Errorf("error getting generateManifestStream: %s", err)
@@ -1520,7 +1565,7 @@ func generateManifestsCMP(ctx context.Context, appPath, repoPath string, env []s
 	opts := []cmp.SenderOption{
 		cmp.WithTarDoneChan(tarDoneCh),
 	}
-	err = cmp.SendRepoStream(generateManifestStream.Context(), appPath, repoPath, generateManifestStream, env, opts...)
+	err = cmp.SendRepoStream(generateManifestStream.Context(), appPath, repoPath, generateManifestStream, env, tarExcludedGlobs, opts...)
 	if err != nil {
 		return nil, fmt.Errorf("error sending file to cmp-server: %s", err)
 	}
@@ -1538,7 +1583,7 @@ func (s *Service) GetAppDetails(ctx context.Context, q *apiclient.RepoServerAppD
 			return err
 		}
 
-		appSourceType, err := GetAppSourceType(ctx, q.Source, opContext.appPath, q.AppName, q.EnabledSourceTypes)
+		appSourceType, err := GetAppSourceType(ctx, q.Source, opContext.appPath, q.AppName, q.EnabledSourceTypes, s.initConstants.CMPTarExcludedGlobs)
 		if err != nil {
 			return err
 		}
@@ -1653,7 +1698,7 @@ func loadFileIntoIfExists(path pathutil.ResolvedFilePath, destination *string) e
 	info, err := os.Stat(stringPath)
 
 	if err == nil && !info.IsDir() {
-		bytes, err := ioutil.ReadFile(stringPath);
+		bytes, err := ioutil.ReadFile(stringPath)
 		if err != nil {
 			return err
 		}

@@ -64,6 +64,10 @@ data:
   server.repo.server.plaintext: "false"
   # Perform strict validation of TLS certificates when connecting to repo server
   server.repo.server.strict.tls: "false"
+  # Use a plaintext client (non-TLS) to connect to dex server
+  server.dex.server.plaintext: "false"
+  # Perform strict validation of TLS certificates when connecting to dex server
+  server.dex.server.strict.tls: "false"
   # Disable client authentication
   server.disable.auth: "false"
   # Enable GZIP compression
@@ -111,3 +115,12 @@ data:
   # for 300x memory expansion and N Applications running at the same time.
   # (example 10M max * 300 expansion * 10 Apps = 30G max theoretical memory usage).
   reposerver.max.combined.directory.manifests.size: '10M'
+  # Paths to be excluded from the tarball streamed to plugins. Separate with ;
+  reposerver.plugin.tar.exclusions: ""
+  # Allow repositories to contain symlinks that leave the boundaries of the repository. 
+  # Changing this to "true" will not allow _all_ out-of-bounds symlinks. Those will still be blocked for things like values 
+  # files in Helm charts. But symlinks which are not explicitly blocked by other checks will be allowed.
+  reposerver.allow.oob.symlinks: "false"
+  
+  # Disable TLS on the HTTP endpoint
+  dexserver.disable.tls: "false"

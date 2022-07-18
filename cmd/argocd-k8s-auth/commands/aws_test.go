@@ -1,6 +1,7 @@
 package commands
 
 import (
+	"context"
 	"fmt"
 	"testing"
 	"time"
@@ -9,6 +10,8 @@ import (
 )
 
 func TestGetSignedRequestWithRetry(t *testing.T) {
+	ctx := context.Background()
+
 	t.Run("will return signed request on first attempt", func(t *testing.T) {
 		// given
 		t.Parallel()
@@ -19,7 +22,7 @@ func TestGetSignedRequestWithRetry(t *testing.T) {
 		}
 
 		// when
-		signed, err := getSignedRequestWithRetry(time.Second, time.Millisecond, "cluster-name", "", mock.getSignedRequestMock)
+		signed, err := getSignedRequestWithRetry(ctx, time.Second, time.Millisecond, "cluster-name", "", mock.getSignedRequestMock)
 
 		// then
 		assert.NoError(t, err)
@@ -38,7 +41,7 @@ func TestGetSignedRequestWithRetry(t *testing.T) {
 		}
 
 		// when
-		signed, err := getSignedRequestWithRetry(time.Second, time.Millisecond, "cluster-name", "", mock.getSignedRequestMock)
+		signed, err := getSignedRequestWithRetry(ctx, time.Second, time.Millisecond, "cluster-name", "", mock.getSignedRequestMock)
 
 		// then
 		assert.NoError(t, err)
@@ -54,7 +57,7 @@ func TestGetSignedRequestWithRetry(t *testing.T) {
 		}
 
 		// when
-		signed, err := getSignedRequestWithRetry(time.Second, time.Millisecond, "cluster-name", "", mock.getSignedRequestMock)
+		signed, err := getSignedRequestWithRetry(ctx, time.Second, time.Millisecond, "cluster-name", "", mock.getSignedRequestMock)
 
 		// then
 		assert.Error(t, err)

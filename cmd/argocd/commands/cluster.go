@@ -1,7 +1,6 @@
 package commands
 
 import (
-	"context"
 	"fmt"
 	"os"
 	"regexp"
@@ -71,6 +70,8 @@ func NewClusterAddCommand(clientOpts *argocdclient.ClientOptions, pathOpts *clie
 		Use:   "add CONTEXT",
 		Short: fmt.Sprintf("%s cluster add CONTEXT", cliName),
 		Run: func(c *cobra.Command, args []string) {
+			ctx := c.Context()
+
 			var configAccess clientcmd.ConfigAccess = pathOpts
 			if len(args) == 0 {
 				log.Error("Choose a context name from:")
@@ -144,7 +145,7 @@ func NewClusterAddCommand(clientOpts *argocdclient.ClientOptions, pathOpts *clie
 				Cluster: clst,
 				Upsert:  clusterOpts.Upsert,
 			}
-			_, err = clusterIf.Create(context.Background(), &clstCreateReq)
+			_, err = clusterIf.Create(ctx, &clstCreateReq)
 			errors.CheckError(err)
 			fmt.Printf("Cluster '%s' added\n", clst.Server)
 		},
@@ -195,6 +196,8 @@ func NewClusterGetCommand(clientOpts *argocdclient.ClientOptions) *cobra.Command
 		Example: `argocd cluster get https://12.34.567.89
 argocd cluster get in-cluster`,
 		Run: func(c *cobra.Command, args []string) {
+			ctx := c.Context()
+
 			if len(args) == 0 {
 				c.HelpFunc()(c, args)
 				os.Exit(1)
@@ -203,7 +206,7 @@ argocd cluster get in-cluster`,
 			defer io.Close(conn)
 			clusters := make([]argoappv1.Cluster, 0)
 			for _, clusterSelector := range args {
-				clst, err := clusterIf.Get(context.Background(), getQueryBySelector(clusterSelector))
+				clst, err := clusterIf.Get(ctx, getQueryBySelector(clusterSelector))
 				errors.CheckError(err)
 				clusters = append(clusters, *clst)
 			}
@@ -265,6 +268,8 @@ func NewClusterRemoveCommand(clientOpts *argocdclient.ClientOptions, pathOpts *c
 		Example: `argocd cluster rm https://12.34.567.89
 argocd cluster rm cluster-name`,
 		Run: func(c *cobra.Command, args []string) {
+			ctx := c.Context()
+
 			if len(args) == 0 {
 				c.HelpFunc()(c, args)
 				os.Exit(1)
@@ -276,11 +281,11 @@ argocd cluster rm cluster-name`,
 				clusterQuery := getQueryBySelector(clusterSelector)
 
 				// get the cluster name to use as context to delete RBAC on cluster
-				clst, err := clusterIf.Get(context.Background(), clusterQuery)
+				clst, err := clusterIf.Get(ctx, clusterQuery)
 				errors.CheckError(err)
 
 				// remove cluster
-				_, err = clusterIf.Delete(context.Background(), clusterQuery)
+				_, err = clusterIf.Delete(ctx, clusterQuery)
 				errors.CheckError(err)
 				fmt.Printf("Cluster '%s' removed\n", clusterSelector)
 
@@ -341,9 +346,11 @@ func NewClusterListCommand(clientOpts *argocdclient.ClientOptions) *cobra.Comman
 		Use:   "list",
 		Short: "List configured clusters",
 		Run: func(c *cobra.Command, args []string) {
+			ctx := c.Context()
+
 			conn, clusterIf := headless.NewClientOrDie(clientOpts, c).NewClusterClientOrDie()
 			defer io.Close(conn)
-			clusters, err := clusterIf.List(context.Background(), &clusterpkg.ClusterQuery{})
+			clusters, err := clusterIf.List(ctx, &clusterpkg.ClusterQuery{})
 			errors.CheckError(err)
 			switch output {
 			case "yaml", "json":
@@ -365,22 +372,26 @@ func NewClusterListCommand(clientOpts *argocdclient.ClientOptions) *cobra.Comman
 // NewClusterRotateAuthCommand returns a new instance of an `argocd cluster rotate-auth` command
 func NewClusterRotateAuthCommand(clientOpts *argocdclient.ClientOptions) *cobra.Command {
 	var command = &cobra.Command{
-		Use:     "rotate-auth SERVER",
-		Short:   fmt.Sprintf("%s cluster rotate-auth SERVER", cliName),
-		Example: fmt.Sprintf("%s cluster rotate-auth https://12.34.567.89", cliName),
+		Use:   "rotate-auth SERVER/NAME",
+		Short: fmt.Sprintf("%s cluster rotate-auth SERVER/NAME", cliName),
+		Example: `argocd cluster rotate-auth https://12.34.567.89
+argocd cluster rotate-auth cluster-name`,
 		Run: func(c *cobra.Command, args []string) {
+			ctx := c.Context()
+
 			if len(args) != 1 {
 				c.HelpFunc()(c, args)
 				os.Exit(1)
 			}
 			conn, clusterIf := headless.NewClientOrDie(clientOpts, c).NewClusterClientOrDie()
 			defer io.Close(conn)
-			clusterQuery := clusterpkg.ClusterQuery{
-				Server: args[0],
-			}
-			_, err := clusterIf.RotateAuth(context.Background(), &clusterQuery)
+
+			cluster := args[0]
+			clusterQuery := getQueryBySelector(cluster)
+			_, err := clusterIf.RotateAuth(ctx, clusterQuery)
 			errors.CheckError(err)
-			fmt.Printf("Cluster '%s' rotated auth\n", clusterQuery.Server)
+
+			fmt.Printf("Cluster '%s' rotated auth\n", cluster)
 		},
 	}
 	return command

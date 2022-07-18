@@ -2,7 +2,6 @@ package git
 
 import (
 	"fmt"
-	"io/ioutil"
 	"os"
 	"path"
 	"regexp"
@@ -47,7 +46,7 @@ func TestHTTPSCreds_Environ_no_cert_cleanup(t *testing.T) {
 	var nonce string
 	for _, envVar := range env {
 		if strings.HasPrefix(envVar, ASKPASS_NONCE_ENV) {
-			nonce = envVar[len(ASKPASS_NONCE_ENV) + 1:]
+			nonce = envVar[len(ASKPASS_NONCE_ENV)+1:]
 			break
 		}
 	}
@@ -109,10 +108,10 @@ func TestHTTPSCreds_Environ_clientCert(t *testing.T) {
 	assert.NotEmpty(t, cert)
 	assert.NotEmpty(t, key)
 
-	certBytes, err := ioutil.ReadFile(cert)
+	certBytes, err := os.ReadFile(cert)
 	assert.NoError(t, err)
 	assert.Equal(t, "clientCertData", string(certBytes))
-	keyBytes, err := ioutil.ReadFile(key)
+	keyBytes, err := os.ReadFile(key)
 	assert.Equal(t, "clientCertKey", string(keyBytes))
 	assert.NoError(t, err)
 
