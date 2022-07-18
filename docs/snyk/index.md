@@ -17,7 +17,7 @@ recent minor releases.
 
 ### v2.4.6
 
-* [dependencies (golang and JavaScript)](v2.4.6/argocd-test.html) — go.mod: 0 critical, 1 high, 7 medium, 0 low; ui/yarn.lock: 1 critical, 1 high, 5 medium, 0 low
+* [dependencies (golang and JavaScript)](v2.4.6/argocd-test.html) — go.mod: 0 critical, 0 high, 7 medium, 0 low; ui/yarn.lock: 1 critical, 1 high, 5 medium, 0 low
 * [(image) ghcr.io/dexidp/dex:v2.30.2](v2.4.6/ghcr.io_dexidp_dex:v2.30.2.html) — 1 critical, 4 high, 0 medium, 1 low
 * [(image) haproxy:2.0.25-alpine](v2.4.6/haproxy:2.0.25-alpine.html) — 3 critical, 4 high, 0 medium, 1 low
 * [(image) quay.io/argoproj/argocd:v2.4.6](v2.4.6/quay.io_argoproj_argocd:v2.4.6.html) — 0 critical, 0 high, 3 medium, 17 low
@@ -27,7 +27,7 @@ recent minor releases.
 
 ### v2.3.6
 
-* [dependencies (golang and JavaScript)](v2.3.6/argocd-test.html) — go.mod: 0 critical, 1 high, 6 medium, 0 low; ui/yarn.lock: 1 critical, 11 high, 25 medium, 2 low
+* [dependencies (golang and JavaScript)](v2.3.6/argocd-test.html) — go.mod: 0 critical, 0 high, 6 medium, 0 low; ui/yarn.lock: 1 critical, 9 high, 25 medium, 2 low
 * [(image) ghcr.io/dexidp/dex:v2.30.2](v2.3.6/ghcr.io_dexidp_dex:v2.30.2.html) — 1 critical, 4 high, 0 medium, 1 low
 * [(image) haproxy:2.0.25-alpine](v2.3.6/haproxy:2.0.25-alpine.html) — 3 critical, 4 high, 0 medium, 1 low
 * [(image) quay.io/argoproj/argocd-applicationset:v0.4.1](v2.3.6/quay.io_argoproj_argocd-applicationset:v0.4.1.html) — 0 critical, 4 high, 38 medium, 29 low
@@ -38,7 +38,7 @@ recent minor releases.
 
 ### v2.2.9
 
-* [dependencies (golang and JavaScript)](v2.2.9/argocd-test.html) — go.mod: 0 critical, 1 high, 6 medium, 0 low; ui/yarn.lock: 1 critical, 12 high, 33 medium, 2 low
+* [dependencies (golang and JavaScript)](v2.2.9/argocd-test.html) — go.mod: 0 critical, 0 high, 6 medium, 0 low; ui/yarn.lock: 1 critical, 10 high, 33 medium, 2 low
 * [(image) ghcr.io/dexidp/dex:v2.30.2](v2.2.9/ghcr.io_dexidp_dex:v2.30.2.html) — 1 critical, 4 high, 0 medium, 1 low
 * [(image) haproxy:2.0.25-alpine](v2.2.9/haproxy:2.0.25-alpine.html) — 3 critical, 4 high, 0 medium, 1 low
 * [(image) quay.io/argoproj/argocd:v2.2.9](v2.2.9/quay.io_argoproj_argocd:v2.2.9.html) — 0 critical, 0 high, 4 medium, 25 low

@@ -3,6 +3,8 @@
 set -e
 set -o pipefail
 
+npm install snyk-to-html -g
+
 # Choose the branch where docs changes will actually be written.
 target_branch="$1"
 if [ "$target_branch" != "" ]; then
@@ -49,7 +51,11 @@ for version in $versions; do
 
   mkdir -p "$argocd_dir/docs/snyk/$version"
 
+  git reset --hard # reset any pending changes to avoid checkout errors
   git checkout "$version"
+
+  # Get the latest ignore rules.
+  cp "$argocd_dir/.snyk" .snyk
 
   # || [ $? == 1 ] ignores errors due to vulnerabilities.
   snyk test --all-projects --exclude=docs,site,ui-test --org=argoproj --policy-path=.snyk --sarif-file-output=/tmp/argocd-test.sarif --json-file-output=/tmp/argocd-test.json || [ $? == 1 ]
@@ -74,8 +80,6 @@ for version in $versions; do
 
 
   images=$(grep 'image: ' manifests/install.yaml manifests/namespace-install.yaml manifests/ha/install.yaml | sed 's/.*image: //' | sort | uniq)
-
-  npm install snyk-to-html -g
 
   while IFS= read -r image; do
     extra_args=""
