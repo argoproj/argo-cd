@@ -882,7 +882,9 @@ func NewApplicationDiffCommand(clientOpts *argocdclient.ClientOptions) *cobra.Co
 					})
 
 					errors.CheckError(err)
-					stream.SendFile(ctx, client, f)
+
+					err = stream.SendFile(ctx, client, f)
+					errors.CheckError(err)
 
 					res, err := client.CloseAndRecv()
 					errors.CheckError(err)
