@@ -7,7 +7,7 @@
   <meta name="viewport" content="width=device-width, initial-scale=1.0">
   <meta http-equiv="X-UA-Compatible" content="IE=edge">
   <title>Snyk test report</title>
-  <meta name="description" content="70 known vulnerabilities found in 241 vulnerable dependency paths.">
+  <meta name="description" content="71 known vulnerabilities found in 244 vulnerable dependency paths.">
   <base target="_blank">
   <link rel="icon" type="image/png" href="https://res.cloudinary.com/snyk/image/upload/v1468845142/favicon/favicon.png"
     sizes="194x194">
@@ -456,7 +456,7 @@
               <div class="header-wrap">
                   <h1 class="project__header__title">Snyk test report</h1>
     
-                <p class="timestamp">July 11th 2022, 3:02:33 pm</p>
+                <p class="timestamp">July 18th 2022, 5:32:49 pm</p>
               </div>
               <div class="source-panel">
                 <span>Scanned the following path:</span>
@@ -466,8 +466,8 @@
               </div>
     
               <div class="meta-counts">
-                <div class="meta-count"><span>70</span> <span>known vulnerabilities</span></div>
-                <div class="meta-count"><span>241 vulnerable dependency paths</span></div>
+                <div class="meta-count"><span>71</span> <span>known vulnerabilities</span></div>
+                <div class="meta-count"><span>244 vulnerable dependency paths</span></div>
                 <div class="meta-count"><span>161</span> <span>dependencies</span></div>
               </div><!-- .meta-counts -->
             </div><!-- .layout-container--short -->
@@ -1944,6 +1944,7 @@
         <li><a href="https://security.netapp.com/advisory/ntap-20220602-0009/">CONFIRM</a></li>
         <li><a href="https://lists.fedoraproject.org/archives/list/package-announce@lists.fedoraproject.org/message/VX4KWHPMKYJL6ZLW4M5IU7E5UV5ZWJQU/">FEDORA</a></li>
         <li><a href="https://lists.fedoraproject.org/archives/list/package-announce@lists.fedoraproject.org/message/ZNU5M7BXMML26G3GPYKFGQYPQDRSNKDD/">FEDORA</a></li>
+        <li><a href="https://psirt.global.sonicwall.com/vuln-detail/SNWLID-2022-0011">CONFIRM</a></li>
         </ul>
         
               <hr/>
@@ -2131,7 +2132,7 @@
         
         </div><!-- .card -->
         <div class="card card--vuln  disclosure--not-new severity--medium" data-snyk-test="medium">
-            <h2 class="card__title">CVE-2022-2097</h2>
+            <h2 class="card__title">Inadequate Encryption Strength</h2>
             <div class="card__section">
         
                 <div class="label label--medium">
@@ -2295,6 +2296,8 @@
         <li><a href="https://git.openssl.org/gitweb/?p=openssl.git;a=commitdiff;h=a98f339ddd7e8f487d6e0088d4a9a42324885a93">CONFIRM</a></li>
         <li><a href="https://git.openssl.org/gitweb/?p=openssl.git;a=commitdiff;h=919925673d6c9cfed3c1085497f5dfbbed5fc431">CONFIRM</a></li>
         <li><a href="https://lists.fedoraproject.org/archives/list/package-announce@lists.fedoraproject.org/message/V6567JERRHHJW2GNGJGKDRNHR7SNPZK7/">FEDORA</a></li>
+        <li><a href="https://lists.fedoraproject.org/archives/list/package-announce@lists.fedoraproject.org/message/R6CK57NBQFTPUMXAPJURCGXUYT76NQAK/">FEDORA</a></li>
+        <li><a href="https://security.netapp.com/advisory/ntap-20220715-0011/">CONFIRM</a></li>
         </ul>
         
               <hr/>
@@ -2686,7 +2689,7 @@
         
         </div><!-- .card -->
         <div class="card card--vuln  disclosure--not-new severity--medium" data-snyk-test="medium">
-            <h2 class="card__title">CVE-2022-34903</h2>
+            <h2 class="card__title">Arbitrary Code Injection</h2>
             <div class="card__section">
         
                 <div class="label label--medium">
@@ -3305,6 +3308,98 @@
         
             <div class="cta card__cta">
                 <p><a href="https://snyk.io/vuln/SNYK-UBUNTU2110-GIT-2635677">More about this vulnerability</a></p>
+            </div>
+        
+        </div><!-- .card -->
+        <div class="card card--vuln  disclosure--not-new severity--medium" data-snyk-test="medium">
+            <h2 class="card__title">Uncontrolled Search Path Element</h2>
+            <div class="card__section">
+        
+                <div class="label label--medium">
+                    <span class="label__text">medium severity</span>
+                </div>
+        
+                <hr/>
+        
+                <ul class="card__meta">
+                    <li class="card__meta__item">
+                        Package Manager: ubuntu:21.10
+                    </li>
+                    <li class="card__meta__item">
+                            Vulnerable module:
+        
+                            git/git-man
+                    </li>
+        
+                    <li class="card__meta__item">Introduced through:
+        
+        
+                                    docker-image|quay.io/argoproj/argocd-applicationset@v0.4.1, git@1:2.32.0-1ubuntu1 and others
+                    </li>
+                </ul>
+        
+                <hr/>
+        
+        
+                        <h3 class="card__section__title">Detailed paths</h3>
+        
+                    <ul class="card__meta__paths">
+                                <li>
+                                <span class="list-paths__item__introduced"><em>Introduced through</em>:
+                                        docker-image|quay.io/argoproj/argocd-applicationset@v0.4.1
+                                         <span class="list-paths__item__arrow">›</span> 
+                                        git@1:2.32.0-1ubuntu1
+                                         <span class="list-paths__item__arrow">›</span> 
+                                        git/git-man@1:2.32.0-1ubuntu1
+                                        
+                                </span>
+        
+                            </li>
+                                <li>
+                                <span class="list-paths__item__introduced"><em>Introduced through</em>:
+                                        docker-image|quay.io/argoproj/argocd-applicationset@v0.4.1
+                                         <span class="list-paths__item__arrow">›</span> 
+                                        git@1:2.32.0-1ubuntu1
+                                        
+                                </span>
+        
+                            </li>
+                                <li>
+                                <span class="list-paths__item__introduced"><em>Introduced through</em>:
+                                        docker-image|quay.io/argoproj/argocd-applicationset@v0.4.1
+                                         <span class="list-paths__item__arrow">›</span> 
+                                        git-lfs@2.13.2-1
+                                         <span class="list-paths__item__arrow">›</span> 
+                                        git@1:2.32.0-1ubuntu1
+                                        
+                                </span>
+        
+                            </li>
+                    </ul><!-- .list-paths -->
+        
+            </div><!-- .card__section -->
+        
+              <hr/>
+              <!-- Overview -->
+              <h2 id="nvd-description">NVD Description</h2>
+        <p><strong><em>Note:</em></strong> <em>Versions mentioned in the description apply to the upstream <code>git</code> package.</em>
+        <em>See <code>How to fix?</code> for <code>Ubuntu:21.10</code> relevant versions.</em></p>
+        <p>Git is a distributed revision control system. Git prior to versions 2.37.1, 2.36.2, 2.35.4, 2.34.4, 2.33.4, 2.32.3, 2.31.4, and 2.30.5, is vulnerable to privilege escalation in all platforms. An unsuspecting user could still be affected by the issue reported in CVE-2022-24765, for example when navigating as root into a shared tmp directory that is owned by them, but where an attacker could create a git repository. Versions 2.37.1, 2.36.2, 2.35.4, 2.34.4, 2.33.4, 2.32.3, 2.31.4, and 2.30.5 contain a patch for this issue. The simplest way to avoid being affected by the exploit described in the example is to avoid running git as root (or an Administrator in Windows), and if needed to reduce its use to a minimum. While a generic workaround is not possible, a system could be hardened from the exploit described in the example by removing any such repository if it exists already and creating one as root to block any future attacks.</p>
+        <h2 id="remediation">Remediation</h2>
+        <p>Upgrade <code>Ubuntu:21.10</code> <code>git</code> to version 1:2.32.0-1ubuntu1.3 or higher.</p>
+        <h2 id="references">References</h2>
+        <ul>
+        <li><a href="http://people.ubuntu.com/~ubuntu-security/cve/CVE-2022-29187">ADVISORY</a></li>
+        <li><a href="https://github.blog/2022-04-12-git-security-vulnerability-announced">MISC</a></li>
+        <li><a href="https://lore.kernel.org/git/xmqqv8s2fefi.fsf@gitster.g/T/#u">MISC</a></li>
+        <li><a href="https://github.com/git/git/security/advisories/GHSA-j342-m5hw-rr3v">CONFIRM</a></li>
+        <li><a href="http://www.openwall.com/lists/oss-security/2022/07/14/1">MLIST</a></li>
+        </ul>
+        
+              <hr/>
+        
+            <div class="cta card__cta">
+                <p><a href="https://snyk.io/vuln/SNYK-UBUNTU2110-GIT-2949719">More about this vulnerability</a></p>
             </div>
         
         </div><!-- .card -->
@@ -4690,7 +4785,7 @@
         
         </div><!-- .card -->
         <div class="card card--vuln  disclosure--not-new severity--medium" data-snyk-test="medium">
-            <h2 class="card__title">CVE-2022-32208</h2>
+            <h2 class="card__title">Out-of-bounds Write</h2>
             <div class="card__section">
         
                 <div class="label label--medium">
@@ -4749,6 +4844,7 @@
         <ul>
         <li><a href="http://people.ubuntu.com/~ubuntu-security/cve/CVE-2022-32208">ADVISORY</a></li>
         <li><a href="https://hackerone.com/reports/1590071">MISC</a></li>
+        <li><a href="https://lists.fedoraproject.org/archives/list/package-announce@lists.fedoraproject.org/message/BEV6BR4MTI3CEWK2YU2HQZUW5FAS3FEY/">FEDORA</a></li>
         </ul>
         
               <hr/>
@@ -4759,7 +4855,7 @@
         
         </div><!-- .card -->
         <div class="card card--vuln  disclosure--not-new severity--medium" data-snyk-test="medium">
-            <h2 class="card__title">CVE-2022-32207</h2>
+            <h2 class="card__title">Incorrect Default Permissions</h2>
             <div class="card__section">
         
                 <div class="label label--medium">
@@ -4818,6 +4914,7 @@
         <ul>
         <li><a href="http://people.ubuntu.com/~ubuntu-security/cve/CVE-2022-32207">ADVISORY</a></li>
         <li><a href="https://hackerone.com/reports/1573634">MISC</a></li>
+        <li><a href="https://lists.fedoraproject.org/archives/list/package-announce@lists.fedoraproject.org/message/BEV6BR4MTI3CEWK2YU2HQZUW5FAS3FEY/">FEDORA</a></li>
         </ul>
         
               <hr/>
@@ -4828,7 +4925,7 @@
         
         </div><!-- .card -->
         <div class="card card--vuln  disclosure--not-new severity--medium" data-snyk-test="medium">
-            <h2 class="card__title">CVE-2022-32206</h2>
+            <h2 class="card__title">Allocation of Resources Without Limits or Throttling</h2>
             <div class="card__section">
         
                 <div class="label label--medium">
@@ -4887,6 +4984,7 @@
         <ul>
         <li><a href="http://people.ubuntu.com/~ubuntu-security/cve/CVE-2022-32206">ADVISORY</a></li>
         <li><a href="https://hackerone.com/reports/1570651">MISC</a></li>
+        <li><a href="https://lists.fedoraproject.org/archives/list/package-announce@lists.fedoraproject.org/message/BEV6BR4MTI3CEWK2YU2HQZUW5FAS3FEY/">FEDORA</a></li>
         </ul>
         
               <hr/>
@@ -4897,7 +4995,7 @@
         
         </div><!-- .card -->
         <div class="card card--vuln  disclosure--not-new severity--medium" data-snyk-test="medium">
-            <h2 class="card__title">CVE-2022-32205</h2>
+            <h2 class="card__title">Allocation of Resources Without Limits or Throttling</h2>
             <div class="card__section">
         
                 <div class="label label--medium">
@@ -4956,6 +5054,7 @@
         <ul>
         <li><a href="http://people.ubuntu.com/~ubuntu-security/cve/CVE-2022-32205">ADVISORY</a></li>
         <li><a href="https://hackerone.com/reports/1569946">MISC</a></li>
+        <li><a href="https://lists.fedoraproject.org/archives/list/package-announce@lists.fedoraproject.org/message/BEV6BR4MTI3CEWK2YU2HQZUW5FAS3FEY/">FEDORA</a></li>
         </ul>
         
               <hr/>
@@ -5823,7 +5922,7 @@
         
         </div><!-- .card -->
         <div class="card card--vuln  disclosure--not-new severity--low" data-snyk-test="low">
-            <h2 class="card__title">Improper Privilege Management</h2>
+            <h2 class="card__title">CVE-2021-41617</h2>
             <div class="card__section">
         
                 <div class="label label--low">
@@ -7240,7 +7339,7 @@
         
         </div><!-- .card -->
         <div class="card card--vuln  disclosure--not-new severity--low" data-snyk-test="low">
-            <h2 class="card__title">Resource Exhaustion</h2>
+            <h2 class="card__title">Incorrect Calculation</h2>
             <div class="card__section">
         
                 <div class="label label--low">

@@ -456,7 +456,7 @@
               <div class="header-wrap">
                   <h1 class="project__header__title">Snyk test report</h1>
     
-                <p class="timestamp">July 11th 2022, 2:59:18 pm</p>
+                <p class="timestamp">July 18th 2022, 5:29:02 pm</p>
               </div>
               <div class="source-panel">
                 <span>Scanned the following path:</span>
@@ -1025,113 +1025,11 @@
         
         </div><!-- .card -->
         <div class="card card--vuln  disclosure--not-new severity--high" data-snyk-test="high">
-            <h2 class="card__title">Loop with Unreachable Exit Condition (&#x27;Infinite Loop&#x27;)</h2>
+            <h2 class="card__title">Inadequate Encryption Strength</h2>
             <div class="card__section">
         
                 <div class="label label--high">
                     <span class="label__text">high severity</span>
-                </div>
-        
-                <hr/>
-        
-                <ul class="card__meta">
-                    <li class="card__meta__item">
-                        Package Manager: alpine:3.15
-                    </li>
-                    <li class="card__meta__item">
-                            Vulnerable module:
-        
-                            libretls/libretls
-                    </li>
-        
-                    <li class="card__meta__item">Introduced through:
-        
-                                docker-image|haproxy@2.0.25-alpine and libretls/libretls@3.3.4-r2
-        
-                    </li>
-                </ul>
-        
-                <hr/>
-        
-        
-                        <h3 class="card__section__title">Detailed paths</h3>
-        
-                    <ul class="card__meta__paths">
-                                <li>
-                                <span class="list-paths__item__introduced"><em>Introduced through</em>:
-                                        docker-image|haproxy@2.0.25-alpine
-                                         <span class="list-paths__item__arrow">›</span> 
-                                        libretls/libretls@3.3.4-r2
-                                        
-                                </span>
-        
-                            </li>
-                                <li>
-                                <span class="list-paths__item__introduced"><em>Introduced through</em>:
-                                        docker-image|haproxy@2.0.25-alpine
-                                         <span class="list-paths__item__arrow">›</span> 
-                                        busybox/ssl_client@1.34.1-r3
-                                         <span class="list-paths__item__arrow">›</span> 
-                                        libretls/libretls@3.3.4-r2
-                                        
-                                </span>
-        
-                            </li>
-                    </ul><!-- .list-paths -->
-        
-            </div><!-- .card__section -->
-        
-              <hr/>
-              <!-- Overview -->
-              <h2 id="nvd-description">NVD Description</h2>
-        <p><strong><em>Note:</em></strong> <em>Versions mentioned in the description apply to the upstream <code>libretls</code> package.</em>
-        <em>See <code>How to fix?</code> for <code>Alpine:3.15</code> relevant versions.</em></p>
-        <p>The BN_mod_sqrt() function, which computes a modular square root, contains a bug that can cause it to loop forever for non-prime moduli. Internally this function is used when parsing certificates that contain elliptic curve public keys in compressed form or explicit elliptic curve parameters with a base point encoded in compressed form. It is possible to trigger the infinite loop by crafting a certificate that has invalid explicit curve parameters. Since certificate parsing happens prior to verification of the certificate signature, any process that parses an externally supplied certificate may thus be subject to a denial of service attack. The infinite loop can also be reached when parsing crafted private keys as they can contain explicit elliptic curve parameters. Thus vulnerable situations include: - TLS clients consuming server certificates - TLS servers consuming client certificates - Hosting providers taking certificates or private keys from customers - Certificate authorities parsing certification requests from subscribers - Anything else which parses ASN.1 elliptic curve parameters Also any other applications that use the BN_mod_sqrt() where the attacker can control the parameter values are vulnerable to this DoS issue. In the OpenSSL 1.0.2 version the public key is not parsed during initial parsing of the certificate which makes it slightly harder to trigger the infinite loop. However any operation which requires the public key from the certificate will trigger the infinite loop. In particular the attacker can use a self-signed certificate to trigger the loop during verification of the certificate signature. This issue affects OpenSSL versions 1.0.2, 1.1.1 and 3.0. It was addressed in the releases of 1.1.1n and 3.0.2 on the 15th March 2022. Fixed in OpenSSL 3.0.2 (Affected 3.0.0,3.0.1). Fixed in OpenSSL 1.1.1n (Affected 1.1.1-1.1.1m). Fixed in OpenSSL 1.0.2zd (Affected 1.0.2-1.0.2zc).</p>
-        <h2 id="remediation">Remediation</h2>
-        <p>Upgrade <code>Alpine:3.15</code> <code>libretls</code> to version 3.3.4-r3 or higher.</p>
-        <h2 id="references">References</h2>
-        <ul>
-        <li><a href="https://git.openssl.org/gitweb/?p=openssl.git;a=commitdiff;h=380085481c64de749a6dd25cdf0bcf4360b30f83">CONFIRM</a></li>
-        <li><a href="https://www.openssl.org/news/secadv/20220315.txt">CONFIRM</a></li>
-        <li><a href="https://git.openssl.org/gitweb/?p=openssl.git;a=commitdiff;h=a466912611aa6cbdf550cd10601390e587451246">CONFIRM</a></li>
-        <li><a href="https://git.openssl.org/gitweb/?p=openssl.git;a=commitdiff;h=3118eb64934499d93db3230748a452351d1d9a65">CONFIRM</a></li>
-        <li><a href="https://www.debian.org/security/2022/dsa-5103">DEBIAN</a></li>
-        <li><a href="https://lists.debian.org/debian-lts-announce/2022/03/msg00024.html">MLIST</a></li>
-        <li><a href="https://lists.debian.org/debian-lts-announce/2022/03/msg00023.html">MLIST</a></li>
-        <li><a href="https://security.netapp.com/advisory/ntap-20220321-0002/">CONFIRM</a></li>
-        <li><a href="https://lists.fedoraproject.org/archives/list/package-announce@lists.fedoraproject.org/message/GDB3GQVJPXJE7X5C5JN6JAA4XUDWD6E6/">FEDORA</a></li>
-        <li><a href="https://psirt.global.sonicwall.com/vuln-detail/SNWLID-2022-0002">CONFIRM</a></li>
-        <li><a href="https://www.tenable.com/security/tns-2022-06">CONFIRM</a></li>
-        <li><a href="https://www.tenable.com/security/tns-2022-07">CONFIRM</a></li>
-        <li><a href="https://lists.fedoraproject.org/archives/list/package-announce@lists.fedoraproject.org/message/323SNN6ZX7PRJJWP2BUAFLPUAE42XWLZ/">FEDORA</a></li>
-        <li><a href="https://lists.fedoraproject.org/archives/list/package-announce@lists.fedoraproject.org/message/W6K3PR542DXWLEFFMFIDMME4CWMHJRMG/">FEDORA</a></li>
-        <li><a href="https://www.tenable.com/security/tns-2022-08">CONFIRM</a></li>
-        <li><a href="https://www.oracle.com/security-alerts/cpuapr2022.html">MISC</a></li>
-        <li><a href="https://www.tenable.com/security/tns-2022-09">CONFIRM</a></li>
-        <li><a href="https://security.netapp.com/advisory/ntap-20220429-0005/">CONFIRM</a></li>
-        <li><a href="https://support.apple.com/kb/HT213256">CONFIRM</a></li>
-        <li><a href="https://support.apple.com/kb/HT213255">CONFIRM</a></li>
-        <li><a href="https://support.apple.com/kb/HT213257">CONFIRM</a></li>
-        <li><a href="http://seclists.org/fulldisclosure/2022/May/38">FULLDISC</a></li>
-        <li><a href="http://seclists.org/fulldisclosure/2022/May/35">FULLDISC</a></li>
-        <li><a href="http://seclists.org/fulldisclosure/2022/May/33">FULLDISC</a></li>
-        <li><a href="http://packetstormsecurity.com/files/167344/OpenSSL-1.0.2-1.1.1-3.0-BN_mod_sqrt-Infinite-Loop.html">MISC</a></li>
-        <li><a href="https://cert-portal.siemens.com/productcert/pdf/ssa-712929.pdf">CONFIRM</a></li>
-        </ul>
-        
-              <hr/>
-        
-            <div class="cta card__cta">
-                <p><a href="https://snyk.io/vuln/SNYK-ALPINE315-LIBRETLS-2428776">More about this vulnerability</a></p>
-            </div>
-        
-        </div><!-- .card -->
-        <div class="card card--vuln  disclosure--not-new severity--low" data-snyk-test="low">
-            <h2 class="card__title">CVE-2022-2097</h2>
-            <div class="card__section">
-        
-                <div class="label label--low">
-                    <span class="label__text">low severity</span>
                 </div>
         
                 <hr/>
@@ -1272,12 +1170,116 @@
         <li><a href="https://git.openssl.org/gitweb/?p=openssl.git;a=commitdiff;h=a98f339ddd7e8f487d6e0088d4a9a42324885a93">CONFIRM</a></li>
         <li><a href="https://git.openssl.org/gitweb/?p=openssl.git;a=commitdiff;h=919925673d6c9cfed3c1085497f5dfbbed5fc431">CONFIRM</a></li>
         <li><a href="https://lists.fedoraproject.org/archives/list/package-announce@lists.fedoraproject.org/message/V6567JERRHHJW2GNGJGKDRNHR7SNPZK7/">FEDORA</a></li>
+        <li><a href="https://lists.fedoraproject.org/archives/list/package-announce@lists.fedoraproject.org/message/R6CK57NBQFTPUMXAPJURCGXUYT76NQAK/">FEDORA</a></li>
+        <li><a href="https://security.netapp.com/advisory/ntap-20220715-0011/">CONFIRM</a></li>
         </ul>
         
               <hr/>
         
             <div class="cta card__cta">
                 <p><a href="https://snyk.io/vuln/SNYK-ALPINE315-OPENSSL-2941810">More about this vulnerability</a></p>
+            </div>
+        
+        </div><!-- .card -->
+        <div class="card card--vuln  disclosure--not-new severity--high" data-snyk-test="high">
+            <h2 class="card__title">Loop with Unreachable Exit Condition (&#x27;Infinite Loop&#x27;)</h2>
+            <div class="card__section">
+        
+                <div class="label label--high">
+                    <span class="label__text">high severity</span>
+                </div>
+        
+                <hr/>
+        
+                <ul class="card__meta">
+                    <li class="card__meta__item">
+                        Package Manager: alpine:3.15
+                    </li>
+                    <li class="card__meta__item">
+                            Vulnerable module:
+        
+                            libretls/libretls
+                    </li>
+        
+                    <li class="card__meta__item">Introduced through:
+        
+                                docker-image|haproxy@2.0.25-alpine and libretls/libretls@3.3.4-r2
+        
+                    </li>
+                </ul>
+        
+                <hr/>
+        
+        
+                        <h3 class="card__section__title">Detailed paths</h3>
+        
+                    <ul class="card__meta__paths">
+                                <li>
+                                <span class="list-paths__item__introduced"><em>Introduced through</em>:
+                                        docker-image|haproxy@2.0.25-alpine
+                                         <span class="list-paths__item__arrow">›</span> 
+                                        libretls/libretls@3.3.4-r2
+                                        
+                                </span>
+        
+                            </li>
+                                <li>
+                                <span class="list-paths__item__introduced"><em>Introduced through</em>:
+                                        docker-image|haproxy@2.0.25-alpine
+                                         <span class="list-paths__item__arrow">›</span> 
+                                        busybox/ssl_client@1.34.1-r3
+                                         <span class="list-paths__item__arrow">›</span> 
+                                        libretls/libretls@3.3.4-r2
+                                        
+                                </span>
+        
+                            </li>
+                    </ul><!-- .list-paths -->
+        
+            </div><!-- .card__section -->
+        
+              <hr/>
+              <!-- Overview -->
+              <h2 id="nvd-description">NVD Description</h2>
+        <p><strong><em>Note:</em></strong> <em>Versions mentioned in the description apply to the upstream <code>libretls</code> package.</em>
+        <em>See <code>How to fix?</code> for <code>Alpine:3.15</code> relevant versions.</em></p>
+        <p>The BN_mod_sqrt() function, which computes a modular square root, contains a bug that can cause it to loop forever for non-prime moduli. Internally this function is used when parsing certificates that contain elliptic curve public keys in compressed form or explicit elliptic curve parameters with a base point encoded in compressed form. It is possible to trigger the infinite loop by crafting a certificate that has invalid explicit curve parameters. Since certificate parsing happens prior to verification of the certificate signature, any process that parses an externally supplied certificate may thus be subject to a denial of service attack. The infinite loop can also be reached when parsing crafted private keys as they can contain explicit elliptic curve parameters. Thus vulnerable situations include: - TLS clients consuming server certificates - TLS servers consuming client certificates - Hosting providers taking certificates or private keys from customers - Certificate authorities parsing certification requests from subscribers - Anything else which parses ASN.1 elliptic curve parameters Also any other applications that use the BN_mod_sqrt() where the attacker can control the parameter values are vulnerable to this DoS issue. In the OpenSSL 1.0.2 version the public key is not parsed during initial parsing of the certificate which makes it slightly harder to trigger the infinite loop. However any operation which requires the public key from the certificate will trigger the infinite loop. In particular the attacker can use a self-signed certificate to trigger the loop during verification of the certificate signature. This issue affects OpenSSL versions 1.0.2, 1.1.1 and 3.0. It was addressed in the releases of 1.1.1n and 3.0.2 on the 15th March 2022. Fixed in OpenSSL 3.0.2 (Affected 3.0.0,3.0.1). Fixed in OpenSSL 1.1.1n (Affected 1.1.1-1.1.1m). Fixed in OpenSSL 1.0.2zd (Affected 1.0.2-1.0.2zc).</p>
+        <h2 id="remediation">Remediation</h2>
+        <p>Upgrade <code>Alpine:3.15</code> <code>libretls</code> to version 3.3.4-r3 or higher.</p>
+        <h2 id="references">References</h2>
+        <ul>
+        <li><a href="https://git.openssl.org/gitweb/?p=openssl.git;a=commitdiff;h=380085481c64de749a6dd25cdf0bcf4360b30f83">CONFIRM</a></li>
+        <li><a href="https://www.openssl.org/news/secadv/20220315.txt">CONFIRM</a></li>
+        <li><a href="https://git.openssl.org/gitweb/?p=openssl.git;a=commitdiff;h=a466912611aa6cbdf550cd10601390e587451246">CONFIRM</a></li>
+        <li><a href="https://git.openssl.org/gitweb/?p=openssl.git;a=commitdiff;h=3118eb64934499d93db3230748a452351d1d9a65">CONFIRM</a></li>
+        <li><a href="https://www.debian.org/security/2022/dsa-5103">DEBIAN</a></li>
+        <li><a href="https://lists.debian.org/debian-lts-announce/2022/03/msg00024.html">MLIST</a></li>
+        <li><a href="https://lists.debian.org/debian-lts-announce/2022/03/msg00023.html">MLIST</a></li>
+        <li><a href="https://security.netapp.com/advisory/ntap-20220321-0002/">CONFIRM</a></li>
+        <li><a href="https://lists.fedoraproject.org/archives/list/package-announce@lists.fedoraproject.org/message/GDB3GQVJPXJE7X5C5JN6JAA4XUDWD6E6/">FEDORA</a></li>
+        <li><a href="https://psirt.global.sonicwall.com/vuln-detail/SNWLID-2022-0002">CONFIRM</a></li>
+        <li><a href="https://www.tenable.com/security/tns-2022-06">CONFIRM</a></li>
+        <li><a href="https://www.tenable.com/security/tns-2022-07">CONFIRM</a></li>
+        <li><a href="https://lists.fedoraproject.org/archives/list/package-announce@lists.fedoraproject.org/message/323SNN6ZX7PRJJWP2BUAFLPUAE42XWLZ/">FEDORA</a></li>
+        <li><a href="https://lists.fedoraproject.org/archives/list/package-announce@lists.fedoraproject.org/message/W6K3PR542DXWLEFFMFIDMME4CWMHJRMG/">FEDORA</a></li>
+        <li><a href="https://www.tenable.com/security/tns-2022-08">CONFIRM</a></li>
+        <li><a href="https://www.oracle.com/security-alerts/cpuapr2022.html">MISC</a></li>
+        <li><a href="https://www.tenable.com/security/tns-2022-09">CONFIRM</a></li>
+        <li><a href="https://security.netapp.com/advisory/ntap-20220429-0005/">CONFIRM</a></li>
+        <li><a href="https://support.apple.com/kb/HT213256">CONFIRM</a></li>
+        <li><a href="https://support.apple.com/kb/HT213255">CONFIRM</a></li>
+        <li><a href="https://support.apple.com/kb/HT213257">CONFIRM</a></li>
+        <li><a href="http://seclists.org/fulldisclosure/2022/May/38">FULLDISC</a></li>
+        <li><a href="http://seclists.org/fulldisclosure/2022/May/35">FULLDISC</a></li>
+        <li><a href="http://seclists.org/fulldisclosure/2022/May/33">FULLDISC</a></li>
+        <li><a href="http://packetstormsecurity.com/files/167344/OpenSSL-1.0.2-1.1.1-3.0-BN_mod_sqrt-Infinite-Loop.html">MISC</a></li>
+        <li><a href="https://cert-portal.siemens.com/productcert/pdf/ssa-712929.pdf">CONFIRM</a></li>
+        </ul>
+        
+              <hr/>
+        
+            <div class="cta card__cta">
+                <p><a href="https://snyk.io/vuln/SNYK-ALPINE315-LIBRETLS-2428776">More about this vulnerability</a></p>
             </div>
         
         </div><!-- .card -->
