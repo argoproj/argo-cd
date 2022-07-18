@@ -93,8 +93,8 @@ func lastApplicationEventKey(a *appv1.Application) string {
 }
 
 func lastResourceEventKey(a *appv1.Application, rs appv1.ResourceStatus, revision string) string {
-	return fmt.Sprintf("app|%s/%s|%s|%s|res|%s/%s/%s/%s/%s|last-sent-event",
-		a.Namespace, a.Name, revision, a.Status.Sync.Status, rs.Group, rs.Version, rs.Kind, rs.Name, rs.Namespace)
+	return fmt.Sprintf("app|%s/%s|%s|res|%s/%s/%s/%s/%s|last-sent-event",
+		a.Namespace, a.Name, revision, rs.Group, rs.Version, rs.Kind, rs.Name, rs.Namespace)
 }
 
 func repoConnectionStateKey(repo string) string {

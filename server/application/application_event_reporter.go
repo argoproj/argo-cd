@@ -34,11 +34,11 @@ func NewApplicationEventReporter(server *Server) *applicationEventReporter {
 }
 
 func (s *applicationEventReporter) shouldSendResourceEvent(a *appv1.Application, rs appv1.ResourceStatus) bool {
-	logCtx := log.WithFields(log.Fields{
+	logCtx := logWithResourceStatus(log.WithFields(log.Fields{
 		"app":      a.Name,
 		"gvk":      fmt.Sprintf("%s/%s/%s", rs.Group, rs.Version, rs.Kind),
 		"resource": fmt.Sprintf("%s/%s", rs.Namespace, rs.Name),
-	})
+	}), rs)
 
 	cachedRes, err := s.server.cache.GetLastResourceEvent(a, rs, getApplicationLatestRevision(a))
 	if err != nil {
@@ -105,7 +105,7 @@ func (s *applicationEventReporter) streamApplicationEvents(
 	ts string,
 ) error {
 	var (
-		logCtx = log.WithField("application", a.Name)
+		logCtx = log.WithField("app", a.Name)
 	)
 
 	logCtx.Info("streaming application events")
@@ -225,11 +225,11 @@ func (s *applicationEventReporter) processResource(
 	if isApp(rs) && actualState.Manifest != "" && json.Unmarshal([]byte(actualState.Manifest), &appRes) == nil {
 		logWithAppStatus(&appRes, logCtx, ts).Info("streaming resource event")
 	} else {
-		logCtx.Info("streaming resource event")
+		logWithResourceStatus(logCtx, rs).Info("streaming resource event")
 	}
 
 	if err := stream.Send(ev); err != nil {
-		logCtx.WithError(err).Error("failed to send even")
+		logCtx.WithError(err).Error("failed to send event")
 		return
 	}
 
@@ -239,7 +239,7 @@ func (s *applicationEventReporter) processResource(
 }
 
 func (s *applicationEventReporter) shouldSendApplicationEvent(ae *appv1.ApplicationWatchEvent) bool {
-	logCtx := log.WithField("application", ae.Application.Name)
+	logCtx := log.WithField("app", ae.Application.Name)
 
 	if ae.Type == watch.Deleted {
 		logCtx.Info("application deleted")
@@ -284,10 +284,21 @@ func isApp(rs appv1.ResourceStatus) bool {
 
 func logWithAppStatus(a *appv1.Application, logCtx *log.Entry, ts string) *log.Entry {
 	return logCtx.WithFields(log.Fields{
-		"status":          a.Status.Sync.Status,
+		"sync":            a.Status.Sync.Status,
+		"health":          a.Status.Health.Status,
 		"resourceVersion": a.ResourceVersion,
 		"ts":              ts,
 	})
+
+}
+
+func logWithResourceStatus(logCtx *log.Entry, rs appv1.ResourceStatus) *log.Entry {
+	logCtx = logCtx.WithField("sync", rs.Status)
+	if rs.Health != nil {
+		logCtx = logCtx.WithField("health", rs.Health.Status)
+	}
+
+	return logCtx
 }
 
 func getLatestAppHistoryItem(a *appv1.Application) *appv1.RevisionHistory {
