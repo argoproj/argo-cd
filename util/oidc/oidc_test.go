@@ -21,6 +21,7 @@ import (
 	"github.com/argoproj/argo-cd/v2/server/settings/oidc"
 	"github.com/argoproj/argo-cd/v2/util"
 	"github.com/argoproj/argo-cd/v2/util/crypto"
+	"github.com/argoproj/argo-cd/v2/util/dex"
 	"github.com/argoproj/argo-cd/v2/util/settings"
 	"github.com/argoproj/argo-cd/v2/util/test"
 )
@@ -125,7 +126,7 @@ clientID: xxx
 clientSecret: yyy
 requestedScopes: ["oidc"]`, oidcTestServer.URL),
 		}
-		app, err := NewClientApp(cdSettings, dexTestServer.URL, "https://argocd.example.com")
+		app, err := NewClientApp(cdSettings, dexTestServer.URL, nil, "https://argocd.example.com")
 		require.NoError(t, err)
 
 		req := httptest.NewRequest("GET", "https://argocd.example.com/auth/login", nil)
@@ -140,7 +141,7 @@ requestedScopes: ["oidc"]`, oidcTestServer.URL),
 
 		cdSettings.OIDCTLSInsecureSkipVerify = true
 
-		app, err = NewClientApp(cdSettings, dexTestServer.URL, "https://argocd.example.com")
+		app, err = NewClientApp(cdSettings, dexTestServer.URL, nil, "https://argocd.example.com")
 		require.NoError(t, err)
 
 		w = httptest.NewRecorder()
@@ -165,7 +166,7 @@ requestedScopes: ["oidc"]`, oidcTestServer.URL),
 		require.NoError(t, err)
 		cdSettings.Certificate = &cert
 
-		app, err := NewClientApp(cdSettings, dexTestServer.URL, "https://argocd.example.com")
+		app, err := NewClientApp(cdSettings, dexTestServer.URL, nil, "https://argocd.example.com")
 		require.NoError(t, err)
 
 		req := httptest.NewRequest("GET", "https://argocd.example.com/auth/login", nil)
@@ -178,9 +179,7 @@ requestedScopes: ["oidc"]`, oidcTestServer.URL),
 			t.Fatal("did not receive expected certificate verification failure error")
 		}
 
-		cdSettings.OIDCTLSInsecureSkipVerify = true
-
-		app, err = NewClientApp(cdSettings, dexTestServer.URL, "https://argocd.example.com")
+		app, err = NewClientApp(cdSettings, dexTestServer.URL, &dex.DexTLSConfig{StrictValidation: false}, "https://argocd.example.com")
 		require.NoError(t, err)
 
 		w = httptest.NewRecorder()
@@ -209,7 +208,7 @@ clientID: xxx
 clientSecret: yyy
 requestedScopes: ["oidc"]`, oidcTestServer.URL),
 		}
-		app, err := NewClientApp(cdSettings, dexTestServer.URL, "https://argocd.example.com")
+		app, err := NewClientApp(cdSettings, dexTestServer.URL, nil, "https://argocd.example.com")
 		require.NoError(t, err)
 
 		req := httptest.NewRequest("GET", "https://argocd.example.com/auth/callback", nil)
@@ -224,7 +223,7 @@ requestedScopes: ["oidc"]`, oidcTestServer.URL),
 
 		cdSettings.OIDCTLSInsecureSkipVerify = true
 
-		app, err = NewClientApp(cdSettings, dexTestServer.URL, "https://argocd.example.com")
+		app, err = NewClientApp(cdSettings, dexTestServer.URL, nil, "https://argocd.example.com")
 		require.NoError(t, err)
 
 		w = httptest.NewRecorder()
@@ -249,7 +248,7 @@ requestedScopes: ["oidc"]`, oidcTestServer.URL),
 		require.NoError(t, err)
 		cdSettings.Certificate = &cert
 
-		app, err := NewClientApp(cdSettings, dexTestServer.URL, "https://argocd.example.com")
+		app, err := NewClientApp(cdSettings, dexTestServer.URL, nil, "https://argocd.example.com")
 		require.NoError(t, err)
 
 		req := httptest.NewRequest("GET", "https://argocd.example.com/auth/callback", nil)
@@ -262,9 +261,7 @@ requestedScopes: ["oidc"]`, oidcTestServer.URL),
 			t.Fatal("did not receive expected certificate verification failure error")
 		}
 
-		cdSettings.OIDCTLSInsecureSkipVerify = true
-
-		app, err = NewClientApp(cdSettings, dexTestServer.URL, "https://argocd.example.com")
+		app, err = NewClientApp(cdSettings, dexTestServer.URL, &dex.DexTLSConfig{StrictValidation: false}, "https://argocd.example.com")
 		require.NoError(t, err)
 
 		w = httptest.NewRecorder()
@@ -363,7 +360,7 @@ func TestGenerateAppState(t *testing.T) {
 	signature, err := util.MakeSignature(32)
 	require.NoError(t, err)
 	expectedReturnURL := "http://argocd.example.com/"
-	app, err := NewClientApp(&settings.ArgoCDSettings{ServerSignature: signature, URL: expectedReturnURL}, "", "")
+	app, err := NewClientApp(&settings.ArgoCDSettings{ServerSignature: signature, URL: expectedReturnURL}, "", nil, "")
 	require.NoError(t, err)
 	generateResponse := httptest.NewRecorder()
 	state, err := app.generateAppState(expectedReturnURL, generateResponse)
@@ -397,10 +394,10 @@ func TestGenerateAppState_XSS(t *testing.T) {
 	app, err := NewClientApp(
 		&settings.ArgoCDSettings{
 			// Only return URLs starting with this base should be allowed.
-			URL: "https://argocd.example.com",
+			URL:             "https://argocd.example.com",
 			ServerSignature: signature,
 		},
-		"", "",
+		"", nil, "",
 	)
 	require.NoError(t, err)
 
@@ -452,7 +449,7 @@ func TestGenerateAppState_NoReturnURL(t *testing.T) {
 	encrypted, err := crypto.Encrypt([]byte("123"), key)
 	require.NoError(t, err)
 
-	app, err := NewClientApp(cdSettings, "", "/argo-cd")
+	app, err := NewClientApp(cdSettings, "", nil, "/argo-cd")
 	require.NoError(t, err)
 
 	req.AddCookie(&http.Cookie{Name: common.StateCookieName, Value: hex.EncodeToString(encrypted)})
