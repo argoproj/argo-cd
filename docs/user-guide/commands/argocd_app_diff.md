@@ -19,12 +19,11 @@ argocd app diff APPNAME [flags]
       --hard-refresh                Refresh application data as well as target manifests cache
   -h, --help                        help for diff
       --local string                Compare live app to a local manifests
-      --local-include stringArray   Used with --server-side-generate, specify globs of files to send (default ["**/*.{yaml,json}"])
+      --local-include stringArray   Used with --server-side-generate, specify globs of files to send (default ["*.yaml", "*.yml", "*.json"])
       --local-repo-root string      Path to the repository root. Used together with --local allows setting the repository root (default "/")
       --refresh                     Refresh application data when retrieving
       --revision string             Compare live app to a particular revision
       --server-side-generate        Used with --local, this will send your manifests to the server for diffing
-      --skip-files-warning          Skip warning prompt about files being sent to server when using --local and --server-side-generate
 ```
 
 ### Options inherited from parent commands

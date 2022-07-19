@@ -7,6 +7,7 @@ import (
 	"encoding/hex"
 	"fmt"
 	"io"
+	"math"
 	"os"
 	"path/filepath"
 	"strings"
@@ -46,7 +47,7 @@ func ReceiveRepoStream(ctx context.Context, receiver StreamReceiver, destDir str
 	if err != nil {
 		return nil, fmt.Errorf("error receiving tgz file: %w", err)
 	}
-	err = files.Untgz(destDir, tgzFile)
+	err = files.Untgz(destDir, tgzFile, math.MaxInt64)
 	if err != nil {
 		return nil, fmt.Errorf("error decompressing tgz file: %w", err)
 	}
@@ -87,7 +88,10 @@ func SendRepoStream(ctx context.Context, appPath, repoPath string, sender Stream
 	opt := newSenderOption(opts...)
 
 	// compress all files in appPath in tgz
-	tgz, checksum, err := tgzstream.CompressFiles(repoPath, excludedGlobs)
+	tgz, filesWritten, checksum, err := tgzstream.CompressFiles(repoPath, nil, excludedGlobs)
+	if filesWritten == 0 {
+		return fmt.Errorf("no files to send")
+	}
 	if err != nil {
 		return fmt.Errorf("error compressing repo files: %w", err)
 	}

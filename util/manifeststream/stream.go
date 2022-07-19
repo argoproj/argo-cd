@@ -37,8 +37,11 @@ type RepoStreamReceiver interface {
 }
 
 // SendApplicationManifestQueryWithFiles compresses a folder and sends it over the stream
-func SendApplicationManifestQueryWithFiles(ctx context.Context, stream ApplicationStreamSender, appName string, dir string) error {
-	f, checksum, err := tgzstream.CompressFiles(dir, nil)
+func SendApplicationManifestQueryWithFiles(ctx context.Context, stream ApplicationStreamSender, appName string, dir string, inclusions []string) error {
+	f, filesWritten, checksum, err := tgzstream.CompressFiles(dir, inclusions, nil)
+	if filesWritten == 0 {
+		return fmt.Errorf("no files to send")
+	}
 	if err != nil {
 		return err
 	}
@@ -156,7 +159,7 @@ func SendRepoStream(repoStream RepoStreamSender, appStream ApplicationStreamRece
 	return nil
 }
 
-func ReceiveManifestFileStream(ctx context.Context, receiver RepoStreamReceiver, destDir string) (*apiclient.ManifestRequest, *apiclient.ManifestFileMetadata, error) {
+func ReceiveManifestFileStream(ctx context.Context, receiver RepoStreamReceiver, destDir string, maxTarSize int64, maxExtractedSize int64) (*apiclient.ManifestRequest, *apiclient.ManifestFileMetadata, error) {
 	header, err := receiver.Recv()
 	if err != nil {
 		return nil, nil, fmt.Errorf("failed to receive header: %w", err)
@@ -175,11 +178,11 @@ func ReceiveManifestFileStream(ctx context.Context, receiver RepoStreamReceiver,
 	}
 	metadata := header2.GetMetadata()
 
-	tgzFile, err := receiveFile(ctx, receiver, metadata.GetChecksum(), destDir)
+	tgzFile, err := receiveFile(ctx, receiver, metadata.GetChecksum(), destDir, maxTarSize)
 	if err != nil {
 		return nil, nil, fmt.Errorf("error receiving tgz file: %w", err)
 	}
-	err = files.Untgz(destDir, tgzFile)
+	err = files.Untgz(destDir, tgzFile, maxExtractedSize)
 	if err != nil {
 		return nil, nil, fmt.Errorf("error decompressing tgz file: %w", err)
 	}
@@ -194,12 +197,13 @@ func ReceiveManifestFileStream(ctx context.Context, receiver RepoStreamReceiver,
 // receiveFile will receive the file from the gRPC stream and save it in the dst folder.
 // Returns error if checksum doesn't match the one provided in the fileMetadata.
 // It is responsibility of the caller to close the returned file.
-func receiveFile(ctx context.Context, receiver RepoStreamReceiver, checksum, dst string) (*os.File, error) {
+func receiveFile(ctx context.Context, receiver RepoStreamReceiver, checksum, dst string, maxSize int64) (*os.File, error) {
 	hasher := sha256.New()
 	file, err := os.CreateTemp(dst, "")
 	if err != nil {
 		return nil, fmt.Errorf("error creating file: %w", err)
 	}
+	size := 0
 	for {
 		if ctx != nil {
 			if err := ctx.Err(); err != nil {
@@ -216,6 +220,10 @@ func receiveFile(ctx context.Context, receiver RepoStreamReceiver, checksum, dst
 		c := req.GetChunk()
 		if c == nil {
 			return nil, fmt.Errorf("stream request chunk is nil")
+		}
+		size += len(c.Chunk)
+		if size > int(maxSize) {
+			return nil, fmt.Errorf("file exceeded max size of %d bytes", maxSize)
 		}
 		_, err = file.Write(c.Chunk)
 		if err != nil {

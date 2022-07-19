@@ -117,3 +117,7 @@ data:
   # Changing this to "true" will not allow _all_ out-of-bounds symlinks. Those will still be blocked for things like values 
   # files in Helm charts. But symlinks which are not explicitly blocked by other checks will be allowed.
   reposerver.allow.oob.symlinks: "false"
+  # Maximum size of tarball when streaming manifests to the repo server for generation
+  reposerver.streamed.manifest.max.tar.size: "10485760"
+  # Maximum size of extracted manifests when streaming manifests to the repo server for generation
+  reposerver.streamed.manifest.max.extracted.size: "104857600"

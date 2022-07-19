@@ -106,6 +106,8 @@ type RepoServerInitConstants struct {
 	MaxCombinedDirectoryManifestsSize            resource.Quantity
 	CMPTarExcludedGlobs                          []string
 	AllowOutOfBoundsSymlinks                     bool
+	StreamedManifestMaxExtractedSize             int64
+	StreamedManifestMaxTarSize                   int64
 }
 
 // NewService returns a new instance of the Manifest service
@@ -460,7 +462,7 @@ func (s *Service) GenerateManifestWithFiles(stream apiclient.RepoServerService_G
 		}
 	}()
 
-	req, metadata, err := manifeststream.ReceiveManifestFileStream(stream.Context(), stream, workDir)
+	req, metadata, err := manifeststream.ReceiveManifestFileStream(stream.Context(), stream, workDir, s.initConstants.StreamedManifestMaxTarSize, s.initConstants.StreamedManifestMaxExtractedSize)
 
 	if err != nil {
 		return fmt.Errorf("error receiving manifest file stream: %w", err)

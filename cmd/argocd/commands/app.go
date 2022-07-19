@@ -829,7 +829,6 @@ func NewApplicationDiffCommand(clientOpts *argocdclient.ClientOptions) *cobra.Co
 		localRepoRoot      string
 		serverSideGenerate bool
 		localIncludes      []string
-		skipFilesWarning   bool
 	)
 	shortDesc := "Perform a diff against the target and live state."
 	var command = &cobra.Command{
@@ -870,7 +869,7 @@ func NewApplicationDiffCommand(clientOpts *argocdclient.ClientOptions) *cobra.Co
 					client, err := appIf.GetManifestsWithFiles(ctx, grpc_retry.Disable())
 					errors.CheckError(err)
 
-					err = manifeststream.SendApplicationManifestQueryWithFiles(ctx, client, appName, local)
+					err = manifeststream.SendApplicationManifestQueryWithFiles(ctx, client, appName, local, localIncludes)
 					errors.CheckError(err)
 
 					res, err := client.CloseAndRecv()
@@ -900,8 +899,7 @@ func NewApplicationDiffCommand(clientOpts *argocdclient.ClientOptions) *cobra.Co
 	command.Flags().StringVar(&revision, "revision", "", "Compare live app to a particular revision")
 	command.Flags().StringVar(&localRepoRoot, "local-repo-root", "/", "Path to the repository root. Used together with --local allows setting the repository root")
 	command.Flags().BoolVar(&serverSideGenerate, "server-side-generate", false, "Used with --local, this will send your manifests to the server for diffing")
-	command.Flags().StringArrayVar(&localIncludes, "local-include", []string{"**/*.{yaml,json}"}, "Used with --server-side-generate, specify globs of files to send")
-	command.Flags().BoolVar(&skipFilesWarning, "skip-files-warning", false, "Skip warning prompt about files being sent to server when using --local and --server-side-generate")
+	command.Flags().StringArrayVar(&localIncludes, "local-include", []string{"*.yaml", "*.yml", "*.json"}, "Used with --server-side-generate, specify patterns of filenames to send")
 	return command
 }
 

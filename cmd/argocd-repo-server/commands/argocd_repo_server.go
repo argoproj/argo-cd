@@ -82,6 +82,8 @@ func NewCommand() *cobra.Command {
 		maxCombinedDirectoryManifestsSize string
 		cmpTarExcludedGlobs               []string
 		allowOutOfBoundsSymlinks          bool
+		streamedManifestMaxTarSize        int64
+		streamedManifestMaxExtractedSize  int64
 	)
 	var command = cobra.Command{
 		Use:               cliName,
@@ -126,6 +128,8 @@ func NewCommand() *cobra.Command {
 				MaxCombinedDirectoryManifestsSize:            maxCombinedDirectoryManifestsQuantity,
 				CMPTarExcludedGlobs:                          cmpTarExcludedGlobs,
 				AllowOutOfBoundsSymlinks:                     allowOutOfBoundsSymlinks,
+				StreamedManifestMaxExtractedSize:             streamedManifestMaxExtractedSize,
+				StreamedManifestMaxTarSize:                   streamedManifestMaxTarSize,
 			}, askPassServer)
 			errors.CheckError(err)
 
@@ -204,7 +208,8 @@ func NewCommand() *cobra.Command {
 	command.Flags().StringVar(&maxCombinedDirectoryManifestsSize, "max-combined-directory-manifests-size", env.StringFromEnv("ARGOCD_REPO_SERVER_MAX_COMBINED_DIRECTORY_MANIFESTS_SIZE", "10M"), "Max combined size of manifest files in a directory-type Application")
 	command.Flags().StringArrayVar(&cmpTarExcludedGlobs, "plugin-tar-exclude", env.StringsFromEnv("ARGOCD_REPO_SERVER_PLUGIN_TAR_EXCLUSIONS", []string{}, ";"), "Globs to filter when sending tarballs to plugins.")
 	command.Flags().BoolVar(&allowOutOfBoundsSymlinks, "allow-oob-symlinks", env.ParseBoolFromEnv("ARGOCD_REPO_SERVER_ALLOW_OUT_OF_BOUNDS_SYMLINKS", false), "Allow out-of-bounds symlinks in repositories (not recommended)")
-
+	command.Flags().Int64Var(&streamedManifestMaxTarSize, "streamed-manifest-max-tar-size", env.ParseInt64FromEnv("ARGOCD_REPO_SERVER_STREAMED_MANIFEST_MAX_TAR_SIZE", 1024*1024*10, 0, math.MaxInt64), "Maximum size of streamed manifest archives")
+	command.Flags().Int64Var(&streamedManifestMaxExtractedSize, "streamed-manifest-max-extracted-size", env.ParseInt64FromEnv("ARGOCD_REPO_SERVER_STREAMED_MANIFEST_MAX_EXTRACTED_SIZE", 1024*1024*100, 0, math.MaxInt64), "Maximum size of streamed manifest archives when extracted")
 	tlsConfigCustomizerSrc = tls.AddTLSFlagsToCmd(&command)
 	cacheSrc = reposervercache.AddCacheFlagsToCmd(&command, func(client *redis.Client) {
 		redisClient = client
