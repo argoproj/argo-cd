@@ -51,7 +51,11 @@ const (
 
 // Default listener address for ArgoCD components
 const (
-	DefaultAddressAPIServer = "localhost"
+	DefaultAddressAdminDashboard    = "localhost"
+	DefaultAddressAPIServer         = "0.0.0.0"
+	DefaultAddressAPIServerMetrics  = "0.0.0.0"
+	DefaultAddressRepoServer        = "0.0.0.0"
+	DefaultAddressRepoServerMetrics = "0.0.0.0"
 )
 
 // Default paths on the pod's file system

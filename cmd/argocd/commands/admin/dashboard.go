@@ -30,6 +30,6 @@ func NewDashboardCommand() *cobra.Command {
 	}
 	initialize.InitCommand(cmd)
 	cmd.Flags().IntVar(&port, "port", common.DefaultPortAPIServer, "Listen on given port")
-	cmd.Flags().StringVar(&address, "address", common.DefaultAddressAPIServer, "Listen on given address")
+	cmd.Flags().StringVar(&address, "address", common.DefaultAddressAdminDashboard, "Listen on given address")
 	return cmd
 }
