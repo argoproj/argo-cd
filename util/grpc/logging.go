@@ -18,15 +18,17 @@ import (
 func logRequest(entry *logrus.Entry, info string, pbMsg interface{}, ctx context.Context, logClaims bool) {
 	if logClaims {
 		claims := ctx.Value("claims")
-		if !entry.Logger.IsLevelEnabled(logrus.DebugLevel) {
-			mapClaims, ok := claims.(jwt.MapClaims)
-			if ok {
-				delete(mapClaims, "groups")
-				claims = mapClaims
+		mapClaims, ok := claims.(jwt.MapClaims)
+		if ok {
+			copy := make(map[string]interface{})
+			for k, v := range mapClaims {
+				if k != "groups" || entry.Logger.IsLevelEnabled(logrus.DebugLevel) {
+					copy[k] = v
+				}
 			}
-		}
-		if data, err := json.Marshal(claims); err == nil {
-			entry = entry.WithField("grpc.request.claims", string(data))
+			if data, err := json.Marshal(copy); err == nil {
+				entry = entry.WithField("grpc.request.claims", string(data))
+			}
 		}
 	}
 	if p, ok := pbMsg.(proto.Message); ok {
