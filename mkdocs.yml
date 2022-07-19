@@ -44,6 +44,7 @@ nav:
   - operator-manual/custom_tools.md
   - operator-manual/custom-styles.md
   - operator-manual/metrics.md
+  - operator-manual/web_based_terminal.md
   - Notification:
     - Overview: operator-manual/notifications/index.md
     - operator-manual/notifications/triggers.md

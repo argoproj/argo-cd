@@ -59,22 +59,7 @@ also use glob patterns in the action path: `action/*` (or regex patterns if you 
 `exec` is a special resource. When enabled with the `create` action, this privilege allows a user to `exec` into Pods via 
 the Argo CD UI. The functionality is similar to `kubectl exec`.
 
-`exec` is a powerful privilege. It allows the user to run arbitrary code on any Pod managed by an Application for which
-they have `create` privileges. If the Pod mounts a ServiceAccount token (which is the default behavior of Kubernetes),
-then the user effectively has the same privileges as that ServiceAccount.
-
-The exec feature is disabled entirely by default. To enable it, set the `exec.enabled` key to "true" on the argocd-cm 
-ConfigMap. You will also need to add the following to the argocd-api-server Role (if you're using Argo CD in namespaced
-mode) or ClusterRole (if you're using Argo CD in cluster mode).
-
-```yaml
-- apiGroups:
-  - ""
-  resources:
-  - pods/exec
-  verbs:
-  - create
-```
+See [Web-based Terminal](web_based_terminal.md) for more info.
 
 ## Tying It All Together
 

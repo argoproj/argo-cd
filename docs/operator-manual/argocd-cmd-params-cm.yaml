@@ -64,6 +64,10 @@ data:
   server.repo.server.plaintext: "false"
   # Perform strict validation of TLS certificates when connecting to repo server
   server.repo.server.strict.tls: "false"
+  # Use a plaintext client (non-TLS) to connect to dex server
+  server.dex.server.plaintext: "false"
+  # Perform strict validation of TLS certificates when connecting to dex server
+  server.dex.server.strict.tls: "false"
   # Disable client authentication
   server.disable.auth: "false"
   # Enable GZIP compression
@@ -121,3 +125,6 @@ data:
   reposerver.streamed.manifest.max.tar.size: "10485760"
   # Maximum size of extracted manifests when streaming manifests to the repo server for generation
   reposerver.streamed.manifest.max.extracted.size: "104857600"
+  
+  # Disable TLS on the HTTP endpoint
+  dexserver.disable.tls: "false"

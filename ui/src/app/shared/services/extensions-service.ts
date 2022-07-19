@@ -1,14 +1,14 @@
 import * as React from 'react';
 import * as minimatch from 'minimatch';
 
-import {ApplicationTree, State} from '../models';
+import {Application, ApplicationTree, State} from '../models';
 
 const extensions = {
     resourceExtentions: new Array<ResourceTabExtension>()
 };
 
-function registerResourceExtension(component: ExtensionComponent, group: string, kind: string, tabTitle: string) {
-    extensions.resourceExtentions.push({component, group, kind, title: tabTitle});
+function registerResourceExtension(component: ExtensionComponent, group: string, kind: string, tabTitle: string, opts?: {icon: string}) {
+    extensions.resourceExtentions.push({component, group, kind, title: tabTitle, icon: opts?.icon});
 }
 
 let legacyInitialized = false;
@@ -30,6 +30,7 @@ export interface ResourceTabExtension {
     group: string;
     kind: string;
     component: ExtensionComponent;
+    icon?: string;
 }
 
 export type ExtensionComponent = React.ComponentType<ExtensionComponentProps>;
@@ -41,6 +42,7 @@ export interface Extension {
 export interface ExtensionComponentProps {
     resource: State;
     tree: ApplicationTree;
+    application: Application;
 }
 
 export class ExtensionsService {
