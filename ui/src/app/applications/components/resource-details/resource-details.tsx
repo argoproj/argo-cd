@@ -133,9 +133,10 @@ export const ResourceDetails = (props: ResourceDetailsProps) => {
                     key: `extension-${i}`,
                     content: (
                         <ErrorBoundary message={`Something went wrong with Extension for ${state.kind}`}>
-                            <tabExtensions.component tree={tree} resource={state} />
+                            <tabExtensions.component tree={tree} resource={state} application={application} />
                         </ErrorBoundary>
-                    )
+                    ),
+                    icon: tabExtensions.icon
                 });
             });
         }
@@ -216,13 +217,14 @@ export const ResourceDetails = (props: ResourceDetailsProps) => {
         const extensionTabs = services.extensions.getResourceTabs('argoproj.io', 'Application').map((ext, i) => ({
             title: ext.title,
             key: `extension-${i}`,
-            content: <ext.component resource={application} tree={tree} />
+            content: <ext.component resource={application} tree={tree} application={application} />,
+            icon: ext.icon
         }));
 
         return tabs.concat(extensionTabs);
     };
 
-    const extensions = selectedNode?.kind && selectedNode?.group ? services.extensions.getResourceTabs(selectedNode?.group, selectedNode?.kind) : [];
+    const extensions = selectedNode?.kind ? services.extensions.getResourceTabs(selectedNode?.group || '', selectedNode?.kind) : [];
 
     return (
         <div style={{width: '100%', height: '100%'}}>

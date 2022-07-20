@@ -668,11 +668,12 @@ func TestSettingsManager_GetHelp(t *testing.T) {
 	t.Run("GetBinaryUrls", func(t *testing.T) {
 		_, settingsManager := fixtures(map[string]string{
 			"help.download.darwin-amd64": "amd64-path",
+			"help.download.linux-s390x": "s390x-path",
 			"help.download.unsupported":  "nowhere",
 		})
 		h, err := settingsManager.GetHelp()
 		assert.NoError(t, err)
-		assert.Equal(t, map[string]string{"darwin-amd64": "amd64-path"}, h.BinaryURLs)
+		assert.Equal(t, map[string]string{"darwin-amd64": "amd64-path", "linux-s390x": "s390x-path"}, h.BinaryURLs)
 	})
 }
 
@@ -985,6 +986,13 @@ func TestDownloadArgoCDBinaryUrls(t *testing.T) {
 	argoCDCM, err := settingsManager.getConfigMap()
 	assert.NoError(t, err)
 	assert.Equal(t, "some-url", argoCDCM.Data["help.download.darwin-amd64"])
+
+	_, settingsManager = fixtures(map[string]string{
+		"help.download.linux-s390x": "some-url",
+	})
+	argoCDCM, err = settingsManager.getConfigMap()
+	assert.NoError(t, err)
+	assert.Equal(t, "some-url", argoCDCM.Data["help.download.linux-s390x"])
 
 	_, settingsManager = fixtures(map[string]string{
 		"help.download.unsupported": "some-url",
