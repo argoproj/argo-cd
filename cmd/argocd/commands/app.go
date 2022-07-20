@@ -48,6 +48,7 @@ import (
 	"github.com/argoproj/argo-cd/v2/util/cli"
 	"github.com/argoproj/argo-cd/v2/util/errors"
 	"github.com/argoproj/argo-cd/v2/util/git"
+	"github.com/argoproj/argo-cd/v2/util/grpc"
 	argoio "github.com/argoproj/argo-cd/v2/util/io"
 	"github.com/argoproj/argo-cd/v2/util/templates"
 	"github.com/argoproj/argo-cd/v2/util/text/label"
@@ -162,11 +163,27 @@ func NewApplicationCreateCommand(clientOpts *argocdclient.ClientOptions) *cobra.
 					Upsert:      &upsert,
 					Validate:    &appOpts.Validate,
 				}
+
+				// Get app before creating to see if it is being updated or no change
+				existing, err := appIf.Get(ctx, &applicationpkg.ApplicationQuery{Name: &app.Name})
+				if grpc.UnwrapGRPCStatus(err).Code() != codes.NotFound {
+					errors.CheckError(err)
+				}
+
 				created, err := appIf.Create(ctx, &appCreateRequest)
 				errors.CheckError(err)
-				fmt.Printf("application '%s' created\n", created.ObjectMeta.Name)
-			}
 
+				var action string
+				if existing == nil {
+					action = "created"
+				} else if !hasAppChanged(existing, created, upsert) {
+					action = "unchanged"
+				} else {
+					action = "updated"
+				}
+
+				fmt.Printf("application '%s' %s\n", created.ObjectMeta.Name, action)
+			}
 		},
 	}
 	command.Flags().StringVar(&appName, "name", "", "A name for the app, ignored if a file is set (DEPRECATED)")
@@ -209,6 +226,37 @@ func getRefreshType(refresh bool, hardRefresh bool) *string {
 	}
 
 	return nil
+}
+
+func hasAppChanged(appReq, appRes *argoappv1.Application, upsert bool) bool {
+	// upsert==false, no change occurred from create command
+	if !upsert {
+		return false
+	}
+
+	// If no project, assume default project
+	if appReq.Spec.Project == "" {
+		appReq.Spec.Project = "default"
+	}
+	// Server will return nils for empty labels, annotations, finalizers
+	if len(appReq.Labels) == 0 {
+		appReq.Labels = nil
+	}
+	if len(appReq.Annotations) == 0 {
+		appReq.Annotations = nil
+	}
+	if len(appReq.Finalizers) == 0 {
+		appReq.Finalizers = nil
+	}
+
+	if reflect.DeepEqual(appRes.Spec, appReq.Spec) &&
+		reflect.DeepEqual(appRes.Labels, appReq.Labels) &&
+		reflect.DeepEqual(appRes.ObjectMeta.Annotations, appReq.Annotations) &&
+		reflect.DeepEqual(appRes.Finalizers, appReq.Finalizers) {
+		return false
+	}
+
+	return true
 }
 
 // NewApplicationGetCommand returns a new instance of an `argocd app get` command
