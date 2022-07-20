@@ -22,6 +22,7 @@ import (
 
 	"k8s.io/apimachinery/pkg/api/resource"
 
+	"github.com/argoproj/argo-cd/v2/common"
 	"github.com/argoproj/argo-cd/v2/util/io/files"
 	"github.com/argoproj/argo-cd/v2/util/manifeststream"
 
@@ -328,9 +329,10 @@ func (s *Service) runRepoOperation(
 				oobError := &argopath.OutOfBoundsSymlinkError{}
 				if errors.As(err, &oobError) {
 					log.WithFields(log.Fields{
-						"chart":    source.Chart,
-						"revision": revision,
-						"file":     oobError.File,
+						common.SecurityLogField: common.SecurityHigh,
+						"chart":                 source.Chart,
+						"revision":              revision,
+						"file":                  oobError.File,
 					}).Warn("chart contains out-of-bounds symlink")
 					return fmt.Errorf("chart contains out-of-bounds symlinks. file: %s", oobError.File)
 				} else {
@@ -358,9 +360,10 @@ func (s *Service) runRepoOperation(
 				oobError := &argopath.OutOfBoundsSymlinkError{}
 				if errors.As(err, &oobError) {
 					log.WithFields(log.Fields{
-						"repo":     repo.Repo,
-						"revision": revision,
-						"file":     oobError.File,
+						common.SecurityLogField: common.SecurityHigh,
+						"repo":                  repo.Repo,
+						"revision":              revision,
+						"file":                  oobError.File,
 					}).Warn("repository contains out-of-bounds symlink")
 					return fmt.Errorf("repository contains out-of-bounds symlinks. file: %s", oobError.File)
 				} else {
@@ -458,6 +461,7 @@ func (s *Service) GenerateManifestWithFiles(stream apiclient.RepoServerService_G
 	defer func() {
 		if err := os.RemoveAll(workDir); err != nil {
 			// we panic here as the workDir may contain sensitive information
+			log.WithField(common.SecurityLogField, common.SecurityLow).Errorf("error removing generate manifest workdir: %v", err)
 			panic(fmt.Sprintf("error removing generate manifest workdir: %s", err))
 		}
 	}()
@@ -474,7 +478,8 @@ func (s *Service) GenerateManifestWithFiles(stream apiclient.RepoServerService_G
 			oobError := &argopath.OutOfBoundsSymlinkError{}
 			if errors.As(err, &oobError) {
 				log.WithFields(log.Fields{
-					"file": oobError.File,
+					common.SecurityLogField: common.SecurityHigh,
+					"file":                  oobError.File,
 				}).Warn("streamed files contains out-of-bounds symlink")
 				return fmt.Errorf("streamed files contains out-of-bounds symlinks. file: %s", oobError.File)
 			} else {

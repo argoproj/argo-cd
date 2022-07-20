@@ -9,6 +9,7 @@ import (
 	"io"
 	"os"
 
+	"github.com/argoproj/argo-cd/v2/common"
 	applicationpkg "github.com/argoproj/argo-cd/v2/pkg/apiclient/application"
 	"github.com/argoproj/argo-cd/v2/reposerver/apiclient"
 	"github.com/argoproj/argo-cd/v2/util/io/files"
@@ -43,7 +44,7 @@ func SendApplicationManifestQueryWithFiles(ctx context.Context, stream Applicati
 		return fmt.Errorf("no files to send")
 	}
 	if err != nil {
-		return err
+		return fmt.Errorf("failed to compress files: %w", err)
 	}
 
 	err = stream.Send(&applicationpkg.ApplicationManifestQueryWithFilesWrapper{
@@ -55,12 +56,12 @@ func SendApplicationManifestQueryWithFiles(ctx context.Context, stream Applicati
 		},
 	})
 	if err != nil {
-		return err
+		return fmt.Errorf("failed to send manifest stream header: %w", err)
 	}
 
 	err = sendFile(ctx, stream, f)
 	if err != nil {
-		return err
+		return fmt.Errorf("failed to send manifest stream file: %w", err)
 	}
 
 	return nil
@@ -188,7 +189,7 @@ func ReceiveManifestFileStream(ctx context.Context, receiver RepoStreamReceiver,
 	}
 	err = os.Remove(tgzFile.Name())
 	if err != nil {
-		log.Warnf("error removing the tgz file %q: %s", tgzFile.Name(), err)
+		log.WithField(common.SecurityLogField, common.SecurityMedium).Warnf("error removing the tgz file %q: %s", tgzFile.Name(), err)
 	}
 	return request, metadata, nil
 
@@ -199,7 +200,11 @@ func ReceiveManifestFileStream(ctx context.Context, receiver RepoStreamReceiver,
 // It is responsibility of the caller to close the returned file.
 func receiveFile(ctx context.Context, receiver RepoStreamReceiver, checksum, dst string, maxSize int64) (*os.File, error) {
 	hasher := sha256.New()
-	file, err := os.CreateTemp(dst, "")
+	tmpDir, err := files.CreateTempDir("")
+	if err != nil {
+		return nil, fmt.Errorf("error creating tmp dir: %w", err)
+	}
+	file, err := os.CreateTemp(tmpDir, "")
 	if err != nil {
 		return nil, fmt.Errorf("error creating file: %w", err)
 	}

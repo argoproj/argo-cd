@@ -293,3 +293,12 @@ const (
 	// Keep alive is 2x enforcement minimum to ensure network jitter does not introduce ENHANCE_YOUR_CALM errors
 	GRPCKeepAliveTime = 2 * GRPCKeepAliveEnforcementMinimum
 )
+
+// Security log levels
+const (
+	SecurityLogField = "security"
+	SecurityCritical = "4"
+	SecurityHigh     = "3"
+	SecurityMedium   = "2"
+	SecurityLow      = "1"
+)

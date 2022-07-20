@@ -8,6 +8,7 @@ import (
 	"os"
 	"path/filepath"
 
+	"github.com/argoproj/argo-cd/v2/common"
 	"github.com/argoproj/argo-cd/v2/util/io/files"
 	log "github.com/sirupsen/logrus"
 )
@@ -20,7 +21,7 @@ func CloseAndDelete(f *os.File) {
 		log.Warnf("error closing file %q: %s", f.Name(), err)
 	}
 	if err := os.Remove(f.Name()); err != nil {
-		log.Warnf("error removing file %q: %s", f.Name(), err)
+		log.WithField(common.SecurityLogField, common.SecurityLow).Warnf("error removing file %q: %s", f.Name(), err)
 	}
 }
 
