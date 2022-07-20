@@ -156,6 +156,7 @@ func (t *tgz) tgzFile(path string, fi os.FileInfo, err error) error {
 			}
 			if found {
 				included = true
+				break
 			}
 		}
 		if !included {

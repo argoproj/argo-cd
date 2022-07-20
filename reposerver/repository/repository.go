@@ -491,7 +491,7 @@ func (s *Service) GenerateManifestWithFiles(stream apiclient.RepoServerService_G
 	promise := s.runManifestGen(stream.Context(), workDir, "streamed", metadata.Checksum, func() (*operationContext, error) {
 		appPath, err := argopath.Path(workDir, req.ApplicationSource.Path)
 		if err != nil {
-			return nil, err
+			return nil, fmt.Errorf("failed to get app path: %w", err)
 		}
 		return &operationContext{appPath, ""}, nil
 	}, req)
