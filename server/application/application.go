@@ -1988,13 +1988,9 @@ func (s *Server) logResourceEvent(res *appv1.ResourceNode, ctx context.Context, 
 }
 
 func (s *Server) ListResourceActions(ctx context.Context, q *application.ApplicationResourceRequest) (*application.ResourceActionsListResponse, error) {
-	res, config, _, err := s.getAppLiveResource(ctx, rbacpolicy.ActionGet, q)
+	obj, err := s.getUnstructuredLiveResourceOrApp(ctx, rbacpolicy.ActionGet, q)
 	if err != nil {
-		return nil, fmt.Errorf("error getting app live resource: %w", err)
-	}
-	obj, err := s.kubectl.GetResource(ctx, config, res.GroupKindVersion(), res.Name, res.Namespace)
-	if err != nil {
-		return nil, fmt.Errorf("error getting resource: %w", err)
+		return nil, err
 	}
 	resourceOverrides, err := s.settingsMgr.GetResourceOverrides()
 	if err != nil {
@@ -2011,6 +2007,39 @@ func (s *Server) ListResourceActions(ctx context.Context, q *application.Applica
 	}
 
 	return &application.ResourceActionsListResponse{Actions: actionsPtr}, nil
+}
+
+func (s *Server) getUnstructuredLiveResourceOrApp(ctx context.Context, rbacRequest string, q *application.ApplicationResourceRequest) (obj *unstructured.Unstructured, err error) {
+	var (
+		app       *appv1.Application
+		config    *rest.Config
+	)
+	if q.GetKind() == "Application" && q.GetGroup() == "argoproj.io" && q.GetName() == q.GetResourceName() {
+		namespace := s.appNamespaceOrDefault(q.GetAppNamespace())
+		app, err = s.appLister.Applications(namespace).Get(q.GetName())
+		if err != nil {
+			return nil, fmt.Errorf("error getting app by name: %w", err)
+		}
+		if err = s.enf.EnforceErr(ctx.Value("claims"), rbacpolicy.ResourceApplications, rbacRequest, app.RBACName(s.ns)); err != nil {
+			return nil, err
+		}
+		config, err = s.getApplicationClusterConfig(ctx, app)
+		if err != nil {
+			return nil, fmt.Errorf("error getting application cluster config: %w", err)
+		}
+		obj, err = kube.ToUnstructured(app)
+	} else {
+		var res *appv1.ResourceNode
+		res, config, app, err = s.getAppLiveResource(ctx, rbacRequest, q)
+		if err != nil {
+			return nil, fmt.Errorf("error getting app live resource: %w", err)
+		}
+		obj, err = s.kubectl.GetResource(ctx, config, res.GroupKindVersion(), res.Name, res.Namespace)
+	}
+	if err != nil {
+		return nil, fmt.Errorf("error getting resource: %w", err)
+	}
+	return
 }
 
 func (s *Server) getAvailableActions(resourceOverrides map[string]appv1.ResourceOverride, obj *unstructured.Unstructured) ([]appv1.ResourceAction, error) {
