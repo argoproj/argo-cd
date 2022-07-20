@@ -10,8 +10,8 @@ argocd app manifests APPNAME [flags]
 
 ```
   -h, --help                     help for manifests
-      --local string             Show local manifests
-      --local-repo-root string   Path to the repository root. Used together with --local allows setting the repository root (default "/")
+      --local string             If set, show locally-generated manifests. Value is the absolute path to app manifests within the manifest repo. Example: '/home/username/apps/env/app-1'.
+      --local-repo-root string   Path to the local repository root. Used together with --local allows setting the repository root. Example: '/home/username/apps'. (default ".")
       --revision string          Show manifests at a specific revision
       --source string            Source of manifests. One of: live|git (default "git")
 ```
