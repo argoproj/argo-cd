@@ -10727,6 +10727,13 @@ spec:
             port: 8888
           initialDelaySeconds: 5
           periodSeconds: 3
+        securityContext:
+          allowPrivilegeEscalation: false
+          capabilities:
+            drop:
+            - ALL
+          seccompProfile:
+            type: RuntimeDefault
         volumeMounts:
         - mountPath: /usr/local/etc/haproxy
           name: data
@@ -10740,6 +10747,13 @@ spec:
         image: haproxy:2.0.29-alpine
         imagePullPolicy: IfNotPresent
         name: config-init
+        securityContext:
+          allowPrivilegeEscalation: false
+          capabilities:
+            drop:
+            - ALL
+          seccompProfile:
+            type: RuntimeDefault
         volumeMounts:
         - mountPath: /readonly
           name: config-volume
@@ -11541,6 +11555,13 @@ spec:
           periodSeconds: 15
           successThreshold: 1
           timeoutSeconds: 15
+        securityContext:
+          allowPrivilegeEscalation: false
+          capabilities:
+            drop:
+            - ALL
+          seccompProfile:
+            type: RuntimeDefault
         volumeMounts:
         - mountPath: /data
           name: data
@@ -11579,6 +11600,13 @@ spec:
           periodSeconds: 15
           successThreshold: 3
           timeoutSeconds: 15
+        securityContext:
+          allowPrivilegeEscalation: false
+          capabilities:
+            drop:
+            - ALL
+          seccompProfile:
+            type: RuntimeDefault
         volumeMounts:
         - mountPath: /data
           name: data
@@ -11599,6 +11627,13 @@ spec:
         image: redis:7.0.3-alpine
         imagePullPolicy: IfNotPresent
         name: config-init
+        securityContext:
+          allowPrivilegeEscalation: false
+          capabilities:
+            drop:
+            - ALL
+          seccompProfile:
+            type: RuntimeDefault
         volumeMounts:
         - mountPath: /readonly-config
           name: config
