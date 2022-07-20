@@ -16,7 +16,7 @@ spec:
     spec:
       containers:
         - name: nginx
-          image: nginx:1.17.4-alpine
+          image: quay.io/argoprojlabs/argocd-e2e-container:0.1
           ports:
             - containerPort: "80"
           imagePullPolicy: IfNotPresent

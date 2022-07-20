@@ -25,6 +25,7 @@ argocd admin cluster shards [flags]
   -n, --namespace string                      If present, the namespace scope for this CLI request
       --password string                       Password for basic authentication to the API server
       --port-forward-redis                    Automatically port-forward ha proxy redis from current namespace? (default true)
+      --proxy-url string                      If provided, this URL will be used to connect via proxy
       --redis string                          Redis server hostname and port (e.g. argocd-redis:6379). 
       --redis-ca-certificate string           Path to Redis server CA certificate (e.g. /etc/certs/redis/ca.crt). If not specified, system trusted CAs will be used for server certificate validation.
       --redis-client-certificate string       Path to Redis client certificate (e.g. /etc/certs/redis/client.crt).
@@ -56,6 +57,7 @@ argocd admin cluster shards [flags]
   -H, --header strings                  Sets additional header to all requests made by Argo CD CLI. (Can be repeated multiple times to add multiple headers, also supports comma separated headers)
       --http-retry-max int              Maximum number of retries to establish http connection to Argo CD server
       --insecure                        Skip server certificate and domain verification
+      --kube-context string             Directs the command to the given kube-context
       --logformat string                Set the logging format. One of: text|json (default "text")
       --loglevel string                 Set the logging level. One of: debug|info|warn|error (default "info")
       --plaintext                       Disable TLS

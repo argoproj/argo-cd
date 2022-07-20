@@ -32,6 +32,7 @@ spec:
     - /spec/replicas
 ```
 
+Note that the `group` field relates to the [Kubernetes API group](https://kubernetes.io/docs/reference/using-api/#api-groups) without the version.
 The above customization could be narrowed to a resource with the specified name and optional namespace:
 
 ```yaml
@@ -107,7 +108,7 @@ handling that edge case:
 data:
   resource.compareoptions: |
     # disables status field diffing in specified resource types
-    # 'crd' - CustomResourceDefinition-s (default)
+    # 'crd' - CustomResourceDefinitions (default)
     # 'all' - all resources
     # 'none' - disabled
     ignoreResourceStatusField: crd

@@ -121,6 +121,8 @@ export interface ResourceResult {
 }
 
 export const AnnotationRefreshKey = 'argocd.argoproj.io/refresh';
+export const AnnotationHookKey = 'argocd.argoproj.io/hook';
+export const AnnotationSyncWaveKey = 'argocd.argoproj.io/sync-wave';
 
 export interface Application {
     apiVersion?: string;
@@ -129,6 +131,7 @@ export interface Application {
     spec: ApplicationSpec;
     status: ApplicationStatus;
     operation?: Operation;
+    isAppOfAppsPattern?: boolean;
 }
 
 export type WatchType = 'ADDED' | 'MODIFIED' | 'DELETED' | 'ERROR';
@@ -146,11 +149,11 @@ export interface ComponentParameter {
 
 export interface ApplicationDestination {
     /**
-     * Server overrides the environment server value in the ksonnet app.yaml
+     * Server address of the destination cluster
      */
     server: string;
     /**
-     * Namespace overrides the environment namespace value in the ksonnet app.yaml
+     * Namespace of the destination cluster
      */
     namespace: string;
     /**
@@ -183,8 +186,6 @@ export interface ApplicationSource {
 
     kustomize?: ApplicationSourceKustomize;
 
-    ksonnet?: ApplicationSourceKsonnet;
-
     plugin?: ApplicationSourcePlugin;
 
     directory?: ApplicationSourceDirectory;
@@ -203,12 +204,6 @@ export interface ApplicationSourceKustomize {
     images: string[];
     version: string;
 }
-
-export interface ApplicationSourceKsonnet {
-    environment: string;
-    parameters: KsonnetParameter[];
-}
-
 export interface EnvEntry {
     name: string;
     value: string;
@@ -317,6 +312,7 @@ export interface ResourceStatus {
     health: HealthStatus;
     hook?: boolean;
     requiresPruning?: boolean;
+    syncOrder?: string;
 }
 
 export interface ResourceRef {
@@ -456,6 +452,7 @@ export interface AuthSettings {
     uiBannerURL: string;
     uiBannerPermanent: boolean;
     uiBannerPosition: string;
+    execEnabled: boolean;
 }
 
 export interface UserInfo {
@@ -534,36 +531,16 @@ export interface ClusterCacheInfo {
 
 export interface ClusterList extends ItemsList<Cluster> {}
 
-export interface KsonnetEnvironment {
-    k8sVersion: string;
-    path: string;
-    destination: {server: string; namespace: string};
-}
-
-export interface KsonnetParameter {
-    component: string;
-    name: string;
-    value: string;
-}
-
-export interface KsonnetAppSpec {
-    name: string;
-    path: string;
-    environments: {[key: string]: KsonnetEnvironment};
-    parameters: KsonnetParameter[];
-}
-
 export interface HelmChart {
     name: string;
     versions: string[];
 }
 
-export type AppSourceType = 'Helm' | 'Kustomize' | 'Ksonnet' | 'Directory' | 'Plugin';
+export type AppSourceType = 'Helm' | 'Kustomize' | 'Directory' | 'Plugin';
 
 export interface RepoAppDetails {
     type: AppSourceType;
     path: string;
-    ksonnet?: KsonnetAppSpec;
     helm?: HelmAppSpec;
     kustomize?: KustomizeAppSpec;
     plugin?: PluginAppSpec;
@@ -756,7 +733,6 @@ export interface VersionMessage {
     GoVersion: string;
     Compiler: string;
     Platform: string;
-    KsonnetVersion: string;
     KustomizeVersion: string;
     HelmVersion: string;
     KubectlVersion: string;

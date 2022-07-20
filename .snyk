@@ -1,0 +1,36 @@
+# Snyk (https://snyk.io) policy file, patches or ignores known vulnerabilities.
+version: v1.22.1
+# ignores vulnerabilities until expiry date; change duration by modifying expiry date
+ignore:
+  SNYK-JS-ANSIREGEX-1583908:
+    - '*':
+        reason: >-
+          Code is only run client-side in the swagger-ui endpoint. No risk of
+          server-side DoS.
+  SNYK-CC-K8S-44:
+    - 'manifests/core-install.yaml > *':
+        reason: >-
+          Argo CD needs wide permissions to manage resources.
+    - 'manifests/install.yaml > *':
+        reason: >-
+          Argo CD needs wide permissions to manage resources.
+  SNYK-JS-MOMENT-2440688:
+    - '*':
+        reason: >-
+          Code is only run client-side. No risk of directory traversal.
+  SNYK-GOLANG-GITHUBCOMEMICKLEIGORESTFUL-2435653:
+    - '*':
+        reason: >-
+          Argo CD uses go-restful as a transitive dependency of kube-openapi. kube-openapi is used to generate openapi
+          specs. We do not use go-restul at runtime and are therefore not vulnerable to this CORS misconfiguration
+          issue in go-restful.
+  SNYK-JS-FORMIDABLE-2838956:
+    - '*':
+        reason: >-
+          Code is only run client-side. No risk of arbitrary file upload.
+  SNYK-GOLANG-GOPKGINYAMLV2-2840885:
+    - '*':
+        reason: >-
+          The package is used to parse configuration provided by the administrator and hence cannot cause DoS.
+patch: {}
+
