@@ -362,7 +362,7 @@ func (e *Enforcer) DeleteUserPolicy(policyName string) error {
 	return e.LoadPolicy()
 }
 
-// newInformers returns an informer which watches updates on the rbac configmap
+// newInformer returns an informer which watches updates on the rbac configmap
 func (e *Enforcer) newInformer() cache.SharedIndexInformer {
 	tweakConfigMap := func(options *metav1.ListOptions) {
 		cmFieldSelector := fields.ParseSelectorOrDie(fmt.Sprintf("metadata.name=%s", e.configmap))
@@ -372,7 +372,7 @@ func (e *Enforcer) newInformer() cache.SharedIndexInformer {
 	return v1.NewFilteredConfigMapInformer(e.clientset, e.namespace, defaultRBACSyncPeriod, indexers, tweakConfigMap)
 }
 
-// newInformers returns an informer which watches updates on the rbac configmap
+// newAdditionalInformer returns an informer which watches updates on the rbac configmap
 func (e *Enforcer) newAdditionalInformer() cache.SharedIndexInformer {
 	tweakConfigMap := func(options *metav1.ListOptions) {
 		options.LabelSelector = "argocd.argoproj.io/cm-type=additional-rbac"
