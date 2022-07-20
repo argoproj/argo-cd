@@ -85,7 +85,7 @@ func sendFile(ctx context.Context, sender ApplicationStreamSender, file *os.File
 				},
 			}
 			if e := sender.Send(fr); e != nil {
-				return fmt.Errorf("error sending stream: %w", err)
+				return fmt.Errorf("error sending stream: %w", e)
 			}
 		}
 		if err != nil {

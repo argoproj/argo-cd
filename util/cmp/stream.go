@@ -139,7 +139,7 @@ func sendFile(ctx context.Context, sender StreamSender, file *os.File, opt *send
 		if n > 0 {
 			fr := appFileRequest(chunk[:n])
 			if e := sender.Send(fr); e != nil {
-				return fmt.Errorf("error sending stream: %w", err)
+				return fmt.Errorf("error sending stream: %w", e)
 			}
 		}
 		if err != nil {
