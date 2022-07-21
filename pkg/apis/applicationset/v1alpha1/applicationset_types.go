@@ -339,6 +339,8 @@ type SCMProviderGeneratorGithub struct {
 	API string `json:"api,omitempty"`
 	// Authentication token reference.
 	TokenRef *SecretRef `json:"tokenRef,omitempty"`
+	// AppSecretName is a reference to a GitHub App repo-creds secret.
+	AppSecretName string `json:"appSecretName,omitempty"`
 	// Scan all branches instead of just the default branch.
 	AllBranches bool `json:"allBranches,omitempty"`
 }
@@ -450,6 +452,8 @@ type PullRequestGeneratorGithub struct {
 	API string `json:"api,omitempty"`
 	// Authentication token reference.
 	TokenRef *SecretRef `json:"tokenRef,omitempty"`
+	// AppSecretName is a reference to a GitHub App repo-creds secret with permission to access pull requests.
+	AppSecretName string `json:"appSecretName,omitempty"`
 	// Labels is used to filter the PRs that you want to target
 	Labels []string `json:"labels,omitempty"`
 }

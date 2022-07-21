@@ -9,6 +9,7 @@ import (
 	corev1 "k8s.io/api/core/v1"
 	"sigs.k8s.io/controller-runtime/pkg/client"
 
+	"github.com/argoproj/argo-cd/v2/applicationset/services/github_app_auth"
 	"github.com/argoproj/argo-cd/v2/applicationset/services/scm_provider"
 	"github.com/argoproj/argo-cd/v2/applicationset/utils"
 	argoprojiov1alpha1 "github.com/argoproj/argo-cd/v2/pkg/apis/applicationset/v1alpha1"
@@ -24,10 +25,18 @@ type SCMProviderGenerator struct {
 	client client.Client
 	// Testing hooks.
 	overrideProvider scm_provider.SCMProviderService
+	SCMAuthProviders
 }
 
-func NewSCMProviderGenerator(client client.Client) Generator {
-	return &SCMProviderGenerator{client: client}
+type SCMAuthProviders struct {
+	GitHubApps github_app_auth.Credentials
+}
+
+func NewSCMProviderGenerator(client client.Client, providers SCMAuthProviders) Generator {
+	return &SCMProviderGenerator{
+		client:           client,
+		SCMAuthProviders: providers,
+	}
 }
 
 // Testing generator
@@ -66,13 +75,10 @@ func (g *SCMProviderGenerator) GenerateParams(appSetGenerator *argoprojiov1alpha
 	if g.overrideProvider != nil {
 		provider = g.overrideProvider
 	} else if providerConfig.Github != nil {
-		token, err := g.getSecretRef(ctx, providerConfig.Github.TokenRef, applicationSetInfo.Namespace)
+		var err error
+		provider, err = g.githubProvider(ctx, providerConfig.Github, applicationSetInfo)
 		if err != nil {
-			return nil, fmt.Errorf("error fetching Github token: %v", err)
-		}
-		provider, err = scm_provider.NewGithubProvider(ctx, providerConfig.Github.Organization, token, providerConfig.Github.API, providerConfig.Github.AllBranches)
-		if err != nil {
-			return nil, fmt.Errorf("error initializing Github service: %v", err)
+			return nil, fmt.Errorf("scm provider: %w", err)
 		}
 	} else if providerConfig.Gitlab != nil {
 		token, err := g.getSecretRef(ctx, providerConfig.Gitlab.TokenRef, applicationSetInfo.Namespace)
@@ -168,4 +174,26 @@ func (g *SCMProviderGenerator) getSecretRef(ctx context.Context, ref *argoprojio
 		return "", fmt.Errorf("key %q in secret %s/%s not found", ref.Key, namespace, ref.SecretName)
 	}
 	return string(tokenBytes), nil
+}
+
+func (g *SCMProviderGenerator) githubProvider(ctx context.Context, github *argoprojiov1alpha1.SCMProviderGeneratorGithub, applicationSetInfo *argoprojiov1alpha1.ApplicationSet) (scm_provider.SCMProviderService, error) {
+	if github.AppSecretName != "" {
+		auth, err := g.GitHubApps.GetAuthSecret(ctx, github.AppSecretName)
+		if err != nil {
+			return nil, fmt.Errorf("error fetching Github app secret: %v", err)
+		}
+
+		return scm_provider.NewGithubAppProviderFor(
+			*auth,
+			github.Organization,
+			github.API,
+			github.AllBranches,
+		)
+	}
+
+	token, err := g.getSecretRef(ctx, github.TokenRef, applicationSetInfo.Namespace)
+	if err != nil {
+		return nil, fmt.Errorf("error fetching Github token: %v", err)
+	}
+	return scm_provider.NewGithubProvider(ctx, github.Organization, token, github.API, github.AllBranches)
 }

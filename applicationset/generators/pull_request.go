@@ -9,10 +9,11 @@ import (
 	corev1 "k8s.io/api/core/v1"
 	"sigs.k8s.io/controller-runtime/pkg/client"
 
+	"github.com/gosimple/slug"
+
 	"github.com/argoproj/argo-cd/v2/applicationset/services/pull_request"
 	pullrequest "github.com/argoproj/argo-cd/v2/applicationset/services/pull_request"
 	argoprojiov1alpha1 "github.com/argoproj/argo-cd/v2/pkg/apis/applicationset/v1alpha1"
-	"github.com/gosimple/slug"
 )
 
 var _ Generator = (*PullRequestGenerator)(nil)
@@ -24,11 +25,13 @@ const (
 type PullRequestGenerator struct {
 	client                    client.Client
 	selectServiceProviderFunc func(context.Context, *argoprojiov1alpha1.PullRequestGenerator, *argoprojiov1alpha1.ApplicationSet) (pullrequest.PullRequestService, error)
+	auth                      SCMAuthProviders
 }
 
-func NewPullRequestGenerator(client client.Client) Generator {
+func NewPullRequestGenerator(client client.Client, auth SCMAuthProviders) Generator {
 	g := &PullRequestGenerator{
 		client: client,
+		auth:   auth,
 	}
 	g.selectServiceProviderFunc = g.selectServiceProvider
 	return g
@@ -101,12 +104,7 @@ func (g *PullRequestGenerator) GenerateParams(appSetGenerator *argoprojiov1alpha
 // selectServiceProvider selects the provider to get pull requests from the configuration
 func (g *PullRequestGenerator) selectServiceProvider(ctx context.Context, generatorConfig *argoprojiov1alpha1.PullRequestGenerator, applicationSetInfo *argoprojiov1alpha1.ApplicationSet) (pullrequest.PullRequestService, error) {
 	if generatorConfig.Github != nil {
-		providerConfig := generatorConfig.Github
-		token, err := g.getSecretRef(ctx, providerConfig.TokenRef, applicationSetInfo.Namespace)
-		if err != nil {
-			return nil, fmt.Errorf("error fetching Secret token: %v", err)
-		}
-		return pullrequest.NewGithubService(ctx, token, providerConfig.API, providerConfig.Owner, providerConfig.Repo, providerConfig.Labels)
+		return g.github(ctx, generatorConfig.Github, applicationSetInfo)
 	}
 	if generatorConfig.GitLab != nil {
 		providerConfig := generatorConfig.GitLab
@@ -137,6 +135,24 @@ func (g *PullRequestGenerator) selectServiceProvider(ctx context.Context, genera
 		}
 	}
 	return nil, fmt.Errorf("no Pull Request provider implementation configured")
+}
+
+func (g *PullRequestGenerator) github(ctx context.Context, cfg *argoprojiov1alpha1.PullRequestGeneratorGithub, applicationSetInfo *argoprojiov1alpha1.ApplicationSet) (pullrequest.PullRequestService, error) {
+	// use an app if it was configured
+	if cfg.AppSecretName != "" {
+		auth, err := g.auth.GitHubApps.GetAuthSecret(ctx, cfg.AppSecretName)
+		if err != nil {
+			return nil, fmt.Errorf("error getting GitHub App secret: %v", err)
+		}
+		return pullrequest.NewGithubAppService(*auth, cfg.API, cfg.Owner, cfg.Repo, cfg.Labels)
+	}
+
+	// always default to token, even if not set (public access)
+	token, err := g.getSecretRef(ctx, cfg.TokenRef, applicationSetInfo.Namespace)
+	if err != nil {
+		return nil, fmt.Errorf("error fetching Secret token: %v", err)
+	}
+	return pullrequest.NewGithubService(ctx, token, cfg.API, cfg.Owner, cfg.Repo, cfg.Labels)
 }
 
 // getSecretRef gets the value of the key for the specified Secret resource.
