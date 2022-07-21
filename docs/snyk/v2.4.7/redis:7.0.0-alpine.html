@@ -7,7 +7,7 @@
   <meta name="viewport" content="width=device-width, initial-scale=1.0">
   <meta http-equiv="X-UA-Compatible" content="IE=edge">
   <title>Snyk test report</title>
-  <meta name="description" content="1 known vulnerabilities found in 9 vulnerable dependency paths.">
+  <meta name="description" content="2 known vulnerabilities found in 12 vulnerable dependency paths.">
   <base target="_blank">
   <link rel="icon" type="image/png" href="https://res.cloudinary.com/snyk/image/upload/v1468845142/favicon/favicon.png"
     sizes="194x194">
@@ -456,7 +456,7 @@
               <div class="header-wrap">
                   <h1 class="project__header__title">Snyk test report</h1>
     
-                <p class="timestamp">July 18th 2022, 6:22:07 pm</p>
+                <p class="timestamp">July 20th 2022, 9:15:28 pm</p>
               </div>
               <div class="source-panel">
                 <span>Scanned the following path:</span>
@@ -466,8 +466,8 @@
               </div>
     
               <div class="meta-counts">
-                <div class="meta-count"><span>1</span> <span>known vulnerabilities</span></div>
-                <div class="meta-count"><span>9 vulnerable dependency paths</span></div>
+                <div class="meta-count"><span>2</span> <span>known vulnerabilities</span></div>
+                <div class="meta-count"><span>12 vulnerable dependency paths</span></div>
                 <div class="meta-count"><span>17</span> <span>dependencies</span></div>
               </div><!-- .meta-counts -->
             </div><!-- .layout-container--short -->
@@ -639,6 +639,94 @@
         
             <div class="cta card__cta">
                 <p><a href="https://snyk.io/vuln/SNYK-ALPINE316-OPENSSL-2941806">More about this vulnerability</a></p>
+            </div>
+        
+        </div><!-- .card -->
+        <div class="card card--vuln  disclosure--not-new severity--high" data-snyk-test="high">
+            <h2 class="card__title">Use After Free</h2>
+            <div class="card__section">
+        
+                <div class="label label--high">
+                    <span class="label__text">high severity</span>
+                </div>
+        
+                <hr/>
+        
+                <ul class="card__meta">
+                    <li class="card__meta__item">
+                        Package Manager: alpine:3.16
+                    </li>
+                    <li class="card__meta__item">
+                            Vulnerable module:
+        
+                            busybox/busybox
+                    </li>
+        
+                    <li class="card__meta__item">Introduced through:
+        
+                                docker-image|redis@7.0.0-alpine and busybox/busybox@1.35.0-r13
+        
+                    </li>
+                </ul>
+        
+                <hr/>
+        
+        
+                        <h3 class="card__section__title">Detailed paths</h3>
+        
+                    <ul class="card__meta__paths">
+                                <li>
+                                <span class="list-paths__item__introduced"><em>Introduced through</em>:
+                                        docker-image|redis@7.0.0-alpine
+                                         <span class="list-paths__item__arrow">›</span> 
+                                        busybox/busybox@1.35.0-r13
+                                        
+                                </span>
+        
+                            </li>
+                                <li>
+                                <span class="list-paths__item__introduced"><em>Introduced through</em>:
+                                        docker-image|redis@7.0.0-alpine
+                                         <span class="list-paths__item__arrow">›</span> 
+                                        alpine-baselayout/alpine-baselayout-data@3.2.0-r20
+                                         <span class="list-paths__item__arrow">›</span> 
+                                        alpine-baselayout/alpine-baselayout@3.2.0-r20
+                                         <span class="list-paths__item__arrow">›</span> 
+                                        busybox/busybox@1.35.0-r13
+                                        
+                                </span>
+        
+                            </li>
+                                <li>
+                                <span class="list-paths__item__introduced"><em>Introduced through</em>:
+                                        docker-image|redis@7.0.0-alpine
+                                         <span class="list-paths__item__arrow">›</span> 
+                                        busybox/ssl_client@1.35.0-r13
+                                        
+                                </span>
+        
+                            </li>
+                    </ul><!-- .list-paths -->
+        
+            </div><!-- .card__section -->
+        
+              <hr/>
+              <!-- Overview -->
+              <h2 id="nvd-description">NVD Description</h2>
+        <p><strong><em>Note:</em></strong> <em>Versions mentioned in the description apply to the upstream <code>busybox</code> package.</em>
+        <em>See <code>How to fix?</code> for <code>Alpine:3.16</code> relevant versions.</em></p>
+        <p>A use-after-free in Busybox 1.35-x&#39;s awk applet leads to denial of service and possibly code execution when processing a crafted awk pattern in the copyvar function.</p>
+        <h2 id="remediation">Remediation</h2>
+        <p>Upgrade <code>Alpine:3.16</code> <code>busybox</code> to version 1.35.0-r15 or higher.</p>
+        <h2 id="references">References</h2>
+        <ul>
+        <li><a href="https://bugs.busybox.net/show_bug.cgi?id=14781">MISC</a></li>
+        </ul>
+        
+              <hr/>
+        
+            <div class="cta card__cta">
+                <p><a href="https://snyk.io/vuln/SNYK-ALPINE316-BUSYBOX-2953070">More about this vulnerability</a></p>
             </div>
         
         </div><!-- .card -->
