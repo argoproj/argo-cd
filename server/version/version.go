@@ -1,9 +1,9 @@
 package version
 
 import (
+	"context"
 	"github.com/golang/protobuf/ptypes/empty"
 	"github.com/google/go-jsonnet"
-	"golang.org/x/net/context"
 
 	"github.com/argoproj/argo-cd/v2/common"
 	"github.com/argoproj/argo-cd/v2/pkg/apiclient/version"

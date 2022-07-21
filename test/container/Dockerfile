@@ -1,4 +1,9 @@
-FROM docker.io/library/redis:7.0.0 as redis
+FROM docker.io/library/redis:7.0.4 as redis
+
+# There are libraries we will want to copy from here in the final stage of the
+# build, but the COPY directive does not have a way to determine system
+# architecture, so we create a symlink here to facilitate copying.
+RUN ln -s /usr/lib/$(uname -m)-linux-gnu /usr/lib/linux-gnu 
 
 FROM docker.io/library/node:12.18.4-buster as node
 
@@ -66,8 +71,11 @@ COPY --from=redis /usr/local/bin/* /usr/local/bin/
 
 # Copy redis dependencies/shared libraries
 # Ubuntu 22.04+ has moved to OpenSSL3 and no longer provides these libraries
-COPY --from=redis /usr/lib/x86_64-linux-gnu/libssl.so.1.1 /usr/lib/x86_64-linux-gnu/
-COPY --from=redis /usr/lib/x86_64-linux-gnu/libcrypto.so.1.1 /usr/lib/x86_64-linux-gnu/
+COPY --from=redis /usr/lib/linux-gnu/libssl.so.1.1 /usr/lib/linux-gnu/
+COPY --from=redis /usr/lib/linux-gnu/libcrypto.so.1.1 /usr/lib/linux-gnu/
+RUN mv /usr/lib/linux-gnu/libssl.so.1.1 /usr/lib/$(uname -m)-linux-gnu/ && \
+    mv /usr/lib/linux-gnu/libcrypto.so.1.1 /usr/lib/$(uname -m)-linux-gnu/ && \
+    rm -rf /usr/lib/linux-gnu/
 
 # Copy registry binaries to the image
 COPY --from=registry /bin/registry /usr/local/bin/

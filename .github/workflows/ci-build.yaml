@@ -342,7 +342,7 @@ jobs:
     runs-on: ubuntu-22.04
     strategy:
       matrix:
-        k3s-version: [v1.23.3, v1.22.6, v1.21.2]
+        k3s-version: [v1.24.1, v1.23.3, v1.22.6, v1.21.2]
     needs: 
       - build-go
     env:
@@ -407,7 +407,7 @@ jobs:
         run: |
           docker pull quay.io/dexidp/dex:v2.25.0
           docker pull argoproj/argo-cd-ci-builder:v1.0.0
-          docker pull redis:7.0.0-alpine
+          docker pull redis:7.0.4-alpine
       - name: Create target directory for binaries in the build-process
         run: |
           mkdir -p dist

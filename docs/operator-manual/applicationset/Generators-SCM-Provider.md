@@ -20,9 +20,9 @@ spec:
 * `cloneProtocol`: Which protocol to use for the SCM URL. Default is provider-specific but ssh if possible. Not all providers necessarily support all protocols, see provider documentation below for available options.
 
 !!! note
-    Know the security implications of using SCM generators. [Only admins may create ApplicationSets](./Security.md#only-admins-may-createupdatedelete-applicationsets) 
-    to avoid leaking Secrets, and [only admins may create repos/branches](./Security.md#templated-project-field) if the 
-    `project` field of an ApplicationSet with an SCM generator is templated, to avoid granting management of 
+    Know the security implications of using SCM generators. [Only admins may create ApplicationSets](./Security.md#only-admins-may-createupdatedelete-applicationsets)
+    to avoid leaking Secrets, and [only admins may create repos/branches](./Security.md#templated-project-field) if the
+    `project` field of an ApplicationSet with an SCM generator is templated, to avoid granting management of
     out-of-bounds resources.
 
 ## GitHub
@@ -180,7 +180,7 @@ Available clone protocols are `ssh` and `https`.
 
 ## Azure DevOps
 
-Uses the Azure DevOps API to look up eligible repositories based on a team project within an Azure DevOps organization. 
+Uses the Azure DevOps API to look up eligible repositories based on a team project within an Azure DevOps organization.
 The default Azure DevOps URL is `https://dev.azure.com`, but this can be overridden with the field `azureDevOps.api`.
 
 ```yaml
@@ -277,6 +277,7 @@ spec:
 * `repository`: The name of the repository.
 * `url`: The clone URL for the repository.
 * `branch`: The default branch of the repository.
-* `sha`: The Git commit SHA for the branch
-* `labels`: A comma-separated list of repository labels
+* `sha`: The Git commit SHA for the branch.
+* `short_sha`: The abbreviated Git commit SHA for the branch (8 chars or the length of the `sha` if it's shorter).
+* `labels`: A comma-separated list of repository labels.
 * `branchNormalized`: The value of `branch` normalized to contain only lowercase alphanumeric characters, '-' or '.'.

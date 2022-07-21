@@ -4,6 +4,7 @@ import (
 	"encoding/json"
 	"fmt"
 	"net/http"
+	"sync"
 	"time"
 
 	"github.com/gorilla/websocket"
@@ -22,10 +23,12 @@ var upgrader = func() websocket.Upgrader {
 
 // terminalSession implements PtyHandler
 type terminalSession struct {
-	wsConn   *websocket.Conn
-	sizeChan chan remotecommand.TerminalSize
-	doneChan chan struct{}
-	tty      bool
+	wsConn    *websocket.Conn
+	sizeChan  chan remotecommand.TerminalSize
+	doneChan  chan struct{}
+	tty       bool
+	readLock  sync.Mutex
+	writeLock sync.Mutex
 }
 
 // newTerminalSession create terminalSession
@@ -60,7 +63,9 @@ func (t *terminalSession) Next() *remotecommand.TerminalSize {
 
 // Read called in a loop from remotecommand as long as the process is running
 func (t *terminalSession) Read(p []byte) (int, error) {
+	t.readLock.Lock()
 	_, message, err := t.wsConn.ReadMessage()
+	t.readLock.Unlock()
 	if err != nil {
 		log.Errorf("read message err: %v", err)
 		return copy(p, EndOfTransmission), err
@@ -91,7 +96,10 @@ func (t *terminalSession) Write(p []byte) (int, error) {
 		log.Errorf("write parse message err: %v", err)
 		return 0, err
 	}
-	if err := t.wsConn.WriteMessage(websocket.TextMessage, msg); err != nil {
+	t.writeLock.Lock()
+	err = t.wsConn.WriteMessage(websocket.TextMessage, msg)
+	t.writeLock.Unlock()
+	if err != nil {
 		log.Errorf("write message err: %v", err)
 		return 0, err
 	}

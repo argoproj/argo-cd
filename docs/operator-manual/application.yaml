@@ -92,6 +92,12 @@ spec:
         - code: false
           name: foo
           value: bar
+      # Exclude contains a glob pattern to match paths against that should be explicitly excluded from being used during
+      # manifest generation. This takes precedence over the `include` field.
+      exclude: string
+      # Include contains a glob pattern to match paths against that should be explicitly included during manifest
+      # generation. If this field is set, only matching manifests will be included.
+      include: string
 
     # plugin specific config
     plugin:
