@@ -12,7 +12,7 @@ Kubernetes), then the user effectively has the same privileges as that ServiceAc
 
 ## Enabling the terminal
 
-1. Set the `exec.enabled` key to `true` on the `argocd-cm` ConfigMap.
+1. Set the `exec.enabled` key to `"true"` on the `argocd-cm` ConfigMap.
 
 2. Patch the `argocd-server` Role (if using namespaced Argo) or ClusterRole (if using clustered Argo) to allow `argocd-server`
 to exec into pods

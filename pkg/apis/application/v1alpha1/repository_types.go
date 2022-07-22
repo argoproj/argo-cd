@@ -198,7 +198,7 @@ func getCAPath(repoURL string) string {
 	hostname := ""
 
 	// url.Parse() will happily parse most things thrown at it. When the URL
-	// is either https or oci, we use the parsed hostname to receive the cert,
+	// is either https or oci, we use the parsed hostname to retrieve the cert,
 	// otherwise we'll use the parsed path (OCI repos are often specified as
 	// hostname, without protocol).
 	if parsedURL, err := url.Parse(repoURL); err == nil {
