@@ -76,7 +76,7 @@ spec:
       gitlab:
         # The base GitLab group to scan.  You can either use the group id or the full namespaced path.
         group: "8675309"
-        # For GitLab Enterprise:
+        # For self-hosted GitLab:
         api: https://gitlab.example.com/
         # If true, scan every branch of every repository. If false, scan only the default branch. Defaults to false.
         allBranches: true
@@ -91,7 +91,7 @@ spec:
 ```
 
 * `group`: Required name of the base GitLab group to scan. If you have multiple base groups, use multiple generators.
-* `api`: If using GitHub Enterprise, the URL to access it.
+* `api`: If using self-hosted GitLab, the URL to access it.
 * `allBranches`: By default (false) the template will only be evaluated for the default branch of each repo. If this is true, every branch of every repository will be passed to the filters. If using this flag, you likely want to use a `branchMatch` filter.
 * `includeSubgroups`: By default (false) the controller will only search for repos directly in the base group. If this is true, it will recurse through all the subgroups searching for repos to scan.
 * `tokenRef`: A `Secret` name and key containing the GitLab access token to use for requests. If not specified, will make anonymous requests which have a lower rate limit and can only see public repositories.
