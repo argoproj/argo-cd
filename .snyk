@@ -28,9 +28,5 @@ ignore:
     - '*':
         reason: >-
           Code is only run client-side. No risk of arbitrary file upload.
-  SNYK-GOLANG-GOPKGINYAMLV2-2840885:
-    - '*':
-        reason: >-
-          The package is used to parse configuration provided by the administrator and hence cannot cause DoS.
 patch: {}
 
