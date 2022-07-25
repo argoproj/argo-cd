@@ -877,7 +877,7 @@ func (s *Server) StartEventSource(es *events.EventSource, stream events.Eventing
 
 	// sendIfPermitted is a helper to send the application to the client's streaming channel if the
 	// caller has RBAC privileges permissions to view it
-	sendIfPermitted := func(a appv1.Application, eventType watch.EventType, ts string) {
+	sendIfPermitted := func(a appv1.Application, eventType watch.EventType, ts string, ignoreResourceCache bool) {
 		if eventType == watch.Bookmark {
 			return // ignore this event
 		}
@@ -896,7 +896,7 @@ func (s *Server) StartEventSource(es *events.EventSource, stream events.Eventing
 			return
 		}
 
-		err := s.applicationEventReporter.streamApplicationEvents(stream.Context(), &a, es, stream, ts)
+		err := s.applicationEventReporter.streamApplicationEvents(stream.Context(), &a, es, stream, ts, ignoreResourceCache)
 		if err != nil {
 			logCtx.WithError(err).Error("failed to stream application events")
 			return
@@ -910,13 +910,17 @@ func (s *Server) StartEventSource(es *events.EventSource, stream events.Eventing
 
 	events := make(chan *appv1.ApplicationWatchEvent, watchAPIBufferSize)
 
-	unsubscribe := s.appBroadcaster.Subscribe(events, s.applicationEventReporter.shouldSendApplicationEvent)
+	unsubscribe := s.appBroadcaster.Subscribe(events)
 	defer unsubscribe()
 	for {
 		select {
 		case event := <-events:
+			shouldProcess, ignoreResourceCache := s.applicationEventReporter.shouldSendApplicationEvent(event)
+			if !shouldProcess {
+				continue
+			}
 			ts := time.Now().Format("2006-01-02T15:04:05.000Z")
-			sendIfPermitted(event.Application, event.Type, ts)
+			sendIfPermitted(event.Application, event.Type, ts, ignoreResourceCache)
 		case <-stream.Context().Done():
 			return nil
 		}

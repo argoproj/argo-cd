@@ -346,7 +346,7 @@ func TestStreamApplicationEvent(t *testing.T) {
 			return nil
 		}
 
-		_ = eventReporter.streamApplicationEvents(context.Background(), app, &events.EventSource{Name: &name}, &MockEventing_StartEventSourceServer{}, "")
+		_ = eventReporter.streamApplicationEvents(context.Background(), app, &events.EventSource{Name: &name}, &MockEventing_StartEventSourceServer{}, "", false)
 	})
 
 }
