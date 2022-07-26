@@ -1068,7 +1068,7 @@ spec:
         - -n
         - /usr/local/bin/argocd
         - /shared/argocd-dex
-        image: quay.io/argoproj/argocd:v2.2.11
+        image: quay.io/argoproj/argocd:latest
         imagePullPolicy: Always
         name: copyutil
         volumeMounts:
@@ -1291,7 +1291,7 @@ spec:
           value: /helm-working-dir
         - name: HELM_DATA_HOME
           value: /helm-working-dir
-        image: quay.io/argoproj/argocd:v2.2.11
+        image: quay.io/argoproj/argocd:latest
         imagePullPolicy: Always
         livenessProbe:
           failureThreshold: 3
@@ -1340,7 +1340,7 @@ spec:
         - -n
         - /usr/local/bin/argocd
         - /var/run/argocd/argocd-cmp-server
-        image: quay.io/argoproj/argocd:v2.2.11
+        image: quay.io/argoproj/argocd:latest
         name: copyutil
         volumeMounts:
         - mountPath: /var/run/argocd
@@ -1567,7 +1567,7 @@ spec:
               key: server.http.cookie.maxnumber
               name: argocd-cmd-params-cm
               optional: true
-        image: quay.io/argoproj/argocd:v2.2.11
+        image: quay.io/argoproj/argocd:latest
         imagePullPolicy: Always
         livenessProbe:
           httpGet:
@@ -1763,7 +1763,7 @@ spec:
               key: controller.default.cache.expiration
               name: argocd-cmd-params-cm
               optional: true
-        image: quay.io/argoproj/argocd:v2.2.11
+        image: quay.io/argoproj/argocd:latest
         imagePullPolicy: Always
         livenessProbe:
           httpGet:
@@ -1845,7 +1845,7 @@ spec:
         - /data/conf/redis.conf
         command:
         - redis-server
-        image: redis:6.2.6-alpine
+        image: redis:6.2.7-alpine
         imagePullPolicy: IfNotPresent
         lifecycle: {}
         livenessProbe:
@@ -1883,7 +1883,7 @@ spec:
         - /data/conf/sentinel.conf
         command:
         - redis-sentinel
-        image: redis:6.2.6-alpine
+        image: redis:6.2.7-alpine
         imagePullPolicy: IfNotPresent
         lifecycle: {}
         livenessProbe:
@@ -1929,7 +1929,7 @@ spec:
           value: 40000915ab58c3fa8fd888fb8b24711944e6cbb4
         - name: SENTINEL_ID_2
           value: 2bbec7894d954a8af3bb54d13eaec53cb024e2ca
-        image: redis:6.2.6-alpine
+        image: redis:6.2.7-alpine
         imagePullPolicy: IfNotPresent
         name: config-init
         volumeMounts:

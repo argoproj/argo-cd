@@ -1,4 +1,4 @@
-FROM redis:6.2.6-alpine as redis
+FROM redis:6.2.7-alpine as redis
 
 FROM node:12.18.4 as node
 
