@@ -7,7 +7,7 @@
   <meta name="viewport" content="width=device-width, initial-scale=1.0">
   <meta http-equiv="X-UA-Compatible" content="IE=edge">
   <title>Snyk test report</title>
-  <meta name="description" content="49 known vulnerabilities found in 116 vulnerable dependency paths.">
+  <meta name="description" content="50 known vulnerabilities found in 180 vulnerable dependency paths.">
   <base target="_blank">
   <link rel="icon" type="image/png" href="https://res.cloudinary.com/snyk/image/upload/v1468845142/favicon/favicon.png"
     sizes="194x194">
@@ -456,7 +456,7 @@
               <div class="header-wrap">
                   <h1 class="project__header__title">Snyk test report</h1>
     
-                <p class="timestamp">July 20th 2022, 9:19:08 pm</p>
+                <p class="timestamp">July 26th 2022, 3:17:36 pm</p>
               </div>
               <div class="source-panel">
                 <span>Scanned the following paths:</span>
@@ -466,8 +466,8 @@
               </div>
     
               <div class="meta-counts">
-                <div class="meta-count"><span>49</span> <span>known vulnerabilities</span></div>
-                <div class="meta-count"><span>116 vulnerable dependency paths</span></div>
+                <div class="meta-count"><span>50</span> <span>known vulnerabilities</span></div>
+                <div class="meta-count"><span>180 vulnerable dependency paths</span></div>
                 <div class="meta-count"><span>2114</span> <span>dependencies</span></div>
               </div><!-- .meta-counts -->
             </div><!-- .layout-container--short -->
@@ -2324,6 +2324,1421 @@
         
             <div class="cta card__cta">
                 <p><a href="https://snyk.io/vuln/SNYK-JS-JSONSCHEMA-1920922">More about this vulnerability</a></p>
+            </div>
+        
+        </div><!-- .card -->
+        <div class="card card--vuln  disclosure--not-new severity--high" data-snyk-test="high">
+            <h2 class="card__title">Denial of Service (DoS)</h2>
+            <div class="card__section">
+        
+                <div class="label label--high">
+                    <span class="label__text">high severity</span>
+                </div>
+        
+                <hr/>
+        
+                <ul class="card__meta">
+                    <li class="card__meta__item">
+                        Package Manager: golang
+                    </li>
+                    <li class="card__meta__item">
+                            Vulnerable module:
+        
+                            gopkg.in/yaml.v3
+                    </li>
+        
+                    <li class="card__meta__item">Introduced through:
+        
+        
+                                    github.com/argoproj/argo-cd/v2@0.0.0, k8s.io/client-go/discovery@0.22.2 and others
+                    </li>
+                </ul>
+        
+                <hr/>
+        
+        
+                        <h3 class="card__section__title">Detailed paths</h3>
+        
+                    <ul class="card__meta__paths">
+                                <li>
+                                <span class="list-paths__item__introduced"><em>Introduced through</em>:
+                                        github.com/argoproj/argo-cd/v2@0.0.0
+                                         <span class="list-paths__item__arrow">›</span> 
+                                        k8s.io/client-go/discovery@0.22.2
+                                         <span class="list-paths__item__arrow">›</span> 
+                                        github.com/googleapis/gnostic/openapiv2@0.5.5
+                                         <span class="list-paths__item__arrow">›</span> 
+                                        gopkg.in/yaml.v3@#496545a6307b
+                                        
+                                </span>
+        
+                            </li>
+                                <li>
+                                <span class="list-paths__item__introduced"><em>Introduced through</em>:
+                                        github.com/argoproj/argo-cd/v2@0.0.0
+                                         <span class="list-paths__item__arrow">›</span> 
+                                        github.com/stretchr/testify/mock@1.7.0
+                                         <span class="list-paths__item__arrow">›</span> 
+                                        github.com/stretchr/testify/assert@1.7.0
+                                         <span class="list-paths__item__arrow">›</span> 
+                                        gopkg.in/yaml.v3@#496545a6307b
+                                        
+                                </span>
+        
+                            </li>
+                                <li>
+                                <span class="list-paths__item__introduced"><em>Introduced through</em>:
+                                        github.com/argoproj/argo-cd/v2@0.0.0
+                                         <span class="list-paths__item__arrow">›</span> 
+                                        github.com/stretchr/testify/require@1.7.0
+                                         <span class="list-paths__item__arrow">›</span> 
+                                        github.com/stretchr/testify/assert@1.7.0
+                                         <span class="list-paths__item__arrow">›</span> 
+                                        gopkg.in/yaml.v3@#496545a6307b
+                                        
+                                </span>
+        
+                            </li>
+                                <li>
+                                <span class="list-paths__item__introduced"><em>Introduced through</em>:
+                                        github.com/argoproj/argo-cd/v2@0.0.0
+                                         <span class="list-paths__item__arrow">›</span> 
+                                        k8s.io/client-go/kubernetes@0.22.2
+                                         <span class="list-paths__item__arrow">›</span> 
+                                        k8s.io/client-go/discovery@0.22.2
+                                         <span class="list-paths__item__arrow">›</span> 
+                                        github.com/googleapis/gnostic/openapiv2@0.5.5
+                                         <span class="list-paths__item__arrow">›</span> 
+                                        gopkg.in/yaml.v3@#496545a6307b
+                                        
+                                </span>
+        
+                            </li>
+                                <li>
+                                <span class="list-paths__item__introduced"><em>Introduced through</em>:
+                                        github.com/argoproj/argo-cd/v2@0.0.0
+                                         <span class="list-paths__item__arrow">›</span> 
+                                        k8s.io/kubectl/pkg/util/openapi@0.22.2
+                                         <span class="list-paths__item__arrow">›</span> 
+                                        k8s.io/kube-openapi/pkg/util/proto@#95288971da7e
+                                         <span class="list-paths__item__arrow">›</span> 
+                                        github.com/googleapis/gnostic/openapiv2@0.5.5
+                                         <span class="list-paths__item__arrow">›</span> 
+                                        gopkg.in/yaml.v3@#496545a6307b
+                                        
+                                </span>
+        
+                            </li>
+                                <li>
+                                <span class="list-paths__item__introduced"><em>Introduced through</em>:
+                                        github.com/argoproj/argo-cd/v2@0.0.0
+                                         <span class="list-paths__item__arrow">›</span> 
+                                        k8s.io/client-go/discovery@0.22.2
+                                         <span class="list-paths__item__arrow">›</span> 
+                                        github.com/googleapis/gnostic/openapiv2@0.5.5
+                                         <span class="list-paths__item__arrow">›</span> 
+                                        github.com/googleapis/gnostic/compiler@0.5.5
+                                         <span class="list-paths__item__arrow">›</span> 
+                                        gopkg.in/yaml.v3@#496545a6307b
+                                        
+                                </span>
+        
+                            </li>
+                                <li>
+                                <span class="list-paths__item__introduced"><em>Introduced through</em>:
+                                        github.com/argoproj/argo-cd/v2@0.0.0
+                                         <span class="list-paths__item__arrow">›</span> 
+                                        k8s.io/client-go/informers@0.22.2
+                                         <span class="list-paths__item__arrow">›</span> 
+                                        k8s.io/client-go/kubernetes@0.22.2
+                                         <span class="list-paths__item__arrow">›</span> 
+                                        k8s.io/client-go/discovery@0.22.2
+                                         <span class="list-paths__item__arrow">›</span> 
+                                        github.com/googleapis/gnostic/openapiv2@0.5.5
+                                         <span class="list-paths__item__arrow">›</span> 
+                                        gopkg.in/yaml.v3@#496545a6307b
+                                        
+                                </span>
+        
+                            </li>
+                                <li>
+                                <span class="list-paths__item__introduced"><em>Introduced through</em>:
+                                        github.com/argoproj/argo-cd/v2@0.0.0
+                                         <span class="list-paths__item__arrow">›</span> 
+                                        k8s.io/client-go/informers/core/v1@0.22.2
+                                         <span class="list-paths__item__arrow">›</span> 
+                                        k8s.io/client-go/kubernetes@0.22.2
+                                         <span class="list-paths__item__arrow">›</span> 
+                                        k8s.io/client-go/discovery@0.22.2
+                                         <span class="list-paths__item__arrow">›</span> 
+                                        github.com/googleapis/gnostic/openapiv2@0.5.5
+                                         <span class="list-paths__item__arrow">›</span> 
+                                        gopkg.in/yaml.v3@#496545a6307b
+                                        
+                                </span>
+        
+                            </li>
+                                <li>
+                                <span class="list-paths__item__introduced"><em>Introduced through</em>:
+                                        github.com/argoproj/argo-cd/v2@0.0.0
+                                         <span class="list-paths__item__arrow">›</span> 
+                                        github.com/argoproj/gitops-engine/pkg/diff@0.5.5
+                                         <span class="list-paths__item__arrow">›</span> 
+                                        k8s.io/apimachinery/pkg/util/strategicpatch@0.22.2
+                                         <span class="list-paths__item__arrow">›</span> 
+                                        k8s.io/kube-openapi/pkg/util/proto@#95288971da7e
+                                         <span class="list-paths__item__arrow">›</span> 
+                                        github.com/googleapis/gnostic/openapiv2@0.5.5
+                                         <span class="list-paths__item__arrow">›</span> 
+                                        gopkg.in/yaml.v3@#496545a6307b
+                                        
+                                </span>
+        
+                            </li>
+                                <li>
+                                <span class="list-paths__item__introduced"><em>Introduced through</em>:
+                                        github.com/argoproj/argo-cd/v2@0.0.0
+                                         <span class="list-paths__item__arrow">›</span> 
+                                        k8s.io/client-go/testing@0.22.2
+                                         <span class="list-paths__item__arrow">›</span> 
+                                        k8s.io/apimachinery/pkg/util/strategicpatch@0.22.2
+                                         <span class="list-paths__item__arrow">›</span> 
+                                        k8s.io/kube-openapi/pkg/util/proto@#95288971da7e
+                                         <span class="list-paths__item__arrow">›</span> 
+                                        github.com/googleapis/gnostic/openapiv2@0.5.5
+                                         <span class="list-paths__item__arrow">›</span> 
+                                        gopkg.in/yaml.v3@#496545a6307b
+                                        
+                                </span>
+        
+                            </li>
+                                <li>
+                                <span class="list-paths__item__introduced"><em>Introduced through</em>:
+                                        github.com/argoproj/argo-cd/v2@0.0.0
+                                         <span class="list-paths__item__arrow">›</span> 
+                                        github.com/argoproj/gitops-engine/pkg/cache@0.5.5
+                                         <span class="list-paths__item__arrow">›</span> 
+                                        k8s.io/kubectl/pkg/util/openapi@0.22.2
+                                         <span class="list-paths__item__arrow">›</span> 
+                                        k8s.io/kube-openapi/pkg/util/proto@#95288971da7e
+                                         <span class="list-paths__item__arrow">›</span> 
+                                        github.com/googleapis/gnostic/openapiv2@0.5.5
+                                         <span class="list-paths__item__arrow">›</span> 
+                                        gopkg.in/yaml.v3@#496545a6307b
+                                        
+                                </span>
+        
+                            </li>
+                                <li>
+                                <span class="list-paths__item__introduced"><em>Introduced through</em>:
+                                        github.com/argoproj/argo-cd/v2@0.0.0
+                                         <span class="list-paths__item__arrow">›</span> 
+                                        github.com/argoproj/gitops-engine/pkg/sync@0.5.5
+                                         <span class="list-paths__item__arrow">›</span> 
+                                        k8s.io/kubectl/pkg/util/openapi@0.22.2
+                                         <span class="list-paths__item__arrow">›</span> 
+                                        k8s.io/kube-openapi/pkg/util/proto@#95288971da7e
+                                         <span class="list-paths__item__arrow">›</span> 
+                                        github.com/googleapis/gnostic/openapiv2@0.5.5
+                                         <span class="list-paths__item__arrow">›</span> 
+                                        gopkg.in/yaml.v3@#496545a6307b
+                                        
+                                </span>
+        
+                            </li>
+                                <li>
+                                <span class="list-paths__item__introduced"><em>Introduced through</em>:
+                                        github.com/argoproj/argo-cd/v2@0.0.0
+                                         <span class="list-paths__item__arrow">›</span> 
+                                        github.com/argoproj/gitops-engine/pkg/utils/kube@0.5.5
+                                         <span class="list-paths__item__arrow">›</span> 
+                                        k8s.io/kubectl/pkg/util/openapi@0.22.2
+                                         <span class="list-paths__item__arrow">›</span> 
+                                        k8s.io/kube-openapi/pkg/util/proto@#95288971da7e
+                                         <span class="list-paths__item__arrow">›</span> 
+                                        github.com/googleapis/gnostic/openapiv2@0.5.5
+                                         <span class="list-paths__item__arrow">›</span> 
+                                        gopkg.in/yaml.v3@#496545a6307b
+                                        
+                                </span>
+        
+                            </li>
+                                <li>
+                                <span class="list-paths__item__introduced"><em>Introduced through</em>:
+                                        github.com/argoproj/argo-cd/v2@0.0.0
+                                         <span class="list-paths__item__arrow">›</span> 
+                                        k8s.io/client-go/discovery@0.22.2
+                                         <span class="list-paths__item__arrow">›</span> 
+                                        github.com/googleapis/gnostic/openapiv2@0.5.5
+                                         <span class="list-paths__item__arrow">›</span> 
+                                        github.com/googleapis/gnostic/compiler@0.5.5
+                                         <span class="list-paths__item__arrow">›</span> 
+                                        github.com/googleapis/gnostic/jsonschema@0.5.5
+                                         <span class="list-paths__item__arrow">›</span> 
+                                        gopkg.in/yaml.v3@#496545a6307b
+                                        
+                                </span>
+        
+                            </li>
+                                <li>
+                                <span class="list-paths__item__introduced"><em>Introduced through</em>:
+                                        github.com/argoproj/argo-cd/v2@0.0.0
+                                         <span class="list-paths__item__arrow">›</span> 
+                                        k8s.io/client-go/kubernetes@0.22.2
+                                         <span class="list-paths__item__arrow">›</span> 
+                                        k8s.io/client-go/discovery@0.22.2
+                                         <span class="list-paths__item__arrow">›</span> 
+                                        github.com/googleapis/gnostic/openapiv2@0.5.5
+                                         <span class="list-paths__item__arrow">›</span> 
+                                        github.com/googleapis/gnostic/compiler@0.5.5
+                                         <span class="list-paths__item__arrow">›</span> 
+                                        gopkg.in/yaml.v3@#496545a6307b
+                                        
+                                </span>
+        
+                            </li>
+                                <li>
+                                <span class="list-paths__item__introduced"><em>Introduced through</em>:
+                                        github.com/argoproj/argo-cd/v2@0.0.0
+                                         <span class="list-paths__item__arrow">›</span> 
+                                        k8s.io/kubectl/pkg/util/openapi@0.22.2
+                                         <span class="list-paths__item__arrow">›</span> 
+                                        k8s.io/kube-openapi/pkg/util/proto@#95288971da7e
+                                         <span class="list-paths__item__arrow">›</span> 
+                                        github.com/googleapis/gnostic/openapiv2@0.5.5
+                                         <span class="list-paths__item__arrow">›</span> 
+                                        github.com/googleapis/gnostic/compiler@0.5.5
+                                         <span class="list-paths__item__arrow">›</span> 
+                                        gopkg.in/yaml.v3@#496545a6307b
+                                        
+                                </span>
+        
+                            </li>
+                                <li>
+                                <span class="list-paths__item__introduced"><em>Introduced through</em>:
+                                        github.com/argoproj/argo-cd/v2@0.0.0
+                                         <span class="list-paths__item__arrow">›</span> 
+                                        k8s.io/client-go/discovery/fake@0.22.2
+                                         <span class="list-paths__item__arrow">›</span> 
+                                        k8s.io/client-go/testing@0.22.2
+                                         <span class="list-paths__item__arrow">›</span> 
+                                        k8s.io/apimachinery/pkg/util/strategicpatch@0.22.2
+                                         <span class="list-paths__item__arrow">›</span> 
+                                        k8s.io/kube-openapi/pkg/util/proto@#95288971da7e
+                                         <span class="list-paths__item__arrow">›</span> 
+                                        github.com/googleapis/gnostic/openapiv2@0.5.5
+                                         <span class="list-paths__item__arrow">›</span> 
+                                        gopkg.in/yaml.v3@#496545a6307b
+                                        
+                                </span>
+        
+                            </li>
+                                <li>
+                                <span class="list-paths__item__introduced"><em>Introduced through</em>:
+                                        github.com/argoproj/argo-cd/v2@0.0.0
+                                         <span class="list-paths__item__arrow">›</span> 
+                                        k8s.io/client-go/kubernetes/fake@0.22.2
+                                         <span class="list-paths__item__arrow">›</span> 
+                                        k8s.io/client-go/testing@0.22.2
+                                         <span class="list-paths__item__arrow">›</span> 
+                                        k8s.io/apimachinery/pkg/util/strategicpatch@0.22.2
+                                         <span class="list-paths__item__arrow">›</span> 
+                                        k8s.io/kube-openapi/pkg/util/proto@#95288971da7e
+                                         <span class="list-paths__item__arrow">›</span> 
+                                        github.com/googleapis/gnostic/openapiv2@0.5.5
+                                         <span class="list-paths__item__arrow">›</span> 
+                                        gopkg.in/yaml.v3@#496545a6307b
+                                        
+                                </span>
+        
+                            </li>
+                                <li>
+                                <span class="list-paths__item__introduced"><em>Introduced through</em>:
+                                        github.com/argoproj/argo-cd/v2@0.0.0
+                                         <span class="list-paths__item__arrow">›</span> 
+                                        github.com/argoproj/gitops-engine/pkg/health@0.5.5
+                                         <span class="list-paths__item__arrow">›</span> 
+                                        github.com/argoproj/gitops-engine/pkg/utils/kube@0.5.5
+                                         <span class="list-paths__item__arrow">›</span> 
+                                        k8s.io/kubectl/pkg/util/openapi@0.22.2
+                                         <span class="list-paths__item__arrow">›</span> 
+                                        k8s.io/kube-openapi/pkg/util/proto@#95288971da7e
+                                         <span class="list-paths__item__arrow">›</span> 
+                                        github.com/googleapis/gnostic/openapiv2@0.5.5
+                                         <span class="list-paths__item__arrow">›</span> 
+                                        gopkg.in/yaml.v3@#496545a6307b
+                                        
+                                </span>
+        
+                            </li>
+                                <li>
+                                <span class="list-paths__item__introduced"><em>Introduced through</em>:
+                                        github.com/argoproj/argo-cd/v2@0.0.0
+                                         <span class="list-paths__item__arrow">›</span> 
+                                        github.com/argoproj/gitops-engine/pkg/sync/common@0.5.5
+                                         <span class="list-paths__item__arrow">›</span> 
+                                        github.com/argoproj/gitops-engine/pkg/utils/kube@0.5.5
+                                         <span class="list-paths__item__arrow">›</span> 
+                                        k8s.io/kubectl/pkg/util/openapi@0.22.2
+                                         <span class="list-paths__item__arrow">›</span> 
+                                        k8s.io/kube-openapi/pkg/util/proto@#95288971da7e
+                                         <span class="list-paths__item__arrow">›</span> 
+                                        github.com/googleapis/gnostic/openapiv2@0.5.5
+                                         <span class="list-paths__item__arrow">›</span> 
+                                        gopkg.in/yaml.v3@#496545a6307b
+                                        
+                                </span>
+        
+                            </li>
+                                <li>
+                                <span class="list-paths__item__introduced"><em>Introduced through</em>:
+                                        github.com/argoproj/argo-cd/v2@0.0.0
+                                         <span class="list-paths__item__arrow">›</span> 
+                                        k8s.io/client-go/kubernetes@0.22.2
+                                         <span class="list-paths__item__arrow">›</span> 
+                                        k8s.io/client-go/discovery@0.22.2
+                                         <span class="list-paths__item__arrow">›</span> 
+                                        github.com/googleapis/gnostic/openapiv2@0.5.5
+                                         <span class="list-paths__item__arrow">›</span> 
+                                        github.com/googleapis/gnostic/compiler@0.5.5
+                                         <span class="list-paths__item__arrow">›</span> 
+                                        github.com/googleapis/gnostic/jsonschema@0.5.5
+                                         <span class="list-paths__item__arrow">›</span> 
+                                        gopkg.in/yaml.v3@#496545a6307b
+                                        
+                                </span>
+        
+                            </li>
+                                <li>
+                                <span class="list-paths__item__introduced"><em>Introduced through</em>:
+                                        github.com/argoproj/argo-cd/v2@0.0.0
+                                         <span class="list-paths__item__arrow">›</span> 
+                                        k8s.io/kubectl/pkg/util/openapi@0.22.2
+                                         <span class="list-paths__item__arrow">›</span> 
+                                        k8s.io/kube-openapi/pkg/util/proto@#95288971da7e
+                                         <span class="list-paths__item__arrow">›</span> 
+                                        github.com/googleapis/gnostic/openapiv2@0.5.5
+                                         <span class="list-paths__item__arrow">›</span> 
+                                        github.com/googleapis/gnostic/compiler@0.5.5
+                                         <span class="list-paths__item__arrow">›</span> 
+                                        github.com/googleapis/gnostic/jsonschema@0.5.5
+                                         <span class="list-paths__item__arrow">›</span> 
+                                        gopkg.in/yaml.v3@#496545a6307b
+                                        
+                                </span>
+        
+                            </li>
+                                <li>
+                                <span class="list-paths__item__introduced"><em>Introduced through</em>:
+                                        github.com/argoproj/argo-cd/v2@0.0.0
+                                         <span class="list-paths__item__arrow">›</span> 
+                                        k8s.io/client-go/informers@0.22.2
+                                         <span class="list-paths__item__arrow">›</span> 
+                                        k8s.io/client-go/kubernetes@0.22.2
+                                         <span class="list-paths__item__arrow">›</span> 
+                                        k8s.io/client-go/discovery@0.22.2
+                                         <span class="list-paths__item__arrow">›</span> 
+                                        github.com/googleapis/gnostic/openapiv2@0.5.5
+                                         <span class="list-paths__item__arrow">›</span> 
+                                        github.com/googleapis/gnostic/compiler@0.5.5
+                                         <span class="list-paths__item__arrow">›</span> 
+                                        gopkg.in/yaml.v3@#496545a6307b
+                                        
+                                </span>
+        
+                            </li>
+                                <li>
+                                <span class="list-paths__item__introduced"><em>Introduced through</em>:
+                                        github.com/argoproj/argo-cd/v2@0.0.0
+                                         <span class="list-paths__item__arrow">›</span> 
+                                        k8s.io/client-go/informers/core/v1@0.22.2
+                                         <span class="list-paths__item__arrow">›</span> 
+                                        k8s.io/client-go/kubernetes@0.22.2
+                                         <span class="list-paths__item__arrow">›</span> 
+                                        k8s.io/client-go/discovery@0.22.2
+                                         <span class="list-paths__item__arrow">›</span> 
+                                        github.com/googleapis/gnostic/openapiv2@0.5.5
+                                         <span class="list-paths__item__arrow">›</span> 
+                                        github.com/googleapis/gnostic/compiler@0.5.5
+                                         <span class="list-paths__item__arrow">›</span> 
+                                        gopkg.in/yaml.v3@#496545a6307b
+                                        
+                                </span>
+        
+                            </li>
+                                <li>
+                                <span class="list-paths__item__introduced"><em>Introduced through</em>:
+                                        github.com/argoproj/argo-cd/v2@0.0.0
+                                         <span class="list-paths__item__arrow">›</span> 
+                                        github.com/argoproj/gitops-engine/pkg/diff@0.5.5
+                                         <span class="list-paths__item__arrow">›</span> 
+                                        k8s.io/apimachinery/pkg/util/strategicpatch@0.22.2
+                                         <span class="list-paths__item__arrow">›</span> 
+                                        k8s.io/kube-openapi/pkg/util/proto@#95288971da7e
+                                         <span class="list-paths__item__arrow">›</span> 
+                                        github.com/googleapis/gnostic/openapiv2@0.5.5
+                                         <span class="list-paths__item__arrow">›</span> 
+                                        github.com/googleapis/gnostic/compiler@0.5.5
+                                         <span class="list-paths__item__arrow">›</span> 
+                                        gopkg.in/yaml.v3@#496545a6307b
+                                        
+                                </span>
+        
+                            </li>
+                                <li>
+                                <span class="list-paths__item__introduced"><em>Introduced through</em>:
+                                        github.com/argoproj/argo-cd/v2@0.0.0
+                                         <span class="list-paths__item__arrow">›</span> 
+                                        k8s.io/client-go/testing@0.22.2
+                                         <span class="list-paths__item__arrow">›</span> 
+                                        k8s.io/apimachinery/pkg/util/strategicpatch@0.22.2
+                                         <span class="list-paths__item__arrow">›</span> 
+                                        k8s.io/kube-openapi/pkg/util/proto@#95288971da7e
+                                         <span class="list-paths__item__arrow">›</span> 
+                                        github.com/googleapis/gnostic/openapiv2@0.5.5
+                                         <span class="list-paths__item__arrow">›</span> 
+                                        github.com/googleapis/gnostic/compiler@0.5.5
+                                         <span class="list-paths__item__arrow">›</span> 
+                                        gopkg.in/yaml.v3@#496545a6307b
+                                        
+                                </span>
+        
+                            </li>
+                                <li>
+                                <span class="list-paths__item__introduced"><em>Introduced through</em>:
+                                        github.com/argoproj/argo-cd/v2@0.0.0
+                                         <span class="list-paths__item__arrow">›</span> 
+                                        github.com/argoproj/gitops-engine/pkg/cache@0.5.5
+                                         <span class="list-paths__item__arrow">›</span> 
+                                        k8s.io/kubectl/pkg/util/openapi@0.22.2
+                                         <span class="list-paths__item__arrow">›</span> 
+                                        k8s.io/kube-openapi/pkg/util/proto@#95288971da7e
+                                         <span class="list-paths__item__arrow">›</span> 
+                                        github.com/googleapis/gnostic/openapiv2@0.5.5
+                                         <span class="list-paths__item__arrow">›</span> 
+                                        github.com/googleapis/gnostic/compiler@0.5.5
+                                         <span class="list-paths__item__arrow">›</span> 
+                                        gopkg.in/yaml.v3@#496545a6307b
+                                        
+                                </span>
+        
+                            </li>
+                                <li>
+                                <span class="list-paths__item__introduced"><em>Introduced through</em>:
+                                        github.com/argoproj/argo-cd/v2@0.0.0
+                                         <span class="list-paths__item__arrow">›</span> 
+                                        github.com/argoproj/gitops-engine/pkg/sync@0.5.5
+                                         <span class="list-paths__item__arrow">›</span> 
+                                        k8s.io/kubectl/pkg/util/openapi@0.22.2
+                                         <span class="list-paths__item__arrow">›</span> 
+                                        k8s.io/kube-openapi/pkg/util/proto@#95288971da7e
+                                         <span class="list-paths__item__arrow">›</span> 
+                                        github.com/googleapis/gnostic/openapiv2@0.5.5
+                                         <span class="list-paths__item__arrow">›</span> 
+                                        github.com/googleapis/gnostic/compiler@0.5.5
+                                         <span class="list-paths__item__arrow">›</span> 
+                                        gopkg.in/yaml.v3@#496545a6307b
+                                        
+                                </span>
+        
+                            </li>
+                                <li>
+                                <span class="list-paths__item__introduced"><em>Introduced through</em>:
+                                        github.com/argoproj/argo-cd/v2@0.0.0
+                                         <span class="list-paths__item__arrow">›</span> 
+                                        github.com/argoproj/gitops-engine/pkg/utils/kube@0.5.5
+                                         <span class="list-paths__item__arrow">›</span> 
+                                        k8s.io/kubectl/pkg/util/openapi@0.22.2
+                                         <span class="list-paths__item__arrow">›</span> 
+                                        k8s.io/kube-openapi/pkg/util/proto@#95288971da7e
+                                         <span class="list-paths__item__arrow">›</span> 
+                                        github.com/googleapis/gnostic/openapiv2@0.5.5
+                                         <span class="list-paths__item__arrow">›</span> 
+                                        github.com/googleapis/gnostic/compiler@0.5.5
+                                         <span class="list-paths__item__arrow">›</span> 
+                                        gopkg.in/yaml.v3@#496545a6307b
+                                        
+                                </span>
+        
+                            </li>
+                                <li>
+                                <span class="list-paths__item__introduced"><em>Introduced through</em>:
+                                        github.com/argoproj/argo-cd/v2@0.0.0
+                                         <span class="list-paths__item__arrow">›</span> 
+                                        sigs.k8s.io/controller-runtime/pkg/envtest@0.8.3
+                                         <span class="list-paths__item__arrow">›</span> 
+                                        sigs.k8s.io/controller-runtime/pkg/client@0.8.3
+                                         <span class="list-paths__item__arrow">›</span> 
+                                        sigs.k8s.io/controller-runtime/pkg/client/apiutil@0.8.3
+                                         <span class="list-paths__item__arrow">›</span> 
+                                        k8s.io/client-go/restmapper@0.22.2
+                                         <span class="list-paths__item__arrow">›</span> 
+                                        k8s.io/client-go/discovery@0.22.2
+                                         <span class="list-paths__item__arrow">›</span> 
+                                        github.com/googleapis/gnostic/openapiv2@0.5.5
+                                         <span class="list-paths__item__arrow">›</span> 
+                                        gopkg.in/yaml.v3@#496545a6307b
+                                        
+                                </span>
+        
+                            </li>
+                                <li>
+                                <span class="list-paths__item__introduced"><em>Introduced through</em>:
+                                        github.com/argoproj/argo-cd/v2@0.0.0
+                                         <span class="list-paths__item__arrow">›</span> 
+                                        k8s.io/client-go/informers@0.22.2
+                                         <span class="list-paths__item__arrow">›</span> 
+                                        k8s.io/client-go/kubernetes@0.22.2
+                                         <span class="list-paths__item__arrow">›</span> 
+                                        k8s.io/client-go/discovery@0.22.2
+                                         <span class="list-paths__item__arrow">›</span> 
+                                        github.com/googleapis/gnostic/openapiv2@0.5.5
+                                         <span class="list-paths__item__arrow">›</span> 
+                                        github.com/googleapis/gnostic/compiler@0.5.5
+                                         <span class="list-paths__item__arrow">›</span> 
+                                        github.com/googleapis/gnostic/jsonschema@0.5.5
+                                         <span class="list-paths__item__arrow">›</span> 
+                                        gopkg.in/yaml.v3@#496545a6307b
+                                        
+                                </span>
+        
+                            </li>
+                                <li>
+                                <span class="list-paths__item__introduced"><em>Introduced through</em>:
+                                        github.com/argoproj/argo-cd/v2@0.0.0
+                                         <span class="list-paths__item__arrow">›</span> 
+                                        k8s.io/client-go/informers/core/v1@0.22.2
+                                         <span class="list-paths__item__arrow">›</span> 
+                                        k8s.io/client-go/kubernetes@0.22.2
+                                         <span class="list-paths__item__arrow">›</span> 
+                                        k8s.io/client-go/discovery@0.22.2
+                                         <span class="list-paths__item__arrow">›</span> 
+                                        github.com/googleapis/gnostic/openapiv2@0.5.5
+                                         <span class="list-paths__item__arrow">›</span> 
+                                        github.com/googleapis/gnostic/compiler@0.5.5
+                                         <span class="list-paths__item__arrow">›</span> 
+                                        github.com/googleapis/gnostic/jsonschema@0.5.5
+                                         <span class="list-paths__item__arrow">›</span> 
+                                        gopkg.in/yaml.v3@#496545a6307b
+                                        
+                                </span>
+        
+                            </li>
+                                <li>
+                                <span class="list-paths__item__introduced"><em>Introduced through</em>:
+                                        github.com/argoproj/argo-cd/v2@0.0.0
+                                         <span class="list-paths__item__arrow">›</span> 
+                                        github.com/argoproj/gitops-engine/pkg/diff@0.5.5
+                                         <span class="list-paths__item__arrow">›</span> 
+                                        k8s.io/apimachinery/pkg/util/strategicpatch@0.22.2
+                                         <span class="list-paths__item__arrow">›</span> 
+                                        k8s.io/kube-openapi/pkg/util/proto@#95288971da7e
+                                         <span class="list-paths__item__arrow">›</span> 
+                                        github.com/googleapis/gnostic/openapiv2@0.5.5
+                                         <span class="list-paths__item__arrow">›</span> 
+                                        github.com/googleapis/gnostic/compiler@0.5.5
+                                         <span class="list-paths__item__arrow">›</span> 
+                                        github.com/googleapis/gnostic/jsonschema@0.5.5
+                                         <span class="list-paths__item__arrow">›</span> 
+                                        gopkg.in/yaml.v3@#496545a6307b
+                                        
+                                </span>
+        
+                            </li>
+                                <li>
+                                <span class="list-paths__item__introduced"><em>Introduced through</em>:
+                                        github.com/argoproj/argo-cd/v2@0.0.0
+                                         <span class="list-paths__item__arrow">›</span> 
+                                        k8s.io/client-go/testing@0.22.2
+                                         <span class="list-paths__item__arrow">›</span> 
+                                        k8s.io/apimachinery/pkg/util/strategicpatch@0.22.2
+                                         <span class="list-paths__item__arrow">›</span> 
+                                        k8s.io/kube-openapi/pkg/util/proto@#95288971da7e
+                                         <span class="list-paths__item__arrow">›</span> 
+                                        github.com/googleapis/gnostic/openapiv2@0.5.5
+                                         <span class="list-paths__item__arrow">›</span> 
+                                        github.com/googleapis/gnostic/compiler@0.5.5
+                                         <span class="list-paths__item__arrow">›</span> 
+                                        github.com/googleapis/gnostic/jsonschema@0.5.5
+                                         <span class="list-paths__item__arrow">›</span> 
+                                        gopkg.in/yaml.v3@#496545a6307b
+                                        
+                                </span>
+        
+                            </li>
+                                <li>
+                                <span class="list-paths__item__introduced"><em>Introduced through</em>:
+                                        github.com/argoproj/argo-cd/v2@0.0.0
+                                         <span class="list-paths__item__arrow">›</span> 
+                                        github.com/argoproj/gitops-engine/pkg/cache@0.5.5
+                                         <span class="list-paths__item__arrow">›</span> 
+                                        k8s.io/kubectl/pkg/util/openapi@0.22.2
+                                         <span class="list-paths__item__arrow">›</span> 
+                                        k8s.io/kube-openapi/pkg/util/proto@#95288971da7e
+                                         <span class="list-paths__item__arrow">›</span> 
+                                        github.com/googleapis/gnostic/openapiv2@0.5.5
+                                         <span class="list-paths__item__arrow">›</span> 
+                                        github.com/googleapis/gnostic/compiler@0.5.5
+                                         <span class="list-paths__item__arrow">›</span> 
+                                        github.com/googleapis/gnostic/jsonschema@0.5.5
+                                         <span class="list-paths__item__arrow">›</span> 
+                                        gopkg.in/yaml.v3@#496545a6307b
+                                        
+                                </span>
+        
+                            </li>
+                                <li>
+                                <span class="list-paths__item__introduced"><em>Introduced through</em>:
+                                        github.com/argoproj/argo-cd/v2@0.0.0
+                                         <span class="list-paths__item__arrow">›</span> 
+                                        github.com/argoproj/gitops-engine/pkg/sync@0.5.5
+                                         <span class="list-paths__item__arrow">›</span> 
+                                        k8s.io/kubectl/pkg/util/openapi@0.22.2
+                                         <span class="list-paths__item__arrow">›</span> 
+                                        k8s.io/kube-openapi/pkg/util/proto@#95288971da7e
+                                         <span class="list-paths__item__arrow">›</span> 
+                                        github.com/googleapis/gnostic/openapiv2@0.5.5
+                                         <span class="list-paths__item__arrow">›</span> 
+                                        github.com/googleapis/gnostic/compiler@0.5.5
+                                         <span class="list-paths__item__arrow">›</span> 
+                                        github.com/googleapis/gnostic/jsonschema@0.5.5
+                                         <span class="list-paths__item__arrow">›</span> 
+                                        gopkg.in/yaml.v3@#496545a6307b
+                                        
+                                </span>
+        
+                            </li>
+                                <li>
+                                <span class="list-paths__item__introduced"><em>Introduced through</em>:
+                                        github.com/argoproj/argo-cd/v2@0.0.0
+                                         <span class="list-paths__item__arrow">›</span> 
+                                        github.com/argoproj/gitops-engine/pkg/utils/kube@0.5.5
+                                         <span class="list-paths__item__arrow">›</span> 
+                                        k8s.io/kubectl/pkg/util/openapi@0.22.2
+                                         <span class="list-paths__item__arrow">›</span> 
+                                        k8s.io/kube-openapi/pkg/util/proto@#95288971da7e
+                                         <span class="list-paths__item__arrow">›</span> 
+                                        github.com/googleapis/gnostic/openapiv2@0.5.5
+                                         <span class="list-paths__item__arrow">›</span> 
+                                        github.com/googleapis/gnostic/compiler@0.5.5
+                                         <span class="list-paths__item__arrow">›</span> 
+                                        github.com/googleapis/gnostic/jsonschema@0.5.5
+                                         <span class="list-paths__item__arrow">›</span> 
+                                        gopkg.in/yaml.v3@#496545a6307b
+                                        
+                                </span>
+        
+                            </li>
+                                <li>
+                                <span class="list-paths__item__introduced"><em>Introduced through</em>:
+                                        github.com/argoproj/argo-cd/v2@0.0.0
+                                         <span class="list-paths__item__arrow">›</span> 
+                                        k8s.io/client-go/discovery/fake@0.22.2
+                                         <span class="list-paths__item__arrow">›</span> 
+                                        k8s.io/client-go/testing@0.22.2
+                                         <span class="list-paths__item__arrow">›</span> 
+                                        k8s.io/apimachinery/pkg/util/strategicpatch@0.22.2
+                                         <span class="list-paths__item__arrow">›</span> 
+                                        k8s.io/kube-openapi/pkg/util/proto@#95288971da7e
+                                         <span class="list-paths__item__arrow">›</span> 
+                                        github.com/googleapis/gnostic/openapiv2@0.5.5
+                                         <span class="list-paths__item__arrow">›</span> 
+                                        github.com/googleapis/gnostic/compiler@0.5.5
+                                         <span class="list-paths__item__arrow">›</span> 
+                                        gopkg.in/yaml.v3@#496545a6307b
+                                        
+                                </span>
+        
+                            </li>
+                                <li>
+                                <span class="list-paths__item__introduced"><em>Introduced through</em>:
+                                        github.com/argoproj/argo-cd/v2@0.0.0
+                                         <span class="list-paths__item__arrow">›</span> 
+                                        k8s.io/client-go/kubernetes/fake@0.22.2
+                                         <span class="list-paths__item__arrow">›</span> 
+                                        k8s.io/client-go/testing@0.22.2
+                                         <span class="list-paths__item__arrow">›</span> 
+                                        k8s.io/apimachinery/pkg/util/strategicpatch@0.22.2
+                                         <span class="list-paths__item__arrow">›</span> 
+                                        k8s.io/kube-openapi/pkg/util/proto@#95288971da7e
+                                         <span class="list-paths__item__arrow">›</span> 
+                                        github.com/googleapis/gnostic/openapiv2@0.5.5
+                                         <span class="list-paths__item__arrow">›</span> 
+                                        github.com/googleapis/gnostic/compiler@0.5.5
+                                         <span class="list-paths__item__arrow">›</span> 
+                                        gopkg.in/yaml.v3@#496545a6307b
+                                        
+                                </span>
+        
+                            </li>
+                                <li>
+                                <span class="list-paths__item__introduced"><em>Introduced through</em>:
+                                        github.com/argoproj/argo-cd/v2@0.0.0
+                                         <span class="list-paths__item__arrow">›</span> 
+                                        github.com/argoproj/gitops-engine/pkg/health@0.5.5
+                                         <span class="list-paths__item__arrow">›</span> 
+                                        github.com/argoproj/gitops-engine/pkg/utils/kube@0.5.5
+                                         <span class="list-paths__item__arrow">›</span> 
+                                        k8s.io/kubectl/pkg/util/openapi@0.22.2
+                                         <span class="list-paths__item__arrow">›</span> 
+                                        k8s.io/kube-openapi/pkg/util/proto@#95288971da7e
+                                         <span class="list-paths__item__arrow">›</span> 
+                                        github.com/googleapis/gnostic/openapiv2@0.5.5
+                                         <span class="list-paths__item__arrow">›</span> 
+                                        github.com/googleapis/gnostic/compiler@0.5.5
+                                         <span class="list-paths__item__arrow">›</span> 
+                                        gopkg.in/yaml.v3@#496545a6307b
+                                        
+                                </span>
+        
+                            </li>
+                                <li>
+                                <span class="list-paths__item__introduced"><em>Introduced through</em>:
+                                        github.com/argoproj/argo-cd/v2@0.0.0
+                                         <span class="list-paths__item__arrow">›</span> 
+                                        github.com/argoproj/gitops-engine/pkg/sync/common@0.5.5
+                                         <span class="list-paths__item__arrow">›</span> 
+                                        github.com/argoproj/gitops-engine/pkg/utils/kube@0.5.5
+                                         <span class="list-paths__item__arrow">›</span> 
+                                        k8s.io/kubectl/pkg/util/openapi@0.22.2
+                                         <span class="list-paths__item__arrow">›</span> 
+                                        k8s.io/kube-openapi/pkg/util/proto@#95288971da7e
+                                         <span class="list-paths__item__arrow">›</span> 
+                                        github.com/googleapis/gnostic/openapiv2@0.5.5
+                                         <span class="list-paths__item__arrow">›</span> 
+                                        github.com/googleapis/gnostic/compiler@0.5.5
+                                         <span class="list-paths__item__arrow">›</span> 
+                                        gopkg.in/yaml.v3@#496545a6307b
+                                        
+                                </span>
+        
+                            </li>
+                                <li>
+                                <span class="list-paths__item__introduced"><em>Introduced through</em>:
+                                        github.com/argoproj/argo-cd/v2@0.0.0
+                                         <span class="list-paths__item__arrow">›</span> 
+                                        github.com/argoproj/gitops-engine/pkg/sync/hook@0.5.5
+                                         <span class="list-paths__item__arrow">›</span> 
+                                        github.com/argoproj/gitops-engine/pkg/sync/hook/helm@0.5.5
+                                         <span class="list-paths__item__arrow">›</span> 
+                                        github.com/argoproj/gitops-engine/pkg/sync/common@0.5.5
+                                         <span class="list-paths__item__arrow">›</span> 
+                                        github.com/argoproj/gitops-engine/pkg/utils/kube@0.5.5
+                                         <span class="list-paths__item__arrow">›</span> 
+                                        k8s.io/kubectl/pkg/util/openapi@0.22.2
+                                         <span class="list-paths__item__arrow">›</span> 
+                                        k8s.io/kube-openapi/pkg/util/proto@#95288971da7e
+                                         <span class="list-paths__item__arrow">›</span> 
+                                        github.com/googleapis/gnostic/openapiv2@0.5.5
+                                         <span class="list-paths__item__arrow">›</span> 
+                                        gopkg.in/yaml.v3@#496545a6307b
+                                        
+                                </span>
+        
+                            </li>
+                                <li>
+                                <span class="list-paths__item__introduced"><em>Introduced through</em>:
+                                        github.com/argoproj/argo-cd/v2@0.0.0
+                                         <span class="list-paths__item__arrow">›</span> 
+                                        github.com/argoproj/gitops-engine/pkg/sync/syncwaves@0.5.5
+                                         <span class="list-paths__item__arrow">›</span> 
+                                        github.com/argoproj/gitops-engine/pkg/sync/hook/helm@0.5.5
+                                         <span class="list-paths__item__arrow">›</span> 
+                                        github.com/argoproj/gitops-engine/pkg/sync/common@0.5.5
+                                         <span class="list-paths__item__arrow">›</span> 
+                                        github.com/argoproj/gitops-engine/pkg/utils/kube@0.5.5
+                                         <span class="list-paths__item__arrow">›</span> 
+                                        k8s.io/kubectl/pkg/util/openapi@0.22.2
+                                         <span class="list-paths__item__arrow">›</span> 
+                                        k8s.io/kube-openapi/pkg/util/proto@#95288971da7e
+                                         <span class="list-paths__item__arrow">›</span> 
+                                        github.com/googleapis/gnostic/openapiv2@0.5.5
+                                         <span class="list-paths__item__arrow">›</span> 
+                                        gopkg.in/yaml.v3@#496545a6307b
+                                        
+                                </span>
+        
+                            </li>
+                                <li>
+                                <span class="list-paths__item__introduced"><em>Introduced through</em>:
+                                        github.com/argoproj/argo-cd/v2@0.0.0
+                                         <span class="list-paths__item__arrow">›</span> 
+                                        github.com/argoproj/gitops-engine/pkg/utils/kube@0.5.5
+                                         <span class="list-paths__item__arrow">›</span> 
+                                        k8s.io/kubectl/pkg/cmd/util@0.22.2
+                                         <span class="list-paths__item__arrow">›</span> 
+                                        k8s.io/cli-runtime/pkg/resource@0.22.2
+                                         <span class="list-paths__item__arrow">›</span> 
+                                        sigs.k8s.io/kustomize/api/krusty@0.8.11
+                                         <span class="list-paths__item__arrow">›</span> 
+                                        sigs.k8s.io/kustomize/api/resmap@0.8.11
+                                         <span class="list-paths__item__arrow">›</span> 
+                                        sigs.k8s.io/kustomize/kyaml/kio@0.11.0
+                                         <span class="list-paths__item__arrow">›</span> 
+                                        github.com/stretchr/testify/assert@1.7.0
+                                         <span class="list-paths__item__arrow">›</span> 
+                                        gopkg.in/yaml.v3@#496545a6307b
+                                        
+                                </span>
+        
+                            </li>
+                                <li>
+                                <span class="list-paths__item__introduced"><em>Introduced through</em>:
+                                        github.com/argoproj/argo-cd/v2@0.0.0
+                                         <span class="list-paths__item__arrow">›</span> 
+                                        github.com/argoproj/gitops-engine/pkg/sync@0.5.5
+                                         <span class="list-paths__item__arrow">›</span> 
+                                        k8s.io/kubectl/pkg/cmd/util@0.22.2
+                                         <span class="list-paths__item__arrow">›</span> 
+                                        k8s.io/cli-runtime/pkg/resource@0.22.2
+                                         <span class="list-paths__item__arrow">›</span> 
+                                        sigs.k8s.io/kustomize/api/krusty@0.8.11
+                                         <span class="list-paths__item__arrow">›</span> 
+                                        sigs.k8s.io/kustomize/api/resmap@0.8.11
+                                         <span class="list-paths__item__arrow">›</span> 
+                                        sigs.k8s.io/kustomize/kyaml/kio@0.11.0
+                                         <span class="list-paths__item__arrow">›</span> 
+                                        github.com/stretchr/testify/assert@1.7.0
+                                         <span class="list-paths__item__arrow">›</span> 
+                                        gopkg.in/yaml.v3@#496545a6307b
+                                        
+                                </span>
+        
+                            </li>
+                                <li>
+                                <span class="list-paths__item__introduced"><em>Introduced through</em>:
+                                        github.com/argoproj/argo-cd/v2@0.0.0
+                                         <span class="list-paths__item__arrow">›</span> 
+                                        k8s.io/client-go/discovery/fake@0.22.2
+                                         <span class="list-paths__item__arrow">›</span> 
+                                        k8s.io/client-go/testing@0.22.2
+                                         <span class="list-paths__item__arrow">›</span> 
+                                        k8s.io/apimachinery/pkg/util/strategicpatch@0.22.2
+                                         <span class="list-paths__item__arrow">›</span> 
+                                        k8s.io/kube-openapi/pkg/util/proto@#95288971da7e
+                                         <span class="list-paths__item__arrow">›</span> 
+                                        github.com/googleapis/gnostic/openapiv2@0.5.5
+                                         <span class="list-paths__item__arrow">›</span> 
+                                        github.com/googleapis/gnostic/compiler@0.5.5
+                                         <span class="list-paths__item__arrow">›</span> 
+                                        github.com/googleapis/gnostic/jsonschema@0.5.5
+                                         <span class="list-paths__item__arrow">›</span> 
+                                        gopkg.in/yaml.v3@#496545a6307b
+                                        
+                                </span>
+        
+                            </li>
+                                <li>
+                                <span class="list-paths__item__introduced"><em>Introduced through</em>:
+                                        github.com/argoproj/argo-cd/v2@0.0.0
+                                         <span class="list-paths__item__arrow">›</span> 
+                                        k8s.io/client-go/kubernetes/fake@0.22.2
+                                         <span class="list-paths__item__arrow">›</span> 
+                                        k8s.io/client-go/testing@0.22.2
+                                         <span class="list-paths__item__arrow">›</span> 
+                                        k8s.io/apimachinery/pkg/util/strategicpatch@0.22.2
+                                         <span class="list-paths__item__arrow">›</span> 
+                                        k8s.io/kube-openapi/pkg/util/proto@#95288971da7e
+                                         <span class="list-paths__item__arrow">›</span> 
+                                        github.com/googleapis/gnostic/openapiv2@0.5.5
+                                         <span class="list-paths__item__arrow">›</span> 
+                                        github.com/googleapis/gnostic/compiler@0.5.5
+                                         <span class="list-paths__item__arrow">›</span> 
+                                        github.com/googleapis/gnostic/jsonschema@0.5.5
+                                         <span class="list-paths__item__arrow">›</span> 
+                                        gopkg.in/yaml.v3@#496545a6307b
+                                        
+                                </span>
+        
+                            </li>
+                                <li>
+                                <span class="list-paths__item__introduced"><em>Introduced through</em>:
+                                        github.com/argoproj/argo-cd/v2@0.0.0
+                                         <span class="list-paths__item__arrow">›</span> 
+                                        github.com/argoproj/gitops-engine/pkg/health@0.5.5
+                                         <span class="list-paths__item__arrow">›</span> 
+                                        github.com/argoproj/gitops-engine/pkg/utils/kube@0.5.5
+                                         <span class="list-paths__item__arrow">›</span> 
+                                        k8s.io/kubectl/pkg/util/openapi@0.22.2
+                                         <span class="list-paths__item__arrow">›</span> 
+                                        k8s.io/kube-openapi/pkg/util/proto@#95288971da7e
+                                         <span class="list-paths__item__arrow">›</span> 
+                                        github.com/googleapis/gnostic/openapiv2@0.5.5
+                                         <span class="list-paths__item__arrow">›</span> 
+                                        github.com/googleapis/gnostic/compiler@0.5.5
+                                         <span class="list-paths__item__arrow">›</span> 
+                                        github.com/googleapis/gnostic/jsonschema@0.5.5
+                                         <span class="list-paths__item__arrow">›</span> 
+                                        gopkg.in/yaml.v3@#496545a6307b
+                                        
+                                </span>
+        
+                            </li>
+                                <li>
+                                <span class="list-paths__item__introduced"><em>Introduced through</em>:
+                                        github.com/argoproj/argo-cd/v2@0.0.0
+                                         <span class="list-paths__item__arrow">›</span> 
+                                        github.com/argoproj/gitops-engine/pkg/sync/common@0.5.5
+                                         <span class="list-paths__item__arrow">›</span> 
+                                        github.com/argoproj/gitops-engine/pkg/utils/kube@0.5.5
+                                         <span class="list-paths__item__arrow">›</span> 
+                                        k8s.io/kubectl/pkg/util/openapi@0.22.2
+                                         <span class="list-paths__item__arrow">›</span> 
+                                        k8s.io/kube-openapi/pkg/util/proto@#95288971da7e
+                                         <span class="list-paths__item__arrow">›</span> 
+                                        github.com/googleapis/gnostic/openapiv2@0.5.5
+                                         <span class="list-paths__item__arrow">›</span> 
+                                        github.com/googleapis/gnostic/compiler@0.5.5
+                                         <span class="list-paths__item__arrow">›</span> 
+                                        github.com/googleapis/gnostic/jsonschema@0.5.5
+                                         <span class="list-paths__item__arrow">›</span> 
+                                        gopkg.in/yaml.v3@#496545a6307b
+                                        
+                                </span>
+        
+                            </li>
+                                <li>
+                                <span class="list-paths__item__introduced"><em>Introduced through</em>:
+                                        github.com/argoproj/argo-cd/v2@0.0.0
+                                         <span class="list-paths__item__arrow">›</span> 
+                                        sigs.k8s.io/controller-runtime/pkg/envtest@0.8.3
+                                         <span class="list-paths__item__arrow">›</span> 
+                                        sigs.k8s.io/controller-runtime/pkg/client@0.8.3
+                                         <span class="list-paths__item__arrow">›</span> 
+                                        sigs.k8s.io/controller-runtime/pkg/client/apiutil@0.8.3
+                                         <span class="list-paths__item__arrow">›</span> 
+                                        k8s.io/client-go/restmapper@0.22.2
+                                         <span class="list-paths__item__arrow">›</span> 
+                                        k8s.io/client-go/discovery@0.22.2
+                                         <span class="list-paths__item__arrow">›</span> 
+                                        github.com/googleapis/gnostic/openapiv2@0.5.5
+                                         <span class="list-paths__item__arrow">›</span> 
+                                        github.com/googleapis/gnostic/compiler@0.5.5
+                                         <span class="list-paths__item__arrow">›</span> 
+                                        gopkg.in/yaml.v3@#496545a6307b
+                                        
+                                </span>
+        
+                            </li>
+                                <li>
+                                <span class="list-paths__item__introduced"><em>Introduced through</em>:
+                                        github.com/argoproj/argo-cd/v2@0.0.0
+                                         <span class="list-paths__item__arrow">›</span> 
+                                        github.com/argoproj/gitops-engine/pkg/sync/ignore@0.5.5
+                                         <span class="list-paths__item__arrow">›</span> 
+                                        github.com/argoproj/gitops-engine/pkg/sync/hook@0.5.5
+                                         <span class="list-paths__item__arrow">›</span> 
+                                        github.com/argoproj/gitops-engine/pkg/sync/hook/helm@0.5.5
+                                         <span class="list-paths__item__arrow">›</span> 
+                                        github.com/argoproj/gitops-engine/pkg/sync/common@0.5.5
+                                         <span class="list-paths__item__arrow">›</span> 
+                                        github.com/argoproj/gitops-engine/pkg/utils/kube@0.5.5
+                                         <span class="list-paths__item__arrow">›</span> 
+                                        k8s.io/kubectl/pkg/util/openapi@0.22.2
+                                         <span class="list-paths__item__arrow">›</span> 
+                                        k8s.io/kube-openapi/pkg/util/proto@#95288971da7e
+                                         <span class="list-paths__item__arrow">›</span> 
+                                        github.com/googleapis/gnostic/openapiv2@0.5.5
+                                         <span class="list-paths__item__arrow">›</span> 
+                                        gopkg.in/yaml.v3@#496545a6307b
+                                        
+                                </span>
+        
+                            </li>
+                                <li>
+                                <span class="list-paths__item__introduced"><em>Introduced through</em>:
+                                        github.com/argoproj/argo-cd/v2@0.0.0
+                                         <span class="list-paths__item__arrow">›</span> 
+                                        github.com/argoproj/gitops-engine/pkg/cache@0.5.5
+                                         <span class="list-paths__item__arrow">›</span> 
+                                        github.com/argoproj/gitops-engine/pkg/utils/kube@0.5.5
+                                         <span class="list-paths__item__arrow">›</span> 
+                                        k8s.io/kubectl/pkg/cmd/util@0.22.2
+                                         <span class="list-paths__item__arrow">›</span> 
+                                        k8s.io/cli-runtime/pkg/resource@0.22.2
+                                         <span class="list-paths__item__arrow">›</span> 
+                                        sigs.k8s.io/kustomize/api/krusty@0.8.11
+                                         <span class="list-paths__item__arrow">›</span> 
+                                        sigs.k8s.io/kustomize/api/resmap@0.8.11
+                                         <span class="list-paths__item__arrow">›</span> 
+                                        sigs.k8s.io/kustomize/kyaml/kio@0.11.0
+                                         <span class="list-paths__item__arrow">›</span> 
+                                        github.com/stretchr/testify/assert@1.7.0
+                                         <span class="list-paths__item__arrow">›</span> 
+                                        gopkg.in/yaml.v3@#496545a6307b
+                                        
+                                </span>
+        
+                            </li>
+                                <li>
+                                <span class="list-paths__item__introduced"><em>Introduced through</em>:
+                                        github.com/argoproj/argo-cd/v2@0.0.0
+                                         <span class="list-paths__item__arrow">›</span> 
+                                        github.com/argoproj/gitops-engine/pkg/health@0.5.5
+                                         <span class="list-paths__item__arrow">›</span> 
+                                        github.com/argoproj/gitops-engine/pkg/utils/kube@0.5.5
+                                         <span class="list-paths__item__arrow">›</span> 
+                                        k8s.io/kubectl/pkg/cmd/util@0.22.2
+                                         <span class="list-paths__item__arrow">›</span> 
+                                        k8s.io/cli-runtime/pkg/resource@0.22.2
+                                         <span class="list-paths__item__arrow">›</span> 
+                                        sigs.k8s.io/kustomize/api/krusty@0.8.11
+                                         <span class="list-paths__item__arrow">›</span> 
+                                        sigs.k8s.io/kustomize/api/resmap@0.8.11
+                                         <span class="list-paths__item__arrow">›</span> 
+                                        sigs.k8s.io/kustomize/kyaml/kio@0.11.0
+                                         <span class="list-paths__item__arrow">›</span> 
+                                        github.com/stretchr/testify/assert@1.7.0
+                                         <span class="list-paths__item__arrow">›</span> 
+                                        gopkg.in/yaml.v3@#496545a6307b
+                                        
+                                </span>
+        
+                            </li>
+                                <li>
+                                <span class="list-paths__item__introduced"><em>Introduced through</em>:
+                                        github.com/argoproj/argo-cd/v2@0.0.0
+                                         <span class="list-paths__item__arrow">›</span> 
+                                        github.com/argoproj/gitops-engine/pkg/sync/common@0.5.5
+                                         <span class="list-paths__item__arrow">›</span> 
+                                        github.com/argoproj/gitops-engine/pkg/utils/kube@0.5.5
+                                         <span class="list-paths__item__arrow">›</span> 
+                                        k8s.io/kubectl/pkg/cmd/util@0.22.2
+                                         <span class="list-paths__item__arrow">›</span> 
+                                        k8s.io/cli-runtime/pkg/resource@0.22.2
+                                         <span class="list-paths__item__arrow">›</span> 
+                                        sigs.k8s.io/kustomize/api/krusty@0.8.11
+                                         <span class="list-paths__item__arrow">›</span> 
+                                        sigs.k8s.io/kustomize/api/resmap@0.8.11
+                                         <span class="list-paths__item__arrow">›</span> 
+                                        sigs.k8s.io/kustomize/kyaml/kio@0.11.0
+                                         <span class="list-paths__item__arrow">›</span> 
+                                        github.com/stretchr/testify/assert@1.7.0
+                                         <span class="list-paths__item__arrow">›</span> 
+                                        gopkg.in/yaml.v3@#496545a6307b
+                                        
+                                </span>
+        
+                            </li>
+                                <li>
+                                <span class="list-paths__item__introduced"><em>Introduced through</em>:
+                                        github.com/argoproj/argo-cd/v2@0.0.0
+                                         <span class="list-paths__item__arrow">›</span> 
+                                        sigs.k8s.io/controller-runtime/pkg/envtest@0.8.3
+                                         <span class="list-paths__item__arrow">›</span> 
+                                        sigs.k8s.io/controller-runtime/pkg/client@0.8.3
+                                         <span class="list-paths__item__arrow">›</span> 
+                                        sigs.k8s.io/controller-runtime/pkg/client/apiutil@0.8.3
+                                         <span class="list-paths__item__arrow">›</span> 
+                                        k8s.io/client-go/restmapper@0.22.2
+                                         <span class="list-paths__item__arrow">›</span> 
+                                        k8s.io/client-go/discovery@0.22.2
+                                         <span class="list-paths__item__arrow">›</span> 
+                                        github.com/googleapis/gnostic/openapiv2@0.5.5
+                                         <span class="list-paths__item__arrow">›</span> 
+                                        github.com/googleapis/gnostic/compiler@0.5.5
+                                         <span class="list-paths__item__arrow">›</span> 
+                                        github.com/googleapis/gnostic/jsonschema@0.5.5
+                                         <span class="list-paths__item__arrow">›</span> 
+                                        gopkg.in/yaml.v3@#496545a6307b
+                                        
+                                </span>
+        
+                            </li>
+                                <li>
+                                <span class="list-paths__item__introduced"><em>Introduced through</em>:
+                                        github.com/argoproj/argo-cd/v2@0.0.0
+                                         <span class="list-paths__item__arrow">›</span> 
+                                        github.com/argoproj/gitops-engine/pkg/sync/hook@0.5.5
+                                         <span class="list-paths__item__arrow">›</span> 
+                                        github.com/argoproj/gitops-engine/pkg/sync/hook/helm@0.5.5
+                                         <span class="list-paths__item__arrow">›</span> 
+                                        github.com/argoproj/gitops-engine/pkg/sync/common@0.5.5
+                                         <span class="list-paths__item__arrow">›</span> 
+                                        github.com/argoproj/gitops-engine/pkg/utils/kube@0.5.5
+                                         <span class="list-paths__item__arrow">›</span> 
+                                        k8s.io/kubectl/pkg/util/openapi@0.22.2
+                                         <span class="list-paths__item__arrow">›</span> 
+                                        k8s.io/kube-openapi/pkg/util/proto@#95288971da7e
+                                         <span class="list-paths__item__arrow">›</span> 
+                                        github.com/googleapis/gnostic/openapiv2@0.5.5
+                                         <span class="list-paths__item__arrow">›</span> 
+                                        github.com/googleapis/gnostic/compiler@0.5.5
+                                         <span class="list-paths__item__arrow">›</span> 
+                                        gopkg.in/yaml.v3@#496545a6307b
+                                        
+                                </span>
+        
+                            </li>
+                                <li>
+                                <span class="list-paths__item__introduced"><em>Introduced through</em>:
+                                        github.com/argoproj/argo-cd/v2@0.0.0
+                                         <span class="list-paths__item__arrow">›</span> 
+                                        github.com/argoproj/gitops-engine/pkg/sync/syncwaves@0.5.5
+                                         <span class="list-paths__item__arrow">›</span> 
+                                        github.com/argoproj/gitops-engine/pkg/sync/hook/helm@0.5.5
+                                         <span class="list-paths__item__arrow">›</span> 
+                                        github.com/argoproj/gitops-engine/pkg/sync/common@0.5.5
+                                         <span class="list-paths__item__arrow">›</span> 
+                                        github.com/argoproj/gitops-engine/pkg/utils/kube@0.5.5
+                                         <span class="list-paths__item__arrow">›</span> 
+                                        k8s.io/kubectl/pkg/util/openapi@0.22.2
+                                         <span class="list-paths__item__arrow">›</span> 
+                                        k8s.io/kube-openapi/pkg/util/proto@#95288971da7e
+                                         <span class="list-paths__item__arrow">›</span> 
+                                        github.com/googleapis/gnostic/openapiv2@0.5.5
+                                         <span class="list-paths__item__arrow">›</span> 
+                                        github.com/googleapis/gnostic/compiler@0.5.5
+                                         <span class="list-paths__item__arrow">›</span> 
+                                        gopkg.in/yaml.v3@#496545a6307b
+                                        
+                                </span>
+        
+                            </li>
+                                <li>
+                                <span class="list-paths__item__introduced"><em>Introduced through</em>:
+                                        github.com/argoproj/argo-cd/v2@0.0.0
+                                         <span class="list-paths__item__arrow">›</span> 
+                                        github.com/argoproj/gitops-engine/pkg/sync/hook@0.5.5
+                                         <span class="list-paths__item__arrow">›</span> 
+                                        github.com/argoproj/gitops-engine/pkg/sync/hook/helm@0.5.5
+                                         <span class="list-paths__item__arrow">›</span> 
+                                        github.com/argoproj/gitops-engine/pkg/sync/common@0.5.5
+                                         <span class="list-paths__item__arrow">›</span> 
+                                        github.com/argoproj/gitops-engine/pkg/utils/kube@0.5.5
+                                         <span class="list-paths__item__arrow">›</span> 
+                                        k8s.io/kubectl/pkg/util/openapi@0.22.2
+                                         <span class="list-paths__item__arrow">›</span> 
+                                        k8s.io/kube-openapi/pkg/util/proto@#95288971da7e
+                                         <span class="list-paths__item__arrow">›</span> 
+                                        github.com/googleapis/gnostic/openapiv2@0.5.5
+                                         <span class="list-paths__item__arrow">›</span> 
+                                        github.com/googleapis/gnostic/compiler@0.5.5
+                                         <span class="list-paths__item__arrow">›</span> 
+                                        github.com/googleapis/gnostic/jsonschema@0.5.5
+                                         <span class="list-paths__item__arrow">›</span> 
+                                        gopkg.in/yaml.v3@#496545a6307b
+                                        
+                                </span>
+        
+                            </li>
+                                <li>
+                                <span class="list-paths__item__introduced"><em>Introduced through</em>:
+                                        github.com/argoproj/argo-cd/v2@0.0.0
+                                         <span class="list-paths__item__arrow">›</span> 
+                                        github.com/argoproj/gitops-engine/pkg/sync/syncwaves@0.5.5
+                                         <span class="list-paths__item__arrow">›</span> 
+                                        github.com/argoproj/gitops-engine/pkg/sync/hook/helm@0.5.5
+                                         <span class="list-paths__item__arrow">›</span> 
+                                        github.com/argoproj/gitops-engine/pkg/sync/common@0.5.5
+                                         <span class="list-paths__item__arrow">›</span> 
+                                        github.com/argoproj/gitops-engine/pkg/utils/kube@0.5.5
+                                         <span class="list-paths__item__arrow">›</span> 
+                                        k8s.io/kubectl/pkg/util/openapi@0.22.2
+                                         <span class="list-paths__item__arrow">›</span> 
+                                        k8s.io/kube-openapi/pkg/util/proto@#95288971da7e
+                                         <span class="list-paths__item__arrow">›</span> 
+                                        github.com/googleapis/gnostic/openapiv2@0.5.5
+                                         <span class="list-paths__item__arrow">›</span> 
+                                        github.com/googleapis/gnostic/compiler@0.5.5
+                                         <span class="list-paths__item__arrow">›</span> 
+                                        github.com/googleapis/gnostic/jsonschema@0.5.5
+                                         <span class="list-paths__item__arrow">›</span> 
+                                        gopkg.in/yaml.v3@#496545a6307b
+                                        
+                                </span>
+        
+                            </li>
+                                <li>
+                                <span class="list-paths__item__introduced"><em>Introduced through</em>:
+                                        github.com/argoproj/argo-cd/v2@0.0.0
+                                         <span class="list-paths__item__arrow">›</span> 
+                                        github.com/argoproj/gitops-engine/pkg/sync/ignore@0.5.5
+                                         <span class="list-paths__item__arrow">›</span> 
+                                        github.com/argoproj/gitops-engine/pkg/sync/hook@0.5.5
+                                         <span class="list-paths__item__arrow">›</span> 
+                                        github.com/argoproj/gitops-engine/pkg/sync/hook/helm@0.5.5
+                                         <span class="list-paths__item__arrow">›</span> 
+                                        github.com/argoproj/gitops-engine/pkg/sync/common@0.5.5
+                                         <span class="list-paths__item__arrow">›</span> 
+                                        github.com/argoproj/gitops-engine/pkg/utils/kube@0.5.5
+                                         <span class="list-paths__item__arrow">›</span> 
+                                        k8s.io/kubectl/pkg/util/openapi@0.22.2
+                                         <span class="list-paths__item__arrow">›</span> 
+                                        k8s.io/kube-openapi/pkg/util/proto@#95288971da7e
+                                         <span class="list-paths__item__arrow">›</span> 
+                                        github.com/googleapis/gnostic/openapiv2@0.5.5
+                                         <span class="list-paths__item__arrow">›</span> 
+                                        github.com/googleapis/gnostic/compiler@0.5.5
+                                         <span class="list-paths__item__arrow">›</span> 
+                                        gopkg.in/yaml.v3@#496545a6307b
+                                        
+                                </span>
+        
+                            </li>
+                                <li>
+                                <span class="list-paths__item__introduced"><em>Introduced through</em>:
+                                        github.com/argoproj/argo-cd/v2@0.0.0
+                                         <span class="list-paths__item__arrow">›</span> 
+                                        github.com/argoproj/gitops-engine/pkg/sync/hook@0.5.5
+                                         <span class="list-paths__item__arrow">›</span> 
+                                        github.com/argoproj/gitops-engine/pkg/sync/hook/helm@0.5.5
+                                         <span class="list-paths__item__arrow">›</span> 
+                                        github.com/argoproj/gitops-engine/pkg/sync/common@0.5.5
+                                         <span class="list-paths__item__arrow">›</span> 
+                                        github.com/argoproj/gitops-engine/pkg/utils/kube@0.5.5
+                                         <span class="list-paths__item__arrow">›</span> 
+                                        k8s.io/kubectl/pkg/cmd/util@0.22.2
+                                         <span class="list-paths__item__arrow">›</span> 
+                                        k8s.io/cli-runtime/pkg/resource@0.22.2
+                                         <span class="list-paths__item__arrow">›</span> 
+                                        sigs.k8s.io/kustomize/api/krusty@0.8.11
+                                         <span class="list-paths__item__arrow">›</span> 
+                                        sigs.k8s.io/kustomize/api/resmap@0.8.11
+                                         <span class="list-paths__item__arrow">›</span> 
+                                        sigs.k8s.io/kustomize/kyaml/kio@0.11.0
+                                         <span class="list-paths__item__arrow">›</span> 
+                                        github.com/stretchr/testify/assert@1.7.0
+                                         <span class="list-paths__item__arrow">›</span> 
+                                        gopkg.in/yaml.v3@#496545a6307b
+                                        
+                                </span>
+        
+                            </li>
+                                <li>
+                                <span class="list-paths__item__introduced"><em>Introduced through</em>:
+                                        github.com/argoproj/argo-cd/v2@0.0.0
+                                         <span class="list-paths__item__arrow">›</span> 
+                                        github.com/argoproj/gitops-engine/pkg/sync/syncwaves@0.5.5
+                                         <span class="list-paths__item__arrow">›</span> 
+                                        github.com/argoproj/gitops-engine/pkg/sync/hook/helm@0.5.5
+                                         <span class="list-paths__item__arrow">›</span> 
+                                        github.com/argoproj/gitops-engine/pkg/sync/common@0.5.5
+                                         <span class="list-paths__item__arrow">›</span> 
+                                        github.com/argoproj/gitops-engine/pkg/utils/kube@0.5.5
+                                         <span class="list-paths__item__arrow">›</span> 
+                                        k8s.io/kubectl/pkg/cmd/util@0.22.2
+                                         <span class="list-paths__item__arrow">›</span> 
+                                        k8s.io/cli-runtime/pkg/resource@0.22.2
+                                         <span class="list-paths__item__arrow">›</span> 
+                                        sigs.k8s.io/kustomize/api/krusty@0.8.11
+                                         <span class="list-paths__item__arrow">›</span> 
+                                        sigs.k8s.io/kustomize/api/resmap@0.8.11
+                                         <span class="list-paths__item__arrow">›</span> 
+                                        sigs.k8s.io/kustomize/kyaml/kio@0.11.0
+                                         <span class="list-paths__item__arrow">›</span> 
+                                        github.com/stretchr/testify/assert@1.7.0
+                                         <span class="list-paths__item__arrow">›</span> 
+                                        gopkg.in/yaml.v3@#496545a6307b
+                                        
+                                </span>
+        
+                            </li>
+                                <li>
+                                <span class="list-paths__item__introduced"><em>Introduced through</em>:
+                                        github.com/argoproj/argo-cd/v2@0.0.0
+                                         <span class="list-paths__item__arrow">›</span> 
+                                        github.com/argoproj/gitops-engine/pkg/sync/ignore@0.5.5
+                                         <span class="list-paths__item__arrow">›</span> 
+                                        github.com/argoproj/gitops-engine/pkg/sync/hook@0.5.5
+                                         <span class="list-paths__item__arrow">›</span> 
+                                        github.com/argoproj/gitops-engine/pkg/sync/hook/helm@0.5.5
+                                         <span class="list-paths__item__arrow">›</span> 
+                                        github.com/argoproj/gitops-engine/pkg/sync/common@0.5.5
+                                         <span class="list-paths__item__arrow">›</span> 
+                                        github.com/argoproj/gitops-engine/pkg/utils/kube@0.5.5
+                                         <span class="list-paths__item__arrow">›</span> 
+                                        k8s.io/kubectl/pkg/util/openapi@0.22.2
+                                         <span class="list-paths__item__arrow">›</span> 
+                                        k8s.io/kube-openapi/pkg/util/proto@#95288971da7e
+                                         <span class="list-paths__item__arrow">›</span> 
+                                        github.com/googleapis/gnostic/openapiv2@0.5.5
+                                         <span class="list-paths__item__arrow">›</span> 
+                                        github.com/googleapis/gnostic/compiler@0.5.5
+                                         <span class="list-paths__item__arrow">›</span> 
+                                        github.com/googleapis/gnostic/jsonschema@0.5.5
+                                         <span class="list-paths__item__arrow">›</span> 
+                                        gopkg.in/yaml.v3@#496545a6307b
+                                        
+                                </span>
+        
+                            </li>
+                                <li>
+                                <span class="list-paths__item__introduced"><em>Introduced through</em>:
+                                        github.com/argoproj/argo-cd/v2@0.0.0
+                                         <span class="list-paths__item__arrow">›</span> 
+                                        github.com/argoproj/gitops-engine/pkg/sync/ignore@0.5.5
+                                         <span class="list-paths__item__arrow">›</span> 
+                                        github.com/argoproj/gitops-engine/pkg/sync/hook@0.5.5
+                                         <span class="list-paths__item__arrow">›</span> 
+                                        github.com/argoproj/gitops-engine/pkg/sync/hook/helm@0.5.5
+                                         <span class="list-paths__item__arrow">›</span> 
+                                        github.com/argoproj/gitops-engine/pkg/sync/common@0.5.5
+                                         <span class="list-paths__item__arrow">›</span> 
+                                        github.com/argoproj/gitops-engine/pkg/utils/kube@0.5.5
+                                         <span class="list-paths__item__arrow">›</span> 
+                                        k8s.io/kubectl/pkg/cmd/util@0.22.2
+                                         <span class="list-paths__item__arrow">›</span> 
+                                        k8s.io/cli-runtime/pkg/resource@0.22.2
+                                         <span class="list-paths__item__arrow">›</span> 
+                                        sigs.k8s.io/kustomize/api/krusty@0.8.11
+                                         <span class="list-paths__item__arrow">›</span> 
+                                        sigs.k8s.io/kustomize/api/resmap@0.8.11
+                                         <span class="list-paths__item__arrow">›</span> 
+                                        sigs.k8s.io/kustomize/kyaml/kio@0.11.0
+                                         <span class="list-paths__item__arrow">›</span> 
+                                        github.com/stretchr/testify/assert@1.7.0
+                                         <span class="list-paths__item__arrow">›</span> 
+                                        gopkg.in/yaml.v3@#496545a6307b
+                                        
+                                </span>
+        
+                            </li>
+                    </ul><!-- .list-paths -->
+        
+            </div><!-- .card__section -->
+        
+              <hr/>
+              <!-- Overview -->
+              <h2 id="overview">Overview</h2>
+        <p><a href="https://github.com/go-yaml/yaml">gopkg.in/yaml.v3</a> is a YAML support package for the Go language.</p>
+        <p>Affected versions of this package are vulnerable to Denial of Service (DoS) via the <code>Unmarshal</code> function, which causes the program to crash when attempting to deserialize invalid input.</p>
+        <h2 id="poc">PoC</h2>
+        <pre><code class="language-golang">package main
+        
+        import (
+            &quot;gopkg.in/yaml.v3&quot;
+        )
+        
+        func main() {
+            var t interface{}
+            yaml.Unmarshal([]byte(&quot;0: [:!00 \xef&quot;), &amp;t)
+        }
+        </code></pre>
+        <h2 id="details">Details</h2>
+        <p>Denial of Service (DoS) describes a family of attacks, all aimed at making a system inaccessible to its intended and legitimate users.</p>
+        <p>Unlike other vulnerabilities, DoS attacks usually do not aim at breaching security. Rather, they are focused on making websites and services unavailable to genuine users resulting in downtime.</p>
+        <p>One popular Denial of Service vulnerability is DDoS (a Distributed Denial of Service), an attack that attempts to clog network pipes to the system by generating a large volume of traffic from many machines.</p>
+        <p>When it comes to open source libraries, DoS vulnerabilities allow attackers to trigger such a crash or crippling of the service by using a flaw either in the application code or from the use of open source libraries.</p>
+        <p>Two common types of DoS vulnerabilities:</p>
+        <ul>
+        <li><p>High CPU/Memory Consumption- An attacker sending crafted requests that could cause the system to take a disproportionate amount of time to process. For example, <a href="SNYK-JAVA-COMMONSFILEUPLOAD-30082">commons-fileupload:commons-fileupload</a>.</p>
+        </li>
+        <li><p>Crash - An attacker sending crafted requests that could cause the system to crash. For Example,  <a href="https://snyk.io/vuln/npm:ws:20171108">npm <code>ws</code> package</a></p>
+        </li>
+        </ul>
+        <h2 id="remediation">Remediation</h2>
+        <p>Upgrade <code>gopkg.in/yaml.v3</code> to version 3.0.0 or higher.</p>
+        <h2 id="references">References</h2>
+        <ul>
+        <li><a href="https://github.com/go-yaml/yaml/commit/8f96da9f5d5eff988554c1aae1784627c4bf6754">GitHub Commit</a></li>
+        <li><a href="https://github.com/go-yaml/yaml/issues/666">GitHub Issue</a></li>
+        </ul>
+        
+              <hr/>
+        
+            <div class="cta card__cta">
+                <p><a href="https://snyk.io/vuln/SNYK-GOLANG-GOPKGINYAMLV3-2841557">More about this vulnerability</a></p>
             </div>
         
         </div><!-- .card -->
