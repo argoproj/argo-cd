@@ -1,29 +1,159 @@
 package utils
 
 import (
+	"bytes"
 	"encoding/json"
 	"fmt"
 	"io"
 	"reflect"
+	"regexp"
 	"sort"
-	"strconv"
 	"strings"
+	"unsafe"
+
+	"text/template"
+
+	"github.com/valyala/fasttemplate"
 
 	log "github.com/sirupsen/logrus"
-	"github.com/valyala/fasttemplate"
 
 	argoappsv1 "github.com/argoproj/argo-cd/v2/pkg/apis/application/v1alpha1"
 	argoappsetv1 "github.com/argoproj/argo-cd/v2/pkg/apis/applicationset/v1alpha1"
 )
 
 type Renderer interface {
-	RenderTemplateParams(tmpl *argoappsv1.Application, syncPolicy *argoappsetv1.ApplicationSetSyncPolicy, params map[string]string) (*argoappsv1.Application, error)
+	RenderTemplateParams(tmpl *argoappsv1.Application, syncPolicy *argoappsetv1.ApplicationSetSyncPolicy, params map[string]interface{}, useGoTemplate bool) (*argoappsv1.Application, error)
 }
 
 type Render struct {
 }
 
-func (r *Render) RenderTemplateParams(tmpl *argoappsv1.Application, syncPolicy *argoappsetv1.ApplicationSetSyncPolicy, params map[string]string) (*argoappsv1.Application, error) {
+func copyValueIntoUnexported(destination, value reflect.Value) {
+	reflect.NewAt(destination.Type(), unsafe.Pointer(destination.UnsafeAddr())).
+		Elem().
+		Set(value)
+}
+
+func copyUnexported(copy, original reflect.Value) {
+	var unexported = reflect.NewAt(original.Type(), unsafe.Pointer(original.UnsafeAddr())).Elem()
+	copyValueIntoUnexported(copy, unexported)
+}
+
+// This function is in charge of searching all String fields of the object recursively and apply templating
+// thanks to https://gist.github.com/randallmlough/1fd78ec8a1034916ca52281e3b886dc7
+func (r *Render) deeplyReplace(copy, original reflect.Value, replaceMap map[string]interface{}, useGoTemplate bool) error {
+	switch original.Kind() {
+	// The first cases handle nested structures and translate them recursively
+	// If it is a pointer we need to unwrap and call once again
+	case reflect.Ptr:
+		// To get the actual value of the original we have to call Elem()
+		// At the same time this unwraps the pointer so we don't end up in
+		// an infinite recursion
+		originalValue := original.Elem()
+		// Check if the pointer is nil
+		if !originalValue.IsValid() {
+			return nil
+		}
+		// Allocate a new object and set the pointer to it
+		if originalValue.CanSet() {
+			copy.Set(reflect.New(originalValue.Type()))
+		} else {
+			copyUnexported(copy, original)
+		}
+		// Unwrap the newly created pointer
+		if err := r.deeplyReplace(copy.Elem(), originalValue, replaceMap, useGoTemplate); err != nil {
+			return err
+		}
+
+	// If it is an interface (which is very similar to a pointer), do basically the
+	// same as for the pointer. Though a pointer is not the same as an interface so
+	// note that we have to call Elem() after creating a new object because otherwise
+	// we would end up with an actual pointer
+	case reflect.Interface:
+		// Get rid of the wrapping interface
+		originalValue := original.Elem()
+		// Create a new object. Now new gives us a pointer, but we want the value it
+		// points to, so we have to call Elem() to unwrap it
+		copyValue := reflect.New(originalValue.Type()).Elem()
+		if err := r.deeplyReplace(copyValue, originalValue, replaceMap, useGoTemplate); err != nil {
+			return err
+		}
+		copy.Set(copyValue)
+
+	// If it is a struct we translate each field
+	case reflect.Struct:
+		for i := 0; i < original.NumField(); i += 1 {
+			var currentType = fmt.Sprintf("%s.%s", original.Type().Field(i).Name, original.Type().PkgPath())
+			// specific case time
+			if currentType == "time.Time" {
+				copy.Field(i).Set(original.Field(i))
+			} else if err := r.deeplyReplace(copy.Field(i), original.Field(i), replaceMap, useGoTemplate); err != nil {
+				return err
+			}
+		}
+
+	// If it is a slice we create a new slice and translate each element
+	case reflect.Slice:
+		if copy.CanSet() {
+			copy.Set(reflect.MakeSlice(original.Type(), original.Len(), original.Cap()))
+		} else {
+			copyValueIntoUnexported(copy, reflect.MakeSlice(original.Type(), original.Len(), original.Cap()))
+		}
+
+		for i := 0; i < original.Len(); i += 1 {
+			if err := r.deeplyReplace(copy.Index(i), original.Index(i), replaceMap, useGoTemplate); err != nil {
+				return err
+			}
+		}
+
+	// If it is a map we create a new map and translate each value
+	case reflect.Map:
+		if copy.CanSet() {
+			copy.Set(reflect.MakeMap(original.Type()))
+		} else {
+			copyValueIntoUnexported(copy, reflect.MakeMap(original.Type()))
+		}
+		for _, key := range original.MapKeys() {
+			originalValue := original.MapIndex(key)
+			if originalValue.Kind() != reflect.String && originalValue.IsNil() {
+				continue
+			}
+			// New gives us a pointer, but again we want the value
+			copyValue := reflect.New(originalValue.Type()).Elem()
+
+			if err := r.deeplyReplace(copyValue, originalValue, replaceMap, useGoTemplate); err != nil {
+				return err
+			}
+			copy.SetMapIndex(key, copyValue)
+		}
+
+	// Otherwise we cannot traverse anywhere so this finishes the the recursion
+	// If it is a string translate it (yay finally we're doing what we came for)
+	case reflect.String:
+		strToTemplate := original.String()
+		templated, err := r.Replace(strToTemplate, replaceMap, useGoTemplate)
+		if err != nil {
+			return err
+		}
+		if copy.CanSet() {
+			copy.SetString(templated)
+		} else {
+			copyValueIntoUnexported(copy, reflect.ValueOf(templated))
+		}
+		return nil
+
+	// And everything else will simply be taken from the original
+	default:
+		if copy.CanSet() {
+			copy.Set(original)
+		} else {
+			copyUnexported(copy, original)
+		}
+	}
+	return nil
+}
+
+func (r *Render) RenderTemplateParams(tmpl *argoappsv1.Application, syncPolicy *argoappsetv1.ApplicationSetSyncPolicy, params map[string]interface{}, useGoTemplate bool) (*argoappsv1.Application, error) {
 	if tmpl == nil {
 		return nil, fmt.Errorf("application template is empty ")
 	}
@@ -32,22 +162,16 @@ func (r *Render) RenderTemplateParams(tmpl *argoappsv1.Application, syncPolicy *
 		return tmpl, nil
 	}
 
-	tmplBytes, err := json.Marshal(tmpl)
+	original := reflect.ValueOf(tmpl)
+	copy := reflect.New(original.Type()).Elem()
+
+	err := r.deeplyReplace(copy, original, params, useGoTemplate)
+
 	if err != nil {
 		return nil, err
 	}
 
-	fstTmpl := fasttemplate.New(string(tmplBytes), "{{", "}}")
-	replacedTmplStr, err := r.Replace(fstTmpl, params, true)
-	if err != nil {
-		return nil, err
-	}
-
-	var replacedTmpl argoappsv1.Application
-	err = json.Unmarshal([]byte(replacedTmplStr), &replacedTmpl)
-	if err != nil {
-		return nil, err
-	}
+	replacedTmpl := copy.Interface().(*argoappsv1.Application)
 
 	// Add the 'resources-finalizer' finalizer if:
 	// The template application doesn't have any finalizers, and:
@@ -55,42 +179,48 @@ func (r *Render) RenderTemplateParams(tmpl *argoappsv1.Application, syncPolicy *
 	// b) there IS a syncPolicy, but preserveResourcesOnDeletion is set to false
 	// See TestRenderTemplateParamsFinalizers in util_test.go for test-based definition of behaviour
 	if (syncPolicy == nil || !syncPolicy.PreserveResourcesOnDeletion) &&
-		(replacedTmpl.ObjectMeta.Finalizers == nil || len(replacedTmpl.ObjectMeta.Finalizers) == 0) {
+		((*replacedTmpl).ObjectMeta.Finalizers == nil || len((*replacedTmpl).ObjectMeta.Finalizers) == 0) {
 
-		replacedTmpl.ObjectMeta.Finalizers = []string{"resources-finalizer.argocd.argoproj.io"}
+		(*replacedTmpl).ObjectMeta.Finalizers = []string{"resources-finalizer.argocd.argoproj.io"}
 	}
 
-	return &replacedTmpl, nil
+	return replacedTmpl, nil
 }
 
 // Replace executes basic string substitution of a template with replacement values.
-// 'allowUnresolved' indicates whether it is acceptable to have unresolved variables
 // remaining in the substituted template.
-func (r *Render) Replace(fstTmpl *fasttemplate.Template, replaceMap map[string]string, allowUnresolved bool) (string, error) {
-	var unresolvedErr error
-	replacedTmpl := fstTmpl.ExecuteFuncString(func(w io.Writer, tag string) (int, error) {
+func (r *Render) Replace(tmpl string, replaceMap map[string]interface{}, useGoTemplate bool) (string, error) {
+	if useGoTemplate {
 
-		trimmedTag := strings.TrimSpace(tag)
+		template, err := template.New("").Parse(tmpl)
 
-		replacement, ok := replaceMap[trimmedTag]
-		if len(trimmedTag) == 0 || !ok {
-			if allowUnresolved {
-				// just write the same string back
-				return w.Write([]byte(fmt.Sprintf("{{%s}}", tag)))
-			}
-			unresolvedErr = fmt.Errorf("failed to resolve {{%s}}", tag)
-			return 0, nil
+		if err != nil {
+			return "", err
 		}
-		// The following escapes any special characters (e.g. newlines, tabs, etc...)
-		// in preparation for substitution
-		replacement = strconv.Quote(replacement)
-		replacement = replacement[1 : len(replacement)-1]
-		return w.Write([]byte(replacement))
-	})
-	if unresolvedErr != nil {
-		return "", unresolvedErr
+
+		var replacedTmplBuffer bytes.Buffer
+
+		if err := template.Execute(&replacedTmplBuffer, replaceMap); err != nil {
+			return "", nil
+		}
+
+		return replacedTmplBuffer.String(), nil
 	}
 
+	re := regexp.MustCompile(".*{{.*}}.*")
+	if !re.MatchString(tmpl) {
+		return tmpl, nil
+	}
+
+	fstTmpl := fasttemplate.New(tmpl, "{{", "}}")
+	replacedTmpl := fstTmpl.ExecuteFuncString(func(w io.Writer, tag string) (int, error) {
+		trimmedTag := strings.TrimSpace(tag)
+		replacement, ok := replaceMap[trimmedTag].(string)
+		if len(trimmedTag) == 0 || !ok {
+			return w.Write([]byte(fmt.Sprintf("{{%s}}", tag)))
+		}
+		return w.Write([]byte(replacement))
+	})
 	return replacedTmpl, nil
 }
 

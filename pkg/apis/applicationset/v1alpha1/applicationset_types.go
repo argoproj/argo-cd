@@ -49,6 +49,8 @@ type ApplicationSet struct {
 
 // ApplicationSetSpec represents a class of application set state.
 type ApplicationSetSpec struct {
+	// Define whereas to use GoTemplate or not and fallback to fasttemplate. Default to False.
+	GoTemplate bool                      `json:"goTemplate,omitempty"`
 	Generators []ApplicationSetGenerator `json:"generators"`
 	Template   ApplicationSetTemplate    `json:"template"`
 	SyncPolicy *ApplicationSetSyncPolicy `json:"syncPolicy,omitempty"`

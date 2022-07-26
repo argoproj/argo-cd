@@ -2,6 +2,8 @@ package generators
 
 import (
 	"context"
+	"testing"
+
 	log "github.com/sirupsen/logrus"
 	"github.com/stretchr/testify/assert"
 	"github.com/stretchr/testify/mock"
@@ -12,7 +14,6 @@ import (
 	kubefake "k8s.io/client-go/kubernetes/fake"
 	crtclient "sigs.k8s.io/controller-runtime/pkg/client"
 	"sigs.k8s.io/controller-runtime/pkg/client/fake"
-	"testing"
 
 	argoprojiov1alpha1 "github.com/argoproj/argo-cd/v2/pkg/apis/applicationset/v1alpha1"
 )
@@ -142,10 +143,14 @@ func TestInterpolateGenerator(t *testing.T) {
 				}},
 		},
 	}
-	gitGeneratorParams := map[string]string{
-		"path": "p1/p2/app3", "path.basename": "app3", "path[0]": "p1", "path[1]": "p2", "path.basenameNormalized": "app3",
+	gitGeneratorParams := map[string]interface{}{
+		"path":                    "p1/p2/app3",
+		"path.basename":           "app3",
+		"path[0]":                 "p1",
+		"path[1]":                 "p2",
+		"path.basenameNormalized": "app3",
 	}
-	interpolatedGenerator, err := interpolateGenerator(requestedGenerator, gitGeneratorParams)
+	interpolatedGenerator, err := interpolateGenerator(requestedGenerator, gitGeneratorParams, false)
 	if err != nil {
 		log.WithError(err).WithField("requestedGenerator", requestedGenerator).Error("error interpolating Generator")
 		return
@@ -167,10 +172,10 @@ func TestInterpolateGenerator(t *testing.T) {
 			Template: argoprojiov1alpha1.ApplicationSetTemplate{},
 		},
 	}
-	clusterGeneratorParams := map[string]string{
+	clusterGeneratorParams := map[string]interface{}{
 		"name": "production_01/west", "server": "https://production-01.example.com",
 	}
-	interpolatedGenerator, err = interpolateGenerator(requestedGenerator, clusterGeneratorParams)
+	interpolatedGenerator, err = interpolateGenerator(requestedGenerator, clusterGeneratorParams, true)
 	if err != nil {
 		log.WithError(err).WithField("requestedGenerator", requestedGenerator).Error("error interpolating Generator")
 		return
