@@ -1047,7 +1047,6 @@ spec:
 apiVersion: v1
 kind: Service
 metadata:
-  annotations: null
   labels:
     app.kubernetes.io/component: redis
     app.kubernetes.io/name: argocd-redis-ha
@@ -1149,7 +1148,6 @@ spec:
 apiVersion: v1
 kind: Service
 metadata:
-  annotations: null
   labels:
     app.kubernetes.io/component: redis
     app.kubernetes.io/name: argocd-redis-ha-haproxy
@@ -2288,7 +2286,6 @@ spec:
 apiVersion: apps/v1
 kind: StatefulSet
 metadata:
-  annotations: {}
   labels:
     app.kubernetes.io/component: redis
     app.kubernetes.io/name: argocd-redis-ha
