@@ -218,3 +218,4 @@ Currently, the following organizations are **officially** using Argo CD:
 1. [RapidAPI](https://www.rapidapi.com/)
 1. [Pismo](https://pismo.io/)
 1. [South China Morning Post (SCMP)](https://www.scmp.com/)
+1. [Lian Chu Securities](https://lczq.com)
