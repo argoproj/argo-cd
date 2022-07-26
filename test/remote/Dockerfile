@@ -1,9 +1,9 @@
 FROM golang:1.16.11 AS go
 
 RUN go get github.com/mattn/goreman && \
-    go get github.com/kisielk/godepgraph 
+    go get github.com/kisielk/godepgraph
 
-FROM ubuntu:21.04
+FROM ubuntu:22.04
 
 ENV DEBIAN_FRONTEND=noninteractive
 RUN  apt-get update && apt-get install -y \
