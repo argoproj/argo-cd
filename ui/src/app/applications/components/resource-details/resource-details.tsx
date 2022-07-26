@@ -42,7 +42,16 @@ export const ResourceDetails = (props: ResourceDetailsProps) => {
     const page = parseInt(new URLSearchParams(appContext.history.location.search).get('page'), 10) || 0;
     const untilTimes = (new URLSearchParams(appContext.history.location.search).get('untilTimes') || '').split(',') || [];
 
-    const getResourceTabs = (node: ResourceNode, state: State, podState: State, events: Event[], extensionTabs: ResourceTabExtension[], tabs: Tab[], execEnabled: boolean) => {
+    const getResourceTabs = (
+        node: ResourceNode,
+        state: State,
+        podState: State,
+        events: Event[],
+        extensionTabs: ResourceTabExtension[],
+        tabs: Tab[],
+        execEnabled: boolean,
+        logsAllowed: boolean
+    ) => {
         if (!node || node === undefined) {
             return [];
         }
@@ -78,30 +87,32 @@ export const ResourceDetails = (props: ResourceDetailsProps) => {
 
             const onClickContainer = (group: any, i: number) => SelectNode(selectedNodeKey, group.offset + i, 'logs', appContext);
 
-            tabs = tabs.concat([
-                {
-                    key: 'logs',
-                    icon: 'fa fa-align-left',
-                    title: 'LOGS',
-                    content: (
-                        <div className='application-details__tab-content-full-height'>
-                            <PodsLogsViewer
-                                podName={(state.kind === 'Pod' && state.metadata.name) || ''}
-                                group={node.group}
-                                kind={node.kind}
-                                name={node.name}
-                                namespace={podState.metadata.namespace}
-                                applicationName={application.metadata.name}
-                                containerName={AppUtils.getContainerName(podState, selectedNodeInfo.container)}
-                                page={{number: page, untilTimes}}
-                                setPage={pageData => appContext.navigation.goto('.', {page: pageData.number, untilTimes: pageData.untilTimes.join(',')})}
-                                containerGroups={containerGroups}
-                                onClickContainer={onClickContainer}
-                            />
-                        </div>
-                    )
-                }
-            ]);
+            if (logsAllowed) {
+                tabs = tabs.concat([
+                    {
+                        key: 'logs',
+                        icon: 'fa fa-align-left',
+                        title: 'LOGS',
+                        content: (
+                            <div className='application-details__tab-content-full-height'>
+                                <PodsLogsViewer
+                                    podName={(state.kind === 'Pod' && state.metadata.name) || ''}
+                                    group={node.group}
+                                    kind={node.kind}
+                                    name={node.name}
+                                    namespace={podState.metadata.namespace}
+                                    applicationName={application.metadata.name}
+                                    containerName={AppUtils.getContainerName(podState, selectedNodeInfo.container)}
+                                    page={{number: page, untilTimes}}
+                                    setPage={pageData => appContext.navigation.goto('.', {page: pageData.number, untilTimes: pageData.untilTimes.join(',')})}
+                                    containerGroups={containerGroups}
+                                    onClickContainer={onClickContainer}
+                                />
+                            </div>
+                        )
+                    }
+                ]);
+            }
             if (execEnabled) {
                 tabs = tabs.concat([
                     {
@@ -122,9 +133,10 @@ export const ResourceDetails = (props: ResourceDetailsProps) => {
                     key: `extension-${i}`,
                     content: (
                         <ErrorBoundary message={`Something went wrong with Extension for ${state.kind}`}>
-                            <tabExtensions.component tree={tree} resource={state} />
+                            <tabExtensions.component tree={tree} resource={state} application={application} />
                         </ErrorBoundary>
-                    )
+                    ),
+                    icon: tabExtensions.icon
                 });
             });
         }
@@ -202,10 +214,17 @@ export const ResourceDetails = (props: ResourceDetailsProps) => {
             content: <ApplicationResourceEvents applicationName={application.metadata.name} />
         });
 
-        return tabs;
+        const extensionTabs = services.extensions.getResourceTabs('argoproj.io', 'Application').map((ext, i) => ({
+            title: ext.title,
+            key: `extension-${i}`,
+            content: <ext.component resource={application} tree={tree} application={application} />,
+            icon: ext.icon
+        }));
+
+        return tabs.concat(extensionTabs);
     };
 
-    const extensions = selectedNode?.kind && selectedNode?.group ? services.extensions.getResourceTabs(selectedNode?.group, selectedNode?.kind) : [];
+    const extensions = selectedNode?.kind ? services.extensions.getResourceTabs(selectedNode?.group || '', selectedNode?.kind) : [];
 
     return (
         <div style={{width: '100%', height: '100%'}}>
@@ -250,8 +269,8 @@ export const ResourceDetails = (props: ResourceDetailsProps) => {
 
                         const settings = await services.authService.settings();
                         const execEnabled = settings.execEnabled;
-
-                        return {controlledState, liveState, events, podState, execEnabled};
+                        const logsAllowed = await services.accounts.canI('logs', 'get', application.spec.project + '/' + application.metadata.name);
+                        return {controlledState, liveState, events, podState, execEnabled, logsAllowed};
                     }}>
                     {data => (
                         <React.Fragment>
@@ -295,7 +314,8 @@ export const ResourceDetails = (props: ResourceDetailsProps) => {
                                             content: <ApplicationNodeInfo application={application} live={data.liveState} controlled={data.controlledState} node={selectedNode} />
                                         }
                                     ],
-                                    data.execEnabled
+                                    data.execEnabled,
+                                    data.logsAllowed
                                 )}
                                 selectedTabKey={props.tab}
                                 onTabSelected={selected => appContext.navigation.goto('.', {tab: selected}, {replace: true})}

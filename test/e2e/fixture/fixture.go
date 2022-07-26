@@ -187,7 +187,12 @@ func init() {
 			panic(fmt.Sprintf("Could not read record file %s: %v", rf, err))
 		}
 	}
-	defer f.Close()
+	defer func() {
+		err := f.Close()
+		if err != nil {
+			panic(fmt.Sprintf("Could not close record file %s: %v", rf, err))
+		}
+	}()
 	scanner := bufio.NewScanner(f)
 	for scanner.Scan() {
 		testsRun[scanner.Text()] = true
@@ -840,7 +845,12 @@ func RecordTestRun(t *testing.T) {
 	if err != nil {
 		t.Fatalf("could not open record file %s: %v", rf, err)
 	}
-	defer f.Close()
+	defer func() {
+		err := f.Close()
+		if err != nil {
+			t.Fatalf("could not close record file %s: %v", rf, err)
+		}
+	}()
 	if _, err := f.WriteString(fmt.Sprintf("%s\n", t.Name())); err != nil {
 		t.Fatalf("could not write to %s: %v", rf, err)
 	}

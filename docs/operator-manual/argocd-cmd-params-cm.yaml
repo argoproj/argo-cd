@@ -68,6 +68,10 @@ data:
   server.repo.server.plaintext: "false"
   # Perform strict validation of TLS certificates when connecting to repo server
   server.repo.server.strict.tls: "false"
+  # Use a plaintext client (non-TLS) to connect to dex server
+  server.dex.server.plaintext: "false"
+  # Perform strict validation of TLS certificates when connecting to dex server
+  server.dex.server.strict.tls: "false"
   # Disable client authentication
   server.disable.auth: "false"
   # Enable GZIP compression
@@ -125,3 +129,6 @@ data:
   reposerver.allow.oob.symlinks: "false"
   # Max amount of time any single external binary call (e.g. git) may run in the repo-server.
   reposerver.cmd.timeout: "90s"
+
+  # Disable TLS on the HTTP endpoint
+  dexserver.disable.tls: "false"

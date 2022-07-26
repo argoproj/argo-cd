@@ -21,6 +21,7 @@ import (
 	"github.com/argoproj/argo-cd/v2/server"
 	servercache "github.com/argoproj/argo-cd/v2/server/cache"
 	"github.com/argoproj/argo-cd/v2/util/cli"
+	"github.com/argoproj/argo-cd/v2/util/dex"
 	"github.com/argoproj/argo-cd/v2/util/env"
 	"github.com/argoproj/argo-cd/v2/util/errors"
 	"github.com/argoproj/argo-cd/v2/util/kube"
@@ -66,8 +67,10 @@ func NewCommand() *cobra.Command {
 		contentSecurityPolicy    string
 		repoServerPlaintext      bool
 		repoServerStrictTLS      bool
-		staticAssetsDir string
-		execTimeout     time.Duration
+		dexServerPlaintext       bool
+		dexServerStrictTLS       bool
+		staticAssetsDir          string
+		execTimeout              time.Duration
 	)
 	var command = &cobra.Command{
 		Use:               cliName,
@@ -130,6 +133,28 @@ func NewCommand() *cobra.Command {
 				tlsConfig.Certificates = pool
 			}
 
+			dexTlsConfig := &dex.DexTLSConfig{
+				DisableTLS:       dexServerPlaintext,
+				StrictValidation: dexServerStrictTLS,
+			}
+
+			if !dexServerPlaintext && dexServerStrictTLS {
+				pool, err := tls.LoadX509CertPool(
+					fmt.Sprintf("%s/dex/tls/ca.crt", env.StringFromEnv(common.EnvAppConfigPath, common.DefaultAppConfigPath)),
+				)
+				if err != nil {
+					log.Fatalf("%v", err)
+				}
+				dexTlsConfig.RootCAs = pool
+				cert, err := tls.LoadX509Cert(
+					fmt.Sprintf("%s/dex/tls/tls.crt", env.StringFromEnv(common.EnvAppConfigPath, common.DefaultAppConfigPath)),
+				)
+				if err != nil {
+					log.Fatalf("%v", err)
+				}
+				dexTlsConfig.Certificate = cert.Raw
+			}
+
 			repoclientset := apiclient.NewRepoServerClientset(repoServerAddress, repoServerTimeoutSeconds, tlsConfig)
 			if rootPath != "" {
 				if baseHRef != "" && baseHRef != rootPath {
@@ -149,6 +174,7 @@ func NewCommand() *cobra.Command {
 				AppClientset:          appClientSet,
 				RepoClientset:         repoclientset,
 				DexServerAddr:         dexServerAddress,
+				DexTLSConfig:          dexTlsConfig,
 				DisableAuth:           disableAuth,
 				EnableGZip:            enableGZip,
 				TLSConfigCustomizer:   tlsConfigCustomizer,
@@ -191,7 +217,7 @@ func NewCommand() *cobra.Command {
 	command.Flags().StringVar(&baseHRef, "basehref", env.StringFromEnv("ARGOCD_SERVER_BASEHREF", "/"), "Value for base href in index.html. Used if Argo CD is running behind reverse proxy under subpath different from /")
 	command.Flags().StringVar(&rootPath, "rootpath", env.StringFromEnv("ARGOCD_SERVER_ROOTPATH", ""), "Used if Argo CD is running behind reverse proxy under subpath different from /")
 	command.Flags().StringVar(&cmdutil.LogFormat, "logformat", env.StringFromEnv("ARGOCD_SERVER_LOGFORMAT", "text"), "Set the logging format. One of: text|json")
-	command.Flags().StringVar(&cmdutil.LogLevel, "loglevel", env.StringFromEnv("ARGOCD_REPO_SERVER_LOGLEVEL", "info"), "Set the logging level. One of: debug|info|warn|error")
+	command.Flags().StringVar(&cmdutil.LogLevel, "loglevel", env.StringFromEnv("ARGOCD_SERVER_LOG_LEVEL", "info"), "Set the logging level. One of: debug|info|warn|error")
 	command.Flags().IntVar(&glogLevel, "gloglevel", 0, "Set the glog logging level")
 	command.Flags().StringVar(&repoServerAddress, "repo-server", env.StringFromEnv("ARGOCD_SERVER_REPO_SERVER", common.DefaultRepoServerAddr), "Repo server address")
 	command.Flags().StringVar(&dexServerAddress, "dex-server", env.StringFromEnv("ARGOCD_SERVER_DEX_SERVER", common.DefaultDexServerAddr), "Dex server address")
@@ -206,6 +232,8 @@ func NewCommand() *cobra.Command {
 	command.Flags().StringVar(&contentSecurityPolicy, "content-security-policy", env.StringFromEnv("ARGOCD_SERVER_CONTENT_SECURITY_POLICY", "frame-ancestors 'self';"), "Set Content-Security-Policy header in HTTP responses to `value`. To disable, set to \"\".")
 	command.Flags().BoolVar(&repoServerPlaintext, "repo-server-plaintext", env.ParseBoolFromEnv("ARGOCD_SERVER_REPO_SERVER_PLAINTEXT", false), "Use a plaintext client (non-TLS) to connect to repository server")
 	command.Flags().BoolVar(&repoServerStrictTLS, "repo-server-strict-tls", env.ParseBoolFromEnv("ARGOCD_SERVER_REPO_SERVER_STRICT_TLS", false), "Perform strict validation of TLS certificates when connecting to repo server")
+	command.Flags().BoolVar(&dexServerPlaintext, "dex-server-plaintext", env.ParseBoolFromEnv("ARGOCD_SERVER_DEX_SERVER_PLAINTEXT", false), "Use a plaintext client (non-TLS) to connect to dex server")
+	command.Flags().BoolVar(&dexServerStrictTLS, "dex-server-strict-tls", env.ParseBoolFromEnv("ARGOCD_SERVER_DEX_SERVER_STRICT_TLS", false), "Perform strict validation of TLS certificates when connecting to dex server")
 	durationFromEnv := cli.GetExecTimeoutEnvVarValue("ARGOCD_SERVER_EXEC_TIMEOUT")
 	command.Flags().DurationVar(&execTimeout, "exec-timeout", durationFromEnv, "per-command timeout for external commands invoked by the server (such as gpg)")
 
