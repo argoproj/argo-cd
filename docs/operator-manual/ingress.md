@@ -12,7 +12,7 @@ There are several ways how Ingress can be configured.
 
 The Ambassador Edge Stack can be used as a Kubernetes ingress controller with [automatic TLS termination](https://www.getambassador.io/docs/latest/topics/running/tls/#host) and routing capabilities for both the CLI and the UI.
 
-The API server should be run with TLS disabled. Edit the `argocd-server` deployment to add the `--insecure` flag to the argocd-server command. Given the `argocd` CLI includes the port number in the request `host` header, 2 Mappings are required.
+The API server should be run with TLS disabled. Edit the `argocd-server` deployment to add the `--insecure` flag to the argocd-server command, or simply set `server.insecure: "true"` in the `argocd-cmd-params-cm` ConfigMap [as described here](server-commands/additional-configuration-method.md). Given the `argocd` CLI includes the port number in the request `host` header, 2 Mappings are required.
 
 ### Option 1: Mapping CRD for Host-based Routing
 ```yaml
@@ -72,7 +72,7 @@ argocd login <host>:<port> --grpc-web-root-path /argo-cd
 ## [Contour](https://projectcontour.io/)
 The Contour ingress controller can terminate TLS ingress traffic at the edge.
 
-The Argo CD API server should be run with TLS disabled. Edit the `argocd-server` Deployment to add the `--insecure` flag to the argocd-server container command.
+The Argo CD API server should be run with TLS disabled. Edit the `argocd-server` Deployment to add the `--insecure` flag to the argocd-server container command, or simply set `server.insecure: "true"` in the `argocd-cmd-params-cm` ConfigMap [as described here](server-commands/additional-configuration-method.md)
 
 It is also possible to provide an internal-only ingress path and an external-only ingress path by deploying two instances of Contour: one behind a private-subnet LoadBalancer service and one behind a public-subnet LoadBalancer service. The private Contour deployment will pick up Ingresses annotated with `kubernetes.io/ingress.class: contour-internal` and the public Contour deployment will pick up Ingresses annotated with `kubernetes.io/ingress.class: contour-external`.
 
@@ -164,20 +164,7 @@ spec:
 The argocd-server Service needs to be annotated with `projectcontour.io/upstream-protocol.h2c: "https,443"` to wire up the gRPC protocol proxying.
 
 The API server should then be run with TLS disabled. Edit the `argocd-server` deployment to add the
-`--insecure` flag to the argocd-server command:
-
-```yaml
-spec:
-  template:
-    spec:
-      containers:
-      - name: argocd-server
-        command:
-        - /argocd-server
-        - --repo-server
-        - argocd-repo-server:8081
-        - --insecure
-```
+`--insecure` flag to the argocd-server command, or simply set `server.insecure: "true"` in the `argocd-cmd-params-cm` ConfigMap [as described here](server-commands/additional-configuration-method.md).
 
 ## [kubernetes/ingress-nginx](https://github.com/kubernetes/ingress-nginx)
 
@@ -319,20 +306,7 @@ spec:
 ```
 
 The API server should then be run with TLS disabled. Edit the `argocd-server` deployment to add the
-`--insecure` flag to the argocd-server command:
-
-```yaml
-spec:
-  template:
-    spec:
-      containers:
-      - name: argocd-server
-        command:
-        - argocd-server
-        - --repo-server
-        - argocd-repo-server:8081
-        - --insecure
-```
+`--insecure` flag to the argocd-server command, or simply set `server.insecure: "true"` in the `argocd-cmd-params-cm` ConfigMap [as described here](server-commands/additional-configuration-method.md).
 
 The obvious disadvantage to this approach is that this technique requires two separate hostnames for
 the API server -- one for gRPC and the other for HTTP/HTTPS. However it allows TLS termination to
@@ -345,7 +319,7 @@ Traefik can be used as an edge router and provide [TLS](https://docs.traefik.io/
 
 It currently has an advantage over NGINX in that it can terminate both TCP and HTTP connections _on the same port_ meaning you do not require multiple hosts or paths.
 
-The API server should be run with TLS disabled. Edit the `argocd-server` deployment to add the `--insecure` flag to the argocd-server command.
+The API server should be run with TLS disabled. Edit the `argocd-server` deployment to add the `--insecure` flag to the argocd-server command or set `server.insecure: "true"` in the `argocd-cmd-params-cm` ConfigMap [as described here](server-commands/additional-configuration-method.md).
 
 ### IngressRoute CRD
 ```yaml
@@ -455,26 +429,9 @@ If you need detail for all the options available for these Google integrations, 
 
 ### Disable internal TLS
 
-First, to avoid internal redirection loops from HTTP to HTTPS, the API server should be run with TLS disabled. Edit the argocd-server deployment to add the --insecure flag to the argocd-server command. For this you can edit your resource live with `kubectl -n argocd edit deployments.apps argocd-server` or use a kustomize patch before installing Argo CD.
+First, to avoid internal redirection loops from HTTP to HTTPS, the API server should be run with TLS disabled.
 
-The container command should change from:
-```yaml
-      containers:
-      - command:
-        - argocd-server
-        - --staticassets
-        - /shared/app
-```
-
-To:
-```yaml
-      containers:
-      - command:
-        - argocd-server
-        - --insecure
-        - --staticassets
-        - /shared/app
-```
+Edit the `--insecure` flag in the `argocd-server` command of the argocd-server deployment, or simply set `server.insecure: "true"` in the `argocd-cmd-params-cm` ConfigMap [as described here](server-commands/additional-configuration-method.md).
 
 ### Creating a service
 
