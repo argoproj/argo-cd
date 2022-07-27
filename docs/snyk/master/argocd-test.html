@@ -456,7 +456,7 @@
               <div class="header-wrap">
                   <h1 class="project__header__title">Snyk test report</h1>
     
-                <p class="timestamp">July 26th 2022, 3:12:12 pm</p>
+                <p class="timestamp">July 27th 2022, 1:30:52 pm</p>
               </div>
               <div class="source-panel">
                 <span>Scanned the following paths:</span>
@@ -476,6 +476,77 @@
 
     <div class="layout-container" style="padding-top: 35px;">
       <div class="cards--vuln filter--patch filter--ignore">
+        <div class="card card--vuln  disclosure--not-new severity--high" data-snyk-test="high">
+            <h2 class="card__title">Authorization Bypass Through User-Controlled Key</h2>
+            <div class="card__section">
+        
+                <div class="label label--high">
+                    <span class="label__text">high severity</span>
+                </div>
+        
+                <hr/>
+        
+                <ul class="card__meta">
+                    <li class="card__meta__item">
+                        Package Manager: npm
+                    </li>
+                    <li class="card__meta__item">
+                            Vulnerable module:
+        
+                            parse-path
+                    </li>
+        
+                    <li class="card__meta__item">Introduced through:
+        
+        
+                                    argo-cd-ui@1.0.0, git-url-parse@11.6.0 and others
+                    </li>
+                </ul>
+        
+                <hr/>
+        
+        
+                        <h3 class="card__section__title">Detailed paths</h3>
+        
+                    <ul class="card__meta__paths">
+                                <li>
+                                <span class="list-paths__item__introduced"><em>Introduced through</em>:
+                                        argo-cd-ui@1.0.0
+                                         <span class="list-paths__item__arrow">›</span> 
+                                        git-url-parse@11.6.0
+                                         <span class="list-paths__item__arrow">›</span> 
+                                        git-up@4.0.5
+                                         <span class="list-paths__item__arrow">›</span> 
+                                        parse-url@6.0.2
+                                         <span class="list-paths__item__arrow">›</span> 
+                                        parse-path@4.0.4
+                                        
+                                </span>
+        
+                            </li>
+                    </ul><!-- .list-paths -->
+        
+            </div><!-- .card__section -->
+        
+              <hr/>
+              <!-- Overview -->
+              <h2 id="overview">Overview</h2>
+        <p><a href="https://www.npmjs.org/package/parse-path">parse-path</a> is a Parse paths (local paths, urls: ssh/git/etc)</p>
+        <p>Affected versions of this package are vulnerable to Authorization Bypass Through User-Controlled Key which is unable to detect the right resource.</p>
+        <h2 id="remediation">Remediation</h2>
+        <p>Upgrade <code>parse-path</code> to version 5.0.0 or higher.</p>
+        <h2 id="references">References</h2>
+        <ul>
+        <li><a href="https://github.com/ionicabizau/parse-path/commit/f9ad8856a3c8ae18e1cf4caef5edbabbc42840e8">GitHub Commit</a></li>
+        </ul>
+        
+              <hr/>
+        
+            <div class="cta card__cta">
+                <p><a href="https://snyk.io/vuln/SNYK-JS-PARSEPATH-2936439">More about this vulnerability</a></p>
+            </div>
+        
+        </div><!-- .card -->
         <div class="card card--vuln  disclosure--not-new severity--high" data-snyk-test="high">
             <h2 class="card__title">Denial of Service (DoS)</h2>
             <div class="card__section">
@@ -3896,77 +3967,6 @@
         
             <div class="cta card__cta">
                 <p><a href="https://snyk.io/vuln/SNYK-GOLANG-GOPKGINYAMLV3-2841557">More about this vulnerability</a></p>
-            </div>
-        
-        </div><!-- .card -->
-        <div class="card card--vuln  disclosure--not-new severity--medium" data-snyk-test="medium">
-            <h2 class="card__title">Authorization Bypass Through User-Controlled Key</h2>
-            <div class="card__section">
-        
-                <div class="label label--medium">
-                    <span class="label__text">medium severity</span>
-                </div>
-        
-                <hr/>
-        
-                <ul class="card__meta">
-                    <li class="card__meta__item">
-                        Package Manager: npm
-                    </li>
-                    <li class="card__meta__item">
-                            Vulnerable module:
-        
-                            parse-path
-                    </li>
-        
-                    <li class="card__meta__item">Introduced through:
-        
-        
-                                    argo-cd-ui@1.0.0, git-url-parse@11.6.0 and others
-                    </li>
-                </ul>
-        
-                <hr/>
-        
-        
-                        <h3 class="card__section__title">Detailed paths</h3>
-        
-                    <ul class="card__meta__paths">
-                                <li>
-                                <span class="list-paths__item__introduced"><em>Introduced through</em>:
-                                        argo-cd-ui@1.0.0
-                                         <span class="list-paths__item__arrow">›</span> 
-                                        git-url-parse@11.6.0
-                                         <span class="list-paths__item__arrow">›</span> 
-                                        git-up@4.0.5
-                                         <span class="list-paths__item__arrow">›</span> 
-                                        parse-url@6.0.2
-                                         <span class="list-paths__item__arrow">›</span> 
-                                        parse-path@4.0.4
-                                        
-                                </span>
-        
-                            </li>
-                    </ul><!-- .list-paths -->
-        
-            </div><!-- .card__section -->
-        
-              <hr/>
-              <!-- Overview -->
-              <h2 id="overview">Overview</h2>
-        <p><a href="https://www.npmjs.org/package/parse-path">parse-path</a> is a Parse paths (local paths, urls: ssh/git/etc)</p>
-        <p>Affected versions of this package are vulnerable to Authorization Bypass Through User-Controlled Key which is unable to detect the right resource.</p>
-        <h2 id="remediation">Remediation</h2>
-        <p>Upgrade <code>parse-path</code> to version 5.0.0 or higher.</p>
-        <h2 id="references">References</h2>
-        <ul>
-        <li><a href="https://github.com/ionicabizau/parse-path/commit/f9ad8856a3c8ae18e1cf4caef5edbabbc42840e8">GitHub Commit</a></li>
-        </ul>
-        
-              <hr/>
-        
-            <div class="cta card__cta">
-                <p><a href="https://snyk.io/vuln/SNYK-JS-PARSEPATH-2936439">More about this vulnerability</a></p>
             </div>
         
         </div><!-- .card -->

@@ -15,8 +15,7 @@ jobs:
         env:
           SNYK_TOKEN: ${{ secrets.SNYK_TOKEN }}
         run: |
-          stable_release="release-$(sed -E 's/\.[0-9]+$//g' VERSION)"
-          make snyk-report target_branch="$stable_release"
+          make snyk-report
           git config --global user.email 'ci@argoproj.com'
           git config --global user.name 'CI'
           git add docs/snyk/index.md
