@@ -118,7 +118,7 @@ func (s *applicationEventReporter) streamApplicationEvents(
 		logCtx.WithError(err).Error("failed to get application tree")
 	}
 
-	if isChildApp(a) {
+	if isChildApp(a) && a.DeletionTimestamp == nil {
 		parentApp := a.Labels[common.LabelKeyAppInstance]
 
 		parentApplicationEntity, err := s.server.Get(ctx, &application.ApplicationQuery{
