@@ -32,7 +32,9 @@ nav:
     - operator-manual/user-management/openunison.md
     - operator-manual/user-management/google.md
     - operator-manual/rbac.md
-  - operator-manual/security.md
+  - Security:
+    - Overview: operator-manual/security.md
+    - snyk/index.md
   - operator-manual/tls.md
   - operator-manual/cluster-bootstrapping.md
   - operator-manual/secret-management.md
