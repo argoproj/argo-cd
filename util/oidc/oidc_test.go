@@ -192,6 +192,52 @@ requestedScopes: ["oidc"]`, oidcTestServer.URL),
 	})
 }
 
+func Test_Login_Flow(t *testing.T) {
+	// Show that SSO login works when no redirect URL is provided, and we fall back to the configured base href for the
+	// Argo CD instance.
+
+	oidcTestServer := test.GetOIDCTestServer(t)
+	t.Cleanup(oidcTestServer.Close)
+
+	cdSettings := &settings.ArgoCDSettings{
+		URL: "https://argocd.example.com",
+		OIDCConfigRAW: fmt.Sprintf(`
+name: Test
+issuer: %s
+clientID: xxx
+clientSecret: yyy
+requestedScopes: ["oidc"]`, oidcTestServer.URL),
+		OIDCTLSInsecureSkipVerify: true,
+	}
+
+	// The base href (the last argument for NewClientApp) is what HandleLogin will fall back to when no explicit
+	// redirect URL is given.
+	app, err := NewClientApp(cdSettings, "", "/")
+	require.NoError(t, err)
+
+	w := httptest.NewRecorder()
+
+	req := httptest.NewRequest("GET", "https://argocd.example.com/auth/login", nil)
+
+	app.HandleLogin(w, req)
+
+	redirectUrl, err := w.Result().Location()
+	require.NoError(t, err)
+
+	state := redirectUrl.Query()["state"]
+
+	req = httptest.NewRequest("GET", fmt.Sprintf("https://argocd.example.com/auth/callback?state=%s&code=abc", state), nil)
+	for _, cookie := range w.Result().Cookies() {
+		req.AddCookie(cookie)
+	}
+
+	w = httptest.NewRecorder()
+
+	app.HandleCallback(w, req)
+
+	assert.NotContains(t, w.Body.String(), InvalidRedirectURLError.Error())
+}
+
 func TestClientApp_HandleCallback(t *testing.T) {
 	oidcTestServer := test.GetOIDCTestServer(t)
 	t.Cleanup(oidcTestServer.Close)
