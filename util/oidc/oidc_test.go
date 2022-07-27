@@ -211,7 +211,7 @@ requestedScopes: ["oidc"]`, oidcTestServer.URL),
 
 	// The base href (the last argument for NewClientApp) is what HandleLogin will fall back to when no explicit
 	// redirect URL is given.
-	app, err := NewClientApp(cdSettings, "", "/")
+	app, err := NewClientApp(cdSettings, "", nil, "/")
 	require.NoError(t, err)
 
 	w := httptest.NewRecorder()
