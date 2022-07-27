@@ -38,16 +38,18 @@ cd argo-cd
 git checkout master
 
 minor_version=$(sed -E 's/\.[0-9]+$//g' VERSION)
-patch_version=$(git tag -l | grep "v$minor_version." | sort | tail -n 1)
+patch_num=$(git tag -l | grep "v$minor_version." | grep -o "[[:digit:]]*$" | sort -g | tail -n 1)
+version="v$minor_version.$patch_num"
 versions="master "
 for i in 1 2 3; do
-  if [ "$patch_version" == "" ]; then break; fi
+  if [ "$version" == "" ]; then break; fi
   # Nightmare code to get the most recent patches of the three most recent minor versions.
-  versions+="$patch_version "
-  minor_num="${minor_version/[0-9]\./}"
+  versions+="$version "
+  minor_num=$(printf '%s' "$minor_version" | sed -E 's/[0-9]+\.//')
   minor_num=$((minor_num-1))
   minor_version=$(printf '%s' "$minor_version" | sed -E "s/\.[0-9]+$/.$minor_num/g")
-  patch_version=$(git tag -l | grep "v$minor_version." | sort | tail -n 1)
+  patch_num=$(git tag -l | grep "v$minor_version." | grep -o "[[:digit:]]*$" | sort -g | tail -n 1)
+  version="v$minor_version.$patch_num"
 done
 
 for version in $versions; do

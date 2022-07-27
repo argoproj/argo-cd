@@ -40,12 +40,12 @@ recent minor releases.
 * [(IaC) manifests/install.yaml](v2.3.6/argocd-iac-install.html)
 * [(IaC) manifests/namespace-install.yaml](v2.3.6/argocd-iac-namespace-install.html)
 
-### v2.2.9
+### v2.2.11
 
-* [dependencies (golang and JavaScript)](v2.2.9/argocd-test.html) — go.mod: 0 critical, 1 high, 3 medium, 0 low; ui/yarn.lock: 1 critical, 11 high, 32 medium, 2 low
-* [(image) ghcr.io/dexidp/dex:v2.30.2](v2.2.9/ghcr.io_dexidp_dex:v2.30.2.html) — 1 critical, 4 high, 0 medium, 1 low
-* [(image) haproxy:2.0.25-alpine](v2.2.9/haproxy:2.0.25-alpine.html) — 3 critical, 4 high, 0 medium, 1 low
-* [(image) quay.io/argoproj/argocd:v2.2.9](v2.2.9/quay.io_argoproj_argocd:v2.2.9.html) — 0 critical, 0 high, 4 medium, 25 low
-* [(image) redis:6.2.6-alpine](v2.2.9/redis:6.2.6-alpine.html) — 0 critical, 1 high, 0 medium, 0 low
-* [(IaC) manifests/install.yaml](v2.2.9/argocd-iac-install.html)
-* [(IaC) manifests/namespace-install.yaml](v2.2.9/argocd-iac-namespace-install.html)
+* [dependencies (golang and JavaScript)](v2.2.11/argocd-test.html) — go.mod: 0 critical, 1 high, 3 medium, 0 low; ui/yarn.lock: 1 critical, 11 high, 32 medium, 2 low
+* [(image) ghcr.io/dexidp/dex:v2.30.2](v2.2.11/ghcr.io_dexidp_dex:v2.30.2.html) — 1 critical, 4 high, 0 medium, 1 low
+* [(image) haproxy:2.0.25-alpine](v2.2.11/haproxy:2.0.25-alpine.html) — 3 critical, 4 high, 0 medium, 1 low
+* [(image) quay.io/argoproj/argocd:v2.2.11](v2.2.11/quay.io_argoproj_argocd:v2.2.11.html) — 0 critical, 0 high, 4 medium, 25 low
+* [(image) redis:6.2.6-alpine](v2.2.11/redis:6.2.6-alpine.html) — 0 critical, 1 high, 0 medium, 0 low
+* [(IaC) manifests/install.yaml](v2.2.11/argocd-iac-install.html)
+* [(IaC) manifests/namespace-install.yaml](v2.2.11/argocd-iac-namespace-install.html)
