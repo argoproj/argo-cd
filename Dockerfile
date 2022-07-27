@@ -92,12 +92,13 @@ COPY ["ui/", "."]
 
 ARG ARGO_VERSION=latest
 ENV ARGO_VERSION=$ARGO_VERSION
-RUN HOST_ARCH='amd64' NODE_ENV='production' NODE_ONLINE_ENV='online' NODE_OPTIONS=--max_old_space_size=8192 yarn build
+ARG TARGETARCH
+RUN HOST_ARCH=$TARGETARCH NODE_ENV='production' NODE_ONLINE_ENV='online' NODE_OPTIONS=--max_old_space_size=8192 yarn build
 
 ####################################################################################################
 # Argo CD Build stage which performs the actual build of Argo CD binaries
 ####################################################################################################
-FROM --platform=$BUILDPLATFORM  docker.io/library/golang:1.18 AS argocd-build
+FROM --platform=$BUILDPLATFORM docker.io/library/golang:1.18 AS argocd-build
 
 WORKDIR /go/src/github.com/argoproj/argo-cd
 
