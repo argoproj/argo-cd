@@ -6,12 +6,25 @@ Delete an application
 argocd app delete APPNAME [flags]
 ```
 
+### Examples
+
+```
+argocd app delete app1
+
+# Delete multiple apps
+argocd delete app1 app2
+
+# Delete apps by label
+argocd app delete -l foo=bar
+```
+
 ### Options
 
 ```
       --cascade                     Perform a cascaded deletion of all application resources (default true)
   -h, --help                        help for delete
   -p, --propagation-policy string   Specify propagation policy for deletion of application's resources. One of: foreground|background (default "foreground")
+  -l, --selector string             Delete all apps with matching label
   -y, --yes                         Turn off prompting to confirm cascaded deletion of application resources
 ```
 

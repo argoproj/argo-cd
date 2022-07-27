@@ -41,3 +41,23 @@ func TestDeletingAppStuckInSync(t *testing.T) {
 		// delete is successful
 		Expect(DoesNotExist())
 }
+
+func TestDeletingAppByLabel(t *testing.T) {
+	Given(t).
+		When().
+		CreateApp("--label=foo=bar").
+		Sync().
+		Then().
+		Expect(OperationPhaseIs(OperationRunning)).
+		Expect(SyncStatusIs(SyncStatusCodeSynced)).
+		When().
+		DeleteBySelector("foo=baz").
+		Then().
+		// delete is unsuccessful since no selector match
+		Expect(Error("no apps match selector: foo=baz", "")).
+		When().
+		DeleteBySelector("foo=bar").
+		Then().
+		// delete is successful
+		Expect(DoesNotExist())
+}
