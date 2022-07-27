@@ -226,6 +226,9 @@ replace (
 
 	google.golang.org/grpc => google.golang.org/grpc v1.15.0
 
+	// Avoid CVE-2022-28948
+	gopkg.in/yaml.v3 => gopkg.in/yaml.v3 v3.0.1
+
 	k8s.io/api => k8s.io/api v0.23.1
 	k8s.io/apiextensions-apiserver => k8s.io/apiextensions-apiserver v0.23.1
 	k8s.io/apimachinery => k8s.io/apimachinery v0.23.1
