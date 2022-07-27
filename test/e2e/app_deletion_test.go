@@ -44,6 +44,7 @@ func TestDeletingAppStuckInSync(t *testing.T) {
 
 func TestDeletingAppByLabel(t *testing.T) {
 	Given(t).
+		Path("arbitrary-path").
 		When().
 		CreateApp("--label=foo=bar").
 		Sync().
