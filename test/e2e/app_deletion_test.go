@@ -52,6 +52,7 @@ func TestDeletingAppByLabel(t *testing.T) {
 		Then().
 		Expect(SyncStatusIs(SyncStatusCode(SyncStatusCodeSynced))).
 		When().
+		IgnoreErrors().
 		DeleteBySelector("foo=baz").
 		Then().
 		// delete is unsuccessful since no selector match
@@ -60,7 +61,6 @@ func TestDeletingAppByLabel(t *testing.T) {
 				assert.Equal(t, "no apps match selector foo=baz", err.Error())
 			},
 		).
-		// delete is unsuccessful since no selector match
 		When().
 		DeleteBySelector("foo=bar").
 		Then().
