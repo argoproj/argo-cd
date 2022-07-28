@@ -128,6 +128,31 @@ func newServiceWithCommitSHA(root, revision string) *Service {
 	return service
 }
 
+// createSymlink creates a symlink with name linkName to file destName in
+// workingDir
+func createSymlink(t *testing.T, workingDir, destName, linkName string) error {
+	oldWorkingDir, err := os.Getwd()
+	if err != nil {
+		return err
+	}
+	if workingDir != "" {
+		err = os.Chdir(workingDir)
+		if err != nil {
+			return err
+		}
+		defer func() {
+			if err := os.Chdir(oldWorkingDir); err != nil {
+				t.Fatal(err.Error())
+			}
+		}()
+	}
+	err = os.Symlink(destName, linkName)
+	if err != nil {
+		return err
+	}
+	return nil
+}
+
 func TestGenerateYamlManifestInDir(t *testing.T) {
 	service := newService("../..")
 
@@ -1969,7 +1994,12 @@ func Test_getPotentiallyValidManifests(t *testing.T) {
 	})
 
 	t.Run("circular link should throw an error", func(t *testing.T) {
-		require.DirExists(t, "./testdata/circular-link")
+		const testDir = "./testdata/circular-link"
+		require.DirExists(t, testDir)
+		require.NoError(t, createSymlink(t, testDir, "a.json", "b.json"))
+		defer os.Remove(path.Join(testDir, "a.json"))
+		require.NoError(t, createSymlink(t, testDir, "b.json", "a.json"))
+		defer os.Remove(path.Join(testDir, "b.json"))
 		manifests, err := getPotentiallyValidManifests(logCtx, "./testdata/circular-link", "./testdata/circular-link", false, "", "", resource.MustParse("0"))
 		assert.Empty(t, manifests)
 		assert.Error(t, err)
@@ -2064,7 +2094,12 @@ func Test_findManifests(t *testing.T) {
 	})
 
 	t.Run("circular link should throw an error", func(t *testing.T) {
-		require.DirExists(t, "./testdata/circular-link")
+		const testDir = "./testdata/circular-link"
+		require.DirExists(t, testDir)
+		require.NoError(t, createSymlink(t, testDir, "a.json", "b.json"))
+		defer os.Remove(path.Join(testDir, "a.json"))
+		require.NoError(t, createSymlink(t, testDir, "b.json", "a.json"))
+		defer os.Remove(path.Join(testDir, "b.json"))
 		manifests, err := findManifests(logCtx, "./testdata/circular-link", "./testdata/circular-link", nil, noRecurse, resource.MustParse("0"))
 		assert.Empty(t, manifests)
 		assert.Error(t, err)
