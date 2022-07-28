@@ -1531,6 +1531,11 @@ func NewApplicationSyncCommand(clientOpts *argocdclient.ClientOptions) *cobra.Co
 				c.HelpFunc()(c, args)
 				os.Exit(1)
 			}
+
+			if len(args) > 1 && selector != "" {
+				log.Fatal("Cannot use selector option when application name(s) passed as argument(s)")
+			}
+
 			acdClient := headless.NewClientOrDie(clientOpts, c)
 			conn, appIf := acdClient.NewApplicationClientOrDie()
 			defer argoio.Close(conn)

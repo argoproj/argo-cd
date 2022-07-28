@@ -319,7 +319,7 @@ func (a *Actions) Delete(cascade bool) *Actions {
 
 func (a *Actions) DeleteBySelector(selector string) *Actions {
 	a.context.t.Helper()
-	a.runCli("app", "delete", a.context.name, fmt.Sprintf("--selector=%s", selector), "--yes")
+	a.runCli("app", "delete", fmt.Sprintf("--selector=%s", selector), "--yes")
 	return a
 }
 
