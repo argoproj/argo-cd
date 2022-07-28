@@ -122,9 +122,17 @@ func NewClusterAddCommand(clientOpts *argocdclient.ClientOptions, pathOpts *clie
 				clientset, err := kubernetes.NewForConfig(conf)
 				errors.CheckError(err)
 				if clusterOpts.ServiceAccount != "" {
-					managerBearerToken, err = clusterauth.GetServiceAccountBearerToken(clientset, clusterOpts.SystemNamespace, clusterOpts.ServiceAccount)
+					managerBearerToken, err = clusterauth.GetServiceAccountBearerToken(clientset, clusterOpts.SystemNamespace, clusterOpts.ServiceAccount, common.BearerTokenTimeout)
 				} else {
-					managerBearerToken, err = clusterauth.InstallClusterManagerRBAC(clientset, clusterOpts.SystemNamespace, clusterOpts.Namespaces)
+					isTerminal := isatty.IsTerminal(os.Stdout.Fd()) || isatty.IsCygwinTerminal(os.Stdout.Fd())
+
+					if isTerminal && !skipConfirmation {
+						message := fmt.Sprintf("WARNING: This will create a service account `argocd-manager` on the cluster referenced by context `%s` with full cluster level admin privileges. Do you want to continue [y/N]? ", contextName)
+						if !cli.AskToProceed(message) {
+							os.Exit(1)
+						}
+					}
+					managerBearerToken, err = clusterauth.InstallClusterManagerRBAC(clientset, clusterOpts.SystemNamespace, clusterOpts.Namespaces, common.BearerTokenTimeout)
 				}
 				errors.CheckError(err)
 			}
