@@ -46,14 +46,14 @@
                   id: saml
                   name: saml
                   config:
-                  entityIssuer: https://my-argo-cd-url/api/dex/callback
-                  ssoURL: https://my-login-url (e.g. https://login.microsoftonline.com/xxxxx/a/saml2)
-                  caData: |
-                     MY-BASE64-ENCODED-CERTIFICATE-DATA
-                  redirectURI: https://my-argo-cd-url/api/dex/callback
-                  usernameAttr: email
-                  emailAttr: email
-                  groupsAttr: Group
+                    entityIssuer: https://my-argo-cd-url/api/dex/callback
+                    ssoURL: https://my-login-url (e.g. https://login.microsoftonline.com/xxxxx/a/saml2)
+                    caData: |
+                       MY-BASE64-ENCODED-CERTIFICATE-DATA
+                    redirectURI: https://my-argo-cd-url/api/dex/callback
+                    usernameAttr: email
+                    emailAttr: email
+                    groupsAttr: Group
 
 2. Edit `argocd-rbac-cm` to configure permissions, similar to example below.
       - Use Azure AD `Group IDs` for assigning roles.
