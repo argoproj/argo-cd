@@ -4,6 +4,7 @@ import (
 	"testing"
 
 	. "github.com/argoproj/gitops-engine/pkg/sync/common"
+	"github.com/stretchr/testify/assert"
 
 	. "github.com/argoproj/argo-cd/v2/pkg/apis/application/v1alpha1"
 	. "github.com/argoproj/argo-cd/v2/test/e2e/fixture"
@@ -54,7 +55,12 @@ func TestDeletingAppByLabel(t *testing.T) {
 		DeleteBySelector("foo=baz").
 		Then().
 		// delete is unsuccessful since no selector match
-		Expect(Error("no apps match selector: foo=baz", "")).
+		AndCLIOutput(
+			func(output string, err error) {
+				assert.Equal(t, "no apps match selector foo=baz", output)
+			},
+		).
+		// delete is unsuccessful since no selector match
 		When().
 		DeleteBySelector("foo=bar").
 		Then().
