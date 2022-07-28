@@ -53,6 +53,15 @@ func TestWebhookHandler(t *testing.T) {
 			expectedRefresh:    true,
 		},
 		{
+			desc:               "WebHook from a GitHub ping event",
+			headerKey:          "X-GitHub-Event",
+			headerValue:        "ping",
+			payloadFile:        "github-ping-event.json",
+			effectedAppSets:    []string{"git-github"},
+			expectedStatusCode: http.StatusOK,
+			expectedRefresh:    false,
+		},
+		{
 			desc:               "WebHook from a GitLab repository via Commit",
 			headerKey:          "X-Gitlab-Event",
 			headerValue:        "Push Hook",

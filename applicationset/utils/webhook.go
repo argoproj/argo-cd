@@ -111,7 +111,7 @@ func (h *WebhookHandler) Handler(w http.ResponseWriter, r *http.Request) {
 
 	switch {
 	case r.Header.Get("X-GitHub-Event") != "":
-		payload, err = h.github.Parse(r, github.PushEvent, github.PullRequestEvent)
+		payload, err = h.github.Parse(r, github.PushEvent, github.PullRequestEvent, github.PingEvent)
 	case r.Header.Get("X-Gitlab-Event") != "":
 		payload, err = h.gitlab.Parse(r, gitlab.PushEvents, gitlab.TagEvents)
 	default:
