@@ -992,6 +992,8 @@ func (s *ArgoCDServer) getIndexData() ([]byte, error) {
 		}
 	})
 
+	s.indexData = []byte(strings.Replace(string(s.indexData), `<script id="webpack-nonce"></script>`, `<script nonce="michael">__webpack_nonce__ = 'michael'</script>`, 1))
+
 	return s.indexData, s.indexDataErr
 }
 

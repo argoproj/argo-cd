@@ -9191,10 +9191,10 @@ style-inject@0.3.0:
   resolved "https://registry.yarnpkg.com/style-inject/-/style-inject-0.3.0.tgz#d21c477affec91811cc82355832a700d22bf8dd3"
   integrity sha512-IezA2qp+vcdlhJaVm5SOdPPTUu0FCEqfNSli2vRuSIBbu5Nq5UvygTk/VzeCqfLz2Atj3dVII5QBKGZRZ0edzw==
 
-style-loader@^0.20.1:
-  version "0.20.3"
-  resolved "https://registry.yarnpkg.com/style-loader/-/style-loader-0.20.3.tgz#ebef06b89dec491bcb1fdb3452e913a6fd1c10c4"
-  integrity sha512-2I7AVP73MvK33U7B9TKlYZAqdROyMXDYSMvHLX43qy3GCOaJNiV6i0v/sv9idWIaQ42Yn2dNv79Q5mKXbKhAZg==
+style-loader@^0.22.0:
+  version "0.22.1"
+  resolved "https://registry.yarnpkg.com/style-loader/-/style-loader-0.22.1.tgz#901ea28aac78fcc00c5075585ac07d7ef3f87a52"
+  integrity sha512-WXUrLeinPIR1Oat3PfCDro7qTniwNTJqGqv1KcQiL3JR5PzrVLTyNsd9wTsPXG/qNCJ7lzR2NY/QDjFsP7nuSQ==
   dependencies:
     loader-utils "^1.1.0"
     schema-utils "^0.4.5"

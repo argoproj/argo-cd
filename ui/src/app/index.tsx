@@ -1,6 +1,10 @@
+import './insert-nonce';
 import * as React from 'react';
 import * as ReactDOM from 'react-dom';
 import {App} from './app';
+
+// Import this directly, because we use the CSS-less version of Tippy (wee webpack.config.js config.resolve.js).
+import './tippy.js-4.3.5-index.css';
 
 ReactDOM.render(<App />, document.getElementById('app'));
 

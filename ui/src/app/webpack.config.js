@@ -25,7 +25,10 @@ const config = {
 
     resolve: {
         extensions: ['.ts', '.tsx', '.js', '.json'],
-        alias: { react: require.resolve('react') },
+        alias: {
+            react: require.resolve('react'),
+            'tippy.js': 'tippy.js/esm'  // Use CSS-less version to avoid needing to set unsafe-inline CSP rule
+        },
         fallback: { fs: false }
     },
     ignoreWarnings: [
