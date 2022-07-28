@@ -3,7 +3,7 @@
 Sync an application to its target state
 
 ```
-argocd app sync [APPNAME... | -l selector] [flags]
+argocd app sync [APPNAME... | -l selector | --project project-name] [flags]
 ```
 
 ### Examples
@@ -39,6 +39,7 @@ argocd app sync [APPNAME... | -l selector] [flags]
       --local string                          Path to a local directory. When this flag is present no git queries will be made
       --local-repo-root string                Path to the repository root. Used together with --local allows setting the repository root (default "/")
       --preview-changes                       Preview difference against the target and live state before syncing app and wait for user confirmation
+      --project stringArray                   Sync apps that belong to the specified projects. This option may be specified repeatedly.
       --prune                                 Allow deleting unexpected resources
       --replace                               Use a kubectl create/replace instead apply
       --resource stringArray                  Sync only specific resources as GROUP:KIND:NAME. Fields may be blank. This option may be specified repeatedly
