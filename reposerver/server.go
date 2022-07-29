@@ -3,9 +3,10 @@ package reposerver
 import (
 	"crypto/tls"
 	"fmt"
-	"go.opentelemetry.io/contrib/instrumentation/google.golang.org/grpc/otelgrpc"
 	"os"
 	"path/filepath"
+
+	"go.opentelemetry.io/contrib/instrumentation/google.golang.org/grpc/otelgrpc"
 
 	grpc_middleware "github.com/grpc-ecosystem/go-grpc-middleware"
 	grpc_logrus "github.com/grpc-ecosystem/go-grpc-middleware/logging/logrus"
@@ -15,6 +16,7 @@ import (
 	"google.golang.org/grpc/credentials"
 	"google.golang.org/grpc/health"
 	"google.golang.org/grpc/health/grpc_health_v1"
+	"google.golang.org/grpc/keepalive"
 	"google.golang.org/grpc/reflection"
 
 	"github.com/argoproj/argo-cd/v2/common"
@@ -86,6 +88,11 @@ func NewServer(metricsServer *metrics.MetricsServer, cache *reposervercache.Cach
 		grpc.StreamInterceptor(grpc_middleware.ChainStreamServer(streamInterceptors...)),
 		grpc.MaxRecvMsgSize(apiclient.MaxGRPCMessageSize),
 		grpc.MaxSendMsgSize(apiclient.MaxGRPCMessageSize),
+		grpc.KeepaliveEnforcementPolicy(
+			keepalive.EnforcementPolicy{
+				MinTime: common.GRPCKeepAliveEnforcementMinimum,
+			},
+		),
 	}
 
 	// We do allow for non-TLS servers to be created, in case of mTLS will be

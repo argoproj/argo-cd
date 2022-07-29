@@ -38,7 +38,7 @@ export const Help = () => {
                                         <div className='help-box'>
                                             <p>Want to download the CLI tool?</p>
                                             <a href={`download/argocd-linux-${process.env.HOST_ARCH}`} className='user-info-panel-buttons argo-button argo-button--base'>
-                                                <i className='fab fa-linux' /> Linux (amd64)
+                                                <i className='fab fa-linux' /> Linux ({process.env.HOST_ARCH})
                                             </a>
                                             &nbsp;
                                             {Object.keys(binaryUrls || {}).map(binaryName => {

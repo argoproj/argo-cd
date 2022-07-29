@@ -11,6 +11,8 @@ import (
 	"regexp"
 	"strings"
 
+	log "github.com/sirupsen/logrus"
+
 	"github.com/argoproj/argo-cd/v2/common"
 	appsv1 "github.com/argoproj/argo-cd/v2/pkg/apis/application/v1alpha1"
 	executil "github.com/argoproj/argo-cd/v2/util/exec"
@@ -163,7 +165,12 @@ func writeKeyToFile(keyData string) (string, error) {
 		os.Remove(f.Name())
 		return "", err
 	}
-	defer f.Close()
+	defer func() {
+		err = f.Close()
+		if err != nil {
+			log.Errorf("error closing file %q: %v", f.Name(), err)
+		}
+	}()
 	return f.Name(), nil
 }
 
@@ -260,7 +267,12 @@ func InitializeGnuPG() error {
 		return err
 	}
 
-	defer f.Close()
+	defer func() {
+		err = f.Close()
+		if err != nil {
+			log.Errorf("error closing file %q: %v", f.Name(), err)
+		}
+	}()
 
 	cmd := exec.Command("gpg", "--no-permission-warning", "--logger-fd", "1", "--batch", "--gen-key", f.Name())
 	cmd.Env = getGPGEnviron()
@@ -279,7 +291,12 @@ func ImportPGPKeysFromString(keyData string) ([]*appsv1.GnuPGPublicKey, error) {
 	if err != nil {
 		return nil, err
 	}
-	defer f.Close()
+	defer func() {
+		err = f.Close()
+		if err != nil {
+			log.Errorf("error closing file %q: %v", f.Name(), err)
+		}
+	}()
 	return ImportPGPKeys(f.Name())
 }
 
@@ -399,7 +416,12 @@ func SetPGPTrustLevel(pgpKeys []*appsv1.GnuPGPublicKey, trustLevel string) error
 		}
 	}
 
-	defer f.Close()
+	defer func() {
+		err = f.Close()
+		if err != nil {
+			log.Errorf("error closing file %q: %v", f.Name(), err)
+		}
+	}()
 
 	// Load ownertrust from the file we have constructed and instruct gpg to update the trustdb
 	cmd := exec.Command("gpg", "--no-permission-warning", "--import-ownertrust", f.Name())

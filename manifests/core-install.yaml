@@ -10116,7 +10116,7 @@ spec:
         - ""
         - --appendonly
         - "no"
-        image: redis:7.0.0-alpine
+        image: redis:7.0.4-alpine
         imagePullPolicy: Always
         name: redis
         ports:
@@ -10260,6 +10260,12 @@ spec:
           valueFrom:
             configMapKeyRef:
               key: reposerver.plugin.tar.exclusions
+              name: argocd-cmd-params-cm
+              optional: true
+        - name: ARGOCD_REPO_SERVER_ALLOW_OUT_OF_BOUNDS_SYMLINKS
+          valueFrom:
+            configMapKeyRef:
+              key: reposerver.allow.oob.symlinks
               name: argocd-cmd-params-cm
               optional: true
         - name: HELM_CACHE_HOME
@@ -10563,6 +10569,25 @@ spec:
   podSelector:
     matchLabels:
       app.kubernetes.io/name: argocd-application-controller
+  policyTypes:
+  - Ingress
+---
+apiVersion: networking.k8s.io/v1
+kind: NetworkPolicy
+metadata:
+  name: argocd-applicationset-controller-network-policy
+spec:
+  ingress:
+  - from:
+    - namespaceSelector: {}
+    ports:
+    - port: 7000
+      protocol: TCP
+    - port: 8080
+      protocol: TCP
+  podSelector:
+    matchLabels:
+      app.kubernetes.io/name: argocd-applicationset-controller
   policyTypes:
   - Ingress
 ---

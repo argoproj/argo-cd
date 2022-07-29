@@ -372,9 +372,10 @@ func NewClusterListCommand(clientOpts *argocdclient.ClientOptions) *cobra.Comman
 // NewClusterRotateAuthCommand returns a new instance of an `argocd cluster rotate-auth` command
 func NewClusterRotateAuthCommand(clientOpts *argocdclient.ClientOptions) *cobra.Command {
 	var command = &cobra.Command{
-		Use:     "rotate-auth SERVER",
-		Short:   fmt.Sprintf("%s cluster rotate-auth SERVER", cliName),
-		Example: fmt.Sprintf("%s cluster rotate-auth https://12.34.567.89", cliName),
+		Use:   "rotate-auth SERVER/NAME",
+		Short: fmt.Sprintf("%s cluster rotate-auth SERVER/NAME", cliName),
+		Example: `argocd cluster rotate-auth https://12.34.567.89
+argocd cluster rotate-auth cluster-name`,
 		Run: func(c *cobra.Command, args []string) {
 			ctx := c.Context()
 
@@ -384,12 +385,13 @@ func NewClusterRotateAuthCommand(clientOpts *argocdclient.ClientOptions) *cobra.
 			}
 			conn, clusterIf := headless.NewClientOrDie(clientOpts, c).NewClusterClientOrDie()
 			defer io.Close(conn)
-			clusterQuery := clusterpkg.ClusterQuery{
-				Server: args[0],
-			}
-			_, err := clusterIf.RotateAuth(ctx, &clusterQuery)
+
+			cluster := args[0]
+			clusterQuery := getQueryBySelector(cluster)
+			_, err := clusterIf.RotateAuth(ctx, clusterQuery)
 			errors.CheckError(err)
-			fmt.Printf("Cluster '%s' rotated auth\n", clusterQuery.Server)
+
+			fmt.Printf("Cluster '%s' rotated auth\n", cluster)
 		},
 	}
 	return command

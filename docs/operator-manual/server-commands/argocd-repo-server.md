@@ -13,6 +13,7 @@ argocd-repo-server [flags]
 ### Options
 
 ```
+      --allow-oob-symlinks                             Allow out-of-bounds symlinks in repositories (not recommended)
       --default-cache-expiration duration              Cache expiration default (default 24h0m0s)
       --disable-tls                                    Disable TLS on the gRPC endpoint
   -h, --help                                           help for argocd-repo-server

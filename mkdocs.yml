@@ -32,7 +32,9 @@ nav:
     - operator-manual/user-management/openunison.md
     - operator-manual/user-management/google.md
     - operator-manual/rbac.md
-  - operator-manual/security.md
+  - Security:
+    - Overview: operator-manual/security.md
+    - snyk/index.md
   - operator-manual/tls.md
   - operator-manual/cluster-bootstrapping.md
   - operator-manual/secret-management.md
@@ -44,6 +46,7 @@ nav:
   - operator-manual/custom_tools.md
   - operator-manual/custom-styles.md
   - operator-manual/metrics.md
+  - operator-manual/web_based_terminal.md
   - Notification:
     - Overview: operator-manual/notifications/index.md
     - operator-manual/notifications/triggers.md
@@ -160,6 +163,7 @@ nav:
   - developer-guide/releasing.md
   - developer-guide/site.md
   - developer-guide/static-code-analysis.md
+  - developer-guide/ui-extensions.md
   - developer-guide/faq.md
 - faq.md
 - security_considerations.md

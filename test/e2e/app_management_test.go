@@ -948,7 +948,7 @@ func TestLocalManifestSync(t *testing.T) {
 		And(func(app *Application) {
 			res, _ := RunCli("app", "manifests", app.Name)
 			assert.Contains(t, res, "containerPort: 80")
-			assert.Contains(t, res, "image: gcr.io/heptio-images/ks-guestbook-demo:0.2")
+			assert.Contains(t, res, "image: quay.io/argoprojlabs/argocd-e2e-container:0.2")
 		}).
 		Given().
 		LocalPath(guestbookPathLocal).
@@ -959,7 +959,7 @@ func TestLocalManifestSync(t *testing.T) {
 		And(func(app *Application) {
 			res, _ := RunCli("app", "manifests", app.Name)
 			assert.Contains(t, res, "containerPort: 81")
-			assert.Contains(t, res, "image: gcr.io/heptio-images/ks-guestbook-demo:0.3")
+			assert.Contains(t, res, "image: quay.io/argoprojlabs/argocd-e2e-container:0.3")
 		}).
 		Given().
 		LocalPath("").
@@ -970,7 +970,7 @@ func TestLocalManifestSync(t *testing.T) {
 		And(func(app *Application) {
 			res, _ := RunCli("app", "manifests", app.Name)
 			assert.Contains(t, res, "containerPort: 80")
-			assert.Contains(t, res, "image: gcr.io/heptio-images/ks-guestbook-demo:0.2")
+			assert.Contains(t, res, "image: quay.io/argoprojlabs/argocd-e2e-container:0.2")
 		})
 }
 
@@ -1191,7 +1191,8 @@ func TestPermissionWithScopedRepo(t *testing.T) {
 		Name(projName).
 		Destination("*,*").
 		When().
-		Create()
+		Create().
+		AddSource("*")
 
 	repoFixture.Given(t, true).
 		When().
@@ -1245,7 +1246,60 @@ func TestPermissionDeniedWithScopedRepo(t *testing.T) {
 		CreateApp().
 		Then().
 		Expect(Error("", "is not permitted in project"))
+}
 
+func TestPermissionDeniedWithNegatedNamespace(t *testing.T) {
+	projName := "argo-project"
+	projectFixture.
+		Given(t).
+		Name(projName).
+		Destination("*,!*test-permission-denied-with-negated-namespace*").
+		When().
+		Create()
+
+	repoFixture.Given(t, true).
+		When().
+		Path(RepoURL(RepoURLTypeFile)).
+		Project(projName).
+		Create()
+
+	GivenWithSameState(t).
+		Project(projName).
+		RepoURLType(RepoURLTypeFile).
+		Path("two-nice-pods").
+		When().
+		PatchFile("pod-1.yaml", `[{"op": "add", "path": "/metadata/annotations", "value": {"argocd.argoproj.io/sync-options": "Prune=false"}}]`).
+		IgnoreErrors().
+		CreateApp().
+		Then().
+		Expect(Error("", "is not permitted in project"))
+}
+
+func TestPermissionDeniedWithNegatedServer(t *testing.T) {
+	projName := "argo-project"
+	projectFixture.
+		Given(t).
+		Name(projName).
+		Destination("!https://kubernetes.default.svc,*").
+		When().
+		Create()
+
+	repoFixture.Given(t, true).
+		When().
+		Path(RepoURL(RepoURLTypeFile)).
+		Project(projName).
+		Create()
+
+	GivenWithSameState(t).
+		Project(projName).
+		RepoURLType(RepoURLTypeFile).
+		Path("two-nice-pods").
+		When().
+		PatchFile("pod-1.yaml", `[{"op": "add", "path": "/metadata/annotations", "value": {"argocd.argoproj.io/sync-options": "Prune=false"}}]`).
+		IgnoreErrors().
+		CreateApp().
+		Then().
+		Expect(Error("", "is not permitted in project"))
 }
 
 // make sure that if we deleted a resource from the app, it is not pruned if annotated with Prune=false
