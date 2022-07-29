@@ -11,4 +11,4 @@ resources:
 images:
 - name: quay.io/argoproj/argocd
   newName: quay.io/argoproj/argocd
-  newTag: v2.3.6
+  newTag: v2.3.7
