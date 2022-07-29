@@ -456,17 +456,17 @@
               <div class="header-wrap">
                   <h1 class="project__header__title">Snyk test report</h1>
     
-                <p class="timestamp">July 27th 2022, 3:06:00 pm</p>
+                <p class="timestamp">July 29th 2022, 7:07:42 pm</p>
               </div>
                 <div class="source-panel">
                   <span>Scanned the following path:</span>
                   <ul>
-                    <li class="paths">/private/argo-cd/manifests/install.yaml (Kubernetes)</li>
+                    <li class="paths">argo-cd/manifests/namespace-install.yaml (Kubernetes)</li>
                   </ul>
                 </div>
     
                 <div class="meta-counts">
-                  <div class="meta-count"><span>35</span> <span>total issues</span></div>
+                  <div class="meta-count"><span>32</span> <span>total issues</span></div>
                 </div><!-- .meta-counts -->
             </div><!-- .layout-container--short -->
           </header><!-- .project__header -->
@@ -475,573 +475,13 @@
         <section class="layout-container">
             <table class="metatable">
                 <tbody>
-                <tr class="meta-row"><th class="meta-row-label">Project</th> <td class="meta-row-value">manifests/install.yaml</td></tr>
-                <tr class="meta-row"><th class="meta-row-label">Path</th> <td class="meta-row-value">/private/argo-cd/manifests/install.yaml</td></tr>
+                <tr class="meta-row"><th class="meta-row-label">Project</th> <td class="meta-row-value">manifests/namespace-install.yaml</td></tr>
+                <tr class="meta-row"><th class="meta-row-label">Path</th> <td class="meta-row-value">argo-cd/manifests/namespace-install.yaml</td></tr>
                 <tr class="meta-row"><th class="meta-row-label">Project Type</th> <td class="meta-row-value">Kubernetes</td></tr>
                 </tbody>
             </table>
         </section>        <div class="layout-container" style="padding-top: 35px;">
           <div class="cards--vuln filter--patch filter--ignore">
-              <div class="card card--vuln  disclosure--not-new severity--medium" data-snyk-test="medium">
-                  <h2 class="card__title">Container does not drop all default capabilities</h2>
-                  <div class="card__section">
-              
-                      <div class="label label--medium">
-                          <span class="label__text">medium severity</span>
-                      </div>
-              
-                      <hr/>
-              
-                      <ul class="card__meta">
-                          <li class="card__meta__item">
-                              Public ID: <a href="https://snyk.io/security-rules/SNYK-CC-K8S-6">SNYK-CC-K8S-6</a> 
-                          </li>
-              
-                          <li class="card__meta__item">Introduced through:
-                                  [DocId: 30]
-                                   <span class="list-paths__item__arrow">›</span> 
-                                  input
-                                   <span class="list-paths__item__arrow">›</span> 
-                                  spec
-                                   <span class="list-paths__item__arrow">›</span> 
-                                  template
-                                   <span class="list-paths__item__arrow">›</span> 
-                                  spec
-                                   <span class="list-paths__item__arrow">›</span> 
-                                  containers[dex]
-                                   <span class="list-paths__item__arrow">›</span> 
-                                  securityContext
-                                   <span class="list-paths__item__arrow">›</span> 
-                                  capabilities
-                                   <span class="list-paths__item__arrow">›</span> 
-                                  drop
-                                  
-                          </li>
-              
-                          <li class="card__meta__item">
-                              Line number: 3067
-                          </li>
-                      </ul>
-              
-                      <hr/>
-              
-                          <h2>Impact</h2>
-                          <p>Containers are running with potentially unnecessary privileges</p>
-              
-                          <h2>Remediation</h2>
-                          <p>Add &#x60;ALL&#x60; to &#x60;securityContext.capabilities.drop&#x60; list, and add only required capabilities in &#x60;securityContext.capabilities.add&#x60;</p>
-              
-              
-                          <hr/>
-                  </div><!-- .card__section -->
-              
-                  <div class="cta card__cta">
-                      <p><a href="https://snyk.io/security-rules/SNYK-CC-K8S-6">More about this issue</a></p>
-                  </div>
-              
-              </div><!-- .card -->
-              <div class="card card--vuln  disclosure--not-new severity--medium" data-snyk-test="medium">
-                  <h2 class="card__title">Container does not drop all default capabilities</h2>
-                  <div class="card__section">
-              
-                      <div class="label label--medium">
-                          <span class="label__text">medium severity</span>
-                      </div>
-              
-                      <hr/>
-              
-                      <ul class="card__meta">
-                          <li class="card__meta__item">
-                              Public ID: <a href="https://snyk.io/security-rules/SNYK-CC-K8S-6">SNYK-CC-K8S-6</a> 
-                          </li>
-              
-                          <li class="card__meta__item">Introduced through:
-                                  [DocId: 30]
-                                   <span class="list-paths__item__arrow">›</span> 
-                                  input
-                                   <span class="list-paths__item__arrow">›</span> 
-                                  spec
-                                   <span class="list-paths__item__arrow">›</span> 
-                                  template
-                                   <span class="list-paths__item__arrow">›</span> 
-                                  spec
-                                   <span class="list-paths__item__arrow">›</span> 
-                                  initContainers[copyutil]
-                                   <span class="list-paths__item__arrow">›</span> 
-                                  securityContext
-                                   <span class="list-paths__item__arrow">›</span> 
-                                  capabilities
-                                   <span class="list-paths__item__arrow">›</span> 
-                                  drop
-                                  
-                          </li>
-              
-                          <li class="card__meta__item">
-                              Line number: 3077
-                          </li>
-                      </ul>
-              
-                      <hr/>
-              
-                          <h2>Impact</h2>
-                          <p>Containers are running with potentially unnecessary privileges</p>
-              
-                          <h2>Remediation</h2>
-                          <p>Add &#x60;ALL&#x60; to &#x60;securityContext.capabilities.drop&#x60; list, and add only required capabilities in &#x60;securityContext.capabilities.add&#x60;</p>
-              
-              
-                          <hr/>
-                  </div><!-- .card__section -->
-              
-                  <div class="cta card__cta">
-                      <p><a href="https://snyk.io/security-rules/SNYK-CC-K8S-6">More about this issue</a></p>
-                  </div>
-              
-              </div><!-- .card -->
-              <div class="card card--vuln  disclosure--not-new severity--medium" data-snyk-test="medium">
-                  <h2 class="card__title">Container does not drop all default capabilities</h2>
-                  <div class="card__section">
-              
-                      <div class="label label--medium">
-                          <span class="label__text">medium severity</span>
-                      </div>
-              
-                      <hr/>
-              
-                      <ul class="card__meta">
-                          <li class="card__meta__item">
-                              Public ID: <a href="https://snyk.io/security-rules/SNYK-CC-K8S-6">SNYK-CC-K8S-6</a> 
-                          </li>
-              
-                          <li class="card__meta__item">Introduced through:
-                                  [DocId: 31]
-                                   <span class="list-paths__item__arrow">›</span> 
-                                  input
-                                   <span class="list-paths__item__arrow">›</span> 
-                                  spec
-                                   <span class="list-paths__item__arrow">›</span> 
-                                  template
-                                   <span class="list-paths__item__arrow">›</span> 
-                                  spec
-                                   <span class="list-paths__item__arrow">›</span> 
-                                  containers[redis]
-                                   <span class="list-paths__item__arrow">›</span> 
-                                  securityContext
-                                   <span class="list-paths__item__arrow">›</span> 
-                                  capabilities
-                                   <span class="list-paths__item__arrow">›</span> 
-                                  drop
-                                  
-                          </li>
-              
-                          <li class="card__meta__item">
-                              Line number: 3130
-                          </li>
-                      </ul>
-              
-                      <hr/>
-              
-                          <h2>Impact</h2>
-                          <p>Containers are running with potentially unnecessary privileges</p>
-              
-                          <h2>Remediation</h2>
-                          <p>Add &#x60;ALL&#x60; to &#x60;securityContext.capabilities.drop&#x60; list, and add only required capabilities in &#x60;securityContext.capabilities.add&#x60;</p>
-              
-              
-                          <hr/>
-                  </div><!-- .card__section -->
-              
-                  <div class="cta card__cta">
-                      <p><a href="https://snyk.io/security-rules/SNYK-CC-K8S-6">More about this issue</a></p>
-                  </div>
-              
-              </div><!-- .card -->
-              <div class="card card--vuln  disclosure--not-new severity--medium" data-snyk-test="medium">
-                  <h2 class="card__title">Container does not drop all default capabilities</h2>
-                  <div class="card__section">
-              
-                      <div class="label label--medium">
-                          <span class="label__text">medium severity</span>
-                      </div>
-              
-                      <hr/>
-              
-                      <ul class="card__meta">
-                          <li class="card__meta__item">
-                              Public ID: <a href="https://snyk.io/security-rules/SNYK-CC-K8S-6">SNYK-CC-K8S-6</a> 
-                          </li>
-              
-                          <li class="card__meta__item">Introduced through:
-                                  [DocId: 32]
-                                   <span class="list-paths__item__arrow">›</span> 
-                                  input
-                                   <span class="list-paths__item__arrow">›</span> 
-                                  spec
-                                   <span class="list-paths__item__arrow">›</span> 
-                                  template
-                                   <span class="list-paths__item__arrow">›</span> 
-                                  spec
-                                   <span class="list-paths__item__arrow">›</span> 
-                                  initContainers[copyutil]
-                                   <span class="list-paths__item__arrow">›</span> 
-                                  securityContext
-                                   <span class="list-paths__item__arrow">›</span> 
-                                  capabilities
-                                   <span class="list-paths__item__arrow">›</span> 
-                                  drop
-                                  
-                          </li>
-              
-                          <li class="card__meta__item">
-                              Line number: 3313
-                          </li>
-                      </ul>
-              
-                      <hr/>
-              
-                          <h2>Impact</h2>
-                          <p>Containers are running with potentially unnecessary privileges</p>
-              
-                          <h2>Remediation</h2>
-                          <p>Add &#x60;ALL&#x60; to &#x60;securityContext.capabilities.drop&#x60; list, and add only required capabilities in &#x60;securityContext.capabilities.add&#x60;</p>
-              
-              
-                          <hr/>
-                  </div><!-- .card__section -->
-              
-                  <div class="cta card__cta">
-                      <p><a href="https://snyk.io/security-rules/SNYK-CC-K8S-6">More about this issue</a></p>
-                  </div>
-              
-              </div><!-- .card -->
-              <div class="card card--vuln  disclosure--not-new severity--medium" data-snyk-test="medium">
-                  <h2 class="card__title">Container is running without privilege escalation control</h2>
-                  <div class="card__section">
-              
-                      <div class="label label--medium">
-                          <span class="label__text">medium severity</span>
-                      </div>
-              
-                      <hr/>
-              
-                      <ul class="card__meta">
-                          <li class="card__meta__item">
-                              Public ID: <a href="https://snyk.io/security-rules/SNYK-CC-K8S-9">SNYK-CC-K8S-9</a> 
-                          </li>
-              
-                          <li class="card__meta__item">Introduced through:
-                                  [DocId: 30]
-                                   <span class="list-paths__item__arrow">›</span> 
-                                  input
-                                   <span class="list-paths__item__arrow">›</span> 
-                                  spec
-                                   <span class="list-paths__item__arrow">›</span> 
-                                  template
-                                   <span class="list-paths__item__arrow">›</span> 
-                                  spec
-                                   <span class="list-paths__item__arrow">›</span> 
-                                  initContainers[copyutil]
-                                   <span class="list-paths__item__arrow">›</span> 
-                                  securityContext
-                                   <span class="list-paths__item__arrow">›</span> 
-                                  allowPrivilegeEscalation
-                                  
-                          </li>
-              
-                          <li class="card__meta__item">
-                              Line number: 3077
-                          </li>
-                      </ul>
-              
-                      <hr/>
-              
-                          <h2>Impact</h2>
-                          <p>Processes could elevate current privileges via known vectors, for example SUID binaries</p>
-              
-                          <h2>Remediation</h2>
-                          <p>Set &#x60;securityContext.allowPrivilegeEscalation&#x60; to &#x60;false&#x60;</p>
-              
-              
-                          <hr/>
-                  </div><!-- .card__section -->
-              
-                  <div class="cta card__cta">
-                      <p><a href="https://snyk.io/security-rules/SNYK-CC-K8S-9">More about this issue</a></p>
-                  </div>
-              
-              </div><!-- .card -->
-              <div class="card card--vuln  disclosure--not-new severity--medium" data-snyk-test="medium">
-                  <h2 class="card__title">Container is running without privilege escalation control</h2>
-                  <div class="card__section">
-              
-                      <div class="label label--medium">
-                          <span class="label__text">medium severity</span>
-                      </div>
-              
-                      <hr/>
-              
-                      <ul class="card__meta">
-                          <li class="card__meta__item">
-                              Public ID: <a href="https://snyk.io/security-rules/SNYK-CC-K8S-9">SNYK-CC-K8S-9</a> 
-                          </li>
-              
-                          <li class="card__meta__item">Introduced through:
-                                  [DocId: 31]
-                                   <span class="list-paths__item__arrow">›</span> 
-                                  input
-                                   <span class="list-paths__item__arrow">›</span> 
-                                  spec
-                                   <span class="list-paths__item__arrow">›</span> 
-                                  template
-                                   <span class="list-paths__item__arrow">›</span> 
-                                  spec
-                                   <span class="list-paths__item__arrow">›</span> 
-                                  containers[redis]
-                                   <span class="list-paths__item__arrow">›</span> 
-                                  securityContext
-                                   <span class="list-paths__item__arrow">›</span> 
-                                  allowPrivilegeEscalation
-                                  
-                          </li>
-              
-                          <li class="card__meta__item">
-                              Line number: 3130
-                          </li>
-                      </ul>
-              
-                      <hr/>
-              
-                          <h2>Impact</h2>
-                          <p>Processes could elevate current privileges via known vectors, for example SUID binaries</p>
-              
-                          <h2>Remediation</h2>
-                          <p>Set &#x60;securityContext.allowPrivilegeEscalation&#x60; to &#x60;false&#x60;</p>
-              
-              
-                          <hr/>
-                  </div><!-- .card__section -->
-              
-                  <div class="cta card__cta">
-                      <p><a href="https://snyk.io/security-rules/SNYK-CC-K8S-9">More about this issue</a></p>
-                  </div>
-              
-              </div><!-- .card -->
-              <div class="card card--vuln  disclosure--not-new severity--medium" data-snyk-test="medium">
-                  <h2 class="card__title">Container is running without privilege escalation control</h2>
-                  <div class="card__section">
-              
-                      <div class="label label--medium">
-                          <span class="label__text">medium severity</span>
-                      </div>
-              
-                      <hr/>
-              
-                      <ul class="card__meta">
-                          <li class="card__meta__item">
-                              Public ID: <a href="https://snyk.io/security-rules/SNYK-CC-K8S-9">SNYK-CC-K8S-9</a> 
-                          </li>
-              
-                          <li class="card__meta__item">Introduced through:
-                                  [DocId: 32]
-                                   <span class="list-paths__item__arrow">›</span> 
-                                  input
-                                   <span class="list-paths__item__arrow">›</span> 
-                                  spec
-                                   <span class="list-paths__item__arrow">›</span> 
-                                  template
-                                   <span class="list-paths__item__arrow">›</span> 
-                                  spec
-                                   <span class="list-paths__item__arrow">›</span> 
-                                  initContainers[copyutil]
-                                   <span class="list-paths__item__arrow">›</span> 
-                                  securityContext
-                                   <span class="list-paths__item__arrow">›</span> 
-                                  allowPrivilegeEscalation
-                                  
-                          </li>
-              
-                          <li class="card__meta__item">
-                              Line number: 3313
-                          </li>
-                      </ul>
-              
-                      <hr/>
-              
-                          <h2>Impact</h2>
-                          <p>Processes could elevate current privileges via known vectors, for example SUID binaries</p>
-              
-                          <h2>Remediation</h2>
-                          <p>Set &#x60;securityContext.allowPrivilegeEscalation&#x60; to &#x60;false&#x60;</p>
-              
-              
-                          <hr/>
-                  </div><!-- .card__section -->
-              
-                  <div class="cta card__cta">
-                      <p><a href="https://snyk.io/security-rules/SNYK-CC-K8S-9">More about this issue</a></p>
-                  </div>
-              
-              </div><!-- .card -->
-              <div class="card card--vuln  disclosure--not-new severity--medium" data-snyk-test="medium">
-                  <h2 class="card__title">Container is running without root user control</h2>
-                  <div class="card__section">
-              
-                      <div class="label label--medium">
-                          <span class="label__text">medium severity</span>
-                      </div>
-              
-                      <hr/>
-              
-                      <ul class="card__meta">
-                          <li class="card__meta__item">
-                              Public ID: <a href="https://snyk.io/security-rules/SNYK-CC-K8S-10">SNYK-CC-K8S-10</a> 
-                          </li>
-              
-                          <li class="card__meta__item">Introduced through:
-                                  [DocId: 30]
-                                   <span class="list-paths__item__arrow">›</span> 
-                                  input
-                                   <span class="list-paths__item__arrow">›</span> 
-                                  spec
-                                   <span class="list-paths__item__arrow">›</span> 
-                                  template
-                                   <span class="list-paths__item__arrow">›</span> 
-                                  spec
-                                   <span class="list-paths__item__arrow">›</span> 
-                                  initContainers[copyutil]
-                                   <span class="list-paths__item__arrow">›</span> 
-                                  securityContext
-                                   <span class="list-paths__item__arrow">›</span> 
-                                  runAsNonRoot
-                                  
-                          </li>
-              
-                          <li class="card__meta__item">
-                              Line number: 3077
-                          </li>
-                      </ul>
-              
-                      <hr/>
-              
-                          <h2>Impact</h2>
-                          <p>Container could be running with full administrative privileges</p>
-              
-                          <h2>Remediation</h2>
-                          <p>Set &#x60;securityContext.runAsNonRoot&#x60; to &#x60;true&#x60;</p>
-              
-              
-                          <hr/>
-                  </div><!-- .card__section -->
-              
-                  <div class="cta card__cta">
-                      <p><a href="https://snyk.io/security-rules/SNYK-CC-K8S-10">More about this issue</a></p>
-                  </div>
-              
-              </div><!-- .card -->
-              <div class="card card--vuln  disclosure--not-new severity--medium" data-snyk-test="medium">
-                  <h2 class="card__title">Container is running without root user control</h2>
-                  <div class="card__section">
-              
-                      <div class="label label--medium">
-                          <span class="label__text">medium severity</span>
-                      </div>
-              
-                      <hr/>
-              
-                      <ul class="card__meta">
-                          <li class="card__meta__item">
-                              Public ID: <a href="https://snyk.io/security-rules/SNYK-CC-K8S-10">SNYK-CC-K8S-10</a> 
-                          </li>
-              
-                          <li class="card__meta__item">Introduced through:
-                                  [DocId: 32]
-                                   <span class="list-paths__item__arrow">›</span> 
-                                  input
-                                   <span class="list-paths__item__arrow">›</span> 
-                                  spec
-                                   <span class="list-paths__item__arrow">›</span> 
-                                  template
-                                   <span class="list-paths__item__arrow">›</span> 
-                                  spec
-                                   <span class="list-paths__item__arrow">›</span> 
-                                  initContainers[copyutil]
-                                   <span class="list-paths__item__arrow">›</span> 
-                                  securityContext
-                                   <span class="list-paths__item__arrow">›</span> 
-                                  runAsNonRoot
-                                  
-                          </li>
-              
-                          <li class="card__meta__item">
-                              Line number: 3313
-                          </li>
-                      </ul>
-              
-                      <hr/>
-              
-                          <h2>Impact</h2>
-                          <p>Container could be running with full administrative privileges</p>
-              
-                          <h2>Remediation</h2>
-                          <p>Set &#x60;securityContext.runAsNonRoot&#x60; to &#x60;true&#x60;</p>
-              
-              
-                          <hr/>
-                  </div><!-- .card__section -->
-              
-                  <div class="cta card__cta">
-                      <p><a href="https://snyk.io/security-rules/SNYK-CC-K8S-10">More about this issue</a></p>
-                  </div>
-              
-              </div><!-- .card -->
-              <div class="card card--vuln  disclosure--not-new severity--medium" data-snyk-test="medium">
-                  <h2 class="card__title">Role with dangerous permissions</h2>
-                  <div class="card__section">
-              
-                      <div class="label label--medium">
-                          <span class="label__text">medium severity</span>
-                      </div>
-              
-                      <hr/>
-              
-                      <ul class="card__meta">
-                          <li class="card__meta__item">
-                              Public ID: <a href="https://snyk.io/security-rules/SNYK-CC-K8S-47">SNYK-CC-K8S-47</a> 
-                          </li>
-              
-                          <li class="card__meta__item">Introduced through:
-                                  [DocId: 6]
-                                   <span class="list-paths__item__arrow">›</span> 
-                                  role
-                                   <span class="list-paths__item__arrow">›</span> 
-                                  rules[0]
-                                   <span class="list-paths__item__arrow">›</span> 
-                                  resources
-                                  
-                          </li>
-              
-                          <li class="card__meta__item">
-                              Line number: 2594
-                          </li>
-                      </ul>
-              
-                      <hr/>
-              
-                          <h2>Impact</h2>
-                          <p>Using this role grants dangerous permissions</p>
-              
-                          <h2>Remediation</h2>
-                          <p>Consider removing this permissions</p>
-              
-              
-                          <hr/>
-                  </div><!-- .card__section -->
-              
-                  <div class="cta card__cta">
-                      <p><a href="https://snyk.io/security-rules/SNYK-CC-K8S-47">More about this issue</a></p>
-                  </div>
-              
-              </div><!-- .card -->
               <div class="card card--vuln  disclosure--not-new severity--medium" data-snyk-test="medium">
                   <h2 class="card__title">Role with dangerous permissions</h2>
                   <div class="card__section">
@@ -1069,7 +509,7 @@
                           </li>
               
                           <li class="card__meta__item">
-                              Line number: 2633
+                              Line number: 61
                           </li>
                       </ul>
               
@@ -1110,6 +550,54 @@
                                    <span class="list-paths__item__arrow">›</span> 
                                   role
                                    <span class="list-paths__item__arrow">›</span> 
+                                  rules[4]
+                                   <span class="list-paths__item__arrow">›</span> 
+                                  resources
+                                  
+                          </li>
+              
+                          <li class="card__meta__item">
+                              Line number: 100
+                          </li>
+                      </ul>
+              
+                      <hr/>
+              
+                          <h2>Impact</h2>
+                          <p>Using this role grants dangerous permissions</p>
+              
+                          <h2>Remediation</h2>
+                          <p>Consider removing this permissions</p>
+              
+              
+                          <hr/>
+                  </div><!-- .card__section -->
+              
+                  <div class="cta card__cta">
+                      <p><a href="https://snyk.io/security-rules/SNYK-CC-K8S-47">More about this issue</a></p>
+                  </div>
+              
+              </div><!-- .card -->
+              <div class="card card--vuln  disclosure--not-new severity--medium" data-snyk-test="medium">
+                  <h2 class="card__title">Role with dangerous permissions</h2>
+                  <div class="card__section">
+              
+                      <div class="label label--medium">
+                          <span class="label__text">medium severity</span>
+                      </div>
+              
+                      <hr/>
+              
+                      <ul class="card__meta">
+                          <li class="card__meta__item">
+                              Public ID: <a href="https://snyk.io/security-rules/SNYK-CC-K8S-47">SNYK-CC-K8S-47</a> 
+                          </li>
+              
+                          <li class="card__meta__item">Introduced through:
+                                  [DocId: 9]
+                                   <span class="list-paths__item__arrow">›</span> 
+                                  role
+                                   <span class="list-paths__item__arrow">›</span> 
                                   rules[0]
                                    <span class="list-paths__item__arrow">›</span> 
                                   resources
@@ -1117,7 +605,151 @@
                           </li>
               
                           <li class="card__meta__item">
-                              Line number: 2652
+                              Line number: 166
+                          </li>
+                      </ul>
+              
+                      <hr/>
+              
+                          <h2>Impact</h2>
+                          <p>Using this role grants dangerous permissions</p>
+              
+                          <h2>Remediation</h2>
+                          <p>Consider removing this permissions</p>
+              
+              
+                          <hr/>
+                  </div><!-- .card__section -->
+              
+                  <div class="cta card__cta">
+                      <p><a href="https://snyk.io/security-rules/SNYK-CC-K8S-47">More about this issue</a></p>
+                  </div>
+              
+              </div><!-- .card -->
+              <div class="card card--vuln  disclosure--not-new severity--medium" data-snyk-test="medium">
+                  <h2 class="card__title">Role with dangerous permissions</h2>
+                  <div class="card__section">
+              
+                      <div class="label label--medium">
+                          <span class="label__text">medium severity</span>
+                      </div>
+              
+                      <hr/>
+              
+                      <ul class="card__meta">
+                          <li class="card__meta__item">
+                              Public ID: <a href="https://snyk.io/security-rules/SNYK-CC-K8S-47">SNYK-CC-K8S-47</a> 
+                          </li>
+              
+                          <li class="card__meta__item">Introduced through:
+                                  [DocId: 10]
+                                   <span class="list-paths__item__arrow">›</span> 
+                                  role
+                                   <span class="list-paths__item__arrow">›</span> 
+                                  rules[1]
+                                   <span class="list-paths__item__arrow">›</span> 
+                                  resources
+                                  
+                          </li>
+              
+                          <li class="card__meta__item">
+                              Line number: 185
+                          </li>
+                      </ul>
+              
+                      <hr/>
+              
+                          <h2>Impact</h2>
+                          <p>Using this role grants dangerous permissions</p>
+              
+                          <h2>Remediation</h2>
+                          <p>Consider removing this permissions</p>
+              
+              
+                          <hr/>
+                  </div><!-- .card__section -->
+              
+                  <div class="cta card__cta">
+                      <p><a href="https://snyk.io/security-rules/SNYK-CC-K8S-47">More about this issue</a></p>
+                  </div>
+              
+              </div><!-- .card -->
+              <div class="card card--vuln  disclosure--not-new severity--medium" data-snyk-test="medium">
+                  <h2 class="card__title">Role with dangerous permissions</h2>
+                  <div class="card__section">
+              
+                      <div class="label label--medium">
+                          <span class="label__text">medium severity</span>
+                      </div>
+              
+                      <hr/>
+              
+                      <ul class="card__meta">
+                          <li class="card__meta__item">
+                              Public ID: <a href="https://snyk.io/security-rules/SNYK-CC-K8S-47">SNYK-CC-K8S-47</a> 
+                          </li>
+              
+                          <li class="card__meta__item">Introduced through:
+                                  [DocId: 10]
+                                   <span class="list-paths__item__arrow">›</span> 
+                                  role
+                                   <span class="list-paths__item__arrow">›</span> 
+                                  rules[3]
+                                   <span class="list-paths__item__arrow">›</span> 
+                                  resources
+                                  
+                          </li>
+              
+                          <li class="card__meta__item">
+                              Line number: 185
+                          </li>
+                      </ul>
+              
+                      <hr/>
+              
+                          <h2>Impact</h2>
+                          <p>Using this role grants dangerous permissions</p>
+              
+                          <h2>Remediation</h2>
+                          <p>Consider removing this permissions</p>
+              
+              
+                          <hr/>
+                  </div><!-- .card__section -->
+              
+                  <div class="cta card__cta">
+                      <p><a href="https://snyk.io/security-rules/SNYK-CC-K8S-47">More about this issue</a></p>
+                  </div>
+              
+              </div><!-- .card -->
+              <div class="card card--vuln  disclosure--not-new severity--medium" data-snyk-test="medium">
+                  <h2 class="card__title">Role with dangerous permissions</h2>
+                  <div class="card__section">
+              
+                      <div class="label label--medium">
+                          <span class="label__text">medium severity</span>
+                      </div>
+              
+                      <hr/>
+              
+                      <ul class="card__meta">
+                          <li class="card__meta__item">
+                              Public ID: <a href="https://snyk.io/security-rules/SNYK-CC-K8S-47">SNYK-CC-K8S-47</a> 
+                          </li>
+              
+                          <li class="card__meta__item">Introduced through:
+                                  [DocId: 11]
+                                   <span class="list-paths__item__arrow">›</span> 
+                                  role
+                                   <span class="list-paths__item__arrow">›</span> 
+                                  rules[0]
+                                   <span class="list-paths__item__arrow">›</span> 
+                                  resources
+                                  
+                          </li>
+              
+                          <li class="card__meta__item">
+                              Line number: 226
                           </li>
                       </ul>
               
@@ -1154,7 +786,7 @@
                           </li>
               
                           <li class="card__meta__item">Introduced through:
-                                  [DocId: 32]
+                                  [DocId: 39]
                                    <span class="list-paths__item__arrow">›</span> 
                                   spec
                                    <span class="list-paths__item__arrow">›</span> 
@@ -1169,7 +801,7 @@
                           </li>
               
                           <li class="card__meta__item">
-                              Line number: 3313
+                              Line number: 1025
                           </li>
                       </ul>
               
@@ -1206,7 +838,7 @@
                           </li>
               
                           <li class="card__meta__item">Introduced through:
-                                  [DocId: 30]
+                                  [DocId: 35]
                                    <span class="list-paths__item__arrow">›</span> 
                                   input
                                    <span class="list-paths__item__arrow">›</span> 
@@ -1216,7 +848,7 @@
                                    <span class="list-paths__item__arrow">›</span> 
                                   spec
                                    <span class="list-paths__item__arrow">›</span> 
-                                  initContainers[copyutil]
+                                  containers[argocd-applicationset-controller]
                                    <span class="list-paths__item__arrow">›</span> 
                                   resources
                                    <span class="list-paths__item__arrow">›</span> 
@@ -1227,7 +859,7 @@
                           </li>
               
                           <li class="card__meta__item">
-                              Line number: 3077
+                              Line number: 611
                           </li>
                       </ul>
               
@@ -1264,7 +896,65 @@
                           </li>
               
                           <li class="card__meta__item">Introduced through:
-                                  [DocId: 30]
+                                  [DocId: 36]
+                                   <span class="list-paths__item__arrow">›</span> 
+                                  input
+                                   <span class="list-paths__item__arrow">›</span> 
+                                  spec
+                                   <span class="list-paths__item__arrow">›</span> 
+                                  template
+                                   <span class="list-paths__item__arrow">›</span> 
+                                  spec
+                                   <span class="list-paths__item__arrow">›</span> 
+                                  initContainers[copyutil]
+                                   <span class="list-paths__item__arrow">›</span> 
+                                  resources
+                                   <span class="list-paths__item__arrow">›</span> 
+                                  limits
+                                   <span class="list-paths__item__arrow">›</span> 
+                                  cpu
+                                  
+                          </li>
+              
+                          <li class="card__meta__item">
+                              Line number: 711
+                          </li>
+                      </ul>
+              
+                      <hr/>
+              
+                          <h2>Impact</h2>
+                          <p>CPU limits can prevent containers from consuming valuable compute time for no benefit (e.g. inefficient code) that might lead to unnecessary costs. It is advisable to also configure CPU requests to ensure application stability.</p>
+              
+                          <h2>Remediation</h2>
+                          <p>Add &#x60;resources.limits.cpu&#x60; field with required CPU limit value</p>
+              
+              
+                          <hr/>
+                  </div><!-- .card__section -->
+              
+                  <div class="cta card__cta">
+                      <p><a href="https://snyk.io/security-rules/SNYK-CC-K8S-5">More about this issue</a></p>
+                  </div>
+              
+              </div><!-- .card -->
+              <div class="card card--vuln  disclosure--not-new severity--low" data-snyk-test="low">
+                  <h2 class="card__title">Container has no CPU limit</h2>
+                  <div class="card__section">
+              
+                      <div class="label label--low">
+                          <span class="label__text">low severity</span>
+                      </div>
+              
+                      <hr/>
+              
+                      <ul class="card__meta">
+                          <li class="card__meta__item">
+                              Public ID: <a href="https://snyk.io/security-rules/SNYK-CC-K8S-5">SNYK-CC-K8S-5</a> 
+                          </li>
+              
+                          <li class="card__meta__item">Introduced through:
+                                  [DocId: 36]
                                    <span class="list-paths__item__arrow">›</span> 
                                   input
                                    <span class="list-paths__item__arrow">›</span> 
@@ -1285,7 +975,7 @@
                           </li>
               
                           <li class="card__meta__item">
-                              Line number: 3057
+                              Line number: 688
                           </li>
                       </ul>
               
@@ -1322,7 +1012,65 @@
                           </li>
               
                           <li class="card__meta__item">Introduced through:
-                                  [DocId: 31]
+                                  [DocId: 37]
+                                   <span class="list-paths__item__arrow">›</span> 
+                                  input
+                                   <span class="list-paths__item__arrow">›</span> 
+                                  spec
+                                   <span class="list-paths__item__arrow">›</span> 
+                                  template
+                                   <span class="list-paths__item__arrow">›</span> 
+                                  spec
+                                   <span class="list-paths__item__arrow">›</span> 
+                                  containers[argocd-notifications-controller]
+                                   <span class="list-paths__item__arrow">›</span> 
+                                  resources
+                                   <span class="list-paths__item__arrow">›</span> 
+                                  limits
+                                   <span class="list-paths__item__arrow">›</span> 
+                                  cpu
+                                  
+                          </li>
+              
+                          <li class="card__meta__item">
+                              Line number: 754
+                          </li>
+                      </ul>
+              
+                      <hr/>
+              
+                          <h2>Impact</h2>
+                          <p>CPU limits can prevent containers from consuming valuable compute time for no benefit (e.g. inefficient code) that might lead to unnecessary costs. It is advisable to also configure CPU requests to ensure application stability.</p>
+              
+                          <h2>Remediation</h2>
+                          <p>Add &#x60;resources.limits.cpu&#x60; field with required CPU limit value</p>
+              
+              
+                          <hr/>
+                  </div><!-- .card__section -->
+              
+                  <div class="cta card__cta">
+                      <p><a href="https://snyk.io/security-rules/SNYK-CC-K8S-5">More about this issue</a></p>
+                  </div>
+              
+              </div><!-- .card -->
+              <div class="card card--vuln  disclosure--not-new severity--low" data-snyk-test="low">
+                  <h2 class="card__title">Container has no CPU limit</h2>
+                  <div class="card__section">
+              
+                      <div class="label label--low">
+                          <span class="label__text">low severity</span>
+                      </div>
+              
+                      <hr/>
+              
+                      <ul class="card__meta">
+                          <li class="card__meta__item">
+                              Public ID: <a href="https://snyk.io/security-rules/SNYK-CC-K8S-5">SNYK-CC-K8S-5</a> 
+                          </li>
+              
+                          <li class="card__meta__item">Introduced through:
+                                  [DocId: 38]
                                    <span class="list-paths__item__arrow">›</span> 
                                   input
                                    <span class="list-paths__item__arrow">›</span> 
@@ -1343,7 +1091,7 @@
                           </li>
               
                           <li class="card__meta__item">
-                              Line number: 3130
+                              Line number: 826
                           </li>
                       </ul>
               
@@ -1380,7 +1128,7 @@
                           </li>
               
                           <li class="card__meta__item">Introduced through:
-                                  [DocId: 32]
+                                  [DocId: 39]
                                    <span class="list-paths__item__arrow">›</span> 
                                   input
                                    <span class="list-paths__item__arrow">›</span> 
@@ -1401,7 +1149,7 @@
                           </li>
               
                           <li class="card__meta__item">
-                              Line number: 3313
+                              Line number: 1025
                           </li>
                       </ul>
               
@@ -1438,7 +1186,7 @@
                           </li>
               
                           <li class="card__meta__item">Introduced through:
-                                  [DocId: 32]
+                                  [DocId: 39]
                                    <span class="list-paths__item__arrow">›</span> 
                                   input
                                    <span class="list-paths__item__arrow">›</span> 
@@ -1459,7 +1207,7 @@
                           </li>
               
                           <li class="card__meta__item">
-                              Line number: 3179
+                              Line number: 880
                           </li>
                       </ul>
               
@@ -1496,7 +1244,7 @@
                           </li>
               
                           <li class="card__meta__item">Introduced through:
-                                  [DocId: 33]
+                                  [DocId: 40]
                                    <span class="list-paths__item__arrow">›</span> 
                                   input
                                    <span class="list-paths__item__arrow">›</span> 
@@ -1517,7 +1265,7 @@
                           </li>
               
                           <li class="card__meta__item">
-                              Line number: 3388
+                              Line number: 1108
                           </li>
                       </ul>
               
@@ -1554,7 +1302,7 @@
                           </li>
               
                           <li class="card__meta__item">Introduced through:
-                                  [DocId: 34]
+                                  [DocId: 41]
                                    <span class="list-paths__item__arrow">›</span> 
                                   input
                                    <span class="list-paths__item__arrow">›</span> 
@@ -1575,7 +1323,7 @@
                           </li>
               
                           <li class="card__meta__item">
-                              Line number: 3638
+                              Line number: 1368
                           </li>
                       </ul>
               
@@ -1612,7 +1360,7 @@
                           </li>
               
                           <li class="card__meta__item">Introduced through:
-                                  [DocId: 30]
+                                  [DocId: 36]
                                    <span class="list-paths__item__arrow">›</span> 
                                   spec
                                    <span class="list-paths__item__arrow">›</span> 
@@ -1627,7 +1375,7 @@
                           </li>
               
                           <li class="card__meta__item">
-                              Line number: 3064
+                              Line number: 695
                           </li>
                       </ul>
               
@@ -1664,63 +1412,7 @@
                           </li>
               
                           <li class="card__meta__item">Introduced through:
-                                  [DocId: 30]
-                                   <span class="list-paths__item__arrow">›</span> 
-                                  input
-                                   <span class="list-paths__item__arrow">›</span> 
-                                  spec
-                                   <span class="list-paths__item__arrow">›</span> 
-                                  template
-                                   <span class="list-paths__item__arrow">›</span> 
-                                  spec
-                                   <span class="list-paths__item__arrow">›</span> 
-                                  initContainers[copyutil]
-                                   <span class="list-paths__item__arrow">›</span> 
-                                  securityContext
-                                   <span class="list-paths__item__arrow">›</span> 
-                                  readOnlyRootFilesystem
-                                  
-                          </li>
-              
-                          <li class="card__meta__item">
-                              Line number: 3077
-                          </li>
-                      </ul>
-              
-                      <hr/>
-              
-                          <h2>Impact</h2>
-                          <p>Compromised process could abuse writable root filesystem to elevate privileges</p>
-              
-                          <h2>Remediation</h2>
-                          <p>Set &#x60;securityContext.readOnlyRootFilesystem&#x60; to &#x60;true&#x60;</p>
-              
-              
-                          <hr/>
-                  </div><!-- .card__section -->
-              
-                  <div class="cta card__cta">
-                      <p><a href="https://snyk.io/security-rules/SNYK-CC-K8S-8">More about this issue</a></p>
-                  </div>
-              
-              </div><!-- .card -->
-              <div class="card card--vuln  disclosure--not-new severity--low" data-snyk-test="low">
-                  <h2 class="card__title">Container is running with writable root filesystem</h2>
-                  <div class="card__section">
-              
-                      <div class="label label--low">
-                          <span class="label__text">low severity</span>
-                      </div>
-              
-                      <hr/>
-              
-                      <ul class="card__meta">
-                          <li class="card__meta__item">
-                              Public ID: <a href="https://snyk.io/security-rules/SNYK-CC-K8S-8">SNYK-CC-K8S-8</a> 
-                          </li>
-              
-                          <li class="card__meta__item">Introduced through:
-                                  [DocId: 31]
+                                  [DocId: 38]
                                    <span class="list-paths__item__arrow">›</span> 
                                   input
                                    <span class="list-paths__item__arrow">›</span> 
@@ -1739,63 +1431,7 @@
                           </li>
               
                           <li class="card__meta__item">
-                              Line number: 3130
-                          </li>
-                      </ul>
-              
-                      <hr/>
-              
-                          <h2>Impact</h2>
-                          <p>Compromised process could abuse writable root filesystem to elevate privileges</p>
-              
-                          <h2>Remediation</h2>
-                          <p>Set &#x60;securityContext.readOnlyRootFilesystem&#x60; to &#x60;true&#x60;</p>
-              
-              
-                          <hr/>
-                  </div><!-- .card__section -->
-              
-                  <div class="cta card__cta">
-                      <p><a href="https://snyk.io/security-rules/SNYK-CC-K8S-8">More about this issue</a></p>
-                  </div>
-              
-              </div><!-- .card -->
-              <div class="card card--vuln  disclosure--not-new severity--low" data-snyk-test="low">
-                  <h2 class="card__title">Container is running with writable root filesystem</h2>
-                  <div class="card__section">
-              
-                      <div class="label label--low">
-                          <span class="label__text">low severity</span>
-                      </div>
-              
-                      <hr/>
-              
-                      <ul class="card__meta">
-                          <li class="card__meta__item">
-                              Public ID: <a href="https://snyk.io/security-rules/SNYK-CC-K8S-8">SNYK-CC-K8S-8</a> 
-                          </li>
-              
-                          <li class="card__meta__item">Introduced through:
-                                  [DocId: 32]
-                                   <span class="list-paths__item__arrow">›</span> 
-                                  input
-                                   <span class="list-paths__item__arrow">›</span> 
-                                  spec
-                                   <span class="list-paths__item__arrow">›</span> 
-                                  template
-                                   <span class="list-paths__item__arrow">›</span> 
-                                  spec
-                                   <span class="list-paths__item__arrow">›</span> 
-                                  initContainers[copyutil]
-                                   <span class="list-paths__item__arrow">›</span> 
-                                  securityContext
-                                   <span class="list-paths__item__arrow">›</span> 
-                                  readOnlyRootFilesystem
-                                  
-                          </li>
-              
-                          <li class="card__meta__item">
-                              Line number: 3313
+                              Line number: 836
                           </li>
                       </ul>
               
@@ -1832,7 +1468,59 @@
                           </li>
               
                           <li class="card__meta__item">Introduced through:
-                                  [DocId: 30]
+                                  [DocId: 35]
+                                   <span class="list-paths__item__arrow">›</span> 
+                                  spec
+                                   <span class="list-paths__item__arrow">›</span> 
+                                  template
+                                   <span class="list-paths__item__arrow">›</span> 
+                                  spec
+                                   <span class="list-paths__item__arrow">›</span> 
+                                  containers[argocd-applicationset-controller]
+                                   <span class="list-paths__item__arrow">›</span> 
+                                  livenessProbe
+                                  
+                          </li>
+              
+                          <li class="card__meta__item">
+                              Line number: 611
+                          </li>
+                      </ul>
+              
+                      <hr/>
+              
+                          <h2>Impact</h2>
+                          <p>Kubernetes will not be able to detect if application is able to service requests, and will not restart unhealthy pods</p>
+              
+                          <h2>Remediation</h2>
+                          <p>Add &#x60;livenessProbe&#x60; attribute</p>
+              
+              
+                          <hr/>
+                  </div><!-- .card__section -->
+              
+                  <div class="cta card__cta">
+                      <p><a href="https://snyk.io/security-rules/SNYK-CC-K8S-41">More about this issue</a></p>
+                  </div>
+              
+              </div><!-- .card -->
+              <div class="card card--vuln  disclosure--not-new severity--low" data-snyk-test="low">
+                  <h2 class="card__title">Container is running without liveness probe</h2>
+                  <div class="card__section">
+              
+                      <div class="label label--low">
+                          <span class="label__text">low severity</span>
+                      </div>
+              
+                      <hr/>
+              
+                      <ul class="card__meta">
+                          <li class="card__meta__item">
+                              Public ID: <a href="https://snyk.io/security-rules/SNYK-CC-K8S-41">SNYK-CC-K8S-41</a> 
+                          </li>
+              
+                          <li class="card__meta__item">Introduced through:
+                                  [DocId: 36]
                                    <span class="list-paths__item__arrow">›</span> 
                                   spec
                                    <span class="list-paths__item__arrow">›</span> 
@@ -1847,7 +1535,7 @@
                           </li>
               
                           <li class="card__meta__item">
-                              Line number: 3057
+                              Line number: 688
                           </li>
                       </ul>
               
@@ -1884,7 +1572,7 @@
                           </li>
               
                           <li class="card__meta__item">Introduced through:
-                                  [DocId: 30]
+                                  [DocId: 36]
                                    <span class="list-paths__item__arrow">›</span> 
                                   spec
                                    <span class="list-paths__item__arrow">›</span> 
@@ -1899,7 +1587,7 @@
                           </li>
               
                           <li class="card__meta__item">
-                              Line number: 3077
+                              Line number: 711
                           </li>
                       </ul>
               
@@ -1936,7 +1624,7 @@
                           </li>
               
                           <li class="card__meta__item">Introduced through:
-                                  [DocId: 31]
+                                  [DocId: 38]
                                    <span class="list-paths__item__arrow">›</span> 
                                   spec
                                    <span class="list-paths__item__arrow">›</span> 
@@ -1951,7 +1639,7 @@
                           </li>
               
                           <li class="card__meta__item">
-                              Line number: 3130
+                              Line number: 826
                           </li>
                       </ul>
               
@@ -1988,7 +1676,7 @@
                           </li>
               
                           <li class="card__meta__item">Introduced through:
-                                  [DocId: 32]
+                                  [DocId: 39]
                                    <span class="list-paths__item__arrow">›</span> 
                                   spec
                                    <span class="list-paths__item__arrow">›</span> 
@@ -2003,7 +1691,7 @@
                           </li>
               
                           <li class="card__meta__item">
-                              Line number: 3313
+                              Line number: 1025
                           </li>
                       </ul>
               
@@ -2040,7 +1728,65 @@
                           </li>
               
                           <li class="card__meta__item">Introduced through:
-                                  [DocId: 30]
+                                  [DocId: 35]
+                                   <span class="list-paths__item__arrow">›</span> 
+                                  input
+                                   <span class="list-paths__item__arrow">›</span> 
+                                  spec
+                                   <span class="list-paths__item__arrow">›</span> 
+                                  template
+                                   <span class="list-paths__item__arrow">›</span> 
+                                  spec
+                                   <span class="list-paths__item__arrow">›</span> 
+                                  containers[argocd-applicationset-controller]
+                                   <span class="list-paths__item__arrow">›</span> 
+                                  resources
+                                   <span class="list-paths__item__arrow">›</span> 
+                                  limits
+                                   <span class="list-paths__item__arrow">›</span> 
+                                  memory
+                                  
+                          </li>
+              
+                          <li class="card__meta__item">
+                              Line number: 611
+                          </li>
+                      </ul>
+              
+                      <hr/>
+              
+                          <h2>Impact</h2>
+                          <p>Containers without memory limits are more likely to be terminated when the node runs out of memory</p>
+              
+                          <h2>Remediation</h2>
+                          <p>Set &#x60;resources.limits.memory&#x60; value</p>
+              
+              
+                          <hr/>
+                  </div><!-- .card__section -->
+              
+                  <div class="cta card__cta">
+                      <p><a href="https://snyk.io/security-rules/SNYK-CC-K8S-4">More about this issue</a></p>
+                  </div>
+              
+              </div><!-- .card -->
+              <div class="card card--vuln  disclosure--not-new severity--low" data-snyk-test="low">
+                  <h2 class="card__title">Container is running without memory limit</h2>
+                  <div class="card__section">
+              
+                      <div class="label label--low">
+                          <span class="label__text">low severity</span>
+                      </div>
+              
+                      <hr/>
+              
+                      <ul class="card__meta">
+                          <li class="card__meta__item">
+                              Public ID: <a href="https://snyk.io/security-rules/SNYK-CC-K8S-4">SNYK-CC-K8S-4</a> 
+                          </li>
+              
+                          <li class="card__meta__item">Introduced through:
+                                  [DocId: 36]
                                    <span class="list-paths__item__arrow">›</span> 
                                   input
                                    <span class="list-paths__item__arrow">›</span> 
@@ -2061,7 +1807,7 @@
                           </li>
               
                           <li class="card__meta__item">
-                              Line number: 3057
+                              Line number: 688
                           </li>
                       </ul>
               
@@ -2098,7 +1844,7 @@
                           </li>
               
                           <li class="card__meta__item">Introduced through:
-                                  [DocId: 30]
+                                  [DocId: 36]
                                    <span class="list-paths__item__arrow">›</span> 
                                   input
                                    <span class="list-paths__item__arrow">›</span> 
@@ -2119,7 +1865,7 @@
                           </li>
               
                           <li class="card__meta__item">
-                              Line number: 3077
+                              Line number: 711
                           </li>
                       </ul>
               
@@ -2156,7 +1902,65 @@
                           </li>
               
                           <li class="card__meta__item">Introduced through:
-                                  [DocId: 31]
+                                  [DocId: 37]
+                                   <span class="list-paths__item__arrow">›</span> 
+                                  input
+                                   <span class="list-paths__item__arrow">›</span> 
+                                  spec
+                                   <span class="list-paths__item__arrow">›</span> 
+                                  template
+                                   <span class="list-paths__item__arrow">›</span> 
+                                  spec
+                                   <span class="list-paths__item__arrow">›</span> 
+                                  containers[argocd-notifications-controller]
+                                   <span class="list-paths__item__arrow">›</span> 
+                                  resources
+                                   <span class="list-paths__item__arrow">›</span> 
+                                  limits
+                                   <span class="list-paths__item__arrow">›</span> 
+                                  memory
+                                  
+                          </li>
+              
+                          <li class="card__meta__item">
+                              Line number: 754
+                          </li>
+                      </ul>
+              
+                      <hr/>
+              
+                          <h2>Impact</h2>
+                          <p>Containers without memory limits are more likely to be terminated when the node runs out of memory</p>
+              
+                          <h2>Remediation</h2>
+                          <p>Set &#x60;resources.limits.memory&#x60; value</p>
+              
+              
+                          <hr/>
+                  </div><!-- .card__section -->
+              
+                  <div class="cta card__cta">
+                      <p><a href="https://snyk.io/security-rules/SNYK-CC-K8S-4">More about this issue</a></p>
+                  </div>
+              
+              </div><!-- .card -->
+              <div class="card card--vuln  disclosure--not-new severity--low" data-snyk-test="low">
+                  <h2 class="card__title">Container is running without memory limit</h2>
+                  <div class="card__section">
+              
+                      <div class="label label--low">
+                          <span class="label__text">low severity</span>
+                      </div>
+              
+                      <hr/>
+              
+                      <ul class="card__meta">
+                          <li class="card__meta__item">
+                              Public ID: <a href="https://snyk.io/security-rules/SNYK-CC-K8S-4">SNYK-CC-K8S-4</a> 
+                          </li>
+              
+                          <li class="card__meta__item">Introduced through:
+                                  [DocId: 38]
                                    <span class="list-paths__item__arrow">›</span> 
                                   input
                                    <span class="list-paths__item__arrow">›</span> 
@@ -2177,7 +1981,7 @@
                           </li>
               
                           <li class="card__meta__item">
-                              Line number: 3130
+                              Line number: 826
                           </li>
                       </ul>
               
@@ -2214,7 +2018,7 @@
                           </li>
               
                           <li class="card__meta__item">Introduced through:
-                                  [DocId: 32]
+                                  [DocId: 39]
                                    <span class="list-paths__item__arrow">›</span> 
                                   input
                                    <span class="list-paths__item__arrow">›</span> 
@@ -2235,7 +2039,7 @@
                           </li>
               
                           <li class="card__meta__item">
-                              Line number: 3313
+                              Line number: 1025
                           </li>
                       </ul>
               
@@ -2272,7 +2076,7 @@
                           </li>
               
                           <li class="card__meta__item">Introduced through:
-                                  [DocId: 32]
+                                  [DocId: 39]
                                    <span class="list-paths__item__arrow">›</span> 
                                   input
                                    <span class="list-paths__item__arrow">›</span> 
@@ -2293,7 +2097,7 @@
                           </li>
               
                           <li class="card__meta__item">
-                              Line number: 3179
+                              Line number: 880
                           </li>
                       </ul>
               
@@ -2330,7 +2134,7 @@
                           </li>
               
                           <li class="card__meta__item">Introduced through:
-                                  [DocId: 33]
+                                  [DocId: 40]
                                    <span class="list-paths__item__arrow">›</span> 
                                   input
                                    <span class="list-paths__item__arrow">›</span> 
@@ -2351,7 +2155,7 @@
                           </li>
               
                           <li class="card__meta__item">
-                              Line number: 3388
+                              Line number: 1108
                           </li>
                       </ul>
               
@@ -2388,7 +2192,7 @@
                           </li>
               
                           <li class="card__meta__item">Introduced through:
-                                  [DocId: 34]
+                                  [DocId: 41]
                                    <span class="list-paths__item__arrow">›</span> 
                                   input
                                    <span class="list-paths__item__arrow">›</span> 
@@ -2409,7 +2213,7 @@
                           </li>
               
                           <li class="card__meta__item">
-                              Line number: 3638
+                              Line number: 1368
                           </li>
                       </ul>
               
