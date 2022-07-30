@@ -36,13 +36,13 @@
 1. Edit `argocd-cm` and add the following `dex.config` to the data section, replacing the `caData`, `my-argo-cd-url` and `my-login-url` your values from the Azure AD App:
 
             data:
-            url: https://my-argo-cd-url
-            dex.config: |
-               logger:
+              url: https://my-argo-cd-url
+              dex.config: |
+                logger:
                   level: debug
                   format: json
-               connectors:
-               - type: saml
+                connectors:
+                - type: saml
                   id: saml
                   name: saml
                   config:
