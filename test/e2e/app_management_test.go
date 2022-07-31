@@ -938,6 +938,24 @@ func TestSyncResourceByLabel(t *testing.T) {
 		})
 }
 
+func TestSyncResourceByProject(t *testing.T) {
+	Given(t).
+		Path(guestbookPath).
+		When().
+		CreateApp().
+		Sync().
+		Then().
+		And(func(app *Application) {
+			_, _ = RunCli("app", "sync", app.Name, "--project", app.Spec.Project)
+		}).
+		Expect(SyncStatusIs(SyncStatusCodeSynced)).
+		And(func(app *Application) {
+			_, err := RunCli("app", "sync", app.Name, "--project", "this-project-does-not-exist")
+			assert.Error(t, err)
+			assert.Contains(t, err.Error(), "level=fatal")
+		})
+}
+
 func TestLocalManifestSync(t *testing.T) {
 	Given(t).
 		Path(guestbookPath).
