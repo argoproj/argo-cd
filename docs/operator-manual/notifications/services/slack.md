@@ -56,23 +56,21 @@ The Slack notification service configuration includes following settings:
 
 1. Annotation with more than one trigger multiple of destinations and recipients
 
-      ```yaml
-      apiVersion: argoproj.io/v1alpha1
-      kind: Application
-      metadata:
-      annotations:
-        notifications.argoproj.io/subscriptions: |
-          - trigger: [on-scaling-replica-set, on-rollout-updated, on-rollout-step-completed]
-            destinations:
-              - service: slack
-                recipients: [my-channel-1, my-channel-2]
-              - service: email
-                recipients: [recipient-1, recipient-2, recipient-3 ]
-          - trigger: [on-rollout-aborted, on-analysis-run-failed, on-analysis-run-error]
-            destinations:
-              - service: slack
-                recipients: [my-channel-21, my-channel-22]
-      ```
+        apiVersion: argoproj.io/v1alpha1
+        kind: Application
+        metadata:
+        annotations:
+          notifications.argoproj.io/subscriptions: |
+            - trigger: [on-scaling-replica-set, on-rollout-updated, on-rollout-step-completed]
+              destinations:
+                - service: slack
+                  recipients: [my-channel-1, my-channel-2]
+                - service: email
+                  recipients: [recipient-1, recipient-2, recipient-3 ]
+            - trigger: [on-rollout-aborted, on-analysis-run-failed, on-analysis-run-error]
+              destinations:
+                - service: slack
+                  recipients: [my-channel-21, my-channel-22]
 
 ## Templates
 
