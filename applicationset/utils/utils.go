@@ -203,15 +203,12 @@ var isTemplatedRegex = regexp.MustCompile(".*{{.*}}.*")
 // remaining in the substituted template.
 func (r *Render) Replace(tmpl string, replaceMap map[string]interface{}, useGoTemplate bool) (string, error) {
 	if useGoTemplate {
-
 		template, err := template.New("").Funcs(sprigFuncMap).Parse(tmpl)
-
 		if err != nil {
-			return "", err
+			return "", fmt.Errorf("failed to parse template: %w", err)
 		}
 
 		var replacedTmplBuffer bytes.Buffer
-
 		if err = template.Execute(&replacedTmplBuffer, replaceMap); err != nil {
 			return "", fmt.Errorf("failed to execute go template: %w", err)
 		}
