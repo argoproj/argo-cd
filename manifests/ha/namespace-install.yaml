@@ -7969,7 +7969,7 @@ spec:
                 app.kubernetes.io/name: argocd-redis-ha-haproxy
             topologyKey: kubernetes.io/hostname
       containers:
-      - image: haproxy:2.0.25-alpine
+      - image: quay.io/codefresh/haproxy:2.0.25-alpine
         imagePullPolicy: IfNotPresent
         lifecycle: {}
         livenessProbe:
@@ -7998,7 +7998,7 @@ spec:
         - /readonly/haproxy_init.sh
         command:
         - sh
-        image: haproxy:2.0.25-alpine
+        image: quay.io/codefresh/haproxy:2.0.25-alpine
         imagePullPolicy: IfNotPresent
         name: config-init
         volumeMounts:

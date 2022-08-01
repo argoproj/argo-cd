@@ -9,6 +9,7 @@ redis-ha:
   haproxy:
     enabled: true
     image:
+      repository: quay.io/codefresh/haproxy
       tag: 2.0.25-alpine
     timeout:
       server: 6m
