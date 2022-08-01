@@ -69,7 +69,7 @@ spec:
     kustomize:
       # Optional kustomize version. Note: version must be configured in argocd-cm ConfigMap
       version: v3.5.4
-      # Supported Kustomize transformers. https://kubectl.docs.kubernetes.io/references/kustomize/kustomization/
+      # Supported kustomize transformers. https://kubectl.docs.kubernetes.io/references/kustomize/kustomization/
       namePrefix: prod-
       nameSuffix: -some-suffix
       commonLabels:
