@@ -26,7 +26,6 @@ spec:
             cpu: 1m
             memory: 16Mi
 status:
-  HPAReplicas: 1
   availableReplicas: 1
   conditions:
   - lastTransitionTime: "2020-11-13T00:22:48Z"
@@ -48,12 +47,8 @@ status:
     reason: InvalidSpec
     status: "True"
     type: InvalidSpec
-  currentPodHash: 754cb84d5
-  currentStepHash: 757f5f97b
-  currentStepIndex: 2
   observedGeneration: "3"
   readyReplicas: 1
   replicas: 1
   selector: app=basic
-  stableRS: 754cb84d5
-  updatedReplicas: 1
+  phase: Degraded

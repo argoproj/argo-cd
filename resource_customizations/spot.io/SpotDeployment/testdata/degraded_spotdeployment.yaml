@@ -28,8 +28,6 @@ spec:
             cpu: 5m
             memory: 32Mi
 status:
-  HPAReplicas: 5
-  abort: true
   availableReplicas: 5
   conditions:
   - lastTransitionTime: "2019-11-03T01:32:46Z"
@@ -44,10 +42,12 @@ status:
     reason: RolloutAborted
     status: "False"
     type: Progressing
-  currentPodHash: 6758949f55
-  currentStepHash: 59f8666948
-  currentStepIndex: 0
   observedGeneration: 58b949649c
   readyReplicas: 5
   replicas: 5
   selector: app=canary-demo
+  liveVersionDate: "2022-07-25T08:57:57.000Z"
+  liveVersionImages:
+    nginx: nginx:1.20
+  phase: Degraded
+  revision: "52"

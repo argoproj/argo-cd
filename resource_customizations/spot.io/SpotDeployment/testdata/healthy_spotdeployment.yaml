@@ -30,11 +30,6 @@ spec:
             - containerPort: 80
           resources: {}
 status:
-  HPAReplicas: 5
-  availableReplicas: 5
-  blueGreen: {}
-  canary:
-    stableRS: 84ccfddd66
   conditions:
     - lastTransitionTime: '2019-05-01T21:55:30Z'
       lastUpdateTime: '2019-05-01T21:55:58Z'
@@ -48,11 +43,12 @@ status:
       reason: AvailableReason
       status: 'True'
       type: Available
-  currentPodHash: 84ccfddd66
-  currentStepHash: 5f8fbdf7bb
-  currentStepIndex: 4
   observedGeneration: c45557fd9
   readyReplicas: 5
   replicas: 5
   selector: app=guestbook-canary
-  updatedReplicas: 5
+  liveVersionDate: "2022-07-14T07:56:27.000Z"
+  liveVersionImages:
+    rollouts-demo: gcr.io/heptio-images/ks-guestbook-demo:0.1
+  phase: Healthy
+  revision: "9"

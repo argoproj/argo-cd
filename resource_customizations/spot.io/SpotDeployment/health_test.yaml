@@ -1,6 +1,6 @@
 tests:
 - healthStatus:
-    status: Progressing
+    status: Degraded
     message: "Rollout is aborted"
   inputPath: testdata/degraded_spotdeployment.yaml
 - healthStatus:
