@@ -102,6 +102,7 @@ export const ResourceDetails = (props: ResourceDetailsProps) => {
                                     name={node.name}
                                     namespace={podState.metadata.namespace}
                                     applicationName={application.metadata.name}
+                                    applicationNamespace={application.metadata.namespace}
                                     containerName={AppUtils.getContainerName(podState, selectedNodeInfo.container)}
                                     page={{number: page, untilTimes}}
                                     setPage={pageData => appContext.navigation.goto('.', {page: pageData.number, untilTimes: pageData.untilTimes.join(',')})}

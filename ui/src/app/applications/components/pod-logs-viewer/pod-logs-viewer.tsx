@@ -15,6 +15,7 @@ import './pod-logs-viewer.scss';
 const maxLines = 100;
 export interface PodLogsProps {
     namespace: string;
+    applicationNamespace: string;
     applicationName: string;
     podName?: string;
     containerName: string;
@@ -111,7 +112,7 @@ export const PodsLogsViewer = (props: PodLogsProps & {fullscreen?: boolean}) => 
     };
 
     const fullscreenURL =
-        `/applications/${props.applicationName}/${props.namespace}/${props.containerName}/logs?` +
+        `/applications/${props.applicationNamespace}/${props.applicationName}/${props.namespace}/${props.containerName}/logs?` +
         `podName=${props.podName}&group=${props.group}&kind=${props.kind}&name=${props.name}`;
     return (
         <DataLoader load={() => services.viewPreferences.getPreferences()}>
@@ -164,6 +165,7 @@ export const PodsLogsViewer = (props: PodLogsProps & {fullscreen?: boolean}) => 
                                 onClick={async () => {
                                     const downloadURL = services.applications.getDownloadLogsURL(
                                         props.applicationName,
+                                        props.applicationNamespace,
                                         props.namespace,
                                         props.podName,
                                         {group: props.group, kind: props.kind, name: props.name},
@@ -293,6 +295,7 @@ export const PodsLogsViewer = (props: PodLogsProps & {fullscreen?: boolean}) => 
                             let logsSource = services.applications
                                 .getContainerLogs(
                                     props.applicationName,
+                                    props.applicationNamespace,
                                     props.namespace,
                                     props.podName,
                                     {group: props.group, kind: props.kind, name: props.name},
