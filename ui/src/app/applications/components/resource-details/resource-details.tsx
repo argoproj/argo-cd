@@ -212,7 +212,7 @@ export const ResourceDetails = (props: ResourceDetailsProps) => {
         tabs.push({
             title: 'EVENTS',
             key: 'event',
-            content: <ApplicationResourceEvents applicationName={application.metadata.name} />
+            content: <ApplicationResourceEvents applicationName={application.metadata.name} applicationNamespace={application.metadata.namespace} />
         });
 
         const extensionTabs = services.extensions.getResourceTabs('argoproj.io', 'Application').map((ext, i) => ({
