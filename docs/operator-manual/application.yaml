@@ -69,11 +69,16 @@ spec:
     kustomize:
       # Optional kustomize version. Note: version must be configured in argocd-cm ConfigMap
       version: v3.5.4
-      # Optional image name prefix
+      # Supported Kustomize transformers. https://kubectl.docs.kubernetes.io/references/kustomize/kustomization/
       namePrefix: prod-
-      # Optional images passed to "kustomize edit set image".
+      nameSuffix: -some-suffix
+      commonLabels:
+        foo: bar
+      commonAnnotations:
+        beep: boop
       images:
       - gcr.io/heptio-images/ks-guestbook-demo:0.2
+      - my-app=gcr.io/my-repo/my-app:0.1
 
     # directory
     directory:
