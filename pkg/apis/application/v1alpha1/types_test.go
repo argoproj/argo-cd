@@ -3003,3 +3003,41 @@ func TestAppProjectIsSourceNamespacePermitted(t *testing.T) {
 	})
 
 }
+
+func Test_RBACName(t *testing.T) {
+	testApp := func(namespace, project string) *Application {
+		return &Application{
+			ObjectMeta: metav1.ObjectMeta{
+				Name:      "test-app",
+				Namespace: namespace,
+			},
+			Spec: ApplicationSpec{
+				Project: project,
+			},
+		}
+	}
+	t.Run("App in same namespace as controller when ns is argocd", func(t *testing.T) {
+		a := testApp("argocd", "default")
+		assert.Equal(t, "default/test-app", a.RBACName("argocd"))
+	})
+	t.Run("App in same namespace as controller when ns is not argocd", func(t *testing.T) {
+		a := testApp("some-ns", "default")
+		assert.Equal(t, "default/test-app", a.RBACName("some-ns"))
+	})
+	t.Run("App in different namespace as controller when ns is argocd", func(t *testing.T) {
+		a := testApp("some-ns", "default")
+		assert.Equal(t, "default/some-ns/test-app", a.RBACName("argocd"))
+	})
+	t.Run("App in different namespace as controller when ns is not argocd", func(t *testing.T) {
+		a := testApp("some-ns", "default")
+		assert.Equal(t, "default/some-ns/test-app", a.RBACName("other-ns"))
+	})
+	t.Run("App in same namespace as controller when project is not yet set", func(t *testing.T) {
+		a := testApp("argocd", "")
+		assert.Equal(t, "default/test-app", a.RBACName("argocd"))
+	})
+	t.Run("App in same namespace as controller when ns is not yet set", func(t *testing.T) {
+		a := testApp("", "")
+		assert.Equal(t, "default/test-app", a.RBACName("argocd"))
+	})
+}
