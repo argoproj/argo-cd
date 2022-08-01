@@ -165,8 +165,8 @@ export const ApplicationStatusPanel = ({application, showOperation, showConditio
             <DataLoader
                 noLoaderOnInputChange={true}
                 input={application}
-                load={async application => {
-                    return await services.applications.getApplicationSyncWindowState(application.metadata.name, application.metadata.namespace);
+                load={async app => {
+                    return await services.applications.getApplicationSyncWindowState(app.metadata.name, app.metadata.namespace);
                 }}>
                 {(data: models.ApplicationSyncWindowState) => (
                     <React.Fragment>

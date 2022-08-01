@@ -161,7 +161,9 @@ function filterApps(applications: models.Application[], pref: AppsListPreference
     const filterResults = getFilterResults(applications, pref);
     return {
         filterResults,
-        filteredApps: filterResults.filter(app => (search === '' || app.metadata.name.includes(search) || app.metadata.namespace.includes(search)) && Object.values(app.filterResult).every(val => val))
+        filteredApps: filterResults.filter(
+            app => (search === '' || app.metadata.name.includes(search) || app.metadata.namespace.includes(search)) && Object.values(app.filterResult).every(val => val)
+        )
     };
 }
 
@@ -251,7 +253,7 @@ const SearchBar = (props: {content: string; ctx: ContextApis; apps: models.Appli
             }}
             onChange={e => ctx.navigation.goto('.', {search: e.target.value}, {replace: true})}
             value={content || ''}
-            items={apps.map(app => app.metadata.namespace + "/" + app.metadata.name)}
+            items={apps.map(app => app.metadata.namespace + '/' + app.metadata.name)}
         />
     );
 };
