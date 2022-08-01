@@ -71,8 +71,8 @@ jobs:
           sarif_file: /tmp/argocd-iac-test-install.sarif
       - uses: github/codeql-action/upload-sarif@v1
         if: github.event_name == 'push'
-        with: iac-namespace-install
-          category: Snyk IaC scan for namespace install manifests
+        with:
+          category: iac-namespace-install
           sarif_file: /tmp/argocd-iac-test-namespace-install.sarif
       - run: |
           IMAGE_PLATFORMS=linux/amd64
