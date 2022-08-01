@@ -239,7 +239,7 @@
           "200": {
             "description": "A successful response.",
             "schema": {
-              "$ref": "#/definitions/applicationApplicationResponse"
+              "$ref": "#/definitions/applicationApplicationValidateResponse"
             }
           },
           "default": {
@@ -3588,6 +3588,17 @@
         },
         "canSync": {
           "type": "boolean"
+        }
+      }
+    },
+    "applicationApplicationValidateResponse": {
+      "type": "object",
+      "properties": {
+        "entity": {
+          "type": "string"
+        },
+        "error": {
+          "type": "string"
         }
       }
     },

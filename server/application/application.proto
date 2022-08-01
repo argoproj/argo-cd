@@ -56,6 +56,12 @@ message ApplicationManifestQuery {
 	optional string revision = 2 [(gogoproto.nullable) = false];
 }
 
+
+message ApplicationValidateResponse {
+	optional string error = 1;
+	optional string entity = 2;
+}
+
 message ApplicationResponse {}
 
 message ApplicationCreateRequest {
@@ -377,7 +383,7 @@ service ApplicationService {
 	}
 
 	// Create creates an application
-	rpc ValidateSrcAndDst(ApplicationValidationRequest) returns (ApplicationResponse) {
+	rpc ValidateSrcAndDst(ApplicationValidationRequest) returns (ApplicationValidateResponse) {
 		option (google.api.http) = {
 			post: "/api/v1/application-validate"
 			body: "application"
