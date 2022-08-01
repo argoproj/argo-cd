@@ -10,6 +10,42 @@ import (
 )
 
 func TestParseResourceSyncResultErrors(t *testing.T) {
+	t.Run("Resource of app contain error that contain comma", func(t *testing.T) {
+		errors := parseResourceSyncResultErrors(&v1alpha1.ResourceStatus{
+			Group:     "group",
+			Kind:      "kind",
+			Namespace: "namespace",
+			Name:      "name",
+		}, &v1alpha1.OperationState{
+			SyncResult: &v1alpha1.SyncOperationResult{
+				Resources: v1alpha1.ResourceResults{
+					{
+						Group:     "group",
+						Kind:      "kind",
+						Namespace: "namespace",
+						Name:      "name",
+						SyncPhase: common.SyncPhaseSync,
+						Message:   "error message, with comma",
+						HookPhase: common.OperationFailed,
+					},
+					{
+						Group:     "group",
+						Kind:      "kind",
+						Namespace: "namespace",
+						Name:      "name-2",
+						SyncPhase: common.SyncPhaseSync,
+					},
+				},
+				Revision: "123",
+				Source:   v1alpha1.ApplicationSource{},
+			},
+		})
+
+		assert.Len(t, errors, 1)
+		assert.Equal(t, errors[0].Message, "error message, with comma")
+		assert.Equal(t, errors[0].Type, "sync")
+		assert.Equal(t, errors[0].Level, "error")
+	})
 	t.Run("Resource of app contain error", func(t *testing.T) {
 		errors := parseResourceSyncResultErrors(&v1alpha1.ResourceStatus{
 			Group:     "group",

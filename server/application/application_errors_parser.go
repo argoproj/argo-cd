@@ -67,14 +67,12 @@ func parseResourceSyncResultErrors(rs *appv1.ResourceStatus, os *appv1.Operation
 		return errors
 	}
 
-	for _, msg := range strings.Split(sr.Message, ",") {
-		errors = append(errors, &events.ObjectError{
-			Type:     "sync",
-			Level:    "error",
-			Message:  msg,
-			LastSeen: os.StartedAt,
-		})
-	}
+	errors = append(errors, &events.ObjectError{
+		Type:     "sync",
+		Level:    "error",
+		Message:  sr.Message,
+		LastSeen: os.StartedAt,
+	})
 
 	return errors
 }
