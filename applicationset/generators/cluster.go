@@ -3,8 +3,6 @@ package generators
 import (
 	"context"
 	"fmt"
-	"regexp"
-	"strings"
 	"time"
 
 	log "github.com/sirupsen/logrus"
@@ -125,7 +123,7 @@ func (g *ClusterGenerator) GenerateParams(
 		params := map[string]interface{}{}
 
 		params["name"] = string(cluster.Data["name"])
-		params["nameNormalized"] = sanitizeName(string(cluster.Data["name"]))
+		params["nameNormalized"] = utils.SanitizeName(string(cluster.Data["name"]))
 		params["server"] = string(cluster.Data["server"])
 
 		if appSet.Spec.GoTemplate {
@@ -225,21 +223,4 @@ func (g *ClusterGenerator) getSecretsByClusterName(appSetGenerator *argoappsetv1
 
 	return res, nil
 
-}
-
-// sanitize the name in accordance with the below rules
-// 1. contain no more than 253 characters
-// 2. contain only lowercase alphanumeric characters, '-' or '.'
-// 3. start and end with an alphanumeric character
-func sanitizeName(name string) string {
-	invalidDNSNameChars := regexp.MustCompile("[^-a-z0-9.]")
-	maxDNSNameLength := 253
-
-	name = strings.ToLower(name)
-	name = invalidDNSNameChars.ReplaceAllString(name, "-")
-	if len(name) > maxDNSNameLength {
-		name = name[:maxDNSNameLength]
-	}
-
-	return strings.Trim(name, "-.")
 }

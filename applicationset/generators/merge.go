@@ -5,8 +5,9 @@ import (
 	"fmt"
 	"time"
 
-	"github.com/argoproj/argo-cd/v2/applicationset/utils"
 	"github.com/imdario/mergo"
+
+	"github.com/argoproj/argo-cd/v2/applicationset/utils"
 
 	argoprojiov1alpha1 "github.com/argoproj/argo-cd/v2/pkg/apis/applicationset/v1alpha1"
 )
@@ -77,8 +78,8 @@ func (m *MergeGenerator) GenerateParams(appSetGenerator *argoprojiov1alpha1.Appl
 			if overrideParamSet, exists := paramSetsByMergeKey[mergeKeyValue]; exists {
 
 				if appSet.Spec.GoTemplate {
-					if err := mergo.MergeWithOverwrite(&baseParamSet, overrideParamSet); err != nil {
-						return nil, err
+					if err := mergo.Merge(&baseParamSet, overrideParamSet, mergo.WithOverride); err != nil {
+						return nil, fmt.Errorf("failed to merge base param set with override param set: %w", err)
 					}
 					baseParamSetsByMergeKey[mergeKeyValue] = baseParamSet
 				} else {

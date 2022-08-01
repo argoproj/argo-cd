@@ -9,10 +9,10 @@ import (
 	"regexp"
 	"sort"
 	"strings"
+	"text/template"
 	"unsafe"
 
-	"text/template"
-
+	"github.com/Masterminds/sprig"
 	"github.com/valyala/fasttemplate"
 
 	log "github.com/sirupsen/logrus"
@@ -20,6 +20,16 @@ import (
 	argoappsv1 "github.com/argoproj/argo-cd/v2/pkg/apis/application/v1alpha1"
 	argoappsetv1 "github.com/argoproj/argo-cd/v2/pkg/apis/applicationset/v1alpha1"
 )
+
+var sprigFuncMap = sprig.GenericFuncMap() // a singleton for better performance
+
+func init() {
+	// Avoid allowing the user to learn things about the environment.
+	delete(sprigFuncMap, "env")
+	delete(sprigFuncMap, "expandenv")
+	delete(sprigFuncMap, "getHostByName")
+	sprigFuncMap["normalize"] = SanitizeName
+}
 
 type Renderer interface {
 	RenderTemplateParams(tmpl *argoappsv1.Application, syncPolicy *argoappsetv1.ApplicationSetSyncPolicy, params map[string]interface{}, useGoTemplate bool) (*argoappsv1.Application, error)
@@ -187,12 +197,14 @@ func (r *Render) RenderTemplateParams(tmpl *argoappsv1.Application, syncPolicy *
 	return replacedTmpl, nil
 }
 
+var isTemplatedRegex = regexp.MustCompile(".*{{.*}}.*")
+
 // Replace executes basic string substitution of a template with replacement values.
 // remaining in the substituted template.
 func (r *Render) Replace(tmpl string, replaceMap map[string]interface{}, useGoTemplate bool) (string, error) {
 	if useGoTemplate {
 
-		template, err := template.New("").Parse(tmpl)
+		template, err := template.New("").Funcs(sprigFuncMap).Parse(tmpl)
 
 		if err != nil {
 			return "", err
@@ -200,15 +212,14 @@ func (r *Render) Replace(tmpl string, replaceMap map[string]interface{}, useGoTe
 
 		var replacedTmplBuffer bytes.Buffer
 
-		if err := template.Execute(&replacedTmplBuffer, replaceMap); err != nil {
-			return "", nil
+		if err = template.Execute(&replacedTmplBuffer, replaceMap); err != nil {
+			return "", fmt.Errorf("failed to execute go template: %w", err)
 		}
 
 		return replacedTmplBuffer.String(), nil
 	}
 
-	re := regexp.MustCompile(".*{{.*}}.*")
-	if !re.MatchString(tmpl) {
+	if !isTemplatedRegex.MatchString(tmpl) {
 		return tmpl, nil
 	}
 
@@ -224,7 +235,7 @@ func (r *Render) Replace(tmpl string, replaceMap map[string]interface{}, useGoTe
 	return replacedTmpl, nil
 }
 
-// Log a warning if there are unrecognized generators
+// CheckInvalidGenerators logs a warning if there are unrecognized generators
 func CheckInvalidGenerators(applicationSetInfo *argoappsetv1.ApplicationSet) {
 	hasInvalidGenerators, invalidGenerators := invalidGenerators(applicationSetInfo)
 	if len(invalidGenerators) > 0 {
@@ -316,4 +327,21 @@ func NormalizeBitbucketBasePath(basePath string) string {
 		return basePath + "/rest"
 	}
 	return basePath
+}
+
+// SanitizeName sanitizes the name in accordance with the below rules
+// 1. contain no more than 253 characters
+// 2. contain only lowercase alphanumeric characters, '-' or '.'
+// 3. start and end with an alphanumeric character
+func SanitizeName(name string) string {
+	invalidDNSNameChars := regexp.MustCompile("[^-a-z0-9.]")
+	maxDNSNameLength := 253
+
+	name = strings.ToLower(name)
+	name = invalidDNSNameChars.ReplaceAllString(name, "-")
+	if len(name) > maxDNSNameLength {
+		name = name[:maxDNSNameLength]
+	}
+
+	return strings.Trim(name, "-.")
 }

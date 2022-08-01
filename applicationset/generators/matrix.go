@@ -4,8 +4,9 @@ import (
 	"fmt"
 	"time"
 
-	"github.com/argoproj/argo-cd/v2/applicationset/utils"
 	"github.com/imdario/mergo"
+
+	"github.com/argoproj/argo-cd/v2/applicationset/utils"
 
 	argoprojiov1alpha1 "github.com/argoproj/argo-cd/v2/pkg/apis/applicationset/v1alpha1"
 )
@@ -53,23 +54,23 @@ func (m *MatrixGenerator) GenerateParams(appSetGenerator *argoprojiov1alpha1.App
 	for _, a := range g0 {
 		g1, err := m.getParams(appSetGenerator.Matrix.Generators[1], appSet, a)
 		if err != nil {
-			return nil, err
+			return nil, fmt.Errorf("failed to get params for second generator in the matrix generator: %w", err)
 		}
 		for _, b := range g1 {
 
 			if appSet.Spec.GoTemplate {
 				tmp := map[string]interface{}{}
 				if err := mergo.Merge(&tmp, a); err != nil {
-					return nil, err
+					return nil, fmt.Errorf("failed to merge params from the first generator in the matrix generator with temp map: %w", err)
 				}
 				if err := mergo.Merge(&tmp, b); err != nil {
-					return nil, err
+					return nil, fmt.Errorf("failed to merge params from the first generator in the matrix generator with the second: %w", err)
 				}
 				res = append(res, tmp)
 			} else {
 				val, err := utils.CombineStringMaps(a, b)
 				if err != nil {
-					return nil, err
+					return nil, fmt.Errorf("failed to combine string maps with merging params for the matrix generator: %w", err)
 				}
 				res = append(res, utils.ConvertToMapStringInterface(val))
 			}
