@@ -65,11 +65,11 @@ jobs:
       - uses: github/codeql-action/upload-sarif@v1
         with:
           category: iac-install
-          sarif_file: ./src/github.com/argoproj/argo-cd/argocd-iac-test-install.sarif
+          sarif_file: argocd-iac-test-install.sarif
       - uses: github/codeql-action/upload-sarif@v1
         with:
           category: iac-namespace-install
-          sarif_file: ./src/github.com/argoproj/argo-cd/argocd-iac-test-namespace-install.sarif
+          sarif_file: argocd-iac-test-namespace-install.sarif
       - run: |
           IMAGE_PLATFORMS=linux/amd64
           if [[ "${{ github.event_name }}" == "push" || "${{ contains(github.event.pull_request.labels.*.name, 'test-arm-image') }}" == "true" ]]
