@@ -65,7 +65,7 @@ jobs:
       - uses: github/codeql-action/upload-sarif@v1
         with:
           category: iac-install
-          sarif_file: argocd-iac-test-install.sarif
+          sarif_file: ${{ github.workspace }}/src/github.com/argoproj/argo-cd/argocd-iac-test-install.sarif
       - uses: github/codeql-action/upload-sarif@v1
         with:
           category: iac-namespace-install
