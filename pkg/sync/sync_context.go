@@ -185,6 +185,12 @@ func WithServerSideApply(serverSideApply bool) SyncOpt {
 	}
 }
 
+func WithServerSideApplyManager(manager string) SyncOpt {
+	return func(ctx *syncContext) {
+		ctx.serverSideApplyManager = manager
+	}
+}
+
 // NewSyncContext creates new instance of a SyncContext
 func NewSyncContext(
 	revision string,
@@ -327,6 +333,7 @@ type syncContext struct {
 	prune                  bool
 	replace                bool
 	serverSideApply        bool
+	serverSideApplyManager string
 	pruneLast              bool
 	prunePropagationPolicy *metav1.DeletionPropagation
 
@@ -883,7 +890,7 @@ func (sc *syncContext) applyObject(t *syncTask, dryRun, force, validate bool) (c
 			message, err = sc.resourceOps.CreateResource(context.TODO(), t.targetObj, dryRunStrategy, validate)
 		}
 	} else {
-		message, err = sc.resourceOps.ApplyResource(context.TODO(), t.targetObj, dryRunStrategy, force, validate, serverSideApply)
+		message, err = sc.resourceOps.ApplyResource(context.TODO(), t.targetObj, dryRunStrategy, force, validate, serverSideApply, sc.serverSideApplyManager)
 	}
 	if err != nil {
 		return common.ResultCodeSyncFailed, err.Error()

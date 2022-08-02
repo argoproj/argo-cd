@@ -33,7 +33,9 @@ type MockKubectlCmd struct {
 	lastCommandPerResource map[kube.ResourceKey]string
 	lastValidate           bool
 	serverSideApply        bool
-	recordLock             sync.RWMutex
+	serverSideApplyManager string
+
+	recordLock sync.RWMutex
 
 	convertToVersionFunc *func(obj *unstructured.Unstructured, group, version string) (*unstructured.Unstructured, error)
 	getResourceFunc      *func(ctx context.Context, config *rest.Config, gvk schema.GroupVersionKind, name string, namespace string) (*unstructured.Unstructured, error)
@@ -86,6 +88,19 @@ func (k *MockKubectlCmd) SetLastServerSideApply(serverSideApply bool) {
 	k.recordLock.Lock()
 	k.serverSideApply = serverSideApply
 	k.recordLock.Unlock()
+}
+
+func (k *MockKubectlCmd) SetLastServerSideApplyManager(manager string) {
+	k.recordLock.Lock()
+	k.serverSideApplyManager = manager
+	k.recordLock.Unlock()
+}
+
+func (k *MockKubectlCmd) GetLastServerSideApplyManager() string {
+	k.recordLock.Lock()
+	manager := k.serverSideApplyManager
+	k.recordLock.Unlock()
+	return manager
 }
 
 func (k *MockKubectlCmd) GetLastServerSideApply() bool {
@@ -141,9 +156,10 @@ func (k *MockKubectlCmd) UpdateResource(ctx context.Context, obj *unstructured.U
 	return obj, command.Err
 }
 
-func (k *MockKubectlCmd) ApplyResource(ctx context.Context, obj *unstructured.Unstructured, dryRunStrategy cmdutil.DryRunStrategy, force, validate, serverSideApply bool) (string, error) {
+func (k *MockKubectlCmd) ApplyResource(ctx context.Context, obj *unstructured.Unstructured, dryRunStrategy cmdutil.DryRunStrategy, force, validate, serverSideApply bool, manager string) (string, error) {
 	k.SetLastValidate(validate)
 	k.SetLastServerSideApply(serverSideApply)
+	k.SetLastServerSideApplyManager(manager)
 	k.SetLastResourceCommand(kube.GetResourceKey(obj), "apply")
 	command, ok := k.Commands[obj.GetName()]
 	if !ok {

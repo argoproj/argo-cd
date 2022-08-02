@@ -16,11 +16,16 @@ import (
 	"k8s.io/apimachinery/pkg/apis/meta/v1/unstructured"
 	"k8s.io/apimachinery/pkg/runtime"
 	"k8s.io/apimachinery/pkg/util/jsonmergepatch"
+	"k8s.io/apimachinery/pkg/util/managedfields"
 	"k8s.io/apimachinery/pkg/util/strategicpatch"
 	"k8s.io/client-go/kubernetes/scheme"
+	"sigs.k8s.io/structured-merge-diff/v4/fieldpath"
+	"sigs.k8s.io/structured-merge-diff/v4/typed"
 
 	"github.com/argoproj/gitops-engine/internal/kubernetes_vendor/pkg/api/v1/endpoints"
+	"github.com/argoproj/gitops-engine/pkg/sync/resource"
 	jsonutil "github.com/argoproj/gitops-engine/pkg/utils/json"
+	gescheme "github.com/argoproj/gitops-engine/pkg/utils/kube/scheme"
 	kubescheme "github.com/argoproj/gitops-engine/pkg/utils/kube/scheme"
 )
 
@@ -71,6 +76,28 @@ func Diff(config, live *unstructured.Unstructured, opts ...Option) (*DiffResult,
 		live = remarshal(live, o)
 		Normalize(live, opts...)
 	}
+
+	// TODO The two variables bellow are necessary because there is a cyclic
+	// dependency with the kube package that blocks the usage of constants
+	// from common package. common package needs to be refactored and exclude
+	// dependency from kube.
+	syncOptAnnotation := "argocd.argoproj.io/sync-options"
+	ssaAnnotation := "ServerSideApply=true"
+
+	// structuredMergeDiff is mainly used as a feature flag to enable
+	// calculating diffs using the structured-merge-diff library
+	// used in k8s while performing server-side applies. It checks the
+	// given diff Option or if the desired state resource has the
+	// Server-Side apply sync option annotation enabled.
+	structuredMergeDiff := o.structuredMergeDiff ||
+		(config != nil && resource.HasAnnotationOption(config, syncOptAnnotation, ssaAnnotation))
+	if structuredMergeDiff {
+		r, err := StructuredMergeDiff(config, live, o.gvkParser, o.manager)
+		if err != nil {
+			return nil, fmt.Errorf("error calculating structured merge diff: %w", err)
+		}
+		return r, nil
+	}
 	orig, err := GetLastAppliedConfigAnnotation(live)
 	if err != nil {
 		o.log.V(1).Info(fmt.Sprintf("Failed to get last applied configuration: %v", err))
@@ -87,11 +114,128 @@ func Diff(config, live *unstructured.Unstructured, opts ...Option) (*DiffResult,
 	return TwoWayDiff(config, live)
 }
 
+// StructuredMergeDiff will calculate the diff using the structured-merge-diff
+// k8s library (https://github.com/kubernetes-sigs/structured-merge-diff).
+func StructuredMergeDiff(config, live *unstructured.Unstructured, gvkParser *managedfields.GvkParser, manager string) (*DiffResult, error) {
+	if live != nil && config != nil {
+		gvk := config.GetObjectKind().GroupVersionKind()
+		pt := gescheme.ResolveParseableType(gvk, gvkParser)
+		return structuredMergeDiff(config, live, pt, manager)
+	}
+	return handleResourceCreateOrDeleteDiff(config, live)
+}
+
+func structuredMergeDiff(config, live *unstructured.Unstructured, pt *typed.ParseableType, manager string) (*DiffResult, error) {
+	// 1) Build typed value from live and config unstructures
+	tvLive, err := pt.FromUnstructured(live.Object)
+	if err != nil {
+		return nil, fmt.Errorf("error building typed value from live resource: %w", err)
+	}
+	tvConfig, err := pt.FromUnstructured(config.Object)
+	if err != nil {
+		return nil, fmt.Errorf("error building typed value from config resource: %w", err)
+	}
+
+	previousFieldSet := &fieldpath.Set{}
+	managerFound := false
+	// 2) Search for manager to find all fields managed by it
+	// so it can be removed from live state before merging desired
+	// state (config).
+	if manager != "" {
+		for _, m := range live.GetManagedFields() {
+			if m.Manager == manager {
+				err := previousFieldSet.FromJSON(bytes.NewReader(m.FieldsV1.Raw))
+				if err != nil {
+					return nil, fmt.Errorf("error parsing manager fields from JSON: %w", err)
+				}
+				managerFound = true
+			}
+		}
+	}
+
+	// 3) When manager is not found, it means that the resource
+	// wasn't being synced with the given manager up to this point.
+	// In this case config fields will be used to clean live state.
+	if !managerFound {
+		previousFieldSet, err = tvConfig.ToFieldSet()
+		if err != nil {
+			return nil, fmt.Errorf("error converting config to fieldset: %w", err)
+		}
+	}
+
+	// 4) Remove previous fields from live
+	cleanLive := tvLive.RemoveItems(previousFieldSet)
+
+	// 5) Merge desired state in clean live
+	mergedCleanLive, err := cleanLive.Merge(tvConfig)
+	if err != nil {
+		return nil, fmt.Errorf("error merging config into clean live: %w", err)
+	}
+
+	// 6) Apply default values
+	mergedResult, err := applyDefaultValues(mergedCleanLive)
+	if err != nil {
+		return nil, fmt.Errorf("applyDefaultValues error: %w", err)
+	}
+
+	return buildDiffResult(mergedResult, live)
+}
+
+func applyDefaultValues(result *typed.TypedValue) ([]byte, error) {
+	ru := result.AsValue().Unstructured()
+	r, ok := ru.(map[string]interface{})
+	if !ok {
+		return nil, fmt.Errorf("error converting result typedValue: expected map got %T", ru)
+	}
+	mergedUnstructured := &unstructured.Unstructured{Object: r}
+	mergedBytes, err := json.Marshal(mergedUnstructured)
+	if err != nil {
+		return nil, fmt.Errorf("error while marshaling merged unstructured: %w", err)
+	}
+
+	obj, err := scheme.Scheme.New(mergedUnstructured.GroupVersionKind())
+	if err == nil {
+		err := json.Unmarshal(mergedBytes, &obj)
+		if err != nil {
+			return nil, fmt.Errorf("error unmarshaling merged bytes into object: %w", err)
+		}
+		mergedBytes, err = patchDefaultValues(mergedBytes, obj)
+		if err != nil {
+			return nil, fmt.Errorf("error applying defaults: %w", err)
+		}
+	}
+	return mergedBytes, nil
+}
+
+func buildDiffResult(mergedBytes []byte, live *unstructured.Unstructured) (*DiffResult, error) {
+
+	liveBytes, err := json.Marshal(live)
+	if err != nil {
+		return nil, fmt.Errorf("error while marshaling live unstructured: %w", err)
+	}
+	return &DiffResult{
+		Modified:       string(liveBytes) != string(mergedBytes),
+		NormalizedLive: liveBytes,
+		PredictedLive:  mergedBytes,
+	}, nil
+}
+
 // TwoWayDiff performs a three-way diff and uses specified config as a recently applied config
 func TwoWayDiff(config, live *unstructured.Unstructured) (*DiffResult, error) {
 	if live != nil && config != nil {
 		return ThreeWayDiff(config, config.DeepCopy(), live)
-	} else if live != nil {
+	}
+	return handleResourceCreateOrDeleteDiff(config, live)
+}
+
+// handleResourceCreateOrDeleteDiff will calculate the diff in case of resource creation or
+// deletion. Expects that config or live is nil which means that the resource is being
+// created or being deleted. Will return error if both are nil or if none are nil.
+func handleResourceCreateOrDeleteDiff(config, live *unstructured.Unstructured) (*DiffResult, error) {
+	if live != nil && config != nil {
+		return nil, errors.New("unnexpected state: expected live or config to be null: not create or delete operation")
+	}
+	if live != nil {
 		liveData, err := json.Marshal(live)
 		if err != nil {
 			return nil, err
@@ -222,6 +366,26 @@ func applyPatch(liveBytes []byte, patchBytes []byte, newVersionedObject func() (
 	}
 
 	return liveBytes, predictedLiveBytes, nil
+}
+
+// patchDefaultValues will calculate the default values patch based on the
+// given obj. It will apply the patch using the given objBytes and return
+// the new patched object.
+func patchDefaultValues(objBytes []byte, obj runtime.Object) ([]byte, error) {
+	// 1) Call 'kubescheme.Scheme.Default(obj)' to generate a patch containing
+	// the default values for the given scheme.
+	patch, err := generateSchemeDefaultPatch(obj)
+	if err != nil {
+		return nil, fmt.Errorf("error generating patch for default values: %w", err)
+	}
+
+	// 2) Apply the patch with default values in objBytes.
+	patchedBytes, err := strategicpatch.StrategicMergePatch(objBytes, patch, obj)
+	if err != nil {
+		return nil, fmt.Errorf("error applying patch for default values: %w", err)
+	}
+
+	return patchedBytes, nil
 }
 
 // ThreeWayDiff performs a diff with the understanding of how to incorporate the

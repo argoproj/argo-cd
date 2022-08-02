@@ -9,6 +9,8 @@ import (
 	"strings"
 	"testing"
 
+	"github.com/argoproj/gitops-engine/pkg/diff/testdata"
+	"github.com/argoproj/gitops-engine/pkg/utils/kube/scheme"
 	"github.com/stretchr/testify/assert"
 	"github.com/stretchr/testify/require"
 	appsv1 "k8s.io/api/apps/v1"
@@ -745,6 +747,75 @@ func TestUnsortedEndpoints(t *testing.T) {
 	}
 }
 
+func TestStructuredMergeDiff(t *testing.T) {
+	parser := scheme.StaticParser()
+	svcParseType := parser.Type("io.k8s.api.core.v1.Service")
+	manager := "argocd-controller"
+
+	t.Run("will apply default values", func(t *testing.T) {
+		// given
+		liveState := StrToUnstructured(testdata.ServiceLiveYAML)
+		desiredState := StrToUnstructured(testdata.ServiceConfigYAML)
+		expectedLiveState := StrToUnstructured(testdata.ServiceLiveYAML)
+		expectedLiveBytes, err := json.Marshal(expectedLiveState)
+		require.NoError(t, err)
+
+		// when
+		result, err := structuredMergeDiff(desiredState, liveState, &svcParseType, manager)
+
+		// then
+		require.NoError(t, err)
+		assert.NotNil(t, result)
+		assert.Equal(t, string(expectedLiveBytes), string(result.PredictedLive))
+	})
+	t.Run("will remove entries in list", func(t *testing.T) {
+		// given
+		liveState := StrToUnstructured(testdata.ServiceLiveYAML)
+		desiredState := StrToUnstructured(testdata.ServiceConfigWith2Ports)
+		expectedLiveState := StrToUnstructured(testdata.ExpectedServiceLiveWith2PortsYAML)
+		expectedLiveBytes, err := json.Marshal(expectedLiveState)
+		require.NoError(t, err)
+
+		// when
+		result, err := structuredMergeDiff(desiredState, liveState, &svcParseType, manager)
+
+		// then
+		require.NoError(t, err)
+		assert.NotNil(t, result)
+		assert.Equal(t, string(expectedLiveBytes), string(result.PredictedLive))
+	})
+	t.Run("will remove previously added fields not present in desired state", func(t *testing.T) {
+		// given
+		liveState := StrToUnstructured(testdata.LiveServiceWithTypeYAML)
+		desiredState := StrToUnstructured(testdata.ServiceConfigYAML)
+		expectedLiveState := StrToUnstructured(testdata.ServiceLiveNoTypeYAML)
+		expectedLiveBytes, err := json.Marshal(expectedLiveState)
+		require.NoError(t, err)
+
+		// when
+		result, err := structuredMergeDiff(desiredState, liveState, &svcParseType, manager)
+
+		// then
+		require.NoError(t, err)
+		assert.NotNil(t, result)
+		assert.Equal(t, string(expectedLiveBytes), string(result.PredictedLive))
+	})
+	t.Run("will apply service with multiple ports", func(t *testing.T) {
+		// given
+		liveState := StrToUnstructured(testdata.ServiceLiveYAML)
+		desiredState := StrToUnstructured(testdata.ServiceConfigWithSamePortsYAML)
+
+		// when
+		result, err := structuredMergeDiff(desiredState, liveState, &svcParseType, manager)
+
+		// then
+		require.NoError(t, err)
+		assert.NotNil(t, result)
+		svc := YamlToSvc(t, result.PredictedLive)
+		assert.Equal(t, 5, len(svc.Spec.Ports))
+	})
+}
+
 func createSecret(data map[string]string) *unstructured.Unstructured {
 	secret := corev1.Secret{TypeMeta: metav1.TypeMeta{Kind: "Secret"}}
 	if data != nil {
@@ -991,4 +1062,23 @@ func diffOptionsForTest() []Option {
 		WithLogr(klogr.New()),
 		IgnoreAggregatedRoles(false),
 	}
+}
+
+func YamlToSvc(t *testing.T, y []byte) *corev1.Service {
+	t.Helper()
+	svc := corev1.Service{}
+	err := yaml.Unmarshal(y, &svc)
+	if err != nil {
+		t.Fatalf("error unmarshaling service bytes: %s", err)
+	}
+	return &svc
+}
+
+func StrToUnstructured(yamlStr string) *unstructured.Unstructured {
+	obj := make(map[string]interface{})
+	err := yaml.Unmarshal([]byte(yamlStr), &obj)
+	if err != nil {
+		panic(err)
+	}
+	return &unstructured.Unstructured{Object: obj}
 }

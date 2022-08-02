@@ -584,16 +584,20 @@ func TestSync_ServerSideApply(t *testing.T) {
 		live            *unstructured.Unstructured
 		commandUsed     string
 		serverSideApply bool
+		manager         string
 	}{
-		{"NoAnnotation", NewPod(), NewPod(), "apply", false},
-		{"ServerSideApplyAnnotationIsSet", withServerSideApplyAnnotation(NewPod()), NewPod(), "apply", true},
-		{"ServerSideApplyAndReplaceAnnotationsAreSet", withReplaceAndServerSideApplyAnnotations(NewPod()), NewPod(), "replace", false},
-		{"LiveObjectMissing", withReplaceAnnotation(NewPod()), nil, "create", false},
+		{"NoAnnotation", NewPod(), NewPod(), "apply", false, "managerA"},
+		{"ServerSideApplyAnnotationIsSet", withServerSideApplyAnnotation(NewPod()), NewPod(), "apply", true, "managerB"},
+		{"ServerSideApplyAndReplaceAnnotationsAreSet", withReplaceAndServerSideApplyAnnotations(NewPod()), NewPod(), "replace", false, ""},
+		{"LiveObjectMissing", withReplaceAnnotation(NewPod()), nil, "create", false, ""},
 	}
 
 	for _, tc := range testCases {
+		tc := tc
 		t.Run(tc.name, func(t *testing.T) {
+			t.Parallel()
 			syncCtx := newTestSyncCtx()
+			syncCtx.serverSideApplyManager = tc.manager
 
 			tc.target.SetNamespace(FakeArgoCDNamespace)
 			if tc.live != nil {
@@ -609,6 +613,7 @@ func TestSync_ServerSideApply(t *testing.T) {
 			kubectl, _ := syncCtx.kubectl.(*kubetest.MockKubectlCmd)
 			assert.Equal(t, tc.commandUsed, kubectl.GetLastResourceCommand(kube.GetResourceKey(tc.target)))
 			assert.Equal(t, tc.serverSideApply, kubectl.GetLastServerSideApply())
+			assert.Equal(t, tc.manager, kubectl.GetLastServerSideApplyManager())
 		})
 	}
 }

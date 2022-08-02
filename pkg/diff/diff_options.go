@@ -2,6 +2,7 @@ package diff
 
 import (
 	"github.com/go-logr/logr"
+	"k8s.io/apimachinery/pkg/util/managedfields"
 	"k8s.io/klog/v2/klogr"
 )
 
@@ -13,6 +14,9 @@ type options struct {
 	ignoreAggregatedRoles bool
 	normalizer            Normalizer
 	log                   logr.Logger
+	structuredMergeDiff   bool
+	gvkParser             *managedfields.GvkParser
+	manager               string
 }
 
 func applyOptions(opts []Option) options {
@@ -42,5 +46,23 @@ func WithNormalizer(normalizer Normalizer) Option {
 func WithLogr(log logr.Logger) Option {
 	return func(o *options) {
 		o.log = log
+	}
+}
+
+func WithStructuredMergeDiff(smd bool) Option {
+	return func(o *options) {
+		o.structuredMergeDiff = smd
+	}
+}
+
+func WithGVKParser(parser *managedfields.GvkParser) Option {
+	return func(o *options) {
+		o.gvkParser = parser
+	}
+}
+
+func WithManager(manager string) Option {
+	return func(o *options) {
+		o.manager = manager
 	}
 }
