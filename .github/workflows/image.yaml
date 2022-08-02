@@ -62,14 +62,17 @@ jobs:
 #        with:
 #          category: code
 #          sarif_file: /tmp/argocd-test.sarif
+      - run: |
+          jq '.runs[].automationDetails.id |= "iac-install"' src/github.com/argoproj/argo-cd/argocd-iac-install.sarif > src/github.com/argoproj/argo-cd/argocd-iac-install-categorized.sarif
+          jq '.runs[].automationDetails.id |= "iac-namespace-install"' src/github.com/argoproj/argo-cd/argocd-iac-namespace-install.sarif > src/github.com/argoproj/argo-cd/argocd-iac-namespace-install-categorized.sarif
       - uses: github/codeql-action/upload-sarif@v2
         with:
           category: iac-install
-          sarif_file: src/github.com/argoproj/argo-cd/argocd-iac-install.sarif
+          sarif_file: src/github.com/argoproj/argo-cd/argocd-iac-install-categorized.sarif
       - uses: github/codeql-action/upload-sarif@v2
         with:
           category: iac-namespace-install
-          sarif_file: src/github.com/argoproj/argo-cd/argocd-iac-namespace-install.sarif
+          sarif_file: src/github.com/argoproj/argo-cd/argocd-iac-namespace-install-categorized.sarif
       - run: |
           IMAGE_PLATFORMS=linux/amd64
           if [[ "${{ github.event_name }}" == "push" || "${{ contains(github.event.pull_request.labels.*.name, 'test-arm-image') }}" == "true" ]]
