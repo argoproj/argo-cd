@@ -181,7 +181,7 @@ func TestMatrixGenerate(t *testing.T) {
 			}, appSet)
 
 			if testCaseCopy.expectedErr != nil {
-				assert.EqualError(t, err, testCaseCopy.expectedErr.Error())
+				assert.ErrorIs(t, err, testCaseCopy.expectedErr)
 			} else {
 				assert.NoError(t, err)
 				assert.Equal(t, testCaseCopy.expected, got)
