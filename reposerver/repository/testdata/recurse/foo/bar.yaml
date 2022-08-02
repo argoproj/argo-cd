@@ -1,6 +1,0 @@
-apiVersion: v1
-kind: ConfigMapList
-items:
----
-apiVersion: v1
-kind: ServiceAccount

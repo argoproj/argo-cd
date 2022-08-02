@@ -1,6 +1,0 @@
-apiVersion: v1
-kind: ConfigMap
-metadata:
-  name: cm-2
-  annotations:
-    argocd.argoproj.io/sync-wave: "2"

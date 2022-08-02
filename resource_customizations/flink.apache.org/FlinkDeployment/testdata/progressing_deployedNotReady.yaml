@@ -1,6 +1,0 @@
-apiVersion: flink.apache.org/v1alpha1
-kind: FlinkDeployment
-spec: {}
-status:
-  jobManagerDeploymentStatus: DEPLOYED_NOT_READY
-  reconciliationStatus: {}

@@ -1,4 +1,0 @@
-dependencies:
-- name: kube-prometheus-stack
-  version: 9.4.10
-  repository: https://prometheus-community.github.io/helm-charts
