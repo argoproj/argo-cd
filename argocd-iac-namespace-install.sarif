@@ -1,0 +1,966 @@
+{
+  "$schema": "https://raw.githubusercontent.com/oasis-tcs/sarif-spec/master/Schemata/sarif-schema-2.1.0.json",
+  "version": "2.1.0",
+  "runs": [
+    {
+      "originalUriBaseIds": {
+        "PROJECTROOT": {
+          "uri": "file:///private/var/folders/7c/whfc9xsj1z5g8jtc7t7z0cq80000gp/T/tmp.nhT8QdOA/argo-cd/",
+          "description": {
+            "text": "The root directory for all project files."
+          }
+        }
+      },
+      "tool": {
+        "driver": {
+          "name": "Snyk IaC",
+          "fullName": "Snyk Infrastructure as Code",
+          "version": "1.856.0",
+          "informationUri": "https://docs.snyk.io/products/snyk-infrastructure-as-code",
+          "rules": [
+            {
+              "id": "SNYK-CC-K8S-47",
+              "name": "RoleWithDangerousPermissions",
+              "shortDescription": {
+                "text": "Medium severity - Role with dangerous permissions"
+              },
+              "fullDescription": {
+                "text": "Medium severity - Role"
+              },
+              "help": {
+                "text": "The issue is... \nA role was found using a dangerous permissions\n\n The impact of this is... \n Using this role grants dangerous permissions\n\n You can resolve this by... \nConsider removing this permissions",
+                "markdown": "**The issue is...** \nA role was found using a dangerous permissions\n\n **The impact of this is...** \n Using this role grants dangerous permissions\n\n **You can resolve this by...** \nConsider removing this permissions"
+              },
+              "defaultConfiguration": {
+                "level": "warning"
+              },
+              "properties": {
+                "tags": [
+                  "security",
+                  "Role"
+                ],
+                "problem": {
+                  "severity": "medium"
+                }
+              },
+              "helpUri": "https://snyk.io/security-rules/SNYK-CC-K8S-47"
+            },
+            {
+              "id": "SNYK-CC-K8S-5",
+              "name": "ContainerHasNoCpuLimit",
+              "shortDescription": {
+                "text": "Low severity - Container has no CPU limit"
+              },
+              "fullDescription": {
+                "text": "Low severity - Deployment"
+              },
+              "help": {
+                "text": "The issue is... \nContainer has no CPU limit\n\n The impact of this is... \n CPU limits can prevent containers from consuming valuable compute time for no benefit (e.g. inefficient code) that might lead to unnecessary costs. It is advisable to also configure CPU requests to ensure application stability.\n\n You can resolve this by... \nAdd `resources.limits.cpu` field with required CPU limit value",
+                "markdown": "**The issue is...** \nContainer has no CPU limit\n\n **The impact of this is...** \n CPU limits can prevent containers from consuming valuable compute time for no benefit (e.g. inefficient code) that might lead to unnecessary costs. It is advisable to also configure CPU requests to ensure application stability.\n\n **You can resolve this by...** \nAdd `resources.limits.cpu` field with required CPU limit value"
+              },
+              "defaultConfiguration": {
+                "level": "warning"
+              },
+              "properties": {
+                "tags": [
+                  "security",
+                  "Deployment"
+                ],
+                "problem": {
+                  "severity": "low"
+                }
+              },
+              "helpUri": "https://snyk.io/security-rules/SNYK-CC-K8S-5"
+            },
+            {
+              "id": "SNYK-CC-K8S-6",
+              "name": "ContainerDoesNotDropAllDefaultCapabilities",
+              "shortDescription": {
+                "text": "Medium severity - Container does not drop all default capabilities"
+              },
+              "fullDescription": {
+                "text": "Medium severity - Deployment"
+              },
+              "help": {
+                "text": "The issue is... \nAll default capabilities are not explicitly dropped\n\n The impact of this is... \n Containers are running with potentially unnecessary privileges\n\n You can resolve this by... \nAdd `ALL` to `securityContext.capabilities.drop` list, and add only required capabilities in `securityContext.capabilities.add`",
+                "markdown": "**The issue is...** \nAll default capabilities are not explicitly dropped\n\n **The impact of this is...** \n Containers are running with potentially unnecessary privileges\n\n **You can resolve this by...** \nAdd `ALL` to `securityContext.capabilities.drop` list, and add only required capabilities in `securityContext.capabilities.add`"
+              },
+              "defaultConfiguration": {
+                "level": "warning"
+              },
+              "properties": {
+                "tags": [
+                  "security",
+                  "Deployment"
+                ],
+                "problem": {
+                  "severity": "medium"
+                }
+              },
+              "helpUri": "https://snyk.io/security-rules/SNYK-CC-K8S-6"
+            },
+            {
+              "id": "SNYK-CC-K8S-4",
+              "name": "ContainerIsRunningWithoutMemoryLimit",
+              "shortDescription": {
+                "text": "Low severity - Container is running without memory limit"
+              },
+              "fullDescription": {
+                "text": "Low severity - Deployment"
+              },
+              "help": {
+                "text": "The issue is... \nMemory limit is not defined\n\n The impact of this is... \n Containers without memory limits are more likely to be terminated when the node runs out of memory\n\n You can resolve this by... \nSet `resources.limits.memory` value",
+                "markdown": "**The issue is...** \nMemory limit is not defined\n\n **The impact of this is...** \n Containers without memory limits are more likely to be terminated when the node runs out of memory\n\n **You can resolve this by...** \nSet `resources.limits.memory` value"
+              },
+              "defaultConfiguration": {
+                "level": "warning"
+              },
+              "properties": {
+                "tags": [
+                  "security",
+                  "Deployment"
+                ],
+                "problem": {
+                  "severity": "low"
+                }
+              },
+              "helpUri": "https://snyk.io/security-rules/SNYK-CC-K8S-4"
+            },
+            {
+              "id": "SNYK-CC-K8S-9",
+              "name": "ContainerIsRunningWithoutPrivilegeEscalationControl",
+              "shortDescription": {
+                "text": "Medium severity - Container is running without privilege escalation control"
+              },
+              "fullDescription": {
+                "text": "Medium severity - Deployment"
+              },
+              "help": {
+                "text": "The issue is... \n`allowPrivilegeEscalation` attribute is not set to `false`\n\n The impact of this is... \n Processes could elevate current privileges via known vectors, for example SUID binaries\n\n You can resolve this by... \nSet `securityContext.allowPrivilegeEscalation` to `false`",
+                "markdown": "**The issue is...** \n`allowPrivilegeEscalation` attribute is not set to `false`\n\n **The impact of this is...** \n Processes could elevate current privileges via known vectors, for example SUID binaries\n\n **You can resolve this by...** \nSet `securityContext.allowPrivilegeEscalation` to `false`"
+              },
+              "defaultConfiguration": {
+                "level": "warning"
+              },
+              "properties": {
+                "tags": [
+                  "security",
+                  "Deployment"
+                ],
+                "problem": {
+                  "severity": "medium"
+                }
+              },
+              "helpUri": "https://snyk.io/security-rules/SNYK-CC-K8S-9"
+            },
+            {
+              "id": "SNYK-CC-K8S-41",
+              "name": "ContainerIsRunningWithoutLivenessProbe",
+              "shortDescription": {
+                "text": "Low severity - Container is running without liveness probe"
+              },
+              "fullDescription": {
+                "text": "Low severity - Deployment"
+              },
+              "help": {
+                "text": "The issue is... \nLiveness probe is not defined\n\n The impact of this is... \n Kubernetes will not be able to detect if application is able to service requests, and will not restart unhealthy pods\n\n You can resolve this by... \nAdd `livenessProbe` attribute",
+                "markdown": "**The issue is...** \nLiveness probe is not defined\n\n **The impact of this is...** \n Kubernetes will not be able to detect if application is able to service requests, and will not restart unhealthy pods\n\n **You can resolve this by...** \nAdd `livenessProbe` attribute"
+              },
+              "defaultConfiguration": {
+                "level": "warning"
+              },
+              "properties": {
+                "tags": [
+                  "security",
+                  "Deployment"
+                ],
+                "problem": {
+                  "severity": "low"
+                }
+              },
+              "helpUri": "https://snyk.io/security-rules/SNYK-CC-K8S-41"
+            },
+            {
+              "id": "SNYK-CC-K8S-10",
+              "name": "ContainerIsRunningWithoutRootUserControl",
+              "shortDescription": {
+                "text": "Medium severity - Container is running without root user control"
+              },
+              "fullDescription": {
+                "text": "Medium severity - Deployment"
+              },
+              "help": {
+                "text": "The issue is... \nContainer is running without root user control\n\n The impact of this is... \n Container could be running with full administrative privileges\n\n You can resolve this by... \nSet `securityContext.runAsNonRoot` to `true`",
+                "markdown": "**The issue is...** \nContainer is running without root user control\n\n **The impact of this is...** \n Container could be running with full administrative privileges\n\n **You can resolve this by...** \nSet `securityContext.runAsNonRoot` to `true`"
+              },
+              "defaultConfiguration": {
+                "level": "warning"
+              },
+              "properties": {
+                "tags": [
+                  "security",
+                  "Deployment"
+                ],
+                "problem": {
+                  "severity": "medium"
+                }
+              },
+              "helpUri": "https://snyk.io/security-rules/SNYK-CC-K8S-10"
+            },
+            {
+              "id": "SNYK-CC-K8S-36",
+              "name": "ContainerIsRunningWithMultipleOpenPorts",
+              "shortDescription": {
+                "text": "Low severity - Container is running with multiple open ports"
+              },
+              "fullDescription": {
+                "text": "Low severity - Deployment"
+              },
+              "help": {
+                "text": "The issue is... \nContainer is declaring more than 2 listening ports\n\n The impact of this is... \n Increases the attack surface of the application and the container.\n\n You can resolve this by... \nReduce `ports` count to 2",
+                "markdown": "**The issue is...** \nContainer is declaring more than 2 listening ports\n\n **The impact of this is...** \n Increases the attack surface of the application and the container.\n\n **You can resolve this by...** \nReduce `ports` count to 2"
+              },
+              "defaultConfiguration": {
+                "level": "warning"
+              },
+              "properties": {
+                "tags": [
+                  "security",
+                  "Deployment"
+                ],
+                "problem": {
+                  "severity": "low"
+                }
+              },
+              "helpUri": "https://snyk.io/security-rules/SNYK-CC-K8S-36"
+            },
+            {
+              "id": "SNYK-CC-K8S-8",
+              "name": "ContainerIsRunningWithWritableRootFilesystem",
+              "shortDescription": {
+                "text": "Low severity - Container is running with writable root filesystem"
+              },
+              "fullDescription": {
+                "text": "Low severity - Deployment"
+              },
+              "help": {
+                "text": "The issue is... \n`readOnlyRootFilesystem` attribute is not set to `true`\n\n The impact of this is... \n Compromised process could abuse writable root filesystem to elevate privileges\n\n You can resolve this by... \nSet `securityContext.readOnlyRootFilesystem` to `true`",
+                "markdown": "**The issue is...** \n`readOnlyRootFilesystem` attribute is not set to `true`\n\n **The impact of this is...** \n Compromised process could abuse writable root filesystem to elevate privileges\n\n **You can resolve this by...** \nSet `securityContext.readOnlyRootFilesystem` to `true`"
+              },
+              "defaultConfiguration": {
+                "level": "warning"
+              },
+              "properties": {
+                "tags": [
+                  "security",
+                  "Deployment"
+                ],
+                "problem": {
+                  "severity": "low"
+                }
+              },
+              "helpUri": "https://snyk.io/security-rules/SNYK-CC-K8S-8"
+            },
+            {
+              "id": "SNYK-CC-K8S-42",
+              "name": "ContainerCouldBeRunningWithOutdatedImage",
+              "shortDescription": {
+                "text": "Low severity - Container could be running with outdated image"
+              },
+              "fullDescription": {
+                "text": "Low severity - Deployment"
+              },
+              "help": {
+                "text": "The issue is... \nThe image policy does not prevent image reuse\n\n The impact of this is... \n The container may run with outdated or unauthorized image\n\n You can resolve this by... \nSet `imagePullPolicy` attribute to `Always`",
+                "markdown": "**The issue is...** \nThe image policy does not prevent image reuse\n\n **The impact of this is...** \n The container may run with outdated or unauthorized image\n\n **You can resolve this by...** \nSet `imagePullPolicy` attribute to `Always`"
+              },
+              "defaultConfiguration": {
+                "level": "warning"
+              },
+              "properties": {
+                "tags": [
+                  "security",
+                  "Deployment"
+                ],
+                "problem": {
+                  "severity": "low"
+                }
+              },
+              "helpUri": "https://snyk.io/security-rules/SNYK-CC-K8S-42"
+            }
+          ]
+        }
+      },
+      "automationDetails": {
+        "id": "snyk-iac"
+      },
+      "results": [
+        {
+          "ruleId": "SNYK-CC-K8S-47",
+          "message": {
+            "text": "This line contains a potential medium severity misconfiguration affecting the Role"
+          },
+          "locations": [
+            {
+              "physicalLocation": {
+                "artifactLocation": {
+                  "uri": "manifests/namespace-install.yaml",
+                  "uriBaseId": "PROJECTROOT"
+                },
+                "region": {
+                  "startLine": 38
+                }
+              }
+            }
+          ]
+        },
+        {
+          "ruleId": "SNYK-CC-K8S-47",
+          "message": {
+            "text": "This line contains a potential medium severity misconfiguration affecting the Role"
+          },
+          "locations": [
+            {
+              "physicalLocation": {
+                "artifactLocation": {
+                  "uri": "manifests/namespace-install.yaml",
+                  "uriBaseId": "PROJECTROOT"
+                },
+                "region": {
+                  "startLine": 77
+                }
+              }
+            }
+          ]
+        },
+        {
+          "ruleId": "SNYK-CC-K8S-47",
+          "message": {
+            "text": "This line contains a potential medium severity misconfiguration affecting the Role"
+          },
+          "locations": [
+            {
+              "physicalLocation": {
+                "artifactLocation": {
+                  "uri": "manifests/namespace-install.yaml",
+                  "uriBaseId": "PROJECTROOT"
+                },
+                "region": {
+                  "startLine": 96
+                }
+              }
+            }
+          ]
+        },
+        {
+          "ruleId": "SNYK-CC-K8S-5",
+          "message": {
+            "text": "This line contains a potential low severity misconfiguration affecting the Deployment"
+          },
+          "locations": [
+            {
+              "physicalLocation": {
+                "artifactLocation": {
+                  "uri": "manifests/namespace-install.yaml",
+                  "uriBaseId": "PROJECTROOT"
+                },
+                "region": {
+                  "startLine": 436
+                }
+              }
+            }
+          ]
+        },
+        {
+          "ruleId": "SNYK-CC-K8S-6",
+          "message": {
+            "text": "This line contains a potential medium severity misconfiguration affecting the Deployment"
+          },
+          "locations": [
+            {
+              "physicalLocation": {
+                "artifactLocation": {
+                  "uri": "manifests/namespace-install.yaml",
+                  "uriBaseId": "PROJECTROOT"
+                },
+                "region": {
+                  "startLine": 426
+                }
+              }
+            }
+          ]
+        },
+        {
+          "ruleId": "SNYK-CC-K8S-4",
+          "message": {
+            "text": "This line contains a potential low severity misconfiguration affecting the Deployment"
+          },
+          "locations": [
+            {
+              "physicalLocation": {
+                "artifactLocation": {
+                  "uri": "manifests/namespace-install.yaml",
+                  "uriBaseId": "PROJECTROOT"
+                },
+                "region": {
+                  "startLine": 416
+                }
+              }
+            }
+          ]
+        },
+        {
+          "ruleId": "SNYK-CC-K8S-9",
+          "message": {
+            "text": "This line contains a potential medium severity misconfiguration affecting the Deployment"
+          },
+          "locations": [
+            {
+              "physicalLocation": {
+                "artifactLocation": {
+                  "uri": "manifests/namespace-install.yaml",
+                  "uriBaseId": "PROJECTROOT"
+                },
+                "region": {
+                  "startLine": 436
+                }
+              }
+            }
+          ]
+        },
+        {
+          "ruleId": "SNYK-CC-K8S-41",
+          "message": {
+            "text": "This line contains a potential low severity misconfiguration affecting the Deployment"
+          },
+          "locations": [
+            {
+              "physicalLocation": {
+                "artifactLocation": {
+                  "uri": "manifests/namespace-install.yaml",
+                  "uriBaseId": "PROJECTROOT"
+                },
+                "region": {
+                  "startLine": 416
+                }
+              }
+            }
+          ]
+        },
+        {
+          "ruleId": "SNYK-CC-K8S-6",
+          "message": {
+            "text": "This line contains a potential medium severity misconfiguration affecting the Deployment"
+          },
+          "locations": [
+            {
+              "physicalLocation": {
+                "artifactLocation": {
+                  "uri": "manifests/namespace-install.yaml",
+                  "uriBaseId": "PROJECTROOT"
+                },
+                "region": {
+                  "startLine": 436
+                }
+              }
+            }
+          ]
+        },
+        {
+          "ruleId": "SNYK-CC-K8S-10",
+          "message": {
+            "text": "This line contains a potential medium severity misconfiguration affecting the Deployment"
+          },
+          "locations": [
+            {
+              "physicalLocation": {
+                "artifactLocation": {
+                  "uri": "manifests/namespace-install.yaml",
+                  "uriBaseId": "PROJECTROOT"
+                },
+                "region": {
+                  "startLine": 436
+                }
+              }
+            }
+          ]
+        },
+        {
+          "ruleId": "SNYK-CC-K8S-36",
+          "message": {
+            "text": "This line contains a potential low severity misconfiguration affecting the Deployment"
+          },
+          "locations": [
+            {
+              "physicalLocation": {
+                "artifactLocation": {
+                  "uri": "manifests/namespace-install.yaml",
+                  "uriBaseId": "PROJECTROOT"
+                },
+                "region": {
+                  "startLine": 423
+                }
+              }
+            }
+          ]
+        },
+        {
+          "ruleId": "SNYK-CC-K8S-4",
+          "message": {
+            "text": "This line contains a potential low severity misconfiguration affecting the Deployment"
+          },
+          "locations": [
+            {
+              "physicalLocation": {
+                "artifactLocation": {
+                  "uri": "manifests/namespace-install.yaml",
+                  "uriBaseId": "PROJECTROOT"
+                },
+                "region": {
+                  "startLine": 436
+                }
+              }
+            }
+          ]
+        },
+        {
+          "ruleId": "SNYK-CC-K8S-5",
+          "message": {
+            "text": "This line contains a potential low severity misconfiguration affecting the Deployment"
+          },
+          "locations": [
+            {
+              "physicalLocation": {
+                "artifactLocation": {
+                  "uri": "manifests/namespace-install.yaml",
+                  "uriBaseId": "PROJECTROOT"
+                },
+                "region": {
+                  "startLine": 416
+                }
+              }
+            }
+          ]
+        },
+        {
+          "ruleId": "SNYK-CC-K8S-41",
+          "message": {
+            "text": "This line contains a potential low severity misconfiguration affecting the Deployment"
+          },
+          "locations": [
+            {
+              "physicalLocation": {
+                "artifactLocation": {
+                  "uri": "manifests/namespace-install.yaml",
+                  "uriBaseId": "PROJECTROOT"
+                },
+                "region": {
+                  "startLine": 436
+                }
+              }
+            }
+          ]
+        },
+        {
+          "ruleId": "SNYK-CC-K8S-8",
+          "message": {
+            "text": "This line contains a potential low severity misconfiguration affecting the Deployment"
+          },
+          "locations": [
+            {
+              "physicalLocation": {
+                "artifactLocation": {
+                  "uri": "manifests/namespace-install.yaml",
+                  "uriBaseId": "PROJECTROOT"
+                },
+                "region": {
+                  "startLine": 436
+                }
+              }
+            }
+          ]
+        },
+        {
+          "ruleId": "SNYK-CC-K8S-5",
+          "message": {
+            "text": "This line contains a potential low severity misconfiguration affecting the Deployment"
+          },
+          "locations": [
+            {
+              "physicalLocation": {
+                "artifactLocation": {
+                  "uri": "manifests/namespace-install.yaml",
+                  "uriBaseId": "PROJECTROOT"
+                },
+                "region": {
+                  "startLine": 489
+                }
+              }
+            }
+          ]
+        },
+        {
+          "ruleId": "SNYK-CC-K8S-4",
+          "message": {
+            "text": "This line contains a potential low severity misconfiguration affecting the Deployment"
+          },
+          "locations": [
+            {
+              "physicalLocation": {
+                "artifactLocation": {
+                  "uri": "manifests/namespace-install.yaml",
+                  "uriBaseId": "PROJECTROOT"
+                },
+                "region": {
+                  "startLine": 489
+                }
+              }
+            }
+          ]
+        },
+        {
+          "ruleId": "SNYK-CC-K8S-9",
+          "message": {
+            "text": "This line contains a potential medium severity misconfiguration affecting the Deployment"
+          },
+          "locations": [
+            {
+              "physicalLocation": {
+                "artifactLocation": {
+                  "uri": "manifests/namespace-install.yaml",
+                  "uriBaseId": "PROJECTROOT"
+                },
+                "region": {
+                  "startLine": 489
+                }
+              }
+            }
+          ]
+        },
+        {
+          "ruleId": "SNYK-CC-K8S-41",
+          "message": {
+            "text": "This line contains a potential low severity misconfiguration affecting the Deployment"
+          },
+          "locations": [
+            {
+              "physicalLocation": {
+                "artifactLocation": {
+                  "uri": "manifests/namespace-install.yaml",
+                  "uriBaseId": "PROJECTROOT"
+                },
+                "region": {
+                  "startLine": 489
+                }
+              }
+            }
+          ]
+        },
+        {
+          "ruleId": "SNYK-CC-K8S-8",
+          "message": {
+            "text": "This line contains a potential low severity misconfiguration affecting the Deployment"
+          },
+          "locations": [
+            {
+              "physicalLocation": {
+                "artifactLocation": {
+                  "uri": "manifests/namespace-install.yaml",
+                  "uriBaseId": "PROJECTROOT"
+                },
+                "region": {
+                  "startLine": 489
+                }
+              }
+            }
+          ]
+        },
+        {
+          "ruleId": "SNYK-CC-K8S-6",
+          "message": {
+            "text": "This line contains a potential medium severity misconfiguration affecting the Deployment"
+          },
+          "locations": [
+            {
+              "physicalLocation": {
+                "artifactLocation": {
+                  "uri": "manifests/namespace-install.yaml",
+                  "uriBaseId": "PROJECTROOT"
+                },
+                "region": {
+                  "startLine": 489
+                }
+              }
+            }
+          ]
+        },
+        {
+          "ruleId": "SNYK-CC-K8S-10",
+          "message": {
+            "text": "This line contains a potential medium severity misconfiguration affecting the Deployment"
+          },
+          "locations": [
+            {
+              "physicalLocation": {
+                "artifactLocation": {
+                  "uri": "manifests/namespace-install.yaml",
+                  "uriBaseId": "PROJECTROOT"
+                },
+                "region": {
+                  "startLine": 672
+                }
+              }
+            }
+          ]
+        },
+        {
+          "ruleId": "SNYK-CC-K8S-5",
+          "message": {
+            "text": "This line contains a potential low severity misconfiguration affecting the Deployment"
+          },
+          "locations": [
+            {
+              "physicalLocation": {
+                "artifactLocation": {
+                  "uri": "manifests/namespace-install.yaml",
+                  "uriBaseId": "PROJECTROOT"
+                },
+                "region": {
+                  "startLine": 672
+                }
+              }
+            }
+          ]
+        },
+        {
+          "ruleId": "SNYK-CC-K8S-42",
+          "message": {
+            "text": "This line contains a potential low severity misconfiguration affecting the Deployment"
+          },
+          "locations": [
+            {
+              "physicalLocation": {
+                "artifactLocation": {
+                  "uri": "manifests/namespace-install.yaml",
+                  "uriBaseId": "PROJECTROOT"
+                },
+                "region": {
+                  "startLine": 672
+                }
+              }
+            }
+          ]
+        },
+        {
+          "ruleId": "SNYK-CC-K8S-5",
+          "message": {
+            "text": "This line contains a potential low severity misconfiguration affecting the Deployment"
+          },
+          "locations": [
+            {
+              "physicalLocation": {
+                "artifactLocation": {
+                  "uri": "manifests/namespace-install.yaml",
+                  "uriBaseId": "PROJECTROOT"
+                },
+                "region": {
+                  "startLine": 538
+                }
+              }
+            }
+          ]
+        },
+        {
+          "ruleId": "SNYK-CC-K8S-4",
+          "message": {
+            "text": "This line contains a potential low severity misconfiguration affecting the Deployment"
+          },
+          "locations": [
+            {
+              "physicalLocation": {
+                "artifactLocation": {
+                  "uri": "manifests/namespace-install.yaml",
+                  "uriBaseId": "PROJECTROOT"
+                },
+                "region": {
+                  "startLine": 672
+                }
+              }
+            }
+          ]
+        },
+        {
+          "ruleId": "SNYK-CC-K8S-9",
+          "message": {
+            "text": "This line contains a potential medium severity misconfiguration affecting the Deployment"
+          },
+          "locations": [
+            {
+              "physicalLocation": {
+                "artifactLocation": {
+                  "uri": "manifests/namespace-install.yaml",
+                  "uriBaseId": "PROJECTROOT"
+                },
+                "region": {
+                  "startLine": 672
+                }
+              }
+            }
+          ]
+        },
+        {
+          "ruleId": "SNYK-CC-K8S-4",
+          "message": {
+            "text": "This line contains a potential low severity misconfiguration affecting the Deployment"
+          },
+          "locations": [
+            {
+              "physicalLocation": {
+                "artifactLocation": {
+                  "uri": "manifests/namespace-install.yaml",
+                  "uriBaseId": "PROJECTROOT"
+                },
+                "region": {
+                  "startLine": 538
+                }
+              }
+            }
+          ]
+        },
+        {
+          "ruleId": "SNYK-CC-K8S-41",
+          "message": {
+            "text": "This line contains a potential low severity misconfiguration affecting the Deployment"
+          },
+          "locations": [
+            {
+              "physicalLocation": {
+                "artifactLocation": {
+                  "uri": "manifests/namespace-install.yaml",
+                  "uriBaseId": "PROJECTROOT"
+                },
+                "region": {
+                  "startLine": 672
+                }
+              }
+            }
+          ]
+        },
+        {
+          "ruleId": "SNYK-CC-K8S-8",
+          "message": {
+            "text": "This line contains a potential low severity misconfiguration affecting the Deployment"
+          },
+          "locations": [
+            {
+              "physicalLocation": {
+                "artifactLocation": {
+                  "uri": "manifests/namespace-install.yaml",
+                  "uriBaseId": "PROJECTROOT"
+                },
+                "region": {
+                  "startLine": 672
+                }
+              }
+            }
+          ]
+        },
+        {
+          "ruleId": "SNYK-CC-K8S-6",
+          "message": {
+            "text": "This line contains a potential medium severity misconfiguration affecting the Deployment"
+          },
+          "locations": [
+            {
+              "physicalLocation": {
+                "artifactLocation": {
+                  "uri": "manifests/namespace-install.yaml",
+                  "uriBaseId": "PROJECTROOT"
+                },
+                "region": {
+                  "startLine": 672
+                }
+              }
+            }
+          ]
+        },
+        {
+          "ruleId": "SNYK-CC-K8S-5",
+          "message": {
+            "text": "This line contains a potential low severity misconfiguration affecting the Deployment"
+          },
+          "locations": [
+            {
+              "physicalLocation": {
+                "artifactLocation": {
+                  "uri": "manifests/namespace-install.yaml",
+                  "uriBaseId": "PROJECTROOT"
+                },
+                "region": {
+                  "startLine": 747
+                }
+              }
+            }
+          ]
+        },
+        {
+          "ruleId": "SNYK-CC-K8S-4",
+          "message": {
+            "text": "This line contains a potential low severity misconfiguration affecting the Deployment"
+          },
+          "locations": [
+            {
+              "physicalLocation": {
+                "artifactLocation": {
+                  "uri": "manifests/namespace-install.yaml",
+                  "uriBaseId": "PROJECTROOT"
+                },
+                "region": {
+                  "startLine": 747
+                }
+              }
+            }
+          ]
+        },
+        {
+          "ruleId": "SNYK-CC-K8S-5",
+          "message": {
+            "text": "This line contains a potential low severity misconfiguration affecting the Deployment"
+          },
+          "locations": [
+            {
+              "physicalLocation": {
+                "artifactLocation": {
+                  "uri": "manifests/namespace-install.yaml",
+                  "uriBaseId": "PROJECTROOT"
+                },
+                "region": {
+                  "startLine": 997
+                }
+              }
+            }
+          ]
+        },
+        {
+          "ruleId": "SNYK-CC-K8S-4",
+          "message": {
+            "text": "This line contains a potential low severity misconfiguration affecting the Deployment"
+          },
+          "locations": [
+            {
+              "physicalLocation": {
+                "artifactLocation": {
+                  "uri": "manifests/namespace-install.yaml",
+                  "uriBaseId": "PROJECTROOT"
+                },
+                "region": {
+                  "startLine": 997
+                }
+              }
+            }
+          ]
+        }
+      ]
+    }
+  ]
+}
