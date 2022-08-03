@@ -25,6 +25,8 @@ func GetOpenAPIDefinitions(ref common.ReferenceCallback) map[string]common.OpenA
 		"github.com/argoproj/argo-cd/v2/pkg/apis/application/v1alpha1.ApplicationList":                  schema_pkg_apis_application_v1alpha1_ApplicationList(ref),
 		"github.com/argoproj/argo-cd/v2/pkg/apis/application/v1alpha1.ApplicationSource":                schema_pkg_apis_application_v1alpha1_ApplicationSource(ref),
 		"github.com/argoproj/argo-cd/v2/pkg/apis/application/v1alpha1.ApplicationSourceDirectory":       schema_pkg_apis_application_v1alpha1_ApplicationSourceDirectory(ref),
+		"github.com/argoproj/argo-cd/v2/pkg/apis/application/v1alpha1.ApplicationSourceFetch":           schema_pkg_apis_application_v1alpha1_ApplicationSourceFetch(ref),
+		"github.com/argoproj/argo-cd/v2/pkg/apis/application/v1alpha1.ApplicationSourceFetchSubmodule":  schema_pkg_apis_application_v1alpha1_ApplicationSourceFetchSubmodule(ref),
 		"github.com/argoproj/argo-cd/v2/pkg/apis/application/v1alpha1.ApplicationSourceHelm":            schema_pkg_apis_application_v1alpha1_ApplicationSourceHelm(ref),
 		"github.com/argoproj/argo-cd/v2/pkg/apis/application/v1alpha1.ApplicationSourceJsonnet":         schema_pkg_apis_application_v1alpha1_ApplicationSourceJsonnet(ref),
 		"github.com/argoproj/argo-cd/v2/pkg/apis/application/v1alpha1.ApplicationSourceKustomize":       schema_pkg_apis_application_v1alpha1_ApplicationSourceKustomize(ref),
@@ -649,12 +651,18 @@ func schema_pkg_apis_application_v1alpha1_ApplicationSource(ref common.Reference
 							Format:      "",
 						},
 					},
+					"fetch": {
+						SchemaProps: spec.SchemaProps{
+							Description: "Fetch contains settings about how git fetches should be performed.",
+							Ref:         ref("github.com/argoproj/argo-cd/v2/pkg/apis/application/v1alpha1.ApplicationSourceFetch"),
+						},
+					},
 				},
 				Required: []string{"repoURL"},
 			},
 		},
 		Dependencies: []string{
-			"github.com/argoproj/argo-cd/v2/pkg/apis/application/v1alpha1.ApplicationSourceDirectory", "github.com/argoproj/argo-cd/v2/pkg/apis/application/v1alpha1.ApplicationSourceHelm", "github.com/argoproj/argo-cd/v2/pkg/apis/application/v1alpha1.ApplicationSourceKustomize", "github.com/argoproj/argo-cd/v2/pkg/apis/application/v1alpha1.ApplicationSourcePlugin"},
+			"github.com/argoproj/argo-cd/v2/pkg/apis/application/v1alpha1.ApplicationSourceDirectory", "github.com/argoproj/argo-cd/v2/pkg/apis/application/v1alpha1.ApplicationSourceFetch", "github.com/argoproj/argo-cd/v2/pkg/apis/application/v1alpha1.ApplicationSourceHelm", "github.com/argoproj/argo-cd/v2/pkg/apis/application/v1alpha1.ApplicationSourceKustomize", "github.com/argoproj/argo-cd/v2/pkg/apis/application/v1alpha1.ApplicationSourcePlugin"},
 	}
 }
 
@@ -698,6 +706,54 @@ func schema_pkg_apis_application_v1alpha1_ApplicationSourceDirectory(ref common.
 		},
 		Dependencies: []string{
 			"github.com/argoproj/argo-cd/v2/pkg/apis/application/v1alpha1.ApplicationSourceJsonnet"},
+	}
+}
+
+func schema_pkg_apis_application_v1alpha1_ApplicationSourceFetch(ref common.ReferenceCallback) common.OpenAPIDefinition {
+	return common.OpenAPIDefinition{
+		Schema: spec.Schema{
+			SchemaProps: spec.SchemaProps{
+				Description: "ApplicationSourceFetch contains settings about how git fetches should be performed.",
+				Type:        []string{"object"},
+				Properties: map[string]spec.Schema{
+					"submodule": {
+						SchemaProps: spec.SchemaProps{
+							Description: "Submodule contains fetch settings for submodules.",
+							Ref:         ref("github.com/argoproj/argo-cd/v2/pkg/apis/application/v1alpha1.ApplicationSourceFetchSubmodule"),
+						},
+					},
+				},
+			},
+		},
+		Dependencies: []string{
+			"github.com/argoproj/argo-cd/v2/pkg/apis/application/v1alpha1.ApplicationSourceFetchSubmodule"},
+	}
+}
+
+func schema_pkg_apis_application_v1alpha1_ApplicationSourceFetchSubmodule(ref common.ReferenceCallback) common.OpenAPIDefinition {
+	return common.OpenAPIDefinition{
+		Schema: spec.Schema{
+			SchemaProps: spec.SchemaProps{
+				Description: "ApplicationSourceFetchSubmodule contains fetch settings for submodules.",
+				Type:        []string{"object"},
+				Properties: map[string]spec.Schema{
+					"enabled": {
+						SchemaProps: spec.SchemaProps{
+							Description: "Enabled determines whether submodules will be fetched. If not specified, defaults to true.",
+							Type:        []string{"boolean"},
+							Format:      "",
+						},
+					},
+					"recursive": {
+						SchemaProps: spec.SchemaProps{
+							Description: "Recursive determines whether submodules will be fetched recursively. If not specified, defaults to true. This value is only considered if submodule fetching is also enabled (both at the global and the app level). In other words, setting Recursive to true does not implicitly enable submodule fetching.",
+							Type:        []string{"boolean"},
+							Format:      "",
+						},
+					},
+				},
+			},
+		},
 	}
 }
 

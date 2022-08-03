@@ -60,8 +60,8 @@ type Client interface {
 	Root() string
 	Init() error
 	Fetch(revision string) error
-	Submodule() error
-	Checkout(revision string, submoduleEnabled bool) error
+	Submodule(recursive bool) error
+	Checkout(revision string, submoduleEnabled bool, submoduleRecursive bool) error
 	LsRefs() (*Refs, error)
 	LsRemote(revision string) (string, error)
 	LsFiles(path string) ([]string, error)
@@ -384,18 +384,27 @@ func (m *nativeGitClient) LsLargeFiles() ([]string, error) {
 }
 
 // Submodule embed other repositories into this repository
-func (m *nativeGitClient) Submodule() error {
-	if err := m.runCredentialedCmd("git", "submodule", "sync", "--recursive"); err != nil {
-		return err
+func (m *nativeGitClient) Submodule(recursive bool) error {
+	syncArgs := []string{"submodule", "sync"}
+	if recursive {
+		syncArgs = append(syncArgs, "--recursive")
 	}
-	if err := m.runCredentialedCmd("git", "submodule", "update", "--init", "--recursive"); err != nil {
-		return err
+	if err := m.runCredentialedCmd("git", syncArgs...); err != nil {
+		return fmt.Errorf("failed to sync submodules: %w", err)
+	}
+
+	updateArgs := []string{"submodule", "update", "--init"}
+	if recursive {
+		updateArgs = append(updateArgs, "--recursive")
+	}
+	if err := m.runCredentialedCmd("git", updateArgs...); err != nil {
+		return fmt.Errorf("failed to update submodules: %w", err)
 	}
 	return nil
 }
 
 // Checkout checkout specified revision
-func (m *nativeGitClient) Checkout(revision string, submoduleEnabled bool) error {
+func (m *nativeGitClient) Checkout(revision string, submoduleEnabled bool, submoduleRecursive bool) error {
 	if revision == "" || revision == "HEAD" {
 		revision = "origin/HEAD"
 	}
@@ -417,7 +426,7 @@ func (m *nativeGitClient) Checkout(revision string, submoduleEnabled bool) error
 	}
 	if _, err := os.Stat(m.root + "/.gitmodules"); !os.IsNotExist(err) {
 		if submoduleEnabled {
-			if err := m.Submodule(); err != nil {
+			if err := m.Submodule(submoduleRecursive); err != nil {
 				return err
 			}
 		}

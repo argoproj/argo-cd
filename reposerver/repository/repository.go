@@ -207,7 +207,7 @@ func (s *Service) ListApps(ctx context.Context, q *apiclient.ListAppsRequest) (*
 	defer s.metricsServer.DecPendingRepoRequest(q.Repo.Repo)
 
 	closer, err := s.repoLock.Lock(gitClient.Root(), commitSHA, true, func() (goio.Closer, error) {
-		return s.checkoutRevision(gitClient, commitSHA, s.initConstants.SubmoduleEnabled)
+		return s.checkoutRevision(gitClient, commitSHA, s.initConstants.SubmoduleEnabled, true)
 	})
 
 	if err != nil {
@@ -340,7 +340,9 @@ func (s *Service) runRepoOperation(
 		})
 	} else {
 		closer, err := s.repoLock.Lock(gitClient.Root(), revision, settings.allowConcurrent, func() (goio.Closer, error) {
-			return s.checkoutRevision(gitClient, revision, s.initConstants.SubmoduleEnabled)
+			// submodule must be enabled globally _and_ for the specific app
+			submoduleEnabled := s.initConstants.SubmoduleEnabled && source.GetSubmoduleEnabled()
+			return s.checkoutRevision(gitClient, revision, submoduleEnabled, source.GetSubmoduleRecursive())
 		})
 
 		if err != nil {
@@ -1789,7 +1791,7 @@ func (s *Service) GetRevisionMetadata(ctx context.Context, q *apiclient.RepoServ
 	defer s.metricsServer.DecPendingRepoRequest(q.Repo.Repo)
 
 	closer, err := s.repoLock.Lock(gitClient.Root(), q.Revision, true, func() (goio.Closer, error) {
-		return s.checkoutRevision(gitClient, q.Revision, s.initConstants.SubmoduleEnabled)
+		return s.checkoutRevision(gitClient, q.Revision, s.initConstants.SubmoduleEnabled, true)
 	})
 
 	if err != nil {
@@ -1909,12 +1911,12 @@ func directoryPermissionInitializer(rootPath string) goio.Closer {
 // checkoutRevision is a convenience function to initialize a repo, fetch, and checkout a revision
 // Returns the 40 character commit SHA after the checkout has been performed
 // nolint:unparam
-func (s *Service) checkoutRevision(gitClient git.Client, revision string, submoduleEnabled bool) (goio.Closer, error) {
+func (s *Service) checkoutRevision(gitClient git.Client, revision string, submoduleEnabled bool, submoduleRecursive bool) (goio.Closer, error) {
 	closer := s.gitRepoInitializer(gitClient.Root())
-	return closer, checkoutRevision(gitClient, revision, submoduleEnabled)
+	return closer, checkoutRevision(gitClient, revision, submoduleEnabled, submoduleRecursive)
 }
 
-func checkoutRevision(gitClient git.Client, revision string, submoduleEnabled bool) error {
+func checkoutRevision(gitClient git.Client, revision string, submoduleEnabled bool, submoduleRecursive bool) error {
 	err := gitClient.Init()
 	if err != nil {
 		return status.Errorf(codes.Internal, "Failed to initialize git repo: %v", err)
@@ -1926,7 +1928,7 @@ func checkoutRevision(gitClient git.Client, revision string, submoduleEnabled bo
 		return status.Errorf(codes.Internal, "Failed to fetch default: %v", err)
 	}
 
-	err = gitClient.Checkout(revision, submoduleEnabled)
+	err = gitClient.Checkout(revision, submoduleEnabled, submoduleRecursive)
 	if err != nil {
 		// When fetching with no revision, only refs/heads/* and refs/remotes/origin/* are fetched. If checkout fails
 		// for the given revision, try explicitly fetching it.
@@ -1938,7 +1940,7 @@ func checkoutRevision(gitClient git.Client, revision string, submoduleEnabled bo
 			return status.Errorf(codes.Internal, "Failed to checkout revision %s: %v", revision, err)
 		}
 
-		err = gitClient.Checkout("FETCH_HEAD", submoduleEnabled)
+		err = gitClient.Checkout("FETCH_HEAD", submoduleEnabled, submoduleRecursive)
 		if err != nil {
 			return status.Errorf(codes.Internal, "Failed to checkout FETCH_HEAD: %v", err)
 		}

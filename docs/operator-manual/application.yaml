@@ -115,6 +115,17 @@ spec:
         - name: FOO
           value: bar
 
+    # Settings for git fetch operations.
+    fetch:
+      submodule:
+        # Use this to disable submodule fetching. The default is `true`. ARGOCD_GIT_MODULES_ENABLED=false, if set on the
+        # repo-server Deployment, overrides this setting.
+        enabled: true
+        # Use this to disable recursive submodule fetching (i.e. only fetch submodules directly referenced from the top-
+        # level repo). This setting only has an effect if submodule fetching is enabled both globally and for this App.
+        # The default is `true`.
+        recursive: true
+
   # Destination cluster and namespace to deploy the application
   destination:
     server: https://kubernetes.default.svc

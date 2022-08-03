@@ -168,6 +168,9 @@ message ApplicationSource {
 
   // Chart is a Helm chart name, and must be specified for applications sourced from a Helm repo.
   optional string chart = 12;
+
+  // Fetch contains settings about how git fetches should be performed.
+  optional ApplicationSourceFetch fetch = 13;
 }
 
 // ApplicationSourceDirectory holds options for applications of type plain YAML or Jsonnet
@@ -183,6 +186,23 @@ message ApplicationSourceDirectory {
 
   // Include contains a glob pattern to match paths against that should be explicitly included during manifest generation
   optional string include = 4;
+}
+
+// ApplicationSourceFetch contains settings about how git fetches should be performed.
+message ApplicationSourceFetch {
+  // Submodule contains fetch settings for submodules.
+  optional ApplicationSourceFetchSubmodule submodule = 1;
+}
+
+// ApplicationSourceFetchSubmodule contains fetch settings for submodules.
+message ApplicationSourceFetchSubmodule {
+  // Enabled determines whether submodules will be fetched. If not specified, defaults to true.
+  optional bool enabled = 1;
+
+  // Recursive determines whether submodules will be fetched recursively. If not specified, defaults to true. This
+  // value is only considered if submodule fetching is also enabled (both at the global and the app level). In other
+  // words, setting Recursive to true does not implicitly enable submodule fetching.
+  optional bool recursive = 2;
 }
 
 // ApplicationSourceHelm holds helm specific options

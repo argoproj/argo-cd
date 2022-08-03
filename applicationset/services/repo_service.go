@@ -143,7 +143,7 @@ func checkoutRepo(gitRepoClient git.Client, revision string) error {
 	if err != nil {
 		return fmt.Errorf("Error during fetching commitSHA: %w", err)
 	}
-	err = gitRepoClient.Checkout(commitSHA, true)
+	err = gitRepoClient.Checkout(commitSHA, true, true)
 	if err != nil {
 		return fmt.Errorf("Error during repo checkout: %w", err)
 	}

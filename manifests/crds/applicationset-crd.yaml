@@ -187,6 +187,16 @@ spec:
                                         recurse:
                                           type: boolean
                                       type: object
+                                    fetch:
+                                      properties:
+                                        submodule:
+                                          properties:
+                                            enabled:
+                                              type: boolean
+                                            recursive:
+                                              type: boolean
+                                          type: object
+                                      type: object
                                     helm:
                                       properties:
                                         fileParameters:
@@ -473,6 +483,16 @@ spec:
                                           type: object
                                         recurse:
                                           type: boolean
+                                      type: object
+                                    fetch:
+                                      properties:
+                                        submodule:
+                                          properties:
+                                            enabled:
+                                              type: boolean
+                                            recursive:
+                                              type: boolean
+                                          type: object
                                       type: object
                                     helm:
                                       properties:
@@ -763,6 +783,16 @@ spec:
                                         recurse:
                                           type: boolean
                                       type: object
+                                    fetch:
+                                      properties:
+                                        submodule:
+                                          properties:
+                                            enabled:
+                                              type: boolean
+                                            recursive:
+                                              type: boolean
+                                          type: object
+                                      type: object
                                     helm:
                                       properties:
                                         fileParameters:
@@ -1027,6 +1057,16 @@ spec:
                                           type: object
                                         recurse:
                                           type: boolean
+                                      type: object
+                                    fetch:
+                                      properties:
+                                        submodule:
+                                          properties:
+                                            enabled:
+                                              type: boolean
+                                            recursive:
+                                              type: boolean
+                                          type: object
                                       type: object
                                     helm:
                                       properties:
@@ -1323,6 +1363,16 @@ spec:
                                                   recurse:
                                                     type: boolean
                                                 type: object
+                                              fetch:
+                                                properties:
+                                                  submodule:
+                                                    properties:
+                                                      enabled:
+                                                        type: boolean
+                                                      recursive:
+                                                        type: boolean
+                                                    type: object
+                                                type: object
                                               helm:
                                                 properties:
                                                   fileParameters:
@@ -1609,6 +1659,16 @@ spec:
                                                     type: object
                                                   recurse:
                                                     type: boolean
+                                                type: object
+                                              fetch:
+                                                properties:
+                                                  submodule:
+                                                    properties:
+                                                      enabled:
+                                                        type: boolean
+                                                      recursive:
+                                                        type: boolean
+                                                    type: object
                                                 type: object
                                               helm:
                                                 properties:
@@ -1899,6 +1959,16 @@ spec:
                                                   recurse:
                                                     type: boolean
                                                 type: object
+                                              fetch:
+                                                properties:
+                                                  submodule:
+                                                    properties:
+                                                      enabled:
+                                                        type: boolean
+                                                      recursive:
+                                                        type: boolean
+                                                    type: object
+                                                type: object
                                               helm:
                                                 properties:
                                                   fileParameters:
@@ -2163,6 +2233,16 @@ spec:
                                                     type: object
                                                   recurse:
                                                     type: boolean
+                                                type: object
+                                              fetch:
+                                                properties:
+                                                  submodule:
+                                                    properties:
+                                                      enabled:
+                                                        type: boolean
+                                                      recursive:
+                                                        type: boolean
+                                                    type: object
                                                 type: object
                                               helm:
                                                 properties:
@@ -2544,6 +2624,16 @@ spec:
                                                     type: object
                                                   recurse:
                                                     type: boolean
+                                                type: object
+                                              fetch:
+                                                properties:
+                                                  submodule:
+                                                    properties:
+                                                      enabled:
+                                                        type: boolean
+                                                      recursive:
+                                                        type: boolean
+                                                    type: object
                                                 type: object
                                               helm:
                                                 properties:
@@ -2973,6 +3063,16 @@ spec:
                                                   recurse:
                                                     type: boolean
                                                 type: object
+                                              fetch:
+                                                properties:
+                                                  submodule:
+                                                    properties:
+                                                      enabled:
+                                                        type: boolean
+                                                      recursive:
+                                                        type: boolean
+                                                    type: object
+                                                type: object
                                               helm:
                                                 properties:
                                                   fileParameters:
@@ -3230,6 +3330,16 @@ spec:
                                           type: object
                                         recurse:
                                           type: boolean
+                                      type: object
+                                    fetch:
+                                      properties:
+                                        submodule:
+                                          properties:
+                                            enabled:
+                                              type: boolean
+                                            recursive:
+                                              type: boolean
+                                          type: object
                                       type: object
                                     helm:
                                       properties:
@@ -3526,6 +3636,16 @@ spec:
                                                   recurse:
                                                     type: boolean
                                                 type: object
+                                              fetch:
+                                                properties:
+                                                  submodule:
+                                                    properties:
+                                                      enabled:
+                                                        type: boolean
+                                                      recursive:
+                                                        type: boolean
+                                                    type: object
+                                                type: object
                                               helm:
                                                 properties:
                                                   fileParameters:
@@ -3812,6 +3932,16 @@ spec:
                                                     type: object
                                                   recurse:
                                                     type: boolean
+                                                type: object
+                                              fetch:
+                                                properties:
+                                                  submodule:
+                                                    properties:
+                                                      enabled:
+                                                        type: boolean
+                                                      recursive:
+                                                        type: boolean
+                                                    type: object
                                                 type: object
                                               helm:
                                                 properties:
@@ -4102,6 +4232,16 @@ spec:
                                                   recurse:
                                                     type: boolean
                                                 type: object
+                                              fetch:
+                                                properties:
+                                                  submodule:
+                                                    properties:
+                                                      enabled:
+                                                        type: boolean
+                                                      recursive:
+                                                        type: boolean
+                                                    type: object
+                                                type: object
                                               helm:
                                                 properties:
                                                   fileParameters:
@@ -4366,6 +4506,16 @@ spec:
                                                     type: object
                                                   recurse:
                                                     type: boolean
+                                                type: object
+                                              fetch:
+                                                properties:
+                                                  submodule:
+                                                    properties:
+                                                      enabled:
+                                                        type: boolean
+                                                      recursive:
+                                                        type: boolean
+                                                    type: object
                                                 type: object
                                               helm:
                                                 properties:
@@ -4747,6 +4897,16 @@ spec:
                                                     type: object
                                                   recurse:
                                                     type: boolean
+                                                type: object
+                                              fetch:
+                                                properties:
+                                                  submodule:
+                                                    properties:
+                                                      enabled:
+                                                        type: boolean
+                                                      recursive:
+                                                        type: boolean
+                                                    type: object
                                                 type: object
                                               helm:
                                                 properties:
@@ -5176,6 +5336,16 @@ spec:
                                                   recurse:
                                                     type: boolean
                                                 type: object
+                                              fetch:
+                                                properties:
+                                                  submodule:
+                                                    properties:
+                                                      enabled:
+                                                        type: boolean
+                                                      recursive:
+                                                        type: boolean
+                                                    type: object
+                                                type: object
                                               helm:
                                                 properties:
                                                   fileParameters:
@@ -5437,6 +5607,16 @@ spec:
                                           type: object
                                         recurse:
                                           type: boolean
+                                      type: object
+                                    fetch:
+                                      properties:
+                                        submodule:
+                                          properties:
+                                            enabled:
+                                              type: boolean
+                                            recursive:
+                                              type: boolean
+                                          type: object
                                       type: object
                                     helm:
                                       properties:
@@ -5815,6 +5995,16 @@ spec:
                                           type: object
                                         recurse:
                                           type: boolean
+                                      type: object
+                                    fetch:
+                                      properties:
+                                        submodule:
+                                          properties:
+                                            enabled:
+                                              type: boolean
+                                            recursive:
+                                              type: boolean
+                                          type: object
                                       type: object
                                     helm:
                                       properties:
@@ -6244,6 +6434,16 @@ spec:
                                         recurse:
                                           type: boolean
                                       type: object
+                                    fetch:
+                                      properties:
+                                        submodule:
+                                          properties:
+                                            enabled:
+                                              type: boolean
+                                            recursive:
+                                              type: boolean
+                                          type: object
+                                      type: object
                                     helm:
                                       properties:
                                         fileParameters:
@@ -6506,6 +6706,16 @@ spec:
                                 type: object
                               recurse:
                                 type: boolean
+                            type: object
+                          fetch:
+                            properties:
+                              submodule:
+                                properties:
+                                  enabled:
+                                    type: boolean
+                                  recursive:
+                                    type: boolean
+                                type: object
                             type: object
                           helm:
                             properties:

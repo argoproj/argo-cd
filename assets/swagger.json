@@ -4863,6 +4863,9 @@
         "directory": {
           "$ref": "#/definitions/v1alpha1ApplicationSourceDirectory"
         },
+        "fetch": {
+          "$ref": "#/definitions/v1alpha1ApplicationSourceFetch"
+        },
         "helm": {
           "$ref": "#/definitions/v1alpha1ApplicationSourceHelm"
         },
@@ -4904,6 +4907,29 @@
         "recurse": {
           "type": "boolean",
           "title": "Recurse specifies whether to scan a directory recursively for manifests"
+        }
+      }
+    },
+    "v1alpha1ApplicationSourceFetch": {
+      "description": "ApplicationSourceFetch contains settings about how git fetches should be performed.",
+      "type": "object",
+      "properties": {
+        "submodule": {
+          "$ref": "#/definitions/v1alpha1ApplicationSourceFetchSubmodule"
+        }
+      }
+    },
+    "v1alpha1ApplicationSourceFetchSubmodule": {
+      "description": "ApplicationSourceFetchSubmodule contains fetch settings for submodules.",
+      "type": "object",
+      "properties": {
+        "enabled": {
+          "description": "Enabled determines whether submodules will be fetched. If not specified, defaults to true.",
+          "type": "boolean"
+        },
+        "recursive": {
+          "description": "Recursive determines whether submodules will be fetched recursively. If not specified, defaults to true. This\nvalue is only considered if submodule fetching is also enabled (both at the global and the app level). In other\nwords, setting Recursive to true does not implicitly enable submodule fetching.",
+          "type": "boolean"
         }
       }
     },

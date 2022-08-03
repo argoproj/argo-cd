@@ -214,6 +214,27 @@ spec:
                               recursively for manifests
                             type: boolean
                         type: object
+                      fetch:
+                        description: Fetch contains settings about how git fetches
+                          should be performed.
+                        properties:
+                          submodule:
+                            description: Submodule contains fetch settings for submodules.
+                            properties:
+                              enabled:
+                                description: Enabled determines whether submodules
+                                  will be fetched. If not specified, defaults to true.
+                                type: boolean
+                              recursive:
+                                description: Recursive determines whether submodules
+                                  will be fetched recursively. If not specified, defaults
+                                  to true. This value is only considered if submodule
+                                  fetching is also enabled (both at the global and
+                                  the app level). In other words, setting Recursive
+                                  to true does not implicitly enable submodule fetching.
+                                type: boolean
+                            type: object
+                        type: object
                       helm:
                         description: Helm holds helm specific options
                         properties:
@@ -561,6 +582,27 @@ spec:
                         description: Recurse specifies whether to scan a directory
                           recursively for manifests
                         type: boolean
+                    type: object
+                  fetch:
+                    description: Fetch contains settings about how git fetches should
+                      be performed.
+                    properties:
+                      submodule:
+                        description: Submodule contains fetch settings for submodules.
+                        properties:
+                          enabled:
+                            description: Enabled determines whether submodules will
+                              be fetched. If not specified, defaults to true.
+                            type: boolean
+                          recursive:
+                            description: Recursive determines whether submodules will
+                              be fetched recursively. If not specified, defaults to
+                              true. This value is only considered if submodule fetching
+                              is also enabled (both at the global and the app level).
+                              In other words, setting Recursive to true does not implicitly
+                              enable submodule fetching.
+                            type: boolean
+                        type: object
                     type: object
                   helm:
                     description: Helm holds helm specific options
@@ -913,6 +955,29 @@ spec:
                               description: Recurse specifies whether to scan a directory
                                 recursively for manifests
                               type: boolean
+                          type: object
+                        fetch:
+                          description: Fetch contains settings about how git fetches
+                            should be performed.
+                          properties:
+                            submodule:
+                              description: Submodule contains fetch settings for submodules.
+                              properties:
+                                enabled:
+                                  description: Enabled determines whether submodules
+                                    will be fetched. If not specified, defaults to
+                                    true.
+                                  type: boolean
+                                recursive:
+                                  description: Recursive determines whether submodules
+                                    will be fetched recursively. If not specified,
+                                    defaults to true. This value is only considered
+                                    if submodule fetching is also enabled (both at
+                                    the global and the app level). In other words,
+                                    setting Recursive to true does not implicitly
+                                    enable submodule fetching.
+                                  type: boolean
+                              type: object
                           type: object
                         helm:
                           description: Helm holds helm specific options
@@ -1278,6 +1343,31 @@ spec:
                                       a directory recursively for manifests
                                     type: boolean
                                 type: object
+                              fetch:
+                                description: Fetch contains settings about how git
+                                  fetches should be performed.
+                                properties:
+                                  submodule:
+                                    description: Submodule contains fetch settings
+                                      for submodules.
+                                    properties:
+                                      enabled:
+                                        description: Enabled determines whether submodules
+                                          will be fetched. If not specified, defaults
+                                          to true.
+                                        type: boolean
+                                      recursive:
+                                        description: Recursive determines whether
+                                          submodules will be fetched recursively.
+                                          If not specified, defaults to true. This
+                                          value is only considered if submodule fetching
+                                          is also enabled (both at the global and
+                                          the app level). In other words, setting
+                                          Recursive to true does not implicitly enable
+                                          submodule fetching.
+                                        type: boolean
+                                    type: object
+                                type: object
                               helm:
                                 description: Helm holds helm specific options
                                 properties:
@@ -1628,6 +1718,30 @@ spec:
                                   recursively for manifests
                                 type: boolean
                             type: object
+                          fetch:
+                            description: Fetch contains settings about how git fetches
+                              should be performed.
+                            properties:
+                              submodule:
+                                description: Submodule contains fetch settings for
+                                  submodules.
+                                properties:
+                                  enabled:
+                                    description: Enabled determines whether submodules
+                                      will be fetched. If not specified, defaults
+                                      to true.
+                                    type: boolean
+                                  recursive:
+                                    description: Recursive determines whether submodules
+                                      will be fetched recursively. If not specified,
+                                      defaults to true. This value is only considered
+                                      if submodule fetching is also enabled (both
+                                      at the global and the app level). In other words,
+                                      setting Recursive to true does not implicitly
+                                      enable submodule fetching.
+                                    type: boolean
+                                type: object
+                            type: object
                           helm:
                             description: Helm holds helm specific options
                             properties:
@@ -1961,6 +2075,30 @@ spec:
                                 description: Recurse specifies whether to scan a directory
                                   recursively for manifests
                                 type: boolean
+                            type: object
+                          fetch:
+                            description: Fetch contains settings about how git fetches
+                              should be performed.
+                            properties:
+                              submodule:
+                                description: Submodule contains fetch settings for
+                                  submodules.
+                                properties:
+                                  enabled:
+                                    description: Enabled determines whether submodules
+                                      will be fetched. If not specified, defaults
+                                      to true.
+                                    type: boolean
+                                  recursive:
+                                    description: Recursive determines whether submodules
+                                      will be fetched recursively. If not specified,
+                                      defaults to true. This value is only considered
+                                      if submodule fetching is also enabled (both
+                                      at the global and the app level). In other words,
+                                      setting Recursive to true does not implicitly
+                                      enable submodule fetching.
+                                    type: boolean
+                                type: object
                             type: object
                           helm:
                             description: Helm holds helm specific options

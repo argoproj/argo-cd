@@ -2425,10 +2425,10 @@ func TestCheckoutRevisionCanGetNonstandardRefs(t *testing.T) {
 	pullSha, err := gitClient.LsRemote("refs/pull/123/head")
 	require.NoError(t, err)
 
-	err = checkoutRevision(gitClient, "does-not-exist", false)
+	err = checkoutRevision(gitClient, "does-not-exist", false, true)
 	assert.Error(t, err)
 
-	err = checkoutRevision(gitClient, pullSha, false)
+	err = checkoutRevision(gitClient, pullSha, false, true)
 	assert.NoError(t, err)
 }
 

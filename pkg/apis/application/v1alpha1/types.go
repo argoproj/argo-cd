@@ -170,6 +170,8 @@ type ApplicationSource struct {
 	Plugin *ApplicationSourcePlugin `json:"plugin,omitempty" protobuf:"bytes,11,opt,name=plugin"`
 	// Chart is a Helm chart name, and must be specified for applications sourced from a Helm repo.
 	Chart string `json:"chart,omitempty" protobuf:"bytes,12,opt,name=chart"`
+	// Fetch contains settings about how git fetches should be performed.
+	Fetch *ApplicationSourceFetch `json:"fetch,omitempty" protobuf:"bytes,13,opt,name=fetch"`
 }
 
 // AllowsConcurrentProcessing returns true if given application source can be processed concurrently
@@ -205,6 +207,22 @@ func (a *ApplicationSource) IsZero() bool {
 			a.Kustomize.IsZero() &&
 			a.Directory.IsZero() &&
 			a.Plugin.IsZero()
+}
+
+func (a *ApplicationSource) GetSubmoduleEnabled() bool {
+	if a == nil || a.Fetch == nil {
+		return true
+	}
+
+	return a.Fetch.GetSubmoduleEnabled()
+}
+
+func (a *ApplicationSource) GetSubmoduleRecursive() bool {
+	if a == nil || a.Fetch == nil {
+		return true
+	}
+
+	return a.Fetch.GetSubmoduleRecursive()
 }
 
 // ApplicationSourceType specifies the type of the application's source
@@ -498,6 +516,62 @@ func (c *ApplicationSourcePlugin) RemoveEnvEntry(key string) error {
 		}
 	}
 	return fmt.Errorf("unable to find env variable with key %q for plugin %q", key, c.Name)
+}
+
+// ApplicationSourceFetch contains settings about how git fetches should be performed.
+type ApplicationSourceFetch struct {
+	// Submodule contains fetch settings for submodules.
+	Submodule *ApplicationSourceFetchSubmodule `json:"submodule,omitempty" protobuf:"bytes,1,opt,name=submodule"`
+}
+
+// GetSubmoduleEnabled gets whether submodule fetching is enabled. Defaults to true.
+func (f *ApplicationSourceFetch) GetSubmoduleEnabled() bool {
+	if f == nil {
+		return true
+	}
+
+	return f.Submodule.GetEnabled()
+}
+
+// GetSubmoduleRecursive gets whether submodule recursive fetching is enabled. Defaults to true. Its value is only to be
+// used if submodule fetching is also enabled (GetSubmoduleEnabled).
+func (f *ApplicationSourceFetch) GetSubmoduleRecursive() bool {
+	if f == nil {
+		return true
+	}
+
+	return f.Submodule.GetRecursive()
+}
+
+// ApplicationSourceFetchSubmodule contains fetch settings for submodules.
+type ApplicationSourceFetchSubmodule struct {
+	// Enabled determines whether submodules will be fetched. If not specified, defaults to true.
+	Enabled *bool `json:"enabled,omitempty" protobuf:"bytes,1,opt,name=enabled"`
+	// Recursive determines whether submodules will be fetched recursively. If not specified, defaults to true. This
+	// value is only considered if submodule fetching is also enabled (both at the global and the app level). In other
+	// words, setting Recursive to true does not implicitly enable submodule fetching.
+	Recursive *bool `json:"recursive,omitempty" protobuf:"bytes,2,opt,name=recursive"`
+}
+
+// GetEnabled gets whether submodule fetching is enabled. If submodule settings or "enabled" are not specified,
+// submodule fetching defaults to true.
+func (s *ApplicationSourceFetchSubmodule) GetEnabled() bool {
+	if s == nil || s.Enabled == nil {
+		return true
+	}
+
+	return *s.Enabled
+}
+
+// GetRecursive gets whether submodule recursive fetching is enabled. If submodule settings or "recursive" are not
+// specified, submodule fetching defaults to recursive. This value is only to be considered if submodule fetching is
+// enabled (both globally and at the app level).
+func (s *ApplicationSourceFetchSubmodule) GetRecursive() bool {
+	if s == nil || s.Recursive == nil {
+		return true
+	}
+
+	return *s.Recursive
 }
 
 // ApplicationDestination holds information about the application's destination
