@@ -59,19 +59,18 @@ jobs:
           npm install -g snyk
 
           ./hack/snyk-non-container-tests.sh
-
           jq '.runs[].automationDetails.id |= "iac-install"' /tmp/argocd-iac-test-install.sarif > /tmp/argocd-iac-test-install-categorized.sarif
           jq '.runs[].automationDetails.id |= "iac-namespace-install"' /tmp/argocd-iac-test-namespace-install.sarif > /tmp/argocd-iac-test-namespace-install-categorized.sarif
-      - uses: github/codeql-action/upload-sarif@v1
+      - uses: github/codeql-action/upload-sarif@v2
         if: github.event_name == 'push'
         with:
           category: code
           sarif_file: /tmp/argocd-test.sarif
-      - uses: github/codeql-action/upload-sarif@v1
+      - uses: github/codeql-action/upload-sarif@v2
         if: github.event_name == 'push'
         with:
           sarif_file: /tmp/argocd-iac-test-install-categorized.sarif
-      - uses: github/codeql-action/upload-sarif@v1
+      - uses: github/codeql-action/upload-sarif@v2
         if: github.event_name == 'push'
         with:
           sarif_file: /tmp/argocd-iac-test-namespace-install-categorized.sarif
@@ -94,7 +93,7 @@ jobs:
           SNYK_TOKEN: ${{ secrets.SNYK_TOKEN }}
         run: |
           make snyk-container-tests
-      - uses: github/codeql-action/upload-sarif@v1
+      - uses: github/codeql-action/upload-sarif@v2
         if: github.event_name == 'push'
         with:
           category: image
