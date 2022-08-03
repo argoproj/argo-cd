@@ -254,7 +254,7 @@ require (
 
 replace (
 	// TODO release gitops-engine and remove the line bellow
-	github.com/argoproj/gitops-engine => github.com/argoproj/gitops-engine v0.7.1-0.20220802184809-1c4ef336872c
+	github.com/argoproj/gitops-engine => github.com/argoproj/gitops-engine v0.7.1-0.20220803145758-6cde7989d534
 
 	// https://github.com/golang/go/issues/33546#issuecomment-519656923
 	github.com/go-check/check => github.com/go-check/check v0.0.0-20180628173108-788fd7840127
