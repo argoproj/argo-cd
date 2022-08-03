@@ -81,7 +81,6 @@ spec:
   clusterIP: 10.111.193.74
   clusterIPs:
     - 10.111.193.74
-  internalTrafficPolicy: Cluster
   ipFamilies:
     - IPv4
   ipFamilyPolicy: SingleStack

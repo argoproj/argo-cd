@@ -172,13 +172,19 @@ func structuredMergeDiff(config, live *unstructured.Unstructured, pt *typed.Pars
 		return nil, fmt.Errorf("error merging config into clean live: %w", err)
 	}
 
-	// 6) Apply default values
-	mergedResult, err := applyDefaultValues(mergedCleanLive)
+	// 6) Apply default values in predicted live
+	predictedLive, err := applyDefaultValues(mergedCleanLive)
 	if err != nil {
-		return nil, fmt.Errorf("applyDefaultValues error: %w", err)
+		return nil, fmt.Errorf("error applying default values in predicted live: %w", err)
 	}
 
-	return buildDiffResult(mergedResult, live)
+	// 7) Apply default values in live
+	taintedLive, err := applyDefaultValues(tvLive)
+	if err != nil {
+		return nil, fmt.Errorf("error applying default values in live: %w", err)
+	}
+
+	return buildDiffResult(predictedLive, taintedLive), nil
 }
 
 func applyDefaultValues(result *typed.TypedValue) ([]byte, error) {
@@ -207,17 +213,12 @@ func applyDefaultValues(result *typed.TypedValue) ([]byte, error) {
 	return mergedBytes, nil
 }
 
-func buildDiffResult(mergedBytes []byte, live *unstructured.Unstructured) (*DiffResult, error) {
-
-	liveBytes, err := json.Marshal(live)
-	if err != nil {
-		return nil, fmt.Errorf("error while marshaling live unstructured: %w", err)
-	}
+func buildDiffResult(predictedBytes []byte, liveBytes []byte) *DiffResult {
 	return &DiffResult{
-		Modified:       string(liveBytes) != string(mergedBytes),
+		Modified:       string(liveBytes) != string(predictedBytes),
 		NormalizedLive: liveBytes,
-		PredictedLive:  mergedBytes,
-	}, nil
+		PredictedLive:  predictedBytes,
+	}
 }
 
 // TwoWayDiff performs a three-way diff and uses specified config as a recently applied config
@@ -429,13 +430,7 @@ func ThreeWayDiff(orig, config, live *unstructured.Unstructured) (*DiffResult, e
 		return nil, err
 	}
 
-	// 3. compare live and expected live object
-	dr := DiffResult{
-		PredictedLive:  predictedLiveBytes,
-		NormalizedLive: liveBytes,
-		Modified:       string(predictedLiveBytes) != string(liveBytes),
-	}
-	return &dr, nil
+	return buildDiffResult(predictedLiveBytes, liveBytes), nil
 }
 
 // stripTypeInformation strips any type information (e.g. float64 vs. int) from the unstructured

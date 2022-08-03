@@ -756,9 +756,6 @@ func TestStructuredMergeDiff(t *testing.T) {
 		// given
 		liveState := StrToUnstructured(testdata.ServiceLiveYAML)
 		desiredState := StrToUnstructured(testdata.ServiceConfigYAML)
-		expectedLiveState := StrToUnstructured(testdata.ServiceLiveYAML)
-		expectedLiveBytes, err := json.Marshal(expectedLiveState)
-		require.NoError(t, err)
 
 		// when
 		result, err := structuredMergeDiff(desiredState, liveState, &svcParseType, manager)
@@ -766,7 +763,13 @@ func TestStructuredMergeDiff(t *testing.T) {
 		// then
 		require.NoError(t, err)
 		assert.NotNil(t, result)
-		assert.Equal(t, string(expectedLiveBytes), string(result.PredictedLive))
+		assert.False(t, result.Modified)
+		predictedSVC := YamlToSvc(t, result.PredictedLive)
+		liveSVC := YamlToSvc(t, result.NormalizedLive)
+		assert.NotNil(t, predictedSVC.Spec.InternalTrafficPolicy)
+		assert.NotNil(t, liveSVC.Spec.InternalTrafficPolicy)
+		assert.Equal(t, "Cluster", string(*predictedSVC.Spec.InternalTrafficPolicy))
+		assert.Equal(t, "Cluster", string(*liveSVC.Spec.InternalTrafficPolicy))
 	})
 	t.Run("will remove entries in list", func(t *testing.T) {
 		// given
@@ -782,6 +785,7 @@ func TestStructuredMergeDiff(t *testing.T) {
 		// then
 		require.NoError(t, err)
 		assert.NotNil(t, result)
+		assert.True(t, result.Modified)
 		assert.Equal(t, string(expectedLiveBytes), string(result.PredictedLive))
 	})
 	t.Run("will remove previously added fields not present in desired state", func(t *testing.T) {
@@ -798,6 +802,7 @@ func TestStructuredMergeDiff(t *testing.T) {
 		// then
 		require.NoError(t, err)
 		assert.NotNil(t, result)
+		assert.True(t, result.Modified)
 		assert.Equal(t, string(expectedLiveBytes), string(result.PredictedLive))
 	})
 	t.Run("will apply service with multiple ports", func(t *testing.T) {
@@ -811,6 +816,7 @@ func TestStructuredMergeDiff(t *testing.T) {
 		// then
 		require.NoError(t, err)
 		assert.NotNil(t, result)
+		assert.True(t, result.Modified)
 		svc := YamlToSvc(t, result.PredictedLive)
 		assert.Equal(t, 5, len(svc.Spec.Ports))
 	})
