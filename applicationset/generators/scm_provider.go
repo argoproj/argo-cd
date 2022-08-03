@@ -10,6 +10,7 @@ import (
 	"sigs.k8s.io/controller-runtime/pkg/client"
 
 	"github.com/argoproj/argo-cd/v2/applicationset/services/scm_provider"
+	"github.com/argoproj/argo-cd/v2/applicationset/utils"
 	argoprojiov1alpha1 "github.com/argoproj/argo-cd/v2/pkg/apis/applicationset/v1alpha1"
 )
 
@@ -135,7 +136,7 @@ func (g *SCMProviderGenerator) GenerateParams(appSetGenerator *argoprojiov1alpha
 			"sha":              repo.SHA,
 			"short_sha":        repo.SHA[:shortSHALength],
 			"labels":           strings.Join(repo.Labels, ","),
-			"branchNormalized": sanitizeName(repo.Branch),
+			"branchNormalized": utils.SanitizeName(repo.Branch),
 		})
 	}
 	return params, nil

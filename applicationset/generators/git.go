@@ -14,6 +14,7 @@ import (
 	"sigs.k8s.io/yaml"
 
 	"github.com/argoproj/argo-cd/v2/applicationset/services"
+	"github.com/argoproj/argo-cd/v2/applicationset/utils"
 	argoprojiov1alpha1 "github.com/argoproj/argo-cd/v2/pkg/apis/applicationset/v1alpha1"
 )
 
@@ -163,8 +164,8 @@ func (g *GitGenerator) generateParamsFromGitFile(filePath string, fileContent []
 			paramPath["path"] = path.Dir(filePath)
 			paramPath["basename"] = path.Base(paramPath["path"].(string))
 			paramPath["filename"] = path.Base(filePath)
-			paramPath["basenameNormalized"] = sanitizeName(path.Base(paramPath["path"].(string)))
-			paramPath["filenameNormalized"] = sanitizeName(path.Base(paramPath["filename"].(string)))
+			paramPath["basenameNormalized"] = utils.SanitizeName(path.Base(paramPath["path"].(string)))
+			paramPath["filenameNormalized"] = utils.SanitizeName(path.Base(paramPath["filename"].(string)))
 			paramPath["segments"] = strings.Split(paramPath["path"].(string), "/")
 			params["path"] = paramPath
 		} else {
@@ -178,8 +179,8 @@ func (g *GitGenerator) generateParamsFromGitFile(filePath string, fileContent []
 			params["path"] = path.Dir(filePath)
 			params["path.basename"] = path.Base(params["path"].(string))
 			params["path.filename"] = path.Base(filePath)
-			params["path.basenameNormalized"] = sanitizeName(path.Base(params["path"].(string)))
-			params["path.filenameNormalized"] = sanitizeName(path.Base(params["path.filename"].(string)))
+			params["path.basenameNormalized"] = utils.SanitizeName(path.Base(params["path"].(string)))
+			params["path.filenameNormalized"] = utils.SanitizeName(path.Base(params["path.filename"].(string)))
 			for k, v := range strings.Split(params["path"].(string), "/") {
 				if len(v) > 0 {
 					params["path["+strconv.Itoa(k)+"]"] = v
@@ -228,19 +229,19 @@ func (g *GitGenerator) generateParamsFromApps(requestedApps []string, _ *argopro
 	res := make([]map[string]interface{}, len(requestedApps))
 	for i, a := range requestedApps {
 
-		params := make(map[string]interface{}, 2)
+		params := make(map[string]interface{}, 5)
 
 		if useGoTemplate {
 			paramPath := map[string]interface{}{}
 			paramPath["path"] = a
 			paramPath["basename"] = path.Base(a)
-			paramPath["basenameNormalized"] = sanitizeName(path.Base(a))
+			paramPath["basenameNormalized"] = utils.SanitizeName(path.Base(a))
 			paramPath["segments"] = strings.Split(paramPath["path"].(string), "/")
 			params["path"] = paramPath
 		} else {
 			params["path"] = a
 			params["path.basename"] = path.Base(a)
-			params["path.basenameNormalized"] = sanitizeName(path.Base(a))
+			params["path.basenameNormalized"] = utils.SanitizeName(path.Base(a))
 			for k, v := range strings.Split(params["path"].(string), "/") {
 				if len(v) > 0 {
 					params["path["+strconv.Itoa(k)+"]"] = v

@@ -181,7 +181,7 @@ func TestMatrixGenerate(t *testing.T) {
 			}, appSet)
 
 			if testCaseCopy.expectedErr != nil {
-				assert.EqualError(t, err, testCaseCopy.expectedErr.Error())
+				assert.ErrorIs(t, err, testCaseCopy.expectedErr)
 			} else {
 				assert.NoError(t, err)
 				assert.Equal(t, testCaseCopy.expected, got)
@@ -376,7 +376,7 @@ func TestMatrixGenerateGoTemplate(t *testing.T) {
 			}, appSet)
 
 			if testCaseCopy.expectedErr != nil {
-				assert.EqualError(t, err, testCaseCopy.expectedErr.Error())
+				assert.ErrorIs(t, err, testCaseCopy.expectedErr)
 			} else {
 				assert.NoError(t, err)
 				assert.Equal(t, testCaseCopy.expected, got)
@@ -607,7 +607,7 @@ func TestInterpolatedMatrixGenerate(t *testing.T) {
 			}, appSet)
 
 			if testCaseCopy.expectedErr != nil {
-				assert.EqualError(t, err, testCaseCopy.expectedErr.Error())
+				assert.ErrorIs(t, err, testCaseCopy.expectedErr)
 			} else {
 				assert.NoError(t, err)
 				assert.Equal(t, testCaseCopy.expected, got)
@@ -795,7 +795,7 @@ func TestInterpolatedMatrixGenerateGoTemplate(t *testing.T) {
 			}, appSet)
 
 			if testCaseCopy.expectedErr != nil {
-				assert.EqualError(t, err, testCaseCopy.expectedErr.Error())
+				assert.ErrorIs(t, err, testCaseCopy.expectedErr)
 			} else {
 				assert.NoError(t, err)
 				assert.Equal(t, testCaseCopy.expected, got)

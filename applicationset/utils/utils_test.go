@@ -391,10 +391,10 @@ func TestRenderTemplateParamsGoTemplate(t *testing.T) {
 		},
 		{
 			name:        "quote",
-			fieldVal:    `{{ slice .quote 1 }}`,
-			expectedVal: ``,
+			fieldVal:    `{{.quote}}`,
+			expectedVal: `"`,
 			params: map[string]interface{}{
-				"admin": `"`,
+				"quote": `"`,
 			},
 		},
 	}
