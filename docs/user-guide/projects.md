@@ -54,7 +54,11 @@ argocd proj add-destination <PROJECT> <CLUSTER>,<NAMESPACE>
 argocd proj remove-destination <PROJECT> <CLUSTER>,<NAMESPACE>
 ```
 
-We can also do negations of destinations (i.e. install anywhere _apart from_).
+#### Deny destinations
+
+> v2.5
+
+Starting with Argo CD v2.5, we can also do negations of destinations (i.e. install anywhere _apart from_).
 
 ```bash
 argocd proj add-destination <PROJECT> !<CLUSTER>,!<NAMESPACE>
@@ -84,7 +88,9 @@ A destination is considered valid if the following conditions hold:
 
 Keep in mind that `!*` is an invalid rule, since it doesn't make any sense to disallow everything. 
 
-Permitted destination K8s resource kinds are managed with the commands. Note that namespaced-scoped
+#### Restricting resource kinds
+
+Permitted destination K8s resource kinds are managed with these commands. Note that namespaced-scoped
 resources are restricted via a deny list, whereas cluster-scoped resources are restricted via
 allow list.
 
