@@ -26,11 +26,13 @@ import (
 	"github.com/argoproj/argo-cd/v2/util/cli"
 	"github.com/argoproj/argo-cd/v2/util/errors"
 	grpc_util "github.com/argoproj/argo-cd/v2/util/grpc"
+	http_util "github.com/argoproj/argo-cd/v2/util/http"
 	"github.com/argoproj/argo-cd/v2/util/io"
 	jwtutil "github.com/argoproj/argo-cd/v2/util/jwt"
 	"github.com/argoproj/argo-cd/v2/util/localconfig"
 	oidcutil "github.com/argoproj/argo-cd/v2/util/oidc"
 	"github.com/argoproj/argo-cd/v2/util/rand"
+	tls_util "github.com/argoproj/argo-cd/v2/util/tls"
 )
 
 // NewLoginCommand returns a new instance of `argocd login` command
@@ -71,10 +73,15 @@ argocd login cd.argoproj.io --core`,
 				server = "kubernetes"
 			} else {
 				server = args[0]
-
 				if !skipTestTLS {
 					dialTime := 30 * time.Second
-					tlsTestResult, err := grpc_util.TestTLS(server, dialTime)
+					var tlsTestResult *tls_util.TestResult
+					var err error
+					if globalClientOpts.GRPCWeb || globalClientOpts.GRPCWebRootPath != "" {
+						tlsTestResult, err = http_util.TestTLS(server)
+					} else {
+						tlsTestResult, err = grpc_util.TestTLS(server, dialTime)
+					}
 					errors.CheckError(err)
 					if !tlsTestResult.TLS {
 						if !globalClientOpts.PlainText {

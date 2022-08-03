@@ -44,6 +44,11 @@ var (
 	}
 )
 
+type TestResult struct {
+	TLS         bool
+	InsecureErr error
+}
+
 type CertOptions struct {
 	// Hostnames and IPs to generate a certificate for
 	Hosts []string

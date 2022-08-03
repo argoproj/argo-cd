@@ -1,6 +1,7 @@
 package http
 
 import (
+	"crypto/tls"
 	"fmt"
 	"math"
 	"net/http"
@@ -9,6 +10,7 @@ import (
 	"strings"
 
 	"github.com/argoproj/argo-cd/v2/util/env"
+	tls_util "github.com/argoproj/argo-cd/v2/util/tls"
 
 	"github.com/argoproj/argo-cd/v2/common"
 
@@ -159,4 +161,40 @@ func (rt *TransportWithHeader) RoundTrip(r *http.Request) (*http.Response, error
 		r.Header = headers
 	}
 	return rt.RoundTripper.RoundTrip(r)
+}
+
+func TestTLS(address string) (*tls_util.TestResult, error) {
+	if parts := strings.Split(address, ":"); len(parts) == 1 {
+		// If port is unspecified, assume the most likely port
+		address += ":443"
+	}
+	var testResult tls_util.TestResult
+
+	req, err := http.NewRequest("GET", fmt.Sprintf("https://%s", address), nil)
+	if err != nil {
+		return nil, err
+	}
+
+	tr := http.DefaultTransport.(*http.Transport).Clone()
+	tr.TLSClientConfig.InsecureSkipVerify = true
+	_, err = tr.RoundTrip(req)
+	if err != nil {
+		//inspired from net/http/client.go
+		if tlsErr, ok := err.(tls.RecordHeaderError); ok {
+			if string(tlsErr.RecordHeader[:]) == "HTTP/" {
+				testResult.TLS = false
+				return &testResult, nil
+			}
+		}
+		return nil, err
+	}
+	testResult.TLS = true
+	// if connection was successful with InsecureSkipVerify true, but unsuccessful with
+	// InsecureSkipVerify false, it means server is not configured securely
+	tr = http.DefaultTransport.(*http.Transport).Clone()
+	_, err = tr.RoundTrip(req)
+	if err != nil {
+		testResult.InsecureErr = err
+	}
+	return &testResult, nil
 }

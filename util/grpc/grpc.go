@@ -8,6 +8,8 @@ import (
 	"strings"
 	"time"
 
+	tls_util "github.com/argoproj/argo-cd/v2/util/tls"
+
 	"github.com/argoproj/argo-cd/v2/common"
 	"github.com/sirupsen/logrus"
 	"google.golang.org/grpc"
@@ -111,17 +113,12 @@ func BlockingDial(ctx context.Context, network, address string, creds credential
 	}
 }
 
-type TLSTestResult struct {
-	TLS         bool
-	InsecureErr error
-}
-
-func TestTLS(address string, dialTime time.Duration) (*TLSTestResult, error) {
+func TestTLS(address string, dialTime time.Duration) (*tls_util.TestResult, error) {
 	if parts := strings.Split(address, ":"); len(parts) == 1 {
 		// If port is unspecified, assume the most likely port
 		address += ":443"
 	}
-	var testResult TLSTestResult
+	var testResult tls_util.TestResult
 	var tlsConfig tls.Config
 	tlsConfig.InsecureSkipVerify = true
 	creds := credentials.NewTLS(&tlsConfig)
