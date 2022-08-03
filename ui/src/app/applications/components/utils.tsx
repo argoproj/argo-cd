@@ -440,13 +440,15 @@ function getActionItems(
         .then(async settings => {
             const execAllowed = await services.accounts.canI('exec', 'create', application.spec.project + '/' + application.metadata.name);
             if (resource.kind === 'Pod' && settings.execEnabled && execAllowed) {
-                return items.concat([{
-                    title: 'Exec',
-                    iconClassName: 'fa fa-terminal',
-                    action: async () => appContext.apis.navigation.goto('.', {node: nodeKey(resource), tab: 'exec'}, {replace: true})
-                }]);
+                return items.concat([
+                    {
+                        title: 'Exec',
+                        iconClassName: 'fa fa-terminal',
+                        action: async () => appContext.apis.navigation.goto('.', {node: nodeKey(resource), tab: 'exec'}, {replace: true})
+                    }
+                ]);
             }
-            return items
+            return items;
         })
         .catch(() => items);
 
