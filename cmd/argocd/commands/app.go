@@ -1135,7 +1135,7 @@ func NewApplicationDeleteCommand(clientOpts *argocdclient.ClientOptions) *cobra.
 		Example: `argocd app delete app1
 
 # Delete multiple apps
-argocd delete app1 app2
+argocd app delete app1 app2
 
 # Delete apps by label
 argocd app delete -l foo=bar`,
