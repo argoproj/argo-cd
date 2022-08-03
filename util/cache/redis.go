@@ -1,8 +1,12 @@
 package cache
 
 import (
+	"bytes"
+	"compress/gzip"
 	"context"
 	"encoding/json"
+	"fmt"
+	"io"
 	"time"
 
 	ioutil "github.com/argoproj/argo-cd/v2/util/io"
@@ -11,11 +15,12 @@ import (
 	"github.com/go-redis/redis/v8"
 )
 
-func NewRedisCache(client *redis.Client, expiration time.Duration) CacheClient {
+func NewRedisCache(client *redis.Client, expiration time.Duration, compress bool) CacheClient {
 	return &redisCache{
 		client:     client,
 		expiration: expiration,
 		cache:      rediscache.New(&rediscache.Options{Redis: client}),
+		compress:   compress,
 	}
 }
 
@@ -26,6 +31,49 @@ type redisCache struct {
 	expiration time.Duration
 	client     *redis.Client
 	cache      *rediscache.Cache
+	compress   bool
+}
+
+func (r *redisCache) getKey(key string) string {
+	if r.compress {
+		return key + ".gz"
+	}
+	return key
+}
+
+func (r *redisCache) marshal(obj interface{}) ([]byte, error) {
+	buf := bytes.NewBuffer([]byte{})
+	var w io.Writer = buf
+	if r.compress {
+		w = gzip.NewWriter(buf)
+	}
+	encoder := json.NewEncoder(w)
+
+	if err := encoder.Encode(obj); err != nil {
+		return nil, err
+	}
+	if flusher, ok := w.(interface{ Flush() error }); ok {
+		if err := flusher.Flush(); err != nil {
+			return nil, err
+		}
+	}
+	return buf.Bytes(), nil
+}
+
+func (r *redisCache) unmarshal(data []byte, obj interface{}) error {
+	buf := bytes.NewReader(data)
+	var reader io.Reader = buf
+	if r.compress {
+		if gzipReader, err := gzip.NewReader(buf); err != nil {
+			return err
+		} else {
+			reader = gzipReader
+		}
+	}
+	if err := json.NewDecoder(reader).Decode(obj); err != nil {
+		return fmt.Errorf("failed to decode cached data: %w", err)
+	}
+	return nil
 }
 
 func (r *redisCache) Set(item *Item) error {
@@ -34,13 +82,13 @@ func (r *redisCache) Set(item *Item) error {
 		expiration = r.expiration
 	}
 
-	val, err := json.Marshal(item.Object)
+	val, err := r.marshal(item.Object)
 	if err != nil {
 		return err
 	}
 
 	return r.cache.Set(&rediscache.Item{
-		Key:   item.Key,
+		Key:   r.getKey(item.Key),
 		Value: val,
 		TTL:   expiration,
 	})
@@ -48,18 +96,18 @@ func (r *redisCache) Set(item *Item) error {
 
 func (r *redisCache) Get(key string, obj interface{}) error {
 	var data []byte
-	err := r.cache.Get(context.TODO(), key, &data)
+	err := r.cache.Get(context.TODO(), r.getKey(key), &data)
 	if err == rediscache.ErrCacheMiss {
 		err = ErrCacheMiss
 	}
 	if err != nil {
 		return err
 	}
-	return json.Unmarshal(data, obj)
+	return r.unmarshal(data, obj)
 }
 
 func (r *redisCache) Delete(key string) error {
-	return r.cache.Delete(context.TODO(), key)
+	return r.cache.Delete(context.TODO(), r.getKey(key))
 }
 
 func (r *redisCache) OnUpdated(ctx context.Context, key string, callback func() error) error {
