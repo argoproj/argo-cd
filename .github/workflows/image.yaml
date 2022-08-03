@@ -59,6 +59,9 @@ jobs:
           npm install -g snyk
 
           ./hack/snyk-non-container-tests.sh
+
+          jq '.runs[].automationDetails.id |= "iac-install"' /tmp/argocd-iac-test-install.sarif > /tmp/argocd-iac-test-install-categorized.sarif
+          jq '.runs[].automationDetails.id |= "iac-namespace-install"' /tmp/argocd-iac-test-namespace-install.sarif > /tmp/argocd-iac-test-namespace-install-categorized.sarif
       - uses: github/codeql-action/upload-sarif@v1
         if: github.event_name == 'push'
         with:
@@ -67,13 +70,11 @@ jobs:
       - uses: github/codeql-action/upload-sarif@v1
         if: github.event_name == 'push'
         with:
-          category: iac-install
-          sarif_file: /tmp/argocd-iac-test-install.sarif
+          sarif_file: /tmp/argocd-iac-test-install-categorized.sarif
       - uses: github/codeql-action/upload-sarif@v1
         if: github.event_name == 'push'
         with:
-          category: iac-namespace-install
-          sarif_file: /tmp/argocd-iac-test-namespace-install.sarif
+          sarif_file: /tmp/argocd-iac-test-namespace-install-categorized.sarif
       - run: |
           IMAGE_PLATFORMS=linux/amd64
           if [[ "${{ github.event_name }}" == "push" || "${{ contains(github.event.pull_request.labels.*.name, 'test-arm-image') }}" == "true" ]]
