@@ -608,7 +608,7 @@ func (sc *syncContext) started() bool {
 }
 
 func (sc *syncContext) containsResource(resource reconciledResource) bool {
-	return sc.resourcesFilter == nil || sc.resourcesFilter(resource.key(), resource.Live, resource.Target)
+	return sc.resourcesFilter == nil || sc.resourcesFilter(resource.key(), resource.Target, resource.Live)
 }
 
 // generates the list of sync tasks we will be performing during this sync.
