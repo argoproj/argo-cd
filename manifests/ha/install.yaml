@@ -5257,6 +5257,29 @@ spec:
                                     - spec
                                     type: object
                                 type: object
+                              selector:
+                                properties:
+                                  matchExpressions:
+                                    items:
+                                      properties:
+                                        key:
+                                          type: string
+                                        operator:
+                                          type: string
+                                        values:
+                                          items:
+                                            type: string
+                                          type: array
+                                      required:
+                                      - key
+                                      - operator
+                                      type: object
+                                    type: array
+                                  matchLabels:
+                                    additionalProperties:
+                                      type: string
+                                    type: object
+                                type: object
                             type: object
                           type: array
                         template:
@@ -7460,6 +7483,29 @@ spec:
                                     - spec
                                     type: object
                                 type: object
+                              selector:
+                                properties:
+                                  matchExpressions:
+                                    items:
+                                      properties:
+                                        key:
+                                          type: string
+                                        operator:
+                                          type: string
+                                        values:
+                                          items:
+                                            type: string
+                                          type: array
+                                      required:
+                                      - key
+                                      - operator
+                                      type: object
+                                    type: array
+                                  matchLabels:
+                                    additionalProperties:
+                                      type: string
+                                    type: object
+                                type: object
                             type: object
                           type: array
                         mergeKeys:
@@ -8526,6 +8572,29 @@ spec:
                           required:
                           - metadata
                           - spec
+                          type: object
+                      type: object
+                    selector:
+                      properties:
+                        matchExpressions:
+                          items:
+                            properties:
+                              key:
+                                type: string
+                              operator:
+                                type: string
+                              values:
+                                items:
+                                  type: string
+                                type: array
+                            required:
+                            - key
+                            - operator
+                            type: object
+                          type: array
+                        matchLabels:
+                          additionalProperties:
+                            type: string
                           type: object
                       type: object
                   type: object
@@ -10557,7 +10626,7 @@ spec:
               key: dexserver.disable.tls
               name: argocd-cmd-params-cm
               optional: true
-        image: ghcr.io/dexidp/dex:v2.30.2
+        image: ghcr.io/dexidp/dex:v2.32.0
         imagePullPolicy: Always
         name: dex
         ports:
@@ -10710,7 +10779,7 @@ spec:
                 app.kubernetes.io/name: argocd-redis-ha-haproxy
             topologyKey: kubernetes.io/hostname
       containers:
-      - image: haproxy:2.0.25-alpine
+      - image: haproxy:2.0.29-alpine
         imagePullPolicy: IfNotPresent
         lifecycle: {}
         livenessProbe:
@@ -10729,6 +10798,13 @@ spec:
             port: 8888
           initialDelaySeconds: 5
           periodSeconds: 3
+        securityContext:
+          allowPrivilegeEscalation: false
+          capabilities:
+            drop:
+            - ALL
+          seccompProfile:
+            type: RuntimeDefault
         volumeMounts:
         - mountPath: /usr/local/etc/haproxy
           name: data
@@ -10739,9 +10815,16 @@ spec:
         - /readonly/haproxy_init.sh
         command:
         - sh
-        image: haproxy:2.0.25-alpine
+        image: haproxy:2.0.29-alpine
         imagePullPolicy: IfNotPresent
         name: config-init
+        securityContext:
+          allowPrivilegeEscalation: false
+          capabilities:
+            drop:
+            - ALL
+          seccompProfile:
+            type: RuntimeDefault
         volumeMounts:
         - mountPath: /readonly
           name: config-volume
@@ -11514,7 +11597,7 @@ spec:
         - /data/conf/redis.conf
         command:
         - redis-server
-        image: redis:7.0.0-alpine
+        image: redis:7.0.4-alpine
         imagePullPolicy: IfNotPresent
         lifecycle: {}
         livenessProbe:
@@ -11543,6 +11626,13 @@ spec:
           periodSeconds: 15
           successThreshold: 1
           timeoutSeconds: 15
+        securityContext:
+          allowPrivilegeEscalation: false
+          capabilities:
+            drop:
+            - ALL
+          seccompProfile:
+            type: RuntimeDefault
         volumeMounts:
         - mountPath: /data
           name: data
@@ -11552,7 +11642,7 @@ spec:
         - /data/conf/sentinel.conf
         command:
         - redis-sentinel
-        image: redis:7.0.0-alpine
+        image: redis:7.0.4-alpine
         imagePullPolicy: IfNotPresent
         lifecycle: {}
         livenessProbe:
@@ -11581,6 +11671,13 @@ spec:
           periodSeconds: 15
           successThreshold: 3
           timeoutSeconds: 15
+        securityContext:
+          allowPrivilegeEscalation: false
+          capabilities:
+            drop:
+            - ALL
+          seccompProfile:
+            type: RuntimeDefault
         volumeMounts:
         - mountPath: /data
           name: data
@@ -11598,9 +11695,16 @@ spec:
           value: 40000915ab58c3fa8fd888fb8b24711944e6cbb4
         - name: SENTINEL_ID_2
           value: 2bbec7894d954a8af3bb54d13eaec53cb024e2ca
-        image: redis:7.0.0-alpine
+        image: redis:7.0.4-alpine
         imagePullPolicy: IfNotPresent
         name: config-init
+        securityContext:
+          allowPrivilegeEscalation: false
+          capabilities:
+            drop:
+            - ALL
+          seccompProfile:
+            type: RuntimeDefault
         volumeMounts:
         - mountPath: /readonly-config
           name: config
@@ -11645,6 +11749,25 @@ spec:
 apiVersion: networking.k8s.io/v1
 kind: NetworkPolicy
 metadata:
+  name: argocd-applicationset-controller-network-policy
+spec:
+  ingress:
+  - from:
+    - namespaceSelector: {}
+    ports:
+    - port: 7000
+      protocol: TCP
+    - port: 8080
+      protocol: TCP
+  podSelector:
+    matchLabels:
+      app.kubernetes.io/name: argocd-applicationset-controller
+  policyTypes:
+  - Ingress
+---
+apiVersion: networking.k8s.io/v1
+kind: NetworkPolicy
+metadata:
   name: argocd-dex-server-network-policy
 spec:
   ingress:
@@ -11665,6 +11788,23 @@ spec:
   podSelector:
     matchLabels:
       app.kubernetes.io/name: argocd-dex-server
+  policyTypes:
+  - Ingress
+---
+apiVersion: networking.k8s.io/v1
+kind: NetworkPolicy
+metadata:
+  name: argocd-notifications-controller-network-policy
+spec:
+  ingress:
+  - from:
+    - namespaceSelector: {}
+    ports:
+    - port: 9001
+      protocol: TCP
+  podSelector:
+    matchLabels:
+      app.kubernetes.io/name: argocd-notifications-controller
   policyTypes:
   - Ingress
 ---

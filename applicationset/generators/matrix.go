@@ -115,6 +115,7 @@ func (m *MatrixGenerator) getParams(appSetBaseGenerator argoprojiov1alpha1.Appli
 			PullRequest:             appSetBaseGenerator.PullRequest,
 			Matrix:                  matrix,
 			Merge:                   mergeGenerator,
+			Selector:                appSetBaseGenerator.Selector,
 		},
 		m.supportedGenerators,
 		argoprojiov1alpha1.ApplicationSetTemplate{},

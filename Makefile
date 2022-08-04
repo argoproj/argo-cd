@@ -571,3 +571,15 @@ applicationset-controller:
 .PHONY: checksums
 checksums:
 	for f in ./dist/$(BIN_NAME)-*; do openssl dgst -sha256 "$$f" | awk ' { print $$2 }' > "$$f".sha256 ; done
+
+.PHONY: snyk-container-tests
+snyk-container-tests:
+	./hack/snyk-container-tests.sh
+
+.PHONY: snyk-non-container-tests
+snyk-non-container-tests:
+	./hack/snyk-non-container-tests.sh
+
+.PHONY: snyk-report
+snyk-report:
+	./hack/snyk-report.sh $(target_branch)

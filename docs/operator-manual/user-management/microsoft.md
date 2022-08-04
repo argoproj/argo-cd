@@ -36,24 +36,24 @@
 1. Edit `argocd-cm` and add the following `dex.config` to the data section, replacing the `caData`, `my-argo-cd-url` and `my-login-url` your values from the Azure AD App:
 
             data:
-            url: https://my-argo-cd-url
-            dex.config: |
-               logger:
+              url: https://my-argo-cd-url
+              dex.config: |
+                logger:
                   level: debug
                   format: json
-               connectors:
-               - type: saml
+                connectors:
+                - type: saml
                   id: saml
                   name: saml
                   config:
-                  entityIssuer: https://my-argo-cd-url/api/dex/callback
-                  ssoURL: https://my-login-url (e.g. https://login.microsoftonline.com/xxxxx/a/saml2)
-                  caData: |
-                     MY-BASE64-ENCODED-CERTIFICATE-DATA
-                  redirectURI: https://my-argo-cd-url/api/dex/callback
-                  usernameAttr: email
-                  emailAttr: email
-                  groupsAttr: Group
+                    entityIssuer: https://my-argo-cd-url/api/dex/callback
+                    ssoURL: https://my-login-url (e.g. https://login.microsoftonline.com/xxxxx/a/saml2)
+                    caData: |
+                       MY-BASE64-ENCODED-CERTIFICATE-DATA
+                    redirectURI: https://my-argo-cd-url/api/dex/callback
+                    usernameAttr: email
+                    emailAttr: email
+                    groupsAttr: Group
 
 2. Edit `argocd-rbac-cm` to configure permissions, similar to example below.
       - Use Azure AD `Group IDs` for assigning roles.

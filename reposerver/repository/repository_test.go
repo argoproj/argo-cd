@@ -170,7 +170,7 @@ func TestGenerateYamlManifestInDir(t *testing.T) {
 	q := apiclient.ManifestRequest{Repo: &argoappv1.Repository{}, ApplicationSource: &src}
 
 	// update this value if we add/remove manifests
-	const countOfManifests = 47
+	const countOfManifests = 49
 
 	res1, err := service.GenerateManifest(context.Background(), &q)
 
@@ -998,7 +998,11 @@ func TestGenerateHelmWithAbsoluteFileParameter(t *testing.T) {
 	assert.NoError(t, err)
 	err = ioutil.WriteFile(externalSecretPath, expectedFileContent, 0644)
 	assert.NoError(t, err)
-	defer file.Close()
+	defer func() {
+		if err = file.Close(); err != nil {
+			panic(err)
+		}
+	}()
 
 	_, err = service.GenerateManifest(context.Background(), &apiclient.ManifestRequest{
 		Repo:    &argoappv1.Repository{},
