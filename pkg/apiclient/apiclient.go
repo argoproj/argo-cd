@@ -7,7 +7,6 @@ import (
 	"errors"
 	"fmt"
 	"io"
-	"io/ioutil"
 	"math"
 	"net"
 	"net/http"
@@ -230,7 +229,7 @@ func NewClient(opts *ClientOptions) (Client, error) {
 	}
 	// Override certificate data if specified from CLI flag
 	if opts.CertFile != "" {
-		b, err := ioutil.ReadFile(opts.CertFile)
+		b, err := os.ReadFile(opts.CertFile)
 		if err != nil {
 			return nil, err
 		}

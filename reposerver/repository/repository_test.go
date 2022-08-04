@@ -7,7 +7,6 @@ import (
 	"fmt"
 	goio "io"
 	"io/fs"
-	"io/ioutil"
 	"os"
 	"os/exec"
 	"path"
@@ -990,13 +989,13 @@ func TestGenerateHelmWithValuesDirectoryTraversalOutsideRepo(t *testing.T) {
 func TestGenerateHelmWithAbsoluteFileParameter(t *testing.T) {
 	service := newService("../..")
 
-	file, err := ioutil.TempFile("", "external-secret.txt")
+	file, err := os.CreateTemp("", "external-secret.txt")
 	assert.NoError(t, err)
 	externalSecretPath := file.Name()
 	defer func() { _ = os.RemoveAll(externalSecretPath) }()
-	expectedFileContent, err := ioutil.ReadFile("../../util/helm/testdata/external/external-secret.txt")
+	expectedFileContent, err := os.ReadFile("../../util/helm/testdata/external/external-secret.txt")
 	assert.NoError(t, err)
-	err = ioutil.WriteFile(externalSecretPath, expectedFileContent, 0644)
+	err = os.WriteFile(externalSecretPath, expectedFileContent, 0644)
 	assert.NoError(t, err)
 	defer file.Close()
 
@@ -1470,7 +1469,7 @@ func TestGetAppDetailsWithAppParameterFile(t *testing.T) {
 // kustomization.yaml. For proper testing, we need to copy the testdata to a
 // temporary path, run the tests, and then throw the copy away again.
 func mkTempParameters(source string) string {
-	tempDir, err := ioutil.TempDir("./testdata", "app-parameters")
+	tempDir, err := os.MkdirTemp("./testdata", "app-parameters")
 	if err != nil {
 		panic(err)
 	}
@@ -1786,7 +1785,7 @@ func TestFindManifests_Exclude_NothingMatches(t *testing.T) {
 }
 
 func tempDir(t *testing.T) string {
-	dir, err := ioutil.TempDir(".", "")
+	dir, err := os.MkdirTemp(".", "")
 	require.NoError(t, err)
 	t.Cleanup(func() {
 		err = os.RemoveAll(dir)
@@ -2327,7 +2326,7 @@ func TestResolveRevisionNegativeScenarios(t *testing.T) {
 func TestDirectoryPermissionInitializer(t *testing.T) {
 	dir := t.TempDir()
 
-	file, err := ioutil.TempFile(dir, "")
+	file, err := os.CreateTemp(dir, "")
 	require.NoError(t, err)
 	io.Close(file)
 
@@ -2342,12 +2341,12 @@ func TestDirectoryPermissionInitializer(t *testing.T) {
 
 	// make sure permission are restored
 	closer := directoryPermissionInitializer(dir)
-	_, err = ioutil.ReadFile(file.Name())
+	_, err = os.ReadFile(file.Name())
 	require.NoError(t, err)
 
 	// make sure permission are removed by closer
 	io.Close(closer)
-	_, err = ioutil.ReadFile(file.Name())
+	_, err = os.ReadFile(file.Name())
 	require.Error(t, err)
 }
 
@@ -2387,7 +2386,7 @@ func TestInit(t *testing.T) {
 	assert.NoError(t, err)
 	assert.Equal(t, repoPath, repo1Path)
 
-	_, err = ioutil.ReadDir(dir)
+	_, err = os.ReadDir(dir)
 	require.Error(t, err)
 	require.NoError(t, initGitRepo(path.Join(dir, "repo2"), "https://github.com/argo-cd/test-repo2"))
 }
@@ -2397,7 +2396,7 @@ func TestInit(t *testing.T) {
 func TestCheckoutRevisionCanGetNonstandardRefs(t *testing.T) {
 	rootPath := t.TempDir()
 
-	sourceRepoPath, err := ioutil.TempDir(rootPath, "")
+	sourceRepoPath, err := os.MkdirTemp(rootPath, "")
 	require.NoError(t, err)
 
 	// Create a repo such that one commit is on a non-standard ref _and nowhere else_. This is meant to simulate, for
@@ -2412,7 +2411,7 @@ func TestCheckoutRevisionCanGetNonstandardRefs(t *testing.T) {
 	runGit(t, sourceRepoPath, "checkout", "main")
 	runGit(t, sourceRepoPath, "branch", "-D", "branch")
 
-	destRepoPath, err := ioutil.TempDir(rootPath, "")
+	destRepoPath, err := os.MkdirTemp(rootPath, "")
 	require.NoError(t, err)
 
 	gitClient, err := git.NewClientExt("file://"+sourceRepoPath, destRepoPath, &git.NopCreds{}, true, false, "")
