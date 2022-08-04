@@ -22,7 +22,7 @@ jobs:
           key: ${{ runner.os }}-go-${{ hashFiles('**/go.sum') }}
           restore-keys: |
             ${{ runner.os }}-go-
-      - uses: actions/setup-go@v3.2.0
+      - uses: actions/setup-go@v3.2.1
         with:
           go-version: ${{ env.GOLANG_VERSION }}
       - run: make test
