@@ -42,7 +42,7 @@ func getAppsv1ReplicaSetHealth(replicaSet *appsv1.ReplicaSet) (*HealthStatus, er
 	} else {
 		return &HealthStatus{
 			Status:  HealthStatusProgressing,
-			Message: "Waiting for rollout to finish: observed replica set generation less then desired generation",
+			Message: "Waiting for rollout to finish: observed replica set generation less than desired generation",
 		}, nil
 	}
 

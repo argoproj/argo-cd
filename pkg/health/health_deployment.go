@@ -58,7 +58,7 @@ func getAppsv1DeploymentHealth(deployment *appsv1.Deployment) (*HealthStatus, er
 	} else {
 		return &HealthStatus{
 			Status:  HealthStatusProgressing,
-			Message: "Waiting for rollout to finish: observed deployment generation less then desired generation",
+			Message: "Waiting for rollout to finish: observed deployment generation less than desired generation",
 		}, nil
 	}
 

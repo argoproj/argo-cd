@@ -48,7 +48,7 @@ func getAppsv1DaemonSetHealth(daemon *appsv1.DaemonSet) (*HealthStatus, error) {
 	} else {
 		return &HealthStatus{
 			Status:  HealthStatusProgressing,
-			Message: "Waiting for rollout to finish: observed daemon set generation less then desired generation",
+			Message: "Waiting for rollout to finish: observed daemon set generation less than desired generation",
 		}, nil
 	}
 	return &HealthStatus{
