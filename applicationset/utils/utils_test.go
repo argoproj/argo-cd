@@ -235,10 +235,11 @@ func TestRenderTemplateParamsGoTemplate(t *testing.T) {
 	}
 
 	tests := []struct {
-		name        string
-		fieldVal    string
-		params      map[string]interface{}
-		expectedVal string
+		name         string
+		fieldVal     string
+		params       map[string]interface{}
+		expectedVal  string
+		errorMessage string
 	}{
 		{
 			name:        "simple substitution",
@@ -397,6 +398,30 @@ func TestRenderTemplateParamsGoTemplate(t *testing.T) {
 				"quote": `"`,
 			},
 		},
+		{
+			name:        "Test No Data",
+			fieldVal:    `{{.data}}`,
+			expectedVal: "{{.data}}",
+			params:      map[string]interface{}{},
+		},
+		{
+			name:        "Test Parse Error",
+			fieldVal:    `{{functiondoesnotexist}}`,
+			expectedVal: "",
+			params: map[string]interface{}{
+				"data": `a data string`,
+			},
+			errorMessage: `failed to parse template {{functiondoesnotexist}}: template: :1: function "functiondoesnotexist" not defined`,
+		},
+		{
+			name:        "Test template error",
+			fieldVal:    `{{.data.test}}`,
+			expectedVal: "",
+			params: map[string]interface{}{
+				"data": `a data string`,
+			},
+			errorMessage: `failed to execute go template {{.data.test}}: template: :1:7: executing "" at <.data.test>: can't evaluate field test in type interface {}`,
+		},
 	}
 
 	for _, test := range tests {
@@ -417,17 +442,22 @@ func TestRenderTemplateParamsGoTemplate(t *testing.T) {
 
 				// Retrieve the value of the target field from the newApplication, then verify that
 				// the target field has been templated into the expected value
-				assert.NoError(t, err)
-				actualValue := *getPtrFunc(newApplication)
-				assert.Equal(t, test.expectedVal, actualValue, "Field '%s' had an unexpected value. expected: '%s' value: '%s'", fieldName, test.expectedVal, actualValue)
-				assert.Equal(t, newApplication.ObjectMeta.Annotations["annotation-key"], "annotation-value")
-				assert.Equal(t, newApplication.ObjectMeta.Annotations["annotation-key2"], "annotation-value2")
-				assert.Equal(t, newApplication.ObjectMeta.Labels["label-key"], "label-value")
-				assert.Equal(t, newApplication.ObjectMeta.Labels["label-key2"], "label-value2")
-				assert.Equal(t, newApplication.ObjectMeta.Name, "application-one")
-				assert.Equal(t, newApplication.ObjectMeta.Namespace, "default")
-				assert.Equal(t, newApplication.ObjectMeta.UID, types.UID("d546da12-06b7-4f9a-8ea2-3adb16a20e2b"))
-				assert.Equal(t, newApplication.ObjectMeta.CreationTimestamp, application.ObjectMeta.CreationTimestamp)
+				if test.errorMessage != "" {
+					assert.Error(t, err)
+					assert.Equal(t, test.errorMessage, err.Error())
+				} else {
+					assert.NoError(t, err)
+					actualValue := *getPtrFunc(newApplication)
+					assert.Equal(t, test.expectedVal, actualValue, "Field '%s' had an unexpected value. expected: '%s' value: '%s'", fieldName, test.expectedVal, actualValue)
+					assert.Equal(t, newApplication.ObjectMeta.Annotations["annotation-key"], "annotation-value")
+					assert.Equal(t, newApplication.ObjectMeta.Annotations["annotation-key2"], "annotation-value2")
+					assert.Equal(t, newApplication.ObjectMeta.Labels["label-key"], "label-value")
+					assert.Equal(t, newApplication.ObjectMeta.Labels["label-key2"], "label-value2")
+					assert.Equal(t, newApplication.ObjectMeta.Name, "application-one")
+					assert.Equal(t, newApplication.ObjectMeta.Namespace, "default")
+					assert.Equal(t, newApplication.ObjectMeta.UID, types.UID("d546da12-06b7-4f9a-8ea2-3adb16a20e2b"))
+					assert.Equal(t, newApplication.ObjectMeta.CreationTimestamp, application.ObjectMeta.CreationTimestamp)
+				}
 			}
 		})
 	}

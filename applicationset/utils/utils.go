@@ -175,9 +175,7 @@ func (r *Render) RenderTemplateParams(tmpl *argoappsv1.Application, syncPolicy *
 	original := reflect.ValueOf(tmpl)
 	copy := reflect.New(original.Type()).Elem()
 
-	err := r.deeplyReplace(copy, original, params, useGoTemplate)
-
-	if err != nil {
+	if err := r.deeplyReplace(copy, original, params, useGoTemplate); err != nil {
 		return nil, err
 	}
 
@@ -205,12 +203,12 @@ func (r *Render) Replace(tmpl string, replaceMap map[string]interface{}, useGoTe
 	if useGoTemplate {
 		template, err := template.New("").Funcs(sprigFuncMap).Parse(tmpl)
 		if err != nil {
-			return "", fmt.Errorf("failed to parse template: %w", err)
+			return "", fmt.Errorf("failed to parse template %s: %w", tmpl, err)
 		}
 
 		var replacedTmplBuffer bytes.Buffer
 		if err = template.Execute(&replacedTmplBuffer, replaceMap); err != nil {
-			return "", fmt.Errorf("failed to execute go template: %w", err)
+			return "", fmt.Errorf("failed to execute go template %s: %w", tmpl, err)
 		}
 
 		return replacedTmplBuffer.String(), nil
