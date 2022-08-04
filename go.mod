@@ -21,7 +21,7 @@ require (
 	k8s.io/kubectl v0.24.2
 	k8s.io/kubernetes v1.24.2
 	sigs.k8s.io/structured-merge-diff/v4 v4.2.1
-	sigs.k8s.io/yaml v1.2.0
+	sigs.k8s.io/yaml v1.3.0
 )
 
 require (
