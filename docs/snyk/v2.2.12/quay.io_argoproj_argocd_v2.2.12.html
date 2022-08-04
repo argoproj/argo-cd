@@ -7,7 +7,7 @@
   <meta name="viewport" content="width=device-width, initial-scale=1.0">
   <meta http-equiv="X-UA-Compatible" content="IE=edge">
   <title>Snyk test report</title>
-  <meta name="description" content="30 known vulnerabilities found in 146 vulnerable dependency paths.">
+  <meta name="description" content="31 known vulnerabilities found in 152 vulnerable dependency paths.">
   <base target="_blank">
   <link rel="icon" type="image/png" href="https://res.cloudinary.com/snyk/image/upload/v1468845142/favicon/favicon.png"
     sizes="194x194">
@@ -456,7 +456,7 @@
               <div class="header-wrap">
                   <h1 class="project__header__title">Snyk test report</h1>
     
-                <p class="timestamp">July 29th 2022, 7:11:11 pm</p>
+                <p class="timestamp">August 3rd 2022, 1:58:48 pm</p>
               </div>
               <div class="source-panel">
                 <span>Scanned the following path:</span>
@@ -466,8 +466,8 @@
               </div>
     
               <div class="meta-counts">
-                <div class="meta-count"><span>30</span> <span>known vulnerabilities</span></div>
-                <div class="meta-count"><span>146 vulnerable dependency paths</span></div>
+                <div class="meta-count"><span>31</span> <span>known vulnerabilities</span></div>
+                <div class="meta-count"><span>152 vulnerable dependency paths</span></div>
                 <div class="meta-count"><span>253</span> <span>dependencies</span></div>
               </div><!-- .meta-counts -->
             </div><!-- .layout-container--short -->
@@ -889,6 +889,138 @@
         
             <div class="cta card__cta">
                 <p><a href="https://snyk.io/vuln/SNYK-UBUNTU2204-PERL-2789081">More about this vulnerability</a></p>
+            </div>
+        
+        </div><!-- .card -->
+        <div class="card card--vuln  disclosure--not-new severity--medium" data-snyk-test="medium">
+            <h2 class="card__title">CVE-2022-2509</h2>
+            <div class="card__section">
+        
+                <div class="label label--medium">
+                    <span class="label__text">medium severity</span>
+                </div>
+        
+                <hr/>
+        
+                <ul class="card__meta">
+                    <li class="card__meta__item">
+                        Package Manager: ubuntu:22.04
+                    </li>
+                    <li class="card__meta__item">
+                            Vulnerable module:
+        
+                            gnutls28/libgnutls30
+                    </li>
+        
+                    <li class="card__meta__item">Introduced through:
+        
+                                docker-image|quay.io/argoproj/argocd@v2.2.12 and gnutls28/libgnutls30@3.7.3-4ubuntu1
+        
+                    </li>
+                </ul>
+        
+                <hr/>
+        
+        
+                        <h3 class="card__section__title">Detailed paths</h3>
+        
+                    <ul class="card__meta__paths">
+                                <li>
+                                <span class="list-paths__item__introduced"><em>Introduced through</em>:
+                                        docker-image|quay.io/argoproj/argocd@v2.2.12
+                                         <span class="list-paths__item__arrow">›</span> 
+                                        gnutls28/libgnutls30@3.7.3-4ubuntu1
+                                        
+                                </span>
+        
+                            </li>
+                                <li>
+                                <span class="list-paths__item__introduced"><em>Introduced through</em>:
+                                        docker-image|quay.io/argoproj/argocd@v2.2.12
+                                         <span class="list-paths__item__arrow">›</span> 
+                                        apt@2.4.6
+                                         <span class="list-paths__item__arrow">›</span> 
+                                        gnutls28/libgnutls30@3.7.3-4ubuntu1
+                                        
+                                </span>
+        
+                            </li>
+                                <li>
+                                <span class="list-paths__item__introduced"><em>Introduced through</em>:
+                                        docker-image|quay.io/argoproj/argocd@v2.2.12
+                                         <span class="list-paths__item__arrow">›</span> 
+                                        gnupg2/dirmngr@2.2.27-3ubuntu2.1
+                                         <span class="list-paths__item__arrow">›</span> 
+                                        gnutls28/libgnutls30@3.7.3-4ubuntu1
+                                        
+                                </span>
+        
+                            </li>
+                                <li>
+                                <span class="list-paths__item__introduced"><em>Introduced through</em>:
+                                        docker-image|quay.io/argoproj/argocd@v2.2.12
+                                         <span class="list-paths__item__arrow">›</span> 
+                                        git@1:2.34.1-1ubuntu1.4
+                                         <span class="list-paths__item__arrow">›</span> 
+                                        curl/libcurl3-gnutls@7.81.0-1ubuntu1.3
+                                         <span class="list-paths__item__arrow">›</span> 
+                                        gnutls28/libgnutls30@3.7.3-4ubuntu1
+                                        
+                                </span>
+        
+                            </li>
+                                <li>
+                                <span class="list-paths__item__introduced"><em>Introduced through</em>:
+                                        docker-image|quay.io/argoproj/argocd@v2.2.12
+                                         <span class="list-paths__item__arrow">›</span> 
+                                        git@1:2.34.1-1ubuntu1.4
+                                         <span class="list-paths__item__arrow">›</span> 
+                                        curl/libcurl3-gnutls@7.81.0-1ubuntu1.3
+                                         <span class="list-paths__item__arrow">›</span> 
+                                        openldap/libldap-2.5-0@2.5.12+dfsg-0ubuntu0.22.04.1
+                                         <span class="list-paths__item__arrow">›</span> 
+                                        gnutls28/libgnutls30@3.7.3-4ubuntu1
+                                        
+                                </span>
+        
+                            </li>
+                                <li>
+                                <span class="list-paths__item__introduced"><em>Introduced through</em>:
+                                        docker-image|quay.io/argoproj/argocd@v2.2.12
+                                         <span class="list-paths__item__arrow">›</span> 
+                                        git@1:2.34.1-1ubuntu1.4
+                                         <span class="list-paths__item__arrow">›</span> 
+                                        curl/libcurl3-gnutls@7.81.0-1ubuntu1.3
+                                         <span class="list-paths__item__arrow">›</span> 
+                                        rtmpdump/librtmp1@2.4+20151223.gitfa8646d.1-2build4
+                                         <span class="list-paths__item__arrow">›</span> 
+                                        gnutls28/libgnutls30@3.7.3-4ubuntu1
+                                        
+                                </span>
+        
+                            </li>
+                    </ul><!-- .list-paths -->
+        
+            </div><!-- .card__section -->
+        
+              <hr/>
+              <!-- Overview -->
+              <h2 id="nvd-description">NVD Description</h2>
+        <p><strong><em>Note:</em></strong> <em>Versions mentioned in the description apply to the upstream <code>gnutls28</code> package.</em></p>
+        <p>A vulnerability found in gnutls. This security flaw happens because of a double free error occurs during verification of pkcs7 signatures in gnutls_pkcs7_verify function.</p>
+        <h2 id="remediation">Remediation</h2>
+        <p>There is no fixed version for <code>Ubuntu:22.04</code> <code>gnutls28</code>.</p>
+        <h2 id="references">References</h2>
+        <ul>
+        <li><a href="http://people.ubuntu.com/~ubuntu-security/cve/CVE-2022-2509">ADVISORY</a></li>
+        <li><a href="https://access.redhat.com/security/cve/CVE-2022-2509">MISC</a></li>
+        <li><a href="https://lists.gnupg.org/pipermail/gnutls-help/2022-July/004746.html">MISC</a></li>
+        </ul>
+        
+              <hr/>
+        
+            <div class="cta card__cta">
+                <p><a href="https://snyk.io/vuln/SNYK-UBUNTU2204-GNUTLS28-2965993">More about this vulnerability</a></p>
             </div>
         
         </div><!-- .card -->

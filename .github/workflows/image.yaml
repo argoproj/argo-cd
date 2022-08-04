@@ -59,21 +59,21 @@ jobs:
           npm install -g snyk
 
           ./hack/snyk-non-container-tests.sh
-      - uses: github/codeql-action/upload-sarif@v1
+          jq '.runs[].automationDetails.id |= "iac-install"' /tmp/argocd-iac-test-install.sarif > /tmp/argocd-iac-test-install-categorized.sarif
+          jq '.runs[].automationDetails.id |= "iac-namespace-install"' /tmp/argocd-iac-test-namespace-install.sarif > /tmp/argocd-iac-test-namespace-install-categorized.sarif
+      - uses: github/codeql-action/upload-sarif@v2
         if: github.event_name == 'push'
         with:
-          category: Snyk code scan
+          category: code
           sarif_file: /tmp/argocd-test.sarif
-      - uses: github/codeql-action/upload-sarif@v1
+      - uses: github/codeql-action/upload-sarif@v2
         if: github.event_name == 'push'
         with:
-          category: Snyk IaC scan for cluster install manifests
-          sarif_file: /tmp/argocd-iac-test-install.sarif
-      - uses: github/codeql-action/upload-sarif@v1
+          sarif_file: /tmp/argocd-iac-test-install-categorized.sarif
+      - uses: github/codeql-action/upload-sarif@v2
         if: github.event_name == 'push'
         with:
-          category: Snyk IaC scan for namespace install manifests
-          sarif_file: /tmp/argocd-iac-test-namespace-install.sarif
+          sarif_file: /tmp/argocd-iac-test-namespace-install-categorized.sarif
       - run: |
           IMAGE_PLATFORMS=linux/amd64
           if [[ "${{ github.event_name }}" == "push" || "${{ contains(github.event.pull_request.labels.*.name, 'test-arm-image') }}" == "true" ]]
@@ -93,10 +93,10 @@ jobs:
           SNYK_TOKEN: ${{ secrets.SNYK_TOKEN }}
         run: |
           make snyk-container-tests
-      - uses: github/codeql-action/upload-sarif@v1
+      - uses: github/codeql-action/upload-sarif@v2
         if: github.event_name == 'push'
         with:
-          category: Snyk scan for Argo CD image
+          category: image
           sarif_file: /tmp/argocd-image.sarif
 
       # deploy

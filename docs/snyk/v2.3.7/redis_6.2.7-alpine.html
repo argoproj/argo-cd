@@ -7,7 +7,7 @@
   <meta name="viewport" content="width=device-width, initial-scale=1.0">
   <meta http-equiv="X-UA-Compatible" content="IE=edge">
   <title>Snyk test report</title>
-  <meta name="description" content="2 known vulnerabilities found in 5 vulnerable dependency paths.">
+  <meta name="description" content="0 known vulnerabilities found in 0 vulnerable dependency paths.">
   <base target="_blank">
   <link rel="icon" type="image/png" href="https://res.cloudinary.com/snyk/image/upload/v1468845142/favicon/favicon.png"
     sizes="194x194">
@@ -456,226 +456,35 @@
               <div class="header-wrap">
                   <h1 class="project__header__title">Snyk test report</h1>
     
-                <p class="timestamp">August 3rd 2022, 1:51:47 pm</p>
+                <p class="timestamp">August 3rd 2022, 1:56:18 pm</p>
               </div>
               <div class="source-panel">
-                <span>Scanned the following paths:</span>
+                <span>Scanned the following path:</span>
                 <ul>
-                  <li class="paths">/private/argo-cd/argoproj/argo-cd/v2 (gomodules)</li><li class="paths">/private/argo-cd (yarn)</li>
+                  <li class="paths">redis:6.2.7-alpine (apk)</li>
                 </ul>
               </div>
     
               <div class="meta-counts">
-                <div class="meta-count"><span>2</span> <span>known vulnerabilities</span></div>
-                <div class="meta-count"><span>5 vulnerable dependency paths</span></div>
-                <div class="meta-count"><span>1716</span> <span>dependencies</span></div>
+                <div class="meta-count"><span>0</span> <span>known vulnerabilities</span></div>
+                <div class="meta-count"><span>0 vulnerable dependency paths</span></div>
+                <div class="meta-count"><span>17</span> <span>dependencies</span></div>
               </div><!-- .meta-counts -->
             </div><!-- .layout-container--short -->
           </header><!-- .project__header -->
         </div><!-- .layout-stacked__header -->
-
+      <section class="layout-container">
+          <table class="metatable">
+              <tbody>
+              <tr class="meta-row"><th class="meta-row-label">Project</th> <td class="meta-row-value">docker-image|redis</td></tr>
+              <tr class="meta-row"><th class="meta-row-label">Path</th> <td class="meta-row-value">redis:6.2.7-alpine</td></tr>
+              <tr class="meta-row"><th class="meta-row-label">Package Manager</th> <td class="meta-row-value">apk</td></tr>
+              
+              </tbody>
+          </table>
+      </section>
     <div class="layout-container" style="padding-top: 35px;">
-      <div class="cards--vuln filter--patch filter--ignore">
-        <div class="card card--vuln  disclosure--not-new severity--medium" data-snyk-test="medium">
-            <h2 class="card__title">Improper Input Validation</h2>
-            <div class="card__section">
-        
-                <div class="label label--medium">
-                    <span class="label__text">medium severity</span>
-                </div>
-        
-                <hr/>
-        
-                <ul class="card__meta">
-                    <li class="card__meta__item">
-                        Package Manager: golang
-                    </li>
-                    <li class="card__meta__item">
-                            Vulnerable module:
-        
-                            go.mongodb.org/mongo-driver/bson/bsonrw
-                    </li>
-        
-                    <li class="card__meta__item">Introduced through:
-        
-        
-                                    github.com/argoproj/argo-cd/v2@0.0.0, github.com/go-openapi/runtime/middleware@0.19.4 and others
-                    </li>
-                </ul>
-        
-                <hr/>
-        
-        
-                        <h3 class="card__section__title">Detailed paths</h3>
-        
-                    <ul class="card__meta__paths">
-                                <li>
-                                <span class="list-paths__item__introduced"><em>Introduced through</em>:
-                                        github.com/argoproj/argo-cd/v2@0.0.0
-                                         <span class="list-paths__item__arrow">›</span> 
-                                        github.com/go-openapi/runtime/middleware@0.19.4
-                                         <span class="list-paths__item__arrow">›</span> 
-                                        github.com/go-openapi/validate@0.19.5
-                                         <span class="list-paths__item__arrow">›</span> 
-                                        github.com/go-openapi/strfmt@0.19.3
-                                         <span class="list-paths__item__arrow">›</span> 
-                                        go.mongodb.org/mongo-driver/bson@1.1.2
-                                         <span class="list-paths__item__arrow">›</span> 
-                                        go.mongodb.org/mongo-driver/bson/bsonrw@1.1.2
-                                        
-                                </span>
-        
-                            </li>
-                                <li>
-                                <span class="list-paths__item__introduced"><em>Introduced through</em>:
-                                        github.com/argoproj/argo-cd/v2@0.0.0
-                                         <span class="list-paths__item__arrow">›</span> 
-                                        github.com/go-openapi/runtime/middleware@0.19.4
-                                         <span class="list-paths__item__arrow">›</span> 
-                                        github.com/go-openapi/validate@0.19.5
-                                         <span class="list-paths__item__arrow">›</span> 
-                                        github.com/go-openapi/strfmt@0.19.3
-                                         <span class="list-paths__item__arrow">›</span> 
-                                        go.mongodb.org/mongo-driver/bson@1.1.2
-                                         <span class="list-paths__item__arrow">›</span> 
-                                        go.mongodb.org/mongo-driver/bson/bsoncodec@1.1.2
-                                         <span class="list-paths__item__arrow">›</span> 
-                                        go.mongodb.org/mongo-driver/bson/bsonrw@1.1.2
-                                        
-                                </span>
-        
-                            </li>
-                    </ul><!-- .list-paths -->
-        
-            </div><!-- .card__section -->
-        
-              <hr/>
-              <!-- Overview -->
-              <h2 id="overview">Overview</h2>
-        <p><a href="https://github.com/mongodb/mongo-go-driver">go.mongodb.org/mongo-driver/bson/bsonrw</a> is a The MongoDB supported driver for Go.</p>
-        <p>Affected versions of this package are vulnerable to Improper Input Validation. Specific cstrings input may not be properly validated in the MongoDB Go Driver when marshalling Go objects into BSON. A malicious user could use a Go object with specific string to potentially inject additional fields into marshalled documents.</p>
-        <h2 id="remediation">Remediation</h2>
-        <p>Upgrade <code>go.mongodb.org/mongo-driver/bson/bsonrw</code> to version 1.5.1 or higher.</p>
-        <h2 id="references">References</h2>
-        <ul>
-        <li><a href="https://github.com/mongodb/mongo-go-driver/commit/3a89e6cde18d6ac5d38f39b54eaa8d4e321fd118">GitHub Commit</a></li>
-        <li><a href="https://jira.mongodb.org/browse/GODRIVER-1923">GitHub Issue</a></li>
-        <li><a href="https://github.com/mongodb/mongo-go-driver/releases/tag/v1.5.1">GitHub Release</a></li>
-        </ul>
-        
-              <hr/>
-        
-            <div class="cta card__cta">
-                <p><a href="https://snyk.io/vuln/SNYK-GOLANG-GOMONGODBORGMONGODRIVERBSONBSONRW-1303393">More about this vulnerability</a></p>
-            </div>
-        
-        </div><!-- .card -->
-        <div class="card card--vuln  disclosure--not-new severity--medium" data-snyk-test="medium">
-            <h2 class="card__title">Insecure Randomness</h2>
-            <div class="card__section">
-        
-                <div class="label label--medium">
-                    <span class="label__text">medium severity</span>
-                </div>
-        
-                <hr/>
-        
-                <ul class="card__meta">
-                    <li class="card__meta__item">
-                        Package Manager: golang
-                    </li>
-                    <li class="card__meta__item">
-                            Vulnerable module:
-        
-                            github.com/Masterminds/goutils
-                    </li>
-        
-                    <li class="card__meta__item">Introduced through:
-        
-        
-                                    github.com/argoproj/argo-cd/v2@0.0.0, github.com/argoproj/notifications-engine/pkg/api@#567361917320 and others
-                    </li>
-                </ul>
-        
-                <hr/>
-        
-        
-                        <h3 class="card__section__title">Detailed paths</h3>
-        
-                    <ul class="card__meta__paths">
-                                <li>
-                                <span class="list-paths__item__introduced"><em>Introduced through</em>:
-                                        github.com/argoproj/argo-cd/v2@0.0.0
-                                         <span class="list-paths__item__arrow">›</span> 
-                                        github.com/argoproj/notifications-engine/pkg/api@#567361917320
-                                         <span class="list-paths__item__arrow">›</span> 
-                                        github.com/argoproj/notifications-engine/pkg/templates@#567361917320
-                                         <span class="list-paths__item__arrow">›</span> 
-                                        github.com/Masterminds/sprig@2.22.0
-                                         <span class="list-paths__item__arrow">›</span> 
-                                        github.com/Masterminds/goutils@1.1.0
-                                        
-                                </span>
-        
-                            </li>
-                                <li>
-                                <span class="list-paths__item__introduced"><em>Introduced through</em>:
-                                        github.com/argoproj/argo-cd/v2@0.0.0
-                                         <span class="list-paths__item__arrow">›</span> 
-                                        github.com/argoproj/notifications-engine/pkg/cmd@#567361917320
-                                         <span class="list-paths__item__arrow">›</span> 
-                                        github.com/argoproj/notifications-engine/pkg/api@#567361917320
-                                         <span class="list-paths__item__arrow">›</span> 
-                                        github.com/argoproj/notifications-engine/pkg/templates@#567361917320
-                                         <span class="list-paths__item__arrow">›</span> 
-                                        github.com/Masterminds/sprig@2.22.0
-                                         <span class="list-paths__item__arrow">›</span> 
-                                        github.com/Masterminds/goutils@1.1.0
-                                        
-                                </span>
-        
-                            </li>
-                                <li>
-                                <span class="list-paths__item__introduced"><em>Introduced through</em>:
-                                        github.com/argoproj/argo-cd/v2@0.0.0
-                                         <span class="list-paths__item__arrow">›</span> 
-                                        github.com/argoproj/notifications-engine/pkg/controller@#567361917320
-                                         <span class="list-paths__item__arrow">›</span> 
-                                        github.com/argoproj/notifications-engine/pkg/api@#567361917320
-                                         <span class="list-paths__item__arrow">›</span> 
-                                        github.com/argoproj/notifications-engine/pkg/templates@#567361917320
-                                         <span class="list-paths__item__arrow">›</span> 
-                                        github.com/Masterminds/sprig@2.22.0
-                                         <span class="list-paths__item__arrow">›</span> 
-                                        github.com/Masterminds/goutils@1.1.0
-                                        
-                                </span>
-        
-                            </li>
-                    </ul><!-- .list-paths -->
-        
-            </div><!-- .card__section -->
-        
-              <hr/>
-              <!-- Overview -->
-              <h2 id="overview">Overview</h2>
-        <p><a href="https://pkg.go.dev/github.com/masterminds/goutils">github.com/masterminds/goutils</a> is a provides users with utility functions to manipulate strings in various ways.</p>
-        <p>Affected versions of this package are vulnerable to Insecure Randomness via the <code>RandomAlphaNumeric(int)</code> and <code>CryptoRandomAlphaNumeric(int)</code> functions. Small values of <code>int</code> in the functions above will return a smaller subset of results than they should. For example, <code>RandomAlphaNumeric(1)</code> would always return a digit in the 0-9 range, while <code>RandomAlphaNumeric(4)</code> return around ~7 million of the ~13M possible permutations.</p>
-        <h2 id="remediation">Remediation</h2>
-        <p>Upgrade <code>github.com/masterminds/goutils</code> to version 1.1.1 or higher.</p>
-        <h2 id="references">References</h2>
-        <ul>
-        <li><a href="https://github.com/Masterminds/goutils/commit/f1923532a168b8203bfe956d8cd3b17ebece5982">GitHub Commit</a></li>
-        </ul>
-        
-              <hr/>
-        
-            <div class="cta card__cta">
-                <p><a href="https://snyk.io/vuln/SNYK-GOLANG-GITHUBCOMMASTERMINDSGOUTILS-1296313">More about this vulnerability</a></p>
-            </div>
-        
-        </div><!-- .card -->
-      </div><!-- cards -->
+      No known vulnerabilities detected.
     </div>
   </main><!-- .layout-stacked__content -->
 </body>
