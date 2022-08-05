@@ -232,12 +232,18 @@ func NewServer(ctx context.Context, opts ArgoCDServerOpts) *ArgoCDServer {
 	err = initializeDefaultProject(opts)
 	errors.CheckError(err)
 
-	factory := appinformer.NewSharedInformerFactoryWithOptions(opts.AppClientset, 0, appinformer.WithNamespace(""), appinformer.WithTweakListOptions(func(options *metav1.ListOptions) {}))
-	projInformer := factory.Argoproj().V1alpha1().AppProjects().Informer()
-	projLister := factory.Argoproj().V1alpha1().AppProjects().Lister().AppProjects(opts.Namespace)
+	appInformerNs := opts.Namespace
+	if len(opts.ApplicationNamespaces) > 0 {
+		appInformerNs = ""
+	}
+	projFactory := appinformer.NewSharedInformerFactoryWithOptions(opts.AppClientset, 0, appinformer.WithNamespace(opts.Namespace), appinformer.WithTweakListOptions(func(options *metav1.ListOptions) {}))
+	appFactory := appinformer.NewSharedInformerFactoryWithOptions(opts.AppClientset, 0, appinformer.WithNamespace(appInformerNs), appinformer.WithTweakListOptions(func(options *metav1.ListOptions) {}))
 
-	appInformer := factory.Argoproj().V1alpha1().Applications().Informer()
-	appLister := factory.Argoproj().V1alpha1().Applications().Lister()
+	projInformer := projFactory.Argoproj().V1alpha1().AppProjects().Informer()
+	projLister := projFactory.Argoproj().V1alpha1().AppProjects().Lister().AppProjects(opts.Namespace)
+
+	appInformer := appFactory.Argoproj().V1alpha1().Applications().Informer()
+	appLister := appFactory.Argoproj().V1alpha1().Applications().Lister()
 
 	userStateStorage := util_session.NewUserStateStorage(opts.RedisClient)
 	sessionMgr := util_session.NewSessionManager(settingsMgr, projLister, opts.DexServerAddr, opts.DexTLSConfig, userStateStorage)
