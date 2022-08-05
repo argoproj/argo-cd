@@ -489,6 +489,7 @@ The secret data must include following fields:
 * `name` - cluster name
 * `server` - cluster api server url
 * `namespaces` - optional comma-separated list of namespaces which are accessible in that cluster. Cluster level resources would be ignored if namespace list is not empty.
+* `clusterResources` - optional boolean string (`"true"` or `"false"`) determining whether Argo CD can manage cluster-level resources on this cluster. This setting is used only if list of managed namespaces is not empty.
 * `config` - JSON representation of following data structure:
 
 ```yaml
