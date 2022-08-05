@@ -30,6 +30,7 @@ const _ = proto.GoGoProtoPackageIsVersion3 // please upgrade the proto package
 // files over a stream.
 type AppStreamRequest struct {
 	// Types that are valid to be assigned to Request:
+	//
 	//	*AppStreamRequest_Metadata
 	//	*AppStreamRequest_File
 	Request              isAppStreamRequest_Request `protobuf_oneof:"request"`

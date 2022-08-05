@@ -3,7 +3,6 @@ package e2e
 import (
 	"context"
 	"fmt"
-	"io/ioutil"
 	"net"
 	"net/http"
 	"os"
@@ -197,7 +196,7 @@ func TestHelmValuesLiteralFileLocal(t *testing.T) {
 		AppSet("--values-literal-file", "testdata/helm/baz.yaml").
 		Then().
 		And(func(app *Application) {
-			data, err := ioutil.ReadFile("testdata/helm/baz.yaml")
+			data, err := os.ReadFile("testdata/helm/baz.yaml")
 			if err != nil {
 				panic(err)
 			}
