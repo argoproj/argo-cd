@@ -4,8 +4,9 @@
 * [Azure AD App Registration Auth using OIDC](#azure-ad-app-registration-auth-using-oidc)
 * [Azure AD App Registration Auth using Dex](#azure-ad-app-registration-auth-using-dex)
 
-## Azure AD SAML Enterprise App Auth using Dex
-### Configure a new Azure AD Enterprise App
+## Authentication methods
+### Azure AD SAML Enterprise App Auth using Dex
+#### Configure a new Azure AD Enterprise App
 
 1. From the `Azure Active Directory` > `Enterprise applications` menu, choose `+ New application`
 2. Select `Non-gallery application`
@@ -31,48 +32,35 @@
       - *Keep a copy of the encoded output to be used in the next section.*
 9. From the `Single sign-on` menu, copy the `Login URL` parameter, to be used in the next section.
 
-### Configure Argo to use the new Azure AD Enterprise App
+#### Configure Argo to use the new Azure AD Enterprise App
 
-1. Edit `argocd-cm` and add the following `dex.config` to the data section, replacing the `caData`, `my-argo-cd-url` and `my-login-url` your values from the Azure AD App:
+Edit `argocd-cm` ConfigMap and add the following `dex.config` to the data section, replacing the `caData`, `my-argo-cd-url` and `my-login-url` with your values from the Azure AD App:
 
-            data:
-              url: https://my-argo-cd-url
-              dex.config: |
-                logger:
-                  level: debug
-                  format: json
-                connectors:
-                - type: saml
-                  id: saml
-                  name: saml
-                  config:
-                    entityIssuer: https://my-argo-cd-url/api/dex/callback
-                    ssoURL: https://my-login-url (e.g. https://login.microsoftonline.com/xxxxx/a/saml2)
-                    caData: |
-                       MY-BASE64-ENCODED-CERTIFICATE-DATA
-                    redirectURI: https://my-argo-cd-url/api/dex/callback
-                    usernameAttr: email
-                    emailAttr: email
-                    groupsAttr: Group
+```yaml
+data:
+  url: https://my-argo-cd-url
+  dex.config: |
+    logger:
+      level: debug
+      format: json
+    connectors:
+    - type: saml
+      id: saml
+      name: saml
+      config:
+        entityIssuer: https://my-argo-cd-url/api/dex/callback
+        ssoURL: https://my-login-url (e.g. https://login.microsoftonline.com/xxxxx/a/saml2)
+        caData: |
+           MY-BASE64-ENCODED-CERTIFICATE-DATA
+        redirectURI: https://my-argo-cd-url/api/dex/callback
+        usernameAttr: email
+        emailAttr: email
+        groupsAttr: Group
+```
 
-2. Edit `argocd-rbac-cm` to configure permissions, similar to example below.
-      - Use Azure AD `Group IDs` for assigning roles.
-      - See [RBAC Configurations](../rbac.md) for more detailed scenarios.
-
-            # example policy
-            policy.default: role:readonly
-            policy.csv: |
-               p, role:org-admin, applications, *, */*, allow
-               p, role:org-admin, clusters, get, *, allow
-               p, role:org-admin, repositories, get, *, allow
-               p, role:org-admin, repositories, create, *, allow
-               p, role:org-admin, repositories, update, *, allow
-               p, role:org-admin, repositories, delete, *, allow
-               g, "84ce98d1-e359-4f3b-85af-985b458de3c6", role:org-admin # (azure group assigned to role)
-
-## Azure AD App Registration Auth using OIDC
-### Configure a new Azure AD App registration
-#### Add a new Azure AD App registration
+### Azure AD App Registration Auth using OIDC
+#### Configure a new Azure AD App registration
+##### Add a new Azure AD App registration
 
 1. From the `Azure Active Directory` > `App registrations` menu, choose `+ New registration`
 2. Enter a `Name` for the application (e.g. `Argo CD`).
@@ -83,7 +71,7 @@
 5. When registration finishes, the Azure portal displays the app registration's Overview pane. You see the Application (client) ID.
       ![Azure App registration's Overview](../../assets/azure-app-registration-overview.png "Azure App registration's Overview")
 
-#### Configure additional platform settings for ArgoCD CLI
+##### Configure additional platform settings for Argo CD CLI
 
 1. In the Azure portal, in App registrations, select your application.
 2. Under Manage, select Authentication.
@@ -92,14 +80,14 @@
       - **Redirect URI:** `http://localhost:8085/auth/callback`
       ![Azure App registration's Authentication](../../assets/azure-app-registration-authentication.png "Azure App registration's Authentication")
 
-#### Add credentials a new Azure AD App registration
+##### Add credentials a new Azure AD App registration
 
 1. From the `Certificates & secrets` menu, choose `+ New client secret`
 2. Enter a `Name` for the secret (e.g. `ArgoCD-SSO`).
       - Make sure to copy and save generated value. This is a value for the `client_secret`.
       ![Azure App registration's Secret](../../assets/azure-app-registration-secret.png "Azure App registration's Secret")
 
-#### Setup permissions for Azure AD Application
+##### Setup permissions for Azure AD Application
 
 1. From the `API permissions` menu, choose `+ Add a permission`
 2. Find `User.Read` permission (under `Microsoft Graph`) and grant it to the created application:
@@ -107,105 +95,126 @@
 3. From the `Token Configuration` menu, choose `+ Add groups claim`
    ![Azure AD token configuration](../../assets/azure-token-configuration.png "Azure AD token configuration")
 
-### Associate an Azure AD group to your Azure AD App registration
+#### Associate an Azure AD group to your Azure AD App registration
 
 1. From the `Azure Active Directory` > `Enterprise applications` menu, search the App that you created (e.g. `Argo CD`).
       - An Enterprise application with the same name of the Azure AD App registration is created when you add a new Azure AD App registration.
 2. From the `Users and groups` menu of the app, add any users or groups requiring access to the service.
    ![Azure Enterprise SAML Users](../../assets/azure-enterprise-users.png "Azure Enterprise SAML Users")
 
-### Configure Argo to use the new Azure AD App registration
+#### Configure Argo to use the new Azure AD App registration
 
-1. Edit `argocd-cm` and configure the `data.oidc.config` and `data.url` section:
+1. Edit `argocd-cm` ConfigMap and configure the `data.oidc.config` and `data.url` section:
 
-            ConfigMap -> argocd-cm
+        data:
+          url: https://argocd.example.com/ # Replace with the external base URL of your Argo CD
+          oidc.config: |
+            name: Azure
+            issuer: https://login.microsoftonline.com/{directory_tenant_id}/v2.0
+            clientID: {azure_ad_application_client_id}
+            clientSecret: $oidc.azure.clientSecret
+            requestedIDTokenClaims:
+               groups:
+               essential: true
+            requestedScopes:
+               - openid
+               - profile
+               - email
 
-            data:
-               url: https://argocd.example.com/ # Replace with the external base URL of your Argo CD
-               oidc.config: |
-                     name: Azure
-                     issuer: https://login.microsoftonline.com/{directory_tenant_id}/v2.0
-                     clientID: {azure_ad_application_client_id}
-                     clientSecret: $oidc.azure.clientSecret
-                     requestedIDTokenClaims:
-                        groups:
-                           essential: true
-                     requestedScopes:
-                        - openid
-                        - profile
-                        - email
+2. Edit the `argocd-secret` Secret and configure the `data.oidc.azure.clientSecret` section:
 
-2. Edit `argocd-secret` and configure the `data.oidc.azure.clientSecret` section:
+         data:
+           oidc.azure.clientSecret: {client_secret | base64_encoded}
 
-            Secret -> argocd-secret
-
-            data:
-               oidc.azure.clientSecret: {client_secret | base64_encoded}
-
-3. Edit `argocd-rbac-cm` to configure permissions. Use group ID from Azure for assigning roles
-      [RBAC Configurations](../rbac.md)
-
-            ConfigMap -> argocd-rbac-cm
-
-            policy.default: role:readonly
-            policy.csv: |
-               p, role:org-admin, applications, *, */*, allow
-               p, role:org-admin, clusters, get, *, allow
-               p, role:org-admin, repositories, get, *, allow
-               p, role:org-admin, repositories, create, *, allow
-               p, role:org-admin, repositories, update, *, allow
-               p, role:org-admin, repositories, delete, *, allow
-               g, "84ce98d1-e359-4f3b-85af-985b458de3c6", role:org-admin
-
-4. Mapping role from jwt token to argo
-   If you want to map the roles from the jwt token to match the default roles (readonly and admin) then you must change the scope variable in the rbac-configmap.
-
-            policy.default: role:readonly
-            policy.csv: |
-               p, role:org-admin, applications, *, */*, allow
-               p, role:org-admin, clusters, get, *, allow
-               p, role:org-admin, repositories, get, *, allow
-               p, role:org-admin, repositories, create, *, allow
-               p, role:org-admin, repositories, update, *, allow
-               p, role:org-admin, repositories, delete, *, allow
-               g, "84ce98d1-e359-4f3b-85af-985b458de3c6", role:org-admin
-            scopes: '[groups, email]'
-
-   Refer to [operator-manual/argocd-rbac-cm.yaml](https://github.com/argoproj/argo-cd/blob/master/docs/operator-manual/argocd-rbac-cm.yaml) for all of the available variables.
-
-## Azure AD App Registration Auth using Dex
+### Azure AD App Registration Auth using Dex
 
 Configure a new AD App Registration, as above.
-Then, add the `dex.config` to `argocd-cm`:
-```yaml
-ConfigMap -> argocd-cm
+Then, add the `dex.config` to the `argocd-cm` ConfigMap:
 
+```yaml
 data:
-    dex.config: |
-      connectors:
-      - type: microsoft
-        id: microsoft
-        name: Your Company GmbH
-        config:
-          clientID: $MICROSOFT_APPLICATION_ID
-          clientSecret: $MICROSOFT_CLIENT_SECRET
-          redirectURI: http://localhost:8080/api/dex/callback
-          tenant: ffffffff-ffff-ffff-ffff-ffffffffffff
-          groups:
-            - DevOps
+  dex.config: |
+    connectors:
+    - type: microsoft
+      id: microsoft
+      name: Your Company
+      config:
+        clientID: $MICROSOFT_APPLICATION_ID
+        clientSecret: $MICROSOFT_CLIENT_SECRET
+        redirectURI: http://localhost:8080/api/dex/callback
+        tenant: ffffffff-ffff-ffff-ffff-ffffffffffff
+        groups:
+          - argocd_access_SG
+          - argocd_org_admin_SG
+          - argocd_admin_SG
+```
+
+## Configuring authorization through RBAC
+Edit the `argocd-rbac-cm` ConfigMap to assign permissions from the user's Azure AD security group memberships. After being logged in into Argo CD, check [the user's group membership](log-in-to-argocd-ui-using-sso) to decide if you have to use the security group's `Object ID` or `name`.
+
+- [RBAC Configurations](../rbac.md) contains more detailed scenarios.
+- [operator-manual/argocd-rbac-cm.yaml](https://github.com/argoproj/argo-cd/blob/master/docs/operator-manual/argocd-rbac-cm.yaml) contains available variables.
+
+### Dedicated security group for administrators
+To map a special security group to the Argo CD `admin` role, you can use the following `argocd-rbac-cm` ConfigMap:
+
+```yaml
+data:
+  policy.default: role:readonly
+  policy.csv: |
+    # either use the security group name
+    g, "argocd_admin_SG", role:admin
+    # or the group Object ID
+    g, "84ce98d1-e359-4f3b-85af-985b458de3c6", role:admin
+```
+
+### Detailed permission
+This `argocd-rbac-cm` ConfigMap maps the Azure AD security group `argocd_org_admin_SG` to the restricted Argo CD role `org-admin`:
+
+```yaml
+data:
+  policy.default: role:readonly
+  policy.csv: |
+    p, role:org-admin, applications, *, */*, allow
+    p, role:org-admin, clusters, get, *, allow
+    p, role:org-admin, repositories, get, *, allow
+    p, role:org-admin, repositories, create, *, allow
+    p, role:org-admin, repositories, update, *, allow
+    p, role:org-admin, repositories, delete, *, allow
+    # either use the security group's name
+    g, "argocd_org_admin_SG", role:org-admin
+    # or the security group's Object ID
+    g, "84ce98d1-e359-4f3b-85af-985b458de3c6", role:org-admin
+
+  # you can omit the following line; the scope `groups` is already mapped by default
+  scopes: '[groups, email]'
+```
+
+### Mapping application roles from Azure AD to Argo CD
+If you have also assigned [application roles](https://docs.microsoft.com/en-us/azure/active-directory/develop/howto-add-app-roles-in-azure-ad-apps) during the application registration in Azure AD, you have to include the `roles` scope during RBAC enforcement.
+In that `argocd-rbac-cm` ConfigMap, the Azure AD application registration defines the application role `argocd_admin_R`. `argocd_admin_R` is mapped to the internal Argo CD role `admin`.
+
+```yaml
+data:
+  policy.default: role:readonly
+  policy.csv: |
+    g, "argocd_admin_R", role:admin
+
+  # evaluate the `roles` claim inside the JWT; `email` could be used to assign a single user as an admin
+  scopes: '[roles, email]'
 ```
 
 ## Validation
-### Log in to ArgoCD UI using SSO
+### Log in to Argo CD UI using SSO
 
-1. Open a new browser tab and enter your ArgoCD URI: https://`<my-argo-cd-url>`
+1. Open a new browser tab and enter your Argo CD URI: https://`<my-argo-cd-url>`
    ![Azure SSO Web Log In](../../assets/azure-sso-web-log-in-via-azure.png "Azure SSO Web Log In")
-3. Click `LOGIN VIA AZURE` button to log in with your Azure Active Directory account. You’ll see the ArgoCD applications screen.
+3. Click `LOGIN VIA AZURE` button to log in with your Azure Active Directory account. You’ll see the Argo CD applications screen.
    ![Azure SSO Web Application](../../assets/azure-sso-web-application.png "Azure SSO Web Application")
-4. Navigate to User Info and verify Group ID. Groups will have your group’s Object ID that you added in the `Setup permissions for Azure AD Application` step.
+4. Navigate to User Info and verify Group ID. Groups will have either your group’s Object ID or the security group name that you added in the `Setup permissions for Azure AD Application` step.
    ![Azure SSO Web User Info](../../assets/azure-sso-web-user-info.png "Azure SSO Web User Info")
 
-### Log in to ArgoCD using CLI
+### Log in to Argo CD using CLI
 
 1. Open terminal, execute the below command.
 
