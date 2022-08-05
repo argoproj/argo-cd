@@ -1303,7 +1303,7 @@ spec:
           {}
 
       - name: split-brain-fix
-        image: redis:7.0.0-alpine
+        image: redis:7.0.4-alpine
         imagePullPolicy: IfNotPresent
         command:
           - sh
