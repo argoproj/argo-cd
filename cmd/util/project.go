@@ -31,6 +31,8 @@ type ProjectOpts struct {
 	deniedClusterResources     []string
 	allowedNamespacedResources []string
 	deniedNamespacedResources  []string
+
+	appOfAppsSameProjectOnly bool
 }
 
 func AddProjFlags(command *cobra.Command, opts *ProjectOpts) {
@@ -46,6 +48,7 @@ func AddProjFlags(command *cobra.Command, opts *ProjectOpts) {
 	command.Flags().StringArrayVar(&opts.allowedNamespacedResources, "allow-namespaced-resource", []string{}, "List of allowed namespaced resources")
 	command.Flags().StringArrayVar(&opts.deniedNamespacedResources, "deny-namespaced-resource", []string{}, "List of denied namespaced resources")
 
+	command.Flags().BoolVar(&opts.appOfAppsSameProjectOnly, "app-of-apps-same-project-only", false, "True if apps in this project can only create other apps in this same project")
 }
 
 func getGroupKindList(values []string) []v1.GroupKind {
@@ -104,6 +107,10 @@ func (opts *ProjectOpts) GetSignatureKeys() []v1alpha1.SignatureKey {
 	return signatureKeys
 }
 
+func (opts *ProjectOpts) GetAppOfAppsSameProjectOnly() bool {
+	return opts.appOfAppsSameProjectOnly
+}
+
 func GetOrphanedResourcesSettings(flagSet *pflag.FlagSet, opts ProjectOpts) *v1alpha1.OrphanedResourcesMonitorSettings {
 	warnChanged := flagSet.Changed("orphaned-resources-warn")
 	if opts.orphanedResourcesEnabled || warnChanged {
@@ -156,6 +163,12 @@ func SetProjSpecOptions(flags *pflag.FlagSet, spec *v1alpha1.AppProjectSpec, pro
 			spec.NamespaceResourceWhitelist = projOpts.GetAllowedNamespacedResources()
 		case "deny-namespaced-resource":
 			spec.NamespaceResourceBlacklist = projOpts.GetDeniedNamespacedResources()
+		case "app-of-apps-same-project-only":
+			if spec.AppOfAppsRules == nil {
+				spec.AppOfAppsRules = &v1alpha1.AppOfAppsRules{}
+			}
+			sameProjectOnly := projOpts.GetAppOfAppsSameProjectOnly()
+			spec.AppOfAppsRules.SameProjectOnly = &sameProjectOnly
 		}
 	})
 	if flags.Changed("orphaned-resources") || flags.Changed("orphaned-resources-warn") {

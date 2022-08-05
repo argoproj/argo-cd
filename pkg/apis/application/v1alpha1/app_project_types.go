@@ -15,6 +15,8 @@ import (
 	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
 	"k8s.io/apimachinery/pkg/apis/meta/v1/unstructured"
 	"k8s.io/apimachinery/pkg/runtime/schema"
+
+	"github.com/argoproj/argo-cd/v2/pkg/apis/application"
 )
 
 // AppProjectList is list of AppProject resources
@@ -339,6 +341,44 @@ func (proj AppProject) IsResourcePermitted(groupKind schema.GroupKind, namespace
 		return proj.IsDestinationPermitted(ApplicationDestination{Server: dest.Server, Name: dest.Name, Namespace: namespace})
 	}
 	return true
+}
+
+// IsAppOfAppsPermitted returns whether a resource follows the app of apps rules of this project
+func (proj AppProject) IsAppOfAppsPermitted(un *unstructured.Unstructured) (string, bool) {
+	groupVersionKind := un.GroupVersionKind()
+	group := groupVersionKind.Group
+	kind := groupVersionKind.Kind
+	if group != application.Group || kind != application.ApplicationKind {
+		return "", true
+	}
+	project, _, err := unstructured.NestedString(un.Object, "spec", "project")
+	if err != nil {
+		panic(fmt.Errorf(
+			"BUG: Resource %s/%s/%s appears to be an application, but failed when retrieving its project: %s",
+			groupVersionKind,
+			un.GetNamespace(),
+			un.GetName(),
+			err.Error(),
+		))
+
+	}
+
+	if project == "" {
+		project = DefaultAppProjectName
+	}
+
+	if proj.Spec.AppOfAppsRules == nil {
+		return project, true
+	}
+	sameProjectOnly := DefaultSameProjectOnly
+	if proj.Spec.AppOfAppsRules.SameProjectOnly != nil {
+		sameProjectOnly = *proj.Spec.AppOfAppsRules.SameProjectOnly
+	}
+	if sameProjectOnly && proj.Name != project {
+		return fmt.Sprintf("Applications can only be created in the project %s, not %s", proj.Name, project), false
+	}
+
+	return project, true
 }
 
 // HasFinalizer returns true if a resource finalizer is set on an AppProject

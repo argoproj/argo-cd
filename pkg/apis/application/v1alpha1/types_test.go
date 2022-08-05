@@ -15,6 +15,7 @@ import (
 	"github.com/argoproj/gitops-engine/pkg/sync/common"
 	"github.com/stretchr/testify/assert"
 	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
+	"k8s.io/apimachinery/pkg/apis/meta/v1/unstructured"
 	"k8s.io/apimachinery/pkg/runtime/schema"
 )
 
@@ -341,6 +342,163 @@ func TestAppProject_IsGroupKindPermitted(t *testing.T) {
 	}
 	assert.False(t, proj6.IsGroupKindPermitted(schema.GroupKind{Group: "", Kind: "Namespace"}, false))
 	assert.True(t, proj6.IsGroupKindPermitted(schema.GroupKind{Group: "apps", Kind: "Action"}, true))
+}
+
+func TestAppProject_IsAppOfAppsPermitted(t *testing.T) {
+	false_ := false
+	true_ := true
+	projNoRules := AppProject{
+		ObjectMeta: metav1.ObjectMeta{
+			Name: "same-project",
+		},
+		Spec: AppProjectSpec{},
+	}
+	projEmptyRules := AppProject{
+		ObjectMeta: metav1.ObjectMeta{
+			Name: "same-project",
+		},
+		Spec: AppProjectSpec{
+			AppOfAppsRules: &AppOfAppsRules{},
+		},
+	}
+	projSameProjectOnlyFalse := AppProject{
+		ObjectMeta: metav1.ObjectMeta{
+			Name: "same-project",
+		},
+		Spec: AppProjectSpec{
+			AppOfAppsRules: &AppOfAppsRules{
+				SameProjectOnly: &false_,
+			},
+		},
+	}
+	projSameProjectOnlyTrue := AppProject{
+		ObjectMeta: metav1.ObjectMeta{
+			Name: "same-project",
+		},
+		Spec: AppProjectSpec{
+			AppOfAppsRules: &AppOfAppsRules{
+				SameProjectOnly: &true_,
+			},
+		},
+	}
+	defaultProjSameProjectOnlyTrue := AppProject{
+		ObjectMeta: metav1.ObjectMeta{
+			Name: DefaultAppProjectName,
+		},
+		Spec: AppProjectSpec{
+			AppOfAppsRules: &AppOfAppsRules{
+				SameProjectOnly: &true_,
+			},
+		},
+	}
+
+	applicationSameProject := &unstructured.Unstructured{Object: map[string]interface{}{
+		"apiVersion": "argoproj.io/v1alpha1",
+		"kind":       "Application",
+		"metadata": interface{}(map[string]interface{}{
+			"namespace": "default",
+			"name":      "an-application",
+		}),
+		"spec": interface{}(map[string]interface{}{
+			"project": "same-project",
+		}),
+	}}
+	applicationDifferentProject := &unstructured.Unstructured{Object: map[string]interface{}{
+		"apiVersion": "argoproj.io/v1alpha1",
+		"kind":       "Application",
+		"metadata": interface{}(map[string]interface{}{
+			"namespace": "default",
+			"name":      "an-application",
+		}),
+		"spec": interface{}(map[string]interface{}{
+			"project": "different-project",
+		}),
+	}}
+	applicationBlankProject := &unstructured.Unstructured{Object: map[string]interface{}{
+		"apiVersion": "argoproj.io/v1alpha1",
+		"kind":       "Application",
+		"metadata": interface{}(map[string]interface{}{
+			"namespace": "default",
+			"name":      "an-application",
+		}),
+		"spec": interface{}(map[string]interface{}{
+			"project": "",
+		}),
+	}}
+	applicationNoProject := &unstructured.Unstructured{Object: map[string]interface{}{
+		"apiVersion": "argoproj.io/v1alpha1",
+		"kind":       "Application",
+		"metadata": interface{}(map[string]interface{}{
+			"namespace": "default",
+			"name":      "an-application",
+		}),
+		"spec": interface{}(map[string]interface{}{}),
+	}}
+
+	notAnApplication := &unstructured.Unstructured{Object: map[string]interface{}{
+		"apiVersion": "apps/v1",
+		"kind":       "Deployment",
+		"metadata": interface{}(map[string]interface{}{
+			"namespace": "default",
+			"name":      "not-an-application",
+		}),
+	}}
+
+	var allowed bool
+	_, allowed = projNoRules.IsAppOfAppsPermitted(applicationSameProject)
+	assert.True(t, allowed)
+	_, allowed = projNoRules.IsAppOfAppsPermitted(applicationDifferentProject)
+	assert.True(t, allowed)
+	_, allowed = projNoRules.IsAppOfAppsPermitted(applicationBlankProject)
+	assert.True(t, allowed)
+	_, allowed = projNoRules.IsAppOfAppsPermitted(applicationNoProject)
+	assert.True(t, allowed)
+	_, allowed = projNoRules.IsAppOfAppsPermitted(notAnApplication)
+	assert.True(t, allowed)
+
+	_, allowed = projEmptyRules.IsAppOfAppsPermitted(applicationSameProject)
+	assert.True(t, allowed)
+	_, allowed = projEmptyRules.IsAppOfAppsPermitted(applicationDifferentProject)
+	assert.True(t, allowed)
+	_, allowed = projEmptyRules.IsAppOfAppsPermitted(applicationBlankProject)
+	assert.True(t, allowed)
+	_, allowed = projEmptyRules.IsAppOfAppsPermitted(applicationNoProject)
+	assert.True(t, allowed)
+	_, allowed = projEmptyRules.IsAppOfAppsPermitted(notAnApplication)
+	assert.True(t, allowed)
+
+	_, allowed = projSameProjectOnlyFalse.IsAppOfAppsPermitted(applicationSameProject)
+	assert.True(t, allowed)
+	_, allowed = projSameProjectOnlyFalse.IsAppOfAppsPermitted(applicationDifferentProject)
+	assert.True(t, allowed)
+	_, allowed = projSameProjectOnlyFalse.IsAppOfAppsPermitted(applicationBlankProject)
+	assert.True(t, allowed)
+	_, allowed = projSameProjectOnlyFalse.IsAppOfAppsPermitted(applicationNoProject)
+	assert.True(t, allowed)
+	_, allowed = projSameProjectOnlyFalse.IsAppOfAppsPermitted(notAnApplication)
+	assert.True(t, allowed)
+
+	_, allowed = projSameProjectOnlyTrue.IsAppOfAppsPermitted(applicationSameProject)
+	assert.True(t, allowed)
+	_, allowed = projSameProjectOnlyTrue.IsAppOfAppsPermitted(applicationDifferentProject)
+	assert.False(t, allowed)
+	_, allowed = projSameProjectOnlyTrue.IsAppOfAppsPermitted(applicationBlankProject)
+	assert.False(t, allowed)
+	_, allowed = projSameProjectOnlyTrue.IsAppOfAppsPermitted(applicationNoProject)
+	assert.False(t, allowed)
+	_, allowed = projSameProjectOnlyTrue.IsAppOfAppsPermitted(notAnApplication)
+	assert.True(t, allowed)
+
+	_, allowed = defaultProjSameProjectOnlyTrue.IsAppOfAppsPermitted(applicationSameProject)
+	assert.False(t, allowed)
+	_, allowed = defaultProjSameProjectOnlyTrue.IsAppOfAppsPermitted(applicationDifferentProject)
+	assert.False(t, allowed)
+	_, allowed = defaultProjSameProjectOnlyTrue.IsAppOfAppsPermitted(applicationBlankProject)
+	assert.True(t, allowed)
+	_, allowed = defaultProjSameProjectOnlyTrue.IsAppOfAppsPermitted(applicationNoProject)
+	assert.True(t, allowed)
+	_, allowed = defaultProjSameProjectOnlyTrue.IsAppOfAppsPermitted(notAnApplication)
+	assert.True(t, allowed)
 }
 
 func TestAppProject_GetRoleByName(t *testing.T) {

@@ -42,6 +42,15 @@ spec:
           spec:
             description: AppProjectSpec is the specification of an AppProject
             properties:
+              appOfAppsRules:
+                description: AppOfAppRules is a set of rules that Applications in
+                  this project must follow when creating other Application resources
+                properties:
+                  sameProjectOnly:
+                    description: SameProjectOnly indicates that Applications can only
+                      create Applications in the same project
+                    type: boolean
+                type: object
               clusterResourceBlacklist:
                 description: ClusterResourceBlacklist contains list of blacklisted
                   cluster level resources

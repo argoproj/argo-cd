@@ -8940,6 +8940,15 @@ spec:
           spec:
             description: AppProjectSpec is the specification of an AppProject
             properties:
+              appOfAppsRules:
+                description: AppOfAppRules is a set of rules that Applications in
+                  this project must follow when creating other Application resources
+                properties:
+                  sameProjectOnly:
+                    description: SameProjectOnly indicates that Applications can only
+                      create Applications in the same project
+                    type: boolean
+                type: object
               clusterResourceBlacklist:
                 description: ClusterResourceBlacklist contains list of blacklisted
                   cluster level resources
@@ -12009,7 +12018,7 @@ spec:
           value: 40000915ab58c3fa8fd888fb8b24711944e6cbb4
         - name: SENTINEL_ID_2
           value: 2bbec7894d954a8af3bb54d13eaec53cb024e2ca
-        image: redis:7.0.0-alpine
+        image: redis:7.0.4-alpine
         imagePullPolicy: IfNotPresent
         name: split-brain-fix
         resources: {}

@@ -1645,6 +1645,17 @@ type SignatureKey struct {
 	KeyID string `json:"keyID" protobuf:"bytes,1,name=keyID"`
 }
 
+const (
+	DefaultSameProjectOnly = false
+)
+
+// AppOfAppRules is a set of rules that Applications must follow when creating other Application resources
+type AppOfAppsRules struct {
+	// SameProjectOnly indicates that Applications can only create Applications in the same project
+	// +optional
+	SameProjectOnly *bool `json:"sameProjectOnly,omitempty" protobuf:"bytes,1,opt,name=sameProjectOnly"`
+}
+
 // AppProjectSpec is the specification of an AppProject
 type AppProjectSpec struct {
 	// SourceRepos contains list of repository URLs which can be used for deployment
@@ -1669,6 +1680,9 @@ type AppProjectSpec struct {
 	SignatureKeys []SignatureKey `json:"signatureKeys,omitempty" protobuf:"bytes,10,opt,name=signatureKeys"`
 	// ClusterResourceBlacklist contains list of blacklisted cluster level resources
 	ClusterResourceBlacklist []metav1.GroupKind `json:"clusterResourceBlacklist,omitempty" protobuf:"bytes,11,opt,name=clusterResourceBlacklist"`
+	// AppOfAppRules is a set of rules that Applications in this project must follow when creating other Application resources
+	// +optional
+	AppOfAppsRules *AppOfAppsRules `json:"appOfAppsRules,omitempty" protobuf:"bytes,12,opt,name=appOfAppsRules"`
 }
 
 // SyncWindows is a collection of sync windows in this project

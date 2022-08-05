@@ -120,3 +120,11 @@ metadata:
 spec:
  ...
 ``` 
+
+### App of Apps Rules
+
+The `.spec.appOfAppsRules` field in `AppProject` is used to enforce certain polices on Applications which create other Application resources
+
+#### sameProjectRequired
+
+If set to true, Applications in that project can create other Applications only if their `.spec.project` field matches, preventing Applications from creating other Applications in other projects and effectively escalating their privileges. This enables a kind of "soft" multitenancy. Defaults to `false`.

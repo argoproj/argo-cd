@@ -15,6 +15,7 @@ import (
 func GetOpenAPIDefinitions(ref common.ReferenceCallback) map[string]common.OpenAPIDefinition {
 	return map[string]common.OpenAPIDefinition{
 		"github.com/argoproj/argo-cd/v2/pkg/apis/application/v1alpha1.AWSAuthConfig":                    schema_pkg_apis_application_v1alpha1_AWSAuthConfig(ref),
+		"github.com/argoproj/argo-cd/v2/pkg/apis/application/v1alpha1.AppOfAppsRules":                   schema_pkg_apis_application_v1alpha1_AppOfAppsRules(ref),
 		"github.com/argoproj/argo-cd/v2/pkg/apis/application/v1alpha1.AppProject":                       schema_pkg_apis_application_v1alpha1_AppProject(ref),
 		"github.com/argoproj/argo-cd/v2/pkg/apis/application/v1alpha1.AppProjectList":                   schema_pkg_apis_application_v1alpha1_AppProjectList(ref),
 		"github.com/argoproj/argo-cd/v2/pkg/apis/application/v1alpha1.AppProjectSpec":                   schema_pkg_apis_application_v1alpha1_AppProjectSpec(ref),
@@ -125,6 +126,26 @@ func schema_pkg_apis_application_v1alpha1_AWSAuthConfig(ref common.ReferenceCall
 						SchemaProps: spec.SchemaProps{
 							Description: "RoleARN contains optional role ARN. If set then AWS IAM Authenticator assume a role to perform cluster operations instead of the default AWS credential provider chain.",
 							Type:        []string{"string"},
+							Format:      "",
+						},
+					},
+				},
+			},
+		},
+	}
+}
+
+func schema_pkg_apis_application_v1alpha1_AppOfAppsRules(ref common.ReferenceCallback) common.OpenAPIDefinition {
+	return common.OpenAPIDefinition{
+		Schema: spec.Schema{
+			SchemaProps: spec.SchemaProps{
+				Description: "AppOfAppRules is a set of rules that Applications must follow when creating other Application resources",
+				Type:        []string{"object"},
+				Properties: map[string]spec.Schema{
+					"sameProjectOnly": {
+						SchemaProps: spec.SchemaProps{
+							Description: "SameProjectOnly indicates that Applications can only create Applications in the same project",
+							Type:        []string{"boolean"},
 							Format:      "",
 						},
 					},
@@ -377,11 +398,17 @@ func schema_pkg_apis_application_v1alpha1_AppProjectSpec(ref common.ReferenceCal
 							},
 						},
 					},
+					"appOfAppsRules": {
+						SchemaProps: spec.SchemaProps{
+							Description: "AppOfAppRules is a set of rules that Applications in this project must follow when creating other Application resources",
+							Ref:         ref("github.com/argoproj/argo-cd/v2/pkg/apis/application/v1alpha1.AppOfAppsRules"),
+						},
+					},
 				},
 			},
 		},
 		Dependencies: []string{
-			"github.com/argoproj/argo-cd/v2/pkg/apis/application/v1alpha1.ApplicationDestination", "github.com/argoproj/argo-cd/v2/pkg/apis/application/v1alpha1.OrphanedResourcesMonitorSettings", "github.com/argoproj/argo-cd/v2/pkg/apis/application/v1alpha1.ProjectRole", "github.com/argoproj/argo-cd/v2/pkg/apis/application/v1alpha1.SignatureKey", "github.com/argoproj/argo-cd/v2/pkg/apis/application/v1alpha1.SyncWindow", "k8s.io/apimachinery/pkg/apis/meta/v1.GroupKind"},
+			"github.com/argoproj/argo-cd/v2/pkg/apis/application/v1alpha1.AppOfAppsRules", "github.com/argoproj/argo-cd/v2/pkg/apis/application/v1alpha1.ApplicationDestination", "github.com/argoproj/argo-cd/v2/pkg/apis/application/v1alpha1.OrphanedResourcesMonitorSettings", "github.com/argoproj/argo-cd/v2/pkg/apis/application/v1alpha1.ProjectRole", "github.com/argoproj/argo-cd/v2/pkg/apis/application/v1alpha1.SignatureKey", "github.com/argoproj/argo-cd/v2/pkg/apis/application/v1alpha1.SyncWindow", "k8s.io/apimachinery/pkg/apis/meta/v1.GroupKind"},
 	}
 }
 

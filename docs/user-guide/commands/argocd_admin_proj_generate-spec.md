@@ -11,6 +11,7 @@ argocd admin proj generate-spec PROJECT [flags]
 ```
       --allow-cluster-resource stringArray      List of allowed cluster level resources
       --allow-namespaced-resource stringArray   List of allowed namespaced resources
+      --app-of-apps-same-project-only           True if apps in this project can only create other apps in this same project
       --deny-cluster-resource stringArray       List of denied cluster level resources
       --deny-namespaced-resource stringArray    List of denied namespaced resources
       --description string                      Project description
