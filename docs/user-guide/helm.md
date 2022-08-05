@@ -171,8 +171,8 @@ It's also possible to use build environment variables for the Helm values file p
     source:
       helm:
         valueFiles:
-              - values.yaml
-              - myprotocol://somepath/$ARGOCD_APP_NAME/$ARGOCD_APP_REVISION
+        - values.yaml
+        - myprotocol://somepath/$ARGOCD_APP_NAME/$ARGOCD_APP_REVISION
 ```
 
 ## Helm plugins
