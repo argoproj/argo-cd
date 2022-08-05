@@ -603,7 +603,7 @@ func TestCreateOrUpdateInCluster(t *testing.T) {
 			},
 		},
 		{
-			name: "Ensure that status and operation fields are not overriden by an update, when removing labels/annotations",
+			name: "Ensure that status and operation fields are not overridden by an update, when removing labels/annotations",
 			appSet: argoprojiov1alpha1.ApplicationSet{
 				ObjectMeta: metav1.ObjectMeta{
 					Name:      "name",
@@ -675,7 +675,7 @@ func TestCreateOrUpdateInCluster(t *testing.T) {
 			},
 		},
 		{
-			name: "Ensure that status and operation fields are not overriden by an update, when removing labels/annotations and adding other fields",
+			name: "Ensure that status and operation fields are not overridden by an update, when removing labels/annotations and adding other fields",
 			appSet: argoprojiov1alpha1.ApplicationSet{
 				ObjectMeta: metav1.ObjectMeta{
 					Name:      "name",
