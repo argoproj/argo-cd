@@ -283,7 +283,7 @@ func GetCMPWorkDir() string {
 }
 
 const (
-	// AnnotationApplicationRefresh is an annotation that is added when an ApplicationSet is requested to be refreshed by a webhook. The ApplicationSet controller will remove this annotation at the end of reconcilation.
+	// AnnotationApplicationRefresh is an annotation that is added when an ApplicationSet is requested to be refreshed by a webhook. The ApplicationSet controller will remove this annotation at the end of reconciliation.
 	AnnotationApplicationSetRefresh = "argocd.argoproj.io/application-set-refresh"
 )
 
