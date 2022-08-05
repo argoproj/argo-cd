@@ -230,7 +230,7 @@ func (m *appStateManager) SyncAppState(app *v1alpha1.Application, state *v1alpha
 			return len(syncOp.Resources) == 0 || argo.ContainsSyncResource(key.Name, key.Namespace, schema.GroupVersionKind{Kind: key.Kind, Group: key.Group}, syncOp.Resources)
 		}),
 		sync.WithManifestValidation(!syncOp.SyncOptions.HasOption(common.SyncOptionsDisableValidation)),
-		sync.WithNamespaceCreation(syncOp.SyncOptions.HasOption("CreateNamespace=true"), func(un *unstructured.Unstructured) bool {
+		sync.WithNamespaceCreation(syncOp.SyncOptions.HasOption("CreateNamespace=true"), syncOp.SyncOptions.GetNSMetaData("NamespaceMetaData"), func(un *unstructured.Unstructured) bool {
 			if un != nil && kube.GetAppInstanceLabel(un, cdcommon.LabelKeyAppInstance) != "" {
 				kube.UnsetLabel(un, cdcommon.LabelKeyAppInstance)
 				return true
