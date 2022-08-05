@@ -151,6 +151,6 @@ spec:
 ## Dashboards
 
 You can find an example Grafana dashboard [here](https://github.com/argoproj/argo-cd/blob/master/examples/dashboard.json).\
-Another option is to get the dashboard from [grafana.com](https://grafana.com/grafana/dashboards/14584).\
+Another option is to get the dashboard from [grafana.com](https://grafana.com/grafana/dashboards/14584).
 
 ![dashboard](../assets/dashboard.jpg)
