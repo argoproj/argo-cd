@@ -38,10 +38,11 @@ FROM $BASE_IMAGE AS argocd-base
 
 USER root
 
+ENV ARGOCD_USER_ID=999
 ENV DEBIAN_FRONTEND=noninteractive
 
-RUN groupadd -g 999 argocd && \
-    useradd -r -u 999 -g argocd argocd && \
+RUN groupadd -g $ARGOCD_USER_ID argocd && \
+    useradd -r -u $ARGOCD_USER_ID -g argocd argocd && \
     mkdir -p /home/argocd && \
     chown argocd:0 /home/argocd && \
     chmod g=u /home/argocd && \
@@ -74,7 +75,7 @@ RUN mkdir -p tls && \
 
 ENV USER=argocd
 
-USER 999
+USER $ARGOCD_USER_ID
 WORKDIR /home/argocd
 
 ####################################################################################################
@@ -128,4 +129,4 @@ RUN ln -s /usr/local/bin/argocd /usr/local/bin/argocd-server && \
     ln -s /usr/local/bin/argocd /usr/local/bin/argocd-applicationset-controller && \
     ln -s /usr/local/bin/argocd /usr/local/bin/argocd-k8s-auth
 
-USER 999
+USER $ARGOCD_USER_ID
