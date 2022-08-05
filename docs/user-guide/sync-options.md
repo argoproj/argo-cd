@@ -153,6 +153,33 @@ metadata:
     argocd.argoproj.io/sync-options: Replace=true
 ```
 
+## Server-Side Apply
+
+By default, ArgoCD executes `kubectl apply` operation to apply the configuration stored in Git. This is a client
+side operation that relies on `kubectl.kubernetes.io/last-applied-configuration` annotation to store the previous
+resource state. In some cases the resource is too big to fit in 262144 bytes allowed annotation size. In this case
+server-side apply can be used to avoid this issue as the annotation is not used in this case.
+
+```yaml
+apiVersion: argoproj.io/v1alpha1
+kind: Application
+spec:
+  syncPolicy:
+    syncOptions:
+    - ServerSideApply=true
+```
+
+If the `ServerSideApply=true` sync option is set the ArgoCD will use `kubectl apply --server-side` command to apply changes.
+
+This can also be configured at individual resource level.
+```yaml
+metadata:
+  annotations:
+    argocd.argoproj.io/sync-options: ServerSideApply=true
+```
+
+Note: [`Replace=true`](#replace-resource-instead-of-applying-changes) takes precedence over `ServerSideApply=true`.
+
 ## Fail the sync if a shared resource is found
 
 By default, ArgoCD will apply all manifests found in the git path configured in the Application regardless if the resources defined in the yamls are already applied by another Application. If the `FailOnSharedResource` sync option is set, ArgoCD will fail the sync whenever it finds a resource in the current Application that is already applied in the cluster by another Application.
