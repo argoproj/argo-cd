@@ -7,7 +7,7 @@
   <meta name="viewport" content="width=device-width, initial-scale=1.0">
   <meta http-equiv="X-UA-Compatible" content="IE=edge">
   <title>Snyk test report</title>
-  <meta name="description" content="2 known vulnerabilities found in 5 vulnerable dependency paths.">
+  <meta name="description" content="2 known vulnerabilities found in 10 vulnerable dependency paths.">
   <base target="_blank">
   <link rel="icon" type="image/png" href="https://res.cloudinary.com/snyk/image/upload/v1468845142/favicon/favicon.png"
     sizes="194x194">
@@ -456,50 +456,59 @@
               <div class="header-wrap">
                   <h1 class="project__header__title">Snyk test report</h1>
     
-                <p class="timestamp">August 3rd 2022, 1:51:47 pm</p>
+                <p class="timestamp">August 3rd 2022, 1:57:44 pm</p>
               </div>
               <div class="source-panel">
-                <span>Scanned the following paths:</span>
+                <span>Scanned the following path:</span>
                 <ul>
-                  <li class="paths">/private/argo-cd/argoproj/argo-cd/v2 (gomodules)</li><li class="paths">/private/argo-cd (yarn)</li>
+                  <li class="paths">ghcr.io/dexidp/dex:v2.32.0/dexidp/dex (apk)</li>
                 </ul>
               </div>
     
               <div class="meta-counts">
                 <div class="meta-count"><span>2</span> <span>known vulnerabilities</span></div>
-                <div class="meta-count"><span>5 vulnerable dependency paths</span></div>
-                <div class="meta-count"><span>1716</span> <span>dependencies</span></div>
+                <div class="meta-count"><span>10 vulnerable dependency paths</span></div>
+                <div class="meta-count"><span>14</span> <span>dependencies</span></div>
               </div><!-- .meta-counts -->
             </div><!-- .layout-container--short -->
           </header><!-- .project__header -->
         </div><!-- .layout-stacked__header -->
-
+      <section class="layout-container">
+          <table class="metatable">
+              <tbody>
+              <tr class="meta-row"><th class="meta-row-label">Project</th> <td class="meta-row-value">docker-image|ghcr.io/dexidp/dex</td></tr>
+              <tr class="meta-row"><th class="meta-row-label">Path</th> <td class="meta-row-value">ghcr.io/dexidp/dex:v2.32.0/dexidp/dex</td></tr>
+              <tr class="meta-row"><th class="meta-row-label">Package Manager</th> <td class="meta-row-value">apk</td></tr>
+              
+              </tbody>
+          </table>
+      </section>
     <div class="layout-container" style="padding-top: 35px;">
       <div class="cards--vuln filter--patch filter--ignore">
-        <div class="card card--vuln  disclosure--not-new severity--medium" data-snyk-test="medium">
-            <h2 class="card__title">Improper Input Validation</h2>
+        <div class="card card--vuln  disclosure--not-new severity--high" data-snyk-test="high">
+            <h2 class="card__title">Inadequate Encryption Strength</h2>
             <div class="card__section">
         
-                <div class="label label--medium">
-                    <span class="label__text">medium severity</span>
+                <div class="label label--high">
+                    <span class="label__text">high severity</span>
                 </div>
         
                 <hr/>
         
                 <ul class="card__meta">
                     <li class="card__meta__item">
-                        Package Manager: golang
+                        Package Manager: alpine:3.16
                     </li>
                     <li class="card__meta__item">
                             Vulnerable module:
         
-                            go.mongodb.org/mongo-driver/bson/bsonrw
+                            openssl/libcrypto1.1
                     </li>
         
                     <li class="card__meta__item">Introduced through:
         
+                                docker-image|ghcr.io/dexidp/dex@v2.32.0 and openssl/libcrypto1.1@1.1.1o-r0
         
-                                    github.com/argoproj/argo-cd/v2@0.0.0, github.com/go-openapi/runtime/middleware@0.19.4 and others
                     </li>
                 </ul>
         
@@ -511,36 +520,73 @@
                     <ul class="card__meta__paths">
                                 <li>
                                 <span class="list-paths__item__introduced"><em>Introduced through</em>:
-                                        github.com/argoproj/argo-cd/v2@0.0.0
+                                        docker-image|ghcr.io/dexidp/dex@v2.32.0
                                          <span class="list-paths__item__arrow">›</span> 
-                                        github.com/go-openapi/runtime/middleware@0.19.4
-                                         <span class="list-paths__item__arrow">›</span> 
-                                        github.com/go-openapi/validate@0.19.5
-                                         <span class="list-paths__item__arrow">›</span> 
-                                        github.com/go-openapi/strfmt@0.19.3
-                                         <span class="list-paths__item__arrow">›</span> 
-                                        go.mongodb.org/mongo-driver/bson@1.1.2
-                                         <span class="list-paths__item__arrow">›</span> 
-                                        go.mongodb.org/mongo-driver/bson/bsonrw@1.1.2
+                                        openssl/libcrypto1.1@1.1.1o-r0
                                         
                                 </span>
         
                             </li>
                                 <li>
                                 <span class="list-paths__item__introduced"><em>Introduced through</em>:
-                                        github.com/argoproj/argo-cd/v2@0.0.0
+                                        docker-image|ghcr.io/dexidp/dex@v2.32.0
                                          <span class="list-paths__item__arrow">›</span> 
-                                        github.com/go-openapi/runtime/middleware@0.19.4
+                                        openssl/libssl1.1@1.1.1o-r0
                                          <span class="list-paths__item__arrow">›</span> 
-                                        github.com/go-openapi/validate@0.19.5
+                                        openssl/libcrypto1.1@1.1.1o-r0
+                                        
+                                </span>
+        
+                            </li>
+                                <li>
+                                <span class="list-paths__item__introduced"><em>Introduced through</em>:
+                                        docker-image|ghcr.io/dexidp/dex@v2.32.0
                                          <span class="list-paths__item__arrow">›</span> 
-                                        github.com/go-openapi/strfmt@0.19.3
+                                        apk-tools/apk-tools@2.12.9-r3
                                          <span class="list-paths__item__arrow">›</span> 
-                                        go.mongodb.org/mongo-driver/bson@1.1.2
+                                        openssl/libcrypto1.1@1.1.1o-r0
+                                        
+                                </span>
+        
+                            </li>
+                                <li>
+                                <span class="list-paths__item__introduced"><em>Introduced through</em>:
+                                        docker-image|ghcr.io/dexidp/dex@v2.32.0
                                          <span class="list-paths__item__arrow">›</span> 
-                                        go.mongodb.org/mongo-driver/bson/bsoncodec@1.1.2
+                                        busybox/ssl_client@1.35.0-r13
                                          <span class="list-paths__item__arrow">›</span> 
-                                        go.mongodb.org/mongo-driver/bson/bsonrw@1.1.2
+                                        openssl/libcrypto1.1@1.1.1o-r0
+                                        
+                                </span>
+        
+                            </li>
+                                <li>
+                                <span class="list-paths__item__introduced"><em>Introduced through</em>:
+                                        docker-image|ghcr.io/dexidp/dex@v2.32.0
+                                         <span class="list-paths__item__arrow">›</span> 
+                                        openssl/libssl1.1@1.1.1o-r0
+                                        
+                                </span>
+        
+                            </li>
+                                <li>
+                                <span class="list-paths__item__introduced"><em>Introduced through</em>:
+                                        docker-image|ghcr.io/dexidp/dex@v2.32.0
+                                         <span class="list-paths__item__arrow">›</span> 
+                                        apk-tools/apk-tools@2.12.9-r3
+                                         <span class="list-paths__item__arrow">›</span> 
+                                        openssl/libssl1.1@1.1.1o-r0
+                                        
+                                </span>
+        
+                            </li>
+                                <li>
+                                <span class="list-paths__item__introduced"><em>Introduced through</em>:
+                                        docker-image|ghcr.io/dexidp/dex@v2.32.0
+                                         <span class="list-paths__item__arrow">›</span> 
+                                        busybox/ssl_client@1.35.0-r13
+                                         <span class="list-paths__item__arrow">›</span> 
+                                        openssl/libssl1.1@1.1.1o-r0
                                         
                                 </span>
         
@@ -551,49 +597,54 @@
         
               <hr/>
               <!-- Overview -->
-              <h2 id="overview">Overview</h2>
-        <p><a href="https://github.com/mongodb/mongo-go-driver">go.mongodb.org/mongo-driver/bson/bsonrw</a> is a The MongoDB supported driver for Go.</p>
-        <p>Affected versions of this package are vulnerable to Improper Input Validation. Specific cstrings input may not be properly validated in the MongoDB Go Driver when marshalling Go objects into BSON. A malicious user could use a Go object with specific string to potentially inject additional fields into marshalled documents.</p>
+              <h2 id="nvd-description">NVD Description</h2>
+        <p><strong><em>Note:</em></strong> <em>Versions mentioned in the description apply to the upstream <code>openssl</code> package.</em>
+        <em>See <code>How to fix?</code> for <code>Alpine:3.16</code> relevant versions.</em></p>
+        <p>AES OCB mode for 32-bit x86 platforms using the AES-NI assembly optimised implementation will not encrypt the entirety of the data under some circumstances. This could reveal sixteen bytes of data that was preexisting in the memory that wasn&#39;t written. In the special case of &#34;in place&#34; encryption, sixteen bytes of the plaintext would be revealed. Since OpenSSL does not support OCB based cipher suites for TLS and DTLS, they are both unaffected. Fixed in OpenSSL 3.0.5 (Affected 3.0.0-3.0.4). Fixed in OpenSSL 1.1.1q (Affected 1.1.1-1.1.1p).</p>
         <h2 id="remediation">Remediation</h2>
-        <p>Upgrade <code>go.mongodb.org/mongo-driver/bson/bsonrw</code> to version 1.5.1 or higher.</p>
+        <p>Upgrade <code>Alpine:3.16</code> <code>openssl</code> to version 1.1.1q-r0 or higher.</p>
         <h2 id="references">References</h2>
         <ul>
-        <li><a href="https://github.com/mongodb/mongo-go-driver/commit/3a89e6cde18d6ac5d38f39b54eaa8d4e321fd118">GitHub Commit</a></li>
-        <li><a href="https://jira.mongodb.org/browse/GODRIVER-1923">GitHub Issue</a></li>
-        <li><a href="https://github.com/mongodb/mongo-go-driver/releases/tag/v1.5.1">GitHub Release</a></li>
+        <li><a href="https://www.openssl.org/news/secadv/20220705.txt">CONFIRM</a></li>
+        <li><a href="https://git.openssl.org/gitweb/?p=openssl.git;a=commitdiff;h=a98f339ddd7e8f487d6e0088d4a9a42324885a93">CONFIRM</a></li>
+        <li><a href="https://git.openssl.org/gitweb/?p=openssl.git;a=commitdiff;h=919925673d6c9cfed3c1085497f5dfbbed5fc431">CONFIRM</a></li>
+        <li><a href="https://lists.fedoraproject.org/archives/list/package-announce@lists.fedoraproject.org/message/V6567JERRHHJW2GNGJGKDRNHR7SNPZK7/">FEDORA</a></li>
+        <li><a href="https://lists.fedoraproject.org/archives/list/package-announce@lists.fedoraproject.org/message/R6CK57NBQFTPUMXAPJURCGXUYT76NQAK/">FEDORA</a></li>
+        <li><a href="https://security.netapp.com/advisory/ntap-20220715-0011/">CONFIRM</a></li>
+        <li><a href="https://lists.fedoraproject.org/archives/list/package-announce@lists.fedoraproject.org/message/VCMNWKERPBKOEBNL7CLTTX3ZZCZLH7XA/">FEDORA</a></li>
         </ul>
         
               <hr/>
         
             <div class="cta card__cta">
-                <p><a href="https://snyk.io/vuln/SNYK-GOLANG-GOMONGODBORGMONGODRIVERBSONBSONRW-1303393">More about this vulnerability</a></p>
+                <p><a href="https://snyk.io/vuln/SNYK-ALPINE316-OPENSSL-2941806">More about this vulnerability</a></p>
             </div>
         
         </div><!-- .card -->
-        <div class="card card--vuln  disclosure--not-new severity--medium" data-snyk-test="medium">
-            <h2 class="card__title">Insecure Randomness</h2>
+        <div class="card card--vuln  disclosure--not-new severity--high" data-snyk-test="high">
+            <h2 class="card__title">Use After Free</h2>
             <div class="card__section">
         
-                <div class="label label--medium">
-                    <span class="label__text">medium severity</span>
+                <div class="label label--high">
+                    <span class="label__text">high severity</span>
                 </div>
         
                 <hr/>
         
                 <ul class="card__meta">
                     <li class="card__meta__item">
-                        Package Manager: golang
+                        Package Manager: alpine:3.16
                     </li>
                     <li class="card__meta__item">
                             Vulnerable module:
         
-                            github.com/Masterminds/goutils
+                            busybox/busybox
                     </li>
         
                     <li class="card__meta__item">Introduced through:
         
+                                docker-image|ghcr.io/dexidp/dex@v2.32.0 and busybox/busybox@1.35.0-r13
         
-                                    github.com/argoproj/argo-cd/v2@0.0.0, github.com/argoproj/notifications-engine/pkg/api@#567361917320 and others
                     </li>
                 </ul>
         
@@ -605,49 +656,31 @@
                     <ul class="card__meta__paths">
                                 <li>
                                 <span class="list-paths__item__introduced"><em>Introduced through</em>:
-                                        github.com/argoproj/argo-cd/v2@0.0.0
+                                        docker-image|ghcr.io/dexidp/dex@v2.32.0
                                          <span class="list-paths__item__arrow">›</span> 
-                                        github.com/argoproj/notifications-engine/pkg/api@#567361917320
-                                         <span class="list-paths__item__arrow">›</span> 
-                                        github.com/argoproj/notifications-engine/pkg/templates@#567361917320
-                                         <span class="list-paths__item__arrow">›</span> 
-                                        github.com/Masterminds/sprig@2.22.0
-                                         <span class="list-paths__item__arrow">›</span> 
-                                        github.com/Masterminds/goutils@1.1.0
+                                        busybox/busybox@1.35.0-r13
                                         
                                 </span>
         
                             </li>
                                 <li>
                                 <span class="list-paths__item__introduced"><em>Introduced through</em>:
-                                        github.com/argoproj/argo-cd/v2@0.0.0
+                                        docker-image|ghcr.io/dexidp/dex@v2.32.0
                                          <span class="list-paths__item__arrow">›</span> 
-                                        github.com/argoproj/notifications-engine/pkg/cmd@#567361917320
+                                        alpine-baselayout/alpine-baselayout-data@3.2.0-r20
                                          <span class="list-paths__item__arrow">›</span> 
-                                        github.com/argoproj/notifications-engine/pkg/api@#567361917320
+                                        alpine-baselayout/alpine-baselayout@3.2.0-r20
                                          <span class="list-paths__item__arrow">›</span> 
-                                        github.com/argoproj/notifications-engine/pkg/templates@#567361917320
-                                         <span class="list-paths__item__arrow">›</span> 
-                                        github.com/Masterminds/sprig@2.22.0
-                                         <span class="list-paths__item__arrow">›</span> 
-                                        github.com/Masterminds/goutils@1.1.0
+                                        busybox/busybox@1.35.0-r13
                                         
                                 </span>
         
                             </li>
                                 <li>
                                 <span class="list-paths__item__introduced"><em>Introduced through</em>:
-                                        github.com/argoproj/argo-cd/v2@0.0.0
+                                        docker-image|ghcr.io/dexidp/dex@v2.32.0
                                          <span class="list-paths__item__arrow">›</span> 
-                                        github.com/argoproj/notifications-engine/pkg/controller@#567361917320
-                                         <span class="list-paths__item__arrow">›</span> 
-                                        github.com/argoproj/notifications-engine/pkg/api@#567361917320
-                                         <span class="list-paths__item__arrow">›</span> 
-                                        github.com/argoproj/notifications-engine/pkg/templates@#567361917320
-                                         <span class="list-paths__item__arrow">›</span> 
-                                        github.com/Masterminds/sprig@2.22.0
-                                         <span class="list-paths__item__arrow">›</span> 
-                                        github.com/Masterminds/goutils@1.1.0
+                                        busybox/ssl_client@1.35.0-r13
                                         
                                 </span>
         
@@ -658,20 +691,21 @@
         
               <hr/>
               <!-- Overview -->
-              <h2 id="overview">Overview</h2>
-        <p><a href="https://pkg.go.dev/github.com/masterminds/goutils">github.com/masterminds/goutils</a> is a provides users with utility functions to manipulate strings in various ways.</p>
-        <p>Affected versions of this package are vulnerable to Insecure Randomness via the <code>RandomAlphaNumeric(int)</code> and <code>CryptoRandomAlphaNumeric(int)</code> functions. Small values of <code>int</code> in the functions above will return a smaller subset of results than they should. For example, <code>RandomAlphaNumeric(1)</code> would always return a digit in the 0-9 range, while <code>RandomAlphaNumeric(4)</code> return around ~7 million of the ~13M possible permutations.</p>
+              <h2 id="nvd-description">NVD Description</h2>
+        <p><strong><em>Note:</em></strong> <em>Versions mentioned in the description apply to the upstream <code>busybox</code> package.</em>
+        <em>See <code>How to fix?</code> for <code>Alpine:3.16</code> relevant versions.</em></p>
+        <p>A use-after-free in Busybox 1.35-x&#39;s awk applet leads to denial of service and possibly code execution when processing a crafted awk pattern in the copyvar function.</p>
         <h2 id="remediation">Remediation</h2>
-        <p>Upgrade <code>github.com/masterminds/goutils</code> to version 1.1.1 or higher.</p>
+        <p>Upgrade <code>Alpine:3.16</code> <code>busybox</code> to version 1.35.0-r15 or higher.</p>
         <h2 id="references">References</h2>
         <ul>
-        <li><a href="https://github.com/Masterminds/goutils/commit/f1923532a168b8203bfe956d8cd3b17ebece5982">GitHub Commit</a></li>
+        <li><a href="https://bugs.busybox.net/show_bug.cgi?id=14781">MISC</a></li>
         </ul>
         
               <hr/>
         
             <div class="cta card__cta">
-                <p><a href="https://snyk.io/vuln/SNYK-GOLANG-GITHUBCOMMASTERMINDSGOUTILS-1296313">More about this vulnerability</a></p>
+                <p><a href="https://snyk.io/vuln/SNYK-ALPINE316-BUSYBOX-2953070">More about this vulnerability</a></p>
             </div>
         
         </div><!-- .card -->
