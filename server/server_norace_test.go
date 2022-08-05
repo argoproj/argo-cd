@@ -6,8 +6,8 @@ package server
 import (
 	"context"
 	"fmt"
-	"io/ioutil"
 	"net/http"
+	"os"
 	"strings"
 	"testing"
 	"time"
@@ -44,7 +44,7 @@ func TestUserAgent(t *testing.T) {
 		userAgent string
 		errorMsg  string
 	}
-	currentVersionBytes, err := ioutil.ReadFile("../VERSION")
+	currentVersionBytes, err := os.ReadFile("../VERSION")
 	assert.NoError(t, err)
 	currentVersion := strings.TrimSpace(string(currentVersionBytes))
 	var tests = []testData{

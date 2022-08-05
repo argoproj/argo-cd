@@ -2,7 +2,7 @@ package app
 
 import (
 	"fmt"
-	"io/ioutil"
+	"os"
 
 	log "github.com/sirupsen/logrus"
 	v1 "k8s.io/apimachinery/pkg/apis/meta/v1"
@@ -66,7 +66,7 @@ func (a *Actions) AddSignedFile(fileName, fileContents string) *Actions {
 
 func (a *Actions) CreateFromPartialFile(data string, flags ...string) *Actions {
 	a.context.t.Helper()
-	tmpFile, err := ioutil.TempFile("", "")
+	tmpFile, err := os.CreateTemp("", "")
 	errors.CheckError(err)
 	_, err = tmpFile.Write([]byte(data))
 	errors.CheckError(err)
@@ -123,7 +123,7 @@ func (a *Actions) CreateFromFile(handler func(app *Application), flags ...string
 
 	handler(app)
 	data := grpc.MustMarshal(app)
-	tmpFile, err := ioutil.TempFile("", "")
+	tmpFile, err := os.CreateTemp("", "")
 	errors.CheckError(err)
 	_, err = tmpFile.Write(data)
 	errors.CheckError(err)

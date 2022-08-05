@@ -3,9 +3,10 @@ package utils
 import (
 	"bytes"
 	"context"
-	"io/ioutil"
+	"io"
 	"net/http"
 	"net/http/httptest"
+	"os"
 	"path/filepath"
 	"testing"
 
@@ -133,9 +134,9 @@ func TestWebhookHandler(t *testing.T) {
 
 			req := httptest.NewRequest("POST", "/api/webhook", nil)
 			req.Header.Set(test.headerKey, test.headerValue)
-			eventJSON, err := ioutil.ReadFile(filepath.Join("testdata", test.payloadFile))
+			eventJSON, err := os.ReadFile(filepath.Join("testdata", test.payloadFile))
 			assert.NoError(t, err)
-			req.Body = ioutil.NopCloser(bytes.NewReader(eventJSON))
+			req.Body = io.NopCloser(bytes.NewReader(eventJSON))
 			w := httptest.NewRecorder()
 
 			h.Handler(w, req)
