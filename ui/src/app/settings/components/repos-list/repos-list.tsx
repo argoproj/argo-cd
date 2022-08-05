@@ -273,7 +273,9 @@ export class ReposList extends React.Component<
                                                     </div>
                                                     <div className='columns small-5'>
                                                         <Tooltip content={repo.repo}>
-                                                            <span><Repo url={repo.repo} /></span>
+                                                            <span>
+                                                                <Repo url={repo.repo} />
+                                                            </span>
                                                         </Tooltip>
                                                     </div>
                                                     <div className='columns small-3'>
