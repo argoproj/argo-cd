@@ -164,6 +164,17 @@ Or via declarative syntax:
           value: $ARGOCD_APP_NAME
 ```
 
+It's also possible to use build environment variables for the Helm values file path:
+
+```yaml
+  spec:
+    source:
+      helm:
+        valueFiles:
+              - values.yaml
+              - myprotocol://somepath/$ARGOCD_APP_NAME/$ARGOCD_APP_REVISION
+```
+
 ## Helm plugins
 
 > v1.5
