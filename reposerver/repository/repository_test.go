@@ -770,6 +770,39 @@ func TestHelmWithMissingValueFiles(t *testing.T) {
 	assert.NoError(t, err)
 }
 
+func TestGenerateHelmWithEnvVars(t *testing.T) {
+	service := newService("../../util/helm/testdata/redis")
+
+	res, err := service.GenerateManifest(context.Background(), &apiclient.ManifestRequest{
+		Repo:    &argoappv1.Repository{},
+		AppName: "production",
+		ApplicationSource: &argoappv1.ApplicationSource{
+			Path: ".",
+			Helm: &argoappv1.ApplicationSourceHelm{
+				ValueFiles: []string{"values-$ARGOCD_APP_NAME.yaml"},
+			},
+		},
+	})
+
+	assert.NoError(t, err)
+
+	replicasVerified := false
+	for _, src := range res.Manifests {
+		obj := unstructured.Unstructured{}
+		err = json.Unmarshal([]byte(src), &obj)
+		assert.NoError(t, err)
+
+		if obj.GetKind() == "Deployment" && obj.GetName() == "production-redis-slave" {
+			var dep v1.Deployment
+			err := runtime.DefaultUnstructuredConverter.FromUnstructured(obj.Object, &dep)
+			assert.NoError(t, err)
+			assert.Equal(t, int32(3), *dep.Spec.Replicas)
+			replicasVerified = true
+		}
+	}
+	assert.True(t, replicasVerified)
+}
+
 // The requested value file (`../minio/values.yaml`) is outside the app path (`./util/helm/testdata/redis`), however
 // since the requested value is sill under the repo directory (`~/go/src/github.com/argoproj/argo-cd`), it is allowed
 func TestGenerateHelmWithValuesDirectoryTraversal(t *testing.T) {
