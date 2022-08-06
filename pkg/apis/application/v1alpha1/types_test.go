@@ -2,7 +2,6 @@ package v1alpha1
 
 import (
 	fmt "fmt"
-	"io/ioutil"
 	"os"
 	"path"
 	"reflect"
@@ -2849,11 +2848,11 @@ func Test_validateGroupName(t *testing.T) {
 func TestGetCAPath(t *testing.T) {
 
 	temppath := t.TempDir()
-	cert, err := ioutil.ReadFile("../../../../test/fixture/certs/argocd-test-server.crt")
+	cert, err := os.ReadFile("../../../../test/fixture/certs/argocd-test-server.crt")
 	if err != nil {
 		panic(err)
 	}
-	err = ioutil.WriteFile(path.Join(temppath, "foo.example.com"), cert, 0666)
+	err = os.WriteFile(path.Join(temppath, "foo.example.com"), cert, 0666)
 	if err != nil {
 		panic(err)
 	}

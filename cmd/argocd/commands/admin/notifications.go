@@ -41,7 +41,7 @@ func NewNotificationsCommand() *cobra.Command {
 			}
 			argocdService, err = service.NewArgoCDService(kubernetes.NewForConfigOrDie(k8sCfg), ns, argocdRepoServer, argocdRepoServerPlaintext, argocdRepoServerStrictTLS)
 			if err != nil {
-				log.Fatalf("Failed to initalize Argo CD service: %v", err)
+				log.Fatalf("Failed to initialize Argo CD service: %v", err)
 			}
 		})
 	toolsCommand.PersistentFlags().StringVar(&argocdRepoServer, "argocd-repo-server", "argocd-repo-server:8081", "Argo CD repo server address")
