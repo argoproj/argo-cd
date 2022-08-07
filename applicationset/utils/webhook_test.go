@@ -107,6 +107,24 @@ func TestWebhookHandler(t *testing.T) {
 			expectedStatusCode: http.StatusOK,
 			expectedRefresh:    false,
 		},
+		{
+			desc:               "WebHook from a GitLab repository via open merge request event",
+			headerKey:          "X-Gitlab-Event",
+			headerValue:        "Merge Request Hook",
+			payloadFile:        "gitlab-merge-request-open-event.json",
+			effectedAppSets:    []string{"pull-request-gitlab"},
+			expectedStatusCode: http.StatusOK,
+			expectedRefresh:    true,
+		},
+		{
+			desc:               "WebHook from a GitLab repository via approval merge request event",
+			headerKey:          "X-Gitlab-Event",
+			headerValue:        "Merge Request Hook",
+			payloadFile:        "gitlab-merge-request-approval-event.json",
+			effectedAppSets:    []string{"pull-request-gitlab"},
+			expectedStatusCode: http.StatusOK,
+			expectedRefresh:    false,
+		},
 	}
 
 	namespace := "test"
@@ -123,6 +141,7 @@ func TestWebhookHandler(t *testing.T) {
 				fakeAppWithGitGenerator("git-github", namespace, "https://github.com/org/repo"),
 				fakeAppWithGitGenerator("git-gitlab", namespace, "https://gitlab/group/name"),
 				fakeAppWithPullRequestGenerator("pull-request-github", namespace, "Codertocat", "Hello-World"),
+				fakeAppWithGitlabPullRequestGenerator("pull-request-gitlab", namespace, "100500"),
 				fakeAppWithMatrixAndGitGenerator("matrix-git-github", namespace, "https://github.com/org/repo"),
 				fakeAppWithMatrixAndPullRequestGenerator("matrix-pull-request-github", namespace, "Codertocat", "Hello-World"),
 				fakeAppWithMergeAndGitGenerator("merge-git-github", namespace, "https://github.com/org/repo"),
@@ -190,6 +209,26 @@ func fakeAppWithGitGenerator(name, namespace, repo string) *argoprojiov1alpha1.A
 					Git: &argoprojiov1alpha1.GitGenerator{
 						RepoURL:  repo,
 						Revision: "master",
+					},
+				},
+			},
+		},
+	}
+}
+
+func fakeAppWithGitlabPullRequestGenerator(name, namespace, projectId string) *argoprojiov1alpha1.ApplicationSet {
+	return &argoprojiov1alpha1.ApplicationSet{
+		ObjectMeta: metav1.ObjectMeta{
+			Name:      name,
+			Namespace: namespace,
+		},
+		Spec: argoprojiov1alpha1.ApplicationSetSpec{
+			Generators: []argoprojiov1alpha1.ApplicationSetGenerator{
+				{
+					PullRequest: &argoprojiov1alpha1.PullRequestGenerator{
+						GitLab: &argoprojiov1alpha1.PullRequestGeneratorGitLab{
+							Project: projectId,
+						},
 					},
 				},
 			},
