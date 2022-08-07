@@ -222,7 +222,9 @@ func (m *appStateManager) SyncAppState(app *v1alpha1.Application, state *v1alpha
 			if res.Namespaced && !proj.IsDestinationPermitted(v1alpha1.ApplicationDestination{Namespace: un.GetNamespace(), Server: app.Spec.Destination.Server, Name: app.Spec.Destination.Name}) {
 				return fmt.Errorf("namespace %v is not permitted in project '%s'", un.GetNamespace(), proj.Name)
 			}
-			if reason, allowed := proj.IsAppOfAppsPermitted(un); !allowed {
+			if reason, allowed, err := proj.IsAppOfAppsPermitted(un); err != nil {
+				return fmt.Errorf("Failed to validate App-of-Apps rule for resource %s/%s/%s: %s", un.GroupVersionKind(), un.GetNamespace(), un.GetName(), err)
+			} else if !allowed {
 				return fmt.Errorf("Nested application %v violates an App-of-Apps rule: %s", un.GetName(), reason)
 			}
 			return nil

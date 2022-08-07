@@ -344,23 +344,22 @@ func (proj AppProject) IsResourcePermitted(groupKind schema.GroupKind, namespace
 }
 
 // IsAppOfAppsPermitted returns whether a resource follows the app of apps rules of this project
-func (proj AppProject) IsAppOfAppsPermitted(un *unstructured.Unstructured) (string, bool) {
+func (proj AppProject) IsAppOfAppsPermitted(un *unstructured.Unstructured) (string, bool, error) {
 	groupVersionKind := un.GroupVersionKind()
 	group := groupVersionKind.Group
 	kind := groupVersionKind.Kind
 	if group != application.Group || kind != application.ApplicationKind {
-		return "", true
+		return "", true, nil
 	}
 	project, _, err := unstructured.NestedString(un.Object, "spec", "project")
 	if err != nil {
-		panic(fmt.Errorf(
+		return "", false, fmt.Errorf(
 			"BUG: Resource %s/%s/%s appears to be an application, but failed when retrieving its project: %s",
 			groupVersionKind,
 			un.GetNamespace(),
 			un.GetName(),
 			err.Error(),
-		))
-
+		)
 	}
 
 	if project == "" {
@@ -368,17 +367,17 @@ func (proj AppProject) IsAppOfAppsPermitted(un *unstructured.Unstructured) (stri
 	}
 
 	if proj.Spec.AppOfAppsRules == nil {
-		return project, true
+		return project, true, nil
 	}
 	sameProjectOnly := DefaultSameProjectOnly
 	if proj.Spec.AppOfAppsRules.SameProjectOnly != nil {
 		sameProjectOnly = *proj.Spec.AppOfAppsRules.SameProjectOnly
 	}
 	if sameProjectOnly && proj.Name != project {
-		return fmt.Sprintf("Applications can only be created in the project %s, not %s", proj.Name, project), false
+		return fmt.Sprintf("Applications can only be created in the project %s, not %s", proj.Name, project), false, nil
 	}
 
-	return project, true
+	return project, true, nil
 }
 
 // HasFinalizer returns true if a resource finalizer is set on an AppProject

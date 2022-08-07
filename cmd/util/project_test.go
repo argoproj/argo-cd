@@ -13,6 +13,7 @@ func TestProjectOpts_ResourceLists(t *testing.T) {
 		deniedNamespacedResources:  []string{"apps/DaemonSet"},
 		allowedClusterResources:    []string{"apiextensions.k8s.io/CustomResourceDefinition"},
 		deniedClusterResources:     []string{"rbac.authorization.k8s.io/ClusterRole"},
+		appOfAppsSameProjectOnly:   true,
 	}
 
 	assert.ElementsMatch(t,
@@ -20,5 +21,6 @@ func TestProjectOpts_ResourceLists(t *testing.T) {
 		[]v1.GroupKind{{Group: "apps", Kind: "DaemonSet"}}, opts.GetDeniedNamespacedResources(),
 		[]v1.GroupKind{{Group: "apiextensions.k8s.io", Kind: "CustomResourceDefinition"}}, opts.GetAllowedClusterResources(),
 		[]v1.GroupKind{{Group: "rbac.authorization.k8s.io", Kind: "ClusterRole"}}, opts.GetDeniedClusterResources(),
+		true, opts.GetAppOfAppsSameProjectOnly(),
 	)
 }
