@@ -10168,6 +10168,14 @@ kind: NetworkPolicy
 metadata:
   name: argocd-redis-network-policy
 spec:
+  egress:
+  - ports:
+    - port: 53
+      protocol: UDP
+    - port: 53
+      protocol: TCP
+    to:
+    - namespaceSelector: {}
   ingress:
   - from:
     - podSelector:
@@ -10187,6 +10195,7 @@ spec:
       app.kubernetes.io/name: argocd-redis
   policyTypes:
   - Ingress
+  - Egress
 ---
 apiVersion: networking.k8s.io/v1
 kind: NetworkPolicy
