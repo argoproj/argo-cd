@@ -12,6 +12,7 @@ kind: ApplicationSet
 metadata:
   name: matrix-and-union-in-matrix
 spec:
+  goTemplate: true
   generators:
     - matrix:
         generators:
@@ -55,13 +56,13 @@ spec:
                           prefix: 'second'
   template:
     metadata:
-      name: '{{values.prefix}}-{{cluster}}-{{values.suffix}}'
+      name: '{{.values.prefix}}-{{.cluster}}-{{.values.suffix}}'
     spec:
-      project: '{{values.project}}'
+      project: '{{.values.project}}'
       source:
         repoURL: https://github.com/argoproj/argo-cd.git
         targetRevision: HEAD
-        path: '{{path}}'
+        path: '{{.path.path}}'
       destination:
-        server: '{{url}}'
-        namespace: '{{path.basename}}'
+        server: '{{.url}}'
+        namespace: '{{.path.basename}}'
