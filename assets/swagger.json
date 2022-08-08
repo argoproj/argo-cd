@@ -6781,6 +6781,12 @@
         "automated": {
           "$ref": "#/definitions/v1alpha1SyncPolicyAutomated"
         },
+        "createNamespaceLabels": {
+          "type": "object",
+          "additionalProperties": {
+            "type": "string"
+          }
+        },
         "retry": {
           "$ref": "#/definitions/v1alpha1RetryStrategy"
         },

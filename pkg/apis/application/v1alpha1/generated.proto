@@ -1287,6 +1287,8 @@ message SyncPolicy {
 
   // Retry controls failed sync retry behavior
   optional RetryStrategy retry = 3;
+
+  map<string, string> createNamespaceLabels = 4;
 }
 
 // SyncPolicyAutomated controls the behavior of an automated sync

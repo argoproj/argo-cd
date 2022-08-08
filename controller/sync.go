@@ -221,6 +221,11 @@ func (m *appStateManager) SyncAppState(app *v1alpha1.Application, state *v1alpha
 				return true
 			}
 			return false
+		}, func(un *unstructured.Unstructured) bool {
+			if un != nil && len(app.Spec.SyncPolicy.CreateNamespaceLabels) > 0 {
+				un.SetLabels(app.Spec.SyncPolicy.CreateNamespaceLabels)
+			}
+			return true
 		}),
 		sync.WithSyncWaveHook(delayBetweenSyncWaves),
 		sync.WithPruneLast(syncOp.SyncOptions.HasOption(common.SyncOptionPruneLast)),

@@ -4410,6 +4410,21 @@ func schema_pkg_apis_application_v1alpha1_SyncPolicy(ref common.ReferenceCallbac
 							Ref:         ref("github.com/argoproj/argo-cd/v2/pkg/apis/application/v1alpha1.RetryStrategy"),
 						},
 					},
+					"createNamespaceLabels": {
+						SchemaProps: spec.SchemaProps{
+							Type: []string{"object"},
+							AdditionalProperties: &spec.SchemaOrBool{
+								Allows: true,
+								Schema: &spec.Schema{
+									SchemaProps: spec.SchemaProps{
+										Default: "",
+										Type:    []string{"string"},
+										Format:  "",
+									},
+								},
+							},
+						},
+					},
 				},
 			},
 		},

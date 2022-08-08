@@ -735,7 +735,8 @@ type SyncPolicy struct {
 	// Options allow you to specify whole app sync-options
 	SyncOptions SyncOptions `json:"syncOptions,omitempty" protobuf:"bytes,2,opt,name=syncOptions"`
 	// Retry controls failed sync retry behavior
-	Retry *RetryStrategy `json:"retry,omitempty" protobuf:"bytes,3,opt,name=retry"`
+	Retry                 *RetryStrategy    `json:"retry,omitempty" protobuf:"bytes,3,opt,name=retry"`
+	CreateNamespaceLabels map[string]string `json:"createNamespaceLabels,omitempty" protobuf:"bytes,4,opt,name=createNamespaceLabels"`
 }
 
 // IsZero returns true if the sync policy is empty

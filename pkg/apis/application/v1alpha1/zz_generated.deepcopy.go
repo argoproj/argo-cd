@@ -2176,6 +2176,13 @@ func (in *SyncPolicy) DeepCopyInto(out *SyncPolicy) {
 		*out = new(RetryStrategy)
 		(*in).DeepCopyInto(*out)
 	}
+	if in.CreateNamespaceLabels != nil {
+		in, out := &in.CreateNamespaceLabels, &out.CreateNamespaceLabels
+		*out = make(map[string]string, len(*in))
+		for key, val := range *in {
+			(*out)[key] = val
+		}
+	}
 	return
 }
 
