@@ -9,9 +9,9 @@ import (
 
 // ServeHealthCheck serves the health check endpoint.
 // ServeHealthCheck relies on the provided function to return an error if unhealthy and nil otherwise.
-func ServeHealthCheck(mux *http.ServeMux, f func() error) {
+func ServeHealthCheck(mux *http.ServeMux, f func(r *http.Request) error) {
 	mux.HandleFunc("/healthz", func(w http.ResponseWriter, r *http.Request) {
-		if err := f(); err != nil {
+		if err := f(r); err != nil {
 			w.WriteHeader(http.StatusServiceUnavailable)
 			log.Errorln(w, err)
 		} else {

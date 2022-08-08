@@ -7,13 +7,14 @@ import (
 
 	"github.com/argoproj/gitops-engine/pkg/health"
 	. "github.com/argoproj/gitops-engine/pkg/sync/common"
-	. "github.com/argoproj/gitops-engine/pkg/utils/errors"
+	"github.com/stretchr/testify/require"
 
-	. "github.com/argoproj/argo-cd/pkg/apis/application/v1alpha1"
-	"github.com/argoproj/argo-cd/test/e2e/fixture"
-	. "github.com/argoproj/argo-cd/test/e2e/fixture"
-	. "github.com/argoproj/argo-cd/test/e2e/fixture/app"
-	"github.com/argoproj/argo-cd/util/rand"
+	. "github.com/argoproj/argo-cd/v2/pkg/apis/application/v1alpha1"
+	"github.com/argoproj/argo-cd/v2/test/e2e/fixture"
+	. "github.com/argoproj/argo-cd/v2/test/e2e/fixture"
+	. "github.com/argoproj/argo-cd/v2/test/e2e/fixture/app"
+	. "github.com/argoproj/argo-cd/v2/util/errors"
+	"github.com/argoproj/argo-cd/v2/util/rand"
 )
 
 // when you selectively sync, only selected resources should be synced, but the app will be out of sync
@@ -22,7 +23,7 @@ func TestSelectiveSync(t *testing.T) {
 		Path("guestbook").
 		SelectedResource(":Service:guestbook-ui").
 		When().
-		Create().
+		CreateApp().
 		Sync().
 		Then().
 		Expect(Success("")).
@@ -39,7 +40,7 @@ func TestSelectiveSyncDoesNotRunHooks(t *testing.T) {
 		Path("hook").
 		SelectedResource(":Pod:pod").
 		When().
-		Create().
+		CreateApp().
 		Sync().
 		Then().
 		Expect(Success("")).
@@ -53,7 +54,9 @@ func TestSelectiveSyncDoesNotRunHooks(t *testing.T) {
 func TestSelectiveSyncWithoutNamespace(t *testing.T) {
 	selectedResourceNamespace := getNewNamespace(t)
 	defer func() {
-		FailOnErr(Run("", "kubectl", "delete", "namespace", selectedResourceNamespace))
+		if !t.Skipped() {
+			FailOnErr(Run("", "kubectl", "delete", "namespace", selectedResourceNamespace))
+		}
 	}()
 	Given(t).
 		Prune(true).
@@ -65,7 +68,7 @@ func TestSelectiveSyncWithoutNamespace(t *testing.T) {
 		When().
 		PatchFile("guestbook-ui-deployment-ns.yaml", fmt.Sprintf(`[{"op": "replace", "path": "/metadata/namespace", "value": "%s"}]`, selectedResourceNamespace)).
 		PatchFile("guestbook-ui-svc-ns.yaml", fmt.Sprintf(`[{"op": "replace", "path": "/metadata/namespace", "value": "%s"}]`, selectedResourceNamespace)).
-		Create().
+		CreateApp().
 		Sync().
 		Then().
 		Expect(Success("")).
@@ -81,7 +84,9 @@ func TestSelectiveSyncWithoutNamespace(t *testing.T) {
 func TestSelectiveSyncWithNamespace(t *testing.T) {
 	selectedResourceNamespace := getNewNamespace(t)
 	defer func() {
-		FailOnErr(Run("", "kubectl", "delete", "namespace", selectedResourceNamespace))
+		if !t.Skipped() {
+			FailOnErr(Run("", "kubectl", "delete", "namespace", selectedResourceNamespace))
+		}
 	}()
 	Given(t).
 		Prune(true).
@@ -93,7 +98,7 @@ func TestSelectiveSyncWithNamespace(t *testing.T) {
 		When().
 		PatchFile("guestbook-ui-deployment-ns.yaml", fmt.Sprintf(`[{"op": "replace", "path": "/metadata/namespace", "value": "%s"}]`, selectedResourceNamespace)).
 		PatchFile("guestbook-ui-svc-ns.yaml", fmt.Sprintf(`[{"op": "replace", "path": "/metadata/namespace", "value": "%s"}]`, selectedResourceNamespace)).
-		Create().
+		CreateApp().
 		Sync().
 		Then().
 		Expect(Success("")).
@@ -106,7 +111,9 @@ func TestSelectiveSyncWithNamespace(t *testing.T) {
 }
 
 func getNewNamespace(t *testing.T) string {
-	postFix := "-" + strings.ToLower(rand.RandString(5))
+	randStr, err := rand.String(5)
+	require.NoError(t, err)
+	postFix := "-" + strings.ToLower(randStr)
 	name := fixture.DnsFriendly(t.Name(), "")
 	return fixture.DnsFriendly(fmt.Sprintf("argocd-e2e-%s", name), postFix)
 }

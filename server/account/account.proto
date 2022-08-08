@@ -1,5 +1,5 @@
 syntax = "proto3";
-option go_package = "github.com/argoproj/argo-cd/pkg/apiclient/account";
+option go_package = "github.com/argoproj/argo-cd/v2/pkg/apiclient/account";
 
 // Account Service
 //
@@ -7,7 +7,6 @@ option go_package = "github.com/argoproj/argo-cd/pkg/apiclient/account";
 
 package account;
 
-import "gogoproto/gogo.proto";
 import "google/api/annotations.proto";
 
 message UpdatePasswordRequest {
@@ -76,8 +75,9 @@ message EmptyResponse {}
 
 service AccountService {
 
+	// CanI checks if the current account has permission to perform an action
 	rpc CanI(CanIRequest) returns (CanIResponse) {
-		option (google.api.http).get = "/api/v1/account/can-i/{resource}/{action}/{subresource}";
+		option (google.api.http).get = "/api/v1/account/can-i/{resource}/{action}/{subresource=**}";
 	}
 
 	// UpdatePassword updates an account's password to a new value
@@ -88,14 +88,17 @@ service AccountService {
 		};
 	}
 
+	// ListAccounts returns the list of accounts
 	rpc ListAccounts(ListAccountRequest) returns (AccountsList) {
 		option (google.api.http).get = "/api/v1/account";
 	}
 
+	// GetAccount returns an account
 	rpc GetAccount(GetAccountRequest) returns (Account) {
 		option (google.api.http).get = "/api/v1/account/{name}";
 	}
 
+	// CreateToken creates a token
 	rpc CreateToken(CreateTokenRequest) returns (CreateTokenResponse) {
 		option (google.api.http) = {
 			post: "/api/v1/account/{name}/token"
@@ -103,6 +106,7 @@ service AccountService {
 		};
 	}
 
+	// DeleteToken deletes a token
 	rpc DeleteToken(DeleteTokenRequest) returns (EmptyResponse) {
 		option (google.api.http).delete = "/api/v1/account/{name}/token/{id}";
 	}

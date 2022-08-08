@@ -54,4 +54,11 @@
             font-size: 24px;
         }
     }
+
+    .user-info-panel-buttons {
+        margin-top: 10px;
+        &:focus {
+            background-color: $argo-color-gray-4;
+        }
+    }
 }

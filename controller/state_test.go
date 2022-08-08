@@ -2,7 +2,6 @@ package controller
 
 import (
 	"encoding/json"
-	"io/ioutil"
 	"os"
 	"testing"
 	"time"
@@ -13,14 +12,16 @@ import (
 	. "github.com/argoproj/gitops-engine/pkg/utils/testing"
 	"github.com/stretchr/testify/assert"
 	v1 "k8s.io/api/apps/v1"
+	corev1 "k8s.io/api/core/v1"
 	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
 	"k8s.io/apimachinery/pkg/apis/meta/v1/unstructured"
 	"k8s.io/apimachinery/pkg/runtime"
 
-	"github.com/argoproj/argo-cd/common"
-	argoappv1 "github.com/argoproj/argo-cd/pkg/apis/application/v1alpha1"
-	"github.com/argoproj/argo-cd/reposerver/apiclient"
-	"github.com/argoproj/argo-cd/test"
+	"github.com/argoproj/argo-cd/v2/common"
+	argoappv1 "github.com/argoproj/argo-cd/v2/pkg/apis/application/v1alpha1"
+	"github.com/argoproj/argo-cd/v2/reposerver/apiclient"
+	"github.com/argoproj/argo-cd/v2/test"
+	"github.com/argoproj/argo-cd/v2/util/argo"
 )
 
 // TestCompareAppStateEmpty tests comparison when both git and live have no objects
@@ -36,7 +37,7 @@ func TestCompareAppStateEmpty(t *testing.T) {
 		managedLiveObjs: make(map[kube.ResourceKey]*unstructured.Unstructured),
 	}
 	ctrl := newFakeController(&data)
-	compRes := ctrl.appStateManager.CompareAppState(app, &defaultProj, "", app.Spec.Source, false, nil)
+	compRes := ctrl.appStateManager.CompareAppState(app, &defaultProj, "", app.Spec.Source, false, false, nil)
 	assert.NotNil(t, compRes)
 	assert.NotNil(t, compRes.syncStatus)
 	assert.Equal(t, argoappv1.SyncStatusCodeSynced, compRes.syncStatus.Status)
@@ -59,7 +60,7 @@ func TestCompareAppStateMissing(t *testing.T) {
 		managedLiveObjs: make(map[kube.ResourceKey]*unstructured.Unstructured),
 	}
 	ctrl := newFakeController(&data)
-	compRes := ctrl.appStateManager.CompareAppState(app, &defaultProj, "", app.Spec.Source, false, nil)
+	compRes := ctrl.appStateManager.CompareAppState(app, &defaultProj, "", app.Spec.Source, false, false, nil)
 	assert.NotNil(t, compRes)
 	assert.NotNil(t, compRes.syncStatus)
 	assert.Equal(t, argoappv1.SyncStatusCodeOutOfSync, compRes.syncStatus.Status)
@@ -86,7 +87,7 @@ func TestCompareAppStateExtra(t *testing.T) {
 		},
 	}
 	ctrl := newFakeController(&data)
-	compRes := ctrl.appStateManager.CompareAppState(app, &defaultProj, "", app.Spec.Source, false, nil)
+	compRes := ctrl.appStateManager.CompareAppState(app, &defaultProj, "", app.Spec.Source, false, false, nil)
 	assert.NotNil(t, compRes)
 	assert.Equal(t, argoappv1.SyncStatusCodeOutOfSync, compRes.syncStatus.Status)
 	assert.Equal(t, 1, len(compRes.resources))
@@ -112,7 +113,7 @@ func TestCompareAppStateHook(t *testing.T) {
 		managedLiveObjs: make(map[kube.ResourceKey]*unstructured.Unstructured),
 	}
 	ctrl := newFakeController(&data)
-	compRes := ctrl.appStateManager.CompareAppState(app, &defaultProj, "", app.Spec.Source, false, nil)
+	compRes := ctrl.appStateManager.CompareAppState(app, &defaultProj, "", app.Spec.Source, false, false, nil)
 	assert.NotNil(t, compRes)
 	assert.Equal(t, argoappv1.SyncStatusCodeSynced, compRes.syncStatus.Status)
 	assert.Equal(t, 0, len(compRes.resources))
@@ -139,7 +140,7 @@ func TestCompareAppStateSkipHook(t *testing.T) {
 		managedLiveObjs: make(map[kube.ResourceKey]*unstructured.Unstructured),
 	}
 	ctrl := newFakeController(&data)
-	compRes := ctrl.appStateManager.CompareAppState(app, &defaultProj, "", app.Spec.Source, false, nil)
+	compRes := ctrl.appStateManager.CompareAppState(app, &defaultProj, "", app.Spec.Source, false, false, nil)
 	assert.NotNil(t, compRes)
 	assert.Equal(t, argoappv1.SyncStatusCodeSynced, compRes.syncStatus.Status)
 	assert.Equal(t, 1, len(compRes.resources))
@@ -165,7 +166,7 @@ func TestCompareAppStateCompareOptionIgnoreExtraneous(t *testing.T) {
 	}
 	ctrl := newFakeController(&data)
 
-	compRes := ctrl.appStateManager.CompareAppState(app, &defaultProj, "", app.Spec.Source, false, nil)
+	compRes := ctrl.appStateManager.CompareAppState(app, &defaultProj, "", app.Spec.Source, false, false, nil)
 
 	assert.NotNil(t, compRes)
 	assert.Equal(t, argoappv1.SyncStatusCodeSynced, compRes.syncStatus.Status)
@@ -193,7 +194,7 @@ func TestCompareAppStateExtraHook(t *testing.T) {
 		},
 	}
 	ctrl := newFakeController(&data)
-	compRes := ctrl.appStateManager.CompareAppState(app, &defaultProj, "", app.Spec.Source, false, nil)
+	compRes := ctrl.appStateManager.CompareAppState(app, &defaultProj, "", app.Spec.Source, false, false, nil)
 
 	assert.NotNil(t, compRes)
 	assert.Equal(t, argoappv1.SyncStatusCodeSynced, compRes.syncStatus.Status)
@@ -236,7 +237,7 @@ func TestCompareAppStateDuplicatedNamespacedResources(t *testing.T) {
 		},
 	}
 	ctrl := newFakeController(&data)
-	compRes := ctrl.appStateManager.CompareAppState(app, &defaultProj, "", app.Spec.Source, false, nil)
+	compRes := ctrl.appStateManager.CompareAppState(app, &defaultProj, "", app.Spec.Source, false, false, nil)
 
 	assert.NotNil(t, compRes)
 	assert.Equal(t, 1, len(app.Status.Conditions))
@@ -266,7 +267,7 @@ func TestSetHealth(t *testing.T) {
 	app := newFakeApp()
 	deployment := kube.MustToUnstructured(&v1.Deployment{
 		TypeMeta: metav1.TypeMeta{
-			APIVersion: "apps/v1beta1",
+			APIVersion: "apps/v1",
 			Kind:       "Deployment",
 		},
 		ObjectMeta: metav1.ObjectMeta{
@@ -287,9 +288,9 @@ func TestSetHealth(t *testing.T) {
 		},
 	})
 
-	compRes := ctrl.appStateManager.CompareAppState(app, &defaultProj, "", app.Spec.Source, false, nil)
+	compRes := ctrl.appStateManager.CompareAppState(app, &defaultProj, "", app.Spec.Source, false, false, nil)
 
-	assert.Equal(t, compRes.healthStatus.Status, health.HealthStatusHealthy)
+	assert.Equal(t, health.HealthStatusHealthy, compRes.healthStatus.Status)
 }
 
 func TestSetHealthSelfReferencedApp(t *testing.T) {
@@ -297,7 +298,7 @@ func TestSetHealthSelfReferencedApp(t *testing.T) {
 	unstructuredApp := kube.MustToUnstructured(app)
 	deployment := kube.MustToUnstructured(&v1.Deployment{
 		TypeMeta: metav1.TypeMeta{
-			APIVersion: "apps/v1beta1",
+			APIVersion: "apps/v1",
 			Kind:       "Deployment",
 		},
 		ObjectMeta: metav1.ObjectMeta{
@@ -319,9 +320,9 @@ func TestSetHealthSelfReferencedApp(t *testing.T) {
 		},
 	})
 
-	compRes := ctrl.appStateManager.CompareAppState(app, &defaultProj, "", app.Spec.Source, false, nil)
+	compRes := ctrl.appStateManager.CompareAppState(app, &defaultProj, "", app.Spec.Source, false, false, nil)
 
-	assert.Equal(t, compRes.healthStatus.Status, health.HealthStatusHealthy)
+	assert.Equal(t, health.HealthStatusHealthy, compRes.healthStatus.Status)
 }
 
 func TestSetManagedResourcesWithOrphanedResources(t *testing.T) {
@@ -389,7 +390,7 @@ func TestReturnUnknownComparisonStateOnSettingLoadError(t *testing.T) {
 		},
 	})
 
-	compRes := ctrl.appStateManager.CompareAppState(app, &defaultProj, "", app.Spec.Source, false, nil)
+	compRes := ctrl.appStateManager.CompareAppState(app, &defaultProj, "", app.Spec.Source, false, false, nil)
 
 	assert.Equal(t, health.HealthStatusUnknown, compRes.healthStatus.Status)
 	assert.Equal(t, argoappv1.SyncStatusCodeUnknown, compRes.syncStatus.Status)
@@ -479,7 +480,7 @@ func Test_appStateManager_persistRevisionHistory(t *testing.T) {
 // helper function to read contents of a file to string
 // panics on error
 func mustReadFile(path string) string {
-	b, err := ioutil.ReadFile(path)
+	b, err := os.ReadFile(path)
 	if err != nil {
 		panic(err.Error())
 	}
@@ -525,7 +526,7 @@ func TestSignedResponseNoSignatureRequired(t *testing.T) {
 			managedLiveObjs: make(map[kube.ResourceKey]*unstructured.Unstructured),
 		}
 		ctrl := newFakeController(&data)
-		compRes := ctrl.appStateManager.CompareAppState(app, &defaultProj, "", app.Spec.Source, false, nil)
+		compRes := ctrl.appStateManager.CompareAppState(app, &defaultProj, "", app.Spec.Source, false, false, nil)
 		assert.NotNil(t, compRes)
 		assert.NotNil(t, compRes.syncStatus)
 		assert.Equal(t, argoappv1.SyncStatusCodeSynced, compRes.syncStatus.Status)
@@ -547,7 +548,7 @@ func TestSignedResponseNoSignatureRequired(t *testing.T) {
 			managedLiveObjs: make(map[kube.ResourceKey]*unstructured.Unstructured),
 		}
 		ctrl := newFakeController(&data)
-		compRes := ctrl.appStateManager.CompareAppState(app, &defaultProj, "", app.Spec.Source, false, nil)
+		compRes := ctrl.appStateManager.CompareAppState(app, &defaultProj, "", app.Spec.Source, false, false, nil)
 		assert.NotNil(t, compRes)
 		assert.NotNil(t, compRes.syncStatus)
 		assert.Equal(t, argoappv1.SyncStatusCodeSynced, compRes.syncStatus.Status)
@@ -576,7 +577,7 @@ func TestSignedResponseSignatureRequired(t *testing.T) {
 			managedLiveObjs: make(map[kube.ResourceKey]*unstructured.Unstructured),
 		}
 		ctrl := newFakeController(&data)
-		compRes := ctrl.appStateManager.CompareAppState(app, &signedProj, "", app.Spec.Source, false, nil)
+		compRes := ctrl.appStateManager.CompareAppState(app, &signedProj, "", app.Spec.Source, false, false, nil)
 		assert.NotNil(t, compRes)
 		assert.NotNil(t, compRes.syncStatus)
 		assert.Equal(t, argoappv1.SyncStatusCodeSynced, compRes.syncStatus.Status)
@@ -598,7 +599,7 @@ func TestSignedResponseSignatureRequired(t *testing.T) {
 			managedLiveObjs: make(map[kube.ResourceKey]*unstructured.Unstructured),
 		}
 		ctrl := newFakeController(&data)
-		compRes := ctrl.appStateManager.CompareAppState(app, &signedProj, "abc123", app.Spec.Source, false, nil)
+		compRes := ctrl.appStateManager.CompareAppState(app, &signedProj, "abc123", app.Spec.Source, false, false, nil)
 		assert.NotNil(t, compRes)
 		assert.NotNil(t, compRes.syncStatus)
 		assert.Equal(t, argoappv1.SyncStatusCodeSynced, compRes.syncStatus.Status)
@@ -620,7 +621,7 @@ func TestSignedResponseSignatureRequired(t *testing.T) {
 			managedLiveObjs: make(map[kube.ResourceKey]*unstructured.Unstructured),
 		}
 		ctrl := newFakeController(&data)
-		compRes := ctrl.appStateManager.CompareAppState(app, &signedProj, "abc123", app.Spec.Source, false, nil)
+		compRes := ctrl.appStateManager.CompareAppState(app, &signedProj, "abc123", app.Spec.Source, false, false, nil)
 		assert.NotNil(t, compRes)
 		assert.NotNil(t, compRes.syncStatus)
 		assert.Equal(t, argoappv1.SyncStatusCodeSynced, compRes.syncStatus.Status)
@@ -642,7 +643,7 @@ func TestSignedResponseSignatureRequired(t *testing.T) {
 			managedLiveObjs: make(map[kube.ResourceKey]*unstructured.Unstructured),
 		}
 		ctrl := newFakeController(&data)
-		compRes := ctrl.appStateManager.CompareAppState(app, &signedProj, "abc123", app.Spec.Source, false, nil)
+		compRes := ctrl.appStateManager.CompareAppState(app, &signedProj, "abc123", app.Spec.Source, false, false, nil)
 		assert.NotNil(t, compRes)
 		assert.NotNil(t, compRes.syncStatus)
 		assert.Equal(t, argoappv1.SyncStatusCodeSynced, compRes.syncStatus.Status)
@@ -667,7 +668,7 @@ func TestSignedResponseSignatureRequired(t *testing.T) {
 		ctrl := newFakeController(&data)
 		testProj := signedProj
 		testProj.Spec.SignatureKeys[0].KeyID = "4AEE18F83AFDEB24"
-		compRes := ctrl.appStateManager.CompareAppState(app, &testProj, "abc123", app.Spec.Source, false, nil)
+		compRes := ctrl.appStateManager.CompareAppState(app, &testProj, "abc123", app.Spec.Source, false, false, nil)
 		assert.NotNil(t, compRes)
 		assert.NotNil(t, compRes.syncStatus)
 		assert.Equal(t, argoappv1.SyncStatusCodeSynced, compRes.syncStatus.Status)
@@ -692,7 +693,7 @@ func TestSignedResponseSignatureRequired(t *testing.T) {
 		// it doesn't matter for our test whether local manifests are valid
 		localManifests := []string{"foobar"}
 		ctrl := newFakeController(&data)
-		compRes := ctrl.appStateManager.CompareAppState(app, &signedProj, "abc123", app.Spec.Source, false, localManifests)
+		compRes := ctrl.appStateManager.CompareAppState(app, &signedProj, "abc123", app.Spec.Source, false, false, localManifests)
 		assert.NotNil(t, compRes)
 		assert.NotNil(t, compRes.syncStatus)
 		assert.Equal(t, argoappv1.SyncStatusCodeUnknown, compRes.syncStatus.Status)
@@ -717,7 +718,7 @@ func TestSignedResponseSignatureRequired(t *testing.T) {
 			managedLiveObjs: make(map[kube.ResourceKey]*unstructured.Unstructured),
 		}
 		ctrl := newFakeController(&data)
-		compRes := ctrl.appStateManager.CompareAppState(app, &signedProj, "abc123", app.Spec.Source, false, nil)
+		compRes := ctrl.appStateManager.CompareAppState(app, &signedProj, "abc123", app.Spec.Source, false, false, nil)
 		assert.NotNil(t, compRes)
 		assert.NotNil(t, compRes.syncStatus)
 		assert.Equal(t, argoappv1.SyncStatusCodeSynced, compRes.syncStatus.Status)
@@ -742,7 +743,7 @@ func TestSignedResponseSignatureRequired(t *testing.T) {
 		// it doesn't matter for our test whether local manifests are valid
 		localManifests := []string{""}
 		ctrl := newFakeController(&data)
-		compRes := ctrl.appStateManager.CompareAppState(app, &signedProj, "abc123", app.Spec.Source, false, localManifests)
+		compRes := ctrl.appStateManager.CompareAppState(app, &signedProj, "abc123", app.Spec.Source, false, false, localManifests)
 		assert.NotNil(t, compRes)
 		assert.NotNil(t, compRes.syncStatus)
 		assert.Equal(t, argoappv1.SyncStatusCodeSynced, compRes.syncStatus.Status)
@@ -769,4 +770,129 @@ func TestComparisonResult_GetSyncStatus(t *testing.T) {
 	}
 
 	assert.Equal(t, status, res.GetSyncStatus())
+}
+
+func TestIsLiveResourceManaged(t *testing.T) {
+	managedObj := kube.MustToUnstructured(&corev1.ConfigMap{
+		TypeMeta: metav1.TypeMeta{
+			APIVersion: "v1",
+			Kind:       "ConfigMap",
+		},
+		ObjectMeta: metav1.ObjectMeta{
+			Name:      "configmap1",
+			Namespace: "default",
+			Annotations: map[string]string{
+				common.AnnotationKeyAppInstance: "guestbook:/ConfigMap:default/configmap1",
+			},
+		},
+	})
+	managedObjWithLabel := kube.MustToUnstructured(&corev1.ConfigMap{
+		TypeMeta: metav1.TypeMeta{
+			APIVersion: "v1",
+			Kind:       "ConfigMap",
+		},
+		ObjectMeta: metav1.ObjectMeta{
+			Name:      "configmap1",
+			Namespace: "default",
+			Labels: map[string]string{
+				common.LabelKeyAppInstance: "guestbook",
+			},
+		},
+	})
+	unmanagedObjWrongName := kube.MustToUnstructured(&corev1.ConfigMap{
+		TypeMeta: metav1.TypeMeta{
+			APIVersion: "v1",
+			Kind:       "ConfigMap",
+		},
+		ObjectMeta: metav1.ObjectMeta{
+			Name:      "configmap2",
+			Namespace: "default",
+			Annotations: map[string]string{
+				common.AnnotationKeyAppInstance: "guestbook:/ConfigMap:default/configmap1",
+			},
+		},
+	})
+	unmanagedObjWrongKind := kube.MustToUnstructured(&corev1.ConfigMap{
+		TypeMeta: metav1.TypeMeta{
+			APIVersion: "v1",
+			Kind:       "ConfigMap",
+		},
+		ObjectMeta: metav1.ObjectMeta{
+			Name:      "configmap2",
+			Namespace: "default",
+			Annotations: map[string]string{
+				common.AnnotationKeyAppInstance: "guestbook:/Service:default/configmap2",
+			},
+		},
+	})
+	unmanagedObjWrongGroup := kube.MustToUnstructured(&corev1.ConfigMap{
+		TypeMeta: metav1.TypeMeta{
+			APIVersion: "v1",
+			Kind:       "ConfigMap",
+		},
+		ObjectMeta: metav1.ObjectMeta{
+			Name:      "configmap2",
+			Namespace: "default",
+			Annotations: map[string]string{
+				common.AnnotationKeyAppInstance: "guestbook:apps/ConfigMap:default/configmap2",
+			},
+		},
+	})
+	unmanagedObjWrongNamespace := kube.MustToUnstructured(&corev1.ConfigMap{
+		TypeMeta: metav1.TypeMeta{
+			APIVersion: "v1",
+			Kind:       "ConfigMap",
+		},
+		ObjectMeta: metav1.ObjectMeta{
+			Name:      "configmap2",
+			Namespace: "default",
+			Annotations: map[string]string{
+				common.AnnotationKeyAppInstance: "guestbook:/ConfigMap:fakens/configmap2",
+			},
+		},
+	})
+	ctrl := newFakeController(&fakeData{
+		apps: []runtime.Object{app, &defaultProj},
+		manifestResponse: &apiclient.ManifestResponse{
+			Manifests: []string{},
+			Namespace: test.FakeDestNamespace,
+			Server:    test.FakeClusterURL,
+			Revision:  "abc123",
+		},
+		managedLiveObjs: map[kube.ResourceKey]*unstructured.Unstructured{
+			kube.GetResourceKey(managedObj):                 managedObj,
+			kube.GetResourceKey(unmanagedObjWrongName):      unmanagedObjWrongName,
+			kube.GetResourceKey(unmanagedObjWrongKind):      unmanagedObjWrongKind,
+			kube.GetResourceKey(unmanagedObjWrongGroup):     unmanagedObjWrongGroup,
+			kube.GetResourceKey(unmanagedObjWrongNamespace): unmanagedObjWrongNamespace,
+		},
+	})
+
+	manager := ctrl.appStateManager.(*appStateManager)
+
+	// Managed resource w/ annotations
+	assert.True(t, manager.isSelfReferencedObj(managedObj, common.AnnotationKeyAppInstance, argo.TrackingMethodLabel))
+	assert.True(t, manager.isSelfReferencedObj(managedObj, common.AnnotationKeyAppInstance, argo.TrackingMethodAnnotation))
+
+	// Managed resource w/ label
+	assert.True(t, manager.isSelfReferencedObj(managedObjWithLabel, common.AnnotationKeyAppInstance, argo.TrackingMethodLabel))
+
+	// Wrong resource name
+	assert.True(t, manager.isSelfReferencedObj(unmanagedObjWrongName, common.AnnotationKeyAppInstance, argo.TrackingMethodLabel))
+	assert.False(t, manager.isSelfReferencedObj(unmanagedObjWrongName, common.AnnotationKeyAppInstance, argo.TrackingMethodAnnotation))
+
+	// Wrong resource group
+	assert.True(t, manager.isSelfReferencedObj(unmanagedObjWrongGroup, common.AnnotationKeyAppInstance, argo.TrackingMethodLabel))
+	assert.False(t, manager.isSelfReferencedObj(unmanagedObjWrongGroup, common.AnnotationKeyAppInstance, argo.TrackingMethodAnnotation))
+
+	// Wrong resource kind
+	assert.True(t, manager.isSelfReferencedObj(unmanagedObjWrongKind, common.AnnotationKeyAppInstance, argo.TrackingMethodLabel))
+	assert.False(t, manager.isSelfReferencedObj(unmanagedObjWrongKind, common.AnnotationKeyAppInstance, argo.TrackingMethodAnnotation))
+
+	// Wrong resource namespace
+	assert.True(t, manager.isSelfReferencedObj(unmanagedObjWrongNamespace, common.AnnotationKeyAppInstance, argo.TrackingMethodLabel))
+	assert.False(t, manager.isSelfReferencedObj(unmanagedObjWrongNamespace, common.AnnotationKeyAppInstance, argo.TrackingMethodAnnotationAndLabel))
+
+	// Nil resource
+	assert.True(t, manager.isSelfReferencedObj(nil, common.AnnotationKeyAppInstance, argo.TrackingMethodAnnotation))
 }

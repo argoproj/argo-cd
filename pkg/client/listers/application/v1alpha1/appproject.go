@@ -3,15 +3,17 @@
 package v1alpha1
 
 import (
-	v1alpha1 "github.com/argoproj/argo-cd/pkg/apis/application/v1alpha1"
+	v1alpha1 "github.com/argoproj/argo-cd/v2/pkg/apis/application/v1alpha1"
 	"k8s.io/apimachinery/pkg/api/errors"
 	"k8s.io/apimachinery/pkg/labels"
 	"k8s.io/client-go/tools/cache"
 )
 
 // AppProjectLister helps list AppProjects.
+// All objects returned here must be treated as read-only.
 type AppProjectLister interface {
 	// List lists all AppProjects in the indexer.
+	// Objects returned here must be treated as read-only.
 	List(selector labels.Selector) (ret []*v1alpha1.AppProject, err error)
 	// AppProjects returns an object that can list and get AppProjects.
 	AppProjects(namespace string) AppProjectNamespaceLister
@@ -42,10 +44,13 @@ func (s *appProjectLister) AppProjects(namespace string) AppProjectNamespaceList
 }
 
 // AppProjectNamespaceLister helps list and get AppProjects.
+// All objects returned here must be treated as read-only.
 type AppProjectNamespaceLister interface {
 	// List lists all AppProjects in the indexer for a given namespace.
+	// Objects returned here must be treated as read-only.
 	List(selector labels.Selector) (ret []*v1alpha1.AppProject, err error)
 	// Get retrieves the AppProject from the indexer for a given namespace and name.
+	// Objects returned here must be treated as read-only.
 	Get(name string) (*v1alpha1.AppProject, error)
 	AppProjectNamespaceListerExpansion
 }

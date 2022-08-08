@@ -1,16 +1,12 @@
 syntax = "proto3";
-option go_package = "github.com/argoproj/argo-cd/pkg/apiclient/session";
+option go_package = "github.com/argoproj/argo-cd/v2/pkg/apiclient/session";
 
 // Session Service
 //
 // Session Service API performs CRUD actions against session resources
 package session;
 
-import "gogoproto/gogo.proto";
 import "google/api/annotations.proto";
-import "k8s.io/api/core/v1/generated.proto";
-import "github.com/argoproj/argo-cd/pkg/apis/application/v1alpha1/generated.proto";
-
 
 // SessionCreateRequest is for logging in.
 message SessionCreateRequest {
@@ -47,7 +43,7 @@ service SessionService {
     option (google.api.http).get = "/api/v1/session/userinfo";
   }
 
-  // Create a new JWT for authentication and set a cookie if using HTTP.
+  // Create a new JWT for authentication and set a cookie if using HTTP
   rpc Create(SessionCreateRequest) returns (SessionResponse) {
     option (google.api.http) = {
       post: "/api/v1/session"
@@ -55,7 +51,7 @@ service SessionService {
     };
   }
 
-  // Delete an existing JWT cookie if using HTTP.
+  // Delete an existing JWT cookie if using HTTP
   rpc Delete(SessionDeleteRequest) returns (SessionResponse) {
     option (google.api.http) = {
       delete: "/api/v1/session"

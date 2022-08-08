@@ -4,15 +4,16 @@ import * as PropTypes from 'prop-types';
 import * as React from 'react';
 import {Helmet} from 'react-helmet';
 import {Redirect, Route, RouteComponentProps, Router, Switch} from 'react-router';
-
 import applications from './applications';
 import help from './help';
 import login from './login';
 import settings from './settings';
+import {VersionPanel} from './shared/components/version-info/version-info-panel';
 import {Provider} from './shared/context';
 import {services} from './shared/services';
 import requests from './shared/services/requests';
 import {hashCode} from './shared/utils';
+import {Banner} from './ui-banner/ui-banner';
 import userInfo from './user-info';
 
 services.viewPreferences.init();
@@ -52,12 +53,12 @@ const navItems = [
     }
 ];
 
-const versionInfo = services.version.version();
+const versionLoader = services.version.version();
 
 async function isExpiredSSO() {
     try {
-        const {loggedIn, iss} = await services.users.get();
-        if (loggedIn && iss !== 'argocd') {
+        const {iss} = await services.users.get();
+        if (iss && iss !== 'argocd') {
             const authSettings = await services.authService.settings();
             return ((authSettings.dexConfig && authSettings.dexConfig.connectors) || []).length > 0 || authSettings.oidcConfig;
         }
@@ -92,7 +93,7 @@ requests.onError.subscribe(async err => {
     }
 });
 
-export class App extends React.Component<{}, {popupProps: PopupProps; error: Error}> {
+export class App extends React.Component<{}, {popupProps: PopupProps; showVersionPanel: boolean; error: Error}> {
     public static childContextTypes = {
         history: PropTypes.object,
         apis: PropTypes.object
@@ -108,7 +109,7 @@ export class App extends React.Component<{}, {popupProps: PopupProps; error: Err
 
     constructor(props: {}) {
         super(props);
-        this.state = {popupProps: null, error: null};
+        this.state = {popupProps: null, error: null, showVersionPanel: false};
         this.popupManager = new PopupManager();
         this.notificationsManager = new NotificationsManager();
         this.navigationManager = new NavigationManager(history);
@@ -186,15 +187,24 @@ export class App extends React.Component<{}, {popupProps: PopupProps; error: Err
                                                     <Layout
                                                         navItems={navItems}
                                                         version={() => (
-                                                            <DataLoader load={() => versionInfo}>
-                                                                {msg => (
-                                                                    <Tooltip content={msg.Version}>
-                                                                        <span style={{whiteSpace: 'nowrap'}}>{msg.Version}</span>
-                                                                    </Tooltip>
-                                                                )}
+                                                            <DataLoader load={() => versionLoader}>
+                                                                {version => {
+                                                                    const versionString = version ? version.Version : 'Unknown';
+                                                                    return (
+                                                                        <React.Fragment>
+                                                                            <Tooltip content={versionString}>
+                                                                                <a style={{color: 'white'}} onClick={() => this.setState({showVersionPanel: true})}>
+                                                                                    {versionString}
+                                                                                </a>
+                                                                            </Tooltip>
+                                                                        </React.Fragment>
+                                                                    );
+                                                                }}
                                                             </DataLoader>
                                                         )}>
-                                                        <route.component {...routeProps} />
+                                                        <Banner>
+                                                            <route.component {...routeProps} />
+                                                        </Banner>
                                                     </Layout>
                                                 )
                                             }
@@ -204,21 +214,10 @@ export class App extends React.Component<{}, {popupProps: PopupProps; error: Err
                                 <Redirect path='*' to='/' />
                             </Switch>
                         </Router>
-                        <DataLoader load={() => services.authService.settings()}>
-                            {s =>
-                                (s.help && s.help.chatUrl && (
-                                    <div style={{position: 'fixed', right: 10, bottom: 10}}>
-                                        <a href={s.help.chatUrl} className='argo-button argo-button--special'>
-                                            <i className='fas fa-comment-alt' /> {s.help.chatText}
-                                        </a>
-                                    </div>
-                                )) ||
-                                null
-                            }
-                        </DataLoader>
                     </Provider>
                 </PageContext.Provider>
                 <Notifications notifications={this.notificationsManager.notifications} />
+                <VersionPanel version={versionLoader} isShown={this.state.showVersionPanel} onClose={() => this.setState({showVersionPanel: false})} />
             </React.Fragment>
         );
     }

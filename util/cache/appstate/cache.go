@@ -3,19 +3,21 @@ package appstate
 import (
 	"context"
 	"fmt"
+	"sort"
 	"time"
 
 	"github.com/go-redis/redis/v8"
 	"github.com/spf13/cobra"
 
-	appv1 "github.com/argoproj/argo-cd/pkg/apis/application/v1alpha1"
-	cacheutil "github.com/argoproj/argo-cd/util/cache"
+	appv1 "github.com/argoproj/argo-cd/v2/pkg/apis/application/v1alpha1"
+	cacheutil "github.com/argoproj/argo-cd/v2/util/cache"
+	"github.com/argoproj/argo-cd/v2/util/env"
 )
 
 var ErrCacheMiss = cacheutil.ErrCacheMiss
 
 const (
-	clusterInfoCacheExpiration = 1 * time.Minute
+	clusterInfoCacheExpiration = 10 * time.Minute
 )
 
 type Cache struct {
@@ -30,7 +32,7 @@ func NewCache(cache *cacheutil.Cache, appStateCacheExpiration time.Duration) *Ca
 func AddCacheFlagsToCmd(cmd *cobra.Command, opts ...func(client *redis.Client)) func() (*Cache, error) {
 	var appStateCacheExpiration time.Duration
 
-	cmd.Flags().DurationVar(&appStateCacheExpiration, "app-state-cache-expiration", 1*time.Hour, "Cache expiration for app state")
+	cmd.Flags().DurationVar(&appStateCacheExpiration, "app-state-cache-expiration", env.ParseDurationFromEnv("ARGOCD_APP_STATE_CACHE_EXPIRATION", 1*time.Hour, 0, 10*time.Hour), "Cache expiration for app state")
 
 	cacheFactory := cacheutil.AddCacheFlagsToCmd(cmd, opts...)
 
@@ -61,6 +63,9 @@ func (c *Cache) GetAppManagedResources(appName string, res *[]*appv1.ResourceDif
 }
 
 func (c *Cache) SetAppManagedResources(appName string, managedResources []*appv1.ResourceDiff) error {
+	sort.Slice(managedResources, func(i, j int) bool {
+		return managedResources[i].FullName() < managedResources[j].FullName()
+	})
 	return c.SetItem(appManagedResourcesKey(appName), managedResources, c.appStateCacheExpiration, managedResources == nil)
 }
 
@@ -82,6 +87,9 @@ func (c *Cache) OnAppResourcesTreeChanged(ctx context.Context, appName string, c
 }
 
 func (c *Cache) SetAppResourcesTree(appName string, resourcesTree *appv1.ApplicationTree) error {
+	if resourcesTree != nil {
+		resourcesTree.Normalize()
+	}
 	err := c.SetItem(appResourcesTreeKey(appName), resourcesTree, c.appStateCacheExpiration, resourcesTree == nil)
 	if err != nil {
 		return err

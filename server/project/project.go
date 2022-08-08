@@ -6,8 +6,10 @@ import (
 	"reflect"
 	"strings"
 
+	"github.com/argoproj/argo-cd/v2/util/db"
+
 	"github.com/argoproj/pkg/sync"
-	"github.com/dgrijalva/jwt-go"
+	"github.com/golang-jwt/jwt/v4"
 	"github.com/google/uuid"
 	log "github.com/sirupsen/logrus"
 	"google.golang.org/grpc/codes"
@@ -17,16 +19,18 @@ import (
 	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
 	"k8s.io/apimachinery/pkg/fields"
 	"k8s.io/client-go/kubernetes"
+	"k8s.io/client-go/tools/cache"
 
-	"github.com/argoproj/argo-cd/common"
-	"github.com/argoproj/argo-cd/pkg/apiclient/project"
-	"github.com/argoproj/argo-cd/pkg/apis/application/v1alpha1"
-	appclientset "github.com/argoproj/argo-cd/pkg/client/clientset/versioned"
-	"github.com/argoproj/argo-cd/server/rbacpolicy"
-	"github.com/argoproj/argo-cd/util/argo"
-	jwtutil "github.com/argoproj/argo-cd/util/jwt"
-	"github.com/argoproj/argo-cd/util/rbac"
-	"github.com/argoproj/argo-cd/util/session"
+	"github.com/argoproj/argo-cd/v2/pkg/apiclient/project"
+	"github.com/argoproj/argo-cd/v2/pkg/apis/application/v1alpha1"
+	appclientset "github.com/argoproj/argo-cd/v2/pkg/client/clientset/versioned"
+	listersv1alpha1 "github.com/argoproj/argo-cd/v2/pkg/client/listers/application/v1alpha1"
+	"github.com/argoproj/argo-cd/v2/server/rbacpolicy"
+	"github.com/argoproj/argo-cd/v2/util/argo"
+	jwtutil "github.com/argoproj/argo-cd/v2/util/jwt"
+	"github.com/argoproj/argo-cd/v2/util/rbac"
+	"github.com/argoproj/argo-cd/v2/util/session"
+	"github.com/argoproj/argo-cd/v2/util/settings"
 )
 
 const (
@@ -44,12 +48,17 @@ type Server struct {
 	auditLogger   *argo.AuditLogger
 	projectLock   sync.KeyLock
 	sessionMgr    *session.SessionManager
+	projInformer  cache.SharedIndexInformer
+	settingsMgr   *settings.SettingsManager
+	db            db.ArgoDB
 }
 
 // NewServer returns a new instance of the Project service
-func NewServer(ns string, kubeclientset kubernetes.Interface, appclientset appclientset.Interface, enf *rbac.Enforcer, projectLock sync.KeyLock, sessionMgr *session.SessionManager, policyEnf *rbacpolicy.RBACPolicyEnforcer) *Server {
+func NewServer(ns string, kubeclientset kubernetes.Interface, appclientset appclientset.Interface, enf *rbac.Enforcer, projectLock sync.KeyLock, sessionMgr *session.SessionManager, policyEnf *rbacpolicy.RBACPolicyEnforcer,
+	projInformer cache.SharedIndexInformer, settingsMgr *settings.SettingsManager, db db.ArgoDB) *Server {
 	auditLogger := argo.NewAuditLogger(ns, kubeclientset, "argocd-server")
-	return &Server{enf: enf, policyEnf: policyEnf, appclientset: appclientset, kubeclientset: kubeclientset, ns: ns, projectLock: projectLock, auditLogger: auditLogger, sessionMgr: sessionMgr}
+	return &Server{enf: enf, policyEnf: policyEnf, appclientset: appclientset, kubeclientset: kubeclientset, ns: ns, projectLock: projectLock, auditLogger: auditLogger, sessionMgr: sessionMgr,
+		projInformer: projInformer, settingsMgr: settingsMgr, db: db}
 }
 
 func validateProject(proj *v1alpha1.AppProject) error {
@@ -100,17 +109,20 @@ func (s *Server) CreateToken(ctx context.Context, q *project.ProjectTokenCreateR
 	if err != nil {
 		return nil, status.Error(codes.InvalidArgument, err.Error())
 	}
-	parser := &jwt.Parser{
-		SkipClaimsValidation: true,
-	}
-	claims := jwt.StandardClaims{}
+	parser := jwt.NewParser(jwt.WithoutClaimsValidation())
+	claims := jwt.RegisteredClaims{}
 	_, _, err = parser.ParseUnverified(jwtToken, &claims)
 	if err != nil {
 		return nil, status.Error(codes.InvalidArgument, err.Error())
 	}
-	issuedAt := claims.IssuedAt
-	expiresAt := claims.ExpiresAt
-	id = claims.Id
+	var issuedAt, expiresAt int64
+	if claims.IssuedAt != nil {
+		issuedAt = claims.IssuedAt.Unix()
+	}
+	if claims.ExpiresAt != nil {
+		expiresAt = claims.ExpiresAt.Unix()
+	}
+	id = claims.ID
 
 	items := append(prj.Status.JWTTokensByRole[q.Role].Items, v1alpha1.JWTToken{IssuedAt: issuedAt, ExpiresAt: expiresAt, ID: id})
 	if _, found := prj.Status.JWTTokensByRole[q.Role]; found {
@@ -170,8 +182,11 @@ func (s *Server) DeleteToken(ctx context.Context, q *project.ProjectTokenDeleteR
 	return &project.EmptyResponse{}, nil
 }
 
-// Create a new project.
+// Create a new project
 func (s *Server) Create(ctx context.Context, q *project.ProjectCreateRequest) (*v1alpha1.AppProject, error) {
+	if q.Project == nil {
+		return nil, status.Errorf(codes.InvalidArgument, "missing payload 'project' in request")
+	}
 	if err := s.enf.EnforceErr(ctx.Value("claims"), rbacpolicy.ResourceProjects, rbacpolicy.ActionCreate, q.Project.Name); err != nil {
 		return nil, err
 	}
@@ -194,7 +209,7 @@ func (s *Server) Create(ctx context.Context, q *project.ProjectCreateRequest) (*
 			res, err = s.appclientset.ArgoprojV1alpha1().AppProjects(s.ns).Update(ctx, existing, metav1.UpdateOptions{})
 		} else {
 			if !reflect.DeepEqual(existing.Spec, q.GetProject().Spec) {
-				return nil, status.Errorf(codes.InvalidArgument, "existing project spec is different, use upsert flag to force update")
+				return nil, status.Errorf(codes.InvalidArgument, argo.GenerateSpecIsDifferentErrorMessage("project", existing.Spec, q.GetProject().Spec))
 			}
 			return existing, nil
 		}
@@ -221,6 +236,26 @@ func (s *Server) List(ctx context.Context, q *project.ProjectQuery) (*v1alpha1.A
 	return list, err
 }
 
+// GetDetailedProject returns a project with scoped resources
+func (s *Server) GetDetailedProject(ctx context.Context, q *project.ProjectQuery) (*project.DetailedProjectsResponse, error) {
+	if err := s.enf.EnforceErr(ctx.Value("claims"), rbacpolicy.ResourceProjects, rbacpolicy.ActionGet, q.Name); err != nil {
+		return nil, err
+	}
+	proj, repositories, clusters, err := argo.GetAppProjectWithScopedResources(q.Name, listersv1alpha1.NewAppProjectLister(s.projInformer.GetIndexer()), s.ns, s.settingsMgr, s.db, ctx)
+	if err != nil {
+		return nil, err
+	}
+	proj.NormalizeJWTTokens()
+	globalProjects := argo.GetGlobalProjects(proj, listersv1alpha1.NewAppProjectLister(s.projInformer.GetIndexer()), s.settingsMgr)
+
+	return &project.DetailedProjectsResponse{
+		GlobalProjects: globalProjects,
+		Project:        proj,
+		Repositories:   repositories,
+		Clusters:       clusters,
+	}, err
+}
+
 // Get returns a project by name
 func (s *Server) Get(ctx context.Context, q *project.ProjectQuery) (*v1alpha1.AppProject, error) {
 	if err := s.enf.EnforceErr(ctx.Value("claims"), rbacpolicy.ResourceProjects, rbacpolicy.ActionGet, q.Name); err != nil {
@@ -234,8 +269,25 @@ func (s *Server) Get(ctx context.Context, q *project.ProjectQuery) (*v1alpha1.Ap
 	return proj, err
 }
 
+// GetGlobalProjects returns global projects
+func (s *Server) GetGlobalProjects(ctx context.Context, q *project.ProjectQuery) (*project.GlobalProjectsResponse, error) {
+	projOrig, err := s.Get(ctx, q)
+	if err != nil {
+		return nil, err
+	}
+
+	globalProjects := argo.GetGlobalProjects(projOrig, listersv1alpha1.NewAppProjectLister(s.projInformer.GetIndexer()), s.settingsMgr)
+
+	res := &project.GlobalProjectsResponse{}
+	res.Items = globalProjects
+	return res, nil
+}
+
 // Update updates a project
 func (s *Server) Update(ctx context.Context, q *project.ProjectUpdateRequest) (*v1alpha1.AppProject, error) {
+	if q.Project == nil {
+		return nil, status.Errorf(codes.InvalidArgument, "missing payload 'project' in request")
+	}
 	if err := s.enf.EnforceErr(ctx.Value("claims"), rbacpolicy.ResourceProjects, rbacpolicy.ActionUpdate, q.Project.Name); err != nil {
 		return nil, err
 	}
@@ -328,7 +380,7 @@ func (s *Server) Update(ctx context.Context, q *project.ProjectUpdateRequest) (*
 
 // Delete deletes a project
 func (s *Server) Delete(ctx context.Context, q *project.ProjectQuery) (*project.EmptyResponse, error) {
-	if q.Name == common.DefaultAppProjectName {
+	if q.Name == v1alpha1.DefaultAppProjectName {
 		return nil, status.Errorf(codes.InvalidArgument, "name '%s' is reserved and cannot be deleted", q.Name)
 	}
 	if err := s.enf.EnforceErr(ctx.Value("claims"), rbacpolicy.ResourceProjects, rbacpolicy.ActionDelete, q.Name); err != nil {

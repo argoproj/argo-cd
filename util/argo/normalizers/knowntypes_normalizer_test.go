@@ -2,12 +2,12 @@ package normalizers
 
 import (
 	"fmt"
-	"io/ioutil"
+	"os"
 	"strings"
 	"testing"
 
-	"github.com/argoproj/argo-cd/pkg/apis/application"
-	"github.com/argoproj/argo-cd/pkg/apis/application/v1alpha1"
+	"github.com/argoproj/argo-cd/v2/pkg/apis/application"
+	"github.com/argoproj/argo-cd/v2/pkg/apis/application/v1alpha1"
 
 	"github.com/argoproj/pkg/errors"
 	"github.com/ghodss/yaml"
@@ -197,6 +197,37 @@ spec:
 	assert.Equal(t, "2", cpu)
 }
 
+func TestNormalize_Quantity(t *testing.T) {
+	rollout := mustUnmarshalYAML(`apiVersion: some.io/v1alpha1
+kind: TestCRD
+metadata:
+  name: canary-demo
+spec:
+  ram: 1.25G`)
+	normalizer, err := NewKnownTypesNormalizer(map[string]v1alpha1.ResourceOverride{
+		crdGroupKind: {
+			KnownTypeFields: []v1alpha1.KnownTypeField{{
+				Type:  "core/Quantity",
+				Field: "spec.ram",
+			}},
+		},
+	})
+	if !assert.NoError(t, err) {
+		return
+	}
+
+	err = normalizer.Normalize(rollout)
+	if !assert.NoError(t, err) {
+		return
+	}
+
+	ram, ok, err := unstructured.NestedFieldNoCopy(rollout.Object, "spec", "ram")
+	if !assert.NoError(t, err) || !assert.True(t, ok) {
+		return
+	}
+	assert.Equal(t, "1250M", ram)
+}
+
 func TestFieldDoesNotExist(t *testing.T) {
 	rollout := mustUnmarshalYAML(someCRDYaml)
 	normalizer, err := NewKnownTypesNormalizer(map[string]v1alpha1.ResourceOverride{
@@ -255,7 +286,7 @@ func TestOverrideKeyWithoutGroup(t *testing.T) {
 }
 
 func TestKnownTypes(t *testing.T) {
-	typesData, err := ioutil.ReadFile("./diffing_known_types.txt")
+	typesData, err := os.ReadFile("./diffing_known_types.txt")
 	if !assert.NoError(t, err) {
 		return
 	}

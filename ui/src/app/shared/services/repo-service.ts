@@ -25,7 +25,9 @@ export class RepositoriesService {
         tlsClientCertData,
         tlsClientCertKey,
         insecure,
-        enableLfs
+        enableLfs,
+        proxy,
+        project
     }: {
         type: string;
         name: string;
@@ -36,10 +38,12 @@ export class RepositoriesService {
         tlsClientCertKey: string;
         insecure: boolean;
         enableLfs: boolean;
+        proxy: string;
+        project?: string;
     }): Promise<models.Repository> {
         return requests
             .post('/repositories')
-            .send({type, name, repo: url, username, password, tlsClientCertData, tlsClientCertKey, insecure, enableLfs})
+            .send({type, name, repo: url, username, password, tlsClientCertData, tlsClientCertKey, insecure, enableLfs, proxy, project})
             .then(res => res.body as models.Repository);
     }
 
@@ -49,7 +53,9 @@ export class RepositoriesService {
         url,
         sshPrivateKey,
         insecure,
-        enableLfs
+        enableLfs,
+        proxy,
+        project
     }: {
         type: string;
         name: string;
@@ -57,10 +63,61 @@ export class RepositoriesService {
         sshPrivateKey: string;
         insecure: boolean;
         enableLfs: boolean;
+        proxy: string;
+        project?: string;
     }): Promise<models.Repository> {
         return requests
             .post('/repositories')
-            .send({type, name, repo: url, sshPrivateKey, insecure, enableLfs})
+            .send({type, name, repo: url, sshPrivateKey, insecure, enableLfs, proxy, project})
+            .then(res => res.body as models.Repository);
+    }
+
+    public createGitHubApp({
+        type,
+        name,
+        url,
+        githubAppPrivateKey,
+        githubAppId,
+        githubAppInstallationId,
+        githubAppEnterpriseBaseURL,
+        tlsClientCertData,
+        tlsClientCertKey,
+        insecure,
+        enableLfs,
+        proxy,
+        project
+    }: {
+        type: string;
+        name: string;
+        url: string;
+        githubAppPrivateKey: string;
+        githubAppId: bigint;
+        githubAppInstallationId: bigint;
+        githubAppEnterpriseBaseURL: string;
+        tlsClientCertData: string;
+        tlsClientCertKey: string;
+        insecure: boolean;
+        enableLfs: boolean;
+        proxy: string;
+        project?: string;
+    }): Promise<models.Repository> {
+        return requests
+            .post('/repositories')
+            .send({
+                type,
+                name,
+                repo: url,
+                githubAppPrivateKey,
+                githubAppId,
+                githubAppInstallationId,
+                githubAppEnterpriseBaseURL,
+                tlsClientCertData,
+                tlsClientCertKey,
+                insecure,
+                enableLfs,
+                proxy,
+                project
+            })
             .then(res => res.body as models.Repository);
     }
 
@@ -71,10 +128,16 @@ export class RepositoriesService {
             .then(res => res.body as models.Repository);
     }
 
-    public apps(repo: string, revision: string): Promise<models.AppInfo[]> {
+    public async revisions(repo: string): Promise<models.RefsInfo> {
+        return requests.get(`/repositories/${encodeURIComponent(repo)}/refs`).then(res => res.body as models.RefsInfo);
+    }
+
+    public apps(repo: string, revision: string, appName: string, appProject: string): Promise<models.AppInfo[]> {
         return requests
             .get(`/repositories/${encodeURIComponent(repo)}/apps`)
             .query({revision})
+            .query({appName})
+            .query({appProject})
             .then(res => (res.body.items as models.AppInfo[]) || []);
     }
 
@@ -82,10 +145,10 @@ export class RepositoriesService {
         return requests.get(`/repositories/${encodeURIComponent(repo)}/helmcharts`).then(res => (res.body.items as models.HelmChart[]) || []);
     }
 
-    public appDetails(source: models.ApplicationSource): Promise<models.RepoAppDetails> {
+    public appDetails(source: models.ApplicationSource, appName: string, appProject: string): Promise<models.RepoAppDetails> {
         return requests
             .post(`/repositories/${encodeURIComponent(source.repoURL)}/appdetails`)
-            .send({source})
+            .send({source, appName, appProject})
             .then(res => res.body as models.RepoAppDetails);
     }
 }

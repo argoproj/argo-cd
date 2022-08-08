@@ -1,0 +1,25 @@
+apiVersion: networking.k8s.io/v1
+kind: NetworkPolicy
+metadata:
+  name: argocd-dex-server-network-policy
+spec:
+  podSelector:
+    matchLabels:
+      app.kubernetes.io/name: argocd-dex-server
+  policyTypes:
+  - Ingress
+  ingress:
+    - from:
+      - podSelector:
+          matchLabels:
+            app.kubernetes.io/name: argocd-server
+      ports:
+        - protocol: TCP
+          port: 5556
+        - protocol: TCP
+          port: 5557
+    - from:
+        - namespaceSelector: { }
+      ports:
+        - port: 5558
+          protocol: TCP

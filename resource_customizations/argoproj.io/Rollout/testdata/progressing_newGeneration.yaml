@@ -1,0 +1,60 @@
+apiVersion: argoproj.io/v1alpha1
+kind: Rollout
+metadata:
+  creationTimestamp: "2020-11-13T00:44:55Z"
+  generation: 2
+  name: basic
+  namespace: argocd-e2e
+  resourceVersion: "182108"
+  selfLink: /apis/argoproj.io/v1alpha1/namespaces/argocd-e2e/rollouts/basic
+  uid: 34e4bbfc-222c-4968-bd60-2b30ae81110d
+spec:
+  replicas: 1
+  selector:
+    matchLabels:
+      app: basic
+  strategy:
+    canary:
+      steps:
+      - setWeight: 50
+      - pause: {}
+  template:
+    metadata:
+      creationTimestamp: null
+      labels:
+        app: basic
+    spec:
+      containers:
+      - image: nginx:1.19-alpine
+        name: basic
+        resources:
+          requests:
+            cpu: 1m
+            memory: 16Mi
+status:
+  HPAReplicas: 1
+  availableReplicas: 1
+  blueGreen: {}
+  canary: {}
+  conditions:
+  - lastTransitionTime: "2020-11-13T00:48:20Z"
+    lastUpdateTime: "2020-11-13T00:48:22Z"
+    message: ReplicaSet "basic-754cb84d5" has successfully progressed.
+    reason: NewReplicaSetAvailable
+    status: "True"
+    type: Progressing
+  - lastTransitionTime: "2020-11-13T00:48:22Z"
+    lastUpdateTime: "2020-11-13T00:48:22Z"
+    message: Rollout has minimum availability
+    reason: AvailableReason
+    status: "True"
+    type: Available
+  currentPodHash: 754cb84d5
+  currentStepHash: 757f5f97b
+  currentStepIndex: 2
+  observedGeneration: "1"       # <-- uses new integer observedGeneration
+  readyReplicas: 1
+  replicas: 1
+  selector: app=basic
+  stableRS: 754cb84d5
+  updatedReplicas: 1

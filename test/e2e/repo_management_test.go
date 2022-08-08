@@ -4,14 +4,14 @@ import (
 	"context"
 	"testing"
 
-	argoio "github.com/argoproj/gitops-engine/pkg/utils/io"
 	"github.com/stretchr/testify/assert"
 
-	repositorypkg "github.com/argoproj/argo-cd/pkg/apiclient/repository"
-	"github.com/argoproj/argo-cd/test/e2e/fixture"
-	"github.com/argoproj/argo-cd/test/e2e/fixture/app"
-	"github.com/argoproj/argo-cd/test/e2e/fixture/repos"
-	"github.com/argoproj/argo-cd/util/settings"
+	repositorypkg "github.com/argoproj/argo-cd/v2/pkg/apiclient/repository"
+	"github.com/argoproj/argo-cd/v2/test/e2e/fixture"
+	"github.com/argoproj/argo-cd/v2/test/e2e/fixture/app"
+	"github.com/argoproj/argo-cd/v2/test/e2e/fixture/repos"
+	argoio "github.com/argoproj/argo-cd/v2/util/io"
+	"github.com/argoproj/argo-cd/v2/util/settings"
 )
 
 func TestAddRemovePublicRepo(t *testing.T) {
@@ -24,7 +24,7 @@ func TestAddRemovePublicRepo(t *testing.T) {
 		assert.NoError(t, err)
 		defer argoio.Close(conn)
 
-		repo, err := repoClient.List(context.Background(), &repositorypkg.RepoQuery{})
+		repo, err := repoClient.ListRepositories(context.Background(), &repositorypkg.RepoQuery{})
 
 		assert.Nil(t, err)
 		exists := false
@@ -39,7 +39,7 @@ func TestAddRemovePublicRepo(t *testing.T) {
 		_, err = fixture.RunCli("repo", "rm", repoUrl)
 		assert.NoError(t, err)
 
-		repo, err = repoClient.List(context.Background(), &repositorypkg.RepoQuery{})
+		repo, err = repoClient.ListRepositories(context.Background(), &repositorypkg.RepoQuery{})
 		assert.NoError(t, err)
 		exists = false
 		for i := range repo.Items {
@@ -82,7 +82,7 @@ func TestAddRemoveHelmRepo(t *testing.T) {
 		assert.NoError(t, err)
 		defer argoio.Close(conn)
 
-		repo, err := repoClient.List(context.Background(), &repositorypkg.RepoQuery{})
+		repo, err := repoClient.ListRepositories(context.Background(), &repositorypkg.RepoQuery{})
 
 		assert.NoError(t, err)
 		exists := false
@@ -97,7 +97,7 @@ func TestAddRemoveHelmRepo(t *testing.T) {
 		_, err = fixture.RunCli("repo", "rm", fixture.RepoURL(fixture.RepoURLTypeHelm))
 		assert.NoError(t, err)
 
-		repo, err = repoClient.List(context.Background(), &repositorypkg.RepoQuery{})
+		repo, err = repoClient.ListRepositories(context.Background(), &repositorypkg.RepoQuery{})
 		assert.NoError(t, err)
 		exists = false
 		for i := range repo.Items {
@@ -133,7 +133,7 @@ func TestAddHelmRepoInsecureSkipVerify(t *testing.T) {
 
 		defer argoio.Close(conn)
 
-		repo, err := repoClient.List(context.Background(), &repositorypkg.RepoQuery{})
+		repo, err := repoClient.ListRepositories(context.Background(), &repositorypkg.RepoQuery{})
 
 		if !assert.NoError(t, err) {
 			return

@@ -1,14 +1,14 @@
 package settings
 
 import (
+	"context"
 	"github.com/ghodss/yaml"
-	"golang.org/x/net/context"
 
-	sessionmgr "github.com/argoproj/argo-cd/util/session"
+	sessionmgr "github.com/argoproj/argo-cd/v2/util/session"
 
-	settingspkg "github.com/argoproj/argo-cd/pkg/apiclient/settings"
-	"github.com/argoproj/argo-cd/pkg/apis/application/v1alpha1"
-	"github.com/argoproj/argo-cd/util/settings"
+	settingspkg "github.com/argoproj/argo-cd/v2/pkg/apiclient/settings"
+	"github.com/argoproj/argo-cd/v2/pkg/apis/application/v1alpha1"
+	"github.com/argoproj/argo-cd/v2/util/settings"
 )
 
 // Server provides a Settings service
@@ -79,11 +79,17 @@ func (s *Server) Get(ctx context.Context, q *settingspkg.SettingsQuery) (*settin
 		kustomizeVersions = append(kustomizeVersions, kustomizeSettings.Versions[i].Name)
 	}
 
+	trackingMethod, err := s.mgr.GetTrackingMethod()
+	if err != nil {
+		return nil, err
+	}
+
 	set := settingspkg.Settings{
 		URL:                argoCDSettings.URL,
 		AppLabelKey:        appInstanceLabelKey,
 		ResourceOverrides:  overrides,
 		StatusBadgeEnabled: argoCDSettings.StatusBadgeEnabled,
+		StatusBadgeRootUrl: argoCDSettings.StatusBadgeRootUrl,
 		KustomizeOptions: &v1alpha1.KustomizeOptions{
 			BuildOptions: argoCDSettings.KustomizeBuildOptions,
 		},
@@ -92,13 +98,17 @@ func (s *Server) Get(ctx context.Context, q *settingspkg.SettingsQuery) (*settin
 			AnonymizeUsers: gaSettings.AnonymizeUsers,
 		},
 		Help: &settingspkg.Help{
-			ChatUrl:  help.ChatURL,
-			ChatText: help.ChatText,
+			ChatUrl:    help.ChatURL,
+			ChatText:   help.ChatText,
+			BinaryUrls: help.BinaryURLs,
 		},
 		Plugins:            plugins,
 		UserLoginsDisabled: userLoginsDisabled,
 		KustomizeVersions:  kustomizeVersions,
 		UiCssURL:           argoCDSettings.UiCssURL,
+		PasswordPattern:    argoCDSettings.PasswordPattern,
+		TrackingMethod:     trackingMethod,
+		ExecEnabled:        argoCDSettings.ExecEnabled,
 	}
 
 	if sessionmgr.LoggedIn(ctx) || s.disableAuth {
@@ -111,6 +121,10 @@ func (s *Server) Get(ctx context.Context, q *settingspkg.SettingsQuery) (*settin
 			tools[i] = &configManagementPlugins[i]
 		}
 		set.ConfigManagementPlugins = tools
+		set.UiBannerContent = argoCDSettings.UiBannerContent
+		set.UiBannerURL = argoCDSettings.UiBannerURL
+		set.UiBannerPermanent = argoCDSettings.UiBannerPermanent
+		set.UiBannerPosition = argoCDSettings.UiBannerPosition
 	}
 	if argoCDSettings.DexConfig != "" {
 		var cfg settingspkg.DexConfig

@@ -3,7 +3,6 @@ package main
 import (
 	"context"
 	"fmt"
-	"io/ioutil"
 	"os"
 	"path"
 	"path/filepath"
@@ -19,7 +18,7 @@ import (
 	"k8s.io/client-go/tools/cache"
 	"k8s.io/client-go/tools/clientcmd"
 
-	"github.com/argoproj/argo-cd/util/cli"
+	"github.com/argoproj/argo-cd/v2/util/cli"
 
 	// load the gcp plugin (required to authenticate against GKE clusters).
 	_ "k8s.io/client-go/plugin/pkg/client/auth/gcp"
@@ -88,7 +87,7 @@ func newCommand() *cobra.Command {
 				// Create or update files that are specified in ConfigMap
 				for name, data := range cm.Data {
 					p := path.Join(destPath, name)
-					err := ioutil.WriteFile(p, []byte(data), 0644)
+					err := os.WriteFile(p, []byte(data), 0644)
 					if err != nil {
 						log.Warnf("Failed to create file %s: %v", p, err)
 					}

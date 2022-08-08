@@ -2,18 +2,17 @@ package commands
 
 import (
 	"fmt"
-	"io/ioutil"
 	"os"
 	"path"
 	"strings"
 	"text/tabwriter"
 
-	"github.com/argoproj/gitops-engine/pkg/utils/errors"
 	log "github.com/sirupsen/logrus"
 	"github.com/spf13/cobra"
 
-	argocdclient "github.com/argoproj/argo-cd/pkg/apiclient"
-	"github.com/argoproj/argo-cd/util/localconfig"
+	argocdclient "github.com/argoproj/argo-cd/v2/pkg/apiclient"
+	"github.com/argoproj/argo-cd/v2/util/errors"
+	"github.com/argoproj/argo-cd/v2/util/localconfig"
 )
 
 // NewContextCommand returns a new instance of an `argocd ctx` command
@@ -50,7 +49,7 @@ func NewContextCommand(clientOpts *argocdclient.ClientOptions) *cobra.Command {
 			prevCtxFile := path.Join(argoCDDir, ".prev-ctx")
 
 			if ctxName == "-" {
-				prevCtxBytes, err := ioutil.ReadFile(prevCtxFile)
+				prevCtxBytes, err := os.ReadFile(prevCtxFile)
 				errors.CheckError(err)
 				ctxName = string(prevCtxBytes)
 			}
@@ -66,7 +65,7 @@ func NewContextCommand(clientOpts *argocdclient.ClientOptions) *cobra.Command {
 
 			err = localconfig.WriteLocalConfig(*localCfg, clientOpts.ConfigPath)
 			errors.CheckError(err)
-			err = ioutil.WriteFile(prevCtxFile, []byte(prevCtx), 0644)
+			err = os.WriteFile(prevCtxFile, []byte(prevCtx), 0644)
 			errors.CheckError(err)
 			fmt.Printf("Switched to context '%s'\n", localCfg.CurrentContext)
 		},

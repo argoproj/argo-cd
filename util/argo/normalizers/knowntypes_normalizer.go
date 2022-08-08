@@ -7,14 +7,15 @@ import (
 
 	log "github.com/sirupsen/logrus"
 	v1 "k8s.io/api/core/v1"
+	"k8s.io/apimachinery/pkg/api/resource"
 	"k8s.io/apimachinery/pkg/apis/meta/v1/unstructured"
 	"k8s.io/apimachinery/pkg/runtime/schema"
 
-	"github.com/argoproj/argo-cd/pkg/apis/application"
-	"github.com/argoproj/argo-cd/pkg/apis/application/v1alpha1"
+	"github.com/argoproj/argo-cd/v2/pkg/apis/application"
+	"github.com/argoproj/argo-cd/v2/pkg/apis/application/v1alpha1"
 )
 
-//go:generate go run github.com/argoproj/argo-cd/hack/known_types corev1 k8s.io/api/core/v1 corev1_known_types.go --docs diffing_known_types.txt
+//go:generate go run github.com/argoproj/argo-cd/v2/hack/known_types corev1 k8s.io/api/core/v1 corev1_known_types.go --docs diffing_known_types.txt
 var knownTypes = map[string]func() interface{}{}
 
 type knownTypeField struct {
@@ -24,6 +25,13 @@ type knownTypeField struct {
 
 type knownTypesNormalizer struct {
 	typeFields map[schema.GroupKind][]knownTypeField
+}
+
+// Register some non-code-generated types here. The bulk of them are in corev1_known_types.go
+func init() {
+	knownTypes["core/Quantity"] = func() interface{} {
+		return &resource.Quantity{}
+	}
 }
 
 // NewKnownTypesNormalizer create a normalizer that re-format custom resource fields using built-in Kubernetes types.
@@ -99,7 +107,7 @@ func normalize(obj map[string]interface{}, field knownTypeField, fieldPath []str
 		}
 	}
 
-	if fieldVal, ok, err := unstructured.NestedMap(obj, fieldPath...); ok && err == nil {
+	if fieldVal, ok, err := unstructured.NestedFieldNoCopy(obj, fieldPath...); ok && err == nil {
 		newFieldVal, err := remarshal(fieldVal, field)
 		if err != nil {
 			return err
@@ -113,7 +121,7 @@ func normalize(obj map[string]interface{}, field knownTypeField, fieldPath []str
 	return nil
 }
 
-func remarshal(fieldVal map[string]interface{}, field knownTypeField) (map[string]interface{}, error) {
+func remarshal(fieldVal interface{}, field knownTypeField) (interface{}, error) {
 	data, err := json.Marshal(fieldVal)
 	if err != nil {
 		return nil, err
@@ -127,7 +135,7 @@ func remarshal(fieldVal map[string]interface{}, field knownTypeField) (map[strin
 	if err != nil {
 		return nil, err
 	}
-	newFieldVal := map[string]interface{}{}
+	var newFieldVal interface{}
 	err = json.Unmarshal(data, &newFieldVal)
 	if err != nil {
 		return nil, err

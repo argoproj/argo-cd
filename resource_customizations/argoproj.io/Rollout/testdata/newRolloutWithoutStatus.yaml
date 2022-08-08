@@ -1,74 +1,31 @@
 apiVersion: argoproj.io/v1alpha1
 kind: Rollout
 metadata:
-  annotations:
-    kubectl.kubernetes.io/last-applied-configuration: |
-      {"apiVersion":"argoproj.io/v1alpha1","kind":"Rollout","metadata":{"annotations":{},"labels":{"app":"helm-guestbook","app.kubernetes.io/instance":"bluegreen","chart":"helm-guestbook-0.1.0","heritage":"Tiller","release":"bluegreen"},"name":"bluegreen-helm-guestbook","namespace":"default"},"spec":{"replicas":1,"revisionHistoryLimit":3,"selector":{"matchLabels":{"app":"helm-guestbook","release":"bluegreen"}},"strategy":{"blueGreen":{"activeService":"bluegreen-helm-guestbook","previewService":"bluegreen-helm-guestbook-preview"}},"template":{"metadata":{"labels":{"app":"helm-guestbook","release":"bluegreen"}},"spec":{"containers":[{"image":"gcr.io/heptio-images/ks-guestbook-demo:0.1","imagePullPolicy":"IfNotPresent","livenessProbe":{"httpGet":{"path":"/","port":"http"}},"name":"helm-guestbook","ports":[{"containerPort":80,"name":"http","protocol":"TCP"}],"readinessProbe":{"httpGet":{"path":"/","port":"http"}},"resources":{}}]}}}}
-    rollout.argoproj.io/revision: "1"
-  creationTimestamp: 2019-06-05T21:26:38Z
+  creationTimestamp: "2020-11-13T00:44:55Z"
   generation: 1
-  labels:
-    app: helm-guestbook
-    app.kubernetes.io/instance: bluegreen
-    chart: helm-guestbook-0.1.0
-    heritage: Tiller
-    release: bluegreen
-  name: bluegreen-helm-guestbook
-  namespace: default
-  resourceVersion: "150297"
-  selfLink: /apis/argoproj.io/v1alpha1/namespaces/default/rollouts/bluegreen-helm-guestbook
-  uid: 9a560c89-87d8-11e9-a97d-080027da2583
+  name: basic
+  namespace: argocd-e2e
+  resourceVersion: "181938"
+  selfLink: /apis/argoproj.io/v1alpha1/namespaces/argocd-e2e/rollouts/basic
+  uid: 34e4bbfc-222c-4968-bd60-2b30ae81110d
 spec:
-  replicas: 1
-  revisionHistoryLimit: 3
   selector:
     matchLabels:
-      app: helm-guestbook
-      release: bluegreen
+      app: basic
   strategy:
-    blueGreen:
-      activeService: bluegreen-helm-guestbook
-      previewService: bluegreen-helm-guestbook-preview
+    canary:
+      steps:
+      - setWeight: 50
+      - pause: {}
   template:
     metadata:
-      creationTimestamp: null
       labels:
-        app: helm-guestbook
-        release: bluegreen
+        app: basic
     spec:
       containers:
-      - image: gcr.io/heptio-images/ks-guestbook-demo:0.1
-        imagePullPolicy: IfNotPresent
-        livenessProbe:
-          httpGet:
-            path: /
-            port: http
-        name: helm-guestbook
-        ports:
-        - containerPort: 80
-          name: http
-          protocol: TCP
-        readinessProbe:
-          httpGet:
-            path: /
-            port: http
-        resources: {}
-status:
-  blueGreen: {}
-  canary: {}
-  conditions:
-  - lastTransitionTime: 2019-06-05T21:26:38Z
-    lastUpdateTime: 2019-06-05T21:26:38Z
-    message: Created new replica set "bluegreen-helm-guestbook-7c4599cc5b"
-    reason: NewReplicaSetCreated
-    status: "True"
-    type: Progressing
-  - lastTransitionTime: 2019-06-05T21:26:38Z
-    lastUpdateTime: 2019-06-05T21:26:38Z
-    message: Rollout does not have minimum availability
-    reason: AvailableReason
-    status: "False"
-    type: Available
-  currentPodHash: 7c4599cc5b
-  observedGeneration: 78597c98fd
-  selector: app=helm-guestbook,release=bluegreen
+      - image: nginx:1.19-alpine
+        name: basic
+        resources:
+          requests:
+            cpu: 1m
+            memory: 16Mi

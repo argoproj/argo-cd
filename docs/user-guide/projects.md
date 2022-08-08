@@ -54,9 +54,39 @@ argocd proj add-destination <PROJECT> <CLUSTER>,<NAMESPACE>
 argocd proj remove-destination <PROJECT> <CLUSTER>,<NAMESPACE>
 ```
 
+We can also do negations of destinations (i.e. install anywhere _apart from_).
+
+```bash
+argocd proj add-destination <PROJECT> !<CLUSTER>,!<NAMESPACE>
+argocd proj remove-destination <PROJECT> !<CLUSTER>,!<NAMESPACE>
+```
+
+Declaratively we can do something like this:
+
+```yaml
+spec:
+  destinations:
+  # Do not allow any app to be installed in `kube-system`  
+  - namespace: '!kube-system'
+    server: '*'
+  # Or any cluster that has a URL of `team1-*`   
+  - namespace: '*'
+    server: '!https://team1-*'
+    # Any other namespace or server is fine though.
+  - namespace: '*'
+    server: '*'
+```
+
+A destination is considered valid if the following conditions hold:
+
+1) _Any_ allow destination rule (i.e. a rule which isn't prefixed with `!`) permits the destination
+2) AND *no* deny destination (i.e. a rule which is prefixed with `!`) rejects the destination
+
+Keep in mind that `!*` is an invalid rule, since it doesn't make any sense to disallow everything. 
+
 Permitted destination K8s resource kinds are managed with the commands. Note that namespaced-scoped
-resources are restricted via a blacklist, whereas cluster-scoped resources are restricted via
-whitelist.
+resources are restricted via a deny list, whereas cluster-scoped resources are restricted via
+allow list.
 
 ```bash
 argocd proj allow-cluster-resource <PROJECT> <GROUP> <KIND>
@@ -72,37 +102,6 @@ an app, the user must have permissions to access the new project.
 
 ```
 argocd app set guestbook-default --project myproject
-```
-
-### Configuring RBAC With Projects
-
-Once projects have been defined, RBAC rules can be written to restrict access to the applications
-in the project. The following example configures RBAC for two GitHub teams: `team1` and `team2`,
-both in the GitHub org, `some-github-org`. There are two projects, `project-a` and `project-b`.
-`team1` can only manage applications in `project-a`, while `team2` can only manage applications in
-`project-b`. Both `team1` and `team2` have the ability to manage repositories.
-
-*ConfigMap `argocd-rbac-cm` example:*
-
-```yaml
-apiVersion: v1
-kind: ConfigMap
-metadata:
-  name: argocd-rbac-cm
-  namespace: argocd
-data:
-  policy.default: ""
-  policy.csv: |
-    p, some-github-org:team1, applications, *, project-a/*, allow
-    p, some-github-org:team2, applications, *, project-b/*, allow
-
-    p, role:org-admin, repositories, get, *, allow
-    p, role:org-admin, repositories, create, *, allow
-    p, role:org-admin, repositories, update, *, allow
-    p, role:org-admin, repositories, delete, *, allow
-
-    g, some-github-org:team1, org-admin
-    g, some-github-org:team2, org-admin
 ```
 
 ## Project Roles
@@ -166,14 +165,14 @@ argocd proj role get $PROJ $ROLE
 argocd app get $APP --auth-token $JWT
 # Adding a policy to grant access to the application for the new role
 argocd proj role add-policy $PROJ $ROLE --action get --permission allow --object $APP
-argocd app get $PROJ-$ROLE --auth-token $JWT
+argocd app get $APP --auth-token $JWT
 
 # Removing the policy we added and adding one with a wildcard.
-argocd proj role remove-policy $PROJ $TOKEN -a get -o $PROJ-$TOKEN
+argocd proj role remove-policy $PROJ $ROLE -a get -o $APP
 argocd proj role add-policy $PROJ $ROLE -a get --permission allow -o '*'
 # The wildcard allows us to access the application due to the wildcard.
-argocd app get $PROJ-$TOKEN --auth-token $JWT
-argocd proj role get $PROJ
+argocd app get $APP --auth-token $JWT
+argocd proj role get $PROJ $ROLE
 
 
 argocd proj role get $PROJ $ROLE
@@ -183,3 +182,114 @@ argocd proj role delete-token $PROJ $ROLE <id field from the last command>
 argocd app get $APP --auth-token $JWT
 ```
 
+## Configuring RBAC With Projects
+
+The project Roles allows configuring RBAC rules scoped to the project. The following sample
+project provides read-only permissions on project applications to any member of `my-oidc-group` group.
+
+*AppProject example:*
+
+```yaml
+apiVersion: argoproj.io/v1alpha1
+kind: AppProject
+metadata:
+  name: my-project
+  namespace: argocd
+spec:
+  roles:
+  # A role which provides read-only access to all applications in the project
+  - name: read-only
+    description: Read-only privileges to my-project
+    policies:
+    - p, proj:my-project:read-only, applications, get, my-project/*, allow
+    groups:
+    - my-oidc-group
+```
+
+You can use `argocd proj role` CLI commands or project details page in the user interface to configure the policy.
+Note that each project role policy rule must be scoped to that project only. Use the `argocd-rbac-cm` ConfigMap described in
+[RBAC](../operator-manual/rbac.md) documentation if you want to configure cross project RBAC rules.
+
+## Configuring Global Projects (v1.8)
+
+Global projects can be configured to provide configurations that other projects can inherit from. 
+
+Projects, which match `matchExpressions` specified in `argocd-cm` ConfigMap, inherit the following fields from the global project:
+
+* namespaceResourceBlacklist
+* namespaceResourceWhitelist
+* clusterResourceBlacklist
+* clusterResourceWhitelist
+* SyncWindows
+* SourceRepos
+* Destinations
+
+Configure global projects in `argocd-cm` ConfigMap:
+```yaml
+data:
+  globalProjects: |-
+    - labelSelector:
+        matchExpressions:
+          - key: opt
+            operator: In
+            values:
+              - prod
+      projectName: proj-global-test
+kind: ConfigMap
+``` 
+
+Valid operators you can use are: In, NotIn, Exists, DoesNotExist. Gt, and Lt.
+
+projectName: `proj-global-test` should be replaced with your own global project name.
+
+## Project scoped Repositories and Clusters
+
+Normally, an ArgoCD admin creates a project and decides in advance which clusters and Git repositories
+it defines. However, this creates a problem in scenarios where a developer wants to add a repository or cluster
+after the initial creation of the project. This forces the developer to contact their ArgoCD admin again to update the project definition.
+
+It is possible to offer a self-service process for developers so that they can add a repository and/or cluster in a project on their own even after the initial creation of the project.
+
+For this purpose ArgoCD supports project-scoped repositories and clusters.
+
+To begin the process, ArgoCD admins must configure RBAC security to allow this self-service behavior.
+For example, to allow users to add project scoped repositories and admin would have to add
+the following RBAC rules:
+
+```
+p, proj:my-project:admin, repositories, create, my-project/*, allow
+p, proj:my-project:admin, repositories, delete, my-project/*, allow
+p, proj:my-project:admin, repositories, update, my-project/*, allow
+```
+
+This provides extra flexibility so that admins can have stricter rules. e.g.:
+
+```
+p, proj:my-project:admin, repositories, update, my-project/https://github.my-company.com/*, allow
+```
+
+Once the appropriate RBAC rules are in place, developers can create their own Git repositories and (assuming 
+they have the correct credentials) can add them in an existing project either from the UI or the CLI.
+Both the User interface and the CLI have the ability to optionally specify a project. If a project is specified then the respective cluster/repository is considered project scoped:
+
+```argocd repo add --name stable https://charts.helm.sh/stable --type helm --project my-project```
+
+For the declarative setup both repositories and clusters are stored as Kubernetes Secrets, and so a new field is used to denote that this resource is project scoped:
+
+```yaml
+apiVersion: v1
+kind: Secret
+metadata:
+  name: argocd-example-apps
+  labels:
+    argocd.argoproj.io/secret-type: repository
+type: Opaque
+stringData:
+  project: my-project1                                     # Project scoped 
+  name: argocd-example-apps
+  url: https://github.com/argoproj/argocd-example-apps.git
+  username: ****
+  password: ****
+```
+
+All the examples above talk about Git repositories, but the same principles apply to clusters as well.

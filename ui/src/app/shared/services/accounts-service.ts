@@ -10,6 +10,13 @@ export class AccountsService {
         return requests.get(`/account/${name}`).then(res => res.body as Account);
     }
 
+    public changePassword(name: string, currentPassword: string, newPassword: string): Promise<boolean> {
+        return requests
+            .put('/account/password')
+            .send({currentPassword, name, newPassword})
+            .then(res => res.status === 200);
+    }
+
     public createToken(name: string, tokenId: string, expiresIn: number): Promise<string> {
         return requests
             .post(`/account/${name}/token`)
@@ -19,5 +26,9 @@ export class AccountsService {
 
     public deleteToken(name: string, id: string): Promise<any> {
         return requests.delete(`/account/${name}/token/${id}`);
+    }
+
+    public canI(resource: string, action: string, subresource: string): Promise<boolean> {
+        return requests.get(`/account/can-i/${resource}/${action}/${subresource}`).then(res => res.body.value === 'yes');
     }
 }

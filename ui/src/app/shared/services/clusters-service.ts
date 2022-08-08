@@ -10,18 +10,14 @@ export class ClustersService {
     }
 
     public get(url: string, name: string): Promise<models.Cluster> {
-        let queryName = '';
-        if (url === undefined) {
-            url = '';
-            queryName = `?name=${name}`;
-        }
-        const requestUrl = `/clusters/${encodeURIComponent(url)}` + queryName;
+        const requestUrl = `/clusters/${url ? encodeURIComponent(url) : name}?id.type=${url ? 'url' : 'name'}`;
         return requests.get(requestUrl).then(res => res.body as models.Cluster);
     }
 
-    public update(cluster: models.Cluster): Promise<models.Cluster> {
+    public update(cluster: models.Cluster, ...paths: string[]): Promise<models.Cluster> {
         return requests
             .put(`/clusters/${encodeURIComponent(cluster.server)}`)
+            .query({updatedFields: paths})
             .send(cluster)
             .then(res => res.body as models.Cluster);
     }

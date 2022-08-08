@@ -3,7 +3,7 @@ package util_test
 import (
 	"testing"
 
-	"github.com/argoproj/argo-cd/util"
+	"github.com/argoproj/argo-cd/v2/util"
 )
 
 func TestMakeSignature(t *testing.T) {

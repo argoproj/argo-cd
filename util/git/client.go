@@ -9,25 +9,32 @@ import (
 	"os"
 	"os/exec"
 	"path/filepath"
+	"regexp"
+	"sort"
 	"strconv"
 	"strings"
 	"time"
 
+	"github.com/go-git/go-git/v5"
+	"github.com/go-git/go-git/v5/config"
+	"github.com/go-git/go-git/v5/plumbing"
+	"github.com/go-git/go-git/v5/plumbing/transport"
+	githttp "github.com/go-git/go-git/v5/plumbing/transport/http"
+	"github.com/go-git/go-git/v5/storage/memory"
 	log "github.com/sirupsen/logrus"
 	"golang.org/x/crypto/ssh"
 	"golang.org/x/crypto/ssh/knownhosts"
-	"gopkg.in/src-d/go-git.v4"
-	"gopkg.in/src-d/go-git.v4/config"
-	"gopkg.in/src-d/go-git.v4/plumbing"
-	"gopkg.in/src-d/go-git.v4/plumbing/transport"
-	githttp "gopkg.in/src-d/go-git.v4/plumbing/transport/http"
-	ssh2 "gopkg.in/src-d/go-git.v4/plumbing/transport/ssh"
-	"gopkg.in/src-d/go-git.v4/storage/memory"
+	apierrors "k8s.io/apimachinery/pkg/api/errors"
+	utilnet "k8s.io/apimachinery/pkg/util/net"
 
-	"github.com/argoproj/argo-cd/common"
-	certutil "github.com/argoproj/argo-cd/util/cert"
-	executil "github.com/argoproj/argo-cd/util/exec"
+	"github.com/argoproj/argo-cd/v2/common"
+	certutil "github.com/argoproj/argo-cd/v2/util/cert"
+	"github.com/argoproj/argo-cd/v2/util/env"
+	executil "github.com/argoproj/argo-cd/v2/util/exec"
+	"github.com/argoproj/argo-cd/v2/util/proxy"
 )
+
+var ErrInvalidRepoURL = fmt.Errorf("repo URL is invalid")
 
 type RevisionMetadata struct {
 	Author  string
@@ -36,12 +43,26 @@ type RevisionMetadata struct {
 	Message string
 }
 
+// this should match reposerver/repository/repository.proto/RefsList
+type Refs struct {
+	Branches []string
+	Tags     []string
+	// heads and remotes are also refs, but are not needed at this time.
+}
+
+type gitRefCache interface {
+	SetGitReferences(repo string, references []*plumbing.Reference) error
+	GetGitReferences(repo string, references *[]*plumbing.Reference) error
+}
+
 // Client is a generic git client interface
 type Client interface {
 	Root() string
 	Init() error
-	Fetch() error
-	Checkout(revision string) error
+	Fetch(revision string) error
+	Submodule() error
+	Checkout(revision string, submoduleEnabled bool) error
+	LsRefs() (*Refs, error)
 	LsRemote(revision string) (string, error)
 	LsFiles(path string) ([]string, error)
 	LsLargeFiles() ([]string, error)
@@ -50,8 +71,15 @@ type Client interface {
 	VerifyCommitSignature(string) (string, error)
 }
 
+type EventHandlers struct {
+	OnLsRemote func(repo string) func()
+	OnFetch    func(repo string) func()
+}
+
 // nativeGitClient implements Client interface using git CLI
 type nativeGitClient struct {
+	EventHandlers
+
 	// URL of the repository
 	repoURL string
 	// Root path of repository
@@ -62,10 +90,19 @@ type nativeGitClient struct {
 	insecure bool
 	// Whether the repository is LFS enabled
 	enableLfs bool
+	// gitRefCache knows how to cache git refs
+	gitRefCache gitRefCache
+	// indicates if client allowed to load refs from cache
+	loadRefFromCache bool
+	// HTTP/HTTPS proxy used to access repository
+	proxy string
 }
 
 var (
 	maxAttemptsCount = 1
+	maxRetryDuration time.Duration
+	retryDuration    time.Duration
+	factor           int64
 )
 
 func init() {
@@ -76,25 +113,56 @@ func init() {
 			maxAttemptsCount = int(math.Max(float64(cnt), 1))
 		}
 	}
+
+	maxRetryDuration = env.ParseDurationFromEnv(common.EnvGitRetryMaxDuration, common.DefaultGitRetryMaxDuration, 0, math.MaxInt64)
+	retryDuration = env.ParseDurationFromEnv(common.EnvGitRetryDuration, common.DefaultGitRetryDuration, 0, math.MaxInt64)
+	factor = env.ParseInt64FromEnv(common.EnvGitRetryFactor, common.DefaultGitRetryFactor, 0, math.MaxInt64)
+
 }
 
-func NewClient(rawRepoURL string, creds Creds, insecure bool, enableLfs bool) (Client, error) {
-	root := filepath.Join(os.TempDir(), strings.Replace(NormalizeGitURL(rawRepoURL), "/", "_", -1))
-	if root == os.TempDir() {
-		return nil, fmt.Errorf("Repository '%s' cannot be initialized, because its root would be system temp at %s", rawRepoURL, root)
+type ClientOpts func(c *nativeGitClient)
+
+// WithCache sets git revisions cacher as well as specifies if client should tries to use cached resolved revision
+func WithCache(cache gitRefCache, loadRefFromCache bool) ClientOpts {
+	return func(c *nativeGitClient) {
+		c.gitRefCache = cache
+		c.loadRefFromCache = loadRefFromCache
 	}
-	return NewClientExt(rawRepoURL, root, creds, insecure, enableLfs)
 }
 
-func NewClientExt(rawRepoURL string, root string, creds Creds, insecure bool, enableLfs bool) (Client, error) {
-	client := nativeGitClient{
+// WithEventHandlers sets the git client event handlers
+func WithEventHandlers(handlers EventHandlers) ClientOpts {
+	return func(c *nativeGitClient) {
+		c.EventHandlers = handlers
+	}
+}
+
+func NewClient(rawRepoURL string, creds Creds, insecure bool, enableLfs bool, proxy string, opts ...ClientOpts) (Client, error) {
+	r := regexp.MustCompile("(/|:)")
+	normalizedGitURL := NormalizeGitURL(rawRepoURL)
+	if normalizedGitURL == "" {
+		return nil, fmt.Errorf("repository %q cannot be initialized: %w", rawRepoURL, ErrInvalidRepoURL)
+	}
+	root := filepath.Join(os.TempDir(), r.ReplaceAllString(normalizedGitURL, "_"))
+	if root == os.TempDir() {
+		return nil, fmt.Errorf("repository %q cannot be initialized, because its root would be system temp at %s", rawRepoURL, root)
+	}
+	return NewClientExt(rawRepoURL, root, creds, insecure, enableLfs, proxy, opts...)
+}
+
+func NewClientExt(rawRepoURL string, root string, creds Creds, insecure bool, enableLfs bool, proxy string, opts ...ClientOpts) (Client, error) {
+	client := &nativeGitClient{
 		repoURL:   rawRepoURL,
 		root:      root,
 		creds:     creds,
 		insecure:  insecure,
 		enableLfs: enableLfs,
+		proxy:     proxy,
 	}
-	return &client, nil
+	for i := range opts {
+		opts[i](client)
+	}
+	return client, nil
 }
 
 // Returns a HTTP client object suitable for go-git to use using the following
@@ -105,7 +173,7 @@ func NewClientExt(rawRepoURL string, root string, creds Creds, insecure bool, en
 //   a client with those certificates in the list of root CAs used to verify
 //   the server's certificate.
 // - Otherwise (and on non-fatal errors), a default HTTP client is returned.
-func GetRepoHTTPClient(repoURL string, insecure bool, creds Creds) *http.Client {
+func GetRepoHTTPClient(repoURL string, insecure bool, creds Creds, proxyURL string) *http.Client {
 	// Default HTTP client
 	var customHTTPClient = &http.Client{
 		// 15 second timeout
@@ -116,22 +184,24 @@ func GetRepoHTTPClient(repoURL string, insecure bool, creds Creds) *http.Client 
 		},
 	}
 
+	proxyFunc := proxy.GetCallback(proxyURL)
+
 	// Callback function to return any configured client certificate
 	// We never return err, but an empty cert instead.
 	clientCertFunc := func(req *tls.CertificateRequestInfo) (*tls.Certificate, error) {
 		var err error
 		cert := tls.Certificate{}
 
-		// If we aren't called with HTTPSCreds, then we just return an empty cert
-		httpsCreds, ok := creds.(HTTPSCreds)
+		// If we aren't called with GenericHTTPSCreds, then we just return an empty cert
+		httpsCreds, ok := creds.(GenericHTTPSCreds)
 		if !ok {
 			return &cert, nil
 		}
 
 		// If the creds contain client certificate data, we return a TLS.Certificate
 		// populated with the cert and its key.
-		if httpsCreds.clientCertData != "" && httpsCreds.clientCertKey != "" {
-			cert, err = tls.X509KeyPair([]byte(httpsCreds.clientCertData), []byte(httpsCreds.clientCertKey))
+		if httpsCreds.HasClientCert() {
+			cert, err = tls.X509KeyPair([]byte(httpsCreds.GetClientCertData()), []byte(httpsCreds.GetClientCertKey()))
 			if err != nil {
 				log.Errorf("Could not load Client Certificate: %v", err)
 				return &cert, nil
@@ -140,46 +210,30 @@ func GetRepoHTTPClient(repoURL string, insecure bool, creds Creds) *http.Client 
 
 		return &cert, nil
 	}
-
-	if insecure {
-		customHTTPClient.Transport = &http.Transport{
-			Proxy: http.ProxyFromEnvironment,
-			TLSClientConfig: &tls.Config{
-				InsecureSkipVerify:   true,
-				GetClientCertificate: clientCertFunc,
-			},
-			DisableKeepAlives: true,
-		}
-	} else {
-		parsedURL, err := url.Parse(repoURL)
-		if err != nil {
-			return customHTTPClient
-		}
-		serverCertificatePem, err := certutil.GetCertificateForConnect(parsedURL.Host)
-		if err != nil {
-			return customHTTPClient
-		} else if len(serverCertificatePem) > 0 {
-			certPool := certutil.GetCertPoolFromPEMData(serverCertificatePem)
-			customHTTPClient.Transport = &http.Transport{
-				Proxy: http.ProxyFromEnvironment,
-				TLSClientConfig: &tls.Config{
-					RootCAs:              certPool,
-					GetClientCertificate: clientCertFunc,
-				},
-				DisableKeepAlives: true,
-			}
-		} else {
-			// else no custom certificate stored.
-			customHTTPClient.Transport = &http.Transport{
-				Proxy: http.ProxyFromEnvironment,
-				TLSClientConfig: &tls.Config{
-					GetClientCertificate: clientCertFunc,
-				},
-				DisableKeepAlives: true,
-			}
-		}
+	transport := &http.Transport{
+		Proxy: proxyFunc,
+		TLSClientConfig: &tls.Config{
+			GetClientCertificate: clientCertFunc,
+		},
+		DisableKeepAlives: true,
 	}
-
+	customHTTPClient.Transport = transport
+	if insecure {
+		transport.TLSClientConfig.InsecureSkipVerify = true
+		return customHTTPClient
+	}
+	parsedURL, err := url.Parse(repoURL)
+	if err != nil {
+		return customHTTPClient
+	}
+	serverCertificatePem, err := certutil.GetCertificateForConnect(parsedURL.Host)
+	if err != nil {
+		return customHTTPClient
+	}
+	if len(serverCertificatePem) > 0 {
+		certPool := certutil.GetCertPoolFromPEMData(serverCertificatePem)
+		transport.TLSClientConfig.RootCAs = certPool
+	}
 	return customHTTPClient
 }
 
@@ -194,7 +248,9 @@ func newAuth(repoURL string, creds Creds) (transport.AuthMethod, error) {
 		if err != nil {
 			return nil, err
 		}
-		auth := &ssh2.PublicKeys{User: sshUser, Signer: signer}
+		auth := &PublicKeysWithOptions{}
+		auth.User = sshUser
+		auth.Signer = signer
 		if creds.insecure {
 			auth.HostKeyCallback = ssh.InsecureIgnoreHostKey()
 		} else {
@@ -208,6 +264,16 @@ func newAuth(repoURL string, creds Creds) (transport.AuthMethod, error) {
 		return auth, nil
 	case HTTPSCreds:
 		auth := githttp.BasicAuth{Username: creds.username, Password: creds.password}
+		if auth.Username == "" {
+			auth.Username = "x-access-token"
+		}
+		return &auth, nil
+	case GitHubAppCreds:
+		token, err := creds.getAccessToken()
+		if err != nil {
+			return nil, err
+		}
+		auth := githttp.BasicAuth{Username: "x-access-token", Password: token}
 		return &auth, nil
 	}
 	return nil, nil
@@ -251,9 +317,37 @@ func (m *nativeGitClient) IsLFSEnabled() bool {
 	return m.enableLfs
 }
 
+func (m *nativeGitClient) fetch(revision string) error {
+	var err error
+	if revision != "" {
+		err = m.runCredentialedCmd("git", "fetch", "origin", revision, "--tags", "--force")
+	} else {
+		err = m.runCredentialedCmd("git", "fetch", "origin", "--tags", "--force")
+	}
+	return err
+}
+
 // Fetch fetches latest updates from origin
-func (m *nativeGitClient) Fetch() error {
-	err := m.runCredentialedCmd("git", "fetch", "origin", "--tags", "--force")
+func (m *nativeGitClient) Fetch(revision string) error {
+	if m.OnFetch != nil {
+		done := m.OnFetch(m.repoURL)
+		defer done()
+	}
+
+	var err error
+
+	err = m.fetch(revision)
+	if err != nil {
+		errMsg := strings.ReplaceAll(err.Error(), "\n", "")
+		if strings.Contains(errMsg, "try running 'git remote prune origin'") {
+			// Prune any deleted refs, then try fetching again
+			if err := m.runCredentialedCmd("git", "remote", "prune", "origin"); err != nil {
+				return err
+			}
+			err = m.fetch(revision)
+		}
+	}
+
 	// When we have LFS support enabled, check for large files and fetch them too.
 	if err == nil && m.IsLFSEnabled() {
 		largeFiles, err := m.LsLargeFiles()
@@ -264,6 +358,7 @@ func (m *nativeGitClient) Fetch() error {
 			}
 		}
 	}
+
 	return err
 }
 
@@ -288,8 +383,19 @@ func (m *nativeGitClient) LsLargeFiles() ([]string, error) {
 	return ss, nil
 }
 
-// Checkout checkout specified git sha
-func (m *nativeGitClient) Checkout(revision string) error {
+// Submodule embed other repositories into this repository
+func (m *nativeGitClient) Submodule() error {
+	if err := m.runCredentialedCmd("git", "submodule", "sync", "--recursive"); err != nil {
+		return err
+	}
+	if err := m.runCredentialedCmd("git", "submodule", "update", "--init", "--recursive"); err != nil {
+		return err
+	}
+	return nil
+}
+
+// Checkout checkout specified revision
+func (m *nativeGitClient) Checkout(revision string, submoduleEnabled bool) error {
 	if revision == "" || revision == "HEAD" {
 		revision = "origin/HEAD"
 	}
@@ -310,8 +416,8 @@ func (m *nativeGitClient) Checkout(revision string) error {
 		}
 	}
 	if _, err := os.Stat(m.root + "/.gitmodules"); !os.IsNotExist(err) {
-		if submoduleEnabled := os.Getenv(common.EnvGitSubmoduleEnabled); submoduleEnabled != "false" {
-			if err := m.runCredentialedCmd("git", "submodule", "update", "--init", "--recursive"); err != nil {
+		if submoduleEnabled {
+			if err := m.Submodule(); err != nil {
 				return err
 			}
 		}
@@ -322,6 +428,73 @@ func (m *nativeGitClient) Checkout(revision string) error {
 	return nil
 }
 
+func (m *nativeGitClient) getRefs() ([]*plumbing.Reference, error) {
+	if m.gitRefCache != nil && m.loadRefFromCache {
+		var res []*plumbing.Reference
+		if m.gitRefCache.GetGitReferences(m.repoURL, &res) == nil {
+			return res, nil
+		}
+	}
+
+	if m.OnLsRemote != nil {
+		done := m.OnLsRemote(m.repoURL)
+		defer done()
+	}
+
+	repo, err := git.Init(memory.NewStorage(), nil)
+	if err != nil {
+		return nil, err
+	}
+	remote, err := repo.CreateRemote(&config.RemoteConfig{
+		Name: git.DefaultRemoteName,
+		URLs: []string{m.repoURL},
+	})
+	if err != nil {
+		return nil, err
+	}
+	auth, err := newAuth(m.repoURL, m.creds)
+	if err != nil {
+		return nil, err
+	}
+	res, err := listRemote(remote, &git.ListOptions{Auth: auth}, m.insecure, m.creds, m.proxy)
+	if err == nil && m.gitRefCache != nil {
+		if err := m.gitRefCache.SetGitReferences(m.repoURL, res); err != nil {
+			log.Warnf("Failed to store git references to cache: %v", err)
+		}
+		return res, nil
+	}
+	return res, err
+}
+
+func (m *nativeGitClient) LsRefs() (*Refs, error) {
+	refs, err := m.getRefs()
+
+	if err != nil {
+		return nil, err
+	}
+
+	sortedRefs := &Refs{
+		Branches: []string{},
+		Tags:     []string{},
+	}
+
+	for _, revision := range refs {
+		if revision.Name().IsBranch() {
+			sortedRefs.Branches = append(sortedRefs.Branches, revision.Name().Short())
+		} else if revision.Name().IsTag() {
+			sortedRefs.Tags = append(sortedRefs.Tags, revision.Name().Short())
+		}
+	}
+
+	log.Debugf("LsRefs resolved %d branches and %d tags on repository", len(sortedRefs.Branches), len(sortedRefs.Tags))
+
+	// Would prefer to sort by last modified date but that info does not appear to be available without resolving each ref
+	sort.Strings(sortedRefs.Branches)
+	sort.Strings(sortedRefs.Tags)
+
+	return sortedRefs, nil
+}
+
 // LsRemote resolves the commit SHA of a specific branch, tag, or HEAD. If the supplied revision
 // does not resolve, and "looks" like a 7+ hexadecimal commit SHA, it return the revision string.
 // Otherwise, it returns an error indicating that the revision could not be resolved. This method
@@ -329,8 +502,19 @@ func (m *nativeGitClient) Checkout(revision string) error {
 // repository locally cloned.
 func (m *nativeGitClient) LsRemote(revision string) (res string, err error) {
 	for attempt := 0; attempt < maxAttemptsCount; attempt++ {
-		if res, err = m.lsRemote(revision); err == nil {
+		res, err = m.lsRemote(revision)
+		if err == nil {
 			return
+		} else if apierrors.IsInternalError(err) || apierrors.IsTimeout(err) || apierrors.IsServerTimeout(err) ||
+			apierrors.IsTooManyRequests(err) || utilnet.IsProbableEOF(err) || utilnet.IsConnectionReset(err) {
+			// Formula: timeToWait = duration * factor^retry_number
+			// Note that timeToWait should equal to duration for the first retry attempt.
+			// When timeToWait is more than maxDuration retry should be performed at maxDuration.
+			timeToWait := float64(retryDuration) * (math.Pow(float64(factor), float64(attempt)))
+			if maxRetryDuration > 0 {
+				timeToWait = math.Min(float64(maxRetryDuration), timeToWait)
+			}
+			time.Sleep(time.Duration(timeToWait))
 		}
 	}
 	return
@@ -340,23 +524,9 @@ func (m *nativeGitClient) lsRemote(revision string) (string, error) {
 	if IsCommitSHA(revision) {
 		return revision, nil
 	}
-	repo, err := git.Init(memory.NewStorage(), nil)
-	if err != nil {
-		return "", err
-	}
-	remote, err := repo.CreateRemote(&config.RemoteConfig{
-		Name: git.DefaultRemoteName,
-		URLs: []string{m.repoURL},
-	})
-	if err != nil {
-		return "", err
-	}
-	auth, err := newAuth(m.repoURL, m.creds)
-	if err != nil {
-		return "", err
-	}
-	//refs, err := remote.List(&git.ListOptions{Auth: auth})
-	refs, err := listRemote(remote, &git.ListOptions{Auth: auth}, m.insecure, m.creds)
+
+	refs, err := m.getRefs()
+
 	if err != nil {
 		return "", err
 	}
@@ -371,16 +541,12 @@ func (m *nativeGitClient) lsRemote(revision string) (string, error) {
 	refToResolve := ""
 	for _, ref := range refs {
 		refName := ref.Name().String()
-		if refName != "HEAD" && !strings.HasPrefix(refName, "refs/heads/") && !strings.HasPrefix(refName, "refs/tags/") {
-			// ignore things like 'refs/pull/' 'refs/reviewable'
-			continue
-		}
 		hash := ref.Hash().String()
 		if ref.Type() == plumbing.HashReference {
 			refToHash[refName] = hash
 		}
 		//log.Debugf("%s\t%s", hash, refName)
-		if ref.Name().Short() == revision {
+		if ref.Name().Short() == revision || refName == revision {
 			if ref.Type() == plumbing.HashReference {
 				log.Debugf("revision '%s' resolved to '%s'", revision, hash)
 				return hash, nil
@@ -452,7 +618,7 @@ func (m *nativeGitClient) VerifyCommitSignature(revision string) (string, error)
 // runWrapper runs a custom command with all the semantics of running the Git client
 func (m *nativeGitClient) runGnuPGWrapper(wrapper string, args ...string) (string, error) {
 	cmd := exec.Command(wrapper, args...)
-	cmd.Env = append(cmd.Env, fmt.Sprintf("GNUPGHOME=%s", common.GetGnuPGHomePath()))
+	cmd.Env = append(cmd.Env, fmt.Sprintf("GNUPGHOME=%s", common.GetGnuPGHomePath()), "LANG=C")
 	return m.runCmdOutput(cmd)
 }
 
@@ -463,6 +629,7 @@ func (m *nativeGitClient) runCmd(args ...string) (string, error) {
 }
 
 // runCredentialedCmd is a convenience function to run a git command with username/password credentials
+// nolint:unparam
 func (m *nativeGitClient) runCredentialedCmd(command string, args ...string) error {
 	cmd := exec.Command(command, args...)
 	closer, environ, err := m.creds.Environ()
@@ -477,7 +644,7 @@ func (m *nativeGitClient) runCredentialedCmd(command string, args ...string) err
 
 func (m *nativeGitClient) runCmdOutput(cmd *exec.Cmd) (string, error) {
 	cmd.Dir = m.root
-	cmd.Env = append(cmd.Env, os.Environ()...)
+	cmd.Env = append(os.Environ(), cmd.Env...)
 	// Set $HOME to nowhere, so we can be execute Git regardless of any external
 	// authentication keys (e.g. in ~/.ssh) -- this is especially important for
 	// running tests on local machines and/or CircleCI.
@@ -504,5 +671,8 @@ func (m *nativeGitClient) runCmdOutput(cmd *exec.Cmd) (string, error) {
 			}
 		}
 	}
+
+	cmd.Env = proxy.UpsertEnv(cmd, m.proxy)
+
 	return executil.Run(cmd)
 }

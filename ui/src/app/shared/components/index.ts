@@ -1,8 +1,9 @@
 export {DataLoader, ErrorNotification} from 'argo-ui';
 
 export * from './array-input/array-input';
+export * from './application-selector/application-selector';
 export * from './expandable/expandable';
-export * from './page';
+export * from './page/page';
 export * from './checkbox/checkbox-field';
 export * from './colors';
 export * from './cluster';
@@ -22,3 +23,5 @@ export * from './repo';
 export * from './revision';
 export * from './timestamp';
 export * from './spinner';
+export * from './badge-panel/badge-panel';
+export * from './number-field';

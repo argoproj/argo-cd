@@ -10,6 +10,7 @@ import (
 	"time"
 
 	"github.com/stretchr/testify/assert"
+	"github.com/stretchr/testify/require"
 )
 
 var chain = `-----BEGIN CERTIFICATE-----
@@ -251,6 +252,21 @@ func TestGenerate(t *testing.T) {
 		assert.NotNil(t, cert)
 		assert.GreaterOrEqual(t, (time.Now().Unix())+int64(1*time.Hour), cert.NotBefore.Unix())
 	})
+
+	for _, year := range []int{1, 2, 3, 10} {
+		t.Run(fmt.Sprintf("Create certificate with specified ValidFor %d year", year), func(t *testing.T) {
+			validFrom, validFor := time.Now(), 365*24*time.Hour*time.Duration(year)
+			opts := CertOptions{Hosts: []string{"localhost"}, Organization: "Acme", ValidFrom: validFrom, ValidFor: validFor}
+			certBytes, privKey, err := generate(opts)
+			assert.NoError(t, err)
+			assert.NotNil(t, privKey)
+			cert, err := x509.ParseCertificate(certBytes)
+			assert.NoError(t, err)
+			assert.NotNil(t, cert)
+			t.Logf("certificate expiration time %s", cert.NotAfter)
+			assert.Equal(t, validFrom.Unix()+int64(validFor.Seconds()), cert.NotAfter.Unix())
+		})
+	}
 }
 
 func TestGeneratePEM(t *testing.T) {
@@ -340,4 +356,62 @@ func TestGetTLSConfigCustomizer(t *testing.T) {
 func TestBestEffortSystemCertPool(t *testing.T) {
 	pool := BestEffortSystemCertPool()
 	assert.NotNil(t, pool)
+}
+
+func TestCreateServerTLSConfig(t *testing.T) {
+	t.Run("Configuration from a valid key/cert pair", func(t *testing.T) {
+		tlsc, err := CreateServerTLSConfig("testdata/valid_tls.crt", "testdata/valid_tls.key", []string{"localhost", "argocd-repo-server"})
+		require.NoError(t, err)
+		assert.Len(t, tlsc.Certificates, 1)
+		c, err := x509.ParseCertificate(tlsc.Certificates[0].Certificate[0])
+		require.NoError(t, err)
+		assert.Equal(t, "SomeCN", c.Subject.CommonName)
+	})
+
+	t.Run("Self-signed creation due to non-existing cert", func(t *testing.T) {
+		tlsc, err := CreateServerTLSConfig("testdata/invvalid_tls.crt", "testdata/invalid_tls.key", []string{"localhost", "argocd-repo-server"})
+		require.NoError(t, err)
+		assert.Len(t, tlsc.Certificates, 1)
+		c, err := x509.ParseCertificate(tlsc.Certificates[0].Certificate[0])
+		require.NoError(t, err)
+		assert.Equal(t, []string{"Argo CD"}, c.Subject.Organization)
+	})
+
+	t.Run("Self-signed creation fails due to hosts being nil", func(t *testing.T) {
+		tlsc, err := CreateServerTLSConfig("testdata/invvalid_tls.crt", "testdata/invalid_tls.key", nil)
+		require.Error(t, err)
+		assert.Nil(t, tlsc)
+	})
+
+	t.Run("Self-signed creation fails due to invalid certificates", func(t *testing.T) {
+		tlsc, err := CreateServerTLSConfig("testdata/empty_tls.crt", "testdata/empty_tls.key", nil)
+		require.Error(t, err)
+		assert.Nil(t, tlsc)
+	})
+}
+
+func TestLoadX509CertPool(t *testing.T) {
+	t.Run("Successfully load single cert", func(t *testing.T) {
+		p, err := LoadX509CertPool("testdata/valid_tls.crt")
+		require.NoError(t, err)
+		require.NotNil(t, p)
+		assert.Len(t, p.Subjects(), 1)
+	})
+	t.Run("Successfully load single existing cert from multiple list", func(t *testing.T) {
+		p, err := LoadX509CertPool("testdata/invalid_tls.crt", "testdata/valid_tls.crt")
+		require.NoError(t, err)
+		require.NotNil(t, p)
+		assert.Len(t, p.Subjects(), 1)
+	})
+	t.Run("Only non-existing certs in list", func(t *testing.T) {
+		p, err := LoadX509CertPool("testdata/invalid_tls.crt", "testdata/valid_tls2.crt")
+		require.NoError(t, err)
+		require.NotNil(t, p)
+		assert.Len(t, p.Subjects(), 0)
+	})
+	t.Run("Invalid cert in requested cert list", func(t *testing.T) {
+		p, err := LoadX509CertPool("testdata/empty_tls.crt", "testdata/valid_tls2.crt")
+		require.Error(t, err)
+		require.Nil(t, p)
+	})
 }

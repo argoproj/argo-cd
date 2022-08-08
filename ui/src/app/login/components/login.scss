@@ -5,8 +5,6 @@ $logoNegativePath: 'assets/images/argo.png';
 
 .login {
     min-height:100vh;
-    background-position: 15rem;
-    background-size: cover;
     background: linear-gradient(to top left, 
         rgba(122, 139, 207, 0.8) 0%, 
         rgba(46, 50, 90, 0.8) 100%), 
@@ -111,7 +109,7 @@ $logoNegativePath: 'assets/images/argo.png';
         a {
             font-size: 13px;
             text-transform: uppercase;
-            color: $argo-color-gray-6;
+            color: $argo-color-gray-7;
             font-weight: 300;
         }
 
@@ -122,7 +120,7 @@ $logoNegativePath: 'assets/images/argo.png';
 
     &__saml-separator {
         margin-top: 15px;
-        color: $argo-color-gray-6;
+        color: $argo-color-gray-7;
         border-bottom: 1px solid $argo-color-gray-4;
         text-align: center;
         & > span {
@@ -184,7 +182,7 @@ $logoNegativePath: 'assets/images/argo.png';
 
         .ver {
             font-size:12px;
-            color: $argo-color-gray-5;
+            color: $argo-color-gray-7;
         }
 
         &__link {

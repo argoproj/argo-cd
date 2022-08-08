@@ -1,0 +1,6 @@
+repo: https://somewhere
+kustomize:
+  images:
+    - gcr.io/heptio-images/ks-guestbook-demo:0.3
+  invalid:
+    - I don't know

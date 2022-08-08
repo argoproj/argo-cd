@@ -7,26 +7,28 @@ import (
 	"bytes"
 	"flag"
 	"fmt"
-	"io/ioutil"
 	"os"
 	"os/exec"
 	"path"
 	"strconv"
 	"strings"
 
-	"github.com/argoproj/gitops-engine/pkg/utils/errors"
-	"github.com/argoproj/gitops-engine/pkg/utils/io"
+	"github.com/argoproj/gitops-engine/pkg/utils/text"
 	"github.com/google/shlex"
 	log "github.com/sirupsen/logrus"
 	"github.com/spf13/cobra"
-	"golang.org/x/crypto/ssh/terminal"
+	"github.com/spf13/pflag"
+	terminal "golang.org/x/term"
 	"k8s.io/apimachinery/pkg/apis/meta/v1/unstructured"
 	"k8s.io/client-go/tools/clientcmd"
-	"k8s.io/klog"
+	"k8s.io/klog/v2"
 	"k8s.io/kubectl/pkg/util/term"
 	"sigs.k8s.io/yaml"
 
-	"github.com/argoproj/argo-cd/common"
+	"github.com/argoproj/argo-cd/v2/common"
+	"github.com/argoproj/argo-cd/v2/util/errors"
+	"github.com/argoproj/argo-cd/v2/util/io"
+	utillog "github.com/argoproj/argo-cd/v2/util/log"
 )
 
 // NewVersionCmd returns a new `version` command to be used as a sub-command to root
@@ -56,15 +58,21 @@ func NewVersionCmd(cliName string) *cobra.Command {
 	return &versionCmd
 }
 
-// AddKubectlFlagsToCmd adds kubectl like flags to a command and returns the ClientConfig interface
+// AddKubectlFlagsToCmd adds kubectl like flags to a persistent flags of a command and returns the ClientConfig interface
 // for retrieving the values.
 func AddKubectlFlagsToCmd(cmd *cobra.Command) clientcmd.ClientConfig {
+	return AddKubectlFlagsToSet(cmd.PersistentFlags())
+}
+
+// AddKubectlFlagsToSet adds kubectl like flags to a provided flag set and returns the ClientConfig interface
+// for retrieving the values.
+func AddKubectlFlagsToSet(flags *pflag.FlagSet) clientcmd.ClientConfig {
 	loadingRules := clientcmd.NewDefaultClientConfigLoadingRules()
 	loadingRules.DefaultClientConfig = &clientcmd.DefaultClientConfig
 	overrides := clientcmd.ConfigOverrides{}
 	kflags := clientcmd.RecommendedConfigOverrideFlags("")
-	cmd.PersistentFlags().StringVar(&loadingRules.ExplicitPath, "kubeconfig", "", "Path to a kube config. Only required if out-of-cluster")
-	clientcmd.BindOverrideFlags(&overrides, cmd.PersistentFlags(), kflags)
+	flags.StringVar(&loadingRules.ExplicitPath, "kubeconfig", "", "Path to a kube config. Only required if out-of-cluster")
+	clientcmd.BindOverrideFlags(&overrides, flags, kflags)
 	return clientcmd.NewInteractiveDeferredLoadingClientConfig(loadingRules, &overrides, os.Stdin)
 }
 
@@ -120,15 +128,15 @@ func AskToProceed(message string) bool {
 }
 
 // ReadAndConfirmPassword is a helper to read and confirm a password from stdin
-func ReadAndConfirmPassword() (string, error) {
+func ReadAndConfirmPassword(username string) (string, error) {
 	for {
-		fmt.Print("*** Enter new password: ")
+		fmt.Printf("*** Enter new password for user %s: ", username)
 		password, err := terminal.ReadPassword(int(os.Stdin.Fd()))
 		if err != nil {
 			return "", err
 		}
 		fmt.Print("\n")
-		fmt.Print("*** Confirm new password: ")
+		fmt.Printf("*** Confirm new password for user %s: ", username)
 		confirmPassword, err := terminal.ReadPassword(int(os.Stdin.Fd()))
 		if err != nil {
 			return "", err
@@ -144,21 +152,22 @@ func ReadAndConfirmPassword() (string, error) {
 // SetLogFormat sets a logrus log format
 func SetLogFormat(logFormat string) {
 	switch strings.ToLower(logFormat) {
-	case "json":
-		log.SetFormatter(&log.JSONFormatter{})
-	case "text":
-		if os.Getenv("FORCE_LOG_COLORS") == "1" {
-			log.SetFormatter(&log.TextFormatter{ForceColors: true})
-		}
+	case utillog.JsonFormat:
+		os.Setenv(common.EnvLogFormat, utillog.JsonFormat)
+	case utillog.TextFormat, "":
+		os.Setenv(common.EnvLogFormat, utillog.TextFormat)
 	default:
 		log.Fatalf("Unknown log format '%s'", logFormat)
 	}
+
+	log.SetFormatter(utillog.CreateFormatter(logFormat))
 }
 
 // SetLogLevel parses and sets a logrus log level
 func SetLogLevel(logLevel string) {
-	level, err := log.ParseLevel(logLevel)
+	level, err := log.ParseLevel(text.FirstNonEmpty(logLevel, log.InfoLevel.String()))
 	errors.CheckError(err)
+	os.Setenv(common.EnvLogLevel, level.String())
 	log.SetLevel(level)
 }
 
@@ -170,7 +179,7 @@ func SetGLogLevel(glogLevel int) {
 }
 
 func writeToTempFile(pattern string, data []byte) string {
-	f, err := ioutil.TempFile("", pattern)
+	f, err := os.CreateTemp("", pattern)
 	errors.CheckError(err)
 	defer io.Close(f)
 	_, err = f.Write(data)
@@ -242,10 +251,10 @@ func InteractiveEdit(filePattern string, data []byte, save func(input []byte) er
 		err := (term.TTY{In: os.Stdin, TryDev: true}).Safe(cmd.Run)
 		errors.CheckError(err)
 
-		updated, err := ioutil.ReadFile(tempFile)
+		updated, err := os.ReadFile(tempFile)
 		errors.CheckError(err)
 		if string(updated) == "" || string(updated) == string(data) {
-			errors.CheckError(fmt.Errorf("Edit cancelled, no valid changes were saved."))
+			errors.CheckError(fmt.Errorf("edit cancelled, no valid changes were saved"))
 			break
 		} else {
 			data = stripComments(updated)
@@ -262,7 +271,7 @@ func InteractiveEdit(filePattern string, data []byte, save func(input []byte) er
 // PrintDiff prints a diff between two unstructured objects to stdout using an external diff utility
 // Honors the diff utility set in the KUBECTL_EXTERNAL_DIFF environment variable
 func PrintDiff(name string, live *unstructured.Unstructured, target *unstructured.Unstructured) error {
-	tempDir, err := ioutil.TempDir("", "argocd-diff")
+	tempDir, err := os.MkdirTemp("", "argocd-diff")
 	if err != nil {
 		return err
 	}
@@ -274,7 +283,7 @@ func PrintDiff(name string, live *unstructured.Unstructured, target *unstructure
 			return err
 		}
 	}
-	err = ioutil.WriteFile(targetFile, targetData, 0644)
+	err = os.WriteFile(targetFile, targetData, 0644)
 	if err != nil {
 		return err
 	}
@@ -286,7 +295,7 @@ func PrintDiff(name string, live *unstructured.Unstructured, target *unstructure
 			return err
 		}
 	}
-	err = ioutil.WriteFile(liveFile, liveData, 0644)
+	err = os.WriteFile(liveFile, liveData, 0644)
 	if err != nil {
 		return err
 	}

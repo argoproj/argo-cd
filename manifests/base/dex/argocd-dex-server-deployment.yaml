@@ -18,17 +18,44 @@ spec:
       serviceAccountName: argocd-dex-server
       initContainers:
       - name: copyutil
-        image: argoproj/argocd:latest
+        image: quay.io/argoproj/argocd:latest
         imagePullPolicy: Always
-        command: [cp, -n, /usr/local/bin/argocd-util, /shared]
+        command: [cp, -n, /usr/local/bin/argocd, /shared/argocd-dex]
         volumeMounts:
         - mountPath: /shared
           name: static-files
+        - mountPath: /tmp
+          name: dexconfig
+        securityContext:
+          capabilities:
+            drop:
+            - ALL
+          allowPrivilegeEscalation: false
+          readOnlyRootFilesystem: true
+          runAsNonRoot: true
+          seccompProfile:
+            type: RuntimeDefault
       containers:
       - name: dex
-        image: quay.io/dexidp/dex:v2.22.0
+        image: ghcr.io/dexidp/dex:v2.32.0-distroless
         imagePullPolicy: Always
-        command: [/shared/argocd-util, rundex]
+        command: [/shared/argocd-dex, rundex]
+        env:
+          - name: ARGOCD_DEX_SERVER_DISABLE_TLS
+            valueFrom:
+              configMapKeyRef:
+                name: argocd-cmd-params-cm
+                key: dexserver.disable.tls
+                optional: true
+        securityContext:
+          capabilities:
+            drop:
+            - ALL
+          allowPrivilegeEscalation: false
+          readOnlyRootFilesystem: true
+          runAsNonRoot: true
+          seccompProfile:
+            type: RuntimeDefault
         ports:
         - containerPort: 5556
         - containerPort: 5557
@@ -36,6 +63,32 @@ spec:
         volumeMounts:
         - mountPath: /shared
           name: static-files
+        - mountPath: /tmp
+          name: dexconfig
+        - mountPath: /tls
+          name: argocd-dex-server-tls
       volumes:
       - emptyDir: {}
         name: static-files
+      - emptyDir: {}
+        name: dexconfig
+      - name: argocd-dex-server-tls
+        secret:
+          secretName: argocd-dex-server-tls
+          optional: true
+          items:
+          - key: tls.crt
+            path: tls.crt
+          - key: tls.key
+            path: tls.key
+          - key: ca.crt
+            path: ca.crt
+      affinity:
+        podAntiAffinity:
+          preferredDuringSchedulingIgnoredDuringExecution:
+          - weight: 5
+            podAffinityTerm:
+              labelSelector:
+                matchLabels:
+                  app.kubernetes.io/part-of: argocd
+              topologyKey: kubernetes.io/hostname

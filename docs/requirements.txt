@@ -1,0 +1,6 @@
+mkdocs==1.2.3
+mkdocs-material==7.1.7
+markdown_include==0.6.0
+pygments==2.7.4
+jinja2==3.0.3
+markdown==3.3.7

@@ -6,8 +6,8 @@ import (
 	"github.com/argoproj/gitops-engine/pkg/health"
 	. "github.com/argoproj/gitops-engine/pkg/sync/common"
 
-	. "github.com/argoproj/argo-cd/pkg/apis/application/v1alpha1"
-	. "github.com/argoproj/argo-cd/test/e2e/fixture/app"
+	. "github.com/argoproj/argo-cd/v2/pkg/apis/application/v1alpha1"
+	. "github.com/argoproj/argo-cd/v2/test/e2e/fixture/app"
 )
 
 func TestDeclarativeHappyApp(t *testing.T) {
@@ -66,7 +66,7 @@ func TestDeclarativeInvalidRepoURL(t *testing.T) {
 	Given(t).
 		Path("whatever").
 		When().
-		DeclarativeWithCustomRepo("declarative-apps/app.yaml", "http://github.com").
+		DeclarativeWithCustomRepo("declarative-apps/app.yaml", "https://github.com").
 		Then().
 		Expect(Success("")).
 		Expect(HealthIs(health.HealthStatusHealthy)).

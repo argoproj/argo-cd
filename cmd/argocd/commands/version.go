@@ -8,12 +8,12 @@ import (
 	log "github.com/sirupsen/logrus"
 	"github.com/spf13/cobra"
 
-	"github.com/argoproj/gitops-engine/pkg/utils/errors"
-	argoio "github.com/argoproj/gitops-engine/pkg/utils/io"
-
-	"github.com/argoproj/argo-cd/common"
-	argocdclient "github.com/argoproj/argo-cd/pkg/apiclient"
-	"github.com/argoproj/argo-cd/pkg/apiclient/version"
+	"github.com/argoproj/argo-cd/v2/cmd/argocd/commands/headless"
+	"github.com/argoproj/argo-cd/v2/common"
+	argocdclient "github.com/argoproj/argo-cd/v2/pkg/apiclient"
+	"github.com/argoproj/argo-cd/v2/pkg/apiclient/version"
+	"github.com/argoproj/argo-cd/v2/util/errors"
+	argoio "github.com/argoproj/argo-cd/v2/util/io"
 )
 
 // NewVersionCmd returns a new `version` command to be used as a sub-command to root
@@ -40,8 +40,9 @@ func NewVersionCmd(clientOpts *argocdclient.ClientOptions) *cobra.Command {
   argocd version --short -o yaml
 `,
 		Run: func(cmd *cobra.Command, args []string) {
-			cv := common.GetVersion()
+			ctx := cmd.Context()
 
+			cv := common.GetVersion()
 			switch output {
 			case "yaml", "json":
 				v := make(map[string]interface{})
@@ -53,7 +54,7 @@ func NewVersionCmd(clientOpts *argocdclient.ClientOptions) *cobra.Command {
 				}
 
 				if !client {
-					sv := getServerVersion(clientOpts)
+					sv := getServerVersion(ctx, clientOpts, cmd)
 
 					if short {
 						v["server"] = map[string]string{"argocd-server": sv.Version}
@@ -68,7 +69,7 @@ func NewVersionCmd(clientOpts *argocdclient.ClientOptions) *cobra.Command {
 				printClientVersion(&cv, short || (output == "short"))
 
 				if !client {
-					sv := getServerVersion(clientOpts)
+					sv := getServerVersion(ctx, clientOpts, cmd)
 					printServerVersion(sv, short || (output == "short"))
 				}
 			default:
@@ -82,11 +83,11 @@ func NewVersionCmd(clientOpts *argocdclient.ClientOptions) *cobra.Command {
 	return &versionCmd
 }
 
-func getServerVersion(options *argocdclient.ClientOptions) *version.VersionMessage {
-	conn, versionIf := argocdclient.NewClientOrDie(options).NewVersionClientOrDie()
+func getServerVersion(ctx context.Context, options *argocdclient.ClientOptions, c *cobra.Command) *version.VersionMessage {
+	conn, versionIf := headless.NewClientOrDie(options, c).NewVersionClientOrDie()
 	defer argoio.Close(conn)
 
-	v, err := versionIf.Version(context.Background(), &empty.Empty{})
+	v, err := versionIf.Version(ctx, &empty.Empty{})
 	errors.CheckError(err)
 
 	return v
@@ -117,18 +118,37 @@ func printServerVersion(version *version.VersionMessage, short bool) {
 		return
 	}
 
-	fmt.Printf("  BuildDate: %s\n", version.BuildDate)
-	fmt.Printf("  GitCommit: %s\n", version.GitCommit)
-	fmt.Printf("  GitTreeState: %s\n", version.GitTreeState)
+	if version.BuildDate != "" {
+		fmt.Printf("  BuildDate: %s\n", version.BuildDate)
+	}
+	if version.GitCommit != "" {
+		fmt.Printf("  GitCommit: %s\n", version.GitCommit)
+	}
+	if version.GitTreeState != "" {
+		fmt.Printf("  GitTreeState: %s\n", version.GitTreeState)
+	}
 	if version.GitTag != "" {
 		fmt.Printf("  GitTag: %s\n", version.GitTag)
 	}
-	fmt.Printf("  GoVersion: %s\n", version.GoVersion)
-	fmt.Printf("  Compiler: %s\n", version.Compiler)
-	fmt.Printf("  Platform: %s\n", version.Platform)
-	fmt.Printf("  Ksonnet Version: %s\n", version.KsonnetVersion)
-	fmt.Printf("  Kustomize Version: %s\n", version.KustomizeVersion)
-	fmt.Printf("  Helm Version: %s\n", version.HelmVersion)
-	fmt.Printf("  Kubectl Version: %s\n", version.KubectlVersion)
-	fmt.Printf("  Jsonnet Version: %s\n", version.JsonnetVersion)
+	if version.GoVersion != "" {
+		fmt.Printf("  GoVersion: %s\n", version.GoVersion)
+	}
+	if version.Compiler != "" {
+		fmt.Printf("  Compiler: %s\n", version.Compiler)
+	}
+	if version.Platform != "" {
+		fmt.Printf("  Platform: %s\n", version.Platform)
+	}
+	if version.KustomizeVersion != "" {
+		fmt.Printf("  Kustomize Version: %s\n", version.KustomizeVersion)
+	}
+	if version.HelmVersion != "" {
+		fmt.Printf("  Helm Version: %s\n", version.HelmVersion)
+	}
+	if version.KubectlVersion != "" {
+		fmt.Printf("  Kubectl Version: %s\n", version.KubectlVersion)
+	}
+	if version.JsonnetVersion != "" {
+		fmt.Printf("  Jsonnet Version: %s\n", version.JsonnetVersion)
+	}
 }

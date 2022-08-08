@@ -3,7 +3,6 @@ package gpg
 import (
 	"fmt"
 	"io"
-	"io/ioutil"
 	"os"
 	"os/exec"
 	"path"
@@ -12,8 +11,8 @@ import (
 	"github.com/stretchr/testify/assert"
 	"github.com/stretchr/testify/require"
 
-	"github.com/argoproj/argo-cd/common"
-	"github.com/argoproj/argo-cd/test"
+	"github.com/argoproj/argo-cd/v2/common"
+	"github.com/argoproj/argo-cd/v2/test"
 )
 
 const (
@@ -28,14 +27,24 @@ var syncTestSources = map[string]string{
 }
 
 // Helper function to create temporary GNUPGHOME
-func initTempDir() string {
-	p, err := ioutil.TempDir("", "gpg-test")
+func initTempDir(t *testing.T) string {
+	// Intentionally avoid using t.TempDir. That function creates really long paths, which can exceed the socket file
+	// path length on some OSes. The GPG tests rely on sockets.
+	p, err := os.MkdirTemp(os.TempDir(), "")
 	if err != nil {
-		// makes no sense to continue test without temp dir
-		panic(err.Error())
+		panic(err)
 	}
 	fmt.Printf("-> Using %s as GNUPGHOME\n", p)
-	os.Setenv(common.EnvGnuPGHome, p)
+	err = os.Setenv(common.EnvGnuPGHome, p)
+	if err != nil {
+		panic(err)
+	}
+	t.Cleanup(func() {
+		err := os.RemoveAll(p)
+		if err != nil {
+			panic(err)
+		}
+	})
 	return p
 }
 
@@ -49,8 +58,7 @@ func Test_IsGPGEnabled(t *testing.T) {
 }
 
 func Test_GPG_InitializeGnuPG(t *testing.T) {
-	p := initTempDir()
-	defer os.RemoveAll(p)
+	p := initTempDir(t)
 
 	// First run should initialize fine
 	err := InitializeGnuPG()
@@ -78,7 +86,7 @@ func Test_GPG_InitializeGnuPG(t *testing.T) {
 	assert.Equal(t, keys[0].Trust, "ultimate")
 
 	// GNUPGHOME is a file - we need to error out
-	f, err := ioutil.TempFile("", "gpg-test")
+	f, err := os.CreateTemp("", "gpg-test")
 	assert.NoError(t, err)
 	defer os.Remove(f.Name())
 
@@ -88,8 +96,7 @@ func Test_GPG_InitializeGnuPG(t *testing.T) {
 	assert.Contains(t, err.Error(), "does not point to a directory")
 
 	// Unaccessible GNUPGHOME
-	p = initTempDir()
-	defer os.RemoveAll(p)
+	p = initTempDir(t)
 	fp := fmt.Sprintf("%s/gpg", p)
 	err = os.Mkdir(fp, 0000)
 	if err != nil {
@@ -110,8 +117,7 @@ func Test_GPG_InitializeGnuPG(t *testing.T) {
 	// GNUPGHOME with too wide permissions
 	// We do not expect an error here, because of openshift's random UIDs that
 	// forced us to use an emptyDir mount (#4127)
-	p = initTempDir()
-	defer os.RemoveAll(p)
+	p = initTempDir(t)
 	err = os.Chmod(p, 0777)
 	if err != nil {
 		panic(err.Error())
@@ -122,8 +128,7 @@ func Test_GPG_InitializeGnuPG(t *testing.T) {
 }
 
 func Test_GPG_KeyManagement(t *testing.T) {
-	p := initTempDir()
-	defer os.RemoveAll(p)
+	initTempDir(t)
 
 	err := InitializeGnuPG()
 	assert.NoError(t, err)
@@ -218,8 +223,7 @@ func Test_GPG_KeyManagement(t *testing.T) {
 }
 
 func Test_ImportPGPKeysFromString(t *testing.T) {
-	p := initTempDir()
-	defer os.RemoveAll(p)
+	initTempDir(t)
 
 	err := InitializeGnuPG()
 	assert.NoError(t, err)
@@ -236,8 +240,7 @@ func Test_ImportPGPKeysFromString(t *testing.T) {
 }
 
 func Test_ValidateGPGKeysFromString(t *testing.T) {
-	p := initTempDir()
-	defer os.RemoveAll(p)
+	initTempDir(t)
 
 	err := InitializeGnuPG()
 	assert.NoError(t, err)
@@ -259,8 +262,7 @@ func Test_ValidateGPGKeysFromString(t *testing.T) {
 }
 
 func Test_ValidateGPGKeys(t *testing.T) {
-	p := initTempDir()
-	defer os.RemoveAll(p)
+	initTempDir(t)
 
 	err := InitializeGnuPG()
 	assert.NoError(t, err)
@@ -289,8 +291,7 @@ func Test_ValidateGPGKeys(t *testing.T) {
 }
 
 func Test_GPG_ParseGitCommitVerification(t *testing.T) {
-	p := initTempDir()
-	defer os.RemoveAll(p)
+	initTempDir(t)
 
 	err := InitializeGnuPG()
 	assert.NoError(t, err)
@@ -301,12 +302,11 @@ func Test_GPG_ParseGitCommitVerification(t *testing.T) {
 
 	// Good case
 	{
-		c, err := ioutil.ReadFile("testdata/good_signature.txt")
+		c, err := os.ReadFile("testdata/good_signature.txt")
 		if err != nil {
 			panic(err.Error())
 		}
-		res, err := ParseGitCommitVerification(string(c))
-		assert.NoError(t, err)
+		res := ParseGitCommitVerification(string(c))
 		assert.Equal(t, "4AEE18F83AFDEB23", res.KeyID)
 		assert.Equal(t, "RSA", res.Cipher)
 		assert.Equal(t, "ultimate", res.Trust)
@@ -316,12 +316,25 @@ func Test_GPG_ParseGitCommitVerification(t *testing.T) {
 
 	// Signature with unknown key - considered invalid
 	{
-		c, err := ioutil.ReadFile("testdata/unknown_signature.txt")
+		c, err := os.ReadFile("testdata/unknown_signature1.txt")
 		if err != nil {
 			panic(err.Error())
 		}
-		res, err := ParseGitCommitVerification(string(c))
-		assert.NoError(t, err)
+		res := ParseGitCommitVerification(string(c))
+		assert.Equal(t, "4AEE18F83AFDEB23", res.KeyID)
+		assert.Equal(t, "RSA", res.Cipher)
+		assert.Equal(t, TrustUnknown, res.Trust)
+		assert.Equal(t, "Mon Aug 26 20:59:48 2019 CEST", res.Date)
+		assert.Equal(t, VerifyResultInvalid, res.Result)
+	}
+
+	// Signature with unknown key and additional fields - considered invalid
+	{
+		c, err := os.ReadFile("testdata/unknown_signature2.txt")
+		if err != nil {
+			panic(err.Error())
+		}
+		res := ParseGitCommitVerification(string(c))
 		assert.Equal(t, "4AEE18F83AFDEB23", res.KeyID)
 		assert.Equal(t, "RSA", res.Cipher)
 		assert.Equal(t, TrustUnknown, res.Trust)
@@ -331,12 +344,11 @@ func Test_GPG_ParseGitCommitVerification(t *testing.T) {
 
 	// Bad signature with known key
 	{
-		c, err := ioutil.ReadFile("testdata/bad_signature_bad.txt")
+		c, err := os.ReadFile("testdata/bad_signature_bad.txt")
 		if err != nil {
 			panic(err.Error())
 		}
-		res, err := ParseGitCommitVerification(string(c))
-		assert.NoError(t, err)
+		res := ParseGitCommitVerification(string(c))
 		assert.Equal(t, "4AEE18F83AFDEB23", res.KeyID)
 		assert.Equal(t, "RSA", res.Cipher)
 		assert.Equal(t, "ultimate", res.Trust)
@@ -346,90 +358,90 @@ func Test_GPG_ParseGitCommitVerification(t *testing.T) {
 
 	// Bad case: Manipulated/invalid clear text signature
 	{
-		c, err := ioutil.ReadFile("testdata/bad_signature_manipulated.txt")
+		c, err := os.ReadFile("testdata/bad_signature_manipulated.txt")
 		if err != nil {
 			panic(err.Error())
 		}
-		_, err = ParseGitCommitVerification(string(c))
-		assert.Error(t, err)
-		assert.Contains(t, err.Error(), "Could not parse output")
+		res := ParseGitCommitVerification(string(c))
+		assert.Equal(t, VerifyResultUnknown, res.Result)
+		assert.Contains(t, res.Message, "Could not parse output")
 	}
 
 	// Bad case: Incomplete signature data #1
 	{
-		c, err := ioutil.ReadFile("testdata/bad_signature_preeof1.txt")
+		c, err := os.ReadFile("testdata/bad_signature_preeof1.txt")
 		if err != nil {
 			panic(err.Error())
 		}
-		_, err = ParseGitCommitVerification(string(c))
-		assert.Error(t, err)
-		assert.Contains(t, err.Error(), "end-of-file")
+		res := ParseGitCommitVerification(string(c))
+		assert.Equal(t, VerifyResultUnknown, res.Result)
+		assert.Contains(t, res.Message, "end-of-file")
 	}
 
 	// Bad case: Incomplete signature data #2
 	{
-		c, err := ioutil.ReadFile("testdata/bad_signature_preeof2.txt")
+		c, err := os.ReadFile("testdata/bad_signature_preeof2.txt")
 		if err != nil {
 			panic(err.Error())
 		}
-		_, err = ParseGitCommitVerification(string(c))
-		assert.Error(t, err)
-		assert.Contains(t, err.Error(), "end-of-file")
+		res := ParseGitCommitVerification(string(c))
+		assert.Equal(t, VerifyResultUnknown, res.Result)
+		assert.Contains(t, res.Message, "end-of-file")
 	}
 
 	// Bad case: No signature data #1
 	{
-		c, err := ioutil.ReadFile("testdata/bad_signature_nodata.txt")
+		c, err := os.ReadFile("testdata/bad_signature_nodata.txt")
 		if err != nil {
 			panic(err.Error())
 		}
-		_, err = ParseGitCommitVerification(string(c))
-		assert.Error(t, err)
-		assert.Contains(t, err.Error(), "no verification data found")
+		res := ParseGitCommitVerification(string(c))
+		assert.Equal(t, VerifyResultUnknown, res.Result)
+		assert.Contains(t, res.Message, "no verification data found")
 	}
 
 	// Bad case: Malformed signature data #1
 	{
-		c, err := ioutil.ReadFile("testdata/bad_signature_malformed1.txt")
+		c, err := os.ReadFile("testdata/bad_signature_malformed1.txt")
 		if err != nil {
 			panic(err.Error())
 		}
-		_, err = ParseGitCommitVerification(string(c))
-		assert.Error(t, err)
-		assert.Contains(t, err.Error(), "no verification data found")
+		res := ParseGitCommitVerification(string(c))
+		assert.Equal(t, VerifyResultUnknown, res.Result)
+		assert.Contains(t, res.Message, "no verification data found")
 	}
 
 	// Bad case: Malformed signature data #2
 	{
-		c, err := ioutil.ReadFile("testdata/bad_signature_malformed2.txt")
+		c, err := os.ReadFile("testdata/bad_signature_malformed2.txt")
 		if err != nil {
 			panic(err.Error())
 		}
-		_, err = ParseGitCommitVerification(string(c))
-		assert.Error(t, err)
-		assert.Contains(t, err.Error(), "Could not parse key ID")
+		res := ParseGitCommitVerification(string(c))
+		assert.Equal(t, VerifyResultUnknown, res.Result)
+		assert.Contains(t, res.Message, "Could not parse key ID")
 	}
 
 	// Bad case: Malformed signature data #3
 	{
-		c, err := ioutil.ReadFile("testdata/bad_signature_malformed3.txt")
+		c, err := os.ReadFile("testdata/bad_signature_malformed3.txt")
 		if err != nil {
 			panic(err.Error())
 		}
-		_, err = ParseGitCommitVerification(string(c))
-		assert.Error(t, err)
-		assert.Contains(t, err.Error(), "Could not parse result of verify")
+		res := ParseGitCommitVerification(string(c))
+		assert.Equal(t, VerifyResultUnknown, res.Result)
+		assert.Contains(t, res.Message, "Could not parse result of verify")
 	}
 
 	// Bad case: Invalid key ID in signature
 	{
-		c, err := ioutil.ReadFile("testdata/bad_signature_badkeyid.txt")
+		c, err := os.ReadFile("testdata/bad_signature_badkeyid.txt")
 		if err != nil {
 			panic(err.Error())
 		}
-		_, err = ParseGitCommitVerification(string(c))
-		assert.Error(t, err)
-		assert.Contains(t, err.Error(), "Invalid PGP key ID")
+		res := ParseGitCommitVerification(string(c))
+		assert.Equal(t, VerifyResultUnknown, res.Result)
+		assert.Contains(t, res.Message, "Invalid PGP key ID")
 	}
 }
 
@@ -495,8 +507,7 @@ func Test_isHexString(t *testing.T) {
 }
 
 func Test_IsSecretKey(t *testing.T) {
-	p := initTempDir()
-	defer os.RemoveAll(p)
+	initTempDir(t)
 
 	// First run should initialize fine
 	err := InitializeGnuPG()
@@ -523,18 +534,13 @@ func Test_IsSecretKey(t *testing.T) {
 }
 
 func Test_SyncKeyRingFromDirectory(t *testing.T) {
-	p := initTempDir()
-	defer os.RemoveAll(p)
+	initTempDir(t)
 
 	// First run should initialize fine
 	err := InitializeGnuPG()
 	assert.NoError(t, err)
 
-	tempDir, err := ioutil.TempDir("", "gpg-sync-test")
-	if err != nil {
-		panic(err.Error())
-	}
-	defer os.RemoveAll(tempDir)
+	tempDir := t.TempDir()
 
 	{
 		new, removed, err := SyncKeyRingFromDirectory(tempDir)

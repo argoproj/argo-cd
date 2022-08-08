@@ -3,6 +3,7 @@ package app
 import (
 	"context"
 	"fmt"
+	"regexp"
 	"strings"
 
 	"github.com/argoproj/gitops-engine/pkg/health"
@@ -12,8 +13,8 @@ import (
 	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
 	"k8s.io/apimachinery/pkg/fields"
 
-	. "github.com/argoproj/argo-cd/pkg/apis/application/v1alpha1"
-	"github.com/argoproj/argo-cd/test/e2e/fixture"
+	. "github.com/argoproj/argo-cd/v2/pkg/apis/application/v1alpha1"
+	"github.com/argoproj/argo-cd/v2/test/e2e/fixture"
 )
 
 type state = string
@@ -105,6 +106,7 @@ func ResourceSyncStatusWithNamespaceIs(kind, resource, namespace string, expecte
 		return simple(actual == expected, fmt.Sprintf("resource '%s/%s' sync status should be %s, is %s", kind, resource, expected, actual))
 	}
 }
+
 func ResourceHealthIs(kind, resource string, expected health.HealthStatusCode) Expectation {
 	return func(c *Consequences) (state, string) {
 		actual := c.resource(kind, resource, "").Health.Status
@@ -136,6 +138,31 @@ func ResourceResultIs(result ResourceResult) Expectation {
 		for _, res := range results {
 			if *res == result {
 				return succeeded, fmt.Sprintf("found resource result %v", result)
+			}
+		}
+		return pending, fmt.Sprintf("waiting for resource result %v in %v", result, results)
+	}
+}
+
+func sameResourceResult(res1, res2 ResourceResult) bool {
+	return res1.Kind == res2.Kind &&
+		res1.Group == res2.Group &&
+		res1.Namespace == res2.Namespace &&
+		res1.Name == res2.Name &&
+		res1.SyncPhase == res2.SyncPhase &&
+		res1.Status == res2.Status &&
+		res1.HookPhase == res2.HookPhase
+}
+
+func ResourceResultMatches(result ResourceResult) Expectation {
+	return func(c *Consequences) (state, string) {
+		results := c.app().Status.OperationState.SyncResult.Resources
+		for _, res := range results {
+			if sameResourceResult(*res, result) {
+				re := regexp.MustCompile(result.Message)
+				if re.MatchString(res.Message) {
+					return succeeded, fmt.Sprintf("found resource result %v", result)
+				}
 			}
 		}
 		return pending, fmt.Sprintf("waiting for resource result %v in %v", result, results)
@@ -226,18 +253,36 @@ func Success(message string) Expectation {
 	}
 }
 
-// asserts that the last command was an error with substring match
-func Error(message, err string) Expectation {
+// Error asserts that the last command was an error with substring match
+func Error(message, err string, matchers ...func(string, string) bool) Expectation {
+	if len(matchers) == 0 {
+		matchers = append(matchers, strings.Contains)
+	}
+	match := func(actual, expected string) bool {
+		for i := range matchers {
+			if !matchers[i](actual, expected) {
+				return false
+			}
+		}
+		return true
+	}
 	return func(c *Consequences) (state, string) {
 		if c.actions.lastError == nil {
 			return failed, "no error"
 		}
-		if !strings.Contains(c.actions.lastOutput, message) {
+		if !match(c.actions.lastOutput, message) {
 			return failed, fmt.Sprintf("output does not contain '%s'", message)
 		}
-		if !strings.Contains(c.actions.lastError.Error(), err) {
+		if !match(c.actions.lastError.Error(), err) {
 			return failed, fmt.Sprintf("error does not contain '%s'", message)
 		}
 		return succeeded, fmt.Sprintf("error '%s'", message)
 	}
+}
+
+// ErrorRegex asserts that the last command was an error that matches given regex epxression
+func ErrorRegex(messagePattern, err string) Expectation {
+	return Error(messagePattern, err, func(actual, expected string) bool {
+		return regexp.MustCompile(expected).MatchString(actual)
+	})
 }

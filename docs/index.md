@@ -24,7 +24,7 @@ kubectl create namespace argocd
 kubectl apply -n argocd -f https://raw.githubusercontent.com/argoproj/argo-cd/stable/manifests/install.yaml
 ```
 
-Follow our [getting started guide](getting_started.md). Further user oriented [documentation](user_guide/)
+Follow our [getting started guide](getting_started.md). Further user oriented [documentation](user-guide/)
 is provided for additional features. If you are looking to upgrade ArgoCD, see the [upgrade guide](./operator-manual/upgrading/overview.md).
 Developer oriented [documentation](developer-guide/) is available for people interested in building third-party integrations.
 
@@ -35,7 +35,6 @@ the desired application state. Kubernetes manifests can be specified in several 
 
 * [kustomize](https://kustomize.io) applications
 * [helm](https://helm.sh) charts
-* [ksonnet](https://ksonnet.io) applications
 * [jsonnet](https://jsonnet.org) files
 * Plain directory of YAML/json manifests
 * Any custom config management tool configured as a config management plugin
@@ -47,7 +46,8 @@ details about the different tracking strategies available.
 
 For a quick 10 minute overview of Argo CD, check out the demo presented to the Sig Apps community
 meeting:
-[![Alt text](https://img.youtube.com/vi/aWDIQMbp1cc/0.jpg)](https://youtu.be/aWDIQMbp1cc?t=1m4s)
+
+[![Argo CD Overview Demo](https://img.youtube.com/vi/aWDIQMbp1cc/0.jpg)](https://youtu.be/aWDIQMbp1cc?t=1m4s)
 
 ## Architecture
 
@@ -66,7 +66,7 @@ For additional details, see [architecture overview](operator-manual/architecture
 ## Features
 
 * Automated deployment of applications to specified target environments
-* Support for multiple config management/templating tools (Kustomize, Helm, Ksonnet, Jsonnet, plain-YAML)
+* Support for multiple config management/templating tools (Kustomize, Helm, Jsonnet, plain-YAML)
 * Ability to manage and deploy to multiple clusters
 * SSO Integration (OIDC, OAuth2, LDAP, SAML 2.0, GitHub, GitLab, Microsoft, LinkedIn)
 * Multi-tenancy and RBAC policies for authorization
@@ -81,7 +81,7 @@ For additional details, see [architecture overview](operator-manual/architecture
 * PreSync, Sync, PostSync hooks to support complex application rollouts (e.g.blue/green & canary upgrades)
 * Audit trails for application events and API calls
 * Prometheus metrics
-* Parameter overrides for overriding ksonnet/helm parameters in Git
+* Parameter overrides for overriding helm parameters in Git
 
 ## Development Status
 

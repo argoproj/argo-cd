@@ -2,15 +2,15 @@ package app
 
 import (
 	"fmt"
-	"io/ioutil"
+	"os"
 
-	"github.com/argoproj/gitops-engine/pkg/utils/errors"
 	log "github.com/sirupsen/logrus"
 	v1 "k8s.io/apimachinery/pkg/apis/meta/v1"
 
-	. "github.com/argoproj/argo-cd/pkg/apis/application/v1alpha1"
-	"github.com/argoproj/argo-cd/test/e2e/fixture"
-	"github.com/argoproj/argo-cd/util/grpc"
+	. "github.com/argoproj/argo-cd/v2/pkg/apis/application/v1alpha1"
+	"github.com/argoproj/argo-cd/v2/test/e2e/fixture"
+	"github.com/argoproj/argo-cd/v2/util/errors"
+	"github.com/argoproj/argo-cd/v2/util/grpc"
 )
 
 // this implements the "when" part of given/when/then
@@ -46,6 +46,12 @@ func (a *Actions) DeleteFile(file string) *Actions {
 	return a
 }
 
+func (a *Actions) WriteFile(fileName, fileContents string) *Actions {
+	a.context.t.Helper()
+	fixture.WriteFile(a.context.path+"/"+fileName, fileContents)
+	return a
+}
+
 func (a *Actions) AddFile(fileName, fileContents string) *Actions {
 	a.context.t.Helper()
 	fixture.AddFile(a.context.path+"/"+fileName, fileContents)
@@ -60,7 +66,7 @@ func (a *Actions) AddSignedFile(fileName, fileContents string) *Actions {
 
 func (a *Actions) CreateFromPartialFile(data string, flags ...string) *Actions {
 	a.context.t.Helper()
-	tmpFile, err := ioutil.TempFile("", "")
+	tmpFile, err := os.CreateTemp("", "")
 	errors.CheckError(err)
 	_, err = tmpFile.Write([]byte(data))
 	errors.CheckError(err)
@@ -73,7 +79,7 @@ func (a *Actions) CreateFromPartialFile(data string, flags ...string) *Actions {
 		"--dest-server", a.context.destServer,
 		"--dest-namespace", fixture.DeploymentNamespace(),
 	}, flags...)
-
+	defer tmpFile.Close()
 	a.runCli(args...)
 	return a
 }
@@ -94,11 +100,6 @@ func (a *Actions) CreateFromFile(handler func(app *Application), flags ...string
 				Namespace: fixture.DeploymentNamespace(),
 			},
 		},
-	}
-	if a.context.env != "" {
-		app.Spec.Source.Ksonnet = &ApplicationSourceKsonnet{
-			Environment: a.context.env,
-		}
 	}
 	if a.context.namePrefix != "" || a.context.nameSuffix != "" {
 		app.Spec.Source.Kustomize = &ApplicationSourceKustomize{
@@ -122,7 +123,7 @@ func (a *Actions) CreateFromFile(handler func(app *Application), flags ...string
 
 	handler(app)
 	data := grpc.MustMarshal(app)
-	tmpFile, err := ioutil.TempFile("", "")
+	tmpFile, err := os.CreateTemp("", "")
 	errors.CheckError(err)
 	_, err = tmpFile.Write(data)
 	errors.CheckError(err)
@@ -131,20 +132,20 @@ func (a *Actions) CreateFromFile(handler func(app *Application), flags ...string
 		"app", "create",
 		"-f", tmpFile.Name(),
 	}, flags...)
-
+	defer tmpFile.Close()
 	a.runCli(args...)
 	return a
 }
 
 func (a *Actions) CreateWithNoNameSpace(args ...string) *Actions {
-	args = a.prepareCreateArgs(args)
+	args = a.prepareCreateAppArgs(args)
 	//  are you adding new context values? if you only use them for this func, then use args instead
 	a.runCli(args...)
 	return a
 }
 
-func (a *Actions) Create(args ...string) *Actions {
-	args = a.prepareCreateArgs(args)
+func (a *Actions) CreateApp(args ...string) *Actions {
+	args = a.prepareCreateAppArgs(args)
 	args = append(args, "--dest-namespace", fixture.DeploymentNamespace())
 
 	//  are you adding new context values? if you only use them for this func, then use args instead
@@ -153,14 +154,18 @@ func (a *Actions) Create(args ...string) *Actions {
 	return a
 }
 
-func (a *Actions) prepareCreateArgs(args []string) []string {
+func (a *Actions) prepareCreateAppArgs(args []string) []string {
 	a.context.t.Helper()
 	args = append([]string{
 		"app", "create", a.context.name,
 		"--repo", fixture.RepoURL(a.context.repoURLType),
-		"--dest-server", a.context.destServer,
 	}, args...)
 
+	if a.context.destName != "" {
+		args = append(args, "--dest-name", a.context.destName)
+	} else {
+		args = append(args, "--dest-server", a.context.destServer)
+	}
 	if a.context.path != "" {
 		args = append(args, "--path", a.context.path)
 	}
@@ -193,6 +198,12 @@ func (a *Actions) prepareCreateArgs(args []string) []string {
 
 	if a.context.revision != "" {
 		args = append(args, "--revision", a.context.revision)
+	}
+	if a.context.helmPassCredentials {
+		args = append(args, "--helm-pass-credentials")
+	}
+	if a.context.helmSkipCrds {
+		args = append(args, "--helm-skip-crds")
 	}
 	return args
 }
@@ -267,6 +278,10 @@ func (a *Actions) Sync(args ...string) *Actions {
 		args = append(args, "--force")
 	}
 
+	if a.context.replace {
+		args = append(args, "--replace")
+	}
+
 	//  are you adding new context values? if you only use them for this func, then use args instead
 
 	a.runCli(args...)
@@ -294,7 +309,12 @@ func (a *Actions) Refresh(refreshType RefreshType) *Actions {
 
 func (a *Actions) Delete(cascade bool) *Actions {
 	a.context.t.Helper()
-	a.runCli("app", "delete", a.context.name, fmt.Sprintf("--cascade=%v", cascade))
+	a.runCli("app", "delete", a.context.name, fmt.Sprintf("--cascade=%v", cascade), "--yes")
+	return a
+}
+
+func (a *Actions) SetParamInSettingConfigMap(key, value string) *Actions {
+	fixture.SetParamInSettingConfigMap(key, value)
 	return a
 }
 
@@ -306,7 +326,7 @@ func (a *Actions) And(block func()) *Actions {
 
 func (a *Actions) Then() *Consequences {
 	a.context.t.Helper()
-	return &Consequences{a.context, a}
+	return &Consequences{a.context, a, 15}
 }
 
 func (a *Actions) runCli(args ...string) {
@@ -320,4 +340,14 @@ func (a *Actions) verifyAction() {
 	if !a.ignoreErrors {
 		a.Then().Expect(Success(""))
 	}
+}
+
+func (a *Actions) SetTrackingMethod(trackingMethod string) *Actions {
+	fixture.SetTrackingMethod(trackingMethod)
+	return a
+}
+
+func (a *Actions) SetTrackingLabel(trackingLabel string) *Actions {
+	fixture.SetTrackingLabel(trackingLabel)
+	return a
 }

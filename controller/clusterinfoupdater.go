@@ -10,12 +10,12 @@ import (
 	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
 	"k8s.io/apimachinery/pkg/labels"
 
-	"github.com/argoproj/argo-cd/controller/metrics"
-	appv1 "github.com/argoproj/argo-cd/pkg/apis/application/v1alpha1"
-	"github.com/argoproj/argo-cd/pkg/client/listers/application/v1alpha1"
-	"github.com/argoproj/argo-cd/util/argo"
-	appstatecache "github.com/argoproj/argo-cd/util/cache/appstate"
-	"github.com/argoproj/argo-cd/util/db"
+	"github.com/argoproj/argo-cd/v2/controller/metrics"
+	appv1 "github.com/argoproj/argo-cd/v2/pkg/apis/application/v1alpha1"
+	"github.com/argoproj/argo-cd/v2/pkg/client/listers/application/v1alpha1"
+	"github.com/argoproj/argo-cd/v2/util/argo"
+	appstatecache "github.com/argoproj/argo-cd/v2/util/cache/appstate"
+	"github.com/argoproj/argo-cd/v2/util/db"
 )
 
 const (
@@ -23,19 +23,21 @@ const (
 )
 
 type clusterInfoUpdater struct {
-	infoSource metrics.HasClustersInfo
-	db         db.ArgoDB
-	appLister  v1alpha1.ApplicationNamespaceLister
-	cache      *appstatecache.Cache
+	infoSource    metrics.HasClustersInfo
+	db            db.ArgoDB
+	appLister     v1alpha1.ApplicationNamespaceLister
+	cache         *appstatecache.Cache
+	clusterFilter func(cluster *appv1.Cluster) bool
 }
 
 func NewClusterInfoUpdater(
 	infoSource metrics.HasClustersInfo,
 	db db.ArgoDB,
 	appLister v1alpha1.ApplicationNamespaceLister,
-	cache *appstatecache.Cache) *clusterInfoUpdater {
+	cache *appstatecache.Cache,
+	clusterFilter func(cluster *appv1.Cluster) bool) *clusterInfoUpdater {
 
-	return &clusterInfoUpdater{infoSource, db, appLister, cache}
+	return &clusterInfoUpdater{infoSource, db, appLister, cache, clusterFilter}
 }
 
 func (c *clusterInfoUpdater) Run(ctx context.Context) {
@@ -62,14 +64,26 @@ func (c *clusterInfoUpdater) updateClusters() {
 	clusters, err := c.db.ListClusters(context.Background())
 	if err != nil {
 		log.Warnf("Failed to save clusters info: %v", err)
+		return
 	}
-	_ = kube.RunAllAsync(len(clusters.Items), func(i int) error {
-		cluster := clusters.Items[i]
+	var clustersFiltered []appv1.Cluster
+	if c.clusterFilter == nil {
+		clustersFiltered = clusters.Items
+	} else {
+		for i := range clusters.Items {
+			if c.clusterFilter(&clusters.Items[i]) {
+				clustersFiltered = append(clustersFiltered, clusters.Items[i])
+			}
+		}
+	}
+	_ = kube.RunAllAsync(len(clustersFiltered), func(i int) error {
+		cluster := clustersFiltered[i]
 		if err := c.updateClusterInfo(cluster, infoByServer[cluster.Server]); err != nil {
 			log.Warnf("Failed to save clusters info: %v", err)
 		}
 		return nil
 	})
+	log.Debugf("Successfully saved info of %d clusters", len(clustersFiltered))
 }
 
 func (c *clusterInfoUpdater) updateClusterInfo(cluster appv1.Cluster, info *cache.ClusterInfo) error {
@@ -93,6 +107,7 @@ func (c *clusterInfoUpdater) updateClusterInfo(cluster appv1.Cluster, info *cach
 	}
 	if info != nil {
 		clusterInfo.ServerVersion = info.K8SVersion
+		clusterInfo.APIVersions = argo.APIResourcesToStrings(info.APIResources, false)
 		if info.LastCacheSyncTime == nil {
 			clusterInfo.ConnectionState.Status = appv1.ConnectionStatusUnknown
 		} else if info.SyncError == nil {
@@ -108,7 +123,7 @@ func (c *clusterInfoUpdater) updateClusterInfo(cluster appv1.Cluster, info *cach
 	} else {
 		clusterInfo.ConnectionState.Status = appv1.ConnectionStatusUnknown
 		if appCount == 0 {
-			clusterInfo.ConnectionState.Message = "Cluster has no application and not being monitored."
+			clusterInfo.ConnectionState.Message = "Cluster has no applications and is not being monitored."
 		}
 	}
 

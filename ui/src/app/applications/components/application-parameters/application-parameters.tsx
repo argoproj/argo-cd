@@ -53,7 +53,7 @@ function getParamsEditableItems(
             title: param.metadata.name,
             view: (
                 <span title={param.metadata.value}>
-                    {param.overrideIndex > -1 && <span className='fa fa-exclamation-triangle' title={`Original value: ${param.original}`} />} {param.metadata.value}
+                    {param.overrideIndex > -1 && <span className='fa fa-gavel' title={`Original value: ${param.original}`} />} {param.metadata.value}
                 </span>
             ),
             edit: (formApi: FormApi) => {
@@ -109,7 +109,7 @@ function getParamsEditableItems(
 export const ApplicationParameters = (props: {
     application: models.Application;
     details: models.RepoAppDetails;
-    save?: (application: models.Application) => Promise<any>;
+    save?: (application: models.Application, query: {validate?: boolean}) => Promise<any>;
     noReadonlyMode?: boolean;
 }) => {
     const app = props.application;
@@ -118,46 +118,7 @@ export const ApplicationParameters = (props: {
 
     let attributes: EditablePanelItem[] = [];
 
-    if (props.details.type === 'Ksonnet' && props.details.ksonnet) {
-        attributes.push({
-            title: 'ENVIRONMENT',
-            view: app.spec.source.ksonnet && app.spec.source.ksonnet.environment,
-            edit: (formApi: FormApi) => (
-                <FormField
-                    formApi={formApi}
-                    field='spec.source.ksonnet.environment'
-                    component={FormSelect}
-                    componentProps={{options: Object.keys(props.details.ksonnet.environments)}}
-                />
-            )
-        });
-        const paramsByComponentName = new Map<string, models.KsonnetParameter>();
-        ((props.details.ksonnet && props.details.ksonnet.parameters) || []).forEach(param => paramsByComponentName.set(`${param.component}-${param.name}`, param));
-        const overridesByComponentName = new Map<string, number>();
-        ((source.ksonnet && source.ksonnet.parameters) || []).forEach((override, i) => overridesByComponentName.set(`${override.component}-${override.name}`, i));
-        attributes = attributes.concat(
-            getParamsEditableItems(
-                app,
-                'PARAMETERS',
-                'spec.source.ksonnet.parameters',
-                removedOverrides,
-                setRemovedOverrides,
-                distinct(paramsByComponentName.keys(), overridesByComponentName.keys()).map(componentName => {
-                    let param = paramsByComponentName.get(componentName);
-                    const original = (param && param.value) || '';
-                    let overrideIndex = overridesByComponentName.get(componentName);
-                    if (overrideIndex === undefined) {
-                        overrideIndex = -1;
-                    }
-                    if (!param && overrideIndex > -1) {
-                        param = {...source.ksonnet.parameters[overrideIndex]};
-                    }
-                    const value = (overrideIndex > -1 && source.ksonnet.parameters[overrideIndex].value) || original;
-                    return {key: componentName, overrideIndex, original, metadata: {name: param.name, component: param.component, value}};
-                })
-            )
-        );
-    } else if (props.details.type === 'Kustomize' && props.details.kustomize) {
+    if (props.details.type === 'Kustomize' && props.details.kustomize) {
         attributes.push({
             title: 'VERSION',
             view: (app.spec.source.kustomize && app.spec.source.kustomize.version) || <span>default</span>,
@@ -352,17 +313,17 @@ export const ApplicationParameters = (props: {
                     function isDefined(item: any) {
                         return item !== null && item !== undefined;
                     }
+                    function isDefinedWithVersion(item: any) {
+                        return item !== null && item !== undefined && item.match(/:/);
+                    }
 
                     if (input.spec.source.helm && input.spec.source.helm.parameters) {
                         input.spec.source.helm.parameters = input.spec.source.helm.parameters.filter(isDefined);
                     }
-                    if (input.spec.source.ksonnet && input.spec.source.ksonnet.parameters) {
-                        input.spec.source.ksonnet.parameters = input.spec.source.ksonnet.parameters.filter(isDefined);
-                    }
                     if (input.spec.source.kustomize && input.spec.source.kustomize.images) {
-                        input.spec.source.kustomize.images = input.spec.source.kustomize.images.filter(isDefined);
+                        input.spec.source.kustomize.images = input.spec.source.kustomize.images.filter(isDefinedWithVersion);
                     }
-                    await props.save(input);
+                    await props.save(input, {});
                     setRemovedOverrides(new Array<boolean>());
                 })
             }

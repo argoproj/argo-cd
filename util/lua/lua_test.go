@@ -10,8 +10,8 @@ import (
 	lua "github.com/yuin/gopher-lua"
 	"k8s.io/apimachinery/pkg/apis/meta/v1/unstructured"
 
-	appv1 "github.com/argoproj/argo-cd/pkg/apis/application/v1alpha1"
-	"github.com/argoproj/argo-cd/util/grpc"
+	appv1 "github.com/argoproj/argo-cd/v2/pkg/apis/application/v1alpha1"
+	"github.com/argoproj/argo-cd/v2/util/grpc"
 )
 
 const objJSON = `
@@ -115,28 +115,32 @@ func TestGetHealthScriptWithOverride(t *testing.T) {
 	vm := VM{
 		ResourceOverrides: map[string]appv1.ResourceOverride{
 			"argoproj.io/Rollout": {
-				HealthLua: newHealthStatusFunction,
+				HealthLua:   newHealthStatusFunction,
+				UseOpenLibs: false,
 			},
 		},
 	}
-	script, err := vm.GetHealthScript(testObj)
+	script, useOpenLibs, err := vm.GetHealthScript(testObj)
 	assert.Nil(t, err)
+	assert.Equal(t, false, useOpenLibs)
 	assert.Equal(t, newHealthStatusFunction, script)
 }
 
 func TestGetHealthScriptPredefined(t *testing.T) {
 	testObj := StrToUnstructured(objJSON)
 	vm := VM{}
-	script, err := vm.GetHealthScript(testObj)
+	script, useOpenLibs, err := vm.GetHealthScript(testObj)
 	assert.Nil(t, err)
+	assert.Equal(t, true, useOpenLibs)
 	assert.NotEmpty(t, script)
 }
 
 func TestGetHealthScriptNoPredefined(t *testing.T) {
 	testObj := StrToUnstructured(objWithNoScriptJSON)
 	vm := VM{}
-	script, err := vm.GetHealthScript(testObj)
+	script, useOpenLibs, err := vm.GetHealthScript(testObj)
 	assert.Nil(t, err)
+	assert.Equal(t, true, useOpenLibs)
 	assert.Equal(t, "", script)
 }
 
@@ -375,4 +379,55 @@ func TestCleanPatch(t *testing.T) {
 	assert.Nil(t, err)
 	assert.Equal(t, expectedObj, newObj)
 
+}
+
+func TestGetResourceHealth(t *testing.T) {
+	const testSA = `
+apiVersion: v1
+kind: ServiceAccount
+metadata:
+  name: test
+  namespace: test`
+
+	const script = `
+hs = {}
+str = "Using lua standard library"
+if string.find(str, "standard") then
+  hs.message = "Standard lib was used"
+else
+  hs.message = "Standard lib was not used"
+end
+hs.status = "Healthy"
+return hs`
+
+	getHealthOverride := func(openLibs bool) ResourceHealthOverrides {
+		return ResourceHealthOverrides{
+			"ServiceAccount": appv1.ResourceOverride{
+				HealthLua:   script,
+				UseOpenLibs: openLibs,
+			},
+		}
+	}
+
+	t.Run("Enable Lua standard lib", func(t *testing.T) {
+		testObj := StrToUnstructured(testSA)
+		overrides := getHealthOverride(true)
+		status, err := overrides.GetResourceHealth(testObj)
+		assert.Nil(t, err)
+		expectedStatus := &health.HealthStatus{
+			Status:  health.HealthStatusHealthy,
+			Message: "Standard lib was used",
+		}
+		assert.Equal(t, expectedStatus, status)
+	})
+
+	t.Run("Disable Lua standard lib", func(t *testing.T) {
+		testObj := StrToUnstructured(testSA)
+		overrides := getHealthOverride(false)
+		status, err := overrides.GetResourceHealth(testObj)
+		assert.IsType(t, &lua.ApiError{}, err)
+		expectedErr := "<string>:4: attempt to index a non-table object(nil) with key 'find'\nstack traceback:\n\t<string>:4: in main chunk\n\t[G]: ?"
+		assert.EqualError(t, err, expectedErr)
+		assert.Nil(t, status)
+	})
 }

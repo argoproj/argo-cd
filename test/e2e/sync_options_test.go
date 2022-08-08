@@ -6,13 +6,13 @@ import (
 	"testing"
 
 	. "github.com/argoproj/gitops-engine/pkg/sync/common"
-	"github.com/argoproj/gitops-engine/pkg/utils/errors"
 	v1 "k8s.io/apimachinery/pkg/apis/meta/v1"
 	"k8s.io/apimachinery/pkg/types"
 
-	. "github.com/argoproj/argo-cd/pkg/apis/application/v1alpha1"
-	"github.com/argoproj/argo-cd/test/e2e/fixture"
-	. "github.com/argoproj/argo-cd/test/e2e/fixture/app"
+	. "github.com/argoproj/argo-cd/v2/pkg/apis/application/v1alpha1"
+	"github.com/argoproj/argo-cd/v2/test/e2e/fixture"
+	. "github.com/argoproj/argo-cd/v2/test/e2e/fixture/app"
+	"github.com/argoproj/argo-cd/v2/util/errors"
 )
 
 // TestSyncOptionsValidateFalse verifies we can disable validation during kubectl apply, using the
@@ -21,7 +21,7 @@ func TestSyncOptionsValidateFalse(t *testing.T) {
 	Given(t).
 		Path("sync-options-validate-false").
 		When().
-		Create().
+		CreateApp().
 		Sync().
 		Then().
 		Expect(OperationPhaseIs(OperationSucceeded))
@@ -41,7 +41,7 @@ func TestSyncOptionsValidateTrue(t *testing.T) {
 		Path("sync-options-validate-false").
 		When().
 		IgnoreErrors().
-		Create().
+		CreateApp().
 		PatchFile("invalid-cm.yaml", `[{"op": "remove", "path": "/metadata/annotations"}]`).
 		Sync().
 		Then().
@@ -81,6 +81,7 @@ func TestSyncWithStatusIgnored(t *testing.T) {
 }
 
 func TestSyncWithSkipHook(t *testing.T) {
+	fixture.SkipOnEnv(t, "OPENSHIFT")
 	Given(t).
 		Path(guestbookPath).
 		When().

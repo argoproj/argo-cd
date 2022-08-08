@@ -4,13 +4,13 @@ import (
 	"testing"
 	"time"
 
-	. "github.com/argoproj/argo-cd/common"
-	"github.com/argoproj/argo-cd/pkg/apis/application/v1alpha1"
-	"github.com/argoproj/argo-cd/test/e2e/fixture"
-	"github.com/argoproj/argo-cd/test/e2e/fixture/certs"
-	"github.com/argoproj/argo-cd/test/e2e/fixture/gpgkeys"
-	"github.com/argoproj/argo-cd/test/e2e/fixture/repos"
-	"github.com/argoproj/argo-cd/util/settings"
+	"github.com/argoproj/argo-cd/v2/pkg/apis/application/v1alpha1"
+	"github.com/argoproj/argo-cd/v2/test/e2e/fixture"
+	"github.com/argoproj/argo-cd/v2/test/e2e/fixture/certs"
+	"github.com/argoproj/argo-cd/v2/test/e2e/fixture/gpgkeys"
+	"github.com/argoproj/argo-cd/v2/test/e2e/fixture/repos"
+	"github.com/argoproj/argo-cd/v2/util/env"
+	"github.com/argoproj/argo-cd/v2/util/settings"
 )
 
 // this implements the "given" part of given/when/then
@@ -23,6 +23,7 @@ type Context struct {
 	timeout                int
 	name                   string
 	destServer             string
+	destName               string
 	env                    string
 	parameters             []string
 	namePrefix             string
@@ -36,11 +37,21 @@ type Context struct {
 	revision               string
 	force                  bool
 	directoryRecurse       bool
+	replace                bool
+	helmPassCredentials    bool
+	helmSkipCrds           bool
 }
 
 func Given(t *testing.T) *Context {
 	fixture.EnsureCleanState(t)
-	return &Context{t: t, destServer: KubernetesInternalAPIServerAddr, repoURLType: fixture.RepoURLTypeFile, name: fixture.Name(), timeout: 10, project: "default", prune: true}
+	return GivenWithSameState(t)
+}
+
+func GivenWithSameState(t *testing.T) *Context {
+	// ARGOCE_E2E_DEFAULT_TIMEOUT can be used to override the default timeout
+	// for any context.
+	timeout := env.ParseNumFromEnv("ARGOCD_E2E_DEFAULT_TIMEOUT", 10, 0, 180)
+	return &Context{t: t, destServer: v1alpha1.KubernetesInternalAPIServerAddr, repoURLType: fixture.RepoURLTypeFile, name: fixture.Name(), timeout: timeout, project: "default", prune: true}
 }
 
 func (c *Context) GPGPublicKeyAdded() *Context {
@@ -110,8 +121,28 @@ func (c *Context) HelmRepoAdded(name string) *Context {
 	return c
 }
 
+func (c *Context) HelmOCIRepoAdded(name string) *Context {
+	repos.AddHelmOCIRepo(name)
+	return c
+}
+
+func (c *Context) PushChartToOCIRegistry(chartPathName, chartName, chartVersion string) *Context {
+	repos.PushChartToOCIRegistry(chartPathName, chartName, chartVersion)
+	return c
+}
+
 func (c *Context) HTTPSCredentialsUserPassAdded() *Context {
 	repos.AddHTTPSCredentialsUserPass()
+	return c
+}
+
+func (c *Context) HelmHTTPSCredentialsUserPassAdded() *Context {
+	repos.AddHelmHTTPSCredentialsTLSClientCert()
+	return c
+}
+
+func (c *Context) HelmoOCICredentialsWithoutUserPassAdded() *Context {
+	repos.AddHelmoOCICredentialsWithoutUserPass()
 	return c
 }
 
@@ -127,6 +158,11 @@ func (c *Context) SSHCredentialsAdded() *Context {
 
 func (c *Context) ProjectSpec(spec v1alpha1.AppProjectSpec) *Context {
 	fixture.SetProjectSpec(c.project, spec)
+	return c
+}
+
+func (c *Context) Replace() *Context {
+	c.replace = true
 	return c
 }
 
@@ -171,6 +207,11 @@ func (c *Context) Timeout(timeout int) *Context {
 
 func (c *Context) DestServer(destServer string) *Context {
 	c.destServer = destServer
+	return c
+}
+
+func (c *Context) DestName(destName string) *Context {
+	c.destName = destName
 	return c
 }
 
@@ -255,5 +296,20 @@ func (c *Context) Project(project string) *Context {
 
 func (c *Context) Force() *Context {
 	c.force = true
+	return c
+}
+
+func (c *Context) HelmPassCredentials() *Context {
+	c.helmPassCredentials = true
+	return c
+}
+
+func (c *Context) HelmSkipCrds() *Context {
+	c.helmSkipCrds = true
+	return c
+}
+
+func (c *Context) SetTrackingMethod(trackingMethod string) *Context {
+	fixture.SetTrackingMethod(trackingMethod)
 	return c
 }

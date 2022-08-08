@@ -5,8 +5,7 @@ import (
 	"testing"
 	"time"
 
-	"github.com/argoproj/gitops-engine/pkg/utils/errors"
-	"github.com/dgrijalva/jwt-go"
+	"github.com/golang-jwt/jwt/v4"
 	"github.com/stretchr/testify/assert"
 	"google.golang.org/grpc/codes"
 	"google.golang.org/grpc/status"
@@ -14,14 +13,16 @@ import (
 	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
 	"k8s.io/client-go/kubernetes/fake"
 
-	"github.com/argoproj/argo-cd/common"
-	"github.com/argoproj/argo-cd/pkg/apiclient/account"
-	sessionpkg "github.com/argoproj/argo-cd/pkg/apiclient/session"
-	"github.com/argoproj/argo-cd/server/session"
-	"github.com/argoproj/argo-cd/util/password"
-	"github.com/argoproj/argo-cd/util/rbac"
-	sessionutil "github.com/argoproj/argo-cd/util/session"
-	"github.com/argoproj/argo-cd/util/settings"
+	"github.com/argoproj/argo-cd/v2/common"
+	"github.com/argoproj/argo-cd/v2/pkg/apiclient/account"
+	sessionpkg "github.com/argoproj/argo-cd/v2/pkg/apiclient/session"
+	"github.com/argoproj/argo-cd/v2/server/session"
+	"github.com/argoproj/argo-cd/v2/test"
+	"github.com/argoproj/argo-cd/v2/util/errors"
+	"github.com/argoproj/argo-cd/v2/util/password"
+	"github.com/argoproj/argo-cd/v2/util/rbac"
+	sessionutil "github.com/argoproj/argo-cd/v2/util/session"
+	"github.com/argoproj/argo-cd/v2/util/settings"
 )
 
 const (
@@ -63,11 +64,11 @@ func newTestAccountServerExt(ctx context.Context, enforceFn rbac.ClaimsEnforcerF
 	}
 	kubeclientset := fake.NewSimpleClientset(cm, secret)
 	settingsMgr := settings.NewSettingsManager(ctx, kubeclientset, testNamespace)
-	sessionMgr := sessionutil.NewSessionManager(settingsMgr, "", sessionutil.NewInMemoryUserStateStorage())
+	sessionMgr := sessionutil.NewSessionManager(settingsMgr, test.NewFakeProjLister(), "", nil, sessionutil.NewUserStateStorage(nil))
 	enforcer := rbac.NewEnforcer(kubeclientset, testNamespace, common.ArgoCDRBACConfigMapName, nil)
 	enforcer.SetClaimsEnforcerFunc(enforceFn)
 
-	return NewServer(sessionMgr, settingsMgr, enforcer), session.NewServer(sessionMgr, nil, nil, nil)
+	return NewServer(sessionMgr, settingsMgr, enforcer), session.NewServer(sessionMgr, settingsMgr, nil, nil, nil)
 }
 
 func getAdminAccount(mgr *settings.SettingsManager) (*settings.Account, error) {
@@ -86,16 +87,16 @@ func adminContext(ctx context.Context) context.Context {
 
 func ssoAdminContext(ctx context.Context, iat time.Time) context.Context {
 	// nolint:staticcheck
-	return context.WithValue(ctx, "claims", &jwt.StandardClaims{
+	return context.WithValue(ctx, "claims", &jwt.RegisteredClaims{
 		Subject:  "admin",
 		Issuer:   "https://myargocdhost.com/api/dex",
-		IssuedAt: iat.Unix(),
+		IssuedAt: jwt.NewNumericDate(iat),
 	})
 }
 
 func projTokenContext(ctx context.Context) context.Context {
 	// nolint:staticcheck
-	return context.WithValue(ctx, "claims", &jwt.StandardClaims{
+	return context.WithValue(ctx, "claims", &jwt.RegisteredClaims{
 		Subject: "proj:demo:deployer",
 		Issuer:  sessionutil.SessionManagerClaimsIssuer,
 	})
@@ -309,4 +310,54 @@ func TestDeleteToken_SuccessfullyRemoved(t *testing.T) {
 	assert.NoError(t, err)
 
 	assert.Len(t, acc.Tokens, 0)
+}
+
+func TestCanI_GetLogsAllowNoSwitch(t *testing.T) {
+
+	accountServer, _ := newTestAccountServer(context.Background(), func(cm *v1.ConfigMap, secret *v1.Secret) {
+	})
+
+	ctx := projTokenContext(context.Background())
+	resp, err := accountServer.CanI(ctx, &account.CanIRequest{Resource: "logs", Action: "get", Subresource: ""})
+	assert.NoError(t, err)
+	assert.EqualValues(t, "yes", resp.Value)
+}
+
+func TestCanI_GetLogsDenySwitchOn(t *testing.T) {
+	enforcer := func(claims jwt.Claims, rvals ...interface{}) bool {
+		return false
+	}
+
+	accountServer, _ := newTestAccountServerExt(context.Background(), enforcer, func(cm *v1.ConfigMap, secret *v1.Secret) {
+		cm.Data["server.rbac.log.enforce.enable"] = "true"
+	})
+
+	ctx := projTokenContext(context.Background())
+	resp, err := accountServer.CanI(ctx, &account.CanIRequest{Resource: "logs", Action: "get", Subresource: "*/*"})
+	assert.NoError(t, err)
+	assert.EqualValues(t, "no", resp.Value)
+}
+
+func TestCanI_GetLogsAllowSwitchOn(t *testing.T) {
+
+	accountServer, _ := newTestAccountServer(context.Background(), func(cm *v1.ConfigMap, secret *v1.Secret) {
+		cm.Data["server.rbac.log.enforce.enable"] = "true"
+	})
+
+	ctx := projTokenContext(context.Background())
+	resp, err := accountServer.CanI(ctx, &account.CanIRequest{Resource: "logs", Action: "get", Subresource: ""})
+	assert.NoError(t, err)
+	assert.EqualValues(t, "yes", resp.Value)
+}
+
+func TestCanI_GetLogsAllowSwitchOff(t *testing.T) {
+
+	accountServer, _ := newTestAccountServer(context.Background(), func(cm *v1.ConfigMap, secret *v1.Secret) {
+		cm.Data["server.rbac.log.enforce.enable"] = "false"
+	})
+
+	ctx := projTokenContext(context.Background())
+	resp, err := accountServer.CanI(ctx, &account.CanIRequest{Resource: "logs", Action: "get", Subresource: ""})
+	assert.NoError(t, err)
+	assert.EqualValues(t, "yes", resp.Value)
 }

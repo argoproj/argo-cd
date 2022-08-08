@@ -20,7 +20,7 @@ interface State {
     loginError: string;
     loginInProgress: boolean;
     returnUrl: string;
-    ssoLoginError: string;
+    hasSsoLoginError: boolean;
 }
 
 export class Login extends React.Component<RouteComponentProps<{}>, State> {
@@ -31,13 +31,13 @@ export class Login extends React.Component<RouteComponentProps<{}>, State> {
     public static getDerivedStateFromProps(props: RouteComponentProps<{}>): Partial<State> {
         const search = new URLSearchParams(props.history.location.search);
         const returnUrl = search.get('return_url') || '';
-        const ssoLoginError = search.get('sso_error') || '';
-        return {ssoLoginError, returnUrl};
+        const hasSsoLoginError = search.get('has_sso_error') === 'true';
+        return {hasSsoLoginError, returnUrl};
     }
 
     constructor(props: RouteComponentProps<{}>) {
         super(props);
-        this.state = {authSettings: null, loginError: null, returnUrl: null, ssoLoginError: null, loginInProgress: false};
+        this.state = {authSettings: null, loginError: null, returnUrl: null, hasSsoLoginError: false, loginInProgress: false};
     }
 
     public async componentDidMount() {
@@ -51,7 +51,7 @@ export class Login extends React.Component<RouteComponentProps<{}>, State> {
         const ssoConfigured = authSettings && ((authSettings.dexConfig && (authSettings.dexConfig.connectors || []).length > 0) || authSettings.oidcConfig);
         return (
             <div className='login'>
-                <div className='login__content'>
+                <div className='login__content show-for-medium'>
                     <div className='login__text'>Let's get stuff deployed!</div>
                     <div className='argo__logo' />
                 </div>
@@ -63,13 +63,13 @@ export class Login extends React.Component<RouteComponentProps<{}>, State> {
                         <div className='login__box_saml width-control'>
                             <a href={`auth/login?return_url=${encodeURIComponent(this.state.returnUrl)}`}>
                                 <button className='argo-button argo-button--base argo-button--full-width argo-button--xlg'>
-                                    {(authSettings.oidcConfig && <span>Login via {authSettings.oidcConfig.name}</span>) ||
-                                        (authSettings.dexConfig.connectors.length === 1 && <span>Login via {authSettings.dexConfig.connectors[0].name}</span>) || (
+                                    {(authSettings.oidcConfig && <span>Log in via {authSettings.oidcConfig.name}</span>) ||
+                                        (authSettings.dexConfig.connectors.length === 1 && <span>Log in via {authSettings.dexConfig.connectors[0].name}</span>) || (
                                             <span>SSO Login</span>
                                         )}
                                 </button>
                             </a>
-                            {this.state.ssoLoginError && <div className='argo-form-row__error-msg'>{this.state.ssoLoginError}</div>}
+                            {this.state.hasSsoLoginError && <div className='argo-form-row__error-msg'>Login failed.</div>}
                             {authSettings && !authSettings.userLoginsDisabled && (
                                 <div className='login__saml-separator'>
                                     <span>or</span>
@@ -87,7 +87,7 @@ export class Login extends React.Component<RouteComponentProps<{}>, State> {
                             {formApi => (
                                 <form role='form' className='width-control' onSubmit={formApi.submitForm}>
                                     <div className='argo-form-row'>
-                                        <FormField formApi={formApi} label='Username' field='username' component={Text} />
+                                        <FormField formApi={formApi} label='Username' field='username' component={Text} componentProps={{autoCapitalize: 'none'}} />
                                     </div>
                                     <div className='argo-form-row'>
                                         <FormField formApi={formApi} label='Password' field='password' component={Text} componentProps={{type: 'password'}} />

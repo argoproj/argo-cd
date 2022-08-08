@@ -1,8 +1,8 @@
-import {FormField} from 'argo-ui';
+import {FormField, Tooltip} from 'argo-ui';
 import * as React from 'react';
 import {Form, FormApi, Text} from 'react-form';
 
-import {Consumer} from '../../../shared/context';
+import {Consumer, ContextApis} from '../../../shared/context';
 import {JwtToken} from '../../../shared/models';
 import {CreateJWTTokenParams, DeleteJWTTokenParams} from '../../../shared/services';
 import {convertExpiresInToSeconds, validExpiresIn} from '../utils';
@@ -36,25 +36,14 @@ export const ProjectRoleJWTTokens = (props: ProjectRoleJWTTokensProps) => {
                                     <div className='columns small-4'>EXPIRES AT</div>
                                 </div>
                             </div>
-                            {props.tokens.map((jwtToken: JwtToken) => (
-                                <div className='argo-table-list__row' key={`${jwtToken.iat}`}>
-                                    <div className='row'>
-                                        <div className='columns small-3'>{jwtToken.id}</div>
-                                        <div className='columns small-4'>{new Date(jwtToken.iat * 1000).toISOString()}</div>
-                                        <div className='columns small-4'>{jwtToken.exp == null ? 'None' : new Date(jwtToken.exp * 1000).toISOString()}</div>
-                                        <div className='columns small-1'>
-                                            <i className='fa fa-times' onClick={() => deleteJWTToken(props, jwtToken.iat, ctx, jwtToken.id)} style={{cursor: 'pointer'}} />
-                                        </div>
-                                    </div>
-                                </div>
-                            ))}
+                            {props.tokens.map(jwToken => renderJWTRow(props, ctx, jwToken))}
                         </div>
                     )}
                     <Form
                         getApi={props.getApi}
                         defaultValues={{expiresIn: ''}}
                         validateError={(params: any) => ({
-                            expiresIn: !validExpiresIn(params.expiresIn) && 'Must be in the "[0-9]+[smhd]" format'
+                            expiresIn: !validExpiresIn(params.expiresIn) && 'Must be in the "[0-9]+[smhd]" format. For example, "12h", "7d".'
                         })}>
                         {api => (
                             <form onSubmit={api.submitForm} role='form' className='width-control'>
@@ -67,7 +56,7 @@ export const ProjectRoleJWTTokens = (props: ProjectRoleJWTTokensProps) => {
                                             <FormField formApi={api} label='Expires In' field='expiresIn' component={Text} />
                                         </div>
 
-                                        <div className='columns small-3'>
+                                        <div>
                                             <button className='argo-button argo-button--base' onClick={() => createJWTToken(props, api, ctx)}>
                                                 Create
                                             </button>
@@ -130,4 +119,32 @@ async function deleteJWTToken(props: ProjectRoleJWTTokensProps, iat: number, ctx
     if (confirmed) {
         props.deleteJWTToken({project: props.projName, role: props.roleName, iat} as DeleteJWTTokenParams);
     }
+}
+
+function renderJWTRow(props: ProjectRoleJWTTokensProps, ctx: ContextApis, jwToken: JwtToken): React.ReactFragment {
+    const issuedAt = new Date(jwToken.iat * 1000).toISOString();
+    const expiresAt = jwToken.exp == null ? 'Never' : new Date(jwToken.exp * 1000).toISOString();
+
+    return (
+        <React.Fragment>
+            <div className='argo-table-list__row' key={`${jwToken.iat}`}>
+                <div className='row'>
+                    <Tooltip content={jwToken.id}>
+                        <div className='columns small-3'>{jwToken.id}</div>
+                    </Tooltip>
+                    <Tooltip content={issuedAt}>
+                        <div className='columns small-4'>{issuedAt}</div>
+                    </Tooltip>
+                    <Tooltip content={expiresAt}>
+                        <div className='columns small-4'>{expiresAt}</div>
+                    </Tooltip>
+                    <Tooltip content='Delete Token'>
+                        <div className='columns small-1'>
+                            <i className='fa fa-times' onClick={() => deleteJWTToken(props, jwToken.iat, ctx, jwToken.id)} style={{cursor: 'pointer'}} />
+                        </div>
+                    </Tooltip>
+                </div>
+            </div>
+        </React.Fragment>
+    );
 }

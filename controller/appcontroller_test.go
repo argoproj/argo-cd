@@ -6,6 +6,13 @@ import (
 	"testing"
 	"time"
 
+	"k8s.io/apimachinery/pkg/api/resource"
+
+	clustercache "github.com/argoproj/gitops-engine/pkg/cache"
+
+	"github.com/argoproj/argo-cd/v2/common"
+	statecache "github.com/argoproj/argo-cd/v2/controller/cache"
+
 	"github.com/argoproj/gitops-engine/pkg/cache/mocks"
 	synccommon "github.com/argoproj/gitops-engine/pkg/sync/common"
 	"github.com/argoproj/gitops-engine/pkg/utils/kube"
@@ -23,16 +30,16 @@ import (
 	kubetesting "k8s.io/client-go/testing"
 	"k8s.io/client-go/tools/cache"
 
-	"github.com/argoproj/argo-cd/common"
-	mockstatecache "github.com/argoproj/argo-cd/controller/cache/mocks"
-	argoappv1 "github.com/argoproj/argo-cd/pkg/apis/application/v1alpha1"
-	appclientset "github.com/argoproj/argo-cd/pkg/client/clientset/versioned/fake"
-	"github.com/argoproj/argo-cd/reposerver/apiclient"
-	mockrepoclient "github.com/argoproj/argo-cd/reposerver/apiclient/mocks"
-	"github.com/argoproj/argo-cd/test"
-	cacheutil "github.com/argoproj/argo-cd/util/cache"
-	appstatecache "github.com/argoproj/argo-cd/util/cache/appstate"
-	"github.com/argoproj/argo-cd/util/settings"
+	mockstatecache "github.com/argoproj/argo-cd/v2/controller/cache/mocks"
+	"github.com/argoproj/argo-cd/v2/pkg/apis/application/v1alpha1"
+	argoappv1 "github.com/argoproj/argo-cd/v2/pkg/apis/application/v1alpha1"
+	appclientset "github.com/argoproj/argo-cd/v2/pkg/client/clientset/versioned/fake"
+	"github.com/argoproj/argo-cd/v2/reposerver/apiclient"
+	mockrepoclient "github.com/argoproj/argo-cd/v2/reposerver/apiclient/mocks"
+	"github.com/argoproj/argo-cd/v2/test"
+	cacheutil "github.com/argoproj/argo-cd/v2/util/cache"
+	appstatecache "github.com/argoproj/argo-cd/v2/util/cache/appstate"
+	"github.com/argoproj/argo-cd/v2/util/settings"
 )
 
 type namespacedResource struct {
@@ -41,11 +48,12 @@ type namespacedResource struct {
 }
 
 type fakeData struct {
-	apps                []runtime.Object
-	manifestResponse    *apiclient.ManifestResponse
-	managedLiveObjs     map[kube.ResourceKey]*unstructured.Unstructured
-	namespacedResources map[kube.ResourceKey]namespacedResource
-	configMapData       map[string]string
+	apps                   []runtime.Object
+	manifestResponse       *apiclient.ManifestResponse
+	managedLiveObjs        map[kube.ResourceKey]*unstructured.Unstructured
+	namespacedResources    map[kube.ResourceKey]namespacedResource
+	configMapData          map[string]string
+	metricsCacheExpiration time.Duration
 }
 
 func newFakeController(data *fakeData) *ApplicationController {
@@ -95,9 +103,13 @@ func newFakeController(data *fakeData) *ApplicationController {
 		),
 		kubectl,
 		time.Minute,
+		time.Hour,
 		time.Minute,
 		common.DefaultPortArgoCDMetrics,
+		data.metricsCacheExpiration,
+		[]string{},
 		0,
+		nil,
 	)
 	if err != nil {
 		panic(err)
@@ -108,6 +120,8 @@ func newFakeController(data *fakeData) *ApplicationController {
 	defer cancelApp()
 	clusterCacheMock := mocks.ClusterCache{}
 	clusterCacheMock.On("IsNamespaced", mock.Anything).Return(true, nil)
+	clusterCacheMock.On("GetOpenAPISchema").Return(nil, nil)
+	clusterCacheMock.On("GetGVKParser").Return(nil)
 
 	mockStateCache := mockstatecache.LiveStateCache{}
 	ctrl.appStateManager.(*appStateManager).liveStateCache = &mockStateCache
@@ -120,15 +134,16 @@ func newFakeController(data *fakeData) *ApplicationController {
 		response[k] = v.ResourceNode
 	}
 	mockStateCache.On("GetNamespaceTopLevelResources", mock.Anything, mock.Anything).Return(response, nil)
+	mockStateCache.On("IterateResources", mock.Anything, mock.Anything).Return(nil)
 	mockStateCache.On("GetClusterCache", mock.Anything).Return(&clusterCacheMock, nil)
 	mockStateCache.On("IterateHierarchy", mock.Anything, mock.Anything, mock.Anything).Run(func(args mock.Arguments) {
 		key := args[1].(kube.ResourceKey)
-		action := args[2].(func(child argoappv1.ResourceNode, appName string))
+		action := args[2].(func(child argoappv1.ResourceNode, appName string) bool)
 		appName := ""
 		if res, ok := data.namespacedResources[key]; ok {
 			appName = res.AppName
 		}
-		action(argoappv1.ResourceNode{ResourceRef: argoappv1.ResourceRef{Kind: key.Kind, Group: key.Group, Namespace: key.Namespace, Name: key.Name}}, appName)
+		_ = action(argoappv1.ResourceNode{ResourceRef: argoappv1.ResourceRef{Kind: key.Kind, Group: key.Group, Namespace: key.Namespace, Name: key.Name}}, appName)
 	}).Return(nil)
 	return ctrl
 }
@@ -286,6 +301,31 @@ func TestAutoSync(t *testing.T) {
 	assert.NotNil(t, app.Operation)
 	assert.NotNil(t, app.Operation.Sync)
 	assert.False(t, app.Operation.Sync.Prune)
+}
+
+func TestAutoSyncNotAllowEmpty(t *testing.T) {
+	app := newFakeApp()
+	app.Spec.SyncPolicy.Automated.Prune = true
+	ctrl := newFakeController(&fakeData{apps: []runtime.Object{app}})
+	syncStatus := argoappv1.SyncStatus{
+		Status:   argoappv1.SyncStatusCodeOutOfSync,
+		Revision: "bbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbb",
+	}
+	cond := ctrl.autoSync(app, &syncStatus, []argoappv1.ResourceStatus{})
+	assert.NotNil(t, cond)
+}
+
+func TestAutoSyncAllowEmpty(t *testing.T) {
+	app := newFakeApp()
+	app.Spec.SyncPolicy.Automated.Prune = true
+	app.Spec.SyncPolicy.Automated.AllowEmpty = true
+	ctrl := newFakeController(&fakeData{apps: []runtime.Object{app}})
+	syncStatus := argoappv1.SyncStatus{
+		Status:   argoappv1.SyncStatusCodeOutOfSync,
+		Revision: "bbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbb",
+	}
+	cond := ctrl.autoSync(app, &syncStatus, []argoappv1.ResourceStatus{})
+	assert.Nil(t, cond)
 }
 
 func TestSkipAutoSync(t *testing.T) {
@@ -576,15 +616,11 @@ func TestFinalizeAppDeletion(t *testing.T) {
 	})
 
 	t.Run("DeleteWithDestinationClusterName", func(t *testing.T) {
-		app := newFakeApp()
-		app.Spec.Destination.Namespace = test.FakeArgoCDNamespace
-		app.Spec.Destination.Name = "minikube"
-		app.Spec.Destination.Server = ""
+		app := newFakeAppWithDestName()
 		appObj := kube.MustToUnstructured(&app)
 		ctrl := newFakeController(&fakeData{apps: []runtime.Object{app, &defaultProj}, managedLiveObjs: map[kube.ResourceKey]*unstructured.Unstructured{
 			kube.GetResourceKey(appObj): appObj,
 		}})
-
 		patched := false
 		fakeAppCs := ctrl.applicationClientset.(*appclientset.Clientset)
 		defaultReactor := fakeAppCs.ReactionChain[0]
@@ -600,6 +636,44 @@ func TestFinalizeAppDeletion(t *testing.T) {
 		assert.NoError(t, err)
 		assert.True(t, patched)
 	})
+
+	// Create an Application with a cluster that doesn't exist
+	// Ensure it can be deleted.
+	t.Run("DeleteWithInvalidClusterName", func(t *testing.T) {
+
+		appTemplate := newFakeAppWithDestName()
+
+		testShouldDelete := func(app *argoappv1.Application) {
+			appObj := kube.MustToUnstructured(&app)
+			ctrl := newFakeController(&fakeData{apps: []runtime.Object{app, &defaultProj}, managedLiveObjs: map[kube.ResourceKey]*unstructured.Unstructured{
+				kube.GetResourceKey(appObj): appObj,
+			}})
+
+			fakeAppCs := ctrl.applicationClientset.(*appclientset.Clientset)
+			defaultReactor := fakeAppCs.ReactionChain[0]
+			fakeAppCs.ReactionChain = nil
+			fakeAppCs.AddReactor("get", "*", func(action kubetesting.Action) (handled bool, ret runtime.Object, err error) {
+				return defaultReactor.React(action)
+			})
+			_, err := ctrl.finalizeApplicationDeletion(app)
+			assert.NoError(t, err)
+		}
+
+		app1 := appTemplate.DeepCopy()
+		app1.Spec.Destination.Server = "https://invalid"
+		testShouldDelete(app1)
+
+		app2 := appTemplate.DeepCopy()
+		app2.Spec.Destination.Name = "invalid"
+		testShouldDelete(app2)
+
+		app3 := appTemplate.DeepCopy()
+		app3.Spec.Destination.Name = "invalid"
+		app3.Spec.Destination.Server = "https://invalid"
+		testShouldDelete(app3)
+
+	})
+
 }
 
 // TestNormalizeApplication verifies we normalize an application during reconciliation
@@ -679,7 +753,7 @@ func TestNormalizeApplication(t *testing.T) {
 func TestHandleAppUpdated(t *testing.T) {
 	app := newFakeApp()
 	app.Spec.Destination.Namespace = test.FakeArgoCDNamespace
-	app.Spec.Destination.Server = common.KubernetesInternalAPIServerAddr
+	app.Spec.Destination.Server = argoappv1.KubernetesInternalAPIServerAddr
 	ctrl := newFakeController(&fakeData{apps: []runtime.Object{app}})
 
 	ctrl.handleObjectUpdated(map[string]bool{app.Name: true}, kube.GetObjectRef(kube.MustToUnstructured(app)))
@@ -697,12 +771,12 @@ func TestHandleOrphanedResourceUpdated(t *testing.T) {
 	app1 := newFakeApp()
 	app1.Name = "app1"
 	app1.Spec.Destination.Namespace = test.FakeArgoCDNamespace
-	app1.Spec.Destination.Server = common.KubernetesInternalAPIServerAddr
+	app1.Spec.Destination.Server = argoappv1.KubernetesInternalAPIServerAddr
 
 	app2 := newFakeApp()
 	app2.Name = "app2"
 	app2.Spec.Destination.Namespace = test.FakeArgoCDNamespace
-	app2.Spec.Destination.Server = common.KubernetesInternalAPIServerAddr
+	app2.Spec.Destination.Server = argoappv1.KubernetesInternalAPIServerAddr
 
 	proj := defaultProj.DeepCopy()
 	proj.Spec.OrphanedResources = &argoappv1.OrphanedResourcesMonitorSettings{}
@@ -713,11 +787,11 @@ func TestHandleOrphanedResourceUpdated(t *testing.T) {
 
 	isRequested, level := ctrl.isRefreshRequested(app1.Name)
 	assert.True(t, isRequested)
-	assert.Equal(t, ComparisonWithNothing, level)
+	assert.Equal(t, CompareWithRecent, level)
 
 	isRequested, level = ctrl.isRefreshRequested(app2.Name)
 	assert.True(t, isRequested)
-	assert.Equal(t, ComparisonWithNothing, level)
+	assert.Equal(t, CompareWithRecent, level)
 }
 
 func TestGetResourceTree_HasOrphanedResources(t *testing.T) {
@@ -785,14 +859,14 @@ func TestNeedRefreshAppStatus(t *testing.T) {
 	}
 
 	// no need to refresh just reconciled application
-	needRefresh, _, _ := ctrl.needRefreshAppStatus(app, 1*time.Hour)
+	needRefresh, _, _ := ctrl.needRefreshAppStatus(app, 1*time.Hour, 2*time.Hour)
 	assert.False(t, needRefresh)
 
 	// refresh app using the 'deepest' requested comparison level
 	ctrl.requestAppRefresh(app.Name, CompareWithRecent.Pointer(), nil)
 	ctrl.requestAppRefresh(app.Name, ComparisonWithNothing.Pointer(), nil)
 
-	needRefresh, refreshType, compareWith := ctrl.needRefreshAppStatus(app, 1*time.Hour)
+	needRefresh, refreshType, compareWith := ctrl.needRefreshAppStatus(app, 1*time.Hour, 2*time.Hour)
 	assert.True(t, needRefresh)
 	assert.Equal(t, argoappv1.RefreshTypeNormal, refreshType)
 	assert.Equal(t, CompareWithRecent, compareWith)
@@ -800,10 +874,10 @@ func TestNeedRefreshAppStatus(t *testing.T) {
 	// refresh application which status is not reconciled using latest commit
 	app.Status.Sync = argoappv1.SyncStatus{Status: argoappv1.SyncStatusCodeUnknown}
 
-	needRefresh, refreshType, compareWith = ctrl.needRefreshAppStatus(app, 1*time.Hour)
+	needRefresh, refreshType, compareWith = ctrl.needRefreshAppStatus(app, 1*time.Hour, 2*time.Hour)
 	assert.True(t, needRefresh)
 	assert.Equal(t, argoappv1.RefreshTypeNormal, refreshType)
-	assert.Equal(t, CompareWithLatest, compareWith)
+	assert.Equal(t, CompareWithLatestForceResolve, compareWith)
 
 	{
 		// refresh app using the 'latest' level if comparison expired
@@ -811,9 +885,28 @@ func TestNeedRefreshAppStatus(t *testing.T) {
 		ctrl.requestAppRefresh(app.Name, CompareWithRecent.Pointer(), nil)
 		reconciledAt := metav1.NewTime(time.Now().UTC().Add(-1 * time.Hour))
 		app.Status.ReconciledAt = &reconciledAt
-		needRefresh, refreshType, compareWith = ctrl.needRefreshAppStatus(app, 1*time.Minute)
+		needRefresh, refreshType, compareWith = ctrl.needRefreshAppStatus(app, 1*time.Minute, 2*time.Hour)
 		assert.True(t, needRefresh)
 		assert.Equal(t, argoappv1.RefreshTypeNormal, refreshType)
+		assert.Equal(t, CompareWithLatestForceResolve, compareWith)
+	}
+
+	{
+		// refresh app using the 'latest' level if comparison expired for hard refresh
+		app := app.DeepCopy()
+		app.Status.Sync = argoappv1.SyncStatus{
+			Status: argoappv1.SyncStatusCodeSynced,
+			ComparedTo: argoappv1.ComparedTo{
+				Source:      app.Spec.Source,
+				Destination: app.Spec.Destination,
+			},
+		}
+		ctrl.requestAppRefresh(app.Name, CompareWithRecent.Pointer(), nil)
+		reconciledAt := metav1.NewTime(time.Now().UTC().Add(-1 * time.Hour))
+		app.Status.ReconciledAt = &reconciledAt
+		needRefresh, refreshType, compareWith = ctrl.needRefreshAppStatus(app, 2*time.Hour, 1*time.Minute)
+		assert.True(t, needRefresh)
+		assert.Equal(t, argoappv1.RefreshTypeHard, refreshType)
 		assert.Equal(t, CompareWithLatest, compareWith)
 	}
 
@@ -823,12 +916,12 @@ func TestNeedRefreshAppStatus(t *testing.T) {
 		reconciledAt := metav1.NewTime(time.Now().UTC().Add(-1 * time.Hour))
 		app.Status.ReconciledAt = &reconciledAt
 		app.Annotations = map[string]string{
-			common.AnnotationKeyRefresh: string(argoappv1.RefreshTypeHard),
+			v1alpha1.AnnotationKeyRefresh: string(argoappv1.RefreshTypeHard),
 		}
-		needRefresh, refreshType, compareWith = ctrl.needRefreshAppStatus(app, 1*time.Hour)
+		needRefresh, refreshType, compareWith = ctrl.needRefreshAppStatus(app, 1*time.Hour, 2*time.Hour)
 		assert.True(t, needRefresh)
 		assert.Equal(t, argoappv1.RefreshTypeHard, refreshType)
-		assert.Equal(t, CompareWithLatest, compareWith)
+		assert.Equal(t, CompareWithLatestForceResolve, compareWith)
 	}
 
 	{
@@ -843,10 +936,10 @@ func TestNeedRefreshAppStatus(t *testing.T) {
 			}},
 		}
 
-		needRefresh, refreshType, compareWith = ctrl.needRefreshAppStatus(app, 1*time.Hour)
+		needRefresh, refreshType, compareWith = ctrl.needRefreshAppStatus(app, 1*time.Hour, 2*time.Hour)
 		assert.True(t, needRefresh)
 		assert.Equal(t, argoappv1.RefreshTypeNormal, refreshType)
-		assert.Equal(t, CompareWithLatest, compareWith)
+		assert.Equal(t, CompareWithLatestForceResolve, compareWith)
 	}
 }
 
@@ -900,26 +993,6 @@ func TestRefreshAppConditions(t *testing.T) {
 		assert.Len(t, app.Status.Conditions, 1)
 		assert.Equal(t, argoappv1.ApplicationConditionInvalidSpecError, app.Status.Conditions[0].Type)
 		assert.Equal(t, "Application referencing project wrong project which does not exist", app.Status.Conditions[0].Message)
-	})
-
-	t.Run("NoErrorConditionsWithDestNameOnly", func(t *testing.T) {
-		app := newFakeAppWithDestName()
-		ctrl := newFakeController(&fakeData{apps: []runtime.Object{app, &defaultProj}})
-
-		_, hasErrors := ctrl.refreshAppConditions(app)
-		assert.False(t, hasErrors)
-		assert.Len(t, app.Status.Conditions, 0)
-	})
-
-	t.Run("ErrorOnBothDestNameAndServer", func(t *testing.T) {
-		app := newFakeAppWithDestMismatch()
-		ctrl := newFakeController(&fakeData{apps: []runtime.Object{app, &defaultProj}})
-
-		_, hasErrors := ctrl.refreshAppConditions(app)
-		assert.True(t, hasErrors)
-		assert.Len(t, app.Status.Conditions, 1)
-		assert.Equal(t, argoappv1.ApplicationConditionInvalidSpecError, app.Status.Conditions[0].Type)
-		assert.Equal(t, "application destination can't have both name and server defined: another-cluster https://localhost:6443", app.Status.Conditions[0].Message)
 	})
 }
 
@@ -1044,6 +1117,34 @@ func TestProcessRequestedAppOperation_FailedNoRetries(t *testing.T) {
 	assert.Equal(t, string(synccommon.OperationError), phase)
 }
 
+func TestProcessRequestedAppOperation_InvalidDestination(t *testing.T) {
+	app := newFakeAppWithDestMismatch()
+	app.Spec.Project = "test-project"
+	app.Operation = &argoappv1.Operation{
+		Sync: &argoappv1.SyncOperation{},
+	}
+	ctrl := newFakeController(&fakeData{apps: []runtime.Object{app}})
+	fakeAppCs := ctrl.applicationClientset.(*appclientset.Clientset)
+	receivedPatch := map[string]interface{}{}
+	func() {
+		fakeAppCs.Lock()
+		defer fakeAppCs.Unlock()
+		fakeAppCs.PrependReactor("patch", "*", func(action kubetesting.Action) (handled bool, ret runtime.Object, err error) {
+			if patchAction, ok := action.(kubetesting.PatchAction); ok {
+				assert.NoError(t, json.Unmarshal(patchAction.GetPatch(), &receivedPatch))
+			}
+			return true, nil, nil
+		})
+	}()
+
+	ctrl.processRequestedAppOperation(app)
+
+	phase, _, _ := unstructured.NestedString(receivedPatch, "status", "operationState", "phase")
+	assert.Equal(t, string(synccommon.OperationFailed), phase)
+	message, _, _ := unstructured.NestedString(receivedPatch, "status", "operationState", "message")
+	assert.Contains(t, message, "application destination can't have both name and server defined: another-cluster https://localhost:6443")
+}
+
 func TestProcessRequestedAppOperation_FailedHasRetries(t *testing.T) {
 	app := newFakeApp()
 	app.Spec.Project = "invalid-project"
@@ -1141,4 +1242,72 @@ func TestProcessRequestedAppOperation_HasRetriesTerminated(t *testing.T) {
 
 	phase, _, _ := unstructured.NestedString(receivedPatch, "status", "operationState", "phase")
 	assert.Equal(t, string(synccommon.OperationFailed), phase)
+}
+
+func TestGetAppHosts(t *testing.T) {
+	app := newFakeApp()
+	data := &fakeData{
+		apps: []runtime.Object{app, &defaultProj},
+		manifestResponse: &apiclient.ManifestResponse{
+			Manifests: []string{},
+			Namespace: test.FakeDestNamespace,
+			Server:    test.FakeClusterURL,
+			Revision:  "abc123",
+		},
+	}
+	ctrl := newFakeController(data)
+	mockStateCache := &mockstatecache.LiveStateCache{}
+	mockStateCache.On("IterateResources", mock.Anything, mock.MatchedBy(func(callback func(res *clustercache.Resource, info *statecache.ResourceInfo)) bool {
+		// node resource
+		callback(&clustercache.Resource{
+			Ref: corev1.ObjectReference{Name: "minikube", Kind: "Node", APIVersion: "v1"},
+		}, &statecache.ResourceInfo{NodeInfo: &statecache.NodeInfo{
+			Name:       "minikube",
+			SystemInfo: corev1.NodeSystemInfo{OSImage: "debian"},
+			Capacity:   map[corev1.ResourceName]resource.Quantity{corev1.ResourceCPU: resource.MustParse("5")},
+		}})
+
+		// app pod
+		callback(&clustercache.Resource{
+			Ref: corev1.ObjectReference{Name: "pod1", Kind: kube.PodKind, APIVersion: "v1", Namespace: "default"},
+		}, &statecache.ResourceInfo{PodInfo: &statecache.PodInfo{
+			NodeName:         "minikube",
+			ResourceRequests: map[corev1.ResourceName]resource.Quantity{corev1.ResourceCPU: resource.MustParse("1")},
+		}})
+		// neighbor pod
+		callback(&clustercache.Resource{
+			Ref: corev1.ObjectReference{Name: "pod2", Kind: kube.PodKind, APIVersion: "v1", Namespace: "default"},
+		}, &statecache.ResourceInfo{PodInfo: &statecache.PodInfo{
+			NodeName:         "minikube",
+			ResourceRequests: map[corev1.ResourceName]resource.Quantity{corev1.ResourceCPU: resource.MustParse("2")},
+		}})
+		return true
+	})).Return(nil)
+	ctrl.stateCache = mockStateCache
+
+	hosts, err := ctrl.getAppHosts(app, []argoappv1.ResourceNode{{
+		ResourceRef: argoappv1.ResourceRef{Name: "pod1", Namespace: "default", Kind: kube.PodKind},
+		Info: []argoappv1.InfoItem{{
+			Name:  "Host",
+			Value: "Minikube",
+		}},
+	}})
+
+	assert.NoError(t, err)
+	assert.Equal(t, []argoappv1.HostInfo{{
+		Name:       "minikube",
+		SystemInfo: corev1.NodeSystemInfo{OSImage: "debian"},
+		ResourcesInfo: []argoappv1.HostResourceInfo{{
+			ResourceName: corev1.ResourceCPU, Capacity: 5000, RequestedByApp: 1000, RequestedByNeighbors: 2000},
+		}}}, hosts)
+}
+
+func TestMetricsExpiration(t *testing.T) {
+	app := newFakeApp()
+	// Check expiration is disabled by default
+	ctrl := newFakeController(&fakeData{apps: []runtime.Object{app}})
+	assert.False(t, ctrl.metricsServer.HasExpiration())
+	// Check expiration is enabled if set
+	ctrl = newFakeController(&fakeData{apps: []runtime.Object{app}, metricsCacheExpiration: 10 * time.Second})
+	assert.True(t, ctrl.metricsServer.HasExpiration())
 }

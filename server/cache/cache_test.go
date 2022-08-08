@@ -7,10 +7,9 @@ import (
 	"github.com/spf13/cobra"
 	"github.com/stretchr/testify/assert"
 
-	. "github.com/argoproj/argo-cd/pkg/apis/application/v1alpha1"
-	cacheutil "github.com/argoproj/argo-cd/util/cache"
-	appstatecache "github.com/argoproj/argo-cd/util/cache/appstate"
-	"github.com/argoproj/argo-cd/util/oidc"
+	. "github.com/argoproj/argo-cd/v2/pkg/apis/application/v1alpha1"
+	cacheutil "github.com/argoproj/argo-cd/v2/util/cache"
+	appstatecache "github.com/argoproj/argo-cd/v2/util/cache/appstate"
 )
 
 type fixtures struct {
@@ -44,23 +43,6 @@ func TestCache_GetRepoConnectionState(t *testing.T) {
 	value, err := cache.GetRepoConnectionState("my-repo")
 	assert.NoError(t, err)
 	assert.Equal(t, ConnectionState{Status: "my-state"}, value)
-}
-
-func TestCache_GetOIDCState(t *testing.T) {
-	cache := newFixtures().Cache
-	// cache miss
-	_, err := cache.GetOIDCState("my-key")
-	assert.Equal(t, ErrCacheMiss, err)
-	// populate cache
-	err = cache.SetOIDCState("my-key", &oidc.OIDCState{ReturnURL: "my-return-url"})
-	assert.NoError(t, err)
-	//cache miss
-	_, err = cache.GetOIDCState("other-key")
-	assert.Equal(t, ErrCacheMiss, err)
-	// cache hit
-	value, err := cache.GetOIDCState("my-key")
-	assert.NoError(t, err)
-	assert.Equal(t, &oidc.OIDCState{ReturnURL: "my-return-url"}, value)
 }
 
 func TestAddCacheFlagsToCmd(t *testing.T) {

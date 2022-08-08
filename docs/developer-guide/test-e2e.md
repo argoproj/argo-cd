@@ -1,9 +1,5 @@
 # E2E Tests
 
-!!!warning
-    This documentation is out-of-date. Please bear with us while we work to
-    update the documentation to reflect reality!
-
 The directory contains E2E tests and test applications. The test assume that Argo CD services are installed into `argocd-e2e` namespace or cluster in current context. One throw-away
 namespace `argocd-e2e***` is created prior to tests execute. The throw-away namespace is used as a target namespace for test applications.
 
@@ -15,7 +11,7 @@ Git repository via file url: `file:///tmp/argocd-e2e***`.
 1. Start the e2e version `make start-e2e` 
 1. Run the tests: `make test-e2e`
 
-You can observe the tests by using the UI [http://localhost:8080/applications](http://localhost:8080/applications).
+You can observe the tests by using the UI [http://localhost:8080/applications](http://localhost:8080/applications) with username `"admin"` and password `"password"`.
 
 ## Configuration of E2E Tests execution
 
@@ -29,10 +25,6 @@ The Makefile's `start-e2e` target starts instances of ArgoCD on your local machi
 
 If you have changed the port for `argocd-server`, be sure to also set `ARGOCD_SERVER` environment variable to point to that port, e.g. `export ARGOCD_SERVER=localhost:8888` before running `make test-e2e` so that the test will communicate to the correct server component.
 
-## CI Set-up
-
-The tests are executed by Argo Workflow defined at `.argo-ci/ci.yaml`. CI job The builds an Argo CD image, deploy argo cd components into throw-away kubernetes cluster provisioned
-using k3s and run e2e tests against it.
 
 ## Test Isolation
 

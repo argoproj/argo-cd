@@ -3,23 +3,24 @@ package account
 import (
 	"errors"
 	"fmt"
+	"regexp"
 	"sort"
 	"time"
 
+	"context"
 	"github.com/google/uuid"
 	log "github.com/sirupsen/logrus"
-	"golang.org/x/net/context"
 	"google.golang.org/grpc/codes"
 	"google.golang.org/grpc/status"
-	"k8s.io/kubernetes/pkg/util/slice"
+	"k8s.io/kubectl/pkg/util/slice"
 
-	"github.com/argoproj/argo-cd/common"
-	"github.com/argoproj/argo-cd/pkg/apiclient/account"
-	"github.com/argoproj/argo-cd/server/rbacpolicy"
-	"github.com/argoproj/argo-cd/util/password"
-	"github.com/argoproj/argo-cd/util/rbac"
-	"github.com/argoproj/argo-cd/util/session"
-	"github.com/argoproj/argo-cd/util/settings"
+	"github.com/argoproj/argo-cd/v2/common"
+	"github.com/argoproj/argo-cd/v2/pkg/apiclient/account"
+	"github.com/argoproj/argo-cd/v2/server/rbacpolicy"
+	"github.com/argoproj/argo-cd/v2/util/password"
+	"github.com/argoproj/argo-cd/v2/util/rbac"
+	"github.com/argoproj/argo-cd/v2/util/session"
+	"github.com/argoproj/argo-cd/v2/util/settings"
 )
 
 // Server provides a Session service
@@ -76,6 +77,22 @@ func (s *Server) UpdatePassword(ctx context.Context, q *account.UpdatePasswordRe
 		}
 	}
 
+	//Need to validate password complexity with regular expression
+	passwordPattern, err := s.settingsMgr.GetPasswordPattern()
+	if err != nil {
+		return nil, err
+	}
+
+	validPasswordRegexp, err := regexp.Compile(passwordPattern)
+	if err != nil {
+		return nil, err
+	}
+
+	if !validPasswordRegexp.Match([]byte(q.NewPassword)) {
+		err := fmt.Errorf("New password does not match the following expression: %s.", passwordPattern)
+		return nil, err
+	}
+
 	hashedPassword, err := password.HashPassword(q.NewPassword)
 	if err != nil {
 		return nil, err
@@ -101,6 +118,7 @@ func (s *Server) UpdatePassword(ctx context.Context, q *account.UpdatePasswordRe
 
 }
 
+// CanI checks if the current account has permission to perform an action
 func (s *Server) CanI(ctx context.Context, r *account.CanIRequest) (*account.CanIResponse, error) {
 	if !slice.ContainsString(rbacpolicy.Actions, r.Action, nil) {
 		return nil, status.Errorf(codes.InvalidArgument, "%v does not contain %s", rbacpolicy.Actions, r.Action)
@@ -108,6 +126,23 @@ func (s *Server) CanI(ctx context.Context, r *account.CanIRequest) (*account.Can
 	if !slice.ContainsString(rbacpolicy.Resources, r.Resource, nil) {
 		return nil, status.Errorf(codes.InvalidArgument, "%v does not contain %s", rbacpolicy.Resources, r.Resource)
 	}
+
+	// Temporarily, logs RBAC will be enforced only if an internal var serverRBACLogEnforceEnable (representing server.rbac.log.enforce.enable env var)
+	// is defined and has a "true" value
+	// Otherwise, no RBAC enforcement for logs will take place (meaning, can-i request on a logs resource will result in "yes",
+	// even if there is no explicit RBAC allow, or if there is an explicit RBAC deny)
+	// In the future, logs RBAC will be always enforced and the parameter along with this check will be removed
+	if r.Resource == "logs" {
+		serverRBACLogEnforceEnable, err := s.settingsMgr.GetServerRBACLogEnforceEnable()
+		if err != nil {
+			return nil, err
+		}
+
+		if !serverRBACLogEnforceEnable {
+			return &account.CanIResponse{Value: "yes"}, nil
+		}
+	}
+
 	ok := s.enf.Enforce(ctx.Value("claims"), r.Resource, r.Action, r.Subresource)
 	if ok {
 		return &account.CanIResponse{Value: "yes"}, nil
@@ -147,6 +182,7 @@ func (s *Server) ensureHasAccountPermission(ctx context.Context, action string, 
 	return nil
 }
 
+// ListAccounts returns the list of accounts
 func (s *Server) ListAccounts(ctx context.Context, r *account.ListAccountRequest) (*account.AccountsList, error) {
 	resp := account.AccountsList{}
 	accounts, err := s.settingsMgr.GetAccounts()
@@ -164,6 +200,7 @@ func (s *Server) ListAccounts(ctx context.Context, r *account.ListAccountRequest
 	return &resp, nil
 }
 
+// GetAccount returns an account
 func (s *Server) GetAccount(ctx context.Context, r *account.GetAccountRequest) (*account.Account, error) {
 	if err := s.ensureHasAccountPermission(ctx, rbacpolicy.ActionGet, r.Name); err != nil {
 		return nil, err
@@ -175,6 +212,7 @@ func (s *Server) GetAccount(ctx context.Context, r *account.GetAccountRequest) (
 	return toApiAccount(r.Name, *a), nil
 }
 
+// CreateToken creates a token
 func (s *Server) CreateToken(ctx context.Context, r *account.CreateTokenRequest) (*account.CreateTokenResponse, error) {
 	if err := s.ensureHasAccountPermission(ctx, rbacpolicy.ActionUpdate, r.Name); err != nil {
 		return nil, err
@@ -200,7 +238,7 @@ func (s *Server) CreateToken(ctx context.Context, r *account.CreateTokenRequest)
 
 		now := time.Now()
 		var err error
-		tokenString, err = s.sessionMgr.Create(r.Name, r.ExpiresIn, id)
+		tokenString, err = s.sessionMgr.Create(fmt.Sprintf("%s:%s", r.Name, settings.AccountCapabilityApiKey), r.ExpiresIn, id)
 		if err != nil {
 			return err
 		}
@@ -222,6 +260,7 @@ func (s *Server) CreateToken(ctx context.Context, r *account.CreateTokenRequest)
 	return &account.CreateTokenResponse{Token: tokenString}, nil
 }
 
+// DeleteToken deletes a token
 func (s *Server) DeleteToken(ctx context.Context, r *account.DeleteTokenRequest) (*account.EmptyResponse, error) {
 	if err := s.ensureHasAccountPermission(ctx, rbacpolicy.ActionUpdate, r.Name); err != nil {
 		return nil, err

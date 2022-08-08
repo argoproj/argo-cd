@@ -1,24 +1,21 @@
-import {AutocompleteField, DropDownMenu, FormField, FormSelect, HelpIcon, PopupApi} from 'argo-ui';
+import {AutocompleteField, DropDownMenu, ErrorNotification, FormField, FormSelect, HelpIcon, NotificationType} from 'argo-ui';
 import * as React from 'react';
 import {FormApi, Text} from 'react-form';
-import {Cluster, DataLoader, EditablePanel, EditablePanelItem, Expandable, MapInputField, Repo, Revision, RevisionHelpIcon} from '../../../shared/components';
-import {Spinner} from '../../../shared/components';
-import {Consumer, Context} from '../../../shared/context';
+import {Cluster, DataLoader, EditablePanel, EditablePanelItem, Expandable, MapInputField, NumberField, Repo, Revision, RevisionHelpIcon} from '../../../shared/components';
+import {BadgePanel, Spinner} from '../../../shared/components';
+import {Consumer, ContextApis} from '../../../shared/context';
 import * as models from '../../../shared/models';
 import {services} from '../../../shared/services';
 
-import {ApplicationSyncOptionsField} from '../application-sync-options';
-import {ComparisonStatusIcon, HealthStatusIcon, syncStatusMessage} from '../utils';
+import * as moment from 'moment';
+import {ApplicationSyncOptionsField} from '../application-sync-options/application-sync-options';
+import {RevisionFormField} from '../revision-form-field/revision-form-field';
+import {ComparisonStatusIcon, HealthStatusIcon, syncStatusMessage, urlPattern} from '../utils';
+import {ApplicationRetryOptions} from '../application-retry-options/application-retry-options';
+import {ApplicationRetryView} from '../application-retry-view/application-retry-view';
+import {Link} from 'react-router-dom';
 
 require('./application-summary.scss');
-
-const urlPattern = new RegExp(
-    new RegExp(
-        // tslint:disable-next-line:max-line-length
-        /^(https?:\/\/(?:www\.|(?!www))[a-z0-9][a-z0-9-]+[a-z0-9]\.[^\s]{2,}|www\.[a-z0-9][a-z0-9-]+[a-z0-9]\.[^\s]{2,}|https?:\/\/(?:www\.|(?!www))[a-z0-9]+\.[^\s]{2,}|www\.[a-z0-9]+\.[^\s]{2,})$/,
-        'gi'
-    )
-);
 
 function swap(array: any[], a: number, b: number) {
     array = array.slice();
@@ -26,7 +23,7 @@ function swap(array: any[], a: number, b: number) {
     return array;
 }
 
-export const ApplicationSummary = (props: {app: models.Application; updateApp: (app: models.Application) => Promise<any>}) => {
+export const ApplicationSummary = (props: {app: models.Application; updateApp: (app: models.Application, query: {validate?: boolean}) => Promise<any>}) => {
     const app = JSON.parse(JSON.stringify(props.app)) as models.Application;
     const isHelm = app.spec.source.hasOwnProperty('chart');
     const initialState = app.spec.destination.server === undefined ? 'NAME' : 'URL';
@@ -35,7 +32,7 @@ export const ApplicationSummary = (props: {app: models.Application; updateApp: (
     const attributes = [
         {
             title: 'PROJECT',
-            view: <a href={'/settings/projects/' + app.spec.project}>{app.spec.project}</a>,
+            view: <Link to={'/settings/projects/' + app.spec.project}>{app.spec.project}</Link>,
             edit: (formApi: FormApi) => (
                 <DataLoader load={() => services.projects.list('items.metadata.name').then(projs => projs.map(item => item.metadata.name))}>
                     {projects => <FormField formApi={formApi} field='spec.project' component={FormSelect} componentProps={{options: projects}} />}
@@ -127,6 +124,13 @@ export const ApplicationSummary = (props: {app: models.Application; updateApp: (
             edit: (formApi: FormApi) => <FormField formApi={formApi} field='spec.destination.namespace' component={Text} />
         },
         {
+            title: 'CREATED_AT',
+            view: moment
+                .utc(app.metadata.creationTimestamp)
+                .local()
+                .format('MM/DD/YYYY HH:mm:ss')
+        },
+        {
             title: 'REPO URL',
             view: <Repo url={app.spec.source.repoURL} />,
             edit: (formApi: FormApi) => <FormField formApi={formApi} field='spec.source.repoURL' component={Text} />
@@ -187,12 +191,7 @@ export const ApplicationSummary = (props: {app: models.Application; updateApp: (
                   {
                       title: 'TARGET REVISION',
                       view: <Revision repoUrl={app.spec.source.repoURL} revision={app.spec.source.targetRevision || 'HEAD'} />,
-                      edit: (formApi: FormApi) => (
-                          <React.Fragment>
-                              <FormField formApi={formApi} field='spec.source.targetRevision' component={Text} componentProps={{placeholder: 'HEAD'}} />
-                              <RevisionHelpIcon type='git' top='0' />{' '}
-                          </React.Fragment>
-                      )
+                      edit: (formApi: FormApi) => <RevisionFormField helpIconTop={'0'} hideLabel={true} formApi={formApi} repoURL={app.spec.source.repoURL} />
                   },
                   {
                       title: 'PATH',
@@ -206,10 +205,10 @@ export const ApplicationSummary = (props: {app: models.Application; updateApp: (
             view: app.spec.revisionHistoryLimit,
             edit: (formApi: FormApi) => (
                 <div style={{position: 'relative'}}>
-                    <FormField formApi={formApi} field='spec.revisionHistoryLimit' component={Text} />
+                    <FormField formApi={formApi} field='spec.revisionHistoryLimit' componentProps={{style: {paddingRight: '1em'}, placeholder: '10'}} component={NumberField} />
                     <div style={{position: 'absolute', right: '0', top: '0'}}>
                         <HelpIcon
-                            title='This limits this number of items kept in the apps revision history.
+                            title='This limits the number of items kept in the apps revision history.
     This should only be changed in exceptional circumstances.
     Setting to zero will store no history. This will reduce storage used.
     Increasing will increase the space used to store the history, so we do not recommend increasing it.
@@ -221,10 +220,33 @@ export const ApplicationSummary = (props: {app: models.Application; updateApp: (
         },
         {
             title: 'SYNC OPTIONS',
-            view: ((app.spec.syncPolicy || {}).syncOptions || []).join(', '),
+            view: (
+                <div style={{display: 'flex'}}>
+                    {((app.spec.syncPolicy || {}).syncOptions || []).map(opt =>
+                        opt.endsWith('=true') || opt.endsWith('=false') ? (
+                            <div key={opt} style={{marginRight: '10px'}}>
+                                <i className={`fa fa-${opt.includes('=true') ? 'check-square' : 'times'}`} /> {opt.replace('=true', '').replace('=false', '')}
+                            </div>
+                        ) : (
+                            <div key={opt} style={{marginRight: '10px'}}>
+                                {opt}
+                            </div>
+                        )
+                    )}
+                </div>
+            ),
             edit: (formApi: FormApi) => (
                 <div>
                     <FormField formApi={formApi} field='spec.syncPolicy.syncOptions' component={ApplicationSyncOptionsField} />
+                </div>
+            )
+        },
+        {
+            title: 'RETRY OPTIONS',
+            view: <ApplicationRetryView initValues={app.spec.syncPolicy ? app.spec.syncPolicy.retry : null} />,
+            edit: (formApi: FormApi) => (
+                <div>
+                    <ApplicationRetryOptions formApi={formApi} initValues={app.spec.syncPolicy ? app.spec.syncPolicy.retry : null} field='spec.syncPolicy.retry' />
                 </div>
             )
         },
@@ -252,11 +274,13 @@ export const ApplicationSummary = (props: {app: models.Application; updateApp: (
             title: 'URLs',
             view: (
                 <React.Fragment>
-                    {urls.map(item => (
-                        <a key={item} href={item} target='__blank'>
-                            {item} &nbsp;
-                        </a>
-                    ))}
+                    {urls
+                        .map(item => item.split('|'))
+                        .map((parts, i) => (
+                            <a key={i} href={parts.length > 1 ? parts[1] : parts[0]} target='__blank'>
+                                {parts[0]} &nbsp;
+                            </a>
+                        ))}
                 </React.Fragment>
             )
         });
@@ -277,7 +301,7 @@ export const ApplicationSummary = (props: {app: models.Application; updateApp: (
         });
     }
 
-    async function setAutoSync(ctx: {popup: PopupApi}, confirmationTitle: string, confirmationText: string, prune: boolean, selfHeal: boolean) {
+    async function setAutoSync(ctx: ContextApis, confirmationTitle: string, confirmationText: string, prune: boolean, selfHeal: boolean) {
         const confirmed = await ctx.popup.confirm(confirmationTitle, confirmationText);
         if (confirmed) {
             try {
@@ -287,21 +311,31 @@ export const ApplicationSummary = (props: {app: models.Application; updateApp: (
                     updatedApp.spec.syncPolicy = {};
                 }
                 updatedApp.spec.syncPolicy.automated = {prune, selfHeal};
-                await props.updateApp(updatedApp);
+                await props.updateApp(updatedApp, {validate: false});
+            } catch (e) {
+                ctx.notifications.show({
+                    content: <ErrorNotification title={`Unable to "${confirmationTitle.replace(/\?/g, '')}:`} e={e} />,
+                    type: NotificationType.Error
+                });
             } finally {
                 setChangeSync(false);
             }
         }
     }
 
-    async function unsetAutoSync(ctx: {popup: PopupApi}) {
+    async function unsetAutoSync(ctx: ContextApis) {
         const confirmed = await ctx.popup.confirm('Disable Auto-Sync?', 'Are you sure you want to disable automated application synchronization');
         if (confirmed) {
             try {
                 setChangeSync(true);
                 const updatedApp = JSON.parse(JSON.stringify(props.app)) as models.Application;
                 updatedApp.spec.syncPolicy.automated = null;
-                await props.updateApp(updatedApp);
+                await props.updateApp(updatedApp, {validate: false});
+            } catch (e) {
+                ctx.notifications.show({
+                    content: <ErrorNotification title='Unable to disable Auto-Sync' e={e} />,
+                    type: NotificationType.Error
+                });
             } finally {
                 setChangeSync(false);
             }
@@ -380,10 +414,6 @@ export const ApplicationSummary = (props: {app: models.Application; updateApp: (
             view: null as any,
             edit: null
         });
-    const [badgeType, setBadgeType] = React.useState('URL');
-    const context = React.useContext(Context);
-    const badgeURL = `${location.protocol}//${location.host}${context.baseHref}api/badge?name=${props.app.metadata.name}&revision=true`;
-    const appURL = `${location.protocol}//${location.host}${context.baseHref}applications/${props.app.metadata.name}`;
 
     return (
         <div className='application-summary'>
@@ -402,9 +432,9 @@ export const ApplicationSummary = (props: {app: models.Application; updateApp: (
                 {ctx => (
                     <div className='white-box'>
                         <div className='white-box__details'>
-                            <p>Sync Policy</p>
+                            <p>SYNC POLICY</p>
                             <div className='row white-box__details-row'>
-                                <div className='columns small-3'>{(app.spec.syncPolicy && app.spec.syncPolicy.automated && <span>Automated</span>) || <span>None</span>}</div>
+                                <div className='columns small-3'>{(app.spec.syncPolicy && app.spec.syncPolicy.automated && <span>AUTOMATED</span>) || <span>NONE</span>}</div>
                                 <div className='columns small-9'>
                                     {(app.spec.syncPolicy && app.spec.syncPolicy.automated && (
                                         <button className='argo-button argo-button--base' onClick={() => unsetAutoSync(ctx)}>
@@ -427,7 +457,7 @@ export const ApplicationSummary = (props: {app: models.Application; updateApp: (
                             {app.spec.syncPolicy && app.spec.syncPolicy.automated && (
                                 <React.Fragment>
                                     <div className='row white-box__details-row'>
-                                        <div className='columns small-3'>Prune Resources</div>
+                                        <div className='columns small-3'>PRUNE RESOURCES</div>
                                         <div className='columns small-9'>
                                             {(app.spec.syncPolicy.automated.prune && (
                                                 <button
@@ -461,7 +491,7 @@ export const ApplicationSummary = (props: {app: models.Application; updateApp: (
                                         </div>
                                     </div>
                                     <div className='row white-box__details-row'>
-                                        <div className='columns small-3'>Self Heal</div>
+                                        <div className='columns small-3'>SELF HEAL</div>
                                         <div className='columns small-9'>
                                             {(app.spec.syncPolicy.automated.selfHeal && (
                                                 <button
@@ -500,49 +530,8 @@ export const ApplicationSummary = (props: {app: models.Application; updateApp: (
                     </div>
                 )}
             </Consumer>
-            <DataLoader load={() => services.authService.settings()}>
-                {settings =>
-                    (settings.statusBadgeEnabled && (
-                        <div className='white-box'>
-                            <div className='white-box__details'>
-                                <p>
-                                    Status Badge <img src={badgeURL} />{' '}
-                                </p>
-                                <div className='white-box__details-row'>
-                                    <DropDownMenu
-                                        anchor={() => (
-                                            <p>
-                                                {badgeType} <i className='fa fa-caret-down' />
-                                            </p>
-                                        )}
-                                        items={['URL', 'Markdown', 'Textile', 'Rdoc', 'AsciiDoc'].map(type => ({title: type, action: () => setBadgeType(type)}))}
-                                    />
-                                    <textarea
-                                        onClick={e => (e.target as HTMLInputElement).select()}
-                                        className='application-summary__badge'
-                                        readOnly={true}
-                                        value={
-                                            badgeType === 'URL'
-                                                ? badgeURL
-                                                : badgeType === 'Markdown'
-                                                ? `[![App Status](${badgeURL})](${appURL})`
-                                                : badgeType === 'Textile'
-                                                ? `!${badgeURL}!:${appURL}`
-                                                : badgeType === 'Rdoc'
-                                                ? `{<img src="${badgeURL}" alt="App Status" />}[${appURL}]`
-                                                : badgeType === 'AsciiDoc'
-                                                ? `image:${badgeURL}["App Status", link="${appURL}"]`
-                                                : ''
-                                        }
-                                    />
-                                </div>
-                            </div>
-                        </div>
-                    )) ||
-                    null
-                }
-            </DataLoader>
-            <EditablePanel save={props.updateApp} values={app} title='Info' items={infoItems} onModeSwitch={() => setAdjustedCount(0)} />
+            <BadgePanel app={props.app.metadata.name} />
+            <EditablePanel save={props.updateApp} values={app} title='INFO' items={infoItems} onModeSwitch={() => setAdjustedCount(0)} />
         </div>
     );
 };

@@ -1,12 +1,16 @@
-import {ErrorNotification, FormField, NotificationType, SlidingPanel} from 'argo-ui';
+import {ErrorNotification, FormField, NotificationType, SlidingPanel, Tooltip} from 'argo-ui';
 import * as React from 'react';
-import {Checkbox, Form, FormApi, Text} from 'react-form';
+import {Form, FormApi, Text} from 'react-form';
 
-import {Spinner} from '../../../shared/components';
+import {ARGO_WARNING_COLOR, CheckboxField, Spinner} from '../../../shared/components';
 import {Consumer} from '../../../shared/context';
 import * as models from '../../../shared/models';
 import {services} from '../../../shared/services';
+import {ApplicationRetryOptions} from '../application-retry-options/application-retry-options';
+import {ApplicationManualSyncFlags, ApplicationSyncOptions, FORCE_WARNING, SyncFlags, REPLACE_WARNING} from '../application-sync-options/application-sync-options';
 import {ComparisonStatusIcon, nodeKey} from '../utils';
+
+require('./application-sync-panel.scss');
 
 export const ApplicationSyncPanel = ({application, selectedResource, hide}: {application: models.Application; selectedResource: string; hide: () => any}) => {
     const [form, setForm] = React.useState<FormApi>(null);
@@ -27,7 +31,11 @@ export const ApplicationSyncPanel = ({application, selectedResource, hide}: {app
                     onClose={() => hide()}
                     header={
                         <div>
-                            <button className='argo-button argo-button--base' disabled={isPending} onClick={() => form.submitForm(null)}>
+                            <button
+                                qe-id='application-sync-panel-button-synchronize'
+                                className='argo-button argo-button--base'
+                                disabled={isPending}
+                                onClick={() => form.submitForm(null)}>
                                 <Spinner show={isPending} style={{marginRight: '5px'}} />
                                 Synchronize
                             </button>{' '}
@@ -40,7 +48,8 @@ export const ApplicationSyncPanel = ({application, selectedResource, hide}: {app
                         <Form
                             defaultValues={{
                                 revision: application.spec.source.targetRevision || 'HEAD',
-                                resources: appResources.map((_, i) => i === syncResIndex || syncResIndex === -1)
+                                resources: appResources.map((_, i) => i === syncResIndex || syncResIndex === -1),
+                                syncOptions: application.spec.syncPolicy ? application.spec.syncPolicy.syncOptions : []
                             }}
                             validateError={values => ({
                                 resources: values.resources.every((item: boolean) => !item) && 'Select at least one resource'
@@ -51,13 +60,50 @@ export const ApplicationSyncPanel = ({application, selectedResource, hide}: {app
                                 if (resources.length === appResources.length) {
                                     resources = null;
                                 }
-                                if (params.applyOnly) {
-                                    syncStrategy.apply = {force: params.force};
-                                } else {
-                                    syncStrategy.hook = {force: params.force};
+                                const replace = params.syncOptions?.findIndex((opt: string) => opt === 'Replace=true') > -1;
+                                if (replace) {
+                                    const confirmed = await ctx.popup.confirm('Synchronize using replace?', () => (
+                                        <div>
+                                            <i className='fa fa-exclamation-triangle' style={{color: ARGO_WARNING_COLOR}} /> {REPLACE_WARNING} Are you sure you want to continue?
+                                        </div>
+                                    ));
+                                    if (!confirmed) {
+                                        setPending(false);
+                                        return;
+                                    }
                                 }
+
+                                const syncFlags = {...params.syncFlags} as SyncFlags;
+                                const force = syncFlags.Force || false;
+
+                                if (syncFlags.ApplyOnly) {
+                                    syncStrategy.apply = {force};
+                                } else {
+                                    syncStrategy.hook = {force};
+                                }
+                                if (force) {
+                                    const confirmed = await ctx.popup.confirm('Synchronize with force?', () => (
+                                        <div>
+                                            <i className='fa fa-exclamation-triangle' style={{color: ARGO_WARNING_COLOR}} /> {FORCE_WARNING} Are you sure you want to continue?
+                                        </div>
+                                    ));
+                                    if (!confirmed) {
+                                        setPending(false);
+                                        return;
+                                    }
+                                }
+
                                 try {
-                                    await services.applications.sync(application.metadata.name, params.revision, params.prune, params.dryRun, syncStrategy, resources);
+                                    await services.applications.sync(
+                                        application.metadata.name,
+                                        params.revision,
+                                        syncFlags.Prune || false,
+                                        syncFlags.DryRun || false,
+                                        syncStrategy,
+                                        resources,
+                                        params.syncOptions,
+                                        params.retryStrategy
+                                    );
                                     hide();
                                 } catch (e) {
                                     ctx.notifications.show({
@@ -79,48 +125,86 @@ export const ApplicationSyncPanel = ({application, selectedResource, hide}: {app
                                     </div>
 
                                     <div className='argo-form-row'>
-                                        <div>
-                                            <span>
-                                                <Checkbox id='prune-on-sync-checkbox' field='prune' /> <label htmlFor='prune-on-sync-checkbox'>Prune</label>
-                                            </span>
-                                            <span>
-                                                <Checkbox id='dry-run-checkbox' field='dryRun' /> <label htmlFor='dry-run-checkbox'>Dry Run</label>
-                                            </span>
-                                            <span>
-                                                <Checkbox id='apply-only-checkbox' field='applyOnly' /> <label htmlFor='apply-only-checkbox'>Apply Only</label>
-                                            </span>
-                                            <span>
-                                                <Checkbox id='force-checkbox' field='force' /> <label htmlFor='force-checkbox'>Force</label>
-                                            </span>
+                                        <div style={{marginBottom: '1em'}}>
+                                            <FormField formApi={formApi} field='syncFlags' component={ApplicationManualSyncFlags} />
                                         </div>
+                                        <div style={{marginBottom: '1em'}}>
+                                            <label>Sync Options</label>
+                                            <ApplicationSyncOptions
+                                                options={formApi.values.syncOptions}
+                                                onChanged={opts => {
+                                                    formApi.setTouched('syncOptions', true);
+                                                    formApi.setValue('syncOptions', opts);
+                                                }}
+                                            />
+                                        </div>
+
+                                        <ApplicationRetryOptions formApi={formApi} initValues={application.spec.syncPolicy ? application.spec.syncPolicy.retry : null} />
+
                                         <label>Synchronize resources:</label>
                                         <div style={{float: 'right'}}>
-                                            <a onClick={() => formApi.setValue('resources', formApi.values.resources.map(() => true))}>all</a> /{' '}
                                             <a
                                                 onClick={() =>
                                                     formApi.setValue(
                                                         'resources',
-                                                        application.status.resources.map((resource: models.ResourceStatus) => resource.status === models.SyncStatuses.OutOfSync)
+                                                        formApi.values.resources.map(() => true)
+                                                    )
+                                                }>
+                                                all
+                                            </a>{' '}
+                                            /{' '}
+                                            <a
+                                                onClick={() =>
+                                                    formApi.setValue(
+                                                        'resources',
+                                                        application.status.resources
+                                                            .filter(item => !item.hook)
+                                                            .map((resource: models.ResourceStatus) => resource.status === models.SyncStatuses.OutOfSync)
                                                     )
                                                 }>
                                                 out of sync
                                             </a>{' '}
-                                            / <a onClick={() => formApi.setValue('resources', formApi.values.resources.map(() => false))}>none</a>
+                                            /{' '}
+                                            <a
+                                                onClick={() =>
+                                                    formApi.setValue(
+                                                        'resources',
+                                                        formApi.values.resources.map(() => false)
+                                                    )
+                                                }>
+                                                none
+                                            </a>
                                         </div>
                                         {!formApi.values.resources.every((item: boolean) => item) && (
                                             <div className='application-details__warning'>WARNING: partial synchronization is not recorded in history</div>
                                         )}
-                                        <div style={{paddingLeft: '1em'}}>
+                                        <div>
                                             {application.status.resources
                                                 .filter(item => !item.hook)
                                                 .map((item, i) => {
                                                     const resKey = nodeKey(item);
+                                                    const contentStart = resKey.substr(0, Math.floor(resKey.length / 2));
+                                                    let contentEnd = resKey.substr(-Math.floor(resKey.length / 2));
+                                                    // We want the ellipsis to be in the middle of our text, so we use RTL layout to put it there.
+                                                    // Unfortunately, strong LTR characters get jumbled around, so make sure that the last character isn't strong.
+                                                    const firstLetter = /[a-z]/i.exec(contentEnd);
+                                                    if (firstLetter) {
+                                                        contentEnd = contentEnd.slice(firstLetter.index);
+                                                    }
+                                                    const isLongLabel = resKey.length > 68;
                                                     return (
-                                                        <div key={resKey}>
-                                                            <Checkbox id={resKey} field={`resources[${i}]`} />{' '}
-                                                            <label htmlFor={resKey}>
-                                                                {resKey} <ComparisonStatusIcon status={item.status} resource={item} />
-                                                            </label>
+                                                        <div key={resKey} className='application-sync-panel__resource'>
+                                                            <CheckboxField id={resKey} field={`resources[${i}]`} />
+                                                            <Tooltip content={<div style={{wordBreak: 'break-all'}}>{resKey}</div>}>
+                                                                <div className='container'>
+                                                                    {isLongLabel ? (
+                                                                        <label htmlFor={resKey} content-start={contentStart} content-end={contentEnd} />
+                                                                    ) : (
+                                                                        <label htmlFor={resKey}>{resKey}</label>
+                                                                    )}
+                                                                </div>
+                                                            </Tooltip>
+                                                            <ComparisonStatusIcon status={item.status} resource={item} />
                                                         </div>
                                                     );
                                                 })}

@@ -6,14 +6,19 @@ import (
 	"testing"
 	"time"
 
-	"github.com/argoproj/argo-cd/pkg/apis/application/v1alpha1"
-	appsfake "github.com/argoproj/argo-cd/pkg/client/clientset/versioned/fake"
-	appinformers "github.com/argoproj/argo-cd/pkg/client/informers/externalversions/application/v1alpha1"
-	applisters "github.com/argoproj/argo-cd/pkg/client/listers/application/v1alpha1"
-	cacheutil "github.com/argoproj/argo-cd/util/cache"
-	"github.com/argoproj/argo-cd/util/cache/appstate"
-	"github.com/argoproj/argo-cd/util/db"
-	"github.com/argoproj/argo-cd/util/settings"
+	v1 "k8s.io/api/core/v1"
+	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
+
+	"github.com/argoproj/argo-cd/v2/common"
+
+	"github.com/argoproj/argo-cd/v2/pkg/apis/application/v1alpha1"
+	appsfake "github.com/argoproj/argo-cd/v2/pkg/client/clientset/versioned/fake"
+	appinformers "github.com/argoproj/argo-cd/v2/pkg/client/informers/externalversions/application/v1alpha1"
+	applisters "github.com/argoproj/argo-cd/v2/pkg/client/listers/application/v1alpha1"
+	cacheutil "github.com/argoproj/argo-cd/v2/util/cache"
+	"github.com/argoproj/argo-cd/v2/util/cache/appstate"
+	"github.com/argoproj/argo-cd/v2/util/db"
+	"github.com/argoproj/argo-cd/v2/util/settings"
 
 	clustercache "github.com/argoproj/gitops-engine/pkg/cache"
 	"github.com/stretchr/testify/assert"
@@ -37,9 +42,32 @@ func TestClusterSecretUpdater(t *testing.T) {
 		{&now, fmt.Errorf("sync failed"), v1alpha1.ConnectionStatusFailed},
 	}
 
-	kubeclientset := fake.NewSimpleClientset()
+	emptyArgoCDConfigMap := &v1.ConfigMap{
+		ObjectMeta: metav1.ObjectMeta{
+			Name:      common.ArgoCDConfigMapName,
+			Namespace: fakeNamespace,
+			Labels: map[string]string{
+				"app.kubernetes.io/part-of": "argocd",
+			},
+		},
+		Data: map[string]string{},
+	}
+	argoCDSecret := &v1.Secret{
+		ObjectMeta: metav1.ObjectMeta{
+			Name:      common.ArgoCDSecretName,
+			Namespace: fakeNamespace,
+			Labels: map[string]string{
+				"app.kubernetes.io/part-of": "argocd",
+			},
+		},
+		Data: map[string][]byte{
+			"admin.password":   nil,
+			"server.secretkey": nil,
+		},
+	}
+	kubeclientset := fake.NewSimpleClientset(emptyArgoCDConfigMap, argoCDSecret)
 	appclientset := appsfake.NewSimpleClientset()
-	appInfomer := appinformers.NewApplicationInformer(appclientset, "", time.Minute, cache.Indexers{})
+	appInformer := appinformers.NewApplicationInformer(appclientset, "", time.Minute, cache.Indexers{})
 	settingsManager := settings.NewSettingsManager(context.Background(), kubeclientset, fakeNamespace)
 	argoDB := db.NewDB(fakeNamespace, settingsManager, kubeclientset)
 	ctx, cancel := context.WithCancel(context.Background())
@@ -57,8 +85,8 @@ func TestClusterSecretUpdater(t *testing.T) {
 			SyncError:         test.SyncError,
 		}
 
-		lister := applisters.NewApplicationLister(appInfomer.GetIndexer()).Applications(fakeNamespace)
-		updater := NewClusterInfoUpdater(nil, argoDB, lister, appCache)
+		lister := applisters.NewApplicationLister(appInformer.GetIndexer()).Applications(fakeNamespace)
+		updater := NewClusterInfoUpdater(nil, argoDB, lister, appCache, nil)
 
 		err = updater.updateClusterInfo(*cluster, info)
 		assert.NoError(t, err, "Invoking updateClusterInfo failed.")

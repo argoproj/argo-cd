@@ -1,12 +1,11 @@
 package session
 
 import (
-	"github.com/argoproj/argo-cd/util/session"
+	util "github.com/argoproj/argo-cd/v2/util/io"
+	"github.com/argoproj/argo-cd/v2/util/session"
 
-	"golang.org/x/sync/semaphore"
-
-	util "github.com/argoproj/gitops-engine/pkg/utils/io"
 	log "github.com/sirupsen/logrus"
+	"golang.org/x/sync/semaphore"
 )
 
 func NewLoginRateLimiter(maxNumber int) func() (util.Closer, error) {

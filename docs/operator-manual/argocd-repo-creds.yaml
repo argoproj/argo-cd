@@ -1,0 +1,63 @@
+# Repository credentials, for using the same credentials in multiple repositories.
+apiVersion: v1
+kind: Secret
+metadata:
+  name: argoproj-https-creds
+  namespace: argocd
+  labels:
+    argocd.argoproj.io/secret-type: repo-creds
+stringData:
+  url: https://github.com/argoproj
+  type: helm
+  password: my-password
+  username: my-username
+---
+apiVersion: v1
+kind: Secret
+metadata:
+  name: argoproj-ssh-creds
+  namespace: argocd
+  labels:
+    argocd.argoproj.io/secret-type: repo-creds
+stringData:
+  url: git@github.com:argoproj-labs
+  type: helm
+  sshPrivateKey: |
+    -----BEGIN OPENSSH PRIVATE KEY-----
+    ...
+    -----END OPENSSH PRIVATE KEY-----
+---
+apiVersion: v1
+kind: Secret
+metadata:
+  name: github-creds
+  namespace: argocd
+  labels:
+    argocd.argoproj.io/secret-type: repo-creds
+stringData:
+  url: https://github.com/argoproj
+  type: helm
+  githubAppID: 1
+  githubAppInstallationID: 2
+  githubAppPrivateKey: |
+    -----BEGIN OPENSSH PRIVATE KEY-----
+    ...
+    -----END OPENSSH PRIVATE KEY-----
+---
+apiVersion: v1
+kind: Secret
+metadata:
+  name: github-enterprise-creds
+  namespace: argocd
+  labels:
+    argocd.argoproj.io/secret-type: repo-creds
+stringData:
+  url: https://github.com/argoproj
+  type: helm
+  githubAppID: 1
+  githubAppInstallationID: 2
+  githubAppEnterpriseBaseUrl: https://ghe.example.com/api/v3
+  githubAppPrivateKey: |
+    -----BEGIN OPENSSH PRIVATE KEY-----
+    ...
+    -----END OPENSSH PRIVATE KEY-----

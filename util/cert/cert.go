@@ -18,7 +18,7 @@ import (
 
 	"golang.org/x/crypto/ssh"
 
-	"github.com/argoproj/argo-cd/common"
+	"github.com/argoproj/argo-cd/v2/common"
 )
 
 // A struct representing an entry in the list of SSH known hosts.
@@ -88,8 +88,7 @@ func IsValidHostname(hostname string, fqdn bool) bool {
 // filesystem. If ARGOCD_TLS_DATA_PATH environment is set, path is taken from
 // there, otherwise the default will be returned.
 func GetTLSCertificateDataPath() string {
-	envPath := os.Getenv(common.EnvVarTLSDataPath)
-	if envPath != "" {
+	if envPath := os.Getenv(common.EnvVarTLSDataPath); envPath != "" {
 		return envPath
 	} else {
 		return common.DefaultPathTLSConfig
@@ -100,11 +99,10 @@ func GetTLSCertificateDataPath() string {
 // filesystem. If ARGOCD_SSH_DATA_PATH environment is set, path is taken from
 // there, otherwise the default will be returned.
 func GetSSHKnownHostsDataPath() string {
-	envPath := os.Getenv(common.EnvVarSSHDataPath)
-	if envPath != "" {
-		return envPath + "/" + common.DefaultSSHKnownHostsName
+	if envPath := os.Getenv(common.EnvVarSSHDataPath); envPath != "" {
+		return filepath.Join(envPath, common.DefaultSSHKnownHostsName)
 	} else {
-		return common.DefaultPathSSHConfig + "/" + common.DefaultSSHKnownHostsName
+		return filepath.Join(common.DefaultPathSSHConfig, common.DefaultSSHKnownHostsName)
 	}
 }
 
@@ -112,11 +110,11 @@ func GetSSHKnownHostsDataPath() string {
 func DecodePEMCertificateToX509(pemData string) (*x509.Certificate, error) {
 	decodedData, _ := pem.Decode([]byte(pemData))
 	if decodedData == nil {
-		return nil, errors.New("Could not decode PEM data from input.")
+		return nil, errors.New("could not decode PEM data from input")
 	}
 	x509Cert, err := x509.ParseCertificate(decodedData.Bytes)
 	if err != nil {
-		return nil, errors.New("Could not parse X509 data from input.")
+		return nil, errors.New("could not parse X509 data from input")
 	}
 	return x509Cert, nil
 }
@@ -171,7 +169,7 @@ func ParseTLSCertificatesFromStream(stream io.Reader) ([]string, error) {
 		}
 
 		if certLine > CertificateMaxLines {
-			return nil, errors.New("Maximum number of lines exceeded during certificate parsing.")
+			return nil, errors.New("maximum number of lines exceeded during certificate parsing")
 		}
 	}
 
@@ -233,7 +231,7 @@ func IsValidSSHKnownHostsEntry(line string) bool {
 func TokenizeSSHKnownHostsEntry(knownHostsEntry string) (string, string, []byte, error) {
 	knownHostsToken := strings.SplitN(knownHostsEntry, " ", 3)
 	if len(knownHostsToken) != 3 {
-		return "", "", nil, fmt.Errorf("Error while tokenizing input data.")
+		return "", "", nil, fmt.Errorf("error while tokenizing input data")
 	}
 	return knownHostsToken[0], knownHostsToken[1], []byte(knownHostsToken[2]), nil
 }
@@ -301,7 +299,14 @@ func ServerNameWithoutPort(serverName string) string {
 // Load certificate data from a file. If the file does not exist, we do not
 // consider it an error and just return empty data.
 func GetCertificateForConnect(serverName string) ([]string, error) {
-	certPath := fmt.Sprintf("%s/%s", GetTLSCertificateDataPath(), ServerNameWithoutPort(serverName))
+	dataPath := GetTLSCertificateDataPath()
+	certPath, err := filepath.Abs(filepath.Join(dataPath, ServerNameWithoutPort(serverName)))
+	if err != nil {
+		return nil, err
+	}
+	if !strings.HasPrefix(certPath, dataPath) {
+		return nil, fmt.Errorf("could not get certificate for host %s", serverName)
+	}
 	certificates, err := ParseTLSCertificatesFromPath(certPath)
 	if err != nil {
 		if os.IsNotExist(err) {
@@ -312,7 +317,7 @@ func GetCertificateForConnect(serverName string) ([]string, error) {
 	}
 
 	if len(certificates) == 0 {
-		return nil, fmt.Errorf("No certificates found in existing file.")
+		return nil, fmt.Errorf("no certificates found in existing file")
 	}
 
 	return certificates, nil
@@ -322,7 +327,7 @@ func GetCertificateForConnect(serverName string) ([]string, error) {
 // mount. This function makes sure that the path returned actually contain
 // at least one valid certificate, and no invalid data.
 func GetCertBundlePathForRepository(serverName string) (string, error) {
-	certPath := fmt.Sprintf("%s/%s", GetTLSCertificateDataPath(), ServerNameWithoutPort(serverName))
+	certPath := filepath.Join(GetTLSCertificateDataPath(), ServerNameWithoutPort(serverName))
 	certs, err := GetCertificateForConnect(serverName)
 	if err != nil {
 		return "", nil

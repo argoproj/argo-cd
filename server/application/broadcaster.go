@@ -6,7 +6,7 @@ import (
 	log "github.com/sirupsen/logrus"
 	"k8s.io/apimachinery/pkg/watch"
 
-	appv1 "github.com/argoproj/argo-cd/pkg/apis/application/v1alpha1"
+	appv1 "github.com/argoproj/argo-cd/v2/pkg/apis/application/v1alpha1"
 )
 
 type subscriber struct {
@@ -29,7 +29,13 @@ type broadcasterHandler struct {
 }
 
 func (b *broadcasterHandler) notify(event *appv1.ApplicationWatchEvent) {
-	subscribers := b.subscribers
+	// Make a local copy of b.subscribers, then send channel events outside the lock,
+	// to avoid data race on b.subscribers changes
+	subscribers := []*subscriber{}
+	b.lock.Lock()
+	subscribers = append(subscribers, b.subscribers...)
+	b.lock.Unlock()
+
 	for _, s := range subscribers {
 		if s.matches(event) {
 			select {

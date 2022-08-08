@@ -19,7 +19,7 @@ export interface EditablePanelProps<T> {
     title?: string | React.ReactNode;
     values: T;
     validate?: (values: T) => any;
-    save?: (input: T) => Promise<any>;
+    save?: (input: T, query: {validate?: boolean}) => Promise<any>;
     items: EditablePanelItem[];
     onModeSwitch?: () => any;
     noReadonlyMode?: boolean;
@@ -92,10 +92,10 @@ export class EditablePanel<T = {}> extends React.Component<EditablePanelProps<T>
                             {this.props.title && <p>{this.props.title}</p>}
                             {(!this.state.edit && (
                                 <React.Fragment>
-                                    {this.props.view && this.props.view}
+                                    {this.props.view}
                                     {this.props.items.map(item => (
                                         <React.Fragment key={item.key || item.title}>
-                                            {item.before && item.before}
+                                            {item.before}
                                             <div className='row white-box__details-row'>
                                                 <div className='columns small-3'>{item.title}</div>
                                                 <div className='columns small-9'>{item.view}</div>
@@ -108,13 +108,13 @@ export class EditablePanel<T = {}> extends React.Component<EditablePanelProps<T>
                                     getApi={api => (this.formApi = api)}
                                     formDidUpdate={async form => {
                                         if (this.props.noReadonlyMode && this.props.save) {
-                                            await this.props.save(form.values as any);
+                                            await this.props.save(form.values as any, {});
                                         }
                                     }}
                                     onSubmit={async input => {
                                         try {
                                             this.setState({saving: true});
-                                            await this.props.save(input as any);
+                                            await this.props.save(input as any, {});
                                             this.setState({edit: false, saving: false});
                                             this.onModeSwitch();
                                         } catch (e) {
@@ -133,7 +133,7 @@ export class EditablePanel<T = {}> extends React.Component<EditablePanelProps<T>
                                             {this.props.edit && this.props.edit(api)}
                                             {this.props.items.map(item => (
                                                 <React.Fragment key={item.key || item.title}>
-                                                    {item.before && item.before}
+                                                    {item.before}
                                                     <div className='row white-box__details-row'>
                                                         <div className='columns small-3'>{(item.titleEdit && item.titleEdit(api)) || item.title}</div>
                                                         <div className='columns small-9'>{(item.edit && item.edit(api)) || item.view}</div>

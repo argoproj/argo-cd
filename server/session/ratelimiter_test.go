@@ -3,10 +3,10 @@ package session
 import (
 	"testing"
 
-	util "github.com/argoproj/gitops-engine/pkg/utils/io"
 	"github.com/stretchr/testify/assert"
 
-	"github.com/argoproj/argo-cd/util/session"
+	util "github.com/argoproj/argo-cd/v2/util/io"
+	"github.com/argoproj/argo-cd/v2/util/session"
 )
 
 func TestRateLimiter(t *testing.T) {

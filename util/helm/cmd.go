@@ -2,49 +2,46 @@ package helm
 
 import (
 	"fmt"
-	"io/ioutil"
 	"os"
 	"os/exec"
 	"path"
 	"path/filepath"
 	"regexp"
 
-	"github.com/argoproj/gitops-engine/pkg/utils/io"
+	log "github.com/sirupsen/logrus"
 
-	executil "github.com/argoproj/argo-cd/util/exec"
+	executil "github.com/argoproj/argo-cd/v2/util/exec"
+	argoio "github.com/argoproj/argo-cd/v2/util/io"
+	pathutil "github.com/argoproj/argo-cd/v2/util/io/path"
+	"github.com/argoproj/argo-cd/v2/util/proxy"
 )
 
 // A thin wrapper around the "helm" command, adding logging and error translation.
 type Cmd struct {
 	HelmVer
-	helmHome string
-	WorkDir  string
-	IsLocal  bool
+	helmHome  string
+	WorkDir   string
+	IsLocal   bool
+	IsHelmOci bool
+	proxy     string
 }
 
-func NewCmd(workDir string, version string) (*Cmd, error) {
-	if version != "" {
-		switch version {
-		case "v2":
-			return NewCmdWithVersion(workDir, HelmV2)
-		case "v3":
-			return NewCmdWithVersion(workDir, HelmV3)
-		}
+func NewCmd(workDir string, version string, proxy string) (*Cmd, error) {
+
+	switch version {
+	// If v3 is specified (or by default, if no value is specified) then use v3
+	case "", "v3":
+		return NewCmdWithVersion(workDir, HelmV3, false, proxy)
 	}
-	helmVersion, err := getHelmVersion(workDir)
+	return nil, fmt.Errorf("helm chart version '%s' is not supported", version)
+}
+
+func NewCmdWithVersion(workDir string, version HelmVer, isHelmOci bool, proxy string) (*Cmd, error) {
+	tmpDir, err := os.MkdirTemp("", "helm")
 	if err != nil {
 		return nil, err
 	}
-
-	return NewCmdWithVersion(workDir, *helmVersion)
-}
-
-func NewCmdWithVersion(workDir string, version HelmVer) (*Cmd, error) {
-	tmpDir, err := ioutil.TempDir("", "helm")
-	if err != nil {
-		return nil, err
-	}
-	return &Cmd{WorkDir: workDir, helmHome: tmpDir, HelmVer: version}, err
+	return &Cmd{WorkDir: workDir, helmHome: tmpDir, HelmVer: version, IsHelmOci: isHelmOci, proxy: proxy}, err
 }
 
 var redactor = func(text string) string {
@@ -62,6 +59,13 @@ func (c Cmd) run(args ...string) (string, error) {
 			fmt.Sprintf("XDG_DATA_HOME=%s/data", c.helmHome),
 			fmt.Sprintf("HELM_HOME=%s", c.helmHome))
 	}
+
+	if c.IsHelmOci {
+		cmd.Env = append(cmd.Env, "HELM_EXPERIMENTAL_OCI=1")
+	}
+
+	cmd.Env = proxy.UpsertEnv(cmd, c.proxy)
+
 	return executil.RunWithRedactor(cmd, redactor)
 }
 
@@ -72,8 +76,73 @@ func (c *Cmd) Init() (string, error) {
 	return "", nil
 }
 
-func (c *Cmd) RepoAdd(name string, url string, opts Creds) (string, error) {
-	tmp, err := ioutil.TempDir("", "helm")
+func (c *Cmd) RegistryLogin(repo string, creds Creds) (string, error) {
+	args := []string{"registry", "login"}
+	args = append(args, repo)
+
+	if creds.Username != "" {
+		args = append(args, "--username", creds.Username)
+	}
+
+	if creds.Password != "" {
+		args = append(args, "--password", creds.Password)
+	}
+
+	if creds.CAPath != "" {
+		args = append(args, "--ca-file", creds.CAPath)
+	}
+	if len(creds.CertData) > 0 {
+		filePath, closer, err := writeToTmp(creds.CertData)
+		if err != nil {
+			return "", err
+		}
+		defer argoio.Close(closer)
+		args = append(args, "--cert-file", filePath)
+	}
+	if len(creds.KeyData) > 0 {
+		filePath, closer, err := writeToTmp(creds.KeyData)
+		if err != nil {
+			return "", err
+		}
+		defer argoio.Close(closer)
+		args = append(args, "--key-file", filePath)
+	}
+
+	if creds.InsecureSkipVerify {
+		args = append(args, "--insecure")
+	}
+	return c.run(args...)
+}
+
+func (c *Cmd) RegistryLogout(repo string, creds Creds) (string, error) {
+	args := []string{"registry", "logout"}
+	args = append(args, repo)
+
+	if creds.CAPath != "" {
+		args = append(args, "--ca-file", creds.CAPath)
+	}
+	if len(creds.CertData) > 0 {
+		filePath, closer, err := writeToTmp(creds.CertData)
+		if err != nil {
+			return "", err
+		}
+		defer argoio.Close(closer)
+		args = append(args, "--cert-file", filePath)
+	}
+	if len(creds.KeyData) > 0 {
+		filePath, closer, err := writeToTmp(creds.KeyData)
+		if err != nil {
+			return "", err
+		}
+		defer argoio.Close(closer)
+		args = append(args, "--key-file", filePath)
+	}
+
+	return c.run(args...)
+}
+
+func (c *Cmd) RepoAdd(name string, url string, opts Creds, passCredentials bool) (string, error) {
+	tmp, err := os.MkdirTemp("", "helm")
 	if err != nil {
 		return "", err
 	}
@@ -98,7 +167,7 @@ func (c *Cmd) RepoAdd(name string, url string, opts Creds) (string, error) {
 	}
 
 	if len(opts.CertData) > 0 {
-		certFile, err := ioutil.TempFile("", "helm")
+		certFile, err := os.CreateTemp("", "helm")
 		if err != nil {
 			return "", err
 		}
@@ -106,11 +175,12 @@ func (c *Cmd) RepoAdd(name string, url string, opts Creds) (string, error) {
 		if err != nil {
 			return "", err
 		}
+		defer certFile.Close()
 		args = append(args, "--cert-file", certFile.Name())
 	}
 
 	if len(opts.KeyData) > 0 {
-		keyFile, err := ioutil.TempFile("", "helm")
+		keyFile, err := os.CreateTemp("", "helm")
 		if err != nil {
 			return "", err
 		}
@@ -118,7 +188,12 @@ func (c *Cmd) RepoAdd(name string, url string, opts Creds) (string, error) {
 		if err != nil {
 			return "", err
 		}
+		defer keyFile.Close()
 		args = append(args, "--key-file", keyFile.Name())
+	}
+
+	if c.helmPassCredentialsSupported && passCredentials {
+		args = append(args, "--pass-credentials")
 	}
 
 	args = append(args, name, url)
@@ -126,24 +201,28 @@ func (c *Cmd) RepoAdd(name string, url string, opts Creds) (string, error) {
 	return c.run(args...)
 }
 
-func writeToTmp(data []byte) (string, io.Closer, error) {
-	file, err := ioutil.TempFile("", "")
+func writeToTmp(data []byte) (string, argoio.Closer, error) {
+	file, err := os.CreateTemp("", "")
 	if err != nil {
 		return "", nil, err
 	}
-	err = ioutil.WriteFile(file.Name(), data, 0644)
+	err = os.WriteFile(file.Name(), data, 0644)
 	if err != nil {
 		_ = os.RemoveAll(file.Name())
 		return "", nil, err
 	}
-	return file.Name(), io.NewCloser(func() error {
+	defer func() {
+		if err = file.Close(); err != nil {
+			log.Errorf("error closing file %q: %v", file.Name(), err)
+		}
+	}()
+	return file.Name(), argoio.NewCloser(func() error {
 		return os.RemoveAll(file.Name())
 	}), nil
 }
 
-func (c *Cmd) Fetch(repo, chartName, version, destination string, creds Creds) (string, error) {
+func (c *Cmd) Fetch(repo, chartName, version, destination string, creds Creds, passCredentials bool) (string, error) {
 	args := []string{c.pullCommand, "--destination", destination}
-
 	if version != "" {
 		args = append(args, "--version", version)
 	}
@@ -153,6 +232,12 @@ func (c *Cmd) Fetch(repo, chartName, version, destination string, creds Creds) (
 	if creds.Password != "" {
 		args = append(args, "--password", creds.Password)
 	}
+	if creds.InsecureSkipVerify && c.insecureSkipVerifySupported {
+		args = append(args, "--insecure-skip-tls-verify")
+	}
+
+	args = append(args, "--repo", repo, chartName)
+
 	if creds.CAPath != "" {
 		args = append(args, "--ca-file", creds.CAPath)
 	}
@@ -161,7 +246,7 @@ func (c *Cmd) Fetch(repo, chartName, version, destination string, creds Creds) (
 		if err != nil {
 			return "", err
 		}
-		defer io.Close(closer)
+		defer argoio.Close(closer)
 		args = append(args, "--cert-file", filePath)
 	}
 	if len(creds.KeyData) > 0 {
@@ -169,12 +254,25 @@ func (c *Cmd) Fetch(repo, chartName, version, destination string, creds Creds) (
 		if err != nil {
 			return "", err
 		}
-		defer io.Close(closer)
+		defer argoio.Close(closer)
 		args = append(args, "--key-file", filePath)
 	}
+	if passCredentials && c.helmPassCredentialsSupported {
+		args = append(args, "--pass-credentials")
+	}
 
-	args = append(args, "--repo", repo, chartName)
 	return c.run(args...)
+}
+
+func (c *Cmd) PullOCI(repo string, chart string, version string, destination string) (string, error) {
+	return c.run(
+		"pull",
+		fmt.Sprintf("oci://%s/%s", repo, chart),
+		"--version",
+		version,
+		"--destination",
+		destination,
+	)
 }
 
 func (c *Cmd) dependencyBuild() (string, error) {
@@ -192,8 +290,9 @@ type TemplateOpts struct {
 	APIVersions []string
 	Set         map[string]string
 	SetString   map[string]string
-	SetFile     map[string]string
-	Values      []string
+	SetFile     map[string]pathutil.ResolvedFilePath
+	Values      []pathutil.ResolvedFilePath
+	SkipCrds    bool
 }
 
 var (
@@ -228,18 +327,22 @@ func (c *Cmd) template(chartPath string, opts *TemplateOpts) (string, error) {
 		args = append(args, "--set-string", key+"="+cleanSetParameters(val))
 	}
 	for key, val := range opts.SetFile {
-		args = append(args, "--set-file", key+"="+cleanSetParameters(val))
+		args = append(args, "--set-file", key+"="+cleanSetParameters(string(val)))
 	}
 	for _, val := range opts.Values {
-		args = append(args, "--values", val)
+		args = append(args, "--values", string(val))
 	}
 	for _, v := range opts.APIVersions {
 		args = append(args, "--api-versions", v)
 	}
-	if c.HelmVer.additionalTemplateArgs != nil {
-		args = append(args, c.HelmVer.additionalTemplateArgs...)
+	if c.HelmVer.includeCrds && !opts.SkipCrds {
+		args = append(args, "--include-crds")
 	}
 
+	return c.run(args...)
+}
+
+func (c *Cmd) Freestyle(args ...string) (string, error) {
 	return c.run(args...)
 }
 
