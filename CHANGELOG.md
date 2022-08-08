@@ -687,6 +687,117 @@ as there are no conflicts with other Kubernetes tools, and you can easily instal
 * Cluster name support in project destinations (#7198)
 * around 30 more features and a total of 84 bug fixes
 
+## v2.1.16 (2022-06-21)
+
+### Security fixes
+
+* CRITICAL: External URLs for Deployments can include javascript ([GHSA-h4w9-6x78-8vrj](https://github.com/argoproj/argo-cd/security/advisories/GHSA-h4w9-6x78-8vrj))
+* HIGH: Insecure entropy in PKCE/Oauth2/OIDC params ([GHSA-2m7h-86qq-fp4v](https://github.com/argoproj/argo-cd/security/advisories/GHSA-2m7h-86qq-fp4v))
+* MODERATE: DoS through large directory app manifest files ([GHSA-jhqp-vf4w-rpwq](https://github.com/argoproj/argo-cd/security/advisories/GHSA-jhqp-vf4w-rpwq))
+* MODERATE: Symlink following allows leaking out-of-bounds YAML files from Argo CD repo-server ([GHSA-q4w5-4gq2-98vm](https://github.com/argoproj/argo-cd/security/advisories/GHSA-q4w5-4gq2-98vm))
+
+**Note:** This will be the last security fix release in the 2.1.x series. Please [upgrade to a newer minor version](https://argo-cd.readthedocs.io/en/latest/operator-manual/upgrading/overview/) to continue to get security fixes.
+
+### Potentially-breaking changes
+
+From the [GHSA-2m7h-86qq-fp4v](https://github.com/argoproj/argo-cd/security/advisories/GHSA-2m7h-86qq-fp4v) description:
+
+> The patch introduces a new `reposerver.max.combined.directory.manifests.size` config parameter, which you should tune before upgrading in production. It caps the maximum total file size of .yaml/.yml/.json files in directory-type (raw manifest) Applications. The default max is 10M per Application. This max is designed to keep any single app from consuming more than 3G of memory in the repo-server (manifests consume more space in memory than on disk). The 300x ratio assumes a maliciously-crafted manifest file. If you only want to protect against accidental excessive memory use, it is probably safe to use a smaller ratio.
+>
+> If your organization uses directory-type Applications with very many manifests or very large manifests then check the size of those manifests and tune the config parameter before deploying this change to production. When testing, make sure to do a "hard refresh" in either the CLI or UI to test your directory-type App. That will make sure you're using the new max logic instead of relying on cached manifest responses from Redis.
+
+### Bug fixes
+
+* fix: missing Helm params (#9565) (#9566)
+
+### Other
+
+* test: directory app manifest generation (#9503)
+* test: fix erroneous test change
+* chore: eliminate go-mpatch dependency (#9045)
+* chore: Make unit tests run on platforms other than amd64 (#8995)
+* chore: remove obsolete repo-server unit test (#9559)
+* chore: upgrade golangci-lint to v1.46.2 (#9448)
+* chore: update golangci-lint (#8988)
+* test: fix ErrorContains (#9445)
+
+## v2.1.15 (2022-05-18)
+
+### Notes
+
+This is a security release. We urge all users of the 2.1.z branch to update as soon as possible. Please refer to the _Security fixes_ section below for more details.
+
+### Security fixes
+
+- CRITICAL: Argo CD will trust invalid JWT claims if anonymous access is enabled (https://github.com/argoproj/argo-cd/security/advisories/GHSA-r642-gv9p-2wjj)
+- LOW: Login screen allows message spoofing if SSO is enabled (https://github.com/argoproj/argo-cd/security/advisories/GHSA-xmg8-99r8-jc2j)
+- MODERATE: Symlink following allows leaking out-of-bound manifests and JSON files from Argo CD repo-server (https://github.com/argoproj/argo-cd/security/advisories/GHSA-6gcg-hp2x-q54h)
+
+## v2.1.14 (2022-03-22)
+
+### Special notes
+
+This release contains the fix for a security issue with critical severity. We recommend users on the 2.1 release branch to update to this release as soon as possible.
+
+More information can be found in the related
+[security advisory](https://github.com/argoproj/argo-cd/security/advisories/GHSA-2f5v-8r3f-8pww).
+
+### Changes
+
+As part of the security fix, the Argo CD UI no longer automatically presents child resources of allow-listed resources unless the child resources are also allow-listed. For example, Pods are not going to show up if only Deployment is added to the allow-list.
+
+If you have [projects](https://argo-cd.readthedocs.io/en/stable/user-guide/projects/) configured with allow-lists, make sure the allow-lists include all the resources you want users to be able to view/manage through the UI. For example, if your project allows `Deployments`, you would add `ReplicaSets` and `Pods`.
+
+#### Bug Fixes
+
+- fix: application resource APIs must enforce project restrictions
+
+## v2.1.13 (2022-03-22)
+
+Unused release number.
+
+## v2.1.12 (2022-03-08)
+
+### Bug Fixes
+
+- fix: correct jsonnet paths resolution (#8721)
+
+## v2.1.11 (2022-03-06)
+
+### Bug Fixes
+
+- fix: prevent file traversal using helm file values param and application details api (#8606)
+- fix!: enforce app create/update privileges when getting repo details (#8558)
+- feat: support custom helm values file schemes (#8535)
+
+## v2.1.10 (2022-02-04)
+
+### Bug Fixes
+
+- fix: Resolve symlinked value files correctly (#8387)
+
+## v2.1.9 (2022-02-03)
+
+### Special notes
+
+This release contains the fix for a security issue with high severity. We recommend users on the 2.1 release branch to update to this release as soon as possible.
+
+More information can be found in the related
+[security advisory](https://github.com/argoproj/argo-cd/security/advisories/GHSA-63qx-x74g-jcr7)
+
+### Bug Fixes
+
+- fix: Prevent value files outside repository root
+
+## v2.1.8 (2021-12-13)
+
+### Bug Fixes
+
+- fix: issue with keepalive (#7861)
+- fix nil pointer dereference error (#7905)
+- fix: env vars to tune cluster cache were broken (#7779)
+- fix: upgraded gitops engine to v0.4.2 (fixes #7561)
+
 ## v2.1.7 (2021-12-14)
 
 - fix: issue with keepalive (#7861)
