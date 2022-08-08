@@ -1,9 +1,9 @@
 package commands
 
 import (
-	"context"
 	"fmt"
 	"os"
+	"regexp"
 	"strings"
 	"text/tabwriter"
 
@@ -11,8 +11,10 @@ import (
 	log "github.com/sirupsen/logrus"
 	"github.com/spf13/cobra"
 	"k8s.io/client-go/kubernetes"
+	"k8s.io/client-go/rest"
 	"k8s.io/client-go/tools/clientcmd"
 
+	"github.com/argoproj/argo-cd/v2/cmd/argocd/commands/headless"
 	cmdutil "github.com/argoproj/argo-cd/v2/cmd/util"
 	"github.com/argoproj/argo-cd/v2/common"
 	argocdclient "github.com/argoproj/argo-cd/v2/pkg/apiclient"
@@ -22,6 +24,7 @@ import (
 	"github.com/argoproj/argo-cd/v2/util/clusterauth"
 	"github.com/argoproj/argo-cd/v2/util/errors"
 	"github.com/argoproj/argo-cd/v2/util/io"
+	"github.com/argoproj/argo-cd/v2/util/text/label"
 )
 
 // NewClusterCommand returns a new instance of an `argocd cluster` command
@@ -42,7 +45,7 @@ func NewClusterCommand(clientOpts *argocdclient.ClientOptions, pathOpts *clientc
   # Get specific details about a cluster in plain text (wide) format:
   argocd cluster get example-cluster -o wide
 
-  #	Remove a target cluster context from ArgoCD
+  # Remove a target cluster context from ArgoCD
   argocd cluster rm example-cluster
 `,
 	}
@@ -50,7 +53,7 @@ func NewClusterCommand(clientOpts *argocdclient.ClientOptions, pathOpts *clientc
 	command.AddCommand(NewClusterAddCommand(clientOpts, pathOpts))
 	command.AddCommand(NewClusterGetCommand(clientOpts))
 	command.AddCommand(NewClusterListCommand(clientOpts))
-	command.AddCommand(NewClusterRemoveCommand(clientOpts))
+	command.AddCommand(NewClusterRemoveCommand(clientOpts, pathOpts))
 	command.AddCommand(NewClusterRotateAuthCommand(clientOpts))
 	return command
 }
@@ -60,41 +63,24 @@ func NewClusterAddCommand(clientOpts *argocdclient.ClientOptions, pathOpts *clie
 	var (
 		clusterOpts      cmdutil.ClusterOptions
 		skipConfirmation bool
+		labels           []string
+		annotations      []string
 	)
 	var command = &cobra.Command{
 		Use:   "add CONTEXT",
 		Short: fmt.Sprintf("%s cluster add CONTEXT", cliName),
 		Run: func(c *cobra.Command, args []string) {
+			ctx := c.Context()
+
 			var configAccess clientcmd.ConfigAccess = pathOpts
 			if len(args) == 0 {
 				log.Error("Choose a context name from:")
 				cmdutil.PrintKubeContexts(configAccess)
 				os.Exit(1)
 			}
-			config, err := configAccess.GetStartingConfig()
-			errors.CheckError(err)
 			contextName := args[0]
-			clstContext := config.Contexts[contextName]
-			if clstContext == nil {
-				log.Fatalf("Context %s does not exist in kubeconfig", contextName)
-			}
-
-			isTerminal := isatty.IsTerminal(os.Stdout.Fd()) || isatty.IsCygwinTerminal(os.Stdout.Fd())
-
-			if isTerminal && !skipConfirmation {
-				message := fmt.Sprintf("WARNING: This will create a service account `argocd-manager` on the cluster referenced by context `%s` with full cluster level admin privileges. Do you want to continue [y/N]? ", contextName)
-				if !cli.AskToProceed(message) {
-					os.Exit(1)
-				}
-			}
-
-			overrides := clientcmd.ConfigOverrides{
-				Context: *clstContext,
-			}
-			clientConfig := clientcmd.NewDefaultClientConfig(*config, &overrides)
-			conf, err := clientConfig.ClientConfig()
+			conf, err := getRestConfig(pathOpts, contextName)
 			errors.CheckError(err)
-
 			managerBearerToken := ""
 			var awsAuthConf *argoappv1.AWSAuthConfig
 			var execProviderConf *argoappv1.ExecProviderConfig
@@ -116,29 +102,50 @@ func NewClusterAddCommand(clientOpts *argocdclient.ClientOptions, pathOpts *clie
 				clientset, err := kubernetes.NewForConfig(conf)
 				errors.CheckError(err)
 				if clusterOpts.ServiceAccount != "" {
-					managerBearerToken, err = clusterauth.GetServiceAccountBearerToken(clientset, clusterOpts.SystemNamespace, clusterOpts.ServiceAccount)
+					managerBearerToken, err = clusterauth.GetServiceAccountBearerToken(clientset, clusterOpts.SystemNamespace, clusterOpts.ServiceAccount, common.BearerTokenTimeout)
 				} else {
-					managerBearerToken, err = clusterauth.InstallClusterManagerRBAC(clientset, clusterOpts.SystemNamespace, clusterOpts.Namespaces)
+					isTerminal := isatty.IsTerminal(os.Stdout.Fd()) || isatty.IsCygwinTerminal(os.Stdout.Fd())
+
+					if isTerminal && !skipConfirmation {
+						accessLevel := "cluster"
+						if len(clusterOpts.Namespaces) > 0 {
+							accessLevel = "namespace"
+						}
+						message := fmt.Sprintf("WARNING: This will create a service account `argocd-manager` on the cluster referenced by context `%s` with full %s level privileges. Do you want to continue [y/N]? ", contextName, accessLevel)
+						if !cli.AskToProceed(message) {
+							os.Exit(1)
+						}
+					}
+					managerBearerToken, err = clusterauth.InstallClusterManagerRBAC(clientset, clusterOpts.SystemNamespace, clusterOpts.Namespaces, common.BearerTokenTimeout)
 				}
 				errors.CheckError(err)
 			}
-			conn, clusterIf := argocdclient.NewClientOrDie(clientOpts).NewClusterClientOrDie()
+
+			labelsMap, err := label.Parse(labels)
+			errors.CheckError(err)
+			annotationsMap, err := label.Parse(annotations)
+			errors.CheckError(err)
+
+			conn, clusterIf := headless.NewClientOrDie(clientOpts, c).NewClusterClientOrDie()
 			defer io.Close(conn)
 			if clusterOpts.Name != "" {
 				contextName = clusterOpts.Name
 			}
-			clst := cmdutil.NewCluster(contextName, clusterOpts.Namespaces, conf, managerBearerToken, awsAuthConf, execProviderConf)
+			clst := cmdutil.NewCluster(contextName, clusterOpts.Namespaces, clusterOpts.ClusterResources, conf, managerBearerToken, awsAuthConf, execProviderConf, labelsMap, annotationsMap)
 			if clusterOpts.InCluster {
 				clst.Server = argoappv1.KubernetesInternalAPIServerAddr
 			}
 			if clusterOpts.Shard >= 0 {
 				clst.Shard = &clusterOpts.Shard
 			}
+			if clusterOpts.Project != "" {
+				clst.Project = clusterOpts.Project
+			}
 			clstCreateReq := clusterpkg.ClusterCreateRequest{
 				Cluster: clst,
 				Upsert:  clusterOpts.Upsert,
 			}
-			_, err = clusterIf.Create(context.Background(), &clstCreateReq)
+			_, err = clusterIf.Create(ctx, &clstCreateReq)
 			errors.CheckError(err)
 			fmt.Printf("Cluster '%s' added\n", clst.Server)
 		},
@@ -148,8 +155,34 @@ func NewClusterAddCommand(clientOpts *argocdclient.ClientOptions, pathOpts *clie
 	command.Flags().StringVar(&clusterOpts.ServiceAccount, "service-account", "", fmt.Sprintf("System namespace service account to use for kubernetes resource management. If not set then default \"%s\" SA will be created", clusterauth.ArgoCDManagerServiceAccount))
 	command.Flags().StringVar(&clusterOpts.SystemNamespace, "system-namespace", common.DefaultSystemNamespace, "Use different system namespace")
 	command.Flags().BoolVarP(&skipConfirmation, "yes", "y", false, "Skip explicit confirmation")
+	command.Flags().StringArrayVar(&labels, "label", nil, "Set metadata labels (e.g. --label key=value)")
+	command.Flags().StringArrayVar(&annotations, "annotation", nil, "Set metadata annotations (e.g. --annotation key=value)")
 	cmdutil.AddClusterFlags(command, &clusterOpts)
 	return command
+}
+
+func getRestConfig(pathOpts *clientcmd.PathOptions, ctxName string) (*rest.Config, error) {
+	config, err := pathOpts.GetStartingConfig()
+	if err != nil {
+		return nil, err
+	}
+
+	clstContext := config.Contexts[ctxName]
+	if clstContext == nil {
+		return nil, fmt.Errorf("Context %s does not exist in kubeconfig", ctxName)
+	}
+
+	overrides := clientcmd.ConfigOverrides{
+		Context: *clstContext,
+	}
+
+	clientConfig := clientcmd.NewDefaultClientConfig(*config, &overrides)
+	conf, err := clientConfig.ClientConfig()
+	if err != nil {
+		return nil, err
+	}
+
+	return conf, nil
 }
 
 // NewClusterGetCommand returns a new instance of an `argocd cluster get` command
@@ -158,19 +191,22 @@ func NewClusterGetCommand(clientOpts *argocdclient.ClientOptions) *cobra.Command
 		output string
 	)
 	var command = &cobra.Command{
-		Use:     "get SERVER",
-		Short:   "Get cluster information",
-		Example: `argocd cluster get https://12.34.567.89`,
+		Use:   "get SERVER/NAME",
+		Short: "Get cluster information",
+		Example: `argocd cluster get https://12.34.567.89
+argocd cluster get in-cluster`,
 		Run: func(c *cobra.Command, args []string) {
+			ctx := c.Context()
+
 			if len(args) == 0 {
 				c.HelpFunc()(c, args)
 				os.Exit(1)
 			}
-			conn, clusterIf := argocdclient.NewClientOrDie(clientOpts).NewClusterClientOrDie()
+			conn, clusterIf := headless.NewClientOrDie(clientOpts, c).NewClusterClientOrDie()
 			defer io.Close(conn)
 			clusters := make([]argoappv1.Cluster, 0)
-			for _, clusterName := range args {
-				clst, err := clusterIf.Get(context.Background(), &clusterpkg.ClusterQuery{Server: clusterName})
+			for _, clusterSelector := range args {
+				clst, err := clusterIf.Get(ctx, getQueryBySelector(clusterSelector))
 				errors.CheckError(err)
 				clusters = append(clusters, *clst)
 			}
@@ -224,30 +260,44 @@ func printClusterDetails(clusters []argoappv1.Cluster) {
 	}
 }
 
-// NewClusterRemoveCommand returns a new instance of an `argocd cluster list` command
-func NewClusterRemoveCommand(clientOpts *argocdclient.ClientOptions) *cobra.Command {
+// NewClusterRemoveCommand returns a new instance of an `argocd cluster rm` command
+func NewClusterRemoveCommand(clientOpts *argocdclient.ClientOptions, pathOpts *clientcmd.PathOptions) *cobra.Command {
 	var command = &cobra.Command{
-		Use:     "rm SERVER",
-		Short:   "Remove cluster credentials",
-		Example: `argocd cluster rm https://12.34.567.89`,
+		Use:   "rm SERVER/NAME",
+		Short: "Remove cluster credentials",
+		Example: `argocd cluster rm https://12.34.567.89
+argocd cluster rm cluster-name`,
 		Run: func(c *cobra.Command, args []string) {
+			ctx := c.Context()
+
 			if len(args) == 0 {
 				c.HelpFunc()(c, args)
 				os.Exit(1)
 			}
-			conn, clusterIf := argocdclient.NewClientOrDie(clientOpts).NewClusterClientOrDie()
+			conn, clusterIf := headless.NewClientOrDie(clientOpts, c).NewClusterClientOrDie()
 			defer io.Close(conn)
 
-			// clientset, err := kubernetes.NewForConfig(conf)
-			// errors.CheckError(err)
+			for _, clusterSelector := range args {
+				clusterQuery := getQueryBySelector(clusterSelector)
 
-			for _, clusterName := range args {
-				// TODO(jessesuen): find the right context and remove manager RBAC artifacts
-				// err := clusterauth.UninstallClusterManagerRBAC(clientset)
-				// errors.CheckError(err)
-				_, err := clusterIf.Delete(context.Background(), &clusterpkg.ClusterQuery{Server: clusterName})
+				// get the cluster name to use as context to delete RBAC on cluster
+				clst, err := clusterIf.Get(ctx, clusterQuery)
 				errors.CheckError(err)
-				fmt.Printf("Cluster '%s' removed\n", clusterName)
+
+				// remove cluster
+				_, err = clusterIf.Delete(ctx, clusterQuery)
+				errors.CheckError(err)
+				fmt.Printf("Cluster '%s' removed\n", clusterSelector)
+
+				// remove RBAC from cluster
+				conf, err := getRestConfig(pathOpts, clst.Name)
+				errors.CheckError(err)
+
+				clientset, err := kubernetes.NewForConfig(conf)
+				errors.CheckError(err)
+
+				err = clusterauth.UninstallClusterManagerRBAC(clientset)
+				errors.CheckError(err)
 			}
 		},
 	}
@@ -257,15 +307,27 @@ func NewClusterRemoveCommand(clientOpts *argocdclient.ClientOptions) *cobra.Comm
 // Print table of cluster information
 func printClusterTable(clusters []argoappv1.Cluster) {
 	w := tabwriter.NewWriter(os.Stdout, 0, 0, 2, ' ', 0)
-	_, _ = fmt.Fprintf(w, "SERVER\tNAME\tVERSION\tSTATUS\tMESSAGE\n")
+	_, _ = fmt.Fprintf(w, "SERVER\tNAME\tVERSION\tSTATUS\tMESSAGE\tPROJECT\n")
 	for _, c := range clusters {
 		server := c.Server
 		if len(c.Namespaces) > 0 {
 			server = fmt.Sprintf("%s (%d namespaces)", c.Server, len(c.Namespaces))
 		}
-		_, _ = fmt.Fprintf(w, "%s\t%s\t%s\t%s\t%s\n", server, c.Name, c.ServerVersion, c.ConnectionState.Status, c.ConnectionState.Message)
+		_, _ = fmt.Fprintf(w, "%s\t%s\t%s\t%s\t%s\t%s\n", server, c.Name, c.ServerVersion, c.ConnectionState.Status, c.ConnectionState.Message, c.Project)
 	}
 	_ = w.Flush()
+}
+
+// Returns cluster query for getting cluster depending on the cluster selector
+func getQueryBySelector(clusterSelector string) *clusterpkg.ClusterQuery {
+	var query clusterpkg.ClusterQuery
+	isServer, err := regexp.MatchString(`^https?://`, clusterSelector)
+	if isServer || err != nil {
+		query.Server = clusterSelector
+	} else {
+		query.Name = clusterSelector
+	}
+	return &query
 }
 
 // Print list of cluster servers
@@ -284,9 +346,11 @@ func NewClusterListCommand(clientOpts *argocdclient.ClientOptions) *cobra.Comman
 		Use:   "list",
 		Short: "List configured clusters",
 		Run: func(c *cobra.Command, args []string) {
-			conn, clusterIf := argocdclient.NewClientOrDie(clientOpts).NewClusterClientOrDie()
+			ctx := c.Context()
+
+			conn, clusterIf := headless.NewClientOrDie(clientOpts, c).NewClusterClientOrDie()
 			defer io.Close(conn)
-			clusters, err := clusterIf.List(context.Background(), &clusterpkg.ClusterQuery{})
+			clusters, err := clusterIf.List(ctx, &clusterpkg.ClusterQuery{})
 			errors.CheckError(err)
 			switch output {
 			case "yaml", "json":
@@ -308,22 +372,26 @@ func NewClusterListCommand(clientOpts *argocdclient.ClientOptions) *cobra.Comman
 // NewClusterRotateAuthCommand returns a new instance of an `argocd cluster rotate-auth` command
 func NewClusterRotateAuthCommand(clientOpts *argocdclient.ClientOptions) *cobra.Command {
 	var command = &cobra.Command{
-		Use:     "rotate-auth SERVER",
-		Short:   fmt.Sprintf("%s cluster rotate-auth SERVER", cliName),
-		Example: fmt.Sprintf("%s cluster rotate-auth https://12.34.567.89", cliName),
+		Use:   "rotate-auth SERVER/NAME",
+		Short: fmt.Sprintf("%s cluster rotate-auth SERVER/NAME", cliName),
+		Example: `argocd cluster rotate-auth https://12.34.567.89
+argocd cluster rotate-auth cluster-name`,
 		Run: func(c *cobra.Command, args []string) {
+			ctx := c.Context()
+
 			if len(args) != 1 {
 				c.HelpFunc()(c, args)
 				os.Exit(1)
 			}
-			conn, clusterIf := argocdclient.NewClientOrDie(clientOpts).NewClusterClientOrDie()
+			conn, clusterIf := headless.NewClientOrDie(clientOpts, c).NewClusterClientOrDie()
 			defer io.Close(conn)
-			clusterQuery := clusterpkg.ClusterQuery{
-				Server: args[0],
-			}
-			_, err := clusterIf.RotateAuth(context.Background(), &clusterQuery)
+
+			cluster := args[0]
+			clusterQuery := getQueryBySelector(cluster)
+			_, err := clusterIf.RotateAuth(ctx, clusterQuery)
 			errors.CheckError(err)
-			fmt.Printf("Cluster '%s' rotated auth\n", clusterQuery.Server)
+
+			fmt.Printf("Cluster '%s' rotated auth\n", cluster)
 		},
 	}
 	return command

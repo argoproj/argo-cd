@@ -16,7 +16,7 @@ from your application source code, is highly recommended for the following reaso
 
 3. Your application may be comprised of services built from multiple Git repositories, but is
    deployed as a single unit. Oftentimes, microservices applications are comprised of services
-   with different versioning schemes, and release cycles (e.g. ELK, Kafka + Zookeeper). It may not
+   with different versioning schemes, and release cycles (e.g. ELK, Kafka + ZooKeeper). It may not
    make sense to store the manifests in one of the source code repositories of a single component.
 
 4. Separation of access. The developers who are developing the application, may not necessarily be 

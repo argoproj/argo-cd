@@ -1,4 +1,4 @@
 dependencies:
 - name: redis-ha
-  version: 4.12.15
+  version: 4.17.2
   repository: https://dandydeveloper.github.io/charts

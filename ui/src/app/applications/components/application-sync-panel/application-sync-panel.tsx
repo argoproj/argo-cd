@@ -1,12 +1,13 @@
-import {ErrorNotification, FormField, NotificationType, SlidingPanel} from 'argo-ui';
+import {ErrorNotification, FormField, NotificationType, SlidingPanel, Tooltip} from 'argo-ui';
 import * as React from 'react';
 import {Form, FormApi, Text} from 'react-form';
 
-import {CheckboxField, Spinner} from '../../../shared/components';
+import {ARGO_WARNING_COLOR, CheckboxField, Spinner} from '../../../shared/components';
 import {Consumer} from '../../../shared/context';
 import * as models from '../../../shared/models';
 import {services} from '../../../shared/services';
-import {ApplicationManualSyncFlags, ApplicationSyncOptions, SyncFlags} from '../application-sync-options/application-sync-options';
+import {ApplicationRetryOptions} from '../application-retry-options/application-retry-options';
+import {ApplicationManualSyncFlags, ApplicationSyncOptions, FORCE_WARNING, SyncFlags, REPLACE_WARNING} from '../application-sync-options/application-sync-options';
 import {ComparisonStatusIcon, nodeKey} from '../utils';
 
 require('./application-sync-panel.scss');
@@ -48,7 +49,7 @@ export const ApplicationSyncPanel = ({application, selectedResource, hide}: {app
                             defaultValues={{
                                 revision: application.spec.source.targetRevision || 'HEAD',
                                 resources: appResources.map((_, i) => i === syncResIndex || syncResIndex === -1),
-                                syncOptions: application.spec.syncPolicy ? application.spec.syncPolicy.syncOptions : ''
+                                syncOptions: application.spec.syncPolicy ? application.spec.syncPolicy.syncOptions : []
                             }}
                             validateError={values => ({
                                 resources: values.resources.every((item: boolean) => !item) && 'Select at least one resource'
@@ -59,13 +60,37 @@ export const ApplicationSyncPanel = ({application, selectedResource, hide}: {app
                                 if (resources.length === appResources.length) {
                                     resources = null;
                                 }
+                                const replace = params.syncOptions?.findIndex((opt: string) => opt === 'Replace=true') > -1;
+                                if (replace) {
+                                    const confirmed = await ctx.popup.confirm('Synchronize using replace?', () => (
+                                        <div>
+                                            <i className='fa fa-exclamation-triangle' style={{color: ARGO_WARNING_COLOR}} /> {REPLACE_WARNING} Are you sure you want to continue?
+                                        </div>
+                                    ));
+                                    if (!confirmed) {
+                                        setPending(false);
+                                        return;
+                                    }
+                                }
 
                                 const syncFlags = {...params.syncFlags} as SyncFlags;
+                                const force = syncFlags.Force || false;
 
                                 if (syncFlags.ApplyOnly) {
-                                    syncStrategy.apply = {force: syncFlags.Force || false};
+                                    syncStrategy.apply = {force};
                                 } else {
-                                    syncStrategy.hook = {force: syncFlags.Force || false};
+                                    syncStrategy.hook = {force};
+                                }
+                                if (force) {
+                                    const confirmed = await ctx.popup.confirm('Synchronize with force?', () => (
+                                        <div>
+                                            <i className='fa fa-exclamation-triangle' style={{color: ARGO_WARNING_COLOR}} /> {FORCE_WARNING} Are you sure you want to continue?
+                                        </div>
+                                    ));
+                                    if (!confirmed) {
+                                        setPending(false);
+                                        return;
+                                    }
                                 }
 
                                 try {
@@ -76,7 +101,8 @@ export const ApplicationSyncPanel = ({application, selectedResource, hide}: {app
                                         syncFlags.DryRun || false,
                                         syncStrategy,
                                         resources,
-                                        params.syncOptions
+                                        params.syncOptions,
+                                        params.retryStrategy
                                     );
                                     hide();
                                 } catch (e) {
@@ -112,9 +138,21 @@ export const ApplicationSyncPanel = ({application, selectedResource, hide}: {app
                                                 }}
                                             />
                                         </div>
+
+                                        <ApplicationRetryOptions formApi={formApi} initValues={application.spec.syncPolicy ? application.spec.syncPolicy.retry : null} />
+
                                         <label>Synchronize resources:</label>
                                         <div style={{float: 'right'}}>
-                                            <a onClick={() => formApi.setValue('resources', formApi.values.resources.map(() => true))}>all</a> /{' '}
+                                            <a
+                                                onClick={() =>
+                                                    formApi.setValue(
+                                                        'resources',
+                                                        formApi.values.resources.map(() => true)
+                                                    )
+                                                }>
+                                                all
+                                            </a>{' '}
+                                            /{' '}
                                             <a
                                                 onClick={() =>
                                                     formApi.setValue(
@@ -126,7 +164,16 @@ export const ApplicationSyncPanel = ({application, selectedResource, hide}: {app
                                                 }>
                                                 out of sync
                                             </a>{' '}
-                                            / <a onClick={() => formApi.setValue('resources', formApi.values.resources.map(() => false))}>none</a>
+                                            /{' '}
+                                            <a
+                                                onClick={() =>
+                                                    formApi.setValue(
+                                                        'resources',
+                                                        formApi.values.resources.map(() => false)
+                                                    )
+                                                }>
+                                                none
+                                            </a>
                                         </div>
                                         {!formApi.values.resources.every((item: boolean) => item) && (
                                             <div className='application-details__warning'>WARNING: partial synchronization is not recorded in history</div>
@@ -136,9 +183,27 @@ export const ApplicationSyncPanel = ({application, selectedResource, hide}: {app
                                                 .filter(item => !item.hook)
                                                 .map((item, i) => {
                                                     const resKey = nodeKey(item);
+                                                    const contentStart = resKey.substr(0, Math.floor(resKey.length / 2));
+                                                    let contentEnd = resKey.substr(-Math.floor(resKey.length / 2));
+                                                    // We want the ellipsis to be in the middle of our text, so we use RTL layout to put it there.
+                                                    // Unfortunately, strong LTR characters get jumbled around, so make sure that the last character isn't strong.
+                                                    const firstLetter = /[a-z]/i.exec(contentEnd);
+                                                    if (firstLetter) {
+                                                        contentEnd = contentEnd.slice(firstLetter.index);
+                                                    }
+                                                    const isLongLabel = resKey.length > 68;
                                                     return (
                                                         <div key={resKey} className='application-sync-panel__resource'>
-                                                            <CheckboxField id={resKey} field={`resources[${i}]`} /> <label htmlFor={resKey}>{resKey}</label>{' '}
+                                                            <CheckboxField id={resKey} field={`resources[${i}]`} />
+                                                            <Tooltip content={<div style={{wordBreak: 'break-all'}}>{resKey}</div>}>
+                                                                <div className='container'>
+                                                                    {isLongLabel ? (
+                                                                        <label htmlFor={resKey} content-start={contentStart} content-end={contentEnd} />
+                                                                    ) : (
+                                                                        <label htmlFor={resKey}>{resKey}</label>
+                                                                    )}
+                                                                </div>
+                                                            </Tooltip>
                                                             <ComparisonStatusIcon status={item.status} resource={item} />
                                                         </div>
                                                     );

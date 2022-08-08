@@ -66,7 +66,7 @@ func TestDeclarativeInvalidRepoURL(t *testing.T) {
 	Given(t).
 		Path("whatever").
 		When().
-		DeclarativeWithCustomRepo("declarative-apps/app.yaml", "http://github.com").
+		DeclarativeWithCustomRepo("declarative-apps/app.yaml", "https://github.com").
 		Then().
 		Expect(Success("")).
 		Expect(HealthIs(health.HealthStatusHealthy)).

@@ -1,0 +1,9 @@
+tests:
+  - healthStatus:
+      status: Progressing
+      message: KsqlDB provisioning
+    inputPath: testdata/progressing.yaml
+  - healthStatus:
+      status: Healthy
+      message: KsqlDB running
+    inputPath: testdata/healthy.yaml

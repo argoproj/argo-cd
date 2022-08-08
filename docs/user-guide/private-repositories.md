@@ -8,7 +8,7 @@
 
 ## Credentials
 
-If application manifests are located in private repository then repository credentials have to be configured. Argo CD supports both HTTP and SSH Git credentials.
+If application manifests are located in private repository then repository credentials have to be configured. Argo CD supports both HTTPS and SSH Git credentials.
 
 ### HTTPS Username And Password Credential
 
@@ -39,7 +39,7 @@ or UI:
 > earlier than v1.2
 
 1. Navigate to `Settings/Repositories`
-1. Click `Connect Repo` button and enter HTTP credentials
+1. Click `Connect Repo` button and enter HTTPS credentials
 
 ![connect repo](../assets/connect-repo.png)
 
@@ -47,9 +47,10 @@ or UI:
 
 Instead of using username and password you might use access token. Following instructions of your Git hosting service to generate the token:
 
-* [Github](https://help.github.com/en/articles/creating-a-personal-access-token-for-the-command-line)
-* [Gitlab](https://docs.gitlab.com/ee/user/project/deploy_tokens/)
+* [GitHub](https://help.github.com/en/articles/creating-a-personal-access-token-for-the-command-line)
+* [GitLab](https://docs.gitlab.com/ee/user/project/deploy_tokens/)
 * [Bitbucket](https://confluence.atlassian.com/bitbucketserver/personal-access-tokens-939515499.html)
+* [Azure Repos](https://docs.microsoft.com/en-us/azure/devops/organizations/accounts/use-personal-access-tokens-to-authenticate?view=azure-devops&tabs=preview-page)
 
 Then, connect the repository using any non-empty string as username and the access token value as a password. 
 
@@ -82,7 +83,13 @@ Private repositories that require an SSH private key have a URL that typically s
 
 > v1.2 or later
 
-You can configure your Git repository using HTTPS either using the CLI or the UI.
+You can configure your Git repository using SSH either using the CLI or the UI.
+
+!!! note
+    Argo CD 2.4 upgraded to OpenSSH 8.9. OpenSSH 8.8 
+    [dropped support for the `ssh-rsa` SHA-1 key signature algorithm](https://www.openssh.com/txt/release-8.8).
+    See the [2.3 to 2.4 upgrade guide](../operator-manual/upgrading/2.3-2.4.md) for details about testing SSH servers 
+    for compatibility with Argo CD and for working around servers that do not support newer algorithms.
 
 Using the CLI:
 
@@ -141,11 +148,11 @@ Using the UI:
 
 1. Navigate to `Settings/Repositories`
 
-   ![connect repo overview](../assets/repo-add-overview.png)
+    ![connect repo overview](../assets/repo-add-overview.png)
 
 1. Click `Connect Repo using GitHub App` button, enter the URL, App Id, Installation Id, and the app's private key.
 
-   ![connect repo](../assets/repo-add-github-app.png)
+    ![connect repo](../assets/repo-add-github-app.png)
 
 1. Click `Connect` to test the connection and have the repository added
 
@@ -397,5 +404,5 @@ Submodules are supported and will be picked up automatically. If the submodule r
 
 ## Declarative Configuration
 
-See [declarative setup](../../operator-manual/declarative-setup#Repositories)
+See [declarative setup](../../operator-manual/declarative-setup#repositories)
 

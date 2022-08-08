@@ -31,7 +31,7 @@
     &__padder {
         height: 50px;
         @include breakpoint(medium down) {
-            height: 100px;
+            height: 150px;
         }
     }
 }

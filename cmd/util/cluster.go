@@ -2,7 +2,6 @@ package util
 
 import (
 	"fmt"
-	"io/ioutil"
 	"os"
 	"sort"
 	"strings"
@@ -55,7 +54,7 @@ func PrintKubeContexts(ca clientcmd.ConfigAccess) {
 	}
 }
 
-func NewCluster(name string, namespaces []string, conf *rest.Config, managerBearerToken string, awsAuthConf *argoappv1.AWSAuthConfig, execProviderConf *argoappv1.ExecProviderConfig) *argoappv1.Cluster {
+func NewCluster(name string, namespaces []string, clusterResources bool, conf *rest.Config, managerBearerToken string, awsAuthConf *argoappv1.AWSAuthConfig, execProviderConf *argoappv1.ExecProviderConfig, labels, annotations map[string]string) *argoappv1.Cluster {
 	tlsClientConfig := argoappv1.TLSClientConfig{
 		Insecure:   conf.TLSClientConfig.Insecure,
 		ServerName: conf.TLSClientConfig.ServerName,
@@ -64,30 +63,33 @@ func NewCluster(name string, namespaces []string, conf *rest.Config, managerBear
 		KeyData:    conf.TLSClientConfig.KeyData,
 	}
 	if len(conf.TLSClientConfig.CAData) == 0 && conf.TLSClientConfig.CAFile != "" {
-		data, err := ioutil.ReadFile(conf.TLSClientConfig.CAFile)
+		data, err := os.ReadFile(conf.TLSClientConfig.CAFile)
 		errors.CheckError(err)
 		tlsClientConfig.CAData = data
 	}
 	if len(conf.TLSClientConfig.CertData) == 0 && conf.TLSClientConfig.CertFile != "" {
-		data, err := ioutil.ReadFile(conf.TLSClientConfig.CertFile)
+		data, err := os.ReadFile(conf.TLSClientConfig.CertFile)
 		errors.CheckError(err)
 		tlsClientConfig.CertData = data
 	}
 	if len(conf.TLSClientConfig.KeyData) == 0 && conf.TLSClientConfig.KeyFile != "" {
-		data, err := ioutil.ReadFile(conf.TLSClientConfig.KeyFile)
+		data, err := os.ReadFile(conf.TLSClientConfig.KeyFile)
 		errors.CheckError(err)
 		tlsClientConfig.KeyData = data
 	}
 
 	clst := argoappv1.Cluster{
-		Server:     conf.Host,
-		Name:       name,
-		Namespaces: namespaces,
+		Server:           conf.Host,
+		Name:             name,
+		Namespaces:       namespaces,
+		ClusterResources: clusterResources,
 		Config: argoappv1.ClusterConfig{
 			TLSClientConfig:    tlsClientConfig,
 			AWSAuthConfig:      awsAuthConf,
 			ExecProviderConfig: execProviderConf,
 		},
+		Labels:      labels,
+		Annotations: annotations,
 	}
 
 	// Bearer token will preferentially be used for auth if present,
@@ -108,7 +110,9 @@ type ClusterOptions struct {
 	AwsClusterName          string
 	SystemNamespace         string
 	Namespaces              []string
+	ClusterResources        bool
 	Name                    string
+	Project                 string
 	Shard                   int64
 	ExecProviderCommand     string
 	ExecProviderArgs        []string
@@ -122,7 +126,9 @@ func AddClusterFlags(command *cobra.Command, opts *ClusterOptions) {
 	command.Flags().StringVar(&opts.AwsClusterName, "aws-cluster-name", "", "AWS Cluster name if set then aws cli eks token command will be used to access cluster")
 	command.Flags().StringVar(&opts.AwsRoleArn, "aws-role-arn", "", "Optional AWS role arn. If set then AWS IAM Authenticator assumes a role to perform cluster operations instead of the default AWS credential provider chain.")
 	command.Flags().StringArrayVar(&opts.Namespaces, "namespace", nil, "List of namespaces which are allowed to manage")
+	command.Flags().BoolVar(&opts.ClusterResources, "cluster-resources", false, "Indicates if cluster level resources should be managed. The setting is used only if list of managed namespaces is not empty.")
 	command.Flags().StringVar(&opts.Name, "name", "", "Overwrite the cluster name")
+	command.Flags().StringVar(&opts.Project, "project", "", "project of the cluster")
 	command.Flags().Int64Var(&opts.Shard, "shard", -1, "Cluster shard number; inferred from hostname if not set")
 	command.Flags().StringVar(&opts.ExecProviderCommand, "exec-command", "", "Command to run to provide client credentials to the cluster. You may need to build a custom ArgoCD image to ensure the command is available at runtime.")
 	command.Flags().StringArrayVar(&opts.ExecProviderArgs, "exec-command-args", nil, "Arguments to supply to the --exec-command executable")

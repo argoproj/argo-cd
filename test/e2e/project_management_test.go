@@ -66,7 +66,7 @@ func TestProjectCreation(t *testing.T) {
 	assert.Equal(t, "https://github.com/argoproj/argo-cd.git", proj.Spec.SourceRepos[0])
 
 	assert.NotNil(t, proj.Spec.OrphanedResources)
-	assert.True(t, proj.Spec.OrphanedResources.IsWarn())
+	assert.False(t, proj.Spec.OrphanedResources.IsWarn())
 
 	assertProjHasEvent(t, proj, "create", argo.EventReasonResourceCreated)
 
@@ -166,12 +166,57 @@ func TestAddProjectDestination(t *testing.T) {
 	assert.Error(t, err)
 	assert.True(t, strings.Contains(err.Error(), "already defined"))
 
+	_, err = fixture.RunCli("proj", "add-destination", projectName,
+		"!*",
+		"test1",
+	)
+	assert.Error(t, err)
+	assert.True(t, strings.Contains(err.Error(), "server has an invalid format, '!*'"))
+
+	_, err = fixture.RunCli("proj", "add-destination", projectName,
+		"https://192.168.99.100:8443",
+		"!*",
+	)
+	assert.Error(t, err)
+	assert.True(t, strings.Contains(err.Error(), "namespace has an invalid format, '!*'"))
+
 	proj, err := fixture.AppClientset.ArgoprojV1alpha1().AppProjects(fixture.ArgoCDNamespace).Get(context.Background(), projectName, metav1.GetOptions{})
 	assert.NoError(t, err)
 	assert.Equal(t, projectName, proj.Name)
 	assert.Equal(t, 1, len(proj.Spec.Destinations))
 
 	assert.Equal(t, "https://192.168.99.100:8443", proj.Spec.Destinations[0].Server)
+	assert.Equal(t, "test1", proj.Spec.Destinations[0].Namespace)
+	assertProjHasEvent(t, proj, "update", argo.EventReasonResourceUpdated)
+}
+
+func TestAddProjectDestinationWithName(t *testing.T) {
+	fixture.EnsureCleanState(t)
+
+	projectName := "proj-" + strconv.FormatInt(time.Now().Unix(), 10)
+	_, err := fixture.AppClientset.ArgoprojV1alpha1().AppProjects(fixture.ArgoCDNamespace).Create(
+		context.Background(), &v1alpha1.AppProject{ObjectMeta: metav1.ObjectMeta{Name: projectName}}, metav1.CreateOptions{})
+	if err != nil {
+		t.Fatalf("Unable to create project %v", err)
+	}
+
+	_, err = fixture.RunCli("proj", "add-destination", projectName,
+		"in-cluster",
+		"test1",
+		"--name",
+	)
+
+	if err != nil {
+		t.Fatalf("Unable to add project destination %v", err)
+	}
+
+	proj, err := fixture.AppClientset.ArgoprojV1alpha1().AppProjects(fixture.ArgoCDNamespace).Get(context.Background(), projectName, metav1.GetOptions{})
+	assert.NoError(t, err)
+	assert.Equal(t, projectName, proj.Name)
+	assert.Equal(t, 1, len(proj.Spec.Destinations))
+
+	assert.Equal(t, "", proj.Spec.Destinations[0].Server)
+	assert.Equal(t, "in-cluster", proj.Spec.Destinations[0].Name)
 	assert.Equal(t, "test1", proj.Spec.Destinations[0].Namespace)
 	assertProjHasEvent(t, proj, "update", argo.EventReasonResourceUpdated)
 }
@@ -559,10 +604,10 @@ func TestGetVirtualProjectMatch(t *testing.T) {
 	//App trying to sync a resource which is not blacked listed anywhere
 	_, err = fixture.RunCli("app", "sync", fixture.Name(), "--resource", "apps:Deployment:guestbook-ui", "--timeout", fmt.Sprintf("%v", 10))
 	assert.Error(t, err)
-	assert.Contains(t, err.Error(), "Blocked by sync window")
+	assert.Contains(t, err.Error(), "blocked by sync window")
 
 	//app trying to sync a resource which is black listed by global project
 	_, err = fixture.RunCli("app", "sync", fixture.Name(), "--resource", ":Service:guestbook-ui", "--timeout", fmt.Sprintf("%v", 10))
-	assert.Contains(t, err.Error(), "Blocked by sync window")
+	assert.Contains(t, err.Error(), "blocked by sync window")
 
 }

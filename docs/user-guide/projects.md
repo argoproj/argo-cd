@@ -54,6 +54,36 @@ argocd proj add-destination <PROJECT> <CLUSTER>,<NAMESPACE>
 argocd proj remove-destination <PROJECT> <CLUSTER>,<NAMESPACE>
 ```
 
+We can also do negations of destinations (i.e. install anywhere _apart from_).
+
+```bash
+argocd proj add-destination <PROJECT> !<CLUSTER>,!<NAMESPACE>
+argocd proj remove-destination <PROJECT> !<CLUSTER>,!<NAMESPACE>
+```
+
+Declaratively we can do something like this:
+
+```yaml
+spec:
+  destinations:
+  # Do not allow any app to be installed in `kube-system`  
+  - namespace: '!kube-system'
+    server: '*'
+  # Or any cluster that has a URL of `team1-*`   
+  - namespace: '*'
+    server: '!https://team1-*'
+    # Any other namespace or server is fine though.
+  - namespace: '*'
+    server: '*'
+```
+
+A destination is considered valid if the following conditions hold:
+
+1) _Any_ allow destination rule (i.e. a rule which isn't prefixed with `!`) permits the destination
+2) AND *no* deny destination (i.e. a rule which is prefixed with `!`) rejects the destination
+
+Keep in mind that `!*` is an invalid rule, since it doesn't make any sense to disallow everything. 
+
 Permitted destination K8s resource kinds are managed with the commands. Note that namespaced-scoped
 resources are restricted via a deny list, whereas cluster-scoped resources are restricted via
 allow list.
@@ -211,3 +241,55 @@ kind: ConfigMap
 Valid operators you can use are: In, NotIn, Exists, DoesNotExist. Gt, and Lt.
 
 projectName: `proj-global-test` should be replaced with your own global project name.
+
+## Project scoped Repositories and Clusters
+
+Normally, an ArgoCD admin creates a project and decides in advance which clusters and Git repositories
+it defines. However, this creates a problem in scenarios where a developer wants to add a repository or cluster
+after the initial creation of the project. This forces the developer to contact their ArgoCD admin again to update the project definition.
+
+It is possible to offer a self-service process for developers so that they can add a repository and/or cluster in a project on their own even after the initial creation of the project.
+
+For this purpose ArgoCD supports project-scoped repositories and clusters.
+
+To begin the process, ArgoCD admins must configure RBAC security to allow this self-service behavior.
+For example, to allow users to add project scoped repositories and admin would have to add
+the following RBAC rules:
+
+```
+p, proj:my-project:admin, repositories, create, my-project/*, allow
+p, proj:my-project:admin, repositories, delete, my-project/*, allow
+p, proj:my-project:admin, repositories, update, my-project/*, allow
+```
+
+This provides extra flexibility so that admins can have stricter rules. e.g.:
+
+```
+p, proj:my-project:admin, repositories, update, my-project/https://github.my-company.com/*, allow
+```
+
+Once the appropriate RBAC rules are in place, developers can create their own Git repositories and (assuming 
+they have the correct credentials) can add them in an existing project either from the UI or the CLI.
+Both the User interface and the CLI have the ability to optionally specify a project. If a project is specified then the respective cluster/repository is considered project scoped:
+
+```argocd repo add --name stable https://charts.helm.sh/stable --type helm --project my-project```
+
+For the declarative setup both repositories and clusters are stored as Kubernetes Secrets, and so a new field is used to denote that this resource is project scoped:
+
+```yaml
+apiVersion: v1
+kind: Secret
+metadata:
+  name: argocd-example-apps
+  labels:
+    argocd.argoproj.io/secret-type: repository
+type: Opaque
+stringData:
+  project: my-project1                                     # Project scoped 
+  name: argocd-example-apps
+  url: https://github.com/argoproj/argocd-example-apps.git
+  username: ****
+  password: ****
+```
+
+All the examples above talk about Git repositories, but the same principles apply to clusters as well.

@@ -5,7 +5,6 @@ import (
 	"context"
 	goerrors "errors"
 	"fmt"
-	"io/ioutil"
 	"os"
 	"path"
 	"path/filepath"
@@ -26,7 +25,7 @@ import (
 	"k8s.io/client-go/tools/clientcmd"
 
 	"github.com/argoproj/argo-cd/v2/common"
-	argocdclient "github.com/argoproj/argo-cd/v2/pkg/apiclient"
+	"github.com/argoproj/argo-cd/v2/pkg/apiclient"
 	sessionpkg "github.com/argoproj/argo-cd/v2/pkg/apiclient/session"
 	"github.com/argoproj/argo-cd/v2/pkg/apis/application/v1alpha1"
 	appclientset "github.com/argoproj/argo-cd/v2/pkg/client/clientset/versioned"
@@ -38,11 +37,12 @@ import (
 )
 
 const (
-	defaultApiServer     = "localhost:8080"
-	defaultAdminPassword = "password"
-	defaultAdminUsername = "admin"
-	testingLabel         = "e2e.argoproj.io"
-	ArgoCDNamespace      = "argocd-e2e"
+	defaultApiServer        = "localhost:8080"
+	defaultAdminPassword    = "password"
+	defaultAdminUsername    = "admin"
+	DefaultTestUserPassword = "password"
+	testingLabel            = "e2e.argoproj.io"
+	ArgoCDNamespace         = "argocd-e2e"
 
 	// ensure all repos are in one directory tree, so we can easily clean them up
 	TmpDir             = "/tmp/argo-e2e"
@@ -51,6 +51,11 @@ const (
 	submoduleParentDir = "submoduleParent.git"
 
 	GuestbookPath = "guestbook"
+
+	ProjectName = "argo-project"
+
+	// cmp plugin sock file path
+	PluginSockFilePath = "/app/config/plugin"
 )
 
 const (
@@ -63,11 +68,12 @@ var (
 	deploymentNamespace string
 	name                string
 	KubeClientset       kubernetes.Interface
+	KubeConfig          *rest.Config
 	DynamicClientset    dynamic.Interface
 	AppClientset        appclientset.Interface
-	ArgoCDClientset     argocdclient.Client
+	ArgoCDClientset     apiclient.Client
 	adminUsername       string
-	adminPassword       string
+	AdminPassword       string
 	apiServerAddress    string
 	token               string
 	plainText           bool
@@ -75,6 +81,12 @@ var (
 )
 
 type RepoURLType string
+
+type ACL struct {
+	Resource string
+	Action   string
+	Scope    string
+}
 
 const (
 	RepoURLTypeFile                 = "file"
@@ -86,6 +98,7 @@ const (
 	RepoURLTypeSSHSubmodule         = "ssh-sub"
 	RepoURLTypeSSHSubmoduleParent   = "ssh-par"
 	RepoURLTypeHelm                 = "helm"
+	RepoURLTypeHelmParent           = "helm-par"
 	RepoURLTypeHelmOCI              = "helm-oci"
 	GitUsername                     = "admin"
 	GitPassword                     = "password"
@@ -140,34 +153,22 @@ func init() {
 	AppClientset = appclientset.NewForConfigOrDie(config)
 	KubeClientset = kubernetes.NewForConfigOrDie(config)
 	DynamicClientset = dynamic.NewForConfigOrDie(config)
+	KubeConfig = config
 
-	apiServerAddress = GetEnvWithDefault(argocdclient.EnvArgoCDServer, defaultApiServer)
+	apiServerAddress = GetEnvWithDefault(apiclient.EnvArgoCDServer, defaultApiServer)
 	adminUsername = GetEnvWithDefault(EnvAdminUsername, defaultAdminUsername)
-	adminPassword = GetEnvWithDefault(EnvAdminPassword, defaultAdminPassword)
+	AdminPassword = GetEnvWithDefault(EnvAdminPassword, defaultAdminPassword)
 
-	tlsTestResult, err := grpcutil.TestTLS(apiServerAddress)
+	dialTime := 30 * time.Second
+	tlsTestResult, err := grpcutil.TestTLS(apiServerAddress, dialTime)
 	CheckError(err)
 
-	ArgoCDClientset, err = argocdclient.NewClient(&argocdclient.ClientOptions{Insecure: true, ServerAddr: apiServerAddress, PlainText: !tlsTestResult.TLS})
+	ArgoCDClientset, err = apiclient.NewClient(&apiclient.ClientOptions{Insecure: true, ServerAddr: apiServerAddress, PlainText: !tlsTestResult.TLS})
 	CheckError(err)
 
-	closer, client, err := ArgoCDClientset.NewSessionClient()
-	CheckError(err)
-	defer io.Close(closer)
-
-	sessionResponse, err := client.Create(context.Background(), &sessionpkg.SessionCreateRequest{Username: adminUsername, Password: adminPassword})
-	CheckError(err)
-
-	ArgoCDClientset, err = argocdclient.NewClient(&argocdclient.ClientOptions{
-		Insecure:   true,
-		ServerAddr: apiServerAddress,
-		AuthToken:  sessionResponse.Token,
-		PlainText:  !tlsTestResult.TLS,
-	})
-	CheckError(err)
-
-	token = sessionResponse.Token
 	plainText = !tlsTestResult.TLS
+
+	LoginAs(adminUsername)
 
 	log.WithFields(log.Fields{"apiServerAddress": apiServerAddress}).Info("initialized")
 
@@ -185,12 +186,43 @@ func init() {
 			panic(fmt.Sprintf("Could not read record file %s: %v", rf, err))
 		}
 	}
-	defer f.Close()
+	defer func() {
+		err := f.Close()
+		if err != nil {
+			panic(fmt.Sprintf("Could not close record file %s: %v", rf, err))
+		}
+	}()
 	scanner := bufio.NewScanner(f)
 	for scanner.Scan() {
 		testsRun[scanner.Text()] = true
 	}
 
+}
+
+func loginAs(username, password string) {
+	closer, client, err := ArgoCDClientset.NewSessionClient()
+	CheckError(err)
+	defer io.Close(closer)
+
+	sessionResponse, err := client.Create(context.Background(), &sessionpkg.SessionCreateRequest{Username: username, Password: password})
+	CheckError(err)
+	token = sessionResponse.Token
+
+	ArgoCDClientset, err = apiclient.NewClient(&apiclient.ClientOptions{
+		Insecure:   true,
+		ServerAddr: apiServerAddress,
+		AuthToken:  token,
+		PlainText:  plainText,
+	})
+	CheckError(err)
+}
+
+func LoginAs(username string) {
+	password := DefaultTestUserPassword
+	if username == "admin" {
+		password = AdminPassword
+	}
+	loginAs(username, password)
 }
 
 func Name() string {
@@ -246,6 +278,9 @@ func RepoURL(urlType RepoURLType) string {
 	// Default - file based Git repository
 	case RepoURLTypeHelm:
 		return GetEnvWithDefault(EnvRepoURLTypeHelm, "https://localhost:9444/argo-e2e/testdata.git/helm-repo/local")
+	// When Helm Repo has sub repos, this is the parent repo URL
+	case RepoURLTypeHelmParent:
+		return GetEnvWithDefault(EnvRepoURLTypeHelm, "https://localhost:9444/argo-e2e/testdata.git/helm-repo")
 	case RepoURLTypeHelmOCI:
 		return HelmOCIRegistryURL
 	default:
@@ -272,9 +307,14 @@ func CreateSecret(username, password string) string {
 	return secretName
 }
 
-// Convinience wrapper for updating argocd-cm
+// Convenience wrapper for updating argocd-cm
 func updateSettingConfigMap(updater func(cm *corev1.ConfigMap) error) {
 	updateGenericConfigMap(common.ArgoCDConfigMapName, updater)
+}
+
+// Convenience wrapper for updating argocd-cm-rbac
+func updateRBACConfigMap(updater func(cm *corev1.ConfigMap) error) {
+	updateGenericConfigMap(common.ArgoCDRBACConfigMapName, updater)
 }
 
 // Updates a given config map in argocd-e2e namespace
@@ -287,6 +327,15 @@ func updateGenericConfigMap(name string, updater func(cm *corev1.ConfigMap) erro
 	errors.CheckError(updater(cm))
 	_, err = KubeClientset.CoreV1().ConfigMaps(TestNamespace()).Update(context.Background(), cm, v1.UpdateOptions{})
 	errors.CheckError(err)
+}
+
+func SetEnableManifestGeneration(val map[v1alpha1.ApplicationSourceType]bool) {
+	updateSettingConfigMap(func(cm *corev1.ConfigMap) error {
+		for k, v := range val {
+			cm.Data[fmt.Sprintf("%s.enable", strings.ToLower(string(k)))] = strconv.FormatBool(v)
+		}
+		return nil
+	})
 }
 
 func SetResourceOverrides(overrides map[string]v1alpha1.ResourceOverride) {
@@ -306,6 +355,20 @@ func SetResourceOverrides(overrides map[string]v1alpha1.ResourceOverride) {
 	SetResourceOverridesSplitKeys(overrides)
 }
 
+func SetTrackingMethod(trackingMethod string) {
+	updateSettingConfigMap(func(cm *corev1.ConfigMap) error {
+		cm.Data["application.resourceTrackingMethod"] = trackingMethod
+		return nil
+	})
+}
+
+func SetTrackingLabel(trackingLabel string) {
+	updateSettingConfigMap(func(cm *corev1.ConfigMap) error {
+		cm.Data["application.instanceLabelKey"] = trackingLabel
+		return nil
+	})
+}
+
 func SetResourceOverridesSplitKeys(overrides map[string]v1alpha1.ResourceOverride) {
 	updateSettingConfigMap(func(cm *corev1.ConfigMap) error {
 		for k, v := range overrides {
@@ -316,7 +379,9 @@ func SetResourceOverridesSplitKeys(overrides map[string]v1alpha1.ResourceOverrid
 			if v.Actions != "" {
 				cm.Data[getResourceOverrideSplitKey(k, "actions")] = v.Actions
 			}
-			if len(v.IgnoreDifferences.JSONPointers) > 0 {
+			if len(v.IgnoreDifferences.JSONPointers) > 0 ||
+				len(v.IgnoreDifferences.JQPathExpressions) > 0 ||
+				len(v.IgnoreDifferences.ManagedFieldsManagers) > 0 {
 				yamlBytes, err := yaml.Marshal(v.IgnoreDifferences)
 				if err != nil {
 					return err
@@ -349,6 +414,21 @@ func SetAccounts(accounts map[string][]string) {
 		for k, v := range accounts {
 			cm.Data[fmt.Sprintf("accounts.%s", k)] = strings.Join(v, ",")
 		}
+		return nil
+	})
+}
+
+func SetPermissions(permissions []ACL, username string, roleName string) {
+	updateRBACConfigMap(func(cm *corev1.ConfigMap) error {
+		var aclstr string
+
+		for _, permission := range permissions {
+			aclstr += fmt.Sprintf("p, role:%s, %s, %s, %s, allow \n", roleName, permission.Resource, permission.Action, permission.Scope)
+		}
+
+		aclstr += fmt.Sprintf("g, %s, role:%s", username, roleName)
+		cm.Data["policy.csv"] = aclstr
+
 		return nil
 	})
 }
@@ -410,6 +490,13 @@ func SetProjectSpec(project string, spec v1alpha1.AppProjectSpec) {
 	errors.CheckError(err)
 }
 
+func SetParamInSettingConfigMap(key, value string) {
+	updateSettingConfigMap(func(cm *corev1.ConfigMap) error {
+		cm.Data[key] = value
+		return nil
+	})
+}
+
 func EnsureCleanState(t *testing.T) {
 	// In large scenarios, we can skip tests that already run
 	SkipIfAlreadyRun(t)
@@ -427,6 +514,15 @@ func EnsureCleanState(t *testing.T) {
 	// kubectl delete appprojects --field-selector metadata.name!=default
 	CheckError(AppClientset.ArgoprojV1alpha1().AppProjects(TestNamespace()).DeleteCollection(context.Background(),
 		v1.DeleteOptions{PropagationPolicy: &policy}, v1.ListOptions{FieldSelector: "metadata.name!=default"}))
+	// kubectl delete secrets -l argocd.argoproj.io/secret-type=repo-config
+	CheckError(KubeClientset.CoreV1().Secrets(TestNamespace()).DeleteCollection(context.Background(),
+		v1.DeleteOptions{PropagationPolicy: &policy}, v1.ListOptions{LabelSelector: common.LabelKeySecretType + "=" + common.LabelValueSecretTypeRepository}))
+	// kubectl delete secrets -l argocd.argoproj.io/secret-type=repo-creds
+	CheckError(KubeClientset.CoreV1().Secrets(TestNamespace()).DeleteCollection(context.Background(),
+		v1.DeleteOptions{PropagationPolicy: &policy}, v1.ListOptions{LabelSelector: common.LabelKeySecretType + "=" + common.LabelValueSecretTypeRepoCreds}))
+	// kubectl delete secrets -l argocd.argoproj.io/secret-type=cluster
+	CheckError(KubeClientset.CoreV1().Secrets(TestNamespace()).DeleteCollection(context.Background(),
+		v1.DeleteOptions{PropagationPolicy: &policy}, v1.ListOptions{LabelSelector: common.LabelKeySecretType + "=" + common.LabelValueSecretTypeCluster}))
 	// kubectl delete secrets -l e2e.argoproj.io=true
 	CheckError(KubeClientset.CoreV1().Secrets(TestNamespace()).DeleteCollection(context.Background(),
 		v1.DeleteOptions{PropagationPolicy: &policy}, v1.ListOptions{LabelSelector: testingLabel + "=true"}))
@@ -439,6 +535,15 @@ func EnsureCleanState(t *testing.T) {
 		cm.Data = map[string]string{}
 		return nil
 	})
+
+	// reset rbac
+	updateRBACConfigMap(func(cm *corev1.ConfigMap) error {
+		cm.Data = map[string]string{}
+		return nil
+	})
+
+	// We can switch user and as result in previous state we will have non-admin user, this case should be reset
+	LoginAs(adminUsername)
 
 	// reset gpg-keys config map
 	updateGenericConfigMap(common.ArgoCDGPGKeysConfigMapName, func(cm *corev1.ConfigMap) error {
@@ -468,7 +573,9 @@ func EnsureCleanState(t *testing.T) {
 	FailOnErr(Run("", "mkdir", "-p", TmpDir))
 
 	// random id - unique across test runs
-	postFix := "-" + strings.ToLower(rand.RandString(5))
+	randString, err := rand.String(5)
+	CheckError(err)
+	postFix := "-" + strings.ToLower(randString)
 	id = t.Name() + postFix
 	name = DnsFriendly(t.Name(), "")
 	deploymentNamespace = DnsFriendly(fmt.Sprintf("argocd-e2e-%s", t.Name()), postFix)
@@ -494,6 +601,8 @@ func EnsureCleanState(t *testing.T) {
 		FailOnErr(Run("", "mkdir", "-p", TmpDir+"/app/config/gpg/source"))
 		FailOnErr(Run("", "mkdir", "-p", TmpDir+"/app/config/gpg/keys"))
 		FailOnErr(Run("", "chmod", "0700", TmpDir+"/app/config/gpg/keys"))
+		FailOnErr(Run("", "mkdir", "-p", TmpDir+PluginSockFilePath))
+		FailOnErr(Run("", "chmod", "0700", TmpDir+PluginSockFilePath))
 	}
 
 	// set-up tmp repo, must have unique name
@@ -534,7 +643,7 @@ func Patch(path string, jsonPatch string) {
 	log.WithFields(log.Fields{"path": path, "jsonPatch": jsonPatch}).Info("patching")
 
 	filename := filepath.Join(repoDirectory(), path)
-	bytes, err := ioutil.ReadFile(filename)
+	bytes, err := os.ReadFile(filename)
 	CheckError(err)
 
 	patch, err := jsonpatch.DecodePatch([]byte(jsonPatch))
@@ -558,7 +667,7 @@ func Patch(path string, jsonPatch string) {
 		CheckError(err)
 	}
 
-	CheckError(ioutil.WriteFile(filename, bytes, 0644))
+	CheckError(os.WriteFile(filename, bytes, 0644))
 	FailOnErr(Run(repoDirectory(), "git", "diff"))
 	FailOnErr(Run(repoDirectory(), "git", "commit", "-am", "patch"))
 	if IsRemote() {
@@ -582,7 +691,7 @@ func Delete(path string) {
 func WriteFile(path, contents string) {
 	log.WithFields(log.Fields{"path": path}).Info("adding")
 
-	CheckError(ioutil.WriteFile(filepath.Join(repoDirectory(), path), []byte(contents), 0644))
+	CheckError(os.WriteFile(filepath.Join(repoDirectory(), path), []byte(contents), 0644))
 }
 
 func AddFile(path, contents string) {
@@ -615,10 +724,10 @@ func AddSignedFile(path, contents string) {
 // create the resource by creating using "kubectl apply", with bonus templating
 func Declarative(filename string, values interface{}) (string, error) {
 
-	bytes, err := ioutil.ReadFile(path.Join("testdata", filename))
+	bytes, err := os.ReadFile(path.Join("testdata", filename))
 	CheckError(err)
 
-	tmpFile, err := ioutil.TempFile("", "")
+	tmpFile, err := os.CreateTemp("", "")
 	CheckError(err)
 	_, err = tmpFile.WriteString(Tmpl(string(bytes), values))
 	CheckError(err)
@@ -735,7 +844,12 @@ func RecordTestRun(t *testing.T) {
 	if err != nil {
 		t.Fatalf("could not open record file %s: %v", rf, err)
 	}
-	defer f.Close()
+	defer func() {
+		err := f.Close()
+		if err != nil {
+			t.Fatalf("could not close record file %s: %v", rf, err)
+		}
+	}()
 	if _, err := f.WriteString(fmt.Sprintf("%s\n", t.Name())); err != nil {
 		t.Fatalf("could not write to %s: %v", rf, err)
 	}

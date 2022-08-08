@@ -3,11 +3,15 @@ package util
 import (
 	"bufio"
 	"fmt"
-	"io/ioutil"
+	"io"
 	"net/url"
 	"os"
 	"strings"
 	"time"
+
+	"k8s.io/apimachinery/pkg/apis/meta/v1/unstructured"
+
+	"github.com/argoproj/gitops-engine/pkg/utils/kube"
 
 	log "github.com/sirupsen/logrus"
 	"github.com/spf13/cobra"
@@ -23,50 +27,55 @@ import (
 )
 
 type AppOptions struct {
-	repoURL                    string
-	appPath                    string
-	chart                      string
-	env                        string
-	revision                   string
-	revisionHistoryLimit       int
-	destName                   string
-	destServer                 string
-	destNamespace              string
-	Parameters                 []string
-	valuesFiles                []string
-	values                     string
-	releaseName                string
-	helmSets                   []string
-	helmSetStrings             []string
-	helmSetFiles               []string
-	helmVersion                string
-	project                    string
-	syncPolicy                 string
-	syncOptions                []string
-	autoPrune                  bool
-	selfHeal                   bool
-	allowEmpty                 bool
-	namePrefix                 string
-	nameSuffix                 string
-	directoryRecurse           bool
-	configManagementPlugin     string
-	jsonnetTlaStr              []string
-	jsonnetTlaCode             []string
-	jsonnetExtVarStr           []string
-	jsonnetExtVarCode          []string
-	jsonnetLibs                []string
-	kustomizeImages            []string
-	kustomizeVersion           string
-	kustomizeCommonLabels      []string
-	kustomizeCommonAnnotations []string
-	pluginEnvs                 []string
-	Validate                   bool
-	directoryExclude           string
-	directoryInclude           string
-	retryLimit                 int64
-	retryBackoffDuration       time.Duration
-	retryBackoffMaxDuration    time.Duration
-	retryBackoffFactor         int64
+	repoURL                         string
+	appPath                         string
+	chart                           string
+	env                             string
+	revision                        string
+	revisionHistoryLimit            int
+	destName                        string
+	destServer                      string
+	destNamespace                   string
+	Parameters                      []string
+	valuesFiles                     []string
+	ignoreMissingValueFiles         bool
+	values                          string
+	releaseName                     string
+	helmSets                        []string
+	helmSetStrings                  []string
+	helmSetFiles                    []string
+	helmVersion                     string
+	helmPassCredentials             bool
+	helmSkipCrds                    bool
+	project                         string
+	syncPolicy                      string
+	syncOptions                     []string
+	autoPrune                       bool
+	selfHeal                        bool
+	allowEmpty                      bool
+	namePrefix                      string
+	nameSuffix                      string
+	directoryRecurse                bool
+	configManagementPlugin          string
+	jsonnetTlaStr                   []string
+	jsonnetTlaCode                  []string
+	jsonnetExtVarStr                []string
+	jsonnetExtVarCode               []string
+	jsonnetLibs                     []string
+	kustomizeImages                 []string
+	kustomizeVersion                string
+	kustomizeCommonLabels           []string
+	kustomizeCommonAnnotations      []string
+	kustomizeForceCommonLabels      bool
+	kustomizeForceCommonAnnotations bool
+	pluginEnvs                      []string
+	Validate                        bool
+	directoryExclude                string
+	directoryInclude                string
+	retryLimit                      int64
+	retryBackoffDuration            time.Duration
+	retryBackoffMaxDuration         time.Duration
+	retryBackoffFactor              int64
 }
 
 func AddAppFlags(command *cobra.Command, opts *AppOptions) {
@@ -78,15 +87,18 @@ func AddAppFlags(command *cobra.Command, opts *AppOptions) {
 	command.Flags().IntVar(&opts.revisionHistoryLimit, "revision-history-limit", argoappv1.RevisionHistoryLimit, "How many items to keep in revision history")
 	command.Flags().StringVar(&opts.destServer, "dest-server", "", "K8s cluster URL (e.g. https://kubernetes.default.svc)")
 	command.Flags().StringVar(&opts.destName, "dest-name", "", "K8s cluster Name (e.g. minikube)")
-	command.Flags().StringVar(&opts.destNamespace, "dest-namespace", "", "K8s target namespace (overrides the namespace specified in the ksonnet app.yaml)")
+	command.Flags().StringVar(&opts.destNamespace, "dest-namespace", "", "K8s target namespace")
 	command.Flags().StringArrayVarP(&opts.Parameters, "parameter", "p", []string{}, "set a parameter override (e.g. -p guestbook=image=example/guestbook:latest)")
 	command.Flags().StringArrayVar(&opts.valuesFiles, "values", []string{}, "Helm values file(s) to use")
+	command.Flags().BoolVar(&opts.ignoreMissingValueFiles, "ignore-missing-value-files", false, "Ignore locally missing valueFiles when setting helm template --values")
 	command.Flags().StringVar(&opts.values, "values-literal-file", "", "Filename or URL to import as a literal Helm values block")
 	command.Flags().StringVar(&opts.releaseName, "release-name", "", "Helm release-name")
 	command.Flags().StringVar(&opts.helmVersion, "helm-version", "", "Helm version")
+	command.Flags().BoolVar(&opts.helmPassCredentials, "helm-pass-credentials", false, "Pass credentials to all domain")
 	command.Flags().StringArrayVar(&opts.helmSets, "helm-set", []string{}, "Helm set values on the command line (can be repeated to set several values: --helm-set key1=val1 --helm-set key2=val2)")
 	command.Flags().StringArrayVar(&opts.helmSetStrings, "helm-set-string", []string{}, "Helm set STRING values on the command line (can be repeated to set several values: --helm-set-string key1=val1 --helm-set-string key2=val2)")
 	command.Flags().StringArrayVar(&opts.helmSetFiles, "helm-set-file", []string{}, "Helm set values from respective files specified via the command line (can be repeated to set several values: --helm-set-file key1=path1 --helm-set-file key2=path2)")
+	command.Flags().BoolVar(&opts.helmSkipCrds, "helm-skip-crds", false, "Skip helm crd installation step")
 	command.Flags().StringVar(&opts.project, "project", "", "Application project name")
 	command.Flags().StringVar(&opts.syncPolicy, "sync-policy", "", "Set the sync policy (one of: none, automated (aliases of automated: auto, automatic))")
 	command.Flags().StringArrayVar(&opts.syncOptions, "sync-option", []string{}, "Add or remove a sync option, e.g add `Prune=false`. Remove using `!` prefix, e.g. `!Prune=false`")
@@ -108,6 +120,8 @@ func AddAppFlags(command *cobra.Command, opts *AppOptions) {
 	command.Flags().BoolVar(&opts.Validate, "validate", true, "Validation of repo and cluster")
 	command.Flags().StringArrayVar(&opts.kustomizeCommonLabels, "kustomize-common-label", []string{}, "Set common labels in Kustomize")
 	command.Flags().StringArrayVar(&opts.kustomizeCommonAnnotations, "kustomize-common-annotation", []string{}, "Set common labels in Kustomize")
+	command.Flags().BoolVar(&opts.kustomizeForceCommonLabels, "kustomize-force-common-label", false, "Force common labels in Kustomize")
+	command.Flags().BoolVar(&opts.kustomizeForceCommonAnnotations, "kustomize-force-common-annotation", false, "Force common annotations in Kustomize")
 	command.Flags().StringVar(&opts.directoryExclude, "directory-exclude", "", "Set glob expression used to exclude files from application source path")
 	command.Flags().StringVar(&opts.directoryInclude, "directory-include", "", "Set glob expression used to include files from application source path")
 	command.Flags().Int64Var(&opts.retryLimit, "sync-retry-limit", 0, "Max number of allowed sync retries")
@@ -118,6 +132,9 @@ func AddAppFlags(command *cobra.Command, opts *AppOptions) {
 
 func SetAppSpecOptions(flags *pflag.FlagSet, spec *argoappv1.ApplicationSpec, appOpts *AppOptions) int {
 	visited := 0
+	if flags == nil {
+		return visited
+	}
 	flags.Visit(func(f *pflag.Flag) {
 		visited++
 		switch f.Name {
@@ -127,8 +144,6 @@ func SetAppSpecOptions(flags *pflag.FlagSet, spec *argoappv1.ApplicationSpec, ap
 			spec.Source.Path = appOpts.appPath
 		case "helm-chart":
 			spec.Source.Chart = appOpts.chart
-		case "env":
-			setKsonnetOpt(&spec.Source, &appOpts.env)
 		case "revision":
 			spec.Source.TargetRevision = appOpts.revision
 		case "revision-history-limit":
@@ -136,13 +151,15 @@ func SetAppSpecOptions(flags *pflag.FlagSet, spec *argoappv1.ApplicationSpec, ap
 			spec.RevisionHistoryLimit = &i
 		case "values":
 			setHelmOpt(&spec.Source, helmOpts{valueFiles: appOpts.valuesFiles})
+		case "ignore-missing-value-files":
+			setHelmOpt(&spec.Source, helmOpts{ignoreMissingValueFiles: appOpts.ignoreMissingValueFiles})
 		case "values-literal-file":
 			var data []byte
 
 			// read uri
 			parsedURL, err := url.ParseRequestURI(appOpts.values)
 			if err != nil || !(parsedURL.Scheme == "http" || parsedURL.Scheme == "https") {
-				data, err = ioutil.ReadFile(appOpts.values)
+				data, err = os.ReadFile(appOpts.values)
 			} else {
 				data, err = config.ReadRemoteFile(appOpts.values)
 			}
@@ -152,12 +169,16 @@ func SetAppSpecOptions(flags *pflag.FlagSet, spec *argoappv1.ApplicationSpec, ap
 			setHelmOpt(&spec.Source, helmOpts{releaseName: appOpts.releaseName})
 		case "helm-version":
 			setHelmOpt(&spec.Source, helmOpts{version: appOpts.helmVersion})
+		case "helm-pass-credentials":
+			setHelmOpt(&spec.Source, helmOpts{passCredentials: appOpts.helmPassCredentials})
 		case "helm-set":
 			setHelmOpt(&spec.Source, helmOpts{helmSets: appOpts.helmSets})
 		case "helm-set-string":
 			setHelmOpt(&spec.Source, helmOpts{helmSetStrings: appOpts.helmSetStrings})
 		case "helm-set-file":
 			setHelmOpt(&spec.Source, helmOpts{helmSetFiles: appOpts.helmSetFiles})
+		case "helm-skip-crds":
+			setHelmOpt(&spec.Source, helmOpts{skipCrds: appOpts.helmSkipCrds})
 		case "directory-recurse":
 			if spec.Source.Directory != nil {
 				spec.Source.Directory.Recurse = appOpts.directoryRecurse
@@ -202,6 +223,10 @@ func SetAppSpecOptions(flags *pflag.FlagSet, spec *argoappv1.ApplicationSpec, ap
 			parsedAnnotations, err := label.Parse(appOpts.kustomizeCommonAnnotations)
 			errors.CheckError(err)
 			setKustomizeOpt(&spec.Source, kustomizeOpts{commonAnnotations: parsedAnnotations})
+		case "kustomize-force-common-label":
+			setKustomizeOpt(&spec.Source, kustomizeOpts{forceCommonLabels: appOpts.kustomizeForceCommonLabels})
+		case "kustomize-force-common-annotation":
+			setKustomizeOpt(&spec.Source, kustomizeOpts{forceCommonAnnotations: appOpts.kustomizeForceCommonAnnotations})
 		case "jsonnet-tla-str":
 			setJsonnetOpt(&spec.Source, appOpts.jsonnetTlaStr, false)
 		case "jsonnet-tla-code":
@@ -293,25 +318,15 @@ func SetAppSpecOptions(flags *pflag.FlagSet, spec *argoappv1.ApplicationSpec, ap
 	return visited
 }
 
-func setKsonnetOpt(src *argoappv1.ApplicationSource, env *string) {
-	if src.Ksonnet == nil {
-		src.Ksonnet = &argoappv1.ApplicationSourceKsonnet{}
-	}
-	if env != nil {
-		src.Ksonnet.Environment = *env
-	}
-	if src.Ksonnet.IsZero() {
-		src.Ksonnet = nil
-	}
-}
-
 type kustomizeOpts struct {
-	namePrefix        string
-	nameSuffix        string
-	images            []string
-	version           string
-	commonLabels      map[string]string
-	commonAnnotations map[string]string
+	namePrefix             string
+	nameSuffix             string
+	images                 []string
+	version                string
+	commonLabels           map[string]string
+	commonAnnotations      map[string]string
+	forceCommonLabels      bool
+	forceCommonAnnotations bool
 }
 
 func setKustomizeOpt(src *argoappv1.ApplicationSource, opts kustomizeOpts) {
@@ -332,6 +347,12 @@ func setKustomizeOpt(src *argoappv1.ApplicationSource, opts kustomizeOpts) {
 	}
 	if opts.commonAnnotations != nil {
 		src.Kustomize.CommonAnnotations = opts.commonAnnotations
+	}
+	if opts.forceCommonLabels {
+		src.Kustomize.ForceCommonLabels = opts.forceCommonLabels
+	}
+	if opts.forceCommonAnnotations {
+		src.Kustomize.ForceCommonAnnotations = opts.forceCommonAnnotations
 	}
 	for _, image := range opts.images {
 		src.Kustomize.MergeImage(argoappv1.KustomizeImage(image))
@@ -356,13 +377,16 @@ func setPluginOptEnvs(src *argoappv1.ApplicationSource, envs []string) {
 }
 
 type helmOpts struct {
-	valueFiles     []string
-	values         string
-	releaseName    string
-	version        string
-	helmSets       []string
-	helmSetStrings []string
-	helmSetFiles   []string
+	valueFiles              []string
+	ignoreMissingValueFiles bool
+	values                  string
+	releaseName             string
+	version                 string
+	helmSets                []string
+	helmSetStrings          []string
+	helmSetFiles            []string
+	passCredentials         bool
+	skipCrds                bool
 }
 
 func setHelmOpt(src *argoappv1.ApplicationSource, opts helmOpts) {
@@ -372,6 +396,9 @@ func setHelmOpt(src *argoappv1.ApplicationSource, opts helmOpts) {
 	if len(opts.valueFiles) > 0 {
 		src.Helm.ValueFiles = opts.valueFiles
 	}
+	if opts.ignoreMissingValueFiles {
+		src.Helm.IgnoreMissingValueFiles = opts.ignoreMissingValueFiles
+	}
 	if len(opts.values) > 0 {
 		src.Helm.Values = opts.values
 	}
@@ -380,6 +407,12 @@ func setHelmOpt(src *argoappv1.ApplicationSource, opts helmOpts) {
 	}
 	if opts.version != "" {
 		src.Helm.Version = opts.version
+	}
+	if opts.passCredentials {
+		src.Helm.PassCredentials = opts.passCredentials
+	}
+	if opts.skipCrds {
+		src.Helm.SkipCrds = opts.skipCrds
 	}
 	for _, text := range opts.helmSets {
 		p, err := argoappv1.NewHelmParameter(text, false)
@@ -433,8 +466,7 @@ func setJsonnetOptLibs(src *argoappv1.ApplicationSource, libs []string) {
 }
 
 // SetParameterOverrides updates an existing or appends a new parameter override in the application
-// If the app is a ksonnet app, then parameters are expected to be in the form: component=param=value
-// Otherwise, the app is assumed to be a helm app and is expected to be in the form:
+// The app is assumed to be a helm app and is expected to be in the form:
 // param=value
 func SetParameterOverrides(app *argoappv1.Application, parameters []string) {
 	if len(parameters) == 0 {
@@ -446,45 +478,12 @@ func SetParameterOverrides(app *argoappv1.Application, parameters []string) {
 	} else if app.Status.SourceType != "" {
 		sourceType = app.Status.SourceType
 	} else {
-		// HACK: we don't know the source type, so make an educated guess based on the supplied
-		// parameter string. This code handles the corner case where app doesn't exist yet, and the
-		// command is something like: `argocd app create MYAPP -p foo=bar`
-		// This logic is not foolproof, but when ksonnet is deprecated, this will no longer matter
-		// since helm will remain as the only source type which has parameters.
-		if len(strings.SplitN(parameters[0], "=", 3)) == 3 {
-			sourceType = argoappv1.ApplicationSourceTypeKsonnet
-		} else if len(strings.SplitN(parameters[0], "=", 2)) == 2 {
+		if len(strings.SplitN(parameters[0], "=", 2)) == 2 {
 			sourceType = argoappv1.ApplicationSourceTypeHelm
 		}
 	}
 
 	switch sourceType {
-	case argoappv1.ApplicationSourceTypeKsonnet:
-		if app.Spec.Source.Ksonnet == nil {
-			app.Spec.Source.Ksonnet = &argoappv1.ApplicationSourceKsonnet{}
-		}
-		for _, paramStr := range parameters {
-			parts := strings.SplitN(paramStr, "=", 3)
-			if len(parts) != 3 {
-				log.Fatalf("Expected ksonnet parameter of the form: component=param=value. Received: %s", paramStr)
-			}
-			newParam := argoappv1.KsonnetParameter{
-				Component: parts[0],
-				Name:      parts[1],
-				Value:     parts[2],
-			}
-			found := false
-			for i, cp := range app.Spec.Source.Ksonnet.Parameters {
-				if cp.Component == newParam.Component && cp.Name == newParam.Name {
-					found = true
-					app.Spec.Source.Ksonnet.Parameters[i] = newParam
-					break
-				}
-			}
-			if !found {
-				app.Spec.Source.Ksonnet.Parameters = append(app.Spec.Source.Ksonnet.Parameters, newParam)
-			}
-		}
 	case argoappv1.ApplicationSourceTypeHelm:
 		if app.Spec.Source.Helm == nil {
 			app.Spec.Source.Helm = &argoappv1.ApplicationSourceHelm{}
@@ -498,43 +497,103 @@ func SetParameterOverrides(app *argoappv1.Application, parameters []string) {
 			app.Spec.Source.Helm.AddParameter(*newParam)
 		}
 	default:
-		log.Fatalf("Parameters can only be set against Ksonnet or Helm applications")
+		log.Fatalf("Parameters can only be set against Helm applications")
 	}
 }
 
-func readAppFromStdin(app *argoappv1.Application) error {
+func readApps(yml []byte, apps *[]*argoappv1.Application) error {
+	yamls, _ := kube.SplitYAMLToString(yml)
+
+	var err error
+
+	for _, yml := range yamls {
+		var app argoappv1.Application
+		err = config.Unmarshal([]byte(yml), &app)
+		*apps = append(*apps, &app)
+		if err != nil {
+			return err
+		}
+	}
+
+	return err
+}
+
+func readAppsFromStdin(apps *[]*argoappv1.Application) error {
 	reader := bufio.NewReader(os.Stdin)
-	err := config.UnmarshalReader(reader, &app)
+	data, err := io.ReadAll(reader)
+	if err != nil {
+		return err
+	}
+	err = readApps(data, apps)
 	if err != nil {
 		return fmt.Errorf("unable to read manifest from stdin: %v", err)
 	}
 	return nil
 }
 
-func readAppFromURI(fileURL string, app *argoappv1.Application) error {
-	parsedURL, err := url.ParseRequestURI(fileURL)
-	if err != nil || !(parsedURL.Scheme == "http" || parsedURL.Scheme == "https") {
-		err = config.UnmarshalLocalFile(fileURL, &app)
-	} else {
-		err = config.UnmarshalRemoteFile(fileURL, &app)
+func readAppsFromURI(fileURL string, apps *[]*argoappv1.Application) error {
+
+	readFilePayload := func() ([]byte, error) {
+		parsedURL, err := url.ParseRequestURI(fileURL)
+		if err != nil || !(parsedURL.Scheme == "http" || parsedURL.Scheme == "https") {
+			return os.ReadFile(fileURL)
+		}
+		return config.ReadRemoteFile(fileURL)
 	}
-	return err
+
+	yml, err := readFilePayload()
+	if err != nil {
+		return err
+	}
+
+	return readApps(yml, apps)
 }
 
-func ConstructApp(fileURL, appName string, labels, args []string, appOpts AppOptions, flags *pflag.FlagSet) (*argoappv1.Application, error) {
-	var app argoappv1.Application
-	if fileURL == "-" {
-		// read stdin
-		err := readAppFromStdin(&app)
-		if err != nil {
-			return nil, err
+func constructAppsFromStdin() ([]*argoappv1.Application, error) {
+	apps := make([]*argoappv1.Application, 0)
+	// read stdin
+	err := readAppsFromStdin(&apps)
+	if err != nil {
+		return nil, err
+	}
+	return apps, nil
+}
+
+func constructAppsBaseOnName(appName string, labels, annotations, args []string, appOpts AppOptions, flags *pflag.FlagSet) ([]*argoappv1.Application, error) {
+	var app *argoappv1.Application
+	// read arguments
+	if len(args) == 1 {
+		if appName != "" && appName != args[0] {
+			return nil, fmt.Errorf("--name argument '%s' does not match app name %s", appName, args[0])
 		}
-	} else if fileURL != "" {
-		// read uri
-		err := readAppFromURI(fileURL, &app)
-		if err != nil {
-			return nil, err
-		}
+		appName = args[0]
+	}
+	app = &argoappv1.Application{
+		TypeMeta: v1.TypeMeta{
+			Kind:       application.ApplicationKind,
+			APIVersion: application.Group + "/v1alpha1",
+		},
+		ObjectMeta: v1.ObjectMeta{
+			Name: appName,
+		},
+	}
+	SetAppSpecOptions(flags, &app.Spec, &appOpts)
+	SetParameterOverrides(app, appOpts.Parameters)
+	mergeLabels(app, labels)
+	setAnnotations(app, annotations)
+	return []*argoappv1.Application{
+		app,
+	}, nil
+}
+
+func constructAppsFromFileUrl(fileURL, appName string, labels, annotations, args []string, appOpts AppOptions, flags *pflag.FlagSet) ([]*argoappv1.Application, error) {
+	apps := make([]*argoappv1.Application, 0)
+	// read uri
+	err := readAppsFromURI(fileURL, &apps)
+	if err != nil {
+		return nil, err
+	}
+	for _, app := range apps {
 		if len(args) == 1 && args[0] != app.Name {
 			return nil, fmt.Errorf("app name '%s' does not match app spec metadata.name '%s'", args[0], app.Name)
 		}
@@ -545,30 +604,20 @@ func ConstructApp(fileURL, appName string, labels, args []string, appOpts AppOpt
 			return nil, fmt.Errorf("app.Name is empty. --name argument can be used to provide app.Name")
 		}
 		SetAppSpecOptions(flags, &app.Spec, &appOpts)
-		SetParameterOverrides(&app, appOpts.Parameters)
-		mergeLabels(&app, labels)
-	} else {
-		// read arguments
-		if len(args) == 1 {
-			if appName != "" && appName != args[0] {
-				return nil, fmt.Errorf("--name argument '%s' does not match app name %s", appName, args[0])
-			}
-			appName = args[0]
-		}
-		app = argoappv1.Application{
-			TypeMeta: v1.TypeMeta{
-				Kind:       application.ApplicationKind,
-				APIVersion: application.Group + "/v1alpha1",
-			},
-			ObjectMeta: v1.ObjectMeta{
-				Name: appName,
-			},
-		}
-		SetAppSpecOptions(flags, &app.Spec, &appOpts)
-		SetParameterOverrides(&app, appOpts.Parameters)
-		mergeLabels(&app, labels)
+		SetParameterOverrides(app, appOpts.Parameters)
+		mergeLabels(app, labels)
+		setAnnotations(app, annotations)
 	}
-	return &app, nil
+	return apps, nil
+}
+
+func ConstructApps(fileURL, appName string, labels, annotations, args []string, appOpts AppOptions, flags *pflag.FlagSet) ([]*argoappv1.Application, error) {
+	if fileURL == "-" {
+		return constructAppsFromStdin()
+	} else if fileURL != "" {
+		return constructAppsFromFileUrl(fileURL, appName, labels, annotations, args, appOpts, flags)
+	}
+	return constructAppsBaseOnName(appName, labels, annotations, args, appOpts, flags)
 }
 
 func mergeLabels(app *argoappv1.Application, labels []string) {
@@ -586,4 +635,65 @@ func mergeLabels(app *argoappv1.Application, labels []string) {
 	}
 
 	app.SetLabels(mergedLabels)
+}
+
+func setAnnotations(app *argoappv1.Application, annotations []string) {
+	if len(annotations) > 0 && app.Annotations == nil {
+		app.Annotations = map[string]string{}
+	}
+	for _, a := range annotations {
+		annotation := strings.SplitN(a, "=", 2)
+		if len(annotation) == 2 {
+			app.Annotations[annotation[0]] = annotation[1]
+		} else {
+			app.Annotations[annotation[0]] = ""
+		}
+	}
+}
+
+// liveObjects deserializes the list of live states into unstructured objects
+func LiveObjects(resources []*argoappv1.ResourceDiff) ([]*unstructured.Unstructured, error) {
+	objs := make([]*unstructured.Unstructured, len(resources))
+	for i, resState := range resources {
+		obj, err := resState.LiveObject()
+		if err != nil {
+			return nil, err
+		}
+		objs[i] = obj
+	}
+	return objs, nil
+}
+
+func FilterResources(groupChanged bool, resources []*argoappv1.ResourceDiff, group, kind, namespace, resourceName string, all bool) ([]*unstructured.Unstructured, error) {
+	liveObjs, err := LiveObjects(resources)
+	errors.CheckError(err)
+	filteredObjects := make([]*unstructured.Unstructured, 0)
+	for i := range liveObjs {
+		obj := liveObjs[i]
+		if obj == nil {
+			continue
+		}
+		gvk := obj.GroupVersionKind()
+		if groupChanged && group != gvk.Group {
+			continue
+		}
+		if namespace != "" && namespace != obj.GetNamespace() {
+			continue
+		}
+		if resourceName != "" && resourceName != obj.GetName() {
+			continue
+		}
+		if kind != "" && kind != gvk.Kind {
+			continue
+		}
+		deepCopy := obj.DeepCopy()
+		filteredObjects = append(filteredObjects, deepCopy)
+	}
+	if len(filteredObjects) == 0 {
+		return nil, fmt.Errorf("No matching resource found")
+	}
+	if len(filteredObjects) > 1 && !all {
+		return nil, fmt.Errorf("Multiple resources match inputs. Use the --all flag to patch multiple resources")
+	}
+	return filteredObjects, nil
 }

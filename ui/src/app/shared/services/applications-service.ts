@@ -1,5 +1,6 @@
 import * as deepMerge from 'deepmerge';
 import {Observable} from 'rxjs';
+import {map, repeat, retry} from 'rxjs/operators';
 
 import * as models from '../models';
 import requests from './requests';
@@ -21,7 +22,7 @@ export class ApplicationsService {
     public list(projects: string[], options?: QueryOptions): Promise<models.ApplicationList> {
         return requests
             .get('/applications')
-            .query({project: projects, ...optionsToSearch(options)})
+            .query({projects, ...optionsToSearch(options)})
             .then(res => res.body as models.ApplicationList)
             .then(list => {
                 list.items = (list.items || []).map(app => this.parseAppFields(app));
@@ -56,7 +57,7 @@ export class ApplicationsService {
     }
 
     public watchResourceTree(name: string): Observable<models.ApplicationTree> {
-        return requests.loadEventSource(`/stream/applications/${name}/resource-tree`).map(data => JSON.parse(data).result as models.ApplicationTree);
+        return requests.loadEventSource(`/stream/applications/${name}/resource-tree`).pipe(map(data => JSON.parse(data).result as models.ApplicationTree));
     }
 
     public managedResources(name: string, options: {id?: models.ResourceID; fields?: string[]} = {}): Promise<models.ResourceDiff[]> {
@@ -97,9 +98,10 @@ export class ApplicationsService {
             .then(res => res.body as models.ApplicationSpec);
     }
 
-    public update(app: models.Application): Promise<models.Application> {
+    public update(app: models.Application, query: {validate?: boolean} = {}): Promise<models.Application> {
         return requests
             .put(`/applications/${app.metadata.name}`)
+            .query(query)
             .send(app)
             .then(res => this.parseAppFields(res.body));
     }
@@ -127,7 +129,7 @@ export class ApplicationsService {
             .then(() => true);
     }
 
-    public watch(query?: {name?: string; resourceVersion?: string}, options?: QueryOptions): Observable<models.ApplicationWatchEvent> {
+    public watch(query?: {name?: string; resourceVersion?: string; projects?: string[]}, options?: QueryOptions): Observable<models.ApplicationWatchEvent> {
         const search = new URLSearchParams();
         if (query) {
             if (query.name) {
@@ -141,18 +143,21 @@ export class ApplicationsService {
             const searchOptions = optionsToSearch(options);
             search.set('fields', searchOptions.fields);
             search.set('selector', searchOptions.selector);
+            query?.projects?.forEach(project => search.append('projects', project));
         }
         const searchStr = search.toString();
         const url = `/stream/applications${(searchStr && '?' + searchStr) || ''}`;
         return requests
             .loadEventSource(url)
-            .repeat()
-            .retry()
-            .map(data => JSON.parse(data).result as models.ApplicationWatchEvent)
-            .map(watchEvent => {
-                watchEvent.application = this.parseAppFields(watchEvent.application);
-                return watchEvent;
-            });
+            .pipe(repeat())
+            .pipe(retry())
+            .pipe(map(data => JSON.parse(data).result as models.ApplicationWatchEvent))
+            .pipe(
+                map(watchEvent => {
+                    watchEvent.application = this.parseAppFields(watchEvent.application);
+                    return watchEvent;
+                })
+            );
     }
 
     public sync(
@@ -162,11 +167,12 @@ export class ApplicationsService {
         dryRun: boolean,
         strategy: models.SyncStrategy,
         resources: models.SyncOperationResource[],
-        syncOptions?: string[]
+        syncOptions?: string[],
+        retryStrategy?: models.RetryStrategy
     ): Promise<boolean> {
         return requests
             .post(`/applications/${name}/sync`)
-            .send({revision, prune: !!prune, dryRun: !!dryRun, strategy, resources, syncOptions: syncOptions ? {items: syncOptions} : null})
+            .send({revision, prune: !!prune, dryRun: !!dryRun, strategy, resources, syncOptions: syncOptions ? {items: syncOptions} : null, retryStrategy})
             .then(() => true);
     }
 
@@ -180,7 +186,7 @@ export class ApplicationsService {
     public getDownloadLogsURL(applicationName: string, namespace: string, podName: string, resource: {group: string; kind: string; name: string}, containerName: string): string {
         const search = this.getLogsQuery(namespace, podName, resource, containerName, null, false);
         search.set('download', 'true');
-        return `/api/v1/applications/${applicationName}/logs?${search.toString()}`;
+        return `api/v1/applications/${applicationName}/logs?${search.toString()}`;
     }
 
     public getContainerLogs(
@@ -192,10 +198,11 @@ export class ApplicationsService {
         tail?: number,
         follow?: boolean,
         untilTime?: string,
-        filter?: string
+        filter?: string,
+        previous?: boolean
     ): Observable<models.LogEntry> {
-        const search = this.getLogsQuery(namespace, podName, resource, containerName, tail, follow, untilTime, filter);
-        const entries = requests.loadEventSource(`/applications/${applicationName}/logs?${search.toString()}`).map(data => JSON.parse(data).result as models.LogEntry);
+        const search = this.getLogsQuery(namespace, podName, resource, containerName, tail, follow, untilTime, filter, previous);
+        const entries = requests.loadEventSource(`/applications/${applicationName}/logs?${search.toString()}`).pipe(map(data => JSON.parse(data).result as models.LogEntry));
         let first = true;
         return new Observable(observer => {
             const subscription = entries.subscribe(
@@ -231,7 +238,7 @@ export class ApplicationsService {
                 resourceName: resource.name,
                 version: resource.version,
                 kind: resource.kind,
-                group: resource.group
+                group: resource.group || '' // The group query param must be present even if empty.
             })
             .then(res => res.body as {manifest: string})
             .then(res => JSON.parse(res.manifest) as models.State);
@@ -273,7 +280,7 @@ export class ApplicationsService {
                 resourceName: resource.name,
                 version: resource.version,
                 kind: resource.kind,
-                group: resource.group,
+                group: resource.group || '', // The group query param must be present even if empty.
                 patchType
             })
             .send(JSON.stringify(patch))
@@ -290,7 +297,7 @@ export class ApplicationsService {
                 resourceName: resource.name,
                 version: resource.version,
                 kind: resource.kind,
-                group: resource.group,
+                group: resource.group || '', // The group query param must be present even if empty.
                 force,
                 orphan
             })
@@ -339,7 +346,8 @@ export class ApplicationsService {
         tail?: number,
         follow?: boolean,
         untilTime?: string,
-        filter?: string
+        filter?: string,
+        previous?: boolean
     ): URLSearchParams {
         if (follow === undefined || follow === null) {
             follow = true;
@@ -347,9 +355,7 @@ export class ApplicationsService {
         const search = new URLSearchParams();
         search.set('container', containerName);
         search.set('namespace', namespace);
-        if (follow) {
-            search.set('follow', follow.toString());
-        }
+        search.set('follow', follow.toString());
         if (podName) {
             search.set('podName', podName);
         } else {
@@ -366,6 +372,11 @@ export class ApplicationsService {
         if (filter) {
             search.set('filter', filter);
         }
+        if (previous) {
+            search.set('previous', previous.toString());
+        }
+        // The API requires that this field be set to a non-empty string.
+        search.set('sinceSeconds', '0');
         return search;
     }
 

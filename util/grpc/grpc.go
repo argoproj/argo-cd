@@ -1,17 +1,19 @@
 package grpc
 
 import (
+	"context"
 	"crypto/tls"
 	"net"
 	"runtime/debug"
 	"strings"
 	"time"
 
+	"github.com/argoproj/argo-cd/v2/common"
 	"github.com/sirupsen/logrus"
-	"golang.org/x/net/context"
 	"google.golang.org/grpc"
 	"google.golang.org/grpc/codes"
 	"google.golang.org/grpc/credentials"
+	"google.golang.org/grpc/credentials/insecure"
 	"google.golang.org/grpc/keepalive"
 	"google.golang.org/grpc/status"
 )
@@ -59,9 +61,7 @@ func BlockingDial(ctx context.Context, network, address string, creds credential
 		}
 	}
 
-	dialer := func(address string, timeout time.Duration) (net.Conn, error) {
-		ctx, cancel := context.WithTimeout(ctx, timeout)
-		defer cancel()
+	dialer := func(ctx context.Context, address string) (net.Conn, error) {
 
 		conn, err := (&net.Dialer{Cancel: ctx.Done()}).Dial(network, address)
 		if err != nil {
@@ -86,9 +86,9 @@ func BlockingDial(ctx context.Context, network, address string, creds credential
 		opts = append(opts,
 			grpc.WithBlock(),
 			grpc.FailOnNonTempDialError(true),
-			grpc.WithDialer(dialer),
-			grpc.WithInsecure(), // we are handling TLS, so tell grpc not to
-			grpc.WithKeepaliveParams(keepalive.ClientParameters{Time: 10 * time.Second}),
+			grpc.WithContextDialer(dialer),
+			grpc.WithTransportCredentials(insecure.NewCredentials()), // we are handling TLS, so tell grpc not to
+			grpc.WithKeepaliveParams(keepalive.ClientParameters{Time: common.GRPCKeepAliveTime}),
 		)
 		conn, err := grpc.DialContext(ctx, address, opts...)
 		var res interface{}
@@ -116,7 +116,7 @@ type TLSTestResult struct {
 	InsecureErr error
 }
 
-func TestTLS(address string) (*TLSTestResult, error) {
+func TestTLS(address string, dialTime time.Duration) (*TLSTestResult, error) {
 	if parts := strings.Split(address, ":"); len(parts) == 1 {
 		// If port is unspecified, assume the most likely port
 		address += ":443"
@@ -125,12 +125,21 @@ func TestTLS(address string) (*TLSTestResult, error) {
 	var tlsConfig tls.Config
 	tlsConfig.InsecureSkipVerify = true
 	creds := credentials.NewTLS(&tlsConfig)
-	conn, err := BlockingDial(context.Background(), "tcp", address, creds)
+
+	// Set timeout when dialing to the server
+	// fix: https://github.com/argoproj/argo-cd/issues/9679
+	ctx, cancel := context.WithTimeout(context.Background(), dialTime)
+	defer cancel()
+
+	conn, err := BlockingDial(ctx, "tcp", address, creds)
 	if err == nil {
 		_ = conn.Close()
 		testResult.TLS = true
 		creds := credentials.NewTLS(&tls.Config{})
-		conn, err := BlockingDial(context.Background(), "tcp", address, creds)
+		ctx, cancel := context.WithTimeout(context.Background(), dialTime)
+		defer cancel()
+
+		conn, err := BlockingDial(ctx, "tcp", address, creds)
 		if err == nil {
 			_ = conn.Close()
 		} else {
@@ -143,7 +152,9 @@ func TestTLS(address string) (*TLSTestResult, error) {
 	// If we get here, we were unable to connect via TLS (even with InsecureSkipVerify: true)
 	// It may be because server is running without TLS, or because of real issues (e.g. connection
 	// refused). Test if server accepts plain-text connections
-	conn, err = BlockingDial(context.Background(), "tcp", address, nil)
+	ctx, cancel = context.WithTimeout(context.Background(), dialTime)
+	defer cancel()
+	conn, err = BlockingDial(ctx, "tcp", address, nil)
 	if err == nil {
 		_ = conn.Close()
 		testResult.TLS = false

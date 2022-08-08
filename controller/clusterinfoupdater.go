@@ -64,6 +64,7 @@ func (c *clusterInfoUpdater) updateClusters() {
 	clusters, err := c.db.ListClusters(context.Background())
 	if err != nil {
 		log.Warnf("Failed to save clusters info: %v", err)
+		return
 	}
 	var clustersFiltered []appv1.Cluster
 	if c.clusterFilter == nil {
@@ -106,6 +107,7 @@ func (c *clusterInfoUpdater) updateClusterInfo(cluster appv1.Cluster, info *cach
 	}
 	if info != nil {
 		clusterInfo.ServerVersion = info.K8SVersion
+		clusterInfo.APIVersions = argo.APIResourcesToStrings(info.APIResources, false)
 		if info.LastCacheSyncTime == nil {
 			clusterInfo.ConnectionState.Status = appv1.ConnectionStatusUnknown
 		} else if info.SyncError == nil {
@@ -121,7 +123,7 @@ func (c *clusterInfoUpdater) updateClusterInfo(cluster appv1.Cluster, info *cach
 	} else {
 		clusterInfo.ConnectionState.Status = appv1.ConnectionStatusUnknown
 		if appCount == 0 {
-			clusterInfo.ConnectionState.Message = "Cluster has no application and not being monitored."
+			clusterInfo.ConnectionState.Message = "Cluster has no applications and is not being monitored."
 		}
 	}
 

@@ -8,6 +8,8 @@ import (
 
 	"github.com/prometheus/client_golang/prometheus"
 	"github.com/prometheus/client_golang/prometheus/promhttp"
+
+	"github.com/argoproj/argo-cd/v2/util/profile"
 )
 
 type MetricsServer struct {
@@ -35,20 +37,21 @@ var (
 )
 
 // NewMetricsServer returns a new prometheus server which collects api server metrics
-func NewMetricsServer(port int) *MetricsServer {
+func NewMetricsServer(host string, port int) *MetricsServer {
 	mux := http.NewServeMux()
 	registry := prometheus.NewRegistry()
 	mux.Handle("/metrics", promhttp.HandlerFor(prometheus.Gatherers{
 		registry,
 		prometheus.DefaultGatherer,
 	}, promhttp.HandlerOpts{}))
+	profile.RegisterProfiler(mux)
 
 	registry.MustRegister(redisRequestCounter)
 	registry.MustRegister(redisRequestHistogram)
 
 	return &MetricsServer{
 		Server: &http.Server{
-			Addr:    fmt.Sprintf("0.0.0.0:%d", port),
+			Addr:    fmt.Sprintf("%s:%d", host, port),
 			Handler: mux,
 		},
 		redisRequestCounter:   redisRequestCounter,

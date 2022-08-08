@@ -17,6 +17,7 @@ import (
 type Consequences struct {
 	context *Context
 	actions *Actions
+	timeout int
 }
 
 func (c *Consequences) Expect(e Expectation) *Consequences {
@@ -24,7 +25,7 @@ func (c *Consequences) Expect(e Expectation) *Consequences {
 	c.context.t.Helper()
 	var message string
 	var state state
-	timeout := time.Duration(15) * time.Second
+	timeout := time.Duration(c.timeout) * time.Second
 	for start := time.Now(); time.Since(start) < timeout; time.Sleep(3 * time.Second) {
 		state, message = e(c)
 		switch state {
@@ -44,6 +45,12 @@ func (c *Consequences) Expect(e Expectation) *Consequences {
 func (c *Consequences) And(block func(app *Application)) *Consequences {
 	c.context.t.Helper()
 	block(c.app())
+	return c
+}
+
+func (c *Consequences) AndAction(block func()) *Consequences {
+	c.context.t.Helper()
+	block()
 	return c
 }
 
@@ -77,4 +84,9 @@ func (c *Consequences) resource(kind, name, namespace string) ResourceStatus {
 			Message: "not found",
 		},
 	}
+}
+
+func (c *Consequences) Timeout(timeout int) *Consequences {
+	c.timeout = timeout
+	return c
 }

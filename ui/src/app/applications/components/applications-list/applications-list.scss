@@ -32,34 +32,30 @@
         color: $argo-color-gray-7;
 
         // healthy statuses
-
-        &--comparison-Synced {
-            border-left-color: $argo-success-color;
-        }
-
         &--health-Healthy {
             border-left-color: $argo-success-color;
         }
 
-        // having this higher up ensures that progressing takes precedence
-        &--comparison-OutOfSync {
-            border-left-color: $argo-status-warning-color;
-        }
-
         // intermediate statuses
-
         &--health-Progressing {
             border-left-color: $argo-running-color;
         }
 
-        // failed statuses
+        &--health-Suspended {
+            border-left-color: $argo-suspended-color;
+        }
 
+        // failed statuses
         &--health-Degraded {
             border-left-color: $argo-failed-color;
         }
 
-        &--comparison-Error {
-            border-left-color: $argo-failed-color;
+        &--health-Unknown {
+            border-left-color: $argo-color-gray-4;
+        }
+
+        &--health-Missing {
+            border-left-color: $argo-status-warning-color;
         }
 
         &--actions {
@@ -67,77 +63,13 @@
         }
     }
 
-    $filters-container-collapsed-height: 3em;
-    $filters-container-box-shadow: 1px 1px 3px $argo-color-gray-5;
-
-    &__filters-container {
-        max-height: $filters-container-collapsed-height;
-        overflow: hidden;
-        position: relative;
-        border-radius: $border-radius;
-        box-shadow: $filters-container-box-shadow;
-        padding: 0 1em 0.75em 1em;
-        margin: 33px 0;
-        background-color: white;
-        transition: max-height 0.25s cubic-bezier(0, 1, 0, 1);
+    &__accordion {
         cursor: pointer;
-
-        ul {
-            margin: 0;
-        }
-
-        &--expanded {
-            max-height: calc(1.55em * 17);
-            transition: max-height 1s ease-in-out;
-        }
-    }
-
-    $filters-title-border-bottom: 1px solid $argo-color-gray-3;
-
-    &__filters-title {
-        height: $filters-container-collapsed-height;
-        padding: 0.25em 0;
-        display: flex;
-        align-items: center;
-
-        &--expanded {
-            border-bottom: $filters-title-border-bottom;
-        }
-
-        &__counter {
-            margin-right: 0;
-            width: 10ch;
-        }
-
-        &__expander {
-            cursor: pointer;
-            margin-left: 1em;
-        }
-    }
-
-    @include breakpoint(xxlarge up) {
-        &__filters-container {
-            max-height: 100%;
-            transition: max-height 0.5s ease-in-out;
-            cursor: default;
-        }
-
-        &__filters-title {
-            border-bottom: $filters-title-border-bottom;
-        }
-
-        &__filters-title__expander {
-            display: none;
-        }
-    }
-
-    &__filter {
-        li {
-            list-style: none;
-        }
-        max-height: calc(1.55em * 14);
-        transition: max-height 0.25s cubic-bezier(0, 1, 0, 1);
-        overflow-y: auto;
+        text-align: center;
+        border: none;
+        outline: none;
+        transition: 0.4s;
+        margin-left: 10px;
     }
 
     &__view-type {
@@ -154,22 +86,6 @@
             cursor: default;
             color: $argo-color-teal-5;
         }
-    }
-
-    &__filter-title {
-        margin: 0.5em 0 0 0;
-        color: $argo-color-gray-7;
-        text-transform: uppercase;
-    }
-
-    &__filter-label {
-        vertical-align: bottom;
-        width: calc(100% - 50px);
-        overflow: hidden;
-        text-overflow: ellipsis;
-        display: inline-block;
-        white-space: nowrap;
-        margin-right: 10px;
     }
 
     &__table-icon {
@@ -251,5 +167,38 @@
         position: absolute;
         top: 1em;
         right: 1em;
+
+        .large-text-height {
+            line-height: 1.5;
+        }
     }
+
+    &__external-links-icon-container {
+        position: relative;
+        display: inline-block;
+    }
+
+    .filters-group__panel {
+        top: 120px;
+    }
+    @include breakpoint(medium down) {
+        .filters-group__panel {
+            top: 200px;
+        }
+    }
+
+    ul {
+        margin: 0;
+    }
+
+    .chart-group {
+        margin: 0 0.8em;
+    }
+
+    .chart {
+        justify-content: space-evenly;
+    }
+}
+i.menu_icon {
+    vertical-align: middle;
 }

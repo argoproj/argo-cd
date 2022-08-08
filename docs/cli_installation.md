@@ -4,6 +4,12 @@ You can download the latest Argo CD version from [the latest release page of thi
 
 ## Linux and WSL
 
+### ArchLinux
+
+```bash
+pacman -S argocd
+```
+
 ### Homebrew
 
 ```bash
@@ -12,22 +18,23 @@ brew install argocd
 
 ### Download With Curl
 
-You can view the latest version of Argo CD at the link above or run the following command to grab the version:
+#### Download latest version
 
 ```bash
-VERSION=$(curl --silent "https://api.github.com/repos/argoproj/argo-cd/releases/latest" | grep '"tag_name"' | sed -E 's/.*"([^"]+)".*/\1/')
+curl -sSL -o argocd-linux-amd64 https://github.com/argoproj/argo-cd/releases/latest/download/argocd-linux-amd64
+sudo install -m 555 argocd-linux-amd64 /usr/local/bin/argocd
+rm argocd-linux-amd64
 ```
 
-Replace `VERSION` in the command below with the version of Argo CD you would like to download:
+#### Download concrete version
+
+Set `VERSION` replacing `<TAG>` in the command below with the version of Argo CD you would like to download:
 
 ```bash
-curl -sSL -o /usr/local/bin/argocd https://github.com/argoproj/argo-cd/releases/download/$VERSION/argocd-linux-amd64
-```
-
-Make the `argocd` CLI executable:
-
-```bash
-chmod +x /usr/local/bin/argocd
+VERSION=<TAG> # Select desired TAG from https://github.com/argoproj/argo-cd/releases
+curl -sSL -o argocd-linux-amd64 https://github.com/argoproj/argo-cd/releases/download/$VERSION/argocd-linux-amd64
+sudo install -m 555 argocd-linux-amd64 /usr/local/bin/argocd
+rm argocd-linux-amd64
 ```
 
 You should now be able to run `argocd` commands.
@@ -51,13 +58,14 @@ VERSION=$(curl --silent "https://api.github.com/repos/argoproj/argo-cd/releases/
 Replace `VERSION` in the command below with the version of Argo CD you would like to download:
 
 ```bash
-curl -sSL -o /usr/local/bin/argocd https://github.com/argoproj/argo-cd/releases/download/$VERSION/argocd-darwin-amd64
+curl -sSL -o argocd-darwin-amd64 https://github.com/argoproj/argo-cd/releases/download/$VERSION/argocd-darwin-amd64
 ```
 
-Make the `argocd` CLI executable:
+Install the Argo CD CLI binary:
 
 ```bash
-chmod +x /usr/local/bin/argocd
+sudo install -m 555 argocd-darwin-amd64 /usr/local/bin/argocd
+rm argocd-darwin-amd64
 ```
 
 After finishing either of the instructions above, you should now be able to run `argocd` commands.
@@ -65,7 +73,7 @@ After finishing either of the instructions above, you should now be able to run 
 
 ## Windows
 
-### Download With Powershell: Invoke-WebRequest
+### Download With PowerShell: Invoke-WebRequest
 
 You can view the latest version of Argo CD at the link above or run the following command to grab the version:
 

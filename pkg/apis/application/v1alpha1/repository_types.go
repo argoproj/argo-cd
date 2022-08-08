@@ -78,6 +78,10 @@ type Repository struct {
 	GithubAppInstallationId int64 `json:"githubAppInstallationID,omitempty" protobuf:"bytes,17,opt,name=githubAppInstallationID"`
 	// GithubAppEnterpriseBaseURL specifies the base URL of GitHub Enterprise installation. If empty will default to https://api.github.com
 	GitHubAppEnterpriseBaseURL string `json:"githubAppEnterpriseBaseUrl,omitempty" protobuf:"bytes,18,opt,name=githubAppEnterpriseBaseUrl"`
+	// Proxy specifies the HTTP/HTTPS proxy used to access the repo
+	Proxy string `json:"proxy,omitempty" protobuf:"bytes,19,opt,name=proxy"`
+	// Reference between project and repository that allow you automatically to be added as item inside SourceRepos project entity
+	Project string `json:"project,omitempty" protobuf:"bytes,20,opt,name=project"`
 }
 
 // IsInsecure returns true if the repository has been configured to skip server verification
@@ -162,18 +166,18 @@ func (repo *Repository) CopyCredentialsFrom(source *RepoCreds) {
 }
 
 // GetGitCreds returns the credentials from a repository configuration used to authenticate at a Git repository
-func (repo *Repository) GetGitCreds() git.Creds {
+func (repo *Repository) GetGitCreds(store git.CredsStore) git.Creds {
 	if repo == nil {
 		return git.NopCreds{}
 	}
-	if repo.Username != "" && repo.Password != "" {
-		return git.NewHTTPSCreds(repo.Username, repo.Password, repo.TLSClientCertData, repo.TLSClientCertKey, repo.IsInsecure())
+	if repo.Password != "" {
+		return git.NewHTTPSCreds(repo.Username, repo.Password, repo.TLSClientCertData, repo.TLSClientCertKey, repo.IsInsecure(), repo.Proxy, store)
 	}
 	if repo.SSHPrivateKey != "" {
-		return git.NewSSHCreds(repo.SSHPrivateKey, getCAPath(repo.Repo), repo.IsInsecure())
+		return git.NewSSHCreds(repo.SSHPrivateKey, getCAPath(repo.Repo), repo.IsInsecure(), store)
 	}
 	if repo.GithubAppPrivateKey != "" && repo.GithubAppId != 0 && repo.GithubAppInstallationId != 0 {
-		return git.NewGitHubAppCreds(repo.GithubAppId, repo.GithubAppInstallationId, repo.GithubAppPrivateKey, repo.GitHubAppEnterpriseBaseURL, repo.Repo, repo.TLSClientCertData, repo.TLSClientCertKey, repo.IsInsecure())
+		return git.NewGitHubAppCreds(repo.GithubAppId, repo.GithubAppInstallationId, repo.GithubAppPrivateKey, repo.GitHubAppEnterpriseBaseURL, repo.Repo, repo.TLSClientCertData, repo.TLSClientCertKey, repo.IsInsecure(), store)
 	}
 	return git.NopCreds{}
 }
@@ -191,17 +195,27 @@ func (repo *Repository) GetHelmCreds() helm.Creds {
 }
 
 func getCAPath(repoURL string) string {
-	if git.IsHTTPSURL(repoURL) {
-		if parsedURL, err := url.Parse(repoURL); err == nil {
-			if caPath, err := cert.GetCertBundlePathForRepository(parsedURL.Host); err == nil {
-				return caPath
-			} else {
-				log.Warnf("Could not get cert bundle path for host '%s'", parsedURL.Host)
-			}
+	hostname := ""
+
+	// url.Parse() will happily parse most things thrown at it. When the URL
+	// is either https or oci, we use the parsed hostname to retrieve the cert,
+	// otherwise we'll use the parsed path (OCI repos are often specified as
+	// hostname, without protocol).
+	if parsedURL, err := url.Parse(repoURL); err == nil {
+		if parsedURL.Scheme == "https" || parsedURL.Scheme == "oci" {
+			hostname = parsedURL.Host
+		} else if parsedURL.Scheme == "" {
+			hostname = parsedURL.Path
+		}
+	} else {
+		log.Warnf("Could not parse repo URL '%s': %v", repoURL, err)
+	}
+
+	if hostname != "" {
+		if caPath, err := cert.GetCertBundlePathForRepository(hostname); err == nil {
+			return caPath
 		} else {
-			// We don't fail if we cannot parse the URL, but log a warning in that
-			// case. And we execute the command in a verbatim way.
-			log.Warnf("Could not parse repo URL '%s'", repoURL)
+			log.Warnf("Could not get cert bundle path for repository '%s': %v", repoURL, err)
 		}
 	}
 	return ""

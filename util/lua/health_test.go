@@ -1,7 +1,6 @@
 package lua
 
 import (
-	"io/ioutil"
 	"os"
 	"path/filepath"
 	"strings"
@@ -25,7 +24,7 @@ type IndividualTest struct {
 }
 
 func getObj(path string) *unstructured.Unstructured {
-	yamlBytes, err := ioutil.ReadFile(path)
+	yamlBytes, err := os.ReadFile(path)
 	errors.CheckError(err)
 	obj := make(map[string]interface{})
 	err = yaml.Unmarshal(yamlBytes, &obj)
@@ -34,13 +33,13 @@ func getObj(path string) *unstructured.Unstructured {
 }
 
 func TestLuaHealthScript(t *testing.T) {
-	err := filepath.Walk(".", func(path string, f os.FileInfo, err error) error {
+	err := filepath.Walk("../../resource_customizations", func(path string, f os.FileInfo, err error) error {
 		if !strings.Contains(path, "health.lua") {
 			return nil
 		}
 		errors.CheckError(err)
 		dir := filepath.Dir(path)
-		yamlBytes, err := ioutil.ReadFile(dir + "/health_test.yaml")
+		yamlBytes, err := os.ReadFile(dir + "/health_test.yaml")
 		errors.CheckError(err)
 		var resourceTest TestStructure
 		err = yaml.Unmarshal(yamlBytes, &resourceTest)

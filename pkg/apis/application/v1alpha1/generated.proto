@@ -11,7 +11,7 @@ import "k8s.io/apimachinery/pkg/runtime/generated.proto";
 import "k8s.io/apimachinery/pkg/runtime/schema/generated.proto";
 
 // Package-wide variables from generator "generated".
-option go_package = "v1alpha1";
+option go_package = "github.com/argoproj/argo-cd/v2/pkg/apis/application/v1alpha1";
 
 // AWSAuthConfig is an AWS IAM authentication configuration
 message AWSAuthConfig {
@@ -160,9 +160,6 @@ message ApplicationSource {
   // Kustomize holds kustomize specific options
   optional ApplicationSourceKustomize kustomize = 8;
 
-  // Ksonnet holds ksonnet specific options
-  optional ApplicationSourceKsonnet ksonnet = 9;
-
   // Directory holds path/directory specific options
   optional ApplicationSourceDirectory directory = 10;
 
@@ -205,8 +202,17 @@ message ApplicationSourceHelm {
   // FileParameters are file parameters to the helm template
   repeated HelmFileParameter fileParameters = 5;
 
-  // Version is the Helm version to use for templating (either "2" or "3")
+  // Version is the Helm version to use for templating ("3")
   optional string version = 6;
+
+  // PassCredentials pass credentials to all domains (Helm's --pass-credentials)
+  optional bool passCredentials = 7;
+
+  // IgnoreMissingValueFiles prevents helm template from failing when valueFiles do not exist locally by not appending them to helm template --values
+  optional bool ignoreMissingValueFiles = 8;
+
+  // SkipCrds skips custom resource definition installation step (Helm's --skip-crds)
+  optional bool skipCrds = 9;
 }
 
 // ApplicationSourceJsonnet holds options specific to applications of type Jsonnet
@@ -219,15 +225,6 @@ message ApplicationSourceJsonnet {
 
   // Additional library search dirs
   repeated string libs = 3;
-}
-
-// ApplicationSourceKsonnet holds ksonnet specific options
-message ApplicationSourceKsonnet {
-  // Environment is a ksonnet application environment name
-  optional string environment = 1;
-
-  // Parameters are a list of ksonnet component parameter override values
-  repeated KsonnetParameter parameters = 2;
 }
 
 // ApplicationSourceKustomize holds options specific to an Application source specific to Kustomize
@@ -249,6 +246,12 @@ message ApplicationSourceKustomize {
 
   // CommonAnnotations is a list of additional annotations to add to rendered manifests
   map<string, string> commonAnnotations = 6;
+
+  // ForceCommonLabels specifies whether to force applying common labels to resources for Kustomize apps
+  optional bool forceCommonLabels = 7;
+
+  // ForceCommonAnnotations specifies whether to force applying common annotations to resources for Kustomize apps
+  optional bool forceCommonAnnotations = 8;
 }
 
 // ApplicationSourcePlugin holds options specific to config management plugins
@@ -397,6 +400,18 @@ message Cluster {
 
   // Shard contains optional shard number. Calculated on the fly by the application controller if not specified.
   optional int64 shard = 9;
+
+  // Indicates if cluster level resources should be managed. This setting is used only if cluster is connected in a namespaced mode.
+  optional bool clusterResources = 10;
+
+  // Reference between project and cluster that allow you automatically to be added as item inside Destinations project entity
+  optional string project = 11;
+
+  // Labels for cluster secret metadata
+  map<string, string> labels = 12;
+
+  // Annotations for cluster secret metadata
+  map<string, string> annotations = 13;
 }
 
 // ClusterCacheInfo contains information about the cluster cache
@@ -447,6 +462,9 @@ message ClusterInfo {
 
   // ApplicationsCount is the number of applications managed by Argo CD on the cluster
   optional int64 applicationsCount = 4;
+
+  // APIVersions contains list of API versions supported by the cluster
+  repeated string apiVersions = 5;
 }
 
 // ClusterList is a collection of Clusters.
@@ -488,6 +506,8 @@ message ConfigManagementPlugin {
   optional Command init = 2;
 
   optional Command generate = 3;
+
+  optional bool lockRepo = 4;
 }
 
 // ConnectionState contains information about remote resource connection state, currently used for clusters and repositories
@@ -576,6 +596,11 @@ message HelmFileParameter {
   optional string path = 2;
 }
 
+// HelmOptions holds helm options
+message HelmOptions {
+  repeated string valuesFileSchemes = 1;
+}
+
 // HelmParameter is a parameter that's passed to helm template during manifest generation
 message HelmParameter {
   // Name is the name of the Helm parameter
@@ -657,15 +682,6 @@ message KnownTypeField {
   optional string type = 2;
 }
 
-// KsonnetParameter is a ksonnet component parameter
-message KsonnetParameter {
-  optional string component = 1;
-
-  optional string name = 2;
-
-  optional string value = 3;
-}
-
 // KustomizeOptions are options for kustomize to use when building manifests
 message KustomizeOptions {
   // BuildOptions is a string of build parameters to use when calling `kustomize build`
@@ -741,9 +757,18 @@ message OrphanedResourcesMonitorSettings {
   repeated OrphanedResourceKey ignore = 2;
 }
 
-// TODO: describe this type
+// OverrideIgnoreDiff contains configurations about how fields should be ignored during diffs between
+// the desired state and live state
 message OverrideIgnoreDiff {
+  // JSONPointers is a JSON path list following the format defined in RFC4627 (https://datatracker.ietf.org/doc/html/rfc6902#section-3)
   repeated string jSONPointers = 1;
+
+  // JQPathExpressions is a JQ path list that will be evaludated during the diff process
+  repeated string jqPathExpressions = 2;
+
+  // ManagedFieldsManagers is a list of trusted managers. Fields mutated by those managers will take precedence over the
+  // desired state defined in the SCM and won't be displayed in diffs
+  repeated string managedFieldsManagers = 3;
 }
 
 // ProjectRole represents a role that has access to a project
@@ -754,7 +779,7 @@ message ProjectRole {
   // Description is a description of the role
   optional string description = 2;
 
-  // Policies Stores a list of casbin formated strings that define access policies for the role in the project
+  // Policies Stores a list of casbin formatted strings that define access policies for the role in the project
   repeated string policies = 3;
 
   // JWTTokens are a list of generated JWT tokens bound to this role
@@ -866,6 +891,12 @@ message Repository {
 
   // GithubAppEnterpriseBaseURL specifies the base URL of GitHub Enterprise installation. If empty will default to https://api.github.com
   optional string githubAppEnterpriseBaseUrl = 18;
+
+  // Proxy specifies the HTTP/HTTPS proxy used to access the repo
+  optional string proxy = 19;
+
+  // Reference between project and repository that allow you automatically to be added as item inside SourceRepos project entity
+  optional string project = 20;
 }
 
 // A RepositoryCertificate is either SSH known hosts entry or TLS certificate
@@ -984,6 +1015,12 @@ message ResourceIgnoreDifferences {
   optional string namespace = 4;
 
   repeated string jsonPointers = 5;
+
+  repeated string jqPathExpressions = 6;
+
+  // ManagedFieldsManagers is a list of trusted managers. Fields mutated by those managers will take precedence over the
+  // desired state defined in the SCM and won't be displayed in diffs
+  repeated string managedFieldsManagers = 7;
 }
 
 // ResourceNetworkingInfo holds networking resource related information
@@ -1296,6 +1333,9 @@ message SyncWindow {
 
   // ManualSync enables manual syncs when they would otherwise be blocked
   optional bool manualSync = 7;
+
+  // TimeZone of the sync that will be applied to the schedule
+  optional string timeZone = 8;
 }
 
 // TLSClientConfig contains settings to enable transport layer security

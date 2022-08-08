@@ -1,7 +1,8 @@
 import * as path from 'path';
-import * as superagent from 'superagent';
-const superagentPromise = require('superagent-promise');
+import * as agent from 'superagent';
+
 import {BehaviorSubject, Observable, Observer} from 'rxjs';
+import {filter} from 'rxjs/operators';
 
 type Callback = (data: any) => void;
 
@@ -21,11 +22,9 @@ enum ReadyState {
     DONE = 4
 }
 
-const agent: superagent.SuperAgentStatic = superagentPromise(superagent, global.Promise);
-
 let baseHRef = '/';
 
-const onError = new BehaviorSubject<superagent.ResponseError>(null);
+const onError = new BehaviorSubject<agent.ResponseError>(null);
 
 function toAbsURL(val: string): string {
     return path.join(baseHRef, val);
@@ -35,7 +34,7 @@ function apiRoot(): string {
     return toAbsURL('/api/v1');
 }
 
-function initHandlers(req: superagent.Request) {
+function initHandlers(req: agent.Request) {
     req.on('error', err => onError.next(err));
     return req;
 }
@@ -46,7 +45,7 @@ export default {
     },
     agent,
     toAbsURL,
-    onError: onError.asObservable().filter(err => err != null),
+    onError: onError.asObservable().pipe(filter(err => err != null)),
     get(url: string) {
         return initHandlers(agent.get(`${apiRoot()}${url}`));
     },

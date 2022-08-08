@@ -16,7 +16,7 @@ func TestFixingDegradedApp(t *testing.T) {
 		Path("sync-waves").
 		When().
 		IgnoreErrors().
-		Create().
+		CreateApp().
 		And(func() {
 			SetResourceOverrides(map[string]ResourceOverride{
 				"ConfigMap": {
@@ -28,7 +28,7 @@ func TestFixingDegradedApp(t *testing.T) {
 		Then().
 		Expect(OperationPhaseIs(OperationFailed)).
 		Expect(SyncStatusIs(SyncStatusCodeOutOfSync)).
-		Expect(HealthIs(health.HealthStatusMissing)).
+		Expect(HealthIs(health.HealthStatusDegraded)).
 		Expect(ResourceResultNumbering(1)).
 		Expect(ResourceSyncStatusIs("ConfigMap", "cm-1", SyncStatusCodeSynced)).
 		Expect(ResourceHealthIs("ConfigMap", "cm-1", health.HealthStatusDegraded)).
@@ -66,7 +66,7 @@ func TestOneProgressingDeploymentIsSucceededAndSynced(t *testing.T) {
         "value": "alpine:ops!"
     }
 ]`).
-		Create().
+		CreateApp().
 		Sync().
 		Then().
 		Expect(OperationPhaseIs(OperationSucceeded)).
@@ -92,7 +92,7 @@ func TestDegradedDeploymentIsSucceededAndSynced(t *testing.T) {
         "value": "alpine:ops!"
     }
 ]`).
-		Create().
+		CreateApp().
 		Sync().
 		Then().
 		Expect(OperationPhaseIs(OperationSucceeded)).
