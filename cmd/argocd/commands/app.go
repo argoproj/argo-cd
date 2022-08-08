@@ -1083,18 +1083,13 @@ func NewApplicationDeleteCommand(clientOpts *argocdclient.ClientOptions) *cobra.
 					appDeleteReq.PropagationPolicy = &propagationPolicy
 				}
 				if cascade && isTerminal && !noPrompt {
-					var confirmAnswer string = "n"
 					var lowercaseAnswer string
 					if numOfApps == 1 {
-						fmt.Println("Are you sure you want to delete '" + appName + "' and all its resources? [y/n]")
-						fmt.Scan(&confirmAnswer)
-						lowercaseAnswer = strings.ToLower(confirmAnswer)
+						lowercaseAnswer = cli.AskToProceedS("Are you sure you want to delete '" + appName + "' and all its resources? [y/n]")
 					} else {
 						if !isConfirmAll {
-							fmt.Println("Are you sure you want to delete '" + appName + "' and all its resources? [y/n/A] where 'A' is to delete all specified apps and their resources without prompting")
-							fmt.Scan(&confirmAnswer)
-							lowercaseAnswer = strings.ToLower(confirmAnswer)
-							if lowercaseAnswer == "a" || lowercaseAnswer == "all" {
+							lowercaseAnswer = cli.AskToProceedS("Are you sure you want to delete '" + appName + "' and all its resources? [y/n/A] where 'A' is to delete all specified apps and their resources without prompting")
+							if lowercaseAnswer == "a" {
 								lowercaseAnswer = "y"
 								isConfirmAll = true
 							}
@@ -1102,7 +1097,7 @@ func NewApplicationDeleteCommand(clientOpts *argocdclient.ClientOptions) *cobra.
 							lowercaseAnswer = "y"
 						}
 					}
-					if lowercaseAnswer == "y" || lowercaseAnswer == "yes" {
+					if lowercaseAnswer == "y" {
 						_, err := appIf.Delete(ctx, &appDeleteReq)
 						errors.CheckError(err)
 						fmt.Printf("application '%s' deleted\n", appName)
