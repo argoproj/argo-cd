@@ -273,6 +273,8 @@ When using a Pull Request generator, the ApplicationSet controller polls every `
 
 The configuration is almost the same as the one described [in the Git generator](Generators-Git.md), but there is one difference: if you want to use the Pull Request Generator as well, additionally configure the following settings.
 
+### Github webhook configuration
+
 In section 1, _"Create the webhook in the Git provider"_, add an event so that a webhook request will be sent when a pull request is created, closed, or label changed.
 
 Add Webhook URL with uri `/api/webhook` and select content-type as json
@@ -292,3 +294,19 @@ The Pull Request Generator will requeue when the next action occurs.
 - `synchronized`
 
 For more information about each event, please refer to the [official documentation](https://docs.github.com/en/developers/webhooks-and-events/webhooks/webhook-events-and-payloads).
+
+### Gitlab webhook configuration
+
+Enable checkbox for "Merge request events" in triggers list.
+
+![Add Gitlab Webhook](../../assets/applicationset/webhook-config-merge-request-gitlab.png "Add Gitlab Merge request Webhook")
+
+The Pull Request Generator will requeue when the next action occurs.
+
+- `open`
+- `close`
+- `reopen`
+- `update`
+- `merge`
+
+For more information about each event, please refer to the [official documentation](https://docs.gitlab.com/ee/user/project/integrations/webhook_events.html#merge-request-events).
