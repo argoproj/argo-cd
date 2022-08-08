@@ -430,16 +430,28 @@ function getActionItems(
             action: () => appContext.apis.navigation.goto('.', {node: nodeKey(resource), tab: 'logs'}, {replace: true})
         });
     }
-    if (resource.kind === 'Pod') {
-        items.push({
-            title: 'Exec',
-            iconClassName: 'fa fa-terminal',
-            action: () => appContext.apis.navigation.goto('.', {node: nodeKey(resource), tab: 'exec'}, {replace: true})
-        });
-    }
+
     if (isQuickStart) {
         return from([items]);
     }
+
+    const execAction = services.authService
+        .settings()
+        .then(async settings => {
+            const execAllowed = await services.accounts.canI('exec', 'create', application.spec.project + '/' + application.metadata.name);
+            if (resource.kind === 'Pod' && settings.execEnabled && execAllowed) {
+                return items.concat([
+                    {
+                        title: 'Exec',
+                        iconClassName: 'fa fa-terminal',
+                        action: async () => appContext.apis.navigation.goto('.', {node: nodeKey(resource), tab: 'exec'}, {replace: true})
+                    }
+                ]);
+            }
+            return items;
+        })
+        .catch(() => items);
+
     const resourceActions = services.applications
         .getResourceActions(application.metadata.name, resource)
         .then(actions => {
@@ -464,7 +476,7 @@ function getActionItems(
             );
         })
         .catch(() => items);
-    menuItems = merge(from([items]), from(resourceActions));
+    menuItems = merge(from([items]), from(resourceActions), from(execAction));
     return menuItems;
 }
 
