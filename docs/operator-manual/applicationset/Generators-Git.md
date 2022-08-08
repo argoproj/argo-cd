@@ -45,13 +45,13 @@ spec:
       - path: applicationset/examples/git-generator-directory/cluster-addons/*
   template:
     metadata:
-      name: '{{path[0]}}'
+      name: '{{path.segments[0]}}'
     spec:
       project: "my-project"
       source:
         repoURL: https://github.com/argoproj/argo-cd.git
         targetRevision: HEAD
-        path: '{{path}}'
+        path: '{{path.path}}'
       destination:
         server: https://kubernetes.default.svc
         namespace: '{{path.basename}}'
@@ -60,8 +60,8 @@ spec:
 
 The generator parameters are:
 
-- `{{path}}`: The directory paths within the Git repository that match the `path` wildcard.
-- `{{path[n]}}`: The directory paths within the Git repository that match the `path` wildcard, split into array elements (`n` - array index)
+- `{{path.path}}`: The directory paths within the Git repository that match the `path` wildcard.
+- `{{path.segments[n]}}`: The directory paths within the Git repository that match the `path` wildcard, split into array elements (`n` - array index)
 - `{{path.basename}}`: For any directory path within the Git repository that matches the `path` wildcard, the right-most path name is extracted (e.g. `/directory/directory2` would produce `directory2`).
 - `{{path.basenameNormalized}}`: This field is the same as `path.basename` with unsupported characters replaced with `-` (e.g. a `path` of `/directory/directory_2`, and `path.basename` of `directory_2` would produce `directory-2` here).
 
@@ -100,7 +100,7 @@ spec:
       source:
         repoURL: https://github.com/argoproj/argo-cd.git
         targetRevision: HEAD
-        path: '{{path}}'
+        path: '{{path.path}}'
       destination:
         server: https://kubernetes.default.svc
         namespace: '{{path.basename}}'
@@ -181,7 +181,7 @@ spec:
       source:
         repoURL: https://github.com/example/example-repo.git
         targetRevision: HEAD
-        path: '{{path}}'
+        path: '{{path.path}}'
       destination:
         server: https://kubernetes.default.svc
         namespace: '{{path.basename}}'
