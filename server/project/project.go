@@ -336,12 +336,21 @@ func (s *Server) Update(ctx context.Context, q *project.ProjectUpdateRequest) (*
 
 	var srcValidatedApps []v1alpha1.Application
 	var dstValidatedApps []v1alpha1.Application
+	getProjectClusters := func(project string) ([]*v1alpha1.Cluster, error) {
+		return s.db.GetProjectClusters(ctx, project)
+	}
 
 	for _, a := range argo.FilterByProjects(appsList.Items, []string{q.Project.Name}) {
 		if oldProj.IsSourcePermitted(a.Spec.Source) {
 			srcValidatedApps = append(srcValidatedApps, a)
 		}
-		if oldProj.IsDestinationPermitted(a.Spec.Destination) {
+
+		dstPermitted, err := oldProj.IsDestinationPermitted(a.Spec.Destination, getProjectClusters)
+		if err != nil {
+			return nil, err
+		}
+
+		if dstPermitted {
 			dstValidatedApps = append(dstValidatedApps, a)
 		}
 	}
@@ -355,7 +364,12 @@ func (s *Server) Update(ctx context.Context, q *project.ProjectUpdateRequest) (*
 		}
 	}
 	for _, a := range dstValidatedApps {
-		if !q.Project.IsDestinationPermitted(a.Spec.Destination) {
+		dstPermitted, err := q.Project.IsDestinationPermitted(a.Spec.Destination, getProjectClusters)
+		if err != nil {
+			return nil, err
+		}
+
+		if !dstPermitted {
 			invalidDstCount++
 		}
 	}

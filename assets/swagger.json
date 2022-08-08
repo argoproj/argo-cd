@@ -4925,6 +4925,10 @@
         "orphanedResources": {
           "$ref": "#/definitions/v1alpha1OrphanedResourcesMonitorSettings"
         },
+        "permitOnlyProjectScopedClusters": {
+          "type": "boolean",
+          "title": "PermitOnlyProjectScopedClusters determines whether destinations can only reference clusters which are project-scoped"
+        },
         "roles": {
           "type": "array",
           "title": "Roles are user defined RBAC roles associated with this project",

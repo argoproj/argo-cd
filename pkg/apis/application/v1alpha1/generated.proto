@@ -85,6 +85,9 @@ message AppProjectSpec {
 
   // SourceNamespaces defines the namespaces application resources are allowed to be created in
   repeated string sourceNamespaces = 12;
+
+  // PermitOnlyProjectScopedClusters determines whether destinations can only reference clusters which are project-scoped
+  optional bool permitOnlyProjectScopedClusters = 13;
 }
 
 // AppProjectStatus contains status information for AppProject CRs

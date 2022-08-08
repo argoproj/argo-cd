@@ -392,6 +392,13 @@ func schema_pkg_apis_application_v1alpha1_AppProjectSpec(ref common.ReferenceCal
 							},
 						},
 					},
+					"permitOnlyProjectScopedClusters": {
+						SchemaProps: spec.SchemaProps{
+							Description: "PermitOnlyProjectScopedClusters determines whether destinations can only reference clusters which are project-scoped",
+							Type:        []string{"boolean"},
+							Format:      "",
+						},
+					},
 				},
 			},
 		},
