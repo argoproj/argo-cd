@@ -2,7 +2,6 @@ package gpgkeys
 
 import (
 	"fmt"
-	"io/ioutil"
 	"os"
 	"path/filepath"
 
@@ -18,9 +17,9 @@ func AddGPGPublicKey() {
 	errors.FailOnErr(fixture.RunCli(args...))
 
 	if fixture.IsLocal() {
-		keyData, err := ioutil.ReadFile(keyPath)
+		keyData, err := os.ReadFile(keyPath)
 		errors.CheckError(err)
-		err = ioutil.WriteFile(fmt.Sprintf("%s/app/config/gpg/source/%s", fixture.TmpDir, fixture.GpgGoodKeyID), keyData, 0644)
+		err = os.WriteFile(fmt.Sprintf("%s/app/config/gpg/source/%s", fixture.TmpDir, fixture.GpgGoodKeyID), keyData, 0644)
 		errors.CheckError(err)
 	} else {
 		fixture.RestartRepoServer()

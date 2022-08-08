@@ -3,7 +3,6 @@ package path
 import (
 	"fmt"
 	"io"
-	"io/ioutil"
 	"os"
 	"path/filepath"
 )
@@ -17,7 +16,7 @@ func CopyDir(src string, dest string) error {
 	}
 
 	if mode.IsDir() {
-		dirContents, err := ioutil.ReadDir(src)
+		dirContents, err := os.ReadDir(src)
 		if err != nil {
 			return err
 		}

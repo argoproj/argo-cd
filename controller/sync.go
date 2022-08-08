@@ -251,6 +251,8 @@ func (m *appStateManager) SyncAppState(app *v1alpha1.Application, state *v1alpha
 		sync.WithResourceModificationChecker(syncOp.SyncOptions.HasOption("ApplyOutOfSyncOnly=true"), compareResult.diffResultList),
 		sync.WithPrunePropagationPolicy(&prunePropagationPolicy),
 		sync.WithReplace(syncOp.SyncOptions.HasOption(common.SyncOptionReplace)),
+		sync.WithServerSideApply(syncOp.SyncOptions.HasOption(common.SyncOptionServerSideApply)),
+		sync.WithServerSideApplyManager(cdcommon.ArgoCDSSAManager),
 	)
 
 	if err != nil {

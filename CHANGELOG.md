@@ -448,7 +448,7 @@ resources, you will have to adapt your cluster resources allow lists to explicit
 ## v1.8.4 (2021-02-05)
 
 - feat: set X-XSS-Protection while serving static content (#5412)
-- fix: version info should be avaialble if anonymous access is enabled (#5422)
+- fix: version info should be available if anonymous access is enabled (#5422)
 - fix: disable jwt claim audience validation #5381 (#5413)
 - fix: /api/version should not return tools version for unauthenticated requests (#5415)
 - fix: account tokens should be rejected if required capability is disabled (#5414)

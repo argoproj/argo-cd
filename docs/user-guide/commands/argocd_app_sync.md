@@ -48,6 +48,7 @@ argocd app sync [APPNAME... | -l selector] [flags]
       --retry-limit int                       Max number of allowed sync retries
       --revision string                       Sync to a specific revision. Preserves parameter overrides
   -l, --selector string                       Sync apps that match this label
+      --server-side                           Use server-side apply while syncing the application
       --strategy string                       Sync strategy (one of: apply|hook)
       --timeout uint                          Time out after this many seconds
 ```
