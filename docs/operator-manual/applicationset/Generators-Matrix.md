@@ -56,7 +56,7 @@ spec:
       source:
         repoURL: https://github.com/argoproj/argo-cd.git
         targetRevision: HEAD
-        path: '{{path.path}}'
+        path: '{{path}}'
       destination:
         server: '{{server}}'
         namespace: '{{path.basename}}'
