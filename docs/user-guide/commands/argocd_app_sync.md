@@ -3,7 +3,7 @@
 Sync an application to its target state
 
 ```
-argocd app sync [APPNAME... | -l selector] [flags]
+argocd app sync [APPNAME... | -l selector | --project project-name] [flags]
 ```
 
 ### Examples
@@ -29,6 +29,7 @@ argocd app sync [APPNAME... | -l selector] [flags]
 ### Options
 
 ```
+      --assumeYes                             Assume yes as answer for all user queries or prompts
       --async                                 Do not wait for application to sync before continuing
       --dry-run                               Preview apply without affecting cluster
       --force                                 Use a force apply
@@ -37,6 +38,8 @@ argocd app sync [APPNAME... | -l selector] [flags]
       --label stringArray                     Sync only specific resources with a label. This option may be specified repeatedly.
       --local string                          Path to a local directory. When this flag is present no git queries will be made
       --local-repo-root string                Path to the repository root. Used together with --local allows setting the repository root (default "/")
+      --preview-changes                       Preview difference against the target and live state before syncing app and wait for user confirmation
+      --project stringArray                   Sync apps that belong to the specified projects. This option may be specified repeatedly.
       --prune                                 Allow deleting unexpected resources
       --replace                               Use a kubectl create/replace instead apply
       --resource stringArray                  Sync only specific resources as GROUP:KIND:NAME. Fields may be blank. This option may be specified repeatedly
@@ -46,6 +49,7 @@ argocd app sync [APPNAME... | -l selector] [flags]
       --retry-limit int                       Max number of allowed sync retries
       --revision string                       Sync to a specific revision. Preserves parameter overrides
   -l, --selector string                       Sync apps that match this label
+      --server-side                           Use server-side apply while syncing the application
       --strategy string                       Sync strategy (one of: apply|hook)
       --timeout uint                          Time out after this many seconds
 ```
@@ -56,13 +60,14 @@ argocd app sync [APPNAME... | -l selector] [flags]
       --auth-token string               Authentication token
       --client-crt string               Client certificate file
       --client-crt-key string           Client certificate key file
-      --config string                   Path to Argo CD config (default "/home/user/.argocd/config")
+      --config string                   Path to Argo CD config (default "/home/user/.config/argocd/config")
       --core                            If set to true then CLI talks directly to Kubernetes instead of talking to Argo CD API server
       --grpc-web                        Enables gRPC-web protocol. Useful if Argo CD server is behind proxy which does not support HTTP2.
       --grpc-web-root-path string       Enables gRPC-web protocol. Useful if Argo CD server is behind proxy which does not support HTTP2. Set web root.
   -H, --header strings                  Sets additional header to all requests made by Argo CD CLI. (Can be repeated multiple times to add multiple headers, also supports comma separated headers)
       --http-retry-max int              Maximum number of retries to establish http connection to Argo CD server
       --insecure                        Skip server certificate and domain verification
+      --kube-context string             Directs the command to the given kube-context
       --logformat string                Set the logging format. One of: text|json (default "text")
       --loglevel string                 Set the logging level. One of: debug|info|warn|error (default "info")
       --plaintext                       Disable TLS

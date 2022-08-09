@@ -16,7 +16,7 @@ func TestCliAppCommand(t *testing.T) {
 	Given(t).
 		Path("hook").
 		When().
-		Create().
+		CreateApp().
 		And(func() {
 			output, err := RunCli("app", "sync", Name(), "--timeout", "90")
 			assert.NoError(t, err)

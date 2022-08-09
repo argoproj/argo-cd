@@ -245,7 +245,7 @@
             },
             "collectionFormat": "multi",
             "description": "the project names to restrict returned list applications.",
-            "name": "project",
+            "name": "projects",
             "in": "query"
           },
           {
@@ -256,7 +256,7 @@
           },
           {
             "type": "string",
-            "description": "the selector to to restrict returned list to applications only with matched labels.",
+            "description": "the selector to restrict returned list to applications only with matched labels.",
             "name": "selector",
             "in": "query"
           },
@@ -509,7 +509,7 @@
             },
             "collectionFormat": "multi",
             "description": "the project names to restrict returned list applications.",
-            "name": "project",
+            "name": "projects",
             "in": "query"
           },
           {
@@ -520,7 +520,7 @@
           },
           {
             "type": "string",
-            "description": "the selector to to restrict returned list to applications only with matched labels.",
+            "description": "the selector to restrict returned list to applications only with matched labels.",
             "name": "selector",
             "in": "query"
           },
@@ -1605,6 +1605,18 @@
             "type": "string",
             "name": "name",
             "in": "query"
+          },
+          {
+            "type": "string",
+            "description": "type is the type of the specified cluster identifier ( \"server\" - default, \"name\" ).",
+            "name": "id.type",
+            "in": "query"
+          },
+          {
+            "type": "string",
+            "description": "value holds the cluster server URL or cluster name.",
+            "name": "id.value",
+            "in": "query"
           }
         ],
         "responses": {
@@ -1659,7 +1671,53 @@
         }
       }
     },
-    "/api/v1/clusters/{cluster.server}": {
+    "/api/v1/clusters/{id.value}": {
+      "get": {
+        "tags": [
+          "ClusterService"
+        ],
+        "summary": "Get returns a cluster by server address",
+        "operationId": "ClusterService_Get",
+        "parameters": [
+          {
+            "type": "string",
+            "description": "value holds the cluster server URL or cluster name",
+            "name": "id.value",
+            "in": "path",
+            "required": true
+          },
+          {
+            "type": "string",
+            "name": "server",
+            "in": "query"
+          },
+          {
+            "type": "string",
+            "name": "name",
+            "in": "query"
+          },
+          {
+            "type": "string",
+            "description": "type is the type of the specified cluster identifier ( \"server\" - default, \"name\" ).",
+            "name": "id.type",
+            "in": "query"
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "A successful response.",
+            "schema": {
+              "$ref": "#/definitions/v1alpha1Cluster"
+            }
+          },
+          "default": {
+            "description": "An unexpected error response.",
+            "schema": {
+              "$ref": "#/definitions/runtimeError"
+            }
+          }
+        }
+      },
       "put": {
         "tags": [
           "ClusterService"
@@ -1669,8 +1727,8 @@
         "parameters": [
           {
             "type": "string",
-            "description": "Server is the API server URL of the Kubernetes cluster",
-            "name": "cluster.server",
+            "description": "value holds the cluster server URL or cluster name",
+            "name": "id.value",
             "in": "path",
             "required": true
           },
@@ -1690,41 +1748,11 @@
             "collectionFormat": "multi",
             "name": "updatedFields",
             "in": "query"
-          }
-        ],
-        "responses": {
-          "200": {
-            "description": "A successful response.",
-            "schema": {
-              "$ref": "#/definitions/v1alpha1Cluster"
-            }
-          },
-          "default": {
-            "description": "An unexpected error response.",
-            "schema": {
-              "$ref": "#/definitions/runtimeError"
-            }
-          }
-        }
-      }
-    },
-    "/api/v1/clusters/{server}": {
-      "get": {
-        "tags": [
-          "ClusterService"
-        ],
-        "summary": "Get returns a cluster by server address",
-        "operationId": "ClusterService_Get",
-        "parameters": [
-          {
-            "type": "string",
-            "name": "server",
-            "in": "path",
-            "required": true
           },
           {
             "type": "string",
-            "name": "name",
+            "description": "type is the type of the specified cluster identifier ( \"server\" - default, \"name\" ).",
+            "name": "id.type",
             "in": "query"
           }
         ],
@@ -1752,13 +1780,25 @@
         "parameters": [
           {
             "type": "string",
-            "name": "server",
+            "description": "value holds the cluster server URL or cluster name",
+            "name": "id.value",
             "in": "path",
             "required": true
           },
           {
             "type": "string",
+            "name": "server",
+            "in": "query"
+          },
+          {
+            "type": "string",
             "name": "name",
+            "in": "query"
+          },
+          {
+            "type": "string",
+            "description": "type is the type of the specified cluster identifier ( \"server\" - default, \"name\" ).",
+            "name": "id.type",
             "in": "query"
           }
         ],
@@ -1778,7 +1818,7 @@
         }
       }
     },
-    "/api/v1/clusters/{server}/invalidate-cache": {
+    "/api/v1/clusters/{id.value}/invalidate-cache": {
       "post": {
         "tags": [
           "ClusterService"
@@ -1788,7 +1828,8 @@
         "parameters": [
           {
             "type": "string",
-            "name": "server",
+            "description": "value holds the cluster server URL or cluster name",
+            "name": "id.value",
             "in": "path",
             "required": true
           }
@@ -1809,7 +1850,7 @@
         }
       }
     },
-    "/api/v1/clusters/{server}/rotate-auth": {
+    "/api/v1/clusters/{id.value}/rotate-auth": {
       "post": {
         "tags": [
           "ClusterService"
@@ -1819,7 +1860,8 @@
         "parameters": [
           {
             "type": "string",
-            "name": "server",
+            "description": "value holds the cluster server URL or cluster name",
+            "name": "id.value",
             "in": "path",
             "required": true
           }
@@ -2702,6 +2744,16 @@
             "type": "string",
             "name": "revision",
             "in": "query"
+          },
+          {
+            "type": "string",
+            "name": "appName",
+            "in": "query"
+          },
+          {
+            "type": "string",
+            "name": "appProject",
+            "in": "query"
           }
         ],
         "responses": {
@@ -3095,7 +3147,7 @@
             },
             "collectionFormat": "multi",
             "description": "the project names to restrict returned list applications.",
-            "name": "project",
+            "name": "projects",
             "in": "query"
           },
           {
@@ -3106,7 +3158,7 @@
           },
           {
             "type": "string",
-            "description": "the selector to to restrict returned list to applications only with matched labels.",
+            "description": "the selector to restrict returned list to applications only with matched labels.",
             "name": "selector",
             "in": "query"
           },
@@ -3530,6 +3582,20 @@
         }
       }
     },
+    "clusterClusterID": {
+      "type": "object",
+      "title": "ClusterID holds a cluster server URL or cluster name",
+      "properties": {
+        "type": {
+          "type": "string",
+          "title": "type is the type of the specified cluster identifier ( \"server\" - default, \"name\" )"
+        },
+        "value": {
+          "type": "string",
+          "title": "value holds the cluster server URL or cluster name"
+        }
+      }
+    },
     "clusterClusterResponse": {
       "type": "object"
     },
@@ -3570,6 +3636,13 @@
       "type": "object",
       "title": "Help settings",
       "properties": {
+        "binaryUrls": {
+          "type": "object",
+          "title": "the URLs for downloading argocd binaries",
+          "additionalProperties": {
+            "type": "string"
+          }
+        },
         "chatText": {
           "type": "string",
           "title": "the text for getting chat help, defaults to \"Chat now!\""
@@ -3634,6 +3707,9 @@
         "dexConfig": {
           "$ref": "#/definitions/clusterDexConfig"
         },
+        "execEnabled": {
+          "type": "boolean"
+        },
         "googleAnalytics": {
           "$ref": "#/definitions/clusterGoogleAnalyticsConfig"
         },
@@ -3669,6 +3745,9 @@
         },
         "statusBadgeEnabled": {
           "type": "boolean"
+        },
+        "statusBadgeRootUrl": {
+          "type": "string"
         },
         "trackingMethod": {
           "type": "string"
@@ -3926,56 +4005,6 @@
         }
       }
     },
-    "repositoryKsonnetAppSpec": {
-      "type": "object",
-      "title": "KsonnetAppSpec contains Ksonnet app response\nThis roughly reflects: ksonnet/ksonnet/metadata/app/schema.go",
-      "properties": {
-        "environments": {
-          "type": "object",
-          "additionalProperties": {
-            "$ref": "#/definitions/repositoryKsonnetEnvironment"
-          }
-        },
-        "name": {
-          "type": "string"
-        },
-        "parameters": {
-          "type": "array",
-          "items": {
-            "$ref": "#/definitions/v1alpha1KsonnetParameter"
-          }
-        }
-      }
-    },
-    "repositoryKsonnetEnvironment": {
-      "type": "object",
-      "properties": {
-        "destination": {
-          "$ref": "#/definitions/repositoryKsonnetEnvironmentDestination"
-        },
-        "k8sVersion": {
-          "description": "KubernetesVersion is the kubernetes version the targeted cluster is running on.",
-          "type": "string"
-        },
-        "name": {
-          "type": "string",
-          "title": "Name is the user defined name of an environment"
-        }
-      }
-    },
-    "repositoryKsonnetEnvironmentDestination": {
-      "type": "object",
-      "properties": {
-        "namespace": {
-          "type": "string",
-          "title": "Namespace is the namespace of the Kubernetes server that targets should be deployed to"
-        },
-        "server": {
-          "description": "Server is the Kubernetes server that the cluster is running on.",
-          "type": "string"
-        }
-      }
-    },
     "repositoryKustomizeAppSpec": {
       "type": "object",
       "title": "KustomizeAppSpec contains kustomize images",
@@ -4042,6 +4071,9 @@
         "appName": {
           "type": "string"
         },
+        "appProject": {
+          "type": "string"
+        },
         "source": {
           "$ref": "#/definitions/v1alpha1ApplicationSource"
         }
@@ -4056,9 +4088,6 @@
         },
         "helm": {
           "$ref": "#/definitions/repositoryHelmAppSpec"
-        },
-        "ksonnet": {
-          "$ref": "#/definitions/repositoryKsonnetAppSpec"
         },
         "kustomize": {
           "$ref": "#/definitions/repositoryKustomizeAppSpec"
@@ -4319,8 +4348,8 @@
           "title": "String that identifies the server's internal version of this object that\ncan be used by clients to determine when objects have changed.\nValue must be treated as opaque by clients and passed unmodified back to the server.\nPopulated by the system.\nRead-only.\nMore info: https://git.k8s.io/community/contributors/devel/sig-architecture/api-conventions.md#concurrency-control-and-consistency\n+optional"
         },
         "selfLink": {
-          "description": "selfLink is a URL representing this object.\nPopulated by the system.\nRead-only.\n\nDEPRECATED\nKubernetes will stop propagating this field in 1.20 release and the field is planned\nto be removed in 1.21 release.\n+optional",
-          "type": "string"
+          "type": "string",
+          "title": "Deprecated: selfLink is a legacy read-only field that is no longer populated by the system.\n+optional"
         }
       }
     },
@@ -4406,7 +4435,7 @@
           "type": "string"
         },
         "containerRuntimeVersion": {
-          "description": "ContainerRuntime Version reported by the node through runtime remote API (e.g. docker://1.5.0).",
+          "description": "ContainerRuntime Version reported by the node through runtime remote API (e.g. containerd://1.4.2).",
           "type": "string"
         },
         "kernelVersion": {
@@ -4451,8 +4480,8 @@
           }
         },
         "clusterName": {
-          "type": "string",
-          "title": "The name of the cluster which the object belongs to.\nThis is used to distinguish resources with same name and namespace in different clusters.\nThis field is not set anywhere right now and apiserver is going to ignore it if set in create or update request.\n+optional"
+          "description": "Deprecated: ClusterName is a legacy field that was always cleared by\nthe system and never used; it will be removed completely in 1.25.\n\nThe name in the go struct is changed to help clients detect\naccidental use.\n\n+optional",
+          "type": "string"
         },
         "creationTimestamp": {
           "$ref": "#/definitions/v1Time"
@@ -4473,7 +4502,7 @@
           }
         },
         "generateName": {
-          "description": "GenerateName is an optional prefix, used by the server, to generate a unique\nname ONLY IF the Name field has not been provided.\nIf this field is used, the name returned to the client will be different\nthan the name passed. This value will also be combined with a unique suffix.\nThe provided value has the same validation rules as the Name field,\nand may be truncated by the length of the suffix required to make the value\nunique on the server.\n\nIf this field is specified and the generated name exists, the server will\nNOT return a 409 - instead, it will either return 201 Created or 500 with Reason\nServerTimeout indicating a unique name could not be found in the time allotted, and the client\nshould retry (optionally after the time indicated in the Retry-After header).\n\nApplied only if Name is not specified.\nMore info: https://git.k8s.io/community/contributors/devel/sig-architecture/api-conventions.md#idempotency\n+optional",
+          "description": "GenerateName is an optional prefix, used by the server, to generate a unique\nname ONLY IF the Name field has not been provided.\nIf this field is used, the name returned to the client will be different\nthan the name passed. This value will also be combined with a unique suffix.\nThe provided value has the same validation rules as the Name field,\nand may be truncated by the length of the suffix required to make the value\nunique on the server.\n\nIf this field is specified and the generated name exists, the server will return a 409.\n\nApplied only if Name is not specified.\nMore info: https://git.k8s.io/community/contributors/devel/sig-architecture/api-conventions.md#idempotency\n+optional",
           "type": "string"
         },
         "generation": {
@@ -4515,8 +4544,8 @@
           "type": "string"
         },
         "selfLink": {
-          "description": "SelfLink is a URL representing this object.\nPopulated by the system.\nRead-only.\n\nDEPRECATED\nKubernetes will stop propagating this field in 1.20 release and the field is planned\nto be removed in 1.21 release.\n+optional",
-          "type": "string"
+          "type": "string",
+          "title": "Deprecated: selfLink is a legacy read-only field that is no longer populated by the system.\n+optional"
         },
         "uid": {
           "description": "UID is the unique in time and space value for this object. It is typically generated by\nthe server on successful creation of a resource and is not allowed to change on PUT\noperations.\n\nPopulated by the system.\nRead-only.\nMore info: http://kubernetes.io/docs/user-guide/identifiers#uids\n+optional",
@@ -4568,7 +4597,7 @@
         },
         "blockOwnerDeletion": {
           "type": "boolean",
-          "title": "If true, AND if the owner has the \"foregroundDeletion\" finalizer, then\nthe owner cannot be deleted from the key-value store until this\nreference is removed.\nDefaults to false.\nTo set this field, a user needs \"delete\" permission of the owner,\notherwise 422 (Unprocessable Entity) will be returned.\n+optional"
+          "title": "If true, AND if the owner has the \"foregroundDeletion\" finalizer, then\nthe owner cannot be deleted from the key-value store until this\nreference is removed.\nSee https://kubernetes.io/docs/concepts/architecture/garbage-collection/#foreground-deletion\nfor how the garbage collector interacts with this field and enforces the foreground deletion.\nDefaults to false.\nTo set this field, a user needs \"delete\" permission of the owner,\notherwise 422 (Unprocessable Entity) will be returned.\n+optional"
         },
         "controller": {
           "type": "boolean",
@@ -4837,9 +4866,6 @@
         "helm": {
           "$ref": "#/definitions/v1alpha1ApplicationSourceHelm"
         },
-        "ksonnet": {
-          "$ref": "#/definitions/v1alpha1ApplicationSourceKsonnet"
-        },
         "kustomize": {
           "$ref": "#/definitions/v1alpha1ApplicationSourceKustomize"
         },
@@ -4892,6 +4918,10 @@
             "$ref": "#/definitions/v1alpha1HelmFileParameter"
           }
         },
+        "ignoreMissingValueFiles": {
+          "type": "boolean",
+          "title": "IgnoreMissingValueFiles prevents helm template from failing when valueFiles do not exist locally by not appending them to helm template --values"
+        },
         "parameters": {
           "type": "array",
           "title": "Parameters is a list of Helm parameters which are passed to the helm template command upon manifest generation",
@@ -4907,6 +4937,10 @@
           "type": "string",
           "title": "ReleaseName is the Helm release name to use. If omitted it will use the application name"
         },
+        "skipCrds": {
+          "type": "boolean",
+          "title": "SkipCrds skips custom resource definition installation step (Helm's --skip-crds)"
+        },
         "valueFiles": {
           "type": "array",
           "title": "ValuesFiles is a list of Helm value files to use when generating a template",
@@ -4920,7 +4954,7 @@
         },
         "version": {
           "type": "string",
-          "title": "Version is the Helm version to use for templating (either \"2\" or \"3\")"
+          "title": "Version is the Helm version to use for templating (\"3\")"
         }
       }
     },
@@ -4947,23 +4981,6 @@
           "title": "TLAS is a list of Jsonnet Top-level Arguments",
           "items": {
             "$ref": "#/definitions/v1alpha1JsonnetVar"
-          }
-        }
-      }
-    },
-    "v1alpha1ApplicationSourceKsonnet": {
-      "type": "object",
-      "title": "ApplicationSourceKsonnet holds ksonnet specific options",
-      "properties": {
-        "environment": {
-          "type": "string",
-          "title": "Environment is a ksonnet application environment name"
-        },
-        "parameters": {
-          "type": "array",
-          "title": "Parameters are a list of ksonnet component parameter override values",
-          "items": {
-            "$ref": "#/definitions/v1alpha1KsonnetParameter"
           }
         }
       }
@@ -5655,21 +5672,6 @@
         }
       }
     },
-    "v1alpha1KsonnetParameter": {
-      "type": "object",
-      "title": "KsonnetParameter is a ksonnet component parameter",
-      "properties": {
-        "component": {
-          "type": "string"
-        },
-        "name": {
-          "type": "string"
-        },
-        "value": {
-          "type": "string"
-        }
-      }
-    },
     "v1alpha1KustomizeOptions": {
       "type": "object",
       "title": "KustomizeOptions are options for kustomize to use when building manifests",
@@ -5785,16 +5787,25 @@
     },
     "v1alpha1OverrideIgnoreDiff": {
       "type": "object",
-      "title": "TODO: describe this type",
+      "title": "OverrideIgnoreDiff contains configurations about how fields should be ignored during diffs between\nthe desired state and live state",
       "properties": {
         "jSONPointers": {
           "type": "array",
+          "title": "JSONPointers is a JSON path list following the format defined in RFC4627 (https://datatracker.ietf.org/doc/html/rfc6902#section-3)",
           "items": {
             "type": "string"
           }
         },
         "jqPathExpressions": {
           "type": "array",
+          "title": "JQPathExpressions is a JQ path list that will be evaludated during the diff process",
+          "items": {
+            "type": "string"
+          }
+        },
+        "managedFieldsManagers": {
+          "type": "array",
+          "title": "ManagedFieldsManagers is a list of trusted managers. Fields mutated by those managers will take precedence over the\ndesired state defined in the SCM and won't be displayed in diffs",
           "items": {
             "type": "string"
           }
@@ -6156,6 +6167,13 @@
         },
         "kind": {
           "type": "string"
+        },
+        "managedFieldsManagers": {
+          "type": "array",
+          "title": "ManagedFieldsManagers is a list of trusted managers. Fields mutated by those managers will take precedence over the\ndesired state defined in the SCM and won't be displayed in diffs",
+          "items": {
+            "type": "string"
+          }
         },
         "name": {
           "type": "string"
@@ -6714,9 +6732,6 @@
           "type": "string"
         },
         "JsonnetVersion": {
-          "type": "string"
-        },
-        "KsonnetVersion": {
           "type": "string"
         },
         "KubectlVersion": {

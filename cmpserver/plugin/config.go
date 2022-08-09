@@ -31,15 +31,20 @@ type PluginConfigSpec struct {
 
 //Discover holds find and fileName
 type Discover struct {
-	Find     Command `json:"find"`
-	FileName string  `json:"fileName"`
+	Find     Find   `json:"find"`
+	FileName string `json:"fileName"`
 }
 
 // Command holds binary path and arguments list
 type Command struct {
 	Command []string `json:"command,omitempty"`
 	Args    []string `json:"args,omitempty"`
-	Glob    string   `json:"glob"`
+}
+
+// Find holds find command or glob pattern
+type Find struct {
+	Command
+	Glob string `json:"glob"`
 }
 
 func ReadPluginConfig(filePath string) (*PluginConfig, error) {
@@ -68,7 +73,7 @@ func ValidatePluginConfig(config PluginConfig) error {
 	if len(config.Spec.Generate.Command) == 0 {
 		return fmt.Errorf("invalid plugin configuration file. spec.generate command should be non-empty")
 	}
-	if config.Spec.Discover.Find.Glob == "" && len(config.Spec.Discover.Find.Command) == 0 && config.Spec.Discover.FileName == "" {
+	if config.Spec.Discover.Find.Glob == "" && len(config.Spec.Discover.Find.Command.Command) == 0 && config.Spec.Discover.FileName == "" {
 		return fmt.Errorf("invalid plugin configuration file. atleast one of discover.find.command or discover.find.glob or discover.fineName should be non-empty")
 	}
 	return nil

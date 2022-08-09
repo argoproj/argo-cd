@@ -13,10 +13,12 @@ argocd-application-controller [flags]
 ### Options
 
 ```
+      --app-hard-resync int                   Time period in seconds for application hard resync.
       --app-resync int                        Time period in seconds for application resync. (default 180)
       --app-state-cache-expiration duration   Cache expiration for app state (default 1h0m0s)
       --as string                             Username to impersonate for the operation
       --as-group stringArray                  Group to impersonate for the operation, this flag can be repeated to specify multiple groups.
+      --as-uid string                         UID to impersonate for the operation
       --certificate-authority string          Path to a cert file for the certificate authority
       --client-certificate string             Path to a client certificate file for TLS
       --client-key string                     Path to a client key file for TLS
@@ -35,7 +37,9 @@ argocd-application-controller [flags]
       --metrics-port int                      Start metrics server on given port (default 8082)
   -n, --namespace string                      If present, the namespace scope for this CLI request
       --operation-processors int              Number of application operation processors (default 10)
+      --otlp-address string                   OpenTelemetry collector address to send traces to
       --password string                       Password for basic authentication to the API server
+      --proxy-url string                      If provided, this URL will be used to connect via proxy
       --redis string                          Redis server hostname and port (e.g. argocd-redis:6379). 
       --redis-ca-certificate string           Path to Redis server CA certificate (e.g. /etc/certs/redis/ca.crt). If not specified, system trusted CAs will be used for server certificate validation.
       --redis-client-certificate string       Path to Redis client certificate (e.g. /etc/certs/redis/client.crt).

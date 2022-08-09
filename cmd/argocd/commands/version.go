@@ -8,6 +8,7 @@ import (
 	log "github.com/sirupsen/logrus"
 	"github.com/spf13/cobra"
 
+	"github.com/argoproj/argo-cd/v2/cmd/argocd/commands/headless"
 	"github.com/argoproj/argo-cd/v2/common"
 	argocdclient "github.com/argoproj/argo-cd/v2/pkg/apiclient"
 	"github.com/argoproj/argo-cd/v2/pkg/apiclient/version"
@@ -39,8 +40,9 @@ func NewVersionCmd(clientOpts *argocdclient.ClientOptions) *cobra.Command {
   argocd version --short -o yaml
 `,
 		Run: func(cmd *cobra.Command, args []string) {
-			cv := common.GetVersion()
+			ctx := cmd.Context()
 
+			cv := common.GetVersion()
 			switch output {
 			case "yaml", "json":
 				v := make(map[string]interface{})
@@ -52,7 +54,7 @@ func NewVersionCmd(clientOpts *argocdclient.ClientOptions) *cobra.Command {
 				}
 
 				if !client {
-					sv := getServerVersion(clientOpts)
+					sv := getServerVersion(ctx, clientOpts, cmd)
 
 					if short {
 						v["server"] = map[string]string{"argocd-server": sv.Version}
@@ -67,7 +69,7 @@ func NewVersionCmd(clientOpts *argocdclient.ClientOptions) *cobra.Command {
 				printClientVersion(&cv, short || (output == "short"))
 
 				if !client {
-					sv := getServerVersion(clientOpts)
+					sv := getServerVersion(ctx, clientOpts, cmd)
 					printServerVersion(sv, short || (output == "short"))
 				}
 			default:
@@ -81,11 +83,11 @@ func NewVersionCmd(clientOpts *argocdclient.ClientOptions) *cobra.Command {
 	return &versionCmd
 }
 
-func getServerVersion(options *argocdclient.ClientOptions) *version.VersionMessage {
-	conn, versionIf := argocdclient.NewClientOrDie(options).NewVersionClientOrDie()
+func getServerVersion(ctx context.Context, options *argocdclient.ClientOptions, c *cobra.Command) *version.VersionMessage {
+	conn, versionIf := headless.NewClientOrDie(options, c).NewVersionClientOrDie()
 	defer argoio.Close(conn)
 
-	v, err := versionIf.Version(context.Background(), &empty.Empty{})
+	v, err := versionIf.Version(ctx, &empty.Empty{})
 	errors.CheckError(err)
 
 	return v
@@ -136,9 +138,6 @@ func printServerVersion(version *version.VersionMessage, short bool) {
 	}
 	if version.Platform != "" {
 		fmt.Printf("  Platform: %s\n", version.Platform)
-	}
-	if version.KsonnetVersion != "" {
-		fmt.Printf("  Ksonnet Version: %s\n", version.KsonnetVersion)
 	}
 	if version.KustomizeVersion != "" {
 		fmt.Printf("  Kustomize Version: %s\n", version.KustomizeVersion)

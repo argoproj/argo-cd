@@ -19,6 +19,7 @@ argocd admin settings resource-overrides [flags]
       --argocd-secret-path string       Path to local argocd-secret.yaml file
       --as string                       Username to impersonate for the operation
       --as-group stringArray            Group to impersonate for the operation, this flag can be repeated to specify multiple groups.
+      --as-uid string                   UID to impersonate for the operation
       --auth-token string               Authentication token
       --certificate-authority string    Path to a cert file for the certificate authority
       --client-certificate string       Path to a client certificate file for TLS
@@ -26,7 +27,7 @@ argocd admin settings resource-overrides [flags]
       --client-crt-key string           Client certificate key file
       --client-key string               Path to a client key file for TLS
       --cluster string                  The name of the kubeconfig cluster to use
-      --config string                   Path to Argo CD config (default "/home/user/.argocd/config")
+      --config string                   Path to Argo CD config (default "/home/user/.config/argocd/config")
       --context string                  The name of the kubeconfig context to use
       --core                            If set to true then CLI talks directly to Kubernetes instead of talking to Argo CD API server
       --grpc-web                        Enables gRPC-web protocol. Useful if Argo CD server is behind proxy which does not support HTTP2.
@@ -35,6 +36,7 @@ argocd admin settings resource-overrides [flags]
       --http-retry-max int              Maximum number of retries to establish http connection to Argo CD server
       --insecure                        Skip server certificate and domain verification
       --insecure-skip-tls-verify        If true, the server's certificate will not be checked for validity. This will make your HTTPS connections insecure
+      --kube-context string             Directs the command to the given kube-context
       --kubeconfig string               Path to a kube config. Only required if out-of-cluster
       --load-cluster-settings           Indicates that config map and secret should be loaded from cluster unless local file path is provided
       --logformat string                Set the logging format. One of: text|json (default "text")
@@ -44,6 +46,7 @@ argocd admin settings resource-overrides [flags]
       --plaintext                       Disable TLS
       --port-forward                    Connect to a random argocd-server port using port forwarding
       --port-forward-namespace string   Namespace name which should be used for port forwarding
+      --proxy-url string                If provided, this URL will be used to connect via proxy
       --request-timeout string          The length of time to wait before giving up on a single server request. Non-zero values should contain a corresponding time unit (e.g. 1s, 2m, 3h). A value of zero means don't timeout requests. (default "0")
       --server string                   The address and port of the Kubernetes API server
       --server-crt string               Server certificate file

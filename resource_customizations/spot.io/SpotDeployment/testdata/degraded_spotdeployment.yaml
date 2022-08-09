@@ -1,0 +1,53 @@
+apiVersion: spot.io/v1beta1
+kind: SpotDeployment
+metadata:
+  name: canary-demo
+  namespace: default
+spec:
+  replicas: 5
+  revisionHistoryLimit: 3
+  selector:
+    matchLabels:
+      app: canary-demo
+  template:
+    metadata:
+      creationTimestamp: null
+      labels:
+        app: canary-demo
+    spec:
+      containers:
+      - image: nginx:1.21
+        imagePullPolicy: Always
+        name: canary-demo
+        ports:
+        - containerPort: 8080
+          name: http
+          protocol: TCP
+        resources:
+          requests:
+            cpu: 5m
+            memory: 32Mi
+status:
+  availableReplicas: 5
+  conditions:
+  - lastTransitionTime: "2019-11-03T01:32:46Z"
+    lastUpdateTime: "2019-11-03T01:32:46Z"
+    message: Rollout has minimum availability
+    reason: AvailableReason
+    status: "True"
+    type: Available
+  - lastTransitionTime: "2019-11-05T18:20:12Z"
+    lastUpdateTime: "2019-11-05T18:20:12Z"
+    message: Rollout is aborted
+    reason: RolloutAborted
+    status: "False"
+    type: Progressing
+  observedGeneration: 58b949649c
+  readyReplicas: 5
+  replicas: 5
+  selector: app=canary-demo
+  liveVersionDate: "2022-07-25T08:57:57.000Z"
+  liveVersionImages:
+    nginx: nginx:1.20
+  phase: Degraded
+  revision: "52"

@@ -2,7 +2,7 @@ package normalizers
 
 import (
 	"fmt"
-	"io/ioutil"
+	"os"
 	"strings"
 	"testing"
 
@@ -286,7 +286,7 @@ func TestOverrideKeyWithoutGroup(t *testing.T) {
 }
 
 func TestKnownTypes(t *testing.T) {
-	typesData, err := ioutil.ReadFile("./diffing_known_types.txt")
+	typesData, err := os.ReadFile("./diffing_known_types.txt")
 	if !assert.NoError(t, err) {
 		return
 	}

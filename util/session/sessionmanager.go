@@ -2,7 +2,6 @@ package session
 
 import (
 	"context"
-	"encoding/json"
 	"errors"
 	"fmt"
 	"math"
@@ -14,7 +13,7 @@ import (
 	"time"
 
 	oidc "github.com/coreos/go-oidc"
-	"github.com/dgrijalva/jwt-go/v4"
+	"github.com/golang-jwt/jwt/v4"
 	"github.com/google/uuid"
 	log "github.com/sirupsen/logrus"
 	"google.golang.org/grpc/codes"
@@ -112,7 +111,7 @@ func getLoginFailureWindow() time.Duration {
 }
 
 // NewSessionManager creates a new session manager from Argo CD settings
-func NewSessionManager(settingsMgr *settings.SettingsManager, projectsLister v1alpha1.AppProjectNamespaceLister, dexServerAddr string, storage UserStateStorage) *SessionManager {
+func NewSessionManager(settingsMgr *settings.SettingsManager, projectsLister v1alpha1.AppProjectNamespaceLister, dexServerAddr string, dexTlsConfig *dex.DexTLSConfig, storage UserStateStorage) *SessionManager {
 	s := SessionManager{
 		settingsMgr:                   settingsMgr,
 		storage:                       storage,
@@ -124,24 +123,27 @@ func NewSessionManager(settingsMgr *settings.SettingsManager, projectsLister v1a
 	if err != nil {
 		panic(err)
 	}
-	tlsConfig := settings.TLSConfig()
-	if tlsConfig != nil {
-		tlsConfig.InsecureSkipVerify = true
+
+	transport := &http.Transport{
+		Proxy: http.ProxyFromEnvironment,
+		Dial: (&net.Dialer{
+			Timeout:   30 * time.Second,
+			KeepAlive: 30 * time.Second,
+		}).Dial,
+		TLSHandshakeTimeout:   10 * time.Second,
+		ExpectContinueTimeout: 1 * time.Second,
 	}
+
 	s.client = &http.Client{
-		Transport: &http.Transport{
-			TLSClientConfig: tlsConfig,
-			Proxy:           http.ProxyFromEnvironment,
-			Dial: (&net.Dialer{
-				Timeout:   30 * time.Second,
-				KeepAlive: 30 * time.Second,
-			}).Dial,
-			TLSHandshakeTimeout:   10 * time.Second,
-			ExpectContinueTimeout: 1 * time.Second,
-		},
+		Transport: transport,
 	}
+
 	if settings.DexConfig != "" {
-		s.client.Transport = dex.NewDexRewriteURLRoundTripper(dexServerAddr, s.client.Transport)
+		transport.TLSClientConfig = dex.TLSConfig(dexTlsConfig)
+		addrWithProto := dex.DexServerAddressWithProtocol(dexServerAddr, dexTlsConfig)
+		s.client.Transport = dex.NewDexRewriteURLRoundTripper(addrWithProto, s.client.Transport)
+	} else {
+		transport.TLSClientConfig = settings.OIDCTLSConfig()
 	}
 	if os.Getenv(common.EnvVarSSODebug) == "1" {
 		s.client.Transport = httputil.DebugTransport{T: s.client.Transport}
@@ -157,63 +159,28 @@ func (mgr *SessionManager) Create(subject string, secondsBeforeExpiry int64, id 
 	// Create a new token object, specifying signing method and the claims
 	// you would like it to contain.
 	now := time.Now().UTC()
-	claims := jwt.StandardClaims{
-		IssuedAt:  jwt.At(now),
+	claims := jwt.RegisteredClaims{
+		IssuedAt:  jwt.NewNumericDate(now),
 		Issuer:    SessionManagerClaimsIssuer,
-		NotBefore: jwt.At(now),
+		NotBefore: jwt.NewNumericDate(now),
 		Subject:   subject,
 		ID:        id,
 	}
 	if secondsBeforeExpiry > 0 {
 		expires := now.Add(time.Duration(secondsBeforeExpiry) * time.Second)
-		claims.ExpiresAt = jwt.At(expires)
+		claims.ExpiresAt = jwt.NewNumericDate(expires)
 	}
 
 	return mgr.signClaims(claims)
 }
 
-type standardClaims struct {
-	Audience  jwt.ClaimStrings `json:"aud,omitempty"`
-	ExpiresAt int64            `json:"exp,omitempty"`
-	ID        string           `json:"jti,omitempty"`
-	IssuedAt  int64            `json:"iat,omitempty"`
-	Issuer    string           `json:"iss,omitempty"`
-	NotBefore int64            `json:"nbf,omitempty"`
-	Subject   string           `json:"sub,omitempty"`
-}
-
-func unixTimeOrZero(t *jwt.Time) int64 {
-	if t == nil {
-		return 0
-	}
-	return t.Unix()
-}
-
 func (mgr *SessionManager) signClaims(claims jwt.Claims) (string, error) {
-	// log.Infof("Issuing claims: %v", claims)
 	token := jwt.NewWithClaims(jwt.SigningMethodHS256, claims)
 	settings, err := mgr.settingsMgr.GetSettings()
 	if err != nil {
 		return "", err
 	}
-	// workaround for https://github.com/argoproj/argo-cd/issues/5217
-	// According to https://tools.ietf.org/html/rfc7519#section-4.1.6 "iat" and other time fields must contain
-	// number of seconds from 1970-01-01T00:00:00Z UTC until the specified UTC date/time.
-	// The https://github.com/dgrijalva/jwt-go marshals time as non integer.
-	return token.SignedString(settings.ServerSignature, jwt.WithMarshaller(func(ctx jwt.CodingContext, v interface{}) ([]byte, error) {
-		if std, ok := v.(jwt.StandardClaims); ok {
-			return json.Marshal(standardClaims{
-				Audience:  std.Audience,
-				ExpiresAt: unixTimeOrZero(std.ExpiresAt),
-				ID:        std.ID,
-				IssuedAt:  unixTimeOrZero(std.IssuedAt),
-				Issuer:    std.Issuer,
-				NotBefore: unixTimeOrZero(std.NotBefore),
-				Subject:   std.Subject,
-			})
-		}
-		return json.Marshal(v)
-	}))
+	return token.SignedString(settings.ServerSignature)
 }
 
 // GetSubjectAccountAndCapability analyzes Argo CD account token subject and extract account name
@@ -246,7 +213,7 @@ func (mgr *SessionManager) Parse(tokenString string) (jwt.Claims, string, error)
 	token, err := jwt.ParseWithClaims(tokenString, &claims, func(token *jwt.Token) (interface{}, error) {
 		// Don't forget to validate the alg is what you expect:
 		if _, ok := token.Method.(*jwt.SigningMethodHMAC); !ok {
-			return nil, fmt.Errorf("Unexpected signing method: %v", token.Header["alg"])
+			return nil, fmt.Errorf("unexpected signing method: %v", token.Header["alg"])
 		}
 		return argoCDSettings.ServerSignature, nil
 	})
@@ -298,7 +265,7 @@ func (mgr *SessionManager) Parse(tokenString string) (jwt.Claims, string, error)
 	}
 
 	if account.PasswordMtime != nil && issuedAt.Before(*account.PasswordMtime) {
-		return nil, "", fmt.Errorf("Account password has changed since token issued")
+		return nil, "", fmt.Errorf("account password has changed since token issued")
 	}
 
 	newToken := ""
@@ -499,10 +466,8 @@ func (mgr *SessionManager) VerifyUsernamePassword(username string, password stri
 // VerifyToken verifies if a token is correct. Tokens can be issued either from us or by an IDP.
 // We choose how to verify based on the issuer.
 func (mgr *SessionManager) VerifyToken(tokenString string) (jwt.Claims, string, error) {
-	parser := &jwt.Parser{
-		ValidationHelper: jwt.NewValidationHelper(jwt.WithoutClaimsValidation(), jwt.WithoutAudienceValidation()),
-	}
-	var claims jwt.StandardClaims
+	parser := jwt.NewParser(jwt.WithoutClaimsValidation())
+	var claims jwt.RegisteredClaims
 	_, _, err := parser.ParseUnverified(tokenString, &claims)
 	if err != nil {
 		return nil, "", err
@@ -515,7 +480,7 @@ func (mgr *SessionManager) VerifyToken(tokenString string) (jwt.Claims, string, 
 		// IDP signed token
 		prov, err := mgr.provider()
 		if err != nil {
-			return claims, "", err
+			return nil, "", err
 		}
 
 		// Token must be verified for at least one audience
@@ -527,16 +492,30 @@ func (mgr *SessionManager) VerifyToken(tokenString string) (jwt.Claims, string, 
 				break
 			}
 		}
+
+		// The token verification has failed. If the token has expired, we will
+		// return a dummy claims only containing a value for the issuer, so the
+		// UI can handle expired tokens appropriately.
 		if err != nil {
-			return claims, "", err
+			if strings.HasPrefix(err.Error(), "oidc: token is expired") {
+				claims = jwt.RegisteredClaims{
+					Issuer: "sso",
+				}
+				return claims, "", err
+			}
+			return nil, "", err
 		}
+
 		if idToken == nil {
-			return claims, "", fmt.Errorf("No audience found in the token")
+			return nil, "", fmt.Errorf("no audience found in the token")
 		}
 
 		var claims jwt.MapClaims
 		err = idToken.Claims(&claims)
-		return claims, "", err
+		if err != nil {
+			return nil, "", err
+		}
+		return claims, "", nil
 	}
 }
 

@@ -3,8 +3,8 @@ package db
 import (
 	"testing"
 
+	"context"
 	"github.com/stretchr/testify/assert"
-	"golang.org/x/net/context"
 	corev1 "k8s.io/api/core/v1"
 	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
 
@@ -278,4 +278,43 @@ func Test_CredsURLToSecretName(t *testing.T) {
 			t.Errorf("Expected secret name %q for repo %q; instead, got %q", v, k, sn)
 		}
 	}
+}
+
+func Test_GetProjectRepositories(t *testing.T) {
+	repoSecretWithProject := &corev1.Secret{
+		ObjectMeta: metav1.ObjectMeta{
+			Namespace: testNamespace,
+			Name:      "some-repo-secret",
+			Labels: map[string]string{
+				common.LabelKeySecretType: common.LabelValueSecretTypeRepository,
+			},
+		},
+		Data: map[string][]byte{
+			"type":    []byte("git"),
+			"url":     []byte("git@github.com:argoproj/argo-cd"),
+			"project": []byte("some-project"),
+		},
+	}
+
+	repoSecretWithoutProject := &corev1.Secret{
+		ObjectMeta: metav1.ObjectMeta{
+			Namespace: testNamespace,
+			Name:      "some-other-repo-secret",
+			Labels: map[string]string{
+				common.LabelKeySecretType: common.LabelValueSecretTypeRepository,
+			},
+		},
+		Data: map[string][]byte{
+			"type": []byte("git"),
+			"url":  []byte("git@github.com:argoproj/argo-cd"),
+		},
+	}
+
+	clientset := getClientset(map[string]string{}, repoSecretWithProject, repoSecretWithoutProject)
+	argoDB := NewDB(testNamespace, settings.NewSettingsManager(context.TODO(), clientset, testNamespace), clientset)
+
+	repos, err := argoDB.GetProjectRepositories(context.TODO(), "some-project")
+	assert.NoError(t, err)
+	assert.Len(t, repos, 1)
+	assert.Equal(t, "git@github.com:argoproj/argo-cd", repos[0].Repo)
 }

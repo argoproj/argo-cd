@@ -83,7 +83,13 @@ Private repositories that require an SSH private key have a URL that typically s
 
 > v1.2 or later
 
-You can configure your Git repository using HTTPS either using the CLI or the UI.
+You can configure your Git repository using SSH either using the CLI or the UI.
+
+!!! note
+    Argo CD 2.4 upgraded to OpenSSH 8.9. OpenSSH 8.8 
+    [dropped support for the `ssh-rsa` SHA-1 key signature algorithm](https://www.openssh.com/txt/release-8.8).
+    See the [2.3 to 2.4 upgrade guide](../operator-manual/upgrading/2.3-2.4.md) for details about testing SSH servers 
+    for compatibility with Argo CD and for working around servers that do not support newer algorithms.
 
 Using the CLI:
 
@@ -142,11 +148,11 @@ Using the UI:
 
 1. Navigate to `Settings/Repositories`
 
-   ![connect repo overview](../assets/repo-add-overview.png)
+    ![connect repo overview](../assets/repo-add-overview.png)
 
 1. Click `Connect Repo using GitHub App` button, enter the URL, App Id, Installation Id, and the app's private key.
 
-   ![connect repo](../assets/repo-add-github-app.png)
+    ![connect repo](../assets/repo-add-github-app.png)
 
 1. Click `Connect` to test the connection and have the repository added
 
@@ -398,5 +404,5 @@ Submodules are supported and will be picked up automatically. If the submodule r
 
 ## Declarative Configuration
 
-See [declarative setup](../../operator-manual/declarative-setup#Repositories)
+See [declarative setup](../../operator-manual/declarative-setup#repositories)
 

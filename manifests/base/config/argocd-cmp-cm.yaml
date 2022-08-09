@@ -1,7 +1,0 @@
-apiVersion: v1
-kind: ConfigMap
-metadata:
-  name: argocd-cmp-cm
-  labels:
-    app.kubernetes.io/name: argocd-cmp-cm
-    app.kubernetes.io/part-of: argocd
