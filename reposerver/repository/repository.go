@@ -752,8 +752,14 @@ func helmTemplate(appPath string, repoRoot string, env *v1alpha1.Env, q *apiclie
 		defer manifestGenerateLock.Unlock(appPath)
 	}
 
+	// We use the app name as Helm's release name property, which must not
+	// contain any underscore characters and must not exceed 53 characters.
+	// We are not interested in the fully qualified application name while
+	// templating, thus, we just use the name part of the identifier.
+	appName, _ := argo.ParseAppInstanceName(q.AppName, "")
+
 	templateOpts := &helm.TemplateOpts{
-		Name:        q.AppName,
+		Name:        appName,
 		Namespace:   q.Namespace,
 		KubeVersion: text.SemVer(q.KubeVersion),
 		APIVersions: q.ApiVersions,
