@@ -224,9 +224,10 @@ Security-related logs are tagged with a `security` field to make them easier to 
 | 4     | Critical       | Any malicious or exploitable event that had a side effect                                         | Secrets being left behind on the filesystem |
 | 5     | Emergency      | Unmistakably malicious events that should NEVER occur accidentally and indicates an active attack | Brute forcing of accounts                   |
 
-Where applicable, a `cwe` field is also added specifying the [Common Weakness Enumeration](https://cwe.mitre.org/index.html) number.
+Where applicable, a `CWE` field is also added specifying the [Common Weakness Enumeration](https://cwe.mitre.org/index.html) number.
 
-Please be aware that all security logs are not comprehensively tagged yet and these examples are not necessarily implemented.
+!!! warning
+    Please be aware that not all security logs are comprehensively tagged yet and these examples are not necessarily implemented.
 
 ### API Logs
 
