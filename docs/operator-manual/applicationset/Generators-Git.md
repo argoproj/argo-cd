@@ -45,7 +45,7 @@ spec:
       - path: applicationset/examples/git-generator-directory/cluster-addons/*
   template:
     metadata:
-      name: '{{path.segments[0]}}'
+      name: '{{path[0]}}'
     spec:
       project: "my-project"
       source:
