@@ -430,16 +430,28 @@ function getActionItems(
             action: () => appContext.apis.navigation.goto('.', {node: nodeKey(resource), tab: 'logs'}, {replace: true})
         });
     }
-    if (resource.kind === 'Pod') {
-        items.push({
-            title: 'Exec',
-            iconClassName: 'fa fa-terminal',
-            action: () => appContext.apis.navigation.goto('.', {node: nodeKey(resource), tab: 'exec'}, {replace: true})
-        });
-    }
+
     if (isQuickStart) {
         return from([items]);
     }
+
+    const execAction = services.authService
+        .settings()
+        .then(async settings => {
+            const execAllowed = await services.accounts.canI('exec', 'create', application.spec.project + '/' + application.metadata.name);
+            if (resource.kind === 'Pod' && settings.execEnabled && execAllowed) {
+                return items.concat([
+                    {
+                        title: 'Exec',
+                        iconClassName: 'fa fa-terminal',
+                        action: async () => appContext.apis.navigation.goto('.', {node: nodeKey(resource), tab: 'exec'}, {replace: true})
+                    }
+                ]);
+            }
+            return items;
+        })
+        .catch(() => items);
+
     const resourceActions = services.applications
         .getResourceActions(application.metadata.name, resource)
         .then(actions => {
@@ -464,7 +476,7 @@ function getActionItems(
             );
         })
         .catch(() => items);
-    menuItems = merge(from([items]), from(resourceActions));
+    menuItems = merge(from([items]), from(resourceActions), from(execAction));
     return menuItems;
 }
 
@@ -1059,9 +1071,12 @@ export function parseApiVersion(apiVersion: string): {group: string; version: st
     return {version: parts[0], group: ''};
 }
 
-export function getContainerName(pod: any, containerIndex: number): string {
+export function getContainerName(pod: any, containerIndex: number | null): string {
+    if (containerIndex == null && pod.metadata?.annotations?.['kubectl.kubernetes.io/default-container']) {
+        return pod.metadata?.annotations?.['kubectl.kubernetes.io/default-container'];
+    }
     const containers = (pod.spec.containers || []).concat(pod.spec.initContainers || []);
-    const container = containers[containerIndex];
+    const container = containers[containerIndex || 0];
     return container.name;
 }
 

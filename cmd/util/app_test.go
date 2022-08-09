@@ -1,7 +1,6 @@
 package util
 
 import (
-	"io/ioutil"
 	"os"
 	"testing"
 
@@ -254,7 +253,7 @@ spec:
         - values.yaml`
 
 func TestReadAppsFromURI(t *testing.T) {
-	file, err := ioutil.TempFile(os.TempDir(), "")
+	file, err := os.CreateTemp(os.TempDir(), "")
 	if err != nil {
 		panic(err)
 	}
@@ -276,7 +275,7 @@ func TestReadAppsFromURI(t *testing.T) {
 }
 
 func TestConstructAppFromStdin(t *testing.T) {
-	file, err := ioutil.TempFile(os.TempDir(), "")
+	file, err := os.CreateTemp(os.TempDir(), "")
 	if err != nil {
 		panic(err)
 	}

@@ -179,6 +179,7 @@ Currently, the following organizations are **officially** using Argo CD:
 1. [TableCheck](https://tablecheck.com/)
 1. [Tailor Brands](https://www.tailorbrands.com)
 1. [Tamkeen Technologies](https://tamkeentech.sa/)
+1. [Techcombank](https://www.techcombank.com.vn/trang-chu)
 1. [Technacy](https://www.technacy.it/)
 1. [Tesla](https://tesla.com/)
 1. [ThousandEyes](https://www.thousandeyes.com/)
@@ -217,3 +218,5 @@ Currently, the following organizations are **officially** using Argo CD:
 1. [RapidAPI](https://www.rapidapi.com/)
 1. [Pismo](https://pismo.io/)
 1. [South China Morning Post (SCMP)](https://www.scmp.com/)
+1. [Lian Chu Securities](https://lczq.com)
+1. [gloat](https://gloat.com/)
