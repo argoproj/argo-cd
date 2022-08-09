@@ -1103,6 +1103,22 @@ func TestMergeWitoutUpdate(t *testing.T) {
 }
 
 func TestCheckResourceStatus(t *testing.T) {
+	t.Run("Degraded, Suspended and health status passed", func(t *testing.T) {
+		res := checkResourceStatus(watchOpts{
+			suspended: true,
+			health:    true,
+			degraded:  true,
+		}, string(health.HealthStatusHealthy), string(v1alpha1.SyncStatusCodeSynced), &v1alpha1.Operation{})
+		assert.True(t, res)
+	})
+	t.Run("Degraded, Suspended and health status failed", func(t *testing.T) {
+		res := checkResourceStatus(watchOpts{
+			suspended: true,
+			health:    true,
+			degraded:  true,
+		}, string(health.HealthStatusProgressing), string(v1alpha1.SyncStatusCodeSynced), &v1alpha1.Operation{})
+		assert.False(t, res)
+	})
 	t.Run("Suspended and health status passed", func(t *testing.T) {
 		res := checkResourceStatus(watchOpts{
 			suspended: true,
@@ -1152,6 +1168,22 @@ func TestCheckResourceStatus(t *testing.T) {
 	t.Run("Synced failed", func(t *testing.T) {
 		res := checkResourceStatus(watchOpts{}, string(health.HealthStatusProgressing), string(v1alpha1.SyncStatusCodeOutOfSync), &v1alpha1.Operation{})
 		assert.True(t, res)
+	})
+	t.Run("Degraded passed", func(t *testing.T) {
+		res := checkResourceStatus(watchOpts{
+			suspended: false,
+			health:    false,
+			degraded:  true,
+		}, string(health.HealthStatusDegraded), string(v1alpha1.SyncStatusCodeSynced), &v1alpha1.Operation{})
+		assert.True(t, res)
+	})
+	t.Run("Degraded failed", func(t *testing.T) {
+		res := checkResourceStatus(watchOpts{
+			suspended: false,
+			health:    false,
+			degraded:  true,
+		}, string(health.HealthStatusProgressing), string(v1alpha1.SyncStatusCodeSynced), &v1alpha1.Operation{})
+		assert.False(t, res)
 	})
 }
 

@@ -3,7 +3,7 @@ package util
 import (
 	"bufio"
 	"fmt"
-	"io/ioutil"
+	"io"
 	"net/url"
 	"os"
 	"strings"
@@ -160,7 +160,7 @@ func SetAppSpecOptions(flags *pflag.FlagSet, spec *argoappv1.ApplicationSpec, ap
 			// read uri
 			parsedURL, err := url.ParseRequestURI(appOpts.values)
 			if err != nil || !(parsedURL.Scheme == "http" || parsedURL.Scheme == "https") {
-				data, err = ioutil.ReadFile(appOpts.values)
+				data, err = os.ReadFile(appOpts.values)
 			} else {
 				data, err = config.ReadRemoteFile(appOpts.values)
 			}
@@ -521,7 +521,7 @@ func readApps(yml []byte, apps *[]*argoappv1.Application) error {
 
 func readAppsFromStdin(apps *[]*argoappv1.Application) error {
 	reader := bufio.NewReader(os.Stdin)
-	data, err := ioutil.ReadAll(reader)
+	data, err := io.ReadAll(reader)
 	if err != nil {
 		return err
 	}
@@ -537,7 +537,7 @@ func readAppsFromURI(fileURL string, apps *[]*argoappv1.Application) error {
 	readFilePayload := func() ([]byte, error) {
 		parsedURL, err := url.ParseRequestURI(fileURL)
 		if err != nil || !(parsedURL.Scheme == "http" || parsedURL.Scheme == "https") {
-			return ioutil.ReadFile(fileURL)
+			return os.ReadFile(fileURL)
 		}
 		return config.ReadRemoteFile(fileURL)
 	}

@@ -2,7 +2,6 @@ package controller
 
 import (
 	"encoding/json"
-	"io/ioutil"
 	"os"
 	"testing"
 	"time"
@@ -482,7 +481,7 @@ func Test_appStateManager_persistRevisionHistory(t *testing.T) {
 // helper function to read contents of a file to string
 // panics on error
 func mustReadFile(path string) string {
-	b, err := ioutil.ReadFile(path)
+	b, err := os.ReadFile(path)
 	if err != nil {
 		panic(err.Error())
 	}

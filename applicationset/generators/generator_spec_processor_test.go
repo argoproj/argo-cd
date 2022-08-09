@@ -4,14 +4,13 @@ import (
 	"context"
 	"testing"
 
+	log "github.com/sirupsen/logrus"
 	"github.com/stretchr/testify/assert"
 	apiextensionsv1 "k8s.io/apiextensions-apiserver/pkg/apis/apiextensions/v1"
 	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
 
 	argov1alpha1 "github.com/argoproj/argo-cd/v2/pkg/apis/application/v1alpha1"
-	"github.com/argoproj/argo-cd/v2/pkg/apis/applicationset/v1alpha1"
 
-	log "github.com/sirupsen/logrus"
 	"github.com/stretchr/testify/mock"
 	corev1 "k8s.io/api/core/v1"
 	"k8s.io/apimachinery/pkg/runtime"
@@ -27,19 +26,19 @@ func TestMatchValues(t *testing.T) {
 		name     string
 		elements []apiextensionsv1.JSON
 		selector *metav1.LabelSelector
-		expected []map[string]string
+		expected []map[string]interface{}
 	}{
 		{
 			name:     "no filter",
 			elements: []apiextensionsv1.JSON{{Raw: []byte(`{"cluster": "cluster","url": "url"}`)}},
 			selector: &metav1.LabelSelector{},
-			expected: []map[string]string{{"cluster": "cluster", "url": "url"}},
+			expected: []map[string]interface{}{{"cluster": "cluster", "url": "url"}},
 		},
 		{
 			name:     "nil",
 			elements: []apiextensionsv1.JSON{{Raw: []byte(`{"cluster": "cluster","url": "url"}`)}},
 			selector: nil,
-			expected: []map[string]string{{"cluster": "cluster", "url": "url"}},
+			expected: []map[string]interface{}{{"cluster": "cluster", "url": "url"}},
 		},
 		{
 			name:     "values.foo should be foo but is ignore element",
@@ -49,7 +48,7 @@ func TestMatchValues(t *testing.T) {
 					"values.foo": "foo",
 				},
 			},
-			expected: []map[string]string{},
+			expected: []map[string]interface{}{},
 		},
 		{
 			name:     "values.foo should be bar",
@@ -59,7 +58,7 @@ func TestMatchValues(t *testing.T) {
 					"values.foo": "bar",
 				},
 			},
-			expected: []map[string]string{{"cluster": "cluster", "url": "url", "values.foo": "bar"}},
+			expected: []map[string]interface{}{{"cluster": "cluster", "url": "url", "values.foo": "bar"}},
 		},
 	}
 
@@ -70,15 +69,22 @@ func TestMatchValues(t *testing.T) {
 				"List": listGenerator,
 			}
 
+			applicationSetInfo := argoprojiov1alpha1.ApplicationSet{
+				ObjectMeta: metav1.ObjectMeta{
+					Name: "set",
+				},
+				Spec: argoprojiov1alpha1.ApplicationSetSpec{},
+			}
+
 			results, err := Transform(argoprojiov1alpha1.ApplicationSetGenerator{
 				Selector: testCase.selector,
-				List: &v1alpha1.ListGenerator{
+				List: &argoprojiov1alpha1.ListGenerator{
 					Elements: testCase.elements,
 					Template: emptyTemplate(),
 				}},
 				data,
 				emptyTemplate(),
-				nil, nil)
+				&applicationSetInfo, nil)
 
 			assert.NoError(t, err)
 			assert.ElementsMatch(t, testCase.expected, results[0].Params)
@@ -86,8 +92,8 @@ func TestMatchValues(t *testing.T) {
 	}
 }
 
-func emptyTemplate() v1alpha1.ApplicationSetTemplate {
-	return v1alpha1.ApplicationSetTemplate{
+func emptyTemplate() argoprojiov1alpha1.ApplicationSetTemplate {
+	return argoprojiov1alpha1.ApplicationSetTemplate{
 		Spec: argov1alpha1.ApplicationSpec{
 			Project: "project",
 		},
@@ -219,10 +225,14 @@ func TestInterpolateGenerator(t *testing.T) {
 				}},
 		},
 	}
-	gitGeneratorParams := map[string]string{
-		"path": "p1/p2/app3", "path.basename": "app3", "path[0]": "p1", "path[1]": "p2", "path.basenameNormalized": "app3",
+	gitGeneratorParams := map[string]interface{}{
+		"path":                    "p1/p2/app3",
+		"path.basename":           "app3",
+		"path[0]":                 "p1",
+		"path[1]":                 "p2",
+		"path.basenameNormalized": "app3",
 	}
-	interpolatedGenerator, err := interpolateGenerator(requestedGenerator, gitGeneratorParams)
+	interpolatedGenerator, err := interpolateGenerator(requestedGenerator, gitGeneratorParams, false)
 	if err != nil {
 		log.WithError(err).WithField("requestedGenerator", requestedGenerator).Error("error interpolating Generator")
 		return
@@ -244,10 +254,10 @@ func TestInterpolateGenerator(t *testing.T) {
 			Template: argoprojiov1alpha1.ApplicationSetTemplate{},
 		},
 	}
-	clusterGeneratorParams := map[string]string{
+	clusterGeneratorParams := map[string]interface{}{
 		"name": "production_01/west", "server": "https://production-01.example.com",
 	}
-	interpolatedGenerator, err = interpolateGenerator(requestedGenerator, clusterGeneratorParams)
+	interpolatedGenerator, err = interpolateGenerator(requestedGenerator, clusterGeneratorParams, true)
 	if err != nil {
 		log.WithError(err).WithField("requestedGenerator", requestedGenerator).Error("error interpolating Generator")
 		return

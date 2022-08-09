@@ -8,7 +8,6 @@ import (
 	"fmt"
 	goio "io"
 	"io/fs"
-	"io/ioutil"
 	"net/url"
 	"os"
 	"os/exec"
@@ -143,9 +142,9 @@ func (s *Service) Init() error {
 		// give itself read permissions to list previously written directories
 		err = os.Chmod(s.rootDir, 0700)
 	}
-	var files []fs.FileInfo
+	var files []fs.DirEntry
 	if err == nil {
-		files, err = ioutil.ReadDir(s.rootDir)
+		files, err = os.ReadDir(s.rootDir)
 	}
 	if err != nil {
 		log.Warnf("Failed to restore cloned repositories paths: %v", err)
@@ -674,7 +673,7 @@ type repositories struct {
 
 func getHelmDependencyRepos(appPath string) ([]*v1alpha1.Repository, error) {
 	repos := make([]*v1alpha1.Repository, 0)
-	f, err := ioutil.ReadFile(filepath.Join(appPath, "Chart.yaml"))
+	f, err := os.ReadFile(filepath.Join(appPath, "Chart.yaml"))
 	if err != nil {
 		return nil, err
 	}
@@ -743,7 +742,7 @@ func runHelmBuild(appPath string, h helm.Helm) error {
 	if err != nil {
 		return err
 	}
-	return ioutil.WriteFile(markerFile, []byte("marker"), 0644)
+	return os.WriteFile(markerFile, []byte("marker"), 0644)
 }
 
 func helmTemplate(appPath string, repoRoot string, env *v1alpha1.Env, q *apiclient.ManifestRequest, isLocal bool) ([]*unstructured.Unstructured, error) {
@@ -777,7 +776,7 @@ func helmTemplate(appPath string, repoRoot string, env *v1alpha1.Env, q *apiclie
 		for _, val := range appHelm.ValueFiles {
 
 			// This will resolve val to an absolute path (or an URL)
-			path, isRemote, err := pathutil.ResolveFilePath(appPath, repoRoot, val, q.GetValuesFileSchemes())
+			path, isRemote, err := pathutil.ResolveFilePath(appPath, repoRoot, env.Envsubst(val), q.GetValuesFileSchemes())
 			if err != nil {
 				return nil, err
 			}
@@ -802,7 +801,7 @@ func helmTemplate(appPath string, repoRoot string, env *v1alpha1.Env, q *apiclie
 			}
 			p := path.Join(os.TempDir(), rand.String())
 			defer func() { _ = os.RemoveAll(p) }()
-			err = ioutil.WriteFile(p, []byte(appHelm.Values), 0644)
+			err = os.WriteFile(p, []byte(appHelm.Values), 0644)
 			if err != nil {
 				return nil, err
 			}
@@ -1074,7 +1073,7 @@ func mergeSourceParameters(source *v1alpha1.ApplicationSource, path, appName str
 		if err != nil {
 			return fmt.Errorf("%s: %v", filename, err)
 		}
-		patch, err := ioutil.ReadFile(filename)
+		patch, err := os.ReadFile(filename)
 		if err != nil {
 			return fmt.Errorf("%s: %v", filename, err)
 		}
@@ -1698,7 +1697,7 @@ func loadFileIntoIfExists(path pathutil.ResolvedFilePath, destination *string) e
 	info, err := os.Stat(stringPath)
 
 	if err == nil && !info.IsDir() {
-		bytes, err := ioutil.ReadFile(stringPath)
+		bytes, err := os.ReadFile(stringPath)
 		if err != nil {
 			return err
 		}
@@ -1711,7 +1710,7 @@ func loadFileIntoIfExists(path pathutil.ResolvedFilePath, destination *string) e
 func findHelmValueFilesInPath(path string) ([]string, error) {
 	var result []string
 
-	files, err := ioutil.ReadDir(path)
+	files, err := os.ReadDir(path)
 	if err != nil {
 		return result, err
 	}

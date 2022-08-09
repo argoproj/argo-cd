@@ -50,6 +50,7 @@ export const ResourceDetails = (props: ResourceDetailsProps) => {
         extensionTabs: ResourceTabExtension[],
         tabs: Tab[],
         execEnabled: boolean,
+        execAllowed: boolean,
         logsAllowed: boolean
     ) => {
         if (!node || node === undefined) {
@@ -114,7 +115,7 @@ export const ResourceDetails = (props: ResourceDetailsProps) => {
                     }
                 ]);
             }
-            if (execEnabled) {
+            if (execEnabled && execAllowed) {
                 tabs = tabs.concat([
                     {
                         key: 'exec',
@@ -271,7 +272,8 @@ export const ResourceDetails = (props: ResourceDetailsProps) => {
                         const settings = await services.authService.settings();
                         const execEnabled = settings.execEnabled;
                         const logsAllowed = await services.accounts.canI('logs', 'get', application.spec.project + '/' + application.metadata.name);
-                        return {controlledState, liveState, events, podState, execEnabled, logsAllowed};
+                        const execAllowed = await services.accounts.canI('exec', 'create', application.spec.project + '/' + application.metadata.name);
+                        return {controlledState, liveState, events, podState, execEnabled, execAllowed, logsAllowed};
                     }}>
                     {data => (
                         <React.Fragment>
@@ -316,6 +318,7 @@ export const ResourceDetails = (props: ResourceDetailsProps) => {
                                         }
                                     ],
                                     data.execEnabled,
+                                    data.execAllowed,
                                     data.logsAllowed
                                 )}
                                 selectedTabKey={props.tab}
