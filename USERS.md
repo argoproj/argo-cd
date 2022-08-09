@@ -219,4 +219,4 @@ Currently, the following organizations are **officially** using Argo CD:
 1. [Pismo](https://pismo.io/)
 1. [South China Morning Post (SCMP)](https://www.scmp.com/)
 1. [Lian Chu Securities](https://lczq.com)
-1. [gloat](https://https://gloat.com/)
+1. [gloat](https://gloat.com/)
