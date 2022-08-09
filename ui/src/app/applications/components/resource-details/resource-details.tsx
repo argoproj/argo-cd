@@ -1,5 +1,6 @@
 import {DataLoader, Tab, Tabs} from 'argo-ui';
 import * as React from 'react';
+import {useState} from 'react';
 import {EventsList, YamlEditor} from '../../../shared/components';
 import * as models from '../../../shared/models';
 import {ErrorBoundary} from '../../../shared/components/error-boundary/error-boundary';
@@ -34,6 +35,7 @@ interface ResourceDetailsProps {
 
 export const ResourceDetails = (props: ResourceDetailsProps) => {
     const {selectedNode, updateApp, application, isAppSelected, tree} = {...props};
+    const [activeContainer, setActiveContainer] = useState();
     const appContext = React.useContext(Context);
     const tab = new URLSearchParams(appContext.history.location.search).get('tab');
     const selectedNodeInfo = NodeInfo(new URLSearchParams(appContext.history.location.search).get('node'));
@@ -86,7 +88,10 @@ export const ResourceDetails = (props: ResourceDetailsProps) => {
                 });
             }
 
-            const onClickContainer = (group: any, i: number) => SelectNode(selectedNodeKey, group.offset + i, 'logs', appContext);
+            const onClickContainer = (group: any, i: number, activeTab: string) => {
+                setActiveContainer(group.offset + i);
+                SelectNode(selectedNodeKey, activeContainer, activeTab, appContext);
+            };
 
             if (logsAllowed) {
                 tabs = tabs.concat([
@@ -104,7 +109,7 @@ export const ResourceDetails = (props: ResourceDetailsProps) => {
                                     namespace={podState.metadata.namespace}
                                     applicationName={application.metadata.name}
                                     applicationNamespace={application.metadata.namespace}
-                                    containerName={AppUtils.getContainerName(podState, selectedNodeInfo.container)}
+                                    containerName={AppUtils.getContainerName(podState, activeContainer)}
                                     page={{number: page, untilTimes}}
                                     setPage={pageData => appContext.navigation.goto('.', {page: pageData.number, untilTimes: pageData.untilTimes.join(',')})}
                                     containerGroups={containerGroups}
@@ -122,7 +127,14 @@ export const ResourceDetails = (props: ResourceDetailsProps) => {
                         icon: 'fa fa-terminal',
                         title: 'Terminal',
                         content: (
-                            <PodTerminalViewer applicationName={application.metadata.name} projectName={application.spec.project} podState={podState} selectedNode={selectedNode} />
+                            <PodTerminalViewer
+                                applicationName={application.metadata.name}
+                                projectName={application.spec.project}
+                                podState={podState}
+                                selectedNode={selectedNode}
+                                containerName={AppUtils.getContainerName(podState, activeContainer)}
+                                onClickContainer={onClickContainer}
+                            />
                         )
                     }
                 ]);

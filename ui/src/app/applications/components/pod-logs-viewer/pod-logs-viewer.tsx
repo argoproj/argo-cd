@@ -26,11 +26,12 @@ export interface PodLogsProps {
     timestamp?: string;
     setPage: (pageData: {number: number; untilTimes: string[]}) => void;
     containerGroups?: any[];
-    onClickContainer?: (group: any, i: number) => any;
+    onClickContainer?: (group: any, i: number, tab: string) => any;
 }
 
 export const PodsLogsViewer = (props: PodLogsProps & {fullscreen?: boolean}) => {
-    if (!props.containerName || props.containerName === '') {
+    const {containerName, onClickContainer} = props;
+    if (!containerName || containerName === '') {
         return <div>Pod does not have container with name {props.containerName}</div>;
     }
 
@@ -56,7 +57,7 @@ export const PodsLogsViewer = (props: PodLogsProps & {fullscreen?: boolean}) => 
             group.containers.forEach((container: any, index: number) => {
                 const title = (
                     <div className='d-inline-block'>
-                        <i className={`fa fa-angle-right ${container.name === props.containerName ? '' : 'invisible'}`} />
+                        {container.name === containerName && <i className='fa fa-angle-right' />}
                         <span title={container.name} className='container-item'>
                             {container.name.toUpperCase()}
                         </span>
@@ -64,7 +65,7 @@ export const PodsLogsViewer = (props: PodLogsProps & {fullscreen?: boolean}) => 
                 );
                 containerItems.push({
                     title,
-                    action: () => (container.name === props.containerName ? {} : props.onClickContainer(group, index))
+                    action: () => (container.name === containerName ? {} : onClickContainer(group, index, 'logs'))
                 });
             });
         });
