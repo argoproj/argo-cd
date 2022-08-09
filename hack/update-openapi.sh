@@ -10,6 +10,13 @@ PATH="${PROJECT_ROOT}/dist:${PATH}"
 VERSION="v1alpha1"
 
 [ -e ./v2 ] || ln -s . v2
+controller-gen \
+  object:headerFile=${PROJECT_ROOT}/hack/boilerplate.go.txt \
+  paths=github.com/argoproj/argo-cd/v2/pkg/apis/applicationset/${VERSION} \
+  $@
+[ -e ./v2 ] && rm -rf v2
+ 
+[ -e ./v2 ] || ln -s . v2
 openapi-gen \
   --go-header-file ${PROJECT_ROOT}/hack/custom-boilerplate.go.txt \
   --input-dirs github.com/argoproj/argo-cd/v2/pkg/apis/application/${VERSION} \
@@ -18,6 +25,7 @@ openapi-gen \
   $@
 [ -e ./v2 ] && rm -rf v2
 
-export GO111MODULE=off
+export GO111MODULE=on
 go build -o ./dist/gen-crd-spec ${PROJECT_ROOT}/hack/gen-crd-spec
 ./dist/gen-crd-spec
+

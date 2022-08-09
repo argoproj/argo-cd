@@ -63,7 +63,7 @@ performance. For performance reasons controller monitors and caches only preferr
 preferred version into a version of the resource stored in Git. If `kubectl convert` fails because conversion is not supported then controller falls back to Kubernetes API query which slows down
 reconciliation. In this case advice user-preferred resource version in Git.
 
-* The controller polls Git every 3m by default. You can increase this duration using `timeout.reconciliation` setting in the `argocd-cm` ConfigMap.
+* The controller polls Git every 3m by default. You can increase this duration using `timeout.reconciliation` setting in the `argocd-cm` ConfigMap. The value of `timeout.reconciliation` is a duration string e.g `60s`, `1m`, `1h` or `1d`.
 
 * If the controller is managing too many clusters and uses too much memory then you can shard clusters across multiple
 controller replicas. To enable sharding increase the number of replicas in `argocd-application-controller` `StatefulSet`
@@ -121,7 +121,7 @@ If the manifest generation has no side effects then requests are processed in pa
 
   * **Multiple Custom plugin based applications:** avoid creating temporal files during manifest generation and create `.argocd-allow-concurrency` file in app directory.
 
-  * **Multiple Kustomize or Ksonnet applications in same repository with [parameter overrides](../user-guide/parameters.md):** sorry, no workaround for now.
+  * **Multiple Kustomize applications in same repository with [parameter overrides](../user-guide/parameters.md):** sorry, no workaround for now.
 
 
 ### Webhook and Manifest Paths Annotation
@@ -138,6 +138,7 @@ Installations that use a different repo for each app are **not** subject to this
 !!! note
     Application manifest paths annotation support depends on the git provider used for the Application. It is currently only supported for GitHub, GitLab, and Gogs based repos
 I'm using `.Second()` modifier to avoid distracting users who already rely on `--app-resync` flag.
+
 * **Relative path** The annotation might contains relative path. In this case the path is considered relative to the path specified in the application source:
 
 ```yaml

@@ -281,3 +281,16 @@ patchesJson6902:
     name: argocd-redis-ha-haproxy
   path: overlays/haproxy-service-selector.yaml
 
+# add container-level security contexts
+- target:
+    group: apps
+    version: v1
+    kind: Deployment
+    name: argocd-redis-ha-haproxy
+  path: overlays/deployment-containers-securityContext.yaml
+- target:
+    group: apps
+    version: v1
+    kind: StatefulSet
+    name: argocd-redis-ha-server
+  path: overlays/statefulset-containers-securityContext.yaml

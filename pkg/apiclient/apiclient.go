@@ -7,7 +7,6 @@ import (
 	"errors"
 	"fmt"
 	"io"
-	"io/ioutil"
 	"math"
 	"net"
 	"net/http"
@@ -230,7 +229,7 @@ func NewClient(opts *ClientOptions) (Client, error) {
 	}
 	// Override certificate data if specified from CLI flag
 	if opts.CertFile != "" {
-		b, err := ioutil.ReadFile(opts.CertFile)
+		b, err := os.ReadFile(opts.CertFile)
 		if err != nil {
 			return nil, err
 		}
@@ -772,7 +771,7 @@ func (c *client) WatchApplicationWithRetry(ctx context.Context, appName string, 
 			conn, appIf, err := c.NewApplicationClient()
 			if err == nil {
 				var wc applicationpkg.ApplicationService_WatchClient
-				wc, err = appIf.Watch(ctx, &applicationpkg.ApplicationQuery{Name: &appName, ResourceVersion: revision})
+				wc, err = appIf.Watch(ctx, &applicationpkg.ApplicationQuery{Name: &appName, ResourceVersion: &revision})
 				if err == nil {
 					for {
 						var appEvent *v1alpha1.ApplicationWatchEvent
@@ -815,11 +814,12 @@ func isCanceledContextErr(err error) bool {
 func parseHeaders(headerStrings []string) (http.Header, error) {
 	headers := http.Header{}
 	for _, kv := range headerStrings {
-		items := strings.Split(kv, ":")
-		if len(items)%2 == 1 {
+		i := strings.IndexByte(kv, ':')
+		// zero means meaningless empty header name
+		if i <= 0 {
 			return nil, fmt.Errorf("additional headers must be colon(:)-separated: %s", kv)
 		}
-		headers.Add(items[0], items[1])
+		headers.Add(kv[0:i], kv[i+1:])
 	}
 	return headers, nil
 }

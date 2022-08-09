@@ -26,7 +26,7 @@ func TestCustomToolWithGitCreds(t *testing.T) {
 				Name: Name(),
 				Generate: Command{
 					Command: []string{"sh", "-c"},
-					Args:    []string{`echo "{\"kind\": \"ConfigMap\", \"apiVersion\": \"v1\", \"metadata\": { \"name\": \"$ARGOCD_APP_NAME\", \"namespace\": \"$ARGOCD_APP_NAMESPACE\", \"annotations\": {\"GitAskpass\": \"$GIT_ASKPASS\", \"GitUsername\": \"$GIT_USERNAME\", \"GitPassword\": \"$GIT_PASSWORD\"}}}"`},
+					Args:    []string{`echo "{\"kind\": \"ConfigMap\", \"apiVersion\": \"v1\", \"metadata\": { \"name\": \"$ARGOCD_APP_NAME\", \"namespace\": \"$ARGOCD_APP_NAMESPACE\", \"annotations\": {\"GitAskpass\": \"$GIT_ASKPASS\"}}}"`},
 				},
 			},
 		).
@@ -45,17 +45,7 @@ func TestCustomToolWithGitCreds(t *testing.T) {
 		And(func(app *Application) {
 			output, err := Run("", "kubectl", "-n", DeploymentNamespace(), "get", "cm", Name(), "-o", "jsonpath={.metadata.annotations.GitAskpass}")
 			assert.NoError(t, err)
-			assert.Equal(t, "git-ask-pass.sh", output)
-		}).
-		And(func(app *Application) {
-			output, err := Run("", "kubectl", "-n", DeploymentNamespace(), "get", "cm", Name(), "-o", "jsonpath={.metadata.annotations.GitUsername}")
-			assert.NoError(t, err)
-			assert.Equal(t, GitUsername, output)
-		}).
-		And(func(app *Application) {
-			output, err := Run("", "kubectl", "-n", DeploymentNamespace(), "get", "cm", Name(), "-o", "jsonpath={.metadata.annotations.GitPassword}")
-			assert.NoError(t, err)
-			assert.Equal(t, GitPassword, output)
+			assert.Equal(t, "argocd", output)
 		})
 }
 
@@ -89,17 +79,17 @@ func TestCustomToolWithGitCredsTemplate(t *testing.T) {
 		And(func(app *Application) {
 			output, err := Run("", "kubectl", "-n", DeploymentNamespace(), "get", "cm", Name(), "-o", "jsonpath={.metadata.annotations.GitAskpass}")
 			assert.NoError(t, err)
-			assert.Equal(t, "git-ask-pass.sh", output)
+			assert.Equal(t, "argocd", output)
 		}).
 		And(func(app *Application) {
 			output, err := Run("", "kubectl", "-n", DeploymentNamespace(), "get", "cm", Name(), "-o", "jsonpath={.metadata.annotations.GitUsername}")
 			assert.NoError(t, err)
-			assert.Equal(t, GitUsername, output)
+			assert.Empty(t, output)
 		}).
 		And(func(app *Application) {
 			output, err := Run("", "kubectl", "-n", DeploymentNamespace(), "get", "cm", Name(), "-o", "jsonpath={.metadata.annotations.GitPassword}")
 			assert.NoError(t, err)
-			assert.Equal(t, GitPassword, output)
+			assert.Empty(t, output)
 		})
 }
 
@@ -112,7 +102,7 @@ func TestCustomToolWithEnv(t *testing.T) {
 				Name: Name(),
 				Generate: Command{
 					Command: []string{"sh", "-c"},
-					Args:    []string{`echo "{\"kind\": \"ConfigMap\", \"apiVersion\": \"v1\", \"metadata\": { \"name\": \"$ARGOCD_APP_NAME\", \"namespace\": \"$ARGOCD_APP_NAMESPACE\", \"annotations\": {\"Foo\": \"$FOO\", \"KubeVersion\": \"$KUBE_VERSION\", \"KubeApiVersion\": \"$KUBE_API_VERSIONS\",\"Bar\": \"baz\"}}}"`},
+					Args:    []string{`echo "{\"kind\": \"ConfigMap\", \"apiVersion\": \"v1\", \"metadata\": { \"name\": \"$ARGOCD_APP_NAME\", \"namespace\": \"$ARGOCD_APP_NAMESPACE\", \"annotations\": {\"Foo\": \"$ARGOCD_ENV_FOO\", \"KubeVersion\": \"$KUBE_VERSION\", \"KubeApiVersion\": \"$KUBE_API_VERSIONS\",\"Bar\": \"baz\"}}}"`},
 				},
 			},
 		).
@@ -172,7 +162,7 @@ func TestCustomToolSyncAndDiffLocal(t *testing.T) {
 				Name: Name(),
 				Generate: Command{
 					Command: []string{"sh", "-c"},
-					Args:    []string{`echo "{\"kind\": \"ConfigMap\", \"apiVersion\": \"v1\", \"metadata\": { \"name\": \"$ARGOCD_APP_NAME\", \"namespace\": \"$ARGOCD_APP_NAMESPACE\", \"annotations\": {\"Foo\": \"$FOO\", \"KubeVersion\": \"$KUBE_VERSION\", \"KubeApiVersion\": \"$KUBE_API_VERSIONS\",\"Bar\": \"baz\"}}}"`},
+					Args:    []string{`echo "{\"kind\": \"ConfigMap\", \"apiVersion\": \"v1\", \"metadata\": { \"name\": \"$ARGOCD_APP_NAME\", \"namespace\": \"$ARGOCD_APP_NAMESPACE\", \"annotations\": {\"Foo\": \"$ARGOCD_ENV_FOO\", \"KubeVersion\": \"$KUBE_VERSION\", \"KubeApiVersion\": \"$KUBE_API_VERSIONS\",\"Bar\": \"baz\"}}}"`},
 				},
 			},
 		).
@@ -195,6 +185,7 @@ func TestCustomToolSyncAndDiffLocal(t *testing.T) {
 			FailOnErr(RunCli("app", "diff", app.Name, "--local", "testdata/guestbook"))
 		})
 }
+
 func startCMPServer(configFile string) {
 	pluginSockFilePath := TmpDir + PluginSockFilePath
 	os.Setenv("ARGOCD_BINARY_NAME", "argocd-cmp-server")
@@ -287,5 +278,28 @@ func TestCMPDiscoverWithFindCommandWithEnv(t *testing.T) {
 			sort.Strings(outputSlice)
 
 			assert.EqualValues(t, expectedApiVersionSlice, outputSlice)
+		})
+}
+
+func TestPruneResourceFromCMP(t *testing.T) {
+	Given(t).
+		And(func() {
+			go startCMPServer("./testdata/cmp-find-glob")
+			time.Sleep(1 * time.Second)
+			os.Setenv("ARGOCD_BINARY_NAME", "argocd")
+		}).
+		Path("guestbook").
+		When().
+		CreateApp().
+		Sync().
+		Then().
+		Expect(SyncStatusIs(SyncStatusCodeSynced)).
+		When().
+		Delete(true).
+		Then().
+		Expect(DoesNotExist()).
+		AndAction(func() {
+			_, err := Run("", "kubectl", "-n", DeploymentNamespace(), "get", "deployment", "guestbook-ui")
+			assert.Error(t, err)
 		})
 }

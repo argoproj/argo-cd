@@ -1,7 +1,7 @@
 package util
 
 import (
-	"io/ioutil"
+	"os"
 
 	"gopkg.in/yaml.v2"
 )
@@ -41,13 +41,12 @@ type GenerateOpts struct {
 	ClusterOpts     ClusterOpts     `yaml:"cluster"`
 	RepositoryOpts  RepositoryOpts  `yaml:"repository"`
 	ProjectOpts     ProjectOpts     `yaml:"project"`
-
-	GithubToken string
-	Namespace   string `yaml:"namespace"`
+	GithubToken     string
+	Namespace       string `yaml:"namespace"`
 }
 
 func Parse(opts *GenerateOpts, file string) error {
-	fp, err := ioutil.ReadFile(file)
+	fp, err := os.ReadFile(file)
 	if err != nil {
 		return err
 	}

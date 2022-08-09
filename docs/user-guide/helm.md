@@ -46,7 +46,7 @@ a `values.yaml`. For example, `service.type` is a common parameter which is expo
 helm template . --set service.type=LoadBalancer
 ```
 
-Similarly, Argo CD can override values in the `values.yaml` parameters using `argo app set` command,
+Similarly, Argo CD can override values in the `values.yaml` parameters using `argocd app set` command,
 in the form of `-p PARAM=VALUE`. For example:
 
 ```bash
@@ -133,7 +133,8 @@ The Argo CD application controller periodically compares Git state against the l
 the `helm template <CHART>` command to generate the helm manifests. Because the random value is
 regenerated every time the comparison is made, any application which makes use of the `randAlphaNum`
 function will always be in an `OutOfSync` state. This can be mitigated by explicitly setting a
-value, in the values.yaml such that the value is stable between each comparison. For example:
+value in the values.yaml or using `argocd app set` command to overide the value such that the value
+is stable between each comparison. For example:
 
 ```bash
 argocd app set redis -p password=abc123
@@ -161,6 +162,17 @@ Or via declarative syntax:
         parameters:
         - name: app
           value: $ARGOCD_APP_NAME
+```
+
+It's also possible to use build environment variables for the Helm values file path:
+
+```yaml
+  spec:
+    source:
+      helm:
+        valueFiles:
+        - values.yaml
+        - myprotocol://somepath/$ARGOCD_APP_NAME/$ARGOCD_APP_REVISION
 ```
 
 ## Helm plugins
@@ -208,53 +220,37 @@ Some users find this pattern preferable to maintaining their own version of the 
 Below is an example of how to add Helm plugins when installing ArgoCD with the [official ArgoCD helm chart](https://github.com/argoproj/argo-helm/tree/master/charts/argo-cd):
 
 ```
-# helm-gcs plugin
 repoServer:
   volumes:
-    - name: helm
-      emptyDir: {}
     - name: gcloud
       secret:
         secretName: helm-credentials
   volumeMounts:
-    - mountPath: /helm
-      name: helm
     - mountPath: /gcloud
       name: gcloud
   env:
-    - name: HELM_DATA_HOME
-      value: /helm
-    - name: HELM_CACHE_HOME
-      value: /helm/cache
-    - name: HELM_CONFIG_HOME
-      value: /helm/config
     - name: HELM_PLUGINS
-      value: /helm/plugins/
+      value: /helm-working-dir/plugins/
     - name: GOOGLE_APPLICATION_CREDENTIALS
       value: /gcloud/key.json
   initContainers:
     - name: install-helm-plugins
-      image: alpine/helm:3.6.3
+      image: alpine/helm:3.8.0
       volumeMounts:
-        - mountPath: /helm
-          name: helm
+        - mountPath: /helm-working-dir
+          name: helm-working-dir
         - mountPath: /gcloud
           name: gcloud
       env:
-        - name: HELM_DATA_HOME
-          value: /helm
-        - name: HELM_CACHE_HOME
-          value: /helm/cache
-        - name: HELM_CONFIG_HOME
-          value: /helm/config
         - name: GOOGLE_APPLICATION_CREDENTIALS
           value: /gcloud/key.json
+        - name: HELM_PLUGINS
+          value: /helm-working-dir/plugins
       command: ["/bin/sh", "-c"]
       args:
         - apk --no-cache add curl;
           helm plugin install https://github.com/hayorov/helm-gcs.git;
-          helm repo add my-gcs-repo gs://my-private-helm-gcs-repository;
-          chmod -R 777 $HELM_DATA_HOME;
+          helm repo add my-private-gcs-repo gs://my-private-gcs-repo;
 ```
 
 ## Helm Version

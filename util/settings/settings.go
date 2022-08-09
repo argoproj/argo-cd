@@ -35,6 +35,7 @@ import (
 	"github.com/argoproj/argo-cd/v2/pkg/apis/application/v1alpha1"
 	"github.com/argoproj/argo-cd/v2/server/settings/oidc"
 	"github.com/argoproj/argo-cd/v2/util"
+	"github.com/argoproj/argo-cd/v2/util/crypto"
 	"github.com/argoproj/argo-cd/v2/util/kube"
 	"github.com/argoproj/argo-cd/v2/util/password"
 	tlsutil "github.com/argoproj/argo-cd/v2/util/tls"
@@ -47,6 +48,8 @@ type ArgoCDSettings struct {
 	URL string `json:"url,omitempty"`
 	// Indicates if status badge is enabled or not.
 	StatusBadgeEnabled bool `json:"statusBadgeEnable"`
+	// Indicates if status badge custom root URL should be used.
+	StatusBadgeRootUrl string `json:"statusBadgeRootUrl,omitempty"`
 	// DexConfig contains portions of a dex config yaml
 	DexConfig string `json:"dexConfig,omitempty"`
 	// OIDCConfigRAW holds OIDC configuration as a raw string
@@ -90,6 +93,21 @@ type ArgoCDSettings struct {
 	PasswordPattern string `json:"passwordPattern,omitempty"`
 	// BinaryUrls contains the URLs for downloading argocd binaries
 	BinaryUrls map[string]string `json:"binaryUrls,omitempty"`
+	// InClusterEnabled indicates whether to allow in-cluster server address
+	InClusterEnabled bool `json:"inClusterEnabled"`
+	// ServerRBACLogEnforceEnable temporary var indicates whether rbac will be enforced on logs
+	ServerRBACLogEnforceEnable bool `json:"serverRBACLogEnforceEnable"`
+	// ExecEnabled indicates whether the UI exec feature is enabled
+	ExecEnabled bool `json:"execEnabled"`
+	// ExecShells restricts which shells are allowed for `exec` and in which order they are tried
+	ExecShells []string `json:"execShells"`
+	// TrackingMethod defines the resource tracking method to be used
+	TrackingMethod string `json:"application.resourceTrackingMethod,omitempty"`
+	// OIDCTLSInsecureSkipVerify determines whether certificate verification is skipped when verifying tokens with the
+	// configured OIDC provider (either external or the bundled Dex instance). Setting this to `true` will cause JWT
+	// token verification to pass despite the OIDC provider having an invalid certificate. Only set to `true` if you
+	// understand the risks.
+	OIDCTLSInsecureSkipVerify bool `json:"oidcTLSInsecureSkipVerify"`
 }
 
 type GoogleAnalytics struct {
@@ -327,6 +345,8 @@ const (
 	settingsOIDCConfigKey = "oidc.config"
 	// statusBadgeEnabledKey holds the key which enables of disables status badge feature
 	statusBadgeEnabledKey = "statusbadge.enabled"
+	// statusBadgeRootUrlKey holds the key for the root badge URL override
+	statusBadgeRootUrlKey = "statusbadge.url"
 	// settingsWebhookGitHubSecret is the key for the GitHub shared webhook secret
 	settingsWebhookGitHubSecretKey = "webhook.github.secret"
 	// settingsWebhookGitLabSecret is the key for the GitLab shared webhook secret
@@ -357,7 +377,7 @@ const (
 	kustomizePathPrefixKey = "kustomize.path"
 	// anonymousUserEnabledKey is the key which enables or disables anonymous user
 	anonymousUserEnabledKey = "users.anonymous.enabled"
-	// anonymousUserEnabledKey is the key which specifies token expiration duration
+	// userSessionDurationKey is the key which specifies token expiration duration
 	userSessionDurationKey = "users.session.duration"
 	// diffOptions is the key where diff options are configured
 	resourceCompareOptionsKey = "resource.compareoptions"
@@ -387,6 +407,26 @@ const (
 	partOfArgoCDSelector = "app.kubernetes.io/part-of=argocd"
 	// settingsPasswordPatternKey is the key to configure user password regular expression
 	settingsPasswordPatternKey = "passwordPattern"
+	// inClusterEnabledKey is the key to configure whether to allow in-cluster server address
+	inClusterEnabledKey = "cluster.inClusterEnabled"
+	// settingsServerRBACLogEnforceEnable is a temp param, it exists in order to mitigate the breaking change introduced by RBAC enforcing on app pod logs
+	settingsServerRBACLogEnforceEnableKey = "server.rbac.log.enforce.enable"
+	// helmValuesFileSchemesKey is the key to configure the list of supported helm values file schemas
+	helmValuesFileSchemesKey = "helm.valuesFileSchemes"
+	// execEnabledKey is the key to configure whether the UI exec feature is enabled
+	execEnabledKey = "exec.enabled"
+	// execShellsKey is the key to configure which shells are allowed for `exec` and in what order they are tried
+	execShellsKey = "exec.shells"
+	// oidcTLSInsecureSkipVerifyKey is the key to configure whether TLS cert verification is skipped for OIDC connections
+	oidcTLSInsecureSkipVerifyKey = "oidc.tls.insecure.skip.verify"
+)
+
+var (
+	sourceTypeToEnableGenerationKey = map[v1alpha1.ApplicationSourceType]string{
+		v1alpha1.ApplicationSourceTypeKustomize: "kustomize.enable",
+		v1alpha1.ApplicationSourceTypeHelm:      "helm.enable",
+		v1alpha1.ApplicationSourceTypeDirectory: "jsonnet.enable",
+	}
 )
 
 // SettingsManager holds config info for a new manager with which to access Kubernetes ConfigMaps.
@@ -629,6 +669,19 @@ func (mgr *SettingsManager) GetPasswordPattern() (string, error) {
 	return label, nil
 }
 
+func (mgr *SettingsManager) GetServerRBACLogEnforceEnable() (bool, error) {
+	argoCDCM, err := mgr.getConfigMap()
+	if err != nil {
+		return false, err
+	}
+
+	if argoCDCM.Data[settingsServerRBACLogEnforceEnableKey] == "" {
+		return false, nil
+	}
+
+	return strconv.ParseBool(argoCDCM.Data[settingsServerRBACLogEnforceEnableKey])
+}
+
 func (mgr *SettingsManager) GetConfigManagementPlugins() ([]v1alpha1.ConfigManagementPlugin, error) {
 	argoCDCM, err := mgr.getConfigMap()
 	if err != nil {
@@ -642,6 +695,25 @@ func (mgr *SettingsManager) GetConfigManagementPlugins() ([]v1alpha1.ConfigManag
 		}
 	}
 	return plugins, nil
+}
+
+func (mgr *SettingsManager) GetEnabledSourceTypes() (map[string]bool, error) {
+	argoCDCM, err := mgr.getConfigMap()
+	if err != nil {
+		return nil, err
+	}
+	res := map[string]bool{}
+	for sourceType := range sourceTypeToEnableGenerationKey {
+		res[string(sourceType)] = true
+	}
+	for sourceType, key := range sourceTypeToEnableGenerationKey {
+		if val, ok := argoCDCM.Data[key]; ok && val != "" {
+			res[string(sourceType)] = val == "true"
+		}
+	}
+	// plugin based manifest generation cannot be disabled
+	res[string(v1alpha1.ApplicationSourceTypePlugin)] = true
+	return res, nil
 }
 
 // GetResourceOverrides loads Resource Overrides from argocd-cm ConfigMap
@@ -812,6 +884,25 @@ func (mgr *SettingsManager) GetResourceCompareOptions() (ArgoCDDiffOptions, erro
 	}
 
 	return diffOptions, nil
+}
+
+// GetHelmSettings returns helm settings
+func (mgr *SettingsManager) GetHelmSettings() (*v1alpha1.HelmOptions, error) {
+	argoCDCM, err := mgr.getConfigMap()
+	if err != nil {
+		return nil, err
+	}
+	helmOptions := &v1alpha1.HelmOptions{}
+	if value, ok := argoCDCM.Data[helmValuesFileSchemesKey]; ok {
+		for _, item := range strings.Split(value, ",") {
+			if item := strings.TrimSpace(item); item != "" {
+				helmOptions.ValuesFileSchemes = append(helmOptions.ValuesFileSchemes, item)
+			}
+		}
+	} else {
+		helmOptions.ValuesFileSchemes = []string{"https", "http"}
+	}
+	return helmOptions, nil
 }
 
 // GetKustomizeSettings loads the kustomize settings from argocd-cm ConfigMap
@@ -1148,7 +1239,7 @@ func (mgr *SettingsManager) ensureSynced(forceResync bool) error {
 
 func getDownloadBinaryUrlsFromConfigMap(argoCDCM *apiv1.ConfigMap) map[string]string {
 	binaryUrls := map[string]string{}
-	for _, archType := range []string{"darwin-amd64", "darwin-arm64", "windows-amd64", "linux-arm64", "linux-amd64"} {
+	for _, archType := range []string{"darwin-amd64", "darwin-arm64", "windows-amd64", "linux-amd64", "linux-arm64", "linux-ppc64le", "linux-s390x"} {
 		if val, ok := argoCDCM.Data[settingsBinaryUrlsKey+"."+archType]; ok {
 			binaryUrls[archType] = val
 		}
@@ -1162,11 +1253,13 @@ func updateSettingsFromConfigMap(settings *ArgoCDSettings, argoCDCM *apiv1.Confi
 	settings.OIDCConfigRAW = argoCDCM.Data[settingsOIDCConfigKey]
 	settings.KustomizeBuildOptions = argoCDCM.Data[kustomizeBuildOptionsKey]
 	settings.StatusBadgeEnabled = argoCDCM.Data[statusBadgeEnabledKey] == "true"
+	settings.StatusBadgeRootUrl = argoCDCM.Data[statusBadgeRootUrlKey]
 	settings.AnonymousUserEnabled = argoCDCM.Data[anonymousUserEnabledKey] == "true"
 	settings.UiCssURL = argoCDCM.Data[settingUiCssURLKey]
 	settings.UiBannerContent = argoCDCM.Data[settingUiBannerContentKey]
 	settings.UiBannerPermanent = argoCDCM.Data[settingUiBannerPermanentKey] == "true"
 	settings.UiBannerPosition = argoCDCM.Data[settingUiBannerPositionKey]
+	settings.ServerRBACLogEnforceEnable = argoCDCM.Data[settingsServerRBACLogEnforceEnableKey] == "true"
 	settings.BinaryUrls = getDownloadBinaryUrlsFromConfigMap(argoCDCM)
 	if err := validateExternalURL(argoCDCM.Data[settingURLKey]); err != nil {
 		log.Warnf("Failed to validate URL in configmap: %v", err)
@@ -1176,19 +1269,29 @@ func updateSettingsFromConfigMap(settings *ArgoCDSettings, argoCDCM *apiv1.Confi
 		log.Warnf("Failed to validate UI banner URL in configmap: %v", err)
 	}
 	settings.UiBannerURL = argoCDCM.Data[settingUiBannerURLKey]
+	settings.UserSessionDuration = time.Hour * 24
 	if userSessionDurationStr, ok := argoCDCM.Data[userSessionDurationKey]; ok {
 		if val, err := timeutil.ParseDuration(userSessionDurationStr); err != nil {
 			log.Warnf("Failed to parse '%s' key: %v", userSessionDurationKey, err)
 		} else {
 			settings.UserSessionDuration = *val
 		}
-	} else {
-		settings.UserSessionDuration = time.Hour * 24
 	}
 	settings.PasswordPattern = argoCDCM.Data[settingsPasswordPatternKey]
 	if settings.PasswordPattern == "" {
 		settings.PasswordPattern = common.PasswordPatten
 	}
+	settings.InClusterEnabled = argoCDCM.Data[inClusterEnabledKey] != "false"
+	settings.ExecEnabled = argoCDCM.Data[execEnabledKey] == "true"
+	execShells := argoCDCM.Data[execShellsKey]
+	if execShells != "" {
+		settings.ExecShells = strings.Split(execShells, ",")
+	} else {
+		// Fall back to default. If you change this list, also change docs/operator-manual/argocd-cm.yaml.
+		settings.ExecShells = []string{"bash", "sh", "powershell", "cmd"}
+	}
+	settings.TrackingMethod = argoCDCM.Data[settingsResourceTrackingMethodKey]
+	settings.OIDCTLSInsecureSkipVerify = argoCDCM.Data[oidcTLSInsecureSkipVerifyKey] == "true"
 }
 
 // validateExternalURL ensures the external URL that is set on the configmap is valid
@@ -1481,6 +1584,11 @@ func (a *ArgoCDSettings) IsDexConfigured() bool {
 	return len(dexCfg) > 0
 }
 
+// GetServerEncryptionKey generates a new server encryption key using the server signature as a passphrase
+func (a *ArgoCDSettings) GetServerEncryptionKey() ([]byte, error) {
+	return crypto.KeyFromPassphrase(string(a.ServerSignature))
+}
+
 func UnmarshalDexConfig(config string) (map[string]interface{}, error) {
 	var dexCfg map[string]interface{}
 	err := yaml.Unmarshal([]byte(config), &dexCfg)
@@ -1553,22 +1661,28 @@ func (a *ArgoCDSettings) OAuth2ClientSecret() string {
 	return ""
 }
 
+// OIDCTLSConfig returns the TLS config for the OIDC provider. If an external provider is configured, returns a TLS
+// config using the root CAs (if any) specified in the OIDC config. If an external OIDC provider is not configured,
+// returns the API server TLS config, because the API server proxies requests to Dex.
 func (a *ArgoCDSettings) OIDCTLSConfig() *tls.Config {
-	if oidcConfig := a.OIDCConfig(); oidcConfig != nil {
+	var tlsConfig *tls.Config
+
+	oidcConfig := a.OIDCConfig()
+	if oidcConfig != nil {
+		tlsConfig = &tls.Config{}
 		if oidcConfig.RootCA != "" {
 			certPool := x509.NewCertPool()
 			ok := certPool.AppendCertsFromPEM([]byte(oidcConfig.RootCA))
 			if !ok {
-				log.Warn("invalid oidc root ca cert - returning default tls.Config instead")
-				return &tls.Config{}
-			}
-			return &tls.Config{
-				RootCAs: certPool,
+				log.Warn("failed to append certificates from PEM: proceeding without custom rootCA")
+			} else {
+				tlsConfig.RootCAs = certPool
 			}
 		}
+	} else {
+		tlsConfig = a.TLSConfig()
 	}
-	tlsConfig := a.TLSConfig()
-	if tlsConfig != nil {
+	if tlsConfig != nil && a.OIDCTLSInsecureSkipVerify {
 		tlsConfig.InsecureSkipVerify = true
 	}
 	return tlsConfig

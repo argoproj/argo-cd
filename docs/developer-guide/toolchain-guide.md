@@ -24,8 +24,7 @@ You will need at least the following things in your toolchain in order to develo
 
 * A Kubernetes cluster. You won't need a fully blown multi-master, multi-node cluster, but you will need something like K3S, Minikube or microk8s. You will also need a working Kubernetes client (`kubectl`) configuration in your development environment. The configuration must reside in `~/.kube/config` and the API server URL must point to the IP address of your local machine (or VM), and **not** to `localhost` or `127.0.0.1` if you are using the virtualized development toolchain (see below)
 
-* You will also need a working Docker runtime environment, to be able to build and run images.
-The Docker version must be fairly recent, and support multi-stage builds. You should not work as root. Make your local user a member of the `docker` group to be able to control the Docker service on your machine.
+* You will also need a working Docker runtime environment, to be able to build and run images. The Docker version must be 17.05.0 or higher, to support multi-stage builds. 
 
 * Obviously, you will need a `git` client for pulling source code and pushing back your changes.
 
@@ -62,12 +61,6 @@ We use the [Semantic PR title checker](https://github.com/zeke/semantic-pull-req
 * `chore` - Your PR improves any internals of Argo CD, such as the build process, unit tests, etc
 
 Please prefix the title of your PR with one of the valid categories. For example, if you chose the title your PR `Add documentation for GitHub SSO integration`, please use `docs: Add documentation for GitHub SSO integration` instead.
-
-### Contributor License Agreement
-
-Every contributor to Argo CD must have signed the current Contributor License Agreement (CLA). You only have to sign the CLA when you are a first time contributor, or when the agreement has changed since your last time signing it. The main purpose of the CLA is to ensure that you hold the required rights for your contribution. The CLA signing is an automated process.
-
-You can read the current version of the CLA [here](https://cla-assistant.io/argoproj/argo-cd).
 
 ### PR template checklist
 
@@ -193,6 +186,8 @@ you should edit your `~/.kube/config` and modify the `server` option to point to
 ```
 k3d cluster create my-cluster --wait --k3s-server-arg '--disable=traefik' --api-port $IP:6550 -p 443:443@loadbalancer
 ```
+
+Starting from k3d v5.0.0 the example command flags `--k3s-server-arg` and `'--disable=traefik'` would have to be changed to `--k3s-arg` and `'--disable=traefik@server:*'`, respectively. 
 
 ## The development cycle
 

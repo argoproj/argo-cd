@@ -17,7 +17,7 @@ type repositoryLock struct {
 }
 
 // Lock acquires lock unless lock is already acquired with the same commit and allowConcurrent is set to true
-func (r *repositoryLock) Lock(path string, revision string, allowConcurrent bool, init func() error) (io.Closer, error) {
+func (r *repositoryLock) Lock(path string, revision string, allowConcurrent bool, init func() (io.Closer, error)) (io.Closer, error) {
 	r.lock.Lock()
 	state, ok := r.stateByKey[path]
 	if !ok {
@@ -30,26 +30,30 @@ func (r *repositoryLock) Lock(path string, revision string, allowConcurrent bool
 		state.cond.L.Lock()
 		notify := false
 		state.processCount--
+		var err error
 		if state.processCount == 0 {
 			notify = true
 			state.revision = ""
+			err = state.initCloser.Close()
 		}
+
 		state.cond.L.Unlock()
 		if notify {
 			state.cond.Broadcast()
 		}
-		return nil
+		return err
 	})
 
 	for {
 		state.cond.L.Lock()
 		if state.revision == "" {
 			// no in progress operation for that repo. Go ahead.
-			if err := init(); err != nil {
+			initCloser, err := init()
+			if err != nil {
 				state.cond.L.Unlock()
 				return nil, err
 			}
-
+			state.initCloser = initCloser
 			state.revision = revision
 			state.processCount = 1
 			state.allowConcurrent = allowConcurrent
@@ -71,6 +75,7 @@ func (r *repositoryLock) Lock(path string, revision string, allowConcurrent bool
 type repositoryState struct {
 	cond            *sync.Cond
 	revision        string
+	initCloser      io.Closer
 	processCount    int
 	allowConcurrent bool
 }

@@ -10,9 +10,11 @@ import (
 	"github.com/argoproj/argo-cd/v2/util/argo"
 	"github.com/argoproj/argo-cd/v2/util/argo/managedfields"
 	appstatecache "github.com/argoproj/argo-cd/v2/util/cache/appstate"
+	k8smanagedfields "k8s.io/apimachinery/pkg/util/managedfields"
 
 	"github.com/argoproj/gitops-engine/pkg/diff"
 	"github.com/argoproj/gitops-engine/pkg/utils/kube"
+	"github.com/argoproj/gitops-engine/pkg/utils/kube/scheme"
 	"k8s.io/apimachinery/pkg/apis/meta/v1/unstructured"
 )
 
@@ -73,6 +75,26 @@ func (b *DiffConfigBuilder) WithLogger(l logr.Logger) *DiffConfigBuilder {
 	return b
 }
 
+// WithGVKParser sets the gvkParser in the diff config.
+func (b *DiffConfigBuilder) WithGVKParser(parser *k8smanagedfields.GvkParser) *DiffConfigBuilder {
+	b.diffConfig.gvkParser = parser
+	return b
+}
+
+// WithStructuredMergeDiff defines if the diff should be calculated using structured
+// merge.
+func (b *DiffConfigBuilder) WithStructuredMergeDiff(smd bool) *DiffConfigBuilder {
+	b.diffConfig.structuredMergeDiff = smd
+	return b
+}
+
+// WithManager defines the manager that should be using during structured
+// merge diffs.
+func (b *DiffConfigBuilder) WithManager(manager string) *DiffConfigBuilder {
+	b.diffConfig.manager = manager
+	return b
+}
+
 // Build will first validate the current state of the diff config and return the
 // DiffConfig implementation if no errors are found. Will return nil and the error
 // details otherwise.
@@ -106,8 +128,18 @@ type DiffConfig interface {
 	// StateCache is used when retrieving the diff from the cache.
 	StateCache() *appstatecache.Cache
 	IgnoreAggregatedRoles() bool
-	// Logger used during the diff
+	// Logger used during the diff.
 	Logger() *logr.Logger
+	// GVKParser returns a parser able to build a TypedValue used in
+	// structured merge diffs.
+	GVKParser() *k8smanagedfields.GvkParser
+	// StructuredMergeDiff defines if the diff should be calculated using
+	// structured merge diffs. Will use standard 3-way merge diffs if
+	// returns false.
+	StructuredMergeDiff() bool
+	// Manager returns the manager that should be used by the diff while
+	// calculating the structured merge diff.
+	Manager() string
 }
 
 // diffConfig defines the configurations used while applying diffs.
@@ -121,6 +153,9 @@ type diffConfig struct {
 	stateCache            *appstatecache.Cache
 	ignoreAggregatedRoles bool
 	logger                *logr.Logger
+	gvkParser             *k8smanagedfields.GvkParser
+	structuredMergeDiff   bool
+	manager               string
 }
 
 func (c *diffConfig) Ignores() []v1alpha1.ResourceIgnoreDifferences {
@@ -149,6 +184,15 @@ func (c *diffConfig) IgnoreAggregatedRoles() bool {
 }
 func (c *diffConfig) Logger() *logr.Logger {
 	return c.logger
+}
+func (c *diffConfig) GVKParser() *k8smanagedfields.GvkParser {
+	return c.gvkParser
+}
+func (c *diffConfig) StructuredMergeDiff() bool {
+	return c.structuredMergeDiff
+}
+func (c *diffConfig) Manager() string {
+	return c.manager
 }
 
 // Validate will check the current state of this diffConfig and return
@@ -203,9 +247,13 @@ func StateDiffs(lives, configs []*unstructured.Unstructured, diffConfig DiffConf
 	if err != nil {
 		return nil, err
 	}
+
 	diffOpts := []diff.Option{
 		diff.WithNormalizer(diffNormalizer),
 		diff.IgnoreAggregatedRoles(diffConfig.IgnoreAggregatedRoles()),
+		diff.WithStructuredMergeDiff(diffConfig.StructuredMergeDiff()),
+		diff.WithGVKParser(diffConfig.GVKParser()),
+		diff.WithManager(diffConfig.Manager()),
 	}
 
 	if diffConfig.Logger() != nil {
@@ -309,8 +357,9 @@ func preDiffNormalize(lives, targets []*unstructured.Unstructured, diffConfig Di
 			idc := NewIgnoreDiffConfig(diffConfig.Ignores(), diffConfig.Overrides())
 			ok, ignoreDiff := idc.HasIgnoreDifference(gvk.Group, gvk.Kind, target.GetName(), target.GetNamespace())
 			if ok && len(ignoreDiff.ManagedFieldsManagers) > 0 {
+				pt := scheme.ResolveParseableType(gvk, diffConfig.GVKParser())
 				var err error
-				live, target, err = managedfields.Normalize(live, target, ignoreDiff.ManagedFieldsManagers)
+				live, target, err = managedfields.Normalize(live, target, ignoreDiff.ManagedFieldsManagers, pt)
 				if err != nil {
 					return nil, err
 				}

@@ -7,6 +7,9 @@ metadata:
   # Add this finalizer ONLY if you want these to cascade delete.
   finalizers:
     - resources-finalizer.argocd.argoproj.io
+  # Add labels to your application object.
+  labels:
+    name: guestbook
 spec:
   # The project the application belongs to.
   project: default
@@ -20,6 +23,7 @@ spec:
     # helm specific config
     chart: chart-name  # Set this when pulling directly from a Helm repo. DO NOT set for git-hosted Helm charts.
     helm:
+      passCredentials: false # If true then adds --pass-credentials to Helm commands to pass credentials to all domains
       # Extra parameters to set (same as setting through values.yaml, but these take precedence)
       parameters:
       - name: "nginx-ingress.controller.service.annotations.external-dns\\.alpha\\.kubernetes\\.io/hostname"
@@ -65,11 +69,16 @@ spec:
     kustomize:
       # Optional kustomize version. Note: version must be configured in argocd-cm ConfigMap
       version: v3.5.4
-      # Optional image name prefix
+      # Supported kustomize transformers. https://kubectl.docs.kubernetes.io/references/kustomize/kustomization/
       namePrefix: prod-
-      # Optional images passed to "kustomize edit set image".
+      nameSuffix: -some-suffix
+      commonLabels:
+        foo: bar
+      commonAnnotations:
+        beep: boop
       images:
       - gcr.io/heptio-images/ks-guestbook-demo:0.2
+      - my-app=gcr.io/my-repo/my-app:0.1
 
     # directory
     directory:
@@ -88,6 +97,12 @@ spec:
         - code: false
           name: foo
           value: bar
+      # Exclude contains a glob pattern to match paths against that should be explicitly excluded from being used during
+      # manifest generation. This takes precedence over the `include` field.
+      exclude: string
+      # Include contains a glob pattern to match paths against that should be explicitly included during manifest
+      # generation. If this field is set, only matching manifests will be included.
+      include: string
 
     # plugin specific config
     plugin:
@@ -103,6 +118,7 @@ spec:
   # Destination cluster and namespace to deploy the application
   destination:
     server: https://kubernetes.default.svc
+    # The namespace will only be set for namespace-scoped resources that have not set a value for .metadata.namespace
     namespace: guestbook
 
   # Sync policy

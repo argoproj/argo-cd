@@ -2,7 +2,11 @@ package common
 
 import (
 	"os"
+	"path/filepath"
+	"strconv"
 	"time"
+
+	"github.com/sirupsen/logrus"
 )
 
 // Default service addresses and URLS of Argo CD internal services
@@ -10,7 +14,7 @@ const (
 	// DefaultRepoServerAddr is the gRPC address of the Argo CD repo server
 	DefaultRepoServerAddr = "argocd-repo-server:8081"
 	// DefaultDexServerAddr is the HTTP address of the Dex OIDC server, which we run a reverse proxy against
-	DefaultDexServerAddr = "http://argocd-dex-server:5556"
+	DefaultDexServerAddr = "argocd-dex-server:5556"
 	// DefaultRedisAddr is the default redis address
 	DefaultRedisAddr = "argocd-redis:6379"
 )
@@ -74,8 +78,14 @@ const (
 	ArgoCDAdminUsername = "admin"
 	// ArgoCDUserAgentName is the default user-agent name used by the gRPC API client library and grpc-gateway
 	ArgoCDUserAgentName = "argocd-client"
+	// ArgoCDSSAManager is the default argocd manager name used by server-side apply syncs
+	ArgoCDSSAManager = "argocd-controller"
 	// AuthCookieName is the HTTP cookie name where we store our auth token
 	AuthCookieName = "argocd.token"
+	// StateCookieName is the HTTP cookie name that holds temporary nonce tokens for CSRF protection
+	StateCookieName = "argocd.oauthstate"
+	// StateCookieMaxAge is the maximum age of the oauth state cookie
+	StateCookieMaxAge = time.Minute * 5
 
 	// ChangePasswordSSOTokenMaxAge is the max token age for password change operation
 	ChangePasswordSSOTokenMaxAge = time.Minute * 5
@@ -196,6 +206,19 @@ const (
 	EnvMaxCookieNumber = "ARGOCD_MAX_COOKIE_NUMBER"
 	// EnvPluginSockFilePath allows to override the pluginSockFilePath for repo server and cmp server
 	EnvPluginSockFilePath = "ARGOCD_PLUGINSOCKFILEPATH"
+	// EnvCMPChunkSize defines the chunk size in bytes used when sending files to the cmp server
+	EnvCMPChunkSize = "ARGOCD_CMP_CHUNK_SIZE"
+	// EnvCMPWorkDir defines the full path of the work directory used by the CMP server
+	EnvCMPWorkDir = "ARGOCD_CMP_WORKDIR"
+)
+
+// Config Management Plugin related constants
+const (
+	// DefaultCMPChunkSize defines chunk size in bytes used when sending files to the cmp server
+	DefaultCMPChunkSize = 1024
+
+	// DefaultCMPWorkDirName defines the work directory name used by the cmp-server
+	DefaultCMPWorkDirName = "_cmp_server"
 )
 
 const (
@@ -206,6 +229,12 @@ const (
 	// CacheVersion is a objects version cached using util/cache/cache.go.
 	// Number should be bumped in case of backward incompatible change to make sure cache is invalidated after upgrade.
 	CacheVersion = "1.8.3"
+)
+
+// Constants used by util/clusterauth package
+const (
+	ClusterAuthRequestTimeout = 10 * time.Second
+	BearerTokenTimeout        = 30 * time.Second
 )
 
 const (
@@ -231,3 +260,38 @@ func GetPluginSockFilePath() string {
 		return pluginSockFilePath
 	}
 }
+
+// GetCMPChunkSize will return the env var EnvCMPChunkSize value if defined or DefaultCMPChunkSize otherwise.
+// If EnvCMPChunkSize is defined but not a valid int, DefaultCMPChunkSize will be returned
+func GetCMPChunkSize() int {
+	if chunkSizeStr := os.Getenv(EnvCMPChunkSize); chunkSizeStr != "" {
+		chunkSize, err := strconv.Atoi(chunkSizeStr)
+		if err != nil {
+			logrus.Warnf("invalid env var value for %s: not a valid int: %s. Default value will be used.", EnvCMPChunkSize, err)
+			return DefaultCMPChunkSize
+		}
+		return chunkSize
+	}
+	return DefaultCMPChunkSize
+}
+
+// GetCMPWorkDir will return the full path of the work directory used by the CMP server.
+// This directory and all it's contents will be deleted durring CMP bootstrap.
+func GetCMPWorkDir() string {
+	if workDir := os.Getenv(EnvCMPWorkDir); workDir != "" {
+		return filepath.Join(workDir, DefaultCMPWorkDirName)
+	}
+	return filepath.Join(os.TempDir(), DefaultCMPWorkDirName)
+}
+
+const (
+	// AnnotationApplicationRefresh is an annotation that is added when an ApplicationSet is requested to be refreshed by a webhook. The ApplicationSet controller will remove this annotation at the end of reconciliation.
+	AnnotationApplicationSetRefresh = "argocd.argoproj.io/application-set-refresh"
+)
+
+// gRPC settings
+const (
+	GRPCKeepAliveEnforcementMinimum = 10 * time.Second
+	// Keep alive is 2x enforcement minimum to ensure network jitter does not introduce ENHANCE_YOUR_CALM errors
+	GRPCKeepAliveTime = 2 * GRPCKeepAliveEnforcementMinimum
+)

@@ -20,7 +20,7 @@ for using additional tools such as cdk8s, Tanka, jkcfg, QBEC, Dhall, pulumi, etc
 
 ## Summary
 
-Currently, Argo CD provides first-class support for Helm, Kustomize, Jsonnet/YAML, and Ksonnet. The support includes:
+Currently, Argo CD provides first-class support for Helm, Kustomize and Jsonnet/YAML. The support includes:
 - Bundled binaries (maintainers periodically upgrade binaries)
 - An ability to override parameters using UI/CLI
 - The applications are discovered in Git repository and auto-suggested during application creation in UI
@@ -49,7 +49,7 @@ The problem with this approach is that the process is error-prone, manual, and r
 The goal is to make additional tools easily accessible for installation to Argo CD operators.
 
 #### Provide Discovery (Auto-selection of Tool)
-For Argo CD’s natively supported config management plugins (Helm, Kustomize, Ksonnet, Jsonnet), Argo CD auto-detects 
+For Argo CD’s natively supported config management plugins (Helm, Kustomize, Jsonnet), Argo CD auto-detects 
 and selects the appropriate tool given only the path in the Git repository. 
 This selection is based on the recognition of well-known files in the directory (e.g. Chart.yaml, kustomization.yaml, etc...). 
 

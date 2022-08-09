@@ -1,7 +1,7 @@
 package controller
 
 import (
-	"io/ioutil"
+	"os"
 	"testing"
 
 	"github.com/argoproj/gitops-engine/pkg/health"
@@ -29,7 +29,7 @@ func initStatuses(resources []managedResource) []appv1.ResourceStatus {
 }
 
 func resourceFromFile(filePath string) unstructured.Unstructured {
-	yamlBytes, err := ioutil.ReadFile(filePath)
+	yamlBytes, err := os.ReadFile(filePath)
 	if err != nil {
 		panic(err)
 	}

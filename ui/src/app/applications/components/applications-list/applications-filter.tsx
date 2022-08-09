@@ -1,6 +1,7 @@
-import {useData} from 'argo-ui/v2';
+import {useData, Checkbox} from 'argo-ui/v2';
 import * as minimatch from 'minimatch';
 import * as React from 'react';
+import {Context} from '../../../shared/context';
 import {Application, ApplicationDestination, Cluster, HealthStatusCode, HealthStatuses, SyncStatusCode, SyncStatuses} from '../../../shared/models';
 import {AppsListPreferences, services} from '../../../shared/services';
 import {Filter, FiltersGroup} from '../filter/filter';
@@ -13,6 +14,7 @@ export interface FilterResult {
     health: boolean;
     namespaces: boolean;
     clusters: boolean;
+    favourite: boolean;
     labels: boolean;
 }
 
@@ -28,6 +30,7 @@ export function getFilterResults(applications: Application[], pref: AppsListPref
             sync: pref.syncFilter.length === 0 || pref.syncFilter.includes(app.status.sync.status),
             health: pref.healthFilter.length === 0 || pref.healthFilter.includes(app.status.health.status),
             namespaces: pref.namespacesFilter.length === 0 || pref.namespacesFilter.some(ns => app.spec.destination.namespace && minimatch(app.spec.destination.namespace, ns)),
+            favourite: !pref.showFavorites || (pref.favoritesAppList && pref.favoritesAppList.includes(app.metadata.name)),
             clusters:
                 pref.clustersFilter.length === 0 ||
                 pref.clustersFilter.some(filterString => {
@@ -211,6 +214,29 @@ const NamespaceFilter = (props: AppFilterProps) => {
     );
 };
 
+const FavoriteFilter = (props: AppFilterProps) => {
+    const ctx = React.useContext(Context);
+    return (
+        <div className={`filter filter__item ${props.pref.showFavorites ? 'filter__item--selected' : ''}`}>
+            <Checkbox
+                value={!!props.pref.showFavorites}
+                onChange={val => {
+                    ctx.navigation.goto('.', {showFavorites: val}, {replace: true});
+                    services.viewPreferences.updatePreferences({appList: {...props.pref, showFavorites: val}});
+                }}
+                style={{
+                    marginRight: '8px',
+                    marginLeft: '8px'
+                }}
+            />
+            <div style={{marginRight: '5px'}}>
+                <i style={{color: '#FFCE25'}} className='fas fa-star' />
+            </div>
+            <div className='filter__item__label'>Favorites Only</div>
+        </div>
+    );
+};
+
 export const ApplicationsFilter = (props: AppFilterProps) => {
     const setShown = (val: boolean) => {
         services.viewPreferences.updatePreferences({appList: {...props.pref, hideFilters: !val}});
@@ -218,6 +244,7 @@ export const ApplicationsFilter = (props: AppFilterProps) => {
 
     return (
         <FiltersGroup setShown={setShown} expanded={!props.pref.hideFilters} content={props.children}>
+            <FavoriteFilter {...props} />
             <SyncFilter {...props} />
             <HealthFilter {...props} />
             <LabelsFilter {...props} />

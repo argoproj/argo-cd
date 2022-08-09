@@ -4,13 +4,10 @@ import (
 	"context"
 	"encoding/json"
 	"fmt"
-	"io/ioutil"
 	"net/http"
 	"os"
 	"sort"
 	"time"
-
-	"github.com/argoproj/argo-cd/v2/util/argo"
 
 	"github.com/ghodss/yaml"
 	"github.com/spf13/cobra"
@@ -29,7 +26,8 @@ import (
 	"github.com/argoproj/argo-cd/v2/pkg/apis/application/v1alpha1"
 	appclientset "github.com/argoproj/argo-cd/v2/pkg/client/clientset/versioned"
 	appinformers "github.com/argoproj/argo-cd/v2/pkg/client/informers/externalversions"
-	"github.com/argoproj/argo-cd/v2/reposerver/apiclient"
+	argocdclient "github.com/argoproj/argo-cd/v2/reposerver/apiclient"
+	"github.com/argoproj/argo-cd/v2/util/argo"
 	cacheutil "github.com/argoproj/argo-cd/v2/util/cache"
 	appstatecache "github.com/argoproj/argo-cd/v2/util/cache/appstate"
 	"github.com/argoproj/argo-cd/v2/util/cli"
@@ -87,7 +85,7 @@ func NewGenAppSpecCommand() *cobra.Command {
 	argocd admin app generate-spec kustomize-guestbook --repo https://github.com/argoproj/argocd-example-apps.git --path kustomize-guestbook --dest-namespace default --dest-server https://kubernetes.default.svc --kustomize-image gcr.io/heptio-images/ks-guestbook-demo:0.1
 
 	# Generate declarative config for a app using a custom tool:
-	argocd admin app generate-spec ksane --repo https://github.com/argoproj/argocd-example-apps.git --path plugins/kasane --dest-namespace default --dest-server https://kubernetes.default.svc --config-management-plugin kasane
+	argocd admin app generate-spec kasane --repo https://github.com/argoproj/argocd-example-apps.git --path plugins/kasane --dest-namespace default --dest-server https://kubernetes.default.svc --config-management-plugin kasane
 `,
 		Run: func(c *cobra.Command, args []string) {
 			apps, err := cmdutil.ConstructApps(fileURL, appName, labels, annotations, args, appOpts, c.Flags())
@@ -239,6 +237,8 @@ func NewReconcileCommand() *cobra.Command {
 		Use:   "get-reconcile-results PATH",
 		Short: "Reconcile all applications and stores reconciliation summary in the specified file.",
 		Run: func(c *cobra.Command, args []string) {
+			ctx := c.Context()
+
 			// get rid of logging error handler
 			runtime.ErrorHandlers = runtime.ErrorHandlers[1:]
 
@@ -263,15 +263,15 @@ func NewReconcileCommand() *cobra.Command {
 					errors.CheckError(err)
 					repoServerAddress = fmt.Sprintf("localhost:%d", repoServerPort)
 				}
-				repoServerClient := apiclient.NewRepoServerClientset(repoServerAddress, 60, apiclient.TLSConfiguration{DisableTLS: false, StrictValidation: false})
+				repoServerClient := argocdclient.NewRepoServerClientset(repoServerAddress, 60, argocdclient.TLSConfiguration{DisableTLS: false, StrictValidation: false})
 
 				appClientset := appclientset.NewForConfigOrDie(cfg)
 				kubeClientset := kubernetes.NewForConfigOrDie(cfg)
-				result, err = reconcileApplications(kubeClientset, appClientset, namespace, repoServerClient, selector, newLiveStateCache)
+				result, err = reconcileApplications(ctx, kubeClientset, appClientset, namespace, repoServerClient, selector, newLiveStateCache)
 				errors.CheckError(err)
 			} else {
 				appClientset := appclientset.NewForConfigOrDie(cfg)
-				result, err = getReconcileResults(appClientset, namespace, selector)
+				result, err = getReconcileResults(ctx, appClientset, namespace, selector)
 			}
 
 			errors.CheckError(saveToFile(err, outputFormat, reconcileResults{Applications: result}, outputPath))
@@ -302,11 +302,11 @@ func saveToFile(err error, outputFormat string, result reconcileResults, outputP
 		return fmt.Errorf("format %s is not supported", outputFormat)
 	}
 
-	return ioutil.WriteFile(outputPath, data, 0644)
+	return os.WriteFile(outputPath, data, 0644)
 }
 
-func getReconcileResults(appClientset appclientset.Interface, namespace string, selector string) ([]appReconcileResult, error) {
-	appsList, err := appClientset.ArgoprojV1alpha1().Applications(namespace).List(context.Background(), v1.ListOptions{LabelSelector: selector})
+func getReconcileResults(ctx context.Context, appClientset appclientset.Interface, namespace string, selector string) ([]appReconcileResult, error) {
+	appsList, err := appClientset.ArgoprojV1alpha1().Applications(namespace).List(ctx, v1.ListOptions{LabelSelector: selector})
 	if err != nil {
 		return nil, err
 	}
@@ -324,15 +324,15 @@ func getReconcileResults(appClientset appclientset.Interface, namespace string, 
 }
 
 func reconcileApplications(
+	ctx context.Context,
 	kubeClientset kubernetes.Interface,
 	appClientset appclientset.Interface,
 	namespace string,
-	repoServerClient apiclient.Clientset,
+	repoServerClient argocdclient.Clientset,
 	selector string,
 	createLiveStateCache func(argoDB db.ArgoDB, appInformer kubecache.SharedIndexInformer, settingsMgr *settings.SettingsManager, server *metrics.MetricsServer) cache.LiveStateCache,
 ) ([]appReconcileResult, error) {
-
-	settingsMgr := settings.NewSettingsManager(context.Background(), kubeClientset, namespace)
+	settingsMgr := settings.NewSettingsManager(ctx, kubeClientset, namespace)
 	argoDB := db.NewDB(namespace, settingsMgr, kubeClientset)
 	appInformerFactory := appinformers.NewSharedInformerFactoryWithOptions(
 		appClientset,
@@ -343,9 +343,9 @@ func reconcileApplications(
 
 	appInformer := appInformerFactory.Argoproj().V1alpha1().Applications().Informer()
 	projInformer := appInformerFactory.Argoproj().V1alpha1().AppProjects().Informer()
-	go appInformer.Run(context.Background().Done())
-	go projInformer.Run(context.Background().Done())
-	if !kubecache.WaitForCacheSync(context.Background().Done(), appInformer.HasSynced, projInformer.HasSynced) {
+	go appInformer.Run(ctx.Done())
+	go projInformer.Run(ctx.Done())
+	if !kubecache.WaitForCacheSync(ctx.Done(), appInformer.HasSynced, projInformer.HasSynced) {
 		return nil, fmt.Errorf("failed to sync cache")
 	}
 
@@ -373,7 +373,7 @@ func reconcileApplications(
 	appStateManager := controller.NewAppStateManager(
 		argoDB, appClientset, repoServerClient, namespace, kubeutil.NewKubectl(), settingsMgr, stateCache, projInformer, server, cache, time.Second, argo.NewResourceTracking())
 
-	appsList, err := appClientset.ArgoprojV1alpha1().Applications(namespace).List(context.Background(), v1.ListOptions{LabelSelector: selector})
+	appsList, err := appClientset.ArgoprojV1alpha1().Applications(namespace).List(ctx, v1.ListOptions{LabelSelector: selector})
 	if err != nil {
 		return nil, err
 	}

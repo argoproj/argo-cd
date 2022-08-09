@@ -5,7 +5,7 @@ metadata:
 spec:
   containers:
     - name: main
-      image: alpine:latest
+      image: quay.io/argoprojlabs/argocd-e2e-container:0.1
       imagePullPolicy: IfNotPresent
       command:
         - "true"

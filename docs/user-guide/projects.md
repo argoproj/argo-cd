@@ -54,6 +54,36 @@ argocd proj add-destination <PROJECT> <CLUSTER>,<NAMESPACE>
 argocd proj remove-destination <PROJECT> <CLUSTER>,<NAMESPACE>
 ```
 
+We can also do negations of destinations (i.e. install anywhere _apart from_).
+
+```bash
+argocd proj add-destination <PROJECT> !<CLUSTER>,!<NAMESPACE>
+argocd proj remove-destination <PROJECT> !<CLUSTER>,!<NAMESPACE>
+```
+
+Declaratively we can do something like this:
+
+```yaml
+spec:
+  destinations:
+  # Do not allow any app to be installed in `kube-system`  
+  - namespace: '!kube-system'
+    server: '*'
+  # Or any cluster that has a URL of `team1-*`   
+  - namespace: '*'
+    server: '!https://team1-*'
+    # Any other namespace or server is fine though.
+  - namespace: '*'
+    server: '*'
+```
+
+A destination is considered valid if the following conditions hold:
+
+1) _Any_ allow destination rule (i.e. a rule which isn't prefixed with `!`) permits the destination
+2) AND *no* deny destination (i.e. a rule which is prefixed with `!`) rejects the destination
+
+Keep in mind that `!*` is an invalid rule, since it doesn't make any sense to disallow everything. 
+
 Permitted destination K8s resource kinds are managed with the commands. Note that namespaced-scoped
 resources are restricted via a deny list, whereas cluster-scoped resources are restricted via
 allow list.
@@ -235,7 +265,7 @@ p, proj:my-project:admin, repositories, update, my-project/*, allow
 This provides extra flexibility so that admins can have stricter rules. e.g.:
 
 ```
-p, proj:my-project:admin, repositories, update, my-project/"https://github.my-company.com/*", allow
+p, proj:my-project:admin, repositories, update, my-project/https://github.my-company.com/*, allow
 ```
 
 Once the appropriate RBAC rules are in place, developers can create their own Git repositories and (assuming 
