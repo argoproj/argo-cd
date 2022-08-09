@@ -2,15 +2,16 @@ package helm
 
 import (
 	"fmt"
-	"io/ioutil"
 	"os"
 	"os/exec"
 	"path"
 	"path/filepath"
 	"regexp"
 
+	log "github.com/sirupsen/logrus"
+
 	executil "github.com/argoproj/argo-cd/v2/util/exec"
-	"github.com/argoproj/argo-cd/v2/util/io"
+	argoio "github.com/argoproj/argo-cd/v2/util/io"
 	pathutil "github.com/argoproj/argo-cd/v2/util/io/path"
 	"github.com/argoproj/argo-cd/v2/util/proxy"
 )
@@ -36,7 +37,7 @@ func NewCmd(workDir string, version string, proxy string) (*Cmd, error) {
 }
 
 func NewCmdWithVersion(workDir string, version HelmVer, isHelmOci bool, proxy string) (*Cmd, error) {
-	tmpDir, err := ioutil.TempDir("", "helm")
+	tmpDir, err := os.MkdirTemp("", "helm")
 	if err != nil {
 		return nil, err
 	}
@@ -95,7 +96,7 @@ func (c *Cmd) RegistryLogin(repo string, creds Creds) (string, error) {
 		if err != nil {
 			return "", err
 		}
-		defer io.Close(closer)
+		defer argoio.Close(closer)
 		args = append(args, "--cert-file", filePath)
 	}
 	if len(creds.KeyData) > 0 {
@@ -103,7 +104,7 @@ func (c *Cmd) RegistryLogin(repo string, creds Creds) (string, error) {
 		if err != nil {
 			return "", err
 		}
-		defer io.Close(closer)
+		defer argoio.Close(closer)
 		args = append(args, "--key-file", filePath)
 	}
 
@@ -125,7 +126,7 @@ func (c *Cmd) RegistryLogout(repo string, creds Creds) (string, error) {
 		if err != nil {
 			return "", err
 		}
-		defer io.Close(closer)
+		defer argoio.Close(closer)
 		args = append(args, "--cert-file", filePath)
 	}
 	if len(creds.KeyData) > 0 {
@@ -133,7 +134,7 @@ func (c *Cmd) RegistryLogout(repo string, creds Creds) (string, error) {
 		if err != nil {
 			return "", err
 		}
-		defer io.Close(closer)
+		defer argoio.Close(closer)
 		args = append(args, "--key-file", filePath)
 	}
 
@@ -141,7 +142,7 @@ func (c *Cmd) RegistryLogout(repo string, creds Creds) (string, error) {
 }
 
 func (c *Cmd) RepoAdd(name string, url string, opts Creds, passCredentials bool) (string, error) {
-	tmp, err := ioutil.TempDir("", "helm")
+	tmp, err := os.MkdirTemp("", "helm")
 	if err != nil {
 		return "", err
 	}
@@ -166,7 +167,7 @@ func (c *Cmd) RepoAdd(name string, url string, opts Creds, passCredentials bool)
 	}
 
 	if len(opts.CertData) > 0 {
-		certFile, err := ioutil.TempFile("", "helm")
+		certFile, err := os.CreateTemp("", "helm")
 		if err != nil {
 			return "", err
 		}
@@ -179,7 +180,7 @@ func (c *Cmd) RepoAdd(name string, url string, opts Creds, passCredentials bool)
 	}
 
 	if len(opts.KeyData) > 0 {
-		keyFile, err := ioutil.TempFile("", "helm")
+		keyFile, err := os.CreateTemp("", "helm")
 		if err != nil {
 			return "", err
 		}
@@ -200,18 +201,22 @@ func (c *Cmd) RepoAdd(name string, url string, opts Creds, passCredentials bool)
 	return c.run(args...)
 }
 
-func writeToTmp(data []byte) (string, io.Closer, error) {
-	file, err := ioutil.TempFile("", "")
+func writeToTmp(data []byte) (string, argoio.Closer, error) {
+	file, err := os.CreateTemp("", "")
 	if err != nil {
 		return "", nil, err
 	}
-	err = ioutil.WriteFile(file.Name(), data, 0644)
+	err = os.WriteFile(file.Name(), data, 0644)
 	if err != nil {
 		_ = os.RemoveAll(file.Name())
 		return "", nil, err
 	}
-	defer file.Close()
-	return file.Name(), io.NewCloser(func() error {
+	defer func() {
+		if err = file.Close(); err != nil {
+			log.Errorf("error closing file %q: %v", file.Name(), err)
+		}
+	}()
+	return file.Name(), argoio.NewCloser(func() error {
 		return os.RemoveAll(file.Name())
 	}), nil
 }
@@ -241,7 +246,7 @@ func (c *Cmd) Fetch(repo, chartName, version, destination string, creds Creds, p
 		if err != nil {
 			return "", err
 		}
-		defer io.Close(closer)
+		defer argoio.Close(closer)
 		args = append(args, "--cert-file", filePath)
 	}
 	if len(creds.KeyData) > 0 {
@@ -249,7 +254,7 @@ func (c *Cmd) Fetch(repo, chartName, version, destination string, creds Creds, p
 		if err != nil {
 			return "", err
 		}
-		defer io.Close(closer)
+		defer argoio.Close(closer)
 		args = append(args, "--key-file", filePath)
 	}
 	if passCredentials && c.helmPassCredentialsSupported {

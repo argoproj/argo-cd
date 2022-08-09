@@ -5,7 +5,6 @@ import (
 	"context"
 	goerrors "errors"
 	"fmt"
-	"io/ioutil"
 	"os"
 	"path"
 	"path/filepath"
@@ -160,7 +159,8 @@ func init() {
 	adminUsername = GetEnvWithDefault(EnvAdminUsername, defaultAdminUsername)
 	AdminPassword = GetEnvWithDefault(EnvAdminPassword, defaultAdminPassword)
 
-	tlsTestResult, err := grpcutil.TestTLS(apiServerAddress)
+	dialTime := 30 * time.Second
+	tlsTestResult, err := grpcutil.TestTLS(apiServerAddress, dialTime)
 	CheckError(err)
 
 	ArgoCDClientset, err = apiclient.NewClient(&apiclient.ClientOptions{Insecure: true, ServerAddr: apiServerAddress, PlainText: !tlsTestResult.TLS})
@@ -186,7 +186,12 @@ func init() {
 			panic(fmt.Sprintf("Could not read record file %s: %v", rf, err))
 		}
 	}
-	defer f.Close()
+	defer func() {
+		err := f.Close()
+		if err != nil {
+			panic(fmt.Sprintf("Could not close record file %s: %v", rf, err))
+		}
+	}()
 	scanner := bufio.NewScanner(f)
 	for scanner.Scan() {
 		testsRun[scanner.Text()] = true
@@ -353,6 +358,13 @@ func SetResourceOverrides(overrides map[string]v1alpha1.ResourceOverride) {
 func SetTrackingMethod(trackingMethod string) {
 	updateSettingConfigMap(func(cm *corev1.ConfigMap) error {
 		cm.Data["application.resourceTrackingMethod"] = trackingMethod
+		return nil
+	})
+}
+
+func SetTrackingLabel(trackingLabel string) {
+	updateSettingConfigMap(func(cm *corev1.ConfigMap) error {
+		cm.Data["application.instanceLabelKey"] = trackingLabel
 		return nil
 	})
 }
@@ -631,7 +643,7 @@ func Patch(path string, jsonPatch string) {
 	log.WithFields(log.Fields{"path": path, "jsonPatch": jsonPatch}).Info("patching")
 
 	filename := filepath.Join(repoDirectory(), path)
-	bytes, err := ioutil.ReadFile(filename)
+	bytes, err := os.ReadFile(filename)
 	CheckError(err)
 
 	patch, err := jsonpatch.DecodePatch([]byte(jsonPatch))
@@ -655,7 +667,7 @@ func Patch(path string, jsonPatch string) {
 		CheckError(err)
 	}
 
-	CheckError(ioutil.WriteFile(filename, bytes, 0644))
+	CheckError(os.WriteFile(filename, bytes, 0644))
 	FailOnErr(Run(repoDirectory(), "git", "diff"))
 	FailOnErr(Run(repoDirectory(), "git", "commit", "-am", "patch"))
 	if IsRemote() {
@@ -679,7 +691,7 @@ func Delete(path string) {
 func WriteFile(path, contents string) {
 	log.WithFields(log.Fields{"path": path}).Info("adding")
 
-	CheckError(ioutil.WriteFile(filepath.Join(repoDirectory(), path), []byte(contents), 0644))
+	CheckError(os.WriteFile(filepath.Join(repoDirectory(), path), []byte(contents), 0644))
 }
 
 func AddFile(path, contents string) {
@@ -712,10 +724,10 @@ func AddSignedFile(path, contents string) {
 // create the resource by creating using "kubectl apply", with bonus templating
 func Declarative(filename string, values interface{}) (string, error) {
 
-	bytes, err := ioutil.ReadFile(path.Join("testdata", filename))
+	bytes, err := os.ReadFile(path.Join("testdata", filename))
 	CheckError(err)
 
-	tmpFile, err := ioutil.TempFile("", "")
+	tmpFile, err := os.CreateTemp("", "")
 	CheckError(err)
 	_, err = tmpFile.WriteString(Tmpl(string(bytes), values))
 	CheckError(err)
@@ -832,7 +844,12 @@ func RecordTestRun(t *testing.T) {
 	if err != nil {
 		t.Fatalf("could not open record file %s: %v", rf, err)
 	}
-	defer f.Close()
+	defer func() {
+		err := f.Close()
+		if err != nil {
+			t.Fatalf("could not close record file %s: %v", rf, err)
+		}
+	}()
 	if _, err := f.WriteString(fmt.Sprintf("%s\n", t.Name())); err != nil {
 		t.Fatalf("could not write to %s: %v", rf, err)
 	}

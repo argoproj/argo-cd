@@ -7,7 +7,6 @@ import (
 	"encoding/hex"
 	"fmt"
 	"io"
-	"io/ioutil"
 	"os"
 	"path/filepath"
 	"strings"
@@ -84,11 +83,11 @@ func WithTarDoneChan(ch chan<- bool) SenderOption {
 
 // SendRepoStream will compress the files under the given repoPath and send
 // them using the plugin stream sender.
-func SendRepoStream(ctx context.Context, appPath, repoPath string, sender StreamSender, env []string, opts ...SenderOption) error {
+func SendRepoStream(ctx context.Context, appPath, repoPath string, sender StreamSender, env []string, excludedGlobs []string, opts ...SenderOption) error {
 	opt := newSenderOption(opts...)
 
 	// compress all files in appPath in tgz
-	tgz, checksum, err := compressFiles(repoPath)
+	tgz, checksum, err := compressFiles(repoPath, excludedGlobs)
 	if err != nil {
 		return fmt.Errorf("error compressing repo files: %w", err)
 	}
@@ -162,17 +161,16 @@ func closeAndDelete(f *os.File) {
 }
 
 // compressFiles will create a tgz file with all contents of appPath
-// directory excluding the .git folder. Returns the file alongside
-// its sha256 hash to be used as checksum. It is the responsibility
-// of the caller to close the file.
-func compressFiles(appPath string) (*os.File, string, error) {
-	excluded := []string{".git"}
+// directory excluding globs in the excluded array. Returns the file
+// alongside its sha256 hash to be used as checksum. It is the
+// responsibility of the caller to close the file.
+func compressFiles(appPath string, excluded []string) (*os.File, string, error) {
 	appName := filepath.Base(appPath)
 	tempDir, err := files.CreateTempDir(os.TempDir())
 	if err != nil {
 		return nil, "", fmt.Errorf("error creating tempDir for compressing files: %s", err)
 	}
-	tgzFile, err := ioutil.TempFile(tempDir, appName)
+	tgzFile, err := os.CreateTemp(tempDir, appName)
 	if err != nil {
 		return nil, "", fmt.Errorf("error creating app temp tgz file: %w", err)
 	}
@@ -199,7 +197,7 @@ func compressFiles(appPath string) (*os.File, string, error) {
 // It is responsibility of the caller to close the returned file.
 func receiveFile(ctx context.Context, receiver StreamReceiver, checksum, dst string) (*os.File, error) {
 	hasher := sha256.New()
-	file, err := ioutil.TempFile(dst, "")
+	file, err := os.CreateTemp(dst, "")
 	if err != nil {
 		return nil, fmt.Errorf("error creating file: %w", err)
 	}

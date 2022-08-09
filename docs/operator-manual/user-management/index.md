@@ -197,6 +197,7 @@ NOTES:
 * There is no need to set `redirectURI` in the `connectors.config` as shown in the dex documentation.
   Argo CD will automatically use the correct `redirectURI` for any OAuth2 connectors, to match the
   correct external callback URL (e.g. `https://argocd.example.com/api/dex/callback`)
+* When using a custom secret (e.g., `some_K8S_secret` above,) it *must* have the label `app.kubernetes.io/part-of: argocd`.
 
 ## OIDC Configuration with DEX
 
@@ -493,3 +494,20 @@ data:
     clientSecret: $another-secret:oidc.auth0.clientSecret  # Mind the ':'
   ...
 ```
+
+### Skipping certificate verification on OIDC provider connections
+
+By default, all connections made by the API server to OIDC providers (either external providers or the bundled Dex
+instance) must pass certificate validation. These connections occur when getting the OIDC provider's well-known
+configuration, when getting the OIDC provider's keys, and  when exchanging an authorization code or verifying an ID 
+token as part of an OIDC login flow.
+
+Disabling certificate verification might make sense if:
+* You are using the bundled Dex instance **and** your Argo CD instance has TLS configured with a self-signed certificate
+  **and** you understand and accept the risks of skipping OIDC provider cert verification.
+* You are using an external OIDC provider **and** that provider uses an invalid certificate **and** you cannot solve
+  the problem by setting `oidcConfig.rootCA` **and** you understand and accept the risks of skipping OIDC provider cert 
+  verification.
+
+If either of those two applies, then you can disable OIDC provider certificate verification by setting
+`oidc.tls.insecure.skip.verify` to `"true"` in the `argocd-cm` ConfigMap.

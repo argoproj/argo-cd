@@ -6,8 +6,8 @@ package server
 import (
 	"context"
 	"fmt"
-	"io/ioutil"
 	"net/http"
+	"os"
 	"strings"
 	"testing"
 	"time"
@@ -36,6 +36,7 @@ func TestUserAgent(t *testing.T) {
 	defer cancelInformer()
 	ctx, cancel := context.WithCancel(context.Background())
 	defer cancel()
+	s.Init(ctx)
 	go s.Run(ctx, lns)
 	defer func() { time.Sleep(3 * time.Second) }()
 
@@ -43,7 +44,7 @@ func TestUserAgent(t *testing.T) {
 		userAgent string
 		errorMsg  string
 	}
-	currentVersionBytes, err := ioutil.ReadFile("../VERSION")
+	currentVersionBytes, err := os.ReadFile("../VERSION")
 	assert.NoError(t, err)
 	currentVersion := strings.TrimSpace(string(currentVersionBytes))
 	var tests = []testData{
@@ -101,6 +102,7 @@ func Test_StaticHeaders(t *testing.T) {
 		defer cancelInformer()
 		ctx, cancel := context.WithCancel(context.Background())
 		defer cancel()
+		s.Init(ctx)
 		go s.Run(ctx, lns)
 		defer func() { time.Sleep(3 * time.Second) }()
 
@@ -129,6 +131,7 @@ func Test_StaticHeaders(t *testing.T) {
 		assert.NoError(t, err)
 		ctx, cancel := context.WithCancel(context.Background())
 		defer cancel()
+		s.Init(ctx)
 		go s.Run(ctx, lns)
 		defer func() { time.Sleep(3 * time.Second) }()
 
@@ -157,6 +160,7 @@ func Test_StaticHeaders(t *testing.T) {
 		assert.NoError(t, err)
 		ctx, cancel := context.WithCancel(context.Background())
 		defer cancel()
+		s.Init(ctx)
 		go s.Run(ctx, lns)
 		defer func() { time.Sleep(3 * time.Second) }()
 

@@ -2,13 +2,16 @@ package dex
 
 import (
 	"bytes"
+	"crypto/tls"
+	"crypto/x509"
 	"fmt"
-	"io/ioutil"
+	"io"
 	"net/http"
 	"net/http/httputil"
 	"net/url"
 	"path"
 	"strconv"
+	"strings"
 
 	log "github.com/sirupsen/logrus"
 
@@ -22,19 +25,57 @@ func decorateDirector(director func(req *http.Request), target *url.URL) func(re
 	}
 }
 
+type DexTLSConfig struct {
+	DisableTLS       bool
+	StrictValidation bool
+	RootCAs          *x509.CertPool
+	Certificate      []byte
+}
+
+func TLSConfig(tlsConfig *DexTLSConfig) *tls.Config {
+	if tlsConfig == nil || tlsConfig.DisableTLS {
+		return nil
+	}
+	if !tlsConfig.StrictValidation {
+		return &tls.Config{
+			InsecureSkipVerify: true,
+		}
+	}
+	return &tls.Config{
+		InsecureSkipVerify: false,
+		RootCAs:            tlsConfig.RootCAs,
+		VerifyPeerCertificate: func(rawCerts [][]byte, verifiedChains [][]*x509.Certificate) error {
+			if !bytes.Equal(rawCerts[0], tlsConfig.Certificate) {
+				return fmt.Errorf("dex server certificate does not match")
+			}
+			return nil
+		},
+	}
+}
+
 // NewDexHTTPReverseProxy returns a reverse proxy to the Dex server. Dex is assumed to be configured
 // with the external issuer URL muxed to the same path configured in server.go. In other words, if
 // Argo CD API server wants to proxy requests at /api/dex, then the dex config yaml issuer URL should
 // also be /api/dex (e.g. issuer: https://argocd.example.com/api/dex)
-func NewDexHTTPReverseProxy(serverAddr string, baseHRef string) func(writer http.ResponseWriter, request *http.Request) {
-	target, err := url.Parse(serverAddr)
+func NewDexHTTPReverseProxy(serverAddr string, baseHRef string, tlsConfig *DexTLSConfig) func(writer http.ResponseWriter, request *http.Request) {
+
+	fullAddr := DexServerAddressWithProtocol(serverAddr, tlsConfig)
+
+	target, err := url.Parse(fullAddr)
 	errors.CheckError(err)
 	target.Path = baseHRef
 
 	proxy := httputil.NewSingleHostReverseProxy(target)
+
+	if tlsConfig != nil && !tlsConfig.DisableTLS {
+		proxy.Transport = &http.Transport{
+			TLSClientConfig: TLSConfig(tlsConfig),
+		}
+	}
+
 	proxy.ModifyResponse = func(resp *http.Response) error {
 		if resp.StatusCode == 500 {
-			b, err := ioutil.ReadAll(resp.Body)
+			b, err := io.ReadAll(resp.Body)
 			if err != nil {
 				return err
 			}
@@ -47,7 +88,7 @@ func NewDexHTTPReverseProxy(serverAddr string, baseHRef string) func(writer http
 			resp.Header.Set("Content-Length", strconv.Itoa(0))
 			resp.Header.Set("Location", fmt.Sprintf("%s?has_sso_error=true", path.Join(baseHRef, "login")))
 			resp.StatusCode = http.StatusSeeOther
-			resp.Body = ioutil.NopCloser(bytes.NewReader(make([]byte, 0)))
+			resp.Body = io.NopCloser(bytes.NewReader(make([]byte, 0)))
 			return nil
 		}
 		return nil
@@ -80,4 +121,16 @@ func (s DexRewriteURLRoundTripper) RoundTrip(r *http.Request) (*http.Response, e
 	r.URL.Host = s.DexURL.Host
 	r.URL.Scheme = s.DexURL.Scheme
 	return s.T.RoundTrip(r)
+}
+
+func DexServerAddressWithProtocol(orig string, tlsConfig *DexTLSConfig) string {
+	if strings.Contains(orig, "://") {
+		return orig
+	} else {
+		if tlsConfig == nil || tlsConfig.DisableTLS {
+			return "http://" + orig
+		} else {
+			return "https://" + orig
+		}
+	}
 }

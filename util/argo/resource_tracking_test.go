@@ -1,7 +1,7 @@
 package argo
 
 import (
-	"io/ioutil"
+	"os"
 	"testing"
 
 	"github.com/argoproj/argo-cd/v2/util/kube"
@@ -14,7 +14,7 @@ import (
 )
 
 func TestSetAppInstanceLabel(t *testing.T) {
-	yamlBytes, err := ioutil.ReadFile("testdata/svc.yaml")
+	yamlBytes, err := os.ReadFile("testdata/svc.yaml")
 	assert.Nil(t, err)
 
 	var obj unstructured.Unstructured
@@ -30,7 +30,7 @@ func TestSetAppInstanceLabel(t *testing.T) {
 }
 
 func TestSetAppInstanceAnnotation(t *testing.T) {
-	yamlBytes, err := ioutil.ReadFile("testdata/svc.yaml")
+	yamlBytes, err := os.ReadFile("testdata/svc.yaml")
 	assert.Nil(t, err)
 
 	var obj unstructured.Unstructured
@@ -47,7 +47,7 @@ func TestSetAppInstanceAnnotation(t *testing.T) {
 }
 
 func TestSetAppInstanceAnnotationAndLabel(t *testing.T) {
-	yamlBytes, err := ioutil.ReadFile("testdata/svc.yaml")
+	yamlBytes, err := os.ReadFile("testdata/svc.yaml")
 	assert.Nil(t, err)
 	var obj unstructured.Unstructured
 	err = yaml.Unmarshal(yamlBytes, &obj)
@@ -63,7 +63,7 @@ func TestSetAppInstanceAnnotationAndLabel(t *testing.T) {
 }
 
 func TestSetAppInstanceAnnotationNotFound(t *testing.T) {
-	yamlBytes, err := ioutil.ReadFile("testdata/svc.yaml")
+	yamlBytes, err := os.ReadFile("testdata/svc.yaml")
 	assert.Nil(t, err)
 
 	var obj unstructured.Unstructured
@@ -108,7 +108,7 @@ func TestParseAppInstanceValueCorrectFormat(t *testing.T) {
 }
 
 func sampleResource() *unstructured.Unstructured {
-	yamlBytes, err := ioutil.ReadFile("testdata/svc.yaml")
+	yamlBytes, err := os.ReadFile("testdata/svc.yaml")
 	if err != nil {
 		panic(err)
 	}

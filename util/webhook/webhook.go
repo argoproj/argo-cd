@@ -337,8 +337,13 @@ func appFilesHaveChanged(app *v1alpha1.Application, changedFiles []string) bool 
 		f = ensureAbsPath(f)
 		for _, item := range refreshPaths {
 			item = ensureAbsPath(item)
-
-			if _, err := security.EnforceToCurrentRoot(item, f); err == nil {
+			changed := false
+			if f == item {
+				changed = true
+			} else if _, err := security.EnforceToCurrentRoot(item, f); err == nil {
+				changed = true
+			}
+			if changed {
 				log.WithField("application", app.Name).Debugf("Application uses files that have changed")
 				return true
 			}
@@ -391,7 +396,7 @@ func (a *ArgoCDWebhookHandler) Handler(w http.ResponseWriter, r *http.Request) {
 	case r.Header.Get("X-Gogs-Event") != "":
 		payload, err = a.gogs.Parse(r, gogs.PushEvent)
 	case r.Header.Get("X-GitHub-Event") != "":
-		payload, err = a.github.Parse(r, github.PushEvent)
+		payload, err = a.github.Parse(r, github.PushEvent, github.PingEvent)
 	case r.Header.Get("X-Gitlab-Event") != "":
 		payload, err = a.gitlab.Parse(r, gitlab.PushEvents, gitlab.TagEvents)
 	case r.Header.Get("X-Hook-UUID") != "":

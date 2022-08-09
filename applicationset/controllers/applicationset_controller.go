@@ -430,7 +430,7 @@ func (r *ApplicationSetReconciler) generateApplications(applicationSetInfo argop
 	var applicationSetReason argoprojiov1alpha1.ApplicationSetReasonType
 
 	for _, requestedGenerator := range applicationSetInfo.Spec.Generators {
-		t, err := generators.Transform(requestedGenerator, r.Generators, applicationSetInfo.Spec.Template, &applicationSetInfo, map[string]string{})
+		t, err := generators.Transform(requestedGenerator, r.Generators, applicationSetInfo.Spec.Template, &applicationSetInfo, map[string]interface{}{})
 		if err != nil {
 			log.WithError(err).WithField("generator", requestedGenerator).
 				Error("error generating application from params")
@@ -445,7 +445,7 @@ func (r *ApplicationSetReconciler) generateApplications(applicationSetInfo argop
 			tmplApplication := getTempApplication(a.Template)
 
 			for _, p := range a.Params {
-				app, err := r.Renderer.RenderTemplateParams(tmplApplication, applicationSetInfo.Spec.SyncPolicy, p)
+				app, err := r.Renderer.RenderTemplateParams(tmplApplication, applicationSetInfo.Spec.SyncPolicy, p, applicationSetInfo.Spec.GoTemplate)
 				if err != nil {
 					log.WithError(err).WithField("params", a.Params).WithField("generator", requestedGenerator).
 						Error("error generating application from params")

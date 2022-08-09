@@ -14,7 +14,7 @@ const (
 	// DefaultRepoServerAddr is the gRPC address of the Argo CD repo server
 	DefaultRepoServerAddr = "argocd-repo-server:8081"
 	// DefaultDexServerAddr is the HTTP address of the Dex OIDC server, which we run a reverse proxy against
-	DefaultDexServerAddr = "http://argocd-dex-server:5556"
+	DefaultDexServerAddr = "argocd-dex-server:5556"
 	// DefaultRedisAddr is the default redis address
 	DefaultRedisAddr = "argocd-redis:6379"
 )
@@ -78,6 +78,8 @@ const (
 	ArgoCDAdminUsername = "admin"
 	// ArgoCDUserAgentName is the default user-agent name used by the gRPC API client library and grpc-gateway
 	ArgoCDUserAgentName = "argocd-client"
+	// ArgoCDSSAManager is the default argocd manager name used by server-side apply syncs
+	ArgoCDSSAManager = "argocd-controller"
 	// AuthCookieName is the HTTP cookie name where we store our auth token
 	AuthCookieName = "argocd.token"
 	// StateCookieName is the HTTP cookie name that holds temporary nonce tokens for CSRF protection
@@ -283,6 +285,13 @@ func GetCMPWorkDir() string {
 }
 
 const (
-	// AnnotationApplicationRefresh is an annotation that is added when an ApplicationSet is requested to be refreshed by a webhook. The ApplicationSet controller will remove this annotation at the end of reconcilation.
+	// AnnotationApplicationRefresh is an annotation that is added when an ApplicationSet is requested to be refreshed by a webhook. The ApplicationSet controller will remove this annotation at the end of reconciliation.
 	AnnotationApplicationSetRefresh = "argocd.argoproj.io/application-set-refresh"
+)
+
+// gRPC settings
+const (
+	GRPCKeepAliveEnforcementMinimum = 10 * time.Second
+	// Keep alive is 2x enforcement minimum to ensure network jitter does not introduce ENHANCE_YOUR_CALM errors
+	GRPCKeepAliveTime = 2 * GRPCKeepAliveEnforcementMinimum
 )

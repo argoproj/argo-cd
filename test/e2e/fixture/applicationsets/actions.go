@@ -14,11 +14,12 @@ import (
 	"k8s.io/apimachinery/pkg/apis/meta/v1/unstructured"
 	"k8s.io/apimachinery/pkg/runtime/schema"
 	"k8s.io/apimachinery/pkg/util/wait"
-	"k8s.io/client-go/kubernetes"
 
+	"github.com/argoproj/argo-cd/v2/common"
 	argocommon "github.com/argoproj/argo-cd/v2/common"
 	"github.com/argoproj/argo-cd/v2/pkg/apis/applicationset/v1alpha1"
 	"github.com/argoproj/argo-cd/v2/test/e2e/fixture/applicationsets/utils"
+	"github.com/argoproj/argo-cd/v2/util/clusterauth"
 )
 
 // this implements the "when" part of given/when/then
@@ -61,42 +62,6 @@ func (a *Actions) Then() *Consequences {
 	return &Consequences{a.context, a}
 }
 
-// GetServiceAccountBearerToken will attempt to get the provided service account until it
-// exists, iterate the secrets associated with it looking for one of type
-// kubernetes.io/service-account-token, and return it's token if found.
-// (function based on 'GetServiceAccountBearerToken' from Argo CD's 'clusterauth.go')
-func GetServiceAccountBearerToken(clientset kubernetes.Interface, ns string, sa string) (string, error) {
-	var serviceAccount *corev1.ServiceAccount
-	var secret *corev1.Secret
-	var err error
-	err = wait.Poll(500*time.Millisecond, 5*time.Second, func() (bool, error) {
-		serviceAccount, err = clientset.CoreV1().ServiceAccounts(ns).Get(context.Background(), sa, metav1.GetOptions{})
-		if err != nil {
-			return false, err
-		}
-		// Scan all secrets looking for one of the correct type:
-		for _, oRef := range serviceAccount.Secrets {
-			var getErr error
-			secret, err = clientset.CoreV1().Secrets(ns).Get(context.Background(), oRef.Name, metav1.GetOptions{})
-			if err != nil {
-				return false, fmt.Errorf("failed to retrieve secret %q: %v", oRef.Name, getErr)
-			}
-			if secret.Type == corev1.SecretTypeServiceAccountToken {
-				return true, nil
-			}
-		}
-		return false, nil
-	})
-	if err != nil {
-		return "", fmt.Errorf("failed to wait for service account secret: %v", err)
-	}
-	token, ok := secret.Data["token"]
-	if !ok {
-		return "", fmt.Errorf("secret %q for service account %q did not have a token", secret.Name, serviceAccount)
-	}
-	return string(token), nil
-}
-
 // CreateClusterSecret creates a faux cluster secret, with the given cluster server and cluster name (this cluster
 // will not actually be used by the Argo CD controller, but that's not needed for our E2E tests)
 func (a *Actions) CreateClusterSecret(secretName string, clusterName string, clusterServer string) *Actions {
@@ -135,7 +100,7 @@ func (a *Actions) CreateClusterSecret(secretName string, clusterName string, clu
 
 	if err == nil {
 		var bearerToken string
-		bearerToken, err = GetServiceAccountBearerToken(fixtureClient.KubeClientset, utils.ArgoCDNamespace, serviceAccountName)
+		bearerToken, err = clusterauth.GetServiceAccountBearerToken(fixtureClient.KubeClientset, utils.ArgoCDNamespace, serviceAccountName, common.BearerTokenTimeout)
 
 		// bearerToken
 		secret := &corev1.Secret{

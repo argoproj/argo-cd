@@ -41,7 +41,9 @@ func newAWSCommand() *cobra.Command {
 	var command = &cobra.Command{
 		Use: "aws",
 		Run: func(c *cobra.Command, args []string) {
-			presignedURLString, err := getSignedRequestWithRetry(time.Minute, 5*time.Second, clusterName, roleARN, getSignedRequest)
+			ctx := c.Context()
+
+			presignedURLString, err := getSignedRequestWithRetry(ctx, time.Minute, 5*time.Second, clusterName, roleARN, getSignedRequest)
 			errors.CheckError(err)
 			token := v1Prefix + base64.RawURLEncoding.EncodeToString([]byte(presignedURLString))
 			// Set token expiration to 1 minute before the presigned URL expires for some cushion
@@ -56,8 +58,8 @@ func newAWSCommand() *cobra.Command {
 
 type getSignedRequestFunc func(clusterName, roleARN string) (string, error)
 
-func getSignedRequestWithRetry(timeout, interval time.Duration, clusterName, roleARN string, fn getSignedRequestFunc) (string, error) {
-	ctx, cancel := context.WithTimeout(context.Background(), timeout)
+func getSignedRequestWithRetry(ctx context.Context, timeout, interval time.Duration, clusterName, roleARN string, fn getSignedRequestFunc) (string, error) {
+	ctx, cancel := context.WithTimeout(ctx, timeout)
 	defer cancel()
 	for {
 		signed, err := fn(clusterName, roleARN)

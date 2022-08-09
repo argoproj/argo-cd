@@ -38,12 +38,12 @@ export const Help = () => {
                                         <div className='help-box'>
                                             <p>Want to download the CLI tool?</p>
                                             <a href={`download/argocd-linux-${process.env.HOST_ARCH}`} className='user-info-panel-buttons argo-button argo-button--base'>
-                                                <i className='fab fa-linux' /> Linux (amd64)
+                                                <i className='fab fa-linux' /> Linux ({process.env.HOST_ARCH})
                                             </a>
                                             &nbsp;
                                             {Object.keys(binaryUrls || {}).map(binaryName => {
                                                 const url = binaryUrls[binaryName];
-                                                const match = binaryName.match(/.*(darwin|windows|linux)-(amd64|arm64)/);
+                                                const match = binaryName.match(/.*(darwin|windows|linux)-(amd64|arm64|ppc64le|s390x)/);
                                                 const [platform, arch] = match ? match.slice(1) : ['', ''];
                                                 return (
                                                     <>

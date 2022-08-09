@@ -16,9 +16,9 @@ spec:
 ```
 
 !!! note
-    Know the security implications of PR generators in ApplicationSets. 
+    Know the security implications of PR generators in ApplicationSets.
     [Only admins may create ApplicationSets](./Security.md#only-admins-may-createupdatedelete-applicationsets) to avoid
-    leaking Secrets, and [only admins may create PRs](./Security.md#templated-project-field) if the `project` field of 
+    leaking Secrets, and [only admins may create PRs](./Security.md#templated-project-field) if the `project` field of
     an ApplicationSet with a PR generator is templated, to avoid granting management of out-of-bounds resources.
 
 ## GitHub
@@ -82,7 +82,7 @@ spec:
         # Labels is used to filter the MRs that you want to target. (optional)
         labels:
         - preview
-        # MR state is used to filter MRs only with a certain state. (optional) 
+        # MR state is used to filter MRs only with a certain state. (optional)
         pullRequestState: opened
   requeueAfterSeconds: 1800
   template:
@@ -263,14 +263,17 @@ spec:
 
 * `number`: The ID number of the pull request.
 * `branch`: The name of the branch of the pull request head.
-* `branch_slug`: The branch name will be cleaned to be conform to the DNS label standard as defined in [RFC 1123](https://kubernetes.io/docs/concepts/overview/working-with-objects/names/#dns-label-names), and truncated to 50 characters to give room to append/suffix-ing it with 13 more characters. 
+* `branch_slug`: The branch name will be cleaned to be conform to the DNS label standard as defined in [RFC 1123](https://kubernetes.io/docs/concepts/overview/working-with-objects/names/#dns-label-names), and truncated to 50 characters to give room to append/suffix-ing it with 13 more characters.
 * `head_sha`: This is the SHA of the head of the pull request.
+* `head_short_sha`: This is the short SHA of the head of the pull request (8 characters long or the length of the head SHA if it's shorter).
 
 ## Webhook Configuration
 
 When using a Pull Request generator, the ApplicationSet controller polls every `requeueAfterSeconds` interval (defaulting to every 30 minutes) to detect changes. To eliminate this delay from polling, the ApplicationSet webhook server can be configured to receive webhook events, which will trigger Application generation by the Pull Request generator.
 
 The configuration is almost the same as the one described [in the Git generator](Generators-Git.md), but there is one difference: if you want to use the Pull Request Generator as well, additionally configure the following settings.
+
+### Github webhook configuration
 
 In section 1, _"Create the webhook in the Git provider"_, add an event so that a webhook request will be sent when a pull request is created, closed, or label changed.
 
@@ -291,3 +294,19 @@ The Pull Request Generator will requeue when the next action occurs.
 - `synchronized`
 
 For more information about each event, please refer to the [official documentation](https://docs.github.com/en/developers/webhooks-and-events/webhooks/webhook-events-and-payloads).
+
+### Gitlab webhook configuration
+
+Enable checkbox for "Merge request events" in triggers list.
+
+![Add Gitlab Webhook](../../assets/applicationset/webhook-config-merge-request-gitlab.png "Add Gitlab Merge request Webhook")
+
+The Pull Request Generator will requeue when the next action occurs.
+
+- `open`
+- `close`
+- `reopen`
+- `update`
+- `merge`
+
+For more information about each event, please refer to the [official documentation](https://docs.gitlab.com/ee/user/project/integrations/webhook_events.html#merge-request-events).

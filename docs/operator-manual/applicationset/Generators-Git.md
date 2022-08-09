@@ -45,13 +45,13 @@ spec:
       - path: applicationset/examples/git-generator-directory/cluster-addons/*
   template:
     metadata:
-      name: '{{path[0]}}'
+      name: '{{path.segments[0]}}'
     spec:
       project: "my-project"
       source:
         repoURL: https://github.com/argoproj/argo-cd.git
         targetRevision: HEAD
-        path: '{{path}}'
+        path: '{{path.path}}'
       destination:
         server: https://kubernetes.default.svc
         namespace: '{{path.basename}}'
@@ -60,20 +60,20 @@ spec:
 
 The generator parameters are:
 
-- `{{path}}`: The directory paths within the Git repository that match the `path` wildcard.
-- `{{path[n]}}`: The directory paths within the Git repository that match the `path` wildcard, split into array elements (`n` - array index)
+- `{{path.path}}`: The directory paths within the Git repository that match the `path` wildcard.
+- `{{path.segments[n]}}`: The directory paths within the Git repository that match the `path` wildcard, split into array elements (`n` - array index)
 - `{{path.basename}}`: For any directory path within the Git repository that matches the `path` wildcard, the right-most path name is extracted (e.g. `/directory/directory2` would produce `directory2`).
 - `{{path.basenameNormalized}}`: This field is the same as `path.basename` with unsupported characters replaced with `-` (e.g. a `path` of `/directory/directory_2`, and `path.basename` of `directory_2` would produce `directory-2` here).
 
-**Note**: The right-most path name always becomes `{{path.basename}}`. For example, to use `four` as a parameter from `- path: /one/two/three/four`, use `{{path.basename}}` not `{{path[3]}}`.
+**Note**: The right-most path name always becomes `{{path.basename}}`. For example, for `- path: /one/two/three/four`, `{{path.basename}}` is `four`.
 
-Whenever a new Helm chart/Kustomize YAML/Application/plain subfolder is added to the Git repository, the ApplicationSet controller will detect this change and automatically deploy the resulting manifests within new `Application` resources.
+Whenever a new Helm chart/Kustomize YAML/Application/plain subdirectory is added to the Git repository, the ApplicationSet controller will detect this change and automatically deploy the resulting manifests within new `Application` resources.
 
 As with other generators, clusters *must* already be defined within Argo CD, in order to generate Applications for them.
 
 ### Exclude directories
 
-The Git directory generator will automatically exclude folders that begin with `.` (such as `.git`).
+The Git directory generator will automatically exclude directories that begin with `.` (such as `.git`).
 
 The Git directory generator also supports an `exclude` option in order to exclude directories in the repository from being scanned by the ApplicationSet controller:
 
@@ -100,14 +100,14 @@ spec:
       source:
         repoURL: https://github.com/argoproj/argo-cd.git
         targetRevision: HEAD
-        path: '{{path}}'
+        path: '{{path.path}}'
       destination:
         server: https://kubernetes.default.svc
         namespace: '{{path.basename}}'
 ```
 (*The full example can be found [here](https://github.com/argoproj/argo-cd/tree/master/examples/applicationset/git-generator-directory/excludes).*)
 
-This example excludes the `exclude-helm-guestbook` directory from the list of directories scanned for this `ApplictionSet` resource.
+This example excludes the `exclude-helm-guestbook` directory from the list of directories scanned for this `ApplicationSet` resource.
 
 !!! note "Exclude rules have higher priority than include rules"
 
@@ -181,7 +181,7 @@ spec:
       source:
         repoURL: https://github.com/example/example-repo.git
         targetRevision: HEAD
-        path: '{{path}}'
+        path: '{{path.path}}'
       destination:
         server: https://kubernetes.default.svc
         namespace: '{{path.basename}}'
@@ -207,7 +207,7 @@ Suppose you have a Git repository with the following directory structure:
 └── git-generator-files.yaml
 ```
 
-The folders are:
+The directories are:
 
 - `guestbook` contains the Kubernetes resources for a simple guestbook application
 - `cluster-config` contains JSON/YAML files describing the individual engineering clusters: one for `dev` and one for `prod`.
@@ -271,12 +271,15 @@ As with other generators, clusters *must* already be defined within Argo CD, in 
 
 In addition to the flattened key/value pairs from the configuration file, the following generator parameters are provided:
 
-- `{{path}}`: The path to the folder containing matching configuration file within the Git repository. Example: `/clusters/clusterA`, if the config file was `/clusters/clusterA/config.json`
+- `{{path}}`: The path to the directory containing matching configuration file within the Git repository. Example: `/clusters/clusterA`, if the config file was `/clusters/clusterA/config.json`
 - `{{path[n]}}`: The path to the matching configuration file within the Git repository, split into array elements (`n` - array index). Example: `path[0]: clusters`, `path[1]: clusterA`
-- `{{path.basename}}`: Basename of the path to the folder containing the configuration file (e.g. `clusterA`, with the above example.)
+- `{{path.basename}}`: Basename of the path to the directory containing the configuration file (e.g. `clusterA`, with the above example.)
 - `{{path.basenameNormalized}}`: This field is the same as `path.basename` with unsupported characters replaced with `-` (e.g. a `path` of `/directory/directory_2`, and `path.basename` of `directory_2` would produce `directory-2` here).
+- `{{path.filename}}`: The matched filename. e.g., `config.json` in the above example.
+- `{{path.filenameNormalized}}`: The matched filename with unsupported characters replaced with `-`.
 
-**Note**: The right-most path name always becomes `{{path.basename}}`. For example, to use `four` as a parameter from `- path: /one/two/three/four/config.json`, use `{{path.basename}}` not `{{path[3]}}`.
+**Note**: The right-most *directory* name always becomes `{{path.basename}}`. For example, from `- path: /one/two/three/four/config.json`, `{{path.basename}}` will be `four`. 
+The filename can always be accessed using `{{path.filename}}`. 
 
 
 ## Webhook Configuration

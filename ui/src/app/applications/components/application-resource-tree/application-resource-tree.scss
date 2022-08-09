@@ -79,6 +79,11 @@
             font-size: 2em;
         }
 
+        .fa-filter {
+            margin-left: 8px;
+            padding: 2px;
+        }
+
         &.active {
             border-color: $argo-color-teal-6;
         }

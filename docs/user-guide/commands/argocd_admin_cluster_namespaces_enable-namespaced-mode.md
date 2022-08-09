@@ -46,6 +46,7 @@ argocd admin cluster namespaces enable-namespaced-mode PATTERN [flags]
       --plaintext                       Disable TLS
       --port-forward                    Connect to a random argocd-server port using port forwarding
       --port-forward-namespace string   Namespace name which should be used for port forwarding
+      --proxy-url string                If provided, this URL will be used to connect via proxy
       --request-timeout string          The length of time to wait before giving up on a single server request. Non-zero values should contain a corresponding time unit (e.g. 1s, 2m, 3h). A value of zero means don't timeout requests. (default "0")
       --server string                   The address and port of the Kubernetes API server
       --server-crt string               Server certificate file

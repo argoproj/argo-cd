@@ -234,3 +234,18 @@ If you don't need to set any environment variables, you can set an empty plugin 
     Each CMP command will also independently timeout on the `ARGOCD_EXEC_TIMEOUT` set for the CMP sidecar. The default
     is 90s. So if you increase the repo server timeout greater than 90s, be sure to set `ARGOCD_EXEC_TIMEOUT` on the
     sidecar.
+
+## Plugin tar stream exclusions
+
+In order to increase the speed of manifest generation, certain files and folders can be excluded from being sent to your
+plugin. We recommend excluding your `.git` folder if it isn't necessary. Use Go's 
+[filepatch.Match](https://pkg.go.dev/path/filepath#Match) syntax.
+
+You can set it one of three ways:
+
+1. The `--plugin-tar-exclude` argument on the repo server.
+2. The `reposerver.plugin.tar.exclusions` key if you are using `argocd-cmd-params-cm`
+3. Directly setting `ARGOCD_REPO_SERVER_PLUGIN_TAR_EXCLUSIONS` environment variable on the repo server.
+
+For option 1, the flag can be repeated multiple times. For option 2 and 3, you can specify multiple globs by separating
+them with semicolons.

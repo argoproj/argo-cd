@@ -74,7 +74,9 @@ func TestFilePermission(t *testing.T) {
 
 			f, err := os.Create(filePath)
 			require.NoError(t, err, "Could not write  create config file: %v", err)
-			defer f.Close()
+			defer func() {
+				assert.NoError(t, f.Close())
+			}()
 
 			err = f.Chmod(c.perm)
 			require.NoError(t, err, "Could not change the file permission to %s: %v", c.perm, err)

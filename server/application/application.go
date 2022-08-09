@@ -1,6 +1,7 @@
 package application
 
 import (
+	"context"
 	"encoding/json"
 	"errors"
 	"fmt"
@@ -19,7 +20,6 @@ import (
 	"github.com/argoproj/pkg/sync"
 	jsonpatch "github.com/evanphx/json-patch"
 	log "github.com/sirupsen/logrus"
-	"golang.org/x/net/context"
 	"google.golang.org/grpc/codes"
 	"google.golang.org/grpc/status"
 	v1 "k8s.io/api/core/v1"

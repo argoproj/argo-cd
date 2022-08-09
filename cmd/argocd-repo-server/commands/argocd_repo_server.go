@@ -1,7 +1,6 @@
 package commands
 
 import (
-	"context"
 	"fmt"
 	"math"
 	"net"
@@ -81,6 +80,8 @@ func NewCommand() *cobra.Command {
 		redisClient                       *redis.Client
 		disableTLS                        bool
 		maxCombinedDirectoryManifestsSize string
+		cmpTarExcludedGlobs               []string
+		allowOutOfBoundsSymlinks          bool
 	)
 	var command = cobra.Command{
 		Use:               cliName,
@@ -88,6 +89,8 @@ func NewCommand() *cobra.Command {
 		Long:              "ArgoCD Repository Server is an internal service which maintains a local cache of the Git repository holding the application manifests, and is responsible for generating and returning the Kubernetes manifests.  This command runs Repository Server in the foreground.  It can be configured by following options.",
 		DisableAutoGenTag: true,
 		RunE: func(c *cobra.Command, args []string) error {
+			ctx := c.Context()
+
 			vers := common.GetVersion()
 			vers.LogStartupInfo(
 				"ArgoCD Repository Server",
@@ -121,13 +124,15 @@ func NewCommand() *cobra.Command {
 				PauseGenerationOnFailureForRequests:          getPauseGenerationOnFailureForRequests(),
 				SubmoduleEnabled:                             getSubmoduleEnabled(),
 				MaxCombinedDirectoryManifestsSize:            maxCombinedDirectoryManifestsQuantity,
+				CMPTarExcludedGlobs:                          cmpTarExcludedGlobs,
+				AllowOutOfBoundsSymlinks:                     allowOutOfBoundsSymlinks,
 			}, askPassServer)
 			errors.CheckError(err)
 
 			if otlpAddress != "" {
 				var closer func()
 				var err error
-				closer, err = traceutil.InitTracer(context.Background(), "argocd-repo-server", otlpAddress)
+				closer, err = traceutil.InitTracer(ctx, "argocd-repo-server", otlpAddress)
 				if err != nil {
 					log.Fatalf("failed to initialize tracing: %v", err)
 				}
@@ -197,6 +202,8 @@ func NewCommand() *cobra.Command {
 	command.Flags().StringVar(&otlpAddress, "otlp-address", env.StringFromEnv("ARGOCD_REPO_SERVER_OTLP_ADDRESS", ""), "OpenTelemetry collector address to send traces to")
 	command.Flags().BoolVar(&disableTLS, "disable-tls", env.ParseBoolFromEnv("ARGOCD_REPO_SERVER_DISABLE_TLS", false), "Disable TLS on the gRPC endpoint")
 	command.Flags().StringVar(&maxCombinedDirectoryManifestsSize, "max-combined-directory-manifests-size", env.StringFromEnv("ARGOCD_REPO_SERVER_MAX_COMBINED_DIRECTORY_MANIFESTS_SIZE", "10M"), "Max combined size of manifest files in a directory-type Application")
+	command.Flags().StringArrayVar(&cmpTarExcludedGlobs, "plugin-tar-exclude", env.StringsFromEnv("ARGOCD_REPO_SERVER_PLUGIN_TAR_EXCLUSIONS", []string{}, ";"), "Globs to filter when sending tarballs to plugins.")
+	command.Flags().BoolVar(&allowOutOfBoundsSymlinks, "allow-oob-symlinks", env.ParseBoolFromEnv("ARGOCD_REPO_SERVER_ALLOW_OUT_OF_BOUNDS_SYMLINKS", false), "Allow out-of-bounds symlinks in repositories (not recommended)")
 
 	tlsConfigCustomizerSrc = tls.AddTLSFlagsToCmd(&command)
 	cacheSrc = reposervercache.AddCacheFlagsToCmd(&command, func(client *redis.Client) {

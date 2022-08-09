@@ -1542,6 +1542,19 @@ func isValidAction(action string) bool {
 	return false
 }
 
+// TODO: same as validActions, refacotor to use rbacpolicy.ResourceApplications etc.
+var validResources = map[string]bool{
+	"applications": true,
+	"repositories": true,
+	"clusters":     true,
+	"exec":         true,
+	"logs":         true,
+}
+
+func isValidResource(resource string) bool {
+	return validResources[resource]
+}
+
 func validatePolicy(proj string, role string, policy string) error {
 	policyComponents := strings.Split(policy, ",")
 	if len(policyComponents) != 6 || strings.Trim(policyComponents[0], " ") != "p" {
@@ -1555,7 +1568,7 @@ func validatePolicy(proj string, role string, policy string) error {
 	}
 	// resource
 	resource := strings.Trim(policyComponents[2], " ")
-	if resource != "applications" && resource != "repositories" && resource != "clusters" {
+	if !isValidResource(resource) {
 		return status.Errorf(codes.InvalidArgument, "invalid policy rule '%s': project resource must be: 'applications', 'repositories' or 'clusters', not '%s'", policy, resource)
 	}
 	// action
@@ -1823,7 +1836,7 @@ func (w *SyncWindows) Matches(app *Application) *SyncWindows {
 		for _, w := range *w {
 			if len(w.Applications) > 0 {
 				for _, a := range w.Applications {
-					if globMatch(a, app.Name) {
+					if globMatch(a, app.Name, false) {
 						matchingWindows = append(matchingWindows, w)
 						break
 					}
@@ -1832,8 +1845,8 @@ func (w *SyncWindows) Matches(app *Application) *SyncWindows {
 			if len(w.Clusters) > 0 {
 				for _, c := range w.Clusters {
 					dst := app.Spec.Destination
-					dstNameMatched := dst.Name != "" && globMatch(c, dst.Name)
-					dstServerMatched := dst.Server != "" && globMatch(c, dst.Server)
+					dstNameMatched := dst.Name != "" && globMatch(c, dst.Name, false)
+					dstServerMatched := dst.Server != "" && globMatch(c, dst.Server, false)
 					if dstNameMatched || dstServerMatched {
 						matchingWindows = append(matchingWindows, w)
 						break
@@ -1842,7 +1855,7 @@ func (w *SyncWindows) Matches(app *Application) *SyncWindows {
 			}
 			if len(w.Namespaces) > 0 {
 				for _, n := range w.Namespaces {
-					if globMatch(n, app.Spec.Destination.Namespace) {
+					if globMatch(n, app.Spec.Destination.Namespace, false) {
 						matchingWindows = append(matchingWindows, w)
 						break
 					}

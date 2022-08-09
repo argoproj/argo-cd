@@ -8,6 +8,8 @@ import (
 	"io"
 	"os"
 	"path/filepath"
+
+	log "github.com/sirupsen/logrus"
 )
 
 type tgz struct {
@@ -177,7 +179,12 @@ func (t *tgz) tgzFile(path string, fi os.FileInfo, err error) error {
 		if err != nil {
 			return fmt.Errorf("error opening file %q: %w", fi.Name(), err)
 		}
-		defer f.Close()
+		defer func() {
+			err := f.Close()
+			if err != nil {
+				log.Errorf("error closing file %q: %v", fi.Name(), err)
+			}
+		}()
 
 		if _, err := io.Copy(t.tarWriter, f); err != nil {
 			return fmt.Errorf("error copying tgz file to writers: %w", err)
