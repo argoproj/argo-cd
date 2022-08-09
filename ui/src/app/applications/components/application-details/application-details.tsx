@@ -35,6 +35,8 @@ interface ApplicationDetailsState {
     groupedResources?: ResourceStatus[];
     slidingPanelPage?: number;
     filteredGraph?: any[];
+    truncateNameOnRight?: boolean;
+    collapsedNodes?: string[];
 }
 
 interface FilterInput {
@@ -69,11 +71,28 @@ export class ApplicationDetails extends React.Component<RouteComponentProps<{nam
 
     constructor(props: RouteComponentProps<{name: string}>) {
         super(props);
-        this.state = {page: 0, groupedResources: [], slidingPanelPage: 0, filteredGraph: []};
+        this.state = {page: 0, groupedResources: [], slidingPanelPage: 0, filteredGraph: [], truncateNameOnRight: false, collapsedNodes: []};
     }
 
     private get showOperationState() {
         return new URLSearchParams(this.props.history.location.search).get('operation') === 'true';
+    }
+
+    private setNodeExpansion(node: string, isExpanded: boolean) {
+        const index = this.state.collapsedNodes.indexOf(node);
+        if (isExpanded && index >= 0) {
+            this.state.collapsedNodes.splice(index, 1);
+            const updatedNodes = this.state.collapsedNodes.slice();
+            this.setState({collapsedNodes: updatedNodes});
+        } else if (!isExpanded && index < 0) {
+            const updatedNodes = this.state.collapsedNodes.slice();
+            updatedNodes.push(node);
+            this.setState({collapsedNodes: updatedNodes});
+        }
+    }
+
+    private getNodeExpansion(node: string): boolean {
+        return this.state.collapsedNodes.indexOf(node) < 0;
     }
 
     private get showConditions() {
@@ -212,7 +231,7 @@ export class ApplicationDetails extends React.Component<RouteComponentProps<{nam
                                     )
                                 );
                             const {Tree, Pods, Network, List} = AppsDetailsViewKey;
-                            const zoomNum = ((pref.zoom || 1.0) * 100).toFixed(0);
+                            const zoomNum = (pref.zoom * 100).toFixed(0);
                             const setZoom = (s: number) => {
                                 let targetZoom: number = pref.zoom + s;
                                 if (targetZoom <= 0.05) {
@@ -224,6 +243,47 @@ export class ApplicationDetails extends React.Component<RouteComponentProps<{nam
                             };
                             const setFilterGraph = (filterGraph: any[]) => {
                                 this.setState({filteredGraph: filterGraph});
+                            };
+                            const toggleNameDirection = () => {
+                                this.setState({truncateNameOnRight: !this.state.truncateNameOnRight});
+                            };
+                            const expandAll = () => {
+                                this.setState({collapsedNodes: []});
+                            };
+                            const collapseAll = () => {
+                                const nodes = new Array<ResourceTreeNode>();
+                                tree.nodes
+                                    .map(node => ({...node, orphaned: false}))
+                                    .concat((tree.orphanedNodes || []).map(node => ({...node, orphaned: true})))
+                                    .forEach(node => {
+                                        const resourceNode: ResourceTreeNode = {...node};
+                                        nodes.push(resourceNode);
+                                    });
+                                const collapsedNodesList = this.state.collapsedNodes.slice();
+                                if (pref.view === 'network') {
+                                    const networkNodes = nodes.filter(node => node.networkingInfo);
+                                    networkNodes.forEach(parent => {
+                                        const parentId = parent.uid;
+                                        if (collapsedNodesList.indexOf(parentId) < 0) {
+                                            collapsedNodesList.push(parentId);
+                                        }
+                                    });
+                                    this.setState({collapsedNodes: collapsedNodesList});
+                                } else {
+                                    const managedKeys = new Set(application.status.resources.map(AppUtils.nodeKey));
+                                    nodes.forEach(node => {
+                                        if (!((node.parentRefs || []).length === 0 || managedKeys.has(AppUtils.nodeKey(node)))) {
+                                            node.parentRefs.forEach(parent => {
+                                                const parentId = parent.uid;
+                                                if (collapsedNodesList.indexOf(parentId) < 0) {
+                                                    collapsedNodesList.push(parentId);
+                                                }
+                                            });
+                                        }
+                                    });
+                                    collapsedNodesList.push(application.kind + '-' + application.metadata.namespace + '-' + application.metadata.name);
+                                    this.setState({collapsedNodes: collapsedNodesList});
+                                }
                             };
                             return (
                                 <div className='application-details'>
@@ -289,14 +349,35 @@ export class ApplicationDetails extends React.Component<RouteComponentProps<{nam
                                             {((pref.view === 'tree' || pref.view === 'network') && (
                                                 <Filters pref={pref} tree={tree} resourceNodes={this.state.filteredGraph} onSetFilter={setFilter} onClearFilter={clearFilter}>
                                                     <div className='graph-options-panel'>
-                                                        {pref.view === 'tree' && (
+                                                        <a
+                                                            className={`group-nodes-button`}
+                                                            onClick={() => {
+                                                                toggleNameDirection();
+                                                            }}
+                                                            title={this.state.truncateNameOnRight ? 'Truncate resource name right' : 'Truncate resource name left'}>
+                                                            <i
+                                                                className={classNames({
+                                                                    'fa fa-align-right': this.state.truncateNameOnRight,
+                                                                    'fa fa-align-left': !this.state.truncateNameOnRight
+                                                                })}
+                                                            />
+                                                        </a>
+                                                        {(pref.view === 'tree' || pref.view === 'network') && (
                                                             <a
                                                                 className={`group-nodes-button group-nodes-button${!pref.groupNodes ? '' : '-on'}`}
-                                                                title='Group Nodes'
+                                                                title={pref.view === 'tree' ? 'Group Nodes' : 'Collapse Pods'}
                                                                 onClick={() => this.toggleCompactView(pref)}>
                                                                 <i className={classNames('fa fa-object-group fa-fw')} />
                                                             </a>
                                                         )}
+                                                        <span className={`separator`} />
+                                                        <a className={`group-nodes-button`} onClick={() => expandAll()} title='Expand all child nodes of all parent nodes'>
+                                                            <i className='fa fa-plus fa-fw' />
+                                                        </a>
+                                                        <a className={`group-nodes-button`} onClick={() => collapseAll()} title='Collapse all child nodes of all parent nodes'>
+                                                            <i className='fa fa-minus fa-fw' />
+                                                        </a>
+                                                        <span className={`separator`} />
                                                         <a className={`group-nodes-button`} onClick={() => setZoom(0.1)} title='Zoom in'>
                                                             <i className='fa fa-search-plus fa-fw' />
                                                         </a>
@@ -321,9 +402,13 @@ export class ApplicationDetails extends React.Component<RouteComponentProps<{nam
                                                         useNetworkingHierarchy={pref.view === 'network'}
                                                         onClearFilter={clearFilter}
                                                         onGroupdNodeClick={groupdedNodeIds => openGroupNodeDetails(groupdedNodeIds)}
-                                                        zoom={pref.zoom || 1.0}
+                                                        zoom={pref.zoom}
+                                                        appContext={this.appContext}
+                                                        nameDirection={this.state.truncateNameOnRight}
                                                         filters={pref.resourceFilter}
                                                         setTreeFilterGraph={setFilterGraph}
+                                                        setNodeExpansion={(node, isExpanded) => this.setNodeExpansion(node, isExpanded)}
+                                                        getNodeExpansion={node => this.getNodeExpansion(node)}
                                                     />
                                                 </Filters>
                                             )) ||
@@ -340,39 +425,68 @@ export class ApplicationDetails extends React.Component<RouteComponentProps<{nam
                                                         quickStarts={node => AppUtils.renderResourceButtons(node, application, tree, this.appContext, this.appChanged)}
                                                     />
                                                 )) || (
-                                                    <div>
-                                                        <Filters pref={pref} tree={tree} resourceNodes={filteredRes} onSetFilter={setFilter} onClearFilter={clearFilter}>
-                                                            {(filteredRes.length > 0 && (
-                                                                <Paginate
-                                                                    page={this.state.page}
-                                                                    data={filteredRes}
-                                                                    onPageChange={page => this.setState({page})}
-                                                                    preferencesKey='application-details'>
-                                                                    {data => (
-                                                                        <ApplicationResourceList
-                                                                            onNodeClick={fullName => this.selectNode(fullName)}
-                                                                            resources={data}
-                                                                            nodeMenu={node =>
-                                                                                AppUtils.renderResourceMenu(
-                                                                                    {...node, root: node},
-                                                                                    application,
-                                                                                    tree,
-                                                                                    this.appContext,
-                                                                                    this.appChanged,
-                                                                                    () => this.getApplicationActionMenu(application, false)
-                                                                                )
-                                                                            }
-                                                                        />
+                                                    <DataLoader
+                                                        input={{filteredRes}}
+                                                        load={async () => {
+                                                            const liveStatePromises = filteredRes.map(async resource => {
+                                                                const resourceRow: any = {...resource, group: resource.group || ''};
+                                                                const liveState =
+                                                                    typeof resource.group !== 'undefined' &&
+                                                                    (await services.applications.getResource(application.metadata.name, resource).catch(() => null));
+                                                                if (liveState?.metadata?.annotations?.[models.AnnotationHookKey]) {
+                                                                    resourceRow.syncOrder = liveState?.metadata.annotations[models.AnnotationHookKey];
+                                                                    if (liveState?.metadata?.annotations?.[models.AnnotationSyncWaveKey]) {
+                                                                        resourceRow.syncOrder =
+                                                                            resourceRow.syncOrder + ': ' + liveState?.metadata.annotations[models.AnnotationSyncWaveKey];
+                                                                    }
+                                                                } else {
+                                                                    resourceRow.syncOrder = '-';
+                                                                }
+                                                                return resourceRow;
+                                                            });
+                                                            return await Promise.all(liveStatePromises);
+                                                        }}>
+                                                        {(filteredResWithSyncInfo: any[]) => (
+                                                            <div>
+                                                                <Filters
+                                                                    pref={pref}
+                                                                    tree={tree}
+                                                                    resourceNodes={filteredResWithSyncInfo}
+                                                                    onSetFilter={setFilter}
+                                                                    onClearFilter={clearFilter}>
+                                                                    {(filteredResWithSyncInfo.length > 0 && (
+                                                                        <Paginate
+                                                                            page={this.state.page}
+                                                                            data={filteredResWithSyncInfo}
+                                                                            onPageChange={page => this.setState({page})}
+                                                                            preferencesKey='application-details'>
+                                                                            {data => (
+                                                                                <ApplicationResourceList
+                                                                                    onNodeClick={fullName => this.selectNode(fullName)}
+                                                                                    resources={data}
+                                                                                    nodeMenu={node =>
+                                                                                        AppUtils.renderResourceMenu(
+                                                                                            {...node, root: node},
+                                                                                            application,
+                                                                                            tree,
+                                                                                            this.appContext,
+                                                                                            this.appChanged,
+                                                                                            () => this.getApplicationActionMenu(application, false)
+                                                                                        )
+                                                                                    }
+                                                                                />
+                                                                            )}
+                                                                        </Paginate>
+                                                                    )) || (
+                                                                        <EmptyState icon='fa fa-search'>
+                                                                            <h4>No resources found</h4>
+                                                                            <h5>Try to change filter criteria</h5>
+                                                                        </EmptyState>
                                                                     )}
-                                                                </Paginate>
-                                                            )) || (
-                                                                <EmptyState icon='fa fa-search'>
-                                                                    <h4>No resources found</h4>
-                                                                    <h5>Try to change filter criteria</h5>
-                                                                </EmptyState>
-                                                            )}
-                                                        </Filters>
-                                                    </div>
+                                                                </Filters>
+                                                            </div>
+                                                        )}
+                                                    </DataLoader>
                                                 )}
                                         </div>
                                         <SlidingPanel isShown={this.state.groupedResources.length > 0} onClose={() => this.closeGroupedNodesPanel()}>

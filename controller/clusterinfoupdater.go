@@ -123,7 +123,7 @@ func (c *clusterInfoUpdater) updateClusterInfo(cluster appv1.Cluster, info *cach
 	} else {
 		clusterInfo.ConnectionState.Status = appv1.ConnectionStatusUnknown
 		if appCount == 0 {
-			clusterInfo.ConnectionState.Message = "Cluster has no application and not being monitored."
+			clusterInfo.ConnectionState.Message = "Cluster has no applications and is not being monitored."
 		}
 	}
 

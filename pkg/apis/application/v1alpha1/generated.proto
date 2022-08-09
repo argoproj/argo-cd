@@ -11,7 +11,7 @@ import "k8s.io/apimachinery/pkg/runtime/generated.proto";
 import "k8s.io/apimachinery/pkg/runtime/schema/generated.proto";
 
 // Package-wide variables from generator "generated".
-option go_package = "v1alpha1";
+option go_package = "github.com/argoproj/argo-cd/v2/pkg/apis/application/v1alpha1";
 
 // AWSAuthConfig is an AWS IAM authentication configuration
 message AWSAuthConfig {
@@ -202,7 +202,7 @@ message ApplicationSourceHelm {
   // FileParameters are file parameters to the helm template
   repeated HelmFileParameter fileParameters = 5;
 
-  // Version is the Helm version to use for templating (either "2" or "3")
+  // Version is the Helm version to use for templating ("3")
   optional string version = 6;
 
   // PassCredentials pass credentials to all domains (Helm's --pass-credentials)

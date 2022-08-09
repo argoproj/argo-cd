@@ -1,13 +1,13 @@
 import {DataLoader, Tab, Tabs} from 'argo-ui';
-import {useData} from 'argo-ui/v2';
 import * as React from 'react';
+import {useState} from 'react';
 import {EventsList, YamlEditor} from '../../../shared/components';
 import * as models from '../../../shared/models';
 import {ErrorBoundary} from '../../../shared/components/error-boundary/error-boundary';
 import {Context} from '../../../shared/context';
 import {Application, ApplicationTree, AppSourceType, Event, RepoAppDetails, ResourceNode, State, SyncStatuses} from '../../../shared/models';
 import {services} from '../../../shared/services';
-import {ExtensionComponentProps} from '../../../shared/services/extensions-service';
+import {ResourceTabExtension} from '../../../shared/services/extensions-service';
 import {NodeInfo, SelectNode} from '../application-details/application-details';
 import {ApplicationNodeInfo} from '../application-node-info/application-node-info';
 import {ApplicationParameters} from '../application-parameters/application-parameters';
@@ -16,6 +16,7 @@ import {ResourceTreeNode} from '../application-resource-tree/application-resourc
 import {ApplicationResourcesDiff} from '../application-resources-diff/application-resources-diff';
 import {ApplicationSummary} from '../application-summary/application-summary';
 import {PodsLogsViewer} from '../pod-logs-viewer/pod-logs-viewer';
+import {PodTerminalViewer} from '../pod-terminal-viewer/pod-terminal-viewer';
 import {ResourceIcon} from '../resource-icon';
 import {ResourceLabel} from '../resource-label';
 import * as AppUtils from '../utils';
@@ -34,6 +35,7 @@ interface ResourceDetailsProps {
 
 export const ResourceDetails = (props: ResourceDetailsProps) => {
     const {selectedNode, updateApp, application, isAppSelected, tree} = {...props};
+    const [activeContainer, setActiveContainer] = useState();
     const appContext = React.useContext(Context);
     const tab = new URLSearchParams(appContext.history.location.search).get('tab');
     const selectedNodeInfo = NodeInfo(new URLSearchParams(appContext.history.location.search).get('node'));
@@ -42,7 +44,17 @@ export const ResourceDetails = (props: ResourceDetailsProps) => {
     const page = parseInt(new URLSearchParams(appContext.history.location.search).get('page'), 10) || 0;
     const untilTimes = (new URLSearchParams(appContext.history.location.search).get('untilTimes') || '').split(',') || [];
 
-    const getResourceTabs = (node: ResourceNode, state: State, podState: State, events: Event[], ExtensionComponent: React.ComponentType<ExtensionComponentProps>, tabs: Tab[]) => {
+    const getResourceTabs = (
+        node: ResourceNode,
+        state: State,
+        podState: State,
+        events: Event[],
+        extensionTabs: ResourceTabExtension[],
+        tabs: Tab[],
+        execEnabled: boolean,
+        execAllowed: boolean,
+        logsAllowed: boolean
+    ) => {
         if (!node || node === undefined) {
             return [];
         }
@@ -66,65 +78,79 @@ export const ResourceDetails = (props: ResourceDetailsProps) => {
                     offset: 0,
                     title: 'CONTAINERS',
                     containers: podState.spec.containers || []
-                },
-                {
+                }
+            ];
+            if (podState.spec.initContainers?.length > 0) {
+                containerGroups.push({
                     offset: (podState.spec.containers || []).length,
                     title: 'INIT CONTAINERS',
                     containers: podState.spec.initContainers || []
-                }
-            ];
-            tabs = tabs.concat([
-                {
-                    key: 'logs',
-                    icon: 'fa fa-align-left',
-                    title: 'LOGS',
-                    content: (
-                        <div className='application-details__tab-content-full-height'>
-                            <div className='row'>
-                                <div className='columns small-3 medium-2'>
-                                    {containerGroups.map(group => (
-                                        <div key={group.title} style={{marginBottom: '1em'}}>
-                                            {group.containers.length > 0 && <p>{group.title}</p>}
-                                            {group.containers.map((container: any, i: number) => (
-                                                <div
-                                                    className='application-details__container'
-                                                    key={container.name}
-                                                    onClick={() => SelectNode(selectedNodeKey, group.offset + i, 'logs', appContext)}>
-                                                    {group.offset + i === selectedNodeInfo.container && <i className='fa fa-angle-right' />}
-                                                    <span title={container.name}>{container.name}</span>
-                                                </div>
-                                            ))}
-                                        </div>
-                                    ))}
-                                </div>
-                                <div className='columns small-9 medium-10'>
-                                    <PodsLogsViewer
-                                        podName={(state.kind === 'Pod' && state.metadata.name) || ''}
-                                        group={node.group}
-                                        kind={node.kind}
-                                        name={node.name}
-                                        namespace={podState.metadata.namespace}
-                                        applicationName={application.metadata.name}
-                                        containerName={AppUtils.getContainerName(podState, selectedNodeInfo.container)}
-                                        page={{number: page, untilTimes}}
-                                        setPage={pageData => appContext.navigation.goto('.', {page: pageData.number, untilTimes: pageData.untilTimes.join(',')})}
-                                    />
-                                </div>
+                });
+            }
+
+            const onClickContainer = (group: any, i: number, activeTab: string) => {
+                setActiveContainer(group.offset + i);
+                SelectNode(selectedNodeKey, activeContainer, activeTab, appContext);
+            };
+
+            if (logsAllowed) {
+                tabs = tabs.concat([
+                    {
+                        key: 'logs',
+                        icon: 'fa fa-align-left',
+                        title: 'LOGS',
+                        content: (
+                            <div className='application-details__tab-content-full-height'>
+                                <PodsLogsViewer
+                                    podName={(state.kind === 'Pod' && state.metadata.name) || ''}
+                                    group={node.group}
+                                    kind={node.kind}
+                                    name={node.name}
+                                    namespace={podState.metadata.namespace}
+                                    applicationName={application.metadata.name}
+                                    containerName={AppUtils.getContainerName(podState, activeContainer)}
+                                    page={{number: page, untilTimes}}
+                                    setPage={pageData => appContext.navigation.goto('.', {page: pageData.number, untilTimes: pageData.untilTimes.join(',')})}
+                                    containerGroups={containerGroups}
+                                    onClickContainer={onClickContainer}
+                                />
                             </div>
-                        </div>
-                    )
-                }
-            ]);
+                        )
+                    }
+                ]);
+            }
+            if (execEnabled && execAllowed) {
+                tabs = tabs.concat([
+                    {
+                        key: 'exec',
+                        icon: 'fa fa-terminal',
+                        title: 'Terminal',
+                        content: (
+                            <PodTerminalViewer
+                                applicationName={application.metadata.name}
+                                projectName={application.spec.project}
+                                podState={podState}
+                                selectedNode={selectedNode}
+                                containerName={AppUtils.getContainerName(podState, activeContainer)}
+                                onClickContainer={onClickContainer}
+                            />
+                        )
+                    }
+                ]);
+            }
         }
-        if (ExtensionComponent && state) {
-            tabs.push({
-                title: 'More',
-                key: 'extension',
-                content: (
-                    <ErrorBoundary message={`Something went wrong with Extension for ${state.kind}`}>
-                        <ExtensionComponent tree={tree} resource={state} />
-                    </ErrorBoundary>
-                )
+        if (state) {
+            extensionTabs.forEach((tabExtensions, i) => {
+                tabs.push({
+                    title: tabExtensions.title,
+                    key: `extension-${i}`,
+                    content: (
+                        <ErrorBoundary message={`Something went wrong with Extension for ${state.kind}`}>
+                            <tabExtensions.component tree={tree} resource={state} application={application} />
+                        </ErrorBoundary>
+                    ),
+                    icon: tabExtensions.icon
+                });
             });
         }
         return tabs;
@@ -201,19 +227,17 @@ export const ResourceDetails = (props: ResourceDetailsProps) => {
             content: <ApplicationResourceEvents applicationName={application.metadata.name} />
         });
 
-        return tabs;
+        const extensionTabs = services.extensions.getResourceTabs('argoproj.io', 'Application').map((ext, i) => ({
+            title: ext.title,
+            key: `extension-${i}`,
+            content: <ext.component resource={application} tree={tree} application={application} />,
+            icon: ext.icon
+        }));
+
+        return tabs.concat(extensionTabs);
     };
 
-    const [extension, , error] = useData(
-        async () => {
-            if (selectedNode?.kind && selectedNode?.group) {
-                return await services.extensions.loadResourceExtension(selectedNode?.group || '', selectedNode?.kind || '');
-            }
-        },
-        null,
-        null,
-        [selectedNode]
-    );
+    const extensions = selectedNode?.kind ? services.extensions.getResourceTabs(selectedNode?.group || '', selectedNode?.kind) : [];
 
     return (
         <div style={{width: '100%', height: '100%'}}>
@@ -256,7 +280,11 @@ export const ResourceDetails = (props: ResourceDetailsProps) => {
                             }
                         }
 
-                        return {controlledState, liveState, events, podState};
+                        const settings = await services.authService.settings();
+                        const execEnabled = settings.execEnabled;
+                        const logsAllowed = await services.accounts.canI('logs', 'get', application.spec.project + '/' + application.metadata.name);
+                        const execAllowed = await services.accounts.canI('exec', 'create', application.spec.project + '/' + application.metadata.name);
+                        return {controlledState, liveState, events, podState, execEnabled, execAllowed, logsAllowed};
                     }}>
                     {data => (
                         <React.Fragment>
@@ -286,14 +314,24 @@ export const ResourceDetails = (props: ResourceDetailsProps) => {
                             </div>
                             <Tabs
                                 navTransparent={true}
-                                tabs={getResourceTabs(selectedNode, data.liveState, data.podState, data.events, error.state ? null : extension?.component, [
-                                    {
-                                        title: 'SUMMARY',
-                                        icon: 'fa fa-file-alt',
-                                        key: 'summary',
-                                        content: <ApplicationNodeInfo application={application} live={data.liveState} controlled={data.controlledState} node={selectedNode} />
-                                    }
-                                ])}
+                                tabs={getResourceTabs(
+                                    selectedNode,
+                                    data.liveState,
+                                    data.podState,
+                                    data.events,
+                                    extensions,
+                                    [
+                                        {
+                                            title: 'SUMMARY',
+                                            icon: 'fa fa-file-alt',
+                                            key: 'summary',
+                                            content: <ApplicationNodeInfo application={application} live={data.liveState} controlled={data.controlledState} node={selectedNode} />
+                                        }
+                                    ],
+                                    data.execEnabled,
+                                    data.execAllowed,
+                                    data.logsAllowed
+                                )}
                                 selectedTabKey={props.tab}
                                 onTabSelected={selected => appContext.navigation.goto('.', {tab: selected}, {replace: true})}
                             />

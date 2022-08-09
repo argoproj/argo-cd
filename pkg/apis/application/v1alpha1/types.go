@@ -237,7 +237,7 @@ type ApplicationSourceHelm struct {
 	Values string `json:"values,omitempty" protobuf:"bytes,4,opt,name=values"`
 	// FileParameters are file parameters to the helm template
 	FileParameters []HelmFileParameter `json:"fileParameters,omitempty" protobuf:"bytes,5,opt,name=fileParameters"`
-	// Version is the Helm version to use for templating (either "2" or "3")
+	// Version is the Helm version to use for templating ("3")
 	Version string `json:"version,omitempty" protobuf:"bytes,6,opt,name=version"`
 	// PassCredentials pass credentials to all domains (Helm's --pass-credentials)
 	PassCredentials bool `json:"passCredentials,omitempty" protobuf:"bytes,7,opt,name=passCredentials"`
@@ -1542,6 +1542,19 @@ func isValidAction(action string) bool {
 	return false
 }
 
+// TODO: same as validActions, refacotor to use rbacpolicy.ResourceApplications etc.
+var validResources = map[string]bool{
+	"applications": true,
+	"repositories": true,
+	"clusters":     true,
+	"exec":         true,
+	"logs":         true,
+}
+
+func isValidResource(resource string) bool {
+	return validResources[resource]
+}
+
 func validatePolicy(proj string, role string, policy string) error {
 	policyComponents := strings.Split(policy, ",")
 	if len(policyComponents) != 6 || strings.Trim(policyComponents[0], " ") != "p" {
@@ -1555,7 +1568,7 @@ func validatePolicy(proj string, role string, policy string) error {
 	}
 	// resource
 	resource := strings.Trim(policyComponents[2], " ")
-	if resource != "applications" && resource != "repositories" && resource != "clusters" {
+	if !isValidResource(resource) {
 		return status.Errorf(codes.InvalidArgument, "invalid policy rule '%s': project resource must be: 'applications', 'repositories' or 'clusters', not '%s'", policy, resource)
 	}
 	// action
@@ -1823,7 +1836,7 @@ func (w *SyncWindows) Matches(app *Application) *SyncWindows {
 		for _, w := range *w {
 			if len(w.Applications) > 0 {
 				for _, a := range w.Applications {
-					if globMatch(a, app.Name) {
+					if globMatch(a, app.Name, false) {
 						matchingWindows = append(matchingWindows, w)
 						break
 					}
@@ -1832,8 +1845,8 @@ func (w *SyncWindows) Matches(app *Application) *SyncWindows {
 			if len(w.Clusters) > 0 {
 				for _, c := range w.Clusters {
 					dst := app.Spec.Destination
-					dstNameMatched := dst.Name != "" && globMatch(c, dst.Name)
-					dstServerMatched := dst.Server != "" && globMatch(c, dst.Server)
+					dstNameMatched := dst.Name != "" && globMatch(c, dst.Name, false)
+					dstServerMatched := dst.Server != "" && globMatch(c, dst.Server, false)
 					if dstNameMatched || dstServerMatched {
 						matchingWindows = append(matchingWindows, w)
 						break
@@ -1842,7 +1855,7 @@ func (w *SyncWindows) Matches(app *Application) *SyncWindows {
 			}
 			if len(w.Namespaces) > 0 {
 				for _, n := range w.Namespaces {
-					if globMatch(n, app.Spec.Destination.Namespace) {
+					if globMatch(n, app.Spec.Destination.Namespace, false) {
 						matchingWindows = append(matchingWindows, w)
 						break
 					}
@@ -2392,7 +2405,7 @@ func (c *Cluster) RawRestConfig() *rest.Config {
 			CAData:     c.Config.TLSClientConfig.CAData,
 		}
 		if c.Config.AWSAuthConfig != nil {
-			args := []string{"eks", "get-token", "--cluster-name", c.Config.AWSAuthConfig.ClusterName}
+			args := []string{"aws", "--cluster-name", c.Config.AWSAuthConfig.ClusterName}
 			if c.Config.AWSAuthConfig.RoleARN != "" {
 				args = append(args, "--role-arn", c.Config.AWSAuthConfig.RoleARN)
 			}
@@ -2400,8 +2413,8 @@ func (c *Cluster) RawRestConfig() *rest.Config {
 				Host:            c.Server,
 				TLSClientConfig: tlsClientConfig,
 				ExecProvider: &api.ExecConfig{
-					APIVersion:      "client.authentication.k8s.io/v1alpha1",
-					Command:         "aws",
+					APIVersion:      "client.authentication.k8s.io/v1beta1",
+					Command:         "argocd-k8s-auth",
 					Args:            args,
 					InteractiveMode: api.NeverExecInteractiveMode,
 				},
@@ -2442,6 +2455,8 @@ func (c *Cluster) RawRestConfig() *rest.Config {
 		panic(fmt.Sprintf("Unable to create K8s REST config: %v", err))
 	}
 	config.Timeout = K8sServerSideTimeout
+	config.QPS = K8sClientConfigQPS
+	config.Burst = K8sClientConfigBurst
 	return config
 }
 

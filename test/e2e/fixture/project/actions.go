@@ -1,6 +1,12 @@
 package project
 
 import (
+	"context"
+
+	"github.com/stretchr/testify/require"
+	v1 "k8s.io/apimachinery/pkg/apis/meta/v1"
+
+	"github.com/argoproj/argo-cd/v2/pkg/apis/application/v1alpha1"
 	"github.com/argoproj/argo-cd/v2/test/e2e/fixture"
 )
 
@@ -31,6 +37,25 @@ func (a *Actions) Create(args ...string) *Actions {
 	//  are you adding new context values? if you only use them for this func, then use args instead
 	a.runCli(args...)
 
+	return a
+}
+
+func (a *Actions) AddDestination(cluster string, namespace string) *Actions {
+	a.runCli("proj", "add-destination", a.context.name, cluster, namespace)
+	return a
+}
+
+func (a *Actions) AddSource(repo string) *Actions {
+	a.runCli("proj", "add-source", a.context.name, repo)
+	return a
+}
+
+func (a *Actions) UpdateProject(updater func(project *v1alpha1.AppProject)) *Actions {
+	proj, err := fixture.AppClientset.ArgoprojV1alpha1().AppProjects(fixture.ArgoCDNamespace).Get(context.TODO(), a.context.name, v1.GetOptions{})
+	require.NoError(a.context.t, err)
+	updater(proj)
+	_, err = fixture.AppClientset.ArgoprojV1alpha1().AppProjects(fixture.ArgoCDNamespace).Update(context.TODO(), proj, v1.UpdateOptions{})
+	require.NoError(a.context.t, err)
 	return a
 }
 
@@ -72,4 +97,7 @@ func (a *Actions) Then() *Consequences {
 func (a *Actions) runCli(args ...string) {
 	a.context.t.Helper()
 	a.lastOutput, a.lastError = fixture.RunCli(args...)
+	if !a.ignoreErrors {
+		require.Empty(a.context.t, a.lastError)
+	}
 }

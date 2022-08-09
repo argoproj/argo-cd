@@ -197,6 +197,7 @@ NOTES:
 * There is no need to set `redirectURI` in the `connectors.config` as shown in the dex documentation.
   Argo CD will automatically use the correct `redirectURI` for any OAuth2 connectors, to match the
   correct external callback URL (e.g. `https://argocd.example.com/api/dex/callback`)
+* When using a custom secret (e.g., `some_K8S_secret` above,) it *must* have the label `app.kubernetes.io/part-of: argocd`.
 
 ## OIDC Configuration with DEX
 
@@ -219,7 +220,7 @@ data:
   dex.config: |
     connectors:
       # OIDC
-      - type: OIDC
+      - type: oidc
         id: oidc
         name: OIDC
         config:
@@ -397,17 +398,14 @@ Add a `rootCA` to your `oidc.config` which contains the PEM encoded root certifi
 
 ### Sensitive Data and SSO Client Secrets
 
-You can use the `argocd-secret` to store any sensitive data. ArgoCD knows to check the keys under `data` in the `argocd-secret` secret for a corresponding key whenever a value in a configmap starts with `$`. This can be used to store things such as your `clientSecret`. 
-* Any values which start with `$` will :
-  - If value is in form of `$<secret>:a.key.in.k8s.secret`, look to a key in K8S `<secret>` of the same name (minus the `$`), and reads it value.
-  - Otherwise, look to a key in `argocd-secret` of the same name (minus the `$`),
-  to obtain the actual value. This allows you to store the `clientSecret` as a kubernetes secret.
-  Kubernetes secrets must be base64 encoded. To base64 encode your secret, you can run
-  `printf RAW_STRING | base64`.
+`argocd-secret` can be used to store sensitive data which can be referenced by ArgoCD. Values starting with `$` in configmaps are interpreted as follows:
 
-Data should be base64 encoded before it is added to `argocd-secret`. You can do so by running `printf RAW_SECRET_STRING | base64`.
+- If value has the form: `$<secret>:a.key.in.k8s.secret`, look for a k8s secret with the name `<secret>` (minus the `$`), and read its value. 
+- Otherwise, look for a key in the k8s secret named `argocd-secret`. 
 
 #### Example
+
+SSO `clientSecret` can thus be stored as a kubernetes secret with the following manifests
 
 `argocd-secret`:
 ```yaml
@@ -422,9 +420,9 @@ metadata:
 type: Opaque
 data:
   ...
-  # Store client secret like below.
-  # Ensure the secret is base64 encoded
-  oidc.auth0.clientSecret: <client-secret-base64-encoded>
+  # The secret value must be base64 encoded **once** 
+  # this value corresponds to: `printf "hello-world" | base64`
+  oidc.auth0.clientSecret: "aGVsbG8td29ybGQ="
   ...
 ```
 
@@ -443,6 +441,7 @@ data:
   oidc.config: |
     name: Auth0
     clientID: aabbccddeeff00112233
+
     # Reference key in argocd-secret
     clientSecret: $oidc.auth0.clientSecret
   ...
@@ -495,3 +494,20 @@ data:
     clientSecret: $another-secret:oidc.auth0.clientSecret  # Mind the ':'
   ...
 ```
+
+### Skipping certificate verification on OIDC provider connections
+
+By default, all connections made by the API server to OIDC providers (either external providers or the bundled Dex
+instance) must pass certificate validation. These connections occur when getting the OIDC provider's well-known
+configuration, when getting the OIDC provider's keys, and  when exchanging an authorization code or verifying an ID 
+token as part of an OIDC login flow.
+
+Disabling certificate verification might make sense if:
+* You are using the bundled Dex instance **and** your Argo CD instance has TLS configured with a self-signed certificate
+  **and** you understand and accept the risks of skipping OIDC provider cert verification.
+* You are using an external OIDC provider **and** that provider uses an invalid certificate **and** you cannot solve
+  the problem by setting `oidcConfig.rootCA` **and** you understand and accept the risks of skipping OIDC provider cert 
+  verification.
+
+If either of those two applies, then you can disable OIDC provider certificate verification by setting
+`oidc.tls.insecure.skip.verify` to `"true"` in the `argocd-cm` ConfigMap.

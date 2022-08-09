@@ -43,8 +43,14 @@ per [the getting started guide](getting_started.md). For Argo CD v1.9 and later,
 a secret named `argocd-initial-admin-secret`.
 
 To change the password, edit the `argocd-secret` secret and update the `admin.password` field with a new bcrypt hash.
-You can use a site like [https://www.browserling.com/tools/bcrypt](https://www.browserling.com/tools/bcrypt) to generate
-a new hash. For example:
+
+!!! note "Generating a bcrypt hash"
+    Use a trustworthy, offline `bcrypt` implementation such as the [Python bcrypt library](https://pypi.org/project/bcrypt/) to generate the hash.
+
+        pip3 install bcrypt
+        python3 -c "import bcrypt; print(bcrypt.hashpw(b'YOUR-PASSWORD-HERE', bcrypt.gensalt()).decode())"
+
+To apply the new password hash, use the following command (replacing the hash with your own):
 
 ```bash
 # bcrypt(password)=$2a$10$rRyBsGSHK6.uc8fntPwVIuLVHgsAhAX7TcdrqW/RADU0uh7CaChLa
@@ -174,7 +180,9 @@ argocd ... --grpc-web
 
 ## Why Am I Getting `x509: certificate signed by unknown authority` When Using The CLI?
 
-Your not running your server with correct certs.
+The certificate created by default by Argo CD is not automatically recognised by the Argo CD CLI, in order
+to create a secure system you must follow the instructions to [install a certificate](/operator-manual/tls/)
+and configure your client OS to trust that certificate.
 
 If you're not running in a production system (e.g. you're testing Argo CD out), try the `--insecure` flag:
 

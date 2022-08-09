@@ -2,10 +2,13 @@ package v1alpha1
 
 import (
 	fmt "fmt"
+	"os"
+	"path"
 	"reflect"
 	"testing"
 	"time"
 
+	argocdcommon "github.com/argoproj/argo-cd/v2/common"
 	"k8s.io/utils/pointer"
 
 	"github.com/argoproj/gitops-engine/pkg/sync/common"
@@ -137,7 +140,154 @@ func TestAppProject_IsDestinationPermitted(t *testing.T) {
 				Destinations: data.projDest,
 			},
 		}
-		assert.Equal(t, proj.IsDestinationPermitted(data.appDest), data.isPermitted)
+		assert.Equal(t, data.isPermitted, proj.IsDestinationPermitted(data.appDest))
+	}
+}
+
+func TestAppProject_IsNegatedDestinationPermitted(t *testing.T) {
+	testData := []struct {
+		projDest    []ApplicationDestination
+		appDest     ApplicationDestination
+		isPermitted bool
+	}{{
+		projDest: []ApplicationDestination{{
+			Server: "!https://kubernetes.default.svc", Namespace: "default",
+		}},
+		appDest:     ApplicationDestination{Server: "https://kubernetes.default.svc", Namespace: "default"},
+		isPermitted: false,
+	}, {
+		projDest: []ApplicationDestination{{
+			Server: "https://kubernetes.default.svc", Namespace: "!default",
+		}},
+		appDest:     ApplicationDestination{Server: "https://kubernetes.default.svc", Namespace: "kube-system"},
+		isPermitted: true,
+	}, {
+		projDest: []ApplicationDestination{{
+			Server: "!https://my-cluster", Namespace: "default",
+		}},
+		appDest:     ApplicationDestination{Server: "https://kubernetes.default.svc", Namespace: "default"},
+		isPermitted: true,
+	}, {
+		projDest: []ApplicationDestination{{
+			Server: "!https://kubernetes.default.svc", Namespace: "*",
+		}},
+		appDest:     ApplicationDestination{Server: "https://kubernetes.default.svc", Namespace: "kube-system"},
+		isPermitted: false,
+	}, {
+		projDest: []ApplicationDestination{{
+			Server: "!https://*.default.svc", Namespace: "default",
+		}},
+		appDest:     ApplicationDestination{Server: "https://kubernetes.default.svc", Namespace: "default"},
+		isPermitted: false,
+	}, {
+		projDest: []ApplicationDestination{{
+			Server: "!https://team1-*", Namespace: "default",
+		}},
+		appDest:     ApplicationDestination{Server: "https://test2-dev-cluster", Namespace: "default"},
+		isPermitted: true,
+	}, {
+		projDest: []ApplicationDestination{{
+			Server: "https://kubernetes.default.svc", Namespace: "!test-*",
+		}},
+		appDest:     ApplicationDestination{Server: "https://kubernetes.default.svc", Namespace: "test-foo"},
+		isPermitted: false,
+	}, {
+		projDest: []ApplicationDestination{{
+			Server: "https://kubernetes.default.svc", Namespace: "!test-*",
+		}},
+		appDest:     ApplicationDestination{Server: "https://kubernetes.default.svc", Namespace: "test"},
+		isPermitted: true,
+	}, {
+		projDest: []ApplicationDestination{{
+			Server: "", Namespace: "*", Name: "!test",
+		}},
+		appDest:     ApplicationDestination{Name: "test", Namespace: "test"},
+		isPermitted: false,
+	}, {
+		projDest: []ApplicationDestination{{
+			Server: "", Namespace: "*", Name: "!test2",
+		}},
+		appDest:     ApplicationDestination{Name: "test", Namespace: "test"},
+		isPermitted: true,
+	}, {
+		projDest: []ApplicationDestination{{
+			Server: "*", Namespace: "kube-system",
+		}, {
+			Server: "*", Namespace: "!kube-system",
+		}},
+		appDest:     ApplicationDestination{Server: "https://kubernetes.default.svc", Namespace: "kube-system"},
+		isPermitted: false,
+	}, {
+		projDest: []ApplicationDestination{{
+			Server: "*", Namespace: "*",
+		}, {
+			Server: "*", Namespace: "!kube-system",
+		}},
+		appDest:     ApplicationDestination{Server: "https://kubernetes.default.svc", Namespace: "kube-system"},
+		isPermitted: false,
+	}, {
+		projDest: []ApplicationDestination{{
+			Server: "https://kubernetes.default.svc", Namespace: "*",
+		}, {
+			Server: "!https://kubernetes.default.svc", Namespace: "*",
+		}},
+		appDest:     ApplicationDestination{Server: "https://kubernetes.default.svc", Namespace: "kube-system"},
+		isPermitted: false,
+	}, {
+		projDest: []ApplicationDestination{{
+			Server: "*", Namespace: "*",
+		}, {
+			Server: "!https://kubernetes.default.svc", Namespace: "kube-system",
+		}},
+		appDest:     ApplicationDestination{Server: "https://kubernetes.default.svc", Namespace: "kube-system"},
+		isPermitted: false,
+	}, {
+		projDest: []ApplicationDestination{{
+			Server: "*", Namespace: "*",
+		}, {
+			Server: "!https://kubernetes.default.svc", Namespace: "kube-system",
+		}, {
+			Server: "*", Namespace: "!kube-system",
+		}},
+		appDest:     ApplicationDestination{Server: "https://kubernetes.default.svc", Namespace: "kube-system"},
+		isPermitted: false,
+	}, {
+		projDest: []ApplicationDestination{{
+			Server: "*", Namespace: "*",
+		}, {
+			Server: "!https://kubernetes.default.svc", Namespace: "kube-system",
+		}, {
+			Server: "*", Namespace: "!kube-system",
+		}},
+		appDest:     ApplicationDestination{Server: "https://kubernetes.default.svc", Namespace: "default"},
+		isPermitted: false,
+	}, {
+		projDest: []ApplicationDestination{{
+			Server: "*", Namespace: "*",
+		}, {
+			Server: "!https://kubernetes.default.svc", Namespace: "kube-system",
+		}, {
+			Server: "*", Namespace: "!kube-system",
+		}},
+		appDest:     ApplicationDestination{Server: "https://test-dev-cluster", Namespace: "kube-system"},
+		isPermitted: false,
+	}, {
+		projDest: []ApplicationDestination{{
+			Server: "", Namespace: "*", Name: "test",
+		}, {
+			Server: "", Namespace: "*", Name: "!test",
+		}},
+		appDest:     ApplicationDestination{Name: "test", Namespace: "test"},
+		isPermitted: false,
+	}}
+
+	for _, data := range testData {
+		proj := AppProject{
+			Spec: AppProjectSpec{
+				Destinations: data.projDest,
+			},
+		}
+		assert.Equal(t, data.isPermitted, proj.IsDestinationPermitted(data.appDest))
 	}
 }
 
@@ -256,9 +406,86 @@ func TestAppProject_RemoveGroupFromRole(t *testing.T) {
 func newTestProject() *AppProject {
 	p := AppProject{
 		ObjectMeta: metav1.ObjectMeta{Name: "my-proj"},
-		Spec:       AppProjectSpec{Roles: []ProjectRole{{Name: "my-role"}}},
+		Spec:       AppProjectSpec{Roles: []ProjectRole{{Name: "my-role"}}, Destinations: []ApplicationDestination{{}}},
 	}
 	return &p
+}
+
+// TestAppProject_ValidateDestinations tests for an invalid destination
+func TestAppProject_ValidateDestinations(t *testing.T) {
+	p := newTestProject()
+	err := p.ValidateProject()
+	assert.NoError(t, err)
+	badNamespaces := []string{
+		"!*",
+	}
+	for _, badName := range badNamespaces {
+		p.Spec.Destinations[0].Namespace = badName
+		err = p.ValidateProject()
+		assert.Error(t, err)
+	}
+
+	goodNamespaces := []string{
+		"*",
+		"some-namespace",
+	}
+	for _, goodNamespace := range goodNamespaces {
+		p.Spec.Destinations[0].Namespace = goodNamespace
+		err = p.ValidateProject()
+		assert.NoError(t, err)
+	}
+
+	badServers := []string{
+		"!*",
+	}
+	for _, badServer := range badServers {
+		p.Spec.Destinations[0].Server = badServer
+		err = p.ValidateProject()
+		assert.Error(t, err)
+	}
+
+	goodServers := []string{
+		"*",
+		"some-server",
+	}
+	for _, badName := range goodServers {
+		p.Spec.Destinations[0].Server = badName
+		err = p.ValidateProject()
+		assert.NoError(t, err)
+	}
+
+	badNames := []string{
+		"!*",
+	}
+	for _, badName := range badNames {
+		p.Spec.Destinations[0].Name = badName
+		err = p.ValidateProject()
+		assert.Error(t, err)
+	}
+
+	goodNames := []string{
+		"*",
+		"some-name",
+	}
+	for _, goodName := range goodNames {
+		p.Spec.Destinations[0].Name = goodName
+		err = p.ValidateProject()
+		assert.NoError(t, err)
+	}
+
+	validDestination := ApplicationDestination{
+		Server:    "some-server",
+		Namespace: "some-namespace",
+	}
+
+	p.Spec.Destinations[0] = validDestination
+	err = p.ValidateProject()
+	assert.NoError(t, err)
+
+	//no duplicates allowed
+	p.Spec.Destinations = []ApplicationDestination{validDestination, validDestination}
+	err = p.ValidateProject()
+	assert.Error(t, err)
 }
 
 // TestValidateRoleName tests for an invalid role name
@@ -323,6 +550,22 @@ func TestAppProject_ValidateGroupName(t *testing.T) {
 		err = p.ValidateProject()
 		assert.NoError(t, err)
 	}
+}
+
+func TestAppProject_ValidateSyncWindowList(t *testing.T) {
+	t.Run("WorkingSyncWindow", func(t *testing.T) {
+		p := newTestProjectWithSyncWindows()
+		err := p.ValidateProject()
+		assert.NoError(t, err)
+	})
+	t.Run("HasNilSyncWindow", func(t *testing.T) {
+		p := newTestProjectWithSyncWindows()
+		err := p.ValidateProject()
+		assert.NoError(t, err)
+		p.Spec.SyncWindows = append(p.Spec.SyncWindows, nil)
+		err = p.ValidateProject()
+		assert.NoError(t, err)
+	})
 }
 
 // TestInvalidPolicyRules checks various errors in policy rules
@@ -2542,10 +2785,19 @@ func Test_validatePolicy_projIsNotRegex(t *testing.T) {
 }
 
 func Test_validatePolicy_ValidResource(t *testing.T) {
-	err := validatePolicy("some-project", "org-admin", "p, proj:some-project:org-admin, repositories, *, some-project/*, allow")
+	err := validatePolicy("some-project", "org-admin", "p, proj:some-project:org-admin, applications, *, some-project/*, allow")
+	assert.NoError(t, err)
+	err = validatePolicy("some-project", "org-admin", "p, proj:some-project:org-admin, repositories, *, some-project/*, allow")
 	assert.NoError(t, err)
 	err = validatePolicy("some-project", "org-admin", "p, proj:some-project:org-admin, clusters, *, some-project/*, allow")
 	assert.NoError(t, err)
+	err = validatePolicy("some-project", "org-admin", "p, proj:some-project:org-admin, exec, *, some-project/*, allow")
+	assert.NoError(t, err)
+	err = validatePolicy("some-project", "org-admin", "p, proj:some-project:org-admin, logs, *, some-project/*, allow")
+	assert.NoError(t, err)
+	err = validatePolicy("some-project", "org-admin", "p, proj:some-project:org-admin, unknown, *, some-project/*, allow")
+	assert.Error(t, err)
+
 }
 
 func TestEnvsubst(t *testing.T) {
@@ -2590,5 +2842,44 @@ func Test_validateGroupName(t *testing.T) {
 				assert.Error(t, err)
 			}
 		})
+	}
+}
+
+func TestGetCAPath(t *testing.T) {
+
+	temppath := t.TempDir()
+	cert, err := os.ReadFile("../../../../test/fixture/certs/argocd-test-server.crt")
+	if err != nil {
+		panic(err)
+	}
+	err = os.WriteFile(path.Join(temppath, "foo.example.com"), cert, 0666)
+	if err != nil {
+		panic(err)
+	}
+	os.Setenv(argocdcommon.EnvVarTLSDataPath, temppath)
+	validcert := []string{
+		"https://foo.example.com",
+		"oci://foo.example.com",
+		"foo.example.com",
+	}
+	invalidpath := []string{
+		"https://bar.example.com",
+		"oci://bar.example.com",
+		"bar.example.com",
+		"ssh://foo.example.com",
+		"/some/invalid/thing",
+		"../another/invalid/thing",
+		"./also/invalid",
+		"$invalid/as/well",
+		"..",
+	}
+
+	for _, str := range validcert {
+		path := getCAPath(str)
+		assert.NotEmpty(t, path)
+	}
+	for _, str := range invalidpath {
+		path := getCAPath(str)
+		assert.Empty(t, path)
 	}
 }

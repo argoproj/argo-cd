@@ -52,6 +52,7 @@ argocd admin settings validate --group accounts --group plugins --load-cluster-s
       --http-retry-max int              Maximum number of retries to establish http connection to Argo CD server
       --insecure                        Skip server certificate and domain verification
       --insecure-skip-tls-verify        If true, the server's certificate will not be checked for validity. This will make your HTTPS connections insecure
+      --kube-context string             Directs the command to the given kube-context
       --kubeconfig string               Path to a kube config. Only required if out-of-cluster
       --load-cluster-settings           Indicates that config map and secret should be loaded from cluster unless local file path is provided
       --logformat string                Set the logging format. One of: text|json (default "text")
@@ -61,6 +62,7 @@ argocd admin settings validate --group accounts --group plugins --load-cluster-s
       --plaintext                       Disable TLS
       --port-forward                    Connect to a random argocd-server port using port forwarding
       --port-forward-namespace string   Namespace name which should be used for port forwarding
+      --proxy-url string                If provided, this URL will be used to connect via proxy
       --request-timeout string          The length of time to wait before giving up on a single server request. Non-zero values should contain a corresponding time unit (e.g. 1s, 2m, 3h). A value of zero means don't timeout requests. (default "0")
       --server string                   The address and port of the Kubernetes API server
       --server-crt string               Server certificate file

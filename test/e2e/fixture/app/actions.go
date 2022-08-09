@@ -2,7 +2,7 @@ package app
 
 import (
 	"fmt"
-	"io/ioutil"
+	"os"
 
 	log "github.com/sirupsen/logrus"
 	v1 "k8s.io/apimachinery/pkg/apis/meta/v1"
@@ -66,7 +66,7 @@ func (a *Actions) AddSignedFile(fileName, fileContents string) *Actions {
 
 func (a *Actions) CreateFromPartialFile(data string, flags ...string) *Actions {
 	a.context.t.Helper()
-	tmpFile, err := ioutil.TempFile("", "")
+	tmpFile, err := os.CreateTemp("", "")
 	errors.CheckError(err)
 	_, err = tmpFile.Write([]byte(data))
 	errors.CheckError(err)
@@ -123,7 +123,7 @@ func (a *Actions) CreateFromFile(handler func(app *Application), flags ...string
 
 	handler(app)
 	data := grpc.MustMarshal(app)
-	tmpFile, err := ioutil.TempFile("", "")
+	tmpFile, err := os.CreateTemp("", "")
 	errors.CheckError(err)
 	_, err = tmpFile.Write(data)
 	errors.CheckError(err)
@@ -313,6 +313,11 @@ func (a *Actions) Delete(cascade bool) *Actions {
 	return a
 }
 
+func (a *Actions) SetParamInSettingConfigMap(key, value string) *Actions {
+	fixture.SetParamInSettingConfigMap(key, value)
+	return a
+}
+
 func (a *Actions) And(block func()) *Actions {
 	a.context.t.Helper()
 	block()
@@ -321,7 +326,7 @@ func (a *Actions) And(block func()) *Actions {
 
 func (a *Actions) Then() *Consequences {
 	a.context.t.Helper()
-	return &Consequences{a.context, a}
+	return &Consequences{a.context, a, 15}
 }
 
 func (a *Actions) runCli(args ...string) {
@@ -335,4 +340,14 @@ func (a *Actions) verifyAction() {
 	if !a.ignoreErrors {
 		a.Then().Expect(Success(""))
 	}
+}
+
+func (a *Actions) SetTrackingMethod(trackingMethod string) *Actions {
+	fixture.SetTrackingMethod(trackingMethod)
+	return a
+}
+
+func (a *Actions) SetTrackingLabel(trackingLabel string) *Actions {
+	fixture.SetTrackingLabel(trackingLabel)
+	return a
 }

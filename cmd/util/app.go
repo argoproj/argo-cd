@@ -3,11 +3,13 @@ package util
 import (
 	"bufio"
 	"fmt"
-	"io/ioutil"
+	"io"
 	"net/url"
 	"os"
 	"strings"
 	"time"
+
+	"k8s.io/apimachinery/pkg/apis/meta/v1/unstructured"
 
 	"github.com/argoproj/gitops-engine/pkg/utils/kube"
 
@@ -157,7 +159,7 @@ func SetAppSpecOptions(flags *pflag.FlagSet, spec *argoappv1.ApplicationSpec, ap
 			// read uri
 			parsedURL, err := url.ParseRequestURI(appOpts.values)
 			if err != nil || !(parsedURL.Scheme == "http" || parsedURL.Scheme == "https") {
-				data, err = ioutil.ReadFile(appOpts.values)
+				data, err = os.ReadFile(appOpts.values)
 			} else {
 				data, err = config.ReadRemoteFile(appOpts.values)
 			}
@@ -518,7 +520,7 @@ func readApps(yml []byte, apps *[]*argoappv1.Application) error {
 
 func readAppsFromStdin(apps *[]*argoappv1.Application) error {
 	reader := bufio.NewReader(os.Stdin)
-	data, err := ioutil.ReadAll(reader)
+	data, err := io.ReadAll(reader)
 	if err != nil {
 		return err
 	}
@@ -534,7 +536,7 @@ func readAppsFromURI(fileURL string, apps *[]*argoappv1.Application) error {
 	readFilePayload := func() ([]byte, error) {
 		parsedURL, err := url.ParseRequestURI(fileURL)
 		if err != nil || !(parsedURL.Scheme == "http" || parsedURL.Scheme == "https") {
-			return ioutil.ReadFile(fileURL)
+			return os.ReadFile(fileURL)
 		}
 		return config.ReadRemoteFile(fileURL)
 	}
@@ -647,4 +649,51 @@ func setAnnotations(app *argoappv1.Application, annotations []string) {
 			app.Annotations[annotation[0]] = ""
 		}
 	}
+}
+
+// liveObjects deserializes the list of live states into unstructured objects
+func LiveObjects(resources []*argoappv1.ResourceDiff) ([]*unstructured.Unstructured, error) {
+	objs := make([]*unstructured.Unstructured, len(resources))
+	for i, resState := range resources {
+		obj, err := resState.LiveObject()
+		if err != nil {
+			return nil, err
+		}
+		objs[i] = obj
+	}
+	return objs, nil
+}
+
+func FilterResources(groupChanged bool, resources []*argoappv1.ResourceDiff, group, kind, namespace, resourceName string, all bool) ([]*unstructured.Unstructured, error) {
+	liveObjs, err := LiveObjects(resources)
+	errors.CheckError(err)
+	filteredObjects := make([]*unstructured.Unstructured, 0)
+	for i := range liveObjs {
+		obj := liveObjs[i]
+		if obj == nil {
+			continue
+		}
+		gvk := obj.GroupVersionKind()
+		if groupChanged && group != gvk.Group {
+			continue
+		}
+		if namespace != "" && namespace != obj.GetNamespace() {
+			continue
+		}
+		if resourceName != "" && resourceName != obj.GetName() {
+			continue
+		}
+		if kind != "" && kind != gvk.Kind {
+			continue
+		}
+		deepCopy := obj.DeepCopy()
+		filteredObjects = append(filteredObjects, deepCopy)
+	}
+	if len(filteredObjects) == 0 {
+		return nil, fmt.Errorf("No matching resource found")
+	}
+	if len(filteredObjects) > 1 && !all {
+		return nil, fmt.Errorf("Multiple resources match inputs. Use the --all flag to patch multiple resources")
+	}
+	return filteredObjects, nil
 }
