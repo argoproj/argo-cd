@@ -169,7 +169,7 @@
                p, role:org-admin, repositories, update, *, allow
                p, role:org-admin, repositories, delete, *, allow
                g, "84ce98d1-e359-4f3b-85af-985b458de3c6", role:org-admin
-               scopes: '[roles, email]'
+            scopes: '[groups, email]'
 
    Refer to [operator-manual/argocd-rbac-cm.yaml](https://github.com/argoproj/argo-cd/blob/master/docs/operator-manual/argocd-rbac-cm.yaml) for all of the available variables.
 
