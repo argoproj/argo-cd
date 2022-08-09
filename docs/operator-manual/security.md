@@ -212,6 +212,24 @@ at three minute intervals, just fast-tracked by the webhook event.
 
 ## Logging
 
+### Security field
+
+Security-related logs are tagged with a `security` field to make them easier to find, analyze, and report on.
+
+| Level | Friendly Level | Description                                                                                       | Example                                     |
+|-------|----------------|---------------------------------------------------------------------------------------------------|---------------------------------------------|
+| 1     | Low            | Unexceptional, non-malicious events                                                               | Successful access                           |
+| 2     | Medium         | Could indicate malicious events, but has a high likelihood of being user/system error             | Access denied                               |
+| 3     | High           | Likely malicious events but one that had no side effects or was blocked                           | Out of bounds symlinks in repo              |
+| 4     | Critical       | Any malicious or exploitable event that had a side effect                                         | Secrets being left behind on the filesystem |
+| 5     | Emergency      | Unmistakably malicious events that should NEVER occur accidentally and indicates an active attack | Brute forcing of accounts                   |
+
+Where applicable, a `cwe` field is also added specifying the [Common Weakness Enumeration](https://cwe.mitre.org/index.html) number.
+
+Please be aware that all security logs are not comprehensively tagged yet and these examples are not necessarily implemented.
+
+### API Logs
+
 Argo CD logs payloads of most API requests except request that are considered sensitive, such as
 `/cluster.ClusterService/Create`, `/session.SessionService/Create` etc. The full list of method
 can be found in [server/server.go](https://github.com/argoproj/argo-cd/blob/abba8dddce8cd897ba23320e3715690f465b4a95/server/server.go#L516).
