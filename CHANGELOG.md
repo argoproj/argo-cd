@@ -186,9 +186,9 @@ your feedback and introduced additional access control settings that control acc
 
 #### Pod Logs UI
 
-Since 2.4.7, the LOGS tab in pod view is visible in the UI only for users with explicit allow get logs policy.
+Since 2.4.9, the LOGS tab in pod view is visible in the UI only for users with explicit allow get logs policy.
 
-#### Known pod logs UI issue prior to 2.4.7
+#### Known pod logs UI issue prior to 2.4.9
 
 Upon pressing the "LOGS" tab in pod view by users who don't have an explicit allow get logs policy, the red "unable to load data: Internal error" is received in the bottom of the screen, and "Failed to load data, please try again" is displayed.
 
