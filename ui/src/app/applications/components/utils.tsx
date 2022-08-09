@@ -1071,9 +1071,12 @@ export function parseApiVersion(apiVersion: string): {group: string; version: st
     return {version: parts[0], group: ''};
 }
 
-export function getContainerName(pod: any, containerIndex: number): string {
+export function getContainerName(pod: any, containerIndex: number | null): string {
+    if (containerIndex == null && pod.metadata?.annotations?.['kubectl.kubernetes.io/default-container']) {
+        return pod.metadata?.annotations?.['kubectl.kubernetes.io/default-container'];
+    }
     const containers = (pod.spec.containers || []).concat(pod.spec.initContainers || []);
-    const container = containers[containerIndex];
+    const container = containers[containerIndex || 0];
     return container.name;
 }
 
