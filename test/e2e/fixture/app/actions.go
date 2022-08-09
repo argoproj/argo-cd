@@ -74,11 +74,14 @@ func (a *Actions) CreateFromPartialFile(data string, flags ...string) *Actions {
 	args := append([]string{
 		"app", "create",
 		"-f", tmpFile.Name(),
-		"--name", a.context.AppQualifiedName(),
+		"--name", a.context.AppName(),
 		"--repo", fixture.RepoURL(a.context.repoURLType),
 		"--dest-server", a.context.destServer,
 		"--dest-namespace", fixture.DeploymentNamespace(),
 	}, flags...)
+	if a.context.appNamespace != "" {
+		args = append(args, "--app-namespace", a.context.appNamespace)
+	}
 	defer tmpFile.Close()
 	a.runCli(args...)
 	return a
