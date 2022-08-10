@@ -2551,11 +2551,31 @@ func TestSyncPolicy_IsZero(t *testing.T) {
 	assert.False(t, (&SyncPolicy{Retry: &RetryStrategy{}}).IsZero())
 }
 
-func TestSyncOptions_HasOption(t *testing.T) {
+func TestSyncOptions_make(t *testing.T) {
 	var nilOptions SyncOptions
 	assert.False(t, nilOptions.HasOption("a=1"))
 	assert.False(t, (&SyncOptions{}).HasOption("a=1"))
 	assert.True(t, (&SyncOptions{"a=1"}).HasOption("a=1"))
+	assert.True(t, (&SyncOptions{"a=1,x=2"}).HasOption("a=1"))
+}
+
+func TestGetNSMetaData(t *testing.T) {
+	var nilOptions SyncOptions
+	nilOptions.AddOption("NamespaceMetaData={\"annotations\" :{ \"fake.annotation.io/fake1\": \"v1\"}, " +
+		"\"labels\" : { \"fake.label.io\": \"v1\" } }")
+	m := nilOptions.GetNSMetaData("NamespaceMetaDat")
+	assert.True(t, nilOptions.HasOption("NamespaceMetaData"))
+	assert.Equal(t, m, map[string]interface{}{
+		"annotations": map[string]string{
+			"fake.annotation.io/fake1": "v1"},
+		"labels": map[string]string{
+			"fake.label.io/this": "v1",
+		}}, map[string]string{
+		"fake.annotation.io/fake1": "v1"},
+		map[string]string{
+			"fake.label.io/this": "v1",
+		})
+
 }
 
 func TestSyncOptions_AddOption(t *testing.T) {
