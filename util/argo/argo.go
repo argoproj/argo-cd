@@ -131,8 +131,11 @@ func TestRepoWithKnownType(ctx context.Context, repoClient apiclient.RepoServerS
 	_, err := repoClient.TestRepository(ctx, &apiclient.TestRepositoryRequest{
 		Repo: repo,
 	})
+	if err != nil {
+		return fmt.Errorf("repo client error while testing repository: %w", err)
+	}
 
-	return fmt.Errorf("repo client error while testing repository: %w", err)
+	return nil
 }
 
 // ValidateRepo validates the repository specified in application spec. Following is checked:
