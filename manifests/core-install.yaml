@@ -10092,6 +10092,12 @@ spec:
               key: otlp.address
               name: argocd-cmd-params-cm
               optional: true
+        - name: ARGOCD_APPLICATION_NAMESPACES
+          valueFrom:
+            configMapKeyRef:
+              key: application.namespaces
+              name: argocd-cmd-params-cm
+              optional: true
         image: quay.io/argoproj/argocd:latest
         imagePullPolicy: Always
         name: argocd-application-controller
