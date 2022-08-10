@@ -15,6 +15,7 @@ import (
 	"github.com/argoproj/argo-cd/v2/applicationset/controllers"
 	"github.com/argoproj/argo-cd/v2/applicationset/generators"
 	"github.com/argoproj/argo-cd/v2/applicationset/utils"
+	"github.com/argoproj/argo-cd/v2/applicationset/webhook"
 	"github.com/argoproj/argo-cd/v2/common"
 	"github.com/argoproj/argo-cd/v2/reposerver/askpass"
 
@@ -128,7 +129,7 @@ func NewCommand() *cobra.Command {
 			appSetConfig := appclientset.NewForConfigOrDie(mgr.GetConfig())
 			argoCDDB := db.NewDB(namespace, argoSettingsMgr, k8sClient)
 			// start a webhook server that listens to incoming webhook payloads
-			webhookHandler, err := utils.NewWebhookHandler(namespace, argoSettingsMgr, mgr.GetClient())
+			webhookHandler, err := webhook.NewWebhookHandler(namespace, argoSettingsMgr, mgr.GetClient())
 			if err != nil {
 				log.Error(err, "failed to create webhook handler")
 			}
@@ -211,7 +212,7 @@ func NewCommand() *cobra.Command {
 	return &command
 }
 
-func startWebhookServer(webhookHandler *utils.WebhookHandler, webhookAddr string) {
+func startWebhookServer(webhookHandler *webhook.WebhookHandler, webhookAddr string) {
 	mux := http.NewServeMux()
 	mux.HandleFunc("/api/webhook", webhookHandler.Handler)
 	go func() {
