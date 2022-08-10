@@ -77,7 +77,7 @@ func TestGetAppProjectWithNoProjDefined(t *testing.T) {
 	kubeClient := fake.NewSimpleClientset(&cm)
 	settingsMgr := settings.NewSettingsManager(context.Background(), kubeClient, test.FakeArgoCDNamespace)
 	argoDB := db.NewDB("default", settingsMgr, kubeClient)
-	proj, err := GetAppProject(&testApp.Spec, applisters.NewAppProjectLister(informer.GetIndexer()), namespace, settingsMgr, argoDB, ctx)
+	proj, err := GetAppProject(&testApp, applisters.NewAppProjectLister(informer.GetIndexer()), namespace, settingsMgr, argoDB, ctx)
 	assert.Nil(t, err)
 	assert.Equal(t, proj.Name, projName)
 }
@@ -922,5 +922,97 @@ func Test_GenerateSpecIsDifferentErrorMessageWithDiff(t *testing.T) {
 
 	msg := GenerateSpecIsDifferentErrorMessage("repo", r1, r2)
 	assert.Equal(t, msg, "existing repo spec is different; use upsert flag to force update; difference in keys \"Name\"")
+
+}
+
+func Test_ParseAppQualifiedName(t *testing.T) {
+	testcases := []struct {
+		name       string
+		input      string
+		implicitNs string
+		appName    string
+		appNs      string
+	}{
+		{"Full qualified without implicit NS", "namespace/name", "", "name", "namespace"},
+		{"Non qualified without implicit NS", "name", "", "name", ""},
+		{"Full qualified with implicit NS", "namespace/name", "namespace2", "name", "namespace"},
+		{"Non qualified with implicit NS", "name", "namespace2", "name", "namespace2"},
+		{"Invalid without implicit NS", "namespace_name", "", "namespace_name", ""},
+	}
+
+	for _, tt := range testcases {
+		t.Run(tt.name, func(t *testing.T) {
+			appName, appNs := ParseAppQualifiedName(tt.input, tt.implicitNs)
+			assert.Equal(t, tt.appName, appName)
+			assert.Equal(t, tt.appNs, appNs)
+		})
+	}
+}
+
+func Test_ParseAppInstanceName(t *testing.T) {
+	testcases := []struct {
+		name       string
+		input      string
+		implicitNs string
+		appName    string
+		appNs      string
+	}{
+		{"Full qualified without implicit NS", "namespace_name", "", "name", "namespace"},
+		{"Non qualified without implicit NS", "name", "", "name", ""},
+		{"Full qualified with implicit NS", "namespace_name", "namespace2", "name", "namespace"},
+		{"Non qualified with implicit NS", "name", "namespace2", "name", "namespace2"},
+		{"Invalid without implicit NS", "namespace/name", "", "namespace/name", ""},
+	}
+
+	for _, tt := range testcases {
+		t.Run(tt.name, func(t *testing.T) {
+			appName, appNs := ParseAppInstanceName(tt.input, tt.implicitNs)
+			assert.Equal(t, tt.appName, appName)
+			assert.Equal(t, tt.appNs, appNs)
+		})
+	}
+}
+
+func Test_AppInstanceName(t *testing.T) {
+	testcases := []struct {
+		name         string
+		appName      string
+		appNamespace string
+		defaultNs    string
+		result       string
+	}{
+		{"defaultns different as appns", "appname", "appns", "defaultns", "appns_appname"},
+		{"defaultns same as appns", "appname", "appns", "appns", "appname"},
+		{"defaultns set and appns not given", "appname", "", "appns", "appname"},
+		{"neither defaultns nor appns set", "appname", "", "appns", "appname"},
+	}
+
+	for _, tt := range testcases {
+		t.Run(tt.name, func(t *testing.T) {
+			result := AppInstanceName(tt.appName, tt.appNamespace, tt.defaultNs)
+			assert.Equal(t, tt.result, result)
+		})
+	}
+}
+
+func Test_AppInstanceNameFromQualified(t *testing.T) {
+	testcases := []struct {
+		name      string
+		appName   string
+		defaultNs string
+		result    string
+	}{
+		{"Qualified name with namespace not being defaultns", "appns/appname", "defaultns", "appns_appname"},
+		{"Qualified name with namespace being defaultns", "defaultns/appname", "defaultns", "appname"},
+		{"Qualified name without namespace", "appname", "defaultns", "appname"},
+		{"Qualified name without namespace and defaultns", "appname", "", "appname"},
+	}
+
+	for _, tt := range testcases {
+		t.Run(tt.name, func(t *testing.T) {
+			result := AppInstanceNameFromQualified(tt.appName, tt.defaultNs)
+			assert.Equal(t, tt.result, result)
+		})
+	}
 
 }
