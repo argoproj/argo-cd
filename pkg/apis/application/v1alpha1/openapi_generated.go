@@ -1176,6 +1176,13 @@ func schema_pkg_apis_application_v1alpha1_ApplicationStatus(ref common.Reference
 							Ref:         ref("github.com/argoproj/argo-cd/v2/pkg/apis/application/v1alpha1.ApplicationSummary"),
 						},
 					},
+					"resourceHealthSource": {
+						SchemaProps: spec.SchemaProps{
+							Description: "ResourceHealthSource indicates where the resource health status is stored: inline if not set or appTree",
+							Type:        []string{"string"},
+							Format:      "",
+						},
+					},
 				},
 			},
 		},

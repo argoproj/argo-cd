@@ -50,6 +50,8 @@ data:
   controller.self.heal.timeout.seconds: "5"
   # Cache expiration for app state (default 1h0m0s)
   controller.app.state.cache.expiration: "1h0m0s"
+  # Specifies if resource health should be persisted in app CRD (default true)
+  controller.resource.health.persist: "true"
   # Cache expiration default (default 24h0m0s)
   controller.default.cache.expiration: "24h0m0s"
 

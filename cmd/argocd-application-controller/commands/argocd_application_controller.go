@@ -61,6 +61,7 @@ func NewCommand() *cobra.Command {
 		repoServerStrictTLS      bool
 		otlpAddress              string
 		applicationNamespaces    []string
+		persistResourceHealth    bool
 	)
 	var command = cobra.Command{
 		Use:               cliName,
@@ -149,6 +150,7 @@ func NewCommand() *cobra.Command {
 				metricsCacheExpiration,
 				metricsAplicationLabels,
 				kubectlParallelismLimit,
+				persistResourceHealth,
 				clusterFilter,
 				applicationNamespaces)
 			errors.CheckError(err)
@@ -192,6 +194,7 @@ func NewCommand() *cobra.Command {
 	command.Flags().StringSliceVar(&metricsAplicationLabels, "metrics-application-labels", []string{}, "List of Application labels that will be added to the argocd_application_labels metric")
 	command.Flags().StringVar(&otlpAddress, "otlp-address", env.StringFromEnv("ARGOCD_APPLICATION_CONTROLLER_OTLP_ADDRESS", ""), "OpenTelemetry collector address to send traces to")
 	command.Flags().StringSliceVar(&applicationNamespaces, "application-namespaces", env.StringsFromEnv("ARGOCD_APPLICATION_NAMESPACES", []string{}, ","), "List of additional namespaces that applications are allowed to be reconciled from")
+	command.Flags().BoolVar(&persistResourceHealth, "persist-resource-health", env.ParseBoolFromEnv("ARGOCD_APPLICATION_CONTROLLER_PERSIST_RESOURCE_HEALTH", true), "Enables/disables storing the managed resources health in the Application CRD")
 	cacheSrc = appstatecache.AddCacheFlagsToCmd(&command, func(client *redis.Client) {
 		redisClient = client
 	})
