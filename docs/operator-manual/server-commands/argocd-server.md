@@ -14,6 +14,7 @@ argocd-server [flags]
 
 ```
       --app-state-cache-expiration duration           Cache expiration for app state (default 1h0m0s)
+      --application-namespaces strings                List of namespaces where application resources can exist
       --as string                                     Username to impersonate for the operation
       --as-group stringArray                          Group to impersonate for the operation, this flag can be repeated to specify multiple groups.
       --as-uid string                                 UID to impersonate for the operation

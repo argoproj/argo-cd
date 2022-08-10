@@ -574,7 +574,7 @@ function renderPodGroup(props: ApplicationResourceTreeProps, id: string, node: R
                                                     </React.Fragment>
                                                 ),
                                                 action: () => {
-                                                    deletePodAction(pod, props.appContext, props.app.metadata.name);
+                                                    deletePodAction(pod, props.appContext, props.app.metadata.name, props.app.metadata.namespace);
                                                 }
                                             }
                                         ]}

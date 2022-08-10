@@ -1682,6 +1682,8 @@ type AppProjectSpec struct {
 	SignatureKeys []SignatureKey `json:"signatureKeys,omitempty" protobuf:"bytes,10,opt,name=signatureKeys"`
 	// ClusterResourceBlacklist contains list of blacklisted cluster level resources
 	ClusterResourceBlacklist []metav1.GroupKind `json:"clusterResourceBlacklist,omitempty" protobuf:"bytes,11,opt,name=clusterResourceBlacklist"`
+	// SourceNamespaces defines the namespaces application resources are allowed to be created in
+	SourceNamespaces []string `json:"sourceNamespaces,omitempty" protobuf:"bytes,12,opt,name=sourceNamespaces"`
 }
 
 // SyncWindows is a collection of sync windows in this project
@@ -2532,4 +2534,38 @@ func (d *ApplicationDestination) MarshalJSON() ([]byte, error) {
 		dest.Server = ""
 	}
 	return json.Marshal(&struct{ *Alias }{Alias: (*Alias)(dest)})
+}
+
+// InstanceName returns the name of the application as used in the instance
+// tracking values, i.e. in the format <namespace>_<name>. When the namespace
+// of the application is similar to the value of defaultNs, only the name of
+// the application is returned to keep backwards compatibility.
+func (a *Application) InstanceName(defaultNs string) string {
+	// When app has no namespace set, or the namespace is the default ns, we
+	// return just the application name
+	if a.Namespace == "" || a.Namespace == defaultNs {
+		return a.Name
+	}
+	return a.Namespace + "_" + a.Name
+}
+
+// QualifiedName returns the full qualified name of the application, including
+// the name of the namespace it is created in delimited by a forward slash,
+// i.e. <namespace>/<appname>
+func (a *Application) QualifiedName() string {
+	if a.Namespace == "" {
+		return a.Name
+	} else {
+		return a.Namespace + "/" + a.Name
+	}
+}
+
+// RBACName returns the full qualified RBAC resource name for the application
+// in a backwards-compatible way.
+func (a *Application) RBACName(defaultNS string) string {
+	if defaultNS != "" && a.Namespace != defaultNS && a.Namespace != "" {
+		return fmt.Sprintf("%s/%s/%s", a.Spec.GetProject(), a.Namespace, a.Name)
+	} else {
+		return fmt.Sprintf("%s/%s", a.Spec.GetProject(), a.Name)
+	}
 }

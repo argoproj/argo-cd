@@ -2,7 +2,6 @@ package controller
 
 import (
 	"encoding/json"
-	"io/ioutil"
 	"os"
 	"testing"
 	"time"
@@ -375,7 +374,7 @@ func TestSetManagedResourcesWithResourcesOfAnotherApp(t *testing.T) {
 	tree, err := ctrl.setAppManagedResources(app1, &comparisonResult{managedResources: make([]managedResource, 0)})
 
 	assert.NoError(t, err)
-	assert.Equal(t, len(tree.OrphanedNodes), 0)
+	assert.Equal(t, 0, len(tree.OrphanedNodes))
 }
 
 func TestReturnUnknownComparisonStateOnSettingLoadError(t *testing.T) {
@@ -400,6 +399,7 @@ func TestReturnUnknownComparisonStateOnSettingLoadError(t *testing.T) {
 func TestSetManagedResourcesKnownOrphanedResourceExceptions(t *testing.T) {
 	proj := defaultProj.DeepCopy()
 	proj.Spec.OrphanedResources = &argoappv1.OrphanedResourcesMonitorSettings{}
+	proj.Spec.SourceNamespaces = []string{"default"}
 
 	app := newFakeApp()
 	app.Namespace = "default"
@@ -481,7 +481,7 @@ func Test_appStateManager_persistRevisionHistory(t *testing.T) {
 // helper function to read contents of a file to string
 // panics on error
 func mustReadFile(path string) string {
-	b, err := ioutil.ReadFile(path)
+	b, err := os.ReadFile(path)
 	if err != nil {
 		panic(err.Error())
 	}

@@ -7,6 +7,7 @@ import (
 	"net/http"
 	"net/url"
 	"regexp"
+	"strconv"
 	"strings"
 
 	"k8s.io/apimachinery/pkg/types"
@@ -37,12 +38,18 @@ type gitGeneratorInfo struct {
 
 type prGeneratorInfo struct {
 	Github *prGeneratorGithubInfo
+	Gitlab *prGeneratorGitlabInfo
 }
 
 type prGeneratorGithubInfo struct {
 	Repo      string
 	Owner     string
 	APIRegexp *regexp.Regexp
+}
+
+type prGeneratorGitlabInfo struct {
+	Project     string
+	APIHostname string
 }
 
 func NewWebhookHandler(namespace string, argocdSettingsMgr *argosettings.SettingsManager, client client.Client) (*WebhookHandler, error) {
@@ -113,7 +120,7 @@ func (h *WebhookHandler) Handler(w http.ResponseWriter, r *http.Request) {
 	case r.Header.Get("X-GitHub-Event") != "":
 		payload, err = h.github.Parse(r, github.PushEvent, github.PullRequestEvent, github.PingEvent)
 	case r.Header.Get("X-Gitlab-Event") != "":
-		payload, err = h.gitlab.Parse(r, gitlab.PushEvents, gitlab.TagEvents)
+		payload, err = h.gitlab.Parse(r, gitlab.PushEvents, gitlab.TagEvents, gitlab.MergeRequestEvents)
 	default:
 		log.Debug("Ignoring unknown webhook event")
 		http.Error(w, "Unknown webhook event", http.StatusBadRequest)
@@ -181,7 +188,7 @@ func getPRGeneratorInfo(payload interface{}) *prGeneratorInfo {
 	var info prGeneratorInfo
 	switch payload := payload.(type) {
 	case github.PullRequestPayload:
-		if !isAllowedPullRequestAction(payload.Action) {
+		if !isAllowedGithubPullRequestAction(payload.Action) {
 			return nil
 		}
 
@@ -202,6 +209,22 @@ func getPRGeneratorInfo(payload interface{}) *prGeneratorInfo {
 			Owner:     payload.Repository.Owner.Login,
 			APIRegexp: apiRegexp,
 		}
+	case gitlab.MergeRequestEventPayload:
+		if !isAllowedGitlabPullRequestAction(payload.ObjectAttributes.Action) {
+			return nil
+		}
+
+		apiURL := payload.Project.WebURL
+		urlObj, err := url.Parse(apiURL)
+		if err != nil {
+			log.Errorf("Failed to parse repoURL '%s'", apiURL)
+			return nil
+		}
+
+		info.Gitlab = &prGeneratorGitlabInfo{
+			Project:     strconv.FormatInt(payload.ObjectAttributes.TargetProjectID, 10),
+			APIHostname: urlObj.Hostname(),
+		}
 	default:
 		return nil
 	}
@@ -209,8 +232,8 @@ func getPRGeneratorInfo(payload interface{}) *prGeneratorInfo {
 	return &info
 }
 
-// allowedPullRequestActions is a list of actions that allow refresh
-var allowedPullRequestActions = []string{
+// githubAllowedPullRequestActions is a list of github actions that allow refresh
+var githubAllowedPullRequestActions = []string{
 	"opened",
 	"closed",
 	"synchronize",
@@ -219,8 +242,27 @@ var allowedPullRequestActions = []string{
 	"unlabeled",
 }
 
-func isAllowedPullRequestAction(action string) bool {
-	for _, allow := range allowedPullRequestActions {
+// gitlabAllowedPullRequestActions is a list of gitlab actions that allow refresh
+// https://docs.gitlab.com/ee/user/project/integrations/webhook_events.html#merge-request-events
+var gitlabAllowedPullRequestActions = []string{
+	"open",
+	"close",
+	"reopen",
+	"update",
+	"merge",
+}
+
+func isAllowedGithubPullRequestAction(action string) bool {
+	for _, allow := range githubAllowedPullRequestActions {
+		if allow == action {
+			return true
+		}
+	}
+	return false
+}
+
+func isAllowedGitlabPullRequestAction(action string) bool {
+	for _, allow := range gitlabAllowedPullRequestActions {
 		if allow == action {
 			return true
 		}
@@ -266,25 +308,50 @@ func shouldRefreshPRGenerator(gen *v1alpha1.PullRequestGenerator, info *prGenera
 		return false
 	}
 
-	if gen.Github == nil || info.Github == nil {
-		return false
-	}
-	if gen.Github.Owner != info.Github.Owner {
-		return false
-	}
-	if gen.Github.Repo != info.Github.Repo {
-		return false
-	}
-	api := gen.Github.API
-	if api == "" {
-		api = "https://api.github.com/"
-	}
-	if !info.Github.APIRegexp.MatchString(api) {
-		log.Debugf("%s does not match %s", gen.Github.API, info.Github.APIRegexp.String())
-		return false
+	if gen.GitLab != nil && info.Gitlab != nil {
+		if gen.GitLab.Project != info.Gitlab.Project {
+			return false
+		}
+
+		api := gen.GitLab.API
+		if api == "" {
+			api = "https://gitlab.com/"
+		}
+
+		urlObj, err := url.Parse(api)
+		if err != nil {
+			log.Errorf("Failed to parse repoURL '%s'", api)
+			return false
+		}
+
+		if urlObj.Hostname() != info.Gitlab.APIHostname {
+			log.Debugf("%s does not match %s", api, info.Gitlab.APIHostname)
+			return false
+		}
+
+		return true
 	}
 
-	return true
+	if gen.Github != nil && info.Github != nil {
+		if gen.Github.Owner != info.Github.Owner {
+			return false
+		}
+		if gen.Github.Repo != info.Github.Repo {
+			return false
+		}
+		api := gen.Github.API
+		if api == "" {
+			api = "https://api.github.com/"
+		}
+		if !info.Github.APIRegexp.MatchString(api) {
+			log.Debugf("%s does not match %s", api, info.Github.APIRegexp.String())
+			return false
+		}
+
+		return true
+	}
+
+	return false
 }
 
 func shouldRefreshMatrixGenerator(gen *v1alpha1.MatrixGenerator, gitGenInfo *gitGeneratorInfo, prGenInfo *prGeneratorInfo) bool {

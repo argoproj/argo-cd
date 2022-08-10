@@ -48,7 +48,7 @@ func (g *PullRequestGenerator) GetTemplate(appSetGenerator *argoprojiov1alpha1.A
 	return &appSetGenerator.PullRequest.Template
 }
 
-func (g *PullRequestGenerator) GenerateParams(appSetGenerator *argoprojiov1alpha1.ApplicationSetGenerator, applicationSetInfo *argoprojiov1alpha1.ApplicationSet) ([]map[string]string, error) {
+func (g *PullRequestGenerator) GenerateParams(appSetGenerator *argoprojiov1alpha1.ApplicationSetGenerator, applicationSetInfo *argoprojiov1alpha1.ApplicationSet) ([]map[string]interface{}, error) {
 	if appSetGenerator == nil {
 		return nil, EmptyAppSetGeneratorError
 	}
@@ -67,7 +67,7 @@ func (g *PullRequestGenerator) GenerateParams(appSetGenerator *argoprojiov1alpha
 	if err != nil {
 		return nil, fmt.Errorf("error listing repos: %v", err)
 	}
-	params := make([]map[string]string, 0, len(pulls))
+	params := make([]map[string]interface{}, 0, len(pulls))
 
 	// In order to follow the DNS label standard as defined in RFC 1123,
 	// we need to limit the 'branch' to 50 to give room to append/suffix-ing it
@@ -87,7 +87,7 @@ func (g *PullRequestGenerator) GenerateParams(appSetGenerator *argoprojiov1alpha
 			shortSHALength = len(pull.HeadSHA)
 		}
 
-		params = append(params, map[string]string{
+		params = append(params, map[string]interface{}{
 			"number":         strconv.Itoa(pull.Number),
 			"branch":         pull.Branch,
 			"branch_slug":    slug.Make(pull.Branch),

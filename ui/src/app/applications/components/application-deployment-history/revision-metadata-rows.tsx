@@ -4,7 +4,7 @@ import {Timestamp} from '../../../shared/components/timestamp';
 import {ApplicationSource, RevisionMetadata} from '../../../shared/models';
 import {services} from '../../../shared/services';
 
-export const RevisionMetadataRows = (props: {applicationName: string; source: ApplicationSource}) => {
+export const RevisionMetadataRows = (props: {applicationName: string; applicationNamespace: string; source: ApplicationSource}) => {
     if (props.source.chart) {
         return (
             <div>
@@ -20,7 +20,7 @@ export const RevisionMetadataRows = (props: {applicationName: string; source: Ap
         );
     }
     return (
-        <DataLoader input={props} load={input => services.applications.revisionMetadata(input.applicationName, input.source.targetRevision)}>
+        <DataLoader input={props} load={input => services.applications.revisionMetadata(input.applicationName, input.applicationNamespace, input.source.targetRevision)}>
             {(m: RevisionMetadata) => (
                 <div>
                     <div className='row'>

@@ -273,7 +273,6 @@ func TestSyncToSignedCommitKeyWithKnownKey(t *testing.T) {
 
 func TestAppCreation(t *testing.T) {
 	ctx := Given(t)
-
 	ctx.
 		Path(guestbookPath).
 		When().
@@ -326,7 +325,7 @@ func TestAppCreationWithoutForceUpdate(t *testing.T) {
 		Then().
 		Expect(SyncStatusIs(SyncStatusCodeOutOfSync)).
 		And(func(app *Application) {
-			assert.Equal(t, Name(), app.Name)
+			assert.Equal(t, ctx.AppName(), app.Name)
 			assert.Equal(t, RepoURL(RepoURLTypeFile), app.Spec.Source.RepoURL)
 			assert.Equal(t, guestbookPath, app.Spec.Source.Path)
 			assert.Equal(t, DeploymentNamespace(), app.Spec.Destination.Namespace)
@@ -462,7 +461,7 @@ func TestAppLabels(t *testing.T) {
 		Sync("-l", "foo=rubbish").
 		DoNotIgnoreErrors().
 		Then().
-		Expect(Error("", "no apps match selector foo=rubbish")).
+		Expect(Error("", "No matching apps found for filter: selector foo=rubbish")).
 		// check we can update the app and it is then sync'd
 		Given().
 		When().
@@ -512,21 +511,20 @@ func TestAppRollbackSuccessful(t *testing.T) {
 				Source:     app.Spec.Source,
 			}}
 			patch, _, err := diff.CreateTwoWayMergePatch(app, appWithHistory, &Application{})
-			assert.NoError(t, err)
-
+			require.NoError(t, err)
 			app, err = AppClientset.ArgoprojV1alpha1().Applications(ArgoCDNamespace).Patch(context.Background(), app.Name, types.MergePatchType, patch, metav1.PatchOptions{})
-			assert.NoError(t, err)
+			require.NoError(t, err)
 
 			// sync app and make sure it reaches InSync state
 			_, err = RunCli("app", "rollback", app.Name, "1")
-			assert.NoError(t, err)
+			require.NoError(t, err)
 
 		}).
 		Expect(Event(EventReasonOperationStarted, "rollback")).
 		Expect(SyncStatusIs(SyncStatusCodeSynced)).
 		And(func(app *Application) {
 			assert.Equal(t, SyncStatusCodeSynced, app.Status.Sync.Status)
-			assert.NotNil(t, app.Status.OperationState.SyncResult)
+			require.NotNil(t, app.Status.OperationState.SyncResult)
 			assert.Equal(t, 2, len(app.Status.OperationState.SyncResult.Resources))
 			assert.Equal(t, OperationSucceeded, app.Status.OperationState.Phase)
 			assert.Equal(t, 3, len(app.Status.History))
@@ -938,6 +936,24 @@ func TestSyncResourceByLabel(t *testing.T) {
 		})
 }
 
+func TestSyncResourceByProject(t *testing.T) {
+	Given(t).
+		Path(guestbookPath).
+		When().
+		CreateApp().
+		Sync().
+		Then().
+		And(func(app *Application) {
+			_, _ = RunCli("app", "sync", app.Name, "--project", app.Spec.Project)
+		}).
+		Expect(SyncStatusIs(SyncStatusCodeSynced)).
+		And(func(app *Application) {
+			_, err := RunCli("app", "sync", app.Name, "--project", "this-project-does-not-exist")
+			assert.Error(t, err)
+			assert.Contains(t, err.Error(), "level=fatal")
+		})
+}
+
 func TestLocalManifestSync(t *testing.T) {
 	Given(t).
 		Path(guestbookPath).
@@ -1161,7 +1177,9 @@ func TestPermissions(t *testing.T) {
 		And(func(app *Application) {
 			closer, cdClient := ArgoCDClientset.NewApplicationClientOrDie()
 			defer io.Close(closer)
-			tree, err := cdClient.ResourceTree(context.Background(), &applicationpkg.ResourcesQuery{ApplicationName: &app.Name})
+			appName, appNs := argo.ParseAppQualifiedName(app.Name, "")
+			fmt.Printf("APP NAME: %s\n", appName)
+			tree, err := cdClient.ResourceTree(context.Background(), &applicationpkg.ResourcesQuery{ApplicationName: &appName, AppNamespace: &appNs})
 			require.NoError(t, err)
 			assert.Len(t, tree.Nodes, 0)
 			assert.Len(t, tree.OrphanedNodes, 0)
@@ -1186,6 +1204,7 @@ func TestPermissions(t *testing.T) {
 
 func TestPermissionWithScopedRepo(t *testing.T) {
 	projName := "argo-project"
+	fixture.EnsureCleanState(t)
 	projectFixture.
 		Given(t).
 		Name(projName).
@@ -1994,7 +2013,8 @@ func TestAppLogs(t *testing.T) {
 }
 
 func TestAppWaitOperationInProgress(t *testing.T) {
-	Given(t).
+	ctx := Given(t)
+	ctx.
 		And(func() {
 			SetResourceOverrides(map[string]ResourceOverride{
 				"batch/Job": {
@@ -2015,7 +2035,7 @@ func TestAppWaitOperationInProgress(t *testing.T) {
 		Expect(OperationPhaseIs(OperationRunning)).
 		When().
 		And(func() {
-			_, err := RunCli("app", "wait", Name(), "--suspended")
+			_, err := RunCli("app", "wait", ctx.AppName(), "--suspended")
 			errors.CheckError(err)
 		})
 }
@@ -2338,6 +2358,13 @@ func TestAnnotationTrackingExtraResources(t *testing.T) {
 		Expect(SyncStatusIs(SyncStatusCodeSynced)).
 		Expect(HealthIs(health.HealthStatusHealthy)).
 		When().
+		Sync("--prune").
+		And(func() {
+			// The extra configmap must not be pruned, because it's not tracked
+			cm, err := KubeClientset.CoreV1().ConfigMaps(DeploymentNamespace()).Get(context.Background(), "extra-configmap", metav1.GetOptions{})
+			require.NoError(t, err)
+			require.Equal(t, "extra-configmap", cm.Name)
+		}).
 		And(func() {
 			// Add a resource with an annotation that is self-referencing the
 			// resource.
@@ -2354,5 +2381,17 @@ func TestAnnotationTrackingExtraResources(t *testing.T) {
 		Then().
 		Expect(OperationPhaseIs(OperationSucceeded)).
 		Expect(SyncStatusIs(SyncStatusCodeOutOfSync)).
+		Expect(HealthIs(health.HealthStatusHealthy)).
+		When().
+		Sync("--prune").
+		And(func() {
+			// The extra configmap must be pruned now, because it's tracked
+			cm, err := KubeClientset.CoreV1().ConfigMaps(DeploymentNamespace()).Get(context.Background(), "other-configmap", metav1.GetOptions{})
+			require.Error(t, err)
+			require.Equal(t, "", cm.Name)
+		}).
+		Then().
+		Expect(OperationPhaseIs(OperationSucceeded)).
+		Expect(SyncStatusIs(SyncStatusCodeSynced)).
 		Expect(HealthIs(health.HealthStatusHealthy))
 }
