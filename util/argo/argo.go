@@ -412,9 +412,18 @@ func GetAppProjectByName(name string, projLister applicationsv1.AppProjectLister
 	return GetAppVirtualProject(project, projLister, settingsManager)
 }
 
-// GetAppProject returns a project from an application
-func GetAppProject(spec *argoappv1.ApplicationSpec, projLister applicationsv1.AppProjectLister, ns string, settingsManager *settings.SettingsManager, db db.ArgoDB, ctx context.Context) (*argoappv1.AppProject, error) {
-	return GetAppProjectByName(spec.GetProject(), projLister, ns, settingsManager, db, ctx)
+// GetAppProject returns a project from an application. It will also ensure
+// that the application is allowed to use the project.
+func GetAppProject(app *argoappv1.Application, projLister applicationsv1.AppProjectLister, ns string, settingsManager *settings.SettingsManager, db db.ArgoDB, ctx context.Context) (*argoappv1.AppProject, error) {
+	proj, err := GetAppProjectByName(app.Spec.GetProject(), projLister, ns, settingsManager, db, ctx)
+	if err != nil {
+		return nil, err
+	}
+	if !proj.IsAppNamespacePermitted(app, ns) {
+		return nil, fmt.Errorf("application '%s' in namespace '%s' is not allowed to use project '%s'",
+			app.Name, app.Namespace, proj.Name)
+	}
+	return proj, nil
 }
 
 // verifyGenerateManifests verifies a repo path can generate manifests
@@ -660,4 +669,56 @@ func GetDifferentPathsBetweenStructs(a, b interface{}) ([]string, error) {
 		difference = append(difference, changeItem.Path...)
 	}
 	return difference, nil
+}
+
+// parseAppName will
+func parseAppName(appName string, defaultNs string, delim string) (string, string) {
+	var ns string
+	var name string
+	t := strings.SplitN(appName, delim, 2)
+	if len(t) == 2 {
+		ns = t[0]
+		name = t[1]
+	} else {
+		ns = defaultNs
+		name = t[0]
+	}
+	return name, ns
+}
+
+// ParseAppNamespacedName parses a namespaced name in the format namespace/name
+// and returns the components. If name wasn't namespaced, defaultNs will be
+// returned as namespace component.
+func ParseAppQualifiedName(appName string, defaultNs string) (string, string) {
+	return parseAppName(appName, defaultNs, "/")
+}
+
+// ParseAppInstanceName parses a namespaced name in the format namespace_name
+// and returns the components. If name wasn't namespaced, defaultNs will be
+// returned as namespace component.
+func ParseAppInstanceName(appName string, defaultNs string) (string, string) {
+	return parseAppName(appName, defaultNs, "_")
+}
+
+// AppInstanceName returns the value to be used for app instance labels from
+// the combination of appName, appNs and defaultNs.
+func AppInstanceName(appName, appNs, defaultNs string) string {
+	if appNs == "" || appNs == defaultNs {
+		return appName
+	} else {
+		return appNs + "_" + appName
+	}
+}
+
+// AppInstanceNameFromQualified returns the value to be used for app
+func AppInstanceNameFromQualified(name string, defaultNs string) string {
+	appName, appNs := ParseAppQualifiedName(name, defaultNs)
+	return AppInstanceName(appName, appNs, defaultNs)
+}
+
+// ErrProjectNotPermitted returns an error to indicate that an application
+// identified by appName and appNamespace is not allowed to use the project
+// identified by projName.
+func ErrProjectNotPermitted(appName, appNamespace, projName string) error {
+	return fmt.Errorf("application '%s' in namespace '%s' is not permitted to use project '%s'", appName, appNamespace, projName)
 }

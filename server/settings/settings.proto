@@ -39,6 +39,7 @@ message Settings {
     string uiBannerPosition = 20;
     string statusBadgeRootUrl = 21;
     bool execEnabled = 22;
+    string controllerNamespace = 23;
 }
 
 message GoogleAnalyticsConfig {
