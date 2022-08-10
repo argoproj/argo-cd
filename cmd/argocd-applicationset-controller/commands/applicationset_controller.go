@@ -128,17 +128,8 @@ func NewCommand() *cobra.Command {
 			argoSettingsMgr := argosettings.NewSettingsManager(ctx, k8sClient, namespace)
 			appSetConfig := appclientset.NewForConfigOrDie(mgr.GetConfig())
 			argoCDDB := db.NewDB(namespace, argoSettingsMgr, k8sClient)
-			// start a webhook server that listens to incoming webhook payloads
-			webhookHandler, err := webhook.NewWebhookHandler(namespace, argoSettingsMgr, mgr.GetClient())
-			if err != nil {
-				log.Error(err, "failed to create webhook handler")
-			}
 
-			if webhookHandler != nil {
-				startWebhookServer(webhookHandler, webhookAddr)
-			}
 			askPassServer := askpass.NewServer()
-			go func() { errors.CheckError(askPassServer.Run(askpass.SocketPath)) }()
 			terminalGenerators := map[string]generators.Generator{
 				"List":                    generators.NewListGenerator(),
 				"Clusters":                generators.NewClusterGenerator(mgr.GetClient(), ctx, k8sClient, namespace),
@@ -170,6 +161,16 @@ func NewCommand() *cobra.Command {
 				"Merge":                   generators.NewMergeGenerator(nestedGenerators),
 			}
 
+			// start a webhook server that listens to incoming webhook payloads
+			webhookHandler, err := webhook.NewWebhookHandler(namespace, argoSettingsMgr, mgr.GetClient(), topLevelGenerators)
+			if err != nil {
+				log.Error(err, "failed to create webhook handler")
+			}
+			if webhookHandler != nil {
+				startWebhookServer(webhookHandler, webhookAddr)
+			}
+
+			go func() { errors.CheckError(askPassServer.Run(askpass.SocketPath)) }()
 			if err = (&controllers.ApplicationSetReconciler{
 				Generators:       topLevelGenerators,
 				Client:           mgr.GetClient(),

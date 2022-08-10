@@ -14,6 +14,7 @@ import (
 	"k8s.io/client-go/util/retry"
 	"sigs.k8s.io/controller-runtime/pkg/client"
 
+	"github.com/argoproj/argo-cd/v2/applicationset/generators"
 	"github.com/argoproj/argo-cd/v2/common"
 	"github.com/argoproj/argo-cd/v2/pkg/apis/applicationset/v1alpha1"
 	argosettings "github.com/argoproj/argo-cd/v2/util/settings"
@@ -24,10 +25,11 @@ import (
 )
 
 type WebhookHandler struct {
-	namespace string
-	github    *github.Webhook
-	gitlab    *gitlab.Webhook
-	client    client.Client
+	namespace  string
+	github     *github.Webhook
+	gitlab     *gitlab.Webhook
+	client     client.Client
+	generators map[string]generators.Generator
 }
 
 type gitGeneratorInfo struct {
@@ -52,7 +54,7 @@ type prGeneratorGitlabInfo struct {
 	APIHostname string
 }
 
-func NewWebhookHandler(namespace string, argocdSettingsMgr *argosettings.SettingsManager, client client.Client) (*WebhookHandler, error) {
+func NewWebhookHandler(namespace string, argocdSettingsMgr *argosettings.SettingsManager, client client.Client, generators map[string]generators.Generator) (*WebhookHandler, error) {
 	// register the webhook secrets stored under "argocd-secret" for verifying incoming payloads
 	argocdSettings, err := argocdSettingsMgr.GetSettings()
 	if err != nil {
@@ -68,10 +70,11 @@ func NewWebhookHandler(namespace string, argocdSettingsMgr *argosettings.Setting
 	}
 
 	return &WebhookHandler{
-		namespace: namespace,
-		github:    githubHandler,
-		gitlab:    gitlabHandler,
-		client:    client,
+		namespace:  namespace,
+		github:     githubHandler,
+		gitlab:     gitlabHandler,
+		client:     client,
+		generators: generators,
 	}, nil
 }
 
@@ -95,8 +98,8 @@ func (h *WebhookHandler) HandleEvent(payload interface{}) {
 			// check if the ApplicationSet uses any generator that is relevant to the payload
 			shouldRefresh = shouldRefreshGitGenerator(gen.Git, gitGenInfo) ||
 				shouldRefreshPRGenerator(gen.PullRequest, prGenInfo) ||
-				shouldRefreshMatrixGenerator(gen.Matrix, gitGenInfo, prGenInfo) ||
-				shouldRefreshMergeGenerator(gen.Merge, gitGenInfo, prGenInfo)
+				h.shouldRefreshMatrixGenerator(gen.Matrix, &appSet, gitGenInfo, prGenInfo) ||
+				h.shouldRefreshMergeGenerator(gen.Merge, &appSet, gitGenInfo, prGenInfo)
 			if shouldRefresh {
 				break
 			}
@@ -354,29 +357,195 @@ func shouldRefreshPRGenerator(gen *v1alpha1.PullRequestGenerator, info *prGenera
 	return false
 }
 
-func shouldRefreshMatrixGenerator(gen *v1alpha1.MatrixGenerator, gitGenInfo *gitGeneratorInfo, prGenInfo *prGeneratorInfo) bool {
+func (h *WebhookHandler) shouldRefreshMatrixGenerator(gen *v1alpha1.MatrixGenerator, appSet *v1alpha1.ApplicationSet, gitGenInfo *gitGeneratorInfo, prGenInfo *prGeneratorInfo) bool {
 	if gen == nil {
 		return false
 	}
-	return shouldRefreshNestedGenerator(gen.Generators, gitGenInfo, prGenInfo)
-}
 
-func shouldRefreshMergeGenerator(gen *v1alpha1.MergeGenerator, gitGenInfo *gitGeneratorInfo, prGenInfo *prGeneratorInfo) bool {
-	if gen == nil {
+	// Silently ignore, the ApplicationSetReconciler will log the error as part of the reconcile
+	if len(gen.Generators) < 2 || len(gen.Generators) > 2 {
 		return false
 	}
-	return shouldRefreshNestedGenerator(gen.Generators, gitGenInfo, prGenInfo)
-}
 
-func shouldRefreshNestedGenerator(gens []v1alpha1.ApplicationSetNestedGenerator, gitGenInfo *gitGeneratorInfo, prGenInfo *prGeneratorInfo) bool {
-	shouldRefresh := false
-	for _, gen := range gens {
-		shouldRefresh = shouldRefreshGitGenerator(gen.Git, gitGenInfo) || shouldRefreshPRGenerator(gen.PullRequest, prGenInfo)
-		if shouldRefresh {
-			break
+	g0 := gen.Generators[0]
+
+	// Check first child generator for Git or Pull Request Generator
+	if shouldRefreshGitGenerator(g0.Git, gitGenInfo) ||
+		shouldRefreshPRGenerator(g0.PullRequest, prGenInfo) {
+		return true
+	}
+
+	// Check first child generator for nested Matrix generator
+	var matrixGenerator0 *v1alpha1.MatrixGenerator
+	if g0.Matrix != nil {
+		// Since nested matrix generator is represented as a JSON object in the CRD, we unmarshall it back to a Go struct here.
+		nestedMatrix, err := v1alpha1.ToNestedMatrixGenerator(g0.Matrix)
+		if err != nil {
+			log.Errorf("Failed to unmarshall nested matrix generator: %v", err)
+			return false
+		}
+		if nestedMatrix != nil {
+			matrixGenerator0 = nestedMatrix.ToMatrixGenerator()
+			if h.shouldRefreshMatrixGenerator(matrixGenerator0, appSet, gitGenInfo, prGenInfo) {
+				return true
+			}
 		}
 	}
-	return shouldRefresh
+
+	// Check first child generator for nested Merge generator
+	var mergeGenerator0 *v1alpha1.MergeGenerator
+	if g0.Merge != nil {
+		// Since nested merge generator is represented as a JSON object in the CRD, we unmarshall it back to a Go struct here.
+		nestedMerge, err := v1alpha1.ToNestedMergeGenerator(g0.Merge)
+		if err != nil {
+			log.Errorf("Failed to unmarshall nested merge generator: %v", err)
+			return false
+		}
+		if nestedMerge != nil {
+			mergeGenerator0 = nestedMerge.ToMergeGenerator()
+			if h.shouldRefreshMergeGenerator(mergeGenerator0, appSet, gitGenInfo, prGenInfo) {
+				return true
+			}
+		}
+	}
+
+	// Create ApplicationSetGenerator for first child generator from its ApplicationSetNestedGenerator
+	requestedGenerator0 := &v1alpha1.ApplicationSetGenerator{
+		List:                    g0.List,
+		Clusters:                g0.Clusters,
+		Git:                     g0.Git,
+		SCMProvider:             g0.SCMProvider,
+		ClusterDecisionResource: g0.ClusterDecisionResource,
+		PullRequest:             g0.PullRequest,
+		Matrix:                  matrixGenerator0,
+		Merge:                   mergeGenerator0,
+	}
+
+	// Generate params for first child generator
+	relGenerators := generators.GetRelevantGenerators(requestedGenerator0, h.generators)
+	params := []map[string]interface{}{}
+	for _, g := range relGenerators {
+		p, err := g.GenerateParams(requestedGenerator0, appSet)
+		if err != nil {
+			log.Error(err)
+			return false
+		}
+		params = append(params, p...)
+	}
+
+	g1 := gen.Generators[1]
+
+	// Create Matrix generator for nested Matrix generator as second child generator
+	var matrixGenerator1 *v1alpha1.MatrixGenerator
+	if g1.Matrix != nil {
+		// Since nested matrix generator is represented as a JSON object in the CRD, we unmarshall it back to a Go struct here.
+		nestedMatrix, err := v1alpha1.ToNestedMatrixGenerator(g1.Matrix)
+		if err != nil {
+			log.Errorf("Failed to unmarshall nested matrix generator: %v", err)
+			return false
+		}
+		if nestedMatrix != nil {
+			matrixGenerator1 = nestedMatrix.ToMatrixGenerator()
+		}
+	}
+
+	// Create Merge generator for nested Merge generator as second child generator
+	var mergeGenerator1 *v1alpha1.MergeGenerator
+	if g1.Merge != nil {
+		// Since nested merge generator is represented as a JSON object in the CRD, we unmarshall it back to a Go struct here.
+		nestedMerge, err := v1alpha1.ToNestedMergeGenerator(g1.Merge)
+		if err != nil {
+			log.Errorf("Failed to unmarshall nested merge generator: %v", err)
+			return false
+		}
+		if nestedMerge != nil {
+			mergeGenerator1 = nestedMerge.ToMergeGenerator()
+		}
+	}
+
+	// Create ApplicationSetGenerator for second child generator from its ApplicationSetNestedGenerator
+	requestedGenerator1 := &v1alpha1.ApplicationSetGenerator{
+		List:                    g1.List,
+		Clusters:                g1.Clusters,
+		Git:                     g1.Git,
+		SCMProvider:             g1.SCMProvider,
+		ClusterDecisionResource: g1.ClusterDecisionResource,
+		PullRequest:             g1.PullRequest,
+		Matrix:                  matrixGenerator1,
+		Merge:                   mergeGenerator1,
+	}
+
+	// Interpolate second child generator with params from first child generator, if there are any params
+	if len(params) != 0 {
+		for _, p := range params {
+			tempInterpolatedGenerator, err := generators.InterpolateGenerator(requestedGenerator1, p, appSet.Spec.GoTemplate)
+			interpolatedGenerator := &tempInterpolatedGenerator
+			if err != nil {
+				log.Error(err)
+				return false
+			}
+
+			// Check all interpolated child generators
+			if shouldRefreshGitGenerator(interpolatedGenerator.Git, gitGenInfo) ||
+				shouldRefreshPRGenerator(interpolatedGenerator.PullRequest, prGenInfo) ||
+				h.shouldRefreshMatrixGenerator(interpolatedGenerator.Matrix, appSet, gitGenInfo, prGenInfo) ||
+				h.shouldRefreshMergeGenerator(requestedGenerator1.Merge, appSet, gitGenInfo, prGenInfo) {
+				return true
+			}
+		}
+	}
+
+	// First child generator didn't return any params, just check the second child generator
+	return shouldRefreshGitGenerator(requestedGenerator1.Git, gitGenInfo) ||
+		shouldRefreshPRGenerator(requestedGenerator1.PullRequest, prGenInfo) ||
+		h.shouldRefreshMatrixGenerator(requestedGenerator1.Matrix, appSet, gitGenInfo, prGenInfo) ||
+		h.shouldRefreshMergeGenerator(requestedGenerator1.Merge, appSet, gitGenInfo, prGenInfo)
+}
+
+func (h *WebhookHandler) shouldRefreshMergeGenerator(gen *v1alpha1.MergeGenerator, appSet *v1alpha1.ApplicationSet, gitGenInfo *gitGeneratorInfo, prGenInfo *prGeneratorInfo) bool {
+	if gen == nil {
+		return false
+	}
+
+	for _, g := range gen.Generators {
+		// Check Git or Pull Request generator
+		if shouldRefreshGitGenerator(g.Git, gitGenInfo) ||
+			shouldRefreshPRGenerator(g.PullRequest, prGenInfo) {
+			return true
+		}
+
+		// Check nested Matrix generator
+		if g.Matrix != nil {
+			// Since nested matrix generator is represented as a JSON object in the CRD, we unmarshall it back to a Go struct here.
+			nestedMatrix, err := v1alpha1.ToNestedMatrixGenerator(g.Matrix)
+			if err != nil {
+				log.Errorf("Failed to unmarshall nested matrix generator: %v", err)
+				return false
+			}
+			if nestedMatrix != nil {
+				if h.shouldRefreshMatrixGenerator(nestedMatrix.ToMatrixGenerator(), appSet, gitGenInfo, prGenInfo) {
+					return true
+				}
+			}
+		}
+
+		// Check nested Merge generator
+		if g.Merge != nil {
+			// Since nested merge generator is represented as a JSON object in the CRD, we unmarshall it back to a Go struct here.
+			nestedMerge, err := v1alpha1.ToNestedMergeGenerator(g.Merge)
+			if err != nil {
+				log.Errorf("Failed to unmarshall nested merge generator: %v", err)
+				return false
+			}
+			if nestedMerge != nil {
+				if h.shouldRefreshMergeGenerator(nestedMerge.ToMergeGenerator(), appSet, gitGenInfo, prGenInfo) {
+					return true
+				}
+			}
+		}
+	}
+
+	return false
 }
 
 func refreshApplicationSet(c client.Client, appSet *v1alpha1.ApplicationSet) error {
