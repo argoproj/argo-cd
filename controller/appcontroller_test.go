@@ -110,6 +110,7 @@ func newFakeController(data *fakeData) *ApplicationController {
 		[]string{},
 		0,
 		nil,
+		[]string{},
 	)
 	if err != nil {
 		panic(err)
@@ -754,15 +755,17 @@ func TestHandleAppUpdated(t *testing.T) {
 	app := newFakeApp()
 	app.Spec.Destination.Namespace = test.FakeArgoCDNamespace
 	app.Spec.Destination.Server = argoappv1.KubernetesInternalAPIServerAddr
-	ctrl := newFakeController(&fakeData{apps: []runtime.Object{app}})
+	proj := defaultProj.DeepCopy()
+	proj.Spec.SourceNamespaces = []string{test.FakeArgoCDNamespace}
+	ctrl := newFakeController(&fakeData{apps: []runtime.Object{app, proj}})
 
-	ctrl.handleObjectUpdated(map[string]bool{app.Name: true}, kube.GetObjectRef(kube.MustToUnstructured(app)))
-	isRequested, level := ctrl.isRefreshRequested(app.Name)
+	ctrl.handleObjectUpdated(map[string]bool{app.InstanceName(ctrl.namespace): true}, kube.GetObjectRef(kube.MustToUnstructured(app)))
+	isRequested, level := ctrl.isRefreshRequested(app.QualifiedName())
 	assert.False(t, isRequested)
 	assert.Equal(t, ComparisonWithNothing, level)
 
-	ctrl.handleObjectUpdated(map[string]bool{app.Name: true}, corev1.ObjectReference{UID: "test", Kind: kube.DeploymentKind, Name: "test", Namespace: "default"})
-	isRequested, level = ctrl.isRefreshRequested(app.Name)
+	ctrl.handleObjectUpdated(map[string]bool{app.InstanceName(ctrl.namespace): true}, corev1.ObjectReference{UID: "test", Kind: kube.DeploymentKind, Name: "test", Namespace: "default"})
+	isRequested, level = ctrl.isRefreshRequested(app.QualifiedName())
 	assert.True(t, isRequested)
 	assert.Equal(t, CompareWithRecent, level)
 }
@@ -785,11 +788,11 @@ func TestHandleOrphanedResourceUpdated(t *testing.T) {
 
 	ctrl.handleObjectUpdated(map[string]bool{}, corev1.ObjectReference{UID: "test", Kind: kube.DeploymentKind, Name: "test", Namespace: test.FakeArgoCDNamespace})
 
-	isRequested, level := ctrl.isRefreshRequested(app1.Name)
+	isRequested, level := ctrl.isRefreshRequested(app1.QualifiedName())
 	assert.True(t, isRequested)
 	assert.Equal(t, CompareWithRecent, level)
 
-	isRequested, level = ctrl.isRefreshRequested(app2.Name)
+	isRequested, level = ctrl.isRefreshRequested(app2.QualifiedName())
 	assert.True(t, isRequested)
 	assert.Equal(t, CompareWithRecent, level)
 }
@@ -1097,7 +1100,7 @@ func TestFinalizeProjectDeletion_DoesNotHaveApplications(t *testing.T) {
 
 func TestProcessRequestedAppOperation_FailedNoRetries(t *testing.T) {
 	app := newFakeApp()
-	app.Spec.Project = "invalid-project"
+	app.Spec.Project = "default"
 	app.Operation = &argoappv1.Operation{
 		Sync: &argoappv1.SyncOperation{},
 	}
@@ -1123,7 +1126,10 @@ func TestProcessRequestedAppOperation_InvalidDestination(t *testing.T) {
 	app.Operation = &argoappv1.Operation{
 		Sync: &argoappv1.SyncOperation{},
 	}
-	ctrl := newFakeController(&fakeData{apps: []runtime.Object{app}})
+	proj := defaultProj
+	proj.Name = "test-project"
+	proj.Spec.SourceNamespaces = []string{test.FakeArgoCDNamespace}
+	ctrl := newFakeController(&fakeData{apps: []runtime.Object{app, &proj}})
 	fakeAppCs := ctrl.applicationClientset.(*appclientset.Clientset)
 	receivedPatch := map[string]interface{}{}
 	func() {
@@ -1310,4 +1316,23 @@ func TestMetricsExpiration(t *testing.T) {
 	// Check expiration is enabled if set
 	ctrl = newFakeController(&fakeData{apps: []runtime.Object{app}, metricsCacheExpiration: 10 * time.Second})
 	assert.True(t, ctrl.metricsServer.HasExpiration())
+}
+
+func TestToAppKey(t *testing.T) {
+	ctrl := newFakeController(&fakeData{})
+	tests := []struct {
+		name     string
+		input    string
+		expected string
+	}{
+		{"From instance name", "foo_bar", "foo/bar"},
+		{"From qualified name", "foo/bar", "foo/bar"},
+		{"From unqualified name", "bar", ctrl.namespace + "/bar"},
+	}
+
+	for _, tt := range tests {
+		t.Run(tt.name, func(t *testing.T) {
+			assert.Equal(t, tt.expected, ctrl.toAppKey(tt.input))
+		})
+	}
 }

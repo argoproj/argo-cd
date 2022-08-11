@@ -1,5 +1,6 @@
 import {DataLoader, Tab, Tabs} from 'argo-ui';
 import * as React from 'react';
+import {useState} from 'react';
 import {EventsList, YamlEditor} from '../../../shared/components';
 import * as models from '../../../shared/models';
 import {ErrorBoundary} from '../../../shared/components/error-boundary/error-boundary';
@@ -34,6 +35,7 @@ interface ResourceDetailsProps {
 
 export const ResourceDetails = (props: ResourceDetailsProps) => {
     const {selectedNode, updateApp, application, isAppSelected, tree} = {...props};
+    const [activeContainer, setActiveContainer] = useState();
     const appContext = React.useContext(Context);
     const tab = new URLSearchParams(appContext.history.location.search).get('tab');
     const selectedNodeInfo = NodeInfo(new URLSearchParams(appContext.history.location.search).get('node'));
@@ -86,7 +88,10 @@ export const ResourceDetails = (props: ResourceDetailsProps) => {
                 });
             }
 
-            const onClickContainer = (group: any, i: number) => SelectNode(selectedNodeKey, group.offset + i, 'logs', appContext);
+            const onClickContainer = (group: any, i: number, activeTab: string) => {
+                setActiveContainer(group.offset + i);
+                SelectNode(selectedNodeKey, activeContainer, activeTab, appContext);
+            };
 
             if (logsAllowed) {
                 tabs = tabs.concat([
@@ -103,7 +108,8 @@ export const ResourceDetails = (props: ResourceDetailsProps) => {
                                     name={node.name}
                                     namespace={podState.metadata.namespace}
                                     applicationName={application.metadata.name}
-                                    containerName={AppUtils.getContainerName(podState, selectedNodeInfo.container)}
+                                    applicationNamespace={application.metadata.namespace}
+                                    containerName={AppUtils.getContainerName(podState, activeContainer)}
                                     page={{number: page, untilTimes}}
                                     setPage={pageData => appContext.navigation.goto('.', {page: pageData.number, untilTimes: pageData.untilTimes.join(',')})}
                                     containerGroups={containerGroups}
@@ -121,7 +127,14 @@ export const ResourceDetails = (props: ResourceDetailsProps) => {
                         icon: 'fa fa-terminal',
                         title: 'Terminal',
                         content: (
-                            <PodTerminalViewer applicationName={application.metadata.name} projectName={application.spec.project} podState={podState} selectedNode={selectedNode} />
+                            <PodTerminalViewer
+                                applicationName={application.metadata.name}
+                                projectName={application.spec.project}
+                                podState={podState}
+                                selectedNode={selectedNode}
+                                containerName={AppUtils.getContainerName(podState, activeContainer)}
+                                onClickContainer={onClickContainer}
+                            />
                         )
                     }
                 ]);
@@ -183,7 +196,7 @@ export const ResourceDetails = (props: ResourceDetailsProps) => {
                         input={application.spec}
                         onSave={async patch => {
                             const spec = JSON.parse(JSON.stringify(application.spec));
-                            return services.applications.updateSpec(application.metadata.name, jsonMergePatch.apply(spec, JSON.parse(patch)));
+                            return services.applications.updateSpec(application.metadata.name, application.metadata.namespace, jsonMergePatch.apply(spec, JSON.parse(patch)));
                         }}
                     />
                 )
@@ -199,7 +212,7 @@ export const ResourceDetails = (props: ResourceDetailsProps) => {
                     <DataLoader
                         key='diff'
                         load={async () =>
-                            await services.applications.managedResources(application.metadata.name, {
+                            await services.applications.managedResources(application.metadata.name, application.metadata.namespace, {
                                 fields: ['items.normalizedLiveState', 'items.predictedLiveState', 'items.group', 'items.kind', 'items.namespace', 'items.name']
                             })
                         }>
@@ -212,7 +225,7 @@ export const ResourceDetails = (props: ResourceDetailsProps) => {
         tabs.push({
             title: 'EVENTS',
             key: 'event',
-            content: <ApplicationResourceEvents applicationName={application.metadata.name} />
+            content: <ApplicationResourceEvents applicationName={application.metadata.name} applicationNamespace={application.metadata.namespace} />
         });
 
         const extensionTabs = services.extensions.getResourceTabs('argoproj.io', 'Application').map((ext, i) => ({
@@ -234,7 +247,7 @@ export const ResourceDetails = (props: ResourceDetailsProps) => {
                     noLoaderOnInputChange={true}
                     input={selectedNode.resourceVersion}
                     load={async () => {
-                        const managedResources = await services.applications.managedResources(application.metadata.name, {
+                        const managedResources = await services.applications.managedResources(application.metadata.name, application.metadata.namespace, {
                             id: {
                                 name: selectedNode.name,
                                 namespace: selectedNode.namespace,
@@ -249,10 +262,10 @@ export const ResourceDetails = (props: ResourceDetailsProps) => {
                         if (controlled && controlled.targetState) {
                             resQuery.version = AppUtils.parseApiVersion(controlled.targetState.apiVersion).version;
                         }
-                        const liveState = await services.applications.getResource(application.metadata.name, resQuery).catch(() => null);
+                        const liveState = await services.applications.getResource(application.metadata.name, application.metadata.namespace, resQuery).catch(() => null);
                         const events =
                             (liveState &&
-                                (await services.applications.resourceEvents(application.metadata.name, {
+                                (await services.applications.resourceEvents(application.metadata.name, application.metadata.namespace, {
                                     name: liveState.metadata.name,
                                     namespace: liveState.metadata.namespace,
                                     uid: liveState.metadata.uid
@@ -264,7 +277,7 @@ export const ResourceDetails = (props: ResourceDetailsProps) => {
                         } else {
                             const childPod = AppUtils.findChildPod(selectedNode, tree);
                             if (childPod) {
-                                podState = await services.applications.getResource(application.metadata.name, childPod).catch(() => null);
+                                podState = await services.applications.getResource(application.metadata.name, application.metadata.namespace, childPod).catch(() => null);
                             }
                         }
 

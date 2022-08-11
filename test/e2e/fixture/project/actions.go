@@ -2,6 +2,7 @@ package project
 
 import (
 	"context"
+	"strings"
 
 	"github.com/stretchr/testify/require"
 	v1 "k8s.io/apimachinery/pkg/apis/meta/v1"
@@ -74,6 +75,9 @@ func (a *Actions) prepareCreateArgs(args []string) []string {
 		args = append(args, "--dest", a.context.destination)
 	}
 
+	if len(a.context.sourceNamespaces) > 0 {
+		args = append(args, "--source-namespaces", strings.Join(a.context.sourceNamespaces, ","))
+	}
 	return args
 }
 

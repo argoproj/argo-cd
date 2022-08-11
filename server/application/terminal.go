@@ -28,16 +28,17 @@ import (
 )
 
 type terminalHandler struct {
-	appLister         applisters.ApplicationNamespaceLister
+	appLister         applisters.ApplicationLister
 	db                db.ArgoDB
 	enf               *rbac.Enforcer
 	cache             *servercache.Cache
 	appResourceTreeFn func(ctx context.Context, app *appv1.Application) (*appv1.ApplicationTree, error)
 	allowedShells     []string
+	namespace         string
 }
 
 // NewHandler returns a new terminal handler.
-func NewHandler(appLister applisters.ApplicationNamespaceLister, db db.ArgoDB, enf *rbac.Enforcer, cache *servercache.Cache,
+func NewHandler(appLister applisters.ApplicationLister, namespace string, db db.ArgoDB, enf *rbac.Enforcer, cache *servercache.Cache,
 	appResourceTree AppResourceTreeFn, allowedShells []string) *terminalHandler {
 	return &terminalHandler{
 		appLister:         appLister,
@@ -46,6 +47,7 @@ func NewHandler(appLister applisters.ApplicationNamespaceLister, db db.ArgoDB, e
 		cache:             cache,
 		appResourceTreeFn: appResourceTree,
 		allowedShells:     allowedShells,
+		namespace:         namespace,
 	}
 }
 
@@ -143,7 +145,7 @@ func (s *terminalHandler) ServeHTTP(w http.ResponseWriter, r *http.Request) {
 	fieldLog := log.WithFields(log.Fields{"application": app, "userName": sessionmgr.Username(ctx), "container": container,
 		"podName": podName, "namespace": namespace, "cluster": project})
 
-	a, err := s.appLister.Get(app)
+	a, err := s.appLister.Applications(s.namespace).Get(app)
 	if err != nil {
 		if apierr.IsNotFound(err) {
 			http.Error(w, "App not found", http.StatusNotFound)
