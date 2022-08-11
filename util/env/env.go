@@ -126,9 +126,16 @@ func StringFromEnv(env string, defaultValue string) string {
 	return defaultValue
 }
 
+// StringsFromEnv parses given value from the environment as a list of strings,
+// using seperator as the delimeter, and returns them as a slice. The elements
+// of the returned slice will be trimmed from white space.
 func StringsFromEnv(env string, defaultValue []string, separator string) []string {
 	if str := os.Getenv(env); str != "" {
-		return strings.Split(str, separator)
+		ret := make([]string, 0)
+		for _, s := range strings.Split(str, separator) {
+			ret = append(ret, strings.TrimSpace(s))
+		}
+		return ret
 	}
 	return defaultValue
 }
