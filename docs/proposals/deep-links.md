@@ -49,15 +49,15 @@ currently are :
 - `resource` : all links under this field will show up in the individual resource(deployments, pods, services etc.)
   summary tab.
 
-Each link in the list has three sub-fields :
+Each link in the list has five subfields :
 1. `title` : title/tag that will be displayed in the UI corresponding to that link
 2. `url` : the actual URL where the deep link will redirect to, this field can be templated to use data from the
    application, project, resource objects (depending on where it is located) or from argocd-secret (only fields prefixed
    with `links.`)
-3. `description` (optional) : a descriptiopn for what the deep link is about
+3. `description` (optional) : a description for what the deep link is about
 4. `icon.class` (optional) : a font-awesome icon class to be used when displaying the links in dropdown menus.
 5. `if` (optional) : a conditional statement that results in either `true` or `false`, it also has access to the same
-   data as the`url` field. If the condition resolves to `true` the deep link will be displayed else it will be hidden. If
+   data as the `url` field. If the condition resolves to `true` the deep link will be displayed else it will be hidden. If
    the field is omitted by default the deep links will be displayed.
 
 
@@ -146,7 +146,7 @@ service ProjectService {
 
 ### Use cases
 
-Some examples of use cases this enhancement intends to take care of -
+Some example use cases this enhancement intends to take care of -
 
 #### Use case 1:
 As a user, I would like to quickly open a splunk/datadog UI with a query that retrieves all logs of application
