@@ -132,11 +132,10 @@ func StringFromEnv(env string, defaultValue string) string {
 func StringsFromEnv(env string, defaultValue []string, separator string) []string {
 	if str := os.Getenv(env); str != "" {
 		ss := strings.Split(str, separator)
-		ret := make([]string, len(ss))
-		for i, s := range strings.Split(str, separator) {
-			ret[i] = strings.TrimSpace(s)
+		for i, s := range ss {
+			ss[i] = strings.TrimSpace(s)
 		}
-		return ret
+		return ss
 	}
 	return defaultValue
 }
