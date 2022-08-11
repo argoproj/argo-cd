@@ -313,6 +313,11 @@ func updateSettingConfigMap(updater func(cm *corev1.ConfigMap) error) {
 	updateGenericConfigMap(common.ArgoCDConfigMapName, updater)
 }
 
+// Convenience wrapper for updating argocd-notifications-cm
+func updateNotificationsConfigMap(updater func(cm *corev1.ConfigMap) error) {
+	updateGenericConfigMap(common.ArgoCDNotificationsConfigMapName, updater)
+}
+
 // Convenience wrapper for updating argocd-cm-rbac
 func updateRBACConfigMap(updater func(cm *corev1.ConfigMap) error) {
 	updateGenericConfigMap(common.ArgoCDRBACConfigMapName, updater)
@@ -498,6 +503,13 @@ func SetParamInSettingConfigMap(key, value string) {
 	})
 }
 
+func SetParamInNotificationsConfigMap(key, value string) {
+	updateNotificationsConfigMap(func(cm *corev1.ConfigMap) error {
+		cm.Data[key] = value
+		return nil
+	})
+}
+
 func EnsureCleanState(t *testing.T) {
 	// In large scenarios, we can skip tests that already run
 	SkipIfAlreadyRun(t)
@@ -533,6 +545,11 @@ func EnsureCleanState(t *testing.T) {
 
 	// reset settings
 	updateSettingConfigMap(func(cm *corev1.ConfigMap) error {
+		cm.Data = map[string]string{}
+		return nil
+	})
+
+	updateNotificationsConfigMap(func(cm *corev1.ConfigMap) error {
 		cm.Data = map[string]string{}
 		return nil
 	})

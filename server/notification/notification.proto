@@ -1,0 +1,46 @@
+syntax = "proto2";
+option go_package = "github.com/argoproj/argo-cd/v2/pkg/apiclient/notification";
+
+// Notification Service
+//
+// Notification Service API performs query actions against notification resources
+package notification;
+
+import "google/api/annotations.proto";
+
+message Triggers {
+	repeated string triggers = 1;
+}
+
+message TriggersListRequest {}
+
+message Services {
+	repeated string services = 1;
+}
+
+message ServicesListRequest {}
+
+message Templates {
+	repeated string templates = 1;
+}
+
+message TemplatesListRequest {}
+
+// NotificationService
+service NotificationService {
+
+	// List returns list of triggers
+	rpc ListTriggers(TriggersListRequest) returns (Triggers) {
+		option (google.api.http).get = "/api/v1/notifications/triggers";
+	}
+
+	// List returns list of services
+	rpc ListServices(ServicesListRequest) returns (Services) {
+		option (google.api.http).get = "/api/v1/notifications/services";
+	}
+
+	// List returns list of templates
+	rpc ListTemplates(TemplatesListRequest) returns (Templates) {
+		option (google.api.http).get = "/api/v1/notifications/templates";
+	}
+}
