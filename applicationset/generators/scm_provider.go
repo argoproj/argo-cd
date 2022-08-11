@@ -10,6 +10,7 @@ import (
 	"sigs.k8s.io/controller-runtime/pkg/client"
 
 	"github.com/argoproj/argo-cd/v2/applicationset/services/scm_provider"
+	"github.com/argoproj/argo-cd/v2/applicationset/utils"
 	argoprojiov1alpha1 "github.com/argoproj/argo-cd/v2/pkg/apis/applicationset/v1alpha1"
 )
 
@@ -29,6 +30,11 @@ func NewSCMProviderGenerator(client client.Client) Generator {
 	return &SCMProviderGenerator{client: client}
 }
 
+// Testing generator
+func NewTestSCMProviderGenerator(overrideProvider scm_provider.SCMProviderService) Generator {
+	return &SCMProviderGenerator{overrideProvider: overrideProvider}
+}
+
 func (g *SCMProviderGenerator) GetRequeueAfter(appSetGenerator *argoprojiov1alpha1.ApplicationSetGenerator) time.Duration {
 	// Return a requeue default of 30 minutes, if no default is specified.
 
@@ -43,7 +49,7 @@ func (g *SCMProviderGenerator) GetTemplate(appSetGenerator *argoprojiov1alpha1.A
 	return &appSetGenerator.SCMProvider.Template
 }
 
-func (g *SCMProviderGenerator) GenerateParams(appSetGenerator *argoprojiov1alpha1.ApplicationSetGenerator, applicationSetInfo *argoprojiov1alpha1.ApplicationSet) ([]map[string]string, error) {
+func (g *SCMProviderGenerator) GenerateParams(appSetGenerator *argoprojiov1alpha1.ApplicationSetGenerator, applicationSetInfo *argoprojiov1alpha1.ApplicationSet) ([]map[string]interface{}, error) {
 	if appSetGenerator == nil {
 		return nil, EmptyAppSetGeneratorError
 	}
@@ -119,7 +125,7 @@ func (g *SCMProviderGenerator) GenerateParams(appSetGenerator *argoprojiov1alpha
 	if err != nil {
 		return nil, fmt.Errorf("error listing repos: %v", err)
 	}
-	params := make([]map[string]string, 0, len(repos))
+	params := make([]map[string]interface{}, 0, len(repos))
 	var shortSHALength int
 	for _, repo := range repos {
 		shortSHALength = 8
@@ -127,7 +133,7 @@ func (g *SCMProviderGenerator) GenerateParams(appSetGenerator *argoprojiov1alpha
 			shortSHALength = len(repo.SHA)
 		}
 
-		params = append(params, map[string]string{
+		params = append(params, map[string]interface{}{
 			"organization":     repo.Organization,
 			"repository":       repo.Repository,
 			"url":              repo.URL,
@@ -135,7 +141,7 @@ func (g *SCMProviderGenerator) GenerateParams(appSetGenerator *argoprojiov1alpha
 			"sha":              repo.SHA,
 			"short_sha":        repo.SHA[:shortSHALength],
 			"labels":           strings.Join(repo.Labels, ","),
-			"branchNormalized": sanitizeName(repo.Branch),
+			"branchNormalized": utils.SanitizeName(repo.Branch),
 		})
 	}
 	return params, nil

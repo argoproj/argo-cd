@@ -49,6 +49,8 @@ type ApplicationSet struct {
 
 // ApplicationSetSpec represents a class of application set state.
 type ApplicationSetSpec struct {
+	// Define whereas to use GoTemplate or not and fallback to fasttemplate. Default to False.
+	GoTemplate bool                      `json:"goTemplate,omitempty"`
 	Generators []ApplicationSetGenerator `json:"generators"`
 	Template   ApplicationSetTemplate    `json:"template"`
 	SyncPolicy *ApplicationSetSyncPolicy `json:"syncPolicy,omitempty"`
@@ -87,6 +89,9 @@ type ApplicationSetGenerator struct {
 	PullRequest             *PullRequestGenerator `json:"pullRequest,omitempty"`
 	Matrix                  *MatrixGenerator      `json:"matrix,omitempty"`
 	Merge                   *MergeGenerator       `json:"merge,omitempty"`
+
+	// Selector allows to post-filter all generator.
+	Selector *metav1.LabelSelector `json:"selector,omitempty"`
 }
 
 // ApplicationSetNestedGenerator represents a generator nested within a combination-type generator (MatrixGenerator or
@@ -104,6 +109,9 @@ type ApplicationSetNestedGenerator struct {
 
 	// Merge should have the form of NestedMergeGenerator
 	Merge *apiextensionsv1.JSON `json:"merge,omitempty"`
+
+	// Selector allows to post-filter all generator.
+	Selector *metav1.LabelSelector `json:"selector,omitempty"`
 }
 
 type ApplicationSetNestedGenerators []ApplicationSetNestedGenerator

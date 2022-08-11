@@ -8,6 +8,8 @@ import (
 	"path/filepath"
 	"regexp"
 
+	log "github.com/sirupsen/logrus"
+
 	executil "github.com/argoproj/argo-cd/v2/util/exec"
 	argoio "github.com/argoproj/argo-cd/v2/util/io"
 	pathutil "github.com/argoproj/argo-cd/v2/util/io/path"
@@ -209,7 +211,11 @@ func writeToTmp(data []byte) (string, argoio.Closer, error) {
 		_ = os.RemoveAll(file.Name())
 		return "", nil, err
 	}
-	defer file.Close()
+	defer func() {
+		if err = file.Close(); err != nil {
+			log.Errorf("error closing file %q: %v", file.Name(), err)
+		}
+	}()
 	return file.Name(), argoio.NewCloser(func() error {
 		return os.RemoveAll(file.Name())
 	}), nil

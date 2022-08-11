@@ -82,6 +82,9 @@ message AppProjectSpec {
 
   // ClusterResourceBlacklist contains list of blacklisted cluster level resources
   repeated k8s.io.apimachinery.pkg.apis.meta.v1.GroupKind clusterResourceBlacklist = 11;
+
+  // SourceNamespaces defines the namespaces application resources are allowed to be created in
+  repeated string sourceNamespaces = 12;
 }
 
 // AppProjectStatus contains status information for AppProject CRs
