@@ -20,6 +20,13 @@ data:
   # Open-Telemetry collector address: (e.g. "otel-collector:4317")
   otlp.address:
 
+  # List of additional namespaces where applications may be created in and
+  # reconciled from. The namespace where Argo CD is installed to will always
+  # be allowed.
+  #
+  # Feature state: Beta
+  application.namespaces: ns1, ns2, ns3
+
   ## Controller Properties
   # Repo server RPC call timeout seconds.
   controller.repo.server.timeout.seconds: "60"
