@@ -75,6 +75,10 @@ spec:
                       operation
                     type: string
                 type: object
+              createNamespaceLabels:
+                additionalProperties:
+                  type: string
+                type: object
               retry:
                 description: Retry controls the strategy to apply if a sync fails
                 properties:
