@@ -36,7 +36,6 @@ Argo CD UI with deep links to third-party integrations will provide a unified so
 
 ## Proposal
 
-
 The configuration for Deep Links will be present in the `argocd-cm`, we will add new `<location>.links` fields in the cm to list all the deep links that will be displayed in the provided location. The possible values for `<location>` currently are :
 - `project` : all links under this field will show up in the project tab in the Argo CD UI.
 - `application` : all links under this field will show up in the application summary tab.
@@ -100,6 +99,36 @@ stringData:
 ```
 
 The argocd server will expose new APIs for rendering deep links in the UI, the server will handle the templating and conditional rendering logic and will provide the UI with the final list of links that need to be displayed for a particular location/resource.
+
+The following API methods are proposed:
+
+```protobuf
+message LinkInfo {
+  required string name = 1;
+  required string url = 2;
+}
+
+message LinksResponse {
+  repeated LinkInfo items = 1;
+}
+
+service ApplicationService {
+  rpc ListLinks(google.protobuf.Empty) returns (LinksResponse) {
+    option (google.api.http).get = "/api/v1/applications/{name}/links";
+  }
+
+  rpc ListResourceLinks(ApplicationResourceRequest) returns (LinksResponse) {
+    option (google.api.http).get = "/api/v1/applications/{name}/resource/links";
+  }
+}
+
+service ProjectService {
+  
+  rpc ListLinks(google.protobuf.Empty) returns (LinksResponse) {
+    option (google.api.http).get = "/api/v1/projects/{name}/links";
+  }
+}
+```
 
 ### Use cases
 
