@@ -160,3 +160,53 @@ func Test_ParseBoolFromEnv(t *testing.T) {
 		})
 	}
 }
+
+func TestStringFromEnv(t *testing.T) {
+	envKey := "SOMEKEY"
+	def := "somestring"
+
+	testCases := []struct {
+		name     string
+		env      string
+		expected string
+		def      string
+	}{
+		{"Some string", "true", "true", def},
+		{"Empty string with default", "", def, def},
+		{"Empty string without default", "", "", ""},
+	}
+
+	for _, tt := range testCases {
+		t.Run(tt.name, func(t *testing.T) {
+			t.Setenv(envKey, tt.env)
+			b := StringFromEnv(envKey, tt.def)
+			assert.Equal(t, tt.expected, b)
+		})
+	}
+}
+
+func TestStringsFromEnv(t *testing.T) {
+	envKey := "SOMEKEY"
+	def := []string{"one", "two"}
+
+	testCases := []struct {
+		name     string
+		env      string
+		expected []string
+		def      []string
+		sep      string
+	}{
+		{"List of strings", "one,two,three", []string{"one", "two", "three"}, def, ","},
+		{"Comma separated with other delimeter", "one,two,three", []string{"one,two,three"}, def, ";"},
+		{"With trimmed white space", "one, two   ,    three", []string{"one", "two", "three"}, def, ","},
+		{"Env not set", "", def, def, ","},
+	}
+
+	for _, tt := range testCases {
+		t.Run(tt.name, func(t *testing.T) {
+			t.Setenv(envKey, tt.env)
+			ss := StringsFromEnv(envKey, tt.def, tt.sep)
+			assert.Equal(t, tt.expected, ss)
+		})
+	}
+}
