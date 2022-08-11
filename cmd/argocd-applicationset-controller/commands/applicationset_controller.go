@@ -216,7 +216,6 @@ func NewCommand() *cobra.Command {
 	command.Flags().StringVar(&logLevel, "loglevel", "info", "Set the logging level. One of: debug|info|warn|error")
 	command.Flags().BoolVar(&dryRun, "dry-run", false, "Enable dry run mode")
 	command.Flags().StringVar(&logFormat, "logformat", "text", "Set the logging format. One of: text|json")
-	command.Flags().StringVar(&logFormat, "logformat", "text", "Set the logging format. One of: text|json")
 	return &command
 }
 
