@@ -112,7 +112,8 @@ spec:
         # as a string. It's up to the plugin to do the appropriate conversion.
         itemType: ""
         # collectionType describes what type of value this parameter accepts (string, array, or map) and allows the UI
-        # to present a form to match that type. Default is "string".
+        # to present a form to match that type. Default is "string". This field must be present for non-string types.
+        # It will not be inferred from the presence of an `array` or `map` field.
         collectionType: ""
         # This field communicates the parameter's default value to the UI. Setting this field is optional.
         string: default-string-value
@@ -120,10 +121,12 @@ spec:
       - name: array-param
         # This field communicates the parameter's default value to the UI. Setting this field is optional.
         array: [default, items]
+        collectionType: array
       - name: map-param
         # This field communicates the parameter's default value to the UI. Setting this field is optional.
         map:
           some: value
+        collectionType: map
     # Dynamic parameter announcements are announcements specific to an Application handled by this plugin. For example,
     # the values for a Helm chart's values.yaml file could be sent as parameter announcements.
     dynamic:
