@@ -11,7 +11,7 @@ import "k8s.io/apimachinery/pkg/runtime/generated.proto";
 import "k8s.io/apimachinery/pkg/runtime/schema/generated.proto";
 
 // Package-wide variables from generator "generated".
-option go_package = "github.com/argoproj/argo-cd/v2/pkg/apis/application/v1alpha1";
+option go_package = "v1alpha1";
 
 // AWSAuthConfig is an AWS IAM authentication configuration
 message AWSAuthConfig {
@@ -1260,6 +1260,8 @@ message SyncPolicy {
 
   // Retry controls failed sync retry behavior
   optional RetryStrategy retry = 3;
+
+  map<string, string> createNamespaceLabels = 4;
 }
 
 // SyncPolicyAutomated controls the behavior of an automated sync
