@@ -224,7 +224,7 @@ func (g *GitGenerator) filterApps(Directories []argoprojiov1alpha1.GitDirectoryG
 }
 
 func (g *GitGenerator) generateParamsFromApps(requestedApps []string, _ *argoprojiov1alpha1.ApplicationSetGenerator, useGoTemplate bool) []map[string]interface{} {
-	// TODO: At some point, the appicationSetGenerator param should be used
+	// TODO: At some point, the applicationSetGenerator param should be used
 
 	res := make([]map[string]interface{}, len(requestedApps))
 	for i, a := range requestedApps {

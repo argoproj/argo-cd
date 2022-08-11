@@ -374,7 +374,7 @@ func TestSetManagedResourcesWithResourcesOfAnotherApp(t *testing.T) {
 	tree, err := ctrl.setAppManagedResources(app1, &comparisonResult{managedResources: make([]managedResource, 0)})
 
 	assert.NoError(t, err)
-	assert.Equal(t, len(tree.OrphanedNodes), 0)
+	assert.Equal(t, 0, len(tree.OrphanedNodes))
 }
 
 func TestReturnUnknownComparisonStateOnSettingLoadError(t *testing.T) {
@@ -399,6 +399,7 @@ func TestReturnUnknownComparisonStateOnSettingLoadError(t *testing.T) {
 func TestSetManagedResourcesKnownOrphanedResourceExceptions(t *testing.T) {
 	proj := defaultProj.DeepCopy()
 	proj.Spec.OrphanedResources = &argoappv1.OrphanedResourcesMonitorSettings{}
+	proj.Spec.SourceNamespaces = []string{"default"}
 
 	app := newFakeApp()
 	app.Namespace = "default"

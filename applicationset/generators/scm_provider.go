@@ -30,6 +30,11 @@ func NewSCMProviderGenerator(client client.Client) Generator {
 	return &SCMProviderGenerator{client: client}
 }
 
+// Testing generator
+func NewTestSCMProviderGenerator(overrideProvider scm_provider.SCMProviderService) Generator {
+	return &SCMProviderGenerator{overrideProvider: overrideProvider}
+}
+
 func (g *SCMProviderGenerator) GetRequeueAfter(appSetGenerator *argoprojiov1alpha1.ApplicationSetGenerator) time.Duration {
 	// Return a requeue default of 30 minutes, if no default is specified.
 

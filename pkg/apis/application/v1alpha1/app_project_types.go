@@ -172,6 +172,15 @@ func (p *AppProject) ValidateProject() error {
 		}
 		destKeys[key] = true
 	}
+
+	srcNamespaces := make(map[string]bool)
+	for _, ns := range p.Spec.SourceNamespaces {
+		if _, ok := srcNamespaces[ns]; ok {
+			return status.Errorf(codes.InvalidArgument, "source namespaces '%s' already added", ns)
+		}
+		destKeys[ns] = true
+	}
+
 	srcRepos := make(map[string]bool)
 	for _, src := range p.Spec.SourceRepos {
 		if _, ok := srcRepos[src]; ok {
@@ -481,4 +490,19 @@ func jwtTokensCombine(tokens1 []JWTToken, tokens2 []JWTToken) []JWTToken {
 		return tokens[i].IssuedAt > tokens[j].IssuedAt
 	})
 	return tokens
+}
+
+// IsAppNamespacePermitted checks whether an application that associates with
+// this AppProject is allowed by comparing the Application's namespace with
+// the list of allowed namespaces in the AppProject.
+//
+// Applications in the installation namespace are always permitted. Also, at
+// application creation time, its namespace may yet be empty to indicate that
+// the application will be created in the controller's namespace.
+func (p AppProject) IsAppNamespacePermitted(app *Application, controllerNs string) bool {
+	if app.Namespace == "" || app.Namespace == controllerNs {
+		return true
+	}
+
+	return glob.MatchStringInList(p.Spec.SourceNamespaces, app.Namespace, false)
 }
