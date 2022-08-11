@@ -2562,7 +2562,7 @@ func TestGetNSMetaData(t *testing.T) {
 	var nilOptions SyncOptions
 	nilOptions.AddOption("NamespaceMetaData={\"annotations\" :{ \"fake.annotation.io/fake1\": \"v1\"}, " +
 		"\"labels\" : { \"fake.label.io\": \"v1\" } }")
-	m := nilOptions.GetNSMetaData("NamespaceMetaDat")
+	m := nilOptions.GetNSObjMetaData("NamespaceMetaDat")
 	assert.True(t, nilOptions.HasOption("NamespaceMetaData"))
 	assert.Equal(t, m, map[string]interface{}{
 		"annotations": map[string]string{

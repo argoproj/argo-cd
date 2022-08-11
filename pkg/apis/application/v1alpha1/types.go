@@ -689,17 +689,27 @@ func (o SyncOptions) HasOption(option string) bool {
 	return false
 }
 
-//GetNSMetaData returns match json string if the list of sync options contains given sync option
-func (o SyncOptions) GetNSMetaData(option string) map[string]interface{} {
+// GetNSObjMetaData get the json for a given key (i.e. everything after `=`) and return type contains(annotation, label)
+// if a valid key return with no value, then return nil
+// if no key match with option, then return nil
+func (o SyncOptions) GetNSObjMetaData(option string) synccommon.NameSpaceObjMetaData {
 
-	r := make(map[string]interface{})
+	n := synccommon.NameSpaceObjMetaData{}
+	if option == "" {
+		return n
+	}
 	for _, i := range o {
-		s := strings.Split(i, "=")
-		if len(s) != 0 && option == s[0] {
-			json.Unmarshal([]byte(s[1]), &r)
+		s := strings.SplitN(i, "=", 2)
+		if len(s) > 0 && option == s[0] {
+			if len(s) == 2 {
+				err := json.Unmarshal([]byte(s[1]), &n)
+				if err != nil {
+					return n
+				}
+			}
 		}
 	}
-	return r
+	return n
 }
 
 // SyncPolicy controls when a sync will be performed in response to updates in git

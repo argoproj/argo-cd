@@ -239,13 +239,14 @@ func (m *appStateManager) SyncAppState(app *v1alpha1.Application, state *v1alpha
 				m.isSelfReferencedObj(live, appLabelKey, trackingMethod)
 		}),
 		sync.WithManifestValidation(!syncOp.SyncOptions.HasOption(common.SyncOptionsDisableValidation)),
-		sync.WithNamespaceCreation(syncOp.SyncOptions.HasOption("CreateNamespace=true"), syncOp.SyncOptions.GetNSMetaData("NamespaceMetaData"), func(un *unstructured.Unstructured) bool {
-			if un != nil && kube.GetAppInstanceLabel(un, cdcommon.LabelKeyAppInstance) != "" {
-				kube.UnsetLabel(un, cdcommon.LabelKeyAppInstance)
-				return true
-			}
-			return false
-		}),
+		sync.WithNamespaceCreation(syncOp.SyncOptions.HasOption("CreateNamespace=true"),
+			syncOp.SyncOptions.GetNSObjMetaData("NamespaceMetaData"), func(un *unstructured.Unstructured) bool {
+				if un != nil && kube.GetAppInstanceLabel(un, cdcommon.LabelKeyAppInstance) != "" {
+					kube.UnsetLabel(un, cdcommon.LabelKeyAppInstance)
+					return true
+				}
+				return false
+			}),
 		sync.WithSyncWaveHook(delayBetweenSyncWaves),
 		sync.WithPruneLast(syncOp.SyncOptions.HasOption(common.SyncOptionPruneLast)),
 		sync.WithResourceModificationChecker(syncOp.SyncOptions.HasOption("ApplyOutOfSyncOnly=true"), compareResult.diffResultList),
