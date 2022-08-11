@@ -120,6 +120,8 @@ The following API methods are proposed:
 message LinkInfo {
   required string name = 1;
   required string url = 2;
+  optional string description = 3;
+  optional string iconClass = 4;
 }
 
 message LinksResponse {
