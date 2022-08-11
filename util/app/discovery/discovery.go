@@ -123,7 +123,7 @@ func DetectConfigManagementPlugin(ctx context.Context, repoPath string, env []st
 	}
 
 	if !connFound {
-		return nil, nil, fmt.Errorf("Couldn't find cmp-server plugin supporting repository %s", repoPath)
+		return nil, nil, fmt.Errorf("could not find plugin supporting the given repository")
 	}
 	return conn, cmpClient, err
 }
