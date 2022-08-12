@@ -58,7 +58,7 @@ func (c *forwardCacheClient) doLazy(action func(client cache.CacheClient) error)
 		}
 
 		redisClient := redis.NewClient(&redis.Options{Addr: fmt.Sprintf("localhost:%d", redisPort)})
-		c.client = cache.NewRedisCache(redisClient, time.Hour, false)
+		c.client = cache.NewRedisCache(redisClient, time.Hour, cache.RedisCompressionNone)
 	})
 	if c.err != nil {
 		return c.err

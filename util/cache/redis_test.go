@@ -19,28 +19,28 @@ func TestRedisSetCache(t *testing.T) {
 	assert.NotNil(t, mr)
 
 	t.Run("Successful set", func(t *testing.T) {
-		client := NewRedisCache(redis.NewClient(&redis.Options{Addr: mr.Addr()}), 60*time.Second, false)
+		client := NewRedisCache(redis.NewClient(&redis.Options{Addr: mr.Addr()}), 60*time.Second, RedisCompressionNone)
 		err = client.Set(&Item{Key: "foo", Object: "bar"})
 		assert.NoError(t, err)
 	})
 
 	t.Run("Successful get", func(t *testing.T) {
 		var res string
-		client := NewRedisCache(redis.NewClient(&redis.Options{Addr: mr.Addr()}), 10*time.Second, false)
+		client := NewRedisCache(redis.NewClient(&redis.Options{Addr: mr.Addr()}), 10*time.Second, RedisCompressionNone)
 		err = client.Get("foo", &res)
 		assert.NoError(t, err)
 		assert.Equal(t, res, "bar")
 	})
 
 	t.Run("Successful delete", func(t *testing.T) {
-		client := NewRedisCache(redis.NewClient(&redis.Options{Addr: mr.Addr()}), 10*time.Second, false)
+		client := NewRedisCache(redis.NewClient(&redis.Options{Addr: mr.Addr()}), 10*time.Second, RedisCompressionNone)
 		err = client.Delete("foo")
 		assert.NoError(t, err)
 	})
 
 	t.Run("Cache miss", func(t *testing.T) {
 		var res string
-		client := NewRedisCache(redis.NewClient(&redis.Options{Addr: mr.Addr()}), 10*time.Second, false)
+		client := NewRedisCache(redis.NewClient(&redis.Options{Addr: mr.Addr()}), 10*time.Second, RedisCompressionNone)
 		err = client.Get("foo", &res)
 		assert.Error(t, err)
 		assert.Contains(t, err.Error(), "cache: key is missing")
@@ -57,7 +57,7 @@ func TestRedisSetCacheCompressed(t *testing.T) {
 
 	redisClient := redis.NewClient(&redis.Options{Addr: mr.Addr()})
 
-	client := NewRedisCache(redisClient, 10*time.Second, true)
+	client := NewRedisCache(redisClient, 10*time.Second, RedisCompressionGZip)
 	testValue := "my-value"
 	assert.NoError(t, client.Set(&Item{Key: "my-key", Object: testValue}))
 

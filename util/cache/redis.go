@@ -15,12 +15,29 @@ import (
 	"github.com/go-redis/redis/v8"
 )
 
-func NewRedisCache(client *redis.Client, expiration time.Duration, compress bool) CacheClient {
+type RedisCompressionType string
+
+var (
+	RedisCompressionNone RedisCompressionType = "none"
+	RedisCompressionGZip RedisCompressionType = "gzip"
+)
+
+func CompressionTypeFromString(s string) (RedisCompressionType, error) {
+	switch s {
+	case string(RedisCompressionNone):
+		return RedisCompressionNone, nil
+	case string(RedisCompressionGZip):
+		return RedisCompressionGZip, nil
+	}
+	return "", fmt.Errorf("unknown compression type: %s", s)
+}
+
+func NewRedisCache(client *redis.Client, expiration time.Duration, compressionType RedisCompressionType) CacheClient {
 	return &redisCache{
-		client:     client,
-		expiration: expiration,
-		cache:      rediscache.New(&rediscache.Options{Redis: client}),
-		compress:   compress,
+		client:               client,
+		expiration:           expiration,
+		cache:                rediscache.New(&rediscache.Options{Redis: client}),
+		redisCompressionType: compressionType,
 	}
 }
 
@@ -28,23 +45,25 @@ func NewRedisCache(client *redis.Client, expiration time.Duration, compress bool
 var _ CacheClient = &redisCache{}
 
 type redisCache struct {
-	expiration time.Duration
-	client     *redis.Client
-	cache      *rediscache.Cache
-	compress   bool
+	expiration           time.Duration
+	client               *redis.Client
+	cache                *rediscache.Cache
+	redisCompressionType RedisCompressionType
 }
 
 func (r *redisCache) getKey(key string) string {
-	if r.compress {
+	switch r.redisCompressionType {
+	case RedisCompressionGZip:
 		return key + ".gz"
+	default:
+		return key
 	}
-	return key
 }
 
 func (r *redisCache) marshal(obj interface{}) ([]byte, error) {
 	buf := bytes.NewBuffer([]byte{})
 	var w io.Writer = buf
-	if r.compress {
+	if r.redisCompressionType == RedisCompressionGZip {
 		w = gzip.NewWriter(buf)
 	}
 	encoder := json.NewEncoder(w)
@@ -63,7 +82,7 @@ func (r *redisCache) marshal(obj interface{}) ([]byte, error) {
 func (r *redisCache) unmarshal(data []byte, obj interface{}) error {
 	buf := bytes.NewReader(data)
 	var reader io.Reader = buf
-	if r.compress {
+	if r.redisCompressionType == RedisCompressionGZip {
 		if gzipReader, err := gzip.NewReader(buf); err != nil {
 			return err
 		} else {

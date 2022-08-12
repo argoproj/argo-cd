@@ -83,11 +83,11 @@ spec:
                   name: argocd-cmd-params-cm
                   key: redis.server
                   optional: true
-          - name: REDIS_COMPRESS
+          - name: REDIS_COMPRESSION
             valueFrom:
               configMapKeyRef:
                 name: argocd-cmd-params-cm
-                key: redis.compress
+                key: redis.compression
                 optional: true
           - name: REDISDB
             valueFrom:

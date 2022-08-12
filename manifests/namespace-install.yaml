@@ -976,10 +976,10 @@ spec:
               key: redis.server
               name: argocd-cmd-params-cm
               optional: true
-        - name: REDIS_COMPRESS
+        - name: REDIS_COMPRESSION
           valueFrom:
             configMapKeyRef:
-              key: redis.compress
+              key: redis.compression
               name: argocd-cmd-params-cm
               optional: true
         - name: REDISDB
@@ -1308,10 +1308,10 @@ spec:
               key: redis.server
               name: argocd-cmd-params-cm
               optional: true
-        - name: REDIS_COMPRESS
+        - name: REDIS_COMPRESSION
           valueFrom:
             configMapKeyRef:
-              key: redis.compress
+              key: redis.compression
               name: argocd-cmd-params-cm
               optional: true
         - name: REDISDB
@@ -1535,10 +1535,10 @@ spec:
               key: redis.server
               name: argocd-cmd-params-cm
               optional: true
-        - name: REDIS_COMPRESS
+        - name: REDIS_COMPRESSION
           valueFrom:
             configMapKeyRef:
-              key: redis.compress
+              key: redis.compression
               name: argocd-cmd-params-cm
               optional: true
         - name: REDISDB

@@ -84,7 +84,7 @@ func loadClusters(ctx context.Context, kubeClient *kubernetes.Clientset, appClie
 			return nil, err
 		}
 		client := redis.NewClient(&redis.Options{Addr: fmt.Sprintf("localhost:%d", port)})
-		cache = appstatecache.NewCache(cacheutil.NewCache(cacheutil.NewRedisCache(client, time.Hour, false)), time.Hour)
+		cache = appstatecache.NewCache(cacheutil.NewCache(cacheutil.NewRedisCache(client, time.Hour, cacheutil.RedisCompressionNone)), time.Hour)
 	} else {
 		cache, err = cacheSrc()
 		if err != nil {
