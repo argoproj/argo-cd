@@ -50,10 +50,6 @@ spec:
             description: Operation contains information about a requested or running
               operation
             properties:
-              createNamespaceLabels:
-                additionalProperties:
-                  type: string
-                type: object
               info:
                 description: Info is a list of informational items for this operation
                 items:
