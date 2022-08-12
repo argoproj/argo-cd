@@ -246,8 +246,14 @@ func (m *appStateManager) SyncAppState(app *v1alpha1.Application, state *v1alpha
 			}
 			return false
 		}, func(un *unstructured.Unstructured) bool {
-			if un != nil && len(app.Spec.SyncPolicy.CreateNamespaceLabels) > 0 {
-				un.SetLabels(app.Spec.SyncPolicy.CreateNamespaceLabels)
+			createNamespaceMetadata := app.Spec.SyncPolicy.CreateNamespaceMetadata
+			if createNamespaceMetadata != nil {
+				if un != nil && len(createNamespaceMetadata.Labels) > 0 {
+					un.SetLabels(createNamespaceMetadata.Labels)
+				}
+				if un != nil && len(createNamespaceMetadata.Annotations) > 0 {
+					un.SetAnnotations(createNamespaceMetadata.Annotations)
+				}
 			}
 			return true
 		}),

@@ -522,6 +522,12 @@ message ConnectionState {
   optional k8s.io.apimachinery.pkg.apis.meta.v1.Time attemptedAt = 3;
 }
 
+message CreateNamespaceMetadata {
+  map<string, string> labels = 1;
+
+  map<string, string> annotations = 2;
+}
+
 // EnvEntry represents an entry in the application's environment
 message EnvEntry {
   // Name is the name of the variable, usually expressed in uppercase
@@ -1261,7 +1267,7 @@ message SyncPolicy {
   // Retry controls failed sync retry behavior
   optional RetryStrategy retry = 3;
 
-  map<string, string> createNamespaceLabels = 4;
+  optional CreateNamespaceMetadata createNamespaceMetadata = 4;
 }
 
 // SyncPolicyAutomated controls the behavior of an automated sync
