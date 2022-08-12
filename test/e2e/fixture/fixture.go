@@ -43,6 +43,7 @@ const (
 	DefaultTestUserPassword = "password"
 	testingLabel            = "e2e.argoproj.io"
 	ArgoCDNamespace         = "argocd-e2e"
+	ArgoCDAppNamespace      = "argocd-e2e-external"
 
 	// ensure all repos are in one directory tree, so we can easily clean them up
 	TmpDir             = "/tmp/argo-e2e"
@@ -110,6 +111,10 @@ const (
 // running in.
 func TestNamespace() string {
 	return GetEnvWithDefault("ARGOCD_E2E_NAMESPACE", ArgoCDNamespace)
+}
+
+func AppNamespace() string {
+	return GetEnvWithDefault("ARGOCD_E2E_APP_NAMESPACE", ArgoCDAppNamespace)
 }
 
 // getKubeConfig creates new kubernetes client config using specified config path and config overrides variables
@@ -511,6 +516,7 @@ func EnsureCleanState(t *testing.T) {
 	// delete resources
 	// kubectl delete apps --all
 	CheckError(AppClientset.ArgoprojV1alpha1().Applications(TestNamespace()).DeleteCollection(context.Background(), v1.DeleteOptions{PropagationPolicy: &policy}, v1.ListOptions{}))
+	CheckError(AppClientset.ArgoprojV1alpha1().Applications(AppNamespace()).DeleteCollection(context.Background(), v1.DeleteOptions{PropagationPolicy: &policy}, v1.ListOptions{}))
 	// kubectl delete appprojects --field-selector metadata.name!=default
 	CheckError(AppClientset.ArgoprojV1alpha1().AppProjects(TestNamespace()).DeleteCollection(context.Background(),
 		v1.DeleteOptions{PropagationPolicy: &policy}, v1.ListOptions{FieldSelector: "metadata.name!=default"}))
@@ -556,6 +562,7 @@ func EnsureCleanState(t *testing.T) {
 		SourceRepos:              []string{"*"},
 		Destinations:             []v1alpha1.ApplicationDestination{{Namespace: "*", Server: "*"}},
 		ClusterResourceWhitelist: []v1.GroupKind{{Group: "*", Kind: "*"}},
+		SourceNamespaces:         []string{AppNamespace()},
 	})
 
 	// Create separate project for testing gpg signature verification
@@ -566,6 +573,7 @@ func EnsureCleanState(t *testing.T) {
 		Destinations:             []v1alpha1.ApplicationDestination{{Namespace: "*", Server: "*"}},
 		ClusterResourceWhitelist: []v1.GroupKind{{Group: "*", Kind: "*"}},
 		SignatureKeys:            []v1alpha1.SignatureKey{{KeyID: GpgGoodKeyID}},
+		SourceNamespaces:         []string{AppNamespace()},
 	})
 
 	// Recreate temp dir

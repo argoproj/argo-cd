@@ -196,6 +196,12 @@ spec:
                 name: argocd-cmd-params-cm
                 key: otlp.address
                 optional: true
+        - name: ARGOCD_APPLICATION_NAMESPACES
+          valueFrom:
+              configMapKeyRef:
+                name: argocd-cmd-params-cm
+                key: application.namespaces
+                optional: true
         volumeMounts:
         - name: ssh-known-hosts
           mountPath: /app/config/ssh

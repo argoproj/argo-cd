@@ -70,6 +70,7 @@ func NewCommand() *cobra.Command {
 		dexServerPlaintext       bool
 		dexServerStrictTLS       bool
 		staticAssetsDir          string
+		applicationNamespaces    []string
 	)
 	var command = &cobra.Command{
 		Use:               cliName,
@@ -183,6 +184,7 @@ func NewCommand() *cobra.Command {
 				ContentSecurityPolicy: contentSecurityPolicy,
 				RedisClient:           redisClient,
 				StaticAssetsDir:       staticAssetsDir,
+				ApplicationNamespaces: applicationNamespaces,
 			}
 
 			stats.RegisterStackDumper()
@@ -233,6 +235,7 @@ func NewCommand() *cobra.Command {
 	command.Flags().BoolVar(&repoServerStrictTLS, "repo-server-strict-tls", env.ParseBoolFromEnv("ARGOCD_SERVER_REPO_SERVER_STRICT_TLS", false), "Perform strict validation of TLS certificates when connecting to repo server")
 	command.Flags().BoolVar(&dexServerPlaintext, "dex-server-plaintext", env.ParseBoolFromEnv("ARGOCD_SERVER_DEX_SERVER_PLAINTEXT", false), "Use a plaintext client (non-TLS) to connect to dex server")
 	command.Flags().BoolVar(&dexServerStrictTLS, "dex-server-strict-tls", env.ParseBoolFromEnv("ARGOCD_SERVER_DEX_SERVER_STRICT_TLS", false), "Perform strict validation of TLS certificates when connecting to dex server")
+	command.Flags().StringSliceVar(&applicationNamespaces, "application-namespaces", env.StringsFromEnv("ARGOCD_APPLICATION_NAMESPACES", []string{}, ","), "List of additional namespaces where application resources can be managed in")
 	tlsConfigCustomizerSrc = tls.AddTLSFlagsToCmd(command)
 	cacheSrc = servercache.AddCacheFlagsToCmd(command, func(client *redis.Client) {
 		redisClient = client

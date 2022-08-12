@@ -60,11 +60,6 @@ jobs:
             -t ghcr.io/argoproj/argocd:${{ steps.image.outputs.tag }} \
             -t quay.io/argoproj/argocd:latest .
         working-directory: ./src/github.com/argoproj/argo-cd
-      - uses: github/codeql-action/upload-sarif@v2
-        if: github.event_name == 'push'
-        with:
-          category: image
-          sarif_file: /tmp/argocd-image.sarif
 
       # deploy
       - run: git clone "https://$TOKEN@github.com/argoproj/argoproj-deployments"

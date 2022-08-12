@@ -18,7 +18,7 @@ func TestPullRequestGithubGenerateParams(t *testing.T) {
 	ctx := context.Background()
 	cases := []struct {
 		selectFunc  func(context.Context, *argoprojiov1alpha1.PullRequestGenerator, *argoprojiov1alpha1.ApplicationSet) (pullrequest.PullRequestService, error)
-		expected    []map[string]string
+		expected    []map[string]interface{}
 		expectedErr error
 	}{
 		{
@@ -35,7 +35,7 @@ func TestPullRequestGithubGenerateParams(t *testing.T) {
 					nil,
 				)
 			},
-			expected: []map[string]string{
+			expected: []map[string]interface{}{
 				{
 					"number":         "1",
 					"branch":         "branch1",
@@ -60,7 +60,7 @@ func TestPullRequestGithubGenerateParams(t *testing.T) {
 					nil,
 				)
 			},
-			expected: []map[string]string{
+			expected: []map[string]interface{}{
 				{
 					"number":         "2",
 					"branch":         "feat/areally+long_pull_request_name_to_test_argo_slugification_and_branch_name_shortening_feature",
@@ -85,7 +85,7 @@ func TestPullRequestGithubGenerateParams(t *testing.T) {
 					nil,
 				)
 			},
-			expected: []map[string]string{
+			expected: []map[string]interface{}{
 				{
 					"number":         "1",
 					"branch":         "a-very-short-sha",

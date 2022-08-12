@@ -8599,6 +8599,8 @@ spec:
                       type: object
                   type: object
                 type: array
+              goTemplate:
+                type: boolean
               syncPolicy:
                 properties:
                   preserveResourcesOnDeletion:
@@ -9119,6 +9121,12 @@ spec:
                   - keyID
                   type: object
                 type: array
+              sourceNamespaces:
+                description: SourceNamespaces defines the namespaces application resources
+                  are allowed to be created in
+                items:
+                  type: string
+                type: array
               sourceRepos:
                 description: SourceRepos contains list of repository URLs which can
                   be used for deployment
@@ -9571,6 +9579,14 @@ rules:
   - pods/log
   verbs:
   - get
+- apiGroups:
+  - argoproj.io
+  resources:
+  - applications
+  verbs:
+  - get
+  - list
+  - watch
 ---
 apiVersion: rbac.authorization.k8s.io/v1
 kind: RoleBinding
@@ -11606,6 +11622,12 @@ spec:
               key: otlp.address
               name: argocd-cmd-params-cm
               optional: true
+        - name: ARGOCD_APPLICATION_NAMESPACES
+          valueFrom:
+            configMapKeyRef:
+              key: application.namespaces
+              name: argocd-cmd-params-cm
+              optional: true
         image: quay.io/argoproj/argocd:latest
         imagePullPolicy: Always
         livenessProbe:
@@ -11825,6 +11847,12 @@ spec:
           valueFrom:
             configMapKeyRef:
               key: otlp.address
+              name: argocd-cmd-params-cm
+              optional: true
+        - name: ARGOCD_APPLICATION_NAMESPACES
+          valueFrom:
+            configMapKeyRef:
+              key: application.namespaces
               name: argocd-cmd-params-cm
               optional: true
         image: quay.io/argoproj/argocd:latest
@@ -12149,6 +12177,23 @@ kind: NetworkPolicy
 metadata:
   name: argocd-redis-ha-proxy-network-policy
 spec:
+  egress:
+  - ports:
+    - port: 6379
+      protocol: TCP
+    - port: 26379
+      protocol: TCP
+    to:
+    - podSelector:
+        matchLabels:
+          app.kubernetes.io/name: argocd-redis-ha
+  - ports:
+    - port: 53
+      protocol: UDP
+    - port: 53
+      protocol: TCP
+    to:
+    - namespaceSelector: {}
   ingress:
   - from:
     - podSelector:
@@ -12160,20 +12205,40 @@ spec:
     - podSelector:
         matchLabels:
           app.kubernetes.io/name: argocd-application-controller
-    - podSelector:
-        matchLabels:
-          app.kubernetes.io/name: argocd-redis-ha
+    ports:
+    - port: 6379
+      protocol: TCP
+    - port: 26379
+      protocol: TCP
   podSelector:
     matchLabels:
       app.kubernetes.io/name: argocd-redis-ha-haproxy
   policyTypes:
   - Ingress
+  - Egress
 ---
 apiVersion: networking.k8s.io/v1
 kind: NetworkPolicy
 metadata:
   name: argocd-redis-ha-server-network-policy
 spec:
+  egress:
+  - ports:
+    - port: 6379
+      protocol: TCP
+    - port: 26379
+      protocol: TCP
+    to:
+    - podSelector:
+        matchLabels:
+          app.kubernetes.io/name: argocd-redis-ha
+  - ports:
+    - port: 53
+      protocol: UDP
+    - port: 53
+      protocol: TCP
+    to:
+    - namespaceSelector: {}
   ingress:
   - from:
     - podSelector:
@@ -12182,11 +12247,17 @@ spec:
     - podSelector:
         matchLabels:
           app.kubernetes.io/name: argocd-redis-ha
+    ports:
+    - port: 6379
+      protocol: TCP
+    - port: 26379
+      protocol: TCP
   podSelector:
     matchLabels:
       app.kubernetes.io/name: argocd-redis-ha
   policyTypes:
   - Ingress
+  - Egress
 ---
 apiVersion: networking.k8s.io/v1
 kind: NetworkPolicy
