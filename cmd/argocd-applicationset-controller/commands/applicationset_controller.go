@@ -18,6 +18,7 @@ import (
 	"github.com/argoproj/argo-cd/v2/applicationset/webhook"
 	"github.com/argoproj/argo-cd/v2/common"
 	"github.com/argoproj/argo-cd/v2/reposerver/askpass"
+	"github.com/argoproj/argo-cd/v2/util/env"
 
 	log "github.com/sirupsen/logrus"
 	"github.com/spf13/cobra"
@@ -36,6 +37,11 @@ import (
 	"github.com/argoproj/argo-cd/v2/util/errors"
 	argosettings "github.com/argoproj/argo-cd/v2/util/settings"
 )
+
+// TODO: load this using Cobra. https://github.com/argoproj/argo-cd/issues/10157
+func getSubmoduleEnabled() bool {
+	return env.ParseBoolFromEnv(common.EnvGitSubmoduleEnabled, true)
+}
 
 func NewCommand() *cobra.Command {
 	var (
@@ -133,7 +139,7 @@ func NewCommand() *cobra.Command {
 			terminalGenerators := map[string]generators.Generator{
 				"List":                    generators.NewListGenerator(),
 				"Clusters":                generators.NewClusterGenerator(mgr.GetClient(), ctx, k8sClient, namespace),
-				"Git":                     generators.NewGitGenerator(services.NewArgoCDService(argoCDDB, askPassServer, argocdRepoServer)),
+				"Git":                     generators.NewGitGenerator(services.NewArgoCDService(argoCDDB, askPassServer, getSubmoduleEnabled())),
 				"SCMProvider":             generators.NewSCMProviderGenerator(mgr.GetClient()),
 				"ClusterDecisionResource": generators.NewDuckTypeGenerator(ctx, dynamicClient, k8sClient, namespace),
 				"PullRequest":             generators.NewPullRequestGenerator(mgr.GetClient()),
