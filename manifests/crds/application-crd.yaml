@@ -75,15 +75,6 @@ spec:
                       operation
                     type: string
                 type: object
-              createNamespaceMetadata:
-                labels:
-                  additionalProperties:
-                    type: string
-                  type: object
-                annotations:
-                  additionalProperties:
-                    type: string
-                  type: object
               retry:
                 description: Retry controls the strategy to apply if a sync fails
                 properties:
@@ -748,6 +739,17 @@ spec:
                           back to their desired state upon modification in the cluster
                           (default: false)'
                         type: boolean
+                    type: object
+                  createNamespaceMetadata:
+                    properties:
+                      labels:
+                        additionalProperties:
+                          type: string
+                        type: object
+                      annotations:
+                        additionalProperties:
+                          type: string
+                        type: object
                     type: object
                   retry:
                     description: Retry controls failed sync retry behavior

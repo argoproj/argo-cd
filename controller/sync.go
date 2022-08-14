@@ -212,16 +212,17 @@ func (m *appStateManager) SyncAppState(app *v1alpha1.Application, state *v1alpha
 	}
 	trackingMethod := argo.GetTrackingMethod(m.settingsMgr)
 
-	namespaceMetadataModifier := func(un *unstructured.Unstructured) {
+	namespaceMetadataModifier := func(un *unstructured.Unstructured) bool {
 		createNamespaceMetadata := app.Spec.SyncPolicy.CreateNamespaceMetadata
-		if createNamespaceMetadata != nil {
-			if un != nil && len(createNamespaceMetadata.Labels) > 0 {
-				un.SetLabels(createNamespaceMetadata.Labels)
-			}
-			if un != nil && len(createNamespaceMetadata.Annotations) > 0 {
-				un.SetAnnotations(createNamespaceMetadata.Annotations)
-			}
+		if un != nil && len(createNamespaceMetadata.Labels) > 0 {
+			un.SetLabels(createNamespaceMetadata.Labels)
+			return true
 		}
+		if un != nil && len(createNamespaceMetadata.Annotations) > 0 {
+			un.SetAnnotations(createNamespaceMetadata.Annotations)
+			return true
+		}
+		return false
 	}
 
 	syncCtx, cleanup, err := sync.NewSyncContext(
@@ -256,8 +257,7 @@ func (m *appStateManager) SyncAppState(app *v1alpha1.Application, state *v1alpha
 				kube.UnsetLabel(un, cdcommon.LabelKeyAppInstance)
 				return true
 			}
-			namespaceMetadataModifier(un)
-			return false
+			return namespaceMetadataModifier(un)
 		}, func(un *unstructured.Unstructured) bool {
 			namespaceMetadataModifier(un)
 			return true
