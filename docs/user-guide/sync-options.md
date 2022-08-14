@@ -214,3 +214,17 @@ spec:
 ```
 
 The example above shows how an ArgoCD Application can be configured so it will ignore the `spec.replicas` field from the desired state (git) during the sync stage. This is achieve by calculating and pre-patching the desired state before applying it in the cluster. Note that the `RespectIgnoreDifferences` sync option is only effective when the resource is already created in the cluster. If the Application is being created and no live state exists, the desired state is applied as-is.
+
+## Create Namespace
+
+```yaml
+apiVersion: argoproj.io/v1alpha1
+kind: Application
+metadata:
+  namespace: test
+spec:
+  syncPolicy:
+    syncOptions:
+    - CreateNamespace=true
+```
+The example above shows how an ArgoCD Application can be configured so it will create a namespace called test, if it doesn't already exist and then make sure the application is created in that namespace. Without this, declared in a yaml or passed into the cli via `--sync-option CreateNamespace=true`, if the namespace does not exist, the application will fail to sync.
