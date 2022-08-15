@@ -31,7 +31,7 @@ kubectl -n argocd scale deployment/argocd-applicationset-controller --replicas 0
 kubectl -n argocd scale deployment/argocd-notifications-controller --replicas 0
 ```
 
-### Start local services
+### Start local services (virtualized toolchain inside Docker)
 
 The started services assume you are running in the namespace where Argo CD is installed. You can set the current context default namespace as follows:
 
@@ -49,14 +49,116 @@ This will start all ArgoCD services and the UI in a Docker container and expose 
 
 * The ArgoCD API server on port 8080
 * The ArgoCD UI server on port 4000
+* The Helm registry server on port 5000
 
-You can now use either the web UI by pointing your browser to `http://localhost:4000` or use the CLI against the API at `http://localhost:8080`. Be sure to use the `--insecure` and `--plaintext` options to the CLI.
+You may get an error listening on port 5000 on macOS:
+
+```text
+docker: Error response from daemon: Ports are not available: exposing port TCP 0.0.0.0:5000 -> 0.0.0.0:0: listen tcp 0.0.0.0:5000: bind: address already in use.
+```
+
+In that case, you can disable "AirPlay Receiver" in macOS System Preferences.
+
+You can now use either the web UI by pointing your browser to `http://localhost:4000` or use the CLI against the API at `http://localhost:8080`. Be sure to use the `--insecure` and `--plaintext` options to the CLI. Webpack will take a while to bundle resources initially, so the first page load can take several seconds or minutes.
 
 As an alternative to using the above command line parameters each time you call `argocd` CLI, you can set the following environment variables:
 
 ```bash
 export ARGOCD_SERVER=127.0.0.1:8080
 export ARGOCD_OPTS="--plaintext --insecure"
+```
+
+### Start local services (running on local machine)
+
+The `make start` command of the virtualized toolchain runs the build and programs inside a Docker container using the test tools image. That makes everything repeatable, but can slow down the development workflow. Particularly on macOS where Docker and the Linux kernel run inside a VM, you may want to try developing fully locally.
+
+Docker should be installed already. Assuming you manage installed software using [Homebrew](https://brew.sh/), you can install other prerequisites like this:
+
+```sh
+# goreman is used to start all needed processes to get a working ArgoCD development
+# environment (defined in `Procfile`)
+brew install goreman
+
+# You can use `kind` to run Kubernetes inside Docker. But pointing to any other
+# development cluster works fine as well as long as ArgoCD can reach it.
+brew install kind
+```
+
+To set up Kubernetes, you can use kind:
+
+```sh
+kind create cluster --kubeconfig ~/.kube/config-kind
+
+# The started services assume you are running in the namespace where Argo CD is
+# installed. Set the current context default namespace.
+export KUBECONFIG=~/.kube/config-kind
+kubectl config set-context --current --namespace=argocd
+```
+
+Follow the above sections "Install ArgoCD resources to your cluster" and "Scale down any ArgoCD instance in your cluster" to deploy all needed manifests such as config maps.
+
+Start local services:
+
+```sh
+# Ensure you point to the correct Kubernetes cluster as shown above. For example:
+export KUBECONFIG=~/.kube/config-kind
+
+make start-local
+```
+
+This will start all ArgoCD services and the UI in a Docker container and expose the following ports to your host:
+
+* The ArgoCD API server on port 8080
+* The ArgoCD UI server on port 4000
+* The Helm registry server on port 5000
+
+If you get firewall dialogs, for example on macOS, you can click "Deny", since no access from outside your computer is typically desired.
+
+Check that all programs have started:
+
+```text
+$ goreman run status
+*controller
+*api-server
+[...]
+```
+
+If not all critical processes run (marked with `*`), check logs to see why they terminated.
+
+In case of an error like `gpg: key generation failed: Unknown elliptic curve` (a [gnupg bug](https://dev.gnupg.org/T5444)), disable GPG verification before running `make start-local`:
+
+```sh
+export ARGOCD_GPG_ENABLED=false
+```
+
+You may get an error listening on port 5000 on macOS:
+
+```text
+docker: Error response from daemon: Ports are not available: exposing port TCP 0.0.0.0:5000 -> 0.0.0.0:0: listen tcp 0.0.0.0:5000: bind: address already in use.
+```
+
+In that case, you can disable "AirPlay Receiver" in macOS System Preferences.
+
+You can now use either the web UI by pointing your browser to `http://localhost:4000` or use the CLI against the API at `http://localhost:8080`. Be sure to use the `--insecure` and `--plaintext` options to the CLI. Webpack will take a while to bundle resources initially, so the first page load can take several seconds or minutes.
+
+As an alternative to using the above command line parameters each time you call `argocd` CLI, you can set the following environment variables:
+
+```bash
+export ARGOCD_SERVER=127.0.0.1:8080
+export ARGOCD_OPTS="--plaintext --insecure"
+```
+
+After making a code change, ensure to rebuild and restart the respective service:
+
+```sh
+# Example for working on the repo server Go code, see other service names in `Procfile`
+goreman run restart repo-server
+```
+
+Clean up when you're done:
+
+```sh
+kind delete cluster; rm -f ~/.kube/config-kind
 ```
 
 ### Scale up ArgoCD in your cluster
