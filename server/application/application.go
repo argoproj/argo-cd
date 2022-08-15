@@ -215,6 +215,13 @@ func (s *Server) Create(ctx context.Context, q *application.ApplicationCreateReq
 
 	created, err := s.appclientset.ArgoprojV1alpha1().Applications(appNs).Create(ctx, a, metav1.CreateOptions{})
 	if err == nil {
+		if a.Spec.Source.Plugin != nil && a.Spec.Source.Plugin.Name != "" {
+			log.WithFields(map[string]interface{}{
+				"application": a.Name,
+				"plugin": a.Spec.Source.Plugin.Name,
+			}).Warnf(argocommon.ConfigMapPluginDeprecationWarning)
+		}
+
 		s.logAppEvent(created, ctx, argo.EventReasonResourceCreated, "created application")
 		s.waitSync(created)
 		return created, nil

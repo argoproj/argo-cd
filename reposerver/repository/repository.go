@@ -21,6 +21,7 @@ import (
 
 	"k8s.io/apimachinery/pkg/api/resource"
 
+	"github.com/argoproj/argo-cd/v2/common"
 	"github.com/argoproj/argo-cd/v2/util/io/files"
 
 	"github.com/Masterminds/semver/v3"
@@ -972,6 +973,11 @@ func GenerateManifests(ctx context.Context, appPath, repoRoot, revision string, 
 		targetObjs, _, err = k.Build(q.ApplicationSource.Kustomize, q.KustomizeOptions, env)
 	case v1alpha1.ApplicationSourceTypePlugin:
 		if q.ApplicationSource.Plugin != nil && q.ApplicationSource.Plugin.Name != "" {
+			log.WithFields(map[string]interface{}{
+				"application": q.AppName,
+				"plugin": q.ApplicationSource.Plugin.Name,
+			}).Warnf(common.ConfigMapPluginDeprecationWarning)
+
 			targetObjs, err = runConfigManagementPlugin(appPath, repoRoot, env, q, q.Repo.GetGitCreds(gitCredsStore))
 		} else {
 			targetObjs, err = runConfigManagementPluginSidecars(ctx, appPath, repoRoot, env, q, q.Repo.GetGitCreds(gitCredsStore), opt.cmpTarDoneCh, opt.cmpTarExcludedGlobs)

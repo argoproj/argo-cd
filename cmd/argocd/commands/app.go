@@ -32,6 +32,7 @@ import (
 
 	"github.com/argoproj/argo-cd/v2/cmd/argocd/commands/headless"
 	cmdutil "github.com/argoproj/argo-cd/v2/cmd/util"
+	argocommon "github.com/argoproj/argo-cd/v2/common"
 	"github.com/argoproj/argo-cd/v2/controller"
 	argocdclient "github.com/argoproj/argo-cd/v2/pkg/apiclient"
 	"github.com/argoproj/argo-cd/v2/pkg/apiclient/application"
@@ -146,6 +147,9 @@ func NewApplicationCreateCommand(clientOpts *argocdclient.ClientOptions) *cobra.
 				if app.Name == "" {
 					c.HelpFunc()(c, args)
 					os.Exit(1)
+				}
+				if app.Spec.Source.Plugin != nil && app.Spec.Source.Plugin.Name != "" {
+					log.Warnf(argocommon.ConfigMapPluginCLIDeprecationWarning)
 				}
 				if appNamespace != "" {
 					app.Namespace = appNamespace
@@ -287,6 +291,10 @@ func NewApplicationGetCommand(clientOpts *argocdclient.ClientOptions) *cobra.Com
 				AppNamespace: &appNs,
 			})
 			errors.CheckError(err)
+
+			if app.Spec.Source.Plugin != nil && app.Spec.Source.Plugin.Name != "" {
+				log.Warnf(argocommon.ConfigMapPluginCLIDeprecationWarning)
+			}
 
 			pConn, projIf := headless.NewClientOrDie(clientOpts, c).NewProjectClientOrDie()
 			defer argoio.Close(pConn)
@@ -607,12 +615,18 @@ func NewApplicationSetCommand(clientOpts *argocdclient.ClientOptions) *cobra.Com
 			defer argoio.Close(conn)
 			app, err := appIf.Get(ctx, &applicationpkg.ApplicationQuery{Name: &appName, AppNamespace: &appNs})
 			errors.CheckError(err)
+
+			if app.Spec.Source.Plugin != nil && app.Spec.Source.Plugin.Name != "" {
+				log.Warnf(argocommon.ConfigMapPluginCLIDeprecationWarning)
+			}
+
 			visited := cmdutil.SetAppSpecOptions(c.Flags(), &app.Spec, &appOpts)
 			if visited == 0 {
 				log.Error("Please set at least one option to update")
 				c.HelpFunc()(c, args)
 				os.Exit(1)
 			}
+
 			setParameterOverrides(app, appOpts.Parameters)
 			_, err = appIf.UpdateSpec(ctx, &applicationpkg.ApplicationUpdateSpecRequest{
 				Name:         &app.Name,
@@ -669,6 +683,10 @@ func NewApplicationUnsetCommand(clientOpts *argocdclient.ClientOptions) *cobra.C
 			defer argoio.Close(conn)
 			app, err := appIf.Get(ctx, &applicationpkg.ApplicationQuery{Name: &appName, AppNamespace: &appNs})
 			errors.CheckError(err)
+
+			if app.Spec.Source.Plugin != nil && app.Spec.Source.Plugin.Name != "" {
+				log.Warnf(argocommon.ConfigMapPluginCLIDeprecationWarning)
+			}
 
 			updated, nothingToUnset := unset(&app.Spec.Source, opts)
 			if nothingToUnset {
@@ -901,6 +919,11 @@ func NewApplicationDiffCommand(clientOpts *argocdclient.ClientOptions) *cobra.Co
 				AppNamespace: &appNs,
 			})
 			errors.CheckError(err)
+
+			if app.Spec.Source.Plugin != nil && app.Spec.Source.Plugin.Name != "" {
+				log.Warnf(argocommon.ConfigMapPluginCLIDeprecationWarning)
+			}
+
 			resources, err := appIf.ManagedResources(ctx, &applicationpkg.ResourcesQuery{ApplicationName: &appName, AppNamespace: &appNs})
 			errors.CheckError(err)
 			conn, settingsIf := clientset.NewSettingsClientOrDie()
@@ -1515,6 +1538,11 @@ func NewApplicationSyncCommand(clientOpts *argocdclient.ClientOptions) *cobra.Co
 						AppNamespace: &appNs,
 					})
 					errors.CheckError(err)
+
+					if app.Spec.Source.Plugin != nil && app.Spec.Source.Plugin.Name != "" {
+						log.Warnf(argocommon.ConfigMapPluginCLIDeprecationWarning)
+					}
+
 					if app.Spec.SyncPolicy != nil && app.Spec.SyncPolicy.Automated != nil && !dryRun {
 						log.Fatal("Cannot use local sync when Automatic Sync Policy is enabled except with --dry-run")
 					}
@@ -1593,6 +1621,11 @@ func NewApplicationSyncCommand(clientOpts *argocdclient.ClientOptions) *cobra.Co
 						AppNamespace: &appNs,
 					})
 					errors.CheckError(err)
+
+					if app.Spec.Source.Plugin != nil && app.Spec.Source.Plugin.Name != "" {
+						log.Warnf(argocommon.ConfigMapPluginCLIDeprecationWarning)
+					}
+
 					resources, err := appIf.ManagedResources(ctx, &applicationpkg.ResourcesQuery{
 						ApplicationName: &appName,
 						AppNamespace:    &appNs,
@@ -2016,6 +2049,11 @@ func NewApplicationHistoryCommand(clientOpts *argocdclient.ClientOptions) *cobra
 				AppNamespace: &appNs,
 			})
 			errors.CheckError(err)
+
+			if app.Spec.Source.Plugin != nil && app.Spec.Source.Plugin.Name != "" {
+				log.Warnf(argocommon.ConfigMapPluginCLIDeprecationWarning)
+			}
+
 			if output == "id" {
 				printApplicationHistoryIds(app.Status.History)
 			} else {
@@ -2075,6 +2113,10 @@ func NewApplicationRollbackCommand(clientOpts *argocdclient.ClientOptions) *cobr
 				AppNamespace: &appNs,
 			})
 			errors.CheckError(err)
+
+			if app.Spec.Source.Plugin != nil && app.Spec.Source.Plugin.Name != "" {
+				log.Warnf(argocommon.ConfigMapPluginCLIDeprecationWarning)
+			}
 
 			depInfo, err := findRevisionHistory(app, int64(depID))
 			errors.CheckError(err)
@@ -2159,6 +2201,10 @@ func NewApplicationManifestsCommand(clientOpts *argocdclient.ClientOptions) *cob
 					app, err := appIf.Get(context.Background(), &applicationpkg.ApplicationQuery{Name: &appName})
 					errors.CheckError(err)
 
+					if app.Spec.Source.Plugin != nil && app.Spec.Source.Plugin.Name != "" {
+						log.Warnf(argocommon.ConfigMapPluginCLIDeprecationWarning)
+					}
+
 					settingsConn, settingsIf := clientset.NewSettingsClientOrDie()
 					defer argoio.Close(settingsConn)
 					argoSettings, err := settingsIf.Get(context.Background(), &settingspkg.SettingsQuery{})
@@ -2178,6 +2224,7 @@ func NewApplicationManifestsCommand(clientOpts *argocdclient.ClientOptions) *cob
 					}
 					res, err := appIf.GetManifests(ctx, &q)
 					errors.CheckError(err)
+
 					for _, mfst := range res.Manifests {
 						obj, err := argoappv1.UnmarshalToUnstructured(mfst)
 						errors.CheckError(err)
@@ -2256,6 +2303,11 @@ func NewApplicationEditCommand(clientOpts *argocdclient.ClientOptions) *cobra.Co
 				AppNamespace: &appNs,
 			})
 			errors.CheckError(err)
+
+			if app.Spec.Source.Plugin != nil && app.Spec.Source.Plugin.Name != "" {
+				log.Warnf(argocommon.ConfigMapPluginCLIDeprecationWarning)
+			}
+
 			appData, err := json.Marshal(app.Spec)
 			errors.CheckError(err)
 			appData, err = yaml.JSONToYAML(appData)
