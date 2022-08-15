@@ -81,11 +81,6 @@ might decide to refresh `stable` repo. As workaround override
 
 ```yaml
 data:
-  # v1.2 or earlier use `helm.repositories`
-  helm.repositories: |
-    - url: http://<internal-helm-repo-host>:8080
-      name: stable
-  # v1.3 or later use `repositories` with `type: helm`
   repositories: |
     - type: helm
       url: http://<internal-helm-repo-host>:8080
