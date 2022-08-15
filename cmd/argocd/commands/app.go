@@ -1223,14 +1223,29 @@ func NewApplicationListCommand(clientOpts *argocdclient.ClientOptions) *cobra.Co
 				Selector:     pointer.String(selector),
 				AppNamespace: &appNamespace,
 			})
+
 			errors.CheckError(err)
 			appList := apps.Items
+
 			if len(projects) != 0 {
 				appList = argo.FilterByProjects(appList, projects)
 			}
 			if repo != "" {
 				appList = argo.FilterByRepo(appList, repo)
 			}
+
+			var appsWithDeprecatedPlugins []string
+			for _, app := range appList {
+				if app.Spec.Source.Plugin != nil && app.Spec.Source.Plugin.Name != "" {
+					appsWithDeprecatedPlugins = append(appsWithDeprecatedPlugins, app.Name)
+				}
+			}
+
+			if len(appsWithDeprecatedPlugins) > 0 {
+				log.Warnf(argocommon.ConfigMapPluginCLIDeprecationWarning)
+				log.Warnf("The following Applications use deprecated plugins: %s", strings.Join(appsWithDeprecatedPlugins, ", "))
+			}
+
 			switch output {
 			case "yaml", "json":
 				err := PrintResourceList(appList, output, false)
