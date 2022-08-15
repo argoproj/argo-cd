@@ -430,11 +430,10 @@ export const ApplicationSummary = (props: {app: models.Application; updateApp: (
     return (
         <div className='application-summary'>
             {app.spec.source.plugin && typeof app.spec.source.plugin.name === 'string' && app.spec.source.plugin.name !== '' && (
-                <div>
+                <div className='white-box'>
                     <i className='fa fa-exclamation-triangle' style={{color: ARGO_WARNING_COLOR}} /> This Application uses a plugin which will no longer be supported starting with
-                    Argo CD version 2.6. Contact your Argo CD administrator to make sure they upgrade the plugin before upgrading to Argo CD 2.6. See the{' '}
-                    <a href='https://argo-cd.readthedocs.io/en/latest/operator-manual/upgrading/2.4-2.5/'>2.4-to-2.5 upgrade notes</a>
-                    for details.
+                    Argo CD version 2.6. Contact your Argo CD administrator to make sure they upgrade the '{app.spec.source.plugin.name}' plugin before upgrading to Argo CD 2.6.
+                    See the <a href='https://argo-cd.readthedocs.io/en/latest/operator-manual/upgrading/2.4-2.5/'>2.4-to-2.5 upgrade notes</a> for details.
                 </div>
             )}
             <EditablePanel

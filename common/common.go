@@ -223,8 +223,8 @@ const (
 	ConfigMapPluginDeprecationWarning = "argocd-cm plugins are deprecated, and support will be removed in v2.6. Upgrade your plugin to be installed via sidecar. https://argo-cd.readthedocs.io/en/stable/user-guide/config-management-plugins/"
 
 	ConfigMapPluginCLIDeprecationWarning = "spec.plugin.name is set, which means this Application uses a plugin installed in the " +
-		"argocd-cm ConfigMap. Installing plugins via that ConfigMap is deprecated in Argo CD v2.5." +
-		"Starting in Argo CD v2.6, this Application will fail to sync. Contact your Argo CD admin" +
+		"argocd-cm ConfigMap. Installing plugins via that ConfigMap is deprecated in Argo CD v2.5. " +
+		"Starting in Argo CD v2.6, this Application will fail to sync. Contact your Argo CD admin " +
 		"to make sure an upgrade plan is in place. More info: " +
 		"https://argo-cd.readthedocs.io/en/latest/operator-manual/upgrading/2.4-2.5/"
 )
