@@ -163,8 +163,6 @@ CMP commands have access to
 2. [Standard build environment](build-environment.md)
 3. Variables in the application spec (References to system and build variables will get interpolated in the variables' values):
 
-> v1.2
-
 ```yaml
 spec:
   source:
@@ -178,8 +176,6 @@ spec:
 
 !!! note
     The `discover.command` command only has access to the above environment starting with v2.4.
-
-> v2.4
 
 Before reaching the `init.command`, `generate.command`, and `discover.command` commands, Argo CD prefixes all 
 user-supplied environment variables (#3 above) with `ARGOCD_ENV_`. This prevents users from directly setting 
