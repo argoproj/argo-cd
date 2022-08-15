@@ -70,6 +70,7 @@ Currently, the following organizations are **officially** using Argo CD:
 1. [Generali Deutschland AG](https://www.generali.de/)
 1. [Gitpod](https://www.gitpod.io)
 1. [Gllue](https://gllue.com)
+1. [Gloat](https://gloat.com/)
 1. [GLOBIS](https://globis.com)
 1. [Glovo](https://www.glovoapp.com)
 1. [GMETRI](https://gmetri.com/)
@@ -219,5 +220,4 @@ Currently, the following organizations are **officially** using Argo CD:
 1. [Pismo](https://pismo.io/)
 1. [South China Morning Post (SCMP)](https://www.scmp.com/)
 1. [Lian Chu Securities](https://lczq.com)
-1. [gloat](https://gloat.com/)
 1. [Freshop, Inc](https://www.freshop.com/)
