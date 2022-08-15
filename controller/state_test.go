@@ -2,6 +2,7 @@ package controller
 
 import (
 	"encoding/json"
+	"errors"
 	"os"
 	"testing"
 	"time"
@@ -93,6 +94,30 @@ func TestCompareAppStateExtra(t *testing.T) {
 	assert.Equal(t, 1, len(compRes.resources))
 	assert.Equal(t, 1, len(compRes.managedResources))
 	assert.Equal(t, 0, len(app.Status.Conditions))
+}
+
+// TestCompareAppStateRepoServerErrorNoLocalResources tests when the repo server fails to generate
+// manifests from git and the application has no live manifests yet
+func TestCompareAppStateRepoServerErrorNoLocalResources(t *testing.T) {
+	pod := NewPod()
+	pod.SetNamespace(test.FakeDestNamespace)
+	app := newFakeApp()
+	data := fakeData{
+		manifestGenerationError: errors.New("simulated repo-server error"),
+	}
+	ctrl := newFakeController(&data)
+	compRes := ctrl.appStateManager.CompareAppState(app, &defaultProj, "", app.Spec.Source, false, false, nil)
+	assert.NotNil(t, compRes)
+
+	// Since no live manifests exist, treat as degraded since it can mean that
+	// nothing could ever be loaded from git until now
+	assert.Equal(t, health.HealthStatusDegraded, compRes.healthStatus.Status)
+	assert.Equal(t, argoappv1.SyncStatusCodeUnknown, compRes.syncStatus.Status)
+	assert.Equal(t, 0, len(compRes.resources))
+	assert.Equal(t, 0, len(compRes.managedResources))
+	assert.Equal(t, 1, len(app.Status.Conditions))
+	assert.Equal(t, argoappv1.ApplicationConditionComparisonError, app.Status.Conditions[0].Type)
+	assert.Contains(t, app.Status.Conditions[0].Message, "simulated repo-server error")
 }
 
 // TestCompareAppStateHook checks that hooks are detected during manifest generation, and not

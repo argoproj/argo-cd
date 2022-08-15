@@ -593,6 +593,22 @@ func (m *appStateManager) CompareAppState(app *v1alpha1.Application, project *ap
 		conditions = append(conditions, appv1.ApplicationCondition{Type: v1alpha1.ApplicationConditionComparisonError, Message: err.Error(), LastTransitionTime: &now})
 	}
 
+	// For initial Application sync (no local manifests yet), treat errors loading objects as critical.
+	// As example, if the application source could not be loaded because the Git repo URL or path
+	// is invalid, users need to know about the degradation.
+	if failedToLoadObjs && len(localManifests) == 0 && len(managedResources) == 0 {
+		for _, condition := range conditions {
+			if condition.Type == v1alpha1.ApplicationConditionComparisonError {
+				// See above, this can mean that manifest generation failed
+				healthStatus = &appv1.HealthStatus{
+					Status:  health.HealthStatusDegraded,
+					Message: fmt.Sprintf("Error condition: %s", condition.Message),
+				}
+				break
+			}
+		}
+	}
+
 	// Git has already performed the signature verification via its GPG interface, and the result is available
 	// in the manifest info received from the repository server. We now need to form our opinion about the result
 	// and stop processing if we do not agree about the outcome.

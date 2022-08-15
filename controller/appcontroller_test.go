@@ -48,12 +48,13 @@ type namespacedResource struct {
 }
 
 type fakeData struct {
-	apps                   []runtime.Object
-	manifestResponse       *apiclient.ManifestResponse
-	managedLiveObjs        map[kube.ResourceKey]*unstructured.Unstructured
-	namespacedResources    map[kube.ResourceKey]namespacedResource
-	configMapData          map[string]string
-	metricsCacheExpiration time.Duration
+	apps                    []runtime.Object
+	manifestResponse        *apiclient.ManifestResponse
+	manifestGenerationError error
+	managedLiveObjs         map[kube.ResourceKey]*unstructured.Unstructured
+	namespacedResources     map[kube.ResourceKey]namespacedResource
+	configMapData           map[string]string
+	metricsCacheExpiration  time.Duration
 }
 
 func newFakeController(data *fakeData) *ApplicationController {
@@ -65,7 +66,7 @@ func newFakeController(data *fakeData) *ApplicationController {
 
 	// Mock out call to GenerateManifest
 	mockRepoClient := mockrepoclient.RepoServerServiceClient{}
-	mockRepoClient.On("GenerateManifest", mock.Anything, mock.Anything).Return(data.manifestResponse, nil)
+	mockRepoClient.On("GenerateManifest", mock.Anything, mock.Anything).Return(data.manifestResponse, data.manifestGenerationError)
 	mockRepoClientset := mockrepoclient.Clientset{RepoServerServiceClient: &mockRepoClient}
 
 	secret := corev1.Secret{
