@@ -227,4 +227,4 @@ spec:
     syncOptions:
     - CreateNamespace=true
 ```
-The example above shows how an ArgoCD Application can be configured so it will create a namespace called test, if it doesn't already exist and then make sure the application is created in that namespace. Without this, declared in a yaml or passed into the cli via `--sync-option CreateNamespace=true`, if the namespace does not exist, the application will fail to sync.
+The example above shows how an Argo CD Application can be configured so it will create namespaces for the Application resources if the namespaces don't exist already. Without this either declared in the Application manifest or passed in the cli via `--sync-option CreateNamespace=true`, the Application will fail to sync if the resources' namespaces do not exist.
