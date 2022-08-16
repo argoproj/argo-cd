@@ -10318,7 +10318,6 @@ data:
     identify_master() {
         echo "Identifying redis master (get-master-addr-by-name).."
         echo "  using sentinel (argocd-redis-ha), sentinel group name (argocd)"
-        echo "  $(date).."
         MASTER="$(sentinel_get_master_retry 3)"
         if [ -n "${MASTER}" ]; then
             echo "  $(date) Found redis master (${MASTER})"
@@ -10431,14 +10430,12 @@ data:
         else
             echo "  ping (${MASTER}:${REDIS_PORT})"
         fi
-        echo "  $(date).."
         if [ "$(redis_ping_retry 3)" != "PONG" ]; then
             echo "  $(date) Can't ping redis master (${MASTER})"
             echo "Attempting to force failover (sentinel failover).."
 
             if [ "$SENTINEL_PORT" -eq 0 ]; then
                 echo "  on sentinel (${SERVICE}:${SENTINEL_TLS_PORT}), sentinel grp (${MASTER_GROUP})"
-                echo "  $(date).."
                 if redis-cli -h "${SERVICE}" -p "${SENTINEL_TLS_PORT}"   --tls --cacert /tls-certs/ca.crt --cert /tls-certs/redis.crt --key /tls-certs/redis.key sentinel failover "${MASTER_GROUP}" | grep -q 'NOGOODSLAVE' ; then
                     echo "  $(date) Failover returned with 'NOGOODSLAVE'"
                     echo "Setting defaults for this pod.."
@@ -10447,7 +10444,6 @@ data:
                 fi
             else
                 echo "  on sentinel (${SERVICE}:${SENTINEL_PORT}), sentinel grp (${MASTER_GROUP})"
-                echo "  $(date).."
                 if redis-cli -h "${SERVICE}" -p "${SENTINEL_PORT}"  sentinel failover "${MASTER_GROUP}" | grep -q 'NOGOODSLAVE' ; then
                     echo "  $(date) Failover returned with 'NOGOODSLAVE'"
                     echo "Setting defaults for this pod.."
@@ -10464,7 +10460,6 @@ data:
             else
                 echo "  sentinel (${SERVICE}:${SENTINEL_PORT}), sentinel grp (${MASTER_GROUP})"
             fi
-            echo "  $(date).."
             MASTER="$(sentinel_get_master)"
             if [ "${MASTER}" ]; then
                 echo "  $(date) Found redis master (${MASTER})"
@@ -10718,7 +10713,6 @@ data:
     identify_master() {
         echo "Identifying redis master (get-master-addr-by-name).."
         echo "  using sentinel (argocd-redis-ha), sentinel group name (argocd)"
-        echo "  $(date).."
         MASTER="$(sentinel_get_master_retry 3)"
         if [ -n "${MASTER}" ]; then
             echo "  $(date) Found redis master (${MASTER})"
@@ -10831,14 +10825,12 @@ data:
         else
             echo "  ping (${MASTER}:${REDIS_PORT})"
         fi
-        echo "  $(date).."
         if [ "$(redis_ping_retry 3)" != "PONG" ]; then
             echo "  $(date) Can't ping redis master (${MASTER})"
             echo "Attempting to force failover (sentinel failover).."
 
             if [ "$SENTINEL_PORT" -eq 0 ]; then
                 echo "  on sentinel (${SERVICE}:${SENTINEL_TLS_PORT}), sentinel grp (${MASTER_GROUP})"
-                echo "  $(date).."
                 if redis-cli -h "${SERVICE}" -p "${SENTINEL_TLS_PORT}"   --tls --cacert /tls-certs/ca.crt --cert /tls-certs/redis.crt --key /tls-certs/redis.key sentinel failover "${MASTER_GROUP}" | grep -q 'NOGOODSLAVE' ; then
                     echo "  $(date) Failover returned with 'NOGOODSLAVE'"
                     echo "Setting defaults for this pod.."
@@ -10847,7 +10839,6 @@ data:
                 fi
             else
                 echo "  on sentinel (${SERVICE}:${SENTINEL_PORT}), sentinel grp (${MASTER_GROUP})"
-                echo "  $(date).."
                 if redis-cli -h "${SERVICE}" -p "${SENTINEL_PORT}"  sentinel failover "${MASTER_GROUP}" | grep -q 'NOGOODSLAVE' ; then
                     echo "  $(date) Failover returned with 'NOGOODSLAVE'"
                     echo "Setting defaults for this pod.."
@@ -10864,7 +10855,6 @@ data:
             else
                 echo "  sentinel (${SERVICE}:${SENTINEL_PORT}), sentinel grp (${MASTER_GROUP})"
             fi
-            echo "  $(date).."
             MASTER="$(sentinel_get_master)"
             if [ "${MASTER}" ]; then
                 echo "  $(date) Found redis master (${MASTER})"
@@ -10942,6 +10932,8 @@ data:
   redis.conf: |
     dir "/data"
     port 6379
+    rename-command FLUSHDB ""
+    rename-command FLUSHALL ""
     bind 0.0.0.0
     maxmemory 0
     maxmemory-policy volatile-lru
@@ -11601,7 +11593,7 @@ spec:
                 app.kubernetes.io/name: argocd-redis-ha-haproxy
             topologyKey: kubernetes.io/hostname
       containers:
-      - image: haproxy:2.5.7-alpine
+      - image: haproxy:2.6.2-alpine
         imagePullPolicy: IfNotPresent
         lifecycle: {}
         livenessProbe:
@@ -11637,7 +11629,7 @@ spec:
         - /readonly/haproxy_init.sh
         command:
         - sh
-        image: haproxy:2.5.7-alpine
+        image: haproxy:2.6.2-alpine
         imagePullPolicy: IfNotPresent
         name: config-init
         securityContext:
@@ -11765,6 +11757,12 @@ spec:
           valueFrom:
             configMapKeyRef:
               key: redis.server
+              name: argocd-cmd-params-cm
+              optional: true
+        - name: REDIS_COMPRESSION
+          valueFrom:
+            configMapKeyRef:
+              key: redis.compression
               name: argocd-cmd-params-cm
               optional: true
         - name: REDISDB
@@ -12097,6 +12095,12 @@ spec:
               key: redis.server
               name: argocd-cmd-params-cm
               optional: true
+        - name: REDIS_COMPRESSION
+          valueFrom:
+            configMapKeyRef:
+              key: redis.compression
+              name: argocd-cmd-params-cm
+              optional: true
         - name: REDISDB
           valueFrom:
             configMapKeyRef:
@@ -12330,6 +12334,12 @@ spec:
               key: redis.server
               name: argocd-cmd-params-cm
               optional: true
+        - name: REDIS_COMPRESSION
+          valueFrom:
+            configMapKeyRef:
+              key: redis.compression
+              name: argocd-cmd-params-cm
+              optional: true
         - name: REDISDB
           valueFrom:
             configMapKeyRef:
@@ -12414,7 +12424,7 @@ spec:
   template:
     metadata:
       annotations:
-        checksum/init-config: 1a8461b83fdc5614ce24a7d4d15976f9ef3b5c68a35475b5a3f57299c6f48ae8
+        checksum/init-config: 226aec192d2f29b5355769c9f1fbf093bf36c3a1e15b574b71fb8fe73fd37c05
       labels:
         app.kubernetes.io/name: argocd-redis-ha
     spec:

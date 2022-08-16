@@ -16,7 +16,9 @@ There are two ways to install a Config Management Plugin (CMP):
 1. Add the plugin config to the Argo CD ConfigMap. The repo-server container will run your plugin's commands.
    This is a good option for a simple plugin that requires only a few lines of code that fit nicely in the Argo CD ConfigMap.
 2. Add the plugin as a sidecar to the repo-server Pod.
-   This is a good option for a more complex plugin that would clutter the Argo CD ConfigMap.
+   This is a good option for a more complex plugin that would clutter the Argo CD ConfigMap. A copy of the repository is 
+   sent to the sidecar container as a tarball and processed individually per application, which makes it a good option 
+   for [concurrent processing of monorepos](../operator-manual/high_availability.md#enable-concurrent-processing).
 
 ### Option 1: Configure plugins via Argo CD configmap
 
@@ -139,6 +141,21 @@ spec:
     While the ConfigManagementPlugin _looks like_ a Kubernetes object, it is not actually a custom resource. 
     It only follows kubernetes-style spec conventions.
 
+The `generate` command must print a valid YAML stream to stdout. Both `init` and `generate` commands are executed inside the application source directory.
+
+The `discover.fileName` is used as [glob](https://pkg.go.dev/path/filepath#Glob) pattern to determine whether an
+application repository is supported by the plugin or not. 
+
+```yaml
+  discover:
+    find:
+      command: [sh, -c, find . -name env.yaml]
+```
+
+If `discover.fileName` is not provided, the `discover.find.command` is executed in order to determine whether an
+application repository is supported by the plugin or not. The `find` command should return a non-error exit code
+and produce output to stdout when the application source type is supported.
+
 #### 2. Place the plugin configuration file in the sidecar
 
 Argo CD expects the plugin configuration file to be located at `/home/argocd/cmp-server/config/plugin.yaml` in the sidecar.
@@ -230,10 +247,8 @@ spec:
 !!! note
 The `discover.command` command only has access to the above environment starting with v2.4.
 
-> v2.4
-
-Before reaching the `init.command`, `generate.command`, and `discover.command` commands, Argo CD prefixes all
-user-supplied environment variables (#3 above) with `ARGOCD_ENV_`. This prevents users from directly setting
+Before reaching the `init.command`, `generate.command`, and `discover.command` commands, Argo CD prefixes all 
+user-supplied environment variables (#3 above) with `ARGOCD_ENV_`. This prevents users from directly setting 
 potentially-sensitive environment variables.
 
 If your plugin was written before 2.4 and depends on user-supplied environment variables, then you will need to update
