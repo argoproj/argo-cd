@@ -87,8 +87,8 @@ func newServiceWithOpt(cf clientFunc, root string) (*Service, *gitmocks.Client) 
 		chart:    {{Version: "1.0.0"}, {Version: version}},
 		oobChart: {{Version: "1.0.0"}, {Version: version}},
 	}}, nil)
-	helmClient.On("ExtractChart", chart, version).Return("./testdata/my-chart", io.NopCloser, nil)
-	helmClient.On("ExtractChart", oobChart, version).Return("./testdata2/out-of-bounds-chart", io.NopCloser, nil)
+	helmClient.On("ExtractChart", chart, version, mock.Anything).Return("./testdata/my-chart", io.NopCloser, nil)
+	helmClient.On("ExtractChart", oobChart, version, mock.Anything).Return("./testdata2/out-of-bounds-chart", io.NopCloser, nil)
 	helmClient.On("CleanChartCache", chart, version).Return(nil)
 	helmClient.On("CleanChartCache", oobChart, version).Return(nil)
 
