@@ -60,6 +60,7 @@ func NewCommand() *cobra.Command {
 		repoServerPlaintext      bool
 		repoServerStrictTLS      bool
 		otlpAddress              string
+		applicationNamespaces    []string
 	)
 	var command = cobra.Command{
 		Use:               cliName,
@@ -148,7 +149,8 @@ func NewCommand() *cobra.Command {
 				metricsCacheExpiration,
 				metricsAplicationLabels,
 				kubectlParallelismLimit,
-				clusterFilter)
+				clusterFilter,
+				applicationNamespaces)
 			errors.CheckError(err)
 			cacheutil.CollectMetrics(redisClient, appController.GetMetricsServer())
 
@@ -189,6 +191,7 @@ func NewCommand() *cobra.Command {
 	command.Flags().BoolVar(&repoServerStrictTLS, "repo-server-strict-tls", env.ParseBoolFromEnv("ARGOCD_APPLICATION_CONTROLLER_REPO_SERVER_STRICT_TLS", false), "Whether to use strict validation of the TLS cert presented by the repo server")
 	command.Flags().StringSliceVar(&metricsAplicationLabels, "metrics-application-labels", []string{}, "List of Application labels that will be added to the argocd_application_labels metric")
 	command.Flags().StringVar(&otlpAddress, "otlp-address", env.StringFromEnv("ARGOCD_APPLICATION_CONTROLLER_OTLP_ADDRESS", ""), "OpenTelemetry collector address to send traces to")
+	command.Flags().StringSliceVar(&applicationNamespaces, "application-namespaces", env.StringsFromEnv("ARGOCD_APPLICATION_NAMESPACES", []string{}, ","), "List of additional namespaces that applications are allowed to be reconciled from")
 	cacheSrc = appstatecache.AddCacheFlagsToCmd(&command, func(client *redis.Client) {
 		redisClient = client
 	})

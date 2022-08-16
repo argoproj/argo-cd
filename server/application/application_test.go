@@ -37,6 +37,7 @@ import (
 	"github.com/argoproj/argo-cd/v2/reposerver/apiclient/mocks"
 	"github.com/argoproj/argo-cd/v2/server/rbacpolicy"
 	"github.com/argoproj/argo-cd/v2/test"
+	"github.com/argoproj/argo-cd/v2/util/argo"
 	"github.com/argoproj/argo-cd/v2/util/assets"
 	"github.com/argoproj/argo-cd/v2/util/cache"
 	"github.com/argoproj/argo-cd/v2/util/db"
@@ -201,7 +202,7 @@ func newTestAppServerWithEnforcerConfigure(f func(*rbac.Enforcer), objects ...ru
 		testNamespace,
 		kubeclientset,
 		fakeAppsClientset,
-		factory.Argoproj().V1alpha1().Applications().Lister().Applications(testNamespace),
+		factory.Argoproj().V1alpha1().Applications().Lister(),
 		appInformer,
 		mockRepoClient,
 		nil,
@@ -211,6 +212,7 @@ func newTestAppServerWithEnforcerConfigure(f func(*rbac.Enforcer), objects ...ru
 		sync.NewKeyLock(),
 		settingsMgr,
 		projInformer,
+		[]string{},
 	)
 	return server.(*Server)
 }
@@ -749,8 +751,14 @@ func TestServer_GetApplicationSyncWindowsState(t *testing.T) {
 func TestGetCachedAppState(t *testing.T) {
 	testApp := newTestApp()
 	testApp.ObjectMeta.ResourceVersion = "1"
-	testApp.Spec.Project = "none"
-	appServer := newTestAppServer(testApp)
+	testApp.Spec.Project = "test-proj"
+	testProj := &appsv1.AppProject{
+		ObjectMeta: metav1.ObjectMeta{
+			Name:      "test-proj",
+			Namespace: testNamespace,
+		},
+	}
+	appServer := newTestAppServer(testApp, testProj)
 	fakeClientSet := appServer.appclientset.(*apps.Clientset)
 	t.Run("NoError", func(t *testing.T) {
 		err := appServer.getCachedAppState(context.Background(), testApp, func() error {
@@ -901,7 +909,8 @@ func TestLogsGetSelectedPod(t *testing.T) {
 // refreshAnnotationRemover runs an infinite loop until it detects and removes refresh annotation or given context is done
 func refreshAnnotationRemover(t *testing.T, ctx context.Context, patched *int32, appServer *Server, appName string, ch chan string) {
 	for ctx.Err() == nil {
-		a, err := appServer.appLister.Get(appName)
+		aName, appNs := argo.ParseAppQualifiedName(appName, appServer.ns)
+		a, err := appServer.appLister.Applications(appNs).Get(aName)
 		require.NoError(t, err)
 		a = a.DeepCopy()
 		if a.GetAnnotations() != nil && a.GetAnnotations()[appsv1.AnnotationKeyRefresh] != "" {

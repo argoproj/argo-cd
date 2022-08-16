@@ -167,7 +167,7 @@ type ArgoCDServer struct {
 	projLister     applisters.AppProjectNamespaceLister
 	policyEnforcer *rbacpolicy.RBACPolicyEnforcer
 	appInformer    cache.SharedIndexInformer
-	appLister      applisters.ApplicationNamespaceLister
+	appLister      applisters.ApplicationLister
 	db             db.ArgoDB
 
 	// stopCh is the channel which when closed, will shutdown the Argo CD server
@@ -199,7 +199,8 @@ type ArgoCDServerOpts struct {
 	TLSConfigCustomizer   tlsutil.ConfigCustomizer
 	XFrameOptions         string
 	ContentSecurityPolicy string
-	ListenHost  string
+	ListenHost            string
+	ApplicationNamespaces []string
 	ExecTimeout time.Duration
 }
 
@@ -232,12 +233,18 @@ func NewServer(ctx context.Context, opts ArgoCDServerOpts) *ArgoCDServer {
 	err = initializeDefaultProject(opts)
 	errors.CheckError(err)
 
-	factory := appinformer.NewSharedInformerFactoryWithOptions(opts.AppClientset, 0, appinformer.WithNamespace(opts.Namespace), appinformer.WithTweakListOptions(func(options *metav1.ListOptions) {}))
-	projInformer := factory.Argoproj().V1alpha1().AppProjects().Informer()
-	projLister := factory.Argoproj().V1alpha1().AppProjects().Lister().AppProjects(opts.Namespace)
+	appInformerNs := opts.Namespace
+	if len(opts.ApplicationNamespaces) > 0 {
+		appInformerNs = ""
+	}
+	projFactory := appinformer.NewSharedInformerFactoryWithOptions(opts.AppClientset, 0, appinformer.WithNamespace(opts.Namespace), appinformer.WithTweakListOptions(func(options *metav1.ListOptions) {}))
+	appFactory := appinformer.NewSharedInformerFactoryWithOptions(opts.AppClientset, 0, appinformer.WithNamespace(appInformerNs), appinformer.WithTweakListOptions(func(options *metav1.ListOptions) {}))
 
-	appInformer := factory.Argoproj().V1alpha1().Applications().Informer()
-	appLister := factory.Argoproj().V1alpha1().Applications().Lister().Applications(opts.Namespace)
+	projInformer := projFactory.Argoproj().V1alpha1().AppProjects().Informer()
+	projLister := projFactory.Argoproj().V1alpha1().AppProjects().Lister().AppProjects(opts.Namespace)
+
+	appInformer := appFactory.Argoproj().V1alpha1().Applications().Informer()
+	appLister := appFactory.Argoproj().V1alpha1().Applications().Lister()
 
 	userStateStorage := util_session.NewUserStateStorage(opts.RedisClient)
 	sessionMgr := util_session.NewSessionManager(settingsMgr, projLister, opts.DexServerAddr, opts.DexTLSConfig, userStateStorage)
@@ -441,6 +448,7 @@ func (a *ArgoCDServer) Run(ctx context.Context, listeners *Listeners) {
 	// Start the muxed listeners for our servers
 	log.Infof("argocd %s serving on port %d (url: %s, tls: %v, namespace: %s, sso: %v)",
 		common.GetVersion(), a.ListenPort, a.settings.URL, a.useTLS(), a.Namespace, a.settings.IsSSOConfigured())
+	log.Infof("Enabled application namespace patterns: %s", a.allowedApplicationNamespacesAsString())
 
 	go func() { a.checkServeErr("grpcS", grpcS.Serve(grpcL)) }()
 	go func() { a.checkServeErr("httpS", httpS.Serve(httpL)) }()
@@ -688,7 +696,8 @@ func (a *ArgoCDServer) newGRPCServer() (*grpc.Server, application.AppResourceTre
 		a.enf,
 		projectLock,
 		a.settingsMgr,
-		a.projInformer)
+		a.projInformer,
+		a.ApplicationNamespaces)
 	projectService := project.NewServer(a.Namespace, a.KubeClientset, a.AppClientset, a.enf, projectLock, a.sessionMgr, a.policyEnforcer, a.projInformer, a.settingsMgr, a.db)
 	settingsService := settings.NewServer(a.settingsMgr, a, a.DisableAuth)
 	accountService := account.NewServer(a.sessionMgr, a.settingsMgr, a.enf)
@@ -813,7 +822,7 @@ func (a *ArgoCDServer) newHTTPServer(ctx context.Context, port int, grpcWebHandl
 	}
 	mux.Handle("/api/", handler)
 
-	terminalHandler := application.NewHandler(a.appLister, a.db, a.enf, a.Cache, appResourceTreeFn, a.settings.ExecShells)
+	terminalHandler := application.NewHandler(a.appLister, a.Namespace, a.db, a.enf, a.Cache, appResourceTreeFn, a.settings.ExecShells)
 	mux.HandleFunc("/terminal", func(writer http.ResponseWriter, request *http.Request) {
 		argocdSettings, err := a.settingsMgr.GetSettings()
 		if err != nil {
@@ -1262,4 +1271,15 @@ func bug21955WorkaroundInterceptor(ctx context.Context, req interface{}, _ *grpc
 		}
 	}
 	return handler(ctx, req)
+}
+
+// allowedNamespacesAsString returns a string containing comma-separated list
+// of allowed application namespaces
+func (a *ArgoCDServer) allowedApplicationNamespacesAsString() string {
+	ns := a.Namespace
+	if len(a.ArgoCDServerOpts.ApplicationNamespaces) > 0 {
+		ns += ", "
+		ns += strings.Join(a.ArgoCDServerOpts.ApplicationNamespaces, ", ")
+	}
+	return ns
 }

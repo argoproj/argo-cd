@@ -45,10 +45,10 @@ func (g *generatorMock) GetTemplate(appSetGenerator *argoprojiov1alpha1.Applicat
 	return args.Get(0).(*argoprojiov1alpha1.ApplicationSetTemplate)
 }
 
-func (g *generatorMock) GenerateParams(appSetGenerator *argoprojiov1alpha1.ApplicationSetGenerator, _ *argoprojiov1alpha1.ApplicationSet) ([]map[string]string, error) {
+func (g *generatorMock) GenerateParams(appSetGenerator *argoprojiov1alpha1.ApplicationSetGenerator, _ *argoprojiov1alpha1.ApplicationSet) ([]map[string]interface{}, error) {
 	args := g.Called(appSetGenerator)
 
-	return args.Get(0).([]map[string]string), args.Error(1)
+	return args.Get(0).([]map[string]interface{}), args.Error(1)
 }
 
 type rendererMock struct {
@@ -61,8 +61,8 @@ func (g *generatorMock) GetRequeueAfter(appSetGenerator *argoprojiov1alpha1.Appl
 	return args.Get(0).(time.Duration)
 }
 
-func (r *rendererMock) RenderTemplateParams(tmpl *argov1alpha1.Application, syncPolicy *argoprojiov1alpha1.ApplicationSetSyncPolicy, params map[string]string) (*argov1alpha1.Application, error) {
-	args := r.Called(tmpl, params)
+func (r *rendererMock) RenderTemplateParams(tmpl *argov1alpha1.Application, syncPolicy *argoprojiov1alpha1.ApplicationSetSyncPolicy, params map[string]interface{}, useGoTemplate bool) (*argov1alpha1.Application, error) {
+	args := r.Called(tmpl, params, useGoTemplate)
 
 	if args.Error(1) != nil {
 		return nil, args.Error(1)
@@ -82,7 +82,7 @@ func TestExtractApplications(t *testing.T) {
 
 	for _, c := range []struct {
 		name                string
-		params              []map[string]string
+		params              []map[string]interface{}
 		template            argoprojiov1alpha1.ApplicationSetTemplate
 		generateParamsError error
 		rendererError       error
@@ -91,7 +91,7 @@ func TestExtractApplications(t *testing.T) {
 	}{
 		{
 			name:   "Generate two applications",
-			params: []map[string]string{{"name": "app1"}, {"name": "app2"}},
+			params: []map[string]interface{}{{"name": "app1"}, {"name": "app2"}},
 			template: argoprojiov1alpha1.ApplicationSetTemplate{
 				ApplicationSetTemplateMeta: argoprojiov1alpha1.ApplicationSetTemplateMeta{
 					Name:      "name",
@@ -110,7 +110,7 @@ func TestExtractApplications(t *testing.T) {
 		},
 		{
 			name:   "Handles error from the render",
-			params: []map[string]string{{"name": "app1"}, {"name": "app2"}},
+			params: []map[string]interface{}{{"name": "app1"}, {"name": "app2"}},
 			template: argoprojiov1alpha1.ApplicationSetTemplate{
 				ApplicationSetTemplateMeta: argoprojiov1alpha1.ApplicationSetTemplateMeta{
 					Name:      "name",
@@ -161,10 +161,10 @@ func TestExtractApplications(t *testing.T) {
 				for _, p := range cc.params {
 
 					if cc.rendererError != nil {
-						rendererMock.On("RenderTemplateParams", getTempApplication(cc.template), p).
+						rendererMock.On("RenderTemplateParams", getTempApplication(cc.template), p, false).
 							Return(nil, cc.rendererError)
 					} else {
-						rendererMock.On("RenderTemplateParams", getTempApplication(cc.template), p).
+						rendererMock.On("RenderTemplateParams", getTempApplication(cc.template), p, false).
 							Return(&app, nil)
 						expectedApps = append(expectedApps, app)
 					}
@@ -220,7 +220,7 @@ func TestMergeTemplateApplications(t *testing.T) {
 
 	for _, c := range []struct {
 		name             string
-		params           []map[string]string
+		params           []map[string]interface{}
 		template         argoprojiov1alpha1.ApplicationSetTemplate
 		overrideTemplate argoprojiov1alpha1.ApplicationSetTemplate
 		expectedMerged   argoprojiov1alpha1.ApplicationSetTemplate
@@ -228,7 +228,7 @@ func TestMergeTemplateApplications(t *testing.T) {
 	}{
 		{
 			name:   "Generate app",
-			params: []map[string]string{{"name": "app1"}},
+			params: []map[string]interface{}{{"name": "app1"}},
 			template: argoprojiov1alpha1.ApplicationSetTemplate{
 				ApplicationSetTemplateMeta: argoprojiov1alpha1.ApplicationSetTemplateMeta{
 					Name:      "name",
@@ -281,7 +281,7 @@ func TestMergeTemplateApplications(t *testing.T) {
 
 			rendererMock := rendererMock{}
 
-			rendererMock.On("RenderTemplateParams", getTempApplication(cc.expectedMerged), cc.params[0]).
+			rendererMock.On("RenderTemplateParams", getTempApplication(cc.expectedMerged), cc.params[0], false).
 				Return(&cc.expectedApps[0], nil)
 
 			r := ApplicationSetReconciler{
@@ -603,7 +603,7 @@ func TestCreateOrUpdateInCluster(t *testing.T) {
 			},
 		},
 		{
-			name: "Ensure that status and operation fields are not overriden by an update, when removing labels/annotations",
+			name: "Ensure that status and operation fields are not overridden by an update, when removing labels/annotations",
 			appSet: argoprojiov1alpha1.ApplicationSet{
 				ObjectMeta: metav1.ObjectMeta{
 					Name:      "name",
@@ -675,7 +675,7 @@ func TestCreateOrUpdateInCluster(t *testing.T) {
 			},
 		},
 		{
-			name: "Ensure that status and operation fields are not overriden by an update, when removing labels/annotations and adding other fields",
+			name: "Ensure that status and operation fields are not overridden by an update, when removing labels/annotations and adding other fields",
 			appSet: argoprojiov1alpha1.ApplicationSet{
 				ObjectMeta: metav1.ObjectMeta{
 					Name:      "name",
@@ -1792,6 +1792,7 @@ func TestReconcilerValidationErrorBehaviour(t *testing.T) {
 			Namespace: "argocd",
 		},
 		Spec: argoprojiov1alpha1.ApplicationSetSpec{
+			GoTemplate: true,
 			Generators: []argoprojiov1alpha1.ApplicationSetGenerator{
 				{
 					List: &argoprojiov1alpha1.ListGenerator{
@@ -1805,13 +1806,13 @@ func TestReconcilerValidationErrorBehaviour(t *testing.T) {
 			},
 			Template: argoprojiov1alpha1.ApplicationSetTemplate{
 				ApplicationSetTemplateMeta: argoprojiov1alpha1.ApplicationSetTemplateMeta{
-					Name:      "{{cluster}}",
+					Name:      "{{.cluster}}",
 					Namespace: "argocd",
 				},
 				Spec: argov1alpha1.ApplicationSpec{
 					Source:      argov1alpha1.ApplicationSource{RepoURL: "https://github.com/argoproj/argocd-example-apps", Path: "guestbook"},
 					Project:     "default",
-					Destination: argov1alpha1.ApplicationDestination{Server: "{{url}}"},
+					Destination: argov1alpha1.ApplicationDestination{Server: "{{.url}}"},
 				},
 			},
 		},

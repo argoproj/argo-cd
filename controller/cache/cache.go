@@ -529,7 +529,7 @@ func (c *liveStateCache) GetManagedLiveObjs(a *appv1.Application, targetObjs []*
 		return nil, err
 	}
 	return clusterInfo.GetManagedLiveObjs(targetObjs, func(r *clustercache.Resource) bool {
-		return resInfo(r).AppName == a.Name
+		return resInfo(r).AppName == a.InstanceName(c.settingsMgr.GetNamespace())
 	})
 }
 

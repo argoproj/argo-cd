@@ -129,6 +129,25 @@ func AskToProceed(message string) bool {
 	}
 }
 
+// AskToProceedS prompts the user with a message (typically a yes, no or all question) and returns string
+// "a", "y" or "n".
+func AskToProceedS(message string) string {
+	for {
+		fmt.Print(message)
+		reader := bufio.NewReader(os.Stdin)
+		proceedRaw, err := reader.ReadString('\n')
+		errors.CheckError(err)
+		switch strings.ToLower(strings.TrimSpace(proceedRaw)) {
+		case "y", "yes":
+			return "y"
+		case "n", "no":
+			return "n"
+		case "a", "all":
+			return "a"
+		}
+	}
+}
+
 // ReadAndConfirmPassword is a helper to read and confirm a password from stdin
 func ReadAndConfirmPassword(username string) (string, error) {
 	for {

@@ -70,6 +70,7 @@ func NewCommand() *cobra.Command {
 		dexServerPlaintext       bool
 		dexServerStrictTLS       bool
 		staticAssetsDir          string
+		applicationNamespaces    []string
 		execTimeout              time.Duration
 	)
 	var command = &cobra.Command{
@@ -183,6 +184,7 @@ func NewCommand() *cobra.Command {
 				ContentSecurityPolicy: contentSecurityPolicy,
 				RedisClient:           redisClient,
 				StaticAssetsDir:       staticAssetsDir,
+				ApplicationNamespaces: applicationNamespaces,
 				ExecTimeout:            execTimeout,
 			}
 
@@ -234,6 +236,7 @@ func NewCommand() *cobra.Command {
 	command.Flags().BoolVar(&repoServerStrictTLS, "repo-server-strict-tls", env.ParseBoolFromEnv("ARGOCD_SERVER_REPO_SERVER_STRICT_TLS", false), "Perform strict validation of TLS certificates when connecting to repo server")
 	command.Flags().BoolVar(&dexServerPlaintext, "dex-server-plaintext", env.ParseBoolFromEnv("ARGOCD_SERVER_DEX_SERVER_PLAINTEXT", false), "Use a plaintext client (non-TLS) to connect to dex server")
 	command.Flags().BoolVar(&dexServerStrictTLS, "dex-server-strict-tls", env.ParseBoolFromEnv("ARGOCD_SERVER_DEX_SERVER_STRICT_TLS", false), "Perform strict validation of TLS certificates when connecting to dex server")
+	command.Flags().StringSliceVar(&applicationNamespaces, "application-namespaces", env.StringsFromEnv("ARGOCD_APPLICATION_NAMESPACES", []string{}, ","), "List of additional namespaces where application resources can be managed in")
 	durationFromEnv := cli.GetExecTimeoutEnvVarValue("ARGOCD_SERVER_EXEC_TIMEOUT")
 	command.Flags().DurationVar(&execTimeout, "exec-timeout", durationFromEnv, "per-command timeout for external commands invoked by the server (such as gpg)")
 

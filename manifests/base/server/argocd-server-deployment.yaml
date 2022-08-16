@@ -172,6 +172,12 @@ spec:
                 name: argocd-cmd-params-cm
                 key: redis.server
                 optional: true
+        - name: REDIS_COMPRESSION
+          valueFrom:
+            configMapKeyRef:
+              name: argocd-cmd-params-cm
+              key: redis.compression
+              optional: true
         - name: REDISDB
           valueFrom:
               configMapKeyRef:
@@ -195,6 +201,12 @@ spec:
               configMapKeyRef:
                 name: argocd-cmd-params-cm
                 key: otlp.address
+                optional: true
+        - name: ARGOCD_APPLICATION_NAMESPACES
+          valueFrom:
+              configMapKeyRef:
+                name: argocd-cmd-params-cm
+                key: application.namespaces
                 optional: true
         - name: ARGOCD_SERVER_EXEC_TIMEOUT
           valueFrom:

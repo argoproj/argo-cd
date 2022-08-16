@@ -53,6 +53,7 @@ func TestCreateRepositoryNonAdminUserPermissionDenied(t *testing.T) {
 		When().
 		Path(path).
 		Project("argo-project").
+		IgnoreErrors().
 		Create().
 		Then().
 		AndCLIOutput(func(output string, err error) {
@@ -79,6 +80,7 @@ func TestCreateRepositoryNonAdminUserWithWrongProject(t *testing.T) {
 		When().
 		Path(path).
 		Project("argo-project").
+		IgnoreErrors().
 		Create().
 		Then().
 		AndCLIOutput(func(output string, err error) {
@@ -165,6 +167,7 @@ func TestDeleteRepositoryRbacDenied(t *testing.T) {
 			assert.Equal(t, r.Project, "argo-project")
 		}).
 		When().
+		IgnoreErrors().
 		Delete().
 		Then().
 		AndCLIOutput(func(output string, err error) {

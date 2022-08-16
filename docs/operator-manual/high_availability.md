@@ -119,7 +119,7 @@ If the manifest generation has no side effects then requests are processed in pa
   * **Multiple Helm based applications pointing to the same directory in one Git repository:** ensure that your Helm chart don't have conditional
 [dependencies](https://helm.sh/docs/chart_best_practices/dependencies/#conditions-and-tags) and create `.argocd-allow-concurrency` file in chart directory.
 
-  * **Multiple Custom plugin based applications:** avoid creating temporal files during manifest generation and create `.argocd-allow-concurrency` file in app directory.
+  * **Multiple Custom plugin based applications:** avoid creating temporal files during manifest generation and create `.argocd-allow-concurrency` file in app directory, or use the sidecar plugin option, which processes each application using a temporary copy of the repository.
 
   * **Multiple Kustomize applications in same repository with [parameter overrides](../user-guide/parameters.md):** sorry, no workaround for now.
 
