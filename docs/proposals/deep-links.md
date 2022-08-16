@@ -52,8 +52,7 @@ currently are :
 Each link in the list has five subfields :
 1. `title` : title/tag that will be displayed in the UI corresponding to that link
 2. `url` : the actual URL where the deep link will redirect to, this field can be templated to use data from the
-   application, project, resource objects (depending on where it is located) or from argocd-secret (only fields prefixed
-   with `links.`)
+   application, project or resource objects (depending on where it is located)
 3. `description` (optional) : a description for what the deep link is about
 4. `icon.class` (optional) : a font-awesome icon class to be used when displaying the links in dropdown menus.
 5. `if` (optional) : a conditional statement that results in either `true` or `false`, it also has access to the same
@@ -73,15 +72,11 @@ data:
   application.links: |
     - url: https://mycompany.splunk.com?search={{app.spec.destination.namespace}}
       title: Splunk
-    # reference secrets from `argocd-secret`
-    - url: https://mycompany.splunk.com?token={{secret.something}}
-      title: Splunk
     # conditionally show link e.g. for specific project
-    - url: https://mycompany.splunk.com?token={{secret.something}}
+    - url: https://mycompany.splunk.com?search={{app.spec.destination.namespace}}
       title: Splunk
-      if: app.spec.proj == "abc" # https://github.com/antonmedv/expr
-    # conditionally show link e.g. for specific project
-    - url: https://{{project.metadata.annotations.splunkhost}}?token={{secret.something}}
+      if: app.spec.proj == "abc"
+    - url: https://{{project.metadata.annotations.splunkhost}}?search={{app.spec.destination.namespace}}
       title: Splunk
       if: project.metadata.annotations.splunkhost
     
@@ -90,23 +85,6 @@ data:
     - url: https://mycompany.splunk.com?search={{res.metadata.namespace}}
       title: Splunk
       if: res.kind == "Pod" || res.kind == "Deployment"
-
-```
-
-Example `argocd-secret` resource with deep link secrets :
-
-```yaml
-apiVersion: v1
-kind: Secret
-metadata:
-  name: argocd-secret
-  namespace: argocd
-  labels:
-    app.kubernetes.io/name: argocd-secret
-    app.kubernetes.io/part-of: argocd
-type: Opaque
-stringData:
-  links.something: mySecret
 
 ```
 
