@@ -552,7 +552,7 @@ func TestPrintAppSummaryTable(t *testing.T) {
 		return nil
 	})
 
-	expectation := `Name:               test
+	expectation := `Name:               argocd/test
 Project:            default
 Server:             local
 Namespace:          argocd

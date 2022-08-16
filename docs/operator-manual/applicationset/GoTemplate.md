@@ -1,7 +1,5 @@
 # Go Template
 
-> v2.5
-
 ## Introduction
 
 ApplicationSet is able to use [Go Text Template](https://pkg.go.dev/text/template). To activate this feature, add 

@@ -15,8 +15,10 @@ import (
 	"github.com/argoproj/argo-cd/v2/applicationset/controllers"
 	"github.com/argoproj/argo-cd/v2/applicationset/generators"
 	"github.com/argoproj/argo-cd/v2/applicationset/utils"
+	"github.com/argoproj/argo-cd/v2/applicationset/webhook"
 	"github.com/argoproj/argo-cd/v2/common"
 	"github.com/argoproj/argo-cd/v2/reposerver/askpass"
+	"github.com/argoproj/argo-cd/v2/util/env"
 
 	log "github.com/sirupsen/logrus"
 	"github.com/spf13/cobra"
@@ -35,6 +37,11 @@ import (
 	"github.com/argoproj/argo-cd/v2/util/errors"
 	argosettings "github.com/argoproj/argo-cd/v2/util/settings"
 )
+
+// TODO: load this using Cobra. https://github.com/argoproj/argo-cd/issues/10157
+func getSubmoduleEnabled() bool {
+	return env.ParseBoolFromEnv(common.EnvGitSubmoduleEnabled, true)
+}
 
 func NewCommand() *cobra.Command {
 	var (
@@ -127,21 +134,12 @@ func NewCommand() *cobra.Command {
 			argoSettingsMgr := argosettings.NewSettingsManager(ctx, k8sClient, namespace)
 			appSetConfig := appclientset.NewForConfigOrDie(mgr.GetConfig())
 			argoCDDB := db.NewDB(namespace, argoSettingsMgr, k8sClient)
-			// start a webhook server that listens to incoming webhook payloads
-			webhookHandler, err := utils.NewWebhookHandler(namespace, argoSettingsMgr, mgr.GetClient())
-			if err != nil {
-				log.Error(err, "failed to create webhook handler")
-			}
 
-			if webhookHandler != nil {
-				startWebhookServer(webhookHandler, webhookAddr)
-			}
 			askPassServer := askpass.NewServer()
-			go func() { errors.CheckError(askPassServer.Run(askpass.SocketPath)) }()
 			terminalGenerators := map[string]generators.Generator{
 				"List":                    generators.NewListGenerator(),
 				"Clusters":                generators.NewClusterGenerator(mgr.GetClient(), ctx, k8sClient, namespace),
-				"Git":                     generators.NewGitGenerator(services.NewArgoCDService(argoCDDB, askPassServer, argocdRepoServer)),
+				"Git":                     generators.NewGitGenerator(services.NewArgoCDService(argoCDDB, askPassServer, getSubmoduleEnabled())),
 				"SCMProvider":             generators.NewSCMProviderGenerator(mgr.GetClient()),
 				"ClusterDecisionResource": generators.NewDuckTypeGenerator(ctx, dynamicClient, k8sClient, namespace),
 				"PullRequest":             generators.NewPullRequestGenerator(mgr.GetClient()),
@@ -169,6 +167,16 @@ func NewCommand() *cobra.Command {
 				"Merge":                   generators.NewMergeGenerator(nestedGenerators),
 			}
 
+			// start a webhook server that listens to incoming webhook payloads
+			webhookHandler, err := webhook.NewWebhookHandler(namespace, argoSettingsMgr, mgr.GetClient(), topLevelGenerators)
+			if err != nil {
+				log.Error(err, "failed to create webhook handler")
+			}
+			if webhookHandler != nil {
+				startWebhookServer(webhookHandler, webhookAddr)
+			}
+
+			go func() { errors.CheckError(askPassServer.Run(askpass.SocketPath)) }()
 			if err = (&controllers.ApplicationSetReconciler{
 				Generators:       topLevelGenerators,
 				Client:           mgr.GetClient(),
@@ -211,7 +219,7 @@ func NewCommand() *cobra.Command {
 	return &command
 }
 
-func startWebhookServer(webhookHandler *utils.WebhookHandler, webhookAddr string) {
+func startWebhookServer(webhookHandler *webhook.WebhookHandler, webhookAddr string) {
 	mux := http.NewServeMux()
 	mux.HandleFunc("/api/webhook", webhookHandler.Handler)
 	go func() {

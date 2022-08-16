@@ -28,3 +28,11 @@ rules:
   - pods/log
   verbs:
   - get     # supports viewing pod logs from UI
+- apiGroups:
+  - "argoproj.io"
+  resources:
+  - "applications"
+  verbs:
+  - get
+  - list
+  - watch

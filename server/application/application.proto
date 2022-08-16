@@ -27,11 +27,14 @@ message ApplicationQuery {
 	optional string selector = 5;
 	// the repoURL to restrict returned list applications
 	optional string repo = 6;
+	// the application's namespace
+	optional string appNamespace = 7;
 }
 
 message NodeQuery {
 	// the application's name
 	optional string name = 1;
+	optional string appNamespace = 2;
 }
 
 message RevisionMetadataQuery{
@@ -39,6 +42,8 @@ message RevisionMetadataQuery{
 	required string name = 1;
 	// the revision of the app
 	required string revision = 2;
+	// the application's namespace
+	optional string appNamespace = 3;
 }
 
 // ApplicationEventsQuery is a query for application resource events
@@ -47,12 +52,14 @@ message ApplicationResourceEventsQuery {
 	optional string resourceNamespace = 2;
 	optional string resourceName = 3;
 	optional string resourceUID = 4;
+	optional string appNamespace = 5;
 }
 
 // ManifestQuery is a query for manifest resources
 message ApplicationManifestQuery {
 	required string name = 1;
 	optional string revision = 2;
+	optional string appNamespace = 3;
 }
 
 message FileChunk {
@@ -88,6 +95,7 @@ message ApplicationDeleteRequest {
 	required string name = 1;
 	optional bool cascade = 2;
 	optional string propagationPolicy = 3;
+	optional string appNamespace = 4;
 }
 
 message SyncOptions {
@@ -106,6 +114,7 @@ message ApplicationSyncRequest {
 	repeated github.com.argoproj.argo_cd.v2.pkg.apis.application.v1alpha1.Info infos = 9;
 	optional github.com.argoproj.argo_cd.v2.pkg.apis.application.v1alpha1.RetryStrategy retryStrategy = 10;
 	optional SyncOptions syncOptions = 11;
+	optional string appNamespace = 12;
 }
 
 // ApplicationUpdateSpecRequest is a request to update application spec
@@ -113,6 +122,7 @@ message ApplicationUpdateSpecRequest {
 	required string name = 1;
 	required github.com.argoproj.argo_cd.v2.pkg.apis.application.v1alpha1.ApplicationSpec spec = 2;
 	optional bool validate = 3;
+	optional string appNamespace = 4;
 }
 
 // ApplicationPatchRequest is a request to patch an application
@@ -120,6 +130,7 @@ message ApplicationPatchRequest {
 	required string name = 1;
 	required string patch = 2;
 	required string patchType = 3;
+	optional string appNamespace = 5;
 }
 
 message ApplicationRollbackRequest {
@@ -127,6 +138,7 @@ message ApplicationRollbackRequest {
 	required int64 id = 2;
 	optional bool dryRun = 3;
 	optional bool prune = 4;
+	optional string appNamespace = 6;
 }
 
 message ApplicationResourceRequest {
@@ -136,6 +148,7 @@ message ApplicationResourceRequest {
 	required string version = 4;
 	optional string group = 5;
 	required string kind = 6;
+	optional string appNamespace = 7;
 }
 
 message ApplicationResourcePatchRequest {
@@ -147,6 +160,7 @@ message ApplicationResourcePatchRequest {
 	required string kind = 6;
 	required string patch = 7;
 	required string patchType = 8;
+	optional string appNamespace = 9;
 }
 
 message ApplicationResourceDeleteRequest {
@@ -158,6 +172,7 @@ message ApplicationResourceDeleteRequest {
 	required string kind = 6;
 	optional bool force = 7;
 	optional bool orphan = 8;
+	optional string appNamespace = 9;
 }
 
 message ResourceActionRunRequest {
@@ -168,6 +183,7 @@ message ResourceActionRunRequest {
 	optional string group = 5;
 	required string kind = 6;
 	required string action = 7;
+	optional string appNamespace = 8;
 }
 
 message ResourceActionsListResponse {
@@ -193,6 +209,7 @@ message ApplicationPodLogsQuery {
 	optional string group = 12;
 	optional string resourceName = 13 ;
 	optional bool previous = 14;
+	optional string appNamespace = 15;
 }
 
 message LogEntry {
@@ -206,10 +223,12 @@ message LogEntry {
 
 message OperationTerminateRequest {
 	required string name = 1;
+	optional string appNamespace = 2;
 }
 
 message ApplicationSyncWindowsQuery {
 	required string name = 1;
+	optional string appNamespace = 2;
 }
 
 message ApplicationSyncWindowsResponse {
@@ -237,6 +256,7 @@ message ResourcesQuery {
 	optional string version = 4;
 	optional string group = 5;
 	optional string kind = 6;
+	optional string appNamespace = 7;
 }
 
 message ManagedResourcesResponse {

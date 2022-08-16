@@ -265,6 +265,12 @@
             "description": "the repoURL to restrict returned list applications.",
             "name": "repo",
             "in": "query"
+          },
+          {
+            "type": "string",
+            "description": "the application's namespace.",
+            "name": "appNamespace",
+            "in": "query"
           }
         ],
         "responses": {
@@ -441,6 +447,11 @@
             "type": "string",
             "name": "kind",
             "in": "query"
+          },
+          {
+            "type": "string",
+            "name": "appNamespace",
+            "in": "query"
           }
         ],
         "responses": {
@@ -496,6 +507,11 @@
           {
             "type": "string",
             "name": "kind",
+            "in": "query"
+          },
+          {
+            "type": "string",
+            "name": "appNamespace",
             "in": "query"
           }
         ],
@@ -563,6 +579,12 @@
             "description": "the repoURL to restrict returned list applications.",
             "name": "repo",
             "in": "query"
+          },
+          {
+            "type": "string",
+            "description": "the application's namespace.",
+            "name": "appNamespace",
+            "in": "query"
           }
         ],
         "responses": {
@@ -601,6 +623,11 @@
           {
             "type": "string",
             "name": "propagationPolicy",
+            "in": "query"
+          },
+          {
+            "type": "string",
+            "name": "appNamespace",
             "in": "query"
           }
         ],
@@ -684,6 +711,11 @@
           {
             "type": "string",
             "name": "resourceUID",
+            "in": "query"
+          },
+          {
+            "type": "string",
+            "name": "appNamespace",
             "in": "query"
           }
         ],
@@ -792,6 +824,11 @@
             "type": "boolean",
             "name": "previous",
             "in": "query"
+          },
+          {
+            "type": "string",
+            "name": "appNamespace",
+            "in": "query"
           }
         ],
         "responses": {
@@ -837,6 +874,11 @@
             "type": "string",
             "name": "revision",
             "in": "query"
+          },
+          {
+            "type": "string",
+            "name": "appNamespace",
+            "in": "query"
           }
         ],
         "responses": {
@@ -868,6 +910,11 @@
             "name": "name",
             "in": "path",
             "required": true
+          },
+          {
+            "type": "string",
+            "name": "appNamespace",
+            "in": "query"
           }
         ],
         "responses": {
@@ -976,6 +1023,11 @@
             "type": "boolean",
             "name": "previous",
             "in": "query"
+          },
+          {
+            "type": "string",
+            "name": "appNamespace",
+            "in": "query"
           }
         ],
         "responses": {
@@ -1040,6 +1092,11 @@
           {
             "type": "string",
             "name": "kind",
+            "in": "query"
+          },
+          {
+            "type": "string",
+            "name": "appNamespace",
             "in": "query"
           }
         ],
@@ -1108,6 +1165,11 @@
             "type": "string",
             "name": "patchType",
             "in": "query"
+          },
+          {
+            "type": "string",
+            "name": "appNamespace",
+            "in": "query"
           }
         ],
         "responses": {
@@ -1172,6 +1234,11 @@
             "type": "boolean",
             "name": "orphan",
             "in": "query"
+          },
+          {
+            "type": "string",
+            "name": "appNamespace",
+            "in": "query"
           }
         ],
         "responses": {
@@ -1227,6 +1294,11 @@
           {
             "type": "string",
             "name": "kind",
+            "in": "query"
+          },
+          {
+            "type": "string",
+            "name": "appNamespace",
             "in": "query"
           }
         ],
@@ -1290,6 +1362,11 @@
             "type": "string",
             "name": "kind",
             "in": "query"
+          },
+          {
+            "type": "string",
+            "name": "appNamespace",
+            "in": "query"
           }
         ],
         "responses": {
@@ -1329,6 +1406,12 @@
             "name": "revision",
             "in": "path",
             "required": true
+          },
+          {
+            "type": "string",
+            "description": "the application's namespace.",
+            "name": "appNamespace",
+            "in": "query"
           }
         ],
         "responses": {
@@ -1412,6 +1495,11 @@
             "type": "boolean",
             "name": "validate",
             "in": "query"
+          },
+          {
+            "type": "string",
+            "name": "appNamespace",
+            "in": "query"
           }
         ],
         "responses": {
@@ -1482,6 +1570,11 @@
             "name": "name",
             "in": "path",
             "required": true
+          },
+          {
+            "type": "string",
+            "name": "appNamespace",
+            "in": "query"
           }
         ],
         "responses": {
@@ -3201,6 +3294,12 @@
             "description": "the repoURL to restrict returned list applications.",
             "name": "repo",
             "in": "query"
+          },
+          {
+            "type": "string",
+            "description": "the application's namespace.",
+            "name": "appNamespace",
+            "in": "query"
           }
         ],
         "responses": {
@@ -3265,6 +3364,11 @@
           {
             "type": "string",
             "name": "kind",
+            "in": "query"
+          },
+          {
+            "type": "string",
+            "name": "appNamespace",
             "in": "query"
           }
         ],
@@ -3446,6 +3550,9 @@
       "type": "object",
       "title": "ApplicationPatchRequest is a request to patch an application",
       "properties": {
+        "appNamespace": {
+          "type": "string"
+        },
         "name": {
           "type": "string"
         },
@@ -3471,6 +3578,9 @@
     "applicationApplicationRollbackRequest": {
       "type": "object",
       "properties": {
+        "appNamespace": {
+          "type": "string"
+        },
         "dryRun": {
           "type": "boolean"
         },
@@ -3490,6 +3600,9 @@
       "type": "object",
       "title": "ApplicationSyncRequest is a request to apply the config state to live state",
       "properties": {
+        "appNamespace": {
+          "type": "string"
+        },
         "dryRun": {
           "type": "boolean"
         },
@@ -3768,6 +3881,9 @@
           "items": {
             "$ref": "#/definitions/v1alpha1ConfigManagementPlugin"
           }
+        },
+        "controllerNamespace": {
+          "type": "string"
         },
         "dexConfig": {
           "$ref": "#/definitions/clusterDexConfig"
@@ -4818,6 +4934,13 @@
           "title": "SignatureKeys contains a list of PGP key IDs that commits in Git must be signed with in order to be allowed for sync",
           "items": {
             "$ref": "#/definitions/v1alpha1SignatureKey"
+          }
+        },
+        "sourceNamespaces": {
+          "type": "array",
+          "title": "SourceNamespaces defines the namespaces application resources are allowed to be created in",
+          "items": {
+            "type": "string"
           }
         },
         "sourceRepos": {

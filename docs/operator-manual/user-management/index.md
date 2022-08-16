@@ -289,7 +289,7 @@ data:
 
 ## Existing OIDC Provider
 
-To configure Argo CD to delegate authenticate to your existing OIDC provider, add the OAuth2
+To configure Argo CD to delegate authentication to your existing OIDC provider, add the OAuth2
 configuration to the `argocd-cm` ConfigMap under the `oidc.config` key:
 
 ```yaml

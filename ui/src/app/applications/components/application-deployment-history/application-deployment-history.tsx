@@ -76,6 +76,7 @@ export const ApplicationDeploymentHistory = ({
                             <React.Fragment>
                                 <RevisionMetadataRows
                                     applicationName={app.metadata.name}
+                                    applicationNamespace={app.metadata.namespace}
                                     source={{...recentDeployments[index].source, targetRevision: recentDeployments[index].revision}}
                                 />
                                 <DataLoader

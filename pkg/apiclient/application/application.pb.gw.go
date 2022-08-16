@@ -293,6 +293,10 @@ func local_request_ApplicationService_Get_0(ctx context.Context, marshaler runti
 
 }
 
+var (
+	filter_ApplicationService_GetApplicationSyncWindows_0 = &utilities.DoubleArray{Encoding: map[string]int{"name": 0}, Base: []int{1, 1, 0}, Check: []int{0, 1, 2}}
+)
+
 func request_ApplicationService_GetApplicationSyncWindows_0(ctx context.Context, marshaler runtime.Marshaler, client ApplicationServiceClient, req *http.Request, pathParams map[string]string) (proto.Message, runtime.ServerMetadata, error) {
 	var protoReq ApplicationSyncWindowsQuery
 	var metadata runtime.ServerMetadata
@@ -313,6 +317,13 @@ func request_ApplicationService_GetApplicationSyncWindows_0(ctx context.Context,
 
 	if err != nil {
 		return nil, metadata, status.Errorf(codes.InvalidArgument, "type mismatch, parameter: %s, error: %v", "name", err)
+	}
+
+	if err := req.ParseForm(); err != nil {
+		return nil, metadata, status.Errorf(codes.InvalidArgument, "%v", err)
+	}
+	if err := runtime.PopulateQueryParameters(&protoReq, req.Form, filter_ApplicationService_GetApplicationSyncWindows_0); err != nil {
+		return nil, metadata, status.Errorf(codes.InvalidArgument, "%v", err)
 	}
 
 	msg, err := client.GetApplicationSyncWindows(ctx, &protoReq, grpc.Header(&metadata.HeaderMD), grpc.Trailer(&metadata.TrailerMD))
@@ -342,10 +353,21 @@ func local_request_ApplicationService_GetApplicationSyncWindows_0(ctx context.Co
 		return nil, metadata, status.Errorf(codes.InvalidArgument, "type mismatch, parameter: %s, error: %v", "name", err)
 	}
 
+	if err := req.ParseForm(); err != nil {
+		return nil, metadata, status.Errorf(codes.InvalidArgument, "%v", err)
+	}
+	if err := runtime.PopulateQueryParameters(&protoReq, req.Form, filter_ApplicationService_GetApplicationSyncWindows_0); err != nil {
+		return nil, metadata, status.Errorf(codes.InvalidArgument, "%v", err)
+	}
+
 	msg, err := server.GetApplicationSyncWindows(ctx, &protoReq)
 	return msg, metadata, err
 
 }
+
+var (
+	filter_ApplicationService_RevisionMetadata_0 = &utilities.DoubleArray{Encoding: map[string]int{"name": 0, "revision": 1}, Base: []int{1, 1, 2, 0, 0}, Check: []int{0, 1, 1, 2, 3}}
+)
 
 func request_ApplicationService_RevisionMetadata_0(ctx context.Context, marshaler runtime.Marshaler, client ApplicationServiceClient, req *http.Request, pathParams map[string]string) (proto.Message, runtime.ServerMetadata, error) {
 	var protoReq RevisionMetadataQuery
@@ -378,6 +400,13 @@ func request_ApplicationService_RevisionMetadata_0(ctx context.Context, marshale
 
 	if err != nil {
 		return nil, metadata, status.Errorf(codes.InvalidArgument, "type mismatch, parameter: %s, error: %v", "revision", err)
+	}
+
+	if err := req.ParseForm(); err != nil {
+		return nil, metadata, status.Errorf(codes.InvalidArgument, "%v", err)
+	}
+	if err := runtime.PopulateQueryParameters(&protoReq, req.Form, filter_ApplicationService_RevisionMetadata_0); err != nil {
+		return nil, metadata, status.Errorf(codes.InvalidArgument, "%v", err)
 	}
 
 	msg, err := client.RevisionMetadata(ctx, &protoReq, grpc.Header(&metadata.HeaderMD), grpc.Trailer(&metadata.TrailerMD))
@@ -416,6 +445,13 @@ func local_request_ApplicationService_RevisionMetadata_0(ctx context.Context, ma
 
 	if err != nil {
 		return nil, metadata, status.Errorf(codes.InvalidArgument, "type mismatch, parameter: %s, error: %v", "revision", err)
+	}
+
+	if err := req.ParseForm(); err != nil {
+		return nil, metadata, status.Errorf(codes.InvalidArgument, "%v", err)
+	}
+	if err := runtime.PopulateQueryParameters(&protoReq, req.Form, filter_ApplicationService_RevisionMetadata_0); err != nil {
+		return nil, metadata, status.Errorf(codes.InvalidArgument, "%v", err)
 	}
 
 	msg, err := server.RevisionMetadata(ctx, &protoReq)
@@ -1187,6 +1223,10 @@ func local_request_ApplicationService_Rollback_0(ctx context.Context, marshaler 
 
 }
 
+var (
+	filter_ApplicationService_TerminateOperation_0 = &utilities.DoubleArray{Encoding: map[string]int{"name": 0}, Base: []int{1, 1, 0}, Check: []int{0, 1, 2}}
+)
+
 func request_ApplicationService_TerminateOperation_0(ctx context.Context, marshaler runtime.Marshaler, client ApplicationServiceClient, req *http.Request, pathParams map[string]string) (proto.Message, runtime.ServerMetadata, error) {
 	var protoReq OperationTerminateRequest
 	var metadata runtime.ServerMetadata
@@ -1207,6 +1247,13 @@ func request_ApplicationService_TerminateOperation_0(ctx context.Context, marsha
 
 	if err != nil {
 		return nil, metadata, status.Errorf(codes.InvalidArgument, "type mismatch, parameter: %s, error: %v", "name", err)
+	}
+
+	if err := req.ParseForm(); err != nil {
+		return nil, metadata, status.Errorf(codes.InvalidArgument, "%v", err)
+	}
+	if err := runtime.PopulateQueryParameters(&protoReq, req.Form, filter_ApplicationService_TerminateOperation_0); err != nil {
+		return nil, metadata, status.Errorf(codes.InvalidArgument, "%v", err)
 	}
 
 	msg, err := client.TerminateOperation(ctx, &protoReq, grpc.Header(&metadata.HeaderMD), grpc.Trailer(&metadata.TrailerMD))
@@ -1234,6 +1281,13 @@ func local_request_ApplicationService_TerminateOperation_0(ctx context.Context, 
 
 	if err != nil {
 		return nil, metadata, status.Errorf(codes.InvalidArgument, "type mismatch, parameter: %s, error: %v", "name", err)
+	}
+
+	if err := req.ParseForm(); err != nil {
+		return nil, metadata, status.Errorf(codes.InvalidArgument, "%v", err)
+	}
+	if err := runtime.PopulateQueryParameters(&protoReq, req.Form, filter_ApplicationService_TerminateOperation_0); err != nil {
+		return nil, metadata, status.Errorf(codes.InvalidArgument, "%v", err)
 	}
 
 	msg, err := server.TerminateOperation(ctx, &protoReq)

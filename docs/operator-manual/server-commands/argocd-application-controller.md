@@ -16,6 +16,7 @@ argocd-application-controller [flags]
       --app-hard-resync int                   Time period in seconds for application hard resync.
       --app-resync int                        Time period in seconds for application resync. (default 180)
       --app-state-cache-expiration duration   Cache expiration for app state (default 1h0m0s)
+      --application-namespaces strings        List of additional namespaces that applications are allowed to be reconciled from
       --as string                             Username to impersonate for the operation
       --as-group stringArray                  Group to impersonate for the operation, this flag can be repeated to specify multiple groups.
       --as-uid string                         UID to impersonate for the operation
@@ -44,6 +45,7 @@ argocd-application-controller [flags]
       --redis-ca-certificate string           Path to Redis server CA certificate (e.g. /etc/certs/redis/ca.crt). If not specified, system trusted CAs will be used for server certificate validation.
       --redis-client-certificate string       Path to Redis client certificate (e.g. /etc/certs/redis/client.crt).
       --redis-client-key string               Path to Redis client key (e.g. /etc/certs/redis/client.crt).
+      --redis-compress string                 Enable compression for data sent to Redis with the required compression algorithm. (possible values: none, gzip) (default "none")
       --redis-insecure-skip-tls-verify        Skip Redis server certificate validation.
       --redis-use-tls                         Use TLS when connecting to Redis. 
       --redisdb int                           Redis database.
