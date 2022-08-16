@@ -9121,6 +9121,12 @@ spec:
                   - keyID
                   type: object
                 type: array
+              sourceNamespaces:
+                description: SourceNamespaces defines the namespaces application resources
+                  are allowed to be created in
+                items:
+                  type: string
+                type: array
               sourceRepos:
                 description: SourceRepos contains list of repository URLs which can
                   be used for deployment
@@ -9532,6 +9538,14 @@ rules:
   - pods/log
   verbs:
   - get
+- apiGroups:
+  - argoproj.io
+  resources:
+  - applications
+  verbs:
+  - get
+  - list
+  - watch
 ---
 apiVersion: rbac.authorization.k8s.io/v1
 kind: RoleBinding
@@ -10273,6 +10287,12 @@ spec:
               key: redis.server
               name: argocd-cmd-params-cm
               optional: true
+        - name: REDIS_COMPRESSION
+          valueFrom:
+            configMapKeyRef:
+              key: redis.compression
+              name: argocd-cmd-params-cm
+              optional: true
         - name: REDISDB
           valueFrom:
             configMapKeyRef:
@@ -10599,6 +10619,12 @@ spec:
               key: redis.server
               name: argocd-cmd-params-cm
               optional: true
+        - name: REDIS_COMPRESSION
+          valueFrom:
+            configMapKeyRef:
+              key: redis.compression
+              name: argocd-cmd-params-cm
+              optional: true
         - name: REDISDB
           valueFrom:
             configMapKeyRef:
@@ -10621,6 +10647,12 @@ spec:
           valueFrom:
             configMapKeyRef:
               key: otlp.address
+              name: argocd-cmd-params-cm
+              optional: true
+        - name: ARGOCD_APPLICATION_NAMESPACES
+          valueFrom:
+            configMapKeyRef:
+              key: application.namespaces
               name: argocd-cmd-params-cm
               optional: true
         image: quay.io/argoproj/argocd:latest
@@ -10820,6 +10852,12 @@ spec:
               key: redis.server
               name: argocd-cmd-params-cm
               optional: true
+        - name: REDIS_COMPRESSION
+          valueFrom:
+            configMapKeyRef:
+              key: redis.compression
+              name: argocd-cmd-params-cm
+              optional: true
         - name: REDISDB
           valueFrom:
             configMapKeyRef:
@@ -10836,6 +10874,12 @@ spec:
           valueFrom:
             configMapKeyRef:
               key: otlp.address
+              name: argocd-cmd-params-cm
+              optional: true
+        - name: ARGOCD_APPLICATION_NAMESPACES
+          valueFrom:
+            configMapKeyRef:
+              key: application.namespaces
               name: argocd-cmd-params-cm
               optional: true
         image: quay.io/argoproj/argocd:latest

@@ -10,7 +10,7 @@ require (
 	github.com/alicebob/miniredis v2.5.0+incompatible
 	github.com/alicebob/miniredis/v2 v2.14.2
 	github.com/argoproj/gitops-engine v0.7.1-0.20220804190909-2bc3fef13e07
-	github.com/argoproj/notifications-engine v0.3.1-0.20220430155844-567361917320
+	github.com/argoproj/notifications-engine v0.3.1-0.20220812180936-4d8552b0775f
 	github.com/argoproj/pkg v0.11.1-0.20211203175135-36c59d8fafe0
 	github.com/aws/aws-sdk-go v1.38.49
 	github.com/bombsimon/logrusr/v2 v2.0.1

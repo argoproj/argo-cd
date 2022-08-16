@@ -1,7 +1,5 @@
 # Go Template
 
-> v2.5
-
 ## Introduction
 
 ApplicationSet is able to use [Go Text Template](https://pkg.go.dev/text/template). To activate this feature, add 
@@ -82,7 +80,7 @@ By activating Go Templating, `{{ .path }}` becomes an object. Therefore, some ch
 generators' templating:
 
 - `{{ path }}` becomes `{{ .path.path }}`
-- `{{ path[n] }}` becomes `{{path.segments[n]}}`
+- `{{ path[n] }}` becomes `{{ .path.segments[n] }}`
 
 Here is an example:
 

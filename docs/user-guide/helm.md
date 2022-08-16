@@ -75,8 +75,6 @@ source:
 
 ## Helm Hooks
 
-> v1.3 or later
-
 Helm hooks are similar to [Argo CD hooks](resource_hooks.md). In Helm, a hook
 is any normal Kubernetes resource annotated with the `helm.sh/hook` annotation.
 
@@ -142,8 +140,6 @@ argocd app set redis -p password=abc123
 
 ## Build Environment
 
-> v1.4
-
 Helm apps have access to the [standard build environment](build-environment.md) via substitution as parameters.
 
 E.g. via the CLI:
@@ -176,8 +172,6 @@ It's also possible to use build environment variables for the Helm values file p
 ```
 
 ## Helm plugins
-
-> v1.5
 
 Argo CD is un-opinionated on what cloud provider you use and what kind of Helm plugins you are using, that's why there are no plugins delivered with the ArgoCD image.
 

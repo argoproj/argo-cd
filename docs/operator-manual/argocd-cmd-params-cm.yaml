@@ -14,11 +14,20 @@ data:
 
   # Redis server hostname and port (e.g. argocd-redis:6379)
   redis.server: "argocd-redis:6379"
+  # Enable compression for data sent to Redis with the required compression algorithm. (default 'none')
+  redis.compression: none
   # Redis database
   redis.db:
 
   # Open-Telemetry collector address: (e.g. "otel-collector:4317")
   otlp.address:
+
+  # List of additional namespaces where applications may be created in and
+  # reconciled from. The namespace where Argo CD is installed to will always
+  # be allowed.
+  #
+  # Feature state: Beta
+  application.namespaces: ns1, ns2, ns3
 
   ## Controller Properties
   # Repo server RPC call timeout seconds.

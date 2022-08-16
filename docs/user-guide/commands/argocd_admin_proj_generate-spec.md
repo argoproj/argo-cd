@@ -22,6 +22,7 @@ argocd admin proj generate-spec PROJECT [flags]
       --orphaned-resources-warn                 Specifies if applications should have a warning condition when orphaned resources detected
   -o, --output string                           Output format. One of: json|yaml (default "yaml")
       --signature-keys strings                  GnuPG public key IDs for commit signature verification
+      --source-namespaces strings               List of source namespaces for applications
   -s, --src stringArray                         Permitted source repository URL
 ```
 

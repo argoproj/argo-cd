@@ -1883,3 +1883,7 @@ func (mgr *SettingsManager) GetGlobalProjectsSettings() ([]GlobalProjectSettings
 	}
 	return globalProjectSettings, nil
 }
+
+func (mgr *SettingsManager) GetNamespace() string {
+	return mgr.namespace
+}
