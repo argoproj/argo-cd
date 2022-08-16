@@ -228,6 +228,7 @@ require (
 	sigs.k8s.io/kustomize/kyaml v0.13.0 // indirect
 )
 
+require (
 	go.opentelemetry.io/contrib/instrumentation/google.golang.org/grpc/otelgrpc v0.31.0
 	go.opentelemetry.io/otel v1.6.3
 	go.opentelemetry.io/otel/exporters/otlp/otlptrace/otlptracegrpc v1.6.3
@@ -239,7 +240,6 @@ require (
 	github.com/cenkalti/backoff/v4 v4.1.2 // indirect
 	github.com/go-logr/stdr v1.2.2 // indirect
 	github.com/grpc-ecosystem/grpc-gateway/v2 v2.7.0 // indirect
-	github.com/jmespath/go-jmespath v0.4.0 // indirect
 	go.opentelemetry.io/otel/exporters/otlp/internal/retry v1.6.3 // indirect
 	go.opentelemetry.io/otel/exporters/otlp/otlptrace v1.6.3 // indirect
 	go.opentelemetry.io/otel/trace v1.6.3 // indirect
