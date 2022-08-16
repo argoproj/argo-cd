@@ -2405,7 +2405,7 @@ func (c *Cluster) RawRestConfig() *rest.Config {
 			CAData:     c.Config.TLSClientConfig.CAData,
 		}
 		if c.Config.AWSAuthConfig != nil {
-			args := []string{"aws", "--cluster-name", c.Config.AWSAuthConfig.ClusterName}
+			args := []string{"eks", "get-token", "--cluster-name", c.Config.AWSAuthConfig.ClusterName}
 			if c.Config.AWSAuthConfig.RoleARN != "" {
 				args = append(args, "--role-arn", c.Config.AWSAuthConfig.RoleARN)
 			}
@@ -2413,8 +2413,8 @@ func (c *Cluster) RawRestConfig() *rest.Config {
 				Host:            c.Server,
 				TLSClientConfig: tlsClientConfig,
 				ExecProvider: &api.ExecConfig{
-					APIVersion:      "client.authentication.k8s.io/v1beta1",
-					Command:         "argocd-k8s-auth",
+					APIVersion:      "client.authentication.k8s.io/v1alpha1",
+					Command:         "aws",
 					Args:            args,
 					InteractiveMode: api.NeverExecInteractiveMode,
 				},
