@@ -927,7 +927,7 @@ func NewApplicationDiffCommand(clientOpts *argocdclient.ClientOptions) *cobra.Co
 					client, err := appIf.GetManifestsWithFiles(ctx, grpc_retry.Disable())
 					errors.CheckError(err)
 
-					err = manifeststream.SendApplicationManifestQueryWithFiles(ctx, client, appName, local, localIncludes)
+					err = manifeststream.SendApplicationManifestQueryWithFiles(ctx, client, appName, appNs, local, localIncludes)
 					errors.CheckError(err)
 
 					res, err := client.CloseAndRecv()
@@ -935,7 +935,7 @@ func NewApplicationDiffCommand(clientOpts *argocdclient.ClientOptions) *cobra.Co
 
 					diffOption.serversideRes = res
 				} else {
-					fmt.Println("Warning: local diff without --server-side-generate is deprecated and does not work with plugins. Server-side generation will be the default in v2.6.")
+					fmt.Fprintf(os.Stderr, "Warning: local diff without --server-side-generate is deprecated and does not work with plugins. Server-side generation will be the default in v2.6.")
 					conn, clusterIf := clientset.NewClusterClientOrDie()
 					defer argoio.Close(conn)
 					cluster, err := clusterIf.Get(ctx, &clusterpkg.ClusterQuery{Name: app.Spec.Destination.Name, Server: app.Spec.Destination.Server})

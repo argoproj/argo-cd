@@ -419,14 +419,18 @@ func (s *Server) GetManifestsWithFiles(stream application.ApplicationService_Get
 		return fmt.Errorf("error getting query: %w", err)
 	}
 
+	if query.Name == nil || *query.Name == "" {
+		return fmt.Errorf("invalid request: application name is missing")
+	}
+
 	appName := query.GetName()
-	appNs := s.appNamespaceOrDefault(q.GetAppNamespace())
+	appNs := s.appNamespaceOrDefault(query.GetAppNamespace())
 	a, err := s.appLister.Applications(appNs).Get(appName)
 
 	if err != nil {
 		return fmt.Errorf("error getting application: %w", err)
 	}
-	if err := s.enf.EnforceErr(ctx.Value("claims"), rbacpolicy.ResourceApplications, rbacpolicy.ActionGet, a.RBACName(*a)); err != nil {
+	if err := s.enf.EnforceErr(ctx.Value("claims"), rbacpolicy.ResourceApplications, rbacpolicy.ActionGet, a.RBACName(s.ns)); err != nil {
 		return err
 	}
 

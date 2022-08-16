@@ -3527,6 +3527,9 @@
     "applicationApplicationManifestQueryWithFiles": {
       "type": "object",
       "properties": {
+        "appNamespace": {
+          "type": "string"
+        },
         "checksum": {
           "type": "string"
         },

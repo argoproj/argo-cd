@@ -38,7 +38,7 @@ type RepoStreamReceiver interface {
 }
 
 // SendApplicationManifestQueryWithFiles compresses a folder and sends it over the stream
-func SendApplicationManifestQueryWithFiles(ctx context.Context, stream ApplicationStreamSender, appName string, dir string, inclusions []string) error {
+func SendApplicationManifestQueryWithFiles(ctx context.Context, stream ApplicationStreamSender, appName string, appNs string, dir string, inclusions []string) error {
 	f, filesWritten, checksum, err := tgzstream.CompressFiles(dir, inclusions, nil)
 	if filesWritten == 0 {
 		return fmt.Errorf("no files to send")
@@ -50,8 +50,9 @@ func SendApplicationManifestQueryWithFiles(ctx context.Context, stream Applicati
 	err = stream.Send(&applicationpkg.ApplicationManifestQueryWithFilesWrapper{
 		Part: &applicationpkg.ApplicationManifestQueryWithFilesWrapper_Query{
 			Query: &applicationpkg.ApplicationManifestQueryWithFiles{
-				Name:     &appName,
-				Checksum: &checksum,
+				Name:         &appName,
+				Checksum:     &checksum,
+				AppNamespace: &appNs,
 			},
 		},
 	})

@@ -69,6 +69,7 @@ message FileChunk {
 message ApplicationManifestQueryWithFiles {
 	required string name = 1;
 	required string checksum = 2;
+	optional string appNamespace = 3;
 }
 
 message ApplicationManifestQueryWithFilesWrapper {
