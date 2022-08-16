@@ -12,7 +12,6 @@ require (
 	github.com/argoproj/gitops-engine v0.7.0
 	github.com/argoproj/notifications-engine v0.3.1-0.20220430155844-567361917320
 	github.com/argoproj/pkg v0.11.1-0.20211203175135-36c59d8fafe0
-	github.com/aws/aws-sdk-go v1.38.49
 	github.com/bombsimon/logrusr/v2 v2.0.1
 	github.com/bradleyfalzon/ghinstallation/v2 v2.0.4
 	github.com/casbin/casbin/v2 v2.39.1
@@ -229,7 +228,6 @@ require (
 	sigs.k8s.io/kustomize/kyaml v0.13.0 // indirect
 )
 
-require (
 	go.opentelemetry.io/contrib/instrumentation/google.golang.org/grpc/otelgrpc v0.31.0
 	go.opentelemetry.io/otel v1.6.3
 	go.opentelemetry.io/otel/exporters/otlp/otlptrace/otlptracegrpc v1.6.3
