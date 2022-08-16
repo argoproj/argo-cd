@@ -308,6 +308,33 @@ export class ApplicationsService {
             .then(res => (res.body.actions as models.ResourceAction[]) || []);
     }
 
+    public getApplicationActions(name: string, appNamespace: string): Promise<models.ResourceAction[]> {
+        return requests
+            .get(`/applications/${name}/resource/actions`)
+            .query({
+                namespace: appNamespace,
+                resourceName: name,
+                version: 'v1alpha1',
+                kind: 'Application',
+                group: 'argoproj.io'
+            })
+            .then(res => (res.body.actions as models.ResourceAction[]) || []);
+    }
+
+    public runApplicationAction(name: string, appNamespace: string, action: string): Promise<models.ResourceAction[]> {
+        return requests
+            .post(`/applications/${name}/resource/actions`)
+            .query({
+                namespace: appNamespace,
+                resourceName: name,
+                version: 'v1alpha1',
+                kind: 'Application',
+                group: 'argoproj.io'
+            })
+            .send(JSON.stringify(action))
+            .then(res => (res.body.actions as models.ResourceAction[]) || []);
+    }
+
     public patchResource(name: string, appNamspace: string, resource: models.ResourceNode, patch: string, patchType: string): Promise<models.State> {
         return requests
             .post(`/applications/${name}/resource`)

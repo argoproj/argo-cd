@@ -614,6 +614,28 @@ export class ApplicationDetails extends React.Component<RouteComponentProps<{app
         const refreshing = app.metadata.annotations && app.metadata.annotations[appModels.AnnotationRefreshKey];
         const fullName = AppUtils.nodeKey({group: 'argoproj.io', kind: app.kind, name: app.metadata.name, namespace: app.metadata.namespace});
         const ActionMenuItem = (prop: {actionLabel: string}) => <span className={needOverlapLabelOnNarrowScreen ? 'show-for-large' : ''}>{prop.actionLabel}</span>;
+        const resourceActions = services.applications
+            .getApplicationActions(app.metadata.name, app.metadata.namespace)
+            .then(actions => {
+                return actions.map(action => ({
+                    title: action.name,
+                    disabled: !!action.disabled,
+                    action: async () => {
+                        try {
+                            const confirmed = await appContext.apis.popup.confirm(`Execute '${action.name}' action?`, `Are you sure you want to execute '${action.name}' action?`);
+                            if (confirmed) {
+                                await services.applications.runApplicationAction(app.metadata.name, app.metadata.namespace, action.name);
+                            }
+                        } catch (e) {
+                            appContext.apis.notifications.show({
+                                content: <ErrorNotification title='Unable to execute resource action' e={e} />,
+                                type: NotificationType.Error
+                            });
+                        }
+                    }
+                }));
+            })
+            .catch(() => items);
         return [
             {
                 iconClassName: 'fa fa-info-circle',
@@ -628,7 +650,14 @@ export class ApplicationDetails extends React.Component<RouteComponentProps<{app
             },
             {
                 iconClassName: 'fa fa-sync',
-                title: <ActionMenuItem actionLabel='Sync' />,
+                title: resourceActions.length ? (
+                    <React.Fragment>
+                        <ActionMenuItem actionLabel='Sync' />
+                        <DropDownMenu items={resourceActions} anchor={() => <i className='fa fa-caret-down' />} />
+                    </React.Fragment>
+                ) : (
+                    <ActionMenuItem actionLabel='Sync' />
+                ),
                 action: () => AppUtils.showDeploy('all', this.appContext)
             },
             {
