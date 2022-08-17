@@ -37,9 +37,8 @@ git clone https://github.com/argoproj/argo-cd.git
 cd argo-cd
 git checkout master
 
-minor_version=$(sed -E 's/\.[0-9]+$//g' VERSION)
-patch_num=$(git tag -l | grep "v$minor_version." | grep -o "[[:digit:]]*$" | sort -g | tail -n 1)
-version="v$minor_version.$patch_num"
+version=$(git tag -l | sort -g | tail -n 1 )
+minor_version=$(echo $version | grep -Eo '[0-9]\.[0-9]+')
 versions="master "
 for i in 1 2 3; do
   if [ "$version" == "" ]; then break; fi
