@@ -145,3 +145,17 @@ syncOptions:
 - FailOnSharedResource=true
 ```
 
+
+## Create Namespace
+
+```yaml
+apiVersion: argoproj.io/v1alpha1
+kind: Application
+metadata:
+  namespace: test
+spec:
+  syncPolicy:
+    syncOptions:
+    - CreateNamespace=true
+```
+The example above shows how an Argo CD Application can be configured so it will create namespaces for the Application resources if the namespaces don't exist already. Without this either declared in the Application manifest or passed in the cli via `--sync-option CreateNamespace=true`, the Application will fail to sync if the resources' namespaces do not exist.
