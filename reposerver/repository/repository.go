@@ -21,6 +21,7 @@ import (
 
 	"k8s.io/apimachinery/pkg/api/resource"
 
+	"github.com/argoproj/argo-cd/v2/common"
 	"github.com/argoproj/argo-cd/v2/util/io/files"
 
 	"github.com/Masterminds/semver/v3"
@@ -324,9 +325,10 @@ func (s *Service) runRepoOperation(
 				oobError := &argopath.OutOfBoundsSymlinkError{}
 				if errors.As(err, &oobError) {
 					log.WithFields(log.Fields{
-						"chart":    source.Chart,
-						"revision": revision,
-						"file":     oobError.File,
+						common.SecurityField: common.SecurityHigh,
+						"chart":              source.Chart,
+						"revision":           revision,
+						"file":               oobError.File,
 					}).Warn("chart contains out-of-bounds symlink")
 					return fmt.Errorf("chart contains out-of-bounds symlinks. file: %s", oobError.File)
 				} else {
@@ -354,9 +356,10 @@ func (s *Service) runRepoOperation(
 				oobError := &argopath.OutOfBoundsSymlinkError{}
 				if errors.As(err, &oobError) {
 					log.WithFields(log.Fields{
-						"repo":     repo.Repo,
-						"revision": revision,
-						"file":     oobError.File,
+						common.SecurityField: common.SecurityHigh,
+						"repo":               repo.Repo,
+						"revision":           revision,
+						"file":               oobError.File,
 					}).Warn("repository contains out-of-bounds symlink")
 					return fmt.Errorf("repository contains out-of-bounds symlinks. file: %s", oobError.File)
 				} else {
