@@ -20,6 +20,7 @@ import (
 	"github.com/argoproj/gitops-engine/pkg/sync/ignore"
 	"github.com/argoproj/gitops-engine/pkg/utils/kube"
 	"github.com/ghodss/yaml"
+	grpc_retry "github.com/grpc-ecosystem/go-grpc-middleware/retry"
 	"github.com/mattn/go-isatty"
 	log "github.com/sirupsen/logrus"
 	"github.com/spf13/cobra"
@@ -51,6 +52,7 @@ import (
 	"github.com/argoproj/argo-cd/v2/util/git"
 	"github.com/argoproj/argo-cd/v2/util/grpc"
 	argoio "github.com/argoproj/argo-cd/v2/util/io"
+	"github.com/argoproj/argo-cd/v2/util/manifeststream"
 	"github.com/argoproj/argo-cd/v2/util/text/label"
 )
 
@@ -890,12 +892,14 @@ type objKeyLiveTarget struct {
 // NewApplicationDiffCommand returns a new instance of an `argocd app diff` command
 func NewApplicationDiffCommand(clientOpts *argocdclient.ClientOptions) *cobra.Command {
 	var (
-		refresh       bool
-		hardRefresh   bool
-		exitCode      bool
-		local         string
-		revision      string
-		localRepoRoot string
+		refresh            bool
+		hardRefresh        bool
+		exitCode           bool
+		local              string
+		revision           string
+		localRepoRoot      string
+		serverSideGenerate bool
+		localIncludes      []string
 	)
 	shortDesc := "Perform a diff against the target and live state."
 	var command = &cobra.Command{
@@ -941,15 +945,28 @@ func NewApplicationDiffCommand(clientOpts *argocdclient.ClientOptions) *cobra.Co
 				errors.CheckError(err)
 				diffOption.res = res
 				diffOption.revision = revision
-			}
-			if local != "" {
-				conn, clusterIf := clientset.NewClusterClientOrDie()
-				defer argoio.Close(conn)
-				cluster, err := clusterIf.Get(ctx, &clusterpkg.ClusterQuery{Name: app.Spec.Destination.Name, Server: app.Spec.Destination.Server})
-				errors.CheckError(err)
-				diffOption.local = local
-				diffOption.localRepoRoot = localRepoRoot
-				diffOption.cluster = cluster
+			} else if local != "" {
+				if serverSideGenerate {
+					client, err := appIf.GetManifestsWithFiles(ctx, grpc_retry.Disable())
+					errors.CheckError(err)
+
+					err = manifeststream.SendApplicationManifestQueryWithFiles(ctx, client, appName, appNs, local, localIncludes)
+					errors.CheckError(err)
+
+					res, err := client.CloseAndRecv()
+					errors.CheckError(err)
+
+					diffOption.serversideRes = res
+				} else {
+					fmt.Fprintf(os.Stderr, "Warning: local diff without --server-side-generate is deprecated and does not work with plugins. Server-side generation will be the default in v2.6.")
+					conn, clusterIf := clientset.NewClusterClientOrDie()
+					defer argoio.Close(conn)
+					cluster, err := clusterIf.Get(ctx, &clusterpkg.ClusterQuery{Name: app.Spec.Destination.Name, Server: app.Spec.Destination.Server})
+					errors.CheckError(err)
+					diffOption.local = local
+					diffOption.localRepoRoot = localRepoRoot
+					diffOption.cluster = cluster
+				}
 			}
 			foundDiffs := findandPrintDiff(ctx, app, resources, argoSettings, appName, diffOption)
 			if foundDiffs && exitCode {
@@ -963,6 +980,8 @@ func NewApplicationDiffCommand(clientOpts *argocdclient.ClientOptions) *cobra.Co
 	command.Flags().StringVar(&local, "local", "", "Compare live app to a local manifests")
 	command.Flags().StringVar(&revision, "revision", "", "Compare live app to a particular revision")
 	command.Flags().StringVar(&localRepoRoot, "local-repo-root", "/", "Path to the repository root. Used together with --local allows setting the repository root")
+	command.Flags().BoolVar(&serverSideGenerate, "server-side-generate", false, "Used with --local, this will send your manifests to the server for diffing")
+	command.Flags().StringArrayVar(&localIncludes, "local-include", []string{"*.yaml", "*.yml", "*.json"}, "Used with --server-side-generate, specify patterns of filenames to send. Matching is based on filename and not path.")
 	return command
 }
 
@@ -973,6 +992,7 @@ type DifferenceOption struct {
 	revision      string
 	cluster       *argoappv1.Cluster
 	res           *repoapiclient.ManifestResponse
+	serversideRes *repoapiclient.ManifestResponse
 }
 
 // findandPrintDiff ... Prints difference between application current state and state stored in git or locally, returns boolean as true if difference is found else returns false
@@ -987,6 +1007,15 @@ func findandPrintDiff(ctx context.Context, app *argoappv1.Application, resources
 	} else if diffOptions.revision != "" {
 		var unstructureds []*unstructured.Unstructured
 		for _, mfst := range diffOptions.res.Manifests {
+			obj, err := argoappv1.UnmarshalToUnstructured(mfst)
+			errors.CheckError(err)
+			unstructureds = append(unstructureds, obj)
+		}
+		groupedObjs := groupObjsByKey(unstructureds, liveObjs, app.Spec.Destination.Namespace)
+		items = groupObjsForDiff(resources, groupedObjs, items, argoSettings, app.Name)
+	} else if diffOptions.serversideRes != nil {
+		var unstructureds []*unstructured.Unstructured
+		for _, mfst := range diffOptions.serversideRes.Manifests {
 			obj, err := argoappv1.UnmarshalToUnstructured(mfst)
 			errors.CheckError(err)
 			unstructureds = append(unstructureds, obj)
