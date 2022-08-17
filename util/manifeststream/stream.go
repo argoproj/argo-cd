@@ -9,7 +9,6 @@ import (
 	"io"
 	"os"
 
-	"github.com/argoproj/argo-cd/v2/common"
 	applicationpkg "github.com/argoproj/argo-cd/v2/pkg/apiclient/application"
 	"github.com/argoproj/argo-cd/v2/reposerver/apiclient"
 	"github.com/argoproj/argo-cd/v2/util/io/files"
@@ -190,7 +189,7 @@ func ReceiveManifestFileStream(ctx context.Context, receiver RepoStreamReceiver,
 	}
 	err = os.Remove(tgzFile.Name())
 	if err != nil {
-		log.WithField(common.SecurityLogField, common.SecurityMedium).Warnf("error removing the tgz file %q: %s", tgzFile.Name(), err)
+		log.Warnf("error removing the tgz file %q: %s", tgzFile.Name(), err)
 	}
 	return request, metadata, nil
 
