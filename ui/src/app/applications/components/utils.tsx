@@ -5,8 +5,8 @@ import * as React from 'react';
 import * as ReactForm from 'react-form';
 import {Text} from 'react-form';
 import * as moment from 'moment';
-import {BehaviorSubject, from, fromEvent, merge, Observable, Observer, Subscription} from 'rxjs';
-import {debounceTime} from 'rxjs/operators';
+import {BehaviorSubject, combineLatest, concat, from, fromEvent, Observable, Observer, Subscription} from 'rxjs';
+import {debounceTime, map} from 'rxjs/operators';
 import {AppContext, Context, ContextApis} from '../../shared/context';
 import {ResourceTreeNode} from './application-resource-tree/application-resource-tree';
 
@@ -321,7 +321,6 @@ function getActionItems(
     appChanged: BehaviorSubject<appModels.Application>,
     isQuickStart: boolean
 ): Observable<ActionMenuItem[]> {
-    let menuItems: Observable<ActionMenuItem[]>;
     const isRoot = resource.root && nodeKey(resource.root) === nodeKey(resource);
     const items: MenuItem[] = [
         ...((isRoot && [
@@ -365,44 +364,51 @@ function getActionItems(
         .then(async settings => {
             const execAllowed = await services.accounts.canI('exec', 'create', application.spec.project + '/' + application.metadata.name);
             if (resource.kind === 'Pod' && settings.execEnabled && execAllowed) {
-                return items.concat([
+                return [
                     {
                         title: 'Exec',
                         iconClassName: 'fa fa-terminal',
                         action: async () => appContext.apis.navigation.goto('.', {node: nodeKey(resource), tab: 'exec'}, {replace: true})
-                    }
-                ]);
+                    } as MenuItem
+                ];
             }
-            return items;
+            return [] as MenuItem[];
         })
-        .catch(() => items);
+        .catch(() => [] as MenuItem[]);
 
     const resourceActions = services.applications
         .getResourceActions(application.metadata.name, resource)
         .then(actions => {
-            return items.concat(
-                actions.map(action => ({
-                    title: action.name,
-                    disabled: !!action.disabled,
-                    action: async () => {
-                        try {
-                            const confirmed = await appContext.apis.popup.confirm(`Execute '${action.name}' action?`, `Are you sure you want to execute '${action.name}' action?`);
-                            if (confirmed) {
-                                await services.applications.runResourceAction(application.metadata.name, resource, action.name);
+            return actions.map(
+                action =>
+                    ({
+                        title: action.name,
+                        disabled: !!action.disabled,
+                        action: async () => {
+                            try {
+                                const confirmed = await appContext.apis.popup.confirm(
+                                    `Execute '${action.name}' action?`,
+                                    `Are you sure you want to execute '${action.name}' action?`
+                                );
+                                if (confirmed) {
+                                    await services.applications.runResourceAction(application.metadata.name, resource, action.name);
+                                }
+                            } catch (e) {
+                                appContext.apis.notifications.show({
+                                    content: <ErrorNotification title='Unable to execute resource action' e={e} />,
+                                    type: NotificationType.Error
+                                });
                             }
-                        } catch (e) {
-                            appContext.apis.notifications.show({
-                                content: <ErrorNotification title='Unable to execute resource action' e={e} />,
-                                type: NotificationType.Error
-                            });
                         }
-                    }
-                }))
+                    } as MenuItem)
             );
         })
-        .catch(() => items);
-    menuItems = merge(from([items]), from(resourceActions), from(execAction));
-    return menuItems;
+        .catch(() => [] as MenuItem[]);
+    return combineLatest(
+        from([items]), // this resolves immediately
+        concat([[] as MenuItem[]], resourceActions), // this resolves at first to [] and then whatever the API returns
+        concat([[] as MenuItem[]], execAction) // this resolves at first to [] and then whatever the API returns
+    ).pipe(map(res => ([] as MenuItem[]).concat(...res)));
 }
 
 export function renderResourceMenu(
