@@ -56,9 +56,31 @@ without reading knowing of annotation format and reading notification configmap.
 
 Three read-only API endpoints will be added to provide a list of notification services, triggers, and templates.
 
+```
+message Triggers { repeated string triggers = 1; }
+message TriggersListRequest {}
+message Services { repeated string services = 1; }
+message ServicesListRequest {}
+message Templates { repeated string templates = 1; }
+message TemplatesListRequest {}
+service NotificationService {
+	rpc ListTriggers(TriggersListRequest) returns (Triggers) {
+		option (google.api.http).get = "/api/v1/notifications/triggers";
+	}
+	rpc ListServices(ServicesListRequest) returns (Services) {
+		option (google.api.http).get = "/api/v1/notifications/services";
+	}
+	rpc ListTemplates(TemplatesListRequest) returns (Templates) {
+		option (google.api.http).get = "/api/v1/notifications/templates";
+	}
+}
+```
+
 ### Detailed examples
 
 ### Security Considerations
+
+New API endpoints are available only for authenticated users.  API endpoints response does not contain any sensitive data.
 
 ### Risks and Mitigations
 
