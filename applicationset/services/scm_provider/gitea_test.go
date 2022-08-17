@@ -5,12 +5,12 @@ import (
 	"io"
 	"net/http"
 	"net/http/httptest"
-	"os"
 	"testing"
 
 	"github.com/stretchr/testify/assert"
 	"github.com/stretchr/testify/require"
 
+	"github.com/argoproj/argo-cd/v2/applicationset/services/scm_provider/testdata"
 	"github.com/argoproj/argo-cd/v2/pkg/apis/applicationset/v1alpha1"
 )
 
@@ -244,9 +244,7 @@ func giteaMockHandler(t *testing.T) func(http.ResponseWriter, *http.Request) {
 `)
 			require.NoError(t, err)
 		case "/api/v1/repos/gitea/go-sdk/contents/gitea?ref=master":
-			response, err := os.ReadFile("testdata/repos_gitea_go-sdk_contents_gitea.json")
-			require.NoError(t, err)
-			_, err = io.WriteString(w, string(response))
+			_, err := io.WriteString(w, testdata.ReposGiteaGoSdkContentsGiteaResponse)
 			require.NoError(t, err)
 		case "/api/v1/repos/gitea/go-sdk/contents/notathing?ref=master":
 			w.WriteHeader(404)
