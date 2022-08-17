@@ -460,8 +460,7 @@ func (s *Service) GenerateManifestWithFiles(stream apiclient.RepoServerService_G
 	defer func() {
 		if err := os.RemoveAll(workDir); err != nil {
 			// we panic here as the workDir may contain sensitive information
-			// TODO: add security logging
-			log.Errorf("error removing generate manifest workdir: %v", err)
+			log.WithField(common.SecurityField, common.SecurityCritical).Errorf("error removing generate manifest workdir: %v", err)
 			panic(fmt.Sprintf("error removing generate manifest workdir: %s", err))
 		}
 	}()
@@ -478,7 +477,8 @@ func (s *Service) GenerateManifestWithFiles(stream apiclient.RepoServerService_G
 			oobError := &argopath.OutOfBoundsSymlinkError{}
 			if errors.As(err, &oobError) {
 				log.WithFields(log.Fields{
-					"file": oobError.File,
+					common.SecurityField: common.SecurityHigh,
+					"file":               oobError.File,
 				}).Warn("streamed files contains out-of-bounds symlink")
 				return fmt.Errorf("streamed files contains out-of-bounds symlinks. file: %s", oobError.File)
 			} else {
