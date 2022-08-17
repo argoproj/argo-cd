@@ -218,7 +218,7 @@ func (s *Server) Create(ctx context.Context, q *application.ApplicationCreateReq
 		if a.Spec.Source.Plugin != nil && a.Spec.Source.Plugin.Name != "" {
 			log.WithFields(map[string]interface{}{
 				"application": a.Name,
-				"plugin": a.Spec.Source.Plugin.Name,
+				"plugin":      a.Spec.Source.Plugin.Name,
 			}).Warnf(argocommon.ConfigMapPluginDeprecationWarning)
 		}
 
@@ -337,7 +337,7 @@ func (s *Server) GetManifests(ctx context.Context, q *application.ApplicationMan
 	if a.Spec.Source.Plugin != nil && a.Spec.Source.Plugin.Name != "" {
 		log.WithFields(map[string]interface{}{
 			"application": a.Name,
-			"plugin": a.Spec.Source.Plugin.Name,
+			"plugin":      a.Spec.Source.Plugin.Name,
 		}).Warnf(argocommon.ConfigMapPluginDeprecationWarning)
 	}
 
@@ -562,9 +562,11 @@ func (s *Server) Get(ctx context.Context, q *application.ApplicationQuery) (*app
 	if a.Spec.Source.Plugin != nil && a.Spec.Source.Plugin.Name != "" {
 		log.WithFields(map[string]interface{}{
 			"application": a.Name,
-			"plugin": a.Spec.Source.Plugin.Name,
+			"plugin":      a.Spec.Source.Plugin.Name,
 		}).Warnf(argocommon.ConfigMapPluginDeprecationWarning)
 	}
+
+	s.inferResourcesStatusHealth(a)
 
 	if q.Refresh == nil {
 		return a, nil
@@ -654,7 +656,7 @@ func (s *Server) ListResourceEvents(ctx context.Context, q *application.Applicat
 	if a.Spec.Source.Plugin != nil && a.Spec.Source.Plugin.Name != "" {
 		log.WithFields(map[string]interface{}{
 			"application": a.Name,
-			"plugin": a.Spec.Source.Plugin.Name,
+			"plugin":      a.Spec.Source.Plugin.Name,
 		}).Warnf(argocommon.ConfigMapPluginDeprecationWarning)
 	}
 
@@ -809,6 +811,7 @@ func (s *Server) updateApp(app *appv1.Application, newApp *appv1.Application, ct
 		if err != nil {
 			return nil, fmt.Errorf("error getting application: %w", err)
 		}
+		s.inferResourcesStatusHealth(app)
 	}
 	return nil, status.Errorf(codes.Internal, "Failed to update application. Too many conflicts")
 }
@@ -826,7 +829,7 @@ func (s *Server) Update(ctx context.Context, q *application.ApplicationUpdateReq
 	if a.Spec.Source.Plugin != nil && a.Spec.Source.Plugin.Name != "" {
 		log.WithFields(map[string]interface{}{
 			"application": a.Name,
-			"plugin": a.Spec.Source.Plugin.Name,
+			"plugin":      a.Spec.Source.Plugin.Name,
 		}).Warnf(argocommon.ConfigMapPluginDeprecationWarning)
 	}
 
@@ -855,7 +858,7 @@ func (s *Server) UpdateSpec(ctx context.Context, q *application.ApplicationUpdat
 	if a.Spec.Source.Plugin != nil && a.Spec.Source.Plugin.Name != "" {
 		log.WithFields(map[string]interface{}{
 			"application": a.Name,
-			"plugin": a.Spec.Source.Plugin.Name,
+			"plugin":      a.Spec.Source.Plugin.Name,
 		}).Warnf(argocommon.ConfigMapPluginDeprecationWarning)
 	}
 
@@ -887,7 +890,7 @@ func (s *Server) Patch(ctx context.Context, q *application.ApplicationPatchReque
 	if app.Spec.Source.Plugin != nil && app.Spec.Source.Plugin.Name != "" {
 		log.WithFields(map[string]interface{}{
 			"application": app.Name,
-			"plugin": app.Spec.Source.Plugin.Name,
+			"plugin":      app.Spec.Source.Plugin.Name,
 		}).Warnf(argocommon.ConfigMapPluginDeprecationWarning)
 	}
 
@@ -944,7 +947,7 @@ func (s *Server) Delete(ctx context.Context, q *application.ApplicationDeleteReq
 	if a.Spec.Source.Plugin != nil && a.Spec.Source.Plugin.Name != "" {
 		log.WithFields(map[string]interface{}{
 			"application": a.Name,
-			"plugin": a.Spec.Source.Plugin.Name,
+			"plugin":      a.Spec.Source.Plugin.Name,
 		}).Warnf(argocommon.ConfigMapPluginDeprecationWarning)
 	}
 
@@ -1038,6 +1041,7 @@ func (s *Server) Watch(q *application.ApplicationQuery, ws application.Applicati
 			// do not emit apps user does not have accessing
 			return
 		}
+		s.inferResourcesStatusHealth(&a)
 		err := ws.Send(&appv1.ApplicationWatchEvent{
 			Type:        eventType,
 			Application: a,
@@ -1356,7 +1360,7 @@ func (s *Server) ResourceTree(ctx context.Context, q *application.ResourcesQuery
 	if a.Spec.Source.Plugin != nil && a.Spec.Source.Plugin.Name != "" {
 		log.WithFields(map[string]interface{}{
 			"application": a.Name,
-			"plugin": a.Spec.Source.Plugin.Name,
+			"plugin":      a.Spec.Source.Plugin.Name,
 		}).Warnf(argocommon.ConfigMapPluginDeprecationWarning)
 	}
 
@@ -1399,7 +1403,7 @@ func (s *Server) RevisionMetadata(ctx context.Context, q *application.RevisionMe
 	if a.Spec.Source.Plugin != nil && a.Spec.Source.Plugin.Name != "" {
 		log.WithFields(map[string]interface{}{
 			"application": a.Name,
-			"plugin": a.Spec.Source.Plugin.Name,
+			"plugin":      a.Spec.Source.Plugin.Name,
 		}).Warnf(argocommon.ConfigMapPluginDeprecationWarning)
 	}
 
@@ -1446,7 +1450,7 @@ func (s *Server) ManagedResources(ctx context.Context, q *application.ResourcesQ
 	if a.Spec.Source.Plugin != nil && a.Spec.Source.Plugin.Name != "" {
 		log.WithFields(map[string]interface{}{
 			"application": a.Name,
-			"plugin": a.Spec.Source.Plugin.Name,
+			"plugin":      a.Spec.Source.Plugin.Name,
 		}).Warnf(argocommon.ConfigMapPluginDeprecationWarning)
 	}
 
@@ -1516,7 +1520,7 @@ func (s *Server) PodLogs(q *application.ApplicationPodLogsQuery, ws application.
 	if a.Spec.Source.Plugin != nil && a.Spec.Source.Plugin.Name != "" {
 		log.WithFields(map[string]interface{}{
 			"application": a.Name,
-			"plugin": a.Spec.Source.Plugin.Name,
+			"plugin":      a.Spec.Source.Plugin.Name,
 		}).Warnf(argocommon.ConfigMapPluginDeprecationWarning)
 	}
 
@@ -1724,6 +1728,8 @@ func (s *Server) Sync(ctx context.Context, syncReq *application.ApplicationSyncR
 		return a, fmt.Errorf("error getting app project: %w", err)
 	}
 
+	s.inferResourcesStatusHealth(a)
+
 	if !proj.Spec.SyncWindows.Matches(a).CanSync(true) {
 		return a, status.Errorf(codes.PermissionDenied, "cannot sync: blocked by sync window")
 	}
@@ -1735,7 +1741,7 @@ func (s *Server) Sync(ctx context.Context, syncReq *application.ApplicationSyncR
 	if a.Spec.Source.Plugin != nil && a.Spec.Source.Plugin.Name != "" {
 		log.WithFields(map[string]interface{}{
 			"application": a.Name,
-			"plugin": a.Spec.Source.Plugin.Name,
+			"plugin":      a.Spec.Source.Plugin.Name,
 		}).Warnf(argocommon.ConfigMapPluginDeprecationWarning)
 	}
 
@@ -1834,9 +1840,11 @@ func (s *Server) Rollback(ctx context.Context, rollbackReq *application.Applicat
 	if a.Spec.Source.Plugin != nil && a.Spec.Source.Plugin.Name != "" {
 		log.WithFields(map[string]interface{}{
 			"application": a.Name,
-			"plugin": a.Spec.Source.Plugin.Name,
+			"plugin":      a.Spec.Source.Plugin.Name,
 		}).Warnf(argocommon.ConfigMapPluginDeprecationWarning)
 	}
+
+	s.inferResourcesStatusHealth(a)
 
 	if a.DeletionTimestamp != nil {
 		return nil, status.Errorf(codes.FailedPrecondition, "application is deleting")
@@ -2180,7 +2188,7 @@ func (s *Server) GetApplicationSyncWindows(ctx context.Context, q *application.A
 	if a.Spec.Source.Plugin != nil && a.Spec.Source.Plugin.Name != "" {
 		log.WithFields(map[string]interface{}{
 			"application": a.Name,
-			"plugin": a.Spec.Source.Plugin.Name,
+			"plugin":      a.Spec.Source.Plugin.Name,
 		}).Warnf(argocommon.ConfigMapPluginDeprecationWarning)
 	}
 
@@ -2199,6 +2207,22 @@ func (s *Server) GetApplicationSyncWindows(ctx context.Context, q *application.A
 	}
 
 	return res, nil
+}
+
+func (s *Server) inferResourcesStatusHealth(app *v1alpha1.Application) {
+	if app.Status.ResourceHealthSource == v1alpha1.ResourceHealthLocationAppTree {
+		tree := &v1alpha1.ApplicationTree{}
+		if err := s.cache.GetAppResourcesTree(app.Name, tree); err == nil {
+			healthByKey := map[kube.ResourceKey]*v1alpha1.HealthStatus{}
+			for _, node := range tree.Nodes {
+				healthByKey[kube.NewResourceKey(node.Group, node.Kind, node.Namespace, node.Name)] = node.Health
+			}
+			for i, res := range app.Status.Resources {
+				res.Health = healthByKey[kube.NewResourceKey(res.Group, res.Kind, res.Namespace, res.Name)]
+				app.Status.Resources[i] = res
+			}
+		}
+	}
 }
 
 func convertSyncWindows(w *v1alpha1.SyncWindows) []*application.ApplicationSyncWindow {

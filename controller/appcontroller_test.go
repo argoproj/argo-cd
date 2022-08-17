@@ -109,6 +109,7 @@ func newFakeController(data *fakeData) *ApplicationController {
 		data.metricsCacheExpiration,
 		[]string{},
 		0,
+		true,
 		nil,
 		[]string{},
 	)
