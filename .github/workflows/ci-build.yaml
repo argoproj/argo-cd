@@ -9,6 +9,7 @@ on:
   pull_request:
     branches:
       - 'master'
+      - 'release-*'
 
 env:
   # Golang version to use across CI steps
@@ -270,72 +271,6 @@ jobs:
       - name: Run ESLint
         run: yarn lint
         working-directory: ui/
-
-  analyze:
-    name: Process & analyze test artifacts
-    runs-on: ubuntu-latest
-    needs:
-      - test-go
-      - build-ui
-    env:
-      sonar_secret: ${{ secrets.SONAR_TOKEN }}
-    steps:
-      - name: Checkout code
-        uses: actions/checkout@v2
-        with:
-          fetch-depth: 0
-      - name: Restore node dependency cache
-        id: cache-dependencies
-        uses: actions/cache@v1
-        with:
-          path: ui/node_modules
-          key: ${{ runner.os }}-node-dep-v2-${{ hashFiles('**/yarn.lock') }}
-      - name: Remove other node_modules directory
-        run: |
-          rm -rf ui/node_modules/argo-ui/node_modules
-      - name: Create test-results directory
-        run: |
-          mkdir -p test-results
-      - name: Get code coverage artifiact
-        uses: actions/download-artifact@v2
-        with:
-          name: code-coverage
-      - name: Get test result artifact
-        uses: actions/download-artifact@v2
-        with:
-          name: test-results
-          path: test-results
-      - name: Upload code coverage information to codecov.io
-        uses: codecov/codecov-action@v1
-        with:
-          file: coverage.out
-      - name: Perform static code analysis using SonarCloud
-        env:
-          GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
-          SONAR_TOKEN: ${{ secrets.SONAR_TOKEN }}
-          SCANNER_VERSION: 4.2.0.1873
-          SCANNER_PATH: /tmp/cache/scanner
-          OS: linux
-        run: |
-            # We do not use the provided action, because it does contain an old
-            # version of the scanner, and also takes time to build.
-            set -e
-            mkdir -p ${SCANNER_PATH}
-            export SONAR_USER_HOME=${SCANNER_PATH}/.sonar
-            if [[ ! -x "${SCANNER_PATH}/sonar-scanner-${SCANNER_VERSION}-${OS}/bin/sonar-scanner" ]]; then
-              curl -Ol https://binaries.sonarsource.com/Distribution/sonar-scanner-cli/sonar-scanner-cli-${SCANNER_VERSION}-${OS}.zip
-              unzip -qq -o sonar-scanner-cli-${SCANNER_VERSION}-${OS}.zip -d ${SCANNER_PATH}
-            fi
-
-            chmod +x ${SCANNER_PATH}/sonar-scanner-${SCANNER_VERSION}-${OS}/bin/sonar-scanner
-            chmod +x ${SCANNER_PATH}/sonar-scanner-${SCANNER_VERSION}-${OS}/jre/bin/java
-
-            # Explicitly set NODE_MODULES
-            export NODE_MODULES=${PWD}/ui/node_modules
-            export NODE_PATH=${PWD}/ui/node_modules
-
-            ${SCANNER_PATH}/sonar-scanner-${SCANNER_VERSION}-${OS}/bin/sonar-scanner
-        if: env.sonar_secret != ''
 
   test-e2e:
     name: Run end-to-end tests
