@@ -35,7 +35,7 @@ spec:
           runAsNonRoot: true
       containers:
       - name: dex
-        image: ghcr.io/dexidp/dex:v2.30.2
+        image: ghcr.io/dexidp/dex:v2.32.0
         imagePullPolicy: Always
         command: [/shared/argocd-dex, rundex]
         securityContext:

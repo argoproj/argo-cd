@@ -9,7 +9,7 @@ require (
 	github.com/TomOnTime/utfutil v0.0.0-20180511104225-09c41003ee1d
 	github.com/alicebob/miniredis v2.5.0+incompatible
 	github.com/alicebob/miniredis/v2 v2.14.2
-	github.com/argoproj/gitops-engine v0.7.0
+	github.com/argoproj/gitops-engine v0.7.1
 	github.com/argoproj/notifications-engine v0.3.1-0.20220430155844-567361917320
 	github.com/argoproj/pkg v0.11.1-0.20211203175135-36c59d8fafe0
 	github.com/aws/aws-sdk-go v1.38.49
@@ -258,6 +258,9 @@ replace (
 	github.com/gorilla/websocket => github.com/gorilla/websocket v1.4.2
 	github.com/grpc-ecosystem/grpc-gateway => github.com/grpc-ecosystem/grpc-gateway v1.16.0
 	github.com/improbable-eng/grpc-web => github.com/improbable-eng/grpc-web v0.0.0-20181111100011-16092bd1d58a
+
+	// Avoid CVE-2022-28948
+	gopkg.in/yaml.v3 => gopkg.in/yaml.v3 v3.0.1
 
 	// https://github.com/kubernetes/kubernetes/issues/79384#issuecomment-505627280
 	k8s.io/api => k8s.io/api v0.23.1

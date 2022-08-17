@@ -2628,6 +2628,7 @@ func TestGetCAPath(t *testing.T) {
 		"oci://bar.example.com",
 		"bar.example.com",
 		"ssh://foo.example.com",
+		"git@example.com:organization/reponame.git",
 		"/some/invalid/thing",
 		"../another/invalid/thing",
 		"./also/invalid",

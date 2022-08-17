@@ -69,11 +69,16 @@ spec:
     kustomize:
       # Optional kustomize version. Note: version must be configured in argocd-cm ConfigMap
       version: v3.5.4
-      # Optional image name prefix
+      # Supported kustomize transformers. https://kubectl.docs.kubernetes.io/references/kustomize/kustomization/
       namePrefix: prod-
-      # Optional images passed to "kustomize edit set image".
+      nameSuffix: -some-suffix
+      commonLabels:
+        foo: bar
+      commonAnnotations:
+        beep: boop
       images:
       - gcr.io/heptio-images/ks-guestbook-demo:0.2
+      - my-app=gcr.io/my-repo/my-app:0.1
 
     # directory
     directory:
@@ -92,6 +97,12 @@ spec:
         - code: false
           name: foo
           value: bar
+      # Exclude contains a glob pattern to match paths against that should be explicitly excluded from being used during
+      # manifest generation. This takes precedence over the `include` field.
+      exclude: string
+      # Include contains a glob pattern to match paths against that should be explicitly included during manifest
+      # generation. If this field is set, only matching manifests will be included.
+      include: string
 
     # plugin specific config
     plugin:

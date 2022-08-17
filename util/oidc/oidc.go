@@ -190,7 +190,7 @@ func (a *ClientApp) verifyAppState(r *http.Request, w http.ResponseWriter, state
 	redirectURL := a.baseHRef
 	parts := strings.SplitN(cookieVal, ":", 2)
 	if len(parts) == 2 && parts[1] != "" {
-		if !isValidRedirectURL(parts[1], []string{a.settings.URL}) {
+		if !isValidRedirectURL(parts[1], []string{a.settings.URL, a.baseHRef}) {
 			sanitizedUrl := parts[1]
 			if len(sanitizedUrl) > 100 {
 				sanitizedUrl = sanitizedUrl[:100]
