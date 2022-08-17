@@ -146,8 +146,6 @@ github.com/antonmedv/expr v1.8.9/go.mod h1:5qsM3oLGDND7sDmQGDXHkYfkjYMUX14qsgqmH
 github.com/apache/thrift v0.12.0/go.mod h1:cp2SuWMxlEZw2r+iP2GNCdIi4C1qmUzdZFSVb+bacwQ=
 github.com/apache/thrift v0.13.0/go.mod h1:cp2SuWMxlEZw2r+iP2GNCdIi4C1qmUzdZFSVb+bacwQ=
 github.com/appscode/go v0.0.0-20190808133642-1d4ef1f1c1e0/go.mod h1:iy07dV61Z7QQdCKJCIvUoDL21u6AIceRhZzyleh2ymc=
-github.com/argoproj/gitops-engine v0.7.0 h1:X6W8VP9bWTe74wWxAV3i8KZ0yBmre5DU8g+GWH09FCo=
-github.com/argoproj/gitops-engine v0.7.0/go.mod h1:pRgVpLW7pZqf7n3COJ7UcDepk4cI61LAcJd64Q3Jq/c=
 github.com/argoproj/notifications-engine v0.3.1-0.20220430155844-567361917320 h1:XDjtTfccs4rSOT1n+i1zV9RpxQdKky1b4YBic16E0qY=
 github.com/argoproj/notifications-engine v0.3.1-0.20220430155844-567361917320/go.mod h1:R3zlopt+/juYlebQc9Jarn9vBQ2xZruWOWjUNkfGY9M=
 github.com/argoproj/pkg v0.11.1-0.20211203175135-36c59d8fafe0 h1:Cfp7rO/HpVxnwlRqJe0jHiBbZ77ZgXhB6HWlYD02Xdc=
@@ -750,6 +748,8 @@ github.com/kr/text v0.2.0/go.mod h1:eLer722TekiGuMkidMxC/pM04lWEeraHUUmBw8l2grE=
 github.com/ktrysmt/go-bitbucket v0.9.40 h1:LcvdyW7u58vfbUi9bCQB+ihyqDzoy+9WBq/odmBsXrg=
 github.com/ktrysmt/go-bitbucket v0.9.40/go.mod h1:FWxy2UK7GlK5b0NSJGc5hPqnssVlkNnsChvyuOf/Xno=
 github.com/leodido/go-urn v1.1.0/go.mod h1:+cyI34gQWZcE1eQU7NVgKkkzdXDQHr1dBMtdAPozLkw=
+github.com/leoluz/gitops-engine v0.4.1-0.20220817185308-adcd3b6efd37 h1:kjVTNpj419H8D4v6QNiF6UdL4AULYOaE6A99X0Pbkoc=
+github.com/leoluz/gitops-engine v0.4.1-0.20220817185308-adcd3b6efd37/go.mod h1:pRgVpLW7pZqf7n3COJ7UcDepk4cI61LAcJd64Q3Jq/c=
 github.com/libopenstorage/openstorage v1.0.0/go.mod h1:Sp1sIObHjat1BeXhfMqLZ14wnOzEhNx2YQedreMcUyc=
 github.com/liggitt/tabwriter v0.0.0-20181228230101-89fcab3d43de h1:9TO3cAIGXtEhnIaL+V+BEER86oLrvS+kWobKpbJuye0=
 github.com/liggitt/tabwriter v0.0.0-20181228230101-89fcab3d43de/go.mod h1:zAbeS9B/r2mtpb6U+EI2rYA5OAXxsYw6wTamcNW+zcE=
