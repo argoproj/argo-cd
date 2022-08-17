@@ -127,7 +127,7 @@ func NewServer(
 		projInformer:      projInformer,
 		enabledNamespaces: enabledNamespaces,
 	}
-	return s, s.GetAppResources
+	return s, s.getAppResources
 }
 
 // List returns list of applications
@@ -215,6 +215,13 @@ func (s *Server) Create(ctx context.Context, q *application.ApplicationCreateReq
 
 	created, err := s.appclientset.ArgoprojV1alpha1().Applications(appNs).Create(ctx, a, metav1.CreateOptions{})
 	if err == nil {
+		if a.Spec.Source.Plugin != nil && a.Spec.Source.Plugin.Name != "" {
+			log.WithFields(map[string]interface{}{
+				"application": a.Name,
+				"plugin": a.Spec.Source.Plugin.Name,
+			}).Warnf(argocommon.ConfigMapPluginDeprecationWarning)
+		}
+
 		s.logAppEvent(created, ctx, argo.EventReasonResourceCreated, "created application")
 		s.waitSync(created)
 		return created, nil
@@ -327,6 +334,13 @@ func (s *Server) GetManifests(ctx context.Context, q *application.ApplicationMan
 		return nil, err
 	}
 
+	if a.Spec.Source.Plugin != nil && a.Spec.Source.Plugin.Name != "" {
+		log.WithFields(map[string]interface{}{
+			"application": a.Name,
+			"plugin": a.Spec.Source.Plugin.Name,
+		}).Warnf(argocommon.ConfigMapPluginDeprecationWarning)
+	}
+
 	if !s.isNamespaceEnabled(a.Namespace) {
 		return nil, namespaceNotPermittedError(a.Namespace)
 	}
@@ -429,6 +443,14 @@ func (s *Server) Get(ctx context.Context, q *application.ApplicationQuery) (*app
 	if err := s.enf.EnforceErr(ctx.Value("claims"), rbacpolicy.ResourceApplications, rbacpolicy.ActionGet, a.RBACName(s.ns)); err != nil {
 		return nil, err
 	}
+
+	if a.Spec.Source.Plugin != nil && a.Spec.Source.Plugin.Name != "" {
+		log.WithFields(map[string]interface{}{
+			"application": a.Name,
+			"plugin": a.Spec.Source.Plugin.Name,
+		}).Warnf(argocommon.ConfigMapPluginDeprecationWarning)
+	}
+
 	if q.Refresh == nil {
 		return a, nil
 	}
@@ -513,6 +535,14 @@ func (s *Server) ListResourceEvents(ctx context.Context, q *application.Applicat
 	if err := s.enf.EnforceErr(ctx.Value("claims"), rbacpolicy.ResourceApplications, rbacpolicy.ActionGet, a.RBACName(s.ns)); err != nil {
 		return nil, err
 	}
+
+	if a.Spec.Source.Plugin != nil && a.Spec.Source.Plugin.Name != "" {
+		log.WithFields(map[string]interface{}{
+			"application": a.Name,
+			"plugin": a.Spec.Source.Plugin.Name,
+		}).Warnf(argocommon.ConfigMapPluginDeprecationWarning)
+	}
+
 	var (
 		kubeClientset kubernetes.Interface
 		fieldSelector string
@@ -530,7 +560,7 @@ func (s *Server) ListResourceEvents(ctx context.Context, q *application.Applicat
 			"involvedObject.namespace": a.Namespace,
 		}).String()
 	} else {
-		tree, err := s.GetAppResources(ctx, a)
+		tree, err := s.getAppResources(ctx, a)
 		if err != nil {
 			return nil, fmt.Errorf("error getting app resources: %w", err)
 		}
@@ -678,6 +708,13 @@ func (s *Server) Update(ctx context.Context, q *application.ApplicationUpdateReq
 		return nil, err
 	}
 
+	if a.Spec.Source.Plugin != nil && a.Spec.Source.Plugin.Name != "" {
+		log.WithFields(map[string]interface{}{
+			"application": a.Name,
+			"plugin": a.Spec.Source.Plugin.Name,
+		}).Warnf(argocommon.ConfigMapPluginDeprecationWarning)
+	}
+
 	validate := true
 	if q.Validate != nil {
 		validate = *q.Validate
@@ -699,6 +736,14 @@ func (s *Server) UpdateSpec(ctx context.Context, q *application.ApplicationUpdat
 	if err := s.enf.EnforceErr(ctx.Value("claims"), rbacpolicy.ResourceApplications, rbacpolicy.ActionUpdate, a.RBACName(s.ns)); err != nil {
 		return nil, err
 	}
+
+	if a.Spec.Source.Plugin != nil && a.Spec.Source.Plugin.Name != "" {
+		log.WithFields(map[string]interface{}{
+			"application": a.Name,
+			"plugin": a.Spec.Source.Plugin.Name,
+		}).Warnf(argocommon.ConfigMapPluginDeprecationWarning)
+	}
+
 	a.Spec = *q.GetSpec()
 	validate := true
 	if q.Validate != nil {
@@ -722,6 +767,13 @@ func (s *Server) Patch(ctx context.Context, q *application.ApplicationPatchReque
 
 	if err = s.enf.EnforceErr(ctx.Value("claims"), rbacpolicy.ResourceApplications, rbacpolicy.ActionUpdate, app.RBACName(s.ns)); err != nil {
 		return nil, err
+	}
+
+	if app.Spec.Source.Plugin != nil && app.Spec.Source.Plugin.Name != "" {
+		log.WithFields(map[string]interface{}{
+			"application": app.Name,
+			"plugin": app.Spec.Source.Plugin.Name,
+		}).Warnf(argocommon.ConfigMapPluginDeprecationWarning)
 	}
 
 	jsonApp, err := json.Marshal(app)
@@ -772,6 +824,13 @@ func (s *Server) Delete(ctx context.Context, q *application.ApplicationDeleteReq
 
 	if err := s.enf.EnforceErr(ctx.Value("claims"), rbacpolicy.ResourceApplications, rbacpolicy.ActionDelete, a.RBACName(s.ns)); err != nil {
 		return nil, err
+	}
+
+	if a.Spec.Source.Plugin != nil && a.Spec.Source.Plugin.Name != "" {
+		log.WithFields(map[string]interface{}{
+			"application": a.Name,
+			"plugin": a.Spec.Source.Plugin.Name,
+		}).Warnf(argocommon.ConfigMapPluginDeprecationWarning)
 	}
 
 	if q.Cascade != nil && !*q.Cascade && q.GetPropagationPolicy() != "" {
@@ -1013,7 +1072,7 @@ func (s *Server) getCachedAppState(ctx context.Context, a *appv1.Application, ge
 	return err
 }
 
-func (s *Server) GetAppResources(ctx context.Context, a *appv1.Application) (*appv1.ApplicationTree, error) {
+func (s *Server) getAppResources(ctx context.Context, a *appv1.Application) (*appv1.ApplicationTree, error) {
 	var tree appv1.ApplicationTree
 	err := s.getCachedAppState(ctx, a, func() error {
 		return s.cache.GetAppResourcesTree(a.InstanceName(s.ns), &tree)
@@ -1035,7 +1094,7 @@ func (s *Server) getAppLiveResource(ctx context.Context, action string, q *appli
 		return nil, nil, nil, err
 	}
 
-	tree, err := s.GetAppResources(ctx, a)
+	tree, err := s.getAppResources(ctx, a)
 	if err != nil {
 		return nil, nil, nil, fmt.Errorf("error getting app resources: %w", err)
 	}
@@ -1178,7 +1237,15 @@ func (s *Server) ResourceTree(ctx context.Context, q *application.ResourcesQuery
 	if err := s.enf.EnforceErr(ctx.Value("claims"), rbacpolicy.ResourceApplications, rbacpolicy.ActionGet, a.RBACName(s.ns)); err != nil {
 		return nil, err
 	}
-	return s.GetAppResources(ctx, a)
+
+	if a.Spec.Source.Plugin != nil && a.Spec.Source.Plugin.Name != "" {
+		log.WithFields(map[string]interface{}{
+			"application": a.Name,
+			"plugin": a.Spec.Source.Plugin.Name,
+		}).Warnf(argocommon.ConfigMapPluginDeprecationWarning)
+	}
+
+	return s.getAppResources(ctx, a)
 }
 
 func (s *Server) WatchResourceTree(q *application.ResourcesQuery, ws application.ApplicationService_WatchResourceTreeServer) error {
@@ -1213,6 +1280,14 @@ func (s *Server) RevisionMetadata(ctx context.Context, q *application.RevisionMe
 	if err := s.enf.EnforceErr(ctx.Value("claims"), rbacpolicy.ResourceApplications, rbacpolicy.ActionGet, a.RBACName(s.ns)); err != nil {
 		return nil, err
 	}
+
+	if a.Spec.Source.Plugin != nil && a.Spec.Source.Plugin.Name != "" {
+		log.WithFields(map[string]interface{}{
+			"application": a.Name,
+			"plugin": a.Spec.Source.Plugin.Name,
+		}).Warnf(argocommon.ConfigMapPluginDeprecationWarning)
+	}
+
 	repo, err := s.db.GetRepository(ctx, a.Spec.Source.RepoURL)
 	if err != nil {
 		return nil, fmt.Errorf("error getting repository by URL: %w", err)
@@ -1252,6 +1327,14 @@ func (s *Server) ManagedResources(ctx context.Context, q *application.ResourcesQ
 	if err := s.enf.EnforceErr(ctx.Value("claims"), rbacpolicy.ResourceApplications, rbacpolicy.ActionGet, a.RBACName(s.ns)); err != nil {
 		return nil, fmt.Errorf("error verifying rbac: %w", err)
 	}
+
+	if a.Spec.Source.Plugin != nil && a.Spec.Source.Plugin.Name != "" {
+		log.WithFields(map[string]interface{}{
+			"application": a.Name,
+			"plugin": a.Spec.Source.Plugin.Name,
+		}).Warnf(argocommon.ConfigMapPluginDeprecationWarning)
+	}
+
 	items := make([]*appv1.ResourceDiff, 0)
 	err = s.getCachedAppState(ctx, a, func() error {
 		return s.cache.GetAppManagedResources(a.InstanceName(s.ns), &items)
@@ -1315,6 +1398,13 @@ func (s *Server) PodLogs(q *application.ApplicationPodLogsQuery, ws application.
 		return err
 	}
 
+	if a.Spec.Source.Plugin != nil && a.Spec.Source.Plugin.Name != "" {
+		log.WithFields(map[string]interface{}{
+			"application": a.Name,
+			"plugin": a.Spec.Source.Plugin.Name,
+		}).Warnf(argocommon.ConfigMapPluginDeprecationWarning)
+	}
+
 	// Temporarily, logs RBAC will be enforced only if an internal var serverRBACLogEnforceEnable (representing server.rbac.log.enforce.enable env var)
 	// is defined and has a "true" value
 	// Otherwise, no RBAC enforcement for logs will take place (meaning, PodLogs will return the logs,
@@ -1331,7 +1421,7 @@ func (s *Server) PodLogs(q *application.ApplicationPodLogsQuery, ws application.
 		}
 	}
 
-	tree, err := s.GetAppResources(ws.Context(), a)
+	tree, err := s.getAppResources(ws.Context(), a)
 	if err != nil {
 		return fmt.Errorf("error getting app resource tree: %w", err)
 	}
@@ -1526,6 +1616,14 @@ func (s *Server) Sync(ctx context.Context, syncReq *application.ApplicationSyncR
 	if err := s.enf.EnforceErr(ctx.Value("claims"), rbacpolicy.ResourceApplications, rbacpolicy.ActionSync, a.RBACName(s.ns)); err != nil {
 		return nil, err
 	}
+
+	if a.Spec.Source.Plugin != nil && a.Spec.Source.Plugin.Name != "" {
+		log.WithFields(map[string]interface{}{
+			"application": a.Name,
+			"plugin": a.Spec.Source.Plugin.Name,
+		}).Warnf(argocommon.ConfigMapPluginDeprecationWarning)
+	}
+
 	if syncReq.Manifests != nil {
 		if err := s.enf.EnforceErr(ctx.Value("claims"), rbacpolicy.ResourceApplications, rbacpolicy.ActionOverride, a.RBACName(s.ns)); err != nil {
 			return nil, err
@@ -1617,6 +1715,14 @@ func (s *Server) Rollback(ctx context.Context, rollbackReq *application.Applicat
 	if err := s.enf.EnforceErr(ctx.Value("claims"), rbacpolicy.ResourceApplications, rbacpolicy.ActionSync, a.RBACName(s.ns)); err != nil {
 		return nil, err
 	}
+
+	if a.Spec.Source.Plugin != nil && a.Spec.Source.Plugin.Name != "" {
+		log.WithFields(map[string]interface{}{
+			"application": a.Name,
+			"plugin": a.Spec.Source.Plugin.Name,
+		}).Warnf(argocommon.ConfigMapPluginDeprecationWarning)
+	}
+
 	if a.DeletionTimestamp != nil {
 		return nil, status.Errorf(codes.FailedPrecondition, "application is deleting")
 	}
@@ -1954,6 +2060,13 @@ func (s *Server) GetApplicationSyncWindows(ctx context.Context, q *application.A
 
 	if err := s.enf.EnforceErr(ctx.Value("claims"), rbacpolicy.ResourceApplications, rbacpolicy.ActionGet, a.RBACName(s.ns)); err != nil {
 		return nil, err
+	}
+
+	if a.Spec.Source.Plugin != nil && a.Spec.Source.Plugin.Name != "" {
+		log.WithFields(map[string]interface{}{
+			"application": a.Name,
+			"plugin": a.Spec.Source.Plugin.Name,
+		}).Warnf(argocommon.ConfigMapPluginDeprecationWarning)
 	}
 
 	proj, err := argo.GetAppProject(a, applisters.NewAppProjectLister(s.projInformer.GetIndexer()), s.ns, s.settingsMgr, s.db, ctx)
