@@ -691,10 +691,11 @@ func (m *appStateManager) isSelfReferencedObj(obj *unstructured.Unstructured, ap
 
 	// In order for us to assume obj to be managed by this application, the
 	// values from the annotation have to match the properties from the live
-	// object.
+	// object. Cluster scoped objects carry the app's destination namespace
+	// in the tracking annotation, but are unique in GVK + name combination.
 	appInstance := m.resourceTracking.GetAppInstance(obj, appLabelKey, trackingMethod)
 	if appInstance != nil {
-		return obj.GetNamespace() == appInstance.Namespace &&
+		return (obj.GetNamespace() == appInstance.Namespace || obj.GetNamespace() == "") &&
 			obj.GetName() == appInstance.Name &&
 			obj.GetObjectKind().GroupVersionKind().Group == appInstance.Group &&
 			obj.GetObjectKind().GroupVersionKind().Kind == appInstance.Kind

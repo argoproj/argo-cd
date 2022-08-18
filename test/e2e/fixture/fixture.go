@@ -42,7 +42,7 @@ const (
 	defaultAdminPassword    = "password"
 	defaultAdminUsername    = "admin"
 	DefaultTestUserPassword = "password"
-	testingLabel            = "e2e.argoproj.io"
+	TestingLabel            = "e2e.argoproj.io"
 	ArgoCDNamespace         = "argocd-e2e"
 
 	// ensure all repos are in one directory tree, so we can easily clean them up
@@ -299,7 +299,7 @@ func CreateSecret(username, password string) string {
 		"--from-literal=username="+username,
 		"--from-literal=password="+password,
 		"-n", TestNamespace()))
-	FailOnErr(Run("", "kubectl", "label", "secret", secretName, testingLabel+"=true", "-n", TestNamespace()))
+	FailOnErr(Run("", "kubectl", "label", "secret", secretName, TestingLabel+"=true", "-n", TestNamespace()))
 	return secretName
 }
 
@@ -521,10 +521,11 @@ func EnsureCleanState(t *testing.T) {
 		v1.DeleteOptions{PropagationPolicy: &policy}, v1.ListOptions{LabelSelector: common.LabelKeySecretType + "=" + common.LabelValueSecretTypeCluster}))
 	// kubectl delete secrets -l e2e.argoproj.io=true
 	CheckError(KubeClientset.CoreV1().Secrets(TestNamespace()).DeleteCollection(context.Background(),
-		v1.DeleteOptions{PropagationPolicy: &policy}, v1.ListOptions{LabelSelector: testingLabel + "=true"}))
+		v1.DeleteOptions{PropagationPolicy: &policy}, v1.ListOptions{LabelSelector: TestingLabel + "=true"}))
 
-	FailOnErr(Run("", "kubectl", "delete", "ns", "-l", testingLabel+"=true", "--field-selector", "status.phase=Active", "--wait=false"))
-	FailOnErr(Run("", "kubectl", "delete", "crd", "-l", testingLabel+"=true", "--wait=false"))
+	FailOnErr(Run("", "kubectl", "delete", "ns", "-l", TestingLabel+"=true", "--field-selector", "status.phase=Active", "--wait=false"))
+	FailOnErr(Run("", "kubectl", "delete", "crd", "-l", TestingLabel+"=true", "--wait=false"))
+	FailOnErr(Run("", "kubectl", "delete", "clusterroles", "-l", TestingLabel+"=true", "--wait=false"))
 
 	// reset settings
 	updateSettingConfigMap(func(cm *corev1.ConfigMap) error {
@@ -615,7 +616,7 @@ func EnsureCleanState(t *testing.T) {
 
 	// create namespace
 	FailOnErr(Run("", "kubectl", "create", "ns", DeploymentNamespace()))
-	FailOnErr(Run("", "kubectl", "label", "ns", DeploymentNamespace(), testingLabel+"=true"))
+	FailOnErr(Run("", "kubectl", "label", "ns", DeploymentNamespace(), TestingLabel+"=true"))
 
 	log.WithFields(log.Fields{"duration": time.Since(start), "name": t.Name(), "id": id, "username": "admin", "password": "password"}).Info("clean state")
 }
