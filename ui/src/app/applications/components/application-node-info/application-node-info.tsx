@@ -120,6 +120,7 @@ export const ApplicationNodeInfo = (props: {
                                 <YamlEditor
                                     input={live}
                                     hideModeButtons={!live}
+                                    vScrollbar={live}
                                     onSave={(patch, patchType) => services.applications.patchResource(props.application.metadata.name, props.node, patch, patchType)}
                                 />
                             </>
