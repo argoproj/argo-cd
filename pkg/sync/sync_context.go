@@ -152,10 +152,11 @@ func WithResourceModificationChecker(enabled bool, diffResults *diff.DiffResultL
 }
 
 // WithNamespaceCreation will create non-exist namespace
-func WithNamespaceCreation(createNamespace bool, namespaceModifier func(*unstructured.Unstructured) bool) SyncOpt {
+func WithNamespaceCreation(createNamespace bool, namespaceModifier func(*unstructured.Unstructured) bool, namespaceCreator func(*unstructured.Unstructured) bool) SyncOpt {
 	return func(ctx *syncContext) {
 		ctx.createNamespace = createNamespace
 		ctx.namespaceModifier = namespaceModifier
+		ctx.namespaceCreator = namespaceCreator
 	}
 }
 
@@ -349,6 +350,7 @@ type syncContext struct {
 
 	createNamespace   bool
 	namespaceModifier func(*unstructured.Unstructured) bool
+	namespaceCreator  func(*unstructured.Unstructured) bool
 
 	syncWaveHook common.SyncWaveHook
 
@@ -792,7 +794,9 @@ func (sc *syncContext) autoCreateNamespace(tasks syncTasks) syncTasks {
 					}
 				}
 			} else if apierr.IsNotFound(err) {
-				tasks = append(tasks, &syncTask{phase: common.SyncPhasePreSync, targetObj: unstructuredObj, liveObj: nil})
+				if sc.namespaceCreator(unstructuredObj) {
+					tasks = append(tasks, &syncTask{phase: common.SyncPhasePreSync, targetObj: unstructuredObj, liveObj: nil})
+				}
 			} else {
 				task := &syncTask{phase: common.SyncPhasePreSync, targetObj: unstructuredObj}
 				sc.setResourceResult(task, common.ResultCodeSyncFailed, common.OperationError, fmt.Sprintf("Namespace auto creation failed: %s", err))
