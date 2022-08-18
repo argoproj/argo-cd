@@ -1,14 +1,14 @@
-# Running ArgoCD locally
+# Running Argo CD locally
 
-## Run ArgoCD outside of Kubernetes
+## Run Argo CD outside of Kubernetes
 
-During development, it might be viable to run ArgoCD outside of a Kubernetes cluster. This will greatly speed up development, as you don't have to constantly build, push and install new ArgoCD Docker images with your latest changes.
+During development, it might be viable to run Argo CD outside of a Kubernetes cluster. This will greatly speed up development, as you don't have to constantly build, push and install new Argo CD Docker images with your latest changes.
 
-You will still need a working Kubernetes cluster, as described in the [Toolchain Guide](toolchain-guide.md), where ArgoCD will store all of its resources and configuration.
+You will still need a working Kubernetes cluster, as described in the [Toolchain Guide](toolchain-guide.md), where Argo CD will store all of its resources and configuration.
 
-If you followed the [Toolchain Guide](toolchain-guide.md) in setting up your toolchain, you can run ArgoCD locally with these simple steps:
+If you followed the [Toolchain Guide](toolchain-guide.md) in setting up your toolchain, you can run Argo CD locally with these simple steps:
 
-### Install ArgoCD resources to your cluster
+### Install Argo CD resources to your cluster
 
 First push the installation manifest into argocd namespace:
 
@@ -17,9 +17,9 @@ kubectl create namespace argocd
 kubectl apply -n argocd --force -f manifests/install.yaml
 ```
 
-### Scale down any ArgoCD instance in your cluster
+### Scale down any Argo CD instance in your cluster
 
-Make sure that ArgoCD is not running in your development cluster by scaling down the deployments:
+Make sure that Argo CD is not running in your development cluster by scaling down the deployments:
 
 ```shell
 kubectl -n argocd scale statefulset/argocd-application-controller --replicas 0
@@ -45,10 +45,10 @@ When you use the virtualized toolchain, starting local services is as simple as 
 make start
 ```
 
-This will start all ArgoCD services and the UI in a Docker container and expose the following ports to your host:
+This will start all Argo CD services and the UI in a Docker container and expose the following ports to your host:
 
-* The ArgoCD API server on port 8080
-* The ArgoCD UI server on port 4000
+* The Argo CD API server on port 8080
+* The Argo CD UI server on port 4000
 * The Helm registry server on port 5000
 
 You may get an error listening on port 5000 on macOS:
@@ -75,12 +75,12 @@ The `make start` command of the virtualized toolchain runs the build and program
 Docker should be installed already. Assuming you manage installed software using [Homebrew](https://brew.sh/), you can install other prerequisites like this:
 
 ```sh
-# goreman is used to start all needed processes to get a working ArgoCD development
+# goreman is used to start all needed processes to get a working Argo CD development
 # environment (defined in `Procfile`)
 brew install goreman
 
 # You can use `kind` to run Kubernetes inside Docker. But pointing to any other
-# development cluster works fine as well as long as ArgoCD can reach it.
+# development cluster works fine as well as long as Argo CD can reach it.
 brew install kind
 ```
 
@@ -95,7 +95,7 @@ export KUBECONFIG=~/.kube/config-kind
 kubectl config set-context --current --namespace=argocd
 ```
 
-Follow the above sections "Install ArgoCD resources to your cluster" and "Scale down any ArgoCD instance in your cluster" to deploy all needed manifests such as config maps.
+Follow the above sections "Install Argo CD resources to your cluster" and "Scale down any Argo CD instance in your cluster" to deploy all needed manifests such as config maps.
 
 Start local services:
 
@@ -106,10 +106,10 @@ export KUBECONFIG=~/.kube/config-kind
 make start-local
 ```
 
-This will start all ArgoCD services and the UI in a Docker container and expose the following ports to your host:
+This will start all Argo CD services and the UI in a Docker container and expose the following ports to your host:
 
-* The ArgoCD API server on port 8080
-* The ArgoCD UI server on port 4000
+* The Argo CD API server on port 8080
+* The Argo CD UI server on port 4000
 * The Helm registry server on port 5000
 
 If you get firewall dialogs, for example on macOS, you can click "Deny", since no access from outside your computer is typically desired.
@@ -161,9 +161,9 @@ Clean up when you're done:
 kind delete cluster; rm -f ~/.kube/config-kind
 ```
 
-### Scale up ArgoCD in your cluster
+### Scale up Argo CD in your cluster
 
-Once you have finished testing your changes locally and want to bring back ArgoCD in your development cluster, simply scale the deployments up again:
+Once you have finished testing your changes locally and want to bring back Argo CD in your development cluster, simply scale the deployments up again:
 
 ```bash
 kubectl -n argocd scale statefulset/argocd-application-controller --replicas 1
@@ -173,7 +173,7 @@ kubectl -n argocd scale deployment/argocd-server --replicas 1
 kubectl -n argocd scale deployment/argocd-redis --replicas 1
 ```
 
-## Run your own ArgoCD images on your cluster
+## Run your own Argo CD images on your cluster
 
 For your final tests, it might be necessary to build your own images and run them in your development cluster.
 
