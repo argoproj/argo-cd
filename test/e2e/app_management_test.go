@@ -2253,6 +2253,7 @@ func TestSwitchTrackingLabel(t *testing.T) {
 }
 
 func TestAnnotationTrackingExtraResources(t *testing.T) {
+	t.SkipNow()
 	ctx := Given(t)
 
 	SetTrackingMethod(string(argo.TrackingMethodAnnotation))
