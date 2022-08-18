@@ -100,7 +100,7 @@ import (
 	"github.com/argoproj/argo-cd/v2/util/dex"
 	dexutil "github.com/argoproj/argo-cd/v2/util/dex"
 	"github.com/argoproj/argo-cd/v2/util/env"
-	"github.com/argoproj/argo-cd/v2/util/errors"
+	errorsutil "github.com/argoproj/argo-cd/v2/util/errors"
 	grpc_util "github.com/argoproj/argo-cd/v2/util/grpc"
 	"github.com/argoproj/argo-cd/v2/util/healthz"
 	httputil "github.com/argoproj/argo-cd/v2/util/http"
@@ -118,6 +118,7 @@ import (
 	"github.com/argoproj/argo-cd/v2/util/swagger"
 	tlsutil "github.com/argoproj/argo-cd/v2/util/tls"
 	"github.com/argoproj/argo-cd/v2/util/webhook"
+	"github.com/pkg/errors"
 )
 
 const maxConcurrentLoginRequestsCountEnv = "ARGOCD_MAX_CONCURRENT_LOGIN_REQUESTS_COUNT"
@@ -237,9 +238,9 @@ func initializeDefaultProject(opts ArgoCDServerOpts) error {
 func NewServer(ctx context.Context, opts ArgoCDServerOpts) *ArgoCDServer {
 	settingsMgr := settings_util.NewSettingsManager(ctx, opts.KubeClientset, opts.Namespace)
 	settings, err := settingsMgr.InitializeSettings(opts.Insecure)
-	errors.CheckError(err)
+	errorsutil.CheckError(err)
 	err = initializeDefaultProject(opts)
-	errors.CheckError(err)
+	errorsutil.CheckError(err)
 
 	appInformerNs := opts.Namespace
 	if len(opts.ApplicationNamespaces) > 0 {
@@ -259,7 +260,7 @@ func NewServer(ctx context.Context, opts ArgoCDServerOpts) *ArgoCDServer {
 	enf := rbac.NewEnforcer(opts.KubeClientset, opts.Namespace, common.ArgoCDRBACConfigMapName, nil)
 	enf.EnableEnforce(!opts.DisableAuth)
 	err = enf.SetBuiltinPolicy(assets.BuiltinPolicyCSV)
-	errors.CheckError(err)
+	errorsutil.CheckError(err)
 	enf.EnableLog(os.Getenv(common.EnvVarRBACDebug) == "1")
 
 	policyEnf := rbacpolicy.NewRBACPolicyEnforcer(enf, projLister)
@@ -271,7 +272,7 @@ func NewServer(ctx context.Context, opts ArgoCDServerOpts) *ArgoCDServer {
 	}
 
 	argocdService, err := service.NewArgoCDService(opts.KubeClientset, opts.Namespace, opts.RepoClientset)
-	errors.CheckError(err)
+	errorsutil.CheckError(err)
 
 	secretInformer := k8s.NewSecretInformer(opts.KubeClientset, opts.Namespace, "argocd-notifications-secret")
 	configMapInformer := k8s.NewConfigMapInformer(opts.KubeClientset, opts.Namespace, "argocd-notifications-cm")
@@ -542,7 +543,7 @@ func (a *ArgoCDServer) watchSettings() {
 	prevURL := a.settings.URL
 	prevOIDCConfig := a.settings.OIDCConfig()
 	prevDexCfgBytes, err := dex.GenerateDexConfigYAML(a.settings, a.DexTLSConfig == nil || a.DexTLSConfig.DisableTLS)
-	errors.CheckError(err)
+	errorsutil.CheckError(err)
 	prevGitHubSecret := a.settings.WebhookGitHubSecret
 	prevGitLabSecret := a.settings.WebhookGitLabSecret
 	prevBitbucketUUID := a.settings.WebhookBitbucketUUID
@@ -557,7 +558,7 @@ func (a *ArgoCDServer) watchSettings() {
 		newSettings := <-updateCh
 		a.settings = newSettings
 		newDexCfgBytes, err := dex.GenerateDexConfigYAML(a.settings, a.DexTLSConfig == nil || a.DexTLSConfig.DisableTLS)
-		errors.CheckError(err)
+		errorsutil.CheckError(err)
 		if string(newDexCfgBytes) != string(prevDexCfgBytes) {
 			log.Infof("dex config modified. restarting")
 			break
@@ -621,7 +622,7 @@ func (a *ArgoCDServer) rbacPolicyLoader(ctx context.Context) {
 		a.policyEnforcer.SetScopes(scopes)
 		return nil
 	})
-	errors.CheckError(err)
+	errorsutil.CheckError(err)
 }
 
 func (a *ArgoCDServer) useTLS() bool {
@@ -750,7 +751,7 @@ func (a *ArgoCDServer) newGRPCServer() (*grpc.Server, application.AppResourceTre
 	// Register reflection service on gRPC server.
 	reflection.Register(grpcS)
 	grpc_prometheus.Register(grpcS)
-	errors.CheckError(projectService.NormalizeProjs())
+	errorsutil.CheckError(projectService.NormalizeProjs())
 	return grpcS, appResourceTreeFn
 }
 
@@ -960,7 +961,7 @@ func (a *ArgoCDServer) serveExtensions(extensionsSharedPath string, w http.Respo
 		return nil
 	})
 
-	if err != nil && !os.IsNotExist(err) {
+	if err != nil && !errors.Is(err, fs.ErrNotExist) {
 		log.Errorf("Failed to walk extensions directory: %v", err)
 		http.Error(w, "Internal error", http.StatusInternalServerError)
 		return
@@ -976,7 +977,7 @@ func (a *ArgoCDServer) registerDexHandlers(mux *http.ServeMux) {
 	var err error
 	mux.HandleFunc(common.DexAPIEndpoint+"/", dexutil.NewDexHTTPReverseProxy(a.DexServerAddr, a.BaseHRef, a.DexTLSConfig))
 	a.ssoClientApp, err = oidc.NewClientApp(a.settings, a.DexServerAddr, a.DexTLSConfig, a.BaseHRef)
-	errors.CheckError(err)
+	errorsutil.CheckError(err)
 	mux.HandleFunc(common.LoginEndpoint, a.ssoClientApp.HandleLogin)
 	mux.HandleFunc(common.CallbackEndpoint, a.ssoClientApp.HandleCallback)
 }
