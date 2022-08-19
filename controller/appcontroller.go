@@ -132,6 +132,7 @@ func NewApplicationController(
 	metricsCacheExpiration time.Duration,
 	metricsApplicationLabels []string,
 	kubectlParallelismLimit int64,
+	persistResourceHealth bool,
 	clusterFilter func(cluster *appv1.Cluster) bool,
 	applicationNamespaces []string,
 ) (*ApplicationController, error) {
@@ -209,7 +210,7 @@ func NewApplicationController(
 		}
 	}
 	stateCache := statecache.NewLiveStateCache(db, appInformer, ctrl.settingsMgr, kubectl, ctrl.metricsServer, ctrl.handleObjectUpdated, clusterFilter, argo.NewResourceTracking())
-	appStateManager := NewAppStateManager(db, applicationClientset, repoClientset, namespace, kubectl, ctrl.settingsMgr, stateCache, projInformer, ctrl.metricsServer, argoCache, ctrl.statusRefreshTimeout, argo.NewResourceTracking())
+	appStateManager := NewAppStateManager(db, applicationClientset, repoClientset, namespace, kubectl, ctrl.settingsMgr, stateCache, projInformer, ctrl.metricsServer, argoCache, ctrl.statusRefreshTimeout, argo.NewResourceTracking(), persistResourceHealth)
 	ctrl.appInformer = appInformer
 	ctrl.appLister = appLister
 	ctrl.projInformer = projInformer

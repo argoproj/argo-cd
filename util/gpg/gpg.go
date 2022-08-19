@@ -169,7 +169,10 @@ func writeKeyToFile(keyData string) (string, error) {
 	defer func() {
 		err = f.Close()
 		if err != nil {
-			log.Errorf("error closing file %q: %v", f.Name(), err)
+			log.WithFields(log.Fields{
+				common.SecurityField:    common.SecurityMedium,
+				common.SecurityCWEField: 775,
+			}).Errorf("error closing file %q: %v", f.Name(), err)
 		}
 	}()
 	return f.Name(), nil
@@ -271,7 +274,10 @@ func InitializeGnuPG(execTimeout time.Duration) error {
 	defer func() {
 		err = f.Close()
 		if err != nil {
-			log.Errorf("error closing file %q: %v", f.Name(), err)
+			log.WithFields(log.Fields{
+				common.SecurityField:    common.SecurityMedium,
+				common.SecurityCWEField: 775,
+			}).Errorf("error closing file %q: %v", f.Name(), err)
 		}
 	}()
 
@@ -295,7 +301,10 @@ func ImportPGPKeysFromString(keyData string, execTimeout time.Duration) ([]*apps
 	defer func() {
 		err = f.Close()
 		if err != nil {
-			log.Errorf("error closing file %q: %v", f.Name(), err)
+			log.WithFields(log.Fields{
+				common.SecurityField:    common.SecurityMedium,
+				common.SecurityCWEField: 775,
+			}).Errorf("error closing file %q: %v", f.Name(), err)
 		}
 	}()
 	return ImportPGPKeys(f.Name(), execTimeout)
@@ -420,7 +429,10 @@ func SetPGPTrustLevel(pgpKeys []*appsv1.GnuPGPublicKey, trustLevel string, execT
 	defer func() {
 		err = f.Close()
 		if err != nil {
-			log.Errorf("error closing file %q: %v", f.Name(), err)
+			log.WithFields(log.Fields{
+				common.SecurityField:    common.SecurityMedium,
+				common.SecurityCWEField: 775,
+			}).Errorf("error closing file %q: %v", f.Name(), err)
 		}
 	}()
 

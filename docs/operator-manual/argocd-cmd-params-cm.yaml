@@ -50,6 +50,11 @@ data:
   controller.self.heal.timeout.seconds: "5"
   # Cache expiration for app state (default 1h0m0s)
   controller.app.state.cache.expiration: "1h0m0s"
+  # Specifies if resource health should be persisted in app CRD (default true)
+  # Changing this to `false` significantly reduce number of Application CRD updates and improves controller performance.
+  # However, disabling resource health by default might affect applications that communicate with Applications CRD directly
+  # so we have to defer switching this to `false` by default till v3.0 release.
+  controller.resource.health.persist: "true"
   # Cache expiration default (default 24h0m0s)
   controller.default.cache.expiration: "24h0m0s"
 
@@ -136,6 +141,10 @@ data:
   # Changing this to "true" will not allow _all_ out-of-bounds symlinks. Those will still be blocked for things like values
   # files in Helm charts. But symlinks which are not explicitly blocked by other checks will be allowed.
   reposerver.allow.oob.symlinks: "false"
+  # Maximum size of tarball when streaming manifests to the repo server for generation
+  reposerver.streamed.manifest.max.tar.size: "100M"
+  # Maximum size of extracted manifests when streaming manifests to the repo server for generation
+  reposerver.streamed.manifest.max.extracted.size: "1G"
   # Max amount of time any single external binary call (e.g. git) may run in the repo-server.
   reposerver.cmd.timeout: "90s"
 

@@ -113,7 +113,7 @@ func PromptPassword(password string) string {
 }
 
 // AskToProceed prompts the user with a message (typically a yes or no question) and returns whether
-// or not they responded in the affirmative or negative.
+// they responded in the affirmative or negative.
 func AskToProceed(message string) bool {
 	for {
 		fmt.Print(message)

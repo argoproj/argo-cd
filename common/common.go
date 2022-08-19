@@ -223,6 +223,14 @@ const (
 
 	// DefaultCMPWorkDirName defines the work directory name used by the cmp-server
 	DefaultCMPWorkDirName = "_cmp_server"
+
+	ConfigMapPluginDeprecationWarning = "argocd-cm plugins are deprecated, and support will be removed in v2.6. Upgrade your plugin to be installed via sidecar. https://argo-cd.readthedocs.io/en/stable/user-guide/config-management-plugins/"
+
+	ConfigMapPluginCLIDeprecationWarning = "spec.plugin.name is set, which means this Application uses a plugin installed in the " +
+		"argocd-cm ConfigMap. Installing plugins via that ConfigMap is deprecated in Argo CD v2.5. " +
+		"Starting in Argo CD v2.6, this Application will fail to sync. Contact your Argo CD admin " +
+		"to make sure an upgrade plan is in place. More info: " +
+		"https://argo-cd.readthedocs.io/en/latest/operator-manual/upgrading/2.4-2.5/"
 )
 
 const (
@@ -298,4 +306,15 @@ const (
 	GRPCKeepAliveEnforcementMinimum = 10 * time.Second
 	// Keep alive is 2x enforcement minimum to ensure network jitter does not introduce ENHANCE_YOUR_CALM errors
 	GRPCKeepAliveTime = 2 * GRPCKeepAliveEnforcementMinimum
+)
+
+// Security severity logging
+const (
+	SecurityField     = "security"
+	SecurityCWEField  = "CWE"
+	SecurityEmergency = 5 // Indicates unmistakably malicious events that should NEVER occur accidentally and indicates an active attack (i.e. brute forcing, DoS)
+	SecurityCritical  = 4 // Indicates any malicious or exploitable event that had a side effect (i.e. secrets being left behind on the filesystem)
+	SecurityHigh      = 3 // Indicates likely malicious events but one that had no side effects or was blocked (i.e. out of bounds symlinks in repos)
+	SecurityMedium    = 2 // Could indicate malicious events, but has a high likelihood of being user/system error (i.e. access denied)
+	SecurityLow       = 1 // Unexceptional entries (i.e. successful access logs)
 )
