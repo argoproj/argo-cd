@@ -114,7 +114,6 @@ func GetCompressedRepoAndMetadata(repoPath string, appPath string, env []string,
 	if err != nil {
 		return nil, nil, fmt.Errorf("error compressing repo files: %w", err)
 	}
-	defer tgzstream.CloseAndDelete(tgz)
 	if opt != nil && opt.tarDoneChan != nil {
 		opt.tarDoneChan <- true
 		close(opt.tarDoneChan)
