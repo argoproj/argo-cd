@@ -1806,6 +1806,10 @@ spec:
                   reconciled using the latest git version
                 format: date-time
                 type: string
+              resourceHealthSource:
+                description: 'ResourceHealthSource indicates where the resource health
+                  status is stored: inline if not set or appTree'
+                type: string
               resources:
                 description: Resources is a list of Kubernetes resources managed by
                   this application
@@ -9852,6 +9856,18 @@ spec:
               key: reposerver.allow.oob.symlinks
               name: argocd-cmd-params-cm
               optional: true
+        - name: ARGOCD_REPO_SERVER_STREAMED_MANIFEST_MAX_TAR_SIZE
+          valueFrom:
+            configMapKeyRef:
+              key: reposerver.streamed.manifest.max.tar.size
+              name: argocd-cmd-params-cm
+              optional: true
+        - name: ARGOCD_REPO_SERVER_STREAMED_MANIFEST_MAX_EXTRACTED_SIZE
+          valueFrom:
+            configMapKeyRef:
+              key: reposerver.streamed.manifest.max.extracted.size
+              name: argocd-cmd-params-cm
+              optional: true
         - name: HELM_CACHE_HOME
           value: /helm-working-dir
         - name: HELM_CONFIG_HOME
@@ -10066,6 +10082,12 @@ spec:
           valueFrom:
             configMapKeyRef:
               key: controller.repo.server.strict.tls
+              name: argocd-cmd-params-cm
+              optional: true
+        - name: ARGOCD_APPLICATION_CONTROLLER_PERSIST_RESOURCE_HEALTH
+          valueFrom:
+            configMapKeyRef:
+              key: controller.resource.health.persist
               name: argocd-cmd-params-cm
               optional: true
         - name: ARGOCD_APP_STATE_CACHE_EXPIRATION

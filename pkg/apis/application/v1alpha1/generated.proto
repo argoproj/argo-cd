@@ -325,6 +325,9 @@ message ApplicationStatus {
 
   // Summary contains a list of URLs and container images used by this application
   optional ApplicationSummary summary = 10;
+
+  // ResourceHealthSource indicates where the resource health status is stored: inline if not set or appTree
+  optional string resourceHealthSource = 11;
 }
 
 // ApplicationSummary contains information about URLs and container images used by an application
