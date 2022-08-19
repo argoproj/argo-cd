@@ -20,6 +20,7 @@ import (
 	"github.com/stretchr/testify/require"
 	v1 "k8s.io/api/core/v1"
 	networkingv1 "k8s.io/api/networking/v1"
+	rbacv1 "k8s.io/api/rbac/v1"
 	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
 	"k8s.io/apimachinery/pkg/apis/meta/v1/unstructured"
 	"k8s.io/apimachinery/pkg/runtime/schema"
@@ -1671,9 +1672,11 @@ func TestSyncWithInfos(t *testing.T) {
 		})
 }
 
-//Given: argocd app create does not provide --dest-namespace
-//       Manifest contains resource console which does not require namespace
-//Expect: no app.Status.Conditions
+// Given: argocd app create does not provide --dest-namespace
+//
+//	Manifest contains resource console which does not require namespace
+//
+// Expect: no app.Status.Conditions
 func TestCreateAppWithNoNameSpaceForGlobalResource(t *testing.T) {
 	Given(t).
 		Path(globalWithNoNameSpace).
@@ -1688,10 +1691,12 @@ func TestCreateAppWithNoNameSpaceForGlobalResource(t *testing.T) {
 		})
 }
 
-//Given: argocd app create does not provide --dest-namespace
-//       Manifest contains resource deployment, and service which requires namespace
-//       Deployment and service do not have namespace in manifest
-//Expect: app.Status.Conditions for deployment ans service which does not have namespace in manifest
+// Given: argocd app create does not provide --dest-namespace
+//
+//	Manifest contains resource deployment, and service which requires namespace
+//	Deployment and service do not have namespace in manifest
+//
+// Expect: app.Status.Conditions for deployment ans service which does not have namespace in manifest
 func TestCreateAppWithNoNameSpaceWhenRequired(t *testing.T) {
 	Given(t).
 		Path(guestbookPath).
@@ -1709,11 +1714,13 @@ func TestCreateAppWithNoNameSpaceWhenRequired(t *testing.T) {
 		})
 }
 
-//Given: argocd app create does not provide --dest-namespace
-//       Manifest contains resource deployment, and service which requires namespace
-//       Some deployment and service has namespace in manifest
-//       Some deployment and service does not have namespace in manifest
-//Expect: app.Status.Conditions for deployment and service which does not have namespace in manifest
+// Given: argocd app create does not provide --dest-namespace
+//
+//	Manifest contains resource deployment, and service which requires namespace
+//	Some deployment and service has namespace in manifest
+//	Some deployment and service does not have namespace in manifest
+//
+// Expect: app.Status.Conditions for deployment and service which does not have namespace in manifest
 func TestCreateAppWithNoNameSpaceWhenRequired2(t *testing.T) {
 	Given(t).
 		Path(guestbookWithNamespace).
@@ -1789,10 +1796,13 @@ func TestListResource(t *testing.T) {
 }
 
 // Given application is set with --sync-option CreateNamespace=true
-//       application --dest-namespace does not exist
+//
+//	application --dest-namespace does not exist
+//
 // Verity application --dest-namespace is created
-//        application sync successful
-//        when application is deleted, --dest-namespace is not deleted
+//
+//	application sync successful
+//	when application is deleted, --dest-namespace is not deleted
 func TestNamespaceAutoCreation(t *testing.T) {
 	SkipOnEnv(t, "OPENSHIFT")
 	updatedNamespace := getNewNamespace(t)
@@ -2392,5 +2402,58 @@ func TestAnnotationTrackingExtraResources(t *testing.T) {
 		Then().
 		Expect(OperationPhaseIs(OperationSucceeded)).
 		Expect(SyncStatusIs(SyncStatusCodeSynced)).
+		Expect(HealthIs(health.HealthStatusHealthy)).
+		When().
+		And(func() {
+			// Add a cluster-scoped resource that is not referencing itself
+			FailOnErr(KubeClientset.RbacV1().ClusterRoles().Create(context.Background(), &rbacv1.ClusterRole{
+				ObjectMeta: metav1.ObjectMeta{
+					Name: "e2e-test-clusterrole",
+					Annotations: map[string]string{
+						common.AnnotationKeyAppInstance: fmt.Sprintf("%s:rbac.authorization.k8s.io/ClusterRole:%s/e2e-other-clusterrole", Name(), DeploymentNamespace()),
+					},
+					Labels: map[string]string{
+						fixture.TestingLabel: "true",
+					},
+				},
+			}, metav1.CreateOptions{}))
+		}).
+		Refresh(RefreshTypeNormal).
+		Then().
+		Expect(OperationPhaseIs(OperationSucceeded)).
+		Expect(SyncStatusIs(SyncStatusCodeSynced)).
+		Expect(HealthIs(health.HealthStatusHealthy)).
+		When().
+		And(func() {
+			// Add a cluster-scoped resource that is referencing itself
+			FailOnErr(KubeClientset.RbacV1().ClusterRoles().Create(context.Background(), &rbacv1.ClusterRole{
+				ObjectMeta: metav1.ObjectMeta{
+					Name: "e2e-other-clusterrole",
+					Annotations: map[string]string{
+						common.AnnotationKeyAppInstance: fmt.Sprintf("%s:rbac.authorization.k8s.io/ClusterRole:%s/e2e-other-clusterrole", Name(), DeploymentNamespace()),
+					},
+					Labels: map[string]string{
+						fixture.TestingLabel: "true",
+					},
+				},
+			}, metav1.CreateOptions{}))
+		}).
+		Refresh(RefreshTypeNormal).
+		Then().
+		Expect(OperationPhaseIs(OperationSucceeded)).
+		Expect(SyncStatusIs(SyncStatusCodeOutOfSync)).
+		Expect(HealthIs(health.HealthStatusHealthy)).
+		When().
+		Sync("--prune").
+		And(func() {
+			// The extra configmap must be pruned now, because it's tracked and does not exist in git
+			cr, err := KubeClientset.RbacV1().ClusterRoles().Get(context.Background(), "e2e-other-clusterrole", metav1.GetOptions{})
+			require.Error(t, err)
+			require.Equal(t, "", cr.Name)
+		}).
+		Then().
+		Expect(OperationPhaseIs(OperationSucceeded)).
+		Expect(SyncStatusIs(SyncStatusCodeSynced)).
 		Expect(HealthIs(health.HealthStatusHealthy))
+
 }
