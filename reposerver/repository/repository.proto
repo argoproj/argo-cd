@@ -30,6 +30,25 @@ message ManifestRequest {
     github.com.argoproj.argo_cd.v2.pkg.apis.application.v1alpha1.HelmOptions helmOptions = 21;
 }
 
+message ManifestRequestWithFiles {
+    oneof part {
+        ManifestRequest request = 1;
+        ManifestFileMetadata metadata = 2;
+        ManifestFileChunk chunk = 3;
+    }
+}
+
+message ManifestFileMetadata {
+    // checksum is used to verify the integrity of the file
+    string checksum = 1;
+    // size relates to the file size in bytes
+    int64 size = 2;
+}
+
+message ManifestFileChunk {
+    bytes chunk = 1;
+}
+
 // TestRepositoryRequest is a query to test repository is valid or not and has valid access.
 message TestRepositoryRequest {
     github.com.argoproj.argo_cd.v2.pkg.apis.application.v1alpha1.Repository repo = 1;
@@ -189,6 +208,10 @@ service RepoServerService {
 
     // GenerateManifest generates manifest for application in specified repo name and revision
     rpc GenerateManifest(ManifestRequest) returns (ManifestResponse) {
+    }
+
+    // GenerateManifestWithFiles generates manifest for application using provided tarball of files
+    rpc GenerateManifestWithFiles(stream ManifestRequestWithFiles) returns (ManifestResponse) {
     }
 
     // Returns a bool val if the repository is valid and has proper access

@@ -20,6 +20,7 @@ import (
 	"github.com/argoproj/gitops-engine/pkg/sync/ignore"
 	"github.com/argoproj/gitops-engine/pkg/utils/kube"
 	"github.com/ghodss/yaml"
+	grpc_retry "github.com/grpc-ecosystem/go-grpc-middleware/retry"
 	"github.com/mattn/go-isatty"
 	log "github.com/sirupsen/logrus"
 	"github.com/spf13/cobra"
@@ -32,6 +33,7 @@ import (
 
 	"github.com/argoproj/argo-cd/v2/cmd/argocd/commands/headless"
 	cmdutil "github.com/argoproj/argo-cd/v2/cmd/util"
+	argocommon "github.com/argoproj/argo-cd/v2/common"
 	"github.com/argoproj/argo-cd/v2/controller"
 	argocdclient "github.com/argoproj/argo-cd/v2/pkg/apiclient"
 	"github.com/argoproj/argo-cd/v2/pkg/apiclient/application"
@@ -50,6 +52,7 @@ import (
 	"github.com/argoproj/argo-cd/v2/util/git"
 	"github.com/argoproj/argo-cd/v2/util/grpc"
 	argoio "github.com/argoproj/argo-cd/v2/util/io"
+	"github.com/argoproj/argo-cd/v2/util/manifeststream"
 	"github.com/argoproj/argo-cd/v2/util/text/label"
 )
 
@@ -146,6 +149,9 @@ func NewApplicationCreateCommand(clientOpts *argocdclient.ClientOptions) *cobra.
 				if app.Name == "" {
 					c.HelpFunc()(c, args)
 					os.Exit(1)
+				}
+				if app.Spec.Source.Plugin != nil && app.Spec.Source.Plugin.Name != "" {
+					log.Warnf(argocommon.ConfigMapPluginCLIDeprecationWarning)
 				}
 				if appNamespace != "" {
 					app.Namespace = appNamespace
@@ -287,6 +293,10 @@ func NewApplicationGetCommand(clientOpts *argocdclient.ClientOptions) *cobra.Com
 				AppNamespace: &appNs,
 			})
 			errors.CheckError(err)
+
+			if app.Spec.Source.Plugin != nil && app.Spec.Source.Plugin.Name != "" {
+				log.Warnf(argocommon.ConfigMapPluginCLIDeprecationWarning)
+			}
 
 			pConn, projIf := headless.NewClientOrDie(clientOpts, c).NewProjectClientOrDie()
 			defer argoio.Close(pConn)
@@ -607,12 +617,18 @@ func NewApplicationSetCommand(clientOpts *argocdclient.ClientOptions) *cobra.Com
 			defer argoio.Close(conn)
 			app, err := appIf.Get(ctx, &applicationpkg.ApplicationQuery{Name: &appName, AppNamespace: &appNs})
 			errors.CheckError(err)
+
+			if app.Spec.Source.Plugin != nil && app.Spec.Source.Plugin.Name != "" {
+				log.Warnf(argocommon.ConfigMapPluginCLIDeprecationWarning)
+			}
+
 			visited := cmdutil.SetAppSpecOptions(c.Flags(), &app.Spec, &appOpts)
 			if visited == 0 {
 				log.Error("Please set at least one option to update")
 				c.HelpFunc()(c, args)
 				os.Exit(1)
 			}
+
 			setParameterOverrides(app, appOpts.Parameters)
 			_, err = appIf.UpdateSpec(ctx, &applicationpkg.ApplicationUpdateSpecRequest{
 				Name:         &app.Name,
@@ -669,6 +685,10 @@ func NewApplicationUnsetCommand(clientOpts *argocdclient.ClientOptions) *cobra.C
 			defer argoio.Close(conn)
 			app, err := appIf.Get(ctx, &applicationpkg.ApplicationQuery{Name: &appName, AppNamespace: &appNs})
 			errors.CheckError(err)
+
+			if app.Spec.Source.Plugin != nil && app.Spec.Source.Plugin.Name != "" {
+				log.Warnf(argocommon.ConfigMapPluginCLIDeprecationWarning)
+			}
 
 			updated, nothingToUnset := unset(&app.Spec.Source, opts)
 			if nothingToUnset {
@@ -872,12 +892,14 @@ type objKeyLiveTarget struct {
 // NewApplicationDiffCommand returns a new instance of an `argocd app diff` command
 func NewApplicationDiffCommand(clientOpts *argocdclient.ClientOptions) *cobra.Command {
 	var (
-		refresh       bool
-		hardRefresh   bool
-		exitCode      bool
-		local         string
-		revision      string
-		localRepoRoot string
+		refresh            bool
+		hardRefresh        bool
+		exitCode           bool
+		local              string
+		revision           string
+		localRepoRoot      string
+		serverSideGenerate bool
+		localIncludes      []string
 	)
 	shortDesc := "Perform a diff against the target and live state."
 	var command = &cobra.Command{
@@ -901,6 +923,11 @@ func NewApplicationDiffCommand(clientOpts *argocdclient.ClientOptions) *cobra.Co
 				AppNamespace: &appNs,
 			})
 			errors.CheckError(err)
+
+			if app.Spec.Source.Plugin != nil && app.Spec.Source.Plugin.Name != "" {
+				log.Warnf(argocommon.ConfigMapPluginCLIDeprecationWarning)
+			}
+
 			resources, err := appIf.ManagedResources(ctx, &applicationpkg.ResourcesQuery{ApplicationName: &appName, AppNamespace: &appNs})
 			errors.CheckError(err)
 			conn, settingsIf := clientset.NewSettingsClientOrDie()
@@ -918,15 +945,28 @@ func NewApplicationDiffCommand(clientOpts *argocdclient.ClientOptions) *cobra.Co
 				errors.CheckError(err)
 				diffOption.res = res
 				diffOption.revision = revision
-			}
-			if local != "" {
-				conn, clusterIf := clientset.NewClusterClientOrDie()
-				defer argoio.Close(conn)
-				cluster, err := clusterIf.Get(ctx, &clusterpkg.ClusterQuery{Name: app.Spec.Destination.Name, Server: app.Spec.Destination.Server})
-				errors.CheckError(err)
-				diffOption.local = local
-				diffOption.localRepoRoot = localRepoRoot
-				diffOption.cluster = cluster
+			} else if local != "" {
+				if serverSideGenerate {
+					client, err := appIf.GetManifestsWithFiles(ctx, grpc_retry.Disable())
+					errors.CheckError(err)
+
+					err = manifeststream.SendApplicationManifestQueryWithFiles(ctx, client, appName, appNs, local, localIncludes)
+					errors.CheckError(err)
+
+					res, err := client.CloseAndRecv()
+					errors.CheckError(err)
+
+					diffOption.serversideRes = res
+				} else {
+					fmt.Fprintf(os.Stderr, "Warning: local diff without --server-side-generate is deprecated and does not work with plugins. Server-side generation will be the default in v2.6.")
+					conn, clusterIf := clientset.NewClusterClientOrDie()
+					defer argoio.Close(conn)
+					cluster, err := clusterIf.Get(ctx, &clusterpkg.ClusterQuery{Name: app.Spec.Destination.Name, Server: app.Spec.Destination.Server})
+					errors.CheckError(err)
+					diffOption.local = local
+					diffOption.localRepoRoot = localRepoRoot
+					diffOption.cluster = cluster
+				}
 			}
 			foundDiffs := findandPrintDiff(ctx, app, resources, argoSettings, appName, diffOption)
 			if foundDiffs && exitCode {
@@ -940,6 +980,8 @@ func NewApplicationDiffCommand(clientOpts *argocdclient.ClientOptions) *cobra.Co
 	command.Flags().StringVar(&local, "local", "", "Compare live app to a local manifests")
 	command.Flags().StringVar(&revision, "revision", "", "Compare live app to a particular revision")
 	command.Flags().StringVar(&localRepoRoot, "local-repo-root", "/", "Path to the repository root. Used together with --local allows setting the repository root")
+	command.Flags().BoolVar(&serverSideGenerate, "server-side-generate", false, "Used with --local, this will send your manifests to the server for diffing")
+	command.Flags().StringArrayVar(&localIncludes, "local-include", []string{"*.yaml", "*.yml", "*.json"}, "Used with --server-side-generate, specify patterns of filenames to send. Matching is based on filename and not path.")
 	return command
 }
 
@@ -950,6 +992,7 @@ type DifferenceOption struct {
 	revision      string
 	cluster       *argoappv1.Cluster
 	res           *repoapiclient.ManifestResponse
+	serversideRes *repoapiclient.ManifestResponse
 }
 
 // findandPrintDiff ... Prints difference between application current state and state stored in git or locally, returns boolean as true if difference is found else returns false
@@ -964,6 +1007,15 @@ func findandPrintDiff(ctx context.Context, app *argoappv1.Application, resources
 	} else if diffOptions.revision != "" {
 		var unstructureds []*unstructured.Unstructured
 		for _, mfst := range diffOptions.res.Manifests {
+			obj, err := argoappv1.UnmarshalToUnstructured(mfst)
+			errors.CheckError(err)
+			unstructureds = append(unstructureds, obj)
+		}
+		groupedObjs := groupObjsByKey(unstructureds, liveObjs, app.Spec.Destination.Namespace)
+		items = groupObjsForDiff(resources, groupedObjs, items, argoSettings, app.Name)
+	} else if diffOptions.serversideRes != nil {
+		var unstructureds []*unstructured.Unstructured
+		for _, mfst := range diffOptions.serversideRes.Manifests {
 			obj, err := argoappv1.UnmarshalToUnstructured(mfst)
 			errors.CheckError(err)
 			unstructureds = append(unstructureds, obj)
@@ -1104,10 +1156,10 @@ func NewApplicationDeleteCommand(clientOpts *argocdclient.ClientOptions) *cobra.
 				if cascade && isTerminal && !noPrompt {
 					var lowercaseAnswer string
 					if numOfApps == 1 {
-						lowercaseAnswer = cli.AskToProceedS("Are you sure you want to delete '" + appFullName + "' and all its resources? [y/n]")
+						lowercaseAnswer = cli.AskToProceedS("Are you sure you want to delete '" + appFullName + "' and all its resources? [y/n] ")
 					} else {
 						if !isConfirmAll {
-							lowercaseAnswer = cli.AskToProceedS("Are you sure you want to delete '" + appFullName + "' and all its resources? [y/n/A] where 'A' is to delete all specified apps and their resources without prompting")
+							lowercaseAnswer = cli.AskToProceedS("Are you sure you want to delete '" + appFullName + "' and all its resources? [y/n/A] where 'A' is to delete all specified apps and their resources without prompting ")
 							if lowercaseAnswer == "a" {
 								lowercaseAnswer = "y"
 								isConfirmAll = true
@@ -1200,14 +1252,29 @@ func NewApplicationListCommand(clientOpts *argocdclient.ClientOptions) *cobra.Co
 				Selector:     pointer.String(selector),
 				AppNamespace: &appNamespace,
 			})
+
 			errors.CheckError(err)
 			appList := apps.Items
+
 			if len(projects) != 0 {
 				appList = argo.FilterByProjects(appList, projects)
 			}
 			if repo != "" {
 				appList = argo.FilterByRepo(appList, repo)
 			}
+
+			var appsWithDeprecatedPlugins []string
+			for _, app := range appList {
+				if app.Spec.Source.Plugin != nil && app.Spec.Source.Plugin.Name != "" {
+					appsWithDeprecatedPlugins = append(appsWithDeprecatedPlugins, app.Name)
+				}
+			}
+
+			if len(appsWithDeprecatedPlugins) > 0 {
+				log.Warnf(argocommon.ConfigMapPluginCLIDeprecationWarning)
+				log.Warnf("The following Applications use deprecated plugins: %s", strings.Join(appsWithDeprecatedPlugins, ", "))
+			}
+
 			switch output {
 			case "yaml", "json":
 				err := PrintResourceList(appList, output, false)
@@ -1515,6 +1582,11 @@ func NewApplicationSyncCommand(clientOpts *argocdclient.ClientOptions) *cobra.Co
 						AppNamespace: &appNs,
 					})
 					errors.CheckError(err)
+
+					if app.Spec.Source.Plugin != nil && app.Spec.Source.Plugin.Name != "" {
+						log.Warnf(argocommon.ConfigMapPluginCLIDeprecationWarning)
+					}
+
 					if app.Spec.SyncPolicy != nil && app.Spec.SyncPolicy.Automated != nil && !dryRun {
 						log.Fatal("Cannot use local sync when Automatic Sync Policy is enabled except with --dry-run")
 					}
@@ -1593,6 +1665,11 @@ func NewApplicationSyncCommand(clientOpts *argocdclient.ClientOptions) *cobra.Co
 						AppNamespace: &appNs,
 					})
 					errors.CheckError(err)
+
+					if app.Spec.Source.Plugin != nil && app.Spec.Source.Plugin.Name != "" {
+						log.Warnf(argocommon.ConfigMapPluginCLIDeprecationWarning)
+					}
+
 					resources, err := appIf.ManagedResources(ctx, &applicationpkg.ResourcesQuery{
 						ApplicationName: &appName,
 						AppNamespace:    &appNs,
@@ -2016,6 +2093,11 @@ func NewApplicationHistoryCommand(clientOpts *argocdclient.ClientOptions) *cobra
 				AppNamespace: &appNs,
 			})
 			errors.CheckError(err)
+
+			if app.Spec.Source.Plugin != nil && app.Spec.Source.Plugin.Name != "" {
+				log.Warnf(argocommon.ConfigMapPluginCLIDeprecationWarning)
+			}
+
 			if output == "id" {
 				printApplicationHistoryIds(app.Status.History)
 			} else {
@@ -2075,6 +2157,10 @@ func NewApplicationRollbackCommand(clientOpts *argocdclient.ClientOptions) *cobr
 				AppNamespace: &appNs,
 			})
 			errors.CheckError(err)
+
+			if app.Spec.Source.Plugin != nil && app.Spec.Source.Plugin.Name != "" {
+				log.Warnf(argocommon.ConfigMapPluginCLIDeprecationWarning)
+			}
 
 			depInfo, err := findRevisionHistory(app, int64(depID))
 			errors.CheckError(err)
@@ -2159,6 +2245,10 @@ func NewApplicationManifestsCommand(clientOpts *argocdclient.ClientOptions) *cob
 					app, err := appIf.Get(context.Background(), &applicationpkg.ApplicationQuery{Name: &appName})
 					errors.CheckError(err)
 
+					if app.Spec.Source.Plugin != nil && app.Spec.Source.Plugin.Name != "" {
+						log.Warnf(argocommon.ConfigMapPluginCLIDeprecationWarning)
+					}
+
 					settingsConn, settingsIf := clientset.NewSettingsClientOrDie()
 					defer argoio.Close(settingsConn)
 					argoSettings, err := settingsIf.Get(context.Background(), &settingspkg.SettingsQuery{})
@@ -2178,6 +2268,7 @@ func NewApplicationManifestsCommand(clientOpts *argocdclient.ClientOptions) *cob
 					}
 					res, err := appIf.GetManifests(ctx, &q)
 					errors.CheckError(err)
+
 					for _, mfst := range res.Manifests {
 						obj, err := argoappv1.UnmarshalToUnstructured(mfst)
 						errors.CheckError(err)
@@ -2256,6 +2347,11 @@ func NewApplicationEditCommand(clientOpts *argocdclient.ClientOptions) *cobra.Co
 				AppNamespace: &appNs,
 			})
 			errors.CheckError(err)
+
+			if app.Spec.Source.Plugin != nil && app.Spec.Source.Plugin.Name != "" {
+				log.Warnf(argocommon.ConfigMapPluginCLIDeprecationWarning)
+			}
+
 			appData, err := json.Marshal(app.Spec)
 			errors.CheckError(err)
 			appData, err = yaml.JSONToYAML(appData)

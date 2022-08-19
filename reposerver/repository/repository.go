@@ -21,7 +21,9 @@ import (
 
 	"k8s.io/apimachinery/pkg/api/resource"
 
+	"github.com/argoproj/argo-cd/v2/common"
 	"github.com/argoproj/argo-cd/v2/util/io/files"
+	"github.com/argoproj/argo-cd/v2/util/manifeststream"
 
 	"github.com/Masterminds/semver/v3"
 	"github.com/TomOnTime/utfutil"
@@ -104,6 +106,8 @@ type RepoServerInitConstants struct {
 	MaxCombinedDirectoryManifestsSize            resource.Quantity
 	CMPTarExcludedGlobs                          []string
 	AllowOutOfBoundsSymlinks                     bool
+	StreamedManifestMaxExtractedSize             int64
+	StreamedManifestMaxTarSize                   int64
 }
 
 // NewService returns a new instance of the Manifest service
@@ -324,9 +328,10 @@ func (s *Service) runRepoOperation(
 				oobError := &argopath.OutOfBoundsSymlinkError{}
 				if errors.As(err, &oobError) {
 					log.WithFields(log.Fields{
-						"chart":    source.Chart,
-						"revision": revision,
-						"file":     oobError.File,
+						common.SecurityField: common.SecurityHigh,
+						"chart":              source.Chart,
+						"revision":           revision,
+						"file":               oobError.File,
 					}).Warn("chart contains out-of-bounds symlink")
 					return fmt.Errorf("chart contains out-of-bounds symlinks. file: %s", oobError.File)
 				} else {
@@ -354,9 +359,10 @@ func (s *Service) runRepoOperation(
 				oobError := &argopath.OutOfBoundsSymlinkError{}
 				if errors.As(err, &oobError) {
 					log.WithFields(log.Fields{
-						"repo":     repo.Repo,
-						"revision": revision,
-						"file":     oobError.File,
+						common.SecurityField: common.SecurityHigh,
+						"repo":               repo.Repo,
+						"revision":           revision,
+						"file":               oobError.File,
 					}).Warn("repository contains out-of-bounds symlink")
 					return fmt.Errorf("repository contains out-of-bounds symlinks. file: %s", oobError.File)
 				} else {
@@ -444,6 +450,74 @@ func (s *Service) GenerateManifest(ctx context.Context, q *apiclient.ManifestReq
 	}
 
 	return res, err
+}
+
+func (s *Service) GenerateManifestWithFiles(stream apiclient.RepoServerService_GenerateManifestWithFilesServer) error {
+	workDir, err := files.CreateTempDir("")
+	if err != nil {
+		return fmt.Errorf("error creating temp dir: %w", err)
+	}
+	defer func() {
+		if err := os.RemoveAll(workDir); err != nil {
+			// we panic here as the workDir may contain sensitive information
+			log.WithField(common.SecurityField, common.SecurityCritical).Errorf("error removing generate manifest workdir: %v", err)
+			panic(fmt.Sprintf("error removing generate manifest workdir: %s", err))
+		}
+	}()
+
+	req, metadata, err := manifeststream.ReceiveManifestFileStream(stream.Context(), stream, workDir, s.initConstants.StreamedManifestMaxTarSize, s.initConstants.StreamedManifestMaxExtractedSize)
+
+	if err != nil {
+		return fmt.Errorf("error receiving manifest file stream: %w", err)
+	}
+
+	if !s.initConstants.AllowOutOfBoundsSymlinks {
+		err := argopath.CheckOutOfBoundsSymlinks(workDir)
+		if err != nil {
+			oobError := &argopath.OutOfBoundsSymlinkError{}
+			if errors.As(err, &oobError) {
+				log.WithFields(log.Fields{
+					common.SecurityField: common.SecurityHigh,
+					"file":               oobError.File,
+				}).Warn("streamed files contains out-of-bounds symlink")
+				return fmt.Errorf("streamed files contains out-of-bounds symlinks. file: %s", oobError.File)
+			} else {
+				return err
+			}
+		}
+	}
+
+	promise := s.runManifestGen(stream.Context(), workDir, "streamed", metadata.Checksum, func() (*operationContext, error) {
+		appPath, err := argopath.Path(workDir, req.ApplicationSource.Path)
+		if err != nil {
+			return nil, fmt.Errorf("failed to get app path: %w", err)
+		}
+		return &operationContext{appPath, ""}, nil
+	}, req)
+
+	var res *apiclient.ManifestResponse
+	tarConcluded := false
+
+	select {
+	case err := <-promise.errCh:
+		return err
+	case tarDone := <-promise.tarDoneCh:
+		tarConcluded = tarDone
+	case resp := <-promise.responseCh:
+		res = resp
+	}
+
+	if tarConcluded && res == nil {
+		select {
+		case resp := <-promise.responseCh:
+			res = resp
+		case err := <-promise.errCh:
+			return err
+		}
+	}
+
+	err = stream.SendAndClose(res)
+	return err
 }
 
 type ManifestResponsePromise struct {
@@ -972,6 +1046,11 @@ func GenerateManifests(ctx context.Context, appPath, repoRoot, revision string, 
 		targetObjs, _, err = k.Build(q.ApplicationSource.Kustomize, q.KustomizeOptions, env)
 	case v1alpha1.ApplicationSourceTypePlugin:
 		if q.ApplicationSource.Plugin != nil && q.ApplicationSource.Plugin.Name != "" {
+			log.WithFields(map[string]interface{}{
+				"application": q.AppName,
+				"plugin": q.ApplicationSource.Plugin.Name,
+			}).Warnf(common.ConfigMapPluginDeprecationWarning)
+
 			targetObjs, err = runConfigManagementPlugin(appPath, repoRoot, env, q, q.Repo.GetGitCreds(gitCredsStore))
 		} else {
 			targetObjs, err = runConfigManagementPluginSidecars(ctx, appPath, repoRoot, env, q, q.Repo.GetGitCreds(gitCredsStore), opt.cmpTarDoneCh, opt.cmpTarExcludedGlobs)
@@ -1583,6 +1662,7 @@ func generateManifestsCMP(ctx context.Context, appPath, repoPath string, env []s
 	opts := []cmp.SenderOption{
 		cmp.WithTarDoneChan(tarDoneCh),
 	}
+
 	err = cmp.SendRepoStream(generateManifestStream.Context(), appPath, repoPath, generateManifestStream, env, tarExcludedGlobs, opts...)
 	if err != nil {
 		return nil, fmt.Errorf("error sending file to cmp-server: %s", err)

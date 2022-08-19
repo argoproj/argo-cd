@@ -564,6 +564,13 @@ type ApplicationDestination struct {
 	isServerInferred bool `json:"-"`
 }
 
+type ResourceHealthLocation string
+
+var (
+	ResourceHealthLocationInline  ResourceHealthLocation = ""
+	ResourceHealthLocationAppTree ResourceHealthLocation = "appTree"
+)
+
 // ApplicationStatus contains status information for the application
 type ApplicationStatus struct {
 	// Resources is a list of Kubernetes resources managed by this application
@@ -587,6 +594,8 @@ type ApplicationStatus struct {
 	SourceType ApplicationSourceType `json:"sourceType,omitempty" protobuf:"bytes,9,opt,name=sourceType"`
 	// Summary contains a list of URLs and container images used by this application
 	Summary ApplicationSummary `json:"summary,omitempty" protobuf:"bytes,10,opt,name=summary"`
+	// ResourceHealthSource indicates where the resource health status is stored: inline if not set or appTree
+	ResourceHealthSource ResourceHealthLocation `json:"resourceHealthSource,omitempty" protobuf:"bytes,11,opt,name=resourceHealthSource"`
 }
 
 // JWTTokens represents a list of JWT tokens

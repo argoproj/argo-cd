@@ -89,18 +89,19 @@ func (res *comparisonResult) GetHealthStatus() *v1alpha1.HealthStatus {
 
 // appStateManager allows to compare applications to git
 type appStateManager struct {
-	metricsServer        *metrics.MetricsServer
-	db                   db.ArgoDB
-	settingsMgr          *settings.SettingsManager
-	appclientset         appclientset.Interface
-	projInformer         cache.SharedIndexInformer
-	kubectl              kubeutil.Kubectl
-	repoClientset        apiclient.Clientset
-	liveStateCache       statecache.LiveStateCache
-	cache                *appstatecache.Cache
-	namespace            string
-	statusRefreshTimeout time.Duration
-	resourceTracking     argo.ResourceTracking
+	metricsServer         *metrics.MetricsServer
+	db                    db.ArgoDB
+	settingsMgr           *settings.SettingsManager
+	appclientset          appclientset.Interface
+	projInformer          cache.SharedIndexInformer
+	kubectl               kubeutil.Kubectl
+	repoClientset         apiclient.Clientset
+	liveStateCache        statecache.LiveStateCache
+	cache                 *appstatecache.Cache
+	namespace             string
+	statusRefreshTimeout  time.Duration
+	resourceTracking      argo.ResourceTracking
+	persistResourceHealth bool
 }
 
 func (m *appStateManager) getRepoObjs(app *v1alpha1.Application, source v1alpha1.ApplicationSource, appLabelKey, revision string, noCache, noRevisionCache, verifySignature bool, proj *v1alpha1.AppProject) ([]*unstructured.Unstructured, *apiclient.ManifestResponse, error) {
@@ -588,7 +589,7 @@ func (m *appStateManager) CompareAppState(app *v1alpha1.Application, project *ap
 	}
 	ts.AddCheckpoint("sync_ms")
 
-	healthStatus, err := setApplicationHealth(managedResources, resourceSummaries, resourceOverrides, app)
+	healthStatus, err := setApplicationHealth(managedResources, resourceSummaries, resourceOverrides, app, m.persistResourceHealth)
 	if err != nil {
 		conditions = append(conditions, appv1.ApplicationCondition{Type: v1alpha1.ApplicationConditionComparisonError, Message: err.Error(), LastTransitionTime: &now})
 	}
@@ -664,20 +665,22 @@ func NewAppStateManager(
 	cache *appstatecache.Cache,
 	statusRefreshTimeout time.Duration,
 	resourceTracking argo.ResourceTracking,
+	persistResourceHealth bool,
 ) AppStateManager {
 	return &appStateManager{
-		liveStateCache:       liveStateCache,
-		cache:                cache,
-		db:                   db,
-		appclientset:         appclientset,
-		kubectl:              kubectl,
-		repoClientset:        repoClientset,
-		namespace:            namespace,
-		settingsMgr:          settingsMgr,
-		projInformer:         projInformer,
-		metricsServer:        metricsServer,
-		statusRefreshTimeout: statusRefreshTimeout,
-		resourceTracking:     resourceTracking,
+		liveStateCache:        liveStateCache,
+		cache:                 cache,
+		db:                    db,
+		appclientset:          appclientset,
+		kubectl:               kubectl,
+		repoClientset:         repoClientset,
+		namespace:             namespace,
+		settingsMgr:           settingsMgr,
+		projInformer:          projInformer,
+		metricsServer:         metricsServer,
+		statusRefreshTimeout:  statusRefreshTimeout,
+		resourceTracking:      resourceTracking,
+		persistResourceHealth: persistResourceHealth,
 	}
 }
 
@@ -699,10 +702,11 @@ func (m *appStateManager) isSelfReferencedObj(obj *unstructured.Unstructured, ap
 
 	// In order for us to assume obj to be managed by this application, the
 	// values from the annotation have to match the properties from the live
-	// object.
+	// object. Cluster scoped objects carry the app's destination namespace
+	// in the tracking annotation, but are unique in GVK + name combination.
 	appInstance := m.resourceTracking.GetAppInstance(obj, appLabelKey, trackingMethod)
 	if appInstance != nil {
-		return obj.GetNamespace() == appInstance.Namespace &&
+		return (obj.GetNamespace() == appInstance.Namespace || obj.GetNamespace() == "") &&
 			obj.GetName() == appInstance.Name &&
 			obj.GetObjectKind().GroupVersionKind().Group == appInstance.Group &&
 			obj.GetObjectKind().GroupVersionKind().Kind == appInstance.Kind
