@@ -60,7 +60,7 @@ import (
 )
 
 const (
-	maxPodLogsToRender                 = 10
+	maxPodLogsToRender                 = 15
 	backgroundPropagationPolicy string = "background"
 	foregroundPropagationPolicy string = "foreground"
 )
