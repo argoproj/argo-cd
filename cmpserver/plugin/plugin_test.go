@@ -20,6 +20,7 @@ import (
 	repoclient "github.com/argoproj/argo-cd/v2/reposerver/apiclient"
 	"github.com/argoproj/argo-cd/v2/test"
 	"github.com/argoproj/argo-cd/v2/util/cmp"
+	"github.com/argoproj/argo-cd/v2/util/tgzstream"
 )
 
 func newService(configFilePath string) (*Service, error) {
@@ -509,7 +510,7 @@ func NewMockGenerateManifestStream(repoPath, appPath string, env []string) (*Moc
 	if err != nil {
 		return nil, err
 	}
-	defer cmp.CloseAndDelete(tgz)
+	defer tgzstream.CloseAndDelete(tgz)
 
 	tgzBuffer := bytes.NewBuffer(nil)
 	_, err = io.Copy(tgzBuffer, tgz)
@@ -583,7 +584,7 @@ func NewMockMatchRepositoryStream(repoPath, appPath string, env []string) (*Mock
 	if err != nil {
 		return nil, err
 	}
-	defer cmp.CloseAndDelete(tgz)
+	defer tgzstream.CloseAndDelete(tgz)
 
 	tgzBuffer := bytes.NewBuffer(nil)
 	_, err = io.Copy(tgzBuffer, tgz)
@@ -656,7 +657,7 @@ func NewMockParametersAnnouncementStream(repoPath, appPath string, env []string)
 	if err != nil {
 		return nil, err
 	}
-	defer cmp.CloseAndDelete(tgz)
+	defer tgzstream.CloseAndDelete(tgz)
 
 	tgzBuffer := bytes.NewBuffer(nil)
 	_, err = io.Copy(tgzBuffer, tgz)
