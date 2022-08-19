@@ -741,6 +741,17 @@ spec:
                           (default: false)'
                         type: boolean
                     type: object
+                  createNamespaceMetadata:
+                    properties:
+                      annotations:
+                        additionalProperties:
+                          type: string
+                        type: object
+                      labels:
+                        additionalProperties:
+                          type: string
+                        type: object
+                    type: object
                   retry:
                     description: Retry controls failed sync retry behavior
                     properties:
