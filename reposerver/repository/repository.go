@@ -494,7 +494,7 @@ func (s *Service) GenerateManifestWithFiles(stream apiclient.RepoServerService_G
 			return nil, fmt.Errorf("failed to get app path: %w", err)
 		}
 		return &operationContext{appPath, ""}, nil
-	}, req)
+	}, req, s.initConstants.ExecTimeout)
 
 	var res *apiclient.ManifestResponse
 	tarConcluded := false
