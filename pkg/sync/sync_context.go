@@ -17,10 +17,12 @@ import (
 	apierr "k8s.io/apimachinery/pkg/api/errors"
 	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
 	"k8s.io/apimachinery/pkg/apis/meta/v1/unstructured"
+	"k8s.io/apimachinery/pkg/runtime/schema"
 	"k8s.io/apimachinery/pkg/util/wait"
 	"k8s.io/client-go/discovery"
 	"k8s.io/client-go/dynamic"
 	"k8s.io/client-go/rest"
+	"k8s.io/client-go/util/retry"
 	"k8s.io/klog/v2/klogr"
 	cmdutil "k8s.io/kubectl/pkg/cmd/util"
 	"k8s.io/kubectl/pkg/util/openapi"
@@ -697,9 +699,31 @@ func (sc *syncContext) getSyncTasks() (_ syncTasks, successful bool) {
 		task.liveObj = sc.liveObj(task.targetObj)
 	}
 
+	isRetryable := func(err error) bool {
+		return apierr.IsUnauthorized(err)
+	}
+
+	serverResCache := make(map[schema.GroupVersionKind]*metav1.APIResource)
+
 	// check permissions
 	for _, task := range tasks {
-		serverRes, err := kube.ServerResourceForGroupVersionKind(sc.disco, task.groupVersionKind(), "get")
+
+		var serverRes *metav1.APIResource
+		var err error
+
+		if val, ok := serverResCache[task.groupVersionKind()]; ok {
+			serverRes = val
+			err = nil
+		} else {
+			err = retry.OnError(retry.DefaultRetry, isRetryable, func() error {
+				serverRes, err = kube.ServerResourceForGroupVersionKind(sc.disco, task.groupVersionKind(), "get")
+				return err
+			})
+			if serverRes != nil {
+				serverResCache[task.groupVersionKind()] = serverRes
+			}
+		}
+
 		if err != nil {
 			// Special case for custom resources: if CRD is not yet known by the K8s API server,
 			// and the CRD is part of this sync or the resource is annotated with SkipDryRunOnMissingResource=true,
