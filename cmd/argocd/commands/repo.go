@@ -205,6 +205,7 @@ func NewRepoAddCommand(clientOpts *argocdclient.ClientOptions) *cobra.Command {
 
 // NewRepoRemoveCommand returns a new instance of an `argocd repo remove` command
 func NewRepoRemoveCommand(clientOpts *argocdclient.ClientOptions) *cobra.Command {
+	var noPrompt bool
 	var command = &cobra.Command{
 		Use:   "rm REPO",
 		Short: "Remove repository credentials",
@@ -215,15 +216,41 @@ func NewRepoRemoveCommand(clientOpts *argocdclient.ClientOptions) *cobra.Command
 				c.HelpFunc()(c, args)
 				os.Exit(1)
 			}
+			var numOfRepo = len(args)
+			var isConfirmAll bool = false
 			conn, repoIf := headless.NewClientOrDie(clientOpts, c).NewRepoClientOrDie()
 			defer io.Close(conn)
 			for _, repoURL := range args {
-				_, err := repoIf.DeleteRepository(ctx, &repositorypkg.RepoQuery{Repo: repoURL})
-				errors.CheckError(err)
-				fmt.Printf("Repository '%s' removed\n", repoURL)
+				var lowercaseAnswer string
+				if !noPrompt {
+					if numOfRepo == 1 {
+						lowercaseAnswer = cli.AskToProceedS("Are you sure you want to remove '" + repoURL + "'? [y/n] ")
+					} else {
+						if !isConfirmAll {
+							lowercaseAnswer = cli.AskToProceedS("Are you sure you want to remove '" + repoURL + "'? [y/n/A] where 'A' is to remove all specified repository without prompting ")
+							if lowercaseAnswer == "a" {
+								lowercaseAnswer = "y"
+								isConfirmAll = true
+							}
+						} else {
+							lowercaseAnswer = "y"
+						}
+					}
+				} else {
+					lowercaseAnswer = "y"
+				}
+
+				if lowercaseAnswer == "y" {
+					_, err := repoIf.DeleteRepository(ctx, &repositorypkg.RepoQuery{Repo: repoURL})
+					errors.CheckError(err)
+					fmt.Printf("Repository '%s' removed\n", repoURL)
+				} else {
+					fmt.Println("The command to remove '" + repoURL + "' was cancelled.")
+				}
 			}
 		},
 	}
+	command.Flags().BoolVarP(&noPrompt, "yes", "y", false, "Turn off prompting to confirm removal of repositories")
 	return command
 }
 
