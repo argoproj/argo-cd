@@ -103,7 +103,7 @@ export const Banner = (props: React.Props<any>) => {
                         {show ? <div className={wrapperClassname}>{props.children}</div> : props.children}
                         {chatUrl && (
                             <div style={{position: 'fixed', right: 10, bottom: chatBottomPosition}}>
-                                {chatUrl == 'invalid-url' ? (
+                                {chatUrl === 'invalid-url' ? (
                                     <Tooltip content='Invalid URL provided'>
                                         <a className='argo-button argo-button--special'>
                                             <i className='fas fa-comment-alt' /> {chatText}
