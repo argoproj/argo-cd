@@ -69,7 +69,8 @@ export const Banner = (props: React.Props<any>) => {
                     }
                 }
                 try {
-                    new ExternalLink(chatUrl);
+                    const externalLink = new ExternalLink(chatUrl);
+                    chatUrl = externalLink.ref;
                 } catch (InvalidExternalLinkError) {
                     chatUrl = 'invalid-url';
                 }
