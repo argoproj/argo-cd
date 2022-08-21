@@ -10,6 +10,7 @@ argocd gpg rm KEYID [flags]
 
 ```
   -h, --help   help for rm
+  -y, --yes    Turn off prompting to confirm deletion of GPG public key
 ```
 
 ### Options inherited from parent commands

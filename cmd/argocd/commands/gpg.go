@@ -12,6 +12,7 @@ import (
 	argocdclient "github.com/argoproj/argo-cd/v2/pkg/apiclient"
 	gpgkeypkg "github.com/argoproj/argo-cd/v2/pkg/apiclient/gpgkey"
 	appsv1 "github.com/argoproj/argo-cd/v2/pkg/apis/application/v1alpha1"
+	"github.com/argoproj/argo-cd/v2/util/cli"
 	"github.com/argoproj/argo-cd/v2/util/errors"
 	argoio "github.com/argoproj/argo-cd/v2/util/io"
 )
@@ -137,6 +138,7 @@ func NewGPGAddCommand(clientOpts *argocdclient.ClientOptions) *cobra.Command {
 
 // NewGPGDeleteCommand removes a key from the server's keyring
 func NewGPGDeleteCommand(clientOpts *argocdclient.ClientOptions) *cobra.Command {
+	var noPrompt bool
 	var command = &cobra.Command{
 		Use:   "rm KEYID",
 		Short: "Removes a GPG public key from the server's keyring",
@@ -148,11 +150,24 @@ func NewGPGDeleteCommand(clientOpts *argocdclient.ClientOptions) *cobra.Command 
 			}
 			conn, gpgIf := headless.NewClientOrDie(clientOpts, c).NewGPGKeyClientOrDie()
 			defer argoio.Close(conn)
-			_, err := gpgIf.Delete(ctx, &gpgkeypkg.GnuPGPublicKeyQuery{KeyID: args[0]})
-			errors.CheckError(err)
-			fmt.Printf("Deleted key with key ID %s\n", args[0])
+
+			var confirm bool
+			if !noPrompt {
+				confirm = cli.AskToProceed("Are you sure you want to remove '" + args[0] + "'? [y/n] ")
+			} else {
+				confirm = true
+			}
+
+			if confirm {
+				_, err := gpgIf.Delete(ctx, &gpgkeypkg.GnuPGPublicKeyQuery{KeyID: args[0]})
+				errors.CheckError(err)
+				fmt.Printf("Deleted key with key ID %s\n", args[0])
+			} else {
+				fmt.Println("The command to delete key with key ID '" + args[0] + "' was cancelled.")
+			}
 		},
 	}
+	command.Flags().BoolVarP(&noPrompt, "yes", "y", false, "Turn off prompting to confirm deletion of GPG public key")
 	return command
 
 }
