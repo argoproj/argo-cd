@@ -112,6 +112,11 @@ func NewGPGAddCommand(clientOpts *argocdclient.ClientOptions) *cobra.Command {
 		Run: func(c *cobra.Command, args []string) {
 			ctx := c.Context()
 
+			if len(args) == 0 {
+				c.HelpFunc()(c, args)
+				os.Exit(1)
+			}
+
 			if fromFile == "" {
 				errors.CheckError(fmt.Errorf("--from is mandatory"))
 			}
