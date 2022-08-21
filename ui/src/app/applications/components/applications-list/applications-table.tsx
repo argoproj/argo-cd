@@ -92,13 +92,9 @@ export const ApplicationsTable = (props: {
                                                     <div className=' columns small-2' />
                                                     <div className='show-for-xxlarge columns small-4'>Name:</div>
                                                     <div className='columns small-12 xxlarge-6'>
-                                                        {app.metadata.name.length > 20 ? (
-                                                            <Tooltip content={app.metadata.name}>
-                                                                <span>{app.metadata.name}</span>
-                                                            </Tooltip>
-                                                        ) : (
+                                                        <Tooltip content={app.metadata.name}>
                                                             <span>{app.metadata.name}</span>
-                                                        )}
+                                                        </Tooltip>
                                                     </div>
                                                 </div>
                                             </div>
