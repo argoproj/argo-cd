@@ -328,6 +328,8 @@ func anyMatch(x []interface{}, y [][]interface{}) bool {
 	return false
 }
 
+// intersectMapWithImmutablePaths will recursively deep-merge valueMap into templateMap (in-place overwriting of array
+// items), but leave the paths configured in the ImmutabilityMapping untouched.
 func intersectMapWithImmutablePaths(templateMap, valueMap map[string]interface{}, mapping diff.ImmutabilityMapping, currentPath []interface{}) map[string]interface{} {
 	if anyMatch(currentPath, mapping.ImmutablePaths) {
 		return templateMap
