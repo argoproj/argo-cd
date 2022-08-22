@@ -309,9 +309,9 @@ func normalizeTargetResources(cr *comparisonResult) ([]*unstructured.Unstructure
 
 	for idx, live := range cr.reconciliationResult.Live {
 		target := cr.reconciliationResult.Target[idx]
-		immutability := diffConfig.Lives[idx]
+		immutabilityConfig := diffConfig.Lives[idx]
 
-		result := intersectMapWithImmutablePointers(live.Object, target.Object, immutability, []interface{}{})
+		result := intersectMapWithImmutablePaths(live.Object, target.Object, immutabilityConfig, []interface{}{})
 
 		patchedTargets = append(patchedTargets, &unstructured.Unstructured{Object: result})
 	}
@@ -328,7 +328,7 @@ func anyMatch(x []interface{}, y [][]interface{}) bool {
 	return false
 }
 
-func intersectMapWithImmutablePointers(templateMap, valueMap map[string]interface{}, mapping diff.ImmutabilityMapping, currentPath []interface{}) map[string]interface{} {
+func intersectMapWithImmutablePaths(templateMap, valueMap map[string]interface{}, mapping diff.ImmutabilityMapping, currentPath []interface{}) map[string]interface{} {
 	if anyMatch(currentPath, mapping.ImmutablePaths) {
 		return templateMap
 	}
@@ -337,7 +337,7 @@ func intersectMapWithImmutablePointers(templateMap, valueMap map[string]interfac
 	for k, v := range templateMap {
 		if innerTMap, ok := v.(map[string]interface{}); ok {
 			if innerVMap, ok := valueMap[k].(map[string]interface{}); ok {
-				result[k] = intersectMapWithImmutablePointers(innerTMap, innerVMap, mapping, append(currentPath, k))
+				result[k] = intersectMapWithImmutablePaths(innerTMap, innerVMap, mapping, append(currentPath, k))
 			}
 		} else if innerTSlice, ok := v.([]interface{}); ok {
 			if innerVSlice, ok := valueMap[k].([]interface{}); ok {
@@ -363,7 +363,7 @@ func intersectMapWithImmutablePointers(templateMap, valueMap map[string]interfac
 					} else if idx < len(innerVSlice) {
 						if tSliceValueMap, ok := innerTSliceValue.(map[string]interface{}); ok {
 							if vSliceValueMap, ok := innerVSliceValue.(map[string]interface{}); ok {
-								item := intersectMapWithImmutablePointers(tSliceValueMap, vSliceValueMap, mapping, append(currentPath, k, idx))
+								item := intersectMapWithImmutablePaths(tSliceValueMap, vSliceValueMap, mapping, append(currentPath, k, idx))
 								items = append(items, item)
 							}
 						}
