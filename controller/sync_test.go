@@ -388,6 +388,6 @@ func TestNormalizeTargetResources(t *testing.T) {
 		// then
 		require.NoError(t, err)
 		require.Equal(t, 1, len(targets))
-		// TODO
+		// TODO put the correct asserts, but this works!
 	})
 }
