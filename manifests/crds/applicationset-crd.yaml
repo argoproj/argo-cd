@@ -2371,6 +2371,8 @@ spec:
                                     properties:
                                       api:
                                         type: string
+                                      appSecretName:
+                                        type: string
                                       labels:
                                         items:
                                           type: string
@@ -2808,6 +2810,8 @@ spec:
                                         type: boolean
                                       api:
                                         type: string
+                                      appSecretName:
+                                        type: string
                                       organization:
                                         type: string
                                       tokenRef:
@@ -3103,6 +3107,29 @@ spec:
                                     required:
                                     - metadata
                                     - spec
+                                    type: object
+                                type: object
+                              selector:
+                                properties:
+                                  matchExpressions:
+                                    items:
+                                      properties:
+                                        key:
+                                          type: string
+                                        operator:
+                                          type: string
+                                        values:
+                                          items:
+                                            type: string
+                                          type: array
+                                      required:
+                                      - key
+                                      - operator
+                                      type: object
+                                    type: array
+                                  matchLabels:
+                                    additionalProperties:
+                                      type: string
                                     type: object
                                 type: object
                             type: object
@@ -4574,6 +4601,8 @@ spec:
                                     properties:
                                       api:
                                         type: string
+                                      appSecretName:
+                                        type: string
                                       labels:
                                         items:
                                           type: string
@@ -5011,6 +5040,8 @@ spec:
                                         type: boolean
                                       api:
                                         type: string
+                                      appSecretName:
+                                        type: string
                                       organization:
                                         type: string
                                       tokenRef:
@@ -5306,6 +5337,29 @@ spec:
                                     required:
                                     - metadata
                                     - spec
+                                    type: object
+                                type: object
+                              selector:
+                                properties:
+                                  matchExpressions:
+                                    items:
+                                      properties:
+                                        key:
+                                          type: string
+                                        operator:
+                                          type: string
+                                        values:
+                                          items:
+                                            type: string
+                                          type: array
+                                      required:
+                                      - key
+                                      - operator
+                                      type: object
+                                    type: array
+                                  matchLabels:
+                                    additionalProperties:
+                                      type: string
                                     type: object
                                 type: object
                             type: object
@@ -5641,6 +5695,8 @@ spec:
                         github:
                           properties:
                             api:
+                              type: string
+                            appSecretName:
                               type: string
                             labels:
                               items:
@@ -6079,6 +6135,8 @@ spec:
                               type: boolean
                             api:
                               type: string
+                            appSecretName:
+                              type: string
                             organization:
                               type: string
                             tokenRef:
@@ -6376,8 +6434,33 @@ spec:
                           - spec
                           type: object
                       type: object
+                    selector:
+                      properties:
+                        matchExpressions:
+                          items:
+                            properties:
+                              key:
+                                type: string
+                              operator:
+                                type: string
+                              values:
+                                items:
+                                  type: string
+                                type: array
+                            required:
+                            - key
+                            - operator
+                            type: object
+                          type: array
+                        matchLabels:
+                          additionalProperties:
+                            type: string
+                          type: object
+                      type: object
                   type: object
                 type: array
+              goTemplate:
+                type: boolean
               syncPolicy:
                 properties:
                   preserveResourcesOnDeletion:

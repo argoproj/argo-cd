@@ -4,6 +4,7 @@ on:
     - cron: '0 0 * * 0' # midnight every Sunday
 jobs:
   snyk-report:
+    if: github.repository == 'argoproj/argo-cd'
     name: Update Snyk report in the docs directory
     runs-on: ubuntu-22.04
     steps:

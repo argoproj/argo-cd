@@ -265,6 +265,12 @@
             "description": "the repoURL to restrict returned list applications.",
             "name": "repo",
             "in": "query"
+          },
+          {
+            "type": "string",
+            "description": "the application's namespace.",
+            "name": "appNamespace",
+            "in": "query"
           }
         ],
         "responses": {
@@ -313,6 +319,40 @@
             "description": "A successful response.",
             "schema": {
               "$ref": "#/definitions/v1alpha1Application"
+            }
+          },
+          "default": {
+            "description": "An unexpected error response.",
+            "schema": {
+              "$ref": "#/definitions/runtimeError"
+            }
+          }
+        }
+      }
+    },
+    "/api/v1/applications/manifestsWithFiles": {
+      "post": {
+        "tags": [
+          "ApplicationService"
+        ],
+        "summary": "GetManifestsWithFiles returns application manifests using provided files to generate them",
+        "operationId": "ApplicationService_GetManifestsWithFiles",
+        "parameters": [
+          {
+            "description": " (streaming inputs)",
+            "name": "body",
+            "in": "body",
+            "required": true,
+            "schema": {
+              "$ref": "#/definitions/applicationApplicationManifestQueryWithFilesWrapper"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "A successful response.",
+            "schema": {
+              "$ref": "#/definitions/repositoryManifestResponse"
             }
           },
           "default": {
@@ -407,6 +447,11 @@
             "type": "string",
             "name": "kind",
             "in": "query"
+          },
+          {
+            "type": "string",
+            "name": "appNamespace",
+            "in": "query"
           }
         ],
         "responses": {
@@ -462,6 +507,11 @@
           {
             "type": "string",
             "name": "kind",
+            "in": "query"
+          },
+          {
+            "type": "string",
+            "name": "appNamespace",
             "in": "query"
           }
         ],
@@ -529,6 +579,12 @@
             "description": "the repoURL to restrict returned list applications.",
             "name": "repo",
             "in": "query"
+          },
+          {
+            "type": "string",
+            "description": "the application's namespace.",
+            "name": "appNamespace",
+            "in": "query"
           }
         ],
         "responses": {
@@ -567,6 +623,11 @@
           {
             "type": "string",
             "name": "propagationPolicy",
+            "in": "query"
+          },
+          {
+            "type": "string",
+            "name": "appNamespace",
             "in": "query"
           }
         ],
@@ -650,6 +711,11 @@
           {
             "type": "string",
             "name": "resourceUID",
+            "in": "query"
+          },
+          {
+            "type": "string",
+            "name": "appNamespace",
             "in": "query"
           }
         ],
@@ -758,6 +824,11 @@
             "type": "boolean",
             "name": "previous",
             "in": "query"
+          },
+          {
+            "type": "string",
+            "name": "appNamespace",
+            "in": "query"
           }
         ],
         "responses": {
@@ -803,6 +874,11 @@
             "type": "string",
             "name": "revision",
             "in": "query"
+          },
+          {
+            "type": "string",
+            "name": "appNamespace",
+            "in": "query"
           }
         ],
         "responses": {
@@ -834,6 +910,11 @@
             "name": "name",
             "in": "path",
             "required": true
+          },
+          {
+            "type": "string",
+            "name": "appNamespace",
+            "in": "query"
           }
         ],
         "responses": {
@@ -942,6 +1023,11 @@
             "type": "boolean",
             "name": "previous",
             "in": "query"
+          },
+          {
+            "type": "string",
+            "name": "appNamespace",
+            "in": "query"
           }
         ],
         "responses": {
@@ -1006,6 +1092,11 @@
           {
             "type": "string",
             "name": "kind",
+            "in": "query"
+          },
+          {
+            "type": "string",
+            "name": "appNamespace",
             "in": "query"
           }
         ],
@@ -1074,6 +1165,11 @@
             "type": "string",
             "name": "patchType",
             "in": "query"
+          },
+          {
+            "type": "string",
+            "name": "appNamespace",
+            "in": "query"
           }
         ],
         "responses": {
@@ -1138,6 +1234,11 @@
             "type": "boolean",
             "name": "orphan",
             "in": "query"
+          },
+          {
+            "type": "string",
+            "name": "appNamespace",
+            "in": "query"
           }
         ],
         "responses": {
@@ -1193,6 +1294,11 @@
           {
             "type": "string",
             "name": "kind",
+            "in": "query"
+          },
+          {
+            "type": "string",
+            "name": "appNamespace",
             "in": "query"
           }
         ],
@@ -1256,6 +1362,11 @@
             "type": "string",
             "name": "kind",
             "in": "query"
+          },
+          {
+            "type": "string",
+            "name": "appNamespace",
+            "in": "query"
           }
         ],
         "responses": {
@@ -1295,6 +1406,12 @@
             "name": "revision",
             "in": "path",
             "required": true
+          },
+          {
+            "type": "string",
+            "description": "the application's namespace.",
+            "name": "appNamespace",
+            "in": "query"
           }
         ],
         "responses": {
@@ -1378,6 +1495,11 @@
             "type": "boolean",
             "name": "validate",
             "in": "query"
+          },
+          {
+            "type": "string",
+            "name": "appNamespace",
+            "in": "query"
           }
         ],
         "responses": {
@@ -1448,6 +1570,11 @@
             "name": "name",
             "in": "path",
             "required": true
+          },
+          {
+            "type": "string",
+            "name": "appNamespace",
+            "in": "query"
           }
         ],
         "responses": {
@@ -3236,6 +3363,12 @@
             "description": "the repoURL to restrict returned list applications.",
             "name": "repo",
             "in": "query"
+          },
+          {
+            "type": "string",
+            "description": "the application's namespace.",
+            "name": "appNamespace",
+            "in": "query"
           }
         ],
         "responses": {
@@ -3300,6 +3433,11 @@
           {
             "type": "string",
             "name": "kind",
+            "in": "query"
+          },
+          {
+            "type": "string",
+            "name": "appNamespace",
             "in": "query"
           }
         ],
@@ -3455,10 +3593,38 @@
     "accountUpdatePasswordResponse": {
       "type": "object"
     },
+    "applicationApplicationManifestQueryWithFiles": {
+      "type": "object",
+      "properties": {
+        "appNamespace": {
+          "type": "string"
+        },
+        "checksum": {
+          "type": "string"
+        },
+        "name": {
+          "type": "string"
+        }
+      }
+    },
+    "applicationApplicationManifestQueryWithFilesWrapper": {
+      "type": "object",
+      "properties": {
+        "chunk": {
+          "$ref": "#/definitions/applicationFileChunk"
+        },
+        "query": {
+          "$ref": "#/definitions/applicationApplicationManifestQueryWithFiles"
+        }
+      }
+    },
     "applicationApplicationPatchRequest": {
       "type": "object",
       "title": "ApplicationPatchRequest is a request to patch an application",
       "properties": {
+        "appNamespace": {
+          "type": "string"
+        },
         "name": {
           "type": "string"
         },
@@ -3484,6 +3650,9 @@
     "applicationApplicationRollbackRequest": {
       "type": "object",
       "properties": {
+        "appNamespace": {
+          "type": "string"
+        },
         "dryRun": {
           "type": "boolean"
         },
@@ -3503,6 +3672,9 @@
       "type": "object",
       "title": "ApplicationSyncRequest is a request to apply the config state to live state",
       "properties": {
+        "appNamespace": {
+          "type": "string"
+        },
         "dryRun": {
           "type": "boolean"
         },
@@ -3578,6 +3750,15 @@
         },
         "canSync": {
           "type": "boolean"
+        }
+      }
+    },
+    "applicationFileChunk": {
+      "type": "object",
+      "properties": {
+        "chunk": {
+          "type": "string",
+          "format": "byte"
         }
       }
     },
@@ -3772,6 +3953,9 @@
           "items": {
             "$ref": "#/definitions/v1alpha1ConfigManagementPlugin"
           }
+        },
+        "controllerNamespace": {
+          "type": "string"
         },
         "dexConfig": {
           "$ref": "#/definitions/clusterDexConfig"
@@ -4857,6 +5041,13 @@
             "$ref": "#/definitions/v1alpha1SignatureKey"
           }
         },
+        "sourceNamespaces": {
+          "type": "array",
+          "title": "SourceNamespaces defines the namespaces application resources are allowed to be created in",
+          "items": {
+            "type": "string"
+          }
+        },
         "sourceRepos": {
           "type": "array",
           "title": "SourceRepos contains list of repository URLs which can be used for deployment",
@@ -5216,6 +5407,10 @@
         },
         "reconciledAt": {
           "$ref": "#/definitions/v1Time"
+        },
+        "resourceHealthSource": {
+          "type": "string",
+          "title": "ResourceHealthSource indicates where the resource health status is stored: inline if not set or appTree"
         },
         "resources": {
           "type": "array",

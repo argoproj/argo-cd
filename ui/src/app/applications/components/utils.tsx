@@ -5,8 +5,8 @@ import * as React from 'react';
 import * as ReactForm from 'react-form';
 import {FormApi, Text} from 'react-form';
 import * as moment from 'moment';
-import {BehaviorSubject, from, fromEvent, merge, Observable, Observer, Subscription} from 'rxjs';
-import {debounceTime} from 'rxjs/operators';
+import {BehaviorSubject, combineLatest, concat, from, fromEvent, Observable, Observer, Subscription} from 'rxjs';
+import {debounceTime, map} from 'rxjs/operators';
 import {AppContext, Context, ContextApis} from '../../shared/context';
 import {ResourceTreeNode} from './application-resource-tree/application-resource-tree';
 
@@ -45,7 +45,7 @@ export function helpTip(text: string) {
         </Tooltip>
     );
 }
-export async function deleteApplication(appName: string, apis: ContextApis): Promise<boolean> {
+export async function deleteApplication(appName: string, appNamespace: string, apis: ContextApis): Promise<boolean> {
     let confirmed = false;
     const propagationPolicies: {name: string; message: string}[] = [
         {
@@ -100,7 +100,7 @@ export async function deleteApplication(appName: string, apis: ContextApis): Pro
             }),
             submit: async (vals, _, close) => {
                 try {
-                    await services.applications.delete(appName, vals.propagationPolicy);
+                    await services.applications.delete(appName, appNamespace, vals.propagationPolicy);
                     confirmed = true;
                     close();
                 } catch (e) {
@@ -288,7 +288,7 @@ export function findChildPod(node: appModels.ResourceNode, tree: appModels.Appli
     });
 }
 
-export const deletePodAction = async (pod: appModels.Pod, appContext: AppContext, appName: string) => {
+export const deletePodAction = async (pod: appModels.Pod, appContext: AppContext, appName: string, appNamespace: string) => {
     appContext.apis.popup.prompt(
         'Delete pod',
         () => (
@@ -304,7 +304,7 @@ export const deletePodAction = async (pod: appModels.Pod, appContext: AppContext
         {
             submit: async (vals, _, close) => {
                 try {
-                    await services.applications.deleteResource(appName, pod, !!vals.force, false);
+                    await services.applications.deleteResource(appName, appNamespace, pod, !!vals.force, false);
                     close();
                 } catch (e) {
                     appContext.apis.notifications.show({
@@ -370,9 +370,9 @@ export const deletePopup = async (ctx: ContextApis, resource: ResourceTreeNode, 
                 const force = deleteOptions.option === 'force';
                 const orphan = deleteOptions.option === 'orphan';
                 try {
-                    await services.applications.deleteResource(application.metadata.name, resource, !!force, !!orphan);
+                    await services.applications.deleteResource(application.metadata.name, application.metadata.namespace, resource, !!force, !!orphan);
                     if (appChanged) {
-                        appChanged.next(await services.applications.get(application.metadata.name));
+                        appChanged.next(await services.applications.get(application.metadata.name, application.metadata.namespace));
                     }
                     close();
                 } catch (e) {
@@ -396,7 +396,6 @@ function getActionItems(
     appChanged: BehaviorSubject<appModels.Application>,
     isQuickStart: boolean
 ): Observable<ActionMenuItem[]> {
-    let menuItems: Observable<ActionMenuItem[]>;
     const isRoot = resource.root && nodeKey(resource.root) === nodeKey(resource);
     const items: MenuItem[] = [
         ...((isRoot && [
@@ -430,42 +429,61 @@ function getActionItems(
             action: () => appContext.apis.navigation.goto('.', {node: nodeKey(resource), tab: 'logs'}, {replace: true})
         });
     }
-    if (resource.kind === 'Pod') {
-        items.push({
-            title: 'Exec',
-            iconClassName: 'fa fa-terminal',
-            action: () => appContext.apis.navigation.goto('.', {node: nodeKey(resource), tab: 'exec'}, {replace: true})
-        });
-    }
+
     if (isQuickStart) {
         return from([items]);
     }
+
+    const execAction = services.authService
+        .settings()
+        .then(async settings => {
+            const execAllowed = await services.accounts.canI('exec', 'create', application.spec.project + '/' + application.metadata.name);
+            if (resource.kind === 'Pod' && settings.execEnabled && execAllowed) {
+                return [
+                    {
+                        title: 'Exec',
+                        iconClassName: 'fa fa-terminal',
+                        action: async () => appContext.apis.navigation.goto('.', {node: nodeKey(resource), tab: 'exec'}, {replace: true})
+                    } as MenuItem
+                ];
+            }
+            return [] as MenuItem[];
+        })
+        .catch(() => [] as MenuItem[]);
+
     const resourceActions = services.applications
-        .getResourceActions(application.metadata.name, resource)
+        .getResourceActions(application.metadata.name, application.metadata.namespace, resource)
         .then(actions => {
-            return items.concat(
-                actions.map(action => ({
-                    title: action.name,
-                    disabled: !!action.disabled,
-                    action: async () => {
-                        try {
-                            const confirmed = await appContext.apis.popup.confirm(`Execute '${action.name}' action?`, `Are you sure you want to execute '${action.name}' action?`);
-                            if (confirmed) {
-                                await services.applications.runResourceAction(application.metadata.name, resource, action.name);
+            return actions.map(
+                action =>
+                    ({
+                        title: action.name,
+                        disabled: !!action.disabled,
+                        action: async () => {
+                            try {
+                                const confirmed = await appContext.apis.popup.confirm(
+                                    `Execute '${action.name}' action?`,
+                                    `Are you sure you want to execute '${action.name}' action?`
+                                );
+                                if (confirmed) {
+                                    await services.applications.runResourceAction(application.metadata.name, application.metadata.namespace, resource, action.name);
+                                }
+                            } catch (e) {
+                                appContext.apis.notifications.show({
+                                    content: <ErrorNotification title='Unable to execute resource action' e={e} />,
+                                    type: NotificationType.Error
+                                });
                             }
-                        } catch (e) {
-                            appContext.apis.notifications.show({
-                                content: <ErrorNotification title='Unable to execute resource action' e={e} />,
-                                type: NotificationType.Error
-                            });
                         }
-                    }
-                }))
+                    } as MenuItem)
             );
         })
-        .catch(() => items);
-    menuItems = merge(from([items]), from(resourceActions));
-    return menuItems;
+        .catch(() => [] as MenuItem[]);
+    return combineLatest(
+        from([items]), // this resolves immediately
+        concat([[] as MenuItem[]], resourceActions), // this resolves at first to [] and then whatever the API returns
+        concat([[] as MenuItem[]], execAction) // this resolves at first to [] and then whatever the API returns
+    ).pipe(map(res => ([] as MenuItem[]).concat(...res)));
 }
 
 export function renderResourceMenu(
@@ -1059,9 +1077,12 @@ export function parseApiVersion(apiVersion: string): {group: string; version: st
     return {version: parts[0], group: ''};
 }
 
-export function getContainerName(pod: any, containerIndex: number): string {
+export function getContainerName(pod: any, containerIndex: number | null): string {
+    if (containerIndex == null && pod.metadata?.annotations?.['kubectl.kubernetes.io/default-container']) {
+        return pod.metadata?.annotations?.['kubectl.kubernetes.io/default-container'];
+    }
     const containers = (pod.spec.containers || []).concat(pod.spec.initContainers || []);
-    const container = containers[containerIndex];
+    const container = containers[containerIndex || 0];
     return container.name;
 }
 
@@ -1087,3 +1108,11 @@ export const urlPattern = new RegExp(
         'gi'
     )
 );
+
+export function appQualifiedName(app: appModels.Application): string {
+    return app.metadata.namespace + '/' + app.metadata.name;
+}
+
+export function appInstanceName(app: appModels.Application): string {
+    return app.metadata.namespace + '_' + app.metadata.name;
+}

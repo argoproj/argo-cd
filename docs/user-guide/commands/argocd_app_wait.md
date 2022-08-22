@@ -22,6 +22,7 @@ argocd app wait [APPNAME.. | -l selector] [flags]
 ### Options
 
 ```
+      --degraded               Wait for degraded
       --health                 Wait for health
   -h, --help                   help for wait
       --operation              Wait for pending operations

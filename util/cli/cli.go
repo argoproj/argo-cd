@@ -111,7 +111,7 @@ func PromptPassword(password string) string {
 }
 
 // AskToProceed prompts the user with a message (typically a yes or no question) and returns whether
-// or not they responded in the affirmative or negative.
+// they responded in the affirmative or negative.
 func AskToProceed(message string) bool {
 	for {
 		fmt.Print(message)
@@ -123,6 +123,25 @@ func AskToProceed(message string) bool {
 			return true
 		case "n", "no":
 			return false
+		}
+	}
+}
+
+// AskToProceedS prompts the user with a message (typically a yes, no or all question) and returns string
+// "a", "y" or "n".
+func AskToProceedS(message string) string {
+	for {
+		fmt.Print(message)
+		reader := bufio.NewReader(os.Stdin)
+		proceedRaw, err := reader.ReadString('\n')
+		errors.CheckError(err)
+		switch strings.ToLower(strings.TrimSpace(proceedRaw)) {
+		case "y", "yes":
+			return "y"
+		case "n", "no":
+			return "n"
+		case "a", "all":
+			return "a"
 		}
 	}
 }

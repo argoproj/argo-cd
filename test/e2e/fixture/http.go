@@ -4,7 +4,6 @@ import (
 	"bytes"
 	"encoding/json"
 	"io"
-	"io/ioutil"
 	"net/http"
 	"net/url"
 
@@ -37,7 +36,7 @@ func DoHttpJsonRequest(method string, path string, result interface{}, data ...b
 	if err != nil {
 		return err
 	}
-	responseData, err := ioutil.ReadAll(resp.Body)
+	responseData, err := io.ReadAll(resp.Body)
 	if err != nil {
 		return err
 	}

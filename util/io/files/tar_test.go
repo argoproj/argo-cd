@@ -5,6 +5,7 @@ import (
 	"compress/gzip"
 	"fmt"
 	"io"
+	"math"
 	"os"
 	"path/filepath"
 	"testing"
@@ -46,9 +47,10 @@ func TestTgz(t *testing.T) {
 		defer teardown(f)
 
 		// when
-		err := files.Tgz(getTestAppDir(t), exclusions, f.file)
+		filesWritten, err := files.Tgz(getTestAppDir(t), nil, exclusions, f.file)
 
 		// then
+		assert.Equal(t, 3, filesWritten)
 		assert.NoError(t, err)
 		prepareRead(f)
 		files, err := read(f.file)
@@ -68,9 +70,10 @@ func TestTgz(t *testing.T) {
 		defer teardown(f)
 
 		// when
-		err := files.Tgz(getTestAppDir(t), exclusions, f.file)
+		filesWritten, err := files.Tgz(getTestAppDir(t), nil, exclusions, f.file)
 
 		// then
+		assert.Equal(t, 2, filesWritten)
 		assert.NoError(t, err)
 		prepareRead(f)
 		files, err := read(f.file)
@@ -87,9 +90,10 @@ func TestTgz(t *testing.T) {
 		defer teardown(f)
 
 		// when
-		err := files.Tgz(getTestAppDir(t), exclusions, f.file)
+		filesWritten, err := files.Tgz(getTestAppDir(t), nil, exclusions, f.file)
 
 		// then
+		assert.Equal(t, 1, filesWritten)
 		assert.NoError(t, err)
 		prepareRead(f)
 		files, err := read(f.file)
@@ -121,7 +125,7 @@ func TestUntgz(t *testing.T) {
 		if err != nil {
 			t.Fatalf("error creating tmpFile in %q: %s", destDir, err)
 		}
-		err = files.Tgz(fromDir, []string{}, f)
+		_, err = files.Tgz(fromDir, nil, nil, f)
 		if err != nil {
 			t.Fatalf("error during Tgz: %s", err)
 		}
@@ -164,7 +168,7 @@ func TestUntgz(t *testing.T) {
 		destDir := filepath.Join(tmpDir, "untgz1")
 
 		// when
-		err := files.Untgz(destDir, tgzFile)
+		err := files.Untgz(destDir, tgzFile, math.MaxInt64)
 
 		// then
 		require.NoError(t, err)
@@ -187,7 +191,7 @@ func TestUntgz(t *testing.T) {
 		destDir := filepath.Join(tmpDir, "untgz2")
 
 		// when
-		err := files.Untgz(destDir, tgzFile)
+		err := files.Untgz(destDir, tgzFile, math.MaxInt64)
 
 		// then
 		assert.Error(t, err)
