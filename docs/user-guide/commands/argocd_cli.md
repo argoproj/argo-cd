@@ -1,3 +1,3 @@
 # ArgoCD Command Reference
 
-ArgoCD command reference can be found [here](./argocd.md).
+Argo CD command reference can be found [here](./argocd.md).

@@ -166,6 +166,20 @@ func TestAddProjectDestination(t *testing.T) {
 	assert.Error(t, err)
 	assert.True(t, strings.Contains(err.Error(), "already defined"))
 
+	_, err = fixture.RunCli("proj", "add-destination", projectName,
+		"!*",
+		"test1",
+	)
+	assert.Error(t, err)
+	assert.True(t, strings.Contains(err.Error(), "server has an invalid format, '!*'"))
+
+	_, err = fixture.RunCli("proj", "add-destination", projectName,
+		"https://192.168.99.100:8443",
+		"!*",
+	)
+	assert.Error(t, err)
+	assert.True(t, strings.Contains(err.Error(), "namespace has an invalid format, '!*'"))
+
 	proj, err := fixture.AppClientset.ArgoprojV1alpha1().AppProjects(fixture.ArgoCDNamespace).Get(context.Background(), projectName, metav1.GetOptions{})
 	assert.NoError(t, err)
 	assert.Equal(t, projectName, proj.Name)

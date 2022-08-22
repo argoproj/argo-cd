@@ -5,6 +5,7 @@ import (
 	"encoding/json"
 	"fmt"
 	"reflect"
+	"strings"
 	"time"
 
 	"github.com/argoproj/gitops-engine/pkg/diff"
@@ -88,18 +89,19 @@ func (res *comparisonResult) GetHealthStatus() *v1alpha1.HealthStatus {
 
 // appStateManager allows to compare applications to git
 type appStateManager struct {
-	metricsServer        *metrics.MetricsServer
-	db                   db.ArgoDB
-	settingsMgr          *settings.SettingsManager
-	appclientset         appclientset.Interface
-	projInformer         cache.SharedIndexInformer
-	kubectl              kubeutil.Kubectl
-	repoClientset        apiclient.Clientset
-	liveStateCache       statecache.LiveStateCache
-	cache                *appstatecache.Cache
-	namespace            string
-	statusRefreshTimeout time.Duration
-	resourceTracking     argo.ResourceTracking
+	metricsServer         *metrics.MetricsServer
+	db                    db.ArgoDB
+	settingsMgr           *settings.SettingsManager
+	appclientset          appclientset.Interface
+	projInformer          cache.SharedIndexInformer
+	kubectl               kubeutil.Kubectl
+	repoClientset         apiclient.Clientset
+	liveStateCache        statecache.LiveStateCache
+	cache                 *appstatecache.Cache
+	namespace             string
+	statusRefreshTimeout  time.Duration
+	resourceTracking      argo.ResourceTracking
+	persistResourceHealth bool
 }
 
 func (m *appStateManager) getRepoObjs(app *v1alpha1.Application, source v1alpha1.ApplicationSource, appLabelKey, revision string, noCache, noRevisionCache, verifySignature bool, proj *v1alpha1.AppProject) ([]*unstructured.Unstructured, *apiclient.ManifestResponse, error) {
@@ -177,7 +179,7 @@ func (m *appStateManager) getRepoObjs(app *v1alpha1.Application, source v1alpha1
 		NoCache:            noCache,
 		NoRevisionCache:    noRevisionCache,
 		AppLabelKey:        appLabelKey,
-		AppName:            app.Name,
+		AppName:            app.InstanceName(m.namespace),
 		Namespace:          app.Spec.Destination.Namespace,
 		ApplicationSource:  &source,
 		Plugins:            tools,
@@ -200,7 +202,7 @@ func (m *appStateManager) getRepoObjs(app *v1alpha1.Application, source v1alpha1
 	}
 
 	ts.AddCheckpoint("unmarshal_ms")
-	logCtx := log.WithField("application", app.Name)
+	logCtx := log.WithField("application", app.QualifiedName())
 	for k, v := range ts.Timings() {
 		logCtx = logCtx.WithField(k, v.Milliseconds())
 	}
@@ -349,7 +351,7 @@ func (m *appStateManager) CompareAppState(app *v1alpha1.Application, project *ap
 	failedToLoadObjs := false
 	conditions := make([]v1alpha1.ApplicationCondition, 0)
 
-	logCtx := log.WithField("application", app.Name)
+	logCtx := log.WithField("application", app.QualifiedName())
 	logCtx.Infof("Comparing app state (cluster: %s, namespace: %s)", app.Spec.Destination.Server, app.Spec.Destination.Namespace)
 
 	var targetObjs []*unstructured.Unstructured
@@ -427,10 +429,11 @@ func (m *appStateManager) CompareAppState(app *v1alpha1.Application, project *ap
 	for _, liveObj := range liveObjByKey {
 		if liveObj != nil {
 			appInstanceName := m.resourceTracking.GetAppName(liveObj, appLabelKey, trackingMethod)
-			if appInstanceName != "" && appInstanceName != app.Name {
+			if appInstanceName != "" && appInstanceName != app.InstanceName(m.namespace) {
+				fqInstanceName := strings.ReplaceAll(appInstanceName, "_", "/")
 				conditions = append(conditions, v1alpha1.ApplicationCondition{
 					Type:               v1alpha1.ApplicationConditionSharedResourceWarning,
-					Message:            fmt.Sprintf("%s/%s is part of applications %s and %s", liveObj.GetKind(), liveObj.GetName(), app.Name, appInstanceName),
+					Message:            fmt.Sprintf("%s/%s is part of applications %s and %s", liveObj.GetKind(), liveObj.GetName(), app.QualifiedName(), fqInstanceName),
 					LastTransitionTime: &now,
 				})
 			}
@@ -467,6 +470,12 @@ func (m *appStateManager) CompareAppState(app *v1alpha1.Application, project *ap
 		conditions = append(conditions, v1alpha1.ApplicationCondition{Type: v1alpha1.ApplicationConditionUnknownError, Message: err.Error(), LastTransitionTime: &now})
 	}
 	diffConfigBuilder.WithGVKParser(gvkParser)
+	diffConfigBuilder.WithManager(common.ArgoCDSSAManager)
+
+	// enable structured merge diff if application syncs with server-side apply
+	if app.Spec.SyncPolicy != nil && app.Spec.SyncPolicy.SyncOptions.HasOption("ServerSideApply=true") {
+		diffConfigBuilder.WithStructuredMergeDiff(true)
+	}
 
 	// it is necessary to ignore the error at this point to avoid creating duplicated
 	// application conditions as argo.StateDiffs will validate this diffConfig again.
@@ -580,7 +589,7 @@ func (m *appStateManager) CompareAppState(app *v1alpha1.Application, project *ap
 	}
 	ts.AddCheckpoint("sync_ms")
 
-	healthStatus, err := setApplicationHealth(managedResources, resourceSummaries, resourceOverrides, app)
+	healthStatus, err := setApplicationHealth(managedResources, resourceSummaries, resourceOverrides, app, m.persistResourceHealth)
 	if err != nil {
 		conditions = append(conditions, appv1.ApplicationCondition{Type: v1alpha1.ApplicationConditionComparisonError, Message: err.Error(), LastTransitionTime: &now})
 	}
@@ -638,7 +647,7 @@ func (m *appStateManager) persistRevisionHistory(app *v1alpha1.Application, revi
 	if err != nil {
 		return err
 	}
-	_, err = m.appclientset.ArgoprojV1alpha1().Applications(m.namespace).Patch(context.Background(), app.Name, types.MergePatchType, patch, metav1.PatchOptions{})
+	_, err = m.appclientset.ArgoprojV1alpha1().Applications(app.Namespace).Patch(context.Background(), app.Name, types.MergePatchType, patch, metav1.PatchOptions{})
 	return err
 }
 
@@ -656,20 +665,22 @@ func NewAppStateManager(
 	cache *appstatecache.Cache,
 	statusRefreshTimeout time.Duration,
 	resourceTracking argo.ResourceTracking,
+	persistResourceHealth bool,
 ) AppStateManager {
 	return &appStateManager{
-		liveStateCache:       liveStateCache,
-		cache:                cache,
-		db:                   db,
-		appclientset:         appclientset,
-		kubectl:              kubectl,
-		repoClientset:        repoClientset,
-		namespace:            namespace,
-		settingsMgr:          settingsMgr,
-		projInformer:         projInformer,
-		metricsServer:        metricsServer,
-		statusRefreshTimeout: statusRefreshTimeout,
-		resourceTracking:     resourceTracking,
+		liveStateCache:        liveStateCache,
+		cache:                 cache,
+		db:                    db,
+		appclientset:          appclientset,
+		kubectl:               kubectl,
+		repoClientset:         repoClientset,
+		namespace:             namespace,
+		settingsMgr:           settingsMgr,
+		projInformer:          projInformer,
+		metricsServer:         metricsServer,
+		statusRefreshTimeout:  statusRefreshTimeout,
+		resourceTracking:      resourceTracking,
+		persistResourceHealth: persistResourceHealth,
 	}
 }
 
@@ -691,10 +702,11 @@ func (m *appStateManager) isSelfReferencedObj(obj *unstructured.Unstructured, ap
 
 	// In order for us to assume obj to be managed by this application, the
 	// values from the annotation have to match the properties from the live
-	// object.
+	// object. Cluster scoped objects carry the app's destination namespace
+	// in the tracking annotation, but are unique in GVK + name combination.
 	appInstance := m.resourceTracking.GetAppInstance(obj, appLabelKey, trackingMethod)
 	if appInstance != nil {
-		return obj.GetNamespace() == appInstance.Namespace &&
+		return (obj.GetNamespace() == appInstance.Namespace || obj.GetNamespace() == "") &&
 			obj.GetName() == appInstance.Name &&
 			obj.GetObjectKind().GroupVersionKind().Group == appInstance.Group &&
 			obj.GetObjectKind().GroupVersionKind().Kind == appInstance.Kind

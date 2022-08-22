@@ -9,7 +9,7 @@ redis-ha:
   haproxy:
     enabled: true
     image:
-      tag: 2.0.29-alpine
+      tag: 2.6.2-alpine
     timeout:
       server: 6m
       client: 6m

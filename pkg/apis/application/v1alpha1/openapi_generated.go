@@ -377,6 +377,21 @@ func schema_pkg_apis_application_v1alpha1_AppProjectSpec(ref common.ReferenceCal
 							},
 						},
 					},
+					"sourceNamespaces": {
+						SchemaProps: spec.SchemaProps{
+							Description: "SourceNamespaces defines the namespaces application resources are allowed to be created in",
+							Type:        []string{"array"},
+							Items: &spec.SchemaOrArray{
+								Schema: &spec.Schema{
+									SchemaProps: spec.SchemaProps{
+										Default: "",
+										Type:    []string{"string"},
+										Format:  "",
+									},
+								},
+							},
+						},
+					},
 				},
 			},
 		},
@@ -1159,6 +1174,13 @@ func schema_pkg_apis_application_v1alpha1_ApplicationStatus(ref common.Reference
 							Description: "Summary contains a list of URLs and container images used by this application",
 							Default:     map[string]interface{}{},
 							Ref:         ref("github.com/argoproj/argo-cd/v2/pkg/apis/application/v1alpha1.ApplicationSummary"),
+						},
+					},
+					"resourceHealthSource": {
+						SchemaProps: spec.SchemaProps{
+							Description: "ResourceHealthSource indicates where the resource health status is stored: inline if not set or appTree",
+							Type:        []string{"string"},
+							Format:      "",
 						},
 					},
 				},

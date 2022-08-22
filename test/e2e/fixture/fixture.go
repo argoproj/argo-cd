@@ -5,7 +5,6 @@ import (
 	"context"
 	goerrors "errors"
 	"fmt"
-	"io/ioutil"
 	"os"
 	"path"
 	"path/filepath"
@@ -42,8 +41,9 @@ const (
 	defaultAdminPassword    = "password"
 	defaultAdminUsername    = "admin"
 	DefaultTestUserPassword = "password"
-	testingLabel            = "e2e.argoproj.io"
+	TestingLabel            = "e2e.argoproj.io"
 	ArgoCDNamespace         = "argocd-e2e"
+	ArgoCDAppNamespace      = "argocd-e2e-external"
 
 	// ensure all repos are in one directory tree, so we can easily clean them up
 	TmpDir             = "/tmp/argo-e2e"
@@ -111,6 +111,10 @@ const (
 // running in.
 func TestNamespace() string {
 	return GetEnvWithDefault("ARGOCD_E2E_NAMESPACE", ArgoCDNamespace)
+}
+
+func AppNamespace() string {
+	return GetEnvWithDefault("ARGOCD_E2E_APP_NAMESPACE", ArgoCDAppNamespace)
 }
 
 // getKubeConfig creates new kubernetes client config using specified config path and config overrides variables
@@ -304,7 +308,7 @@ func CreateSecret(username, password string) string {
 		"--from-literal=username="+username,
 		"--from-literal=password="+password,
 		"-n", TestNamespace()))
-	FailOnErr(Run("", "kubectl", "label", "secret", secretName, testingLabel+"=true", "-n", TestNamespace()))
+	FailOnErr(Run("", "kubectl", "label", "secret", secretName, TestingLabel+"=true", "-n", TestNamespace()))
 	return secretName
 }
 
@@ -512,6 +516,7 @@ func EnsureCleanState(t *testing.T) {
 	// delete resources
 	// kubectl delete apps --all
 	CheckError(AppClientset.ArgoprojV1alpha1().Applications(TestNamespace()).DeleteCollection(context.Background(), v1.DeleteOptions{PropagationPolicy: &policy}, v1.ListOptions{}))
+	CheckError(AppClientset.ArgoprojV1alpha1().Applications(AppNamespace()).DeleteCollection(context.Background(), v1.DeleteOptions{PropagationPolicy: &policy}, v1.ListOptions{}))
 	// kubectl delete appprojects --field-selector metadata.name!=default
 	CheckError(AppClientset.ArgoprojV1alpha1().AppProjects(TestNamespace()).DeleteCollection(context.Background(),
 		v1.DeleteOptions{PropagationPolicy: &policy}, v1.ListOptions{FieldSelector: "metadata.name!=default"}))
@@ -526,10 +531,11 @@ func EnsureCleanState(t *testing.T) {
 		v1.DeleteOptions{PropagationPolicy: &policy}, v1.ListOptions{LabelSelector: common.LabelKeySecretType + "=" + common.LabelValueSecretTypeCluster}))
 	// kubectl delete secrets -l e2e.argoproj.io=true
 	CheckError(KubeClientset.CoreV1().Secrets(TestNamespace()).DeleteCollection(context.Background(),
-		v1.DeleteOptions{PropagationPolicy: &policy}, v1.ListOptions{LabelSelector: testingLabel + "=true"}))
+		v1.DeleteOptions{PropagationPolicy: &policy}, v1.ListOptions{LabelSelector: TestingLabel + "=true"}))
 
-	FailOnErr(Run("", "kubectl", "delete", "ns", "-l", testingLabel+"=true", "--field-selector", "status.phase=Active", "--wait=false"))
-	FailOnErr(Run("", "kubectl", "delete", "crd", "-l", testingLabel+"=true", "--wait=false"))
+	FailOnErr(Run("", "kubectl", "delete", "ns", "-l", TestingLabel+"=true", "--field-selector", "status.phase=Active", "--wait=false"))
+	FailOnErr(Run("", "kubectl", "delete", "crd", "-l", TestingLabel+"=true", "--wait=false"))
+	FailOnErr(Run("", "kubectl", "delete", "clusterroles", "-l", TestingLabel+"=true", "--wait=false"))
 
 	// reset settings
 	updateSettingConfigMap(func(cm *corev1.ConfigMap) error {
@@ -557,6 +563,7 @@ func EnsureCleanState(t *testing.T) {
 		SourceRepos:              []string{"*"},
 		Destinations:             []v1alpha1.ApplicationDestination{{Namespace: "*", Server: "*"}},
 		ClusterResourceWhitelist: []v1.GroupKind{{Group: "*", Kind: "*"}},
+		SourceNamespaces:         []string{AppNamespace()},
 	})
 
 	// Create separate project for testing gpg signature verification
@@ -567,6 +574,7 @@ func EnsureCleanState(t *testing.T) {
 		Destinations:             []v1alpha1.ApplicationDestination{{Namespace: "*", Server: "*"}},
 		ClusterResourceWhitelist: []v1.GroupKind{{Group: "*", Kind: "*"}},
 		SignatureKeys:            []v1alpha1.SignatureKey{{KeyID: GpgGoodKeyID}},
+		SourceNamespaces:         []string{AppNamespace()},
 	})
 
 	// Recreate temp dir
@@ -620,7 +628,7 @@ func EnsureCleanState(t *testing.T) {
 
 	// create namespace
 	FailOnErr(Run("", "kubectl", "create", "ns", DeploymentNamespace()))
-	FailOnErr(Run("", "kubectl", "label", "ns", DeploymentNamespace(), testingLabel+"=true"))
+	FailOnErr(Run("", "kubectl", "label", "ns", DeploymentNamespace(), TestingLabel+"=true"))
 
 	log.WithFields(log.Fields{"duration": time.Since(start), "name": t.Name(), "id": id, "username": "admin", "password": "password"}).Info("clean state")
 }
@@ -644,7 +652,7 @@ func Patch(path string, jsonPatch string) {
 	log.WithFields(log.Fields{"path": path, "jsonPatch": jsonPatch}).Info("patching")
 
 	filename := filepath.Join(repoDirectory(), path)
-	bytes, err := ioutil.ReadFile(filename)
+	bytes, err := os.ReadFile(filename)
 	CheckError(err)
 
 	patch, err := jsonpatch.DecodePatch([]byte(jsonPatch))
@@ -668,7 +676,7 @@ func Patch(path string, jsonPatch string) {
 		CheckError(err)
 	}
 
-	CheckError(ioutil.WriteFile(filename, bytes, 0644))
+	CheckError(os.WriteFile(filename, bytes, 0644))
 	FailOnErr(Run(repoDirectory(), "git", "diff"))
 	FailOnErr(Run(repoDirectory(), "git", "commit", "-am", "patch"))
 	if IsRemote() {
@@ -692,7 +700,7 @@ func Delete(path string) {
 func WriteFile(path, contents string) {
 	log.WithFields(log.Fields{"path": path}).Info("adding")
 
-	CheckError(ioutil.WriteFile(filepath.Join(repoDirectory(), path), []byte(contents), 0644))
+	CheckError(os.WriteFile(filepath.Join(repoDirectory(), path), []byte(contents), 0644))
 }
 
 func AddFile(path, contents string) {
@@ -725,10 +733,10 @@ func AddSignedFile(path, contents string) {
 // create the resource by creating using "kubectl apply", with bonus templating
 func Declarative(filename string, values interface{}) (string, error) {
 
-	bytes, err := ioutil.ReadFile(path.Join("testdata", filename))
+	bytes, err := os.ReadFile(path.Join("testdata", filename))
 	CheckError(err)
 
-	tmpFile, err := ioutil.TempFile("", "")
+	tmpFile, err := os.CreateTemp("", "")
 	CheckError(err)
 	_, err = tmpFile.WriteString(Tmpl(string(bytes), values))
 	CheckError(err)

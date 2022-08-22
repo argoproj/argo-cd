@@ -106,14 +106,14 @@ func (a *Actions) Get() *Actions {
 func (a *Actions) DeleteByName() *Actions {
 	a.context.t.Helper()
 
-	a.runCli("cluster", "rm", a.context.name)
+	a.runCli("cluster", "rm", a.context.name, "--yes")
 	return a
 }
 
 func (a *Actions) DeleteByServer() *Actions {
 	a.context.t.Helper()
 
-	a.runCli("cluster", "rm", a.context.server)
+	a.runCli("cluster", "rm", a.context.server, "--yes")
 	return a
 }
 

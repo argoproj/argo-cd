@@ -262,6 +262,7 @@ func printClusterDetails(clusters []argoappv1.Cluster) {
 
 // NewClusterRemoveCommand returns a new instance of an `argocd cluster rm` command
 func NewClusterRemoveCommand(clientOpts *argocdclient.ClientOptions, pathOpts *clientcmd.PathOptions) *cobra.Command {
+	var noPrompt bool
 	var command = &cobra.Command{
 		Use:   "rm SERVER/NAME",
 		Short: "Remove cluster credentials",
@@ -276,31 +277,56 @@ argocd cluster rm cluster-name`,
 			}
 			conn, clusterIf := headless.NewClientOrDie(clientOpts, c).NewClusterClientOrDie()
 			defer io.Close(conn)
+			var numOfClusters = len(args)
+			var isConfirmAll bool = false
 
 			for _, clusterSelector := range args {
 				clusterQuery := getQueryBySelector(clusterSelector)
+				var lowercaseAnswer string
+				if !noPrompt {
+					if numOfClusters == 1 {
+						lowercaseAnswer = cli.AskToProceedS("Are you sure you want to remove '" + clusterSelector + "'? Any Apps deploying to this cluster will go to health status Unknown.[y/n] ")
+					} else {
+						if !isConfirmAll {
+							lowercaseAnswer = cli.AskToProceedS("Are you sure you want to remove '" + clusterSelector + "'? Any Apps deploying to this cluster will go to health status Unknown.[y/n/A] where 'A' is to remove all specified apps and their resources without prompting ")
+							if lowercaseAnswer == "a" {
+								lowercaseAnswer = "y"
+								isConfirmAll = true
+							}
+						} else {
+							lowercaseAnswer = "y"
+						}
+					}
+				} else {
+					lowercaseAnswer = "y"
+				}
 
-				// get the cluster name to use as context to delete RBAC on cluster
-				clst, err := clusterIf.Get(ctx, clusterQuery)
-				errors.CheckError(err)
+				if lowercaseAnswer == "y" {
+					// get the cluster name to use as context to delete RBAC on cluster
+					clst, err := clusterIf.Get(ctx, clusterQuery)
+					errors.CheckError(err)
 
-				// remove cluster
-				_, err = clusterIf.Delete(ctx, clusterQuery)
-				errors.CheckError(err)
-				fmt.Printf("Cluster '%s' removed\n", clusterSelector)
+					// remove cluster
+					_, err = clusterIf.Delete(ctx, clusterQuery)
+					errors.CheckError(err)
+					fmt.Printf("Cluster '%s' removed\n", clusterSelector)
 
-				// remove RBAC from cluster
-				conf, err := getRestConfig(pathOpts, clst.Name)
-				errors.CheckError(err)
+					// remove RBAC from cluster
+					conf, err := getRestConfig(pathOpts, clst.Name)
+					errors.CheckError(err)
 
-				clientset, err := kubernetes.NewForConfig(conf)
-				errors.CheckError(err)
+					clientset, err := kubernetes.NewForConfig(conf)
+					errors.CheckError(err)
 
-				err = clusterauth.UninstallClusterManagerRBAC(clientset)
-				errors.CheckError(err)
+					err = clusterauth.UninstallClusterManagerRBAC(clientset)
+					errors.CheckError(err)
+				} else {
+					fmt.Println("The command to remove '" + clusterSelector + "' was cancelled.")
+				}
 			}
 		},
 	}
+	command.Flags().BoolVarP(&noPrompt, "yes", "y", false, "Turn off prompting to confirm remove of cluster resources")
 	return command
 }
 

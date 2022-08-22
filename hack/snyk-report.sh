@@ -3,7 +3,7 @@
 set -e
 set -o pipefail
 
-npm install snyk-to-html -g
+npm install snyk snyk-to-html --location=global
 
 # Choose the branch where docs changes will actually be written.
 target_branch="$1"
@@ -37,9 +37,8 @@ git clone https://github.com/argoproj/argo-cd.git
 cd argo-cd
 git checkout master
 
-minor_version=$(sed -E 's/\.[0-9]+$//g' VERSION)
-patch_num=$(git tag -l | grep "v$minor_version." | grep -o "[[:digit:]]*$" | sort -g | tail -n 1)
-version="v$minor_version.$patch_num"
+version=$(git tag -l | sort -g | tail -n 1 )
+minor_version=$(echo $version | grep -Eo '[0-9]\.[0-9]+')
 versions="master "
 for i in 1 2 3; do
   if [ "$version" == "" ]; then break; fi
@@ -66,23 +65,27 @@ for version in $versions; do
   # || [ $? == 1 ] ignores errors due to vulnerabilities.
   snyk test --all-projects --exclude=docs,site,ui-test --org=argoproj --policy-path=.snyk --sarif-file-output=/tmp/argocd-test.sarif --json-file-output=/tmp/argocd-test.json || [ $? == 1 ]
   snyk-to-html -i /tmp/argocd-test.json -o "$argocd_dir/docs/snyk/$version/argocd-test.html"
-  printf '%s' "* [dependencies (golang and JavaScript)]($version/argocd-test.html) — " >> "$argocd_dir/docs/snyk/index.md"
+  { echo "|    | Critical | High | Medium | Low |"
+    echo "|---:|:--------:|:----:|:------:|:---:|"
+   } >> "$argocd_dir/docs/snyk/index.md"
   jq 'map(
-    {
-      # Collect all the vulnerabilities severities. Group by id to avoid double-counting.
-      severity: (.vulnerabilities | group_by(.id) | map(.[0])[].severity),
-      displayTargetFile: (.displayTargetFile)
-    }
-  )
-  # Group by target file (e.g. go.mod) so we can see where the vulnerabilities are.
-  | group_by(.displayTargetFile)
-  | map(
-    .[0].displayTargetFile
-    + ": \(map(select(.severity == "critical")) | length) critical, "
-    + "\(map(select(.severity == "high")) | length) high, "
-    + "\(map(select(.severity == "medium")) | length) medium, "
-    + "\(map(select(.severity == "low")) | length) low")
-  | join("; ")' -r /tmp/argocd-test.json >> "$argocd_dir/docs/snyk/index.md"
+        {
+          # Collect all the vulnerabilities severities. Group by id to avoid double-counting.
+          severity: (.vulnerabilities | group_by(.id) | map(.[0])[].severity),
+          displayTargetFile: (.displayTargetFile)
+        }
+      )
+      # Hack to make sure even if there are no vulnerabilities, a row is added to the table.
+      + [{displayTargetFile: "go.mod"}, {displayTargetFile: "ui/yarn.lock"}]
+      # Group by target file (e.g. go.mod) so we can see where the vulnerabilities are.
+      | group_by(.displayTargetFile)
+      | map(
+        "| [\(.[0].displayTargetFile)](\($version)/argocd-test.html) "
+        + "| \(map(select(.severity == "critical")) | length) "
+        + "| \(map(select(.severity == "high")) | length) "
+        + "| \(map(select(.severity == "medium")) | length) "
+        + "| \(map(select(.severity == "low")) | length) |")
+      | join("\n")' --arg version "$version" -r /tmp/argocd-test.json >> "$argocd_dir/docs/snyk/index.md"
 
 
   images=$(grep 'image: ' manifests/install.yaml manifests/namespace-install.yaml manifests/ha/install.yaml | sed 's/.*image: //' | sort | uniq)
@@ -91,17 +94,17 @@ for version in $versions; do
     extra_args=""
     if echo "$image" | grep "argocd"; then
       # Pass the file arg only for the Argo CD image. The file arg also gives us access to sarif output.
-      extra_args="--file=Dockerfile --sarif-file-output=/tmp/${image//\//_}.sarif "
+      extra_args="--file=Dockerfile --sarif-file-output=/tmp/${image//[\/:]/_}.sarif "
     fi
 
     set -x
     # || [ $? == 1 ] ignores errors due to vulnerabilities.
-    snyk container test "$image" --org=argoproj "--json-file-output=/tmp/${image//\//_}.json" $extra_args || [ $? == 1 ]
+    snyk container test "$image" --org=argoproj "--json-file-output=/tmp/${image//[\/:]/_}.json" $extra_args || [ $? == 1 ]
     set +x
 
-    snyk-to-html -i "/tmp/${image//\//_}.json" -o "$argocd_dir/docs/snyk/$version/${image//\//_}.html"
+    snyk-to-html -i "/tmp/${image//[\/:]/_}.json" -o "$argocd_dir/docs/snyk/$version/${image//[\/:]/_}.html"
 
-    printf '%s' "* [(image) $image]($version/${image//\//_}.html) — " >> "$argocd_dir/docs/snyk/index.md"
+    printf '%s' "| [${image/*\//}]($version/${image//[\/:]/_}.html) | " >> "$argocd_dir/docs/snyk/index.md"
 
     # Add severity counts to index.
     jq '[
@@ -111,18 +114,19 @@ for version in $versions; do
       # Get the severity of the first vulnerability in the group (should be the same for every item in the group).
       | map(.[0])[].severity
     # Construct a summary using the counts of each severity level.
-    ] | "\(map(select(. == "critical")) | length) critical, \(map(select(. == "high")) | length) high, \(map(select(. == "medium")) | length) medium, \(map(select(. == "low")) | length) low"' -r "/tmp/${image//\//_}.json" >> "$argocd_dir/docs/snyk/index.md"
+    ] | "\(map(select(. == "critical")) | length) | \(map(select(. == "high")) | length) | \(map(select(. == "medium")) | length) | \(map(select(. == "low")) | length) |"
+    ' -r "/tmp/${image//[\/:]/_}.json" >> "$argocd_dir/docs/snyk/index.md"
   done <<< "$images"
 
   # || [ $? == 1 ] ignores errors due to vulnerabilities.
   snyk iac test manifests/install.yaml --org=argoproj --policy-path=.snyk --sarif-file-output=/tmp/argocd-iac-install.sarif --json-file-output=/tmp/argocd-iac-install.json || [ $? == 1 ]
   snyk-to-html -i /tmp/argocd-iac-install.json -o "$argocd_dir/docs/snyk/$version/argocd-iac-install.html"
-  echo "* [(IaC) manifests/install.yaml]($version/argocd-iac-install.html)" >> "$argocd_dir/docs/snyk/index.md"
+  echo "| [install.yaml]($version/argocd-iac-install.html) | - | - | - | - |" >> "$argocd_dir/docs/snyk/index.md"
 
   # || [ $? == 1 ] ignores errors due to vulnerabilities.
   snyk iac test manifests/namespace-install.yaml --org=argoproj --policy-path=.snyk --sarif-file-output=/tmp/argocd-iac-namespace-install.sarif --json-file-output=/tmp/argocd-iac-namespace-install.json || [ $? == 1 ]
   snyk-to-html -i /tmp/argocd-iac-namespace-install.json -o "$argocd_dir/docs/snyk/$version/argocd-iac-namespace-install.html"
-  echo "* [(IaC) manifests/namespace-install.yaml]($version/argocd-iac-namespace-install.html)" >> "$argocd_dir/docs/snyk/index.md"
+  echo "| [namespace-install.yaml]($version/argocd-iac-namespace-install.html) | - | - | - | - |" >> "$argocd_dir/docs/snyk/index.md"
 done
 
 # clean up

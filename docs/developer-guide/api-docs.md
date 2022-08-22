@@ -20,8 +20,6 @@ $ curl $ARGOCD_SERVER/api/v1/applications --cookie "argocd.token=$ARGOCD_TOKEN"
 {"metadata":{"selfLink":"/apis/argoproj.io/v1alpha1/namespaces/argocd/applications","resourceVersion":"37755"},"items":...}
 ```
 
-> v1.3
-
 Then pass using the HTTP `Authorization` header, prefixing with `Bearer `:
 
 ```bash

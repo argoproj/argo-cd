@@ -7,7 +7,7 @@ import {Context} from '../../../shared/context';
 import {PodsLogsViewer} from '../pod-logs-viewer/pod-logs-viewer';
 import './application-fullscreen-logs.scss';
 
-export const ApplicationFullscreenLogs = (props: RouteComponentProps<{name: string; container: string; namespace: string}>) => {
+export const ApplicationFullscreenLogs = (props: RouteComponentProps<{name: string; appnamespace: string; container: string; namespace: string}>) => {
     const appContext = React.useContext(Context);
     return (
         <Query>
@@ -25,6 +25,7 @@ export const ApplicationFullscreenLogs = (props: RouteComponentProps<{name: stri
                         <h4 style={{fontSize: '18px', textAlign: 'center'}}>{title}</h4>
                         <PodsLogsViewer
                             applicationName={props.match.params.name}
+                            applicationNamespace={props.match.params.appnamespace}
                             containerName={props.match.params.container}
                             namespace={props.match.params.namespace}
                             group={group}
