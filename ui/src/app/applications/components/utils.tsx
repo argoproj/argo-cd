@@ -1120,3 +1120,20 @@ export function appQualifiedName(app: appModels.Application): string {
 export function appInstanceName(app: appModels.Application): string {
     return app.metadata.namespace + '_' + app.metadata.name;
 }
+
+export function formatCreationTimestamp(creationTimestamp: any) {
+    const createdAt = moment
+        .utc(creationTimestamp)
+        .local()
+        .format('MM/DD/YYYY HH:mm:ss');
+    const fromNow = moment
+        .utc(creationTimestamp)
+        .local()
+        .fromNow();
+    return (
+        <span>
+            {createdAt}
+            <i style={{padding: '2px'}} /> ({fromNow})
+        </span>
+    );
+}

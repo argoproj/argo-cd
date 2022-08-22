@@ -22,7 +22,13 @@ import {services} from '../../../shared/services';
 import * as moment from 'moment';
 import {ApplicationSyncOptionsField, REPLACE_WARNING} from '../application-sync-options/application-sync-options';
 import {RevisionFormField} from '../revision-form-field/revision-form-field';
-import {ComparisonStatusIcon, HealthStatusIcon, syncStatusMessage, urlPattern} from '../utils';
+import {
+    ComparisonStatusIcon,
+    HealthStatusIcon,
+    syncStatusMessage,
+    urlPattern,
+    formatCreationTimestamp
+} from '../utils';
 import {ApplicationRetryOptions} from '../application-retry-options/application-retry-options';
 import {ApplicationRetryView} from '../application-retry-view/application-retry-view';
 import {Link} from 'react-router-dom';
@@ -137,10 +143,7 @@ export const ApplicationSummary = (props: {app: models.Application; updateApp: (
         },
         {
             title: 'CREATED_AT',
-            view: moment
-                .utc(app.metadata.creationTimestamp)
-                .local()
-                .format('MM/DD/YYYY HH:mm:ss')
+            view: formatCreationTimestamp(app.metadata.creationTimestamp)
         },
         {
             title: 'REPO URL',
