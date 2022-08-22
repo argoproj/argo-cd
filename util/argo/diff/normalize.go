@@ -39,6 +39,63 @@ func Normalize(lives, configs []*unstructured.Unstructured, diffConfig DiffConfi
 	return result, nil
 }
 
+type ImmutabilityMapping struct {
+	Entity         *unstructured.Unstructured
+	ImmutablePaths [][]interface{}
+}
+
+type ImmutabilityResult struct {
+	Lives   []ImmutabilityMapping
+	Targets []*unstructured.Unstructured
+}
+
+func GetNormalizeConfig(lives, configs []*unstructured.Unstructured, diffConfig DiffConfig) (*ImmutabilityResult, error) {
+	result, err := preDiffNormalize(lives, configs, diffConfig)
+	if err != nil {
+		return nil, err
+	}
+
+	ignoreNormalizer, err := normalizers.NewIgnoreNormalizer(diffConfig.Ignores(), diffConfig.Overrides())
+	if err != nil {
+		return nil, err
+	}
+	knownTypesNorm, err := normalizers.NewKnownTypesNormalizer(diffConfig.Overrides())
+	if err != nil {
+		return nil, err
+	}
+
+	var dcr = ImmutabilityResult{
+		Lives:   []ImmutabilityMapping{},
+		Targets: []*unstructured.Unstructured{},
+	}
+	for _, live := range result.Lives {
+		if live != nil {
+			err := knownTypesNorm.Normalize(live)
+			if err != nil {
+				return nil, err
+			}
+		}
+	}
+
+	for _, live := range result.Lives {
+		var casted = ignoreNormalizer.(*normalizers.IgnoreNormalizer)
+		if live != nil {
+			config, err := casted.GetImmutablePaths(live)
+			if err != nil {
+				return nil, err
+			}
+			dcr.Lives = append(dcr.Lives, ImmutabilityMapping{
+				Entity:         live,
+				ImmutablePaths: config,
+			})
+		}
+	}
+
+	dcr.Targets = append(dcr.Targets, result.Targets...)
+
+	return &dcr, nil
+}
+
 // newDiffNormalizer creates normalizer that uses Argo CD and application settings to normalize the resource prior to diffing.
 func newDiffNormalizer(ignore []v1alpha1.ResourceIgnoreDifferences, overrides map[string]v1alpha1.ResourceOverride) (diff.Normalizer, error) {
 	ignoreNormalizer, err := normalizers.NewIgnoreNormalizer(ignore, overrides)

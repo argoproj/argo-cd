@@ -220,7 +220,7 @@ func TestNormalizeTargetResources(t *testing.T) {
 	type fixture struct {
 		comparisonResult *comparisonResult
 	}
-	setup := func(t *testing.T, ignores []v1alpha1.ResourceIgnoreDifferences) *fixture {
+	setupDeployment := func(t *testing.T, ignores []v1alpha1.ResourceIgnoreDifferences) *fixture {
 		t.Helper()
 		dc, err := diff.NewDiffConfigBuilder().
 			WithDiffSettings(ignores, nil, true).
@@ -239,6 +239,27 @@ func TestNormalizeTargetResources(t *testing.T) {
 			},
 		}
 	}
+
+	setupHttpProxy := func(t *testing.T, ignores []v1alpha1.ResourceIgnoreDifferences) *fixture {
+		t.Helper()
+		dc, err := diff.NewDiffConfigBuilder().
+			WithDiffSettings(ignores, nil, true).
+			WithNoCache().
+			Build()
+		require.NoError(t, err)
+		live := test.YamlToUnstructured(testdata.LiveHTTPProxy)
+		target := test.YamlToUnstructured(testdata.TargetHTTPProxy)
+		return &fixture{
+			&comparisonResult{
+				reconciliationResult: sync.ReconciliationResult{
+					Live:   []*unstructured.Unstructured{live},
+					Target: []*unstructured.Unstructured{target},
+				},
+				diffConfig: dc,
+			},
+		}
+	}
+
 	t.Run("will modify target resource adding live state in fields it should ignore", func(t *testing.T) {
 		// given
 		ignore := v1alpha1.ResourceIgnoreDifferences{
@@ -247,7 +268,7 @@ func TestNormalizeTargetResources(t *testing.T) {
 			ManagedFieldsManagers: []string{"janitor"},
 		}
 		ignores := []v1alpha1.ResourceIgnoreDifferences{ignore}
-		f := setup(t, ignores)
+		f := setupDeployment(t, ignores)
 
 		// when
 		targets, err := normalizeTargetResources(f.comparisonResult)
@@ -260,7 +281,7 @@ func TestNormalizeTargetResources(t *testing.T) {
 	})
 	t.Run("will not modify target resource if ignore difference is not configured", func(t *testing.T) {
 		// given
-		f := setup(t, []v1alpha1.ResourceIgnoreDifferences{})
+		f := setupDeployment(t, []v1alpha1.ResourceIgnoreDifferences{})
 
 		// when
 		targets, err := normalizeTargetResources(f.comparisonResult)
@@ -278,7 +299,7 @@ func TestNormalizeTargetResources(t *testing.T) {
 			JSONPointers: []string{"/metadata/annotations/iksm-version"},
 		}
 		ignores := []v1alpha1.ResourceIgnoreDifferences{ignore}
-		f := setup(t, ignores)
+		f := setupDeployment(t, ignores)
 		live := f.comparisonResult.reconciliationResult.Live[0]
 		unstructured.RemoveNestedField(live.Object, "metadata", "annotations", "iksm-version")
 
@@ -305,7 +326,7 @@ func TestNormalizeTargetResources(t *testing.T) {
 				ManagedFieldsManagers: []string{"janitor"},
 			},
 		}
-		f := setup(t, ignores)
+		f := setupDeployment(t, ignores)
 
 		// when
 		targets, err := normalizeTargetResources(f.comparisonResult)
@@ -323,7 +344,6 @@ func TestNormalizeTargetResources(t *testing.T) {
 		assert.Equal(t, int64(4), replicas)
 	})
 	t.Run("will keep new array entries not found in live state if not ignored", func(t *testing.T) {
-		t.Skip("limitation in the current implementation")
 		// given
 		ignores := []v1alpha1.ResourceIgnoreDifferences{
 			{
@@ -332,7 +352,7 @@ func TestNormalizeTargetResources(t *testing.T) {
 				JQPathExpressions: []string{".spec.template.spec.containers[] | select(.name == \"guestbook-ui\")"},
 			},
 		}
-		f := setup(t, ignores)
+		f := setupDeployment(t, ignores)
 		target := test.YamlToUnstructured(testdata.TargetDeploymentNewEntries)
 		f.comparisonResult.reconciliationResult.Target = []*unstructured.Unstructured{target}
 
@@ -346,5 +366,28 @@ func TestNormalizeTargetResources(t *testing.T) {
 		require.NoError(t, err)
 		require.True(t, ok)
 		assert.Equal(t, 2, len(containers))
+	})
+
+	t.Run("will do this right", func(t *testing.T) {
+		// https://argocd.ethos.corp.adobe.com/applications/marketo-pie--marketouserservicedev-deploy--ethos11-sta-8b74495c?resource=&operation=false&node=argoproj.io%2FApplication%2Fargocd%2Fmarketo-pie--marketouserservicedev-deploy--ethos11-sta-8b74495c%2F0&tab=manifest
+		// given
+		ignores := []v1alpha1.ResourceIgnoreDifferences{
+			{
+				Group:             "projectcontour.io",
+				Kind:              "HTTPProxy",
+				JQPathExpressions: []string{".spec.routes[]?.services[]?.weight"},
+			},
+		}
+		f := setupHttpProxy(t, ignores)
+		target := test.YamlToUnstructured(testdata.TargetHTTPProxy)
+		f.comparisonResult.reconciliationResult.Target = []*unstructured.Unstructured{target}
+
+		// when
+		targets, err := normalizeTargetResources(f.comparisonResult)
+
+		// then
+		require.NoError(t, err)
+		require.Equal(t, 1, len(targets))
+		// TODO
 	})
 }

@@ -4,7 +4,9 @@ import (
 	"context"
 	"encoding/json"
 	"fmt"
+	"math"
 	"os"
+	"reflect"
 	"strconv"
 	"sync/atomic"
 	"time"
@@ -301,10 +303,10 @@ func (m *appStateManager) SyncAppState(app *v1alpha1.Application, state *v1alpha
 
 // normalizeTargetResources will apply the diff normalization in all live and target resources.
 // Then it calculates the merge patch between the normalized live and the current live resources.
-// Finally it applies the merge patch in the normalized target resources. This is done to ensure
+// Finally, it applies the merge patch in the normalized target resources. This is done to ensure
 // that target resources have the same ignored diff fields values from live ones to avoid them to
 // be applied in the cluster. Returns the list of normalized target resources.
-func normalizeTargetResources(cr *comparisonResult) ([]*unstructured.Unstructured, error) {
+func normalizeTargetResources2(cr *comparisonResult) ([]*unstructured.Unstructured, error) {
 	// normalize live and target resources
 	normalized, err := diff.Normalize(cr.reconciliationResult.Live, cr.reconciliationResult.Target, cr.diffConfig)
 	if err != nil {
@@ -322,7 +324,7 @@ func normalizeTargetResources(cr *comparisonResult) ([]*unstructured.Unstructure
 			patchedTargets = append(patchedTargets, originalTarget)
 			continue
 		}
-		// calculate targetPatch between normalized and target resource
+		// calculate targetPatch between normalized and original targets
 		targetPatch, err := getMergePatch(normalizedTarget, originalTarget)
 		if err != nil {
 			return nil, err
@@ -350,6 +352,26 @@ func normalizeTargetResources(cr *comparisonResult) ([]*unstructured.Unstructure
 		}
 		patchedTargets = append(patchedTargets, normalizedTarget)
 	}
+	return patchedTargets, nil
+}
+
+func normalizeTargetResources(cr *comparisonResult) ([]*unstructured.Unstructured, error) {
+	var patchedTargets []*unstructured.Unstructured
+
+	diffConfig, err := diff.GetNormalizeConfig(cr.reconciliationResult.Live, cr.reconciliationResult.Target, cr.diffConfig)
+	if err != nil {
+		return nil, err
+	}
+
+	for idx, live := range cr.reconciliationResult.Live {
+		target := cr.reconciliationResult.Target[idx]
+		immutability := diffConfig.Lives[idx]
+
+		result := intersectMapWithImmutablePointers(live.Object, target.Object, immutability, []interface{}{})
+
+		patchedTargets = append(patchedTargets, &unstructured.Unstructured{Object: result})
+	}
+
 	return patchedTargets, nil
 }
 
@@ -397,6 +419,75 @@ func intersectMap(templateMap, valueMap map[string]interface{}) map[string]inter
 				if len(items) > 0 {
 					result[k] = items
 				}
+			}
+		} else {
+			if _, ok := valueMap[k]; ok {
+				result[k] = valueMap[k]
+			}
+		}
+	}
+	return result
+}
+
+func anyMatch(x []interface{}, y [][]interface{}) bool {
+	for _, path := range y {
+		if reflect.DeepEqual(x, path) {
+			return true
+		}
+	}
+	return false
+}
+
+func intersectMapWithImmutablePointers(templateMap, valueMap map[string]interface{}, mapping diff.ImmutabilityMapping, currentPath []interface{}) map[string]interface{} {
+	if anyMatch(currentPath, mapping.ImmutablePaths) {
+		return templateMap
+	}
+
+	result := make(map[string]interface{})
+	for k, v := range templateMap {
+		if innerTMap, ok := v.(map[string]interface{}); ok {
+			if innerVMap, ok := valueMap[k].(map[string]interface{}); ok {
+				result[k] = intersectMapWithImmutablePointers(innerTMap, innerVMap, mapping, append(currentPath, k))
+			}
+		} else if innerTSlice, ok := v.([]interface{}); ok {
+			if innerVSlice, ok := valueMap[k].([]interface{}); ok {
+
+				var items []interface{}
+				maxLen := int(math.Max(float64(len(innerTSlice)), float64(len(innerVSlice))))
+
+				for idx := 0; idx < maxLen; idx++ {
+					if len(innerTSlice) <= idx {
+						items = append(items, innerVSlice[idx])
+						continue
+					}
+
+					if len(innerVSlice) <= idx {
+						items = append(items, innerTSlice[idx])
+						continue
+					}
+
+					innerTSliceValue := innerTSlice[idx]
+					innerVSliceValue := innerVSlice[idx]
+
+					if anyMatch(append(currentPath, idx), mapping.ImmutablePaths) {
+						items = append(items, innerTSliceValue)
+					} else if idx < len(innerVSlice) {
+						if tSliceValueMap, ok := innerTSliceValue.(map[string]interface{}); ok {
+							if vSliceValueMap, ok := innerVSliceValue.(map[string]interface{}); ok {
+								item := intersectMapWithImmutablePointers(tSliceValueMap, vSliceValueMap, mapping, append(currentPath, k, idx))
+								items = append(items, item)
+							}
+						}
+					}
+				}
+				if len(items) > 0 {
+					result[k] = items
+				}
+			}
+
+		} else if anyMatch(append(currentPath, k), mapping.ImmutablePaths) {
+			if _, ok := templateMap[k]; ok {
+				result[k] = templateMap[k]
 			}
 		} else {
 			if _, ok := valueMap[k]; ok {
