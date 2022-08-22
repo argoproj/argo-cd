@@ -113,7 +113,7 @@ for the `argocd-repo-server`, containing at least the entries for
 `DNS:argocd-repo-server` and `DNS:argocd-repo-server.argo-cd.svc` depending
 on how your workloads connect to the repository server.
 
-## Configuring inbound TLS for argocd-dex-server > v2.5
+## Configuring inbound TLS for argocd-dex-server
 
 ### Inbound TLS options for argocd-dex-server
 
@@ -185,7 +185,7 @@ certificate stored in the `argocd-repo-server-tls` secret.
     mind that when you have to replace the certificate, all workloads have
     to be restarted in order to properly work again.
 
-### Configuring TLS to argocd-dex-server > v2.5
+### Configuring TLS to argocd-dex-server
 
 `argocd-server` communicates with the `argocd-dex-server` using an HTTPS API
 over TLS. By default, `argocd-dex-server` generates a non-persistent, self

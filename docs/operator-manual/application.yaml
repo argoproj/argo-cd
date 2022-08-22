@@ -69,11 +69,16 @@ spec:
     kustomize:
       # Optional kustomize version. Note: version must be configured in argocd-cm ConfigMap
       version: v3.5.4
-      # Optional image name prefix
+      # Supported kustomize transformers. https://kubectl.docs.kubernetes.io/references/kustomize/kustomization/
       namePrefix: prod-
-      # Optional images passed to "kustomize edit set image".
+      nameSuffix: -some-suffix
+      commonLabels:
+        foo: bar
+      commonAnnotations:
+        beep: boop
       images:
       - gcr.io/heptio-images/ks-guestbook-demo:0.2
+      - my-app=gcr.io/my-repo/my-app:0.1
 
     # directory
     directory:
@@ -148,3 +153,9 @@ spec:
     kind: "*"
     managedFieldsManagers:
     - kube-controller-manager
+
+  # RevisionHistoryLimit limits the number of items kept in the application's revision history, which is used for
+  # informational purposes as well as for rollbacks to previous versions. This should only be changed in exceptional
+  # circumstances. Setting to zero will store no history. This will reduce storage used. Increasing will increase the
+  # space used to store the history, so we do not recommend increasing it.
+  revisionHistoryLimit: 10

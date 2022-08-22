@@ -81,7 +81,7 @@ data:
     - '.webhooks[]?.clientConfig.caBundle'
 ```
 
-Resource customization can also be configured to ignore all differences made by a managedField.manager at the system level. The example bellow shows how to configure ArgoCD to ignore changes made by `kube-controller-manager` in `Deployment` resources.
+Resource customization can also be configured to ignore all differences made by a managedField.manager at the system level. The example bellow shows how to configure Argo CD to ignore changes made by `kube-controller-manager` in `Deployment` resources.
 
 ```yaml
 data:
@@ -90,7 +90,7 @@ data:
     - kube-controller-manager
 ```
 
-It is possible to configure ignoreDifferences to be applied to all resources in every Application managed by an ArgoCD instance. In order to do so, resource customizations can be configured like in the example bellow:
+It is possible to configure ignoreDifferences to be applied to all resources in every Application managed by an Argo CD instance. In order to do so, resource customizations can be configured like in the example bellow:
 
 ```yaml
 data:
@@ -116,11 +116,26 @@ data:
 
 By default `status` field is ignored during diffing for `CustomResourceDefinition` resource. The behavior can be extended to all resources using `all` value or disabled using `none`.
 
+### Ignoring RBAC changes made by AggregateRoles
+
+If you are using [Aggregated ClusterRoles](https://kubernetes.io/docs/reference/access-authn-authz/rbac/#aggregated-clusterroles) and don't want Argo CD to detect the `rules` changes as drift, you can set `resource.compareoptions.ignoreAggregatedRoles: true`. Then Argo CD will no longer detect these changes as an event that requires syncing.
+
+```yaml
+apiVersion: v1
+kind: ConfigMap
+metadata:
+  name: argocd-cm
+data:
+  resource.compareoptions: |
+    # disables status field diffing in specified resource types
+    ignoreAggregatedRoles: true
+```
+
 ## Known Kubernetes types in CRDs (Resource limits, Volume mounts etc)
 
 Some CRDs are re-using data structures defined in the Kubernetes source base and therefore inheriting custom
 JSON/YAML marshaling. Custom marshalers might serialize CRDs in a slightly different format that causes false
-positives during drift detection. 
+positives during drift detection.
 
 A typical example is the `argoproj.io/Rollout` CRD that re-using `core/v1/PodSpec` data structure. Pod resource requests
 might be reformatted by the custom marshaller of `IntOrString` data type:
@@ -140,7 +155,7 @@ resources:
 ```
 
 The solution is to specify which CRDs fields are using built-in Kubernetes types in the `resource.customizations`
-section of `argocd-cm` ConfigMap:  
+section of `argocd-cm` ConfigMap:
 
 ```yaml
 apiVersion: v1

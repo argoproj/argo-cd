@@ -96,6 +96,7 @@ export const ApplicationSyncPanel = ({application, selectedResource, hide}: {app
                                 try {
                                     await services.applications.sync(
                                         application.metadata.name,
+                                        application.metadata.namespace,
                                         params.revision,
                                         syncFlags.Prune || false,
                                         syncFlags.DryRun || false,

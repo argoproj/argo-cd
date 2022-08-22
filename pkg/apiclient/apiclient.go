@@ -7,7 +7,6 @@ import (
 	"errors"
 	"fmt"
 	"io"
-	"io/ioutil"
 	"math"
 	"net"
 	"net/http"
@@ -45,6 +44,7 @@ import (
 	versionpkg "github.com/argoproj/argo-cd/v2/pkg/apiclient/version"
 	"github.com/argoproj/argo-cd/v2/pkg/apis/application/v1alpha1"
 	argoappv1 "github.com/argoproj/argo-cd/v2/pkg/apis/application/v1alpha1"
+	"github.com/argoproj/argo-cd/v2/util/argo"
 	"github.com/argoproj/argo-cd/v2/util/env"
 	grpc_util "github.com/argoproj/argo-cd/v2/util/grpc"
 	http_util "github.com/argoproj/argo-cd/v2/util/http"
@@ -230,7 +230,7 @@ func NewClient(opts *ClientOptions) (Client, error) {
 	}
 	// Override certificate data if specified from CLI flag
 	if opts.CertFile != "" {
-		b, err := ioutil.ReadFile(opts.CertFile)
+		b, err := os.ReadFile(opts.CertFile)
 		if err != nil {
 			return nil, err
 		}
@@ -766,13 +766,18 @@ func (c *client) NewAccountClientOrDie() (io.Closer, accountpkg.AccountServiceCl
 func (c *client) WatchApplicationWithRetry(ctx context.Context, appName string, revision string) chan *argoappv1.ApplicationWatchEvent {
 	appEventsCh := make(chan *argoappv1.ApplicationWatchEvent)
 	cancelled := false
+	appName, appNs := argo.ParseAppQualifiedName(appName, "")
 	go func() {
 		defer close(appEventsCh)
 		for !cancelled {
 			conn, appIf, err := c.NewApplicationClient()
 			if err == nil {
 				var wc applicationpkg.ApplicationService_WatchClient
-				wc, err = appIf.Watch(ctx, &applicationpkg.ApplicationQuery{Name: &appName, ResourceVersion: &revision})
+				wc, err = appIf.Watch(ctx, &applicationpkg.ApplicationQuery{
+					Name:            &appName,
+					AppNamespace:    &appNs,
+					ResourceVersion: &revision,
+				})
 				if err == nil {
 					for {
 						var appEvent *v1alpha1.ApplicationWatchEvent

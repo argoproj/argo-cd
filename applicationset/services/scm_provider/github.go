@@ -47,7 +47,7 @@ func (g *GithubProvider) GetBranches(ctx context.Context, repo *Repository) ([]*
 	repos := []*Repository{}
 	branches, err := g.listBranches(ctx, repo)
 	if err != nil {
-		return nil, fmt.Errorf("error listing branches for %s/%s: %v", repo.Organization, repo.Repository, err)
+		return nil, fmt.Errorf("error listing branches for %s/%s: %w", repo.Organization, repo.Repository, err)
 	}
 
 	for _, branch := range branches {
@@ -72,7 +72,7 @@ func (g *GithubProvider) ListRepos(ctx context.Context, cloneProtocol string) ([
 	for {
 		githubRepos, resp, err := g.client.Repositories.ListByOrg(ctx, g.organization, opt)
 		if err != nil {
-			return nil, fmt.Errorf("error listing repositories for %s: %v", g.organization, err)
+			return nil, fmt.Errorf("error listing repositories for %s: %w", g.organization, err)
 		}
 		for _, githubRepo := range githubRepos {
 			var url string
