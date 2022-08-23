@@ -31,19 +31,29 @@ kind: ConfigMap
 metadata:
   name: <config-map-name>
 data:
-  template.github-commit-status: |
+  template.<template-name>: |
     webhook:
       <webhook-name>:
         method: POST # one of: GET, POST, PUT, PATCH. Default value: GET 
         path: <optional-path-template>
         body: |
           <optional-body-template>
-  trigger.<trigger-name>: |
-    - when: app.status.operationState.phase in ['Succeeded']
-      send: [github-commit-status]
 ```
 
-3 Create subscription for webhook integration:
+3 Define trigger that customize when the request should be send and which template should be sued.
+
+```yaml
+apiVersion: v1
+kind: ConfigMap
+metadata:
+  name: <config-map-name>
+data:
+  trigger.<trigger-name>: |
+    - when: app.status.operationState.phase in ['Succeeded']
+      send: [<template-name>]
+```
+
+4 Create subscription for webhook integration:
 
 ```yaml
 apiVersion: argoproj.io/v1alpha1
@@ -56,21 +66,6 @@ metadata:
 ## Examples
 
 ### Set Github commit status
-
-```yaml
-apiVersion: v1
-kind: ConfigMap
-metadata:
-  name: <config-map-name>
-data:
-  service.webhook.github: |
-    url: https://api.github.com
-    headers: #optional headers
-    - name: Authorization
-      value: token $github-token
-```
-
-2 Define template that customizes webhook request method, path and body:
 
 ```yaml
 apiVersion: v1
@@ -99,6 +94,9 @@ data:
             "target_url": "{{.context.argocdUrl}}/applications/{{.app.metadata.name}}",
             "context": "continuous-delivery/{{.app.metadata.name}}"
           }
+  trigger.on-sync-succeeded: |
+    - when: app.status.operationState.phase in ['Succeeded']
+      send: [github-commit-status]
 ```
 
 ### Start Jenkins Job
@@ -114,8 +112,13 @@ data:
     basicAuth:
       username: <username>
       password: <api-key>
-
-type: Opaque
+  template.jenkins: |
+    webhook:
+      jenkins:
+        method: POST
+  trigger.on-sync-succeeded: |
+    - when: app.status.operationState.phase in ['Succeeded']
+      send: [jenkins]
 ```
 
 ### Send form-data
@@ -137,6 +140,9 @@ data:
       form:
         method: POST
         body: key1=value1&key2=value2
+  trigger.on-sync-succeeded: |
+    - when: app.status.operationState.phase in ['Succeeded']
+      send: [form-data]
 ```
 
 ### Send Slack
@@ -152,7 +158,10 @@ data:
     headers:
     - name: Content-Type
       value: application/json
-
+  template.slack: |
+    webhook:
+      slack_webhook:
+        method: POST
   template.send-slack: |
     webhook:
       slack_webhook:
@@ -174,4 +183,7 @@ data:
               }]
             }]
           }
+  trigger.on-sync-succeeded: |
+    - when: app.status.operationState.phase in ['Succeeded']
+      send: [slack]
 ```
