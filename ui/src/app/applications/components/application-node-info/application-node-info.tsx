@@ -121,7 +121,10 @@ export const ApplicationNodeInfo = (props: {
                                     input={live}
                                     hideModeButtons={!live}
                                     vScrollbar={live}
-                                    onSave={(patch, patchType) => services.applications.patchResource(props.application.metadata.name, props.node, patch, patchType)}
+                                    onSave={(patch, patchType) =>
+                                        services.applications.patchResource(props.application.metadata.name, props.application.metadata.namespace, props.node, patch, patchType)
+                                    }
+
                                 />
                             </>
                         );

@@ -10,6 +10,7 @@ import (
 
 	log "github.com/sirupsen/logrus"
 
+	"github.com/argoproj/argo-cd/v2/common"
 	executil "github.com/argoproj/argo-cd/v2/util/exec"
 	argoio "github.com/argoproj/argo-cd/v2/util/io"
 	pathutil "github.com/argoproj/argo-cd/v2/util/io/path"
@@ -213,7 +214,10 @@ func writeToTmp(data []byte) (string, argoio.Closer, error) {
 	}
 	defer func() {
 		if err = file.Close(); err != nil {
-			log.Errorf("error closing file %q: %v", file.Name(), err)
+			log.WithFields(log.Fields{
+				common.SecurityField:    common.SecurityMedium,
+				common.SecurityCWEField: 775,
+			}).Errorf("error closing file %q: %v", file.Name(), err)
 		}
 	}()
 	return file.Name(), argoio.NewCloser(func() error {

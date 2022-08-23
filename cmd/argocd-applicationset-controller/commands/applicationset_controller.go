@@ -19,6 +19,7 @@ import (
 	"github.com/argoproj/argo-cd/v2/common"
 	"github.com/argoproj/argo-cd/v2/reposerver/askpass"
 	"github.com/argoproj/argo-cd/v2/util/env"
+	"github.com/argoproj/argo-cd/v2/util/github_app"
 
 	log "github.com/sirupsen/logrus"
 	"github.com/spf13/cobra"
@@ -136,13 +137,16 @@ func NewCommand() *cobra.Command {
 			argoCDDB := db.NewDB(namespace, argoSettingsMgr, k8sClient)
 
 			askPassServer := askpass.NewServer()
+			scmAuth := generators.SCMAuthProviders{
+				GitHubApps: github_app.NewAuthCredentials(argoCDDB.(db.RepoCredsDB)),
+			}
 			terminalGenerators := map[string]generators.Generator{
 				"List":                    generators.NewListGenerator(),
 				"Clusters":                generators.NewClusterGenerator(mgr.GetClient(), ctx, k8sClient, namespace),
 				"Git":                     generators.NewGitGenerator(services.NewArgoCDService(argoCDDB, askPassServer, getSubmoduleEnabled())),
-				"SCMProvider":             generators.NewSCMProviderGenerator(mgr.GetClient()),
+				"SCMProvider":             generators.NewSCMProviderGenerator(mgr.GetClient(), scmAuth),
 				"ClusterDecisionResource": generators.NewDuckTypeGenerator(ctx, dynamicClient, k8sClient, namespace),
-				"PullRequest":             generators.NewPullRequestGenerator(mgr.GetClient()),
+				"PullRequest":             generators.NewPullRequestGenerator(mgr.GetClient(), scmAuth),
 			}
 
 			nestedGenerators := map[string]generators.Generator{

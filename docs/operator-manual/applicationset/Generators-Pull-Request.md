@@ -44,6 +44,8 @@ spec:
         tokenRef:
           secretName: github-token
           key: token
+        # (optional) use a GitHub App to access the API instead of a PAT.
+        appSecretName: github-app-repo-creds
         # Labels is used to filter the PRs that you want to target. (optional)
         labels:
         - preview
@@ -57,6 +59,9 @@ spec:
 * `api`: If using GitHub Enterprise, the URL to access it. (Optional)
 * `tokenRef`: A `Secret` name and key containing the GitHub access token to use for requests. If not specified, will make anonymous requests which have a lower rate limit and can only see public repositories. (Optional)
 * `labels`: Labels is used to filter the PRs that you want to target. (Optional)
+* `appSecretName`: A `Secret` name containing a GitHub App secret in [repo-creds format][repo-creds].
+
+[repo-creds]: ../declarative-setup.md#repository-credentials
 
 ## GitLab
 

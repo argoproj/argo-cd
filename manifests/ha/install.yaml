@@ -4527,6 +4527,8 @@ spec:
                                     properties:
                                       api:
                                         type: string
+                                      appSecretName:
+                                        type: string
                                       labels:
                                         items:
                                           type: string
@@ -4963,6 +4965,8 @@ spec:
                                       allBranches:
                                         type: boolean
                                       api:
+                                        type: string
+                                      appSecretName:
                                         type: string
                                       organization:
                                         type: string
@@ -6753,6 +6757,8 @@ spec:
                                     properties:
                                       api:
                                         type: string
+                                      appSecretName:
+                                        type: string
                                       labels:
                                         items:
                                           type: string
@@ -7189,6 +7195,8 @@ spec:
                                       allBranches:
                                         type: boolean
                                       api:
+                                        type: string
+                                      appSecretName:
                                         type: string
                                       organization:
                                         type: string
@@ -7844,6 +7852,8 @@ spec:
                           properties:
                             api:
                               type: string
+                            appSecretName:
+                              type: string
                             labels:
                               items:
                                 type: string
@@ -8280,6 +8290,8 @@ spec:
                             allBranches:
                               type: boolean
                             api:
+                              type: string
+                            appSecretName:
                               type: string
                             organization:
                               type: string
