@@ -134,7 +134,7 @@ func (s *applicationEventReporter) streamApplicationEvents(
 
 		revisionMetadata, _ := s.getApplicationHistoryRevisionDetails(ctx, a)
 
-		s.processResource(ctx, *rs, parentApplicationEntity, logCtx, ts, desiredManifests, stream, appTree, es, manifestGenErr, a, revisionMetadata, false)
+		s.processResource(ctx, *rs, parentApplicationEntity, logCtx, ts, desiredManifests, stream, appTree, es, manifestGenErr, a, revisionMetadata, true)
 	} else {
 		// application events for child apps would be sent by its parent app
 		// as resource event
@@ -421,6 +421,11 @@ func getResourceEventPayload(
 		errors = append(errors, parseResourceSyncResultErrors(rs, parentApplication.Status.OperationState)...)
 	}
 
+	// for primitive resources that are synced right away and don't require progression time (like configmap)
+	if rs.Status == appv1.SyncStatusCodeSynced && rs.Health != nil && rs.Health.Status == health.HealthStatusHealthy {
+		syncFinished = &syncStarted
+	}
+
 	// parent application not include errors in application originally was created with broken state, for example in destination missed namespace
 	if originalApplication != nil && originalApplication.Status.OperationState != nil {
 		errors = append(errors, parseApplicationSyncResultErrors(originalApplication.Status.OperationState)...)
@@ -580,7 +585,6 @@ func getResourceDesiredState(rs *appv1.ResourceStatus, ds *apiclient.ManifestRes
 		}
 
 		if u == nil {
-			logger.WithError(err).Warnf("no compiled manifest for: %s", m.Path)
 			continue
 		}
 
