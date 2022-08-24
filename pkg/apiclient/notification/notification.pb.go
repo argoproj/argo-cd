@@ -10,6 +10,7 @@ package notification
 import (
 	context "context"
 	fmt "fmt"
+	github_com_gogo_protobuf_proto "github.com/gogo/protobuf/proto"
 	proto "github.com/gogo/protobuf/proto"
 	_ "google.golang.org/genproto/googleapis/api/annotations"
 	grpc "google.golang.org/grpc"
@@ -31,25 +32,25 @@ var _ = math.Inf
 // proto package needs to be updated.
 const _ = proto.GoGoProtoPackageIsVersion3 // please upgrade the proto package
 
-type Triggers struct {
-	Triggers             []string `protobuf:"bytes,1,rep,name=triggers" json:"triggers,omitempty"`
+type Trigger struct {
+	Name                 *string  `protobuf:"bytes,1,req,name=name" json:"name,omitempty"`
 	XXX_NoUnkeyedLiteral struct{} `json:"-"`
 	XXX_unrecognized     []byte   `json:"-"`
 	XXX_sizecache        int32    `json:"-"`
 }
 
-func (m *Triggers) Reset()         { *m = Triggers{} }
-func (m *Triggers) String() string { return proto.CompactTextString(m) }
-func (*Triggers) ProtoMessage()    {}
-func (*Triggers) Descriptor() ([]byte, []int) {
+func (m *Trigger) Reset()         { *m = Trigger{} }
+func (m *Trigger) String() string { return proto.CompactTextString(m) }
+func (*Trigger) ProtoMessage()    {}
+func (*Trigger) Descriptor() ([]byte, []int) {
 	return fileDescriptor_e1dead44d55a8ff4, []int{0}
 }
-func (m *Triggers) XXX_Unmarshal(b []byte) error {
+func (m *Trigger) XXX_Unmarshal(b []byte) error {
 	return m.Unmarshal(b)
 }
-func (m *Triggers) XXX_Marshal(b []byte, deterministic bool) ([]byte, error) {
+func (m *Trigger) XXX_Marshal(b []byte, deterministic bool) ([]byte, error) {
 	if deterministic {
-		return xxx_messageInfo_Triggers.Marshal(b, m, deterministic)
+		return xxx_messageInfo_Trigger.Marshal(b, m, deterministic)
 	} else {
 		b = b[:cap(b)]
 		n, err := m.MarshalToSizedBuffer(b)
@@ -59,21 +60,68 @@ func (m *Triggers) XXX_Marshal(b []byte, deterministic bool) ([]byte, error) {
 		return b[:n], nil
 	}
 }
-func (m *Triggers) XXX_Merge(src proto.Message) {
-	xxx_messageInfo_Triggers.Merge(m, src)
+func (m *Trigger) XXX_Merge(src proto.Message) {
+	xxx_messageInfo_Trigger.Merge(m, src)
 }
-func (m *Triggers) XXX_Size() int {
+func (m *Trigger) XXX_Size() int {
 	return m.Size()
 }
-func (m *Triggers) XXX_DiscardUnknown() {
-	xxx_messageInfo_Triggers.DiscardUnknown(m)
+func (m *Trigger) XXX_DiscardUnknown() {
+	xxx_messageInfo_Trigger.DiscardUnknown(m)
 }
 
-var xxx_messageInfo_Triggers proto.InternalMessageInfo
+var xxx_messageInfo_Trigger proto.InternalMessageInfo
 
-func (m *Triggers) GetTriggers() []string {
+func (m *Trigger) GetName() string {
+	if m != nil && m.Name != nil {
+		return *m.Name
+	}
+	return ""
+}
+
+type TriggerList struct {
+	Items                []*Trigger `protobuf:"bytes,1,rep,name=items" json:"items,omitempty"`
+	XXX_NoUnkeyedLiteral struct{}   `json:"-"`
+	XXX_unrecognized     []byte     `json:"-"`
+	XXX_sizecache        int32      `json:"-"`
+}
+
+func (m *TriggerList) Reset()         { *m = TriggerList{} }
+func (m *TriggerList) String() string { return proto.CompactTextString(m) }
+func (*TriggerList) ProtoMessage()    {}
+func (*TriggerList) Descriptor() ([]byte, []int) {
+	return fileDescriptor_e1dead44d55a8ff4, []int{1}
+}
+func (m *TriggerList) XXX_Unmarshal(b []byte) error {
+	return m.Unmarshal(b)
+}
+func (m *TriggerList) XXX_Marshal(b []byte, deterministic bool) ([]byte, error) {
+	if deterministic {
+		return xxx_messageInfo_TriggerList.Marshal(b, m, deterministic)
+	} else {
+		b = b[:cap(b)]
+		n, err := m.MarshalToSizedBuffer(b)
+		if err != nil {
+			return nil, err
+		}
+		return b[:n], nil
+	}
+}
+func (m *TriggerList) XXX_Merge(src proto.Message) {
+	xxx_messageInfo_TriggerList.Merge(m, src)
+}
+func (m *TriggerList) XXX_Size() int {
+	return m.Size()
+}
+func (m *TriggerList) XXX_DiscardUnknown() {
+	xxx_messageInfo_TriggerList.DiscardUnknown(m)
+}
+
+var xxx_messageInfo_TriggerList proto.InternalMessageInfo
+
+func (m *TriggerList) GetItems() []*Trigger {
 	if m != nil {
-		return m.Triggers
+		return m.Items
 	}
 	return nil
 }
@@ -88,7 +136,7 @@ func (m *TriggersListRequest) Reset()         { *m = TriggersListRequest{} }
 func (m *TriggersListRequest) String() string { return proto.CompactTextString(m) }
 func (*TriggersListRequest) ProtoMessage()    {}
 func (*TriggersListRequest) Descriptor() ([]byte, []int) {
-	return fileDescriptor_e1dead44d55a8ff4, []int{1}
+	return fileDescriptor_e1dead44d55a8ff4, []int{2}
 }
 func (m *TriggersListRequest) XXX_Unmarshal(b []byte) error {
 	return m.Unmarshal(b)
@@ -117,25 +165,25 @@ func (m *TriggersListRequest) XXX_DiscardUnknown() {
 
 var xxx_messageInfo_TriggersListRequest proto.InternalMessageInfo
 
-type Services struct {
-	Services             []string `protobuf:"bytes,1,rep,name=services" json:"services,omitempty"`
+type Service struct {
+	Name                 *string  `protobuf:"bytes,1,req,name=name" json:"name,omitempty"`
 	XXX_NoUnkeyedLiteral struct{} `json:"-"`
 	XXX_unrecognized     []byte   `json:"-"`
 	XXX_sizecache        int32    `json:"-"`
 }
 
-func (m *Services) Reset()         { *m = Services{} }
-func (m *Services) String() string { return proto.CompactTextString(m) }
-func (*Services) ProtoMessage()    {}
-func (*Services) Descriptor() ([]byte, []int) {
-	return fileDescriptor_e1dead44d55a8ff4, []int{2}
+func (m *Service) Reset()         { *m = Service{} }
+func (m *Service) String() string { return proto.CompactTextString(m) }
+func (*Service) ProtoMessage()    {}
+func (*Service) Descriptor() ([]byte, []int) {
+	return fileDescriptor_e1dead44d55a8ff4, []int{3}
 }
-func (m *Services) XXX_Unmarshal(b []byte) error {
+func (m *Service) XXX_Unmarshal(b []byte) error {
 	return m.Unmarshal(b)
 }
-func (m *Services) XXX_Marshal(b []byte, deterministic bool) ([]byte, error) {
+func (m *Service) XXX_Marshal(b []byte, deterministic bool) ([]byte, error) {
 	if deterministic {
-		return xxx_messageInfo_Services.Marshal(b, m, deterministic)
+		return xxx_messageInfo_Service.Marshal(b, m, deterministic)
 	} else {
 		b = b[:cap(b)]
 		n, err := m.MarshalToSizedBuffer(b)
@@ -145,21 +193,68 @@ func (m *Services) XXX_Marshal(b []byte, deterministic bool) ([]byte, error) {
 		return b[:n], nil
 	}
 }
-func (m *Services) XXX_Merge(src proto.Message) {
-	xxx_messageInfo_Services.Merge(m, src)
+func (m *Service) XXX_Merge(src proto.Message) {
+	xxx_messageInfo_Service.Merge(m, src)
 }
-func (m *Services) XXX_Size() int {
+func (m *Service) XXX_Size() int {
 	return m.Size()
 }
-func (m *Services) XXX_DiscardUnknown() {
-	xxx_messageInfo_Services.DiscardUnknown(m)
+func (m *Service) XXX_DiscardUnknown() {
+	xxx_messageInfo_Service.DiscardUnknown(m)
 }
 
-var xxx_messageInfo_Services proto.InternalMessageInfo
+var xxx_messageInfo_Service proto.InternalMessageInfo
 
-func (m *Services) GetServices() []string {
+func (m *Service) GetName() string {
+	if m != nil && m.Name != nil {
+		return *m.Name
+	}
+	return ""
+}
+
+type ServiceList struct {
+	Items                []*Service `protobuf:"bytes,1,rep,name=items" json:"items,omitempty"`
+	XXX_NoUnkeyedLiteral struct{}   `json:"-"`
+	XXX_unrecognized     []byte     `json:"-"`
+	XXX_sizecache        int32      `json:"-"`
+}
+
+func (m *ServiceList) Reset()         { *m = ServiceList{} }
+func (m *ServiceList) String() string { return proto.CompactTextString(m) }
+func (*ServiceList) ProtoMessage()    {}
+func (*ServiceList) Descriptor() ([]byte, []int) {
+	return fileDescriptor_e1dead44d55a8ff4, []int{4}
+}
+func (m *ServiceList) XXX_Unmarshal(b []byte) error {
+	return m.Unmarshal(b)
+}
+func (m *ServiceList) XXX_Marshal(b []byte, deterministic bool) ([]byte, error) {
+	if deterministic {
+		return xxx_messageInfo_ServiceList.Marshal(b, m, deterministic)
+	} else {
+		b = b[:cap(b)]
+		n, err := m.MarshalToSizedBuffer(b)
+		if err != nil {
+			return nil, err
+		}
+		return b[:n], nil
+	}
+}
+func (m *ServiceList) XXX_Merge(src proto.Message) {
+	xxx_messageInfo_ServiceList.Merge(m, src)
+}
+func (m *ServiceList) XXX_Size() int {
+	return m.Size()
+}
+func (m *ServiceList) XXX_DiscardUnknown() {
+	xxx_messageInfo_ServiceList.DiscardUnknown(m)
+}
+
+var xxx_messageInfo_ServiceList proto.InternalMessageInfo
+
+func (m *ServiceList) GetItems() []*Service {
 	if m != nil {
-		return m.Services
+		return m.Items
 	}
 	return nil
 }
@@ -174,7 +269,7 @@ func (m *ServicesListRequest) Reset()         { *m = ServicesListRequest{} }
 func (m *ServicesListRequest) String() string { return proto.CompactTextString(m) }
 func (*ServicesListRequest) ProtoMessage()    {}
 func (*ServicesListRequest) Descriptor() ([]byte, []int) {
-	return fileDescriptor_e1dead44d55a8ff4, []int{3}
+	return fileDescriptor_e1dead44d55a8ff4, []int{5}
 }
 func (m *ServicesListRequest) XXX_Unmarshal(b []byte) error {
 	return m.Unmarshal(b)
@@ -203,25 +298,25 @@ func (m *ServicesListRequest) XXX_DiscardUnknown() {
 
 var xxx_messageInfo_ServicesListRequest proto.InternalMessageInfo
 
-type Templates struct {
-	Templates            []string `protobuf:"bytes,1,rep,name=templates" json:"templates,omitempty"`
+type Template struct {
+	Name                 *string  `protobuf:"bytes,1,req,name=name" json:"name,omitempty"`
 	XXX_NoUnkeyedLiteral struct{} `json:"-"`
 	XXX_unrecognized     []byte   `json:"-"`
 	XXX_sizecache        int32    `json:"-"`
 }
 
-func (m *Templates) Reset()         { *m = Templates{} }
-func (m *Templates) String() string { return proto.CompactTextString(m) }
-func (*Templates) ProtoMessage()    {}
-func (*Templates) Descriptor() ([]byte, []int) {
-	return fileDescriptor_e1dead44d55a8ff4, []int{4}
+func (m *Template) Reset()         { *m = Template{} }
+func (m *Template) String() string { return proto.CompactTextString(m) }
+func (*Template) ProtoMessage()    {}
+func (*Template) Descriptor() ([]byte, []int) {
+	return fileDescriptor_e1dead44d55a8ff4, []int{6}
 }
-func (m *Templates) XXX_Unmarshal(b []byte) error {
+func (m *Template) XXX_Unmarshal(b []byte) error {
 	return m.Unmarshal(b)
 }
-func (m *Templates) XXX_Marshal(b []byte, deterministic bool) ([]byte, error) {
+func (m *Template) XXX_Marshal(b []byte, deterministic bool) ([]byte, error) {
 	if deterministic {
-		return xxx_messageInfo_Templates.Marshal(b, m, deterministic)
+		return xxx_messageInfo_Template.Marshal(b, m, deterministic)
 	} else {
 		b = b[:cap(b)]
 		n, err := m.MarshalToSizedBuffer(b)
@@ -231,21 +326,68 @@ func (m *Templates) XXX_Marshal(b []byte, deterministic bool) ([]byte, error) {
 		return b[:n], nil
 	}
 }
-func (m *Templates) XXX_Merge(src proto.Message) {
-	xxx_messageInfo_Templates.Merge(m, src)
+func (m *Template) XXX_Merge(src proto.Message) {
+	xxx_messageInfo_Template.Merge(m, src)
 }
-func (m *Templates) XXX_Size() int {
+func (m *Template) XXX_Size() int {
 	return m.Size()
 }
-func (m *Templates) XXX_DiscardUnknown() {
-	xxx_messageInfo_Templates.DiscardUnknown(m)
+func (m *Template) XXX_DiscardUnknown() {
+	xxx_messageInfo_Template.DiscardUnknown(m)
 }
 
-var xxx_messageInfo_Templates proto.InternalMessageInfo
+var xxx_messageInfo_Template proto.InternalMessageInfo
 
-func (m *Templates) GetTemplates() []string {
+func (m *Template) GetName() string {
+	if m != nil && m.Name != nil {
+		return *m.Name
+	}
+	return ""
+}
+
+type TemplateList struct {
+	Items                []*Template `protobuf:"bytes,1,rep,name=items" json:"items,omitempty"`
+	XXX_NoUnkeyedLiteral struct{}    `json:"-"`
+	XXX_unrecognized     []byte      `json:"-"`
+	XXX_sizecache        int32       `json:"-"`
+}
+
+func (m *TemplateList) Reset()         { *m = TemplateList{} }
+func (m *TemplateList) String() string { return proto.CompactTextString(m) }
+func (*TemplateList) ProtoMessage()    {}
+func (*TemplateList) Descriptor() ([]byte, []int) {
+	return fileDescriptor_e1dead44d55a8ff4, []int{7}
+}
+func (m *TemplateList) XXX_Unmarshal(b []byte) error {
+	return m.Unmarshal(b)
+}
+func (m *TemplateList) XXX_Marshal(b []byte, deterministic bool) ([]byte, error) {
+	if deterministic {
+		return xxx_messageInfo_TemplateList.Marshal(b, m, deterministic)
+	} else {
+		b = b[:cap(b)]
+		n, err := m.MarshalToSizedBuffer(b)
+		if err != nil {
+			return nil, err
+		}
+		return b[:n], nil
+	}
+}
+func (m *TemplateList) XXX_Merge(src proto.Message) {
+	xxx_messageInfo_TemplateList.Merge(m, src)
+}
+func (m *TemplateList) XXX_Size() int {
+	return m.Size()
+}
+func (m *TemplateList) XXX_DiscardUnknown() {
+	xxx_messageInfo_TemplateList.DiscardUnknown(m)
+}
+
+var xxx_messageInfo_TemplateList proto.InternalMessageInfo
+
+func (m *TemplateList) GetItems() []*Template {
 	if m != nil {
-		return m.Templates
+		return m.Items
 	}
 	return nil
 }
@@ -260,7 +402,7 @@ func (m *TemplatesListRequest) Reset()         { *m = TemplatesListRequest{} }
 func (m *TemplatesListRequest) String() string { return proto.CompactTextString(m) }
 func (*TemplatesListRequest) ProtoMessage()    {}
 func (*TemplatesListRequest) Descriptor() ([]byte, []int) {
-	return fileDescriptor_e1dead44d55a8ff4, []int{5}
+	return fileDescriptor_e1dead44d55a8ff4, []int{8}
 }
 func (m *TemplatesListRequest) XXX_Unmarshal(b []byte) error {
 	return m.Unmarshal(b)
@@ -290,11 +432,14 @@ func (m *TemplatesListRequest) XXX_DiscardUnknown() {
 var xxx_messageInfo_TemplatesListRequest proto.InternalMessageInfo
 
 func init() {
-	proto.RegisterType((*Triggers)(nil), "notification.Triggers")
+	proto.RegisterType((*Trigger)(nil), "notification.Trigger")
+	proto.RegisterType((*TriggerList)(nil), "notification.TriggerList")
 	proto.RegisterType((*TriggersListRequest)(nil), "notification.TriggersListRequest")
-	proto.RegisterType((*Services)(nil), "notification.Services")
+	proto.RegisterType((*Service)(nil), "notification.Service")
+	proto.RegisterType((*ServiceList)(nil), "notification.ServiceList")
 	proto.RegisterType((*ServicesListRequest)(nil), "notification.ServicesListRequest")
-	proto.RegisterType((*Templates)(nil), "notification.Templates")
+	proto.RegisterType((*Template)(nil), "notification.Template")
+	proto.RegisterType((*TemplateList)(nil), "notification.TemplateList")
 	proto.RegisterType((*TemplatesListRequest)(nil), "notification.TemplatesListRequest")
 }
 
@@ -303,28 +448,31 @@ func init() {
 }
 
 var fileDescriptor_e1dead44d55a8ff4 = []byte{
-	// 332 bytes of a gzipped FileDescriptorProto
-	0x1f, 0x8b, 0x08, 0x00, 0x00, 0x00, 0x00, 0x00, 0x02, 0xff, 0x84, 0x90, 0xb1, 0x4e, 0xf3, 0x30,
-	0x14, 0x85, 0x95, 0xfe, 0x4b, 0x6b, 0xf5, 0x5f, 0x5c, 0x28, 0x28, 0xaa, 0x42, 0xeb, 0xa1, 0xc0,
-	0x40, 0x2c, 0xba, 0xb1, 0xb2, 0xb0, 0x20, 0x86, 0xd2, 0x89, 0x2d, 0x04, 0x63, 0x0c, 0x69, 0x9c,
-	0xda, 0x37, 0x79, 0x00, 0x5e, 0x81, 0x97, 0x62, 0x44, 0xe2, 0x05, 0x50, 0xc4, 0x13, 0xf0, 0x04,
-	0x28, 0x26, 0x0e, 0x49, 0x94, 0x8a, 0xed, 0xde, 0xab, 0x73, 0xee, 0xd1, 0xf9, 0xd0, 0x5c, 0x33,
-	0x95, 0x31, 0x45, 0x63, 0x09, 0xe2, 0x5e, 0x84, 0x01, 0x08, 0x19, 0x37, 0x16, 0x3f, 0x51, 0x12,
-	0x24, 0x1e, 0xd6, 0x6f, 0xee, 0x84, 0x4b, 0xc9, 0x23, 0x46, 0x83, 0x44, 0xd0, 0x20, 0x8e, 0x25,
-	0x98, 0xb3, 0xfe, 0xd1, 0x92, 0x39, 0xea, 0xaf, 0x94, 0xe0, 0x9c, 0x29, 0x8d, 0x5d, 0xd4, 0x87,
-	0x72, 0xde, 0x77, 0xa6, 0xff, 0x8e, 0x06, 0xcb, 0x6a, 0x27, 0xbb, 0x68, 0x64, 0x75, 0x97, 0x42,
-	0xc3, 0x92, 0x6d, 0x52, 0xa6, 0xa1, 0xb0, 0x5f, 0x33, 0x95, 0x89, 0x90, 0x19, 0xbb, 0x2e, 0x67,
-	0x6b, 0xb7, 0x7b, 0x61, 0xb7, 0xba, 0xba, 0xfd, 0x18, 0x0d, 0x56, 0x6c, 0x9d, 0x44, 0x01, 0x30,
-	0x8d, 0x27, 0x68, 0x00, 0x76, 0x29, 0x1f, 0xfc, 0x1e, 0xc8, 0x18, 0xed, 0x54, 0xd2, 0xda, 0x8b,
-	0xc5, 0x57, 0x0f, 0x8d, 0xae, 0x6a, 0x7d, 0xcb, 0x18, 0xbc, 0x41, 0xc3, 0x42, 0x56, 0x95, 0x9b,
-	0xf9, 0x0d, 0x52, 0x1d, 0x65, 0xdc, 0x71, 0xb7, 0x84, 0xcc, 0x9f, 0xdf, 0x3f, 0x5f, 0x7a, 0x53,
-	0xec, 0x19, 0x86, 0xd9, 0x69, 0x83, 0xb9, 0xa6, 0x96, 0x91, 0x8d, 0xac, 0x80, 0xb4, 0x22, 0x3b,
-	0x00, 0xb4, 0x23, 0xad, 0xe4, 0xaf, 0x48, 0xcb, 0x15, 0xa7, 0xe8, 0xbf, 0x69, 0x59, 0x41, 0x24,
-	0xad, 0x0e, 0x1d, 0xc8, 0xdc, 0xbd, 0x2d, 0x1a, 0x72, 0x68, 0x52, 0x67, 0xf8, 0x60, 0x4b, 0x51,
-	0x2b, 0x3c, 0xbf, 0x78, 0xcd, 0x3d, 0xe7, 0x2d, 0xf7, 0x9c, 0x8f, 0xdc, 0x73, 0x6e, 0xce, 0xb8,
-	0x80, 0x87, 0xf4, 0xd6, 0x0f, 0xe5, 0x9a, 0x06, 0x8a, 0xcb, 0x44, 0xc9, 0x47, 0x33, 0x9c, 0x84,
-	0x77, 0x34, 0x5b, 0xd0, 0xe4, 0x89, 0x17, 0x0f, 0xc3, 0x48, 0xb0, 0x18, 0x1a, 0x3f, 0xbf, 0x03,
-	0x00, 0x00, 0xff, 0xff, 0x60, 0xa5, 0x25, 0x8e, 0xd3, 0x02, 0x00, 0x00,
+	// 371 bytes of a gzipped FileDescriptorProto
+	0x1f, 0x8b, 0x08, 0x00, 0x00, 0x00, 0x00, 0x00, 0x02, 0xff, 0x8c, 0x92, 0xb1, 0x4e, 0xf3, 0x30,
+	0x10, 0xc7, 0x95, 0x7e, 0x1f, 0x02, 0xdc, 0xb2, 0xb8, 0xb4, 0x2a, 0x15, 0x84, 0x36, 0x43, 0xa9,
+	0x04, 0xd4, 0xa2, 0x1b, 0x88, 0x89, 0x85, 0x05, 0x31, 0x94, 0x4e, 0x6c, 0x21, 0x18, 0x63, 0x68,
+	0xe2, 0x60, 0x5f, 0x23, 0x66, 0x5e, 0x81, 0x97, 0x62, 0x44, 0xe2, 0x05, 0x50, 0xc5, 0x5b, 0xb0,
+	0xa0, 0xb8, 0xb6, 0x14, 0x57, 0xa9, 0x60, 0x73, 0xee, 0x7e, 0xbe, 0x9f, 0xee, 0xef, 0xa0, 0x9e,
+	0xa2, 0x32, 0xa3, 0x92, 0x24, 0x02, 0xf8, 0x1d, 0x8f, 0x42, 0xe0, 0x22, 0x71, 0x3e, 0x06, 0xa9,
+	0x14, 0x20, 0x70, 0xad, 0x58, 0x6b, 0x6f, 0x33, 0x21, 0xd8, 0x84, 0x92, 0x30, 0xe5, 0x24, 0x4c,
+	0x12, 0x01, 0xba, 0xac, 0xe6, 0x6c, 0xb0, 0x83, 0x56, 0xc7, 0x92, 0x33, 0x46, 0x25, 0xc6, 0xe8,
+	0x7f, 0x12, 0xc6, 0xb4, 0xe5, 0x75, 0x2a, 0xfd, 0xf5, 0x91, 0x3e, 0x07, 0x27, 0xa8, 0x6a, 0xda,
+	0x17, 0x5c, 0x01, 0xde, 0x47, 0x2b, 0x1c, 0x68, 0xac, 0x5a, 0x5e, 0xe7, 0x5f, 0xbf, 0x3a, 0x6c,
+	0x0c, 0x1c, 0xbb, 0x21, 0x47, 0x73, 0x26, 0x68, 0xa0, 0xba, 0xa9, 0xa8, 0xfc, 0xf2, 0x88, 0x3e,
+	0x4d, 0xa9, 0x82, 0xdc, 0x78, 0x45, 0x65, 0xc6, 0x23, 0xba, 0xcc, 0x68, 0xda, 0x7f, 0x30, 0x1a,
+	0xb2, 0x60, 0x34, 0x15, 0xc7, 0xe8, 0xa3, 0xb5, 0x31, 0x8d, 0xd3, 0x49, 0x08, 0xe5, 0xca, 0x53,
+	0x54, 0xb3, 0x7d, 0xed, 0x3c, 0x70, 0x9d, 0xcd, 0x85, 0x2d, 0x0d, 0x6a, 0xa5, 0x4d, 0xb4, 0x69,
+	0x4b, 0x45, 0xeb, 0xf0, 0xbb, 0x82, 0xea, 0x97, 0x85, 0x8b, 0x76, 0x69, 0x40, 0xb5, 0x1c, 0xb3,
+	0xd1, 0xe0, 0x6e, 0x69, 0x88, 0xc5, 0x51, 0xed, 0xad, 0x52, 0x24, 0x27, 0x82, 0xde, 0xcb, 0xc7,
+	0xd7, 0x6b, 0xa5, 0x83, 0x7d, 0xfd, 0xbe, 0xd9, 0x91, 0xf3, 0x3f, 0x28, 0x02, 0xd6, 0x62, 0xac,
+	0x36, 0x9e, 0x45, 0x6b, 0x49, 0x6c, 0x8b, 0xd6, 0xc2, 0xab, 0xfc, 0x66, 0x55, 0xd6, 0xf2, 0x8c,
+	0x36, 0xf4, 0xae, 0x36, 0x1f, 0x1c, 0x94, 0x67, 0xe9, 0x78, 0xdb, 0xe5, 0x8c, 0x16, 0xef, 0x69,
+	0x71, 0x17, 0xef, 0x2e, 0x59, 0xd7, 0xce, 0x3b, 0x3b, 0x7f, 0x9b, 0xf9, 0xde, 0xfb, 0xcc, 0xf7,
+	0x3e, 0x67, 0xbe, 0x77, 0x7d, 0xcc, 0x38, 0xdc, 0x4f, 0x6f, 0x06, 0x91, 0x88, 0x49, 0x28, 0x99,
+	0x48, 0xa5, 0x78, 0xd0, 0x87, 0xc3, 0xe8, 0x96, 0x64, 0x43, 0x92, 0x3e, 0xb2, 0x7c, 0x60, 0x34,
+	0xe1, 0x34, 0x01, 0x67, 0xe6, 0x4f, 0x00, 0x00, 0x00, 0xff, 0xff, 0xad, 0x19, 0x88, 0x22, 0x75,
+	0x03, 0x00, 0x00,
 }
 
 // Reference imports to suppress errors if they are not otherwise used.
@@ -340,11 +488,11 @@ const _ = grpc.SupportPackageIsVersion4
 // For semantics around ctx use and closing/ending streaming RPCs, please refer to https://godoc.org/google.golang.org/grpc#ClientConn.NewStream.
 type NotificationServiceClient interface {
 	// List returns list of triggers
-	ListTriggers(ctx context.Context, in *TriggersListRequest, opts ...grpc.CallOption) (*Triggers, error)
+	ListTriggers(ctx context.Context, in *TriggersListRequest, opts ...grpc.CallOption) (*TriggerList, error)
 	// List returns list of services
-	ListServices(ctx context.Context, in *ServicesListRequest, opts ...grpc.CallOption) (*Services, error)
+	ListServices(ctx context.Context, in *ServicesListRequest, opts ...grpc.CallOption) (*ServiceList, error)
 	// List returns list of templates
-	ListTemplates(ctx context.Context, in *TemplatesListRequest, opts ...grpc.CallOption) (*Templates, error)
+	ListTemplates(ctx context.Context, in *TemplatesListRequest, opts ...grpc.CallOption) (*TemplateList, error)
 }
 
 type notificationServiceClient struct {
@@ -355,8 +503,8 @@ func NewNotificationServiceClient(cc *grpc.ClientConn) NotificationServiceClient
 	return &notificationServiceClient{cc}
 }
 
-func (c *notificationServiceClient) ListTriggers(ctx context.Context, in *TriggersListRequest, opts ...grpc.CallOption) (*Triggers, error) {
-	out := new(Triggers)
+func (c *notificationServiceClient) ListTriggers(ctx context.Context, in *TriggersListRequest, opts ...grpc.CallOption) (*TriggerList, error) {
+	out := new(TriggerList)
 	err := c.cc.Invoke(ctx, "/notification.NotificationService/ListTriggers", in, out, opts...)
 	if err != nil {
 		return nil, err
@@ -364,8 +512,8 @@ func (c *notificationServiceClient) ListTriggers(ctx context.Context, in *Trigge
 	return out, nil
 }
 
-func (c *notificationServiceClient) ListServices(ctx context.Context, in *ServicesListRequest, opts ...grpc.CallOption) (*Services, error) {
-	out := new(Services)
+func (c *notificationServiceClient) ListServices(ctx context.Context, in *ServicesListRequest, opts ...grpc.CallOption) (*ServiceList, error) {
+	out := new(ServiceList)
 	err := c.cc.Invoke(ctx, "/notification.NotificationService/ListServices", in, out, opts...)
 	if err != nil {
 		return nil, err
@@ -373,8 +521,8 @@ func (c *notificationServiceClient) ListServices(ctx context.Context, in *Servic
 	return out, nil
 }
 
-func (c *notificationServiceClient) ListTemplates(ctx context.Context, in *TemplatesListRequest, opts ...grpc.CallOption) (*Templates, error) {
-	out := new(Templates)
+func (c *notificationServiceClient) ListTemplates(ctx context.Context, in *TemplatesListRequest, opts ...grpc.CallOption) (*TemplateList, error) {
+	out := new(TemplateList)
 	err := c.cc.Invoke(ctx, "/notification.NotificationService/ListTemplates", in, out, opts...)
 	if err != nil {
 		return nil, err
@@ -385,24 +533,24 @@ func (c *notificationServiceClient) ListTemplates(ctx context.Context, in *Templ
 // NotificationServiceServer is the server API for NotificationService service.
 type NotificationServiceServer interface {
 	// List returns list of triggers
-	ListTriggers(context.Context, *TriggersListRequest) (*Triggers, error)
+	ListTriggers(context.Context, *TriggersListRequest) (*TriggerList, error)
 	// List returns list of services
-	ListServices(context.Context, *ServicesListRequest) (*Services, error)
+	ListServices(context.Context, *ServicesListRequest) (*ServiceList, error)
 	// List returns list of templates
-	ListTemplates(context.Context, *TemplatesListRequest) (*Templates, error)
+	ListTemplates(context.Context, *TemplatesListRequest) (*TemplateList, error)
 }
 
 // UnimplementedNotificationServiceServer can be embedded to have forward compatible implementations.
 type UnimplementedNotificationServiceServer struct {
 }
 
-func (*UnimplementedNotificationServiceServer) ListTriggers(ctx context.Context, req *TriggersListRequest) (*Triggers, error) {
+func (*UnimplementedNotificationServiceServer) ListTriggers(ctx context.Context, req *TriggersListRequest) (*TriggerList, error) {
 	return nil, status.Errorf(codes.Unimplemented, "method ListTriggers not implemented")
 }
-func (*UnimplementedNotificationServiceServer) ListServices(ctx context.Context, req *ServicesListRequest) (*Services, error) {
+func (*UnimplementedNotificationServiceServer) ListServices(ctx context.Context, req *ServicesListRequest) (*ServiceList, error) {
 	return nil, status.Errorf(codes.Unimplemented, "method ListServices not implemented")
 }
-func (*UnimplementedNotificationServiceServer) ListTemplates(ctx context.Context, req *TemplatesListRequest) (*Templates, error) {
+func (*UnimplementedNotificationServiceServer) ListTemplates(ctx context.Context, req *TemplatesListRequest) (*TemplateList, error) {
 	return nil, status.Errorf(codes.Unimplemented, "method ListTemplates not implemented")
 }
 
@@ -485,7 +633,7 @@ var _NotificationService_serviceDesc = grpc.ServiceDesc{
 	Metadata: "server/notification/notification.proto",
 }
 
-func (m *Triggers) Marshal() (dAtA []byte, err error) {
+func (m *Trigger) Marshal() (dAtA []byte, err error) {
 	size := m.Size()
 	dAtA = make([]byte, size)
 	n, err := m.MarshalToSizedBuffer(dAtA[:size])
@@ -495,12 +643,12 @@ func (m *Triggers) Marshal() (dAtA []byte, err error) {
 	return dAtA[:n], nil
 }
 
-func (m *Triggers) MarshalTo(dAtA []byte) (int, error) {
+func (m *Trigger) MarshalTo(dAtA []byte) (int, error) {
 	size := m.Size()
 	return m.MarshalToSizedBuffer(dAtA[:size])
 }
 
-func (m *Triggers) MarshalToSizedBuffer(dAtA []byte) (int, error) {
+func (m *Trigger) MarshalToSizedBuffer(dAtA []byte) (int, error) {
 	i := len(dAtA)
 	_ = i
 	var l int
@@ -509,11 +657,52 @@ func (m *Triggers) MarshalToSizedBuffer(dAtA []byte) (int, error) {
 		i -= len(m.XXX_unrecognized)
 		copy(dAtA[i:], m.XXX_unrecognized)
 	}
-	if len(m.Triggers) > 0 {
-		for iNdEx := len(m.Triggers) - 1; iNdEx >= 0; iNdEx-- {
-			i -= len(m.Triggers[iNdEx])
-			copy(dAtA[i:], m.Triggers[iNdEx])
-			i = encodeVarintNotification(dAtA, i, uint64(len(m.Triggers[iNdEx])))
+	if m.Name == nil {
+		return 0, github_com_gogo_protobuf_proto.NewRequiredNotSetError("name")
+	} else {
+		i -= len(*m.Name)
+		copy(dAtA[i:], *m.Name)
+		i = encodeVarintNotification(dAtA, i, uint64(len(*m.Name)))
+		i--
+		dAtA[i] = 0xa
+	}
+	return len(dAtA) - i, nil
+}
+
+func (m *TriggerList) Marshal() (dAtA []byte, err error) {
+	size := m.Size()
+	dAtA = make([]byte, size)
+	n, err := m.MarshalToSizedBuffer(dAtA[:size])
+	if err != nil {
+		return nil, err
+	}
+	return dAtA[:n], nil
+}
+
+func (m *TriggerList) MarshalTo(dAtA []byte) (int, error) {
+	size := m.Size()
+	return m.MarshalToSizedBuffer(dAtA[:size])
+}
+
+func (m *TriggerList) MarshalToSizedBuffer(dAtA []byte) (int, error) {
+	i := len(dAtA)
+	_ = i
+	var l int
+	_ = l
+	if m.XXX_unrecognized != nil {
+		i -= len(m.XXX_unrecognized)
+		copy(dAtA[i:], m.XXX_unrecognized)
+	}
+	if len(m.Items) > 0 {
+		for iNdEx := len(m.Items) - 1; iNdEx >= 0; iNdEx-- {
+			{
+				size, err := m.Items[iNdEx].MarshalToSizedBuffer(dAtA[:i])
+				if err != nil {
+					return 0, err
+				}
+				i -= size
+				i = encodeVarintNotification(dAtA, i, uint64(size))
+			}
 			i--
 			dAtA[i] = 0xa
 		}
@@ -548,7 +737,7 @@ func (m *TriggersListRequest) MarshalToSizedBuffer(dAtA []byte) (int, error) {
 	return len(dAtA) - i, nil
 }
 
-func (m *Services) Marshal() (dAtA []byte, err error) {
+func (m *Service) Marshal() (dAtA []byte, err error) {
 	size := m.Size()
 	dAtA = make([]byte, size)
 	n, err := m.MarshalToSizedBuffer(dAtA[:size])
@@ -558,12 +747,12 @@ func (m *Services) Marshal() (dAtA []byte, err error) {
 	return dAtA[:n], nil
 }
 
-func (m *Services) MarshalTo(dAtA []byte) (int, error) {
+func (m *Service) MarshalTo(dAtA []byte) (int, error) {
 	size := m.Size()
 	return m.MarshalToSizedBuffer(dAtA[:size])
 }
 
-func (m *Services) MarshalToSizedBuffer(dAtA []byte) (int, error) {
+func (m *Service) MarshalToSizedBuffer(dAtA []byte) (int, error) {
 	i := len(dAtA)
 	_ = i
 	var l int
@@ -572,11 +761,52 @@ func (m *Services) MarshalToSizedBuffer(dAtA []byte) (int, error) {
 		i -= len(m.XXX_unrecognized)
 		copy(dAtA[i:], m.XXX_unrecognized)
 	}
-	if len(m.Services) > 0 {
-		for iNdEx := len(m.Services) - 1; iNdEx >= 0; iNdEx-- {
-			i -= len(m.Services[iNdEx])
-			copy(dAtA[i:], m.Services[iNdEx])
-			i = encodeVarintNotification(dAtA, i, uint64(len(m.Services[iNdEx])))
+	if m.Name == nil {
+		return 0, github_com_gogo_protobuf_proto.NewRequiredNotSetError("name")
+	} else {
+		i -= len(*m.Name)
+		copy(dAtA[i:], *m.Name)
+		i = encodeVarintNotification(dAtA, i, uint64(len(*m.Name)))
+		i--
+		dAtA[i] = 0xa
+	}
+	return len(dAtA) - i, nil
+}
+
+func (m *ServiceList) Marshal() (dAtA []byte, err error) {
+	size := m.Size()
+	dAtA = make([]byte, size)
+	n, err := m.MarshalToSizedBuffer(dAtA[:size])
+	if err != nil {
+		return nil, err
+	}
+	return dAtA[:n], nil
+}
+
+func (m *ServiceList) MarshalTo(dAtA []byte) (int, error) {
+	size := m.Size()
+	return m.MarshalToSizedBuffer(dAtA[:size])
+}
+
+func (m *ServiceList) MarshalToSizedBuffer(dAtA []byte) (int, error) {
+	i := len(dAtA)
+	_ = i
+	var l int
+	_ = l
+	if m.XXX_unrecognized != nil {
+		i -= len(m.XXX_unrecognized)
+		copy(dAtA[i:], m.XXX_unrecognized)
+	}
+	if len(m.Items) > 0 {
+		for iNdEx := len(m.Items) - 1; iNdEx >= 0; iNdEx-- {
+			{
+				size, err := m.Items[iNdEx].MarshalToSizedBuffer(dAtA[:i])
+				if err != nil {
+					return 0, err
+				}
+				i -= size
+				i = encodeVarintNotification(dAtA, i, uint64(size))
+			}
 			i--
 			dAtA[i] = 0xa
 		}
@@ -611,7 +841,7 @@ func (m *ServicesListRequest) MarshalToSizedBuffer(dAtA []byte) (int, error) {
 	return len(dAtA) - i, nil
 }
 
-func (m *Templates) Marshal() (dAtA []byte, err error) {
+func (m *Template) Marshal() (dAtA []byte, err error) {
 	size := m.Size()
 	dAtA = make([]byte, size)
 	n, err := m.MarshalToSizedBuffer(dAtA[:size])
@@ -621,12 +851,12 @@ func (m *Templates) Marshal() (dAtA []byte, err error) {
 	return dAtA[:n], nil
 }
 
-func (m *Templates) MarshalTo(dAtA []byte) (int, error) {
+func (m *Template) MarshalTo(dAtA []byte) (int, error) {
 	size := m.Size()
 	return m.MarshalToSizedBuffer(dAtA[:size])
 }
 
-func (m *Templates) MarshalToSizedBuffer(dAtA []byte) (int, error) {
+func (m *Template) MarshalToSizedBuffer(dAtA []byte) (int, error) {
 	i := len(dAtA)
 	_ = i
 	var l int
@@ -635,11 +865,52 @@ func (m *Templates) MarshalToSizedBuffer(dAtA []byte) (int, error) {
 		i -= len(m.XXX_unrecognized)
 		copy(dAtA[i:], m.XXX_unrecognized)
 	}
-	if len(m.Templates) > 0 {
-		for iNdEx := len(m.Templates) - 1; iNdEx >= 0; iNdEx-- {
-			i -= len(m.Templates[iNdEx])
-			copy(dAtA[i:], m.Templates[iNdEx])
-			i = encodeVarintNotification(dAtA, i, uint64(len(m.Templates[iNdEx])))
+	if m.Name == nil {
+		return 0, github_com_gogo_protobuf_proto.NewRequiredNotSetError("name")
+	} else {
+		i -= len(*m.Name)
+		copy(dAtA[i:], *m.Name)
+		i = encodeVarintNotification(dAtA, i, uint64(len(*m.Name)))
+		i--
+		dAtA[i] = 0xa
+	}
+	return len(dAtA) - i, nil
+}
+
+func (m *TemplateList) Marshal() (dAtA []byte, err error) {
+	size := m.Size()
+	dAtA = make([]byte, size)
+	n, err := m.MarshalToSizedBuffer(dAtA[:size])
+	if err != nil {
+		return nil, err
+	}
+	return dAtA[:n], nil
+}
+
+func (m *TemplateList) MarshalTo(dAtA []byte) (int, error) {
+	size := m.Size()
+	return m.MarshalToSizedBuffer(dAtA[:size])
+}
+
+func (m *TemplateList) MarshalToSizedBuffer(dAtA []byte) (int, error) {
+	i := len(dAtA)
+	_ = i
+	var l int
+	_ = l
+	if m.XXX_unrecognized != nil {
+		i -= len(m.XXX_unrecognized)
+		copy(dAtA[i:], m.XXX_unrecognized)
+	}
+	if len(m.Items) > 0 {
+		for iNdEx := len(m.Items) - 1; iNdEx >= 0; iNdEx-- {
+			{
+				size, err := m.Items[iNdEx].MarshalToSizedBuffer(dAtA[:i])
+				if err != nil {
+					return 0, err
+				}
+				i -= size
+				i = encodeVarintNotification(dAtA, i, uint64(size))
+			}
 			i--
 			dAtA[i] = 0xa
 		}
@@ -685,15 +956,31 @@ func encodeVarintNotification(dAtA []byte, offset int, v uint64) int {
 	dAtA[offset] = uint8(v)
 	return base
 }
-func (m *Triggers) Size() (n int) {
+func (m *Trigger) Size() (n int) {
 	if m == nil {
 		return 0
 	}
 	var l int
 	_ = l
-	if len(m.Triggers) > 0 {
-		for _, s := range m.Triggers {
-			l = len(s)
+	if m.Name != nil {
+		l = len(*m.Name)
+		n += 1 + l + sovNotification(uint64(l))
+	}
+	if m.XXX_unrecognized != nil {
+		n += len(m.XXX_unrecognized)
+	}
+	return n
+}
+
+func (m *TriggerList) Size() (n int) {
+	if m == nil {
+		return 0
+	}
+	var l int
+	_ = l
+	if len(m.Items) > 0 {
+		for _, e := range m.Items {
+			l = e.Size()
 			n += 1 + l + sovNotification(uint64(l))
 		}
 	}
@@ -715,15 +1002,31 @@ func (m *TriggersListRequest) Size() (n int) {
 	return n
 }
 
-func (m *Services) Size() (n int) {
+func (m *Service) Size() (n int) {
 	if m == nil {
 		return 0
 	}
 	var l int
 	_ = l
-	if len(m.Services) > 0 {
-		for _, s := range m.Services {
-			l = len(s)
+	if m.Name != nil {
+		l = len(*m.Name)
+		n += 1 + l + sovNotification(uint64(l))
+	}
+	if m.XXX_unrecognized != nil {
+		n += len(m.XXX_unrecognized)
+	}
+	return n
+}
+
+func (m *ServiceList) Size() (n int) {
+	if m == nil {
+		return 0
+	}
+	var l int
+	_ = l
+	if len(m.Items) > 0 {
+		for _, e := range m.Items {
+			l = e.Size()
 			n += 1 + l + sovNotification(uint64(l))
 		}
 	}
@@ -745,15 +1048,31 @@ func (m *ServicesListRequest) Size() (n int) {
 	return n
 }
 
-func (m *Templates) Size() (n int) {
+func (m *Template) Size() (n int) {
 	if m == nil {
 		return 0
 	}
 	var l int
 	_ = l
-	if len(m.Templates) > 0 {
-		for _, s := range m.Templates {
-			l = len(s)
+	if m.Name != nil {
+		l = len(*m.Name)
+		n += 1 + l + sovNotification(uint64(l))
+	}
+	if m.XXX_unrecognized != nil {
+		n += len(m.XXX_unrecognized)
+	}
+	return n
+}
+
+func (m *TemplateList) Size() (n int) {
+	if m == nil {
+		return 0
+	}
+	var l int
+	_ = l
+	if len(m.Items) > 0 {
+		for _, e := range m.Items {
+			l = e.Size()
 			n += 1 + l + sovNotification(uint64(l))
 		}
 	}
@@ -781,7 +1100,8 @@ func sovNotification(x uint64) (n int) {
 func sozNotification(x uint64) (n int) {
 	return sovNotification(uint64((x << 1) ^ uint64((int64(x) >> 63))))
 }
-func (m *Triggers) Unmarshal(dAtA []byte) error {
+func (m *Trigger) Unmarshal(dAtA []byte) error {
+	var hasFields [1]uint64
 	l := len(dAtA)
 	iNdEx := 0
 	for iNdEx < l {
@@ -804,15 +1124,15 @@ func (m *Triggers) Unmarshal(dAtA []byte) error {
 		fieldNum := int32(wire >> 3)
 		wireType := int(wire & 0x7)
 		if wireType == 4 {
-			return fmt.Errorf("proto: Triggers: wiretype end group for non-group")
+			return fmt.Errorf("proto: Trigger: wiretype end group for non-group")
 		}
 		if fieldNum <= 0 {
-			return fmt.Errorf("proto: Triggers: illegal tag %d (wire type %d)", fieldNum, wire)
+			return fmt.Errorf("proto: Trigger: illegal tag %d (wire type %d)", fieldNum, wire)
 		}
 		switch fieldNum {
 		case 1:
 			if wireType != 2 {
-				return fmt.Errorf("proto: wrong wireType = %d for field Triggers", wireType)
+				return fmt.Errorf("proto: wrong wireType = %d for field Name", wireType)
 			}
 			var stringLen uint64
 			for shift := uint(0); ; shift += 7 {
@@ -840,7 +1160,97 @@ func (m *Triggers) Unmarshal(dAtA []byte) error {
 			if postIndex > l {
 				return io.ErrUnexpectedEOF
 			}
-			m.Triggers = append(m.Triggers, string(dAtA[iNdEx:postIndex]))
+			s := string(dAtA[iNdEx:postIndex])
+			m.Name = &s
+			iNdEx = postIndex
+			hasFields[0] |= uint64(0x00000001)
+		default:
+			iNdEx = preIndex
+			skippy, err := skipNotification(dAtA[iNdEx:])
+			if err != nil {
+				return err
+			}
+			if (skippy < 0) || (iNdEx+skippy) < 0 {
+				return ErrInvalidLengthNotification
+			}
+			if (iNdEx + skippy) > l {
+				return io.ErrUnexpectedEOF
+			}
+			m.XXX_unrecognized = append(m.XXX_unrecognized, dAtA[iNdEx:iNdEx+skippy]...)
+			iNdEx += skippy
+		}
+	}
+	if hasFields[0]&uint64(0x00000001) == 0 {
+		return github_com_gogo_protobuf_proto.NewRequiredNotSetError("name")
+	}
+
+	if iNdEx > l {
+		return io.ErrUnexpectedEOF
+	}
+	return nil
+}
+func (m *TriggerList) Unmarshal(dAtA []byte) error {
+	l := len(dAtA)
+	iNdEx := 0
+	for iNdEx < l {
+		preIndex := iNdEx
+		var wire uint64
+		for shift := uint(0); ; shift += 7 {
+			if shift >= 64 {
+				return ErrIntOverflowNotification
+			}
+			if iNdEx >= l {
+				return io.ErrUnexpectedEOF
+			}
+			b := dAtA[iNdEx]
+			iNdEx++
+			wire |= uint64(b&0x7F) << shift
+			if b < 0x80 {
+				break
+			}
+		}
+		fieldNum := int32(wire >> 3)
+		wireType := int(wire & 0x7)
+		if wireType == 4 {
+			return fmt.Errorf("proto: TriggerList: wiretype end group for non-group")
+		}
+		if fieldNum <= 0 {
+			return fmt.Errorf("proto: TriggerList: illegal tag %d (wire type %d)", fieldNum, wire)
+		}
+		switch fieldNum {
+		case 1:
+			if wireType != 2 {
+				return fmt.Errorf("proto: wrong wireType = %d for field Items", wireType)
+			}
+			var msglen int
+			for shift := uint(0); ; shift += 7 {
+				if shift >= 64 {
+					return ErrIntOverflowNotification
+				}
+				if iNdEx >= l {
+					return io.ErrUnexpectedEOF
+				}
+				b := dAtA[iNdEx]
+				iNdEx++
+				msglen |= int(b&0x7F) << shift
+				if b < 0x80 {
+					break
+				}
+			}
+			if msglen < 0 {
+				return ErrInvalidLengthNotification
+			}
+			postIndex := iNdEx + msglen
+			if postIndex < 0 {
+				return ErrInvalidLengthNotification
+			}
+			if postIndex > l {
+				return io.ErrUnexpectedEOF
+			}
+			m.Items = append(m.Items, &Trigger{})
+			if err := m.Items[len(m.Items)-1].Unmarshal(dAtA[iNdEx:postIndex]); err != nil {
+				return err
+			}
 			iNdEx = postIndex
 		default:
 			iNdEx = preIndex
@@ -915,7 +1325,8 @@ func (m *TriggersListRequest) Unmarshal(dAtA []byte) error {
 	}
 	return nil
 }
-func (m *Services) Unmarshal(dAtA []byte) error {
+func (m *Service) Unmarshal(dAtA []byte) error {
+	var hasFields [1]uint64
 	l := len(dAtA)
 	iNdEx := 0
 	for iNdEx < l {
@@ -938,15 +1349,15 @@ func (m *Services) Unmarshal(dAtA []byte) error {
 		fieldNum := int32(wire >> 3)
 		wireType := int(wire & 0x7)
 		if wireType == 4 {
-			return fmt.Errorf("proto: Services: wiretype end group for non-group")
+			return fmt.Errorf("proto: Service: wiretype end group for non-group")
 		}
 		if fieldNum <= 0 {
-			return fmt.Errorf("proto: Services: illegal tag %d (wire type %d)", fieldNum, wire)
+			return fmt.Errorf("proto: Service: illegal tag %d (wire type %d)", fieldNum, wire)
 		}
 		switch fieldNum {
 		case 1:
 			if wireType != 2 {
-				return fmt.Errorf("proto: wrong wireType = %d for field Services", wireType)
+				return fmt.Errorf("proto: wrong wireType = %d for field Name", wireType)
 			}
 			var stringLen uint64
 			for shift := uint(0); ; shift += 7 {
@@ -974,7 +1385,97 @@ func (m *Services) Unmarshal(dAtA []byte) error {
 			if postIndex > l {
 				return io.ErrUnexpectedEOF
 			}
-			m.Services = append(m.Services, string(dAtA[iNdEx:postIndex]))
+			s := string(dAtA[iNdEx:postIndex])
+			m.Name = &s
+			iNdEx = postIndex
+			hasFields[0] |= uint64(0x00000001)
+		default:
+			iNdEx = preIndex
+			skippy, err := skipNotification(dAtA[iNdEx:])
+			if err != nil {
+				return err
+			}
+			if (skippy < 0) || (iNdEx+skippy) < 0 {
+				return ErrInvalidLengthNotification
+			}
+			if (iNdEx + skippy) > l {
+				return io.ErrUnexpectedEOF
+			}
+			m.XXX_unrecognized = append(m.XXX_unrecognized, dAtA[iNdEx:iNdEx+skippy]...)
+			iNdEx += skippy
+		}
+	}
+	if hasFields[0]&uint64(0x00000001) == 0 {
+		return github_com_gogo_protobuf_proto.NewRequiredNotSetError("name")
+	}
+
+	if iNdEx > l {
+		return io.ErrUnexpectedEOF
+	}
+	return nil
+}
+func (m *ServiceList) Unmarshal(dAtA []byte) error {
+	l := len(dAtA)
+	iNdEx := 0
+	for iNdEx < l {
+		preIndex := iNdEx
+		var wire uint64
+		for shift := uint(0); ; shift += 7 {
+			if shift >= 64 {
+				return ErrIntOverflowNotification
+			}
+			if iNdEx >= l {
+				return io.ErrUnexpectedEOF
+			}
+			b := dAtA[iNdEx]
+			iNdEx++
+			wire |= uint64(b&0x7F) << shift
+			if b < 0x80 {
+				break
+			}
+		}
+		fieldNum := int32(wire >> 3)
+		wireType := int(wire & 0x7)
+		if wireType == 4 {
+			return fmt.Errorf("proto: ServiceList: wiretype end group for non-group")
+		}
+		if fieldNum <= 0 {
+			return fmt.Errorf("proto: ServiceList: illegal tag %d (wire type %d)", fieldNum, wire)
+		}
+		switch fieldNum {
+		case 1:
+			if wireType != 2 {
+				return fmt.Errorf("proto: wrong wireType = %d for field Items", wireType)
+			}
+			var msglen int
+			for shift := uint(0); ; shift += 7 {
+				if shift >= 64 {
+					return ErrIntOverflowNotification
+				}
+				if iNdEx >= l {
+					return io.ErrUnexpectedEOF
+				}
+				b := dAtA[iNdEx]
+				iNdEx++
+				msglen |= int(b&0x7F) << shift
+				if b < 0x80 {
+					break
+				}
+			}
+			if msglen < 0 {
+				return ErrInvalidLengthNotification
+			}
+			postIndex := iNdEx + msglen
+			if postIndex < 0 {
+				return ErrInvalidLengthNotification
+			}
+			if postIndex > l {
+				return io.ErrUnexpectedEOF
+			}
+			m.Items = append(m.Items, &Service{})
+			if err := m.Items[len(m.Items)-1].Unmarshal(dAtA[iNdEx:postIndex]); err != nil {
+				return err
+			}
 			iNdEx = postIndex
 		default:
 			iNdEx = preIndex
@@ -1049,7 +1550,8 @@ func (m *ServicesListRequest) Unmarshal(dAtA []byte) error {
 	}
 	return nil
 }
-func (m *Templates) Unmarshal(dAtA []byte) error {
+func (m *Template) Unmarshal(dAtA []byte) error {
+	var hasFields [1]uint64
 	l := len(dAtA)
 	iNdEx := 0
 	for iNdEx < l {
@@ -1072,15 +1574,15 @@ func (m *Templates) Unmarshal(dAtA []byte) error {
 		fieldNum := int32(wire >> 3)
 		wireType := int(wire & 0x7)
 		if wireType == 4 {
-			return fmt.Errorf("proto: Templates: wiretype end group for non-group")
+			return fmt.Errorf("proto: Template: wiretype end group for non-group")
 		}
 		if fieldNum <= 0 {
-			return fmt.Errorf("proto: Templates: illegal tag %d (wire type %d)", fieldNum, wire)
+			return fmt.Errorf("proto: Template: illegal tag %d (wire type %d)", fieldNum, wire)
 		}
 		switch fieldNum {
 		case 1:
 			if wireType != 2 {
-				return fmt.Errorf("proto: wrong wireType = %d for field Templates", wireType)
+				return fmt.Errorf("proto: wrong wireType = %d for field Name", wireType)
 			}
 			var stringLen uint64
 			for shift := uint(0); ; shift += 7 {
@@ -1108,7 +1610,97 @@ func (m *Templates) Unmarshal(dAtA []byte) error {
 			if postIndex > l {
 				return io.ErrUnexpectedEOF
 			}
-			m.Templates = append(m.Templates, string(dAtA[iNdEx:postIndex]))
+			s := string(dAtA[iNdEx:postIndex])
+			m.Name = &s
+			iNdEx = postIndex
+			hasFields[0] |= uint64(0x00000001)
+		default:
+			iNdEx = preIndex
+			skippy, err := skipNotification(dAtA[iNdEx:])
+			if err != nil {
+				return err
+			}
+			if (skippy < 0) || (iNdEx+skippy) < 0 {
+				return ErrInvalidLengthNotification
+			}
+			if (iNdEx + skippy) > l {
+				return io.ErrUnexpectedEOF
+			}
+			m.XXX_unrecognized = append(m.XXX_unrecognized, dAtA[iNdEx:iNdEx+skippy]...)
+			iNdEx += skippy
+		}
+	}
+	if hasFields[0]&uint64(0x00000001) == 0 {
+		return github_com_gogo_protobuf_proto.NewRequiredNotSetError("name")
+	}
+
+	if iNdEx > l {
+		return io.ErrUnexpectedEOF
+	}
+	return nil
+}
+func (m *TemplateList) Unmarshal(dAtA []byte) error {
+	l := len(dAtA)
+	iNdEx := 0
+	for iNdEx < l {
+		preIndex := iNdEx
+		var wire uint64
+		for shift := uint(0); ; shift += 7 {
+			if shift >= 64 {
+				return ErrIntOverflowNotification
+			}
+			if iNdEx >= l {
+				return io.ErrUnexpectedEOF
+			}
+			b := dAtA[iNdEx]
+			iNdEx++
+			wire |= uint64(b&0x7F) << shift
+			if b < 0x80 {
+				break
+			}
+		}
+		fieldNum := int32(wire >> 3)
+		wireType := int(wire & 0x7)
+		if wireType == 4 {
+			return fmt.Errorf("proto: TemplateList: wiretype end group for non-group")
+		}
+		if fieldNum <= 0 {
+			return fmt.Errorf("proto: TemplateList: illegal tag %d (wire type %d)", fieldNum, wire)
+		}
+		switch fieldNum {
+		case 1:
+			if wireType != 2 {
+				return fmt.Errorf("proto: wrong wireType = %d for field Items", wireType)
+			}
+			var msglen int
+			for shift := uint(0); ; shift += 7 {
+				if shift >= 64 {
+					return ErrIntOverflowNotification
+				}
+				if iNdEx >= l {
+					return io.ErrUnexpectedEOF
+				}
+				b := dAtA[iNdEx]
+				iNdEx++
+				msglen |= int(b&0x7F) << shift
+				if b < 0x80 {
+					break
+				}
+			}
+			if msglen < 0 {
+				return ErrInvalidLengthNotification
+			}
+			postIndex := iNdEx + msglen
+			if postIndex < 0 {
+				return ErrInvalidLengthNotification
+			}
+			if postIndex > l {
+				return io.ErrUnexpectedEOF
+			}
+			m.Items = append(m.Items, &Template{})
+			if err := m.Items[len(m.Items)-1].Unmarshal(dAtA[iNdEx:postIndex]); err != nil {
+				return err
+			}
 			iNdEx = postIndex
 		default:
 			iNdEx = preIndex

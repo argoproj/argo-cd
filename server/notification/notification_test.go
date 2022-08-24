@@ -14,6 +14,7 @@ import (
 	"github.com/stretchr/testify/assert"
 	"github.com/stretchr/testify/require"
 	corev1 "k8s.io/api/core/v1"
+	"k8s.io/utils/pointer"
 
 	v1 "k8s.io/apimachinery/pkg/apis/meta/v1"
 	"k8s.io/client-go/kubernetes/fake"
@@ -75,24 +76,24 @@ func TestNotificationServer(t *testing.T) {
 		server := NewServer(apiFactory)
 		services, err := server.ListServices(ctx, &notification.ServicesListRequest{})
 		assert.NoError(t, err)
-		assert.Len(t, services.Services, 1)
-		assert.Equal(t, services.Services[0], "test")
-		assert.NotEmpty(t, services.Services[0])
+		assert.Len(t, services.Items, 1)
+		assert.Equal(t, services.Items[0].Name, pointer.String("test"))
+		assert.NotEmpty(t, services.Items[0])
 	})
 	t.Run("TestListTriggers", func(t *testing.T) {
 		server := NewServer(apiFactory)
 		triggers, err := server.ListTriggers(ctx, &notification.TriggersListRequest{})
 		assert.NoError(t, err)
-		assert.Len(t, triggers.Triggers, 1)
-		assert.Equal(t, triggers.Triggers[0], "on-created")
-		assert.NotEmpty(t, triggers.Triggers[0])
+		assert.Len(t, triggers.Items, 1)
+		assert.Equal(t, triggers.Items[0].Name, pointer.String("on-created"))
+		assert.NotEmpty(t, triggers.Items[0])
 	})
 	t.Run("TestListTemplates", func(t *testing.T) {
 		server := NewServer(apiFactory)
 		templates, err := server.ListTemplates(ctx, &notification.TemplatesListRequest{})
 		assert.NoError(t, err)
-		assert.Len(t, templates.Templates, 1)
-		assert.Equal(t, templates.Templates[0], "app-created")
-		assert.NotEmpty(t, templates.Templates[0])
+		assert.Len(t, templates.Items, 1)
+		assert.Equal(t, templates.Items[0].Name, pointer.String("app-created"))
+		assert.NotEmpty(t, templates.Items[0])
 	})
 }

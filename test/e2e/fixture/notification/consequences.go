@@ -13,35 +13,35 @@ type Consequences struct {
 	actions *Actions
 }
 
-func (c *Consequences) Services(block func(services *notification.Services, err error)) *Consequences {
+func (c *Consequences) Services(block func(services *notification.ServiceList, err error)) *Consequences {
 	c.context.t.Helper()
 	block(c.listServices())
 	return c
 }
 
-func (c *Consequences) Triggers(block func(services *notification.Triggers, err error)) *Consequences {
+func (c *Consequences) Triggers(block func(services *notification.TriggerList, err error)) *Consequences {
 	c.context.t.Helper()
 	block(c.listTriggers())
 	return c
 }
 
-func (c *Consequences) Templates(block func(services *notification.Templates, err error)) *Consequences {
+func (c *Consequences) Templates(block func(services *notification.TemplateList, err error)) *Consequences {
 	c.context.t.Helper()
 	block(c.listTemplates())
 	return c
 }
 
-func (c *Consequences) listServices() (*notification.Services, error) {
+func (c *Consequences) listServices() (*notification.ServiceList, error) {
 	_, notifClient, _ := fixture.ArgoCDClientset.NewNotificationClient()
 	return notifClient.ListServices(context.Background(), &notification.ServicesListRequest{})
 }
 
-func (c *Consequences) listTriggers() (*notification.Triggers, error) {
+func (c *Consequences) listTriggers() (*notification.TriggerList, error) {
 	_, notifClient, _ := fixture.ArgoCDClientset.NewNotificationClient()
 	return notifClient.ListTriggers(context.Background(), &notification.TriggersListRequest{})
 }
 
-func (c *Consequences) listTemplates() (*notification.Templates, error) {
+func (c *Consequences) listTemplates() (*notification.TemplateList, error) {
 	_, notifClient, _ := fixture.ArgoCDClientset.NewNotificationClient()
 	return notifClient.ListTemplates(context.Background(), &notification.TemplatesListRequest{})
 }

@@ -6,6 +6,7 @@ import (
 	"github.com/argoproj/argo-cd/v2/pkg/apiclient/notification"
 	"github.com/argoproj/notifications-engine/pkg/api"
 	apierr "k8s.io/apimachinery/pkg/api/errors"
+	"k8s.io/utils/pointer"
 )
 
 // Server provides an Application service
@@ -20,48 +21,48 @@ func NewServer(apiFactory api.Factory) notification.NotificationServiceServer {
 }
 
 // List returns list of notification triggers
-func (s *Server) ListTriggers(ctx context.Context, q *notification.TriggersListRequest) (*notification.Triggers, error) {
+func (s *Server) ListTriggers(ctx context.Context, q *notification.TriggersListRequest) (*notification.TriggerList, error) {
 	api, err := s.apiFactory.GetAPI()
 	if err != nil {
 		if apierr.IsNotFound(err) {
-			return &notification.Triggers{}, nil
+			return &notification.TriggerList{}, nil
 		}
 	}
-	triggers := []string{}
+	triggers := []*notification.Trigger{}
 	for trigger := range api.GetConfig().Triggers {
-		triggers = append(triggers, trigger)
+		triggers = append(triggers, &notification.Trigger{Name: pointer.String(trigger)})
 	}
-	return &notification.Triggers{Triggers: triggers}, nil
+	return &notification.TriggerList{Items: triggers}, nil
 }
 
 // List returns list of notification services
-func (s *Server) ListServices(ctx context.Context, q *notification.ServicesListRequest) (*notification.Services, error) {
+func (s *Server) ListServices(ctx context.Context, q *notification.ServicesListRequest) (*notification.ServiceList, error) {
 	api, err := s.apiFactory.GetAPI()
 	if err != nil {
 		if apierr.IsNotFound(err) {
-			return &notification.Services{}, nil
+			return &notification.ServiceList{}, nil
 		}
 		return nil, err
 	}
-	services := []string{}
+	services := []*notification.Service{}
 	for svc := range api.GetConfig().Services {
-		services = append(services, svc)
+		services = append(services, &notification.Service{Name: pointer.String(svc)})
 	}
-	return &notification.Services{Services: services}, nil
+	return &notification.ServiceList{Items: services}, nil
 }
 
 // List returns list of notification templates
-func (s *Server) ListTemplates(ctx context.Context, q *notification.TemplatesListRequest) (*notification.Templates, error) {
+func (s *Server) ListTemplates(ctx context.Context, q *notification.TemplatesListRequest) (*notification.TemplateList, error) {
 	api, err := s.apiFactory.GetAPI()
 	if err != nil {
 		if apierr.IsNotFound(err) {
-			return &notification.Templates{}, nil
+			return &notification.TemplateList{}, nil
 		}
 		return nil, err
 	}
-	templates := []string{}
+	templates := []*notification.Template{}
 	for tmpl := range api.GetConfig().Templates {
-		templates = append(templates, tmpl)
+		templates = append(templates, &notification.Template{Name: pointer.String(tmpl)})
 	}
-	return &notification.Templates{Templates: templates}, nil
+	return &notification.TemplateList{Items: templates}, nil
 }

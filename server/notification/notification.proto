@@ -8,20 +8,32 @@ package notification;
 
 import "google/api/annotations.proto";
 
-message Triggers {
-	repeated string triggers = 1;
+message Trigger {
+    required string name = 1;
+}
+
+message TriggerList {
+	repeated Trigger items = 1;
 }
 
 message TriggersListRequest {}
 
-message Services {
-	repeated string services = 1;
+message Service {
+    required string name = 1;
+}
+
+message ServiceList {
+    repeated Service items = 1;
 }
 
 message ServicesListRequest {}
 
-message Templates {
-	repeated string templates = 1;
+message Template {
+    required string name = 1;
+}
+
+message TemplateList {
+    repeated Template items = 1;
 }
 
 message TemplatesListRequest {}
@@ -30,17 +42,17 @@ message TemplatesListRequest {}
 service NotificationService {
 
 	// List returns list of triggers
-	rpc ListTriggers(TriggersListRequest) returns (Triggers) {
+	rpc ListTriggers(TriggersListRequest) returns (TriggerList) {
 		option (google.api.http).get = "/api/v1/notifications/triggers";
 	}
 
 	// List returns list of services
-	rpc ListServices(ServicesListRequest) returns (Services) {
+	rpc ListServices(ServicesListRequest) returns (ServiceList) {
 		option (google.api.http).get = "/api/v1/notifications/services";
 	}
 
 	// List returns list of templates
-	rpc ListTemplates(TemplatesListRequest) returns (Templates) {
+	rpc ListTemplates(TemplatesListRequest) returns (TemplateList) {
 		option (google.api.http).get = "/api/v1/notifications/templates";
 	}
 }

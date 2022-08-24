@@ -2150,7 +2150,7 @@
           "200": {
             "description": "A successful response.",
             "schema": {
-              "$ref": "#/definitions/notificationServices"
+              "$ref": "#/definitions/notificationServiceList"
             }
           },
           "default": {
@@ -2173,7 +2173,7 @@
           "200": {
             "description": "A successful response.",
             "schema": {
-              "$ref": "#/definitions/notificationTemplates"
+              "$ref": "#/definitions/notificationTemplateList"
             }
           },
           "default": {
@@ -2196,7 +2196,7 @@
           "200": {
             "description": "A successful response.",
             "schema": {
-              "$ref": "#/definitions/notificationTriggers"
+              "$ref": "#/definitions/notificationTriggerList"
             }
           },
           "default": {
@@ -4048,35 +4048,59 @@
       "type": "object",
       "title": "Generic (empty) response for GPG public key CRUD requests"
     },
-    "notificationServices": {
+    "notificationService": {
       "type": "object",
       "properties": {
-        "services": {
+        "name": {
+          "type": "string"
+        }
+      }
+    },
+    "notificationServiceList": {
+      "type": "object",
+      "properties": {
+        "items": {
           "type": "array",
           "items": {
-            "type": "string"
+            "$ref": "#/definitions/notificationService"
           }
         }
       }
     },
-    "notificationTemplates": {
+    "notificationTemplate": {
       "type": "object",
       "properties": {
-        "templates": {
+        "name": {
+          "type": "string"
+        }
+      }
+    },
+    "notificationTemplateList": {
+      "type": "object",
+      "properties": {
+        "items": {
           "type": "array",
           "items": {
-            "type": "string"
+            "$ref": "#/definitions/notificationTemplate"
           }
         }
       }
     },
-    "notificationTriggers": {
+    "notificationTrigger": {
       "type": "object",
       "properties": {
-        "triggers": {
+        "name": {
+          "type": "string"
+        }
+      }
+    },
+    "notificationTriggerList": {
+      "type": "object",
+      "properties": {
+        "items": {
           "type": "array",
           "items": {
-            "type": "string"
+            "$ref": "#/definitions/notificationTrigger"
           }
         }
       }
