@@ -124,7 +124,6 @@ export const ApplicationNodeInfo = (props: {
                                     onSave={(patch, patchType) =>
                                         services.applications.patchResource(props.application.metadata.name, props.application.metadata.namespace, props.node, patch, patchType)
                                     }
-
                                 />
                             </>
                         );
