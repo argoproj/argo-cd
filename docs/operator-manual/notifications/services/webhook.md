@@ -40,7 +40,7 @@ data:
           <optional-body-template>
 ```
 
-3 Define trigger that customize when the request should be send and which template should be sued.
+3 Define trigger that customize when the request should be send and which template should be used.
 
 ```yaml
 apiVersion: v1
