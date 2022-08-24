@@ -69,6 +69,12 @@ type Client interface {
 	CommitSHA() (string, error)
 	RevisionMetadata(revision string) (*RevisionMetadata, error)
 	VerifyCommitSignature(string) (string, error)
+	Commit(pathSpec string, opts *CommitOptions) error
+	Branch(sourceBranch string, targetBranch string) error
+	Push(remote string, branch string, force bool) error
+	Add(path string) error
+	SymRefToBranch(symRef string) (string, error)
+	Config(username string, email string) error
 }
 
 type EventHandlers struct {
@@ -571,7 +577,7 @@ func (m *nativeGitClient) lsRemote(revision string) (string, error) {
 	}
 	// If we get here, revision string had non hexadecimal characters (indicating its a branch, tag,
 	// or symbolic ref) and we were unable to resolve it to a commit SHA.
-	return "", fmt.Errorf("Unable to resolve '%s' to a commit SHA", revision)
+	return "", fmt.Errorf("unable to resolve '%s' to a commit SHA", revision)
 }
 
 // CommitSHA returns current commit sha from `git rev-parse HEAD`

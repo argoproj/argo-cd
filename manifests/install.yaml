@@ -9264,6 +9264,15 @@ apiVersion: v1
 kind: ServiceAccount
 metadata:
   labels:
+    app.kubernetes.io/component: controller
+    app.kubernetes.io/name: argocd-image-updater
+    app.kubernetes.io/part-of: argocd-image-updater
+  name: argocd-image-updater
+---
+apiVersion: v1
+kind: ServiceAccount
+metadata:
+  labels:
     app.kubernetes.io/component: notifications-controller
     app.kubernetes.io/name: argocd-notifications-controller
     app.kubernetes.io/part-of: argocd
@@ -9419,6 +9428,40 @@ rules:
   - get
   - list
   - watch
+---
+apiVersion: rbac.authorization.k8s.io/v1
+kind: Role
+metadata:
+  labels:
+    app.kubernetes.io/component: controller
+    app.kubernetes.io/name: argocd-image-updater
+    app.kubernetes.io/part-of: argocd-image-updater
+  name: argocd-image-updater
+rules:
+- apiGroups:
+  - ""
+  resources:
+  - secrets
+  - configmaps
+  verbs:
+  - get
+  - list
+  - watch
+- apiGroups:
+  - argoproj.io
+  resources:
+  - applications
+  verbs:
+  - get
+  - list
+  - update
+  - patch
+- apiGroups:
+  - ""
+  resources:
+  - events
+  verbs:
+  - create
 ---
 apiVersion: rbac.authorization.k8s.io/v1
 kind: Role
@@ -9614,6 +9657,22 @@ subjects:
 apiVersion: rbac.authorization.k8s.io/v1
 kind: RoleBinding
 metadata:
+  labels:
+    app.kubernetes.io/component: controller
+    app.kubernetes.io/name: argocd-image-updater
+    app.kubernetes.io/part-of: argocd-image-updater
+  name: argocd-image-updater
+roleRef:
+  apiGroup: rbac.authorization.k8s.io
+  kind: Role
+  name: argocd-image-updater
+subjects:
+- kind: ServiceAccount
+  name: argocd-image-updater
+---
+apiVersion: rbac.authorization.k8s.io/v1
+kind: RoleBinding
+metadata:
   name: argocd-notifications-controller
 roleRef:
   apiGroup: rbac.authorization.k8s.io
@@ -9716,6 +9775,22 @@ metadata:
 apiVersion: v1
 kind: ConfigMap
 metadata:
+  labels:
+    app.kubernetes.io/name: argocd-image-updater-config
+    app.kubernetes.io/part-of: argocd-image-updater
+  name: argocd-image-updater-config
+---
+apiVersion: v1
+kind: ConfigMap
+metadata:
+  labels:
+    app.kubernetes.io/name: argocd-image-updater-ssh-config
+    app.kubernetes.io/part-of: argocd-image-updater
+  name: argocd-image-updater-ssh-config
+---
+apiVersion: v1
+kind: ConfigMap
+metadata:
   name: argocd-notifications-cm
 ---
 apiVersion: v1
@@ -9752,6 +9827,14 @@ metadata:
     app.kubernetes.io/name: argocd-tls-certs-cm
     app.kubernetes.io/part-of: argocd
   name: argocd-tls-certs-cm
+---
+apiVersion: v1
+kind: Secret
+metadata:
+  labels:
+    app.kubernetes.io/name: argocd-image-updater-secret
+    app.kubernetes.io/part-of: argocd-image-updater
+  name: argocd-image-updater-secret
 ---
 apiVersion: v1
 kind: Secret
@@ -10091,6 +10174,134 @@ spec:
             path: ca.crt
           optional: true
           secretName: argocd-dex-server-tls
+---
+apiVersion: apps/v1
+kind: Deployment
+metadata:
+  labels:
+    app.kubernetes.io/component: controller
+    app.kubernetes.io/name: argocd-image-updater
+    app.kubernetes.io/part-of: argocd-image-updater
+  name: argocd-image-updater
+spec:
+  selector:
+    matchLabels:
+      app.kubernetes.io/name: argocd-image-updater
+  strategy:
+    type: Recreate
+  template:
+    metadata:
+      labels:
+        app.kubernetes.io/name: argocd-image-updater
+    spec:
+      containers:
+      - command:
+        - /usr/local/bin/argocd-image-updater
+        - run
+        env:
+        - name: APPLICATIONS_API
+          valueFrom:
+            configMapKeyRef:
+              key: applications_api
+              name: argocd-image-updater-config
+              optional: true
+        - name: ARGOCD_GRPC_WEB
+          valueFrom:
+            configMapKeyRef:
+              key: argocd.grpc_web
+              name: argocd-image-updater-config
+              optional: true
+        - name: ARGOCD_SERVER
+          valueFrom:
+            configMapKeyRef:
+              key: argocd.server_addr
+              name: argocd-image-updater-config
+              optional: true
+        - name: ARGOCD_INSECURE
+          valueFrom:
+            configMapKeyRef:
+              key: argocd.insecure
+              name: argocd-image-updater-config
+              optional: true
+        - name: ARGOCD_PLAINTEXT
+          valueFrom:
+            configMapKeyRef:
+              key: argocd.plaintext
+              name: argocd-image-updater-config
+              optional: true
+        - name: ARGOCD_TOKEN
+          valueFrom:
+            secretKeyRef:
+              key: argocd.token
+              name: argocd-image-updater-secret
+              optional: true
+        - name: IMAGE_UPDATER_LOGLEVEL
+          valueFrom:
+            configMapKeyRef:
+              key: log.level
+              name: argocd-image-updater-config
+              optional: true
+        - name: GIT_COMMIT_USER
+          valueFrom:
+            configMapKeyRef:
+              key: git.user
+              name: argocd-image-updater-config
+              optional: true
+        - name: GIT_COMMIT_EMAIL
+          valueFrom:
+            configMapKeyRef:
+              key: git.email
+              name: argocd-image-updater-config
+              optional: true
+        - name: IMAGE_UPDATER_KUBE_EVENTS
+          valueFrom:
+            configMapKeyRef:
+              key: kube.events
+              name: argocd-image-updater-config
+              optional: true
+        image: quay.io/argoprojlabs/argocd-image-updater:latest
+        imagePullPolicy: Always
+        livenessProbe:
+          httpGet:
+            path: /healthz
+            port: 8080
+          initialDelaySeconds: 3
+          periodSeconds: 30
+        name: argocd-image-updater
+        ports:
+        - containerPort: 8080
+        readinessProbe:
+          httpGet:
+            path: /healthz
+            port: 8080
+          initialDelaySeconds: 3
+          periodSeconds: 30
+        volumeMounts:
+        - mountPath: /app/config
+          name: image-updater-conf
+        - mountPath: /app/config/ssh
+          name: ssh-known-hosts
+        - mountPath: /app/.ssh
+          name: ssh-config
+      serviceAccountName: argocd-image-updater
+      volumes:
+      - configMap:
+          items:
+          - key: registries.conf
+            path: registries.conf
+          - key: git.commit-message-template
+            path: commit.template
+          name: argocd-image-updater-config
+          optional: true
+        name: image-updater-conf
+      - configMap:
+          name: argocd-ssh-known-hosts-cm
+          optional: true
+        name: ssh-known-hosts
+      - configMap:
+          name: argocd-image-updater-ssh-config
+          optional: true
+        name: ssh-config
 ---
 apiVersion: apps/v1
 kind: Deployment

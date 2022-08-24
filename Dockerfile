@@ -127,6 +127,7 @@ RUN ln -s /usr/local/bin/argocd /usr/local/bin/argocd-server && \
     ln -s /usr/local/bin/argocd /usr/local/bin/argocd-dex && \
     ln -s /usr/local/bin/argocd /usr/local/bin/argocd-notifications && \
     ln -s /usr/local/bin/argocd /usr/local/bin/argocd-applicationset-controller && \
+    ln -s /usr/local/bin/argocd /usr/local/bin/argocd-image-updater && \
     ln -s /usr/local/bin/argocd /usr/local/bin/argocd-k8s-auth
 
 USER $ARGOCD_USER_ID

@@ -314,3 +314,56 @@ const (
 	SecurityMedium    = 2 // Could indicate malicious events, but has a high likelihood of being user/system error (i.e. access denied)
 	SecurityLow       = 1 // Unexceptional entries (i.e. successful access logs)
 )
+
+// Argo CD Image Updater controller related constants
+const (
+	ImageUpdaterAnnotationPrefix = "argocd-image-updater.argoproj.io"
+
+	// The annotation on the application resources to indicate the list of images allowed for updates.
+	ImageUpdaterAnnotation = ImageUpdaterAnnotationPrefix + "/image-list"
+
+	// Defaults for Helm parameter names
+	DefaultHelmImageName = "image.name"
+	DefaultHelmImageTag  = "image.tag"
+
+	// Helm related annotations
+	HelmParamImageNameAnnotation = ImageUpdaterAnnotationPrefix + "/%s.helm.image-name"
+	HelmParamImageTagAnnotation  = ImageUpdaterAnnotationPrefix + "/%s.helm.image-tag"
+	HelmParamImageSpecAnnotation = ImageUpdaterAnnotationPrefix + "/%s.helm.image-spec"
+
+	// Kustomize related annotations
+	KustomizeApplicationNameAnnotation = ImageUpdaterAnnotationPrefix + "/%s.kustomize.image-name"
+
+	// Image specific configuration annotations
+	OldMatchOptionAnnotation    = ImageUpdaterAnnotationPrefix + "/%s.tag-match" // Deprecated and will be removed
+	AllowTagsOptionAnnotation   = ImageUpdaterAnnotationPrefix + "/%s.allow-tags"
+	IgnoreTagsOptionAnnotation  = ImageUpdaterAnnotationPrefix + "/%s.ignore-tags"
+	ForceUpdateOptionAnnotation = ImageUpdaterAnnotationPrefix + "/%s.force-update"
+	UpdateStrategyAnnotation    = ImageUpdaterAnnotationPrefix + "/%s.update-strategy"
+	PullSecretAnnotation        = ImageUpdaterAnnotationPrefix + "/%s.pull-secret"
+	PlatformsAnnotation         = ImageUpdaterAnnotationPrefix + "/%s.platforms"
+
+	// Application-wide update strategy related annotations
+	ApplicationWideAllowTagsOptionAnnotation   = ImageUpdaterAnnotationPrefix + "/allow-tags"
+	ApplicationWideIgnoreTagsOptionAnnotation  = ImageUpdaterAnnotationPrefix + "/ignore-tags"
+	ApplicationWideForceUpdateOptionAnnotation = ImageUpdaterAnnotationPrefix + "/force-update"
+	ApplicationWideUpdateStrategyAnnotation    = ImageUpdaterAnnotationPrefix + "/update-strategy"
+	ApplicationWidePullSecretAnnotation        = ImageUpdaterAnnotationPrefix + "/pull-secret"
+
+	// Application update configuration related annotations
+	WriteBackMethodAnnotation = ImageUpdaterAnnotationPrefix + "/write-back-method"
+	GitBranchAnnotation       = ImageUpdaterAnnotationPrefix + "/git-branch"
+	WriteBackTargetAnnotation = ImageUpdaterAnnotationPrefix + "/write-back-target"
+	KustomizationPrefix       = "kustomization"
+
+	// DefaultTargetFilePattern configurations related to the write-back functionality
+	DefaultTargetFilePattern = ".argocd-source-%s.yaml"
+
+	// The default Git commit message's template
+	DefaultGitCommitMessage = `build: automatic update of {{ .AppName }}
+
+	{{ range .AppChanges -}}
+	updates image {{ .Image }} tag '{{ .OldTag }}' to '{{ .NewTag }}'
+	{{ end -}}
+	`
+)

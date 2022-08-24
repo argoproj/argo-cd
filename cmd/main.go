@@ -11,6 +11,7 @@ import (
 	cmpserver "github.com/argoproj/argo-cd/v2/cmd/argocd-cmp-server/commands"
 	dex "github.com/argoproj/argo-cd/v2/cmd/argocd-dex/commands"
 	gitaskpass "github.com/argoproj/argo-cd/v2/cmd/argocd-git-ask-pass/commands"
+	imageupdater "github.com/argoproj/argo-cd/v2/cmd/argocd-image-updater/commands"
 	k8sauth "github.com/argoproj/argo-cd/v2/cmd/argocd-k8s-auth/commands"
 	notification "github.com/argoproj/argo-cd/v2/cmd/argocd-notification/commands"
 	reposerver "github.com/argoproj/argo-cd/v2/cmd/argocd-repo-server/commands"
@@ -50,6 +51,9 @@ func main() {
 		command = applicationset.NewCommand()
 	case "argocd-k8s-auth":
 		command = k8sauth.NewCommand()
+	case "argocd-image-updater":
+		command = imageupdater.NewCommand()
+		command.SetArgs([]string{"run"})
 	default:
 		command = cli.NewCommand()
 	}
