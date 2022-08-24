@@ -11,6 +11,7 @@ import (
 	"k8s.io/apimachinery/pkg/apis/meta/v1/unstructured"
 	"k8s.io/apimachinery/pkg/runtime/schema"
 
+	"github.com/argoproj/argo-cd/v2/common"
 	"github.com/argoproj/argo-cd/v2/pkg/apis/application/v1alpha1"
 	"github.com/argoproj/argo-cd/v2/util/glob"
 )
@@ -92,7 +93,10 @@ func NewIgnoreNormalizer(ignore []v1alpha1.ResourceIgnoreDifferences, overrides 
 	for key, override := range overrides {
 		group, kind, err := getGroupKindForOverrideKey(key)
 		if err != nil {
-			log.Warn(err)
+			log.WithFields(log.Fields{
+				common.SecurityField:    common.SecurityLow,
+				common.SecurityCWEField: 775,
+			}).Warn(err)
 		}
 		if len(override.IgnoreDifferences.JSONPointers) > 0 || len(override.IgnoreDifferences.JQPathExpressions) > 0 {
 			resourceIgnoreDifference := v1alpha1.ResourceIgnoreDifferences{
@@ -179,7 +183,10 @@ func (n *ignoreNormalizer) Normalize(un *unstructured.Unstructured) error {
 	for _, patch := range matched {
 		patchedDocData, err := patch.Apply(docData)
 		if err != nil {
-			log.Debugf("Failed to apply normalization: %v", err)
+			log.WithFields(log.Fields{
+				common.SecurityField:    common.SecurityLow,
+				common.SecurityCWEField: 775,
+			}).Debugf("Failed to apply normalization: %v", err)
 			continue
 		}
 		docData = patchedDocData

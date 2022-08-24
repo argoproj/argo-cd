@@ -11,6 +11,7 @@ import (
 	"k8s.io/apimachinery/pkg/apis/meta/v1/unstructured"
 	"k8s.io/apimachinery/pkg/runtime/schema"
 
+	"github.com/argoproj/argo-cd/v2/common"
 	"github.com/argoproj/argo-cd/v2/pkg/apis/application"
 	"github.com/argoproj/argo-cd/v2/pkg/apis/application/v1alpha1"
 )
@@ -40,12 +41,18 @@ func NewKnownTypesNormalizer(overrides map[string]v1alpha1.ResourceOverride) (*k
 	for key, override := range overrides {
 		group, kind, err := getGroupKindForOverrideKey(key)
 		if err != nil {
-			log.Warn(err)
+			log.WithFields(log.Fields{
+				common.SecurityField:    common.SecurityLow,
+				common.SecurityCWEField: 775,
+			}).Warn(err)
 		}
 		gk := schema.GroupKind{Group: group, Kind: kind}
 		for _, f := range override.KnownTypeFields {
 			if err := normalizer.addKnownField(gk, f.Field, f.Type); err != nil {
-				log.Warnf("Failed to configure known field normalizer: %v", err)
+				log.WithFields(log.Fields{
+					common.SecurityField:    common.SecurityLow,
+					common.SecurityCWEField: 775,
+				}).Warnf("Failed to configure known field normalizer: %v", err)
 			}
 		}
 	}
