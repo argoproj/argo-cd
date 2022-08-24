@@ -22339,6 +22339,7 @@ metadata:
     app.kubernetes.io/part-of: argocd
   name: argocd-dex-server
 spec:
+  replicas: 1
   selector:
     matchLabels:
       app.kubernetes.io/name: argocd-dex-server
