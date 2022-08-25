@@ -71,7 +71,7 @@ require (
 	github.com/xanzy/go-gitlab v0.60.0
 	github.com/yuin/gopher-lua v0.0.0-20220504180219-658193537a64
 	golang.org/x/crypto v0.3.0
-	golang.org/x/net v0.7.0 // indirect
+	golang.org/x/net v0.7.0
 	golang.org/x/oauth2 v0.0.0-20220822191816-0ebed06d0094
 	golang.org/x/sync v0.1.0
 	golang.org/x/term v0.5.0
