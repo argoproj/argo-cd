@@ -51,14 +51,40 @@ The initiative to implement the anomaly detection capability in ArgoCD
 highlighted the need to improve the existing UI extensions feature. The
 new capability will required the UI to have access to data that isn't
 available as part of Application's owned resources. It is necessary to
-access an API defined by the development team so the proper information
-can be displayed.
+access an API defined by the extension's development team so the proper
+information can be displayed.
 
 ## Goals
 
-All following goals should be achieved in order to conclude this proposal:
+The following goals are desired but not necessarily all must be
+implemented in a given ArgoCD release. 
 
-#### [G-1] Enhance the current Extensions framework to configure backend services
+#### [G-1] ArgoCD (API Server) must have low performance impact when running extensions
+
+ArgoCD API server is a critical component as it serves all APIs used by
+the CLI as well as the UI. The ArgoCD team has no controll over what is
+going to be executed in extension's backend service. Thus it is important
+that the reverse proxy implementation to cause the lowest possible impact
+in the API server while processing high latency requests.
+
+Possible solutions:
+- reverse proxy implemented as an independent server
+- reverse proxy invoke backend services asynchronously
+
+#### [G-2] ArgoCD admins should be able to define rbacs to define which users can invoke specific extensions
+
+ArgoCD Admins must be able to define which extensions are allowed to be
+executed by the logged in user. This should be fine grained by ArgoCD
+project like the current rbac implementation.
+
+#### [G-3] ArgoCD deployment should be independent from backend services
+
+Extension developers should be able to deploy their backend services
+indepedendtly from ArgoCD. An extension can evolve their internal API and
+deploying a new version shouldn't require ArgoCD to be updated or
+restarted.
+
+#### [G-4] Enhance the current Extensions framework to configure backend services
 
 [ArgoCD extensions][2] is an `argoproj-labs` project that supports loading
 extensions in runtime. Currently the project is implementing a controller
@@ -86,12 +112,9 @@ spec:
     endpoint: /some-backend
 ```
 
-#### [G-2] ArgoCD (API Server) must have low performance impact when running extensions
-
-
-#### [G-3] ArgoCD deployment should be independent from backend services
-
-#### [G-4] ArgoCD admins should be able to define rbacs to define which users can invoke specific extensions
+**Note**: While this is a nice-to-have, it won't be part of the first proxy
+extension version. This would need to be considered if ArgoCD extensions
+eventually get traction.
 
 ## Non-Goals
 
@@ -101,9 +124,13 @@ TBD
 
 ### Use cases
 
-The following use cases should be implemented:
+The following use cases should be implemented for the conclusion of this
+proposal:
 
 #### [UC-1]: As a developer, I would like to invoke a backend service from my ArgoCD UI extension so I can provide richer UX
+
+#### [UC-2]: As an ArgoCD admin, I want to define rbacs so extensions permissions can be enforced
+
 
 ### Security Considerations
 
