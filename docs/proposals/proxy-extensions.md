@@ -127,9 +127,12 @@ TBD
 The following use cases should be implemented for the conclusion of this
 proposal:
 
-#### [UC-1]: As a developer, I would like to invoke a backend service from my ArgoCD UI extension so I can provide richer UX
+#### [UC-1]: As a developer, I want to configure a backend service to be used by my UI extension so it can provide richer UX
 
-#### [UC-2]: As an ArgoCD admin, I want to define rbacs so extensions permissions can be enforced
+#### [UC-2]: As an ArgoCD admin, I want to define extensions rbacs so access permissions can be enforced
+
+Extend ArgoCD rbac registering a new `ResourceType` for extensions in the
+[policy configuration][3]. 
 
 
 ### Security Considerations
@@ -150,3 +153,4 @@ proposal:
 
 [1]: https://argo-cd.readthedocs.io/en/stable/developer-guide/ui-extensions/
 [2]: https://github.com/argoproj-labs/argocd-extensions
+[3]: https://github.com/argoproj/argo-cd/blob/a23bfc3acaa464cbdeafdbbe66d05a121d5d1fb3/server/rbacpolicy/rbacpolicy.go#L17-L25
