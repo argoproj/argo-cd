@@ -60,7 +60,34 @@ All following goals should be achieved in order to conclude this proposal:
 
 #### [G-1] Enhance the current Extensions framework to configure backend services
 
+[ArgoCD extensions][2] is an `argoproj-labs` project that supports loading
+extensions in runtime. Currently the project is implementing a controller
+that defines and reconciles the custom resource `ArgoCDExtension`. This
+CRD should be enhanced to provide the ability to define backend services
+that will be used by the extension. Once configured UI can send requests
+to API server in a specific endpoint. API server will act as a reverse
+proxy receiving the request from the UI and routing to the appropriate
+backend service.
+
+Example:
+```yaml 
+apiVersion: argoproj.io/v1alpha1
+kind: ArgoCDExtension
+metadata:
+  name: my-cool-extention
+  finalizers:
+    - extensions-finalizer.argocd.argoproj.io
+spec:
+  sources:
+    - git:
+        url: https://github.com/some-org/my-cool-extension.git
+  backend:
+    serviceName: some-backend-svc
+    endpoint: /some-backend
+```
+
 #### [G-2] ArgoCD (API Server) must have low performance impact when running extensions
+
 
 #### [G-3] ArgoCD deployment should be independent from backend services
 
@@ -95,3 +122,4 @@ The following use cases should be implemented:
 ## Open Questions
 
 [1]: https://argo-cd.readthedocs.io/en/stable/developer-guide/ui-extensions/
+[2]: https://github.com/argoproj-labs/argocd-extensions
