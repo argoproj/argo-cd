@@ -59,6 +59,8 @@ information can be displayed.
 The following goals are desired but not necessarily all must be
 implemented in a given ArgoCD release. 
 
+----
+
 #### [G-1] ArgoCD (API Server) must have low performance impact when running extensions
 
 ArgoCD API server is a critical component as it serves all APIs used by
@@ -135,6 +137,8 @@ used by ArgoCD UI.
 The following use cases should be implemented for the conclusion of this
 proposal:
 
+----
+
 #### [UC-1]: As an ArgoCD admin, I want to configure a backend services so it can be used by my UI extension
 
 Define a new section in the ArgoCD configmap ([argocd-cm.yaml][4])
@@ -158,8 +162,7 @@ extension.config:
         url: http://extension-host.com:8080
 ```
 
-##### Example 1:
-
+- **Example 1**:
 
 ArgoCD API server acts as a reverse-proxy forwarding http requests as
 follows:
@@ -186,9 +189,7 @@ follows:
 
 ```
 
-----
-
-##### Example 2:
+- **Example 2**:
 
 If a backend provides an API under the `/apiv1/metrics` endpoint, ArgoCD
 should be able to invoke it such as:
@@ -212,8 +213,6 @@ should be able to invoke it such as:
   │Backend Service│
   └───────────────┘
 ```
-
-----
 
 ##### Considerations
 
@@ -242,7 +241,7 @@ access rights per extension per project. The `object` field must contain
 the project name and the extension name in the format
 `<project>/<extension>`
 
-Example 1:
+- **Example 1**:
 
 ```
 p, role:allow-extensions, extensions, *, some-project/some-extension, allow
@@ -254,7 +253,7 @@ actions, in the project `some-project`, for the extension name
 `some-extension`.
 
 
-Example 2:
+- **Example 2**:
 
 ```
 p, role:allow-extensions, extensions, *, */some-extension, allow
@@ -264,7 +263,7 @@ In the example 2, the permission is similar to the example 1 with the
 difference that the extension `some-extension` will be allowed for all
 projects.
 
-Example 3:
+- **Example 3**:
 
 ```
 p, role:allow-extensions, extensions, *, */*, allow
