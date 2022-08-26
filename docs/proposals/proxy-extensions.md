@@ -132,8 +132,48 @@ proposal:
 #### [UC-2]: As an ArgoCD admin, I want to define extensions rbacs so access permissions can be enforced
 
 Extend ArgoCD rbac registering a new `ResourceType` for extensions in the
-[policy configuration][3]. 
+[policy configuration][3]. The current policy permission configuration is
+defined as:
 
+```
+p, <subject>, <resource>, <action>, <object>, <access>
+```
+
+With a new resource type for extensions, admins will be able to configure
+access rights per extension per project. The `object` field must contain
+the project name and the extension name in the format
+`<project>/<extension>`
+
+Example 1:
+
+```
+p, role:allow-extensions, extensions, *, some-project/some-extension, allow
+```
+
+In the example 1, a permission is configured to allowing the subject
+`role:allow-extensions`, for the resource type `extensions`, for all (`*`)
+actions, in the project `some-project`, for the extension name
+`some-extension`.
+
+
+Example 2:
+
+```
+p, role:allow-extensions, extensions, *, */some-extension, allow
+```
+
+In the example 2, the permission is similar to the example 1 with the
+difference that the extension `some-extension` will be allowed for all
+projects.
+
+Example 3:
+
+```
+p, role:allow-extensions, extensions, *, */*, allow
+```
+
+In the example 3, the subject `role:allow-extensions` is allowed to
+execute extensions in all projects.
 
 ### Security Considerations
 
