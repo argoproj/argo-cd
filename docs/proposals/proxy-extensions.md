@@ -132,30 +132,82 @@ proposal:
 #### [UC-1]: As an ArgoCD admin, I want to configure a backend services so it can be used by my UI extension
 
 Define a new section in the ArgoCD configmap ([argocd-cm.yaml][4])
-allowing admins to register new extensions and configure them properly.
+allowing admins to register and configure new extensions. All enabled
+extensions backend will be available to be invoked by the ArgoCD UI under
+the following API base path:
 
-Example:
+`<argocd-host>/api/v1/extensions/<extension-name>`
+
+
+With the configuration bellow, the expected behaviour is explained in the
+following examples:
+
 ```yaml
-extension.config: |
-  extensions:
+extension.config:
+| extensions:
     - name: some-extension
       enabled: true
       backend:
-        IdleConnTimeout: 10s
-        service:
-          name: some-extension-svc
-          port: 8080
+        idleConnTimeout: 10s
+        url: http://extension-host.com:8080
 ```
 
-With the configuration above, ArgoCD will act as a reverse-proxy
-forwarding API server incoming requests from:
+##### Example 1:
 
-`<api-server host>/api/v1/extensions/some-extension`
 
-to the kubernetes service `some-extension-svc` at the port `8080`. It
-should be possible to configure the timeout on idle connections to avoid
-accumulating too many running goroutines for slow extensions. In this case
-a proper timeout error (408) should be returned to the browser.
+ArgoCD API server acts as a reverse-proxy forwarding http requests as
+follows:
+
+```
+
+   ┌────────────┐
+   │ ArgoCD UI  │
+   └──────┬─────┘
+          │
+          │ GET http://argo.com/api/v1/extensions/some-extension
+          │
+          ▼
+ ┌─────────────────┐
+ │ArgoCD API Server│
+ └────────┬────────┘
+          │
+          │ GET http://extension-host.com:8080
+          │
+          ▼
+  ┌───────────────┐
+  │Backend Service│
+  └───────────────┘
+
+```
+
+##### Example 2:
+
+If a backend provides an API under the `/apiv1/metrics` endpoint, ArgoCD
+should be able to invoke it such as:
+
+```
+   ┌────────────┐
+   │ ArgoCD UI  │
+   └──────┬─────┘
+          │
+          │ GET http://argo.com/api/v1/extensions/some-extension/apiv1/metrics/123
+          │
+          ▼
+ ┌─────────────────┐
+ │ArgoCD API Server│
+ └────────┬────────┘
+          │
+          │ GET http://extension-host.com:8080/apiv1/metrics/123
+          │
+          ▼
+  ┌───────────────┐
+  │Backend Service│
+  └───────────────┘
+```
+
+Note: The `idleConnTimeout` can be used to avoid accumulating too many
+goroutines waiting slow for extensions. In this case a proper timeout
+error (408) should be returned to the browser.
 
 
 #### [UC-2]: As an ArgoCD admin, I want to define extensions rbacs so access permissions can be enforced
