@@ -71,11 +71,15 @@ Possible solutions:
 - reverse proxy implemented as an independent server
 - reverse proxy invoke backend services asynchronously
 
+----
+
 #### [G-2] ArgoCD admins should be able to define rbacs to define which users can invoke specific extensions
 
 ArgoCD Admins must be able to define which extensions are allowed to be
 executed by the logged in user. This should be fine grained by ArgoCD
 project like the current rbac implementation.
+
+----
 
 #### [G-3] ArgoCD deployment should be independent from backend services
 
@@ -83,6 +87,8 @@ Extension developers should be able to deploy their backend services
 indepedendtly from ArgoCD. An extension can evolve their internal API and
 deploying a new version shouldn't require ArgoCD to be updated or
 restarted.
+
+----
 
 #### [G-4] Enhance the current Extensions framework to configure backend services
 
@@ -180,6 +186,8 @@ follows:
 
 ```
 
+----
+
 ##### Example 2:
 
 If a backend provides an API under the `/apiv1/metrics` endpoint, ArgoCD
@@ -205,10 +213,19 @@ should be able to invoke it such as:
   └───────────────┘
 ```
 
-Note: The `idleConnTimeout` can be used to avoid accumulating too many
-goroutines waiting slow for extensions. In this case a proper timeout
-error (408) should be returned to the browser.
+----
 
+##### Considerations
+
+- The `idleConnTimeout` can be used to avoid accumulating too many
+  goroutines waiting slow for extensions. In this case a proper timeout
+  error (408) should be returned to the browser.
+- Headers, scheme, http verb and request body are forwarded as it is
+  received by the API server to the backend service.
+- A new header is added in the forwared request (`X-Forwarded-Host`) to
+  allow ssl redirection
+
+----
 
 #### [UC-2]: As an ArgoCD admin, I want to define extensions rbacs so access permissions can be enforced
 
