@@ -57,9 +57,7 @@ information can be displayed.
 ## Goals
 
 The following goals are desired but not necessarily all must be
-implemented in a given ArgoCD release. 
-
-----
+implemented in a given ArgoCD release:
 
 #### [G-1] ArgoCD (API Server) must have low performance impact when running extensions
 
@@ -93,6 +91,8 @@ restarted.
 ----
 
 #### [G-4] Enhance the current Extensions framework to configure backend services
+
+*Not in the first release*
 
 [ArgoCD extensions][2] is an `argoproj-labs` project that supports loading
 extensions in runtime. Currently the project is implementing a controller
@@ -136,8 +136,6 @@ used by ArgoCD UI.
 
 The following use cases should be implemented for the conclusion of this
 proposal:
-
-----
 
 #### [UC-1]: As an ArgoCD admin, I want to configure a backend services so it can be used by my UI extension
 
