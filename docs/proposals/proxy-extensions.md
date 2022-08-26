@@ -118,7 +118,9 @@ eventually get traction.
 
 ## Non-Goals
 
-TBD
+It isn't in the scope of this proposal to specify commands in the ArgoCD
+CLI. This proposal covers the reverse-proxy extension spec that will be
+used by ArgoCD UI.
 
 ## Proposal
 
@@ -127,7 +129,34 @@ TBD
 The following use cases should be implemented for the conclusion of this
 proposal:
 
-#### [UC-1]: As a developer, I want to configure a backend service to be used by my UI extension so it can provide richer UX
+#### [UC-1]: As an ArgoCD admin, I want to configure a backend services so it can be used by my UI extension
+
+Define a new section in the ArgoCD configmap ([argocd-cm.yaml][4])
+allowing admins to register new extensions and configure them properly.
+
+Example:
+```yaml
+extension.config: |
+  extensions:
+    - name: some-extension
+      enabled: true
+      backend:
+        IdleConnTimeout: 10s
+        service:
+          name: some-extension-svc
+          port: 8080
+```
+
+With the configuration above, ArgoCD will act as a reverse-proxy
+forwarding API server incoming requests from:
+
+`<api-server host>/api/v1/extensions/some-extension`
+
+to the kubernetes service `some-extension-svc` at the port `8080`. It
+should be possible to configure the timeout on idle connections to avoid
+accumulating too many running goroutines for slow extensions. In this case
+a proper timeout error (408) should be returned to the browser.
+
 
 #### [UC-2]: As an ArgoCD admin, I want to define extensions rbacs so access permissions can be enforced
 
@@ -177,6 +206,8 @@ execute extensions in all projects.
 
 ### Security Considerations
 
+- ArgoCD API Server must apply **authn** and **authz** for all incoming
+  extensions requests
 - ArgoCD must authorize requests coming from UI and check that the
   authenticated user has access to invoke a specific URL belonging to an
   extension
@@ -194,3 +225,4 @@ execute extensions in all projects.
 [1]: https://argo-cd.readthedocs.io/en/stable/developer-guide/ui-extensions/
 [2]: https://github.com/argoproj-labs/argocd-extensions
 [3]: https://github.com/argoproj/argo-cd/blob/a23bfc3acaa464cbdeafdbbe66d05a121d5d1fb3/server/rbacpolicy/rbacpolicy.go#L17-L25
+[4]: https://argo-cd.readthedocs.io/en/stable/operator-manual/argocd-cm.yaml
