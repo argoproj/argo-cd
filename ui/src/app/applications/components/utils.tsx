@@ -334,7 +334,7 @@ export const deletePopup = async (ctx: ContextApis, resource: ResourceTreeNode, 
         api => (
             <div>
                 <p>
-                Are you sure you want to delete {resource.kind} <kbd>{resource.name}</kbd>?
+                    Are you sure you want to delete {resource.kind} <kbd>{resource.name}</kbd>?
                 </p>
                 {isManaged ? (
                     <div className='argo-form-row'>
