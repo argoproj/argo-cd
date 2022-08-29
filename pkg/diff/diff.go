@@ -386,6 +386,19 @@ func patchDefaultValues(objBytes []byte, obj runtime.Object) ([]byte, error) {
 		return nil, fmt.Errorf("error applying patch for default values: %w", err)
 	}
 
+	// 3) Unmarshall into a map[string]interface{}, then back into byte[], to
+	// ensure the fields are sorted in a consistent order (we do the same below,
+	// so that they can be lexicographically compared with one another).
+	var result map[string]interface{}
+	err = json.Unmarshal([]byte(patchedBytes), &result)
+	if err != nil {
+		return nil, fmt.Errorf("error unmarshaling patched bytes: %w", err)
+	}
+	patchedBytes, err = json.Marshal(result)
+	if err != nil {
+		return nil, fmt.Errorf("error marshaling patched bytes: %w", err)
+	}
+
 	return patchedBytes, nil
 }
 
