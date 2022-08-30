@@ -33,7 +33,8 @@ const (
 )
 
 // FormatAppConditions returns string representation of give app condition list
-func FormatAppConditions(conditions []argoappv1.ApplicationCondition) string {
+func FormatAppConditions(conditions []argoappv1.
+			 Condition) string {
 	formattedConditions := make([]string, 0)
 	for _, condition := range conditions {
 		formattedConditions = append(formattedConditions, fmt.Sprintf("%s: %s", condition.Type, condition.Message))
@@ -423,7 +424,7 @@ func GetAppProject(app *argoappv1.Application, projLister applicationsv1.AppProj
 	}
 	if !proj.IsAppNamespacePermitted(app, ns) {
 		return nil, fmt.Errorf("application '%s' is not allowed to use project '%s'",
-			app.Name, proj.Name)
+			app.QualifiedName(), proj.Name)
 	}
 	return proj, nil
 }
