@@ -149,17 +149,17 @@ func (s *Server) Create(ctx context.Context, q *applicationset.ApplicationSetCre
 		return nil, fmt.Errorf("error creating ApplicationSets: ApplicationSets is nil in request")
 	}
 
-	project, err := s.validateAppSet(ctx, appset)
+	projectName, err := s.validateAppSet(ctx, appset)
 	if err != nil {
 		return nil, fmt.Errorf("error validating ApplicationSets: %w", err)
 	}
 
-	if err := s.checkCreatePermissions(ctx, appset, project); err != nil {
+	if err := s.checkCreatePermissions(ctx, appset, projectName); err != nil {
 		return nil, fmt.Errorf("error checking create permissions for ApplicationSets %s : %s", appset.Name, err)
 	}
 
-	s.projectLock.RLock(project.Name)
-	defer s.projectLock.RUnlock(project.Name)
+	s.projectLock.RLock(projectName)
+	defer s.projectLock.RUnlock(projectName)
 
 	created, err := s.appclientset.ArgoprojV1alpha1().ApplicationSets(s.ns).Create(ctx, appset, metav1.CreateOptions{})
 	if err == nil {
@@ -201,52 +201,6 @@ func (s *Server) Create(ctx context.Context, q *applicationset.ApplicationSetCre
 	return updated, nil
 }
 
-func (s *Server) Update(ctx context.Context, q *applicationset.ApplicationSetUpdateRequest) (*v1alpha1.ApplicationSet, error) {
-	appset := q.GetApplicationset()
-	if err := s.enf.EnforceErr(ctx.Value("claims"), rbacpolicy.ResourceApplicationSets, rbacpolicy.ActionUpdate, apputil.AppSetRBACName(appset)); err != nil {
-		return nil, fmt.Errorf("error checking update permissions for ApplicationSet %s : %s", appset.Name, err)
-	}
-
-	return s.validateAndUpdateAppSet(ctx, q.Applicationset, false)
-}
-
-func (s *Server) validateAndUpdateAppSet(ctx context.Context, newApp *v1alpha1.ApplicationSet, merge bool) (*v1alpha1.ApplicationSet, error) {
-	s.projectLock.RLock(newApp.Spec.Template.Spec.GetProject())
-	defer s.projectLock.RUnlock(newApp.Spec.Template.Spec.GetProject())
-
-	_, err := s.validateAppSet(ctx, newApp)
-	if err != nil {
-		return nil, fmt.Errorf("error validating ApplicationSets: %w", err)
-	}
-
-	existingAppset, err := s.appclientset.ArgoprojV1alpha1().ApplicationSets(s.ns).Get(ctx, newApp.Name, metav1.GetOptions{})
-	if err != nil {
-		return nil, fmt.Errorf("error getting ApplicationSets: %w", err)
-	}
-
-	if existingAppset != nil && existingAppset.Spec.Template.Spec.Project != newApp.Spec.Template.Spec.Project {
-		// When changing projects, caller must have applicationset create, update & delete privileges in new project
-		// NOTE: the update check was already verified in the caller to this function
-		if err := s.enf.EnforceErr(ctx.Value("claims"), rbacpolicy.ResourceApplicationSets, rbacpolicy.ActionCreate, apputil.AppSetRBACName(newApp)); err != nil {
-			return nil, err
-		}
-		// They also need 'update' privileges in the old project
-		if err := s.enf.EnforceErr(ctx.Value("claims"), rbacpolicy.ResourceApplicationSets, rbacpolicy.ActionUpdate, apputil.AppSetRBACName(existingAppset)); err != nil {
-			return nil, err
-		}
-		// They also need 'delete' privileges in the old project
-		if err := s.enf.EnforceErr(ctx.Value("claims"), rbacpolicy.ResourceApplicationSets, rbacpolicy.ActionDelete, apputil.AppSetRBACName(existingAppset)); err != nil {
-			return nil, err
-		}
-	}
-
-	a, err := s.updateAppSet(existingAppset, newApp, ctx, merge)
-	if err != nil {
-		return nil, fmt.Errorf("error updating ApplicationSets: %w", err)
-	}
-	return a, nil
-}
-
 func mergeStringMaps(items ...map[string]string) map[string]string {
 	res := make(map[string]string)
 	for _, m := range items {
@@ -261,6 +215,23 @@ func mergeStringMaps(items ...map[string]string) map[string]string {
 }
 
 func (s *Server) updateAppSet(appset *v1alpha1.ApplicationSet, newAppset *v1alpha1.ApplicationSet, ctx context.Context, merge bool) (*v1alpha1.ApplicationSet, error) {
+
+	if appset != nil && appset.Spec.Template.Spec.Project != newAppset.Spec.Template.Spec.Project {
+		// When changing projects, caller must have applicationset create, update & delete privileges in new project
+		// NOTE: the update check was already verified in the caller to this function
+		if err := s.enf.EnforceErr(ctx.Value("claims"), rbacpolicy.ResourceApplicationSets, rbacpolicy.ActionCreate, apputil.AppSetRBACName(newAppset)); err != nil {
+			return nil, err
+		}
+		// They also need 'update' privileges in the old project
+		if err := s.enf.EnforceErr(ctx.Value("claims"), rbacpolicy.ResourceApplicationSets, rbacpolicy.ActionUpdate, apputil.AppSetRBACName(appset)); err != nil {
+			return nil, err
+		}
+		// They also need 'delete' privileges in the old project
+		if err := s.enf.EnforceErr(ctx.Value("claims"), rbacpolicy.ResourceApplicationSets, rbacpolicy.ActionDelete, apputil.AppSetRBACName(appset)); err != nil {
+			return nil, err
+		}
+	}
+
 	for i := 0; i < 10; i++ {
 		appset.Spec = newAppset.Spec
 		if merge {
@@ -312,36 +283,36 @@ func (s *Server) Delete(ctx context.Context, q *applicationset.ApplicationSetDel
 
 }
 
-func (s *Server) validateAppSet(ctx context.Context, appset *v1alpha1.ApplicationSet) (*v1alpha1.AppProject, error) {
+func (s *Server) validateAppSet(ctx context.Context, appset *v1alpha1.ApplicationSet) (string, error) {
 	if appset == nil {
-		return nil, fmt.Errorf("ApplicationSet cannot be validated for nil value")
+		return "", fmt.Errorf("ApplicationSet cannot be validated for nil value")
 	}
 
 	projectName := appset.Spec.Template.Spec.Project
 
 	if strings.Contains(projectName, "{{") {
-		return nil, fmt.Errorf("the Argo CD API does not currently support creating ApplicationSets with templated `project` fields")
+		return "", fmt.Errorf("the Argo CD API does not currently support creating ApplicationSets with templated `project` fields")
 	}
 
-	proj, err := s.appclientset.ArgoprojV1alpha1().AppProjects(s.ns).Get(ctx, projectName, metav1.GetOptions{})
-	if err != nil {
-		if apierr.IsNotFound(err) {
-			return nil, status.Errorf(codes.InvalidArgument, "ApplicationSet references project %s which does not exist", projectName)
-		}
-		return nil, fmt.Errorf("error getting ApplicationSet's project %q: %w", projectName, err)
+	if err := appsetutils.CheckInvalidGenerators(appset); err != nil {
+		return "", err
 	}
 
-	if err = appsetutils.CheckInvalidGenerators(appset); err != nil {
-		return nil, err
-	}
-
-	return proj, nil
+	return projectName, nil
 }
 
-func (s *Server) checkCreatePermissions(ctx context.Context, appset *v1alpha1.ApplicationSet, project *v1alpha1.AppProject) error {
+func (s *Server) checkCreatePermissions(ctx context.Context, appset *v1alpha1.ApplicationSet, projectName string) error {
 
-	if err := s.enf.EnforceErr(ctx.Value("claims"), rbacpolicy.ResourceProjects, rbacpolicy.ActionGet, project.Name); err != nil {
+	if err := s.enf.EnforceErr(ctx.Value("claims"), rbacpolicy.ResourceProjects, rbacpolicy.ActionGet, projectName); err != nil {
 		return err
+	}
+
+	_, err := s.appclientset.ArgoprojV1alpha1().AppProjects(s.ns).Get(ctx, projectName, metav1.GetOptions{})
+	if err != nil {
+		if apierr.IsNotFound(err) {
+			return status.Errorf(codes.InvalidArgument, "ApplicationSet references project %s which does not exist", projectName)
+		}
+		return fmt.Errorf("error getting ApplicationSet's project %q: %w", projectName, err)
 	}
 
 	if err := s.enf.EnforceErr(ctx.Value("claims"), rbacpolicy.ResourceApplicationSets, rbacpolicy.ActionCreate, apputil.AppSetRBACName(appset)); err != nil {

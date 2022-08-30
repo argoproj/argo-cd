@@ -29,14 +29,12 @@ message ApplicationSetResponse {
 	github.com.argoproj.argo_cd.v2.pkg.apis.application.v1alpha1.ApplicationSet applicationset = 2;
 }
 
+
 message ApplicationSetCreateRequest {
 	github.com.argoproj.argo_cd.v2.pkg.apis.application.v1alpha1.ApplicationSet applicationset = 1;
 	bool upsert = 2;
 }
 
-message ApplicationSetUpdateRequest {
-	github.com.argoproj.argo_cd.v2.pkg.apis.application.v1alpha1.ApplicationSet applicationset = 1;
-}
 
 message ApplicationSetDeleteRequest {
 	string name = 1;
@@ -60,14 +58,6 @@ service ApplicationSetService {
 	rpc Create (ApplicationSetCreateRequest) returns (github.com.argoproj.argo_cd.v2.pkg.apis.application.v1alpha1.ApplicationSet) {
 		option (google.api.http) = {
 			post: "/api/v1/applicationsets"
-			body: "applicationset"
-		};
-	}
-
-	// Update updates an applicationset
-	rpc Update(ApplicationSetUpdateRequest) returns (github.com.argoproj.argo_cd.v2.pkg.apis.application.v1alpha1.ApplicationSet) {
-		option (google.api.http) = {
-			put: "/api/v1/applicationsets/{applicationset.metadata.name}"
 			body: "applicationset"
 		};
 	}

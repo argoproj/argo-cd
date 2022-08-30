@@ -325,7 +325,7 @@ func NewApplicationGetCommand(clientOpts *argocdclient.ClientOptions) *cobra.Com
 					printOperationResult(app.Status.OperationState)
 				}
 				if showParams {
-					printParams(app.Spec.Source.Helm)
+					printParams(app)
 				}
 				if len(app.Status.Resources) > 0 {
 					fmt.Println()
@@ -574,7 +574,13 @@ func truncateString(str string, num int) string {
 }
 
 // printParams prints parameters and overrides
-func printParams(helm *argoappv1.ApplicationSourceHelm) {
+func printParams(app *argoappv1.Application) {
+	if app.Spec.Source.Helm != nil {
+		printHelmParams(app.Spec.Source.Helm)
+	}
+}
+
+func printHelmParams(helm *argoappv1.ApplicationSourceHelm) {
 	paramLenLimit := 80
 	fmt.Println()
 	w := tabwriter.NewWriter(os.Stdout, 0, 0, 2, ' ', 0)

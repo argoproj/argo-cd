@@ -15,7 +15,7 @@ argocd appset [flags]
   # List all the ApplicationSets
   argocd appset list
   
-  # Create an ApplicationSet
+  # Create an ApplicationSet from a YAML stored in a file or at given URL
   argocd appset create <filename or URL> (<filename or URL>...)
   
   # Delete an ApplicationSet
@@ -76,5 +76,4 @@ argocd appset [flags]
 * [argocd appset delete](argocd_appset_delete.md)	 - Delete one or more ApplicationSets
 * [argocd appset get](argocd_appset_get.md)	 - Get ApplicationSet details
 * [argocd appset list](argocd_appset_list.md)	 - List ApplicationSets
-* [argocd appset update](argocd_appset_update.md)	 - Updates the given ApplicationSet(s)
 

@@ -47,17 +47,19 @@ func readAppsetFromURI(fileURL string, appset *[]*argoprojiov1alpha1.Application
 }
 
 func readAppset(yml []byte, appsets *[]*argoprojiov1alpha1.ApplicationSet) error {
-	yamls, _ := kube.SplitYAMLToString(yml)
-
-	var err error
+	yamls, err := kube.SplitYAMLToString(yml)
+	if err != nil {
+		return err
+	}
 
 	for _, yml := range yamls {
 		var appset argoprojiov1alpha1.ApplicationSet
 		err = config.Unmarshal([]byte(yml), &appset)
-		*appsets = append(*appsets, &appset)
 		if err != nil {
 			return err
 		}
+		*appsets = append(*appsets, &appset)
+
 	}
 
 	return err

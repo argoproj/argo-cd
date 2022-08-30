@@ -31,7 +31,7 @@ var (
 	# List all the ApplicationSets
 	argocd appset list
 
-	# Create an ApplicationSet
+	# Create an ApplicationSet from a YAML stored in a file or at given URL
 	argocd appset create <filename or URL> (<filename or URL>...)
 
 	# Delete an ApplicationSet
@@ -53,7 +53,6 @@ func NewAppSetCommand(clientOpts *argocdclient.ClientOptions) *cobra.Command {
 	command.AddCommand(NewApplicationSetGetCommand(clientOpts))
 	command.AddCommand(NewApplicationSetCreateCommand(clientOpts))
 	command.AddCommand(NewApplicationSetListCommand(clientOpts))
-	command.AddCommand(NewApplicationSetUpdateCommand(clientOpts))
 	command.AddCommand(NewApplicationSetDeleteCommand(clientOpts))
 	return command
 }
@@ -96,7 +95,7 @@ func NewApplicationSetGetCommand(clientOpts *argocdclient.ClientOptions) *cobra.
 					fmt.Println()
 				}
 				if showParams {
-					printParams(appSet.Spec.Template.Spec.Source.Helm)
+					printHelmParams(appSet.Spec.Template.Spec.Source.Helm)
 				}
 			default:
 				errors.CheckError(fmt.Errorf("unknown output format: %s", output))
@@ -104,7 +103,7 @@ func NewApplicationSetGetCommand(clientOpts *argocdclient.ClientOptions) *cobra.
 		},
 	}
 	command.Flags().StringVarP(&output, "output", "o", "wide", "Output format. One of: json|yaml|wide")
-	command.Flags().BoolVar(&showParams, "show-params", false, "Show ApplicationSet parameters and overrides (for Helm)")
+	command.Flags().BoolVar(&showParams, "show-params", false, "Show ApplicationSet parameters and overrides")
 	return command
 }
 
@@ -132,13 +131,13 @@ func NewApplicationSetCreateCommand(clientOpts *argocdclient.ClientOptions) *cob
 
 			if len(appsets) == 0 {
 				fmt.Printf("No ApplicationSets found while parsing the input file")
+				os.Exit(1)
 			}
 
 			for _, appset := range appsets {
 				if appset.Name == "" {
 					err := fmt.Errorf("Error creating ApplicationSet %s. ApplicationSet does not have Name field set", appset)
 					errors.CheckError(err)
-					os.Exit(1)
 				}
 
 				conn, appIf := argocdClient.NewApplicationSetClientOrDie()
@@ -193,7 +192,7 @@ func NewApplicationSetListCommand(clientOpts *argocdclient.ClientOptions) *cobra
 
 			conn, appIf := headless.NewClientOrDie(clientOpts, c).NewApplicationSetClientOrDie()
 			defer argoio.Close(conn)
-			appsets, err := appIf.List(ctx, &applicationset.ApplicationSetQuery{Selector: selector})
+			appsets, err := appIf.List(ctx, &applicationset.ApplicationSetQuery{Selector: selector, Projects: projects})
 			errors.CheckError(err)
 
 			appsetList := appsets.Items
@@ -215,48 +214,6 @@ func NewApplicationSetListCommand(clientOpts *argocdclient.ClientOptions) *cobra
 	command.Flags().StringVarP(&selector, "selector", "l", "", "List apps by label")
 	command.Flags().StringArrayVarP(&projects, "project", "p", []string{}, "Filter by project name")
 
-	return command
-}
-
-// NewApplicationSetUpdateCommand returns a new instance of an `argocd appset update` command
-func NewApplicationSetUpdateCommand(clientOpts *argocdclient.ClientOptions) *cobra.Command {
-	var command = &cobra.Command{
-		Use:   "update",
-		Short: "Updates the given ApplicationSet(s)",
-		Example: `
-	# Update ApplicationSet
-	argocd appset update <filename or URL> (<filename or URL>...)
-		`,
-		Run: func(c *cobra.Command, args []string) {
-			ctx := c.Context()
-
-			if len(args) == 0 {
-				c.HelpFunc()(c, args)
-				os.Exit(1)
-			}
-			argocdClient := headless.NewClientOrDie(clientOpts, c)
-			fileUrl := args[0]
-			appsets, err := cmdutil.ConstructApplicationSet(fileUrl)
-			errors.CheckError(err)
-
-			for _, appset := range appsets {
-				if appset.Name == "" {
-					err := fmt.Errorf("error creating applicationset %s. applicationset does not have Name field set", appset)
-					errors.CheckError(err)
-					os.Exit(1)
-				}
-
-				conn, appIf := argocdClient.NewApplicationSetClientOrDie()
-				defer argoio.Close(conn)
-				appsetUpdateRequest := applicationset.ApplicationSetUpdateRequest{
-					Applicationset: appset,
-				}
-				updated, err := appIf.Update(ctx, &appsetUpdateRequest)
-				errors.CheckError(err)
-				fmt.Printf("application set '%s' updated\n", updated.Name)
-			}
-		},
-	}
 	return command
 }
 
