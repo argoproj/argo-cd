@@ -582,6 +582,13 @@ export const ApplicationsList = (props: RouteComponentProps<{}>) => {
                                                                 createApp={async app => {
                                                                     setAppCreatePending(true);
                                                                     try {
+                                                                        // Namespace may be specified in the app name. We need to
+                                                                        // parse and handle it accordingly.
+                                                                        if (app.metadata.name.includes('/')) {
+                                                                            var nns = app.metadata.name.split('/', 2)
+                                                                            app.metadata.name = nns[1]
+                                                                            app.metadata.namespace = nns[0]
+                                                                        }
                                                                         await services.applications.create(app);
                                                                         ctx.navigation.goto('.', {new: null}, {replace: true});
                                                                     } catch (e) {
