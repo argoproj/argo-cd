@@ -33,8 +33,7 @@ const (
 )
 
 // FormatAppConditions returns string representation of give app condition list
-func FormatAppConditions(conditions []argoappv1.
-			 Condition) string {
+func FormatAppConditions(conditions []argoappv1.ApplicationCondition) string {
 	formattedConditions := make([]string, 0)
 	for _, condition := range conditions {
 		formattedConditions = append(formattedConditions, fmt.Sprintf("%s: %s", condition.Type, condition.Message))
