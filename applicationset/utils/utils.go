@@ -137,7 +137,7 @@ func (r *Render) deeplyReplace(copy, original reflect.Value, replaceMap map[stri
 			copy.SetMapIndex(key, copyValue)
 		}
 
-	// Otherwise we cannot traverse anywhere so this finishes the the recursion
+	// Otherwise we cannot traverse anywhere so this finishes the recursion
 	// If it is a string translate it (yay finally we're doing what we came for)
 	case reflect.String:
 		strToTemplate := original.String()

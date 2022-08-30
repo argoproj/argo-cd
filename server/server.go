@@ -967,7 +967,7 @@ func (a *ArgoCDServer) serveExtensions(extensionsSharedPath string, w http.Respo
 	}
 }
 
-// registerDexHandlers will register dex HTTP handlers, creating the the OAuth client app
+// registerDexHandlers will register dex HTTP handlers, creating the OAuth client app
 func (a *ArgoCDServer) registerDexHandlers(mux *http.ServeMux) {
 	if !a.settings.IsSSOConfigured() {
 		return
