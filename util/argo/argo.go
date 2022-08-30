@@ -422,8 +422,8 @@ func GetAppProject(app *argoappv1.Application, projLister applicationsv1.AppProj
 		return nil, err
 	}
 	if !proj.IsAppNamespacePermitted(app, ns) {
-		return nil, fmt.Errorf("application '%s' in namespace '%s' is not allowed to use project '%s'",
-			app.Name, app.Namespace, proj.Name)
+		return nil, fmt.Errorf("application '%s' is not allowed to use project '%s'",
+			app.Name, proj.Name)
 	}
 	return proj, nil
 }
