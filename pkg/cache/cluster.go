@@ -599,7 +599,7 @@ func (c *clusterCache) watchEvents(ctx context.Context, api kube.APIResourceInfo
 
 			// re-synchronize API state and restart watch periodically
 			case <-watchResyncTimeoutCh:
-				return fmt.Errorf("Resyncing %s on %s during to timeout", api.GroupKind, c.config.Host)
+				return fmt.Errorf("Resyncing %s on %s due to timeout", api.GroupKind, c.config.Host)
 
 			// re-synchronize API state and restart watch if retry watcher failed to continue watching using provided resource version
 			case <-w.Done():
