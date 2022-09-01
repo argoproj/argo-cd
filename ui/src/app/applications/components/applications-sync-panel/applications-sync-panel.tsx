@@ -98,6 +98,7 @@ export const ApplicationsSyncPanel = ({show, apps, hide}: {show: boolean; apps: 
                                 await services.applications
                                     .sync(
                                         app.metadata.name,
+                                        app.metadata.namespace,
                                         app.spec.source.targetRevision,
                                         syncFlags.Prune || false,
                                         syncFlags.DryRun || false,
