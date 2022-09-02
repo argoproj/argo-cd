@@ -140,14 +140,15 @@ func (g *SCMProviderGenerator) GenerateParams(appSetGenerator *argoprojiov1alpha
 		}
 
 		params = append(params, map[string]interface{}{
-			"organization":     repo.Organization,
-			"repository":       repo.Repository,
-			"url":              repo.URL,
-			"branch":           repo.Branch,
-			"sha":              repo.SHA,
-			"short_sha":        repo.SHA[:shortSHALength],
-			"labels":           strings.Join(repo.Labels, ","),
-			"branchNormalized": utils.SanitizeName(repo.Branch),
+			"organization":         repo.Organization,
+			"repository":           repo.Repository,
+			"url":                  repo.URL,
+			"branch":               repo.Branch,
+			"sha":                  repo.SHA,
+			"short_sha":            repo.SHA[:shortSHALength],
+			"labels":               strings.Join(repo.Labels, ","),
+			"repositoryNormalized": utils.SanitizeName(repo.Repository),
+			"branchNormalized":     utils.SanitizeName(repo.Branch),
 		})
 	}
 	return params, nil

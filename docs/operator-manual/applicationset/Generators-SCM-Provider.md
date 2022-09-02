@@ -285,4 +285,5 @@ spec:
 * `sha`: The Git commit SHA for the branch.
 * `short_sha`: The abbreviated Git commit SHA for the branch (8 chars or the length of the `sha` if it's shorter).
 * `labels`: A comma-separated list of repository labels.
+* `repositoryNormalized`: The value of `repository` normalized to contain only lowercase alphanumeric characters, '-' or '.'.
 * `branchNormalized`: The value of `branch` normalized to contain only lowercase alphanumeric characters, '-' or '.'.
