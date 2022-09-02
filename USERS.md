@@ -110,6 +110,7 @@ Currently, the following organizations are **officially** using Argo CD:
 1. [Lightricks](https://www.lightricks.com/)
 1. [LINE](https://linecorp.com/en/)
 1. [Lytt](https://www.lytt.co/)
+1. [Magic Leap](https://www.magicleap.com/)
 1. [Majid Al Futtaim](https://www.majidalfuttaim.com/)
 1. [Major League Baseball](https://mlb.com)
 1. [Mambu](https://www.mambu.com/)
