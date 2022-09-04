@@ -142,6 +142,12 @@ the `application.instanceLabelKey` value in the `argocd-cm`. We recommend that y
 
 See [#1482](https://github.com/argoproj/argo-cd/issues/1482).
 
+## How often does Argo CD sync applications ?
+
+The default sync interval is 3 minutes (180 seconds). 
+You can change the setting by updating the `timeout.reconciliation` value in the [argocd-cm](https://github.com/argoproj/argo-cd/blob/2d6ce088acd4fb29271ffb6f6023dbb27594d59b/docs/operator-manual/argocd-cm.yaml#L279-L282) config map. If you set it to `0` then Argo CD will stop polling Git repositories automatically and you can only use alternative methods such as [webhooks](operator-manual/webhook.md) and/or manual syncs for deploying applications.
+
+
 ## Why Are My Resource Limits Out Of Sync?
 
 Kubernetes has normalized your resource limits when they are applied, and then Argo CD has then compared the version in
