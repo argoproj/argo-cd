@@ -142,10 +142,10 @@ the `application.instanceLabelKey` value in the `argocd-cm`. We recommend that y
 
 See [#1482](https://github.com/argoproj/argo-cd/issues/1482).
 
-## How often does Argo CD sync applications ?
+## How often does Argo CD check for changes to my Git or Helm repository ?
 
-The default sync interval is 3 minutes (180 seconds). 
-You can change the setting by updating the `timeout.reconciliation` value in the [argocd-cm](https://github.com/argoproj/argo-cd/blob/2d6ce088acd4fb29271ffb6f6023dbb27594d59b/docs/operator-manual/argocd-cm.yaml#L279-L282) config map. If you set it to `0` then Argo CD will stop polling Git repositories automatically and you can only use alternative methods such as [webhooks](operator-manual/webhook.md) and/or manual syncs for deploying applications.
+The default polling interval is 3 minutes (180 seconds). 
+You can change the setting by updating the `timeout.reconciliation` value in the [argocd-cm](https://github.com/argoproj/argo-cd/blob/2d6ce088acd4fb29271ffb6f6023dbb27594d59b/docs/operator-manual/argocd-cm.yaml#L279-L282) config map. If there are any Git changes, ArgoCD will only update applications with the [auto-sync setting](user-guide/auto_sync.md) enabled. If you set it to `0` then Argo CD will stop polling Git repositories automatically and you can only use alternative methods such as [webhooks](operator-manual/webhook.md) and/or manual syncs for deploying applications.
 
 
 ## Why Are My Resource Limits Out Of Sync?
