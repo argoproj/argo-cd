@@ -2424,7 +2424,7 @@ func TestInit(t *testing.T) {
 	assert.Equal(t, repoPath, repo1Path)
 
 	_, err = os.ReadDir(dir)
-	require.Error(t, err)
+	require.NoError(t, err)
 	require.NoError(t, initGitRepo(path.Join(dir, "repo2"), "https://github.com/argo-cd/test-repo2"))
 }
 
