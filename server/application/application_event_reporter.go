@@ -132,7 +132,7 @@ func (s *applicationEventReporter) streamApplicationEvents(
 
 		desiredManifests, _, manifestGenErr := s.getDesiredManifests(ctx, parentApplicationEntity, logCtx)
 
-		revisionMetadata, _ := s.getApplicationHistoryRevisionDetails(ctx, a)
+		revisionMetadata, _ := s.getApplicationRevisionDetails(ctx, a, a.Status.OperationState.Operation.Sync.Revision)
 
 		s.processResource(ctx, *rs, parentApplicationEntity, logCtx, ts, desiredManifests, stream, appTree, es, manifestGenErr, a, revisionMetadata, true)
 	} else {
@@ -159,7 +159,7 @@ func (s *applicationEventReporter) streamApplicationEvents(
 		return err
 	}
 
-	revisionMetadata, _ := s.getApplicationHistoryRevisionDetails(ctx, a)
+	revisionMetadata, _ := s.getApplicationRevisionDetails(ctx, a, a.Status.OperationState.Operation.Sync.Revision)
 	// for each resource in the application get desired and actual state,
 	// then stream the event
 	for _, rs := range a.Status.Resources {
@@ -336,9 +336,17 @@ func getApplicationLatestRevision(a *appv1.Application) string {
 	return revision
 }
 
-func (s *applicationEventReporter) getApplicationHistoryRevisionDetails(ctx context.Context, a *appv1.Application) (*appv1.RevisionMetadata, error) {
-	revision := getApplicationLatestRevision(a)
+func getOperationRevision(a *appv1.Application) string {
+	revision := ""
 
+	if a.Status.OperationState != nil && a.Status.OperationState.Operation.Sync != nil {
+		revision = a.Status.OperationState.Operation.Sync.Revision
+	}
+
+	return revision
+}
+
+func (s *applicationEventReporter) getApplicationRevisionDetails(ctx context.Context, a *appv1.Application, revision string) (*appv1.RevisionMetadata, error) {
 	return s.server.RevisionMetadata(ctx, &application.RevisionMetadataQuery{
 		Name:     &a.Name,
 		Revision: &revision,
@@ -444,19 +452,20 @@ func getResourceEventPayload(
 	}
 
 	source := events.ObjectSource{
-		DesiredManifest: desiredState.CompiledManifest,
-		ActualManifest:  actualState.Manifest,
-		GitManifest:     desiredState.RawManifest,
-		RepoURL:         parentApplication.Status.Sync.ComparedTo.Source.RepoURL,
-		Path:            desiredState.Path,
-		Revision:        getApplicationLatestRevision(parentApplication),
-		HistoryId:       getLatestAppHistoryId(parentApplication),
-		AppName:         parentApplication.Name,
-		AppLabels:       parentApplication.Labels,
-		SyncStatus:      string(rs.Status),
-		SyncStartedAt:   syncStarted,
-		SyncFinishedAt:  syncFinished,
-		Cluster:         parentApplication.Spec.Destination.Server,
+		DesiredManifest:       desiredState.CompiledManifest,
+		ActualManifest:        actualState.Manifest,
+		GitManifest:           desiredState.RawManifest,
+		RepoURL:               parentApplication.Status.Sync.ComparedTo.Source.RepoURL,
+		Path:                  desiredState.Path,
+		Revision:              getApplicationLatestRevision(parentApplication),
+		OperationSyncRevision: getOperationRevision(parentApplication),
+		HistoryId:             getLatestAppHistoryId(parentApplication),
+		AppName:               parentApplication.Name,
+		AppLabels:             parentApplication.Labels,
+		SyncStatus:            string(rs.Status),
+		SyncStartedAt:         syncStarted,
+		SyncFinishedAt:        syncFinished,
+		Cluster:               parentApplication.Spec.Destination.Server,
 	}
 
 	if revisionMetadata != nil {
@@ -510,7 +519,7 @@ func (s *applicationEventReporter) getApplicationEventPayload(ctx context.Contex
 	}
 
 	if a.Status.Sync.Revision != "" || (a.Status.History != nil && len(a.Status.History) > 0) {
-		revisionMetadata, err := s.getApplicationHistoryRevisionDetails(ctx, a)
+		revisionMetadata, err := s.getApplicationRevisionDetails(ctx, a, a.Status.OperationState.Operation.Sync.Revision)
 
 		if err != nil {
 			if !strings.Contains(err.Error(), "not found") {
@@ -542,23 +551,24 @@ func (s *applicationEventReporter) getApplicationEventPayload(ctx context.Contex
 
 	hs := string(a.Status.Health.Status)
 	source := &events.ObjectSource{
-		DesiredManifest: "",
-		GitManifest:     "",
-		ActualManifest:  actualManifest,
-		RepoURL:         a.Spec.Source.RepoURL,
-		CommitMessage:   "",
-		CommitAuthor:    "",
-		Path:            "",
-		Revision:        "",
-		HistoryId:       0,
-		AppName:         "",
-		AppLabels:       map[string]string{},
-		SyncStatus:      string(a.Status.Sync.Status),
-		SyncStartedAt:   syncStarted,
-		SyncFinishedAt:  syncFinished,
-		HealthStatus:    &hs,
-		HealthMessage:   &a.Status.Health.Message,
-		Cluster:         a.Spec.Destination.Server,
+		DesiredManifest:       "",
+		GitManifest:           "",
+		ActualManifest:        actualManifest,
+		RepoURL:               a.Spec.Source.RepoURL,
+		CommitMessage:         "",
+		CommitAuthor:          "",
+		Path:                  "",
+		Revision:              "",
+		OperationSyncRevision: "",
+		HistoryId:             0,
+		AppName:               "",
+		AppLabels:             map[string]string{},
+		SyncStatus:            string(a.Status.Sync.Status),
+		SyncStartedAt:         syncStarted,
+		SyncFinishedAt:        syncFinished,
+		HealthStatus:          &hs,
+		HealthMessage:         &a.Status.Health.Message,
+		Cluster:               a.Spec.Destination.Server,
 	}
 
 	payload := events.EventPayload{

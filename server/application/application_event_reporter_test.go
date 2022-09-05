@@ -71,6 +71,7 @@ func TestGetResourceEventPayload(t *testing.T) {
 			ObjectMeta: metav1.ObjectMeta{
 				DeletionTimestamp: &metav1.Time{},
 			},
+			Status: v1alpha1.ApplicationStatus{},
 		}
 		rs := v1alpha1.ResourceStatus{}
 		es := events.EventSource{}
