@@ -20,11 +20,16 @@ import (
 	"time"
 
 	"github.com/go-logr/logr"
+	log "github.com/sirupsen/logrus"
 	corev1 "k8s.io/api/core/v1"
+	apierr "k8s.io/apimachinery/pkg/api/errors"
 	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
+	"k8s.io/apimachinery/pkg/runtime"
 	"k8s.io/apimachinery/pkg/types"
 	"k8s.io/client-go/kubernetes"
 	"k8s.io/client-go/tools/record"
+	ctrl "sigs.k8s.io/controller-runtime"
+	"sigs.k8s.io/controller-runtime/pkg/client"
 	"sigs.k8s.io/controller-runtime/pkg/controller/controllerutil"
 	"sigs.k8s.io/controller-runtime/pkg/handler"
 	"sigs.k8s.io/controller-runtime/pkg/source"
@@ -33,18 +38,10 @@ import (
 	"github.com/argoproj/argo-cd/v2/applicationset/utils"
 	"github.com/argoproj/argo-cd/v2/common"
 	argov1alpha1 "github.com/argoproj/argo-cd/v2/pkg/apis/application/v1alpha1"
-	"github.com/argoproj/argo-cd/v2/util/db"
-
-	log "github.com/sirupsen/logrus"
-	"k8s.io/apimachinery/pkg/runtime"
-	ctrl "sigs.k8s.io/controller-runtime"
-	"sigs.k8s.io/controller-runtime/pkg/client"
-
 	argoprojiov1alpha1 "github.com/argoproj/argo-cd/v2/pkg/apis/applicationset/v1alpha1"
 	appclientset "github.com/argoproj/argo-cd/v2/pkg/client/clientset/versioned"
 	argoutil "github.com/argoproj/argo-cd/v2/util/argo"
-
-	apierr "k8s.io/apimachinery/pkg/api/errors"
+	"github.com/argoproj/argo-cd/v2/util/db"
 )
 
 const (
@@ -53,6 +50,13 @@ const (
 	//   https://github.com/argoproj-labs/argocd-notifications/blob/33d345fa838829bb50fca5c08523aba380d2c12b/pkg/controller/state.go#L17
 	NotifiedAnnotationKey             = "notified.notifications.argoproj.io"
 	ReconcileRequeueOnValidationError = time.Minute * 3
+)
+
+var (
+	preservedAnnotations = []string{
+		NotifiedAnnotationKey,
+		argov1alpha1.AnnotationKeyRefresh,
+	}
 )
 
 // ApplicationSetReconciler reconciles a ApplicationSet object
@@ -527,12 +531,16 @@ func (r *ApplicationSetReconciler) createOrUpdateInCluster(ctx context.Context, 
 			// Copy only the Application/ObjectMeta fields that are significant, from the generatedApp
 			found.Spec = generatedApp.Spec
 
-			// Preserve argo cd notifications state (https://github.com/argoproj/applicationset/issues/180)
-			if state, exists := found.ObjectMeta.Annotations[NotifiedAnnotationKey]; exists {
-				if generatedApp.Annotations == nil {
-					generatedApp.Annotations = map[string]string{}
+			// Preserve specially treated argo cd annotations:
+			// * https://github.com/argoproj/applicationset/issues/180
+			// * https://github.com/argoproj/argo-cd/issues/10500
+			for _, key := range preservedAnnotations {
+				if state, exists := found.ObjectMeta.Annotations[key]; exists {
+					if generatedApp.Annotations == nil {
+						generatedApp.Annotations = map[string]string{}
+					}
+					generatedApp.Annotations[key] = state
 				}
-				generatedApp.Annotations[NotifiedAnnotationKey] = state
 			}
 			found.ObjectMeta.Annotations = generatedApp.Annotations
 
