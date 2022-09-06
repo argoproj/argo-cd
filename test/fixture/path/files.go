@@ -81,6 +81,7 @@ func copySingleFile(src string, dest string, mode os.FileInfo) error {
 // CreateSymlink creates a symlink with name linkName to file destName in
 // workingDir
 func CreateSymlink(t *testing.T, workingDir, destName, linkName string) error {
+	t.Helper()
 	oldWorkingDir, err := os.Getwd()
 	if err != nil {
 		return err
