@@ -116,6 +116,28 @@ func TestGenerateParamsForDuckType(t *testing.T) {
 		},
 	}
 
+	duckTypeProdOnlyWithValues := &unstructured.Unstructured{
+		Object: map[string]interface{}{
+			"apiVersion": resourceApiVersion,
+			"kind":       "Duck",
+			"metadata": map[string]interface{}{
+				"name":      resourceName,
+				"namespace": "namespace",
+				"labels":    map[string]interface{}{"duck": "spotted"},
+			},
+			"status": map[string]interface{}{
+				"decisions": []interface{}{
+					map[string]interface{}{
+						"clusterName": "production-01",
+						"values": map[string]interface{}{
+							"targetRef": "branch",
+						},
+					},
+				},
+			},
+		},
+	}
+
 	duckTypeEmpty := &unstructured.Unstructured{
 		Object: map[string]interface{}{
 			"apiVersion": resourceApiVersion,
@@ -191,6 +213,18 @@ func TestGenerateParamsForDuckType(t *testing.T) {
 			},
 			expected: []map[string]interface{}{
 				{"clusterName": "production-01", "values.foo": "bar", "name": "production-01", "server": "https://production-01.example.com"},
+			},
+			expectedError: nil,
+		},
+		{
+			name:         "production-only-with-values",
+			resourceName: resourceName,
+			resource:     duckTypeProdOnlyWithValues,
+			values: map[string]string{
+				"foo": "bar",
+			},
+			expected: []map[string]interface{}{
+				{"values.targetRef": "branch", "clusterName": "production-01", "values.foo": "bar", "name": "production-01", "server": "https://production-01.example.com"},
 			},
 			expectedError: nil,
 		},
@@ -414,6 +448,28 @@ func TestGenerateParamsForDuckTypeGoTemplate(t *testing.T) {
 		},
 	}
 
+	duckTypeProdOnlyWithValues := &unstructured.Unstructured{
+		Object: map[string]interface{}{
+			"apiVersion": resourceApiVersion,
+			"kind":       "Duck",
+			"metadata": map[string]interface{}{
+				"name":      resourceName,
+				"namespace": "namespace",
+				"labels":    map[string]interface{}{"duck": "spotted"},
+			},
+			"status": map[string]interface{}{
+				"decisions": []interface{}{
+					map[string]interface{}{
+						"clusterName": "production-01",
+						"values": map[string]interface{}{
+							"targetRef": "branch",
+						},
+					},
+				},
+			},
+		},
+	}
+
 	duckTypeEmpty := &unstructured.Unstructured{
 		Object: map[string]interface{}{
 			"apiVersion": resourceApiVersion,
@@ -489,6 +545,18 @@ func TestGenerateParamsForDuckTypeGoTemplate(t *testing.T) {
 			},
 			expected: []map[string]interface{}{
 				{"clusterName": "production-01", "values": map[string]string{"foo": "bar"}, "name": "production-01", "server": "https://production-01.example.com"},
+			},
+			expectedError: nil,
+		},
+		{
+			name:         "production-only-with-values",
+			resourceName: resourceName,
+			resource:     duckTypeProdOnlyWithValues,
+			values: map[string]string{
+				"foo": "bar",
+			},
+			expected: []map[string]interface{}{
+				{"clusterName": "production-01", "values": map[string]string{"foo": "bar", "targetRef": "branch"}, "name": "production-01", "server": "https://production-01.example.com"},
 			},
 			expectedError: nil,
 		},

@@ -210,8 +210,23 @@ func (g *DuckTypeGenerator) GenerateParams(appSetGenerator *argoprojiov1alpha1.A
 				continue
 			}
 
+			if values, ok := cluster.(map[string]interface{})["values"]; ok {
+				for key, value := range values.(map[string]interface{}) {
+					if v, ok := value.(string); ok {
+						appSetGenerator.ClusterDecisionResource.Values[key] = v
+					} else {
+						log.WithField(fmt.Sprintf("decision values %s", key), value).Warning("not a string")
+					}
+				}
+				delete(cluster.(map[string]interface{}), "values")
+			}
+
 			for key, value := range cluster.(map[string]interface{}) {
-				params[key] = value.(string)
+				if v, ok := value.(string); ok {
+					params[key] = v
+				} else {
+					log.WithField(fmt.Sprintf("decision value %s", key), value).Warning("not a string")
+				}
 			}
 
 			for key, value := range appSetGenerator.ClusterDecisionResource.Values {
