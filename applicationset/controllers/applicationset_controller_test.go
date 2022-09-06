@@ -13,9 +13,11 @@ import (
 	"github.com/stretchr/testify/assert"
 	"github.com/stretchr/testify/mock"
 	corev1 "k8s.io/api/core/v1"
+	apiextensionsv1 "k8s.io/apiextensions-apiserver/pkg/apis/apiextensions/v1"
 	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
 	"k8s.io/apimachinery/pkg/runtime"
 	"k8s.io/apimachinery/pkg/types"
+	kubefake "k8s.io/client-go/kubernetes/fake"
 	"k8s.io/client-go/tools/record"
 	ctrl "sigs.k8s.io/controller-runtime"
 	crtclient "sigs.k8s.io/controller-runtime/pkg/client"
@@ -25,10 +27,6 @@ import (
 	"github.com/argoproj/argo-cd/v2/applicationset/generators"
 	"github.com/argoproj/argo-cd/v2/applicationset/utils"
 	argov1alpha1 "github.com/argoproj/argo-cd/v2/pkg/apis/application/v1alpha1"
-
-	apiextensionsv1 "k8s.io/apiextensions-apiserver/pkg/apis/apiextensions/v1"
-	kubefake "k8s.io/client-go/kubernetes/fake"
-
 	"github.com/argoproj/argo-cd/v2/pkg/apis/applicationset/v1alpha1"
 	argoprojiov1alpha1 "github.com/argoproj/argo-cd/v2/pkg/apis/applicationset/v1alpha1"
 	appclientset "github.com/argoproj/argo-cd/v2/pkg/client/clientset/versioned/fake"
@@ -755,7 +753,7 @@ func TestCreateOrUpdateInCluster(t *testing.T) {
 			},
 		},
 		{
-			name: "Ensure that argocd notifications state annotation is preserved from an existing app",
+			name: "Ensure that argocd notifications state and refresh annotation is preserved from an existing app",
 			appSet: argoprojiov1alpha1.ApplicationSet{
 				ObjectMeta: metav1.ObjectMeta{
 					Name:      "name",
@@ -781,8 +779,9 @@ func TestCreateOrUpdateInCluster(t *testing.T) {
 						ResourceVersion: "2",
 						Labels:          map[string]string{"label-key": "label-value"},
 						Annotations: map[string]string{
-							"annot-key":           "annot-value",
-							NotifiedAnnotationKey: `{"b620d4600c771a6f4cxxxxxxx:on-deployed:[0].y7b5sbwa2Q329JYHxxxxxx-fBs:slack:slack-test":1617144614}`,
+							"annot-key":                       "annot-value",
+							NotifiedAnnotationKey:             `{"b620d4600c771a6f4cxxxxxxx:on-deployed:[0].y7b5sbwa2Q329JYHxxxxxx-fBs:slack:slack-test":1617144614}`,
+							argov1alpha1.AnnotationKeyRefresh: string(argov1alpha1.RefreshTypeNormal),
 						},
 					},
 					Spec: argov1alpha1.ApplicationSpec{
@@ -811,7 +810,8 @@ func TestCreateOrUpdateInCluster(t *testing.T) {
 						Namespace:       "namespace",
 						ResourceVersion: "3",
 						Annotations: map[string]string{
-							NotifiedAnnotationKey: `{"b620d4600c771a6f4cxxxxxxx:on-deployed:[0].y7b5sbwa2Q329JYHxxxxxx-fBs:slack:slack-test":1617144614}`,
+							NotifiedAnnotationKey:             `{"b620d4600c771a6f4cxxxxxxx:on-deployed:[0].y7b5sbwa2Q329JYHxxxxxx-fBs:slack:slack-test":1617144614}`,
+							argov1alpha1.AnnotationKeyRefresh: string(argov1alpha1.RefreshTypeNormal),
 						},
 					},
 					Spec: argov1alpha1.ApplicationSpec{
