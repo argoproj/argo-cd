@@ -58,7 +58,7 @@ func (g *GithubService) List(ctx context.Context) ([]*PullRequest, error) {
 	for {
 		pulls, resp, err := g.client.PullRequests.List(ctx, g.owner, g.repo, opts)
 		if err != nil {
-			return nil, fmt.Errorf("error listing pull requests for %s/%s: %v", g.owner, g.repo, err)
+			return nil, fmt.Errorf("error listing pull requests for %s/%s: %w", g.owner, g.repo, err)
 		}
 		for _, pull := range pulls {
 			if !containLabels(g.labels, pull.Labels) {

@@ -499,6 +499,15 @@ export interface Repository {
     type?: string;
     name?: string;
     connectionState: ConnectionState;
+    project?: string;
+    username?: string;
+    password?: string;
+    tlsClientCertData?: string;
+    tlsClientCertKey?: string;
+    proxy?: string;
+    insecure?: boolean;
+    enableLfs?: boolean;
+    githubAppId?: string;
 }
 
 export interface RepositoryList extends ItemsList<Repository> {}

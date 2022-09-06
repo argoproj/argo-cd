@@ -249,7 +249,10 @@ func (c SSHCreds) Environ() (io.Closer, []string, error) {
 	}
 	defer func() {
 		if err = file.Close(); err != nil {
-			log.Errorf("error closing file %q: %v", file.Name(), err)
+			log.WithFields(log.Fields{
+				common.SecurityField:    common.SecurityMedium,
+				common.SecurityCWEField: 775,
+			}).Errorf("error closing file %q: %v", file.Name(), err)
 		}
 	}()
 

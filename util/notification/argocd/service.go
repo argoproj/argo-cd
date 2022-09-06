@@ -2,20 +2,17 @@ package service
 
 import (
 	"context"
-	"fmt"
 
 	"github.com/argoproj/argo-cd/v2/util/notification/expression/shared"
 
 	log "github.com/sirupsen/logrus"
 	"k8s.io/client-go/kubernetes"
 
-	"github.com/argoproj/argo-cd/v2/common"
 	"github.com/argoproj/argo-cd/v2/pkg/apis/application/v1alpha1"
 	"github.com/argoproj/argo-cd/v2/reposerver/apiclient"
+	repoapiclient "github.com/argoproj/argo-cd/v2/reposerver/apiclient"
 	"github.com/argoproj/argo-cd/v2/util/db"
-	"github.com/argoproj/argo-cd/v2/util/env"
 	"github.com/argoproj/argo-cd/v2/util/settings"
-	"github.com/argoproj/argo-cd/v2/util/tls"
 )
 
 //go:generate mockgen -destination=./mocks/service.go -package=mocks github.com/argoproj-labs/argocd-notifications/shared/argocd Service
@@ -25,25 +22,9 @@ type Service interface {
 	GetAppDetails(ctx context.Context, appSource *v1alpha1.ApplicationSource) (*shared.AppDetail, error)
 }
 
-func NewArgoCDService(clientset kubernetes.Interface, namespace string, repoServerAddress string, disableTLS bool, strictValidation bool) (*argoCDService, error) {
+func NewArgoCDService(clientset kubernetes.Interface, namespace string, repoClientset repoapiclient.Clientset) (*argoCDService, error) {
 	ctx, cancel := context.WithCancel(context.Background())
 	settingsMgr := settings.NewSettingsManager(ctx, clientset, namespace)
-	tlsConfig := apiclient.TLSConfiguration{
-		DisableTLS:       disableTLS,
-		StrictValidation: strictValidation,
-	}
-	if !disableTLS && strictValidation {
-		pool, err := tls.LoadX509CertPool(
-			fmt.Sprintf("%s/reposerver/tls/tls.crt", env.StringFromEnv(common.EnvAppConfigPath, common.DefaultAppConfigPath)),
-			fmt.Sprintf("%s/reposerver/tls/ca.crt", env.StringFromEnv(common.EnvAppConfigPath, common.DefaultAppConfigPath)),
-		)
-		if err != nil {
-			cancel()
-			return nil, err
-		}
-		tlsConfig.Certificates = pool
-	}
-	repoClientset := apiclient.NewRepoServerClientset(repoServerAddress, 5, tlsConfig)
 	closer, repoClient, err := repoClientset.NewRepoServerClient()
 	if err != nil {
 		cancel()

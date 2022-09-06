@@ -11,6 +11,7 @@ set -o pipefail
 
 PROJECT_ROOT=$(cd $(dirname ${BASH_SOURCE})/..; pwd)
 PATH="${PROJECT_ROOT}/dist:${PATH}"
+GOPATH=$(go env GOPATH)
 
 # output tool versions
 protoc --version
@@ -121,7 +122,7 @@ clean_swagger() {
 }
 
 echo "If additional types are added, the number of expected collisions may need to be increased"
-EXPECTED_COLLISION_COUNT=63
+EXPECTED_COLLISION_COUNT=65
 collect_swagger server ${EXPECTED_COLLISION_COUNT}
 clean_swagger server
 clean_swagger reposerver

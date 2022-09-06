@@ -1,10 +1,10 @@
 package db
 
 import (
+	"context"
 	"fmt"
 	"hash/fnv"
 
-	"context"
 	log "github.com/sirupsen/logrus"
 	"google.golang.org/grpc/codes"
 	"google.golang.org/grpc/status"
