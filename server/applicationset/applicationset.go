@@ -110,7 +110,6 @@ func (s *Server) List(ctx context.Context, q *applicationset.ApplicationSetQuery
 		return nil, fmt.Errorf("error listing ApplicationSets with selectors: %w", err)
 	}
 
-	// fmt.Printf("Appset Server: %s", appsetList)
 	newItems := make([]v1alpha1.ApplicationSet, 0)
 	for _, a := range appsetList.Items {
 		if s.enf.Enforce(ctx.Value("claims"), rbacpolicy.ResourceApplicationSets, rbacpolicy.ActionGet, apputil.AppSetRBACName(&a)) {
@@ -124,7 +123,6 @@ func (s *Server) List(ctx context.Context, q *applicationset.ApplicationSetQuery
 		}
 	}
 
-	// Filter applicationsets by name
 	newItems = argoutil.FilterAppSetsByProjects(newItems, q.Projects)
 
 	// Sort found applicationsets by name
@@ -191,7 +189,7 @@ func (s *Server) Create(ctx context.Context, q *applicationset.ApplicationSetCre
 	if !q.Upsert {
 		return nil, status.Errorf(codes.InvalidArgument, "existing ApplicationSet spec is different, use upsert flag to force update")
 	}
-	if err = s.enf.EnforceErr(ctx.Value("claims"), rbacpolicy.ResourceApplications, rbacpolicy.ActionUpdate, apputil.AppSetRBACName(appset)); err != nil {
+	if err = s.enf.EnforceErr(ctx.Value("claims"), rbacpolicy.ResourceApplicationSets, rbacpolicy.ActionUpdate, apputil.AppSetRBACName(appset)); err != nil {
 		return nil, err
 	}
 	updated, err := s.updateAppSet(existing, appset, ctx, true)
@@ -267,12 +265,12 @@ func (s *Server) Delete(ctx context.Context, q *applicationset.ApplicationSetDel
 		return nil, fmt.Errorf("error getting ApplicationSets: %w", err)
 	}
 
-	s.projectLock.RLock(appset.Spec.Template.Spec.Project)
-	defer s.projectLock.RUnlock(appset.Spec.Template.Spec.Project)
-
 	if err := s.enf.EnforceErr(ctx.Value("claims"), rbacpolicy.ResourceApplicationSets, rbacpolicy.ActionDelete, apputil.AppSetRBACName(appset)); err != nil {
 		return nil, err
 	}
+
+	s.projectLock.RLock(appset.Spec.Template.Spec.Project)
+	defer s.projectLock.RUnlock(appset.Spec.Template.Spec.Project)
 
 	err = s.appclientset.ArgoprojV1alpha1().ApplicationSets(s.ns).Delete(ctx, q.Name, metav1.DeleteOptions{})
 	if err != nil {
