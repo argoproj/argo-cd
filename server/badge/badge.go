@@ -107,7 +107,7 @@ func (h *Handler) ServeHTTP(w http.ResponseWriter, r *http.Request) {
 		}
 	}
 	//Sample url: http://localhost:8080/api/badge?name=123&revision=true
-	if revisionParam, ok := r.URL.Query()["revision"]; revisionParam[0] == "true" && ok && enabled {
+	if revisionParam, ok := r.URL.Query()["revision"]; ok && enabled && revisionParam[0] == "true" {
 		revisionEnabled = true
 	}
 
