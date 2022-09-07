@@ -224,10 +224,6 @@ func (s *Server) updateAppSet(appset *v1alpha1.ApplicationSet, newAppset *v1alph
 		if err := s.enf.EnforceErr(ctx.Value("claims"), rbacpolicy.ResourceApplicationSets, rbacpolicy.ActionUpdate, apputil.AppSetRBACName(appset)); err != nil {
 			return nil, err
 		}
-		// They also need 'delete' privileges in the old project
-		if err := s.enf.EnforceErr(ctx.Value("claims"), rbacpolicy.ResourceApplicationSets, rbacpolicy.ActionDelete, apputil.AppSetRBACName(appset)); err != nil {
-			return nil, err
-		}
 	}
 
 	for i := 0; i < 10; i++ {
@@ -300,10 +296,6 @@ func (s *Server) validateAppSet(ctx context.Context, appset *v1alpha1.Applicatio
 }
 
 func (s *Server) checkCreatePermissions(ctx context.Context, appset *v1alpha1.ApplicationSet, projectName string) error {
-
-	if err := s.enf.EnforceErr(ctx.Value("claims"), rbacpolicy.ResourceProjects, rbacpolicy.ActionGet, projectName); err != nil {
-		return err
-	}
 
 	_, err := s.appclientset.ArgoprojV1alpha1().AppProjects(s.ns).Get(ctx, projectName, metav1.GetOptions{})
 	if err != nil {
