@@ -1121,7 +1121,7 @@ export function appInstanceName(app: appModels.Application): string {
     return app.metadata.namespace + '_' + app.metadata.name;
 }
 
-export function formatCreationTimestamp(creationTimestamp: any) {
+export function formatCreationTimestamp(creationTimestamp: string) {
     const createdAt = moment
         .utc(creationTimestamp)
         .local()
