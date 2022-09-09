@@ -4,7 +4,6 @@ import (
 	"fmt"
 	"net/http"
 	"os"
-	"strings"
 	"time"
 
 	"github.com/argoproj/pkg/stats"
@@ -16,6 +15,7 @@ import (
 	"github.com/argoproj/argo-cd/v2/applicationset/generators"
 	"github.com/argoproj/argo-cd/v2/applicationset/utils"
 	"github.com/argoproj/argo-cd/v2/applicationset/webhook"
+	cmdutil "github.com/argoproj/argo-cd/v2/cmd/util"
 	"github.com/argoproj/argo-cd/v2/common"
 	"github.com/argoproj/argo-cd/v2/reposerver/askpass"
 	"github.com/argoproj/argo-cd/v2/util/env"
@@ -56,8 +56,6 @@ func NewCommand() *cobra.Command {
 		policy               string
 		debugLog             bool
 		dryRun               bool
-		logFormat            string
-		logLevel             string
 	)
 	scheme := runtime.NewScheme()
 	_ = clientgoscheme.AddToScheme(scheme)
@@ -79,6 +77,9 @@ func NewCommand() *cobra.Command {
 				},
 			)
 
+			cli.SetLogFormat(cmdutil.LogFormat)
+			cli.SetLogLevel(cmdutil.LogLevel)
+
 			restConfig, err := clientConfig.ClientConfig()
 			if err != nil {
 				return err
@@ -86,21 +87,6 @@ func NewCommand() *cobra.Command {
 
 			restConfig.UserAgent = fmt.Sprintf("argocd-applicationset-controller/%s (%s)", vers.Version, vers.Platform)
 
-			level, err := log.ParseLevel(logLevel)
-			if err != nil {
-				return err
-			}
-			log.SetLevel(level)
-			switch strings.ToLower(logFormat) {
-			case "json":
-				log.SetFormatter(&log.JSONFormatter{})
-			case "text":
-				if os.Getenv("FORCE_LOG_COLORS") == "1" {
-					log.SetFormatter(&log.TextFormatter{ForceColors: true})
-				}
-			default:
-				return fmt.Errorf("Unknown log format '%s'", logFormat)
-			}
 			policyObj, exists := utils.Policies[policy]
 			if !exists {
 				log.Info("Policy value can be: sync, create-only, create-update")
@@ -184,7 +170,6 @@ func NewCommand() *cobra.Command {
 			if err = (&controllers.ApplicationSetReconciler{
 				Generators:       topLevelGenerators,
 				Client:           mgr.GetClient(),
-				Log:              ctrl.Log.WithName("controllers").WithName("ApplicationSet"),
 				Scheme:           mgr.GetScheme(),
 				Recorder:         mgr.GetEventRecorderFor("applicationset-controller"),
 				Renderer:         &utils.Render{},
@@ -217,9 +202,9 @@ func NewCommand() *cobra.Command {
 	command.Flags().StringVar(&argocdRepoServer, "argocd-repo-server", "argocd-repo-server:8081", "Argo CD repo server address")
 	command.Flags().StringVar(&policy, "policy", "sync", "Modify how application is synced between the generator and the cluster. Default is 'sync' (create & update & delete), options: 'create-only', 'create-update' (no deletion)")
 	command.Flags().BoolVar(&debugLog, "debug", false, "Print debug logs. Takes precedence over loglevel")
-	command.Flags().StringVar(&logLevel, "loglevel", "info", "Set the logging level. One of: debug|info|warn|error")
+	command.Flags().StringVar(&cmdutil.LogFormat, "logformat", "text", "Set the logging format. One of: text|json")
+	command.Flags().StringVar(&cmdutil.LogLevel, "loglevel", "info", "Set the logging level. One of: debug|info|warn|error")
 	command.Flags().BoolVar(&dryRun, "dry-run", false, "Enable dry run mode")
-	command.Flags().StringVar(&logFormat, "logformat", "text", "Set the logging format. One of: text|json")
 	return &command
 }
 
