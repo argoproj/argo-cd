@@ -54,7 +54,7 @@ func TestPrintApplicationSetTable(t *testing.T) {
 			Status: arogappsetv1.ApplicationSetStatus{
 				Conditions: []arogappsetv1.ApplicationSetCondition{
 					arogappsetv1.ApplicationSetCondition{
-						Status: "Healthy",
+						Status: v1alpha1.ApplicationSetConditionStatusTrue,
 						Type:   arogappsetv1.ApplicationSetConditionResourcesUpToDate,
 					},
 				},
@@ -65,6 +65,6 @@ func TestPrintApplicationSetTable(t *testing.T) {
 		return nil
 	})
 	assert.NoError(t, err)
-	expectation := "NAME      NAMESPACE  PROJECT  SYNCPOLICY  CONDITIONS\napp-name             default  nil         [{ResourcesUpToDate  <nil> Healthy }]\napp-name             default  nil         [{ResourcesUpToDate  <nil> Healthy }]\n"
+	expectation := "NAME      NAMESPACE  PROJECT  SYNCPOLICY  CONDITIONS\napp-name             default  nil         [{ResourcesUpToDate  <nil> True }]\napp-name             default  nil         [{ResourcesUpToDate  <nil> True }]\n"
 	assert.Equal(t, expectation, output)
 }
