@@ -12,12 +12,9 @@ $ source <(argocd completion bash)
 Alternatively, write it to a file and source in .bash_profile
 
 For zsh, add the following to your ~/.zshrc file:
-```
 source <(argocd completion zsh)
 compdef _argocd argocd
-```
 
-### Usage
 
 ```
 argocd completion SHELL [flags]
