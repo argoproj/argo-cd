@@ -1524,20 +1524,8 @@ func (s *Server) PodLogs(q *application.ApplicationPodLogsQuery, ws application.
 		}).Warnf(argocommon.ConfigMapPluginDeprecationWarning)
 	}
 
-	// Temporarily, logs RBAC will be enforced only if an internal var serverRBACLogEnforceEnable (representing server.rbac.log.enforce.enable env var)
-	// is defined and has a "true" value
-	// Otherwise, no RBAC enforcement for logs will take place (meaning, PodLogs will return the logs,
-	// even if there is no explicit RBAC allow, or if there is an explicit RBAC deny)
-	// In the future, logs RBAC will be always enforced and the parameter along with this check will be removed
-	serverRBACLogEnforceEnable, err := s.settingsMgr.GetServerRBACLogEnforceEnable()
-	if err != nil {
-		return fmt.Errorf("error getting RBAC log enforce enable: %w", err)
-	}
-
-	if serverRBACLogEnforceEnable {
-		if err := s.enf.EnforceErr(ws.Context().Value("claims"), rbacpolicy.ResourceLogs, rbacpolicy.ActionGet, a.RBACName(s.ns)); err != nil {
-			return err
-		}
+	if err := s.enf.EnforceErr(ws.Context().Value("claims"), rbacpolicy.ResourceLogs, rbacpolicy.ActionGet, a.RBACName(s.ns)); err != nil {
+		return err
 	}
 
 	tree, err := s.getAppResources(ws.Context(), a)
