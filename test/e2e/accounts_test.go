@@ -40,20 +40,6 @@ func TestCreateAndUseAccount(t *testing.T) {
 		})
 }
 
-func TestCanIGetLogsAllowNoSwitch(t *testing.T) {
-	ctx := accountFixture.Given(t)
-	ctx.
-		Name("test").
-		When().
-		Create().
-		Login().
-		CanIGetLogs().
-		Then().
-		AndCLIOutput(func(output string, err error) {
-			assert.True(t, strings.Contains(output, "yes"))
-		})
-}
-
 func TestCanIGetLogsDeny(t *testing.T) {
 	ctx := accountFixture.Given(t)
 	ctx.
