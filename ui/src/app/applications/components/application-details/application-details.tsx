@@ -633,9 +633,9 @@ export class ApplicationDetails extends React.Component<RouteComponentProps<{app
                             });
                         }
                     }
-                }));
+                })) as MenuItem[];
             })
-            .catch(() => items);
+            .catch(() => [] as MenuItem[]);
         return [
             {
                 iconClassName: 'fa fa-info-circle',
@@ -650,13 +650,11 @@ export class ApplicationDetails extends React.Component<RouteComponentProps<{app
             },
             {
                 iconClassName: 'fa fa-sync',
-                title: resourceActions.length ? (
+                title: (
                     <React.Fragment>
                         <ActionMenuItem actionLabel='Sync' />
                         <DropDownMenu items={resourceActions} anchor={() => <i className='fa fa-caret-down' />} />
                     </React.Fragment>
-                ) : (
-                    <ActionMenuItem actionLabel='Sync' />
                 ),
                 action: () => AppUtils.showDeploy('all', this.appContext)
             },
