@@ -1602,12 +1602,6 @@
         "operationId": "ApplicationSetService_List",
         "parameters": [
           {
-            "type": "string",
-            "description": "the applicationsets's name.",
-            "name": "name",
-            "in": "query"
-          },
-          {
             "type": "array",
             "items": {
               "type": "string"
@@ -1615,12 +1609,6 @@
             "collectionFormat": "multi",
             "description": "the project names to restrict returned list applicationsets.",
             "name": "projects",
-            "in": "query"
-          },
-          {
-            "type": "string",
-            "description": "when specified with a watch call, shows changes that occur after that particular version of a resource.",
-            "name": "resourceVersion",
             "in": "query"
           },
           {
@@ -1696,28 +1684,6 @@
             "name": "name",
             "in": "path",
             "required": true
-          },
-          {
-            "type": "array",
-            "items": {
-              "type": "string"
-            },
-            "collectionFormat": "multi",
-            "description": "the project names to restrict returned list applicationsets.",
-            "name": "projects",
-            "in": "query"
-          },
-          {
-            "type": "string",
-            "description": "when specified with a watch call, shows changes that occur after that particular version of a resource.",
-            "name": "resourceVersion",
-            "in": "query"
-          },
-          {
-            "type": "string",
-            "description": "the selector to restrict returned list to applications only with matched labels.",
-            "name": "selector",
-            "in": "query"
           }
         ],
         "responses": {

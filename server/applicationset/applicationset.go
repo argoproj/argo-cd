@@ -9,6 +9,17 @@ import (
 	"strings"
 	"time"
 
+	"github.com/argoproj/pkg/sync"
+	log "github.com/sirupsen/logrus"
+	"google.golang.org/grpc/codes"
+	"google.golang.org/grpc/status"
+	v1 "k8s.io/api/core/v1"
+	apierr "k8s.io/apimachinery/pkg/api/errors"
+	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
+	"k8s.io/apimachinery/pkg/labels"
+	"k8s.io/client-go/kubernetes"
+	"k8s.io/client-go/tools/cache"
+
 	appsetutils "github.com/argoproj/argo-cd/v2/applicationset/utils"
 	"github.com/argoproj/argo-cd/v2/pkg/apiclient/applicationset"
 	"github.com/argoproj/argo-cd/v2/pkg/apis/application/v1alpha1"
@@ -23,16 +34,6 @@ import (
 	"github.com/argoproj/argo-cd/v2/util/rbac"
 	"github.com/argoproj/argo-cd/v2/util/session"
 	"github.com/argoproj/argo-cd/v2/util/settings"
-	"github.com/argoproj/pkg/sync"
-	log "github.com/sirupsen/logrus"
-	"google.golang.org/grpc/codes"
-	"google.golang.org/grpc/status"
-	v1 "k8s.io/api/core/v1"
-	apierr "k8s.io/apimachinery/pkg/api/errors"
-	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
-	"k8s.io/apimachinery/pkg/labels"
-	"k8s.io/client-go/kubernetes"
-	"k8s.io/client-go/tools/cache"
 )
 
 type Server struct {
@@ -82,10 +83,8 @@ func NewServer(
 	return s
 }
 
-func (s *Server) Get(ctx context.Context, q *applicationset.ApplicationSetQuery) (*v1alpha1.ApplicationSet, error) {
-	a, err := s.appclientset.ArgoprojV1alpha1().ApplicationSets(s.ns).Get(ctx, q.GetName(), metav1.GetOptions{
-		ResourceVersion: q.GetResourceVersion(),
-	})
+func (s *Server) Get(ctx context.Context, q *applicationset.ApplicationSetGetQuery) (*v1alpha1.ApplicationSet, error) {
+	a, err := s.appclientset.ArgoprojV1alpha1().ApplicationSets(s.ns).Get(ctx, q.GetName(), metav1.GetOptions{})
 
 	if err != nil {
 		return nil, fmt.Errorf("error getting ApplicationSet: %w", err)
@@ -98,7 +97,7 @@ func (s *Server) Get(ctx context.Context, q *applicationset.ApplicationSetQuery)
 }
 
 // List returns list of ApplicationSets
-func (s *Server) List(ctx context.Context, q *applicationset.ApplicationSetQuery) (*v1alpha1.ApplicationSetList, error) {
+func (s *Server) List(ctx context.Context, q *applicationset.ApplicationSetListQuery) (*v1alpha1.ApplicationSetList, error) {
 	labelsMap, err := labels.ConvertSelectorToLabelsMap(q.GetSelector())
 	if err != nil {
 		return nil, fmt.Errorf("error converting selector to labels map: %w", err)
@@ -114,12 +113,6 @@ func (s *Server) List(ctx context.Context, q *applicationset.ApplicationSetQuery
 	for _, a := range appsetList.Items {
 		if s.enf.Enforce(ctx.Value("claims"), rbacpolicy.ResourceApplicationSets, rbacpolicy.ActionGet, apputil.AppSetRBACName(&a)) {
 			newItems = append(newItems, a)
-		}
-	}
-	if q.Name != "" {
-		newItems, err = argoutil.FilterAppSetsByName(newItems, q.Name)
-		if err != nil {
-			return nil, fmt.Errorf("error filtering ApplicationSets by name: %w", err)
 		}
 	}
 

@@ -22,7 +22,7 @@ Breaking down the permissions definition differs slightly between applications a
 
     `p, <role/user/group>, <resource>, <action>, <object>`
 
-* Applications, logs, and exec (which belong to an AppProject):
+* Applications, applicationsets, logs, and exec (which belong to an AppProject):
 
     `p, <role/user/group>, <resource>, <action>, <appproject>/<object>`
 
@@ -55,12 +55,29 @@ corresponds to the `action` path `action/extensions/DaemonSet/restart`. You can
 also use glob patterns in the action path: `action/*` (or regex patterns if you have
 [enabled the `regex` match mode](https://github.com/argoproj/argo-cd/blob/master/docs/operator-manual/argocd-rbac-cm.yaml)).
 
-#### `exec` resource
+#### The `exec` resource
 
 `exec` is a special resource. When enabled with the `create` action, this privilege allows a user to `exec` into Pods via 
 the Argo CD UI. The functionality is similar to `kubectl exec`.
 
 See [Web-based Terminal](web_based_terminal.md) for more info.
+
+#### The `applicationsets` resource
+
+[ApplicationSets](applicationset) provide a declarative way to automatically create/update/delete Applications.
+
+Granting `applicationsets, create` effectively grants the ability to create Applications. While it doesn't allow the 
+user to create Applications directly, they can create Applications via an ApplicationSet.
+
+In v2.5, it is not possible to create an ApplicationSet with a templated Project field (e.g. `project: {{path.basename}}`)
+via the API (or, by extension, the CLI). Disallowing templated projects makes project restrictions via RBAC safe:
+
+```csv
+p, dev-group, applicationsets, *, dev-project/*, allow
+```
+
+With this rule in place, a `dev-group` user will be unable to create an ApplicationSet capable of creating Applications
+outside the `dev-project` project.
 
 ## Tying It All Together
 

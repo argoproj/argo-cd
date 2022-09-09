@@ -77,7 +77,7 @@ func NewApplicationSetGetCommand(clientOpts *argocdclient.ClientOptions) *cobra.
 			conn, appIf := acdClient.NewApplicationSetClientOrDie()
 			defer argoio.Close(conn)
 			appSetName := args[0]
-			appSet, err := appIf.Get(ctx, &applicationset.ApplicationSetQuery{Name: appSetName})
+			appSet, err := appIf.Get(ctx, &applicationset.ApplicationSetGetQuery{Name: appSetName})
 			errors.CheckError(err)
 
 			switch output {
@@ -144,7 +144,7 @@ func NewApplicationSetCreateCommand(clientOpts *argocdclient.ClientOptions) *cob
 				defer argoio.Close(conn)
 
 				// Get app before creating to see if it is being updated or no change
-				existing, err := appIf.Get(ctx, &applicationset.ApplicationSetQuery{Name: appset.Name})
+				existing, err := appIf.Get(ctx, &applicationset.ApplicationSetGetQuery{Name: appset.Name})
 				if grpc.UnwrapGRPCStatus(err).Code() != codes.NotFound {
 					errors.CheckError(err)
 				}
@@ -192,7 +192,7 @@ func NewApplicationSetListCommand(clientOpts *argocdclient.ClientOptions) *cobra
 
 			conn, appIf := headless.NewClientOrDie(clientOpts, c).NewApplicationSetClientOrDie()
 			defer argoio.Close(conn)
-			appsets, err := appIf.List(ctx, &applicationset.ApplicationSetQuery{Selector: selector, Projects: projects})
+			appsets, err := appIf.List(ctx, &applicationset.ApplicationSetListQuery{Selector: selector, Projects: projects})
 			errors.CheckError(err)
 
 			appsetList := appsets.Items

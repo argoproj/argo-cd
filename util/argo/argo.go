@@ -109,21 +109,6 @@ func FilterByName(apps []argoappv1.Application, name string) ([]argoappv1.Applic
 	return items, status.Errorf(codes.NotFound, "application '%s' not found", name)
 }
 
-// FilterAppSetsByName returns an applicationset
-func FilterAppSetsByName(appsets []argoappv1.ApplicationSet, name string) ([]argoappv1.ApplicationSet, error) {
-	if name == "" {
-		return appsets, nil
-	}
-	items := make([]argoappv1.ApplicationSet, 0)
-	for i := 0; i < len(appsets); i++ {
-		if appsets[i].Name == name {
-			items = append(items, appsets[i])
-			return items, nil
-		}
-	}
-	return items, status.Errorf(codes.NotFound, "applicationset '%s' not found", name)
-}
-
 // RefreshApp updates the refresh annotation of an application to coerce the controller to process it
 func RefreshApp(appIf v1alpha1.ApplicationInterface, name string, refreshType argoappv1.RefreshType) (*argoappv1.Application, error) {
 	metadata := map[string]interface{}{
