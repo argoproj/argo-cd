@@ -303,12 +303,18 @@ func printApplicationSetTable(apps []arogappsetv1.ApplicationSet, output *string
 	}
 	_, _ = fmt.Fprintf(w, fmtStr, headers...)
 	for _, app := range apps {
+		conditions := make([]arogappsetv1.ApplicationSetCondition, 0)
+		for _, condition := range app.Status.Conditions {
+			if condition.Status == arogappsetv1.ApplicationSetConditionStatusTrue {
+				conditions = append(conditions, condition)
+			}
+		}
 		vals := []interface{}{
 			app.ObjectMeta.Name,
 			app.ObjectMeta.Namespace,
 			app.Spec.Template.Spec.Project,
 			app.Spec.SyncPolicy,
-			app.Status.Conditions,
+			conditions,
 		}
 		if *output == "wide" {
 			vals = append(vals, app.Spec.Template.Spec.Source.RepoURL, app.Spec.Template.Spec.Source.Path, app.Spec.Template.Spec.Source.TargetRevision)
@@ -350,9 +356,9 @@ func printAppSetSummaryTable(appSet *arogappsetv1.ApplicationSet) {
 }
 
 func printAppSetConditions(w io.Writer, appSet *arogappsetv1.ApplicationSet) {
-	_, _ = fmt.Fprintf(w, "CONDITION\tMESSAGE\tLAST TRANSITION\n")
+	_, _ = fmt.Fprintf(w, "CONDITION\tSTATUS\tMESSAGE\tLAST TRANSITION\n")
 	for _, item := range appSet.Status.Conditions {
-		_, _ = fmt.Fprintf(w, "%s\t%s\t%s\n", item.Type, item.Message, item.LastTransitionTime)
+		_, _ = fmt.Fprintf(w, "%s\t%s\t%s\t%s\n", item.Type, item.Status, item.Message, item.LastTransitionTime)
 	}
 }
 

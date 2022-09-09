@@ -215,7 +215,7 @@ func mergeStringMaps(items ...map[string]string) map[string]string {
 func (s *Server) updateAppSet(appset *v1alpha1.ApplicationSet, newAppset *v1alpha1.ApplicationSet, ctx context.Context, merge bool) (*v1alpha1.ApplicationSet, error) {
 
 	if appset != nil && appset.Spec.Template.Spec.Project != newAppset.Spec.Template.Spec.Project {
-		// When changing projects, caller must have applicationset create, update & delete privileges in new project
+		// When changing projects, caller must have applicationset create and update privileges in new project
 		// NOTE: the update check was already verified in the caller to this function
 		if err := s.enf.EnforceErr(ctx.Value("claims"), rbacpolicy.ResourceApplicationSets, rbacpolicy.ActionCreate, apputil.AppSetRBACName(newAppset)); err != nil {
 			return nil, err
@@ -297,16 +297,16 @@ func (s *Server) validateAppSet(ctx context.Context, appset *v1alpha1.Applicatio
 
 func (s *Server) checkCreatePermissions(ctx context.Context, appset *v1alpha1.ApplicationSet, projectName string) error {
 
+	if err := s.enf.EnforceErr(ctx.Value("claims"), rbacpolicy.ResourceApplicationSets, rbacpolicy.ActionCreate, apputil.AppSetRBACName(appset)); err != nil {
+		return err
+	}
+
 	_, err := s.appclientset.ArgoprojV1alpha1().AppProjects(s.ns).Get(ctx, projectName, metav1.GetOptions{})
 	if err != nil {
 		if apierr.IsNotFound(err) {
 			return status.Errorf(codes.InvalidArgument, "ApplicationSet references project %s which does not exist", projectName)
 		}
 		return fmt.Errorf("error getting ApplicationSet's project %q: %w", projectName, err)
-	}
-
-	if err := s.enf.EnforceErr(ctx.Value("claims"), rbacpolicy.ResourceApplicationSets, rbacpolicy.ActionCreate, apputil.AppSetRBACName(appset)); err != nil {
-		return err
 	}
 
 	return nil
