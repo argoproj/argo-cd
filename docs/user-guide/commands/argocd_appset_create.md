@@ -9,10 +9,8 @@ argocd appset create [flags]
 ### Examples
 
 ```
-
-	# Create ApplicationSets
-	argocd appset create <filename or URL> (<filename or URL>...)
-		
+  # Create ApplicationSets
+  argocd appset create <filename or URL> (<filename or URL>...)
 ```
 
 ### Options

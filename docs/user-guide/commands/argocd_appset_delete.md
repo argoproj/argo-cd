@@ -9,10 +9,8 @@ argocd appset delete [flags]
 ### Examples
 
 ```
-  
-	# Delete an applicationset
-	argocd appset delete APPSETNAME (APPSETNAME...)
-		
+  # Delete an applicationset
+  argocd appset delete APPSETNAME (APPSETNAME...)
 ```
 
 ### Options

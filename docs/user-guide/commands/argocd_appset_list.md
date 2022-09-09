@@ -9,10 +9,8 @@ argocd appset list [flags]
 ### Examples
 
 ```
-  
-	# List all ApplicationSets
-	argocd appset list
-		
+  # List all ApplicationSets
+  argocd appset list
 ```
 
 ### Options
@@ -21,7 +19,7 @@ argocd appset list [flags]
   -h, --help                  help for list
   -o, --output string         Output format. One of: wide|name|json|yaml (default "wide")
   -p, --project stringArray   Filter by project name
-  -l, --selector string       List apps by label
+  -l, --selector string       List applicationsets by label
 ```
 
 ### Options inherited from parent commands

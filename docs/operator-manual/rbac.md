@@ -28,10 +28,11 @@ Breaking down the permissions definition differs slightly between applications a
 
 ### RBAC Resources and Actions
 
-Resources: `clusters`, `projects`, `applications`, `repositories`, `certificates`, `accounts`, `gpgkeys`, `logs`, `exec`
+Resources: `clusters`, `projects`, `applications`, `applicationsets`, `repositories`, `certificates`, `accounts`, `gpgkeys`, `logs`, `exec`
 
-Actions: `get`, `create`, `update`, `delete`, `sync`, `override`,
-`action/<group/kind/action-name>`
+Actions: `get`, `create`, `update`, `delete`, `sync`, `override`,`action/<group/kind/action-name>`
+
+Note that `sync`, `override`, and `action/<group/kind/action-name>` only have meaning for the `applications` resource.
 
 #### Application resources
 

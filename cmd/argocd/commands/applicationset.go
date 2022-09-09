@@ -113,10 +113,10 @@ func NewApplicationSetCreateCommand(clientOpts *argocdclient.ClientOptions) *cob
 	var command = &cobra.Command{
 		Use:   "create",
 		Short: "Create one or more ApplicationSets",
-		Example: `
+		Example: templates.Examples(`
 	# Create ApplicationSets
 	argocd appset create <filename or URL> (<filename or URL>...)
-		`,
+		`),
 		Run: func(c *cobra.Command, args []string) {
 			ctx := c.Context()
 
@@ -183,10 +183,10 @@ func NewApplicationSetListCommand(clientOpts *argocdclient.ClientOptions) *cobra
 	var command = &cobra.Command{
 		Use:   "list",
 		Short: "List ApplicationSets",
-		Example: `  
+		Example: templates.Examples(`  
 	# List all ApplicationSets
 	argocd appset list
-		`,
+		`),
 		Run: func(c *cobra.Command, args []string) {
 			ctx := c.Context()
 
@@ -211,7 +211,7 @@ func NewApplicationSetListCommand(clientOpts *argocdclient.ClientOptions) *cobra
 		},
 	}
 	command.Flags().StringVarP(&output, "output", "o", "wide", "Output format. One of: wide|name|json|yaml")
-	command.Flags().StringVarP(&selector, "selector", "l", "", "List apps by label")
+	command.Flags().StringVarP(&selector, "selector", "l", "", "List applicationsets by label")
 	command.Flags().StringArrayVarP(&projects, "project", "p", []string{}, "Filter by project name")
 
 	return command
@@ -225,10 +225,10 @@ func NewApplicationSetDeleteCommand(clientOpts *argocdclient.ClientOptions) *cob
 	var command = &cobra.Command{
 		Use:   "delete",
 		Short: "Delete one or more ApplicationSets",
-		Example: `  
+		Example: templates.Examples(`  
 	# Delete an applicationset
 	argocd appset delete APPSETNAME (APPSETNAME...)
-		`,
+		`),
 		Run: func(c *cobra.Command, args []string) {
 			ctx := c.Context()
 
