@@ -69,5 +69,5 @@ data:
 
 <br>
 
-!!! **Note** : "Storing Client Secrets"
+!!! Note "Storing Client Secrets"
     Details on storing your clientSecret securely and correctly can be found on the [User Management Overview page](https://argo-cd.readthedocs.io/en/stable/operator-manual/user-management/#sensitive-data-and-sso-client-secrets).
