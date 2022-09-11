@@ -49,7 +49,6 @@ spec:
         # Labels is used to filter the PRs that you want to target. (optional)
         labels:
         - preview
-  requeueAfterSeconds: 1800
   template:
   # ...
 ```
@@ -181,7 +180,7 @@ If you want to access a private repository, you must also provide the credential
 ## Filters
 
 Filters allow selecting which pull requests to generate for. Each filter can declare one or more conditions, all of which must pass. If multiple filters are present, any can match for a repository to be included. If no filters are specified, all pull requests will be processed.
-Currently, only a subset of filters is available when comparing with SCM provider filters.
+Currently, only a subset of filters is available when comparing with [SCM provider](Generators-SCM-Provider.md) filters.
 
 ```yaml
 apiVersion: argoproj.io/v1alpha1
@@ -190,7 +189,7 @@ metadata:
   name: myapps
 spec:
   generators:
-  - scmProvider:
+  - pullRequest:
       # ...
       # Include any pull request ending with "argocd". (optional)
       filters:
