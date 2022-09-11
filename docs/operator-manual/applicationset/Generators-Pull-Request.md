@@ -10,6 +10,8 @@ metadata:
 spec:
   generators:
   - pullRequest:
+      # When using a Pull Request generator, the ApplicationSet controller polls every `requeueAfterSeconds` interval (defaulting to every 30 minutes) to detect changes.
+      requeueAfterSeconds: 1800
       # See below for provider specific options.
       github:
         # ...
@@ -88,7 +90,6 @@ spec:
         - preview
         # MR state is used to filter MRs only with a certain state. (optional)
         pullRequestState: opened
-  requeueAfterSeconds: 1800
   template:
   # ...
 ```
@@ -124,7 +125,6 @@ spec:
           key: token
         # many gitea deployments use TLS, but many are self-hosted and self-signed certificates
         insecure: true
-  requeueAfterSeconds: 1800
   template:
   # ...
 ```
@@ -200,6 +200,7 @@ spec:
 
 * `branchMatch`: A regexp matched against source branch names.
 
+[GitHub](#github) and [GitLab](#gitlab) also support a `labels` filter.
 
 ## Template
 
