@@ -2,9 +2,11 @@ package controller
 
 import (
 	"github.com/argoproj/gitops-engine/pkg/health"
+	"github.com/argoproj/gitops-engine/pkg/sync/common"
 	hookutil "github.com/argoproj/gitops-engine/pkg/sync/hook"
 	"github.com/argoproj/gitops-engine/pkg/sync/ignore"
 	kubeutil "github.com/argoproj/gitops-engine/pkg/utils/kube"
+	"k8s.io/apimachinery/pkg/apis/meta/v1/unstructured"
 	"k8s.io/apimachinery/pkg/runtime/schema"
 
 	"github.com/argoproj/argo-cd/v2/pkg/apis/application"
@@ -21,7 +23,12 @@ func setApplicationHealth(resources []managedResource, statuses []appv1.Resource
 			continue
 		}
 
-		if res.Live != nil && (hookutil.IsHook(res.Live) || ignore.Ignore(res.Live)) {
+		if res.Live != nil && ignore.Ignore(res.Live) {
+			continue
+		}
+
+		requiresRecreation := isPendingRecreation(res.Live, app)
+		if res.Live != nil && hookutil.IsHook(res.Live) && !requiresRecreation {
 			continue
 		}
 
@@ -31,6 +38,8 @@ func setApplicationHealth(resources []managedResource, statuses []appv1.Resource
 		gvk := schema.GroupVersionKind{Group: res.Group, Version: res.Version, Kind: res.Kind}
 		if res.Live == nil {
 			healthStatus = &health.HealthStatus{Status: health.HealthStatusMissing}
+		} else if requiresRecreation {
+			healthStatus = &health.HealthStatus{Status: health.HealthStatusProgressing}
 		} else {
 			// App the manages itself should not affect own health
 			if isSelfReferencedApp(app, kubeutil.GetObjectRef(res.Live)) {
@@ -70,4 +79,19 @@ func setApplicationHealth(resources []managedResource, statuses []appv1.Resource
 		app.Status.ResourceHealthSource = appv1.ResourceHealthLocationAppTree
 	}
 	return &appHealth, savedErr
+}
+
+func isPendingRecreation(resource *unstructured.Unstructured, app *appv1.Application) bool {
+	if resource != nil && hookutil.IsHook(resource) {
+		for _, policy := range hookutil.DeletePolicies(resource) {
+			if policy != common.HookDeletePolicyBeforeHookCreation {
+				continue
+			}
+			if app.Status.OperationState == nil {
+				continue
+			}
+			app.Status.OperationState.StartedAt.After(resource.GetCreationTimestamp().Time)
+		}
+	}
+	return false
 }
