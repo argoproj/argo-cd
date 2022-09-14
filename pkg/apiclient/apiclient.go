@@ -33,6 +33,8 @@ import (
 	"github.com/argoproj/argo-cd/v2/common"
 	accountpkg "github.com/argoproj/argo-cd/v2/pkg/apiclient/account"
 	applicationpkg "github.com/argoproj/argo-cd/v2/pkg/apiclient/application"
+
+	applicationsetpkg "github.com/argoproj/argo-cd/v2/pkg/apiclient/applicationset"
 	certificatepkg "github.com/argoproj/argo-cd/v2/pkg/apiclient/certificate"
 	clusterpkg "github.com/argoproj/argo-cd/v2/pkg/apiclient/cluster"
 	gpgkeypkg "github.com/argoproj/argo-cd/v2/pkg/apiclient/gpgkey"
@@ -87,7 +89,9 @@ type Client interface {
 	NewGPGKeyClient() (io.Closer, gpgkeypkg.GPGKeyServiceClient, error)
 	NewGPGKeyClientOrDie() (io.Closer, gpgkeypkg.GPGKeyServiceClient)
 	NewApplicationClient() (io.Closer, applicationpkg.ApplicationServiceClient, error)
+	NewApplicationSetClient() (io.Closer, applicationsetpkg.ApplicationSetServiceClient, error)
 	NewApplicationClientOrDie() (io.Closer, applicationpkg.ApplicationServiceClient)
+	NewApplicationSetClientOrDie() (io.Closer, applicationsetpkg.ApplicationSetServiceClient)
 	NewNotificationClient() (io.Closer, notificationpkg.NotificationServiceClient, error)
 	NewNotificationClientOrDie() (io.Closer, notificationpkg.NotificationServiceClient)
 	NewSessionClient() (io.Closer, sessionpkg.SessionServiceClient, error)
@@ -671,6 +675,15 @@ func (c *client) NewApplicationClient() (io.Closer, applicationpkg.ApplicationSe
 	return closer, appIf, nil
 }
 
+func (c *client) NewApplicationSetClient() (io.Closer, applicationsetpkg.ApplicationSetServiceClient, error) {
+	conn, closer, err := c.newConn()
+	if err != nil {
+		return nil, nil, err
+	}
+	appIf := applicationsetpkg.NewApplicationSetServiceClient(conn)
+	return closer, appIf, nil
+}
+
 func (c *client) NewApplicationClientOrDie() (io.Closer, applicationpkg.ApplicationServiceClient) {
 	conn, appIf, err := c.NewApplicationClient()
 	if err != nil {
@@ -694,6 +707,14 @@ func (c *client) NewNotificationClientOrDie() (io.Closer, notificationpkg.Notifi
 		log.Fatalf("Failed to establish connection to %s: %v", c.ServerAddr, err)
 	}
 	return conn, notifIf
+}
+
+func (c *client) NewApplicationSetClientOrDie() (io.Closer, applicationsetpkg.ApplicationSetServiceClient) {
+	conn, repoIf, err := c.NewApplicationSetClient()
+	if err != nil {
+		log.Fatalf("Failed to establish connection to %s: %v", c.ServerAddr, err)
+	}
+	return conn, repoIf
 }
 
 func (c *client) NewSessionClient() (io.Closer, sessionpkg.SessionServiceClient, error) {
