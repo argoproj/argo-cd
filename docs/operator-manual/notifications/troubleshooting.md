@@ -61,14 +61,17 @@ docker run --rm -it -w /src -v $(pwd):/src \
 
 ### In your cluster
 
-SSH into the running `argocd-notifications-controller` pod and use `kubectl exec` command to validate in-cluster
-configuration.
+If you are running the **old** `argoprojlabs/argocd-notifications`, exec into the running `argo-cd-notifications-controller`
+using `kubectl exec`. The binary is located in `/app/argocd-notifications`:
 
 **Example**
 ```bash
 kubectl exec -it argocd-notifications-controller-<pod-hash> \
   /app/argocd-notifications trigger get
 ```
+
+If you are running `quay.io/argoproj/argocd`, the client binary is not available in the image and you should
+look into running `argocd-notifications` CLI from your laptop.
 
 ## Commands
 
