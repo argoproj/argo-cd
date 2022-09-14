@@ -152,6 +152,7 @@ Currently, the following organizations are **officially** using Argo CD:
 1. [Pismo](https://pismo.io/)
 1. [Polarpoint.io](https://polarpoint.io)
 1. [Preferred Networks](https://preferred.jp/en/)
+1. [Productboard](https://www.productboard.com/)
 1. [Prudential](https://prudential.com.sg)
 1. [PUBG](https://www.pubg.com)
 1. [Qonto](https://qonto.com)

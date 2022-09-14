@@ -60,6 +60,8 @@ import (
 	"github.com/argoproj/argo-cd/v2/pkg/apiclient"
 	accountpkg "github.com/argoproj/argo-cd/v2/pkg/apiclient/account"
 	applicationpkg "github.com/argoproj/argo-cd/v2/pkg/apiclient/application"
+
+	applicationsetpkg "github.com/argoproj/argo-cd/v2/pkg/apiclient/applicationset"
 	certificatepkg "github.com/argoproj/argo-cd/v2/pkg/apiclient/certificate"
 	clusterpkg "github.com/argoproj/argo-cd/v2/pkg/apiclient/cluster"
 	gpgkeypkg "github.com/argoproj/argo-cd/v2/pkg/apiclient/gpgkey"
@@ -78,6 +80,7 @@ import (
 	repocache "github.com/argoproj/argo-cd/v2/reposerver/cache"
 	"github.com/argoproj/argo-cd/v2/server/account"
 	"github.com/argoproj/argo-cd/v2/server/application"
+	"github.com/argoproj/argo-cd/v2/server/applicationset"
 	"github.com/argoproj/argo-cd/v2/server/badge"
 	servercache "github.com/argoproj/argo-cd/v2/server/cache"
 	"github.com/argoproj/argo-cd/v2/server/certificate"
@@ -100,7 +103,7 @@ import (
 	"github.com/argoproj/argo-cd/v2/util/dex"
 	dexutil "github.com/argoproj/argo-cd/v2/util/dex"
 	"github.com/argoproj/argo-cd/v2/util/env"
-	"github.com/argoproj/argo-cd/v2/util/errors"
+	errorsutil "github.com/argoproj/argo-cd/v2/util/errors"
 	grpc_util "github.com/argoproj/argo-cd/v2/util/grpc"
 	"github.com/argoproj/argo-cd/v2/util/healthz"
 	httputil "github.com/argoproj/argo-cd/v2/util/http"
@@ -118,6 +121,7 @@ import (
 	"github.com/argoproj/argo-cd/v2/util/swagger"
 	tlsutil "github.com/argoproj/argo-cd/v2/util/tls"
 	"github.com/argoproj/argo-cd/v2/util/webhook"
+	"github.com/pkg/errors"
 )
 
 const maxConcurrentLoginRequestsCountEnv = "ARGOCD_MAX_CONCURRENT_LOGIN_REQUESTS_COUNT"
@@ -174,6 +178,8 @@ type ArgoCDServer struct {
 	policyEnforcer *rbacpolicy.RBACPolicyEnforcer
 	appInformer    cache.SharedIndexInformer
 	appLister      applisters.ApplicationLister
+	appsetInformer cache.SharedIndexInformer
+	appsetLister   applisters.ApplicationSetNamespaceLister
 	db             db.ArgoDB
 
 	// stopCh is the channel which when closed, will shutdown the Argo CD server
@@ -237,9 +243,9 @@ func initializeDefaultProject(opts ArgoCDServerOpts) error {
 func NewServer(ctx context.Context, opts ArgoCDServerOpts) *ArgoCDServer {
 	settingsMgr := settings_util.NewSettingsManager(ctx, opts.KubeClientset, opts.Namespace)
 	settings, err := settingsMgr.InitializeSettings(opts.Insecure)
-	errors.CheckError(err)
+	errorsutil.CheckError(err)
 	err = initializeDefaultProject(opts)
-	errors.CheckError(err)
+	errorsutil.CheckError(err)
 
 	appInformerNs := opts.Namespace
 	if len(opts.ApplicationNamespaces) > 0 {
@@ -254,12 +260,15 @@ func NewServer(ctx context.Context, opts ArgoCDServerOpts) *ArgoCDServer {
 	appInformer := appFactory.Argoproj().V1alpha1().Applications().Informer()
 	appLister := appFactory.Argoproj().V1alpha1().Applications().Lister()
 
+	appsetInformer := appFactory.Argoproj().V1alpha1().ApplicationSets().Informer()
+	appsetLister := appFactory.Argoproj().V1alpha1().ApplicationSets().Lister().ApplicationSets(opts.Namespace)
+
 	userStateStorage := util_session.NewUserStateStorage(opts.RedisClient)
 	sessionMgr := util_session.NewSessionManager(settingsMgr, projLister, opts.DexServerAddr, opts.DexTLSConfig, userStateStorage)
 	enf := rbac.NewEnforcer(opts.KubeClientset, opts.Namespace, common.ArgoCDRBACConfigMapName, nil)
 	enf.EnableEnforce(!opts.DisableAuth)
 	err = enf.SetBuiltinPolicy(assets.BuiltinPolicyCSV)
-	errors.CheckError(err)
+	errorsutil.CheckError(err)
 	enf.EnableLog(os.Getenv(common.EnvVarRBACDebug) == "1")
 
 	policyEnf := rbacpolicy.NewRBACPolicyEnforcer(enf, projLister)
@@ -271,7 +280,7 @@ func NewServer(ctx context.Context, opts ArgoCDServerOpts) *ArgoCDServer {
 	}
 
 	argocdService, err := service.NewArgoCDService(opts.KubeClientset, opts.Namespace, opts.RepoClientset)
-	errors.CheckError(err)
+	errorsutil.CheckError(err)
 
 	secretInformer := k8s.NewSecretInformer(opts.KubeClientset, opts.Namespace, "argocd-notifications-secret")
 	configMapInformer := k8s.NewConfigMapInformer(opts.KubeClientset, opts.Namespace, "argocd-notifications-cm")
@@ -289,6 +298,8 @@ func NewServer(ctx context.Context, opts ArgoCDServerOpts) *ArgoCDServer {
 		projLister:        projLister,
 		appInformer:       appInformer,
 		appLister:         appLister,
+		appsetInformer:    appsetInformer,
+		appsetLister:      appsetLister,
 		policyEnforcer:    policyEnf,
 		userStateStorage:  userStateStorage,
 		staticAssets:      http.FS(staticFS),
@@ -542,7 +553,7 @@ func (a *ArgoCDServer) watchSettings() {
 	prevURL := a.settings.URL
 	prevOIDCConfig := a.settings.OIDCConfig()
 	prevDexCfgBytes, err := dex.GenerateDexConfigYAML(a.settings, a.DexTLSConfig == nil || a.DexTLSConfig.DisableTLS)
-	errors.CheckError(err)
+	errorsutil.CheckError(err)
 	prevGitHubSecret := a.settings.WebhookGitHubSecret
 	prevGitLabSecret := a.settings.WebhookGitLabSecret
 	prevBitbucketUUID := a.settings.WebhookBitbucketUUID
@@ -557,7 +568,7 @@ func (a *ArgoCDServer) watchSettings() {
 		newSettings := <-updateCh
 		a.settings = newSettings
 		newDexCfgBytes, err := dex.GenerateDexConfigYAML(a.settings, a.DexTLSConfig == nil || a.DexTLSConfig.DisableTLS)
-		errors.CheckError(err)
+		errorsutil.CheckError(err)
 		if string(newDexCfgBytes) != string(prevDexCfgBytes) {
 			log.Infof("dex config modified. restarting")
 			break
@@ -621,7 +632,7 @@ func (a *ArgoCDServer) rbacPolicyLoader(ctx context.Context) {
 		a.policyEnforcer.SetScopes(scopes)
 		return nil
 	})
-	errors.CheckError(err)
+	errorsutil.CheckError(err)
 }
 
 func (a *ArgoCDServer) useTLS() bool {
@@ -719,6 +730,8 @@ func (a *ArgoCDServer) newGRPCServer() (*grpc.Server, application.AppResourceTre
 		a.settingsMgr,
 		a.projInformer,
 		a.ApplicationNamespaces)
+
+	applicationSetService := applicationset.NewServer(a.db, a.KubeClientset, a.enf, a.Cache, a.AppClientset, a.appLister, a.appsetInformer, a.appsetLister, a.projLister, a.settingsMgr, a.Namespace, projectLock)
 	projectService := project.NewServer(a.Namespace, a.KubeClientset, a.AppClientset, a.enf, projectLock, a.sessionMgr, a.policyEnforcer, a.projInformer, a.settingsMgr, a.db)
 	settingsService := settings.NewServer(a.settingsMgr, a, a.DisableAuth)
 	accountService := account.NewServer(a.sessionMgr, a.settingsMgr, a.enf)
@@ -738,6 +751,7 @@ func (a *ArgoCDServer) newGRPCServer() (*grpc.Server, application.AppResourceTre
 	}))
 	clusterpkg.RegisterClusterServiceServer(grpcS, clusterService)
 	applicationpkg.RegisterApplicationServiceServer(grpcS, applicationService)
+	applicationsetpkg.RegisterApplicationSetServiceServer(grpcS, applicationSetService)
 	notificationpkg.RegisterNotificationServiceServer(grpcS, notificationService)
 	repositorypkg.RegisterRepositoryServiceServer(grpcS, repoService)
 	repocredspkg.RegisterRepoCredsServiceServer(grpcS, repoCredsService)
@@ -750,7 +764,7 @@ func (a *ArgoCDServer) newGRPCServer() (*grpc.Server, application.AppResourceTre
 	// Register reflection service on gRPC server.
 	reflection.Register(grpcS)
 	grpc_prometheus.Register(grpcS)
-	errors.CheckError(projectService.NormalizeProjs())
+	errorsutil.CheckError(projectService.NormalizeProjs())
 	return grpcS, appResourceTreeFn
 }
 
@@ -960,7 +974,7 @@ func (a *ArgoCDServer) serveExtensions(extensionsSharedPath string, w http.Respo
 		return nil
 	})
 
-	if err != nil && !os.IsNotExist(err) {
+	if err != nil && !errors.Is(err, fs.ErrNotExist) {
 		log.Errorf("Failed to walk extensions directory: %v", err)
 		http.Error(w, "Internal error", http.StatusInternalServerError)
 		return
@@ -976,7 +990,7 @@ func (a *ArgoCDServer) registerDexHandlers(mux *http.ServeMux) {
 	var err error
 	mux.HandleFunc(common.DexAPIEndpoint+"/", dexutil.NewDexHTTPReverseProxy(a.DexServerAddr, a.BaseHRef, a.DexTLSConfig))
 	a.ssoClientApp, err = oidc.NewClientApp(a.settings, a.DexServerAddr, a.DexTLSConfig, a.BaseHRef)
-	errors.CheckError(err)
+	errorsutil.CheckError(err)
 	mux.HandleFunc(common.LoginEndpoint, a.ssoClientApp.HandleLogin)
 	mux.HandleFunc(common.CallbackEndpoint, a.ssoClientApp.HandleCallback)
 }

@@ -61,6 +61,25 @@ func FilterByProjects(apps []argoappv1.Application, projects []string) []argoapp
 
 }
 
+// FilterAppSetsByProjects returns applications which belongs to the specified project
+func FilterAppSetsByProjects(appsets []argoappv1.ApplicationSet, projects []string) []argoappv1.ApplicationSet {
+	if len(projects) == 0 {
+		return appsets
+	}
+	projectsMap := make(map[string]bool)
+	for i := range projects {
+		projectsMap[projects[i]] = true
+	}
+	items := make([]argoappv1.ApplicationSet, 0)
+	for i := 0; i < len(appsets); i++ {
+		a := appsets[i]
+		if _, ok := projectsMap[a.Spec.Template.Spec.GetProject()]; ok {
+			items = append(items, a)
+		}
+	}
+	return items
+}
+
 // FilterByRepo returns an application
 func FilterByRepo(apps []argoappv1.Application, repo string) []argoappv1.Application {
 	if repo == "" {
@@ -315,14 +334,20 @@ func ValidatePermissions(ctx context.Context, spec *argoappv1.ApplicationSpec, p
 	}
 
 	if spec.Destination.Server != "" {
-		if !proj.IsDestinationPermitted(spec.Destination) {
+		permitted, err := proj.IsDestinationPermitted(spec.Destination, func(project string) ([]*argoappv1.Cluster, error) {
+			return db.GetProjectClusters(ctx, project)
+		})
+		if err != nil {
+			return nil, err
+		}
+		if !permitted {
 			conditions = append(conditions, argoappv1.ApplicationCondition{
 				Type:    argoappv1.ApplicationConditionInvalidSpecError,
 				Message: fmt.Sprintf("application destination {%s %s} is not permitted in project '%s'", spec.Destination.Server, spec.Destination.Namespace, spec.Project),
 			})
 		}
 		// Ensure the k8s cluster the app is referencing, is configured in Argo CD
-		_, err := db.GetCluster(ctx, spec.Destination.Server)
+		_, err = db.GetCluster(ctx, spec.Destination.Server)
 		if err != nil {
 			if errStatus, ok := status.FromError(err); ok && errStatus.Code() == codes.NotFound {
 				conditions = append(conditions, argoappv1.ApplicationCondition{
