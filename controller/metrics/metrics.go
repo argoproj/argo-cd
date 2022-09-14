@@ -13,7 +13,7 @@ import (
 	"github.com/argoproj/gitops-engine/pkg/health"
 	"github.com/prometheus/client_golang/prometheus"
 	"github.com/prometheus/client_golang/prometheus/promhttp"
-	"github.com/robfig/cron"
+	"github.com/robfig/cron/v3"
 	log "github.com/sirupsen/logrus"
 	"k8s.io/apimachinery/pkg/labels"
 
@@ -281,7 +281,7 @@ func (m *MetricsServer) SetExpiration(cacheExpiration time.Duration) error {
 		return errors.New("Expiration is already set")
 	}
 
-	err := m.cron.AddFunc(fmt.Sprintf("@every %s", cacheExpiration), func() {
+	_, err := m.cron.AddFunc(fmt.Sprintf("@every %s", cacheExpiration), func() {
 		log.Infof("Reset Prometheus metrics based on existing expiration '%v'", cacheExpiration)
 		m.syncCounter.Reset()
 		m.kubectlExecCounter.Reset()
