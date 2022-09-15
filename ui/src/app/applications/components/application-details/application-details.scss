@@ -5,10 +5,8 @@ $header: 120px;
 
 .application-details {
     height: 100vh;
+    width: 100%;
     &__status-panel {
-        position: fixed;
-        left: 60px;
-        right: 0;
         z-index: 3;
         @media screen and (max-width: map-get($breakpoints, xlarge)) {
             top: 150px;
@@ -23,11 +21,9 @@ $header: 120px;
     }
 
     &__tree {
-        position: relative;
         padding: 1em;
         overflow-x: auto;
         overflow-y: auto;
-        margin-top: 115px;
         height: calc(100vh - 2 * 50px - 115px);
         @media screen and (max-width: map-get($breakpoints, xlarge)) {
             margin-top: 165px;
@@ -217,7 +213,7 @@ $header: 120px;
         background-color: $argo-color-gray-1;
         box-shadow: 1px 1px 3px $argo-color-gray-5;
         position: fixed;
-      
+
         a {
             padding: 5px;
             margin: 2px;
@@ -235,24 +231,24 @@ $header: 120px;
                 line-height: 1.4;
                 text-align: center;
                 user-select: none;
-                transition: background-color .2s, border .2s, color .2s;
+                transition: background-color 0.2s, border 0.2s, color 0.2s;
                 text-transform: uppercase;
                 &:hover {
                     background-color: #d1d5d9;
                 }
                 &:active {
-                    transition: background-color .2s, border .2s, color .2s;
+                    transition: background-color 0.2s, border 0.2s, color 0.2s;
                     border: 1px $argo-color-teal-5 solid;
                 }
             }
-        
+
             &.group-nodes-button-on {
                 color: $argo-color-gray-1;
                 background-color: $argo-color-gray-6;
                 &:hover {
                     background-color: $argo-color-gray-5;
                 }
-            }    
+            }
         }
 
         .separator {
@@ -274,5 +270,5 @@ $header: 120px;
             background-color: $argo-color-gray-3;
             padding: 2px;
         }
-     }  
+    }
 }

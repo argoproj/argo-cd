@@ -5,6 +5,7 @@
     position: sticky;
     z-index: 5;
     padding: 0 15px;
+    top: 50px;
     align-items: center;
     flex-wrap: wrap;
     &__actions {
@@ -25,12 +26,6 @@
         align-items: center;
         @include breakpoint(medium down) {
             flex-wrap: wrap;
-        }
-    }
-    &__padder {
-        height: 50px;
-        @include breakpoint(medium down) {
-            height: 150px;
         }
     }
 }

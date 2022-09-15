@@ -136,7 +136,7 @@ const DEFAULT_PREFERENCES: ViewPreferences = {
     },
     pageSizes: {},
     hideBannerContent: '',
-    hideSidebar: false,
+    hideSidebar: true,
     position: ''
 };
 

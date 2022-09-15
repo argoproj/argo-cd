@@ -61,6 +61,7 @@ interface AppFilterProps {
     pref: AppsListPreferences;
     onChange: (newPrefs: AppsListPreferences) => void;
     children?: React.ReactNode;
+    collapsed?: boolean;
 }
 
 const getCounts = (apps: FilteredApp[], filterType: keyof FilterResult, filter: (app: Application) => string, init?: string[]) => {
@@ -217,7 +218,7 @@ const NamespaceFilter = (props: AppFilterProps) => {
 const FavoriteFilter = (props: AppFilterProps) => {
     const ctx = React.useContext(Context);
     return (
-        <div className={`filter filter__item ${props.pref.showFavorites ? 'filter__item--selected' : ''}`}>
+        <div className={`filter filter__item ${props.pref.showFavorites ? 'filter__item--selected' : ''}`} style={{margin: '0.5em 0'}}>
             <Checkbox
                 value={!!props.pref.showFavorites}
                 onChange={val => {
@@ -238,12 +239,8 @@ const FavoriteFilter = (props: AppFilterProps) => {
 };
 
 export const ApplicationsFilter = (props: AppFilterProps) => {
-    const setShown = (val: boolean) => {
-        services.viewPreferences.updatePreferences({appList: {...props.pref, hideFilters: !val}});
-    };
-
     return (
-        <FiltersGroup setShown={setShown} expanded={!props.pref.hideFilters} content={props.children}>
+        <FiltersGroup content={props.children} collapsed={props.collapsed}>
             <FavoriteFilter {...props} />
             <SyncFilter {...props} />
             <HealthFilter {...props} />
