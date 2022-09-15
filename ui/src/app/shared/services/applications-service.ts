@@ -120,6 +120,13 @@ export class ApplicationsService {
     }
 
     public create(app: models.Application): Promise<models.Application> {
+        // Namespace may be specified in the app name. We need to parse and
+        // handle it accordingly.
+        if (app.metadata.name.includes('/')) {
+            const nns = app.metadata.name.split('/', 2);
+            app.metadata.name = nns[1];
+            app.metadata.namespace = nns[0];
+        }
         return requests
             .post(`/applications`)
             .send(app)
