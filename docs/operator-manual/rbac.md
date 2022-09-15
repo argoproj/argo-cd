@@ -107,7 +107,7 @@ p, role:staging-db-admins, projects, get, staging-db-admins, allow
 g, db-admins, role:staging-db-admins
 ```
 
-This example defines a *role* called `staging-db-admins` with *eight permissions* that allow that role to perform the *actions* (`create`/`delete`/`get`/`override`/`sync`/`update` applications, `get` logs, `create` exec and `get` appprojects) against `*` (all) objects in the `staging-db-admins` Argo CD AppProject.
+This example defines a *role* called `staging-db-admins` with *nine permissions* that allow that role to perform the *actions* (`create`/`delete`/`get`/`override`/`sync`/`update` applications, `get` logs, `create` exec and `get` appprojects) against `*` (all) objects in the `staging-db-admins` Argo CD AppProject.
 
 ## Anonymous Access
 
