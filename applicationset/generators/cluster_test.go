@@ -14,8 +14,7 @@ import (
 	kubefake "k8s.io/client-go/kubernetes/fake"
 
 	"github.com/argoproj/argo-cd/v2/applicationset/utils"
-	argoappsetv1alpha1 "github.com/argoproj/argo-cd/v2/pkg/apis/applicationset/v1alpha1"
-	argoprojiov1alpha1 "github.com/argoproj/argo-cd/v2/pkg/apis/applicationset/v1alpha1"
+	argoprojiov1alpha1 "github.com/argoproj/argo-cd/v2/pkg/apis/application/v1alpha1"
 
 	"github.com/stretchr/testify/assert"
 )
@@ -241,8 +240,8 @@ func TestGenerateParams(t *testing.T) {
 				Spec: argoprojiov1alpha1.ApplicationSetSpec{},
 			}
 
-			got, err := clusterGenerator.GenerateParams(&argoappsetv1alpha1.ApplicationSetGenerator{
-				Clusters: &argoappsetv1alpha1.ClusterGenerator{
+			got, err := clusterGenerator.GenerateParams(&argoprojiov1alpha1.ApplicationSetGenerator{
+				Clusters: &argoprojiov1alpha1.ClusterGenerator{
 					Selector: testCase.selector,
 					Values:   testCase.values,
 				},
@@ -617,8 +616,8 @@ func TestGenerateParamsGoTemplate(t *testing.T) {
 				},
 			}
 
-			got, err := clusterGenerator.GenerateParams(&argoappsetv1alpha1.ApplicationSetGenerator{
-				Clusters: &argoappsetv1alpha1.ClusterGenerator{
+			got, err := clusterGenerator.GenerateParams(&argoprojiov1alpha1.ApplicationSetGenerator{
+				Clusters: &argoprojiov1alpha1.ClusterGenerator{
 					Selector: testCase.selector,
 					Values:   testCase.values,
 				},

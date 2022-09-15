@@ -11,8 +11,8 @@ import (
 	"k8s.io/apimachinery/pkg/runtime"
 	"k8s.io/apimachinery/pkg/types"
 
+	argoappsetv1 "github.com/argoproj/argo-cd/v2/pkg/apis/application/v1alpha1"
 	argoappsv1 "github.com/argoproj/argo-cd/v2/pkg/apis/application/v1alpha1"
-	argoappsetv1 "github.com/argoproj/argo-cd/v2/pkg/apis/applicationset/v1alpha1"
 )
 
 func TestRenderTemplateParams(t *testing.T) {
@@ -662,7 +662,7 @@ func TestCheckInvalidGenerators(t *testing.T) {
 		defer logrus.StandardLogger().ReplaceHooks(oldhooks)
 		hook := logtest.NewGlobal()
 
-		CheckInvalidGenerators(&c.appSet)
+		_ = CheckInvalidGenerators(&c.appSet)
 		assert.True(t, len(hook.Entries) >= 1, c.testName)
 		assert.NotNil(t, hook.LastEntry(), c.testName)
 		if hook.LastEntry() != nil {

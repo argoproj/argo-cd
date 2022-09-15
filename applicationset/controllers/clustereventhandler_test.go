@@ -15,13 +15,12 @@ import (
 
 	"github.com/argoproj/argo-cd/v2/applicationset/generators"
 	argov1alpha1 "github.com/argoproj/argo-cd/v2/pkg/apis/application/v1alpha1"
-	argoprojiov1alpha1 "github.com/argoproj/argo-cd/v2/pkg/apis/applicationset/v1alpha1"
 )
 
 func TestClusterEventHandler(t *testing.T) {
 
 	scheme := runtime.NewScheme()
-	err := argoprojiov1alpha1.AddToScheme(scheme)
+	err := argov1alpha1.AddToScheme(scheme)
 	assert.Nil(t, err)
 
 	err = argov1alpha1.AddToScheme(scheme)
@@ -29,13 +28,13 @@ func TestClusterEventHandler(t *testing.T) {
 
 	tests := []struct {
 		name             string
-		items            []argoprojiov1alpha1.ApplicationSet
+		items            []argov1alpha1.ApplicationSet
 		secret           corev1.Secret
 		expectedRequests []ctrl.Request
 	}{
 		{
 			name:  "no application sets should mean no requests",
-			items: []argoprojiov1alpha1.ApplicationSet{},
+			items: []argov1alpha1.ApplicationSet{},
 			secret: corev1.Secret{
 				ObjectMeta: v1.ObjectMeta{
 					Namespace: "argocd",
@@ -49,16 +48,16 @@ func TestClusterEventHandler(t *testing.T) {
 		},
 		{
 			name: "a cluster generator should produce a request",
-			items: []argoprojiov1alpha1.ApplicationSet{
+			items: []argov1alpha1.ApplicationSet{
 				{
 					ObjectMeta: v1.ObjectMeta{
 						Name:      "my-app-set",
 						Namespace: "argocd",
 					},
-					Spec: argoprojiov1alpha1.ApplicationSetSpec{
-						Generators: []argoprojiov1alpha1.ApplicationSetGenerator{
+					Spec: argov1alpha1.ApplicationSetSpec{
+						Generators: []argov1alpha1.ApplicationSetGenerator{
 							{
-								Clusters: &argoprojiov1alpha1.ClusterGenerator{},
+								Clusters: &argov1alpha1.ClusterGenerator{},
 							},
 						},
 					},
@@ -79,16 +78,16 @@ func TestClusterEventHandler(t *testing.T) {
 		},
 		{
 			name: "multiple cluster generators should produce multiple requests",
-			items: []argoprojiov1alpha1.ApplicationSet{
+			items: []argov1alpha1.ApplicationSet{
 				{
 					ObjectMeta: v1.ObjectMeta{
 						Name:      "my-app-set",
 						Namespace: "argocd",
 					},
-					Spec: argoprojiov1alpha1.ApplicationSetSpec{
-						Generators: []argoprojiov1alpha1.ApplicationSetGenerator{
+					Spec: argov1alpha1.ApplicationSetSpec{
+						Generators: []argov1alpha1.ApplicationSetGenerator{
 							{
-								Clusters: &argoprojiov1alpha1.ClusterGenerator{},
+								Clusters: &argov1alpha1.ClusterGenerator{},
 							},
 						},
 					},
@@ -98,10 +97,10 @@ func TestClusterEventHandler(t *testing.T) {
 						Name:      "my-app-set2",
 						Namespace: "argocd",
 					},
-					Spec: argoprojiov1alpha1.ApplicationSetSpec{
-						Generators: []argoprojiov1alpha1.ApplicationSetGenerator{
+					Spec: argov1alpha1.ApplicationSetSpec{
+						Generators: []argov1alpha1.ApplicationSetGenerator{
 							{
-								Clusters: &argoprojiov1alpha1.ClusterGenerator{},
+								Clusters: &argov1alpha1.ClusterGenerator{},
 							},
 						},
 					},
@@ -123,16 +122,16 @@ func TestClusterEventHandler(t *testing.T) {
 		},
 		{
 			name: "non-cluster generator should not match",
-			items: []argoprojiov1alpha1.ApplicationSet{
+			items: []argov1alpha1.ApplicationSet{
 				{
 					ObjectMeta: v1.ObjectMeta{
 						Name:      "my-app-set",
 						Namespace: "another-namespace",
 					},
-					Spec: argoprojiov1alpha1.ApplicationSetSpec{
-						Generators: []argoprojiov1alpha1.ApplicationSetGenerator{
+					Spec: argov1alpha1.ApplicationSetSpec{
+						Generators: []argov1alpha1.ApplicationSetGenerator{
 							{
-								Clusters: &argoprojiov1alpha1.ClusterGenerator{},
+								Clusters: &argov1alpha1.ClusterGenerator{},
 							},
 						},
 					},
@@ -142,10 +141,10 @@ func TestClusterEventHandler(t *testing.T) {
 						Name:      "app-set-non-cluster",
 						Namespace: "argocd",
 					},
-					Spec: argoprojiov1alpha1.ApplicationSetSpec{
-						Generators: []argoprojiov1alpha1.ApplicationSetGenerator{
+					Spec: argov1alpha1.ApplicationSetSpec{
+						Generators: []argov1alpha1.ApplicationSetGenerator{
 							{
-								List: &argoprojiov1alpha1.ListGenerator{},
+								List: &argov1alpha1.ListGenerator{},
 							},
 						},
 					},
@@ -167,16 +166,16 @@ func TestClusterEventHandler(t *testing.T) {
 
 		{
 			name: "non-argo cd secret should not match",
-			items: []argoprojiov1alpha1.ApplicationSet{
+			items: []argov1alpha1.ApplicationSet{
 				{
 					ObjectMeta: v1.ObjectMeta{
 						Name:      "my-app-set",
 						Namespace: "another-namespace",
 					},
-					Spec: argoprojiov1alpha1.ApplicationSetSpec{
-						Generators: []argoprojiov1alpha1.ApplicationSetGenerator{
+					Spec: argov1alpha1.ApplicationSetSpec{
+						Generators: []argov1alpha1.ApplicationSetGenerator{
 							{
-								Clusters: &argoprojiov1alpha1.ClusterGenerator{},
+								Clusters: &argov1alpha1.ClusterGenerator{},
 							},
 						},
 					},
@@ -196,7 +195,7 @@ func TestClusterEventHandler(t *testing.T) {
 
 		t.Run(test.name, func(t *testing.T) {
 
-			appSetList := argoprojiov1alpha1.ApplicationSetList{
+			appSetList := argov1alpha1.ApplicationSetList{
 				Items: test.items,
 			}
 

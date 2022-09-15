@@ -145,6 +145,7 @@ Currently, the following organizations are **officially** using Argo CD:
 1. [Orbital Insight](https://orbitalinsight.com/)
 1. [p3r](https://www.p3r.one/)
 1. [Packlink](https://www.packlink.com/)
+1. [Pandosearch](https://www.pandosearch.com/en/home)
 1. [PagerDuty](https://www.pagerduty.com/)
 1. [PayPay](https://paypay.ne.jp/)
 1. [Peloton Interactive](https://www.onepeloton.com/)
