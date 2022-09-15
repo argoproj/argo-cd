@@ -1388,15 +1388,39 @@ func (ctrl *ApplicationController) processAppRefreshQueueItem() (processNext boo
 		localManifests = opState.Operation.Sync.Manifests
 	}
 
-	revision := app.Spec.Source.TargetRevision
-	if comparisonLevel == CompareWithRecent {
-		revision = app.Status.Sync.Revision
+	revisions := make([]string, 0)
+	sources := make([]appv1.ApplicationSource, 0)
+	sourceMap := make(map[string]int)
+
+	if app.Spec.Sources != nil && len(app.Spec.Sources) > 0 {
+		for _, source := range app.Spec.Sources {
+			// filter out repeated sources having same repoUrl
+			if i, ok := sourceMap[source.RepoURL]; ok {
+				sources = append(sources[:i], sources[i+1:]...)
+				revisions = append(revisions[:i], revisions[i+1:]...)
+			}
+			sourceMap[source.RepoURL] = len(sources)
+			sources = append(sources, source)
+			revisions = append(revisions, source.TargetRevision)
+		}
+		if comparisonLevel == CompareWithRecent {
+			revisions = app.Status.Sync.Revisions
+		}
+	} else {
+		revision := app.Spec.Source.TargetRevision
+		if comparisonLevel == CompareWithRecent {
+			revision = app.Status.Sync.Revision
+		}
+		revisions = append(revisions, revision)
+		sources = append(sources, app.Spec.Source)
 	}
 	now := metav1.Now()
+	hasMultipleSources := app.Spec.Sources != nil && len(app.Spec.Sources) > 0
 
-	compareResult := ctrl.appStateManager.CompareAppState(app, project, revision, app.Spec.Source, app.Spec.Sources,
+	compareResult := ctrl.appStateManager.CompareAppState(app, project, revisions, sources,
 		refreshType == appv1.RefreshTypeHard,
-		comparisonLevel == CompareWithLatestForceResolve, localManifests)
+		comparisonLevel == CompareWithLatestForceResolve, localManifests, hasMultipleSources)
+
 	for k, v := range compareResult.timings {
 		logCtx = logCtx.WithField(k, v.Milliseconds())
 	}

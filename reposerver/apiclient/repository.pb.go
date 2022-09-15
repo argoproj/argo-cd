@@ -36,15 +36,15 @@ type ManifestRequest struct {
 	NoCache     bool   `protobuf:"varint,3,opt,name=noCache,proto3" json:"noCache,omitempty"`
 	AppLabelKey string `protobuf:"bytes,4,opt,name=appLabelKey,proto3" json:"appLabelKey,omitempty"`
 	// Name of the application for which the request is triggered
-	AppName            string                             `protobuf:"bytes,5,opt,name=appName,proto3" json:"appName,omitempty"`
-	Namespace          string                             `protobuf:"bytes,8,opt,name=namespace,proto3" json:"namespace,omitempty"`
-	ApplicationSource  *v1alpha1.ApplicationSource        `protobuf:"bytes,11,opt,name=applicationSource,proto3" json:"applicationSource,omitempty"`
-	ApplicationSources []*v1alpha1.ApplicationSource      `protobuf:"bytes,12,rep,name=applicationSources,proto3" json:"applicationSources,omitempty"`
-	Repos              []*v1alpha1.Repository             `protobuf:"bytes,13,rep,name=repos,proto3" json:"repos,omitempty"`
-	Plugins            []*v1alpha1.ConfigManagementPlugin `protobuf:"bytes,14,rep,name=plugins,proto3" json:"plugins,omitempty"`
-	KustomizeOptions   *v1alpha1.KustomizeOptions         `protobuf:"bytes,15,opt,name=kustomizeOptions,proto3" json:"kustomizeOptions,omitempty"`
-	KubeVersion        string                             `protobuf:"bytes,16,opt,name=kubeVersion,proto3" json:"kubeVersion,omitempty"`
-	ApiVersions        []string                           `protobuf:"bytes,17,rep,name=apiVersions,proto3" json:"apiVersions,omitempty"`
+	AppName           string                      `protobuf:"bytes,5,opt,name=appName,proto3" json:"appName,omitempty"`
+	Namespace         string                      `protobuf:"bytes,8,opt,name=namespace,proto3" json:"namespace,omitempty"`
+	ApplicationSource *v1alpha1.ApplicationSource `protobuf:"bytes,11,opt,name=applicationSource,proto3" json:"applicationSource,omitempty"`
+	// repeated github.com.argoproj.argo_cd.v2.pkg.apis.application.v1alpha1.ApplicationSource applicationSources = 12;
+	Repos            []*v1alpha1.Repository             `protobuf:"bytes,13,rep,name=repos,proto3" json:"repos,omitempty"`
+	Plugins          []*v1alpha1.ConfigManagementPlugin `protobuf:"bytes,14,rep,name=plugins,proto3" json:"plugins,omitempty"`
+	KustomizeOptions *v1alpha1.KustomizeOptions         `protobuf:"bytes,15,opt,name=kustomizeOptions,proto3" json:"kustomizeOptions,omitempty"`
+	KubeVersion      string                             `protobuf:"bytes,16,opt,name=kubeVersion,proto3" json:"kubeVersion,omitempty"`
+	ApiVersions      []string                           `protobuf:"bytes,17,rep,name=apiVersions,proto3" json:"apiVersions,omitempty"`
 	// Request to verify the signature when generating the manifests (only for Git repositories)
 	VerifySignature      bool                  `protobuf:"varint,18,opt,name=verifySignature,proto3" json:"verifySignature,omitempty"`
 	HelmRepoCreds        []*v1alpha1.RepoCreds `protobuf:"bytes,19,rep,name=helmRepoCreds,proto3" json:"helmRepoCreds,omitempty"`
@@ -135,13 +135,6 @@ func (m *ManifestRequest) GetNamespace() string {
 func (m *ManifestRequest) GetApplicationSource() *v1alpha1.ApplicationSource {
 	if m != nil {
 		return m.ApplicationSource
-	}
-	return nil
-}
-
-func (m *ManifestRequest) GetApplicationSources() []*v1alpha1.ApplicationSource {
-	if m != nil {
-		return m.ApplicationSources
 	}
 	return nil
 }
@@ -2588,20 +2581,6 @@ func (m *ManifestRequest) MarshalToSizedBuffer(dAtA []byte) (int, error) {
 			dAtA[i] = 0x6a
 		}
 	}
-	if len(m.ApplicationSources) > 0 {
-		for iNdEx := len(m.ApplicationSources) - 1; iNdEx >= 0; iNdEx-- {
-			{
-				size, err := m.ApplicationSources[iNdEx].MarshalToSizedBuffer(dAtA[:i])
-				if err != nil {
-					return 0, err
-				}
-				i -= size
-				i = encodeVarintRepository(dAtA, i, uint64(size))
-			}
-			i--
-			dAtA[i] = 0x62
-		}
-	}
 	if m.ApplicationSource != nil {
 		{
 			size, err := m.ApplicationSource.MarshalToSizedBuffer(dAtA[:i])
@@ -4097,12 +4076,6 @@ func (m *ManifestRequest) Size() (n int) {
 		l = m.ApplicationSource.Size()
 		n += 1 + l + sovRepository(uint64(l))
 	}
-	if len(m.ApplicationSources) > 0 {
-		for _, e := range m.ApplicationSources {
-			l = e.Size()
-			n += 1 + l + sovRepository(uint64(l))
-		}
-	}
 	if len(m.Repos) > 0 {
 		for _, e := range m.Repos {
 			l = e.Size()
@@ -5042,40 +5015,6 @@ func (m *ManifestRequest) Unmarshal(dAtA []byte) error {
 				m.ApplicationSource = &v1alpha1.ApplicationSource{}
 			}
 			if err := m.ApplicationSource.Unmarshal(dAtA[iNdEx:postIndex]); err != nil {
-				return err
-			}
-			iNdEx = postIndex
-		case 12:
-			if wireType != 2 {
-				return fmt.Errorf("proto: wrong wireType = %d for field ApplicationSources", wireType)
-			}
-			var msglen int
-			for shift := uint(0); ; shift += 7 {
-				if shift >= 64 {
-					return ErrIntOverflowRepository
-				}
-				if iNdEx >= l {
-					return io.ErrUnexpectedEOF
-				}
-				b := dAtA[iNdEx]
-				iNdEx++
-				msglen |= int(b&0x7F) << shift
-				if b < 0x80 {
-					break
-				}
-			}
-			if msglen < 0 {
-				return ErrInvalidLengthRepository
-			}
-			postIndex := iNdEx + msglen
-			if postIndex < 0 {
-				return ErrInvalidLengthRepository
-			}
-			if postIndex > l {
-				return io.ErrUnexpectedEOF
-			}
-			m.ApplicationSources = append(m.ApplicationSources, &v1alpha1.ApplicationSource{})
-			if err := m.ApplicationSources[len(m.ApplicationSources)-1].Unmarshal(dAtA[iNdEx:postIndex]); err != nil {
 				return err
 			}
 			iNdEx = postIndex
