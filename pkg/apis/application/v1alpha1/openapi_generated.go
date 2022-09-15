@@ -2750,8 +2750,15 @@ func schema_pkg_apis_application_v1alpha1_GitGenerator(ref common.ReferenceCallb
 							Ref:     ref("github.com/argoproj/argo-cd/v2/pkg/apis/application/v1alpha1.ApplicationSetTemplate"),
 						},
 					},
+					"pathParamPrefix": {
+						SchemaProps: spec.SchemaProps{
+							Default: "",
+							Type:    []string{"string"},
+							Format:  "",
+						},
+					},
 				},
-				Required: []string{"repoURL", "revision"},
+				Required: []string{"repoURL", "revision", "pathParamPrefix"},
 			},
 		},
 		Dependencies: []string{

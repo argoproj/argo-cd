@@ -776,6 +776,8 @@ message GitGenerator {
   optional int64 requeueAfterSeconds = 5;
 
   optional ApplicationSetTemplate template = 6;
+
+  optional string pathParamPrefix = 7;
 }
 
 // GnuPGPublicKey is a representation of a GnuPG public key

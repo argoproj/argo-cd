@@ -6289,6 +6289,9 @@
             "$ref": "#/definitions/v1alpha1GitFileGeneratorItem"
           }
         },
+        "pathParamPrefix": {
+          "type": "string"
+        },
         "repoURL": {
           "type": "string"
         },
