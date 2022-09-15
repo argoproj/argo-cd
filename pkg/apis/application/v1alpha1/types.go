@@ -1725,7 +1725,7 @@ func (s *SyncWindows) active(currentTime time.Time) *SyncWindows {
 
 	if s.HasWindows() {
 		var active SyncWindows
-		specParser := cron.NewParser(cron.Minute | cron.Hour | cron.Dom | cron.Month | cron.Dow)
+		specParser := cron.NewParser(cron.SecondOptional | cron.Minute | cron.Hour | cron.Dom | cron.Month | cron.Dow)
 		for _, w := range *s {
 			schedule, _ := specParser.Parse(w.Schedule)
 			duration, _ := time.ParseDuration(w.Duration)
