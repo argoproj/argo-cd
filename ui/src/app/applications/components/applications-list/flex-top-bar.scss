@@ -1,9 +1,8 @@
 @import 'node_modules/foundation-sites/scss/util/util';
 
 .flex-top-bar {
-    position: fixed;
-    left: 60px;
-    right: 0;
+    width: 100%;
+    position: sticky;
     z-index: 5;
     padding: 0 15px;
     align-items: center;

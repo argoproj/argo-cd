@@ -52,7 +52,7 @@ interface PageProps extends React.Props<any> {
 export const Page = (props: PageProps) => {
     const ctx = React.useContext(Context);
     return (
-        <div className={`${props.hideAuth ? 'page-wrapper' : ''}`}>
+        <div className={`page-wrapper ${props.hideAuth ? 'page-wrapper__no-auth' : ''}`}>
             <ArgoPage
                 title={props.title}
                 children={props.children}

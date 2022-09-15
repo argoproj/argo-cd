@@ -13,6 +13,7 @@ import {Provider} from './shared/context';
 import {services} from './shared/services';
 import requests from './shared/services/requests';
 import {hashCode} from './shared/utils';
+import {Sidebar} from './sidebar/sidebar';
 import {Banner} from './ui-banner/ui-banner';
 import userInfo from './user-info';
 
@@ -32,12 +33,12 @@ const routes: {[path: string]: {component: React.ComponentType<RouteComponentPro
 
 const navItems = [
     {
-        title: 'Manage your applications, and diagnose health problems.',
+        title: 'Applications',
         path: '/applications',
         iconClassName: 'argo-icon-application'
     },
     {
-        title: 'Manage your repositories, projects, settings',
+        title: 'Settings',
         path: '/settings',
         iconClassName: 'argo-icon-settings'
     },
@@ -47,7 +48,7 @@ const navItems = [
         iconClassName: 'fa fa-user-circle'
     },
     {
-        title: 'Read the documentation, and get help and assistance.',
+        title: 'Documentation',
         path: '/help',
         iconClassName: 'argo-icon-docs'
     }
@@ -184,28 +185,12 @@ export class App extends React.Component<{}, {popupProps: PopupProps; showVersio
                                                         <route.component {...routeProps} />
                                                     </div>
                                                 ) : (
-                                                    <Layout
-                                                        navItems={navItems}
-                                                        version={() => (
-                                                            <DataLoader load={() => versionLoader}>
-                                                                {version => {
-                                                                    const versionString = version ? version.Version : 'Unknown';
-                                                                    return (
-                                                                        <React.Fragment>
-                                                                            <Tooltip content={versionString}>
-                                                                                <a style={{color: 'white'}} onClick={() => this.setState({showVersionPanel: true})}>
-                                                                                    {versionString}
-                                                                                </a>
-                                                                            </Tooltip>
-                                                                        </React.Fragment>
-                                                                    );
-                                                                }}
-                                                            </DataLoader>
-                                                        )}>
+                                                    <div style={{display: 'flex', height: '100%'}}>
+                                                        <Sidebar onVersionClick={() => this.setState({showVersionPanel: true})} navItems={navItems} />
                                                         <Banner>
                                                             <route.component {...routeProps} />
                                                         </Banner>
-                                                    </Layout>
+                                                    </div>
                                                 )
                                             }
                                         />
