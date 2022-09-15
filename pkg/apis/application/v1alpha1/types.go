@@ -603,7 +603,7 @@ type ApplicationStatus struct {
 	// Deprecated: controller no longer updates ObservedAt field
 	ObservedAt *metav1.Time `json:"observedAt,omitempty" protobuf:"bytes,8,opt,name=observedAt"`
 	// SourceType specifies the type of this application
-	SourceType ApplicationSourceType `json:"sourceType,omitempty" protobuf:"bytes,9,opt,name=sourceType"`
+	SourceType []ApplicationSourceType `json:"sourceType,omitempty" protobuf:"bytes,9,opt,name=sourceType"`
 	// Summary contains a list of URLs and container images used by this application
 	Summary ApplicationSummary `json:"summary,omitempty" protobuf:"bytes,10,opt,name=summary"`
 	// ResourceHealthSource indicates where the resource health status is stored: inline if not set or appTree
@@ -922,6 +922,8 @@ type SyncOperationResult struct {
 	Source ApplicationSource `json:"source,omitempty" protobuf:"bytes,3,opt,name=source"`
 	// Source records the application source information of the sync, used for comparing auto-sync
 	Sources ApplicationSources `json:"sources,omitempty" protobuf:"bytes,4,opt,name=sources"`
+	// Revisions holds the revision this sync operation was performed for respective indexed source in sources field
+	Revisions []string `json:"revisions,omitempty" protobuf:"bytes,5,opt,name=revisions"`
 }
 
 // ResourceResult holds the operation result details of a specific resource
@@ -1092,6 +1094,8 @@ type SyncStatus struct {
 	ComparedTo ComparedTo `json:"comparedTo,omitempty" protobuf:"bytes,2,opt,name=comparedTo"`
 	// Revision contains information about the revision the comparison has been performed to
 	Revision string `json:"revision,omitempty" protobuf:"bytes,3,opt,name=revision"`
+	// Revisions contains information about the revisions of multiple sources the comparison has been performed to
+	Revisions []string `json:"revisions,omitempty" protobuf:"bytes,4,opt,name=revisions"`
 }
 
 // HealthStatus contains information about the currently observed health state of an application or resource

@@ -407,7 +407,7 @@ func (s *Service) GenerateManifest(ctx context.Context, q *apiclient.ManifestReq
 	var err error
 
 	cacheFn := func(cacheKey string, firstInvocation bool) (bool, error) {
-		ok, resp, err := s.getManifestCacheEntries(cacheKey, q, firstInvocation)
+		ok, resp, err := s.getManifestCacheEntry(cacheKey, q, q.ApplicationSource, firstInvocation)
 		res = resp
 		return ok, err
 	}
@@ -631,31 +631,6 @@ func (s *Service) runManifestGenAsync(ctx context.Context, repoRoot, commitSHA, 
 		log.Warnf("manifest cache set error %s/%s: %v", appSourceCopy.String(), cacheKey, err)
 	}
 	ch.responseCh <- manifestGenCacheEntry.ManifestResponse
-}
-
-func (s *Service) getManifestCacheEntries(cacheKey string, q *apiclient.ManifestRequest, firstInvocation bool) (bool, *apiclient.ManifestResponse, error) {
-	if q.ApplicationSources != nil && len(q.ApplicationSources) > 0 {
-		resp := make([]*apiclient.ManifestResponse, 0)
-		for _, source := range q.ApplicationSources {
-			ok, manifestResponse, err := s.getManifestCacheEntry(cacheKey, q, source, firstInvocation)
-			if !ok || err != nil {
-				return ok, nil, err
-			}
-			resp = append(resp, manifestResponse)
-		}
-
-		manifests := make([]string, 0)
-		for _, mr := range resp {
-			manifests = append(manifests, mr.Manifests...)
-		}
-		manifestResp := &apiclient.ManifestResponse{
-			Manifests: manifests,
-		}
-
-		return true, manifestResp, nil
-	} else {
-		return s.getManifestCacheEntry(cacheKey, q, q.ApplicationSource, firstInvocation)
-	}
 }
 
 // getManifestCacheEntry returns false if the 'generate manifests' operation should be run by runRepoOperation, e.g.:

@@ -93,7 +93,7 @@ func TestFindRevisionHistoryWithoutPassedId(t *testing.T) {
 		ReconciledAt:   nil,
 		OperationState: nil,
 		ObservedAt:     nil,
-		SourceType:     "",
+		SourceType:     []argoappv1.ApplicationSourceType{""},
 		Summary:        v1alpha1.ApplicationSummary{},
 	}
 
@@ -154,7 +154,7 @@ func TestFindRevisionHistoryWithoutPassedIdAndEmptyHistoryList(t *testing.T) {
 		ReconciledAt:   nil,
 		OperationState: nil,
 		ObservedAt:     nil,
-		SourceType:     "",
+		SourceType:     []argoappv1.ApplicationSourceType{""},
 		Summary:        v1alpha1.ApplicationSummary{},
 	}
 
@@ -195,7 +195,7 @@ func TestFindRevisionHistoryWithPassedId(t *testing.T) {
 		ReconciledAt:   nil,
 		OperationState: nil,
 		ObservedAt:     nil,
-		SourceType:     "",
+		SourceType:     []argoappv1.ApplicationSourceType{""},
 		Summary:        v1alpha1.ApplicationSummary{},
 	}
 
@@ -236,7 +236,7 @@ func TestFindRevisionHistoryWithPassedIdThatNotExist(t *testing.T) {
 		ReconciledAt:   nil,
 		OperationState: nil,
 		ObservedAt:     nil,
-		SourceType:     "",
+		SourceType:     []argoappv1.ApplicationSourceType{""},
 		Summary:        v1alpha1.ApplicationSummary{},
 	}
 

@@ -5960,8 +5960,11 @@
           }
         },
         "sourceType": {
-          "type": "string",
-          "title": "SourceType specifies the type of this application"
+          "type": "array",
+          "title": "SourceType specifies the type of this application",
+          "items": {
+            "type": "string"
+          }
         },
         "summary": {
           "$ref": "#/definitions/v1alpha1ApplicationSummary"
@@ -7958,6 +7961,13 @@
           "type": "string",
           "title": "Revision holds the revision this sync operation was performed to"
         },
+        "revisions": {
+          "type": "array",
+          "title": "Revisions holds the revision this sync operation was performed for respective indexed source in sources field",
+          "items": {
+            "type": "string"
+          }
+        },
         "source": {
           "$ref": "#/definitions/v1alpha1ApplicationSource"
         },
@@ -8020,6 +8030,13 @@
         "revision": {
           "type": "string",
           "title": "Revision contains information about the revision the comparison has been performed to"
+        },
+        "revisions": {
+          "type": "array",
+          "title": "Revisions contains information about the revisions of multiple sources the comparison has been performed to",
+          "items": {
+            "type": "string"
+          }
         },
         "status": {
           "type": "string",

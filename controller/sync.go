@@ -66,6 +66,7 @@ func (m *appStateManager) SyncAppState(app *v1alpha1.Application, state *v1alpha
 	var syncRes *v1alpha1.SyncOperationResult
 	var source v1alpha1.ApplicationSource
 	var sources []v1alpha1.ApplicationSource
+	revisions := make([]string, 0)
 
 	if state.Operation.Sync == nil {
 		state.Phase = common.OperationFailed
@@ -84,10 +85,11 @@ func (m *appStateManager) SyncAppState(app *v1alpha1.Application, state *v1alpha
 	}
 
 	if syncOp.Source == nil || (syncOp.Sources != nil && len(syncOp.Sources) > 0) {
-		// normal sync case (where source is taken from app.spec.source)
+		// normal sync case (where source is taken from app.spec.sources)
 		if app.Spec.Sources != nil && len(app.Spec.Sources) > 0 {
 			sources = app.Spec.Sources
 		} else {
+			// normal sync case (where source is taken from app.spec.source)
 			source = app.Spec.Source
 			sources = make([]v1alpha1.ApplicationSource, 0)
 		}
@@ -105,6 +107,7 @@ func (m *appStateManager) SyncAppState(app *v1alpha1.Application, state *v1alpha
 	if state.SyncResult != nil {
 		syncRes = state.SyncResult
 		revision = state.SyncResult.Revision
+		revisions = append(revisions, state.SyncResult.Revisions...)
 	} else {
 		syncRes = &v1alpha1.SyncOperationResult{}
 		// status.operationState.syncResult.source. must be set properly since auto-sync relies
@@ -132,10 +135,23 @@ func (m *appStateManager) SyncAppState(app *v1alpha1.Application, state *v1alpha
 		return
 	}
 
-	compareResult := m.CompareAppState(app, proj, revision, source, sources, false, true, syncOp.Manifests)
+	if len(revisions) == 0 {
+		revisions = append(revisions, revision)
+	}
+
+	if len(sources) == 0 {
+		sources = append(sources, source)
+	}
+
+	hasMultipleSources := app.Spec.Sources != nil && len(app.Spec.Sources) > 0
+	compareResult := m.CompareAppState(app, proj, revisions, sources, false, true, syncOp.Manifests, hasMultipleSources)
 	// We now have a concrete commit SHA. Save this in the sync result revision so that we remember
 	// what we should be syncing to when resuming operations.
+	log.Infof("Reached SyncAppState %s", compareResult.syncStatus)
+
 	syncRes.Revision = compareResult.syncStatus.Revision
+	syncRes.Revisions = make([]string, 0)
+	syncRes.Revisions = append(syncRes.Revisions, compareResult.syncStatus.Revisions...)
 
 	// If there are any comparison or spec errors error conditions do not perform the operation
 	if errConditions := app.Status.GetConditions(map[v1alpha1.ApplicationConditionType]bool{
@@ -317,8 +333,9 @@ func (m *appStateManager) SyncAppState(app *v1alpha1.Application, state *v1alpha
 
 	logEntry.WithField("duration", time.Since(start)).Info("sync/terminate complete")
 
+	logEntry.WithField("duration", time.Since(start)).Infof("revisions %s", compareResult.syncStatus.Revisions)
 	if !syncOp.DryRun && len(syncOp.Resources) == 0 && state.Phase.Successful() {
-		err := m.persistRevisionHistory(app, compareResult.syncStatus.Revision, source, state.StartedAt)
+		err := m.persistRevisionHistory(app, compareResult.syncStatus.Revisions, sources, state.StartedAt)
 		if err != nil {
 			state.Phase = common.OperationError
 			state.Message = fmt.Sprintf("failed to record sync to history: %v", err)

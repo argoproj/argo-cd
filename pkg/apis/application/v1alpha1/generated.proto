@@ -499,7 +499,7 @@ message ApplicationStatus {
   optional k8s.io.apimachinery.pkg.apis.meta.v1.Time observedAt = 8;
 
   // SourceType specifies the type of this application
-  optional string sourceType = 9;
+  repeated string sourceType = 9;
 
   // Summary contains a list of URLs and container images used by this application
   optional ApplicationSummary summary = 10;
@@ -1831,6 +1831,9 @@ message SyncOperationResult {
 
   // Source records the application source information of the sync, used for comparing auto-sync
   repeated ApplicationSource sources = 4;
+
+  // Revisions holds the revision this sync operation was performed for respective indexed source in sources field
+  repeated string revisions = 5;
 }
 
 // SyncPolicy controls when a sync will be performed in response to updates in git
@@ -1870,6 +1873,9 @@ message SyncStatus {
 
   // Revision contains information about the revision the comparison has been performed to
   optional string revision = 3;
+
+  // Revisions contains information about the revisions of multiple sources the comparison has been performed to
+  repeated string revisions = 4;
 }
 
 // SyncStrategy controls the manner in which a sync is performed
