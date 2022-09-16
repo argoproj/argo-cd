@@ -456,7 +456,7 @@
               <div class="header-wrap">
                   <h1 class="project__header__title">Snyk test report</h1>
     
-                <p class="timestamp">August 3rd 2022, 1:55:44 pm</p>
+                <p class="timestamp">September 7th 2022, 7:37:26 pm</p>
               </div>
               <div class="source-panel">
                 <span>Scanned the following path:</span>
@@ -1027,6 +1027,8 @@
         <li><a href="https://lists.fedoraproject.org/archives/list/package-announce@lists.fedoraproject.org/message/DF62MVMH3QUGMBDCB3DY2ERQ6EBHTADB/">FEDORA</a></li>
         <li><a href="https://www.oracle.com/security-alerts/cpujul2022.html">N/A</a></li>
         <li><a href="https://security.netapp.com/advisory/ntap-20220729-0004/">CONFIRM</a></li>
+        <li><a href="https://lists.fedoraproject.org/archives/list/package-announce@lists.fedoraproject.org/message/JZZPTWRYQULAOL3AW7RZJNVZ2UONXCV4/">FEDORA</a></li>
+        <li><a href="https://lists.fedoraproject.org/archives/list/package-announce@lists.fedoraproject.org/message/DCZFIJBJTZ7CL5QXBFKTQ22Q26VINRUF/">FEDORA</a></li>
         </ul>
         
               <hr/>
@@ -1087,12 +1089,21 @@
               <hr/>
               <!-- Overview -->
               <h2 id="nvd-description">NVD Description</h2>
-        <p><em>This vulnerability has not been analyzed by NVD yet.</em></p>
+        <p><strong><em>Note:</em></strong> <em>Versions mentioned in the description apply to the upstream <code>xz-utils</code> package.</em>
+        <em>See <code>How to fix?</code> for <code>Ubuntu:21.10</code> relevant versions.</em></p>
+        <p>An arbitrary file write vulnerability was found in GNU gzip&#39;s zgrep utility. When zgrep is applied on the attacker&#39;s chosen file name (for example, a crafted file name), this can overwrite an attacker&#39;s content to an arbitrary attacker-selected file. This flaw occurs due to insufficient validation when processing filenames with two or more newlines where selected content and the target file names are embedded in crafted multi-line file names. This flaw allows a remote, low privileged attacker to force zgrep to write arbitrary files on the system.</p>
         <h2 id="remediation">Remediation</h2>
         <p>Upgrade <code>Ubuntu:21.10</code> <code>xz-utils</code> to version 5.2.5-2ubuntu0.1 or higher.</p>
         <h2 id="references">References</h2>
         <ul>
         <li><a href="http://people.ubuntu.com/~ubuntu-security/cve/CVE-2022-1271">ADVISORY</a></li>
+        <li><a href="https://bugzilla.redhat.com/show_bug.cgi?id=2073310">MISC</a></li>
+        <li><a href="https://access.redhat.com/security/cve/CVE-2022-1271">MISC</a></li>
+        <li><a href="https://lists.gnu.org/r/bug-gzip/2022-04/msg00011.html">MISC</a></li>
+        <li><a href="https://tukaani.org/xz/xzgrep-ZDI-CAN-16587.patch">MISC</a></li>
+        <li><a href="https://www.openwall.com/lists/oss-security/2022/04/07/8">MISC</a></li>
+        <li><a href="https://git.tukaani.org/?p=xz.git;a=commit;h=69d1b3fc29677af8ade8dc15dba83f0589cb63d6">MISC</a></li>
+        <li><a href="https://security-tracker.debian.org/tracker/CVE-2022-1271">MISC</a></li>
         </ul>
         
               <hr/>
@@ -1103,7 +1114,7 @@
         
         </div><!-- .card -->
         <div class="card card--vuln  disclosure--not-new severity--medium" data-snyk-test="medium">
-            <h2 class="card__title">CVE-2021-3996</h2>
+            <h2 class="card__title">Files or Directories Accessible to External Parties</h2>
             <div class="card__section">
         
                 <div class="label label--medium">
@@ -1325,12 +1336,19 @@
               <hr/>
               <!-- Overview -->
               <h2 id="nvd-description">NVD Description</h2>
-        <p><em>This vulnerability has not been analyzed by NVD yet.</em></p>
+        <p><strong><em>Note:</em></strong> <em>Versions mentioned in the description apply to the upstream <code>util-linux</code> package.</em>
+        <em>See <code>How to fix?</code> for <code>Ubuntu:21.10</code> relevant versions.</em></p>
+        <p>A logic error was found in the libmount library of util-linux in the function that allows an unprivileged user to unmount a FUSE filesystem. This flaw allows a local user on a vulnerable system to unmount other users&#39; filesystems that are either world-writable themselves (like /tmp) or mounted in a world-writable directory. An attacker may use this flaw to cause a denial of service to applications that use the affected filesystems.</p>
         <h2 id="remediation">Remediation</h2>
         <p>Upgrade <code>Ubuntu:21.10</code> <code>util-linux</code> to version 2.36.1-8ubuntu2.2 or higher.</p>
         <h2 id="references">References</h2>
         <ul>
         <li><a href="http://people.ubuntu.com/~ubuntu-security/cve/CVE-2021-3996">ADVISORY</a></li>
+        <li><a href="https://github.com/util-linux/util-linux/commit/166e87368ae88bf31112a30e078cceae637f4cdb">MISC</a></li>
+        <li><a href="https://access.redhat.com/security/cve/CVE-2021-3996">MISC</a></li>
+        <li><a href="https://bugzilla.redhat.com/show_bug.cgi?id=2024628">MISC</a></li>
+        <li><a href="https://mirrors.edge.kernel.org/pub/linux/utils/util-linux/v2.37/v2.37.3-ReleaseNotes">MISC</a></li>
+        <li><a href="https://www.openwall.com/lists/oss-security/2022/01/24/2">MISC</a></li>
         </ul>
         
               <hr/>
@@ -1341,7 +1359,7 @@
         
         </div><!-- .card -->
         <div class="card card--vuln  disclosure--not-new severity--medium" data-snyk-test="medium">
-            <h2 class="card__title">CVE-2021-3995</h2>
+            <h2 class="card__title">Files or Directories Accessible to External Parties</h2>
             <div class="card__section">
         
                 <div class="label label--medium">
@@ -1563,12 +1581,18 @@
               <hr/>
               <!-- Overview -->
               <h2 id="nvd-description">NVD Description</h2>
-        <p><em>This vulnerability has not been analyzed by NVD yet.</em></p>
+        <p><strong><em>Note:</em></strong> <em>Versions mentioned in the description apply to the upstream <code>util-linux</code> package.</em>
+        <em>See <code>How to fix?</code> for <code>Ubuntu:21.10</code> relevant versions.</em></p>
+        <p>A logic error was found in the libmount library of util-linux in the function that allows an unprivileged user to unmount a FUSE filesystem. This flaw allows an unprivileged local attacker to unmount FUSE filesystems that belong to certain other users who have a UID that is a prefix of the UID of the attacker in its string form. An attacker may use this flaw to cause a denial of service to applications that use the affected filesystems.</p>
         <h2 id="remediation">Remediation</h2>
         <p>Upgrade <code>Ubuntu:21.10</code> <code>util-linux</code> to version 2.36.1-8ubuntu2.2 or higher.</p>
         <h2 id="references">References</h2>
         <ul>
         <li><a href="http://people.ubuntu.com/~ubuntu-security/cve/CVE-2021-3995">ADVISORY</a></li>
+        <li><a href="https://bugzilla.redhat.com/show_bug.cgi?id=2024631https://access.redhat.com/security/cve/CVE-2021-3995">MISC</a></li>
+        <li><a href="https://github.com/util-linux/util-linux/commit/57202f5713afa2af20ffbb6ab5331481d0396f8d">MISC</a></li>
+        <li><a href="https://mirrors.edge.kernel.org/pub/linux/utils/util-linux/v2.37/v2.37.3-ReleaseNotes">MISC</a></li>
+        <li><a href="https://www.openwall.com/lists/oss-security/2022/01/24/2">MISC</a></li>
         </ul>
         
               <hr/>
@@ -2682,12 +2706,21 @@
               <hr/>
               <!-- Overview -->
               <h2 id="nvd-description">NVD Description</h2>
-        <p><em>This vulnerability has not been analyzed by NVD yet.</em></p>
+        <p><strong><em>Note:</em></strong> <em>Versions mentioned in the description apply to the upstream <code>gzip</code> package.</em>
+        <em>See <code>How to fix?</code> for <code>Ubuntu:21.10</code> relevant versions.</em></p>
+        <p>An arbitrary file write vulnerability was found in GNU gzip&#39;s zgrep utility. When zgrep is applied on the attacker&#39;s chosen file name (for example, a crafted file name), this can overwrite an attacker&#39;s content to an arbitrary attacker-selected file. This flaw occurs due to insufficient validation when processing filenames with two or more newlines where selected content and the target file names are embedded in crafted multi-line file names. This flaw allows a remote, low privileged attacker to force zgrep to write arbitrary files on the system.</p>
         <h2 id="remediation">Remediation</h2>
         <p>Upgrade <code>Ubuntu:21.10</code> <code>gzip</code> to version 1.10-4ubuntu1.1 or higher.</p>
         <h2 id="references">References</h2>
         <ul>
         <li><a href="http://people.ubuntu.com/~ubuntu-security/cve/CVE-2022-1271">ADVISORY</a></li>
+        <li><a href="https://bugzilla.redhat.com/show_bug.cgi?id=2073310">MISC</a></li>
+        <li><a href="https://access.redhat.com/security/cve/CVE-2022-1271">MISC</a></li>
+        <li><a href="https://lists.gnu.org/r/bug-gzip/2022-04/msg00011.html">MISC</a></li>
+        <li><a href="https://tukaani.org/xz/xzgrep-ZDI-CAN-16587.patch">MISC</a></li>
+        <li><a href="https://www.openwall.com/lists/oss-security/2022/04/07/8">MISC</a></li>
+        <li><a href="https://git.tukaani.org/?p=xz.git;a=commit;h=69d1b3fc29677af8ade8dc15dba83f0589cb63d6">MISC</a></li>
+        <li><a href="https://security-tracker.debian.org/tracker/CVE-2022-1271">MISC</a></li>
         </ul>
         
               <hr/>
@@ -3066,6 +3099,8 @@
         <li><a href="https://lists.fedoraproject.org/archives/list/package-announce@lists.fedoraproject.org/message/NPTAR76EIZY7NQFENSOZO7U473257OVZ/">FEDORA</a></li>
         <li><a href="https://lists.fedoraproject.org/archives/list/package-announce@lists.fedoraproject.org/message/VN63GBTMRWO36Y7BKA2WQHROAKCXKCBL/">FEDORA</a></li>
         <li><a href="https://lists.fedoraproject.org/archives/list/package-announce@lists.fedoraproject.org/message/FRLWJQ76A4UKHI3Q36BKSJKS4LFLQO33/">FEDORA</a></li>
+        <li><a href="https://lists.fedoraproject.org/archives/list/package-announce@lists.fedoraproject.org/message/VU64FUVG2PRZBSHFOQRSP7KDVEIZ23OS/">FEDORA</a></li>
+        <li><a href="https://security.netapp.com/advisory/ntap-20220826-0005/">CONFIRM</a></li>
         </ul>
         
               <hr/>
@@ -3076,7 +3111,7 @@
         
         </div><!-- .card -->
         <div class="card card--vuln  disclosure--not-new severity--medium" data-snyk-test="medium">
-            <h2 class="card__title">CVE-2021-3999</h2>
+            <h2 class="card__title">Off-by-one Error</h2>
             <div class="card__section">
         
                 <div class="label label--medium">
@@ -3135,12 +3170,20 @@
               <hr/>
               <!-- Overview -->
               <h2 id="nvd-description">NVD Description</h2>
-        <p><em>This vulnerability has not been analyzed by NVD yet.</em></p>
+        <p><strong><em>Note:</em></strong> <em>Versions mentioned in the description apply to the upstream <code>glibc</code> package.</em>
+        <em>See <code>How to fix?</code> for <code>Ubuntu:21.10</code> relevant versions.</em></p>
+        <p>A flaw was found in glibc. An off-by-one buffer overflow and underflow in getcwd() may lead to memory corruption when the size of the buffer is exactly 1. A local attacker who can control the input buffer and size passed to getcwd() in a setuid program could use this flaw to potentially execute arbitrary code and escalate their privileges on the system.</p>
         <h2 id="remediation">Remediation</h2>
         <p>Upgrade <code>Ubuntu:21.10</code> <code>glibc</code> to version 2.34-0ubuntu3.2 or higher.</p>
         <h2 id="references">References</h2>
         <ul>
         <li><a href="http://people.ubuntu.com/~ubuntu-security/cve/CVE-2021-3999">ADVISORY</a></li>
+        <li><a href="https://www.openwall.com/lists/oss-security/2022/01/24/4">MISC</a></li>
+        <li><a href="https://access.redhat.com/security/cve/CVE-2021-3999">MISC</a></li>
+        <li><a href="https://sourceware.org/git/gitweb.cgi?p=glibc.git;h=23e0e8f5f1fb5ed150253d986ecccdc90c2dcd5e">MISC</a></li>
+        <li><a href="https://sourceware.org/bugzilla/show_bug.cgi?id=28769">MISC</a></li>
+        <li><a href="https://security-tracker.debian.org/tracker/CVE-2021-3999">MISC</a></li>
+        <li><a href="https://bugzilla.redhat.com/show_bug.cgi?id=2024637">MISC</a></li>
         </ul>
         
               <hr/>
@@ -3151,7 +3194,7 @@
         
         </div><!-- .card -->
         <div class="card card--vuln  disclosure--not-new severity--medium" data-snyk-test="medium">
-            <h2 class="card__title">CVE-2021-3998</h2>
+            <h2 class="card__title">Unchecked Return Value</h2>
             <div class="card__section">
         
                 <div class="label label--medium">
@@ -3210,12 +3253,21 @@
               <hr/>
               <!-- Overview -->
               <h2 id="nvd-description">NVD Description</h2>
-        <p><em>This vulnerability has not been analyzed by NVD yet.</em></p>
+        <p><strong><em>Note:</em></strong> <em>Versions mentioned in the description apply to the upstream <code>glibc</code> package.</em>
+        <em>See <code>How to fix?</code> for <code>Ubuntu:21.10</code> relevant versions.</em></p>
+        <p>A flaw was found in glibc. The realpath() function can mistakenly return an unexpected value, potentially leading to information leakage and disclosure of sensitive data.</p>
         <h2 id="remediation">Remediation</h2>
         <p>Upgrade <code>Ubuntu:21.10</code> <code>glibc</code> to version 2.34-0ubuntu3.2 or higher.</p>
         <h2 id="references">References</h2>
         <ul>
         <li><a href="http://people.ubuntu.com/~ubuntu-security/cve/CVE-2021-3998">ADVISORY</a></li>
+        <li><a href="https://www.openwall.com/lists/oss-security/2022/01/24/4">MISC</a></li>
+        <li><a href="https://access.redhat.com/security/cve/CVE-2021-3998">MISC</a></li>
+        <li><a href="https://sourceware.org/bugzilla/show_bug.cgi?id=28770">MISC</a></li>
+        <li><a href="https://security-tracker.debian.org/tracker/CVE-2021-3998">MISC</a></li>
+        <li><a href="https://sourceware.org/git/gitweb.cgi?p=glibc.git;h=ee8d5e33adb284601c00c94687bc907e10aec9bb">MISC</a></li>
+        <li><a href="https://sourceware.org/git/gitweb.cgi?p=glibc.git;h=84d2d0fe20bdf94feed82b21b4d7d136db471f03">MISC</a></li>
+        <li><a href="https://bugzilla.redhat.com/show_bug.cgi?id=2024633">MISC</a></li>
         </ul>
         
               <hr/>
@@ -4651,6 +4703,7 @@
         <li><a href="https://hackerone.com/reports/1526328">MISC</a></li>
         <li><a href="https://security.netapp.com/advisory/ntap-20220609-0008/">CONFIRM</a></li>
         <li><a href="https://www.debian.org/security/2022/dsa-5197">DEBIAN</a></li>
+        <li><a href="https://lists.debian.org/debian-lts-announce/2022/08/msg00017.html">MLIST</a></li>
         </ul>
         
               <hr/>
@@ -4793,6 +4846,7 @@
         <li><a href="https://hackerone.com/reports/1555796">MISC</a></li>
         <li><a href="https://security.netapp.com/advisory/ntap-20220609-0009/">CONFIRM</a></li>
         <li><a href="https://www.debian.org/security/2022/dsa-5197">DEBIAN</a></li>
+        <li><a href="https://lists.debian.org/debian-lts-announce/2022/08/msg00017.html">MLIST</a></li>
         </ul>
         
               <hr/>
@@ -4864,6 +4918,7 @@
         <li><a href="https://hackerone.com/reports/1590071">MISC</a></li>
         <li><a href="https://lists.fedoraproject.org/archives/list/package-announce@lists.fedoraproject.org/message/BEV6BR4MTI3CEWK2YU2HQZUW5FAS3FEY/">FEDORA</a></li>
         <li><a href="https://www.debian.org/security/2022/dsa-5197">DEBIAN</a></li>
+        <li><a href="https://lists.debian.org/debian-lts-announce/2022/08/msg00017.html">MLIST</a></li>
         </ul>
         
               <hr/>
@@ -5006,6 +5061,7 @@
         <li><a href="https://hackerone.com/reports/1570651">MISC</a></li>
         <li><a href="https://lists.fedoraproject.org/archives/list/package-announce@lists.fedoraproject.org/message/BEV6BR4MTI3CEWK2YU2HQZUW5FAS3FEY/">FEDORA</a></li>
         <li><a href="https://www.debian.org/security/2022/dsa-5197">DEBIAN</a></li>
+        <li><a href="https://lists.debian.org/debian-lts-announce/2022/08/msg00017.html">MLIST</a></li>
         </ul>
         
               <hr/>
@@ -7107,6 +7163,7 @@
         <li><a href="http://people.ubuntu.com/~ubuntu-security/cve/CVE-2022-23219">ADVISORY</a></li>
         <li><a href="https://sourceware.org/bugzilla/show_bug.cgi?id=22542">MISC</a></li>
         <li><a href="https://www.oracle.com/security-alerts/cpujul2022.html">N/A</a></li>
+        <li><a href="https://security.gentoo.org/glsa/202208-24">GENTOO</a></li>
         </ul>
         
               <hr/>
@@ -7186,6 +7243,7 @@
         <li><a href="http://people.ubuntu.com/~ubuntu-security/cve/CVE-2022-23218">ADVISORY</a></li>
         <li><a href="https://sourceware.org/bugzilla/show_bug.cgi?id=28768">MISC</a></li>
         <li><a href="https://www.oracle.com/security-alerts/cpujul2022.html">N/A</a></li>
+        <li><a href="https://security.gentoo.org/glsa/202208-24">GENTOO</a></li>
         </ul>
         
               <hr/>
@@ -7572,6 +7630,7 @@
         <li><a href="https://hackerone.com/reports/1547048">MISC</a></li>
         <li><a href="https://security.netapp.com/advisory/ntap-20220609-0008/">CONFIRM</a></li>
         <li><a href="https://www.debian.org/security/2022/dsa-5197">DEBIAN</a></li>
+        <li><a href="https://lists.debian.org/debian-lts-announce/2022/08/msg00017.html">MLIST</a></li>
         </ul>
         
               <hr/>
@@ -7643,6 +7702,7 @@
         <li><a href="https://hackerone.com/reports/1555441">MISC</a></li>
         <li><a href="https://security.netapp.com/advisory/ntap-20220609-0009/">CONFIRM</a></li>
         <li><a href="https://www.debian.org/security/2022/dsa-5197">DEBIAN</a></li>
+        <li><a href="https://lists.debian.org/debian-lts-announce/2022/08/msg00017.html">MLIST</a></li>
         </ul>
         
               <hr/>
