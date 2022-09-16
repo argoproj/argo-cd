@@ -132,9 +132,13 @@ func (s *applicationEventReporter) streamApplicationEvents(
 
 		desiredManifests, _, manifestGenErr := s.getDesiredManifests(ctx, parentApplicationEntity, logCtx)
 
-		revisionMetadata, _ := s.getApplicationRevisionDetails(ctx, a, a.Status.OperationState.Operation.Sync.Revision)
+		revisionMetadata, err := s.getApplicationRevisionDetails(ctx, a, getOperationRevision(a))
 
-		s.processResource(ctx, *rs, parentApplicationEntity, logCtx, ts, desiredManifests, stream, appTree, es, manifestGenErr, a, revisionMetadata, true)
+		if err == nil {
+			s.processResource(ctx, *rs, parentApplicationEntity, logCtx, ts, desiredManifests, stream, appTree, es, manifestGenErr, a, revisionMetadata, true)
+		} else {
+			return fmt.Errorf("failed to get operation revision metadata event for resource %s/%s: %w", a.Namespace, a.Name, err)
+		}
 	} else {
 		// application events for child apps would be sent by its parent app
 		// as resource event
@@ -159,7 +163,7 @@ func (s *applicationEventReporter) streamApplicationEvents(
 		return err
 	}
 
-	revisionMetadata, _ := s.getApplicationRevisionDetails(ctx, a, a.Status.OperationState.Operation.Sync.Revision)
+	revisionMetadata, _ := s.getApplicationRevisionDetails(ctx, a, getOperationRevision(a))
 	// for each resource in the application get desired and actual state,
 	// then stream the event
 	for _, rs := range a.Status.Resources {
@@ -337,10 +341,15 @@ func getApplicationLatestRevision(a *appv1.Application) string {
 }
 
 func getOperationRevision(a *appv1.Application) string {
-	revision := ""
+	// this value will be used in case if application hasnt resources , like gitsource
+	revision := a.Status.Sync.Revision
 
-	if a.Status.OperationState != nil && a.Status.OperationState.Operation.Sync != nil {
-		revision = a.Status.OperationState.Operation.Sync.Revision
+	if a != nil {
+		if a.Status.OperationState != nil && a.Status.OperationState.Operation.Sync != nil && a.Status.OperationState.Operation.Sync.Revision != "" {
+			revision = a.Status.OperationState.Operation.Sync.Revision
+		} else if a.Operation != nil && a.Operation.Sync != nil && a.Operation.Sync.Revision != "" {
+			revision = a.Operation.Sync.Revision
+		}
 	}
 
 	return revision
@@ -519,7 +528,7 @@ func (s *applicationEventReporter) getApplicationEventPayload(ctx context.Contex
 	}
 
 	if a.Status.Sync.Revision != "" || (a.Status.History != nil && len(a.Status.History) > 0) {
-		revisionMetadata, err := s.getApplicationRevisionDetails(ctx, a, a.Status.OperationState.Operation.Sync.Revision)
+		revisionMetadata, err := s.getApplicationRevisionDetails(ctx, a, getOperationRevision(a))
 
 		if err != nil {
 			if !strings.Contains(err.Error(), "not found") {
