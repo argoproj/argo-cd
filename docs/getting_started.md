@@ -146,7 +146,7 @@ argocd app create guestbook --repo https://github.com/argoproj/argocd-example-ap
 
 Command for setting default namespace:
 
-``'bash
+```bash
 kubectl config set-context --current --namespace=argocd
 ```
 
