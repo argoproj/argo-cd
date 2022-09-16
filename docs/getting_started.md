@@ -138,16 +138,16 @@ An example repository containing a guestbook application is available at
 
 ### Creating Apps Via CLI
 
+First we need to set the current namespace to argocd running the following command:
+
+```bash
+kubectl config set-context --current --namespace=argocd
+```
+
 Create the example guestbook application with the following command:
 
 ```bash
 argocd app create guestbook --repo https://github.com/argoproj/argocd-example-apps.git --path guestbook --dest-server https://kubernetes.default.svc --dest-namespace default
-```
-
-Command for setting default namespace:
-
-```bash
-kubectl config set-context --current --namespace=argocd
 ```
 
 ### Creating Apps Via UI
