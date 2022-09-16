@@ -4,7 +4,6 @@
 
 set -e
 
-wget "https://get.helm.sh/helm-v$1-linux-amd64.tar.gz.sha256sum"   -O "helm-v$1-linux-amd64.tar.gz.sha256"
-wget "https://get.helm.sh/helm-v$1-linux-arm64.tar.gz.sha256sum"   -O "helm-v$1-linux-arm64.tar.gz.sha256"
-wget "https://get.helm.sh/helm-v$1-linux-ppc64le.tar.gz.sha256sum" -O "helm-v$1-linux-ppc64le.tar.gz.sha256"
-wget "https://get.helm.sh/helm-v$1-linux-s390x.tar.gz.sha256sum"   -O "helm-v$1-linux-s390x.tar.gz.sha256"
+for arch in amd64 arm64 ppc64le s390x; do
+  wget "https://get.helm.sh/helm-v$1-linux-$arch.tar.gz.sha256sum"   -O "helm-v$1-linux-$arch.tar.gz.sha256"
+done
