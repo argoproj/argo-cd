@@ -144,6 +144,12 @@ Create the example guestbook application with the following command:
 argocd app create guestbook --repo https://github.com/argoproj/argocd-example-apps.git --path guestbook --dest-server https://kubernetes.default.svc --dest-namespace default
 ```
 
+Command for setting default namespace:
+
+``'bash
+kubectl config set-context --current --namespace=argocd
+```
+
 ### Creating Apps Via UI
 
 Open a browser to the Argo CD external UI, and login by visiting the IP/hostname in a browser and use the credentials set in step 4.
