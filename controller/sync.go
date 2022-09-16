@@ -135,8 +135,10 @@ func (m *appStateManager) SyncAppState(app *v1alpha1.Application, state *v1alpha
 		return
 	}
 
-	if len(revisions) == 0 {
+	if !(app.Spec.Sources != nil && len(app.Spec.Sources) > 0) {
 		revisions = append(revisions, revision)
+	} else {
+		revisions = syncRes.Revisions
 	}
 
 	if len(sources) == 0 {
@@ -147,7 +149,6 @@ func (m *appStateManager) SyncAppState(app *v1alpha1.Application, state *v1alpha
 	compareResult := m.CompareAppState(app, proj, revisions, sources, false, true, syncOp.Manifests, hasMultipleSources)
 	// We now have a concrete commit SHA. Save this in the sync result revision so that we remember
 	// what we should be syncing to when resuming operations.
-	log.Infof("Reached SyncAppState %s", compareResult.syncStatus)
 
 	syncRes.Revision = compareResult.syncStatus.Revision
 	syncRes.Revisions = make([]string, 0)
@@ -333,9 +334,12 @@ func (m *appStateManager) SyncAppState(app *v1alpha1.Application, state *v1alpha
 
 	logEntry.WithField("duration", time.Since(start)).Info("sync/terminate complete")
 
-	logEntry.WithField("duration", time.Since(start)).Infof("revisions %s", compareResult.syncStatus.Revisions)
+	if len(compareResult.syncStatus.Revisions) == 0 {
+		compareResult.syncStatus.Revisions = append(compareResult.syncStatus.Revisions, compareResult.syncStatus.Revision)
+	}
+
 	if !syncOp.DryRun && len(syncOp.Resources) == 0 && state.Phase.Successful() {
-		err := m.persistRevisionHistory(app, compareResult.syncStatus.Revisions, sources, state.StartedAt)
+		err := m.persistRevisionHistory(app, compareResult.syncStatus.Revisions, compareResult.syncStatus.ComparedTo.Sources, state.StartedAt)
 		if err != nil {
 			state.Phase = common.OperationError
 			state.Message = fmt.Sprintf("failed to record sync to history: %v", err)

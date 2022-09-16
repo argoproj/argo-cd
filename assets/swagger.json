@@ -5831,6 +5831,10 @@
         "plugin": {
           "$ref": "#/definitions/v1alpha1ApplicationSourcePlugin"
         },
+        "ref": {
+          "type": "string",
+          "title": "Ref is reference to another source within sources field"
+        },
         "repoURL": {
           "type": "string",
           "title": "RepoURL is the URL to the repository (Git or Helm) that contains the application manifests"
