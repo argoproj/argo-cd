@@ -87,6 +87,7 @@ $slate: #191826;
 .filters-group {
     display: flex;
     flex-wrap: wrap;
+    margin-top: 1em;
     &__toggle {
         display: none;
         cursor: pointer;
@@ -103,6 +104,22 @@ $slate: #191826;
     &__content {
         margin-left: 220px;
         width: 100%;
+    }
+
+    &__header {
+        width: 100%;
+        display: flex;
+        align-items: center;
+        height: 1.5em;
+
+        .argo-button {
+            margin-left: auto;
+            background: $slate;
+
+            &:hover {
+                background: $sidebar-color !important;
+            }
+        }
     }
 }
 

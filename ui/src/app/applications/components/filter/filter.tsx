@@ -55,7 +55,7 @@ export const FiltersGroup = (props: {children?: React.ReactNode; content: React.
     return (
         !props.collapsed && (
             <div className='filters-group'>
-                <div>
+                <div className='filters-group__header'>
                     FILTERS{' '}
                     {props.appliedFilter?.length > 0 && props.onClearFilter && (
                         <button onClick={() => props.onClearFilter()} className='argo-button argo-button--base argo-button--sm'>

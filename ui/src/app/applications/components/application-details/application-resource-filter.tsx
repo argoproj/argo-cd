@@ -14,7 +14,7 @@ function toOption(label: string) {
     return {label};
 }
 
-export const Filters = (props: {
+export interface FiltersProps {
     children?: React.ReactNode;
     pref: AppDetailsPreferences;
     tree: ApplicationTree;
@@ -22,7 +22,9 @@ export const Filters = (props: {
     onSetFilter: (items: string[]) => void;
     onClearFilter: () => void;
     collapsed?: boolean;
-}) => {
+}
+
+export const Filters = (props: FiltersProps) => {
     const ctx = React.useContext(Context);
 
     const {pref, tree, onSetFilter} = props;
