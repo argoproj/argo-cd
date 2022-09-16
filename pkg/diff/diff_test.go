@@ -770,14 +770,13 @@ func TestStructuredMergeDiff(t *testing.T) {
 		assert.NotNil(t, liveSVC.Spec.InternalTrafficPolicy)
 		assert.Equal(t, "Cluster", string(*predictedSVC.Spec.InternalTrafficPolicy))
 		assert.Equal(t, "Cluster", string(*liveSVC.Spec.InternalTrafficPolicy))
+		assert.Empty(t, predictedSVC.Annotations[AnnotationLastAppliedConfig])
+		assert.Empty(t, liveSVC.Annotations[AnnotationLastAppliedConfig])
 	})
 	t.Run("will remove entries in list", func(t *testing.T) {
 		// given
 		liveState := StrToUnstructured(testdata.ServiceLiveYAML)
 		desiredState := StrToUnstructured(testdata.ServiceConfigWith2Ports)
-		expectedLiveState := StrToUnstructured(testdata.ExpectedServiceLiveWith2PortsYAML)
-		expectedLiveBytes, err := json.Marshal(expectedLiveState)
-		require.NoError(t, err)
 
 		// when
 		result, err := structuredMergeDiff(desiredState, liveState, &svcParseType, manager)
@@ -786,15 +785,13 @@ func TestStructuredMergeDiff(t *testing.T) {
 		require.NoError(t, err)
 		assert.NotNil(t, result)
 		assert.True(t, result.Modified)
-		assert.Equal(t, string(expectedLiveBytes), string(result.PredictedLive))
+		svc := YamlToSvc(t, result.PredictedLive)
+		assert.Len(t, svc.Spec.Ports, 2)
 	})
 	t.Run("will remove previously added fields not present in desired state", func(t *testing.T) {
 		// given
 		liveState := StrToUnstructured(testdata.LiveServiceWithTypeYAML)
 		desiredState := StrToUnstructured(testdata.ServiceConfigYAML)
-		expectedLiveState := StrToUnstructured(testdata.ServiceLiveNoTypeYAML)
-		expectedLiveBytes, err := json.Marshal(expectedLiveState)
-		require.NoError(t, err)
 
 		// when
 		result, err := structuredMergeDiff(desiredState, liveState, &svcParseType, manager)
@@ -803,7 +800,8 @@ func TestStructuredMergeDiff(t *testing.T) {
 		require.NoError(t, err)
 		assert.NotNil(t, result)
 		assert.True(t, result.Modified)
-		assert.Equal(t, string(expectedLiveBytes), string(result.PredictedLive))
+		svc := YamlToSvc(t, result.PredictedLive)
+		assert.Equal(t, corev1.ServiceTypeClusterIP, svc.Spec.Type)
 	})
 	t.Run("will apply service with multiple ports", func(t *testing.T) {
 		// given
@@ -818,7 +816,7 @@ func TestStructuredMergeDiff(t *testing.T) {
 		assert.NotNil(t, result)
 		assert.True(t, result.Modified)
 		svc := YamlToSvc(t, result.PredictedLive)
-		assert.Equal(t, 5, len(svc.Spec.Ports))
+		assert.Len(t, svc.Spec.Ports, 5)
 	})
 }
 

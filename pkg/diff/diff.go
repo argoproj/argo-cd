@@ -29,7 +29,10 @@ import (
 	kubescheme "github.com/argoproj/gitops-engine/pkg/utils/kube/scheme"
 )
 
-const couldNotMarshalErrMsg = "Could not unmarshal to object of type %s: %v"
+const (
+	couldNotMarshalErrMsg       = "Could not unmarshal to object of type %s: %v"
+	AnnotationLastAppliedConfig = "kubectl.kubernetes.io/last-applied-configuration"
+)
 
 // Holds diffing result of two resources
 type DiffResult struct {
@@ -173,13 +176,13 @@ func structuredMergeDiff(config, live *unstructured.Unstructured, pt *typed.Pars
 	}
 
 	// 6) Apply default values in predicted live
-	predictedLive, err := applyDefaultValues(mergedCleanLive)
+	predictedLive, err := normalizeTypedValue(mergedCleanLive)
 	if err != nil {
 		return nil, fmt.Errorf("error applying default values in predicted live: %w", err)
 	}
 
 	// 7) Apply default values in live
-	taintedLive, err := applyDefaultValues(tvLive)
+	taintedLive, err := normalizeTypedValue(tvLive)
 	if err != nil {
 		return nil, fmt.Errorf("error applying default values in live: %w", err)
 	}
@@ -187,30 +190,35 @@ func structuredMergeDiff(config, live *unstructured.Unstructured, pt *typed.Pars
 	return buildDiffResult(predictedLive, taintedLive), nil
 }
 
-func applyDefaultValues(result *typed.TypedValue) ([]byte, error) {
-	ru := result.AsValue().Unstructured()
+// normalizeTypedValue will prepare the given tv so it can be used in diffs by:
+// - removing last-applied-configuration annotation
+// - applying default values
+func normalizeTypedValue(tv *typed.TypedValue) ([]byte, error) {
+	ru := tv.AsValue().Unstructured()
 	r, ok := ru.(map[string]interface{})
 	if !ok {
 		return nil, fmt.Errorf("error converting result typedValue: expected map got %T", ru)
 	}
-	mergedUnstructured := &unstructured.Unstructured{Object: r}
-	mergedBytes, err := json.Marshal(mergedUnstructured)
+	resultUn := &unstructured.Unstructured{Object: r}
+	unstructured.RemoveNestedField(resultUn.Object, "metadata", "annotations", AnnotationLastAppliedConfig)
+
+	resultBytes, err := json.Marshal(resultUn)
 	if err != nil {
 		return nil, fmt.Errorf("error while marshaling merged unstructured: %w", err)
 	}
 
-	obj, err := scheme.Scheme.New(mergedUnstructured.GroupVersionKind())
+	obj, err := scheme.Scheme.New(resultUn.GroupVersionKind())
 	if err == nil {
-		err := json.Unmarshal(mergedBytes, &obj)
+		err := json.Unmarshal(resultBytes, &obj)
 		if err != nil {
 			return nil, fmt.Errorf("error unmarshaling merged bytes into object: %w", err)
 		}
-		mergedBytes, err = patchDefaultValues(mergedBytes, obj)
+		resultBytes, err = patchDefaultValues(resultBytes, obj)
 		if err != nil {
 			return nil, fmt.Errorf("error applying defaults: %w", err)
 		}
 	}
-	return mergedBytes, nil
+	return resultBytes, nil
 }
 
 func buildDiffResult(predictedBytes []byte, liveBytes []byte) *DiffResult {
