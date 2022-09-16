@@ -310,6 +310,7 @@ export interface ResourceStatus {
     name: string;
     status: SyncStatusCode;
     health: HealthStatus;
+    createdAt?: models.Time;
     hook?: boolean;
     requiresPruning?: boolean;
     syncOrder?: string;

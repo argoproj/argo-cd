@@ -57,6 +57,13 @@ export const ApplicationNodeInfo = (props: {
                 hostNames = (status.loadBalancer.ingress || []).map((item: any) => item.hostname || item.ip).join(', ');
             }
             attributes.push({title: 'HOSTNAMES', value: hostNames});
+        } else if (props.node.kind === 'AnalysisRun') {
+            const status = props.live.status;
+            if (status && status.message) {
+                attributes.push({title: 'MESSAGE', value: status.message});
+            }
+        } else if (props.node.kind === 'ReplicaSet') {
+            attributes.push({title: 'REPLICAS', value: `${props.live.spec.replicas}/${props.live.status.readyReplicas || 0}/${props.live.spec.replicas}`});
         }
     }
 
