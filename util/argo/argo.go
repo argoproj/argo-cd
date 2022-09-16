@@ -412,7 +412,6 @@ func ValidatePermissions(ctx context.Context, spec *argoappv1.ApplicationSpec, p
 		}
 
 	} else {
-		log.Debugf("Reached Source check %s", &spec.Source)
 		if spec.Source.RepoURL == "" || (spec.Source.Path == "" && spec.Source.Chart == "") {
 			conditions = append(conditions, argoappv1.ApplicationCondition{
 				Type:    argoappv1.ApplicationConditionInvalidSpecError,

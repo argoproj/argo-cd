@@ -1222,6 +1222,13 @@ func schema_pkg_apis_application_v1alpha1_ApplicationSource(ref common.Reference
 							Format:      "",
 						},
 					},
+					"ref": {
+						SchemaProps: spec.SchemaProps{
+							Description: "Ref is reference to another source within sources field",
+							Type:        []string{"string"},
+							Format:      "",
+						},
+					},
 				},
 				Required: []string{"repoURL"},
 			},
@@ -1424,56 +1431,6 @@ func schema_pkg_apis_application_v1alpha1_ApplicationSourceJsonnet(ref common.Re
 							},
 						},
 					},
-<<<<<<< HEAD
-=======
-					"reconciledAt": {
-						SchemaProps: spec.SchemaProps{
-							Description: "ReconciledAt indicates when the application state was reconciled using the latest git version",
-							Ref:         ref("k8s.io/apimachinery/pkg/apis/meta/v1.Time"),
-						},
-					},
-					"operationState": {
-						SchemaProps: spec.SchemaProps{
-							Description: "OperationState contains information about any ongoing operations, such as a sync",
-							Ref:         ref("github.com/argoproj/argo-cd/v2/pkg/apis/application/v1alpha1.OperationState"),
-						},
-					},
-					"observedAt": {
-						SchemaProps: spec.SchemaProps{
-							Description: "ObservedAt indicates when the application state was updated without querying latest git state Deprecated: controller no longer updates ObservedAt field",
-							Ref:         ref("k8s.io/apimachinery/pkg/apis/meta/v1.Time"),
-						},
-					},
-					"sourceType": {
-						SchemaProps: spec.SchemaProps{
-							Description: "SourceType specifies the type of this application",
-							Type:        []string{"array"},
-							Items: &spec.SchemaOrArray{
-								Schema: &spec.Schema{
-									SchemaProps: spec.SchemaProps{
-										Default: "",
-										Type:    []string{"string"},
-										Format:  "",
-									},
-								},
-							},
-						},
-					},
-					"summary": {
-						SchemaProps: spec.SchemaProps{
-							Description: "Summary contains a list of URLs and container images used by this application",
-							Default:     map[string]interface{}{},
-							Ref:         ref("github.com/argoproj/argo-cd/v2/pkg/apis/application/v1alpha1.ApplicationSummary"),
-						},
-					},
-					"resourceHealthSource": {
-						SchemaProps: spec.SchemaProps{
-							Description: "ResourceHealthSource indicates where the resource health status is stored: inline if not set or appTree",
-							Type:        []string{"string"},
-							Format:      "",
-						},
-					},
->>>>>>> 592c43e06 (fix bug introduced after rebase)
 				},
 			},
 		},
@@ -1750,8 +1707,22 @@ func schema_pkg_apis_application_v1alpha1_ApplicationSpec(ref common.ReferenceCa
 							Format:      "int64",
 						},
 					},
+					"sources": {
+						SchemaProps: spec.SchemaProps{
+							Description: "Sources is a reference to the location of the application's manifests or chart",
+							Type:        []string{"array"},
+							Items: &spec.SchemaOrArray{
+								Schema: &spec.Schema{
+									SchemaProps: spec.SchemaProps{
+										Default: map[string]interface{}{},
+										Ref:     ref("github.com/argoproj/argo-cd/v2/pkg/apis/application/v1alpha1.ApplicationSource"),
+									},
+								},
+							},
+						},
+					},
 				},
-				Required: []string{"source", "destination", "project"},
+				Required: []string{"destination", "project"},
 			},
 		},
 		Dependencies: []string{
@@ -1843,8 +1814,16 @@ func schema_pkg_apis_application_v1alpha1_ApplicationStatus(ref common.Reference
 					"sourceType": {
 						SchemaProps: spec.SchemaProps{
 							Description: "SourceType specifies the type of this application",
-							Type:        []string{"string"},
-							Format:      "",
+							Type:        []string{"array"},
+							Items: &spec.SchemaOrArray{
+								Schema: &spec.Schema{
+									SchemaProps: spec.SchemaProps{
+										Default: "",
+										Type:    []string{"string"},
+										Format:  "",
+									},
+								},
+							},
 						},
 					},
 					"summary": {
@@ -1906,25 +1885,7 @@ func schema_pkg_apis_application_v1alpha1_ApplicationSummary(ref common.Referenc
 							},
 						},
 					},
-					"sources": {
-						SchemaProps: spec.SchemaProps{
-							Description: "Sources is a reference to the application's multiple sources used for comparison",
-							Type:        []string{"array"},
-							Items: &spec.SchemaOrArray{
-								Schema: &spec.Schema{
-									SchemaProps: spec.SchemaProps{
-										Default: map[string]interface{}{},
-										Ref:     ref("github.com/argoproj/argo-cd/v2/pkg/apis/application/v1alpha1.ApplicationSource"),
-									},
-								},
-							},
-						},
-					},
 				},
-<<<<<<< HEAD
-=======
-				Required: []string{"destination"},
->>>>>>> 3393440ef (feat: support multiple sources for application)
 			},
 		},
 	}
@@ -2506,8 +2467,22 @@ func schema_pkg_apis_application_v1alpha1_ComparedTo(ref common.ReferenceCallbac
 							Ref:         ref("github.com/argoproj/argo-cd/v2/pkg/apis/application/v1alpha1.ApplicationDestination"),
 						},
 					},
+					"sources": {
+						SchemaProps: spec.SchemaProps{
+							Description: "Sources is a reference to the application's multiple sources used for comparison",
+							Type:        []string{"array"},
+							Items: &spec.SchemaOrArray{
+								Schema: &spec.Schema{
+									SchemaProps: spec.SchemaProps{
+										Default: map[string]interface{}{},
+										Ref:     ref("github.com/argoproj/argo-cd/v2/pkg/apis/application/v1alpha1.ApplicationSource"),
+									},
+								},
+							},
+						},
+					},
 				},
-				Required: []string{"source", "destination"},
+				Required: []string{"destination"},
 			},
 		},
 		Dependencies: []string{
@@ -5523,6 +5498,20 @@ func schema_pkg_apis_application_v1alpha1_RevisionHistory(ref common.ReferenceCa
 						SchemaProps: spec.SchemaProps{
 							Description: "DeployStartedAt holds the time the sync operation started",
 							Ref:         ref("k8s.io/apimachinery/pkg/apis/meta/v1.Time"),
+						},
+					},
+					"sources": {
+						SchemaProps: spec.SchemaProps{
+							Description: "Source is a reference to the application source used for the sync operation",
+							Type:        []string{"array"},
+							Items: &spec.SchemaOrArray{
+								Schema: &spec.Schema{
+									SchemaProps: spec.SchemaProps{
+										Default: map[string]interface{}{},
+										Ref:     ref("github.com/argoproj/argo-cd/v2/pkg/apis/application/v1alpha1.ApplicationSource"),
+									},
+								},
+							},
 						},
 					},
 				},
