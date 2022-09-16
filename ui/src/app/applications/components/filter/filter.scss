@@ -21,10 +21,10 @@ $slate: #191826;
         .argo-button {
             margin-left: auto;
             background: $slate;
-        }
 
-        .argo-button:hover {
-            background: $sidebar-color !important;
+            &:hover {
+                background: $sidebar-color !important;
+            }
         }
     }
 
