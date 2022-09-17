@@ -217,17 +217,20 @@ const NamespaceFilter = (props: AppFilterProps) => {
 
 const FavoriteFilter = (props: AppFilterProps) => {
     const ctx = React.useContext(Context);
+    const onChange = (val: boolean) => {
+        ctx.navigation.goto('.', {showFavorites: val}, {replace: true});
+        services.viewPreferences.updatePreferences({appList: {...props.pref, showFavorites: val}});
+    };
     return (
-        <div className={`filter filter__item ${props.pref.showFavorites ? 'filter__item--selected' : ''}`} style={{margin: '0.5em 0'}}>
+        <div
+            className={`filter filter__item ${props.pref.showFavorites ? 'filter__item--selected' : ''}`}
+            style={{margin: '0.5em 0'}}
+            onClick={() => onChange(!props.pref.showFavorites)}>
             <Checkbox
                 value={!!props.pref.showFavorites}
-                onChange={val => {
-                    ctx.navigation.goto('.', {showFavorites: val}, {replace: true});
-                    services.viewPreferences.updatePreferences({appList: {...props.pref, showFavorites: val}});
-                }}
+                onChange={onChange}
                 style={{
-                    marginRight: '8px',
-                    marginLeft: '8px'
+                    marginRight: '8px'
                 }}
             />
             <div style={{marginRight: '5px'}}>

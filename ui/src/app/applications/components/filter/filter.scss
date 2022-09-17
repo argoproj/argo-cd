@@ -66,7 +66,6 @@ $slate: #191826;
         margin: 0.25em 0;
         cursor: pointer;
         flex-wrap: nowrap;
-        border: 1px solid $slate;
 
         &__label {
             text-overflow: ellipsis;
@@ -77,7 +76,6 @@ $slate: #191826;
 
         &--selected {
             background-color: $slate;
-            border: 1px solid $slate;
             color: white;
             font-weight: 500;
         }
@@ -111,6 +109,7 @@ $slate: #191826;
         display: flex;
         align-items: center;
         height: 1.5em;
+        margin-bottom: 0.5em;
 
         .argo-button {
             margin-left: auto;

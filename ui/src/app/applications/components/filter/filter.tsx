@@ -148,7 +148,7 @@ export const Filter = (props: FilterProps) => {
                                     setValues(update);
                                 }}
                                 style={{width: '100%'}}
-                                inputStyle={{marginBottom: '0.5em', backgroundColor: 'black'}}
+                                inputStyle={{marginBottom: '0.5em', backgroundColor: 'black', border: 'none'}}
                             />
                         )}
                         {((props.field ? tags : options) || []).map((opt, i) => (
