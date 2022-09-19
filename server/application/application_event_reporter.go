@@ -132,13 +132,11 @@ func (s *applicationEventReporter) streamApplicationEvents(
 
 		desiredManifests, _, manifestGenErr := s.getDesiredManifests(ctx, parentApplicationEntity, logCtx)
 
-		revisionMetadata, err := s.getApplicationRevisionDetails(ctx, a, getOperationRevision(a))
+		// helm app hasnt revision
+		// TODO: add check if it helm application
+		revisionMetadata, _ := s.getApplicationRevisionDetails(ctx, a, getOperationRevision(a))
 
-		if err == nil {
-			s.processResource(ctx, *rs, parentApplicationEntity, logCtx, ts, desiredManifests, stream, appTree, es, manifestGenErr, a, revisionMetadata, true)
-		} else {
-			return fmt.Errorf("failed to get operation revision metadata event for resource %s/%s: %w", a.Namespace, a.Name, err)
-		}
+		s.processResource(ctx, *rs, parentApplicationEntity, logCtx, ts, desiredManifests, stream, appTree, es, manifestGenErr, a, revisionMetadata, true)
 	} else {
 		// application events for child apps would be sent by its parent app
 		// as resource event
