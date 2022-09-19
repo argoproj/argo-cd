@@ -1,4 +1,4 @@
-import {DataLoader, Layout, NavigationManager, Notifications, NotificationsManager, PageContext, Popup, PopupManager, PopupProps, Tooltip} from 'argo-ui';
+import {DataLoader, NavigationManager, Notifications, NotificationsManager, PageContext, Popup, PopupManager, PopupProps, Tooltip} from 'argo-ui';
 import {createBrowserHistory} from 'history';
 import * as PropTypes from 'prop-types';
 import * as React from 'react';
@@ -185,12 +185,16 @@ export class App extends React.Component<{}, {popupProps: PopupProps; showVersio
                                                         <route.component {...routeProps} />
                                                     </div>
                                                 ) : (
-                                                    <div style={{display: 'flex', height: '100%'}}>
-                                                        <Sidebar onVersionClick={() => this.setState({showVersionPanel: true})} navItems={navItems} />
-                                                        <Banner>
-                                                            <route.component {...routeProps} />
-                                                        </Banner>
-                                                    </div>
+                                                    <DataLoader load={() => services.viewPreferences.getPreferences()}>
+                                                        {pref => (
+                                                            <div style={{display: 'flex', height: '100%'}} className={pref.theme ? 'theme-' + pref.theme : 'theme-light'}>
+                                                                <Sidebar onVersionClick={() => this.setState({showVersionPanel: true})} navItems={navItems} />
+                                                                <Banner>
+                                                                    <route.component {...routeProps} />
+                                                                </Banner>
+                                                            </div>
+                                                        )}
+                                                    </DataLoader>
                                                 )
                                             }
                                         />
