@@ -64,10 +64,6 @@ $slate: #191826;
         display: flex;
         align-items: center;
         background-color: $sidebar-color;
-        @include themify($themes) {
-            background: themed('background-2');
-            color: themed('text-2');
-        }
         transition: background-color 200ms ease;
         margin: 0.25em 0;
         cursor: pointer;
