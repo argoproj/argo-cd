@@ -81,6 +81,29 @@ func (_m *Client) GetIndex(noCache bool) (*helm.Index, error) {
 	return r0, r1
 }
 
+// GetTags provides a mock function with given fields: noCache
+func (_m *Client) GetTags(chart string, noCache bool) (*helm.TagsList, error) {
+	ret := _m.Called(chart, noCache)
+
+	var r0 *helm.TagsList
+	if rf, ok := ret.Get(0).(func(string, bool) *helm.TagsList); ok {
+		r0 = rf(chart, noCache)
+	} else {
+		if ret.Get(0) != nil {
+			r0 = ret.Get(0).(*helm.TagsList)
+		}
+	}
+
+	var r1 error
+	if rf, ok := ret.Get(1).(func(string, bool) error); ok {
+		r1 = rf(chart, noCache)
+	} else {
+		r1 = ret.Error(1)
+	}
+
+	return r0, r1
+}
+
 // TestHelmOCI provides a mock function with given fields:
 func (_m *Client) TestHelmOCI() (bool, error) {
 	ret := _m.Called()
