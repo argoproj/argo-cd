@@ -92,6 +92,7 @@ export interface ViewPreferences {
     hideBannerContent: string;
     hideSidebar: boolean;
     position: string;
+    theme: string;
 }
 
 const VIEW_PREFERENCES_KEY = 'view_preferences';
@@ -138,6 +139,7 @@ const DEFAULT_PREFERENCES: ViewPreferences = {
     hideBannerContent: '',
     hideSidebar: true,
     position: ''
+    theme: 'light'
 };
 
 export class ViewPreferencesService {

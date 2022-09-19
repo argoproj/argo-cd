@@ -1,10 +1,18 @@
 @import 'node_modules/argo-ui/src/styles/config';
 @import 'node_modules/foundation-sites/scss/util/util';
+@import 'node_modules/argo-ui/src/styles/theme';
 
 $sidebar-color: #30303d;
 $slate: #191826;
 
 .filter {
+    @include themify($themes) {
+        background: themed('background-2');
+        color: themed('text-2');
+    }
+    padding: 10px;
+    box-shadow: 1px 1px 2px 0 rgba(0, 0, 0, 0.1);
+    border-radius: 5px;
     margin-bottom: 1em;
     width: 100%;
 
@@ -62,6 +70,10 @@ $slate: #191826;
         display: flex;
         align-items: center;
         background-color: $sidebar-color;
+        @include themify($themes) {
+            background: themed('background-2');
+            color: themed('text-2');
+        }
         transition: background-color 200ms ease;
         margin: 0.25em 0;
         cursor: pointer;
