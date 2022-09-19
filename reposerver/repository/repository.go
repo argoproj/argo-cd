@@ -1948,13 +1948,27 @@ func (s *Service) newHelmClientResolveRevision(repo *v1alpha1.Repository, revisi
 	enableOCI := repo.EnableOCI || helm.IsHelmOciRepo(repo.Repo)
 	helmClient := s.newHelmClient(repo.Repo, repo.GetHelmCreds(), enableOCI, repo.Proxy, helm.WithIndexCache(s.cache), helm.WithChartPaths(s.chartPaths))
 	// OCI helm registers don't support semver ranges. Assuming that given revision is exact version
-	if helm.IsVersion(revision) || enableOCI {
+	if helm.IsVersion(revision) {
 		return helmClient, revision, nil
 	}
 	constraints, err := semver.NewConstraint(revision)
 	if err != nil {
 		return nil, "", fmt.Errorf("invalid revision '%s': %v", revision, err)
 	}
+
+	if enableOCI {
+		tags, err := helmClient.GetTags(chart, noRevisionCache)
+		if err != nil {
+			return nil, "", err
+		}
+
+		version, err := tags.MaxVersion(constraints)
+		if err != nil {
+			return nil, "", err
+		}
+		return helmClient, version.String(), nil
+	}
+
 	index, err := helmClient.GetIndex(noRevisionCache)
 	if err != nil {
 		return nil, "", err

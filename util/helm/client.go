@@ -51,6 +51,7 @@ type Client interface {
 	CleanChartCache(chart string, version string) error
 	ExtractChart(chart string, version string, passCredentials bool) (string, argoio.Closer, error)
 	GetIndex(noCache bool) (*Index, error)
+	GetTags(chart string, noCache bool) (*TagsList, error)
 	TestHelmOCI() (bool, error)
 }
 
@@ -380,4 +381,89 @@ func getIndexURL(rawURL string) (string, error) {
 	repoURL.Path = path.Join(repoURL.Path, indexFile)
 	repoURL.RawPath = path.Join(repoURL.RawPath, indexFile)
 	return repoURL.String(), nil
+}
+
+func getTagsListURL(rawURL string, chart string) (string, error) {
+	tagsList := path.Join("v2", chart, "tags/list")
+	repoURL, err := url.Parse(rawURL)
+	if err != nil {
+		return "", err
+	}
+	repoURL.Path = path.Join(repoURL.Path, tagsList)
+	repoURL.RawPath = path.Join(repoURL.RawPath, tagsList)
+	return repoURL.String(), nil
+}
+
+func (c *nativeHelmChart) getTags(chart string) ([]byte, error) {
+	tagsURL, err := getTagsListURL(c.repoURL, chart)
+	if err != nil {
+		return nil, err
+	}
+
+	req, err := http.NewRequest("GET", tagsURL, nil)
+	if err != nil {
+		return nil, err
+	}
+	if c.creds.Username != "" || c.creds.Password != "" {
+		// only basic supported
+		req.SetBasicAuth(c.creds.Username, c.creds.Password)
+	}
+
+	tlsConf, err := newTLSConfig(c.creds)
+	if err != nil {
+		return nil, err
+	}
+
+	tr := &http.Transport{
+		Proxy:           proxy.GetCallback(c.proxy),
+		TLSClientConfig: tlsConf,
+	}
+	client := http.Client{Transport: tr}
+	resp, err := client.Do(req)
+	if err != nil {
+		return nil, err
+	}
+	defer func() { _ = resp.Body.Close() }()
+
+	if resp.StatusCode != 200 {
+		return nil, errors.New("failed to get tags: " + resp.Status)
+	}
+	return io.ReadAll(resp.Body)
+}
+
+func (c *nativeHelmChart) GetTags(chart string, noCache bool) (*TagsList, error) {
+	tagsURL, _ := getTagsListURL(c.repoURL, chart)
+	indexLock.Lock(tagsURL)
+	defer indexLock.Unlock(tagsURL)
+
+	var data []byte
+	if !noCache && c.indexCache != nil {
+		if err := c.indexCache.GetHelmIndex(tagsURL, &data); err != nil && err != cache.ErrCacheMiss {
+			log.Warnf("Failed to load index cache for repo: %s: %v", tagsURL, err)
+		}
+	}
+
+	if len(data) == 0 {
+		start := time.Now()
+		var err error
+		data, err = c.getTags(chart)
+		if err != nil {
+			return nil, err
+		}
+		log.WithFields(log.Fields{"seconds": time.Since(start).Seconds()}).Info("took to get tags")
+
+		if c.indexCache != nil {
+			if err := c.indexCache.SetHelmIndex(tagsURL, data); err != nil {
+				log.Warnf("Failed to store tags list cache for repo: %s: %v", tagsURL, err)
+			}
+		}
+	}
+
+	tags := &TagsList{}
+	err := yaml.NewDecoder(bytes.NewBuffer(data)).Decode(tags)
+	if err != nil {
+		return nil, err
+	}
+
+	return tags, nil
 }
