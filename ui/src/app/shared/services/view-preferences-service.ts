@@ -138,7 +138,7 @@ const DEFAULT_PREFERENCES: ViewPreferences = {
     pageSizes: {},
     hideBannerContent: '',
     hideSidebar: true,
-    position: ''
+    position: '',
     theme: 'light'
 };
 
