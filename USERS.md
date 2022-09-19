@@ -95,6 +95,7 @@ Currently, the following organizations are **officially** using Argo CD:
 1. [Joblift](https://joblift.com/)
 1. [JovianX](https://www.jovianx.com/)
 1. [Kaltura](https://corp.kaltura.com/)
+1. [Kandji](https://www.kandji.io/)
 1. [KarrotPay](https://www.daangnpay.com/)
 1. [Karrot](https://www.daangn.com/)
 1. [Kasa](https://kasa.co.kr/)
