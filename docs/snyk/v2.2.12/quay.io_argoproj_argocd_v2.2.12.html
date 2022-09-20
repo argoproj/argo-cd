@@ -7,7 +7,7 @@
   <meta name="viewport" content="width=device-width, initial-scale=1.0">
   <meta http-equiv="X-UA-Compatible" content="IE=edge">
   <title>Snyk test report</title>
-  <meta name="description" content="31 known vulnerabilities found in 152 vulnerable dependency paths.">
+  <meta name="description" content="35 known vulnerabilities found in 195 vulnerable dependency paths.">
   <base target="_blank">
   <link rel="icon" type="image/png" href="https://res.cloudinary.com/snyk/image/upload/v1468845142/favicon/favicon.png"
     sizes="194x194">
@@ -456,7 +456,7 @@
               <div class="header-wrap">
                   <h1 class="project__header__title">Snyk test report</h1>
     
-                <p class="timestamp">August 3rd 2022, 1:58:48 pm</p>
+                <p class="timestamp">September 7th 2022, 7:39:36 pm</p>
               </div>
               <div class="source-panel">
                 <span>Scanned the following path:</span>
@@ -466,8 +466,8 @@
               </div>
     
               <div class="meta-counts">
-                <div class="meta-count"><span>31</span> <span>known vulnerabilities</span></div>
-                <div class="meta-count"><span>152 vulnerable dependency paths</span></div>
+                <div class="meta-count"><span>35</span> <span>known vulnerabilities</span></div>
+                <div class="meta-count"><span>195 vulnerable dependency paths</span></div>
                 <div class="meta-count"><span>253</span> <span>dependencies</span></div>
               </div><!-- .meta-counts -->
             </div><!-- .layout-container--short -->
@@ -486,7 +486,7 @@
     <div class="layout-container" style="padding-top: 35px;">
       <div class="cards--vuln filter--patch filter--ignore">
         <div class="card card--vuln  disclosure--not-new severity--medium" data-snyk-test="medium">
-            <h2 class="card__title">Resource Exhaustion</h2>
+            <h2 class="card__title">Out-of-bounds Write</h2>
             <div class="card__section">
         
                 <div class="label label--medium">
@@ -502,13 +502,13 @@
                     <li class="card__meta__item">
                             Vulnerable module:
         
-                            tiff/libtiff5
+                            zlib/zlib1g
                     </li>
         
                     <li class="card__meta__item">Introduced through:
         
-                                docker-image|quay.io/argoproj/argocd@v2.2.12 and tiff/libtiff5@4.3.0-6
         
+                                    docker-image|quay.io/argoproj/argocd@v2.2.12, meta-common-packages@meta and others
                     </li>
                 </ul>
         
@@ -522,7 +522,9 @@
                                 <span class="list-paths__item__introduced"><em>Introduced through</em>:
                                         docker-image|quay.io/argoproj/argocd@v2.2.12
                                          <span class="list-paths__item__arrow">›</span> 
-                                        tiff/libtiff5@4.3.0-6
+                                        meta-common-packages@meta
+                                         <span class="list-paths__item__arrow">›</span> 
+                                        zlib/zlib1g@1:1.2.11.dfsg-2ubuntu9
                                         
                                 </span>
         
@@ -531,11 +533,20 @@
                                 <span class="list-paths__item__introduced"><em>Introduced through</em>:
                                         docker-image|quay.io/argoproj/argocd@v2.2.12
                                          <span class="list-paths__item__arrow">›</span> 
-                                        glibc/libc-devtools@2.35-0ubuntu3.1
+                                        zlib/zlib1g-dev@1:1.2.11.dfsg-2ubuntu9
+                                        
+                                </span>
+        
+                            </li>
+                                <li>
+                                <span class="list-paths__item__introduced"><em>Introduced through</em>:
+                                        docker-image|quay.io/argoproj/argocd@v2.2.12
                                          <span class="list-paths__item__arrow">›</span> 
-                                        libgd2/libgd3@2.3.0-2ubuntu2
+                                        python3-defaults/libpython3-dev@3.10.4-0ubuntu2
                                          <span class="list-paths__item__arrow">›</span> 
-                                        tiff/libtiff5@4.3.0-6
+                                        python3.10/libpython3.10-dev@3.10.4-3ubuntu0.1
+                                         <span class="list-paths__item__arrow">›</span> 
+                                        zlib/zlib1g-dev@1:1.2.11.dfsg-2ubuntu9
                                         
                                 </span>
         
@@ -547,23 +558,31 @@
               <hr/>
               <!-- Overview -->
               <h2 id="nvd-description">NVD Description</h2>
-        <p><strong><em>Note:</em></strong> <em>Versions mentioned in the description apply to the upstream <code>tiff</code> package.</em></p>
-        <p>A vulnerability classified as problematic was found in LibTIFF 4.3.0. Affected by this vulnerability is the TIFF File Handler of tiff2ps. Opening a malicious file leads to a denial of service. The attack can be launched remotely but requires user interaction. The exploit has been disclosed to the public and may be used.</p>
+        <p><strong><em>Note:</em></strong> <em>Versions mentioned in the description apply to the upstream <code>zlib</code> package.</em></p>
+        <p>zlib through 1.2.12 has a heap-based buffer over-read or buffer overflow in inflate in inflate.c via a large gzip header extra field. NOTE: only applications that call inflateGetHeader are affected. Some common applications bundle the affected zlib source code but may be unable to call inflateGetHeader (e.g., see the nodejs/node reference).</p>
         <h2 id="remediation">Remediation</h2>
-        <p>There is no fixed version for <code>Ubuntu:22.04</code> <code>tiff</code>.</p>
+        <p>There is no fixed version for <code>Ubuntu:22.04</code> <code>zlib</code>.</p>
         <h2 id="references">References</h2>
         <ul>
-        <li><a href="http://people.ubuntu.com/~ubuntu-security/cve/CVE-2022-1210">ADVISORY</a></li>
-        <li><a href="https://gitlab.com/libtiff/libtiff/uploads/c3da94e53cf1e1e8e6d4d3780dc8c42f/example.tiff">MISC</a></li>
-        <li><a href="https://gitlab.com/libtiff/libtiff/-/issues/402">MISC</a></li>
-        <li><a href="https://vuldb.com/?id.196363">MISC</a></li>
-        <li><a href="https://security.netapp.com/advisory/ntap-20220513-0005/">CONFIRM</a></li>
+        <li><a href="http://people.ubuntu.com/~ubuntu-security/cve/CVE-2022-37434">ADVISORY</a></li>
+        <li><a href="https://github.com/nodejs/node/blob/75b68c6e4db515f76df73af476eccf382bbcb00a/deps/zlib/inflate.c#L762-L764">MISC</a></li>
+        <li><a href="https://github.com/ivd38/zlib_overflow">MISC</a></li>
+        <li><a href="https://github.com/madler/zlib/commit/eff308af425b67093bab25f80f1ae950166bece1">MISC</a></li>
+        <li><a href="https://github.com/madler/zlib/blob/21767c654d31d2dccdde4330529775c6c5fd5389/zlib.h#L1062-L1063">MISC</a></li>
+        <li><a href="http://www.openwall.com/lists/oss-security/2022/08/05/2">MLIST</a></li>
+        <li><a href="https://github.com/curl/curl/issues/9271">MISC</a></li>
+        <li><a href="http://www.openwall.com/lists/oss-security/2022/08/09/1">MLIST</a></li>
+        <li><a href="https://lists.fedoraproject.org/archives/list/package-announce@lists.fedoraproject.org/message/YRQAI7H4M4RQZ2IWZUEEXECBE5D56BH2/">FEDORA</a></li>
+        <li><a href="https://www.debian.org/security/2022/dsa-5218">DEBIAN</a></li>
+        <li><a href="https://lists.fedoraproject.org/archives/list/package-announce@lists.fedoraproject.org/message/NMBOJ77A7T7PQCARMDUK75TE6LLESZ3O/">FEDORA</a></li>
+        <li><a href="https://security.netapp.com/advisory/ntap-20220901-0005/">CONFIRM</a></li>
+        <li><a href="https://lists.fedoraproject.org/archives/list/package-announce@lists.fedoraproject.org/message/JWN4VE3JQR4O2SOUS5TXNLANRPMHWV4I/">FEDORA</a></li>
         </ul>
         
               <hr/>
         
             <div class="cta card__cta">
-                <p><a href="https://snyk.io/vuln/SNYK-UBUNTU2204-TIFF-2781533">More about this vulnerability</a></p>
+                <p><a href="https://snyk.io/vuln/SNYK-UBUNTU2204-ZLIB-2975633">More about this vulnerability</a></p>
             </div>
         
         </div><!-- .card -->
@@ -629,12 +648,17 @@
               <hr/>
               <!-- Overview -->
               <h2 id="nvd-description">NVD Description</h2>
-        <p><em>This vulnerability has not been analyzed by NVD yet.</em></p>
+        <p><strong><em>Note:</em></strong> <em>Versions mentioned in the description apply to the upstream <code>tiff</code> package.</em></p>
+        <p>A heap buffer overflow flaw was found in Libtiffs&#39; tiffinfo.c in TIFFReadRawDataStriped() function. This flaw allows an attacker to pass a crafted TIFF file to the tiffinfo tool, triggering a heap buffer overflow issue and causing a crash that leads to a denial of service.</p>
         <h2 id="remediation">Remediation</h2>
         <p>There is no fixed version for <code>Ubuntu:22.04</code> <code>tiff</code>.</p>
         <h2 id="references">References</h2>
         <ul>
         <li><a href="http://people.ubuntu.com/~ubuntu-security/cve/CVE-2022-1354">ADVISORY</a></li>
+        <li><a href="https://bugzilla.redhat.com/show_bug.cgi?id=2074404">MISC</a></li>
+        <li><a href="https://gitlab.com/libtiff/libtiff/-/commit/87f580f39011109b3bb5f6eca13fac543a542798">MISC</a></li>
+        <li><a href="https://access.redhat.com/security/cve/CVE-2022-1354">MISC</a></li>
+        <li><a href="https://gitlab.com/libtiff/libtiff/-/issues/319">MISC</a></li>
         </ul>
         
               <hr/>
@@ -893,7 +917,7 @@
         
         </div><!-- .card -->
         <div class="card card--vuln  disclosure--not-new severity--medium" data-snyk-test="medium">
-            <h2 class="card__title">CVE-2022-2509</h2>
+            <h2 class="card__title">Double Free</h2>
             <div class="card__section">
         
                 <div class="label label--medium">
@@ -1006,15 +1030,19 @@
               <hr/>
               <!-- Overview -->
               <h2 id="nvd-description">NVD Description</h2>
-        <p><strong><em>Note:</em></strong> <em>Versions mentioned in the description apply to the upstream <code>gnutls28</code> package.</em></p>
+        <p><strong><em>Note:</em></strong> <em>Versions mentioned in the description apply to the upstream <code>gnutls28</code> package.</em>
+        <em>See <code>How to fix?</code> for <code>Ubuntu:22.04</code> relevant versions.</em></p>
         <p>A vulnerability found in gnutls. This security flaw happens because of a double free error occurs during verification of pkcs7 signatures in gnutls_pkcs7_verify function.</p>
         <h2 id="remediation">Remediation</h2>
-        <p>There is no fixed version for <code>Ubuntu:22.04</code> <code>gnutls28</code>.</p>
+        <p>Upgrade <code>Ubuntu:22.04</code> <code>gnutls28</code> to version 3.7.3-4ubuntu1.1 or higher.</p>
         <h2 id="references">References</h2>
         <ul>
         <li><a href="http://people.ubuntu.com/~ubuntu-security/cve/CVE-2022-2509">ADVISORY</a></li>
         <li><a href="https://access.redhat.com/security/cve/CVE-2022-2509">MISC</a></li>
         <li><a href="https://lists.gnupg.org/pipermail/gnutls-help/2022-July/004746.html">MISC</a></li>
+        <li><a href="https://www.debian.org/security/2022/dsa-5203">DEBIAN</a></li>
+        <li><a href="https://lists.debian.org/debian-lts-announce/2022/08/msg00002.html">MLIST</a></li>
+        <li><a href="https://lists.fedoraproject.org/archives/list/package-announce@lists.fedoraproject.org/message/6FL27JS3VM74YEQU7PGB62USO3KSBYZX/">FEDORA</a></li>
         </ul>
         
               <hr/>
@@ -1172,6 +1200,341 @@
         
             <div class="cta card__cta">
                 <p><a href="https://snyk.io/vuln/SNYK-UBUNTU2204-GCCDEFAULTS-2779305">More about this vulnerability</a></p>
+            </div>
+        
+        </div><!-- .card -->
+        <div class="card card--vuln  disclosure--not-new severity--medium" data-snyk-test="medium">
+            <h2 class="card__title">Out-of-bounds Write</h2>
+            <div class="card__section">
+        
+                <div class="label label--medium">
+                    <span class="label__text">medium severity</span>
+                </div>
+        
+                <hr/>
+        
+                <ul class="card__meta">
+                    <li class="card__meta__item">
+                        Package Manager: ubuntu:22.04
+                    </li>
+                    <li class="card__meta__item">
+                            Vulnerable module:
+        
+                            binutils/binutils-common
+                    </li>
+        
+                    <li class="card__meta__item">Introduced through:
+        
+                                docker-image|quay.io/argoproj/argocd@v2.2.12 and binutils/binutils-common@2.38-3ubuntu1
+        
+                    </li>
+                </ul>
+        
+                <hr/>
+        
+        
+                        <h3 class="card__section__title">Detailed paths</h3>
+        
+                    <ul class="card__meta__paths">
+                                <li>
+                                <span class="list-paths__item__introduced"><em>Introduced through</em>:
+                                        docker-image|quay.io/argoproj/argocd@v2.2.12
+                                         <span class="list-paths__item__arrow">›</span> 
+                                        binutils/binutils-common@2.38-3ubuntu1
+                                        
+                                </span>
+        
+                            </li>
+                                <li>
+                                <span class="list-paths__item__introduced"><em>Introduced through</em>:
+                                        docker-image|quay.io/argoproj/argocd@v2.2.12
+                                         <span class="list-paths__item__arrow">›</span> 
+                                        binutils@2.38-3ubuntu1
+                                         <span class="list-paths__item__arrow">›</span> 
+                                        binutils/binutils-common@2.38-3ubuntu1
+                                        
+                                </span>
+        
+                            </li>
+                                <li>
+                                <span class="list-paths__item__introduced"><em>Introduced through</em>:
+                                        docker-image|quay.io/argoproj/argocd@v2.2.12
+                                         <span class="list-paths__item__arrow">›</span> 
+                                        binutils@2.38-3ubuntu1
+                                         <span class="list-paths__item__arrow">›</span> 
+                                        binutils/libbinutils@2.38-3ubuntu1
+                                         <span class="list-paths__item__arrow">›</span> 
+                                        binutils/binutils-common@2.38-3ubuntu1
+                                        
+                                </span>
+        
+                            </li>
+                                <li>
+                                <span class="list-paths__item__introduced"><em>Introduced through</em>:
+                                        docker-image|quay.io/argoproj/argocd@v2.2.12
+                                         <span class="list-paths__item__arrow">›</span> 
+                                        binutils@2.38-3ubuntu1
+                                         <span class="list-paths__item__arrow">›</span> 
+                                        binutils/binutils-x86-64-linux-gnu@2.38-3ubuntu1
+                                         <span class="list-paths__item__arrow">›</span> 
+                                        binutils/binutils-common@2.38-3ubuntu1
+                                        
+                                </span>
+        
+                            </li>
+                                <li>
+                                <span class="list-paths__item__introduced"><em>Introduced through</em>:
+                                        docker-image|quay.io/argoproj/argocd@v2.2.12
+                                         <span class="list-paths__item__arrow">›</span> 
+                                        binutils/libbinutils@2.38-3ubuntu1
+                                        
+                                </span>
+        
+                            </li>
+                                <li>
+                                <span class="list-paths__item__introduced"><em>Introduced through</em>:
+                                        docker-image|quay.io/argoproj/argocd@v2.2.12
+                                         <span class="list-paths__item__arrow">›</span> 
+                                        binutils@2.38-3ubuntu1
+                                         <span class="list-paths__item__arrow">›</span> 
+                                        binutils/libbinutils@2.38-3ubuntu1
+                                        
+                                </span>
+        
+                            </li>
+                                <li>
+                                <span class="list-paths__item__introduced"><em>Introduced through</em>:
+                                        docker-image|quay.io/argoproj/argocd@v2.2.12
+                                         <span class="list-paths__item__arrow">›</span> 
+                                        binutils@2.38-3ubuntu1
+                                         <span class="list-paths__item__arrow">›</span> 
+                                        binutils/binutils-x86-64-linux-gnu@2.38-3ubuntu1
+                                         <span class="list-paths__item__arrow">›</span> 
+                                        binutils/libbinutils@2.38-3ubuntu1
+                                        
+                                </span>
+        
+                            </li>
+                                <li>
+                                <span class="list-paths__item__introduced"><em>Introduced through</em>:
+                                        docker-image|quay.io/argoproj/argocd@v2.2.12
+                                         <span class="list-paths__item__arrow">›</span> 
+                                        binutils@2.38-3ubuntu1
+                                         <span class="list-paths__item__arrow">›</span> 
+                                        binutils/binutils-x86-64-linux-gnu@2.38-3ubuntu1
+                                         <span class="list-paths__item__arrow">›</span> 
+                                        binutils/libctf0@2.38-3ubuntu1
+                                         <span class="list-paths__item__arrow">›</span> 
+                                        binutils/libbinutils@2.38-3ubuntu1
+                                        
+                                </span>
+        
+                            </li>
+                                <li>
+                                <span class="list-paths__item__introduced"><em>Introduced through</em>:
+                                        docker-image|quay.io/argoproj/argocd@v2.2.12
+                                         <span class="list-paths__item__arrow">›</span> 
+                                        binutils/libctf-nobfd0@2.38-3ubuntu1
+                                        
+                                </span>
+        
+                            </li>
+                                <li>
+                                <span class="list-paths__item__introduced"><em>Introduced through</em>:
+                                        docker-image|quay.io/argoproj/argocd@v2.2.12
+                                         <span class="list-paths__item__arrow">›</span> 
+                                        binutils@2.38-3ubuntu1
+                                         <span class="list-paths__item__arrow">›</span> 
+                                        binutils/binutils-x86-64-linux-gnu@2.38-3ubuntu1
+                                         <span class="list-paths__item__arrow">›</span> 
+                                        binutils/libctf-nobfd0@2.38-3ubuntu1
+                                        
+                                </span>
+        
+                            </li>
+                                <li>
+                                <span class="list-paths__item__introduced"><em>Introduced through</em>:
+                                        docker-image|quay.io/argoproj/argocd@v2.2.12
+                                         <span class="list-paths__item__arrow">›</span> 
+                                        binutils/libctf0@2.38-3ubuntu1
+                                        
+                                </span>
+        
+                            </li>
+                                <li>
+                                <span class="list-paths__item__introduced"><em>Introduced through</em>:
+                                        docker-image|quay.io/argoproj/argocd@v2.2.12
+                                         <span class="list-paths__item__arrow">›</span> 
+                                        binutils@2.38-3ubuntu1
+                                         <span class="list-paths__item__arrow">›</span> 
+                                        binutils/binutils-x86-64-linux-gnu@2.38-3ubuntu1
+                                         <span class="list-paths__item__arrow">›</span> 
+                                        binutils/libctf0@2.38-3ubuntu1
+                                        
+                                </span>
+        
+                            </li>
+                                <li>
+                                <span class="list-paths__item__introduced"><em>Introduced through</em>:
+                                        docker-image|quay.io/argoproj/argocd@v2.2.12
+                                         <span class="list-paths__item__arrow">›</span> 
+                                        binutils/binutils-x86-64-linux-gnu@2.38-3ubuntu1
+                                        
+                                </span>
+        
+                            </li>
+                                <li>
+                                <span class="list-paths__item__introduced"><em>Introduced through</em>:
+                                        docker-image|quay.io/argoproj/argocd@v2.2.12
+                                         <span class="list-paths__item__arrow">›</span> 
+                                        binutils@2.38-3ubuntu1
+                                         <span class="list-paths__item__arrow">›</span> 
+                                        binutils/binutils-x86-64-linux-gnu@2.38-3ubuntu1
+                                        
+                                </span>
+        
+                            </li>
+                                <li>
+                                <span class="list-paths__item__introduced"><em>Introduced through</em>:
+                                        docker-image|quay.io/argoproj/argocd@v2.2.12
+                                         <span class="list-paths__item__arrow">›</span> 
+                                        binutils@2.38-3ubuntu1
+                                        
+                                </span>
+        
+                            </li>
+                                <li>
+                                <span class="list-paths__item__introduced"><em>Introduced through</em>:
+                                        docker-image|quay.io/argoproj/argocd@v2.2.12
+                                         <span class="list-paths__item__arrow">›</span> 
+                                        build-essential@12.9ubuntu3
+                                         <span class="list-paths__item__arrow">›</span> 
+                                        dpkg/dpkg-dev@1.21.1ubuntu2.1
+                                         <span class="list-paths__item__arrow">›</span> 
+                                        binutils@2.38-3ubuntu1
+                                        
+                                </span>
+        
+                            </li>
+                                <li>
+                                <span class="list-paths__item__introduced"><em>Introduced through</em>:
+                                        docker-image|quay.io/argoproj/argocd@v2.2.12
+                                         <span class="list-paths__item__arrow">›</span> 
+                                        build-essential@12.9ubuntu3
+                                         <span class="list-paths__item__arrow">›</span> 
+                                        gcc-defaults/gcc@4:11.2.0-1ubuntu1
+                                         <span class="list-paths__item__arrow">›</span> 
+                                        gcc-11@11.2.0-19ubuntu1
+                                         <span class="list-paths__item__arrow">›</span> 
+                                        binutils@2.38-3ubuntu1
+                                        
+                                </span>
+        
+                            </li>
+                    </ul><!-- .list-paths -->
+        
+            </div><!-- .card__section -->
+        
+              <hr/>
+              <!-- Overview -->
+              <h2 id="nvd-description">NVD Description</h2>
+        <p><strong><em>Note:</em></strong> <em>Versions mentioned in the description apply to the upstream <code>binutils</code> package.</em></p>
+        <p>In GNU Binutils before 2.40, there is a heap-buffer-overflow in the error function bfd_getl32 when called from the strip_main function in strip-new via a crafted file.</p>
+        <h2 id="remediation">Remediation</h2>
+        <p>There is no fixed version for <code>Ubuntu:22.04</code> <code>binutils</code>.</p>
+        <h2 id="references">References</h2>
+        <ul>
+        <li><a href="http://people.ubuntu.com/~ubuntu-security/cve/CVE-2022-38533">ADVISORY</a></li>
+        <li><a href="https://sourceware.org/bugzilla/show_bug.cgi?id=29482">MISC</a></li>
+        <li><a href="https://sourceware.org/bugzilla/show_bug.cgi?id=29482#c2">MISC</a></li>
+        </ul>
+        
+              <hr/>
+        
+            <div class="cta card__cta">
+                <p><a href="https://snyk.io/vuln/SNYK-UBUNTU2204-BINUTILS-2994006">More about this vulnerability</a></p>
+            </div>
+        
+        </div><!-- .card -->
+        <div class="card card--vuln  disclosure--not-new severity--low" data-snyk-test="low">
+            <h2 class="card__title">Resource Exhaustion</h2>
+            <div class="card__section">
+        
+                <div class="label label--low">
+                    <span class="label__text">low severity</span>
+                </div>
+        
+                <hr/>
+        
+                <ul class="card__meta">
+                    <li class="card__meta__item">
+                        Package Manager: ubuntu:22.04
+                    </li>
+                    <li class="card__meta__item">
+                            Vulnerable module:
+        
+                            tiff/libtiff5
+                    </li>
+        
+                    <li class="card__meta__item">Introduced through:
+        
+                                docker-image|quay.io/argoproj/argocd@v2.2.12 and tiff/libtiff5@4.3.0-6
+        
+                    </li>
+                </ul>
+        
+                <hr/>
+        
+        
+                        <h3 class="card__section__title">Detailed paths</h3>
+        
+                    <ul class="card__meta__paths">
+                                <li>
+                                <span class="list-paths__item__introduced"><em>Introduced through</em>:
+                                        docker-image|quay.io/argoproj/argocd@v2.2.12
+                                         <span class="list-paths__item__arrow">›</span> 
+                                        tiff/libtiff5@4.3.0-6
+                                        
+                                </span>
+        
+                            </li>
+                                <li>
+                                <span class="list-paths__item__introduced"><em>Introduced through</em>:
+                                        docker-image|quay.io/argoproj/argocd@v2.2.12
+                                         <span class="list-paths__item__arrow">›</span> 
+                                        glibc/libc-devtools@2.35-0ubuntu3.1
+                                         <span class="list-paths__item__arrow">›</span> 
+                                        libgd2/libgd3@2.3.0-2ubuntu2
+                                         <span class="list-paths__item__arrow">›</span> 
+                                        tiff/libtiff5@4.3.0-6
+                                        
+                                </span>
+        
+                            </li>
+                    </ul><!-- .list-paths -->
+        
+            </div><!-- .card__section -->
+        
+              <hr/>
+              <!-- Overview -->
+              <h2 id="nvd-description">NVD Description</h2>
+        <p><strong><em>Note:</em></strong> <em>Versions mentioned in the description apply to the upstream <code>tiff</code> package.</em></p>
+        <p>A vulnerability classified as problematic was found in LibTIFF 4.3.0. Affected by this vulnerability is the TIFF File Handler of tiff2ps. Opening a malicious file leads to a denial of service. The attack can be launched remotely but requires user interaction. The exploit has been disclosed to the public and may be used.</p>
+        <h2 id="remediation">Remediation</h2>
+        <p>There is no fixed version for <code>Ubuntu:22.04</code> <code>tiff</code>.</p>
+        <h2 id="references">References</h2>
+        <ul>
+        <li><a href="http://people.ubuntu.com/~ubuntu-security/cve/CVE-2022-1210">ADVISORY</a></li>
+        <li><a href="https://gitlab.com/libtiff/libtiff/uploads/c3da94e53cf1e1e8e6d4d3780dc8c42f/example.tiff">MISC</a></li>
+        <li><a href="https://gitlab.com/libtiff/libtiff/-/issues/402">MISC</a></li>
+        <li><a href="https://vuldb.com/?id.196363">MISC</a></li>
+        <li><a href="https://security.netapp.com/advisory/ntap-20220513-0005/">CONFIRM</a></li>
+        </ul>
+        
+              <hr/>
+        
+            <div class="cta card__cta">
+                <p><a href="https://snyk.io/vuln/SNYK-UBUNTU2204-TIFF-2781533">More about this vulnerability</a></p>
             </div>
         
         </div><!-- .card -->
@@ -1607,6 +1970,321 @@
         
             <div class="cta card__cta">
                 <p><a href="https://snyk.io/vuln/SNYK-UBUNTU2204-SHADOW-2801886">More about this vulnerability</a></p>
+            </div>
+        
+        </div><!-- .card -->
+        <div class="card card--vuln  disclosure--not-new severity--low" data-snyk-test="low">
+            <h2 class="card__title">Open Redirect</h2>
+            <div class="card__section">
+        
+                <div class="label label--low">
+                    <span class="label__text">low severity</span>
+                </div>
+        
+                <hr/>
+        
+                <ul class="card__meta">
+                    <li class="card__meta__item">
+                        Package Manager: ubuntu:22.04
+                    </li>
+                    <li class="card__meta__item">
+                            Vulnerable module:
+        
+                            python3.10/libpython3.10-stdlib
+                    </li>
+        
+                    <li class="card__meta__item">Introduced through:
+        
+                                docker-image|quay.io/argoproj/argocd@v2.2.12 and python3.10/libpython3.10-stdlib@3.10.4-3ubuntu0.1
+        
+                    </li>
+                </ul>
+        
+                <hr/>
+        
+        
+                        <h3 class="card__section__title">Detailed paths</h3>
+        
+                    <ul class="card__meta__paths">
+                                <li>
+                                <span class="list-paths__item__introduced"><em>Introduced through</em>:
+                                        docker-image|quay.io/argoproj/argocd@v2.2.12
+                                         <span class="list-paths__item__arrow">›</span> 
+                                        python3.10/libpython3.10-stdlib@3.10.4-3ubuntu0.1
+                                        
+                                </span>
+        
+                            </li>
+                                <li>
+                                <span class="list-paths__item__introduced"><em>Introduced through</em>:
+                                        docker-image|quay.io/argoproj/argocd@v2.2.12
+                                         <span class="list-paths__item__arrow">›</span> 
+                                        python3-defaults/libpython3-stdlib@3.10.4-0ubuntu2
+                                         <span class="list-paths__item__arrow">›</span> 
+                                        python3.10/libpython3.10-stdlib@3.10.4-3ubuntu0.1
+                                        
+                                </span>
+        
+                            </li>
+                                <li>
+                                <span class="list-paths__item__introduced"><em>Introduced through</em>:
+                                        docker-image|quay.io/argoproj/argocd@v2.2.12
+                                         <span class="list-paths__item__arrow">›</span> 
+                                        python3-defaults/python3@3.10.4-0ubuntu2
+                                         <span class="list-paths__item__arrow">›</span> 
+                                        python3.10@3.10.4-3ubuntu0.1
+                                         <span class="list-paths__item__arrow">›</span> 
+                                        python3.10/libpython3.10-stdlib@3.10.4-3ubuntu0.1
+                                        
+                                </span>
+        
+                            </li>
+                                <li>
+                                <span class="list-paths__item__introduced"><em>Introduced through</em>:
+                                        docker-image|quay.io/argoproj/argocd@v2.2.12
+                                         <span class="list-paths__item__arrow">›</span> 
+                                        python3-defaults/libpython3-dev@3.10.4-0ubuntu2
+                                         <span class="list-paths__item__arrow">›</span> 
+                                        python3.10/libpython3.10-dev@3.10.4-3ubuntu0.1
+                                         <span class="list-paths__item__arrow">›</span> 
+                                        python3.10/libpython3.10-stdlib@3.10.4-3ubuntu0.1
+                                        
+                                </span>
+        
+                            </li>
+                                <li>
+                                <span class="list-paths__item__introduced"><em>Introduced through</em>:
+                                        docker-image|quay.io/argoproj/argocd@v2.2.12
+                                         <span class="list-paths__item__arrow">›</span> 
+                                        python3-defaults/libpython3-dev@3.10.4-0ubuntu2
+                                         <span class="list-paths__item__arrow">›</span> 
+                                        python3.10/libpython3.10-dev@3.10.4-3ubuntu0.1
+                                         <span class="list-paths__item__arrow">›</span> 
+                                        python3.10/libpython3.10@3.10.4-3ubuntu0.1
+                                         <span class="list-paths__item__arrow">›</span> 
+                                        python3.10/libpython3.10-stdlib@3.10.4-3ubuntu0.1
+                                        
+                                </span>
+        
+                            </li>
+                                <li>
+                                <span class="list-paths__item__introduced"><em>Introduced through</em>:
+                                        docker-image|quay.io/argoproj/argocd@v2.2.12
+                                         <span class="list-paths__item__arrow">›</span> 
+                                        python3.10/libpython3.10@3.10.4-3ubuntu0.1
+                                        
+                                </span>
+        
+                            </li>
+                                <li>
+                                <span class="list-paths__item__introduced"><em>Introduced through</em>:
+                                        docker-image|quay.io/argoproj/argocd@v2.2.12
+                                         <span class="list-paths__item__arrow">›</span> 
+                                        python3-defaults/libpython3-dev@3.10.4-0ubuntu2
+                                         <span class="list-paths__item__arrow">›</span> 
+                                        python3.10/libpython3.10-dev@3.10.4-3ubuntu0.1
+                                         <span class="list-paths__item__arrow">›</span> 
+                                        python3.10/libpython3.10@3.10.4-3ubuntu0.1
+                                        
+                                </span>
+        
+                            </li>
+                                <li>
+                                <span class="list-paths__item__introduced"><em>Introduced through</em>:
+                                        docker-image|quay.io/argoproj/argocd@v2.2.12
+                                         <span class="list-paths__item__arrow">›</span> 
+                                        python3-defaults/python3-dev@3.10.4-0ubuntu2
+                                         <span class="list-paths__item__arrow">›</span> 
+                                        python3.10/python3.10-dev@3.10.4-3ubuntu0.1
+                                         <span class="list-paths__item__arrow">›</span> 
+                                        python3.10/libpython3.10@3.10.4-3ubuntu0.1
+                                        
+                                </span>
+        
+                            </li>
+                                <li>
+                                <span class="list-paths__item__introduced"><em>Introduced through</em>:
+                                        docker-image|quay.io/argoproj/argocd@v2.2.12
+                                         <span class="list-paths__item__arrow">›</span> 
+                                        python3.10/libpython3.10-minimal@3.10.4-3ubuntu0.1
+                                        
+                                </span>
+        
+                            </li>
+                                <li>
+                                <span class="list-paths__item__introduced"><em>Introduced through</em>:
+                                        docker-image|quay.io/argoproj/argocd@v2.2.12
+                                         <span class="list-paths__item__arrow">›</span> 
+                                        python3-defaults/libpython3-dev@3.10.4-0ubuntu2
+                                         <span class="list-paths__item__arrow">›</span> 
+                                        python3.10/libpython3.10-dev@3.10.4-3ubuntu0.1
+                                         <span class="list-paths__item__arrow">›</span> 
+                                        python3.10/libpython3.10-stdlib@3.10.4-3ubuntu0.1
+                                         <span class="list-paths__item__arrow">›</span> 
+                                        python3.10/libpython3.10-minimal@3.10.4-3ubuntu0.1
+                                        
+                                </span>
+        
+                            </li>
+                                <li>
+                                <span class="list-paths__item__introduced"><em>Introduced through</em>:
+                                        docker-image|quay.io/argoproj/argocd@v2.2.12
+                                         <span class="list-paths__item__arrow">›</span> 
+                                        python3-defaults/python3@3.10.4-0ubuntu2
+                                         <span class="list-paths__item__arrow">›</span> 
+                                        python3.10@3.10.4-3ubuntu0.1
+                                         <span class="list-paths__item__arrow">›</span> 
+                                        python3.10/python3.10-minimal@3.10.4-3ubuntu0.1
+                                         <span class="list-paths__item__arrow">›</span> 
+                                        python3.10/libpython3.10-minimal@3.10.4-3ubuntu0.1
+                                        
+                                </span>
+        
+                            </li>
+                                <li>
+                                <span class="list-paths__item__introduced"><em>Introduced through</em>:
+                                        docker-image|quay.io/argoproj/argocd@v2.2.12
+                                         <span class="list-paths__item__arrow">›</span> 
+                                        python3.10/libpython3.10-dev@3.10.4-3ubuntu0.1
+                                        
+                                </span>
+        
+                            </li>
+                                <li>
+                                <span class="list-paths__item__introduced"><em>Introduced through</em>:
+                                        docker-image|quay.io/argoproj/argocd@v2.2.12
+                                         <span class="list-paths__item__arrow">›</span> 
+                                        python3-defaults/libpython3-dev@3.10.4-0ubuntu2
+                                         <span class="list-paths__item__arrow">›</span> 
+                                        python3.10/libpython3.10-dev@3.10.4-3ubuntu0.1
+                                        
+                                </span>
+        
+                            </li>
+                                <li>
+                                <span class="list-paths__item__introduced"><em>Introduced through</em>:
+                                        docker-image|quay.io/argoproj/argocd@v2.2.12
+                                         <span class="list-paths__item__arrow">›</span> 
+                                        python3-defaults/python3-dev@3.10.4-0ubuntu2
+                                         <span class="list-paths__item__arrow">›</span> 
+                                        python3.10/python3.10-dev@3.10.4-3ubuntu0.1
+                                         <span class="list-paths__item__arrow">›</span> 
+                                        python3.10/libpython3.10-dev@3.10.4-3ubuntu0.1
+                                        
+                                </span>
+        
+                            </li>
+                                <li>
+                                <span class="list-paths__item__introduced"><em>Introduced through</em>:
+                                        docker-image|quay.io/argoproj/argocd@v2.2.12
+                                         <span class="list-paths__item__arrow">›</span> 
+                                        python3.10/python3.10-minimal@3.10.4-3ubuntu0.1
+                                        
+                                </span>
+        
+                            </li>
+                                <li>
+                                <span class="list-paths__item__introduced"><em>Introduced through</em>:
+                                        docker-image|quay.io/argoproj/argocd@v2.2.12
+                                         <span class="list-paths__item__arrow">›</span> 
+                                        python3-defaults/python3@3.10.4-0ubuntu2
+                                         <span class="list-paths__item__arrow">›</span> 
+                                        python3-defaults/python3-minimal@3.10.4-0ubuntu2
+                                         <span class="list-paths__item__arrow">›</span> 
+                                        python3.10/python3.10-minimal@3.10.4-3ubuntu0.1
+                                        
+                                </span>
+        
+                            </li>
+                                <li>
+                                <span class="list-paths__item__introduced"><em>Introduced through</em>:
+                                        docker-image|quay.io/argoproj/argocd@v2.2.12
+                                         <span class="list-paths__item__arrow">›</span> 
+                                        python3-defaults/python3@3.10.4-0ubuntu2
+                                         <span class="list-paths__item__arrow">›</span> 
+                                        python3.10@3.10.4-3ubuntu0.1
+                                         <span class="list-paths__item__arrow">›</span> 
+                                        python3.10/python3.10-minimal@3.10.4-3ubuntu0.1
+                                        
+                                </span>
+        
+                            </li>
+                                <li>
+                                <span class="list-paths__item__introduced"><em>Introduced through</em>:
+                                        docker-image|quay.io/argoproj/argocd@v2.2.12
+                                         <span class="list-paths__item__arrow">›</span> 
+                                        python3.10@3.10.4-3ubuntu0.1
+                                        
+                                </span>
+        
+                            </li>
+                                <li>
+                                <span class="list-paths__item__introduced"><em>Introduced through</em>:
+                                        docker-image|quay.io/argoproj/argocd@v2.2.12
+                                         <span class="list-paths__item__arrow">›</span> 
+                                        python3-defaults/python3@3.10.4-0ubuntu2
+                                         <span class="list-paths__item__arrow">›</span> 
+                                        python3.10@3.10.4-3ubuntu0.1
+                                        
+                                </span>
+        
+                            </li>
+                                <li>
+                                <span class="list-paths__item__introduced"><em>Introduced through</em>:
+                                        docker-image|quay.io/argoproj/argocd@v2.2.12
+                                         <span class="list-paths__item__arrow">›</span> 
+                                        python3-defaults/python3-dev@3.10.4-0ubuntu2
+                                         <span class="list-paths__item__arrow">›</span> 
+                                        python3.10/python3.10-dev@3.10.4-3ubuntu0.1
+                                         <span class="list-paths__item__arrow">›</span> 
+                                        python3.10@3.10.4-3ubuntu0.1
+                                        
+                                </span>
+        
+                            </li>
+                                <li>
+                                <span class="list-paths__item__introduced"><em>Introduced through</em>:
+                                        docker-image|quay.io/argoproj/argocd@v2.2.12
+                                         <span class="list-paths__item__arrow">›</span> 
+                                        python3.10/python3.10-dev@3.10.4-3ubuntu0.1
+                                        
+                                </span>
+        
+                            </li>
+                                <li>
+                                <span class="list-paths__item__introduced"><em>Introduced through</em>:
+                                        docker-image|quay.io/argoproj/argocd@v2.2.12
+                                         <span class="list-paths__item__arrow">›</span> 
+                                        python3-defaults/python3-dev@3.10.4-0ubuntu2
+                                         <span class="list-paths__item__arrow">›</span> 
+                                        python3.10/python3.10-dev@3.10.4-3ubuntu0.1
+                                        
+                                </span>
+        
+                            </li>
+                    </ul><!-- .list-paths -->
+        
+            </div><!-- .card__section -->
+        
+              <hr/>
+              <!-- Overview -->
+              <h2 id="nvd-description">NVD Description</h2>
+        <p><strong><em>Note:</em></strong> <em>Versions mentioned in the description apply to the upstream <code>python3.10</code> package.</em></p>
+        <p>** DISPUTED ** Python 3.x through 3.10 has an open redirection vulnerability in lib/http/server.py due to no protection against multiple (/) at the beginning of URI path which may leads to information disclosure. NOTE: this is disputed by a third party because the http.server.html documentation page states &#34;Warning: http.server is not recommended for production. It only implements basic security checks.&#34;</p>
+        <h2 id="remediation">Remediation</h2>
+        <p>There is no fixed version for <code>Ubuntu:22.04</code> <code>python3.10</code>.</p>
+        <h2 id="references">References</h2>
+        <ul>
+        <li><a href="http://people.ubuntu.com/~ubuntu-security/cve/CVE-2021-28861">ADVISORY</a></li>
+        <li><a href="https://github.com/python/cpython/pull/93879">MISC</a></li>
+        <li><a href="https://bugs.python.org/issue43223">MISC</a></li>
+        <li><a href="https://github.com/python/cpython/pull/24848">MISC</a></li>
+        </ul>
+        
+              <hr/>
+        
+            <div class="cta card__cta">
+                <p><a href="https://snyk.io/vuln/SNYK-UBUNTU2204-PYTHON310-2993113">More about this vulnerability</a></p>
             </div>
         
         </div><!-- .card -->
@@ -2987,6 +3665,72 @@
         
         </div><!-- .card -->
         <div class="card card--vuln  disclosure--not-new severity--low" data-snyk-test="low">
+            <h2 class="card__title">CVE-2022-35252</h2>
+            <div class="card__section">
+        
+                <div class="label label--low">
+                    <span class="label__text">low severity</span>
+                </div>
+        
+                <hr/>
+        
+                <ul class="card__meta">
+                    <li class="card__meta__item">
+                        Package Manager: ubuntu:22.04
+                    </li>
+                    <li class="card__meta__item">
+                            Vulnerable module:
+        
+                            curl/libcurl3-gnutls
+                    </li>
+        
+                    <li class="card__meta__item">Introduced through:
+        
+        
+                                    docker-image|quay.io/argoproj/argocd@v2.2.12, git@1:2.34.1-1ubuntu1.4 and others
+                    </li>
+                </ul>
+        
+                <hr/>
+        
+        
+                        <h3 class="card__section__title">Detailed paths</h3>
+        
+                    <ul class="card__meta__paths">
+                                <li>
+                                <span class="list-paths__item__introduced"><em>Introduced through</em>:
+                                        docker-image|quay.io/argoproj/argocd@v2.2.12
+                                         <span class="list-paths__item__arrow">›</span> 
+                                        git@1:2.34.1-1ubuntu1.4
+                                         <span class="list-paths__item__arrow">›</span> 
+                                        curl/libcurl3-gnutls@7.81.0-1ubuntu1.3
+                                        
+                                </span>
+        
+                            </li>
+                    </ul><!-- .list-paths -->
+        
+            </div><!-- .card__section -->
+        
+              <hr/>
+              <!-- Overview -->
+              <h2 id="nvd-description">NVD Description</h2>
+        <p><em>This vulnerability has not been analyzed by NVD yet.</em></p>
+        <h2 id="remediation">Remediation</h2>
+        <p>Upgrade <code>Ubuntu:22.04</code> <code>curl</code> to version 7.81.0-1ubuntu1.4 or higher.</p>
+        <h2 id="references">References</h2>
+        <ul>
+        <li><a href="http://people.ubuntu.com/~ubuntu-security/cve/CVE-2022-35252">ADVISORY</a></li>
+        </ul>
+        
+              <hr/>
+        
+            <div class="cta card__cta">
+                <p><a href="https://snyk.io/vuln/SNYK-UBUNTU2204-CURL-3012666">More about this vulnerability</a></p>
+            </div>
+        
+        </div><!-- .card -->
+        <div class="card card--vuln  disclosure--not-new severity--low" data-snyk-test="low">
             <h2 class="card__title">Improper Input Validation</h2>
             <div class="card__section">
         
@@ -3313,6 +4057,7 @@
         <li><a href="https://security.netapp.com/advisory/ntap-20210716-0006/">CONFIRM</a></li>
         <li><a href="https://bugzilla.redhat.com/show_bug.cgi?id=1956423">MISC</a></li>
         <li><a href="https://src.fedoraproject.org/rpms/binutils/blob/rawhide/f/binutils-CVE-2021-3530.patch">MISC</a></li>
+        <li><a href="https://security.gentoo.org/glsa/202208-30">GENTOO</a></li>
         </ul>
         
               <hr/>

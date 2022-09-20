@@ -7,9 +7,8 @@ require (
 	github.com/Knetic/govaluate v3.0.1-0.20171022003610-9aa49832a739+incompatible
 	github.com/Masterminds/semver/v3 v3.1.1
 	github.com/TomOnTime/utfutil v0.0.0-20180511104225-09c41003ee1d
-	github.com/alicebob/miniredis v2.5.0+incompatible
 	github.com/alicebob/miniredis/v2 v2.14.2
-	github.com/argoproj/gitops-engine v0.7.1-0.20220804190909-2bc3fef13e07
+	github.com/argoproj/gitops-engine v0.7.1-0.20220916142200-3951079de199
 	github.com/argoproj/notifications-engine v0.3.1-0.20220812180936-4d8552b0775f
 	github.com/argoproj/pkg v0.11.1-0.20211203175135-36c59d8fafe0
 	github.com/aws/aws-sdk-go v1.43.16
@@ -35,7 +34,6 @@ require (
 	github.com/gogo/protobuf v1.3.2
 	github.com/golang-jwt/jwt/v4 v4.2.0
 	github.com/golang/protobuf v1.5.2
-	github.com/gomodule/redigo v2.0.0+incompatible // indirect
 	github.com/google/go-cmp v0.5.7
 	github.com/google/go-github/v35 v35.3.0
 	github.com/google/go-jsonnet v0.18.0

@@ -554,7 +554,9 @@ func TestFinalizeAppDeletion(t *testing.T) {
 			patched = true
 			return true, nil, nil
 		})
-		_, err := ctrl.finalizeApplicationDeletion(app)
+		_, err := ctrl.finalizeApplicationDeletion(app, func(project string) ([]*argoappv1.Cluster, error) {
+			return []*argoappv1.Cluster{}, nil
+		})
 		assert.NoError(t, err)
 		assert.True(t, patched)
 	})
@@ -602,7 +604,9 @@ func TestFinalizeAppDeletion(t *testing.T) {
 			patched = true
 			return true, nil, nil
 		})
-		objs, err := ctrl.finalizeApplicationDeletion(app)
+		objs, err := ctrl.finalizeApplicationDeletion(app, func(project string) ([]*argoappv1.Cluster, error) {
+			return []*argoappv1.Cluster{}, nil
+		})
 		assert.NoError(t, err)
 		assert.True(t, patched)
 		objsMap, err := ctrl.stateCache.GetManagedLiveObjs(app, []*unstructured.Unstructured{})
@@ -634,7 +638,9 @@ func TestFinalizeAppDeletion(t *testing.T) {
 			patched = true
 			return true, nil, nil
 		})
-		_, err := ctrl.finalizeApplicationDeletion(app)
+		_, err := ctrl.finalizeApplicationDeletion(app, func(project string) ([]*argoappv1.Cluster, error) {
+			return []*argoappv1.Cluster{}, nil
+		})
 		assert.NoError(t, err)
 		assert.True(t, patched)
 	})
@@ -657,7 +663,9 @@ func TestFinalizeAppDeletion(t *testing.T) {
 			fakeAppCs.AddReactor("get", "*", func(action kubetesting.Action) (handled bool, ret runtime.Object, err error) {
 				return defaultReactor.React(action)
 			})
-			_, err := ctrl.finalizeApplicationDeletion(app)
+			_, err := ctrl.finalizeApplicationDeletion(app, func(project string) ([]*argoappv1.Cluster, error) {
+				return []*argoappv1.Cluster{}, nil
+			})
 			assert.NoError(t, err)
 		}
 

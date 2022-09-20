@@ -295,6 +295,7 @@ rules:
   resources:
   - applications
   - appprojects
+  - applicationsets
   verbs:
   - create
   - get
@@ -2445,10 +2446,6 @@ spec:
       containers:
       - command:
         - argocd-application-controller
-        - --status-processors
-        - "20"
-        - --operation-processors
-        - "10"
         - --redis
         - argocd-redis-ha-haproxy:6379
         env:

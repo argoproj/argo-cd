@@ -8,7 +8,7 @@ import (
 	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
 )
 
-func testCond(t ApplicationSetConditionType, msg string, lastTransitionTime *metav1.Time, status ApplicationSetConditionStatus, reason string) ApplicationSetCondition {
+func testAppSetCond(t ApplicationSetConditionType, msg string, lastTransitionTime *metav1.Time, status ApplicationSetConditionStatus, reason string) ApplicationSetCondition {
 	return ApplicationSetCondition{
 		Type:               t,
 		Message:            msg,
@@ -38,7 +38,7 @@ func newTestAppSet(name, namespace, repo string) *ApplicationSet {
 	return a
 }
 
-func TestSetConditions(t *testing.T) {
+func TestApplicationSetSetConditions(t *testing.T) {
 	fiveMinsAgo := &metav1.Time{Time: time.Now().Add(-5 * time.Minute)}
 	tenMinsAgo := &metav1.Time{Time: time.Now().Add(-10 * time.Minute)}
 	tests := []struct {
@@ -53,16 +53,16 @@ func TestSetConditions(t *testing.T) {
 			name:     "new conditions with lastTransitionTime",
 			existing: []ApplicationSetCondition{},
 			incoming: []ApplicationSetCondition{
-				testCond(ApplicationSetConditionErrorOccurred, "foo", fiveMinsAgo, ApplicationSetConditionStatusTrue, ApplicationSetReasonApplicationValidationError),
-				testCond(ApplicationSetConditionResourcesUpToDate, "bar", tenMinsAgo, ApplicationSetConditionStatusTrue, ApplicationSetReasonApplicationSetUpToDate),
+				testAppSetCond(ApplicationSetConditionErrorOccurred, "foo", fiveMinsAgo, ApplicationSetConditionStatusTrue, ApplicationSetReasonApplicationValidationError),
+				testAppSetCond(ApplicationSetConditionResourcesUpToDate, "bar", tenMinsAgo, ApplicationSetConditionStatusTrue, ApplicationSetReasonApplicationSetUpToDate),
 			},
 			evaluatedTypes: map[ApplicationSetConditionType]bool{
 				ApplicationSetConditionErrorOccurred:     true,
 				ApplicationSetConditionResourcesUpToDate: true,
 			},
 			expected: []ApplicationSetCondition{
-				testCond(ApplicationSetConditionErrorOccurred, "foo", fiveMinsAgo, ApplicationSetConditionStatusTrue, ApplicationSetReasonApplicationValidationError),
-				testCond(ApplicationSetConditionResourcesUpToDate, "bar", tenMinsAgo, ApplicationSetConditionStatusTrue, ApplicationSetReasonApplicationSetUpToDate),
+				testAppSetCond(ApplicationSetConditionErrorOccurred, "foo", fiveMinsAgo, ApplicationSetConditionStatusTrue, ApplicationSetReasonApplicationValidationError),
+				testAppSetCond(ApplicationSetConditionResourcesUpToDate, "bar", tenMinsAgo, ApplicationSetConditionStatusTrue, ApplicationSetReasonApplicationSetUpToDate),
 			},
 			validate: func(t *testing.T, a *ApplicationSet) {
 				assert.Equal(t, fiveMinsAgo, a.Status.Conditions[0].LastTransitionTime)
@@ -72,16 +72,16 @@ func TestSetConditions(t *testing.T) {
 			name:     "new conditions without lastTransitionTime",
 			existing: []ApplicationSetCondition{},
 			incoming: []ApplicationSetCondition{
-				testCond(ApplicationSetConditionErrorOccurred, "foo", nil, ApplicationSetConditionStatusTrue, ApplicationSetReasonApplicationValidationError),
-				testCond(ApplicationSetConditionResourcesUpToDate, "bar", nil, ApplicationSetConditionStatusFalse, ApplicationSetReasonApplicationSetUpToDate),
+				testAppSetCond(ApplicationSetConditionErrorOccurred, "foo", nil, ApplicationSetConditionStatusTrue, ApplicationSetReasonApplicationValidationError),
+				testAppSetCond(ApplicationSetConditionResourcesUpToDate, "bar", nil, ApplicationSetConditionStatusFalse, ApplicationSetReasonApplicationSetUpToDate),
 			},
 			evaluatedTypes: map[ApplicationSetConditionType]bool{
 				ApplicationSetConditionErrorOccurred:     true,
 				ApplicationSetConditionResourcesUpToDate: true,
 			},
 			expected: []ApplicationSetCondition{
-				testCond(ApplicationSetConditionErrorOccurred, "foo", nil, ApplicationSetConditionStatusTrue, ApplicationSetReasonApplicationValidationError),
-				testCond(ApplicationSetConditionResourcesUpToDate, "bar", nil, ApplicationSetConditionStatusFalse, ApplicationSetReasonApplicationSetUpToDate),
+				testAppSetCond(ApplicationSetConditionErrorOccurred, "foo", nil, ApplicationSetConditionStatusTrue, ApplicationSetReasonApplicationValidationError),
+				testAppSetCond(ApplicationSetConditionResourcesUpToDate, "bar", nil, ApplicationSetConditionStatusFalse, ApplicationSetReasonApplicationSetUpToDate),
 			},
 			validate: func(t *testing.T, a *ApplicationSet) {
 				// SetConditions should add timestamps for new conditions.
@@ -91,18 +91,18 @@ func TestSetConditions(t *testing.T) {
 		}, {
 			name: "condition cleared",
 			existing: []ApplicationSetCondition{
-				testCond(ApplicationSetConditionErrorOccurred, "foo", fiveMinsAgo, ApplicationSetConditionStatusTrue, ApplicationSetReasonApplicationValidationError),
-				testCond(ApplicationSetConditionResourcesUpToDate, "bar", tenMinsAgo, ApplicationSetConditionStatusFalse, ApplicationSetReasonApplicationSetUpToDate),
+				testAppSetCond(ApplicationSetConditionErrorOccurred, "foo", fiveMinsAgo, ApplicationSetConditionStatusTrue, ApplicationSetReasonApplicationValidationError),
+				testAppSetCond(ApplicationSetConditionResourcesUpToDate, "bar", tenMinsAgo, ApplicationSetConditionStatusFalse, ApplicationSetReasonApplicationSetUpToDate),
 			},
 			incoming: []ApplicationSetCondition{
-				testCond(ApplicationSetConditionResourcesUpToDate, "bar", tenMinsAgo, ApplicationSetConditionStatusTrue, ApplicationSetReasonApplicationSetUpToDate),
+				testAppSetCond(ApplicationSetConditionResourcesUpToDate, "bar", tenMinsAgo, ApplicationSetConditionStatusTrue, ApplicationSetReasonApplicationSetUpToDate),
 			},
 			evaluatedTypes: map[ApplicationSetConditionType]bool{
 				ApplicationSetConditionErrorOccurred:     true,
 				ApplicationSetConditionResourcesUpToDate: true,
 			},
 			expected: []ApplicationSetCondition{
-				testCond(ApplicationSetConditionResourcesUpToDate, "bar", tenMinsAgo, ApplicationSetConditionStatusTrue, ApplicationSetReasonApplicationSetUpToDate),
+				testAppSetCond(ApplicationSetConditionResourcesUpToDate, "bar", tenMinsAgo, ApplicationSetConditionStatusTrue, ApplicationSetReasonApplicationSetUpToDate),
 			},
 			validate: func(t *testing.T, a *ApplicationSet) {
 				assert.Equal(t, tenMinsAgo.Time, a.Status.Conditions[0].LastTransitionTime.Time)
@@ -116,7 +116,7 @@ func TestSetConditions(t *testing.T) {
 			a := newTestAppSet("sample-app-set", namespace, testRepo)
 			a.Status.Conditions = tt.existing
 			a.Status.SetConditions(tt.incoming, tt.evaluatedTypes)
-			assertConditions(t, tt.expected, a.Status.Conditions)
+			assertAppSetConditions(t, tt.expected, a.Status.Conditions)
 			if tt.validate != nil {
 				tt.validate(t, a)
 			}
@@ -124,7 +124,7 @@ func TestSetConditions(t *testing.T) {
 	}
 }
 
-func assertConditions(t *testing.T, expected []ApplicationSetCondition, actual []ApplicationSetCondition) {
+func assertAppSetConditions(t *testing.T, expected []ApplicationSetCondition, actual []ApplicationSetCondition) {
 	assert.Equal(t, len(expected), len(actual))
 	for i := range expected {
 		assert.Equal(t, expected[i].Type, actual[i].Type)

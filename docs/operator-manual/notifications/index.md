@@ -43,4 +43,4 @@ kubectl patch cm argocd-notifications-cm -n argocd --type merge -p '{"data": {"s
 kubectl patch app <my-app> -n argocd -p '{"metadata": {"annotations": {"notifications.argoproj.io/subscribe.on-sync-succeeded.slack":"<my-channel>"}}}' --type merge
 ```
 
-Try syncing and application and get the notification once sync is completed.
+Try syncing an application to get notified when the sync is completed.
