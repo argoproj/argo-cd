@@ -121,7 +121,7 @@ data:
 !!! warning "Do you want groups for RBAC later?"
     If you want `groups` scope returned from Okta you need to unfortunately contact support to enable [API Access Management with Okta](https://developer.okta.com/docs/concepts/api-access-management/) or [_just use SAML above!_](#saml-with-dex)
 
-    Next you may need the API Access Management feature, which the support team can enable for your OktaPreview domain for testing, to enable "custom scopes" and a separate endpoint to use instead of the "public" `/oauth2/v1/authorize` API Access Management endpoint. This might be a paid feature if you want OIDC unfortunately. The free alternative I found was SAML.
+    You may also need the API Access Management feature, which the support team can enable for your OktaPreview domain for testing, to enable "custom scopes" and a separate endpoint to use instead of the "public" `/oauth2/v1/authorize` API Access Management endpoint. This might be a paid feature if you want OIDC unfortunately. A free alternative is SAML using DEX, see above.
 
 1. On the `Okta Admin` page, navigate to the Okta API Management at `Security > API`.
     ![Okta API Management](../../assets/api-management.png)
@@ -134,18 +134,34 @@ data:
     1. Choose the matching options you need, one example is:
         * e.g. to match groups starting with `argocd-` you'd return an `ID Token` using your scope name from step 3 (e.g. `groups`) where the groups name `matches` the `regex` `argocd-.*`
     ![Groups Claim](../../assets/groups-claim.png)
-1. Edit the `argocd-cm` and configure the `data.oidc.config` section:
-
+1. Create a new Okta OIDC Web Application
+    1. Enable refresh token grant type
+    1. Edit the sign-in redirect-uri to `https://external.path.to.argocd.io/auth/callback` (this can also point to localhost if you are testing)
+    1. Edit the sign-out redirect-uri to `https://external.path.to.argocd.io`
+    ![Okta web app configuration](../../assets/okta-webapp-configuration.png)
+    1. Save
+    1. After creation, go to the "Sign On" tab and select "OpenID Connect ID Token"
+    1. Edit the groups claim filter to "Starts with: *". This will pass all groups in the JWT. You may customize this to the groups that are useful to your RBAC use case.
+    ![Okta OIDC token settings](../../assets/okta-oidc-token-settings.png)
+1. Edit the `argocd-secret` and add a key-value pair: `oidc.okta.clientSecret: YOUR_ACTUAL_OKTA_CLIENT_SECRET`
+1. Edit the `argocd-cm` and configure the following sections:
 <!-- markdownlint-disable MD046 -->
 ```yaml
-oidc.config: |
-  name: Okta
-  issuer: https://yourorganization.oktapreview.com
-  clientID: 0oaltaqg3oAIf2NOa0h3
-  clientSecret: ZXF_CfUc-rtwNfzFecGquzdeJ_MxM4sGc8pDT2Tg6t
-  requestedScopes: ["openid", "profile", "email", "groups"]
-  requestedIDTokenClaims: {"groups": {"essential": true}}
+config :
+  # The URL that your users reach Argo CD on. Can be https://localhost:8080 if you are testing
+  url: https://external.path.to.argocd.io
+  oidc.config: |
+    name: Okta
+    issuer: https://yourorganization.oktapreview.com # or https://yourorganization.okta.com
+    clientID: replace-this
+    clientSecret: $oidc.okta.clientSecret
+    requestedScopes: ["openid", "profile", "email", "groups"]
+    requestedIDTokenClaims: {"groups": {"essential": true}}
+  rbacConfig:
+    # Replace these mappings with applicable ones for your users: https://argo-cd.readthedocs.io/en/stable/operator-manual/rbac/
+    policy.csv: |
+      g, okta-group-name-replace-this, role:admin
+    scopes: '[groups, email]'
 ```
 <!-- markdownlint-enable MD046 -->
-
 
