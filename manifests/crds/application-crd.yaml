@@ -739,13 +739,15 @@ spec:
                           (default: false)'
                         type: boolean
                     type: object
-                  createNamespaceMetadata:
+                  managedNamespaceMetadata:
+                    description: ManagedNamespaceMetadata controls metadata in the
+                      given namespace (if CreateNamespace=true)
                     properties:
-                      labels:
+                      annotations:
                         additionalProperties:
                           type: string
                         type: object
-                      annotations:
+                      labels:
                         additionalProperties:
                           type: string
                         type: object

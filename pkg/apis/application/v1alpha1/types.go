@@ -698,7 +698,7 @@ func (o SyncOptions) HasOption(option string) bool {
 	return false
 }
 
-type CreateNamespaceMetadata struct {
+type ManagedNamespaceMetadata struct {
 	Labels      map[string]string `json:"labels,omitempty" protobuf:"bytes,1,opt,name=labels"`
 	Annotations map[string]string `json:"annotations,omitempty" protobuf:"bytes,2,opt,name=annotations"`
 }
@@ -710,8 +710,9 @@ type SyncPolicy struct {
 	// Options allow you to specify whole app sync-options
 	SyncOptions SyncOptions `json:"syncOptions,omitempty" protobuf:"bytes,2,opt,name=syncOptions"`
 	// Retry controls failed sync retry behavior
-	Retry                   *RetryStrategy          `json:"retry,omitempty" protobuf:"bytes,3,opt,name=retry"`
-	CreateNamespaceMetadata CreateNamespaceMetadata `json:"createNamespaceMetadata,omitempty" protobuf:"bytes,4,opt,name=createNamespaceMetadata"`
+	Retry *RetryStrategy `json:"retry,omitempty" protobuf:"bytes,3,opt,name=retry"`
+	// ManagedNamespaceMetadata controls metadata in the given namespace (if CreateNamespace=true)
+	ManagedNamespaceMetadata *ManagedNamespaceMetadata `json:"managedNamespaceMetadata,omitempty" protobuf:"bytes,4,opt,name=managedNamespaceMetadata"`
 }
 
 // IsZero returns true if the sync policy is empty
