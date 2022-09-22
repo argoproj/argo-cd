@@ -34,11 +34,13 @@ const routes: {[path: string]: {component: React.ComponentType<RouteComponentPro
 const navItems = [
     {
         title: 'Applications',
+        tooltip: 'Manage your applications, and diagnose health problems.',
         path: '/applications',
         iconClassName: 'argo-icon-application'
     },
     {
         title: 'Settings',
+        tooltip: 'Manage your repositories, projects, settings',
         path: '/settings',
         iconClassName: 'argo-icon-settings'
     },
@@ -49,6 +51,7 @@ const navItems = [
     },
     {
         title: 'Documentation',
+        tooltip: 'Read the documentation, and get help and assistance.',
         path: '/help',
         iconClassName: 'argo-icon-docs'
     }
