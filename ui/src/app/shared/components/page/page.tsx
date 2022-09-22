@@ -52,14 +52,18 @@ interface PageProps extends React.Props<any> {
 export const Page = (props: PageProps) => {
     const ctx = React.useContext(Context);
     return (
-        <div className={`page-wrapper ${props.hideAuth ? 'page-wrapper__no-auth' : ''}`}>
-            <ArgoPage
-                title={props.title}
-                children={props.children}
-                topBarTitle={props.topBarTitle}
-                useTitleOnly={props.useTitleOnly}
-                toolbar={!props.hideAuth ? AddAuthToToolbar(props.toolbar, ctx) : props.toolbar}
-            />
-        </div>
+        <DataLoader load={() => services.viewPreferences.getPreferences()}>
+            {pref => (
+                <div className={`page-wrapper ${props.hideAuth ? 'page-wrapper__no-auth' : ''} ${!!pref.hideSidebar ? 'page-wrapper__sidebar-collapsed' : ''}`}>
+                    <ArgoPage
+                        title={props.title}
+                        children={props.children}
+                        topBarTitle={props.topBarTitle}
+                        useTitleOnly={props.useTitleOnly}
+                        toolbar={!props.hideAuth ? AddAuthToToolbar(props.toolbar, ctx) : props.toolbar}
+                    />
+                </div>
+            )}
+        </DataLoader>
     );
 };

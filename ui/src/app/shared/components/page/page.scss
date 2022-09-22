@@ -1,8 +1,10 @@
 @import 'node_modules/argo-ui/src/styles/config';
 @import 'node_modules/argo-ui/src/styles/theme';
+@import '../../config.scss';
 
 .page-wrapper {
     width: 100%;
+    padding-left: $sidebar-width;
     .page {
         @media (max-width: map-get($breakpoints, medium)) {
             &--has-toolbar {
@@ -43,6 +45,11 @@
             position: sticky;
             z-index: 0;
         }
+        &__content-wrapper {
+            overflow: visible;
+            transform: translate3d(0, 0, 0);
+            position: relative;
+        }
     }
 
     &__no-auth {
@@ -52,10 +59,14 @@
             }
         }
     }
+
+    &__sidebar-collapsed {
+        padding-left: $collapsed-sidebar-width;
+    }
 }
 
 .login-logout-button {
-    border-radius: 3px;    
+    border-radius: 3px;
     @include themify($themes) {
         color: themed('light-argo-teal-7');
     }

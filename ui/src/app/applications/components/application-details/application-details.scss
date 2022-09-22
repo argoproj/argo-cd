@@ -25,9 +25,6 @@ $header: 120px;
         overflow-x: auto;
         overflow-y: auto;
         height: calc(100vh - 2 * 50px - 115px);
-        @media screen and (max-width: map-get($breakpoints, xlarge)) {
-            margin-top: 165px;
-        }
     }
 
     &__sliding-panel-pagination-wrap {
@@ -199,11 +196,11 @@ $header: 120px;
     .filters-group__panel {
         top: 230px;
     }
-    @include breakpoint(large down) {
-        .filters-group__panel {
-            top: 280px;
-        }
-    }
+    // @include breakpoint(large down) {
+    //     .filters-group__panel {
+    //         top: 280px;
+    //     }
+    // }
 
     .graph-options-panel {
         margin-left: 10px;

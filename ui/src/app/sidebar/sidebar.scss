@@ -1,17 +1,19 @@
 @import 'node_modules/argo-ui/v2/styles/colors.scss';
+@import '../shared/config.scss';
 
 .sidebar {
-    $width: 230px;
-    min-width: $width;
-    width: $width;
+    min-width: $sidebar-width;
+    width: $sidebar-width;
     padding: 15px;
-    position: sticky;
-    overflow-y: scroll;
+    top: 0;
+    left: 0;
+    position: fixed;
     height: 100vh;
     max-height: 100vh;
-    top: 0;
     color: white;
+    z-index: 15;
     background-color: $silver-lining;
+    overflow: scroll;
 
     &__logo {
         justify-content: center;
@@ -68,9 +70,8 @@
     }
 
     &--collapsed {
-        $width: 60px;
-        min-width: $width;
-        width: $width;
+        min-width: $collapsed-sidebar-width;
+        width: $collapsed-sidebar-width;
         padding: 15px 5px;
         overflow: hidden !important;
 

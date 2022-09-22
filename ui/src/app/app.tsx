@@ -1,4 +1,4 @@
-import {DataLoader, NavigationManager, Notifications, NotificationsManager, PageContext, Popup, PopupManager, PopupProps, Tooltip} from 'argo-ui';
+import {DataLoader, NavigationManager, Notifications, NotificationsManager, PageContext, Popup, PopupManager, PopupProps} from 'argo-ui';
 import {createBrowserHistory} from 'history';
 import * as PropTypes from 'prop-types';
 import * as React from 'react';
@@ -8,12 +8,12 @@ import applications from './applications';
 import help from './help';
 import login from './login';
 import settings from './settings';
+import {Layout} from './shared/components/layout/layout';
 import {VersionPanel} from './shared/components/version-info/version-info-panel';
 import {Provider} from './shared/context';
 import {services} from './shared/services';
 import requests from './shared/services/requests';
 import {hashCode} from './shared/utils';
-import {Sidebar} from './sidebar/sidebar';
 import {Banner} from './ui-banner/ui-banner';
 import userInfo from './user-info';
 
@@ -190,12 +190,11 @@ export class App extends React.Component<{}, {popupProps: PopupProps; showVersio
                                                 ) : (
                                                     <DataLoader load={() => services.viewPreferences.getPreferences()}>
                                                         {pref => (
-                                                            <div style={{display: 'flex', height: '100%'}} className={pref.theme ? 'theme-' + pref.theme : 'theme-light'}>
-                                                                <Sidebar onVersionClick={() => this.setState({showVersionPanel: true})} navItems={navItems} />
+                                                            <Layout onVersionClick={() => this.setState({showVersionPanel: true})} navItems={navItems} theme={pref.theme}>
                                                                 <Banner>
                                                                     <route.component {...routeProps} />
                                                                 </Banner>
-                                                            </div>
+                                                            </Layout>
                                                         )}
                                                     </DataLoader>
                                                 )
