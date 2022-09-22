@@ -11,8 +11,8 @@ import (
 
 	ioutil "github.com/argoproj/argo-cd/v2/util/io"
 
-	rediscache "github.com/go-redis/cache/v8"
-	"github.com/go-redis/redis/v8"
+	rediscache "github.com/go-redis/cache/v9"
+	"github.com/go-redis/redis/v9"
 )
 
 type RedisCompressionType string

@@ -11,7 +11,7 @@ import (
 	"time"
 
 	"github.com/argoproj/gitops-engine/pkg/utils/kube"
-	"github.com/go-redis/redis/v8"
+	"github.com/go-redis/redis/v9"
 	log "github.com/sirupsen/logrus"
 	"github.com/spf13/cobra"
 	v1 "k8s.io/apimachinery/pkg/apis/meta/v1"

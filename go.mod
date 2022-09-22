@@ -27,14 +27,14 @@ require (
 	github.com/go-openapi/runtime v0.19.4
 	github.com/go-openapi/spec v0.19.5 // indirect
 	github.com/go-openapi/validate v0.19.5 // indirect
-	github.com/go-redis/cache/v8 v8.4.2
-	github.com/go-redis/redis/v8 v8.11.3
+	github.com/go-redis/cache/v9 v9.0.0-beta.1
+	github.com/go-redis/redis/v9 v9.0.0-beta.2
 	github.com/gobwas/glob v0.2.3
 	github.com/gogits/go-gogs-client v0.0.0-20190616193657-5a05380e4bc2
 	github.com/gogo/protobuf v1.3.2
 	github.com/golang-jwt/jwt/v4 v4.2.0
 	github.com/golang/protobuf v1.5.2
-	github.com/google/go-cmp v0.5.7
+	github.com/google/go-cmp v0.5.8
 	github.com/google/go-github/v35 v35.3.0
 	github.com/google/go-jsonnet v0.18.0
 	github.com/google/shlex v0.0.0-20191202100458-e7afc7fbc510
@@ -184,7 +184,7 @@ require (
 	github.com/josharian/intern v1.0.0 // indirect
 	github.com/json-iterator/go v1.1.12 // indirect
 	github.com/kevinburke/ssh_config v0.0.0-20201106050909-4977a11b4351 // indirect
-	github.com/klauspost/compress v1.13.5 // indirect
+	github.com/klauspost/compress v1.13.6 // indirect
 	github.com/liggitt/tabwriter v0.0.0-20181228230101-89fcab3d43de // indirect
 	github.com/mailru/easyjson v0.7.6 // indirect
 	github.com/mattn/go-runewidth v0.0.9 // indirect
@@ -212,7 +212,7 @@ require (
 	github.com/sergi/go-diff v1.1.0 // indirect
 	github.com/slack-go/slack v0.10.1 // indirect
 	github.com/valyala/bytebufferpool v1.0.0 // indirect
-	github.com/vmihailenco/go-tinylfu v0.2.1 // indirect
+	github.com/vmihailenco/go-tinylfu v0.2.2 // indirect
 	github.com/vmihailenco/msgpack/v5 v5.3.4 // indirect
 	github.com/vmihailenco/tagparser/v2 v2.0.0 // indirect
 	github.com/xanzy/ssh-agent v0.3.0 // indirect
@@ -223,12 +223,11 @@ require (
 	go.opentelemetry.io/otel/trace v1.6.3 // indirect
 	go.opentelemetry.io/proto/otlp v0.15.0 // indirect
 	go.starlark.net v0.0.0-20200306205701-8dd3e2ee1dd5 // indirect
-	golang.org/x/exp v0.0.0-20210901193431-a062eea981d2 // indirect
 	golang.org/x/mod v0.6.0-dev.0.20220106191415-9b9b3d81d5e3 // indirect
 	golang.org/x/sys v0.0.0-20220520151302-bc2c85ada10a // indirect
 	golang.org/x/text v0.3.7 // indirect
 	golang.org/x/time v0.0.0-20220210224613-90d013bbcef8 // indirect
-	golang.org/x/tools v0.1.10-0.20220218145154-897bd77cd717 // indirect
+	golang.org/x/tools v0.1.10 // indirect
 	golang.org/x/xerrors v0.0.0-20200804184101-5ec99f83aff1 // indirect
 	gomodules.xyz/envconfig v1.3.1-0.20190308184047-426f31af0d45 // indirect
 	gomodules.xyz/jsonpatch/v2 v2.2.0 // indirect
@@ -238,7 +237,7 @@ require (
 	gopkg.in/gomail.v2 v2.0.0-20160411212932-81ebce5c23df // indirect
 	gopkg.in/inf.v0 v0.9.1 // indirect
 	gopkg.in/warnings.v0 v0.1.2 // indirect
-	gopkg.in/yaml.v3 v3.0.0-20210107192922-496545a6307b // indirect
+	gopkg.in/yaml.v3 v3.0.1 // indirect
 	k8s.io/cli-runtime v0.24.2 // indirect
 	k8s.io/component-base v0.24.2 // indirect
 	k8s.io/component-helpers v0.24.2 // indirect
