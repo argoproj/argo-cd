@@ -6,7 +6,7 @@
     width: $width;
     padding: 15px;
     position: sticky;
-    overflow: scroll;
+    overflow-y: scroll;
     height: 100vh;
     max-height: 100vh;
     top: 0;
@@ -72,6 +72,7 @@
         min-width: $width;
         width: $width;
         padding: 15px 5px;
+        overflow: hidden !important;
 
         .sidebar__logo img {
             margin-right: 0;
