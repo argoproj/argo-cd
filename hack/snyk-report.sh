@@ -37,8 +37,9 @@ git clone https://github.com/argoproj/argo-cd.git
 cd argo-cd
 git checkout master
 
-version=$(git tag -l | sort -g | tail -n 1 )
-minor_version=$(echo $version | grep -Eo '[0-9]\.[0-9]+')
+minor_version=$(git tag -l | sort -g | tail -n 1 | grep -Eo '[0-9]+\.[0-9]+')
+patch_num=$(git tag -l | grep "v$minor_version." | grep -o "[[:digit:]]*$" | sort -g | tail -n 1)
+version="v$minor_version.$patch_num"
 versions="master "
 for i in 1 2 3; do
   if [ "$version" == "" ]; then break; fi
@@ -136,5 +137,11 @@ rm -rf "$temp_dir"
 # regex-escape the temp dir path
 dir_r="${temp_dir//\//\\\/}"
 
+# Make sed -i cross-platform: https://stackoverflow.com/a/51060063/684776
+sedi=(-i)
+case "$(uname)" in
+  Darwin*) sedi=(-i "")
+esac
+
 # remove temp dir path from Snyk output
-sed -i '' "s/$dir_r//g" docs/snyk/*/*.html
+sed "${sedi[@]}" "s/$dir_r//g" docs/snyk/*/*.html

@@ -56,8 +56,6 @@ const (
 func TestGetLogsAllowNoSwitch(t *testing.T) {
 }
 
-// There is some code duplication in the below GetLogs tests, the reason for that is to allow getting rid of most of those tests easily in the next release,
-// when the temporary switch would die
 func TestGetLogsDenySwitchOn(t *testing.T) {
 	SkipOnEnv(t, "OPENSHIFT")
 
