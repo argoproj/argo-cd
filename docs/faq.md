@@ -187,7 +187,7 @@ argocd ... --grpc-web
 ## Why Am I Getting `x509: certificate signed by unknown authority` When Using The CLI?
 
 The certificate created by default by Argo CD is not automatically recognised by the Argo CD CLI, in order
-to create a secure system you must follow the instructions to [install a certificate](/operator-manual/tls/)
+to create a secure system you must follow the instructions to [install a certificate](./operator-manual/tls/)
 and configure your client OS to trust that certificate.
 
 If you're not running in a production system (e.g. you're testing Argo CD out), try the `--insecure` flag:
@@ -201,7 +201,7 @@ argocd ... --insecure
 ## I have configured Dex via `dex.config` in `argocd-cm`, it still says Dex is unconfigured. Why?
 
 Most likely you forgot to set the `url` in `argocd-cm` to point to your ArgoCD as well. See also
-[the docs](/operator-manual/user-management/#2-configure-argo-cd-for-sso).
+[the docs](./operator-manual/user-management/#2-configure-argo-cd-for-sso).
 
 ## Why are `SealedSecret` resources reporting a `Status`?
 
