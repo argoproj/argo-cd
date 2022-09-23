@@ -36,32 +36,15 @@
                 }
             }
         }
+        $single-toolbar-height: 50px;
 
         &--has-toolbar {
-            padding-top: 0;
-            padding-left: 0;
+            padding-top: $single-toolbar-height;
         }
         &__top-bar {
-            position: sticky;
-            z-index: 0;
+            height: $single-toolbar-height;
+            left: $sidebar-width;
         }
-        &__content-wrapper {
-            overflow: visible;
-            transform: translate3d(0, 0, 0);
-            position: relative;
-        }
-    }
-
-    &__no-auth {
-        .page {
-            &__top-bar {
-                height: 50px;
-            }
-        }
-    }
-
-    &__sidebar-collapsed {
-        padding-left: $collapsed-sidebar-width;
     }
 }
 
@@ -80,6 +63,34 @@
     &:hover {
         @include themify($themes) {
             color: themed('light-argo-teal-5');
+        }
+    }
+}
+
+.page {
+    padding-left: 0 !important;
+    &__top-bar {
+        left: $sidebar-width;
+    }
+}
+
+.sb-page-wrapper {
+    padding-left: $sidebar-width;
+
+    &__sidebar-collapsed {
+        padding-left: $collapsed-sidebar-width;
+        .flex-top-bar {
+            left: $collapsed-sidebar-width;
+        }
+
+        .page {
+            &__top-bar {
+                left: $collapsed-sidebar-width;
+            }
+        }
+
+        .application-details__status-panel {
+            left: $collapsed-sidebar-width;
         }
     }
 }

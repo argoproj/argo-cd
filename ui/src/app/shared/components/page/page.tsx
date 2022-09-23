@@ -54,7 +54,7 @@ export const Page = (props: PageProps) => {
     return (
         <DataLoader load={() => services.viewPreferences.getPreferences()}>
             {pref => (
-                <div className={`page-wrapper ${props.hideAuth ? 'page-wrapper__no-auth' : ''} ${!!pref.hideSidebar ? 'page-wrapper__sidebar-collapsed' : ''}`}>
+                <div className={`${props.hideAuth ? 'page-wrapper' : ''} ${!!pref.hideSidebar ? 'sb-page-wrapper__sidebar-collapsed' : 'sb-page-wrapper'}`}>
                     <ArgoPage
                         title={props.title}
                         children={props.children}

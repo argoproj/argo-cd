@@ -1,5 +1,6 @@
 @import 'node_modules/argo-ui/src/styles/config';
 @import 'node_modules/foundation-sites/scss/util/util';
+@import '../../../shared/config.scss';
 
 $header: 120px;
 
@@ -7,6 +8,9 @@ $header: 120px;
     height: 100vh;
     width: 100%;
     &__status-panel {
+        position: fixed;
+        left: $sidebar-width;
+        right: 0;
         z-index: 3;
         @media screen and (max-width: map-get($breakpoints, xlarge)) {
             top: 150px;
@@ -24,7 +28,11 @@ $header: 120px;
         padding: 1em;
         overflow-x: auto;
         overflow-y: auto;
+        margin-top: 115px;
         height: calc(100vh - 2 * 50px - 115px);
+        @media screen and (max-width: map-get($breakpoints, xlarge)) {
+            margin-top: 165px;
+        }
     }
 
     &__sliding-panel-pagination-wrap {
@@ -196,11 +204,6 @@ $header: 120px;
     .filters-group__panel {
         top: 230px;
     }
-    // @include breakpoint(large down) {
-    //     .filters-group__panel {
-    //         top: 280px;
-    //     }
-    // }
 
     .graph-options-panel {
         margin-left: 10px;
