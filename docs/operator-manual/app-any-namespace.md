@@ -84,7 +84,7 @@ For an `Application` to be created outside the `argocd` namespace, the `AppProje
 
 For example, consider the two following (incomplete) `AppProject` specs:
 
-```yaml=
+```yaml
 kind: AppProject
 apiVersion: argoproj.io/v1alpha1
 metadata:
@@ -94,8 +94,10 @@ spec:
   sourceNamespaces:
   - namespace-one
 ```
+
 and
-```yaml=
+
+```yaml
 kind: AppProject
 apiVersion: argoproj.io/v1alpha1
 metadata:
@@ -126,7 +128,6 @@ For the CLI and UI, applications are now referred to and displayed as in the for
 
 For backwards compatibility, if the namespace of the Application is the control plane's namespace (i.e. `argocd`), the `<namespace>` can be omitted from the application name when referring to it. For example, the application names `argocd/someapp` and `someapp` are semantically the same and refer to the same application in the CLI and the UI.
 
-
 ### Application RBAC
 
 The RBAC syntax for Application objects has been changed from `<project>/<application>` to `<project>/<namespace>/<application>` to accomodate the need to restrict access based on the source namespace of the Application to be managed.
@@ -151,7 +152,7 @@ p, somerole, applications, get, foo/bar/*, allow
 
 For declarative management of Applications, just create the Application from a YAML or JSON manifest in the desired namespace. Make sure that the `.spec.project` field refers to an AppProject that allows this namespace. For example, the following (incomplete) Application manifest creates an Application in the namespace `some-namespace`:
 
-```yaml=
+```yaml
 kind: Application
 apiVersion: argoproj.io/v1alpha1
 metadata:
@@ -164,7 +165,7 @@ spec:
 
 The project `some-project` will then need to specify `some-namespace` in the list of allowed source namespaces, e.g.
 
-```yaml=
+```yaml
 kind: AppProject
 apiVersion: argoproj.io/v1alpha1
 metadata:
@@ -210,7 +211,7 @@ For example, to create an application named `bar` in the namespace `foo` in the 
 
 If you are using the REST API, the namespace for `Application` cannot be specified as the application name, and resources need to be specified using the optional `appNamespace` query parameter. For example, to work with the `Application` resource named `foo` in the namespace `bar`, the request would look like follows:
 
-```shell=
+```bash
 GET /api/v1/applications/foo?appNamespace=bar
 ```
 

@@ -21,6 +21,7 @@ nav:
   - operator-manual/architecture.md
   - operator-manual/installation.md
   - operator-manual/declarative-setup.md
+  - operator-manual/app-any-namespace.md
   - operator-manual/ingress.md
   - User Management:
     - operator-manual/user-management/index.md
