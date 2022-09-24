@@ -65,7 +65,9 @@ export async function deleteApplication(appName: string, appNamespace: string, a
         'Delete application',
         api => (
             <div>
-                <p>Are you sure you want to delete the application '{appName}'?</p>
+                <p>
+                    Are you sure you want to delete the application <kbd>{appName}</kbd>?
+                </p>
                 <div className='argo-form-row'>
                     <FormField
                         label={`Please type '${appName}' to confirm the deletion of the resource`}
@@ -293,7 +295,9 @@ export const deletePodAction = async (pod: appModels.Pod, appContext: AppContext
         'Delete pod',
         () => (
             <div>
-                <p>Are you sure you want to delete Pod '{pod.name}'?</p>
+                <p>
+                    Are you sure you want to delete Pod <kbd>{pod.name}</kbd>?
+                </p>
                 <div className='argo-form-row' style={{paddingLeft: '30px'}}>
                     <CheckboxField id='force-delete-checkbox' field='force'>
                         <label htmlFor='force-delete-checkbox'>Force delete</label>
@@ -330,7 +334,7 @@ export const deletePopup = async (ctx: ContextApis, resource: ResourceTreeNode, 
         api => (
             <div>
                 <p>
-                    Are you sure you want to delete {resource.kind} '{resource.name}'?
+                    Are you sure you want to delete {resource.kind} <kbd>{resource.name}</kbd>?
                 </p>
                 {isManaged ? (
                     <div className='argo-form-row'>
@@ -1115,4 +1119,21 @@ export function appQualifiedName(app: appModels.Application): string {
 
 export function appInstanceName(app: appModels.Application): string {
     return app.metadata.namespace + '_' + app.metadata.name;
+}
+
+export function formatCreationTimestamp(creationTimestamp: string) {
+    const createdAt = moment
+        .utc(creationTimestamp)
+        .local()
+        .format('MM/DD/YYYY HH:mm:ss');
+    const fromNow = moment
+        .utc(creationTimestamp)
+        .local()
+        .fromNow();
+    return (
+        <span>
+            {createdAt}
+            <i style={{padding: '2px'}} /> ({fromNow})
+        </span>
+    );
 }

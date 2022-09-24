@@ -7,7 +7,7 @@ import {YamlEditor} from '../../../shared/components';
 import * as models from '../../../shared/models';
 import {services} from '../../../shared/services';
 import {ApplicationResourcesDiff} from '../application-resources-diff/application-resources-diff';
-import {ComparisonStatusIcon, getPodStateReason, HealthStatusIcon} from '../utils';
+import {ComparisonStatusIcon, formatCreationTimestamp, getPodStateReason, HealthStatusIcon} from '../utils';
 
 require('./application-node-info.scss');
 
@@ -25,10 +25,7 @@ export const ApplicationNodeInfo = (props: {
     if (props.node.createdAt) {
         attributes.push({
             title: 'CREATED_AT',
-            value: moment
-                .utc(props.node.createdAt)
-                .local()
-                .format('MM/DD/YYYY HH:mm:ss')
+            value: formatCreationTimestamp(props.node.createdAt)
         });
     }
     if ((props.node.images || []).length) {
@@ -120,6 +117,7 @@ export const ApplicationNodeInfo = (props: {
                                 <YamlEditor
                                     input={live}
                                     hideModeButtons={!live}
+                                    vScrollbar={live}
                                     onSave={(patch, patchType) =>
                                         services.applications.patchResource(props.application.metadata.name, props.application.metadata.namespace, props.node, patch, patchType)
                                     }

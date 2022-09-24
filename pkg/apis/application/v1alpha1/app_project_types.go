@@ -336,18 +336,18 @@ func (proj AppProject) IsGroupKindPermitted(gk schema.GroupKind, namespaced bool
 }
 
 // IsLiveResourcePermitted returns whether a live resource found in the cluster is permitted by an AppProject
-func (proj AppProject) IsLiveResourcePermitted(un *unstructured.Unstructured, server string, name string) bool {
-	return proj.IsResourcePermitted(un.GroupVersionKind().GroupKind(), un.GetNamespace(), ApplicationDestination{Server: server, Name: name})
+func (proj AppProject) IsLiveResourcePermitted(un *unstructured.Unstructured, server string, name string, projectClusters func(project string) ([]*Cluster, error)) (bool, error) {
+	return proj.IsResourcePermitted(un.GroupVersionKind().GroupKind(), un.GetNamespace(), ApplicationDestination{Server: server, Name: name}, projectClusters)
 }
 
-func (proj AppProject) IsResourcePermitted(groupKind schema.GroupKind, namespace string, dest ApplicationDestination) bool {
+func (proj AppProject) IsResourcePermitted(groupKind schema.GroupKind, namespace string, dest ApplicationDestination, projectClusters func(project string) ([]*Cluster, error)) (bool, error) {
 	if !proj.IsGroupKindPermitted(groupKind, namespace != "") {
-		return false
+		return false, nil
 	}
 	if namespace != "" {
-		return proj.IsDestinationPermitted(ApplicationDestination{Server: dest.Server, Name: dest.Name, Namespace: namespace})
+		return proj.IsDestinationPermitted(ApplicationDestination{Server: dest.Server, Name: dest.Name, Namespace: namespace}, projectClusters)
 	}
-	return true
+	return true, nil
 }
 
 // HasFinalizer returns true if a resource finalizer is set on an AppProject
@@ -384,7 +384,27 @@ func (proj AppProject) IsSourcePermitted(src ApplicationSource) bool {
 }
 
 // IsDestinationPermitted validates if the provided application's destination is one of the allowed destinations for the project
-func (proj AppProject) IsDestinationPermitted(dst ApplicationDestination) bool {
+func (proj AppProject) IsDestinationPermitted(dst ApplicationDestination, projectClusters func(project string) ([]*Cluster, error)) (bool, error) {
+	destinationMatched := proj.isDestinationMatched(dst)
+	if destinationMatched && proj.Spec.PermitOnlyProjectScopedClusters {
+		clusters, err := projectClusters(proj.Name)
+		if err != nil {
+			return false, fmt.Errorf("could not retrieve project clusters: %s", err)
+		}
+
+		for _, cluster := range clusters {
+			if cluster.Name == dst.Name || cluster.Server == dst.Server {
+				return true, nil
+			}
+		}
+
+		return false, nil
+	}
+
+	return destinationMatched, nil
+}
+
+func (proj AppProject) isDestinationMatched(dst ApplicationDestination) bool {
 	anyDestinationMatched := false
 	noDenyDestinationsMatched := true
 

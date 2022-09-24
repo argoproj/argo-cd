@@ -432,7 +432,7 @@ export class ApplicationDetails extends React.Component<RouteComponentProps<{app
                                                     />
                                                 )) || (
                                                     <DataLoader
-                                                        input={{filteredRes}}
+                                                        input={{filteredRes: filteredRes.map(res => AppUtils.nodeKey(res))}}
                                                         load={async () => {
                                                             const liveStatePromises = filteredRes.map(async resource => {
                                                                 const resourceRow: any = {...resource, group: resource.group || ''};
