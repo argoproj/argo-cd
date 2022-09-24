@@ -9,10 +9,7 @@ import (
 
 func TestShortVersion(t *testing.T) {
 	buf := new(bytes.Buffer)
-	cmd := NewVersionCmd(&argocdclient.ClientOptions{
-		ServerAddr: "localhost:80",
-		PlainText:  true,
-	})
+	cmd := NewVersionCmd(&argocdclient.ClientOptions{})
 	cmd.SetOutput(buf)
 	cmd.SetArgs([]string{"version", "--short", "--client"})
 	err := cmd.Execute()

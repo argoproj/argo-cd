@@ -66,8 +66,7 @@ func NewVersionCmd(clientOpts *argocdclient.ClientOptions) *cobra.Command {
 				err := PrintResource(v, output)
 				errors.CheckError(err)
 			case "wide", "short", "":
-				clientVersion := printClientVersion(&cv, short || (output == "short"))
-				fmt.Fprint(cmd.OutOrStdout(), clientVersion)
+				fmt.Fprint(cmd.OutOrStdout(), printClientVersion(&cv, short || (output == "short")))
 				if !client {
 					sv := getServerVersion(ctx, clientOpts, cmd)
 					printServerVersion(sv, short || (output == "short"))
@@ -94,8 +93,7 @@ func getServerVersion(ctx context.Context, options *argocdclient.ClientOptions, 
 }
 
 func printClientVersion(version *common.Version, short bool) string {
-	output := ""
-	output += fmt.Sprintf("%s: %s\n", cliName, version)
+	output := fmt.Sprintf("%s: %s\n", cliName, version)
 	if short {
 		return output
 	}
