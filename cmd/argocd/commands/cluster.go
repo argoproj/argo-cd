@@ -2,6 +2,8 @@ package commands
 
 import (
 	"fmt"
+	"net/http"
+	"net/url"
 	"os"
 	"regexp"
 	"strings"
@@ -81,6 +83,11 @@ func NewClusterAddCommand(clientOpts *argocdclient.ClientOptions, pathOpts *clie
 			contextName := args[0]
 			conf, err := getRestConfig(pathOpts, contextName)
 			errors.CheckError(err)
+			if clusterOpts.ProxyUrl != "" && conf.Proxy == nil {
+				u, err := url.Parse(clusterOpts.ProxyUrl)
+				errors.CheckError(err)
+				conf.Proxy = http.ProxyURL(u)
+			}
 			managerBearerToken := ""
 			var awsAuthConf *argoappv1.AWSAuthConfig
 			var execProviderConf *argoappv1.ExecProviderConfig
@@ -157,6 +164,7 @@ func NewClusterAddCommand(clientOpts *argocdclient.ClientOptions, pathOpts *clie
 	command.Flags().BoolVarP(&skipConfirmation, "yes", "y", false, "Skip explicit confirmation")
 	command.Flags().StringArrayVar(&labels, "label", nil, "Set metadata labels (e.g. --label key=value)")
 	command.Flags().StringArrayVar(&annotations, "annotation", nil, "Set metadata annotations (e.g. --annotation key=value)")
+	command.Flags().StringVar(&clusterOpts.ProxyUrl, "proxy-url", "", "use proxy to connect cluster")
 	cmdutil.AddClusterFlags(command, &clusterOpts)
 	return command
 }

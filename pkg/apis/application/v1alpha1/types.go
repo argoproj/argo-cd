@@ -6,6 +6,7 @@ import (
 	"math"
 	"net"
 	"net/http"
+	"net/url"
 	"os"
 	"path/filepath"
 	"reflect"
@@ -1401,6 +1402,9 @@ type ClusterConfig struct {
 
 	// ExecProviderConfig contains configuration for an exec provider
 	ExecProviderConfig *ExecProviderConfig `json:"execProviderConfig,omitempty" protobuf:"bytes,6,opt,name=execProviderConfig"`
+
+	// ProxyURL is the URL to the proxy to be used for all requests send to the server
+	ProxyUrl string `json:"proxyUrl,omitempty" protobuf:"bytes,7,opt,name=proxyUrl"`
 }
 
 // TLSClientConfig contains settings to enable transport layer security
@@ -2371,6 +2375,9 @@ func SetK8SConfigDefaults(config *rest.Config) error {
 		DisableCompression:  config.DisableCompression,
 		IdleConnTimeout:     K8sTCPIdleConnTimeout,
 	})
+	if config.Proxy != nil {
+		transport.Proxy = config.Proxy
+	}
 	tr, err := rest.HTTPWrappersForConfig(config, transport)
 	if err != nil {
 		return err
@@ -2386,6 +2393,19 @@ func SetK8SConfigDefaults(config *rest.Config) error {
 
 	config.Transport = tr
 	return nil
+}
+
+func (c *Cluster) ParseProxyUrl(proxyUrl string) (*url.URL, error) {
+	u, err := url.Parse(proxyUrl)
+	if err != nil {
+		return nil, err
+	}
+	switch u.Scheme {
+	case "http", "https", "socks5":
+	default:
+		return nil, fmt.Errorf("unsupported scheme %q, must be http, https, or socks5", u.Scheme)
+	}
+	return u, nil
 }
 
 // RawRestConfig returns a go-client REST config from cluster that might be serialized into the file using kube.WriteKubeConfig method.
@@ -2466,6 +2486,13 @@ func (c *Cluster) RawRestConfig() *rest.Config {
 	}
 	if err != nil {
 		panic(fmt.Sprintf("Unable to create K8s REST config: %v", err))
+	}
+	if c.Config.ProxyUrl != "" {
+		u, err := c.ParseProxyUrl(c.Config.ProxyUrl)
+		if err != nil {
+			panic(fmt.Sprintf("Unable to use proxy: %v", err))
+		}
+		config.Proxy = http.ProxyURL(u)
 	}
 	config.Timeout = K8sServerSideTimeout
 	config.QPS = K8sClientConfigQPS

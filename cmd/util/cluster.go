@@ -91,6 +91,13 @@ func NewCluster(name string, namespaces []string, clusterResources bool, conf *r
 		Labels:      labels,
 		Annotations: annotations,
 	}
+	// it's a tradeoff to get proxy url from rest config
+	// more detail: https://github.com/kubernetes/kubernetes/pull/81443
+	if conf.Proxy != nil {
+		if url, err := conf.Proxy(nil); err == nil {
+			clst.Config.ProxyUrl = url.String()
+		}
+	}
 
 	// Bearer token will preferentially be used for auth if present,
 	// Even in presence of key/cert credentials
@@ -119,6 +126,7 @@ type ClusterOptions struct {
 	ExecProviderEnv         map[string]string
 	ExecProviderAPIVersion  string
 	ExecProviderInstallHint string
+	ProxyUrl                string
 }
 
 func AddClusterFlags(command *cobra.Command, opts *ClusterOptions) {
