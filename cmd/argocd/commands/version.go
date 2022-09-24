@@ -29,13 +29,10 @@ func NewVersionCmd(clientOpts *argocdclient.ClientOptions) *cobra.Command {
 		Short: "Print version information",
 		Example: `  # Print the full version of client and server to stdout
   argocd version
-
   # Print only full version of the client - no connection to server will be made
   argocd version --client
-
   # Print the full version of client and server in JSON format
   argocd version -o json
-
   # Print only client and server core version strings in YAML format
   argocd version --short -o yaml
 `,
@@ -66,8 +63,8 @@ func NewVersionCmd(clientOpts *argocdclient.ClientOptions) *cobra.Command {
 				err := PrintResource(v, output)
 				errors.CheckError(err)
 			case "wide", "short", "":
-				printClientVersion(&cv, short || (output == "short"))
-
+				clientVersion := printClientVersion(&cv, short || (output == "short"))
+				fmt.Fprint(cmd.OutOrStdout(), clientVersion)
 				if !client {
 					sv := getServerVersion(ctx, clientOpts, cmd)
 					printServerVersion(sv, short || (output == "short"))
@@ -93,22 +90,22 @@ func getServerVersion(ctx context.Context, options *argocdclient.ClientOptions, 
 	return v
 }
 
-func printClientVersion(version *common.Version, short bool) {
-	fmt.Printf("%s: %s\n", cliName, version)
-
+func printClientVersion(version *common.Version, short bool) string {
+	output := ""
+	output += fmt.Sprintf("%s: %s\n", cliName, version)
 	if short {
-		return
+		return output
 	}
-
-	fmt.Printf("  BuildDate: %s\n", version.BuildDate)
-	fmt.Printf("  GitCommit: %s\n", version.GitCommit)
-	fmt.Printf("  GitTreeState: %s\n", version.GitTreeState)
+	output += fmt.Sprintf("  BuildDate: %s\n", version.BuildDate)
+	output += fmt.Sprintf("  GitCommit: %s\n", version.GitCommit)
+	output += fmt.Sprintf("  GitTreeState: %s\n", version.GitTreeState)
 	if version.GitTag != "" {
-		fmt.Printf("  GitTag: %s\n", version.GitTag)
+		output += fmt.Sprintf("  GitTag: %s\n", version.GitTag)
 	}
-	fmt.Printf("  GoVersion: %s\n", version.GoVersion)
-	fmt.Printf("  Compiler: %s\n", version.Compiler)
-	fmt.Printf("  Platform: %s\n", version.Platform)
+	output += fmt.Sprintf("  GoVersion: %s\n", version.GoVersion)
+	output += fmt.Sprintf("  Compiler: %s\n", version.Compiler)
+	output += fmt.Sprintf("  Platform: %s\n", version.Platform)
+	return output
 }
 
 func printServerVersion(version *version.VersionMessage, short bool) {
