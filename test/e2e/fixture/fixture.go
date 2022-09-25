@@ -825,6 +825,32 @@ func RestartAPIServer() {
 	}
 }
 
+// RollbackAPIServer performs a rollback of the API server deployemt.
+func RollbackAPIServer() {
+	if IsRemote() {
+		log.Infof("Waiting for API server to restart")
+		prefix := os.Getenv("ARGOCD_E2E_NAME_PREFIX")
+		workload := "argocd-server"
+		if prefix != "" {
+			workload = prefix + "-server"
+		}
+		FailOnErr(Run("", "kubectl", "rollout", "undo", "deployment", workload))
+	}
+}
+
+// StopAPIServer stops the API server deployemt.
+func StopAPIServer() {
+	if IsRemote() {
+		log.Infof("Waiting for API server to restart")
+		prefix := os.Getenv("ARGOCD_E2E_NAME_PREFIX")
+		workload := "argocd-server"
+		if prefix != "" {
+			workload = prefix + "-server"
+		}
+		FailOnErr(Run("", "kubectl", "scale", "deployment", workload, "--replicas=0"))
+	}
+}
+
 // LocalOrRemotePath selects a path for a given application based on whether
 // tests are running local or remote.
 func LocalOrRemotePath(base string) string {

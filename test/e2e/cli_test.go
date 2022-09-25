@@ -36,3 +36,36 @@ func TestCliAppCommand(t *testing.T) {
 			assert.Contains(t, NormalizeOutput(output), expected)
 		})
 }
+
+func TestAppListPortForward(t *testing.T) {
+	Given(t).
+		Path("hook").
+		When().
+		CreateApp().
+		And(func() {
+			output, err := RunCli("app", "sync", Name(), "--timeout", "90")
+			assert.NoError(t, err)
+			vars := map[string]interface{}{"Name": Name(), "Namespace": DeploymentNamespace()}
+			assert.Contains(t, NormalizeOutput(output), Tmpl(`Pod {{.Namespace}} pod Synced Progressing pod/pod created`, vars))
+			assert.Contains(t, NormalizeOutput(output), Tmpl(`Pod {{.Namespace}} hook Succeeded Sync pod/hook created`, vars))
+		}).
+		Then().
+		Expect(OperationPhaseIs(OperationSucceeded)).
+		Expect(HealthIs(health.HealthStatusHealthy)).
+		And(func(_ *Application) {
+			output, err := RunCli("app", "list", "--port-forward")
+			assert.NoError(t, err)
+			expected := Tmpl(
+				`{{.Name}} https://kubernetes.default.svc {{.Namespace}} default Synced Healthy <none> <none>`,
+				map[string]interface{}{"Name": Name(), "Namespace": DeploymentNamespace()})
+			assert.Contains(t, NormalizeOutput(output), expected)
+		}).
+		When().
+		StopAPIServer().
+		And(func() {
+			output, err := RunCli("app", "list", "--port-forward")
+			assert.Error(t, err)
+			assert.Contains(t, NormalizeOutput(output), "cannot find ready pod")
+		}).
+		RollbackAPIServer()
+}

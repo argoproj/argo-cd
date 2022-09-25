@@ -15,6 +15,7 @@ import (
 	"k8s.io/client-go/tools/clientcmd"
 	"k8s.io/client-go/tools/portforward"
 	"k8s.io/client-go/transport/spdy"
+	"k8s.io/kubectl/pkg/util/podutils"
 
 	"github.com/argoproj/argo-cd/v2/util/io"
 )
@@ -50,14 +51,16 @@ func PortForward(targetPort int, namespace string, overrides *clientcmd.ConfigOv
 			return -1, err
 		}
 
-		if len(pods.Items) > 0 {
-			pod = &pods.Items[0]
-			break
+		for _, po := range pods.Items {
+			if po.Status.Phase == corev1.PodRunning && podutils.IsPodReady(&po) {
+				pod = &po
+				break
+			}
 		}
 	}
 
 	if pod == nil {
-		return -1, fmt.Errorf("cannot find pod with selector: %v", podSelectors)
+		return -1, fmt.Errorf("cannot find ready pod with selector: %v", podSelectors)
 	}
 
 	url := clientSet.CoreV1().RESTClient().Post().
