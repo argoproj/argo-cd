@@ -7,6 +7,7 @@ import (
 	"time"
 
 	corev1 "k8s.io/api/core/v1"
+	"k8s.io/apimachinery/pkg/util/validation"
 	"sigs.k8s.io/controller-runtime/pkg/client"
 
 	"github.com/gosimple/slug"
@@ -73,10 +74,10 @@ func (g *PullRequestGenerator) GenerateParams(appSetGenerator *argoprojiov1alpha
 	params := make([]map[string]interface{}, 0, len(pulls))
 
 	// In order to follow the DNS label standard as defined in RFC 1123,
-	// we need to limit the 'branch' to 50 to give room to append/suffix-ing it
-	// with 13 more characters. Also, there is the need to clean it as recommended
+	// we need to limit the 'branch' to 63.
+	// Also, there is the need to clean it as recommended
 	// here https://kubernetes.io/docs/concepts/overview/working-with-objects/names/#dns-label-names
-	slug.MaxLength = 50
+	slug.MaxLength = 63
 
 	// Converting underscores to dashes
 	slug.CustomSub = map[string]string{
@@ -90,10 +91,16 @@ func (g *PullRequestGenerator) GenerateParams(appSetGenerator *argoprojiov1alpha
 			shortSHALength = len(pull.HeadSHA)
 		}
 
+		branchSlug := slug.Make(pull.Branch)
+		errors := validation.IsDNS1123Label(branchSlug)
+		if len(errors) > 0 {
+			return nil, fmt.Errorf("invalid branch slug: %v for branch %v: %v", branchSlug, pull.Branch, errors)
+		}
+
 		params = append(params, map[string]interface{}{
 			"number":         strconv.Itoa(pull.Number),
 			"branch":         pull.Branch,
-			"branch_slug":    slug.Make(pull.Branch),
+			"branch_slug":    branchSlug,
 			"head_sha":       pull.HeadSHA,
 			"head_short_sha": pull.HeadSHA[:shortSHALength],
 		})

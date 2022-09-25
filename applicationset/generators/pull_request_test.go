@@ -64,9 +64,34 @@ func TestPullRequestGithubGenerateParams(t *testing.T) {
 				{
 					"number":         "2",
 					"branch":         "feat/areally+long_pull_request_name_to_test_argo_slugification_and_branch_name_shortening_feature",
-					"branch_slug":    "feat-areally-long-pull-request-name-to-test-argo",
+					"branch_slug":    "feat-areally-long-pull-request-name-to-test-argo-slugification",
 					"head_sha":       "9b34ff5bd418e57d58891eb0aa0728043ca1e8be",
 					"head_short_sha": "9b34ff5b",
+				},
+			},
+			expectedErr: nil,
+		},
+		{
+			selectFunc: func(context.Context, *argoprojiov1alpha1.PullRequestGenerator, *argoprojiov1alpha1.ApplicationSet) (pullrequest.PullRequestService, error) {
+				return pullrequest.NewFakeService(
+					ctx,
+					[]*pullrequest.PullRequest{
+						&pullrequest.PullRequest{
+							Number:  2,
+							Branch:  "abdominoposterior-pneumonoultramicroscopicsilicovolcanoconiosis-longest-branch-name",
+							HeadSHA: "09ae444a85e105b34abd0f15dbde72938580f970",
+						},
+					},
+					nil,
+				)
+			},
+			expected: []map[string]interface{}{
+				{
+					"number":         "2",
+					"branch":         "abdominoposterior-pneumonoultramicroscopicsilicovolcanoconiosis-longest-branch-name",
+					"branch_slug":    "abdominoposterior-pneumonoultramicroscopicsilicovolcanoconiosis",
+					"head_sha":       "09ae444a85e105b34abd0f15dbde72938580f970",
+					"head_short_sha": "09ae444a",
 				},
 			},
 			expectedErr: nil,
