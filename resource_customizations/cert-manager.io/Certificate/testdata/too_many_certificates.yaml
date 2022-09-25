@@ -1,0 +1,130 @@
+apiVersion: cert-manager.io/v1
+kind: Certificate
+metadata:
+  creationTimestamp: '2022-09-25T08:38:49Z'
+  generation: 1
+  labels:
+    argocd.argoproj.io/instance: argocd-ingress
+  managedFields:
+    - apiVersion: cert-manager.io/v1
+      fieldsType: FieldsV1
+      fieldsV1:
+        'f:metadata':
+          'f:labels':
+            .: {}
+            'f:argocd.argoproj.io/instance': {}
+          'f:ownerReferences':
+            .: {}
+            'k:{"uid":"f629987c-2612-4035-a603-9f6378ff0095"}': {}
+        'f:spec':
+          .: {}
+          'f:dnsNames': {}
+          'f:issuerRef':
+            .: {}
+            'f:group': {}
+            'f:kind': {}
+            'f:name': {}
+          'f:secretName': {}
+          'f:usages': {}
+      manager: cert-manager-ingress-shim
+      operation: Update
+      time: '2022-09-25T08:38:48Z'
+    - apiVersion: cert-manager.io/v1
+      fieldsType: FieldsV1
+      fieldsV1:
+        'f:status':
+          .: {}
+          'f:conditions':
+            .: {}
+            'k:{"type":"Ready"}':
+              .: {}
+              'f:lastTransitionTime': {}
+              'f:message': {}
+              'f:observedGeneration': {}
+              'f:reason': {}
+              'f:status': {}
+              'f:type': {}
+          'f:notAfter': {}
+          'f:notBefore': {}
+          'f:renewalTime': {}
+      manager: cert-manager-certificates-readiness
+      operation: Update
+      subresource: status
+      time: '2022-09-25T08:38:49Z'
+    - apiVersion: cert-manager.io/v1
+      fieldsType: FieldsV1
+      fieldsV1:
+        'f:status':
+          'f:conditions':
+            'k:{"type":"Issuing"}':
+              .: {}
+              'f:observedGeneration': {}
+              'f:type': {}
+      manager: cert-manager-certificates-trigger
+      operation: Update
+      subresource: status
+      time: '2022-09-25T08:38:49Z'
+    - apiVersion: cert-manager.io/v1
+      fieldsType: FieldsV1
+      fieldsV1:
+        'f:status':
+          'f:conditions':
+            'k:{"type":"Issuing"}':
+              'f:lastTransitionTime': {}
+              'f:message': {}
+              'f:reason': {}
+              'f:status': {}
+          'f:failedIssuanceAttempts': {}
+          'f:lastFailureTime': {}
+      manager: cert-manager-certificates-issuing
+      operation: Update
+      subresource: status
+      time: '2022-09-25T08:38:53Z'
+  name: argocd-secret
+  namespace: argocd
+  ownerReferences:
+    - apiVersion: networking.k8s.io/v1
+      blockOwnerDeletion: true
+      controller: true
+      kind: Ingress
+      name: argocd-server-https-ingress
+      uid: f629987c-2612-4035-a603-9f6378ff0095
+  resourceVersion: '13045'
+  uid: 065f3a05-d59f-46a3-90df-e6a732d0dbd2
+spec:
+  dnsNames:
+    - domain.example.com
+  issuerRef:
+    group: cert-manager.io
+    kind: ClusterIssuer
+    name: letsencrypt-production-http01
+  secretName: argocd-secret
+  usages:
+    - digital signature
+    - key encipherment
+status:
+  conditions:
+    - lastTransitionTime: '2022-09-25T08:38:49Z'
+      message: 'Existing issued Secret is not up to date for spec: [spec.dnsNames]'
+      observedGeneration: 1
+      reason: SecretMismatch
+      status: 'False'
+      type: Ready
+    - lastTransitionTime: '2022-09-25T08:38:53Z'
+      message: >-
+        The certificate request has failed to complete and will be retried:
+        Failed to wait for order resource "argocd-secret-dbljk-2317276124" to
+        become ready: order is in "errored" state: Failed to create Order: 429
+        urn:ietf:params:acme:error:rateLimited: Error creating new order :: too
+        many certificates (5) already issued for this exact set of domains in
+        the last 168 hours: domain.example.com, retry after 2022-09-26T01:29:08Z:
+        see https://letsencrypt.org/docs/duplicate-certificate-limit/
+      observedGeneration: 1
+      reason: Failed
+      status: 'False'
+      type: Issuing
+  failedIssuanceAttempts: 1
+  lastFailureTime: '2022-09-25T08:38:53Z'
+  notAfter: '2023-09-25T08:34:15Z'
+  notBefore: '2022-09-25T08:34:15Z'
+  renewalTime: '2023-05-26T16:34:15Z'

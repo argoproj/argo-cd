@@ -20,3 +20,14 @@ tests:
     status: Healthy
     message: 'Certificate renewed successfully'
   inputPath: testdata/healthy_renewed.yaml
+- healthStatus:
+    status: Degraded
+    message: >-
+      The certificate request has failed to complete and will be retried:
+      Failed to wait for order resource "argocd-secret-dbljk-2317276124" to
+      become ready: order is in "errored" state: Failed to create Order: 429
+      urn:ietf:params:acme:error:rateLimited: Error creating new order :: too
+      many certificates (5) already issued for this exact set of domains in
+      the last 168 hours: domain.example.com, retry after 2022-09-26T01:29:08Z:
+      see https://letsencrypt.org/docs/duplicate-certificate-limit/
+  inputPath: testdata/too_many_certificates.yaml
