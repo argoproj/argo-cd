@@ -5,7 +5,7 @@ import {Revision} from '../../../shared/components/revision';
 import {Timestamp} from '../../../shared/components/timestamp';
 import * as models from '../../../shared/models';
 import {services} from '../../../shared/services';
-import {ApplicationSyncWindowStatusIcon, ComparisonStatusIcon, getAppOperationState, getConditionCategory, HealthStatusIcon, OperationState, syncStatusMessage} from '../utils';
+import {ApplicationSyncWindowStatusIcon, ComparisonStatusIcon, getAppDefaultSource, getAppOperationState, getConditionCategory, HealthStatusIcon, OperationState, syncStatusMessage} from '../utils';
 import {RevisionMetadataPanel} from './revision-metadata-panel';
 
 import './application-status-panel.scss';
@@ -63,7 +63,7 @@ export const ApplicationStatusPanel = ({application, showOperation, showConditio
     const infos = cntByCategory.get('info');
     const warnings = cntByCategory.get('warning');
     const errors = cntByCategory.get('error');
-
+    const source = getAppDefaultSource(application);
     return (
         <div className='application-status-panel row'>
             <div className='application-status-panel__item'>
@@ -82,7 +82,7 @@ export const ApplicationStatusPanel = ({application, showOperation, showConditio
                             title: 'CURRENT SYNC STATUS',
                             helpContent: 'Whether or not the version of your app is up to date with your repo. You may wish to sync your app if it is out-of-sync.'
                         },
-                        application.spec.source.chart ? null : () => showMetadataInfo(application.status.sync ? application.status.sync.revision : '')
+                        source.chart ? null : () => showMetadataInfo(application.status.sync ? application.status.sync.revision : '')
                     )}
                     <div className='application-status-panel__item-value'>
                         <div>
@@ -95,7 +95,7 @@ export const ApplicationStatusPanel = ({application, showOperation, showConditio
                             <RevisionMetadataPanel
                                 appName={application.metadata.name}
                                 appNamespace={application.metadata.namespace}
-                                type={application.spec.source.chart && 'helm'}
+                                type={source.chart && 'helm'}
                                 revision={application.status.sync.revision}
                             />
                         </div>
@@ -114,7 +114,7 @@ export const ApplicationStatusPanel = ({application, showOperation, showConditio
                                     daysSinceLastSynchronized +
                                     ' days since last sync. Click for the status of that sync.'
                             },
-                            application.spec.source.chart ? null : () => showMetadataInfo(appOperationState.syncResult ? appOperationState.syncResult.revision : '')
+                            source.chart ? null : () => showMetadataInfo(appOperationState.syncResult ? appOperationState.syncResult.revision : '')
                         )}
                         <div className={`application-status-panel__item-value application-status-panel__item-value--${appOperationState.phase}`}>
                             <a onClick={() => showOperation && showOperation()}>
@@ -122,7 +122,7 @@ export const ApplicationStatusPanel = ({application, showOperation, showConditio
                             </a>
                             {appOperationState.syncResult && appOperationState.syncResult.revision && (
                                 <div className='application-status-panel__item-value__revision show-for-large'>
-                                    To <Revision repoUrl={application.spec.source.repoURL} revision={appOperationState.syncResult.revision} />
+                                    To <Revision repoUrl={source.repoURL} revision={appOperationState.syncResult.revision} />
                                 </div>
                             )}
                         </div>
@@ -134,7 +134,7 @@ export const ApplicationStatusPanel = ({application, showOperation, showConditio
                             <RevisionMetadataPanel
                                 appName={application.metadata.name}
                                 appNamespace={application.metadata.namespace}
-                                type={application.spec.source.chart && 'helm'}
+                                type={source.chart && 'helm'}
                                 revision={appOperationState.syncResult.revision}
                             />
                         )) || <div className='application-status-panel__item-name'>{appOperationState.message}</div>}
