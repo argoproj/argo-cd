@@ -1132,13 +1132,18 @@ func NewApplicationDeleteCommand(clientOpts *argocdclient.ClientOptions) *cobra.
 	var command = &cobra.Command{
 		Use:   "delete APPNAME",
 		Short: "Delete an application",
-		Example: `argocd app delete app1
+		Example: `  # Delete an app
+  argocd app delete my-app
 
-# Delete multiple apps
-argocd app delete app1 app2
+  # Delete multiple apps
+  argocd app delete my-app other-app
 
-# Delete apps by label
-argocd app delete -l foo=bar`,
+  # Delete apps by label
+  argocd app delete -l app.kubernetes.io/instance=my-app
+  argocd app delete -l app.kubernetes.io/instance!=my-app
+  argocd app delete -l app.kubernetes.io/instance
+  argocd app delete -l '!app.kubernetes.io/instance'
+  argocd app delete -l 'app.kubernetes.io/instance notin (my-app,other-app)'`,
 		Run: func(c *cobra.Command, args []string) {
 			ctx := c.Context()
 
@@ -1207,7 +1212,7 @@ argocd app delete -l foo=bar`,
 	command.Flags().BoolVar(&cascade, "cascade", true, "Perform a cascaded deletion of all application resources")
 	command.Flags().StringVarP(&propagationPolicy, "propagation-policy", "p", "foreground", "Specify propagation policy for deletion of application's resources. One of: foreground|background")
 	command.Flags().BoolVarP(&noPrompt, "yes", "y", false, "Turn off prompting to confirm cascaded deletion of application resources")
-	command.Flags().StringVarP(&selector, "selector", "l", "", "Delete all apps with matching label")
+	command.Flags().StringVarP(&selector, "selector", "l", "", "Delete all apps with matching label. Supports '=', '==', '!=', in, notin, exists & not exists. Matching apps must satisfy all of the specified label constraints.")
 	return command
 }
 
@@ -1266,7 +1271,11 @@ func NewApplicationListCommand(clientOpts *argocdclient.ClientOptions) *cobra.Co
   argocd app list
 
   # List apps by label, in this example we listing apps that are children of another app (aka app-of-apps)
-  argocd app list -l app.kubernetes.io/instance=my-app`,
+  argocd app list -l app.kubernetes.io/instance=my-app
+  argocd app list -l app.kubernetes.io/instance!=my-app
+  argocd app list -l app.kubernetes.io/instance
+  argocd app list -l '!app.kubernetes.io/instance'
+  argocd app list -l 'app.kubernetes.io/instance notin (my-app,other-app)'`,
 		Run: func(c *cobra.Command, args []string) {
 			ctx := c.Context()
 
@@ -1315,7 +1324,7 @@ func NewApplicationListCommand(clientOpts *argocdclient.ClientOptions) *cobra.Co
 		},
 	}
 	command.Flags().StringVarP(&output, "output", "o", "wide", "Output format. One of: wide|name|json|yaml")
-	command.Flags().StringVarP(&selector, "selector", "l", "", "List apps by label")
+	command.Flags().StringVarP(&selector, "selector", "l", "", "List apps by label. Supports '=', '==', '!=', in, notin, exists & not exists. Matching apps must satisfy all of the specified label constraints.")
 	command.Flags().StringArrayVarP(&projects, "project", "p", []string{}, "Filter by project name")
 	command.Flags().StringVarP(&repo, "repo", "r", "", "List apps by source repo URL")
 	command.Flags().StringVarP(&appNamespace, "app-namespace", "N", "", "Only list applications in namespace")
@@ -1436,7 +1445,11 @@ func NewApplicationWaitCommand(clientOpts *argocdclient.ClientOptions) *cobra.Co
   argocd app wait my-app other-app
 
   # Wait for apps by label, in this example we waiting for apps that are children of another app (aka app-of-apps)
-  argocd app wait -l app.kubernetes.io/instance=apps`,
+  argocd app wait -l app.kubernetes.io/instance=my-app
+  argocd app wait -l app.kubernetes.io/instance!=my-app
+  argocd app wait -l app.kubernetes.io/instance
+  argocd app wait -l '!app.kubernetes.io/instance'
+  argocd app wait -l 'app.kubernetes.io/instance notin (my-app,other-app)'`,
 		Run: func(c *cobra.Command, args []string) {
 			ctx := c.Context()
 
@@ -1468,7 +1481,7 @@ func NewApplicationWaitCommand(clientOpts *argocdclient.ClientOptions) *cobra.Co
 	command.Flags().BoolVar(&watch.health, "health", false, "Wait for health")
 	command.Flags().BoolVar(&watch.suspended, "suspended", false, "Wait for suspended")
 	command.Flags().BoolVar(&watch.degraded, "degraded", false, "Wait for degraded")
-	command.Flags().StringVarP(&selector, "selector", "l", "", "Wait for apps by label")
+	command.Flags().StringVarP(&selector, "selector", "l", "", "Wait for apps by label. Supports '=', '==', '!=', in, notin, exists & not exists. Matching apps must satisfy all of the specified label constraints.")
 	command.Flags().StringArrayVar(&resources, "resource", []string{}, fmt.Sprintf("Sync only specific resources as GROUP%sKIND%sNAME. Fields may be blank. This option may be specified repeatedly", resourceFieldDelimiter, resourceFieldDelimiter))
 	command.Flags().BoolVar(&watch.operation, "operation", false, "Wait for pending operations")
 	command.Flags().UintVar(&timeout, "timeout", defaultCheckTimeoutSeconds, "Time out after this many seconds")
@@ -1520,6 +1533,10 @@ func NewApplicationSyncCommand(clientOpts *argocdclient.ClientOptions) *cobra.Co
 
   # Sync apps by label, in this example we sync apps that are children of another app (aka app-of-apps)
   argocd app sync -l app.kubernetes.io/instance=my-app
+  argocd app sync -l app.kubernetes.io/instance!=my-app
+  argocd app sync -l app.kubernetes.io/instance
+  argocd app sync -l '!app.kubernetes.io/instance'
+  argocd app sync -l 'app.kubernetes.io/instance notin (my-app,other-app)'
 
   # Sync a specific resource
   # Resource should be formatted as GROUP:KIND:NAME. If no GROUP is specified then :KIND:NAME
@@ -1751,7 +1768,7 @@ func NewApplicationSyncCommand(clientOpts *argocdclient.ClientOptions) *cobra.Co
 	command.Flags().BoolVar(&prune, "prune", false, "Allow deleting unexpected resources")
 	command.Flags().StringVar(&revision, "revision", "", "Sync to a specific revision. Preserves parameter overrides")
 	command.Flags().StringArrayVar(&resources, "resource", []string{}, fmt.Sprintf("Sync only specific resources as GROUP%sKIND%sNAME. Fields may be blank. This option may be specified repeatedly", resourceFieldDelimiter, resourceFieldDelimiter))
-	command.Flags().StringVarP(&selector, "selector", "l", "", "Sync apps that match this label")
+	command.Flags().StringVarP(&selector, "selector", "l", "", "Sync apps that match this label. Supports '=', '==', '!=', in, notin, exists & not exists. Matching apps must satisfy all of the specified label constraints.")
 	command.Flags().StringArrayVar(&labels, "label", []string{}, "Sync only specific resources with a label. This option may be specified repeatedly.")
 	command.Flags().UintVar(&timeout, "timeout", defaultCheckTimeoutSeconds, "Time out after this many seconds")
 	command.Flags().Int64Var(&retryLimit, "retry-limit", 0, "Max number of allowed sync retries")
