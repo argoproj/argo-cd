@@ -61,6 +61,25 @@ func FilterByProjects(apps []argoappv1.Application, projects []string) []argoapp
 
 }
 
+// FilterAppSetsByProjects returns applications which belongs to the specified project
+func FilterAppSetsByProjects(appsets []argoappv1.ApplicationSet, projects []string) []argoappv1.ApplicationSet {
+	if len(projects) == 0 {
+		return appsets
+	}
+	projectsMap := make(map[string]bool)
+	for i := range projects {
+		projectsMap[projects[i]] = true
+	}
+	items := make([]argoappv1.ApplicationSet, 0)
+	for i := 0; i < len(appsets); i++ {
+		a := appsets[i]
+		if _, ok := projectsMap[a.Spec.Template.Spec.GetProject()]; ok {
+			items = append(items, a)
+		}
+	}
+	return items
+}
+
 // FilterByRepo returns an application
 func FilterByRepo(apps []argoappv1.Application, repo string) []argoappv1.Application {
 	if repo == "" {
@@ -286,7 +305,7 @@ func ValidatePermissions(ctx context.Context, spec *argoappv1.ApplicationSpec, p
 	if spec.Source.RepoURL == "" || (spec.Source.Path == "" && spec.Source.Chart == "") {
 		conditions = append(conditions, argoappv1.ApplicationCondition{
 			Type:    argoappv1.ApplicationConditionInvalidSpecError,
-			Message: "spec.source.repoURL and spec.source.path either spec.source.chart are required",
+			Message: "spec.source.repoURL and either spec.source.path or spec.source.chart are required",
 		})
 		return conditions, nil
 	}

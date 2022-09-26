@@ -60,6 +60,8 @@ import (
 	"github.com/argoproj/argo-cd/v2/pkg/apiclient"
 	accountpkg "github.com/argoproj/argo-cd/v2/pkg/apiclient/account"
 	applicationpkg "github.com/argoproj/argo-cd/v2/pkg/apiclient/application"
+
+	applicationsetpkg "github.com/argoproj/argo-cd/v2/pkg/apiclient/applicationset"
 	certificatepkg "github.com/argoproj/argo-cd/v2/pkg/apiclient/certificate"
 	clusterpkg "github.com/argoproj/argo-cd/v2/pkg/apiclient/cluster"
 	gpgkeypkg "github.com/argoproj/argo-cd/v2/pkg/apiclient/gpgkey"
@@ -78,6 +80,7 @@ import (
 	repocache "github.com/argoproj/argo-cd/v2/reposerver/cache"
 	"github.com/argoproj/argo-cd/v2/server/account"
 	"github.com/argoproj/argo-cd/v2/server/application"
+	"github.com/argoproj/argo-cd/v2/server/applicationset"
 	"github.com/argoproj/argo-cd/v2/server/badge"
 	servercache "github.com/argoproj/argo-cd/v2/server/cache"
 	"github.com/argoproj/argo-cd/v2/server/certificate"
@@ -175,6 +178,8 @@ type ArgoCDServer struct {
 	policyEnforcer *rbacpolicy.RBACPolicyEnforcer
 	appInformer    cache.SharedIndexInformer
 	appLister      applisters.ApplicationLister
+	appsetInformer cache.SharedIndexInformer
+	appsetLister   applisters.ApplicationSetNamespaceLister
 	db             db.ArgoDB
 
 	// stopCh is the channel which when closed, will shutdown the Argo CD server
@@ -255,6 +260,9 @@ func NewServer(ctx context.Context, opts ArgoCDServerOpts) *ArgoCDServer {
 	appInformer := appFactory.Argoproj().V1alpha1().Applications().Informer()
 	appLister := appFactory.Argoproj().V1alpha1().Applications().Lister()
 
+	appsetInformer := appFactory.Argoproj().V1alpha1().ApplicationSets().Informer()
+	appsetLister := appFactory.Argoproj().V1alpha1().ApplicationSets().Lister().ApplicationSets(opts.Namespace)
+
 	userStateStorage := util_session.NewUserStateStorage(opts.RedisClient)
 	sessionMgr := util_session.NewSessionManager(settingsMgr, projLister, opts.DexServerAddr, opts.DexTLSConfig, userStateStorage)
 	enf := rbac.NewEnforcer(opts.KubeClientset, opts.Namespace, common.ArgoCDRBACConfigMapName, nil)
@@ -290,6 +298,8 @@ func NewServer(ctx context.Context, opts ArgoCDServerOpts) *ArgoCDServer {
 		projLister:        projLister,
 		appInformer:       appInformer,
 		appLister:         appLister,
+		appsetInformer:    appsetInformer,
+		appsetLister:      appsetLister,
 		policyEnforcer:    policyEnf,
 		userStateStorage:  userStateStorage,
 		staticAssets:      http.FS(staticFS),
@@ -720,6 +730,8 @@ func (a *ArgoCDServer) newGRPCServer() (*grpc.Server, application.AppResourceTre
 		a.settingsMgr,
 		a.projInformer,
 		a.ApplicationNamespaces)
+
+	applicationSetService := applicationset.NewServer(a.db, a.KubeClientset, a.enf, a.Cache, a.AppClientset, a.appLister, a.appsetInformer, a.appsetLister, a.projLister, a.settingsMgr, a.Namespace, projectLock)
 	projectService := project.NewServer(a.Namespace, a.KubeClientset, a.AppClientset, a.enf, projectLock, a.sessionMgr, a.policyEnforcer, a.projInformer, a.settingsMgr, a.db)
 	settingsService := settings.NewServer(a.settingsMgr, a, a.DisableAuth)
 	accountService := account.NewServer(a.sessionMgr, a.settingsMgr, a.enf)
@@ -739,6 +751,7 @@ func (a *ArgoCDServer) newGRPCServer() (*grpc.Server, application.AppResourceTre
 	}))
 	clusterpkg.RegisterClusterServiceServer(grpcS, clusterService)
 	applicationpkg.RegisterApplicationServiceServer(grpcS, applicationService)
+	applicationsetpkg.RegisterApplicationSetServiceServer(grpcS, applicationSetService)
 	notificationpkg.RegisterNotificationServiceServer(grpcS, notificationService)
 	repositorypkg.RegisterRepositoryServiceServer(grpcS, repoService)
 	repocredspkg.RegisterRepoCredsServiceServer(grpcS, repoCredsService)

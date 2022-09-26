@@ -18,7 +18,6 @@ import (
 	log "github.com/sirupsen/logrus"
 
 	argoappsv1 "github.com/argoproj/argo-cd/v2/pkg/apis/application/v1alpha1"
-	argoappsetv1 "github.com/argoproj/argo-cd/v2/pkg/apis/applicationset/v1alpha1"
 )
 
 var sprigFuncMap = sprig.GenericFuncMap() // a singleton for better performance
@@ -32,7 +31,7 @@ func init() {
 }
 
 type Renderer interface {
-	RenderTemplateParams(tmpl *argoappsv1.Application, syncPolicy *argoappsetv1.ApplicationSetSyncPolicy, params map[string]interface{}, useGoTemplate bool) (*argoappsv1.Application, error)
+	RenderTemplateParams(tmpl *argoappsv1.Application, syncPolicy *argoappsv1.ApplicationSetSyncPolicy, params map[string]interface{}, useGoTemplate bool) (*argoappsv1.Application, error)
 }
 
 type Render struct {
@@ -163,7 +162,7 @@ func (r *Render) deeplyReplace(copy, original reflect.Value, replaceMap map[stri
 	return nil
 }
 
-func (r *Render) RenderTemplateParams(tmpl *argoappsv1.Application, syncPolicy *argoappsetv1.ApplicationSetSyncPolicy, params map[string]interface{}, useGoTemplate bool) (*argoappsv1.Application, error) {
+func (r *Render) RenderTemplateParams(tmpl *argoappsv1.Application, syncPolicy *argoappsv1.ApplicationSetSyncPolicy, params map[string]interface{}, useGoTemplate bool) (*argoappsv1.Application, error) {
 	if tmpl == nil {
 		return nil, fmt.Errorf("application template is empty ")
 	}
@@ -230,9 +229,10 @@ func (r *Render) Replace(tmpl string, replaceMap map[string]interface{}, useGoTe
 	return replacedTmpl, nil
 }
 
-// CheckInvalidGenerators logs a warning if there are unrecognized generators
-func CheckInvalidGenerators(applicationSetInfo *argoappsetv1.ApplicationSet) {
+// Log a warning if there are unrecognized generators
+func CheckInvalidGenerators(applicationSetInfo *argoappsv1.ApplicationSet) error {
 	hasInvalidGenerators, invalidGenerators := invalidGenerators(applicationSetInfo)
+	var errorMessage error
 	if len(invalidGenerators) > 0 {
 		gnames := []string{}
 		for n := range invalidGenerators {
@@ -241,17 +241,20 @@ func CheckInvalidGenerators(applicationSetInfo *argoappsetv1.ApplicationSet) {
 		sort.Strings(gnames)
 		aname := applicationSetInfo.ObjectMeta.Name
 		msg := "ApplicationSet %s contains unrecognized generators: %s"
+		errorMessage = fmt.Errorf(msg, aname, strings.Join(gnames, ", "))
 		log.Warnf(msg, aname, strings.Join(gnames, ", "))
 	} else if hasInvalidGenerators {
 		name := applicationSetInfo.ObjectMeta.Name
 		msg := "ApplicationSet %s contains unrecognized generators"
+		errorMessage = fmt.Errorf(msg, name)
 		log.Warnf(msg, name)
 	}
+	return errorMessage
 }
 
 // Return true if there are unknown generators specified in the application set.  If we can discover the names
 // of these generators, return the names as the keys in a map
-func invalidGenerators(applicationSetInfo *argoappsetv1.ApplicationSet) (bool, map[string]bool) {
+func invalidGenerators(applicationSetInfo *argoappsv1.ApplicationSet) (bool, map[string]bool) {
 	names := make(map[string]bool)
 	hasInvalidGenerators := false
 	for index, generator := range applicationSetInfo.Spec.Generators {
@@ -275,7 +278,7 @@ func invalidGenerators(applicationSetInfo *argoappsetv1.ApplicationSet) (bool, m
 	return hasInvalidGenerators, names
 }
 
-func addInvalidGeneratorNames(names map[string]bool, applicationSetInfo *argoappsetv1.ApplicationSet, index int) {
+func addInvalidGeneratorNames(names map[string]bool, applicationSetInfo *argoappsv1.ApplicationSet, index int) {
 	// The generator names are stored in the "kubectl.kubernetes.io/last-applied-configuration" annotation
 	config := applicationSetInfo.ObjectMeta.Annotations["kubectl.kubernetes.io/last-applied-configuration"]
 	var values map[string]interface{}

@@ -7,7 +7,7 @@
   <meta name="viewport" content="width=device-width, initial-scale=1.0">
   <meta http-equiv="X-UA-Compatible" content="IE=edge">
   <title>Snyk test report</title>
-  <meta name="description" content="20 known vulnerabilities found in 67 vulnerable dependency paths.">
+  <meta name="description" content="22 known vulnerabilities found in 69 vulnerable dependency paths.">
   <base target="_blank">
   <link rel="icon" type="image/png" href="https://res.cloudinary.com/snyk/image/upload/v1468845142/favicon/favicon.png"
     sizes="194x194">
@@ -456,7 +456,7 @@
               <div class="header-wrap">
                   <h1 class="project__header__title">Snyk test report</h1>
     
-                <p class="timestamp">August 3rd 2022, 1:56:13 pm</p>
+                <p class="timestamp">September 7th 2022, 7:37:42 pm</p>
               </div>
               <div class="source-panel">
                 <span>Scanned the following path:</span>
@@ -466,8 +466,8 @@
               </div>
     
               <div class="meta-counts">
-                <div class="meta-count"><span>20</span> <span>known vulnerabilities</span></div>
-                <div class="meta-count"><span>67 vulnerable dependency paths</span></div>
+                <div class="meta-count"><span>22</span> <span>known vulnerabilities</span></div>
+                <div class="meta-count"><span>69 vulnerable dependency paths</span></div>
                 <div class="meta-count"><span>162</span> <span>dependencies</span></div>
               </div><!-- .meta-counts -->
             </div><!-- .layout-container--short -->
@@ -485,6 +485,85 @@
       </section>
     <div class="layout-container" style="padding-top: 35px;">
       <div class="cards--vuln filter--patch filter--ignore">
+        <div class="card card--vuln  disclosure--not-new severity--medium" data-snyk-test="medium">
+            <h2 class="card__title">Out-of-bounds Write</h2>
+            <div class="card__section">
+        
+                <div class="label label--medium">
+                    <span class="label__text">medium severity</span>
+                </div>
+        
+                <hr/>
+        
+                <ul class="card__meta">
+                    <li class="card__meta__item">
+                        Package Manager: ubuntu:22.04
+                    </li>
+                    <li class="card__meta__item">
+                            Vulnerable module:
+        
+                            zlib/zlib1g
+                    </li>
+        
+                    <li class="card__meta__item">Introduced through:
+        
+        
+                                    docker-image|quay.io/argoproj/argocd@v2.3.7, meta-common-packages@meta and others
+                    </li>
+                </ul>
+        
+                <hr/>
+        
+        
+                        <h3 class="card__section__title">Detailed paths</h3>
+        
+                    <ul class="card__meta__paths">
+                                <li>
+                                <span class="list-paths__item__introduced"><em>Introduced through</em>:
+                                        docker-image|quay.io/argoproj/argocd@v2.3.7
+                                         <span class="list-paths__item__arrow">›</span> 
+                                        meta-common-packages@meta
+                                         <span class="list-paths__item__arrow">›</span> 
+                                        zlib/zlib1g@1:1.2.11.dfsg-2ubuntu9
+                                        
+                                </span>
+        
+                            </li>
+                    </ul><!-- .list-paths -->
+        
+            </div><!-- .card__section -->
+        
+              <hr/>
+              <!-- Overview -->
+              <h2 id="nvd-description">NVD Description</h2>
+        <p><strong><em>Note:</em></strong> <em>Versions mentioned in the description apply to the upstream <code>zlib</code> package.</em></p>
+        <p>zlib through 1.2.12 has a heap-based buffer over-read or buffer overflow in inflate in inflate.c via a large gzip header extra field. NOTE: only applications that call inflateGetHeader are affected. Some common applications bundle the affected zlib source code but may be unable to call inflateGetHeader (e.g., see the nodejs/node reference).</p>
+        <h2 id="remediation">Remediation</h2>
+        <p>There is no fixed version for <code>Ubuntu:22.04</code> <code>zlib</code>.</p>
+        <h2 id="references">References</h2>
+        <ul>
+        <li><a href="http://people.ubuntu.com/~ubuntu-security/cve/CVE-2022-37434">ADVISORY</a></li>
+        <li><a href="https://github.com/nodejs/node/blob/75b68c6e4db515f76df73af476eccf382bbcb00a/deps/zlib/inflate.c#L762-L764">MISC</a></li>
+        <li><a href="https://github.com/ivd38/zlib_overflow">MISC</a></li>
+        <li><a href="https://github.com/madler/zlib/commit/eff308af425b67093bab25f80f1ae950166bece1">MISC</a></li>
+        <li><a href="https://github.com/madler/zlib/blob/21767c654d31d2dccdde4330529775c6c5fd5389/zlib.h#L1062-L1063">MISC</a></li>
+        <li><a href="http://www.openwall.com/lists/oss-security/2022/08/05/2">MLIST</a></li>
+        <li><a href="https://github.com/curl/curl/issues/9271">MISC</a></li>
+        <li><a href="http://www.openwall.com/lists/oss-security/2022/08/09/1">MLIST</a></li>
+        <li><a href="https://lists.fedoraproject.org/archives/list/package-announce@lists.fedoraproject.org/message/YRQAI7H4M4RQZ2IWZUEEXECBE5D56BH2/">FEDORA</a></li>
+        <li><a href="https://www.debian.org/security/2022/dsa-5218">DEBIAN</a></li>
+        <li><a href="https://lists.fedoraproject.org/archives/list/package-announce@lists.fedoraproject.org/message/NMBOJ77A7T7PQCARMDUK75TE6LLESZ3O/">FEDORA</a></li>
+        <li><a href="https://security.netapp.com/advisory/ntap-20220901-0005/">CONFIRM</a></li>
+        <li><a href="https://lists.fedoraproject.org/archives/list/package-announce@lists.fedoraproject.org/message/JWN4VE3JQR4O2SOUS5TXNLANRPMHWV4I/">FEDORA</a></li>
+        </ul>
+        
+              <hr/>
+        
+            <div class="cta card__cta">
+                <p><a href="https://snyk.io/vuln/SNYK-UBUNTU2204-ZLIB-2975633">More about this vulnerability</a></p>
+            </div>
+        
+        </div><!-- .card -->
         <div class="card card--vuln  disclosure--not-new severity--medium" data-snyk-test="medium">
             <h2 class="card__title">Out-of-bounds Read</h2>
             <div class="card__section">
@@ -686,7 +765,7 @@
         
         </div><!-- .card -->
         <div class="card card--vuln  disclosure--not-new severity--medium" data-snyk-test="medium">
-            <h2 class="card__title">CVE-2022-2509</h2>
+            <h2 class="card__title">Double Free</h2>
             <div class="card__section">
         
                 <div class="label label--medium">
@@ -799,15 +878,19 @@
               <hr/>
               <!-- Overview -->
               <h2 id="nvd-description">NVD Description</h2>
-        <p><strong><em>Note:</em></strong> <em>Versions mentioned in the description apply to the upstream <code>gnutls28</code> package.</em></p>
+        <p><strong><em>Note:</em></strong> <em>Versions mentioned in the description apply to the upstream <code>gnutls28</code> package.</em>
+        <em>See <code>How to fix?</code> for <code>Ubuntu:22.04</code> relevant versions.</em></p>
         <p>A vulnerability found in gnutls. This security flaw happens because of a double free error occurs during verification of pkcs7 signatures in gnutls_pkcs7_verify function.</p>
         <h2 id="remediation">Remediation</h2>
-        <p>There is no fixed version for <code>Ubuntu:22.04</code> <code>gnutls28</code>.</p>
+        <p>Upgrade <code>Ubuntu:22.04</code> <code>gnutls28</code> to version 3.7.3-4ubuntu1.1 or higher.</p>
         <h2 id="references">References</h2>
         <ul>
         <li><a href="http://people.ubuntu.com/~ubuntu-security/cve/CVE-2022-2509">ADVISORY</a></li>
         <li><a href="https://access.redhat.com/security/cve/CVE-2022-2509">MISC</a></li>
         <li><a href="https://lists.gnupg.org/pipermail/gnutls-help/2022-July/004746.html">MISC</a></li>
+        <li><a href="https://www.debian.org/security/2022/dsa-5203">DEBIAN</a></li>
+        <li><a href="https://lists.debian.org/debian-lts-announce/2022/08/msg00002.html">MLIST</a></li>
+        <li><a href="https://lists.fedoraproject.org/archives/list/package-announce@lists.fedoraproject.org/message/6FL27JS3VM74YEQU7PGB62USO3KSBYZX/">FEDORA</a></li>
         </ul>
         
               <hr/>
@@ -2421,6 +2504,72 @@
         
             <div class="cta card__cta">
                 <p><a href="https://snyk.io/vuln/SNYK-UBUNTU2204-GIT-2798113">More about this vulnerability</a></p>
+            </div>
+        
+        </div><!-- .card -->
+        <div class="card card--vuln  disclosure--not-new severity--low" data-snyk-test="low">
+            <h2 class="card__title">CVE-2022-35252</h2>
+            <div class="card__section">
+        
+                <div class="label label--low">
+                    <span class="label__text">low severity</span>
+                </div>
+        
+                <hr/>
+        
+                <ul class="card__meta">
+                    <li class="card__meta__item">
+                        Package Manager: ubuntu:22.04
+                    </li>
+                    <li class="card__meta__item">
+                            Vulnerable module:
+        
+                            curl/libcurl3-gnutls
+                    </li>
+        
+                    <li class="card__meta__item">Introduced through:
+        
+        
+                                    docker-image|quay.io/argoproj/argocd@v2.3.7, git@1:2.34.1-1ubuntu1.4 and others
+                    </li>
+                </ul>
+        
+                <hr/>
+        
+        
+                        <h3 class="card__section__title">Detailed paths</h3>
+        
+                    <ul class="card__meta__paths">
+                                <li>
+                                <span class="list-paths__item__introduced"><em>Introduced through</em>:
+                                        docker-image|quay.io/argoproj/argocd@v2.3.7
+                                         <span class="list-paths__item__arrow">›</span> 
+                                        git@1:2.34.1-1ubuntu1.4
+                                         <span class="list-paths__item__arrow">›</span> 
+                                        curl/libcurl3-gnutls@7.81.0-1ubuntu1.3
+                                        
+                                </span>
+        
+                            </li>
+                    </ul><!-- .list-paths -->
+        
+            </div><!-- .card__section -->
+        
+              <hr/>
+              <!-- Overview -->
+              <h2 id="nvd-description">NVD Description</h2>
+        <p><em>This vulnerability has not been analyzed by NVD yet.</em></p>
+        <h2 id="remediation">Remediation</h2>
+        <p>Upgrade <code>Ubuntu:22.04</code> <code>curl</code> to version 7.81.0-1ubuntu1.4 or higher.</p>
+        <h2 id="references">References</h2>
+        <ul>
+        <li><a href="http://people.ubuntu.com/~ubuntu-security/cve/CVE-2022-35252">ADVISORY</a></li>
+        </ul>
+        
+              <hr/>
+        
+            <div class="cta card__cta">
+                <p><a href="https://snyk.io/vuln/SNYK-UBUNTU2204-CURL-3012666">More about this vulnerability</a></p>
             </div>
         
         </div><!-- .card -->
