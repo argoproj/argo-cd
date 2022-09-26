@@ -1461,6 +1461,7 @@ func (ctrl *ApplicationController) processAppRefreshQueueItem() (processNext boo
 		return resourceStatusKey(app.Status.Resources[i]) < resourceStatusKey(app.Status.Resources[j])
 	})
 	app.Status.SourceType = compareResult.appSourceType
+	app.Status.SourceTypes = compareResult.appSourceTypes
 	ctrl.persistAppStatus(origApp, &app.Status)
 	return
 }

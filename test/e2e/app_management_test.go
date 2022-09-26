@@ -3,10 +3,8 @@ package e2e
 import (
 	"context"
 	"fmt"
-	"math/rand"
 	"reflect"
 	"regexp"
-	"strings"
 	"testing"
 	"time"
 
@@ -33,7 +31,6 @@ import (
 	. "github.com/argoproj/argo-cd/v2/pkg/apis/application/v1alpha1"
 	"github.com/argoproj/argo-cd/v2/test/e2e/fixture"
 	. "github.com/argoproj/argo-cd/v2/test/e2e/fixture"
-	accountFixture "github.com/argoproj/argo-cd/v2/test/e2e/fixture/account"
 	. "github.com/argoproj/argo-cd/v2/test/e2e/fixture/app"
 	projectFixture "github.com/argoproj/argo-cd/v2/test/e2e/fixture/project"
 	repoFixture "github.com/argoproj/argo-cd/v2/test/e2e/fixture/repos"
@@ -363,7 +360,7 @@ func TestDeleteAppResource(t *testing.T) {
 		Expect(HealthIs(health.HealthStatusMissing))
 }
 
-// demonstrate that we cannot use a standard sync when an immutable field is changed, we must use "force"
+demonstrate that we cannot use a standard sync when an immutable field is changed, we must use "force"
 func TestImmutableChange(t *testing.T) {
 	SkipOnEnv(t, "OPENSHIFT")
 	text := FailOnErr(Run(".", "kubectl", "get", "service", "-n", "kube-system", "kube-dns", "-o", "jsonpath={.spec.clusterIP}")).(string)
@@ -2128,7 +2125,7 @@ func TestDisableManifestGeneration(t *testing.T) {
 		Refresh(RefreshTypeHard).
 		Then().
 		And(func(app *Application) {
-			assert.Equal(t, app.Status.SourceType, []ApplicationSourceType{ApplicationSourceTypeKustomize})
+			assert.Equal(t, app.Status.SourceType, ApplicationSourceTypeKustomize)
 		}).
 		When().
 		And(func() {
@@ -2142,7 +2139,7 @@ func TestDisableManifestGeneration(t *testing.T) {
 			time.Sleep(1 * time.Second)
 		}).
 		And(func(app *Application) {
-			assert.Equal(t, app.Status.SourceType, []ApplicationSourceType{ApplicationSourceTypeDirectory})
+			assert.Equal(t, app.Status.SourceType, ApplicationSourceTypeDirectory)
 		})
 }
 

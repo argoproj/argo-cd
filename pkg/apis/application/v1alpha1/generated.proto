@@ -499,13 +499,16 @@ message ApplicationStatus {
   optional k8s.io.apimachinery.pkg.apis.meta.v1.Time observedAt = 8;
 
   // SourceType specifies the type of this application
-  repeated string sourceType = 9;
+  optional string sourceType = 9;
 
   // Summary contains a list of URLs and container images used by this application
   optional ApplicationSummary summary = 10;
 
   // ResourceHealthSource indicates where the resource health status is stored: inline if not set or appTree
   optional string resourceHealthSource = 11;
+
+  // SourceTypes specifies the type of the sources included in the application
+  repeated string sourceTypes = 12;
 }
 
 // ApplicationSummary contains information about URLs and container images used by an application
@@ -1588,6 +1591,9 @@ message RevisionHistory {
 
   // Source is a reference to the application source used for the sync operation
   repeated ApplicationSource sources = 8;
+
+  // Revisions holds the revision of each source in sources field the sync was performed against
+  repeated string revisions = 9;
 }
 
 // RevisionMetadata contains metadata for a specific revision in a Git repository
