@@ -5,6 +5,7 @@ import (
 	"testing"
 
 	argocdclient "github.com/argoproj/argo-cd/v2/pkg/apiclient"
+	"github.com/stretchr/testify/assert"
 )
 
 func TestShortVersion(t *testing.T) {
@@ -17,7 +18,5 @@ func TestShortVersion(t *testing.T) {
 		t.Fatal("Failed to execute short version command")
 	}
 	output := buf.String()
-	if string(output) != "argocd: v99.99.99+unknown\n" {
-		t.Fatalf("expected \"%s\" got \"%s\"", "argocd: v99.99.99+unknown\n", output)
-	}
+	assert.Equal(t, output, "argocd: v99.99.99+unknown\n")
 }
