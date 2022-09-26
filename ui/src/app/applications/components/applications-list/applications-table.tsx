@@ -14,9 +14,9 @@ require('./applications-table.scss');
 
 export const ApplicationsTable = (props: {
     applications: models.Application[];
-    syncApplication: (appName: string) => any;
-    refreshApplication: (appName: string) => any;
-    deleteApplication: (appName: string) => any;
+    syncApplication: (appName: string, appNamespace: string) => any;
+    refreshApplication: (appName: string, appNamespace: string) => any;
+    deleteApplication: (appName: string, appNamespace: string) => any;
 }) => {
     const [selectedApp, navApp, reset] = useNav(props.applications.length);
     const ctxh = React.useContext(Context);
@@ -53,12 +53,12 @@ export const ApplicationsTable = (props: {
                             <div className='applications-table argo-table-list argo-table-list--clickable'>
                                 {props.applications.map((app, i) => (
                                     <div
-                                        key={app.metadata.name}
+                                        key={AppUtils.appInstanceName(app)}
                                         className={`argo-table-list__row
                 applications-list__entry applications-list__entry--health-${app.status.health.status} ${selectedApp === i ? 'applications-tiles__selected' : ''}`}>
                                         <div
                                             className={`row applications-list__table-row`}
-                                            onClick={e => ctx.navigation.goto(`/applications/${app.metadata.name}`, {}, {event: e})}>
+                                            onClick={e => ctx.navigation.goto(`/applications/${app.metadata.namespace}/${app.metadata.name}`, {}, {event: e})}>
                                             <div className='columns small-4'>
                                                 <div className='row'>
                                                     <div className=' columns small-2'>
@@ -125,9 +125,9 @@ export const ApplicationsTable = (props: {
                                                         </button>
                                                     )}
                                                     items={[
-                                                        {title: 'Sync', action: () => props.syncApplication(app.metadata.name)},
-                                                        {title: 'Refresh', action: () => props.refreshApplication(app.metadata.name)},
-                                                        {title: 'Delete', action: () => props.deleteApplication(app.metadata.name)}
+                                                        {title: 'Sync', action: () => props.syncApplication(app.metadata.name, app.metadata.namespace)},
+                                                        {title: 'Refresh', action: () => props.refreshApplication(app.metadata.name, app.metadata.namespace)},
+                                                        {title: 'Delete', action: () => props.deleteApplication(app.metadata.name, app.metadata.namespace)}
                                                     ]}
                                                 />
                                             </div>

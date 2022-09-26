@@ -3,13 +3,9 @@ package managedfields
 import (
 	"bytes"
 	"fmt"
-	"reflect"
-	"sync"
 
 	v1 "k8s.io/apimachinery/pkg/apis/meta/v1"
 	"k8s.io/apimachinery/pkg/apis/meta/v1/unstructured"
-	"k8s.io/apimachinery/pkg/runtime/schema"
-	k8smanagedfields "k8s.io/apimachinery/pkg/util/managedfields"
 	"sigs.k8s.io/structured-merge-diff/v4/fieldpath"
 	"sigs.k8s.io/structured-merge-diff/v4/typed"
 )
@@ -124,61 +120,4 @@ func trustedManager(curManager string, trustedManagers []string) bool {
 		}
 	}
 	return false
-}
-
-func ResolveParseableType(gvk schema.GroupVersionKind, parser *k8smanagedfields.GvkParser) *typed.ParseableType {
-	if parser == nil {
-		return &typed.DeducedParseableType
-	}
-	pt := resolverFromStaticParser(gvk, parser)
-	if pt == nil {
-		return parser.Type(gvk)
-	}
-	return pt
-}
-
-func resolverFromStaticParser(gvk schema.GroupVersionKind, parser *k8smanagedfields.GvkParser) *typed.ParseableType {
-	gvkNameMap := getGvkMap(parser)
-	name := gvkNameMap[gvk]
-
-	p := StaticParser()
-	if p == nil || name == "" {
-		return nil
-	}
-	pt := p.Type(name)
-	if pt.IsValid() {
-		return &pt
-	}
-	return nil
-}
-
-var gvkMap map[schema.GroupVersionKind]string
-var extractOnce sync.Once
-
-func getGvkMap(parser *k8smanagedfields.GvkParser) map[schema.GroupVersionKind]string {
-	extractOnce.Do(func() {
-		gvkMap = extractGvkMap(parser)
-	})
-	return gvkMap
-}
-
-func extractGvkMap(parser *k8smanagedfields.GvkParser) map[schema.GroupVersionKind]string {
-	results := make(map[schema.GroupVersionKind]string)
-
-	value := reflect.ValueOf(parser)
-	gvkValue := reflect.Indirect(value).FieldByName("gvks")
-	iter := gvkValue.MapRange()
-	for iter.Next() {
-		group := iter.Key().FieldByName("Group").String()
-		version := iter.Key().FieldByName("Version").String()
-		kind := iter.Key().FieldByName("Kind").String()
-		gvk := schema.GroupVersionKind{
-			Group:   group,
-			Version: version,
-			Kind:    kind,
-		}
-		name := iter.Value().String()
-		results[gvk] = name
-	}
-	return results
 }

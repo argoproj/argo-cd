@@ -8,6 +8,7 @@ import (
 	"testing"
 	"time"
 
+	"github.com/argoproj/gitops-engine/pkg/health"
 	synccommon "github.com/argoproj/gitops-engine/pkg/sync/common"
 	"github.com/argoproj/gitops-engine/pkg/utils/kube/kubetest"
 	"github.com/argoproj/pkg/sync"
@@ -35,10 +36,14 @@ import (
 	appinformer "github.com/argoproj/argo-cd/v2/pkg/client/informers/externalversions"
 	"github.com/argoproj/argo-cd/v2/reposerver/apiclient"
 	"github.com/argoproj/argo-cd/v2/reposerver/apiclient/mocks"
+	servercache "github.com/argoproj/argo-cd/v2/server/cache"
 	"github.com/argoproj/argo-cd/v2/server/rbacpolicy"
 	"github.com/argoproj/argo-cd/v2/test"
+	"github.com/argoproj/argo-cd/v2/util/argo"
 	"github.com/argoproj/argo-cd/v2/util/assets"
 	"github.com/argoproj/argo-cd/v2/util/cache"
+	cacheutil "github.com/argoproj/argo-cd/v2/util/cache"
+	"github.com/argoproj/argo-cd/v2/util/cache/appstate"
 	"github.com/argoproj/argo-cd/v2/util/db"
 	"github.com/argoproj/argo-cd/v2/util/errors"
 	"github.com/argoproj/argo-cd/v2/util/grpc"
@@ -201,7 +206,7 @@ func newTestAppServerWithEnforcerConfigure(f func(*rbac.Enforcer), objects ...ru
 		testNamespace,
 		kubeclientset,
 		fakeAppsClientset,
-		factory.Argoproj().V1alpha1().Applications().Lister().Applications(testNamespace),
+		factory.Argoproj().V1alpha1().Applications().Lister(),
 		appInformer,
 		mockRepoClient,
 		nil,
@@ -211,6 +216,7 @@ func newTestAppServerWithEnforcerConfigure(f func(*rbac.Enforcer), objects ...ru
 		sync.NewKeyLock(),
 		settingsMgr,
 		projInformer,
+		[]string{},
 	)
 	return server.(*Server)
 }
@@ -749,8 +755,14 @@ func TestServer_GetApplicationSyncWindowsState(t *testing.T) {
 func TestGetCachedAppState(t *testing.T) {
 	testApp := newTestApp()
 	testApp.ObjectMeta.ResourceVersion = "1"
-	testApp.Spec.Project = "none"
-	appServer := newTestAppServer(testApp)
+	testApp.Spec.Project = "test-proj"
+	testProj := &appsv1.AppProject{
+		ObjectMeta: metav1.ObjectMeta{
+			Name:      "test-proj",
+			Namespace: testNamespace,
+		},
+	}
+	appServer := newTestAppServer(testApp, testProj)
 	fakeClientSet := appServer.appclientset.(*apps.Clientset)
 	t.Run("NoError", func(t *testing.T) {
 		err := appServer.getCachedAppState(context.Background(), testApp, func() error {
@@ -901,7 +913,8 @@ func TestLogsGetSelectedPod(t *testing.T) {
 // refreshAnnotationRemover runs an infinite loop until it detects and removes refresh annotation or given context is done
 func refreshAnnotationRemover(t *testing.T, ctx context.Context, patched *int32, appServer *Server, appName string, ch chan string) {
 	for ctx.Err() == nil {
-		a, err := appServer.appLister.Get(appName)
+		aName, appNs := argo.ParseAppQualifiedName(appName, appServer.ns)
+		a, err := appServer.appLister.Applications(appNs).Get(aName)
 		require.NoError(t, err)
 		a = a.DeepCopy()
 		if a.GetAnnotations() != nil && a.GetAnnotations()[appsv1.AnnotationKeyRefresh] != "" {
@@ -982,4 +995,44 @@ func TestGetAppRefresh_HardRefresh(t *testing.T) {
 	case <-time.After(10 * time.Second):
 		assert.Fail(t, "Out of time ( 10 seconds )")
 	}
+}
+
+func TestInferResourcesStatusHealth(t *testing.T) {
+	cacheClient := cacheutil.NewCache(cacheutil.NewInMemoryCache(1 * time.Hour))
+
+	testApp := newTestApp()
+	testApp.Status.ResourceHealthSource = appsv1.ResourceHealthLocationAppTree
+	testApp.Status.Resources = []appsv1.ResourceStatus{{
+		Group:     "apps",
+		Kind:      "Deployment",
+		Name:      "guestbook",
+		Namespace: "default",
+	}, {
+		Group:     "apps",
+		Kind:      "StatefulSet",
+		Name:      "guestbook-stateful",
+		Namespace: "default",
+	}}
+	appServer := newTestAppServer(testApp)
+	appStateCache := appstate.NewCache(cacheClient, time.Minute)
+	err := appStateCache.SetAppResourcesTree(testApp.Name, &appsv1.ApplicationTree{Nodes: []appsv1.ResourceNode{{
+		ResourceRef: appsv1.ResourceRef{
+			Group:     "apps",
+			Kind:      "Deployment",
+			Name:      "guestbook",
+			Namespace: "default",
+		},
+		Health: &appsv1.HealthStatus{
+			Status: health.HealthStatusDegraded,
+		},
+	}}})
+
+	require.NoError(t, err)
+
+	appServer.cache = servercache.NewCache(appStateCache, time.Minute, time.Minute, time.Minute)
+
+	appServer.inferResourcesStatusHealth(testApp)
+
+	assert.Equal(t, health.HealthStatusDegraded, testApp.Status.Resources[0].Health.Status)
+	assert.Nil(t, testApp.Status.Resources[1].Health)
 }
