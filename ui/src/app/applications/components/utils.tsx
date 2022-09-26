@@ -33,7 +33,7 @@ export function nodeKey(node: NodeId) {
 }
 
 export function createdOrNodeKey(node: NodeId) {
-    return node.createdAt || nodeKey(node);
+    return node?.createdAt || nodeKey(node);
 }
 
 export function isSameNode(first: NodeId, second: NodeId) {
