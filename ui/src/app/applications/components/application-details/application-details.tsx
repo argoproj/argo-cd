@@ -62,16 +62,22 @@ export const SelectNode = (fullName: string, containerIndex = 0, tab: string = n
     appContext.navigation.goto('.', {node, tab}, {replace: true});
 };
 
-export class ApplicationDetails extends React.Component<RouteComponentProps<{name: string}>, ApplicationDetailsState> {
+export class ApplicationDetails extends React.Component<RouteComponentProps<{appnamespace: string; name: string}>, ApplicationDetailsState> {
     public static contextTypes = {
         apis: PropTypes.object
     };
 
     private appChanged = new BehaviorSubject<appModels.Application>(null);
+    private appNamespace: string;
 
-    constructor(props: RouteComponentProps<{name: string}>) {
+    constructor(props: RouteComponentProps<{appnamespace: string; name: string}>) {
         super(props);
         this.state = {page: 0, groupedResources: [], slidingPanelPage: 0, filteredGraph: [], truncateNameOnRight: false, collapsedNodes: []};
+        if (typeof this.props.match.params.appnamespace === 'undefined') {
+            this.appNamespace = '';
+        } else {
+            this.appNamespace = this.props.match.params.appnamespace;
+        }
     }
 
     private get showOperationState() {
@@ -145,7 +151,7 @@ export class ApplicationDetails extends React.Component<RouteComponentProps<{nam
                         loadingRenderer={() => <Page title='Application Details'>Loading...</Page>}
                         input={this.props.match.params.name}
                         load={name =>
-                            combineLatest([this.loadAppInfo(name), services.viewPreferences.getPreferences(), q]).pipe(
+                            combineLatest([this.loadAppInfo(name, this.appNamespace), services.viewPreferences.getPreferences(), q]).pipe(
                                 map(items => {
                                     const pref = items[1].appDetails;
                                     const params = items[2];
@@ -426,13 +432,15 @@ export class ApplicationDetails extends React.Component<RouteComponentProps<{nam
                                                     />
                                                 )) || (
                                                     <DataLoader
-                                                        input={{filteredRes}}
+                                                        input={{filteredRes: filteredRes.map(res => AppUtils.nodeKey(res))}}
                                                         load={async () => {
                                                             const liveStatePromises = filteredRes.map(async resource => {
                                                                 const resourceRow: any = {...resource, group: resource.group || ''};
                                                                 const liveState =
                                                                     typeof resource.group !== 'undefined' &&
-                                                                    (await services.applications.getResource(application.metadata.name, resource).catch(() => null));
+                                                                    (await services.applications
+                                                                        .getResource(application.metadata.name, application.metadata.namespace, resource)
+                                                                        .catch(() => null));
                                                                 if (liveState?.metadata?.annotations?.[models.AnnotationHookKey]) {
                                                                     resourceRow.syncOrder = liveState?.metadata.annotations[models.AnnotationHookKey];
                                                                     if (liveState?.metadata?.annotations?.[models.AnnotationSyncWaveKey]) {
@@ -543,7 +551,10 @@ export class ApplicationDetails extends React.Component<RouteComponentProps<{nam
                                         </SlidingPanel>
                                         <SlidingPanel isShown={!!this.state.revision} isMiddle={true} onClose={() => this.setState({revision: null})}>
                                             {this.state.revision && (
-                                                <DataLoader load={() => services.applications.revisionMetadata(application.metadata.name, this.state.revision)}>
+                                                <DataLoader
+                                                    load={() =>
+                                                        services.applications.revisionMetadata(application.metadata.name, application.metadata.namespace, this.state.revision)
+                                                    }>
                                                     {metadata => (
                                                         <div className='white-box' style={{marginTop: '1.5em'}}>
                                                             <div className='white-box__details'>
@@ -646,7 +657,7 @@ export class ApplicationDetails extends React.Component<RouteComponentProps<{nam
                             items={[
                                 {
                                     title: 'Hard Refresh',
-                                    action: () => !refreshing && services.applications.get(app.metadata.name, 'hard')
+                                    action: () => !refreshing && services.applications.get(app.metadata.name, app.metadata.namespace, 'hard')
                                 }
                             ]}
                             anchor={() => <i className='fa fa-caret-down' />}
@@ -656,7 +667,7 @@ export class ApplicationDetails extends React.Component<RouteComponentProps<{nam
                 disabled: !!refreshing,
                 action: () => {
                     if (!refreshing) {
-                        services.applications.get(app.metadata.name, 'normal');
+                        services.applications.get(app.metadata.name, app.metadata.namespace, 'normal');
                         AppUtils.setAppRefreshing(app);
                         this.appChanged.next(app);
                     }
@@ -688,8 +699,8 @@ export class ApplicationDetails extends React.Component<RouteComponentProps<{nam
         return false;
     }
 
-    private loadAppInfo(name: string): Observable<{application: appModels.Application; tree: appModels.ApplicationTree}> {
-        return from(services.applications.get(name))
+    private loadAppInfo(name: string, appNamespace: string): Observable<{application: appModels.Application; tree: appModels.ApplicationTree}> {
+        return from(services.applications.get(name, appNamespace))
             .pipe(
                 mergeMap(app => {
                     const fallbackTree = {
@@ -703,7 +714,7 @@ export class ApplicationDetails extends React.Component<RouteComponentProps<{nam
                             this.appChanged.pipe(filter(item => !!item)),
                             AppUtils.handlePageVisibility(() =>
                                 services.applications
-                                    .watch({name})
+                                    .watch({name, appNamespace})
                                     .pipe(
                                         map(watchEvent => {
                                             if (watchEvent.type === 'DELETED') {
@@ -718,10 +729,10 @@ export class ApplicationDetails extends React.Component<RouteComponentProps<{nam
                         ),
                         merge(
                             from([fallbackTree]),
-                            services.applications.resourceTree(name).catch(() => fallbackTree),
+                            services.applications.resourceTree(name, appNamespace).catch(() => fallbackTree),
                             AppUtils.handlePageVisibility(() =>
                                 services.applications
-                                    .watchResourceTree(name)
+                                    .watchResourceTree(name, appNamespace)
                                     .pipe(repeat())
                                     .pipe(retryWhen(errors => errors.pipe(delay(500))))
                             )
@@ -739,7 +750,7 @@ export class ApplicationDetails extends React.Component<RouteComponentProps<{nam
     }
 
     private async updateApp(app: appModels.Application, query: {validate?: boolean}) {
-        const latestApp = await services.applications.get(app.metadata.name);
+        const latestApp = await services.applications.get(app.metadata.name, app.metadata.namespace);
         latestApp.metadata.labels = app.metadata.labels;
         latestApp.metadata.annotations = app.metadata.annotations;
         latestApp.spec = app.spec;
@@ -815,8 +826,8 @@ Are you sure you want to disable auto-sync and rollback application '${this.prop
                     update.spec.syncPolicy = {automated: null};
                     await services.applications.update(update);
                 }
-                await services.applications.rollback(this.props.match.params.name, revisionHistory.id);
-                this.appChanged.next(await services.applications.get(this.props.match.params.name));
+                await services.applications.rollback(this.props.match.params.name, this.appNamespace, revisionHistory.id);
+                this.appChanged.next(await services.applications.get(this.props.match.params.name, this.appNamespace));
                 this.setRollbackPanelVisible(-1);
             }
         } catch (e) {
@@ -832,6 +843,6 @@ Are you sure you want to disable auto-sync and rollback application '${this.prop
     }
 
     private async deleteApplication() {
-        await AppUtils.deleteApplication(this.props.match.params.name, this.appContext.apis);
+        await AppUtils.deleteApplication(this.props.match.params.name, this.appNamespace, this.appContext.apis);
     }
 }

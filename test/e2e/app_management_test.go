@@ -4,7 +4,6 @@ import (
 	"context"
 	"fmt"
 	"math/rand"
-	"path"
 	"reflect"
 	"regexp"
 	"strings"
@@ -21,6 +20,7 @@ import (
 	"github.com/stretchr/testify/require"
 	v1 "k8s.io/api/core/v1"
 	networkingv1 "k8s.io/api/networking/v1"
+	rbacv1 "k8s.io/api/rbac/v1"
 	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
 	"k8s.io/apimachinery/pkg/apis/meta/v1/unstructured"
 	"k8s.io/apimachinery/pkg/runtime/schema"
@@ -56,8 +56,6 @@ const (
 func TestGetLogsAllowNoSwitch(t *testing.T) {
 }
 
-// There is some code duplication in the below GetLogs tests, the reason for that is to allow getting rid of most of those tests easily in the next release,
-// when the temporary switch would die
 func TestGetLogsDenySwitchOn(t *testing.T) {
 	SkipOnEnv(t, "OPENSHIFT")
 
@@ -273,7 +271,6 @@ func TestSyncToSignedCommitKeyWithKnownKey(t *testing.T) {
 
 func TestAppCreation(t *testing.T) {
 	ctx := Given(t)
-
 	ctx.
 		Path(guestbookPath).
 		When().
@@ -326,7 +323,7 @@ func TestAppCreationWithoutForceUpdate(t *testing.T) {
 		Then().
 		Expect(SyncStatusIs(SyncStatusCodeOutOfSync)).
 		And(func(app *Application) {
-			assert.Equal(t, Name(), app.Name)
+			assert.Equal(t, ctx.AppName(), app.Name)
 			assert.Equal(t, RepoURL(RepoURLTypeFile), app.Spec.Source.RepoURL)
 			assert.Equal(t, guestbookPath, app.Spec.Source.Path)
 			assert.Equal(t, DeploymentNamespace(), app.Spec.Destination.Namespace)
@@ -462,7 +459,7 @@ func TestAppLabels(t *testing.T) {
 		Sync("-l", "foo=rubbish").
 		DoNotIgnoreErrors().
 		Then().
-		Expect(Error("", "no apps match selector foo=rubbish")).
+		Expect(Error("", "No matching apps found for filter: selector foo=rubbish")).
 		// check we can update the app and it is then sync'd
 		Given().
 		When().
@@ -512,21 +509,20 @@ func TestAppRollbackSuccessful(t *testing.T) {
 				Source:     app.Spec.Source,
 			}}
 			patch, _, err := diff.CreateTwoWayMergePatch(app, appWithHistory, &Application{})
-			assert.NoError(t, err)
-
+			require.NoError(t, err)
 			app, err = AppClientset.ArgoprojV1alpha1().Applications(ArgoCDNamespace).Patch(context.Background(), app.Name, types.MergePatchType, patch, metav1.PatchOptions{})
-			assert.NoError(t, err)
+			require.NoError(t, err)
 
 			// sync app and make sure it reaches InSync state
 			_, err = RunCli("app", "rollback", app.Name, "1")
-			assert.NoError(t, err)
+			require.NoError(t, err)
 
 		}).
 		Expect(Event(EventReasonOperationStarted, "rollback")).
 		Expect(SyncStatusIs(SyncStatusCodeSynced)).
 		And(func(app *Application) {
 			assert.Equal(t, SyncStatusCodeSynced, app.Status.Sync.Status)
-			assert.NotNil(t, app.Status.OperationState.SyncResult)
+			require.NotNil(t, app.Status.OperationState.SyncResult)
 			assert.Equal(t, 2, len(app.Status.OperationState.SyncResult.Resources))
 			assert.Equal(t, OperationSucceeded, app.Status.OperationState.Phase)
 			assert.Equal(t, 3, len(app.Status.History))
@@ -681,7 +677,7 @@ func TestAppWithSecrets(t *testing.T) {
 			assert.Contains(t, diffOutput, "password: ++++++++++++")
 
 			// local diff should ignore secrets
-			diffOutput = FailOnErr(RunCli("app", "diff", app.Name, "--local", "testdata/secrets")).(string)
+			diffOutput = FailOnErr(RunCli("app", "diff", app.Name, "--local", "testdata", "--server-side-generate")).(string)
 			assert.Empty(t, diffOutput)
 
 			// ignore missing field and make sure diff shows no difference
@@ -710,7 +706,7 @@ stringData:
   username: test-username`).
 		Then().
 		And(func(app *Application) {
-			diffOutput := FailOnErr(RunCli("app", "diff", app.Name, "--local", "testdata/secrets")).(string)
+			diffOutput := FailOnErr(RunCli("app", "diff", app.Name, "--local", "testdata", "--server-side-generate")).(string)
 			assert.Empty(t, diffOutput)
 		})
 }
@@ -734,7 +730,7 @@ func TestResourceDiffing(t *testing.T) {
 		Then().
 		Expect(SyncStatusIs(SyncStatusCodeOutOfSync)).
 		And(func(app *Application) {
-			diffOutput, err := RunCli("app", "diff", app.Name, "--local", "testdata/guestbook")
+			diffOutput, err := RunCli("app", "diff", app.Name, "--local", "testdata", "--server-side-generate")
 			assert.Error(t, err)
 			assert.Contains(t, diffOutput, fmt.Sprintf("===== apps/Deployment %s/guestbook-ui ======", DeploymentNamespace()))
 		}).
@@ -747,7 +743,7 @@ func TestResourceDiffing(t *testing.T) {
 		Then().
 		Expect(SyncStatusIs(SyncStatusCodeSynced)).
 		And(func(app *Application) {
-			diffOutput, err := RunCli("app", "diff", app.Name, "--local", "testdata/guestbook")
+			diffOutput, err := RunCli("app", "diff", app.Name, "--local", "testdata", "--server-side-generate")
 			assert.NoError(t, err)
 			assert.Empty(t, diffOutput)
 		}).
@@ -865,7 +861,7 @@ func testEdgeCasesApplicationResources(t *testing.T, appPath string, statusCode 
 	expect.
 		Expect(HealthIs(statusCode)).
 		And(func(app *Application) {
-			diffOutput, err := RunCli("app", "diff", app.Name, "--local", path.Join("testdata", appPath))
+			diffOutput, err := RunCli("app", "diff", app.Name, "--local", "testdata", "--server-side-generate")
 			assert.Empty(t, diffOutput)
 			assert.NoError(t, err)
 		})
@@ -933,6 +929,24 @@ func TestSyncResourceByLabel(t *testing.T) {
 		Expect(SyncStatusIs(SyncStatusCodeSynced)).
 		And(func(app *Application) {
 			_, err := RunCli("app", "sync", app.Name, "--label", "this-label=does-not-exist")
+			assert.Error(t, err)
+			assert.Contains(t, err.Error(), "level=fatal")
+		})
+}
+
+func TestSyncResourceByProject(t *testing.T) {
+	Given(t).
+		Path(guestbookPath).
+		When().
+		CreateApp().
+		Sync().
+		Then().
+		And(func(app *Application) {
+			_, _ = RunCli("app", "sync", app.Name, "--project", app.Spec.Project)
+		}).
+		Expect(SyncStatusIs(SyncStatusCodeSynced)).
+		And(func(app *Application) {
+			_, err := RunCli("app", "sync", app.Name, "--project", "this-project-does-not-exist")
 			assert.Error(t, err)
 			assert.Contains(t, err.Error(), "level=fatal")
 		})
@@ -1161,7 +1175,9 @@ func TestPermissions(t *testing.T) {
 		And(func(app *Application) {
 			closer, cdClient := ArgoCDClientset.NewApplicationClientOrDie()
 			defer io.Close(closer)
-			tree, err := cdClient.ResourceTree(context.Background(), &applicationpkg.ResourcesQuery{ApplicationName: &app.Name})
+			appName, appNs := argo.ParseAppQualifiedName(app.Name, "")
+			fmt.Printf("APP NAME: %s\n", appName)
+			tree, err := cdClient.ResourceTree(context.Background(), &applicationpkg.ResourcesQuery{ApplicationName: &appName, AppNamespace: &appNs})
 			require.NoError(t, err)
 			assert.Len(t, tree.Nodes, 0)
 			assert.Len(t, tree.OrphanedNodes, 0)
@@ -1186,6 +1202,7 @@ func TestPermissions(t *testing.T) {
 
 func TestPermissionWithScopedRepo(t *testing.T) {
 	projName := "argo-project"
+	fixture.EnsureCleanState(t)
 	projectFixture.
 		Given(t).
 		Name(projName).
@@ -1246,7 +1263,60 @@ func TestPermissionDeniedWithScopedRepo(t *testing.T) {
 		CreateApp().
 		Then().
 		Expect(Error("", "is not permitted in project"))
+}
 
+func TestPermissionDeniedWithNegatedNamespace(t *testing.T) {
+	projName := "argo-project"
+	projectFixture.
+		Given(t).
+		Name(projName).
+		Destination("*,!*test-permission-denied-with-negated-namespace*").
+		When().
+		Create()
+
+	repoFixture.Given(t, true).
+		When().
+		Path(RepoURL(RepoURLTypeFile)).
+		Project(projName).
+		Create()
+
+	GivenWithSameState(t).
+		Project(projName).
+		RepoURLType(RepoURLTypeFile).
+		Path("two-nice-pods").
+		When().
+		PatchFile("pod-1.yaml", `[{"op": "add", "path": "/metadata/annotations", "value": {"argocd.argoproj.io/sync-options": "Prune=false"}}]`).
+		IgnoreErrors().
+		CreateApp().
+		Then().
+		Expect(Error("", "is not permitted in project"))
+}
+
+func TestPermissionDeniedWithNegatedServer(t *testing.T) {
+	projName := "argo-project"
+	projectFixture.
+		Given(t).
+		Name(projName).
+		Destination("!https://kubernetes.default.svc,*").
+		When().
+		Create()
+
+	repoFixture.Given(t, true).
+		When().
+		Path(RepoURL(RepoURLTypeFile)).
+		Project(projName).
+		Create()
+
+	GivenWithSameState(t).
+		Project(projName).
+		RepoURLType(RepoURLTypeFile).
+		Path("two-nice-pods").
+		When().
+		PatchFile("pod-1.yaml", `[{"op": "add", "path": "/metadata/annotations", "value": {"argocd.argoproj.io/sync-options": "Prune=false"}}]`).
+		IgnoreErrors().
+		CreateApp().
+		Then().
+		Expect(Error("", "is not permitted in project"))
 }
 
 // make sure that if we deleted a resource from the app, it is not pruned if annotated with Prune=false
@@ -1600,9 +1670,11 @@ func TestSyncWithInfos(t *testing.T) {
 		})
 }
 
-//Given: argocd app create does not provide --dest-namespace
-//       Manifest contains resource console which does not require namespace
-//Expect: no app.Status.Conditions
+// Given: argocd app create does not provide --dest-namespace
+//
+//	Manifest contains resource console which does not require namespace
+//
+// Expect: no app.Status.Conditions
 func TestCreateAppWithNoNameSpaceForGlobalResource(t *testing.T) {
 	Given(t).
 		Path(globalWithNoNameSpace).
@@ -1617,10 +1689,12 @@ func TestCreateAppWithNoNameSpaceForGlobalResource(t *testing.T) {
 		})
 }
 
-//Given: argocd app create does not provide --dest-namespace
-//       Manifest contains resource deployment, and service which requires namespace
-//       Deployment and service do not have namespace in manifest
-//Expect: app.Status.Conditions for deployment ans service which does not have namespace in manifest
+// Given: argocd app create does not provide --dest-namespace
+//
+//	Manifest contains resource deployment, and service which requires namespace
+//	Deployment and service do not have namespace in manifest
+//
+// Expect: app.Status.Conditions for deployment ans service which does not have namespace in manifest
 func TestCreateAppWithNoNameSpaceWhenRequired(t *testing.T) {
 	Given(t).
 		Path(guestbookPath).
@@ -1638,11 +1712,13 @@ func TestCreateAppWithNoNameSpaceWhenRequired(t *testing.T) {
 		})
 }
 
-//Given: argocd app create does not provide --dest-namespace
-//       Manifest contains resource deployment, and service which requires namespace
-//       Some deployment and service has namespace in manifest
-//       Some deployment and service does not have namespace in manifest
-//Expect: app.Status.Conditions for deployment and service which does not have namespace in manifest
+// Given: argocd app create does not provide --dest-namespace
+//
+//	Manifest contains resource deployment, and service which requires namespace
+//	Some deployment and service has namespace in manifest
+//	Some deployment and service does not have namespace in manifest
+//
+// Expect: app.Status.Conditions for deployment and service which does not have namespace in manifest
 func TestCreateAppWithNoNameSpaceWhenRequired2(t *testing.T) {
 	Given(t).
 		Path(guestbookWithNamespace).
@@ -1718,10 +1794,13 @@ func TestListResource(t *testing.T) {
 }
 
 // Given application is set with --sync-option CreateNamespace=true
-//       application --dest-namespace does not exist
+//
+//	application --dest-namespace does not exist
+//
 // Verity application --dest-namespace is created
-//        application sync successful
-//        when application is deleted, --dest-namespace is not deleted
+//
+//	application sync successful
+//	when application is deleted, --dest-namespace is not deleted
 func TestNamespaceAutoCreation(t *testing.T) {
 	SkipOnEnv(t, "OPENSHIFT")
 	updatedNamespace := getNewNamespace(t)
@@ -1941,7 +2020,8 @@ func TestAppLogs(t *testing.T) {
 }
 
 func TestAppWaitOperationInProgress(t *testing.T) {
-	Given(t).
+	ctx := Given(t)
+	ctx.
 		And(func() {
 			SetResourceOverrides(map[string]ResourceOverride{
 				"batch/Job": {
@@ -1962,7 +2042,7 @@ func TestAppWaitOperationInProgress(t *testing.T) {
 		Expect(OperationPhaseIs(OperationRunning)).
 		When().
 		And(func() {
-			_, err := RunCli("app", "wait", Name(), "--suspended")
+			_, err := RunCli("app", "wait", ctx.AppName(), "--suspended")
 			errors.CheckError(err)
 		})
 }
@@ -2285,6 +2365,13 @@ func TestAnnotationTrackingExtraResources(t *testing.T) {
 		Expect(SyncStatusIs(SyncStatusCodeSynced)).
 		Expect(HealthIs(health.HealthStatusHealthy)).
 		When().
+		Sync("--prune").
+		And(func() {
+			// The extra configmap must not be pruned, because it's not tracked
+			cm, err := KubeClientset.CoreV1().ConfigMaps(DeploymentNamespace()).Get(context.Background(), "extra-configmap", metav1.GetOptions{})
+			require.NoError(t, err)
+			require.Equal(t, "extra-configmap", cm.Name)
+		}).
 		And(func() {
 			// Add a resource with an annotation that is self-referencing the
 			// resource.
@@ -2301,5 +2388,70 @@ func TestAnnotationTrackingExtraResources(t *testing.T) {
 		Then().
 		Expect(OperationPhaseIs(OperationSucceeded)).
 		Expect(SyncStatusIs(SyncStatusCodeOutOfSync)).
+		Expect(HealthIs(health.HealthStatusHealthy)).
+		When().
+		Sync("--prune").
+		And(func() {
+			// The extra configmap must be pruned now, because it's tracked
+			cm, err := KubeClientset.CoreV1().ConfigMaps(DeploymentNamespace()).Get(context.Background(), "other-configmap", metav1.GetOptions{})
+			require.Error(t, err)
+			require.Equal(t, "", cm.Name)
+		}).
+		Then().
+		Expect(OperationPhaseIs(OperationSucceeded)).
+		Expect(SyncStatusIs(SyncStatusCodeSynced)).
+		Expect(HealthIs(health.HealthStatusHealthy)).
+		When().
+		And(func() {
+			// Add a cluster-scoped resource that is not referencing itself
+			FailOnErr(KubeClientset.RbacV1().ClusterRoles().Create(context.Background(), &rbacv1.ClusterRole{
+				ObjectMeta: metav1.ObjectMeta{
+					Name: "e2e-test-clusterrole",
+					Annotations: map[string]string{
+						common.AnnotationKeyAppInstance: fmt.Sprintf("%s:rbac.authorization.k8s.io/ClusterRole:%s/e2e-other-clusterrole", Name(), DeploymentNamespace()),
+					},
+					Labels: map[string]string{
+						fixture.TestingLabel: "true",
+					},
+				},
+			}, metav1.CreateOptions{}))
+		}).
+		Refresh(RefreshTypeNormal).
+		Then().
+		Expect(OperationPhaseIs(OperationSucceeded)).
+		Expect(SyncStatusIs(SyncStatusCodeSynced)).
+		Expect(HealthIs(health.HealthStatusHealthy)).
+		When().
+		And(func() {
+			// Add a cluster-scoped resource that is referencing itself
+			FailOnErr(KubeClientset.RbacV1().ClusterRoles().Create(context.Background(), &rbacv1.ClusterRole{
+				ObjectMeta: metav1.ObjectMeta{
+					Name: "e2e-other-clusterrole",
+					Annotations: map[string]string{
+						common.AnnotationKeyAppInstance: fmt.Sprintf("%s:rbac.authorization.k8s.io/ClusterRole:%s/e2e-other-clusterrole", Name(), DeploymentNamespace()),
+					},
+					Labels: map[string]string{
+						fixture.TestingLabel: "true",
+					},
+				},
+			}, metav1.CreateOptions{}))
+		}).
+		Refresh(RefreshTypeNormal).
+		Then().
+		Expect(OperationPhaseIs(OperationSucceeded)).
+		Expect(SyncStatusIs(SyncStatusCodeOutOfSync)).
+		Expect(HealthIs(health.HealthStatusHealthy)).
+		When().
+		Sync("--prune").
+		And(func() {
+			// The extra configmap must be pruned now, because it's tracked and does not exist in git
+			cr, err := KubeClientset.RbacV1().ClusterRoles().Get(context.Background(), "e2e-other-clusterrole", metav1.GetOptions{})
+			require.Error(t, err)
+			require.Equal(t, "", cr.Name)
+		}).
+		Then().
+		Expect(OperationPhaseIs(OperationSucceeded)).
+		Expect(SyncStatusIs(SyncStatusCodeSynced)).
 		Expect(HealthIs(health.HealthStatusHealthy))
+
 }

@@ -11,8 +11,8 @@ resources of Argo CD itself (like the RBAC ConfigMap).
 ApplicationSets can also quickly create an arbitrary number of Applications and just as quickly delete them.
 
 Finally, ApplicationSets can reveal privileged information. For example, the [git generator](./Generators-Git.md) can
-read Secrets in the Argo CD namespace and send them to arbitrary URLs as auth headers. (This functionality is intended
-for authorizing requests to SCM providers like GitHub, but it could be abused by a malicious user.)
+read Secrets in the Argo CD namespace and send them to arbitrary URLs (e.g. URL provided for the `api` field) as auth headers.
+(This functionality is intended for authorizing requests to SCM providers like GitHub, but it could be abused by a malicious user.)
 
 For these reasons, **only admins** may be given permission (via Kubernetes RBAC or any other mechanism) to create, 
 update, or delete ApplicationSets.

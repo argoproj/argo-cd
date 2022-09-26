@@ -409,7 +409,7 @@ const (
 	settingsPasswordPatternKey = "passwordPattern"
 	// inClusterEnabledKey is the key to configure whether to allow in-cluster server address
 	inClusterEnabledKey = "cluster.inClusterEnabled"
-	// settingsServerRBACLogEnforceEnable is a temp param, it exists in order to mitigate the breaking change introduced by RBAC enforcing on app pod logs
+	// settingsServerRBACLogEnforceEnable is the key to configure whether logs RBAC enforcement is enabled
 	settingsServerRBACLogEnforceEnableKey = "server.rbac.log.enforce.enable"
 	// helmValuesFileSchemesKey is the key to configure the list of supported helm values file schemas
 	helmValuesFileSchemesKey = "helm.valuesFileSchemes"
@@ -1269,14 +1269,13 @@ func updateSettingsFromConfigMap(settings *ArgoCDSettings, argoCDCM *apiv1.Confi
 		log.Warnf("Failed to validate UI banner URL in configmap: %v", err)
 	}
 	settings.UiBannerURL = argoCDCM.Data[settingUiBannerURLKey]
+	settings.UserSessionDuration = time.Hour * 24
 	if userSessionDurationStr, ok := argoCDCM.Data[userSessionDurationKey]; ok {
 		if val, err := timeutil.ParseDuration(userSessionDurationStr); err != nil {
 			log.Warnf("Failed to parse '%s' key: %v", userSessionDurationKey, err)
 		} else {
 			settings.UserSessionDuration = *val
 		}
-	} else {
-		settings.UserSessionDuration = time.Hour * 24
 	}
 	settings.PasswordPattern = argoCDCM.Data[settingsPasswordPatternKey]
 	if settings.PasswordPattern == "" {
@@ -1883,4 +1882,8 @@ func (mgr *SettingsManager) GetGlobalProjectsSettings() ([]GlobalProjectSettings
 		}
 	}
 	return globalProjectSettings, nil
+}
+
+func (mgr *SettingsManager) GetNamespace() string {
+	return mgr.namespace
 }

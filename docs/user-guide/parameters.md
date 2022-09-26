@@ -46,7 +46,7 @@ would result in the application being redeployed with the new image.
 Since commit access to the repository is unavailable, it is useful to be able to install charts from
 the public repository and customize the deployment with different parameters, without resorting to
 forking the repository to make the changes. For example, to install Redis from the Helm chart
-repository and customize the the database password, you would run:
+repository and customize the database password, you would run:
 
 ```bash
 argocd app create redis --repo https://github.com/helm/charts.git --path stable/redis --dest-server https://kubernetes.default.svc --dest-namespace default -p password=abc123

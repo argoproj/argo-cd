@@ -32,7 +32,7 @@ kubectl apply -n argocd -f https://raw.githubusercontent.com/argoproj/argo-cd/st
 This default installation will have a self-signed certificate and cannot be accessed without a bit of extra work.
 Do one of:
 
-* Follow the [instructions to configure a certificate](./operator-manual/tls) (and ensure that the client OS trusts it).
+* Follow the [instructions to configure a certificate](./operator-manual/tls.md) (and ensure that the client OS trusts it).
 * Configure the client OS to trust the self signed certificate.
 * Use the --insecure flag on all Argo CD CLI operations in this guide.
 
@@ -137,6 +137,12 @@ An example repository containing a guestbook application is available at
 [https://github.com/argoproj/argocd-example-apps.git](https://github.com/argoproj/argocd-example-apps.git) to demonstrate how Argo CD works.
 
 ### Creating Apps Via CLI
+
+First we need to set the current namespace to argocd running the following command:
+
+```bash
+kubectl config set-context --current --namespace=argocd
+```
 
 Create the example guestbook application with the following command:
 

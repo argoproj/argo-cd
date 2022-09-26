@@ -254,6 +254,7 @@ rules:
   resources:
   - applications
   - appprojects
+  - applicationsets
   verbs:
   - create
   - get
@@ -701,7 +702,7 @@ spec:
               key: dexserver.disable.tls
               name: argocd-cmd-params-cm
               optional: true
-        image: ghcr.io/dexidp/dex:v2.30.2
+        image: ghcr.io/dexidp/dex:v2.32.0-distroless
         imagePullPolicy: Always
         name: dex
         ports:
@@ -860,7 +861,7 @@ spec:
         - ""
         - --appendonly
         - "no"
-        image: redis:7.0.0-alpine
+        image: redis:7.0.4-alpine
         imagePullPolicy: Always
         name: redis
         ports:
@@ -976,6 +977,12 @@ spec:
               key: redis.server
               name: argocd-cmd-params-cm
               optional: true
+        - name: REDIS_COMPRESSION
+          valueFrom:
+            configMapKeyRef:
+              key: redis.compression
+              name: argocd-cmd-params-cm
+              optional: true
         - name: REDISDB
           valueFrom:
             configMapKeyRef:
@@ -1010,6 +1017,18 @@ spec:
           valueFrom:
             configMapKeyRef:
               key: reposerver.allow.oob.symlinks
+              name: argocd-cmd-params-cm
+              optional: true
+        - name: ARGOCD_REPO_SERVER_STREAMED_MANIFEST_MAX_TAR_SIZE
+          valueFrom:
+            configMapKeyRef:
+              key: reposerver.streamed.manifest.max.tar.size
+              name: argocd-cmd-params-cm
+              optional: true
+        - name: ARGOCD_REPO_SERVER_STREAMED_MANIFEST_MAX_EXTRACTED_SIZE
+          valueFrom:
+            configMapKeyRef:
+              key: reposerver.streamed.manifest.max.extracted.size
               name: argocd-cmd-params-cm
               optional: true
         - name: HELM_CACHE_HOME
@@ -1302,6 +1321,12 @@ spec:
               key: redis.server
               name: argocd-cmd-params-cm
               optional: true
+        - name: REDIS_COMPRESSION
+          valueFrom:
+            configMapKeyRef:
+              key: redis.compression
+              name: argocd-cmd-params-cm
+              optional: true
         - name: REDISDB
           valueFrom:
             configMapKeyRef:
@@ -1324,6 +1349,12 @@ spec:
           valueFrom:
             configMapKeyRef:
               key: otlp.address
+              name: argocd-cmd-params-cm
+              optional: true
+        - name: ARGOCD_APPLICATION_NAMESPACES
+          valueFrom:
+            configMapKeyRef:
+              key: application.namespaces
               name: argocd-cmd-params-cm
               optional: true
         image: quay.io/argoproj/argocd:latest
@@ -1511,6 +1542,12 @@ spec:
               key: controller.repo.server.strict.tls
               name: argocd-cmd-params-cm
               optional: true
+        - name: ARGOCD_APPLICATION_CONTROLLER_PERSIST_RESOURCE_HEALTH
+          valueFrom:
+            configMapKeyRef:
+              key: controller.resource.health.persist
+              name: argocd-cmd-params-cm
+              optional: true
         - name: ARGOCD_APP_STATE_CACHE_EXPIRATION
           valueFrom:
             configMapKeyRef:
@@ -1521,6 +1558,12 @@ spec:
           valueFrom:
             configMapKeyRef:
               key: redis.server
+              name: argocd-cmd-params-cm
+              optional: true
+        - name: REDIS_COMPRESSION
+          valueFrom:
+            configMapKeyRef:
+              key: redis.compression
               name: argocd-cmd-params-cm
               optional: true
         - name: REDISDB
@@ -1539,6 +1582,12 @@ spec:
           valueFrom:
             configMapKeyRef:
               key: otlp.address
+              name: argocd-cmd-params-cm
+              optional: true
+        - name: ARGOCD_APPLICATION_NAMESPACES
+          valueFrom:
+            configMapKeyRef:
+              key: application.namespaces
               name: argocd-cmd-params-cm
               optional: true
         image: quay.io/argoproj/argocd:latest
@@ -1602,6 +1651,25 @@ spec:
 apiVersion: networking.k8s.io/v1
 kind: NetworkPolicy
 metadata:
+  name: argocd-applicationset-controller-network-policy
+spec:
+  ingress:
+  - from:
+    - namespaceSelector: {}
+    ports:
+    - port: 7000
+      protocol: TCP
+    - port: 8080
+      protocol: TCP
+  podSelector:
+    matchLabels:
+      app.kubernetes.io/name: argocd-applicationset-controller
+  policyTypes:
+  - Ingress
+---
+apiVersion: networking.k8s.io/v1
+kind: NetworkPolicy
+metadata:
   name: argocd-dex-server-network-policy
 spec:
   ingress:
@@ -1628,8 +1696,33 @@ spec:
 apiVersion: networking.k8s.io/v1
 kind: NetworkPolicy
 metadata:
+  name: argocd-notifications-controller-network-policy
+spec:
+  ingress:
+  - from:
+    - namespaceSelector: {}
+    ports:
+    - port: 9001
+      protocol: TCP
+  podSelector:
+    matchLabels:
+      app.kubernetes.io/name: argocd-notifications-controller
+  policyTypes:
+  - Ingress
+---
+apiVersion: networking.k8s.io/v1
+kind: NetworkPolicy
+metadata:
   name: argocd-redis-network-policy
 spec:
+  egress:
+  - ports:
+    - port: 53
+      protocol: UDP
+    - port: 53
+      protocol: TCP
+    to:
+    - namespaceSelector: {}
   ingress:
   - from:
     - podSelector:
@@ -1649,6 +1742,7 @@ spec:
       app.kubernetes.io/name: argocd-redis
   policyTypes:
   - Ingress
+  - Egress
 ---
 apiVersion: networking.k8s.io/v1
 kind: NetworkPolicy

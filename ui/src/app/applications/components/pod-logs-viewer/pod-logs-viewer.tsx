@@ -15,6 +15,7 @@ import './pod-logs-viewer.scss';
 const maxLines = 100;
 export interface PodLogsProps {
     namespace: string;
+    applicationNamespace: string;
     applicationName: string;
     podName?: string;
     containerName: string;
@@ -25,11 +26,12 @@ export interface PodLogsProps {
     timestamp?: string;
     setPage: (pageData: {number: number; untilTimes: string[]}) => void;
     containerGroups?: any[];
-    onClickContainer?: (group: any, i: number) => any;
+    onClickContainer?: (group: any, i: number, tab: string) => any;
 }
 
 export const PodsLogsViewer = (props: PodLogsProps & {fullscreen?: boolean}) => {
-    if (!props.containerName || props.containerName === '') {
+    const {containerName, onClickContainer} = props;
+    if (!containerName || containerName === '') {
         return <div>Pod does not have container with name {props.containerName}</div>;
     }
 
@@ -55,7 +57,7 @@ export const PodsLogsViewer = (props: PodLogsProps & {fullscreen?: boolean}) => 
             group.containers.forEach((container: any, index: number) => {
                 const title = (
                     <div className='d-inline-block'>
-                        <i className={`fa fa-angle-right ${container.name === props.containerName ? '' : 'invisible'}`} />
+                        {container.name === containerName && <i className='fa fa-angle-right' />}
                         <span title={container.name} className='container-item'>
                             {container.name.toUpperCase()}
                         </span>
@@ -63,7 +65,7 @@ export const PodsLogsViewer = (props: PodLogsProps & {fullscreen?: boolean}) => 
                 );
                 containerItems.push({
                     title,
-                    action: () => (container.name === props.containerName ? {} : props.onClickContainer(group, index))
+                    action: () => (container.name === containerName ? {} : onClickContainer(group, index, 'logs'))
                 });
             });
         });
@@ -111,7 +113,7 @@ export const PodsLogsViewer = (props: PodLogsProps & {fullscreen?: boolean}) => 
     };
 
     const fullscreenURL =
-        `/applications/${props.applicationName}/${props.namespace}/${props.containerName}/logs?` +
+        `/applications/${props.applicationNamespace}/${props.applicationName}/${props.namespace}/${props.containerName}/logs?` +
         `podName=${props.podName}&group=${props.group}&kind=${props.kind}&name=${props.name}`;
     return (
         <DataLoader load={() => services.viewPreferences.getPreferences()}>
@@ -164,6 +166,7 @@ export const PodsLogsViewer = (props: PodLogsProps & {fullscreen?: boolean}) => 
                                 onClick={async () => {
                                     const downloadURL = services.applications.getDownloadLogsURL(
                                         props.applicationName,
+                                        props.applicationNamespace,
                                         props.namespace,
                                         props.podName,
                                         {group: props.group, kind: props.kind, name: props.name},
@@ -296,6 +299,7 @@ export const PodsLogsViewer = (props: PodLogsProps & {fullscreen?: boolean}) => 
                             let logsSource = services.applications
                                 .getContainerLogs(
                                     props.applicationName,
+                                    props.applicationNamespace,
                                     props.namespace,
                                     props.podName,
                                     {group: props.group, kind: props.kind, name: props.name},

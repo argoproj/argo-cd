@@ -159,6 +159,10 @@ spec:
                       for apps which have orphaned resources
                     type: boolean
                 type: object
+              permitOnlyProjectScopedClusters:
+                description: PermitOnlyProjectScopedClusters determines whether destinations
+                  can only reference clusters which are project-scoped
+                type: boolean
               roles:
                 description: Roles are user defined RBAC roles associated with this
                   project
@@ -220,6 +224,12 @@ spec:
                   required:
                   - keyID
                   type: object
+                type: array
+              sourceNamespaces:
+                description: SourceNamespaces defines the namespaces application resources
+                  are allowed to be created in
+                items:
+                  type: string
                 type: array
               sourceRepos:
                 description: SourceRepos contains list of repository URLs which can

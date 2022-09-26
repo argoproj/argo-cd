@@ -6,20 +6,16 @@ import (
 	"testing"
 	"time"
 
+	argocdclient "github.com/argoproj/argo-cd/v2/pkg/apiclient"
+	"github.com/argoproj/argo-cd/v2/pkg/apis/application/v1alpha1"
+	argoappv1 "github.com/argoproj/argo-cd/v2/pkg/apis/application/v1alpha1"
+	"github.com/argoproj/gitops-engine/pkg/health"
 	"github.com/argoproj/gitops-engine/pkg/utils/kube"
 	"github.com/google/go-cmp/cmp"
 	"github.com/google/go-cmp/cmp/cmpopts"
-	"k8s.io/apimachinery/pkg/apis/meta/v1/unstructured"
-
-	"github.com/argoproj/gitops-engine/pkg/health"
-
-	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
-
-	argocdclient "github.com/argoproj/argo-cd/v2/pkg/apiclient"
-
 	"github.com/stretchr/testify/assert"
-
-	"github.com/argoproj/argo-cd/v2/pkg/apis/application/v1alpha1"
+	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
+	"k8s.io/apimachinery/pkg/apis/meta/v1/unstructured"
 )
 
 func Test_getInfos(t *testing.T) {
@@ -556,7 +552,7 @@ func TestPrintAppSummaryTable(t *testing.T) {
 		return nil
 	})
 
-	expectation := `Name:               test
+	expectation := `Name:               argocd/test
 Project:            default
 Server:             local
 Namespace:          argocd
@@ -1107,6 +1103,22 @@ func TestMergeWitoutUpdate(t *testing.T) {
 }
 
 func TestCheckResourceStatus(t *testing.T) {
+	t.Run("Degraded, Suspended and health status passed", func(t *testing.T) {
+		res := checkResourceStatus(watchOpts{
+			suspended: true,
+			health:    true,
+			degraded:  true,
+		}, string(health.HealthStatusHealthy), string(v1alpha1.SyncStatusCodeSynced), &v1alpha1.Operation{})
+		assert.True(t, res)
+	})
+	t.Run("Degraded, Suspended and health status failed", func(t *testing.T) {
+		res := checkResourceStatus(watchOpts{
+			suspended: true,
+			health:    true,
+			degraded:  true,
+		}, string(health.HealthStatusProgressing), string(v1alpha1.SyncStatusCodeSynced), &v1alpha1.Operation{})
+		assert.False(t, res)
+	})
 	t.Run("Suspended and health status passed", func(t *testing.T) {
 		res := checkResourceStatus(watchOpts{
 			suspended: true,
@@ -1157,4 +1169,102 @@ func TestCheckResourceStatus(t *testing.T) {
 		res := checkResourceStatus(watchOpts{}, string(health.HealthStatusProgressing), string(v1alpha1.SyncStatusCodeOutOfSync), &v1alpha1.Operation{})
 		assert.True(t, res)
 	})
+	t.Run("Degraded passed", func(t *testing.T) {
+		res := checkResourceStatus(watchOpts{
+			suspended: false,
+			health:    false,
+			degraded:  true,
+		}, string(health.HealthStatusDegraded), string(v1alpha1.SyncStatusCodeSynced), &v1alpha1.Operation{})
+		assert.True(t, res)
+	})
+	t.Run("Degraded failed", func(t *testing.T) {
+		res := checkResourceStatus(watchOpts{
+			suspended: false,
+			health:    false,
+			degraded:  true,
+		}, string(health.HealthStatusProgressing), string(v1alpha1.SyncStatusCodeSynced), &v1alpha1.Operation{})
+		assert.False(t, res)
+	})
+}
+
+func Test_hasAppChanged(t *testing.T) {
+	type args struct {
+		appReq *argoappv1.Application
+		appRes *argoappv1.Application
+		upsert bool
+	}
+	tests := []struct {
+		name string
+		args args
+		want bool
+	}{
+		{
+			name: "App has changed - Labels, Annotations, Finalizers empty",
+			args: args{
+				appReq: testApp("foo", "default", map[string]string{}, map[string]string{}, []string{}),
+				appRes: testApp("foo", "foo", nil, nil, nil),
+				upsert: true,
+			},
+			want: true,
+		},
+		{
+			name: "App unchanged - Labels, Annotations, Finalizers populated",
+			args: args{
+				appReq: testApp("foo", "default", map[string]string{"foo": "bar"}, map[string]string{"foo": "bar"}, []string{"foo"}),
+				appRes: testApp("foo", "default", map[string]string{"foo": "bar"}, map[string]string{"foo": "bar"}, []string{"foo"}),
+				upsert: true,
+			},
+			want: false,
+		},
+		{
+			name: "Apps unchanged - Using empty maps/list locally versus server returning nil",
+			args: args{
+				appReq: testApp("foo", "default", map[string]string{}, map[string]string{}, []string{}),
+				appRes: testApp("foo", "default", nil, nil, nil),
+				upsert: true,
+			},
+			want: false,
+		},
+		{
+			name: "App unchanged - Using empty project locally versus server returning default",
+			args: args{
+				appReq: testApp("foo", "", map[string]string{}, map[string]string{}, []string{}),
+				appRes: testApp("foo", "default", nil, nil, nil),
+			},
+			want: false,
+		},
+		{
+			name: "App unchanged - From upsert=false",
+			args: args{
+				appReq: testApp("foo", "foo", map[string]string{}, map[string]string{}, []string{}),
+				appRes: testApp("foo", "default", nil, nil, nil),
+				upsert: false,
+			},
+			want: false,
+		},
+	}
+	for _, tt := range tests {
+		t.Run(tt.name, func(t *testing.T) {
+			if got := hasAppChanged(tt.args.appReq, tt.args.appRes, tt.args.upsert); got != tt.want {
+				t.Errorf("hasAppChanged() = %v, want %v", got, tt.want)
+			}
+		})
+	}
+}
+
+func testApp(name, project string, labels map[string]string, annotations map[string]string, finalizers []string) *argoappv1.Application {
+	return &argoappv1.Application{
+		ObjectMeta: metav1.ObjectMeta{
+			Name:        name,
+			Labels:      labels,
+			Annotations: annotations,
+			Finalizers:  finalizers,
+		},
+		Spec: argoappv1.ApplicationSpec{
+			Source: argoappv1.ApplicationSource{
+				RepoURL: "https://github.com/argoproj/argocd-example-apps.git",
+			},
+			Project: project,
+		},
+	}
 }

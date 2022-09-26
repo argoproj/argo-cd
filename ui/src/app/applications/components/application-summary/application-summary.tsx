@@ -1,16 +1,27 @@
 import {AutocompleteField, DropDownMenu, ErrorNotification, FormField, FormSelect, HelpIcon, NotificationType} from 'argo-ui';
 import * as React from 'react';
 import {FormApi, Text} from 'react-form';
-import {Cluster, DataLoader, EditablePanel, EditablePanelItem, Expandable, MapInputField, NumberField, Repo, Revision, RevisionHelpIcon} from '../../../shared/components';
+import {
+    ARGO_WARNING_COLOR,
+    Cluster,
+    DataLoader,
+    EditablePanel,
+    EditablePanelItem,
+    Expandable,
+    MapInputField,
+    NumberField,
+    Repo,
+    Revision,
+    RevisionHelpIcon
+} from '../../../shared/components';
 import {BadgePanel, Spinner} from '../../../shared/components';
 import {Consumer, ContextApis} from '../../../shared/context';
 import * as models from '../../../shared/models';
 import {services} from '../../../shared/services';
 
-import * as moment from 'moment';
 import {ApplicationSyncOptionsField} from '../application-sync-options/application-sync-options';
 import {RevisionFormField} from '../revision-form-field/revision-form-field';
-import {ComparisonStatusIcon, HealthStatusIcon, syncStatusMessage, urlPattern} from '../utils';
+import {ComparisonStatusIcon, HealthStatusIcon, syncStatusMessage, urlPattern, formatCreationTimestamp} from '../utils';
 import {ApplicationRetryOptions} from '../application-retry-options/application-retry-options';
 import {ApplicationRetryView} from '../application-retry-view/application-retry-view';
 import {Link} from 'react-router-dom';
@@ -125,10 +136,7 @@ export const ApplicationSummary = (props: {app: models.Application; updateApp: (
         },
         {
             title: 'CREATED_AT',
-            view: moment
-                .utc(app.metadata.creationTimestamp)
-                .local()
-                .format('MM/DD/YYYY HH:mm:ss')
+            view: formatCreationTimestamp(app.metadata.creationTimestamp)
         },
         {
             title: 'REPO URL',
@@ -417,6 +425,13 @@ export const ApplicationSummary = (props: {app: models.Application; updateApp: (
 
     return (
         <div className='application-summary'>
+            {app.spec.source.plugin && typeof app.spec.source.plugin.name === 'string' && app.spec.source.plugin.name !== '' && (
+                <div className='white-box'>
+                    <i className='fa fa-exclamation-triangle' style={{color: ARGO_WARNING_COLOR}} /> This Application uses a plugin which will no longer be supported starting with
+                    Argo CD version 2.6. Contact your Argo CD administrator to make sure they upgrade the '{app.spec.source.plugin.name}' plugin before upgrading to Argo CD 2.6.
+                    See the <a href='https://argo-cd.readthedocs.io/en/latest/operator-manual/upgrading/2.4-2.5/'>2.4-to-2.5 upgrade notes</a> for details.
+                </div>
+            )}
             <EditablePanel
                 save={props.updateApp}
                 validate={input => ({

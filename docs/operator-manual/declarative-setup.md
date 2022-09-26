@@ -330,8 +330,6 @@ The following keys are valid to refer to credential secrets:
 
 ### Repositories using self-signed TLS certificates (or are signed by custom CA)
 
-> v1.2 or later
-
 You can manage the TLS certificates used to verify the authenticity of your repository servers in a ConfigMap object named `argocd-tls-certs-cm`. The data section should contain a map, with the repository server's hostname part (not the complete URL) as key, and the certificate(s) in PEM format as data. So, if you connect to a repository with the URL `https://server.example.com/repos/my-repo`, you should use `server.example.com` as key. The certificate data should be either the server's certificate (in case of self-signed certificate) or the certificate of the CA that was used to sign the server's certificate. You can configure multiple certificates for each server, e.g. if you are having a certificate roll-over planned.
 
 If there are no dedicated certificates configured for a repository server, the system's default trust store is used for validating the server's repository. This should be good enough for most (if not all) public Git repository services such as GitLab, GitHub and Bitbucket as well as most privately hosted sites which use certificates from well-known CAs, including Let's Encrypt certificates.
@@ -489,6 +487,7 @@ The secret data must include following fields:
 * `name` - cluster name
 * `server` - cluster api server url
 * `namespaces` - optional comma-separated list of namespaces which are accessible in that cluster. Cluster level resources would be ignored if namespace list is not empty.
+* `clusterResources` - optional boolean string (`"true"` or `"false"`) determining whether Argo CD can manage cluster-level resources on this cluster. This setting is used only if the list of managed namespaces is not empty.
 * `config` - JSON representation of following data structure:
 
 ```yaml
