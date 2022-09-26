@@ -1814,16 +1814,8 @@ func schema_pkg_apis_application_v1alpha1_ApplicationStatus(ref common.Reference
 					"sourceType": {
 						SchemaProps: spec.SchemaProps{
 							Description: "SourceType specifies the type of this application",
-							Type:        []string{"array"},
-							Items: &spec.SchemaOrArray{
-								Schema: &spec.Schema{
-									SchemaProps: spec.SchemaProps{
-										Default: "",
-										Type:    []string{"string"},
-										Format:  "",
-									},
-								},
-							},
+							Type:        []string{"string"},
+							Format:      "",
 						},
 					},
 					"summary": {
@@ -1838,6 +1830,21 @@ func schema_pkg_apis_application_v1alpha1_ApplicationStatus(ref common.Reference
 							Description: "ResourceHealthSource indicates where the resource health status is stored: inline if not set or appTree",
 							Type:        []string{"string"},
 							Format:      "",
+						},
+					},
+					"sourceTypes": {
+						SchemaProps: spec.SchemaProps{
+							Description: "SourceTypes specifies the type of the sources included in the application",
+							Type:        []string{"array"},
+							Items: &spec.SchemaOrArray{
+								Schema: &spec.Schema{
+									SchemaProps: spec.SchemaProps{
+										Default: "",
+										Type:    []string{"string"},
+										Format:  "",
+									},
+								},
+							},
 						},
 					},
 				},
@@ -5495,7 +5502,6 @@ func schema_pkg_apis_application_v1alpha1_RevisionHistory(ref common.ReferenceCa
 					"revision": {
 						SchemaProps: spec.SchemaProps{
 							Description: "Revision holds the revision the sync was performed against",
-							Default:     "",
 							Type:        []string{"string"},
 							Format:      "",
 						},
@@ -5542,8 +5548,23 @@ func schema_pkg_apis_application_v1alpha1_RevisionHistory(ref common.ReferenceCa
 							},
 						},
 					},
+					"revisions": {
+						SchemaProps: spec.SchemaProps{
+							Description: "Revisions holds the revision of each source in sources field the sync was performed against",
+							Type:        []string{"array"},
+							Items: &spec.SchemaOrArray{
+								Schema: &spec.Schema{
+									SchemaProps: spec.SchemaProps{
+										Default: "",
+										Type:    []string{"string"},
+										Format:  "",
+									},
+								},
+							},
+						},
+					},
 				},
-				Required: []string{"revision", "deployedAt", "id"},
+				Required: []string{"deployedAt", "id"},
 			},
 		},
 		Dependencies: []string{

@@ -6332,6 +6332,15 @@ func (m *ApplicationStatus) MarshalToSizedBuffer(dAtA []byte) (int, error) {
 	_ = i
 	var l int
 	_ = l
+	if len(m.SourceTypes) > 0 {
+		for iNdEx := len(m.SourceTypes) - 1; iNdEx >= 0; iNdEx-- {
+			i -= len(m.SourceTypes[iNdEx])
+			copy(dAtA[i:], m.SourceTypes[iNdEx])
+			i = encodeVarintGenerated(dAtA, i, uint64(len(m.SourceTypes[iNdEx])))
+			i--
+			dAtA[i] = 0x62
+		}
+	}
 	i -= len(m.ResourceHealthSource)
 	copy(dAtA[i:], m.ResourceHealthSource)
 	i = encodeVarintGenerated(dAtA, i, uint64(len(m.ResourceHealthSource)))
@@ -10627,6 +10636,29 @@ func (m *RevisionHistory) MarshalToSizedBuffer(dAtA []byte) (int, error) {
 	_ = i
 	var l int
 	_ = l
+	if len(m.Revisions) > 0 {
+		for iNdEx := len(m.Revisions) - 1; iNdEx >= 0; iNdEx-- {
+			i -= len(m.Revisions[iNdEx])
+			copy(dAtA[i:], m.Revisions[iNdEx])
+			i = encodeVarintGenerated(dAtA, i, uint64(len(m.Revisions[iNdEx])))
+			i--
+			dAtA[i] = 0x4a
+		}
+	}
+	if len(m.Sources) > 0 {
+		for iNdEx := len(m.Sources) - 1; iNdEx >= 0; iNdEx-- {
+			{
+				size, err := m.Sources[iNdEx].MarshalToSizedBuffer(dAtA[:i])
+				if err != nil {
+					return 0, err
+				}
+				i -= size
+				i = encodeVarintGenerated(dAtA, i, uint64(size))
+			}
+			i--
+			dAtA[i] = 0x42
+		}
+	}
 	if m.DeployStartedAt != nil {
 		{
 			size, err := m.DeployStartedAt.MarshalToSizedBuffer(dAtA[:i])
@@ -11702,24 +11734,16 @@ func (m *SCMProviderGeneratorGitlab) MarshalToSizedBuffer(dAtA []byte) (int, err
 	copy(dAtA[i:], m.API)
 	i = encodeVarintGenerated(dAtA, i, uint64(len(m.API)))
 	i--
-	dAtA[i] = 0x1a
+	dAtA[i] = 0x32
+	i -= len(m.Organization)
+	copy(dAtA[i:], m.Organization)
+	i = encodeVarintGenerated(dAtA, i, uint64(len(m.Organization)))
 	i--
-	if m.IncludeSubgroups {
-		dAtA[i] = 1
-	} else {
-		dAtA[i] = 0
-	}
-	i--
-	dAtA[i] = 0x10
-	i -= len(m.Group)
-	copy(dAtA[i:], m.Group)
-	i = encodeVarintGenerated(dAtA, i, uint64(len(m.Group)))
-	i--
-	dAtA[i] = 0xa
+	dAtA[i] = 0x2a
 	return len(dAtA) - i, nil
-}
+			copy(dAtA[i:], m.SyncOptions[iNdEx])
 
-func (m *SecretRef) Marshal() (dAtA []byte, err error) {
+func (m *SCMProviderGeneratorBitbucket) Marshal() (dAtA []byte, err error) {
 	size := m.Size()
 	dAtA = make([]byte, size)
 	n, err := m.MarshalToSizedBuffer(dAtA[:size])
@@ -11729,30 +11753,50 @@ func (m *SecretRef) Marshal() (dAtA []byte, err error) {
 	return dAtA[:n], nil
 }
 
-func (m *SecretRef) MarshalTo(dAtA []byte) (int, error) {
+func (m *SCMProviderGeneratorBitbucket) MarshalTo(dAtA []byte) (int, error) {
 	size := m.Size()
 	return m.MarshalToSizedBuffer(dAtA[:size])
 }
 
-func (m *SecretRef) MarshalToSizedBuffer(dAtA []byte) (int, error) {
+func (m *SCMProviderGeneratorBitbucket) MarshalToSizedBuffer(dAtA []byte) (int, error) {
 	i := len(dAtA)
 	_ = i
 	var l int
 	_ = l
-	i -= len(m.Key)
-	copy(dAtA[i:], m.Key)
-	i = encodeVarintGenerated(dAtA, i, uint64(len(m.Key)))
+	i--
+	if m.AllBranches {
+		dAtA[i] = 1
+	} else {
+		dAtA[i] = 0
+	}
+	i--
+	dAtA[i] = 0x20
+	if m.AppPasswordRef != nil {
+		{
+			size, err := m.AppPasswordRef.MarshalToSizedBuffer(dAtA[:i])
+			if err != nil {
+				return 0, err
+			}
+			i -= size
+			i = encodeVarintGenerated(dAtA, i, uint64(size))
+		}
+		i--
+		dAtA[i] = 0x1a
+	}
+	i -= len(m.User)
+	copy(dAtA[i:], m.User)
+	i = encodeVarintGenerated(dAtA, i, uint64(len(m.User)))
 	i--
 	dAtA[i] = 0x12
-	i -= len(m.SecretName)
-	copy(dAtA[i:], m.SecretName)
-	i = encodeVarintGenerated(dAtA, i, uint64(len(m.SecretName)))
+	i -= len(m.Owner)
+	copy(dAtA[i:], m.Owner)
+	i = encodeVarintGenerated(dAtA, i, uint64(len(m.Owner)))
 	i--
 	dAtA[i] = 0xa
 	return len(dAtA) - i, nil
 }
 
-func (m *SignatureKey) Marshal() (dAtA []byte, err error) {
+func (m *SyncOperation) Marshal() (dAtA []byte, err error) {
 	size := m.Size()
 	dAtA = make([]byte, size)
 	n, err := m.MarshalToSizedBuffer(dAtA[:size])
@@ -13151,6 +13195,12 @@ func (m *GitGenerator) Size() (n int) {
 	}
 	l = m.Template.Size()
 	n += 1 + l + sovGenerated(uint64(l))
+	if len(m.SourceTypes) > 0 {
+		for _, s := range m.SourceTypes {
+			l = len(s)
+			n += 1 + l + sovGenerated(uint64(l))
+		}
+	}
 	return n
 }
 
@@ -14735,6 +14785,18 @@ func (m *RevisionHistory) Size() (n int) {
 		l = m.DeployStartedAt.Size()
 		n += 1 + l + sovGenerated(uint64(l))
 	}
+	if len(m.Sources) > 0 {
+		for _, e := range m.Sources {
+			l = e.Size()
+			n += 1 + l + sovGenerated(uint64(l))
+		}
+	}
+	if len(m.Revisions) > 0 {
+		for _, s := range m.Revisions {
+			l = len(s)
+			n += 1 + l + sovGenerated(uint64(l))
+		}
+	}
 	return n
 }
 
@@ -15780,6 +15842,7 @@ func (this *ApplicationStatus) String() string {
 		`SourceType:` + fmt.Sprintf("%v", this.SourceType) + `,`,
 		`Summary:` + strings.Replace(strings.Replace(this.Summary.String(), "ApplicationSummary", "ApplicationSummary", 1), `&`, ``, 1) + `,`,
 		`ResourceHealthSource:` + fmt.Sprintf("%v", this.ResourceHealthSource) + `,`,
+		`SourceTypes:` + fmt.Sprintf("%v", this.SourceTypes) + `,`,
 		`}`,
 	}, "")
 	return s
@@ -17038,6 +17101,8 @@ func (this *RevisionHistory) String() string {
 		`ID:` + fmt.Sprintf("%v", this.ID) + `,`,
 		`Source:` + strings.Replace(strings.Replace(this.Source.String(), "ApplicationSource", "ApplicationSource", 1), `&`, ``, 1) + `,`,
 		`DeployStartedAt:` + strings.Replace(fmt.Sprintf("%v", this.DeployStartedAt), "Time", "v1.Time", 1) + `,`,
+		`Sources:` + repeatedStringForSources + `,`,
+		`Revisions:` + fmt.Sprintf("%v", this.Revisions) + `,`,
 		`}`,
 	}, "")
 	return s
@@ -23398,6 +23463,38 @@ func (m *ApplicationStatus) Unmarshal(dAtA []byte) error {
 				return io.ErrUnexpectedEOF
 			}
 			m.ResourceHealthSource = ResourceHealthLocation(dAtA[iNdEx:postIndex])
+			iNdEx = postIndex
+		case 12:
+			if wireType != 2 {
+				return fmt.Errorf("proto: wrong wireType = %d for field SourceTypes", wireType)
+			}
+			var stringLen uint64
+			for shift := uint(0); ; shift += 7 {
+				if shift >= 64 {
+					return ErrIntOverflowGenerated
+				}
+				if iNdEx >= l {
+					return io.ErrUnexpectedEOF
+				}
+				b := dAtA[iNdEx]
+				iNdEx++
+				stringLen |= uint64(b&0x7F) << shift
+				if b < 0x80 {
+					break
+				}
+			}
+			intStringLen := int(stringLen)
+			if intStringLen < 0 {
+				return ErrInvalidLengthGenerated
+			}
+			postIndex := iNdEx + intStringLen
+			if postIndex < 0 {
+				return ErrInvalidLengthGenerated
+			}
+			if postIndex > l {
+				return io.ErrUnexpectedEOF
+			}
+			m.SourceTypes = append(m.SourceTypes, ApplicationSourceType(dAtA[iNdEx:postIndex]))
 			iNdEx = postIndex
 		default:
 			iNdEx = preIndex
@@ -37719,6 +37816,72 @@ func (m *RevisionHistory) Unmarshal(dAtA []byte) error {
 			if err := m.DeployStartedAt.Unmarshal(dAtA[iNdEx:postIndex]); err != nil {
 				return err
 			}
+			iNdEx = postIndex
+		case 8:
+			if wireType != 2 {
+				return fmt.Errorf("proto: wrong wireType = %d for field Sources", wireType)
+			}
+			var msglen int
+			for shift := uint(0); ; shift += 7 {
+				if shift >= 64 {
+					return ErrIntOverflowGenerated
+				}
+				if iNdEx >= l {
+					return io.ErrUnexpectedEOF
+				}
+				b := dAtA[iNdEx]
+				iNdEx++
+				msglen |= int(b&0x7F) << shift
+				if b < 0x80 {
+					break
+				}
+			}
+			if msglen < 0 {
+				return ErrInvalidLengthGenerated
+			}
+			postIndex := iNdEx + msglen
+			if postIndex < 0 {
+				return ErrInvalidLengthGenerated
+			}
+			if postIndex > l {
+				return io.ErrUnexpectedEOF
+			}
+			m.Sources = append(m.Sources, ApplicationSource{})
+			if err := m.Sources[len(m.Sources)-1].Unmarshal(dAtA[iNdEx:postIndex]); err != nil {
+				return err
+			}
+			iNdEx = postIndex
+		case 9:
+			if wireType != 2 {
+				return fmt.Errorf("proto: wrong wireType = %d for field Revisions", wireType)
+			}
+			var stringLen uint64
+			for shift := uint(0); ; shift += 7 {
+				if shift >= 64 {
+					return ErrIntOverflowGenerated
+				}
+				if iNdEx >= l {
+					return io.ErrUnexpectedEOF
+				}
+				b := dAtA[iNdEx]
+				iNdEx++
+				stringLen |= uint64(b&0x7F) << shift
+				if b < 0x80 {
+					break
+				}
+			}
+			intStringLen := int(stringLen)
+			if intStringLen < 0 {
+				return ErrInvalidLengthGenerated
+			}
+			postIndex := iNdEx + intStringLen
+			if postIndex < 0 {
+				return ErrInvalidLengthGenerated
+			}
+			if postIndex > l {
+				return io.ErrUnexpectedEOF
+			}
+			m.Revisions = append(m.Revisions, string(dAtA[iNdEx:postIndex]))
 			iNdEx = postIndex
 		default:
 			iNdEx = preIndex

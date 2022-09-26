@@ -1383,6 +1383,12 @@ spec:
                       description: Revision holds the revision the sync was performed
                         against
                       type: string
+                    revisions:
+                      description: Revisions holds the revision of each source in
+                        sources field the sync was performed against
+                      items:
+                        type: string
+                      type: array
                     source:
                       description: Source is a reference to the application source
                         used for the sync operation
@@ -1941,7 +1947,6 @@ spec:
                   required:
                   - deployedAt
                   - id
-                  - revision
                   type: object
                 type: array
               observedAt:
@@ -3292,6 +3297,10 @@ spec:
                 type: array
               sourceType:
                 description: SourceType specifies the type of this application
+                type: string
+              sourceTypes:
+                description: SourceTypes specifies the type of the sources included
+                  in the application
                 items:
                   description: ApplicationSourceType specifies the type of the application's
                     source
