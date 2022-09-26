@@ -25,7 +25,7 @@ export const ApplicationNodeInfo = (props: {
     ];
     if (props.node.createdAt) {
         attributes.push({
-            title: 'CREATED_AT',
+            title: 'CREATED AT',
             value: formatCreationTimestamp(props.node.createdAt)
         });
     }
@@ -93,8 +93,7 @@ export const ApplicationNodeInfo = (props: {
             title: 'HEALTH',
             value: (
                 <span>
-                    <HealthStatusIcon state={treeNode.health} />
-                    {treeNode.health.message || treeNode.health.status}
+                    <HealthStatusIcon state={treeNode.health} /> {treeNode.health.message || treeNode.health.status}
                 </span>
             )
         } as any);

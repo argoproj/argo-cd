@@ -135,7 +135,7 @@ export const ApplicationSummary = (props: {app: models.Application; updateApp: (
             edit: (formApi: FormApi) => <FormField formApi={formApi} field='spec.destination.namespace' component={Text} />
         },
         {
-            title: 'CREATED_AT',
+            title: 'CREATED AT',
             view: formatCreationTimestamp(app.metadata.creationTimestamp)
         },
         {
