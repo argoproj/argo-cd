@@ -939,6 +939,10 @@ func GenerateManifests(ctx context.Context, appPath, repoRoot, revision string, 
 
 	manifests := make([]string, 0)
 	for _, obj := range targetObjs {
+		if obj == nil {
+			continue
+		}
+
 		var targets []*unstructured.Unstructured
 		if obj.IsList() {
 			err = obj.EachListItem(func(object runtime.Object) error {
