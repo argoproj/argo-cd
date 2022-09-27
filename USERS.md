@@ -184,6 +184,7 @@ Currently, the following organizations are **officially** using Argo CD:
 1. [South China Morning Post (SCMP)](https://www.scmp.com/)
 1. [Speee](https://speee.jp/)
 1. [Spendesk](https://spendesk.com/)
+1. [Splunk](https://splunk.com/)
 1. [Spores Labs](https://spores.app)
 1. [Stuart](https://stuart.com/)
 1. [Sumo Logic](https://sumologic.com/)
