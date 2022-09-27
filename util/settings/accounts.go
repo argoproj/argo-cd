@@ -127,7 +127,7 @@ func (mgr *SettingsManager) GetAccount(name string) (*Account, error) {
 }
 
 // UpdateAccount runs the callback function against an account that matches to the specified name
-//and persist changes applied by the callback.
+// and persist changes applied by the callback.
 func (mgr *SettingsManager) UpdateAccount(name string, callback func(account *Account) error) error {
 	account, err := mgr.GetAccount(name)
 	if err != nil {

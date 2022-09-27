@@ -7,7 +7,9 @@ import (
 	"github.com/stretchr/testify/assert"
 	"github.com/stretchr/testify/require"
 	apiv1 "k8s.io/api/core/v1"
+	apierrors "k8s.io/apimachinery/pkg/api/errors"
 	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
+	"k8s.io/apimachinery/pkg/runtime/schema"
 	"k8s.io/client-go/kubernetes"
 	"k8s.io/client-go/kubernetes/fake"
 )
@@ -52,16 +54,7 @@ func Test_CreateOrUpdateSecretField(t *testing.T) {
 	t.Run("Change field in existing secret", func(t *testing.T) {
 		ku := NewKubeUtil(client, context.TODO())
 		err := ku.CreateOrUpdateSecretField("test", "test-secret", "password", "barfoo")
-		require.NoError(t, err)
-		s, err := getSecret(client, "test", "test-secret")
-		require.NoError(t, err)
-
-		// password field should be updated
-		assert.Equal(t, "barfoo", string(s.Data["password"]))
-
-		// Labels and annotations should be untouched
-		assert.Len(t, s.Labels, 2)
-		assert.Len(t, s.Annotations, 2)
+		require.Equal(t, err, apierrors.NewAlreadyExists(schema.GroupResource{Resource: "secrets"}, "test-secret"))
 	})
 
 	t.Run("Change field in non-existing secret", func(t *testing.T) {
@@ -81,13 +74,13 @@ func Test_CreateOrUpdateSecretField(t *testing.T) {
 
 	t.Run("Change field in existing secret with labels", func(t *testing.T) {
 		ku := NewKubeUtil(client, context.TODO()).WithAnnotations(annotations).WithLabels(labels)
-		err := ku.CreateOrUpdateSecretField("test", "test-secret", "password", "barfoo")
+		err := ku.CreateOrUpdateSecretField("test", "test-secret", "password1", "barfoo")
 		require.NoError(t, err)
 		s, err := getSecret(client, "test", "test-secret")
 		require.NoError(t, err)
 
 		// password field should be updated
-		assert.Equal(t, "barfoo", string(s.Data["password"]))
+		assert.Equal(t, "barfoo", string(s.Data["password1"]))
 
 		// Labels and annotations should be untouched
 		assert.Len(t, s.Labels, 2)

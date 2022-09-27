@@ -26,6 +26,7 @@ import (
 	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
 	"k8s.io/apimachinery/pkg/fields"
 	"k8s.io/apimachinery/pkg/labels"
+	"k8s.io/apimachinery/pkg/runtime/schema"
 	v1 "k8s.io/client-go/informers/core/v1"
 	"k8s.io/client-go/kubernetes"
 	v1listers "k8s.io/client-go/listers/core/v1"
@@ -1436,6 +1437,9 @@ func (mgr *SettingsManager) SaveSettings(settings *ArgoCDSettings) error {
 	}
 
 	return mgr.updateSecret(func(argoCDSecret *apiv1.Secret) error {
+		if len(argoCDSecret.Data) > 0 {
+			return apierrors.NewAlreadyExists(schema.GroupResource{Resource: "secrets"}, argoCDSecret.Name)
+		}
 		argoCDSecret.Data[settingServerSignatureKey] = settings.ServerSignature
 		if settings.WebhookGitHubSecret != "" {
 			argoCDSecret.Data[settingsWebhookGitHubSecretKey] = []byte(settings.WebhookGitHubSecret)
@@ -1765,23 +1769,8 @@ func isIncompleteSettingsError(err error) bool {
 func (mgr *SettingsManager) InitializeSettings(insecureModeEnabled bool) (*ArgoCDSettings, error) {
 	const letters = "0123456789ABCDEFGHIJKLMNOPQRSTUVWXYZabcdefghijklmnopqrstuvwxyz-"
 
-	cdSettings, err := mgr.GetSettings()
-	if err != nil && !isIncompleteSettingsError(err) {
-		return nil, err
-	}
-	if cdSettings == nil {
-		cdSettings = &ArgoCDSettings{}
-	}
-	if cdSettings.ServerSignature == nil {
-		// set JWT signature
-		signature, err := util.MakeSignature(32)
-		if err != nil {
-			return nil, err
-		}
-		cdSettings.ServerSignature = signature
-		log.Info("Initialized server signature")
-	}
-	err = mgr.UpdateAccount(common.ArgoCDAdminUsername, func(adminAccount *Account) error {
+	// Create or update account for admin.
+	if err := mgr.UpdateAccount(common.ArgoCDAdminUsername, func(adminAccount *Account) error {
 		if adminAccount.Enabled {
 			now := time.Now().UTC()
 			if adminAccount.PasswordHash == "" {
@@ -1816,9 +1805,28 @@ func (mgr *SettingsManager) InitializeSettings(insecureModeEnabled bool) (*ArgoC
 			log.Info("admin disabled")
 		}
 		return nil
-	})
-	if err != nil {
+	}); err != nil {
+		if !apierrors.IsAlreadyExists(err) {
+			return nil, err
+		}
+		log.Info("Admin account has already been created, skipping")
+	}
+
+	cdSettings, err := mgr.GetSettings()
+	if err != nil && !isIncompleteSettingsError(err) {
 		return nil, err
+	}
+	if cdSettings == nil {
+		cdSettings = &ArgoCDSettings{}
+	}
+	if cdSettings.ServerSignature == nil {
+		// set JWT signature
+		signature, err := util.MakeSignature(32)
+		if err != nil {
+			return nil, err
+		}
+		cdSettings.ServerSignature = signature
+		log.Info("Initialized server signature")
 	}
 
 	if cdSettings.Certificate == nil && !insecureModeEnabled {
@@ -1844,7 +1852,7 @@ func (mgr *SettingsManager) InitializeSettings(insecureModeEnabled bool) (*ArgoC
 	}
 
 	err = mgr.SaveSettings(cdSettings)
-	if apierrors.IsConflict(err) {
+	if apierrors.IsConflict(err) || apierrors.IsAlreadyExists(err) {
 		// assume settings are initialized by another instance of api server
 		log.Warnf("conflict when initializing settings. assuming updated by another replica")
 		return mgr.GetSettings()

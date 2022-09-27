@@ -5,7 +5,9 @@ import (
 
 	apiv1 "k8s.io/api/core/v1"
 	"k8s.io/apimachinery/pkg/api/errors"
+	apierrors "k8s.io/apimachinery/pkg/api/errors"
 	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
+	"k8s.io/apimachinery/pkg/runtime/schema"
 	"k8s.io/client-go/kubernetes"
 )
 
@@ -70,8 +72,13 @@ func (ku *kubeUtil) CreateOrUpdateSecret(ns string, name string, update updateFn
 }
 
 // CreateOrUpdateSecretField creates or updates a secret name in namespace ns, with given value for given field
+// when field value is null.
 func (ku *kubeUtil) CreateOrUpdateSecretField(ns string, name string, field string, value string) error {
 	err := ku.CreateOrUpdateSecret(ns, name, func(s *apiv1.Secret, new bool) error {
+		data, exist := s.Data[field]
+		if exist && len(data) > 0 {
+			return apierrors.NewAlreadyExists(schema.GroupResource{Resource: "secrets"}, name)
+		}
 		s.Data[field] = []byte(value)
 		return nil
 	})
