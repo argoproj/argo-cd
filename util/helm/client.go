@@ -389,6 +389,7 @@ func getTagsListURL(rawURL string, chart string) (string, error) {
 	if err != nil {
 		return "", err
 	}
+	repoURL.Scheme = "https"
 	repoURL.Path = path.Join(repoURL.Path, tagsList)
 	repoURL.RawPath = path.Join(repoURL.RawPath, tagsList)
 	return repoURL.String(), nil
