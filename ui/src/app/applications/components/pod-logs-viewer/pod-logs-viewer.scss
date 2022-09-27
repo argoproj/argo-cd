@@ -9,16 +9,44 @@
     padding-left: 5px;
     color: black;
 
+    
     &--inverted {
         background-color: black;
         color: white;
     }
-
+    
     &__settings {
         display: flex;
+        
+        .argo-checkbox, .argo-checkbox input, .argo-checkbox input:focus {
+            outline: none !important;
+            border: none !important;
+            width: 12px;
+            margin-right: 8px;
+            input:checked + span, input + span {
+                border:  none;
+                width: 12px !important;
+                background-color: transparent;
+            }
+            .fa {
+                display: none;
+            }
+        }
+
         margin-bottom: 1em;
+        
+        > * {
+            display: flex;
+            align-items: center;
+        }
+
         .argo-button {
             margin-right: 5px;
+            border: 1px solid transparent;
+
+            .fa {
+                width: 12px;
+            }
         }
     }
 
@@ -26,6 +54,11 @@
         display: flex;
         margin-left: auto;
         width: 320px;
+
+        .argo-button {
+            display: flex;
+            align-items: center;
+        }
     }
 
     &__menu {
