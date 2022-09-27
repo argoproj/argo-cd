@@ -163,14 +163,12 @@ func getAppProj(app *unstructured.Unstructured, appProjInformer cache.SharedInde
 func isAppSyncStatusRefreshed(app *unstructured.Unstructured, logEntry *log.Entry) bool {
 	_, ok, err := unstructured.NestedMap(app.Object, "status", "operationState")
 	if !ok || err != nil {
-		logEntry.Debugf("error %s", err)
 		logEntry.Debug("No OperationState found, SyncStatus is assumed to be up-to-date")
 		return true
 	}
 
 	phase, ok, err := unstructured.NestedString(app.Object, "status", "operationState", "phase")
 	if !ok || err != nil {
-		logEntry.Debugf("error1 %s", err)
 		logEntry.Debug("No OperationPhase found, SyncStatus is assumed to be up-to-date")
 		return true
 	}

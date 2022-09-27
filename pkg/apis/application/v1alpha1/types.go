@@ -701,6 +701,9 @@ type SyncOperation struct {
 	// Sources overrides the source definition set in the application.
 	// This is typically set in a Rollback operation and is nil during a Sync operation
 	Sources ApplicationSources `json:"sources,omitempty" protobuf:"bytes,10,opt,name=sources"`
+	// Revisions is the list of revision (Git) or chart version (Helm) which to sync each source in sources field for the application to
+	// If omitted, will use the revision specified in app spec.
+	Revisions []string `json:"revisions,omitempty" protobuf:"bytes,11,opt,name=revisions"`
 }
 
 // IsApplyStrategy returns true if the sync strategy is "apply"

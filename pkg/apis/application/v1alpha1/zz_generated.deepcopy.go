@@ -3225,6 +3225,11 @@ func (in *SyncOperation) DeepCopyInto(out *SyncOperation) {
 			(*in)[i].DeepCopyInto(&(*out)[i])
 		}
 	}
+	if in.Revisions != nil {
+		in, out := &in.Revisions, &out.Revisions
+		*out = make([]string, len(*in))
+		copy(*out, *in)
+	}
 	return
 }
 

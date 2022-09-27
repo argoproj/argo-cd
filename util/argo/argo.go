@@ -434,7 +434,6 @@ func ValidatePermissions(ctx context.Context, spec *argoappv1.ApplicationSpec, p
 			})
 		}
 	}
-	}
 
 	// ValidateDestination will resolve the destination's server address from its name for us, if possible
 	if err := ValidateDestination(ctx, &spec.Destination, db); err != nil {

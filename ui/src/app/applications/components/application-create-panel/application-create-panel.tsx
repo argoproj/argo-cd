@@ -82,14 +82,14 @@ const AutoSyncFormField = ReactFormField((props: {fieldApi: FieldApi; className:
 
 function normalizeAppSource(app: models.Application, type: string): boolean {
     const source = getAppDefaultSource(app);
-    const repoType = (app.spec.source.hasOwnProperty('chart') && 'helm') || 'git';
+    const repoType = (source.hasOwnProperty('chart') && 'helm') || 'git';
     if (repoType !== type) {
         if (type === 'git') {
             source.path = source.chart;
             delete source.chart;
             source.targetRevision = 'HEAD';
         } else {
-            source.chart = app.spec.source.path;
+            source.chart = source.path;
             delete source.path;
             source.targetRevision = '';
         }
