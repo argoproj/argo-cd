@@ -1,7 +1,7 @@
 import * as React from 'react';
 import {Tooltip} from 'argo-ui';
 import {Application} from '../../../shared/models';
-import {getAppDefaultSource} from "../utils";
+import {getAppDefaultSource} from '../utils';
 
 import './applications-labels.scss';
 

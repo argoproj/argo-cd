@@ -168,7 +168,7 @@ func (m *appStateManager) getRepoObjs(app *v1alpha1.Application, sources []v1alp
 	targetObjs := make([]*unstructured.Unstructured, 0)
 
 	for i, source := range sources {
-		if len(revisions) < len(sources) && revisions[i] == "" {
+		if len(revisions) < len(sources) || revisions[i] == "" {
 			revisions[i] = source.TargetRevision
 		}
 		ts.AddCheckpoint("helm_ms")
@@ -347,13 +347,24 @@ func (m *appStateManager) CompareAppState(app *v1alpha1.Application, project *ap
 
 	// return unknown comparison result if basic comparison settings cannot be loaded
 	if err != nil {
-		return &comparisonResult{
-			syncStatus: &v1alpha1.SyncStatus{
-				ComparedTo: appv1.ComparedTo{Source: sources[0], Destination: app.Spec.Destination, Sources: sources},
-				Status:     appv1.SyncStatusCodeUnknown,
-				Revisions:  revisions,
-			},
-			healthStatus: &appv1.HealthStatus{Status: health.HealthStatusUnknown},
+		if hasMultipleSources {
+			return &comparisonResult{
+				syncStatus: &v1alpha1.SyncStatus{
+					ComparedTo: appv1.ComparedTo{Destination: app.Spec.Destination, Sources: sources},
+					Status:     appv1.SyncStatusCodeUnknown,
+					Revisions:  revisions,
+				},
+				healthStatus: &appv1.HealthStatus{Status: health.HealthStatusUnknown},
+			}
+		} else {
+			return &comparisonResult{
+				syncStatus: &v1alpha1.SyncStatus{
+					ComparedTo: appv1.ComparedTo{Source: sources[0], Destination: app.Spec.Destination},
+					Status:     appv1.SyncStatusCodeUnknown,
+					Revision:   revisions[0],
+				},
+				healthStatus: &appv1.HealthStatus{Status: health.HealthStatusUnknown},
+			}
 		}
 	}
 
@@ -376,7 +387,6 @@ func (m *appStateManager) CompareAppState(app *v1alpha1.Application, project *ap
 	var manifestInfoMap map[*v1alpha1.ApplicationSource]*apiclient.ManifestResponse
 
 	if len(localManifests) == 0 {
-		logCtx.Debugf("Length of sources %d, length of revisions %d", len(sources), len(revisions))
 		targetObjs, manifestInfoMap, err = m.getRepoObjs(app, sources, appLabelKey, revisions, noCache, noRevisionCache, verifySignature, project)
 		if err != nil {
 			targetObjs = make([]*unstructured.Unstructured, 0)
@@ -488,7 +498,7 @@ func (m *appStateManager) CompareAppState(app *v1alpha1.Application, project *ap
 
 	// restore comparison using cached diff result if previous comparison was performed for the same revision
 	revisionChanged := len(manifestInfoMap) != len(sources) || !reflect.DeepEqual(app.Status.Sync.Revisions, manifestRevisions)
-	specChanged := !reflect.DeepEqual(app.Status.Sync.ComparedTo, appv1.ComparedTo{Source: app.Spec.Source, Destination: app.Spec.Destination, Sources: sources})
+	specChanged := !reflect.DeepEqual(app.Status.Sync.ComparedTo, appv1.ComparedTo{Source: app.Spec.GetSource(), Destination: app.Spec.Destination, Sources: sources})
 
 	_, refreshRequested := app.IsRefreshRequested()
 	noCache = noCache || refreshRequested || app.Status.Expired(m.statusRefreshTimeout) || specChanged || revisionChanged
@@ -637,7 +647,7 @@ func (m *appStateManager) CompareAppState(app *v1alpha1.Application, project *ap
 		syncStatus = v1alpha1.SyncStatus{
 			ComparedTo: appv1.ComparedTo{
 				Destination: app.Spec.Destination,
-				Source:      app.Spec.Source,
+				Source:      app.Spec.GetSource(),
 			},
 			Status:   syncCode,
 			Revision: revision,

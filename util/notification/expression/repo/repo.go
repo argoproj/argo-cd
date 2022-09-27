@@ -32,7 +32,8 @@ func getApplicationSource(obj *unstructured.Unstructured) (*v1alpha1.Application
 	if err != nil {
 		return nil, err
 	}
-	return &application.Spec.Source, nil
+	source := application.Spec.GetSource()
+	return &source, nil
 }
 
 func getAppDetails(app *unstructured.Unstructured, argocdService service.Service) (*shared.AppDetail, error) {

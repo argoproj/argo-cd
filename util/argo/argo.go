@@ -265,7 +265,7 @@ func ValidateRepo(
 			ctx,
 			app,
 			db,
-			&spec.Source,
+			spec.Source,
 			repoClient,
 			kustomizeOptions,
 			plugins,
@@ -427,13 +427,12 @@ func ValidatePermissions(ctx context.Context, spec *argoappv1.ApplicationSpec, p
 			return conditions, nil
 		}
 
-		if !proj.IsSourcePermitted(spec.Source) {
+		if !proj.IsSourcePermitted(*spec.Source) {
 			conditions = append(conditions, argoappv1.ApplicationCondition{
 				Type:    argoappv1.ApplicationConditionInvalidSpecError,
 				Message: fmt.Sprintf("application repo %s is not permitted in project '%s'", spec.Source.RepoURL, spec.Project),
 			})
 		}
-	}
 	}
 
 	// ValidateDestination will resolve the destination's server address from its name for us, if possible
@@ -665,7 +664,7 @@ func NormalizeApplicationSpec(spec *argoappv1.ApplicationSpec) *argoappv1.Applic
 			NormalizeSource(&source)
 		}
 	} else {
-		NormalizeSource(&spec.Source)
+		NormalizeSource(spec.Source)
 	}
 	return spec
 }

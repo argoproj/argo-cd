@@ -440,15 +440,16 @@ func NewApplicationLogsCommand(clientOpts *argocdclient.ClientOptions) *cobra.Co
 }
 
 func printAppSummaryTable(app *argoappv1.Application, appURL string, windows *argoappv1.SyncWindows) {
+	source := app.Spec.GetSource()
 	fmt.Printf(printOpFmtStr, "Name:", app.QualifiedName())
 	fmt.Printf(printOpFmtStr, "Project:", app.Spec.GetProject())
 	fmt.Printf(printOpFmtStr, "Server:", getServer(app))
 	fmt.Printf(printOpFmtStr, "Namespace:", app.Spec.Destination.Namespace)
 	fmt.Printf(printOpFmtStr, "URL:", appURL)
-	fmt.Printf(printOpFmtStr, "Repo:", app.Spec.Source.RepoURL)
-	fmt.Printf(printOpFmtStr, "Target:", app.Spec.Source.TargetRevision)
-	fmt.Printf(printOpFmtStr, "Path:", app.Spec.Source.Path)
-	printAppSourceDetails(&app.Spec.Source)
+	fmt.Printf(printOpFmtStr, "Repo:", source.RepoURL)
+	fmt.Printf(printOpFmtStr, "Target:", source.TargetRevision)
+	fmt.Printf(printOpFmtStr, "Path:", source.Path)
+	printAppSourceDetails(&source)
 	var wds []string
 	var status string
 	var allow, deny, inactiveAllows bool
@@ -696,7 +697,8 @@ func NewApplicationUnsetCommand(clientOpts *argocdclient.ClientOptions) *cobra.C
 				log.Warnf(argocommon.ConfigMapPluginCLIDeprecationWarning)
 			}
 
-			updated, nothingToUnset := unset(&app.Spec.Source, opts)
+			source := app.Spec.GetSource()
+			updated, nothingToUnset := unset(&source, opts)
 			if nothingToUnset {
 				c.HelpFunc()(c, args)
 				os.Exit(1)
@@ -842,12 +844,13 @@ func getLocalObjects(ctx context.Context, app *argoappv1.Application, local, loc
 
 func getLocalObjectsString(ctx context.Context, app *argoappv1.Application, local, localRepoRoot, appLabelKey, kubeVersion string, apiVersions []string, kustomizeOptions *argoappv1.KustomizeOptions,
 	configManagementPlugins []*argoappv1.ConfigManagementPlugin, trackingMethod string) []string {
-	res, err := repository.GenerateManifests(ctx, local, localRepoRoot, app.Spec.Source.TargetRevision, &repoapiclient.ManifestRequest{
-		Repo:              &argoappv1.Repository{Repo: app.Spec.Source.RepoURL},
+	source := app.Spec.GetSource()
+	res, err := repository.GenerateManifests(ctx, local, localRepoRoot, source.TargetRevision, &repoapiclient.ManifestRequest{
+		Repo:              &argoappv1.Repository{Repo: source.RepoURL},
 		AppLabelKey:       appLabelKey,
 		AppName:           app.Name,
 		Namespace:         app.Spec.Destination.Namespace,
-		ApplicationSource: &app.Spec.Source,
+		ApplicationSource: &source,
 		KustomizeOptions:  kustomizeOptions,
 		KubeVersion:       kubeVersion,
 		ApiVersions:       apiVersions,

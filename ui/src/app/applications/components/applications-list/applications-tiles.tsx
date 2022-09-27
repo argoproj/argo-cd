@@ -1,14 +1,14 @@
-import { DataLoader, Tooltip } from 'argo-ui';
+import {DataLoader, Tooltip} from 'argo-ui';
 import * as classNames from 'classnames';
 import * as React from 'react';
 import {Key, KeybindingContext, NumKey, NumKeyToNumber, NumPadKey, useNav} from 'argo-ui/v2';
 import {Cluster} from '../../../shared/components';
 import {Consumer, Context, AuthSettingsCtx} from '../../../shared/context';
 import * as models from '../../../shared/models';
-import { ApplicationURLs } from '../application-urls';
+import {ApplicationURLs} from '../application-urls';
 import * as AppUtils from '../utils';
-import { getAppDefaultSource, OperationState } from '../utils';
-import { services } from '../../../shared/services';
+import {getAppDefaultSource, OperationState} from '../utils';
+import {services} from '../../../shared/services';
 
 import './applications-tiles.scss';
 
@@ -46,21 +46,21 @@ const useItemsPerContainer = (itemRef: any, containerRef: any): number => {
     return itemsPer || 1;
 };
 
-export const ApplicationTiles = ({ applications, syncApplication, refreshApplication, deleteApplication }: ApplicationTilesProps) => {
+export const ApplicationTiles = ({applications, syncApplication, refreshApplication, deleteApplication}: ApplicationTilesProps) => {
     const [selectedApp, navApp, reset] = useNav(applications.length);
 
     const ctxh = React.useContext(Context);
-    const appRef = { ref: React.useRef(null), set: false };
+    const appRef = {ref: React.useRef(null), set: false};
     const appContainerRef = React.useRef(null);
     const appsPerRow = useItemsPerContainer(appRef.ref, appContainerRef);
     const useAuthSettingsCtx = React.useContext(AuthSettingsCtx);
 
-    const { useKeybinding } = React.useContext(KeybindingContext);
+    const {useKeybinding} = React.useContext(KeybindingContext);
 
-    useKeybinding({ keys: Key.RIGHT, action: () => navApp(1) });
-    useKeybinding({ keys: Key.LEFT, action: () => navApp(-1) });
-    useKeybinding({ keys: Key.DOWN, action: () => navApp(appsPerRow) });
-    useKeybinding({ keys: Key.UP, action: () => navApp(-1 * appsPerRow) });
+    useKeybinding({keys: Key.RIGHT, action: () => navApp(1)});
+    useKeybinding({keys: Key.LEFT, action: () => navApp(-1)});
+    useKeybinding({keys: Key.DOWN, action: () => navApp(appsPerRow)});
+    useKeybinding({keys: Key.UP, action: () => navApp(-1 * appsPerRow)});
 
     useKeybinding({
         keys: Key.ENTER,
@@ -104,6 +104,7 @@ export const ApplicationTiles = ({ applications, syncApplication, refreshApplica
                 <DataLoader load={() => services.viewPreferences.getPreferences()}>
                     {pref => {
                         const favList = pref.appList.favoritesAppList || [];
+                        const source = getAppDefaultSource(app);
                         return (
                             <div
                                 className='applications-tiles argo-table-list argo-table-list--clickable row small-up-1 medium-up-2 large-up-3 xxxlarge-up-4'
@@ -128,7 +129,7 @@ export const ApplicationTiles = ({ applications, syncApplication, refreshApplica
                                                                     ? 'columns small-10'
                                                                     : 'columns small-11'
                                                             }>
-                                                            <i className={'icon argo-icon-' + (app.spec.source.chart != null ? 'helm' : 'git')} />
+                                                            <i className={'icon argo-icon-' + (source.chart != null ? 'helm' : 'git')} />
                                                             <Tooltip content={AppUtils.appInstanceName(app)}>
                                                                 <span className='applications-list__title'>
                                                                     {AppUtils.appQualifiedName(app, useAuthSettingsCtx?.appsInAnyNamespaceEnabled)}
@@ -215,8 +216,8 @@ export const ApplicationTiles = ({ applications, syncApplication, refreshApplica
                                                             Repository:
                                                         </div>
                                                         <div className='columns small-9'>
-                                                            <Tooltip content={app.spec.source.repoURL} zIndex={4}>
-                                                                <span>{app.spec.source.repoURL}</span>
+                                                            <Tooltip content={source.repoURL} zIndex={4}>
+                                                                <span>{source.repoURL}</span>
                                                             </Tooltip>
                                                         </div>
                                                     </div>
@@ -224,22 +225,22 @@ export const ApplicationTiles = ({ applications, syncApplication, refreshApplica
                                                         <div className='columns small-3' title='Target Revision:'>
                                                             Target Revision:
                                                         </div>
-                                                        <div className='columns small-9'>{app.spec.source.targetRevision || 'HEAD'}</div>
+                                                        <div className='columns small-9'>{source.targetRevision || 'HEAD'}</div>
                                                     </div>
-                                                    {app.spec.source.path && (
+                                                    {source.path && (
                                                         <div className='row'>
                                                             <div className='columns small-3' title='Path:'>
                                                                 Path:
                                                             </div>
-                                                            <div className='columns small-9'>{app.spec.source.path}</div>
+                                                            <div className='columns small-9'>{source.path}</div>
                                                         </div>
                                                     )}
-                                                    {app.spec.source.chart && (
+                                                    {source.chart && (
                                                         <div className='row'>
                                                             <div className='columns small-3' title='Chart:'>
                                                                 Chart:
                                                             </div>
-                                                            <div className='columns small-9'>{app.spec.source.chart}</div>
+                                                            <div className='columns small-9'>{source.chart}</div>
                                                         </div>
                                                     )}
                                                     <div className='row'>

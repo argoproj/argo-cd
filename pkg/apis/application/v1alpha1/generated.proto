@@ -1822,6 +1822,10 @@ message SyncOperation {
   // Sources overrides the source definition set in the application.
   // This is typically set in a Rollback operation and is nil during a Sync operation
   repeated ApplicationSource sources = 10;
+
+  // Revisions is the list of revision (Git) or chart version (Helm) which to sync each source in sources field for the application to
+  // If omitted, will use the revision specified in app spec.
+  repeated string revisions = 11;
 }
 
 // SyncOperationResource contains resources to sync.

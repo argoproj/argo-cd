@@ -333,14 +333,15 @@ func getServerForAppSet(appSet *arogappsetv1.ApplicationSet) string {
 }
 
 func printAppSetSummaryTable(appSet *arogappsetv1.ApplicationSet) {
+	source := appSet.Spec.Template.Spec.GetSource()
 	fmt.Printf(printOpFmtStr, "Name:", appSet.Name)
 	fmt.Printf(printOpFmtStr, "Project:", appSet.Spec.Template.Spec.GetProject())
 	fmt.Printf(printOpFmtStr, "Server:", getServerForAppSet(appSet))
 	fmt.Printf(printOpFmtStr, "Namespace:", appSet.Spec.Template.Spec.Destination.Namespace)
-	fmt.Printf(printOpFmtStr, "Repo:", appSet.Spec.Template.Spec.Source.RepoURL)
-	fmt.Printf(printOpFmtStr, "Target:", appSet.Spec.Template.Spec.Source.TargetRevision)
-	fmt.Printf(printOpFmtStr, "Path:", appSet.Spec.Template.Spec.Source.Path)
-	printAppSourceDetails(&appSet.Spec.Template.Spec.Source)
+	fmt.Printf(printOpFmtStr, "Repo:", source.RepoURL)
+	fmt.Printf(printOpFmtStr, "Target:", source.TargetRevision)
+	fmt.Printf(printOpFmtStr, "Path:", source.Path)
+	printAppSourceDetails(&source)
 
 	var syncPolicy string
 	if appSet.Spec.SyncPolicy != nil && appSet.Spec.Template.Spec.SyncPolicy.Automated != nil {

@@ -144,6 +144,14 @@ spec:
                       which to sync the application to If omitted, will use the revision
                       specified in app spec.
                     type: string
+                  revisions:
+                    description: Revisions is the list of revision (Git) or chart
+                      version (Helm) which to sync each source in sources field for
+                      the application to If omitted, will use the revision specified
+                      in app spec.
+                    items:
+                      type: string
+                    type: array
                   source:
                     description: Source overrides the source definition set in the
                       application. This is typically set in a Rollback operation and
@@ -2069,6 +2077,14 @@ spec:
                               (Helm) which to sync the application to If omitted,
                               will use the revision specified in app spec.
                             type: string
+                          revisions:
+                            description: Revisions is the list of revision (Git) or
+                              chart version (Helm) which to sync each source in sources
+                              field for the application to If omitted, will use the
+                              revision specified in app spec.
+                            items:
+                              type: string
+                            type: array
                           source:
                             description: Source overrides the source definition set
                               in the application. This is typically set in a Rollback

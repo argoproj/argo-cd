@@ -354,7 +354,7 @@ export const ApplicationParameters = (props: {
             save={
                 props.save &&
                 (async (input: models.Application) => {
-                    const source = getAppDefaultSource(input);
+                    const src = getAppDefaultSource(input);
                     function isDefined(item: any) {
                         return item !== null && item !== undefined;
                     }
@@ -362,11 +362,11 @@ export const ApplicationParameters = (props: {
                         return item !== null && item !== undefined && item.match(/:/);
                     }
 
-                    if (source.helm && source.helm.parameters) {
-                        source.helm.parameters = source.helm.parameters.filter(isDefined);
+                    if (src.helm && src.helm.parameters) {
+                        src.helm.parameters = src.helm.parameters.filter(isDefined);
                     }
-                    if (source.kustomize && source.kustomize.images) {
-                        source.kustomize.images = source.kustomize.images.filter(isDefinedWithVersion);
+                    if (src.kustomize && src.kustomize.images) {
+                        src.kustomize.images = src.kustomize.images.filter(isDefinedWithVersion);
                     }
                     await props.save(input, {});
                     setRemovedOverrides(new Array<boolean>());
