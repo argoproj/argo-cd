@@ -25,16 +25,20 @@ func TestShortVersionClient(t *testing.T) {
 }
 
 func TestShortVersion(t *testing.T) {
+	serverVersion := "argocd: v99.99.99+unknown"
 	oldVersionFun := getServerVersion
 	defer func() { getServerVersion = oldVersionFun }()
 	getServerVersion = func(ctx context.Context, options *argocdclient.ClientOptions, c *cobra.Command) *version.VersionMessage {
-		return &version.VersionMessage{Version: "argocd: v99.99.99+unknown"}
+		return &version.VersionMessage{Version: serverVersion}
 	}
 	buf := new(bytes.Buffer)
 	cmd := NewVersionCmd(&argocdclient.ClientOptions{})
 	cmd.SetOutput(buf)
 	cmd.SetArgs([]string{"argocd", "version", "--short"})
-	cmd.Execute()
+	err := cmd.Execute()
+	if err != nil {
+		t.Fatal("Failed to execute short version command")
+	}
 	output := buf.String()
 	assert.Equal(t, output, "argocd: v99.99.99+unknown\nargocd-server: argocd: v99.99.99+unknown\n")
 }
