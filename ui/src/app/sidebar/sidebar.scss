@@ -1,0 +1,88 @@
+@import 'node_modules/argo-ui/v2/styles/colors.scss';
+@import '../shared/config.scss';
+
+.sidebar {
+    min-width: $sidebar-width;
+    width: $sidebar-width;
+    padding: 15px;
+    top: 0;
+    left: 0;
+    position: fixed;
+    height: 100vh;
+    max-height: 100vh;
+    color: white;
+    z-index: 15;
+    background-color: $silver-lining;
+    overflow: auto;
+    z-index: 0;
+
+    &__logo {
+        justify-content: center;
+        display: flex;
+        align-items: center;
+        font-size: 24px;
+        font-weight: 500;
+        margin-bottom: 0.5em;
+
+        img {
+            width: 40px;
+            margin-right: 7px;
+        }
+    }
+
+    &__version {
+        cursor: pointer;
+        width: 100%;
+        text-align: center;
+        margin-bottom: 1em;
+    }
+
+    &__nav-item {
+        cursor: pointer;
+        display: flex;
+        align-items: center;
+        font-size: 17px;
+        $height: 2.5em;
+        height: $height;
+        line-height: $height;
+        color: $dull-shine;
+
+        i {
+            font-size: 26px;
+            color: white;
+            width: 35px;
+        }
+
+        i.fa-sign-in-alt {
+            font-size: 22px;
+        }
+
+        &--active {
+            color: white;
+            font-weight: 500;
+            box-shadow: -3px 0 0px 0 inset $sky;
+        }
+    }
+
+    &__collapse-button {
+        text-align: center;
+        cursor: pointer;
+        margin-top: 1em;
+    }
+
+    &--collapsed {
+        min-width: $collapsed-sidebar-width;
+        width: $collapsed-sidebar-width;
+        padding: 15px 5px;
+        overflow: hidden !important;
+
+        .sidebar__logo img {
+            margin-right: 0;
+        }
+
+        .sidebar__nav-item i {
+            margin-right: 0;
+            margin-left: 10px;
+        }
+    }
+}
