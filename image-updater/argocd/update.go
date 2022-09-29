@@ -15,7 +15,6 @@ import (
 	"github.com/argoproj/argo-cd/v2/image-updater/log"
 	"github.com/argoproj/argo-cd/v2/image-updater/registry"
 	"github.com/argoproj/argo-cd/v2/image-updater/tag"
-	"github.com/argoproj/argo-cd/v2/reposerver/askpass"
 	"github.com/argoproj/argo-cd/v2/util/git"
 
 	"github.com/argoproj/argo-cd/v2/pkg/apiclient/application"
@@ -42,6 +41,7 @@ type UpdateConfiguration struct {
 	GitCommitUser     string
 	GitCommitEmail    string
 	GitCommitMessage  *template.Template
+	GitCredsStore     git.CredsStore
 	DisableKubeEvents bool
 	IgnorePlatforms   bool
 }
@@ -67,6 +67,7 @@ type WriteBackConfig struct {
 	GitCommitUser    string
 	GitCommitEmail   string
 	GitCommitMessage string
+	GitCredsStore    git.CredsStore
 	KustomizeBase    string
 	Target           string
 }
@@ -305,7 +306,7 @@ func UpdateApplication(updateConf *UpdateConfiguration, state *SyncIterationStat
 		}
 	}
 
-	wbc, err := getWriteBackConfig(&updateConf.UpdateApp.Application, updateConf.KubeClient, updateConf.ArgoClient)
+	wbc, err := getWriteBackConfig(&updateConf.UpdateApp.Application, updateConf.KubeClient, updateConf.ArgoClient, updateConf.GitCredsStore)
 	if err != nil {
 		return result
 	}
@@ -412,12 +413,13 @@ func marshalParamsOverride(app *v1alpha1.Application) ([]byte, error) {
 	return override, nil
 }
 
-func getWriteBackConfig(app *v1alpha1.Application, kubeClient *kube.KubernetesClient, argoClient ArgoCD) (*WriteBackConfig, error) {
+func getWriteBackConfig(app *v1alpha1.Application, kubeClient *kube.KubernetesClient, argoClient ArgoCD, gitCredsStore git.CredsStore) (*WriteBackConfig, error) {
 	wbc := &WriteBackConfig{}
 	// Default write-back is to use Argo CD API
 	wbc.Method = WriteBackApplication
 	wbc.ArgoClient = argoClient
 	wbc.Target = parseDefaultTarget(app.Name, app.Spec.Source.Path)
+	wbc.GitCredsStore = gitCredsStore
 
 	// If we have no update method, just return our default
 	method, ok := app.Annotations[common.WriteBackMethodAnnotation]
@@ -477,8 +479,8 @@ func parseGitConfig(app *v1alpha1.Application, kubeClient *kube.KubernetesClient
 			wbc.GitWriteBranch = branches[1]
 		}
 	}
-	gitCredStore := askpass.NewServer()
-	credsSource, err := getGitCredsSource(creds, kubeClient, gitCredStore)
+
+	credsSource, err := getGitCredsSource(creds, kubeClient, wbc.GitCredsStore)
 	if err != nil {
 		return fmt.Errorf("invalid git credentials source: %v", err)
 	}

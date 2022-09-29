@@ -73,6 +73,8 @@ func getCredsFromSecret(app *v1alpha1.Application, credentialsSecret string, kub
 		if password, ok = credentials["password"]; !ok {
 			return nil, fmt.Errorf("invalid secret %s: does not contain field password", credentialsSecret)
 		}
+
+		gitCredStore.Add(string(username[:]), string(password[:]))
 		return git.NewHTTPSCreds(string(username), string(password), "", "", true, "", gitCredStore), nil
 	}
 	return nil, fmt.Errorf("unknown repository type")

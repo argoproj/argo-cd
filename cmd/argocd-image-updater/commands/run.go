@@ -19,6 +19,7 @@ import (
 	"github.com/argoproj/argo-cd/v2/image-updater/metrics"
 	"github.com/argoproj/argo-cd/v2/image-updater/registry"
 	"github.com/argoproj/argo-cd/v2/image-updater/version"
+	"github.com/argoproj/argo-cd/v2/reposerver/askpass"
 
 	"github.com/spf13/cobra"
 
@@ -297,6 +298,9 @@ func runImageUpdater(cfg *ImageUpdaterConfig, warmUp bool) (argocd.ImageUpdaterR
 			continue
 		}
 
+		gitCredsStore := askpass.NewServer()
+		gitCredsStore.Run(askpass.SocketPath)
+
 		go func(app string, curApplication argocd.ApplicationImages) {
 			defer sem.Release(1)
 			log.Debugf("Processing application %s", app)
@@ -310,6 +314,7 @@ func runImageUpdater(cfg *ImageUpdaterConfig, warmUp bool) (argocd.ImageUpdaterR
 				GitCommitEmail:    cfg.GitCommitMail,
 				GitCommitMessage:  cfg.GitCommitMessage,
 				DisableKubeEvents: cfg.DisableKubeEvents,
+				GitCredsStore:     gitCredsStore,
 			}
 			res := argocd.UpdateApplication(upconf, syncState)
 			result.NumApplicationsProcessed += 1

@@ -1262,7 +1262,7 @@ func Test_GetWriteBackConfig(t *testing.T) {
 			Clientset: fake.NewFakeKubeClient(),
 		}
 
-		wbc, err := getWriteBackConfig(&app, &kubeClient, &argoClient)
+		wbc, err := getWriteBackConfig(&app, &kubeClient, &argoClient, argogit.NoopCredsStore{})
 		require.NoError(t, err)
 		require.NotNil(t, wbc)
 		assert.Equal(t, wbc.Method, WriteBackGit)
@@ -1288,7 +1288,7 @@ func Test_GetWriteBackConfig(t *testing.T) {
 			Clientset: fake.NewFakeKubeClient(),
 		}
 
-		wbc, err := getWriteBackConfig(&app, &kubeClient, &argoClient)
+		wbc, err := getWriteBackConfig(&app, &kubeClient, &argoClient, argogit.NoopCredsStore{})
 		require.NoError(t, err)
 		require.NotNil(t, wbc)
 		assert.Equal(t, "", wbc.GitBranch)
@@ -1313,7 +1313,7 @@ func Test_GetWriteBackConfig(t *testing.T) {
 			Clientset: fake.NewFakeKubeClient(),
 		}
 
-		wbc, err := getWriteBackConfig(&app, &kubeClient, &argoClient)
+		wbc, err := getWriteBackConfig(&app, &kubeClient, &argoClient, argogit.NoopCredsStore{})
 		require.NoError(t, err)
 		require.NotNil(t, wbc)
 		assert.Equal(t, "mybranch", wbc.GitBranch)
@@ -1347,7 +1347,7 @@ func Test_GetWriteBackConfig(t *testing.T) {
 			Clientset: fake.NewFakeKubeClient(),
 		}
 
-		wbc, err := getWriteBackConfig(&app, &kubeClient, &argoClient)
+		wbc, err := getWriteBackConfig(&app, &kubeClient, &argoClient, argogit.NoopCredsStore{})
 		require.NoError(t, err)
 		require.NotNil(t, wbc)
 		assert.Equal(t, wbc.Method, WriteBackApplication)
@@ -1382,7 +1382,7 @@ func Test_GetWriteBackConfig(t *testing.T) {
 			Clientset: fake.NewFakeKubeClient(),
 		}
 
-		wbc, err := getWriteBackConfig(&app, &kubeClient, &argoClient)
+		wbc, err := getWriteBackConfig(&app, &kubeClient, &argoClient, argogit.NoopCredsStore{})
 		require.NoError(t, err)
 		require.NotNil(t, wbc)
 		assert.Equal(t, wbc.Method, WriteBackGit)
@@ -1415,7 +1415,7 @@ func Test_GetWriteBackConfig(t *testing.T) {
 			Clientset: fake.NewFakeKubeClient(),
 		}
 
-		wbc, err := getWriteBackConfig(&app, &kubeClient, &argoClient)
+		wbc, err := getWriteBackConfig(&app, &kubeClient, &argoClient, argogit.NoopCredsStore{})
 		require.NoError(t, err)
 		require.NotNil(t, wbc)
 		assert.Equal(t, wbc.Method, WriteBackApplication)
@@ -1448,7 +1448,7 @@ func Test_GetWriteBackConfig(t *testing.T) {
 			Clientset: fake.NewFakeKubeClient(),
 		}
 
-		wbc, err := getWriteBackConfig(&app, &kubeClient, &argoClient)
+		wbc, err := getWriteBackConfig(&app, &kubeClient, &argoClient, argogit.NoopCredsStore{})
 		require.Error(t, err)
 		require.Nil(t, wbc)
 	})
@@ -1485,7 +1485,7 @@ func Test_GetGitCreds(t *testing.T) {
 				SourceType: v1alpha1.ApplicationSourceTypeKustomize,
 			},
 		}
-		wbc, err := getWriteBackConfig(&app, &kubeClient, &argoClient)
+		wbc, err := getWriteBackConfig(&app, &kubeClient, &argoClient, argogit.NoopCredsStore{})
 		require.NoError(t, err)
 
 		creds, err := wbc.GetCreds(&app)
@@ -1523,7 +1523,7 @@ func Test_GetGitCreds(t *testing.T) {
 				SourceType: v1alpha1.ApplicationSourceTypeKustomize,
 			},
 		}
-		wbc, err := getWriteBackConfig(&app, &kubeClient, &argoClient)
+		wbc, err := getWriteBackConfig(&app, &kubeClient, &argoClient, argogit.NoopCredsStore{})
 		require.NoError(t, err)
 
 		creds, err := wbc.GetCreds(&app)
@@ -1575,7 +1575,7 @@ func Test_GetGitCreds(t *testing.T) {
 				SourceType: v1alpha1.ApplicationSourceTypeKustomize,
 			},
 		}
-		wbc, err := getWriteBackConfig(&app, &kubeClient, &argoClient)
+		wbc, err := getWriteBackConfig(&app, &kubeClient, &argoClient, argogit.NoopCredsStore{})
 		require.NoError(t, err)
 
 		creds, err := wbc.GetCreds(&app)
@@ -1613,7 +1613,7 @@ func Test_GetGitCreds(t *testing.T) {
 				SourceType: v1alpha1.ApplicationSourceTypeKustomize,
 			},
 		}
-		wbc, err := getWriteBackConfig(&app, &kubeClient, &argoClient)
+		wbc, err := getWriteBackConfig(&app, &kubeClient, &argoClient, argogit.NoopCredsStore{})
 		require.NoError(t, err)
 
 		creds, err := wbc.GetCreds(&app)
@@ -1649,7 +1649,7 @@ func Test_GetGitCreds(t *testing.T) {
 				SourceType: v1alpha1.ApplicationSourceTypeKustomize,
 			},
 		}
-		wbc, err := getWriteBackConfig(&app, &kubeClient, &argoClient)
+		wbc, err := getWriteBackConfig(&app, &kubeClient, &argoClient, argogit.NoopCredsStore{})
 		require.NoError(t, err)
 
 		creds, err := wbc.GetCreds(&app)
@@ -1685,7 +1685,7 @@ func Test_GetGitCreds(t *testing.T) {
 				SourceType: v1alpha1.ApplicationSourceTypeKustomize,
 			},
 		}
-		wbc, err := getWriteBackConfig(&app, &kubeClient, &argoClient)
+		wbc, err := getWriteBackConfig(&app, &kubeClient, &argoClient, argogit.NoopCredsStore{})
 		require.NoError(t, err)
 
 		creds, err := wbc.GetCreds(&app)
@@ -1725,14 +1725,14 @@ func Test_CommitUpdates(t *testing.T) {
 	t.Run("Good commit to target revision", func(t *testing.T) {
 		gitMock, _, cleanup := mockGit(t)
 		defer cleanup()
-		gitMock.On("Checkout", mock.Anything).Run(func(args mock.Arguments) {
-			args.Assert(t, "main")
+		gitMock.On("Checkout", mock.Anything, mock.Anything).Run(func(args mock.Arguments) {
+			args.Assert(t, "main", true)
 		}).Return(nil)
 		gitMock.On("Add", mock.Anything).Return(nil)
 		gitMock.On("Commit", mock.Anything, mock.Anything, mock.Anything, mock.Anything).Return(nil)
 		gitMock.On("Push", mock.Anything, mock.Anything, mock.Anything).Return(nil)
 
-		wbc, err := getWriteBackConfig(&app, &kubeClient, &argoClient)
+		wbc, err := getWriteBackConfig(&app, &kubeClient, &argoClient, argogit.NoopCredsStore{})
 		require.NoError(t, err)
 		wbc.GitClient = gitMock
 
@@ -1743,15 +1743,15 @@ func Test_CommitUpdates(t *testing.T) {
 	t.Run("Good commit to configured branch", func(t *testing.T) {
 		gitMock, _, cleanup := mockGit(t)
 		defer cleanup()
-		gitMock.On("Checkout", mock.Anything).Run(func(args mock.Arguments) {
-			args.Assert(t, "mybranch")
+		gitMock.On("Checkout", mock.Anything, mock.Anything).Run(func(args mock.Arguments) {
+			args.Assert(t, "mybranch", true)
 		}).Return(nil)
 		gitMock.On("Add", mock.Anything).Return(nil)
 		gitMock.On("Commit", mock.Anything, mock.Anything, mock.Anything, mock.Anything).Return(nil)
 		gitMock.On("Push", mock.Anything, mock.Anything, mock.Anything).Return(nil)
 		gitMock.On("SymRefToBranch", mock.Anything).Return("mydefaultbranch", nil)
 
-		wbc, err := getWriteBackConfig(&app, &kubeClient, &argoClient)
+		wbc, err := getWriteBackConfig(&app, &kubeClient, &argoClient, argogit.NoopCredsStore{})
 		require.NoError(t, err)
 		wbc.GitClient = gitMock
 		wbc.GitBranch = "mybranch"
@@ -1764,14 +1764,14 @@ func Test_CommitUpdates(t *testing.T) {
 		app := app.DeepCopy()
 		gitMock, _, cleanup := mockGit(t)
 		defer cleanup()
-		gitMock.On("Checkout", mock.Anything).Run(func(args mock.Arguments) {
-			args.Assert(t, "mydefaultbranch")
+		gitMock.On("Checkout", mock.Anything, mock.Anything).Run(func(args mock.Arguments) {
+			args.Assert(t, "mydefaultbranch", true)
 		}).Return(nil)
 		gitMock.On("Add", mock.Anything).Return(nil)
 		gitMock.On("Commit", mock.Anything, mock.Anything, mock.Anything, mock.Anything).Return(nil)
 		gitMock.On("Push", mock.Anything, mock.Anything, mock.Anything).Return(nil)
 		gitMock.On("SymRefToBranch", mock.Anything).Return("mydefaultbranch", nil)
-		wbc, err := getWriteBackConfig(app, &kubeClient, &argoClient)
+		wbc, err := getWriteBackConfig(app, &kubeClient, &argoClient, argogit.NoopCredsStore{})
 		require.NoError(t, err)
 		wbc.GitClient = gitMock
 		app.Spec.Source.TargetRevision = "HEAD"
@@ -1785,12 +1785,13 @@ func Test_CommitUpdates(t *testing.T) {
 		gitMock, _, cleanup := mockGit(t)
 		defer cleanup()
 		gitMock.On("Add", mock.Anything).Return(nil)
+		gitMock.On("Checkout", mock.Anything, mock.Anything).Return(nil)
 		gitMock.On("Branch", mock.Anything, mock.Anything).Return(nil)
 		gitMock.On("Commit", mock.Anything, mock.Anything, mock.Anything, mock.Anything).Return(nil)
 		gitMock.On("Push", mock.Anything, mock.Anything, mock.Anything).Return(nil)
 		gitMock.On("SymRefToBranch", mock.Anything).Return("mydefaultbranch", nil)
 
-		wbc, err := getWriteBackConfig(&app, &kubeClient, &argoClient)
+		wbc, err := getWriteBackConfig(&app, &kubeClient, &argoClient, argogit.NoopCredsStore{})
 		require.NoError(t, err)
 		wbc.GitClient = gitMock
 		wbc.GitBranch = "mydefaultbranch"
@@ -1823,14 +1824,14 @@ apiVersion: kustomize.config.k8s.io/v1beta1
 replacements: []
 `), os.ModePerm))
 
-		gitMock.On("Checkout", mock.Anything).Run(func(args mock.Arguments) {
-			args.Assert(t, "mydefaultbranch")
+		gitMock.On("Checkout", mock.Anything, mock.Anything).Run(func(args mock.Arguments) {
+			args.Assert(t, "mydefaultbranch", true)
 		}).Return(nil)
 		gitMock.On("Add", mock.Anything).Return(nil)
 		gitMock.On("Commit", mock.Anything, mock.Anything, mock.Anything, mock.Anything).Return(nil)
 		gitMock.On("Push", mock.Anything, mock.Anything, mock.Anything).Return(nil)
 		gitMock.On("SymRefToBranch", mock.Anything).Return("mydefaultbranch", nil)
-		wbc, err := getWriteBackConfig(app, &kubeClient, &argoClient)
+		wbc, err := getWriteBackConfig(app, &kubeClient, &argoClient, argogit.NoopCredsStore{})
 		require.NoError(t, err)
 		wbc.GitClient = gitMock
 		app.Spec.Source.TargetRevision = "HEAD"
@@ -1876,8 +1877,8 @@ replacements: []
 		app := app.DeepCopy()
 		gitMock, _, cleanup := mockGit(t)
 		defer cleanup()
-		gitMock.On("Checkout", mock.Anything).Run(func(args mock.Arguments) {
-			args.Assert(t, "mydefaultbranch")
+		gitMock.On("Checkout", mock.Anything, mock.Anything).Run(func(args mock.Arguments) {
+			args.Assert(t, "mydefaultbranch", true)
 		}).Return(nil)
 		gitMock.On("Add", mock.Anything).Return(nil)
 		gitMock.On("Commit", mock.Anything, mock.Anything, mock.Anything, mock.Anything).Return(nil)
@@ -1886,7 +1887,7 @@ replacements: []
 		gitMock.On("Config", mock.Anything, mock.Anything).Run(func(args mock.Arguments) {
 			args.Assert(t, "someone", "someone@example.com")
 		}).Return(nil)
-		wbc, err := getWriteBackConfig(app, &kubeClient, &argoClient)
+		wbc, err := getWriteBackConfig(app, &kubeClient, &argoClient, argogit.NoopCredsStore{})
 		require.NoError(t, err)
 		wbc.GitClient = gitMock
 		app.Spec.Source.TargetRevision = "HEAD"
@@ -1903,8 +1904,8 @@ replacements: []
 		gitMock := &gitmock.Client{}
 		gitMock.On("Init").Return(nil)
 		gitMock.On("Fetch", mock.Anything).Return(nil)
-		gitMock.On("Checkout", mock.Anything).Run(func(args mock.Arguments) {
-			args.Assert(t, "mydefaultbranch")
+		gitMock.On("Checkout", mock.Anything, mock.Anything).Run(func(args mock.Arguments) {
+			args.Assert(t, "mydefaultbranch", true)
 		}).Return(nil)
 		gitMock.On("Add", mock.Anything).Return(nil)
 		gitMock.On("Commit", mock.Anything, mock.Anything, mock.Anything, mock.Anything).Return(nil)
@@ -1913,7 +1914,7 @@ replacements: []
 		gitMock.On("Config", mock.Anything, mock.Anything).Run(func(args mock.Arguments) {
 			args.Assert(t, "someone", "someone@example.com")
 		}).Return(fmt.Errorf("could not configure git"))
-		wbc, err := getWriteBackConfig(app, &kubeClient, &argoClient)
+		wbc, err := getWriteBackConfig(app, &kubeClient, &argoClient, argogit.NoopCredsStore{})
 		require.NoError(t, err)
 		wbc.GitClient = gitMock
 		app.Spec.Source.TargetRevision = "HEAD"
@@ -1929,10 +1930,10 @@ replacements: []
 		gitMock := &gitmock.Client{}
 		gitMock.On("Init").Return(fmt.Errorf("cannot init"))
 		gitMock.On("Fetch", mock.Anything).Return(nil)
-		gitMock.On("Checkout", mock.Anything).Return(nil)
+		gitMock.On("Checkout", mock.Anything, mock.Anything).Return(nil)
 		gitMock.On("Commit", mock.Anything, mock.Anything, mock.Anything, mock.Anything).Return(nil)
 		gitMock.On("Push", mock.Anything, mock.Anything, mock.Anything).Return(nil)
-		wbc, err := getWriteBackConfig(&app, &kubeClient, &argoClient)
+		wbc, err := getWriteBackConfig(&app, &kubeClient, &argoClient, argogit.NoopCredsStore{})
 		require.NoError(t, err)
 		wbc.GitClient = gitMock
 
@@ -1944,10 +1945,10 @@ replacements: []
 		gitMock := &gitmock.Client{}
 		gitMock.On("Init").Return(nil)
 		gitMock.On("Fetch", mock.Anything).Return(fmt.Errorf("cannot fetch"))
-		gitMock.On("Checkout", mock.Anything).Return(nil)
+		gitMock.On("Checkout", mock.Anything, mock.Anything).Return(nil)
 		gitMock.On("Commit", mock.Anything, mock.Anything, mock.Anything, mock.Anything).Return(nil)
 		gitMock.On("Push", mock.Anything, mock.Anything, mock.Anything).Return(nil)
-		wbc, err := getWriteBackConfig(&app, &kubeClient, &argoClient)
+		wbc, err := getWriteBackConfig(&app, &kubeClient, &argoClient, argogit.NoopCredsStore{})
 		require.NoError(t, err)
 		wbc.GitClient = gitMock
 
@@ -1958,10 +1959,10 @@ replacements: []
 		gitMock := &gitmock.Client{}
 		gitMock.On("Init").Return(nil)
 		gitMock.On("Fetch", mock.Anything).Return(nil)
-		gitMock.On("Checkout", mock.Anything).Return(fmt.Errorf("cannot checkout"))
+		gitMock.On("Checkout", mock.Anything, mock.Anything).Return(fmt.Errorf("cannot checkout"))
 		gitMock.On("Commit", mock.Anything, mock.Anything, mock.Anything, mock.Anything).Return(nil)
 		gitMock.On("Push", mock.Anything, mock.Anything, mock.Anything).Return(nil)
-		wbc, err := getWriteBackConfig(&app, &kubeClient, &argoClient)
+		wbc, err := getWriteBackConfig(&app, &kubeClient, &argoClient, argogit.NoopCredsStore{})
 		require.NoError(t, err)
 		wbc.GitClient = gitMock
 
@@ -1972,11 +1973,11 @@ replacements: []
 	t.Run("Cannot commit", func(t *testing.T) {
 		gitMock, _, cleanup := mockGit(t)
 		defer cleanup()
-		gitMock.On("Checkout", mock.Anything).Return(nil)
+		gitMock.On("Checkout", mock.Anything, mock.Anything).Return(nil)
 		gitMock.On("Add", mock.Anything).Return(nil)
 		gitMock.On("Commit", mock.Anything, mock.Anything, mock.Anything, mock.Anything).Return(fmt.Errorf("cannot commit"))
 		gitMock.On("Push", mock.Anything, mock.Anything, mock.Anything).Return(nil)
-		wbc, err := getWriteBackConfig(&app, &kubeClient, &argoClient)
+		wbc, err := getWriteBackConfig(&app, &kubeClient, &argoClient, argogit.NoopCredsStore{})
 		require.NoError(t, err)
 		wbc.GitClient = gitMock
 
@@ -1987,11 +1988,11 @@ replacements: []
 	t.Run("Cannot push", func(t *testing.T) {
 		gitMock, _, cleanup := mockGit(t)
 		defer cleanup()
-		gitMock.On("Checkout", mock.Anything).Return(nil)
+		gitMock.On("Checkout", mock.Anything, mock.Anything).Return(nil)
 		gitMock.On("Add", mock.Anything).Return(nil)
 		gitMock.On("Commit", mock.Anything, mock.Anything, mock.Anything, mock.Anything).Return(nil)
 		gitMock.On("Push", mock.Anything, mock.Anything, mock.Anything).Return(fmt.Errorf("cannot push"))
-		wbc, err := getWriteBackConfig(&app, &kubeClient, &argoClient)
+		wbc, err := getWriteBackConfig(&app, &kubeClient, &argoClient, argogit.NoopCredsStore{})
 		require.NoError(t, err)
 		wbc.GitClient = gitMock
 
@@ -2003,12 +2004,12 @@ replacements: []
 		app := app.DeepCopy()
 		gitMock, _, cleanup := mockGit(t)
 		defer cleanup()
-		gitMock.On("Checkout", mock.Anything).Return(nil)
+		gitMock.On("Checkout", mock.Anything, mock.Anything).Return(nil)
 		gitMock.On("Add", mock.Anything).Return(nil)
 		gitMock.On("Commit", mock.Anything, mock.Anything, mock.Anything, mock.Anything).Return(nil)
 		gitMock.On("Push", mock.Anything, mock.Anything, mock.Anything).Return(nil)
 		gitMock.On("SymRefToBranch", mock.Anything).Return("", fmt.Errorf("failed to resolve ref"))
-		wbc, err := getWriteBackConfig(app, &kubeClient, &argoClient)
+		wbc, err := getWriteBackConfig(app, &kubeClient, &argoClient, argogit.NoopCredsStore{})
 		require.NoError(t, err)
 		wbc.GitClient = gitMock
 		app.Spec.Source.TargetRevision = "HEAD"

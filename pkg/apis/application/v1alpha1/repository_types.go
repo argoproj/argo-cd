@@ -171,6 +171,7 @@ func (repo *Repository) GetGitCreds(store git.CredsStore) git.Creds {
 		return git.NopCreds{}
 	}
 	if repo.Password != "" {
+		store.Add(repo.Username, repo.Password)
 		return git.NewHTTPSCreds(repo.Username, repo.Password, repo.TLSClientCertData, repo.TLSClientCertKey, repo.IsInsecure(), repo.Proxy, store)
 	}
 	if repo.SSHPrivateKey != "" {
