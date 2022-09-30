@@ -28,7 +28,7 @@ spec:
           name: dexconfig
       containers:
       - name: dex
-        image: ghcr.io/dexidp/dex:v2.32.0
+        image: ghcr.io/dexidp/dex:v2.32.1-distroless
         imagePullPolicy: Always
         command: [/shared/argocd-dex, rundex]
         securityContext:
