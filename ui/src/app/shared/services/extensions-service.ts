@@ -4,11 +4,16 @@ import * as minimatch from 'minimatch';
 import {Application, ApplicationTree, State} from '../models';
 
 const extensions = {
-    resourceExtentions: new Array<ResourceTabExtension>()
+    resourceExtentions: new Array<ResourceTabExtension>(),
+    sidebarExtensions: new Array<SidebarExtension>()
 };
 
 function registerResourceExtension(component: ExtensionComponent, group: string, kind: string, tabTitle: string, opts?: {icon: string}) {
     extensions.resourceExtentions.push({component, group, kind, title: tabTitle, icon: opts?.icon});
+}
+
+function registerSidebarExtension(component: ExtensionComponent, title: string, path: string, icon: string) {
+    extensions.sidebarExtensions.push({component, title, icon, path});
 }
 
 let legacyInitialized = false;
@@ -33,6 +38,13 @@ export interface ResourceTabExtension {
     icon?: string;
 }
 
+export interface SidebarExtension {
+    title: string;
+    component: ExtensionComponent;
+    icon?: string;
+    path?: string;
+}
+
 export type ExtensionComponent = React.ComponentType<ExtensionComponentProps>;
 
 export interface Extension {
@@ -51,12 +63,17 @@ export class ExtensionsService {
         const items = extensions.resourceExtentions.filter(extension => minimatch(group, extension.group) && minimatch(kind, extension.kind)).slice();
         return items.sort((a, b) => a.title.localeCompare(b.title));
     }
+
+    public getSidebarExtensions(): SidebarExtension[] {
+        return extensions.sidebarExtensions.slice();
+    }
 }
 
 ((window: any) => {
     // deprecated: kept for backwards compatibility
     window.extensions = {resources: {}};
     window.extensionsAPI = {
-        registerResourceExtension
+        registerResourceExtension,
+        registerSidebarExtension
     };
 })(window);
