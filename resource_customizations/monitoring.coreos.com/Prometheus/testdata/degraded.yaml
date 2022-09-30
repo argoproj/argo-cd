@@ -1,0 +1,142 @@
+apiVersion: monitoring.coreos.com/v1
+kind: Prometheus
+metadata:
+  annotations:
+    argocd.argoproj.io/tracking-id: >-
+      prometheus-stack:monitoring.coreos.com/Prometheus:prometheus/prometheus-stack-kube-prom-prometheus
+  creationTimestamp: '2021-12-09T15:51:10Z'
+  generation: 46
+  labels:
+    app: kube-prometheus-stack-prometheus
+    app.kubernetes.io/instance: prometheus-stack
+    app.kubernetes.io/managed-by: Helm
+    app.kubernetes.io/part-of: kube-prometheus-stack
+    app.kubernetes.io/version: 39.11.0
+    chart: kube-prometheus-stack-39.11.0
+    heritage: Helm
+    release: prometheus-stack
+  name: prometheus-stack-kube-prom-prometheus
+  namespace: prometheus
+  resourceVersion: '200320271'
+  uid: 6f2e1016-926d-44e7-945b-dec4c975595b
+spec:
+  additionalScrapeConfigs:
+    key: prometheus-additional.yaml
+    name: additional-scrape-configs
+  alerting:
+    alertmanagers:
+      - apiVersion: v2
+        name: prometheus-stack-kube-prom-alertmanager
+        namespace: prometheus
+        pathPrefix: /
+        port: http-web
+  containers:
+    - name: prometheus
+      securityContext:
+        allowPrivilegeEscalation: false
+        capabilities:
+          drop:
+            - ALL
+        readOnlyRootFilesystem: true
+        runAsNonRoot: true
+    - name: config-reloader
+      securityContext:
+        allowPrivilegeEscalation: false
+        capabilities:
+          drop:
+            - ALL
+        readOnlyRootFilesystem: true
+        runAsNonRoot: true
+  enableAdminAPI: false
+  evaluationInterval: 30s
+  externalUrl: 'http://prometheus-stack-kube-prom-prometheus.prometheus:9090'
+  image: 'quay.io/prometheus/prometheus:v2.37.0'
+  imagePullSecrets:
+    - name: mcps-registry-image-pull-secret
+  initContainers:
+    - name: init-config-reloader
+      securityContext:
+        allowPrivilegeEscalation: false
+        capabilities:
+          drop:
+            - ALL
+        readOnlyRootFilesystem: true
+        runAsNonRoot: true
+  listenLocal: false
+  logFormat: logfmt
+  logLevel: info
+  paused: false
+  podMonitorNamespaceSelector: {}
+  podMonitorSelector: {}
+  portName: http-web
+  probeNamespaceSelector: {}
+  probeSelector: {}
+  replicas: 2
+  resources:
+    requests:
+      memory: 700Mi
+  retention: 6h
+  routePrefix: /
+  ruleNamespaceSelector: {}
+  ruleSelector: {}
+  scrapeInterval: 10s
+  securityContext:
+    fsGroup: 2000
+    runAsGroup: 2000
+    runAsNonRoot: true
+    runAsUser: 1000
+  serviceAccountName: prometheus-stack-kube-prom-prometheus
+  serviceMonitorNamespaceSelector: {}
+  serviceMonitorSelector: {}
+  shards: 1
+  storage:
+    volumeClaimTemplate:
+      spec:
+        accessModes:
+          - ReadWriteOnce
+        resources:
+          requests:
+            storage: 100Gi
+        storageClassName: default
+  topologySpreadConstraints:
+    - labelSelector:
+        matchLabels:
+          app.kubernetes.io/name: prometheus
+      maxSkew: 1
+      topologyKey: kubernetes.io/hostname
+      whenUnsatisfiable: ScheduleAnyway
+    - labelSelector:
+        matchLabels:
+          app.kubernetes.io/name: prometheus
+      maxSkew: 1
+      topologyKey: topology.kubernetes.io/zone
+      whenUnsatisfiable: DoNotSchedule
+  version: v2.37.0
+status:
+  availableReplicas: 0
+  conditions:
+    - lastTransitionTime: '2022-09-02T14:55:03Z'
+      message: >-
+        shard 0: pod prometheus-prometheus-stack-kube-prom-prometheus-0: 0/5
+        nodes are available: 2 node(s) didn't match Pod's node
+        affinity/selector, 3 node(s) were unschedulable.
+
+        shard 0: pod prometheus-prometheus-stack-kube-prom-prometheus-1: 0/5
+        nodes are available: 2 node(s) didn't match Pod's node
+        affinity/selector, 3 node(s) were unschedulable.
+      reason: NoPodReady
+      status: 'False'
+      type: Available
+    - lastTransitionTime: '2022-09-02T09:57:03Z'
+      status: 'True'
+      type: Reconciled
+  paused: false
+  replicas: 2
+  shardStatuses:
+    - availableReplicas: 0
+      replicas: 2
+      shardID: '0'
+      unavailableReplicas: 2
+      updatedReplicas: 2
+  unavailableReplicas: 2
+  updatedReplicas: 2
