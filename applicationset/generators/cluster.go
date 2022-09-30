@@ -107,7 +107,7 @@ func (g *ClusterGenerator) GenerateParams(
 			params["nameNormalized"] = cluster.Name
 			params["server"] = cluster.Server
 
-			err = appendTemplatedValues(appSetGenerator.Clusters.Values, params, appSet)
+			err = appendTemplatedValues(appSetGenerator.Clusters.Values, params, appSet.Spec.GoTemplate)
 			if err != nil {
 				return nil, err
 			}
@@ -147,7 +147,7 @@ func (g *ClusterGenerator) GenerateParams(
 			}
 		}
 
-		err = appendTemplatedValues(appSetGenerator.Clusters.Values, params, appSet)
+		err = appendTemplatedValues(appSetGenerator.Clusters.Values, params, appSet.Spec.GoTemplate)
 		if err != nil {
 			return nil, err
 		}
