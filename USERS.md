@@ -233,3 +233,4 @@ Currently, the following organizations are **officially** using Argo CD:
 1. [Yubo](https://www.yubo.live/)
 1. [Zimpler](https://www.zimpler.com/)
 1. [ZOZO](https://corp.zozo.com/)
+1. [Gridfuse](https://gridfuse.com/)
