@@ -84,7 +84,7 @@ project like the current rbac implementation.
 #### [G-3] ArgoCD deployment should be independent from backend services
 
 Extension developers should be able to deploy their backend services
-indepedendtly from ArgoCD. An extension can evolve their internal API and
+independently from ArgoCD. An extension can evolve their internal API and
 deploying a new version shouldn't require ArgoCD to be updated or
 restarted.
 
@@ -124,6 +124,15 @@ spec:
 extension version. This would need to be considered if ArgoCD extensions
 eventually get traction.
 
+----
+
+#### [G-5] Setup multiple backend services for the same extension
+
+In case of one Argo CD instance managing applications in multiple clusters, it
+will be necessary to configure backend service URLs per cluster for the same
+extension. This should be an optional configuration. If only one URL is
+configured, that one should be used for all clusters.
+
 ## Non-Goals
 
 It isn't in the scope of this proposal to specify commands in the ArgoCD
@@ -146,18 +155,21 @@ the following API base path:
 
 `<argocd-host>/api/v1/extensions/<extension-name>`
 
-
-With the configuration bellow, the expected behaviour is explained in the
+With the configuration bellow, the expected behavior is explained in the
 following examples:
 
 ```yaml
-extension.config:
-| extensions:
+extension.config: |
+  extensions:
     - name: some-extension
       enabled: true
       backend:
         idleConnTimeout: 10s
-        url: http://extension-host.com:8080
+        services:
+          - url: http://extension-name.com:8080
+            clusterName: kubernetes.local
+          - url: https://extension-name.ppd.cluster.k8s.local:8080
+            clusterName: admins@ppd.cluster.k8s.local
 ```
 
 - **Example 1**:
@@ -172,13 +184,14 @@ follows:
    └──────┬─────┘
           │
           │ GET http://argo.com/api/v1/extensions/some-extension
+          │ HEADER: "ARGOCD-APPLICATION-NAME: my-application"
           │
           ▼
  ┌─────────────────┐
  │ArgoCD API Server│
  └────────┬────────┘
           │
-          │ GET http://extension-host.com:8080
+          │ GET http://extension-name.com:8080
           │
           ▼
   ┌───────────────┐
@@ -204,7 +217,7 @@ should be able to invoke it such as:
  │ArgoCD API Server│
  └────────┬────────┘
           │
-          │ GET http://extension-host.com:8080/apiv1/metrics/123
+          │ GET http://extension-name.com:8080/apiv1/metrics/123
           │
           ▼
   ┌───────────────┐
