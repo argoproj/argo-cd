@@ -498,7 +498,7 @@ func (m *appStateManager) CompareAppState(app *v1alpha1.Application, project *ap
 
 	// restore comparison using cached diff result if previous comparison was performed for the same revision
 	revisionChanged := len(manifestInfoMap) != len(sources) || !reflect.DeepEqual(app.Status.Sync.Revisions, manifestRevisions)
-	specChanged := !reflect.DeepEqual(app.Status.Sync.ComparedTo, appv1.ComparedTo{Source: app.Spec.Source, Destination: app.Spec.Destination, Sources: sources})
+	specChanged := !reflect.DeepEqual(app.Status.Sync.ComparedTo, appv1.ComparedTo{Source: app.Spec.GetSource(), Destination: app.Spec.Destination, Sources: sources})
 
 	_, refreshRequested := app.IsRefreshRequested()
 	noCache = noCache || refreshRequested || app.Status.Expired(m.statusRefreshTimeout) || specChanged || revisionChanged
@@ -647,7 +647,7 @@ func (m *appStateManager) CompareAppState(app *v1alpha1.Application, project *ap
 		syncStatus = v1alpha1.SyncStatus{
 			ComparedTo: appv1.ComparedTo{
 				Destination: app.Spec.Destination,
-				Source:      app.Spec.Source,
+				Source:      app.Spec.GetSource(),
 			},
 			Status:   syncCode,
 			Revision: revision,

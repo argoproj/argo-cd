@@ -39,7 +39,7 @@ func TestCompareAppStateEmpty(t *testing.T) {
 	}
 	ctrl := newFakeController(&data)
 	sources := make([]argoappv1.ApplicationSource, 0)
-	sources = append(sources, app.Spec.Source)
+	sources = append(sources, app.Spec.GetSource())
 	revisions := make([]string, 0)
 	revisions = append(revisions, "")
 	compRes := ctrl.appStateManager.CompareAppState(app, &defaultProj, revisions, sources, false, false, nil, false)
@@ -66,7 +66,7 @@ func TestCompareAppStateMissing(t *testing.T) {
 	}
 	ctrl := newFakeController(&data)
 	sources := make([]argoappv1.ApplicationSource, 0)
-	sources = append(sources, app.Spec.Source)
+	sources = append(sources, app.Spec.GetSource())
 	revisions := make([]string, 0)
 	revisions = append(revisions, "")
 	compRes := ctrl.appStateManager.CompareAppState(app, &defaultProj, revisions, sources, false, false, nil, false)
@@ -97,7 +97,7 @@ func TestCompareAppStateExtra(t *testing.T) {
 	}
 	ctrl := newFakeController(&data)
 	sources := make([]argoappv1.ApplicationSource, 0)
-	sources = append(sources, app.Spec.Source)
+	sources = append(sources, app.Spec.GetSource())
 	revisions := make([]string, 0)
 	revisions = append(revisions, "")
 	compRes := ctrl.appStateManager.CompareAppState(app, &defaultProj, revisions, sources, false, false, nil, false)
@@ -127,7 +127,7 @@ func TestCompareAppStateHook(t *testing.T) {
 	}
 	ctrl := newFakeController(&data)
 	sources := make([]argoappv1.ApplicationSource, 0)
-	sources = append(sources, app.Spec.Source)
+	sources = append(sources, app.Spec.GetSource())
 	revisions := make([]string, 0)
 	revisions = append(revisions, "")
 	compRes := ctrl.appStateManager.CompareAppState(app, &defaultProj, revisions, sources, false, false, nil, false)
@@ -158,7 +158,7 @@ func TestCompareAppStateSkipHook(t *testing.T) {
 	}
 	ctrl := newFakeController(&data)
 	sources := make([]argoappv1.ApplicationSource, 0)
-	sources = append(sources, app.Spec.Source)
+	sources = append(sources, app.Spec.GetSource())
 	revisions := make([]string, 0)
 	revisions = append(revisions, "")
 	compRes := ctrl.appStateManager.CompareAppState(app, &defaultProj, revisions, sources, false, false, nil, false)
@@ -188,7 +188,7 @@ func TestCompareAppStateCompareOptionIgnoreExtraneous(t *testing.T) {
 	ctrl := newFakeController(&data)
 
 	sources := make([]argoappv1.ApplicationSource, 0)
-	sources = append(sources, app.Spec.Source)
+	sources = append(sources, app.Spec.GetSource())
 	revisions := make([]string, 0)
 	revisions = append(revisions, "")
 	compRes := ctrl.appStateManager.CompareAppState(app, &defaultProj, revisions, sources, false, false, nil, false)
@@ -220,7 +220,7 @@ func TestCompareAppStateExtraHook(t *testing.T) {
 	}
 	ctrl := newFakeController(&data)
 	sources := make([]argoappv1.ApplicationSource, 0)
-	sources = append(sources, app.Spec.Source)
+	sources = append(sources, app.Spec.GetSource())
 	revisions := make([]string, 0)
 	revisions = append(revisions, "")
 	compRes := ctrl.appStateManager.CompareAppState(app, &defaultProj, revisions, sources, false, false, nil, false)
@@ -267,7 +267,7 @@ func TestCompareAppStateDuplicatedNamespacedResources(t *testing.T) {
 	}
 	ctrl := newFakeController(&data)
 	sources := make([]argoappv1.ApplicationSource, 0)
-	sources = append(sources, app.Spec.Source)
+	sources = append(sources, app.Spec.GetSource())
 	revisions := make([]string, 0)
 	revisions = append(revisions, "")
 	compRes := ctrl.appStateManager.CompareAppState(app, &defaultProj, revisions, sources, false, false, nil, false)
@@ -322,7 +322,7 @@ func TestSetHealth(t *testing.T) {
 	})
 
 	sources := make([]argoappv1.ApplicationSource, 0)
-	sources = append(sources, app.Spec.Source)
+	sources = append(sources, app.Spec.GetSource())
 	revisions := make([]string, 0)
 	revisions = append(revisions, "")
 	compRes := ctrl.appStateManager.CompareAppState(app, &defaultProj, revisions, sources, false, false, nil, false)
@@ -358,7 +358,7 @@ func TestSetHealthSelfReferencedApp(t *testing.T) {
 	})
 
 	sources := make([]argoappv1.ApplicationSource, 0)
-	sources = append(sources, app.Spec.Source)
+	sources = append(sources, app.Spec.GetSource())
 	revisions := make([]string, 0)
 	revisions = append(revisions, "")
 	compRes := ctrl.appStateManager.CompareAppState(app, &defaultProj, revisions, sources, false, false, nil, false)
@@ -432,7 +432,7 @@ func TestReturnUnknownComparisonStateOnSettingLoadError(t *testing.T) {
 	})
 
 	sources := make([]argoappv1.ApplicationSource, 0)
-	sources = append(sources, app.Spec.Source)
+	sources = append(sources, app.Spec.GetSource())
 	revisions := make([]string, 0)
 	revisions = append(revisions, "")
 	compRes := ctrl.appStateManager.CompareAppState(app, &defaultProj, revisions, sources, false, false, nil, false)
@@ -573,7 +573,7 @@ func TestSignedResponseNoSignatureRequired(t *testing.T) {
 		}
 		ctrl := newFakeController(&data)
 		sources := make([]argoappv1.ApplicationSource, 0)
-		sources = append(sources, app.Spec.Source)
+		sources = append(sources, app.Spec.GetSource())
 		revisions := make([]string, 0)
 		revisions = append(revisions, "")
 		compRes := ctrl.appStateManager.CompareAppState(app, &defaultProj, revisions, sources, false, false, nil, false)
@@ -599,7 +599,7 @@ func TestSignedResponseNoSignatureRequired(t *testing.T) {
 		}
 		ctrl := newFakeController(&data)
 		sources := make([]argoappv1.ApplicationSource, 0)
-		sources = append(sources, app.Spec.Source)
+		sources = append(sources, app.Spec.GetSource())
 		revisions := make([]string, 0)
 		revisions = append(revisions, "")
 		compRes := ctrl.appStateManager.CompareAppState(app, &defaultProj, revisions, sources, false, false, nil, false)
@@ -632,7 +632,7 @@ func TestSignedResponseSignatureRequired(t *testing.T) {
 		}
 		ctrl := newFakeController(&data)
 		sources := make([]argoappv1.ApplicationSource, 0)
-		sources = append(sources, app.Spec.Source)
+		sources = append(sources, app.Spec.GetSource())
 		revisions := make([]string, 0)
 		revisions = append(revisions, "")
 		compRes := ctrl.appStateManager.CompareAppState(app, &signedProj, revisions, sources, false, false, nil, false)
@@ -658,7 +658,7 @@ func TestSignedResponseSignatureRequired(t *testing.T) {
 		}
 		ctrl := newFakeController(&data)
 		sources := make([]argoappv1.ApplicationSource, 0)
-		sources = append(sources, app.Spec.Source)
+		sources = append(sources, app.Spec.GetSource())
 		revisions := make([]string, 0)
 		revisions = append(revisions, "abc123")
 		compRes := ctrl.appStateManager.CompareAppState(app, &signedProj, revisions, sources, false, false, nil, false)
@@ -684,7 +684,7 @@ func TestSignedResponseSignatureRequired(t *testing.T) {
 		}
 		ctrl := newFakeController(&data)
 		sources := make([]argoappv1.ApplicationSource, 0)
-		sources = append(sources, app.Spec.Source)
+		sources = append(sources, app.Spec.GetSource())
 		revisions := make([]string, 0)
 		revisions = append(revisions, "abc123")
 		compRes := ctrl.appStateManager.CompareAppState(app, &signedProj, revisions, sources, false, false, nil, false)
@@ -710,7 +710,7 @@ func TestSignedResponseSignatureRequired(t *testing.T) {
 		}
 		ctrl := newFakeController(&data)
 		sources := make([]argoappv1.ApplicationSource, 0)
-		sources = append(sources, app.Spec.Source)
+		sources = append(sources, app.Spec.GetSource())
 		revisions := make([]string, 0)
 		revisions = append(revisions, "abc123")
 		compRes := ctrl.appStateManager.CompareAppState(app, &signedProj, revisions, sources, false, false, nil, false)
@@ -739,7 +739,7 @@ func TestSignedResponseSignatureRequired(t *testing.T) {
 		testProj := signedProj
 		testProj.Spec.SignatureKeys[0].KeyID = "4AEE18F83AFDEB24"
 		sources := make([]argoappv1.ApplicationSource, 0)
-		sources = append(sources, app.Spec.Source)
+		sources = append(sources, app.Spec.GetSource())
 		revisions := make([]string, 0)
 		revisions = append(revisions, "abc123")
 		compRes := ctrl.appStateManager.CompareAppState(app, &testProj, revisions, sources, false, false, nil, false)
@@ -768,7 +768,7 @@ func TestSignedResponseSignatureRequired(t *testing.T) {
 		localManifests := []string{"foobar"}
 		ctrl := newFakeController(&data)
 		sources := make([]argoappv1.ApplicationSource, 0)
-		sources = append(sources, app.Spec.Source)
+		sources = append(sources, app.Spec.GetSource())
 		revisions := make([]string, 0)
 		revisions = append(revisions, "abc123")
 		compRes := ctrl.appStateManager.CompareAppState(app, &signedProj, revisions, sources, false, false, localManifests, false)
@@ -797,7 +797,7 @@ func TestSignedResponseSignatureRequired(t *testing.T) {
 		}
 		ctrl := newFakeController(&data)
 		sources := make([]argoappv1.ApplicationSource, 0)
-		sources = append(sources, app.Spec.Source)
+		sources = append(sources, app.Spec.GetSource())
 		revisions := make([]string, 0)
 		revisions = append(revisions, "abc123")
 		compRes := ctrl.appStateManager.CompareAppState(app, &signedProj, revisions, sources, false, false, nil, false)
@@ -826,7 +826,7 @@ func TestSignedResponseSignatureRequired(t *testing.T) {
 		localManifests := []string{""}
 		ctrl := newFakeController(&data)
 		sources := make([]argoappv1.ApplicationSource, 0)
-		sources = append(sources, app.Spec.Source)
+		sources = append(sources, app.Spec.GetSource())
 		revisions := make([]string, 0)
 		revisions = append(revisions, "abc123")
 		compRes := ctrl.appStateManager.CompareAppState(app, &signedProj, revisions, sources, false, false, localManifests, false)

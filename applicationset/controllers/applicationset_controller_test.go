@@ -683,7 +683,7 @@ func TestCreateOrUpdateInCluster(t *testing.T) {
 					Template: argov1alpha1.ApplicationSetTemplate{
 						Spec: argov1alpha1.ApplicationSpec{
 							Project:     "project",
-							Source:      argov1alpha1.ApplicationSource{Path: "path", TargetRevision: "revision", RepoURL: "repoURL"},
+							Source:      &argov1alpha1.ApplicationSource{Path: "path", TargetRevision: "revision", RepoURL: "repoURL"},
 							Destination: argov1alpha1.ApplicationDestination{Server: "server", Namespace: "namespace"},
 						},
 					},
@@ -720,7 +720,7 @@ func TestCreateOrUpdateInCluster(t *testing.T) {
 					},
 					Spec: argov1alpha1.ApplicationSpec{
 						Project:     "project",
-						Source:      argov1alpha1.ApplicationSource{Path: "path", TargetRevision: "revision", RepoURL: "repoURL"},
+						Source:      &argov1alpha1.ApplicationSource{Path: "path", TargetRevision: "revision", RepoURL: "repoURL"},
 						Destination: argov1alpha1.ApplicationDestination{Server: "server", Namespace: "namespace"},
 					},
 				},
@@ -740,7 +740,7 @@ func TestCreateOrUpdateInCluster(t *testing.T) {
 					},
 					Spec: argov1alpha1.ApplicationSpec{
 						Project:     "project",
-						Source:      argov1alpha1.ApplicationSource{Path: "path", TargetRevision: "revision", RepoURL: "repoURL"},
+						Source:      &argov1alpha1.ApplicationSource{Path: "path", TargetRevision: "revision", RepoURL: "repoURL"},
 						Destination: argov1alpha1.ApplicationDestination{Server: "server", Namespace: "namespace"},
 					},
 					Status: argov1alpha1.ApplicationStatus{
@@ -917,7 +917,7 @@ func TestRemoveFinalizerOnInvalidDestination_FinalizerTypes(t *testing.T) {
 				},
 				Spec: argov1alpha1.ApplicationSpec{
 					Project: "project",
-					Source:  argov1alpha1.ApplicationSource{Path: "path", TargetRevision: "revision", RepoURL: "repoURL"},
+					Source:  &argov1alpha1.ApplicationSource{Path: "path", TargetRevision: "revision", RepoURL: "repoURL"},
 					// Destination is always invalid, for this test:
 					Destination: argov1alpha1.ApplicationDestination{Name: "my-cluster", Namespace: "namespace"},
 				},
@@ -1079,7 +1079,7 @@ func TestRemoveFinalizerOnInvalidDestination_DestinationTypes(t *testing.T) {
 				},
 				Spec: argov1alpha1.ApplicationSpec{
 					Project:     "project",
-					Source:      argov1alpha1.ApplicationSource{Path: "path", TargetRevision: "revision", RepoURL: "repoURL"},
+					Source:      &argov1alpha1.ApplicationSource{Path: "path", TargetRevision: "revision", RepoURL: "repoURL"},
 					Destination: c.destinationField,
 				},
 			}
@@ -1588,7 +1588,7 @@ func TestValidateGeneratedApplications(t *testing.T) {
 					ObjectMeta: metav1.ObjectMeta{},
 					Spec: argov1alpha1.ApplicationSpec{
 						Project: "default",
-						Source: argov1alpha1.ApplicationSource{
+						Source: &argov1alpha1.ApplicationSource{
 							RepoURL:        "https://url",
 							Path:           "/",
 							TargetRevision: "HEAD",
@@ -1611,7 +1611,7 @@ func TestValidateGeneratedApplications(t *testing.T) {
 					ObjectMeta: metav1.ObjectMeta{},
 					Spec: argov1alpha1.ApplicationSpec{
 						Project: "default",
-						Source: argov1alpha1.ApplicationSource{
+						Source: &argov1alpha1.ApplicationSource{
 							RepoURL:        "https://url",
 							Path:           "/",
 							TargetRevision: "HEAD",
@@ -1635,7 +1635,7 @@ func TestValidateGeneratedApplications(t *testing.T) {
 					ObjectMeta: metav1.ObjectMeta{},
 					Spec: argov1alpha1.ApplicationSpec{
 						Project: "DOES-NOT-EXIST",
-						Source: argov1alpha1.ApplicationSource{
+						Source: &argov1alpha1.ApplicationSource{
 							RepoURL:        "https://url",
 							Path:           "/",
 							TargetRevision: "HEAD",
@@ -1658,7 +1658,7 @@ func TestValidateGeneratedApplications(t *testing.T) {
 					ObjectMeta: metav1.ObjectMeta{},
 					Spec: argov1alpha1.ApplicationSpec{
 						Project: "default",
-						Source: argov1alpha1.ApplicationSource{
+						Source: &argov1alpha1.ApplicationSource{
 							RepoURL:        "https://url",
 							Path:           "/",
 							TargetRevision: "HEAD",
@@ -1681,7 +1681,7 @@ func TestValidateGeneratedApplications(t *testing.T) {
 					ObjectMeta: metav1.ObjectMeta{},
 					Spec: argov1alpha1.ApplicationSpec{
 						Project: "default",
-						Source: argov1alpha1.ApplicationSource{
+						Source: &argov1alpha1.ApplicationSource{
 							RepoURL:        "https://url",
 							Path:           "/",
 							TargetRevision: "HEAD",
@@ -1810,7 +1810,7 @@ func TestReconcilerValidationErrorBehaviour(t *testing.T) {
 					Namespace: "argocd",
 				},
 				Spec: argov1alpha1.ApplicationSpec{
-					Source:      argov1alpha1.ApplicationSource{RepoURL: "https://github.com/argoproj/argocd-example-apps", Path: "guestbook"},
+					Source:      &argov1alpha1.ApplicationSource{RepoURL: "https://github.com/argoproj/argocd-example-apps", Path: "guestbook"},
 					Project:     "default",
 					Destination: argov1alpha1.ApplicationDestination{Server: "{{.url}}"},
 				},

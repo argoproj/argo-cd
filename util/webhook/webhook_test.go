@@ -215,7 +215,7 @@ func getApp(annotation string, sourcePath string) *v1alpha1.Application {
 			},
 		},
 		Spec: v1alpha1.ApplicationSpec{
-			Source: v1alpha1.ApplicationSource{
+			Source: &v1alpha1.ApplicationSource{
 				Path: sourcePath,
 			},
 		},
@@ -254,43 +254,43 @@ func Test_getAppRefreshPrefix(t *testing.T) {
 
 func TestAppRevisionHasChanged(t *testing.T) {
 	assert.True(t, appRevisionHasChanged(&v1alpha1.Application{Spec: v1alpha1.ApplicationSpec{
-		Source: v1alpha1.ApplicationSource{},
+		Source: &v1alpha1.ApplicationSource{},
 	}}, "master", true))
 
 	assert.False(t, appRevisionHasChanged(&v1alpha1.Application{Spec: v1alpha1.ApplicationSpec{
-		Source: v1alpha1.ApplicationSource{},
+		Source: &v1alpha1.ApplicationSource{},
 	}}, "master", false))
 
 	assert.False(t, appRevisionHasChanged(&v1alpha1.Application{Spec: v1alpha1.ApplicationSpec{
-		Source: v1alpha1.ApplicationSource{
+		Source: &v1alpha1.ApplicationSource{
 			TargetRevision: "dev",
 		},
 	}}, "master", true))
 
 	assert.True(t, appRevisionHasChanged(&v1alpha1.Application{Spec: v1alpha1.ApplicationSpec{
-		Source: v1alpha1.ApplicationSource{
+		Source: &v1alpha1.ApplicationSource{
 			TargetRevision: "dev",
 		},
 	}}, "dev", false))
 
 	assert.False(t, appRevisionHasChanged(&v1alpha1.Application{Spec: v1alpha1.ApplicationSpec{
-		Source: v1alpha1.ApplicationSource{
+		Source: &v1alpha1.ApplicationSource{
 			TargetRevision: "refs/heads/dev",
 		},
 	}}, "master", true))
 
 	assert.True(t, appRevisionHasChanged(&v1alpha1.Application{Spec: v1alpha1.ApplicationSpec{
-		Source: v1alpha1.ApplicationSource{
+		Source: &v1alpha1.ApplicationSource{
 			TargetRevision: "refs/heads/dev",
 		},
 	}}, "dev", false))
 	assert.True(t, appRevisionHasChanged(&v1alpha1.Application{Spec: v1alpha1.ApplicationSpec{
-		Source: v1alpha1.ApplicationSource{
+		Source: &v1alpha1.ApplicationSource{
 			TargetRevision: "env/test",
 		},
 	}}, "env/test", false))
 	assert.True(t, appRevisionHasChanged(&v1alpha1.Application{Spec: v1alpha1.ApplicationSpec{
-		Source: v1alpha1.ApplicationSource{
+		Source: &v1alpha1.ApplicationSource{
 			TargetRevision: "refs/heads/env/test",
 		},
 	}}, "env/test", false))
@@ -299,7 +299,7 @@ func TestAppRevisionHasChanged(t *testing.T) {
 func Test_affectedRevisionInfo_appRevisionHasChanged(t *testing.T) {
 	appWithRevision := func(targetRevision string) *v1alpha1.Application {
 		return &v1alpha1.Application{Spec: v1alpha1.ApplicationSpec{
-			Source: v1alpha1.ApplicationSource{
+			Source: &v1alpha1.ApplicationSource{
 				TargetRevision: targetRevision,
 			},
 		}}

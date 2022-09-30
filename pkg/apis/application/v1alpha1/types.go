@@ -56,7 +56,7 @@ type Application struct {
 // ApplicationSpec represents desired application state. Contains link to repository with application definition and additional parameters link definition revision.
 type ApplicationSpec struct {
 	// Source is a reference to the location of the application's manifests or chart
-	Source ApplicationSource `json:"source,omitempty" protobuf:"bytes,1,opt,name=source"`
+	Source *ApplicationSource `json:"source,omitempty" protobuf:"bytes,1,opt,name=source"`
 	// Destination is a reference to the target Kubernetes server and namespace
 	Destination ApplicationDestination `json:"destination" protobuf:"bytes,2,name=destination"`
 	// Project is a reference to the project this application belongs to.
@@ -180,6 +180,14 @@ type ApplicationSource struct {
 
 // ApplicationSources contains list of required information about the sources of an application
 type ApplicationSources []ApplicationSource
+
+func (a *ApplicationSpec) GetSource() ApplicationSource {
+	// if Application has multiple sources, return the first source in sources
+	if a.Sources != nil && len(a.Sources) > 0 {
+		return a.Sources[0]
+	}
+	return *a.Source
+}
 
 // AllowsConcurrentProcessing returns true if given application source can be processed concurrently
 func (a *ApplicationSource) AllowsConcurrentProcessing() bool {

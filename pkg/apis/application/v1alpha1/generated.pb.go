@@ -6296,16 +6296,18 @@ func (m *ApplicationSpec) MarshalToSizedBuffer(dAtA []byte) (int, error) {
 	}
 	i--
 	dAtA[i] = 0x12
-	{
-		size, err := m.Source.MarshalToSizedBuffer(dAtA[:i])
-		if err != nil {
-			return 0, err
+	if m.Source != nil {
+		{
+			size, err := m.Source.MarshalToSizedBuffer(dAtA[:i])
+			if err != nil {
+				return 0, err
+			}
+			i -= size
+			i = encodeVarintGenerated(dAtA, i, uint64(size))
 		}
-		i -= size
-		i = encodeVarintGenerated(dAtA, i, uint64(size))
+		i--
+		dAtA[i] = 0xa
 	}
-	i--
-	dAtA[i] = 0xa
 	return len(dAtA) - i, nil
 }
 
@@ -13082,8 +13084,10 @@ func (m *ApplicationSpec) Size() (n int) {
 	}
 	var l int
 	_ = l
-	l = m.Source.Size()
-	n += 1 + l + sovGenerated(uint64(l))
+	if m.Source != nil {
+		l = m.Source.Size()
+		n += 1 + l + sovGenerated(uint64(l))
+	}
 	l = m.Destination.Size()
 	n += 1 + l + sovGenerated(uint64(l))
 	l = len(m.Project)
@@ -15754,7 +15758,7 @@ func (this *ApplicationSpec) String() string {
 	}
 	repeatedStringForInfo += "}"
 	s := strings.Join([]string{`&ApplicationSpec{`,
-		`Source:` + strings.Replace(strings.Replace(this.Source.String(), "ApplicationSource", "ApplicationSource", 1), `&`, ``, 1) + `,`,
+		`Source:` + strings.Replace(this.Source.String(), "ApplicationSource", "ApplicationSource", 1) + `,`,
 		`Destination:` + strings.Replace(strings.Replace(this.Destination.String(), "ApplicationDestination", "ApplicationDestination", 1), `&`, ``, 1) + `,`,
 		`Project:` + fmt.Sprintf("%v", this.Project) + `,`,
 		`SyncPolicy:` + strings.Replace(this.SyncPolicy.String(), "SyncPolicy", "SyncPolicy", 1) + `,`,
@@ -22767,6 +22771,9 @@ func (m *ApplicationSpec) Unmarshal(dAtA []byte) error {
 			}
 			if postIndex > l {
 				return io.ErrUnexpectedEOF
+			}
+			if m.Source == nil {
+				m.Source = &ApplicationSource{}
 			}
 			if err := m.Source.Unmarshal(dAtA[iNdEx:postIndex]); err != nil {
 				return err
