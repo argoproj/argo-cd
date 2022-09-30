@@ -85,6 +85,7 @@ Currently, the following organizations are **officially** using Argo CD:
 1. [Handelsbanken](https://www.handelsbanken.se)
 1. [Healy](https://www.healyworld.net)
 1. [Helio](https://helio.exchange)
+1. [Hetki](https://hetki.ai)
 1. [hipages](https://hipages.com.au/)
 1. [Hiya](https://hiya.com)
 1. [Honestbank](https://honestbank.com)
