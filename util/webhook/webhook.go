@@ -311,7 +311,7 @@ func getAppRefreshPaths(app *v1alpha1.Application) []string {
 			if filepath.IsAbs(item) {
 				item = item[1:]
 			} else {
-				item = filepath.Clean(filepath.Join(app.Spec.Source.Path, item))
+				item = filepath.Clean(filepath.Join(app.Spec.GetSource().Path, item))
 			}
 			paths = append(paths, item)
 		}
@@ -365,27 +365,27 @@ func ensureAbsPath(input string) string {
 }
 
 func appRevisionHasChanged(app *v1alpha1.Application, revision string, touchedHead bool) bool {
-	targetRev := parseRevision(app.Spec.Source.TargetRevision)
+	targetRev := parseRevision(app.Spec.GetSource().TargetRevision)
 	if targetRev == "HEAD" || targetRev == "" { // revision is head
 		return touchedHead
 	}
 	targetRevisionHasPrefixList := []string{"refs/heads/", "refs/tags/"}
 	for _, prefix := range targetRevisionHasPrefixList {
-		if strings.HasPrefix(app.Spec.Source.TargetRevision, prefix) {
+		if strings.HasPrefix(app.Spec.GetSource().TargetRevision, prefix) {
 			return revision == targetRev
 		}
 	}
 
-	return app.Spec.Source.TargetRevision == revision
+	return app.Spec.GetSource().TargetRevision == revision
 }
 
 func appUsesURL(app *v1alpha1.Application, webURL string, repoRegexp *regexp.Regexp) bool {
-	if !repoRegexp.MatchString(app.Spec.Source.RepoURL) {
-		log.Debugf("%s does not match %s", app.Spec.Source.RepoURL, repoRegexp.String())
+	if !repoRegexp.MatchString(app.Spec.GetSource().RepoURL) {
+		log.Debugf("%s does not match %s", app.Spec.GetSource().RepoURL, repoRegexp.String())
 		return false
 	}
 
-	log.Debugf("%s uses repoURL %s", app.Spec.Source.RepoURL, webURL)
+	log.Debugf("%s uses repoURL %s", app.Spec.GetSource().RepoURL, webURL)
 	return true
 }
 

@@ -1121,7 +1121,7 @@ func (s *Server) validateAndNormalizeApp(ctx context.Context, app *appv1.Applica
 	if err != nil {
 		return fmt.Errorf("error getting kustomize settings: %w", err)
 	}
-	kustomizeOptions := make([]*v1alpha1.KustomizeOptions, 0)
+	kustomizeOptions := make([]*appv1.KustomizeOptions, 0)
 	if app.Spec.Sources != nil {
 		for _, source := range app.Spec.Sources {
 			options, err := kustomizeSettings.GetOptions(source)

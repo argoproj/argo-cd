@@ -6,7 +6,7 @@ You can provide multiple sources using the `sources` field. When you specify the
 
 See below example for specifying multiple sources:
 
-```
+```yaml
 apiVersion: argoproj.io/v1alpha1
 kind: Application
 metadata:
@@ -39,7 +39,7 @@ The above example has 2 sources specified. Argo CD will reconcile each source se
 
 In case application has multiple entries for the same source (repoURL), Argo CD would pick the source that is mentioned later in the list of sources. For example, consider the below list of sources:
 
-```
+```yaml
 sources:
     - chart: elasticsearch
       helm:
@@ -58,5 +58,29 @@ sources:
       targetRevision: 7.7.0
 ```
 
-In the above list, we have 2 sources referring to the same repoURL. In this case, Argo CD will use the source with `targetRevision: 7.7.0` as it was specified later in the list of sources and ignore the source with `targetRevision: 7.6.0`.
+In the above list, the application has 2 sources referring to the same repoURL. In this case, Argo CD will generate the manifests for source with `targetRevision: 7.6.0` and then append the manifests generated for source with `targetRevision: 7.7.0`. 
 
+
+## Helm Value files from external Git repository
+
+Users can now provide provide value files to the helm repositories from external sources. See below example ApplicationSpec for the same,
+
+```yaml
+spec:
+  project: default
+  sources:
+  - repoURL: 'https://prometheus-community.github.io/helm-charts'
+    chart: prometheus
+    targetRevision: 15.6.0
+    ref: prometheus
+  - repoURL: 'https://prometheus-community.github.io/helm-charts'
+    chart: prometheus
+    targetRevision: 15.7.1
+    valueFiles:
+    - $prometheus/charts/prometheus/values.yaml
+  destination:
+    server: 'https://kubernetes.default.svc'
+    namespace: argocd
+```
+
+In the above example, the source with `targetRevision 15.7.1` will use the value files from source with `targetRevision 15.6.0` with the help of ref `$prometheus`.

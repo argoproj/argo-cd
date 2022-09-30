@@ -150,7 +150,7 @@ func NewApplicationCreateCommand(clientOpts *argocdclient.ClientOptions) *cobra.
 					c.HelpFunc()(c, args)
 					os.Exit(1)
 				}
-				if app.Spec.Source.Plugin != nil && app.Spec.Source.Plugin.Name != "" {
+				if app.Spec.GetSource().Plugin != nil && app.Spec.GetSource().Plugin.Name != "" {
 					log.Warnf(argocommon.ConfigMapPluginCLIDeprecationWarning)
 				}
 				if appNamespace != "" {
@@ -294,7 +294,7 @@ func NewApplicationGetCommand(clientOpts *argocdclient.ClientOptions) *cobra.Com
 			})
 			errors.CheckError(err)
 
-			if app.Spec.Source.Plugin != nil && app.Spec.Source.Plugin.Name != "" {
+			if app.Spec.GetSource().Plugin != nil && app.Spec.GetSource().Plugin.Name != "" {
 				log.Warnf(argocommon.ConfigMapPluginCLIDeprecationWarning)
 			}
 
@@ -503,11 +503,11 @@ func printAppSummaryTable(app *argoappv1.Application, appURL string, windows *ar
 	syncStatusStr := string(app.Status.Sync.Status)
 	switch app.Status.Sync.Status {
 	case argoappv1.SyncStatusCodeSynced:
-		syncStatusStr += fmt.Sprintf(" to %s", app.Spec.Source.TargetRevision)
+		syncStatusStr += fmt.Sprintf(" to %s", app.Spec.GetSource().TargetRevision)
 	case argoappv1.SyncStatusCodeOutOfSync:
-		syncStatusStr += fmt.Sprintf(" from %s", app.Spec.Source.TargetRevision)
+		syncStatusStr += fmt.Sprintf(" from %s", app.Spec.GetSource().TargetRevision)
 	}
-	if !git.IsCommitSHA(app.Spec.Source.TargetRevision) && !git.IsTruncatedCommitSHA(app.Spec.Source.TargetRevision) && len(app.Status.Sync.Revision) > 7 {
+	if !git.IsCommitSHA(app.Spec.GetSource().TargetRevision) && !git.IsTruncatedCommitSHA(app.Spec.GetSource().TargetRevision) && len(app.Status.Sync.Revision) > 7 {
 		syncStatusStr += fmt.Sprintf(" (%s)", app.Status.Sync.Revision[0:7])
 	}
 	fmt.Printf(printOpFmtStr, "Sync Status:", syncStatusStr)
@@ -576,8 +576,8 @@ func truncateString(str string, num int) string {
 
 // printParams prints parameters and overrides
 func printParams(app *argoappv1.Application) {
-	if app.Spec.Source.Helm != nil {
-		printHelmParams(app.Spec.Source.Helm)
+	if app.Spec.GetSource().Helm != nil {
+		printHelmParams(app.Spec.GetSource().Helm)
 	}
 }
 
@@ -625,7 +625,7 @@ func NewApplicationSetCommand(clientOpts *argocdclient.ClientOptions) *cobra.Com
 			app, err := appIf.Get(ctx, &applicationpkg.ApplicationQuery{Name: &appName, AppNamespace: &appNs})
 			errors.CheckError(err)
 
-			if app.Spec.Source.Plugin != nil && app.Spec.Source.Plugin.Name != "" {
+			if app.Spec.GetSource().Plugin != nil && app.Spec.GetSource().Plugin.Name != "" {
 				log.Warnf(argocommon.ConfigMapPluginCLIDeprecationWarning)
 			}
 
@@ -693,7 +693,7 @@ func NewApplicationUnsetCommand(clientOpts *argocdclient.ClientOptions) *cobra.C
 			app, err := appIf.Get(ctx, &applicationpkg.ApplicationQuery{Name: &appName, AppNamespace: &appNs})
 			errors.CheckError(err)
 
-			if app.Spec.Source.Plugin != nil && app.Spec.Source.Plugin.Name != "" {
+			if app.Spec.GetSource().Plugin != nil && app.Spec.GetSource().Plugin.Name != "" {
 				log.Warnf(argocommon.ConfigMapPluginCLIDeprecationWarning)
 			}
 
@@ -933,7 +933,7 @@ func NewApplicationDiffCommand(clientOpts *argocdclient.ClientOptions) *cobra.Co
 			})
 			errors.CheckError(err)
 
-			if app.Spec.Source.Plugin != nil && app.Spec.Source.Plugin.Name != "" {
+			if app.Spec.GetSource().Plugin != nil && app.Spec.GetSource().Plugin.Name != "" {
 				log.Warnf(argocommon.ConfigMapPluginCLIDeprecationWarning)
 			}
 
@@ -1250,7 +1250,7 @@ func printApplicationTable(apps []argoappv1.Application, output *string) {
 			formatConditionsSummary(app),
 		}
 		if *output == "wide" {
-			vals = append(vals, app.Spec.Source.RepoURL, app.Spec.Source.Path, app.Spec.Source.TargetRevision)
+			vals = append(vals, app.Spec.GetSource().RepoURL, app.Spec.GetSource().Path, app.Spec.GetSource().TargetRevision)
 		}
 		_, _ = fmt.Fprintf(w, fmtStr, vals...)
 	}
@@ -1303,7 +1303,7 @@ func NewApplicationListCommand(clientOpts *argocdclient.ClientOptions) *cobra.Co
 			}
 			var appsWithDeprecatedPlugins []string
 			for _, app := range appList {
-				if app.Spec.Source.Plugin != nil && app.Spec.Source.Plugin.Name != "" {
+				if app.Spec.GetSource().Plugin != nil && app.Spec.GetSource().Plugin.Name != "" {
 					appsWithDeprecatedPlugins = append(appsWithDeprecatedPlugins, app.Name)
 				}
 			}
@@ -1635,7 +1635,7 @@ func NewApplicationSyncCommand(clientOpts *argocdclient.ClientOptions) *cobra.Co
 					})
 					errors.CheckError(err)
 
-					if app.Spec.Source.Plugin != nil && app.Spec.Source.Plugin.Name != "" {
+					if app.Spec.GetSource().Plugin != nil && app.Spec.GetSource().Plugin.Name != "" {
 						log.Warnf(argocommon.ConfigMapPluginCLIDeprecationWarning)
 					}
 
@@ -1718,7 +1718,7 @@ func NewApplicationSyncCommand(clientOpts *argocdclient.ClientOptions) *cobra.Co
 					})
 					errors.CheckError(err)
 
-					if app.Spec.Source.Plugin != nil && app.Spec.Source.Plugin.Name != "" {
+					if app.Spec.GetSource().Plugin != nil && app.Spec.GetSource().Plugin.Name != "" {
 						log.Warnf(argocommon.ConfigMapPluginCLIDeprecationWarning)
 					}
 
@@ -2090,8 +2090,9 @@ func setParameterOverrides(app *argoappv1.Application, parameters []string) {
 	if len(parameters) == 0 {
 		return
 	}
+	source := app.Spec.GetSource()
 	var sourceType argoappv1.ApplicationSourceType
-	if st, _ := app.Spec.Source.ExplicitType(); st != nil {
+	if st, _ := source.ExplicitType(); st != nil {
 		sourceType = *st
 	} else if app.Status.SourceType != "" {
 		sourceType = app.Status.SourceType
@@ -2103,8 +2104,8 @@ func setParameterOverrides(app *argoappv1.Application, parameters []string) {
 
 	switch sourceType {
 	case argoappv1.ApplicationSourceTypeHelm:
-		if app.Spec.Source.Helm == nil {
-			app.Spec.Source.Helm = &argoappv1.ApplicationSourceHelm{}
+		if source.Helm == nil {
+			source.Helm = &argoappv1.ApplicationSourceHelm{}
 		}
 		for _, p := range parameters {
 			newParam, err := argoappv1.NewHelmParameter(p, false)
@@ -2112,7 +2113,7 @@ func setParameterOverrides(app *argoappv1.Application, parameters []string) {
 				log.Error(err)
 				continue
 			}
-			app.Spec.Source.Helm.AddParameter(*newParam)
+			source.Helm.AddParameter(*newParam)
 		}
 	default:
 		log.Fatalf("Parameters can only be set against Helm applications")
@@ -2164,7 +2165,7 @@ func NewApplicationHistoryCommand(clientOpts *argocdclient.ClientOptions) *cobra
 			})
 			errors.CheckError(err)
 
-			if app.Spec.Source.Plugin != nil && app.Spec.Source.Plugin.Name != "" {
+			if app.Spec.GetSource().Plugin != nil && app.Spec.GetSource().Plugin.Name != "" {
 				log.Warnf(argocommon.ConfigMapPluginCLIDeprecationWarning)
 			}
 
@@ -2228,7 +2229,7 @@ func NewApplicationRollbackCommand(clientOpts *argocdclient.ClientOptions) *cobr
 			})
 			errors.CheckError(err)
 
-			if app.Spec.Source.Plugin != nil && app.Spec.Source.Plugin.Name != "" {
+			if app.Spec.GetSource().Plugin != nil && app.Spec.GetSource().Plugin.Name != "" {
 				log.Warnf(argocommon.ConfigMapPluginCLIDeprecationWarning)
 			}
 
@@ -2315,7 +2316,7 @@ func NewApplicationManifestsCommand(clientOpts *argocdclient.ClientOptions) *cob
 					app, err := appIf.Get(context.Background(), &applicationpkg.ApplicationQuery{Name: &appName})
 					errors.CheckError(err)
 
-					if app.Spec.Source.Plugin != nil && app.Spec.Source.Plugin.Name != "" {
+					if app.Spec.GetSource().Plugin != nil && app.Spec.GetSource().Plugin.Name != "" {
 						log.Warnf(argocommon.ConfigMapPluginCLIDeprecationWarning)
 					}
 
@@ -2418,7 +2419,7 @@ func NewApplicationEditCommand(clientOpts *argocdclient.ClientOptions) *cobra.Co
 			})
 			errors.CheckError(err)
 
-			if app.Spec.Source.Plugin != nil && app.Spec.Source.Plugin.Name != "" {
+			if app.Spec.GetSource().Plugin != nil && app.Spec.GetSource().Plugin.Name != "" {
 				log.Warnf(argocommon.ConfigMapPluginCLIDeprecationWarning)
 			}
 
