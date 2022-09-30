@@ -81,9 +81,9 @@ func TestSCMProviderGetSecretRef(t *testing.T) {
 
 func TestSCMProviderGenerateParams(t *testing.T) {
 	cases := []struct {
-		name  string
-		repos []*scm_provider.Repository
-		// values        map[string]string
+		name          string
+		repos         []*scm_provider.Repository
+		values        map[string]string
 		expected      []map[string]interface{}
 		expectedError error
 	}{
@@ -111,6 +111,37 @@ func TestSCMProviderGenerateParams(t *testing.T) {
 				{"organization": "myorg", "repository": "repo2", "url": "git@github.com:myorg/repo2.git", "branch": "main", "branchNormalized": "main", "sha": "59d0", "short_sha": "59d0", "labels": ""},
 			},
 		},
+		{
+			name: "Value interpolation",
+			repos: []*scm_provider.Repository{
+				{
+					Organization: "myorg",
+					Repository:   "repo3",
+					URL:          "git@github.com:myorg/repo3.git",
+					Branch:       "main",
+					SHA:          "0bc57212c3cbbec69d20b34c507284bd300def5b",
+					Labels:       []string{"prod", "staging"},
+				},
+			},
+			values: map[string]string{
+				"foo":                    "bar",
+				"should_i_force_push_to": "{{ branch }}?",
+			},
+			expected: []map[string]interface{}{
+				{
+					"organization":                  "myorg",
+					"repository":                    "repo3",
+					"url":                           "git@github.com:myorg/repo3.git",
+					"branch":                        "main",
+					"branchNormalized":              "main",
+					"sha":                           "0bc57212c3cbbec69d20b34c507284bd300def5b",
+					"short_sha":                     "0bc57212",
+					"labels":                        "prod,staging",
+					"values.foo":                    "bar",
+					"values.should_i_force_push_to": "main?",
+				},
+			},
+		},
 	}
 
 	for _, testCase := range cases {
@@ -120,7 +151,7 @@ func TestSCMProviderGenerateParams(t *testing.T) {
 			t.Parallel()
 
 			mockProvider := &scm_provider.MockProvider{
-				Repos: testCase.repos,
+				Repos: testCaseCopy.repos,
 			}
 			scmGenerator := &SCMProviderGenerator{overrideProvider: mockProvider}
 			applicationSetInfo := argoprojiov1alpha1.ApplicationSet{
@@ -129,7 +160,9 @@ func TestSCMProviderGenerateParams(t *testing.T) {
 				},
 				Spec: argoprojiov1alpha1.ApplicationSetSpec{
 					Generators: []argoprojiov1alpha1.ApplicationSetGenerator{{
-						SCMProvider: &argoprojiov1alpha1.SCMProviderGenerator{},
+						SCMProvider: &argoprojiov1alpha1.SCMProviderGenerator{
+							Values: testCaseCopy.values,
+						},
 					}},
 				},
 			}

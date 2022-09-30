@@ -131,7 +131,7 @@ func (g *SCMProviderGenerator) GenerateParams(appSetGenerator *argoprojiov1alpha
 	if err != nil {
 		return nil, fmt.Errorf("error listing repos: %v", err)
 	}
-	params := make([]map[string]interface{}, 0, len(repos))
+	paramsArray := make([]map[string]interface{}, 0, len(repos))
 	var shortSHALength int
 	for _, repo := range repos {
 		shortSHALength = 8
@@ -139,7 +139,7 @@ func (g *SCMProviderGenerator) GenerateParams(appSetGenerator *argoprojiov1alpha
 			shortSHALength = len(repo.SHA)
 		}
 
-		params = append(params, map[string]interface{}{
+		params := map[string]interface{}{
 			"organization":     repo.Organization,
 			"repository":       repo.Repository,
 			"url":              repo.URL,
@@ -148,9 +148,16 @@ func (g *SCMProviderGenerator) GenerateParams(appSetGenerator *argoprojiov1alpha
 			"short_sha":        repo.SHA[:shortSHALength],
 			"labels":           strings.Join(repo.Labels, ","),
 			"branchNormalized": utils.SanitizeName(repo.Branch),
-		})
+		}
+
+		err := appendTemplatedValues(appSetGenerator.SCMProvider.Values, params, applicationSetInfo.Spec.GoTemplate)
+		if err != nil {
+			return nil, fmt.Errorf("failed to append templated values: %w", err)
+		}
+
+		paramsArray = append(paramsArray, params)
 	}
-	return params, nil
+	return paramsArray, nil
 }
 
 func (g *SCMProviderGenerator) getSecretRef(ctx context.Context, ref *argoprojiov1alpha1.SecretRef, namespace string) (string, error) {

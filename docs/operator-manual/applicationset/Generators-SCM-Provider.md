@@ -286,3 +286,47 @@ spec:
 * `short_sha`: The abbreviated Git commit SHA for the branch (8 chars or the length of the `sha` if it's shorter).
 * `labels`: A comma-separated list of repository labels.
 * `branchNormalized`: The value of `branch` normalized to contain only lowercase alphanumeric characters, '-' or '.'.
+
+## Pass additional key-value pairs via `values` field
+
+You may pass additional, arbitrary string key-value pairs via the `values` field of any SCM generator. Values added via the `values` field are added as `values.(field)`.
+
+In this example, a `name` parameter value is passed. It is interpolated from `organization` and `repository` to generate a different template name.
+```yaml
+apiVersion: argoproj.io/v1alpha1
+kind: ApplicationSet
+metadata:
+  name: myapps
+spec:
+  generators:
+  - scmProvider:
+      bitbucketServer:
+        project: myproject
+        api: https://mycompany.bitbucket.org
+        allBranches: true
+        basicAuth:
+          username: myuser
+          passwordRef:
+            secretName: mypassword
+            key: password
+      values:
+        name: "{{organization}}-{{repository}}"
+
+  template:
+    metadata:
+      name: '{{ values.name }}'
+    spec:
+      source:
+        repoURL: '{{ url }}'
+        targetRevision: '{{ branch }}'
+        path: kubernetes/
+      project: default
+      destination:
+        server: https://kubernetes.default.svc
+        namespace: default
+```
+
+!!! note
+    The `values.` prefix is always prepended to values provided via `generators.scmProvider.values` field. Ensure you include this prefix in the parameter name within the `template` when using it.
+
+In `values` we can also interpolate all fields set by the SCM generator as mentioned above.
