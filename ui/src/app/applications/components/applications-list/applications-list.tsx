@@ -1,6 +1,7 @@
 import {Autocomplete, ErrorNotification, MockupList, NotificationType, SlidingPanel, Toolbar, Tooltip} from 'argo-ui';
 import * as classNames from 'classnames';
 import * as React from 'react';
+import * as ReactDOM from 'react-dom';
 import {Key, KeybindingContext, KeybindingProvider} from 'argo-ui/v2';
 import {RouteComponentProps} from 'react-router';
 import {combineLatest, from, merge, Observable} from 'rxjs';
@@ -19,6 +20,7 @@ import {ApplicationsSummary} from './applications-summary';
 import {ApplicationsTable} from './applications-table';
 import {ApplicationTiles} from './applications-tiles';
 import {ApplicationsRefreshPanel} from '../applications-refresh-panel/applications-refresh-panel';
+import {useSidebarTarget} from '../../../sidebar/sidebar';
 
 require('./applications-list.scss');
 require('./flex-top-bar.scss');
@@ -349,6 +351,8 @@ export const ApplicationsList = (props: RouteComponentProps<{}>) => {
         return '';
     }
 
+    const sidebarTarget = useSidebarTarget();
+
     return (
         <ClusterCtx.Provider value={clusters}>
             <KeybindingProvider>
@@ -465,7 +469,21 @@ export const ApplicationsList = (props: RouteComponentProps<{}>) => {
                                                                 </button>
                                                             </EmptyState>
                                                         ) : (
-                                                            <ApplicationsFilter apps={filterResults} onChange={newPrefs => onFilterPrefChanged(ctx, newPrefs)} pref={pref}>
+                                                            <>
+                                                                {ReactDOM.createPortal(
+                                                                    <DataLoader load={() => services.viewPreferences.getPreferences()}>
+                                                                        {allpref => (
+                                                                            <ApplicationsFilter
+                                                                                apps={filterResults}
+                                                                                onChange={newPrefs => onFilterPrefChanged(ctx, newPrefs)}
+                                                                                pref={pref}
+                                                                                collapsed={allpref.hideSidebar}
+                                                                            />
+                                                                        )}
+                                                                    </DataLoader>,
+                                                                    sidebarTarget?.current
+                                                                )}
+
                                                                 {(pref.view === 'summary' && <ApplicationsSummary applications={filteredApps} />) || (
                                                                     <Paginate
                                                                         header={filteredApps.length > 1 && <ApplicationsStatusBar applications={filteredApps} />}
@@ -516,7 +534,7 @@ export const ApplicationsList = (props: RouteComponentProps<{}>) => {
                                                                         }
                                                                     </Paginate>
                                                                 )}
-                                                            </ApplicationsFilter>
+                                                            </>
                                                         )}
                                                         <ApplicationsSyncPanel
                                                             key='syncsPanel'
