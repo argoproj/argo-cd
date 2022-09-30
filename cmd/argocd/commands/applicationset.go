@@ -95,7 +95,7 @@ func NewApplicationSetGetCommand(clientOpts *argocdclient.ClientOptions) *cobra.
 					fmt.Println()
 				}
 				if showParams {
-					printHelmParams(appSet.Spec.Template.Spec.Source.Helm)
+					printHelmParams(appSet.Spec.Template.Spec.GetSource().Helm)
 				}
 			default:
 				errors.CheckError(fmt.Errorf("unknown output format: %s", output))
@@ -317,7 +317,7 @@ func printApplicationSetTable(apps []arogappsetv1.ApplicationSet, output *string
 			conditions,
 		}
 		if *output == "wide" {
-			vals = append(vals, app.Spec.Template.Spec.Source.RepoURL, app.Spec.Template.Spec.Source.Path, app.Spec.Template.Spec.Source.TargetRevision)
+			vals = append(vals, app.Spec.Template.Spec.GetSource().RepoURL, app.Spec.Template.Spec.GetSource().Path, app.Spec.Template.Spec.GetSource().TargetRevision)
 		}
 		_, _ = fmt.Fprintf(w, fmtStr, vals...)
 	}

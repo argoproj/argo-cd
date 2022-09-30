@@ -92,7 +92,7 @@ func (m *appStateManager) SyncAppState(app *v1alpha1.Application, state *v1alpha
 			sources = app.Spec.Sources
 		} else {
 			// normal sync case (where source is taken from app.spec.source)
-			source = *app.Spec.Source
+			source = app.Spec.GetSource()
 			sources = make([]v1alpha1.ApplicationSource, 0)
 		}
 	} else {

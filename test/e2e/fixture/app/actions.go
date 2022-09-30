@@ -95,7 +95,7 @@ func (a *Actions) CreateFromFile(handler func(app *Application), flags ...string
 		},
 		Spec: ApplicationSpec{
 			Project: a.context.project,
-			Source: ApplicationSource{
+			Source: &ApplicationSource{
 				RepoURL: fixture.RepoURL(a.context.repoURLType),
 				Path:    a.context.path,
 			},
@@ -105,14 +105,15 @@ func (a *Actions) CreateFromFile(handler func(app *Application), flags ...string
 			},
 		},
 	}
+	source := app.Spec.GetSource()
 	if a.context.namePrefix != "" || a.context.nameSuffix != "" {
-		app.Spec.Source.Kustomize = &ApplicationSourceKustomize{
+		source.Kustomize = &ApplicationSourceKustomize{
 			NamePrefix: a.context.namePrefix,
 			NameSuffix: a.context.nameSuffix,
 		}
 	}
 	if a.context.configManagementPlugin != "" {
-		app.Spec.Source.Plugin = &ApplicationSourcePlugin{
+		source.Plugin = &ApplicationSourcePlugin{
 			Name: a.context.configManagementPlugin,
 		}
 	}
@@ -122,7 +123,7 @@ func (a *Actions) CreateFromFile(handler func(app *Application), flags ...string
 	}
 
 	if a.context.directoryRecurse {
-		app.Spec.Source.Directory = &ApplicationSourceDirectory{Recurse: true}
+		source.Directory = &ApplicationSourceDirectory{Recurse: true}
 	}
 
 	handler(app)

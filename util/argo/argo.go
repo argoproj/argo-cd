@@ -87,7 +87,7 @@ func FilterByRepo(apps []argoappv1.Application, repo string) []argoappv1.Applica
 	}
 	items := make([]argoappv1.Application, 0)
 	for i := 0; i < len(apps); i++ {
-		if apps[i].Spec.Source.RepoURL == repo {
+		if apps[i].Spec.GetSource().RepoURL == repo {
 			items = append(items, apps[i])
 		}
 	}
@@ -261,11 +261,12 @@ func ValidateRepo(
 				settingsMgr)
 		}
 	} else {
+		source := spec.GetSource()
 		sourceCondition, err = validateRepo(
 			ctx,
 			app,
 			db,
-			spec.Source,
+			&source,
 			repoClient,
 			kustomizeOptions,
 			plugins,
@@ -339,7 +340,8 @@ func validateRepo(ctx context.Context,
 		repo,
 		permittedHelmRepos,
 		helmOptions,
-		app,
+		app.Name,
+		app.Spec.Destination,
 		source,
 		repoClient,
 		kustomizeOptions,
@@ -412,14 +414,14 @@ func ValidatePermissions(ctx context.Context, spec *argoappv1.ApplicationSpec, p
 		}
 
 	} else {
-		if spec.Source.RepoURL == "" || (spec.Source.Path == "" && spec.Source.Chart == "") {
+		if spec.GetSource().RepoURL == "" || (spec.GetSource().Path == "" && spec.GetSource().Chart == "") {
 			conditions = append(conditions, argoappv1.ApplicationCondition{
 				Type:    argoappv1.ApplicationConditionInvalidSpecError,
 				Message: "spec.source.repoURL and spec.source.path either spec.source.chart are required",
 			})
 			return conditions, nil
 		}
-		if spec.Source.Chart != "" && spec.Source.TargetRevision == "" {
+		if spec.GetSource().Chart != "" && spec.GetSource().TargetRevision == "" {
 			conditions = append(conditions, argoappv1.ApplicationCondition{
 				Type:    argoappv1.ApplicationConditionInvalidSpecError,
 				Message: "spec.source.targetRevision is required if the manifest source is a helm chart",
@@ -427,10 +429,10 @@ func ValidatePermissions(ctx context.Context, spec *argoappv1.ApplicationSpec, p
 			return conditions, nil
 		}
 
-		if !proj.IsSourcePermitted(*spec.Source) {
+		if !proj.IsSourcePermitted(spec.GetSource()) {
 			conditions = append(conditions, argoappv1.ApplicationCondition{
 				Type:    argoappv1.ApplicationConditionInvalidSpecError,
-				Message: fmt.Sprintf("application repo %s is not permitted in project '%s'", spec.Source.RepoURL, spec.Project),
+				Message: fmt.Sprintf("application repo %s is not permitted in project '%s'", spec.GetSource().RepoURL, spec.Project),
 			})
 		}
 	}
@@ -566,10 +568,9 @@ func GetAppProject(app *argoappv1.Application, projLister applicationsv1.AppProj
 }
 
 // verifyGenerateManifests verifies a repo path can generate manifests
-func verifyGenerateManifests(ctx context.Context, repoRes *argoappv1.Repository, helmRepos argoappv1.Repositories, helmOptions *argoappv1.HelmOptions, app *argoappv1.Application, source *argoappv1.ApplicationSource, repoClient apiclient.RepoServerServiceClient, kustomizeOptions *argoappv1.KustomizeOptions, plugins []*argoappv1.ConfigManagementPlugin, kubeVersion string, apiVersions []string, repositoryCredentials []*argoappv1.RepoCreds, enableGenerateManifests map[string]bool, settingsMgr *settings.SettingsManager) []argoappv1.ApplicationCondition {
-	spec := &app.Spec
+func verifyGenerateManifests(ctx context.Context, repoRes *argoappv1.Repository, helmRepos argoappv1.Repositories, helmOptions *argoappv1.HelmOptions, name string, dest argoappv1.ApplicationDestination, source *argoappv1.ApplicationSource, repoClient apiclient.RepoServerServiceClient, kustomizeOptions *argoappv1.KustomizeOptions, plugins []*argoappv1.ConfigManagementPlugin, kubeVersion string, apiVersions []string, repositoryCredentials []*argoappv1.RepoCreds, enableGenerateManifests map[string]bool, settingsMgr *settings.SettingsManager) []argoappv1.ApplicationCondition {
 	var conditions []argoappv1.ApplicationCondition
-	if spec.Destination.Server == "" {
+	if dest.Server == "" {
 		conditions = append(conditions, argoappv1.ApplicationCondition{
 			Type:    argoappv1.ApplicationConditionInvalidSpecError,
 			Message: errDestinationMissing,
@@ -583,9 +584,9 @@ func verifyGenerateManifests(ctx context.Context, repoRes *argoappv1.Repository,
 			Proxy: repoRes.Proxy,
 		},
 		Repos:              helmRepos,
-		Revision:           spec.Source.TargetRevision,
-		AppName:            app.Name,
-		Namespace:          spec.Destination.Namespace,
+		Revision:           source.TargetRevision,
+		AppName:            name,
+		Namespace:          dest.Namespace,
 		ApplicationSource:  source,
 		Plugins:            plugins,
 		KustomizeOptions:   kustomizeOptions,
@@ -604,7 +605,7 @@ func verifyGenerateManifests(ctx context.Context, repoRes *argoappv1.Repository,
 	// and not whether it actually contains any manifests.
 	_, err := repoClient.GenerateManifest(ctx, &req)
 	if err != nil {
-		errMessage := fmt.Sprintf("Unable to generate manifests in %s: %s", spec.Source.Path, err)
+		errMessage := fmt.Sprintf("Unable to generate manifests in %s: %s", source.Path, err)
 		conditions = append(conditions, argoappv1.ApplicationCondition{
 			Type:    argoappv1.ApplicationConditionInvalidSpecError,
 			Message: errMessage,

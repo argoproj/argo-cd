@@ -113,7 +113,7 @@ func TestCustomToolWithEnv(t *testing.T) {
 		Path("guestbook").
 		When().
 		CreateFromFile(func(app *Application) {
-			app.Spec.Source.Plugin.Env = Env{{
+			app.Spec.GetSource().Plugin.Env = Env{{
 				Name:  "FOO",
 				Value: "bar",
 			}}

@@ -141,13 +141,13 @@ func SetAppSpecOptions(flags *pflag.FlagSet, spec *argoappv1.ApplicationSpec, ap
 		source := spec.GetSource()
 		switch f.Name {
 		case "repo":
-			spec.Source.RepoURL = appOpts.repoURL
+			source.RepoURL = appOpts.repoURL
 		case "path":
-			spec.Source.Path = appOpts.appPath
+			source.Path = appOpts.appPath
 		case "helm-chart":
-			spec.Source.Chart = appOpts.chart
+			source.Chart = appOpts.chart
 		case "revision":
-			spec.Source.TargetRevision = appOpts.revision
+			source.TargetRevision = appOpts.revision
 		case "revision-history-limit":
 			i := int64(appOpts.revisionHistoryLimit)
 			spec.RevisionHistoryLimit = &i
@@ -182,25 +182,25 @@ func SetAppSpecOptions(flags *pflag.FlagSet, spec *argoappv1.ApplicationSpec, ap
 		case "helm-skip-crds":
 			setHelmOpt(&source, helmOpts{skipCrds: appOpts.helmSkipCrds})
 		case "directory-recurse":
-			if spec.Source.Directory != nil {
-				spec.Source.Directory.Recurse = appOpts.directoryRecurse
+			if source.Directory != nil {
+				source.Directory.Recurse = appOpts.directoryRecurse
 			} else {
-				spec.Source.Directory = &argoappv1.ApplicationSourceDirectory{Recurse: appOpts.directoryRecurse}
+				source.Directory = &argoappv1.ApplicationSourceDirectory{Recurse: appOpts.directoryRecurse}
 			}
 		case "directory-exclude":
-			if spec.Source.Directory != nil {
-				spec.Source.Directory.Exclude = appOpts.directoryExclude
+			if source.Directory != nil {
+				source.Directory.Exclude = appOpts.directoryExclude
 			} else {
-				spec.Source.Directory = &argoappv1.ApplicationSourceDirectory{Exclude: appOpts.directoryExclude}
+				source.Directory = &argoappv1.ApplicationSourceDirectory{Exclude: appOpts.directoryExclude}
 			}
 		case "directory-include":
-			if spec.Source.Directory != nil {
-				spec.Source.Directory.Include = appOpts.directoryInclude
+			if source.Directory != nil {
+				source.Directory.Include = appOpts.directoryInclude
 			} else {
-				spec.Source.Directory = &argoappv1.ApplicationSourceDirectory{Include: appOpts.directoryInclude}
+				source.Directory = &argoappv1.ApplicationSourceDirectory{Include: appOpts.directoryInclude}
 			}
 		case "config-management-plugin":
-			spec.Source.Plugin = &argoappv1.ApplicationSourcePlugin{Name: appOpts.configManagementPlugin}
+			source.Plugin = &argoappv1.ApplicationSourcePlugin{Name: appOpts.configManagementPlugin}
 		case "dest-name":
 			spec.Destination.Name = appOpts.destName
 		case "dest-server":
@@ -474,8 +474,9 @@ func SetParameterOverrides(app *argoappv1.Application, parameters []string) {
 	if len(parameters) == 0 {
 		return
 	}
+	source := app.Spec.GetSource()
 	var sourceType argoappv1.ApplicationSourceType
-	if st, _ := app.Spec.Source.ExplicitType(); st != nil {
+	if st, _ := source.ExplicitType(); st != nil {
 		sourceType = *st
 	} else if app.Status.SourceType != "" {
 		sourceType = app.Status.SourceType
@@ -487,8 +488,8 @@ func SetParameterOverrides(app *argoappv1.Application, parameters []string) {
 
 	switch sourceType {
 	case argoappv1.ApplicationSourceTypeHelm:
-		if app.Spec.Source.Helm == nil {
-			app.Spec.Source.Helm = &argoappv1.ApplicationSourceHelm{}
+		if app.Spec.GetSource().Helm == nil {
+			source.Helm = &argoappv1.ApplicationSourceHelm{}
 		}
 		for _, p := range parameters {
 			newParam, err := argoappv1.NewHelmParameter(p, false)
@@ -496,7 +497,7 @@ func SetParameterOverrides(app *argoappv1.Application, parameters []string) {
 				log.Error(err)
 				continue
 			}
-			app.Spec.Source.Helm.AddParameter(*newParam)
+			source.Helm.AddParameter(*newParam)
 		}
 	default:
 		log.Fatalf("Parameters can only be set against Helm applications")
