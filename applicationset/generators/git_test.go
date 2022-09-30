@@ -188,16 +188,13 @@ func TestGitGenerateParamsFromDirectories(t *testing.T) {
 			},
 			repoError: nil,
 			values: map[string]string{
-				"lol1":  "lol",
-				"lol2":  "{{values.lol1}}{{values.lol1}}",
-				"lol3":  "{{values.lol2}}{{values.lol2}}{{values.lol2}}",
 				"foo":   "bar",
 				"aaa":   "{{ path[0] }}",
 				"no-op": "{{ this-does-not-exist }}",
 			},
 			expected: []map[string]interface{}{
-				{"values.lol1": "lol", "values.lol2": "{{values.lol1}}{{values.lol1}}", "values.lol3": "{{values.lol2}}{{values.lol2}}{{values.lol2}}", "values.foo": "bar", "values.no-op": "{{ this-does-not-exist }}", "values.aaa": "app1", "path": "app1", "path.basename": "app1", "path[0]": "app1", "path.basenameNormalized": "app1"},
-				{"values.lol1": "lol", "values.lol2": "{{values.lol1}}{{values.lol1}}", "values.lol3": "{{values.lol2}}{{values.lol2}}{{values.lol2}}", "values.foo": "bar", "values.no-op": "{{ this-does-not-exist }}", "values.aaa": "p1", "path": "p1/app2", "path.basename": "app2", "path[0]": "p1", "path[1]": "app2", "path.basenameNormalized": "app2"},
+				{"values.foo": "bar", "values.no-op": "{{ this-does-not-exist }}", "values.aaa": "app1", "path": "app1", "path.basename": "app1", "path[0]": "app1", "path.basenameNormalized": "app1"},
+				{"values.foo": "bar", "values.no-op": "{{ this-does-not-exist }}", "values.aaa": "p1", "path": "p1/app2", "path.basename": "app2", "path[0]": "p1", "path[1]": "app2", "path.basenameNormalized": "app2"},
 			},
 			expectedError: nil,
 		},
