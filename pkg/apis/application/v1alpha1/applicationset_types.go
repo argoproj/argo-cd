@@ -285,6 +285,9 @@ type GitGenerator struct {
 	Revision            string                      `json:"revision" protobuf:"bytes,4,name=revision"`
 	RequeueAfterSeconds *int64                      `json:"requeueAfterSeconds,omitempty" protobuf:"bytes,5,name=requeueAfterSeconds"`
 	Template            ApplicationSetTemplate      `json:"template,omitempty" protobuf:"bytes,6,name=template"`
+
+	// Values contains key/value pairs which are passed directly as parameters to the template
+	Values map[string]string `json:"values,omitempty" protobuf:"bytes,7,name=values"`
 }
 
 type GitDirectoryGeneratorItem struct {
@@ -536,7 +539,7 @@ const (
 // prefix "Info" means informational condition
 type ApplicationSetConditionType string
 
-//ErrorOccurred / ParametersGenerated / TemplateRendered / ResourcesUpToDate
+// ErrorOccurred / ParametersGenerated / TemplateRendered / ResourcesUpToDate
 const (
 	ApplicationSetConditionErrorOccurred       ApplicationSetConditionType = "ErrorOccurred"
 	ApplicationSetConditionParametersGenerated ApplicationSetConditionType = "ParametersGenerated"

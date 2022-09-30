@@ -187,6 +187,45 @@ spec:
         namespace: '{{path.basename}}'
 ```
 
+### Pass additional key-value pairs via `values` field
+
+You may pass additional, arbitrary string key-value pairs via the `values` field of the git directory generator. Values added via the `values` field are added as `values.(field)`.
+
+In this example, a `cluster` parameter value is passed. It is interpolated from the `branch` and `path` variable, to then be used to determine the destination namespace.
+```yaml
+apiVersion: argoproj.io/v1alpha1
+kind: ApplicationSet
+metadata:
+  name: cluster-addons
+  namespace: argocd
+spec:
+  generators:
+  - git:
+      repoURL: https://github.com/example/example-repo.git
+      revision: HEAD
+      directories:
+      - path: '*'
+      values:
+        cluster: '{{branch}}-{{path}}'
+  template:
+    metadata:
+      name: '{{path.basename}}'
+    spec:
+      project: "my-project"
+      source:
+        repoURL: https://github.com/example/example-repo.git
+        targetRevision: HEAD
+        path: '{{path}}'
+      destination:
+        server: https://kubernetes.default.svc
+        namespace: '{{values.cluster}}'
+```
+
+!!! note
+    The `values.` prefix is always prepended to values provided via `generators.git.values` field. Ensure you include this prefix in the parameter name within the `template` when using it.
+
+In `values` we can also interpolate all fields set by the git directory generator as mentioned above.
+
 ## Git Generator: Files
 
 The Git file generator is the second subtype of the Git generator. The Git file generator generates parameters using the contents of JSON/YAML files found within a specified repository.
@@ -281,6 +320,44 @@ In addition to the flattened key/value pairs from the configuration file, the fo
 **Note**: The right-most *directory* name always becomes `{{path.basename}}`. For example, from `- path: /one/two/three/four/config.json`, `{{path.basename}}` will be `four`. 
 The filename can always be accessed using `{{path.filename}}`. 
 
+### Pass additional key-value pairs via `values` field
+
+You may pass additional, arbitrary string key-value pairs via the `values` field of the git files generator. Values added via the `values` field are added as `values.(field)`.
+
+In this example, a `base_dir` parameter value is passed. It is interpolated from `path` segments, to then be used to determine the source path.
+```yaml
+apiVersion: argoproj.io/v1alpha1
+kind: ApplicationSet
+metadata:
+  name: guestbook
+  namespace: argocd
+spec:
+  generators:
+  - git:
+      repoURL: https://github.com/argoproj/argo-cd.git
+      revision: HEAD
+      files:
+      - path: "applicationset/examples/git-generator-files-discovery/cluster-config/**/config.json"
+      values:
+        base_dir: "{{path[0]}}/{{path[1]}}/{{path[2]}}"
+  template:
+    metadata:
+      name: '{{cluster.name}}-guestbook'
+    spec:
+      project: default
+      source:
+        repoURL: https://github.com/argoproj/argo-cd.git
+        targetRevision: HEAD
+        path: "{{values.base_dir}}/apps/guestbook"
+      destination:
+        server: '{{cluster.address}}'
+        namespace: guestbook
+```
+
+!!! note
+    The `values.` prefix is always prepended to values provided via `generators.git.values` field. Ensure you include this prefix in the parameter name within the `template` when using it.
+
+In `values` we can also interpolate all fields set by the git files generator as mentioned above.
 
 ## Webhook Configuration
 

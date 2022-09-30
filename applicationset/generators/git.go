@@ -89,7 +89,10 @@ func (g *GitGenerator) generateParamsForGitDirectories(appSetGenerator *argoproj
 
 	requestedApps := g.filterApps(appSetGenerator.Git.Directories, allPaths)
 
-	res := g.generateParamsFromApps(requestedApps, appSetGenerator, useGoTemplate)
+	res, err := g.generateParamsFromApps(requestedApps, appSetGenerator, useGoTemplate)
+	if err != nil {
+		return nil, fmt.Errorf("failed to generate params from apps: %w", err)
+	}
 
 	return res, nil
 }
@@ -121,7 +124,7 @@ func (g *GitGenerator) generateParamsForGitFiles(appSetGenerator *argoprojiov1al
 	for _, path := range allPaths {
 
 		// A JSON / YAML file path can contain multiple sets of parameters (ie it is an array)
-		paramsArray, err := g.generateParamsFromGitFile(path, allFiles[path], useGoTemplate)
+		paramsArray, err := g.generateParamsFromGitFile(path, allFiles[path], appSetGenerator.Git.Values, useGoTemplate)
 		if err != nil {
 			return nil, fmt.Errorf("unable to process file '%s': %v", path, err)
 		}
@@ -133,7 +136,7 @@ func (g *GitGenerator) generateParamsForGitFiles(appSetGenerator *argoprojiov1al
 	return res, nil
 }
 
-func (g *GitGenerator) generateParamsFromGitFile(filePath string, fileContent []byte, useGoTemplate bool) ([]map[string]interface{}, error) {
+func (g *GitGenerator) generateParamsFromGitFile(filePath string, fileContent []byte, values map[string]string, useGoTemplate bool) ([]map[string]interface{}, error) {
 	objectsFound := []map[string]interface{}{}
 
 	// First, we attempt to parse as an array
@@ -188,6 +191,11 @@ func (g *GitGenerator) generateParamsFromGitFile(filePath string, fileContent []
 			}
 		}
 
+		err := appendTemplatedValues(values, params, useGoTemplate)
+		if err != nil {
+			return nil, fmt.Errorf("failed to append templated values: %w", err)
+		}
+
 		res = append(res, params)
 	}
 
@@ -223,9 +231,7 @@ func (g *GitGenerator) filterApps(Directories []argoprojiov1alpha1.GitDirectoryG
 	return res
 }
 
-func (g *GitGenerator) generateParamsFromApps(requestedApps []string, _ *argoprojiov1alpha1.ApplicationSetGenerator, useGoTemplate bool) []map[string]interface{} {
-	// TODO: At some point, the applicationSetGenerator param should be used
-
+func (g *GitGenerator) generateParamsFromApps(requestedApps []string, appSetGenerator *argoprojiov1alpha1.ApplicationSetGenerator, useGoTemplate bool) ([]map[string]interface{}, error) {
 	res := make([]map[string]interface{}, len(requestedApps))
 	for i, a := range requestedApps {
 
@@ -249,8 +255,13 @@ func (g *GitGenerator) generateParamsFromApps(requestedApps []string, _ *argopro
 			}
 		}
 
+		err := appendTemplatedValues(appSetGenerator.Git.Values, params, useGoTemplate)
+		if err != nil {
+			return nil, fmt.Errorf("failed to append templated values: %w", err)
+		}
+
 		res[i] = params
 	}
 
-	return res
+	return res, nil
 }
