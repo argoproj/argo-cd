@@ -26,9 +26,9 @@ import (
 
 	"github.com/argoproj/argo-cd/v2/applicationset/generators"
 	"github.com/argoproj/argo-cd/v2/applicationset/utils"
+
+	"github.com/argoproj/argo-cd/v2/pkg/apis/application/v1alpha1"
 	argov1alpha1 "github.com/argoproj/argo-cd/v2/pkg/apis/application/v1alpha1"
-	"github.com/argoproj/argo-cd/v2/pkg/apis/applicationset/v1alpha1"
-	argoprojiov1alpha1 "github.com/argoproj/argo-cd/v2/pkg/apis/applicationset/v1alpha1"
 	appclientset "github.com/argoproj/argo-cd/v2/pkg/client/clientset/versioned/fake"
 	dbmocks "github.com/argoproj/argo-cd/v2/util/db/mocks"
 )
@@ -37,13 +37,13 @@ type generatorMock struct {
 	mock.Mock
 }
 
-func (g *generatorMock) GetTemplate(appSetGenerator *argoprojiov1alpha1.ApplicationSetGenerator) *argoprojiov1alpha1.ApplicationSetTemplate {
+func (g *generatorMock) GetTemplate(appSetGenerator *argov1alpha1.ApplicationSetGenerator) *argov1alpha1.ApplicationSetTemplate {
 	args := g.Called(appSetGenerator)
 
-	return args.Get(0).(*argoprojiov1alpha1.ApplicationSetTemplate)
+	return args.Get(0).(*argov1alpha1.ApplicationSetTemplate)
 }
 
-func (g *generatorMock) GenerateParams(appSetGenerator *argoprojiov1alpha1.ApplicationSetGenerator, _ *argoprojiov1alpha1.ApplicationSet) ([]map[string]interface{}, error) {
+func (g *generatorMock) GenerateParams(appSetGenerator *argov1alpha1.ApplicationSetGenerator, _ *argov1alpha1.ApplicationSet) ([]map[string]interface{}, error) {
 	args := g.Called(appSetGenerator)
 
 	return args.Get(0).([]map[string]interface{}), args.Error(1)
@@ -53,13 +53,13 @@ type rendererMock struct {
 	mock.Mock
 }
 
-func (g *generatorMock) GetRequeueAfter(appSetGenerator *argoprojiov1alpha1.ApplicationSetGenerator) time.Duration {
+func (g *generatorMock) GetRequeueAfter(appSetGenerator *argov1alpha1.ApplicationSetGenerator) time.Duration {
 	args := g.Called(appSetGenerator)
 
 	return args.Get(0).(time.Duration)
 }
 
-func (r *rendererMock) RenderTemplateParams(tmpl *argov1alpha1.Application, syncPolicy *argoprojiov1alpha1.ApplicationSetSyncPolicy, params map[string]interface{}, useGoTemplate bool) (*argov1alpha1.Application, error) {
+func (r *rendererMock) RenderTemplateParams(tmpl *argov1alpha1.Application, syncPolicy *argov1alpha1.ApplicationSetSyncPolicy, params map[string]interface{}, useGoTemplate bool) (*argov1alpha1.Application, error) {
 	args := r.Called(tmpl, params, useGoTemplate)
 
 	if args.Error(1) != nil {
@@ -72,7 +72,7 @@ func (r *rendererMock) RenderTemplateParams(tmpl *argov1alpha1.Application, sync
 
 func TestExtractApplications(t *testing.T) {
 	scheme := runtime.NewScheme()
-	err := argoprojiov1alpha1.AddToScheme(scheme)
+	err := argov1alpha1.AddToScheme(scheme)
 	assert.Nil(t, err)
 
 	err = argov1alpha1.AddToScheme(scheme)
@@ -81,7 +81,7 @@ func TestExtractApplications(t *testing.T) {
 	for _, c := range []struct {
 		name                string
 		params              []map[string]interface{}
-		template            argoprojiov1alpha1.ApplicationSetTemplate
+		template            argov1alpha1.ApplicationSetTemplate
 		generateParamsError error
 		rendererError       error
 		expectErr           bool
@@ -90,8 +90,8 @@ func TestExtractApplications(t *testing.T) {
 		{
 			name:   "Generate two applications",
 			params: []map[string]interface{}{{"name": "app1"}, {"name": "app2"}},
-			template: argoprojiov1alpha1.ApplicationSetTemplate{
-				ApplicationSetTemplateMeta: argoprojiov1alpha1.ApplicationSetTemplateMeta{
+			template: argov1alpha1.ApplicationSetTemplate{
+				ApplicationSetTemplateMeta: argov1alpha1.ApplicationSetTemplateMeta{
 					Name:      "name",
 					Namespace: "namespace",
 					Labels:    map[string]string{"label_name": "label_value"},
@@ -109,8 +109,8 @@ func TestExtractApplications(t *testing.T) {
 		{
 			name:   "Handles error from the render",
 			params: []map[string]interface{}{{"name": "app1"}, {"name": "app2"}},
-			template: argoprojiov1alpha1.ApplicationSetTemplate{
-				ApplicationSetTemplateMeta: argoprojiov1alpha1.ApplicationSetTemplateMeta{
+			template: argov1alpha1.ApplicationSetTemplate{
+				ApplicationSetTemplateMeta: argov1alpha1.ApplicationSetTemplateMeta{
 					Name:      "name",
 					Namespace: "namespace",
 					Labels:    map[string]string{"label_name": "label_value"},
@@ -131,7 +131,7 @@ func TestExtractApplications(t *testing.T) {
 
 		t.Run(cc.name, func(t *testing.T) {
 
-			appSet := &argoprojiov1alpha1.ApplicationSet{
+			appSet := &argov1alpha1.ApplicationSet{
 				ObjectMeta: metav1.ObjectMeta{
 					Name:      "name",
 					Namespace: "namespace",
@@ -141,15 +141,15 @@ func TestExtractApplications(t *testing.T) {
 			client := fake.NewClientBuilder().WithScheme(scheme).WithObjects(appSet).Build()
 
 			generatorMock := generatorMock{}
-			generator := argoprojiov1alpha1.ApplicationSetGenerator{
-				List: &argoprojiov1alpha1.ListGenerator{},
+			generator := argov1alpha1.ApplicationSetGenerator{
+				List: &argov1alpha1.ListGenerator{},
 			}
 
 			generatorMock.On("GenerateParams", &generator).
 				Return(cc.params, cc.generateParamsError)
 
 			generatorMock.On("GetTemplate", &generator).
-				Return(&argoprojiov1alpha1.ApplicationSetTemplate{})
+				Return(&argov1alpha1.ApplicationSetTemplate{})
 
 			rendererMock := rendererMock{}
 
@@ -180,13 +180,13 @@ func TestExtractApplications(t *testing.T) {
 				KubeClientset: kubefake.NewSimpleClientset(),
 			}
 
-			got, reason, err := r.generateApplications(argoprojiov1alpha1.ApplicationSet{
+			got, reason, err := r.generateApplications(argov1alpha1.ApplicationSet{
 				ObjectMeta: metav1.ObjectMeta{
 					Name:      "name",
 					Namespace: "namespace",
 				},
-				Spec: argoprojiov1alpha1.ApplicationSetSpec{
-					Generators: []argoprojiov1alpha1.ApplicationSetGenerator{generator},
+				Spec: argov1alpha1.ApplicationSetSpec{
+					Generators: []argov1alpha1.ApplicationSetGenerator{generator},
 					Template:   cc.template,
 				},
 			})
@@ -211,7 +211,7 @@ func TestExtractApplications(t *testing.T) {
 
 func TestMergeTemplateApplications(t *testing.T) {
 	scheme := runtime.NewScheme()
-	_ = argoprojiov1alpha1.AddToScheme(scheme)
+	_ = argov1alpha1.AddToScheme(scheme)
 	_ = argov1alpha1.AddToScheme(scheme)
 
 	client := fake.NewClientBuilder().WithScheme(scheme).Build()
@@ -219,31 +219,31 @@ func TestMergeTemplateApplications(t *testing.T) {
 	for _, c := range []struct {
 		name             string
 		params           []map[string]interface{}
-		template         argoprojiov1alpha1.ApplicationSetTemplate
-		overrideTemplate argoprojiov1alpha1.ApplicationSetTemplate
-		expectedMerged   argoprojiov1alpha1.ApplicationSetTemplate
+		template         argov1alpha1.ApplicationSetTemplate
+		overrideTemplate argov1alpha1.ApplicationSetTemplate
+		expectedMerged   argov1alpha1.ApplicationSetTemplate
 		expectedApps     []argov1alpha1.Application
 	}{
 		{
 			name:   "Generate app",
 			params: []map[string]interface{}{{"name": "app1"}},
-			template: argoprojiov1alpha1.ApplicationSetTemplate{
-				ApplicationSetTemplateMeta: argoprojiov1alpha1.ApplicationSetTemplateMeta{
+			template: argov1alpha1.ApplicationSetTemplate{
+				ApplicationSetTemplateMeta: argov1alpha1.ApplicationSetTemplateMeta{
 					Name:      "name",
 					Namespace: "namespace",
 					Labels:    map[string]string{"label_name": "label_value"},
 				},
 				Spec: argov1alpha1.ApplicationSpec{},
 			},
-			overrideTemplate: argoprojiov1alpha1.ApplicationSetTemplate{
-				ApplicationSetTemplateMeta: argoprojiov1alpha1.ApplicationSetTemplateMeta{
+			overrideTemplate: argov1alpha1.ApplicationSetTemplate{
+				ApplicationSetTemplateMeta: argov1alpha1.ApplicationSetTemplateMeta{
 					Name:   "test",
 					Labels: map[string]string{"foo": "bar"},
 				},
 				Spec: argov1alpha1.ApplicationSpec{},
 			},
-			expectedMerged: argoprojiov1alpha1.ApplicationSetTemplate{
-				ApplicationSetTemplateMeta: argoprojiov1alpha1.ApplicationSetTemplateMeta{
+			expectedMerged: argov1alpha1.ApplicationSetTemplate{
+				ApplicationSetTemplateMeta: argov1alpha1.ApplicationSetTemplateMeta{
 					Name:      "test",
 					Namespace: "namespace",
 					Labels:    map[string]string{"label_name": "label_value", "foo": "bar"},
@@ -267,8 +267,8 @@ func TestMergeTemplateApplications(t *testing.T) {
 		t.Run(cc.name, func(t *testing.T) {
 
 			generatorMock := generatorMock{}
-			generator := argoprojiov1alpha1.ApplicationSetGenerator{
-				List: &argoprojiov1alpha1.ListGenerator{},
+			generator := argov1alpha1.ApplicationSetGenerator{
+				List: &argov1alpha1.ListGenerator{},
 			}
 
 			generatorMock.On("GenerateParams", &generator).
@@ -293,13 +293,13 @@ func TestMergeTemplateApplications(t *testing.T) {
 				KubeClientset: kubefake.NewSimpleClientset(),
 			}
 
-			got, _, _ := r.generateApplications(argoprojiov1alpha1.ApplicationSet{
+			got, _, _ := r.generateApplications(argov1alpha1.ApplicationSet{
 				ObjectMeta: metav1.ObjectMeta{
 					Name:      "name",
 					Namespace: "namespace",
 				},
-				Spec: argoprojiov1alpha1.ApplicationSetSpec{
-					Generators: []argoprojiov1alpha1.ApplicationSetGenerator{generator},
+				Spec: argov1alpha1.ApplicationSetSpec{
+					Generators: []argov1alpha1.ApplicationSetGenerator{generator},
 					Template:   cc.template,
 				},
 			},
@@ -314,7 +314,7 @@ func TestMergeTemplateApplications(t *testing.T) {
 func TestCreateOrUpdateInCluster(t *testing.T) {
 
 	scheme := runtime.NewScheme()
-	err := argoprojiov1alpha1.AddToScheme(scheme)
+	err := argov1alpha1.AddToScheme(scheme)
 	assert.Nil(t, err)
 
 	err = argov1alpha1.AddToScheme(scheme)
@@ -324,7 +324,7 @@ func TestCreateOrUpdateInCluster(t *testing.T) {
 		// name is human-readable test name
 		name string
 		// appSet is the ApplicationSet we are generating resources for
-		appSet argoprojiov1alpha1.ApplicationSet
+		appSet argov1alpha1.ApplicationSet
 		// existingApps are the apps that already exist on the cluster
 		existingApps []argov1alpha1.Application
 		// desiredApps are the generated apps to create/update
@@ -334,7 +334,7 @@ func TestCreateOrUpdateInCluster(t *testing.T) {
 	}{
 		{
 			name: "Create an app that doesn't exist",
-			appSet: argoprojiov1alpha1.ApplicationSet{
+			appSet: argov1alpha1.ApplicationSet{
 				ObjectMeta: metav1.ObjectMeta{
 					Name:      "name",
 					Namespace: "namespace",
@@ -364,13 +364,13 @@ func TestCreateOrUpdateInCluster(t *testing.T) {
 		},
 		{
 			name: "Update an existing app with a different project name",
-			appSet: argoprojiov1alpha1.ApplicationSet{
+			appSet: argov1alpha1.ApplicationSet{
 				ObjectMeta: metav1.ObjectMeta{
 					Name:      "name",
 					Namespace: "namespace",
 				},
-				Spec: argoprojiov1alpha1.ApplicationSetSpec{
-					Template: argoprojiov1alpha1.ApplicationSetTemplate{
+				Spec: argov1alpha1.ApplicationSetSpec{
+					Template: argov1alpha1.ApplicationSetTemplate{
 						Spec: argov1alpha1.ApplicationSpec{
 							Project: "project",
 						},
@@ -422,13 +422,13 @@ func TestCreateOrUpdateInCluster(t *testing.T) {
 		},
 		{
 			name: "Create a new app and check it doesn't replace the existing app",
-			appSet: argoprojiov1alpha1.ApplicationSet{
+			appSet: argov1alpha1.ApplicationSet{
 				ObjectMeta: metav1.ObjectMeta{
 					Name:      "name",
 					Namespace: "namespace",
 				},
-				Spec: argoprojiov1alpha1.ApplicationSetSpec{
-					Template: argoprojiov1alpha1.ApplicationSetTemplate{
+				Spec: argov1alpha1.ApplicationSetSpec{
+					Template: argov1alpha1.ApplicationSetTemplate{
 						Spec: argov1alpha1.ApplicationSpec{
 							Project: "project",
 						},
@@ -480,13 +480,13 @@ func TestCreateOrUpdateInCluster(t *testing.T) {
 		},
 		{
 			name: "Ensure that labels and annotations are added (via update) into an exiting application",
-			appSet: argoprojiov1alpha1.ApplicationSet{
+			appSet: argov1alpha1.ApplicationSet{
 				ObjectMeta: metav1.ObjectMeta{
 					Name:      "name",
 					Namespace: "namespace",
 				},
-				Spec: argoprojiov1alpha1.ApplicationSetSpec{
-					Template: argoprojiov1alpha1.ApplicationSetTemplate{
+				Spec: argov1alpha1.ApplicationSetSpec{
+					Template: argov1alpha1.ApplicationSetTemplate{
 						Spec: argov1alpha1.ApplicationSpec{
 							Project: "project",
 						},
@@ -542,13 +542,13 @@ func TestCreateOrUpdateInCluster(t *testing.T) {
 		},
 		{
 			name: "Ensure that labels and annotations are removed from an existing app",
-			appSet: argoprojiov1alpha1.ApplicationSet{
+			appSet: argov1alpha1.ApplicationSet{
 				ObjectMeta: metav1.ObjectMeta{
 					Name:      "name",
 					Namespace: "namespace",
 				},
-				Spec: argoprojiov1alpha1.ApplicationSetSpec{
-					Template: argoprojiov1alpha1.ApplicationSetTemplate{
+				Spec: argov1alpha1.ApplicationSetSpec{
+					Template: argov1alpha1.ApplicationSetTemplate{
 						Spec: argov1alpha1.ApplicationSpec{
 							Project: "project",
 						},
@@ -602,13 +602,13 @@ func TestCreateOrUpdateInCluster(t *testing.T) {
 		},
 		{
 			name: "Ensure that status and operation fields are not overridden by an update, when removing labels/annotations",
-			appSet: argoprojiov1alpha1.ApplicationSet{
+			appSet: argov1alpha1.ApplicationSet{
 				ObjectMeta: metav1.ObjectMeta{
 					Name:      "name",
 					Namespace: "namespace",
 				},
-				Spec: argoprojiov1alpha1.ApplicationSetSpec{
-					Template: argoprojiov1alpha1.ApplicationSetTemplate{
+				Spec: argov1alpha1.ApplicationSetSpec{
+					Template: argov1alpha1.ApplicationSetTemplate{
 						Spec: argov1alpha1.ApplicationSpec{
 							Project: "project",
 						},
@@ -674,13 +674,13 @@ func TestCreateOrUpdateInCluster(t *testing.T) {
 		},
 		{
 			name: "Ensure that status and operation fields are not overridden by an update, when removing labels/annotations and adding other fields",
-			appSet: argoprojiov1alpha1.ApplicationSet{
+			appSet: argov1alpha1.ApplicationSet{
 				ObjectMeta: metav1.ObjectMeta{
 					Name:      "name",
 					Namespace: "namespace",
 				},
-				Spec: argoprojiov1alpha1.ApplicationSetSpec{
-					Template: argoprojiov1alpha1.ApplicationSetTemplate{
+				Spec: argov1alpha1.ApplicationSetSpec{
+					Template: argov1alpha1.ApplicationSetTemplate{
 						Spec: argov1alpha1.ApplicationSpec{
 							Project:     "project",
 							Source:      argov1alpha1.ApplicationSource{Path: "path", TargetRevision: "revision", RepoURL: "repoURL"},
@@ -754,13 +754,13 @@ func TestCreateOrUpdateInCluster(t *testing.T) {
 		},
 		{
 			name: "Ensure that argocd notifications state and refresh annotation is preserved from an existing app",
-			appSet: argoprojiov1alpha1.ApplicationSet{
+			appSet: argov1alpha1.ApplicationSet{
 				ObjectMeta: metav1.ObjectMeta{
 					Name:      "name",
 					Namespace: "namespace",
 				},
-				Spec: argoprojiov1alpha1.ApplicationSetSpec{
-					Template: argoprojiov1alpha1.ApplicationSetTemplate{
+				Spec: argov1alpha1.ApplicationSetSpec{
+					Template: argov1alpha1.ApplicationSetTemplate{
 						Spec: argov1alpha1.ApplicationSpec{
 							Project: "project",
 						},
@@ -861,7 +861,7 @@ func TestCreateOrUpdateInCluster(t *testing.T) {
 func TestRemoveFinalizerOnInvalidDestination_FinalizerTypes(t *testing.T) {
 
 	scheme := runtime.NewScheme()
-	err := argoprojiov1alpha1.AddToScheme(scheme)
+	err := argov1alpha1.AddToScheme(scheme)
 	assert.Nil(t, err)
 
 	err = argov1alpha1.AddToScheme(scheme)
@@ -896,13 +896,13 @@ func TestRemoveFinalizerOnInvalidDestination_FinalizerTypes(t *testing.T) {
 	} {
 		t.Run(c.name, func(t *testing.T) {
 
-			appSet := argoprojiov1alpha1.ApplicationSet{
+			appSet := argov1alpha1.ApplicationSet{
 				ObjectMeta: metav1.ObjectMeta{
 					Name:      "name",
 					Namespace: "namespace",
 				},
-				Spec: argoprojiov1alpha1.ApplicationSetSpec{
-					Template: argoprojiov1alpha1.ApplicationSetTemplate{
+				Spec: argov1alpha1.ApplicationSetSpec{
+					Template: argov1alpha1.ApplicationSetTemplate{
 						Spec: argov1alpha1.ApplicationSpec{
 							Project: "project",
 						},
@@ -985,7 +985,7 @@ func TestRemoveFinalizerOnInvalidDestination_FinalizerTypes(t *testing.T) {
 func TestRemoveFinalizerOnInvalidDestination_DestinationTypes(t *testing.T) {
 
 	scheme := runtime.NewScheme()
-	err := argoprojiov1alpha1.AddToScheme(scheme)
+	err := argov1alpha1.AddToScheme(scheme)
 	assert.Nil(t, err)
 
 	err = argov1alpha1.AddToScheme(scheme)
@@ -1058,13 +1058,13 @@ func TestRemoveFinalizerOnInvalidDestination_DestinationTypes(t *testing.T) {
 
 		t.Run(c.name, func(t *testing.T) {
 
-			appSet := argoprojiov1alpha1.ApplicationSet{
+			appSet := argov1alpha1.ApplicationSet{
 				ObjectMeta: metav1.ObjectMeta{
 					Name:      "name",
 					Namespace: "namespace",
 				},
-				Spec: argoprojiov1alpha1.ApplicationSetSpec{
-					Template: argoprojiov1alpha1.ApplicationSetTemplate{
+				Spec: argov1alpha1.ApplicationSetSpec{
+					Template: argov1alpha1.ApplicationSetTemplate{
 						Spec: argov1alpha1.ApplicationSpec{
 							Project: "project",
 						},
@@ -1144,20 +1144,20 @@ func TestRemoveFinalizerOnInvalidDestination_DestinationTypes(t *testing.T) {
 func TestCreateApplications(t *testing.T) {
 
 	scheme := runtime.NewScheme()
-	err := argoprojiov1alpha1.AddToScheme(scheme)
+	err := argov1alpha1.AddToScheme(scheme)
 	assert.Nil(t, err)
 
 	err = argov1alpha1.AddToScheme(scheme)
 	assert.Nil(t, err)
 
 	for _, c := range []struct {
-		appSet     argoprojiov1alpha1.ApplicationSet
+		appSet     argov1alpha1.ApplicationSet
 		existsApps []argov1alpha1.Application
 		apps       []argov1alpha1.Application
 		expected   []argov1alpha1.Application
 	}{
 		{
-			appSet: argoprojiov1alpha1.ApplicationSet{
+			appSet: argov1alpha1.ApplicationSet{
 				ObjectMeta: metav1.ObjectMeta{
 					Name:      "name",
 					Namespace: "namespace",
@@ -1186,13 +1186,13 @@ func TestCreateApplications(t *testing.T) {
 			},
 		},
 		{
-			appSet: argoprojiov1alpha1.ApplicationSet{
+			appSet: argov1alpha1.ApplicationSet{
 				ObjectMeta: metav1.ObjectMeta{
 					Name:      "name",
 					Namespace: "namespace",
 				},
-				Spec: argoprojiov1alpha1.ApplicationSetSpec{
-					Template: argoprojiov1alpha1.ApplicationSetTemplate{
+				Spec: argov1alpha1.ApplicationSetSpec{
+					Template: argov1alpha1.ApplicationSetTemplate{
 						Spec: argov1alpha1.ApplicationSpec{
 							Project: "project",
 						},
@@ -1243,13 +1243,13 @@ func TestCreateApplications(t *testing.T) {
 			},
 		},
 		{
-			appSet: argoprojiov1alpha1.ApplicationSet{
+			appSet: argov1alpha1.ApplicationSet{
 				ObjectMeta: metav1.ObjectMeta{
 					Name:      "name",
 					Namespace: "namespace",
 				},
-				Spec: argoprojiov1alpha1.ApplicationSetSpec{
-					Template: argoprojiov1alpha1.ApplicationSetTemplate{
+				Spec: argov1alpha1.ApplicationSetSpec{
+					Template: argov1alpha1.ApplicationSetTemplate{
 						Spec: argov1alpha1.ApplicationSpec{
 							Project: "project",
 						},
@@ -1337,14 +1337,14 @@ func TestCreateApplications(t *testing.T) {
 func TestDeleteInCluster(t *testing.T) {
 
 	scheme := runtime.NewScheme()
-	err := argoprojiov1alpha1.AddToScheme(scheme)
+	err := argov1alpha1.AddToScheme(scheme)
 	assert.Nil(t, err)
 	err = argov1alpha1.AddToScheme(scheme)
 	assert.Nil(t, err)
 
 	for _, c := range []struct {
 		// appSet is the application set on which the delete function is called
-		appSet argoprojiov1alpha1.ApplicationSet
+		appSet argov1alpha1.ApplicationSet
 		// existingApps is the current state of Applications on the cluster
 		existingApps []argov1alpha1.Application
 		// desireApps is the apps generated by the generator that we wish to keep alive
@@ -1355,13 +1355,13 @@ func TestDeleteInCluster(t *testing.T) {
 		notExpected []argov1alpha1.Application
 	}{
 		{
-			appSet: argoprojiov1alpha1.ApplicationSet{
+			appSet: argov1alpha1.ApplicationSet{
 				ObjectMeta: metav1.ObjectMeta{
 					Name:      "name",
 					Namespace: "namespace",
 				},
-				Spec: argoprojiov1alpha1.ApplicationSetSpec{
-					Template: argoprojiov1alpha1.ApplicationSetTemplate{
+				Spec: argov1alpha1.ApplicationSetSpec{
+					Template: argov1alpha1.ApplicationSetTemplate{
 						Spec: argov1alpha1.ApplicationSpec{
 							Project: "project",
 						},
@@ -1491,17 +1491,17 @@ func TestDeleteInCluster(t *testing.T) {
 
 func TestGetMinRequeueAfter(t *testing.T) {
 	scheme := runtime.NewScheme()
-	err := argoprojiov1alpha1.AddToScheme(scheme)
+	err := argov1alpha1.AddToScheme(scheme)
 	assert.Nil(t, err)
 	err = argov1alpha1.AddToScheme(scheme)
 	assert.Nil(t, err)
 
 	client := fake.NewClientBuilder().WithScheme(scheme).Build()
 
-	generator := argoprojiov1alpha1.ApplicationSetGenerator{
-		List:     &argoprojiov1alpha1.ListGenerator{},
-		Git:      &argoprojiov1alpha1.GitGenerator{},
-		Clusters: &argoprojiov1alpha1.ClusterGenerator{},
+	generator := argov1alpha1.ApplicationSetGenerator{
+		List:     &argov1alpha1.ListGenerator{},
+		Git:      &argov1alpha1.GitGenerator{},
+		Clusters: &argov1alpha1.ClusterGenerator{},
 	}
 
 	generatorMock0 := generatorMock{}
@@ -1527,9 +1527,9 @@ func TestGetMinRequeueAfter(t *testing.T) {
 		},
 	}
 
-	got := r.getMinRequeueAfter(&argoprojiov1alpha1.ApplicationSet{
-		Spec: argoprojiov1alpha1.ApplicationSetSpec{
-			Generators: []argoprojiov1alpha1.ApplicationSetGenerator{generator},
+	got := r.getMinRequeueAfter(&argov1alpha1.ApplicationSet{
+		Spec: argov1alpha1.ApplicationSetSpec{
+			Generators: []argov1alpha1.ApplicationSetGenerator{generator},
 		},
 	})
 
@@ -1539,7 +1539,7 @@ func TestGetMinRequeueAfter(t *testing.T) {
 func TestValidateGeneratedApplications(t *testing.T) {
 
 	scheme := runtime.NewScheme()
-	err := argoprojiov1alpha1.AddToScheme(scheme)
+	err := argov1alpha1.AddToScheme(scheme)
 	assert.Nil(t, err)
 
 	err = argov1alpha1.AddToScheme(scheme)
@@ -1739,7 +1739,7 @@ func TestValidateGeneratedApplications(t *testing.T) {
 				KubeClientset:    kubeclientset,
 			}
 
-			appSetInfo := argoprojiov1alpha1.ApplicationSet{}
+			appSetInfo := argov1alpha1.ApplicationSet{}
 
 			validationErrors, _ := r.validateGeneratedApplications(context.TODO(), cc.apps, appSetInfo, "namespace")
 			var errorMessages []string
@@ -1777,7 +1777,7 @@ func TestValidateGeneratedApplications(t *testing.T) {
 func TestReconcilerValidationErrorBehaviour(t *testing.T) {
 
 	scheme := runtime.NewScheme()
-	err := argoprojiov1alpha1.AddToScheme(scheme)
+	err := argov1alpha1.AddToScheme(scheme)
 	assert.Nil(t, err)
 	err = argov1alpha1.AddToScheme(scheme)
 	assert.Nil(t, err)
@@ -1786,16 +1786,16 @@ func TestReconcilerValidationErrorBehaviour(t *testing.T) {
 		ObjectMeta: metav1.ObjectMeta{Name: "default", Namespace: "argocd"},
 		Spec:       argov1alpha1.AppProjectSpec{SourceRepos: []string{"*"}, Destinations: []argov1alpha1.ApplicationDestination{{Namespace: "*", Server: "https://good-cluster"}}},
 	}
-	appSet := argoprojiov1alpha1.ApplicationSet{
+	appSet := argov1alpha1.ApplicationSet{
 		ObjectMeta: metav1.ObjectMeta{
 			Name:      "name",
 			Namespace: "argocd",
 		},
-		Spec: argoprojiov1alpha1.ApplicationSetSpec{
+		Spec: argov1alpha1.ApplicationSetSpec{
 			GoTemplate: true,
-			Generators: []argoprojiov1alpha1.ApplicationSetGenerator{
+			Generators: []argov1alpha1.ApplicationSetGenerator{
 				{
-					List: &argoprojiov1alpha1.ListGenerator{
+					List: &argov1alpha1.ListGenerator{
 						Elements: []apiextensionsv1.JSON{{
 							Raw: []byte(`{"cluster": "good-cluster","url": "https://good-cluster"}`),
 						}, {
@@ -1804,8 +1804,8 @@ func TestReconcilerValidationErrorBehaviour(t *testing.T) {
 					},
 				},
 			},
-			Template: argoprojiov1alpha1.ApplicationSetTemplate{
-				ApplicationSetTemplateMeta: argoprojiov1alpha1.ApplicationSetTemplateMeta{
+			Template: argov1alpha1.ApplicationSetTemplate{
+				ApplicationSetTemplateMeta: argov1alpha1.ApplicationSetTemplateMeta{
 					Name:      "{{.cluster}}",
 					Namespace: "argocd",
 				},
@@ -1872,33 +1872,33 @@ func TestReconcilerValidationErrorBehaviour(t *testing.T) {
 
 func TestSetApplicationSetStatusCondition(t *testing.T) {
 	scheme := runtime.NewScheme()
-	err := argoprojiov1alpha1.AddToScheme(scheme)
+	err := argov1alpha1.AddToScheme(scheme)
 	assert.Nil(t, err)
 	err = argov1alpha1.AddToScheme(scheme)
 	assert.Nil(t, err)
 
-	appSet := argoprojiov1alpha1.ApplicationSet{
+	appSet := argov1alpha1.ApplicationSet{
 		ObjectMeta: metav1.ObjectMeta{
 			Name:      "name",
 			Namespace: "argocd",
 		},
-		Spec: argoprojiov1alpha1.ApplicationSetSpec{
-			Generators: []argoprojiov1alpha1.ApplicationSetGenerator{
-				{List: &argoprojiov1alpha1.ListGenerator{
+		Spec: argov1alpha1.ApplicationSetSpec{
+			Generators: []argov1alpha1.ApplicationSetGenerator{
+				{List: &argov1alpha1.ListGenerator{
 					Elements: []apiextensionsv1.JSON{{
 						Raw: []byte(`{"cluster": "my-cluster","url": "https://kubernetes.default.svc"}`),
 					}},
 				}},
 			},
-			Template: argoprojiov1alpha1.ApplicationSetTemplate{},
+			Template: argov1alpha1.ApplicationSetTemplate{},
 		},
 	}
 
-	appCondition := argoprojiov1alpha1.ApplicationSetCondition{
-		Type:    argoprojiov1alpha1.ApplicationSetConditionResourcesUpToDate,
+	appCondition := argov1alpha1.ApplicationSetCondition{
+		Type:    argov1alpha1.ApplicationSetConditionResourcesUpToDate,
 		Message: "All applications have been generated successfully",
-		Reason:  argoprojiov1alpha1.ApplicationSetReasonApplicationSetUpToDate,
-		Status:  argoprojiov1alpha1.ApplicationSetConditionStatusTrue,
+		Reason:  argov1alpha1.ApplicationSetReasonApplicationSetUpToDate,
+		Status:  argov1alpha1.ApplicationSetConditionStatusTrue,
 	}
 
 	kubeclientset := kubefake.NewSimpleClientset([]runtime.Object{}...)

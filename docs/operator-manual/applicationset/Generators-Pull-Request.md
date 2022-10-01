@@ -51,6 +51,7 @@ spec:
         # Labels is used to filter the PRs that you want to target. (optional)
         labels:
         - preview
+      requeueAfterSeconds: 1800
   template:
   # ...
 ```
@@ -90,6 +91,7 @@ spec:
         - preview
         # MR state is used to filter MRs only with a certain state. (optional)
         pullRequestState: opened
+      requeueAfterSeconds: 1800
   template:
   # ...
 ```
@@ -125,6 +127,7 @@ spec:
           key: token
         # many gitea deployments use TLS, but many are self-hosted and self-signed certificates
         insecure: true
+      requeueAfterSeconds: 1800
   template:
   # ...
 ```

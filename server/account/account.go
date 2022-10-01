@@ -1,13 +1,13 @@
 package account
 
 import (
+	"context"
 	"errors"
 	"fmt"
 	"regexp"
 	"sort"
 	"time"
 
-	"context"
 	"github.com/google/uuid"
 	log "github.com/sirupsen/logrus"
 	"google.golang.org/grpc/codes"
@@ -127,11 +127,10 @@ func (s *Server) CanI(ctx context.Context, r *account.CanIRequest) (*account.Can
 		return nil, status.Errorf(codes.InvalidArgument, "%v does not contain %s", rbacpolicy.Resources, r.Resource)
 	}
 
-	// Temporarily, logs RBAC will be enforced only if an internal var serverRBACLogEnforceEnable (representing server.rbac.log.enforce.enable env var)
+	// Logs RBAC will be enforced only if an internal var serverRBACLogEnforceEnable (representing server.rbac.log.enforce.enable env var)
 	// is defined and has a "true" value
 	// Otherwise, no RBAC enforcement for logs will take place (meaning, can-i request on a logs resource will result in "yes",
 	// even if there is no explicit RBAC allow, or if there is an explicit RBAC deny)
-	// In the future, logs RBAC will be always enforced and the parameter along with this check will be removed
 	if r.Resource == "logs" {
 		serverRBACLogEnforceEnable, err := s.settingsMgr.GetServerRBACLogEnforceEnable()
 		if err != nil {
