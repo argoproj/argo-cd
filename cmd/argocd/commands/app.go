@@ -1257,6 +1257,7 @@ func NewApplicationListCommand(clientOpts *argocdclient.ClientOptions) *cobra.Co
 		projects     []string
 		repo         string
 		appNamespace string
+		cluster      string
 	)
 	var command = &cobra.Command{
 		Use:   "list",
@@ -1285,7 +1286,9 @@ func NewApplicationListCommand(clientOpts *argocdclient.ClientOptions) *cobra.Co
 			if repo != "" {
 				appList = argo.FilterByRepo(appList, repo)
 			}
-
+			if cluster != "" {
+				appList = argo.FilterByCluster(appList, cluster)
+			}
 			var appsWithDeprecatedPlugins []string
 			for _, app := range appList {
 				if app.Spec.Source.Plugin != nil && app.Spec.Source.Plugin.Name != "" {
@@ -1316,6 +1319,7 @@ func NewApplicationListCommand(clientOpts *argocdclient.ClientOptions) *cobra.Co
 	command.Flags().StringArrayVarP(&projects, "project", "p", []string{}, "Filter by project name")
 	command.Flags().StringVarP(&repo, "repo", "r", "", "List apps by source repo URL")
 	command.Flags().StringVarP(&appNamespace, "app-namespace", "N", "", "Only list applications in namespace")
+	command.Flags().StringVarP(&cluster, "cluster", "c", "", "List apps by cluster name or url")
 	return command
 }
 
