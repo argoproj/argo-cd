@@ -1773,7 +1773,7 @@ func getAppNamesBySelector(ctx context.Context, appIf applicationpkg.Application
 	if selector != "" {
 		list, err := appIf.List(ctx, &applicationpkg.ApplicationQuery{Selector: pointer.String(selector)})
 		if err != nil {
-			return []string{}, nil
+			return []string{}, err
 		}
 		// unlike list, we'd want to fail if nothing was found
 		if len(list.Items) == 0 {
