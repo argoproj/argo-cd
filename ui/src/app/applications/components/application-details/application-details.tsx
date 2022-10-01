@@ -2,6 +2,7 @@ import {DropDownMenu, NotificationType, SlidingPanel} from 'argo-ui';
 import * as classNames from 'classnames';
 import * as PropTypes from 'prop-types';
 import * as React from 'react';
+import * as ReactDOM from 'react-dom';
 import * as models from '../../../shared/models';
 import {RouteComponentProps} from 'react-router';
 import {BehaviorSubject, combineLatest, from, merge, Observable} from 'rxjs';
@@ -22,10 +23,11 @@ import {ApplicationSyncPanel} from '../application-sync-panel/application-sync-p
 import {ResourceDetails} from '../resource-details/resource-details';
 import * as AppUtils from '../utils';
 import {ApplicationResourceList} from './application-resource-list';
-import {Filters} from './application-resource-filter';
+import {Filters, FiltersProps} from './application-resource-filter';
 import {urlPattern} from '../utils';
 import {ResourceStatus} from '../../../shared/models';
 import {ApplicationsDetailsAppDropdown} from './application-details-app-dropdown';
+import {useSidebarTarget} from '../../../sidebar/sidebar';
 
 require('./application-details.scss');
 
@@ -46,6 +48,11 @@ interface FilterInput {
     sync: string[];
     namespace: string[];
 }
+
+const ApplicationDetailsFilters = (props: FiltersProps) => {
+    const sidebarTarget = useSidebarTarget();
+    return ReactDOM.createPortal(<Filters {...props} />, sidebarTarget?.current);
+};
 
 export const NodeInfo = (node?: string): {key: string; container: number} => {
     const nodeContainer = {key: '', container: 0};
@@ -353,7 +360,19 @@ export class ApplicationDetails extends React.Component<RouteComponentProps<{app
                                         <div className='application-details__tree'>
                                             {refreshing && <p className='application-details__refreshing-label'>Refreshing</p>}
                                             {((pref.view === 'tree' || pref.view === 'network') && (
-                                                <Filters pref={pref} tree={tree} resourceNodes={this.state.filteredGraph} onSetFilter={setFilter} onClearFilter={clearFilter}>
+                                                <>
+                                                    <DataLoader load={() => services.viewPreferences.getPreferences()}>
+                                                        {viewPref => (
+                                                            <ApplicationDetailsFilters
+                                                                pref={pref}
+                                                                tree={tree}
+                                                                onSetFilter={setFilter}
+                                                                onClearFilter={clearFilter}
+                                                                collapsed={viewPref.hideSidebar}
+                                                                resourceNodes={this.state.filteredGraph}
+                                                            />
+                                                        )}
+                                                    </DataLoader>
                                                     <div className='graph-options-panel'>
                                                         <a
                                                             className={`group-nodes-button`}
@@ -416,7 +435,7 @@ export class ApplicationDetails extends React.Component<RouteComponentProps<{app
                                                         setNodeExpansion={(node, isExpanded) => this.setNodeExpansion(node, isExpanded)}
                                                         getNodeExpansion={node => this.getNodeExpansion(node)}
                                                     />
-                                                </Filters>
+                                                </>
                                             )) ||
                                                 (pref.view === 'pods' && (
                                                     <PodView
@@ -432,7 +451,7 @@ export class ApplicationDetails extends React.Component<RouteComponentProps<{app
                                                     />
                                                 )) || (
                                                     <DataLoader
-                                                        input={{filteredRes}}
+                                                        input={{filteredRes: filteredRes.map(res => AppUtils.nodeKey(res))}}
                                                         load={async () => {
                                                             const liveStatePromises = filteredRes.map(async resource => {
                                                                 const resourceRow: any = {...resource, group: resource.group || ''};
