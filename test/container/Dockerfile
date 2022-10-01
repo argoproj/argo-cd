@@ -1,4 +1,4 @@
-FROM redis:7.0.4 as redis
+FROM docker.io/library/redis:7.0.5 as redis
 
 FROM node:12.18.4-buster as node
 
