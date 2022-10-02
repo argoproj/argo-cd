@@ -193,7 +193,10 @@ func NewMetricsServer(addr string, appLister applister.ApplicationLister, appFil
 		redisRequestCounter:     redisRequestCounter,
 		redisRequestHistogram:   redisRequestHistogram,
 		hostname:                hostname,
-		cron:                    cron.New(),
+		// This cron is used to expire the metrics cache.
+		// Currently clearing the metrics cache is logging and deleting from the map
+		// so there is no possibility of panic, but we will add a chain to keep robfig/cron v1 behavior.
+		cron: cron.New(cron.WithChain(cron.Recover(cron.PrintfLogger(log.StandardLogger())))),
 	}, nil
 }
 
