@@ -201,7 +201,7 @@ argocd ... --insecure
 ## I have configured Dex via `dex.config` in `argocd-cm`, it still says Dex is unconfigured. Why?
 
 Most likely you forgot to set the `url` in `argocd-cm` to point to your ArgoCD as well. See also
-[the docs](./operator-manual/user-management/#2-configure-argo-cd-for-sso).
+[the docs](./operator-manual/user-management/index.md#2-configure-argo-cd-for-sso).
 
 ## Why are `SealedSecret` resources reporting a `Status`?
 
