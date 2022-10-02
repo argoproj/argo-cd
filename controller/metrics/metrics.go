@@ -193,7 +193,7 @@ func NewMetricsServer(addr string, appLister applister.ApplicationLister, appFil
 		redisRequestCounter:     redisRequestCounter,
 		redisRequestHistogram:   redisRequestHistogram,
 		hostname:                hostname,
-		cron:                    cron.New(cron.WithParser(cron.NewParser(cron.SecondOptional | cron.Minute | cron.Hour | cron.Dom | cron.Month | cron.Dow | cron.Descriptor))),
+		cron:                    cron.New(),
 	}, nil
 }
 
