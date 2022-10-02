@@ -123,12 +123,12 @@ for docker-desktop context, run:
 argocd cluster add docker-desktop
 ```
 
-The above command installs a ServiceAccount (`argocd-manager`), into the kube-system namespace of 
+The above command installs a ServiceAccount (`argocd-manager`), into the kube-system namespace of
 that kubectl context, and binds the service account to an admin-level ClusterRole. Argo CD uses this
 service account token to perform its management tasks (i.e. deploy/monitoring).
 
 !!! note
-    The rules of the `argocd-manager-role` role can be modified such that it only has `create`, `update`, `patch`, `delete` privileges to a limited set of namespaces, groups, kinds. 
+    The rules of the `argocd-manager-role` role can be modified such that it only has `create`, `update`, `patch`, `delete` privileges to a limited set of namespaces, groups, kinds.
     However `get`, `list`, `watch` privileges are required at the cluster-scope for Argo CD to function.
 
 ## 6. Create An Application From A Git Repository
@@ -137,6 +137,12 @@ An example repository containing a guestbook application is available at
 [https://github.com/argoproj/argocd-example-apps.git](https://github.com/argoproj/argocd-example-apps.git) to demonstrate how Argo CD works.
 
 ### Creating Apps Via CLI
+
+First we need to set the current namespace to argocd running the following command:
+
+```bash
+kubectl config set-context --current --namespace=argocd
+```
 
 Create the example guestbook application with the following command:
 

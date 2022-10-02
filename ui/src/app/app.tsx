@@ -1,4 +1,4 @@
-import {DataLoader, Layout, NavigationManager, Notifications, NotificationsManager, PageContext, Popup, PopupManager, PopupProps, Tooltip} from 'argo-ui';
+import {DataLoader, NavigationManager, Notifications, NotificationsManager, PageContext, Popup, PopupManager, PopupProps} from 'argo-ui';
 import {createBrowserHistory} from 'history';
 import * as PropTypes from 'prop-types';
 import * as React from 'react';
@@ -8,6 +8,7 @@ import applications from './applications';
 import help from './help';
 import login from './login';
 import settings from './settings';
+import {Layout} from './shared/components/layout/layout';
 import {VersionPanel} from './shared/components/version-info/version-info-panel';
 import {Provider} from './shared/context';
 import {services} from './shared/services';
@@ -32,12 +33,14 @@ const routes: {[path: string]: {component: React.ComponentType<RouteComponentPro
 
 const navItems = [
     {
-        title: 'Manage your applications, and diagnose health problems.',
+        title: 'Applications',
+        tooltip: 'Manage your applications, and diagnose health problems.',
         path: '/applications',
         iconClassName: 'argo-icon-application'
     },
     {
-        title: 'Manage your repositories, projects, settings',
+        title: 'Settings',
+        tooltip: 'Manage your repositories, projects, settings',
         path: '/settings',
         iconClassName: 'argo-icon-settings'
     },
@@ -47,7 +50,8 @@ const navItems = [
         iconClassName: 'fa fa-user-circle'
     },
     {
-        title: 'Read the documentation, and get help and assistance.',
+        title: 'Documentation',
+        tooltip: 'Read the documentation, and get help and assistance.',
         path: '/help',
         iconClassName: 'argo-icon-docs'
     }
@@ -184,28 +188,15 @@ export class App extends React.Component<{}, {popupProps: PopupProps; showVersio
                                                         <route.component {...routeProps} />
                                                     </div>
                                                 ) : (
-                                                    <Layout
-                                                        navItems={navItems}
-                                                        version={() => (
-                                                            <DataLoader load={() => versionLoader}>
-                                                                {version => {
-                                                                    const versionString = version ? version.Version : 'Unknown';
-                                                                    return (
-                                                                        <React.Fragment>
-                                                                            <Tooltip content={versionString}>
-                                                                                <a style={{color: 'white'}} onClick={() => this.setState({showVersionPanel: true})}>
-                                                                                    {versionString}
-                                                                                </a>
-                                                                            </Tooltip>
-                                                                        </React.Fragment>
-                                                                    );
-                                                                }}
-                                                            </DataLoader>
-                                                        )}>
-                                                        <Banner>
-                                                            <route.component {...routeProps} />
-                                                        </Banner>
-                                                    </Layout>
+                                                    <DataLoader load={() => services.viewPreferences.getPreferences()}>
+                                                        {pref => (
+                                                            <Layout onVersionClick={() => this.setState({showVersionPanel: true})} navItems={navItems} theme={pref.theme}>
+                                                                <Banner>
+                                                                    <route.component {...routeProps} />
+                                                                </Banner>
+                                                            </Layout>
+                                                        )}
+                                                    </DataLoader>
                                                 )
                                             }
                                         />

@@ -958,7 +958,7 @@ const (
 	SyncStatusCodeUnknown SyncStatusCode = "Unknown"
 	// SyncStatusCodeOutOfSync indicates that desired and live states match
 	SyncStatusCodeSynced SyncStatusCode = "Synced"
-	// SyncStatusCodeOutOfSync indicates that there is a drift beween desired and live states
+	// SyncStatusCodeOutOfSync indicates that there is a drift between desired and live states
 	SyncStatusCodeOutOfSync SyncStatusCode = "OutOfSync"
 )
 
