@@ -284,7 +284,10 @@ cluster:
 - Headers, scheme, http verb and request body are forwarded as it is
   received by the API server to the backend service.
 - A new header is added in the forwared request (`X-Forwarded-Host`) to
-  allow ssl redirection
+  allow ssl redirection.
+- This proposal doesn't specify how backends should implement authz or
+  authn. This topic could be discussed as a future enhancement to the
+  proxy extension feature in Argo CD.
 
 ----
 
