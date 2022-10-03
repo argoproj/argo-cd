@@ -94,6 +94,20 @@ func FilterByRepo(apps []argoappv1.Application, repo string) []argoappv1.Applica
 	return items
 }
 
+// FilterByCluster returns an application
+func FilterByCluster(apps []argoappv1.Application, cluster string) []argoappv1.Application {
+	if cluster == "" {
+		return apps
+	}
+	items := make([]argoappv1.Application, 0)
+	for i := 0; i < len(apps); i++ {
+		if apps[i].Spec.Destination.Server == cluster || apps[i].Spec.Destination.Name == cluster {
+			items = append(items, apps[i])
+		}
+	}
+	return items
+}
+
 // FilterByName returns an application
 func FilterByName(apps []argoappv1.Application, name string) ([]argoappv1.Application, error) {
 	if name == "" {

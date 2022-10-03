@@ -1,6 +1,6 @@
 # Sync Options
 
-ArgoCD allows users to customize some aspects of how it syncs the desired state in the target cluster. Some Sync Options can defined as annotations in a specific resource. Most of the Sync Options are configured in the Application resource `spec.syncPolicy.syncOptions` attribute.
+Argo CD allows users to customize some aspects of how it syncs the desired state in the target cluster. Some Sync Options can defined as annotations in a specific resource. Most of the Sync Options are configured in the Application resource `spec.syncPolicy.syncOptions` attribute. Multiple Sync Options which are configured with the `argocd.argoproj.io/sync-options` annotation can be concatenated with a `,` in the annotation value; white spaces will be trimmed.
 
 Below you can find details about each available Sync Option:
 
