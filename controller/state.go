@@ -387,6 +387,15 @@ func (m *appStateManager) CompareAppState(app *v1alpha1.Application, project *ap
 	var manifestInfoMap map[*v1alpha1.ApplicationSource]*apiclient.ManifestResponse
 
 	if len(localManifests) == 0 {
+		// If the length of revisions is not same as the length of sources,
+		// we take the revisions from the sources directly for all the sources.
+		if len(revisions) != len(sources) {
+			revisions = make([]string, 0)
+			for _, source := range sources {
+				revisions = append(revisions, source.TargetRevision)
+			}
+		}
+
 		targetObjs, manifestInfoMap, err = m.getRepoObjs(app, sources, appLabelKey, revisions, noCache, noRevisionCache, verifySignature, project)
 		if err != nil {
 			targetObjs = make([]*unstructured.Unstructured, 0)

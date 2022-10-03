@@ -1728,7 +1728,7 @@ func alreadyAttemptedSync(app *appv1.Application, commitSHA string, commitSHAsMS
 		return false, ""
 	}
 	if hasMultipleSources {
-		if reflect.DeepEqual(app.Status.OperationState.SyncResult.Revisions, commitSHAsMS) {
+		if !reflect.DeepEqual(app.Status.OperationState.SyncResult.Revisions, commitSHAsMS) {
 			return false, ""
 		}
 	} else {
