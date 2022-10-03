@@ -1,0 +1,22 @@
+apiVersion: apps/v1
+kind: Deployment
+metadata:
+  name: e2e-registry
+spec:
+  replicas: 1
+  selector:
+    matchLabels:
+      app: test-app-001
+      component: argocd-image-updater-e2e
+  template:
+    metadata:
+      labels:
+        app: test-app-001
+        component: argocd-image-updater-e2e
+    spec:
+      containers:
+      - name: test1
+        image: quay.io/jrao/test-image:1.0.0
+      - name: test2
+        image: quay.io/jrao/other-image:1.0.0
+
