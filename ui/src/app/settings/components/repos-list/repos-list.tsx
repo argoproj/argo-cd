@@ -1,4 +1,4 @@
-import {AutocompleteField, DropDownMenu, FormField, FormSelect, HelpIcon, NotificationType, SlidingPanel} from 'argo-ui';
+import {AutocompleteField, DropDownMenu, FormField, FormSelect, HelpIcon, NotificationType, SlidingPanel, Tooltip} from 'argo-ui';
 import * as PropTypes from 'prop-types';
 import * as React from 'react';
 import {Form, FormValues, FormApi, Text, TextArea, FormErrors} from 'react-form';
@@ -266,9 +266,17 @@ export class ReposList extends React.Component<
                                                         <i className={'icon argo-icon-' + (repo.type || 'git')} />
                                                     </div>
                                                     <div className='columns small-1'>{repo.type || 'git'}</div>
-                                                    <div className='columns small-2'>{repo.name}</div>
+                                                    <div className='columns small-2'>
+                                                        <Tooltip content={repo.name}>
+                                                            <span>{repo.name}</span>
+                                                        </Tooltip>
+                                                    </div>
                                                     <div className='columns small-5'>
-                                                        <Repo url={repo.repo} />
+                                                        <Tooltip content={repo.repo}>
+                                                            <span>
+                                                                <Repo url={repo.repo} />
+                                                            </span>
+                                                        </Tooltip>
                                                     </div>
                                                     <div className='columns small-3'>
                                                         <ConnectionStateIcon state={repo.connectionState} /> {repo.connectionState.status}

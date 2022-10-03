@@ -8,7 +8,7 @@
     &__title {
         font-weight: bolder;
         font-size: 15px;
-        @include themify($themes) {           
+        @include themify($themes) {
             color: themed('text-1');
         }
         padding-top: 0.25em;
@@ -116,7 +116,7 @@
 
     &__search {
         border: 1px solid $argo-color-gray-4;
-        @include themify($themes){
+        @include themify($themes) {
             background-color: themed('light-argo-gray-2');
         }
         border-radius: 7px;
