@@ -1316,7 +1316,7 @@ spec:
       - command:
         - /shared/argocd-dex
         - rundex
-        image: ghcr.io/dexidp/dex:v2.32.1-distroless
+        image: ghcr.io/dexidp/dex:v2.35.0-distroless
         imagePullPolicy: Always
         name: dex
         ports:
