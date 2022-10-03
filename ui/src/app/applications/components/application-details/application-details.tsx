@@ -475,13 +475,20 @@ export class ApplicationDetails extends React.Component<RouteComponentProps<{app
                                                         }}>
                                                         {(filteredResWithSyncInfo: any[]) => (
                                                             <div>
-                                                                <Filters
-                                                                    pref={pref}
-                                                                    tree={tree}
-                                                                    resourceNodes={filteredResWithSyncInfo}
-                                                                    onSetFilter={setFilter}
-                                                                    onClearFilter={clearFilter}>
-                                                                    {(filteredResWithSyncInfo.length > 0 && (
+                                                                {(filteredResWithSyncInfo.length > 0 && (
+                                                                    <>
+                                                                        <DataLoader load={() => services.viewPreferences.getPreferences()}>
+                                                                            {viewPref => (
+                                                                                <ApplicationDetailsFilters
+                                                                                    pref={pref}
+                                                                                    tree={tree}
+                                                                                    onSetFilter={setFilter}
+                                                                                    onClearFilter={clearFilter}
+                                                                                    collapsed={viewPref.hideSidebar}
+                                                                                    resourceNodes={filteredResWithSyncInfo}
+                                                                                />
+                                                                            )}
+                                                                        </DataLoader>
                                                                         <Paginate
                                                                             page={this.state.page}
                                                                             data={filteredResWithSyncInfo}
@@ -504,13 +511,13 @@ export class ApplicationDetails extends React.Component<RouteComponentProps<{app
                                                                                 />
                                                                             )}
                                                                         </Paginate>
-                                                                    )) || (
-                                                                        <EmptyState icon='fa fa-search'>
-                                                                            <h4>No resources found</h4>
-                                                                            <h5>Try to change filter criteria</h5>
-                                                                        </EmptyState>
-                                                                    )}
-                                                                </Filters>
+                                                                    </>
+                                                                )) || (
+                                                                    <EmptyState icon='fa fa-search'>
+                                                                        <h4>No resources found</h4>
+                                                                        <h5>Try to change filter criteria</h5>
+                                                                    </EmptyState>
+                                                                )}
                                                             </div>
                                                         )}
                                                     </DataLoader>
