@@ -475,43 +475,41 @@ export class ApplicationDetails extends React.Component<RouteComponentProps<{app
                                                         }}>
                                                         {(filteredResWithSyncInfo: any[]) => (
                                                             <div>
+                                                                <DataLoader load={() => services.viewPreferences.getPreferences()}>
+                                                                    {viewPref => (
+                                                                        <ApplicationDetailsFilters
+                                                                            pref={pref}
+                                                                            tree={tree}
+                                                                            onSetFilter={setFilter}
+                                                                            onClearFilter={clearFilter}
+                                                                            collapsed={viewPref.hideSidebar}
+                                                                            resourceNodes={filteredResWithSyncInfo}
+                                                                        />
+                                                                    )}
+                                                                </DataLoader>
                                                                 {(filteredResWithSyncInfo.length > 0 && (
-                                                                    <>
-                                                                        <DataLoader load={() => services.viewPreferences.getPreferences()}>
-                                                                            {viewPref => (
-                                                                                <ApplicationDetailsFilters
-                                                                                    pref={pref}
-                                                                                    tree={tree}
-                                                                                    onSetFilter={setFilter}
-                                                                                    onClearFilter={clearFilter}
-                                                                                    collapsed={viewPref.hideSidebar}
-                                                                                    resourceNodes={filteredResWithSyncInfo}
-                                                                                />
-                                                                            )}
-                                                                        </DataLoader>
-                                                                        <Paginate
-                                                                            page={this.state.page}
-                                                                            data={filteredResWithSyncInfo}
-                                                                            onPageChange={page => this.setState({page})}
-                                                                            preferencesKey='application-details'>
-                                                                            {data => (
-                                                                                <ApplicationResourceList
-                                                                                    onNodeClick={fullName => this.selectNode(fullName)}
-                                                                                    resources={data}
-                                                                                    nodeMenu={node =>
-                                                                                        AppUtils.renderResourceMenu(
-                                                                                            {...node, root: node},
-                                                                                            application,
-                                                                                            tree,
-                                                                                            this.appContext,
-                                                                                            this.appChanged,
-                                                                                            () => this.getApplicationActionMenu(application, false)
-                                                                                        )
-                                                                                    }
-                                                                                />
-                                                                            )}
-                                                                        </Paginate>
-                                                                    </>
+                                                                    <Paginate
+                                                                        page={this.state.page}
+                                                                        data={filteredResWithSyncInfo}
+                                                                        onPageChange={page => this.setState({page})}
+                                                                        preferencesKey='application-details'>
+                                                                        {data => (
+                                                                            <ApplicationResourceList
+                                                                                onNodeClick={fullName => this.selectNode(fullName)}
+                                                                                resources={data}
+                                                                                nodeMenu={node =>
+                                                                                    AppUtils.renderResourceMenu(
+                                                                                        {...node, root: node},
+                                                                                        application,
+                                                                                        tree,
+                                                                                        this.appContext,
+                                                                                        this.appChanged,
+                                                                                        () => this.getApplicationActionMenu(application, false)
+                                                                                    )
+                                                                                }
+                                                                            />
+                                                                        )}
+                                                                    </Paginate>
                                                                 )) || (
                                                                     <EmptyState icon='fa fa-search'>
                                                                         <h4>No resources found</h4>
