@@ -41,9 +41,9 @@ In the declarative syntax:
 
 ```yaml
 source:
-    helm:
-      valueFiles:
-      - values-production.yaml
+  helm:
+    valueFiles:
+    - values-production.yaml
 ```
 
 ## Helm Parameters
@@ -66,10 +66,10 @@ In the declarative syntax:
 
 ```yaml
 source:
-    helm:
-      parameters:
-      - name: "service.type"
-        value: LoadBalancer
+  helm:
+    parameters:
+    - name: "service.type"
+      value: LoadBalancer
 ```
 
 ## Helm Release Name
