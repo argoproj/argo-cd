@@ -3,6 +3,7 @@ kind: ApplicationSet
 metadata:
   name: merge-clusters-and-list
 spec:
+  goTemplate: true
   generators:
     - merge:
         mergeKeys:
@@ -26,7 +27,7 @@ spec:
                   values.redis: 'true'
   template:
     metadata:
-      name: '{{name}}'
+      name: '{{.name}}'
     spec:
       project: default
       source:
@@ -36,9 +37,9 @@ spec:
         helm:
           parameters:
             - name: kafka
-              value: '{{values.kafka}}'
+              value: '{{.values.kafka}}'
             - name: redis
-              value: '{{values.redis}}'
+              value: '{{.values.redis}}'
       destination:
-        server: '{{server}}'
+        server: '{{.server}}'
         namespace: default

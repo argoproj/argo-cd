@@ -2371,6 +2371,8 @@ spec:
                                     properties:
                                       api:
                                         type: string
+                                      appSecretName:
+                                        type: string
                                       labels:
                                         items:
                                           type: string
@@ -2402,6 +2404,8 @@ spec:
                                           type: string
                                         type: array
                                       project:
+                                        type: string
+                                      pullRequestState:
                                         type: string
                                       tokenRef:
                                         properties:
@@ -2677,6 +2681,31 @@ spec:
                                 type: object
                               scmProvider:
                                 properties:
+                                  azureDevOps:
+                                    properties:
+                                      accessTokenRef:
+                                        properties:
+                                          key:
+                                            type: string
+                                          secretName:
+                                            type: string
+                                        required:
+                                        - key
+                                        - secretName
+                                        type: object
+                                      allBranches:
+                                        type: boolean
+                                      api:
+                                        type: string
+                                      organization:
+                                        type: string
+                                      teamProject:
+                                        type: string
+                                    required:
+                                    - accessTokenRef
+                                    - organization
+                                    - teamProject
+                                    type: object
                                   bitbucket:
                                     properties:
                                       allBranches:
@@ -2780,6 +2809,8 @@ spec:
                                       allBranches:
                                         type: boolean
                                       api:
+                                        type: string
+                                      appSecretName:
                                         type: string
                                       organization:
                                         type: string
@@ -3076,6 +3107,29 @@ spec:
                                     required:
                                     - metadata
                                     - spec
+                                    type: object
+                                type: object
+                              selector:
+                                properties:
+                                  matchExpressions:
+                                    items:
+                                      properties:
+                                        key:
+                                          type: string
+                                        operator:
+                                          type: string
+                                        values:
+                                          items:
+                                            type: string
+                                          type: array
+                                      required:
+                                      - key
+                                      - operator
+                                      type: object
+                                    type: array
+                                  matchLabels:
+                                    additionalProperties:
+                                      type: string
                                     type: object
                                 type: object
                             type: object
@@ -4547,6 +4601,8 @@ spec:
                                     properties:
                                       api:
                                         type: string
+                                      appSecretName:
+                                        type: string
                                       labels:
                                         items:
                                           type: string
@@ -4578,6 +4634,8 @@ spec:
                                           type: string
                                         type: array
                                       project:
+                                        type: string
+                                      pullRequestState:
                                         type: string
                                       tokenRef:
                                         properties:
@@ -4853,6 +4911,31 @@ spec:
                                 type: object
                               scmProvider:
                                 properties:
+                                  azureDevOps:
+                                    properties:
+                                      accessTokenRef:
+                                        properties:
+                                          key:
+                                            type: string
+                                          secretName:
+                                            type: string
+                                        required:
+                                        - key
+                                        - secretName
+                                        type: object
+                                      allBranches:
+                                        type: boolean
+                                      api:
+                                        type: string
+                                      organization:
+                                        type: string
+                                      teamProject:
+                                        type: string
+                                    required:
+                                    - accessTokenRef
+                                    - organization
+                                    - teamProject
+                                    type: object
                                   bitbucket:
                                     properties:
                                       allBranches:
@@ -4956,6 +5039,8 @@ spec:
                                       allBranches:
                                         type: boolean
                                       api:
+                                        type: string
+                                      appSecretName:
                                         type: string
                                       organization:
                                         type: string
@@ -5252,6 +5337,29 @@ spec:
                                     required:
                                     - metadata
                                     - spec
+                                    type: object
+                                type: object
+                              selector:
+                                properties:
+                                  matchExpressions:
+                                    items:
+                                      properties:
+                                        key:
+                                          type: string
+                                        operator:
+                                          type: string
+                                        values:
+                                          items:
+                                            type: string
+                                          type: array
+                                      required:
+                                      - key
+                                      - operator
+                                      type: object
+                                    type: array
+                                  matchLabels:
+                                    additionalProperties:
+                                      type: string
                                     type: object
                                 type: object
                             type: object
@@ -5588,6 +5696,8 @@ spec:
                           properties:
                             api:
                               type: string
+                            appSecretName:
+                              type: string
                             labels:
                               items:
                                 type: string
@@ -5619,6 +5729,8 @@ spec:
                                 type: string
                               type: array
                             project:
+                              type: string
+                            pullRequestState:
                               type: string
                             tokenRef:
                               properties:
@@ -5894,6 +6006,31 @@ spec:
                       type: object
                     scmProvider:
                       properties:
+                        azureDevOps:
+                          properties:
+                            accessTokenRef:
+                              properties:
+                                key:
+                                  type: string
+                                secretName:
+                                  type: string
+                              required:
+                              - key
+                              - secretName
+                              type: object
+                            allBranches:
+                              type: boolean
+                            api:
+                              type: string
+                            organization:
+                              type: string
+                            teamProject:
+                              type: string
+                          required:
+                          - accessTokenRef
+                          - organization
+                          - teamProject
+                          type: object
                         bitbucket:
                           properties:
                             allBranches:
@@ -5997,6 +6134,8 @@ spec:
                             allBranches:
                               type: boolean
                             api:
+                              type: string
+                            appSecretName:
                               type: string
                             organization:
                               type: string
@@ -6295,8 +6434,33 @@ spec:
                           - spec
                           type: object
                       type: object
+                    selector:
+                      properties:
+                        matchExpressions:
+                          items:
+                            properties:
+                              key:
+                                type: string
+                              operator:
+                                type: string
+                              values:
+                                items:
+                                  type: string
+                                type: array
+                            required:
+                            - key
+                            - operator
+                            type: object
+                          type: array
+                        matchLabels:
+                          additionalProperties:
+                            type: string
+                          type: object
+                      type: object
                   type: object
                 type: array
+              goTemplate:
+                type: boolean
               syncPolicy:
                 properties:
                   preserveResourcesOnDeletion:

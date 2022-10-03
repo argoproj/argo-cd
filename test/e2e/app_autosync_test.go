@@ -38,6 +38,7 @@ func TestAutoSyncSelfHealDisabled(t *testing.T) {
 			errors.FailOnErr(fixture.KubeClientset.AppsV1().Deployments(fixture.DeploymentNamespace()).Patch(context.Background(),
 				"guestbook-ui", types.MergePatchType, []byte(`{"spec": {"revisionHistoryLimit": 0}}`), v1.PatchOptions{}))
 		}).
+		Refresh(RefreshTypeNormal).
 		Then().
 		Expect(SyncStatusIs(SyncStatusCodeOutOfSync))
 }

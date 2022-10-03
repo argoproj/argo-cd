@@ -1,7 +1,6 @@
 package commands
 
 import (
-	"context"
 	"fmt"
 	"os"
 
@@ -17,6 +16,7 @@ import (
 	"github.com/argoproj/argo-cd/v2/cmd/argocd/commands/headless"
 	argocdclient "github.com/argoproj/argo-cd/v2/pkg/apiclient"
 	applicationpkg "github.com/argoproj/argo-cd/v2/pkg/apiclient/application"
+	"github.com/argoproj/argo-cd/v2/util/argo"
 	"github.com/argoproj/argo-cd/v2/util/errors"
 	argoio "github.com/argoproj/argo-cd/v2/util/io"
 
@@ -48,16 +48,20 @@ func NewApplicationPatchResourceCommand(clientOpts *argocdclient.ClientOptions) 
 	command.Flags().StringVar(&namespace, "namespace", "", "Namespace")
 	command.Flags().BoolVar(&all, "all", false, "Indicates whether to patch multiple matching of resources")
 	command.Run = func(c *cobra.Command, args []string) {
+		ctx := c.Context()
+
 		if len(args) != 1 {
 			c.HelpFunc()(c, args)
 			os.Exit(1)
 		}
-		appName := args[0]
+		appName, appNs := argo.ParseAppQualifiedName(args[0], "")
 
 		conn, appIf := headless.NewClientOrDie(clientOpts, c).NewApplicationClientOrDie()
 		defer argoio.Close(conn)
-		ctx := context.Background()
-		resources, err := appIf.ManagedResources(ctx, &applicationpkg.ResourcesQuery{ApplicationName: &appName})
+		resources, err := appIf.ManagedResources(ctx, &applicationpkg.ResourcesQuery{
+			ApplicationName: &appName,
+			AppNamespace:    &appNs,
+		})
 		errors.CheckError(err)
 		objectsToPatch, err := util.FilterResources(command.Flags().Changed("group"), resources.Items, group, kind, namespace, resourceName, all)
 		errors.CheckError(err)
@@ -66,6 +70,7 @@ func NewApplicationPatchResourceCommand(clientOpts *argocdclient.ClientOptions) 
 			gvk := obj.GroupVersionKind()
 			_, err = appIf.PatchResource(ctx, &applicationpkg.ApplicationResourcePatchRequest{
 				Name:         &appName,
+				AppNamespace: &appNs,
 				Namespace:    pointer.String(obj.GetNamespace()),
 				ResourceName: pointer.String(obj.GetName()),
 				Version:      pointer.String(gvk.Version),
@@ -105,16 +110,20 @@ func NewApplicationDeleteResourceCommand(clientOpts *argocdclient.ClientOptions)
 	command.Flags().BoolVar(&orphan, "orphan", false, "Indicates whether to force delete the resource")
 	command.Flags().BoolVar(&all, "all", false, "Indicates whether to patch multiple matching of resources")
 	command.Run = func(c *cobra.Command, args []string) {
+		ctx := c.Context()
+
 		if len(args) != 1 {
 			c.HelpFunc()(c, args)
 			os.Exit(1)
 		}
-		appName := args[0]
+		appName, appNs := argo.ParseAppQualifiedName(args[0], "")
 
 		conn, appIf := headless.NewClientOrDie(clientOpts, c).NewApplicationClientOrDie()
 		defer argoio.Close(conn)
-		ctx := context.Background()
-		resources, err := appIf.ManagedResources(ctx, &applicationpkg.ResourcesQuery{ApplicationName: &appName})
+		resources, err := appIf.ManagedResources(ctx, &applicationpkg.ResourcesQuery{
+			ApplicationName: &appName,
+			AppNamespace:    &appNs,
+		})
 		errors.CheckError(err)
 		objectsToDelete, err := util.FilterResources(command.Flags().Changed("group"), resources.Items, group, kind, namespace, resourceName, all)
 		errors.CheckError(err)
@@ -123,6 +132,7 @@ func NewApplicationDeleteResourceCommand(clientOpts *argocdclient.ClientOptions)
 			gvk := obj.GroupVersionKind()
 			_, err = appIf.DeleteResource(ctx, &applicationpkg.ApplicationResourceDeleteRequest{
 				Name:         &appName,
+				AppNamespace: &appNs,
 				Namespace:    pointer.String(obj.GetNamespace()),
 				ResourceName: pointer.String(obj.GetName()),
 				Version:      pointer.String(gvk.Version),
@@ -165,15 +175,20 @@ func NewApplicationListResourcesCommand(clientOpts *argocdclient.ClientOptions) 
 		Use:   "resources APPNAME",
 		Short: "List resource of application",
 		Run: func(c *cobra.Command, args []string) {
+			ctx := c.Context()
+
 			if len(args) != 1 {
 				c.HelpFunc()(c, args)
 				os.Exit(1)
 			}
 			listAll := !c.Flag("orphaned").Changed
-			appName := args[0]
+			appName, appNs := argo.ParseAppQualifiedName(args[0], "")
 			conn, appIf := headless.NewClientOrDie(clientOpts, c).NewApplicationClientOrDie()
 			defer argoio.Close(conn)
-			appResourceTree, err := appIf.ResourceTree(context.Background(), &applicationpkg.ResourcesQuery{ApplicationName: &appName})
+			appResourceTree, err := appIf.ResourceTree(ctx, &applicationpkg.ResourcesQuery{
+				ApplicationName: &appName,
+				AppNamespace:    &appNs,
+			})
 			errors.CheckError(err)
 			printResources(listAll, orphaned, appResourceTree)
 		},

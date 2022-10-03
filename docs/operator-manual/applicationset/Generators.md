@@ -4,7 +4,7 @@ Generators are responsible for generating *parameters*, which are then rendered 
 
 Generators are primarily based on the data source that they use to generate the template parameters. For example: the List generator provides a set of parameters from a *literal list*, the Cluster generator uses the *Argo CD cluster list* as a source, the Git generator uses files/directories from a *Git repository*, and so.
 
-As of this writing there are seven generators:
+As of this writing there are eight generators:
 
 - [List generator](Generators-List.md): The List generator allows you to target Argo CD Applications to clusters based on a fixed list of cluster name/URL values.
 - [Cluster generator](Generators-Cluster.md): The Cluster generator allows you to target Argo CD Applications to clusters, based on the list of clusters defined within (and managed by) Argo CD (which includes automatically responding to cluster addition/removal events from Argo CD).

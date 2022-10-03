@@ -1,4 +1,9 @@
-FROM docker.io/library/redis:7.0.0 as redis
+FROM docker.io/library/redis:7.0.5 as redis
+
+# There are libraries we will want to copy from here in the final stage of the
+# build, but the COPY directive does not have a way to determine system
+# architecture, so we create a symlink here to facilitate copying.
+RUN ln -s /usr/lib/$(uname -m)-linux-gnu /usr/lib/linux-gnu 
 
 FROM docker.io/library/node:12.18.4-buster as node
 
@@ -8,7 +13,7 @@ FROM docker.io/library/registry:2.8 as registry
 
 FROM docker.io/bitnami/kubectl:1.23.6 as kubectl
 
-FROM ubuntu:21.10
+FROM ubuntu:22.04
 
 ENV DEBIAN_FRONTEND=noninteractive
 RUN  apt-get update && apt-get install --fix-missing -y \
@@ -63,6 +68,14 @@ COPY ./test/fixture/testrepos/ssh_host_*_key* /etc/ssh/
 
 # Copy redis binaries to the image
 COPY --from=redis /usr/local/bin/* /usr/local/bin/
+
+# Copy redis dependencies/shared libraries
+# Ubuntu 22.04+ has moved to OpenSSL3 and no longer provides these libraries
+COPY --from=redis /usr/lib/linux-gnu/libssl.so.1.1 /usr/lib/linux-gnu/
+COPY --from=redis /usr/lib/linux-gnu/libcrypto.so.1.1 /usr/lib/linux-gnu/
+RUN mv /usr/lib/linux-gnu/libssl.so.1.1 /usr/lib/$(uname -m)-linux-gnu/ && \
+    mv /usr/lib/linux-gnu/libcrypto.so.1.1 /usr/lib/$(uname -m)-linux-gnu/ && \
+    rm -rf /usr/lib/linux-gnu/
 
 # Copy registry binaries to the image
 COPY --from=registry /bin/registry /usr/local/bin/

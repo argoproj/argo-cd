@@ -34,7 +34,7 @@ func TestGitLabServiceCustomBaseURL(t *testing.T) {
 		writeMRListResponse(t, w)
 	})
 
-	svc, err := NewGitLabService(context.Background(), "", server.URL, "278964", nil)
+	svc, err := NewGitLabService(context.Background(), "", server.URL, "278964", nil, "")
 	assert.NoError(t, err)
 
 	_, err = svc.List(context.Background())
@@ -53,7 +53,7 @@ func TestGitLabServiceToken(t *testing.T) {
 		writeMRListResponse(t, w)
 	})
 
-	svc, err := NewGitLabService(context.Background(), "token-123", server.URL, "278964", nil)
+	svc, err := NewGitLabService(context.Background(), "token-123", server.URL, "278964", nil, "")
 	assert.NoError(t, err)
 
 	_, err = svc.List(context.Background())
@@ -72,7 +72,7 @@ func TestList(t *testing.T) {
 		writeMRListResponse(t, w)
 	})
 
-	svc, err := NewGitLabService(context.Background(), "", server.URL, "278964", []string{})
+	svc, err := NewGitLabService(context.Background(), "", server.URL, "278964", []string{}, "")
 	assert.NoError(t, err)
 
 	prs, err := svc.List(context.Background())
@@ -95,7 +95,26 @@ func TestListWithLabels(t *testing.T) {
 		writeMRListResponse(t, w)
 	})
 
-	svc, err := NewGitLabService(context.Background(), "", server.URL, "278964", []string{"feature", "ready"})
+	svc, err := NewGitLabService(context.Background(), "", server.URL, "278964", []string{"feature", "ready"}, "")
+	assert.NoError(t, err)
+
+	_, err = svc.List(context.Background())
+	assert.NoError(t, err)
+}
+
+func TestListWithState(t *testing.T) {
+	mux := http.NewServeMux()
+	server := httptest.NewServer(mux)
+	defer server.Close()
+
+	path := "/api/v4/projects/278964/merge_requests"
+
+	mux.HandleFunc(path, func(w http.ResponseWriter, r *http.Request) {
+		assert.Equal(t, path+"?per_page=100&state=opened", r.URL.RequestURI())
+		writeMRListResponse(t, w)
+	})
+
+	svc, err := NewGitLabService(context.Background(), "", server.URL, "278964", []string{}, "opened")
 	assert.NoError(t, err)
 
 	_, err = svc.List(context.Background())

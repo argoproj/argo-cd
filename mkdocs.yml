@@ -32,7 +32,9 @@ nav:
     - operator-manual/user-management/openunison.md
     - operator-manual/user-management/google.md
     - operator-manual/rbac.md
-  - operator-manual/security.md
+  - Security:
+    - Overview: operator-manual/security.md
+    - snyk/index.md
   - operator-manual/tls.md
   - operator-manual/cluster-bootstrapping.md
   - operator-manual/secret-management.md
@@ -44,6 +46,7 @@ nav:
   - operator-manual/custom_tools.md
   - operator-manual/custom-styles.md
   - operator-manual/metrics.md
+  - operator-manual/web_based_terminal.md
   - Notification:
     - Overview: operator-manual/notifications/index.md
     - operator-manual/notifications/triggers.md
@@ -88,7 +91,9 @@ nav:
       - operator-manual/applicationset/Generators-SCM-Provider.md
       - operator-manual/applicationset/Generators-Cluster-Decision-Resource.md
       - operator-manual/applicationset/Generators-Pull-Request.md
-    - Template fields: operator-manual/applicationset/Template.md
+    - Template fields:
+      - operator-manual/applicationset/Template.md
+      - operator-manual/applicationset/GoTemplate.md
     - Controlling Resource Modification: operator-manual/applicationset/Controlling-Resource-Modification.md
     - Application Pruning & Resource Deletion: operator-manual/applicationset/Application-Deletion.md
   - Server Configuration Parameters:
@@ -99,6 +104,7 @@ nav:
     - operator-manual/server-commands/additional-configuration-method.md
   - Upgrading:
     - operator-manual/upgrading/overview.md
+    - operator-manual/upgrading/2.4-2.5.md
     - operator-manual/upgrading/2.3-2.4.md
     - operator-manual/upgrading/2.2-2.3.md
     - operator-manual/upgrading/2.1-2.2.md
@@ -129,6 +135,7 @@ nav:
   - user-guide/compare-options.md
   - user-guide/sync-options.md
   - user-guide/parameters.md
+  - user-guide/environment-variables.md
   - user-guide/build-environment.md
   - user-guide/tracking_strategies.md
   - user-guide/resource_tracking.md
@@ -159,6 +166,7 @@ nav:
   - developer-guide/releasing.md
   - developer-guide/site.md
   - developer-guide/static-code-analysis.md
+  - developer-guide/ui-extensions.md
   - developer-guide/faq.md
 - faq.md
 - security_considerations.md

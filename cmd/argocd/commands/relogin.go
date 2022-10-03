@@ -1,7 +1,6 @@
 package commands
 
 import (
-	"context"
 	"fmt"
 	"os"
 
@@ -29,6 +28,8 @@ func NewReloginCommand(globalClientOpts *argocdclient.ClientOptions) *cobra.Comm
 		Short: "Refresh an expired authenticate token",
 		Long:  "Refresh an expired authenticate token",
 		Run: func(c *cobra.Command, args []string) {
+			ctx := c.Context()
+
 			if len(args) != 0 {
 				c.HelpFunc()(c, args)
 				os.Exit(1)
@@ -59,12 +60,11 @@ func NewReloginCommand(globalClientOpts *argocdclient.ClientOptions) *cobra.Comm
 			errors.CheckError(err)
 			if claims.Issuer == session.SessionManagerClaimsIssuer {
 				fmt.Printf("Relogging in as '%s'\n", localconfig.GetUsername(claims.Subject))
-				tokenString = passwordLogin(acdClient, localconfig.GetUsername(claims.Subject), password)
+				tokenString = passwordLogin(ctx, acdClient, localconfig.GetUsername(claims.Subject), password)
 			} else {
 				fmt.Println("Reinitiating SSO login")
 				setConn, setIf := acdClient.NewSettingsClientOrDie()
 				defer argoio.Close(setConn)
-				ctx := context.Background()
 				httpClient, err := acdClient.HTTPClient()
 				errors.CheckError(err)
 				ctx = oidc.ClientContext(ctx, httpClient)

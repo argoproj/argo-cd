@@ -2,7 +2,7 @@
 
 ArgoCD allows users to customize some aspects of how it syncs the desired state in the target cluster. Some Sync Options can defined as annotations in a specific resource. Most of the Sync Options are configured in the Application resource `spec.syncPolicy.syncOptions` attribute.
 
-Bellow you can find details about each available Sync Option:
+Below you can find details about each available Sync Option:
 
 ## No Prune Resources
 
@@ -153,6 +153,33 @@ metadata:
     argocd.argoproj.io/sync-options: Replace=true
 ```
 
+## Server-Side Apply
+
+By default, ArgoCD executes `kubectl apply` operation to apply the configuration stored in Git. This is a client
+side operation that relies on `kubectl.kubernetes.io/last-applied-configuration` annotation to store the previous
+resource state. In some cases the resource is too big to fit in 262144 bytes allowed annotation size. In this case
+server-side apply can be used to avoid this issue as the annotation is not used in this case.
+
+```yaml
+apiVersion: argoproj.io/v1alpha1
+kind: Application
+spec:
+  syncPolicy:
+    syncOptions:
+    - ServerSideApply=true
+```
+
+If the `ServerSideApply=true` sync option is set the ArgoCD will use `kubectl apply --server-side` command to apply changes.
+
+This can also be configured at individual resource level.
+```yaml
+metadata:
+  annotations:
+    argocd.argoproj.io/sync-options: ServerSideApply=true
+```
+
+Note: [`Replace=true`](#replace-resource-instead-of-applying-changes) takes precedence over `ServerSideApply=true`.
+
 ## Fail the sync if a shared resource is found
 
 By default, ArgoCD will apply all manifests found in the git path configured in the Application regardless if the resources defined in the yamls are already applied by another Application. If the `FailOnSharedResource` sync option is set, ArgoCD will fail the sync whenever it finds a resource in the current Application that is already applied in the cluster by another Application.
@@ -187,3 +214,17 @@ spec:
 ```
 
 The example above shows how an ArgoCD Application can be configured so it will ignore the `spec.replicas` field from the desired state (git) during the sync stage. This is achieve by calculating and pre-patching the desired state before applying it in the cluster. Note that the `RespectIgnoreDifferences` sync option is only effective when the resource is already created in the cluster. If the Application is being created and no live state exists, the desired state is applied as-is.
+
+## Create Namespace
+
+```yaml
+apiVersion: argoproj.io/v1alpha1
+kind: Application
+metadata:
+  namespace: test
+spec:
+  syncPolicy:
+    syncOptions:
+    - CreateNamespace=true
+```
+The example above shows how an Argo CD Application can be configured so it will create namespaces for the Application resources if the namespaces don't exist already. Without this either declared in the Application manifest or passed in the cli via `--sync-option CreateNamespace=true`, the Application will fail to sync if the resources' namespaces do not exist.

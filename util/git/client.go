@@ -34,6 +34,8 @@ import (
 	"github.com/argoproj/argo-cd/v2/util/proxy"
 )
 
+var ErrInvalidRepoURL = fmt.Errorf("repo URL is invalid")
+
 type RevisionMetadata struct {
 	Author  string
 	Date    time.Time
@@ -58,6 +60,7 @@ type Client interface {
 	Root() string
 	Init() error
 	Fetch(revision string) error
+	Submodule() error
 	Checkout(revision string, submoduleEnabled bool) error
 	LsRefs() (*Refs, error)
 	LsRemote(revision string) (string, error)
@@ -136,9 +139,13 @@ func WithEventHandlers(handlers EventHandlers) ClientOpts {
 
 func NewClient(rawRepoURL string, creds Creds, insecure bool, enableLfs bool, proxy string, opts ...ClientOpts) (Client, error) {
 	r := regexp.MustCompile("(/|:)")
-	root := filepath.Join(os.TempDir(), r.ReplaceAllString(NormalizeGitURL(rawRepoURL), "_"))
+	normalizedGitURL := NormalizeGitURL(rawRepoURL)
+	if normalizedGitURL == "" {
+		return nil, fmt.Errorf("repository %q cannot be initialized: %w", rawRepoURL, ErrInvalidRepoURL)
+	}
+	root := filepath.Join(os.TempDir(), r.ReplaceAllString(normalizedGitURL, "_"))
 	if root == os.TempDir() {
-		return nil, fmt.Errorf("Repository '%s' cannot be initialized, because its root would be system temp at %s", rawRepoURL, root)
+		return nil, fmt.Errorf("repository %q cannot be initialized, because its root would be system temp at %s", rawRepoURL, root)
 	}
 	return NewClientExt(rawRepoURL, root, creds, insecure, enableLfs, proxy, opts...)
 }
@@ -376,6 +383,17 @@ func (m *nativeGitClient) LsLargeFiles() ([]string, error) {
 	return ss, nil
 }
 
+// Submodule embed other repositories into this repository
+func (m *nativeGitClient) Submodule() error {
+	if err := m.runCredentialedCmd("git", "submodule", "sync", "--recursive"); err != nil {
+		return err
+	}
+	if err := m.runCredentialedCmd("git", "submodule", "update", "--init", "--recursive"); err != nil {
+		return err
+	}
+	return nil
+}
+
 // Checkout checkout specified revision
 func (m *nativeGitClient) Checkout(revision string, submoduleEnabled bool) error {
 	if revision == "" || revision == "HEAD" {
@@ -399,7 +417,7 @@ func (m *nativeGitClient) Checkout(revision string, submoduleEnabled bool) error
 	}
 	if _, err := os.Stat(m.root + "/.gitmodules"); !os.IsNotExist(err) {
 		if submoduleEnabled {
-			if err := m.runCredentialedCmd("git", "submodule", "update", "--init", "--recursive"); err != nil {
+			if err := m.Submodule(); err != nil {
 				return err
 			}
 		}

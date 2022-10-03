@@ -6,6 +6,7 @@ import (
 	"fmt"
 	"log"
 
+	"github.com/argoproj/argo-cd/v2/common"
 	"github.com/argoproj/argo-cd/v2/pkg/apis/application/v1alpha1"
 	"github.com/argoproj/argo-cd/v2/util/clusterauth"
 	"k8s.io/client-go/kubernetes"
@@ -81,7 +82,7 @@ func (a *Actions) CreateWithRBAC(args ...string) *Actions {
 	}
 	client := kubernetes.NewForConfigOrDie(conf)
 
-	_, err = clusterauth.InstallClusterManagerRBAC(client, "kube-system", []string{})
+	_, err = clusterauth.InstallClusterManagerRBAC(client, "kube-system", []string{}, common.BearerTokenTimeout)
 	if err != nil {
 		a.lastError = err
 		return a
@@ -105,14 +106,14 @@ func (a *Actions) Get() *Actions {
 func (a *Actions) DeleteByName() *Actions {
 	a.context.t.Helper()
 
-	a.runCli("cluster", "rm", a.context.name)
+	a.runCli("cluster", "rm", a.context.name, "--yes")
 	return a
 }
 
 func (a *Actions) DeleteByServer() *Actions {
 	a.context.t.Helper()
 
-	a.runCli("cluster", "rm", a.context.server)
+	a.runCli("cluster", "rm", a.context.server, "--yes")
 	return a
 }
 

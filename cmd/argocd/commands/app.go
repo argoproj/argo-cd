@@ -20,17 +20,20 @@ import (
 	"github.com/argoproj/gitops-engine/pkg/sync/ignore"
 	"github.com/argoproj/gitops-engine/pkg/utils/kube"
 	"github.com/ghodss/yaml"
+	grpc_retry "github.com/grpc-ecosystem/go-grpc-middleware/retry"
 	"github.com/mattn/go-isatty"
 	log "github.com/sirupsen/logrus"
 	"github.com/spf13/cobra"
 	"google.golang.org/grpc/codes"
 	"google.golang.org/grpc/status"
+	"k8s.io/apimachinery/pkg/api/resource"
 	"k8s.io/apimachinery/pkg/apis/meta/v1/unstructured"
 	"k8s.io/apimachinery/pkg/runtime/schema"
 	"k8s.io/utils/pointer"
 
 	"github.com/argoproj/argo-cd/v2/cmd/argocd/commands/headless"
 	cmdutil "github.com/argoproj/argo-cd/v2/cmd/util"
+	argocommon "github.com/argoproj/argo-cd/v2/common"
 	"github.com/argoproj/argo-cd/v2/controller"
 	argocdclient "github.com/argoproj/argo-cd/v2/pkg/apiclient"
 	"github.com/argoproj/argo-cd/v2/pkg/apiclient/application"
@@ -47,29 +50,25 @@ import (
 	"github.com/argoproj/argo-cd/v2/util/cli"
 	"github.com/argoproj/argo-cd/v2/util/errors"
 	"github.com/argoproj/argo-cd/v2/util/git"
+	"github.com/argoproj/argo-cd/v2/util/grpc"
 	argoio "github.com/argoproj/argo-cd/v2/util/io"
-	"github.com/argoproj/argo-cd/v2/util/templates"
+	"github.com/argoproj/argo-cd/v2/util/manifeststream"
 	"github.com/argoproj/argo-cd/v2/util/text/label"
-)
-
-var (
-	appExample = templates.Examples(`
-	# List all the applications.
-	argocd app list
-
-	# Get the details of a application
-	argocd app get my-app
-
-	# Set an override parameter
-	argocd app set my-app -p image.tag=v1.0.1`)
 )
 
 // NewApplicationCommand returns a new instance of an `argocd app` command
 func NewApplicationCommand(clientOpts *argocdclient.ClientOptions) *cobra.Command {
 	var command = &cobra.Command{
-		Use:     "app",
-		Short:   "Manage applications",
-		Example: appExample,
+		Use:   "app",
+		Short: "Manage applications",
+		Example: `  # List all the applications.
+  argocd app list
+
+  # Get the details of a application
+  argocd app get my-app
+
+  # Set an override parameter
+  argocd app set my-app -p image.tag=v1.0.1`,
 		Run: func(c *cobra.Command, args []string) {
 			c.HelpFunc()(c, args)
 			os.Exit(1)
@@ -103,6 +102,7 @@ type watchOpts struct {
 	health    bool
 	operation bool
 	suspended bool
+	degraded  bool
 }
 
 // NewApplicationCreateCommand returns a new instance of an `argocd app create` command
@@ -115,30 +115,31 @@ func NewApplicationCreateCommand(clientOpts *argocdclient.ClientOptions) *cobra.
 		labels       []string
 		annotations  []string
 		setFinalizer bool
+		appNamespace string
 	)
 	var command = &cobra.Command{
 		Use:   "create APPNAME",
 		Short: "Create an application",
-		Example: `
-	# Create a directory app
-	argocd app create guestbook --repo https://github.com/argoproj/argocd-example-apps.git --path guestbook --dest-namespace default --dest-server https://kubernetes.default.svc --directory-recurse
+		Example: `  # Create a directory app
+  argocd app create guestbook --repo https://github.com/argoproj/argocd-example-apps.git --path guestbook --dest-namespace default --dest-server https://kubernetes.default.svc --directory-recurse
 
-	# Create a Jsonnet app
-	argocd app create jsonnet-guestbook --repo https://github.com/argoproj/argocd-example-apps.git --path jsonnet-guestbook --dest-namespace default --dest-server https://kubernetes.default.svc --jsonnet-ext-str replicas=2
+  # Create a Jsonnet app
+  argocd app create jsonnet-guestbook --repo https://github.com/argoproj/argocd-example-apps.git --path jsonnet-guestbook --dest-namespace default --dest-server https://kubernetes.default.svc --jsonnet-ext-str replicas=2
 
-	# Create a Helm app
-	argocd app create helm-guestbook --repo https://github.com/argoproj/argocd-example-apps.git --path helm-guestbook --dest-namespace default --dest-server https://kubernetes.default.svc --helm-set replicaCount=2
+  # Create a Helm app
+  argocd app create helm-guestbook --repo https://github.com/argoproj/argocd-example-apps.git --path helm-guestbook --dest-namespace default --dest-server https://kubernetes.default.svc --helm-set replicaCount=2
 
-	# Create a Helm app from a Helm repo
-	argocd app create nginx-ingress --repo https://charts.helm.sh/stable --helm-chart nginx-ingress --revision 1.24.3 --dest-namespace default --dest-server https://kubernetes.default.svc
+  # Create a Helm app from a Helm repo
+  argocd app create nginx-ingress --repo https://charts.helm.sh/stable --helm-chart nginx-ingress --revision 1.24.3 --dest-namespace default --dest-server https://kubernetes.default.svc
 
-	# Create a Kustomize app
-	argocd app create kustomize-guestbook --repo https://github.com/argoproj/argocd-example-apps.git --path kustomize-guestbook --dest-namespace default --dest-server https://kubernetes.default.svc --kustomize-image gcr.io/heptio-images/ks-guestbook-demo:0.1
+  # Create a Kustomize app
+  argocd app create kustomize-guestbook --repo https://github.com/argoproj/argocd-example-apps.git --path kustomize-guestbook --dest-namespace default --dest-server https://kubernetes.default.svc --kustomize-image gcr.io/heptio-images/ks-guestbook-demo:0.1
 
-	# Create a app using a custom tool:
-	argocd app create kasane --repo https://github.com/argoproj/argocd-example-apps.git --path plugins/kasane --dest-namespace default --dest-server https://kubernetes.default.svc --config-management-plugin kasane
-`,
+  # Create a app using a custom tool:
+  argocd app create kasane --repo https://github.com/argoproj/argocd-example-apps.git --path plugins/kasane --dest-namespace default --dest-server https://kubernetes.default.svc --config-management-plugin kasane`,
 		Run: func(c *cobra.Command, args []string) {
+			ctx := c.Context()
+
 			argocdClient := headless.NewClientOrDie(clientOpts, c)
 
 			apps, err := cmdutil.ConstructApps(fileURL, appName, labels, annotations, args, appOpts, c.Flags())
@@ -148,6 +149,12 @@ func NewApplicationCreateCommand(clientOpts *argocdclient.ClientOptions) *cobra.
 				if app.Name == "" {
 					c.HelpFunc()(c, args)
 					os.Exit(1)
+				}
+				if app.Spec.Source.Plugin != nil && app.Spec.Source.Plugin.Name != "" {
+					log.Warnf(argocommon.ConfigMapPluginCLIDeprecationWarning)
+				}
+				if appNamespace != "" {
+					app.Namespace = appNamespace
 				}
 				if setFinalizer {
 					app.Finalizers = append(app.Finalizers, "resources-finalizer.argocd.argoproj.io")
@@ -159,11 +166,27 @@ func NewApplicationCreateCommand(clientOpts *argocdclient.ClientOptions) *cobra.
 					Upsert:      &upsert,
 					Validate:    &appOpts.Validate,
 				}
-				created, err := appIf.Create(context.Background(), &appCreateRequest)
-				errors.CheckError(err)
-				fmt.Printf("application '%s' created\n", created.ObjectMeta.Name)
-			}
 
+				// Get app before creating to see if it is being updated or no change
+				existing, err := appIf.Get(ctx, &applicationpkg.ApplicationQuery{Name: &app.Name})
+				if grpc.UnwrapGRPCStatus(err).Code() != codes.NotFound {
+					errors.CheckError(err)
+				}
+
+				created, err := appIf.Create(ctx, &appCreateRequest)
+				errors.CheckError(err)
+
+				var action string
+				if existing == nil {
+					action = "created"
+				} else if !hasAppChanged(existing, created, upsert) {
+					action = "unchanged"
+				} else {
+					action = "updated"
+				}
+
+				fmt.Printf("application '%s' %s\n", created.ObjectMeta.Name, action)
+			}
 		},
 	}
 	command.Flags().StringVar(&appName, "name", "", "A name for the app, ignored if a file is set (DEPRECATED)")
@@ -177,6 +200,7 @@ func NewApplicationCreateCommand(clientOpts *argocdclient.ClientOptions) *cobra.
 	if err != nil {
 		log.Fatal(err)
 	}
+	command.Flags().StringVarP(&appNamespace, "app-namespace", "N", "", "Namespace where the application will be created in")
 	cmdutil.AddAppFlags(command, &appOpts)
 	return command
 }
@@ -208,6 +232,37 @@ func getRefreshType(refresh bool, hardRefresh bool) *string {
 	return nil
 }
 
+func hasAppChanged(appReq, appRes *argoappv1.Application, upsert bool) bool {
+	// upsert==false, no change occurred from create command
+	if !upsert {
+		return false
+	}
+
+	// If no project, assume default project
+	if appReq.Spec.Project == "" {
+		appReq.Spec.Project = "default"
+	}
+	// Server will return nils for empty labels, annotations, finalizers
+	if len(appReq.Labels) == 0 {
+		appReq.Labels = nil
+	}
+	if len(appReq.Annotations) == 0 {
+		appReq.Annotations = nil
+	}
+	if len(appReq.Finalizers) == 0 {
+		appReq.Finalizers = nil
+	}
+
+	if reflect.DeepEqual(appRes.Spec, appReq.Spec) &&
+		reflect.DeepEqual(appRes.Labels, appReq.Labels) &&
+		reflect.DeepEqual(appRes.ObjectMeta.Annotations, appReq.Annotations) &&
+		reflect.DeepEqual(appRes.Finalizers, appReq.Finalizers) {
+		return false
+	}
+
+	return true
+}
+
 // NewApplicationGetCommand returns a new instance of an `argocd app get` command
 func NewApplicationGetCommand(clientOpts *argocdclient.ClientOptions) *cobra.Command {
 	var (
@@ -221,6 +276,8 @@ func NewApplicationGetCommand(clientOpts *argocdclient.ClientOptions) *cobra.Com
 		Use:   "get APPNAME",
 		Short: "Get application details",
 		Run: func(c *cobra.Command, args []string) {
+			ctx := c.Context()
+
 			if len(args) == 0 {
 				c.HelpFunc()(c, args)
 				os.Exit(1)
@@ -228,13 +285,22 @@ func NewApplicationGetCommand(clientOpts *argocdclient.ClientOptions) *cobra.Com
 			acdClient := headless.NewClientOrDie(clientOpts, c)
 			conn, appIf := acdClient.NewApplicationClientOrDie()
 			defer argoio.Close(conn)
-			appName := args[0]
-			app, err := appIf.Get(context.Background(), &applicationpkg.ApplicationQuery{Name: &appName, Refresh: getRefreshType(refresh, hardRefresh)})
+
+			appName, appNs := argo.ParseAppQualifiedName(args[0], "")
+			app, err := appIf.Get(ctx, &applicationpkg.ApplicationQuery{
+				Name:         &appName,
+				Refresh:      getRefreshType(refresh, hardRefresh),
+				AppNamespace: &appNs,
+			})
 			errors.CheckError(err)
+
+			if app.Spec.Source.Plugin != nil && app.Spec.Source.Plugin.Name != "" {
+				log.Warnf(argocommon.ConfigMapPluginCLIDeprecationWarning)
+			}
 
 			pConn, projIf := headless.NewClientOrDie(clientOpts, c).NewProjectClientOrDie()
 			defer argoio.Close(pConn)
-			proj, err := projIf.Get(context.Background(), &projectpkg.ProjectQuery{Name: app.Spec.Project})
+			proj, err := projIf.Get(ctx, &projectpkg.ProjectQuery{Name: app.Spec.Project})
 			errors.CheckError(err)
 
 			windows := proj.Spec.SyncWindows.Matches(app)
@@ -244,7 +310,7 @@ func NewApplicationGetCommand(clientOpts *argocdclient.ClientOptions) *cobra.Com
 				err := PrintResource(app, output)
 				errors.CheckError(err)
 			case "wide", "":
-				aURL := appURL(acdClient, app.Name)
+				aURL := appURL(ctx, acdClient, app.Name)
 				printAppSummaryTable(app, aURL, windows)
 
 				if len(app.Status.Conditions) > 0 {
@@ -299,6 +365,8 @@ func NewApplicationLogsCommand(clientOpts *argocdclient.ClientOptions) *cobra.Co
 		Use:   "logs APPNAME",
 		Short: "Get logs of application pods",
 		Run: func(c *cobra.Command, args []string) {
+			ctx := c.Context()
+
 			if len(args) == 0 {
 				c.HelpFunc()(c, args)
 				os.Exit(1)
@@ -306,12 +374,12 @@ func NewApplicationLogsCommand(clientOpts *argocdclient.ClientOptions) *cobra.Co
 			acdClient := headless.NewClientOrDie(clientOpts, c)
 			conn, appIf := acdClient.NewApplicationClientOrDie()
 			defer argoio.Close(conn)
-			appName := args[0]
+			appName, appNs := argo.ParseAppQualifiedName(args[0], "")
 
 			retry := true
 			for retry {
 				retry = false
-				stream, err := appIf.PodLogs(context.Background(), &applicationpkg.ApplicationPodLogsQuery{
+				stream, err := appIf.PodLogs(ctx, &applicationpkg.ApplicationPodLogsQuery{
 					Name:         &appName,
 					Group:        &group,
 					Namespace:    pointer.String(namespace),
@@ -324,6 +392,7 @@ func NewApplicationLogsCommand(clientOpts *argocdclient.ClientOptions) *cobra.Co
 					Filter:       &filter,
 					Container:    pointer.String(container),
 					Previous:     pointer.Bool(previous),
+					AppNamespace: &appNs,
 				})
 				if err != nil {
 					log.Fatalf("failed to get pod logs: %v", err)
@@ -371,7 +440,7 @@ func NewApplicationLogsCommand(clientOpts *argocdclient.ClientOptions) *cobra.Co
 }
 
 func printAppSummaryTable(app *argoappv1.Application, appURL string, windows *argoappv1.SyncWindows) {
-	fmt.Printf(printOpFmtStr, "Name:", app.Name)
+	fmt.Printf(printOpFmtStr, "Name:", app.QualifiedName())
 	fmt.Printf(printOpFmtStr, "Project:", app.Spec.GetProject())
 	fmt.Printf(printOpFmtStr, "Server:", getServer(app))
 	fmt.Printf(printOpFmtStr, "Namespace:", app.Spec.Destination.Namespace)
@@ -481,10 +550,10 @@ func appURLDefault(acdClient argocdclient.Client, appName string) string {
 }
 
 // appURL returns the URL of an application
-func appURL(acdClient argocdclient.Client, appName string) string {
+func appURL(ctx context.Context, acdClient argocdclient.Client, appName string) string {
 	conn, settingsIf := acdClient.NewSettingsClientOrDie()
 	defer argoio.Close(conn)
-	argoSettings, err := settingsIf.Get(context.Background(), &settingspkg.SettingsQuery{})
+	argoSettings, err := settingsIf.Get(ctx, &settingspkg.SettingsQuery{})
 	errors.CheckError(err)
 
 	if argoSettings.URL != "" {
@@ -506,13 +575,19 @@ func truncateString(str string, num int) string {
 
 // printParams prints parameters and overrides
 func printParams(app *argoappv1.Application) {
+	if app.Spec.Source.Helm != nil {
+		printHelmParams(app.Spec.Source.Helm)
+	}
+}
+
+func printHelmParams(helm *argoappv1.ApplicationSourceHelm) {
 	paramLenLimit := 80
 	fmt.Println()
 	w := tabwriter.NewWriter(os.Stdout, 0, 0, 2, ' ', 0)
-	if app.Spec.Source.Helm != nil {
+	if helm != nil {
 		fmt.Println()
 		_, _ = fmt.Fprintf(w, "NAME\tVALUE\n")
-		for _, p := range app.Spec.Source.Helm.Parameters {
+		for _, p := range helm.Parameters {
 			_, _ = fmt.Fprintf(w, "%s\t%s\n", p.Name, truncateString(p.Value, paramLenLimit))
 		}
 	}
@@ -536,28 +611,36 @@ func NewApplicationSetCommand(clientOpts *argocdclient.ClientOptions) *cobra.Com
 		Use:   "set APPNAME",
 		Short: "Set application parameters",
 		Run: func(c *cobra.Command, args []string) {
+			ctx := c.Context()
+
 			if len(args) != 1 {
 				c.HelpFunc()(c, args)
 				os.Exit(1)
 			}
-			ctx := context.Background()
-			appName := args[0]
+			appName, appNs := argo.ParseAppQualifiedName(args[0], "")
 			argocdClient := headless.NewClientOrDie(clientOpts, c)
 			conn, appIf := argocdClient.NewApplicationClientOrDie()
 			defer argoio.Close(conn)
-			app, err := appIf.Get(ctx, &applicationpkg.ApplicationQuery{Name: &appName})
+			app, err := appIf.Get(ctx, &applicationpkg.ApplicationQuery{Name: &appName, AppNamespace: &appNs})
 			errors.CheckError(err)
+
+			if app.Spec.Source.Plugin != nil && app.Spec.Source.Plugin.Name != "" {
+				log.Warnf(argocommon.ConfigMapPluginCLIDeprecationWarning)
+			}
+
 			visited := cmdutil.SetAppSpecOptions(c.Flags(), &app.Spec, &appOpts)
 			if visited == 0 {
 				log.Error("Please set at least one option to update")
 				c.HelpFunc()(c, args)
 				os.Exit(1)
 			}
+
 			setParameterOverrides(app, appOpts.Parameters)
 			_, err = appIf.UpdateSpec(ctx, &applicationpkg.ApplicationUpdateSpecRequest{
-				Name:     &app.Name,
-				Spec:     &app.Spec,
-				Validate: &appOpts.Validate,
+				Name:         &app.Name,
+				Spec:         &app.Spec,
+				Validate:     &appOpts.Validate,
+				AppNamespace: &appNs,
 			})
 			errors.CheckError(err)
 		},
@@ -597,15 +680,21 @@ func NewApplicationUnsetCommand(clientOpts *argocdclient.ClientOptions) *cobra.C
   argocd app unset my-app -p COMPONENT=PARAM`,
 
 		Run: func(c *cobra.Command, args []string) {
+			ctx := c.Context()
+
 			if len(args) != 1 {
 				c.HelpFunc()(c, args)
 				os.Exit(1)
 			}
-			appName := args[0]
+			appName, appNs := argo.ParseAppQualifiedName(args[0], "")
 			conn, appIf := headless.NewClientOrDie(clientOpts, c).NewApplicationClientOrDie()
 			defer argoio.Close(conn)
-			app, err := appIf.Get(context.Background(), &applicationpkg.ApplicationQuery{Name: &appName})
+			app, err := appIf.Get(ctx, &applicationpkg.ApplicationQuery{Name: &appName, AppNamespace: &appNs})
 			errors.CheckError(err)
+
+			if app.Spec.Source.Plugin != nil && app.Spec.Source.Plugin.Name != "" {
+				log.Warnf(argocommon.ConfigMapPluginCLIDeprecationWarning)
+			}
 
 			updated, nothingToUnset := unset(&app.Spec.Source, opts)
 			if nothingToUnset {
@@ -617,10 +706,11 @@ func NewApplicationUnsetCommand(clientOpts *argocdclient.ClientOptions) *cobra.C
 			}
 
 			cmdutil.SetAppSpecOptions(c.Flags(), &app.Spec, &appOpts)
-			_, err = appIf.UpdateSpec(context.Background(), &applicationpkg.ApplicationUpdateSpecRequest{
-				Name:     &app.Name,
-				Spec:     &app.Spec,
-				Validate: &appOpts.Validate,
+			_, err = appIf.UpdateSpec(ctx, &applicationpkg.ApplicationUpdateSpecRequest{
+				Name:         &app.Name,
+				Spec:         &app.Spec,
+				Validate:     &appOpts.Validate,
+				AppNamespace: &appNs,
 			})
 			errors.CheckError(err)
 		},
@@ -737,9 +827,9 @@ func targetObjects(resources []*argoappv1.ResourceDiff) ([]*unstructured.Unstruc
 	return objs, nil
 }
 
-func getLocalObjects(app *argoappv1.Application, local, localRepoRoot, appLabelKey, kubeVersion string, apiVersions []string, kustomizeOptions *argoappv1.KustomizeOptions,
+func getLocalObjects(ctx context.Context, app *argoappv1.Application, local, localRepoRoot, appLabelKey, kubeVersion string, apiVersions []string, kustomizeOptions *argoappv1.KustomizeOptions,
 	configManagementPlugins []*argoappv1.ConfigManagementPlugin, trackingMethod string) []*unstructured.Unstructured {
-	manifestStrings := getLocalObjectsString(app, local, localRepoRoot, appLabelKey, kubeVersion, apiVersions, kustomizeOptions, configManagementPlugins, trackingMethod)
+	manifestStrings := getLocalObjectsString(ctx, app, local, localRepoRoot, appLabelKey, kubeVersion, apiVersions, kustomizeOptions, configManagementPlugins, trackingMethod)
 	objs := make([]*unstructured.Unstructured, len(manifestStrings))
 	for i := range manifestStrings {
 		obj := unstructured.Unstructured{}
@@ -750,10 +840,9 @@ func getLocalObjects(app *argoappv1.Application, local, localRepoRoot, appLabelK
 	return objs
 }
 
-func getLocalObjectsString(app *argoappv1.Application, local, localRepoRoot, appLabelKey, kubeVersion string, apiVersions []string, kustomizeOptions *argoappv1.KustomizeOptions,
+func getLocalObjectsString(ctx context.Context, app *argoappv1.Application, local, localRepoRoot, appLabelKey, kubeVersion string, apiVersions []string, kustomizeOptions *argoappv1.KustomizeOptions,
 	configManagementPlugins []*argoappv1.ConfigManagementPlugin, trackingMethod string) []string {
-
-	res, err := repository.GenerateManifests(context.Background(), local, localRepoRoot, app.Spec.Source.TargetRevision, &repoapiclient.ManifestRequest{
+	res, err := repository.GenerateManifests(ctx, local, localRepoRoot, app.Spec.Source.TargetRevision, &repoapiclient.ManifestRequest{
 		Repo:              &argoappv1.Repository{Repo: app.Spec.Source.RepoURL},
 		AppLabelKey:       appLabelKey,
 		AppName:           app.Name,
@@ -764,7 +853,7 @@ func getLocalObjectsString(app *argoappv1.Application, local, localRepoRoot, app
 		ApiVersions:       apiVersions,
 		Plugins:           configManagementPlugins,
 		TrackingMethod:    trackingMethod,
-	}, true, &git.NoopCredsStore{})
+	}, true, &git.NoopCredsStore{}, resource.MustParse("0"))
 	errors.CheckError(err)
 
 	return res.Manifests
@@ -809,12 +898,14 @@ type objKeyLiveTarget struct {
 // NewApplicationDiffCommand returns a new instance of an `argocd app diff` command
 func NewApplicationDiffCommand(clientOpts *argocdclient.ClientOptions) *cobra.Command {
 	var (
-		refresh       bool
-		hardRefresh   bool
-		exitCode      bool
-		local         string
-		revision      string
-		localRepoRoot string
+		refresh            bool
+		hardRefresh        bool
+		exitCode           bool
+		local              string
+		revision           string
+		localRepoRoot      string
+		serverSideGenerate bool
+		localIncludes      []string
 	)
 	shortDesc := "Perform a diff against the target and live state."
 	var command = &cobra.Command{
@@ -822,6 +913,8 @@ func NewApplicationDiffCommand(clientOpts *argocdclient.ClientOptions) *cobra.Co
 		Short: shortDesc,
 		Long:  shortDesc + "\nUses 'diff' to render the difference. KUBECTL_EXTERNAL_DIFF environment variable can be used to select your own diff tool.\nReturns the following exit codes: 2 on general errors, 1 when a diff is found, and 0 when no diff is found",
 		Run: func(c *cobra.Command, args []string) {
+			ctx := c.Context()
+
 			if len(args) != 1 {
 				c.HelpFunc()(c, args)
 				os.Exit(2)
@@ -829,36 +922,59 @@ func NewApplicationDiffCommand(clientOpts *argocdclient.ClientOptions) *cobra.Co
 			clientset := headless.NewClientOrDie(clientOpts, c)
 			conn, appIf := clientset.NewApplicationClientOrDie()
 			defer argoio.Close(conn)
-			appName := args[0]
-			app, err := appIf.Get(context.Background(), &applicationpkg.ApplicationQuery{Name: &appName, Refresh: getRefreshType(refresh, hardRefresh)})
+			appName, appNs := argo.ParseAppQualifiedName(args[0], "")
+			app, err := appIf.Get(ctx, &applicationpkg.ApplicationQuery{
+				Name:         &appName,
+				Refresh:      getRefreshType(refresh, hardRefresh),
+				AppNamespace: &appNs,
+			})
 			errors.CheckError(err)
-			resources, err := appIf.ManagedResources(context.Background(), &applicationpkg.ResourcesQuery{ApplicationName: &appName})
+
+			if app.Spec.Source.Plugin != nil && app.Spec.Source.Plugin.Name != "" {
+				log.Warnf(argocommon.ConfigMapPluginCLIDeprecationWarning)
+			}
+
+			resources, err := appIf.ManagedResources(ctx, &applicationpkg.ResourcesQuery{ApplicationName: &appName, AppNamespace: &appNs})
 			errors.CheckError(err)
 			conn, settingsIf := clientset.NewSettingsClientOrDie()
 			defer argoio.Close(conn)
-			argoSettings, err := settingsIf.Get(context.Background(), &settingspkg.SettingsQuery{})
+			argoSettings, err := settingsIf.Get(ctx, &settingspkg.SettingsQuery{})
 			errors.CheckError(err)
 			diffOption := &DifferenceOption{}
 			if revision != "" {
 				q := applicationpkg.ApplicationManifestQuery{
-					Name:     &appName,
-					Revision: &revision,
+					Name:         &appName,
+					Revision:     &revision,
+					AppNamespace: &appNs,
 				}
-				res, err := appIf.GetManifests(context.Background(), &q)
+				res, err := appIf.GetManifests(ctx, &q)
 				errors.CheckError(err)
 				diffOption.res = res
 				diffOption.revision = revision
+			} else if local != "" {
+				if serverSideGenerate {
+					client, err := appIf.GetManifestsWithFiles(ctx, grpc_retry.Disable())
+					errors.CheckError(err)
+
+					err = manifeststream.SendApplicationManifestQueryWithFiles(ctx, client, appName, appNs, local, localIncludes)
+					errors.CheckError(err)
+
+					res, err := client.CloseAndRecv()
+					errors.CheckError(err)
+
+					diffOption.serversideRes = res
+				} else {
+					fmt.Fprintf(os.Stderr, "Warning: local diff without --server-side-generate is deprecated and does not work with plugins. Server-side generation will be the default in v2.6.")
+					conn, clusterIf := clientset.NewClusterClientOrDie()
+					defer argoio.Close(conn)
+					cluster, err := clusterIf.Get(ctx, &clusterpkg.ClusterQuery{Name: app.Spec.Destination.Name, Server: app.Spec.Destination.Server})
+					errors.CheckError(err)
+					diffOption.local = local
+					diffOption.localRepoRoot = localRepoRoot
+					diffOption.cluster = cluster
+				}
 			}
-			if local != "" {
-				conn, clusterIf := clientset.NewClusterClientOrDie()
-				defer argoio.Close(conn)
-				cluster, err := clusterIf.Get(context.Background(), &clusterpkg.ClusterQuery{Name: app.Spec.Destination.Name, Server: app.Spec.Destination.Server})
-				errors.CheckError(err)
-				diffOption.local = local
-				diffOption.localRepoRoot = localRepoRoot
-				diffOption.cluster = cluster
-			}
-			foundDiffs := findandPrintDiff(app, resources, argoSettings, appName, diffOption)
+			foundDiffs := findandPrintDiff(ctx, app, resources, argoSettings, appName, diffOption)
 			if foundDiffs && exitCode {
 				os.Exit(1)
 			}
@@ -870,6 +986,8 @@ func NewApplicationDiffCommand(clientOpts *argocdclient.ClientOptions) *cobra.Co
 	command.Flags().StringVar(&local, "local", "", "Compare live app to a local manifests")
 	command.Flags().StringVar(&revision, "revision", "", "Compare live app to a particular revision")
 	command.Flags().StringVar(&localRepoRoot, "local-repo-root", "/", "Path to the repository root. Used together with --local allows setting the repository root")
+	command.Flags().BoolVar(&serverSideGenerate, "server-side-generate", false, "Used with --local, this will send your manifests to the server for diffing")
+	command.Flags().StringArrayVar(&localIncludes, "local-include", []string{"*.yaml", "*.yml", "*.json"}, "Used with --server-side-generate, specify patterns of filenames to send. Matching is based on filename and not path.")
 	return command
 }
 
@@ -880,17 +998,18 @@ type DifferenceOption struct {
 	revision      string
 	cluster       *argoappv1.Cluster
 	res           *repoapiclient.ManifestResponse
+	serversideRes *repoapiclient.ManifestResponse
 }
 
 // findandPrintDiff ... Prints difference between application current state and state stored in git or locally, returns boolean as true if difference is found else returns false
-func findandPrintDiff(app *argoappv1.Application, resources *applicationpkg.ManagedResourcesResponse, argoSettings *settingspkg.Settings, appName string, diffOptions *DifferenceOption) bool {
+func findandPrintDiff(ctx context.Context, app *argoappv1.Application, resources *applicationpkg.ManagedResourcesResponse, argoSettings *settingspkg.Settings, appName string, diffOptions *DifferenceOption) bool {
 	var foundDiffs bool
 	liveObjs, err := cmdutil.LiveObjects(resources.Items)
 	errors.CheckError(err)
 	items := make([]objKeyLiveTarget, 0)
 	if diffOptions.local != "" {
-		localObjs := groupObjsByKey(getLocalObjects(app, diffOptions.local, diffOptions.localRepoRoot, argoSettings.AppLabelKey, diffOptions.cluster.Info.ServerVersion, diffOptions.cluster.Info.APIVersions, argoSettings.KustomizeOptions, argoSettings.ConfigManagementPlugins, argoSettings.TrackingMethod), liveObjs, app.Spec.Destination.Namespace)
-		items = groupObjsForDiff(resources, localObjs, items, argoSettings, appName)
+		localObjs := groupObjsByKey(getLocalObjects(ctx, app, diffOptions.local, diffOptions.localRepoRoot, argoSettings.AppLabelKey, diffOptions.cluster.Info.ServerVersion, diffOptions.cluster.Info.APIVersions, argoSettings.KustomizeOptions, argoSettings.ConfigManagementPlugins, argoSettings.TrackingMethod), liveObjs, app.Spec.Destination.Namespace)
+		items = groupObjsForDiff(resources, localObjs, items, argoSettings, app.InstanceName(argoSettings.ControllerNamespace))
 	} else if diffOptions.revision != "" {
 		var unstructureds []*unstructured.Unstructured
 		for _, mfst := range diffOptions.res.Manifests {
@@ -899,7 +1018,16 @@ func findandPrintDiff(app *argoappv1.Application, resources *applicationpkg.Mana
 			unstructureds = append(unstructureds, obj)
 		}
 		groupedObjs := groupObjsByKey(unstructureds, liveObjs, app.Spec.Destination.Namespace)
-		items = groupObjsForDiff(resources, groupedObjs, items, argoSettings, appName)
+		items = groupObjsForDiff(resources, groupedObjs, items, argoSettings, app.Name)
+	} else if diffOptions.serversideRes != nil {
+		var unstructureds []*unstructured.Unstructured
+		for _, mfst := range diffOptions.serversideRes.Manifests {
+			obj, err := argoappv1.UnmarshalToUnstructured(mfst)
+			errors.CheckError(err)
+			unstructureds = append(unstructureds, obj)
+		}
+		groupedObjs := groupObjsByKey(unstructureds, liveObjs, app.Spec.Destination.Namespace)
+		items = groupObjsForDiff(resources, groupedObjs, items, argoSettings, app.Name)
 	} else {
 		for i := range resources.Items {
 			res := resources.Items[i]
@@ -999,12 +1127,22 @@ func NewApplicationDeleteCommand(clientOpts *argocdclient.ClientOptions) *cobra.
 		cascade           bool
 		noPrompt          bool
 		propagationPolicy string
+		selector          string
 	)
 	var command = &cobra.Command{
 		Use:   "delete APPNAME",
 		Short: "Delete an application",
+		Example: `argocd app delete app1
+
+# Delete multiple apps
+argocd app delete app1 app2
+
+# Delete apps by label
+argocd app delete -l foo=bar`,
 		Run: func(c *cobra.Command, args []string) {
-			if len(args) == 0 {
+			ctx := c.Context()
+
+			if len(args) == 0 && selector == "" {
 				c.HelpFunc()(c, args)
 				os.Exit(1)
 			}
@@ -1017,9 +1155,19 @@ func NewApplicationDeleteCommand(clientOpts *argocdclient.ClientOptions) *cobra.
 			if promptFlag.Changed && promptFlag.Value.String() == "true" {
 				noPrompt = true
 			}
-			for _, appName := range args {
+
+			appNames, err := getAppNamesBySelector(ctx, appIf, selector)
+			errors.CheckError(err)
+
+			if len(appNames) == 0 {
+				appNames = args
+			}
+
+			for _, appFullName := range appNames {
+				appName, appNs := argo.ParseAppQualifiedName(appFullName, "")
 				appDeleteReq := applicationpkg.ApplicationDeleteRequest{
-					Name: &appName,
+					Name:         &appName,
+					AppNamespace: &appNs,
 				}
 				if c.Flag("cascade").Changed {
 					appDeleteReq.Cascade = &cascade
@@ -1028,18 +1176,13 @@ func NewApplicationDeleteCommand(clientOpts *argocdclient.ClientOptions) *cobra.
 					appDeleteReq.PropagationPolicy = &propagationPolicy
 				}
 				if cascade && isTerminal && !noPrompt {
-					var confirmAnswer string = "n"
 					var lowercaseAnswer string
 					if numOfApps == 1 {
-						fmt.Println("Are you sure you want to delete '" + appName + "' and all its resources? [y/n]")
-						fmt.Scan(&confirmAnswer)
-						lowercaseAnswer = strings.ToLower(confirmAnswer)
+						lowercaseAnswer = cli.AskToProceedS("Are you sure you want to delete '" + appFullName + "' and all its resources? [y/n] ")
 					} else {
 						if !isConfirmAll {
-							fmt.Println("Are you sure you want to delete '" + appName + "' and all its resources? [y/n/A] where 'A' is to delete all specified apps and their resources without prompting")
-							fmt.Scan(&confirmAnswer)
-							lowercaseAnswer = strings.ToLower(confirmAnswer)
-							if lowercaseAnswer == "a" || lowercaseAnswer == "all" {
+							lowercaseAnswer = cli.AskToProceedS("Are you sure you want to delete '" + appFullName + "' and all its resources? [y/n/A] where 'A' is to delete all specified apps and their resources without prompting ")
+							if lowercaseAnswer == "a" {
 								lowercaseAnswer = "y"
 								isConfirmAll = true
 							}
@@ -1047,15 +1190,15 @@ func NewApplicationDeleteCommand(clientOpts *argocdclient.ClientOptions) *cobra.
 							lowercaseAnswer = "y"
 						}
 					}
-					if lowercaseAnswer == "y" || lowercaseAnswer == "yes" {
-						_, err := appIf.Delete(context.Background(), &appDeleteReq)
+					if lowercaseAnswer == "y" {
+						_, err := appIf.Delete(ctx, &appDeleteReq)
 						errors.CheckError(err)
-						fmt.Printf("application '%s' deleted\n", appName)
+						fmt.Printf("application '%s' deleted\n", appFullName)
 					} else {
-						fmt.Println("The command to delete '" + appName + "' was cancelled.")
+						fmt.Println("The command to delete '" + appFullName + "' was cancelled.")
 					}
 				} else {
-					_, err := appIf.Delete(context.Background(), &appDeleteReq)
+					_, err := appIf.Delete(ctx, &appDeleteReq)
 					errors.CheckError(err)
 				}
 			}
@@ -1064,13 +1207,14 @@ func NewApplicationDeleteCommand(clientOpts *argocdclient.ClientOptions) *cobra.
 	command.Flags().BoolVar(&cascade, "cascade", true, "Perform a cascaded deletion of all application resources")
 	command.Flags().StringVarP(&propagationPolicy, "propagation-policy", "p", "foreground", "Specify propagation policy for deletion of application's resources. One of: foreground|background")
 	command.Flags().BoolVarP(&noPrompt, "yes", "y", false, "Turn off prompting to confirm cascaded deletion of application resources")
+	command.Flags().StringVarP(&selector, "selector", "l", "", "Delete all apps with matching label")
 	return command
 }
 
 // Print simple list of application names
 func printApplicationNames(apps []argoappv1.Application) {
 	for _, app := range apps {
-		fmt.Println(app.Name)
+		fmt.Println(app.QualifiedName())
 	}
 }
 
@@ -1088,7 +1232,7 @@ func printApplicationTable(apps []argoappv1.Application, output *string) {
 	_, _ = fmt.Fprintf(w, fmtStr, headers...)
 	for _, app := range apps {
 		vals := []interface{}{
-			app.Name,
+			app.QualifiedName(),
 			getServer(&app),
 			app.Spec.Destination.Namespace,
 			app.Spec.GetProject(),
@@ -1108,10 +1252,12 @@ func printApplicationTable(apps []argoappv1.Application, output *string) {
 // NewApplicationListCommand returns a new instance of an `argocd app list` command
 func NewApplicationListCommand(clientOpts *argocdclient.ClientOptions) *cobra.Command {
 	var (
-		output   string
-		selector string
-		projects []string
-		repo     string
+		output       string
+		selector     string
+		projects     []string
+		repo         string
+		appNamespace string
+		cluster      string
 	)
 	var command = &cobra.Command{
 		Use:   "list",
@@ -1122,17 +1268,39 @@ func NewApplicationListCommand(clientOpts *argocdclient.ClientOptions) *cobra.Co
   # List apps by label, in this example we listing apps that are children of another app (aka app-of-apps)
   argocd app list -l app.kubernetes.io/instance=my-app`,
 		Run: func(c *cobra.Command, args []string) {
+			ctx := c.Context()
+
 			conn, appIf := headless.NewClientOrDie(clientOpts, c).NewApplicationClientOrDie()
 			defer argoio.Close(conn)
-			apps, err := appIf.List(context.Background(), &applicationpkg.ApplicationQuery{Selector: pointer.String(selector)})
+			apps, err := appIf.List(ctx, &applicationpkg.ApplicationQuery{
+				Selector:     pointer.String(selector),
+				AppNamespace: &appNamespace,
+			})
+
 			errors.CheckError(err)
 			appList := apps.Items
+
 			if len(projects) != 0 {
 				appList = argo.FilterByProjects(appList, projects)
 			}
 			if repo != "" {
 				appList = argo.FilterByRepo(appList, repo)
 			}
+			if cluster != "" {
+				appList = argo.FilterByCluster(appList, cluster)
+			}
+			var appsWithDeprecatedPlugins []string
+			for _, app := range appList {
+				if app.Spec.Source.Plugin != nil && app.Spec.Source.Plugin.Name != "" {
+					appsWithDeprecatedPlugins = append(appsWithDeprecatedPlugins, app.Name)
+				}
+			}
+
+			if len(appsWithDeprecatedPlugins) > 0 {
+				log.Warnf(argocommon.ConfigMapPluginCLIDeprecationWarning)
+				log.Warnf("The following Applications use deprecated plugins: %s", strings.Join(appsWithDeprecatedPlugins, ", "))
+			}
+
 			switch output {
 			case "yaml", "json":
 				err := PrintResourceList(appList, output, false)
@@ -1150,6 +1318,8 @@ func NewApplicationListCommand(clientOpts *argocdclient.ClientOptions) *cobra.Co
 	command.Flags().StringVarP(&selector, "selector", "l", "", "List apps by label")
 	command.Flags().StringArrayVarP(&projects, "project", "p", []string{}, "Filter by project name")
 	command.Flags().StringVarP(&repo, "repo", "r", "", "List apps by source repo URL")
+	command.Flags().StringVarP(&appNamespace, "app-namespace", "N", "", "Only list applications in namespace")
+	command.Flags().StringVarP(&cluster, "cluster", "c", "", "List apps by cluster name or url")
 	return command
 }
 
@@ -1268,6 +1438,8 @@ func NewApplicationWaitCommand(clientOpts *argocdclient.ClientOptions) *cobra.Co
   # Wait for apps by label, in this example we waiting for apps that are children of another app (aka app-of-apps)
   argocd app wait -l app.kubernetes.io/instance=apps`,
 		Run: func(c *cobra.Command, args []string) {
+			ctx := c.Context()
+
 			if len(args) == 0 && selector == "" {
 				c.HelpFunc()(c, args)
 				os.Exit(1)
@@ -1280,14 +1452,14 @@ func NewApplicationWaitCommand(clientOpts *argocdclient.ClientOptions) *cobra.Co
 			closer, appIf := acdClient.NewApplicationClientOrDie()
 			defer argoio.Close(closer)
 			if selector != "" {
-				list, err := appIf.List(context.Background(), &applicationpkg.ApplicationQuery{Selector: pointer.String(selector)})
+				list, err := appIf.List(ctx, &applicationpkg.ApplicationQuery{Selector: pointer.String(selector)})
 				errors.CheckError(err)
 				for _, i := range list.Items {
 					appNames = append(appNames, i.Name)
 				}
 			}
 			for _, appName := range appNames {
-				_, err := waitOnApplicationStatus(acdClient, appName, timeout, watch, selectedResources)
+				_, err := waitOnApplicationStatus(ctx, acdClient, appName, timeout, watch, selectedResources)
 				errors.CheckError(err)
 			}
 		},
@@ -1295,6 +1467,7 @@ func NewApplicationWaitCommand(clientOpts *argocdclient.ClientOptions) *cobra.Co
 	command.Flags().BoolVar(&watch.sync, "sync", false, "Wait for sync")
 	command.Flags().BoolVar(&watch.health, "health", false, "Wait for health")
 	command.Flags().BoolVar(&watch.suspended, "suspended", false, "Wait for suspended")
+	command.Flags().BoolVar(&watch.degraded, "degraded", false, "Wait for degraded")
 	command.Flags().StringVarP(&selector, "selector", "l", "", "Wait for apps by label")
 	command.Flags().StringArrayVar(&resources, "resource", []string{}, fmt.Sprintf("Sync only specific resources as GROUP%sKIND%sNAME. Fields may be blank. This option may be specified repeatedly", resourceFieldDelimiter, resourceFieldDelimiter))
 	command.Flags().BoolVar(&watch.operation, "operation", false, "Wait for pending operations")
@@ -1323,6 +1496,7 @@ func NewApplicationSyncCommand(clientOpts *argocdclient.ClientOptions) *cobra.Co
 		strategy                string
 		force                   bool
 		replace                 bool
+		serverSideApply         bool
 		async                   bool
 		retryLimit              int64
 		retryBackoffDuration    time.Duration
@@ -1333,9 +1507,10 @@ func NewApplicationSyncCommand(clientOpts *argocdclient.ClientOptions) *cobra.Co
 		infos                   []string
 		diffChanges             bool
 		diffChangesConfirm      bool
+		projects                []string
 	)
 	var command = &cobra.Command{
-		Use:   "sync [APPNAME... | -l selector]",
+		Use:   "sync [APPNAME... | -l selector | --project project-name]",
 		Short: "Sync an application to its target state",
 		Example: `  # Sync an app
   argocd app sync my-app
@@ -1353,10 +1528,18 @@ func NewApplicationSyncCommand(clientOpts *argocdclient.ClientOptions) *cobra.Co
   # Specify namespace if the application has resources with the same name in different namespaces
   argocd app sync my-app --resource argoproj.io:Rollout:my-namespace/my-rollout`,
 		Run: func(c *cobra.Command, args []string) {
-			if len(args) == 0 && selector == "" {
+			ctx := c.Context()
+
+			if len(args) == 0 && selector == "" && len(projects) == 0 {
+
 				c.HelpFunc()(c, args)
 				os.Exit(1)
 			}
+
+			if len(args) > 1 && selector != "" {
+				log.Fatal("Cannot use selector option when application name(s) passed as argument(s)")
+			}
+
 			acdClient := headless.NewClientOrDie(clientOpts, c)
 			conn, appIf := acdClient.NewApplicationClientOrDie()
 			defer argoio.Close(conn)
@@ -1365,26 +1548,35 @@ func NewApplicationSyncCommand(clientOpts *argocdclient.ClientOptions) *cobra.Co
 			errors.CheckError(err)
 
 			appNames := args
-			if selector != "" {
-				list, err := appIf.List(context.Background(), &applicationpkg.ApplicationQuery{Selector: pointer.String(selector)})
+			if selector != "" || len(projects) > 0 {
+				list, err := appIf.List(ctx, &applicationpkg.ApplicationQuery{Selector: pointer.String(selector), Projects: projects})
 				errors.CheckError(err)
+
 				// unlike list, we'd want to fail if nothing was found
 				if len(list.Items) == 0 {
-					log.Fatalf("no apps match selector %v", selector)
+					errMsg := "No matching apps found for filter:"
+					if selector != "" {
+						errMsg += fmt.Sprintf(" selector %s", selector)
+					}
+					if len(projects) != 0 {
+						errMsg += fmt.Sprintf(" projects %v", projects)
+					}
+					log.Fatalf(errMsg)
 				}
+
 				for _, i := range list.Items {
-					appNames = append(appNames, i.Name)
+					appNames = append(appNames, i.QualifiedName())
 				}
 			}
 
-			for _, appName := range appNames {
+			for _, appQualifiedName := range appNames {
+				appName, appNs := argo.ParseAppQualifiedName(appQualifiedName, "")
 
 				if len(selectedLabels) > 0 {
-					ctx := context.Background()
-
 					q := applicationpkg.ApplicationManifestQuery{
-						Name:     &appName,
-						Revision: &revision,
+						Name:         &appName,
+						AppNamespace: &appNs,
+						Revision:     &revision,
 					}
 
 					res, err := appIf.GetManifests(ctx, &q)
@@ -1417,24 +1609,32 @@ func NewApplicationSyncCommand(clientOpts *argocdclient.ClientOptions) *cobra.Co
 				var localObjsStrings []string
 				diffOption := &DifferenceOption{}
 				if local != "" {
-					app, err := appIf.Get(context.Background(), &applicationpkg.ApplicationQuery{Name: &appName})
+					app, err := appIf.Get(ctx, &applicationpkg.ApplicationQuery{
+						Name:         &appName,
+						AppNamespace: &appNs,
+					})
 					errors.CheckError(err)
+
+					if app.Spec.Source.Plugin != nil && app.Spec.Source.Plugin.Name != "" {
+						log.Warnf(argocommon.ConfigMapPluginCLIDeprecationWarning)
+					}
+
 					if app.Spec.SyncPolicy != nil && app.Spec.SyncPolicy.Automated != nil && !dryRun {
 						log.Fatal("Cannot use local sync when Automatic Sync Policy is enabled except with --dry-run")
 					}
 
 					errors.CheckError(err)
 					conn, settingsIf := acdClient.NewSettingsClientOrDie()
-					argoSettings, err := settingsIf.Get(context.Background(), &settingspkg.SettingsQuery{})
+					argoSettings, err := settingsIf.Get(ctx, &settingspkg.SettingsQuery{})
 					errors.CheckError(err)
 					argoio.Close(conn)
 
 					conn, clusterIf := acdClient.NewClusterClientOrDie()
 					defer argoio.Close(conn)
-					cluster, err := clusterIf.Get(context.Background(), &clusterpkg.ClusterQuery{Name: app.Spec.Destination.Name, Server: app.Spec.Destination.Server})
+					cluster, err := clusterIf.Get(ctx, &clusterpkg.ClusterQuery{Name: app.Spec.Destination.Name, Server: app.Spec.Destination.Server})
 					errors.CheckError(err)
 					argoio.Close(conn)
-					localObjsStrings = getLocalObjectsString(app, local, localRepoRoot, argoSettings.AppLabelKey, cluster.Info.ServerVersion, cluster.Info.APIVersions, argoSettings.KustomizeOptions, argoSettings.ConfigManagementPlugins, argoSettings.TrackingMethod)
+					localObjsStrings = getLocalObjectsString(ctx, app, local, localRepoRoot, argoSettings.AppLabelKey, cluster.Info.ServerVersion, cluster.Info.APIVersions, argoSettings.KustomizeOptions, argoSettings.ConfigManagementPlugins, argoSettings.TrackingMethod)
 					errors.CheckError(err)
 					diffOption.local = local
 					diffOption.localRepoRoot = localRepoRoot
@@ -1447,6 +1647,9 @@ func NewApplicationSyncCommand(clientOpts *argocdclient.ClientOptions) *cobra.Co
 					if replace {
 						items = append(items, common.SyncOptionReplace)
 					}
+					if serverSideApply {
+						items = append(items, common.SyncOptionServerSideApply)
+					}
 
 					if len(items) == 0 {
 						// for prevent send even empty array if not need
@@ -1457,14 +1660,15 @@ func NewApplicationSyncCommand(clientOpts *argocdclient.ClientOptions) *cobra.Co
 				}
 
 				syncReq := applicationpkg.ApplicationSyncRequest{
-					Name:        &appName,
-					DryRun:      &dryRun,
-					Revision:    &revision,
-					Resources:   selectedResources,
-					Prune:       &prune,
-					Manifests:   localObjsStrings,
-					Infos:       getInfos(infos),
-					SyncOptions: syncOptionsFactory(),
+					Name:         &appName,
+					AppNamespace: &appNs,
+					DryRun:       &dryRun,
+					Revision:     &revision,
+					Resources:    selectedResources,
+					Prune:        &prune,
+					Manifests:    localObjsStrings,
+					Infos:        getInfos(infos),
+					SyncOptions:  syncOptionsFactory(),
 				}
 
 				switch strategy {
@@ -1488,20 +1692,31 @@ func NewApplicationSyncCommand(clientOpts *argocdclient.ClientOptions) *cobra.Co
 					}
 				}
 				if diffChanges {
-					app, err := appIf.Get(context.Background(), &applicationpkg.ApplicationQuery{Name: &appName})
+					app, err := appIf.Get(ctx, &applicationpkg.ApplicationQuery{
+						Name:         &appName,
+						AppNamespace: &appNs,
+					})
 					errors.CheckError(err)
-					resources, err := appIf.ManagedResources(context.Background(), &applicationpkg.ResourcesQuery{ApplicationName: &appName})
+
+					if app.Spec.Source.Plugin != nil && app.Spec.Source.Plugin.Name != "" {
+						log.Warnf(argocommon.ConfigMapPluginCLIDeprecationWarning)
+					}
+
+					resources, err := appIf.ManagedResources(ctx, &applicationpkg.ResourcesQuery{
+						ApplicationName: &appName,
+						AppNamespace:    &appNs,
+					})
 					errors.CheckError(err)
 					conn, settingsIf := acdClient.NewSettingsClientOrDie()
 					defer argoio.Close(conn)
-					argoSettings, err := settingsIf.Get(context.Background(), &settingspkg.SettingsQuery{})
+					argoSettings, err := settingsIf.Get(ctx, &settingspkg.SettingsQuery{})
 					errors.CheckError(err)
 					foundDiffs := false
-					fmt.Printf("====== Previewing differences between live and desired state of application %s ======\n", appName)
-					foundDiffs = findandPrintDiff(app, resources, argoSettings, appName, diffOption)
+					fmt.Printf("====== Previewing differences between live and desired state of application %s ======\n", appQualifiedName)
+					foundDiffs = findandPrintDiff(ctx, app, resources, argoSettings, appQualifiedName, diffOption)
 					if foundDiffs {
 						if !diffChangesConfirm {
-							yesno := cli.AskToProceed(fmt.Sprintf("Please review changes to application %s shown above. Do you want to continue the sync process? (y/n): ", appName))
+							yesno := cli.AskToProceed(fmt.Sprintf("Please review changes to application %s shown above. Do you want to continue the sync process? (y/n): ", appQualifiedName))
 							if !yesno {
 								os.Exit(0)
 							}
@@ -1510,12 +1725,11 @@ func NewApplicationSyncCommand(clientOpts *argocdclient.ClientOptions) *cobra.Co
 						fmt.Printf("====== No Differences found ======\n")
 					}
 				}
-				ctx := context.Background()
 				_, err = appIf.Sync(ctx, &syncReq)
 				errors.CheckError(err)
 
 				if !async {
-					app, err := waitOnApplicationStatus(acdClient, appName, timeout, watchOpts{operation: true}, selectedResources)
+					app, err := waitOnApplicationStatus(ctx, acdClient, appQualifiedName, timeout, watchOpts{operation: true}, selectedResources)
 					errors.CheckError(err)
 
 					if !dryRun {
@@ -1547,13 +1761,33 @@ func NewApplicationSyncCommand(clientOpts *argocdclient.ClientOptions) *cobra.Co
 	command.Flags().StringVar(&strategy, "strategy", "", "Sync strategy (one of: apply|hook)")
 	command.Flags().BoolVar(&force, "force", false, "Use a force apply")
 	command.Flags().BoolVar(&replace, "replace", false, "Use a kubectl create/replace instead apply")
+	command.Flags().BoolVar(&serverSideApply, "server-side", false, "Use server-side apply while syncing the application")
 	command.Flags().BoolVar(&async, "async", false, "Do not wait for application to sync before continuing")
 	command.Flags().StringVar(&local, "local", "", "Path to a local directory. When this flag is present no git queries will be made")
 	command.Flags().StringVar(&localRepoRoot, "local-repo-root", "/", "Path to the repository root. Used together with --local allows setting the repository root")
 	command.Flags().StringArrayVar(&infos, "info", []string{}, "A list of key-value pairs during sync process. These infos will be persisted in app.")
 	command.Flags().BoolVar(&diffChangesConfirm, "assumeYes", false, "Assume yes as answer for all user queries or prompts")
 	command.Flags().BoolVar(&diffChanges, "preview-changes", false, "Preview difference against the target and live state before syncing app and wait for user confirmation")
+	command.Flags().StringArrayVar(&projects, "project", []string{}, "Sync apps that belong to the specified projects. This option may be specified repeatedly.")
 	return command
+}
+
+func getAppNamesBySelector(ctx context.Context, appIf applicationpkg.ApplicationServiceClient, selector string) ([]string, error) {
+	appNames := []string{}
+	if selector != "" {
+		list, err := appIf.List(ctx, &applicationpkg.ApplicationQuery{Selector: pointer.String(selector)})
+		if err != nil {
+			return []string{}, err
+		}
+		// unlike list, we'd want to fail if nothing was found
+		if len(list.Items) == 0 {
+			return []string{}, fmt.Errorf("no apps match selector %v", selector)
+		}
+		for _, i := range list.Items {
+			appNames = append(appNames, i.Name)
+		}
+	}
+	return appNames, nil
 }
 
 // ResourceDiff tracks the state of a resource when waiting on an application status.
@@ -1673,13 +1907,27 @@ func groupResourceStates(app *argoappv1.Application, selectedResources []*argoap
 // check if resource health, sync and operation statuses matches watch options
 func checkResourceStatus(watch watchOpts, healthStatus string, syncStatus string, operationStatus *argoappv1.Operation) bool {
 	healthCheckPassed := true
-	if watch.suspended && watch.health {
+
+	if watch.suspended && watch.health && watch.degraded {
+		healthCheckPassed = healthStatus == string(health.HealthStatusHealthy) ||
+			healthStatus == string(health.HealthStatusSuspended) ||
+			healthStatus == string(health.HealthStatusDegraded)
+	} else if watch.suspended && watch.degraded {
+		healthCheckPassed = healthStatus == string(health.HealthStatusDegraded) ||
+			healthStatus == string(health.HealthStatusSuspended)
+	} else if watch.degraded && watch.health {
+		healthCheckPassed = healthStatus == string(health.HealthStatusHealthy) ||
+			healthStatus == string(health.HealthStatusDegraded)
+		//below are good
+	} else if watch.suspended && watch.health {
 		healthCheckPassed = healthStatus == string(health.HealthStatusHealthy) ||
 			healthStatus == string(health.HealthStatusSuspended)
 	} else if watch.suspended {
 		healthCheckPassed = healthStatus == string(health.HealthStatusSuspended)
 	} else if watch.health {
 		healthCheckPassed = healthStatus == string(health.HealthStatusHealthy)
+	} else if watch.degraded {
+		healthCheckPassed = healthStatus == string(health.HealthStatusDegraded)
 	}
 
 	synced := !watch.sync || syncStatus == string(argoappv1.SyncStatusCodeSynced)
@@ -1689,8 +1937,8 @@ func checkResourceStatus(watch watchOpts, healthStatus string, syncStatus string
 
 const waitFormatString = "%s\t%5s\t%10s\t%10s\t%20s\t%8s\t%7s\t%10s\t%s\n"
 
-func waitOnApplicationStatus(acdClient argocdclient.Client, appName string, timeout uint, watch watchOpts, selectedResources []*argoappv1.SyncOperationResource) (*argoappv1.Application, error) {
-	ctx, cancel := context.WithCancel(context.Background())
+func waitOnApplicationStatus(ctx context.Context, acdClient argocdclient.Client, appName string, timeout uint, watch watchOpts, selectedResources []*argoappv1.SyncOperationResource) (*argoappv1.Application, error) {
+	ctx, cancel := context.WithCancel(ctx)
 	defer cancel()
 
 	// refresh controls whether or not we refresh the app before printing the final status.
@@ -1698,18 +1946,24 @@ func waitOnApplicationStatus(acdClient argocdclient.Client, appName string, time
 	// time when the sync status lags behind when an operation completes
 	refresh := false
 
+	appRealName, appNs := argo.ParseAppQualifiedName(appName, "")
+
 	printFinalStatus := func(app *argoappv1.Application) *argoappv1.Application {
 		var err error
 		if refresh {
 			conn, appClient := acdClient.NewApplicationClientOrDie()
 			refreshType := string(argoappv1.RefreshTypeNormal)
-			app, err = appClient.Get(context.Background(), &applicationpkg.ApplicationQuery{Name: &appName, Refresh: &refreshType})
+			app, err = appClient.Get(ctx, &applicationpkg.ApplicationQuery{
+				Name:         &appRealName,
+				Refresh:      &refreshType,
+				AppNamespace: &appNs,
+			})
 			errors.CheckError(err)
 			_ = conn.Close()
 		}
 
 		fmt.Println()
-		printAppSummaryTable(app, appURL(acdClient, appName), nil)
+		printAppSummaryTable(app, appURL(ctx, acdClient, appName), nil)
 		fmt.Println()
 		if watch.operation {
 			printOperationResult(app.Status.OperationState)
@@ -1736,7 +1990,10 @@ func waitOnApplicationStatus(acdClient argocdclient.Client, appName string, time
 	prevStates := make(map[string]*resourceState)
 	conn, appClient := acdClient.NewApplicationClientOrDie()
 	defer argoio.Close(conn)
-	app, err := appClient.Get(ctx, &applicationpkg.ApplicationQuery{Name: &appName})
+	app, err := appClient.Get(ctx, &applicationpkg.ApplicationQuery{
+		Name:         &appRealName,
+		AppNamespace: &appNs,
+	})
 	errors.CheckError(err)
 	appEventCh := acdClient.WatchApplicationWithRetry(ctx, appName, app.ResourceVersion)
 	for appEvent := range appEventCh {
@@ -1872,15 +2129,25 @@ func NewApplicationHistoryCommand(clientOpts *argocdclient.ClientOptions) *cobra
 		Use:   "history APPNAME",
 		Short: "Show application deployment history",
 		Run: func(c *cobra.Command, args []string) {
+			ctx := c.Context()
+
 			if len(args) != 1 {
 				c.HelpFunc()(c, args)
 				os.Exit(1)
 			}
 			conn, appIf := headless.NewClientOrDie(clientOpts, c).NewApplicationClientOrDie()
 			defer argoio.Close(conn)
-			appName := args[0]
-			app, err := appIf.Get(context.Background(), &applicationpkg.ApplicationQuery{Name: &appName})
+			appName, appNs := argo.ParseAppQualifiedName(args[0], "")
+			app, err := appIf.Get(ctx, &applicationpkg.ApplicationQuery{
+				Name:         &appName,
+				AppNamespace: &appNs,
+			})
 			errors.CheckError(err)
+
+			if app.Spec.Source.Plugin != nil && app.Spec.Source.Plugin.Name != "" {
+				log.Warnf(argocommon.ConfigMapPluginCLIDeprecationWarning)
+			}
+
 			if output == "id" {
 				printApplicationHistoryIds(app.Status.History)
 			} else {
@@ -1919,11 +2186,13 @@ func NewApplicationRollbackCommand(clientOpts *argocdclient.ClientOptions) *cobr
 		Use:   "rollback APPNAME [ID]",
 		Short: "Rollback application to a previous deployed version by History ID, omitted will Rollback to the previous version",
 		Run: func(c *cobra.Command, args []string) {
+			ctx := c.Context()
+
 			if len(args) == 0 {
 				c.HelpFunc()(c, args)
 				os.Exit(1)
 			}
-			appName := args[0]
+			appName, appNs := argo.ParseAppQualifiedName(args[0], "")
 			var err error
 			depID := -1
 			if len(args) > 1 {
@@ -1933,21 +2202,28 @@ func NewApplicationRollbackCommand(clientOpts *argocdclient.ClientOptions) *cobr
 			acdClient := headless.NewClientOrDie(clientOpts, c)
 			conn, appIf := acdClient.NewApplicationClientOrDie()
 			defer argoio.Close(conn)
-			ctx := context.Background()
-			app, err := appIf.Get(ctx, &applicationpkg.ApplicationQuery{Name: &appName})
+			app, err := appIf.Get(ctx, &applicationpkg.ApplicationQuery{
+				Name:         &appName,
+				AppNamespace: &appNs,
+			})
 			errors.CheckError(err)
+
+			if app.Spec.Source.Plugin != nil && app.Spec.Source.Plugin.Name != "" {
+				log.Warnf(argocommon.ConfigMapPluginCLIDeprecationWarning)
+			}
 
 			depInfo, err := findRevisionHistory(app, int64(depID))
 			errors.CheckError(err)
 
 			_, err = appIf.Rollback(ctx, &applicationpkg.ApplicationRollbackRequest{
-				Name:  &appName,
-				Id:    pointer.Int64(depInfo.ID),
-				Prune: pointer.Bool(prune),
+				Name:         &appName,
+				AppNamespace: &appNs,
+				Id:           pointer.Int64(depInfo.ID),
+				Prune:        pointer.Bool(prune),
 			})
 			errors.CheckError(err)
 
-			_, err = waitOnApplicationStatus(acdClient, appName, timeout, watchOpts{
+			_, err = waitOnApplicationStatus(ctx, acdClient, app.QualifiedName(), timeout, watchOpts{
 				operation: true,
 			}, nil)
 			errors.CheckError(err)
@@ -1987,34 +2263,62 @@ func printOperationResult(opState *argoappv1.OperationState) {
 // NewApplicationManifestsCommand returns a new instance of an `argocd app manifests` command
 func NewApplicationManifestsCommand(clientOpts *argocdclient.ClientOptions) *cobra.Command {
 	var (
-		source   string
-		revision string
+		source        string
+		revision      string
+		local         string
+		localRepoRoot string
 	)
 	var command = &cobra.Command{
 		Use:   "manifests APPNAME",
 		Short: "Print manifests of an application",
 		Run: func(c *cobra.Command, args []string) {
+			ctx := c.Context()
+
 			if len(args) != 1 {
 				c.HelpFunc()(c, args)
 				os.Exit(1)
 			}
-			appName := args[0]
-			conn, appIf := headless.NewClientOrDie(clientOpts, c).NewApplicationClientOrDie()
+			appName, appNs := argo.ParseAppQualifiedName(args[0], "")
+			clientset := headless.NewClientOrDie(clientOpts, c)
+			conn, appIf := clientset.NewApplicationClientOrDie()
 			defer argoio.Close(conn)
-			ctx := context.Background()
-			resources, err := appIf.ManagedResources(context.Background(), &applicationpkg.ResourcesQuery{ApplicationName: &appName})
+			resources, err := appIf.ManagedResources(ctx, &applicationpkg.ResourcesQuery{
+				ApplicationName: &appName,
+				AppNamespace:    &appNs,
+			})
 			errors.CheckError(err)
 
 			var unstructureds []*unstructured.Unstructured
 			switch source {
 			case "git":
-				if revision != "" {
+				if local != "" {
+					app, err := appIf.Get(context.Background(), &applicationpkg.ApplicationQuery{Name: &appName})
+					errors.CheckError(err)
+
+					if app.Spec.Source.Plugin != nil && app.Spec.Source.Plugin.Name != "" {
+						log.Warnf(argocommon.ConfigMapPluginCLIDeprecationWarning)
+					}
+
+					settingsConn, settingsIf := clientset.NewSettingsClientOrDie()
+					defer argoio.Close(settingsConn)
+					argoSettings, err := settingsIf.Get(context.Background(), &settingspkg.SettingsQuery{})
+					errors.CheckError(err)
+
+					clusterConn, clusterIf := clientset.NewClusterClientOrDie()
+					defer argoio.Close(clusterConn)
+					cluster, err := clusterIf.Get(context.Background(), &clusterpkg.ClusterQuery{Name: app.Spec.Destination.Name, Server: app.Spec.Destination.Server})
+					errors.CheckError(err)
+
+					unstructureds = getLocalObjects(context.Background(), app, local, localRepoRoot, argoSettings.AppLabelKey, cluster.ServerVersion, cluster.Info.APIVersions, argoSettings.KustomizeOptions, argoSettings.ConfigManagementPlugins, argoSettings.TrackingMethod)
+				} else if revision != "" {
 					q := applicationpkg.ApplicationManifestQuery{
-						Name:     &appName,
-						Revision: pointer.String(revision),
+						Name:         &appName,
+						AppNamespace: &appNs,
+						Revision:     pointer.String(revision),
 					}
 					res, err := appIf.GetManifests(ctx, &q)
 					errors.CheckError(err)
+
 					for _, mfst := range res.Manifests {
 						obj, err := argoappv1.UnmarshalToUnstructured(mfst)
 						errors.CheckError(err)
@@ -2043,6 +2347,8 @@ func NewApplicationManifestsCommand(clientOpts *argocdclient.ClientOptions) *cob
 	}
 	command.Flags().StringVar(&source, "source", "git", "Source of manifests. One of: live|git")
 	command.Flags().StringVar(&revision, "revision", "", "Show manifests at a specific revision")
+	command.Flags().StringVar(&local, "local", "", "If set, show locally-generated manifests. Value is the absolute path to app manifests within the manifest repo. Example: '/home/username/apps/env/app-1'.")
+	command.Flags().StringVar(&localRepoRoot, "local-repo-root", ".", "Path to the local repository root. Used together with --local allows setting the repository root. Example: '/home/username/apps'.")
 	return command
 }
 
@@ -2052,15 +2358,19 @@ func NewApplicationTerminateOpCommand(clientOpts *argocdclient.ClientOptions) *c
 		Use:   "terminate-op APPNAME",
 		Short: "Terminate running operation of an application",
 		Run: func(c *cobra.Command, args []string) {
+			ctx := c.Context()
+
 			if len(args) != 1 {
 				c.HelpFunc()(c, args)
 				os.Exit(1)
 			}
-			appName := args[0]
+			appName, appNs := argo.ParseAppQualifiedName(args[0], "")
 			conn, appIf := headless.NewClientOrDie(clientOpts, c).NewApplicationClientOrDie()
 			defer argoio.Close(conn)
-			ctx := context.Background()
-			_, err := appIf.TerminateOperation(ctx, &applicationpkg.OperationTerminateRequest{Name: &appName})
+			_, err := appIf.TerminateOperation(ctx, &applicationpkg.OperationTerminateRequest{
+				Name:         &appName,
+				AppNamespace: &appNs,
+			})
 			errors.CheckError(err)
 			fmt.Printf("Application '%s' operation terminating\n", appName)
 		},
@@ -2073,15 +2383,25 @@ func NewApplicationEditCommand(clientOpts *argocdclient.ClientOptions) *cobra.Co
 		Use:   "edit APPNAME",
 		Short: "Edit application",
 		Run: func(c *cobra.Command, args []string) {
+			ctx := c.Context()
+
 			if len(args) != 1 {
 				c.HelpFunc()(c, args)
 				os.Exit(1)
 			}
-			appName := args[0]
+			appName, appNs := argo.ParseAppQualifiedName(args[0], "")
 			conn, appIf := headless.NewClientOrDie(clientOpts, c).NewApplicationClientOrDie()
 			defer argoio.Close(conn)
-			app, err := appIf.Get(context.Background(), &applicationpkg.ApplicationQuery{Name: &appName})
+			app, err := appIf.Get(ctx, &applicationpkg.ApplicationQuery{
+				Name:         &appName,
+				AppNamespace: &appNs,
+			})
 			errors.CheckError(err)
+
+			if app.Spec.Source.Plugin != nil && app.Spec.Source.Plugin.Name != "" {
+				log.Warnf(argocommon.ConfigMapPluginCLIDeprecationWarning)
+			}
+
 			appData, err := json.Marshal(app.Spec)
 			errors.CheckError(err)
 			appData, err = yaml.JSONToYAML(appData)
@@ -2100,7 +2420,12 @@ func NewApplicationEditCommand(clientOpts *argocdclient.ClientOptions) *cobra.Co
 
 				var appOpts cmdutil.AppOptions
 				cmdutil.SetAppSpecOptions(c.Flags(), &app.Spec, &appOpts)
-				_, err = appIf.UpdateSpec(context.Background(), &applicationpkg.ApplicationUpdateSpecRequest{Name: &app.Name, Spec: &updatedSpec, Validate: &appOpts.Validate})
+				_, err = appIf.UpdateSpec(ctx, &applicationpkg.ApplicationUpdateSpecRequest{
+					Name:         &appName,
+					Spec:         &updatedSpec,
+					Validate:     &appOpts.Validate,
+					AppNamespace: &appNs,
+				})
 				if err != nil {
 					return fmt.Errorf("Failed to update application spec:\n%v", err)
 				}
@@ -2125,18 +2450,21 @@ func NewApplicationPatchCommand(clientOpts *argocdclient.ClientOptions) *cobra.C
 	# Update an application's repository target revision using merge patch
 	argocd app patch myapplication --patch '{"spec": { "source": { "targetRevision": "master" } }}' --type merge`,
 		Run: func(c *cobra.Command, args []string) {
+			ctx := c.Context()
+
 			if len(args) != 1 {
 				c.HelpFunc()(c, args)
 				os.Exit(1)
 			}
-			appName := args[0]
+			appName, appNs := argo.ParseAppQualifiedName(args[0], "")
 			conn, appIf := headless.NewClientOrDie(clientOpts, c).NewApplicationClientOrDie()
 			defer argoio.Close(conn)
 
-			patchedApp, err := appIf.Patch(context.Background(), &applicationpkg.ApplicationPatchRequest{
-				Name:      &appName,
-				Patch:     &patch,
-				PatchType: &patchType,
+			patchedApp, err := appIf.Patch(ctx, &applicationpkg.ApplicationPatchRequest{
+				Name:         &appName,
+				Patch:        &patch,
+				PatchType:    &patchType,
+				AppNamespace: &appNs,
 			})
 			errors.CheckError(err)
 

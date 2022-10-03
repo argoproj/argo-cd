@@ -154,12 +154,33 @@ func (p *AppProject) ValidateJWTTokenID(roleName string, id string) error {
 func (p *AppProject) ValidateProject() error {
 	destKeys := make(map[string]bool)
 	for _, dest := range p.Spec.Destinations {
+		if dest.Name == "!*" {
+			return status.Errorf(codes.InvalidArgument, "name has an invalid format, '!*'")
+		}
+
+		if dest.Server == "!*" {
+			return status.Errorf(codes.InvalidArgument, "server has an invalid format, '!*'")
+		}
+
+		if dest.Namespace == "!*" {
+			return status.Errorf(codes.InvalidArgument, "namespace has an invalid format, '!*'")
+		}
+
 		key := fmt.Sprintf("%s/%s", dest.Server, dest.Namespace)
 		if _, ok := destKeys[key]; ok {
 			return status.Errorf(codes.InvalidArgument, "destination '%s' already added", key)
 		}
 		destKeys[key] = true
 	}
+
+	srcNamespaces := make(map[string]bool)
+	for _, ns := range p.Spec.SourceNamespaces {
+		if _, ok := srcNamespaces[ns]; ok {
+			return status.Errorf(codes.InvalidArgument, "source namespaces '%s' already added", ns)
+		}
+		destKeys[ns] = true
+	}
+
 	srcRepos := make(map[string]bool)
 	for _, src := range p.Spec.SourceRepos {
 		if _, ok := srcRepos[src]; ok {
@@ -202,6 +223,9 @@ func (p *AppProject) ValidateProject() error {
 	if p.Spec.SyncWindows.HasWindows() {
 		existingWindows := make(map[string]bool)
 		for _, window := range p.Spec.SyncWindows {
+			if window == nil {
+				continue
+			}
 			if _, ok := existingWindows[window.Kind+window.Schedule+window.Duration]; ok {
 				return status.Errorf(codes.AlreadyExists, "window '%s':'%s':'%s' already exists, update or edit", window.Kind, window.Schedule, window.Duration)
 			}
@@ -312,18 +336,18 @@ func (proj AppProject) IsGroupKindPermitted(gk schema.GroupKind, namespaced bool
 }
 
 // IsLiveResourcePermitted returns whether a live resource found in the cluster is permitted by an AppProject
-func (proj AppProject) IsLiveResourcePermitted(un *unstructured.Unstructured, server string, name string) bool {
-	return proj.IsResourcePermitted(un.GroupVersionKind().GroupKind(), un.GetNamespace(), ApplicationDestination{Server: server, Name: name})
+func (proj AppProject) IsLiveResourcePermitted(un *unstructured.Unstructured, server string, name string, projectClusters func(project string) ([]*Cluster, error)) (bool, error) {
+	return proj.IsResourcePermitted(un.GroupVersionKind().GroupKind(), un.GetNamespace(), ApplicationDestination{Server: server, Name: name}, projectClusters)
 }
 
-func (proj AppProject) IsResourcePermitted(groupKind schema.GroupKind, namespace string, dest ApplicationDestination) bool {
+func (proj AppProject) IsResourcePermitted(groupKind schema.GroupKind, namespace string, dest ApplicationDestination, projectClusters func(project string) ([]*Cluster, error)) (bool, error) {
 	if !proj.IsGroupKindPermitted(groupKind, namespace != "") {
-		return false
+		return false, nil
 	}
 	if namespace != "" {
-		return proj.IsDestinationPermitted(ApplicationDestination{Server: dest.Server, Name: dest.Name, Namespace: namespace})
+		return proj.IsDestinationPermitted(ApplicationDestination{Server: dest.Server, Name: dest.Name, Namespace: namespace}, projectClusters)
 	}
-	return true
+	return true, nil
 }
 
 // HasFinalizer returns true if a resource finalizer is set on an AppProject
@@ -336,7 +360,11 @@ func (proj *AppProject) RemoveFinalizer() {
 	setFinalizer(&proj.ObjectMeta, ResourcesFinalizerName, false)
 }
 
-func globMatch(pattern string, val string, separators ...rune) bool {
+func globMatch(pattern string, val string, allowNegation bool, separators ...rune) bool {
+	if allowNegation && isDenyDestination(pattern) {
+		return !glob.Match(pattern[1:], val, separators...)
+	}
+
 	if pattern == "*" {
 		return true
 	}
@@ -348,7 +376,7 @@ func (proj AppProject) IsSourcePermitted(src ApplicationSource) bool {
 	srcNormalized := git.NormalizeGitURL(src.RepoURL)
 	for _, repoURL := range proj.Spec.SourceRepos {
 		normalized := git.NormalizeGitURL(repoURL)
-		if globMatch(normalized, srcNormalized, '/') {
+		if globMatch(normalized, srcNormalized, false, '/') {
 			return true
 		}
 	}
@@ -356,15 +384,48 @@ func (proj AppProject) IsSourcePermitted(src ApplicationSource) bool {
 }
 
 // IsDestinationPermitted validates if the provided application's destination is one of the allowed destinations for the project
-func (proj AppProject) IsDestinationPermitted(dst ApplicationDestination) bool {
+func (proj AppProject) IsDestinationPermitted(dst ApplicationDestination, projectClusters func(project string) ([]*Cluster, error)) (bool, error) {
+	destinationMatched := proj.isDestinationMatched(dst)
+	if destinationMatched && proj.Spec.PermitOnlyProjectScopedClusters {
+		clusters, err := projectClusters(proj.Name)
+		if err != nil {
+			return false, fmt.Errorf("could not retrieve project clusters: %s", err)
+		}
+
+		for _, cluster := range clusters {
+			if cluster.Name == dst.Name || cluster.Server == dst.Server {
+				return true, nil
+			}
+		}
+
+		return false, nil
+	}
+
+	return destinationMatched, nil
+}
+
+func (proj AppProject) isDestinationMatched(dst ApplicationDestination) bool {
+	anyDestinationMatched := false
+	noDenyDestinationsMatched := true
+
 	for _, item := range proj.Spec.Destinations {
-		dstNameMatched := dst.Name != "" && globMatch(item.Name, dst.Name)
-		dstServerMatched := dst.Server != "" && globMatch(item.Server, dst.Server)
-		if (dstServerMatched || dstNameMatched) && globMatch(item.Namespace, dst.Namespace) {
-			return true
+		dstNameMatched := dst.Name != "" && globMatch(item.Name, dst.Name, true)
+		dstServerMatched := dst.Server != "" && globMatch(item.Server, dst.Server, true)
+		dstNamespaceMatched := globMatch(item.Namespace, dst.Namespace, true)
+
+		matched := (dstServerMatched || dstNameMatched) && dstNamespaceMatched
+		if matched {
+			anyDestinationMatched = true
+		} else if ((!dstNameMatched && isDenyDestination(item.Name)) || (!dstServerMatched && isDenyDestination(item.Server))) || (!dstNamespaceMatched && isDenyDestination(item.Namespace)) {
+			noDenyDestinationsMatched = false
 		}
 	}
-	return false
+
+	return anyDestinationMatched && noDenyDestinationsMatched
+}
+
+func isDenyDestination(pattern string) bool {
+	return strings.HasPrefix(pattern, "!")
 }
 
 // TODO: document this method
@@ -449,4 +510,19 @@ func jwtTokensCombine(tokens1 []JWTToken, tokens2 []JWTToken) []JWTToken {
 		return tokens[i].IssuedAt > tokens[j].IssuedAt
 	})
 	return tokens
+}
+
+// IsAppNamespacePermitted checks whether an application that associates with
+// this AppProject is allowed by comparing the Application's namespace with
+// the list of allowed namespaces in the AppProject.
+//
+// Applications in the installation namespace are always permitted. Also, at
+// application creation time, its namespace may yet be empty to indicate that
+// the application will be created in the controller's namespace.
+func (p AppProject) IsAppNamespacePermitted(app *Application, controllerNs string) bool {
+	if app.Namespace == "" || app.Namespace == controllerNs {
+		return true
+	}
+
+	return glob.MatchStringInList(p.Spec.SourceNamespaces, app.Namespace, false)
 }

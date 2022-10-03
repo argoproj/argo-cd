@@ -21,11 +21,7 @@ spec:
       - name: argocd-repo-server
         image: quay.io/argoproj/argocd:latest
         imagePullPolicy: Always
-        command:
-        - entrypoint.sh
-        - argocd-repo-server
-        - --redis
-        - $(ARGOCD_REDIS_SERVICE):6379
+        command: [ "sh", "-c", "entrypoint.sh argocd-repo-server --redis $(ARGOCD_REDIS_SERVICE):6379"]
         env:
           - name: ARGOCD_RECONCILIATION_TIMEOUT
             valueFrom:
@@ -87,6 +83,12 @@ spec:
                   name: argocd-cmd-params-cm
                   key: redis.server
                   optional: true
+          - name: REDIS_COMPRESSION
+            valueFrom:
+              configMapKeyRef:
+                name: argocd-cmd-params-cm
+                key: redis.compression
+                optional: true
           - name: REDISDB
             valueFrom:
                 configMapKeyRef:
@@ -105,6 +107,36 @@ spec:
                   name: argocd-cmd-params-cm
                   key: otlp.address
                   optional: true
+          - name: ARGOCD_REPO_SERVER_MAX_COMBINED_DIRECTORY_MANIFESTS_SIZE
+            valueFrom:
+              configMapKeyRef:
+                name: argocd-cmd-params-cm
+                key: reposerver.max.combined.directory.manifests.size
+                optional: true
+          - name: ARGOCD_REPO_SERVER_PLUGIN_TAR_EXCLUSIONS
+            valueFrom:
+              configMapKeyRef:
+                name: argocd-cmd-params-cm
+                key: reposerver.plugin.tar.exclusions
+                optional: true
+          - name: ARGOCD_REPO_SERVER_ALLOW_OUT_OF_BOUNDS_SYMLINKS
+            valueFrom:
+              configMapKeyRef:
+                key: reposerver.allow.oob.symlinks
+                name: argocd-cmd-params-cm
+                optional: true
+          - name: ARGOCD_REPO_SERVER_STREAMED_MANIFEST_MAX_TAR_SIZE
+            valueFrom:
+              configMapKeyRef:
+                key: reposerver.streamed.manifest.max.tar.size
+                name: argocd-cmd-params-cm
+                optional: true
+          - name: ARGOCD_REPO_SERVER_STREAMED_MANIFEST_MAX_EXTRACTED_SIZE
+            valueFrom:
+              configMapKeyRef:
+                key: reposerver.streamed.manifest.max.extracted.size
+                name: argocd-cmd-params-cm
+                optional: true
           - name: HELM_CACHE_HOME
             value: /helm-working-dir
           - name: HELM_CONFIG_HOME
@@ -133,7 +165,9 @@ spec:
           allowPrivilegeEscalation: false
           capabilities:
             drop:
-              - all
+            - ALL
+          seccompProfile:
+            type: RuntimeDefault
         volumeMounts:
         - name: ssh-known-hosts
           mountPath: /app/config/ssh
@@ -165,7 +199,9 @@ spec:
           allowPrivilegeEscalation: false
           capabilities:
             drop:
-            - all
+            - ALL
+          seccompProfile:
+            type: RuntimeDefault
         volumeMounts:
         - mountPath: /var/run/argocd
           name: var-files

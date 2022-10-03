@@ -14,6 +14,7 @@ argocd-server [flags]
 
 ```
       --app-state-cache-expiration duration           Cache expiration for app state (default 1h0m0s)
+      --application-namespaces strings                List of additional namespaces where application resources can be managed in
       --as string                                     Username to impersonate for the operation
       --as-group stringArray                          Group to impersonate for the operation, this flag can be repeated to specify multiple groups.
       --as-uid string                                 UID to impersonate for the operation
@@ -26,7 +27,9 @@ argocd-server [flags]
       --content-security-policy value                 Set Content-Security-Policy header in HTTP responses to value. To disable, set to "". (default "frame-ancestors 'self';")
       --context string                                The name of the kubeconfig context to use
       --default-cache-expiration duration             Cache expiration default (default 24h0m0s)
-      --dex-server string                             Dex server address (default "http://argocd-dex-server:5556")
+      --dex-server string                             Dex server address (default "argocd-dex-server:5556")
+      --dex-server-plaintext                          Use a plaintext client (non-TLS) to connect to dex server
+      --dex-server-strict-tls                         Perform strict validation of TLS certificates when connecting to dex server
       --disable-auth                                  Disable client authentication
       --enable-gzip                                   Enable GZIP compression
       --gloglevel int                                 Set the glog logging level
@@ -43,10 +46,12 @@ argocd-server [flags]
       --otlp-address string                           OpenTelemetry collector address to send traces to
       --password string                               Password for basic authentication to the API server
       --port int                                      Listen on given port (default 8080)
+      --proxy-url string                              If provided, this URL will be used to connect via proxy
       --redis string                                  Redis server hostname and port (e.g. argocd-redis:6379). 
       --redis-ca-certificate string                   Path to Redis server CA certificate (e.g. /etc/certs/redis/ca.crt). If not specified, system trusted CAs will be used for server certificate validation.
       --redis-client-certificate string               Path to Redis client certificate (e.g. /etc/certs/redis/client.crt).
       --redis-client-key string                       Path to Redis client key (e.g. /etc/certs/redis/client.crt).
+      --redis-compress string                         Enable compression for data sent to Redis with the required compression algorithm. (possible values: none, gzip) (default "none")
       --redis-insecure-skip-tls-verify                Skip Redis server certificate validation.
       --redis-use-tls                                 Use TLS when connecting to Redis. 
       --redisdb int                                   Redis database.

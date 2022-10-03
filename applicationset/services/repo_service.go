@@ -19,8 +19,9 @@ type RepositoryDB interface {
 }
 
 type argoCDService struct {
-	repositoriesDB RepositoryDB
-	storecreds     git.CredsStore
+	repositoriesDB   RepositoryDB
+	storecreds       git.CredsStore
+	submoduleEnabled bool
 }
 
 type Repos interface {
@@ -32,11 +33,12 @@ type Repos interface {
 	GetDirectories(ctx context.Context, repoURL string, revision string) ([]string, error)
 }
 
-func NewArgoCDService(db db.ArgoDB, gitCredStore git.CredsStore, repoServerAddress string) Repos {
+func NewArgoCDService(db db.ArgoDB, gitCredStore git.CredsStore, submoduleEnabled bool) Repos {
 
 	return &argoCDService{
-		repositoriesDB: db.(RepositoryDB),
-		storecreds:     gitCredStore,
+		repositoriesDB:   db.(RepositoryDB),
+		storecreds:       gitCredStore,
+		submoduleEnabled: submoduleEnabled,
 	}
 }
 
@@ -52,7 +54,7 @@ func (a *argoCDService) GetFiles(ctx context.Context, repoURL string, revision s
 		return nil, err
 	}
 
-	err = checkoutRepo(gitRepoClient, revision)
+	err = checkoutRepo(gitRepoClient, revision, a.submoduleEnabled)
 	if err != nil {
 		return nil, err
 	}
@@ -86,7 +88,7 @@ func (a *argoCDService) GetDirectories(ctx context.Context, repoURL string, revi
 		return nil, err
 	}
 
-	err = checkoutRepo(gitRepoClient, revision)
+	err = checkoutRepo(gitRepoClient, revision, a.submoduleEnabled)
 	if err != nil {
 		return nil, err
 	}
@@ -128,7 +130,7 @@ func (a *argoCDService) GetDirectories(ctx context.Context, repoURL string, revi
 
 }
 
-func checkoutRepo(gitRepoClient git.Client, revision string) error {
+func checkoutRepo(gitRepoClient git.Client, revision string, submoduleEnabled bool) error {
 	err := gitRepoClient.Init()
 	if err != nil {
 		return fmt.Errorf("Error during initializing repo: %w", err)
@@ -143,7 +145,7 @@ func checkoutRepo(gitRepoClient git.Client, revision string) error {
 	if err != nil {
 		return fmt.Errorf("Error during fetching commitSHA: %w", err)
 	}
-	err = gitRepoClient.Checkout(commitSHA, true)
+	err = gitRepoClient.Checkout(commitSHA, submoduleEnabled)
 	if err != nil {
 		return fmt.Errorf("Error during repo checkout: %w", err)
 	}

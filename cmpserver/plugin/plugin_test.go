@@ -195,7 +195,8 @@ func TestMatchRepository(t *testing.T) {
 		d := Discover{
 			Find: Find{
 				Command: Command{
-					Command: []string{"sh", "-c", "echo -n $ENV_NO_VAR"},
+					// Use printf instead of echo since OSX prints the "-n" when there's no additional arg.
+					Command: []string{"sh", "-c", `printf "%s" "$ENV_NO_VAR"`},
 				},
 			},
 		}

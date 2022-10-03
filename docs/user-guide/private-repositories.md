@@ -22,8 +22,6 @@ argocd repo add https://github.com/argoproj/argocd-example-apps --username <user
 
 or UI:
 
-> v1.2 or later
-
 1. Navigate to `Settings/Repositories`
 
     ![connect repo overview](../assets/repo-add-overview.png)
@@ -59,8 +57,6 @@ Then, connect the repository using any non-empty string as username and the acce
 
 ### TLS Client Certificates for HTTPS repositories
 
-> v1.2 and later
-
 If your repository server requires you to use TLS client certificates for authentication, you can configure ArgoCD repositories to make use of them. For this purpose, `--tls-client-cert-path` and `--tls-client-cert-key-path` switches to the `argocd repo add` command can be used to specify the files on your local system containing client certificate and the corresponding key, respectively:
 
 ```
@@ -81,9 +77,13 @@ Your TLS client certificate and corresponding key can also be configured using t
 
 Private repositories that require an SSH private key have a URL that typically start with `git@` or `ssh://` rather than `https://`.  
 
-> v1.2 or later
+You can configure your Git repository using SSH either using the CLI or the UI.
 
-You can configure your Git repository using HTTPS either using the CLI or the UI.
+!!! note
+    Argo CD 2.4 upgraded to OpenSSH 8.9. OpenSSH 8.8 
+    [dropped support for the `ssh-rsa` SHA-1 key signature algorithm](https://www.openssh.com/txt/release-8.8).
+    See the [2.3 to 2.4 upgrade guide](../operator-manual/upgrading/2.3-2.4.md) for details about testing SSH servers 
+    for compatibility with Argo CD and for working around servers that do not support newer algorithms.
 
 Using the CLI:
 
@@ -124,12 +124,6 @@ Private repositories that are hosted on GitHub.com or GitHub Enterprise can be a
 !!!note
     Ensure your application has at least `Read-only` permissions to the `Contents` of the repository. This is the minimum requirement.
 
-> previous to v1.9
-
-GitHub App credentials are not supported.
-
-> v1.9 or later
-
 You can configure access to your Git repository hosted by GitHub.com or GitHub Enterprise using the GitHub App method by either using the CLI or the UI.
 
 Using the CLI:
@@ -154,12 +148,6 @@ Using the UI:
     When pasting GitHub App private key in the UI, make sure there are no unintended line breaks or additional characters in the text area
 
 ## Credential templates
-
-> previous to v1.4
-
-Credential templates are available only via declarative setup, see [Repository credentials](../../operator-manual/declarative-setup#repository-credentials) in Operator Manual.
-
-> v1.4 and later
 
 You can also set up credentials to serve as templates for connecting repositories, without having to repeat credential configuration. For example, if you setup credential templates for the URL prefix `https://github.com/argoproj`, these credentials will be used for all repositories with this URL as prefix (e.g. `https://github.com/argoproj/argocd-example-apps`) that do not have their own credentials configured.
 
@@ -201,8 +189,6 @@ FATA[0000] rpc error: code = Unknown desc = authentication required
 ```
 
 ## Self-signed & Untrusted TLS Certificates
-
-> v1.2 or later
 
 If you are connecting a repository on a HTTPS server using a self-signed certificate, or a certificate signed by a custom Certificate Authority (CA) which are not known to ArgoCD, the repository will not be added due to security reasons. This is indicated by an error message such as `x509: certificate signed by unknown authority`.
 
@@ -291,8 +277,6 @@ As a work-around, you can customize your Argo CD image. See [#1344](https://gith
 ## Unknown SSH Hosts
 
 If you are using a privately hosted Git service over SSH, then you have the following  options:
-
-> v1.2 or later
 
 1. You can let ArgoCD connect the repository in an insecure way, without verifying the server's SSH host key at all. This can be accomplished by using the `--insecure-skip-server-verification` flag when adding the repository with the `argocd` CLI utility. However, this should be done only for non-production setups, as it imposes a serious security issue through possible man-in-the-middle attacks.
 
@@ -391,8 +375,6 @@ argocd repo add git@github.com:argoproj/argocd-example-apps.git --ssh-private-ke
     For Kustomize support, see [#827](https://github.com/argoproj/argo-cd/issues/827).
 
 ## Git Submodules
-
-> v1.4 or later
 
 Submodules are supported and will be picked up automatically. If the submodule repository requires authentication then the credentials will need to match the credentials of the parent repository. Set ARGOCD_GIT_MODULES_ENABLED=false to disable submodule support
 
