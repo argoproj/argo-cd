@@ -158,10 +158,10 @@ export class App extends React.Component<{}, {popupProps: PopupProps; showVersio
             document.head.appendChild(link);
         }
 
-        const sidebarExtensions = services.extensions.getSidebarExtensions();
+        const systemExtensions = services.extensions.getSystemExtensions();
         const extendedNavItems = this.navItems;
         const extendedRoutes = this.routes;
-        for (const extension of sidebarExtensions) {
+        for (const extension of systemExtensions) {
             extendedNavItems.push({
                 title: extension.title,
                 path: extension.path,

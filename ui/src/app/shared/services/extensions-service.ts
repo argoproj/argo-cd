@@ -5,15 +5,15 @@ import {Application, ApplicationTree, State} from '../models';
 
 const extensions = {
     resourceExtentions: new Array<ResourceTabExtension>(),
-    sidebarExtensions: new Array<SidebarExtension>()
+    systemLevelExtensions: new Array<SystemLevelExtension>()
 };
 
 function registerResourceExtension(component: ExtensionComponent, group: string, kind: string, tabTitle: string, opts?: {icon: string}) {
     extensions.resourceExtentions.push({component, group, kind, title: tabTitle, icon: opts?.icon});
 }
 
-function registerSidebarExtension(component: ExtensionComponent, title: string, path: string, icon: string) {
-    extensions.sidebarExtensions.push({component, title, icon, path});
+function registerSystemLevelExtension(component: ExtensionComponent, title: string, path: string, icon: string) {
+    extensions.systemLevelExtensions.push({component, title, icon, path});
 }
 
 let legacyInitialized = false;
@@ -38,7 +38,7 @@ export interface ResourceTabExtension {
     icon?: string;
 }
 
-export interface SidebarExtension {
+export interface SystemLevelExtension {
     title: string;
     component: ExtensionComponent;
     icon?: string;
@@ -64,8 +64,8 @@ export class ExtensionsService {
         return items.sort((a, b) => a.title.localeCompare(b.title));
     }
 
-    public getSidebarExtensions(): SidebarExtension[] {
-        return extensions.sidebarExtensions.slice();
+    public getSystemExtensions(): SystemLevelExtension[] {
+        return extensions.systemLevelExtensions.slice();
     }
 }
 
@@ -74,6 +74,6 @@ export class ExtensionsService {
     window.extensions = {resources: {}};
     window.extensionsAPI = {
         registerResourceExtension,
-        registerSidebarExtension
+        registerSystemLevelExtension
     };
 })(window);

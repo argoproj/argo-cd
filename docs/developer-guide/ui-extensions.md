@@ -63,12 +63,32 @@ Below is an example of a resource tab extension:
 })(window);
 ```
 
-## Sidebar Extensions
+## System Level Extensions
 
-Argo CD allows you to add new items to the sidebar that will be displayed as a new page with a custom component when clicked. The sidebar extension should be registered using the `extensionsAPI.registerSidebarExtension` method:
+Argo CD allows you to add new items to the sidebar that will be displayed as a new page with a custom component when clicked. The system level extension should be registered using the `extensionsAPI.registerSystemLevelExtension` method:
 
 ```typescript
-registerSidebarExtension(component: ExtensionComponent, title: string, options: {icon?: string})
+registerSystemLevelExtension(component: ExtensionComponent, title: string, options: {icon?: string})
+```
+
+Below is an example of a simple system level extension:
+
+```typescript
+((window) => {
+  const component = () => {
+    return React.createElement(
+      "div",
+      { style: { padding: "10px" } },
+      "Hello World"
+    );
+  };
+  window.extensionsAPI.registerSystemLevelExtension(
+    component,
+    "Test Ext",
+    "/hello",
+    "fa-flask"
+  );
+})(window);
 ```
 
 ## Application Tab Extensions
