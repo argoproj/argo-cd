@@ -326,9 +326,9 @@ func (m *nativeGitClient) IsLFSEnabled() bool {
 func (m *nativeGitClient) fetch(revision string) error {
 	var err error
 	if revision != "" {
-		err = m.runCredentialedCmd("git", "fetch", "origin", revision, "--tags", "--force")
+		err = m.runCredentialedCmd("git", "fetch", "origin", revision, "--tags", "--force", "--prune")
 	} else {
-		err = m.runCredentialedCmd("git", "fetch", "origin", "--tags", "--force")
+		err = m.runCredentialedCmd("git", "fetch", "origin", "--tags", "--force", "--prune")
 	}
 	return err
 }
@@ -340,19 +340,7 @@ func (m *nativeGitClient) Fetch(revision string) error {
 		defer done()
 	}
 
-	var err error
-
-	err = m.fetch(revision)
-	if err != nil {
-		errMsg := strings.ReplaceAll(err.Error(), "\n", "")
-		if strings.Contains(errMsg, "try running 'git remote prune origin'") {
-			// Prune any deleted refs, then try fetching again
-			if err := m.runCredentialedCmd("git", "remote", "prune", "origin"); err != nil {
-				return err
-			}
-			err = m.fetch(revision)
-		}
-	}
+	err := m.fetch(revision)
 
 	// When we have LFS support enabled, check for large files and fetch them too.
 	if err == nil && m.IsLFSEnabled() {

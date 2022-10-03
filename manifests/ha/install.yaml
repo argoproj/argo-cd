@@ -10964,7 +10964,7 @@ spec:
               key: dexserver.disable.tls
               name: argocd-cmd-params-cm
               optional: true
-        image: ghcr.io/dexidp/dex:v2.32.0-distroless
+        image: ghcr.io/dexidp/dex:v2.35.0-distroless
         imagePullPolicy: Always
         name: dex
         ports:
@@ -11980,7 +11980,7 @@ spec:
         - /data/conf/redis.conf
         command:
         - redis-server
-        image: redis:7.0.4-alpine
+        image: redis:7.0.5-alpine
         imagePullPolicy: IfNotPresent
         lifecycle:
           preStop:
@@ -12033,7 +12033,7 @@ spec:
         - /data/conf/sentinel.conf
         command:
         - redis-sentinel
-        image: redis:7.0.4-alpine
+        image: redis:7.0.5-alpine
         imagePullPolicy: IfNotPresent
         lifecycle: {}
         livenessProbe:
@@ -12085,7 +12085,7 @@ spec:
           value: 40000915ab58c3fa8fd888fb8b24711944e6cbb4
         - name: SENTINEL_ID_2
           value: 2bbec7894d954a8af3bb54d13eaec53cb024e2ca
-        image: redis:7.0.4-alpine
+        image: redis:7.0.5-alpine
         imagePullPolicy: IfNotPresent
         name: split-brain-fix
         resources: {}
@@ -12107,7 +12107,7 @@ spec:
           value: 40000915ab58c3fa8fd888fb8b24711944e6cbb4
         - name: SENTINEL_ID_2
           value: 2bbec7894d954a8af3bb54d13eaec53cb024e2ca
-        image: redis:7.0.4-alpine
+        image: redis:7.0.5-alpine
         imagePullPolicy: IfNotPresent
         name: config-init
         securityContext:
