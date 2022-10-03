@@ -1,14 +1,17 @@
 @import 'node_modules/argo-ui/src/styles/config';
+@import 'node_modules/argo-ui/src/styles/theme';
 
 .application-deployment-history {
     &__item {
         cursor: pointer;
         position: relative;
-        color: $argo-color-gray-7;
+        @include themify($themes) {
+            background: themed('background-2');
+            color: themed('text-1');
+        }
         border-radius: $border-radius;
         box-shadow: 1px 1px 3px $argo-color-gray-5;
         margin-top: 1em;
-        background: white;
         overflow: hidden;
 
         & > .columns {
@@ -17,8 +20,11 @@
 
         & > .columns:first-child {
             border-top-left-radius: $border-radius;
-            border-bottom-left-radius: $border-radius;
-            background-color: $argo-color-teal-1;
+            border-bottom-left-radius: $border-radius;            
+            @include themify($themes) {
+                background: themed('light-argo-teal-1');
+                color: themed('text-2');
+            }
         }
     }
 

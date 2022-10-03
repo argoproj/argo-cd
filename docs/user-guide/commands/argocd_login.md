@@ -29,6 +29,7 @@ argocd login cd.argoproj.io --core
   -h, --help              help for login
       --name string       name to use for the context
       --password string   the password of an account to authenticate
+      --skip-test-tls     Skip testing whether the server is configured with TLS (this can help when the command hangs for no apparent reason)
       --sso               perform SSO login
       --sso-port int      port to run local OAuth2 login application (default 8085)
       --username string   the username of an account to authenticate

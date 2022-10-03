@@ -18,10 +18,10 @@ const (
 	AppProjectShortName string = "appproject"
 	AppProjectFullName  string = AppProjectPlural + "." + Group
 
-	// AppProject constants
+	// ApplicationSet constants
 	ApplicationSetKind      string = "Applicationset"
 	ApplicationSetSingular  string = "applicationset"
-	ApplicationSetPlural    string = "applicationsets"
 	ApplicationSetShortName string = "appset"
+	ApplicationSetPlural    string = "applicationsets"
 	ApplicationSetFullName  string = ApplicationSetPlural + "." + Group
 )

@@ -1048,7 +1048,7 @@ func GenerateManifests(ctx context.Context, appPath, repoRoot, revision string, 
 		if q.ApplicationSource.Plugin != nil && q.ApplicationSource.Plugin.Name != "" {
 			log.WithFields(map[string]interface{}{
 				"application": q.AppName,
-				"plugin": q.ApplicationSource.Plugin.Name,
+				"plugin":      q.ApplicationSource.Plugin.Name,
 			}).Warnf(common.ConfigMapPluginDeprecationWarning)
 
 			targetObjs, err = runConfigManagementPlugin(appPath, repoRoot, env, q, q.Repo.GetGitCreds(gitCredsStore))
@@ -1072,6 +1072,10 @@ func GenerateManifests(ctx context.Context, appPath, repoRoot, revision string, 
 
 	manifests := make([]string, 0)
 	for _, obj := range targetObjs {
+		if obj == nil {
+			continue
+		}
+
 		var targets []*unstructured.Unstructured
 		if obj.IsList() {
 			err = obj.EachListItem(func(object runtime.Object) error {

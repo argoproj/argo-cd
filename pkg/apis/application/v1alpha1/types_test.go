@@ -2,10 +2,12 @@ package v1alpha1
 
 import (
 	"encoding/json"
+	"errors"
 	fmt "fmt"
 	"os"
 	"path"
 	"reflect"
+	"strings"
 	"testing"
 	"time"
 
@@ -142,7 +144,10 @@ func TestAppProject_IsDestinationPermitted(t *testing.T) {
 				Destinations: data.projDest,
 			},
 		}
-		assert.Equal(t, data.isPermitted, proj.IsDestinationPermitted(data.appDest))
+		permitted, _ := proj.IsDestinationPermitted(data.appDest, func(project string) ([]*Cluster, error) {
+			return []*Cluster{}, nil
+		})
+		assert.Equal(t, data.isPermitted, permitted)
 	}
 }
 
@@ -289,8 +294,99 @@ func TestAppProject_IsNegatedDestinationPermitted(t *testing.T) {
 				Destinations: data.projDest,
 			},
 		}
-		assert.Equal(t, data.isPermitted, proj.IsDestinationPermitted(data.appDest))
+		permitted, _ := proj.IsDestinationPermitted(data.appDest, func(project string) ([]*Cluster, error) {
+			return []*Cluster{}, nil
+		})
+		assert.Equal(t, data.isPermitted, permitted)
 	}
+}
+
+func TestAppProject_IsDestinationPermitted_PermitOnlyProjectScopedClusters(t *testing.T) {
+	testData := []struct {
+		projDest    []ApplicationDestination
+		appDest     ApplicationDestination
+		clusters    []*Cluster
+		isPermitted bool
+	}{{
+		projDest: []ApplicationDestination{{
+			Server: "https://team1-*", Namespace: "default",
+		}},
+		clusters:    []*Cluster{},
+		appDest:     ApplicationDestination{Server: "https://team1-something.com", Namespace: "default"},
+		isPermitted: false,
+	}, {
+		projDest: []ApplicationDestination{{
+			Server: "https://my-cluster.123.com", Namespace: "default",
+		}},
+		appDest: ApplicationDestination{Server: "https://my-cluster.123.com", Namespace: "default"},
+		clusters: []*Cluster{{
+			Server: "https://my-cluster.123.com",
+		}},
+		isPermitted: true,
+	}, {
+		projDest: []ApplicationDestination{{
+			Server: "https://my-cluster.123.com", Namespace: "default",
+		}},
+		appDest: ApplicationDestination{Server: "https://some-other-cluster.com", Namespace: "default"},
+		clusters: []*Cluster{{
+			Server: "https://my-cluster.123.com",
+		}},
+		isPermitted: false,
+	}, {
+		projDest: []ApplicationDestination{{
+			Name: "some-server", Namespace: "default",
+		}},
+		clusters:    []*Cluster{},
+		appDest:     ApplicationDestination{Name: "some-server", Namespace: "default"},
+		isPermitted: false,
+	}, {
+		projDest: []ApplicationDestination{{
+			Name: "some-other-server", Namespace: "default",
+		}},
+		appDest: ApplicationDestination{Name: "some-other-server", Namespace: "default"},
+		clusters: []*Cluster{{
+			Name: "some-other-server",
+		}},
+		isPermitted: true,
+	}, {
+		projDest: []ApplicationDestination{{
+			Name: "some-server", Namespace: "default",
+		}},
+		appDest: ApplicationDestination{Name: "some-other-server", Namespace: "default"},
+		clusters: []*Cluster{{
+			Name: "some-server",
+		}},
+		isPermitted: false,
+	}}
+
+	for _, data := range testData {
+		proj := AppProject{
+			Spec: AppProjectSpec{
+				PermitOnlyProjectScopedClusters: true,
+				Destinations:                    data.projDest,
+			},
+		}
+
+		permitted, _ := proj.IsDestinationPermitted(data.appDest, func(_ string) ([]*Cluster, error) {
+			return data.clusters, nil
+		})
+		assert.Equal(t, data.isPermitted, permitted)
+	}
+
+	proj := AppProject{
+		Spec: AppProjectSpec{
+			PermitOnlyProjectScopedClusters: true,
+			Destinations: []ApplicationDestination{{
+				Server: "https://my-cluster.123.com", Namespace: "default",
+			}},
+		},
+	}
+
+	_, err := proj.IsDestinationPermitted(ApplicationDestination{Server: "https://my-cluster.123.com", Namespace: "default"}, func(_ string) ([]*Cluster, error) {
+		return nil, errors.New("some error")
+	})
+	assert.NotNil(t, err)
+	assert.True(t, strings.Contains(err.Error(), "could not retrieve project clusters"))
 }
 
 func TestAppProject_IsGroupKindPermitted(t *testing.T) {

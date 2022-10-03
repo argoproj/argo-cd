@@ -575,13 +575,19 @@ func truncateString(str string, num int) string {
 
 // printParams prints parameters and overrides
 func printParams(app *argoappv1.Application) {
+	if app.Spec.Source.Helm != nil {
+		printHelmParams(app.Spec.Source.Helm)
+	}
+}
+
+func printHelmParams(helm *argoappv1.ApplicationSourceHelm) {
 	paramLenLimit := 80
 	fmt.Println()
 	w := tabwriter.NewWriter(os.Stdout, 0, 0, 2, ' ', 0)
-	if app.Spec.Source.Helm != nil {
+	if helm != nil {
 		fmt.Println()
 		_, _ = fmt.Fprintf(w, "NAME\tVALUE\n")
-		for _, p := range app.Spec.Source.Helm.Parameters {
+		for _, p := range helm.Parameters {
 			_, _ = fmt.Fprintf(w, "%s\t%s\n", p.Name, truncateString(p.Value, paramLenLimit))
 		}
 	}
@@ -1121,14 +1127,22 @@ func NewApplicationDeleteCommand(clientOpts *argocdclient.ClientOptions) *cobra.
 		cascade           bool
 		noPrompt          bool
 		propagationPolicy string
+		selector          string
 	)
 	var command = &cobra.Command{
 		Use:   "delete APPNAME",
 		Short: "Delete an application",
+		Example: `argocd app delete app1
+
+# Delete multiple apps
+argocd app delete app1 app2
+
+# Delete apps by label
+argocd app delete -l foo=bar`,
 		Run: func(c *cobra.Command, args []string) {
 			ctx := c.Context()
 
-			if len(args) == 0 {
+			if len(args) == 0 && selector == "" {
 				c.HelpFunc()(c, args)
 				os.Exit(1)
 			}
@@ -1141,7 +1155,15 @@ func NewApplicationDeleteCommand(clientOpts *argocdclient.ClientOptions) *cobra.
 			if promptFlag.Changed && promptFlag.Value.String() == "true" {
 				noPrompt = true
 			}
-			for _, appFullName := range args {
+
+			appNames, err := getAppNamesBySelector(ctx, appIf, selector)
+			errors.CheckError(err)
+
+			if len(appNames) == 0 {
+				appNames = args
+			}
+
+			for _, appFullName := range appNames {
 				appName, appNs := argo.ParseAppQualifiedName(appFullName, "")
 				appDeleteReq := applicationpkg.ApplicationDeleteRequest{
 					Name:         &appName,
@@ -1185,6 +1207,7 @@ func NewApplicationDeleteCommand(clientOpts *argocdclient.ClientOptions) *cobra.
 	command.Flags().BoolVar(&cascade, "cascade", true, "Perform a cascaded deletion of all application resources")
 	command.Flags().StringVarP(&propagationPolicy, "propagation-policy", "p", "foreground", "Specify propagation policy for deletion of application's resources. One of: foreground|background")
 	command.Flags().BoolVarP(&noPrompt, "yes", "y", false, "Turn off prompting to confirm cascaded deletion of application resources")
+	command.Flags().StringVarP(&selector, "selector", "l", "", "Delete all apps with matching label")
 	return command
 }
 
@@ -1234,6 +1257,7 @@ func NewApplicationListCommand(clientOpts *argocdclient.ClientOptions) *cobra.Co
 		projects     []string
 		repo         string
 		appNamespace string
+		cluster      string
 	)
 	var command = &cobra.Command{
 		Use:   "list",
@@ -1262,7 +1286,9 @@ func NewApplicationListCommand(clientOpts *argocdclient.ClientOptions) *cobra.Co
 			if repo != "" {
 				appList = argo.FilterByRepo(appList, repo)
 			}
-
+			if cluster != "" {
+				appList = argo.FilterByCluster(appList, cluster)
+			}
 			var appsWithDeprecatedPlugins []string
 			for _, app := range appList {
 				if app.Spec.Source.Plugin != nil && app.Spec.Source.Plugin.Name != "" {
@@ -1293,6 +1319,7 @@ func NewApplicationListCommand(clientOpts *argocdclient.ClientOptions) *cobra.Co
 	command.Flags().StringArrayVarP(&projects, "project", "p", []string{}, "Filter by project name")
 	command.Flags().StringVarP(&repo, "repo", "r", "", "List apps by source repo URL")
 	command.Flags().StringVarP(&appNamespace, "app-namespace", "N", "", "Only list applications in namespace")
+	command.Flags().StringVarP(&cluster, "cluster", "c", "", "List apps by cluster name or url")
 	return command
 }
 
@@ -1508,6 +1535,11 @@ func NewApplicationSyncCommand(clientOpts *argocdclient.ClientOptions) *cobra.Co
 				c.HelpFunc()(c, args)
 				os.Exit(1)
 			}
+
+			if len(args) > 1 && selector != "" {
+				log.Fatal("Cannot use selector option when application name(s) passed as argument(s)")
+			}
+
 			acdClient := headless.NewClientOrDie(clientOpts, c)
 			conn, appIf := acdClient.NewApplicationClientOrDie()
 			defer argoio.Close(conn)
@@ -1738,6 +1770,24 @@ func NewApplicationSyncCommand(clientOpts *argocdclient.ClientOptions) *cobra.Co
 	command.Flags().BoolVar(&diffChanges, "preview-changes", false, "Preview difference against the target and live state before syncing app and wait for user confirmation")
 	command.Flags().StringArrayVar(&projects, "project", []string{}, "Sync apps that belong to the specified projects. This option may be specified repeatedly.")
 	return command
+}
+
+func getAppNamesBySelector(ctx context.Context, appIf applicationpkg.ApplicationServiceClient, selector string) ([]string, error) {
+	appNames := []string{}
+	if selector != "" {
+		list, err := appIf.List(ctx, &applicationpkg.ApplicationQuery{Selector: pointer.String(selector)})
+		if err != nil {
+			return []string{}, err
+		}
+		// unlike list, we'd want to fail if nothing was found
+		if len(list.Items) == 0 {
+			return []string{}, fmt.Errorf("no apps match selector %v", selector)
+		}
+		for _, i := range list.Items {
+			appNames = append(appNames, i.Name)
+		}
+	}
+	return appNames, nil
 }
 
 // ResourceDiff tracks the state of a resource when waiting on an application status.
