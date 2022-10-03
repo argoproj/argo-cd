@@ -167,7 +167,18 @@ export class App extends React.Component<{}, {popupProps: PopupProps; showVersio
                 path: extension.path,
                 iconClassName: `fa ${extension.icon}`
             });
-            extendedRoutes[extension.path] = {component: extension.component as React.ComponentType<React.ComponentProps<any>>, extension: true};
+            const component = () => (
+                <>
+                    <Helmet>
+                        <title>{extension.title} - Argo CD</title>
+                    </Helmet>
+                    {extension.component}
+                </>
+            );
+            extendedRoutes[extension.path] = {
+                component: component as React.ComponentType<React.ComponentProps<any>>,
+                extension: true
+            };
         }
 
         this.setState({...this.state, navItems: extendedNavItems, routes: extendedRoutes, extensionsLoaded: true});
