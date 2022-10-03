@@ -43,6 +43,7 @@ export const Sidebar = (props: SidebarProps) => {
             </div>
             {(props.navItems || []).map(item => (
                 <Tooltip
+                    key={item.path}
                     content={item?.tooltip || item.title}
                     placement='right'
                     popperOptions={{

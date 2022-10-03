@@ -40,12 +40,13 @@ export interface ResourceTabExtension {
 
 export interface SystemLevelExtension {
     title: string;
-    component: ExtensionComponent;
+    component: SystemExtensionComponent;
     icon?: string;
     path?: string;
 }
 
 export type ExtensionComponent = React.ComponentType<ExtensionComponentProps>;
+export type SystemExtensionComponent = React.ComponentType;
 
 export interface Extension {
     component: ExtensionComponent;

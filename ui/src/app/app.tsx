@@ -172,7 +172,7 @@ export class App extends React.Component<{}, {popupProps: PopupProps; showVersio
                     <Helmet>
                         <title>{extension.title} - Argo CD</title>
                     </Helmet>
-                    {extension.component}
+                    <extension.component />
                 </>
             );
             extendedRoutes[extension.path] = {
