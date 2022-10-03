@@ -17,7 +17,7 @@ creation-date: 2022-07-23
 
 ---
 
-# Reverse-Proxy Extensions support for ArgoCD
+# Reverse-Proxy Extensions support for Argo CD
 
 Enable UI extensions to use a backend service.
 
@@ -37,17 +37,18 @@ Enable UI extensions to use a backend service.
 
 ## Summary
 
-ArgoCD currently supports the creation of [UI extensions][1] allowing
+Argo CD currently supports the creation of [UI extensions][1] allowing
 developers to define the visual content of the "more" tab inside
 a specific resource. Developers are able to access the resource state to
 build the UI. However, currently it isn't possible to use a backend
 service to provide additional functionality to extensions. This proposal
-defines a new reverse proxy feature in ArgoCD, allowing developers to
-create a backend service that can be used in UI extensions.
+defines a new reverse proxy feature in Argo CD, allowing developers to
+create a backend service that can be used in UI extensions. Extensions
+backend code will live outside Argo CD main repository.
 
 ## Motivation
 
-The initiative to implement the anomaly detection capability in ArgoCD
+The initiative to implement the anomaly detection capability in Argo CD
 highlighted the need to improve the existing UI extensions feature. The
 new capability will required the UI to have access to data that isn't
 available as part of Application's owned resources. It is necessary to
@@ -57,35 +58,35 @@ information can be displayed.
 ## Goals
 
 The following goals are desired but not necessarily all must be
-implemented in a given ArgoCD release:
+implemented in a given Argo CD release:
 
-#### [G-1] ArgoCD (API Server) must have low performance impact when running extensions
+#### [G-1] Argo CD (API Server) must have low performance impact when running extensions
 
-ArgoCD API server is a critical component as it serves all APIs used by
-the CLI as well as the UI. The ArgoCD team has no controll over what is
+Argo CD API server is a critical component as it serves all APIs used by
+the CLI as well as the UI. The Argo CD team has no controll over what is
 going to be executed in extension's backend service. Thus it is important
 that the reverse proxy implementation to cause the lowest possible impact
 in the API server while processing high latency requests.
 
 Possible solutions:
-- reverse proxy implemented as an independent server
-- reverse proxy invoke backend services asynchronously
+- Implement a rate limit layer to protect Argo CD API server
+- Implement configurable different types of timeouts (idle connection, duration, etc) between Argo CD API server and backend services.
 
 ----
 
-#### [G-2] ArgoCD admins should be able to define rbacs to define which users can invoke specific extensions
+#### [G-2] Argo CD admins should be able to define rbacs to define which users can invoke specific extensions
 
-ArgoCD Admins must be able to define which extensions are allowed to be
-executed by the logged in user. This should be fine grained by ArgoCD
+Argo CD Admins must be able to define which extensions are allowed to be
+executed by the logged in user. This should be fine grained by Argo CD
 project like the current rbac implementation.
 
 ----
 
-#### [G-3] ArgoCD deployment should be independent from backend services
+#### [G-3] Argo CD deployment should be independent from backend services
 
 Extension developers should be able to deploy their backend services
-independently from ArgoCD. An extension can evolve their internal API and
-deploying a new version shouldn't require ArgoCD to be updated or
+independently from Argo CD. An extension can evolve their internal API and
+deploying a new version shouldn't require Argo CD to be updated or
 restarted.
 
 ----
@@ -94,7 +95,7 @@ restarted.
 
 *Not in the first release*
 
-[ArgoCD extensions][2] is an `argoproj-labs` project that supports loading
+[Argo CD extensions][2] is an `argoproj-labs` project that supports loading
 extensions in runtime. Currently the project is implementing a controller
 that defines and reconciles the custom resource `ArgoCDExtension`. This
 CRD should be enhanced to provide the ability to define backend services
@@ -121,7 +122,7 @@ spec:
 ```
 
 **Note**: While this is a nice-to-have, it won't be part of the first proxy
-extension version. This would need to be considered if ArgoCD extensions
+extension version. This would need to be considered if Argo CD extensions
 eventually get traction.
 
 ----
@@ -135,9 +136,9 @@ configured, that one should be used for all clusters.
 
 ## Non-Goals
 
-It isn't in the scope of this proposal to specify commands in the ArgoCD
+It isn't in the scope of this proposal to specify commands in the Argo CD
 CLI. This proposal covers the reverse-proxy extension spec that will be
-used by ArgoCD UI.
+used by Argo CD UI.
 
 ## Proposal
 
@@ -146,11 +147,11 @@ used by ArgoCD UI.
 The following use cases should be implemented for the conclusion of this
 proposal:
 
-#### [UC-1]: As an ArgoCD admin, I want to configure a backend services so it can be used by my UI extension
+#### [UC-1]: As an Argo CD admin, I want to configure a backend services so it can be used by my UI extension
 
-Define a new section in the ArgoCD configmap ([argocd-cm.yaml][4])
+Define a new section in the Argo CD configmap ([argocd-cm.yaml][4])
 allowing admins to register and configure new extensions. All enabled
-extensions backend will be available to be invoked by the ArgoCD UI under
+extensions backend will be available to be invoked by the Argo CD UI under
 the following API base path:
 
 `<argocd-host>/api/v1/extensions/<extension-name>`
@@ -167,29 +168,24 @@ extension.config: |
         idleConnTimeout: 10s
         services:
           - url: http://extension-name.com:8080
-            clusterName: kubernetes.local
-          - url: https://extension-name.ppd.cluster.k8s.local:8080
-            clusterName: admins@ppd.cluster.k8s.local
 ```
 
 - **Example 1**:
 
-ArgoCD API server acts as a reverse-proxy forwarding http requests as
+Argo CD API server acts as a reverse-proxy forwarding http requests as
 follows:
 
 ```
-
    ┌────────────┐
-   │ ArgoCD UI  │
+   │ Argo CD UI │
    └──────┬─────┘
           │
           │ GET http://argo.com/api/v1/extensions/some-extension
-          │ HEADER: "ARGOCD-APPLICATION-NAME: my-application"
           │
           ▼
- ┌─────────────────┐
- │ArgoCD API Server│
- └────────┬────────┘
+ ┌──────────────────┐
+ │Argo CD API Server│
+ └────────┬─────────┘
           │
           │ GET http://extension-name.com:8080
           │
@@ -197,27 +193,82 @@ follows:
   ┌───────────────┐
   │Backend Service│
   └───────────────┘
-
 ```
 
 - **Example 2**:
 
-If a backend provides an API under the `/apiv1/metrics` endpoint, ArgoCD
+If a backend provides an API under the `/apiv1/metrics` endpoint, Argo CD
 should be able to invoke it such as:
 
 ```
    ┌────────────┐
-   │ ArgoCD UI  │
+   │ Argo CD UI │
    └──────┬─────┘
           │
           │ GET http://argo.com/api/v1/extensions/some-extension/apiv1/metrics/123
           │
           ▼
- ┌─────────────────┐
- │ArgoCD API Server│
- └────────┬────────┘
+ ┌──────────────────┐
+ │Argo CD API Server│
+ └────────┬─────────┘
           │
           │ GET http://extension-name.com:8080/apiv1/metrics/123
+          │
+          ▼
+  ┌───────────────┐
+  │Backend Service│
+  └───────────────┘
+```
+
+- **Example 3**:
+
+In this use-case we have one Argo CD instance connected with different
+clusters. There is a requirement defining that every extension instance
+needs to be deployed in each of the target clusters. To address this
+use-case there is a need to configure multiple backend URLs for the
+same extension (one for each cluster). For doing so, the following
+configuration should be possible:
+
+```yaml
+extension.config: |
+  extensions:
+    - name: some-extension
+      enabled: true
+      backend:
+        idleConnTimeout: 10s
+        services:
+          - url: http://extension-name.com:8080
+            clusterName: kubernetes.local
+          - url: https://extension-name.ppd.cluster.k8s.local:8080
+            clusterName: admins@ppd.cluster.k8s.local
+```
+
+Note that there is an URL configuration per cluster name. The cluster
+name is extracted from the Argo CD cluster secret and must match the
+field `data.name`. In this case the UI must send a header with the
+application name so API Server can check in which cluster it should
+get the backend URL from. This will be done by inspecting the
+Application destination configuration to find the proper cluster
+name.
+
+The diagram below shows how Argo CD UI could send the request with
+the additional header to get the proxy forwarding it to the proper
+cluster:
+
+```
+   ┌────────────┐
+   │ Argo CD UI │
+   └──────┬─────┘
+          │
+          │ GET http://argo.com/api/v1/extensions/some-extension
+          │ HEADER: "ARGOCD-APPLICATION-NAME: ppd-application
+          │
+          ▼
+ ┌──────────────────┐
+ │Argo CD API Server│
+ └────────┬─────────┘
+          │
+          │ GET https://extension-name.ppd.cluster.k8s.local:8080
           │
           ▼
   ┌───────────────┐
@@ -237,9 +288,9 @@ should be able to invoke it such as:
 
 ----
 
-#### [UC-2]: As an ArgoCD admin, I want to define extensions rbacs so access permissions can be enforced
+#### [UC-2]: As an Argo CD admin, I want to define extensions rbacs so access permissions can be enforced
 
-Extend ArgoCD rbac registering a new `ResourceType` for extensions in the
+Extend Argo CD rbac registering a new `ResourceType` for extensions in the
 [policy configuration][3]. The current policy permission configuration is
 defined as:
 
@@ -285,9 +336,9 @@ execute extensions in all projects.
 
 ### Security Considerations
 
-- ArgoCD API Server must apply **authn** and **authz** for all incoming
+- Argo CD API Server must apply **authn** and **authz** for all incoming
   extensions requests
-- ArgoCD must authorize requests coming from UI and check that the
+- Argo CD must authorize requests coming from UI and check that the
   authenticated user has access to invoke a specific URL belonging to an
   extension
 
@@ -297,7 +348,9 @@ execute extensions in all projects.
 
 ## Drawbacks
 
-- Slight increase in ArgoCD code base complexity.
+- Slight increase in Argo CD code base complexity.
+- Increased security risk.
+- Impact of extensions on overall Argo CD performance (mitigated by rate limiting + idle conn timeout).
 
 ## Open Questions
 
