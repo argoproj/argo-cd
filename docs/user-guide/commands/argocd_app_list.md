@@ -20,6 +20,7 @@ argocd app list [flags]
 
 ```
   -N, --app-namespace string   Only list applications in namespace
+  -c, --cluster string         List apps by cluster name or url
   -h, --help                   help for list
   -o, --output string          Output format. One of: wide|name|json|yaml (default "wide")
   -p, --project stringArray    Filter by project name

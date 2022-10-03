@@ -1,11 +1,12 @@
 @import 'node_modules/foundation-sites/scss/util/util';
+@import '../../../shared/config.scss';
 
 .flex-top-bar {
     position: fixed;
-    left: 60px;
     right: 0;
     z-index: 5;
     padding: 0 15px;
+    left: $sidebar-width;
     align-items: center;
     flex-wrap: wrap;
     &__actions {
@@ -28,6 +29,7 @@
             flex-wrap: wrap;
         }
     }
+
     &__padder {
         height: 50px;
         @include breakpoint(medium down) {
