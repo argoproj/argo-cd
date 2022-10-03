@@ -1,6 +1,7 @@
 import {DataLoader, SlidingPanel, Tooltip} from 'argo-ui';
 import * as React from 'react';
 import {VersionMessage} from '../../models';
+import {services} from '../../services';
 
 interface VersionPanelProps {
     isShown: boolean;
@@ -20,17 +21,23 @@ export class VersionPanel extends React.Component<VersionPanelProps, {copyState:
 
     public render() {
         return (
-            <DataLoader load={() => this.props.version}>
-                {version => {
-                    return (
-                        <SlidingPanel header={this.header} isShown={this.props.isShown} onClose={() => this.props.onClose()} hasCloseButton={true} isNarrow={true}>
-                            <div className='argo-table-list'>{this.buildVersionTable(version)}</div>
-                            <div>
-                                <Tooltip content='Copy all version info as JSON'>{this.getCopyButton(version)}</Tooltip>
-                            </div>
-                        </SlidingPanel>
-                    );
-                }}
+            <DataLoader load={() => services.viewPreferences.getPreferences()}>
+                {pref => (
+                    <DataLoader load={() => this.props.version}>
+                        {version => {
+                            return (
+                                <div className={'theme-' + pref.theme}>
+                                    <SlidingPanel header={this.header} isShown={this.props.isShown} onClose={() => this.props.onClose()} hasCloseButton={true} isNarrow={true}>
+                                        <div className='argo-table-list'>{this.buildVersionTable(version)}</div>
+                                        <div>
+                                            <Tooltip content='Copy all version info as JSON'>{this.getCopyButton(version)}</Tooltip>
+                                        </div>
+                                    </SlidingPanel>
+                                </div>
+                            );
+                        }}
+                    </DataLoader>
+                )}
             </DataLoader>
         );
     }
