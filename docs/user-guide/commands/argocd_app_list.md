@@ -14,6 +14,10 @@ argocd app list [flags]
 
   # List apps by label, in this example we listing apps that are children of another app (aka app-of-apps)
   argocd app list -l app.kubernetes.io/instance=my-app
+  argocd app list -l app.kubernetes.io/instance!=my-app
+  argocd app list -l app.kubernetes.io/instance
+  argocd app list -l '!app.kubernetes.io/instance'
+  argocd app list -l 'app.kubernetes.io/instance notin (my-app,other-app)'
 ```
 
 ### Options
@@ -25,7 +29,7 @@ argocd app list [flags]
   -o, --output string          Output format. One of: wide|name|json|yaml (default "wide")
   -p, --project stringArray    Filter by project name
   -r, --repo string            List apps by source repo URL
-  -l, --selector string        List apps by label
+  -l, --selector string        List apps by label. Supports '=', '==', '!=', in, notin, exists & not exists. Matching apps must satisfy all of the specified label constraints.
 ```
 
 ### Options inherited from parent commands
