@@ -1390,7 +1390,6 @@ func (ctrl *ApplicationController) processAppRefreshQueueItem() (processNext boo
 
 	revisions := make([]string, 0)
 	sources := make([]appv1.ApplicationSource, 0)
-	sourceMap := make(map[string]int)
 
 	hasMultipleSources := app.Spec.Sources != nil && len(app.Spec.Sources) > 0
 
@@ -1398,13 +1397,9 @@ func (ctrl *ApplicationController) processAppRefreshQueueItem() (processNext boo
 	// else we use the source under the source field.
 	if hasMultipleSources {
 		for _, source := range app.Spec.Sources {
-			// filter out repeated sources having same repoUrl
-			if i, ok := sourceMap[source.RepoURL]; ok {
-				logCtx.Infof("Replacing source %s with latest source %s in the list of sources", sources[i], source)
-				sources = append(sources[:i], sources[i+1:]...)
-				revisions = append(revisions[:i], revisions[i+1:]...)
-			}
-			sourceMap[source.RepoURL] = len(sources)
+			// We do not perform any filtering of duplicate sources.
+			// Argo CD will apply and update the resources generated from the sources automatically
+			// based on the order in which manifests were generated
 			sources = append(sources, source)
 			revisions = append(revisions, source.TargetRevision)
 		}

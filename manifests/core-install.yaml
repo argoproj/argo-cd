@@ -393,7 +393,8 @@ spec:
                         type: object
                       ref:
                         description: Ref is reference to another source within sources
-                          field
+                          field. This field will not be used if used with a `source`
+                          tag.
                         type: string
                       repoURL:
                         description: RepoURL is the URL to the repository (Git or
@@ -606,8 +607,8 @@ spec:
                             and is only valid for applications sourced from Git.
                           type: string
                         plugin:
-                          description: ConfigManagementPlugin holds config management
-                            plugin specific options
+                          description: Plugin holds config management plugin specific
+                            options
                           properties:
                             env:
                               description: Env is a list of environment variable entries
@@ -632,7 +633,8 @@ spec:
                           type: object
                         ref:
                           description: Ref is reference to another source within sources
-                            field
+                            field. This field will not be used if used with a `source`
+                            tag.
                           type: string
                         repoURL:
                           description: RepoURL is the URL to the repository (Git or
@@ -1004,7 +1006,7 @@ spec:
                     type: object
                   ref:
                     description: Ref is reference to another source within sources
-                      field
+                      field. This field will not be used if used with a `source` tag.
                     type: string
                   repoURL:
                     description: RepoURL is the URL to the repository (Git or Helm)
@@ -1212,8 +1214,8 @@ spec:
                         and is only valid for applications sourced from Git.
                       type: string
                     plugin:
-                      description: ConfigManagementPlugin holds config management
-                        plugin specific options
+                      description: Plugin holds config management plugin specific
+                        options
                       properties:
                         env:
                           description: Env is a list of environment variable entries
@@ -1238,7 +1240,8 @@ spec:
                       type: object
                     ref:
                       description: Ref is reference to another source within sources
-                        field
+                        field. This field will not be used if used with a `source`
+                        tag.
                       type: string
                     repoURL:
                       description: RepoURL is the URL to the repository (Git or Helm)
@@ -1640,7 +1643,8 @@ spec:
                           type: object
                         ref:
                           description: Ref is reference to another source within sources
-                            field
+                            field. This field will not be used if used with a `source`
+                            tag.
                           type: string
                         repoURL:
                           description: RepoURL is the URL to the repository (Git or
@@ -1855,8 +1859,8 @@ spec:
                               and is only valid for applications sourced from Git.
                             type: string
                           plugin:
-                            description: ConfigManagementPlugin holds config management
-                              plugin specific options
+                            description: Plugin holds config management plugin specific
+                              options
                             properties:
                               env:
                                 description: Env is a list of environment variable
@@ -1882,7 +1886,8 @@ spec:
                             type: object
                           ref:
                             description: Ref is reference to another source within
-                              sources field
+                              sources field. This field will not be used if used with
+                              a `source` tag.
                             type: string
                           repoURL:
                             description: RepoURL is the URL to the repository (Git
@@ -2292,7 +2297,8 @@ spec:
                                 type: object
                               ref:
                                 description: Ref is reference to another source within
-                                  sources field
+                                  sources field. This field will not be used if used
+                                  with a `source` tag.
                                 type: string
                               repoURL:
                                 description: RepoURL is the URL to the repository
@@ -2522,8 +2528,8 @@ spec:
                                     sourced from Git.
                                   type: string
                                 plugin:
-                                  description: ConfigManagementPlugin holds config
-                                    management plugin specific options
+                                  description: Plugin holds config management plugin
+                                    specific options
                                   properties:
                                     env:
                                       description: Env is a list of environment variable
@@ -2550,7 +2556,8 @@ spec:
                                   type: object
                                 ref:
                                   description: Ref is reference to another source
-                                    within sources field
+                                    within sources field. This field will not be used
+                                    if used with a `source` tag.
                                   type: string
                                 repoURL:
                                   description: RepoURL is the URL to the repository
@@ -2930,7 +2937,8 @@ spec:
                             type: object
                           ref:
                             description: Ref is reference to another source within
-                              sources field
+                              sources field. This field will not be used if used with
+                              a `source` tag.
                             type: string
                           repoURL:
                             description: RepoURL is the URL to the repository (Git
@@ -3154,8 +3162,8 @@ spec:
                                 from Git.
                               type: string
                             plugin:
-                              description: ConfigManagementPlugin holds config management
-                                plugin specific options
+                              description: Plugin holds config management plugin specific
+                                options
                               properties:
                                 env:
                                   description: Env is a list of environment variable
@@ -3181,7 +3189,8 @@ spec:
                               type: object
                             ref:
                               description: Ref is reference to another source within
-                                sources field
+                                sources field. This field will not be used if used
+                                with a `source` tag.
                               type: string
                             repoURL:
                               description: RepoURL is the URL to the repository (Git
@@ -3560,7 +3569,8 @@ spec:
                             type: object
                           ref:
                             description: Ref is reference to another source within
-                              sources field
+                              sources field. This field will not be used if used with
+                              a `source` tag.
                             type: string
                           repoURL:
                             description: RepoURL is the URL to the repository (Git
@@ -3784,8 +3794,8 @@ spec:
                                 from Git.
                               type: string
                             plugin:
-                              description: ConfigManagementPlugin holds config management
-                                plugin specific options
+                              description: Plugin holds config management plugin specific
+                                options
                               properties:
                                 env:
                                   description: Env is a list of environment variable
@@ -3811,7 +3821,8 @@ spec:
                               type: object
                             ref:
                               description: Ref is reference to another source within
-                                sources field
+                                sources field. This field will not be used if used
+                                with a `source` tag.
                               type: string
                             repoURL:
                               description: RepoURL is the URL to the repository (Git
@@ -5064,6 +5075,8 @@ spec:
                                             type: object
                                           type: array
                                       type: object
+                                    ref:
+                                      type: string
                                     repoURL:
                                       type: string
                                     targetRevision:
@@ -5071,6 +5084,148 @@ spec:
                                   required:
                                   - repoURL
                                   type: object
+                                sources:
+                                  items:
+                                    properties:
+                                      chart:
+                                        type: string
+                                      directory:
+                                        properties:
+                                          exclude:
+                                            type: string
+                                          include:
+                                            type: string
+                                          jsonnet:
+                                            properties:
+                                              extVars:
+                                                items:
+                                                  properties:
+                                                    code:
+                                                      type: boolean
+                                                    name:
+                                                      type: string
+                                                    value:
+                                                      type: string
+                                                  required:
+                                                  - name
+                                                  - value
+                                                  type: object
+                                                type: array
+                                              libs:
+                                                items:
+                                                  type: string
+                                                type: array
+                                              tlas:
+                                                items:
+                                                  properties:
+                                                    code:
+                                                      type: boolean
+                                                    name:
+                                                      type: string
+                                                    value:
+                                                      type: string
+                                                  required:
+                                                  - name
+                                                  - value
+                                                  type: object
+                                                type: array
+                                            type: object
+                                          recurse:
+                                            type: boolean
+                                        type: object
+                                      helm:
+                                        properties:
+                                          fileParameters:
+                                            items:
+                                              properties:
+                                                name:
+                                                  type: string
+                                                path:
+                                                  type: string
+                                              type: object
+                                            type: array
+                                          ignoreMissingValueFiles:
+                                            type: boolean
+                                          parameters:
+                                            items:
+                                              properties:
+                                                forceString:
+                                                  type: boolean
+                                                name:
+                                                  type: string
+                                                value:
+                                                  type: string
+                                              type: object
+                                            type: array
+                                          passCredentials:
+                                            type: boolean
+                                          releaseName:
+                                            type: string
+                                          skipCrds:
+                                            type: boolean
+                                          valueFiles:
+                                            items:
+                                              type: string
+                                            type: array
+                                          values:
+                                            type: string
+                                          version:
+                                            type: string
+                                        type: object
+                                      kustomize:
+                                        properties:
+                                          commonAnnotations:
+                                            additionalProperties:
+                                              type: string
+                                            type: object
+                                          commonLabels:
+                                            additionalProperties:
+                                              type: string
+                                            type: object
+                                          forceCommonAnnotations:
+                                            type: boolean
+                                          forceCommonLabels:
+                                            type: boolean
+                                          images:
+                                            items:
+                                              type: string
+                                            type: array
+                                          namePrefix:
+                                            type: string
+                                          nameSuffix:
+                                            type: string
+                                          version:
+                                            type: string
+                                        type: object
+                                      path:
+                                        type: string
+                                      plugin:
+                                        properties:
+                                          env:
+                                            items:
+                                              properties:
+                                                name:
+                                                  type: string
+                                                value:
+                                                  type: string
+                                              required:
+                                              - name
+                                              - value
+                                              type: object
+                                            type: array
+                                          name:
+                                            type: string
+                                        type: object
+                                      ref:
+                                        type: string
+                                      repoURL:
+                                        type: string
+                                      targetRevision:
+                                        type: string
+                                    required:
+                                    - repoURL
+                                    type: object
+                                  type: array
                                 syncPolicy:
                                   properties:
                                     automated:
@@ -6740,6 +6895,8 @@ spec:
                                                       type: object
                                                     type: array
                                                 type: object
+                                              ref:
+                                                type: string
                                               repoURL:
                                                 type: string
                                               targetRevision:
@@ -6747,6 +6904,148 @@ spec:
                                             required:
                                             - repoURL
                                             type: object
+                                          sources:
+                                            items:
+                                              properties:
+                                                chart:
+                                                  type: string
+                                                directory:
+                                                  properties:
+                                                    exclude:
+                                                      type: string
+                                                    include:
+                                                      type: string
+                                                    jsonnet:
+                                                      properties:
+                                                        extVars:
+                                                          items:
+                                                            properties:
+                                                              code:
+                                                                type: boolean
+                                                              name:
+                                                                type: string
+                                                              value:
+                                                                type: string
+                                                            required:
+                                                            - name
+                                                            - value
+                                                            type: object
+                                                          type: array
+                                                        libs:
+                                                          items:
+                                                            type: string
+                                                          type: array
+                                                        tlas:
+                                                          items:
+                                                            properties:
+                                                              code:
+                                                                type: boolean
+                                                              name:
+                                                                type: string
+                                                              value:
+                                                                type: string
+                                                            required:
+                                                            - name
+                                                            - value
+                                                            type: object
+                                                          type: array
+                                                      type: object
+                                                    recurse:
+                                                      type: boolean
+                                                  type: object
+                                                helm:
+                                                  properties:
+                                                    fileParameters:
+                                                      items:
+                                                        properties:
+                                                          name:
+                                                            type: string
+                                                          path:
+                                                            type: string
+                                                        type: object
+                                                      type: array
+                                                    ignoreMissingValueFiles:
+                                                      type: boolean
+                                                    parameters:
+                                                      items:
+                                                        properties:
+                                                          forceString:
+                                                            type: boolean
+                                                          name:
+                                                            type: string
+                                                          value:
+                                                            type: string
+                                                        type: object
+                                                      type: array
+                                                    passCredentials:
+                                                      type: boolean
+                                                    releaseName:
+                                                      type: string
+                                                    skipCrds:
+                                                      type: boolean
+                                                    valueFiles:
+                                                      items:
+                                                        type: string
+                                                      type: array
+                                                    values:
+                                                      type: string
+                                                    version:
+                                                      type: string
+                                                  type: object
+                                                kustomize:
+                                                  properties:
+                                                    commonAnnotations:
+                                                      additionalProperties:
+                                                        type: string
+                                                      type: object
+                                                    commonLabels:
+                                                      additionalProperties:
+                                                        type: string
+                                                      type: object
+                                                    forceCommonAnnotations:
+                                                      type: boolean
+                                                    forceCommonLabels:
+                                                      type: boolean
+                                                    images:
+                                                      items:
+                                                        type: string
+                                                      type: array
+                                                    namePrefix:
+                                                      type: string
+                                                    nameSuffix:
+                                                      type: string
+                                                    version:
+                                                      type: string
+                                                  type: object
+                                                path:
+                                                  type: string
+                                                plugin:
+                                                  properties:
+                                                    env:
+                                                      items:
+                                                        properties:
+                                                          name:
+                                                            type: string
+                                                          value:
+                                                            type: string
+                                                        required:
+                                                        - name
+                                                        - value
+                                                        type: object
+                                                      type: array
+                                                    name:
+                                                      type: string
+                                                  type: object
+                                                ref:
+                                                  type: string
+                                                repoURL:
+                                                  type: string
+                                                targetRevision:
+                                                  type: string
+                                              required:
+                                              - repoURL
+                                              type: object
+                                            type: array
                                           syncPolicy:
                                             properties:
                                               automated:
@@ -6757,17 +7056,6 @@ spec:
                                                     type: boolean
                                                   selfHeal:
                                                     type: boolean
-                                                type: object
-                                              managedNamespaceMetadata:
-                                                properties:
-                                                  annotations:
-                                                    additionalProperties:
-                                                      type: string
-                                                    type: object
-                                                  labels:
-                                                    additionalProperties:
-                                                      type: string
-                                                    type: object
                                                 type: object
                                               retry:
                                                 properties:
@@ -7014,6 +7302,173 @@ spec:
                                                     type: array
                                                   name:
                                                     type: string
+                                                type: object
+                                              ref:
+                                                type: string
+                                              repoURL:
+                                                type: string
+                                              targetRevision:
+                                                type: string
+                                            required:
+                                            - repoURL
+                                            type: object
+                                          sources:
+                                            items:
+                                              properties:
+                                                chart:
+                                                  type: string
+                                                directory:
+                                                  properties:
+                                                    exclude:
+                                                      type: string
+                                                    include:
+                                                      type: string
+                                                    jsonnet:
+                                                      properties:
+                                                        extVars:
+                                                          items:
+                                                            properties:
+                                                              code:
+                                                                type: boolean
+                                                              name:
+                                                                type: string
+                                                              value:
+                                                                type: string
+                                                            required:
+                                                            - name
+                                                            - value
+                                                            type: object
+                                                          type: array
+                                                        libs:
+                                                          items:
+                                                            type: string
+                                                          type: array
+                                                        tlas:
+                                                          items:
+                                                            properties:
+                                                              code:
+                                                                type: boolean
+                                                              name:
+                                                                type: string
+                                                              value:
+                                                                type: string
+                                                            required:
+                                                            - name
+                                                            - value
+                                                            type: object
+                                                          type: array
+                                                      type: object
+                                                    recurse:
+                                                      type: boolean
+                                                  type: object
+                                                helm:
+                                                  properties:
+                                                    fileParameters:
+                                                      items:
+                                                        properties:
+                                                          name:
+                                                            type: string
+                                                          path:
+                                                            type: string
+                                                        type: object
+                                                      type: array
+                                                    ignoreMissingValueFiles:
+                                                      type: boolean
+                                                    parameters:
+                                                      items:
+                                                        properties:
+                                                          forceString:
+                                                            type: boolean
+                                                          name:
+                                                            type: string
+                                                          value:
+                                                            type: string
+                                                        type: object
+                                                      type: array
+                                                    passCredentials:
+                                                      type: boolean
+                                                    releaseName:
+                                                      type: string
+                                                    skipCrds:
+                                                      type: boolean
+                                                    valueFiles:
+                                                      items:
+                                                        type: string
+                                                      type: array
+                                                    values:
+                                                      type: string
+                                                    version:
+                                                      type: string
+                                                  type: object
+                                                kustomize:
+                                                  properties:
+                                                    commonAnnotations:
+                                                      additionalProperties:
+                                                        type: string
+                                                      type: object
+                                                    commonLabels:
+                                                      additionalProperties:
+                                                        type: string
+                                                      type: object
+                                                    forceCommonAnnotations:
+                                                      type: boolean
+                                                    forceCommonLabels:
+                                                      type: boolean
+                                                    images:
+                                                      items:
+                                                        type: string
+                                                      type: array
+                                                    namePrefix:
+                                                      type: string
+                                                    nameSuffix:
+                                                      type: string
+                                                    version:
+                                                      type: string
+                                                  type: object
+                                                path:
+                                                  type: string
+                                                plugin:
+                                                  properties:
+                                                    env:
+                                                      items:
+                                                        properties:
+                                                          name:
+                                                            type: string
+                                                          value:
+                                                            type: string
+                                                        required:
+                                                        - name
+                                                        - value
+                                                        type: object
+                                                      type: array
+                                                    name:
+                                                      type: string
+                                                    type: array
+                                                  namePrefix:
+                                                    type: string
+                                                  nameSuffix:
+                                                    type: string
+                                                  version:
+                                                    type: string
+                                                type: object
+                                              path:
+                                                type: string
+                                              plugin:
+                                                properties:
+                                                  env:
+                                                    items:
+                                                      properties:
+                                                        name:
+                                                          type: string
+                                                        value:
+                                                          type: string
+                                                      required:
+                                                      - name
+                                                      - value
+                                                      type: object
+                                                    type: array
+                                                  name:
+                                                    type: string
                                                   parameters:
                                                     items:
                                                       properties:
@@ -7036,9 +7491,16 @@ spec:
                                                 type: string
                                               targetRevision:
                                                 type: string
-                                            required:
-                                            - repoURL
-                                            type: object
+                                                ref:
+                                                  type: string
+                                                repoURL:
+                                                  type: string
+                                                targetRevision:
+                                                  type: string
+                                              required:
+                                              - repoURL
+                                              type: object
+                                            type: array
                                           syncPolicy:
                                             properties:
                                               automated:
@@ -8450,6 +8912,173 @@ spec:
                                           type: boolean
                                         images:
                                           items:
+                                            type: string
+                                          type: array
+                                        namePrefix:
+                                          type: string
+                                        nameSuffix:
+                                          type: string
+                                        version:
+                                          type: string
+                                      type: object
+                                    path:
+                                      type: string
+                                    plugin:
+                                      properties:
+                                        env:
+                                          items:
+                                            properties:
+                                              name:
+                                                type: string
+                                              value:
+                                                type: string
+                                            required:
+                                            - name
+                                            - value
+                                            type: object
+                                          type: array
+                                        name:
+                                          type: string
+                                      type: object
+                                    ref:
+                                      type: string
+                                    repoURL:
+                                      type: string
+                                    targetRevision:
+                                      type: string
+                                  required:
+                                  - repoURL
+                                  type: object
+                                sources:
+                                  items:
+                                    properties:
+                                      chart:
+                                        type: string
+                                      directory:
+                                        properties:
+                                          exclude:
+                                            type: string
+                                          include:
+                                            type: string
+                                          jsonnet:
+                                            properties:
+                                              extVars:
+                                                items:
+                                                  properties:
+                                                    code:
+                                                      type: boolean
+                                                    name:
+                                                      type: string
+                                                    value:
+                                                      type: string
+                                                  required:
+                                                  - name
+                                                  - value
+                                                  type: object
+                                                type: array
+                                              libs:
+                                                items:
+                                                  type: string
+                                                type: array
+                                              tlas:
+                                                items:
+                                                  properties:
+                                                    code:
+                                                      type: boolean
+                                                    name:
+                                                      type: string
+                                                    value:
+                                                      type: string
+                                                  required:
+                                                  - name
+                                                  - value
+                                                  type: object
+                                                type: array
+                                            type: object
+                                          recurse:
+                                            type: boolean
+                                        type: object
+                                      helm:
+                                        properties:
+                                          fileParameters:
+                                            items:
+                                              properties:
+                                                name:
+                                                  type: string
+                                                path:
+                                                  type: string
+                                              type: object
+                                            type: array
+                                          ignoreMissingValueFiles:
+                                            type: boolean
+                                          parameters:
+                                            items:
+                                              properties:
+                                                forceString:
+                                                  type: boolean
+                                                name:
+                                                  type: string
+                                                value:
+                                                  type: string
+                                              type: object
+                                            type: array
+                                          passCredentials:
+                                            type: boolean
+                                          releaseName:
+                                            type: string
+                                          skipCrds:
+                                            type: boolean
+                                          valueFiles:
+                                            items:
+                                              type: string
+                                            type: array
+                                          values:
+                                            type: string
+                                          version:
+                                            type: string
+                                        type: object
+                                      kustomize:
+                                        properties:
+                                          commonAnnotations:
+                                            additionalProperties:
+                                              type: string
+                                            type: object
+                                          commonLabels:
+                                            additionalProperties:
+                                              type: string
+                                            type: object
+                                          forceCommonAnnotations:
+                                            type: boolean
+                                          forceCommonLabels:
+                                            type: boolean
+                                          images:
+                                            items:
+                                              type: string
+                                            type: array
+                                          namePrefix:
+                                            type: string
+                                          nameSuffix:
+                                            type: string
+                                          version:
+                                            type: string
+                                        type: object
+                                      path:
+                                        type: string
+                                      plugin:
+                                        properties:
+                                          env:
+                                            items:
+                                              properties:
+                                                name:
+                                                  type: string
+                                                value:
+                                                  type: string
+                                              required:
+                                              - name
+                                              - value
+                                              type: object
+                                            type: array
+                                          name:
                                             type: string
                                           type: array
                                         namePrefix:
@@ -10153,6 +10782,173 @@ spec:
                                                     type: array
                                                   name:
                                                     type: string
+                                                type: object
+                                              ref:
+                                                type: string
+                                              repoURL:
+                                                type: string
+                                              targetRevision:
+                                                type: string
+                                            required:
+                                            - repoURL
+                                            type: object
+                                          sources:
+                                            items:
+                                              properties:
+                                                chart:
+                                                  type: string
+                                                directory:
+                                                  properties:
+                                                    exclude:
+                                                      type: string
+                                                    include:
+                                                      type: string
+                                                    jsonnet:
+                                                      properties:
+                                                        extVars:
+                                                          items:
+                                                            properties:
+                                                              code:
+                                                                type: boolean
+                                                              name:
+                                                                type: string
+                                                              value:
+                                                                type: string
+                                                            required:
+                                                            - name
+                                                            - value
+                                                            type: object
+                                                          type: array
+                                                        libs:
+                                                          items:
+                                                            type: string
+                                                          type: array
+                                                        tlas:
+                                                          items:
+                                                            properties:
+                                                              code:
+                                                                type: boolean
+                                                              name:
+                                                                type: string
+                                                              value:
+                                                                type: string
+                                                            required:
+                                                            - name
+                                                            - value
+                                                            type: object
+                                                          type: array
+                                                      type: object
+                                                    recurse:
+                                                      type: boolean
+                                                  type: object
+                                                helm:
+                                                  properties:
+                                                    fileParameters:
+                                                      items:
+                                                        properties:
+                                                          name:
+                                                            type: string
+                                                          path:
+                                                            type: string
+                                                        type: object
+                                                      type: array
+                                                    ignoreMissingValueFiles:
+                                                      type: boolean
+                                                    parameters:
+                                                      items:
+                                                        properties:
+                                                          forceString:
+                                                            type: boolean
+                                                          name:
+                                                            type: string
+                                                          value:
+                                                            type: string
+                                                        type: object
+                                                      type: array
+                                                    passCredentials:
+                                                      type: boolean
+                                                    releaseName:
+                                                      type: string
+                                                    skipCrds:
+                                                      type: boolean
+                                                    valueFiles:
+                                                      items:
+                                                        type: string
+                                                      type: array
+                                                    values:
+                                                      type: string
+                                                    version:
+                                                      type: string
+                                                  type: object
+                                                kustomize:
+                                                  properties:
+                                                    commonAnnotations:
+                                                      additionalProperties:
+                                                        type: string
+                                                      type: object
+                                                    commonLabels:
+                                                      additionalProperties:
+                                                        type: string
+                                                      type: object
+                                                    forceCommonAnnotations:
+                                                      type: boolean
+                                                    forceCommonLabels:
+                                                      type: boolean
+                                                    images:
+                                                      items:
+                                                        type: string
+                                                      type: array
+                                                    namePrefix:
+                                                      type: string
+                                                    nameSuffix:
+                                                      type: string
+                                                    version:
+                                                      type: string
+                                                  type: object
+                                                path:
+                                                  type: string
+                                                plugin:
+                                                  properties:
+                                                    env:
+                                                      items:
+                                                        properties:
+                                                          name:
+                                                            type: string
+                                                          value:
+                                                            type: string
+                                                        required:
+                                                        - name
+                                                        - value
+                                                        type: object
+                                                      type: array
+                                                    name:
+                                                      type: string
+                                                    type: array
+                                                  namePrefix:
+                                                    type: string
+                                                  nameSuffix:
+                                                    type: string
+                                                  version:
+                                                    type: string
+                                                type: object
+                                              path:
+                                                type: string
+                                              plugin:
+                                                properties:
+                                                  env:
+                                                    items:
+                                                      properties:
+                                                        name:
+                                                          type: string
+                                                        value:
+                                                          type: string
+                                                      required:
+                                                      - name
+                                                      - value
+                                                      type: object
+                                                    type: array
+                                                  name:
+                                                    type: string
                                                   parameters:
                                                     items:
                                                       properties:
@@ -10563,6 +11359,173 @@ spec:
                                                     type: array
                                                   name:
                                                     type: string
+                                                type: object
+                                              ref:
+                                                type: string
+                                              repoURL:
+                                                type: string
+                                              targetRevision:
+                                                type: string
+                                            required:
+                                            - repoURL
+                                            type: object
+                                          sources:
+                                            items:
+                                              properties:
+                                                chart:
+                                                  type: string
+                                                directory:
+                                                  properties:
+                                                    exclude:
+                                                      type: string
+                                                    include:
+                                                      type: string
+                                                    jsonnet:
+                                                      properties:
+                                                        extVars:
+                                                          items:
+                                                            properties:
+                                                              code:
+                                                                type: boolean
+                                                              name:
+                                                                type: string
+                                                              value:
+                                                                type: string
+                                                            required:
+                                                            - name
+                                                            - value
+                                                            type: object
+                                                          type: array
+                                                        libs:
+                                                          items:
+                                                            type: string
+                                                          type: array
+                                                        tlas:
+                                                          items:
+                                                            properties:
+                                                              code:
+                                                                type: boolean
+                                                              name:
+                                                                type: string
+                                                              value:
+                                                                type: string
+                                                            required:
+                                                            - name
+                                                            - value
+                                                            type: object
+                                                          type: array
+                                                      type: object
+                                                    recurse:
+                                                      type: boolean
+                                                  type: object
+                                                helm:
+                                                  properties:
+                                                    fileParameters:
+                                                      items:
+                                                        properties:
+                                                          name:
+                                                            type: string
+                                                          path:
+                                                            type: string
+                                                        type: object
+                                                      type: array
+                                                    ignoreMissingValueFiles:
+                                                      type: boolean
+                                                    parameters:
+                                                      items:
+                                                        properties:
+                                                          forceString:
+                                                            type: boolean
+                                                          name:
+                                                            type: string
+                                                          value:
+                                                            type: string
+                                                        type: object
+                                                      type: array
+                                                    passCredentials:
+                                                      type: boolean
+                                                    releaseName:
+                                                      type: string
+                                                    skipCrds:
+                                                      type: boolean
+                                                    valueFiles:
+                                                      items:
+                                                        type: string
+                                                      type: array
+                                                    values:
+                                                      type: string
+                                                    version:
+                                                      type: string
+                                                  type: object
+                                                kustomize:
+                                                  properties:
+                                                    commonAnnotations:
+                                                      additionalProperties:
+                                                        type: string
+                                                      type: object
+                                                    commonLabels:
+                                                      additionalProperties:
+                                                        type: string
+                                                      type: object
+                                                    forceCommonAnnotations:
+                                                      type: boolean
+                                                    forceCommonLabels:
+                                                      type: boolean
+                                                    images:
+                                                      items:
+                                                        type: string
+                                                      type: array
+                                                    namePrefix:
+                                                      type: string
+                                                    nameSuffix:
+                                                      type: string
+                                                    version:
+                                                      type: string
+                                                  type: object
+                                                path:
+                                                  type: string
+                                                plugin:
+                                                  properties:
+                                                    env:
+                                                      items:
+                                                        properties:
+                                                          name:
+                                                            type: string
+                                                          value:
+                                                            type: string
+                                                        required:
+                                                        - name
+                                                        - value
+                                                        type: object
+                                                      type: array
+                                                    name:
+                                                      type: string
+                                                    type: array
+                                                  namePrefix:
+                                                    type: string
+                                                  nameSuffix:
+                                                    type: string
+                                                  version:
+                                                    type: string
+                                                type: object
+                                              path:
+                                                type: string
+                                              plugin:
+                                                properties:
+                                                  env:
+                                                    items:
+                                                      properties:
+                                                        name:
+                                                          type: string
+                                                        value:
+                                                          type: string
+                                                      required:
+                                                      - name
+                                                      - value
+                                                      type: object
+                                                    type: array
+                                                  name:
+                                                    type: string
                                                   parameters:
                                                     items:
                                                       properties:
@@ -10634,12 +11597,9 @@ spec:
                                         required:
                                         - destination
                                         - project
+                                        - metadata
+                                        - spec
                                         type: object
-                                    required:
-                                    - metadata
-                                    - spec
-                                    type: object
-                                type: object
                               scmProvider:
                                 properties:
                                   azureDevOps:
@@ -12045,6 +13005,8 @@ spec:
                                             type: object
                                           type: array
                                       type: object
+                                    ref:
+                                      type: string
                                     repoURL:
                                       type: string
                                     targetRevision:
@@ -12052,6 +13014,148 @@ spec:
                                   required:
                                   - repoURL
                                   type: object
+                                sources:
+                                  items:
+                                    properties:
+                                      chart:
+                                        type: string
+                                      directory:
+                                        properties:
+                                          exclude:
+                                            type: string
+                                          include:
+                                            type: string
+                                          jsonnet:
+                                            properties:
+                                              extVars:
+                                                items:
+                                                  properties:
+                                                    code:
+                                                      type: boolean
+                                                    name:
+                                                      type: string
+                                                    value:
+                                                      type: string
+                                                  required:
+                                                  - name
+                                                  - value
+                                                  type: object
+                                                type: array
+                                              libs:
+                                                items:
+                                                  type: string
+                                                type: array
+                                              tlas:
+                                                items:
+                                                  properties:
+                                                    code:
+                                                      type: boolean
+                                                    name:
+                                                      type: string
+                                                    value:
+                                                      type: string
+                                                  required:
+                                                  - name
+                                                  - value
+                                                  type: object
+                                                type: array
+                                            type: object
+                                          recurse:
+                                            type: boolean
+                                        type: object
+                                      helm:
+                                        properties:
+                                          fileParameters:
+                                            items:
+                                              properties:
+                                                name:
+                                                  type: string
+                                                path:
+                                                  type: string
+                                              type: object
+                                            type: array
+                                          ignoreMissingValueFiles:
+                                            type: boolean
+                                          parameters:
+                                            items:
+                                              properties:
+                                                forceString:
+                                                  type: boolean
+                                                name:
+                                                  type: string
+                                                value:
+                                                  type: string
+                                              type: object
+                                            type: array
+                                          passCredentials:
+                                            type: boolean
+                                          releaseName:
+                                            type: string
+                                          skipCrds:
+                                            type: boolean
+                                          valueFiles:
+                                            items:
+                                              type: string
+                                            type: array
+                                          values:
+                                            type: string
+                                          version:
+                                            type: string
+                                        type: object
+                                      kustomize:
+                                        properties:
+                                          commonAnnotations:
+                                            additionalProperties:
+                                              type: string
+                                            type: object
+                                          commonLabels:
+                                            additionalProperties:
+                                              type: string
+                                            type: object
+                                          forceCommonAnnotations:
+                                            type: boolean
+                                          forceCommonLabels:
+                                            type: boolean
+                                          images:
+                                            items:
+                                              type: string
+                                            type: array
+                                          namePrefix:
+                                            type: string
+                                          nameSuffix:
+                                            type: string
+                                          version:
+                                            type: string
+                                        type: object
+                                      path:
+                                        type: string
+                                      plugin:
+                                        properties:
+                                          env:
+                                            items:
+                                              properties:
+                                                name:
+                                                  type: string
+                                                value:
+                                                  type: string
+                                              required:
+                                              - name
+                                              - value
+                                              type: object
+                                            type: array
+                                          name:
+                                            type: string
+                                        type: object
+                                      ref:
+                                        type: string
+                                      repoURL:
+                                        type: string
+                                      targetRevision:
+                                        type: string
+                                    required:
+                                    - repoURL
+                                    type: object
+                                  type: array
                                 syncPolicy:
                                   properties:
                                     automated:

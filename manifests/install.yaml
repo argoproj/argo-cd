@@ -393,7 +393,8 @@ spec:
                         type: object
                       ref:
                         description: Ref is reference to another source within sources
-                          field
+                          field. This field will not be used if used with a `source`
+                          tag.
                         type: string
                       repoURL:
                         description: RepoURL is the URL to the repository (Git or
@@ -606,8 +607,8 @@ spec:
                             and is only valid for applications sourced from Git.
                           type: string
                         plugin:
-                          description: ConfigManagementPlugin holds config management
-                            plugin specific options
+                          description: Plugin holds config management plugin specific
+                            options
                           properties:
                             env:
                               description: Env is a list of environment variable entries
@@ -632,7 +633,8 @@ spec:
                           type: object
                         ref:
                           description: Ref is reference to another source within sources
-                            field
+                            field. This field will not be used if used with a `source`
+                            tag.
                           type: string
                         repoURL:
                           description: RepoURL is the URL to the repository (Git or
@@ -1004,7 +1006,7 @@ spec:
                     type: object
                   ref:
                     description: Ref is reference to another source within sources
-                      field
+                      field. This field will not be used if used with a `source` tag.
                     type: string
                   repoURL:
                     description: RepoURL is the URL to the repository (Git or Helm)
@@ -1212,8 +1214,8 @@ spec:
                         and is only valid for applications sourced from Git.
                       type: string
                     plugin:
-                      description: ConfigManagementPlugin holds config management
-                        plugin specific options
+                      description: Plugin holds config management plugin specific
+                        options
                       properties:
                         env:
                           description: Env is a list of environment variable entries
@@ -1238,7 +1240,8 @@ spec:
                       type: object
                     ref:
                       description: Ref is reference to another source within sources
-                        field
+                        field. This field will not be used if used with a `source`
+                        tag.
                       type: string
                     repoURL:
                       description: RepoURL is the URL to the repository (Git or Helm)
@@ -1591,8 +1594,8 @@ spec:
                             and is only valid for applications sourced from Git.
                           type: string
                         plugin:
-                          description: ConfigManagementPlugin holds config management
-                            plugin specific options
+                          description: Plugin holds config management plugin specific
+                            options
                           properties:
                             env:
                               description: Env is a list of environment variable entries
@@ -1617,7 +1620,8 @@ spec:
                           type: object
                         ref:
                           description: Ref is reference to another source within sources
-                            field
+                            field. This field will not be used if used with a `source`
+                            tag.
                           type: string
                         repoURL:
                           description: RepoURL is the URL to the repository (Git or
@@ -1832,8 +1836,8 @@ spec:
                               and is only valid for applications sourced from Git.
                             type: string
                           plugin:
-                            description: ConfigManagementPlugin holds config management
-                              plugin specific options
+                            description: Plugin holds config management plugin specific
+                              options
                             properties:
                               env:
                                 description: Env is a list of environment variable
@@ -1935,7 +1939,8 @@ spec:
                           type: string
                           ref:
                             description: Ref is reference to another source within
-                              sources field
+                              sources field. This field will not be used if used with
+                              a `source` tag.
                             type: string
                           repoURL:
                             description: RepoURL is the URL to the repository (Git
@@ -2345,7 +2350,8 @@ spec:
                                 type: object
                               ref:
                                 description: Ref is reference to another source within
-                                  sources field
+                                  sources field. This field will not be used if used
+                                  with a `source` tag.
                                 type: string
                               repoURL:
                                 description: RepoURL is the URL to the repository
@@ -2575,8 +2581,8 @@ spec:
                                     sourced from Git.
                                   type: string
                                 plugin:
-                                  description: ConfigManagementPlugin holds config
-                                    management plugin specific options
+                                  description: Plugin holds config management plugin
+                                    specific options
                                   properties:
                                     env:
                                       description: Env is a list of environment variable
@@ -2603,7 +2609,8 @@ spec:
                                   type: object
                                 ref:
                                   description: Ref is reference to another source
-                                    within sources field
+                                    within sources field. This field will not be used
+                                    if used with a `source` tag.
                                   type: string
                                 repoURL:
                                   description: RepoURL is the URL to the repository
@@ -2983,7 +2990,8 @@ spec:
                             type: object
                           ref:
                             description: Ref is reference to another source within
-                              sources field
+                              sources field. This field will not be used if used with
+                              a `source` tag.
                             type: string
                           repoURL:
                             description: RepoURL is the URL to the repository (Git
@@ -3207,8 +3215,8 @@ spec:
                                 from Git.
                               type: string
                             plugin:
-                              description: ConfigManagementPlugin holds config management
-                                plugin specific options
+                              description: Plugin holds config management plugin specific
+                                options
                               properties:
                                 env:
                                   description: Env is a list of environment variable
@@ -3234,7 +3242,8 @@ spec:
                               type: object
                             ref:
                               description: Ref is reference to another source within
-                                sources field
+                                sources field. This field will not be used if used
+                                with a `source` tag.
                               type: string
                             repoURL:
                               description: RepoURL is the URL to the repository (Git
@@ -3613,7 +3622,8 @@ spec:
                             type: object
                           ref:
                             description: Ref is reference to another source within
-                              sources field
+                              sources field. This field will not be used if used with
+                              a `source` tag.
                             type: string
                           repoURL:
                             description: RepoURL is the URL to the repository (Git
@@ -3837,8 +3847,8 @@ spec:
                                 from Git.
                               type: string
                             plugin:
-                              description: ConfigManagementPlugin holds config management
-                                plugin specific options
+                              description: Plugin holds config management plugin specific
+                                options
                               properties:
                                 env:
                                   description: Env is a list of environment variable
@@ -3864,7 +3874,8 @@ spec:
                               type: object
                             ref:
                               description: Ref is reference to another source within
-                                sources field
+                                sources field. This field will not be used if used
+                                with a `source` tag.
                               type: string
                             repoURL:
                               description: RepoURL is the URL to the repository (Git

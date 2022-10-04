@@ -125,6 +125,7 @@ func (a *Actions) CreateFromFile(handler func(app *Application), flags ...string
 	if a.context.directoryRecurse {
 		source.Directory = &ApplicationSourceDirectory{Recurse: true}
 	}
+	app.Spec.Source = &source
 
 	handler(app)
 	data := grpc.MustMarshal(app)

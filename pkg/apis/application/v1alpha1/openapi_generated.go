@@ -1224,7 +1224,7 @@ func schema_pkg_apis_application_v1alpha1_ApplicationSource(ref common.Reference
 					},
 					"ref": {
 						SchemaProps: spec.SchemaProps{
-							Description: "Ref is reference to another source within sources field",
+							Description: "Ref is reference to another source within sources field. This field will not be used if used with a `source` tag.",
 							Type:        []string{"string"},
 							Format:      "",
 						},

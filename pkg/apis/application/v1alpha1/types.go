@@ -174,7 +174,7 @@ type ApplicationSource struct {
 	Plugin *ApplicationSourcePlugin `json:"plugin,omitempty" protobuf:"bytes,11,opt,name=plugin"`
 	// Chart is a Helm chart name, and must be specified for applications sourced from a Helm repo.
 	Chart string `json:"chart,omitempty" protobuf:"bytes,12,opt,name=chart"`
-	// Ref is reference to another source within sources field
+	// Ref is reference to another source within sources field. This field will not be used if used with a `source` tag.
 	Ref string `json:"ref,omitempty" protobuf:"bytes,13,opt,name=ref"`
 }
 
@@ -187,6 +187,14 @@ func (a *ApplicationSpec) GetSource() ApplicationSource {
 		return a.Sources[0]
 	}
 	return *a.Source
+}
+
+func (a *ApplicationSpec) GetSourcePtr() *ApplicationSource {
+	// if Application has multiple sources, return the first source in sources
+	if a.Sources != nil && len(a.Sources) > 0 {
+		return &a.Sources[0]
+	}
+	return a.Source
 }
 
 // AllowsConcurrentProcessing returns true if given application source can be processed concurrently

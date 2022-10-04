@@ -138,7 +138,11 @@ func SetAppSpecOptions(flags *pflag.FlagSet, spec *argoappv1.ApplicationSpec, ap
 	}
 	flags.Visit(func(f *pflag.Flag) {
 		visited++
-		source := spec.GetSource()
+		var source *argoappv1.ApplicationSource
+		source = spec.GetSourcePtr()
+		if source == nil {
+			source = &argoappv1.ApplicationSource{}
+		}
 		switch f.Name {
 		case "repo":
 			source.RepoURL = appOpts.repoURL
@@ -152,9 +156,9 @@ func SetAppSpecOptions(flags *pflag.FlagSet, spec *argoappv1.ApplicationSpec, ap
 			i := int64(appOpts.revisionHistoryLimit)
 			spec.RevisionHistoryLimit = &i
 		case "values":
-			setHelmOpt(&source, helmOpts{valueFiles: appOpts.valuesFiles})
+			setHelmOpt(source, helmOpts{valueFiles: appOpts.valuesFiles})
 		case "ignore-missing-value-files":
-			setHelmOpt(&source, helmOpts{ignoreMissingValueFiles: appOpts.ignoreMissingValueFiles})
+			setHelmOpt(source, helmOpts{ignoreMissingValueFiles: appOpts.ignoreMissingValueFiles})
 		case "values-literal-file":
 			var data []byte
 
@@ -166,21 +170,21 @@ func SetAppSpecOptions(flags *pflag.FlagSet, spec *argoappv1.ApplicationSpec, ap
 				data, err = config.ReadRemoteFile(appOpts.values)
 			}
 			errors.CheckError(err)
-			setHelmOpt(&source, helmOpts{values: string(data)})
+			setHelmOpt(source, helmOpts{values: string(data)})
 		case "release-name":
-			setHelmOpt(&source, helmOpts{releaseName: appOpts.releaseName})
+			setHelmOpt(source, helmOpts{releaseName: appOpts.releaseName})
 		case "helm-version":
-			setHelmOpt(&source, helmOpts{version: appOpts.helmVersion})
+			setHelmOpt(source, helmOpts{version: appOpts.helmVersion})
 		case "helm-pass-credentials":
-			setHelmOpt(&source, helmOpts{passCredentials: appOpts.helmPassCredentials})
+			setHelmOpt(source, helmOpts{passCredentials: appOpts.helmPassCredentials})
 		case "helm-set":
-			setHelmOpt(&source, helmOpts{helmSets: appOpts.helmSets})
+			setHelmOpt(source, helmOpts{helmSets: appOpts.helmSets})
 		case "helm-set-string":
-			setHelmOpt(&source, helmOpts{helmSetStrings: appOpts.helmSetStrings})
+			setHelmOpt(source, helmOpts{helmSetStrings: appOpts.helmSetStrings})
 		case "helm-set-file":
-			setHelmOpt(&source, helmOpts{helmSetFiles: appOpts.helmSetFiles})
+			setHelmOpt(source, helmOpts{helmSetFiles: appOpts.helmSetFiles})
 		case "helm-skip-crds":
-			setHelmOpt(&source, helmOpts{skipCrds: appOpts.helmSkipCrds})
+			setHelmOpt(source, helmOpts{skipCrds: appOpts.helmSkipCrds})
 		case "directory-recurse":
 			if source.Directory != nil {
 				source.Directory.Recurse = appOpts.directoryRecurse
@@ -210,37 +214,37 @@ func SetAppSpecOptions(flags *pflag.FlagSet, spec *argoappv1.ApplicationSpec, ap
 		case "project":
 			spec.Project = appOpts.project
 		case "nameprefix":
-			setKustomizeOpt(&source, kustomizeOpts{namePrefix: appOpts.namePrefix})
+			setKustomizeOpt(source, kustomizeOpts{namePrefix: appOpts.namePrefix})
 		case "namesuffix":
-			setKustomizeOpt(&source, kustomizeOpts{nameSuffix: appOpts.nameSuffix})
+			setKustomizeOpt(source, kustomizeOpts{nameSuffix: appOpts.nameSuffix})
 		case "kustomize-image":
-			setKustomizeOpt(&source, kustomizeOpts{images: appOpts.kustomizeImages})
+			setKustomizeOpt(source, kustomizeOpts{images: appOpts.kustomizeImages})
 		case "kustomize-version":
-			setKustomizeOpt(&source, kustomizeOpts{version: appOpts.kustomizeVersion})
+			setKustomizeOpt(source, kustomizeOpts{version: appOpts.kustomizeVersion})
 		case "kustomize-common-label":
 			parsedLabels, err := label.Parse(appOpts.kustomizeCommonLabels)
 			errors.CheckError(err)
-			setKustomizeOpt(&source, kustomizeOpts{commonLabels: parsedLabels})
+			setKustomizeOpt(source, kustomizeOpts{commonLabels: parsedLabels})
 		case "kustomize-common-annotation":
 			parsedAnnotations, err := label.Parse(appOpts.kustomizeCommonAnnotations)
 			errors.CheckError(err)
-			setKustomizeOpt(&source, kustomizeOpts{commonAnnotations: parsedAnnotations})
+			setKustomizeOpt(source, kustomizeOpts{commonAnnotations: parsedAnnotations})
 		case "kustomize-force-common-label":
-			setKustomizeOpt(&source, kustomizeOpts{forceCommonLabels: appOpts.kustomizeForceCommonLabels})
+			setKustomizeOpt(source, kustomizeOpts{forceCommonLabels: appOpts.kustomizeForceCommonLabels})
 		case "kustomize-force-common-annotation":
-			setKustomizeOpt(&source, kustomizeOpts{forceCommonAnnotations: appOpts.kustomizeForceCommonAnnotations})
+			setKustomizeOpt(source, kustomizeOpts{forceCommonAnnotations: appOpts.kustomizeForceCommonAnnotations})
 		case "jsonnet-tla-str":
-			setJsonnetOpt(&source, appOpts.jsonnetTlaStr, false)
+			setJsonnetOpt(source, appOpts.jsonnetTlaStr, false)
 		case "jsonnet-tla-code":
-			setJsonnetOpt(&source, appOpts.jsonnetTlaCode, true)
+			setJsonnetOpt(source, appOpts.jsonnetTlaCode, true)
 		case "jsonnet-ext-var-str":
-			setJsonnetOptExtVar(&source, appOpts.jsonnetExtVarStr, false)
+			setJsonnetOptExtVar(source, appOpts.jsonnetExtVarStr, false)
 		case "jsonnet-ext-var-code":
-			setJsonnetOptExtVar(&source, appOpts.jsonnetExtVarCode, true)
+			setJsonnetOptExtVar(source, appOpts.jsonnetExtVarCode, true)
 		case "jsonnet-libs":
-			setJsonnetOptLibs(&source, appOpts.jsonnetLibs)
+			setJsonnetOptLibs(source, appOpts.jsonnetLibs)
 		case "plugin-env":
-			setPluginOptEnvs(&source, appOpts.pluginEnvs)
+			setPluginOptEnvs(source, appOpts.pluginEnvs)
 		case "sync-policy":
 			switch appOpts.syncPolicy {
 			case "none":
@@ -297,6 +301,7 @@ func SetAppSpecOptions(flags *pflag.FlagSet, spec *argoappv1.ApplicationSpec, ap
 				log.Fatalf("Invalid sync-retry-limit [%d]", appOpts.retryLimit)
 			}
 		}
+		spec.Source = source
 	})
 	if flags.Changed("auto-prune") {
 		if spec.SyncPolicy == nil || spec.SyncPolicy.Automated == nil {
@@ -581,6 +586,9 @@ func constructAppsBaseOnName(appName string, labels, annotations, args []string,
 		ObjectMeta: v1.ObjectMeta{
 			Name:      appName,
 			Namespace: appNs,
+		},
+		Spec: argoappv1.ApplicationSpec{
+			Source: &argoappv1.ApplicationSource{},
 		},
 	}
 	SetAppSpecOptions(flags, &app.Spec, &appOpts)

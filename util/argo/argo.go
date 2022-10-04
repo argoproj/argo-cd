@@ -417,7 +417,7 @@ func ValidatePermissions(ctx context.Context, spec *argoappv1.ApplicationSpec, p
 		if spec.GetSource().RepoURL == "" || (spec.GetSource().Path == "" && spec.GetSource().Chart == "") {
 			conditions = append(conditions, argoappv1.ApplicationCondition{
 				Type:    argoappv1.ApplicationConditionInvalidSpecError,
-				Message: "spec.source.repoURL and spec.source.path either spec.source.chart are required",
+				Message: "spec.source.repoURL and either spec.source.path or spec.source.chart are required",
 			})
 			return conditions, nil
 		}
