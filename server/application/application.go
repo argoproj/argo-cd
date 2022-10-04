@@ -132,15 +132,15 @@ func NewServer(
 
 // List returns list of applications
 func (s *Server) List(ctx context.Context, q *application.ApplicationQuery) (*appv1.ApplicationList, error) {
-	labelsMap, err := labels.ConvertSelectorToLabelsMap(q.GetSelector())
+	selector, err := labels.Parse(q.GetSelector())
 	if err != nil {
-		return nil, fmt.Errorf("error converting selector to labels map: %w", err)
+		return nil, fmt.Errorf("error parsing the selector: %w", err)
 	}
 	var apps []*appv1.Application
 	if q.GetAppNamespace() == "" {
-		apps, err = s.appLister.List(labelsMap.AsSelector())
+		apps, err = s.appLister.List(selector)
 	} else {
-		apps, err = s.appLister.Applications(q.GetAppNamespace()).List(labelsMap.AsSelector())
+		apps, err = s.appLister.Applications(q.GetAppNamespace()).List(selector)
 	}
 	if err != nil {
 		return nil, fmt.Errorf("error listing apps with selectors: %w", err)
