@@ -70,7 +70,9 @@ in the API server while processing high latency requests.
 
 Possible solutions:
 - Implement a rate limit layer to protect Argo CD API server
-- Implement configurable different types of timeouts (idle connection, duration, etc) between Argo CD API server and backend services.
+- Implement configurable different types of timeouts (idle connection,
+  duration, etc) between Argo CD API server and backend services.
+- Implement the reverse proxy as a separate server/pod (needs discussion).
 
 ----
 
@@ -245,11 +247,17 @@ extension.config: |
 
 Note that there is an URL configuration per cluster name. The cluster
 name is extracted from the Argo CD cluster secret and must match the
-field `data.name`. In this case the UI must send a header with the
-application name so API Server can check in which cluster it should
+field `data.name`. In this case the UI must send the header
+`Argocd-Application-Name` with the full qualified application name
+(`<namespace>/<application-name>`).
+
+Example:
+
+`Argocd-Application-Name: preprod/some-application`
+
+With this information, API Server can check in which cluster it should
 get the backend URL from. This will be done by inspecting the
-Application destination configuration to find the proper cluster
-name.
+Application destination configuration to find the proper cluster name.
 
 The diagram below shows how Argo CD UI could send the request with
 the additional header to get the proxy forwarding it to the proper
@@ -261,7 +269,7 @@ cluster:
    └──────┬─────┘
           │
           │ GET http://argo.com/api/v1/extensions/some-extension
-          │ HEADER: "ARGOCD-APPLICATION-NAME: ppd-application
+          │ HEADER: "Argocd-Application-Name: default/ppd-application"
           │
           ▼
  ┌──────────────────┐
@@ -281,8 +289,10 @@ cluster:
 - The `idleConnTimeout` can be used to avoid accumulating too many
   goroutines waiting slow for extensions. In this case a proper timeout
   error (408) should be returned to the browser.
-- Headers, scheme, http verb and request body are forwarded as it is
+- Scheme, http verb and request body are forwarded as it is
   received by the API server to the backend service.
+- Headers will be filtered and not forwarded as it is received in Argo CD
+  API server. Sensitive headers will be removed (e.g. `Cookie`).
 - A new header is added in the forwared request (`X-Forwarded-Host`) to
   allow ssl redirection.
 - This proposal doesn't specify how backends should implement authz or
@@ -356,6 +366,15 @@ execute extensions in all projects.
 - Impact of extensions on overall Argo CD performance (mitigated by rate limiting + idle conn timeout).
 
 ## Open Questions
+
+1. What are the possible actions that can be provided to extensions RBAC?
+A. This proposal does not define additional RBAC actions for extensions.
+Currently the only possible value is `*` which will allow admins to enable
+or disable certain extensions per project. If there is a new requirement
+to support additional actions for extensions to limit just specific HTTP
+verbs for example, an enhancement can be created to extend this
+functionality. If this requirement becomes necessary, it won't be a
+breaking change as it will be more restrictive.
 
 [1]: https://argo-cd.readthedocs.io/en/stable/developer-guide/ui-extensions/
 [2]: https://github.com/argoproj-labs/argocd-extensions
