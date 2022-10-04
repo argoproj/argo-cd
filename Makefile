@@ -275,7 +275,7 @@ controller:
 
 .PHONY: build-ui
 build-ui:
-	DOCKER_BUILDKIT=1 docker build --platform=linux/amd64 -t argocd-ui --target argocd-ui .
+	DOCKER_BUILDKIT=1 docker build -t argocd-ui --target argocd-ui .
 	find ./ui/dist -type f -not -name gitkeep -delete
 	docker run -v ${CURRENT_DIR}/ui/dist/app:/tmp/app --rm -t argocd-ui sh -c 'cp -r ./dist/app/* /tmp/app/'
 
