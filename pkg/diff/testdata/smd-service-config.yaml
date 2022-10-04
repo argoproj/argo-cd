@@ -15,7 +15,7 @@ spec:
       targetPort: 1986
     - name: rtmp
       port: 1935
-      targetPort: 1935
+      targetPort: 1936
     - name: https
       port: 443
       targetPort: 443

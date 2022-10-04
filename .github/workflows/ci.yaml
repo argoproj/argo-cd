@@ -31,7 +31,6 @@ jobs:
         with:
           version: v1.38.0
           args: --timeout 5m
-          skip-go-installation: true
       - uses: codecov/codecov-action@v3.1.0
         with:
           token: ${{ secrets.CODECOV_TOKEN }} #required

@@ -48,26 +48,6 @@ metadata:
             'f:kubectl.kubernetes.io/last-applied-configuration': {}
         'f:spec':
           'f:internalTrafficPolicy': {}
-          'f:ports':
-            .: {}
-            'k:{"port":1935,"protocol":"TCP"}':
-              .: {}
-              'f:name': {}
-              'f:port': {}
-              'f:protocol': {}
-              'f:targetPort': {}
-            'k:{"port":1986,"protocol":"UDP"}':
-              .: {}
-              'f:name': {}
-              'f:port': {}
-              'f:protocol': {}
-              'f:targetPort': {}
-            'k:{"port":443,"protocol":"TCP"}':
-              .: {}
-              'f:name': {}
-              'f:port': {}
-              'f:protocol': {}
-              'f:targetPort': {}
           'f:sessionAffinity': {}
           'f:type': {}
       manager: kubectl-client-side-apply
