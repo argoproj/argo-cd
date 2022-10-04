@@ -1,10 +1,13 @@
 package oidc
 
 import (
+	"bytes"
 	"crypto/tls"
 	"encoding/hex"
 	"encoding/json"
 	"fmt"
+	"io"
+	"io/ioutil"
 	"net/http"
 	"net/http/httptest"
 	"net/url"
@@ -502,4 +505,35 @@ func TestGenerateAppState_NoReturnURL(t *testing.T) {
 	returnURL, err := app.verifyAppState(req, httptest.NewRecorder(), "123")
 	assert.NoError(t, err)
 	assert.Equal(t, "/argo-cd", returnURL)
+}
+
+type HttpClientMock struct {
+	StatusCode int
+	Body       io.ReadCloser
+}
+
+func (c *HttpClientMock) Do(req *http.Request) (*http.Response, error) {
+	return &http.Response{
+		StatusCode: c.StatusCode,
+		Body:       c.Body,
+	}, nil
+}
+
+func TestGetUserInfo(t *testing.T) {
+	t.Run("UserInfoReturn", func(t *testing.T) {
+		userInfo := Claims{Groups: []string{"Everyone"}}
+		userInfoBytes, _ := json.Marshal(userInfo)
+		body := ioutil.NopCloser(bytes.NewReader(userInfoBytes))
+
+		httpClient = &HttpClientMock{StatusCode: 200, Body: body}
+
+		signature, err := util.MakeSignature(32)
+		require.NoError(t, err)
+		cdSettings := &settings.ArgoCDSettings{ServerSignature: signature}
+		a, _ := NewClientApp(cdSettings, "", nil, "/argo-cd")
+
+		got, _, err := a.GetUserInfo("Bearer fake", "https://fake.okta.com", "/user-info")
+		assert.Equal(t, got.Groups, []string{"Everyone"})
+		assert.Equal(t, nil, err)
+	})
 }

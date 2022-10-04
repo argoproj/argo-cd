@@ -6,6 +6,7 @@ import (
 	"fmt"
 	"html"
 	"html/template"
+	"io"
 	"net"
 	"net/http"
 	"net/url"
@@ -44,6 +45,11 @@ type OIDCConfiguration struct {
 	GrantTypesSupported    []string `json:"grant_types_supported,omitempty"`
 }
 
+type Claims struct {
+	Groups []string `json:"groups,omitempty"`
+	jwt.RegisteredClaims
+}
+
 type ClaimsRequest struct {
 	IDToken map[string]*oidc.Claim `json:"id_token"`
 }
@@ -57,6 +63,8 @@ type ClientApp struct {
 	redirectURI string
 	// URL of the issuer (e.g. https://argocd.example.com/api/dex)
 	issuerURL string
+	// the path where the issuer providers user information (e.g /user-info for okta)
+	userInfoPath string
 	// The URL endpoint at which the ArgoCD server is accessed.
 	baseHRef string
 	// client is the HTTP client which is used to query the IDp
@@ -70,6 +78,17 @@ type ClientApp struct {
 	encryptionKey []byte
 	// provider is the OIDC provider
 	provider Provider
+}
+
+// HttpClient - simple http client for api calls
+type HttpClient interface {
+	Do(req *http.Request) (*http.Response, error)
+}
+
+var httpClient HttpClient
+
+func init() {
+	httpClient = &http.Client{}
 }
 
 func GetScopesOrDefault(scopes []string) []string {
@@ -95,6 +114,7 @@ func NewClientApp(settings *settings.ArgoCDSettings, dexServerAddr string, dexTl
 		clientSecret:  settings.OAuth2ClientSecret(),
 		redirectURI:   redirectURL,
 		issuerURL:     settings.IssuerURL(),
+		userInfoPath:  settings.UserInfoPath(),
 		baseHRef:      baseHRef,
 		encryptionKey: encryptionKey,
 	}
@@ -358,6 +378,7 @@ func (a *ClientApp) HandleCallback(w http.ResponseWriter, r *http.Request) {
 		http.Error(w, fmt.Sprintf("invalid session token: %v", err), http.StatusInternalServerError)
 		return
 	}
+
 	path := "/"
 	if a.baseHRef != "" {
 		path = strings.TrimRight(strings.TrimLeft(a.baseHRef, "/"), "/")
@@ -367,12 +388,54 @@ func (a *ClientApp) HandleCallback(w http.ResponseWriter, r *http.Request) {
 	if a.secureCookie {
 		flags = append(flags, "Secure")
 	}
-	var claims jwt.MapClaims
+	claims := Claims{}
 	err = idToken.Claims(&claims)
 	if err != nil {
 		http.Error(w, err.Error(), http.StatusInternalServerError)
 		return
 	}
+	groups := claims.Groups
+
+	// Some SSO implementations (Okta) require a call to
+	// the OIDC user info path to get attributes like groups
+	if a.userInfoPath != "" {
+		userInfo, unauthorized, err := a.GetUserInfo(token.AccessToken, a.settings.IssuerURL(), a.userInfoPath)
+		if unauthorized {
+			w.WriteHeader(401)
+			_, _ = w.Write([]byte(fmt.Sprintf("failed to get claims from unserinfo endpoint: %v", err)))
+			return
+		}
+		if err != nil {
+			w.WriteHeader(500)
+			_, _ = w.Write([]byte(fmt.Sprintf("failed to get claims from userinfo endpoint: %v", err)))
+		}
+		if idToken.Subject != userInfo.Subject {
+			log.Warning("Subject of Claims from UserInfo endpoint didn't match Subject of idToken, see https://openid.net/specs/openid-connect-core-1_0.html#UserInfo")
+			return
+		}
+		groups = userInfo.Groups
+	}
+
+	// reassamble the JWT claims
+	argoClaims := Claims{
+		groups,
+		jwt.RegisteredClaims{
+			ExpiresAt: jwt.NewNumericDate(idToken.Expiry),
+			IssuedAt:  jwt.NewNumericDate(time.Now()),
+			NotBefore: jwt.NewNumericDate(time.Now()),
+			//Issuer:    session.SessionManagerClaimsIssuer, // token will now be validated against argocd instead of IDP
+			Issuer:   "argocd",
+			Subject:  idToken.Subject,
+			Audience: idToken.Audience,
+		},
+	}
+	newToken := jwt.NewWithClaims(jwt.SigningMethodHS256, argoClaims)
+	idTokenRAW, err = newToken.SignedString(a.settings.ServerSignature)
+	if err != nil {
+		w.WriteHeader(500)
+		_, _ = w.Write([]byte(fmt.Sprintf("failed to sign jwt token: %v", err)))
+	}
+
 	if idTokenRAW != "" {
 		cookies, err := httputil.MakeCookieMetadata(common.AuthCookieName, idTokenRAW, flags...)
 		if err != nil {
@@ -386,7 +449,7 @@ func (a *ClientApp) HandleCallback(w http.ResponseWriter, r *http.Request) {
 		}
 	}
 
-	claimsJSON, _ := json.Marshal(claims)
+	claimsJSON, _ := json.Marshal(argoClaims)
 	log.Infof("Web login successful. Claims: %s", claimsJSON)
 	if os.Getenv(common.EnvVarSSODebug) == "1" {
 		claimsJSON, _ := json.MarshalIndent(claims, "", "  ")
@@ -505,4 +568,58 @@ func createClaimsAuthenticationRequestParameter(requestedClaims map[string]*oidc
 		return nil, err
 	}
 	return oauth2.SetAuthURLParam("claims", string(claimsRequestRAW)), nil
+}
+
+// GetUserInfo queries the IDP userinfo endpoint for claim
+func (a *ClientApp) GetUserInfo(accessToken, issuer, userInfoPath string) (claims Claims, unauthorized bool, err error) {
+	url := issuer + userInfoPath
+	request, err := http.NewRequest("GET", url, nil)
+
+	if err != nil {
+		err = fmt.Errorf("failed creating new http request: %w", err)
+		return
+	}
+
+	bearer := fmt.Sprintf("Bearer %s", accessToken)
+	request.Header.Set("Authorization", bearer)
+
+	response, err := httpClient.Do(request)
+	defer response.Body.Close()
+
+	if response.StatusCode == http.StatusUnauthorized {
+		unauthorized = true
+		return
+	}
+	if err != nil {
+		err = fmt.Errorf("failed to query userinfo endpoint of IDP: %w", err)
+		return
+	}
+
+	// according to https://openid.net/specs/openid-connect-core-1_0.html#UserInfoResponseValidation
+	// the response should be validated
+	switch response.Header.Get("Content-type") {
+	case "application/json":
+		// if body is json, unsigned and unencrypted claims can be deserialized
+		err = json.NewDecoder(response.Body).Decode(&claims)
+		if err != nil {
+			err = fmt.Errorf("failed to decode response body to struct: %w", err)
+		}
+	case "application/jwt":
+		// if body is JWT, first validate it before extracting claims
+		jwtToken, err := io.ReadAll(response.Body)
+		if err != nil {
+			err = fmt.Errorf("Got error reading response body: %w", err)
+		}
+		idToken, err := a.provider.Verify(a.clientID, string(jwtToken))
+		if err != nil {
+			err = fmt.Errorf("Userinfo response in jwt format not valid: %w", err)
+		}
+		err = idToken.Claims(claims)
+		if err != nil {
+			err = fmt.Errorf("Cannot get claims from userinfo jwt: %w", err)
+		}
+	default:
+		err = fmt.Errorf("Value of useinfo response Content-type header unknown")
+	}
+	return
 }
