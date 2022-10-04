@@ -22,8 +22,6 @@ GOCACHE?=$(HOME)/.cache/go-build
 
 DOCKER_SRCDIR?=$(GOPATH)/src
 DOCKER_WORKDIR?=/go/src/github.com/argoproj/argo-cd
-# Set it to "--platform=linux/amd64" if building on arm for an amd target
-DOCKER_PLATFORM?=
 
 ARGOCD_PROCFILE?=Procfile
 
@@ -277,7 +275,7 @@ controller:
 
 .PHONY: build-ui
 build-ui:
-	DOCKER_BUILDKIT=1 docker build ${DOCKER_PLATFORM} -t argocd-ui --target argocd-ui .
+	DOCKER_BUILDKIT=1 docker build --platform=linux/amd64 -t argocd-ui --target argocd-ui .
 	find ./ui/dist -type f -not -name gitkeep -delete
 	docker run -v ${CURRENT_DIR}/ui/dist/app:/tmp/app --rm -t argocd-ui sh -c 'cp -r ./dist/app/* /tmp/app/'
 
@@ -288,7 +286,7 @@ ifeq ($(DEV_IMAGE), true)
 # the dist directory is under .dockerignore.
 IMAGE_TAG="dev-$(shell git describe --always --dirty)"
 image: build-ui
-	DOCKER_BUILDKIT=1 docker build ${DOCKER_PLATFORM} -t argocd-base --target argocd-base .
+	DOCKER_BUILDKIT=1 docker build --platform=linux/amd64 -t argocd-base --target argocd-base .
 	CGO_ENABLED=0 GOOS=linux GOARCH=amd64 go build -v -ldflags '${LDFLAGS}' -o ${DIST_DIR}/argocd ./cmd
 	ln -sfn ${DIST_DIR}/argocd ${DIST_DIR}/argocd-server
 	ln -sfn ${DIST_DIR}/argocd ${DIST_DIR}/argocd-application-controller
@@ -296,10 +294,10 @@ image: build-ui
 	ln -sfn ${DIST_DIR}/argocd ${DIST_DIR}/argocd-cmp-server
 	ln -sfn ${DIST_DIR}/argocd ${DIST_DIR}/argocd-dex
 	cp Dockerfile.dev dist
-	DOCKER_BUILDKIT=1 docker build ${DOCKER_PLATFORM} -t $(IMAGE_PREFIX)argocd:$(IMAGE_TAG) -f dist/Dockerfile.dev dist
+	DOCKER_BUILDKIT=1 docker build --platform=linux/amd64 -t $(IMAGE_PREFIX)argocd:$(IMAGE_TAG) -f dist/Dockerfile.dev dist
 else
 image:
-	DOCKER_BUILDKIT=1 docker build ${DOCKER_PLATFORM} -t $(IMAGE_PREFIX)argocd:$(IMAGE_TAG) .
+	DOCKER_BUILDKIT=1 docker build -t $(IMAGE_PREFIX)argocd:$(IMAGE_TAG) .
 endif
 	@if [ "$(DOCKER_PUSH)" = "true" ] ; then docker push $(IMAGE_PREFIX)argocd:$(IMAGE_TAG) ; fi
 
