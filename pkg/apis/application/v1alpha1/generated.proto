@@ -776,6 +776,9 @@ message GitGenerator {
   optional int64 requeueAfterSeconds = 5;
 
   optional ApplicationSetTemplate template = 6;
+
+  // Values contains key/value pairs which are passed directly as parameters to the template
+  map<string, string> values = 7;
 }
 
 // GnuPGPublicKey is a representation of a GnuPG public key
@@ -1602,6 +1605,9 @@ message SCMProviderGenerator {
   optional int64 requeueAfterSeconds = 9;
 
   optional ApplicationSetTemplate template = 10;
+
+  // Values contains key/value pairs which are passed directly as parameters to the template
+  map<string, string> values = 11;
 }
 
 // SCMProviderGeneratorAzureDevOps defines connection info specific to Azure DevOps.

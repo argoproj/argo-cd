@@ -1518,6 +1518,13 @@ func (in *GitGenerator) DeepCopyInto(out *GitGenerator) {
 		**out = **in
 	}
 	in.Template.DeepCopyInto(&out.Template)
+	if in.Values != nil {
+		in, out := &in.Values, &out.Values
+		*out = make(map[string]string, len(*in))
+		for key, val := range *in {
+			(*out)[key] = val
+		}
+	}
 	return
 }
 
@@ -2888,6 +2895,13 @@ func (in *SCMProviderGenerator) DeepCopyInto(out *SCMProviderGenerator) {
 		**out = **in
 	}
 	in.Template.DeepCopyInto(&out.Template)
+	if in.Values != nil {
+		in, out := &in.Values, &out.Values
+		*out = make(map[string]string, len(*in))
+		for key, val := range *in {
+			(*out)[key] = val
+		}
+	}
 	return
 }
 
