@@ -1,4 +1,4 @@
-import {DataLoader, Layout, NavigationManager, Notifications, NotificationsManager, PageContext, Popup, PopupManager, PopupProps, Tooltip} from 'argo-ui';
+import {DataLoader, NavigationManager, Notifications, NotificationsManager, PageContext, Popup, PopupManager, PopupProps} from 'argo-ui';
 import {createBrowserHistory} from 'history';
 import * as PropTypes from 'prop-types';
 import * as React from 'react';
@@ -8,6 +8,7 @@ import applications from './applications';
 import help from './help';
 import login from './login';
 import settings from './settings';
+import {Layout} from './shared/components/layout/layout';
 import {VersionPanel} from './shared/components/version-info/version-info-panel';
 import {Provider} from './shared/context';
 import {services} from './shared/services';
@@ -22,7 +23,9 @@ const base = bases.length > 0 ? bases[0].getAttribute('href') || '/' : '/';
 export const history = createBrowserHistory({basename: base});
 requests.setBaseHRef(base);
 
-const routes: {[path: string]: {component: React.ComponentType<RouteComponentProps<any>>; noLayout?: boolean}} = {
+type Routes = {[path: string]: {component: React.ComponentType<RouteComponentProps<any>>; noLayout?: boolean; extension?: boolean}};
+
+const routes: Routes = {
     '/login': {component: login.component as any, noLayout: true},
     '/applications': {component: applications.component},
     '/settings': {component: settings.component},
@@ -30,14 +33,23 @@ const routes: {[path: string]: {component: React.ComponentType<RouteComponentPro
     '/help': {component: help.component}
 };
 
-const navItems = [
+interface NavItem {
+    title: string;
+    tooltip?: string;
+    path: string;
+    iconClassName: string;
+}
+
+const navItems: NavItem[] = [
     {
-        title: 'Manage your applications, and diagnose health problems.',
+        title: 'Applications',
+        tooltip: 'Manage your applications, and diagnose health problems.',
         path: '/applications',
         iconClassName: 'argo-icon-application'
     },
     {
-        title: 'Manage your repositories, projects, settings',
+        title: 'Settings',
+        tooltip: 'Manage your repositories, projects, settings',
         path: '/settings',
         iconClassName: 'argo-icon-settings'
     },
@@ -47,7 +59,8 @@ const navItems = [
         iconClassName: 'fa fa-user-circle'
     },
     {
-        title: 'Read the documentation, and get help and assistance.',
+        title: 'Documentation',
+        tooltip: 'Read the documentation, and get help and assistance.',
         path: '/help',
         iconClassName: 'argo-icon-docs'
     }
@@ -93,7 +106,7 @@ requests.onError.subscribe(async err => {
     }
 });
 
-export class App extends React.Component<{}, {popupProps: PopupProps; showVersionPanel: boolean; error: Error}> {
+export class App extends React.Component<{}, {popupProps: PopupProps; showVersionPanel: boolean; error: Error; navItems: NavItem[]; routes: Routes; extensionsLoaded: boolean}> {
     public static childContextTypes = {
         history: PropTypes.object,
         apis: PropTypes.object
@@ -106,13 +119,17 @@ export class App extends React.Component<{}, {popupProps: PopupProps; showVersio
     private popupManager: PopupManager;
     private notificationsManager: NotificationsManager;
     private navigationManager: NavigationManager;
+    private navItems: NavItem[];
+    private routes: Routes;
 
     constructor(props: {}) {
         super(props);
-        this.state = {popupProps: null, error: null, showVersionPanel: false};
+        this.state = {popupProps: null, error: null, showVersionPanel: false, navItems: [], routes: null, extensionsLoaded: false};
         this.popupManager = new PopupManager();
         this.notificationsManager = new NotificationsManager();
         this.navigationManager = new NavigationManager(history);
+        this.navItems = navItems;
+        this.routes = routes;
     }
 
     public async componentDidMount() {
@@ -140,6 +157,31 @@ export class App extends React.Component<{}, {popupProps: PopupProps; showVersio
             link.type = 'text/css';
             document.head.appendChild(link);
         }
+
+        const systemExtensions = services.extensions.getSystemExtensions();
+        const extendedNavItems = this.navItems;
+        const extendedRoutes = this.routes;
+        for (const extension of systemExtensions) {
+            extendedNavItems.push({
+                title: extension.title,
+                path: extension.path,
+                iconClassName: `fa ${extension.icon}`
+            });
+            const component = () => (
+                <>
+                    <Helmet>
+                        <title>{extension.title} - Argo CD</title>
+                    </Helmet>
+                    <extension.component />
+                </>
+            );
+            extendedRoutes[extension.path] = {
+                component: component as React.ComponentType<React.ComponentProps<any>>,
+                extension: true
+            };
+        }
+
+        this.setState({...this.state, navItems: extendedNavItems, routes: extendedRoutes, extensionsLoaded: true});
     }
 
     public render() {
@@ -172,8 +214,8 @@ export class App extends React.Component<{}, {popupProps: PopupProps; showVersio
                         <Router history={history}>
                             <Switch>
                                 <Redirect exact={true} path='/' to='/applications' />
-                                {Object.keys(routes).map(path => {
-                                    const route = routes[path];
+                                {Object.keys(this.routes).map(path => {
+                                    const route = this.routes[path];
                                     return (
                                         <Route
                                             key={path}
@@ -187,24 +229,10 @@ export class App extends React.Component<{}, {popupProps: PopupProps; showVersio
                                                     <DataLoader load={() => services.viewPreferences.getPreferences()}>
                                                         {pref => (
                                                             <Layout
-                                                                navItems={navItems}
-                                                                theme={pref.theme}
-                                                                version={() => (
-                                                                    <DataLoader load={() => versionLoader}>
-                                                                        {version => {
-                                                                            const versionString = version ? version.Version : 'Unknown';
-                                                                            return (
-                                                                                <React.Fragment>
-                                                                                    <Tooltip content={versionString}>
-                                                                                        <a style={{color: 'white'}} onClick={() => this.setState({showVersionPanel: true})}>
-                                                                                            {versionString}
-                                                                                        </a>
-                                                                                    </Tooltip>
-                                                                                </React.Fragment>
-                                                                            );
-                                                                        }}
-                                                                    </DataLoader>
-                                                                )}>
+                                                                onVersionClick={() => this.setState({showVersionPanel: true})}
+                                                                navItems={this.navItems}
+                                                                pref={pref}
+                                                                isExtension={route.extension}>
                                                                 <Banner>
                                                                     <route.component {...routeProps} />
                                                                 </Banner>
@@ -216,7 +244,7 @@ export class App extends React.Component<{}, {popupProps: PopupProps; showVersio
                                         />
                                     );
                                 })}
-                                <Redirect path='*' to='/' />
+                                {this.state.extensionsLoaded && <Redirect path='*' to='/' />}
                             </Switch>
                         </Router>
                     </Provider>
