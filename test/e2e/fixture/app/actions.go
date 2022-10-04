@@ -317,6 +317,12 @@ func (a *Actions) Delete(cascade bool) *Actions {
 	return a
 }
 
+func (a *Actions) DeleteBySelector(selector string) *Actions {
+	a.context.t.Helper()
+	a.runCli("app", "delete", fmt.Sprintf("--selector=%s", selector), "--yes")
+	return a
+}
+
 func (a *Actions) SetParamInSettingConfigMap(key, value string) *Actions {
 	fixture.SetParamInSettingConfigMap(key, value)
 	return a
