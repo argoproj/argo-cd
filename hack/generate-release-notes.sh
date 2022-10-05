@@ -56,8 +56,7 @@ kubectl apply -n argocd -f https://raw.githubusercontent.com/argoproj/argo-cd/$v
 
 ## Upgrading
 
-If upgrading from a different minor version, be sure to read the [upgrading](https://argo-cd.readthedocs.io/en/stable/operator-manual/upgrading/overview/)
-documentation.
+If upgrading from a different minor version, be sure to read the [upgrading](https://argo-cd.readthedocs.io/en/stable/operator-manual/upgrading/overview/) documentation.
 
 EOM
 
