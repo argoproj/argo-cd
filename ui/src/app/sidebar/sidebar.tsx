@@ -32,6 +32,17 @@ export const Sidebar = (props: SidebarProps) => {
     const [version, loading, error] = useData(() => services.version.version());
     const locationPath = context.history.location.pathname;
 
+    const tooltipProps = {
+        placement: 'right',
+        popperOptions: {
+            modifiers: {
+                preventOverflow: {
+                    boundariesElement: 'window'
+                }
+            }
+        }
+    };
+
     return (
         <DataLoader load={() => services.viewPreferences.getPreferences()}>
             {pref => (
@@ -43,16 +54,7 @@ export const Sidebar = (props: SidebarProps) => {
                         {loading ? 'Loading...' : error?.state ? 'Unknown' : version?.Version || 'Unknown'}
                     </div>
                     {(props.navItems || []).map(item => (
-                        <Tooltip
-                            content={item?.tooltip || item.title}
-                            placement='right'
-                            popperOptions={{
-                                modifiers: {
-                                    preventOverflow: {
-                                        boundariesElement: 'window'
-                                    }
-                                }
-                            }}>
+                        <Tooltip content={item?.tooltip || item.title} {...tooltipProps}>
                             <div
                                 key={item.title}
                                 className={`sidebar__nav-item ${locationPath === item.path || locationPath.startsWith(`${item.path}/`) ? 'sidebar__nav-item--active' : ''}`}
@@ -67,7 +69,15 @@ export const Sidebar = (props: SidebarProps) => {
                         </Tooltip>
                     ))}
                     <div onClick={() => services.viewPreferences.updatePreferences({...pref, hideSidebar: !pref.hideSidebar})} className='sidebar__collapse-button'>
-                        <i className={`fas fa-arrow-${pref.hideSidebar ? 'right' : 'left'}`} />
+                        {pref.hideSidebar ? (
+                            <Tooltip content='Expand Sidebar' {...tooltipProps}>
+                                <div className='sidebar__nav-item'>
+                                    <i className={`fas fa-filter`} style={{fontSize: '12px'}} />
+                                </div>
+                            </Tooltip>
+                        ) : (
+                            <i className={`fas fa-arrow-left`} />
+                        )}
                     </div>
                     <div id={SIDEBAR_TOOLS_ID} />
                 </div>
