@@ -45,13 +45,13 @@ const navItems: NavItem[] = [
         title: 'Applications',
         tooltip: 'Manage your applications, and diagnose health problems.',
         path: '/applications',
-        iconClassName: 'argo-icon-application'
+        iconClassName: 'argo-icon argo-icon-application'
     },
     {
         title: 'Settings',
         tooltip: 'Manage your repositories, projects, settings',
         path: '/settings',
-        iconClassName: 'argo-icon-settings'
+        iconClassName: 'argo-icon argo-icon-settings'
     },
     {
         title: 'User Info',
@@ -62,7 +62,7 @@ const navItems: NavItem[] = [
         title: 'Documentation',
         tooltip: 'Read the documentation, and get help and assistance.',
         path: '/help',
-        iconClassName: 'argo-icon-docs'
+        iconClassName: 'argo-icon argo-icon-docs'
     }
 ];
 
