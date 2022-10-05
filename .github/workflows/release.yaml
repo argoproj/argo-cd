@@ -275,7 +275,7 @@ jobs:
           draft: ${{ env.DRAFT_RELEASE }}
           prerelease: ${{ env.PRE_RELEASE }}
           generate_release_notes: true
-          body: ${{ steps.release-notes.outputs.content }}  # Appended to the generated notes
+          body: ${{ steps.release-notes.outputs.content }}  # Pre-pended to the generated notes
           files: |
             dist/argocd-*
             /tmp/sbom.tar.gz
