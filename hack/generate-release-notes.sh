@@ -61,10 +61,10 @@ If upgrading from a different minor version, be sure to read the [upgrading](htt
 EOM
 
 # Adapted from https://stackoverflow.com/a/67029088/684776
-right_log=$(git log --pretty="format:%s %ae" --cherry-pick --left-only --no-merges "$new_ref...$old_ref")
-left_log=$(git log --pretty="format:%s %ae" "$new_ref..$old_ref")
+less_log=$(git log --pretty="format:%s %ae" --cherry-pick --left-only --no-merges "$new_ref...$old_ref")
+more_log=$(git log --pretty="format:%s %ae" "$new_ref..$old_ref")
 
-new_commits=$(comm -13 <(echo "$left_log") <(echo "$right_log") | grep -v "Merge pull request from GHSA")
+new_commits=$(diff --new-line-format="" --unchanged-line-format="" <(echo "$less_log") <(echo "$more_log") | grep -v "Merge pull request from GHSA")
 new_commits_no_email=$(echo "$new_commits" | strip_last_word)
 features=$(echo "$new_commits_no_email" | grep '^feat' | to_list_items)
 fixes=$(echo "$new_commits_no_email" | grep '^fix' | to_list_items)
