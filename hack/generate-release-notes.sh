@@ -66,18 +66,12 @@ more_log=$(git log --pretty="format:%s %ae" "$new_ref..$old_ref")
 
 new_commits=$(diff --new-line-format="" --unchanged-line-format="" <(echo "$less_log") <(echo "$more_log") | grep -v "Merge pull request from GHSA")
 new_commits_no_email=$(echo "$new_commits" | strip_last_word)
-features=$(echo "$new_commits_no_email" | grep '^feat' | to_list_items)
-fixes=$(echo "$new_commits_no_email" | grep '^fix' | to_list_items)
-docs=$(echo "$new_commits_no_email" | grep '^docs' | to_list_items)
-other=$(echo "$new_commits_no_email" | grep -v -e '^feat' -e '^fix' -e '^docs' | to_list_items)
 
 contributors_num=$(echo "$new_commits" | only_last_word | sort -u | nonempty_line_count)
 
 new_commits_num=$(echo "$new_commits" | nonempty_line_count)
-features_num=$(echo "$features" | nonempty_line_count)
-fixes_num=$(echo "$fixes" | nonempty_line_count)
-docs_num=$(echo "$docs" | nonempty_line_count)
-other_num=$(echo "$other" | nonempty_line_count)
+features_num=$(echo "$new_commits_no_email" | grep '^feat' | nonempty_line_count)
+fixes_num=$(echo "$new_commits_no_email" | grep '^fix' | nonempty_line_count)
 
 previous_contributors=$(git log --pretty="format:%an %ae" "$old_ref" | sort -uf)
 all_contributors=$(git log --pretty="format:%an %ae" "$new_ref" | sort -uf)
@@ -97,29 +91,5 @@ echo
 if [ "$new_contributors_num" -lt 20 ] && [ "$new_contributors_num" -gt 0 ]; then
   echo "A special thanks goes to the $new_contributors_num new contributors:"
   echo "$new_contributors_names"
-  echo
-fi
-if [ "$features_num" -gt 0 ]; then
-  echo "### Features"
-  echo
-  echo "$features"
-  echo
-fi
-if [ "$fixes_num" -gt 0 ]; then
-  echo "### Bug fixes"
-  echo
-  echo "$fixes"
-  echo
-fi
-if [ "$docs_num" -gt 0 ]; then
-  echo "### Documentation"
-  echo
-  echo "$docs"
-  echo
-fi
-if [ "$other_num" -gt 0 ]; then
-  echo "### Other"
-  echo
-  echo "$other"
   echo
 fi
