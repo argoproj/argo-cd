@@ -68,16 +68,17 @@ export const Sidebar = (props: SidebarProps) => {
                 </Tooltip>
             ))}
             <div onClick={() => services.viewPreferences.updatePreferences({...props.pref, hideSidebar: !props.pref.hideSidebar})} className='sidebar__collapse-button'>
-                {props.pref.hideSidebar ? (
-                    <Tooltip content='Expand Sidebar' {...tooltipProps}>
+                <i className={`fas fa-arrow-${props.pref.hideSidebar ? 'right' : 'left'}`} />
+            </div>
+            {props.pref.hideSidebar && (
+                <div onClick={() => services.viewPreferences.updatePreferences({...props.pref, hideSidebar: !props.pref.hideSidebar})} className='sidebar__collapse-button'>
+                    <Tooltip content='Show Filters' {...tooltipProps}>
                         <div className='sidebar__nav-item'>
                             <i className={`fas fa-filter`} style={{fontSize: '14px', margin: '0 auto'}} />
                         </div>
                     </Tooltip>
-                ) : (
-                    <i className={`fas fa-arrow-left`} />
-                )}
-            </div>
+                </div>
+            )}
             <div id={SIDEBAR_TOOLS_ID} />
         </div>
     );
