@@ -37,6 +37,15 @@ argocd app set helm-guestbook --values values-production.yaml
     location in which case it can be accessed using a relative path relative to the root directory of
     the Helm chart.
 
+In the declarative syntax:
+
+```yaml
+source:
+  helm:
+    valueFiles:
+    - values-production.yaml
+```
+
 ## Helm Parameters
 
 Helm has the ability to set parameter values, which override any values in
@@ -51,6 +60,16 @@ in the form of `-p PARAM=VALUE`. For example:
 
 ```bash
 argocd app set helm-guestbook -p service.type=LoadBalancer
+```
+
+In the declarative syntax:
+
+```yaml
+source:
+  helm:
+    parameters:
+    - name: "service.type"
+      value: LoadBalancer
 ```
 
 ## Helm Release Name
