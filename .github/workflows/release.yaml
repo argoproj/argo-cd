@@ -20,7 +20,7 @@ permissions:
 jobs:
   prepare-release:
     permissions:
-      contents: write
+      contents: write # To push changes to release branch
     name: Perform automatic release on trigger ${{ github.ref }}
     if: github.repository == 'argoproj/argo-cd'
     runs-on: ubuntu-22.04

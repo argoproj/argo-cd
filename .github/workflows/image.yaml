@@ -16,13 +16,13 @@ concurrency:
   group: ${{ github.workflow }}-${{ github.ref }}
   cancel-in-progress: true
 
-permissions:  # added using https://github.com/step-security/secure-workflows
+permissions:
   contents: read
 
 jobs:
   publish:
     permissions:
-      contents: write  # for Git to git push
+      contents: write  # for git to push upgrade commit if not already deployed
     if: github.repository == 'argoproj/argo-cd'
     runs-on: ubuntu-22.04
     env:
