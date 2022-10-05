@@ -53,7 +53,7 @@ func TestPullRequestGithubGenerateParams(t *testing.T) {
 					[]*pullrequest.PullRequest{
 						&pullrequest.PullRequest{
 							Number:  2,
-							Branch:  "feat/areally+long_pull_request_name_to_test_argo_slugification_and_branch_name_shortening_feature",
+							Branch:  "feat/areally+longer_pull_request_name_to_test_argo_slugification_and_branch_name_shortening_feature",
 							HeadSHA: "9b34ff5bd418e57d58891eb0aa0728043ca1e8be",
 						},
 					},
@@ -63,8 +63,8 @@ func TestPullRequestGithubGenerateParams(t *testing.T) {
 			expected: []map[string]interface{}{
 				{
 					"number":         "2",
-					"branch":         "feat/areally+long_pull_request_name_to_test_argo_slugification_and_branch_name_shortening_feature",
-					"branch_slug":    "feat-areally-long-pull-request-name-to-test-argo-slugification",
+					"branch":         "feat/areally+longer_pull_request_name_to_test_argo_slugification_and_branch_name_shortening_feature",
+					"branch_slug":    "feat-areally-longer-pull-request-name-to-test-argo-slugificatio",
 					"head_sha":       "9b34ff5bd418e57d58891eb0aa0728043ca1e8be",
 					"head_short_sha": "9b34ff5b",
 				},

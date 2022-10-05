@@ -78,6 +78,7 @@ func (g *PullRequestGenerator) GenerateParams(appSetGenerator *argoprojiov1alpha
 	// Also, there is the need to clean it as recommended
 	// here https://kubernetes.io/docs/concepts/overview/working-with-objects/names/#dns-label-names
 	slug.MaxLength = 63
+	slug.EnableSmartTruncate = false
 
 	// Converting underscores to dashes
 	slug.CustomSub = map[string]string{
