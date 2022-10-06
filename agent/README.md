@@ -57,3 +57,20 @@ Update the container env [variables](https://github.com/kubernetes/git-sync#para
 ### Demo Recording
 
 [![asciicast](https://asciinema.org/a/FWbvVAiSsiI87wQx2TJbRMlxN.svg)](https://asciinema.org/a/FWbvVAiSsiI87wQx2TJbRMlxN)
+
+
+### Profiling
+
+Using env variables to enable profiling mode, the agent can be started with the following envs:
+
+```bash
+export GITOPS_ENGINE_PROFILE=web
+# optional, default pprofile address is 127.0.0.1:6060
+export GITOPS_ENGINE_PROFILE_HOST=127.0.0.1
+export GITOPS_ENGINE_PROFILE_PORT=6060
+```
+
+And then you can open profile in the browser(or using [pprof](https://github.com/google/pprof) cmd to generate diagrams):
+
+- http://127.0.0.1:6060/debug/pprof/goroutine?debug=2
+- http://127.0.0.1:6060/debug/pprof/mutex?debug=2

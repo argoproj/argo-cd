@@ -8,3 +8,11 @@ func FirstNonEmpty(args ...string) string {
 	}
 	return ""
 }
+
+// WithDefault return defaultValue when val is blank
+func WithDefault(val string, defaultValue string) string {
+	if len(val) == 0 {
+		return defaultValue
+	}
+	return val
+}

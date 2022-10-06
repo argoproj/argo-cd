@@ -730,7 +730,7 @@ func (c *clusterCache) sync() error {
 		if !ok {
 			return err
 		}
-		c.log.Info("warning loading openapi schema: %s", e)
+		c.log.Info("warning loading openapi schema: %s", e.Error())
 	}
 
 	if gvkParser != nil {
