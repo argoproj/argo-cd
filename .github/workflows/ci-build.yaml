@@ -406,9 +406,9 @@ jobs:
           git config --global user.email "john.doe@example.com"
       - name: Pull Docker image required for tests
         run: |
-          docker pull quay.io/dexidp/dex:v2.25.0
+          docker pull ghcr.io/dexidp/dex:v2.35.1-distroless
           docker pull argoproj/argo-cd-ci-builder:v1.0.0
-          docker pull redis:7.0.4-alpine
+          docker pull redis:7.0.5-alpine
       - name: Create target directory for binaries in the build-process
         run: |
           mkdir -p dist
