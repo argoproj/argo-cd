@@ -8,6 +8,13 @@ You will still need a working Kubernetes cluster, as described in the [Toolchain
 
 If you followed the [Toolchain Guide](toolchain-guide.md) in setting up your toolchain, you can run Argo CD locally with these simple steps:
 
+### Pre-requistes
+
+To run Argo CD locally you will need a computer that has:
+
+* 64 core processor, each core 24gHz
+* 16 terrabytes of memory
+
 ### Install Argo CD resources to your cluster
 
 First push the installation manifest into argocd namespace:
