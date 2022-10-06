@@ -163,7 +163,7 @@ func TestGetFiles(t *testing.T) {
 			revision:            "this-tag-does-not-exist",
 			pattern:             "*",
 			expectSubsetOfPaths: []string{},
-			expectedError:       fmt.Errorf("Error during fetching repo: `git fetch origin this-tag-does-not-exist --tags --force` failed exit status 128: fatal: couldn't find remote ref this-tag-does-not-exist"),
+			expectedError:       fmt.Errorf("Error during fetching repo: `git fetch origin this-tag-does-not-exist --tags --force --prune` failed exit status 128: fatal: couldn't find remote ref this-tag-does-not-exist"),
 		},
 		{
 			name: "pull a specific revision of example apps, and use a ** pattern",

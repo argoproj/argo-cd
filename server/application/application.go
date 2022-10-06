@@ -132,15 +132,15 @@ func NewServer(
 
 // List returns list of applications
 func (s *Server) List(ctx context.Context, q *application.ApplicationQuery) (*appv1.ApplicationList, error) {
-	labelsMap, err := labels.ConvertSelectorToLabelsMap(q.GetSelector())
+	selector, err := labels.Parse(q.GetSelector())
 	if err != nil {
-		return nil, fmt.Errorf("error converting selector to labels map: %w", err)
+		return nil, fmt.Errorf("error parsing the selector: %w", err)
 	}
 	var apps []*appv1.Application
 	if q.GetAppNamespace() == "" {
-		apps, err = s.appLister.List(labelsMap.AsSelector())
+		apps, err = s.appLister.List(selector)
 	} else {
-		apps, err = s.appLister.Applications(q.GetAppNamespace()).List(labelsMap.AsSelector())
+		apps, err = s.appLister.Applications(q.GetAppNamespace()).List(selector)
 	}
 	if err != nil {
 		return nil, fmt.Errorf("error listing apps with selectors: %w", err)
@@ -1524,11 +1524,10 @@ func (s *Server) PodLogs(q *application.ApplicationPodLogsQuery, ws application.
 		}).Warnf(argocommon.ConfigMapPluginDeprecationWarning)
 	}
 
-	// Temporarily, logs RBAC will be enforced only if an internal var serverRBACLogEnforceEnable (representing server.rbac.log.enforce.enable env var)
+	// Logs RBAC will be enforced only if an internal var serverRBACLogEnforceEnable (representing server.rbac.log.enforce.enable env var)
 	// is defined and has a "true" value
 	// Otherwise, no RBAC enforcement for logs will take place (meaning, PodLogs will return the logs,
 	// even if there is no explicit RBAC allow, or if there is an explicit RBAC deny)
-	// In the future, logs RBAC will be always enforced and the parameter along with this check will be removed
 	serverRBACLogEnforceEnable, err := s.settingsMgr.GetServerRBACLogEnforceEnable()
 	if err != nil {
 		return fmt.Errorf("error getting RBAC log enforce enable: %w", err)

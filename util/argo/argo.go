@@ -94,6 +94,20 @@ func FilterByRepo(apps []argoappv1.Application, repo string) []argoappv1.Applica
 	return items
 }
 
+// FilterByCluster returns an application
+func FilterByCluster(apps []argoappv1.Application, cluster string) []argoappv1.Application {
+	if cluster == "" {
+		return apps
+	}
+	items := make([]argoappv1.Application, 0)
+	for i := 0; i < len(apps); i++ {
+		if apps[i].Spec.Destination.Server == cluster || apps[i].Spec.Destination.Name == cluster {
+			items = append(items, apps[i])
+		}
+	}
+	return items
+}
+
 // FilterByName returns an application
 func FilterByName(apps []argoappv1.Application, name string) ([]argoappv1.Application, error) {
 	if name == "" {
@@ -305,7 +319,7 @@ func ValidatePermissions(ctx context.Context, spec *argoappv1.ApplicationSpec, p
 	if spec.Source.RepoURL == "" || (spec.Source.Path == "" && spec.Source.Chart == "") {
 		conditions = append(conditions, argoappv1.ApplicationCondition{
 			Type:    argoappv1.ApplicationConditionInvalidSpecError,
-			Message: "spec.source.repoURL and spec.source.path either spec.source.chart are required",
+			Message: "spec.source.repoURL and either spec.source.path or spec.source.chart are required",
 		})
 		return conditions, nil
 	}
