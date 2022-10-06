@@ -19,7 +19,7 @@ func (t TagsList) MaxVersion(constraints *semver.Constraints) (*semver.Version, 
 
 		//Invalid semantic version ignored
 		if err == semver.ErrInvalidSemVer {
-			log.Debugf("Invalid sementic version: %s", tag)
+			log.Debugf("Invalid semantic version: %s", tag)
 			continue
 		}
 		if err != nil {
@@ -30,7 +30,7 @@ func (t TagsList) MaxVersion(constraints *semver.Constraints) (*semver.Version, 
 		}
 	}
 	if len(versions) == 0 {
-		return nil, fmt.Errorf("constraint not found in tags")
+		return nil, fmt.Errorf("constraint not found in %v tags", len(t.Tags))
 	}
 	maxVersion := versions[0]
 	for _, v := range versions {

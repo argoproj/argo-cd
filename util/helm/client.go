@@ -396,14 +396,35 @@ func getTagsListURL(rawURL string, chart string) (string, error) {
 }
 
 func (c *nativeHelmChart) getTags(chart string) ([]byte, error) {
-	tagsURL, err := getTagsListURL(c.repoURL, chart)
+	nextURL, err := getTagsListURL(c.repoURL, chart)
 	if err != nil {
 		return nil, err
 	}
 
+	allTags := &TagsList{}
+	var data []byte
+	for nextURL != "" {
+		log.Infof("fetching %s tags from %s", chart, nextURL)
+		data, nextURL, err = c.getTagsFromUrl(nextURL)
+		if err != nil {
+			return nil, err
+		}
+
+		tags := &TagsList{}
+		err := yaml.NewDecoder(bytes.NewBuffer(data)).Decode(tags)
+		if err != nil {
+			return nil, err
+		}
+		allTags.Tags = append(allTags.Tags, tags.Tags...)
+	}
+	data, err = yaml.Marshal(allTags)
+	return data, err
+}
+
+func (c *nativeHelmChart) getTagsFromUrl(tagsURL string) ([]byte, string, error) {
 	req, err := http.NewRequest("GET", tagsURL, nil)
 	if err != nil {
-		return nil, err
+		return nil, "", err
 	}
 	if c.creds.Username != "" || c.creds.Password != "" {
 		// only basic supported
@@ -412,7 +433,7 @@ func (c *nativeHelmChart) getTags(chart string) ([]byte, error) {
 
 	tlsConf, err := newTLSConfig(c.creds)
 	if err != nil {
-		return nil, err
+		return nil, "", err
 	}
 
 	tr := &http.Transport{
@@ -422,14 +443,24 @@ func (c *nativeHelmChart) getTags(chart string) ([]byte, error) {
 	client := http.Client{Transport: tr}
 	resp, err := client.Do(req)
 	if err != nil {
-		return nil, err
+		return nil, "", err
 	}
 	defer func() { _ = resp.Body.Close() }()
 
 	if resp.StatusCode != 200 {
-		return nil, errors.New("failed to get tags: " + resp.Status)
+		return nil, "", errors.New("failed to get tags: " + resp.Status)
 	}
-	return io.ReadAll(resp.Body)
+	data, err := io.ReadAll(resp.Body)
+	if err != nil {
+		return nil, "", err
+	}
+	nextUrl := ""
+	linkHeader := resp.Header.Get("Link")
+	if linkHeader != "" {
+		nextUrl = strings.Split(linkHeader, ";")[0][1:]
+		nextUrl = nextUrl[:len(nextUrl)-1]
+	}
+	return data, nextUrl, nil
 }
 
 func (c *nativeHelmChart) GetTags(chart string, noCache bool) (*TagsList, error) {
