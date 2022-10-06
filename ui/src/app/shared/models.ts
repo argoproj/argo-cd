@@ -204,6 +204,7 @@ export interface ApplicationSourceKustomize {
     images: string[];
     version: string;
 }
+
 export interface EnvEntry {
     name: string;
     value: string;
@@ -403,6 +404,7 @@ export interface ApplicationStatus {
 export interface JwtTokens {
     items: JwtToken[];
 }
+
 export interface AppProjectStatus {
     jwtTokensByRole: {[name: string]: JwtTokens};
 }
@@ -889,4 +891,21 @@ export enum PodPhase {
     PodSucceeded = 'Succeeded',
     PodFailed = 'Failed',
     PodUnknown = 'Unknown'
+}
+
+export interface GetImageResponse {
+    image: Image;
+}
+
+export interface Image {
+    created: string;
+    author?: string;
+    config: {
+        command?: string[];
+        entrypoint?: string[];
+        env?: string[];
+        workingDir?: string;
+        exposedPorts?: {[key: string]: {}};
+        labels?: {[key: string]: string};
+    };
 }

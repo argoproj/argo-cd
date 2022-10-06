@@ -4,6 +4,8 @@ import (
 	"context"
 	"crypto/tls"
 	"fmt"
+	imagepkg "github.com/argoproj/argo-cd/v2/pkg/apiclient/image"
+	"github.com/argoproj/argo-cd/v2/server/image"
 	goio "io"
 	"io/fs"
 	"math"
@@ -731,6 +733,10 @@ func (a *ArgoCDServer) newGRPCServer() (*grpc.Server, application.AppResourceTre
 		a.projInformer,
 		a.ApplicationNamespaces)
 
+	server, err := image.NewServer(context.Background(), a.KubeClientset, a.Namespace, "", nil)
+	if err != nil {
+		log.Fatal(err)
+	}
 	applicationSetService := applicationset.NewServer(a.db, a.KubeClientset, a.enf, a.Cache, a.AppClientset, a.appLister, a.appsetInformer, a.appsetLister, a.projLister, a.settingsMgr, a.Namespace, projectLock)
 	projectService := project.NewServer(a.Namespace, a.KubeClientset, a.AppClientset, a.enf, projectLock, a.sessionMgr, a.policyEnforcer, a.projInformer, a.settingsMgr, a.db)
 	settingsService := settings.NewServer(a.settingsMgr, a, a.DisableAuth)
@@ -751,6 +757,7 @@ func (a *ArgoCDServer) newGRPCServer() (*grpc.Server, application.AppResourceTre
 	}))
 	clusterpkg.RegisterClusterServiceServer(grpcS, clusterService)
 	applicationpkg.RegisterApplicationServiceServer(grpcS, applicationService)
+	imagepkg.RegisterImageServiceServer(grpcS, server)
 	applicationsetpkg.RegisterApplicationSetServiceServer(grpcS, applicationSetService)
 	notificationpkg.RegisterNotificationServiceServer(grpcS, notificationService)
 	repositorypkg.RegisterRepositoryServiceServer(grpcS, repoService)
@@ -898,6 +905,7 @@ func (a *ArgoCDServer) newHTTPServer(ctx context.Context, port int, grpcWebHandl
 	mustRegisterGWHandler(versionpkg.RegisterVersionServiceHandler, ctx, gwmux, conn)
 	mustRegisterGWHandler(clusterpkg.RegisterClusterServiceHandler, ctx, gwmux, conn)
 	mustRegisterGWHandler(applicationpkg.RegisterApplicationServiceHandler, ctx, gwmux, conn)
+	mustRegisterGWHandler(imagepkg.RegisterImageServiceHandler, ctx, gwmux, conn)
 	mustRegisterGWHandler(notificationpkg.RegisterNotificationServiceHandler, ctx, gwmux, conn)
 	mustRegisterGWHandler(repositorypkg.RegisterRepositoryServiceHandler, ctx, gwmux, conn)
 	mustRegisterGWHandler(repocredspkg.RegisterRepoCredsServiceHandler, ctx, gwmux, conn)

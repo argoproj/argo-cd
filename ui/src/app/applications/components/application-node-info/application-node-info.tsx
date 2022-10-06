@@ -1,6 +1,5 @@
 import {Checkbox, DataLoader, Tab, Tabs} from 'argo-ui';
 import * as deepMerge from 'deepmerge';
-import * as moment from 'moment';
 import * as React from 'react';
 
 import {YamlEditor} from '../../../shared/components';
@@ -8,6 +7,7 @@ import * as models from '../../../shared/models';
 import {services} from '../../../shared/services';
 import {ApplicationResourcesDiff} from '../application-resources-diff/application-resources-diff';
 import {ComparisonStatusIcon, formatCreationTimestamp, getPodStateReason, HealthStatusIcon} from '../utils';
+import {ContainerImage} from './container-image';
 
 require('./application-node-info.scss');
 
@@ -34,9 +34,7 @@ export const ApplicationNodeInfo = (props: {
             value: (
                 <div className='application-node-info__labels'>
                     {(props.node.images || []).sort().map(image => (
-                        <span className='application-node-info__label' key={image}>
-                            {image}
-                        </span>
+                        <ContainerImage image={image} className='application-node-info__label' />
                     ))}
                 </div>
             )

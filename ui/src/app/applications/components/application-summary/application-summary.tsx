@@ -25,6 +25,7 @@ import {ComparisonStatusIcon, HealthStatusIcon, syncStatusMessage, urlPattern, f
 import {ApplicationRetryOptions} from '../application-retry-options/application-retry-options';
 import {ApplicationRetryView} from '../application-retry-view/application-retry-view';
 import {Link} from 'react-router-dom';
+import {ContainerImage} from '../application-node-info/container-image';
 
 require('./application-summary.scss');
 
@@ -300,9 +301,7 @@ export const ApplicationSummary = (props: {app: models.Application; updateApp: (
             view: (
                 <div className='application-summary__labels'>
                     {(app.status.summary.images || []).sort().map(image => (
-                        <span className='application-summary__label' key={image}>
-                            {image}
-                        </span>
+                        <ContainerImage className='application-summary__label' image={image} />
                     ))}
                 </div>
             )

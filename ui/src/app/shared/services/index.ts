@@ -5,6 +5,7 @@ import {CertificatesService} from './cert-service';
 import {ClustersService} from './clusters-service';
 import {ExtensionsService} from './extensions-service';
 import {GnuPGPublicKeyService} from './gpgkey-service';
+import {ImageService} from './image-service';
 import {ProjectsService} from './projects-service';
 import {RepositoriesService} from './repo-service';
 import {RepoCredsService} from './repocreds-service';
@@ -13,6 +14,7 @@ import {VersionService} from './version-service';
 import {ViewPreferencesService} from './view-preferences-service';
 export interface Services {
     applications: ApplicationsService;
+    images: ImageService;
     users: UserService;
     authService: AuthService;
     certs: CertificatesService;
@@ -29,6 +31,7 @@ export interface Services {
 
 export const services: Services = {
     applications: new ApplicationsService(),
+    images: new ImageService(),
     authService: new AuthService(),
     clusters: new ClustersService(),
     users: new UserService(),
