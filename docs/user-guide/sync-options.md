@@ -155,10 +155,19 @@ metadata:
 
 ## Server-Side Apply
 
+This option implements Kubernetes
+[Server-Side Apply](https://kubernetes.io/docs/reference/using-api/server-side-apply/).
+
 By default, ArgoCD executes `kubectl apply` operation to apply the configuration stored in Git. This is a client
-side operation that relies on `kubectl.kubernetes.io/last-applied-configuration` annotation to store the previous
-resource state. In some cases the resource is too big to fit in 262144 bytes allowed annotation size. In this case
+side operation that relies on `kubectl.kubernetes.io/last-applied-configuration` annotation to store the previous resource state.
+
+However, there are some cases where you want to use `kubectl apply --server-side` over `kubectl apply`.
+
+- Resource is too big to fit in 262144 bytes allowed annotation size. In this case
 server-side apply can be used to avoid this issue as the annotation is not used in this case.
+- Patching of existing resources on the cluster that are not managed by Argo CD.
+- Use a more declarative approach, which tracks a user's field management, rather than a user's last applied state.
+
 
 ```yaml
 apiVersion: argoproj.io/v1alpha1
@@ -171,7 +180,19 @@ spec:
 
 If the `ServerSideApply=true` sync option is set the ArgoCD will use `kubectl apply --server-side` command to apply changes.
 
-This can also be configured at individual resource level.
+Argo CD also supports patching of existing resources by skipping schema validation during sync using `ServerSideApply=true` and `Validate=false`. In this case, ArgoCD will use `kubectl apply --server-side --validate=false` command to apply changes.
+
+```yaml
+apiVersion: argoproj.io/v1alpha1
+kind: Application
+spec:
+  syncPolicy:
+    syncOptions:
+    - ServerSideApply=true
+    - Validate=false
+```
+
+ServerSideApply can also be configured at individual resource level.
 ```yaml
 metadata:
   annotations:
