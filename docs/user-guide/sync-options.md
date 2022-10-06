@@ -155,7 +155,7 @@ metadata:
 
 ## Server-Side Apply
 
-This option implements Kubernetes
+This option enables Kubernetes
 [Server-Side Apply](https://kubernetes.io/docs/reference/using-api/server-side-apply/).
 
 By default, Argo CD executes `kubectl apply` operation to apply the configuration stored in Git.
@@ -166,7 +166,7 @@ However, there are some cases where you want to use `kubectl apply --server-side
 
 - Resource is too big to fit in 262144 bytes allowed annotation size. In this case
   server-side apply can be used to avoid this issue as the annotation is not used in this case.
-- Patching of existing resources on the cluster that are not managed by Argo CD.
+- Patching of existing resources on the cluster that are not fully managed by Argo CD.
 - Use a more declarative approach, which tracks a user's field management, rather than a user's last
   applied state.
 
@@ -184,8 +184,8 @@ spec:
     - ServerSideApply=true
 ```
 
-ServerSideApply can also be configured at individual resource level using the
-sync-option annotation like in the example below:
+To enable ServerSideApply just for an individual resource, the sync-option annotation
+can be used:
 
 ```yaml
 metadata:
@@ -194,8 +194,8 @@ metadata:
 ```
 
 ServerSideApply can also be used to patch existing resources by providing a partial
-yaml. For example, if for some reason you want Argo CD to update just the number
-of replicas in a given Deployment resource, the following yaml can be provided:
+yaml. For example, if there is a requirement to update just the number of replicas
+in a given Deployment, the following yaml can be provided to Argo CD:
 
 ```yaml
 apiVersion: apps/v1
@@ -207,7 +207,7 @@ spec:
 ```
 
 Note that by the Deployment schema specification, this isn't a valid manifest. In this
-case an additional sync option must be provided to skip schema validation. The example
+case an additional sync option *must* be provided to skip schema validation. The example
 below shows how to configure the application to enable the two necessary sync options:
 
 ```yaml
