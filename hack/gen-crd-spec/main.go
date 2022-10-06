@@ -17,8 +17,9 @@ import (
 
 var (
 	kindToCRDPath = map[string]string{
-		application.ApplicationFullName: "manifests/crds/application-crd.yaml",
-		application.AppProjectFullName:  "manifests/crds/appproject-crd.yaml",
+		application.ApplicationFullName:    "manifests/crds/application-crd.yaml",
+		application.AppProjectFullName:     "manifests/crds/appproject-crd.yaml",
+		application.ApplicationSetFullName: "manifests/crds/applicationset-crd.yaml",
 	}
 )
 
