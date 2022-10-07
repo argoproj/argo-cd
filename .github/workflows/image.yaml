@@ -12,8 +12,13 @@ on:
 env:
   GOLANG_VERSION: '1.17'
 
+permissions:
+  contents: read
+
 jobs:
   publish:
+    permissions:
+      contents: write  # for git to push upgrade commit if not already deployed
     if: github.repository == 'argoproj/argo-cd'
     runs-on: ubuntu-latest
     env:
