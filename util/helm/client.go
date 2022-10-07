@@ -387,7 +387,7 @@ func getTagsListURL(rawURL string, chart string) (string, error) {
 	tagsList := path.Join("v2", chart, "tags/list")
 	repoURL, err := url.Parse(rawURL)
 	if err != nil {
-		return "", err
+		return "", fmt.Errorf("unable to parse repo url: %v", err)
 	}
 	repoURL.Scheme = "https"
 	repoURL.Path = path.Join(repoURL.Path, tagsList)
@@ -398,7 +398,7 @@ func getTagsListURL(rawURL string, chart string) (string, error) {
 func (c *nativeHelmChart) getTags(chart string) ([]byte, error) {
 	nextURL, err := getTagsListURL(c.repoURL, chart)
 	if err != nil {
-		return nil, err
+		return nil, fmt.Errorf("failed to get tag list url: %v", err)
 	}
 
 	allTags := &TagsList{}
@@ -407,13 +407,13 @@ func (c *nativeHelmChart) getTags(chart string) ([]byte, error) {
 		log.Infof("fetching %s tags from %s", chart, nextURL)
 		data, nextURL, err = c.getTagsFromUrl(nextURL)
 		if err != nil {
-			return nil, err
+			return nil, fmt.Errorf("failed tags part: %v", err)
 		}
 
 		tags := &TagsList{}
 		err := yaml.NewDecoder(bytes.NewBuffer(data)).Decode(tags)
 		if err != nil {
-			return nil, err
+			return nil, fmt.Errorf("unable to decode yaml: %v", err)
 		}
 		allTags.Tags = append(allTags.Tags, tags.Tags...)
 	}
@@ -424,7 +424,7 @@ func (c *nativeHelmChart) getTags(chart string) ([]byte, error) {
 func (c *nativeHelmChart) getTagsFromUrl(tagsURL string) ([]byte, string, error) {
 	req, err := http.NewRequest("GET", tagsURL, nil)
 	if err != nil {
-		return nil, "", err
+		return nil, "", fmt.Errorf("failed create request: %v", err)
 	}
 	if c.creds.Username != "" || c.creds.Password != "" {
 		// only basic supported
@@ -433,7 +433,7 @@ func (c *nativeHelmChart) getTagsFromUrl(tagsURL string) ([]byte, string, error)
 
 	tlsConf, err := newTLSConfig(c.creds)
 	if err != nil {
-		return nil, "", err
+		return nil, "", fmt.Errorf("failed setup tlsConfig: %v", err)
 	}
 
 	tr := &http.Transport{
@@ -443,16 +443,16 @@ func (c *nativeHelmChart) getTagsFromUrl(tagsURL string) ([]byte, string, error)
 	client := http.Client{Transport: tr}
 	resp, err := client.Do(req)
 	if err != nil {
-		return nil, "", err
+		return nil, "", fmt.Errorf("request failed: %v", err)
 	}
 	defer func() { _ = resp.Body.Close() }()
 
 	if resp.StatusCode != 200 {
-		return nil, "", errors.New("failed to get tags: " + resp.Status)
+		return nil, "", fmt.Errorf("error response: %v", resp.Status)
 	}
 	data, err := io.ReadAll(resp.Body)
 	if err != nil {
-		return nil, "", err
+		return nil, "", fmt.Errorf("failed to read body: %v", err)
 	}
 	nextUrl := ""
 	linkHeader := resp.Header.Get("Link")
@@ -480,7 +480,7 @@ func (c *nativeHelmChart) GetTags(chart string, noCache bool) (*TagsList, error)
 		var err error
 		data, err = c.getTags(chart)
 		if err != nil {
-			return nil, err
+			return nil, fmt.Errorf("failed to get tags: %v", err)
 		}
 		log.WithFields(log.Fields{"seconds": time.Since(start).Seconds()}).Info("took to get tags")
 
@@ -494,7 +494,7 @@ func (c *nativeHelmChart) GetTags(chart string, noCache bool) (*TagsList, error)
 	tags := &TagsList{}
 	err := yaml.NewDecoder(bytes.NewBuffer(data)).Decode(tags)
 	if err != nil {
-		return nil, err
+		return nil, fmt.Errorf("failed to decode tags: %v", err)
 	}
 
 	return tags, nil

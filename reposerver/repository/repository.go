@@ -1962,12 +1962,12 @@ func (s *Service) newHelmClientResolveRevision(repo *v1alpha1.Repository, revisi
 	if enableOCI {
 		tags, err := helmClient.GetTags(chart, noRevisionCache)
 		if err != nil {
-			return nil, "", err
+			return nil, "", fmt.Errorf("unable to tags: %v", err)
 		}
 
 		version, err := tags.MaxVersion(constraints)
 		if err != nil {
-			return nil, "", err
+			return nil, "", fmt.Errorf("no version for constraints: %v", err)
 		}
 		return helmClient, version.String(), nil
 	}
