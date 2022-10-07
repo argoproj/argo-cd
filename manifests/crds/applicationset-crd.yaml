@@ -3,6 +3,7 @@ kind: CustomResourceDefinition
 metadata:
   labels:
     app.kubernetes.io/name: applicationsets.argoproj.io
+    app.kubernetes.io/part-of: argocd
   name: applicationsets.argoproj.io
 spec:
   group: argoproj.io
