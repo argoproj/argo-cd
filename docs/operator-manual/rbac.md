@@ -46,7 +46,7 @@ subresources of an application.
 #### The `action` action
 
 The `action` action corresponds to either built-in resource customizations defined
-[in the Argo CD repository](https://github.com/argoproj/argo-cd/search?q=filename%3Aaction.lua+path%3Aresource_customizations),
+[in the Argo CD repository](https://github.com/argoproj/argo-cd/tree/master/resource_customizations),
 or to [custom resource actions](resource_actions.md#custom-resource-actions) defined by you.
 The `action` path is of the form `action/<api-group>/<Kind>/<action-name>`. For
 example, a resource customization path
