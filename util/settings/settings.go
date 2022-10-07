@@ -749,9 +749,7 @@ func (mgr *SettingsManager) GetResourceOverrides() (map[string]v1alpha1.Resource
 	switch diffOptions.IgnoreResourceStatusField {
 	case "", "crd":
 		addStatusOverrideToGK(resourceOverrides, crdGK)
-		log.Info("Ignore status for CustomResourceDefinitions")
 		addIgnoreDiffItemOverrideToGK(resourceOverrides, crdGK, crdPrsvUnkn)
-		log.Infof("Ignore '%v' for CustomResourceDefinitions", crdPrsvUnkn)
 	case "all":
 		addStatusOverrideToGK(resourceOverrides, "*/*")
 		log.Info("Ignore status for all objects")

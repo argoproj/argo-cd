@@ -582,6 +582,19 @@ func TestAppProject_ValidateDestinations(t *testing.T) {
 	p.Spec.Destinations = []ApplicationDestination{validDestination, validDestination}
 	err = p.ValidateProject()
 	assert.Error(t, err)
+
+	cluster1Destination := ApplicationDestination{
+		Name:      "cluster1",
+		Namespace: "some-namespace",
+	}
+	cluster2Destination := ApplicationDestination{
+		Name:      "cluster2",
+		Namespace: "some-namespace",
+	}
+	// allow multiple destinations with blank server, same namespace but unique cluster name
+	p.Spec.Destinations = []ApplicationDestination{cluster1Destination, cluster2Destination}
+	err = p.ValidateProject()
+	assert.NoError(t, err)
 }
 
 // TestValidateRoleName tests for an invalid role name

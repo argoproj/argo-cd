@@ -2159,6 +2159,7 @@ kind: CustomResourceDefinition
 metadata:
   labels:
     app.kubernetes.io/name: applicationsets.argoproj.io
+    app.kubernetes.io/part-of: argocd
   name: applicationsets.argoproj.io
 spec:
   group: argoproj.io
@@ -10962,7 +10963,7 @@ spec:
               key: dexserver.disable.tls
               name: argocd-cmd-params-cm
               optional: true
-        image: ghcr.io/dexidp/dex:v2.35.0-distroless
+        image: ghcr.io/dexidp/dex:v2.35.1-distroless
         imagePullPolicy: Always
         name: dex
         ports:
