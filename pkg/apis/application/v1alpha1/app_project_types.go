@@ -167,6 +167,10 @@ func (p *AppProject) ValidateProject() error {
 		}
 
 		key := fmt.Sprintf("%s/%s", dest.Server, dest.Namespace)
+		if dest.Server == "" && dest.Name != "" {
+			// destination cluster set using name instead of server endpoint
+			key = fmt.Sprintf("%s/%s", dest.Name, dest.Namespace)
+		}
 		if _, ok := destKeys[key]; ok {
 			return status.Errorf(codes.InvalidArgument, "destination '%s' already added", key)
 		}
