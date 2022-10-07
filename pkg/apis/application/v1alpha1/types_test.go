@@ -256,9 +256,73 @@ func TestAppProject_RemoveGroupFromRole(t *testing.T) {
 func newTestProject() *AppProject {
 	p := AppProject{
 		ObjectMeta: metav1.ObjectMeta{Name: "my-proj"},
-		Spec:       AppProjectSpec{Roles: []ProjectRole{{Name: "my-role"}}},
+		Spec:       AppProjectSpec{Roles: []ProjectRole{{Name: "my-role"}}, Destinations: []ApplicationDestination{{}}},
 	}
 	return &p
+}
+
+// TestAppProject_ValidateDestinations tests for an invalid destination
+func TestAppProject_ValidateDestinations(t *testing.T) {
+	p := newTestProject()
+	err := p.ValidateProject()
+	assert.NoError(t, err)
+
+	goodNamespaces := []string{
+		"*",
+		"some-namespace",
+	}
+	for _, goodNamespace := range goodNamespaces {
+		p.Spec.Destinations[0].Namespace = goodNamespace
+		err = p.ValidateProject()
+		assert.NoError(t, err)
+	}
+
+	goodServers := []string{
+		"*",
+		"some-server",
+	}
+	for _, badName := range goodServers {
+		p.Spec.Destinations[0].Server = badName
+		err = p.ValidateProject()
+		assert.NoError(t, err)
+	}
+
+	goodNames := []string{
+		"*",
+		"some-name",
+	}
+	for _, goodName := range goodNames {
+		p.Spec.Destinations[0].Name = goodName
+		err = p.ValidateProject()
+		assert.NoError(t, err)
+	}
+
+	validDestination := ApplicationDestination{
+		Server:    "some-server",
+		Namespace: "some-namespace",
+	}
+
+	p.Spec.Destinations[0] = validDestination
+	err = p.ValidateProject()
+	assert.NoError(t, err)
+
+	//no duplicates allowed
+	p.Spec.Destinations = []ApplicationDestination{validDestination, validDestination}
+	err = p.ValidateProject()
+	assert.Error(t, err)
+
+	cluster1Destination := ApplicationDestination{
+		Name:      "cluster1",
+		Namespace: "some-namespace",
+	}
+	cluster2Destination := ApplicationDestination{
+		Name:      "cluster2",
+		Namespace: "some-namespace",
+	}
+	// allow multiple destinations with blank server, same namespace but unique cluster name
+	p.Spec.Destinations = []ApplicationDestination{cluster1Destination, cluster2Destination}
+	err = p.ValidateProject()
+	assert.NoError(t, err)
 }
 
 // TestValidateRoleName tests for an invalid role name
