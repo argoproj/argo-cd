@@ -47,7 +47,7 @@ spec:
     metadata:
       name: '{{path.basename}}'
     spec:
-      project: default
+      project: "my-project"
       source:
         repoURL: https://github.com/argoproj/argo-cd.git
         targetRevision: HEAD
