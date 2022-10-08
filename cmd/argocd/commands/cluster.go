@@ -10,6 +10,7 @@ import (
 	"github.com/mattn/go-isatty"
 	log "github.com/sirupsen/logrus"
 	"github.com/spf13/cobra"
+	utilerrors "k8s.io/apimachinery/pkg/util/errors"
 	"k8s.io/client-go/kubernetes"
 	"k8s.io/client-go/rest"
 	"k8s.io/client-go/tools/clientcmd"
@@ -204,11 +205,25 @@ argocd cluster get in-cluster`,
 			}
 			conn, clusterIf := headless.NewClientOrDie(clientOpts, c).NewClusterClientOrDie()
 			defer io.Close(conn)
+
+			clusterList, err := clusterIf.List(ctx, &clusterpkg.ClusterQuery{})
+			errors.CheckError(err)
+
+			errList := make([]error, 0)
 			clusters := make([]argoappv1.Cluster, 0)
 			for _, clusterSelector := range args {
-				clst, err := clusterIf.Get(ctx, getQueryBySelector(clusterSelector))
-				errors.CheckError(err)
-				clusters = append(clusters, *clst)
+				exist := false
+				for _, cluster := range clusterList.Items {
+					if cluster.Name == clusterSelector || cluster.Server == clusterSelector {
+						clusters = append(clusters, cluster)
+						exist = true
+						break
+					}
+				}
+
+				if !exist {
+					errList = append(errList, fmt.Errorf("clusters \"%s\" not found", clusterSelector))
+				}
 			}
 			switch output {
 			case "yaml", "json":
@@ -221,6 +236,7 @@ argocd cluster get in-cluster`,
 			default:
 				errors.CheckError(fmt.Errorf("unknown output format: %s", output))
 			}
+			errors.CheckError(utilerrors.NewAggregate(errList))
 		},
 	}
 	// we have yaml as default to not break backwards-compatibility
