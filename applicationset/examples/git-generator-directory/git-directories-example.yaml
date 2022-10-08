@@ -2,6 +2,7 @@ apiVersion: argoproj.io/v1alpha1
 kind: ApplicationSet
 metadata:
   name: cluster-addons
+  namespace: argocd
 spec:
   goTemplate: true
   generators:
@@ -22,3 +23,6 @@ spec:
       destination:
         server: https://kubernetes.default.svc
         namespace: '{{.path.basename}}'
+      syncPolicy:
+        syncOptions:
+        - CreateNamespace=true

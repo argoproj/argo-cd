@@ -9,7 +9,9 @@ spec:
       repoURL: https://github.com/argoproj/argo-cd.git
       revision: HEAD
       directories:
-      - path: applicationset/examples/git-generator-directory/cluster-addons/*
+      - path: applicationset/examples/git-generator-directory/excludes/cluster-addons/*
+      - exclude: true
+        path: applicationset/examples/git-generator-directory/excludes/cluster-addons/exclude-helm-guestbook
   template:
     metadata:
       name: '{{path.basename}}'
