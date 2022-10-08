@@ -11,15 +11,6 @@ $ curl $ARGOCD_SERVER/api/v1/session -d $'{"username":"admin","password":"passwo
 {"token":"eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpYXQiOjE1Njc4MTIzODcsImlzcyI6ImFyZ29jZCIsIm5iZiI6MTU2NzgxMjM4Nywic3ViIjoiYWRtaW4ifQ.ejyTgFxLhuY9mOBtKhcnvobg3QZXJ4_RusN_KIdVwao"} 
 ```
 
-> <=v1.2
-
-Then pass using the HTTP `SetCookie` header, prefixing with `argocd.token`:
-
-```bash
-$ curl $ARGOCD_SERVER/api/v1/applications --cookie "argocd.token=$ARGOCD_TOKEN" 
-{"metadata":{"selfLink":"/apis/argoproj.io/v1alpha1/namespaces/argocd/applications","resourceVersion":"37755"},"items":...}
-```
-
 Then pass using the HTTP `Authorization` header, prefixing with `Bearer `:
 
 ```bash
