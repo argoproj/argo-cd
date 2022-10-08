@@ -235,16 +235,16 @@ func runClusterNamespacesCommand(ctx context.Context, clientConfig clientcmd.Cli
 	argoDB := db.NewDB(namespace, settingsMgr, kubeClient)
 	clustersList, err := argoDB.ListClusters(ctx)
 	if err != nil {
-		return fmt.Errorf("error listing clusters: %w", err)
+		return fmt.Errorf("error to list clusters from argoDB: %w", err)
 	}
 	appItems, err := appClient.ArgoprojV1alpha1().Applications(namespace).List(ctx, v1.ListOptions{})
 	if err != nil {
-		return fmt.Errorf("error listing application: %w", err)
+		return fmt.Errorf("error to list argo application: %w", err)
 	}
 	apps := appItems.Items
 	for i, app := range apps {
 		if err := argo.ValidateDestination(ctx, &app.Spec.Destination, argoDB); err != nil {
-			return fmt.Errorf("error validating application destination: %w", err)
+			return fmt.Errorf("error to valid destination of application, application name: %s, err: %w", app.Name, err)
 		}
 		apps[i] = app
 	}
@@ -355,7 +355,7 @@ func NewClusterEnableNamespacedMode() *cobra.Command {
 					fmt.Printf("Setting cluster %s namespaces to %v...", server, namespaces)
 					if !dryRun {
 						if _, err = argoDB.UpdateCluster(ctx, cluster); err != nil {
-							return fmt.Errorf("error updating cluster: %w", err)
+							return fmt.Errorf("error updating cluster, clusterName: %s, err: %w", cluster.Name, err)
 						}
 						fmt.Println("done")
 					} else {
@@ -414,7 +414,7 @@ func NewClusterDisableNamespacedMode() *cobra.Command {
 					fmt.Printf("Disabling namespaced mode for cluster %s...", server)
 					if !dryRun {
 						if _, err = argoDB.UpdateCluster(ctx, cluster); err != nil {
-							return fmt.Errorf("error updating cluster: %w", err)
+							return fmt.Errorf("error updating cluster, cluster name: %s, err: %w", cluster.Name, err)
 						}
 						fmt.Println("done")
 					} else {

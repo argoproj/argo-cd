@@ -2432,7 +2432,7 @@ func NewApplicationEditCommand(clientOpts *argocdclient.ClientOptions) *cobra.Co
 				updatedSpec := argoappv1.ApplicationSpec{}
 				err = json.Unmarshal(input, &updatedSpec)
 				if err != nil {
-					return fmt.Errorf("error unmarshaling input into application spec: %w", err)
+					return fmt.Errorf("error unmarshal input into updatedSpec: %w", err)
 				}
 
 				var appOpts cmdutil.AppOptions
