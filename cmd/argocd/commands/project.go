@@ -868,11 +868,11 @@ func NewProjectEditCommand(clientOpts *argocdclient.ClientOptions) *cobra.Comman
 				updatedSpec := v1alpha1.AppProjectSpec{}
 				err = json.Unmarshal(input, &updatedSpec)
 				if err != nil {
-					return fmt.Errorf("error unmarshal input into updatedSpec: %w", err)
+					return fmt.Errorf("error unmarshaling input into application spec: %w", err)
 				}
 				proj, err := projIf.Get(ctx, &projectpkg.ProjectQuery{Name: projName})
 				if err != nil {
-					return fmt.Errorf("could not get project by project name, projName: %s, err: %w", projName, err)
+					return fmt.Errorf("could not get project by project name: %w", err)
 				}
 				proj.Spec = updatedSpec
 				_, err = projIf.Update(ctx, &projectpkg.ProjectUpdateRequest{Project: proj})
