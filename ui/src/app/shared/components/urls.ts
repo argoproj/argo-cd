@@ -30,7 +30,7 @@ export function revisionUrl(url: string, revision: string): string {
     let urlSubPath = isSHA(revision) ? 'commit' : 'tree';
 
     if (url.indexOf('bitbucket') >= 0) {
-        urlSubPath = isSHA(revision) ? 'commits' : 'branch';
+        urlSubPath = isSHA(revision) ? 'commits' : 'src';
     }
 
     if (!supportedSource(parsed)) {
