@@ -203,7 +203,11 @@ export const ApplicationSummary = (props: {app: models.Application; updateApp: (
                   },
                   {
                       title: 'PATH',
-                      view: app.spec.source.path,
+                      view: (
+                          <Revision repoUrl={app.spec.source.repoURL} revision={app.spec.source.targetRevision || 'HEAD'} path={app.spec.source.path}>
+                              {app.spec.source.path}
+                          </Revision>
+                      ),
                       edit: (formApi: FormApi) => <FormField formApi={formApi} field='spec.source.path' component={Text} />
                   }
               ]),

@@ -1,9 +1,12 @@
 import * as React from 'react';
 import {revisionUrl} from './urls';
 
-export const Revision = ({repoUrl, revision, children}: {repoUrl: string; revision: string; children?: React.ReactNode}) => {
+export const Revision = ({repoUrl, revision, path, children}: {repoUrl: string; revision: string; path?: string; children?: React.ReactNode}) => {
     revision = revision || '';
-    const url = revisionUrl(repoUrl, revision);
+    let url = revisionUrl(repoUrl, revision);
+    if (path) {
+        url += '/' + path;
+    }
     const content = children || (isSHA(revision) ? revision.substr(0, 7) : revision);
     return url !== null ? (
         <a href={url} target='_blank' rel='noopener noreferrer'>
