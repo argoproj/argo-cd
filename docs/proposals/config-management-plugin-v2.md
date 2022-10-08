@@ -168,7 +168,6 @@ spec:
     check:
     - command: [-f ./main.ts]
       glob: "main.ts"
-  allowConcurrency: true # enables generating multiple manifests in parallel. 
 ```
 
 #### Config Management Plugin API Server (cmp-server)
@@ -320,6 +319,5 @@ spec:
     check:
     - command: [-f ./main.ts]
       glob: "main.ts"
-  allowConcurrency: true # enables generating multiple manifests in parallel. 
 ```
 2. Something magically patches the relevant manifest to add the sidecar.
