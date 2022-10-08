@@ -4,25 +4,26 @@ metadata:
   name: cluster-addons
   namespace: argocd
 spec:
-  goTemplate: true
   generators:
   - git:
       repoURL: https://github.com/argoproj/argo-cd.git
       revision: HEAD
       directories:
-      - path: applicationset/examples/git-generator-directory/cluster-addons/*
+      - path: applicationset/examples/git-generator-directory/excludes/cluster-addons/*
+      - exclude: true
+        path: applicationset/examples/git-generator-directory/excludes/cluster-addons/exclude-helm-guestbook
   template:
     metadata:
-      name: '{{.path.basename}}'
+      name: '{{path.basename}}'
     spec:
       project: "my-project"
       source:
         repoURL: https://github.com/argoproj/argo-cd.git
         targetRevision: HEAD
-        path: '{{.path.path}}'
+        path: '{{path}}'
       destination:
         server: https://kubernetes.default.svc
-        namespace: '{{.path.basename}}'
+        namespace: '{{path.basename}}'
       syncPolicy:
         syncOptions:
         - CreateNamespace=true
