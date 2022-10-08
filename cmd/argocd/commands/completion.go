@@ -209,7 +209,7 @@ compdef _argocd argocd
 
 Optionally, also add the following, in case you are getting errors involving compdef & compinit such as command not found: compdef:
 autoload -Uz compinit
-compinit
+compinit 
 `,
 		Run: func(cmd *cobra.Command, args []string) {
 			if len(args) != 1 {
