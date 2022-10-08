@@ -15,6 +15,10 @@ For zsh, add the following to your ~/.zshrc file:
 source <(argocd completion zsh)
 compdef _argocd argocd
 
+Optionally, also add the following, in case you are getting errors involving compdef & compinit such as command not found: compdef:
+autoload -Uz compinit
+compinit
+
 
 ```
 argocd completion SHELL [flags]
