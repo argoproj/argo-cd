@@ -235,7 +235,8 @@ func (s *Server) Create(ctx context.Context, q *application.ApplicationCreateReq
 	if err != nil {
 		return nil, status.Errorf(codes.Internal, "unable to check existing application details (%s): %v", appNs, err)
 	}
-	equalSpecs := reflect.DeepEqual(existing.Spec, a.Spec) &&
+
+	equalSpecs := existing.Spec.Equals(a.Spec) &&
 		reflect.DeepEqual(existing.Labels, a.Labels) &&
 		reflect.DeepEqual(existing.Annotations, a.Annotations) &&
 		reflect.DeepEqual(existing.Finalizers, a.Finalizers)
