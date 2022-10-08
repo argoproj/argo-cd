@@ -3,8 +3,9 @@ import {revisionUrl} from './urls';
 
 export const Revision = ({repoUrl, revision, path, children}: {repoUrl: string; revision: string; path?: string; children?: React.ReactNode}) => {
     revision = revision || '';
-    let url = revisionUrl(repoUrl, revision);
-    if (path && path !== '.') {
+    const hasPath = path && path !== '.';
+    let url = revisionUrl(repoUrl, revision, hasPath);
+    if (hasPath) {
         url += '/' + path;
     }
     const content = children || (isSHA(revision) ? revision.substr(0, 7) : revision);
