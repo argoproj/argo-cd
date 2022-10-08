@@ -1,10 +1,10 @@
 package v1alpha1
 
 import (
-	fmt "fmt"
+	"fmt"
 	"sort"
 	"strconv"
-	strings "strings"
+	"strings"
 
 	"github.com/argoproj/argo-cd/v2/util/git"
 	"github.com/argoproj/argo-cd/v2/util/glob"
@@ -180,9 +180,9 @@ func (p *AppProject) ValidateProject() error {
 	srcNamespaces := make(map[string]bool)
 	for _, ns := range p.Spec.SourceNamespaces {
 		if _, ok := srcNamespaces[ns]; ok {
-			return status.Errorf(codes.InvalidArgument, "source namespaces '%s' already added", ns)
+			return status.Errorf(codes.InvalidArgument, "source namespace '%s' already added", ns)
 		}
-		destKeys[ns] = true
+		srcNamespaces[ns] = true
 	}
 
 	srcRepos := make(map[string]bool)
