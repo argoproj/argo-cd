@@ -25,12 +25,12 @@ export function repoUrl(url: string): string {
     }
 }
 
-export function revisionUrl(url: string, revision: string, forPath: boolean): string {
+export function revisionUrl(url: string, revision: string, hasPath: boolean): string {
     const parsed = GitUrlParse(url);
     let urlSubPath = isSHA(revision) ? 'commit' : 'tree';
 
     if (url.indexOf('bitbucket') >= 0) {
-        urlSubPath = isSHA(revision) && !forPath ? 'commits' : 'src';
+        urlSubPath = isSHA(revision) && !hasPath ? 'commits' : 'src';
     }
 
     if (!supportedSource(parsed)) {
