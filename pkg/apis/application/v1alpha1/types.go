@@ -2295,6 +2295,17 @@ func (dest ApplicationDestination) Equals(other ApplicationDestination) bool {
 	return reflect.DeepEqual(dest, other)
 }
 
+// Equals compares two instances of ApplicationSpec and returns true if instances are equal.
+func (spec ApplicationSpec) Equals(other ApplicationSpec) bool {
+	return reflect.DeepEqual(spec.Info, other.Info) &&
+		reflect.DeepEqual(spec.IgnoreDifferences, other.IgnoreDifferences) &&
+		reflect.DeepEqual(spec.Project, other.Project) &&
+		reflect.DeepEqual(spec.RevisionHistoryLimit, other.RevisionHistoryLimit) &&
+		reflect.DeepEqual(spec.SyncPolicy, other.SyncPolicy) &&
+		spec.Source.Equals(other.Source) &&
+		spec.Destination.Equals(other.Destination)
+}
+
 // GetProject returns the application's project. This is preferred over spec.Project which may be empty
 func (spec ApplicationSpec) GetProject() string {
 	if spec.Project == "" {
