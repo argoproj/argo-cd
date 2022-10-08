@@ -595,6 +595,12 @@ func TestAppProject_ValidateDestinations(t *testing.T) {
 	p.Spec.Destinations = []ApplicationDestination{cluster1Destination, cluster2Destination}
 	err = p.ValidateProject()
 	assert.NoError(t, err)
+
+	t.Run("must reject duplicate source namespaces", func(t *testing.T) {
+		p.Spec.SourceNamespaces = []string{"argocd", "argocd"}
+		err = p.ValidateProject()
+		assert.Error(t, err)
+	})
 }
 
 // TestValidateRoleName tests for an invalid role name
