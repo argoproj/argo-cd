@@ -4,7 +4,6 @@ import (
 	"bytes"
 	"encoding/json"
 	"fmt"
-	"io"
 	"reflect"
 	"regexp"
 	"sort"
@@ -13,8 +12,6 @@ import (
 	"unsafe"
 
 	"github.com/Masterminds/sprig"
-	"github.com/valyala/fasttemplate"
-
 	log "github.com/sirupsen/logrus"
 
 	argoappsv1 "github.com/argoproj/argo-cd/v2/pkg/apis/application/v1alpha1"
@@ -212,21 +209,7 @@ func (r *Render) Replace(tmpl string, replaceMap map[string]interface{}, useGoTe
 
 		return replacedTmplBuffer.String(), nil
 	}
-
-	if !isTemplatedRegex.MatchString(tmpl) {
-		return tmpl, nil
-	}
-
-	fstTmpl := fasttemplate.New(tmpl, "{{", "}}")
-	replacedTmpl := fstTmpl.ExecuteFuncString(func(w io.Writer, tag string) (int, error) {
-		trimmedTag := strings.TrimSpace(tag)
-		replacement, ok := replaceMap[trimmedTag].(string)
-		if len(trimmedTag) == 0 || !ok {
-			return w.Write([]byte(fmt.Sprintf("{{%s}}", tag)))
-		}
-		return w.Write([]byte(replacement))
-	})
-	return replacedTmpl, nil
+	return tmpl, nil
 }
 
 // Log a warning if there are unrecognized generators
