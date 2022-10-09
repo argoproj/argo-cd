@@ -11,11 +11,12 @@
     label {
         color: #6D7F8B;
         font-size: 15px;
+        cursor: pointer;
     }
-}
 
-.propagation-policy-option :hover {
-    cursor: pointer;
+    input {
+        cursor: pointer;
+    }
 }
 
 .radio-button {
