@@ -15,6 +15,7 @@ import (
 
 	log "github.com/sirupsen/logrus"
 
+	"github.com/argoproj/argo-cd/v2/common"
 	"github.com/argoproj/argo-cd/v2/util/errors"
 )
 
@@ -83,7 +84,9 @@ func NewDexHTTPReverseProxy(serverAddr string, baseHRef string, tlsConfig *DexTL
 			if err != nil {
 				return err
 			}
-			log.Errorf("received error from dex: %s", string(b))
+			log.WithFields(log.Fields{
+				common.SecurityField: common.SecurityMedium,
+			}).Errorf("received error from dex: %s", string(b))
 			resp.ContentLength = 0
 			resp.Header.Set("Content-Length", strconv.Itoa(0))
 			resp.Header.Set("Location", fmt.Sprintf("%s?has_sso_error=true", path.Join(baseHRef, "login")))

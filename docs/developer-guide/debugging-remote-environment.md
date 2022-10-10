@@ -20,13 +20,40 @@ curl -sSfL https://raw.githubusercontent.com/argoproj/argo-cd/stable/manifests/i
 ## Connect
 Connect to one of the services, for example, to debug the main ArgoCD server run:
 ```shell
+telepresence helm install # Installs telepresence into your cluster
+telepresence connect # Starts the connection to your cluster
+telepresence intercept argocd-server --port 8083:8083 --port 8080:8080 --env-file .envrc.remote --namespace argocd # Starts the interception
+```
+* `--port` forwards traffic of remote ports 8080 and 8083 to the same ports locally
+* `--env-file` writes all the environment variables of the remote pod into a local file, the variables are also set on the subprocess of the `--run` command
+* `--namespace` specifies that the `argocd-server` is located in the `argocd` namespace
+
+List current status of Telepresence using:
+```shell
+telepresence status
+```
+
+Stop the intercept using:
+```shell
+telepresence leave argocd-server-argocd
+```
+
+And uninstall telepresence from your cluster:
+```shell
+telepresence helm uninstall
+```
+
+See [this quickstart](https://www.telepresence.io/docs/latest/howtos/intercepts/) for more information on how to intercept services using Telepresence.
+
+### Connect (telepresence v1)
+Use the following command instead:
+```shell
 telepresence --swap-deployment argocd-server --namespace argocd --env-file .envrc.remote --expose 8080:8080 --expose 8083:8083 --run bash
 ```
 * `--swap-deployment` changes the argocd-server deployment
 * `--expose` forwards traffic of remote ports 8080 and 8083 to the same ports locally
 * `--env-file` writes all the environment variables of the remote pod into a local file, the variables are also set on the subprocess of the `--run` command
 * `--run` defines which command to run once a connection is established, use `bash`, `zsh` or others
-
 
 ## Debug
 Once a connection is established, use your favorite tools to start the server locally.
@@ -44,11 +71,12 @@ Update the configuration file to point to kubeconfig file: `KUBECONFIG=` (requir
             "type": "go",
             "request": "launch",
             "mode": "auto",
-            "program": "${workspaceFolder}/cmd/argocd-server",
+            "program": "${workspaceFolder}/cmd/main.go",
             "envFile": [
                 "${workspaceFolder}/.envrc.remote",
             ],
             "env": {
+                "ARGOCD_BINARY_NAME": "argocd-server",
                 "CGO_ENABLED": "0",
                 "KUBECONFIG": "/path/to/kube/config"
             }

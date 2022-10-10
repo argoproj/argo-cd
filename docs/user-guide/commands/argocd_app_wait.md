@@ -16,7 +16,11 @@ argocd app wait [APPNAME.. | -l selector] [flags]
   argocd app wait my-app other-app
 
   # Wait for apps by label, in this example we waiting for apps that are children of another app (aka app-of-apps)
-  argocd app wait -l app.kubernetes.io/instance=apps
+  argocd app wait -l app.kubernetes.io/instance=my-app
+  argocd app wait -l app.kubernetes.io/instance!=my-app
+  argocd app wait -l app.kubernetes.io/instance
+  argocd app wait -l '!app.kubernetes.io/instance'
+  argocd app wait -l 'app.kubernetes.io/instance notin (my-app,other-app)'
 ```
 
 ### Options
@@ -27,7 +31,7 @@ argocd app wait [APPNAME.. | -l selector] [flags]
   -h, --help                   help for wait
       --operation              Wait for pending operations
       --resource stringArray   Sync only specific resources as GROUP:KIND:NAME. Fields may be blank. This option may be specified repeatedly
-  -l, --selector string        Wait for apps by label
+  -l, --selector string        Wait for apps by label. Supports '=', '==', '!=', in, notin, exists & not exists. Matching apps must satisfy all of the specified label constraints.
       --suspended              Wait for suspended
       --sync                   Wait for sync
       --timeout uint           Time out after this many seconds

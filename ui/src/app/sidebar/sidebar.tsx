@@ -1,14 +1,15 @@
-import {DataLoader, Tooltip} from 'argo-ui';
+import {Tooltip} from 'argo-ui';
 import {useData} from 'argo-ui/v2';
 import * as React from 'react';
 import {Context} from '../shared/context';
-import {services} from '../shared/services';
+import {services, ViewPreferences} from '../shared/services';
 
 require('./sidebar.scss');
 
 interface SidebarProps {
     onVersionClick: () => void;
     navItems: {path: string; iconClassName: string; title: string; tooltip?: string}[];
+    pref: ViewPreferences;
 }
 
 export const SIDEBAR_TOOLS_ID = 'sidebar-tools';
@@ -32,46 +33,53 @@ export const Sidebar = (props: SidebarProps) => {
     const [version, loading, error] = useData(() => services.version.version());
     const locationPath = context.history.location.pathname;
 
+    const tooltipProps = {
+        placement: 'right',
+        popperOptions: {
+            modifiers: {
+                preventOverflow: {
+                    boundariesElement: 'window'
+                }
+            }
+        }
+    };
+
     return (
-        <DataLoader load={() => services.viewPreferences.getPreferences()}>
-            {pref => (
-                <div className={`sidebar ${pref.hideSidebar ? 'sidebar--collapsed' : ''}`}>
-                    <div className='sidebar__logo'>
-                        <img src='assets/images/logo.png' alt='Argo' /> {!pref.hideSidebar && 'Argo CD'}
-                    </div>
-                    <div className='sidebar__version' onClick={props.onVersionClick}>
-                        {loading ? 'Loading...' : error?.state ? 'Unknown' : version?.Version || 'Unknown'}
-                    </div>
-                    {(props.navItems || []).map(item => (
-                        <Tooltip
-                            content={item?.tooltip || item.title}
-                            placement='right'
-                            popperOptions={{
-                                modifiers: {
-                                    preventOverflow: {
-                                        boundariesElement: 'window'
-                                    }
-                                }
-                            }}>
-                            <div
-                                key={item.title}
-                                className={`sidebar__nav-item ${locationPath === item.path || locationPath.startsWith(`${item.path}/`) ? 'sidebar__nav-item--active' : ''}`}
-                                onClick={() => context.history.push(item.path)}>
-                                <React.Fragment>
-                                    <div>
-                                        <i className={item?.iconClassName || ''} />
-                                        {!pref.hideSidebar && item.title}
-                                    </div>
-                                </React.Fragment>
+        <div className={`sidebar ${props.pref.hideSidebar ? 'sidebar--collapsed' : ''}`}>
+            <div className='sidebar__logo'>
+                <img src='assets/images/logo.png' alt='Argo' /> {!props.pref.hideSidebar && 'Argo CD'}
+            </div>
+            <div className='sidebar__version' onClick={props.onVersionClick}>
+                {loading ? 'Loading...' : error?.state ? 'Unknown' : version?.Version || 'Unknown'}
+            </div>
+            {(props.navItems || []).map(item => (
+                <Tooltip key={item.path} content={item?.tooltip || item.title} {...tooltipProps}>
+                    <div
+                        key={item.title}
+                        className={`sidebar__nav-item ${locationPath === item.path || locationPath.startsWith(`${item.path}/`) ? 'sidebar__nav-item--active' : ''}`}
+                        onClick={() => context.history.push(item.path)}>
+                        <React.Fragment>
+                            <div>
+                                <i className={item?.iconClassName || ''} />
+                                {!props.pref.hideSidebar && item.title}
                             </div>
-                        </Tooltip>
-                    ))}
-                    <div onClick={() => services.viewPreferences.updatePreferences({...pref, hideSidebar: !pref.hideSidebar})} className='sidebar__collapse-button'>
-                        <i className={`fas fa-arrow-${pref.hideSidebar ? 'right' : 'left'}`} />
+                        </React.Fragment>
                     </div>
-                    <div id={SIDEBAR_TOOLS_ID} />
+                </Tooltip>
+            ))}
+            <div onClick={() => services.viewPreferences.updatePreferences({...props.pref, hideSidebar: !props.pref.hideSidebar})} className='sidebar__collapse-button'>
+                <i className={`fas fa-arrow-${props.pref.hideSidebar ? 'right' : 'left'}`} />
+            </div>
+            {props.pref.hideSidebar && (
+                <div onClick={() => services.viewPreferences.updatePreferences({...props.pref, hideSidebar: !props.pref.hideSidebar})} className='sidebar__collapse-button'>
+                    <Tooltip content='Show Filters' {...tooltipProps}>
+                        <div className='sidebar__nav-item'>
+                            <i className={`fas fa-filter`} style={{fontSize: '14px', margin: '0 auto'}} />
+                        </div>
+                    </Tooltip>
                 </div>
             )}
-        </DataLoader>
+            <div id={SIDEBAR_TOOLS_ID} />
+        </div>
     );
 };

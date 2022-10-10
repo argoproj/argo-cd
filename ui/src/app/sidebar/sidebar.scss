@@ -11,7 +11,6 @@
     height: 100vh;
     max-height: 100vh;
     color: white;
-    z-index: 15;
     background-color: $silver-lining;
     overflow: auto;
     z-index: 0;
@@ -53,8 +52,10 @@
             width: 35px;
         }
 
-        i.fa-sign-in-alt {
+        i.fa {
             font-size: 22px;
+            margin-left: 3px;
+            margin-top: 12px;
         }
 
         &--active {
@@ -83,6 +84,10 @@
         .sidebar__nav-item i {
             margin-right: 0;
             margin-left: 10px;
+        }
+
+        .sidebar__nav-item i.fa {
+            margin-left: 13px;
         }
     }
 }
