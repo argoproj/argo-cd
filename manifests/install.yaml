@@ -3050,6 +3050,10 @@ spec:
                           - metadata
                           - spec
                           type: object
+                        values:
+                          additionalProperties:
+                            type: string
+                          type: object
                       required:
                       - repoURL
                       - revision
@@ -4186,6 +4190,10 @@ spec:
                                     - metadata
                                     - spec
                                     type: object
+                                  values:
+                                    additionalProperties:
+                                      type: string
+                                    type: object
                                 required:
                                 - repoURL
                                 - revision
@@ -5263,6 +5271,10 @@ spec:
                                     required:
                                     - metadata
                                     - spec
+                                    type: object
+                                  values:
+                                    additionalProperties:
+                                      type: string
                                     type: object
                                 type: object
                               selector:
@@ -6416,6 +6428,10 @@ spec:
                                     - metadata
                                     - spec
                                     type: object
+                                  values:
+                                    additionalProperties:
+                                      type: string
+                                    type: object
                                 required:
                                 - repoURL
                                 - revision
@@ -7493,6 +7509,10 @@ spec:
                                     required:
                                     - metadata
                                     - spec
+                                    type: object
+                                  values:
+                                    additionalProperties:
+                                      type: string
                                     type: object
                                 type: object
                               selector:
@@ -8588,6 +8608,10 @@ spec:
                           required:
                           - metadata
                           - spec
+                          type: object
+                        values:
+                          additionalProperties:
+                            type: string
                           type: object
                       type: object
                     selector:
