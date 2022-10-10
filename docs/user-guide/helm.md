@@ -235,35 +235,40 @@ Below is an example of how to add Helm plugins when installing ArgoCD with the [
 ```
 repoServer:
   volumes:
-    - name: gcloud
+    - name: gcp-credentials
       secret:
-        secretName: helm-credentials
+        secretName: my-gcp-credentials
   volumeMounts:
-    - mountPath: /gcloud
-      name: gcloud
+    - name: gcp-credentials
+      mountPath: /gcp
   env:
-    - name: HELM_PLUGINS
-      value: /helm-working-dir/plugins/
-    - name: GOOGLE_APPLICATION_CREDENTIALS
-      value: /gcloud/key.json
+    - name: HELM_CACHE_HOME
+      value: /helm-working-dir
+    - name: HELM_CONFIG_HOME
+      value: /helm-working-dir
+    - name: HELM_DATA_HOME
+      value: /helm-working-dir
   initContainers:
-    - name: install-helm-plugins
-      image: alpine/helm:3.8.0
+    - name: helm-gcp-authentication
+      image: alpine/helm:3.8.1
       volumeMounts:
-        - mountPath: /helm-working-dir
-          name: helm-working-dir
-        - mountPath: /gcloud
-          name: gcloud
+        - name: helm-working-dir
+          mountPath: /helm-working-dir
+        - name: gcp-credentials
+          mountPath: /gcp
       env:
-        - name: GOOGLE_APPLICATION_CREDENTIALS
-          value: /gcloud/key.json
-        - name: HELM_PLUGINS
-          value: /helm-working-dir/plugins
-      command: ["/bin/sh", "-c"]
+        - name: HELM_CACHE_HOME
+          value: /helm-working-dir
+        - name: HELM_CONFIG_HOME
+          value: /helm-working-dir
+        - name: HELM_DATA_HOME
+          value: /helm-working-dir
+      command: [ "/bin/sh", "-c" ]
       args:
         - apk --no-cache add curl;
           helm plugin install https://github.com/hayorov/helm-gcs.git;
-          helm repo add my-private-gcs-repo gs://my-private-gcs-repo;
+          helm repo add my-gcs-repo gs://my-private-helm-gcs-repository;
+          chmod -R 777 $HELM_DATA_HOME;
 ```
 
 ## Helm Version
