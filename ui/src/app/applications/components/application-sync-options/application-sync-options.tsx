@@ -10,6 +10,7 @@ export const REPLACE_WARNING = `The resources will be synced using 'kubectl repl
 export interface ApplicationSyncOptionProps {
     options: string[];
     onChanged: (updatedOptions: string[]) => any;
+    id?: string;
 }
 
 function selectOption(name: string, label: string, defaultVal: string, values: string[], props: ApplicationSyncOptionProps) {
@@ -46,7 +47,7 @@ function booleanOption(name: string, label: string, defaultVal: boolean, props: 
     return (
         <React.Fragment>
             <Checkbox
-                id={`sync-option-${name}`}
+                id={`sync-option-${name}-${props.id}`}
                 checked={checked}
                 onChange={(val: boolean) => {
                     if (index < 0) {
@@ -57,7 +58,7 @@ function booleanOption(name: string, label: string, defaultVal: boolean, props: 
                     }
                 }}
             />
-            <label htmlFor={`sync-option-${name}`}>{label}</label>{' '}
+            <label htmlFor={`sync-option-${name}-${props.id}`}>{label}</label>{' '}
             {warning && (
                 <>
                     <Tooltip content={warning}>
@@ -112,7 +113,7 @@ export const ApplicationSyncOptions = (props: ApplicationSyncOptionProps) => (
     </div>
 );
 
-export const ApplicationManualSyncFlags = ReactForm.FormField((props: {fieldApi: ReactForm.FieldApi}) => {
+export const ApplicationManualSyncFlags = ReactForm.FormField((props: {fieldApi: ReactForm.FieldApi; id?: string}) => {
     const {
         fieldApi: {getValue, setValue, setTouched}
     } = props;
@@ -122,7 +123,7 @@ export const ApplicationManualSyncFlags = ReactForm.FormField((props: {fieldApi:
             {Object.keys(ManualSyncFlags).map(flag => (
                 <React.Fragment key={flag}>
                     <Checkbox
-                        id={`sync-option-${flag}`}
+                        id={`sync-option-${flag}-${props.id}`}
                         checked={val[flag]}
                         onChange={(newVal: boolean) => {
                             setTouched(true);
@@ -131,7 +132,7 @@ export const ApplicationManualSyncFlags = ReactForm.FormField((props: {fieldApi:
                             setValue(update);
                         }}
                     />
-                    <label htmlFor={`sync-option-${flag}`}>{ManualSyncFlags[flag as keyof typeof ManualSyncFlags]}</label>{' '}
+                    <label htmlFor={`sync-option-${flag}-${props.id}`}>{ManualSyncFlags[flag as keyof typeof ManualSyncFlags]}</label>{' '}
                 </React.Fragment>
             ))}
         </div>

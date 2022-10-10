@@ -79,7 +79,7 @@ export const ApplicationRetryForm = ({initValues, field = 'retryStrategy'}: {ini
     );
 };
 
-export const ApplicationRetryOptions = ({formApi, initValues, field = 'retryStrategy'}: {formApi: FormApi; field?: string; initValues?: models.RetryStrategy}) => {
+export const ApplicationRetryOptions = ({formApi, initValues, field = 'retryStrategy', id}: {formApi: FormApi; field?: string; initValues?: models.RetryStrategy; id?: string}) => {
     const [retry, setRetry] = React.useState(!!initValues);
 
     const toggleRetry = (value: boolean) => {
@@ -103,8 +103,8 @@ export const ApplicationRetryOptions = ({formApi, initValues, field = 'retryStra
 
     return (
         <div className='application-retry-options'>
-            <Checkbox id='retry' checked={retry} onChange={val => toggleRetry(val)} />
-            <label htmlFor='retry'>Retry</label>
+            <Checkbox id={`retry-${id}`} checked={retry} onChange={val => toggleRetry(val)} />
+            <label htmlFor={`retry-${id}`}>Retry</label>
             {retry && <ApplicationRetryForm initValues={initValues} field={field} />}
         </div>
     );
