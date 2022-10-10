@@ -18,7 +18,7 @@ import (
 	"github.com/argoproj/gitops-engine/pkg/health"
 	synccommon "github.com/argoproj/gitops-engine/pkg/sync/common"
 	"github.com/ghodss/yaml"
-	"github.com/robfig/cron"
+	"github.com/robfig/cron/v3"
 	log "github.com/sirupsen/logrus"
 	"google.golang.org/grpc/codes"
 	"google.golang.org/grpc/status"
@@ -166,7 +166,7 @@ type ApplicationSource struct {
 	Kustomize *ApplicationSourceKustomize `json:"kustomize,omitempty" protobuf:"bytes,8,opt,name=kustomize"`
 	// Directory holds path/directory specific options
 	Directory *ApplicationSourceDirectory `json:"directory,omitempty" protobuf:"bytes,10,opt,name=directory"`
-	// ConfigManagementPlugin holds config management plugin specific options
+	// Plugin holds config management plugin specific options
 	Plugin *ApplicationSourcePlugin `json:"plugin,omitempty" protobuf:"bytes,11,opt,name=plugin"`
 	// Chart is a Helm chart name, and must be specified for applications sourced from a Helm repo.
 	Chart string `json:"chart,omitempty" protobuf:"bytes,12,opt,name=chart"`

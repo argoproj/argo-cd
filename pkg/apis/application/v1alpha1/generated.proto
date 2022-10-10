@@ -322,7 +322,7 @@ message ApplicationSource {
   // Directory holds path/directory specific options
   optional ApplicationSourceDirectory directory = 10;
 
-  // ConfigManagementPlugin holds config management plugin specific options
+  // Plugin holds config management plugin specific options
   optional ApplicationSourcePlugin plugin = 11;
 
   // Chart is a Helm chart name, and must be specified for applications sourced from a Helm repo.

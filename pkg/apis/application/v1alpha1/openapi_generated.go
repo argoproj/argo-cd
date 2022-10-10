@@ -1209,7 +1209,7 @@ func schema_pkg_apis_application_v1alpha1_ApplicationSource(ref common.Reference
 					},
 					"plugin": {
 						SchemaProps: spec.SchemaProps{
-							Description: "ConfigManagementPlugin holds config management plugin specific options",
+							Description: "Plugin holds config management plugin specific options",
 							Ref:         ref("github.com/argoproj/argo-cd/v2/pkg/apis/application/v1alpha1.ApplicationSourcePlugin"),
 						},
 					},
