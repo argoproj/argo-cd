@@ -505,13 +505,32 @@ interface PageInfo {
     canPageBack: boolean;
 }
 
+const NavButton = (props: {children: React.ReactNode; disabled?: boolean; onClick: () => void}) => {
+    return (
+        <div className={`nav-container ${props.disabled ? 'disabled' : ''}`} onClick={props.onClick}>
+            {props.children}
+        </div>
+    );
+};
+
 const logNavigators = (actions: NavActions, darkMode: boolean, info?: PageInfo) => {
     return (
         <div className={`pod-logs-viewer__menu ${darkMode ? 'pod-logs-viewer__menu--inverted' : ''}`}>
-            {actions.begin && <i className='fa fa-angle-double-left' onClick={actions.begin || (() => null)} />}
-            <i className={`fa fa-angle-left ${info && info.canPageBack ? '' : 'disabled'}`} onClick={actions.left || (() => null)} />
-            <i className='fa fa-angle-down' onClick={actions.bottom || (() => null)} />
-            <i className='fa fa-angle-up' onClick={actions.top || (() => null)} />
+            {actions.begin && (
+                <NavButton onClick={actions.begin || (() => null)}>
+                    Begin <i className='fa fa-angle-double-left' />
+                </NavButton>
+            )}
+
+            <NavButton disabled={!(info && info.canPageBack)} onClick={actions.left || (() => null)}>
+                Prev <i className='fa fa-angle-left' />
+            </NavButton>
+            <NavButton onClick={actions.bottom || (() => null)}>
+                Bottom <i className='fa fa-angle-down' />
+            </NavButton>
+            <NavButton onClick={actions.top || (() => null)}>
+                Top <i className='fa fa-angle-up' />
+            </NavButton>
             <div style={{marginLeft: 'auto', marginRight: 'auto'}}>
                 {info && (
                     <React.Fragment>
@@ -519,8 +538,12 @@ const logNavigators = (actions: NavActions, darkMode: boolean, info?: PageInfo) 
                     </React.Fragment>
                 )}
             </div>
-            <i className={`fa fa-angle-right ${info && info.curPage > 0 ? '' : 'disabled'}`} onClick={(info && info.curPage > 0 && actions.right) || null} />
-            <i className={`fa fa-angle-double-right ${info && info.curPage > 1 ? '' : 'disabled'}`} onClick={(info && info.curPage > 1 && actions.end) || null} />
+            <NavButton onClick={(info && info.curPage > 0 && actions.right) || null} disabled={!(info && info.curPage > 0)}>
+                Next <i className='fa fa-angle-right' />
+            </NavButton>
+            <NavButton onClick={(info && info.curPage > 1 && actions.end) || null} disabled={!(info && info.curPage > 1)}>
+                End <i className='fa fa-angle-double-right' />
+            </NavButton>
         </div>
     );
 };
