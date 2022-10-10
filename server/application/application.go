@@ -37,7 +37,6 @@ import (
 
 	argocommon "github.com/argoproj/argo-cd/v2/common"
 	"github.com/argoproj/argo-cd/v2/pkg/apiclient/application"
-	"github.com/argoproj/argo-cd/v2/pkg/apis/application/v1alpha1"
 	appv1 "github.com/argoproj/argo-cd/v2/pkg/apis/application/v1alpha1"
 	appclientset "github.com/argoproj/argo-cd/v2/pkg/client/clientset/versioned"
 	applisters "github.com/argoproj/argo-cd/v2/pkg/client/listers/application/v1alpha1"
@@ -256,13 +255,13 @@ func (s *Server) Create(ctx context.Context, q *application.ApplicationCreateReq
 	return updated, nil
 }
 
-func (s *Server) queryRepoServer(ctx context.Context, a *v1alpha1.Application, action func(
+func (s *Server) queryRepoServer(ctx context.Context, a *appv1.Application, action func(
 	client apiclient.RepoServerServiceClient,
 	repo *appv1.Repository,
 	helmRepos []*appv1.Repository,
-	helmCreds []*v1alpha1.RepoCreds,
-	helmOptions *v1alpha1.HelmOptions,
-	kustomizeOptions *v1alpha1.KustomizeOptions,
+	helmCreds []*appv1.RepoCreds,
+	helmOptions *appv1.HelmOptions,
+	kustomizeOptions *appv1.KustomizeOptions,
 	enabledSourceTypes map[string]bool,
 ) error) error {
 
@@ -920,7 +919,7 @@ func (s *Server) Patch(ctx context.Context, q *application.ApplicationPatchReque
 		return nil, status.Error(codes.InvalidArgument, fmt.Sprintf("Patch type '%s' is not supported", q.GetPatchType()))
 	}
 
-	newApp := &v1alpha1.Application{}
+	newApp := &appv1.Application{}
 	err = json.Unmarshal(patchApp, newApp)
 	if err != nil {
 		return nil, fmt.Errorf("error unmarshaling patched app: %w", err)
@@ -1389,7 +1388,7 @@ func (s *Server) WatchResourceTree(q *application.ResourcesQuery, ws application
 	})
 }
 
-func (s *Server) RevisionMetadata(ctx context.Context, q *application.RevisionMetadataQuery) (*v1alpha1.RevisionMetadata, error) {
+func (s *Server) RevisionMetadata(ctx context.Context, q *application.RevisionMetadataQuery) (*appv1.RevisionMetadata, error) {
 	appName := q.GetName()
 	appNs := s.appNamespaceOrDefault(q.GetAppNamespace())
 	a, err := s.appLister.Applications(appNs).Get(appName)
@@ -2182,12 +2181,12 @@ func splitStatusPatch(patch []byte) ([]byte, []byte, error) {
 	return nonStatusPatch, statusPatch, nil
 }
 
-func (s *Server) plugins() ([]*v1alpha1.ConfigManagementPlugin, error) {
+func (s *Server) plugins() ([]*appv1.ConfigManagementPlugin, error) {
 	plugins, err := s.settingsMgr.GetConfigManagementPlugins()
 	if err != nil {
 		return nil, fmt.Errorf("error getting config management plugin: %w", err)
 	}
-	tools := make([]*v1alpha1.ConfigManagementPlugin, len(plugins))
+	tools := make([]*appv1.ConfigManagementPlugin, len(plugins))
 	for i, p := range plugins {
 		p := p
 		tools[i] = &p
@@ -2232,11 +2231,11 @@ func (s *Server) GetApplicationSyncWindows(ctx context.Context, q *application.A
 	return res, nil
 }
 
-func (s *Server) inferResourcesStatusHealth(app *v1alpha1.Application) {
-	if app.Status.ResourceHealthSource == v1alpha1.ResourceHealthLocationAppTree {
-		tree := &v1alpha1.ApplicationTree{}
+func (s *Server) inferResourcesStatusHealth(app *appv1.Application) {
+	if app.Status.ResourceHealthSource == appv1.ResourceHealthLocationAppTree {
+		tree := &appv1.ApplicationTree{}
 		if err := s.cache.GetAppResourcesTree(app.Name, tree); err == nil {
-			healthByKey := map[kube.ResourceKey]*v1alpha1.HealthStatus{}
+			healthByKey := map[kube.ResourceKey]*appv1.HealthStatus{}
 			for _, node := range tree.Nodes {
 				healthByKey[kube.NewResourceKey(node.Group, node.Kind, node.Namespace, node.Name)] = node.Health
 			}
@@ -2248,7 +2247,7 @@ func (s *Server) inferResourcesStatusHealth(app *v1alpha1.Application) {
 	}
 }
 
-func convertSyncWindows(w *v1alpha1.SyncWindows) []*application.ApplicationSyncWindow {
+func convertSyncWindows(w *appv1.SyncWindows) []*application.ApplicationSyncWindow {
 	if w != nil {
 		var windows []*application.ApplicationSyncWindow
 		for _, w := range *w {
