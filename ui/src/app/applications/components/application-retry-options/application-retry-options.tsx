@@ -85,14 +85,14 @@ export const ApplicationRetryOptions = ({
     field = 'retryStrategy',
     retry,
     setRetry,
-    id,
+    id
 }: {
     formApi: FormApi;
     field?: string;
     initValues?: models.RetryStrategy;
     retry?: boolean;
     setRetry?: (value: boolean) => any;
-    id?: string
+    id?: string;
 }) => {
     const [retryInternal, setRetryInternal] = React.useState(!!initValues);
 
