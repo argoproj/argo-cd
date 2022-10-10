@@ -6,14 +6,14 @@ import (
 	"fmt"
 	"net/http"
 	"os"
+	"regexp"
 	"strconv"
-	"strings"
 	"time"
 
 	"github.com/argoproj/gitops-engine/pkg/health"
 	"github.com/prometheus/client_golang/prometheus"
 	"github.com/prometheus/client_golang/prometheus/promhttp"
-	"github.com/robfig/cron"
+	"github.com/robfig/cron/v3"
 	log "github.com/sirupsen/logrus"
 	"k8s.io/apimachinery/pkg/labels"
 
@@ -21,6 +21,7 @@ import (
 	applister "github.com/argoproj/argo-cd/v2/pkg/client/listers/application/v1alpha1"
 	"github.com/argoproj/argo-cd/v2/util/git"
 	"github.com/argoproj/argo-cd/v2/util/healthz"
+	"github.com/argoproj/argo-cd/v2/util/profile"
 )
 
 type MetricsServer struct {
@@ -158,12 +159,14 @@ func NewMetricsServer(addr string, appLister applister.ApplicationLister, appFil
 
 	mux := http.NewServeMux()
 	registry := NewAppRegistry(appLister, appFilter, appLabels)
+	registry.MustRegister(depth, adds, latency, workDuration, unfinished, longestRunningProcessor, retries)
 	mux.Handle(MetricsPath, promhttp.HandlerFor(prometheus.Gatherers{
 		// contains app controller specific metrics
 		registry,
 		// contains process, golang and controller workqueues metrics
 		prometheus.DefaultGatherer,
 	}, promhttp.HandlerOpts{}))
+	profile.RegisterProfiler(mux)
 	healthz.ServeHealthCheck(mux, healthCheck)
 
 	registry.MustRegister(syncCounter)
@@ -190,15 +193,21 @@ func NewMetricsServer(addr string, appLister applister.ApplicationLister, appFil
 		redisRequestCounter:     redisRequestCounter,
 		redisRequestHistogram:   redisRequestHistogram,
 		hostname:                hostname,
-		cron:                    cron.New(),
+		// This cron is used to expire the metrics cache.
+		// Currently clearing the metrics cache is logging and deleting from the map
+		// so there is no possibility of panic, but we will add a chain to keep robfig/cron v1 behavior.
+		cron: cron.New(cron.WithChain(cron.Recover(cron.PrintfLogger(log.StandardLogger())))),
 	}, nil
 }
+
+// Prometheus invalid labels, more info: https://prometheus.io/docs/concepts/data_model/#metric-names-and-labels.
+var invalidPromLabelChars = regexp.MustCompile(`[^a-zA-Z0-9_]`)
 
 func normalizeLabels(prefix string, appLabels []string) []string {
 	results := []string{}
 	for _, label := range appLabels {
 		//prometheus labels don't accept dash in their name
-		curr := strings.ReplaceAll(label, "-", "_")
+		curr := invalidPromLabelChars.ReplaceAllString(label, "_")
 		result := fmt.Sprintf("%s_%s", prefix, curr)
 		results = append(results, result)
 	}
@@ -275,7 +284,7 @@ func (m *MetricsServer) SetExpiration(cacheExpiration time.Duration) error {
 		return errors.New("Expiration is already set")
 	}
 
-	err := m.cron.AddFunc(fmt.Sprintf("@every %s", cacheExpiration), func() {
+	_, err := m.cron.AddFunc(fmt.Sprintf("@every %s", cacheExpiration), func() {
 		log.Infof("Reset Prometheus metrics based on existing expiration '%v'", cacheExpiration)
 		m.syncCounter.Reset()
 		m.kubectlExecCounter.Reset()

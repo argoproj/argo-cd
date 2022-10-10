@@ -21,7 +21,7 @@ func TestDeployment(t *testing.T) {
 	Given(t).
 		Path("deployment").
 		When().
-		Create().
+		CreateApp().
 		Sync().
 		Then().
 		Expect(OperationPhaseIs(OperationSucceeded)).
@@ -45,7 +45,7 @@ func TestDeploymentWithAnnotationTrackingMode(t *testing.T) {
 	ctx.
 		Path("deployment").
 		When().
-		Create().
+		CreateApp().
 		Sync().
 		Then().
 		Expect(OperationPhaseIs(OperationSucceeded)).
@@ -54,11 +54,11 @@ func TestDeploymentWithAnnotationTrackingMode(t *testing.T) {
 		When().
 		Then().
 		And(func(app *Application) {
-			out, err := RunCli("app", "manifests", app.Name)
+			out, err := RunCli("app", "manifests", ctx.AppName())
 			assert.NoError(t, err)
 			assert.Contains(t, out, fmt.Sprintf(`annotations:
     argocd.argoproj.io/tracking-id: %s:apps/Deployment:%s/nginx-deployment
-`, Name(), DeploymentNamespace()))
+`, ctx.AppName(), DeploymentNamespace()))
 		})
 }
 
@@ -68,7 +68,7 @@ func TestDeploymentWithLabelTrackingMode(t *testing.T) {
 	ctx.
 		Path("deployment").
 		When().
-		Create().
+		CreateApp().
 		Sync().
 		Then().
 		Expect(OperationPhaseIs(OperationSucceeded)).
@@ -77,20 +77,21 @@ func TestDeploymentWithLabelTrackingMode(t *testing.T) {
 		When().
 		Then().
 		And(func(app *Application) {
-			out, err := RunCli("app", "manifests", app.Name)
+			out, err := RunCli("app", "manifests", ctx.AppName())
 			assert.NoError(t, err)
 			assert.Contains(t, out, fmt.Sprintf(`labels:
     app: nginx
     app.kubernetes.io/instance: %s
-`, Name()))
+`, ctx.AppName()))
 		})
 }
 
 func TestDeploymentWithoutTrackingMode(t *testing.T) {
-	Given(t).
+	ctx := Given(t)
+	ctx.
 		Path("deployment").
 		When().
-		Create().
+		CreateApp().
 		Sync().
 		Then().
 		Expect(OperationPhaseIs(OperationSucceeded)).
@@ -99,11 +100,11 @@ func TestDeploymentWithoutTrackingMode(t *testing.T) {
 		When().
 		Then().
 		And(func(app *Application) {
-			out, err := RunCli("app", "manifests", app.Name)
+			out, err := RunCli("app", "manifests", ctx.AppName())
 			assert.NoError(t, err)
 			assert.Contains(t, out, fmt.Sprintf(`labels:
     app: nginx
     app.kubernetes.io/instance: %s
-`, Name()))
+`, ctx.AppName()))
 		})
 }

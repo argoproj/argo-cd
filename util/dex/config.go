@@ -9,7 +9,7 @@ import (
 	"github.com/argoproj/argo-cd/v2/util/settings"
 )
 
-func GenerateDexConfigYAML(settings *settings.ArgoCDSettings) ([]byte, error) {
+func GenerateDexConfigYAML(settings *settings.ArgoCDSettings, disableTls bool) ([]byte, error) {
 	if !settings.IsDexConfigured() {
 		return nil, nil
 	}
@@ -26,17 +26,33 @@ func GenerateDexConfigYAML(settings *settings.ArgoCDSettings) ([]byte, error) {
 	dexCfg["storage"] = map[string]interface{}{
 		"type": "memory",
 	}
-	dexCfg["web"] = map[string]interface{}{
-		"http": "0.0.0.0:5556",
+	if disableTls {
+		dexCfg["web"] = map[string]interface{}{
+			"http": "0.0.0.0:5556",
+		}
+	} else {
+		dexCfg["web"] = map[string]interface{}{
+			"https":   "0.0.0.0:5556",
+			"tlsCert": "/tmp/tls.crt",
+			"tlsKey":  "/tmp/tls.key",
+		}
 	}
+
 	dexCfg["grpc"] = map[string]interface{}{
 		"addr": "0.0.0.0:5557",
 	}
 	dexCfg["telemetry"] = map[string]interface{}{
 		"http": "0.0.0.0:5558",
 	}
-	dexCfg["oauth2"] = map[string]interface{}{
-		"skipApprovalScreen": true,
+
+	if oauth2Cfg, found := dexCfg["oauth2"].(map[string]interface{}); found {
+		if _, found := oauth2Cfg["skipApprovalScreen"].(bool); !found {
+			oauth2Cfg["skipApprovalScreen"] = true
+		}
+	} else {
+		dexCfg["oauth2"] = map[string]interface{}{
+			"skipApprovalScreen": true,
+		}
 	}
 
 	argoCDStaticClient := map[string]interface{}{

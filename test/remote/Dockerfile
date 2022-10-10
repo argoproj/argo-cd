@@ -1,12 +1,14 @@
-FROM golang:1.16.5 AS go
+ARG BASE_IMAGE=docker.io/library/ubuntu:22.04
 
-RUN go get github.com/mattn/goreman && \
-    go get github.com/kisielk/godepgraph 
+FROM golang:1.18 AS go
 
-FROM ubuntu:21.04
+RUN go install github.com/mattn/goreman@latest && \
+    go install github.com/kisielk/godepgraph@latest
+
+FROM $BASE_IMAGE
 
 ENV DEBIAN_FRONTEND=noninteractive
-RUN  apt-get update && apt-get install -y \
+RUN  apt-get update && apt-get install --no-install-recommends -y \
         ca-certificates \
         curl \
         openssh-server \
@@ -22,8 +24,6 @@ RUN  apt-get update && apt-get install -y \
         zip && \
         apt-get clean && \
         rm -rf /var/lib/apt/lists/* /tmp/* /var/tmp/*
-
-RUN mkdir -p /etc/certs
 
 # These are required for running end-to-end tests
 COPY ./test/fixture/testrepos/id_rsa.pub /root/.ssh/authorized_keys

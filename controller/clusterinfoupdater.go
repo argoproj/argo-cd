@@ -28,6 +28,8 @@ type clusterInfoUpdater struct {
 	appLister     v1alpha1.ApplicationNamespaceLister
 	cache         *appstatecache.Cache
 	clusterFilter func(cluster *appv1.Cluster) bool
+	projGetter    func(app *appv1.Application) (*appv1.AppProject, error)
+	namespace     string
 }
 
 func NewClusterInfoUpdater(
@@ -35,9 +37,11 @@ func NewClusterInfoUpdater(
 	db db.ArgoDB,
 	appLister v1alpha1.ApplicationNamespaceLister,
 	cache *appstatecache.Cache,
-	clusterFilter func(cluster *appv1.Cluster) bool) *clusterInfoUpdater {
+	clusterFilter func(cluster *appv1.Cluster) bool,
+	projGetter func(app *appv1.Application) (*appv1.AppProject, error),
+	namespace string) *clusterInfoUpdater {
 
-	return &clusterInfoUpdater{infoSource, db, appLister, cache, clusterFilter}
+	return &clusterInfoUpdater{infoSource, db, appLister, cache, clusterFilter, projGetter, namespace}
 }
 
 func (c *clusterInfoUpdater) Run(ctx context.Context) {
@@ -64,6 +68,7 @@ func (c *clusterInfoUpdater) updateClusters() {
 	clusters, err := c.db.ListClusters(context.Background())
 	if err != nil {
 		log.Warnf("Failed to save clusters info: %v", err)
+		return
 	}
 	var clustersFiltered []appv1.Cluster
 	if c.clusterFilter == nil {
@@ -92,6 +97,12 @@ func (c *clusterInfoUpdater) updateClusterInfo(cluster appv1.Cluster, info *cach
 	}
 	var appCount int64
 	for _, a := range apps {
+		if c.projGetter != nil {
+			proj, err := c.projGetter(a)
+			if err != nil || !proj.IsAppNamespacePermitted(a, c.namespace) {
+				continue
+			}
+		}
 		if err := argo.ValidateDestination(context.Background(), &a.Spec.Destination, c.db); err != nil {
 			continue
 		}
@@ -106,7 +117,7 @@ func (c *clusterInfoUpdater) updateClusterInfo(cluster appv1.Cluster, info *cach
 	}
 	if info != nil {
 		clusterInfo.ServerVersion = info.K8SVersion
-		clusterInfo.APIVersions = argo.APIGroupsToVersions(info.APIGroups)
+		clusterInfo.APIVersions = argo.APIResourcesToStrings(info.APIResources, false)
 		if info.LastCacheSyncTime == nil {
 			clusterInfo.ConnectionState.Status = appv1.ConnectionStatusUnknown
 		} else if info.SyncError == nil {
@@ -122,7 +133,7 @@ func (c *clusterInfoUpdater) updateClusterInfo(cluster appv1.Cluster, info *cach
 	} else {
 		clusterInfo.ConnectionState.Status = appv1.ConnectionStatusUnknown
 		if appCount == 0 {
-			clusterInfo.ConnectionState.Message = "Cluster has no application and not being monitored."
+			clusterInfo.ConnectionState.Message = "Cluster has no applications and is not being monitored."
 		}
 	}
 

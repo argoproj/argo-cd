@@ -2,6 +2,7 @@ import {DropDownMenu, NotificationType, SlidingPanel} from 'argo-ui';
 import * as classNames from 'classnames';
 import * as PropTypes from 'prop-types';
 import * as React from 'react';
+import * as ReactDOM from 'react-dom';
 import * as models from '../../../shared/models';
 import {RouteComponentProps} from 'react-router';
 import {BehaviorSubject, combineLatest, from, merge, Observable} from 'rxjs';
@@ -10,7 +11,7 @@ import {delay, filter, map, mergeMap, repeat, retryWhen} from 'rxjs/operators';
 import {DataLoader, EmptyState, ErrorNotification, ObservableQuery, Page, Paginate, Revision, Timestamp} from '../../../shared/components';
 import {AppContext, ContextApis} from '../../../shared/context';
 import * as appModels from '../../../shared/models';
-import {AppDetailsPreferences, AppsDetailsViewType, services} from '../../../shared/services';
+import {AppDetailsPreferences, AppsDetailsViewKey, AppsDetailsViewType, services} from '../../../shared/services';
 
 import {ApplicationConditions} from '../application-conditions/application-conditions';
 import {ApplicationDeploymentHistory} from '../application-deployment-history/application-deployment-history';
@@ -22,14 +23,22 @@ import {ApplicationSyncPanel} from '../application-sync-panel/application-sync-p
 import {ResourceDetails} from '../resource-details/resource-details';
 import * as AppUtils from '../utils';
 import {ApplicationResourceList} from './application-resource-list';
-import {Filters} from './application-resource-filter';
+import {Filters, FiltersProps} from './application-resource-filter';
 import {urlPattern} from '../utils';
+import {ResourceStatus} from '../../../shared/models';
+import {ApplicationsDetailsAppDropdown} from './application-details-app-dropdown';
+import {useSidebarTarget} from '../../../sidebar/sidebar';
 
 require('./application-details.scss');
 
 interface ApplicationDetailsState {
     page: number;
     revision?: string;
+    groupedResources?: ResourceStatus[];
+    slidingPanelPage?: number;
+    filteredGraph?: any[];
+    truncateNameOnRight?: boolean;
+    collapsedNodes?: string[];
 }
 
 interface FilterInput {
@@ -39,6 +48,11 @@ interface FilterInput {
     sync: string[];
     namespace: string[];
 }
+
+const ApplicationDetailsFilters = (props: FiltersProps) => {
+    const sidebarTarget = useSidebarTarget();
+    return ReactDOM.createPortal(<Filters {...props} />, sidebarTarget?.current);
+};
 
 export const NodeInfo = (node?: string): {key: string; container: number} => {
     const nodeContainer = {key: '', container: 0};
@@ -55,20 +69,43 @@ export const SelectNode = (fullName: string, containerIndex = 0, tab: string = n
     appContext.navigation.goto('.', {node, tab}, {replace: true});
 };
 
-export class ApplicationDetails extends React.Component<RouteComponentProps<{name: string}>, ApplicationDetailsState> {
+export class ApplicationDetails extends React.Component<RouteComponentProps<{appnamespace: string; name: string}>, ApplicationDetailsState> {
     public static contextTypes = {
         apis: PropTypes.object
     };
 
     private appChanged = new BehaviorSubject<appModels.Application>(null);
+    private appNamespace: string;
 
-    constructor(props: RouteComponentProps<{name: string}>) {
+    constructor(props: RouteComponentProps<{appnamespace: string; name: string}>) {
         super(props);
-        this.state = {page: 0};
+        this.state = {page: 0, groupedResources: [], slidingPanelPage: 0, filteredGraph: [], truncateNameOnRight: false, collapsedNodes: []};
+        if (typeof this.props.match.params.appnamespace === 'undefined') {
+            this.appNamespace = '';
+        } else {
+            this.appNamespace = this.props.match.params.appnamespace;
+        }
     }
 
     private get showOperationState() {
         return new URLSearchParams(this.props.history.location.search).get('operation') === 'true';
+    }
+
+    private setNodeExpansion(node: string, isExpanded: boolean) {
+        const index = this.state.collapsedNodes.indexOf(node);
+        if (isExpanded && index >= 0) {
+            this.state.collapsedNodes.splice(index, 1);
+            const updatedNodes = this.state.collapsedNodes.slice();
+            this.setState({collapsedNodes: updatedNodes});
+        } else if (!isExpanded && index < 0) {
+            const updatedNodes = this.state.collapsedNodes.slice();
+            updatedNodes.push(node);
+            this.setState({collapsedNodes: updatedNodes});
+        }
+    }
+
+    private getNodeExpansion(node: string): boolean {
+        return this.state.collapsedNodes.indexOf(node) < 0;
     }
 
     private get showConditions() {
@@ -88,6 +125,30 @@ export class ApplicationDetails extends React.Component<RouteComponentProps<{nam
         return nodeContainer.key;
     }
 
+    private closeGroupedNodesPanel() {
+        this.setState({groupedResources: []});
+        this.setState({slidingPanelPage: 0});
+    }
+
+    private toggleCompactView(pref: AppDetailsPreferences) {
+        services.viewPreferences.updatePreferences({appDetails: {...pref, groupNodes: !pref.groupNodes}});
+    }
+
+    private getPageTitle(view: string) {
+        const {Tree, Pods, Network, List} = AppsDetailsViewKey;
+        switch (view) {
+            case Tree:
+                return 'Application Details Tree';
+            case Network:
+                return 'Application Details Network';
+            case Pods:
+                return 'Application Details Pods';
+            case List:
+                return 'Application Details List';
+        }
+        return '';
+    }
+
     public render() {
         return (
             <ObservableQuery>
@@ -97,7 +158,7 @@ export class ApplicationDetails extends React.Component<RouteComponentProps<{nam
                         loadingRenderer={() => <Page title='Application Details'>Loading...</Page>}
                         input={this.props.match.params.name}
                         load={name =>
-                            combineLatest([this.loadAppInfo(name), services.viewPreferences.getPreferences(), q]).pipe(
+                            combineLatest([this.loadAppInfo(name, this.appNamespace), services.viewPreferences.getPreferences(), q]).pipe(
                                 map(items => {
                                     const pref = items[1].appDetails;
                                     const params = items[2];
@@ -135,18 +196,42 @@ export class ApplicationDetails extends React.Component<RouteComponentProps<{nam
                             const syncResourceKey = new URLSearchParams(this.props.history.location.search).get('deploy');
                             const tab = new URLSearchParams(this.props.history.location.search).get('tab');
 
-                            const orphaned: appModels.ResourceStatus[] = pref.orphanedResources
-                                ? (tree.orphanedNodes || []).map(node => ({
-                                      ...node,
-                                      status: null,
-                                      health: null
-                                  }))
-                                : [];
-                            const filteredRes = application.status.resources.concat(orphaned).filter(res => {
+                            const resourceNodes = (): any[] => {
+                                const statusByKey = new Map<string, models.ResourceStatus>();
+                                application.status.resources.forEach(res => statusByKey.set(AppUtils.nodeKey(res), res));
+                                const resources = new Map<string, any>();
+                                tree.nodes
+                                    .map(node => ({...node, orphaned: false}))
+                                    .concat(((pref.orphanedResources && tree.orphanedNodes) || []).map(node => ({...node, orphaned: true})))
+                                    .forEach(node => {
+                                        const resource: any = {...node};
+                                        resource.uid = node.uid;
+                                        const status = statusByKey.get(AppUtils.nodeKey(node));
+                                        if (status) {
+                                            resource.health = status.health;
+                                            resource.status = status.status;
+                                            resource.hook = status.hook;
+                                            resource.requiresPruning = status.requiresPruning;
+                                        }
+                                        resources.set(node.uid || AppUtils.nodeKey(node), resource);
+                                    });
+                                const resourcesRef = Array.from(resources.values());
+                                return resourcesRef;
+                            };
+
+                            const filteredRes = resourceNodes().filter(res => {
                                 const resNode: ResourceTreeNode = {...res, root: null, info: null, parentRefs: [], resourceVersion: '', uid: ''};
                                 resNode.root = resNode;
                                 return this.filterTreeNode(resNode, treeFilter);
                             });
+                            const openGroupNodeDetails = (groupdedNodeIds: string[]) => {
+                                const resources = resourceNodes();
+                                this.setState({
+                                    groupedResources: groupdedNodeIds
+                                        ? resources.filter(res => groupdedNodeIds.includes(res.uid) || groupdedNodeIds.includes(AppUtils.nodeKey(res)))
+                                        : []
+                                });
+                            };
 
                             const renderCommitMessage = (message: string) =>
                                 message.split(/\s/).map(part =>
@@ -158,47 +243,106 @@ export class ApplicationDetails extends React.Component<RouteComponentProps<{nam
                                         part + ' '
                                     )
                                 );
-
+                            const {Tree, Pods, Network, List} = AppsDetailsViewKey;
+                            const zoomNum = (pref.zoom * 100).toFixed(0);
+                            const setZoom = (s: number) => {
+                                let targetZoom: number = pref.zoom + s;
+                                if (targetZoom <= 0.05) {
+                                    targetZoom = 0.1;
+                                } else if (targetZoom > 2.0) {
+                                    targetZoom = 2.0;
+                                }
+                                services.viewPreferences.updatePreferences({appDetails: {...pref, zoom: targetZoom}});
+                            };
+                            const setFilterGraph = (filterGraph: any[]) => {
+                                this.setState({filteredGraph: filterGraph});
+                            };
+                            const toggleNameDirection = () => {
+                                this.setState({truncateNameOnRight: !this.state.truncateNameOnRight});
+                            };
+                            const expandAll = () => {
+                                this.setState({collapsedNodes: []});
+                            };
+                            const collapseAll = () => {
+                                const nodes = new Array<ResourceTreeNode>();
+                                tree.nodes
+                                    .map(node => ({...node, orphaned: false}))
+                                    .concat((tree.orphanedNodes || []).map(node => ({...node, orphaned: true})))
+                                    .forEach(node => {
+                                        const resourceNode: ResourceTreeNode = {...node};
+                                        nodes.push(resourceNode);
+                                    });
+                                const collapsedNodesList = this.state.collapsedNodes.slice();
+                                if (pref.view === 'network') {
+                                    const networkNodes = nodes.filter(node => node.networkingInfo);
+                                    networkNodes.forEach(parent => {
+                                        const parentId = parent.uid;
+                                        if (collapsedNodesList.indexOf(parentId) < 0) {
+                                            collapsedNodesList.push(parentId);
+                                        }
+                                    });
+                                    this.setState({collapsedNodes: collapsedNodesList});
+                                } else {
+                                    const managedKeys = new Set(application.status.resources.map(AppUtils.nodeKey));
+                                    nodes.forEach(node => {
+                                        if (!((node.parentRefs || []).length === 0 || managedKeys.has(AppUtils.nodeKey(node)))) {
+                                            node.parentRefs.forEach(parent => {
+                                                const parentId = parent.uid;
+                                                if (collapsedNodesList.indexOf(parentId) < 0) {
+                                                    collapsedNodesList.push(parentId);
+                                                }
+                                            });
+                                        }
+                                    });
+                                    collapsedNodesList.push(application.kind + '-' + application.metadata.namespace + '-' + application.metadata.name);
+                                    this.setState({collapsedNodes: collapsedNodesList});
+                                }
+                            };
                             return (
                                 <div className='application-details'>
                                     <Page
-                                        title='Application Details'
+                                        title={this.props.match.params.name + ' - ' + this.getPageTitle(pref.view)}
+                                        useTitleOnly={true}
+                                        topBarTitle={this.getPageTitle(pref.view)}
                                         toolbar={{
-                                            breadcrumbs: [{title: 'Applications', path: '/applications'}, {title: this.props.match.params.name}],
+                                            breadcrumbs: [
+                                                {title: 'Applications', path: '/applications'},
+                                                {title: <ApplicationsDetailsAppDropdown appName={this.props.match.params.name} />}
+                                            ],
                                             actionMenu: {items: this.getApplicationActionMenu(application, true)},
                                             tools: (
                                                 <React.Fragment key='app-list-tools'>
                                                     <div className='application-details__view-type'>
                                                         <i
-                                                            className={classNames('fa fa-sitemap', {selected: pref.view === 'tree'})}
+                                                            className={classNames('fa fa-sitemap', {selected: pref.view === Tree})}
                                                             title='Tree'
                                                             onClick={() => {
-                                                                this.appContext.apis.navigation.goto('.', {view: 'tree'}, {replace: true});
-                                                                services.viewPreferences.updatePreferences({appDetails: {...pref, view: 'tree'}});
+                                                                this.appContext.apis.navigation.goto('.', {view: Tree});
+                                                                services.viewPreferences.updatePreferences({appDetails: {...pref, view: Tree}});
                                                             }}
                                                         />
                                                         <i
-                                                            className={classNames('fa fa-th', {selected: pref.view === 'pods'})}
+                                                            className={classNames('fa fa-th', {selected: pref.view === Pods})}
                                                             title='Pods'
                                                             onClick={() => {
-                                                                this.appContext.apis.navigation.goto('.', {view: 'pods'}, {replace: true});
-                                                                services.viewPreferences.updatePreferences({appDetails: {...pref, view: 'pods'}});
+                                                                this.appContext.apis.navigation.goto('.', {view: Pods});
+                                                                services.viewPreferences.updatePreferences({appDetails: {...pref, view: Pods}});
                                                             }}
                                                         />
                                                         <i
-                                                            className={classNames('fa fa-network-wired', {selected: pref.view === 'network'})}
+                                                            className={classNames('fa fa-network-wired', {selected: pref.view === Network})}
                                                             title='Network'
                                                             onClick={() => {
-                                                                this.appContext.apis.navigation.goto('.', {view: 'network'}, {replace: true});
-                                                                services.viewPreferences.updatePreferences({appDetails: {...pref, view: 'network'}});
+                                                                this.appContext.apis.navigation.goto('.', {view: Network});
+                                                                services.viewPreferences.updatePreferences({appDetails: {...pref, view: Network}});
                                                             }}
                                                         />
                                                         <i
-                                                            className={classNames('fa fa-th-list', {selected: pref.view === 'list'})}
+                                                            className={classNames('fa fa-th-list', {selected: pref.view === List})}
                                                             title='List'
                                                             onClick={() => {
-                                                                this.appContext.apis.navigation.goto('.', {view: 'list'}, {replace: true});
-                                                                services.viewPreferences.updatePreferences({appDetails: {...pref, view: 'list'}});
+                                                                this.appContext.apis.navigation.goto('.', {view: List});
+                                                                services.viewPreferences.updatePreferences({appDetails: {...pref, view: List}});
                                                             }}
                                                         />
                                                     </div>
@@ -216,7 +360,57 @@ export class ApplicationDetails extends React.Component<RouteComponentProps<{nam
                                         <div className='application-details__tree'>
                                             {refreshing && <p className='application-details__refreshing-label'>Refreshing</p>}
                                             {((pref.view === 'tree' || pref.view === 'network') && (
-                                                <Filters pref={pref} tree={tree} onSetFilter={setFilter} onClearFilter={clearFilter}>
+                                                <>
+                                                    <DataLoader load={() => services.viewPreferences.getPreferences()}>
+                                                        {viewPref => (
+                                                            <ApplicationDetailsFilters
+                                                                pref={pref}
+                                                                tree={tree}
+                                                                onSetFilter={setFilter}
+                                                                onClearFilter={clearFilter}
+                                                                collapsed={viewPref.hideSidebar}
+                                                                resourceNodes={this.state.filteredGraph}
+                                                            />
+                                                        )}
+                                                    </DataLoader>
+                                                    <div className='graph-options-panel'>
+                                                        <a
+                                                            className={`group-nodes-button`}
+                                                            onClick={() => {
+                                                                toggleNameDirection();
+                                                            }}
+                                                            title={this.state.truncateNameOnRight ? 'Truncate resource name right' : 'Truncate resource name left'}>
+                                                            <i
+                                                                className={classNames({
+                                                                    'fa fa-align-right': this.state.truncateNameOnRight,
+                                                                    'fa fa-align-left': !this.state.truncateNameOnRight
+                                                                })}
+                                                            />
+                                                        </a>
+                                                        {(pref.view === 'tree' || pref.view === 'network') && (
+                                                            <a
+                                                                className={`group-nodes-button group-nodes-button${!pref.groupNodes ? '' : '-on'}`}
+                                                                title={pref.view === 'tree' ? 'Group Nodes' : 'Collapse Pods'}
+                                                                onClick={() => this.toggleCompactView(pref)}>
+                                                                <i className={classNames('fa fa-object-group fa-fw')} />
+                                                            </a>
+                                                        )}
+                                                        <span className={`separator`} />
+                                                        <a className={`group-nodes-button`} onClick={() => expandAll()} title='Expand all child nodes of all parent nodes'>
+                                                            <i className='fa fa-plus fa-fw' />
+                                                        </a>
+                                                        <a className={`group-nodes-button`} onClick={() => collapseAll()} title='Collapse all child nodes of all parent nodes'>
+                                                            <i className='fa fa-minus fa-fw' />
+                                                        </a>
+                                                        <span className={`separator`} />
+                                                        <a className={`group-nodes-button`} onClick={() => setZoom(0.1)} title='Zoom in'>
+                                                            <i className='fa fa-search-plus fa-fw' />
+                                                        </a>
+                                                        <a className={`group-nodes-button`} onClick={() => setZoom(-0.1)} title='Zoom out'>
+                                                            <i className='fa fa-search-minus fa-fw' />
+                                                        </a>
+                                                        <div className={`zoom-value`}>{zoomNum}%</div>
+                                                    </div>
                                                     <ApplicationResourceTree
                                                         nodeFilter={node => this.filterTreeNode(node, treeFilter)}
                                                         selectedNodeFullName={this.selectedNodeKey}
@@ -226,13 +420,22 @@ export class ApplicationDetails extends React.Component<RouteComponentProps<{nam
                                                                 this.getApplicationActionMenu(application, false)
                                                             )
                                                         }
+                                                        showCompactNodes={pref.groupNodes}
                                                         tree={tree}
                                                         app={application}
                                                         showOrphanedResources={pref.orphanedResources}
                                                         useNetworkingHierarchy={pref.view === 'network'}
                                                         onClearFilter={clearFilter}
+                                                        onGroupdNodeClick={groupdedNodeIds => openGroupNodeDetails(groupdedNodeIds)}
+                                                        zoom={pref.zoom}
+                                                        appContext={this.appContext}
+                                                        nameDirection={this.state.truncateNameOnRight}
+                                                        filters={pref.resourceFilter}
+                                                        setTreeFilterGraph={setFilterGraph}
+                                                        setNodeExpansion={(node, isExpanded) => this.setNodeExpansion(node, isExpanded)}
+                                                        getNodeExpansion={node => this.getNodeExpansion(node)}
                                                     />
-                                                </Filters>
+                                                </>
                                             )) ||
                                                 (pref.view === 'pods' && (
                                                     <PodView
@@ -244,43 +447,101 @@ export class ApplicationDetails extends React.Component<RouteComponentProps<{nam
                                                                 this.getApplicationActionMenu(application, false)
                                                             )
                                                         }
+                                                        quickStarts={node => AppUtils.renderResourceButtons(node, application, tree, this.appContext, this.appChanged)}
                                                     />
                                                 )) || (
-                                                    <div>
-                                                        <Filters pref={pref} tree={tree} onSetFilter={setFilter} onClearFilter={clearFilter}>
-                                                            {(filteredRes.length > 0 && (
-                                                                <Paginate
-                                                                    page={this.state.page}
-                                                                    data={filteredRes}
-                                                                    onPageChange={page => this.setState({page})}
-                                                                    preferencesKey='application-details'>
-                                                                    {data => (
-                                                                        <ApplicationResourceList
-                                                                            onNodeClick={fullName => this.selectNode(fullName)}
-                                                                            resources={data}
-                                                                            nodeMenu={node =>
-                                                                                AppUtils.renderResourceMenu(
-                                                                                    {...node, root: node},
-                                                                                    application,
-                                                                                    tree,
-                                                                                    this.appContext,
-                                                                                    this.appChanged,
-                                                                                    () => this.getApplicationActionMenu(application, false)
-                                                                                )
-                                                                            }
+                                                    <DataLoader
+                                                        input={{filteredRes: filteredRes.map(res => AppUtils.nodeKey(res))}}
+                                                        load={async () => {
+                                                            const liveStatePromises = filteredRes.map(async resource => {
+                                                                const resourceRow: any = {...resource, group: resource.group || ''};
+                                                                const liveState =
+                                                                    typeof resource.group !== 'undefined' &&
+                                                                    (await services.applications
+                                                                        .getResource(application.metadata.name, application.metadata.namespace, resource)
+                                                                        .catch(() => null));
+                                                                if (liveState?.metadata?.annotations?.[models.AnnotationHookKey]) {
+                                                                    resourceRow.syncOrder = liveState?.metadata.annotations[models.AnnotationHookKey];
+                                                                    if (liveState?.metadata?.annotations?.[models.AnnotationSyncWaveKey]) {
+                                                                        resourceRow.syncOrder =
+                                                                            resourceRow.syncOrder + ': ' + liveState?.metadata.annotations[models.AnnotationSyncWaveKey];
+                                                                    }
+                                                                } else {
+                                                                    resourceRow.syncOrder = '-';
+                                                                }
+                                                                return resourceRow;
+                                                            });
+                                                            return await Promise.all(liveStatePromises);
+                                                        }}>
+                                                        {(filteredResWithSyncInfo: any[]) => (
+                                                            <div>
+                                                                <DataLoader load={() => services.viewPreferences.getPreferences()}>
+                                                                    {viewPref => (
+                                                                        <ApplicationDetailsFilters
+                                                                            pref={pref}
+                                                                            tree={tree}
+                                                                            onSetFilter={setFilter}
+                                                                            onClearFilter={clearFilter}
+                                                                            collapsed={viewPref.hideSidebar}
+                                                                            resourceNodes={filteredResWithSyncInfo}
                                                                         />
                                                                     )}
-                                                                </Paginate>
-                                                            )) || (
-                                                                <EmptyState icon='fa fa-search'>
-                                                                    <h4>No resources found</h4>
-                                                                    <h5>Try to change filter criteria</h5>
-                                                                </EmptyState>
-                                                            )}
-                                                        </Filters>
-                                                    </div>
+                                                                </DataLoader>
+                                                                {(filteredResWithSyncInfo.length > 0 && (
+                                                                    <Paginate
+                                                                        page={this.state.page}
+                                                                        data={filteredResWithSyncInfo}
+                                                                        onPageChange={page => this.setState({page})}
+                                                                        preferencesKey='application-details'>
+                                                                        {data => (
+                                                                            <ApplicationResourceList
+                                                                                onNodeClick={fullName => this.selectNode(fullName)}
+                                                                                resources={data}
+                                                                                nodeMenu={node =>
+                                                                                    AppUtils.renderResourceMenu(
+                                                                                        {...node, root: node},
+                                                                                        application,
+                                                                                        tree,
+                                                                                        this.appContext,
+                                                                                        this.appChanged,
+                                                                                        () => this.getApplicationActionMenu(application, false)
+                                                                                    )
+                                                                                }
+                                                                            />
+                                                                        )}
+                                                                    </Paginate>
+                                                                )) || (
+                                                                    <EmptyState icon='fa fa-search'>
+                                                                        <h4>No resources found</h4>
+                                                                        <h5>Try to change filter criteria</h5>
+                                                                    </EmptyState>
+                                                                )}
+                                                            </div>
+                                                        )}
+                                                    </DataLoader>
                                                 )}
                                         </div>
+                                        <SlidingPanel isShown={this.state.groupedResources.length > 0} onClose={() => this.closeGroupedNodesPanel()}>
+                                            <div className='application-details__sliding-panel-pagination-wrap'>
+                                                <Paginate
+                                                    page={this.state.slidingPanelPage}
+                                                    data={this.state.groupedResources}
+                                                    onPageChange={page => this.setState({slidingPanelPage: page})}
+                                                    preferencesKey='grouped-nodes-details'>
+                                                    {data => (
+                                                        <ApplicationResourceList
+                                                            onNodeClick={fullName => this.selectNode(fullName)}
+                                                            resources={data}
+                                                            nodeMenu={node =>
+                                                                AppUtils.renderResourceMenu({...node, root: node}, application, tree, this.appContext, this.appChanged, () =>
+                                                                    this.getApplicationActionMenu(application, false)
+                                                                )
+                                                            }
+                                                        />
+                                                    )}
+                                                </Paginate>
+                                            </div>
+                                        </SlidingPanel>
                                         <SlidingPanel isShown={selectedNode != null || isAppSelected} onClose={() => this.selectNode('')}>
                                             <ResourceDetails
                                                 tree={tree}
@@ -314,7 +575,10 @@ export class ApplicationDetails extends React.Component<RouteComponentProps<{nam
                                         </SlidingPanel>
                                         <SlidingPanel isShown={!!this.state.revision} isMiddle={true} onClose={() => this.setState({revision: null})}>
                                             {this.state.revision && (
-                                                <DataLoader load={() => services.applications.revisionMetadata(application.metadata.name, this.state.revision)}>
+                                                <DataLoader
+                                                    load={() =>
+                                                        services.applications.revisionMetadata(application.metadata.name, application.metadata.namespace, this.state.revision)
+                                                    }>
                                                     {metadata => (
                                                         <div className='white-box' style={{marginTop: '1.5em'}}>
                                                             <div className='white-box__details'>
@@ -417,7 +681,7 @@ export class ApplicationDetails extends React.Component<RouteComponentProps<{nam
                             items={[
                                 {
                                     title: 'Hard Refresh',
-                                    action: () => !refreshing && services.applications.get(app.metadata.name, 'hard')
+                                    action: () => !refreshing && services.applications.get(app.metadata.name, app.metadata.namespace, 'hard')
                                 }
                             ]}
                             anchor={() => <i className='fa fa-caret-down' />}
@@ -427,7 +691,7 @@ export class ApplicationDetails extends React.Component<RouteComponentProps<{nam
                 disabled: !!refreshing,
                 action: () => {
                     if (!refreshing) {
-                        services.applications.get(app.metadata.name, 'normal');
+                        services.applications.get(app.metadata.name, app.metadata.namespace, 'normal');
                         AppUtils.setAppRefreshing(app);
                         this.appChanged.next(app);
                     }
@@ -459,8 +723,8 @@ export class ApplicationDetails extends React.Component<RouteComponentProps<{nam
         return false;
     }
 
-    private loadAppInfo(name: string): Observable<{application: appModels.Application; tree: appModels.ApplicationTree}> {
-        return from(services.applications.get(name))
+    private loadAppInfo(name: string, appNamespace: string): Observable<{application: appModels.Application; tree: appModels.ApplicationTree}> {
+        return from(services.applications.get(name, appNamespace))
             .pipe(
                 mergeMap(app => {
                     const fallbackTree = {
@@ -474,7 +738,7 @@ export class ApplicationDetails extends React.Component<RouteComponentProps<{nam
                             this.appChanged.pipe(filter(item => !!item)),
                             AppUtils.handlePageVisibility(() =>
                                 services.applications
-                                    .watch({name})
+                                    .watch({name, appNamespace})
                                     .pipe(
                                         map(watchEvent => {
                                             if (watchEvent.type === 'DELETED') {
@@ -489,10 +753,10 @@ export class ApplicationDetails extends React.Component<RouteComponentProps<{nam
                         ),
                         merge(
                             from([fallbackTree]),
-                            services.applications.resourceTree(name).catch(() => fallbackTree),
+                            services.applications.resourceTree(name, appNamespace).catch(() => fallbackTree),
                             AppUtils.handlePageVisibility(() =>
                                 services.applications
-                                    .watchResourceTree(name)
+                                    .watchResourceTree(name, appNamespace)
                                     .pipe(repeat())
                                     .pipe(retryWhen(errors => errors.pipe(delay(500))))
                             )
@@ -506,11 +770,11 @@ export class ApplicationDetails extends React.Component<RouteComponentProps<{nam
 
     private onAppDeleted() {
         this.appContext.apis.notifications.show({type: NotificationType.Success, content: `Application '${this.props.match.params.name}' was deleted`});
-        this.appContext.apis.navigation.goto('/applications', {}, {replace: true});
+        this.appContext.apis.navigation.goto('/applications');
     }
 
     private async updateApp(app: appModels.Application, query: {validate?: boolean}) {
-        const latestApp = await services.applications.get(app.metadata.name);
+        const latestApp = await services.applications.get(app.metadata.name, app.metadata.namespace);
         latestApp.metadata.labels = app.metadata.labels;
         latestApp.metadata.annotations = app.metadata.annotations;
         latestApp.spec = app.spec;
@@ -586,8 +850,8 @@ Are you sure you want to disable auto-sync and rollback application '${this.prop
                     update.spec.syncPolicy = {automated: null};
                     await services.applications.update(update);
                 }
-                await services.applications.rollback(this.props.match.params.name, revisionHistory.id);
-                this.appChanged.next(await services.applications.get(this.props.match.params.name));
+                await services.applications.rollback(this.props.match.params.name, this.appNamespace, revisionHistory.id);
+                this.appChanged.next(await services.applications.get(this.props.match.params.name, this.appNamespace));
                 this.setRollbackPanelVisible(-1);
             }
         } catch (e) {
@@ -603,6 +867,6 @@ Are you sure you want to disable auto-sync and rollback application '${this.prop
     }
 
     private async deleteApplication() {
-        await AppUtils.deleteApplication(this.props.match.params.name, this.appContext.apis);
+        await AppUtils.deleteApplication(this.props.match.params.name, this.appNamespace, this.appContext.apis);
     }
 }

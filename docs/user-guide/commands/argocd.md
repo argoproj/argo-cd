@@ -12,7 +12,7 @@ argocd [flags]
       --auth-token string               Authentication token
       --client-crt string               Client certificate file
       --client-crt-key string           Client certificate key file
-      --config string                   Path to Argo CD config (default "/home/user/.argocd/config")
+      --config string                   Path to Argo CD config (default "/home/user/.config/argocd/config")
       --core                            If set to true then CLI talks directly to Kubernetes instead of talking to Argo CD API server
       --grpc-web                        Enables gRPC-web protocol. Useful if Argo CD server is behind proxy which does not support HTTP2.
       --grpc-web-root-path string       Enables gRPC-web protocol. Useful if Argo CD server is behind proxy which does not support HTTP2. Set web root.
@@ -20,6 +20,7 @@ argocd [flags]
   -h, --help                            help for argocd
       --http-retry-max int              Maximum number of retries to establish http connection to Argo CD server
       --insecure                        Skip server certificate and domain verification
+      --kube-context string             Directs the command to the given kube-context
       --logformat string                Set the logging format. One of: text|json (default "text")
       --loglevel string                 Set the logging level. One of: debug|info|warn|error (default "info")
       --plaintext                       Disable TLS
@@ -34,6 +35,7 @@ argocd [flags]
 * [argocd account](argocd_account.md)	 - Manage account settings
 * [argocd admin](argocd_admin.md)	 - Contains a set of commands useful for Argo CD administrators and requires direct Kubernetes access
 * [argocd app](argocd_app.md)	 - Manage applications
+* [argocd appset](argocd_appset.md)	 - Manage ApplicationSets
 * [argocd cert](argocd_cert.md)	 - Manage repository certificates and SSH known hosts entries
 * [argocd cluster](argocd_cluster.md)	 - Manage cluster credentials
 * [argocd completion](argocd_completion.md)	 - output shell completion code for the specified shell (bash or zsh)

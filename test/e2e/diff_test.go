@@ -22,13 +22,13 @@ metadata:
 spec:
   containers:
     - name: main
-      image: alpine:3.10.2
+      image: quay.io/argoprojlabs/argocd-e2e-container:0.1
       imagePullPolicy: IfNotPresent
       command:
         - "true"
   restartPolicy: Never
 `).
-		Create().
+		CreateApp().
 		Sync().
 		Then().
 		Expect(OperationPhaseIs(OperationSucceeded)).
@@ -43,7 +43,7 @@ metadata:
 spec:
   containers:
     - name: main
-      image: alpine:3.10.2
+      image: quay.io/argoprojlabs/argocd-e2e-container:0.1
       imagePullPolicy: IfNotPresent
       command:
         - "true"

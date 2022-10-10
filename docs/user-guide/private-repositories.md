@@ -22,8 +22,6 @@ argocd repo add https://github.com/argoproj/argocd-example-apps --username <user
 
 or UI:
 
-> v1.2 or later
-
 1. Navigate to `Settings/Repositories`
 
     ![connect repo overview](../assets/repo-add-overview.png)
@@ -36,11 +34,6 @@ or UI:
 
 1. Click `Connect` to test the connection and have the repository added 
 
-> earlier than v1.2
-
-1. Navigate to `Settings/Repositories`
-1. Click `Connect Repo` button and enter HTTPS credentials
-
 ![connect repo](../assets/connect-repo.png)
 
 #### Access Token
@@ -50,6 +43,7 @@ Instead of using username and password you might use access token. Following ins
 * [GitHub](https://help.github.com/en/articles/creating-a-personal-access-token-for-the-command-line)
 * [GitLab](https://docs.gitlab.com/ee/user/project/deploy_tokens/)
 * [Bitbucket](https://confluence.atlassian.com/bitbucketserver/personal-access-tokens-939515499.html)
+* [Azure Repos](https://docs.microsoft.com/en-us/azure/devops/organizations/accounts/use-personal-access-tokens-to-authenticate?view=azure-devops&tabs=preview-page)
 
 Then, connect the repository using any non-empty string as username and the access token value as a password. 
 
@@ -57,8 +51,6 @@ Then, connect the repository using any non-empty string as username and the acce
     For some services, you might have to specify your account name as the username instead of any string.
 
 ### TLS Client Certificates for HTTPS repositories
-
-> v1.2 and later
 
 If your repository server requires you to use TLS client certificates for authentication, you can configure ArgoCD repositories to make use of them. For this purpose, `--tls-client-cert-path` and `--tls-client-cert-key-path` switches to the `argocd repo add` command can be used to specify the files on your local system containing client certificate and the corresponding key, respectively:
 
@@ -80,9 +72,13 @@ Your TLS client certificate and corresponding key can also be configured using t
 
 Private repositories that require an SSH private key have a URL that typically start with `git@` or `ssh://` rather than `https://`.  
 
-> v1.2 or later
+You can configure your Git repository using SSH either using the CLI or the UI.
 
-You can configure your Git repository using HTTPS either using the CLI or the UI.
+!!! note
+    Argo CD 2.4 upgraded to OpenSSH 8.9. OpenSSH 8.8 
+    [dropped support for the `ssh-rsa` SHA-1 key signature algorithm](https://www.openssh.com/txt/release-8.8).
+    See the [2.3 to 2.4 upgrade guide](../operator-manual/upgrading/2.3-2.4.md) for details about testing SSH servers 
+    for compatibility with Argo CD and for working around servers that do not support newer algorithms.
 
 Using the CLI:
 
@@ -108,26 +104,12 @@ Using the UI:
 !!!note 
     When your SSH repository is served from a non-standard port, you have to use `ssh://`-style URLs to specify your repository. The scp-style `git@yourgit.com:yourrepo` URLs do **not** support port specification, and will treat any port number as part of the repository's path.
 
-> earlier than v1.2
-
-The Argo CD UI don't support configuring SSH credentials. The SSH credentials can only be configured using the Argo CD CLI:
-
-```
-argocd repo add git@github.com:argoproj/argocd-example-apps.git --ssh-private-key-path ~/.ssh/id_rsa
-```
-
 ### GitHub App Credential
 
 Private repositories that are hosted on GitHub.com or GitHub Enterprise can be accessed using credentials from a GitHub Application. Consult the [GitHub documentation](https://docs.github.com/en/developers/apps/about-apps#about-github-apps) on how to create an application.
 
 !!!note
     Ensure your application has at least `Read-only` permissions to the `Contents` of the repository. This is the minimum requirement.
-
-> previous to v1.9
-
-GitHub App credentials are not supported.
-
-> v1.9 or later
 
 You can configure access to your Git repository hosted by GitHub.com or GitHub Enterprise using the GitHub App method by either using the CLI or the UI.
 
@@ -141,11 +123,11 @@ Using the UI:
 
 1. Navigate to `Settings/Repositories`
 
-   ![connect repo overview](../assets/repo-add-overview.png)
+    ![connect repo overview](../assets/repo-add-overview.png)
 
 1. Click `Connect Repo using GitHub App` button, enter the URL, App Id, Installation Id, and the app's private key.
 
-   ![connect repo](../assets/repo-add-github-app.png)
+    ![connect repo](../assets/repo-add-github-app.png)
 
 1. Click `Connect` to test the connection and have the repository added
 
@@ -153,12 +135,6 @@ Using the UI:
     When pasting GitHub App private key in the UI, make sure there are no unintended line breaks or additional characters in the text area
 
 ## Credential templates
-
-> previous to v1.4
-
-Credential templates are available only via declarative setup, see [Repository credentials](../../operator-manual/declarative-setup#repository-credentials) in Operator Manual.
-
-> v1.4 and later
 
 You can also set up credentials to serve as templates for connecting repositories, without having to repeat credential configuration. For example, if you setup credential templates for the URL prefix `https://github.com/argoproj`, these credentials will be used for all repositories with this URL as prefix (e.g. `https://github.com/argoproj/argocd-example-apps`) that do not have their own credentials configured.
 
@@ -200,8 +176,6 @@ FATA[0000] rpc error: code = Unknown desc = authentication required
 ```
 
 ## Self-signed & Untrusted TLS Certificates
-
-> v1.2 or later
 
 If you are connecting a repository on a HTTPS server using a self-signed certificate, or a certificate signed by a custom Certificate Authority (CA) which are not known to ArgoCD, the repository will not be added due to security reasons. This is indicated by an error message such as `x509: certificate signed by unknown authority`.
 
@@ -281,17 +255,9 @@ It is possible to add and remove TLS certificates using the ArgoCD web UI:
 You can also manage TLS certificates in a declarative, self-managed ArgoCD setup. All TLS certificates are stored in the ConfigMap object `argocd-tls-cert-cm`.
 Please refer to the [Operator Manual](../../operator-manual/declarative-setup/#repositories-using-self-signed-tls-certificates-or-are-signed-by-custom-ca) for more information.
 
-> Before v1.2
-
-We do not currently have first-class support for this. See [#1513](https://github.com/argoproj/argo-cd/issues/1513).
-
-As a work-around, you can customize your Argo CD image. See [#1344](https://github.com/argoproj/argo-cd/issues/1344#issuecomment-479811810)
-
 ## Unknown SSH Hosts
 
 If you are using a privately hosted Git service over SSH, then you have the following  options:
-
-> v1.2 or later
 
 1. You can let ArgoCD connect the repository in an insecure way, without verifying the server's SSH host key at all. This can be accomplished by using the `--insecure-skip-server-verification` flag when adding the repository with the `argocd` CLI utility. However, this should be done only for non-production setups, as it imposes a serious security issue through possible man-in-the-middle attacks.
 
@@ -366,36 +332,13 @@ It is possible to add and remove SSH known hosts entries using the ArgoCD web UI
 
 ### Managing SSH known hosts data using declarative setup
 
-You can also manage SSH known hosts entries in a declarative, self-managed ArgoCD setup. All SSH public host keys are stored in the ConfigMap object `argocd-ssh-known-hosts-cm`. For more details, please refer to the [Operator Manual](../../operator-manual/declarative-setup/#ssh-known-host-public-keys)
-
-> Before v1.2
-
- 
-(1) You can customize the Argo CD Docker image by adding the host's SSH public key to `/etc/ssh/ssh_known_hosts`. Additional entries to this file can be generated using the `ssh-keyscan` utility (e.g. `ssh-keyscan your-private-git-server.com`. For more information see [example](https://github.com/argoproj/argo-cd/tree/master/examples/known-hosts) which demonstrates how `/etc/ssh/ssh_known_hosts` can be customized.
-
-!!! note
-    The `/etc/ssh/ssh_known_hosts` should include Git host on each Argo CD deployment as well as on a computer where `argocd repo add` is executed. After resolving issue
-    [#1514](https://github.com/argoproj/argo-cd/issues/1514) only `argocd-repo-server` deployment has to be customized.
-
-(1) Add repository using Argo CD CLI and `--insecure-ignore-host-key` flag:
-
-```bash
-argocd repo add git@github.com:argoproj/argocd-example-apps.git --ssh-private-key-path ~/.ssh/id_rsa --insecure-ignore-host-key 
-```
-
-!!! warning "Don't use in production"
-    The `--insecure-ignore-host-key` should not be used in production as this is subject to man-in-the-middle attacks. 
-
-!!! warning "This does not work for Kustomize remote bases or custom plugins"
-    For Kustomize support, see [#827](https://github.com/argoproj/argo-cd/issues/827).
+You can also manage SSH known hosts entries in a declarative, self-managed ArgoCD setup. All SSH public host keys are stored in the ConfigMap object `argocd-ssh-known-hosts-cm`. For more details, please refer to the [Operator Manual](../operator-manual/declarative-setup.md#ssh-known-host-public-keys).
 
 ## Git Submodules
-
-> v1.4 or later
 
 Submodules are supported and will be picked up automatically. If the submodule repository requires authentication then the credentials will need to match the credentials of the parent repository. Set ARGOCD_GIT_MODULES_ENABLED=false to disable submodule support
 
 ## Declarative Configuration
 
-See [declarative setup](../../operator-manual/declarative-setup#Repositories)
+See [declarative setup](../operator-manual/declarative-setup.md#repositories)
 

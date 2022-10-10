@@ -46,7 +46,7 @@ would result in the application being redeployed with the new image.
 Since commit access to the repository is unavailable, it is useful to be able to install charts from
 the public repository and customize the deployment with different parameters, without resorting to
 forking the repository to make the changes. For example, to install Redis from the Helm chart
-repository and customize the the database password, you would run:
+repository and customize the database password, you would run:
 
 ```bash
 argocd app create redis --repo https://github.com/helm/charts.git --path stable/redis --dest-server https://kubernetes.default.svc --dest-namespace default -p password=abc123
@@ -77,8 +77,8 @@ The `.argocd-source` is trying to solve two following main use cases:
 
 - Provide the unified way to "override" application parameters in Git and enable the "write back" feature
 for projects like [argocd-image-updater](https://github.com/argoproj-labs/argocd-image-updater).
-- Support "discovering" applications in the Git repository by projects like [applicationset](https://github.com/argoproj-labs/applicationset)
-(see [git files generator](https://github.com/argoproj-labs/applicationset/blob/master/examples/git-files-discovery.yaml))
+- Support "discovering" applications in the Git repository by projects like [applicationset](https://github.com/argoproj/applicationset)
+(see [git files generator](https://github.com/argoproj/argo-cd/blob/master/applicationset/examples/git-generator-files-discovery/git-generator-files.yaml))
 
 > The following is available from v1.9 or later
 

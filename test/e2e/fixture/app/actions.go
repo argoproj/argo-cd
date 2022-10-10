@@ -2,7 +2,7 @@ package app
 
 import (
 	"fmt"
-	"io/ioutil"
+	"os"
 
 	log "github.com/sirupsen/logrus"
 	v1 "k8s.io/apimachinery/pkg/apis/meta/v1"
@@ -66,7 +66,7 @@ func (a *Actions) AddSignedFile(fileName, fileContents string) *Actions {
 
 func (a *Actions) CreateFromPartialFile(data string, flags ...string) *Actions {
 	a.context.t.Helper()
-	tmpFile, err := ioutil.TempFile("", "")
+	tmpFile, err := os.CreateTemp("", "")
 	errors.CheckError(err)
 	_, err = tmpFile.Write([]byte(data))
 	errors.CheckError(err)
@@ -74,11 +74,14 @@ func (a *Actions) CreateFromPartialFile(data string, flags ...string) *Actions {
 	args := append([]string{
 		"app", "create",
 		"-f", tmpFile.Name(),
-		"--name", a.context.name,
+		"--name", a.context.AppName(),
 		"--repo", fixture.RepoURL(a.context.repoURLType),
 		"--dest-server", a.context.destServer,
 		"--dest-namespace", fixture.DeploymentNamespace(),
 	}, flags...)
+	if a.context.appNamespace != "" {
+		args = append(args, "--app-namespace", a.context.appNamespace)
+	}
 	defer tmpFile.Close()
 	a.runCli(args...)
 	return a
@@ -87,7 +90,8 @@ func (a *Actions) CreateFromFile(handler func(app *Application), flags ...string
 	a.context.t.Helper()
 	app := &Application{
 		ObjectMeta: v1.ObjectMeta{
-			Name: a.context.name,
+			Name:      a.context.AppName(),
+			Namespace: a.context.AppNamespace(),
 		},
 		Spec: ApplicationSpec{
 			Project: a.context.project,
@@ -100,11 +104,6 @@ func (a *Actions) CreateFromFile(handler func(app *Application), flags ...string
 				Namespace: fixture.DeploymentNamespace(),
 			},
 		},
-	}
-	if a.context.env != "" {
-		app.Spec.Source.Ksonnet = &ApplicationSourceKsonnet{
-			Environment: a.context.env,
-		}
 	}
 	if a.context.namePrefix != "" || a.context.nameSuffix != "" {
 		app.Spec.Source.Kustomize = &ApplicationSourceKustomize{
@@ -128,7 +127,7 @@ func (a *Actions) CreateFromFile(handler func(app *Application), flags ...string
 
 	handler(app)
 	data := grpc.MustMarshal(app)
-	tmpFile, err := ioutil.TempFile("", "")
+	tmpFile, err := os.CreateTemp("", "")
 	errors.CheckError(err)
 	_, err = tmpFile.Write(data)
 	errors.CheckError(err)
@@ -143,14 +142,14 @@ func (a *Actions) CreateFromFile(handler func(app *Application), flags ...string
 }
 
 func (a *Actions) CreateWithNoNameSpace(args ...string) *Actions {
-	args = a.prepareCreateArgs(args)
+	args = a.prepareCreateAppArgs(args)
 	//  are you adding new context values? if you only use them for this func, then use args instead
 	a.runCli(args...)
 	return a
 }
 
-func (a *Actions) Create(args ...string) *Actions {
-	args = a.prepareCreateArgs(args)
+func (a *Actions) CreateApp(args ...string) *Actions {
+	args = a.prepareCreateAppArgs(args)
 	args = append(args, "--dest-namespace", fixture.DeploymentNamespace())
 
 	//  are you adding new context values? if you only use them for this func, then use args instead
@@ -159,14 +158,18 @@ func (a *Actions) Create(args ...string) *Actions {
 	return a
 }
 
-func (a *Actions) prepareCreateArgs(args []string) []string {
+func (a *Actions) prepareCreateAppArgs(args []string) []string {
 	a.context.t.Helper()
 	args = append([]string{
-		"app", "create", a.context.name,
+		"app", "create", a.context.AppQualifiedName(),
 		"--repo", fixture.RepoURL(a.context.repoURLType),
-		"--dest-server", a.context.destServer,
 	}, args...)
 
+	if a.context.destName != "" {
+		args = append(args, "--dest-name", a.context.destName)
+	} else {
+		args = append(args, "--dest-server", a.context.destServer)
+	}
 	if a.context.path != "" {
 		args = append(args, "--path", a.context.path)
 	}
@@ -200,6 +203,12 @@ func (a *Actions) prepareCreateArgs(args []string) []string {
 	if a.context.revision != "" {
 		args = append(args, "--revision", a.context.revision)
 	}
+	if a.context.helmPassCredentials {
+		args = append(args, "--helm-pass-credentials")
+	}
+	if a.context.helmSkipCrds {
+		args = append(args, "--helm-skip-crds")
+	}
 	return args
 }
 
@@ -213,7 +222,7 @@ func (a *Actions) DeclarativeWithCustomRepo(filename string, repoURL string) *Ac
 	values := map[string]interface{}{
 		"ArgoCDNamespace":     fixture.ArgoCDNamespace,
 		"DeploymentNamespace": fixture.DeploymentNamespace(),
-		"Name":                a.context.name,
+		"Name":                a.context.AppName(),
 		"Path":                a.context.path,
 		"Project":             a.context.project,
 		"RepoURL":             repoURL,
@@ -225,13 +234,13 @@ func (a *Actions) DeclarativeWithCustomRepo(filename string, repoURL string) *Ac
 
 func (a *Actions) PatchApp(patch string) *Actions {
 	a.context.t.Helper()
-	a.runCli("app", "patch", a.context.name, "--patch", patch)
+	a.runCli("app", "patch", a.context.AppQualifiedName(), "--patch", patch)
 	return a
 }
 
 func (a *Actions) AppSet(flags ...string) *Actions {
 	a.context.t.Helper()
-	args := []string{"app", "set", a.context.name}
+	args := []string{"app", "set", a.context.AppQualifiedName()}
 	args = append(args, flags...)
 	a.runCli(args...)
 	return a
@@ -239,7 +248,7 @@ func (a *Actions) AppSet(flags ...string) *Actions {
 
 func (a *Actions) AppUnSet(flags ...string) *Actions {
 	a.context.t.Helper()
-	args := []string{"app", "unset", a.context.name}
+	args := []string{"app", "unset", a.context.AppQualifiedName()}
 	args = append(args, flags...)
 	a.runCli(args...)
 	return a
@@ -249,7 +258,7 @@ func (a *Actions) Sync(args ...string) *Actions {
 	a.context.t.Helper()
 	args = append([]string{"app", "sync"}, args...)
 	if a.context.name != "" {
-		args = append(args, a.context.name)
+		args = append(args, a.context.AppQualifiedName())
 	}
 	args = append(args, "--timeout", fmt.Sprintf("%v", a.context.timeout))
 
@@ -273,6 +282,10 @@ func (a *Actions) Sync(args ...string) *Actions {
 		args = append(args, "--force")
 	}
 
+	if a.context.replace {
+		args = append(args, "--replace")
+	}
+
 	//  are you adding new context values? if you only use them for this func, then use args instead
 
 	a.runCli(args...)
@@ -282,7 +295,7 @@ func (a *Actions) Sync(args ...string) *Actions {
 
 func (a *Actions) TerminateOp() *Actions {
 	a.context.t.Helper()
-	a.runCli("app", "terminate-op", a.context.name)
+	a.runCli("app", "terminate-op", a.context.AppQualifiedName())
 	return a
 }
 
@@ -293,14 +306,25 @@ func (a *Actions) Refresh(refreshType RefreshType) *Actions {
 		RefreshTypeHard:   "--hard-refresh",
 	}[refreshType]
 
-	a.runCli("app", "get", a.context.name, flag)
+	a.runCli("app", "get", a.context.AppQualifiedName(), flag)
 
 	return a
 }
 
 func (a *Actions) Delete(cascade bool) *Actions {
 	a.context.t.Helper()
-	a.runCli("app", "delete", a.context.name, fmt.Sprintf("--cascade=%v", cascade), "--yes")
+	a.runCli("app", "delete", a.context.AppQualifiedName(), fmt.Sprintf("--cascade=%v", cascade), "--yes")
+	return a
+}
+
+func (a *Actions) DeleteBySelector(selector string) *Actions {
+	a.context.t.Helper()
+	a.runCli("app", "delete", fmt.Sprintf("--selector=%s", selector), "--yes")
+	return a
+}
+
+func (a *Actions) SetParamInSettingConfigMap(key, value string) *Actions {
+	fixture.SetParamInSettingConfigMap(key, value)
 	return a
 }
 
@@ -312,7 +336,7 @@ func (a *Actions) And(block func()) *Actions {
 
 func (a *Actions) Then() *Consequences {
 	a.context.t.Helper()
-	return &Consequences{a.context, a}
+	return &Consequences{a.context, a, 15}
 }
 
 func (a *Actions) runCli(args ...string) {
@@ -326,4 +350,14 @@ func (a *Actions) verifyAction() {
 	if !a.ignoreErrors {
 		a.Then().Expect(Success(""))
 	}
+}
+
+func (a *Actions) SetTrackingMethod(trackingMethod string) *Actions {
+	fixture.SetTrackingMethod(trackingMethod)
+	return a
+}
+
+func (a *Actions) SetTrackingLabel(trackingLabel string) *Actions {
+	fixture.SetTrackingLabel(trackingLabel)
+	return a
 }

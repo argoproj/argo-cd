@@ -1,5 +1,841 @@
 # Changelog
 
+## v2.4.8 (2022-07-29)
+
+### Bug fixes
+
+- feat: support application level extensions (#9923)
+- feat: support multiple extensions per resource group/kind (#9834)
+- fix: extensions is not loading for ConfigMap/Pods (#10010)
+- fix: upgrade moment from 2.29.2 to 2.29.3 (#9330)
+- fix: skip redirect url validation when it's the base href (#10058) (#10116)
+- fix: avoid CVE-2022-28948 (#10093)
+- fix: Set HOST_ARCH for yarn build from platform (#10018)
+
+### Other changes
+
+- chore(deps): bump moment from 2.29.3 to 2.29.4 in /ui (#9897)
+- docs: add OpenSSH breaking change notes (#10104)
+- chore: update parse-url (#10101)
+- docs: add api field example in the appset security doc (#10087)
+- chore: update redis to 7.0.4 avoid CVE-2022-30065 (#10059)
+- docs: add argocd-server grpc metric usage (#10007)
+- chore: upgrade Dex to 2.32.0 (#10036) (#10042)
+- chore: update redis to avoid CVE-2022-2097 (#10031)
+- chore: update haproxy to 2.0.29 for redis-ha (#10045)
+
+## v2.4.7 (2022-07-18)
+
+### Bug fixes
+
+fix: Support files in argocd.argoproj.io/manifest-generate-paths annotation (#9908)
+fix: terminal websocket write lock to avoid races (#10011)
+fix: updated all a tags to Link tags in app summary (#9777)
+fix: e2e test to use func from clusterauth instead creating one with old logic (#9989)
+fix: add missing download CLI tool URL response for ppc64le, s390x (#9983)
+
+### Other
+
+chore: upgrade parse-url to avoid SNYK-JS-PARSEURL-2936249 (#9826)
+docs: use quotes to emphasize that ConfigMap value is a string (#9995)
+docs: document directory app include/exclude fields (#9997)
+docs: simplify Docker toolchain docs (#9966) (#10006)
+docs: supported versions (#9876)
+
+## v2.4.6 (2022-07-12)
+
+### Features
+
+* feat: Treat connection reset as a retryable error (#9739)
+
+### Bug fixes
+
+* fix: 'unexpected reserved bits' breaking web terminal (#9605) (#9895)
+* fix: argocd login just hangs on 2.4.0 #9679 (#9935)
+* fix: CMP manifest generation fails with ENHANCE_YOUR_CALM if over 40s (#9922)
+* fix: NotAfter is not set when ValidFor is set (#9911)
+* fix: add missing download CLI tool link for ppc64le, s390x (#9649)
+* fix: Check tracking annotation for being self-referencing (#9791)
+* fix: Make change of tracking method work at runtime (#9820)
+* fix: argo-cd git submodule is using SSH auth instead of HTTPs (#3118) (#9821)
+
+### Other
+
+* docs: fix typo in Generators-Git.md (#9949)
+* docs: add terminal documentation (#9948)
+* test: Use dedicated multi-arch workloads in e2e tests (#9921)
+* docs: Adding blank line so list is formatted correctly (#9880)
+* docs: small fix for plugin stream filtering (#9871)
+* docs: Document the possibility of rendering Helm charts with Kustomize (#9841)
+* docs: getting started notes on self-signed cert (#9429) (#9784)
+* test: check for error messages from CI env (#9953)
+
+## v2.4.5 (2022-07-12)
+
+### Security fixes
+
+* HIGH: Certificate verification is skipped for connections to OIDC providers ([GHSA-7943-82jg-wmw5](https://github.com/argoproj/argo-cd/security/advisories/GHSA-7943-82jg-wmw5))
+* LOW: A leaked API server encryption key can allow XSS for SSO users ([GHSA-pmjg-52h9-72qv](https://github.com/argoproj/argo-cd/security/advisories/GHSA-pmjg-52h9-72qv))
+
+### Potentially-breaking changes
+
+The fix for GHSA-7943-82jg-wmw5 enables TLS certificate validation by default for connections to OIDC providers. If
+connections to your OIDC provider fails validation, SSO will be broken for your Argo CD instance. You should test 2.4.5
+before upgrading it to production. From the new documentation:
+
+> By default, all connections made by the API server to OIDC providers (either external providers or the bundled Dex
+> instance) must pass certificate validation. These connections occur when getting the OIDC provider's well-known
+> configuration, when getting the OIDC provider's keys, and  when exchanging an authorization code or verifying an ID
+> token as part of an OIDC login flow.
+>
+> Disabling certificate verification might make sense if:
+> * You are using the bundled Dex instance **and** your Argo CD instance has TLS configured with a self-signed certificate
+    >   **and** you understand and accept the risks of skipping OIDC provider cert verification.
+> * You are using an external OIDC provider **and** that provider uses an invalid certificate **and** you cannot solve
+    >   the problem by setting `oidcConfig.rootCA` **and** you understand and accept the risks of skipping OIDC provider cert
+    >   verification.
+>
+> If either of those two applies, then you can disable OIDC provider certificate verification by setting
+> `oidc.tls.insecure.skip.verify` to `"true"` in the `argocd-cm` ConfigMap.
+
+### Bug fixes
+
+* fix: webhook typo in case of error in GetManifests (#9671)
+
+## v2.4.4 (2022-07-07)
+
+### Bug fixes
+
+- fix: missing path segments for git file generator (#9839)
+- fix: make sure api server informer does not stop after setting change (#9842)
+- fix: support resource logs and exec (#9833)
+- fix: configurable CMP tar exclusions (#9675) (#9789)
+- fix: prune any deleted refs before fetching (#9504)
+
+### Other
+
+- test: Remove circular symlinks from testdata (#9886)
+- docs: custom secret must be labeled (#9835)
+- docs: update archlinux install with official package (#9718)
+- docs: explain rightmost git generator path parameter behavior (#9799)
+
+## v2.4.3 (2022-06-27)
+
+### Bug fixes
+
+- fix: respect OIDC providers' supported token signing algorithms (#9433) (#9761)
+- fix websockets for terminal not working on subPath (#9795)
+- fix: avoid closing and re-opening port of api server settings change (#9778)
+- fix: [ArgoCD] Fixing webhook typo in case of error in GetManifests (#9671)
+- fix: overrides should not appear in the manifest cache key (#9601)
+
+## v2.4.2 (2022-06-21)
+
+### Bug fixes
+
+* fix: project filter (#9651) (#9709)
+* fix: broken symlink in Dockerfile (#9674)
+* fix: updated baseHRefRegex to perform lazy match (#9724)
+* fix: updated config file permission requirements for windows (#9666)
+
+### Other
+
+* docs: Update sync-options.md (#9687)
+* test/remote: Allow override of base image (#9734)
+
+## v2.4.1 (2022-06-21)
+
+### Security fixes
+
+* CRITICAL: External URLs for Deployments can include javascript ([GHSA-h4w9-6x78-8vrj](https://github.com/argoproj/argo-cd/security/advisories/GHSA-h4w9-6x78-8vrj))
+* HIGH: Insecure entropy in PKCE/Oauth2/OIDC params ([GHSA-2m7h-86qq-fp4v](https://github.com/argoproj/argo-cd/security/advisories/GHSA-2m7h-86qq-fp4v))
+* MODERATE: DoS through large directory app manifest files ([GHSA-jhqp-vf4w-rpwq](https://github.com/argoproj/argo-cd/security/advisories/GHSA-jhqp-vf4w-rpwq))
+* MODERATE: Symlink following allows leaking out-of-bounds YAML files from Argo CD repo-server ([GHSA-q4w5-4gq2-98vm](https://github.com/argoproj/argo-cd/security/advisories/GHSA-q4w5-4gq2-98vm))
+
+### Potentially-breaking changes
+
+From the [GHSA-2m7h-86qq-fp4v](https://github.com/argoproj/argo-cd/security/advisories/GHSA-2m7h-86qq-fp4v) description:
+
+> The patch introduces a new `reposerver.max.combined.directory.manifests.size` config parameter, which you should tune before upgrading in production. It caps the maximum total file size of .yaml/.yml/.json files in directory-type (raw manifest) Applications. The default max is 10M per Application. This max is designed to keep any single app from consuming more than 3G of memory in the repo-server (manifests consume more space in memory than on disk). The 300x ratio assumes a maliciously-crafted manifest file. If you only want to protect against accidental excessive memory use, it is probably safe to use a smaller ratio.
+>
+> If your organization uses directory-type Applications with very many manifests or very large manifests then check the size of those manifests and tune the config parameter before deploying this change to production. When testing, make sure to do a "hard refresh" in either the CLI or UI to test your directory-type App. That will make sure you're using the new max logic instead of relying on cached manifest responses from Redis.
+
+### Other
+
+* test: directory app manifest generation (#9503)
+* chore: Implement tests to validate aws auth retry (#9627)
+* chore: Implement a retry in aws auth command (#9618)
+* test: Remove temp directories from repo server tests (#9501)
+* test: Make context tests idempodent (#9502)
+* test: fix plugin var test for OSX (#9590)
+* docs: Document how to deploy from the root of the git repository (#9632)
+* docs: added environment variables documentation (#8680)
+
+## v2.4.0 (2022-06-10)
+
+### Web Terminal In Argo CD UI
+
+Feature enables engineers to start a shell in the running application container without leaving the web interface. Just find the required Kubernetes
+Pod using the Application Details page, click on it and select the Terminal tab. The shell starts automatically and enables you to execute the required
+commands, and helps to troubleshoot the application state.
+
+### Access Control For Pod Logs & Web Terminal
+
+Argo CD is used to manage the critical infrastructure of multiple organizations, which makes security the top priority of the project. We've listened to
+your feedback and introduced additional access control settings that control access to Kubernetes Pod logs and the new Web Terminal feature.
+
+#### Pod Logs UI
+
+Since 2.4.9, the LOGS tab in pod view is visible in the UI only for users with explicit allow get logs policy.
+
+#### Known pod logs UI issue prior to 2.4.9
+
+Upon pressing the "LOGS" tab in pod view by users who don't have an explicit allow get logs policy, the red "unable to load data: Internal error" is received in the bottom of the screen, and "Failed to load data, please try again" is displayed.
+
+### OpenTelemetry Tracing Integration
+
+The new feature allows emitting richer telemetry data that might make identifying performance bottlenecks easier. The new feature is available for argocd-server
+and argocd-repo-server components and can be enabled using the --otlp-address flag.
+
+### Power PC and IBM Z Support
+
+The list of supported architectures has been expanded, and now includes IBM Z (s390x) and PowerPC (ppc64le). Starting with the v2.4 release the official quay.io
+repository is going to have images for amd64, arm64, ppc64le, and s390x architectures.
+
+### Other Notable Changes
+
+Overall v2.4 release includes more than 300 hundred commits from nearly 90 contributors. Here is a short sample of the contributions:
+
+* Enforce the deployment to remote clusters only
+* Native support of GCP authentication for GKE
+* Secured Redis connection
+* ApplicationSet Gitea support
+
+## v2.3.7 (2022-07-29)
+
+### Notes
+
+This is mainly a security related release and updates compatibility with Kubernetes 1.24.
+
+**Attention:** The base image for 2.3.x reached end-of-life on July 14, 2022. This release upgraded the base image to Ubuntu 22.04 LTS. The change should have no effect on the majority of users. But if any of your git providers only supports now-deprecated key hash algorithms, then Application syncing might break. See the [2.2-to-2.3 upgrade notes](https://argo-cd.readthedocs.io/en/latest/operator-manual/upgrading/2.2-2.3/#support-for-private-repo-ssh-keys-using-the-sha-1-signature-hash-algorithm-is-removed-in-237) for details and workaround instructions.
+
+### Bug fixes
+
+- fix: skip redirect url validation when it's the base href (#10058) (#10116)
+- fix: upgrade moment from 2.29.2 to 2.29.3 (#9330)
+- fix: avoid CVE-2022-28948 (#10093)
+- fix: use serviceaccount name instead of struct (#9614)
+- fix: create serviceaccount token for v1.24 clusters (#9546)
+
+### Other changes
+
+- test: Remove cluster e2e tests not intended for release-2.3
+- test: Remove circular symlinks from testdata (#9886)
+- chore(deps): bump moment from 2.29.3 to 2.29.4 in /ui (#9897)
+- chore: upgrade moment to latest version to fix CVE (#9005)
+- chore: move dependencies to dev dependencies (#8541)
+- docs: add OpenSSH breaking change notes (#10104)
+- chore: update parse-url (#10101)
+- chore: upgrade base image to 22.04 (#10103)
+- docs: simplify Docker toolchain docs (#9966) (#10006)
+- chore: update redis to 6.2.7 avoid CVE-2022-30065/CVE-2022-2097 (#10062)
+- chore: upgrade Dex to 2.32.0 (#10036) (#10042)
+- chore: update haproxy to 2.0.29 for redis-ha (#10045)
+- test: check for error messages from CI env (#9953)
+
+## v2.3.6 (2022-07-12)
+
+### Security fixes
+
+* HIGH: Certificate verification is skipped for connections to OIDC providers ([GHSA-7943-82jg-wmw5](https://github.com/argoproj/argo-cd/security/advisories/GHSA-7943-82jg-wmw5))
+* LOW: A leaked API server encryption key can allow XSS for SSO users ([GHSA-pmjg-52h9-72qv](https://github.com/argoproj/argo-cd/security/advisories/GHSA-pmjg-52h9-72qv))
+
+### Potentially-breaking changes
+
+The fix for GHSA-7943-82jg-wmw5 enables TLS certificate validation by default for connections to OIDC providers. If
+connections to your OIDC provider fails validation, SSO will be broken for your Argo CD instance. You should test 2.3.6
+before upgrading it to production. From the new documentation:
+
+> By default, all connections made by the API server to OIDC providers (either external providers or the bundled Dex
+> instance) must pass certificate validation. These connections occur when getting the OIDC provider's well-known
+> configuration, when getting the OIDC provider's keys, and  when exchanging an authorization code or verifying an ID
+> token as part of an OIDC login flow.
+>
+> Disabling certificate verification might make sense if:
+> * You are using the bundled Dex instance **and** your Argo CD instance has TLS configured with a self-signed certificate
+    >   **and** you understand and accept the risks of skipping OIDC provider cert verification.
+> * You are using an external OIDC provider **and** that provider uses an invalid certificate **and** you cannot solve
+    >   the problem by setting `oidcConfig.rootCA` **and** you understand and accept the risks of skipping OIDC provider cert
+    >   verification.
+>
+> If either of those two applies, then you can disable OIDC provider certificate verification by setting
+> `oidc.tls.insecure.skip.verify` to `"true"` in the `argocd-cm` ConfigMap.
+
+### Bug fixes
+
+* fix: webhook typo in case of error in GetManifests (#9671)
+
+## v2.3.5 (2022-06-21)
+
+### Security fixes
+
+* CRITICAL: External URLs for Deployments can include javascript ([GHSA-h4w9-6x78-8vrj](https://github.com/argoproj/argo-cd/security/advisories/GHSA-h4w9-6x78-8vrj))
+* HIGH: Insecure entropy in PKCE/Oauth2/OIDC params ([GHSA-2m7h-86qq-fp4v](https://github.com/argoproj/argo-cd/security/advisories/GHSA-2m7h-86qq-fp4v))
+* MODERATE: DoS through large directory app manifest files ([GHSA-jhqp-vf4w-rpwq](https://github.com/argoproj/argo-cd/security/advisories/GHSA-jhqp-vf4w-rpwq))
+* MODERATE: Symlink following allows leaking out-of-bounds YAML files from Argo CD repo-server ([GHSA-q4w5-4gq2-98vm](https://github.com/argoproj/argo-cd/security/advisories/GHSA-q4w5-4gq2-98vm))
+
+### Potentially-breaking changes
+
+From the [GHSA-2m7h-86qq-fp4v](https://github.com/argoproj/argo-cd/security/advisories/GHSA-2m7h-86qq-fp4v) description:
+
+> The patch introduces a new `reposerver.max.combined.directory.manifests.size` config parameter, which you should tune before upgrading in production. It caps the maximum total file size of .yaml/.yml/.json files in directory-type (raw manifest) Applications. The default max is 10M per Application. This max is designed to keep any single app from consuming more than 3G of memory in the repo-server (manifests consume more space in memory than on disk). The 300x ratio assumes a maliciously-crafted manifest file. If you only want to protect against accidental excessive memory use, it is probably safe to use a smaller ratio.
+>
+> If your organization uses directory-type Applications with very many manifests or very large manifests then check the size of those manifests and tune the config parameter before deploying this change to production. When testing, make sure to do a "hard refresh" in either the CLI or UI to test your directory-type App. That will make sure you're using the new max logic instead of relying on cached manifest responses from Redis.
+
+### Bug fixes
+
+* fix: missing Helm params (#9565) (#9566)
+
+### Other
+
+* test: directory app manifest generation (#9503)
+* chore: eliminate go-mpatch dependency (#9045)
+* chore: Make unit tests run on platforms other than amd64 (#8995)
+* chore: remove obsolete repo-server unit test (#9559)
+* chore: update golangci-lint (#8988)
+* fix: test race (#9469)
+* chore: upgrade golangci-lint to v1.46.2 (#9448)
+* test: fix ErrorContains (#9445)
+
+## v2.3.4 (2022-05-18)
+
+### Security fixes
+
+- CRITICAL: Argo CD will trust invalid JWT claims if anonymous access is enabled (https://github.com/argoproj/argo-cd/security/advisories/GHSA-r642-gv9p-2wjj)
+- LOW: Login screen allows message spoofing if SSO is enabled (https://github.com/argoproj/argo-cd/security/advisories/GHSA-xmg8-99r8-jc2j)
+- MODERATE: Symlink following allows leaking out-of-bound manifests and JSON files from Argo CD repo-server (https://github.com/argoproj/argo-cd/security/advisories/GHSA-6gcg-hp2x-q54h)
+
+### Bug Fixes
+
+- fix: Fix docs build error (#8895)
+- fix: fix broken monaco editor collapse icons (#8709)
+- chore: upgrade to go 1.17.8 (#8866) (#9004)
+- fix: allow cli/ui to follow logs (#8987) (#9065)
+
+## v2.3.3 (2022-03-29)
+
+- fix: prevent excessive repo-server disk usage for large repos (#8845) (#8897)
+- fix: Set QPS and burst rate for resource ops client (#8915)
+
+## v2.3.2 (2022-03-22)
+
+- fix: application resource APIs must enforce project restrictions
+
+## v2.3.1 (2022-03-10)
+
+- fix: Retry checkbox unchecked unexpectedly; Sync up with YAML (#8682) (#8720)
+- chore: Bump stable version of application set addon (#8744)
+- fix: correct jsonnet paths resolution (#8721)
+- fix(ui): Applications page incorrectly resets to tiles view. Fixes #8702 (#8718)
+
+## v2.3.0 (2022-03-05)
+
+### Argo CD ApplicationSet and Notifications are now part of Argo CD
+
+Two popular [Argoproj Labs](https://github.com/argoproj-labs) projects [Argo CD ApplicationSet](https://github.com/argoproj/applicationset) and
+[Argo CD Notifications](https://github.com/argoproj-labs/argocd-notifications) are now part of Argo CD! The default Argo CD installation manifests now
+bundle both projects out of the box. Going forward you can expect more tightened integration of these projects into Argo CD.
+
+### New sync and diff strategies
+
+Users can now configure the Application resource to instruct Argo CD to consider the ignore difference setup during the sync process.
+In order to do so, add the new sync option RespectIgnoreDifferences=true in the Application resource. Once the sync option is added,
+Argo CD won't change ignored fields during the syncing process.
+
+Configuring ignored fields is also easier now. Instead of listing fields one by one users can now leverage the 
+managedFields metadata to instruct Argo CD about trusted managers and automatically ignore any fields owned by them. A new diff customization
+(managedFieldsManagers) is now available allowing users to specify managers the application should trust and to ignore all fields owned by those managers.
+Read more about these changes at [New sync and diff strategies in ArgoCD](https://blog.argoproj.io/new-sync-and-diff-strategies-in-argocd-44195d3f8b8c) blog post.
+
+### ARM Images
+
+An officially supported ARM 64 image is now available. Enjoy running Argo CD on your Raspberry Pi! Additionally, the image size was reduced by nearly ~50%
+and is only 200MB now. The ARM version of `argocd` CLI is also available and published as a Github release artifact.
+
+### Compact Tree View And Click Application Navigation
+
+The application details page now supports compact application resources tree visualization. Using the "Group Nodes" button, you can collapse the similar resources
+into a single group node to remove the clutter and make it easier to understand the state of application resources. You still can get detailed information about the collapsed resources by clicking on the group node. The list of collapsed resources will be available in a sliding panel. Compact resource tree is still too big?
+You can use the zoom in and zoom out feature to make it smaller - or even larger!
+
+You no longer need to move back and forth between the application details page and the application list page. Instead you can navigate directly to the required application by clicking the search icon in the application details page title.
+
+### Upgraded Config Management Tools
+
+Both bundled Helm and Kustomize binaries have been upgraded to the latest versions. Kustomize has been upgraded from 4.2.0 to 4.4.1 and Helm has been upgraded from 3.7.1 to 3.8.0.
+
+### Bug Fixes and Performance Enhancements
+
+* Config management tools enhancements:
+* The skipCrds flag and ability to ignore missing values files for Helm (#8012, #8003)
+* Additional environment variables for Kustomize (#8096)
+* Argo CD CLI follows the XDG Base directory standard (#7638)
+* Redis is no longer used during SSO login (#8241)
+
+
+### Features
+
+- feat: Add app list and details page views to navigation history (#7776) (#7937)
+- feat: Add skipCrds flag for helm charts (#8012)
+- feat: Add visual indicator for newly created pods (#8006)
+- feat: Added a new Helm option ignoreMissingValueFiles (#7767) (#8003)
+- feat: Allow configuring system wide ignore differences for all resources (#8224)
+- feat: Allow escaping dollar in Envsubst (#7961)
+- feat: Allow external links on Application (#3487) (#8231)
+- feat: Allow selecting application on detail page (#8176)
+- feat: Bundle applicationset-controller with argocd (#8148)
+- feat: Enable specifying root ca for oidc (#6712)
+- feat: Expose ARGOCD_APP_NAME to the `kustomize build` command (#8096)
+- feat: Ignore differences owned by trusted managers from managedFields (#7869)
+- feat: New sync option to use ignore diff configs during sync (#8078)
+- feat: Provide address flag for admin dashboard command (#8095)
+- feat: Store "Group Nodes" button state in application details preferences (#8036)
+- feat: Support specifying cluster by name in addition to API server URL in Cluster API (#8077)
+- feat: Support XDG Base directory standard (#7638) (#7791)
+- feat: Use encrypted cookie to store OAuth2 state nonce (instead of redis) (#8241)
+- feat: Build images on PR and conditionally build arm64 image on push (#8108)
+
+### Bug Fixes
+
+- fix: Add "Restarting MinIO" status to MiniO Tenant health check (#8191)
+- fix: Add all resources in list view (#7295)
+- fix: Adding pagination to grouped nodes sliding panel#7837 (#7915)
+- fix: Allow all resources to add external links (#7923)
+- fix: Always call ValidateDestination (#7976)
+- fix: Application exist panic when execute api call (#8188)
+- fix: Application-icons-alignment (#8054)
+- fix: Controller panics if resource manifest has incorrect annotation (#8022)
+- fix: Correctly handle project field during partial cluster update (#7994)
+- fix: Default value for retry validation #8055 (#8064)
+- fix: Fix a possible crash when parsing RBAC (#8165)
+- fix: Grouped node list missing resources on Compact resources view #8014 (#8018)
+- fix: Issue with headless installation (#7958)
+- fix: Issue with project scoped resources (#8048)
+- fix: Kubernetes labels normalization for Prometheus  (#7925)
+- fix: Nested Refresh dropdown does not work on Application Details page #1524 (#7950)
+- fix: Network line colors and menu icon alignment (#8059)
+- fix: Opening app details shows UI error on some apps (#8016) (#8019)
+- fix: Parse to correct uint32 type (#8177)
+- fix: Prevent possible nil-pointer deref in normalizer (#8185)
+- fix: Prevent possible out-of-bounds access when loading policies (#8186)
+- fix: Provide a semantic version parsed version for KUBE_VERSION (#8250)
+- fix: Refreshing label toast (#7979)
+- fix: Resource details page crashes when resource is not deployed and hide managed fields is selected (#7971)
+- fix: Retry disabled text (#8004)
+- fix: Route health check stuck in 'Progressing' (#8170)
+- fix: Sync window panel is crashed if resource name not contain letters (#8053)
+- fix: Targetervision compatible without prefix refs/heads or refs/tags (#7939)
+- fix: Trailing line in Filter Dropdown Menus #7821 (#8001)
+- fix: Webhook URL matching edge cases (#7981)
+- fix(ui): Use consistent case for diff modes (#7945)
+- fix: Use gRPC timeout for sidecar CMPs (#8131) (#8236)
+
+### Other
+
+- chore: Bump go-jsonnet to v0.18.0 (#8011)
+- chore: Escape proj in regex (#7985)
+- chore: Exclude argocd-server rbac for core-install (#8234)
+- chore: Log out the resource triggering reconciliation (#8192)
+- chore: Migrate to use golang-jwt/jwt v4.2.0 (#8136)
+- chore: Move resolveRevision from api-server to repo-server (#7966)
+- chore: Update notifications version (#8267)
+- chore: Update slack version (#8299)
+- chore: Update to Redis 6.2.4 (#8157)
+- chore: Upgrade awscli to 2.4.6 and remove python deps (#7947)
+- chore: Upgrade base image to ubuntu:21.10 (#8230)
+- chore: Upgrade dex to v2.30.2 (https://github.com/dexidp/dex/issues/2326) (#8237)
+- chore: Upgrade gitops engine (#8288)
+- chore: Upgrade golang to 1.17.6 (#8229)
+- chore: Upgrade helm to most recent version (v3.7.2) (#8226)
+- chore: Upgrade k8s client to v1.23 (#8213)
+- chore: Upgrade kustomize to most recent version (v4.4.1) (#8227)
+- refactor: Introduce 'byClusterName' secret index to speedup cluster server URL lookup (#8133)
+- refactor: Move project filtering to server side (#8102)
+
+## v2.2.12 (2022-07-29)
+
+### Notes
+
+This is mainly a security related release and updates compatibility with Kubernetes 1.24.
+
+**Attention:** The base image for 2.2.x reached end-of-life on January 20, 2022. This release upgraded the base image to Ubuntu 22.04 LTS. The change should have no effect on the majority of users. But if any of your git providers only supports now-deprecated key hash algorithms, then Application syncing might break. See the [2.1-to-2.2 upgrade notes](https://argo-cd.readthedocs.io/en/latest/operator-manual/upgrading/2.1-2.2/#support-for-private-repo-ssh-keys-using-the-sha-1-signature-hash-algorithm-is-removed-in-2212) for details and workaround instructions.
+
+### Bug fixes
+
+- fix: create serviceaccount token for v1.24 clusters (#9546)
+- fix: upgrade moment from 2.29.2 to 2.29.3 (#9330)
+- fix: avoid CVE-2022-28948 (#10093)
+
+### Other changes
+
+- chore: Remove deprecated K8s versions from test matrix
+- chore: Go mod tidy
+- test: Remove circular symlinks from testdata (#9886)
+- test: Fix e2e tests for release-2.2 branch
+- chore: bump redoc vesion to avoid CVE-2021-23820 (#8604)
+- chore(deps): bump moment from 2.29.3 to 2.29.4 in /ui (#9897)
+- chore: upgrade moment to latest version to fix CVE (#9005)
+- chore: move dependencies to dev dependencies (#8541)
+- docs: add OpenSSH breaking change notes (#10104)
+- chore: update parse-url (#10101)
+- chore: fix codegen
+- chore: fix codegen
+- chore: upgrade base image to 22.04 (#10105)
+- docs: simplify Docker toolchain docs (#9966) (#10006)
+- chore: update redis to 6.2.7 avoid CVE-2022-30065/CVE-2022-2097 (#10068)
+- chore: upgrade Dex to 2.32.0 (#10036) (#10042)
+- chore: update haproxy to 2.0.29 for redis-ha (#10045)
+- test: check for error messages from CI env (#9953)
+
+## v2.2.11 (2022-07-12)
+
+### Security fixes
+
+* HIGH: Certificate verification is skipped for connections to OIDC providers ([GHSA-7943-82jg-wmw5](https://github.com/argoproj/argo-cd/security/advisories/GHSA-7943-82jg-wmw5))
+* LOW: A leaked API server encryption key can allow XSS for SSO users ([GHSA-pmjg-52h9-72qv](https://github.com/argoproj/argo-cd/security/advisories/GHSA-pmjg-52h9-72qv))
+
+### Potentially-breaking changes
+
+The fix for GHSA-7943-82jg-wmw5 enables TLS certificate validation by default for connections to OIDC providers. If
+connections to your OIDC provider fails validation, SSO will be broken for your Argo CD instance. You should test 2.2.11
+before upgrading it to production. From the new documentation:
+
+> By default, all connections made by the API server to OIDC providers (either external providers or the bundled Dex
+> instance) must pass certificate validation. These connections occur when getting the OIDC provider's well-known
+> configuration, when getting the OIDC provider's keys, and  when exchanging an authorization code or verifying an ID
+> token as part of an OIDC login flow.
+>
+> Disabling certificate verification might make sense if:
+> * You are using the bundled Dex instance **and** your Argo CD instance has TLS configured with a self-signed certificate
+    >   **and** you understand and accept the risks of skipping OIDC provider cert verification.
+> * You are using an external OIDC provider **and** that provider uses an invalid certificate **and** you cannot solve
+    >   the problem by setting `oidcConfig.rootCA` **and** you understand and accept the risks of skipping OIDC provider cert
+    >   verification.
+>
+> If either of those two applies, then you can disable OIDC provider certificate verification by setting
+> `oidc.tls.insecure.skip.verify` to `"true"` in the `argocd-cm` ConfigMap.
+
+### Features
+
+* feat: enable specifying root ca for oidc (#6712)
+
+### Bug fixes
+
+* fix: webhook typo in case of error in GetManifests (#9671)
+
+## v2.2.10 (2022-06-21)
+
+### Security fixes
+
+* CRITICAL: External URLs for Deployments can include javascript ([GHSA-h4w9-6x78-8vrj](https://github.com/argoproj/argo-cd/security/advisories/GHSA-h4w9-6x78-8vrj))
+* HIGH: Insecure entropy in PKCE/Oauth2/OIDC params ([GHSA-2m7h-86qq-fp4v](https://github.com/argoproj/argo-cd/security/advisories/GHSA-2m7h-86qq-fp4v))
+* MODERATE: DoS through large directory app manifest files ([GHSA-jhqp-vf4w-rpwq](https://github.com/argoproj/argo-cd/security/advisories/GHSA-jhqp-vf4w-rpwq))
+* MODERATE: Symlink following allows leaking out-of-bounds YAML files from Argo CD repo-server ([GHSA-q4w5-4gq2-98vm](https://github.com/argoproj/argo-cd/security/advisories/GHSA-q4w5-4gq2-98vm))
+
+### Potentially-breaking changes
+
+From the [GHSA-2m7h-86qq-fp4v](https://github.com/argoproj/argo-cd/security/advisories/GHSA-2m7h-86qq-fp4v) description:
+
+> The patch introduces a new `reposerver.max.combined.directory.manifests.size` config parameter, which you should tune before upgrading in production. It caps the maximum total file size of .yaml/.yml/.json files in directory-type (raw manifest) Applications. The default max is 10M per Application. This max is designed to keep any single app from consuming more than 3G of memory in the repo-server (manifests consume more space in memory than on disk). The 300x ratio assumes a maliciously-crafted manifest file. If you only want to protect against accidental excessive memory use, it is probably safe to use a smaller ratio.
+>
+> If your organization uses directory-type Applications with very many manifests or very large manifests then check the size of those manifests and tune the config parameter before deploying this change to production. When testing, make sure to do a "hard refresh" in either the CLI or UI to test your directory-type App. That will make sure you're using the new max logic instead of relying on cached manifest responses from Redis.
+
+### Bug fixes
+
+* fix: missing Helm params (#9565) (#9566)
+
+### Other
+
+* test: directory app manifest generation (#9503)
+* test: fix erroneous test change
+* chore: eliminate go-mpatch dependency (#9045)
+* chore: Make unit tests run on platforms other than amd64 (#8995)
+* chore: remove obsolete repo-server unit test (#9559)
+* chore: upgrade golangci-lint to v1.46.2 (#9448)
+* chore: update golangci-lint (#8988)
+
+## v2.2.9 (2022-05-18)
+
+### Notes
+
+This is a security release. We urge all users of the 2.2.z branch to update as soon as possible. Please refer to the _Security fixes_ section below for more details.
+
+### Security fixes
+
+- CRITICAL: Argo CD will trust invalid JWT claims if anonymous access is enabled (https://github.com/argoproj/argo-cd/security/advisories/GHSA-r642-gv9p-2wjj)
+- LOW: Login screen allows message spoofing if SSO is enabled (https://github.com/argoproj/argo-cd/security/advisories/GHSA-xmg8-99r8-jc2j)
+- MODERATE: Symlink following allows leaking out-of-bound manifests and JSON files from Argo CD repo-server (https://github.com/argoproj/argo-cd/security/advisories/GHSA-6gcg-hp2x-q54h)
+
+## v2.2.8 (2022-03-22)
+
+### Special notes
+
+This release contains the fix for a security issue with critical severity. We recommend users on the 2.2 release branch to update to this release as soon as possible.
+
+More information can be found in the related
+[security advisory](https://github.com/argoproj/argo-cd/security/advisories/GHSA-2f5v-8r3f-8pww).
+
+### Changes
+
+As part of the security fix, the Argo CD UI no longer automatically presents child resources of allow-listed resources unless the child resources are also allow-listed. For example, Pods are not going to show up if only Deployment is added to the allow-list.
+
+If you have [projects](https://argo-cd.readthedocs.io/en/stable/user-guide/projects/) configured with allow-lists, make sure the allow-lists include all the resources you want users to be able to view/manage through the UI. For example, if your project allows `Deployments`, you would add `ReplicaSets` and `Pods`.
+
+#### Bug Fixes
+
+- fix: application resource APIs must enforce project restrictions
+
+## v2.2.7 (2022-03-08)
+
+### Bug Fixes
+
+- fix: correct jsonnet paths resolution (#8721)
+
+## v2.2.6 (2022-03-06)
+
+### Bug Fixes
+
+- fix: prevent file traversal using helm file values param and application details api (#8606)
+- fix!: enforce app create/update privileges when getting repo details (#8558)
+- feat: support custom helm values file schemes (#8535)
+
+## v2.2.5 (2022-02-04)
+
+- fix: Resolve symlinked value files correctly (#8387)
+
+## v2.2.4 (2022-02-03)
+
+### Special notes
+
+This release contains the fix for a security issue with high severity. We recommend users on the 2.2 release branch to update to this release as soon as possible.
+
+More information can be found in the related
+[security advisory](https://github.com/argoproj/argo-cd/security/advisories/GHSA-63qx-x74g-jcr7)
+
+### Bug Fixes
+
+- fix: Prevent value files outside repository root
+
+### Other changes
+
+- chore: upgrade dex to v2.30.2 (backport of #8237) (#8257)
+
+## v2.2.3 (2022-01-18)
+
+- fix: Application exist panic when execute api call (#8188)
+- fix: Route health check stuck in 'Progressing' (#8170)
+- refactor: Introduce 'byClusterName' secret index to speedup cluster server URL lookup (#8133)
+- chore: Update to Redis 6.2.4 (#8157) (#8158)
+
+## v2.2.2 (2021-12-31)
+
+- fix: Issue with project scoped resources (#8048)
+- fix: Escape proj in regex (#7985)
+- fix: Default value for retry validation #8055 (#8064)
+- fix: Sync window panel is crashed if resource name not contain letters (#8053)
+- fix: Upgrade github.com/argoproj/gitops-engine to v0.5.2
+- fix: Retry disabled text (#8004)
+- fix: Opening app details shows UI error on some apps (#8016) (#8019)
+- fix: Correctly handle project field during partial cluster update (#7994)
+- fix: Cluster API does not support updating labels and annotations (#7901)
+
+## v2.2.1 (2021-12-16)
+
+- fix: Resource details page crashes when resource is not deployed and hide managed fields is selected (#7971)
+- fix: Issue with headless installation (#7958)
+- fix: Nil pointer (#7905)
+
+## v2.2.0 (2021-12-14)
+
+> [Upgrade instructions](./docs/operator-manual/upgrading/2.1-2.2.md)
+
+### Project Scoped repositories and clusters
+
+The project scoped repositories and clusters is a feature that simplifies registering the repositories and cluster credentials.
+Instead of requiring operators to set up in advance all clusters and git repositories that can be used, developers can now do
+this on their own in a self-service manner.
+
+### Config Management Plugins V2
+
+The Config Management Plugins V2 is set of enhancement of the existing config management plugins feature.
+The list includes improved installation experience, ability to package plugin into a separate image and
+improved plugin manifests discovery.
+
+### Resource tracking
+
+Argo CD has traditionally tracked the resources it manages by the well-known "app.kubernetes.io/instance" property.
+While using this property works ok in simple scenarios, it also has several limitations. ArgoCD now allows you to use
+a new annotation (argocd.argoproj.io/tracking-id) for tracking your resources. Using this annotation is a much more flexible approach
+as there are no conflicts with other Kubernetes tools, and you can easily install multiple Argo CD instances on the same clusters.
+
+### Bug Fixes and Performance Enhancements
+
+* Argo CD API server caches RBAC checks that significantly improves the GET /api/v1/applications API performance (#7587)
+* Argo CD RBAC supports regex matches (#7165)
+* Health check support for KubeVirt (#7176), Cassandra (#7017), Openshift Route (#7112), DeploymentConfig (#7114), Confluent (#6957) and SparkApplication (#7434) CRDs.
+* Persistent banner (#7312) with custom positioning (#7462)
+* Cluster name support in project destinations (#7198)
+* around 30 more features and a total of 84 bug fixes
+
+## v2.1.16 (2022-06-21)
+
+### Security fixes
+
+* CRITICAL: External URLs for Deployments can include javascript ([GHSA-h4w9-6x78-8vrj](https://github.com/argoproj/argo-cd/security/advisories/GHSA-h4w9-6x78-8vrj))
+* HIGH: Insecure entropy in PKCE/Oauth2/OIDC params ([GHSA-2m7h-86qq-fp4v](https://github.com/argoproj/argo-cd/security/advisories/GHSA-2m7h-86qq-fp4v))
+* MODERATE: DoS through large directory app manifest files ([GHSA-jhqp-vf4w-rpwq](https://github.com/argoproj/argo-cd/security/advisories/GHSA-jhqp-vf4w-rpwq))
+* MODERATE: Symlink following allows leaking out-of-bounds YAML files from Argo CD repo-server ([GHSA-q4w5-4gq2-98vm](https://github.com/argoproj/argo-cd/security/advisories/GHSA-q4w5-4gq2-98vm))
+
+**Note:** This will be the last security fix release in the 2.1.x series. Please [upgrade to a newer minor version](https://argo-cd.readthedocs.io/en/latest/operator-manual/upgrading/overview/) to continue to get security fixes.
+
+### Potentially-breaking changes
+
+From the [GHSA-2m7h-86qq-fp4v](https://github.com/argoproj/argo-cd/security/advisories/GHSA-2m7h-86qq-fp4v) description:
+
+> The patch introduces a new `reposerver.max.combined.directory.manifests.size` config parameter, which you should tune before upgrading in production. It caps the maximum total file size of .yaml/.yml/.json files in directory-type (raw manifest) Applications. The default max is 10M per Application. This max is designed to keep any single app from consuming more than 3G of memory in the repo-server (manifests consume more space in memory than on disk). The 300x ratio assumes a maliciously-crafted manifest file. If you only want to protect against accidental excessive memory use, it is probably safe to use a smaller ratio.
+>
+> If your organization uses directory-type Applications with very many manifests or very large manifests then check the size of those manifests and tune the config parameter before deploying this change to production. When testing, make sure to do a "hard refresh" in either the CLI or UI to test your directory-type App. That will make sure you're using the new max logic instead of relying on cached manifest responses from Redis.
+
+### Bug fixes
+
+* fix: missing Helm params (#9565) (#9566)
+
+### Other
+
+* test: directory app manifest generation (#9503)
+* test: fix erroneous test change
+* chore: eliminate go-mpatch dependency (#9045)
+* chore: Make unit tests run on platforms other than amd64 (#8995)
+* chore: remove obsolete repo-server unit test (#9559)
+* chore: upgrade golangci-lint to v1.46.2 (#9448)
+* chore: update golangci-lint (#8988)
+* test: fix ErrorContains (#9445)
+
+## v2.1.15 (2022-05-18)
+
+### Notes
+
+This is a security release. We urge all users of the 2.1.z branch to update as soon as possible. Please refer to the _Security fixes_ section below for more details.
+
+### Security fixes
+
+- CRITICAL: Argo CD will trust invalid JWT claims if anonymous access is enabled (https://github.com/argoproj/argo-cd/security/advisories/GHSA-r642-gv9p-2wjj)
+- LOW: Login screen allows message spoofing if SSO is enabled (https://github.com/argoproj/argo-cd/security/advisories/GHSA-xmg8-99r8-jc2j)
+- MODERATE: Symlink following allows leaking out-of-bound manifests and JSON files from Argo CD repo-server (https://github.com/argoproj/argo-cd/security/advisories/GHSA-6gcg-hp2x-q54h)
+
+## v2.1.14 (2022-03-22)
+
+### Special notes
+
+This release contains the fix for a security issue with critical severity. We recommend users on the 2.1 release branch to update to this release as soon as possible.
+
+More information can be found in the related
+[security advisory](https://github.com/argoproj/argo-cd/security/advisories/GHSA-2f5v-8r3f-8pww).
+
+### Changes
+
+As part of the security fix, the Argo CD UI no longer automatically presents child resources of allow-listed resources unless the child resources are also allow-listed. For example, Pods are not going to show up if only Deployment is added to the allow-list.
+
+If you have [projects](https://argo-cd.readthedocs.io/en/stable/user-guide/projects/) configured with allow-lists, make sure the allow-lists include all the resources you want users to be able to view/manage through the UI. For example, if your project allows `Deployments`, you would add `ReplicaSets` and `Pods`.
+
+#### Bug Fixes
+
+- fix: application resource APIs must enforce project restrictions
+
+## v2.1.13 (2022-03-22)
+
+Unused release number.
+
+## v2.1.12 (2022-03-08)
+
+### Bug Fixes
+
+- fix: correct jsonnet paths resolution (#8721)
+
+## v2.1.11 (2022-03-06)
+
+### Bug Fixes
+
+- fix: prevent file traversal using helm file values param and application details api (#8606)
+- fix!: enforce app create/update privileges when getting repo details (#8558)
+- feat: support custom helm values file schemes (#8535)
+
+## v2.1.10 (2022-02-04)
+
+### Bug Fixes
+
+- fix: Resolve symlinked value files correctly (#8387)
+
+## v2.1.9 (2022-02-03)
+
+### Special notes
+
+This release contains the fix for a security issue with high severity. We recommend users on the 2.1 release branch to update to this release as soon as possible.
+
+More information can be found in the related
+[security advisory](https://github.com/argoproj/argo-cd/security/advisories/GHSA-63qx-x74g-jcr7)
+
+### Bug Fixes
+
+- fix: Prevent value files outside repository root
+
+## v2.1.8 (2021-12-13)
+
+### Bug Fixes
+
+- fix: issue with keepalive (#7861)
+- fix nil pointer dereference error (#7905)
+- fix: env vars to tune cluster cache were broken (#7779)
+- fix: upgraded gitops engine to v0.4.2 (fixes #7561)
+
+## v2.1.7 (2021-12-14)
+
+- fix: issue with keepalive (#7861)
+- fix nil pointer dereference error (#7905)
+- fix: env vars to tune cluster cache were broken (#7779)
+- fix: upgraded gitops engine to v0.4.2 (fixes #7561)
+
+
+## v2.1.6 (2021-11-16)
+
+- fix: don't use revision caching during app creation (#7508)
+- fix: supporting OCI dependencies. Fixes #6062 (#6994)
+
+## v2.1.5 (2021-11-16)
+
+- fix: Invalid memory address or nil pointer dereference in processRequestedAppOperation (#7501)
+
+## v2.1.4 (2021-11-15)
+
+- fix: Operation has completed with phase: Running (#7482)
+- fix: Application status panel shows Syncing instead of Deleting (#7486)
+- fix(ui): Add Error Boundary around Extensions and comply with new Extensions API (#7215)
+
+
+## v2.1.3 (2021-10-29)
+
+- fix: core-install.yaml always refers to latest argocd image (#7321)
+- fix: handle applicationset backup forbidden error (#7306)
+- fix: Argo CD should not use cached git/helm revision during app creation/update validation (#7244)
+
+## v2.1.2 (2021-10-02)
+
+- fix: cluster filter popping out of box (#7135)
+- fix: gracefully shutdown metrics server when dex config changes (#7138)
+- fix: upgrade gitops engine version to v0.4.1 (#7088)
+- fix: repository name already exists when multiple helm dependencies  (#7096)
+
+
 ## v2.1.1 (2021-08-25)
 
 ### Bug Fixes
@@ -172,7 +1008,7 @@ resources, you will have to adapt your cluster resources allow lists to explicit
 ## v1.8.4 (2021-02-05)
 
 - feat: set X-XSS-Protection while serving static content (#5412)
-- fix: version info should be avaialble if anonymous access is enabled (#5422)
+- fix: version info should be available if anonymous access is enabled (#5422)
 - fix: disable jwt claim audience validation #5381 (#5413)
 - fix: /api/version should not return tools version for unauthenticated requests (#5415)
 - fix: account tokens should be rejected if required capability is disabled (#5414)
@@ -753,7 +1589,7 @@ More documentation and tools are coming in patch releases.
 The Argo CD deletes all **in-flight** hooks if you terminate running sync operation. The hook state assessment change implemented in this release the Argo CD enables detection of 
 an in-flight state for all Kubernetes resources including `Deployment`, `PVC`, `StatefulSet`, `ReplicaSet` etc. So if you terminate the sync operation that has, for example,
 `StatefulSet` hook that is `Progressing` it will be deleted. The long-running jobs are not supposed to be used as a sync hook and you should consider using
-[Sync Waves](https://argoproj.github.io/argo-cd/user-guide/sync-waves/) instead.
+[Sync Waves](https://argo-cd.readthedocs.io/en/stable/user-guide/sync-waves/) instead.
 
 #### Enhancements
 * feat: Add custom health checks for cert-manager v0.11.0 (#2689) 

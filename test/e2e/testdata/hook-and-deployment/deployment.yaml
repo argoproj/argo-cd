@@ -14,7 +14,7 @@ spec:
     spec:
       containers:
       - name: main
-        image: nginx:1.17.4-alpine
+        image: quay.io/argoprojlabs/argocd-e2e-container:0.1
         imagePullPolicy: IfNotPresent
         readinessProbe:
           failureThreshold: 3

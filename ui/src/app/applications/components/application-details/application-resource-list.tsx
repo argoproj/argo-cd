@@ -5,6 +5,8 @@ import * as models from '../../../shared/models';
 import {ResourceIcon} from '../resource-icon';
 import {ResourceLabel} from '../resource-label';
 import {ComparisonStatusIcon, HealthStatusIcon, nodeKey} from '../utils';
+import {Consumer} from '../../../shared/context';
+import * as _ from 'lodash';
 
 export const ApplicationResourceList = ({
     resources,
@@ -20,7 +22,8 @@ export const ApplicationResourceList = ({
             <div className='row'>
                 <div className='columns small-1 xxxlarge-1' />
                 <div className='columns small-2 xxxlarge-2'>NAME</div>
-                <div className='columns small-3 xxxlarge-4'>GROUP/KIND</div>
+                <div className='columns small-2 xxxlarge-2'>GROUP/KIND</div>
+                <div className='columns small-1 xxxlarge-2'>SYNC ORDER</div>
                 <div className='columns small-3 xxxlarge-3'>NAMESPACE</div>
                 <div className='columns small-2 xxxlarge-2'>STATUS</div>
             </div>
@@ -37,8 +40,22 @@ export const ApplicationResourceList = ({
                                 <div>{ResourceLabel({kind: res.kind})}</div>
                             </div>
                         </div>
-                        <div className='columns small-2 xxxlarge-2'>{res.name}</div>
-                        <div className='columns small-3 xxxlarge-4'>{[res.group, res.kind].filter(item => !!item).join('/')}</div>
+                        <div className='columns small-2 xxxlarge-2'>
+                            {res.name}
+                            {res.kind === 'Application' && (
+                                <Consumer>
+                                    {ctx => (
+                                        <span className='application-details__external_link'>
+                                            <a href={ctx.baseHref + 'applications/' + res.name} title='Open application'>
+                                                <i className='fa fa-external-link-alt' />
+                                            </a>
+                                        </span>
+                                    )}
+                                </Consumer>
+                            )}
+                        </div>
+                        <div className='columns small-2 xxxlarge-2'>{[res.group, res.kind].filter(item => !!item).join('/')}</div>
+                        <div className='columns small-1 xxxlarge-2'>{res.syncOrder}</div>
                         <div className='columns small-3 xxxlarge-3'>{res.namespace}</div>
                         <div className='columns small-2 xxxlarge-2'>
                             {res.health && (

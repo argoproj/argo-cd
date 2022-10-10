@@ -21,8 +21,8 @@ with at least one value for `hostname` or `IP`.
 
 ### Argocd App
 
-The health assessement of `argoproj.io/Application` CRD has been removed in argocd 1.8 (see [#3781](https://github.com/argoproj/argo-cd/issues/3781) for more information).
-You might need to restore it if you are using app-of-apps pattern and orchestrating syncronization using sync waves. Add the following resource customization in
+The health assessment of `argoproj.io/Application` CRD has been removed in argocd 1.8 (see [#3781](https://github.com/argoproj/argo-cd/issues/3781) for more information).
+You might need to restore it if you are using app-of-apps pattern and orchestrating synchronization using sync waves. Add the following resource customization in
 `argocd-cm` ConfigMap:
 
 ```yaml
@@ -62,7 +62,9 @@ There are two ways to configure a custom health check. The next two sections des
 
 ### Way 1. Define a Custom Health Check in `argocd-cm` ConfigMap
 
-Custom health checks can be defined in `resource.customizations.health.<group_kind>` field of `argocd-cm`. Following example demonstrates a health check for `cert-manager.io/Certificate`.
+Custom health checks can be defined in `resource.customizations.health.<group_kind>` field of `argocd-cm`. If you are using argocd-operator, this is overridden by [the argocd-operator resourceCustomizations](https://argocd-operator.readthedocs.io/en/latest/reference/argocd/#resource-customizations).
+
+The following example demonstrates a health check for `cert-manager.io/Certificate`.
 
 ```yaml
 data:
@@ -84,7 +86,7 @@ data:
         end
       end
     end
-        
+
     hs.status = "Progressing"
     hs.message = "Waiting for certificate"
     return hs
@@ -100,7 +102,7 @@ The custom health check might return one of the following health statuses:
 
 By default health typically returns `Progressing` status.
 
-NOTE: As a security measure, access to the standard Lua libraries will be disabled by default. Admins can control access by 
+NOTE: As a security measure, access to the standard Lua libraries will be disabled by default. Admins can control access by
 setting `resource.customizations.useOpenLibs.<group_kind>`. In the following example, standard libraries are enabled for health check of `cert-manager.io/Certificate`.
 
 ```yaml
@@ -133,5 +135,7 @@ tests:
     message: Expected message
   inputPath: testdata/test-resource-definition.yaml
 ```
+
+To test the implemented custom health checks, run `go test -v ./util/lua/`.
 
 The [PR#1139](https://github.com/argoproj/argo-cd/pull/1139) is an example of Cert Manager CRDs custom health check.

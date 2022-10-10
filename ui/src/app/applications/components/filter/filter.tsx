@@ -1,5 +1,4 @@
 import {Autocomplete, Checkbox} from 'argo-ui/v2';
-import * as classNames from 'classnames';
 import * as React from 'react';
 
 import './filter.scss';
@@ -10,6 +9,7 @@ interface FilterProps {
     options?: CheckboxOption[];
     label?: string;
     labels?: string[];
+    abbreviations?: Map<string, string>;
     field?: boolean;
     error?: boolean;
     retry?: () => void;
@@ -51,31 +51,22 @@ export const CheckboxRow = (props: {value: boolean; onChange?: (value: boolean) 
     );
 };
 
-export const FiltersGroup = (props: {
-    children?: React.ReactNode;
-    content: React.ReactNode;
-    appliedFilter?: string[];
-    expanded: boolean;
-    setShown: (val: boolean) => void;
-    onClearFilter?: () => void;
-}) => {
+export const FiltersGroup = (props: {children?: React.ReactNode; content: React.ReactNode; appliedFilter?: string[]; onClearFilter?: () => void; collapsed?: boolean}) => {
     return (
-        <div className={classNames('filters-group', {'filters-group--expanded': props.expanded})}>
-            <div className='filters-group__panel'>
-                <i className='fa fa-filter' />
-                <div className='filters-group__panel__title'>
+        !props.collapsed && (
+            <div className='filters-group'>
+                <div className='filters-group__header'>
                     FILTERS{' '}
                     {props.appliedFilter?.length > 0 && props.onClearFilter && (
                         <button onClick={() => props.onClearFilter()} className='argo-button argo-button--base argo-button--sm'>
                             CLEAR ALL
                         </button>
                     )}
-                    <i className='fa fa-thumbtack filters-group__toggle' onClick={() => props.setShown(!props.expanded)} />
                 </div>
                 <>{props.children}</>
+                <div className='filters-group__content'>{props.content}</div>
             </div>
-            <div className='filters-group__content'>{props.content}</div>
-        </div>
+        )
     );
 };
 
@@ -87,8 +78,13 @@ export const Filter = (props: FilterProps) => {
     const [tags, setTags] = React.useState([]);
     const [input, setInput] = React.useState('');
     const [collapsed, setCollapsed] = React.useState(false);
+    const [options, setOptions] = React.useState(props.options);
 
-    const labels = props.labels || props.options.map(o => o.label);
+    React.useEffect(() => {
+        setOptions(props.options);
+    }, [props.options]);
+
+    const labels = props.labels || options.map(o => o.label);
 
     React.useEffect(() => {
         const map: string[] = Object.keys(values).filter(s => values[s]);
@@ -96,7 +92,8 @@ export const Filter = (props: FilterProps) => {
         if (props.field) {
             setTags(
                 Object.keys(values).map(v => {
-                    return {label: v} as CheckboxOption;
+                    if (options?.find(x => x.label === v)) return {label: v, count: options?.find(x => x.label === v).count} as CheckboxOption;
+                    else return {label: v} as CheckboxOption;
                 })
             );
         }
@@ -109,14 +106,17 @@ export const Filter = (props: FilterProps) => {
         }
     }, [props.selected.length]);
 
+    const totalCount = options.reduce((countSum, option) => {
+        return countSum + option.count;
+    }, 0);
+
     return (
-        <div className='filter'>
+        <div className='filter' key={totalCount + props.label}>
             <div className='filter__header'>
                 {props.label || 'FILTER'}
                 {(props.selected || []).length > 0 || (props.field && Object.keys(values).length > 0) ? (
                     <button
-                        className='argo-button argo-button--base argo-button--sm'
-                        style={{marginLeft: 'auto'}}
+                        className='argo-button argo-button--base argo-button--sm argo-button--right'
                         onClick={() => {
                             setValues({} as {[label: string]: boolean});
                             setInput('');
@@ -138,6 +138,7 @@ export const Filter = (props: FilterProps) => {
                             <Autocomplete
                                 placeholder={props.label}
                                 items={labels}
+                                abbreviations={props.abbreviations}
                                 value={input}
                                 onChange={e => setInput(e.target.value)}
                                 onItemClick={val => {
@@ -147,10 +148,10 @@ export const Filter = (props: FilterProps) => {
                                     setValues(update);
                                 }}
                                 style={{width: '100%'}}
-                                inputStyle={{marginBottom: '0.5em', backgroundColor: 'white'}}
+                                inputStyle={{marginBottom: '0.5em', backgroundColor: 'black', border: 'none'}}
                             />
                         )}
-                        {((props.field ? tags : props.options) || []).map((opt, i) => (
+                        {((props.field ? tags : options) || []).map((opt, i) => (
                             <CheckboxRow
                                 key={i}
                                 value={values[opt.label]}

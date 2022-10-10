@@ -85,6 +85,59 @@ connectors:
     orgs:
     - name: your-github-org
 `
+
+var goodDexConfigWithOauthOverrides = `
+oauth2:
+  passwordConnector: ldap
+connectors:
+- type: ldap
+  name: OpenLDAP
+  id: ldap
+  config:
+    host: localhost:389
+    insecureNoSSL: true
+    bindDN: cn=admin,dc=example,dc=org
+    bindPW: admin
+    usernamePrompt: Email Address
+    userSearch:
+      baseDN: ou=People,dc=example,dc=org
+      filter: "(objectClass=person)"
+      username: mail
+      idAttr: DN
+      emailAttr: mail
+      nameAttr: cn
+    groupSearch:
+      baseDN: ou=Groups,dc=example,dc=org
+      filter: "(objectClass=groupOfNames)"
+      nameAttr: cn
+`
+var goodDexConfigWithEnabledApprovalScreen = `
+oauth2:
+  passwordConnector: ldap
+  skipApprovalScreen: false
+connectors:
+- type: ldap
+  name: OpenLDAP
+  id: ldap
+  config:
+    host: localhost:389
+    insecureNoSSL: true
+    bindDN: cn=admin,dc=example,dc=org
+    bindPW: admin
+    usernamePrompt: Email Address
+    userSearch:
+      baseDN: ou=People,dc=example,dc=org
+      filter: "(objectClass=person)"
+      username: mail
+      idAttr: DN
+      emailAttr: mail
+      nameAttr: cn
+    groupSearch:
+      baseDN: ou=Groups,dc=example,dc=org
+      filter: "(objectClass=groupOfNames)"
+      nameAttr: cn
+`
+
 var goodSecrets = map[string]string{
 	"dex.github.clientSecret": "foobar",
 	"dex.acme.clientSecret":   "barfoo",
@@ -99,7 +152,7 @@ func Test_GenerateDexConfig(t *testing.T) {
 
 	t.Run("Empty settings", func(t *testing.T) {
 		s := settings.ArgoCDSettings{}
-		config, err := GenerateDexConfigYAML(&s)
+		config, err := GenerateDexConfigYAML(&s, false)
 		assert.NoError(t, err)
 		assert.Nil(t, config)
 	})
@@ -109,7 +162,7 @@ func Test_GenerateDexConfig(t *testing.T) {
 			URL:       invalidURL,
 			DexConfig: goodDexConfig,
 		}
-		config, err := GenerateDexConfigYAML(&s)
+		config, err := GenerateDexConfigYAML(&s, false)
 		assert.Error(t, err)
 		assert.Nil(t, config)
 	})
@@ -119,7 +172,7 @@ func Test_GenerateDexConfig(t *testing.T) {
 			URL:       "",
 			DexConfig: "invalidyaml",
 		}
-		config, err := GenerateDexConfigYAML(&s)
+		config, err := GenerateDexConfigYAML(&s, false)
 		assert.NoError(t, err)
 		assert.Nil(t, config)
 	})
@@ -129,7 +182,7 @@ func Test_GenerateDexConfig(t *testing.T) {
 			URL:       "http://localhost",
 			DexConfig: "invalidyaml",
 		}
-		config, err := GenerateDexConfigYAML(&s)
+		config, err := GenerateDexConfigYAML(&s, false)
 		assert.NoError(t, err)
 		assert.Nil(t, config)
 	})
@@ -139,7 +192,7 @@ func Test_GenerateDexConfig(t *testing.T) {
 			URL:       "http://localhost",
 			DexConfig: malformedDexConfig,
 		}
-		config, err := GenerateDexConfigYAML(&s)
+		config, err := GenerateDexConfigYAML(&s, false)
 		assert.Error(t, err)
 		assert.Nil(t, config)
 	})
@@ -149,7 +202,7 @@ func Test_GenerateDexConfig(t *testing.T) {
 			URL:       "http://localhost",
 			DexConfig: badDexConfig,
 		}
-		config, err := GenerateDexConfigYAML(&s)
+		config, err := GenerateDexConfigYAML(&s, false)
 		assert.Error(t, err)
 		assert.Nil(t, config)
 	})
@@ -159,7 +212,7 @@ func Test_GenerateDexConfig(t *testing.T) {
 			URL:       "http://localhost",
 			DexConfig: goodDexConfig,
 		}
-		config, err := GenerateDexConfigYAML(&s)
+		config, err := GenerateDexConfigYAML(&s, false)
 		assert.NoError(t, err)
 		assert.NotNil(t, config)
 	})
@@ -170,7 +223,7 @@ func Test_GenerateDexConfig(t *testing.T) {
 			DexConfig: goodDexConfig,
 			Secrets:   goodSecrets,
 		}
-		config, err := GenerateDexConfigYAML(&s)
+		config, err := GenerateDexConfigYAML(&s, false)
 		assert.NoError(t, err)
 		assert.NotNil(t, config)
 		var dexCfg map[string]interface{}
@@ -196,7 +249,7 @@ func Test_GenerateDexConfig(t *testing.T) {
 			DexConfig: goodDexConfig,
 			Secrets:   goodSecretswithCRLF,
 		}
-		config, err := GenerateDexConfigYAML(&s)
+		config, err := GenerateDexConfigYAML(&s, false)
 		assert.NoError(t, err)
 		assert.NotNil(t, config)
 		var dexCfg map[string]interface{}
@@ -230,7 +283,7 @@ func Test_GenerateDexConfig(t *testing.T) {
 			DexConfig: customStaticClientDexConfig,
 			Secrets:   goodSecretswithCRLF,
 		}
-		config, err := GenerateDexConfigYAML(&s)
+		config, err := GenerateDexConfigYAML(&s, false)
 		assert.NoError(t, err)
 		assert.NotNil(t, config)
 		var dexCfg map[string]interface{}
@@ -252,7 +305,7 @@ func Test_GenerateDexConfig(t *testing.T) {
 			DexConfig: customStaticClientDexConfig,
 			Secrets:   goodSecretswithCRLF,
 		}
-		config, err := GenerateDexConfigYAML(&s)
+		config, err := GenerateDexConfigYAML(&s, false)
 		assert.NoError(t, err)
 		assert.NotNil(t, config)
 		var dexCfg map[string]interface{}
@@ -267,6 +320,52 @@ func Test_GenerateDexConfig(t *testing.T) {
 		customClient := clients[2].(map[string]interface{})
 		assert.Equal(t, "barfoo", customClient["secret"])
 	})
+	t.Run("Override dex oauth2 configuration", func(t *testing.T) {
+		s := settings.ArgoCDSettings{
+			URL:       "http://localhost",
+			DexConfig: goodDexConfigWithOauthOverrides,
+		}
+		config, err := GenerateDexConfigYAML(&s, false)
+		assert.NoError(t, err)
+		assert.NotNil(t, config)
+		var dexCfg map[string]interface{}
+		err = yaml.Unmarshal(config, &dexCfg)
+		if err != nil {
+			panic(err.Error())
+		}
+		oauth2Config, ok := dexCfg["oauth2"].(map[string]interface{})
+		assert.True(t, ok)
+		pwConn, ok := oauth2Config["passwordConnector"].(string)
+		assert.True(t, ok)
+		assert.Equal(t, "ldap", pwConn)
+
+		skipApprScr, ok := oauth2Config["skipApprovalScreen"].(bool)
+		assert.True(t, ok)
+		assert.True(t, skipApprScr)
+	})
+	t.Run("Override dex oauth2 with enabled ApprovalScreen", func(t *testing.T) {
+		s := settings.ArgoCDSettings{
+			URL:       "http://localhost",
+			DexConfig: goodDexConfigWithEnabledApprovalScreen,
+		}
+		config, err := GenerateDexConfigYAML(&s, false)
+		assert.NoError(t, err)
+		assert.NotNil(t, config)
+		var dexCfg map[string]interface{}
+		err = yaml.Unmarshal(config, &dexCfg)
+		if err != nil {
+			panic(err.Error())
+		}
+		oauth2Config, ok := dexCfg["oauth2"].(map[string]interface{})
+		assert.True(t, ok)
+		pwConn, ok := oauth2Config["passwordConnector"].(string)
+		assert.True(t, ok)
+		assert.Equal(t, "ldap", pwConn)
+
+		skipApprScr, ok := oauth2Config["skipApprovalScreen"].(bool)
+		assert.True(t, ok)
+		assert.False(t, skipApprScr)
+	})
 }
 
 func Test_DexReverseProxy(t *testing.T) {
@@ -278,7 +377,7 @@ func Test_DexReverseProxy(t *testing.T) {
 		}))
 		defer fakeDex.Close()
 		fmt.Printf("Fake Dex listening on %s\n", fakeDex.URL)
-		server := httptest.NewServer(http.HandlerFunc(NewDexHTTPReverseProxy(fakeDex.URL, "/")))
+		server := httptest.NewServer(http.HandlerFunc(NewDexHTTPReverseProxy(fakeDex.URL, "/", nil)))
 		fmt.Printf("Fake API Server listening on %s\n", server.URL)
 		defer server.Close()
 		target, _ := url.Parse(fakeDex.URL)
@@ -296,7 +395,7 @@ func Test_DexReverseProxy(t *testing.T) {
 		}))
 		defer fakeDex.Close()
 		fmt.Printf("Fake Dex listening on %s\n", fakeDex.URL)
-		server := httptest.NewServer(http.HandlerFunc(NewDexHTTPReverseProxy(fakeDex.URL, "/")))
+		server := httptest.NewServer(http.HandlerFunc(NewDexHTTPReverseProxy(fakeDex.URL, "/", nil)))
 		fmt.Printf("Fake API Server listening on %s\n", server.URL)
 		defer server.Close()
 		client := &http.Client{
@@ -309,13 +408,13 @@ func Test_DexReverseProxy(t *testing.T) {
 		assert.Equal(t, http.StatusSeeOther, resp.StatusCode)
 		location, _ := resp.Location()
 		fmt.Printf("%s %s\n", resp.Status, location.RequestURI())
-		assert.True(t, strings.HasPrefix(location.RequestURI(), "/login?sso_error"))
+		assert.True(t, strings.HasPrefix(location.RequestURI(), "/login?has_sso_error=true"))
 	})
 
 	t.Run("Invalid URL for Dex reverse proxy", func(t *testing.T) {
 		// Can't test for now, since it would call exit
 		t.Skip()
-		f := NewDexHTTPReverseProxy(invalidURL, "/")
+		f := NewDexHTTPReverseProxy(invalidURL, "/", nil)
 		assert.Nil(t, f)
 	})
 

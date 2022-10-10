@@ -1,0 +1,8 @@
+apiVersion: flink.apache.org/v1alpha1
+kind: FlinkDeployment
+spec: {}
+status:
+  jobManagerDeploymentStatus: ERROR
+  reconciliationStatus:
+    error: "org.apache.flink.configuration.IllegalConfigurationException: TaskManager memory configuration failed: Cannot read memory size from config option ''taskmanager.memory.network.max''."
+    success: false

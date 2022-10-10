@@ -36,6 +36,11 @@ const settings = [
         title: 'Accounts',
         description: 'Configure Accounts',
         path: './accounts'
+    },
+    {
+        title: 'Appearance',
+        description: 'Configure themes in UI',
+        path: './appearance'
     }
 ];
 

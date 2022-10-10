@@ -1,10 +1,10 @@
-import {DataLoader, DropDownMenu, Tooltip} from 'argo-ui';
+import {DataLoader, DropDownMenu, Tooltip, Checkbox} from 'argo-ui';
 import * as classNames from 'classnames';
 import * as React from 'react';
 import {useState} from 'react';
 import {Link} from 'react-router-dom';
 import {bufferTime, delay, filter as rxfilter, map, retryWhen, scan} from 'rxjs/operators';
-
+import Ansi from 'ansi-to-react';
 import * as models from '../../../shared/models';
 import {services} from '../../../shared/services';
 
@@ -15,6 +15,7 @@ import './pod-logs-viewer.scss';
 const maxLines = 100;
 export interface PodLogsProps {
     namespace: string;
+    applicationNamespace: string;
     applicationName: string;
     podName?: string;
     containerName: string;
@@ -22,11 +23,15 @@ export interface PodLogsProps {
     kind?: string;
     name?: string;
     page: {number: number; untilTimes: string[]};
+    timestamp?: string;
     setPage: (pageData: {number: number; untilTimes: string[]}) => void;
+    containerGroups?: any[];
+    onClickContainer?: (group: any, i: number, tab: string) => any;
 }
 
 export const PodsLogsViewer = (props: PodLogsProps & {fullscreen?: boolean}) => {
-    if (!props.containerName || props.containerName === '') {
+    const {containerName, onClickContainer} = props;
+    if (!containerName || containerName === '') {
         return <div>Pod does not have container with name {props.containerName}</div>;
     }
 
@@ -38,8 +43,33 @@ export const PodsLogsViewer = (props: PodLogsProps & {fullscreen?: boolean}) => 
     const page = props.page;
     const setPage = props.setPage;
     const [viewPodNames, setViewPodNames] = useState(false);
+    const [viewTimestamps, setViewTimestamps] = useState(false);
     const [showPreviousLogs, setPreviousLogs] = useState(false);
 
+    const containerItems: {title: any; action: () => any}[] = [];
+    if (props.containerGroups?.length > 0) {
+        props.containerGroups.forEach(group => {
+            containerItems.push({
+                title: group.offset === 0 ? 'CONTAINER' : 'INIT CONTAINER',
+                action: null
+            });
+
+            group.containers.forEach((container: any, index: number) => {
+                const title = (
+                    <div className='d-inline-block'>
+                        {container.name === containerName && <i className='fa fa-angle-right' />}
+                        <span title={container.name} className='container-item'>
+                            {container.name.toUpperCase()}
+                        </span>
+                    </div>
+                );
+                containerItems.push({
+                    title,
+                    action: () => (container.name === containerName ? {} : onClickContainer(group, index, 'logs'))
+                });
+            });
+        });
+    }
     interface FilterData {
         literal: string;
         inverse: boolean;
@@ -67,114 +97,188 @@ export const PodsLogsViewer = (props: PodLogsProps & {fullscreen?: boolean}) => 
         return () => clearTimeout(to);
     }, [filterText]);
 
+    const setColor = (i: string) => {
+        const element = document.getElementById('copyButton');
+        if (i === 'success') {
+            element.classList.remove('copyStandard');
+            element.classList.add('copySuccess');
+        } else if (i === 'failure') {
+            element.classList.remove('copyStandard');
+            element.classList.add('copyFailure');
+        } else {
+            element.classList.remove('copySuccess');
+            element.classList.remove('copyFailure');
+            element.classList.add('copyStandard');
+        }
+    };
+
     const fullscreenURL =
-        `/applications/${props.applicationName}/${props.namespace}/${props.containerName}/logs?` +
+        `/applications/${props.applicationNamespace}/${props.applicationName}/${props.namespace}/${props.containerName}/logs?` +
         `podName=${props.podName}&group=${props.group}&kind=${props.kind}&name=${props.name}`;
     return (
         <DataLoader load={() => services.viewPreferences.getPreferences()}>
             {prefs => (
                 <React.Fragment>
                     <div className='pod-logs-viewer__settings'>
-                        <button
-                            className='argo-button argo-button--base'
-                            style={{width: '100px'}}
-                            onClick={async () => {
-                                try {
-                                    await navigator.clipboard.writeText(
-                                        loader
-                                            .getData()
-                                            .map(item => item.content)
-                                            .join('\n')
+                        <Tooltip content='Copy logs'>
+                            <button
+                                className='argo-button argo-button--base'
+                                id='copyButton'
+                                onClick={async () => {
+                                    try {
+                                        await navigator.clipboard.writeText(
+                                            loader
+                                                .getData()
+                                                .map(item => item.content)
+                                                .join('\n')
+                                        );
+                                        setCopy('success');
+                                        setColor('success');
+                                    } catch (err) {
+                                        setCopy('failure');
+                                        setColor('failure');
+                                    }
+                                    setTimeout(() => {
+                                        setCopy('');
+                                        setColor('');
+                                    }, 750);
+                                }}>
+                                {copy === 'success' && (
+                                    <React.Fragment>
+                                        <i className='fa fa-check' />
+                                    </React.Fragment>
+                                )}
+                                {copy === 'failure' && (
+                                    <React.Fragment>
+                                        <i className='fa fa-times' />
+                                    </React.Fragment>
+                                )}
+                                {copy === '' && (
+                                    <React.Fragment>
+                                        <i className='fa fa-clipboard' />
+                                    </React.Fragment>
+                                )}
+                            </button>
+                        </Tooltip>
+                        <Tooltip content='Download logs'>
+                            <button
+                                className='argo-button argo-button--base'
+                                onClick={async () => {
+                                    const downloadURL = services.applications.getDownloadLogsURL(
+                                        props.applicationName,
+                                        props.applicationNamespace,
+                                        props.namespace,
+                                        props.podName,
+                                        {group: props.group, kind: props.kind, name: props.name},
+                                        props.containerName
                                     );
-                                    setCopy('success');
-                                } catch (err) {
-                                    setCopy('failure');
-                                }
-                                setTimeout(() => {
-                                    setCopy('');
-                                }, 750);
-                            }}>
-                            {copy === 'success' && (
-                                <React.Fragment>
-                                    COPIED <i className='fa fa-check' />
-                                </React.Fragment>
-                            )}
-                            {copy === 'failure' && (
-                                <React.Fragment>
-                                    COPY FAILED <i className='fa fa-times' />
-                                </React.Fragment>
-                            )}
-                            {copy === '' && (
-                                <React.Fragment>
-                                    COPY <i className='fa fa-clipboard' />
-                                </React.Fragment>
-                            )}
-                        </button>
-                        <button
-                            className={classNames(`argo-button argo-button--base${prefs.appDetails.followLogs && page.number === 0 ? '' : '-o'}`, {
-                                disabled: page.number > 0
-                            })}
-                            style={{width: '110px'}}
-                            onClick={() => {
-                                if (page.number > 0) {
-                                    return;
-                                }
-                                const follow = !prefs.appDetails.followLogs;
-                                services.viewPreferences.updatePreferences({...prefs, appDetails: {...prefs.appDetails, followLogs: follow}});
-                                if (follow) {
-                                    setPage({number: 0, untilTimes: []});
-                                }
-                                loader.reload();
-                            }}>
-                            FOLLOW {prefs.appDetails.followLogs && <i className='fa fa-check' />}
-                        </button>
-                        <button
-                            className={`argo-button argo-button--base${showPreviousLogs ? '' : '-o'}`}
-                            onClick={() => {
-                                setPreviousLogs(!showPreviousLogs);
-                                loader.reload();
-                            }}>
-                            PREVIOUS LOGS {showPreviousLogs && <i className='fa fa-check' />}
-                        </button>
-                        <button
-                            className='argo-button argo-button--base-o'
-                            onClick={() => {
-                                const inverted = prefs.appDetails.darkMode;
-                                services.viewPreferences.updatePreferences({...prefs, appDetails: {...prefs.appDetails, darkMode: !inverted}});
-                            }}>
-                            {prefs.appDetails.darkMode ? <i className='fa fa-sun' /> : <i className='fa fa-moon' />}
-                        </button>
-                        <button
-                            className='argo-button argo-button--base'
-                            onClick={async () => {
-                                const downloadURL = services.applications.getDownloadLogsURL(
-                                    props.applicationName,
-                                    props.namespace,
-                                    props.podName,
-                                    {group: props.group, kind: props.kind, name: props.name},
-                                    props.containerName
-                                );
-                                window.open(downloadURL, '_blank');
-                            }}>
-                            DOWNLOAD
-                        </button>
-                        {!props.fullscreen && (
-                            <Link to={fullscreenURL} target='_blank' className='argo-button argo-button--base'>
-                                <i className='fa fa-external-link-alt' />
-                            </Link>
+                                    window.open(downloadURL, '_blank');
+                                }}>
+                                <i className='fa fa-download' />
+                            </button>
+                        </Tooltip>
+                        {props.containerGroups?.length > 0 && (
+                            <DropDownMenu
+                                anchor={() => (
+                                    <Tooltip content='Containers'>
+                                        <button className='argo-button argo-button--base'>
+                                            <i className='fa fa-stream' />
+                                        </button>
+                                    </Tooltip>
+                                )}
+                                items={containerItems}
+                            />
                         )}
+                        <Tooltip content='Follow'>
+                            <button
+                                className={classNames(`argo-button argo-button--base-o`, {
+                                    disabled: page.number > 0
+                                })}
+                                onClick={() => {
+                                    if (page.number > 0) {
+                                        return;
+                                    }
+                                    const follow = !prefs.appDetails.followLogs;
+                                    services.viewPreferences.updatePreferences({...prefs, appDetails: {...prefs.appDetails, followLogs: follow}});
+                                    if (follow) {
+                                        setPage({number: 0, untilTimes: []});
+                                    }
+                                    loader.reload();
+                                }}>
+                                <Checkbox checked={prefs.appDetails.followLogs} />
+                                <i className='fa fa-arrow-right' />
+                            </button>
+                        </Tooltip>
+                        <Tooltip content='Wrap Lines'>
+                            <button
+                                className={`argo-button argo-button--base-o`}
+                                onClick={() => {
+                                    const wrap = prefs.appDetails.wrapLines;
+                                    services.viewPreferences.updatePreferences({...prefs, appDetails: {...prefs.appDetails, wrapLines: !wrap}});
+                                }}>
+                                <Checkbox checked={prefs.appDetails.wrapLines} />
+                                <i className='fa fa-paragraph' />
+                            </button>
+                        </Tooltip>
+                        <Tooltip content='Show previous logs'>
+                            <button
+                                className={`argo-button argo-button--base-o`}
+                                onClick={() => {
+                                    setPreviousLogs(!showPreviousLogs);
+                                    loader.reload();
+                                }}>
+                                <Checkbox checked={showPreviousLogs} />
+                                <i className='fa fa-backward' />
+                            </button>
+                        </Tooltip>
+                        <Tooltip content={prefs.appDetails.darkMode ? 'Light Mode' : 'Dark Mode'}>
+                            <button
+                                className='argo-button argo-button--base-o'
+                                onClick={() => {
+                                    const inverted = prefs.appDetails.darkMode;
+                                    services.viewPreferences.updatePreferences({...prefs, appDetails: {...prefs.appDetails, darkMode: !inverted}});
+                                }}>
+                                {prefs.appDetails.darkMode ? <i className='fa fa-sun' /> : <i className='fa fa-moon' />}
+                            </button>
+                        </Tooltip>
+                        {!props.timestamp && (
+                            <Tooltip content={viewTimestamps ? 'Hide timestamps' : 'Show timestamps'}>
+                                <button
+                                    className={'argo-button argo-button--base-o'}
+                                    onClick={() => {
+                                        setViewTimestamps(!viewTimestamps);
+                                        if (viewPodNames) {
+                                            setViewPodNames(false);
+                                        }
+                                    }}>
+                                    <Checkbox checked={viewTimestamps} />
+                                    <i className='fa fa-clock' />
+                                </button>
+                            </Tooltip>
+                        )}
+                        {!props.fullscreen && (
+                            <Tooltip content='Fullscreen View'>
+                                <button className='argo-button argo-button--base'>
+                                    <Link to={fullscreenURL} target='_blank'>
+                                        <i style={{color: '#fff'}} className='fa fa-external-link-alt' />
+                                    </Link>{' '}
+                                </button>
+                            </Tooltip>
+                        )}
+
                         <div className='pod-logs-viewer__filter'>
                             <Tooltip content={`Show lines that ${!filter.inverse ? '' : 'do not'} match filter`}>
                                 <button
-                                    className={`argo-button argo-button--base${filter.inverse ? '' : '-o'}`}
+                                    className={`argo-button argo-button--base-o`}
                                     onClick={() => setFilter({...filter, inverse: !filter.inverse})}
                                     style={{marginRight: '10px'}}>
-                                    !
+                                    <Checkbox checked={filter.inverse} />
+                                    <span>!</span>
                                 </button>
                             </Tooltip>
                             <input
                                 type='text'
-                                placeholder='Filter string'
+                                placeholder={`Filter ${filter.inverse ? 'out' : ''} string`}
                                 className='argo-field'
                                 value={filterText}
                                 onChange={e => setFilterText(e.target.value)}
@@ -195,6 +299,7 @@ export const PodsLogsViewer = (props: PodLogsProps & {fullscreen?: boolean}) => 
                             let logsSource = services.applications
                                 .getContainerLogs(
                                     props.applicationName,
+                                    props.applicationNamespace,
                                     props.namespace,
                                     props.podName,
                                     {group: props.group, kind: props.kind, name: props.name},
@@ -246,7 +351,8 @@ export const PodsLogsViewer = (props: PodLogsProps & {fullscreen?: boolean}) => 
                                 <div
                                     className={classNames('pod-logs-viewer', {
                                         'pod-logs-viewer--inverted': prefs.appDetails.darkMode,
-                                        'pod-logs-viewer--pod-name-visible': viewPodNames
+                                        'pod-logs-viewer--pod-name-visible': viewPodNames,
+                                        'pod-logs-viewer--pod-timestamp-visible': viewTimestamps
                                     })}>
                                     {logNavigators(
                                         {
@@ -290,11 +396,16 @@ export const PodsLogsViewer = (props: PodLogsProps & {fullscreen?: boolean}) => 
                                         <Tooltip content={viewPodNames ? 'Hide pod names' : 'Show pod names'}>
                                             <i
                                                 className={classNames('fa pod-logs-viewer__pod-name-toggle', {'fa-chevron-left': viewPodNames, 'fa-chevron-right': !viewPodNames})}
-                                                onClick={() => setViewPodNames(!viewPodNames)}
+                                                onClick={() => {
+                                                    setViewPodNames(!viewPodNames);
+                                                    if (viewTimestamps) {
+                                                        setViewTimestamps(false);
+                                                    }
+                                                }}
                                             />
                                         </Tooltip>
                                     )}
-                                    <pre style={{height: '95%'}}>
+                                    <pre style={{height: '95%', whiteSpace: prefs.appDetails.wrapLines ? 'normal' : 'pre'}}>
                                         <div ref={top} style={{height: '1px'}} />
                                         {lines.map((l, i) => {
                                             const lineNum = lastLine - i;
@@ -311,9 +422,11 @@ export const PodsLogsViewer = (props: PodLogsProps & {fullscreen?: boolean}) => 
                                                             items={[
                                                                 {
                                                                     title: (
-                                                                        <span>
-                                                                            <i className='fa fa-clipboard' /> Copy
-                                                                        </span>
+                                                                        <Tooltip content='Copy'>
+                                                                            <span>
+                                                                                <i className='fa fa-clipboard' />
+                                                                            </span>
+                                                                        </Tooltip>
                                                                     ),
                                                                     action: async () => {
                                                                         await navigator.clipboard.writeText(l);
@@ -346,8 +459,21 @@ export const PodsLogsViewer = (props: PodLogsProps & {fullscreen?: boolean}) => 
                                                             )}
                                                         </div>
                                                     )}
+                                                    {viewTimestamps && (
+                                                        <div className='pod-logs-viewer__line__timestamp'>
+                                                            {(i === 0 || logs[i - 1].timeStamp !== logs[i].timeStamp) && (
+                                                                <React.Fragment>
+                                                                    <Tooltip content={logs[i].timeStampStr}>
+                                                                        <span>{logs[i].timeStampStr}</span>
+                                                                    </Tooltip>
+                                                                </React.Fragment>
+                                                            )}
+                                                        </div>
+                                                    )}
                                                     <div className='pod-logs-viewer__line__number'>{lineNum}</div>
-                                                    <div className={`pod-logs-viewer__line ${selectedLine === i ? 'pod-logs-viewer__line--selected' : ''}`}>{l}</div>
+                                                    <div className={`pod-logs-viewer__line ${selectedLine === i ? 'pod-logs-viewer__line--selected' : ''}`}>
+                                                        <Ansi>{l}</Ansi>
+                                                    </div>
                                                 </div>
                                             );
                                         })}

@@ -67,7 +67,10 @@ Scraped at the `argocd-server-metrics:8083/metrics` endpoint.
 | Metric | Type | Description |
 |--------|:----:|-------------|
 | `argocd_redis_request_duration` | histogram | Redis requests duration. |
-| `argocd_redis_request_total` | counter | Number of kubernetes requests executed during application reconciliation. |
+| `argocd_redis_request_total` | counter | Number of kubernetes requests executed during application
+reconciliation. |
+| `grpc_server_handled_total` | counter | Total number of RPCs completed on the server, regardless of success or failure. |
+| `grpc_server_msg_sent_total` | counter | Total number of gRPC stream messages sent by the server. |
 
 ## Repo Server Metrics
 Metrics about the Repo Server.
@@ -127,6 +130,21 @@ spec:
   selector:
     matchLabels:
       app.kubernetes.io/name: argocd-repo-server
+  endpoints:
+  - port: metrics
+```
+
+```yaml
+apiVersion: monitoring.coreos.com/v1
+kind: ServiceMonitor
+metadata:
+  name: argocd-applicationset-controller-metrics
+  labels:
+    release: prometheus-operator
+spec:
+  selector:
+    matchLabels:
+      app.kubernetes.io/name: argocd-applicationset-controller
   endpoints:
   - port: metrics
 ```

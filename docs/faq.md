@@ -43,8 +43,14 @@ per [the getting started guide](getting_started.md). For Argo CD v1.9 and later,
 a secret named `argocd-initial-admin-secret`.
 
 To change the password, edit the `argocd-secret` secret and update the `admin.password` field with a new bcrypt hash.
-You can use a site like [https://www.browserling.com/tools/bcrypt](https://www.browserling.com/tools/bcrypt) to generate
-a new hash. For example:
+
+!!! note "Generating a bcrypt hash"
+    Use a trustworthy, offline `bcrypt` implementation such as the [Python bcrypt library](https://pypi.org/project/bcrypt/) to generate the hash.
+
+        pip3 install bcrypt
+        python3 -c "import bcrypt; print(bcrypt.hashpw(b'YOUR-PASSWORD-HERE', bcrypt.gensalt()).decode())"
+
+To apply the new password hash, use the following command (replacing the hash with your own):
 
 ```bash
 # bcrypt(password)=$2a$10$rRyBsGSHK6.uc8fntPwVIuLVHgsAhAX7TcdrqW/RADU0uh7CaChLa
@@ -63,7 +69,7 @@ or a randomly generated password stored in a secret (Argo CD 1.9 and later).
 ## How to disable admin user?
 
 Add `admin.enabled: "false"` to the `argocd-cm` ConfigMap (
-see [user management](operator-manual/user-management/index.md)).
+see [user management](./operator-manual/user-management/index.md)).
 
 ## Argo CD cannot deploy Helm Chart based applications without internet access, how can I solve it?
 
@@ -75,16 +81,23 @@ might decide to refresh `stable` repo. As workaround override
 
 ```yaml
 data:
-  # v1.2 or earlier use `helm.repositories`
-  helm.repositories: |
-    - url: http://<internal-helm-repo-host>:8080
-      name: stable
-  # v1.3 or later use `repositories` with `type: helm`
   repositories: |
     - type: helm
       url: http://<internal-helm-repo-host>:8080
       name: stable
 ```
+
+## After deploying my Helm application with Argo CD I cannot see it with `helm ls` and other Helm commands
+
+When deploying a Helm application Argo CD is using Helm 
+only as a template mechanism. It runs `helm template` and
+then deploys the resulting manifests on the cluster instead of doing `helm install`. This means that you cannot use any Helm command
+to view/verify the application. It is fully managed by Argo CD.
+Note that Argo CD supports natively some capabilities that you might miss in Helm (such as the history and rollback commands).
+
+This decision was made so that Argo CD is neutral
+to all manifest generators.
+
 
 ## I've configured [cluster secret](./operator-manual/declarative-setup.md#clusters) but it does not show up in CLI/UI, how do I fix it?
 
@@ -119,9 +132,16 @@ Argo CD automatically sets the `app.kubernetes.io/instance` label and uses it to
 If the tool does this too, this causes confusion. You can change this label by setting
 the `application.instanceLabelKey` value in the `argocd-cm`. We recommend that you use `argocd.argoproj.io/instance`.
 
-!!! note When you make this change your applications will become out of sync and will need re-syncing.
+!!! note 
+    When you make this change your applications will become out of sync and will need re-syncing.
 
 See [#1482](https://github.com/argoproj/argo-cd/issues/1482).
+
+## How often does Argo CD check for changes to my Git or Helm repository ?
+
+The default polling interval is 3 minutes (180 seconds). 
+You can change the setting by updating the `timeout.reconciliation` value in the [argocd-cm](https://github.com/argoproj/argo-cd/blob/2d6ce088acd4fb29271ffb6f6023dbb27594d59b/docs/operator-manual/argocd-cm.yaml#L279-L282) config map. If there are any Git changes, ArgoCD will only update applications with the [auto-sync setting](user-guide/auto_sync.md) enabled. If you set it to `0` then Argo CD will stop polling Git repositories automatically and you can only use alternative methods such as [webhooks](operator-manual/webhook.md) and/or manual syncs for deploying applications.
+
 
 ## Why Are My Resource Limits Out Of Sync?
 
@@ -161,7 +181,9 @@ argocd ... --grpc-web
 
 ## Why Am I Getting `x509: certificate signed by unknown authority` When Using The CLI?
 
-Your not running your server with correct certs.
+The certificate created by default by Argo CD is not automatically recognised by the Argo CD CLI, in order
+to create a secure system you must follow the instructions to [install a certificate](/operator-manual/tls/)
+and configure your client OS to trust that certificate.
 
 If you're not running in a production system (e.g. you're testing Argo CD out), try the `--insecure` flag:
 
@@ -174,7 +196,7 @@ argocd ... --insecure
 ## I have configured Dex via `dex.config` in `argocd-cm`, it still says Dex is unconfigured. Why?
 
 Most likely you forgot to set the `url` in `argocd-cm` to point to your ArgoCD as well. See also
-[the docs](/operator-manual/user-management/#2-configure-argo-cd-for-sso).
+[the docs](./operator-manual/user-management/index.md#2-configure-argo-cd-for-sso).
 
 ## Why are `SealedSecret` resources reporting a `Status`?
 

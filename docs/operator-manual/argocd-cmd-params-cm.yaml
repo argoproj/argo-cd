@@ -8,14 +8,26 @@ metadata:
 data:
   # Repo server address. (default "argocd-repo-server:8081")
   repo.server: "argocd-repo-server:8081"
-  
+
   # Dex server address (default "http://argocd-dex-server:5556")
   dex.server: "http://argocd-dex-server:5556"
 
   # Redis server hostname and port (e.g. argocd-redis:6379)
   redis.server: "argocd-redis:6379"
+  # Enable compression for data sent to Redis with the required compression algorithm. (default 'none')
+  redis.compression: none
   # Redis database
   redis.db:
+
+  # Open-Telemetry collector address: (e.g. "otel-collector:4317")
+  otlp.address:
+
+  # List of additional namespaces where applications may be created in and
+  # reconciled from. The namespace where Argo CD is installed to will always
+  # be allowed.
+  #
+  # Feature state: Beta
+  application.namespaces: ns1, ns2, ns3
 
   ## Controller Properties
   # Repo server RPC call timeout seconds.
@@ -38,6 +50,11 @@ data:
   controller.self.heal.timeout.seconds: "5"
   # Cache expiration for app state (default 1h0m0s)
   controller.app.state.cache.expiration: "1h0m0s"
+  # Specifies if resource health should be persisted in app CRD (default true)
+  # Changing this to `false` significantly reduce number of Application CRD updates and improves controller performance.
+  # However, disabling resource health by default might affect applications that communicate with Applications CRD directly
+  # so we have to defer switching this to `false` by default till v3.0 release.
+  controller.resource.health.persist: "true"
   # Cache expiration default (default 24h0m0s)
   controller.default.cache.expiration: "24h0m0s"
 
@@ -47,7 +64,7 @@ data:
   # Value for base href in index.html. Used if Argo CD is running behind reverse proxy under subpath different from / (default "/")
   server.basehref: "/"
   # Used if Argo CD is running behind reverse proxy under subpath different from /
-  server.rootpath: "/"
+  server.rootpath: ""
   # Directory path that contains additional static assets
   server.staticassets: "/shared/app"
 
@@ -61,6 +78,10 @@ data:
   server.repo.server.plaintext: "false"
   # Perform strict validation of TLS certificates when connecting to repo server
   server.repo.server.strict.tls: "false"
+  # Use a plaintext client (non-TLS) to connect to dex server
+  server.dex.server.plaintext: "false"
+  # Perform strict validation of TLS certificates when connecting to dex server
+  server.dex.server.strict.tls: "false"
   # Disable client authentication
   server.disable.auth: "false"
   # Enable GZIP compression
@@ -103,4 +124,21 @@ data:
   reposerver.repo.cache.expiration: "24h0m0s"
   # Cache expiration default (default 24h0m0s)
   reposerver.default.cache.expiration: "24h0m0s"
-  
+  # Max combined manifest file size for a single directory-type Application. In-memory manifest representation may be as
+  # much as 300x the manifest file size. Limit this to stay within the memory limits of the repo-server while allowing
+  # for 300x memory expansion and N Applications running at the same time.
+  # (example 10M max * 300 expansion * 10 Apps = 30G max theoretical memory usage).
+  reposerver.max.combined.directory.manifests.size: '10M'
+  # Paths to be excluded from the tarball streamed to plugins. Separate with ;
+  reposerver.plugin.tar.exclusions: ""
+  # Allow repositories to contain symlinks that leave the boundaries of the repository.
+  # Changing this to "true" will not allow _all_ out-of-bounds symlinks. Those will still be blocked for things like values
+  # files in Helm charts. But symlinks which are not explicitly blocked by other checks will be allowed.
+  reposerver.allow.oob.symlinks: "false"
+  # Maximum size of tarball when streaming manifests to the repo server for generation
+  reposerver.streamed.manifest.max.tar.size: "100M"
+  # Maximum size of extracted manifests when streaming manifests to the repo server for generation
+  reposerver.streamed.manifest.max.extracted.size: "1G"
+
+  # Disable TLS on the HTTP endpoint
+  dexserver.disable.tls: "false"

@@ -2,7 +2,11 @@ package common
 
 import (
 	"os"
+	"path/filepath"
+	"strconv"
 	"time"
+
+	"github.com/sirupsen/logrus"
 )
 
 // Default service addresses and URLS of Argo CD internal services
@@ -10,16 +14,18 @@ const (
 	// DefaultRepoServerAddr is the gRPC address of the Argo CD repo server
 	DefaultRepoServerAddr = "argocd-repo-server:8081"
 	// DefaultDexServerAddr is the HTTP address of the Dex OIDC server, which we run a reverse proxy against
-	DefaultDexServerAddr = "http://argocd-dex-server:5556"
+	DefaultDexServerAddr = "argocd-dex-server:5556"
 	// DefaultRedisAddr is the default redis address
 	DefaultRedisAddr = "argocd-redis:6379"
 )
 
 // Kubernetes ConfigMap and Secret resource names which hold Argo CD settings
 const (
-	ArgoCDConfigMapName     = "argocd-cm"
-	ArgoCDSecretName        = "argocd-secret"
-	ArgoCDRBACConfigMapName = "argocd-rbac-cm"
+	ArgoCDConfigMapName              = "argocd-cm"
+	ArgoCDSecretName                 = "argocd-secret"
+	ArgoCDNotificationsConfigMapName = "argocd-notifications-cm"
+	ArgoCDNotificationsSecretName    = "argocd-notifications-secret"
+	ArgoCDRBACConfigMapName          = "argocd-rbac-cm"
 	// Contains SSH known hosts data for connecting repositories. Will get mounted as volume to pods
 	ArgoCDKnownHostsConfigMapName = "argocd-ssh-known-hosts-cm"
 	// Contains TLS certificate data for connecting repositories. Will get mounted as volume to pods
@@ -42,6 +48,11 @@ const (
 	DefaultPortRepoServerMetrics      = 8084
 )
 
+// Default listener address for ArgoCD components
+const (
+	DefaultAddressAPIServer = "localhost"
+)
+
 // Default paths on the pod's file system
 const (
 	// The default path where TLS certificates for repositories are located
@@ -54,6 +65,12 @@ const (
 	DefaultGnuPgHomePath = "/app/config/gpg/keys"
 	// Default path to repo server TLS endpoint config
 	DefaultAppConfigPath = "/app/config"
+	// Default path to cmp server plugin socket file
+	DefaultPluginSockFilePath = "/home/argocd/cmp-server/plugins"
+	// Default path to cmp server plugin configuration file
+	DefaultPluginConfigFilePath = "/home/argocd/cmp-server/config"
+	// Plugin Config File is a ConfigManagementPlugin manifest located inside the plugin container
+	PluginConfigFileName = "plugin.yaml"
 )
 
 // Argo CD application related constants
@@ -63,8 +80,14 @@ const (
 	ArgoCDAdminUsername = "admin"
 	// ArgoCDUserAgentName is the default user-agent name used by the gRPC API client library and grpc-gateway
 	ArgoCDUserAgentName = "argocd-client"
+	// ArgoCDSSAManager is the default argocd manager name used by server-side apply syncs
+	ArgoCDSSAManager = "argocd-controller"
 	// AuthCookieName is the HTTP cookie name where we store our auth token
 	AuthCookieName = "argocd.token"
+	// StateCookieName is the HTTP cookie name that holds temporary nonce tokens for CSRF protection
+	StateCookieName = "argocd.oauthstate"
+	// StateCookieMaxAge is the maximum age of the oauth state cookie
+	StateCookieMaxAge = time.Minute * 5
 
 	// ChangePasswordSSOTokenMaxAge is the max token age for password change operation
 	ChangePasswordSSOTokenMaxAge = time.Minute * 5
@@ -181,6 +204,31 @@ const (
 	EnvLogFormat = "ARGOCD_LOG_FORMAT"
 	// EnvLogLevel log level that is defined by `--loglevel` option
 	EnvLogLevel = "ARGOCD_LOG_LEVEL"
+	// EnvMaxCookieNumber max number of chunks a cookie can be broken into
+	EnvMaxCookieNumber = "ARGOCD_MAX_COOKIE_NUMBER"
+	// EnvPluginSockFilePath allows to override the pluginSockFilePath for repo server and cmp server
+	EnvPluginSockFilePath = "ARGOCD_PLUGINSOCKFILEPATH"
+	// EnvCMPChunkSize defines the chunk size in bytes used when sending files to the cmp server
+	EnvCMPChunkSize = "ARGOCD_CMP_CHUNK_SIZE"
+	// EnvCMPWorkDir defines the full path of the work directory used by the CMP server
+	EnvCMPWorkDir = "ARGOCD_CMP_WORKDIR"
+)
+
+// Config Management Plugin related constants
+const (
+	// DefaultCMPChunkSize defines chunk size in bytes used when sending files to the cmp server
+	DefaultCMPChunkSize = 1024
+
+	// DefaultCMPWorkDirName defines the work directory name used by the cmp-server
+	DefaultCMPWorkDirName = "_cmp_server"
+
+	ConfigMapPluginDeprecationWarning = "argocd-cm plugins are deprecated, and support will be removed in v2.6. Upgrade your plugin to be installed via sidecar. https://argo-cd.readthedocs.io/en/stable/user-guide/config-management-plugins/"
+
+	ConfigMapPluginCLIDeprecationWarning = "spec.plugin.name is set, which means this Application uses a plugin installed in the " +
+		"argocd-cm ConfigMap. Installing plugins via that ConfigMap is deprecated in Argo CD v2.5. " +
+		"Starting in Argo CD v2.6, this Application will fail to sync. Contact your Argo CD admin " +
+		"to make sure an upgrade plan is in place. More info: " +
+		"https://argo-cd.readthedocs.io/en/latest/operator-manual/upgrading/2.4-2.5/"
 )
 
 const (
@@ -191,6 +239,12 @@ const (
 	// CacheVersion is a objects version cached using util/cache/cache.go.
 	// Number should be bumped in case of backward incompatible change to make sure cache is invalidated after upgrade.
 	CacheVersion = "1.8.3"
+)
+
+// Constants used by util/clusterauth package
+const (
+	ClusterAuthRequestTimeout = 10 * time.Second
+	BearerTokenTimeout        = 30 * time.Second
 )
 
 const (
@@ -207,3 +261,58 @@ func GetGnuPGHomePath() string {
 		return gnuPgHome
 	}
 }
+
+// GetPluginSockFilePath retrieves the path of plugin sock file, which is either taken from PluginSockFilePath environment or a default value
+func GetPluginSockFilePath() string {
+	if pluginSockFilePath := os.Getenv(EnvPluginSockFilePath); pluginSockFilePath == "" {
+		return DefaultPluginSockFilePath
+	} else {
+		return pluginSockFilePath
+	}
+}
+
+// GetCMPChunkSize will return the env var EnvCMPChunkSize value if defined or DefaultCMPChunkSize otherwise.
+// If EnvCMPChunkSize is defined but not a valid int, DefaultCMPChunkSize will be returned
+func GetCMPChunkSize() int {
+	if chunkSizeStr := os.Getenv(EnvCMPChunkSize); chunkSizeStr != "" {
+		chunkSize, err := strconv.Atoi(chunkSizeStr)
+		if err != nil {
+			logrus.Warnf("invalid env var value for %s: not a valid int: %s. Default value will be used.", EnvCMPChunkSize, err)
+			return DefaultCMPChunkSize
+		}
+		return chunkSize
+	}
+	return DefaultCMPChunkSize
+}
+
+// GetCMPWorkDir will return the full path of the work directory used by the CMP server.
+// This directory and all it's contents will be deleted durring CMP bootstrap.
+func GetCMPWorkDir() string {
+	if workDir := os.Getenv(EnvCMPWorkDir); workDir != "" {
+		return filepath.Join(workDir, DefaultCMPWorkDirName)
+	}
+	return filepath.Join(os.TempDir(), DefaultCMPWorkDirName)
+}
+
+const (
+	// AnnotationApplicationRefresh is an annotation that is added when an ApplicationSet is requested to be refreshed by a webhook. The ApplicationSet controller will remove this annotation at the end of reconciliation.
+	AnnotationApplicationSetRefresh = "argocd.argoproj.io/application-set-refresh"
+)
+
+// gRPC settings
+const (
+	GRPCKeepAliveEnforcementMinimum = 10 * time.Second
+	// Keep alive is 2x enforcement minimum to ensure network jitter does not introduce ENHANCE_YOUR_CALM errors
+	GRPCKeepAliveTime = 2 * GRPCKeepAliveEnforcementMinimum
+)
+
+// Security severity logging
+const (
+	SecurityField     = "security"
+	SecurityCWEField  = "CWE"
+	SecurityEmergency = 5 // Indicates unmistakably malicious events that should NEVER occur accidentally and indicates an active attack (i.e. brute forcing, DoS)
+	SecurityCritical  = 4 // Indicates any malicious or exploitable event that had a side effect (i.e. secrets being left behind on the filesystem)
+	SecurityHigh      = 3 // Indicates likely malicious events but one that had no side effects or was blocked (i.e. out of bounds symlinks in repos)
+	SecurityMedium    = 2 // Could indicate malicious events, but has a high likelihood of being user/system error (i.e. access denied)
+	SecurityLow       = 1 // Unexceptional entries (i.e. successful access logs)
+)

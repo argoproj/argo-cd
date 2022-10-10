@@ -33,6 +33,7 @@ metadata:
   labels:
     team-name: my-team
     team-bu: bu-id
+    argoproj.io/cluster: test-cluster
 spec:
   destination:
     namespace: dummy-namespace
@@ -57,6 +58,7 @@ metadata:
   labels:
     team-name: my-team
     team-bu: bu-id
+    argoproj.io/cluster: test-cluster
 spec:
   destination:
     namespace: dummy-namespace
@@ -87,6 +89,7 @@ metadata:
   labels:
     team-name: my-team
     team-bu: bu-id
+    argoproj.io/cluster: test-cluster
 spec:
   destination:
     namespace: dummy-namespace
@@ -254,14 +257,14 @@ func TestMetricLabels(t *testing.T) {
 	cases := []testCases{
 		{
 			description:  "will return the labels metrics successfully",
-			metricLabels: []string{"team-name", "team-bu"},
+			metricLabels: []string{"team-name", "team-bu", "argoproj.io/cluster"},
 			testCombination: testCombination{
 				applications: []string{fakeApp, fakeApp2, fakeApp3},
 				responseContains: `
 # TYPE argocd_app_labels gauge
-argocd_app_labels{label_team_bu="bu-id",label_team_name="my-team",name="my-app",namespace="argocd",project="important-project"} 1
-argocd_app_labels{label_team_bu="bu-id",label_team_name="my-team",name="my-app-2",namespace="argocd",project="important-project"} 1
-argocd_app_labels{label_team_bu="bu-id",label_team_name="my-team",name="my-app-3",namespace="argocd",project="important-project"} 1
+argocd_app_labels{label_argoproj_io_cluster="test-cluster",label_team_bu="bu-id",label_team_name="my-team",name="my-app",namespace="argocd",project="important-project"} 1
+argocd_app_labels{label_argoproj_io_cluster="test-cluster",label_team_bu="bu-id",label_team_name="my-team",name="my-app-2",namespace="argocd",project="important-project"} 1
+argocd_app_labels{label_argoproj_io_cluster="test-cluster",label_team_bu="bu-id",label_team_name="my-team",name="my-app-3",namespace="argocd",project="important-project"} 1
 `,
 			},
 		},

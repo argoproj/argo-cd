@@ -14,16 +14,22 @@ argocd app list [flags]
 
   # List apps by label, in this example we listing apps that are children of another app (aka app-of-apps)
   argocd app list -l app.kubernetes.io/instance=my-app
+  argocd app list -l app.kubernetes.io/instance!=my-app
+  argocd app list -l app.kubernetes.io/instance
+  argocd app list -l '!app.kubernetes.io/instance'
+  argocd app list -l 'app.kubernetes.io/instance notin (my-app,other-app)'
 ```
 
 ### Options
 
 ```
-  -h, --help                  help for list
-  -o, --output string         Output format. One of: wide|name|json|yaml (default "wide")
-  -p, --project stringArray   Filter by project name
-  -r, --repo string           List apps by source repo URL
-  -l, --selector string       List apps by label
+  -N, --app-namespace string   Only list applications in namespace
+  -c, --cluster string         List apps by cluster name or url
+  -h, --help                   help for list
+  -o, --output string          Output format. One of: wide|name|json|yaml (default "wide")
+  -p, --project stringArray    Filter by project name
+  -r, --repo string            List apps by source repo URL
+  -l, --selector string        List apps by label. Supports '=', '==', '!=', in, notin, exists & not exists. Matching apps must satisfy all of the specified label constraints.
 ```
 
 ### Options inherited from parent commands
@@ -32,13 +38,14 @@ argocd app list [flags]
       --auth-token string               Authentication token
       --client-crt string               Client certificate file
       --client-crt-key string           Client certificate key file
-      --config string                   Path to Argo CD config (default "/home/user/.argocd/config")
+      --config string                   Path to Argo CD config (default "/home/user/.config/argocd/config")
       --core                            If set to true then CLI talks directly to Kubernetes instead of talking to Argo CD API server
       --grpc-web                        Enables gRPC-web protocol. Useful if Argo CD server is behind proxy which does not support HTTP2.
       --grpc-web-root-path string       Enables gRPC-web protocol. Useful if Argo CD server is behind proxy which does not support HTTP2. Set web root.
   -H, --header strings                  Sets additional header to all requests made by Argo CD CLI. (Can be repeated multiple times to add multiple headers, also supports comma separated headers)
       --http-retry-max int              Maximum number of retries to establish http connection to Argo CD server
       --insecure                        Skip server certificate and domain verification
+      --kube-context string             Directs the command to the given kube-context
       --logformat string                Set the logging format. One of: text|json (default "text")
       --loglevel string                 Set the logging level. One of: debug|info|warn|error (default "info")
       --plaintext                       Disable TLS

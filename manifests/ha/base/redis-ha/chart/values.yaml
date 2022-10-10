@@ -9,12 +9,12 @@ redis-ha:
   haproxy:
     enabled: true
     image:
-      tag: 2.0.25-alpine
+      tag: 2.6.2-alpine
     timeout:
       server: 6m
       client: 6m
     checkInterval: 3s
   image:
-    tag: 6.2.4-alpine
+    tag: 7.0.5-alpine
   sentinel:
     bind: "0.0.0.0"

@@ -2,6 +2,7 @@ package webhook
 
 import (
 	"context"
+	"errors"
 	"fmt"
 	"html"
 	"net/http"
@@ -19,6 +20,7 @@ import (
 	"gopkg.in/go-playground/webhooks.v5/gogs"
 	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
 
+	"github.com/argoproj/argo-cd/v2/common"
 	"github.com/argoproj/argo-cd/v2/pkg/apis/application/v1alpha1"
 	appclientset "github.com/argoproj/argo-cd/v2/pkg/client/clientset/versioned"
 	"github.com/argoproj/argo-cd/v2/reposerver/cache"
@@ -31,6 +33,7 @@ import (
 
 type settingsSource interface {
 	GetAppInstanceLabelKey() (string, error)
+	GetTrackingMethod() (string, error)
 }
 
 var _ settingsSource = &settings.SettingsManager{}
@@ -153,13 +156,15 @@ func affectedRevisionInfo(payloadIf interface{}) (webURLs []string, revision str
 	case bitbucketserver.RepositoryReferenceChangedPayload:
 
 		// Webhook module does not parse the inner links
-		for _, l := range payload.Repository.Links["clone"].([]interface{}) {
-			link := l.(map[string]interface{})
-			if link["name"] == "http" {
-				webURLs = append(webURLs, link["href"].(string))
-			}
-			if link["name"] == "ssh" {
-				webURLs = append(webURLs, link["href"].(string))
+		if payload.Repository.Links != nil {
+			for _, l := range payload.Repository.Links["clone"].([]interface{}) {
+				link := l.(map[string]interface{})
+				if link["name"] == "http" {
+					webURLs = append(webURLs, link["href"].(string))
+				}
+				if link["name"] == "ssh" {
+					webURLs = append(webURLs, link["href"].(string))
+				}
 			}
 		}
 
@@ -214,6 +219,11 @@ func (a *ArgoCDWebhookHandler) HandleEvent(payload interface{}) {
 		return
 	}
 
+	trackingMethod, err := a.settingsSrc.GetTrackingMethod()
+	if err != nil {
+		log.Warnf("Failed to get trackingMethod: %v", err)
+		return
+	}
 	appInstanceLabelKey, err := a.settingsSrc.GetAppInstanceLabelKey()
 	if err != nil {
 		log.Warnf("Failed to get appInstanceLabelKey: %v", err)
@@ -221,19 +231,11 @@ func (a *ArgoCDWebhookHandler) HandleEvent(payload interface{}) {
 	}
 
 	for _, webURL := range webURLs {
-		urlObj, err := url.Parse(webURL)
+		repoRegexp, err := getWebUrlRegex(webURL)
 		if err != nil {
-			log.Warnf("Failed to parse repoURL '%s'", webURL)
+			log.Warnf("Failed to get repoRegexp: %s", err)
 			continue
 		}
-
-		regexpStr := `(?i)(http://|https://|\w+@|ssh://(\w+@)?)` + urlObj.Hostname() + "(:[0-9]+|)[:/]" + urlObj.Path[1:] + "(\\.git)?"
-		repoRegexp, err := regexp.Compile(regexpStr)
-		if err != nil {
-			log.Warnf("Failed to compile regexp for repoURL '%s'", webURL)
-			continue
-		}
-
 		for _, app := range apps.Items {
 			if appRevisionHasChanged(&app, revision, touchedHead) && appUsesURL(&app, webURL, repoRegexp) {
 				if appFilesHaveChanged(&app, changedFiles) {
@@ -243,7 +245,7 @@ func (a *ArgoCDWebhookHandler) HandleEvent(payload interface{}) {
 						continue
 					}
 				} else if change.shaBefore != "" && change.shaAfter != "" {
-					if err := a.storePreviouslyCachedManifests(&app, change, appInstanceLabelKey); err != nil {
+					if err := a.storePreviouslyCachedManifests(&app, change, trackingMethod, appInstanceLabelKey); err != nil {
 						log.Warnf("Failed to store cached manifests of previous revision for app '%s': %v", app.Name, err)
 					}
 				}
@@ -252,7 +254,26 @@ func (a *ArgoCDWebhookHandler) HandleEvent(payload interface{}) {
 	}
 }
 
-func (a *ArgoCDWebhookHandler) storePreviouslyCachedManifests(app *v1alpha1.Application, change changeInfo, appInstanceLabelKey string) error {
+// getWebUrlRegex compiles a regex that will match any targetRevision referring to the same repo as the given webURL.
+// webURL is expected to be a URL from an SCM webhook payload pointing to the web page for the repo.
+func getWebUrlRegex(webURL string) (*regexp.Regexp, error) {
+	urlObj, err := url.Parse(webURL)
+	if err != nil {
+		return nil, fmt.Errorf("failed to parse repoURL '%s'", webURL)
+	}
+
+	regexEscapedHostname := regexp.QuoteMeta(urlObj.Hostname())
+	regexEscapedPath := regexp.QuoteMeta(urlObj.Path[1:])
+	regexpStr := fmt.Sprintf(`(?i)^(http://|https://|\w+@|ssh://(\w+@)?)%s(:[0-9]+|)[:/]%s(\.git)?$`, regexEscapedHostname, regexEscapedPath)
+	repoRegexp, err := regexp.Compile(regexpStr)
+	if err != nil {
+		return nil, fmt.Errorf("failed to compile regexp for repoURL '%s'", webURL)
+	}
+
+	return repoRegexp, nil
+}
+
+func (a *ArgoCDWebhookHandler) storePreviouslyCachedManifests(app *v1alpha1.Application, change changeInfo, trackingMethod string, appInstanceLabelKey string) error {
 	err := argo.ValidateDestination(context.Background(), &app.Spec.Destination, a.db)
 	if err != nil {
 		return err
@@ -263,11 +284,17 @@ func (a *ArgoCDWebhookHandler) storePreviouslyCachedManifests(app *v1alpha1.Appl
 	if err != nil {
 		return err
 	}
+
+	cache.LogDebugManifestCacheKeyFields("getting manifests cache", "webhook app revision changed", change.shaBefore, &app.Spec.Source, &clusterInfo, app.Spec.Destination.Namespace, trackingMethod, appInstanceLabelKey, app.Name)
+
 	var cachedManifests cache.CachedManifestResponse
-	if err := a.repoCache.GetManifests(change.shaBefore, &app.Spec.Source, &clusterInfo, app.Spec.Destination.Namespace, appInstanceLabelKey, app.Name, &cachedManifests); err == nil {
+	if err := a.repoCache.GetManifests(change.shaBefore, &app.Spec.Source, &clusterInfo, app.Spec.Destination.Namespace, trackingMethod, appInstanceLabelKey, app.Name, &cachedManifests); err != nil {
 		return err
 	}
-	if err = a.repoCache.SetManifests(change.shaAfter, &app.Spec.Source, &clusterInfo, app.Spec.Destination.Namespace, appInstanceLabelKey, app.Name, &cachedManifests); err != nil {
+
+	cache.LogDebugManifestCacheKeyFields("setting manifests cache", "webhook app revision changed", change.shaAfter, &app.Spec.Source, &clusterInfo, app.Spec.Destination.Namespace, trackingMethod, appInstanceLabelKey, app.Name)
+
+	if err = a.repoCache.SetManifests(change.shaAfter, &app.Spec.Source, &clusterInfo, app.Spec.Destination.Namespace, trackingMethod, appInstanceLabelKey, app.Name, &cachedManifests); err != nil {
 		return err
 	}
 	return nil
@@ -312,8 +339,13 @@ func appFilesHaveChanged(app *v1alpha1.Application, changedFiles []string) bool 
 		f = ensureAbsPath(f)
 		for _, item := range refreshPaths {
 			item = ensureAbsPath(item)
-
-			if _, err := security.EnforceToCurrentRoot(item, f); err == nil {
+			changed := false
+			if f == item {
+				changed = true
+			} else if _, err := security.EnforceToCurrentRoot(item, f); err == nil {
+				changed = true
+			}
+			if changed {
 				log.WithField("application", app.Name).Debugf("Application uses files that have changed")
 				return true
 			}
@@ -336,8 +368,14 @@ func appRevisionHasChanged(app *v1alpha1.Application, revision string, touchedHe
 	if targetRev == "HEAD" || targetRev == "" { // revision is head
 		return touchedHead
 	}
+	targetRevisionHasPrefixList := []string{"refs/heads/", "refs/tags/"}
+	for _, prefix := range targetRevisionHasPrefixList {
+		if strings.HasPrefix(app.Spec.Source.TargetRevision, prefix) {
+			return revision == targetRev
+		}
+	}
 
-	return targetRev == revision
+	return app.Spec.Source.TargetRevision == revision
 }
 
 func appUsesURL(app *v1alpha1.Application, webURL string, repoRegexp *regexp.Regexp) bool {
@@ -359,14 +397,29 @@ func (a *ArgoCDWebhookHandler) Handler(w http.ResponseWriter, r *http.Request) {
 	//Gogs needs to be checked before GitHub since it carries both Gogs and (incompatible) GitHub headers
 	case r.Header.Get("X-Gogs-Event") != "":
 		payload, err = a.gogs.Parse(r, gogs.PushEvent)
+		if errors.Is(err, gogs.ErrHMACVerificationFailed) {
+			log.WithField(common.SecurityField, common.SecurityHigh).Infof("Gogs webhook HMAC verification failed")
+		}
 	case r.Header.Get("X-GitHub-Event") != "":
-		payload, err = a.github.Parse(r, github.PushEvent)
+		payload, err = a.github.Parse(r, github.PushEvent, github.PingEvent)
+		if errors.Is(err, github.ErrHMACVerificationFailed) {
+			log.WithField(common.SecurityField, common.SecurityHigh).Infof("GitHub webhook HMAC verification failed")
+		}
 	case r.Header.Get("X-Gitlab-Event") != "":
 		payload, err = a.gitlab.Parse(r, gitlab.PushEvents, gitlab.TagEvents)
+		if errors.Is(err, gitlab.ErrGitLabTokenVerificationFailed) {
+			log.WithField(common.SecurityField, common.SecurityHigh).Infof("GitLab webhook token verification failed")
+		}
 	case r.Header.Get("X-Hook-UUID") != "":
 		payload, err = a.bitbucket.Parse(r, bitbucket.RepoPushEvent)
+		if errors.Is(err, bitbucket.ErrUUIDVerificationFailed) {
+			log.WithField(common.SecurityField, common.SecurityHigh).Infof("BitBucket webhook UUID verification failed")
+		}
 	case r.Header.Get("X-Event-Key") != "":
 		payload, err = a.bitbucketserver.Parse(r, bitbucketserver.RepositoryReferenceChangedEvent, bitbucketserver.DiagnosticsPingEvent)
+		if errors.Is(err, bitbucketserver.ErrHMACVerificationFailed) {
+			log.WithField(common.SecurityField, common.SecurityHigh).Infof("BitBucket webhook HMAC verification failed")
+		}
 	default:
 		log.Debug("Ignoring unknown webhook event")
 		http.Error(w, "Unknown webhook event", http.StatusBadRequest)

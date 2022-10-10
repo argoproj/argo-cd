@@ -9,6 +9,7 @@ import (
 	"github.com/argoproj/argo-cd/v2/test/e2e/fixture/certs"
 	"github.com/argoproj/argo-cd/v2/test/e2e/fixture/gpgkeys"
 	"github.com/argoproj/argo-cd/v2/test/e2e/fixture/repos"
+	"github.com/argoproj/argo-cd/v2/util/argo"
 	"github.com/argoproj/argo-cd/v2/util/env"
 	"github.com/argoproj/argo-cd/v2/util/settings"
 )
@@ -22,7 +23,9 @@ type Context struct {
 	// seconds
 	timeout                int
 	name                   string
+	appNamespace           string
 	destServer             string
+	destName               string
 	env                    string
 	parameters             []string
 	namePrefix             string
@@ -36,6 +39,14 @@ type Context struct {
 	revision               string
 	force                  bool
 	directoryRecurse       bool
+	replace                bool
+	helmPassCredentials    bool
+	helmSkipCrds           bool
+	trackingMethod         v1alpha1.TrackingMethod
+}
+
+type ContextArgs struct {
+	AppNamespace string
 }
 
 func Given(t *testing.T) *Context {
@@ -43,11 +54,52 @@ func Given(t *testing.T) *Context {
 	return GivenWithSameState(t)
 }
 
+func GivenWithNamespace(t *testing.T, namespace string) *Context {
+	ctx := Given(t)
+	ctx.appNamespace = namespace
+	return ctx
+}
+
 func GivenWithSameState(t *testing.T) *Context {
 	// ARGOCE_E2E_DEFAULT_TIMEOUT can be used to override the default timeout
 	// for any context.
 	timeout := env.ParseNumFromEnv("ARGOCD_E2E_DEFAULT_TIMEOUT", 10, 0, 180)
-	return &Context{t: t, destServer: v1alpha1.KubernetesInternalAPIServerAddr, repoURLType: fixture.RepoURLTypeFile, name: fixture.Name(), timeout: timeout, project: "default", prune: true}
+	return &Context{
+		t:              t,
+		destServer:     v1alpha1.KubernetesInternalAPIServerAddr,
+		repoURLType:    fixture.RepoURLTypeFile,
+		name:           fixture.Name(),
+		timeout:        timeout,
+		project:        "default",
+		prune:          true,
+		trackingMethod: argo.TrackingMethodLabel,
+	}
+}
+
+func (c *Context) AppName() string {
+	return c.name
+}
+
+func (c *Context) AppQualifiedName() string {
+	if c.appNamespace != "" {
+		return c.appNamespace + "/" + c.AppName()
+	} else {
+		return c.AppName()
+	}
+}
+
+func (c *Context) AppNamespace() string {
+	if c.appNamespace != "" {
+		return c.appNamespace
+	} else {
+		return fixture.TestNamespace()
+	}
+}
+
+func (c *Context) SetAppNamespace(namespace string) *Context {
+	c.appNamespace = namespace
+	//fixture.SetParamInSettingConfigMap("application.resourceTrackingMethod", "annotation")
+	return c
 }
 
 func (c *Context) GPGPublicKeyAdded() *Context {
@@ -157,6 +209,11 @@ func (c *Context) ProjectSpec(spec v1alpha1.AppProjectSpec) *Context {
 	return c
 }
 
+func (c *Context) Replace() *Context {
+	c.replace = true
+	return c
+}
+
 func (c *Context) RepoURLType(urlType fixture.RepoURLType) *Context {
 	c.repoURLType = urlType
 	return c
@@ -198,6 +255,11 @@ func (c *Context) Timeout(timeout int) *Context {
 
 func (c *Context) DestServer(destServer string) *Context {
 	c.destServer = destServer
+	return c
+}
+
+func (c *Context) DestName(destName string) *Context {
+	c.destName = destName
 	return c
 }
 
@@ -283,4 +345,23 @@ func (c *Context) Project(project string) *Context {
 func (c *Context) Force() *Context {
 	c.force = true
 	return c
+}
+
+func (c *Context) HelmPassCredentials() *Context {
+	c.helmPassCredentials = true
+	return c
+}
+
+func (c *Context) HelmSkipCrds() *Context {
+	c.helmSkipCrds = true
+	return c
+}
+
+func (c *Context) SetTrackingMethod(trackingMethod string) *Context {
+	fixture.SetTrackingMethod(trackingMethod)
+	return c
+}
+
+func (c *Context) GetTrackingMethod() v1alpha1.TrackingMethod {
+	return c.trackingMethod
 }
