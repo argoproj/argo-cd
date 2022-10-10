@@ -85,12 +85,12 @@ func (a *argoCDService) GetDirectories(ctx context.Context, repoURL string, revi
 
 	gitRepoClient, err := git.NewClient(repo.Repo, repo.GetGitCreds(a.storecreds), repo.IsInsecure(), repo.IsLFSEnabled(), repo.Proxy)
 	if err != nil {
-		return nil, err
+		return nil, fmt.Errorf("error creating a new git client: %w", err)
 	}
 
 	err = checkoutRepo(gitRepoClient, revision, a.submoduleEnabled)
 	if err != nil {
-		return nil, err
+		return nil, fmt.Errorf("error while checking out repo: %w", err)
 	}
 
 	filteredPaths := []string{}
@@ -99,7 +99,7 @@ func (a *argoCDService) GetDirectories(ctx context.Context, repoURL string, revi
 
 	if err := filepath.Walk(repoRoot, func(path string, info os.FileInfo, fnErr error) error {
 		if fnErr != nil {
-			return fnErr
+			return fmt.Errorf("error walking the file tree: %w", fnErr)
 		}
 		if !info.IsDir() { // Skip files: directories only
 			return nil
@@ -112,7 +112,7 @@ func (a *argoCDService) GetDirectories(ctx context.Context, repoURL string, revi
 
 		relativePath, err := filepath.Rel(repoRoot, path)
 		if err != nil {
-			return err
+			return fmt.Errorf("error constructing relative repo path: %w", err)
 		}
 
 		if relativePath == "." { // Exclude '.' from results
