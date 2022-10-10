@@ -95,17 +95,17 @@ for version in $versions; do
     extra_args=""
     if echo "$image" | grep "argocd"; then
       # Pass the file arg only for the Argo CD image. The file arg also gives us access to sarif output.
-      extra_args="--file=Dockerfile --sarif-file-output=/tmp/${image//[\/:]/_}.sarif "
+      extra_args="--file=Dockerfile --sarif-file-output=/tmp/${image//[\/_]/_}.sarif "
     fi
 
     set -x
     # || [ $? == 1 ] ignores errors due to vulnerabilities.
-    snyk container test "$image" --org=argoproj "--json-file-output=/tmp/${image//[\/:]/_}.json" $extra_args || [ $? == 1 ]
+    snyk container test "$image" --org=argoproj "--json-file-output=/tmp/${image//[\/_]/_}.json" $extra_args || [ $? == 1 ]
     set +x
 
-    snyk-to-html -i "/tmp/${image//[\/:]/_}.json" -o "$argocd_dir/docs/snyk/$version/${image//[\/:]/_}.html"
+    snyk-to-html -i "/tmp/${image//[\/_]/_}.json" -o "$argocd_dir/docs/snyk/$version/${image//[\/_]/_}.html"
 
-    printf '%s' "| [${image/*\//}]($version/${image//[\/:]/_}.html) | " >> "$argocd_dir/docs/snyk/index.md"
+    printf '%s' "| [${image/*\//}]($version/${image//[\/_]/_}.html) | " >> "$argocd_dir/docs/snyk/index.md"
 
     # Add severity counts to index.
     jq '[
@@ -116,7 +116,7 @@ for version in $versions; do
       | map(.[0])[].severity
     # Construct a summary using the counts of each severity level.
     ] | "\(map(select(. == "critical")) | length) | \(map(select(. == "high")) | length) | \(map(select(. == "medium")) | length) | \(map(select(. == "low")) | length) |"
-    ' -r "/tmp/${image//[\/:]/_}.json" >> "$argocd_dir/docs/snyk/index.md"
+    ' -r "/tmp/${image//[\/_]/_}.json" >> "$argocd_dir/docs/snyk/index.md"
   done <<< "$images"
 
   # || [ $? == 1 ] ignores errors due to vulnerabilities.
