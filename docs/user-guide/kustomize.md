@@ -7,6 +7,7 @@ The following configuration options are available for Kustomize:
 * `images` is a list of Kustomize image overrides
 * `commonLabels` is a string map of additional labels
 * `commonAnnotations` is a string map of additional annotations
+* `namespace` is a kubernetes resources namespace
 
 To use Kustomize with an overlay, point your path to the overlay.
 

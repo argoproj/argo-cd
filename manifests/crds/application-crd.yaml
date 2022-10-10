@@ -333,6 +333,9 @@ spec:
                             description: NameSuffix is a suffix appended to resources
                               for Kustomize apps
                             type: string
+                          namespace:
+                            description: Namespace overrides Kustomize namespace
+                            type: string
                           version:
                             description: Version controls which version of Kustomize
                               to use for rendering manifests
@@ -595,6 +598,9 @@ spec:
                             nameSuffix:
                               description: NameSuffix is a suffix appended to resources
                                 for Kustomize apps
+                              type: string
+                            namespace:
+                              description: Namespace overrides Kustomize namespace
                               type: string
                             version:
                               description: Version controls which version of Kustomize
@@ -972,6 +978,9 @@ spec:
                         description: NameSuffix is a suffix appended to resources
                           for Kustomize apps
                         type: string
+                      namespace:
+                        description: Namespace overrides Kustomize namespace
+                        type: string
                       version:
                         description: Version controls which version of Kustomize to
                           use for rendering manifests
@@ -1225,6 +1234,9 @@ spec:
                         nameSuffix:
                           description: NameSuffix is a suffix appended to resources
                             for Kustomize apps
+                          type: string
+                        namespace:
+                          description: Namespace overrides Kustomize namespace
                           type: string
                         version:
                           description: Version controls which version of Kustomize
@@ -1628,6 +1640,9 @@ spec:
                               description: NameSuffix is a suffix appended to resources
                                 for Kustomize apps
                               type: string
+                            namespace:
+                              description: Namespace overrides Kustomize namespace
+                              type: string
                             version:
                               description: Version controls which version of Kustomize
                                 to use for rendering manifests
@@ -1892,6 +1907,9 @@ spec:
                               nameSuffix:
                                 description: NameSuffix is a suffix appended to resources
                                   for Kustomize apps
+                                type: string
+                              namespace:
+                                description: Namespace overrides Kustomize namespace
                                 type: string
                               version:
                                 description: Version controls which version of Kustomize
@@ -2303,6 +2321,9 @@ spec:
                                     description: NameSuffix is a suffix appended to
                                       resources for Kustomize apps
                                     type: string
+                                  namespace:
+                                    description: Namespace overrides Kustomize namespace
+                                    type: string
                                   version:
                                     description: Version controls which version of
                                       Kustomize to use for rendering manifests
@@ -2585,6 +2606,9 @@ spec:
                                     nameSuffix:
                                       description: NameSuffix is a suffix appended
                                         to resources for Kustomize apps
+                                      type: string
+                                    namespace:
+                                      description: Namespace overrides Kustomize namespace
                                       type: string
                                     version:
                                       description: Version controls which version
@@ -2969,6 +2993,9 @@ spec:
                                 description: NameSuffix is a suffix appended to resources
                                   for Kustomize apps
                                 type: string
+                              namespace:
+                                description: Namespace overrides Kustomize namespace
+                                type: string
                               version:
                                 description: Version controls which version of Kustomize
                                   to use for rendering manifests
@@ -3244,6 +3271,9 @@ spec:
                                 nameSuffix:
                                   description: NameSuffix is a suffix appended to
                                     resources for Kustomize apps
+                                  type: string
+                                namespace:
+                                  description: Namespace overrides Kustomize namespace
                                   type: string
                                 version:
                                   description: Version controls which version of Kustomize
@@ -3626,6 +3656,9 @@ spec:
                                 description: NameSuffix is a suffix appended to resources
                                   for Kustomize apps
                                 type: string
+                              namespace:
+                                description: Namespace overrides Kustomize namespace
+                                type: string
                               version:
                                 description: Version controls which version of Kustomize
                                   to use for rendering manifests
@@ -3901,6 +3934,9 @@ spec:
                                 nameSuffix:
                                   description: NameSuffix is a suffix appended to
                                     resources for Kustomize apps
+                                  type: string
+                                namespace:
+                                  description: Namespace overrides Kustomize namespace
                                   type: string
                                 version:
                                   description: Version controls which version of Kustomize

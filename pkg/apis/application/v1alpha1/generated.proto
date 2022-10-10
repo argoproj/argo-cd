@@ -462,6 +462,9 @@ message ApplicationSourceKustomize {
 
   // ForceCommonAnnotations specifies whether to force applying common annotations to resources for Kustomize apps
   optional bool forceCommonAnnotations = 8;
+
+  // Namespace overrides Kustomize namespace
+  optional string namespace = 9;
 }
 
 // ApplicationSourcePlugin holds options specific to config management plugins
