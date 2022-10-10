@@ -17,7 +17,7 @@ import (
 )
 
 // NewVersionCmd returns a new `version` command to be used as a sub-command to root
-func NewVersionCmd(clientOpts *argocdclient.ClientOptions) *cobra.Command {
+func NewVersionCmd(clientOpts *argocdclient.ClientOptions, serverVersion *version.VersionMessage) *cobra.Command {
 	var (
 		short  bool
 		client bool
@@ -54,7 +54,12 @@ func NewVersionCmd(clientOpts *argocdclient.ClientOptions) *cobra.Command {
 				}
 
 				if !client {
-					sv := getServerVersion(ctx, clientOpts, cmd)
+					var sv *version.VersionMessage
+					if serverVersion == nil {
+						sv = getServerVersion(ctx, clientOpts, cmd)
+					} else {
+						sv = serverVersion
+					}
 
 					if short {
 						v["server"] = map[string]string{"argocd-server": sv.Version}
@@ -68,7 +73,12 @@ func NewVersionCmd(clientOpts *argocdclient.ClientOptions) *cobra.Command {
 			case "wide", "short", "":
 				fmt.Fprint(cmd.OutOrStdout(), printClientVersion(&cv, short || (output == "short")))
 				if !client {
-					sv := getServerVersion(ctx, clientOpts, cmd)
+					var sv *version.VersionMessage
+					if serverVersion == nil {
+						sv = getServerVersion(ctx, clientOpts, cmd)
+					} else {
+						sv = serverVersion
+					}
 					fmt.Fprint(cmd.OutOrStdout(), printServerVersion(sv, short || (output == "short")))
 				}
 			default:
@@ -82,7 +92,7 @@ func NewVersionCmd(clientOpts *argocdclient.ClientOptions) *cobra.Command {
 	return &versionCmd
 }
 
-var getServerVersion = func(ctx context.Context, options *argocdclient.ClientOptions, c *cobra.Command) *version.VersionMessage {
+func getServerVersion(ctx context.Context, options *argocdclient.ClientOptions, c *cobra.Command) *version.VersionMessage {
 	conn, versionIf := headless.NewClientOrDie(options, c).NewVersionClientOrDie()
 	defer argoio.Close(conn)
 
