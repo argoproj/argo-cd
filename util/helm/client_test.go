@@ -2,9 +2,14 @@ package helm
 
 import (
 	"bytes"
+	"encoding/json"
 	"fmt"
 	"os"
+	"strings"
 	"testing"
+
+	"net/http"
+	"net/http/httptest"
 
 	"github.com/stretchr/testify/assert"
 	"github.com/stretchr/testify/require"
@@ -144,4 +149,37 @@ func TestGetIndexURL(t *testing.T) {
 		assert.Equal(t, "", got)
 		assert.Error(t, err)
 	})
+}
+
+func TestGetTagsFromUrl(t *testing.T) {
+	server := httptest.NewTLSServer(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+		responseTags := TagsList{}
+		w.Header().Set("Content-Type", "application/json")
+		if !strings.Contains(r.URL.String(), "token") {
+			w.Header().Set("Link", fmt.Sprintf("<https://%s%s?token=next-token>; rel=next", r.Host, r.URL.Path))
+			responseTags.Tags = []string{"first"}
+		} else {
+			responseTags.Tags = []string{"second"}
+		}
+		w.WriteHeader(http.StatusOK)
+		err := json.NewEncoder(w).Encode(responseTags)
+		if err != nil {
+			t.Fatal(err)
+		}
+	}))
+
+	client := NewClient(server.URL, Creds{InsecureSkipVerify: true}, true, "")
+
+	tags, err := client.GetTags("mychart", true)
+	assert.NoError(t, err)
+	assert.Equal(t, tags.Tags[0], "first")
+	assert.Equal(t, tags.Tags[1], "second")
+}
+
+func Test_getNextUrl(t *testing.T) {
+	nextUrl := getNextUrl("")
+	assert.Equal(t, nextUrl, "")
+
+	nextUrl = getNextUrl("<https://my.repo.com/v2/chart/tags/list?token=123>; rel=next")
+	assert.Equal(t, nextUrl, "https://my.repo.com/v2/chart/tags/list?token=123")
 }

@@ -21,6 +21,7 @@ import (
 	log "github.com/sirupsen/logrus"
 	"gopkg.in/yaml.v2"
 
+	"github.com/argoproj/argo-cd/v2/common"
 	"github.com/argoproj/argo-cd/v2/util/cache"
 	executil "github.com/argoproj/argo-cd/v2/util/exec"
 	argoio "github.com/argoproj/argo-cd/v2/util/io"
@@ -403,22 +404,38 @@ func (c *nativeHelmChart) getTags(chart string) ([]byte, error) {
 
 	allTags := &TagsList{}
 	var data []byte
+	var logNextURL string
 	for nextURL != "" {
-		log.Infof("fetching %s tags from %s", chart, nextURL)
+		if len(nextURL) > 100 {
+			logNextURL = nextURL[:100]
+		} else {
+			logNextURL = nextURL
+		}
+		log.Infof("fetching %s tags from %s", chart, logNextURL)
 		data, nextURL, err = c.getTagsFromUrl(nextURL)
 		if err != nil {
 			return nil, fmt.Errorf("failed tags part: %v", err)
 		}
 
 		tags := &TagsList{}
-		err := yaml.NewDecoder(bytes.NewBuffer(data)).Decode(tags)
+		err := json.Unmarshal(data, tags)
 		if err != nil {
 			return nil, fmt.Errorf("unable to decode yaml: %v", err)
 		}
 		allTags.Tags = append(allTags.Tags, tags.Tags...)
 	}
-	data, err = yaml.Marshal(allTags)
+	data, err = json.Marshal(allTags)
 	return data, err
+}
+
+func getNextUrl(linkHeader string) string {
+	nextUrl := ""
+	if linkHeader != "" {
+		// drop < >; ref= from the Link header, see:
+		nextUrl = strings.Split(linkHeader, ";")[0][1:]
+		nextUrl = nextUrl[:len(nextUrl)-1]
+	}
+	return nextUrl
 }
 
 func (c *nativeHelmChart) getTagsFromUrl(tagsURL string) ([]byte, string, error) {
@@ -426,6 +443,7 @@ func (c *nativeHelmChart) getTagsFromUrl(tagsURL string) ([]byte, string, error)
 	if err != nil {
 		return nil, "", fmt.Errorf("failed create request: %v", err)
 	}
+	req.Header.Add("Accept", `application/json`)
 	if c.creds.Username != "" || c.creds.Password != "" {
 		// only basic supported
 		req.SetBasicAuth(c.creds.Username, c.creds.Password)
@@ -445,26 +463,38 @@ func (c *nativeHelmChart) getTagsFromUrl(tagsURL string) ([]byte, string, error)
 	if err != nil {
 		return nil, "", fmt.Errorf("request failed: %v", err)
 	}
-	defer func() { _ = resp.Body.Close() }()
+	defer func() {
+		if err = resp.Body.Close(); err != nil {
+			log.WithFields(log.Fields{
+				common.SecurityField:    common.SecurityMedium,
+				common.SecurityCWEField: 775,
+			}).Errorf("error closing response %q: %v", tagsURL, err)
+		}
+	}()
 
 	if resp.StatusCode != 200 {
-		return nil, "", fmt.Errorf("error response: %v", resp.Status)
+		data, err := io.ReadAll(resp.Body)
+		var responseExcerpt string
+		if err != nil {
+			responseExcerpt = fmt.Sprintf("err: %v", err)
+		} else {
+			responseExcerpt = string(data[:100])
+		}
+		return nil, "", fmt.Errorf("invalid response: %s %s", resp.Status, responseExcerpt)
 	}
 	data, err := io.ReadAll(resp.Body)
 	if err != nil {
 		return nil, "", fmt.Errorf("failed to read body: %v", err)
 	}
-	nextUrl := ""
-	linkHeader := resp.Header.Get("Link")
-	if linkHeader != "" {
-		nextUrl = strings.Split(linkHeader, ";")[0][1:]
-		nextUrl = nextUrl[:len(nextUrl)-1]
-	}
+	nextUrl := getNextUrl(resp.Header.Get("Link"))
 	return data, nextUrl, nil
 }
 
 func (c *nativeHelmChart) GetTags(chart string, noCache bool) (*TagsList, error) {
-	tagsURL, _ := getTagsListURL(c.repoURL, chart)
+	tagsURL, err := getTagsListURL(c.repoURL, chart)
+	if err != nil {
+		return nil, fmt.Errorf("invalid tags url: %v", err)
+	}
 	indexLock.Lock(tagsURL)
 	defer indexLock.Unlock(tagsURL)
 
@@ -482,7 +512,9 @@ func (c *nativeHelmChart) GetTags(chart string, noCache bool) (*TagsList, error)
 		if err != nil {
 			return nil, fmt.Errorf("failed to get tags: %v", err)
 		}
-		log.WithFields(log.Fields{"seconds": time.Since(start).Seconds()}).Info("took to get tags")
+		log.WithFields(
+			log.Fields{"seconds": time.Since(start).Seconds(), "chart": chart, "repo": c.repoURL},
+		).Info("took to get tags")
 
 		if c.indexCache != nil {
 			if err := c.indexCache.SetHelmIndex(tagsURL, data); err != nil {
@@ -492,7 +524,7 @@ func (c *nativeHelmChart) GetTags(chart string, noCache bool) (*TagsList, error)
 	}
 
 	tags := &TagsList{}
-	err := yaml.NewDecoder(bytes.NewBuffer(data)).Decode(tags)
+	err = json.Unmarshal(data, tags)
 	if err != nil {
 		return nil, fmt.Errorf("failed to decode tags: %v", err)
 	}
