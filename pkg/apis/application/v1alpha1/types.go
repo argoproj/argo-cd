@@ -694,6 +694,8 @@ type SyncOperationResource struct {
 	Kind      string `json:"kind" protobuf:"bytes,2,opt,name=kind"`
 	Name      string `json:"name" protobuf:"bytes,3,opt,name=name"`
 	Namespace string `json:"namespace,omitempty" protobuf:"bytes,4,opt,name=namespace"`
+	// nolint:govet
+	Exclude bool `json:"-"`
 }
 
 // RevisionHistories is a array of history, oldest first and newest last
@@ -716,6 +718,17 @@ func (in RevisionHistories) Trunc(n int) RevisionHistories {
 // HasIdentity determines whether a sync operation is identified by a manifest
 func (r SyncOperationResource) HasIdentity(name string, namespace string, gvk schema.GroupVersionKind) bool {
 	if name == r.Name && gvk.Kind == r.Kind && gvk.Group == r.Group && (r.Namespace == "" || namespace == r.Namespace) {
+		return true
+	}
+	return false
+}
+
+// Compare determines whether an app resource matches the resource filter during sync or wait.
+func (r SyncOperationResource) Compare(name string, namespace string, gvk schema.GroupVersionKind) bool {
+	if (r.Group == "*" || gvk.Group == r.Group) &&
+		(r.Kind == "*" || gvk.Kind == r.Kind) &&
+		(r.Name == "*" || name == r.Name) &&
+		(r.Namespace == "*" || r.Namespace == "" || namespace == r.Namespace) {
 		return true
 	}
 	return false
