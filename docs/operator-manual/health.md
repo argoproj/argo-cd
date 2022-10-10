@@ -62,34 +62,40 @@ There are two ways to configure a custom health check. The next two sections des
 
 ### Way 1. Define a Custom Health Check in `argocd-cm` ConfigMap
 
-Custom health checks can be defined in `resource.customizations.health.<group_kind>` field of `argocd-cm`. If you are using argocd-operator, this is overridden by [the argocd-operator resourceCustomizations](https://argocd-operator.readthedocs.io/en/latest/reference/argocd/#resource-customizations).
+Custom health checks can be defined in `
+  resource.customizations: |
+    <group/kind>:
+      health.lua: | ` 
+field of `argocd-cm`. If you are using argocd-operator, this is overridden by [the argocd-operator resourceCustomizations](https://argocd-operator.readthedocs.io/en/latest/reference/argocd/#resource-customizations).
 
 The following example demonstrates a health check for `cert-manager.io/Certificate`.
 
 ```yaml
 data:
-  resource.customizations.health.cert-manager.io_Certificate: |
-    hs = {}
-    if obj.status ~= nil then
-      if obj.status.conditions ~= nil then
-        for i, condition in ipairs(obj.status.conditions) do
-          if condition.type == "Ready" and condition.status == "False" then
-            hs.status = "Degraded"
-            hs.message = condition.message
-            return hs
-          end
-          if condition.type == "Ready" and condition.status == "True" then
-            hs.status = "Healthy"
-            hs.message = condition.message
-            return hs
+  resource.customizations: |
+    cert-manager.io/Certificate:
+      health.lua: |
+        hs = {}
+        if obj.status ~= nil then
+          if obj.status.conditions ~= nil then
+            for i, condition in ipairs(obj.status.conditions) do
+              if condition.type == "Ready" and condition.status == "False" then
+                hs.status = "Degraded"
+                hs.message = condition.message
+                return hs
+              end
+              if condition.type == "Ready" and condition.status == "True" then
+                hs.status = "Healthy"
+                hs.message = condition.message
+                return hs
+              end
+            end
           end
         end
-      end
-    end
 
-    hs.status = "Progressing"
-    hs.message = "Waiting for certificate"
-    return hs
+        hs.status = "Progressing"
+        hs.message = "Waiting for certificate"
+        return hs
 ```
 
 The `obj` is a global variable which contains the resource. The script must return an object with status and optional message field.
