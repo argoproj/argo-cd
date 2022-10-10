@@ -10,7 +10,7 @@ require('./edit-notification-subscriptions.scss');
 
 export const NOTIFICATION_SUBSCRIPTION_ANNOTATION_PREFIX = 'notifications.argoproj.io/subscribe';
 
-export const NOTIFICATION_SUBSCRIPTION_ANNOTATION_REGEX = new RegExp(`^${NOTIFICATION_SUBSCRIPTION_ANNOTATION_PREFIX}\.[a-zA-Z-]{1,100}\.[a-zA-Z-]{1,100}$`);
+export const NOTIFICATION_SUBSCRIPTION_ANNOTATION_REGEX = new RegExp(`^notifications\.argoproj\.io\/subscribe\.[a-zA-Z-]{1,100}\.[a-zA-Z-]{1,100}$`);
 
 export type TNotificationSubscription = {
     trigger: string;
