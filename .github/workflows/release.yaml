@@ -14,8 +14,13 @@ on:
 env:
     GOLANG_VERSION: '1.18'
 
+permissions:
+  contents: read
+
 jobs:
   prepare-release:
+    permissions:
+      contents: write # To push changes to release branch
     name: Perform automatic release on trigger ${{ github.ref }}
     if: github.repository == 'argoproj/argo-cd'
     runs-on: ubuntu-22.04

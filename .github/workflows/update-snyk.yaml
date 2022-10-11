@@ -2,8 +2,14 @@ name: Snyk report update
 on:
   schedule:
     - cron: '0 0 * * 0' # midnight every Sunday
+
+permissions:
+  contents: read
+
 jobs:
   snyk-report:
+    permissions:
+      contents: write  # To push snyk reports
     if: github.repository == 'argoproj/argo-cd'
     name: Update Snyk report in the docs directory
     runs-on: ubuntu-22.04

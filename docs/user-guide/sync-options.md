@@ -25,11 +25,9 @@ The sync-status panel shows that pruning was skipped, and why:
 
 ![sync option no prune](../assets/sync-option-no-prune-sync-status.png)
 
-The app will be out of sync if ArgoCD expects a resource to be pruned. You may wish to use this along with [compare options](compare-options.md).
+The app will be out of sync if Argo CD expects a resource to be pruned. You may wish to use this along with [compare options](compare-options.md).
 
 ## Disable Kubectl Validation
-
->v1.2
 
 For a certain class of objects, it is necessary to `kubectl apply` them using the `--validate=false` flag. Examples of this are kubernetes types which uses `RawExtension`, such as [ServiceCatalog](https://github.com/kubernetes-incubator/service-catalog/blob/master/pkg/apis/servicecatalog/v1beta1/types.go#L497). You can do using this annotations:
 
@@ -44,13 +42,11 @@ If you want to exclude a whole class of objects globally, consider setting `reso
     
 ## Skip Dry Run for new custom resources types
 
->v1.6
-
 When syncing a custom resource which is not yet known to the cluster, there are generally two options:
 
-1) The CRD manifest is part of the same sync. Then ArgoCD will automatically skip the dry run, the CRD will be applied and the resource can be created.
+1) The CRD manifest is part of the same sync. Then Argo CD will automatically skip the dry run, the CRD will be applied and the resource can be created.
 2) In some cases the CRD is not part of the sync, but it could be created in another way, e.g. by a controller in the cluster. An example is [gatekeeper](https://github.com/open-policy-agent/gatekeeper),
-which creates CRDs in response to user defined `ConstraintTemplates`. ArgoCD cannot find the CRD in the sync and will fail with the error `the server could not find the requested resource`.
+which creates CRDs in response to user defined `ConstraintTemplates`. Argo CD cannot find the CRD in the sync and will fail with the error `the server could not find the requested resource`.
 
 To skip the dry run for missing resource types, use the following annotation:
 
@@ -64,7 +60,7 @@ The dry run will still be executed if the CRD is already present in the cluster.
 
 ## Selective Sync
 
-Currently when syncing using auto sync ArgoCD applies every object in the application. 
+Currently when syncing using auto sync Argo CD applies every object in the application. 
 For applications containing thousands of objects this takes quite a long time and puts undue pressure on the api server.
 Turning on selective sync option which will sync only out-of-sync resources. 
 
@@ -129,7 +125,7 @@ metadata:
 
 ## Replace Resource Instead Of Applying Changes
 
-By default, ArgoCD executes `kubectl apply` operation to apply the configuration stored in Git. In some cases
+By default, Argo CD executes `kubectl apply` operation to apply the configuration stored in Git. In some cases
 `kubectl apply` is not suitable. For example, resource spec might be too big and won't fit into
 `kubectl.kubernetes.io/last-applied-configuration` annotation that is added by `kubectl apply`. In such cases you
 might use `Replace=true` sync option:
@@ -144,7 +140,7 @@ spec:
     - Replace=true
 ```
 
-If the `Replace=true` sync option is set the ArgoCD will use `kubectl replace` or `kubectl create` command to apply changes.
+If the `Replace=true` sync option is set the Argo CD will use `kubectl replace` or `kubectl create` command to apply changes.
 
 This can also be configured at individual resource level.
 ```yaml
@@ -155,10 +151,25 @@ metadata:
 
 ## Server-Side Apply
 
-By default, ArgoCD executes `kubectl apply` operation to apply the configuration stored in Git. This is a client
-side operation that relies on `kubectl.kubernetes.io/last-applied-configuration` annotation to store the previous
-resource state. In some cases the resource is too big to fit in 262144 bytes allowed annotation size. In this case
-server-side apply can be used to avoid this issue as the annotation is not used in this case.
+This option enables Kubernetes
+[Server-Side Apply](https://kubernetes.io/docs/reference/using-api/server-side-apply/).
+
+By default, Argo CD executes `kubectl apply` operation to apply the configuration stored in Git.
+This is a client side operation that relies on `kubectl.kubernetes.io/last-applied-configuration`
+annotation to store the previous resource state.
+
+However, there are some cases where you want to use `kubectl apply --server-side` over `kubectl apply`:
+
+- Resource is too big to fit in 262144 bytes allowed annotation size. In this case
+  server-side apply can be used to avoid this issue as the annotation is not used in this case.
+- Patching of existing resources on the cluster that are not fully managed by Argo CD.
+- Use a more declarative approach, which tracks a user's field management, rather than a user's last
+  applied state.
+
+If `ServerSideApply=true` sync option is set, Argo CD will use `kubectl apply --server-side`
+command to apply changes.
+
+It can be enabled at the application level like in the example below:
 
 ```yaml
 apiVersion: argoproj.io/v1alpha1
@@ -169,20 +180,50 @@ spec:
     - ServerSideApply=true
 ```
 
-If the `ServerSideApply=true` sync option is set the ArgoCD will use `kubectl apply --server-side` command to apply changes.
+To enable ServerSideApply just for an individual resource, the sync-option annotation
+can be used:
 
-This can also be configured at individual resource level.
 ```yaml
 metadata:
   annotations:
     argocd.argoproj.io/sync-options: ServerSideApply=true
 ```
 
+ServerSideApply can also be used to patch existing resources by providing a partial
+yaml. For example, if there is a requirement to update just the number of replicas
+in a given Deployment, the following yaml can be provided to Argo CD:
+
+```yaml
+apiVersion: apps/v1
+kind: Deployment
+metadata:
+  name: my-deployment
+spec:
+  replicas: 3
+```
+
+Note that by the Deployment schema specification, this isn't a valid manifest. In this
+case an additional sync option *must* be provided to skip schema validation. The example
+below shows how to configure the application to enable the two necessary sync options:
+
+```yaml
+apiVersion: argoproj.io/v1alpha1
+kind: Application
+spec:
+  syncPolicy:
+    syncOptions:
+    - ServerSideApply=true
+    - Validate=false
+```
+
+In this case, Argo CD will use `kubectl apply --server-side --validate=false` command
+to apply changes.
+
 Note: [`Replace=true`](#replace-resource-instead-of-applying-changes) takes precedence over `ServerSideApply=true`.
 
 ## Fail the sync if a shared resource is found
 
-By default, ArgoCD will apply all manifests found in the git path configured in the Application regardless if the resources defined in the yamls are already applied by another Application. If the `FailOnSharedResource` sync option is set, ArgoCD will fail the sync whenever it finds a resource in the current Application that is already applied in the cluster by another Application.
+By default, Argo CD will apply all manifests found in the git path configured in the Application regardless if the resources defined in the yamls are already applied by another Application. If the `FailOnSharedResource` sync option is set, Argo CD will fail the sync whenever it finds a resource in the current Application that is already applied in the cluster by another Application.
 
 ```yaml
 apiVersion: argoproj.io/v1alpha1
@@ -195,7 +236,7 @@ spec:
 
 ## Respect ignore difference configs
 
-This sync option is used to enable ArgoCD to consider the configurations made in the `spec.ignoreDifferences` attribute also during the sync stage. By default, ArgoCD uses the `ignoreDifferences` config just for computing the diff between the live and desired state which defines if the application is synced or not. However during the sync stage, the desired state is applied as-is. The patch is calculated using a 3-way-merge between the live state the desired state and the `last-applied-configuration` annotation. This sometimes leads to an undesired results. This behavior can be changed by setting the `RespectIgnoreDifferences=true` sync option like in the example bellow:
+This sync option is used to enable Argo CD to consider the configurations made in the `spec.ignoreDifferences` attribute also during the sync stage. By default, Argo CD uses the `ignoreDifferences` config just for computing the diff between the live and desired state which defines if the application is synced or not. However during the sync stage, the desired state is applied as-is. The patch is calculated using a 3-way-merge between the live state the desired state and the `last-applied-configuration` annotation. This sometimes leads to an undesired results. This behavior can be changed by setting the `RespectIgnoreDifferences=true` sync option like in the example bellow:
 
 ```yaml
 apiVersion: argoproj.io/v1alpha1
@@ -213,7 +254,7 @@ spec:
     - RespectIgnoreDifferences=true
 ```
 
-The example above shows how an ArgoCD Application can be configured so it will ignore the `spec.replicas` field from the desired state (git) during the sync stage. This is achieve by calculating and pre-patching the desired state before applying it in the cluster. Note that the `RespectIgnoreDifferences` sync option is only effective when the resource is already created in the cluster. If the Application is being created and no live state exists, the desired state is applied as-is.
+The example above shows how an Argo CD Application can be configured so it will ignore the `spec.replicas` field from the desired state (git) during the sync stage. This is achieve by calculating and pre-patching the desired state before applying it in the cluster. Note that the `RespectIgnoreDifferences` sync option is only effective when the resource is already created in the cluster. If the Application is being created and no live state exists, the desired state is applied as-is.
 
 ## Create Namespace
 

@@ -18,6 +18,9 @@ concurrency:
   group: ${{ github.workflow }}-${{ github.ref }}
   cancel-in-progress: true
 
+permissions:
+  contents: read
+
 jobs:
   check-go:
     name: Ensure Go modules synchronicity
@@ -59,6 +62,9 @@ jobs:
         run: make build-local
 
   lint-go:
+    permissions:
+      contents: read  # for actions/checkout to fetch code
+      pull-requests: read  # for golangci/golangci-lint-action to fetch pull requests
     name: Lint Go code
     runs-on: ubuntu-22.04
     steps:

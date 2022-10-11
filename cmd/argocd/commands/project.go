@@ -863,23 +863,23 @@ func NewProjectEditCommand(clientOpts *argocdclient.ClientOptions) *cobra.Comman
 			cli.InteractiveEdit(fmt.Sprintf("%s-*-edit.yaml", projName), projData, func(input []byte) error {
 				input, err = yaml.YAMLToJSON(input)
 				if err != nil {
-					return err
+					return fmt.Errorf("error converting YAML to JSON: %w", err)
 				}
 				updatedSpec := v1alpha1.AppProjectSpec{}
 				err = json.Unmarshal(input, &updatedSpec)
 				if err != nil {
-					return err
+					return fmt.Errorf("error unmarshaling input into application spec: %w", err)
 				}
 				proj, err := projIf.Get(ctx, &projectpkg.ProjectQuery{Name: projName})
 				if err != nil {
-					return err
+					return fmt.Errorf("could not get project by project name: %w", err)
 				}
 				proj.Spec = updatedSpec
 				_, err = projIf.Update(ctx, &projectpkg.ProjectUpdateRequest{Project: proj})
 				if err != nil {
-					return fmt.Errorf("Failed to update project:\n%v", err)
+					return fmt.Errorf("failed to update project:\n%w", err)
 				}
-				return err
+				return nil
 			})
 		},
 	}
