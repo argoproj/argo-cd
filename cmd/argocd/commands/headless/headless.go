@@ -140,14 +140,13 @@ func testAPI(ctx context.Context, clientOpts *apiclient.ClientOptions) error {
 // StartLocalServer allows executing command in a headless mode: on the fly starts Argo CD API server and
 // changes provided client options to use started API server port
 func StartLocalServer(ctx context.Context, clientOpts *apiclient.ClientOptions, ctxStr string, port *int, address *string) error {
-	flags := pflag.NewFlagSet("tmp", pflag.ContinueOnError)
-	clientConfig := cli.AddKubectlFlagsToSet(flags)
+	localCfg, err := localconfig.ReadLocalConfig(clientOpts.ConfigPath)
+	if err != nil {
+		return err
+	}
+
 	startInProcessAPI := clientOpts.Core
 	if !startInProcessAPI {
-		localCfg, err := localconfig.ReadLocalConfig(clientOpts.ConfigPath)
-		if err != nil {
-			return err
-		}
 		if localCfg != nil {
 			configCtx, err := localCfg.ResolveContext(clientOpts.Context)
 			if err != nil {
@@ -159,6 +158,8 @@ func StartLocalServer(ctx context.Context, clientOpts *apiclient.ClientOptions, 
 	if !startInProcessAPI {
 		return nil
 	}
+	flags := pflag.NewFlagSet("tmp", pflag.ContinueOnError)
+	clientConfig := cli.AddKubectlFlagsToSetInCore(flags, clientOpts.Core, localCfg.DefaultKubeconfig)
 
 	// get rid of logging error handler
 	runtime.ErrorHandlers = runtime.ErrorHandlers[1:]

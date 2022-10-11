@@ -40,6 +40,10 @@ func NewLogoutCommand(globalClientOpts *argocdclient.ClientOptions) *cobra.Comma
 			if err != nil {
 				log.Fatalf("Error in logging out: %s", err)
 			}
+			if globalClientOpts.Core {
+				// during logout in core mode, clearing the default config location
+				localCfg.DefaultKubeconfig = ""
+			}
 			err = localconfig.WriteLocalConfig(*localCfg, globalClientOpts.ConfigPath)
 			errors.CheckError(err)
 

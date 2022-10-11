@@ -2,13 +2,13 @@ package localconfig
 
 import (
 	"fmt"
-	"github.com/golang-jwt/jwt/v4"
 	"os"
 	"os/user"
 	"path"
 	"strings"
 
 	configUtil "github.com/argoproj/argo-cd/v2/util/config"
+	"github.com/golang-jwt/jwt/v4"
 )
 
 // LocalConfig is a local Argo CD config file
@@ -17,6 +17,8 @@ type LocalConfig struct {
 	Contexts       []ContextRef `json:"contexts"`
 	Servers        []Server     `json:"servers"`
 	Users          []User       `json:"users"`
+	//Default kubeconfig location only used in core mode
+	DefaultKubeconfig string `json:"default-kubeconfig" default:""`
 }
 
 // ContextRef is a reference to a Server and User for an API client

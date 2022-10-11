@@ -1,6 +1,7 @@
 package commands
 
 import (
+	"fmt"
 	"os"
 	"testing"
 
@@ -9,7 +10,7 @@ import (
 	"github.com/stretchr/testify/require"
 )
 
-const testConfig = `contexts:
+const configPlaceholder = `contexts:
 - name: argocd1.example.com:443
   server: argocd1.example.com:443
   user: argocd1.example.com:443
@@ -19,12 +20,16 @@ const testConfig = `contexts:
 - name: localhost:8080
   server: localhost:8080
   user: localhost:8080
-current-context: localhost:8080
+- name: kubernetes
+  server: kubernetes
+  user: kubernetes
+current-context: %s
 servers:
 - server: argocd1.example.com:443
 - server: argocd2.example.com:443
 - plain-text: true
   server: localhost:8080
+- server: kubernetes
 users:
 - auth-token: vErrYS3c3tReFRe$hToken
   name: argocd1.example.com:443
@@ -33,7 +38,12 @@ users:
   name: argocd2.example.com:443
   refresh-token: vErrYS3c3tReFRe$hToken
 - auth-token: vErrYS3c3tReFRe$hToken
-  name: localhost:8080`
+  name: localhost:8080
+- auth-token: vErrYS3c3tReFRe$hToken
+  name: kubernetes`
+
+var testConfig = fmt.Sprintf(configPlaceholder, "localhost:8080")
+var testCoreConfig = fmt.Sprintf(configPlaceholder, "kubernetes")
 
 const testConfigFilePath = "./testdata/local.config"
 

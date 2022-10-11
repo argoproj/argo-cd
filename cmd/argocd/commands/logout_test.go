@@ -37,3 +37,24 @@ func TestLogout(t *testing.T) {
 	assert.Contains(t, localConfig.Contexts, localconfig.ContextRef{Name: "argocd2.example.com:443", Server: "argocd2.example.com:443", User: "argocd2.example.com:443"})
 	assert.Contains(t, localConfig.Contexts, localconfig.ContextRef{Name: "localhost:8080", Server: "localhost:8080", User: "localhost:8080"})
 }
+
+func Test_CoreLogout(t *testing.T) {
+
+	// Write the test config file
+	err := os.WriteFile(testConfigFilePath, []byte(testCoreConfig), os.ModePerm)
+	assert.NoError(t, err)
+	defer os.Remove(testConfigFilePath)
+
+	err = os.Chmod(testConfigFilePath, 0600)
+	require.NoError(t, err)
+
+	command := NewLogoutCommand(&argocdclient.ClientOptions{ConfigPath: testConfigFilePath, Core: true})
+	command.Run(command, []string{"kubernetes"})
+
+	localConfig, err := localconfig.ReadLocalConfig(testConfigFilePath)
+	assert.NoError(t, err)
+	assert.Equal(t, localConfig.CurrentContext, "kubernetes")
+	assert.NotContains(t, localConfig.Users, localconfig.User{AuthToken: "vErrYS3c3tReFRe$hToken", Name: "kubernetes"})
+	assert.Equal(t, localConfig.DefaultKubeconfig, "")
+	assert.Equal(t, localConfig.CurrentContext, "kubernetes")
+}

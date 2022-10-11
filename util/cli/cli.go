@@ -67,12 +67,21 @@ func AddKubectlFlagsToCmd(cmd *cobra.Command) clientcmd.ClientConfig {
 // AddKubectlFlagsToSet adds kubectl like flags to a provided flag set and returns the ClientConfig interface
 // for retrieving the values.
 func AddKubectlFlagsToSet(flags *pflag.FlagSet) clientcmd.ClientConfig {
+	return AddKubectlFlagsToSetInCore(flags, false, "")
+}
+
+// AddKubectlFlagsToSetInCore adds kubectl like flags to a provided flag set and returns the ClientConfig interface for retrieving the values and support Core mode to set custom kubeconfig file location.
+func AddKubectlFlagsToSetInCore(flags *pflag.FlagSet, coreMode bool, kubeConfigLocation string) clientcmd.ClientConfig {
 	loadingRules := clientcmd.NewDefaultClientConfigLoadingRules()
 	loadingRules.DefaultClientConfig = &clientcmd.DefaultClientConfig
 	overrides := clientcmd.ConfigOverrides{}
 	kflags := clientcmd.RecommendedConfigOverrideFlags("")
-	flags.StringVar(&loadingRules.ExplicitPath, "kubeconfig", "", "Path to a kube config. Only required if out-of-cluster")
-	clientcmd.BindOverrideFlags(&overrides, flags, kflags)
+	if coreMode && kubeConfigLocation != "" {
+		loadingRules.ExplicitPath = kubeConfigLocation
+	} else {
+		flags.StringVar(&loadingRules.ExplicitPath, "kubeconfig", "", "Path to a kube config. Only required if out-of-cluster")
+		clientcmd.BindOverrideFlags(&overrides, flags, kflags)
+	}
 	return clientcmd.NewInteractiveDeferredLoadingClientConfig(loadingRules, &overrides, os.Stdin)
 }
 

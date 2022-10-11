@@ -42,6 +42,7 @@ func NewLoginCommand(globalClientOpts *argocdclient.ClientOptions) *cobra.Comman
 		sso         bool
 		ssoPort     int
 		skipTestTLS bool
+		kubeConfig  string
 	)
 	var command = &cobra.Command{
 		Use:   "login SERVER",
@@ -170,6 +171,9 @@ argocd login cd.argoproj.io --core`,
 				User:   ctxName,
 				Server: server,
 			})
+			if kubeConfig != "" && globalClientOpts.Core {
+				localCfg.DefaultKubeconfig = kubeConfig
+			}
 			err = localconfig.WriteLocalConfig(*localCfg, globalClientOpts.ConfigPath)
 			errors.CheckError(err)
 			fmt.Printf("Context '%s' updated\n", ctxName)
@@ -182,6 +186,8 @@ argocd login cd.argoproj.io --core`,
 	command.Flags().IntVar(&ssoPort, "sso-port", DefaultSSOLocalPort, "port to run local OAuth2 login application")
 	command.Flags().
 		BoolVar(&skipTestTLS, "skip-test-tls", false, "Skip testing whether the server is configured with TLS (this can help when the command hangs for no apparent reason)")
+	command.Flags().StringVar(&kubeConfig, "kubeconfig", "", "Path of a Kubernetes client configuration file")
+
 	return command
 }
 

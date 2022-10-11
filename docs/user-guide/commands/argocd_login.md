@@ -26,13 +26,14 @@ argocd login cd.argoproj.io --core
 ### Options
 
 ```
-  -h, --help              help for login
-      --name string       name to use for the context
-      --password string   the password of an account to authenticate
-      --skip-test-tls     Skip testing whether the server is configured with TLS (this can help when the command hangs for no apparent reason)
-      --sso               perform SSO login
-      --sso-port int      port to run local OAuth2 login application (default 8085)
-      --username string   the username of an account to authenticate
+  -h, --help                help for login
+      --kubeconfig string   Path of a Kubernetes client configuration file
+      --name string         name to use for the context
+      --password string     the password of an account to authenticate
+      --skip-test-tls       Skip testing whether the server is configured with TLS (this can help when the command hangs for no apparent reason)
+      --sso                 perform SSO login
+      --sso-port int        port to run local OAuth2 login application (default 8085)
+      --username string     the username of an account to authenticate
 ```
 
 ### Options inherited from parent commands
