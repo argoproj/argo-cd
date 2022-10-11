@@ -106,7 +106,7 @@ export const Banner = (props: React.Props<any>) => {
                             <div style={{position: 'fixed', right: 10, bottom: chatBottomPosition}}>
                                 {chatUrl === 'invalid-url' ? (
                                     <Tooltip content='Invalid URL provided'>
-                                        <a className='argo-button argo-button--special'>
+                                        <a className='argo-button disabled argo-button--special'>
                                             <i className='fas fa-comment-alt' /> {chatText}
                                         </a>
                                     </Tooltip>
