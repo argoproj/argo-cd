@@ -16,6 +16,7 @@ mkdir -p docs/snyk
 
 # Clear the docs directory in case we need to delete an old version.
 rm -rf docs/snyk/*
+rm -rf docs/snyk/*
 
 cat > docs/snyk/index.md <<- EOM
 # Snyk Scans
@@ -116,7 +117,7 @@ for version in $versions; do
       | map(.[0])[].severity
     # Construct a summary using the counts of each severity level.
     ] | "\(map(select(. == "critical")) | length) | \(map(select(. == "high")) | length) | \(map(select(. == "medium")) | length) | \(map(select(. == "low")) | length) |"
-    ' -r "/tmp/${image//[\/_]/_}.json" >> "$argocd_dir/docs/snyk/index.md"
+    ' -r "/tmp/${image//\/_}.json" >> "$argocd_dir/docs/snyk/index.md"
   done <<< "$images"
 
   # || [ $? == 1 ] ignores errors due to vulnerabilities.
