@@ -15,11 +15,6 @@ export const ContainerImageDetails = ({image}: {image: string}) => {
             .catch(setError);
     }, [image]);
 
-    const parts = image.replace(/:.*/, '').split('/');
-    const repo = (parts.length === 1 ? '_/' : '') + parts.join('/');
-    // TODO: won't work for private repos, but you get the idea
-    const path = 'https://hub.docker.com/' + repo;
-
     if (error) return <ErrorNotification title={'Failed to get image ' + image} e={error} />;
 
     if (resp)
@@ -28,7 +23,7 @@ export const ContainerImageDetails = ({image}: {image: string}) => {
                 <div>
                     Created: <Moment fromNow={true}>{resp.image?.created}</Moment>
                 </div>
-                <div>Author: {resp.image?.author}</div>
+                <div>Author: {resp.image?.author || '-'}</div>
                 <div>
                     Command: <code>{resp.image.config.command?.join(' ') || '-'}</code>
                 </div>
@@ -44,7 +39,11 @@ export const ContainerImageDetails = ({image}: {image: string}) => {
                     </code>
                 </div>
                 <div>
-                    <a href={path}>See more in your container registry</a>
+                    {Object.entries(resp._links || {}).map(([k, v]) => (
+                        <a key={k} href={v.href}>
+                            {v.title}
+                        </a>
+                    ))}
                 </div>
             </>
         );

@@ -2277,6 +2277,36 @@
         }
       }
     },
+    "/api/v1/images/{image}": {
+      "get": {
+        "tags": [
+          "ImageService"
+        ],
+        "operationId": "ImageService_GetImage",
+        "parameters": [
+          {
+            "type": "string",
+            "name": "image",
+            "in": "path",
+            "required": true
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "A successful response.",
+            "schema": {
+              "$ref": "#/definitions/imageGetImageResponse"
+            }
+          },
+          "default": {
+            "description": "An unexpected error response.",
+            "schema": {
+              "$ref": "#/definitions/runtimeError"
+            }
+          }
+        }
+      }
+    },
     "/api/v1/notifications/services": {
       "get": {
         "tags": [
@@ -4196,6 +4226,86 @@
     "gpgkeyGnuPGPublicKeyResponse": {
       "type": "object",
       "title": "Generic (empty) response for GPG public key CRUD requests"
+    },
+    "imageConfig": {
+      "type": "object",
+      "properties": {
+        "command": {
+          "type": "array",
+          "items": {
+            "type": "string"
+          }
+        },
+        "entrypoint": {
+          "type": "array",
+          "items": {
+            "type": "string"
+          }
+        },
+        "env": {
+          "type": "array",
+          "items": {
+            "type": "string"
+          }
+        },
+        "exposedPorts": {
+          "type": "object",
+          "additionalProperties": {
+            "$ref": "#/definitions/imagePort"
+          }
+        },
+        "labels": {
+          "type": "object",
+          "additionalProperties": {
+            "type": "string"
+          }
+        },
+        "workingDir": {
+          "type": "string"
+        }
+      }
+    },
+    "imageGetImageResponse": {
+      "type": "object",
+      "properties": {
+        "_links": {
+          "type": "object",
+          "additionalProperties": {
+            "$ref": "#/definitions/imageLink"
+          }
+        },
+        "image": {
+          "$ref": "#/definitions/imageImage"
+        }
+      }
+    },
+    "imageImage": {
+      "type": "object",
+      "properties": {
+        "author": {
+          "type": "string"
+        },
+        "config": {
+          "$ref": "#/definitions/imageConfig"
+        },
+        "created": {
+          "$ref": "#/definitions/v1Time"
+        }
+      }
+    },
+    "imageLink": {
+      "type": "object",
+      "properties": {
+        "href": {
+          "type": "string"
+        },
+        "title": {
+          "type": "string"
+        }
+      }
+    },
+    "imagePort": {
+      "type": "object"
     },
     "notificationService": {
       "type": "object",

@@ -481,6 +481,7 @@ start-local: mod-vendor-local dep-ui-local cli-local
 	ARGOCD_GPG_ENABLED=$(ARGOCD_GPG_ENABLED) \
 	ARGOCD_E2E_TEST=false \
 	ARGOCD_APPLICATION_NAMESPACES=$(ARGOCD_APPLICATION_NAMESPACES) \
+	IMAGE_LINKS='{"hub": {"href": "https://hub.docker.com/_/{{.Image}}", "title": "Docker Hub"}}' \
 		goreman -f $(ARGOCD_PROCFILE) start ${ARGOCD_START}
 
 # Run goreman start with exclude option , provide exclude env variable with list of services

@@ -10,8 +10,14 @@ message GetImageRequest {
   string image = 1;
 }
 
+message Link {
+  string href = 1;
+  string title = 2;
+}
+
 message GetImageResponse {
   Image image = 1;
+  map<string,Link> _links = 2;
 }
 
 message Port {}

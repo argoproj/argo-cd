@@ -895,6 +895,7 @@ export enum PodPhase {
 
 export interface GetImageResponse {
     image: Image;
+    _links: {[key: string]: {href: string; title: string}};
 }
 
 export interface Image {
