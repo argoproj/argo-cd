@@ -334,7 +334,8 @@ spec:
                               for Kustomize apps
                             type: string
                           namespace:
-                            description: Namespace overrides Kustomize namespace
+                            description: Namespace sets the namespace that Kustomize
+                              adds to all resources
                             type: string
                           version:
                             description: Version controls which version of Kustomize
@@ -979,7 +980,8 @@ spec:
                           for Kustomize apps
                         type: string
                       namespace:
-                        description: Namespace overrides Kustomize namespace
+                        description: Namespace sets the namespace that Kustomize adds
+                          to all resources
                         type: string
                       version:
                         description: Version controls which version of Kustomize to
@@ -1641,7 +1643,8 @@ spec:
                                 for Kustomize apps
                               type: string
                             namespace:
-                              description: Namespace overrides Kustomize namespace
+                              description: Namespace sets the namespace that Kustomize
+                                adds to all resources
                               type: string
                             version:
                               description: Version controls which version of Kustomize
@@ -2322,7 +2325,8 @@ spec:
                                       resources for Kustomize apps
                                     type: string
                                   namespace:
-                                    description: Namespace overrides Kustomize namespace
+                                    description: Namespace sets the namespace that
+                                      Kustomize adds to all resources
                                     type: string
                                   version:
                                     description: Version controls which version of
@@ -2994,7 +2998,8 @@ spec:
                                   for Kustomize apps
                                 type: string
                               namespace:
-                                description: Namespace overrides Kustomize namespace
+                                description: Namespace sets the namespace that Kustomize
+                                  adds to all resources
                                 type: string
                               version:
                                 description: Version controls which version of Kustomize
@@ -3657,7 +3662,8 @@ spec:
                                   for Kustomize apps
                                 type: string
                               namespace:
-                                description: Namespace overrides Kustomize namespace
+                                description: Namespace sets the namespace that Kustomize
+                                  adds to all resources
                                 type: string
                               version:
                                 description: Version controls which version of Kustomize

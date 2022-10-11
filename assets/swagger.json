@@ -6133,7 +6133,7 @@
         },
         "namespace": {
           "type": "string",
-          "title": "Namespace overrides Kustomize namespace"
+          "title": "Namespace sets the namespace that Kustomize adds to all resources"
         },
         "version": {
           "type": "string",

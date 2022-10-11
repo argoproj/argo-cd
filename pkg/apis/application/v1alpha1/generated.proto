@@ -463,7 +463,7 @@ message ApplicationSourceKustomize {
   // ForceCommonAnnotations specifies whether to force applying common annotations to resources for Kustomize apps
   optional bool forceCommonAnnotations = 8;
 
-  // Namespace overrides Kustomize namespace
+  // Namespace sets the namespace that Kustomize adds to all resources
   optional string namespace = 9;
 }
 
