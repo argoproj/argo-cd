@@ -302,14 +302,28 @@ func TestListClusters(t *testing.T) {
 			},
 		},
 		Data: map[string][]byte{
-			"server": []byte("http://mycluster2"),
+			"server": []byte("http://mycluster-addr"),
 			"name":   []byte("mycluster2"),
+		},
+	}
+
+	secretForServerWithExternalClusterAddrCopied := &v1.Secret{
+		ObjectMeta: metav1.ObjectMeta{
+			Name:      "mycluster3",
+			Namespace: fakeNamespace,
+			Labels: map[string]string{
+				common.LabelKeySecretType: common.LabelValueSecretTypeCluster,
+			},
+		},
+		Data: map[string][]byte{
+			"server": []byte("http://mycluster-addr"),
+			"name":   []byte("mycluster3"),
 		},
 	}
 
 	invalidSecret := &v1.Secret{
 		ObjectMeta: metav1.ObjectMeta{
-			Name:      "mycluster3",
+			Name:      "mycluster4",
 			Namespace: fakeNamespace,
 		},
 		Data: map[string][]byte{
@@ -320,13 +334,19 @@ func TestListClusters(t *testing.T) {
 	}
 
 	t.Run("Valid clusters", func(t *testing.T) {
-		kubeclientset := fake.NewSimpleClientset(secretForServerWithInClusterAddr, secretForServerWithExternalClusterAddr, emptyArgoCDConfigMap, argoCDSecret)
+		kubeclientset := fake.NewSimpleClientset(
+			secretForServerWithInClusterAddr,
+			secretForServerWithExternalClusterAddr,
+			secretForServerWithExternalClusterAddrCopied,
+			emptyArgoCDConfigMap,
+			argoCDSecret,
+		)
 		settingsManager := settings.NewSettingsManager(context.Background(), kubeclientset, fakeNamespace)
 		db := NewDB(fakeNamespace, settingsManager, kubeclientset)
 
 		clusters, err := db.ListClusters(context.TODO())
 		require.NoError(t, err)
-		assert.Len(t, clusters.Items, 2)
+		assert.Len(t, clusters.Items, 3)
 	})
 
 	t.Run("Cluster list with invalid cluster", func(t *testing.T) {
@@ -368,5 +388,21 @@ func TestListClusters(t *testing.T) {
 		clusters, err := db.ListClusters(context.TODO())
 		require.NoError(t, err)
 		assert.Len(t, clusters.Items, 1)
+	})
+
+	t.Run("Get cluster with same API Address", func(t *testing.T) {
+		kubeclientset := fake.NewSimpleClientset(
+			secretForServerWithInClusterAddr,
+			secretForServerWithExternalClusterAddr,
+			secretForServerWithExternalClusterAddrCopied,
+			emptyArgoCDConfigMap,
+			argoCDSecret,
+		)
+		settingsManager := settings.NewSettingsManager(context.Background(), kubeclientset, fakeNamespace)
+		db := NewDB(fakeNamespace, settingsManager, kubeclientset)
+
+		clusterServer, err := db.GetClusterServersByName(context.TODO(), "mycluster3")
+		require.NoError(t, err)
+		assert.Len(t, clusterServer, 1)
 	})
 }

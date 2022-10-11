@@ -992,7 +992,7 @@ func (ctrl *ApplicationController) finalizeApplicationDeletion(app *appv1.Applic
 
 	// Attempt to validate the destination via its URL
 	if validDestination {
-		if cluster, err = ctrl.db.GetCluster(context.Background(), app.Spec.Destination.Server); err != nil {
+		if cluster, err = ctrl.db.GetClusterByUrl(context.Background(), app.Spec.Destination.Server); err != nil {
 			log.Warnf("Unable to locate cluster URL for Application being deleted: %v", err)
 			validDestination = false
 		}
@@ -1720,7 +1720,7 @@ func (ctrl *ApplicationController) canProcessApp(obj interface{}) bool {
 		return false
 	}
 	if ctrl.clusterFilter != nil {
-		cluster, err := ctrl.db.GetCluster(context.Background(), app.Spec.Destination.Server)
+		cluster, err := ctrl.db.GetClusterByUrl(context.Background(), app.Spec.Destination.Server)
 		if err != nil {
 			return ctrl.clusterFilter(nil)
 		}

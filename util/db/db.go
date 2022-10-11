@@ -27,8 +27,10 @@ type ArgoDB interface {
 		handleAddEvent func(cluster *appv1.Cluster),
 		handleModEvent func(oldCluster *appv1.Cluster, newCluster *appv1.Cluster),
 		handleDeleteEvent func(clusterServer string)) error
-	// GetCluster returns a cluster by given server url
-	GetCluster(ctx context.Context, server string) (*appv1.Cluster, error)
+	// GetClusterByUrl returns a cluster by given server url
+	GetClusterByUrl(ctx context.Context, serverUrl string) (*appv1.Cluster, error)
+	// GetClusterByName returns a cluster by its unique name
+	GetClusterByName(ctx context.Context, serverName string) (*appv1.Cluster, error)
 	// GetClusterServersByName returns a cluster server urls by given cluster name
 	GetClusterServersByName(ctx context.Context, name string) ([]string, error)
 	// GetProjectClusters return project scoped clusters by given project name
@@ -54,22 +56,22 @@ type ArgoDB interface {
 	// DeleteRepository deletes a repository from config
 	DeleteRepository(ctx context.Context, name string) error
 
-	// ListRepoCredentials list all repo credential sets URL patterns
+	// ListRepositoryCredentials list all repo credential sets URL patterns
 	ListRepositoryCredentials(ctx context.Context) ([]string, error)
-	// GetRepoCredentials gets repo credentials for given URL
+	// GetRepositoryCredentials gets repo credentials for given URL
 	GetRepositoryCredentials(ctx context.Context, name string) (*appv1.RepoCreds, error)
-	// CreateRepoCredentials creates a repository credential set
+	// CreateRepositoryCredentials creates a repository credential set
 	CreateRepositoryCredentials(ctx context.Context, r *appv1.RepoCreds) (*appv1.RepoCreds, error)
-	// UpdateRepoCredentials updates a repository credential set
+	// UpdateRepositoryCredentials updates a repository credential set
 	UpdateRepositoryCredentials(ctx context.Context, r *appv1.RepoCreds) (*appv1.RepoCreds, error)
-	// DeleteRepoCredentials deletes a repository credential set from config
+	// DeleteRepositoryCredentials deletes a repository credential set from config
 	DeleteRepositoryCredentials(ctx context.Context, name string) error
 
 	// ListRepoCertificates lists all configured certificates
 	ListRepoCertificates(ctx context.Context, selector *CertificateListSelector) (*appv1.RepositoryCertificateList, error)
 	// CreateRepoCertificate creates a new certificate entry
 	CreateRepoCertificate(ctx context.Context, certificate *appv1.RepositoryCertificateList, upsert bool) (*appv1.RepositoryCertificateList, error)
-	// CreateRepoCertificate creates a new certificate entry
+	// RemoveRepoCertificates removes a certificate entry
 	RemoveRepoCertificates(ctx context.Context, selector *CertificateListSelector) (*appv1.RepositoryCertificateList, error)
 	// GetAllHelmRepositoryCredentials gets all repo credentials
 	GetAllHelmRepositoryCredentials(ctx context.Context) ([]*appv1.RepoCreds, error)

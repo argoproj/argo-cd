@@ -150,7 +150,7 @@ func TestUpdateCluster_NoFieldsPaths(t *testing.T) {
 func TestUpdateCluster_FieldsPathSet(t *testing.T) {
 	db := &dbmocks.ArgoDB{}
 	var updated *v1alpha1.Cluster
-	db.On("GetCluster", mock.Anything, "https://127.0.0.1").Return(&v1alpha1.Cluster{
+	db.On("GetClusterByUrl", mock.Anything, "https://127.0.0.1").Return(&v1alpha1.Cluster{
 		Name:       "minikube",
 		Server:     "https://127.0.0.1",
 		Namespaces: []string{"default", "kube-system"},
@@ -261,7 +261,7 @@ func TestDeleteClusterByName(t *testing.T) {
 		})
 		assert.Nil(t, err)
 
-		_, err = db.GetCluster(context.Background(), "https://my-cluster-server")
+		_, err = db.GetClusterByUrl(context.Background(), "https://my-cluster-server")
 		assert.EqualError(t, err, `rpc error: code = NotFound desc = cluster "https://my-cluster-server" not found`)
 	})
 }

@@ -131,7 +131,7 @@ func (m *appStateManager) SyncAppState(app *v1alpha1.Application, state *v1alpha
 		return
 	}
 
-	clst, err := m.db.GetCluster(context.Background(), app.Spec.Destination.Server)
+	clst, err := argo.GetClusterByDestination(m.db, app.Spec.Destination)
 	if err != nil {
 		state.Phase = common.OperationError
 		state.Message = err.Error()

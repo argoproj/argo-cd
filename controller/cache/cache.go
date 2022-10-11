@@ -380,7 +380,7 @@ func (c *liveStateCache) getCluster(server string) (clustercache.ClusterCache, e
 		return clusterCache, nil
 	}
 
-	cluster, err := c.db.GetCluster(context.Background(), server)
+	cluster, err := c.db.GetClusterByUrl(context.Background(), server)
 	if err != nil {
 		return nil, fmt.Errorf("error getting cluster: %w", err)
 	}

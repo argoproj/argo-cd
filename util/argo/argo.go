@@ -245,7 +245,7 @@ func ValidateRepo(
 		return nil, fmt.Errorf("error getting permitted repo creds: %w", err)
 	}
 
-	cluster, err := db.GetCluster(context.Background(), spec.Destination.Server)
+	cluster, err := GetClusterByDestination(db, spec.Destination)
 	if err != nil {
 		conditions = append(conditions, argoappv1.ApplicationCondition{
 			Type:    argoappv1.ApplicationConditionInvalidSpecError,
@@ -361,7 +361,7 @@ func ValidatePermissions(ctx context.Context, spec *argoappv1.ApplicationSpec, p
 			})
 		}
 		// Ensure the k8s cluster the app is referencing, is configured in Argo CD
-		_, err = db.GetCluster(ctx, spec.Destination.Server)
+		_, err = db.GetClusterByUrl(ctx, spec.Destination.Server)
 		if err != nil {
 			if errStatus, ok := status.FromError(err); ok && errStatus.Code() == codes.NotFound {
 				conditions = append(conditions, argoappv1.ApplicationCondition{
@@ -465,6 +465,19 @@ func GetAppProject(app *argoappv1.Application, projLister applicationsv1.AppProj
 			app.Name, app.Namespace, proj.Name)
 	}
 	return proj, nil
+}
+
+// GetClusterByDestination returns a Cluster based on the specified spec.Destination
+// by calling db.
+func GetClusterByDestination(db db.ArgoDB, dest argoappv1.ApplicationDestination) (*argoappv1.Cluster, error) {
+	if dest.Name != "" {
+		// User wants to use a specific cluster, we can't solely rely on the
+		// app.Spec.Destination.Server URL since a user might specify
+		// multiple Kubernetes clusters with the same API URL but different
+		// tokens to access different namespaces.
+		return db.GetClusterByName(context.Background(), dest.Name)
+	}
+	return db.GetClusterByUrl(context.Background(), dest.Server)
 }
 
 // verifyGenerateManifests verifies a repo path can generate manifests
@@ -727,7 +740,7 @@ func parseAppName(appName string, defaultNs string, delim string) (string, strin
 	return name, ns
 }
 
-// ParseAppNamespacedName parses a namespaced name in the format namespace/name
+// ParseAppQualifiedName parses a namespaced name in the format namespace/name
 // and returns the components. If name wasn't namespaced, defaultNs will be
 // returned as namespace component.
 func ParseAppQualifiedName(appName string, defaultNs string) (string, string) {

@@ -346,7 +346,7 @@ func NewClusterEnableNamespacedMode() *cobra.Command {
 						continue
 					}
 
-					cluster, err := argoDB.GetCluster(ctx, server)
+					cluster, err := argoDB.GetClusterByUrl(ctx, server)
 					if err != nil {
 						return fmt.Errorf("error getting cluster from server: %w", err)
 					}
@@ -401,7 +401,7 @@ func NewClusterDisableNamespacedMode() *cobra.Command {
 						continue
 					}
 
-					cluster, err := argoDB.GetCluster(ctx, server)
+					cluster, err := argoDB.GetClusterByUrl(ctx, server)
 					if err != nil {
 						return fmt.Errorf("error getting cluster from server: %w", err)
 					}
@@ -502,7 +502,7 @@ func NewClusterConfig() *cobra.Command {
 			kubeclientset, err := kubernetes.NewForConfig(conf)
 			errors.CheckError(err)
 
-			cluster, err := db.NewDB(namespace, settings.NewSettingsManager(ctx, kubeclientset, namespace), kubeclientset).GetCluster(ctx, serverUrl)
+			cluster, err := db.NewDB(namespace, settings.NewSettingsManager(ctx, kubeclientset, namespace), kubeclientset).GetClusterByUrl(ctx, serverUrl)
 			errors.CheckError(err)
 			err = kube.WriteKubeConfig(cluster.RawRestConfig(), namespace, output)
 			errors.CheckError(err)

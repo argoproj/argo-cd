@@ -1719,7 +1719,7 @@ func TestValidateGeneratedApplications(t *testing.T) {
 			kubeclientset := kubefake.NewSimpleClientset(objects...)
 
 			argoDBMock := dbmocks.ArgoDB{}
-			argoDBMock.On("GetCluster", mock.Anything, "https://kubernetes.default.svc").Return(&myCluster, nil)
+			argoDBMock.On("GetClusterByUrl", mock.Anything, "https://kubernetes.default.svc").Return(&myCluster, nil)
 			argoDBMock.On("ListClusters", mock.Anything).Return(&argov1alpha1.ClusterList{Items: []argov1alpha1.Cluster{
 				myCluster,
 			}}, nil)
@@ -1825,8 +1825,8 @@ func TestReconcilerValidationErrorBehaviour(t *testing.T) {
 	client := fake.NewClientBuilder().WithScheme(scheme).WithObjects(&appSet).Build()
 	goodCluster := argov1alpha1.Cluster{Server: "https://good-cluster", Name: "good-cluster"}
 	badCluster := argov1alpha1.Cluster{Server: "https://bad-cluster", Name: "bad-cluster"}
-	argoDBMock.On("GetCluster", mock.Anything, "https://good-cluster").Return(&goodCluster, nil)
-	argoDBMock.On("GetCluster", mock.Anything, "https://bad-cluster").Return(&badCluster, nil)
+	argoDBMock.On("GetClusterByUrl", mock.Anything, "https://good-cluster").Return(&goodCluster, nil)
+	argoDBMock.On("GetClusterByUrl", mock.Anything, "https://bad-cluster").Return(&badCluster, nil)
 	argoDBMock.On("ListClusters", mock.Anything).Return(&argov1alpha1.ClusterList{Items: []argov1alpha1.Cluster{
 		goodCluster,
 	}}, nil)

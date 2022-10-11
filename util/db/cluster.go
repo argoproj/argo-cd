@@ -139,7 +139,7 @@ func (db *db) WatchClusters(ctx context.Context,
 	handleAddEvent func(cluster *appv1.Cluster),
 	handleModEvent func(oldCluster *appv1.Cluster, newCluster *appv1.Cluster),
 	handleDeleteEvent func(clusterServer string)) error {
-	localCls, err := db.GetCluster(ctx, appv1.KubernetesInternalAPIServerAddr)
+	localCls, err := db.GetClusterByUrl(ctx, appv1.KubernetesInternalAPIServerAddr)
 	if err != nil {
 		return err
 	}
@@ -209,24 +209,45 @@ func (db *db) getClusterSecret(server string) (*apiv1.Secret, error) {
 	return nil, status.Errorf(codes.NotFound, "cluster %q not found", server)
 }
 
-// GetCluster returns a cluster from a query
-func (db *db) GetCluster(_ context.Context, server string) (*appv1.Cluster, error) {
+// GetClusterByUrl returns a cluster from a query
+func (db *db) GetClusterByUrl(_ context.Context, serverUrl string) (*appv1.Cluster, error) {
 	informer, err := db.settingsMgr.GetSecretsInformer()
 	if err != nil {
 		return nil, err
 	}
-	res, err := informer.GetIndexer().ByIndex(settings.ByClusterURLIndexer, server)
+	res, err := informer.GetIndexer().ByIndex(settings.ByClusterURLIndexer, serverUrl)
 	if err != nil {
 		return nil, err
 	}
 	if len(res) > 0 {
 		return secretToCluster(res[0].(*apiv1.Secret))
 	}
-	if server == appv1.KubernetesInternalAPIServerAddr {
+	if serverUrl == appv1.KubernetesInternalAPIServerAddr {
 		return db.getLocalCluster(), nil
 	}
 
-	return nil, status.Errorf(codes.NotFound, "cluster %q not found", server)
+	return nil, status.Errorf(codes.NotFound, "cluster %q not found", serverUrl)
+}
+
+// GetClusterByName returns a cluster from a query
+func (db *db) GetClusterByName(_ context.Context, serverName string) (*appv1.Cluster, error) {
+	if serverName == "in-cluster" {
+		return db.getLocalCluster(), nil
+	}
+
+	informer, err := db.settingsMgr.GetSecretsInformer()
+	if err != nil {
+		return nil, err
+	}
+	res, err := informer.GetIndexer().ByIndex(settings.ByClusterNameIndexer, serverName)
+	if err != nil {
+		return nil, err
+	}
+	if len(res) > 0 {
+		return secretToCluster(res[0].(*apiv1.Secret))
+	}
+
+	return nil, status.Errorf(codes.NotFound, "cluster with name %q not found", serverName)
 }
 
 // GetProjectClusters return project scoped clusters by given project name

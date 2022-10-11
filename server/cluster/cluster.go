@@ -88,7 +88,7 @@ func (s *Server) Create(ctx context.Context, q *cluster.ClusterCreateRequest) (*
 	if err != nil {
 		if status.Convert(err).Code() == codes.AlreadyExists {
 			// act idempotent if existing spec matches new spec
-			existing, getErr := s.db.GetCluster(ctx, c.Server)
+			existing, getErr := s.db.GetClusterByUrl(ctx, c.Server)
 			if getErr != nil {
 				return nil, status.Errorf(codes.Internal, "unable to check existing cluster details: %v", getErr)
 			}
@@ -158,7 +158,7 @@ func (s *Server) getCluster(ctx context.Context, q *cluster.ClusterQuery) (*appv
 	}
 
 	if q.Server != "" {
-		c, err := s.db.GetCluster(ctx, q.Server)
+		c, err := s.db.GetClusterByUrl(ctx, q.Server)
 		if err != nil {
 			return nil, err
 		}
