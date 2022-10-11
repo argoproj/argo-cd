@@ -10,6 +10,7 @@ permissions:
 jobs:
   snyk-report:
     permissions:
+      contents: write
       pull-requests: write
     if: github.repository == 'argoproj/argo-cd'
     name: Update Snyk report in the docs directory
