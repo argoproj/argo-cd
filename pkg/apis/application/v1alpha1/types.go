@@ -445,7 +445,7 @@ type ApplicationSourceKustomize struct {
 	ForceCommonLabels bool `json:"forceCommonLabels,omitempty" protobuf:"bytes,7,opt,name=forceCommonLabels"`
 	// ForceCommonAnnotations specifies whether to force applying common annotations to resources for Kustomize apps
 	ForceCommonAnnotations bool `json:"forceCommonAnnotations,omitempty" protobuf:"bytes,8,opt,name=forceCommonAnnotations"`
-	// Namespace overrides Kustomize namespace
+	// Namespace sets the namespace that Kustomize adds to all resources
 	Namespace string `json:"namespace,omitempty" protobuf:"bytes,9,opt,name=namespace"`
 }
 
