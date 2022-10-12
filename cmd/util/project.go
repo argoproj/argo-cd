@@ -138,7 +138,7 @@ func readProjFromURI(fileURL string, proj *v1alpha1.AppProject) error {
 	} else {
 		err = config.UnmarshalRemoteFile(fileURL, &proj)
 	}
-	return err
+	return fmt.Errorf("error reading proj from uri: %w", err)
 }
 
 func SetProjSpecOptions(flags *pflag.FlagSet, spec *v1alpha1.AppProjectSpec, projOpts *ProjectOpts) int {
