@@ -136,6 +136,24 @@ func TestGetHealthScriptWithKindWildcardOverride(t *testing.T) {
 			},
 		},
 	}
+
+	script, useOpenLibs, err := vm.GetHealthScript(testObj)
+	assert.Nil(t, err)
+	assert.Equal(t, false, useOpenLibs)
+	assert.Equal(t, newHealthStatusFunction, script)
+}
+
+func TestGetHealthScriptWithGroupWildcardOverride(t *testing.T) {
+	testObj := StrToUnstructured(objJSON)
+	vm := VM{
+		ResourceOverrides: map[string]appv1.ResourceOverride{
+			"*.io/Rollout": {
+				HealthLua:   newHealthStatusFunction,
+				UseOpenLibs: false,
+			},
+		},
+	}
+
 	script, useOpenLibs, err := vm.GetHealthScript(testObj)
 	assert.Nil(t, err)
 	assert.Equal(t, false, useOpenLibs)
