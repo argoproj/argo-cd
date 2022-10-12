@@ -28,7 +28,7 @@ type TransformResult struct {
 func Transform(requestedGenerator argoprojiov1alpha1.ApplicationSetGenerator, allGenerators map[string]Generator, baseTemplate argoprojiov1alpha1.ApplicationSetTemplate, appSet *argoprojiov1alpha1.ApplicationSet, genParams map[string]interface{}) ([]TransformResult, error) {
 	selector, err := metav1.LabelSelectorAsSelector(requestedGenerator.Selector)
 	if err != nil {
-		return nil, err
+		return nil, fmt.Errorf("error transforming spec generator: %w", err)
 	}
 
 	res := []TransformResult{}
