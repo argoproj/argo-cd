@@ -7,7 +7,7 @@
   <meta name="viewport" content="width=device-width, initial-scale=1.0">
   <meta http-equiv="X-UA-Compatible" content="IE=edge">
   <title>Snyk test report</title>
-  <meta name="description" content="8 known vulnerabilities found in 14 vulnerable dependency paths.">
+  <meta name="description" content="6 known vulnerabilities found in 11 vulnerable dependency paths.">
   <base target="_blank">
   <link rel="icon" type="image/png" href="https://res.cloudinary.com/snyk/image/upload/v1468845142/favicon/favicon.png"
     sizes="194x194">
@@ -456,7 +456,7 @@
               <div class="header-wrap">
                   <h1 class="project__header__title">Snyk test report</h1>
     
-                <p class="timestamp">October 10th 2022, 7:44:53 pm</p>
+                <p class="timestamp">September 7th 2022, 7:39:03 pm</p>
               </div>
               <div class="source-panel">
                 <span>Scanned the following paths:</span>
@@ -466,9 +466,9 @@
               </div>
     
               <div class="meta-counts">
-                <div class="meta-count"><span>8</span> <span>known vulnerabilities</span></div>
-                <div class="meta-count"><span>14 vulnerable dependency paths</span></div>
-                <div class="meta-count"><span>1467</span> <span>dependencies</span></div>
+                <div class="meta-count"><span>6</span> <span>known vulnerabilities</span></div>
+                <div class="meta-count"><span>11 vulnerable dependency paths</span></div>
+                <div class="meta-count"><span>1367</span> <span>dependencies</span></div>
               </div><!-- .meta-counts -->
             </div><!-- .layout-container--short -->
           </header><!-- .project__header -->
@@ -526,35 +526,7 @@
                                          <span class="list-paths__item__arrow">›</span> 
                                         argo-ui@1.0.0
                                          <span class="list-paths__item__arrow">›</span> 
-                                        antd@4.18.3
-                                         <span class="list-paths__item__arrow">›</span> 
-                                        moment@2.29.1
-                                        
-                                </span>
-        
-                            </li>
-                                <li>
-                                <span class="list-paths__item__introduced"><em>Introduced through</em>:
-                                        argo-cd-ui@1.0.0
-                                         <span class="list-paths__item__arrow">›</span> 
-                                        argo-ui@1.0.0
-                                         <span class="list-paths__item__arrow">›</span> 
                                         moment-timezone@0.5.33
-                                         <span class="list-paths__item__arrow">›</span> 
-                                        moment@2.29.1
-                                        
-                                </span>
-        
-                            </li>
-                                <li>
-                                <span class="list-paths__item__introduced"><em>Introduced through</em>:
-                                        argo-cd-ui@1.0.0
-                                         <span class="list-paths__item__arrow">›</span> 
-                                        argo-ui@1.0.0
-                                         <span class="list-paths__item__arrow">›</span> 
-                                        antd@4.18.3
-                                         <span class="list-paths__item__arrow">›</span> 
-                                        rc-picker@2.5.19
                                          <span class="list-paths__item__arrow">›</span> 
                                         moment@2.29.1
                                         
@@ -647,182 +619,6 @@
         
             <div class="cta card__cta">
                 <p><a href="https://snyk.io/vuln/SNYK-JS-MOMENT-2944238">More about this vulnerability</a></p>
-            </div>
-        
-        </div><!-- .card -->
-        <div class="card card--vuln  disclosure--not-new severity--medium" data-snyk-test="medium">
-            <h2 class="card__title">Server-side Request Forgery (SSRF)</h2>
-            <div class="card__section">
-        
-                <div class="label label--medium">
-                    <span class="label__text">medium severity</span>
-                </div>
-        
-                <hr/>
-        
-                <ul class="card__meta">
-                    <li class="card__meta__item">
-                        Package Manager: npm
-                    </li>
-                    <li class="card__meta__item">
-                            Vulnerable module:
-        
-                            parse-url
-                    </li>
-        
-                    <li class="card__meta__item">Introduced through:
-        
-        
-                                    argo-cd-ui@1.0.0, git-url-parse@11.1.2 and others
-                    </li>
-                </ul>
-        
-                <hr/>
-        
-        
-                        <h3 class="card__section__title">Detailed paths</h3>
-        
-                    <ul class="card__meta__paths">
-                                <li>
-                                <span class="list-paths__item__introduced"><em>Introduced through</em>:
-                                        argo-cd-ui@1.0.0
-                                         <span class="list-paths__item__arrow">›</span> 
-                                        git-url-parse@11.1.2
-                                         <span class="list-paths__item__arrow">›</span> 
-                                        git-up@4.0.5
-                                         <span class="list-paths__item__arrow">›</span> 
-                                        parse-url@6.0.5
-                                        
-                                </span>
-        
-                            </li>
-                    </ul><!-- .list-paths -->
-        
-            </div><!-- .card__section -->
-        
-              <hr/>
-              <!-- Overview -->
-              <h2 id="overview">Overview</h2>
-        <p><a href="https://www.npmjs.org/package/parse-url">parse-url</a> is an An advanced url parser supporting git urls too.</p>
-        <p>Affected versions of this package are vulnerable to Server-side Request Forgery (SSRF) due to improper detection of protocol, resource, and pathname fields. Exploiting this vulnerability results in bypassing protocol verification.</p>
-        <h2 id="poc">PoC:</h2>
-        <pre><code class="language-js">import parseUrl from &quot;parse-url&quot;;
-        import fetch from &#39;node-fetch&#39;;
-        var parsed=parseUrl(&quot;http://nnnn@localhost:808:/?id=xss&quot;)
-        if(parsed.resource==&quot;localhost&quot;){
-        console.log(&quot;internal network access is blocked&quot;)
-        }
-        else{
-           const response = await fetch(&#39;http://&#39;+parsed.resource+parsed.pathname);
-                console.log(response)
-         }
-        </code></pre>
-        <h2 id="remediation">Remediation</h2>
-        <p>Upgrade <code>parse-url</code> to version 8.1.0 or higher.</p>
-        <h2 id="references">References</h2>
-        <ul>
-        <li><a href="https://github.com/IonicaBizau/parse-url/commit/881ecb46e39286b0c2b3c32fe61dca9377176884">GitHub Commit</a></li>
-        <li><a href="https://github.com/IonicaBizau/parse-url/pull/55">GitHub PR</a></li>
-        </ul>
-        
-              <hr/>
-        
-            <div class="cta card__cta">
-                <p><a href="https://snyk.io/vuln/SNYK-JS-PARSEURL-3023021">More about this vulnerability</a></p>
-            </div>
-        
-        </div><!-- .card -->
-        <div class="card card--vuln  disclosure--not-new severity--medium" data-snyk-test="medium">
-            <h2 class="card__title">Improper Input Validation</h2>
-            <div class="card__section">
-        
-                <div class="label label--medium">
-                    <span class="label__text">medium severity</span>
-                </div>
-        
-                <hr/>
-        
-                <ul class="card__meta">
-                    <li class="card__meta__item">
-                        Package Manager: npm
-                    </li>
-                    <li class="card__meta__item">
-                            Vulnerable module:
-        
-                            parse-url
-                    </li>
-        
-                    <li class="card__meta__item">Introduced through:
-        
-        
-                                    argo-cd-ui@1.0.0, git-url-parse@11.1.2 and others
-                    </li>
-                </ul>
-        
-                <hr/>
-        
-        
-                        <h3 class="card__section__title">Detailed paths</h3>
-        
-                    <ul class="card__meta__paths">
-                                <li>
-                                <span class="list-paths__item__introduced"><em>Introduced through</em>:
-                                        argo-cd-ui@1.0.0
-                                         <span class="list-paths__item__arrow">›</span> 
-                                        git-url-parse@11.1.2
-                                         <span class="list-paths__item__arrow">›</span> 
-                                        git-up@4.0.5
-                                         <span class="list-paths__item__arrow">›</span> 
-                                        parse-url@6.0.5
-                                        
-                                </span>
-        
-                            </li>
-                    </ul><!-- .list-paths -->
-        
-            </div><!-- .card__section -->
-        
-              <hr/>
-              <!-- Overview -->
-              <h2 id="overview">Overview</h2>
-        <p><a href="https://www.npmjs.org/package/parse-url">parse-url</a> is an An advanced url parser supporting git urls too.</p>
-        <p>Affected versions of this package are vulnerable to Improper Input Validation due to incorrect parsing of URLs. This allows the attacker to craft a malformed URL which can lead to a phishing attack.</p>
-        <pre><code class="language-js">
-        const parseUrl = require(&quot;parse-url&quot;);
-        const Url = require(&quot;url&quot;);
-        
-        const express = require(&#39;express&#39;);
-        const app = express();
-        
-        var url = &quot;https://www.google.com:x@fakesite.com:x&quot;;
-        parsed = parseUrl(url);
-        console.log(&quot;[*]`parse-url` output: &quot;)
-        console.log(parsed);
-        
-        parsed2 = Url.parse(url);
-        console.log(&quot;[*]`url` output: &quot;)
-        console.log(parsed2)
-        
-        app.get(&#39;/&#39;, (req, res) =&gt; {
-            if (parsed.host == &quot;www.google.com&quot;) {
-                res.send(&quot;&lt;a href=\&#39;&quot; + parsed2.href + &quot;\&#39;&gt;CLICK ME!&lt;/a&gt;&quot;)
-            }
-        })
-        
-        app.listen(8888,&quot;0.0.0.0&quot;);
-        </code></pre>
-        <h2 id="remediation">Remediation</h2>
-        <p>Upgrade <code>parse-url</code> to version 8.1.0 or higher.</p>
-        <h2 id="references">References</h2>
-        <ul>
-        <li><a href="https://github.com/IonicaBizau/parse-url/commit/881ecb46e39286b0c2b3c32fe61dca9377176884">GitHub Commit</a></li>
-        <li><a href="https://github.com/IonicaBizau/parse-url/commit/9500430a3b9973bb1b5b2b9b319af2685ad272b3">GitHub Commit</a></li>
-        </ul>
-        
-              <hr/>
-        
-            <div class="cta card__cta">
-                <p><a href="https://snyk.io/vuln/SNYK-JS-PARSEURL-3024398">More about this vulnerability</a></p>
             </div>
         
         </div><!-- .card -->
@@ -969,6 +765,119 @@
         
         </div><!-- .card -->
         <div class="card card--vuln  disclosure--not-new severity--medium" data-snyk-test="medium">
+            <h2 class="card__title">Out-of-bounds Read</h2>
+            <div class="card__section">
+        
+                <div class="label label--medium">
+                    <span class="label__text">medium severity</span>
+                </div>
+        
+                <hr/>
+        
+                <ul class="card__meta">
+                    <li class="card__meta__item">
+                        Package Manager: golang
+                    </li>
+                    <li class="card__meta__item">
+                            Vulnerable module:
+        
+                            golang.org/x/text/internal/language
+                    </li>
+        
+                    <li class="card__meta__item">Introduced through:
+        
+        
+                                    github.com/argoproj/argo-cd/v2@0.0.0, sigs.k8s.io/controller-runtime/pkg/envtest@0.8.3 and others
+                    </li>
+                </ul>
+        
+                <hr/>
+        
+        
+                        <h3 class="card__section__title">Detailed paths</h3>
+        
+                    <ul class="card__meta__paths">
+                                <li>
+                                <span class="list-paths__item__introduced"><em>Introduced through</em>:
+                                        github.com/argoproj/argo-cd/v2@0.0.0
+                                         <span class="list-paths__item__arrow">›</span> 
+                                        sigs.k8s.io/controller-runtime/pkg/envtest@0.8.3
+                                         <span class="list-paths__item__arrow">›</span> 
+                                        sigs.k8s.io/controller-runtime/pkg/internal/testing/integration@0.8.3
+                                         <span class="list-paths__item__arrow">›</span> 
+                                        sigs.k8s.io/controller-runtime/pkg/internal/testing/integration/internal@0.8.3
+                                         <span class="list-paths__item__arrow">›</span> 
+                                        github.com/onsi/gomega/gexec@1.15.0
+                                         <span class="list-paths__item__arrow">›</span> 
+                                        github.com/onsi/gomega@1.15.0
+                                         <span class="list-paths__item__arrow">›</span> 
+                                        github.com/onsi/gomega/matchers@1.15.0
+                                         <span class="list-paths__item__arrow">›</span> 
+                                        golang.org/x/net/html/charset@#491a49abca63
+                                         <span class="list-paths__item__arrow">›</span> 
+                                        golang.org/x/text/encoding/htmlindex@0.3.6
+                                         <span class="list-paths__item__arrow">›</span> 
+                                        golang.org/x/text/language@0.3.6
+                                         <span class="list-paths__item__arrow">›</span> 
+                                        golang.org/x/text/internal/language@0.3.6
+                                        
+                                </span>
+        
+                            </li>
+                                <li>
+                                <span class="list-paths__item__introduced"><em>Introduced through</em>:
+                                        github.com/argoproj/argo-cd/v2@0.0.0
+                                         <span class="list-paths__item__arrow">›</span> 
+                                        sigs.k8s.io/controller-runtime/pkg/envtest@0.8.3
+                                         <span class="list-paths__item__arrow">›</span> 
+                                        sigs.k8s.io/controller-runtime/pkg/internal/testing/integration@0.8.3
+                                         <span class="list-paths__item__arrow">›</span> 
+                                        sigs.k8s.io/controller-runtime/pkg/internal/testing/integration/internal@0.8.3
+                                         <span class="list-paths__item__arrow">›</span> 
+                                        github.com/onsi/gomega/gexec@1.15.0
+                                         <span class="list-paths__item__arrow">›</span> 
+                                        github.com/onsi/gomega@1.15.0
+                                         <span class="list-paths__item__arrow">›</span> 
+                                        github.com/onsi/gomega/matchers@1.15.0
+                                         <span class="list-paths__item__arrow">›</span> 
+                                        golang.org/x/net/html/charset@#491a49abca63
+                                         <span class="list-paths__item__arrow">›</span> 
+                                        golang.org/x/text/encoding/htmlindex@0.3.6
+                                         <span class="list-paths__item__arrow">›</span> 
+                                        golang.org/x/text/language@0.3.6
+                                         <span class="list-paths__item__arrow">›</span> 
+                                        golang.org/x/text/internal/language/compact@0.3.6
+                                         <span class="list-paths__item__arrow">›</span> 
+                                        golang.org/x/text/internal/language@0.3.6
+                                        
+                                </span>
+        
+                            </li>
+                    </ul><!-- .list-paths -->
+        
+            </div><!-- .card__section -->
+        
+              <hr/>
+              <!-- Overview -->
+              <h2 id="overview">Overview</h2>
+        <p>Affected versions of this package are vulnerable to Out-of-bounds Read due to improper index calculation, an incorrectly formatted language tag can cause Parse to panic. If Parse is used to process untrusted user inputs, this may be used as a vector for a denial of service attack.</p>
+        <h2 id="remediation">Remediation</h2>
+        <p>Upgrade <code>golang.org/x/text/internal/language</code> to version 0.3.7 or higher.</p>
+        <h2 id="references">References</h2>
+        <ul>
+        <li><a href="https://github.com/golang/text/commit/383b2e75a7a4198c42f8f87833eefb772868a56f">GitHub Commit</a></li>
+        <li><a href="https://github.com/mozilla/sops/issues/1005">GitHub Issue</a></li>
+        <li><a href="https://golangissues.com/issues/1154451">Golang Issues</a></li>
+        </ul>
+        
+              <hr/>
+        
+            <div class="cta card__cta">
+                <p><a href="https://snyk.io/vuln/SNYK-GOLANG-GOLANGORGXTEXTINTERNALLANGUAGE-2400718">More about this vulnerability</a></p>
+            </div>
+        
+        </div><!-- .card -->
+        <div class="card card--vuln  disclosure--not-new severity--medium" data-snyk-test="medium">
             <h2 class="card__title">Improper Input Validation</h2>
             <div class="card__section">
         
@@ -1007,13 +916,13 @@
                                          <span class="list-paths__item__arrow">›</span> 
                                         github.com/go-openapi/runtime/middleware@0.19.4
                                          <span class="list-paths__item__arrow">›</span> 
-                                        github.com/go-openapi/validate@0.19.5
+                                        github.com/go-openapi/validate@0.19.2
                                          <span class="list-paths__item__arrow">›</span> 
                                         github.com/go-openapi/strfmt@0.19.3
                                          <span class="list-paths__item__arrow">›</span> 
-                                        go.mongodb.org/mongo-driver/bson@1.1.2
+                                        go.mongodb.org/mongo-driver/bson@1.1.1
                                          <span class="list-paths__item__arrow">›</span> 
-                                        go.mongodb.org/mongo-driver/bson/bsonrw@1.1.2
+                                        go.mongodb.org/mongo-driver/bson/bsonrw@1.1.1
                                         
                                 </span>
         
@@ -1024,15 +933,15 @@
                                          <span class="list-paths__item__arrow">›</span> 
                                         github.com/go-openapi/runtime/middleware@0.19.4
                                          <span class="list-paths__item__arrow">›</span> 
-                                        github.com/go-openapi/validate@0.19.5
+                                        github.com/go-openapi/validate@0.19.2
                                          <span class="list-paths__item__arrow">›</span> 
                                         github.com/go-openapi/strfmt@0.19.3
                                          <span class="list-paths__item__arrow">›</span> 
-                                        go.mongodb.org/mongo-driver/bson@1.1.2
+                                        go.mongodb.org/mongo-driver/bson@1.1.1
                                          <span class="list-paths__item__arrow">›</span> 
-                                        go.mongodb.org/mongo-driver/bson/bsoncodec@1.1.2
+                                        go.mongodb.org/mongo-driver/bson/bsoncodec@1.1.1
                                          <span class="list-paths__item__arrow">›</span> 
-                                        go.mongodb.org/mongo-driver/bson/bsonrw@1.1.2
+                                        go.mongodb.org/mongo-driver/bson/bsonrw@1.1.1
                                         
                                 </span>
         
@@ -1104,6 +1013,34 @@
                                 </span>
         
                             </li>
+                                <li>
+                                <span class="list-paths__item__introduced"><em>Introduced through</em>:
+                                        github.com/argoproj/argo-cd/v2@0.0.0
+                                         <span class="list-paths__item__arrow">›</span> 
+                                        k8s.io/component-base/metrics/prometheus/workqueue@0.22.2
+                                         <span class="list-paths__item__arrow">›</span> 
+                                        k8s.io/component-base/metrics/legacyregistry@0.22.2
+                                         <span class="list-paths__item__arrow">›</span> 
+                                        github.com/prometheus/client_golang/prometheus/promhttp@1.11.0
+                                        
+                                </span>
+        
+                            </li>
+                                <li>
+                                <span class="list-paths__item__introduced"><em>Introduced through</em>:
+                                        github.com/argoproj/argo-cd/v2@0.0.0
+                                         <span class="list-paths__item__arrow">›</span> 
+                                        k8s.io/component-base/metrics/prometheus/workqueue@0.22.2
+                                         <span class="list-paths__item__arrow">›</span> 
+                                        k8s.io/component-base/metrics/legacyregistry@0.22.2
+                                         <span class="list-paths__item__arrow">›</span> 
+                                        k8s.io/component-base/metrics@0.22.2
+                                         <span class="list-paths__item__arrow">›</span> 
+                                        github.com/prometheus/client_golang/prometheus/promhttp@1.11.0
+                                        
+                                </span>
+        
+                            </li>
                     </ul><!-- .list-paths -->
         
             </div><!-- .card__section -->
@@ -1161,111 +1098,6 @@
         
             <div class="cta card__cta">
                 <p><a href="https://snyk.io/vuln/SNYK-GOLANG-GITHUBCOMPROMETHEUSCLIENTGOLANGPROMETHEUSPROMHTTP-2401819">More about this vulnerability</a></p>
-            </div>
-        
-        </div><!-- .card -->
-        <div class="card card--vuln  disclosure--not-new severity--medium" data-snyk-test="medium">
-            <h2 class="card__title">Insecure Randomness</h2>
-            <div class="card__section">
-        
-                <div class="label label--medium">
-                    <span class="label__text">medium severity</span>
-                </div>
-        
-                <hr/>
-        
-                <ul class="card__meta">
-                    <li class="card__meta__item">
-                        Package Manager: golang
-                    </li>
-                    <li class="card__meta__item">
-                            Vulnerable module:
-        
-                            github.com/Masterminds/goutils
-                    </li>
-        
-                    <li class="card__meta__item">Introduced through:
-        
-        
-                                    github.com/argoproj/argo-cd/v2@0.0.0, github.com/argoproj/notifications-engine/pkg/api@#91deed20b998 and others
-                    </li>
-                </ul>
-        
-                <hr/>
-        
-        
-                        <h3 class="card__section__title">Detailed paths</h3>
-        
-                    <ul class="card__meta__paths">
-                                <li>
-                                <span class="list-paths__item__introduced"><em>Introduced through</em>:
-                                        github.com/argoproj/argo-cd/v2@0.0.0
-                                         <span class="list-paths__item__arrow">›</span> 
-                                        github.com/argoproj/notifications-engine/pkg/api@#91deed20b998
-                                         <span class="list-paths__item__arrow">›</span> 
-                                        github.com/argoproj/notifications-engine/pkg/templates@#91deed20b998
-                                         <span class="list-paths__item__arrow">›</span> 
-                                        github.com/Masterminds/sprig@2.22.0
-                                         <span class="list-paths__item__arrow">›</span> 
-                                        github.com/Masterminds/goutils@1.1.0
-                                        
-                                </span>
-        
-                            </li>
-                                <li>
-                                <span class="list-paths__item__introduced"><em>Introduced through</em>:
-                                        github.com/argoproj/argo-cd/v2@0.0.0
-                                         <span class="list-paths__item__arrow">›</span> 
-                                        github.com/argoproj/notifications-engine/pkg/cmd@#91deed20b998
-                                         <span class="list-paths__item__arrow">›</span> 
-                                        github.com/argoproj/notifications-engine/pkg/api@#91deed20b998
-                                         <span class="list-paths__item__arrow">›</span> 
-                                        github.com/argoproj/notifications-engine/pkg/templates@#91deed20b998
-                                         <span class="list-paths__item__arrow">›</span> 
-                                        github.com/Masterminds/sprig@2.22.0
-                                         <span class="list-paths__item__arrow">›</span> 
-                                        github.com/Masterminds/goutils@1.1.0
-                                        
-                                </span>
-        
-                            </li>
-                                <li>
-                                <span class="list-paths__item__introduced"><em>Introduced through</em>:
-                                        github.com/argoproj/argo-cd/v2@0.0.0
-                                         <span class="list-paths__item__arrow">›</span> 
-                                        github.com/argoproj/notifications-engine/pkg/controller@#91deed20b998
-                                         <span class="list-paths__item__arrow">›</span> 
-                                        github.com/argoproj/notifications-engine/pkg/api@#91deed20b998
-                                         <span class="list-paths__item__arrow">›</span> 
-                                        github.com/argoproj/notifications-engine/pkg/templates@#91deed20b998
-                                         <span class="list-paths__item__arrow">›</span> 
-                                        github.com/Masterminds/sprig@2.22.0
-                                         <span class="list-paths__item__arrow">›</span> 
-                                        github.com/Masterminds/goutils@1.1.0
-                                        
-                                </span>
-        
-                            </li>
-                    </ul><!-- .list-paths -->
-        
-            </div><!-- .card__section -->
-        
-              <hr/>
-              <!-- Overview -->
-              <h2 id="overview">Overview</h2>
-        <p><a href="https://pkg.go.dev/github.com/masterminds/goutils">github.com/masterminds/goutils</a> is a provides users with utility functions to manipulate strings in various ways.</p>
-        <p>Affected versions of this package are vulnerable to Insecure Randomness via the <code>RandomAlphaNumeric(int)</code> and <code>CryptoRandomAlphaNumeric(int)</code> functions. Small values of <code>int</code> in the functions above will return a smaller subset of results than they should. For example, <code>RandomAlphaNumeric(1)</code> would always return a digit in the 0-9 range, while <code>RandomAlphaNumeric(4)</code> return around ~7 million of the ~13M possible permutations.</p>
-        <h2 id="remediation">Remediation</h2>
-        <p>Upgrade <code>github.com/masterminds/goutils</code> to version 1.1.1 or higher.</p>
-        <h2 id="references">References</h2>
-        <ul>
-        <li><a href="https://github.com/Masterminds/goutils/commit/f1923532a168b8203bfe956d8cd3b17ebece5982">GitHub Commit</a></li>
-        </ul>
-        
-              <hr/>
-        
-            <div class="cta card__cta">
-                <p><a href="https://snyk.io/vuln/SNYK-GOLANG-GITHUBCOMMASTERMINDSGOUTILS-1296313">More about this vulnerability</a></p>
             </div>
         
         </div><!-- .card -->

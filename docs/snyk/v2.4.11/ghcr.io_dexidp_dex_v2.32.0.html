@@ -7,7 +7,7 @@
   <meta name="viewport" content="width=device-width, initial-scale=1.0">
   <meta http-equiv="X-UA-Compatible" content="IE=edge">
   <title>Snyk test report</title>
-  <meta name="description" content="1 known vulnerabilities found in 3 vulnerable dependency paths.">
+  <meta name="description" content="3 known vulnerabilities found in 12 vulnerable dependency paths.">
   <base target="_blank">
   <link rel="icon" type="image/png" href="https://res.cloudinary.com/snyk/image/upload/v1468845142/favicon/favicon.png"
     sizes="194x194">
@@ -456,19 +456,19 @@
               <div class="header-wrap">
                   <h1 class="project__header__title">Snyk test report</h1>
     
-                <p class="timestamp">October 10th 2022, 7:43:31 pm</p>
+                <p class="timestamp">September 7th 2022, 7:35:45 pm</p>
               </div>
               <div class="source-panel">
                 <span>Scanned the following path:</span>
                 <ul>
-                  <li class="paths">haproxy:2.0.29-alpine (apk)</li>
+                  <li class="paths">ghcr.io/dexidp/dex:v2.32.0/dexidp/dex (apk)</li>
                 </ul>
               </div>
     
               <div class="meta-counts">
-                <div class="meta-count"><span>1</span> <span>known vulnerabilities</span></div>
-                <div class="meta-count"><span>3 vulnerable dependency paths</span></div>
-                <div class="meta-count"><span>17</span> <span>dependencies</span></div>
+                <div class="meta-count"><span>3</span> <span>known vulnerabilities</span></div>
+                <div class="meta-count"><span>12 vulnerable dependency paths</span></div>
+                <div class="meta-count"><span>14</span> <span>dependencies</span></div>
               </div><!-- .meta-counts -->
             </div><!-- .layout-container--short -->
           </header><!-- .project__header -->
@@ -476,8 +476,8 @@
       <section class="layout-container">
           <table class="metatable">
               <tbody>
-              <tr class="meta-row"><th class="meta-row-label">Project</th> <td class="meta-row-value">docker-image|haproxy</td></tr>
-              <tr class="meta-row"><th class="meta-row-label">Path</th> <td class="meta-row-value">haproxy:2.0.29-alpine</td></tr>
+              <tr class="meta-row"><th class="meta-row-label">Project</th> <td class="meta-row-value">docker-image|ghcr.io/dexidp/dex</td></tr>
+              <tr class="meta-row"><th class="meta-row-label">Path</th> <td class="meta-row-value">ghcr.io/dexidp/dex:v2.32.0/dexidp/dex</td></tr>
               <tr class="meta-row"><th class="meta-row-label">Package Manager</th> <td class="meta-row-value">apk</td></tr>
               
               </tbody>
@@ -507,7 +507,7 @@
         
                     <li class="card__meta__item">Introduced through:
         
-                                docker-image|haproxy@2.0.29-alpine and zlib/zlib@1.2.12-r1
+                                docker-image|ghcr.io/dexidp/dex@v2.32.0 and zlib/zlib@1.2.12-r1
         
                     </li>
                 </ul>
@@ -520,7 +520,7 @@
                     <ul class="card__meta__paths">
                                 <li>
                                 <span class="list-paths__item__introduced"><em>Introduced through</em>:
-                                        docker-image|haproxy@2.0.29-alpine
+                                        docker-image|ghcr.io/dexidp/dex@v2.32.0
                                          <span class="list-paths__item__arrow">›</span> 
                                         zlib/zlib@1.2.12-r1
                                         
@@ -529,18 +529,7 @@
                             </li>
                                 <li>
                                 <span class="list-paths__item__introduced"><em>Introduced through</em>:
-                                        docker-image|haproxy@2.0.29-alpine
-                                         <span class="list-paths__item__arrow">›</span> 
-                                        .haproxy-rundeps@20220718.230945
-                                         <span class="list-paths__item__arrow">›</span> 
-                                        zlib/zlib@1.2.12-r1
-                                        
-                                </span>
-        
-                            </li>
-                                <li>
-                                <span class="list-paths__item__introduced"><em>Introduced through</em>:
-                                        docker-image|haproxy@2.0.29-alpine
+                                        docker-image|ghcr.io/dexidp/dex@v2.32.0
                                          <span class="list-paths__item__arrow">›</span> 
                                         apk-tools/apk-tools@2.12.9-r3
                                          <span class="list-paths__item__arrow">›</span> 
@@ -575,15 +564,236 @@
         <li><a href="https://lists.fedoraproject.org/archives/list/package-announce@lists.fedoraproject.org/message/NMBOJ77A7T7PQCARMDUK75TE6LLESZ3O/">FEDORA</a></li>
         <li><a href="https://security.netapp.com/advisory/ntap-20220901-0005/">CONFIRM</a></li>
         <li><a href="https://lists.fedoraproject.org/archives/list/package-announce@lists.fedoraproject.org/message/JWN4VE3JQR4O2SOUS5TXNLANRPMHWV4I/">FEDORA</a></li>
-        <li><a href="https://lists.debian.org/debian-lts-announce/2022/09/msg00012.html">MLIST</a></li>
-        <li><a href="https://lists.fedoraproject.org/archives/list/package-announce@lists.fedoraproject.org/message/X5U7OTKZSHY2I3ZFJSR2SHFHW72RKGDK/">FEDORA</a></li>
-        <li><a href="https://lists.fedoraproject.org/archives/list/package-announce@lists.fedoraproject.org/message/PAVPQNCG3XRLCLNSQRM3KAN5ZFMVXVTY/">FEDORA</a></li>
         </ul>
         
               <hr/>
         
             <div class="cta card__cta">
                 <p><a href="https://snyk.io/vuln/SNYK-ALPINE316-ZLIB-2976176">More about this vulnerability</a></p>
+            </div>
+        
+        </div><!-- .card -->
+        <div class="card card--vuln  disclosure--not-new severity--high" data-snyk-test="high">
+            <h2 class="card__title">Use After Free</h2>
+            <div class="card__section">
+        
+                <div class="label label--high">
+                    <span class="label__text">high severity</span>
+                </div>
+        
+                <hr/>
+        
+                <ul class="card__meta">
+                    <li class="card__meta__item">
+                        Package Manager: alpine:3.16
+                    </li>
+                    <li class="card__meta__item">
+                            Vulnerable module:
+        
+                            busybox/busybox
+                    </li>
+        
+                    <li class="card__meta__item">Introduced through:
+        
+                                docker-image|ghcr.io/dexidp/dex@v2.32.0 and busybox/busybox@1.35.0-r13
+        
+                    </li>
+                </ul>
+        
+                <hr/>
+        
+        
+                        <h3 class="card__section__title">Detailed paths</h3>
+        
+                    <ul class="card__meta__paths">
+                                <li>
+                                <span class="list-paths__item__introduced"><em>Introduced through</em>:
+                                        docker-image|ghcr.io/dexidp/dex@v2.32.0
+                                         <span class="list-paths__item__arrow">›</span> 
+                                        busybox/busybox@1.35.0-r13
+                                        
+                                </span>
+        
+                            </li>
+                                <li>
+                                <span class="list-paths__item__introduced"><em>Introduced through</em>:
+                                        docker-image|ghcr.io/dexidp/dex@v2.32.0
+                                         <span class="list-paths__item__arrow">›</span> 
+                                        alpine-baselayout/alpine-baselayout-data@3.2.0-r20
+                                         <span class="list-paths__item__arrow">›</span> 
+                                        alpine-baselayout/alpine-baselayout@3.2.0-r20
+                                         <span class="list-paths__item__arrow">›</span> 
+                                        busybox/busybox@1.35.0-r13
+                                        
+                                </span>
+        
+                            </li>
+                                <li>
+                                <span class="list-paths__item__introduced"><em>Introduced through</em>:
+                                        docker-image|ghcr.io/dexidp/dex@v2.32.0
+                                         <span class="list-paths__item__arrow">›</span> 
+                                        busybox/ssl_client@1.35.0-r13
+                                        
+                                </span>
+        
+                            </li>
+                    </ul><!-- .list-paths -->
+        
+            </div><!-- .card__section -->
+        
+              <hr/>
+              <!-- Overview -->
+              <h2 id="nvd-description">NVD Description</h2>
+        <p><strong><em>Note:</em></strong> <em>Versions mentioned in the description apply to the upstream <code>busybox</code> package.</em>
+        <em>See <code>How to fix?</code> for <code>Alpine:3.16</code> relevant versions.</em></p>
+        <p>A use-after-free in Busybox 1.35-x&#39;s awk applet leads to denial of service and possibly code execution when processing a crafted awk pattern in the copyvar function.</p>
+        <h2 id="remediation">Remediation</h2>
+        <p>Upgrade <code>Alpine:3.16</code> <code>busybox</code> to version 1.35.0-r15 or higher.</p>
+        <h2 id="references">References</h2>
+        <ul>
+        <li><a href="https://bugs.busybox.net/show_bug.cgi?id=14781">MISC</a></li>
+        </ul>
+        
+              <hr/>
+        
+            <div class="cta card__cta">
+                <p><a href="https://snyk.io/vuln/SNYK-ALPINE316-BUSYBOX-2953070">More about this vulnerability</a></p>
+            </div>
+        
+        </div><!-- .card -->
+        <div class="card card--vuln  disclosure--not-new severity--medium" data-snyk-test="medium">
+            <h2 class="card__title">Inadequate Encryption Strength</h2>
+            <div class="card__section">
+        
+                <div class="label label--medium">
+                    <span class="label__text">medium severity</span>
+                </div>
+        
+                <hr/>
+        
+                <ul class="card__meta">
+                    <li class="card__meta__item">
+                        Package Manager: alpine:3.16
+                    </li>
+                    <li class="card__meta__item">
+                            Vulnerable module:
+        
+                            openssl/libcrypto1.1
+                    </li>
+        
+                    <li class="card__meta__item">Introduced through:
+        
+                                docker-image|ghcr.io/dexidp/dex@v2.32.0 and openssl/libcrypto1.1@1.1.1o-r0
+        
+                    </li>
+                </ul>
+        
+                <hr/>
+        
+        
+                        <h3 class="card__section__title">Detailed paths</h3>
+        
+                    <ul class="card__meta__paths">
+                                <li>
+                                <span class="list-paths__item__introduced"><em>Introduced through</em>:
+                                        docker-image|ghcr.io/dexidp/dex@v2.32.0
+                                         <span class="list-paths__item__arrow">›</span> 
+                                        openssl/libcrypto1.1@1.1.1o-r0
+                                        
+                                </span>
+        
+                            </li>
+                                <li>
+                                <span class="list-paths__item__introduced"><em>Introduced through</em>:
+                                        docker-image|ghcr.io/dexidp/dex@v2.32.0
+                                         <span class="list-paths__item__arrow">›</span> 
+                                        openssl/libssl1.1@1.1.1o-r0
+                                         <span class="list-paths__item__arrow">›</span> 
+                                        openssl/libcrypto1.1@1.1.1o-r0
+                                        
+                                </span>
+        
+                            </li>
+                                <li>
+                                <span class="list-paths__item__introduced"><em>Introduced through</em>:
+                                        docker-image|ghcr.io/dexidp/dex@v2.32.0
+                                         <span class="list-paths__item__arrow">›</span> 
+                                        apk-tools/apk-tools@2.12.9-r3
+                                         <span class="list-paths__item__arrow">›</span> 
+                                        openssl/libcrypto1.1@1.1.1o-r0
+                                        
+                                </span>
+        
+                            </li>
+                                <li>
+                                <span class="list-paths__item__introduced"><em>Introduced through</em>:
+                                        docker-image|ghcr.io/dexidp/dex@v2.32.0
+                                         <span class="list-paths__item__arrow">›</span> 
+                                        busybox/ssl_client@1.35.0-r13
+                                         <span class="list-paths__item__arrow">›</span> 
+                                        openssl/libcrypto1.1@1.1.1o-r0
+                                        
+                                </span>
+        
+                            </li>
+                                <li>
+                                <span class="list-paths__item__introduced"><em>Introduced through</em>:
+                                        docker-image|ghcr.io/dexidp/dex@v2.32.0
+                                         <span class="list-paths__item__arrow">›</span> 
+                                        openssl/libssl1.1@1.1.1o-r0
+                                        
+                                </span>
+        
+                            </li>
+                                <li>
+                                <span class="list-paths__item__introduced"><em>Introduced through</em>:
+                                        docker-image|ghcr.io/dexidp/dex@v2.32.0
+                                         <span class="list-paths__item__arrow">›</span> 
+                                        apk-tools/apk-tools@2.12.9-r3
+                                         <span class="list-paths__item__arrow">›</span> 
+                                        openssl/libssl1.1@1.1.1o-r0
+                                        
+                                </span>
+        
+                            </li>
+                                <li>
+                                <span class="list-paths__item__introduced"><em>Introduced through</em>:
+                                        docker-image|ghcr.io/dexidp/dex@v2.32.0
+                                         <span class="list-paths__item__arrow">›</span> 
+                                        busybox/ssl_client@1.35.0-r13
+                                         <span class="list-paths__item__arrow">›</span> 
+                                        openssl/libssl1.1@1.1.1o-r0
+                                        
+                                </span>
+        
+                            </li>
+                    </ul><!-- .list-paths -->
+        
+            </div><!-- .card__section -->
+        
+              <hr/>
+              <!-- Overview -->
+              <h2 id="nvd-description">NVD Description</h2>
+        <p><strong><em>Note:</em></strong> <em>Versions mentioned in the description apply to the upstream <code>openssl</code> package.</em>
+        <em>See <code>How to fix?</code> for <code>Alpine:3.16</code> relevant versions.</em></p>
+        <p>AES OCB mode for 32-bit x86 platforms using the AES-NI assembly optimised implementation will not encrypt the entirety of the data under some circumstances. This could reveal sixteen bytes of data that was preexisting in the memory that wasn&#39;t written. In the special case of &#34;in place&#34; encryption, sixteen bytes of the plaintext would be revealed. Since OpenSSL does not support OCB based cipher suites for TLS and DTLS, they are both unaffected. Fixed in OpenSSL 3.0.5 (Affected 3.0.0-3.0.4). Fixed in OpenSSL 1.1.1q (Affected 1.1.1-1.1.1p).</p>
+        <h2 id="remediation">Remediation</h2>
+        <p>Upgrade <code>Alpine:3.16</code> <code>openssl</code> to version 1.1.1q-r0 or higher.</p>
+        <h2 id="references">References</h2>
+        <ul>
+        <li><a href="https://www.openssl.org/news/secadv/20220705.txt">CONFIRM</a></li>
+        <li><a href="https://git.openssl.org/gitweb/?p=openssl.git;a=commitdiff;h=a98f339ddd7e8f487d6e0088d4a9a42324885a93">CONFIRM</a></li>
+        <li><a href="https://git.openssl.org/gitweb/?p=openssl.git;a=commitdiff;h=919925673d6c9cfed3c1085497f5dfbbed5fc431">CONFIRM</a></li>
+        <li><a href="https://lists.fedoraproject.org/archives/list/package-announce@lists.fedoraproject.org/message/V6567JERRHHJW2GNGJGKDRNHR7SNPZK7/">FEDORA</a></li>
+        <li><a href="https://lists.fedoraproject.org/archives/list/package-announce@lists.fedoraproject.org/message/R6CK57NBQFTPUMXAPJURCGXUYT76NQAK/">FEDORA</a></li>
+        <li><a href="https://security.netapp.com/advisory/ntap-20220715-0011/">CONFIRM</a></li>
+        <li><a href="https://lists.fedoraproject.org/archives/list/package-announce@lists.fedoraproject.org/message/VCMNWKERPBKOEBNL7CLTTX3ZZCZLH7XA/">FEDORA</a></li>
+        </ul>
+        
+              <hr/>
+        
+            <div class="cta card__cta">
+                <p><a href="https://snyk.io/vuln/SNYK-ALPINE316-OPENSSL-2941806">More about this vulnerability</a></p>
             </div>
         
         </div><!-- .card -->
