@@ -890,3 +890,7 @@ export enum PodPhase {
     PodFailed = 'Failed',
     PodUnknown = 'Unknown'
 }
+
+export interface NotificationChunk {
+    name: string;
+}
