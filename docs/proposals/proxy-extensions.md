@@ -322,7 +322,7 @@ p, <subject>, <resource>, <action>, <object>, <access>
 With a new resource type for extensions, admins will be able to configure
 access rights per extension per project.
 
-**Basic config suggestion:**
+* **Basic config suggestion:**
 
 This is the basic suggestion where admins will be able to define permissions
 per project and per extension. In this case namespace specific permissions
@@ -362,7 +362,7 @@ p, role:allow-extensions, extensions, *, */*, allow
 In the example 3, the subject `role:allow-extensions` is allowed to
 execute extensions in all projects.
 
-**Advanced config suggestions:**
+* **Advanced config suggestions:**
 
 With advanced RBAC configuration suggestions, admins will be able to define
 permissions per project, per namespace and per extension.
