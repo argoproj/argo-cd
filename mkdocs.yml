@@ -83,6 +83,7 @@ nav:
     - user-guide/helm.md
     - user-guide/ksonnet.md
     - user-guide/jsonnet.md
+    - user-guide/directory.md
     - user-guide/config-management-plugins.md
     - user-guide/tool_detection.md
     - user-guide/projects.md
