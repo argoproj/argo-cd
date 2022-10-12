@@ -91,7 +91,7 @@ func (c *FakeAppProjects) Delete(ctx context.Context, name string, opts v1.Delet
 	_, err := c.Fake.
 		Invokes(testing.NewDeleteActionWithOptions(appprojectsResource, c.ns, name, opts), &v1alpha1.AppProject{})
 
-	return err
+	return fmt.Errorf("error deleting appProject name %w, error: %w",name,err)
 }
 
 // DeleteCollection deletes a collection of objects.
