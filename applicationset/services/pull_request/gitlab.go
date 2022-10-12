@@ -11,6 +11,7 @@ import (
 type GitLabService struct {
 	client           *gitlab.Client
 	project          string
+	group            string
 	labels           []string
 	pullRequestState string
 }
