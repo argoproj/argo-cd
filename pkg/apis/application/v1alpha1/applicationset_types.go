@@ -468,7 +468,7 @@ type PullRequestGeneratorGitLab struct {
 	// PullRequestState is an additional MRs filter to get only those with a certain state. Default: "" (all states)
 	PullRequestState string `json:"pullRequestState,omitempty" protobuf:"bytes,5,rep,name=pullRequestState"`
 	// Gitlab group to scan. Either project or group required.
-	Group string `json:"group,omitempty" protobuf:"bytes,1,opt,name=group"`
+	Group string `json:"group,omitempty" protobuf:"bytes,6,opt,name=group"`
 }
 
 // PullRequestGenerator defines connection info specific to BitbucketServer.
