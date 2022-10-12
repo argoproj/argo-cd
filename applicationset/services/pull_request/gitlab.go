@@ -50,7 +50,7 @@ func (g *GitLabService) List(ctx context.Context) ([]*PullRequest, error) {
 	}
 }
 
-func ListProjectMRs(g *GitlabService) ([]*PullRequest, error) {
+func ListProjectMRs(g *GitLabService) ([]*PullRequest, error) {
 
 	// Filter the merge requests on labels, if they are specified.
 	var labels *gitlab.Labels
@@ -99,7 +99,7 @@ func ListProjectMRs(g *GitlabService) ([]*PullRequest, error) {
 	return pullRequests, nil
 }
 
-func ListGroupMRs(g *GitlabService) ([]*PullRequest, error) {
+func ListGroupMRs(g *GitLabService) ([]*PullRequest, error) {
 
 	// Filter the merge requests on labels, if they are specified.
 	var labels *gitlab.Labels

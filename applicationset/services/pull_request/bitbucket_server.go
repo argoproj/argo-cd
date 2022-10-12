@@ -69,7 +69,6 @@ func (b *BitbucketService) List(_ context.Context) ([]*PullRequest, error) {
 				Number:  pull.ID,
 				Branch:  pull.FromRef.DisplayID,    // ID: refs/heads/main DisplayID: main
 				HeadSHA: pull.FromRef.LatestCommit, // This is not defined in the official docs, but works in practice
-				Url:     pull.FromRef.Repository.Links.Clone.Href,
 			})
 		}
 
