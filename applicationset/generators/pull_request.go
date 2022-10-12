@@ -96,6 +96,7 @@ func (g *PullRequestGenerator) GenerateParams(appSetGenerator *argoprojiov1alpha
 			"branch_slug":    slug.Make(pull.Branch),
 			"head_sha":       pull.HeadSHA,
 			"head_short_sha": pull.HeadSHA[:shortSHALength],
+			"url":            pull.Url,
 		})
 	}
 	return params, nil
