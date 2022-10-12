@@ -68,6 +68,7 @@ func (g *GithubService) List(ctx context.Context) ([]*PullRequest, error) {
 				Number:  *pull.Number,
 				Branch:  *pull.Head.Ref,
 				HeadSHA: *pull.Head.SHA,
+				Url:     *pull.Base.Repo.CloneURL,
 			})
 		}
 		if resp.NextPage == 0 {

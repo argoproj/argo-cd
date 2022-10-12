@@ -12,6 +12,8 @@ type PullRequest struct {
 	Branch string
 	// HeadSHA is the SHA of the HEAD from which the pull request originated.
 	HeadSHA string
+	// Url is the http clone url for the pull request's project
+	Url string
 }
 
 type PullRequestService interface {

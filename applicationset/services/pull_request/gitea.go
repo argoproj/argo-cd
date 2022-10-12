@@ -57,6 +57,7 @@ func (g *GiteaService) List(ctx context.Context) ([]*PullRequest, error) {
 			Number:  int(pr.Index),
 			Branch:  pr.Head.Ref,
 			HeadSHA: pr.Head.Sha,
+			Url:     pr.Base.Repository.CloneURL,
 		})
 	}
 	return list, nil

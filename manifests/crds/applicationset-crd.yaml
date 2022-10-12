@@ -2406,6 +2406,8 @@ spec:
                                         type: array
                                       project:
                                         type: string
+                                      group:
+                                        type: string
                                       pullRequestState:
                                         type: string
                                       tokenRef:
@@ -2418,8 +2420,11 @@ spec:
                                         - key
                                         - secretName
                                         type: object
-                                    required:
-                                    - project
+                                    oneOf:
+                                    - properties:
+                                      required: [ "project" ]
+                                    - properties:
+                                      required: [ "group" ]
                                     type: object
                                   requeueAfterSeconds:
                                     format: int64
@@ -4636,6 +4641,8 @@ spec:
                                         type: array
                                       project:
                                         type: string
+                                      group:
+                                        type: string
                                       pullRequestState:
                                         type: string
                                       tokenRef:
@@ -4648,8 +4655,11 @@ spec:
                                         - key
                                         - secretName
                                         type: object
-                                    required:
-                                    - project
+                                    oneOf:
+                                    - properties:
+                                      required: [ "project" ]
+                                    - properties:
+                                      required: [ "group" ]
                                     type: object
                                   requeueAfterSeconds:
                                     format: int64
@@ -5731,6 +5741,8 @@ spec:
                               type: array
                             project:
                               type: string
+                            group:
+                              type: string
                             pullRequestState:
                               type: string
                             tokenRef:
@@ -5743,8 +5755,11 @@ spec:
                               - key
                               - secretName
                               type: object
-                          required:
-                          - project
+                          oneOf:
+                          - properties:
+                            required: [ "project" ]
+                          - properties:
+                            required: [ "group" ]
                           type: object
                         requeueAfterSeconds:
                           format: int64

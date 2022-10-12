@@ -457,7 +457,7 @@ type PullRequestGeneratorGithub struct {
 
 // PullRequestGeneratorGitLab defines connection info specific to GitLab.
 type PullRequestGeneratorGitLab struct {
-	// GitLab project to scan. Required.
+	// GitLab project to scan. Either project or group required.
 	Project string `json:"project" protobuf:"bytes,1,opt,name=project"`
 	// The GitLab API URL to talk to. If blank, uses https://gitlab.com/.
 	API string `json:"api,omitempty" protobuf:"bytes,2,opt,name=api"`
@@ -467,6 +467,8 @@ type PullRequestGeneratorGitLab struct {
 	Labels []string `json:"labels,omitempty" protobuf:"bytes,4,rep,name=labels"`
 	// PullRequestState is an additional MRs filter to get only those with a certain state. Default: "" (all states)
 	PullRequestState string `json:"pullRequestState,omitempty" protobuf:"bytes,5,rep,name=pullRequestState"`
+	// Gitlab group to scan. Either project or group required.
+	Group string `json:"group,omitempty" protobuf:"bytes,1,opt,name=group"`
 }
 
 // PullRequestGenerator defines connection info specific to BitbucketServer.
