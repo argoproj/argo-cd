@@ -82,7 +82,7 @@ func ListProjectMRs(g *GitLabService) ([]*PullRequest, error) {
 			
 			proj, _, err := g.client.Projects.GetProject(mr.SourceProjectID, projOpts)
 			if err != nil {
-				return nil, fmt.Errorf("error getting project name for project id '%s': %v", mr.SourceProjectID, err)
+				return nil, fmt.Errorf("error getting project name for project id '%d': %v", mr.SourceProjectID, err)
 			}
 			
 			pullRequests = append(pullRequests, &PullRequest{
@@ -131,7 +131,7 @@ func ListGroupMRs(g *GitLabService) ([]*PullRequest, error) {
 			
 			proj, _, err := g.client.Projects.GetProject(mr.SourceProjectID, projOpts)
 			if err != nil {
-				return nil, fmt.Errorf("error getting project name for project id '%s': %v", mr.SourceProjectID, err)
+				return nil, fmt.Errorf("error getting project name for project id '%d': %v", mr.SourceProjectID, err)
 			}
 			
 			pullRequests = append(pullRequests, &PullRequest{
