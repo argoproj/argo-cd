@@ -322,7 +322,7 @@ p, <subject>, <resource>, <action>, <object>, <access>
 With a new resource type for extensions, admins will be able to configure
 access rights per extension per project.
 
-##### Basic config suggestion:
+**Basic config suggestion:**
 
 This is the basic suggestion where admins will be able to define permissions
 per project and per extension. In this case namespace specific permissions
@@ -331,7 +331,7 @@ isn't covered.
 The `object` field must contain the project name and the extension name in
 the format `<project>/<extension>`
 
-- **Example 1**:
+- *Example 1*:
 
 ```
 p, role:allow-extensions, extensions, *, some-project/some-extension, allow
@@ -343,7 +343,7 @@ actions, in the project `some-project`, for the extension name
 `some-extension`.
 
 
-- **Example 2**:
+- *Example 2*:
 
 ```
 p, role:allow-extensions, extensions, *, */some-extension, allow
@@ -353,7 +353,7 @@ In the example 2, the permission is similar to the example 1 with the
 difference that the extension `some-extension` will be allowed for all
 projects.
 
-- **Example 3**:
+- *Example 3*:
 
 ```
 p, role:allow-extensions, extensions, *, */*, allow
@@ -362,12 +362,12 @@ p, role:allow-extensions, extensions, *, */*, allow
 In the example 3, the subject `role:allow-extensions` is allowed to
 execute extensions in all projects.
 
-##### Advanced config suggestions:
+**Advanced config suggestions:**
 
 With advanced RBAC configuration suggestions, admins will be able to define
 permissions per project, per namespace and per extension.
 
-There are 4 main approaches to achieve this type of RBAC configuration:
+There are 3 main approaches to achieve this type of RBAC configuration:
 
 1. `<object>` has addional section for namespace:
 ```
@@ -379,19 +379,14 @@ p, dev, extensions, *, some-project/some-namespace/some-extension, allow
 p, dev, extensions, some-extension/some-namespace, some-project/some-application, allow
 ```
 
-3.  `<resource>` has 2 sections for extension type and extension name:
+3. `<resource>` has 2 sections for extension type and extension name:
 ```
 p, dev, extensions/some-extension, *, some-project/some-application, allow
 ```
 
-4. Extensions configurations added to the application resource:
-```
-p, dev, applications,                 extensions/your-name/*/path/a/b/c, default/my-application,                 allow
-```
-
 Reference: [Original discussion][6]
 
-The final RBAC format must be defined during implementation
+The final RBAC format must be defined and properly documented during implementation.
 
 ### Security Considerations
 
