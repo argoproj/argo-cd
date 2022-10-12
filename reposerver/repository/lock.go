@@ -42,7 +42,7 @@ func (r *repositoryLock) Lock(path string, revision string, allowConcurrent bool
 			state.cond.Broadcast()
 		}
 		if err != nil {
-	        return nil, fmt.Errorf("error in acquiring lock: %w", err)
+	        return nil, fmt.Errorf("error in Lock acquiring lock: %w", err)
 		}
 		return nil
 	})
