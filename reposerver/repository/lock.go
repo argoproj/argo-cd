@@ -3,6 +3,7 @@ package repository
 import (
 	"io"
 	"sync"
+	"fmt"
 
 	ioutil "github.com/argoproj/argo-cd/v2/util/io"
 )
