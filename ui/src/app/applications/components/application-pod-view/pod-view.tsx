@@ -43,7 +43,7 @@ export class PodView extends React.Component<PodViewProps> {
         apis: PropTypes.object
     };
 
-    private togglePodsIconView(appDetails: AppDetailsPreferences) {
+    private switchToPodsCountView(appDetails: AppDetailsPreferences) {
         services.viewPreferences.updatePreferences({
             appDetails: {
                 ...appDetails,
@@ -190,7 +190,7 @@ export class PodView extends React.Component<PodViewProps> {
                                                         </div>
                                                         {
                                                             <div className='pod-view__node__label'>
-                                                                <a onClick={() => this.togglePodsIconView(prefs.appDetails)}>
+                                                                <a onClick={() => this.switchToPodsCountView(prefs.appDetails)}>
                                                                     Switch to {podPrefs.showPodHealth ? 'pods count view' : 'Pods view'}
                                                                 </a>
                                                                 <HelpIcon
@@ -516,7 +516,7 @@ function renderStats(info: HostResourceInfo) {
                 content={
                     <React.Fragment>
                         <div>{info.resourceName.toUpperCase()}:</div>
-                        <div className='pod-view__node__pod__stat-tooltip'>
+                        <div className='pod-view__node__pod__stat-tooltip'>t
                             <div>Requests:</div>
                             <div>
                                 {' '}
