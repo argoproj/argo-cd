@@ -320,9 +320,16 @@ p, <subject>, <resource>, <action>, <object>, <access>
 ```
 
 With a new resource type for extensions, admins will be able to configure
-access rights per extension per project. The `object` field must contain
-the project name and the extension name in the format
-`<project>/<extension>`
+access rights per extension per project.
+
+##### Basic config suggestion:
+
+This is the basic suggestion where admins will be able to define permissions
+per project and per extension. In this case namespace specific permissions
+isn't covered.
+
+The `object` field must contain the project name and the extension name in
+the format `<project>/<extension>`
 
 - **Example 1**:
 
@@ -354,6 +361,37 @@ p, role:allow-extensions, extensions, *, */*, allow
 
 In the example 3, the subject `role:allow-extensions` is allowed to
 execute extensions in all projects.
+
+##### Advanced config suggestions:
+
+With advanced RBAC configuration suggestions, admins will be able to define
+permissions per project, per namespace and per extension.
+
+There are 4 main approaches to achieve this type of RBAC configuration:
+
+1. `<object>` has addional section for namespace:
+```
+p, dev, extensions, *, some-project/some-namespace/some-extension, allow
+```
+
+2. `<action>` has 2 sections for extension name and namespace:
+```
+p, dev, extensions, some-extension/some-namespace, some-project/some-application, allow
+```
+
+3.  `<resource>` has 2 sections for extension type and extension name:
+```
+p, dev, extensions/some-extension, *, some-project/some-application, allow
+```
+
+4. Extensions configurations added to the application resource:
+```
+p, dev, applications,                 extensions/your-name/*/path/a/b/c, default/my-application,                 allow
+```
+
+Reference: [Original discussion][6]
+
+The final RBAC format must be defined during implementation
 
 ### Security Considerations
 
@@ -389,3 +427,4 @@ breaking change as it will be more restrictive.
 [3]: https://github.com/argoproj/argo-cd/blob/a23bfc3acaa464cbdeafdbbe66d05a121d5d1fb3/server/rbacpolicy/rbacpolicy.go#L17-L25
 [4]: https://argo-cd.readthedocs.io/en/stable/operator-manual/argocd-cm.yaml
 [5]: https://kubernetes.io/docs/tasks/extend-kubernetes/configure-aggregation-layer/#authentication-flow
+[6]: https://github.com/argoproj/argo-cd/pull/10435#discussion_r986941880
