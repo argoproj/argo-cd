@@ -136,6 +136,14 @@ will be necessary to configure backend service URLs per cluster for the same
 extension. This should be an optional configuration. If only one URL is
 configured, that one should be used for all clusters.
 
+----
+
+#### [G-6] Provide safe communication channel between Argo CD API server and extension backend
+
+Argo CD API server should provide configuration for establishing a safe communication
+channel with the extension backend. This can be achieved similarly to how Kubernetes
+API Server does to [authenticate with aggregated servers][5] by using certificates.
+
 ## Non-Goals
 
 It isn't in the scope of this proposal to specify commands in the Argo CD
@@ -380,3 +388,4 @@ breaking change as it will be more restrictive.
 [2]: https://github.com/argoproj-labs/argocd-extensions
 [3]: https://github.com/argoproj/argo-cd/blob/a23bfc3acaa464cbdeafdbbe66d05a121d5d1fb3/server/rbacpolicy/rbacpolicy.go#L17-L25
 [4]: https://argo-cd.readthedocs.io/en/stable/operator-manual/argocd-cm.yaml
+[5]: https://kubernetes.io/docs/tasks/extend-kubernetes/configure-aggregation-layer/#authentication-flow
