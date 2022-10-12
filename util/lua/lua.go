@@ -3,6 +3,7 @@ package lua
 import (
 	"context"
 	"encoding/json"
+	"errors"
 	"fmt"
 	"os"
 	"path/filepath"
@@ -131,10 +132,12 @@ func (vm VM) GetHealthScript(obj *unstructured.Unstructured) (string, bool, erro
 	}
 
 	// if not found as is, perhaps it matches wildcard entries in the configmap
-	wildcardKey := GetWildcardConfigMapKey(vm, obj.GroupVersionKind())
+	wildcardKey, err := GetWildcardConfigMapKey(vm, obj.GroupVersionKind())
 
-	if wildcardScript, ok := vm.ResourceOverrides[wildcardKey]; ok && wildcardScript.HealthLua != "" {
-		return wildcardScript.HealthLua, wildcardScript.UseOpenLibs, nil
+	if err == nil {
+		if wildcardScript, ok := vm.ResourceOverrides[wildcardKey]; ok && wildcardScript.HealthLua != "" {
+			return wildcardScript.HealthLua, wildcardScript.UseOpenLibs, nil
+		}
 	}
 
 	// if not found in the ResourceOverrides at all, search it as is in the built-in scripts
@@ -346,7 +349,7 @@ func GetConfigMapKey(gvk schema.GroupVersionKind) string {
 	return fmt.Sprintf("%s/%s", gvk.Group, gvk.Kind)
 }
 
-func GetWildcardConfigMapKey(vm VM, gvk schema.GroupVersionKind) string {
+func GetWildcardConfigMapKey(vm VM, gvk schema.GroupVersionKind) (string, error) {
 	var gvkKeyToMatch string
 
 	if gvk.Group == "" {
@@ -357,10 +360,10 @@ func GetWildcardConfigMapKey(vm VM, gvk schema.GroupVersionKind) string {
 
 	for key := range vm.ResourceOverrides {
 		if glob.Match(key, gvkKeyToMatch) {
-			return key
+			return key, nil
 		}
 	}
-	return gvkKeyToMatch
+	return "", errors.New("No key found")
 }
 
 func GetGroupWildcardConfigMapKey(gvk schema.GroupVersionKind) string {
