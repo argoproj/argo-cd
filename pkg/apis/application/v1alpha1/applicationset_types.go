@@ -458,7 +458,7 @@ type PullRequestGeneratorGithub struct {
 // PullRequestGeneratorGitLab defines connection info specific to GitLab.
 type PullRequestGeneratorGitLab struct {
 	// GitLab project to scan. Either project or group required.
-	Project string `json:"project,omitifempty" protobuf:"bytes,1,opt,name=project"`
+	Project string `json:"project,omitempty" protobuf:"bytes,1,opt,name=project"`
 	// The GitLab API URL to talk to. If blank, uses https://gitlab.com/.
 	API string `json:"api,omitempty" protobuf:"bytes,2,opt,name=api"`
 	// Authentication token reference.
