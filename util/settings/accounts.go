@@ -105,7 +105,7 @@ func (mgr *SettingsManager) saveAccount(name string, account Account) error {
 func (mgr *SettingsManager) AddAccount(name string, account Account) error {
 	accounts, err := mgr.GetAccounts()
 	if err != nil {
-		return fmt.Errorf("error occurred while AddAccount save an account: %w", err)
+		return fmt.Errorf("error getting accounts: %w", err)
 	}
 	if _, ok := accounts[name]; ok {
 		return status.Errorf(codes.AlreadyExists, "account '%s' already exists", name)
