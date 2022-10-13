@@ -35,7 +35,7 @@ func NewGiteaProvider(ctx context.Context, owner, token, url string, allBranches
 	}
 	client, err := gitea.NewClient(url, gitea.SetToken(token), gitea.SetHTTPClient(httpClient))
 	if err != nil {
-		return nil, fmt.Errorf("error creating a new git client: %w", err)
+		return nil, fmt.Errorf("error creating a new gitea client: %w", err)
 	}
 	return &GiteaProvider{
 		client:      client,
