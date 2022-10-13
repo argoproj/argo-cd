@@ -2400,13 +2400,13 @@ spec:
                                     properties:
                                       api:
                                         type: string
+                                      group:
+                                        type: string
                                       labels:
                                         items:
                                           type: string
                                         type: array
                                       project:
-                                        type: string
-                                      group:
                                         type: string
                                       pullRequestState:
                                         type: string
@@ -4635,13 +4635,13 @@ spec:
                                     properties:
                                       api:
                                         type: string
+                                      group:
+                                        type: string
                                       labels:
                                         items:
                                           type: string
                                         type: array
                                       project:
-                                        type: string
-                                      group:
                                         type: string
                                       pullRequestState:
                                         type: string
@@ -5735,13 +5735,13 @@ spec:
                           properties:
                             api:
                               type: string
+                            group:
+                              type: string
                             labels:
                               items:
                                 type: string
                               type: array
                             project:
-                              type: string
-                            group:
                               type: string
                             pullRequestState:
                               type: string
