@@ -58,7 +58,7 @@ func mergePatch(orig interface{}, other interface{}) error {
 	}
 	otherData, err := json.Marshal(other)
 	if err != nil {
-		return fmt.Errorf("error in mergePatch: %w", err)
+		return fmt.Errorf("error marshaling json for patch: %w", err)
 	}
 
 	if string(otherData) == "null" {
