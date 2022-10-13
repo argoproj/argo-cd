@@ -44,7 +44,8 @@ a secret named `argocd-initial-admin-secret`.
 
 To change the password, edit the `argocd-secret` secret and update the `admin.password` field with a new bcrypt hash.
 
-  Use the following command to generate a bcrypt hash for `admin.password`
+!!! note "Generating a bcrypt hash"
+    Use the following command to generate a bcrypt hash for `admin.password`
 
         argocd account bcrypt --password <YOUR-PASSWORD-HERE>
 
