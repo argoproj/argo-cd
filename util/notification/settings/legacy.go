@@ -163,7 +163,7 @@ func ApplyLegacyConfig(cfg *api.Config, context map[string]string, cm *v1.Config
 		legacyServices := &legacyServicesConfig{}
 		err := yaml.Unmarshal(notifiersData, legacyServices)
 		if err != nil {
-			return fmt.Errorf("error in ApplyLegacyConfig: %w", err)
+			return fmt.Errorf("error unmarshaling legacy services config: %w", err)
 		}
 		legacyServices.merge(cfg)
 	}
