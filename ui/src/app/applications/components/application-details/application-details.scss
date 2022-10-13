@@ -42,6 +42,7 @@ $header: 120px;
     &__warning {
         font-size: 0.8em;
         color: darken($argo-status-warning-color, 20%);
+        min-height: 1.2rem;
     }
 
     &__refreshing-label {
