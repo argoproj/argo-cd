@@ -122,9 +122,12 @@ func (g *ClusterGenerator) GenerateParams(
 	for _, cluster := range secretsFound {
 		params := map[string]interface{}{}
 
-		params["name"] = string(cluster.Data["name"])
+		for k, v := range cluster.Data {
+			if k != "config" {
+				params[k] = string(v)
+			}
+		}
 		params["nameNormalized"] = utils.SanitizeName(string(cluster.Data["name"]))
-		params["server"] = string(cluster.Data["server"])
 
 		if appSet.Spec.GoTemplate {
 			meta := map[string]interface{}{}
