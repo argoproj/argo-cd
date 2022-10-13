@@ -67,7 +67,7 @@ func mergePatch(orig interface{}, other interface{}) error {
 
 	mergedData, err := jsonpatch.MergePatch(origData, otherData)
 	if err != nil {
-		return fmt.Errorf("error in mergePatch: %w", err)
+		return fmt.Errorf("error creating merge patch: %w", err)
 	}
 	return json.Unmarshal(mergedData, orig)
 }
