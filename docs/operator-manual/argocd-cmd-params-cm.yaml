@@ -139,6 +139,8 @@ data:
   reposerver.streamed.manifest.max.tar.size: "100M"
   # Maximum size of extracted manifests when streaming manifests to the repo server for generation
   reposerver.streamed.manifest.max.extracted.size: "1G"
+  # Enable git submodule support
+  reposerver.enable.git.submodule: "true"
 
   # Disable TLS on the HTTP endpoint
   dexserver.disable.tls: "false"
