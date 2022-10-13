@@ -173,7 +173,7 @@ func ApplyLegacyConfig(cfg *api.Config, context map[string]string, cm *v1.Config
 		legacyCfg := &legacyConfig{}
 		err := yaml.Unmarshal([]byte(configData), legacyCfg)
 		if err != nil {
-			return fmt.Errorf("error in ApplyLegacyConfig applying config map: %w", err)
+			return fmt.Errorf("error in unmarshaling legacy config: %w", err)
 		}
 		err = legacyCfg.merge(cfg, context)
 		if err != nil {
