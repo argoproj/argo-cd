@@ -735,7 +735,7 @@ func (a *ArgoCDServer) newGRPCServer() (*grpc.Server, application.AppResourceTre
 
 	server, err := image.NewServer(context.Background(), a.KubeClientset, a.Namespace)
 	if err != nil {
-		log.Fatal(fmt.Errorf("failed to set-up image server", err))
+		log.Fatal(fmt.Errorf("failed to set-up image server: %w", err))
 	}
 	applicationSetService := applicationset.NewServer(a.db, a.KubeClientset, a.enf, a.Cache, a.AppClientset, a.appLister, a.appsetInformer, a.appsetLister, a.projLister, a.settingsMgr, a.Namespace, projectLock)
 	projectService := project.NewServer(a.Namespace, a.KubeClientset, a.AppClientset, a.enf, projectLock, a.sessionMgr, a.policyEnforcer, a.projInformer, a.settingsMgr, a.db)
