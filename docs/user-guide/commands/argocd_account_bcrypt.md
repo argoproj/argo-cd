@@ -1,15 +1,16 @@
-## argocd admin
+## argocd account bcrypt
 
-Contains a set of commands useful for Argo CD administrators and requires direct Kubernetes access
+Generate bcrypt hash for the admin password
 
 ```
-argocd admin [flags]
+argocd account bcrypt [flags]
 ```
 
 ### Options
 
 ```
-  -h, --help   help for admin
+  -h, --help              help for bcrypt
+      --password string   Password for which bcrypt hash is generated
 ```
 
 ### Options inherited from parent commands
@@ -37,14 +38,5 @@ argocd admin [flags]
 
 ### SEE ALSO
 
-* [argocd](argocd.md)	 - argocd controls a Argo CD server
-* [argocd admin app](argocd_admin_app.md)	 - Manage applications configuration
-* [argocd admin cluster](argocd_admin_cluster.md)	 - Manage clusters configuration
-* [argocd admin dashboard](argocd_admin_dashboard.md)	 - Starts Argo CD Web UI locally
-* [argocd admin export](argocd_admin_export.md)	 - Export all Argo CD data to stdout (default) or a file
-* [argocd admin import](argocd_admin_import.md)	 - Import Argo CD data from stdin (specify `-') or a file
-* [argocd admin notifications](argocd_admin_notifications.md)	 - Set of CLI commands that helps manage notifications settings
-* [argocd admin proj](argocd_admin_proj.md)	 - Manage projects configuration
-* [argocd admin repo](argocd_admin_repo.md)	 - Manage repositories configuration
-* [argocd admin settings](argocd_admin_settings.md)	 - Provides set of commands for settings validation and troubleshooting
+* [argocd account](argocd_account.md)	 - Manage account settings
 
