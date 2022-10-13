@@ -43,7 +43,7 @@ func (r *repositoryLock) Lock(path string, revision string, allowConcurrent bool
 			state.cond.Broadcast()
 		}
 		if err != nil {
-			return fmt.Errorf("init closer failed: %w", err)
+	        return fmt.Errorf("init closer failed: %w", err)
 		}
 		return nil
 	})
