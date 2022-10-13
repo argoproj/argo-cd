@@ -14,6 +14,7 @@ import (
 	hookutil "github.com/argoproj/gitops-engine/pkg/sync/hook"
 	"github.com/argoproj/gitops-engine/pkg/sync/ignore"
 	resourceutil "github.com/argoproj/gitops-engine/pkg/sync/resource"
+	"github.com/argoproj/gitops-engine/pkg/sync/syncwaves"
 	kubeutil "github.com/argoproj/gitops-engine/pkg/utils/kube"
 	log "github.com/sirupsen/logrus"
 	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
@@ -523,6 +524,9 @@ func (m *appStateManager) CompareAppState(app *v1alpha1.Application, project *ap
 			Group:           gvk.Group,
 			Hook:            hookutil.IsHook(obj),
 			RequiresPruning: targetObj == nil && liveObj != nil && isSelfReferencedObj,
+		}
+		if targetObj != nil {
+			resState.SyncWave = int64(syncwaves.Wave(targetObj))
 		}
 
 		var diffResult diff.DiffResult
