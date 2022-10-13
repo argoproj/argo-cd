@@ -22,11 +22,14 @@ func NewBcryptCmd() *cobra.Command {
 			if err != nil {
 				log.Fatalf("Failed to genarate bcrypt hash: %v", err)
 			}
-			fmt.Println(fmt.Sprintf(string(hash)))
+			fmt.Println(string(hash))
 		},
 	}
 
 	bcryptCmd.Flags().StringVar(&password, "password", "", "Password for which bcrypt hash is generated")
-	bcryptCmd.MarkFlagRequired("password")
+	err := bcryptCmd.MarkFlagRequired("password")
+	if err != nil {
+		return nil
+	}
 	return bcryptCmd
 }

@@ -10,7 +10,7 @@ import (
 )
 
 // capture replaces os.Stdout with a writer that buffers any data written
-// to os.Stdout. Call the returned function to cleanup and get the data
+// to os.Stdout. Call the returned function to clean up and get the data
 // as a string.
 func capture() func() (string, error) {
 	r, w, err := os.Pipe()
@@ -26,15 +26,21 @@ func capture() func() (string, error) {
 	var buf strings.Builder
 
 	go func() {
-		_, err := io.Copy(&buf, r)
-		r.Close()
+		_, err = io.Copy(&buf, r)
+		err = r.Close()
+		if err != nil {
+			return
+		}
 		done <- err
 	}()
 
 	return func() (string, error) {
 		os.Stdout = save
-		w.Close()
-		err := <-done
+		err := w.Close()
+		if err != nil {
+			return "", err
+		}
+		err = <-done
 		return buf.String(), err
 	}
 }
@@ -45,7 +51,10 @@ func TestGeneratePassword(t *testing.T) {
 	bcryptCmd := NewBcryptCmd()
 
 	bcryptCmd.SetArgs([]string{"--password", "abc"})
-	bcryptCmd.Execute()
+	err := bcryptCmd.Execute()
+	if err != nil {
+		return
+	}
 	capturedOutput, err := done()
 	assert.NoError(t, err)
 
