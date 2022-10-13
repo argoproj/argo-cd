@@ -21,6 +21,7 @@ jobs:
   prepare-release:
     permissions:
       contents: write # To push changes to release branch
+      id-token: write # needed for keyless signing (cosign)
     name: Perform automatic release on trigger ${{ github.ref }}
     if: github.repository == 'argoproj/argo-cd'
     runs-on: ubuntu-22.04
@@ -212,6 +213,19 @@ jobs:
           make checksums
           chmod +x ./dist/argocd-linux-amd64
           ./dist/argocd-linux-amd64 version --client
+        if: ${{ env.DRY_RUN != 'true' }}
+
+      - name: Install cosign
+        uses: sigstore/cosign-installer@main
+        with:
+          cosign-release: 'v1.13.0'
+
+      - name: Sign Argo CD container images
+        env:
+          COSIGN_EXPERIMENTAL: 1
+        run: |
+          cosign sign ${IMAGE_NAMESPACE}/argocd:v${TARGET_VERSION}
+          cosign sign docker.io/argoproj/argocd:v${TARGET_VERSION}
         if: ${{ env.DRY_RUN != 'true' }}
 
       - name: Read release notes file
