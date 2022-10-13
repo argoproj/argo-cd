@@ -54,7 +54,7 @@ type legacyServicesConfig struct {
 func mergePatch(orig interface{}, other interface{}) error {
 	origData, err := json.Marshal(orig)
 	if err != nil {
-		return fmt.Errorf("error in mergePatch: %w", err)
+		return fmt.Errorf("error marshaling json for original: %w", err)
 	}
 	otherData, err := json.Marshal(other)
 	if err != nil {
