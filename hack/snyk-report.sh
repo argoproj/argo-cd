@@ -38,17 +38,23 @@ cd argo-cd
 git checkout master
 
 minor_version=$(git tag -l | sort -g | tail -n 1 | grep -Eo '[0-9]+\.[0-9]+')
-patch_num=$(git tag -l | grep "v$minor_version." | grep -o "[[:digit:]]*$" | sort -g | tail -n 1)
+patch_num=$(git tag -l | grep "v$minor_version." | grep -o "[a-z[:digit:]-]*$" | sort -g | tail -n 1)
 version="v$minor_version.$patch_num"
 versions="master "
-for i in 1 2 3; do
+
+version_count=3
+# When the most recent version is still a release candidate, get reports for 4 versions (so the 3 most recent stable
+# releases are included).
+if [[ $patch_num == "0-rc"* ]]; then version_count=4; fi
+
+for i in $(seq "$version_count"); do
   if [ "$version" == "" ]; then break; fi
   # Nightmare code to get the most recent patches of the three most recent minor versions.
   versions+="$version "
   minor_num=$(printf '%s' "$minor_version" | sed -E 's/[0-9]+\.//')
   minor_num=$((minor_num-1))
   minor_version=$(printf '%s' "$minor_version" | sed -E "s/\.[0-9]+$/.$minor_num/g")
-  patch_num=$(git tag -l | grep "v$minor_version." | grep -o "[[:digit:]]*$" | sort -g | tail -n 1)
+  patch_num=$(git tag -l | grep "v$minor_version." | grep -o "[a-z[:digit:]-]*$" | sort -g | tail -n 1)
   version="v$minor_version.$patch_num"
 done
 
