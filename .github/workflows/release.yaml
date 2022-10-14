@@ -21,7 +21,6 @@ jobs:
   prepare-release:
     permissions:
       contents: write # To push changes to release branch
-      id-token: write # needed for keyless signing (cosign)
     name: Perform automatic release on trigger ${{ github.ref }}
     if: github.repository == 'argoproj/argo-cd'
     runs-on: ubuntu-22.04
