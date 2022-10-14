@@ -215,6 +215,22 @@ jobs:
           ./dist/argocd-linux-amd64 version --client
         if: ${{ env.DRY_RUN != 'true' }}
 
+      - name: Install cosign
+        uses: sigstore/cosign-installer@main
+        with:
+          cosign-release: 'v1.13.0'
+
+      - name: Sign Argo CD container images
+        run: |
+          cosign sign --key env://COSIGN_PRIVATE_KEY ${IMAGE_NAMESPACE}/argocd:v${TARGET_VERSION}
+          cosign sign --key env://COSIGN_PRIVATE_KEY docker.io/argoproj/argocd:v${TARGET_VERSION}
+          # Retrieves the public key to release as an asset
+          cosign public-key --key env://COSIGN_PRIVATE_KEY > ./dist/argocd-cosign.pub
+        env:
+          COSIGN_PRIVATE_KEY: ${{secrets.COSIGN_PRIVATE_KEY}}
+          COSIGN_PASSWORD: ${{secrets.COSIGN_PASSWORD}}
+        if: ${{ env.DRY_RUN != 'true' }}
+
       - name: Read release notes file
         id: release-notes
         uses: juliangruber/read-file-action@v1
