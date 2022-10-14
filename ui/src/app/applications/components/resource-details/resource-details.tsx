@@ -120,7 +120,7 @@ export const ResourceDetails = (props: ResourceDetailsProps) => {
                     }
                 ]);
             }
-            if (selectedNode.kind === 'Pod' && execEnabled && execAllowed) {
+            if (selectedNode?.kind === 'Pod' && execEnabled && execAllowed) {
                 tabs = tabs.concat([
                     {
                         key: 'exec',
