@@ -115,6 +115,22 @@ jobs:
           mv /tmp/.buildx-cache-new /tmp/.buildx-cache
         if: github.event_name == 'push' || contains(github.event.pull_request.labels.*.name, 'test-arm-image')
 
+      # sign container images
+      - name: Install cosign
+        uses: sigstore/cosign-installer@main
+        with:
+          cosign-release: 'v1.13.0'
+
+      - name: Sign Argo CD latest image
+        run: |
+          cosign sign --key env://COSIGN_PRIVATE_KEY quay.io/argoproj/argocd:latest
+          # Displays the public key to share.
+          cosign public-key --key env://COSIGN_PRIVATE_KEY
+        env:
+          COSIGN_PRIVATE_KEY: ${{secrets.COSIGN_PRIVATE_KEY}}
+          COSIGN_PASSWORD: ${{secrets.COSIGN_PASSWORD}}
+        if: ${{ github.event_name == 'push' }}
+
       # deploy
       - run: git clone "https://$TOKEN@github.com/argoproj/argoproj-deployments"
         if: github.event_name == 'push'
