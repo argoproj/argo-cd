@@ -3,7 +3,7 @@ import * as deepMerge from 'deepmerge';
 import * as moment from 'moment';
 import * as React from 'react';
 
-import {YamlEditor} from '../../../shared/components';
+import {YamlEditor, ClipboardText} from '../../../shared/components';
 import * as models from '../../../shared/models';
 import {services} from '../../../shared/services';
 import {ApplicationResourcesDiff} from '../application-resources-diff/application-resources-diff';
@@ -19,8 +19,8 @@ export const ApplicationNodeInfo = (props: {
 }) => {
     const attributes: {title: string; value: any}[] = [
         {title: 'KIND', value: props.node.kind},
-        {title: 'NAME', value: props.node.name},
-        {title: 'NAMESPACE', value: props.node.namespace}
+        {title: 'NAME', value: <ClipboardText text={props.node.name} />},
+        {title: 'NAMESPACE', value: <ClipboardText text={props.node.namespace} />}
     ];
     if (props.node.createdAt) {
         attributes.push({
