@@ -1886,6 +1886,8 @@ func isIncompleteSettingsError(err error) bool {
 	return ok
 }
 
+const InitSettingLockKey = "init-setting"
+
 // InitializeSettings is used to initialize empty admin password, signature, certificate etc if missing
 func (mgr *SettingsManager) InitializeSettings(insecureModeEnabled bool) (*ArgoCDSettings, error) {
 	const letters = "0123456789ABCDEFGHIJKLMNOPQRSTUVWXYZabcdefghijklmnopqrstuvwxyz-"
@@ -1906,6 +1908,36 @@ func (mgr *SettingsManager) InitializeSettings(insecureModeEnabled bool) (*ArgoC
 		cdSettings.ServerSignature = signature
 		log.Info("Initialized server signature")
 	}
+
+	if cdSettings.Certificate == nil && !insecureModeEnabled {
+		// generate TLS cert
+		hosts := []string{
+			"localhost",
+			"argocd-server",
+			fmt.Sprintf("argocd-server.%s", mgr.namespace),
+			fmt.Sprintf("argocd-server.%s.svc", mgr.namespace),
+			fmt.Sprintf("argocd-server.%s.svc.cluster.local", mgr.namespace),
+		}
+		certOpts := tlsutil.CertOptions{
+			Hosts:        hosts,
+			Organization: "Argo CD",
+			IsCA:         false,
+		}
+		cert, err := tlsutil.GenerateX509KeyPair(certOpts)
+		if err != nil {
+			return nil, err
+		}
+		cdSettings.Certificate = cert
+		log.Info("Initialized TLS certificate")
+	}
+	l := kube.NewLocker(mgr.clientset, 2*time.Second, mgr.ctx)
+	err = l.Lock(mgr.namespace, InitSettingLockKey)
+	if err != nil {
+		// lock failed, assume settings are initialized by another instance of api server
+		log.Warnf("conflict when initializing settings. assuming updated by another replica, wait for watchSettings")
+		return cdSettings, nil
+	}
+	defer func() { _ = l.Unlock(mgr.namespace, InitSettingLockKey) }()
 	err = mgr.UpdateAccount(common.ArgoCDAdminUsername, func(adminAccount *Account) error {
 		if adminAccount.Enabled {
 			now := time.Now().UTC()
@@ -1944,28 +1976,6 @@ func (mgr *SettingsManager) InitializeSettings(insecureModeEnabled bool) (*ArgoC
 	})
 	if err != nil {
 		return nil, err
-	}
-
-	if cdSettings.Certificate == nil && !insecureModeEnabled {
-		// generate TLS cert
-		hosts := []string{
-			"localhost",
-			"argocd-server",
-			fmt.Sprintf("argocd-server.%s", mgr.namespace),
-			fmt.Sprintf("argocd-server.%s.svc", mgr.namespace),
-			fmt.Sprintf("argocd-server.%s.svc.cluster.local", mgr.namespace),
-		}
-		certOpts := tlsutil.CertOptions{
-			Hosts:        hosts,
-			Organization: "Argo CD",
-			IsCA:         false,
-		}
-		cert, err := tlsutil.GenerateX509KeyPair(certOpts)
-		if err != nil {
-			return nil, err
-		}
-		cdSettings.Certificate = cert
-		log.Info("Initialized TLS certificate")
 	}
 
 	err = mgr.SaveSettings(cdSettings)
