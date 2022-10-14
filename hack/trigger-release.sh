@@ -30,6 +30,7 @@ cleanup() {
 
 if test "${NEW_TAG}" = "" -o "${GIT_REMOTE}" = ""; then
 	echo "!! Usage: $0 <release tag> <remote> [path to release notes file]" >&2
+	echo "You can use generate-release-notes.sh to generate the release notes file." >&2
 	exit 1
 fi
 

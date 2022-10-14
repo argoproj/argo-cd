@@ -1845,6 +1845,9 @@ spec:
                       description: SyncStatusCode is a type which represents possible
                         comparison results
                       type: string
+                    syncWave:
+                      format: int64
+                      type: integer
                     version:
                       type: string
                   type: object
@@ -10360,6 +10363,12 @@ spec:
           valueFrom:
             configMapKeyRef:
               key: reposerver.streamed.manifest.max.extracted.size
+              name: argocd-cmd-params-cm
+              optional: true
+        - name: ARGOCD_GIT_MODULES_ENABLED
+          valueFrom:
+            configMapKeyRef:
+              key: reposerver.enable.git.submodule
               name: argocd-cmd-params-cm
               optional: true
         - name: HELM_CACHE_HOME

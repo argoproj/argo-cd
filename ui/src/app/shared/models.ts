@@ -312,7 +312,7 @@ export interface ResourceStatus {
     health: HealthStatus;
     hook?: boolean;
     requiresPruning?: boolean;
-    syncOrder?: string;
+    syncWave?: number;
 }
 
 export interface ResourceRef {
@@ -889,4 +889,8 @@ export enum PodPhase {
     PodSucceeded = 'Succeeded',
     PodFailed = 'Failed',
     PodUnknown = 'Unknown'
+}
+
+export interface NotificationChunk {
+    name: string;
 }

@@ -137,6 +137,12 @@ spec:
                 key: reposerver.streamed.manifest.max.extracted.size
                 name: argocd-cmd-params-cm
                 optional: true
+          - name: ARGOCD_GIT_MODULES_ENABLED
+            valueFrom:
+              configMapKeyRef:
+                key: reposerver.enable.git.submodule
+                name: argocd-cmd-params-cm
+                optional: true
           - name: HELM_CACHE_HOME
             value: /helm-working-dir
           - name: HELM_CONFIG_HOME
