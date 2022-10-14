@@ -71,7 +71,7 @@ func (r *Render) deeplyReplace(copy, original reflect.Value, replaceMap map[stri
 		}
 		// Unwrap the newly created pointer
 		if err := r.deeplyReplace(copy.Elem(), originalValue, replaceMap, useGoTemplate); err != nil {
-			return fmt.Errorf("error while translating pointer to the Go template: %w", err)
+			return err
 		}
 
 	// If it is an interface (which is very similar to a pointer), do basically the
@@ -85,7 +85,7 @@ func (r *Render) deeplyReplace(copy, original reflect.Value, replaceMap map[stri
 		// points to, so we have to call Elem() to unwrap it
 		copyValue := reflect.New(originalValue.Type()).Elem()
 		if err := r.deeplyReplace(copyValue, originalValue, replaceMap, useGoTemplate); err != nil {
-			return fmt.Errorf("error while translating interface to the Go template: %w", err)
+			return err
 		}
 		copy.Set(copyValue)
 
@@ -97,7 +97,7 @@ func (r *Render) deeplyReplace(copy, original reflect.Value, replaceMap map[stri
 			if currentType == "time.Time" {
 				copy.Field(i).Set(original.Field(i))
 			} else if err := r.deeplyReplace(copy.Field(i), original.Field(i), replaceMap, useGoTemplate); err != nil {
-				return fmt.Errorf("error while translating struct to the Go template %w", err)
+				return err
 			}
 		}
 
@@ -111,7 +111,7 @@ func (r *Render) deeplyReplace(copy, original reflect.Value, replaceMap map[stri
 
 		for i := 0; i < original.Len(); i += 1 {
 			if err := r.deeplyReplace(copy.Index(i), original.Index(i), replaceMap, useGoTemplate); err != nil {
-				return fmt.Errorf("error while translating slice to the Go template %w", err)
+				return err
 			}
 		}
 
@@ -131,7 +131,7 @@ func (r *Render) deeplyReplace(copy, original reflect.Value, replaceMap map[stri
 			copyValue := reflect.New(originalValue.Type()).Elem()
 
 			if err := r.deeplyReplace(copyValue, originalValue, replaceMap, useGoTemplate); err != nil {
-				return fmt.Errorf("error while translating map to the Go template %w", err)
+				return err
 			}
 			copy.SetMapIndex(key, copyValue)
 		}
@@ -142,7 +142,7 @@ func (r *Render) deeplyReplace(copy, original reflect.Value, replaceMap map[stri
 		strToTemplate := original.String()
 		templated, err := r.Replace(strToTemplate, replaceMap, useGoTemplate)
 		if err != nil {
-			return fmt.Errorf("error while translating string to the Go template %w", err)
+			return err
 		}
 		if copy.CanSet() {
 			copy.SetString(templated)

@@ -43,7 +43,7 @@ func PrintResources(output string, out io.Writer, resources ...interface{}) erro
 		}
 		filteredResource, err := omitFields(resource)
 		if err != nil {
-			return err
+			return fmt.Errorf("error printing the resource %w", err)
 		}
 		resources[i] = filteredResource
 	}
@@ -56,14 +56,14 @@ func PrintResources(output string, out io.Writer, resources ...interface{}) erro
 	case "json":
 		jsonBytes, err := json.MarshalIndent(obj, "", "  ")
 		if err != nil {
-			return err
+			return fmt.Errorf("error printing the json file %w", err)
 		}
 
 		_, _ = fmt.Fprintln(out, string(jsonBytes))
 	case "yaml":
 		yamlBytes, err := yaml.Marshal(obj)
 		if err != nil {
-			return err
+			return fmt.Errorf("error printing the yaml file %w", err)
 		}
 		// marshaled YAML already ends with the new line character
 		_, _ = fmt.Fprint(out, string(yamlBytes))
