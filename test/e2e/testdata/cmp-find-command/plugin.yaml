@@ -9,5 +9,3 @@ spec:
   discover:
     find:
       command: [sh, -c, find . -name env.yaml]
-  allowConcurrency: true
-  lockRepo: false

@@ -19,7 +19,6 @@ import (
 	"fmt"
 	"time"
 
-	"github.com/go-logr/logr"
 	log "github.com/sirupsen/logrus"
 	corev1 "k8s.io/api/core/v1"
 	apierr "k8s.io/apimachinery/pkg/api/errors"
@@ -62,7 +61,6 @@ var (
 // ApplicationSetReconciler reconciles a ApplicationSet object
 type ApplicationSetReconciler struct {
 	client.Client
-	Log              logr.Logger
 	Scheme           *runtime.Scheme
 	Recorder         record.EventRecorder
 	Generators       map[string]generators.Generator
@@ -77,15 +75,14 @@ type ApplicationSetReconciler struct {
 // +kubebuilder:rbac:groups=argoproj.io,resources=applicationsets/status,verbs=get;update;patch
 
 func (r *ApplicationSetReconciler) Reconcile(ctx context.Context, req ctrl.Request) (ctrl.Result, error) {
-	_ = r.Log.WithValues("applicationset", req.NamespacedName)
-	_ = log.WithField("applicationset", req.NamespacedName)
+	logCtx := log.WithField("applicationset", req.NamespacedName)
 
 	var applicationSetInfo argov1alpha1.ApplicationSet
 	parametersGenerated := false
 
 	if err := r.Get(ctx, req.NamespacedName, &applicationSetInfo); err != nil {
 		if client.IgnoreNotFound(err) != nil {
-			log.WithError(err).Infof("unable to get ApplicationSet: '%v' ", err)
+			logCtx.WithError(err).Infof("unable to get ApplicationSet: '%v' ", err)
 		}
 		return ctrl.Result{}, client.IgnoreNotFound(err)
 	}
@@ -123,7 +120,7 @@ func (r *ApplicationSetReconciler) Reconcile(ctx context.Context, req ctrl.Reque
 		//
 		// Changes to watched resources will cause this to be reconciled sooner than
 		// the RequeueAfter time.
-		log.Errorf("error occurred during application validation: %s", err.Error())
+		logCtx.Errorf("error occurred during application validation: %s", err.Error())
 
 		_ = r.setApplicationSetStatusCondition(ctx,
 			&applicationSetInfo,
@@ -148,7 +145,7 @@ func (r *ApplicationSetReconciler) Reconcile(ctx context.Context, req ctrl.Reque
 		var message string
 		for _, v := range validateErrors {
 			message = v.Error()
-			log.Errorf("validation error found during application validation: %s", message)
+			logCtx.Errorf("validation error found during application validation: %s", message)
 		}
 		if len(validateErrors) > 1 {
 			// Only the last message gets added to the appset status, to keep the size reasonable.
@@ -215,7 +212,7 @@ func (r *ApplicationSetReconciler) Reconcile(ctx context.Context, req ctrl.Reque
 		delete(applicationSetInfo.Annotations, common.AnnotationApplicationSetRefresh)
 		err := r.Client.Update(ctx, &applicationSetInfo)
 		if err != nil {
-			log.Warnf("error occurred while updating ApplicationSet: %v", err)
+			logCtx.Warnf("error occurred while updating ApplicationSet: %v", err)
 			_ = r.setApplicationSetStatusCondition(ctx,
 				&applicationSetInfo,
 				argov1alpha1.ApplicationSetCondition{
@@ -230,7 +227,7 @@ func (r *ApplicationSetReconciler) Reconcile(ctx context.Context, req ctrl.Reque
 	}
 
 	requeueAfter := r.getMinRequeueAfter(&applicationSetInfo)
-	log.WithField("requeueAfter", requeueAfter).Info("end reconcile")
+	logCtx.WithField("requeueAfter", requeueAfter).Info("end reconcile")
 
 	if len(validateErrors) == 0 {
 		if err := r.setApplicationSetStatusCondition(ctx,
@@ -487,7 +484,7 @@ func (r *ApplicationSetReconciler) SetupWithManager(mgr ctrl.Manager) error {
 		// ...and if so, return it
 		return []string{owner.Name}
 	}); err != nil {
-		return err
+		return fmt.Errorf("error setting up with manager: %w", err)
 	}
 
 	return ctrl.NewControllerManagedBy(mgr).
@@ -570,7 +567,7 @@ func (r *ApplicationSetReconciler) createInCluster(ctx context.Context, applicat
 	var createApps []argov1alpha1.Application
 	current, err := r.getCurrentApplications(ctx, applicationSet)
 	if err != nil {
-		return err
+		return fmt.Errorf("error getting current applications: %w", err)
 	}
 
 	m := make(map[string]bool) // Will holds the app names that are current in the cluster
@@ -611,13 +608,13 @@ func (r *ApplicationSetReconciler) deleteInCluster(ctx context.Context, applicat
 	// clusterList, err := argoDB.ListClusters(ctx)
 	clusterList, err := utils.ListClusters(ctx, r.KubeClientset, applicationSet.Namespace)
 	if err != nil {
-		return err
+		return fmt.Errorf("error listing clusters: %w", err)
 	}
 
 	// Save current applications to be able to delete the ones that are not in appList
 	current, err := r.getCurrentApplications(ctx, applicationSet)
 	if err != nil {
-		return err
+		return fmt.Errorf("error getting current applications: %w", err)
 	}
 
 	m := make(map[string]bool) // Will holds the app names in appList for the deletion process
@@ -721,7 +718,7 @@ func (r *ApplicationSetReconciler) removeFinalizerOnInvalidDestination(ctx conte
 
 			err := r.Client.Update(ctx, app, &client.UpdateOptions{})
 			if err != nil {
-				return err
+				return fmt.Errorf("error updating finalizers: %w", err)
 			}
 		}
 	}

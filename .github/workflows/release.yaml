@@ -14,8 +14,13 @@ on:
 env:
     GOLANG_VERSION: '1.18'
 
+permissions:
+  contents: read
+
 jobs:
   prepare-release:
+    permissions:
+      contents: write # To push changes to release branch
     name: Perform automatic release on trigger ${{ github.ref }}
     if: github.repository == 'argoproj/argo-cd'
     runs-on: ubuntu-22.04
@@ -274,7 +279,8 @@ jobs:
           tag_name: ${{ env.RELEASE_TAG }}
           draft: ${{ env.DRAFT_RELEASE }}
           prerelease: ${{ env.PRE_RELEASE }}
-          body: ${{ steps.release-notes.outputs.content }}
+          generate_release_notes: true
+          body: ${{ steps.release-notes.outputs.content }}  # Pre-pended to the generated notes
           files: |
             dist/argocd-*
             /tmp/sbom.tar.gz
