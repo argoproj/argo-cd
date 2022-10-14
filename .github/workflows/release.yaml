@@ -147,7 +147,7 @@ jobs:
           echo "RELEASE_NOTES=${RELEASE_NOTES}" >> $GITHUB_ENV
 
       - name: Setup Golang
-        uses: actions/setup-go@v2
+        uses: actions/setup-go@v3
         with:
           go-version: ${{ env.GOLANG_VERSION }}
 
@@ -200,8 +200,8 @@ jobs:
           docker login --username "${DOCKER_USERNAME}" --password "${DOCKER_TOKEN}"
         if: ${{ env.DRY_RUN != 'true' }}
 
-      - uses: docker/setup-qemu-action@v1
-      - uses: docker/setup-buildx-action@v1
+      - uses: docker/setup-qemu-action@v2
+      - uses: docker/setup-buildx-action@v2
       - name: Build and push Docker image for release
         run: |
           set -ue

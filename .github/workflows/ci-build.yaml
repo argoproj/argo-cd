@@ -29,7 +29,7 @@ jobs:
       - name: Checkout code
         uses: actions/checkout@v3
       - name: Setup Golang
-        uses: actions/setup-go@v1
+        uses: actions/setup-go@v3
         with:
           go-version: ${{ env.GOLANG_VERSION }}
       - name: Download all Go modules
@@ -47,7 +47,7 @@ jobs:
       - name: Checkout code
         uses: actions/checkout@v3
       - name: Setup Golang
-        uses: actions/setup-go@v1
+        uses: actions/setup-go@v3
         with:
           go-version: ${{ env.GOLANG_VERSION }}
       - name: Restore go build cache
@@ -71,7 +71,7 @@ jobs:
       - name: Checkout code
         uses: actions/checkout@v3
       - name: Setup Golang
-        uses: actions/setup-go@v1
+        uses: actions/setup-go@v3
         with:
           go-version: ${{ env.GOLANG_VERSION }}
       - name: Run golangci-lint
@@ -96,7 +96,7 @@ jobs:
       - name: Create symlink in GOPATH
         run: ln -s $(pwd) ~/go/src/github.com/argoproj/argo-cd
       - name: Setup Golang
-        uses: actions/setup-go@v1
+        uses: actions/setup-go@v3
         with:
           go-version: ${{ env.GOLANG_VERSION }}
       - name: Install required packages
@@ -159,7 +159,7 @@ jobs:
       - name: Create symlink in GOPATH
         run: ln -s $(pwd) ~/go/src/github.com/argoproj/argo-cd
       - name: Setup Golang
-        uses: actions/setup-go@v1
+        uses: actions/setup-go@v3
         with:
           go-version: ${{ env.GOLANG_VERSION }}
       - name: Install required packages
@@ -208,7 +208,7 @@ jobs:
       - name: Checkout code
         uses: actions/checkout@v3
       - name: Setup Golang
-        uses: actions/setup-go@v1
+        uses: actions/setup-go@v3
         with:
           go-version: ${{ env.GOLANG_VERSION }}
       - name: Create symlink in GOPATH
@@ -368,7 +368,7 @@ jobs:
       - name: Checkout code
         uses: actions/checkout@v3
       - name: Setup Golang
-        uses: actions/setup-go@v1
+        uses: actions/setup-go@v3
         with:
           go-version: ${{ env.GOLANG_VERSION }}
       - name: GH actions workaround - Kill XSP4 process
