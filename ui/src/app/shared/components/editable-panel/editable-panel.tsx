@@ -93,15 +93,17 @@ export class EditablePanel<T = {}> extends React.Component<EditablePanelProps<T>
                             {(!this.state.edit && (
                                 <React.Fragment>
                                     {this.props.view}
-                                    {this.props.items.map(item => (
-                                        <React.Fragment key={item.key || item.title}>
-                                            {item.before}
-                                            <div className='row white-box__details-row'>
-                                                <div className='columns small-3'>{item.title}</div>
-                                                <div className='columns small-9'>{item.view}</div>
-                                            </div>
-                                        </React.Fragment>
-                                    ))}
+                                    {this.props.items
+                                        .filter(item => item.view)
+                                        .map(item => (
+                                            <React.Fragment key={item.key || item.title}>
+                                                {item.before}
+                                                <div className='row white-box__details-row'>
+                                                    <div className='columns small-3'>{item.title}</div>
+                                                    <div className='columns small-9'>{item.view}</div>
+                                                </div>
+                                            </React.Fragment>
+                                        ))}
                                 </React.Fragment>
                             )) || (
                                 <Form
