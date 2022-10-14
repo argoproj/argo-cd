@@ -93,7 +93,7 @@ func SetAppInstanceLabel(target *unstructured.Unstructured, key, val string) err
 	return nil
 }
 
-// SetAppInstanceLabel the recommended app.kubernetes.io/instance annotation against an unstructured object
+// SetAppInstanceAnnotation the recommended app.kubernetes.io/instance annotation against an unstructured object
 // Uses the legacy labeling if environment variable is set
 func SetAppInstanceAnnotation(target *unstructured.Unstructured, key, val string) error {
 	annotations := target.GetAnnotations()

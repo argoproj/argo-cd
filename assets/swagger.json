@@ -7423,6 +7423,10 @@
         "status": {
           "type": "string"
         },
+        "syncWave": {
+          "type": "string",
+          "format": "int64"
+        },
         "version": {
           "type": "string"
         }
