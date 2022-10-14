@@ -54,11 +54,11 @@ type legacyServicesConfig struct {
 func mergePatch(orig interface{}, other interface{}) error {
 	origData, err := json.Marshal(orig)
 	if err != nil {
-		return err
+		return fmt.Errorf("error marshaling json for original: %w", err)
 	}
 	otherData, err := json.Marshal(other)
 	if err != nil {
-		return err
+		return fmt.Errorf("error marshaling json for patch: %w", err)
 	}
 
 	if string(otherData) == "null" {
@@ -67,17 +67,17 @@ func mergePatch(orig interface{}, other interface{}) error {
 
 	mergedData, err := jsonpatch.MergePatch(origData, otherData)
 	if err != nil {
-		return err
+		return fmt.Errorf("error creating merge patch: %w", err)
 	}
 	return json.Unmarshal(mergedData, orig)
 }
 
 func (legacy legacyConfig) merge(cfg *api.Config, context map[string]string) error {
 	if err := mergePatch(&context, &legacy.Context); err != nil {
-		return err
+		return fmt.Errorf("error in merge: %w", err)
 	}
 	if err := mergePatch(&cfg.Subscriptions, &legacy.Subscriptions); err != nil {
-		return err
+		return fmt.Errorf("error in merge config and legacy subscriptions: %w", err)
 	}
 
 	for _, template := range legacy.Templates {
@@ -163,7 +163,7 @@ func ApplyLegacyConfig(cfg *api.Config, context map[string]string, cm *v1.Config
 		legacyServices := &legacyServicesConfig{}
 		err := yaml.Unmarshal(notifiersData, legacyServices)
 		if err != nil {
-			return err
+			return fmt.Errorf("error unmarshaling legacy services config: %w", err)
 		}
 		legacyServices.merge(cfg)
 	}
@@ -173,11 +173,11 @@ func ApplyLegacyConfig(cfg *api.Config, context map[string]string, cm *v1.Config
 		legacyCfg := &legacyConfig{}
 		err := yaml.Unmarshal([]byte(configData), legacyCfg)
 		if err != nil {
-			return err
+			return fmt.Errorf("error in unmarshaling legacy config: %w", err)
 		}
 		err = legacyCfg.merge(cfg, context)
 		if err != nil {
-			return err
+			return fmt.Errorf("error in ApplyLegacyConfig merging config map: %w", err)
 		}
 	}
 	return nil
