@@ -43,7 +43,7 @@ jobs:
       GIT_EMAIL: argoproj@gmail.com
     steps:
       - name: Checkout code
-        uses: actions/checkout@v2
+        uses: actions/checkout@v3
         with:
           fetch-depth: 0
           token: ${{ secrets.GITHUB_TOKEN }}
