@@ -60,6 +60,7 @@ func NewServer(metricsServer *metrics.MetricsServer, cache *reposervercache.Cach
 		tlsConfig, err = tlsutil.CreateServerTLSConfig(certPath, keyPath, tlsHostList)
 		if err != nil {
 			return nil, err
+			return nil, fmt.Errorf("error creating server TLS config: %w", err)
 		}
 		tlsConfCustomizer(tlsConfig)
 	}
