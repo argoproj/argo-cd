@@ -228,6 +228,8 @@ interface ApplicationSourceJsonnet {
 export interface ApplicationSourceDirectory {
     recurse: boolean;
     jsonnet?: ApplicationSourceJsonnet;
+    include?: string;
+    exclude?: string;
 }
 
 export interface Automated {
