@@ -576,7 +576,7 @@ applicationset-controller:
 
 .PHONY: checksums
 checksums:
-	for f in ./dist/$(BIN_NAME)-*; do openssl dgst -sha256 "$$f" | awk ' { print $$2 }' > "$$f".sha256 ; done
+	sha256sum ./dist/$(BIN_NAME)-* | awk -F './dist/' '{print $$1 $$2}' > ./dist/$(BIN_NAME)-$(TARGET_VERSION)-checksums.txt
 
 .PHONY: snyk-container-tests
 snyk-container-tests:
