@@ -7,7 +7,7 @@
   <meta name="viewport" content="width=device-width, initial-scale=1.0">
   <meta http-equiv="X-UA-Compatible" content="IE=edge">
   <title>Snyk test report</title>
-  <meta name="description" content="20 known vulnerabilities found in 62 vulnerable dependency paths.">
+  <meta name="description" content="14 known vulnerabilities found in 80 vulnerable dependency paths.">
   <base target="_blank">
   <link rel="icon" type="image/png" href="https://res.cloudinary.com/snyk/image/upload/v1468845142/favicon/favicon.png"
     sizes="194x194">
@@ -456,7 +456,7 @@
               <div class="header-wrap">
                   <h1 class="project__header__title">Snyk test report</h1>
     
-                <p class="timestamp">September 7th 2022, 7:34:26 pm</p>
+                <p class="timestamp">October 14th 2022, 5:38:45 pm</p>
               </div>
               <div class="source-panel">
                 <span>Scanned the following path:</span>
@@ -466,8 +466,8 @@
               </div>
     
               <div class="meta-counts">
-                <div class="meta-count"><span>20</span> <span>known vulnerabilities</span></div>
-                <div class="meta-count"><span>62 vulnerable dependency paths</span></div>
+                <div class="meta-count"><span>14</span> <span>known vulnerabilities</span></div>
+                <div class="meta-count"><span>80 vulnerable dependency paths</span></div>
                 <div class="meta-count"><span>162</span> <span>dependencies</span></div>
               </div><!-- .meta-counts -->
             </div><!-- .layout-container--short -->
@@ -524,7 +524,7 @@
                                          <span class="list-paths__item__arrow">›</span> 
                                         meta-common-packages@meta
                                          <span class="list-paths__item__arrow">›</span> 
-                                        zlib/zlib1g@1:1.2.11.dfsg-2ubuntu9
+                                        zlib/zlib1g@1:1.2.11.dfsg-2ubuntu9.1
                                         
                                 </span>
         
@@ -555,88 +555,15 @@
         <li><a href="https://lists.fedoraproject.org/archives/list/package-announce@lists.fedoraproject.org/message/NMBOJ77A7T7PQCARMDUK75TE6LLESZ3O/">FEDORA</a></li>
         <li><a href="https://security.netapp.com/advisory/ntap-20220901-0005/">CONFIRM</a></li>
         <li><a href="https://lists.fedoraproject.org/archives/list/package-announce@lists.fedoraproject.org/message/JWN4VE3JQR4O2SOUS5TXNLANRPMHWV4I/">FEDORA</a></li>
+        <li><a href="https://lists.debian.org/debian-lts-announce/2022/09/msg00012.html">MLIST</a></li>
+        <li><a href="https://lists.fedoraproject.org/archives/list/package-announce@lists.fedoraproject.org/message/X5U7OTKZSHY2I3ZFJSR2SHFHW72RKGDK/">FEDORA</a></li>
+        <li><a href="https://lists.fedoraproject.org/archives/list/package-announce@lists.fedoraproject.org/message/PAVPQNCG3XRLCLNSQRM3KAN5ZFMVXVTY/">FEDORA</a></li>
         </ul>
         
               <hr/>
         
             <div class="cta card__cta">
                 <p><a href="https://snyk.io/vuln/SNYK-UBUNTU2204-ZLIB-2975633">More about this vulnerability</a></p>
-            </div>
-        
-        </div><!-- .card -->
-        <div class="card card--vuln  disclosure--not-new severity--medium" data-snyk-test="medium">
-            <h2 class="card__title">Out-of-bounds Read</h2>
-            <div class="card__section">
-        
-                <div class="label label--medium">
-                    <span class="label__text">medium severity</span>
-                </div>
-        
-                <hr/>
-        
-                <ul class="card__meta">
-                    <li class="card__meta__item">
-                        Package Manager: ubuntu:22.04
-                    </li>
-                    <li class="card__meta__item">
-                            Vulnerable module:
-        
-                            sqlite3/libsqlite3-0
-                    </li>
-        
-                    <li class="card__meta__item">Introduced through:
-        
-        
-                                    docker-image|quay.io/argoproj/argocd@latest, gnupg2/gpg@2.2.27-3ubuntu2.1 and others
-                    </li>
-                </ul>
-        
-                <hr/>
-        
-        
-                        <h3 class="card__section__title">Detailed paths</h3>
-        
-                    <ul class="card__meta__paths">
-                                <li>
-                                <span class="list-paths__item__introduced"><em>Introduced through</em>:
-                                        docker-image|quay.io/argoproj/argocd@latest
-                                         <span class="list-paths__item__arrow">›</span> 
-                                        gnupg2/gpg@2.2.27-3ubuntu2.1
-                                         <span class="list-paths__item__arrow">›</span> 
-                                        sqlite3/libsqlite3-0@3.37.2-2
-                                        
-                                </span>
-        
-                            </li>
-                    </ul><!-- .list-paths -->
-        
-            </div><!-- .card__section -->
-        
-              <hr/>
-              <!-- Overview -->
-              <h2 id="nvd-description">NVD Description</h2>
-        <p><strong><em>Note:</em></strong> <em>Versions mentioned in the description apply to the upstream <code>sqlite3</code> package.</em></p>
-        <p>An out-of-bounds read was addressed with improved bounds checking. This issue is fixed in iOS 13.5 and iPadOS 13.5, macOS Catalina 10.15.5, tvOS 13.4.5, watchOS 6.2.5, iTunes 12.10.7 for Windows, iCloud for Windows 11.2, iCloud for Windows 7.19. A malicious application may cause a denial of service or potentially disclose memory contents.</p>
-        <h2 id="remediation">Remediation</h2>
-        <p>There is no fixed version for <code>Ubuntu:22.04</code> <code>sqlite3</code>.</p>
-        <h2 id="references">References</h2>
-        <ul>
-        <li><a href="http://people.ubuntu.com/~ubuntu-security/cve/CVE-2020-9794">ADVISORY</a></li>
-        <li><a href="https://security-tracker.debian.org/tracker/CVE-2020-9794">Debian Security Tracker</a></li>
-        <li><a href="https://support.apple.com/HT211168">MISC</a></li>
-        <li><a href="https://support.apple.com/HT211170">MISC</a></li>
-        <li><a href="https://support.apple.com/HT211171">MISC</a></li>
-        <li><a href="https://support.apple.com/HT211175">MISC</a></li>
-        <li><a href="https://support.apple.com/HT211178">MISC</a></li>
-        <li><a href="https://support.apple.com/HT211179">MISC</a></li>
-        <li><a href="https://support.apple.com/HT211181">MISC</a></li>
-        <li><a href="https://lists.apache.org/thread.html/rf9fa47ab66495c78bb4120b0754dd9531ca2ff0430f6685ac9b07772@%3Cdev.mina.apache.org%3E">MLIST</a></li>
-        </ul>
-        
-              <hr/>
-        
-            <div class="cta card__cta">
-                <p><a href="https://snyk.io/vuln/SNYK-UBUNTU2204-SQLITE3-2784637">More about this vulnerability</a></p>
             </div>
         
         </div><!-- .card -->
@@ -761,230 +688,6 @@
         
             <div class="cta card__cta">
                 <p><a href="https://snyk.io/vuln/SNYK-UBUNTU2204-PERL-2789081">More about this vulnerability</a></p>
-            </div>
-        
-        </div><!-- .card -->
-        <div class="card card--vuln  disclosure--not-new severity--low" data-snyk-test="low">
-            <h2 class="card__title">NULL Pointer Dereference</h2>
-            <div class="card__section">
-        
-                <div class="label label--low">
-                    <span class="label__text">low severity</span>
-                </div>
-        
-                <hr/>
-        
-                <ul class="card__meta">
-                    <li class="card__meta__item">
-                        Package Manager: ubuntu:22.04
-                    </li>
-                    <li class="card__meta__item">
-                            Vulnerable module:
-        
-                            tar
-                    </li>
-        
-                    <li class="card__meta__item">Introduced through:
-        
-        
-                                    docker-image|quay.io/argoproj/argocd@latest, meta-common-packages@meta and others
-                    </li>
-                </ul>
-        
-                <hr/>
-        
-        
-                        <h3 class="card__section__title">Detailed paths</h3>
-        
-                    <ul class="card__meta__paths">
-                                <li>
-                                <span class="list-paths__item__introduced"><em>Introduced through</em>:
-                                        docker-image|quay.io/argoproj/argocd@latest
-                                         <span class="list-paths__item__arrow">›</span> 
-                                        meta-common-packages@meta
-                                         <span class="list-paths__item__arrow">›</span> 
-                                        tar@1.34+dfsg-1build3
-                                        
-                                </span>
-        
-                            </li>
-                    </ul><!-- .list-paths -->
-        
-            </div><!-- .card__section -->
-        
-              <hr/>
-              <!-- Overview -->
-              <h2 id="nvd-description">NVD Description</h2>
-        <p><strong><em>Note:</em></strong> <em>Versions mentioned in the description apply to the upstream <code>tar</code> package.</em></p>
-        <p>pax_decode_header in sparse.c in GNU Tar before 1.32 had a NULL pointer dereference when parsing certain archives that have malformed extended headers.</p>
-        <h2 id="remediation">Remediation</h2>
-        <p>There is no fixed version for <code>Ubuntu:22.04</code> <code>tar</code>.</p>
-        <h2 id="references">References</h2>
-        <ul>
-        <li><a href="https://security-tracker.debian.org/tracker/CVE-2019-9923">Debian Security Tracker</a></li>
-        <li><a href="http://git.savannah.gnu.org/cgit/tar.git/commit/?id=cb07844454d8cc9fb21f53ace75975f91185a120">MISC</a></li>
-        <li><a href="http://savannah.gnu.org/bugs/?55369">MISC</a></li>
-        <li><a href="https://bugs.launchpad.net/ubuntu/+source/tar/+bug/1810241">MISC</a></li>
-        <li><a href="https://lists.apache.org/thread.html/r58af02e294bd07f487e2c64ffc0a29b837db5600e33b6e698b9d696b@%3Cissues.bookkeeper.apache.org%3E">MLIST</a></li>
-        <li><a href="https://lists.apache.org/thread.html/rf4c02775860db415b4955778a131c2795223f61cb8c6a450893651e4@%3Cissues.bookkeeper.apache.org%3E">MLIST</a></li>
-        <li><a href="http://lists.opensuse.org/opensuse-security-announce/2019-04/msg00077.html">OpenSuse Security Announcement</a></li>
-        <li><a href="http://people.ubuntu.com/~ubuntu-security/cve/CVE-2019-9923">Ubuntu CVE Tracker</a></li>
-        </ul>
-        
-              <hr/>
-        
-            <div class="cta card__cta">
-                <p><a href="https://snyk.io/vuln/SNYK-UBUNTU2204-TAR-2791257">More about this vulnerability</a></p>
-            </div>
-        
-        </div><!-- .card -->
-        <div class="card card--vuln  disclosure--not-new severity--low" data-snyk-test="low">
-            <h2 class="card__title">CVE-2020-9991</h2>
-            <div class="card__section">
-        
-                <div class="label label--low">
-                    <span class="label__text">low severity</span>
-                </div>
-        
-                <hr/>
-        
-                <ul class="card__meta">
-                    <li class="card__meta__item">
-                        Package Manager: ubuntu:22.04
-                    </li>
-                    <li class="card__meta__item">
-                            Vulnerable module:
-        
-                            sqlite3/libsqlite3-0
-                    </li>
-        
-                    <li class="card__meta__item">Introduced through:
-        
-        
-                                    docker-image|quay.io/argoproj/argocd@latest, gnupg2/gpg@2.2.27-3ubuntu2.1 and others
-                    </li>
-                </ul>
-        
-                <hr/>
-        
-        
-                        <h3 class="card__section__title">Detailed paths</h3>
-        
-                    <ul class="card__meta__paths">
-                                <li>
-                                <span class="list-paths__item__introduced"><em>Introduced through</em>:
-                                        docker-image|quay.io/argoproj/argocd@latest
-                                         <span class="list-paths__item__arrow">›</span> 
-                                        gnupg2/gpg@2.2.27-3ubuntu2.1
-                                         <span class="list-paths__item__arrow">›</span> 
-                                        sqlite3/libsqlite3-0@3.37.2-2
-                                        
-                                </span>
-        
-                            </li>
-                    </ul><!-- .list-paths -->
-        
-            </div><!-- .card__section -->
-        
-              <hr/>
-              <!-- Overview -->
-              <h2 id="nvd-description">NVD Description</h2>
-        <p><strong><em>Note:</em></strong> <em>Versions mentioned in the description apply to the upstream <code>sqlite3</code> package.</em></p>
-        <p>This issue was addressed with improved checks. This issue is fixed in macOS Big Sur 11.0.1, watchOS 7.0, iOS 14.0 and iPadOS 14.0, iCloud for Windows 7.21, tvOS 14.0. A remote attacker may be able to cause a denial of service.</p>
-        <h2 id="remediation">Remediation</h2>
-        <p>There is no fixed version for <code>Ubuntu:22.04</code> <code>sqlite3</code>.</p>
-        <h2 id="references">References</h2>
-        <ul>
-        <li><a href="http://people.ubuntu.com/~ubuntu-security/cve/CVE-2020-9991">ADVISORY</a></li>
-        <li><a href="https://support.apple.com/kb/HT211846">CONFIRM</a></li>
-        <li><a href="http://seclists.org/fulldisclosure/2020/Dec/32">FULLDISC</a></li>
-        <li><a href="https://support.apple.com/en-us/HT211843">MISC</a></li>
-        <li><a href="https://support.apple.com/en-us/HT211844">MISC</a></li>
-        <li><a href="https://support.apple.com/en-us/HT211847">MISC</a></li>
-        <li><a href="https://support.apple.com/en-us/HT211850">MISC</a></li>
-        <li><a href="https://support.apple.com/en-us/HT211931">MISC</a></li>
-        <li><a href="https://lists.apache.org/thread.html/rf9fa47ab66495c78bb4120b0754dd9531ca2ff0430f6685ac9b07772@%3Cdev.mina.apache.org%3E">MLIST</a></li>
-        </ul>
-        
-              <hr/>
-        
-            <div class="cta card__cta">
-                <p><a href="https://snyk.io/vuln/SNYK-UBUNTU2204-SQLITE3-2778145">More about this vulnerability</a></p>
-            </div>
-        
-        </div><!-- .card -->
-        <div class="card card--vuln  disclosure--not-new severity--low" data-snyk-test="low">
-            <h2 class="card__title">Information Exposure</h2>
-            <div class="card__section">
-        
-                <div class="label label--low">
-                    <span class="label__text">low severity</span>
-                </div>
-        
-                <hr/>
-        
-                <ul class="card__meta">
-                    <li class="card__meta__item">
-                        Package Manager: ubuntu:22.04
-                    </li>
-                    <li class="card__meta__item">
-                            Vulnerable module:
-        
-                            sqlite3/libsqlite3-0
-                    </li>
-        
-                    <li class="card__meta__item">Introduced through:
-        
-        
-                                    docker-image|quay.io/argoproj/argocd@latest, gnupg2/gpg@2.2.27-3ubuntu2.1 and others
-                    </li>
-                </ul>
-        
-                <hr/>
-        
-        
-                        <h3 class="card__section__title">Detailed paths</h3>
-        
-                    <ul class="card__meta__paths">
-                                <li>
-                                <span class="list-paths__item__introduced"><em>Introduced through</em>:
-                                        docker-image|quay.io/argoproj/argocd@latest
-                                         <span class="list-paths__item__arrow">›</span> 
-                                        gnupg2/gpg@2.2.27-3ubuntu2.1
-                                         <span class="list-paths__item__arrow">›</span> 
-                                        sqlite3/libsqlite3-0@3.37.2-2
-                                        
-                                </span>
-        
-                            </li>
-                    </ul><!-- .list-paths -->
-        
-            </div><!-- .card__section -->
-        
-              <hr/>
-              <!-- Overview -->
-              <h2 id="nvd-description">NVD Description</h2>
-        <p><strong><em>Note:</em></strong> <em>Versions mentioned in the description apply to the upstream <code>sqlite3</code> package.</em></p>
-        <p>An information disclosure issue was addressed with improved state management. This issue is fixed in macOS Big Sur 11.0.1, watchOS 7.0, iOS 14.0 and iPadOS 14.0, iTunes for Windows 12.10.9, iCloud for Windows 11.5, tvOS 14.0. A remote attacker may be able to leak memory.</p>
-        <h2 id="remediation">Remediation</h2>
-        <p>There is no fixed version for <code>Ubuntu:22.04</code> <code>sqlite3</code>.</p>
-        <h2 id="references">References</h2>
-        <ul>
-        <li><a href="http://people.ubuntu.com/~ubuntu-security/cve/CVE-2020-9849">ADVISORY</a></li>
-        <li><a href="http://seclists.org/fulldisclosure/2020/Dec/32">FULLDISC</a></li>
-        <li><a href="https://support.apple.com/en-us/HT211843">MISC</a></li>
-        <li><a href="https://support.apple.com/en-us/HT211844">MISC</a></li>
-        <li><a href="https://support.apple.com/en-us/HT211850">MISC</a></li>
-        <li><a href="https://support.apple.com/en-us/HT211931">MISC</a></li>
-        <li><a href="https://support.apple.com/en-us/HT211935">MISC</a></li>
-        <li><a href="https://support.apple.com/en-us/HT211952">MISC</a></li>
-        <li><a href="https://lists.apache.org/thread.html/rf9fa47ab66495c78bb4120b0754dd9531ca2ff0430f6685ac9b07772@%3Cdev.mina.apache.org%3E">MLIST</a></li>
-        </ul>
-        
-              <hr/>
-        
-            <div class="cta card__cta">
-                <p><a href="https://snyk.io/vuln/SNYK-UBUNTU2204-SQLITE3-2785627">More about this vulnerability</a></p>
             </div>
         
         </div><!-- .card -->
@@ -1166,153 +869,6 @@
         
             <div class="cta card__cta">
                 <p><a href="https://snyk.io/vuln/SNYK-UBUNTU2204-PCRE3-2799820">More about this vulnerability</a></p>
-            </div>
-        
-        </div><!-- .card -->
-        <div class="card card--vuln  disclosure--not-new severity--low" data-snyk-test="low">
-            <h2 class="card__title">Out-of-bounds Read</h2>
-            <div class="card__section">
-        
-                <div class="label label--low">
-                    <span class="label__text">low severity</span>
-                </div>
-        
-                <hr/>
-        
-                <ul class="card__meta">
-                    <li class="card__meta__item">
-                        Package Manager: ubuntu:22.04
-                    </li>
-                    <li class="card__meta__item">
-                            Vulnerable module:
-        
-                            pcre2/libpcre2-8-0
-                    </li>
-        
-                    <li class="card__meta__item">Introduced through:
-        
-        
-                                    docker-image|quay.io/argoproj/argocd@latest, meta-common-packages@meta and others
-                    </li>
-                </ul>
-        
-                <hr/>
-        
-        
-                        <h3 class="card__section__title">Detailed paths</h3>
-        
-                    <ul class="card__meta__paths">
-                                <li>
-                                <span class="list-paths__item__introduced"><em>Introduced through</em>:
-                                        docker-image|quay.io/argoproj/argocd@latest
-                                         <span class="list-paths__item__arrow">›</span> 
-                                        meta-common-packages@meta
-                                         <span class="list-paths__item__arrow">›</span> 
-                                        pcre2/libpcre2-8-0@10.39-3build1
-                                        
-                                </span>
-        
-                            </li>
-                    </ul><!-- .list-paths -->
-        
-            </div><!-- .card__section -->
-        
-              <hr/>
-              <!-- Overview -->
-              <h2 id="nvd-description">NVD Description</h2>
-        <p><strong><em>Note:</em></strong> <em>Versions mentioned in the description apply to the upstream <code>pcre2</code> package.</em></p>
-        <p>An out-of-bounds read vulnerability was discovered in the PCRE2 library in the get_recurse_data_length() function of the pcre2_jit_compile.c file. This issue affects recursions in JIT-compiled regular expressions caused by duplicate data transfers.</p>
-        <h2 id="remediation">Remediation</h2>
-        <p>There is no fixed version for <code>Ubuntu:22.04</code> <code>pcre2</code>.</p>
-        <h2 id="references">References</h2>
-        <ul>
-        <li><a href="http://people.ubuntu.com/~ubuntu-security/cve/CVE-2022-1587">ADVISORY</a></li>
-        <li><a href="https://github.com/PCRE2Project/pcre2/commit/03654e751e7f0700693526b67dfcadda6b42c9d0">MISC</a></li>
-        <li><a href="https://lists.fedoraproject.org/archives/list/package-announce@lists.fedoraproject.org/message/M2GLQQUEY5VFM57CFYXVIFOXN2HUZPDM/">FEDORA</a></li>
-        <li><a href="https://bugzilla.redhat.com/show_bug.cgi?id=2077983,">MISC</a></li>
-        <li><a href="https://lists.fedoraproject.org/archives/list/package-announce@lists.fedoraproject.org/message/KAX7767BCUFC7JMDGP7GOQ5GIZCAUGBB/">FEDORA</a></li>
-        <li><a href="https://lists.fedoraproject.org/archives/list/package-announce@lists.fedoraproject.org/message/DWNG2NS3GINO6LQYUVC4BZLUQPJ3DYHA/">FEDORA</a></li>
-        <li><a href="https://lists.fedoraproject.org/archives/list/package-announce@lists.fedoraproject.org/message/JXINO3KKI5DICQ45E2FKD6MKVMGJLEKJ/">FEDORA</a></li>
-        </ul>
-        
-              <hr/>
-        
-            <div class="cta card__cta">
-                <p><a href="https://snyk.io/vuln/SNYK-UBUNTU2204-PCRE2-2810786">More about this vulnerability</a></p>
-            </div>
-        
-        </div><!-- .card -->
-        <div class="card card--vuln  disclosure--not-new severity--low" data-snyk-test="low">
-            <h2 class="card__title">Out-of-bounds Read</h2>
-            <div class="card__section">
-        
-                <div class="label label--low">
-                    <span class="label__text">low severity</span>
-                </div>
-        
-                <hr/>
-        
-                <ul class="card__meta">
-                    <li class="card__meta__item">
-                        Package Manager: ubuntu:22.04
-                    </li>
-                    <li class="card__meta__item">
-                            Vulnerable module:
-        
-                            pcre2/libpcre2-8-0
-                    </li>
-        
-                    <li class="card__meta__item">Introduced through:
-        
-        
-                                    docker-image|quay.io/argoproj/argocd@latest, meta-common-packages@meta and others
-                    </li>
-                </ul>
-        
-                <hr/>
-        
-        
-                        <h3 class="card__section__title">Detailed paths</h3>
-        
-                    <ul class="card__meta__paths">
-                                <li>
-                                <span class="list-paths__item__introduced"><em>Introduced through</em>:
-                                        docker-image|quay.io/argoproj/argocd@latest
-                                         <span class="list-paths__item__arrow">›</span> 
-                                        meta-common-packages@meta
-                                         <span class="list-paths__item__arrow">›</span> 
-                                        pcre2/libpcre2-8-0@10.39-3build1
-                                        
-                                </span>
-        
-                            </li>
-                    </ul><!-- .list-paths -->
-        
-            </div><!-- .card__section -->
-        
-              <hr/>
-              <!-- Overview -->
-              <h2 id="nvd-description">NVD Description</h2>
-        <p><strong><em>Note:</em></strong> <em>Versions mentioned in the description apply to the upstream <code>pcre2</code> package.</em></p>
-        <p>An out-of-bounds read vulnerability was discovered in the PCRE2 library in the compile_xclass_matchingpath() function of the pcre2_jit_compile.c file. This involves a unicode property matching issue in JIT-compiled regular expressions. The issue occurs because the character was not fully read in case-less matching within JIT.</p>
-        <h2 id="remediation">Remediation</h2>
-        <p>There is no fixed version for <code>Ubuntu:22.04</code> <code>pcre2</code>.</p>
-        <h2 id="references">References</h2>
-        <ul>
-        <li><a href="http://people.ubuntu.com/~ubuntu-security/cve/CVE-2022-1586">ADVISORY</a></li>
-        <li><a href="https://lists.fedoraproject.org/archives/list/package-announce@lists.fedoraproject.org/message/M2GLQQUEY5VFM57CFYXVIFOXN2HUZPDM/">FEDORA</a></li>
-        <li><a href="https://github.com/PCRE2Project/pcre2/commit/50a51cb7e67268e6ad417eb07c9de9bfea5cc55a,">MISC</a></li>
-        <li><a href="https://bugzilla.redhat.com/show_bug.cgi?id=2077976,">MISC</a></li>
-        <li><a href="https://github.com/PCRE2Project/pcre2/commit/d4fa336fbcc388f89095b184ba6d99422cfc676c">MISC</a></li>
-        <li><a href="https://lists.fedoraproject.org/archives/list/package-announce@lists.fedoraproject.org/message/KAX7767BCUFC7JMDGP7GOQ5GIZCAUGBB/">FEDORA</a></li>
-        <li><a href="https://lists.fedoraproject.org/archives/list/package-announce@lists.fedoraproject.org/message/DWNG2NS3GINO6LQYUVC4BZLUQPJ3DYHA/">FEDORA</a></li>
-        <li><a href="https://lists.fedoraproject.org/archives/list/package-announce@lists.fedoraproject.org/message/JXINO3KKI5DICQ45E2FKD6MKVMGJLEKJ/">FEDORA</a></li>
-        </ul>
-        
-              <hr/>
-        
-            <div class="cta card__cta">
-                <p><a href="https://snyk.io/vuln/SNYK-UBUNTU2204-PCRE2-2810797">More about this vulnerability</a></p>
             </div>
         
         </div><!-- .card -->
@@ -1519,6 +1075,7 @@
         <li><a href="https://www.openwall.com/lists/oss-security/2021/09/26/1">MISC</a></li>
         <li><a href="https://www.oracle.com/security-alerts/cpuapr2022.html">MISC</a></li>
         <li><a href="https://www.oracle.com/security-alerts/cpujul2022.html">N/A</a></li>
+        <li><a href="https://www.starwindsoftware.com/security/sw-20220805-0001/">MISC</a></li>
         </ul>
         
               <hr/>
@@ -2081,7 +1638,7 @@
         
         </div><!-- .card -->
         <div class="card card--vuln  disclosure--not-new severity--low" data-snyk-test="low">
-            <h2 class="card__title">Integer Overflow or Wraparound</h2>
+            <h2 class="card__title">CVE-2022-3219</h2>
             <div class="card__section">
         
                 <div class="label label--low">
@@ -2097,12 +1654,12 @@
                     <li class="card__meta__item">
                             Vulnerable module:
         
-                            gmp/libgmp10
+                            gnupg2/gpgv
                     </li>
         
                     <li class="card__meta__item">Introduced through:
         
-                                docker-image|quay.io/argoproj/argocd@latest and gmp/libgmp10@2:6.2.1+dfsg-3ubuntu1
+                                docker-image|quay.io/argoproj/argocd@latest and gnupg2/gpgv@2.2.27-3ubuntu2.1
         
                     </li>
                 </ul>
@@ -2117,7 +1674,7 @@
                                 <span class="list-paths__item__introduced"><em>Introduced through</em>:
                                         docker-image|quay.io/argoproj/argocd@latest
                                          <span class="list-paths__item__arrow">›</span> 
-                                        gmp/libgmp10@2:6.2.1+dfsg-3ubuntu1
+                                        gnupg2/gpgv@2.2.27-3ubuntu2.1
                                         
                                 </span>
         
@@ -2126,9 +1683,9 @@
                                 <span class="list-paths__item__introduced"><em>Introduced through</em>:
                                         docker-image|quay.io/argoproj/argocd@latest
                                          <span class="list-paths__item__arrow">›</span> 
-                                        coreutils@8.32-4.1ubuntu1
+                                        apt@2.4.8
                                          <span class="list-paths__item__arrow">›</span> 
-                                        gmp/libgmp10@2:6.2.1+dfsg-3ubuntu1
+                                        gnupg2/gpgv@2.2.27-3ubuntu2.1
                                         
                                 </span>
         
@@ -2137,11 +1694,9 @@
                                 <span class="list-paths__item__introduced"><em>Introduced through</em>:
                                         docker-image|quay.io/argoproj/argocd@latest
                                          <span class="list-paths__item__arrow">›</span> 
-                                        apt@2.4.7
+                                        gnupg2/gnupg@2.2.27-3ubuntu2.1
                                          <span class="list-paths__item__arrow">›</span> 
-                                        gnutls28/libgnutls30@3.7.3-4ubuntu1.1
-                                         <span class="list-paths__item__arrow">›</span> 
-                                        gmp/libgmp10@2:6.2.1+dfsg-3ubuntu1
+                                        gnupg2/gpgv@2.2.27-3ubuntu2.1
                                         
                                 </span>
         
@@ -2150,13 +1705,9 @@
                                 <span class="list-paths__item__introduced"><em>Introduced through</em>:
                                         docker-image|quay.io/argoproj/argocd@latest
                                          <span class="list-paths__item__arrow">›</span> 
-                                        apt@2.4.7
+                                        gnupg2/dirmngr@2.2.27-3ubuntu2.1
                                          <span class="list-paths__item__arrow">›</span> 
-                                        gnutls28/libgnutls30@3.7.3-4ubuntu1.1
-                                         <span class="list-paths__item__arrow">›</span> 
-                                        nettle/libhogweed6@3.7.3-1build2
-                                         <span class="list-paths__item__arrow">›</span> 
-                                        gmp/libgmp10@2:6.2.1+dfsg-3ubuntu1
+                                        gnupg2/gpgconf@2.2.27-3ubuntu2.1
                                         
                                 </span>
         
@@ -2165,13 +1716,269 @@
                                 <span class="list-paths__item__introduced"><em>Introduced through</em>:
                                         docker-image|quay.io/argoproj/argocd@latest
                                          <span class="list-paths__item__arrow">›</span> 
-                                        git@1:2.34.1-1ubuntu1.4
+                                        gnupg2/gpg@2.2.27-3ubuntu2.1
                                          <span class="list-paths__item__arrow">›</span> 
-                                        curl/libcurl3-gnutls@7.81.0-1ubuntu1.4
+                                        gnupg2/gpgconf@2.2.27-3ubuntu2.1
+                                        
+                                </span>
+        
+                            </li>
+                                <li>
+                                <span class="list-paths__item__introduced"><em>Introduced through</em>:
+                                        docker-image|quay.io/argoproj/argocd@latest
                                          <span class="list-paths__item__arrow">›</span> 
-                                        rtmpdump/librtmp1@2.4+20151223.gitfa8646d.1-2build4
+                                        gnupg2/gnupg@2.2.27-3ubuntu2.1
                                          <span class="list-paths__item__arrow">›</span> 
-                                        gmp/libgmp10@2:6.2.1+dfsg-3ubuntu1
+                                        gnupg2/gpg-agent@2.2.27-3ubuntu2.1
+                                         <span class="list-paths__item__arrow">›</span> 
+                                        gnupg2/gpgconf@2.2.27-3ubuntu2.1
+                                        
+                                </span>
+        
+                            </li>
+                                <li>
+                                <span class="list-paths__item__introduced"><em>Introduced through</em>:
+                                        docker-image|quay.io/argoproj/argocd@latest
+                                         <span class="list-paths__item__arrow">›</span> 
+                                        gnupg2/gnupg@2.2.27-3ubuntu2.1
+                                         <span class="list-paths__item__arrow">›</span> 
+                                        gnupg2/gpgsm@2.2.27-3ubuntu2.1
+                                         <span class="list-paths__item__arrow">›</span> 
+                                        gnupg2/gpgconf@2.2.27-3ubuntu2.1
+                                        
+                                </span>
+        
+                            </li>
+                                <li>
+                                <span class="list-paths__item__introduced"><em>Introduced through</em>:
+                                        docker-image|quay.io/argoproj/argocd@latest
+                                         <span class="list-paths__item__arrow">›</span> 
+                                        gnupg2/dirmngr@2.2.27-3ubuntu2.1
+                                        
+                                </span>
+        
+                            </li>
+                                <li>
+                                <span class="list-paths__item__introduced"><em>Introduced through</em>:
+                                        docker-image|quay.io/argoproj/argocd@latest
+                                         <span class="list-paths__item__arrow">›</span> 
+                                        gnupg2/gnupg@2.2.27-3ubuntu2.1
+                                         <span class="list-paths__item__arrow">›</span> 
+                                        gnupg2/dirmngr@2.2.27-3ubuntu2.1
+                                        
+                                </span>
+        
+                            </li>
+                                <li>
+                                <span class="list-paths__item__introduced"><em>Introduced through</em>:
+                                        docker-image|quay.io/argoproj/argocd@latest
+                                         <span class="list-paths__item__arrow">›</span> 
+                                        gnupg2/gnupg@2.2.27-3ubuntu2.1
+                                         <span class="list-paths__item__arrow">›</span> 
+                                        gnupg2/gpg-wks-client@2.2.27-3ubuntu2.1
+                                         <span class="list-paths__item__arrow">›</span> 
+                                        gnupg2/dirmngr@2.2.27-3ubuntu2.1
+                                        
+                                </span>
+        
+                            </li>
+                                <li>
+                                <span class="list-paths__item__introduced"><em>Introduced through</em>:
+                                        docker-image|quay.io/argoproj/argocd@latest
+                                         <span class="list-paths__item__arrow">›</span> 
+                                        gnupg2/gnupg-l10n@2.2.27-3ubuntu2.1
+                                        
+                                </span>
+        
+                            </li>
+                                <li>
+                                <span class="list-paths__item__introduced"><em>Introduced through</em>:
+                                        docker-image|quay.io/argoproj/argocd@latest
+                                         <span class="list-paths__item__arrow">›</span> 
+                                        gnupg2/gnupg@2.2.27-3ubuntu2.1
+                                         <span class="list-paths__item__arrow">›</span> 
+                                        gnupg2/gnupg-l10n@2.2.27-3ubuntu2.1
+                                        
+                                </span>
+        
+                            </li>
+                                <li>
+                                <span class="list-paths__item__introduced"><em>Introduced through</em>:
+                                        docker-image|quay.io/argoproj/argocd@latest
+                                         <span class="list-paths__item__arrow">›</span> 
+                                        gnupg2/gnupg-utils@2.2.27-3ubuntu2.1
+                                        
+                                </span>
+        
+                            </li>
+                                <li>
+                                <span class="list-paths__item__introduced"><em>Introduced through</em>:
+                                        docker-image|quay.io/argoproj/argocd@latest
+                                         <span class="list-paths__item__arrow">›</span> 
+                                        gnupg2/gnupg@2.2.27-3ubuntu2.1
+                                         <span class="list-paths__item__arrow">›</span> 
+                                        gnupg2/gnupg-utils@2.2.27-3ubuntu2.1
+                                        
+                                </span>
+        
+                            </li>
+                                <li>
+                                <span class="list-paths__item__introduced"><em>Introduced through</em>:
+                                        docker-image|quay.io/argoproj/argocd@latest
+                                         <span class="list-paths__item__arrow">›</span> 
+                                        gnupg2/gpg@2.2.27-3ubuntu2.1
+                                        
+                                </span>
+        
+                            </li>
+                                <li>
+                                <span class="list-paths__item__introduced"><em>Introduced through</em>:
+                                        docker-image|quay.io/argoproj/argocd@latest
+                                         <span class="list-paths__item__arrow">›</span> 
+                                        gnupg2/gnupg@2.2.27-3ubuntu2.1
+                                         <span class="list-paths__item__arrow">›</span> 
+                                        gnupg2/gpg@2.2.27-3ubuntu2.1
+                                        
+                                </span>
+        
+                            </li>
+                                <li>
+                                <span class="list-paths__item__introduced"><em>Introduced through</em>:
+                                        docker-image|quay.io/argoproj/argocd@latest
+                                         <span class="list-paths__item__arrow">›</span> 
+                                        gnupg2/gnupg@2.2.27-3ubuntu2.1
+                                         <span class="list-paths__item__arrow">›</span> 
+                                        gnupg2/gpg-wks-client@2.2.27-3ubuntu2.1
+                                         <span class="list-paths__item__arrow">›</span> 
+                                        gnupg2/gpg@2.2.27-3ubuntu2.1
+                                        
+                                </span>
+        
+                            </li>
+                                <li>
+                                <span class="list-paths__item__introduced"><em>Introduced through</em>:
+                                        docker-image|quay.io/argoproj/argocd@latest
+                                         <span class="list-paths__item__arrow">›</span> 
+                                        gnupg2/gnupg@2.2.27-3ubuntu2.1
+                                         <span class="list-paths__item__arrow">›</span> 
+                                        gnupg2/gpg-wks-server@2.2.27-3ubuntu2.1
+                                         <span class="list-paths__item__arrow">›</span> 
+                                        gnupg2/gpg@2.2.27-3ubuntu2.1
+                                        
+                                </span>
+        
+                            </li>
+                                <li>
+                                <span class="list-paths__item__introduced"><em>Introduced through</em>:
+                                        docker-image|quay.io/argoproj/argocd@latest
+                                         <span class="list-paths__item__arrow">›</span> 
+                                        gnupg2/gpg-agent@2.2.27-3ubuntu2.1
+                                        
+                                </span>
+        
+                            </li>
+                                <li>
+                                <span class="list-paths__item__introduced"><em>Introduced through</em>:
+                                        docker-image|quay.io/argoproj/argocd@latest
+                                         <span class="list-paths__item__arrow">›</span> 
+                                        gnupg2/gnupg@2.2.27-3ubuntu2.1
+                                         <span class="list-paths__item__arrow">›</span> 
+                                        gnupg2/gpg-agent@2.2.27-3ubuntu2.1
+                                        
+                                </span>
+        
+                            </li>
+                                <li>
+                                <span class="list-paths__item__introduced"><em>Introduced through</em>:
+                                        docker-image|quay.io/argoproj/argocd@latest
+                                         <span class="list-paths__item__arrow">›</span> 
+                                        gnupg2/gnupg@2.2.27-3ubuntu2.1
+                                         <span class="list-paths__item__arrow">›</span> 
+                                        gnupg2/gpg-wks-client@2.2.27-3ubuntu2.1
+                                         <span class="list-paths__item__arrow">›</span> 
+                                        gnupg2/gpg-agent@2.2.27-3ubuntu2.1
+                                        
+                                </span>
+        
+                            </li>
+                                <li>
+                                <span class="list-paths__item__introduced"><em>Introduced through</em>:
+                                        docker-image|quay.io/argoproj/argocd@latest
+                                         <span class="list-paths__item__arrow">›</span> 
+                                        gnupg2/gnupg@2.2.27-3ubuntu2.1
+                                         <span class="list-paths__item__arrow">›</span> 
+                                        gnupg2/gpg-wks-server@2.2.27-3ubuntu2.1
+                                         <span class="list-paths__item__arrow">›</span> 
+                                        gnupg2/gpg-agent@2.2.27-3ubuntu2.1
+                                        
+                                </span>
+        
+                            </li>
+                                <li>
+                                <span class="list-paths__item__introduced"><em>Introduced through</em>:
+                                        docker-image|quay.io/argoproj/argocd@latest
+                                         <span class="list-paths__item__arrow">›</span> 
+                                        gnupg2/gpg-wks-client@2.2.27-3ubuntu2.1
+                                        
+                                </span>
+        
+                            </li>
+                                <li>
+                                <span class="list-paths__item__introduced"><em>Introduced through</em>:
+                                        docker-image|quay.io/argoproj/argocd@latest
+                                         <span class="list-paths__item__arrow">›</span> 
+                                        gnupg2/gnupg@2.2.27-3ubuntu2.1
+                                         <span class="list-paths__item__arrow">›</span> 
+                                        gnupg2/gpg-wks-client@2.2.27-3ubuntu2.1
+                                        
+                                </span>
+        
+                            </li>
+                                <li>
+                                <span class="list-paths__item__introduced"><em>Introduced through</em>:
+                                        docker-image|quay.io/argoproj/argocd@latest
+                                         <span class="list-paths__item__arrow">›</span> 
+                                        gnupg2/gpg-wks-server@2.2.27-3ubuntu2.1
+                                        
+                                </span>
+        
+                            </li>
+                                <li>
+                                <span class="list-paths__item__introduced"><em>Introduced through</em>:
+                                        docker-image|quay.io/argoproj/argocd@latest
+                                         <span class="list-paths__item__arrow">›</span> 
+                                        gnupg2/gnupg@2.2.27-3ubuntu2.1
+                                         <span class="list-paths__item__arrow">›</span> 
+                                        gnupg2/gpg-wks-server@2.2.27-3ubuntu2.1
+                                        
+                                </span>
+        
+                            </li>
+                                <li>
+                                <span class="list-paths__item__introduced"><em>Introduced through</em>:
+                                        docker-image|quay.io/argoproj/argocd@latest
+                                         <span class="list-paths__item__arrow">›</span> 
+                                        gnupg2/gpgsm@2.2.27-3ubuntu2.1
+                                        
+                                </span>
+        
+                            </li>
+                                <li>
+                                <span class="list-paths__item__introduced"><em>Introduced through</em>:
+                                        docker-image|quay.io/argoproj/argocd@latest
+                                         <span class="list-paths__item__arrow">›</span> 
+                                        gnupg2/gnupg@2.2.27-3ubuntu2.1
+                                         <span class="list-paths__item__arrow">›</span> 
+                                        gnupg2/gpgsm@2.2.27-3ubuntu2.1
+                                        
+                                </span>
+        
+                            </li>
+                                <li>
+                                <span class="list-paths__item__introduced"><em>Introduced through</em>:
+                                        docker-image|quay.io/argoproj/argocd@latest
+                                         <span class="list-paths__item__arrow">›</span> 
+                                        gnupg2/gnupg@2.2.27-3ubuntu2.1
                                         
                                 </span>
         
@@ -2183,23 +1990,18 @@
               <hr/>
               <!-- Overview -->
               <h2 id="nvd-description">NVD Description</h2>
-        <p><strong><em>Note:</em></strong> <em>Versions mentioned in the description apply to the upstream <code>gmp</code> package.</em></p>
-        <p>GNU Multiple Precision Arithmetic Library (GMP) through 6.2.1 has an mpz/inp_raw.c integer overflow and resultant buffer overflow via crafted input, leading to a segmentation fault on 32-bit platforms.</p>
+        <p><em>This vulnerability has not been analyzed by NVD yet.</em></p>
         <h2 id="remediation">Remediation</h2>
-        <p>There is no fixed version for <code>Ubuntu:22.04</code> <code>gmp</code>.</p>
+        <p>There is no fixed version for <code>Ubuntu:22.04</code> <code>gnupg2</code>.</p>
         <h2 id="references">References</h2>
         <ul>
-        <li><a href="http://people.ubuntu.com/~ubuntu-security/cve/CVE-2021-43618">ADVISORY</a></li>
-        <li><a href="https://bugs.debian.org/994405">MISC</a></li>
-        <li><a href="https://gmplib.org/list-archives/gmp-bugs/2021-September/005077.html">MISC</a></li>
-        <li><a href="https://gmplib.org/repo/gmp-6.2/rev/561a9c25298e">MISC</a></li>
-        <li><a href="https://lists.debian.org/debian-lts-announce/2021/12/msg00001.html">MLIST</a></li>
+        <li><a href="http://people.ubuntu.com/~ubuntu-security/cve/CVE-2022-3219">ADVISORY</a></li>
         </ul>
         
               <hr/>
         
             <div class="cta card__cta">
-                <p><a href="https://snyk.io/vuln/SNYK-UBUNTU2204-GMP-2775169">More about this vulnerability</a></p>
+                <p><a href="https://snyk.io/vuln/SNYK-UBUNTU2204-GNUPG2-3035409">More about this vulnerability</a></p>
             </div>
         
         </div><!-- .card -->

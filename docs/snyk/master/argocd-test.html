@@ -7,7 +7,7 @@
   <meta name="viewport" content="width=device-width, initial-scale=1.0">
   <meta http-equiv="X-UA-Compatible" content="IE=edge">
   <title>Snyk test report</title>
-  <meta name="description" content="2 known vulnerabilities found in 6 vulnerable dependency paths.">
+  <meta name="description" content="4 known vulnerabilities found in 8 vulnerable dependency paths.">
   <base target="_blank">
   <link rel="icon" type="image/png" href="https://res.cloudinary.com/snyk/image/upload/v1468845142/favicon/favicon.png"
     sizes="194x194">
@@ -456,19 +456,19 @@
               <div class="header-wrap">
                   <h1 class="project__header__title">Snyk test report</h1>
     
-                <p class="timestamp">September 7th 2022, 7:33:58 pm</p>
+                <p class="timestamp">October 14th 2022, 5:38:12 pm</p>
               </div>
               <div class="source-panel">
                 <span>Scanned the following paths:</span>
                 <ul>
-                  <li class="paths">/private/argo-cd/argoproj/argo-cd/v2 (gomodules)</li><li class="paths">/private/argo-cd (yarn)</li>
+                  <li class="paths">/argo-cd/argoproj/argo-cd/v2 (gomodules)</li><li class="paths">/argo-cd (yarn)</li>
                 </ul>
               </div>
     
               <div class="meta-counts">
-                <div class="meta-count"><span>2</span> <span>known vulnerabilities</span></div>
-                <div class="meta-count"><span>6 vulnerable dependency paths</span></div>
-                <div class="meta-count"><span>1717</span> <span>dependencies</span></div>
+                <div class="meta-count"><span>4</span> <span>known vulnerabilities</span></div>
+                <div class="meta-count"><span>8 vulnerable dependency paths</span></div>
+                <div class="meta-count"><span>1721</span> <span>dependencies</span></div>
               </div><!-- .meta-counts -->
             </div><!-- .layout-container--short -->
           </header><!-- .project__header -->
@@ -476,6 +476,182 @@
 
     <div class="layout-container" style="padding-top: 35px;">
       <div class="cards--vuln filter--patch filter--ignore">
+        <div class="card card--vuln  disclosure--not-new severity--medium" data-snyk-test="medium">
+            <h2 class="card__title">Server-side Request Forgery (SSRF)</h2>
+            <div class="card__section">
+        
+                <div class="label label--medium">
+                    <span class="label__text">medium severity</span>
+                </div>
+        
+                <hr/>
+        
+                <ul class="card__meta">
+                    <li class="card__meta__item">
+                        Package Manager: npm
+                    </li>
+                    <li class="card__meta__item">
+                            Vulnerable module:
+        
+                            parse-url
+                    </li>
+        
+                    <li class="card__meta__item">Introduced through:
+        
+        
+                                    argo-cd-ui@1.0.0, git-url-parse@11.6.0 and others
+                    </li>
+                </ul>
+        
+                <hr/>
+        
+        
+                        <h3 class="card__section__title">Detailed paths</h3>
+        
+                    <ul class="card__meta__paths">
+                                <li>
+                                <span class="list-paths__item__introduced"><em>Introduced through</em>:
+                                        argo-cd-ui@1.0.0
+                                         <span class="list-paths__item__arrow">›</span> 
+                                        git-url-parse@11.6.0
+                                         <span class="list-paths__item__arrow">›</span> 
+                                        git-up@4.0.5
+                                         <span class="list-paths__item__arrow">›</span> 
+                                        parse-url@6.0.5
+                                        
+                                </span>
+        
+                            </li>
+                    </ul><!-- .list-paths -->
+        
+            </div><!-- .card__section -->
+        
+              <hr/>
+              <!-- Overview -->
+              <h2 id="overview">Overview</h2>
+        <p><a href="https://www.npmjs.org/package/parse-url">parse-url</a> is an An advanced url parser supporting git urls too.</p>
+        <p>Affected versions of this package are vulnerable to Server-side Request Forgery (SSRF) due to improper detection of protocol, resource, and pathname fields. Exploiting this vulnerability results in bypassing protocol verification.</p>
+        <h2 id="poc">PoC:</h2>
+        <pre><code class="language-js">import parseUrl from &quot;parse-url&quot;;
+        import fetch from &#39;node-fetch&#39;;
+        var parsed=parseUrl(&quot;http://nnnn@localhost:808:/?id=xss&quot;)
+        if(parsed.resource==&quot;localhost&quot;){
+        console.log(&quot;internal network access is blocked&quot;)
+        }
+        else{
+           const response = await fetch(&#39;http://&#39;+parsed.resource+parsed.pathname);
+                console.log(response)
+         }
+        </code></pre>
+        <h2 id="remediation">Remediation</h2>
+        <p>Upgrade <code>parse-url</code> to version 8.1.0 or higher.</p>
+        <h2 id="references">References</h2>
+        <ul>
+        <li><a href="https://github.com/IonicaBizau/parse-url/commit/881ecb46e39286b0c2b3c32fe61dca9377176884">GitHub Commit</a></li>
+        <li><a href="https://github.com/IonicaBizau/parse-url/pull/55">GitHub PR</a></li>
+        </ul>
+        
+              <hr/>
+        
+            <div class="cta card__cta">
+                <p><a href="https://snyk.io/vuln/SNYK-JS-PARSEURL-3023021">More about this vulnerability</a></p>
+            </div>
+        
+        </div><!-- .card -->
+        <div class="card card--vuln  disclosure--not-new severity--medium" data-snyk-test="medium">
+            <h2 class="card__title">Improper Input Validation</h2>
+            <div class="card__section">
+        
+                <div class="label label--medium">
+                    <span class="label__text">medium severity</span>
+                </div>
+        
+                <hr/>
+        
+                <ul class="card__meta">
+                    <li class="card__meta__item">
+                        Package Manager: npm
+                    </li>
+                    <li class="card__meta__item">
+                            Vulnerable module:
+        
+                            parse-url
+                    </li>
+        
+                    <li class="card__meta__item">Introduced through:
+        
+        
+                                    argo-cd-ui@1.0.0, git-url-parse@11.6.0 and others
+                    </li>
+                </ul>
+        
+                <hr/>
+        
+        
+                        <h3 class="card__section__title">Detailed paths</h3>
+        
+                    <ul class="card__meta__paths">
+                                <li>
+                                <span class="list-paths__item__introduced"><em>Introduced through</em>:
+                                        argo-cd-ui@1.0.0
+                                         <span class="list-paths__item__arrow">›</span> 
+                                        git-url-parse@11.6.0
+                                         <span class="list-paths__item__arrow">›</span> 
+                                        git-up@4.0.5
+                                         <span class="list-paths__item__arrow">›</span> 
+                                        parse-url@6.0.5
+                                        
+                                </span>
+        
+                            </li>
+                    </ul><!-- .list-paths -->
+        
+            </div><!-- .card__section -->
+        
+              <hr/>
+              <!-- Overview -->
+              <h2 id="overview">Overview</h2>
+        <p><a href="https://www.npmjs.org/package/parse-url">parse-url</a> is an An advanced url parser supporting git urls too.</p>
+        <p>Affected versions of this package are vulnerable to Improper Input Validation due to incorrect parsing of URLs. This allows the attacker to craft a malformed URL which can lead to a phishing attack.</p>
+        <pre><code class="language-js">
+        const parseUrl = require(&quot;parse-url&quot;);
+        const Url = require(&quot;url&quot;);
+        
+        const express = require(&#39;express&#39;);
+        const app = express();
+        
+        var url = &quot;https://www.google.com:x@fakesite.com:x&quot;;
+        parsed = parseUrl(url);
+        console.log(&quot;[*]`parse-url` output: &quot;)
+        console.log(parsed);
+        
+        parsed2 = Url.parse(url);
+        console.log(&quot;[*]`url` output: &quot;)
+        console.log(parsed2)
+        
+        app.get(&#39;/&#39;, (req, res) =&gt; {
+            if (parsed.host == &quot;www.google.com&quot;) {
+                res.send(&quot;&lt;a href=\&#39;&quot; + parsed2.href + &quot;\&#39;&gt;CLICK ME!&lt;/a&gt;&quot;)
+            }
+        })
+        
+        app.listen(8888,&quot;0.0.0.0&quot;);
+        </code></pre>
+        <h2 id="remediation">Remediation</h2>
+        <p>Upgrade <code>parse-url</code> to version 8.1.0 or higher.</p>
+        <h2 id="references">References</h2>
+        <ul>
+        <li><a href="https://github.com/IonicaBizau/parse-url/commit/881ecb46e39286b0c2b3c32fe61dca9377176884">GitHub Commit</a></li>
+        <li><a href="https://github.com/IonicaBizau/parse-url/commit/9500430a3b9973bb1b5b2b9b319af2685ad272b3">GitHub Commit</a></li>
+        </ul>
+        
+              <hr/>
+        
+            <div class="cta card__cta">
+                <p><a href="https://snyk.io/vuln/SNYK-JS-PARSEURL-3024398">More about this vulnerability</a></p>
+            </div>
+        
+        </div><!-- .card -->
         <div class="card card--vuln  disclosure--not-new severity--medium" data-snyk-test="medium">
             <h2 class="card__title">Improper Input Validation</h2>
             <div class="card__section">
