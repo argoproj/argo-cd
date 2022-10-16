@@ -1628,13 +1628,19 @@ func NewApplicationSyncCommand(clientOpts *argocdclient.ClientOptions) *cobra.Co
 
 				var localObjsStrings []string
 				diffOption := &DifferenceOption{}
-				if local != "" {
-					app, err := appIf.Get(ctx, &applicationpkg.ApplicationQuery{
-						Name:         &appName,
-						AppNamespace: &appNs,
-					})
-					errors.CheckError(err)
 
+				app, err := appIf.Get(ctx, &applicationpkg.ApplicationQuery{
+					Name:         &appName,
+					AppNamespace: &appNs,
+				})
+				errors.CheckError(err)
+
+				if app.Spec.HasMultipleSources() {
+					log.Fatal("argocd cli does not work on multi-source app")
+					return
+				}
+
+				if local != "" {
 					if app.Spec.GetSource().Plugin != nil && app.Spec.GetSource().Plugin.Name != "" {
 						log.Warnf(argocommon.ConfigMapPluginCLIDeprecationWarning)
 					}
@@ -1712,12 +1718,6 @@ func NewApplicationSyncCommand(clientOpts *argocdclient.ClientOptions) *cobra.Co
 					}
 				}
 				if diffChanges {
-					app, err := appIf.Get(ctx, &applicationpkg.ApplicationQuery{
-						Name:         &appName,
-						AppNamespace: &appNs,
-					})
-					errors.CheckError(err)
-
 					if app.Spec.GetSource().Plugin != nil && app.Spec.GetSource().Plugin.Name != "" {
 						log.Warnf(argocommon.ConfigMapPluginCLIDeprecationWarning)
 					}

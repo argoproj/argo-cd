@@ -68,8 +68,6 @@ func (m *appStateManager) SyncAppState(app *v1alpha1.Application, state *v1alpha
 	var sources []v1alpha1.ApplicationSource
 	revisions := make([]string, 0)
 
-	hasMultipleSources := app.Spec.Sources != nil && len(app.Spec.Sources) > 0
-
 	if state.Operation.Sync == nil {
 		state.Phase = common.OperationFailed
 		state.Message = "Invalid operation request: no operation specified"
@@ -88,7 +86,7 @@ func (m *appStateManager) SyncAppState(app *v1alpha1.Application, state *v1alpha
 
 	if syncOp.Source == nil || (syncOp.Sources != nil && len(syncOp.Sources) > 0) {
 		// normal sync case (where source is taken from app.spec.sources)
-		if hasMultipleSources {
+		if app.Spec.HasMultipleSources() {
 			sources = app.Spec.Sources
 		} else {
 			// normal sync case (where source is taken from app.spec.source)
@@ -97,13 +95,12 @@ func (m *appStateManager) SyncAppState(app *v1alpha1.Application, state *v1alpha
 		}
 	} else {
 		// rollback case
-		if hasMultipleSources {
+		if app.Spec.HasMultipleSources() {
 			sources = state.Operation.Sync.Sources
 		} else {
 			source = *state.Operation.Sync.Source
 			sources = make([]v1alpha1.ApplicationSource, 0)
 		}
-
 	}
 
 	if state.SyncResult != nil {
@@ -115,7 +112,7 @@ func (m *appStateManager) SyncAppState(app *v1alpha1.Application, state *v1alpha
 		// status.operationState.syncResult.source. must be set properly since auto-sync relies
 		// on this information to decide if it should sync (if source is different than the last
 		// sync attempt)
-		if hasMultipleSources {
+		if app.Spec.HasMultipleSources() {
 			syncRes.Sources = sources
 		} else {
 			syncRes.Source = source
@@ -126,7 +123,7 @@ func (m *appStateManager) SyncAppState(app *v1alpha1.Application, state *v1alpha
 	// if we get here, it means we did not remember a commit SHA which we should be syncing to.
 	// This typically indicates we are just about to begin a brand new sync/rollback operation.
 	// Take the value in the requested operation. We will resolve this to a SHA later.
-	if hasMultipleSources {
+	if app.Spec.HasMultipleSources() {
 		if len(revisions) != len(sources) {
 			revisions = syncOp.Revisions
 		}
@@ -143,27 +140,23 @@ func (m *appStateManager) SyncAppState(app *v1alpha1.Application, state *v1alpha
 		return
 	}
 
-	if !(hasMultipleSources) {
-		// Append revision of
-		revisions = append(revisions, revision)
-	} else {
+	if app.Spec.HasMultipleSources() {
 		revisions = syncRes.Revisions
-	}
-
-	if !hasMultipleSources {
-		sources = make([]v1alpha1.ApplicationSource, 0)
-		sources = append(sources, source)
-		revisions = make([]string, 0)
+	} else {
 		revisions = append(revisions, revision)
 	}
 
-	compareResult := m.CompareAppState(app, proj, revisions, sources, false, true, syncOp.Manifests, hasMultipleSources)
+	if !app.Spec.HasMultipleSources() {
+		sources = []v1alpha1.ApplicationSource{source}
+		revisions = []string{revision}
+	}
+
+	compareResult := m.CompareAppState(app, proj, revisions, sources, false, true, syncOp.Manifests, app.Spec.HasMultipleSources())
 	// We now have a concrete commit SHA. Save this in the sync result revision so that we remember
 	// what we should be syncing to when resuming operations.
 
 	syncRes.Revision = compareResult.syncStatus.Revision
-	syncRes.Revisions = make([]string, 0)
-	syncRes.Revisions = append(syncRes.Revisions, compareResult.syncStatus.Revisions...)
+	syncRes.Revisions = compareResult.syncStatus.Revisions
 
 	// If there are any comparison or spec errors error conditions do not perform the operation
 	if errConditions := app.Status.GetConditions(map[v1alpha1.ApplicationConditionType]bool{
@@ -345,12 +338,8 @@ func (m *appStateManager) SyncAppState(app *v1alpha1.Application, state *v1alpha
 
 	logEntry.WithField("duration", time.Since(start)).Info("sync/terminate complete")
 
-	if len(compareResult.syncStatus.Revisions) == 0 {
-		compareResult.syncStatus.Revisions = append(compareResult.syncStatus.Revisions, compareResult.syncStatus.Revision)
-	}
-
 	if !syncOp.DryRun && len(syncOp.Resources) == 0 && state.Phase.Successful() {
-		err := m.persistRevisionHistory(app, compareResult.syncStatus.Revision, source, compareResult.syncStatus.Revisions, compareResult.syncStatus.ComparedTo.Sources, hasMultipleSources, state.StartedAt)
+		err := m.persistRevisionHistory(app, compareResult.syncStatus.Revision, source, compareResult.syncStatus.Revisions, compareResult.syncStatus.ComparedTo.Sources, app.Spec.HasMultipleSources(), state.StartedAt)
 		if err != nil {
 			state.Phase = common.OperationError
 			state.Message = fmt.Sprintf("failed to record sync to history: %v", err)

@@ -36,22 +36,22 @@ type ManifestRequest struct {
 	NoCache     bool   `protobuf:"varint,3,opt,name=noCache,proto3" json:"noCache,omitempty"`
 	AppLabelKey string `protobuf:"bytes,4,opt,name=appLabelKey,proto3" json:"appLabelKey,omitempty"`
 	// Name of the application for which the request is triggered
-	AppName           string                      `protobuf:"bytes,5,opt,name=appName,proto3" json:"appName,omitempty"`
-	Namespace         string                      `protobuf:"bytes,8,opt,name=namespace,proto3" json:"namespace,omitempty"`
-	ApplicationSource *v1alpha1.ApplicationSource `protobuf:"bytes,11,opt,name=applicationSource,proto3" json:"applicationSource,omitempty"`
-	// repeated github.com.argoproj.argo_cd.v2.pkg.apis.application.v1alpha1.ApplicationSource applicationSources = 12;
-	Repos            []*v1alpha1.Repository             `protobuf:"bytes,13,rep,name=repos,proto3" json:"repos,omitempty"`
-	Plugins          []*v1alpha1.ConfigManagementPlugin `protobuf:"bytes,14,rep,name=plugins,proto3" json:"plugins,omitempty"`
-	KustomizeOptions *v1alpha1.KustomizeOptions         `protobuf:"bytes,15,opt,name=kustomizeOptions,proto3" json:"kustomizeOptions,omitempty"`
-	KubeVersion      string                             `protobuf:"bytes,16,opt,name=kubeVersion,proto3" json:"kubeVersion,omitempty"`
-	ApiVersions      []string                           `protobuf:"bytes,17,rep,name=apiVersions,proto3" json:"apiVersions,omitempty"`
+	AppName           string                             `protobuf:"bytes,5,opt,name=appName,proto3" json:"appName,omitempty"`
+	Namespace         string                             `protobuf:"bytes,8,opt,name=namespace,proto3" json:"namespace,omitempty"`
+	ApplicationSource *v1alpha1.ApplicationSource        `protobuf:"bytes,11,opt,name=applicationSource,proto3" json:"applicationSource,omitempty"`
+	Repos             []*v1alpha1.Repository             `protobuf:"bytes,12,rep,name=repos,proto3" json:"repos,omitempty"`
+	Plugins           []*v1alpha1.ConfigManagementPlugin `protobuf:"bytes,13,rep,name=plugins,proto3" json:"plugins,omitempty"`
+	KustomizeOptions  *v1alpha1.KustomizeOptions         `protobuf:"bytes,14,opt,name=kustomizeOptions,proto3" json:"kustomizeOptions,omitempty"`
+	KubeVersion       string                             `protobuf:"bytes,15,opt,name=kubeVersion,proto3" json:"kubeVersion,omitempty"`
+	ApiVersions       []string                           `protobuf:"bytes,16,rep,name=apiVersions,proto3" json:"apiVersions,omitempty"`
 	// Request to verify the signature when generating the manifests (only for Git repositories)
-	VerifySignature      bool                  `protobuf:"varint,18,opt,name=verifySignature,proto3" json:"verifySignature,omitempty"`
-	HelmRepoCreds        []*v1alpha1.RepoCreds `protobuf:"bytes,19,rep,name=helmRepoCreds,proto3" json:"helmRepoCreds,omitempty"`
-	NoRevisionCache      bool                  `protobuf:"varint,20,opt,name=noRevisionCache,proto3" json:"noRevisionCache,omitempty"`
-	TrackingMethod       string                `protobuf:"bytes,21,opt,name=trackingMethod,proto3" json:"trackingMethod,omitempty"`
-	EnabledSourceTypes   map[string]bool       `protobuf:"bytes,22,rep,name=enabledSourceTypes,proto3" json:"enabledSourceTypes,omitempty" protobuf_key:"bytes,1,opt,name=key,proto3" protobuf_val:"varint,2,opt,name=value,proto3"`
-	HelmOptions          *v1alpha1.HelmOptions `protobuf:"bytes,23,opt,name=helmOptions,proto3" json:"helmOptions,omitempty"`
+	VerifySignature      bool                  `protobuf:"varint,17,opt,name=verifySignature,proto3" json:"verifySignature,omitempty"`
+	HelmRepoCreds        []*v1alpha1.RepoCreds `protobuf:"bytes,18,rep,name=helmRepoCreds,proto3" json:"helmRepoCreds,omitempty"`
+	NoRevisionCache      bool                  `protobuf:"varint,19,opt,name=noRevisionCache,proto3" json:"noRevisionCache,omitempty"`
+	TrackingMethod       string                `protobuf:"bytes,20,opt,name=trackingMethod,proto3" json:"trackingMethod,omitempty"`
+	EnabledSourceTypes   map[string]bool       `protobuf:"bytes,21,rep,name=enabledSourceTypes,proto3" json:"enabledSourceTypes,omitempty" protobuf_key:"bytes,1,opt,name=key,proto3" protobuf_val:"varint,2,opt,name=value,proto3"`
+	HelmOptions          *v1alpha1.HelmOptions `protobuf:"bytes,22,opt,name=helmOptions,proto3" json:"helmOptions,omitempty"`
+	HasMultipleSources   bool                  `protobuf:"varint,23,opt,name=hasMultipleSources,proto3" json:"hasMultipleSources,omitempty"`
 	XXX_NoUnkeyedLiteral struct{}              `json:"-"`
 	XXX_unrecognized     []byte                `json:"-"`
 	XXX_sizecache        int32                 `json:"-"`
@@ -214,6 +214,13 @@ func (m *ManifestRequest) GetHelmOptions() *v1alpha1.HelmOptions {
 		return m.HelmOptions
 	}
 	return nil
+}
+
+func (m *ManifestRequest) GetHasMultipleSources() bool {
+	if m != nil {
+		return m.HasMultipleSources
+	}
+	return false
 }
 
 type ManifestRequestWithFiles struct {
@@ -2434,6 +2441,18 @@ func (m *ManifestRequest) MarshalToSizedBuffer(dAtA []byte) (int, error) {
 		i -= len(m.XXX_unrecognized)
 		copy(dAtA[i:], m.XXX_unrecognized)
 	}
+	if m.HasMultipleSources {
+		i--
+		if m.HasMultipleSources {
+			dAtA[i] = 1
+		} else {
+			dAtA[i] = 0
+		}
+		i--
+		dAtA[i] = 0x1
+		i--
+		dAtA[i] = 0xb8
+	}
 	if m.HelmOptions != nil {
 		{
 			size, err := m.HelmOptions.MarshalToSizedBuffer(dAtA[:i])
@@ -2446,7 +2465,7 @@ func (m *ManifestRequest) MarshalToSizedBuffer(dAtA []byte) (int, error) {
 		i--
 		dAtA[i] = 0x1
 		i--
-		dAtA[i] = 0xba
+		dAtA[i] = 0xb2
 	}
 	if len(m.EnabledSourceTypes) > 0 {
 		for k := range m.EnabledSourceTypes {
@@ -2469,7 +2488,7 @@ func (m *ManifestRequest) MarshalToSizedBuffer(dAtA []byte) (int, error) {
 			i--
 			dAtA[i] = 0x1
 			i--
-			dAtA[i] = 0xb2
+			dAtA[i] = 0xaa
 		}
 	}
 	if len(m.TrackingMethod) > 0 {
@@ -2479,7 +2498,7 @@ func (m *ManifestRequest) MarshalToSizedBuffer(dAtA []byte) (int, error) {
 		i--
 		dAtA[i] = 0x1
 		i--
-		dAtA[i] = 0xaa
+		dAtA[i] = 0xa2
 	}
 	if m.NoRevisionCache {
 		i--
@@ -2491,7 +2510,7 @@ func (m *ManifestRequest) MarshalToSizedBuffer(dAtA []byte) (int, error) {
 		i--
 		dAtA[i] = 0x1
 		i--
-		dAtA[i] = 0xa0
+		dAtA[i] = 0x98
 	}
 	if len(m.HelmRepoCreds) > 0 {
 		for iNdEx := len(m.HelmRepoCreds) - 1; iNdEx >= 0; iNdEx-- {
@@ -2506,7 +2525,7 @@ func (m *ManifestRequest) MarshalToSizedBuffer(dAtA []byte) (int, error) {
 			i--
 			dAtA[i] = 0x1
 			i--
-			dAtA[i] = 0x9a
+			dAtA[i] = 0x92
 		}
 	}
 	if m.VerifySignature {
@@ -2519,7 +2538,7 @@ func (m *ManifestRequest) MarshalToSizedBuffer(dAtA []byte) (int, error) {
 		i--
 		dAtA[i] = 0x1
 		i--
-		dAtA[i] = 0x90
+		dAtA[i] = 0x88
 	}
 	if len(m.ApiVersions) > 0 {
 		for iNdEx := len(m.ApiVersions) - 1; iNdEx >= 0; iNdEx-- {
@@ -2529,7 +2548,7 @@ func (m *ManifestRequest) MarshalToSizedBuffer(dAtA []byte) (int, error) {
 			i--
 			dAtA[i] = 0x1
 			i--
-			dAtA[i] = 0x8a
+			dAtA[i] = 0x82
 		}
 	}
 	if len(m.KubeVersion) > 0 {
@@ -2537,9 +2556,7 @@ func (m *ManifestRequest) MarshalToSizedBuffer(dAtA []byte) (int, error) {
 		copy(dAtA[i:], m.KubeVersion)
 		i = encodeVarintRepository(dAtA, i, uint64(len(m.KubeVersion)))
 		i--
-		dAtA[i] = 0x1
-		i--
-		dAtA[i] = 0x82
+		dAtA[i] = 0x7a
 	}
 	if m.KustomizeOptions != nil {
 		{
@@ -2551,7 +2568,7 @@ func (m *ManifestRequest) MarshalToSizedBuffer(dAtA []byte) (int, error) {
 			i = encodeVarintRepository(dAtA, i, uint64(size))
 		}
 		i--
-		dAtA[i] = 0x7a
+		dAtA[i] = 0x72
 	}
 	if len(m.Plugins) > 0 {
 		for iNdEx := len(m.Plugins) - 1; iNdEx >= 0; iNdEx-- {
@@ -2564,7 +2581,7 @@ func (m *ManifestRequest) MarshalToSizedBuffer(dAtA []byte) (int, error) {
 				i = encodeVarintRepository(dAtA, i, uint64(size))
 			}
 			i--
-			dAtA[i] = 0x72
+			dAtA[i] = 0x6a
 		}
 	}
 	if len(m.Repos) > 0 {
@@ -2578,7 +2595,7 @@ func (m *ManifestRequest) MarshalToSizedBuffer(dAtA []byte) (int, error) {
 				i = encodeVarintRepository(dAtA, i, uint64(size))
 			}
 			i--
-			dAtA[i] = 0x6a
+			dAtA[i] = 0x62
 		}
 	}
 	if m.ApplicationSource != nil {
@@ -4094,7 +4111,7 @@ func (m *ManifestRequest) Size() (n int) {
 	}
 	l = len(m.KubeVersion)
 	if l > 0 {
-		n += 2 + l + sovRepository(uint64(l))
+		n += 1 + l + sovRepository(uint64(l))
 	}
 	if len(m.ApiVersions) > 0 {
 		for _, s := range m.ApiVersions {
@@ -4129,6 +4146,9 @@ func (m *ManifestRequest) Size() (n int) {
 	if m.HelmOptions != nil {
 		l = m.HelmOptions.Size()
 		n += 2 + l + sovRepository(uint64(l))
+	}
+	if m.HasMultipleSources {
+		n += 3
 	}
 	if m.XXX_unrecognized != nil {
 		n += len(m.XXX_unrecognized)
@@ -5018,7 +5038,7 @@ func (m *ManifestRequest) Unmarshal(dAtA []byte) error {
 				return err
 			}
 			iNdEx = postIndex
-		case 13:
+		case 12:
 			if wireType != 2 {
 				return fmt.Errorf("proto: wrong wireType = %d for field Repos", wireType)
 			}
@@ -5052,7 +5072,7 @@ func (m *ManifestRequest) Unmarshal(dAtA []byte) error {
 				return err
 			}
 			iNdEx = postIndex
-		case 14:
+		case 13:
 			if wireType != 2 {
 				return fmt.Errorf("proto: wrong wireType = %d for field Plugins", wireType)
 			}
@@ -5086,7 +5106,7 @@ func (m *ManifestRequest) Unmarshal(dAtA []byte) error {
 				return err
 			}
 			iNdEx = postIndex
-		case 15:
+		case 14:
 			if wireType != 2 {
 				return fmt.Errorf("proto: wrong wireType = %d for field KustomizeOptions", wireType)
 			}
@@ -5122,7 +5142,7 @@ func (m *ManifestRequest) Unmarshal(dAtA []byte) error {
 				return err
 			}
 			iNdEx = postIndex
-		case 16:
+		case 15:
 			if wireType != 2 {
 				return fmt.Errorf("proto: wrong wireType = %d for field KubeVersion", wireType)
 			}
@@ -5154,7 +5174,7 @@ func (m *ManifestRequest) Unmarshal(dAtA []byte) error {
 			}
 			m.KubeVersion = string(dAtA[iNdEx:postIndex])
 			iNdEx = postIndex
-		case 17:
+		case 16:
 			if wireType != 2 {
 				return fmt.Errorf("proto: wrong wireType = %d for field ApiVersions", wireType)
 			}
@@ -5186,7 +5206,7 @@ func (m *ManifestRequest) Unmarshal(dAtA []byte) error {
 			}
 			m.ApiVersions = append(m.ApiVersions, string(dAtA[iNdEx:postIndex]))
 			iNdEx = postIndex
-		case 18:
+		case 17:
 			if wireType != 0 {
 				return fmt.Errorf("proto: wrong wireType = %d for field VerifySignature", wireType)
 			}
@@ -5206,7 +5226,7 @@ func (m *ManifestRequest) Unmarshal(dAtA []byte) error {
 				}
 			}
 			m.VerifySignature = bool(v != 0)
-		case 19:
+		case 18:
 			if wireType != 2 {
 				return fmt.Errorf("proto: wrong wireType = %d for field HelmRepoCreds", wireType)
 			}
@@ -5240,7 +5260,7 @@ func (m *ManifestRequest) Unmarshal(dAtA []byte) error {
 				return err
 			}
 			iNdEx = postIndex
-		case 20:
+		case 19:
 			if wireType != 0 {
 				return fmt.Errorf("proto: wrong wireType = %d for field NoRevisionCache", wireType)
 			}
@@ -5260,7 +5280,7 @@ func (m *ManifestRequest) Unmarshal(dAtA []byte) error {
 				}
 			}
 			m.NoRevisionCache = bool(v != 0)
-		case 21:
+		case 20:
 			if wireType != 2 {
 				return fmt.Errorf("proto: wrong wireType = %d for field TrackingMethod", wireType)
 			}
@@ -5292,7 +5312,7 @@ func (m *ManifestRequest) Unmarshal(dAtA []byte) error {
 			}
 			m.TrackingMethod = string(dAtA[iNdEx:postIndex])
 			iNdEx = postIndex
-		case 22:
+		case 21:
 			if wireType != 2 {
 				return fmt.Errorf("proto: wrong wireType = %d for field EnabledSourceTypes", wireType)
 			}
@@ -5407,7 +5427,7 @@ func (m *ManifestRequest) Unmarshal(dAtA []byte) error {
 			}
 			m.EnabledSourceTypes[mapkey] = mapvalue
 			iNdEx = postIndex
-		case 23:
+		case 22:
 			if wireType != 2 {
 				return fmt.Errorf("proto: wrong wireType = %d for field HelmOptions", wireType)
 			}
@@ -5443,6 +5463,26 @@ func (m *ManifestRequest) Unmarshal(dAtA []byte) error {
 				return err
 			}
 			iNdEx = postIndex
+		case 23:
+			if wireType != 0 {
+				return fmt.Errorf("proto: wrong wireType = %d for field HasMultipleSources", wireType)
+			}
+			var v int
+			for shift := uint(0); ; shift += 7 {
+				if shift >= 64 {
+					return ErrIntOverflowRepository
+				}
+				if iNdEx >= l {
+					return io.ErrUnexpectedEOF
+				}
+				b := dAtA[iNdEx]
+				iNdEx++
+				v |= int(b&0x7F) << shift
+				if b < 0x80 {
+					break
+				}
+			}
+			m.HasMultipleSources = bool(v != 0)
 		default:
 			iNdEx = preIndex
 			skippy, err := skipRepository(dAtA[iNdEx:])

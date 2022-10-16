@@ -138,8 +138,7 @@ func SetAppSpecOptions(flags *pflag.FlagSet, spec *argoappv1.ApplicationSpec, ap
 	}
 	flags.Visit(func(f *pflag.Flag) {
 		visited++
-		var source *argoappv1.ApplicationSource
-		source = spec.GetSourcePtr()
+		source := spec.GetSourcePtr()
 		if source == nil {
 			source = &argoappv1.ApplicationSource{}
 		}

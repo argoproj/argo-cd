@@ -1638,7 +1638,7 @@ spec:
                       - repoURL
                       type: object
                     sources:
-                      description: Source is a reference to the application source
+                      description: Sources is a reference to the application sources
                         used for the sync operation
                       items:
                         description: ApplicationSource contains all required information
