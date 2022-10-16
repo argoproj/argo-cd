@@ -1206,7 +1206,16 @@ func GenerateManifests(ctx context.Context, appPath, repoRoot, revision string, 
 
 	// Set path of the source in the environment variable if ref field is set
 	if q.ApplicationSource.Ref != "" {
-		os.Setenv(q.ApplicationSource.Ref, appPath)
+		os.Setenv(fmt.Sprintf("$%s", q.ApplicationSource.Ref), appPath)
+	}
+
+	if q.HasMultipleSources {
+		if q.ApplicationSource.Path == "" && q.ApplicationSource.Chart == "" {
+			log.WithFields(map[string]interface{}{
+				"source": q.ApplicationSource,
+			}).Warnf("not generating manifests as path and chart fields are empty")
+			return &apiclient.ManifestResponse{}, nil
+		}
 	}
 
 	appSourceType, err := GetAppSourceType(ctx, q.ApplicationSource, appPath, q.AppName, q.EnabledSourceTypes, opt.cmpTarExcludedGlobs)
@@ -1933,15 +1942,6 @@ func populateHelmAppDetails(res *apiclient.RepoAppDetailsResponse, appPath strin
 
 	if q.Source.Helm != nil {
 		selectedValueFiles = q.Source.Helm.ValueFiles
-		for i, file := range selectedValueFiles {
-			// update path of value file if value file is referencing another ApplicationSource
-			if strings.HasPrefix(file, "$") {
-				pathStrings := strings.Split(file, "/")
-				key := os.Getenv(strings.Split(file, "/")[0])
-				pathStrings[0] = strings.TrimPrefix(key, "$")
-				selectedValueFiles[i] = strings.Join(pathStrings, "/")
-			}
-		}
 	}
 
 	availableValueFiles, err := findHelmValueFilesInPath(appPath)

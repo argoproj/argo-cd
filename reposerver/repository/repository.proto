@@ -17,12 +17,11 @@ message ManifestRequest {
     string appName = 5;
     string namespace = 8;
     github.com.argoproj.argo_cd.v2.pkg.apis.application.v1alpha1.ApplicationSource applicationSource = 11;
-    // repeated github.com.argoproj.argo_cd.v2.pkg.apis.application.v1alpha1.ApplicationSource applicationSources = 12;
-    repeated github.com.argoproj.argo_cd.v2.pkg.apis.application.v1alpha1.Repository repos = 13;
-    repeated github.com.argoproj.argo_cd.v2.pkg.apis.application.v1alpha1.ConfigManagementPlugin plugins = 14;
-    github.com.argoproj.argo_cd.v2.pkg.apis.application.v1alpha1.KustomizeOptions kustomizeOptions = 15;
-    string kubeVersion = 16;
-    repeated string apiVersions = 17;
+    repeated github.com.argoproj.argo_cd.v2.pkg.apis.application.v1alpha1.Repository repos = 12;
+    repeated github.com.argoproj.argo_cd.v2.pkg.apis.application.v1alpha1.ConfigManagementPlugin plugins = 13;
+    github.com.argoproj.argo_cd.v2.pkg.apis.application.v1alpha1.KustomizeOptions kustomizeOptions = 14;
+    string kubeVersion = 15;
+    repeated string apiVersions = 16;
     // Request to verify the signature when generating the manifests (only for Git repositories)
     bool verifySignature = 16;
     repeated github.com.argoproj.argo_cd.v2.pkg.apis.application.v1alpha1.RepoCreds helmRepoCreds = 17;
