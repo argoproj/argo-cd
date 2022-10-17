@@ -100,10 +100,7 @@ func ReadLocalConfig(path string) (*LocalConfig, error) {
 
 func ValidateLocalConfig(config LocalConfig) error {
 	if config.CurrentContext == "" {
-		return nil
-	}
-	if _, err := config.ResolveContext(config.CurrentContext); err != nil {
-		return fmt.Errorf("Local config invalid: %s", err)
+		return fmt.Errorf("Local config: current-context unset")
 	}
 	return nil
 }
@@ -128,8 +125,8 @@ func DeleteLocalConfig(configPath string) error {
 // ResolveContext resolves the specified context. If unspecified, resolves the current context
 func (l *LocalConfig) ResolveContext(name string) (*Context, error) {
 	if name == "" {
-		if l.CurrentContext == "" {
-			return nil, fmt.Errorf("Local config: current-context unset")
+		if err := ValidateLocalConfig(*l); err != nil {
+			return nil, err
 		}
 		name = l.CurrentContext
 	}
