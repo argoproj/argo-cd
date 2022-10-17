@@ -303,6 +303,18 @@ export const ApplicationParameters = (props: {
             )),
             edit: (formApi: FormApi) => <FormField field='spec.source.directory.jsonnet.extVars' formApi={formApi} component={VarsInputField} />
         });
+
+        attributes.push({
+            title: 'INCLUDE',
+            view: app.spec.source.directory && app.spec.source.directory.include,
+            edit: (formApi: FormApi) => <FormField formApi={formApi} field='spec.source.directory.include' component={Text} />
+        });
+
+        attributes.push({
+            title: 'EXCLUDE',
+            view: app.spec.source.directory && app.spec.source.directory.exclude,
+            edit: (formApi: FormApi) => <FormField formApi={formApi} field='spec.source.directory.exclude' component={Text} />
+        });
     }
 
     return (
