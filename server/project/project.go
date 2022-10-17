@@ -152,7 +152,7 @@ func (s *Server) DeleteToken(ctx context.Context, q *project.ProjectTokenDeleteR
 	}
 	err = validateProject(prj)
 	if err != nil {
-		return nil, err
+		return nil, fmt.Errorf("error validating project: %w", err)
 	}
 
 	s.projectLock.Lock(q.Project)
