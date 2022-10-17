@@ -4,9 +4,9 @@ All Argo CD container images are signed by cosign. Checksums are created for the
 
 ## Prerequisites
 - Cosign [installation instructions](https://docs.sigstore.dev/cosign/installation)
-- Obtain or have a copy of our [public key](https://github.com/argoproj/argo-cd/blob/master/argocd-cosign.pub) ```argocd-cosign.pub```
+- Obtain or have a copy of the [public key](https://github.com/argoproj/argo-cd/blob/master/argocd-cosign.pub) ```argocd-cosign.pub```
 
-Once you have installed cosign, you can use [argocd-cosign.pub](https://github.com/argoproj/argo-cd/blob/master/argocd-cosign.pub) to verify signed assets or container images.
+Once you have installed cosign, you can use [argocd-cosign.pub](https://github.com/argoproj/argo-cd/blob/master/argocd-cosign.pub) to verify the signed assets or container images.
 ```bash
 -----BEGIN PUBLIC KEY-----
 MFkwEwYHKoZIzj0CAQYIKoZIzj0DAQcDQgAEesHEB7vX5Y2RxXypjMy1nI1z7iRG
@@ -27,6 +27,6 @@ The following checks were performed on each of these signatures:
 ## Verification of signed assets
 
 ```bash
-cosign verify-blob --key cosign.pub --signature $(cat argocd-2.5.0-checksums.sig) argocd-2.5.0-checksums.txt
+cosign verify-blob --key cosign.pub --signature $(cat argocd-$VERSION-checksums.sig) argocd-$VERSION-checksums.txt
 Verified OK
 ```
