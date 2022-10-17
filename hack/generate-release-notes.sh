@@ -94,16 +94,6 @@ if [ "$new_contributors_num" -gt 0 ]; then
   new_contributors_message=" ($new_contributors_num of them new)"
 fi
 
-echo "## Changes"
-echo
-echo "This release includes $new_commits_num contributions from $contributors_num contributors$new_contributors_message with $features_num features and $fixes_num bug fixes."
-echo
-if [ "$new_contributors_num" -lt 20 ] && [ "$new_contributors_num" -gt 0 ]; then
-  echo "A special thanks goes to the $new_contributors_num new contributors:"
-  echo "$new_contributors_names"
-  echo
-fi
-
 # Adapted from https://stackoverflow.com/a/67029088/684776
 less_log=$(git log --pretty="format:%s %ae" --cherry-pick --left-only --no-merges "$new_ref...$old_ref")
 more_log=$(git log --pretty="format:%s %ae" "$new_ref..$old_ref")
