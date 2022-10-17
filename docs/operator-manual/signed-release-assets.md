@@ -7,7 +7,7 @@ All Argo CD container images are signed by cosign. Checksums are created for the
 - Obtain or have a copy of the [public key](https://github.com/argoproj/argo-cd/blob/master/argocd-cosign.pub) ```argocd-cosign.pub```
 
 Once you have installed cosign, you can use [argocd-cosign.pub](https://github.com/argoproj/argo-cd/blob/master/argocd-cosign.pub) to verify the signed assets or container images.
-```bash
+```
 -----BEGIN PUBLIC KEY-----
 MFkwEwYHKoZIzj0CAQYIKoZIzj0DAQcDQgAEesHEB7vX5Y2RxXypjMy1nI1z7iRG
 JI9/gt/sYqzpsa65aaNP4npM43DDxoIy/MQBo9s/mxGxmA+8UXeDpVC9vw==

@@ -56,7 +56,7 @@ kubectl apply -n argocd -f https://raw.githubusercontent.com/argoproj/argo-cd/$v
 
 ## Release signatures
 
-All Argo CD container images are signed by cosign. See the [documentation](https://argo-cd.readthedocs.io/en/stable/operator-manual/signed-release-assets.md/) on how to verify the signatures.
+All Argo CD container images and CLI binaries are signed by cosign. See the [documentation](https://argo-cd.readthedocs.io/en/stable/operator-manual/signed-release-assets.md/) on how to verify the signatures.
 \`\`\`shell
 -----BEGIN PUBLIC KEY-----
 MFkwEwYHKoZIzj0CAQYIKoZIzj0DAQcDQgAEesHEB7vX5Y2RxXypjMy1nI1z7iRG
