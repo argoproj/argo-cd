@@ -1,6 +1,7 @@
 package controller
 
 import (
+	"fmt"
 	"github.com/argoproj/argo-cd/v2/pkg/apis/application/v1alpha1"
 	"github.com/argoproj/argo-cd/v2/util/argo"
 	gitopscommon "github.com/argoproj/gitops-engine/pkg/sync/common"
@@ -19,17 +20,19 @@ func syncNamespace(resourceTracking argo.ResourceTracking, appLabelKey string, t
 				managedNamespaceMetadata := syncPolicy.ManagedNamespaceMetadata
 				un.SetLabels(managedNamespaceMetadata.Labels)
 				un.SetAnnotations(appendNamespaceSSA(managedNamespaceMetadata.Annotations))
-			}
 
-			hasNoResourceTracking := resourceTracking.GetAppInstance(un, appLabelKey, trackingMethod) == nil
-			if hasNoResourceTracking {
-				err := resourceTracking.SetAppInstance(un, appLabelKey, appName, "", trackingMethod)
-				if err != nil {
-					return false, err
+				// TODO: This should probably be removed from this block and be tracked for all namespaces created by ArgoCD.
+				// However, there's an issue with a failing integration test (see app_management_test#TestNamespaceAutoCreation)
+				shouldTrackNs := resourceTracking.GetAppInstance(un, appLabelKey, trackingMethod) == nil && appLabelKey != "" && appName != ""
+				if shouldTrackNs {
+					err := resourceTracking.SetAppInstance(un, appLabelKey, appName, "", trackingMethod)
+					if err != nil {
+						return false, fmt.Errorf("failed to set app instance tracking on the namespace %s: %s", un.GetName(), err)
+					}
 				}
-			}
 
-			return hasManagedMetadata || hasNoResourceTracking, nil
+				return shouldTrackNs, nil
+			}
 		}
 
 		return isNewNamespace, nil

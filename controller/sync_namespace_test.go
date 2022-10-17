@@ -1,6 +1,7 @@
 package controller
 
 import (
+	"errors"
 	"github.com/argoproj/argo-cd/v2/common"
 	"github.com/argoproj/argo-cd/v2/pkg/apis/application/v1alpha1"
 	"github.com/argoproj/argo-cd/v2/util/argo"
@@ -9,6 +10,33 @@ import (
 	"k8s.io/apimachinery/pkg/types"
 	"testing"
 )
+
+type fakeResourceTracking struct {
+}
+
+func (f fakeResourceTracking) GetAppName(un *unstructured.Unstructured, key string, trackingMethod v1alpha1.TrackingMethod) string {
+	panic("implement me")
+}
+
+func (f fakeResourceTracking) GetAppInstance(un *unstructured.Unstructured, key string, trackingMethod v1alpha1.TrackingMethod) *argo.AppInstanceValue {
+	return nil
+}
+
+func (f fakeResourceTracking) SetAppInstance(un *unstructured.Unstructured, key, val, namespace string, trackingMethod v1alpha1.TrackingMethod) error {
+	return errors.New("some error")
+}
+
+func (f fakeResourceTracking) BuildAppInstanceValue(value argo.AppInstanceValue) string {
+	panic("implement me")
+}
+
+func (f fakeResourceTracking) ParseAppInstanceValue(value string) (*argo.AppInstanceValue, error) {
+	panic("implement me")
+}
+
+func (f fakeResourceTracking) Normalize(config, live *unstructured.Unstructured, labelKey, trackingMethod string) error {
+	panic("implement me")
+}
 
 func createFakeNamespace(uid string, resourceVersion string, labels map[string]string, annotations map[string]string) *unstructured.Unstructured {
 	un := unstructured.Unstructured{}
@@ -58,10 +86,11 @@ func Test_shouldNamespaceSync(t *testing.T) {
 			},
 		},
 		{
-			name:                "namespace does not yet exist and managedNamespaceMetadata nil",
-			expected:            true,
-			expectedLabels:      map[string]string{},
-			expectedAnnotations: map[string]string{"argocd.argoproj.io/tracking-id": "some-app:/Namespace:/some-namespace"},
+			name:           "namespace does not yet exist and managedNamespaceMetadata nil",
+			expected:       true,
+			expectedLabels: map[string]string{},
+			//expectedAnnotations: map[string]string{"argocd.argoproj.io/tracking-id": "some-app:/Namespace:/some-namespace"},
+			expectedAnnotations: map[string]string{},
 			un:                  createFakeNamespace("", "", map[string]string{}, map[string]string{}),
 			syncPolicy: &v1alpha1.SyncPolicy{
 				ManagedNamespaceMetadata: nil,
@@ -240,4 +269,16 @@ func Test_shouldNamespaceSync(t *testing.T) {
 			assert.Equalf(t, tt.expected, actual, "syncNamespace(%v)", tt.syncPolicy)
 		})
 	}
+}
+
+func Test_shouldNamespaceSync_Failure(t *testing.T) {
+	fake := fakeResourceTracking{}
+	_, err := syncNamespace(fake, common.LabelKeyAppInstance, argo.TrackingMethodAnnotation, "some-app", &v1alpha1.SyncPolicy{
+		ManagedNamespaceMetadata: &v1alpha1.ManagedNamespaceMetadata{
+			Labels:      map[string]string{"my-cool-label": "some-value"},
+			Annotations: map[string]string{"my-cool-annotation": "some-value"},
+		},
+	})(createFakeNamespace("something", "1", map[string]string{}, map[string]string{}))
+	assert.Error(t, err, "Expected error")
+	assert.Equal(t, "failed to set app instance tracking on the namespace some-namespace: some error", err.Error())
 }
