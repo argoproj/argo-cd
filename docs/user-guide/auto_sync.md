@@ -75,6 +75,16 @@ spec:
       selfHeal: true
 ```
 
+## Explicitly Disabling Automatic Sync Policy
+Automatic Sync Policy can be disabled explicitly using the disabled option:
+
+```yaml
+spec:
+  syncPolicy:
+    automated:
+      disabled: true
+```
+
 ## Automated Sync Semantics
 
 * An automated sync will only be performed if the application is OutOfSync. Applications in a

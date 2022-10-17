@@ -1814,6 +1814,9 @@ message SyncPolicyAutomated {
 
   // AllowEmpty allows apps have zero live resources (default: false)
   optional bool allowEmpty = 3;
+
+  // Disabled allows explicitly disabling an Automated SyncPolicy
+  optional bool disabled = 4;
 }
 
 // SyncStatus contains information about the currently observed live and desired states of an application

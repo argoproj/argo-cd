@@ -6147,6 +6147,13 @@ func schema_pkg_apis_application_v1alpha1_SyncPolicyAutomated(ref common.Referen
 							Format:      "",
 						},
 					},
+					"disabled": {
+						SchemaProps: spec.SchemaProps{
+							Description: "Disabled allows explicitly disabling an Automated SyncPolicy",
+							Type:        []string{"boolean"},
+							Format:      "",
+						},
+					},
 				},
 			},
 		},
