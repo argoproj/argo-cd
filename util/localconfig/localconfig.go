@@ -89,7 +89,7 @@ func ReadLocalConfig(path string) (*LocalConfig, error) {
 
 	err = configUtil.UnmarshalLocalFile(path, &config)
 	if os.IsNotExist(err) {
-		return nil, nil
+		return nil, err
 	}
 	err = ValidateLocalConfig(config)
 	if err != nil {
