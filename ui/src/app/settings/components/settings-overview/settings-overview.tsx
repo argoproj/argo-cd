@@ -13,8 +13,8 @@ const settings = [
         path: './repos'
     },
     {
-        title: 'Certificates and known hosts',
-        description: 'Configure certificates and known hosts for connecting Git repositories',
+        title: 'Repository certificates and known hosts',
+        description: 'Configure repository certificates and known hosts for connecting Git repositories',
         path: './certs'
     },
     {
