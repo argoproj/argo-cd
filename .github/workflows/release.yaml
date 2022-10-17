@@ -286,6 +286,14 @@ jobs:
           cd /tmp && tar -zcf sbom.tar.gz *.spdx
         if: ${{ env.DRY_RUN != 'true' }}
 
+      - name: Sign sbom
+        run: |
+          cosign sign-blob --key env://COSIGN_PRIVATE_KEY /tmp/sbom.tar.gz > /tmp/sbom.tar.gz.sig
+        env:
+          COSIGN_PRIVATE_KEY: ${{secrets.COSIGN_PRIVATE_KEY}}
+          COSIGN_PASSWORD: ${{secrets.COSIGN_PASSWORD}}
+        if: ${{ env.DRY_RUN != 'true' }}
+
       - name: Create GitHub release
         uses: softprops/action-gh-release@v1
         env:
@@ -300,6 +308,7 @@ jobs:
           files: |
             dist/argocd-*
             /tmp/sbom.tar.gz
+            /tmp/sbom.tar.gz.sig
         if: ${{ env.DRY_RUN != 'true' }}
 
       - name: Update homebrew formula
