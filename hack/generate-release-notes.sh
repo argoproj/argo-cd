@@ -103,3 +103,67 @@ if [ "$new_contributors_num" -lt 20 ] && [ "$new_contributors_num" -gt 0 ]; then
   echo "$new_contributors_names"
   echo
 fi
+
+# Adapted from https://stackoverflow.com/a/67029088/684776
+less_log=$(git log --pretty="format:%s %ae" --cherry-pick --left-only --no-merges "$new_ref...$old_ref")
+more_log=$(git log --pretty="format:%s %ae" "$new_ref..$old_ref")
+
+new_commits=$(diff --new-line-format="" --unchanged-line-format="" <(echo "$less_log") <(echo "$more_log") | grep -v "Merge pull request from GHSA")
+new_commits_no_email=$(echo "$new_commits" | strip_last_word)
+features=$(echo "$new_commits_no_email" | grep '^feat' | to_list_items)
+fixes=$(echo "$new_commits_no_email" | grep '^fix' | to_list_items)
+docs=$(echo "$new_commits_no_email" | grep '^docs' | to_list_items)
+other=$(echo "$new_commits_no_email" | grep -v -e '^feat' -e '^fix' -e '^docs' | to_list_items)
+
+contributors_num=$(echo "$new_commits" | only_last_word | sort -u | nonempty_line_count)
+
+new_commits_num=$(echo "$new_commits" | nonempty_line_count)
+features_num=$(echo "$features" | nonempty_line_count)
+fixes_num=$(echo "$fixes" | nonempty_line_count)
+docs_num=$(echo "$docs" | nonempty_line_count)
+other_num=$(echo "$other" | nonempty_line_count)
+
+previous_contributors=$(git log --pretty="format:%an %ae" "$old_ref" | sort -uf)
+all_contributors=$(git log --pretty="format:%an %ae" "$new_ref" | sort -uf)
+new_contributors=$(diff --new-line-format="" --unchanged-line-format="" <(echo "$all_contributors") <(echo "$previous_contributors"))
+new_contributors_num=$(echo "$new_contributors" | only_last_word | nonempty_line_count)  # Count contributors by email
+new_contributors_names=$(echo "$new_contributors" | strip_last_word | to_list_items)
+
+new_contributors_message=""
+if [ "$new_contributors_num" -gt 0 ]; then
+  new_contributors_message=" ($new_contributors_num of them new)"
+fi
+
+echo "## Changes"
+echo
+echo "This release includes $new_commits_num contributions from $contributors_num contributors$new_contributors_message with $features_num features and $fixes_num bug fixes."
+echo
+if [ "$new_contributors_num" -lt 20 ] && [ "$new_contributors_num" -gt 0 ]; then
+  echo "A special thanks goes to the $new_contributors_num new contributors:"
+  echo "$new_contributors_names"
+  echo
+fi
+if [ "$features_num" -gt 0 ]; then
+  echo "### Features"
+  echo
+  echo "$features"
+  echo
+fi
+if [ "$fixes_num" -gt 0 ]; then
+  echo "### Bug fixes"
+  echo
+  echo "$fixes"
+  echo
+fi
+if [ "$docs_num" -gt 0 ]; then
+  echo "### Documentation"
+  echo
+  echo "$docs"
+  echo
+fi
+if [ "$other_num" -gt 0 ]; then
+  echo "### Other"
+  echo
+  echo "$other"
+  echo
+fi
