@@ -182,9 +182,9 @@ export const ApplicationSyncPanel = ({application, selectedResource, hide}: {app
                                             </a>
                                         </div>
                                         <div className='application-details__warning'>
-                                            {!formApi.values.resources.every((item: boolean) => item) && (
-                                                <div>WARNING: partial synchronization is not recorded in history</div>
-                                            )}
+                                            {!formApi.values.resources.every((item: boolean) => item) && 
+                                                (<div>WARNING: partial synchronization is not recorded in history</div>)
+                                            }
                                         </div>
                                         <div>
                                             {application.status.resources
