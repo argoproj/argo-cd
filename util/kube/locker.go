@@ -99,7 +99,7 @@ func (l *Locker) TryLock(namespace, key string) LockResult {
 func (l *Locker) Unlock(namespace, key string) error {
 	resName := lockName(key)
 	err := l.client.CoreV1().ConfigMaps(namespace).Delete(l.ctx, resName, metav1.DeleteOptions{})
-	if errors.IsNotFound(err) {
+	if err == nil || errors.IsNotFound(err) {
 		return nil
 	}
 	return err
@@ -111,7 +111,7 @@ func (l *Locker) calNextTimeToTry(timeStr string) time.Duration {
 	if err != nil {
 		return -1
 	}
-	return deadline.Sub(time.Now())
+	return time.Until(deadline)
 }
 
 func NewLocker(client kubernetes.Interface, duration time.Duration, ctx context.Context) *Locker {
