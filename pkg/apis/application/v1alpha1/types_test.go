@@ -651,6 +651,8 @@ func TestAppProject_ValidateGroupName(t *testing.T) {
 		"my,group",
 		"my\ngroup",
 		"my\rgroup",
+		" my:group",
+		"my:group ",
 	}
 	for _, badName := range badGroupNames {
 		p.Spec.Roles[0].Groups = []string{badName}
