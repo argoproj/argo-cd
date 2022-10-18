@@ -3916,7 +3916,6 @@ func schema_pkg_apis_application_v1alpha1_PullRequestGeneratorGitLab(ref common.
 					"project": {
 						SchemaProps: spec.SchemaProps{
 							Description: "GitLab project to scan. Either project or group required.",
-							Default:     "",
 							Type:        []string{"string"},
 							Format:      "",
 						},
