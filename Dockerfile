@@ -49,7 +49,7 @@ RUN groupadd -g $ARGOCD_USER_ID argocd && \
     apt-get update && \
     apt-get dist-upgrade -y && \
     apt-get install -y \
-    git git-lfs tini gpg tzdata && \
+    git git-lfs tini gpg tzdata vim && \
     apt-get clean && \
     rm -rf /var/lib/apt/lists/* /tmp/* /var/tmp/*
 
