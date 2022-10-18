@@ -9,24 +9,21 @@ import (
 )
 
 func syncNamespace(resourceTracking argo.ResourceTracking, appLabelKey string, trackingMethod v1alpha1.TrackingMethod, appName string, syncPolicy *v1alpha1.SyncPolicy) func(un *unstructured.Unstructured) (bool, error) {
-	return func(un *unstructured.Unstructured) (bool, error) {
-		isNewNamespace := un != nil && un.GetUID() == "" && un.GetResourceVersion() == ""
+	return func(liveNs *unstructured.Unstructured) (bool, error) {
+		isNewNamespace := liveNs != nil && liveNs.GetUID() == "" && liveNs.GetResourceVersion() == ""
 
-		if un != nil && syncPolicy != nil {
+		if liveNs != nil && syncPolicy != nil {
 			// managedNamespaceMetadata relies on SSA, and since the diffs are computed by the k8s control plane we
 			// always need to call the k8s api server, so we'll always need to return true if managedNamespaceMetadata is set.
 			hasManagedMetadata := syncPolicy.ManagedNamespaceMetadata != nil
 			if hasManagedMetadata {
 				managedNamespaceMetadata := syncPolicy.ManagedNamespaceMetadata
-				un.SetLabels(managedNamespaceMetadata.Labels)
-				un.SetAnnotations(appendNamespaceSSA(managedNamespaceMetadata.Annotations))
+				liveNs.SetLabels(managedNamespaceMetadata.Labels)
+				liveNs.SetAnnotations(appendSSAAnnotation(managedNamespaceMetadata.Annotations))
 
-				shouldTrackNs := resourceTracking.GetAppInstance(un, appLabelKey, trackingMethod) == nil && appLabelKey != "" && appName != ""
-				if shouldTrackNs {
-					err := resourceTracking.SetAppInstance(un, appLabelKey, appName, "", trackingMethod)
-					if err != nil {
-						return false, fmt.Errorf("failed to set app instance tracking on the namespace %s: %s", un.GetName(), err)
-					}
+				err := resourceTracking.SetAppInstance(liveNs, appLabelKey, appName, "", trackingMethod)
+				if err != nil {
+					return false, fmt.Errorf("failed to set app instance tracking on the namespace %s: %s", liveNs.GetName(), err)
 				}
 
 				return true, nil
@@ -37,7 +34,7 @@ func syncNamespace(resourceTracking argo.ResourceTracking, appLabelKey string, t
 	}
 }
 
-func appendNamespaceSSA(in map[string]string) map[string]string {
+func appendSSAAnnotation(in map[string]string) map[string]string {
 	r := map[string]string{}
 	for k, v := range in {
 		r[k] = v
