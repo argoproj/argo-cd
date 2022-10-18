@@ -116,7 +116,7 @@ data:
   scopes: '[email,groups]'
 ```
 
-## OIDC
+## OIDC (without Dex)
 
 !!! warning "Do you want groups for RBAC later?"
     If you want `groups` scope returned from Okta you need to unfortunately contact support to enable [API Access Management with Okta](https://developer.okta.com/docs/concepts/api-access-management/) or [_just use SAML above!_](#saml-with-dex)
@@ -176,5 +176,5 @@ oidc.config: |
 ```
 <!-- markdownlint-enable MD046 -->
 
-1. Note, if you see `grpc client` errors, you might want to restart your argocd server: `kubectl rollout restart deploy/argocd-server -n argocd`
-
+> **Note**
+> If you see `grpc client` errors, you might want to restart your argocd server: `kubectl rollout restart deploy/argocd-server -n argocd`
