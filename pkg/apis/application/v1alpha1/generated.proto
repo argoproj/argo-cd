@@ -1118,7 +1118,7 @@ message PullRequestGeneratorFilter {
 
 // PullRequestGeneratorGitLab defines connection info specific to GitLab.
 message PullRequestGeneratorGitLab {
-  // GitLab project to scan. Required.
+  // GitLab project to scan. Either project or group required.
   optional string project = 1;
 
   // The GitLab API URL to talk to. If blank, uses https://gitlab.com/.
@@ -1132,6 +1132,9 @@ message PullRequestGeneratorGitLab {
 
   // PullRequestState is an additional MRs filter to get only those with a certain state. Default: "" (all states)
   optional string pullRequestState = 5;
+
+  // Gitlab group to scan. Either project or group required.
+  optional string group = 6;
 }
 
 // PullRequestGenerator defines connection info specific to Gitea.
