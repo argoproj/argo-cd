@@ -475,6 +475,12 @@ func TestAppProject_AddGroupToRole(t *testing.T) {
 		assert.NoError(t, err)
 		assert.False(t, got)
 	})
+	t.Run("Exists", func(t *testing.T) {
+		p := &AppProject{Spec: AppProjectSpec{Roles: []ProjectRole{{Name: "test-role", Groups: []string{"test-group"}}}}}
+		got, err := p.AddGroupToRole("test-role", " test-group  ")
+		assert.NoError(t, err)
+		assert.False(t, got)
+	})
 }
 
 func TestAppProject_RemoveGroupFromRole(t *testing.T) {

@@ -249,6 +249,7 @@ func (p *AppProject) ValidateProject() error {
 
 // AddGroupToRole adds an OIDC group to a role
 func (p *AppProject) AddGroupToRole(roleName, group string) (bool, error) {
+	group = strings.TrimSpace(group)
 	role, roleIndex, err := p.GetRoleByName(roleName)
 	if err != nil {
 		return false, err
