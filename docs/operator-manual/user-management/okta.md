@@ -149,7 +149,7 @@ data:
     1. Select `Authorization Code` and `Implicit(hybrid)` for `Grant Type`
     1. For `Sign-in redirect URIs`, enter `https://${your.fqdn.com}/auth/callback` and `http://localhost:8085/auth/callback` (this is for signing in with CLI)
     1. For `Assignments`, select `Allow everyone in your organization to access`, or choose `Limit access to selected groups` if desired.
-    1. Click `Save` and on the next page, save the information for `ClientID` and `Client Secret`.
+    1. Click `Save` and on the next page, save the information for `ClientID` and `Client Secret`. Note that the `http://localhost:8080/authorization-code/callback` is a default value, but the value for Argo should be `http://localhost:8085/auth/callback`
     ![Application](../../assets/okta-application.png)
     1. On the `Sign On` tab, edit `OpenID Connect ID Token` and add a `Groups Claim Filter`.  Add `groups` and `matches regex` to be `.*`. This will give all the groups for the user, you can edit as needed, such as `argocd-users` as your OKTA group.
     ![Group filter](../../assets/okta-application-group-filter.png)
