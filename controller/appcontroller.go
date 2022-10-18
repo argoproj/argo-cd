@@ -932,7 +932,7 @@ func (ctrl *ApplicationController) removeProjectFinalizer(proj *appv1.AppProject
 		},
 	})
 	_, err := ctrl.applicationClientset.ArgoprojV1alpha1().AppProjects(ctrl.namespace).Patch(context.Background(), proj.Name, types.MergePatchType, patch, metav1.PatchOptions{})
-	return fmt.Errorf("error while removing project finalizer: %w", err)
+	return err
 }
 
 // shouldBeDeleted returns whether a given resource obj should be deleted on cascade delete of application app
@@ -1088,7 +1088,7 @@ func (ctrl *ApplicationController) removeCascadeFinalizer(app *appv1.Application
 	})
 
 	_, err = ctrl.applicationClientset.ArgoprojV1alpha1().Applications(app.Namespace).Patch(context.Background(), app.Name, types.MergePatchType, patch, metav1.PatchOptions{})
-	return fmt.Errorf("error while removing cascade finalizer: %w", err)
+	return err
 }
 
 func (ctrl *ApplicationController) setAppCondition(app *appv1.Application, condition appv1.ApplicationCondition) {

@@ -662,7 +662,7 @@ func (m *appStateManager) persistRevisionHistory(app *v1alpha1.Application, revi
 		return fmt.Errorf("error while saving the revision history: %w", err)
 	}
 	_, err = m.appclientset.ArgoprojV1alpha1().Applications(app.Namespace).Patch(context.Background(), app.Name, types.MergePatchType, patch, metav1.PatchOptions{})
-	return fmt.Errorf("error while saving the revision history: %w", err)
+	return err
 }
 
 // NewAppStateManager creates new instance of AppStateManager
