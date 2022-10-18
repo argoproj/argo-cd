@@ -299,6 +299,24 @@ sync option, otherwise nothing will happen. If the namespace doesn't already exi
 already have labels and/or annotations set on it, you're good to go. Using `managedNamespaceMetadata` will also set the
 resource tracking label (or annotation) on the namespace, so you can easily track which namespaces are managed by ArgoCD.
 
+In the case you do not have any custom annotations or labels but would nonetheless want to have resource tracking set on 
+your namespace, that can be done by setting `managedNamespaceMetadata` with an empty `labels` and/or `annotations` map, 
+like the example below:
+
+```yaml
+apiVersion: argoproj.io/v1alpha1
+kind: Application
+metadata:
+  namespace: test
+spec:
+  syncPolicy:
+    managedNamespaceMetadata:
+      labels: # The labels to set on the application namespace 
+      annotations: # The annotations to set on the application namespace
+    syncOptions:
+    - CreateNamespace=true
+```
+
 In the case where ArgoCD is "adopting" an existing namespace which already has metadata set on it, we rely on using
 Server Side Apply in order not to lose metadata which has already been set. The main implication here is that it takes
 a few extra steps to get rid of an already preexisting field.
