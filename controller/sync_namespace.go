@@ -21,8 +21,6 @@ func syncNamespace(resourceTracking argo.ResourceTracking, appLabelKey string, t
 				un.SetLabels(managedNamespaceMetadata.Labels)
 				un.SetAnnotations(appendNamespaceSSA(managedNamespaceMetadata.Annotations))
 
-				// TODO: This should probably be removed from this block and be tracked for all namespaces created by ArgoCD.
-				// However, there's an issue with a failing integration test (see app_management_test#TestNamespaceAutoCreation)
 				shouldTrackNs := resourceTracking.GetAppInstance(un, appLabelKey, trackingMethod) == nil && appLabelKey != "" && appName != ""
 				if shouldTrackNs {
 					err := resourceTracking.SetAppInstance(un, appLabelKey, appName, "", trackingMethod)
@@ -31,7 +29,7 @@ func syncNamespace(resourceTracking argo.ResourceTracking, appLabelKey string, t
 					}
 				}
 
-				return shouldTrackNs, nil
+				return true, nil
 			}
 		}
 
