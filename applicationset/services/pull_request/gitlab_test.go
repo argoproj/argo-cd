@@ -22,16 +22,33 @@ func writeMRListResponse(t *testing.T, w io.Writer) {
 	}
 }
 
+func writeProjectResponse(t *testing.T, w io.Writer) {
+	f, err := os.Open("fixtures/gitlab_project_response.json")
+	if err != nil {
+		t.Fatalf("error opening fixture file: %v", err)
+	}
+
+	if _, err = io.Copy(w, f); err != nil {
+		t.Fatalf("error writing response: %v", err)
+	}
+}
+
 func TestGitLabServiceCustomBaseURL(t *testing.T) {
 	mux := http.NewServeMux()
 	server := httptest.NewServer(mux)
 	defer server.Close()
 
-	path := "/api/v4/projects/278964/merge_requests"
+	mergePath := "/api/v4/projects/278964/merge_requests"
 
-	mux.HandleFunc(path, func(w http.ResponseWriter, r *http.Request) {
+	mux.HandleFunc(mergePath, func(w http.ResponseWriter, r *http.Request) {
 		assert.Equal(t, path+"?per_page=100", r.URL.RequestURI())
 		writeMRListResponse(t, w)
+	})
+
+	projectPath := "/api/v4/projects/278964"
+	mux.HandleFunc(projectPath, func(w http.ResponseWriter, r *http.Request) {
+		assert.Equal(t, path+"?per_page=100", r.URL.RequestURI())
+		writeProjectResponse(t, w)
 	})
 
 	svc, err := NewGitLabService(context.Background(), "", server.URL, "278964", nil, "", "")
