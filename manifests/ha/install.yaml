@@ -4575,11 +4575,6 @@ spec:
                                         - key
                                         - secretName
                                         type: object
-                                    oneOf:
-                                    - properties:
-                                      required: [ "project" ]
-                                    - properties:
-                                      required: [ "group" ]
                                     type: object
                                   requeueAfterSeconds:
                                     format: int64
@@ -6810,11 +6805,6 @@ spec:
                                         - key
                                         - secretName
                                         type: object
-                                    oneOf:
-                                    - properties:
-                                      required: [ "project" ]
-                                    - properties:
-                                      required: [ "group" ]
                                     type: object
                                   requeueAfterSeconds:
                                     format: int64
@@ -7910,11 +7900,6 @@ spec:
                               - key
                               - secretName
                               type: object
-                          oneOf:
-                          - properties:
-                            required: [ "project" ]
-                          - properties:
-                            required: [ "group" ]
                           type: object
                         requeueAfterSeconds:
                           format: int64
