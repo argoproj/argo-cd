@@ -41,13 +41,13 @@ func TestGitLabServiceCustomBaseURL(t *testing.T) {
 	mergePath := "/api/v4/projects/278964/merge_requests"
 
 	mux.HandleFunc(mergePath, func(w http.ResponseWriter, r *http.Request) {
-		assert.Equal(t, path+"?per_page=100", r.URL.RequestURI())
+		assert.Equal(t, mergePath+"?per_page=100", r.URL.RequestURI())
 		writeMRListResponse(t, w)
 	})
 
 	projectPath := "/api/v4/projects/278964"
 	mux.HandleFunc(projectPath, func(w http.ResponseWriter, r *http.Request) {
-		assert.Equal(t, path+"?per_page=100", r.URL.RequestURI())
+		assert.Equal(t, projectPath, r.URL.RequestURI())
 		writeProjectResponse(t, w)
 	})
 
