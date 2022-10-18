@@ -907,7 +907,7 @@ func (ctrl *ApplicationController) processProjectQueueItem() (processNext bool) 
 func (ctrl *ApplicationController) finalizeProjectDeletion(proj *appv1.AppProject) error {
 	apps, err := ctrl.appLister.Applications(ctrl.namespace).List(labels.Everything())
 	if err != nil {
-		return err
+		return fmt.Errorf("error while finalizing the project deletion: %w", err)
 	}
 	appsCount := 0
 	for i := range apps {
@@ -932,7 +932,7 @@ func (ctrl *ApplicationController) removeProjectFinalizer(proj *appv1.AppProject
 		},
 	})
 	_, err := ctrl.applicationClientset.ArgoprojV1alpha1().AppProjects(ctrl.namespace).Patch(context.Background(), proj.Name, types.MergePatchType, patch, metav1.PatchOptions{})
-	return err
+	return fmt.Errorf("error while removing project finalizer: %w", err)
 }
 
 // shouldBeDeleted returns whether a given resource obj should be deleted on cascade delete of application app
@@ -1077,7 +1077,7 @@ func (ctrl *ApplicationController) finalizeApplicationDeletion(app *appv1.Applic
 func (ctrl *ApplicationController) removeCascadeFinalizer(app *appv1.Application) error {
 	_, err := ctrl.getAppProj(app)
 	if err != nil {
-		return err
+		return fmt.Errorf("error while removing cascade finalizer: %w", err)
 	}
 	app.UnSetCascadedDeletion()
 	var patch []byte
@@ -1088,7 +1088,7 @@ func (ctrl *ApplicationController) removeCascadeFinalizer(app *appv1.Application
 	})
 
 	_, err = ctrl.applicationClientset.ArgoprojV1alpha1().Applications(app.Namespace).Patch(context.Background(), app.Name, types.MergePatchType, patch, metav1.PatchOptions{})
-	return err
+	return fmt.Errorf("error while removing cascade finalizer: %w", err)
 }
 
 func (ctrl *ApplicationController) setAppCondition(app *appv1.Application, condition appv1.ApplicationCondition) {
@@ -1256,12 +1256,12 @@ func (ctrl *ApplicationController) setOperationState(app *appv1.Application, sta
 		}
 		patchJSON, err := json.Marshal(patch)
 		if err != nil {
-			return err
+			return fmt.Errorf("error while setting the operation state: %w", err)
 		}
 		if app.Status.OperationState != nil && app.Status.OperationState.FinishedAt != nil && state.FinishedAt == nil {
 			patchJSON, err = jsonpatch.MergeMergePatches(patchJSON, []byte(`{"status": {"operationState": {"finishedAt": null}}}`))
 			if err != nil {
-				return err
+				return fmt.Errorf("error while setting the operation state: %w", err)
 			}
 		}
 
@@ -1272,7 +1272,7 @@ func (ctrl *ApplicationController) setOperationState(app *appv1.Application, sta
 			if apierr.IsNotFound(err) {
 				return nil
 			}
-			return err
+			return fmt.Errorf("error while setting the operation state: %w", err)
 		}
 		log.Infof("updated '%s' operation (phase: %s)", app.QualifiedName(), state.Phase)
 		if state.Phase.Completed() {
