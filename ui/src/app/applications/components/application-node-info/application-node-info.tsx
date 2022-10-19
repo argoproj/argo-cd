@@ -89,14 +89,16 @@ export const ApplicationNodeInfo = (props: {
         }
     } else if (props.node && (props.node as ResourceTreeNode).health) {
         const treeNode = props.node as ResourceTreeNode;
-        attributes.push({
-            title: 'HEALTH',
-            value: (
-                <span>
-                    <HealthStatusIcon state={treeNode.health} /> {treeNode.health.message || treeNode.health.status}
-                </span>
-            )
-        } as any);
+        if (treeNode && treeNode.health) {
+            attributes.push({
+                title: 'HEALTH',
+                value: (
+                    <span>
+                        <HealthStatusIcon state={treeNode.health} /> {treeNode.health.message || treeNode.health.status}
+                    </span>
+                )
+            } as any);
+        }
     }
 
     const tabs: Tab[] = [
