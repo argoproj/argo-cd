@@ -38,9 +38,9 @@ jobs:
     runs-on: ubuntu-latest
     steps:
       - name: Checkout code
-        uses: actions/checkout@v2
+        uses: actions/checkout@v3
       - name: Setup Golang
-        uses: actions/setup-go@v1
+        uses: actions/setup-go@v3
         with:
           go-version: ${{ env.GOLANG_VERSION }}
       - name: Download all Go modules
@@ -56,13 +56,13 @@ jobs:
     runs-on: ubuntu-latest
     steps:
       - name: Checkout code
-        uses: actions/checkout@v2
+        uses: actions/checkout@v3
       - name: Setup Golang
-        uses: actions/setup-go@v1
+        uses: actions/setup-go@v3
         with:
           go-version: ${{ env.GOLANG_VERSION }}
       - name: Restore go build cache
-        uses: actions/cache@v1
+        uses: actions/cache@v3
         with:
           path: ~/.cache/go-build
           key: ${{ runner.os }}-go-build-v1-${{ github.run_id }}
@@ -80,7 +80,7 @@ jobs:
     runs-on: ubuntu-latest
     steps:
       - name: Checkout code
-        uses: actions/checkout@v2
+        uses: actions/checkout@v3
       - name: Run golangci-lint
         uses: golangci/golangci-lint-action@v3
         with:
@@ -96,11 +96,11 @@ jobs:
       - name: Create checkout directory
         run: mkdir -p ~/go/src/github.com/argoproj
       - name: Checkout code
-        uses: actions/checkout@v2
+        uses: actions/checkout@v3
       - name: Create symlink in GOPATH
         run: ln -s $(pwd) ~/go/src/github.com/argoproj/argo-cd
       - name: Setup Golang
-        uses: actions/setup-go@v1
+        uses: actions/setup-go@v3
         with:
           go-version: ${{ env.GOLANG_VERSION }}
       - name: Install required packages
@@ -120,7 +120,7 @@ jobs:
         run: |
           echo "/usr/local/bin" >> $GITHUB_PATH
       - name: Restore go build cache
-        uses: actions/cache@v1
+        uses: actions/cache@v3
         with:
           path: ~/.cache/go-build
           key: ${{ runner.os }}-go-build-v1-${{ github.run_id }}
@@ -156,11 +156,11 @@ jobs:
       - name: Create checkout directory
         run: mkdir -p ~/go/src/github.com/argoproj
       - name: Checkout code
-        uses: actions/checkout@v2
+        uses: actions/checkout@v3
       - name: Create symlink in GOPATH
         run: ln -s $(pwd) ~/go/src/github.com/argoproj/argo-cd
       - name: Setup Golang
-        uses: actions/setup-go@v1
+        uses: actions/setup-go@v3
         with:
           go-version: ${{ env.GOLANG_VERSION }}
       - name: Install required packages
@@ -180,7 +180,7 @@ jobs:
         run: |
           echo "/usr/local/bin" >> $GITHUB_PATH
       - name: Restore go build cache
-        uses: actions/cache@v1
+        uses: actions/cache@v3
         with:
           path: ~/.cache/go-build
           key: ${{ runner.os }}-go-build-v1-${{ github.run_id }}
@@ -207,9 +207,9 @@ jobs:
     runs-on: ubuntu-latest
     steps:
       - name: Checkout code
-        uses: actions/checkout@v2
+        uses: actions/checkout@v3
       - name: Setup Golang
-        uses: actions/setup-go@v1
+        uses: actions/setup-go@v3
         with:
           go-version: ${{ env.GOLANG_VERSION }}
       - name: Create symlink in GOPATH
@@ -254,14 +254,14 @@ jobs:
     runs-on: ubuntu-latest
     steps:
       - name: Checkout code
-        uses: actions/checkout@v2
+        uses: actions/checkout@v3
       - name: Setup NodeJS
         uses: actions/setup-node@v1
         with:
           node-version: '12.18.4'
       - name: Restore node dependency cache
         id: cache-dependencies
-        uses: actions/cache@v1
+        uses: actions/cache@v3
         with:
           path: ui/node_modules
           key: ${{ runner.os }}-node-dep-v2-${{ hashFiles('**/yarn.lock') }}
@@ -290,12 +290,12 @@ jobs:
       sonar_secret: ${{ secrets.SONAR_TOKEN }}
     steps:
       - name: Checkout code
-        uses: actions/checkout@v2
+        uses: actions/checkout@v3
         with:
           fetch-depth: 0
       - name: Restore node dependency cache
         id: cache-dependencies
-        uses: actions/cache@v1
+        uses: actions/cache@v3
         with:
           path: ui/node_modules
           key: ${{ runner.os }}-node-dep-v2-${{ hashFiles('**/yarn.lock') }}
@@ -366,9 +366,9 @@ jobs:
       ARGOCD_SERVER: "127.0.0.1:8088"
     steps:
       - name: Checkout code
-        uses: actions/checkout@v2
+        uses: actions/checkout@v3
       - name: Setup Golang
-        uses: actions/setup-go@v1
+        uses: actions/setup-go@v3
         with:
           go-version: ${{ env.GOLANG_VERSION }}
       - name: GH actions workaround - Kill XSP4 process
@@ -386,7 +386,7 @@ jobs:
           sudo chown runner $HOME/.kube/config
           kubectl version
       - name: Restore go build cache
-        uses: actions/cache@v1
+        uses: actions/cache@v3
         with:
           path: ~/.cache/go-build
           key: ${{ runner.os }}-go-build-v1-${{ github.run_id }}

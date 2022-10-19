@@ -24,7 +24,7 @@ jobs:
     env:
       GOPATH: /home/runner/work/argo-cd/argo-cd
     steps:
-      - uses: actions/setup-go@v1
+      - uses: actions/setup-go@v3
         with:
           go-version: ${{ env.GOLANG_VERSION }}
       - uses: actions/checkout@master
