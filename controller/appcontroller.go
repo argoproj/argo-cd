@@ -907,7 +907,7 @@ func (ctrl *ApplicationController) processProjectQueueItem() (processNext bool) 
 func (ctrl *ApplicationController) finalizeProjectDeletion(proj *appv1.AppProject) error {
 	apps, err := ctrl.appLister.Applications(ctrl.namespace).List(labels.Everything())
 	if err != nil {
-		return err
+		return fmt.Errorf("error listing applications: %w", err)
 	}
 	appsCount := 0
 	for i := range apps {
@@ -1077,7 +1077,7 @@ func (ctrl *ApplicationController) finalizeApplicationDeletion(app *appv1.Applic
 func (ctrl *ApplicationController) removeCascadeFinalizer(app *appv1.Application) error {
 	_, err := ctrl.getAppProj(app)
 	if err != nil {
-		return err
+		return fmt.Errorf("error getting project: %w", err)
 	}
 	app.UnSetCascadedDeletion()
 	var patch []byte
@@ -1256,12 +1256,12 @@ func (ctrl *ApplicationController) setOperationState(app *appv1.Application, sta
 		}
 		patchJSON, err := json.Marshal(patch)
 		if err != nil {
-			return err
+			return fmt.Errorf("error marshaling json: %w", err)
 		}
 		if app.Status.OperationState != nil && app.Status.OperationState.FinishedAt != nil && state.FinishedAt == nil {
 			patchJSON, err = jsonpatch.MergeMergePatches(patchJSON, []byte(`{"status": {"operationState": {"finishedAt": null}}}`))
 			if err != nil {
-				return err
+				return fmt.Errorf("error merging operation state patch: %w", err)
 			}
 		}
 
@@ -1272,7 +1272,7 @@ func (ctrl *ApplicationController) setOperationState(app *appv1.Application, sta
 			if apierr.IsNotFound(err) {
 				return nil
 			}
-			return err
+			return fmt.Errorf("error patching application with operation state: %w", err)
 		}
 		log.Infof("updated '%s' operation (phase: %s)", app.QualifiedName(), state.Phase)
 		if state.Phase.Completed() {
