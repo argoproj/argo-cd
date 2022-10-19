@@ -2,14 +2,21 @@ package controller
 
 import (
 	"fmt"
+	cdcommon "github.com/argoproj/argo-cd/v2/common"
 	"github.com/argoproj/argo-cd/v2/pkg/apis/application/v1alpha1"
 	"github.com/argoproj/argo-cd/v2/util/argo"
 	gitopscommon "github.com/argoproj/gitops-engine/pkg/sync/common"
+	"github.com/argoproj/gitops-engine/pkg/utils/kube"
 	"k8s.io/apimachinery/pkg/apis/meta/v1/unstructured"
 )
 
 func syncNamespace(resourceTracking argo.ResourceTracking, appLabelKey string, trackingMethod v1alpha1.TrackingMethod, appName string, syncPolicy *v1alpha1.SyncPolicy) func(un *unstructured.Unstructured) (bool, error) {
 	return func(liveNs *unstructured.Unstructured) (bool, error) {
+		if liveNs != nil && kube.GetAppInstanceLabel(liveNs, cdcommon.LabelKeyAppInstance) != "" {
+			kube.UnsetLabel(liveNs, cdcommon.LabelKeyAppInstance)
+			return true, nil
+		}
+
 		isNewNamespace := liveNs != nil && liveNs.GetUID() == "" && liveNs.GetResourceVersion() == ""
 
 		if liveNs != nil && syncPolicy != nil {
