@@ -1634,10 +1634,10 @@ func validateGroupName(name string) error {
 		return status.Errorf(codes.InvalidArgument, "group '%s' contains invalid characters", name)
 	}
 	if len(n) > 1 && unicode.IsSpace(n[0]) {
-		return status.Errorf(codes.InvalidArgument, "group '%s' contains a leading whtiespace", name)
+		return status.Errorf(codes.InvalidArgument, "group '%s' contains a leading space", name)
 	}
 	if len(n) > 1 && unicode.IsSpace(n[len(n)-1]) {
-		return status.Errorf(codes.InvalidArgument, "group '%s' contains a trailing whtiespace", name)
+		return status.Errorf(codes.InvalidArgument, "group '%s' contains a trailing space", name)
 	}
 	return nil
 }
