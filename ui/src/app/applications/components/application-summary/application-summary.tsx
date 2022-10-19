@@ -25,6 +25,8 @@ import {ComparisonStatusIcon, HealthStatusIcon, syncStatusMessage, urlPattern, f
 import {ApplicationRetryOptions} from '../application-retry-options/application-retry-options';
 import {ApplicationRetryView} from '../application-retry-view/application-retry-view';
 import {Link} from 'react-router-dom';
+import {EditNotificationSubscriptions, useEditNotificationSubscriptions} from './edit-notification-subscriptions';
+import {EditAnnotations} from './edit-annotations';
 
 require('./application-summary.scss');
 
@@ -34,12 +36,21 @@ function swap(array: any[], a: number, b: number) {
     return array;
 }
 
-export const ApplicationSummary = (props: {app: models.Application; updateApp: (app: models.Application, query: {validate?: boolean}) => Promise<any>}) => {
+export interface ApplicationSummaryProps {
+    app: models.Application;
+    updateApp: (app: models.Application, query: {validate?: boolean}) => Promise<any>;
+}
+
+export const ApplicationSummary = (props: ApplicationSummaryProps) => {
     const app = JSON.parse(JSON.stringify(props.app)) as models.Application;
     const isHelm = app.spec.source.hasOwnProperty('chart');
     const initialState = app.spec.destination.server === undefined ? 'NAME' : 'URL';
     const [destFormat, setDestFormat] = React.useState(initialState);
     const [changeSync, setChangeSync] = React.useState(false);
+
+    const notificationSubscriptions = useEditNotificationSubscriptions(app.metadata.annotations || {});
+    const updateApp = notificationSubscriptions.withNotificationSubscriptions(props.updateApp);
+
     const attributes = [
         {
             title: 'PROJECT',
@@ -66,7 +77,12 @@ export const ApplicationSummary = (props: {app: models.Application; updateApp: (
                         .join(' ')}
                 </Expandable>
             ),
-            edit: (formApi: FormApi) => <FormField formApi={formApi} field='metadata.annotations' component={MapInputField} />
+            edit: (formApi: FormApi) => <EditAnnotations formApi={formApi} app={app} />
+        },
+        {
+            title: 'NOTIFICATION SUBSCRIPTIONS',
+            view: false, // eventually the subscription input values will be merged in 'ANNOTATIONS', therefore 'ANNOATIONS' section is responsible to represent subscription values,
+            edit: () => <EditNotificationSubscriptions {...notificationSubscriptions} />
         },
         {
             title: 'CLUSTER',
@@ -203,7 +219,11 @@ export const ApplicationSummary = (props: {app: models.Application; updateApp: (
                   },
                   {
                       title: 'PATH',
-                      view: app.spec.source.path,
+                      view: (
+                          <Revision repoUrl={app.spec.source.repoURL} revision={app.spec.source.targetRevision || 'HEAD'} path={app.spec.source.path}>
+                              {app.spec.source.path}
+                          </Revision>
+                      ),
                       edit: (formApi: FormApi) => <FormField formApi={formApi} field='spec.source.path' component={Text} />
                   }
               ]),
@@ -319,7 +339,7 @@ export const ApplicationSummary = (props: {app: models.Application; updateApp: (
                     updatedApp.spec.syncPolicy = {};
                 }
                 updatedApp.spec.syncPolicy.automated = {prune, selfHeal};
-                await props.updateApp(updatedApp, {validate: false});
+                await updateApp(updatedApp, {validate: false});
             } catch (e) {
                 ctx.notifications.show({
                     content: <ErrorNotification title={`Unable to "${confirmationTitle.replace(/\?/g, '')}:`} e={e} />,
@@ -338,7 +358,7 @@ export const ApplicationSummary = (props: {app: models.Application; updateApp: (
                 setChangeSync(true);
                 const updatedApp = JSON.parse(JSON.stringify(props.app)) as models.Application;
                 updatedApp.spec.syncPolicy.automated = null;
-                await props.updateApp(updatedApp, {validate: false});
+                await updateApp(updatedApp, {validate: false});
             } catch (e) {
                 ctx.notifications.show({
                     content: <ErrorNotification title='Unable to disable Auto-Sync' e={e} />,
@@ -433,7 +453,7 @@ export const ApplicationSummary = (props: {app: models.Application; updateApp: (
                 </div>
             )}
             <EditablePanel
-                save={props.updateApp}
+                save={updateApp}
                 validate={input => ({
                     'spec.project': !input.spec.project && 'Project name is required',
                     'spec.destination.server': !input.spec.destination.server && input.spec.destination.hasOwnProperty('server') && 'Cluster server is required',
@@ -442,6 +462,7 @@ export const ApplicationSummary = (props: {app: models.Application; updateApp: (
                 values={app}
                 title={app.metadata.name.toLocaleUpperCase()}
                 items={attributes}
+                onModeSwitch={() => notificationSubscriptions.onResetNotificationSubscriptions()}
             />
             <Consumer>
                 {ctx => (
@@ -546,7 +567,16 @@ export const ApplicationSummary = (props: {app: models.Application; updateApp: (
                 )}
             </Consumer>
             <BadgePanel app={props.app.metadata.name} />
-            <EditablePanel save={props.updateApp} values={app} title='INFO' items={infoItems} onModeSwitch={() => setAdjustedCount(0)} />
+            <EditablePanel
+                save={updateApp}
+                values={app}
+                title='INFO'
+                items={infoItems}
+                onModeSwitch={() => {
+                    setAdjustedCount(0);
+                    notificationSubscriptions.onResetNotificationSubscriptions();
+                }}
+            />
         </div>
     );
 };

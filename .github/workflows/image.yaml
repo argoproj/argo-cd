@@ -16,8 +16,13 @@ concurrency:
   group: ${{ github.workflow }}-${{ github.ref }}
   cancel-in-progress: true
 
+permissions:
+  contents: read
+
 jobs:
   publish:
+    permissions:
+      contents: write  # for git to push upgrade commit if not already deployed
     if: github.repository == 'argoproj/argo-cd'
     runs-on: ubuntu-22.04
     env:
@@ -60,6 +65,22 @@ jobs:
             -t ghcr.io/argoproj/argocd:${{ steps.image.outputs.tag }} \
             -t quay.io/argoproj/argocd:latest .
         working-directory: ./src/github.com/argoproj/argo-cd
+
+      # sign container images
+      - name: Install cosign
+        uses: sigstore/cosign-installer@main
+        with:
+          cosign-release: 'v1.13.0'
+
+      - name: Sign Argo CD latest image
+        run: |
+          cosign sign --key env://COSIGN_PRIVATE_KEY quay.io/argoproj/argocd:latest
+          # Displays the public key to share.
+          cosign public-key --key env://COSIGN_PRIVATE_KEY
+        env:
+          COSIGN_PRIVATE_KEY: ${{secrets.COSIGN_PRIVATE_KEY}}
+          COSIGN_PASSWORD: ${{secrets.COSIGN_PASSWORD}}
+        if: ${{ github.event_name == 'push' }}
 
       # deploy
       - run: git clone "https://$TOKEN@github.com/argoproj/argoproj-deployments"
