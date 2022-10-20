@@ -397,6 +397,37 @@ export const deletePopup = async (ctx: ContextApis, resource: ResourceTreeNode, 
     );
 };
 
+function getResourceActionsMenuItems(resource: ResourceTreeNode, application: appModels.Application, appContext: AppContext): Observable<ActionMenuItem[]> {
+    return services.applications
+        .getResourceActions(application.metadata.name, application.metadata.namespace, resource)
+        .then(actions => {
+            return actions.map(
+                action =>
+                    ({
+                        title: action.name,
+                        disabled: !!action.disabled,
+                        action: async () => {
+                            try {
+                                const confirmed = await appContext.apis.popup.confirm(
+                                    `Execute '${action.name}' action?`,
+                                    `Are you sure you want to execute '${action.name}' action?`
+                                );
+                                if (confirmed) {
+                                    await services.applications.runResourceAction(application.metadata.name, application.metadata.namespace, resource, action.name);
+                                }
+                            } catch (e) {
+                                appContext.apis.notifications.show({
+                                    content: <ErrorNotification title='Unable to execute resource action' e={e} />,
+                                    type: NotificationType.Error
+                                });
+                            }
+                        }
+                    } as MenuItem)
+            );
+        })
+        .catch(() => [] as MenuItem[]);
+}
+
 function getActionItems(
     resource: ResourceTreeNode,
     application: appModels.Application,
@@ -460,34 +491,8 @@ function getActionItems(
         })
         .catch(() => [] as MenuItem[]);
 
-    const resourceActions = services.applications
-        .getResourceActions(application.metadata.name, application.metadata.namespace, resource)
-        .then(actions => {
-            return actions.map(
-                action =>
-                    ({
-                        title: action.name,
-                        disabled: !!action.disabled,
-                        action: async () => {
-                            try {
-                                const confirmed = await appContext.apis.popup.confirm(
-                                    `Execute '${action.name}' action?`,
-                                    `Are you sure you want to execute '${action.name}' action?`
-                                );
-                                if (confirmed) {
-                                    await services.applications.runResourceAction(application.metadata.name, application.metadata.namespace, resource, action.name);
-                                }
-                            } catch (e) {
-                                appContext.apis.notifications.show({
-                                    content: <ErrorNotification title='Unable to execute resource action' e={e} />,
-                                    type: NotificationType.Error
-                                });
-                            }
-                        }
-                    } as MenuItem)
-            );
-        })
-        .catch(() => [] as MenuItem[]);
+    const resourceActions = getResourceActionsMenuItems(resource, application, appContext);
+
     return combineLatest(
         from([items]), // this resolves immediately
         concat([[] as MenuItem[]], resourceActions), // this resolves at first to [] and then whatever the API returns
@@ -510,6 +515,34 @@ export function renderResourceMenu(
     } else {
         menuItems = getActionItems(resource, application, tree, appContext, appChanged, false);
     }
+    return (
+        <DataLoader load={() => menuItems}>
+            {items => (
+                <ul>
+                    {items.map((item, i) => (
+                        <li
+                            className={classNames('application-details__action-menu', {disabled: item.disabled})}
+                            key={i}
+                            onClick={e => {
+                                e.stopPropagation();
+                                if (!item.disabled) {
+                                    item.action();
+                                    document.body.click();
+                                }
+                            }}>
+                            {item.iconClassName && <i className={item.iconClassName} />} {item.title}
+                        </li>
+                    ))}
+                </ul>
+            )}
+        </DataLoader>
+    );
+}
+
+export function renderResourceActionMenu(resource: ResourceTreeNode, application: appModels.Application, tree: appModels.ApplicationTree, appContext: AppContext): React.ReactNode {
+    let menuItems: Observable<ActionMenuItem[]>;
+
+    menuItems = getResourceActionsMenuItems(resource, application, appContext);
     return (
         <DataLoader load={() => menuItems}>
             {items => (

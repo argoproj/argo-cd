@@ -1,4 +1,4 @@
-import {DataLoader, Tab, Tabs} from 'argo-ui';
+import {DataLoader, DropDown, Tab, Tabs} from 'argo-ui';
 import * as React from 'react';
 import {useState} from 'react';
 import {EventsList, YamlEditor} from '../../../shared/components';
@@ -312,6 +312,15 @@ export const ResourceDetails = (props: ResourceDetailsProps) => {
                                 <button onClick={() => AppUtils.deletePopup(appContext, selectedNode, application)} className='argo-button argo-button--base'>
                                     <i className='fa fa-trash' /> DELETE
                                 </button>
+                                <DropDown
+                                    isMenu={true}
+                                    anchor={() => (
+                                        <button className='argo-button argo-button--light argo-button--lg argo-button--short'>
+                                            <i className='fa fa-ellipsis-v' />
+                                        </button>
+                                    )}>
+                                    {() => AppUtils.renderResourceActionMenu(selectedNode, application, tree, {apis: appContext})}
+                                </DropDown>
                             </div>
                             <Tabs
                                 navTransparent={true}
