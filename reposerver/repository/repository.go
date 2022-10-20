@@ -1300,16 +1300,27 @@ func getObjsFromYAMLOrJson(logCtx *log.Entry, manifestPath string, filename stri
 		}
 	}()
 	if strings.HasSuffix(filename, ".json") {
-		var obj unstructured.Unstructured
 		decoder := json.NewDecoder(reader)
-		err = decoder.Decode(&obj)
+		isManifest, err := isKubernetesManifest(manifestPath)
+		if err != nil {
+			return status.Errorf(codes.FailedPrecondition, "Failed to read file %q: %v", filename, err)
+		}
+		// attempt to decode as a kubernetes object
+		if isManifest {
+			var obj unstructured.Unstructured
+			err = decoder.Decode(&obj)
+			*objs = append(*objs, &obj)
+		} else {
+			// see if the json is valid or not
+			var obj map[string]interface{}
+			err = decoder.Decode(&obj)
+		}
 		if err != nil {
 			return status.Errorf(codes.FailedPrecondition, "Failed to unmarshal %q: %v", filename, err)
 		}
 		if decoder.More() {
 			return status.Errorf(codes.FailedPrecondition, "Found multiple objects in %q. Only single objects are allowed in JSON files.", filename)
 		}
-		*objs = append(*objs, &obj)
 	} else {
 		yamlObjs, err := splitYAMLOrJSON(reader)
 		if err != nil {
@@ -1319,12 +1330,8 @@ func getObjsFromYAMLOrJson(logCtx *log.Entry, manifestPath string, filename stri
 				// likely the user messed up a portion of the YAML, so report on that.
 				return status.Errorf(codes.FailedPrecondition, "Failed to unmarshal %q: %v", filename, err)
 			}
-			// Read the whole file to check whether it looks like a manifest.
-			out, err := utfutil.ReadFile(manifestPath, utfutil.UTF8)
-			// Otherwise, let's see if it looks like a resource, if yes, we return error
-			if bytes.Contains(out, []byte("apiVersion:")) &&
-				bytes.Contains(out, []byte("kind:")) &&
-				bytes.Contains(out, []byte("metadata:")) {
+			// Let's see if it looks like a resource, if yes, we return error
+			if isManifest, err := isKubernetesManifest(manifestPath); isManifest || err != nil {
 				return status.Errorf(codes.FailedPrecondition, "Failed to unmarshal %q: %v", filename, err)
 			}
 			// Otherwise, it might be an unrelated YAML file which we will ignore
@@ -1332,6 +1339,20 @@ func getObjsFromYAMLOrJson(logCtx *log.Entry, manifestPath string, filename stri
 		*objs = append(*objs, yamlObjs...)
 	}
 	return nil
+}
+
+func isKubernetesManifest(manifestPath string) (bool, error) {
+	// Read the whole file to check whether it looks like a manifest.
+	out, err := utfutil.ReadFile(manifestPath, utfutil.UTF8)
+	if err != nil {
+		return false, err
+	}
+	if bytes.Contains(out, []byte("apiVersion")) &&
+		bytes.Contains(out, []byte("kind")) &&
+		bytes.Contains(out, []byte("metadata")) {
+		return true, nil
+	}
+	return false, nil
 }
 
 // splitYAMLOrJSON reads a YAML or JSON file and gets each document as an unstructured object. If the unmarshaller
