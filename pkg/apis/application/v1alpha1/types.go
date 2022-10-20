@@ -835,7 +835,6 @@ type RevisionMetadata struct {
 	// Floating tags can move from one revision to another
 	Tags []string `json:"tags,omitempty" protobuf:"bytes,3,opt,name=tags"`
 	// Message contains the message associated with the revision, most likely the commit message.
-	// The message is truncated to the first newline or 64 characters (which ever comes first)
 	Message string `json:"message,omitempty" protobuf:"bytes,4,opt,name=message"`
 	// SignatureInfo contains a hint on the signer if the revision was signed with GPG, and signature verification is enabled.
 	SignatureInfo string `json:"signatureInfo,omitempty" protobuf:"bytes,5,opt,name=signatureInfo"`

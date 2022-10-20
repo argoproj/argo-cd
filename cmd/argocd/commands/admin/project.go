@@ -106,13 +106,13 @@ func saveProject(ctx context.Context, updated v1alpha1.AppProject, orig v1alpha1
 	errors.CheckError(err)
 	live, err := kube.ToUnstructured(&orig)
 	if err != nil {
-		return err
+		return fmt.Errorf("error converting project to unstructured: %w", err)
 	}
 	_ = cli.PrintDiff(updated.Name, target, live)
 	if !dryRun {
 		_, err = projectsIf.Update(ctx, &updated, v1.UpdateOptions{})
 		if err != nil {
-			return err
+			return fmt.Errorf("error while updating project:  %w", err)
 		}
 	}
 	return nil
@@ -188,7 +188,7 @@ func NewUpdatePolicyRuleCommand() *cobra.Command {
 func updateProjects(ctx context.Context, projIf appclient.AppProjectInterface, projectGlob string, rolePattern string, action string, modification func(string, string) string, dryRun bool) error {
 	projects, err := projIf.List(ctx, v1.ListOptions{})
 	if err != nil {
-		return err
+		return fmt.Errorf("error listing the projects: %w", err)
 	}
 	for _, proj := range projects.Items {
 		if !globMatch(projectGlob, proj.Name) {
@@ -225,7 +225,7 @@ func updateProjects(ctx context.Context, projIf appclient.AppProjectInterface, p
 		if updated {
 			err = saveProject(ctx, proj, *origProj, projIf, dryRun)
 			if err != nil {
-				return err
+				return fmt.Errorf("error saving the project: %w", err)
 			}
 		}
 	}

@@ -21,6 +21,7 @@ export interface NodeId {
     namespace: string;
     name: string;
     group: string;
+    createdAt?: appModels.Time;
 }
 
 export const ExternalLinkAnnotation = 'link.argocd.argoproj.io/external-link';
@@ -29,6 +30,10 @@ type ActionMenuItem = MenuItem & {disabled?: boolean};
 
 export function nodeKey(node: NodeId) {
     return [node.group, node.kind, node.namespace, node.name].join('/');
+}
+
+export function createdOrNodeKey(node: NodeId) {
+    return node?.createdAt || nodeKey(node);
 }
 
 export function isSameNode(first: NodeId, second: NodeId) {

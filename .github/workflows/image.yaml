@@ -28,7 +28,7 @@ jobs:
     env:
       GOPATH: /home/runner/work/argo-cd/argo-cd
     steps:
-      - uses: actions/setup-go@v1
+      - uses: actions/setup-go@v3
         with:
           go-version: ${{ env.GOLANG_VERSION }}
       - uses: actions/checkout@master
@@ -52,8 +52,8 @@ jobs:
           DOCKER_TOKEN: ${{ secrets.RELEASE_QUAY_TOKEN }}
 
       # build
-      - uses: docker/setup-qemu-action@v1
-      - uses: docker/setup-buildx-action@v1
+      - uses: docker/setup-qemu-action@v2
+      - uses: docker/setup-buildx-action@v2
       - run: |
           IMAGE_PLATFORMS=linux/amd64
           if [[ "${{ github.event_name }}" == "push" || "${{ contains(github.event.pull_request.labels.*.name, 'test-arm-image') }}" == "true" ]]

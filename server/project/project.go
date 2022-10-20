@@ -81,7 +81,7 @@ func (s *Server) CreateToken(ctx context.Context, q *project.ProjectTokenCreateR
 	}
 	err = validateProject(prj)
 	if err != nil {
-		return nil, err
+		return nil, fmt.Errorf("error validating project: %w", err)
 	}
 
 	s.projectLock.Lock(q.Project)
@@ -152,7 +152,7 @@ func (s *Server) DeleteToken(ctx context.Context, q *project.ProjectTokenDeleteR
 	}
 	err = validateProject(prj)
 	if err != nil {
-		return nil, err
+		return nil, fmt.Errorf("error validating project: %w", err)
 	}
 
 	s.projectLock.Lock(q.Project)
@@ -193,7 +193,7 @@ func (s *Server) Create(ctx context.Context, q *project.ProjectCreateRequest) (*
 	q.Project.NormalizePolicies()
 	err := validateProject(q.Project)
 	if err != nil {
-		return nil, err
+		return nil, fmt.Errorf("error validating project: %w", err)
 	}
 	res, err := s.appclientset.ArgoprojV1alpha1().AppProjects(s.ns).Create(ctx, q.Project, metav1.CreateOptions{})
 	if apierr.IsAlreadyExists(err) {
