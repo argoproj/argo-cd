@@ -724,6 +724,7 @@ func CreateSubmoduleRepos(repoType string) {
 	FailOnErr(Run(submoduleParentDirectory(), "chmod", "777", "."))
 	FailOnErr(Run(submoduleParentDirectory(), "git", "init"))
 	FailOnErr(Run(submoduleParentDirectory(), "git", "add", "."))
+	FailOnErr(Run(submoduleParentDirectory(), "git", "config", "--global", "protocol.file.allow", "always"))
 	FailOnErr(Run(submoduleParentDirectory(), "git", "submodule", "add", "-b", "master", "../submodule.git", "submodule/test"))
 	if repoType == "ssh" {
 		FailOnErr(Run(submoduleParentDirectory(), "git", "config", "--file=.gitmodules", "submodule.submodule/test.url", RepoURL(RepoURLTypeSSHSubmodule)))
