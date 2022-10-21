@@ -2,6 +2,7 @@ package fixture
 
 import (
 	"bytes"
+	"crypto/tls"
 	"encoding/json"
 	"io"
 	"net/http"
@@ -26,8 +27,17 @@ func DoHttpRequest(method string, path string, data ...byte) (*http.Response, er
 	if err != nil {
 		return nil, err
 	}
+
+	tr := &http.Transport{
+		TLSClientConfig: &tls.Config{InsecureSkipVerify: true},
+	}
+
+	// Http Client with TLS verification set to false.
+	// Required when dealing with self-signed certificates.
+	hc := &http.Client{Transport: tr}
+
 	req.AddCookie(&http.Cookie{Name: common.AuthCookieName, Value: token})
-	return http.DefaultClient.Do(req)
+	return hc.Do(req)
 }
 
 // DoHttpJsonRequest executes a http request against the Argo CD API server and unmarshals the response body as JSON
