@@ -22,6 +22,7 @@ import {DarkModeToggleButton} from './dark-mode-toggle-button';
 import {FullscreenButton} from './fullscreen-button';
 import {ButtonGroup} from '../../../shared/components/button-group';
 import {ToggleButton} from '../../../shared/components/toggle-button';
+import { Spacer } from '../../../shared/components/spacer';
 
 const maxLines = 100;
 export interface PodLogsProps {
@@ -95,6 +96,7 @@ export const PodsLogsViewer = (props: PodLogsProps & {fullscreen?: boolean}) => 
                         <ButtonGroup>
                             <ContainerSelector containerGroups={props.containerGroups} containerName={containerName} onClickContainer={onClickContainer} />
                         </ButtonGroup>
+                        <Spacer/>
                         <ButtonGroup>
                             <ShowPreviousLogsToggleButton loader={loader} setPreviousLogs={setPreviousLogs} showPreviousLogs={showPreviousLogs} />
                             <TimestampsToggleButton
@@ -108,6 +110,7 @@ export const PodsLogsViewer = (props: PodLogsProps & {fullscreen?: boolean}) => 
                             <FollowToggleButton page={page} setPage={setPage} prefs={prefs} loader={loader} />
                             <DarkModeToggleButton prefs={prefs} />
                         </ButtonGroup>
+                        <Spacer/>
                         <ButtonGroup>
                             <CopyLogsButton loader={loader} />
                             <DownloadLogsButton {...props} />
