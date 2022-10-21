@@ -202,7 +202,7 @@ func Test_GenerateManifests_NoOutOfBoundsAccess(t *testing.T) {
 			err = os.Symlink(outOfBoundsFile, path.Join(repoDir, testCaseCopy.outOfBoundsFilename))
 			require.NoError(t, err)
 
-			var mustNotContain = testCaseCopy.outOfBoundsFileContents
+			mustNotContain := testCaseCopy.outOfBoundsFileContents
 			if testCaseCopy.mustNotContain != "" {
 				mustNotContain = testCaseCopy.mustNotContain
 			}
@@ -362,7 +362,6 @@ func TestGenerateJsonnetLibOutside(t *testing.T) {
 }
 
 func TestManifestGenErrorCacheByNumRequests(t *testing.T) {
-
 	// Returns the state of the manifest generation cache, by querying the cache for the previously set result
 	getRecentCachedEntry := func(service *Service, manifestRequest *apiclient.ManifestRequest) *cache.CachedManifestResponse {
 		assert.NotNil(t, service)
@@ -487,7 +486,6 @@ func TestManifestGenErrorCacheByNumRequests(t *testing.T) {
 }
 
 func TestManifestGenErrorCacheFileContentsChange(t *testing.T) {
-
 	tmpDir := t.TempDir()
 
 	service := newService(tmpDir)
@@ -548,7 +546,6 @@ func TestManifestGenErrorCacheFileContentsChange(t *testing.T) {
 }
 
 func TestManifestGenErrorCacheByMinutesElapsed(t *testing.T) {
-
 	tests := []struct {
 		// Test with a range of pause expiration thresholds
 		PauseGenerationOnFailureForMinutes int
@@ -620,14 +617,11 @@ func TestManifestGenErrorCacheByMinutesElapsed(t *testing.T) {
 			// 5) Ensure that the service no longer returns a cached copy of the last error
 			assert.True(t, err != nil && res == nil)
 			assert.True(t, !strings.HasPrefix(err.Error(), cachedManifestGenerationPrefix))
-
 		})
 	}
-
 }
 
 func TestManifestGenErrorCacheRespectsNoCache(t *testing.T) {
-
 	service := newService(".")
 
 	service.initConstants = RepoServerInitConstants{
@@ -681,7 +675,6 @@ func TestManifestGenErrorCacheRespectsNoCache(t *testing.T) {
 	// 5) Ensure that the subsequent invocation, after nocache, is cached
 	assert.True(t, err != nil && res == nil)
 	assert.True(t, strings.HasPrefix(err.Error(), cachedManifestGenerationPrefix))
-
 }
 
 func TestGenerateHelmWithValues(t *testing.T) {
@@ -716,7 +709,6 @@ func TestGenerateHelmWithValues(t *testing.T) {
 		}
 	}
 	assert.True(t, replicasVerified)
-
 }
 
 func TestHelmWithMissingValueFiles(t *testing.T) {
@@ -1045,7 +1037,7 @@ func TestGenerateHelmWithFileParameter(t *testing.T) {
 				ValueFiles: []string{"values-production.yaml"},
 				Values:     `cluster: {slaveCount: 2}`,
 				FileParameters: []argoappv1.HelmFileParameter{
-					argoappv1.HelmFileParameter{
+					{
 						Name: "passwordContent",
 						Path: "../external/external-secret.txt",
 					},
@@ -1191,6 +1183,7 @@ func TestGetAppDetailsHelm(t *testing.T) {
 	assert.Equal(t, "Helm", res.Type)
 	assert.EqualValues(t, []string{"values-production.yaml", "values.yaml"}, res.Helm.ValueFiles)
 }
+
 func TestGetAppDetailsHelm_WithNoValuesFile(t *testing.T) {
 	service := newService("../../util/helm/testdata/api-versions")
 
@@ -1713,7 +1706,6 @@ func TestGenerateManifestWithAnnotatedAndRegularGitTagHashes(t *testing.T) {
 					t.Errorf("expected an error but did not throw one")
 				}
 			}
-
 		})
 	}
 }
@@ -1811,7 +1803,7 @@ func tempDir(t *testing.T) string {
 }
 
 func walkFor(t *testing.T, root string, testPath string, run func(info fs.FileInfo)) {
-	var hitExpectedPath = false
+	hitExpectedPath := false
 	err := filepath.Walk(root, func(path string, info fs.FileInfo, err error) error {
 		if path == testPath {
 			require.NoError(t, err)
@@ -2254,6 +2246,13 @@ func Test_findManifests(t *testing.T) {
 		assert.Error(t, err)
 	})
 
+	t.Run("invalid k8s manifest JSON and skipped", func(t *testing.T) {
+		require.DirExists(t, "./testdata/invalid-k8s-manifest")
+		manifests, err := findManifests(logCtx, "./testdata/invalid-k8s-manifest", "./testdata/invalid-k8s-manifest", nil, noRecurse, nil, resource.MustParse("0"))
+		assert.Empty(t, manifests)
+		assert.NoError(t, err)
+	})
+
 	t.Run("valid JSON returns manifest and no error", func(t *testing.T) {
 		manifests, err := findManifests(logCtx, "./testdata/valid-json", "./testdata/valid-json", nil, noRecurse, nil, resource.MustParse("0"))
 		assert.Len(t, manifests, 1)
@@ -2292,7 +2291,6 @@ func Test_getHelmDependencyRepos(t *testing.T) {
 }
 
 func TestResolveRevision(t *testing.T) {
-
 	service := newService(".")
 	repo := &argoappv1.Repository{Repo: "https://github.com/argoproj/argo-cd"}
 	app := &argoappv1.Application{}
@@ -2310,11 +2308,9 @@ func TestResolveRevision(t *testing.T) {
 	assert.NotNil(t, resolveRevisionResponse.Revision)
 	assert.Nil(t, err)
 	assert.Equal(t, expectedResolveRevisionResponse, resolveRevisionResponse)
-
 }
 
 func TestResolveRevisionNegativeScenarios(t *testing.T) {
-
 	service := newService(".")
 	repo := &argoappv1.Repository{Repo: "https://github.com/argoproj/argo-cd"}
 	app := &argoappv1.Application{}
@@ -2332,7 +2328,6 @@ func TestResolveRevisionNegativeScenarios(t *testing.T) {
 	assert.NotNil(t, resolveRevisionResponse.Revision)
 	assert.NotNil(t, err)
 	assert.Equal(t, expectedResolveRevisionResponse, resolveRevisionResponse)
-
 }
 
 func TestDirectoryPermissionInitializer(t *testing.T) {
