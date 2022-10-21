@@ -733,6 +733,8 @@ func Declarative(filename string, values interface{}) (string, error) {
 }
 
 func CreateSubmoduleRepos(repoType string) {
+	oldEnv := os.Getenv("GIT_ALLOW_PROTOCOL")
+	CheckError(os.Setenv("GIT_ALLOW_PROTOCOL", "file"))
 
 	// set-up submodule repo
 	FailOnErr(Run("", "cp", "-Rf", "testdata/git-submodule/", submoduleDirectory()))
@@ -751,7 +753,6 @@ func CreateSubmoduleRepos(repoType string) {
 	FailOnErr(Run(submoduleParentDirectory(), "chmod", "777", "."))
 	FailOnErr(Run(submoduleParentDirectory(), "git", "init"))
 	FailOnErr(Run(submoduleParentDirectory(), "git", "add", "."))
-	FailOnErr(Run(submoduleParentDirectory(), "git", "config", "--global", "protocol.file.allow", "always"))
 	FailOnErr(Run(submoduleParentDirectory(), "git", "submodule", "add", "-b", "master", "../submodule.git", "submodule/test"))
 	if repoType == "ssh" {
 		FailOnErr(Run(submoduleParentDirectory(), "git", "config", "--file=.gitmodules", "submodule.submodule/test.url", RepoURL(RepoURLTypeSSHSubmodule)))
@@ -765,6 +766,8 @@ func CreateSubmoduleRepos(repoType string) {
 		FailOnErr(Run(submoduleParentDirectory(), "git", "remote", "add", "origin", os.Getenv("ARGOCD_E2E_GIT_SERVICE_SUBMODULE_PARENT")))
 		FailOnErr(Run(submoduleParentDirectory(), "git", "push", "origin", "master", "-f"))
 	}
+
+	CheckError(os.Setenv("GIT_ALLOW_PROTOCOL", oldEnv))
 }
 
 // RestartRepoServer performs a restart of the repo server deployment and waits
