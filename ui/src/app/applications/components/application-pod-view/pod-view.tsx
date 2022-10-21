@@ -173,6 +173,14 @@ export class PodView extends React.Component<PodViewProps> {
                                                                                             <span> ago ({<Moment local={true}>{pod.createdAt}</Moment>})</span>
                                                                                         </span>
                                                                                     )}
+                                                                                    <div>
+                                                                                        {isYoungerThanXMinutes(pod, 30) && (
+                                                                                            <span>
+                                                                                                <i className='fas fa-circle circle-icon' /> &nbsp;
+                                                                                                <span>pod age less than 30min</span>
+                                                                                            </span>
+                                                                                        )}
+                                                                                    </div>
                                                                                 </div>
                                                                             }
                                                                             popperOptions={{
