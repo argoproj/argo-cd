@@ -1,8 +1,7 @@
 import {DataLoader, DropDownMenu, Tooltip, Checkbox} from 'argo-ui';
 import * as classNames from 'classnames';
 import * as React from 'react';
-import {useState} from 'react';
-import {Link} from 'react-router-dom';
+import {useRef, useState} from 'react';
 import {bufferTime, delay, filter as rxfilter, map, retryWhen, scan} from 'rxjs/operators';
 import Ansi from 'ansi-to-react';
 import * as models from '../../../shared/models';
@@ -11,16 +10,16 @@ import {services, ViewPreferences} from '../../../shared/services';
 import {BASE_COLORS} from '../utils';
 
 import './pod-logs-viewer.scss';
-import {CopyLogsButton} from "./copy-logs-button";
-import {DownloadLogsButton} from "./download-logs-button";
-import {ContainerSelector} from "./container-selector";
-import {FollowToggleButton} from "./follow-toggle-button";
-import {WrapLinesToggleButton} from "./wrap-lines-toggle-button";
-import {LogLoader} from "./log-loader";
-import {ShowPreviousLogsToggleButton} from "./show-previous-logs-toggle-button";
-import {TimestampsToggleButton} from "./timestamps-toggle-button";
-import {DarkModeToggleButton} from "./dark-mode-toggle-button";
-import {FullscreenButton} from "./fullscreen-button";
+import {CopyLogsButton} from './copy-logs-button';
+import {DownloadLogsButton} from './download-logs-button';
+import {ContainerSelector} from './container-selector';
+import {FollowToggleButton} from './follow-toggle-button';
+import {WrapLinesToggleButton} from './wrap-lines-toggle-button';
+import {LogLoader} from './log-loader';
+import {ShowPreviousLogsToggleButton} from './show-previous-logs-toggle-button';
+import {TimestampsToggleButton} from './timestamps-toggle-button';
+import {DarkModeToggleButton} from './dark-mode-toggle-button';
+import {FullscreenButton} from './fullscreen-button';
 
 const maxLines = 100;
 export interface PodLogsProps {
@@ -45,7 +44,6 @@ export const PodsLogsViewer = (props: PodLogsProps & {fullscreen?: boolean}) => 
         return <div>Pod does not have container with name {props.containerName}</div>;
     }
 
-    let loader: LogLoader;
     const [selectedLine, setSelectedLine] = useState(-1);
     const bottom = React.useRef<HTMLInputElement>(null);
     const top = React.useRef<HTMLInputElement>(null);
@@ -54,7 +52,6 @@ export const PodsLogsViewer = (props: PodLogsProps & {fullscreen?: boolean}) => 
     const [viewPodNames, setViewPodNames] = useState(false);
     const [viewTimestamps, setViewTimestamps] = useState(false);
     const [showPreviousLogs, setPreviousLogs] = useState(false);
-
 
     interface FilterData {
         literal: string;
@@ -83,22 +80,30 @@ export const PodsLogsViewer = (props: PodLogsProps & {fullscreen?: boolean}) => 
         return () => clearTimeout(to);
     }, [filterText]);
 
+    const loaderRef = useRef();
 
+    const loader: LogLoader = loaderRef.current;
 
     return (
         <DataLoader load={() => services.viewPreferences.getPreferences()}>
-            {(prefs:ViewPreferences) => (
+            {(prefs: ViewPreferences) => (
                 <React.Fragment>
                     <div className='pod-logs-viewer__settings'>
-                        <CopyLogsButton loader={loader}/>
-                        <DownloadLogsButton {...props}/>
-                        <ContainerSelector containerGroups={props.containerGroups} onClickContainer={onClickContainer}/>
-                        <FollowToggleButton page={page} setPage={setPage} prefs={prefs} loader={loader}/>
-                        <WrapLinesToggleButton prefs={prefs}/>
-                       <ShowPreviousLogsToggleButton loader={loader} setPreviousLogs={setPreviousLogs} showPreviousLogs={showPreviousLogs}/>
-                        <DarkModeToggleButton prefs={prefs}/>
-                         <TimestampsToggleButton setViewPodNames={setViewPodNames} viewPodNames={viewPodNames} setViewTimestamps={setViewTimestamps} viewTimestamps={viewTimestamps} timestamp={props.timestamp}/>
-                        <FullscreenButton {...props}/>
+                        <CopyLogsButton loader={loader} />
+                        <DownloadLogsButton {...props} />
+                        <ContainerSelector containerGroups={props.containerGroups} containerName={containerName} onClickContainer={onClickContainer} />
+                        <FollowToggleButton page={page} setPage={setPage} prefs={prefs} loader={loader} />
+                        <WrapLinesToggleButton prefs={prefs} />
+                        <ShowPreviousLogsToggleButton loader={loader} setPreviousLogs={setPreviousLogs} showPreviousLogs={showPreviousLogs} />
+                        <DarkModeToggleButton prefs={prefs} />
+                        <TimestampsToggleButton
+                            setViewPodNames={setViewPodNames}
+                            viewPodNames={viewPodNames}
+                            setViewTimestamps={setViewTimestamps}
+                            viewTimestamps={viewTimestamps}
+                            timestamp={props.timestamp}
+                        />
+                        <FullscreenButton {...props} />
 
                         <div className='pod-logs-viewer__filter'>
                             <Tooltip content={`Show lines that ${!filter.inverse ? '' : 'do not'} match filter`}>
@@ -121,7 +126,7 @@ export const PodsLogsViewer = (props: PodLogsProps & {fullscreen?: boolean}) => 
                         </div>
                     </div>
                     <DataLoader
-                        ref={l => (loader = l)}
+                        ref={loaderRef}
                         loadingRenderer={() => (
                             <div className={`pod-logs-viewer ${prefs.appDetails.darkMode ? 'pod-logs-viewer--inverted' : ''}`}>
                                 {logNavigators({}, prefs.appDetails.darkMode, null)}

@@ -1,13 +1,18 @@
-import {DropDownMenu, Tooltip} from "argo-ui";
-import * as React from "react";
+import {DropDownMenu} from 'argo-ui';
+import * as React from 'react';
+import {Button} from '../../../shared/components/button';
 
-type ContainerGroup = { offset: number, containers: String[] };
+type ContainerGroup = {offset: number; containers: string[]};
 export const ContainerSelector = ({
-                                      containerGroups,
-                                      containerName,
-                                      onClickContainer
-                                  }: { containerGroups: ContainerGroup[], containerName: string, onClickContainer: (group: ContainerGroup, index: number, logs: String) => void }) => {
-    const containerItems: { title: any; action: () => any }[] = [];
+    containerGroups,
+    containerName,
+    onClickContainer
+}: {
+    containerGroups: ContainerGroup[];
+    containerName: string;
+    onClickContainer: (group: ContainerGroup, index: number, logs: string) => void;
+}) => {
+    const containerItems: {title: any; action: () => any}[] = [];
     if (containerGroups?.length > 0) {
         containerGroups.forEach(group => {
             containerItems.push({
@@ -18,7 +23,7 @@ export const ContainerSelector = ({
             group.containers.forEach((container: any, index: number) => {
                 const title = (
                     <div className='d-inline-block'>
-                        {container.name === containerName && <i className='fa fa-angle-right'/>}
+                        {container.name === containerName && <i className='fa fa-angle-right' />}
                         <span title={container.name} className='container-item'>
                             {container.name.toUpperCase()}
                         </span>
@@ -31,16 +36,16 @@ export const ContainerSelector = ({
             });
         });
     }
-    return containerGroups?.length > 0 && (
-        <DropDownMenu
-            anchor={() => (
-                <Tooltip content='Containers'>
-                    <button className='argo-button argo-button--base'>
-                        <i className='fa fa-stream'/>
-                    </button>
-                </Tooltip>
-            )}
-            items={containerItems}
-        />
-    )
-}
+    return (
+        containerGroups?.length > 0 && (
+            <DropDownMenu
+                anchor={() => (
+                    <Button icon='stream' title='Containers'>
+                        {containerName.substr(0, 3)}...
+                    </Button>
+                )}
+                items={containerItems}
+            />
+        )
+    );
+};

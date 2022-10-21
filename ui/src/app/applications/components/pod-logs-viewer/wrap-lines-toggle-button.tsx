@@ -1,15 +1,15 @@
-import {Checkbox, Tooltip} from "argo-ui";
-import {services, ViewPreferences} from "../../../shared/services";
-import * as React from "react";
+import {services, ViewPreferences} from '../../../shared/services';
+import * as React from 'react';
+import {ToggleButton} from '../../../shared/components/toggle-button';
 
-export const WrapLinesToggleButton = ({prefs}: { prefs: ViewPreferences }) => <Tooltip content='Wrap Lines'>
-    <button
-        className={`argo-button argo-button--base-o`}
-        onClick={() => {
+export const WrapLinesToggleButton = ({prefs}: {prefs: ViewPreferences}) => (
+    <ToggleButton
+        title='Wrap Lines'
+        onToggle={() => {
             const wrap = prefs.appDetails.wrapLines;
             services.viewPreferences.updatePreferences({...prefs, appDetails: {...prefs.appDetails, wrapLines: !wrap}});
-        }}>
-        <Checkbox checked={prefs.appDetails.wrapLines}/>
-        <i className='fa fa-paragraph'/>
-    </button>
-</Tooltip>
+        }}
+        toggled={prefs.appDetails.wrapLines}
+        icon='paragraph'
+    />
+);

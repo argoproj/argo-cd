@@ -1,31 +1,16 @@
-import * as React from "react";
-import {Tooltip} from "argo-ui";
-import {useState} from "react";
-import {LogLoader} from "./log-loader";
+import * as React from 'react';
+import {useContext} from 'react';
+import {LogLoader} from './log-loader';
+import {Button} from '../../../shared/components/button';
+import {Context} from '../../../shared/context';
+import {NotificationType} from 'argo-ui/src/components/notifications/notifications';
 
-export const CopyLogsButton = ({
-                                   loader,
-                               }: { loader: LogLoader}) => {
-
-    const [copy, setCopy] = useState('');
-    const setColor = (i: string) => {
-        const element = document.getElementById('copyButton');
-        if (i === 'success') {
-            element.classList.remove('copyStandard');
-            element.classList.add('copySuccess');
-        } else if (i === 'failure') {
-            element.classList.remove('copyStandard');
-            element.classList.add('copyFailure');
-        } else {
-            element.classList.remove('copySuccess');
-            element.classList.remove('copyFailure');
-            element.classList.add('copyStandard');
-        }
-    };
-    return <Tooltip content='Copy logs'>
-        <button
-            className='argo-button argo-button--base'
-            id='copyButton'
+export const CopyLogsButton = ({loader}: {loader: LogLoader}) => {
+    const ctx = useContext(Context);
+    return (
+        <Button
+            title='Copy logs'
+            icon='copy'
             onClick={async () => {
                 try {
                     await navigator.clipboard.writeText(
@@ -34,32 +19,11 @@ export const CopyLogsButton = ({
                             .map(item => item.content)
                             .join('\n')
                     );
-                    setCopy('success');
-                    setColor('success');
+                    ctx.notifications.show({type: NotificationType.Success, content: 'Copied'}, 750);
                 } catch (err) {
-                    setCopy('failure');
-                    setColor('failure');
+                    ctx.notifications.show({type: NotificationType.Error, content: err.message});
                 }
-                setTimeout(() => {
-                    setCopy('');
-                    setColor('');
-                }, 750);
-            }}>
-            {copy === 'success' && (
-                <React.Fragment>
-                    <i className='fa fa-check'/>
-                </React.Fragment>
-            )}
-            {copy === 'failure' && (
-                <React.Fragment>
-                    <i className='fa fa-times'/>
-                </React.Fragment>
-            )}
-            {copy === '' && (
-                <React.Fragment>
-                    <i className='fa fa-copy'/>
-                </React.Fragment>
-            )}
-        </button>
-    </Tooltip>
-}
+            }}
+        />
+    );
+};

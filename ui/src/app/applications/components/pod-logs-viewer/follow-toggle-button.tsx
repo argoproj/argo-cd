@@ -1,17 +1,23 @@
-import {Checkbox, Tooltip} from "argo-ui";
-import * as classNames from "classnames";
-import {services, ViewPreferences} from "../../../shared/services";
-import * as React from "react";
-import {LogLoader} from "./log-loader";
+import {services, ViewPreferences} from '../../../shared/services';
+import * as React from 'react';
+import {LogLoader} from './log-loader';
+import {ToggleButton} from '../../../shared/components/toggle-button';
 
-export const FollowToggleButton = ({prefs, page, setPage, loader}:{page:{number:number},
-    setPage:(page:{number:number,untilTimes:[]}) => void,
-    prefs:ViewPreferences,loader:LogLoader}) =>       <Tooltip content='Follow'>
-    <button
-        className={classNames(`argo-button argo-button--base-o`, {
-            disabled: page.number > 0
-        })}
-        onClick={() => {
+export const FollowToggleButton = ({
+    prefs,
+    page,
+    setPage,
+    loader
+}: {
+    page: {number: number};
+    setPage: (page: {number: number; untilTimes: []}) => void;
+    prefs: ViewPreferences;
+    loader: LogLoader;
+}) => (
+    <ToggleButton
+        title='Follow logs'
+        disabled={page.number > 0}
+        onToggle={() => {
             if (page.number > 0) {
                 return;
             }
@@ -21,8 +27,8 @@ export const FollowToggleButton = ({prefs, page, setPage, loader}:{page:{number:
                 setPage({number: 0, untilTimes: []});
             }
             loader.reload();
-        }}>
-        <Checkbox checked={prefs.appDetails.followLogs} />
-        <i className='fa fa-arrow-right' />
-    </button>
-</Tooltip>
+        }}
+        toggled={prefs.appDetails.followLogs}
+        icon='turn-down'
+    />
+);

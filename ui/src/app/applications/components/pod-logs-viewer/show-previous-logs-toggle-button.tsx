@@ -1,19 +1,23 @@
-import {Checkbox, Tooltip} from "argo-ui";
-import * as React from "react";
-import {LogLoader} from "./log-loader";
+import * as React from 'react';
+import {LogLoader} from './log-loader';
+import {ToggleButton} from '../../../shared/components/toggle-button';
 
-export const ShowPreviousLogsToggleButton = ({setPreviousLogs, showPreviousLogs, loader}: {
-    setPreviousLogs: (value: boolean) => void,
-    showPreviousLogs: boolean,
-    loader: LogLoader,
-}) => <Tooltip content='Show previous logs'>
-    <button
-        className={`argo-button argo-button--base-o`}
-        onClick={() => {
+export const ShowPreviousLogsToggleButton = ({
+    setPreviousLogs,
+    showPreviousLogs,
+    loader
+}: {
+    setPreviousLogs: (value: boolean) => void;
+    showPreviousLogs: boolean;
+    loader: LogLoader;
+}) => (
+    <ToggleButton
+        title='Show previous logs'
+        onToggle={() => {
             setPreviousLogs(!showPreviousLogs);
             loader.reload();
-        }}>
-        <Checkbox checked={showPreviousLogs}/>
-        <i className='fa fa-backward'/>
-    </button>
-</Tooltip>
+        }}
+        icon='backward'
+        toggled={showPreviousLogs}
+    />
+);

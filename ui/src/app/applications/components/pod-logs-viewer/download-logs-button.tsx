@@ -1,32 +1,15 @@
-import {Tooltip} from "argo-ui";
-import {services} from "../../../shared/services";
-import * as React from "react";
-import {PodLogsProps} from "./pod-logs-viewer";
+import {services} from '../../../shared/services';
+import * as React from 'react';
+import {PodLogsProps} from './pod-logs-viewer';
+import {Button} from '../../../shared/components/button';
 
-export const DownloadLogsButton = ({
-                                       applicationName,
-                                       applicationNamespace,
-                                       containerName,
-                                       group,
-                                       kind,
-                                       name,
-                                       namespace,
-                                       podName
-                                   }: PodLogsProps) =>
-    <Tooltip content='Download logs'>
-        <button
-            className='argo-button argo-button--base'
-            onClick={async () => {
-                const downloadURL = services.applications.getDownloadLogsURL(
-                    applicationName,
-                    applicationNamespace,
-                    namespace,
-                    podName,
-                    {group: group, kind: kind, name: name},
-                    containerName
-                );
-                window.open(downloadURL, '_blank');
-            }}>
-            <i className='fa fa-download'/>
-        </button>
-    </Tooltip>
+export const DownloadLogsButton = ({applicationName, applicationNamespace, containerName, group, kind, name, namespace, podName}: PodLogsProps) => (
+    <Button
+        title='Download logs'
+        icon='download'
+        onClick={async () => {
+            const downloadURL = services.applications.getDownloadLogsURL(applicationName, applicationNamespace, namespace, podName, {group, kind, name}, containerName);
+            window.open(downloadURL, '_blank');
+        }}
+    />
+);
