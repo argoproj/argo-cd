@@ -9961,7 +9961,8 @@ spec:
             path: /healthz?full=true
             port: 8084
           initialDelaySeconds: 30
-          periodSeconds: 5
+          periodSeconds: 30
+          timeoutSeconds: 5
         name: argocd-repo-server
         ports:
         - containerPort: 8081
