@@ -188,7 +188,7 @@ func (rt *resourceTracking) Normalize(config, live *unstructured.Unstructured, l
 		return err
 	}
 
-	if argokube.GetAppInstanceLabel(config, labelKey) != "" {
+	if argokube.GetAppInstanceLabel(config, labelKey) == "" {
 		argokube.RemoveLabel(live, labelKey)
 	}
 
