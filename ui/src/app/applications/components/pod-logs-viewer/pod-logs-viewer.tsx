@@ -85,6 +85,7 @@ export const PodsLogsViewer = (props: PodLogsProps & {fullscreen?: boolean}) => 
     const loaderRef = useRef();
 
     const loader: LogLoader = loaderRef.current;
+    const grep = filter.literal.replace(/[-\/\\^$*+?.()|[\]{}]/g, '\\$&'); //https://stackoverflow.com/questions/3561493/is-there-a-regexp-escape-function-in-javascript
 
     return (
         <DataLoader load={() => services.viewPreferences.getPreferences()}>
@@ -178,7 +179,7 @@ export const PodsLogsViewer = (props: PodLogsProps & {fullscreen?: boolean}) => 
                             }
                             return logsSource;
                         }}>
-                        {logs => {
+                        {(logs:any[]) => {
                             logs = logs || [];
                             setTimeout(() => {
                                 if (page.number === 0 && prefs.appDetails.followLogs && bottom.current) {
@@ -316,7 +317,7 @@ export const PodsLogsViewer = (props: PodLogsProps & {fullscreen?: boolean}) => 
                                                     )}
                                                     <div className='pod-logs-viewer__line__number'>{lineNum}</div>
                                                     <div className={`pod-logs-viewer__line ${selectedLine === i ? 'pod-logs-viewer__line--selected' : ''}`}>
-                                                        <Ansi>{l}</Ansi>
+                                                        <Ansi>{l.replace(new RegExp(grep, 'g'), (y:string) => '\u001b[1m\u001b[43;1m\u001b[37m' + y + '\u001b[0m')}</Ansi>
                                                     </div>
                                                 </div>
                                             );
