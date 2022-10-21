@@ -205,15 +205,6 @@ export const ApplicationCreatePanel = (props: {
                                                 <div className='argo-form-row'>
                                                     <FormField
                                                         formApi={api}
-                                                        label='Application Namespace'
-                                                        qeId='application-create-field-app-namespace'
-                                                        field='metadata.namespace'
-                                                        component={Text}
-                                                    />
-                                                </div>
-                                                <div className='argo-form-row'>
-                                                    <FormField
-                                                        formApi={api}
                                                         label='Project Name'
                                                         qeId='application-create-field-project'
                                                         field='spec.project'

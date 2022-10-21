@@ -37,6 +37,15 @@ argocd app set helm-guestbook --values values-production.yaml
     location in which case it can be accessed using a relative path relative to the root directory of
     the Helm chart.
 
+In the declarative syntax:
+
+```yaml
+source:
+  helm:
+    valueFiles:
+    - values-production.yaml
+```
+
 ## Helm Parameters
 
 Helm has the ability to set parameter values, which override any values in
@@ -51,6 +60,16 @@ in the form of `-p PARAM=VALUE`. For example:
 
 ```bash
 argocd app set helm-guestbook -p service.type=LoadBalancer
+```
+
+In the declarative syntax:
+
+```yaml
+source:
+  helm:
+    parameters:
+    - name: "service.type"
+      value: LoadBalancer
 ```
 
 ## Helm Release Name
@@ -74,8 +93,6 @@ source:
     Please note that overriding the Helm release name might cause problems when the chart you are deploying is using the `app.kubernetes.io/instance` label. ArgoCD injects this label with the value of the Application name for tracking purposes. So when overriding the release name, the Application name will stop being equal to the release name. Because ArgoCD will overwrite the label with the Application name it might cause some selectors on the resources to stop working. In order to avoid this we can configure ArgoCD to use another label for tracking in the [ArgoCD configmap argocd-cm.yaml](../operator-manual/argocd-cm.yaml) - check the lines describing `application.instanceLabelKey`.
 
 ## Helm Hooks
-
-> v1.3 or later
 
 Helm hooks are similar to [Argo CD hooks](resource_hooks.md). In Helm, a hook
 is any normal Kubernetes resource annotated with the `helm.sh/hook` annotation.
@@ -142,8 +159,6 @@ argocd app set redis -p password=abc123
 
 ## Build Environment
 
-> v1.4
-
 Helm apps have access to the [standard build environment](build-environment.md) via substitution as parameters.
 
 E.g. via the CLI:
@@ -176,8 +191,6 @@ It's also possible to use build environment variables for the Helm values file p
 ```
 
 ## Helm plugins
-
-> v1.5
 
 Argo CD is un-opinionated on what cloud provider you use and what kind of Helm plugins you are using, that's why there are no plugins delivered with the ArgoCD image.
 

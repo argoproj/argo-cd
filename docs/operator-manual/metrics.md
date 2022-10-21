@@ -71,6 +71,7 @@ Scraped at the `argocd-server-metrics:8083/metrics` endpoint.
 reconciliation. |
 | `grpc_server_handled_total` | counter | Total number of RPCs completed on the server, regardless of success or failure. |
 | `grpc_server_msg_sent_total` | counter | Total number of gRPC stream messages sent by the server. |
+
 ## Repo Server Metrics
 Metrics about the Repo Server.
 Scraped at the `argocd-repo-server:8084/metrics` endpoint.

@@ -1,6 +1,7 @@
 import {Autocomplete, ErrorNotification, MockupList, NotificationType, SlidingPanel, Toolbar, Tooltip} from 'argo-ui';
 import * as classNames from 'classnames';
 import * as React from 'react';
+import * as ReactDOM from 'react-dom';
 import {Key, KeybindingContext, KeybindingProvider} from 'argo-ui/v2';
 import {RouteComponentProps} from 'react-router';
 import {combineLatest, from, merge, Observable} from 'rxjs';
@@ -19,6 +20,7 @@ import {ApplicationsSummary} from './applications-summary';
 import {ApplicationsTable} from './applications-table';
 import {ApplicationTiles} from './applications-tiles';
 import {ApplicationsRefreshPanel} from '../applications-refresh-panel/applications-refresh-panel';
+import {useSidebarTarget} from '../../../sidebar/sidebar';
 
 require('./applications-list.scss');
 require('./flex-top-bar.scss');
@@ -306,18 +308,18 @@ export const ApplicationsList = (props: RouteComponentProps<{}>) => {
     const loaderRef = React.useRef<DataLoader>();
     const {List, Summary, Tiles} = AppsListViewKey;
 
-    function refreshApp(appName: string) {
+    function refreshApp(appName: string, appNamespace: string) {
         // app refreshing might be done too quickly so that UI might miss it due to event batching
         // add refreshing annotation in the UI to improve user experience
         if (loaderRef.current) {
             const applications = loaderRef.current.getData() as models.Application[];
-            const app = applications.find(item => item.metadata.name === appName);
+            const app = applications.find(item => item.metadata.name === appName && item.metadata.namespace === appNamespace);
             if (app) {
                 AppUtils.setAppRefreshing(app);
                 loaderRef.current.setData(applications);
             }
         }
-        services.applications.get(appName, 'normal');
+        services.applications.get(appName, appNamespace, 'normal');
     }
 
     function onFilterPrefChanged(ctx: ContextApis, newPref: AppsListPreferences) {
@@ -347,6 +349,8 @@ export const ApplicationsList = (props: RouteComponentProps<{}>) => {
         }
         return '';
     }
+
+    const sidebarTarget = useSidebarTarget();
 
     return (
         <ClusterCtx.Provider value={clusters}>
@@ -454,7 +458,7 @@ export const ApplicationsList = (props: RouteComponentProps<{}>) => {
                                                     <div className='applications-list'>
                                                         {applications.length === 0 && pref.projectsFilter?.length === 0 && (pref.labelsFilter || []).length === 0 ? (
                                                             <EmptyState icon='argo-icon-application'>
-                                                                <h4>No applications yet</h4>
+                                                                <h4>No applications available to you just yet</h4>
                                                                 <h5>Create new application to start managing resources in your cluster</h5>
                                                                 <button
                                                                     qe-id='applications-list-button-create-application'
@@ -464,7 +468,21 @@ export const ApplicationsList = (props: RouteComponentProps<{}>) => {
                                                                 </button>
                                                             </EmptyState>
                                                         ) : (
-                                                            <ApplicationsFilter apps={filterResults} onChange={newPrefs => onFilterPrefChanged(ctx, newPrefs)} pref={pref}>
+                                                            <>
+                                                                {ReactDOM.createPortal(
+                                                                    <DataLoader load={() => services.viewPreferences.getPreferences()}>
+                                                                        {allpref => (
+                                                                            <ApplicationsFilter
+                                                                                apps={filterResults}
+                                                                                onChange={newPrefs => onFilterPrefChanged(ctx, newPrefs)}
+                                                                                pref={pref}
+                                                                                collapsed={allpref.hideSidebar}
+                                                                            />
+                                                                        )}
+                                                                    </DataLoader>,
+                                                                    sidebarTarget?.current
+                                                                )}
+
                                                                 {(pref.view === 'summary' && <ApplicationsSummary applications={filteredApps} />) || (
                                                                     <Paginate
                                                                         header={filteredApps.length > 1 && <ApplicationsStatusBar applications={filteredApps} />}
@@ -515,7 +533,7 @@ export const ApplicationsList = (props: RouteComponentProps<{}>) => {
                                                                         }
                                                                     </Paginate>
                                                                 )}
-                                                            </ApplicationsFilter>
+                                                            </>
                                                         )}
                                                         <ApplicationsSyncPanel
                                                             key='syncsPanel'

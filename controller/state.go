@@ -14,6 +14,7 @@ import (
 	hookutil "github.com/argoproj/gitops-engine/pkg/sync/hook"
 	"github.com/argoproj/gitops-engine/pkg/sync/ignore"
 	resourceutil "github.com/argoproj/gitops-engine/pkg/sync/resource"
+	"github.com/argoproj/gitops-engine/pkg/sync/syncwaves"
 	kubeutil "github.com/argoproj/gitops-engine/pkg/utils/kube"
 	log "github.com/sirupsen/logrus"
 	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
@@ -89,18 +90,19 @@ func (res *comparisonResult) GetHealthStatus() *v1alpha1.HealthStatus {
 
 // appStateManager allows to compare applications to git
 type appStateManager struct {
-	metricsServer        *metrics.MetricsServer
-	db                   db.ArgoDB
-	settingsMgr          *settings.SettingsManager
-	appclientset         appclientset.Interface
-	projInformer         cache.SharedIndexInformer
-	kubectl              kubeutil.Kubectl
-	repoClientset        apiclient.Clientset
-	liveStateCache       statecache.LiveStateCache
-	cache                *appstatecache.Cache
-	namespace            string
-	statusRefreshTimeout time.Duration
-	resourceTracking     argo.ResourceTracking
+	metricsServer         *metrics.MetricsServer
+	db                    db.ArgoDB
+	settingsMgr           *settings.SettingsManager
+	appclientset          appclientset.Interface
+	projInformer          cache.SharedIndexInformer
+	kubectl               kubeutil.Kubectl
+	repoClientset         apiclient.Clientset
+	liveStateCache        statecache.LiveStateCache
+	cache                 *appstatecache.Cache
+	namespace             string
+	statusRefreshTimeout  time.Duration
+	resourceTracking      argo.ResourceTracking
+	persistResourceHealth bool
 }
 
 func (m *appStateManager) getRepoObjs(app *v1alpha1.Application, source v1alpha1.ApplicationSource, appLabelKey, revision string, noCache, noRevisionCache, verifySignature bool, proj *v1alpha1.AppProject) ([]*unstructured.Unstructured, *apiclient.ManifestResponse, error) {
@@ -418,7 +420,17 @@ func (m *appStateManager) CompareAppState(app *v1alpha1.Application, project *ap
 
 	// filter out all resources which are not permitted in the application project
 	for k, v := range liveObjByKey {
-		if !project.IsLiveResourcePermitted(v, app.Spec.Destination.Server, app.Spec.Destination.Name) {
+		permitted, err := project.IsLiveResourcePermitted(v, app.Spec.Destination.Server, app.Spec.Destination.Name, func(project string) ([]*appv1.Cluster, error) {
+			return m.db.GetProjectClusters(context.TODO(), project)
+		})
+
+		if err != nil {
+			conditions = append(conditions, v1alpha1.ApplicationCondition{Type: v1alpha1.ApplicationConditionComparisonError, Message: err.Error(), LastTransitionTime: &now})
+			failedToLoadObjs = true
+			continue
+		}
+
+		if !permitted {
 			delete(liveObjByKey, k)
 		}
 	}
@@ -513,6 +525,9 @@ func (m *appStateManager) CompareAppState(app *v1alpha1.Application, project *ap
 			Hook:            hookutil.IsHook(obj),
 			RequiresPruning: targetObj == nil && liveObj != nil && isSelfReferencedObj,
 		}
+		if targetObj != nil {
+			resState.SyncWave = int64(syncwaves.Wave(targetObj))
+		}
 
 		var diffResult diff.DiffResult
 		if i < len(diffResults.Diffs) {
@@ -588,7 +603,7 @@ func (m *appStateManager) CompareAppState(app *v1alpha1.Application, project *ap
 	}
 	ts.AddCheckpoint("sync_ms")
 
-	healthStatus, err := setApplicationHealth(managedResources, resourceSummaries, resourceOverrides, app)
+	healthStatus, err := setApplicationHealth(managedResources, resourceSummaries, resourceOverrides, app, m.persistResourceHealth)
 	if err != nil {
 		conditions = append(conditions, appv1.ApplicationCondition{Type: v1alpha1.ApplicationConditionComparisonError, Message: err.Error(), LastTransitionTime: &now})
 	}
@@ -644,7 +659,7 @@ func (m *appStateManager) persistRevisionHistory(app *v1alpha1.Application, revi
 		},
 	})
 	if err != nil {
-		return err
+		return fmt.Errorf("error marshaling revision history patch: %w", err)
 	}
 	_, err = m.appclientset.ArgoprojV1alpha1().Applications(app.Namespace).Patch(context.Background(), app.Name, types.MergePatchType, patch, metav1.PatchOptions{})
 	return err
@@ -664,20 +679,22 @@ func NewAppStateManager(
 	cache *appstatecache.Cache,
 	statusRefreshTimeout time.Duration,
 	resourceTracking argo.ResourceTracking,
+	persistResourceHealth bool,
 ) AppStateManager {
 	return &appStateManager{
-		liveStateCache:       liveStateCache,
-		cache:                cache,
-		db:                   db,
-		appclientset:         appclientset,
-		kubectl:              kubectl,
-		repoClientset:        repoClientset,
-		namespace:            namespace,
-		settingsMgr:          settingsMgr,
-		projInformer:         projInformer,
-		metricsServer:        metricsServer,
-		statusRefreshTimeout: statusRefreshTimeout,
-		resourceTracking:     resourceTracking,
+		liveStateCache:        liveStateCache,
+		cache:                 cache,
+		db:                    db,
+		appclientset:          appclientset,
+		kubectl:               kubectl,
+		repoClientset:         repoClientset,
+		namespace:             namespace,
+		settingsMgr:           settingsMgr,
+		projInformer:          projInformer,
+		metricsServer:         metricsServer,
+		statusRefreshTimeout:  statusRefreshTimeout,
+		resourceTracking:      resourceTracking,
+		persistResourceHealth: persistResourceHealth,
 	}
 }
 
@@ -699,10 +716,11 @@ func (m *appStateManager) isSelfReferencedObj(obj *unstructured.Unstructured, ap
 
 	// In order for us to assume obj to be managed by this application, the
 	// values from the annotation have to match the properties from the live
-	// object.
+	// object. Cluster scoped objects carry the app's destination namespace
+	// in the tracking annotation, but are unique in GVK + name combination.
 	appInstance := m.resourceTracking.GetAppInstance(obj, appLabelKey, trackingMethod)
 	if appInstance != nil {
-		return obj.GetNamespace() == appInstance.Namespace &&
+		return (obj.GetNamespace() == appInstance.Namespace || obj.GetNamespace() == "") &&
 			obj.GetName() == appInstance.Name &&
 			obj.GetObjectKind().GroupVersionKind().Group == appInstance.Group &&
 			obj.GetObjectKind().GroupVersionKind().Kind == appInstance.Kind

@@ -1,4 +1,4 @@
-FROM docker.io/library/redis:7.0.4 as redis
+FROM docker.io/library/redis:7.0.5 as redis
 
 # There are libraries we will want to copy from here in the final stage of the
 # build, but the COPY directive does not have a way to determine system
@@ -7,7 +7,7 @@ RUN ln -s /usr/lib/$(uname -m)-linux-gnu /usr/lib/linux-gnu
 
 FROM docker.io/library/node:12.18.4-buster as node
 
-FROM docker.io/library/golang:1.19 as golang
+FROM docker.io/library/golang:1.18 as golang
 
 FROM docker.io/library/registry:2.8 as registry
 

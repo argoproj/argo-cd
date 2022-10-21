@@ -40,11 +40,13 @@ argocd-application-controller [flags]
       --operation-processors int              Number of application operation processors (default 10)
       --otlp-address string                   OpenTelemetry collector address to send traces to
       --password string                       Password for basic authentication to the API server
+      --persist-resource-health               Enables storing the managed resources health in the Application CRD (default true)
       --proxy-url string                      If provided, this URL will be used to connect via proxy
       --redis string                          Redis server hostname and port (e.g. argocd-redis:6379). 
       --redis-ca-certificate string           Path to Redis server CA certificate (e.g. /etc/certs/redis/ca.crt). If not specified, system trusted CAs will be used for server certificate validation.
       --redis-client-certificate string       Path to Redis client certificate (e.g. /etc/certs/redis/client.crt).
       --redis-client-key string               Path to Redis client key (e.g. /etc/certs/redis/client.crt).
+      --redis-compress string                 Enable compression for data sent to Redis with the required compression algorithm. (possible values: none, gzip) (default "none")
       --redis-insecure-skip-tls-verify        Skip Redis server certificate validation.
       --redis-use-tls                         Use TLS when connecting to Redis. 
       --redisdb int                           Redis database.

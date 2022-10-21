@@ -228,6 +228,8 @@ interface ApplicationSourceJsonnet {
 export interface ApplicationSourceDirectory {
     recurse: boolean;
     jsonnet?: ApplicationSourceJsonnet;
+    include?: string;
+    exclude?: string;
 }
 
 export interface Automated {
@@ -310,9 +312,10 @@ export interface ResourceStatus {
     name: string;
     status: SyncStatusCode;
     health: HealthStatus;
+    createdAt?: models.Time;
     hook?: boolean;
     requiresPruning?: boolean;
-    syncOrder?: string;
+    syncWave?: number;
 }
 
 export interface ResourceRef {
@@ -491,6 +494,15 @@ export interface Repository {
     type?: string;
     name?: string;
     connectionState: ConnectionState;
+    project?: string;
+    username?: string;
+    password?: string;
+    tlsClientCertData?: string;
+    tlsClientCertKey?: string;
+    proxy?: string;
+    insecure?: boolean;
+    enableLfs?: boolean;
+    githubAppId?: string;
 }
 
 export interface RepositoryList extends ItemsList<Repository> {}
@@ -880,4 +892,8 @@ export enum PodPhase {
     PodSucceeded = 'Succeeded',
     PodFailed = 'Failed',
     PodUnknown = 'Unknown'
+}
+
+export interface NotificationChunk {
+    name: string;
 }

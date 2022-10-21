@@ -27,7 +27,7 @@ spec:
 
 ## GitHub
 
-The GitHub mode uses the GitHub API to scan and organization in either github.com or GitHub Enterprise.
+The GitHub mode uses the GitHub API to scan an organization in either github.com or GitHub Enterprise.
 
 ```yaml
 apiVersion: argoproj.io/v1alpha1
@@ -48,6 +48,8 @@ spec:
         tokenRef:
           secretName: github-token
           key: token
+        # (optional) use a GitHub App to access the API instead of a PAT.
+        appSecretName: gh-app-repo-creds
   template:
   # ...
 ```
@@ -56,6 +58,9 @@ spec:
 * `api`: If using GitHub Enterprise, the URL to access it.
 * `allBranches`: By default (false) the template will only be evaluated for the default branch of each repo. If this is true, every branch of every repository will be passed to the filters. If using this flag, you likely want to use a `branchMatch` filter.
 * `tokenRef`: A `Secret` name and key containing the GitHub access token to use for requests. If not specified, will make anonymous requests which have a lower rate limit and can only see public repositories.
+* `appSecretName`: A `Secret` name containing a GitHub App secret in [repo-creds format][repo-creds].
+
+[repo-creds]: ../declarative-setup.md#repository-credentials
 
 For label filtering, the repository topics are used.
 

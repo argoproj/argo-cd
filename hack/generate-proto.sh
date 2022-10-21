@@ -11,8 +11,10 @@ set -o pipefail
 
 PROJECT_ROOT=$(cd $(dirname ${BASH_SOURCE})/..; pwd)
 PATH="${PROJECT_ROOT}/dist:${PATH}"
+GOPATH=$(go env GOPATH)
 
 # output tool versions
+go version
 protoc --version
 swagger version
 jq --version
@@ -33,6 +35,7 @@ APIMACHINERY_PKGS=(
     +k8s.io/apimachinery/pkg/runtime
     k8s.io/apimachinery/pkg/apis/meta/v1
     k8s.io/api/core/v1
+    k8s.io/apiextensions-apiserver/pkg/apis/apiextensions/v1
 )
 
 export GO111MODULE=on
@@ -121,7 +124,7 @@ clean_swagger() {
 }
 
 echo "If additional types are added, the number of expected collisions may need to be increased"
-EXPECTED_COLLISION_COUNT=62
+EXPECTED_COLLISION_COUNT=90
 collect_swagger server ${EXPECTED_COLLISION_COUNT}
 clean_swagger server
 clean_swagger reposerver

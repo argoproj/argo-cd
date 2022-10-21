@@ -81,7 +81,7 @@ func (s *Server) CreateToken(ctx context.Context, q *project.ProjectTokenCreateR
 	}
 	err = validateProject(prj)
 	if err != nil {
-		return nil, err
+		return nil, fmt.Errorf("error validating project: %w", err)
 	}
 
 	s.projectLock.Lock(q.Project)
@@ -152,7 +152,7 @@ func (s *Server) DeleteToken(ctx context.Context, q *project.ProjectTokenDeleteR
 	}
 	err = validateProject(prj)
 	if err != nil {
-		return nil, err
+		return nil, fmt.Errorf("error validating project: %w", err)
 	}
 
 	s.projectLock.Lock(q.Project)
@@ -193,7 +193,7 @@ func (s *Server) Create(ctx context.Context, q *project.ProjectCreateRequest) (*
 	q.Project.NormalizePolicies()
 	err := validateProject(q.Project)
 	if err != nil {
-		return nil, err
+		return nil, fmt.Errorf("error validating project: %w", err)
 	}
 	res, err := s.appclientset.ArgoprojV1alpha1().AppProjects(s.ns).Create(ctx, q.Project, metav1.CreateOptions{})
 	if apierr.IsAlreadyExists(err) {
@@ -336,12 +336,21 @@ func (s *Server) Update(ctx context.Context, q *project.ProjectUpdateRequest) (*
 
 	var srcValidatedApps []v1alpha1.Application
 	var dstValidatedApps []v1alpha1.Application
+	getProjectClusters := func(project string) ([]*v1alpha1.Cluster, error) {
+		return s.db.GetProjectClusters(ctx, project)
+	}
 
 	for _, a := range argo.FilterByProjects(appsList.Items, []string{q.Project.Name}) {
 		if oldProj.IsSourcePermitted(a.Spec.Source) {
 			srcValidatedApps = append(srcValidatedApps, a)
 		}
-		if oldProj.IsDestinationPermitted(a.Spec.Destination) {
+
+		dstPermitted, err := oldProj.IsDestinationPermitted(a.Spec.Destination, getProjectClusters)
+		if err != nil {
+			return nil, err
+		}
+
+		if dstPermitted {
 			dstValidatedApps = append(dstValidatedApps, a)
 		}
 	}
@@ -355,7 +364,12 @@ func (s *Server) Update(ctx context.Context, q *project.ProjectUpdateRequest) (*
 		}
 	}
 	for _, a := range dstValidatedApps {
-		if !q.Project.IsDestinationPermitted(a.Spec.Destination) {
+		dstPermitted, err := q.Project.IsDestinationPermitted(a.Spec.Destination, getProjectClusters)
+		if err != nil {
+			return nil, err
+		}
+
+		if !dstPermitted {
 			invalidDstCount++
 		}
 	}

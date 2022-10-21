@@ -14,7 +14,7 @@ There are two ways to install a Config Management Plugin (CMP):
 1. Add the plugin config to the Argo CD ConfigMap. The repo-server container will run your plugin's commands.
    This is a good option for a simple plugin that requires only a few lines of code that fit nicely in the Argo CD ConfigMap.
 2. Add the plugin as a sidecar to the repo-server Pod.
-   This is a good option for a more complex plugin that would clutter the Argo CD ConfigMap.
+   This is a good option for a more complex plugin that would clutter the Argo CD ConfigMap. A copy of the repository is sent to the sidecar container as a tarball and processed individually per application, which makes it a good option for [concurrent processing of monorepos](../operator-manual/high_availability.md#enable-concurrent-processing).
 
 ### Option 1: Configure plugins via Argo CD configmap
 
@@ -163,8 +163,6 @@ CMP commands have access to
 2. [Standard build environment](build-environment.md)
 3. Variables in the application spec (References to system and build variables will get interpolated in the variables' values):
 
-> v1.2
-
 ```yaml
 spec:
   source:
@@ -178,8 +176,6 @@ spec:
 
 !!! note
     The `discover.command` command only has access to the above environment starting with v2.4.
-
-> v2.4
 
 Before reaching the `init.command`, `generate.command`, and `discover.command` commands, Argo CD prefixes all 
 user-supplied environment variables (#3 above) with `ARGOCD_ENV_`. This prevents users from directly setting 

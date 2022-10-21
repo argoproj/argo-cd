@@ -24,8 +24,8 @@ import (
 	"github.com/argoproj/argo-cd/v2/applicationset/generators"
 	"github.com/argoproj/argo-cd/v2/applicationset/services/scm_provider"
 	"github.com/argoproj/argo-cd/v2/common"
-	argov1alpha1 "github.com/argoproj/argo-cd/v2/pkg/apis/application/v1alpha1"
-	argoprojiov1alpha1 "github.com/argoproj/argo-cd/v2/pkg/apis/applicationset/v1alpha1"
+	"github.com/argoproj/argo-cd/v2/pkg/apis/application/v1alpha1"
+	argoprojiov1alpha1 "github.com/argoproj/argo-cd/v2/pkg/apis/application/v1alpha1"
 	argosettings "github.com/argoproj/argo-cd/v2/util/settings"
 	apiextensionsv1 "k8s.io/apiextensions-apiserver/pkg/apis/apiextensions/v1"
 )
@@ -152,9 +152,9 @@ func TestWebhookHandler(t *testing.T) {
 	namespace := "test"
 	fakeClient := newFakeClient(namespace)
 	scheme := runtime.NewScheme()
-	err := argoprojiov1alpha1.AddToScheme(scheme)
+	err := v1alpha1.AddToScheme(scheme)
 	assert.Nil(t, err)
-	err = argov1alpha1.AddToScheme(scheme)
+	err = v1alpha1.AddToScheme(scheme)
 	assert.Nil(t, err)
 
 	for _, test := range tt {
@@ -187,7 +187,7 @@ func TestWebhookHandler(t *testing.T) {
 			h.Handler(w, req)
 			assert.Equal(t, w.Code, test.expectedStatusCode)
 
-			list := &argoprojiov1alpha1.ApplicationSetList{}
+			list := &v1alpha1.ApplicationSetList{}
 			err = fc.List(context.TODO(), list)
 			assert.Nil(t, err)
 			effectedAppSetsAsExpected := make(map[string]bool)
@@ -273,16 +273,16 @@ func TestGenRevisionHasChanged(t *testing.T) {
 	assert.False(t, genRevisionHasChanged(&argoprojiov1alpha1.GitGenerator{Revision: "refs/heads/dev"}, "master", false))
 }
 
-func fakeAppWithGitGenerator(name, namespace, repo string) *argoprojiov1alpha1.ApplicationSet {
-	return &argoprojiov1alpha1.ApplicationSet{
+func fakeAppWithGitGenerator(name, namespace, repo string) *v1alpha1.ApplicationSet {
+	return &v1alpha1.ApplicationSet{
 		ObjectMeta: metav1.ObjectMeta{
 			Name:      name,
 			Namespace: namespace,
 		},
-		Spec: argoprojiov1alpha1.ApplicationSetSpec{
-			Generators: []argoprojiov1alpha1.ApplicationSetGenerator{
+		Spec: v1alpha1.ApplicationSetSpec{
+			Generators: []v1alpha1.ApplicationSetGenerator{
 				{
-					Git: &argoprojiov1alpha1.GitGenerator{
+					Git: &v1alpha1.GitGenerator{
 						RepoURL:  repo,
 						Revision: "master",
 					},
@@ -318,11 +318,11 @@ func fakeAppWithGithubPullRequestGenerator(name, namespace, owner, repo string) 
 			Name:      name,
 			Namespace: namespace,
 		},
-		Spec: argoprojiov1alpha1.ApplicationSetSpec{
-			Generators: []argoprojiov1alpha1.ApplicationSetGenerator{
+		Spec: v1alpha1.ApplicationSetSpec{
+			Generators: []v1alpha1.ApplicationSetGenerator{
 				{
-					PullRequest: &argoprojiov1alpha1.PullRequestGenerator{
-						Github: &argoprojiov1alpha1.PullRequestGeneratorGithub{
+					PullRequest: &v1alpha1.PullRequestGenerator{
+						Github: &v1alpha1.PullRequestGeneratorGithub{
 							Owner: owner,
 							Repo:  repo,
 						},
@@ -333,17 +333,17 @@ func fakeAppWithGithubPullRequestGenerator(name, namespace, owner, repo string) 
 	}
 }
 
-func fakeAppWithMatrixAndGitGenerator(name, namespace, repo string) *argoprojiov1alpha1.ApplicationSet {
-	return &argoprojiov1alpha1.ApplicationSet{
+func fakeAppWithMatrixAndGitGenerator(name, namespace, repo string) *v1alpha1.ApplicationSet {
+	return &v1alpha1.ApplicationSet{
 		ObjectMeta: metav1.ObjectMeta{
 			Name:      name,
 			Namespace: namespace,
 		},
-		Spec: argoprojiov1alpha1.ApplicationSetSpec{
-			Generators: []argoprojiov1alpha1.ApplicationSetGenerator{
+		Spec: v1alpha1.ApplicationSetSpec{
+			Generators: []v1alpha1.ApplicationSetGenerator{
 				{
-					Matrix: &argoprojiov1alpha1.MatrixGenerator{
-						Generators: []argoprojiov1alpha1.ApplicationSetNestedGenerator{
+					Matrix: &v1alpha1.MatrixGenerator{
+						Generators: []v1alpha1.ApplicationSetNestedGenerator{
 							{
 								List: &argoprojiov1alpha1.ListGenerator{},
 							},
@@ -360,17 +360,17 @@ func fakeAppWithMatrixAndGitGenerator(name, namespace, repo string) *argoprojiov
 	}
 }
 
-func fakeAppWithMatrixAndPullRequestGenerator(name, namespace, owner, repo string) *argoprojiov1alpha1.ApplicationSet {
-	return &argoprojiov1alpha1.ApplicationSet{
+func fakeAppWithMatrixAndPullRequestGenerator(name, namespace, owner, repo string) *v1alpha1.ApplicationSet {
+	return &v1alpha1.ApplicationSet{
 		ObjectMeta: metav1.ObjectMeta{
 			Name:      name,
 			Namespace: namespace,
 		},
-		Spec: argoprojiov1alpha1.ApplicationSetSpec{
-			Generators: []argoprojiov1alpha1.ApplicationSetGenerator{
+		Spec: v1alpha1.ApplicationSetSpec{
+			Generators: []v1alpha1.ApplicationSetGenerator{
 				{
-					Matrix: &argoprojiov1alpha1.MatrixGenerator{
-						Generators: []argoprojiov1alpha1.ApplicationSetNestedGenerator{
+					Matrix: &v1alpha1.MatrixGenerator{
+						Generators: []v1alpha1.ApplicationSetNestedGenerator{
 							{
 								List: &argoprojiov1alpha1.ListGenerator{},
 							},
@@ -507,13 +507,13 @@ func fakeAppWithMergeAndGitGenerator(name, namespace, repo string) *argoprojiov1
 			Name:      name,
 			Namespace: namespace,
 		},
-		Spec: argoprojiov1alpha1.ApplicationSetSpec{
-			Generators: []argoprojiov1alpha1.ApplicationSetGenerator{
+		Spec: v1alpha1.ApplicationSetSpec{
+			Generators: []v1alpha1.ApplicationSetGenerator{
 				{
-					Merge: &argoprojiov1alpha1.MergeGenerator{
-						Generators: []argoprojiov1alpha1.ApplicationSetNestedGenerator{
+					Merge: &v1alpha1.MergeGenerator{
+						Generators: []v1alpha1.ApplicationSetNestedGenerator{
 							{
-								Git: &argoprojiov1alpha1.GitGenerator{
+								Git: &v1alpha1.GitGenerator{
 									RepoURL: repo,
 								},
 							},
@@ -525,20 +525,20 @@ func fakeAppWithMergeAndGitGenerator(name, namespace, repo string) *argoprojiov1
 	}
 }
 
-func fakeAppWithMergeAndPullRequestGenerator(name, namespace, owner, repo string) *argoprojiov1alpha1.ApplicationSet {
-	return &argoprojiov1alpha1.ApplicationSet{
+func fakeAppWithMergeAndPullRequestGenerator(name, namespace, owner, repo string) *v1alpha1.ApplicationSet {
+	return &v1alpha1.ApplicationSet{
 		ObjectMeta: metav1.ObjectMeta{
 			Name:      name,
 			Namespace: namespace,
 		},
-		Spec: argoprojiov1alpha1.ApplicationSetSpec{
-			Generators: []argoprojiov1alpha1.ApplicationSetGenerator{
+		Spec: v1alpha1.ApplicationSetSpec{
+			Generators: []v1alpha1.ApplicationSetGenerator{
 				{
-					Merge: &argoprojiov1alpha1.MergeGenerator{
-						Generators: []argoprojiov1alpha1.ApplicationSetNestedGenerator{
+					Merge: &v1alpha1.MergeGenerator{
+						Generators: []v1alpha1.ApplicationSetNestedGenerator{
 							{
-								PullRequest: &argoprojiov1alpha1.PullRequestGenerator{
-									Github: &argoprojiov1alpha1.PullRequestGeneratorGithub{
+								PullRequest: &v1alpha1.PullRequestGenerator{
+									Github: &v1alpha1.PullRequestGeneratorGithub{
 										Owner: owner,
 										Repo:  repo,
 									},
@@ -596,7 +596,7 @@ func fakeAppWithMergeAndNestedGitGenerator(name, namespace, repo string) *argopr
 
 func newFakeClient(ns string) *kubefake.Clientset {
 	s := runtime.NewScheme()
-	s.AddKnownTypes(argoprojiov1alpha1.GroupVersion, &argoprojiov1alpha1.ApplicationSet{})
+	s.AddKnownTypes(v1alpha1.SchemeGroupVersion, &v1alpha1.ApplicationSet{})
 	return kubefake.NewSimpleClientset(&corev1.ConfigMap{ObjectMeta: metav1.ObjectMeta{Name: "argocd-cm", Namespace: ns, Labels: map[string]string{
 		"app.kubernetes.io/part-of": "argocd",
 	}}}, &v1.Secret{

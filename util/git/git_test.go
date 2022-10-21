@@ -289,7 +289,11 @@ func TestLFSClient(t *testing.T) {
 	fileHandle, err := os.Open(fmt.Sprintf("%s/test3.yaml", tempDir))
 	assert.NoError(t, err)
 	if err == nil {
-		defer fileHandle.Close()
+		defer func() {
+			if err = fileHandle.Close(); err != nil {
+				assert.NoError(t, err)
+			}
+		}()
 		text, err := io.ReadAll(fileHandle)
 		assert.NoError(t, err)
 		if err == nil {

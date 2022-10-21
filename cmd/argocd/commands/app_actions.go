@@ -1,6 +1,7 @@
 package commands
 
 import (
+	"context"
 	"encoding/json"
 	"fmt"
 	"os"
@@ -17,6 +18,7 @@ import (
 	"github.com/argoproj/argo-cd/v2/cmd/argocd/commands/headless"
 	argocdclient "github.com/argoproj/argo-cd/v2/pkg/apiclient"
 	applicationpkg "github.com/argoproj/argo-cd/v2/pkg/apiclient/application"
+	v1alpha1 "github.com/argoproj/argo-cd/v2/pkg/apis/application/v1alpha1"
 	"github.com/argoproj/argo-cd/v2/util/argo"
 	"github.com/argoproj/argo-cd/v2/util/errors"
 	"github.com/argoproj/argo-cd/v2/util/io"
@@ -66,12 +68,9 @@ func NewApplicationResourceActionsListCommand(clientOpts *argocdclient.ClientOpt
 		appName, appNs := argo.ParseAppQualifiedName(args[0], "")
 		conn, appIf := headless.NewClientOrDie(clientOpts, c).NewApplicationClientOrDie()
 		defer io.Close(conn)
-		resources, err := appIf.ManagedResources(ctx, &applicationpkg.ResourcesQuery{
-			ApplicationName: &appName,
-			AppNamespace:    &appNs,
-		})
+		resources, err := getActionableResourcesForApplication(appIf, ctx, &appNs, &appName)
 		errors.CheckError(err)
-		filteredObjects, err := util.FilterResources(command.Flags().Changed("group"), resources.Items, group, kind, namespace, resourceName, true)
+		filteredObjects, err := util.FilterResources(command.Flags().Changed("group"), resources, group, kind, namespace, resourceName, true)
 		errors.CheckError(err)
 		var availableActions []DisplayedAction
 		for i := range filteredObjects {
@@ -84,7 +83,7 @@ func NewApplicationResourceActionsListCommand(clientOpts *argocdclient.ClientOpt
 				ResourceName: pointer.String(obj.GetName()),
 				Group:        pointer.String(gvk.Group),
 				Kind:         pointer.String(gvk.Kind),
-				Version:      pointer.String(gvk.GroupVersion().Version),
+				Version:      pointer.String(gvk.Version),
 			})
 			errors.CheckError(err)
 			for _, action := range availActionsForResource.Actions {
@@ -157,12 +156,9 @@ func NewApplicationResourceActionsRunCommand(clientOpts *argocdclient.ClientOpti
 
 		conn, appIf := headless.NewClientOrDie(clientOpts, c).NewApplicationClientOrDie()
 		defer io.Close(conn)
-		resources, err := appIf.ManagedResources(ctx, &applicationpkg.ResourcesQuery{
-			ApplicationName: &appName,
-			AppNamespace:    &appNs,
-		})
+		resources, err := getActionableResourcesForApplication(appIf, ctx, &appNs, &appName)
 		errors.CheckError(err)
-		filteredObjects, err := util.FilterResources(command.Flags().Changed("group"), resources.Items, group, kind, namespace, resourceName, all)
+		filteredObjects, err := util.FilterResources(command.Flags().Changed("group"), resources, group, kind, namespace, resourceName, all)
 		errors.CheckError(err)
 		var resGroup = filteredObjects[0].GroupVersionKind().Group
 		for i := range filteredObjects[1:] {
@@ -189,4 +185,35 @@ func NewApplicationResourceActionsRunCommand(clientOpts *argocdclient.ClientOpti
 		}
 	}
 	return command
+}
+
+func getActionableResourcesForApplication(appIf applicationpkg.ApplicationServiceClient, ctx context.Context, appNs *string, appName *string) ([]*v1alpha1.ResourceDiff, error) {
+	resources, err := appIf.ManagedResources(ctx, &applicationpkg.ResourcesQuery{
+		ApplicationName: appName,
+		AppNamespace:    appNs,
+	})
+	if err != nil {
+		return nil, err
+	}
+	app, err := appIf.Get(ctx, &applicationpkg.ApplicationQuery{
+		Name:         appName,
+		AppNamespace: appNs,
+	})
+	if err != nil {
+		return nil, err
+	}
+	app.Kind = "Application"
+	app.APIVersion = "argoproj.io/v1alpha1"
+	appManifest, err := json.Marshal(app)
+	if err != nil {
+		return nil, err
+	}
+	appGVK := app.GroupVersionKind()
+	return append(resources.Items, &v1alpha1.ResourceDiff{
+		Group:     appGVK.Group,
+		Kind:      appGVK.Kind,
+		Namespace: app.Namespace,
+		Name:      *appName,
+		LiveState: string(appManifest),
+	}), nil
 }

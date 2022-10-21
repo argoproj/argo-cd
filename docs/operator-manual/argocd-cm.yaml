@@ -285,16 +285,10 @@ data:
   # cluster.inClusterEnabled indicates whether to allow in-cluster server address. This is enabled by default.
   cluster.inClusterEnabled: "true"
 
-  # server.rbac.log.enforce.enable is a temporary switch, which will be removed in the next release.
-  # Application pod logs RBAC enforcement is a new security feature, which enables control over who can and who can't view application pod logs.
-  # Since RBAC is denied by default (unless explicitly allowed), the following temporary switch
-  # enables ArgoCD operators to install this release in a backward-compatible, non-breaking way, 
-  # without having to define the explicit allow policies for logs subresource upon installing/upgrading to this release.
-  # The next release will require explicit policies in order to view pod logs, and the switch will be removed. 
+  # Application pod logs RBAC enforcement enables control over who can and who can't view application pod logs.
   # When you enable the switch, pod logs will be visible only to admin role by default. Other roles/users will not be able to view them via cli and UI.
   # When you enable the switch, viewing pod logs for other roles/users will require explicit RBAC allow policies (allow get on logs subresource).
   # When you disable the switch (either add it to the configmap with a "false" value or do not add it to the configmap), no actual RBAC enforcement will take place.
-  # After installing/upgrading to this release, please configure the policies for allowing/denying logs RBAC, and then enable the switch.
   server.rbac.log.enforce.enable: "false"
 
   # exec.enabled indicates whether the UI exec feature is enabled. It is disabled by default.

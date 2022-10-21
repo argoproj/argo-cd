@@ -13,7 +13,7 @@ import (
 
 	log "github.com/sirupsen/logrus"
 
-	"github.com/argoproj/argo-cd/v2/pkg/apis/applicationset/v1alpha1"
+	"github.com/argoproj/argo-cd/v2/pkg/apis/application/v1alpha1"
 
 	"k8s.io/apimachinery/pkg/api/equality"
 	v1 "k8s.io/apimachinery/pkg/apis/meta/v1"
@@ -73,7 +73,7 @@ func GetE2EFixtureK8sClient() *E2EFixtureK8sClient {
 			KubeClientset:    kubernetes.NewForConfigOrDie(config),
 		}
 
-		internalClientVars.AppSetClientset = internalClientVars.DynamicClientset.Resource(v1alpha1.GroupVersion.WithResource("applicationsets")).Namespace(ArgoCDNamespace)
+		internalClientVars.AppSetClientset = internalClientVars.DynamicClientset.Resource(v1alpha1.SchemeGroupVersion.WithResource("applicationsets")).Namespace(ArgoCDNamespace)
 
 	})
 	return internalClientVars
