@@ -91,9 +91,7 @@ func Test_nativeGitClient_Submodule(t *testing.T) {
 	err = runCmd(bar, "git", "commit", "-m", "Initial commit", "--allow-empty")
 	require.NoError(t, err)
 
-	// Embed repository bar into repository foo
-	err = runCmd(foo, "git", "config", "--global", "protocol.file.allow", "always")
-	require.NoError(t, err)
+	t.Setenv("GIT_ALLOW_PROTOCOL", "file")
 	err = runCmd(foo, "git", "submodule", "add", bar)
 	require.NoError(t, err)
 
