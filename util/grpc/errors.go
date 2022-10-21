@@ -1,9 +1,9 @@
 package grpc
 
 import (
+	"context"
 	"errors"
 
-	"context"
 	giterr "github.com/go-git/go-git/v5/plumbing/transport"
 	"google.golang.org/grpc"
 	"google.golang.org/grpc/codes"
@@ -45,22 +45,22 @@ func UnwrapGRPCStatus(err error) *status.Status {
 	return UnwrapGRPCStatus(e)
 }
 
+// kubeErrToGRPC converts a Kubernetes error into a gRPC code + error. The gRPC code we translate
+// it to is significant, because it eventually maps back to an HTTP status code determined by
+// grpc-gateway. See:
+// https://github.com/grpc-ecosystem/grpc-gateway/blob/v2.11.3/runtime/errors.go#L36
+// https://go.dev/src/net/http/status.go
 func kubeErrToGRPC(err error) error {
 	/*
-		Unmapped source Kubernetes API errors as of 2018-04-16:
-		* IsConflict => 409
-		* IsGone => 410
+		Unmapped source Kubernetes API errors as of 2022-10-05:
+		* IsGone => 410 (DEPRECATED by ResourceExpired)
 		* IsResourceExpired => 410
-		* IsServerTimeout => 500
-		* IsTooManyRequests => 429
-		* IsUnexpectedServerError => should probably be a panic
-		* IsUnexpectedObjectError => should probably be a panic
+		* IsUnexpectedServerError
+		* IsUnexpectedObjectError
 
-		Unmapped target gRPC codes as of 2018-04-16:
+		Unmapped target gRPC codes as of 2022-10-05:
 		* Canceled Code = 1
 		* Unknown Code = 2
-		* ResourceExhausted Code = 8
-		* Aborted Code = 10
 		* OutOfRange Code = 11
 		* DataLoss Code = 15
 	*/
@@ -84,6 +84,12 @@ func kubeErrToGRPC(err error) error {
 		err = rewrapError(err, codes.PermissionDenied)
 	case apierr.IsTimeout(err):
 		err = rewrapError(err, codes.DeadlineExceeded)
+	case apierr.IsServerTimeout(err):
+		err = rewrapError(err, codes.Unavailable)
+	case apierr.IsConflict(err):
+		err = rewrapError(err, codes.Aborted)
+	case apierr.IsTooManyRequests(err):
+		err = rewrapError(err, codes.ResourceExhausted)
 	case apierr.IsInternalError(err):
 		err = rewrapError(err, codes.Internal)
 	default:
