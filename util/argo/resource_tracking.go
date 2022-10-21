@@ -4,17 +4,12 @@ import (
 	"fmt"
 	"strings"
 
-	"github.com/argoproj/gitops-engine/pkg/utils/kube"
-
 	"github.com/argoproj/argo-cd/v2/common"
-
-	"k8s.io/apimachinery/pkg/apis/meta/v1/unstructured"
-
-	"github.com/argoproj/argo-cd/v2/util/settings"
-
 	"github.com/argoproj/argo-cd/v2/pkg/apis/application/v1alpha1"
-
+	"github.com/argoproj/argo-cd/v2/util/kube"
 	argokube "github.com/argoproj/argo-cd/v2/util/kube"
+	"github.com/argoproj/argo-cd/v2/util/settings"
+	"k8s.io/apimachinery/pkg/apis/meta/v1/unstructured"
 )
 
 const (
@@ -193,7 +188,7 @@ func (rt *resourceTracking) Normalize(config, live *unstructured.Unstructured, l
 		return err
 	}
 
-	if argokube.GetAppInstanceLabel(config, labelKey) == "" {
+	if argokube.GetAppInstanceLabel(config, labelKey) != "" {
 		argokube.RemoveLabel(live, labelKey)
 	}
 

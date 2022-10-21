@@ -719,12 +719,30 @@ func (m *appStateManager) isSelfReferencedObj(obj *unstructured.Unstructured, ap
 	// object. Cluster scoped objects carry the app's destination namespace
 	// in the tracking annotation, but are unique in GVK + name combination.
 	appInstance := m.resourceTracking.GetAppInstance(obj, appLabelKey, trackingMethod)
-	if appInstance != nil {
-		return (obj.GetNamespace() == appInstance.Namespace || obj.GetNamespace() == "") &&
-			obj.GetName() == appInstance.Name &&
-			obj.GetObjectKind().GroupVersionKind().Group == appInstance.Group &&
-			obj.GetObjectKind().GroupVersionKind().Kind == appInstance.Kind
+	if appInstance != nil && isSelfReferencedObj(obj, appInstance) {
+		return true
 	}
 
-	return true
+	// When ApiGroup changes we need to inspect the last-applied-configuration
+	// annotation.
+	// Example: updating from extensions/Ingress to networking.k8s.io/Ingress
+	// TODO: This will be a problem when server-side apply becomes default as
+	// last-applied-configuration might not be present anymore.
+	lastAppliedObj, err := diff.GetLastAppliedConfigAnnotation(obj)
+	if err != nil {
+		log.Errorf("controller error while getting last applied configuration in isSelfReferencedObj: %s", err)
+	}
+	lastAppInstanceOk := true
+	if lastAppliedObj != nil {
+		lastAppInstanceOk = isSelfReferencedObj(lastAppliedObj, appInstance)
+	}
+
+	return lastAppInstanceOk
+}
+
+func isSelfReferencedObj(obj *unstructured.Unstructured, aiv *argo.AppInstanceValue) bool {
+	return (obj.GetNamespace() == aiv.Namespace || obj.GetNamespace() == "") &&
+		obj.GetName() == aiv.Name &&
+		obj.GetObjectKind().GroupVersionKind().Group == aiv.Group &&
+		obj.GetObjectKind().GroupVersionKind().Kind == aiv.Kind
 }
