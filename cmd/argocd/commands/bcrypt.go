@@ -2,9 +2,10 @@ package commands
 
 import (
 	"fmt"
+	"log"
+
 	"github.com/spf13/cobra"
 	"golang.org/x/crypto/bcrypt"
-	"log"
 )
 
 // bcryptCmd represents the bcrypt command
@@ -22,7 +23,7 @@ func NewBcryptCmd() *cobra.Command {
 			if err != nil {
 				log.Fatalf("Failed to genarate bcrypt hash: %v", err)
 			}
-			fmt.Println(string(hash))
+			fmt.Fprint(cmd.OutOrStdout(), string(hash))
 		},
 	}
 
