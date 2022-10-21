@@ -20,6 +20,8 @@ For Helm, all versions are [Semantic Versions](https://semver.org/). As a result
 | Track minor releases (e.g. in QA) | Use a range | `1.*` or `>=1.0.0 <2.0.0` |
 | Use the latest (e.g. in local development) | Use star range |  `*` or `>=0.0.0` |
 
+**Note for OCI Helm repositories**: the only available strategy is "Pin to a version".
+
 [Read about version ranges](https://www.telerik.com/blogs/the-mystical-magical-semver-ranges-used-by-npm-bower)
 
 ## Git
