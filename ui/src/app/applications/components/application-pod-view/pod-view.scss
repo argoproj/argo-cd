@@ -6,6 +6,12 @@ $pods-per-row: 8;
 $pods-per-column: 4;
 $max-rows: 5;
 $num-stats: 2;
+$pod-age-icon-clr: #ffce25;
+
+.circle-icon {
+    color: $pod-age-icon-clr;
+    font-size: 10px;
+}
 
 .pod-view {
     &__settings {
@@ -149,7 +155,7 @@ $num-stats: 2;
             }
             &__new-pod-icon {
                 background: none;
-                color: #FFCE25;
+                color: $pod-age-icon-clr;
                 display: block;
                 left: 20px;
                 margin: 0px;
