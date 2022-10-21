@@ -1,4 +1,4 @@
-import {DataLoader, DropDownMenu, Tooltip, Checkbox} from 'argo-ui';
+import {DataLoader, DropDownMenu, Tooltip} from 'argo-ui';
 import * as classNames from 'classnames';
 import * as React from 'react';
 import {useRef, useState} from 'react';
@@ -20,6 +20,8 @@ import {ShowPreviousLogsToggleButton} from './show-previous-logs-toggle-button';
 import {TimestampsToggleButton} from './timestamps-toggle-button';
 import {DarkModeToggleButton} from './dark-mode-toggle-button';
 import {FullscreenButton} from './fullscreen-button';
+import {ButtonGroup} from '../../../shared/components/button-group';
+import {ToggleButton} from '../../../shared/components/toggle-button';
 
 const maxLines = 100;
 export interface PodLogsProps {
@@ -89,32 +91,35 @@ export const PodsLogsViewer = (props: PodLogsProps & {fullscreen?: boolean}) => 
             {(prefs: ViewPreferences) => (
                 <React.Fragment>
                     <div className='pod-logs-viewer__settings'>
-                        <CopyLogsButton loader={loader} />
-                        <DownloadLogsButton {...props} />
-                        <ContainerSelector containerGroups={props.containerGroups} containerName={containerName} onClickContainer={onClickContainer} />
-                        <FollowToggleButton page={page} setPage={setPage} prefs={prefs} loader={loader} />
-                        <WrapLinesToggleButton prefs={prefs} />
-                        <ShowPreviousLogsToggleButton loader={loader} setPreviousLogs={setPreviousLogs} showPreviousLogs={showPreviousLogs} />
-                        <DarkModeToggleButton prefs={prefs} />
-                        <TimestampsToggleButton
-                            setViewPodNames={setViewPodNames}
-                            viewPodNames={viewPodNames}
-                            setViewTimestamps={setViewTimestamps}
-                            viewTimestamps={viewTimestamps}
-                            timestamp={props.timestamp}
-                        />
-                        <FullscreenButton {...props} />
+                        <ButtonGroup>
+                            <ContainerSelector containerGroups={props.containerGroups} containerName={containerName} onClickContainer={onClickContainer} />
+                        </ButtonGroup>
+                        <ButtonGroup>
+                            <ShowPreviousLogsToggleButton loader={loader} setPreviousLogs={setPreviousLogs} showPreviousLogs={showPreviousLogs} />
+                            <TimestampsToggleButton
+                                setViewPodNames={setViewPodNames}
+                                viewPodNames={viewPodNames}
+                                setViewTimestamps={setViewTimestamps}
+                                viewTimestamps={viewTimestamps}
+                                timestamp={props.timestamp}
+                            />
+                            <WrapLinesToggleButton prefs={prefs} />
+                            <FollowToggleButton page={page} setPage={setPage} prefs={prefs} loader={loader} />
+                            <DarkModeToggleButton prefs={prefs} />
+                        </ButtonGroup>
+                        <ButtonGroup>
+                            <CopyLogsButton loader={loader} />
+                            <DownloadLogsButton {...props} />
+                            <FullscreenButton {...props} />
+                        </ButtonGroup>
 
                         <div className='pod-logs-viewer__filter'>
-                            <Tooltip content={`Show lines that ${!filter.inverse ? '' : 'do not'} match filter`}>
-                                <button
-                                    className={`argo-button argo-button--base-o`}
-                                    onClick={() => setFilter({...filter, inverse: !filter.inverse})}
-                                    style={{marginRight: '10px'}}>
-                                    <Checkbox checked={filter.inverse} />
-                                    <span>!</span>
-                                </button>
-                            </Tooltip>
+                            <ToggleButton
+                                toggled={filter.inverse}
+                                onToggle={() => setFilter({...filter, inverse: !filter.inverse})}
+                                title='Show lines that do not match'
+                                icon='exclamation'
+                            />
                             <input
                                 type='text'
                                 placeholder={`Filter ${filter.inverse ? 'out' : ''} string`}
@@ -347,19 +352,24 @@ interface PageInfo {
 const logNavigators = (actions: NavActions, darkMode: boolean, info?: PageInfo) => {
     return (
         <div className={`pod-logs-viewer__menu ${darkMode ? 'pod-logs-viewer__menu--inverted' : ''}`}>
-            {actions.begin && <i className='fa fa-angle-double-left' onClick={actions.begin || (() => null)} />}
-            <i className={`fa fa-angle-left ${info && info.canPageBack ? '' : 'disabled'}`} onClick={actions.left || (() => null)} />
-            <i className='fa fa-angle-down' onClick={actions.bottom || (() => null)} />
-            <i className='fa fa-angle-up' onClick={actions.top || (() => null)} />
-            <div style={{marginLeft: 'auto', marginRight: 'auto'}}>
-                {info && (
-                    <React.Fragment>
-                        Page {info.curPage + 1} (Lines {info.firstLine} to {info.lastLine})
-                    </React.Fragment>
-                )}
-            </div>
-            <i className={`fa fa-angle-right ${info && info.curPage > 0 ? '' : 'disabled'}`} onClick={(info && info.curPage > 0 && actions.right) || null} />
-            <i className={`fa fa-angle-double-right ${info && info.curPage > 1 ? '' : 'disabled'}`} onClick={(info && info.curPage > 1 && actions.end) || null} />
+            <>
+                <>
+                    Lines {info?.firstLine} to {info?.lastLine}&nbsp;
+                </>
+                <i title='Top' className='fa fa-arrow-up' onClick={actions.top} />
+                <i title='Bottom' className='fa fa-arrow-down' onClick={actions.bottom} />
+            </>
+            <div style={{marginLeft: 'auto', marginRight: 'auto'}} />
+            <>
+                <>
+                    Page {info?.curPage + 1}
+                    &nbsp;
+                </>
+                <i title='First page' className={`fa fa-backward-fast $ ${actions.begin ? '' : 'disabled'}`} onClick={actions.begin} />
+                <i title='Previous page' className={`fa fa-backward-step ${info?.canPageBack ? '' : 'disabled'}`} onClick={actions.left} />
+                <i title='Next page' className={`fa fa-forward-step ${info?.curPage > 0 ? '' : 'disabled'}`} onClick={actions.right} />
+                <i title='Last page' className={`fa fa-forward-fast ${info?.curPage > 1 ? '' : 'disabled'}`} onClick={actions.end} />
+            </>
         </div>
     );
 };

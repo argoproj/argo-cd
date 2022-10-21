@@ -68,13 +68,13 @@
         i {
             cursor: pointer;
             border-radius: 7px;
-            $size: 25px;
+            $size: 22px;
             width: $size;
             height: $size;
             display: flex;
             align-items: center;
             justify-content: center;
-            border: 1px solid black;
+            border: 1px solid gray;
             margin: 0 2px;
             &:hover {
                 background-color: black;

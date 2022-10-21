@@ -18,7 +18,16 @@ export const ToggleButton = ({
     disabled?: boolean;
     icon: Icon;
 }) => (
-    <Button title={title} onClick={onToggle} icon={icon} disabled={disabled}>
+    <Button
+        title={title}
+        onClick={onToggle}
+        icon={icon}
+        disabled={disabled}
+        style={{
+            // these are the argo-button color swapped
+            backgroundColor: toggled && '#F8FBFB',
+            color: toggled && '#495763'
+        }}>
         {children}
     </Button>
 );
