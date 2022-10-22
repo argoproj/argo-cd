@@ -215,6 +215,10 @@ spec:
                               recursively for manifests
                             type: boolean
                         type: object
+                      fetchSubmodules:
+                        description: FetchSubmodules determines whether git submodules
+                          fetch is enabled for the application
+                        type: boolean
                       helm:
                         description: Helm holds helm specific options
                         properties:
@@ -563,6 +567,10 @@ spec:
                           recursively for manifests
                         type: boolean
                     type: object
+                  fetchSubmodules:
+                    description: FetchSubmodules determines whether git submodules
+                      fetch is enabled for the application
+                    type: boolean
                   helm:
                     description: Helm holds helm specific options
                     properties:
@@ -914,6 +922,10 @@ spec:
                                 recursively for manifests
                               type: boolean
                           type: object
+                        fetchSubmodules:
+                          description: FetchSubmodules determines whether git submodules
+                            fetch is enabled for the application
+                          type: boolean
                         helm:
                           description: Helm holds helm specific options
                           properties:
@@ -1278,6 +1290,10 @@ spec:
                                       a directory recursively for manifests
                                     type: boolean
                                 type: object
+                              fetchSubmodules:
+                                description: FetchSubmodules determines whether git
+                                  submodules fetch is enabled for the application
+                                type: boolean
                               helm:
                                 description: Helm holds helm specific options
                                 properties:
@@ -1628,6 +1644,10 @@ spec:
                                   recursively for manifests
                                 type: boolean
                             type: object
+                          fetchSubmodules:
+                            description: FetchSubmodules determines whether git submodules
+                              fetch is enabled for the application
+                            type: boolean
                           helm:
                             description: Helm holds helm specific options
                             properties:
@@ -1969,6 +1989,10 @@ spec:
                                   recursively for manifests
                                 type: boolean
                             type: object
+                          fetchSubmodules:
+                            description: FetchSubmodules determines whether git submodules
+                              fetch is enabled for the application
+                            type: boolean
                           helm:
                             description: Helm holds helm specific options
                             properties:
@@ -2346,6 +2370,8 @@ spec:
                                         recurse:
                                           type: boolean
                                       type: object
+                                    fetchSubmodules:
+                                      type: boolean
                                     helm:
                                       properties:
                                         fileParameters:
@@ -2633,6 +2659,8 @@ spec:
                                         recurse:
                                           type: boolean
                                       type: object
+                                    fetchSubmodules:
+                                      type: boolean
                                     helm:
                                       properties:
                                         fileParameters:
@@ -2922,6 +2950,8 @@ spec:
                                         recurse:
                                           type: boolean
                                       type: object
+                                    fetchSubmodules:
+                                      type: boolean
                                     helm:
                                       properties:
                                         fileParameters:
@@ -3187,6 +3217,8 @@ spec:
                                         recurse:
                                           type: boolean
                                       type: object
+                                    fetchSubmodules:
+                                      type: boolean
                                     helm:
                                       properties:
                                         fileParameters:
@@ -3482,6 +3514,8 @@ spec:
                                                   recurse:
                                                     type: boolean
                                                 type: object
+                                              fetchSubmodules:
+                                                type: boolean
                                               helm:
                                                 properties:
                                                   fileParameters:
@@ -3769,6 +3803,8 @@ spec:
                                                   recurse:
                                                     type: boolean
                                                 type: object
+                                              fetchSubmodules:
+                                                type: boolean
                                               helm:
                                                 properties:
                                                   fileParameters:
@@ -4058,6 +4094,8 @@ spec:
                                                   recurse:
                                                     type: boolean
                                                 type: object
+                                              fetchSubmodules:
+                                                type: boolean
                                               helm:
                                                 properties:
                                                   fileParameters:
@@ -4323,6 +4361,8 @@ spec:
                                                   recurse:
                                                     type: boolean
                                                 type: object
+                                              fetchSubmodules:
+                                                type: boolean
                                               helm:
                                                 properties:
                                                   fileParameters:
@@ -4706,6 +4746,8 @@ spec:
                                                   recurse:
                                                     type: boolean
                                                 type: object
+                                              fetchSubmodules:
+                                                type: boolean
                                               helm:
                                                 properties:
                                                   fileParameters:
@@ -5136,6 +5178,8 @@ spec:
                                                   recurse:
                                                     type: boolean
                                                 type: object
+                                              fetchSubmodules:
+                                                type: boolean
                                               helm:
                                                 properties:
                                                   fileParameters:
@@ -5417,6 +5461,8 @@ spec:
                                         recurse:
                                           type: boolean
                                       type: object
+                                    fetchSubmodules:
+                                      type: boolean
                                     helm:
                                       properties:
                                         fileParameters:
@@ -5712,6 +5758,8 @@ spec:
                                                   recurse:
                                                     type: boolean
                                                 type: object
+                                              fetchSubmodules:
+                                                type: boolean
                                               helm:
                                                 properties:
                                                   fileParameters:
@@ -5999,6 +6047,8 @@ spec:
                                                   recurse:
                                                     type: boolean
                                                 type: object
+                                              fetchSubmodules:
+                                                type: boolean
                                               helm:
                                                 properties:
                                                   fileParameters:
@@ -6288,6 +6338,8 @@ spec:
                                                   recurse:
                                                     type: boolean
                                                 type: object
+                                              fetchSubmodules:
+                                                type: boolean
                                               helm:
                                                 properties:
                                                   fileParameters:
@@ -6553,6 +6605,8 @@ spec:
                                                   recurse:
                                                     type: boolean
                                                 type: object
+                                              fetchSubmodules:
+                                                type: boolean
                                               helm:
                                                 properties:
                                                   fileParameters:
@@ -6936,6 +6990,8 @@ spec:
                                                   recurse:
                                                     type: boolean
                                                 type: object
+                                              fetchSubmodules:
+                                                type: boolean
                                               helm:
                                                 properties:
                                                   fileParameters:
@@ -7366,6 +7422,8 @@ spec:
                                                   recurse:
                                                     type: boolean
                                                 type: object
+                                              fetchSubmodules:
+                                                type: boolean
                                               helm:
                                                 properties:
                                                   fileParameters:
@@ -7651,6 +7709,8 @@ spec:
                                         recurse:
                                           type: boolean
                                       type: object
+                                    fetchSubmodules:
+                                      type: boolean
                                     helm:
                                       properties:
                                         fileParameters:
@@ -8031,6 +8091,8 @@ spec:
                                         recurse:
                                           type: boolean
                                       type: object
+                                    fetchSubmodules:
+                                      type: boolean
                                     helm:
                                       properties:
                                         fileParameters:
@@ -8461,6 +8523,8 @@ spec:
                                         recurse:
                                           type: boolean
                                       type: object
+                                    fetchSubmodules:
+                                      type: boolean
                                     helm:
                                       properties:
                                         fileParameters:
@@ -8749,6 +8813,8 @@ spec:
                               recurse:
                                 type: boolean
                             type: object
+                          fetchSubmodules:
+                            type: boolean
                           helm:
                             properties:
                               fileParameters:

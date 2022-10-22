@@ -730,6 +730,11 @@ func (in *ApplicationSource) DeepCopyInto(out *ApplicationSource) {
 		*out = new(ApplicationSourcePlugin)
 		(*in).DeepCopyInto(*out)
 	}
+	if in.FetchSubmodules != nil {
+		in, out := &in.FetchSubmodules, &out.FetchSubmodules
+		*out = new(bool)
+		**out = **in
+	}
 	return
 }
 

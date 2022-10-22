@@ -5591,6 +5591,10 @@
         "directory": {
           "$ref": "#/definitions/v1alpha1ApplicationSourceDirectory"
         },
+        "fetchSubmodules": {
+          "type": "boolean",
+          "title": "FetchSubmodules determines whether git submodules fetch is enabled for the application"
+        },
         "helm": {
           "$ref": "#/definitions/v1alpha1ApplicationSourceHelm"
         },
