@@ -41,7 +41,7 @@ export const ContainerSelector = ({
             <DropDownMenu
                 anchor={() => (
                     <Button icon='stream' title='Containers'>
-                        {containerName.substr(0, 3)}...
+                        {containerName.padEnd(4, ' ').substr(0, 3)}...
                     </Button>
                 )}
                 items={containerItems}

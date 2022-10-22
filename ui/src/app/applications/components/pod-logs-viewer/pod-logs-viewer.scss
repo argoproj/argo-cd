@@ -43,57 +43,6 @@
         .argo-button {
             margin-right: 5px;
             border: 1px solid transparent;
-
-            .fa {
-                width: 12px;
-            }
-        }
-    }
-
-    &__filter {
-        display: flex;
-        margin-left: auto;
-        width: 320px;
-
-        .argo-button {
-            display: flex;
-            align-items: center;
-        }
-    }
-
-    &__menu {
-        display: flex;
-        margin-bottom: 1em;
-        padding-left: 10px;
-        i {
-            cursor: pointer;
-            border-radius: 7px;
-            $size: 22px;
-            width: $size;
-            height: $size;
-            display: flex;
-            align-items: center;
-            justify-content: center;
-            border: 1px solid gray;
-            margin: 0 2px;
-            &:hover {
-                background-color: black;
-                color: white;
-            }
-            &.disabled {
-                opacity: 0.5;
-                cursor: not-allowed;
-            }
-        }
-
-        &--inverted {
-            i {
-                border-color: white;
-                &:hover {
-                    background-color: white;
-                    color: black;
-                }
-            }
         }
     }
 
