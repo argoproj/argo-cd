@@ -278,7 +278,23 @@ func TestRepositoryServer(t *testing.T) {
 		assert.Nil(t, err)
 		assert.Equal(t, repo.Repo, "test")
 	})
+	t.Run("Test_ListRepositories", func(t *testing.T) {
+		repoServerClient := mocks.RepoServerServiceClient{}
+		repoServerClient.On("TestRepository", mock.Anything, mock.Anything).Return(&apiclient.TestRepositoryResponse{}, nil)
+		repoServerClientset := mocks.Clientset{RepoServerServiceClient: &repoServerClient}
+		enforcer := newEnforcer(kubeclientset)
 
+		url := "https://test"
+		db := &dbmocks.ArgoDB{}
+		db.On("GetRepository", context.TODO(), url).Return(nil, nil)
+		db.On("ListHelmRepositories", context.TODO(), mock.Anything).Return(nil, nil)
+		db.On("ListRepositories", context.TODO()).Return([]*appsv1.Repository{&l, &l}, nil)
+
+		s := NewServer(&repoServerClientset, db, enforcer, newFixtures().Cache, appLister, projLister, settingsMgr)
+		resp, err := s.ListRepositories(context.TODO(), &repository.RepoQuery{})
+		assert.NoError(t, err)
+		assert.Equal(t, 2, len(resp.Items))
+	})
 }
 
 func TestRepositoryServerListApps(t *testing.T) {
