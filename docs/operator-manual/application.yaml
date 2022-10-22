@@ -19,6 +19,9 @@ spec:
     repoURL: https://github.com/argoproj/argocd-example-apps.git  # Can point to either a Helm chart repo or a git repo.
     targetRevision: HEAD  # For Helm, this refers to the chart version.
     path: guestbook  # This has no meaning for Helm charts pulled directly from a Helm repo instead of git.
+    # Specify and set this to false when you want to disable git submodules fetch for a particular application.
+    # Defaults to true if not specified, and it can be overridden by the global env variable ARGOCD_GIT_MODULES_ENABLED.
+    fetchSubmodules: false
 
     # helm specific config
     chart: chart-name  # Set this when pulling directly from a Helm repo. DO NOT set for git-hosted Helm charts.

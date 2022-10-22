@@ -170,6 +170,15 @@ type ApplicationSource struct {
 	Plugin *ApplicationSourcePlugin `json:"plugin,omitempty" protobuf:"bytes,11,opt,name=plugin"`
 	// Chart is a Helm chart name, and must be specified for applications sourced from a Helm repo.
 	Chart string `json:"chart,omitempty" protobuf:"bytes,12,opt,name=chart"`
+	// FetchSubmodules determines whether git submodules fetch is enabled for the application
+	FetchSubmodules bool `json:"fetchSubmodules,omitempty" protobuf:"bytes,13,opt,name=fetchSubmodules"`
+}
+
+func (a *ApplicationSource) GetFetchSubmodules() bool {
+	if a.FetchSubmodules == nil {
+		return true
+	}
+	return *a.FetchSubmodules
 }
 
 // AllowsConcurrentProcessing returns true if given application source can be processed concurrently

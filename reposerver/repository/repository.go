@@ -344,7 +344,7 @@ func (s *Service) runRepoOperation(
 		})
 	} else {
 		closer, err := s.repoLock.Lock(gitClient.Root(), revision, settings.allowConcurrent, func() (goio.Closer, error) {
-			return s.checkoutRevision(gitClient, revision, s.initConstants.SubmoduleEnabled)
+			return s.checkoutRevision(gitClient, revision, s.initConstants.SubmoduleEnabled && source.GetFetchSubmodules())
 		})
 
 		if err != nil {
@@ -1185,6 +1185,7 @@ func mergeSourceParameters(source *v1alpha1.ApplicationSource, path, appName str
 	merged.Path = source.Path
 	merged.RepoURL = source.RepoURL
 	merged.TargetRevision = source.TargetRevision
+	merged.FetchSubmodules = source.FetchSubmodules
 
 	*source = merged
 	return nil
