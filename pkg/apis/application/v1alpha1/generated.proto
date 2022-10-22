@@ -12,7 +12,7 @@ import "k8s.io/apimachinery/pkg/runtime/generated.proto";
 import "k8s.io/apimachinery/pkg/runtime/schema/generated.proto";
 
 // Package-wide variables from generator "generated".
-option go_package = "github.com/argoproj/argo-cd/v2/pkg/apis/application/v1alpha1";
+option go_package = "v1alpha1";
 
 // AWSAuthConfig is an AWS IAM authentication configuration
 message AWSAuthConfig {
@@ -327,6 +327,9 @@ message ApplicationSource {
 
   // Chart is a Helm chart name, and must be specified for applications sourced from a Helm repo.
   optional string chart = 12;
+
+  // FetchSubmodules determines whether git submodules fetch is enabled for the application
+  optional bool fetchSubmodules = 13;
 }
 
 // ApplicationSourceDirectory holds options for applications of type plain YAML or Jsonnet

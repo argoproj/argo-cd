@@ -1220,6 +1220,13 @@ func schema_pkg_apis_application_v1alpha1_ApplicationSource(ref common.Reference
 							Format:      "",
 						},
 					},
+					"fetchSubmodules": {
+						SchemaProps: spec.SchemaProps{
+							Description: "FetchSubmodules determines whether git submodules fetch is enabled for the application",
+							Type:        []string{"boolean"},
+							Format:      "",
+						},
+					},
 				},
 				Required: []string{"repoURL"},
 			},
