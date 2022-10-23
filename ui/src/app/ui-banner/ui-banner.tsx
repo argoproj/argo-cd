@@ -11,7 +11,7 @@ export const Banner = (props: React.Props<any>) => {
     return (
         <DataLoader
             load={() =>
-                 combineLatest([services.authService.settings(), services.viewPreferences.getPreferences()]).pipe(
+                combineLatest([services.authService.settings(), services.viewPreferences.getPreferences()]).pipe(
                     map(items => {
                         return {
                             content: items[0].uiBannerContent,
@@ -21,7 +21,7 @@ export const Banner = (props: React.Props<any>) => {
                             chatText: items[0].help.chatText,
                             chatUrl: items[0].help.chatUrl,
                             position: items[0].uiBannerPosition
-                        }
+                        };
                     })
                 )
             }>
@@ -71,12 +71,12 @@ export const Banner = (props: React.Props<any>) => {
                         <div className={combinedBannerClassName} style={{visibility: show ? 'visible' : 'hidden', height: heightOfBanner}}>
                             <div className='ui-banner-text' style={{maxHeight: permanent ? '25px' : '50px'}}>
                                 {url !== undefined ? (
-                                        <a href={url} target='_blank' rel='noopener noreferrer'>
-                                            {content}
-                                        </a>
-                                    ) : (
-                                        <React.Fragment>{content}</React.Fragment>
-                                    )}
+                                    <a href={url} target='_blank' rel='noopener noreferrer'>
+                                        {content}
+                                    </a>
+                                ) : (
+                                    <React.Fragment>{content}</React.Fragment>
+                                )}
                             </div>
                             {!permanent ? (
                                 <>
