@@ -10,6 +10,7 @@ argocd repocreds rm CREDSURL [flags]
 
 ```
   -h, --help   help for rm
+  -y, --yes    Turn off prompting to confirm removal of repository credentials
 ```
 
 ### Options inherited from parent commands

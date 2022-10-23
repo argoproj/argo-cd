@@ -163,6 +163,7 @@ func NewRepoCredsAddCommand(clientOpts *argocdclient.ClientOptions) *cobra.Comma
 
 // NewRepoCredsRemoveCommand returns a new instance of an `argocd repocreds rm` command
 func NewRepoCredsRemoveCommand(clientOpts *argocdclient.ClientOptions) *cobra.Command {
+	var noPrompt bool
 	var command = &cobra.Command{
 		Use:   "rm CREDSURL",
 		Short: "Remove repository credentials",
@@ -173,15 +174,40 @@ func NewRepoCredsRemoveCommand(clientOpts *argocdclient.ClientOptions) *cobra.Co
 				c.HelpFunc()(c, args)
 				os.Exit(1)
 			}
+			var numOfRepoCreds = len(args)
+			var isConfirmAll bool = false
+
 			conn, repoIf := headless.NewClientOrDie(clientOpts, c).NewRepoCredsClientOrDie()
 			defer io.Close(conn)
 			for _, repoURL := range args {
-				_, err := repoIf.DeleteRepositoryCredentials(ctx, &repocredspkg.RepoCredsDeleteRequest{Url: repoURL})
-				errors.CheckError(err)
-				fmt.Printf("Repository credentials for '%s' removed\n", repoURL)
+				var lowercaseAnswer string
+				if !noPrompt {
+					if numOfRepoCreds == 1 {
+						lowercaseAnswer = cli.AskToProceedS(fmt.Sprintf("Are you sure you want to remove '%s'? [y/n] ", repoURL))
+
+					} else {
+						if !isConfirmAll {
+							lowercaseAnswer = cli.AskToProceedS(fmt.Sprintf("Are you sure you want to remove '%s'? [y/n/A] where 'A' is to remove all specified repository credentials without prompting ", repoURL))
+							if lowercaseAnswer == "a" {
+								lowercaseAnswer = "y"
+								isConfirmAll = true
+							}
+						} else {
+							lowercaseAnswer = "y"
+						}
+					}
+					if lowercaseAnswer == "y" {
+						_, err := repoIf.DeleteRepositoryCredentials(ctx, &repocredspkg.RepoCredsDeleteRequest{Url: repoURL})
+						errors.CheckError(err)
+						fmt.Printf("Repository credentials for '%s' removed\n", repoURL)
+					} else {
+						fmt.Printf("The command to remove '%s' was cancelled.\n", repoURL)
+					}
+				}
 			}
 		},
 	}
+	command.Flags().BoolVarP(&noPrompt, "yes", "y", false, "Turn off prompting to confirm removal of repository credentials")
 	return command
 }
 
