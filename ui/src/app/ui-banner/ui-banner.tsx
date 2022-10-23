@@ -70,7 +70,13 @@ export const Banner = (props: React.Props<any>) => {
                     <React.Fragment>
                         <div className={combinedBannerClassName} style={{visibility: show ? 'visible' : 'hidden', height: heightOfBanner}}>
                             <div className='ui-banner-text' style={{maxHeight: permanent ? '25px' : '50px'}}>
-                                error
+                                {url !== undefined ? (
+                                        <a href={url} target='_blank' rel='noopener noreferrer'>
+                                            {content}
+                                        </a>
+                                    ) : (
+                                        <React.Fragment>{content}</React.Fragment>
+                                    )}
                             </div>
                             {!permanent ? (
                                 <>
