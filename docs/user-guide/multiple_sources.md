@@ -84,3 +84,5 @@ spec:
 ```
 
 In the above example, the source with `targetRevision 15.7.1` will use the value files from source with `targetRevision 15.6.0` with the help of ref `$prometheus`.
+
+Note: The source with `ref` field needs to be mentioned before referencing it in another source. For example, source with `ref: prometheus` needs to come before we use `$prometheus` in another source.
