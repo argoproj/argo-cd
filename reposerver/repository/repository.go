@@ -917,7 +917,6 @@ func helmTemplate(appPath string, repoRoot string, env *v1alpha1.Env, q *apiclie
 				defer func() {
 					if err := os.RemoveAll(appHelm.ValueFiles[i]); err != nil {
 						log.WithField(common.SecurityField, common.SecurityCritical).Errorf("error removing value file path: %v", err)
-						panic(fmt.Sprintf("error removing value file path: %s", err))
 					}
 				}()
 
