@@ -16,7 +16,7 @@ import (
 )
 
 const depWithoutSelector = `
-apiVersion: extensions/v1beta1
+apiVersion: apps/v1
 kind: Deployment
 metadata:
   name: nginx-deployment
@@ -34,7 +34,7 @@ spec:
 `
 
 const depWithSelector = `
-apiVersion: extensions/v1beta1
+apiVersion: apps/v1
 kind: Deployment
 metadata:
   name: nginx-deployment
