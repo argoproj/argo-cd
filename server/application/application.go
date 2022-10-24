@@ -1115,27 +1115,6 @@ func (s *Server) validateAndNormalizeApp(ctx context.Context, app *appv1.Applica
 			return err
 		}
 	}
-	// If source is Kustomize add build options
-	kustomizeSettings, err := s.settingsMgr.GetKustomizeSettings()
-	if err != nil {
-		return fmt.Errorf("error getting kustomize settings: %w", err)
-	}
-	kustomizeOptions := make([]*appv1.KustomizeOptions, 0)
-	if app.Spec.HasMultipleSources() {
-		for _, source := range app.Spec.Sources {
-			options, err := kustomizeSettings.GetOptions(source)
-			if err != nil {
-				return err
-			}
-			kustomizeOptions = append(kustomizeOptions, options)
-		}
-	} else {
-		options, err := kustomizeSettings.GetOptions(app.Spec.GetSource())
-		if err != nil {
-			return err
-		}
-		kustomizeOptions = append(kustomizeOptions, options)
-	}
 	plugins, err := s.plugins()
 	if err != nil {
 		return fmt.Errorf("error getting plugins: %w", err)
