@@ -9,7 +9,7 @@ Metrics about applications. Scraped at the `argocd-metrics:8082/metrics` endpoin
 |--------|:----:|-------------|
 | `argocd_app_info` | gauge | Information about Applications. It contains labels such as `sync_status` and `health_status` that reflect the application state in ArgoCD. |
 | `argocd_app_k8s_request_total` | counter | Number of kubernetes requests executed during application reconciliation |
-| `argocd_app_labels` | gauge | Argo Application labels converted to Prometheus labels. Disabled by default. See section bellow about how to enable it. |
+| `argocd_app_labels` | gauge | Argo Application labels converted to Prometheus labels. Disabled by default. See section below about how to enable it. |
 | `argocd_app_reconcile` | histogram | Application reconciliation performance. |
 | `argocd_app_sync_total` | counter | Counter for application sync history |
 | `argocd_cluster_api_resource_objects` | gauge | Number of k8s resource objects in the cache. |
@@ -41,7 +41,7 @@ Some examples are:
 As the Application labels are specific to each company, this feature is disabled by default. To enable it, add the
 `--metrics-application-labels` flag to the ArgoCD application controller.
 
-The example bellow will expose the ArgoCD Application labels `team-name` and `business-unit` to Prometheus:
+The example below will expose the ArgoCD Application labels `team-name` and `business-unit` to Prometheus:
 
     containers:
     - command:
