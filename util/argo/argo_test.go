@@ -203,7 +203,7 @@ func TestValidateRepo(t *testing.T) {
 		GroupKind:            schema.GroupKind{Kind: "Deployment"},
 	}}
 	kubeVersion := "v1.16"
-	kustomizeOptions := &argoappv1.KustomizeOptions{BuildOptions: "sample options"}
+	kustomizeOptions := &argoappv1.KustomizeOptions{BuildOptions: ""}
 	repo := &argoappv1.Repository{Repo: fmt.Sprintf("file://%s", repoPath)}
 	cluster := &argoappv1.Cluster{Server: "sample server"}
 	app := &argoappv1.Application{
@@ -287,7 +287,7 @@ func TestValidateRepo(t *testing.T) {
 	kubeClient := fake.NewSimpleClientset(&cm)
 	settingsMgr := settings.NewSettingsManager(context.Background(), kubeClient, test.FakeArgoCDNamespace)
 
-	conditions, err := ValidateRepo(context.Background(), app, repoClientSet, db, kustomizeOptions, nil, &kubetest.MockKubectlCmd{Version: kubeVersion, APIResources: apiResources}, proj, settingsMgr)
+	conditions, err := ValidateRepo(context.Background(), app, repoClientSet, db, nil, &kubetest.MockKubectlCmd{Version: kubeVersion, APIResources: apiResources}, proj, settingsMgr)
 
 	assert.NoError(t, err)
 	assert.Empty(t, conditions)

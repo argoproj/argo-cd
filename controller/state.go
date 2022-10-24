@@ -202,6 +202,7 @@ func (m *appStateManager) getRepoObjs(app *v1alpha1.Application, sources []v1alp
 			TrackingMethod:     string(argo.GetTrackingMethod(m.settingsMgr)),
 			EnabledSourceTypes: enabledSourceTypes,
 			HelmOptions:        helmOptions,
+			HasMultipleSources: app.Spec.HasMultipleSources(),
 		})
 
 		if err != nil {

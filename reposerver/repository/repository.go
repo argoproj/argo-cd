@@ -575,6 +575,13 @@ func (s *Service) runManifestGenAsync(ctx context.Context, repoRoot, commitSHA, 
 	opContext, err := opContextSrc()
 	if err == nil {
 		manifestGenResult, err = GenerateManifests(ctx, opContext.appPath, repoRoot, commitSHA, q, false, s.gitCredsStore, s.initConstants.MaxCombinedDirectoryManifestsSize, WithCMPTarDoneChannel(ch.tarDoneCh), WithCMPTarExcludedGlobs(s.initConstants.CMPTarExcludedGlobs))
+		if q.HasMultipleSources {
+			// ManifestGenResult will be null if Path and Chart fields are not set for a source in Multiple Sources
+			if manifestGenResult == nil {
+				ch.responseCh <- manifestGenResult
+				return
+			}
+		}
 	}
 	if err != nil {
 		// If manifest generation error caching is enabled
@@ -857,9 +864,15 @@ func helmTemplate(appPath string, repoRoot string, env *v1alpha1.Env, q *apiclie
 			// ValueFiles referring to another source within the application
 			if strings.HasPrefix(val, "$") {
 				pathStrings := strings.Split(val, "/")
-				key := strings.TrimPrefix(strings.Split(val, "/")[0], "$")
-				pathStrings[0] = os.Getenv(key)
+				pathStrings[0] = os.Getenv(strings.Split(val, "/")[0])
 				appHelm.ValueFiles[i] = strings.Join(pathStrings, "/")
+
+				defer func() {
+					if err := os.RemoveAll(appHelm.ValueFiles[i]); err != nil {
+						log.WithField(common.SecurityField, common.SecurityCritical).Errorf("error removing value file path: %v", err)
+						panic(fmt.Sprintf("error removing value file path: %s", err))
+					}
+				}()
 
 				if _, err := os.Stat(appHelm.ValueFiles[i]); err == nil {
 					if err := os.Chmod(appHelm.ValueFiles[i], 0700); err != nil {
@@ -1047,7 +1060,16 @@ func GenerateManifests(ctx context.Context, appPath, repoRoot, revision string, 
 
 	// Set path of the source in the environment variable if ref field is set
 	if q.ApplicationSource.Ref != "" {
-		os.Setenv(q.ApplicationSource.Ref, appPath)
+		os.Setenv(fmt.Sprintf("$%s", q.ApplicationSource.Ref), appPath)
+	}
+
+	if q.HasMultipleSources {
+		if q.ApplicationSource.Path == "" && q.ApplicationSource.Chart == "" {
+			log.WithFields(map[string]interface{}{
+				"source": q.ApplicationSource,
+			}).Warnf("not generating manifests as path and chart fields are empty")
+			return &apiclient.ManifestResponse{}, nil
+		}
 	}
 
 	appSourceType, err := GetAppSourceType(ctx, q.ApplicationSource, appPath, q.AppName, q.EnabledSourceTypes, opt.cmpTarExcludedGlobs)
@@ -1725,7 +1747,6 @@ func (s *Service) GetAppDetails(ctx context.Context, q *apiclient.RepoServerAppD
 
 		switch appSourceType {
 		case v1alpha1.ApplicationSourceTypeHelm:
-			log.Debug("Starting populateHelmAppDetails")
 			if err := populateHelmAppDetails(res, opContext.appPath, repoRoot, q); err != nil {
 				return err
 			}

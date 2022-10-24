@@ -1121,7 +1121,7 @@ func (s *Server) validateAndNormalizeApp(ctx context.Context, app *appv1.Applica
 		return fmt.Errorf("error getting kustomize settings: %w", err)
 	}
 	kustomizeOptions := make([]*appv1.KustomizeOptions, 0)
-	if app.Spec.Sources != nil {
+	if app.Spec.HasMultipleSources() {
 		for _, source := range app.Spec.Sources {
 			options, err := kustomizeSettings.GetOptions(source)
 			if err != nil {
@@ -1147,15 +1147,12 @@ func (s *Server) validateAndNormalizeApp(ctx context.Context, app *appv1.Applica
 
 	var conditions []appv1.ApplicationCondition
 	if validate {
-
 		conditions := make([]appv1.ApplicationCondition, 0)
-		for _, kustomizeOption := range kustomizeOptions {
-			condition, err := argo.ValidateRepo(ctx, app, s.repoClientset, s.db, kustomizeOption, plugins, s.kubectl, proj, s.settingsMgr)
-			if err != nil {
-				return fmt.Errorf("error validating the repo: %w", err)
-			}
-			conditions = append(conditions, condition...)
+		condition, err := argo.ValidateRepo(ctx, app, s.repoClientset, s.db, plugins, s.kubectl, proj, s.settingsMgr)
+		if err != nil {
+			return fmt.Errorf("error validating the repo: %w", err)
 		}
+		conditions = append(conditions, condition...)
 		if len(conditions) > 0 {
 			return status.Errorf(codes.InvalidArgument, "application spec for %s is invalid: %s", app.Name, argo.FormatAppConditions(conditions))
 		}

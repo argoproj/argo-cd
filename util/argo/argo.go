@@ -180,13 +180,14 @@ func ValidateRepo(
 	app *argoappv1.Application,
 	repoClientset apiclient.Clientset,
 	db db.ArgoDB,
-	kustomizeOptions *argoappv1.KustomizeOptions,
 	plugins []*argoappv1.ConfigManagementPlugin,
 	kubectl kube.Kubectl,
 	proj *argoappv1.AppProject,
 	settingsMgr *settings.SettingsManager,
 ) ([]argoappv1.ApplicationCondition, error) {
 	spec := &app.Spec
+	var kustomizeOptions *argoappv1.KustomizeOptions
+
 	conditions := make([]argoappv1.ApplicationCondition, 0)
 
 	// Test the repo
@@ -240,10 +241,22 @@ func ValidateRepo(
 		return nil, fmt.Errorf("error getting enabled source types: %w", err)
 	}
 
+	// If source is Kustomize add build options
+	kustomizeSettings, err := settingsMgr.GetKustomizeSettings()
+	if err != nil {
+		return nil, fmt.Errorf("error getting kustomize settings: %w", err)
+	}
+
 	sourceCondition := make([]argoappv1.ApplicationCondition, 0)
-	if spec.Sources != nil {
+	if spec.HasMultipleSources() {
 		for _, source := range spec.Sources {
-			sourceCondition, err = validateRepo(
+			kustomizeOptions, err = kustomizeSettings.GetOptions(source)
+			if err != nil {
+				return nil, err
+			}
+			// stores conditions for each source
+			var condition []argoappv1.ApplicationCondition
+			condition, err = validateRepo(
 				ctx,
 				app,
 				db,
@@ -259,9 +272,15 @@ func ValidateRepo(
 				permittedHelmCredentials,
 				enabledSourceTypes,
 				settingsMgr)
+			// append condition of each source to collection of conditions
+			sourceCondition = append(sourceCondition, condition...)
 		}
 	} else {
 		source := spec.GetSource()
+		kustomizeOptions, err = kustomizeSettings.GetOptions(source)
+		if err != nil {
+			return nil, err
+		}
 		sourceCondition, err = validateRepo(
 			ctx,
 			app,
@@ -350,7 +369,8 @@ func validateRepo(ctx context.Context,
 		APIResourcesToStrings(apiGroups, true),
 		permittedHelmCredentials,
 		enabledSourceTypes,
-		settingsMgr)...)
+		settingsMgr,
+		app.Spec.HasMultipleSources())...)
 
 	return conditions, nil
 }
@@ -384,24 +404,44 @@ func ValidateDestination(ctx context.Context, dest *argoappv1.ApplicationDestina
 	return nil
 }
 
+func validateSourcePermissions(ctx context.Context, source argoappv1.ApplicationSource, proj *argoappv1.AppProject, project string, hasMultipleSources bool) []argoappv1.ApplicationCondition {
+	var conditions []argoappv1.ApplicationCondition
+	if hasMultipleSources {
+		if source.RepoURL == "" || (source.Path == "" && source.Chart == "" && source.Ref == "") {
+			conditions = append(conditions, argoappv1.ApplicationCondition{
+				Type:    argoappv1.ApplicationConditionInvalidSpecError,
+				Message: fmt.Sprintf("spec.source.repoURL and either source.path, source.chart, or source.ref are required for source %s", source),
+			})
+			return conditions
+		}
+	} else {
+		if source.RepoURL == "" || (source.Path == "" && source.Chart == "") {
+			conditions = append(conditions, argoappv1.ApplicationCondition{
+				Type:    argoappv1.ApplicationConditionInvalidSpecError,
+				Message: "spec.source.repoURL and either spec.source.path or spec.source.chart are required",
+			})
+			return conditions
+		}
+	}
+	if source.Chart != "" && source.TargetRevision == "" {
+		conditions = append(conditions, argoappv1.ApplicationCondition{
+			Type:    argoappv1.ApplicationConditionInvalidSpecError,
+			Message: "spec.source.targetRevision is required if the manifest source is a helm chart",
+		})
+		return conditions
+	}
+
+	return conditions
+}
+
 // ValidatePermissions ensures that the referenced cluster has been added to Argo CD and the app source repo and destination namespace/cluster are permitted in app project
 func ValidatePermissions(ctx context.Context, spec *argoappv1.ApplicationSpec, proj *argoappv1.AppProject, db db.ArgoDB) ([]argoappv1.ApplicationCondition, error) {
 	conditions := make([]argoappv1.ApplicationCondition, 0)
 
-	if spec.Sources != nil && len(spec.Sources) > 0 {
+	if spec.HasMultipleSources() {
 		for _, source := range spec.Sources {
-			if source.RepoURL == "" || (source.Path == "" && source.Chart == "" && source.Ref == "") {
-				conditions = append(conditions, argoappv1.ApplicationCondition{
-					Type:    argoappv1.ApplicationConditionInvalidSpecError,
-					Message: fmt.Sprintf("spec.source.repoURL and either source.path, source.chart, or source.ref are required for source %s", source),
-				})
-				return conditions, nil
-			}
-			if source.Chart != "" && source.TargetRevision == "" {
-				conditions = append(conditions, argoappv1.ApplicationCondition{
-					Type:    argoappv1.ApplicationConditionInvalidSpecError,
-					Message: fmt.Sprintf("source.targetRevision is required if the manifest source is a helm chart for source %s", &source),
-				})
+			condition := validateSourcePermissions(ctx, source, proj, spec.Project, spec.HasMultipleSources())
+			if len(condition) > 0 {
 				return conditions, nil
 			}
 
@@ -414,18 +454,8 @@ func ValidatePermissions(ctx context.Context, spec *argoappv1.ApplicationSpec, p
 		}
 
 	} else {
-		if spec.GetSource().RepoURL == "" || (spec.GetSource().Path == "" && spec.GetSource().Chart == "") {
-			conditions = append(conditions, argoappv1.ApplicationCondition{
-				Type:    argoappv1.ApplicationConditionInvalidSpecError,
-				Message: "spec.source.repoURL and either spec.source.path or spec.source.chart are required",
-			})
-			return conditions, nil
-		}
-		if spec.GetSource().Chart != "" && spec.GetSource().TargetRevision == "" {
-			conditions = append(conditions, argoappv1.ApplicationCondition{
-				Type:    argoappv1.ApplicationConditionInvalidSpecError,
-				Message: "spec.source.targetRevision is required if the manifest source is a helm chart",
-			})
+		conditions = validateSourcePermissions(ctx, spec.GetSource(), proj, spec.Project, spec.HasMultipleSources())
+		if len(conditions) > 0 {
 			return conditions, nil
 		}
 
@@ -568,7 +598,7 @@ func GetAppProject(app *argoappv1.Application, projLister applicationsv1.AppProj
 }
 
 // verifyGenerateManifests verifies a repo path can generate manifests
-func verifyGenerateManifests(ctx context.Context, repoRes *argoappv1.Repository, helmRepos argoappv1.Repositories, helmOptions *argoappv1.HelmOptions, name string, dest argoappv1.ApplicationDestination, source *argoappv1.ApplicationSource, repoClient apiclient.RepoServerServiceClient, kustomizeOptions *argoappv1.KustomizeOptions, plugins []*argoappv1.ConfigManagementPlugin, kubeVersion string, apiVersions []string, repositoryCredentials []*argoappv1.RepoCreds, enableGenerateManifests map[string]bool, settingsMgr *settings.SettingsManager) []argoappv1.ApplicationCondition {
+func verifyGenerateManifests(ctx context.Context, repoRes *argoappv1.Repository, helmRepos argoappv1.Repositories, helmOptions *argoappv1.HelmOptions, name string, dest argoappv1.ApplicationDestination, source *argoappv1.ApplicationSource, repoClient apiclient.RepoServerServiceClient, kustomizeOptions *argoappv1.KustomizeOptions, plugins []*argoappv1.ConfigManagementPlugin, kubeVersion string, apiVersions []string, repositoryCredentials []*argoappv1.RepoCreds, enableGenerateManifests map[string]bool, settingsMgr *settings.SettingsManager, hasMultipleSources bool) []argoappv1.ApplicationCondition {
 	var conditions []argoappv1.ApplicationCondition
 	if dest.Server == "" {
 		conditions = append(conditions, argoappv1.ApplicationCondition{
@@ -597,6 +627,7 @@ func verifyGenerateManifests(ctx context.Context, repoRes *argoappv1.Repository,
 		TrackingMethod:     string(GetTrackingMethod(settingsMgr)),
 		EnabledSourceTypes: enableGenerateManifests,
 		NoRevisionCache:    true,
+		HasMultipleSources: hasMultipleSources,
 	}
 	req.Repo.CopyCredentialsFromRepo(repoRes)
 	req.Repo.CopySettingsFrom(repoRes)

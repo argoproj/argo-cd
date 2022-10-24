@@ -1735,6 +1735,14 @@ func alreadyAttemptedSync(app *appv1.Application, commitSHA string, commitSHAsMS
 	if hasMultipleSources {
 		// Ignore differences in target revision, since we already just verified commitSHAs are equal,
 		// and we do not want to trigger auto-sync due to things like HEAD != master
+		specSources := app.Spec.Sources.DeepCopy()
+		syncSources := app.Status.OperationState.SyncResult.Sources.DeepCopy()
+		for _, source := range specSources {
+			source.TargetRevision = ""
+		}
+		for _, source := range syncSources {
+			source.TargetRevision = ""
+		}
 		return reflect.DeepEqual(app.Spec.Sources, app.Status.OperationState.SyncResult.Sources), app.Status.OperationState.Phase
 	} else {
 		// Ignore differences in target revision, since we already just verified commitSHAs are equal,

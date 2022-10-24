@@ -5507,7 +5507,7 @@ func schema_pkg_apis_application_v1alpha1_RevisionHistory(ref common.ReferenceCa
 					},
 					"sources": {
 						SchemaProps: spec.SchemaProps{
-							Description: "Source is a reference to the application source used for the sync operation",
+							Description: "Sources is a reference to the application sources used for the sync operation",
 							Type:        []string{"array"},
 							Items: &spec.SchemaOrArray{
 								Schema: &spec.Schema{

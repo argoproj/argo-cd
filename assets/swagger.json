@@ -7617,7 +7617,7 @@
         },
         "sources": {
           "type": "array",
-          "title": "Source is a reference to the application source used for the sync operation",
+          "title": "Sources is a reference to the application sources used for the sync operation",
           "items": {
             "$ref": "#/definitions/v1alpha1ApplicationSource"
           }
