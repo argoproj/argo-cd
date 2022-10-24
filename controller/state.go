@@ -514,7 +514,7 @@ func (m *appStateManager) CompareAppState(app *v1alpha1.Application, project *ap
 		}
 		gvk := obj.GroupVersionKind()
 
-		isSelfReferencedObj := m.isSelfReferencedObj(liveObj, appLabelKey, trackingMethod)
+		isSelfReferencedObj := m.isSelfReferencedObj(liveObj, targetObj, app.GetName(), appLabelKey, trackingMethod)
 
 		resState := v1alpha1.ResourceStatus{
 			Namespace:       obj.GetNamespace(),
@@ -699,12 +699,13 @@ func NewAppStateManager(
 }
 
 // isSelfReferencedObj returns whether the given obj is managed by the application
-// according to the values in the tracking annotation. It returns true when all
-// of the properties in the annotation (name, namespace, group and kind) match
-// the properties of the inspected object, or if the tracking method used does
-// not provide the required properties for matching.
-func (m *appStateManager) isSelfReferencedObj(obj *unstructured.Unstructured, appLabelKey string, trackingMethod v1alpha1.TrackingMethod) bool {
-	if obj == nil {
+// according to the values of the tracking id (aka app instance value) annotation.
+// It returns true when all of the properties of the tracking id (app name, namespace,
+// group and kind) match the properties of the live object, or if the tracking method
+// used does not provide the required properties for matching.
+// Reference: https://github.com/argoproj/argo-cd/issues/8683
+func (m *appStateManager) isSelfReferencedObj(live, config *unstructured.Unstructured, appName, appLabelKey string, trackingMethod v1alpha1.TrackingMethod) bool {
+	if live == nil {
 		return true
 	}
 
@@ -714,33 +715,35 @@ func (m *appStateManager) isSelfReferencedObj(obj *unstructured.Unstructured, ap
 		return true
 	}
 
-	// In order for us to assume obj to be managed by this application, the
-	// values from the annotation have to match the properties from the live
-	// object. Cluster scoped objects carry the app's destination namespace
-	// in the tracking annotation, but are unique in GVK + name combination.
-	appInstance := m.resourceTracking.GetAppInstance(obj, appLabelKey, trackingMethod)
-	if appInstance != nil && isSelfReferencedObj(obj, appInstance) {
-		return true
+	// Ideally the Tracking Id should be built from the config object.
+	// This is necessary because in case of an ApiGroup upgrade in the desired
+	// state, the comparison must be maid with the new tracking id.
+	// Example:
+	//     live resource annotation will be:
+	//        ingress-app:extensions/Ingress:default/some-ingress
+	//     when it should be:
+	//        ingress-app:networking.k8s.io/Ingress:default/some-ingress
+	// More details in: https://github.com/argoproj/argo-cd/pull/11012
+	var aiv argo.AppInstanceValue
+	if config != nil {
+		aiv = argo.UnstructuredToAppInstanceValue(config, appName, "")
+		return isSelfReferencedObj(live, aiv)
 	}
 
-	// When ApiGroup changes we need to inspect the last-applied-configuration
-	// annotation.
-	// Example: updating from extensions/Ingress to networking.k8s.io/Ingress
-	// TODO: This will be a problem when server-side apply becomes default as
-	// last-applied-configuration might not be present anymore.
-	lastAppliedObj, err := diff.GetLastAppliedConfigAnnotation(obj)
-	if err != nil {
-		log.Errorf("controller error while getting last applied configuration in isSelfReferencedObj: %s", err)
+	// If config is nil then compare the live resource with the value
+	// of the annotation. In this case, in order to validate if obj is
+	// managed by this application, the values from the annotation have
+	// to match the properties from the live object. Cluster scoped objects
+	// carry the app's destination namespace in the tracking annotation,
+	// but are unique in GVK + name combination.
+	appInstance := m.resourceTracking.GetAppInstance(live, appLabelKey, trackingMethod)
+	if appInstance != nil {
+		return isSelfReferencedObj(live, *appInstance)
 	}
-	lastAppInstanceOk := true
-	if lastAppliedObj != nil {
-		lastAppInstanceOk = isSelfReferencedObj(lastAppliedObj, appInstance)
-	}
-
-	return lastAppInstanceOk
+	return true
 }
 
-func isSelfReferencedObj(obj *unstructured.Unstructured, aiv *argo.AppInstanceValue) bool {
+func isSelfReferencedObj(obj *unstructured.Unstructured, aiv argo.AppInstanceValue) bool {
 	return (obj.GetNamespace() == aiv.Namespace || obj.GetNamespace() == "") &&
 		obj.GetName() == aiv.Name &&
 		obj.GetObjectKind().GroupVersionKind().Group == aiv.Group &&

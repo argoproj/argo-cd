@@ -870,30 +870,59 @@ func TestIsLiveResourceManaged(t *testing.T) {
 	})
 
 	manager := ctrl.appStateManager.(*appStateManager)
+	appName := "guestbook"
 
-	// Managed resource w/ annotations
-	assert.True(t, manager.isSelfReferencedObj(managedObj, common.AnnotationKeyAppInstance, argo.TrackingMethodLabel))
-	assert.True(t, manager.isSelfReferencedObj(managedObj, common.AnnotationKeyAppInstance, argo.TrackingMethodAnnotation))
+	t.Run("will return true if trackingid matches the resource", func(t *testing.T) {
+		// given
+		t.Parallel()
+		configObj := managedObj.DeepCopy()
 
-	// Managed resource w/ label
-	assert.True(t, manager.isSelfReferencedObj(managedObjWithLabel, common.AnnotationKeyAppInstance, argo.TrackingMethodLabel))
+		// then
+		assert.True(t, manager.isSelfReferencedObj(managedObj, configObj, appName, common.AnnotationKeyAppInstance, argo.TrackingMethodLabel))
+		assert.True(t, manager.isSelfReferencedObj(managedObj, configObj, appName, common.AnnotationKeyAppInstance, argo.TrackingMethodAnnotation))
+	})
+	t.Run("will return true if tracked with label", func(t *testing.T) {
+		// given
+		t.Parallel()
+		configObj := managedObjWithLabel.DeepCopy()
 
-	// Wrong resource name
-	assert.True(t, manager.isSelfReferencedObj(unmanagedObjWrongName, common.AnnotationKeyAppInstance, argo.TrackingMethodLabel))
-	assert.False(t, manager.isSelfReferencedObj(unmanagedObjWrongName, common.AnnotationKeyAppInstance, argo.TrackingMethodAnnotation))
+		// then
+		assert.True(t, manager.isSelfReferencedObj(managedObjWithLabel, configObj, appName, common.AnnotationKeyAppInstance, argo.TrackingMethodLabel))
+	})
+	t.Run("will handle if trackingId has wrong resource name", func(t *testing.T) {
+		// given
+		t.Parallel()
 
-	// Wrong resource group
-	assert.True(t, manager.isSelfReferencedObj(unmanagedObjWrongGroup, common.AnnotationKeyAppInstance, argo.TrackingMethodLabel))
-	assert.False(t, manager.isSelfReferencedObj(unmanagedObjWrongGroup, common.AnnotationKeyAppInstance, argo.TrackingMethodAnnotation))
+		// then
+		assert.True(t, manager.isSelfReferencedObj(unmanagedObjWrongName, nil, appName, common.AnnotationKeyAppInstance, argo.TrackingMethodLabel))
+		assert.False(t, manager.isSelfReferencedObj(unmanagedObjWrongName, nil, appName, common.AnnotationKeyAppInstance, argo.TrackingMethodAnnotation))
+	})
+	t.Run("will handle if trackingId has wrong resource group", func(t *testing.T) {
+		// given
+		t.Parallel()
 
-	// Wrong resource kind
-	assert.True(t, manager.isSelfReferencedObj(unmanagedObjWrongKind, common.AnnotationKeyAppInstance, argo.TrackingMethodLabel))
-	assert.False(t, manager.isSelfReferencedObj(unmanagedObjWrongKind, common.AnnotationKeyAppInstance, argo.TrackingMethodAnnotation))
+		// then
+		assert.True(t, manager.isSelfReferencedObj(unmanagedObjWrongGroup, nil, appName, common.AnnotationKeyAppInstance, argo.TrackingMethodLabel))
+		assert.False(t, manager.isSelfReferencedObj(unmanagedObjWrongGroup, nil, appName, common.AnnotationKeyAppInstance, argo.TrackingMethodAnnotation))
+	})
+	t.Run("will handle if trackingId has wrong kind", func(t *testing.T) {
+		// given
+		t.Parallel()
 
-	// Wrong resource namespace
-	assert.True(t, manager.isSelfReferencedObj(unmanagedObjWrongNamespace, common.AnnotationKeyAppInstance, argo.TrackingMethodLabel))
-	assert.False(t, manager.isSelfReferencedObj(unmanagedObjWrongNamespace, common.AnnotationKeyAppInstance, argo.TrackingMethodAnnotationAndLabel))
+		// then
+		assert.True(t, manager.isSelfReferencedObj(unmanagedObjWrongKind, nil, appName, common.AnnotationKeyAppInstance, argo.TrackingMethodLabel))
+		assert.False(t, manager.isSelfReferencedObj(unmanagedObjWrongKind, nil, appName, common.AnnotationKeyAppInstance, argo.TrackingMethodAnnotation))
+	})
+	t.Run("will handle if trackingId has wrong namespace", func(t *testing.T) {
+		// given
+		t.Parallel()
 
-	// Nil resource
-	assert.True(t, manager.isSelfReferencedObj(nil, common.AnnotationKeyAppInstance, argo.TrackingMethodAnnotation))
+		// then
+		assert.True(t, manager.isSelfReferencedObj(unmanagedObjWrongNamespace, nil, appName, common.AnnotationKeyAppInstance, argo.TrackingMethodLabel))
+		assert.False(t, manager.isSelfReferencedObj(unmanagedObjWrongNamespace, nil, appName, common.AnnotationKeyAppInstance, argo.TrackingMethodAnnotationAndLabel))
+	})
+	t.Run("will return true if live is nil", func(t *testing.T) {
+		t.Parallel()
+		assert.True(t, manager.isSelfReferencedObj(nil, nil, appName, common.AnnotationKeyAppInstance, argo.TrackingMethodAnnotation))
+	})
 }

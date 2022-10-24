@@ -102,21 +102,27 @@ func (rt *resourceTracking) GetAppInstance(un *unstructured.Unstructured, key st
 	}
 }
 
+// UnstructuredToAppInstanceValue will build the AppInstanceValue based
+// on the provided unstructured
+func UnstructuredToAppInstanceValue(un *unstructured.Unstructured, appName, namespace string) AppInstanceValue {
+	ns := un.GetNamespace()
+	if ns == "" {
+		ns = namespace
+	}
+	gvk := un.GetObjectKind().GroupVersionKind()
+	return AppInstanceValue{
+		ApplicationName: appName,
+		Group:           gvk.Group,
+		Kind:            gvk.Kind,
+		Namespace:       ns,
+		Name:            un.GetName(),
+	}
+}
+
 // SetAppInstance set label/annotation base on tracking method
 func (rt *resourceTracking) SetAppInstance(un *unstructured.Unstructured, key, val, namespace string, trackingMethod v1alpha1.TrackingMethod) error {
 	setAppInstanceAnnotation := func() error {
-		ns := un.GetNamespace()
-		if ns == "" {
-			ns = namespace
-		}
-		gvk := un.GetObjectKind().GroupVersionKind()
-		appInstanceValue := AppInstanceValue{
-			ApplicationName: val,
-			Group:           gvk.Group,
-			Kind:            gvk.Kind,
-			Namespace:       ns,
-			Name:            un.GetName(),
-		}
+		appInstanceValue := UnstructuredToAppInstanceValue(un, val, namespace)
 		return argokube.SetAppInstanceAnnotation(un, common.AnnotationKeyAppInstance, rt.BuildAppInstanceValue(appInstanceValue))
 	}
 	switch trackingMethod {
