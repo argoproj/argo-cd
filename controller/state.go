@@ -717,7 +717,7 @@ func (m *appStateManager) isSelfReferencedObj(live, config *unstructured.Unstruc
 
 	// Ideally the Tracking Id should be built from the config object.
 	// This is necessary because in case of an ApiGroup upgrade in the desired
-	// state, the comparison must be maid with the new tracking id.
+	// state, the comparison must be made with the new tracking id.
 	// Example:
 	//     live resource annotation will be:
 	//        ingress-app:extensions/Ingress:default/some-ingress
