@@ -1209,7 +1209,7 @@ func schema_pkg_apis_application_v1alpha1_ApplicationSource(ref common.Reference
 					},
 					"plugin": {
 						SchemaProps: spec.SchemaProps{
-							Description: "ConfigManagementPlugin holds config management plugin specific options",
+							Description: "Plugin holds config management plugin specific options",
 							Ref:         ref("github.com/argoproj/argo-cd/v2/pkg/apis/application/v1alpha1.ApplicationSourcePlugin"),
 						},
 					},
@@ -5265,6 +5265,12 @@ func schema_pkg_apis_application_v1alpha1_ResourceStatus(ref common.ReferenceCal
 							Format: "",
 						},
 					},
+					"syncWave": {
+						SchemaProps: spec.SchemaProps{
+							Type:   []string{"integer"},
+							Format: "int64",
+						},
+					},
 				},
 			},
 		},
@@ -5391,7 +5397,7 @@ func schema_pkg_apis_application_v1alpha1_RevisionMetadata(ref common.ReferenceC
 					},
 					"message": {
 						SchemaProps: spec.SchemaProps{
-							Description: "Message contains the message associated with the revision, most likely the commit message. The message is truncated to the first newline or 64 characters (which ever comes first)",
+							Description: "Message contains the message associated with the revision, most likely the commit message.",
 							Type:        []string{"string"},
 							Format:      "",
 						},

@@ -17,8 +17,9 @@ import (
 
 var (
 	kindToCRDPath = map[string]string{
-		application.ApplicationFullName: "manifests/crds/application-crd.yaml",
-		application.AppProjectFullName:  "manifests/crds/appproject-crd.yaml",
+		application.ApplicationFullName:    "manifests/crds/application-crd.yaml",
+		application.AppProjectFullName:     "manifests/crds/appproject-crd.yaml",
+		application.ApplicationSetFullName: "manifests/crds/applicationset-crd.yaml",
 	}
 )
 
@@ -54,7 +55,7 @@ func getCustomResourceDefinitions() map[string]*extensionsobj.CustomResourceDefi
 			removeValidation(un, "status")
 		}
 
-		crd := toCRD(un)
+		crd := toCRD(un, un.GetName() == "applicationsets.argoproj.io")
 		crd.Labels = map[string]string{
 			"app.kubernetes.io/name":    crd.Name,
 			"app.kubernetes.io/part-of": "argocd",
@@ -81,7 +82,10 @@ func removeValidation(un *unstructured.Unstructured, path string) {
 	unstructured.RemoveNestedField(un.Object, schemaPath...)
 }
 
-func toCRD(un *unstructured.Unstructured) *extensionsobj.CustomResourceDefinition {
+func toCRD(un *unstructured.Unstructured, removeDesc bool) *extensionsobj.CustomResourceDefinition {
+	if removeDesc {
+		removeDescription(un.Object)
+	}
 	unBytes, err := json.Marshal(un)
 	checkErr(err)
 
@@ -90,6 +94,25 @@ func toCRD(un *unstructured.Unstructured) *extensionsobj.CustomResourceDefinitio
 	checkErr(err)
 
 	return &crd
+}
+
+func removeDescription(v interface{}) {
+	switch v := v.(type) {
+	case []interface{}:
+		for _, v := range v {
+			removeDescription(v)
+		}
+	case map[string]interface{}:
+		if _, ok := v["description"]; ok {
+			_, ok := v["description"].(string)
+			if ok {
+				delete(v, "description")
+			}
+		}
+		for _, v := range v {
+			removeDescription(v)
+		}
+	}
 }
 
 func checkErr(err error) {

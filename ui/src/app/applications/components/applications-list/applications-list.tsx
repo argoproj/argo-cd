@@ -308,18 +308,18 @@ export const ApplicationsList = (props: RouteComponentProps<{}>) => {
     const loaderRef = React.useRef<DataLoader>();
     const {List, Summary, Tiles} = AppsListViewKey;
 
-    function refreshApp(appName: string) {
+    function refreshApp(appName: string, appNamespace: string) {
         // app refreshing might be done too quickly so that UI might miss it due to event batching
         // add refreshing annotation in the UI to improve user experience
         if (loaderRef.current) {
             const applications = loaderRef.current.getData() as models.Application[];
-            const app = applications.find(item => item.metadata.name === appName);
+            const app = applications.find(item => item.metadata.name === appName && item.metadata.namespace === appNamespace);
             if (app) {
                 AppUtils.setAppRefreshing(app);
                 loaderRef.current.setData(applications);
             }
         }
-        services.applications.get(appName, 'normal');
+        services.applications.get(appName, appNamespace, 'normal');
     }
 
     function onFilterPrefChanged(ctx: ContextApis, newPref: AppsListPreferences) {
@@ -458,7 +458,7 @@ export const ApplicationsList = (props: RouteComponentProps<{}>) => {
                                                     <div className='applications-list'>
                                                         {applications.length === 0 && pref.projectsFilter?.length === 0 && (pref.labelsFilter || []).length === 0 ? (
                                                             <EmptyState icon='argo-icon-application'>
-                                                                <h4>No applications yet</h4>
+                                                                <h4>No applications available to you just yet</h4>
                                                                 <h5>Create new application to start managing resources in your cluster</h5>
                                                                 <button
                                                                     qe-id='applications-list-button-create-application'

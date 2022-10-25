@@ -2427,12 +2427,12 @@ func NewApplicationEditCommand(clientOpts *argocdclient.ClientOptions) *cobra.Co
 			cli.InteractiveEdit(fmt.Sprintf("%s-*-edit.yaml", appName), appData, func(input []byte) error {
 				input, err = yaml.YAMLToJSON(input)
 				if err != nil {
-					return err
+					return fmt.Errorf("error converting YAML to JSON: %w", err)
 				}
 				updatedSpec := argoappv1.ApplicationSpec{}
 				err = json.Unmarshal(input, &updatedSpec)
 				if err != nil {
-					return err
+					return fmt.Errorf("error unmarshaling input into application spec: %w", err)
 				}
 
 				var appOpts cmdutil.AppOptions
@@ -2444,9 +2444,9 @@ func NewApplicationEditCommand(clientOpts *argocdclient.ClientOptions) *cobra.Co
 					AppNamespace: &appNs,
 				})
 				if err != nil {
-					return fmt.Errorf("Failed to update application spec:\n%v", err)
+					return fmt.Errorf("failed to update application spec: %w", err)
 				}
-				return err
+				return nil
 			})
 		},
 	}
