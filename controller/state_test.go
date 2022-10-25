@@ -944,7 +944,10 @@ func TestIsLiveResourceManaged(t *testing.T) {
 		// given
 		t.Parallel()
 		config := managedWrongAPIGroup.DeepCopy()
-		argo.NewResourceTracking().SetAppInstance(config, "", appName, "", argo.TrackingMethodAnnotation)
+		err := argo.NewResourceTracking().SetAppInstance(config, "", appName, "", argo.TrackingMethodAnnotation)
+		if err != nil {
+			t.Fatalf("error setting app instance: %s", err)
+		}
 
 		// then
 		assert.True(t, manager.isSelfReferencedObj(managedWrongAPIGroup, config, appName, common.AnnotationKeyAppInstance, argo.TrackingMethodAnnotation))
