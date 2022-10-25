@@ -236,7 +236,7 @@ spec:
 
 ## Respect ignore difference configs
 
-This sync option is used to enable Argo CD to consider the configurations made in the `spec.ignoreDifferences` attribute also during the sync stage. By default, Argo CD uses the `ignoreDifferences` config just for computing the diff between the live and desired state which defines if the application is synced or not. However during the sync stage, the desired state is applied as-is. The patch is calculated using a 3-way-merge between the live state the desired state and the `last-applied-configuration` annotation. This sometimes leads to an undesired results. This behavior can be changed by setting the `RespectIgnoreDifferences=true` sync option like in the example bellow:
+This sync option is used to enable Argo CD to consider the configurations made in the `spec.ignoreDifferences` attribute also during the sync stage. By default, Argo CD uses the `ignoreDifferences` config just for computing the diff between the live and desired state which defines if the application is synced or not. However during the sync stage, the desired state is applied as-is. The patch is calculated using a 3-way-merge between the live state the desired state and the `last-applied-configuration` annotation. This sometimes leads to an undesired results. This behavior can be changed by setting the `RespectIgnoreDifferences=true` sync option like in the example below:
 
 ```yaml
 apiVersion: argoproj.io/v1alpha1
