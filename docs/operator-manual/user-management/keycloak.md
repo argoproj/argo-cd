@@ -92,6 +92,7 @@ data:
 ```
 
 Make sure that:
+
 - __issuer__ ends with the correct realm (in this example _master_)
 - __issuer__ on Keycloak releases older than version 17 the URL must include /auth (in this expample /auth/realms/master)
 - __clientID__ is set to the Client ID you configured in Keycloak
