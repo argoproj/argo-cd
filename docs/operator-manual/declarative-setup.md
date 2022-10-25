@@ -77,7 +77,7 @@ spec:
 ```
 
 !!! warning
-    By default, deleting an application will not perform a cascade delete, which would delete its resources. You must add the finalizer if you want this behaviour - which you may well not want.
+    By default, deleting an application will not perform a cascade delete, which would delete its resources. If you prefer a cascade delete of its resource, you must add the finalizer:
 
 ```yaml
 metadata:
