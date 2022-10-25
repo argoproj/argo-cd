@@ -787,7 +787,7 @@ spec:
                   conditions
                 items:
                   description: ApplicationCondition contains details about an application
-                    condition, which is usally an error or warning
+                    condition, which is usually an error or warning
                   properties:
                     lastTransitionTime:
                       description: LastTransitionTime is the time the condition was
