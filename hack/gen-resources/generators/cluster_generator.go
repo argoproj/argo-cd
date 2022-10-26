@@ -198,9 +198,11 @@ func (cg *ClusterGenerator) Generate(opts *util.GenerateOpts) error {
 
 		for o := 0; o < 5; o++ {
 			if err != nil {
-				log.Printf("Failed to get cluster credentials " + releaseSuffix + ", retrying...")
-				time.Sleep(10 * time.Second) 
-				err = nil
+				if o > 0 {
+				  log.Printf("Failed to get cluster credentials " + releaseSuffix + ", retrying...")	
+				  time.Sleep(10 * time.Second) 
+				  err = nil
+				}
 				caData, cert, key, err = cg.getClusterCredentials(namespace, releaseSuffix)
 			} else {
 				break
