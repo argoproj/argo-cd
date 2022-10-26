@@ -176,7 +176,7 @@ func (cg *ClusterGenerator) retrieveClusterUri(namespace, releaseSuffix string) 
 }
 
 func (cg *ClusterGenerator) Generate(opts *util.GenerateOpts) error {
-	for i := 0; i < opts.ClusterOpts.Samples; i++ {
+	for i := 1; i <= opts.ClusterOpts.Samples; i++ {
 		log.Printf("Generate cluster #%v of #%v", i, opts.ClusterOpts.Samples)
 
 		namespace := opts.ClusterOpts.NamespacePrefix + "-" + util.GetRandomString()
