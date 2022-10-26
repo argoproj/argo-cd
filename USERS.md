@@ -1,6 +1,7 @@
 ## Who uses Argo CD?
 
-As the Argo Community grows, we'd like to keep track of our users. Please send a PR with your organization name if you are using Argo CD.
+As the Argo Community grows, we'd like to keep track of our users. Please send a
+PR with your organization name if you are using Argo CD.
 
 Currently, the following organizations are **officially** using Argo CD:
 
@@ -18,7 +19,7 @@ Currently, the following organizations are **officially** using Argo CD:
 1. [Ant Group](https://www.antgroup.com/)
 1. [AppDirect](https://www.appdirect.com)
 1. [Arctiq Inc.](https://www.arctiq.ca)
-1. [ARZ Allgemeines Rechenzentrum GmbH ](https://www.arz.at/)
+1. [ARZ Allgemeines Rechenzentrum GmbH](https://www.arz.at/)
 1. [Axual B.V.](https://axual.com)
 1. [Baloise](https://www.baloise.com)
 1. [BCDevExchange DevOps Platform](https://bcdevexchange.org/DevOpsPlatform)
@@ -52,12 +53,13 @@ Currently, the following organizations are **officially** using Argo CD:
 1. [D2iQ](https://www.d2iq.com)
 1. [Datarisk](https://www.datarisk.io/)
 1. [Deloitte](https://www.deloitte.com/)
+1. [Deutsche Telekom AG](https://telekom.com)
 1. [Devopsi - Poland Software/DevOps Consulting](https://devopsi.pl/)
 1. [Devtron Labs](https://github.com/devtron-labs/devtron)
 1. [EDF Renewables](https://www.edf-re.com/)
 1. [edX](https://edx.org)
-1. [Elastic](https://elastic.co/) 
-1. [Electronic Arts Inc. ](https://www.ea.com)
+1. [Elastic](https://elastic.co/)
+1. [Electronic Arts Inc.](https://www.ea.com)
 1. [Elementor](https://elementor.com/)
 1. [Elium](https://www.elium.com)
 1. [END.](https://www.endclothing.com/)
@@ -73,6 +75,7 @@ Currently, the following organizations are **officially** using Argo CD:
 1. [G DATA CyberDefense AG](https://www.gdata-software.com/)
 1. [Garner](https://www.garnercorp.com)
 1. [Generali Deutschland AG](https://www.generali.de/)
+2. [Gepardec](https://gepardec.com/)
 1. [Gitpod](https://www.gitpod.io)
 1. [Gllue](https://gllue.com)
 1. [gloat](https://gloat.com/)
@@ -139,6 +142,7 @@ Currently, the following organizations are **officially** using Argo CD:
 1. [Nextdoor](https://nextdoor.com/)
 1. [Nikkei](https://www.nikkei.co.jp/nikkeiinfo/en/)
 1. [Nitro](https://gonitro.com)
+1. [OCCMundial](https://occ.com.mx)
 1. [Octadesk](https://octadesk.com)
 1. [omegaUp](https://omegaUp.com)
 1. [openEuler](https://openeuler.org)
