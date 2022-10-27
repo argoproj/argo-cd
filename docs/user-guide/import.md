@@ -10,7 +10,7 @@ The workaround is , you need to add a replace section in your own go.mod as same
 
 If you are using argocd v2.4.15, your go.mod should contain,
 
-```toml
+```bash
 replace (
 	// https://github.com/golang/go/issues/33546#issuecomment-519656923
 	github.com/go-check/check => github.com/go-check/check v0.0.0-20180628173108-788fd7840127
