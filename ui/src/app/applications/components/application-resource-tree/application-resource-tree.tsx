@@ -510,7 +510,7 @@ function renderPodGroup(props: ApplicationResourceTreeProps, id: string, node: R
                                             <Tooltip
                                                 content={
                                                     <div>
-                                                        {pod.metadata.name}
+                                                        {pod.name}
                                                         <div>Health: {pod.health}</div>
                                                         {pod.createdAt && (
                                                             <span>
@@ -536,7 +536,7 @@ function renderPodGroup(props: ApplicationResourceTreeProps, id: string, node: R
                                                         }
                                                     }
                                                 }}
-                                                key={pod.metadata.name}>
+                                                key={pod.name}>
                                                 <div style={{position: 'relative'}}>
                                                     {isYoungerThanXMinutes(pod, 30) && (
                                                         <i className='fas fa-star application-resource-tree__node--lower-section__pod-group__pod application-resource-tree__node--lower-section__pod-group__pod__star-icon' />
