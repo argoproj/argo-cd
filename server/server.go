@@ -864,7 +864,7 @@ func (a *ArgoCDServer) newHTTPServer(ctx context.Context, port int, grpcWebHandl
 	mux.HandleFunc("/terminal", func(writer http.ResponseWriter, request *http.Request) {
 		argocdSettings, err := a.settingsMgr.GetSettings()
 		if err != nil {
-			http.Error(writer, fmt.Sprintf("Failed to get settings: %v", err), http.StatusBadRequest)
+			http.Error(writer, fmt.Sprintf("Failed to get settings: %v", err), http.StatusInternalServerError)
 			return
 		}
 		if !argocdSettings.ExecEnabled {
@@ -872,26 +872,14 @@ func (a *ArgoCDServer) newHTTPServer(ctx context.Context, port int, grpcWebHandl
 			return
 		}
 
-		if !a.DisableAuth {
-			ctx := request.Context()
-			cookies := request.Cookies()
-			tokenString, err := httputil.JoinCookies(common.AuthCookieName, cookies)
-			if err == nil && jwtutil.IsValid(tokenString) {
-				claims, _, err := a.sessionMgr.VerifyToken(tokenString)
-				if err != nil {
-					// nolint:staticcheck
-					ctx = context.WithValue(ctx, util_session.AuthErrorCtxKey, err)
-				} else if claims != nil {
-					// Add claims to the context to inspect for RBAC
-					// nolint:staticcheck
-					ctx = context.WithValue(ctx, "claims", claims)
-				}
-				request = request.WithContext(ctx)
-			} else {
-				writer.WriteHeader(http.StatusUnauthorized)
-				return
-			}
+		ctx := request.Context()
+		ctx, err = a.AuthenticateWebsocketRequest(ctx, writer, request)
+		if err != nil {
+			writer.WriteHeader(runtime.HTTPStatusFromCode(status.Convert(err).Code()))
+			return
 		}
+
+		request = request.WithContext(ctx)
 		terminalHandler.ServeHTTP(writer, request)
 	})
 
@@ -1126,23 +1114,52 @@ func replaceBaseHRef(data string, replaceWith string) string {
 	return baseHRefRegex.ReplaceAllString(data, replaceWith)
 }
 
-// Authenticate checks for the presence of a valid token when accessing server-side resources.
 func (a *ArgoCDServer) Authenticate(ctx context.Context) (context.Context, error) {
 	if a.DisableAuth {
 		return ctx, nil
 	}
-	claims, newToken, claimsErr := a.getClaims(ctx)
+
+	md, mdOk := metadata.FromIncomingContext(ctx)
+	var token string
+	if mdOk {
+		token = getTokenFromMetadata(md)
+	} else {
+		token = ""
+	}
+
+	return a.AuthenticateToken(ctx, token, func(newToken string) {
+		// The renewed token is stored in outgoing ServerMetadata. Metadata is available to grpc-gateway
+		// response forwarder that will translate it into Set-Cookie header.
+		if err := grpc.SendHeader(ctx, metadata.New(map[string]string{renewTokenKey: newToken})); err != nil {
+			log.Warnf("Failed to set %s header", renewTokenKey)
+		}
+	})
+}
+
+func (a *ArgoCDServer) AuthenticateWebsocketRequest(ctx context.Context, writer http.ResponseWriter, request *http.Request) (context.Context, error) {
+	if a.DisableAuth {
+		return ctx, nil
+	}
+
+	token := getToken(request.Header.Values("Authorization"), [][]*http.Cookie{request.Cookies()})
+
+	return a.AuthenticateToken(ctx, token, func(newToken string) {
+		if err := a.setTokenCookie(newToken, writer); err != nil {
+			log.Warnf("Failed to set %s header", renewTokenKey)
+		}
+	})
+}
+
+// AuthenticateToken checks for the presence of a valid token when accessing server-side resources.
+func (a *ArgoCDServer) AuthenticateToken(ctx context.Context, token string, onNewToken func(string)) (context.Context, error) {
+	claims, newToken, claimsErr := a.getClaims(ctx, token)
 	if claims != nil {
 		// Add claims to the context to inspect for RBAC
 		// nolint:staticcheck
 		ctx = context.WithValue(ctx, "claims", claims)
 		if newToken != "" {
 			// Session tokens that are expiring soon should be regenerated if user stays active.
-			// The renewed token is stored in outgoing ServerMetadata. Metadata is available to grpc-gateway
-			// response forwarder that will translate it into Set-Cookie header.
-			if err := grpc.SendHeader(ctx, metadata.New(map[string]string{renewTokenKey: newToken})); err != nil {
-				log.Warnf("Failed to set %s header", renewTokenKey)
-			}
+			onNewToken(newToken)
 		}
 	}
 	if claimsErr != nil {
@@ -1166,24 +1183,19 @@ func (a *ArgoCDServer) Authenticate(ctx context.Context) (context.Context, error
 	return ctx, nil
 }
 
-func (a *ArgoCDServer) getClaims(ctx context.Context) (jwt.Claims, string, error) {
-	md, ok := metadata.FromIncomingContext(ctx)
-	if !ok {
+func (a *ArgoCDServer) getClaims(ctx context.Context, token string) (jwt.Claims, string, error) {
+	if token == "" {
 		return nil, "", ErrNoSession
 	}
-	tokenString := getToken(md)
-	if tokenString == "" {
-		return nil, "", ErrNoSession
-	}
-	claims, newToken, err := a.sessionMgr.VerifyToken(tokenString)
+	claims, newToken, err := a.sessionMgr.VerifyToken(token)
 	if err != nil {
 		return claims, "", status.Errorf(codes.Unauthenticated, "invalid session: %v", err)
 	}
 	return claims, newToken, nil
 }
 
-// getToken extracts the token from gRPC metadata or cookie headers
-func getToken(md metadata.MD) string {
+// getTokenFromMetadata extracts the token from gRPC metadata or gRPC cookies
+func getTokenFromMetadata(md metadata.MD) string {
 	// check the "token" metadata
 	{
 		tokens, ok := md[apiclient.MetaDataTokenKey]
@@ -1191,10 +1203,21 @@ func getToken(md metadata.MD) string {
 			return tokens[0]
 		}
 	}
+	var cookies [][]*http.Cookie
+	for _, t := range md["grpcgateway-cookie"] {
+		header := http.Header{}
+		header.Add("Cookie", t)
+		request := http.Request{Header: header}
+		cookies = append(cookies, request.Cookies())
+	}
+	return getToken(md["authorization"], cookies)
+}
 
+// Simple interface to resolve tokens, for better reuse outside the context of grpc
+func getToken(authorizations []string, cookies [][]*http.Cookie) string {
 	// looks for the HTTP header `Authorization: Bearer ...`
 	// argocd prefers bearer token over cookie
-	for _, t := range md["authorization"] {
+	for _, t := range authorizations {
 		token := strings.TrimPrefix(t, "Bearer ")
 		if strings.HasPrefix(t, "Bearer ") && jwtutil.IsValid(token) {
 			return token
@@ -1202,11 +1225,8 @@ func getToken(md metadata.MD) string {
 	}
 
 	// check the HTTP cookie
-	for _, t := range md["grpcgateway-cookie"] {
-		header := http.Header{}
-		header.Add("Cookie", t)
-		request := http.Request{Header: header}
-		token, err := httputil.JoinCookies(common.AuthCookieName, request.Cookies())
+	for _, c := range cookies {
+		token, err := httputil.JoinCookies(common.AuthCookieName, c)
 		if err == nil && jwtutil.IsValid(token) {
 			return token
 		}
