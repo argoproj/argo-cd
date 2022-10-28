@@ -10,7 +10,7 @@ import {OperationState} from '../utils';
 import {ApplicationsLabels} from './applications-labels';
 import {ApplicationsSource} from './applications-source';
 import {services} from '../../../shared/services';
-require('./applications-table.scss');
+import './applications-table.scss';
 
 export const ApplicationsTable = (props: {
     applications: models.Application[];

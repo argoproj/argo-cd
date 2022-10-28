@@ -10,7 +10,7 @@ import {ApplicationRetryOptions} from '../application-retry-options/application-
 import {ApplicationManualSyncFlags, ApplicationSyncOptions, FORCE_WARNING, SyncFlags, REPLACE_WARNING} from '../application-sync-options/application-sync-options';
 import {ComparisonStatusIcon, nodeKey} from '../utils';
 
-require('./application-sync-panel.scss');
+import './application-sync-panel.scss';
 
 export const ApplicationSyncPanel = ({application, selectedResource, hide}: {application: models.Application; selectedResource: string; hide: () => any}) => {
     const [form, setForm] = React.useState<FormApi>(null);
