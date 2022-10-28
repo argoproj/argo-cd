@@ -94,7 +94,6 @@ To test the CLI, you need to login:
 `argocd login localhost:8080`
 
 ---
-
 Congrats on making it to the end of this runbook! 🚀
 
 For more on Argo CD, find us in Slack - <https://slack.cncf.io/> [#argo-contributors](https://cloud-native.slack.com/archives/C020XM04CUW)
