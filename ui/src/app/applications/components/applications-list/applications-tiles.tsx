@@ -10,7 +10,7 @@ import * as AppUtils from '../utils';
 import {OperationState} from '../utils';
 import {services} from '../../../shared/services';
 
-require('./applications-tiles.scss');
+import './applications-tiles.scss';
 
 export interface ApplicationTilesProps {
     applications: models.Application[];

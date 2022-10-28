@@ -22,8 +22,8 @@ import {ApplicationTiles} from './applications-tiles';
 import {ApplicationsRefreshPanel} from '../applications-refresh-panel/applications-refresh-panel';
 import {useSidebarTarget} from '../../../sidebar/sidebar';
 
-require('./applications-list.scss');
-require('./flex-top-bar.scss');
+import './applications-list.scss';
+import './flex-top-bar.scss';
 
 const EVENTS_BUFFER_TIMEOUT = 500;
 const WATCH_RETRY_TIMEOUT = 500;

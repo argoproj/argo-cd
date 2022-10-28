@@ -2,7 +2,7 @@ import * as React from 'react';
 import {Tooltip} from 'argo-ui';
 import {Application} from '../../../shared/models';
 
-require('./applications-labels.scss');
+import './applications-labels.scss';
 
 export const ApplicationsLabels = ({app}: {app: Application}) => {
     const labels = (
