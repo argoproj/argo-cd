@@ -150,7 +150,7 @@ data:
   applicationsetcontroller.enable.leader.election: "false"
   # Argo CD repo namespace (default: argocd)
   applicationsetcontroller.namespace: ""
-  # "Modify how application is synced between the generator and the cluster. Default is 'sync' (create & update & delete), options: 'create-only', 'create-update' (no deletion)"
+  # "Modify how application is synced between the generator and the cluster. Default is 'sync' (create & update & delete), options: 'create-only', 'create-update' (no deletion), 'create-delete' (no update)"
   applicationsetcontroller.policy: "sync"
   # Print debug logs. Takes precedence over loglevel
   applicationsetcontroller.debug: "false"
