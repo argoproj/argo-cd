@@ -4,7 +4,7 @@
 When importing argocd packages in your own projects, you may face some errors when downloading the dependencies, such as "unknown revision v0.0.0". This is because argocd directly depends on some Kubernetes packages which have these unknown v0.0.0 version in their go.mod.
 
 ## Solution
-The workaround is , you need to add a replace section in your own go.mod as same as the replace section of corresponding argocd version's go.mod. 
+The workaround is , you need to add a replace section in your own go.mod as same as the replace section of corresponding argocd version's go.mod. Inorder to find the go.mod for a specific version, navigate to the argocd repository and click on the switch branches/tags dropdown to select the version you are looking for. Now you can view the go.mod file for a specific version along with all other files.
 
 ## Example
 
