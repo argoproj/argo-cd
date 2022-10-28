@@ -58,7 +58,7 @@ func (p *AppProject) GetRoleByName(name string) (*ProjectRole, int, error) {
 	return nil, -1, fmt.Errorf("role '%s' does not exist in project '%s'", name, p.Name)
 }
 
-// GetJWTToken looks up the index of a JWTToken in a project by id (new token), if not then by the issue at time (old token)
+// GetJWTTokenFromSpec looks up the index of a JWTToken in a project by id (new token), if not then by the issue at time (old token)
 func (p *AppProject) GetJWTTokenFromSpec(roleName string, issuedAt int64, id string) (*JWTToken, int, error) {
 	// This is for backward compatibility. In the oder version, JWTTokens are stored under spec.role
 	role, _, err := p.GetRoleByName(roleName)
@@ -155,6 +155,10 @@ func (p *AppProject) ValidateProject() error {
 	destKeys := make(map[string]bool)
 	for _, dest := range p.Spec.Destinations {
 		key := fmt.Sprintf("%s/%s", dest.Server, dest.Namespace)
+		if dest.Server == "" && dest.Name != "" {
+			// destination cluster set using name instead of server endpoint
+			key = fmt.Sprintf("%s/%s", dest.Name, dest.Namespace)
+		}
 		if _, ok := destKeys[key]; ok {
 			return status.Errorf(codes.InvalidArgument, "destination '%s' already added", key)
 		}

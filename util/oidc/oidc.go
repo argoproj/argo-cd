@@ -28,6 +28,8 @@ import (
 	"github.com/argoproj/argo-cd/v2/util/settings"
 )
 
+var InvalidRedirectURLError = fmt.Errorf("invalid return URL")
+
 const (
 	GrantTypeAuthorizationCode = "authorization_code"
 	GrantTypeImplicit          = "implicit"
@@ -144,7 +146,12 @@ func (a *ClientApp) oauth2Config(scopes []string) (*oauth2.Config, error) {
 
 // generateAppState creates an app state nonce
 func (a *ClientApp) generateAppState(returnURL string, w http.ResponseWriter) (string, error) {
-	randStr := rand.RandString(10)
+	// According to the spec (https://www.rfc-editor.org/rfc/rfc6749#section-10.10), this must be guessable with
+	// probability <= 2^(-128). The following call generates one of 52^24 random strings, ~= 2^136 possibilities.
+	randStr, err := rand.String(24)
+	if err != nil {
+		return "", fmt.Errorf("failed to generate app state: %w", err)
+	}
 	if returnURL == "" {
 		returnURL = a.baseHRef
 	}
@@ -180,10 +187,18 @@ func (a *ClientApp) verifyAppState(r *http.Request, w http.ResponseWriter, state
 		return "", err
 	}
 	cookieVal := string(val)
-	returnURL := a.baseHRef
+	redirectURL := a.baseHRef
 	parts := strings.SplitN(cookieVal, ":", 2)
 	if len(parts) == 2 && parts[1] != "" {
-		returnURL = parts[1]
+		if !isValidRedirectURL(parts[1], []string{a.settings.URL, a.baseHRef}) {
+			sanitizedUrl := parts[1]
+			if len(sanitizedUrl) > 100 {
+				sanitizedUrl = sanitizedUrl[:100]
+			}
+			log.Warnf("Failed to verify app state - got invalid redirectURL %q", sanitizedUrl)
+			return "", fmt.Errorf("failed to verify app state: %w", InvalidRedirectURLError)
+		}
+		redirectURL = parts[1]
 	}
 	if parts[0] != state {
 		return "", fmt.Errorf("invalid state in '%s' cookie", common.AuthCookieName)
@@ -196,7 +211,7 @@ func (a *ClientApp) verifyAppState(r *http.Request, w http.ResponseWriter, state
 		SameSite: http.SameSiteLaxMode,
 		Secure:   a.secureCookie,
 	})
-	return returnURL, nil
+	return redirectURL, nil
 }
 
 // isValidRedirectURL checks whether the given redirectURL matches on of the
@@ -283,7 +298,12 @@ func (a *ClientApp) HandleLogin(w http.ResponseWriter, r *http.Request) {
 	case GrantTypeAuthorizationCode:
 		url = oauth2Config.AuthCodeURL(stateNonce, opts...)
 	case GrantTypeImplicit:
-		url = ImplicitFlowURL(oauth2Config, stateNonce, opts...)
+		url, err = ImplicitFlowURL(oauth2Config, stateNonce, opts...)
+		if err != nil {
+			log.Errorf("Failed to initiate implicit login flow: %v", err)
+			http.Error(w, "Failed to initiate implicit login flow", http.StatusInternalServerError)
+			return
+		}
 	default:
 		http.Error(w, fmt.Sprintf("Unsupported grant type: %v", grantType), http.StatusInternalServerError)
 		return
@@ -415,10 +435,14 @@ func (a *ClientApp) handleImplicitFlow(r *http.Request, w http.ResponseWriter, s
 
 // ImplicitFlowURL is an adaptation of oauth2.Config::AuthCodeURL() which returns a URL
 // appropriate for an OAuth2 implicit login flow (as opposed to authorization code flow).
-func ImplicitFlowURL(c *oauth2.Config, state string, opts ...oauth2.AuthCodeOption) string {
+func ImplicitFlowURL(c *oauth2.Config, state string, opts ...oauth2.AuthCodeOption) (string, error) {
 	opts = append(opts, oauth2.SetAuthURLParam("response_type", "id_token"))
-	opts = append(opts, oauth2.SetAuthURLParam("nonce", rand.RandString(10)))
-	return c.AuthCodeURL(state, opts...)
+	randString, err := rand.String(24)
+	if err != nil {
+		return "", fmt.Errorf("failed to generate nonce for implicit flow URL: %w", err)
+	}
+	opts = append(opts, oauth2.SetAuthURLParam("nonce", randString))
+	return c.AuthCodeURL(state, opts...), nil
 }
 
 // OfflineAccess returns whether or not 'offline_access' is a supported scope

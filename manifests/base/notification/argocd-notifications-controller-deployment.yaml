@@ -43,6 +43,12 @@ spec:
               mountPath: /app/config/tls
             - name: argocd-repo-server-tls
               mountPath: /app/config/reposerver/tls
+          securityContext:
+            capabilities:
+              drop:
+              - ALL
+            allowPrivilegeEscalation: false
+            readOnlyRootFilesystem: true 
       serviceAccountName: argocd-notifications-controller
       securityContext:
           runAsNonRoot: true

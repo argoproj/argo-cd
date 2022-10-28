@@ -41,6 +41,7 @@ import (
 	"github.com/argoproj/argo-cd/v2/util/cache"
 	"github.com/argoproj/argo-cd/v2/util/db"
 	"github.com/argoproj/argo-cd/v2/util/errors"
+	"github.com/argoproj/argo-cd/v2/util/grpc"
 	"github.com/argoproj/argo-cd/v2/util/rbac"
 	"github.com/argoproj/argo-cd/v2/util/settings"
 )
@@ -196,7 +197,7 @@ func newTestAppServerWithEnforcerConfigure(f func(*rbac.Enforcer), objects ...ru
 		panic("Timed out waiting for caches to sync")
 	}
 
-	server := NewServer(
+	server, _ := NewServer(
 		testNamespace,
 		kubeclientset,
 		fakeAppsClientset,
@@ -360,7 +361,7 @@ func TestCreateApp(t *testing.T) {
 	appServer := newTestAppServer()
 	testApp.Spec.Project = ""
 	createReq := application.ApplicationCreateRequest{
-		Application: *testApp,
+		Application: testApp,
 	}
 	app, err := appServer.Create(context.Background(), &createReq)
 	assert.NoError(t, err)
@@ -373,7 +374,7 @@ func TestCreateAppWithDestName(t *testing.T) {
 	appServer := newTestAppServer()
 	testApp := newTestAppWithDestName()
 	createReq := application.ApplicationCreateRequest{
-		Application: *testApp,
+		Application: testApp,
 	}
 	app, err := appServer.Create(context.Background(), &createReq)
 	assert.NoError(t, err)
@@ -398,7 +399,7 @@ func TestUpdateAppSpec(t *testing.T) {
 	testApp.Spec.Project = ""
 	spec, err := appServer.UpdateSpec(context.Background(), &application.ApplicationUpdateSpecRequest{
 		Name: &testApp.Name,
-		Spec: testApp.Spec,
+		Spec: &testApp.Spec,
 	})
 	assert.NoError(t, err)
 	assert.Equal(t, "default", spec.Project)
@@ -411,7 +412,7 @@ func TestDeleteApp(t *testing.T) {
 	ctx := context.Background()
 	appServer := newTestAppServer()
 	createReq := application.ApplicationCreateRequest{
-		Application: *newTestApp(),
+		Application: newTestApp(),
 	}
 	app, err := appServer.Create(ctx, &createReq)
 	assert.Nil(t, err)
@@ -511,7 +512,7 @@ func TestSyncAndTerminate(t *testing.T) {
 	testApp := newTestApp()
 	testApp.Spec.Source.RepoURL = "https://github.com/argoproj/argo-cd.git"
 	createReq := application.ApplicationCreateRequest{
-		Application: *testApp,
+		Application: testApp,
 	}
 	app, err := appServer.Create(ctx, &createReq)
 	assert.Nil(t, err)
@@ -556,7 +557,7 @@ func TestSyncHelm(t *testing.T) {
 
 	appServer.repoClientset = &mocks.Clientset{RepoServerServiceClient: fakeRepoServerClient(true)}
 
-	app, err := appServer.Create(ctx, &application.ApplicationCreateRequest{Application: *testApp})
+	app, err := appServer.Create(ctx, &application.ApplicationCreateRequest{Application: testApp})
 	assert.NoError(t, err)
 
 	app, err = appServer.Sync(ctx, &application.ApplicationSyncRequest{Name: &app.Name})
@@ -576,7 +577,7 @@ func TestSyncGit(t *testing.T) {
 	testApp.Spec.Source.RepoURL = "https://github.com/org/test"
 	testApp.Spec.Source.Path = "deploy"
 	testApp.Spec.Source.TargetRevision = "0.7.*"
-	app, err := appServer.Create(ctx, &application.ApplicationCreateRequest{Application: *testApp})
+	app, err := appServer.Create(ctx, &application.ApplicationCreateRequest{Application: testApp})
 	assert.NoError(t, err)
 	syncReq := &application.ApplicationSyncRequest{
 		Name: &app.Name,
@@ -608,7 +609,7 @@ func TestRollbackApp(t *testing.T) {
 
 	updatedApp, err := appServer.Rollback(context.Background(), &application.ApplicationRollbackRequest{
 		Name: &testApp.Name,
-		ID:   1,
+		Id:   pointer.Int64(1),
 	})
 
 	assert.Nil(t, err)
@@ -643,7 +644,9 @@ p, admin, applications, update, default/test-app, allow
 p, admin, applications, update, my-proj/test-app, allow
 `)
 	_, err = appServer.Update(ctx, &application.ApplicationUpdateRequest{Application: testApp})
-	assert.Equal(t, status.Code(err), codes.PermissionDenied)
+	statusErr := grpc.UnwrapGRPCStatus(err)
+	assert.NotNil(t, statusErr)
+	assert.Equal(t, codes.PermissionDenied, statusErr.Code())
 
 	// Verify inability to change projects without update privileges in new project
 	_ = appServer.enf.SetBuiltinPolicy(`
@@ -659,7 +662,9 @@ p, admin, applications, create, my-proj/test-app, allow
 p, admin, applications, update, my-proj/test-app, allow
 `)
 	_, err = appServer.Update(ctx, &application.ApplicationUpdateRequest{Application: testApp})
-	assert.Equal(t, status.Code(err), codes.PermissionDenied)
+	statusErr = grpc.UnwrapGRPCStatus(err)
+	assert.NotNil(t, statusErr)
+	assert.Equal(t, codes.PermissionDenied, statusErr.Code())
 
 	// Verify can update project with proper permissions
 	_ = appServer.enf.SetBuiltinPolicy(`
@@ -680,19 +685,19 @@ func TestAppJsonPatch(t *testing.T) {
 	appServer := newTestAppServer(testApp)
 	appServer.enf.SetDefaultRole("")
 
-	app, err := appServer.Patch(ctx, &application.ApplicationPatchRequest{Name: &testApp.Name, Patch: "garbage"})
+	app, err := appServer.Patch(ctx, &application.ApplicationPatchRequest{Name: &testApp.Name, Patch: pointer.String("garbage")})
 	assert.Error(t, err)
 	assert.Nil(t, app)
 
-	app, err = appServer.Patch(ctx, &application.ApplicationPatchRequest{Name: &testApp.Name, Patch: "[]"})
+	app, err = appServer.Patch(ctx, &application.ApplicationPatchRequest{Name: &testApp.Name, Patch: pointer.String("[]")})
 	assert.NoError(t, err)
 	assert.NotNil(t, app)
 
-	app, err = appServer.Patch(ctx, &application.ApplicationPatchRequest{Name: &testApp.Name, Patch: `[{"op": "replace", "path": "/spec/source/path", "value": "foo"}]`})
+	app, err = appServer.Patch(ctx, &application.ApplicationPatchRequest{Name: &testApp.Name, Patch: pointer.String(`[{"op": "replace", "path": "/spec/source/path", "value": "foo"}]`)})
 	assert.NoError(t, err)
 	assert.Equal(t, "foo", app.Spec.Source.Path)
 
-	app, err = appServer.Patch(ctx, &application.ApplicationPatchRequest{Name: &testApp.Name, Patch: `[{"op": "remove", "path": "/metadata/annotations/test.annotation"}]`})
+	app, err = appServer.Patch(ctx, &application.ApplicationPatchRequest{Name: &testApp.Name, Patch: pointer.String(`[{"op": "remove", "path": "/metadata/annotations/test.annotation"}]`)})
 	assert.NoError(t, err)
 	assert.NotContains(t, app.Annotations, "test.annotation")
 }
@@ -706,7 +711,7 @@ func TestAppMergePatch(t *testing.T) {
 	appServer.enf.SetDefaultRole("")
 
 	app, err := appServer.Patch(ctx, &application.ApplicationPatchRequest{
-		Name: &testApp.Name, Patch: `{"spec": { "source": { "path": "foo" } }}`, PatchType: "merge"})
+		Name: &testApp.Name, Patch: pointer.String(`{"spec": { "source": { "path": "foo" } }}`), PatchType: pointer.String("merge")})
 	assert.NoError(t, err)
 	assert.Equal(t, "foo", app.Spec.Source.Path)
 }

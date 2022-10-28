@@ -2,6 +2,7 @@ package admin
 
 import (
 	"bufio"
+	"fmt"
 	"io"
 	"io/ioutil"
 	"os"
@@ -63,7 +64,10 @@ func NewProjectAllowListGenCommand() *cobra.Command {
 				}()
 			}
 
-			globalProj := generateProjectAllowList(clientConfig, clusterRoleFileName, projName)
+			resourceList, err := getResourceList(clientConfig)
+			errors.CheckError(err)
+			globalProj, err := generateProjectAllowList(resourceList, clusterRoleFileName, projName)
+			errors.CheckError(err)
 
 			yamlBytes, err := yaml.Marshal(globalProj)
 			errors.CheckError(err)
@@ -78,23 +82,38 @@ func NewProjectAllowListGenCommand() *cobra.Command {
 	return command
 }
 
-func generateProjectAllowList(clientConfig clientcmd.ClientConfig, clusterRoleFileName string, projName string) v1alpha1.AppProject {
+func getResourceList(clientConfig clientcmd.ClientConfig) ([]*metav1.APIResourceList, error) {
+	config, err := clientConfig.ClientConfig()
+	if err != nil {
+		return nil, fmt.Errorf("error while creating client config: %s", err)
+	}
+	disco, err := discovery.NewDiscoveryClientForConfig(config)
+	if err != nil {
+		return nil, fmt.Errorf("error while creating discovery client: %s", err)
+	}
+	serverResources, err := disco.ServerPreferredResources()
+	if err != nil {
+		return nil, fmt.Errorf("error while getting server resources: %s", err)
+	}
+	return serverResources, nil
+}
+
+func generateProjectAllowList(serverResources []*metav1.APIResourceList, clusterRoleFileName string, projName string) (*v1alpha1.AppProject, error) {
 	yamlBytes, err := ioutil.ReadFile(clusterRoleFileName)
-	errors.CheckError(err)
+	if err != nil {
+		return nil, fmt.Errorf("error reading cluster role file: %s", err)
+	}
 	var obj unstructured.Unstructured
 	err = yaml.Unmarshal(yamlBytes, &obj)
-	errors.CheckError(err)
+	if err != nil {
+		return nil, fmt.Errorf("error unmarshalling cluster role file yaml: %s", err)
+	}
 
 	clusterRole := &rbacv1.ClusterRole{}
 	err = scheme.Scheme.Convert(&obj, clusterRole, nil)
-	errors.CheckError(err)
-
-	config, err := clientConfig.ClientConfig()
-	errors.CheckError(err)
-	disco, err := discovery.NewDiscoveryClientForConfig(config)
-	errors.CheckError(err)
-	serverResources, err := disco.ServerPreferredResources()
-	errors.CheckError(err)
+	if err != nil {
+		return nil, fmt.Errorf("error converting cluster role yaml into ClusterRole struct: %s", err)
+	}
 
 	resourceList := make([]metav1.GroupKind, 0)
 	for _, rule := range clusterRole.Rules {
@@ -140,5 +159,5 @@ func generateProjectAllowList(clientConfig clientcmd.ClientConfig, clusterRoleFi
 		Spec:       v1alpha1.AppProjectSpec{},
 	}
 	globalProj.Spec.NamespaceResourceWhitelist = resourceList
-	return globalProj
+	return &globalProj, nil
 }

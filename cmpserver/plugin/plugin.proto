@@ -3,15 +3,27 @@ option go_package = "github.com/argoproj/argo-cd/v2/cmpserver/apiclient";
 
 package plugin;
 
-import "k8s.io/api/core/v1/generated.proto";
+// AppStreamRequest is the request object used to send the application's
+// files over a stream.
+message AppStreamRequest {
+    oneof request {
+        ManifestRequestMetadata metadata = 1;
+        File file = 2;
+    }
+}
 
-// ManifestRequest is a query for manifest generation.
-message ManifestRequest {
-    // Name of the application for which the request is triggered
+// ManifestRequestMetadata defines the metada related to the file being sent
+// to the CMP server.
+message ManifestRequestMetadata {
+    // appName refers to the ArgoCD Application name
     string appName = 1;
-    string appPath = 2;
-    string repoPath = 3;
-    bool noCache = 4;
+    // appRelPath points to the application relative path inside the tarball
+    string appRelPath = 2;
+    // checksum is used to verify the integrity of the file
+    string checksum = 3;
+    // size relates to the file size in bytes
+    int64 size = 4;
+    // env is a list with the environment variables needed to generate manifests
     repeated EnvEntry env = 5;
 }
 
@@ -28,34 +40,22 @@ message ManifestResponse {
     string sourceType = 2;
 }
 
-message RepositoryRequest {
-    string path = 1;
-    repeated EnvEntry env = 2;
-}
-
 message RepositoryResponse {
     bool isSupported = 1;
 }
 
-message ConfigRequest {
-}
-
-message ConfigResponse {
-    bool allowConcurrency = 1;
-    bool lockRepo = 2;
+message File {
+    bytes chunk = 1;
 }
 
 // ConfigManagementPlugin Service
 service ConfigManagementPluginService {
-    // GenerateManifest generates manifest for application in specified repo name and revision
-    rpc GenerateManifest(ManifestRequest) returns (ManifestResponse) {
+    // GenerateManifests receive a stream containing a tgz archive with all required files necessary
+    // to generate manifests
+    rpc GenerateManifest(stream AppStreamRequest) returns (ManifestResponse) {
     }
 
-    // MatchRepository returns whether or not the given path is supported by the plugin
-    rpc MatchRepository(RepositoryRequest) returns (RepositoryResponse) {
-    }
-
-    // Get configuration of the plugin
-    rpc GetPluginConfig(ConfigRequest) returns (ConfigResponse) {
+    // MatchRepository returns whether or not the given application is supported by the plugin
+    rpc MatchRepository(stream AppStreamRequest) returns (RepositoryResponse) {
     }
 }

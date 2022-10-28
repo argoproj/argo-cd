@@ -13,6 +13,7 @@ import {RevisionFormField} from '../revision-form-field/revision-form-field';
 import {ComparisonStatusIcon, HealthStatusIcon, syncStatusMessage, urlPattern} from '../utils';
 import {ApplicationRetryOptions} from '../application-retry-options/application-retry-options';
 import {ApplicationRetryView} from '../application-retry-view/application-retry-view';
+import {Link} from 'react-router-dom';
 
 require('./application-summary.scss');
 
@@ -31,7 +32,7 @@ export const ApplicationSummary = (props: {app: models.Application; updateApp: (
     const attributes = [
         {
             title: 'PROJECT',
-            view: <a href={'/settings/projects/' + app.spec.project}>{app.spec.project}</a>,
+            view: <Link to={'/settings/projects/' + app.spec.project}>{app.spec.project}</Link>,
             edit: (formApi: FormApi) => (
                 <DataLoader load={() => services.projects.list('items.metadata.name').then(projs => projs.map(item => item.metadata.name))}>
                     {projects => <FormField formApi={formApi} field='spec.project' component={FormSelect} componentProps={{options: projects}} />}

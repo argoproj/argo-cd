@@ -248,6 +248,8 @@ func generate(opts CertOptions) ([]byte, crypto.PrivateKey, error) {
 	var validFor time.Duration
 	if opts.ValidFor == 0 {
 		validFor = 365 * 24 * time.Hour
+	} else {
+		validFor = opts.ValidFor
 	}
 	notAfter := notBefore.Add(validFor)
 

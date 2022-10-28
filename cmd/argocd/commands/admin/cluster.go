@@ -609,7 +609,7 @@ func GenerateToken(clusterOpts cmdutil.ClusterOptions, conf *rest.Config) (strin
 	clientset, err := kubernetes.NewForConfig(conf)
 	errors.CheckError(err)
 
-	bearerToken, err := clusterauth.GetServiceAccountBearerToken(clientset, clusterOpts.SystemNamespace, clusterOpts.ServiceAccount)
+	bearerToken, err := clusterauth.GetServiceAccountBearerToken(clientset, clusterOpts.SystemNamespace, clusterOpts.ServiceAccount, common.BearerTokenTimeout)
 	if err != nil {
 		return "", err
 	}

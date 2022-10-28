@@ -28,8 +28,6 @@ type Cmd struct {
 func NewCmd(workDir string, version string, proxy string) (*Cmd, error) {
 
 	switch version {
-	case "v2":
-		return NewCmdWithVersion(workDir, HelmV2, false, proxy)
 	// If v3 is specified (or by default, if no value is specified) then use v3
 	case "", "v3":
 		return NewCmdWithVersion(workDir, HelmV3, false, proxy)

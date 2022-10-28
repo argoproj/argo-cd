@@ -1,3 +1,5 @@
+@import 'node_modules/argo-ui/src/styles/config';
+
 .pod-logs-viewer {
     height: 90%;
     font-size: 14px;
@@ -23,7 +25,7 @@
     &__filter {
         display: flex;
         margin-left: auto;
-        width: 350px;
+        width: 320px;
     }
 
     &__menu {
@@ -107,10 +109,33 @@
             width: 3ch;
             min-width: 3ch;
         }
+        &__timestamp {
+            padding-left: 5px;
+            padding-right: 5px;
+            span {
+                display: none;
+                text-overflow: ellipsis;
+                overflow: hidden;
+            }
+            width: 3ch;
+            min-width: 3ch;
+        }
     }
 
     &--pod-name-visible {
         .pod-logs-viewer__line__pod {
+            span {
+                display: inherit;
+            }
+            i {
+                display: none;
+            }
+            width: 30ch;
+            min-width: 30ch;
+        }
+    }
+    &--pod-timestamp-visible {
+        .pod-logs-viewer__line__timestamp {
             span {
                 display: inherit;
             }
@@ -129,6 +154,23 @@
         transform: translateY(2em);
         z-index: 1;
     }
+}
+
+.copySuccess {
+    // ARGO_SUCCESS_COLOR
+    background-color: #18be94 !important;
+}
+.copyFailure {
+    // ARGO_FAILED_COLOR
+    background-color: #e96d76 !important;
+}
+.copyStandard {
+    background-color: #6d7f8b !important;
+}
+
+.container-item {
+    font-size: 0.9em;
+    color: $argo-color-teal-5;
 }
 
 code {

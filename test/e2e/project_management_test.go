@@ -590,10 +590,10 @@ func TestGetVirtualProjectMatch(t *testing.T) {
 	//App trying to sync a resource which is not blacked listed anywhere
 	_, err = fixture.RunCli("app", "sync", fixture.Name(), "--resource", "apps:Deployment:guestbook-ui", "--timeout", fmt.Sprintf("%v", 10))
 	assert.Error(t, err)
-	assert.Contains(t, err.Error(), "Blocked by sync window")
+	assert.Contains(t, err.Error(), "blocked by sync window")
 
 	//app trying to sync a resource which is black listed by global project
 	_, err = fixture.RunCli("app", "sync", fixture.Name(), "--resource", ":Service:guestbook-ui", "--timeout", fmt.Sprintf("%v", 10))
-	assert.Contains(t, err.Error(), "Blocked by sync window")
+	assert.Contains(t, err.Error(), "blocked by sync window")
 
 }

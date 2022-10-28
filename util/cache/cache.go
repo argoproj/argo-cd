@@ -19,9 +19,11 @@ import (
 )
 
 const (
-	// envRedisPassword is a env variable name which stores redis password
+	// envRedisPassword is an env variable name which stores redis password
 	envRedisPassword = "REDIS_PASSWORD"
-	// envRedisRetryCount is a env variable name which stores redis retry count
+	// envRedisUsername is an env variable name which stores redis username (for acl setup)
+	envRedisUsername = "REDIS_USERNAME"
+	// envRedisRetryCount is an env variable name which stores redis retry count
 	envRedisRetryCount = "REDIS_RETRY_COUNT"
 	// defaultRedisRetryCount holds default number of retries
 	defaultRedisRetryCount = 3
@@ -31,25 +33,26 @@ func NewCache(client CacheClient) *Cache {
 	return &Cache{client}
 }
 
-func buildRedisClient(redisAddress, password string, redisDB, maxRetries int, tlsConfig *tls.Config) *redis.Client {
+func buildRedisClient(redisAddress, password, username string, redisDB, maxRetries int, tlsConfig *tls.Config) *redis.Client {
 	opts := &redis.Options{
 		Addr:       redisAddress,
 		Password:   password,
 		DB:         redisDB,
 		MaxRetries: maxRetries,
 		TLSConfig:  tlsConfig,
+		Username:   username,
 	}
 
 	client := redis.NewClient(opts)
 
 	client.AddHook(redis.Hook(NewArgoRedisHook(func() {
-		*client = *buildRedisClient(redisAddress, password, redisDB, maxRetries, tlsConfig)
+		*client = *buildRedisClient(redisAddress, password, username, redisDB, maxRetries, tlsConfig)
 	})))
 
 	return client
 }
 
-func buildFailoverRedisClient(sentinelMaster, password string, redisDB, maxRetries int, tlsConfig *tls.Config, sentinelAddresses []string) *redis.Client {
+func buildFailoverRedisClient(sentinelMaster, password, username string, redisDB, maxRetries int, tlsConfig *tls.Config, sentinelAddresses []string) *redis.Client {
 	opts := &redis.FailoverOptions{
 		MasterName:    sentinelMaster,
 		SentinelAddrs: sentinelAddresses,
@@ -57,12 +60,13 @@ func buildFailoverRedisClient(sentinelMaster, password string, redisDB, maxRetri
 		Password:      password,
 		MaxRetries:    maxRetries,
 		TLSConfig:     tlsConfig,
+		Username:      username,
 	}
 
 	client := redis.NewFailoverClient(opts)
 
 	client.AddHook(redis.Hook(NewArgoRedisHook(func() {
-		*client = *buildFailoverRedisClient(sentinelMaster, password, redisDB, maxRetries, tlsConfig, sentinelAddresses)
+		*client = *buildFailoverRedisClient(sentinelMaster, password, username, redisDB, maxRetries, tlsConfig, sentinelAddresses)
 	})))
 
 	return client
@@ -119,9 +123,10 @@ func AddCacheFlagsToCmd(cmd *cobra.Command, opts ...func(client *redis.Client)) 
 			}
 		}
 		password := os.Getenv(envRedisPassword)
+		username := os.Getenv(envRedisUsername)
 		maxRetries := env.ParseNumFromEnv(envRedisRetryCount, defaultRedisRetryCount, 0, math.MaxInt32)
 		if len(sentinelAddresses) > 0 {
-			client := buildFailoverRedisClient(sentinelMaster, password, redisDB, maxRetries, tlsConfig, sentinelAddresses)
+			client := buildFailoverRedisClient(sentinelMaster, password, username, redisDB, maxRetries, tlsConfig, sentinelAddresses)
 			for i := range opts {
 				opts[i](client)
 			}
@@ -131,7 +136,7 @@ func AddCacheFlagsToCmd(cmd *cobra.Command, opts ...func(client *redis.Client)) 
 			redisAddress = common.DefaultRedisAddr
 		}
 
-		client := buildRedisClient(redisAddress, password, redisDB, maxRetries, tlsConfig)
+		client := buildRedisClient(redisAddress, password, username, redisDB, maxRetries, tlsConfig)
 		for i := range opts {
 			opts[i](client)
 		}

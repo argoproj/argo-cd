@@ -10,29 +10,24 @@ import (
 )
 
 func TestDiscover(t *testing.T) {
-	apps, err := Discover(context.Background(), "./testdata", map[string]bool{})
+	apps, err := Discover(context.Background(), "./testdata")
 	assert.NoError(t, err)
 	assert.Equal(t, map[string]string{
 		"foo": "Kustomize",
-		"bar": "Ksonnet",
 		"baz": "Helm",
 	}, apps)
 }
 
 func TestAppType(t *testing.T) {
-	appType, err := AppType(context.Background(), "./testdata/foo", map[string]bool{})
+	appType, err := AppType(context.Background(), "./testdata/foo", map[string]bool{}, []string{})
 	assert.NoError(t, err)
 	assert.Equal(t, "Kustomize", appType)
 
-	appType, err = AppType(context.Background(), "./testdata/bar", map[string]bool{})
-	assert.NoError(t, err)
-	assert.Equal(t, "Ksonnet", appType)
-
-	appType, err = AppType(context.Background(), "./testdata/baz", map[string]bool{})
+	appType, err = AppType(context.Background(), "./testdata/baz", map[string]bool{}, []string{})
 	assert.NoError(t, err)
 	assert.Equal(t, "Helm", appType)
 
-	appType, err = AppType(context.Background(), "./testdata", map[string]bool{})
+	appType, err = AppType(context.Background(), "./testdata", map[string]bool{}, []string{})
 	assert.NoError(t, err)
 	assert.Equal(t, "Directory", appType)
 }
@@ -40,22 +35,17 @@ func TestAppType(t *testing.T) {
 func TestAppType_Disabled(t *testing.T) {
 	enableManifestGeneration := map[string]bool{
 		string(v1alpha1.ApplicationSourceTypeKustomize): false,
-		string(v1alpha1.ApplicationSourceTypeKsonnet):   false,
 		string(v1alpha1.ApplicationSourceTypeHelm):      false,
 	}
-	appType, err := AppType(context.Background(), "./testdata/foo", enableManifestGeneration)
+	appType, err := AppType(context.Background(), "./testdata/foo", enableManifestGeneration, []string{})
 	assert.NoError(t, err)
 	assert.Equal(t, "Directory", appType)
 
-	appType, err = AppType(context.Background(), "./testdata/bar", enableManifestGeneration)
+	appType, err = AppType(context.Background(), "./testdata/baz", enableManifestGeneration, []string{})
 	assert.NoError(t, err)
 	assert.Equal(t, "Directory", appType)
 
-	appType, err = AppType(context.Background(), "./testdata/baz", enableManifestGeneration)
-	assert.NoError(t, err)
-	assert.Equal(t, "Directory", appType)
-
-	appType, err = AppType(context.Background(), "./testdata", enableManifestGeneration)
+	appType, err = AppType(context.Background(), "./testdata", enableManifestGeneration, []string{})
 	assert.NoError(t, err)
 	assert.Equal(t, "Directory", appType)
 }

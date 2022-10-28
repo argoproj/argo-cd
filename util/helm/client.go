@@ -25,6 +25,7 @@ import (
 	"github.com/argoproj/argo-cd/v2/util/cache"
 	executil "github.com/argoproj/argo-cd/v2/util/exec"
 	"github.com/argoproj/argo-cd/v2/util/io"
+	"github.com/argoproj/argo-cd/v2/util/io/files"
 	"github.com/argoproj/argo-cd/v2/util/proxy"
 )
 
@@ -118,18 +119,6 @@ func (c *nativeHelmChart) CleanChartCache(chart string, version string) error {
 	return os.RemoveAll(cachePath)
 }
 
-func createTempDir() (string, error) {
-	newUUID, err := uuid.NewRandom()
-	if err != nil {
-		return "", err
-	}
-	tempDir := path.Join(os.TempDir(), newUUID.String())
-	if err := os.Mkdir(tempDir, 0755); err != nil {
-		return "", err
-	}
-	return tempDir, nil
-}
-
 func (c *nativeHelmChart) ExtractChart(chart string, version string, passCredentials bool) (string, io.Closer, error) {
 	// always use Helm V3 since we don't have chart content to determine correct Helm version
 	helmCmd, err := NewCmdWithVersion("", HelmV3, c.enableOci, c.proxy)
@@ -145,7 +134,7 @@ func (c *nativeHelmChart) ExtractChart(chart string, version string, passCredent
 	}
 
 	// throw away temp directory that stores extracted chart and should be deleted as soon as no longer needed by returned closer
-	tempDir, err := createTempDir()
+	tempDir, err := files.CreateTempDir(os.TempDir())
 	if err != nil {
 		return "", nil, err
 	}
@@ -166,7 +155,7 @@ func (c *nativeHelmChart) ExtractChart(chart string, version string, passCredent
 
 	if !exists {
 		// create empty temp directory to extract chart from the registry
-		tempDest, err := createTempDir()
+		tempDest, err := files.CreateTempDir(os.TempDir())
 		if err != nil {
 			return "", nil, err
 		}
@@ -290,13 +279,12 @@ func (c *nativeHelmChart) TestHelmOCI() (bool, error) {
 }
 
 func (c *nativeHelmChart) loadRepoIndex() ([]byte, error) {
-	repoURL, err := url.Parse(c.repoURL)
+	indexURL, err := getIndexURL(c.repoURL)
 	if err != nil {
 		return nil, err
 	}
-	repoURL.Path = path.Join(repoURL.Path, "index.yaml")
 
-	req, err := http.NewRequest("GET", repoURL.String(), nil)
+	req, err := http.NewRequest("GET", indexURL, nil)
 	if err != nil {
 		return nil, err
 	}
@@ -382,4 +370,15 @@ func IsHelmOciRepo(repoURL string) bool {
 	parsed, err := url.Parse(repoURL)
 	// the URL parser treat hostname as either path or opaque if scheme is not specified, so hostname must be empty
 	return err == nil && parsed.Host == ""
+}
+
+func getIndexURL(rawURL string) (string, error) {
+	indexFile := "index.yaml"
+	repoURL, err := url.Parse(rawURL)
+	if err != nil {
+		return "", err
+	}
+	repoURL.Path = path.Join(repoURL.Path, indexFile)
+	repoURL.RawPath = path.Join(repoURL.RawPath, indexFile)
+	return repoURL.String(), nil
 }

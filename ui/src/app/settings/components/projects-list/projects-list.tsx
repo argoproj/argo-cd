@@ -18,7 +18,10 @@ export class ProjectsList extends React.Component {
                         title='Projects'
                         toolbar={{
                             breadcrumbs: [{title: 'Settings', path: '/settings'}, {title: 'Projects'}],
-                            actionMenu: {className: 'fa fa-plus', items: [{title: 'New Project', action: () => ctx.navigation.goto('.', {add: true}, {replace: true})}]}
+                            actionMenu: {
+                                className: 'fa fa-plus',
+                                items: [{title: 'New Project', iconClassName: 'fa fa-plus', action: () => ctx.navigation.goto('.', {add: true}, {replace: true})}]
+                            }
                         }}>
                         <div className='projects argo-container'>
                             <DataLoader load={() => services.projects.list()}>
@@ -62,11 +65,11 @@ export class ProjectsList extends React.Component {
                                     isMiddle={true}
                                     header={
                                         <div>
-                                            <button onClick={() => ctx.navigation.goto('.', {add: null}, {replace: true})} className='argo-button argo-button--base-o'>
-                                                Cancel
-                                            </button>{' '}
                                             <button onClick={() => this.formApi.submitForm(null)} className='argo-button argo-button--base'>
                                                 Create
+                                            </button>{' '}
+                                            <button onClick={() => ctx.navigation.goto('.', {add: null}, {replace: true})} className='argo-button argo-button--base-o'>
+                                                Cancel
                                             </button>
                                         </div>
                                     }>
@@ -74,7 +77,7 @@ export class ProjectsList extends React.Component {
                                         defaultValues={{metadata: {}, spec: {}}}
                                         getApi={api => (this.formApi = api)}
                                         validateError={(p: Project) => ({
-                                            'metadata.name': !p.metadata.name && 'Project name is required'
+                                            'metadata.name': !p.metadata.name && 'Project Name is required'
                                         })}
                                         onSubmit={async (proj: Project) => {
                                             try {
@@ -92,7 +95,7 @@ export class ProjectsList extends React.Component {
                                                 <div className='white-box'>
                                                     <p>GENERAL</p>
                                                     <div className='argo-form-row'>
-                                                        <FormField formApi={api} label='Name' field='metadata.name' component={Text} />
+                                                        <FormField formApi={api} label='Project Name' field='metadata.name' component={Text} />
                                                     </div>
                                                     <div className='argo-form-row'>
                                                         <FormField formApi={api} label='Description' field='spec.description' component={Text} />

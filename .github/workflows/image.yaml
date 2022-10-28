@@ -6,7 +6,14 @@ on:
       - "release-*" # Codefresh change instead of `master`
 
 env:
-  GOLANG_VERSION: "1.17"
+  GOLANG_VERSION: '1.18'
+
+concurrency:
+  group: ${{ github.workflow }}-${{ github.ref }}
+  cancel-in-progress: true
+
+permissions:
+  contents: read
 
 jobs:
   publish:
@@ -14,7 +21,7 @@ jobs:
     env:
       GOPATH: /home/runner/work/argo-cd/argo-cd
     steps:
-      - uses: actions/setup-go@v1
+      - uses: actions/setup-go@v3
         with:
           go-version: ${{ env.GOLANG_VERSION }}
       - uses: actions/checkout@master

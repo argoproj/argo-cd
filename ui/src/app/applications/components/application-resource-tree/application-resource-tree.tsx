@@ -44,6 +44,9 @@ export interface ApplicationResourceTreeProps {
     showOrphanedResources: boolean;
     showCompactNodes: boolean;
     zoom: number;
+    filters?: string[];
+    setTreeFilterGraph?: (filterGraph: any[]) => void;
+    nameDirection: boolean;
 }
 
 interface Line {
@@ -85,29 +88,6 @@ function getGraphSize(nodes: dagre.Node[]): {width: number; height: number} {
         height = Math.max(node.y + node.height, height);
     });
     return {width, height};
-}
-
-function filterGraph(app: models.Application, filteredIndicatorParent: string, graph: dagre.graphlib.Graph, predicate: (node: ResourceTreeNode) => boolean) {
-    const appKey = appNodeKey(app);
-    let filtered = 0;
-    graph.nodes().forEach(nodeId => {
-        const node: ResourceTreeNode = graph.node(nodeId) as any;
-        const parentIds = graph.predecessors(nodeId);
-        if (node.root != null && !predicate(node) && appKey !== nodeId) {
-            const childIds = graph.successors(nodeId);
-            graph.removeNode(nodeId);
-            filtered++;
-            childIds.forEach((childId: any) => {
-                parentIds.forEach((parentId: any) => {
-                    graph.setEdge(parentId, childId);
-                });
-            });
-        }
-    });
-    if (filtered) {
-        graph.setNode(FILTERED_INDICATOR_NODE, {height: NODE_HEIGHT, width: NODE_WIDTH, count: filtered, type: NODE_TYPES.filteredIndicator});
-        graph.setEdge(filteredIndicatorParent, FILTERED_INDICATOR_NODE);
-    }
 }
 
 function groupNodes(nodes: any[], graph: dagre.graphlib.Graph) {
@@ -350,7 +330,12 @@ function renderResourceNode(props: ApplicationResourceTreeProps, id: string, nod
                 'application-resource-tree__node--orphaned': node.orphaned
             })}
             title={describeNode(node)}
-            style={{left: node.x, top: node.y, width: node.width, height: node.height}}>
+            style={{
+                left: node.x,
+                top: node.y,
+                width: node.width,
+                height: node.height
+            }}>
             {!appNode && <NodeUpdateAnimation resourceVersion={node.resourceVersion} />}
             <div
                 className={classNames('application-resource-tree__node-kind-icon', {
@@ -361,9 +346,14 @@ function renderResourceNode(props: ApplicationResourceTreeProps, id: string, nod
                 {!rootNode && <div className='application-resource-tree__node-kind'>{ResourceLabel({kind: node.kind})}</div>}
             </div>
             <div className='application-resource-tree__node-content'>
-                <span className='application-resource-tree__node-title'>{node.name}</span>
-                <br />
-                <span
+                <div
+                    className={classNames('application-resource-tree__node-title', {
+                        'application-resource-tree__direction-right': props.nameDirection,
+                        'application-resource-tree__direction-left': !props.nameDirection
+                    })}>
+                    {node.name}
+                </div>
+                <div
                     className={classNames('application-resource-tree__node-status-icon', {
                         'application-resource-tree__node-status-icon--offset': rootNode
                     })}>
@@ -380,7 +370,7 @@ function renderResourceNode(props: ApplicationResourceTreeProps, id: string, nod
                         </Consumer>
                     )}
                     <ApplicationURLs urls={rootNode ? extLinks : node.networkingInfo && node.networkingInfo.externalURLs} />
-                </span>
+                </div>
             </div>
             <div className='application-resource-tree__node-labels'>
                 {node.createdAt || rootNode ? (
@@ -445,7 +435,7 @@ function findNetworkTargets(nodes: ResourceTreeNode[], networkingInfo: models.Re
 }
 export const ApplicationResourceTree = (props: ApplicationResourceTreeProps) => {
     const graph = new dagre.graphlib.Graph();
-    graph.setGraph({nodesep: 15, rankdir: 'LR', marginx: -100});
+    graph.setGraph({nodesep: 15, rankdir: 'LR', marginy: 45, marginx: -100});
     graph.setDefaultEdgeLabel(() => ({}));
     const overridesCount = getAppOverridesCount(props.app);
     const appNode = {
@@ -489,6 +479,42 @@ export const ApplicationResourceTree = (props: ApplicationResourceTreeProps) => 
     const nodes = Array.from(nodeByKey.values());
     let roots: ResourceTreeNode[] = [];
     const childrenByParentKey = new Map<string, ResourceTreeNode[]>();
+
+    const [filters, setFilters] = React.useState(props.filters);
+    const [filteredGraph, setFilteredGraph] = React.useState([]);
+    const filteredNodes: any[] = [];
+    React.useEffect(() => {
+        if (props.filters !== filters) {
+            setFilters(props.filters);
+            setFilteredGraph(filteredNodes);
+            props.setTreeFilterGraph(filteredGraph);
+        }
+    }, [props.filters]);
+
+    function filterGraph(app: models.Application, filteredIndicatorParent: string, graphNodesFilter: dagre.graphlib.Graph, predicate: (node: ResourceTreeNode) => boolean) {
+        const appKey = appNodeKey(app);
+        let filtered = 0;
+        graphNodesFilter.nodes().forEach(nodeId => {
+            const node: ResourceTreeNode = graphNodesFilter.node(nodeId) as any;
+            const parentIds = graphNodesFilter.predecessors(nodeId);
+            if (node.root != null && !predicate(node) && appKey !== nodeId) {
+                const childIds = graphNodesFilter.successors(nodeId);
+                graphNodesFilter.removeNode(nodeId);
+                filtered++;
+                childIds.forEach((childId: any) => {
+                    parentIds.forEach((parentId: any) => {
+                        graphNodesFilter.setEdge(parentId, childId);
+                    });
+                });
+            } else {
+                if (node.root != null) filteredNodes.push(node);
+            }
+        });
+        if (filtered) {
+            graphNodesFilter.setNode(FILTERED_INDICATOR_NODE, {height: NODE_HEIGHT, width: NODE_WIDTH, count: filtered, type: NODE_TYPES.filteredIndicator});
+            graphNodesFilter.setEdge(filteredIndicatorParent, FILTERED_INDICATOR_NODE);
+        }
+    }
 
     if (props.useNetworkingHierarchy) {
         // Network view

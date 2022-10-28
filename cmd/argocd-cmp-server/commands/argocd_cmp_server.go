@@ -1,9 +1,11 @@
 package commands
 
 import (
+	"context"
 	"time"
 
 	"github.com/argoproj/pkg/stats"
+	log "github.com/sirupsen/logrus"
 	"github.com/spf13/cobra"
 
 	cmdutil "github.com/argoproj/argo-cd/v2/cmd/util"
@@ -11,7 +13,9 @@ import (
 	"github.com/argoproj/argo-cd/v2/cmpserver/plugin"
 	"github.com/argoproj/argo-cd/v2/common"
 	"github.com/argoproj/argo-cd/v2/util/cli"
+	"github.com/argoproj/argo-cd/v2/util/env"
 	"github.com/argoproj/argo-cd/v2/util/errors"
+	traceutil "github.com/argoproj/argo-cd/v2/util/trace"
 )
 
 const (
@@ -22,6 +26,7 @@ const (
 func NewCommand() *cobra.Command {
 	var (
 		configFilePath string
+		otlpAddress    string
 	)
 	var command = cobra.Command{
 		Use:               cliName,
@@ -34,6 +39,16 @@ func NewCommand() *cobra.Command {
 
 			config, err := plugin.ReadPluginConfig(configFilePath)
 			errors.CheckError(err)
+
+			if otlpAddress != "" {
+				var closer func()
+				var err error
+				closer, err = traceutil.InitTracer(context.Background(), "argocd-cmp-server", otlpAddress)
+				if err != nil {
+					log.Fatalf("failed to initialize tracing: %v", err)
+				}
+				defer closer()
+			}
 
 			server, err := cmpserver.NewServer(plugin.CMPServerInitConstants{
 				PluginConfig: *config,
@@ -54,5 +69,6 @@ func NewCommand() *cobra.Command {
 	command.Flags().StringVar(&cmdutil.LogFormat, "logformat", "text", "Set the logging format. One of: text|json")
 	command.Flags().StringVar(&cmdutil.LogLevel, "loglevel", "info", "Set the logging level. One of: debug|info|warn|error")
 	command.Flags().StringVar(&configFilePath, "config-dir-path", common.DefaultPluginConfigFilePath, "Config management plugin configuration file location, Default is '/home/argocd/cmp-server/config/'")
+	command.Flags().StringVar(&otlpAddress, "otlp-address", env.StringFromEnv("ARGOCD_CMP_SERVER_OTLP_ADDRESS", ""), "OpenTelemetry collector address to send traces to")
 	return &command
 }

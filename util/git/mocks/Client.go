@@ -202,6 +202,20 @@ func (_m *Client) Root() string {
 	return r0
 }
 
+// Submodule provides a mock function with given fields:
+func (_m *Client) Submodule() error {
+	ret := _m.Called()
+
+	var r0 error
+	if rf, ok := ret.Get(0).(func() error); ok {
+		r0 = rf()
+	} else {
+		r0 = ret.Error(0)
+	}
+
+	return r0
+}
+
 // VerifyCommitSignature provides a mock function with given fields: _a0
 func (_m *Client) VerifyCommitSignature(_a0 string) (string, error) {
 	ret := _m.Called(_a0)

@@ -5,8 +5,8 @@ import * as React from 'react';
 import * as ReactForm from 'react-form';
 import {Text} from 'react-form';
 import * as moment from 'moment';
-import {BehaviorSubject, from, fromEvent, merge, Observable, Observer, Subscription} from 'rxjs';
-import {debounceTime} from 'rxjs/operators';
+import {BehaviorSubject, combineLatest, concat, from, fromEvent, Observable, Observer, Subscription} from 'rxjs';
+import {debounceTime, map} from 'rxjs/operators';
 import {AppContext, Context, ContextApis} from '../../shared/context';
 import {ResourceTreeNode} from './application-resource-tree/application-resource-tree';
 
@@ -272,15 +272,16 @@ export const deletePopup = async (ctx: ContextApis, resource: ResourceTreeNode, 
                         onChange={() => handleStateChange('foreground')}
                         defaultChecked={true}
                         style={{marginRight: '5px'}}
+                        id='foreground-delete-radio'
                     />
                     <label htmlFor='foreground-delete-radio' style={{paddingRight: '30px'}}>
                         Foreground Delete {helpTip('Deletes the resource and dependent resources using the cascading policy in the foreground')}
                     </label>
-                    <input type='radio' name='deleteOptions' value='force' onChange={() => handleStateChange('force')} style={{marginRight: '5px'}} />
+                    <input type='radio' name='deleteOptions' value='force' onChange={() => handleStateChange('force')} style={{marginRight: '5px'}} id='force-delete-radio' />
                     <label htmlFor='force-delete-radio' style={{paddingRight: '30px'}}>
                         Force Delete {helpTip('Deletes the resource and its dependent resources in the background')}
                     </label>
-                    <input type='radio' name='deleteOptions' value='orphan' onChange={() => handleStateChange('orphan')} style={{marginRight: '5px'}} />
+                    <input type='radio' name='deleteOptions' value='orphan' onChange={() => handleStateChange('orphan')} style={{marginRight: '5px'}} id='cascade-delete-radio' />
                     <label htmlFor='cascade-delete-radio'>Non-cascading (Orphan) Delete {helpTip('Deletes the resource and orphans the dependent resources')}</label>
                 </div>
             </div>
@@ -320,7 +321,6 @@ function getActionItems(
     appChanged: BehaviorSubject<appModels.Application>,
     isQuickStart: boolean
 ): Observable<ActionMenuItem[]> {
-    let menuItems: Observable<ActionMenuItem[]>;
     const isRoot = resource.root && nodeKey(resource.root) === nodeKey(resource);
     const items: MenuItem[] = [
         ...((isRoot && [
@@ -354,35 +354,61 @@ function getActionItems(
             action: () => appContext.apis.navigation.goto('.', {node: nodeKey(resource), tab: 'logs'}, {replace: true})
         });
     }
+
     if (isQuickStart) {
         return from([items]);
     }
+
+    const execAction = services.authService
+        .settings()
+        .then(async settings => {
+            const execAllowed = await services.accounts.canI('exec', 'create', application.spec.project + '/' + application.metadata.name);
+            if (resource.kind === 'Pod' && settings.execEnabled && execAllowed) {
+                return [
+                    {
+                        title: 'Exec',
+                        iconClassName: 'fa fa-terminal',
+                        action: async () => appContext.apis.navigation.goto('.', {node: nodeKey(resource), tab: 'exec'}, {replace: true})
+                    } as MenuItem
+                ];
+            }
+            return [] as MenuItem[];
+        })
+        .catch(() => [] as MenuItem[]);
+
     const resourceActions = services.applications
         .getResourceActions(application.metadata.name, resource)
         .then(actions => {
-            return items.concat(
-                actions.map(action => ({
-                    title: action.name,
-                    disabled: !!action.disabled,
-                    action: async () => {
-                        try {
-                            const confirmed = await appContext.apis.popup.confirm(`Execute '${action.name}' action?`, `Are you sure you want to execute '${action.name}' action?`);
-                            if (confirmed) {
-                                await services.applications.runResourceAction(application.metadata.name, resource, action.name);
+            return actions.map(
+                action =>
+                    ({
+                        title: action.name,
+                        disabled: !!action.disabled,
+                        action: async () => {
+                            try {
+                                const confirmed = await appContext.apis.popup.confirm(
+                                    `Execute '${action.name}' action?`,
+                                    `Are you sure you want to execute '${action.name}' action?`
+                                );
+                                if (confirmed) {
+                                    await services.applications.runResourceAction(application.metadata.name, resource, action.name);
+                                }
+                            } catch (e) {
+                                appContext.apis.notifications.show({
+                                    content: <ErrorNotification title='Unable to execute resource action' e={e} />,
+                                    type: NotificationType.Error
+                                });
                             }
-                        } catch (e) {
-                            appContext.apis.notifications.show({
-                                content: <ErrorNotification title='Unable to execute resource action' e={e} />,
-                                type: NotificationType.Error
-                            });
                         }
-                    }
-                }))
+                    } as MenuItem)
             );
         })
-        .catch(() => items);
-    menuItems = merge(from([items]), from(resourceActions));
-    return menuItems;
+        .catch(() => [] as MenuItem[]);
+    return combineLatest(
+        from([items]), // this resolves immediately
+        concat([[] as MenuItem[]], resourceActions), // this resolves at first to [] and then whatever the API returns
+        concat([[] as MenuItem[]], execAction) // this resolves at first to [] and then whatever the API returns
+    ).pipe(map(res => ([] as MenuItem[]).concat(...res)));
 }
 
 export function renderResourceMenu(
@@ -806,9 +832,6 @@ export function isAppNode(node: appModels.ResourceNode) {
 }
 
 export function getAppOverridesCount(app: appModels.Application) {
-    if (app.spec.source.ksonnet && app.spec.source.ksonnet.parameters) {
-        return app.spec.source.ksonnet.parameters.length;
-    }
     if (app.spec.source.kustomize && app.spec.source.kustomize.images) {
         return app.spec.source.kustomize.images.length;
     }

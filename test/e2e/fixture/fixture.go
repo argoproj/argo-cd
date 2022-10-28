@@ -26,7 +26,7 @@ import (
 	"k8s.io/client-go/tools/clientcmd"
 
 	"github.com/argoproj/argo-cd/v2/common"
-	argocdclient "github.com/argoproj/argo-cd/v2/pkg/apiclient"
+	"github.com/argoproj/argo-cd/v2/pkg/apiclient"
 	sessionpkg "github.com/argoproj/argo-cd/v2/pkg/apiclient/session"
 	"github.com/argoproj/argo-cd/v2/pkg/apis/application/v1alpha1"
 	appclientset "github.com/argoproj/argo-cd/v2/pkg/client/clientset/versioned"
@@ -42,7 +42,7 @@ const (
 	defaultAdminPassword    = "password"
 	defaultAdminUsername    = "admin"
 	DefaultTestUserPassword = "password"
-	testingLabel            = "e2e.argoproj.io"
+	TestingLabel            = "e2e.argoproj.io"
 	ArgoCDNamespace         = "argocd-e2e"
 
 	// ensure all repos are in one directory tree, so we can easily clean them up
@@ -72,7 +72,7 @@ var (
 	KubeConfig          *rest.Config
 	DynamicClientset    dynamic.Interface
 	AppClientset        appclientset.Interface
-	ArgoCDClientset     argocdclient.Client
+	ArgoCDClientset     apiclient.Client
 	adminUsername       string
 	AdminPassword       string
 	apiServerAddress    string
@@ -156,14 +156,15 @@ func init() {
 	DynamicClientset = dynamic.NewForConfigOrDie(config)
 	KubeConfig = config
 
-	apiServerAddress = GetEnvWithDefault(argocdclient.EnvArgoCDServer, defaultApiServer)
+	apiServerAddress = GetEnvWithDefault(apiclient.EnvArgoCDServer, defaultApiServer)
 	adminUsername = GetEnvWithDefault(EnvAdminUsername, defaultAdminUsername)
 	AdminPassword = GetEnvWithDefault(EnvAdminPassword, defaultAdminPassword)
 
-	tlsTestResult, err := grpcutil.TestTLS(apiServerAddress)
+	dialTime := 30 * time.Second
+	tlsTestResult, err := grpcutil.TestTLS(apiServerAddress, dialTime)
 	CheckError(err)
 
-	ArgoCDClientset, err = argocdclient.NewClient(&argocdclient.ClientOptions{Insecure: true, ServerAddr: apiServerAddress, PlainText: !tlsTestResult.TLS})
+	ArgoCDClientset, err = apiclient.NewClient(&apiclient.ClientOptions{Insecure: true, ServerAddr: apiServerAddress, PlainText: !tlsTestResult.TLS})
 	CheckError(err)
 
 	plainText = !tlsTestResult.TLS
@@ -203,7 +204,7 @@ func loginAs(username, password string) {
 	CheckError(err)
 	token = sessionResponse.Token
 
-	ArgoCDClientset, err = argocdclient.NewClient(&argocdclient.ClientOptions{
+	ArgoCDClientset, err = apiclient.NewClient(&apiclient.ClientOptions{
 		Insecure:   true,
 		ServerAddr: apiServerAddress,
 		AuthToken:  token,
@@ -298,7 +299,7 @@ func CreateSecret(username, password string) string {
 		"--from-literal=username="+username,
 		"--from-literal=password="+password,
 		"-n", TestNamespace()))
-	FailOnErr(Run("", "kubectl", "label", "secret", secretName, testingLabel+"=true", "-n", TestNamespace()))
+	FailOnErr(Run("", "kubectl", "label", "secret", secretName, TestingLabel+"=true", "-n", TestNamespace()))
 	return secretName
 }
 
@@ -353,6 +354,13 @@ func SetResourceOverrides(overrides map[string]v1alpha1.ResourceOverride) {
 func SetTrackingMethod(trackingMethod string) {
 	updateSettingConfigMap(func(cm *corev1.ConfigMap) error {
 		cm.Data["application.resourceTrackingMethod"] = trackingMethod
+		return nil
+	})
+}
+
+func SetTrackingLabel(trackingLabel string) {
+	updateSettingConfigMap(func(cm *corev1.ConfigMap) error {
+		cm.Data["application.instanceLabelKey"] = trackingLabel
 		return nil
 	})
 }
@@ -478,6 +486,13 @@ func SetProjectSpec(project string, spec v1alpha1.AppProjectSpec) {
 	errors.CheckError(err)
 }
 
+func SetParamInSettingConfigMap(key, value string) {
+	updateSettingConfigMap(func(cm *corev1.ConfigMap) error {
+		cm.Data[key] = value
+		return nil
+	})
+}
+
 func EnsureCleanState(t *testing.T) {
 	// In large scenarios, we can skip tests that already run
 	SkipIfAlreadyRun(t)
@@ -506,10 +521,11 @@ func EnsureCleanState(t *testing.T) {
 		v1.DeleteOptions{PropagationPolicy: &policy}, v1.ListOptions{LabelSelector: common.LabelKeySecretType + "=" + common.LabelValueSecretTypeCluster}))
 	// kubectl delete secrets -l e2e.argoproj.io=true
 	CheckError(KubeClientset.CoreV1().Secrets(TestNamespace()).DeleteCollection(context.Background(),
-		v1.DeleteOptions{PropagationPolicy: &policy}, v1.ListOptions{LabelSelector: testingLabel + "=true"}))
+		v1.DeleteOptions{PropagationPolicy: &policy}, v1.ListOptions{LabelSelector: TestingLabel + "=true"}))
 
-	FailOnErr(Run("", "kubectl", "delete", "ns", "-l", testingLabel+"=true", "--field-selector", "status.phase=Active", "--wait=false"))
-	FailOnErr(Run("", "kubectl", "delete", "crd", "-l", testingLabel+"=true", "--wait=false"))
+	FailOnErr(Run("", "kubectl", "delete", "ns", "-l", TestingLabel+"=true", "--field-selector", "status.phase=Active", "--wait=false"))
+	FailOnErr(Run("", "kubectl", "delete", "crd", "-l", TestingLabel+"=true", "--wait=false"))
+	FailOnErr(Run("", "kubectl", "delete", "clusterroles", "-l", TestingLabel+"=true", "--wait=false"))
 
 	// reset settings
 	updateSettingConfigMap(func(cm *corev1.ConfigMap) error {
@@ -554,7 +570,9 @@ func EnsureCleanState(t *testing.T) {
 	FailOnErr(Run("", "mkdir", "-p", TmpDir))
 
 	// random id - unique across test runs
-	postFix := "-" + strings.ToLower(rand.RandString(5))
+	randString, err := rand.String(5)
+	CheckError(err)
+	postFix := "-" + strings.ToLower(randString)
 	id = t.Name() + postFix
 	name = DnsFriendly(t.Name(), "")
 	deploymentNamespace = DnsFriendly(fmt.Sprintf("argocd-e2e-%s", t.Name()), postFix)
@@ -598,7 +616,7 @@ func EnsureCleanState(t *testing.T) {
 
 	// create namespace
 	FailOnErr(Run("", "kubectl", "create", "ns", DeploymentNamespace()))
-	FailOnErr(Run("", "kubectl", "label", "ns", DeploymentNamespace(), testingLabel+"=true"))
+	FailOnErr(Run("", "kubectl", "label", "ns", DeploymentNamespace(), TestingLabel+"=true"))
 
 	log.WithFields(log.Fields{"duration": time.Since(start), "name": t.Name(), "id": id, "username": "admin", "password": "password"}).Info("clean state")
 }
@@ -715,6 +733,8 @@ func Declarative(filename string, values interface{}) (string, error) {
 }
 
 func CreateSubmoduleRepos(repoType string) {
+	oldEnv := os.Getenv("GIT_ALLOW_PROTOCOL")
+	CheckError(os.Setenv("GIT_ALLOW_PROTOCOL", "file"))
 
 	// set-up submodule repo
 	FailOnErr(Run("", "cp", "-Rf", "testdata/git-submodule/", submoduleDirectory()))
@@ -746,6 +766,8 @@ func CreateSubmoduleRepos(repoType string) {
 		FailOnErr(Run(submoduleParentDirectory(), "git", "remote", "add", "origin", os.Getenv("ARGOCD_E2E_GIT_SERVICE_SUBMODULE_PARENT")))
 		FailOnErr(Run(submoduleParentDirectory(), "git", "push", "origin", "master", "-f"))
 	}
+
+	CheckError(os.Setenv("GIT_ALLOW_PROTOCOL", oldEnv))
 }
 
 // RestartRepoServer performs a restart of the repo server deployment and waits

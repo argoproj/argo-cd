@@ -21,15 +21,13 @@ type PluginConfig struct {
 }
 
 type PluginConfigSpec struct {
-	Version          string   `json:"version"`
-	Init             Command  `json:"init,omitempty"`
-	Generate         Command  `json:"generate"`
-	Discover         Discover `json:"discover"`
-	AllowConcurrency bool     `json:"allowConcurrency"`
-	LockRepo         bool     `json:"lockRepo"`
+	Version  string   `json:"version"`
+	Init     Command  `json:"init,omitempty"`
+	Generate Command  `json:"generate"`
+	Discover Discover `json:"discover"`
 }
 
-//Discover holds find and fileName
+// Discover holds find and fileName
 type Discover struct {
 	Find     Find   `json:"find"`
 	FileName string `json:"fileName"`

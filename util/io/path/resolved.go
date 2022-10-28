@@ -11,6 +11,7 @@ import (
 )
 
 // ResolvedFilePath represents a resolved file path and intended to prevent unintentional use of not verified file path.
+// It is always either a URL or an absolute path.
 type ResolvedFilePath string
 
 // resolveSymbolicLinkRecursive resolves the symlink path recursively to its
@@ -34,7 +35,7 @@ func resolveSymbolicLinkRecursive(path string, maxDepth int) (string, error) {
 
 	// If we resolved to a relative symlink, make sure we use the absolute
 	// path for further resolving
-	if !strings.HasPrefix(resolved, "/") {
+	if !strings.HasPrefix(resolved, string(os.PathSeparator)) {
 		basePath := filepath.Dir(path)
 		resolved = filepath.Join(basePath, resolved)
 	}
@@ -145,8 +146,8 @@ func ResolveFilePath(appPath, repoRoot, valueFile string, allowedURLSchemes []st
 	// Ensure our root path has a trailing slash, otherwise the following check
 	// would return true if root is /foo and path would be /foo2
 	requiredRootPath := absRepoPath
-	if !strings.HasSuffix(requiredRootPath, "/") {
-		requiredRootPath += "/"
+	if !strings.HasSuffix(requiredRootPath, string(os.PathSeparator)) {
+		requiredRootPath += string(os.PathSeparator)
 	}
 
 	// Make sure that the resolved path to values file is within the repository's root path

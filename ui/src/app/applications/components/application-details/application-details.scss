@@ -4,6 +4,7 @@
 $header: 120px;
 
 .application-details {
+    height: 100vh;
     &__status-panel {
         position: fixed;
         left: 60px;
@@ -27,7 +28,7 @@ $header: 120px;
         overflow-x: auto;
         overflow-y: auto;
         margin-top: 115px;
-        min-height: calc(100vh - 2 * 50px - 115px);
+        height: calc(100vh - 2 * 50px - 115px);
         @media screen and (max-width: map-get($breakpoints, xlarge)) {
             margin-top: 165px;
         }
@@ -40,6 +41,7 @@ $header: 120px;
     &__warning {
         font-size: 0.8em;
         color: darken($argo-status-warning-color, 20%);
+        min-height: 1.2rem;
     }
 
     &__refreshing-label {

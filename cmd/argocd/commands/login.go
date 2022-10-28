@@ -19,6 +19,7 @@ import (
 	"github.com/spf13/cobra"
 	"golang.org/x/oauth2"
 
+	"github.com/argoproj/argo-cd/v2/cmd/argocd/commands/headless"
 	argocdclient "github.com/argoproj/argo-cd/v2/pkg/apiclient"
 	sessionpkg "github.com/argoproj/argo-cd/v2/pkg/apiclient/session"
 	settingspkg "github.com/argoproj/argo-cd/v2/pkg/apiclient/settings"
@@ -35,11 +36,12 @@ import (
 // NewLoginCommand returns a new instance of `argocd login` command
 func NewLoginCommand(globalClientOpts *argocdclient.ClientOptions) *cobra.Command {
 	var (
-		ctxName  string
-		username string
-		password string
-		sso      bool
-		ssoPort  int
+		ctxName     string
+		username    string
+		password    string
+		sso         bool
+		ssoPort     int
+		skipTestTLS bool
 	)
 	var command = &cobra.Command{
 		Use:   "login SERVER",
@@ -67,21 +69,25 @@ argocd login cd.argoproj.io --core`,
 				server = "kubernetes"
 			} else {
 				server = args[0]
-				tlsTestResult, err := grpc_util.TestTLS(server)
-				errors.CheckError(err)
-				if !tlsTestResult.TLS {
-					if !globalClientOpts.PlainText {
-						if !cli.AskToProceed("WARNING: server is not configured with TLS. Proceed (y/n)? ") {
-							os.Exit(1)
+
+				if !skipTestTLS {
+					dialTime := 30 * time.Second
+					tlsTestResult, err := grpc_util.TestTLS(server, dialTime)
+					errors.CheckError(err)
+					if !tlsTestResult.TLS {
+						if !globalClientOpts.PlainText {
+							if !cli.AskToProceed("WARNING: server is not configured with TLS. Proceed (y/n)? ") {
+								os.Exit(1)
+							}
+							globalClientOpts.PlainText = true
 						}
-						globalClientOpts.PlainText = true
-					}
-				} else if tlsTestResult.InsecureErr != nil {
-					if !globalClientOpts.Insecure {
-						if !cli.AskToProceed(fmt.Sprintf("WARNING: server certificate had error: %s. Proceed insecurely (y/n)? ", tlsTestResult.InsecureErr)) {
-							os.Exit(1)
+					} else if tlsTestResult.InsecureErr != nil {
+						if !globalClientOpts.Insecure {
+							if !cli.AskToProceed(fmt.Sprintf("WARNING: server certificate had error: %s. Proceed insecurely (y/n)? ", tlsTestResult.InsecureErr)) {
+								os.Exit(1)
+							}
+							globalClientOpts.Insecure = true
 						}
-						globalClientOpts.Insecure = true
 					}
 				}
 			}
@@ -97,6 +103,7 @@ argocd login cd.argoproj.io --core`,
 				PortForward:          globalClientOpts.PortForward,
 				PortForwardNamespace: globalClientOpts.PortForwardNamespace,
 				Headers:              globalClientOpts.Headers,
+				KubeOverrides:        globalClientOpts.KubeOverrides,
 			}
 
 			if ctxName == "" {
@@ -111,7 +118,7 @@ argocd login cd.argoproj.io --core`,
 			var tokenString string
 			var refreshToken string
 			if !globalClientOpts.Core {
-				acdClient := argocdclient.NewClientOrDie(&clientOpts)
+				acdClient := headless.NewClientOrDie(&clientOpts, c)
 				setConn, setIf := acdClient.NewSettingsClientOrDie()
 				defer io.Close(setConn)
 				if !sso {
@@ -172,6 +179,8 @@ argocd login cd.argoproj.io --core`,
 	command.Flags().StringVar(&password, "password", "", "the password of an account to authenticate")
 	command.Flags().BoolVar(&sso, "sso", false, "perform SSO login")
 	command.Flags().IntVar(&ssoPort, "sso-port", DefaultSSOLocalPort, "port to run local OAuth2 login application")
+	command.Flags().
+		BoolVar(&skipTestTLS, "skip-test-tls", false, "Skip testing whether the server is configured with TLS (this can help when the command hangs for no apparent reason)")
 	return command
 }
 
@@ -187,7 +196,13 @@ func userDisplayName(claims jwt.MapClaims) string {
 
 // oauth2Login opens a browser, runs a temporary HTTP server to delegate OAuth2 login flow and
 // returns the JWT token and a refresh token (if supported)
-func oauth2Login(ctx context.Context, port int, oidcSettings *settingspkg.OIDCConfig, oauth2conf *oauth2.Config, provider *oidc.Provider) (string, string) {
+func oauth2Login(
+	ctx context.Context,
+	port int,
+	oidcSettings *settingspkg.OIDCConfig,
+	oauth2conf *oauth2.Config,
+	provider *oidc.Provider,
+) (string, string) {
 	oauth2conf.RedirectURL = fmt.Sprintf("http://localhost:%d/auth/callback", port)
 	oidcConf, err := oidcutil.ParseConfig(provider)
 	errors.CheckError(err)
@@ -200,7 +215,10 @@ func oauth2Login(ctx context.Context, port int, oidcSettings *settingspkg.OIDCCo
 	// completionChan is to signal flow completed. Non-empty string indicates error
 	completionChan := make(chan string)
 	// stateNonce is an OAuth2 state nonce
-	stateNonce := rand.RandString(10)
+	// According to the spec (https://www.rfc-editor.org/rfc/rfc6749#section-10.10), this must be guessable with
+	// probability <= 2^(-128). The following call generates one of 52^24 random strings, ~= 2^136 possibilities.
+	stateNonce, err := rand.String(24)
+	errors.CheckError(err)
 	var tokenString string
 	var refreshToken string
 
@@ -210,7 +228,11 @@ func oauth2Login(ctx context.Context, port int, oidcSettings *settingspkg.OIDCCo
 	}
 
 	// PKCE implementation of https://tools.ietf.org/html/rfc7636
-	codeVerifier := rand.RandStringCharset(43, "ABCDEFGHIJKLMNOPQRSTUVWXYZabcdefghijklmnopqrstuvwxyz0123456789-._~")
+	codeVerifier, err := rand.StringFromCharset(
+		43,
+		"ABCDEFGHIJKLMNOPQRSTUVWXYZabcdefghijklmnopqrstuvwxyz0123456789-._~",
+	)
+	errors.CheckError(err)
 	codeChallengeHash := sha256.Sum256([]byte(codeVerifier))
 	codeChallenge := base64.RawURLEncoding.EncodeToString(codeChallengeHash[:])
 
@@ -294,7 +316,8 @@ func oauth2Login(ctx context.Context, port int, oidcSettings *settingspkg.OIDCCo
 		opts = append(opts, oauth2.SetAuthURLParam("code_challenge_method", "S256"))
 		url = oauth2conf.AuthCodeURL(stateNonce, opts...)
 	case oidcutil.GrantTypeImplicit:
-		url = oidcutil.ImplicitFlowURL(oauth2conf, stateNonce, opts...)
+		url, err = oidcutil.ImplicitFlowURL(oauth2conf, stateNonce, opts...)
+		errors.CheckError(err)
 	default:
 		log.Fatalf("Unsupported grant type: %v", grantType)
 	}

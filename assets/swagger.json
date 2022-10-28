@@ -278,7 +278,7 @@
             },
             "collectionFormat": "multi",
             "description": "the project names to restrict returned list applications.",
-            "name": "project",
+            "name": "projects",
             "in": "query"
           },
           {
@@ -542,7 +542,7 @@
             },
             "collectionFormat": "multi",
             "description": "the project names to restrict returned list applications.",
-            "name": "project",
+            "name": "projects",
             "in": "query"
           },
           {
@@ -3180,7 +3180,7 @@
             },
             "collectionFormat": "multi",
             "description": "the project names to restrict returned list applications.",
-            "name": "project",
+            "name": "projects",
             "in": "query"
           },
           {
@@ -3797,6 +3797,9 @@
         "dexConfig": {
           "$ref": "#/definitions/clusterDexConfig"
         },
+        "execEnabled": {
+          "type": "boolean"
+        },
         "googleAnalytics": {
           "$ref": "#/definitions/clusterGoogleAnalyticsConfig"
         },
@@ -3832,6 +3835,9 @@
         },
         "statusBadgeEnabled": {
           "type": "boolean"
+        },
+        "statusBadgeRootUrl": {
+          "type": "string"
         },
         "trackingMethod": {
           "type": "string"
@@ -4104,56 +4110,6 @@
         }
       }
     },
-    "repositoryKsonnetAppSpec": {
-      "type": "object",
-      "title": "KsonnetAppSpec contains Ksonnet app response\nThis roughly reflects: ksonnet/ksonnet/metadata/app/schema.go",
-      "properties": {
-        "environments": {
-          "type": "object",
-          "additionalProperties": {
-            "$ref": "#/definitions/repositoryKsonnetEnvironment"
-          }
-        },
-        "name": {
-          "type": "string"
-        },
-        "parameters": {
-          "type": "array",
-          "items": {
-            "$ref": "#/definitions/v1alpha1KsonnetParameter"
-          }
-        }
-      }
-    },
-    "repositoryKsonnetEnvironment": {
-      "type": "object",
-      "properties": {
-        "destination": {
-          "$ref": "#/definitions/repositoryKsonnetEnvironmentDestination"
-        },
-        "k8sVersion": {
-          "description": "KubernetesVersion is the kubernetes version the targeted cluster is running on.",
-          "type": "string"
-        },
-        "name": {
-          "type": "string",
-          "title": "Name is the user defined name of an environment"
-        }
-      }
-    },
-    "repositoryKsonnetEnvironmentDestination": {
-      "type": "object",
-      "properties": {
-        "namespace": {
-          "type": "string",
-          "title": "Namespace is the namespace of the Kubernetes server that targets should be deployed to"
-        },
-        "server": {
-          "description": "Server is the Kubernetes server that the cluster is running on.",
-          "type": "string"
-        }
-      }
-    },
     "repositoryKustomizeAppSpec": {
       "type": "object",
       "title": "KustomizeAppSpec contains kustomize images",
@@ -4268,9 +4224,6 @@
         },
         "helm": {
           "$ref": "#/definitions/repositoryHelmAppSpec"
-        },
-        "ksonnet": {
-          "$ref": "#/definitions/repositoryKsonnetAppSpec"
         },
         "kustomize": {
           "$ref": "#/definitions/repositoryKustomizeAppSpec"
@@ -5049,9 +5002,6 @@
         "helm": {
           "$ref": "#/definitions/v1alpha1ApplicationSourceHelm"
         },
-        "ksonnet": {
-          "$ref": "#/definitions/v1alpha1ApplicationSourceKsonnet"
-        },
         "kustomize": {
           "$ref": "#/definitions/v1alpha1ApplicationSourceKustomize"
         },
@@ -5140,7 +5090,7 @@
         },
         "version": {
           "type": "string",
-          "title": "Version is the Helm version to use for templating (either \"2\" or \"3\")"
+          "title": "Version is the Helm version to use for templating (\"3\")"
         }
       }
     },
@@ -5167,23 +5117,6 @@
           "title": "TLAS is a list of Jsonnet Top-level Arguments",
           "items": {
             "$ref": "#/definitions/v1alpha1JsonnetVar"
-          }
-        }
-      }
-    },
-    "v1alpha1ApplicationSourceKsonnet": {
-      "type": "object",
-      "title": "ApplicationSourceKsonnet holds ksonnet specific options",
-      "properties": {
-        "environment": {
-          "type": "string",
-          "title": "Environment is a ksonnet application environment name"
-        },
-        "parameters": {
-          "type": "array",
-          "title": "Parameters are a list of ksonnet component parameter override values",
-          "items": {
-            "$ref": "#/definitions/v1alpha1KsonnetParameter"
           }
         }
       }
@@ -5882,21 +5815,6 @@
           "type": "string"
         },
         "type": {
-          "type": "string"
-        }
-      }
-    },
-    "v1alpha1KsonnetParameter": {
-      "type": "object",
-      "title": "KsonnetParameter is a ksonnet component parameter",
-      "properties": {
-        "component": {
-          "type": "string"
-        },
-        "name": {
-          "type": "string"
-        },
-        "value": {
           "type": "string"
         }
       }
@@ -6967,9 +6885,6 @@
           "type": "string"
         },
         "JsonnetVersion": {
-          "type": "string"
-        },
-        "KsonnetVersion": {
           "type": "string"
         },
         "KubectlVersion": {

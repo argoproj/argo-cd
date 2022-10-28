@@ -256,17 +256,40 @@ func (s *Server) Update(ctx context.Context, q *cluster.ClusterUpdateRequest) (*
 	return s.toAPIResponse(clust), nil
 }
 
-// Delete deletes a cluster by name
+// Delete deletes a cluster by server/name
 func (s *Server) Delete(ctx context.Context, q *cluster.ClusterQuery) (*cluster.ClusterResponse, error) {
 	c, err := s.getClusterWith403IfNotExist(ctx, q)
 	if err != nil {
 		return nil, err
 	}
-	if err := s.enf.EnforceErr(ctx.Value("claims"), rbacpolicy.ResourceClusters, rbacpolicy.ActionDelete, createRBACObject(c.Project, c.Server)); err != nil {
-		return nil, err
+
+	if q.Name != "" {
+		servers, err := s.db.GetClusterServersByName(ctx, q.Name)
+		if err != nil {
+			return nil, err
+		}
+		for _, server := range servers {
+			if err := enforceAndDelete(s, ctx, server, c.Project); err != nil {
+				return nil, err
+			}
+		}
+	} else {
+		if err := enforceAndDelete(s, ctx, q.Server, c.Project); err != nil {
+			return nil, err
+		}
 	}
-	err = s.db.DeleteCluster(ctx, q.Server)
-	return &cluster.ClusterResponse{}, err
+
+	return &cluster.ClusterResponse{}, nil
+}
+
+func enforceAndDelete(s *Server, ctx context.Context, server, project string) error {
+	if err := s.enf.EnforceErr(ctx.Value("claims"), rbacpolicy.ResourceClusters, rbacpolicy.ActionDelete, createRBACObject(project, server)); err != nil {
+		return err
+	}
+	if err := s.db.DeleteCluster(ctx, server); err != nil {
+		return err
+	}
+	return nil
 }
 
 // RotateAuth rotates the bearer token used for a cluster

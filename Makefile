@@ -25,6 +25,9 @@ DOCKER_WORKDIR?=/go/src/github.com/argoproj/argo-cd
 
 ARGOCD_PROCFILE?=Procfile
 
+# Strict mode has been disabled in latest versions of mkdocs-material. 
+# Thus pointing to the older image of mkdocs-material matching the version used by argo-cd.
+MKDOCS_DOCKER_IMAGE?=squidfunk/mkdocs-material:4.1.1
 MKDOCS_RUN_ARGS?=
 
 # Configuration for building argocd-test-tools image
@@ -48,6 +51,7 @@ ARGOCD_E2E_TEST_TIMEOUT?=30m
 
 ARGOCD_IN_CI?=false
 ARGOCD_TEST_E2E?=true
+ARGOCD_BIN_MODE?=true
 
 ARGOCD_LINT_GOGC?=20
 
@@ -110,7 +114,7 @@ define run-in-test-client
 		bash -c "$(1)"
 endef
 
-# 
+#
 define exec-in-test-server
 	docker exec -it -u $(shell id -u):$(shell id -g) -e ARGOCD_E2E_K3S=$(ARGOCD_E2E_K3S) argocd-test-server $(1)
 endef
@@ -404,6 +408,7 @@ start-e2e-local:
 	kubectl create ns argocd-e2e || true
 	kubectl config set-context --current --namespace=argocd-e2e
 	kustomize build test/manifests/base | kubectl apply -f -
+	kubectl apply -f https://raw.githubusercontent.com/open-cluster-management/api/a6845f2ebcb186ec26b832f60c988537a58f3859/cluster/v1alpha1/0000_04_clusters.open-cluster-management.io_placementdecisions.crd.yaml
 	# Create GPG keys and source directories
 	if test -d /tmp/argo-e2e/app/config/gpg; then rm -rf /tmp/argo-e2e/app/config/gpg/*; fi
 	mkdir -p /tmp/argo-e2e/app/config/gpg/keys && chmod 0700 /tmp/argo-e2e/app/config/gpg/keys
@@ -416,9 +421,11 @@ start-e2e-local:
 	ARGOCD_GNUPGHOME=/tmp/argo-e2e/app/config/gpg/keys \
 	ARGOCD_GPG_ENABLED=$(ARGOCD_GPG_ENABLED) \
 	ARGOCD_PLUGINCONFIGFILEPATH=/tmp/argo-e2e/app/config/plugin \
+	ARGOCD_PLUGINSOCKFILEPATH=/tmp/argo-e2e/app/config/plugin \
 	ARGOCD_E2E_DISABLE_AUTH=false \
 	ARGOCD_ZJWT_FEATURE_FLAG=always \
 	ARGOCD_IN_CI=$(ARGOCD_IN_CI) \
+	BIN_MODE=$(ARGOCD_BIN_MODE) \
 	ARGOCD_E2E_TEST=true \
 		goreman -f $(ARGOCD_PROCFILE) start ${ARGOCD_START}
 
@@ -475,6 +482,27 @@ release-precheck: manifests
 .PHONY: release
 release: pre-commit release-precheck image release-cli
 
+.PHONY: build-docs-local
+build-docs-local:
+	mkdocs build
+
+.PHONY: build-docs
+build-docs:
+	docker run ${MKDOCS_RUN_ARGS} --rm -it -p 8000:8000 -v ${CURRENT_DIR}:/docs ${MKDOCS_DOCKER_IMAGE} build
+
+.PHONY: serve-docs-local
+serve-docs-local:
+	mkdocs serve
+
+.PHONY: serve-docs
+serve-docs:
+	docker run ${MKDOCS_RUN_ARGS} --rm -it -p 8000:8000 -v ${CURRENT_DIR}:/docs ${MKDOCS_DOCKER_IMAGE} serve -a 0.0.0.0:8000
+
+.PHONY: lint-docs
+lint-docs:
+	#  https://github.com/dkhamsing/awesome_bot
+	find docs -name '*.md' -exec grep -l http {} + | xargs docker run --rm -v $(PWD):/mnt:ro dkhamsing/awesome_bot -t 3 --allow-dupe --allow-redirect --allow-timeout --allow-ssl --allow 502,500,429,400 --white-list `cat docs/url-allow-list | grep -v "#" | tr "\n" ','` --skip-save-results --
+
 # Verify that kubectl can connect to your K8s cluster from Docker
 .PHONY: verify-kube-connect
 verify-kube-connect: test-tools-image
@@ -495,9 +523,7 @@ install-tools-local: install-test-tools-local install-codegen-tools-local instal
 # Installs all tools required for running unit & end-to-end tests (Linux packages)
 .PHONY: install-test-tools-local
 install-test-tools-local:
-	./hack/install.sh kustomize-linux
-	./hack/install.sh ksonnet-linux
-	./hack/install.sh helm2-linux
+	./hack/install.sh kustomize
 	./hack/install.sh helm-linux
 
 # Installs all tools required for running codegen (Linux packages)
@@ -523,3 +549,11 @@ start-test-k8s:
 .PHONY: list
 list:
 	@LC_ALL=C $(MAKE) -pRrq -f $(lastword $(MAKEFILE_LIST)) : 2>/dev/null | awk -v RS= -F: '/^# File/,/^# Finished Make data base/ {if ($$1 !~ "^[#.]") {print $$1}}' | sort | egrep -v -e '^[^[:alnum:]]' -e '^$@$$'
+
+.PHONY: applicationset-controller
+applicationset-controller:
+	CGO_ENABLED=0 go build -v -ldflags '${LDFLAGS}' -o ${DIST_DIR}/argocd-applicationset-controller ./cmd
+
+.PHONY: checksums
+checksums:
+	sha256sum ./dist/$(BIN_NAME)-* | awk -F './dist/' '{print $$1 $$2}' > ./dist/$(BIN_NAME)-$(TARGET_VERSION)-checksums.txt

@@ -1,0 +1,6 @@
+#namePrefix: kustomize-
+
+resources:
+- https://github.com/argoproj/argo-workflows/releases/download/v3.4.0/namespace-install.yaml
+apiVersion: kustomize.config.k8s.io/v1beta1
+kind: Kustomization

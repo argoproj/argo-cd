@@ -4,8 +4,10 @@ import (
 	"bytes"
 	"context"
 	"encoding/base64"
+	"errors"
 	"log"
 	"strings"
+	"time"
 
 	v12 "k8s.io/apimachinery/pkg/apis/meta/v1"
 
@@ -113,6 +115,10 @@ func (cg *ClusterGenerator) getClusterCredentials(namespace string, releaseSuffi
 		return nil, nil, nil, err
 	}
 
+	if len(config.Clusters) == 0 {
+		return nil, nil, nil, errors.New("clusters empty")
+	}
+
 	caData, err := base64.StdEncoding.DecodeString(config.Clusters[0].Cluster.CertificateAuthorityData)
 	if err != nil {
 		return nil, nil, nil, err
@@ -131,7 +137,7 @@ func (cg *ClusterGenerator) getClusterCredentials(namespace string, releaseSuffi
 	return caData, cert, key, nil
 }
 
-//TODO: also should provision service for vcluster pod
+// TODO: also should provision service for vcluster pod
 func (cg *ClusterGenerator) installVCluster(opts *util.GenerateOpts, namespace string, releaseName string) error {
 	cmd, err := helm.NewCmd("/tmp", "v3", "")
 	if err != nil {
@@ -152,6 +158,19 @@ func (cg *ClusterGenerator) getClusterServerUri(namespace string, releaseSuffix 
 	}
 	// TODO: should be moved to service instead pod
 	return "https://" + pod.Status.PodIP + ":8443", nil
+}
+
+func (cg *ClusterGenerator) retrieveClusterUri(namespace, releaseSuffix string) (string, error) {
+	for i := 0; i < 3; i++ {
+		uri, err := cg.getClusterServerUri(namespace, releaseSuffix)
+		if err != nil {
+			log.Printf("Failed to get cluster uri due to %s", err.Error())
+			time.Sleep(10 * time.Second)
+			continue
+		}
+		return uri, nil
+	}
+	return "", nil
 }
 
 func (cg *ClusterGenerator) Generate(opts *util.GenerateOpts) error {
@@ -179,7 +198,8 @@ func (cg *ClusterGenerator) Generate(opts *util.GenerateOpts) error {
 		}
 
 		log.Print("Get cluster server uri")
-		uri, err := cg.getClusterServerUri(namespace, releaseSuffix)
+
+		uri, err := cg.retrieveClusterUri(namespace, releaseSuffix)
 		if err != nil {
 			return err
 		}

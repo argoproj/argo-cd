@@ -9,13 +9,11 @@ import (
 	"github.com/argoproj/argo-cd/v2/pkg/apiclient/version"
 	"github.com/argoproj/argo-cd/v2/server/settings"
 	"github.com/argoproj/argo-cd/v2/util/helm"
-	ksutil "github.com/argoproj/argo-cd/v2/util/ksonnet"
 	"github.com/argoproj/argo-cd/v2/util/kustomize"
 	sessionmgr "github.com/argoproj/argo-cd/v2/util/session"
 )
 
 type server struct {
-	ksonnetVersion   string
 	kustomizeVersion string
 	helmVersion      string
 	jsonnetVersion   string
@@ -39,14 +37,6 @@ func (s *server) Version(ctx context.Context, _ *empty.Empty) (*version.VersionM
 		return &version.VersionMessage{Version: vers.Version}, nil
 	}
 
-	if s.ksonnetVersion == "" {
-		ksonnetVersion, err := ksutil.Version()
-		if err == nil {
-			s.ksonnetVersion = ksonnetVersion
-		} else {
-			s.ksonnetVersion = err.Error()
-		}
-	}
 	if s.kustomizeVersion == "" {
 		kustomizeVersion, err := kustomize.Version(true)
 		if err == nil {
@@ -73,7 +63,6 @@ func (s *server) Version(ctx context.Context, _ *empty.Empty) (*version.VersionM
 		GoVersion:        vers.GoVersion,
 		Compiler:         vers.Compiler,
 		Platform:         vers.Platform,
-		KsonnetVersion:   s.ksonnetVersion,
 		KustomizeVersion: s.kustomizeVersion,
 		HelmVersion:      s.helmVersion,
 		JsonnetVersion:   s.jsonnetVersion,

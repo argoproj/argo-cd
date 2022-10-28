@@ -311,3 +311,53 @@ func TestDeleteToken_SuccessfullyRemoved(t *testing.T) {
 
 	assert.Len(t, acc.Tokens, 0)
 }
+
+func TestCanI_GetLogsAllowNoSwitch(t *testing.T) {
+
+	accountServer, _ := newTestAccountServer(context.Background(), func(cm *v1.ConfigMap, secret *v1.Secret) {
+	})
+
+	ctx := projTokenContext(context.Background())
+	resp, err := accountServer.CanI(ctx, &account.CanIRequest{Resource: "logs", Action: "get", Subresource: ""})
+	assert.NoError(t, err)
+	assert.EqualValues(t, "yes", resp.Value)
+}
+
+func TestCanI_GetLogsDenySwitchOn(t *testing.T) {
+	enforcer := func(claims jwt.Claims, rvals ...interface{}) bool {
+		return false
+	}
+
+	accountServer, _ := newTestAccountServerExt(context.Background(), enforcer, func(cm *v1.ConfigMap, secret *v1.Secret) {
+		cm.Data["server.rbac.log.enforce.enable"] = "true"
+	})
+
+	ctx := projTokenContext(context.Background())
+	resp, err := accountServer.CanI(ctx, &account.CanIRequest{Resource: "logs", Action: "get", Subresource: "*/*"})
+	assert.NoError(t, err)
+	assert.EqualValues(t, "no", resp.Value)
+}
+
+func TestCanI_GetLogsAllowSwitchOn(t *testing.T) {
+
+	accountServer, _ := newTestAccountServer(context.Background(), func(cm *v1.ConfigMap, secret *v1.Secret) {
+		cm.Data["server.rbac.log.enforce.enable"] = "true"
+	})
+
+	ctx := projTokenContext(context.Background())
+	resp, err := accountServer.CanI(ctx, &account.CanIRequest{Resource: "logs", Action: "get", Subresource: ""})
+	assert.NoError(t, err)
+	assert.EqualValues(t, "yes", resp.Value)
+}
+
+func TestCanI_GetLogsAllowSwitchOff(t *testing.T) {
+
+	accountServer, _ := newTestAccountServer(context.Background(), func(cm *v1.ConfigMap, secret *v1.Secret) {
+		cm.Data["server.rbac.log.enforce.enable"] = "false"
+	})
+
+	ctx := projTokenContext(context.Background())
+	resp, err := accountServer.CanI(ctx, &account.CanIRequest{Resource: "logs", Action: "get", Subresource: ""})
+	assert.NoError(t, err)
+	assert.EqualValues(t, "yes", resp.Value)
+}

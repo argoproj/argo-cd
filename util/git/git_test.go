@@ -245,11 +245,7 @@ func TestLFSClient(t *testing.T) {
 	// TODO(alexmt): dockerize tests in and enabled it
 	t.Skip()
 
-	tempDir, err := ioutil.TempDir("", "git-client-lfs-test-")
-	assert.NoError(t, err)
-	if err == nil {
-		defer func() { _ = os.RemoveAll(tempDir) }()
-	}
+	tempDir := t.TempDir()
 
 	client, err := NewClientExt("https://github.com/argoproj-labs/argocd-testrepo-lfs", tempDir, NopCreds{}, false, true, "")
 	assert.NoError(t, err)
@@ -284,11 +280,7 @@ func TestLFSClient(t *testing.T) {
 }
 
 func TestVerifyCommitSignature(t *testing.T) {
-	p, err := ioutil.TempDir("", "test-verify-commit-sig")
-	if err != nil {
-		panic(err.Error())
-	}
-	defer os.RemoveAll(p)
+	p := t.TempDir()
 
 	client, err := NewClientExt("https://github.com/argoproj/argo-cd.git", p, NopCreds{}, false, false, "")
 	assert.NoError(t, err)
@@ -343,9 +335,7 @@ func TestNewFactory(t *testing.T) {
 			test.Flaky(t)
 		}
 
-		dirName, err := ioutil.TempDir("", "git-client-test-")
-		assert.NoError(t, err)
-		defer func() { _ = os.RemoveAll(dirName) }()
+		dirName := t.TempDir()
 
 		client, err := NewClientExt(tt.args.url, dirName, NopCreds{}, tt.args.insecureIgnoreHostKey, false, "")
 		assert.NoError(t, err)
@@ -381,11 +371,7 @@ func TestNewFactory(t *testing.T) {
 }
 
 func TestListRevisions(t *testing.T) {
-	dir, err := ioutil.TempDir("", "test-list-revisions")
-	if err != nil {
-		panic(err.Error())
-	}
-	defer os.RemoveAll(dir)
+	dir := t.TempDir()
 
 	repoURL := "https://github.com/argoproj/argo-cd.git"
 	client, err := NewClientExt(repoURL, dir, NopCreds{}, false, false, "")

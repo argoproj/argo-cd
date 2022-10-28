@@ -195,20 +195,40 @@ func (repo *Repository) GetHelmCreds() helm.Creds {
 }
 
 func getCAPath(repoURL string) string {
-	if git.IsHTTPSURL(repoURL) {
-		if parsedURL, err := url.Parse(repoURL); err == nil {
-			if caPath, err := cert.GetCertBundlePathForRepository(parsedURL.Host); err == nil {
-				return caPath
-			} else {
-				log.Warnf("Could not get cert bundle path for host '%s'", parsedURL.Host)
-			}
-		} else {
-			// We don't fail if we cannot parse the URL, but log a warning in that
-			// case. And we execute the command in a verbatim way.
-			log.Warnf("Could not parse repo URL '%s'", repoURL)
-		}
+	// For git ssh protocol url without ssh://, url.Parse() will fail to parse.
+	// However, no warn log is output since ssh scheme url is a possible format.
+	if ok, _ := git.IsSSHURL(repoURL); ok {
+		return ""
 	}
-	return ""
+
+	hostname := ""
+	// url.Parse() will happily parse most things thrown at it. When the URL
+	// is either https or oci, we use the parsed hostname to receive the cert,
+	// otherwise we'll use the parsed path (OCI repos are often specified as
+	// hostname, without protocol).
+	parsedURL, err := url.Parse(repoURL)
+	if err != nil {
+		log.Warnf("Could not parse repo URL '%s': %v", repoURL, err)
+		return ""
+	}
+	if parsedURL.Scheme == "https" || parsedURL.Scheme == "oci" {
+		hostname = parsedURL.Host
+	} else if parsedURL.Scheme == "" {
+		hostname = parsedURL.Path
+	}
+
+	if hostname == "" {
+		log.Warnf("Could not get hostname for repository '%s'", repoURL)
+		return ""
+	}
+
+	caPath, err := cert.GetCertBundlePathForRepository(hostname)
+	if err != nil {
+		log.Warnf("Could not get cert bundle path for repository '%s': %v", repoURL, err)
+		return ""
+	}
+
+	return caPath
 }
 
 // CopySettingsFrom copies all repository settings from source to receiver

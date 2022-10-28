@@ -137,7 +137,6 @@ func (svc *argoCDService) GetAppDetails(ctx context.Context, appSource *v1alpha1
 	return &shared.AppDetail{
 		Type:      appDetail.Type,
 		Helm:      has,
-		Ksonnet:   appDetail.Ksonnet,
 		Kustomize: appDetail.Kustomize,
 		Directory: appDetail.Directory,
 	}, nil

@@ -58,6 +58,7 @@ type Client interface {
 	Root() string
 	Init() error
 	Fetch(revision string) error
+	Submodule() error
 	Checkout(revision string, submoduleEnabled bool) error
 	LsRefs() (*Refs, error)
 	LsRemote(revision string) (string, error)
@@ -160,12 +161,12 @@ func NewClientExt(rawRepoURL string, root string, creds Creds, insecure bool, en
 
 // Returns a HTTP client object suitable for go-git to use using the following
 // pattern:
-// - If insecure is true, always returns a client with certificate verification
-//   turned off.
-// - If one or more custom certificates are stored for the repository, returns
-//   a client with those certificates in the list of root CAs used to verify
-//   the server's certificate.
-// - Otherwise (and on non-fatal errors), a default HTTP client is returned.
+//   - If insecure is true, always returns a client with certificate verification
+//     turned off.
+//   - If one or more custom certificates are stored for the repository, returns
+//     a client with those certificates in the list of root CAs used to verify
+//     the server's certificate.
+//   - Otherwise (and on non-fatal errors), a default HTTP client is returned.
 func GetRepoHTTPClient(repoURL string, insecure bool, creds Creds, proxyURL string) *http.Client {
 	// Default HTTP client
 	var customHTTPClient = &http.Client{
@@ -326,6 +327,16 @@ func (m *nativeGitClient) IsLFSEnabled() bool {
 	return m.enableLfs
 }
 
+func (m *nativeGitClient) fetch(revision string) error {
+	var err error
+	if revision != "" {
+		err = m.runCredentialedCmd("git", "fetch", "origin", revision, "--tags", "--force")
+	} else {
+		err = m.runCredentialedCmd("git", "fetch", "origin", "--tags", "--force")
+	}
+	return err
+}
+
 // Fetch fetches latest updates from origin
 func (m *nativeGitClient) Fetch(revision string) error {
 	if m.OnFetch != nil {
@@ -334,11 +345,19 @@ func (m *nativeGitClient) Fetch(revision string) error {
 	}
 
 	var err error
-	if revision != "" {
-		err = m.runCredentialedCmd("git", "fetch", "origin", revision, "--tags", "--force")
-	} else {
-		err = m.runCredentialedCmd("git", "fetch", "origin", "--tags", "--force")
+
+	err = m.fetch(revision)
+	if err != nil {
+		errMsg := strings.ReplaceAll(err.Error(), "\n", "")
+		if strings.Contains(errMsg, "try running 'git remote prune origin'") {
+			// Prune any deleted refs, then try fetching again
+			if err := m.runCredentialedCmd("git", "remote", "prune", "origin"); err != nil {
+				return err
+			}
+			err = m.fetch(revision)
+		}
 	}
+
 	// When we have LFS support enabled, check for large files and fetch them too.
 	if err == nil && m.IsLFSEnabled() {
 		largeFiles, err := m.LsLargeFiles()
@@ -349,6 +368,7 @@ func (m *nativeGitClient) Fetch(revision string) error {
 			}
 		}
 	}
+
 	return err
 }
 
@@ -371,6 +391,17 @@ func (m *nativeGitClient) LsLargeFiles() ([]string, error) {
 	}
 	ss := strings.Split(out, "\n")
 	return ss, nil
+}
+
+// Submodule embed other repositories into this repository
+func (m *nativeGitClient) Submodule() error {
+	if err := m.runCredentialedCmd("git", "submodule", "sync", "--recursive"); err != nil {
+		return err
+	}
+	if err := m.runCredentialedCmd("git", "submodule", "update", "--init", "--recursive"); err != nil {
+		return err
+	}
+	return nil
 }
 
 // Checkout checkout specified revision
@@ -396,7 +427,7 @@ func (m *nativeGitClient) Checkout(revision string, submoduleEnabled bool) error
 	}
 	if _, err := os.Stat(m.root + "/.gitmodules"); !os.IsNotExist(err) {
 		if submoduleEnabled {
-			if err := m.runCredentialedCmd("git", "submodule", "update", "--init", "--recursive"); err != nil {
+			if err := m.Submodule(); err != nil {
 				return err
 			}
 		}
