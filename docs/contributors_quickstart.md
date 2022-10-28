@@ -50,7 +50,6 @@ kubectl config set-context --current --namespace=argocd
 ```
 <!-- Delete this? - Setting kubectl config with `--namespace` helps avoid setting namespace in each following kubectl command  -->
 
-
 ### Install `yarn`
 
 <https://classic.yarnpkg.com/lang/en/docs/install/>
