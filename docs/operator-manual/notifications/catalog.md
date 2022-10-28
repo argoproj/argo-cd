@@ -66,7 +66,7 @@ slack:
       {{if $index}},{{end}}
       {
         "title": "{{$c.type}}",
-        "value": "{{$c.message}}",
+        "value": "{{js $c.message}}",
         "short": true
       }
       {{end}}
@@ -98,7 +98,7 @@ teams:
       }
     {{end}}
     ]
-  potentialAction: |-
+  potentialAction: |
     [{
       "@type":"OpenUri",
       "name":"Operation Application",
@@ -149,7 +149,7 @@ slack:
       {{if $index}},{{end}}
       {
         "title": "{{$c.type}}",
-        "value": "{{$c.message}}",
+        "value": "{{js $c.message}}",
         "short": true
       }
       {{end}}
@@ -228,7 +228,7 @@ slack:
       {{if $index}},{{end}}
       {
         "title": "{{$c.type}}",
-        "value": "{{$c.message}}",
+        "value": "{{js $c.message}}",
         "short": true
       }
       {{end}}
@@ -260,7 +260,7 @@ teams:
       }
     {{end}}
     ]
-  potentialAction: |-
+  potentialAction: |
     [{
       "@type":"OpenUri",
       "name":"Open Operation",
@@ -311,7 +311,7 @@ slack:
       {{if $index}},{{end}}
       {
         "title": "{{$c.type}}",
-        "value": "{{$c.message}}",
+        "value": "{{js $c.message}}",
         "short": true
       }
       {{end}}
@@ -343,7 +343,7 @@ teams:
       }
     {{end}}
     ]
-  potentialAction: |-
+  potentialAction: |
     [{
       "@type":"OpenUri",
       "name":"Open Operation",
@@ -398,7 +398,7 @@ slack:
       {{if $index}},{{end}}
       {
         "title": "{{$c.type}}",
-        "value": "{{$c.message}}",
+        "value": "{{js $c.message}}",
         "short": true
       }
       {{end}}
@@ -426,7 +426,7 @@ teams:
       }
     {{end}}
     ]
-  potentialAction: |-
+  potentialAction: |
     [{
       "@type":"OpenUri",
       "name":"Open Application",
@@ -476,7 +476,7 @@ slack:
       {{if $index}},{{end}}
       {
         "title": "{{$c.type}}",
-        "value": "{{$c.message}}",
+        "value": "{{js $c.message}}",
         "short": true
       }
       {{end}}
@@ -508,7 +508,7 @@ teams:
       }
     {{end}}
     ]
-  potentialAction: |-
+  potentialAction: |
     [{
       "@type":"OpenUri",
       "name":"Operation Details",

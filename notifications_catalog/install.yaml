@@ -44,7 +44,7 @@ data:
           {{if $index}},{{end}}
           {
             "title": "{{$c.type}}",
-            "value": "{{$c.message}}",
+            "value": "{{js $c.message}}",
             "short": true
           }
           {{end}}
@@ -76,7 +76,7 @@ data:
           }
         {{end}}
         ]
-      potentialAction: |-
+      potentialAction: |
         [{
           "@type":"OpenUri",
           "name":"Operation Application",
@@ -123,7 +123,7 @@ data:
           {{if $index}},{{end}}
           {
             "title": "{{$c.type}}",
-            "value": "{{$c.message}}",
+            "value": "{{js $c.message}}",
             "short": true
           }
           {{end}}
@@ -198,7 +198,7 @@ data:
           {{if $index}},{{end}}
           {
             "title": "{{$c.type}}",
-            "value": "{{$c.message}}",
+            "value": "{{js $c.message}}",
             "short": true
           }
           {{end}}
@@ -230,7 +230,7 @@ data:
           }
         {{end}}
         ]
-      potentialAction: |-
+      potentialAction: |
         [{
           "@type":"OpenUri",
           "name":"Open Operation",
@@ -277,7 +277,7 @@ data:
           {{if $index}},{{end}}
           {
             "title": "{{$c.type}}",
-            "value": "{{$c.message}}",
+            "value": "{{js $c.message}}",
             "short": true
           }
           {{end}}
@@ -309,7 +309,7 @@ data:
           }
         {{end}}
         ]
-      potentialAction: |-
+      potentialAction: |
         [{
           "@type":"OpenUri",
           "name":"Open Operation",
@@ -360,7 +360,7 @@ data:
           {{if $index}},{{end}}
           {
             "title": "{{$c.type}}",
-            "value": "{{$c.message}}",
+            "value": "{{js $c.message}}",
             "short": true
           }
           {{end}}
@@ -388,7 +388,7 @@ data:
           }
         {{end}}
         ]
-      potentialAction: |-
+      potentialAction: |
         [{
           "@type":"OpenUri",
           "name":"Open Application",
@@ -434,7 +434,7 @@ data:
           {{if $index}},{{end}}
           {
             "title": "{{$c.type}}",
-            "value": "{{$c.message}}",
+            "value": "{{js $c.message}}",
             "short": true
           }
           {{end}}
@@ -466,7 +466,7 @@ data:
           }
         {{end}}
         ]
-      potentialAction: |-
+      potentialAction: |
         [{
           "@type":"OpenUri",
           "name":"Operation Details",
