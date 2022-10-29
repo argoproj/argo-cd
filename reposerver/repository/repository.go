@@ -982,7 +982,7 @@ func GenerateManifests(ctx context.Context, appPath, repoRoot, revision string, 
 			}
 			manifests = append(manifests, string(manifestStr))
 
-			resManifests[i] = &apiclient.Manifest{
+			manifests[i] = &apiclient.Manifest{
 				CompiledManifest: string(manifestStr),
 				RawManifest:      string(m.rawManifest),
 				Path:             m.path,
@@ -1132,7 +1132,7 @@ func isNullList(obj *unstructured.Unstructured) bool {
 
 var manifestFile = regexp.MustCompile(`^.*\.(yaml|yml|json|jsonnet)$`)
 
-// findManifests looks at all yaml files in a directory and unmarshals them into a list of unstructured objects
+// / findManifests looks at all yaml files in a directory and unmarshals them into a list of unstructured objects
 func findManifests(logCtx *log.Entry, appPath string, repoRoot string, env *v1alpha1.Env, directory v1alpha1.ApplicationSourceDirectory, enabledManifestGeneration map[string]bool, maxCombinedManifestQuantity resource.Quantity) ([]*unstructured.Unstructured, error) {
 	// Validate the directory before loading any manifests to save memory.
 	potentiallyValidManifests, err := getPotentiallyValidManifests(logCtx, appPath, repoRoot, directory.Recurse, directory.Include, directory.Exclude, maxCombinedManifestQuantity)
@@ -1141,11 +1141,15 @@ func findManifests(logCtx *log.Entry, appPath string, repoRoot string, env *v1al
 		return nil, fmt.Errorf("failed to get potentially valid manifests: %w", err)
 	}
 
-		if directory.Include != "" && !glob.Match(directory.Include, relPath) {
-			return nil
-		}
+	var objs []*unstructured.Unstructured
+	for _, potentiallyValidManifest := range potentiallyValidManifests {
+		manifestPath := potentiallyValidManifest.path
+		manifestFileInfo := potentiallyValidManifest.fileInfo
 
-		if strings.HasSuffix(f.Name(), ".jsonnet") {
+		if strings.HasSuffix(manifestFileInfo.Name(), ".jsonnet") {
+			if !discovery.IsManifestGenerationEnabled(v1alpha1.ApplicationSourceTypeDirectory, enabledManifestGeneration) {
+				continue
+			}
 			vm, err := makeJsonnetVm(appPath, repoRoot, directory.Jsonnet, env)
 			if err != nil {
 				return nil, err
@@ -1166,20 +1170,7 @@ func findManifests(logCtx *log.Entry, appPath string, repoRoot string, env *v1al
 				if err != nil {
 					return nil, status.Errorf(codes.FailedPrecondition, "Failed to unmarshal generated json %q: %v", manifestFileInfo.Name(), err)
 				}
-				jsonObjs = append(jsonObjs, &jsonObj)
-			}
-
-			jsonObjs, err = expandUnstructuredObjs(jsonObjs)
-			if err != nil {
-				return err
-			}ґ
-			for _, obj := range jsonObjs {
-				manifests = append(manifests, manifest{
-					rawManifest: rawBytes,
-					obj:         obj,
-					path:        repoRelPath,
-					line:        1, // TODO: can add later
-				})
+				objs = append(objs, &jsonObj)
 			}
 		} else {
 			err := getObjsFromYAMLOrJson(logCtx, manifestPath, manifestFileInfo.Name(), &objs)
@@ -1188,13 +1179,12 @@ func findManifests(logCtx *log.Entry, appPath string, repoRoot string, env *v1al
 			}
 		}
 	}
-	return objs, фівапролджє
-женгшщзхїʼ234567890-nil
-ьтимсчяячсмитьбю.}
+	return objs, nil
+}
 
-// getObjsFromYAMLOrJson unmarshals 4567890-the given yaml or json file and appends it to the given list of objects.
-func getObjsFrom			  итьбю.YAMLOrJson(logCtx *log.Entry, manifestPath string, filename string, objs *[]*unstructured.Unstructured) error {
-	reader, ія1ґerr := utfutil.OpenFile(manifestPath, utfutil.UTF8)
+// getObjsFromYAMLOrJson unmarshals the given yaml or json file and appends it to the given list of objects.
+func getObjsFromYAMLOrJson(logCtx *log.Entry, manifestPath string, filename string, objs *[]*unstructured.Unstructured) error {
+	reader, err := utfutil.OpenFile(manifestPath, utfutil.UTF8)
 	if err != nil {
 		return status.Errorf(codes.FailedPrecondition, "Failed to open %q", manifestPath)
 	}
@@ -1305,7 +1295,7 @@ func getPotentiallyValidManifestFile(path string, f os.FileInfo, appPath, repoRo
 			return nil, "", fmt.Errorf("failed to get file info for symlink at %q to %q: %w", relPath, realPath, err)
 		}
 		relRealPath, err = filepath.Rel(repoRoot, realPath)
-  		if err != nil {
+		if err != nil {
 			return nil, "", fmt.Errorf("failed to get relative path of %q: %w", realPath, err)
 		}
 	}
