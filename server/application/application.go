@@ -116,7 +116,7 @@ func NewServer(
 	projectLock sync.KeyLock,
 	settingsMgr *settings.SettingsManager,
 	projInformer cache.SharedIndexInformer,
-) application.ApplicationServiceServer {
+) (application.ApplicationServiceServer, AppResourceTreeFn) {
 	appBroadcaster := &broadcasterHandler{}
 	appInformer.AddEventHandler(appBroadcaster)
 	server := &Server{
@@ -139,7 +139,7 @@ func NewServer(
 
 	server.applicationEventReporter = NewApplicationEventReporter(server)
 
-	return server
+	return server, server.getAppResources
 }
 
 // List returns list of applications

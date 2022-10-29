@@ -4,6 +4,8 @@ import (
 	"context"
 	"crypto/tls"
 	"fmt"
+	errorsutil "github.com/argoproj/argo-cd/v2/util/errors"
+	"github.com/argoproj/argo-cd/v2/util/io/files"
 	goio "io"
 	"io/fs"
 	"math"
@@ -61,7 +63,6 @@ import (
 	applicationpkg "github.com/argoproj/argo-cd/v2/pkg/apiclient/application"
 	certificatepkg "github.com/argoproj/argo-cd/v2/pkg/apiclient/certificate"
 	clusterpkg "github.com/argoproj/argo-cd/v2/pkg/apiclient/cluster"
-	eventspkg "github.com/argoproj/argo-cd/v2/pkg/apiclient/events"
 	gpgkeypkg "github.com/argoproj/argo-cd/v2/pkg/apiclient/gpgkey"
 	projectpkg "github.com/argoproj/argo-cd/v2/pkg/apiclient/project"
 	repocredspkg "github.com/argoproj/argo-cd/v2/pkg/apiclient/repocreds"
@@ -98,7 +99,6 @@ import (
 	"github.com/argoproj/argo-cd/v2/util/dex"
 	dexutil "github.com/argoproj/argo-cd/v2/util/dex"
 	"github.com/argoproj/argo-cd/v2/util/env"
-	"github.com/argoproj/argo-cd/v2/util/errors"
 	grpc_util "github.com/argoproj/argo-cd/v2/util/grpc"
 	"github.com/argoproj/argo-cd/v2/util/healthz"
 	httputil "github.com/argoproj/argo-cd/v2/util/http"
@@ -112,6 +112,7 @@ import (
 	"github.com/argoproj/argo-cd/v2/util/swagger"
 	tlsutil "github.com/argoproj/argo-cd/v2/util/tls"
 	"github.com/argoproj/argo-cd/v2/util/webhook"
+	"github.com/pkg/errors"
 )
 
 const maxConcurrentLoginRequestsCountEnv = "ARGOCD_MAX_CONCURRENT_LOGIN_REQUESTS_COUNT"
@@ -704,7 +705,7 @@ func (a *ArgoCDServer) newGRPCServer() (*grpc.Server, application.AppResourceTre
 	}))
 	clusterpkg.RegisterClusterServiceServer(grpcS, clusterService)
 	applicationpkg.RegisterApplicationServiceServer(grpcS, applicationService)
-	eventspkg.RegisterEventingServer(grpcS, applicationService)
+	// eventspkg.RegisterEventingServer(grpcS, applicationService)
 	repositorypkg.RegisterRepositoryServiceServer(grpcS, repoService)
 	repocredspkg.RegisterRepoCredsServiceServer(grpcS, repoCredsService)
 	sessionpkg.RegisterSessionServiceServer(grpcS, sessionService)
@@ -849,7 +850,7 @@ func (a *ArgoCDServer) newHTTPServer(ctx context.Context, port int, grpcWebHandl
 
 	mustRegisterGWHandler(versionpkg.RegisterVersionServiceHandler, ctx, gwmux, conn)
 	mustRegisterGWHandler(clusterpkg.RegisterClusterServiceHandler, ctx, gwmux, conn)
-	mustRegisterGWHandler(applicationpkg.RegisterApplicationServiceHandler, ctx, gwmux, conn)
+	// mustRegisterGWHandler(applicationpkg.RegisterApplicationServiceHandler, ctx, gwmux, conn)
 	mustRegisterGWHandler(repositorypkg.RegisterRepositoryServiceHandler, ctx, gwmux, conn)
 	mustRegisterGWHandler(repocredspkg.RegisterRepoCredsServiceHandler, ctx, gwmux, conn)
 	mustRegisterGWHandler(sessionpkg.RegisterSessionServiceHandler, ctx, gwmux, conn)
