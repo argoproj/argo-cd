@@ -2,9 +2,9 @@ extra_css:
 - assets/versions.css
 extra_javascript:
 - assets/versions.js
-#google_analytics:
-#- UA-105170809-2
-#- auto
+google_analytics:
+- UA-105170809-2
+- auto
 markdown_extensions:
 - markdown_include.include
 - codehilite
