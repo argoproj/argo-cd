@@ -2573,3 +2573,26 @@ func (d *ApplicationDestination) MarshalJSON() ([]byte, error) {
 	}
 	return json.Marshal(&struct{ *Alias }{Alias: (*Alias)(dest)})
 }
+
+// RBACName returns the full qualified RBAC resource name for the application
+// in a backwards-compatible way.
+func (a *Application) RBACName(defaultNS string) string {
+	if defaultNS != "" && a.Namespace != defaultNS && a.Namespace != "" {
+		return fmt.Sprintf("%s/%s/%s", a.Spec.GetProject(), a.Namespace, a.Name)
+	} else {
+		return fmt.Sprintf("%s/%s", a.Spec.GetProject(), a.Name)
+	}
+}
+
+// InstanceName returns the name of the application as used in the instance
+// tracking values, i.e. in the format <namespace>_<name>. When the namespace
+// of the application is similar to the value of defaultNs, only the name of
+// the application is returned to keep backwards compatibility.
+func (a *Application) InstanceName(defaultNs string) string {
+	// When app has no namespace set, or the namespace is the default ns, we
+	// return just the application name
+	if a.Namespace == "" || a.Namespace == defaultNs {
+		return a.Name
+	}
+	return a.Namespace + "_" + a.Name
+}

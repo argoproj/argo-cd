@@ -81,7 +81,7 @@ func (s *applicationEventReporter) getDesiredManifests(ctx context.Context, a *a
 	// get the desired state manifests of the application
 	desiredManifests, err := s.server.GetManifests(ctx, &application.ApplicationManifestQuery{
 		Name:     &a.Name,
-		Revision: a.Status.Sync.Revision,
+		Revision: &a.Status.Sync.Revision,
 	})
 	if err != nil {
 		if !strings.Contains(err.Error(), "Manifest generation error") {
@@ -214,20 +214,20 @@ func (s *applicationEventReporter) processResource(
 	// get resource actual state
 	actualState, err := s.server.GetResource(ctx, &application.ApplicationResourceRequest{
 		Name:         &parentApplication.Name,
-		Namespace:    rs.Namespace,
-		ResourceName: rs.Name,
-		Version:      rs.Version,
-		Group:        rs.Group,
-		Kind:         rs.Kind,
+		Namespace:    &rs.Namespace,
+		ResourceName: &rs.Name,
+		Version:      &rs.Version,
+		Group:        &rs.Group,
+		Kind:         &rs.Kind,
 	})
 	if err != nil {
 		if !strings.Contains(err.Error(), "not found") {
 			logCtx.WithError(err).Error("failed to get actual state")
 			return
 		}
-
+		manifest := ""
 		// empty actual state
-		actualState = &application.ApplicationResourceResponse{Manifest: ""}
+		actualState = &application.ApplicationResourceResponse{Manifest: &manifest}
 	}
 
 	ev, err := getResourceEventPayload(parentApplication, &rs, es, actualState, desiredState, appTree, manifestGenErr, ts, originalApplication, revisionMetadata)
@@ -237,7 +237,7 @@ func (s *applicationEventReporter) processResource(
 	}
 
 	appRes := appv1.Application{}
-	if isApp(rs) && actualState.Manifest != "" && json.Unmarshal([]byte(actualState.Manifest), &appRes) == nil {
+	if isApp(rs) && actualState.Manifest != nil && json.Unmarshal([]byte(*actualState.Manifest), &appRes) == nil {
 		logWithAppStatus(&appRes, logCtx, ts).Info("streaming resource event")
 	} else {
 		logWithResourceStatus(logCtx, rs).Info("streaming resource event")
@@ -392,7 +392,7 @@ func getResourceEventPayload(
 		errors       = []*events.ObjectError{}
 	)
 
-	object := []byte(actualState.Manifest)
+	object := []byte(*actualState.Manifest)
 	if len(object) == 0 {
 		if len(desiredState.CompiledManifest) == 0 {
 			// no actual or desired state, don't send event
@@ -423,13 +423,15 @@ func getResourceEventPayload(
 	} else if rs.RequiresPruning && !manifestGenErr {
 		// resource should be deleted
 		desiredState.CompiledManifest = ""
-		actualState.Manifest = ""
+		manifest := ""
+		actualState.Manifest = &manifest
 	}
 
 	if (originalApplication != nil && originalApplication.DeletionTimestamp != nil) || parentApplication.ObjectMeta.DeletionTimestamp != nil {
 		// resource should be deleted in case if application in process of deletion
 		desiredState.CompiledManifest = ""
-		actualState.Manifest = ""
+		manifest := ""
+		actualState.Manifest = &manifest
 	}
 
 	if parentApplication.Status.OperationState != nil {
@@ -462,7 +464,7 @@ func getResourceEventPayload(
 
 	source := events.ObjectSource{
 		DesiredManifest:       desiredState.CompiledManifest,
-		ActualManifest:        actualState.Manifest,
+		ActualManifest:        *actualState.Manifest,
 		GitManifest:           desiredState.RawManifest,
 		RepoURL:               parentApplication.Status.Sync.ComparedTo.Source.RepoURL,
 		Path:                  desiredState.Path,

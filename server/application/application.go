@@ -119,7 +119,7 @@ func NewServer(
 ) application.ApplicationServiceServer {
 	appBroadcaster := &broadcasterHandler{}
 	appInformer.AddEventHandler(appBroadcaster)
-	return &Server{
+	server := &Server{
 		ns:             namespace,
 		appclientset:   appclientset,
 		appLister:      appLister,
@@ -136,7 +136,6 @@ func NewServer(
 		settingsMgr:    settingsMgr,
 		projInformer:   projInformer,
 	}
-	return s, s.GetAppResources
 
 	server.applicationEventReporter = NewApplicationEventReporter(server)
 
@@ -871,6 +870,17 @@ func (s *Server) Watch(q *application.ApplicationQuery, ws application.Applicati
 	}
 }
 
+func (s *Server) getAppResources(ctx context.Context, a *appv1.Application) (*appv1.ApplicationTree, error) {
+	var tree appv1.ApplicationTree
+	err := s.getCachedAppState(ctx, a, func() error {
+		return s.cache.GetAppResourcesTree(a.InstanceName(s.ns), &tree)
+	})
+	if err != nil {
+		return &tree, fmt.Errorf("error getting cached app state: %w", err)
+	}
+	return &tree, nil
+}
+
 func (s *Server) StartEventSource(es *events.EventSource, stream events.Eventing_StartEventSourceServer) error {
 	var (
 		logCtx log.FieldLogger = log.StandardLogger()
@@ -886,13 +896,13 @@ func (s *Server) StartEventSource(es *events.EventSource, stream events.Eventing
 	}
 
 	claims := stream.Context().Value("claims")
-	selector, err := labels.Parse(q.Selector)
+	selector, err := labels.Parse(*q.Selector)
 	if err != nil {
 		return err
 	}
 	minVersion := 0
-	if q.ResourceVersion != "" {
-		if minVersion, err = strconv.Atoi(q.ResourceVersion); err != nil {
+	if q.ResourceVersion != nil {
+		if minVersion, err = strconv.Atoi(*q.ResourceVersion); err != nil {
 			minVersion = 0
 		}
 	}
@@ -913,7 +923,7 @@ func (s *Server) StartEventSource(es *events.EventSource, stream events.Eventing
 			return
 		}
 
-		if !s.enf.Enforce(claims, rbacpolicy.ResourceApplications, rbacpolicy.ActionGet, appRBACName(a)) {
+		if !s.enf.Enforce(claims, rbacpolicy.ResourceApplications, rbacpolicy.ActionGet, a.RBACName(s.ns)) {
 			// do not emit apps user does not have accessing
 			return
 		}
@@ -947,87 +957,6 @@ func (s *Server) StartEventSource(es *events.EventSource, stream events.Eventing
 			return nil
 		}
 	}
-}
-
-func (s *Server) ValidateSrcAndDst(ctx context.Context, requset *application.ApplicationValidationRequest) (*application.ApplicationValidateResponse, error) {
-	app := requset.Application
-	proj, err := argo.GetAppProject(&app.Spec, applisters.NewAppProjectLister(s.projInformer.GetIndexer()), s.ns, s.settingsMgr, s.db, ctx)
-	if err != nil {
-		entity := projectEntity
-		if apierr.IsNotFound(err) {
-			errMsg := fmt.Sprintf("application references project %s which does not exist", app.Spec.Project)
-			return &application.ApplicationValidateResponse{
-				Error:  &errMsg,
-				Entity: &entity,
-			}, nil
-		}
-		errMsg := err.Error()
-		return &application.ApplicationValidateResponse{
-			Error:  &errMsg,
-			Entity: &entity,
-		}, nil
-	}
-
-	if err := argo.ValidateDestination(ctx, &app.Spec.Destination, s.db); err != nil {
-		entity := destinationEntity
-		errMsg := fmt.Sprintf("application destination spec for %s is invalid: %s", app.Name, err.Error())
-		return &application.ApplicationValidateResponse{
-			Error:  &errMsg,
-			Entity: &entity,
-		}, nil
-	}
-
-	// If source is Kustomize add build options
-	kustomizeSettings, err := s.settingsMgr.GetKustomizeSettings()
-	if err != nil {
-		entity := sourceEntity
-		errMsg := err.Error()
-		return &application.ApplicationValidateResponse{
-			Error:  &errMsg,
-			Entity: &entity,
-		}, nil
-	}
-	kustomizeOptions, err := kustomizeSettings.GetOptions(app.Spec.Source)
-	if err != nil {
-		entity := sourceEntity
-		errMsg := err.Error()
-		return &application.ApplicationValidateResponse{
-			Error:  &errMsg,
-			Entity: &entity,
-		}, nil
-	}
-	plugins, err := s.plugins()
-	if err != nil {
-		entity := sourceEntity
-		errMsg := err.Error()
-		return &application.ApplicationValidateResponse{
-			Error:  &errMsg,
-			Entity: &entity,
-		}, nil
-	}
-
-	var conditions []appv1.ApplicationCondition
-	conditions, err = argo.ValidateRepo(ctx, app, s.repoClientset, s.db, kustomizeOptions, plugins, s.kubectl, proj, s.settingsMgr)
-	if err != nil {
-		entity := sourceEntity
-		errMsg := err.Error()
-		return &application.ApplicationValidateResponse{
-			Error:  &errMsg,
-			Entity: &entity,
-		}, nil
-	}
-	if len(conditions) > 0 {
-		entity := sourceEntity
-		errMsg := fmt.Sprintf("application spec for %s is invalid: %s", app.Name, argo.FormatAppConditions(conditions))
-		return &application.ApplicationValidateResponse{
-			Error:  &errMsg,
-			Entity: &entity,
-		}, nil
-	}
-	return &application.ApplicationValidateResponse{
-		Error:  nil,
-		Entity: nil,
-	}, nil
 }
 
 func (s *Server) validateAndNormalizeApp(ctx context.Context, app *appv1.Application, validate bool) error {
