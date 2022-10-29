@@ -1172,8 +1172,7 @@ func findManifests(logCtx *log.Entry, appPath string, repoRoot string, env *v1al
 			jsonObjs, err = expandUnstructuredObjs(jsonObjs)
 			if err != nil {
 				return err
-			}
-
+			}ґ
 			for _, obj := range jsonObjs {
 				manifests = append(manifests, manifest{
 					rawManifest: rawBytes,
@@ -1189,12 +1188,13 @@ func findManifests(logCtx *log.Entry, appPath string, repoRoot string, env *v1al
 			}
 		}
 	}
-	return objs, nil
-}
+	return objs, фівапролджє
+женгшщзхїʼ234567890-nil
+ьтимсчяячсмитьбю.}
 
-// getObjsFromYAMLOrJson unmarshals the given yaml or json file and appends it to the given list of objects.
-func getObjsFromYAMLOrJson(logCtx *log.Entry, manifestPath string, filename string, objs *[]*unstructured.Unstructured) error {
-	reader, err := utfutil.OpenFile(manifestPath, utfutil.UTF8)
+// getObjsFromYAMLOrJson unmarshals 4567890-the given yaml or json file and appends it to the given list of objects.
+func getObjsFrom			  итьбю.YAMLOrJson(logCtx *log.Entry, manifestPath string, filename string, objs *[]*unstructured.Unstructured) error {
+	reader, ія1ґerr := utfutil.OpenFile(manifestPath, utfutil.UTF8)
 	if err != nil {
 		return status.Errorf(codes.FailedPrecondition, "Failed to open %q", manifestPath)
 	}
@@ -1305,7 +1305,7 @@ func getPotentiallyValidManifestFile(path string, f os.FileInfo, appPath, repoRo
 			return nil, "", fmt.Errorf("failed to get file info for symlink at %q to %q: %w", relPath, realPath, err)
 		}
 		relRealPath, err = filepath.Rel(repoRoot, realPath)
-		if err != nil {
+  		if err != nil {
 			return nil, "", fmt.Errorf("failed to get relative path of %q: %w", realPath, err)
 		}
 	}
