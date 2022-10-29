@@ -2,9 +2,9 @@ extra_css:
 - assets/versions.css
 extra_javascript:
 - assets/versions.js
-google_analytics:
-- UA-105170809-2
-- auto
+#google_analytics:
+#- UA-105170809-2
+#- auto
 markdown_extensions:
 - markdown_include.include
 - codehilite
@@ -157,6 +157,7 @@ nav:
   - developer-guide/index.md
   - Code Contribution Guide: developer-guide/code-contributions.md
   - Toolchain Guide: developer-guide/toolchain-guide.md
+  - developer-guide/contributors-quickstart.md
   - developer-guide/release-process-and-cadence.md
   - developer-guide/running-locally.md
   - developer-guide/debugging-remote-environment.md
