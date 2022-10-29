@@ -4,7 +4,7 @@
 
 ### Install Go
 
-Version 1.18 or newer (Verify version by running `go version`)
+- Install version 1.18 or newer (Verify version by running `go version`)
 
 - Get current value of `GOPATH` env:
 ```console
