@@ -1,6 +1,7 @@
 import {Autocomplete, ErrorNotification, MockupList, NotificationType, SlidingPanel, Toolbar, Tooltip} from 'argo-ui';
 import * as classNames from 'classnames';
 import * as React from 'react';
+import * as ReactDOM from 'react-dom';
 import {Key, KeybindingContext, KeybindingProvider} from 'argo-ui/v2';
 import {RouteComponentProps} from 'react-router';
 import {combineLatest, from, merge, Observable} from 'rxjs';
@@ -19,14 +20,16 @@ import {ApplicationsSummary} from './applications-summary';
 import {ApplicationsTable} from './applications-table';
 import {ApplicationTiles} from './applications-tiles';
 import {ApplicationsRefreshPanel} from '../applications-refresh-panel/applications-refresh-panel';
+import {useSidebarTarget} from '../../../sidebar/sidebar';
 
-require('./applications-list.scss');
-require('./flex-top-bar.scss');
+import './applications-list.scss';
+import './flex-top-bar.scss';
 
 const EVENTS_BUFFER_TIMEOUT = 500;
 const WATCH_RETRY_TIMEOUT = 500;
 const APP_FIELDS = [
     'metadata.name',
+    'metadata.namespace',
     'metadata.annotations',
     'metadata.labels',
     'metadata.creationTimestamp',
@@ -43,8 +46,8 @@ const APP_FIELDS = [
 const APP_LIST_FIELDS = ['metadata.resourceVersion', ...APP_FIELDS.map(field => `items.${field}`)];
 const APP_WATCH_FIELDS = ['result.type', ...APP_FIELDS.map(field => `result.application.${field}`)];
 
-function loadApplications(projects: string[]): Observable<models.Application[]> {
-    return from(services.applications.list(projects, {fields: APP_LIST_FIELDS})).pipe(
+function loadApplications(projects: string[], appNamespace: string): Observable<models.Application[]> {
+    return from(services.applications.list(projects, {appNamespace, fields: APP_LIST_FIELDS})).pipe(
         mergeMap(applicationsList => {
             const applications = applicationsList.items;
             return merge(
@@ -58,7 +61,7 @@ function loadApplications(projects: string[]): Observable<models.Application[]> 
                     .pipe(
                         map(appChanges => {
                             appChanges.forEach(appChange => {
-                                const index = applications.findIndex(item => item.metadata.name === appChange.application.metadata.name);
+                                const index = applications.findIndex(item => AppUtils.appInstanceName(item) === AppUtils.appInstanceName(appChange.application));
                                 switch (appChange.type) {
                                     case 'DELETED':
                                         if (index > -1) {
@@ -160,7 +163,9 @@ function filterApps(applications: models.Application[], pref: AppsListPreference
     const filterResults = getFilterResults(applications, pref);
     return {
         filterResults,
-        filteredApps: filterResults.filter(app => (search === '' || app.metadata.name.includes(search)) && Object.values(app.filterResult).every(val => val))
+        filteredApps: filterResults.filter(
+            app => (search === '' || app.metadata.name.includes(search) || app.metadata.namespace.includes(search)) && Object.values(app.filterResult).every(val => val)
+        )
     };
 }
 
@@ -250,7 +255,7 @@ const SearchBar = (props: {content: string; ctx: ContextApis; apps: models.Appli
             }}
             onChange={e => ctx.navigation.goto('.', {search: e.target.value}, {replace: true})}
             value={content || ''}
-            items={apps.map(app => app.metadata.name)}
+            items={apps.map(app => app.metadata.namespace + '/' + app.metadata.name)}
         />
     );
 };
@@ -303,18 +308,18 @@ export const ApplicationsList = (props: RouteComponentProps<{}>) => {
     const loaderRef = React.useRef<DataLoader>();
     const {List, Summary, Tiles} = AppsListViewKey;
 
-    function refreshApp(appName: string) {
+    function refreshApp(appName: string, appNamespace: string) {
         // app refreshing might be done too quickly so that UI might miss it due to event batching
         // add refreshing annotation in the UI to improve user experience
         if (loaderRef.current) {
             const applications = loaderRef.current.getData() as models.Application[];
-            const app = applications.find(item => item.metadata.name === appName);
+            const app = applications.find(item => item.metadata.name === appName && item.metadata.namespace === appNamespace);
             if (app) {
                 AppUtils.setAppRefreshing(app);
                 loaderRef.current.setData(applications);
             }
         }
-        services.applications.get(appName, 'normal');
+        services.applications.get(appName, appNamespace, 'normal');
     }
 
     function onFilterPrefChanged(ctx: ContextApis, newPref: AppsListPreferences) {
@@ -345,6 +350,8 @@ export const ApplicationsList = (props: RouteComponentProps<{}>) => {
         return '';
     }
 
+    const sidebarTarget = useSidebarTarget();
+
     return (
         <ClusterCtx.Provider value={clusters}>
             <KeybindingProvider>
@@ -361,7 +368,7 @@ export const ApplicationsList = (props: RouteComponentProps<{}>) => {
                                     <DataLoader
                                         input={pref.projectsFilter?.join(',')}
                                         ref={loaderRef}
-                                        load={() => AppUtils.handlePageVisibility(() => loadApplications(pref.projectsFilter))}
+                                        load={() => AppUtils.handlePageVisibility(() => loadApplications(pref.projectsFilter, query.get('appNamespace')))}
                                         loadingRenderer={() => (
                                             <div className='argo-container'>
                                                 <MockupList height={100} marginTop={30} />
@@ -451,7 +458,7 @@ export const ApplicationsList = (props: RouteComponentProps<{}>) => {
                                                     <div className='applications-list'>
                                                         {applications.length === 0 && pref.projectsFilter?.length === 0 && (pref.labelsFilter || []).length === 0 ? (
                                                             <EmptyState icon='argo-icon-application'>
-                                                                <h4>No applications yet</h4>
+                                                                <h4>No applications available to you just yet</h4>
                                                                 <h5>Create new application to start managing resources in your cluster</h5>
                                                                 <button
                                                                     qe-id='applications-list-button-create-application'
@@ -461,7 +468,21 @@ export const ApplicationsList = (props: RouteComponentProps<{}>) => {
                                                                 </button>
                                                             </EmptyState>
                                                         ) : (
-                                                            <ApplicationsFilter apps={filterResults} onChange={newPrefs => onFilterPrefChanged(ctx, newPrefs)} pref={pref}>
+                                                            <>
+                                                                {ReactDOM.createPortal(
+                                                                    <DataLoader load={() => services.viewPreferences.getPreferences()}>
+                                                                        {allpref => (
+                                                                            <ApplicationsFilter
+                                                                                apps={filterResults}
+                                                                                onChange={newPrefs => onFilterPrefChanged(ctx, newPrefs)}
+                                                                                pref={pref}
+                                                                                collapsed={allpref.hideSidebar}
+                                                                            />
+                                                                        )}
+                                                                    </DataLoader>,
+                                                                    sidebarTarget?.current
+                                                                )}
+
                                                                 {(pref.view === 'summary' && <ApplicationsSummary applications={filteredApps} />) || (
                                                                     <Paginate
                                                                         header={filteredApps.length > 1 && <ApplicationsStatusBar applications={filteredApps} />}
@@ -489,22 +510,30 @@ export const ApplicationsList = (props: RouteComponentProps<{}>) => {
                                                                             (pref.view === 'tiles' && (
                                                                                 <ApplicationTiles
                                                                                     applications={data}
-                                                                                    syncApplication={appName => ctx.navigation.goto('.', {syncApp: appName}, {replace: true})}
+                                                                                    syncApplication={(appName, appNamespace) =>
+                                                                                        ctx.navigation.goto('.', {syncApp: appName, appNamespace}, {replace: true})
+                                                                                    }
                                                                                     refreshApplication={refreshApp}
-                                                                                    deleteApplication={appName => AppUtils.deleteApplication(appName, ctx)}
+                                                                                    deleteApplication={(appName, appNamespace) =>
+                                                                                        AppUtils.deleteApplication(appName, appNamespace, ctx)
+                                                                                    }
                                                                                 />
                                                                             )) || (
                                                                                 <ApplicationsTable
                                                                                     applications={data}
-                                                                                    syncApplication={appName => ctx.navigation.goto('.', {syncApp: appName}, {replace: true})}
+                                                                                    syncApplication={(appName, appNamespace) =>
+                                                                                        ctx.navigation.goto('.', {syncApp: appName, appNamespace}, {replace: true})
+                                                                                    }
                                                                                     refreshApplication={refreshApp}
-                                                                                    deleteApplication={appName => AppUtils.deleteApplication(appName, ctx)}
+                                                                                    deleteApplication={(appName, appNamespace) =>
+                                                                                        AppUtils.deleteApplication(appName, appNamespace, ctx)
+                                                                                    }
                                                                                 />
                                                                             )
                                                                         }
                                                                     </Paginate>
                                                                 )}
-                                                            </ApplicationsFilter>
+                                                            </>
                                                         )}
                                                         <ApplicationsSyncPanel
                                                             key='syncsPanel'
@@ -526,7 +555,8 @@ export const ApplicationsList = (props: RouteComponentProps<{}>) => {
                                                                     q.pipe(
                                                                         mergeMap(params => {
                                                                             const syncApp = params.get('syncApp');
-                                                                            return (syncApp && from(services.applications.get(syncApp))) || from([null]);
+                                                                            const appNamespace = params.get('appNamespace');
+                                                                            return (syncApp && from(services.applications.get(syncApp, appNamespace))) || from([null]);
                                                                         })
                                                                     )
                                                                 }>

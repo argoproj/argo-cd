@@ -125,6 +125,7 @@ func (s *Server) Get(ctx context.Context, q *settingspkg.SettingsQuery) (*settin
 		set.UiBannerURL = argoCDSettings.UiBannerURL
 		set.UiBannerPermanent = argoCDSettings.UiBannerPermanent
 		set.UiBannerPosition = argoCDSettings.UiBannerPosition
+		set.ControllerNamespace = s.mgr.GetNamespace()
 	}
 	if argoCDSettings.DexConfig != "" {
 		var cfg settingspkg.DexConfig

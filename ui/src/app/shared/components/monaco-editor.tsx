@@ -9,6 +9,7 @@ export interface EditorInput {
 
 export interface MonacoProps {
     minHeight?: number;
+    vScrollBar: boolean;
     editor?: {
         options?: monacoEditor.editor.IEditorOptions;
         input: EditorInput;
@@ -45,10 +46,10 @@ const MonacoEditorLazy = React.lazy(() =>
                                 if (!container.editorApi) {
                                     const editor = monaco.editor.create(el, {
                                         ...props.editor.options,
-                                        scrollBeyondLastLine: false,
+                                        scrollBeyondLastLine: props.vScrollBar,
                                         scrollbar: {
                                             handleMouseWheel: false,
-                                            vertical: 'hidden'
+                                            vertical: props.vScrollBar ? 'visible' : 'hidden'
                                         }
                                     });
 

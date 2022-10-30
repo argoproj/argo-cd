@@ -3,7 +3,6 @@ package admin
 import (
 	"context"
 	"fmt"
-	"io/ioutil"
 	"os"
 
 	"github.com/ghodss/yaml"
@@ -263,7 +262,7 @@ func getPolicyFromFile(policyFile string) (string, string, string, error) {
 		matchMode   string
 	)
 
-	upol, err := ioutil.ReadFile(policyFile)
+	upol, err := os.ReadFile(policyFile)
 	if err != nil {
 		log.Fatalf("error opening policy file: %v", err)
 		return "", "", "", err

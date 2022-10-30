@@ -11,10 +11,10 @@ argocd app [flags]
 ```
   # List all the applications.
   argocd app list
-  
+
   # Get the details of a application
   argocd app get my-app
-  
+
   # Set an override parameter
   argocd app set my-app -p image.tag=v1.0.1
 ```

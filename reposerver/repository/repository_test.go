@@ -7,7 +7,6 @@ import (
 	"fmt"
 	goio "io"
 	"io/fs"
-	"io/ioutil"
 	"os"
 	"os/exec"
 	"path"
@@ -136,31 +135,6 @@ func newServiceWithCommitSHA(root, revision string) *Service {
 	}
 
 	return service
-}
-
-// createSymlink creates a symlink with name linkName to file destName in
-// workingDir
-func createSymlink(t *testing.T, workingDir, destName, linkName string) error {
-	oldWorkingDir, err := os.Getwd()
-	if err != nil {
-		return err
-	}
-	if workingDir != "" {
-		err = os.Chdir(workingDir)
-		if err != nil {
-			return err
-		}
-		defer func() {
-			if err := os.Chdir(oldWorkingDir); err != nil {
-				t.Fatal(err.Error())
-			}
-		}()
-	}
-	err = os.Symlink(destName, linkName)
-	if err != nil {
-		return err
-	}
-	return nil
 }
 
 func TestGenerateYamlManifestInDir(t *testing.T) {
@@ -771,6 +745,39 @@ func TestHelmWithMissingValueFiles(t *testing.T) {
 	assert.NoError(t, err)
 }
 
+func TestGenerateHelmWithEnvVars(t *testing.T) {
+	service := newService("../../util/helm/testdata/redis")
+
+	res, err := service.GenerateManifest(context.Background(), &apiclient.ManifestRequest{
+		Repo:    &argoappv1.Repository{},
+		AppName: "production",
+		ApplicationSource: &argoappv1.ApplicationSource{
+			Path: ".",
+			Helm: &argoappv1.ApplicationSourceHelm{
+				ValueFiles: []string{"values-$ARGOCD_APP_NAME.yaml"},
+			},
+		},
+	})
+
+	assert.NoError(t, err)
+
+	replicasVerified := false
+	for _, src := range res.Manifests {
+		obj := unstructured.Unstructured{}
+		err = json.Unmarshal([]byte(src), &obj)
+		assert.NoError(t, err)
+
+		if obj.GetKind() == "Deployment" && obj.GetName() == "production-redis-slave" {
+			var dep v1.Deployment
+			err := runtime.DefaultUnstructuredConverter.FromUnstructured(obj.Object, &dep)
+			assert.NoError(t, err)
+			assert.Equal(t, int32(3), *dep.Spec.Replicas)
+			replicasVerified = true
+		}
+	}
+	assert.True(t, replicasVerified)
+}
+
 // The requested value file (`../minio/values.yaml`) is outside the app path (`./util/helm/testdata/redis`), however
 // since the requested value is sill under the repo directory (`~/go/src/github.com/argoproj/argo-cd`), it is allowed
 func TestGenerateHelmWithValuesDirectoryTraversal(t *testing.T) {
@@ -990,15 +997,19 @@ func TestGenerateHelmWithValuesDirectoryTraversalOutsideRepo(t *testing.T) {
 func TestGenerateHelmWithAbsoluteFileParameter(t *testing.T) {
 	service := newService("../..")
 
-	file, err := ioutil.TempFile("", "external-secret.txt")
+	file, err := os.CreateTemp("", "external-secret.txt")
 	assert.NoError(t, err)
 	externalSecretPath := file.Name()
 	defer func() { _ = os.RemoveAll(externalSecretPath) }()
-	expectedFileContent, err := ioutil.ReadFile("../../util/helm/testdata/external/external-secret.txt")
+	expectedFileContent, err := os.ReadFile("../../util/helm/testdata/external/external-secret.txt")
 	assert.NoError(t, err)
-	err = ioutil.WriteFile(externalSecretPath, expectedFileContent, 0644)
+	err = os.WriteFile(externalSecretPath, expectedFileContent, 0644)
 	assert.NoError(t, err)
-	defer file.Close()
+	defer func() {
+		if err = file.Close(); err != nil {
+			panic(err)
+		}
+	}()
 
 	_, err = service.GenerateManifest(context.Background(), &apiclient.ManifestRequest{
 		Repo:    &argoappv1.Repository{},
@@ -1470,7 +1481,7 @@ func TestGetAppDetailsWithAppParameterFile(t *testing.T) {
 // kustomization.yaml. For proper testing, we need to copy the testdata to a
 // temporary path, run the tests, and then throw the copy away again.
 func mkTempParameters(source string) string {
-	tempDir, err := ioutil.TempDir("./testdata", "app-parameters")
+	tempDir, err := os.MkdirTemp("./testdata", "app-parameters")
 	if err != nil {
 		panic(err)
 	}
@@ -1786,7 +1797,7 @@ func TestFindManifests_Exclude_NothingMatches(t *testing.T) {
 }
 
 func tempDir(t *testing.T) string {
-	dir, err := ioutil.TempDir(".", "")
+	dir, err := os.MkdirTemp(".", "")
 	require.NoError(t, err)
 	t.Cleanup(func() {
 		err = os.RemoveAll(dir)
@@ -2044,9 +2055,9 @@ func Test_getPotentiallyValidManifests(t *testing.T) {
 	t.Run("circular link should throw an error", func(t *testing.T) {
 		const testDir = "./testdata/circular-link"
 		require.DirExists(t, testDir)
-		require.NoError(t, createSymlink(t, testDir, "a.json", "b.json"))
+		require.NoError(t, fileutil.CreateSymlink(t, testDir, "a.json", "b.json"))
 		defer os.Remove(path.Join(testDir, "a.json"))
-		require.NoError(t, createSymlink(t, testDir, "b.json", "a.json"))
+		require.NoError(t, fileutil.CreateSymlink(t, testDir, "b.json", "a.json"))
 		defer os.Remove(path.Join(testDir, "b.json"))
 		manifests, err := getPotentiallyValidManifests(logCtx, "./testdata/circular-link", "./testdata/circular-link", false, "", "", resource.MustParse("0"))
 		assert.Empty(t, manifests)
@@ -2144,9 +2155,9 @@ func Test_findManifests(t *testing.T) {
 	t.Run("circular link should throw an error", func(t *testing.T) {
 		const testDir = "./testdata/circular-link"
 		require.DirExists(t, testDir)
-		require.NoError(t, createSymlink(t, testDir, "a.json", "b.json"))
+		require.NoError(t, fileutil.CreateSymlink(t, testDir, "a.json", "b.json"))
 		defer os.Remove(path.Join(testDir, "a.json"))
-		require.NoError(t, createSymlink(t, testDir, "b.json", "a.json"))
+		require.NoError(t, fileutil.CreateSymlink(t, testDir, "b.json", "a.json"))
 		defer os.Remove(path.Join(testDir, "b.json"))
 		manifests, err := findManifests(logCtx, "./testdata/circular-link", "./testdata/circular-link", nil, noRecurse, nil, resource.MustParse("0"))
 		assert.Empty(t, manifests)
@@ -2327,7 +2338,7 @@ func TestResolveRevisionNegativeScenarios(t *testing.T) {
 func TestDirectoryPermissionInitializer(t *testing.T) {
 	dir := t.TempDir()
 
-	file, err := ioutil.TempFile(dir, "")
+	file, err := os.CreateTemp(dir, "")
 	require.NoError(t, err)
 	io.Close(file)
 
@@ -2342,12 +2353,12 @@ func TestDirectoryPermissionInitializer(t *testing.T) {
 
 	// make sure permission are restored
 	closer := directoryPermissionInitializer(dir)
-	_, err = ioutil.ReadFile(file.Name())
+	_, err = os.ReadFile(file.Name())
 	require.NoError(t, err)
 
 	// make sure permission are removed by closer
 	io.Close(closer)
-	_, err = ioutil.ReadFile(file.Name())
+	_, err = os.ReadFile(file.Name())
 	require.Error(t, err)
 }
 
@@ -2387,7 +2398,7 @@ func TestInit(t *testing.T) {
 	assert.NoError(t, err)
 	assert.Equal(t, repoPath, repo1Path)
 
-	_, err = ioutil.ReadDir(dir)
+	_, err = os.ReadDir(dir)
 	require.Error(t, err)
 	require.NoError(t, initGitRepo(path.Join(dir, "repo2"), "https://github.com/argo-cd/test-repo2"))
 }
@@ -2397,7 +2408,7 @@ func TestInit(t *testing.T) {
 func TestCheckoutRevisionCanGetNonstandardRefs(t *testing.T) {
 	rootPath := t.TempDir()
 
-	sourceRepoPath, err := ioutil.TempDir(rootPath, "")
+	sourceRepoPath, err := os.MkdirTemp(rootPath, "")
 	require.NoError(t, err)
 
 	// Create a repo such that one commit is on a non-standard ref _and nowhere else_. This is meant to simulate, for
@@ -2412,7 +2423,7 @@ func TestCheckoutRevisionCanGetNonstandardRefs(t *testing.T) {
 	runGit(t, sourceRepoPath, "checkout", "main")
 	runGit(t, sourceRepoPath, "branch", "-D", "branch")
 
-	destRepoPath, err := ioutil.TempDir(rootPath, "")
+	destRepoPath, err := os.MkdirTemp(rootPath, "")
 	require.NoError(t, err)
 
 	gitClient, err := git.NewClientExt("file://"+sourceRepoPath, destRepoPath, &git.NopCreds{}, true, false, "")

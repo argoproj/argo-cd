@@ -8,13 +8,6 @@ set -o pipefail
 PROJECT_ROOT=$(cd $(dirname "$0")/.. ; pwd)
 PATH="${PROJECT_ROOT}/dist:${PATH}"
 VERSION="v1alpha1"
-
-[ -e ./v2 ] || ln -s . v2
-controller-gen \
-  object:headerFile=${PROJECT_ROOT}/hack/boilerplate.go.txt \
-  paths=github.com/argoproj/argo-cd/v2/pkg/apis/applicationset/${VERSION} \
-  $@
-[ -e ./v2 ] && rm -rf v2
  
 [ -e ./v2 ] || ln -s . v2
 openapi-gen \

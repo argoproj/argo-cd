@@ -16,6 +16,7 @@ import (
 	"github.com/argoproj/argo-cd/v2/cmd/argocd/commands/headless"
 	argocdclient "github.com/argoproj/argo-cd/v2/pkg/apiclient"
 	applicationpkg "github.com/argoproj/argo-cd/v2/pkg/apiclient/application"
+	"github.com/argoproj/argo-cd/v2/util/argo"
 	"github.com/argoproj/argo-cd/v2/util/errors"
 	argoio "github.com/argoproj/argo-cd/v2/util/io"
 
@@ -53,11 +54,14 @@ func NewApplicationPatchResourceCommand(clientOpts *argocdclient.ClientOptions) 
 			c.HelpFunc()(c, args)
 			os.Exit(1)
 		}
-		appName := args[0]
+		appName, appNs := argo.ParseAppQualifiedName(args[0], "")
 
 		conn, appIf := headless.NewClientOrDie(clientOpts, c).NewApplicationClientOrDie()
 		defer argoio.Close(conn)
-		resources, err := appIf.ManagedResources(ctx, &applicationpkg.ResourcesQuery{ApplicationName: &appName})
+		resources, err := appIf.ManagedResources(ctx, &applicationpkg.ResourcesQuery{
+			ApplicationName: &appName,
+			AppNamespace:    &appNs,
+		})
 		errors.CheckError(err)
 		objectsToPatch, err := util.FilterResources(command.Flags().Changed("group"), resources.Items, group, kind, namespace, resourceName, all)
 		errors.CheckError(err)
@@ -66,6 +70,7 @@ func NewApplicationPatchResourceCommand(clientOpts *argocdclient.ClientOptions) 
 			gvk := obj.GroupVersionKind()
 			_, err = appIf.PatchResource(ctx, &applicationpkg.ApplicationResourcePatchRequest{
 				Name:         &appName,
+				AppNamespace: &appNs,
 				Namespace:    pointer.String(obj.GetNamespace()),
 				ResourceName: pointer.String(obj.GetName()),
 				Version:      pointer.String(gvk.Version),
@@ -111,11 +116,14 @@ func NewApplicationDeleteResourceCommand(clientOpts *argocdclient.ClientOptions)
 			c.HelpFunc()(c, args)
 			os.Exit(1)
 		}
-		appName := args[0]
+		appName, appNs := argo.ParseAppQualifiedName(args[0], "")
 
 		conn, appIf := headless.NewClientOrDie(clientOpts, c).NewApplicationClientOrDie()
 		defer argoio.Close(conn)
-		resources, err := appIf.ManagedResources(ctx, &applicationpkg.ResourcesQuery{ApplicationName: &appName})
+		resources, err := appIf.ManagedResources(ctx, &applicationpkg.ResourcesQuery{
+			ApplicationName: &appName,
+			AppNamespace:    &appNs,
+		})
 		errors.CheckError(err)
 		objectsToDelete, err := util.FilterResources(command.Flags().Changed("group"), resources.Items, group, kind, namespace, resourceName, all)
 		errors.CheckError(err)
@@ -124,6 +132,7 @@ func NewApplicationDeleteResourceCommand(clientOpts *argocdclient.ClientOptions)
 			gvk := obj.GroupVersionKind()
 			_, err = appIf.DeleteResource(ctx, &applicationpkg.ApplicationResourceDeleteRequest{
 				Name:         &appName,
+				AppNamespace: &appNs,
 				Namespace:    pointer.String(obj.GetNamespace()),
 				ResourceName: pointer.String(obj.GetName()),
 				Version:      pointer.String(gvk.Version),
@@ -173,10 +182,13 @@ func NewApplicationListResourcesCommand(clientOpts *argocdclient.ClientOptions) 
 				os.Exit(1)
 			}
 			listAll := !c.Flag("orphaned").Changed
-			appName := args[0]
+			appName, appNs := argo.ParseAppQualifiedName(args[0], "")
 			conn, appIf := headless.NewClientOrDie(clientOpts, c).NewApplicationClientOrDie()
 			defer argoio.Close(conn)
-			appResourceTree, err := appIf.ResourceTree(ctx, &applicationpkg.ResourcesQuery{ApplicationName: &appName})
+			appResourceTree, err := appIf.ResourceTree(ctx, &applicationpkg.ResourcesQuery{
+				ApplicationName: &appName,
+				AppNamespace:    &appNs,
+			})
 			errors.CheckError(err)
 			printResources(listAll, orphaned, appResourceTree)
 		},

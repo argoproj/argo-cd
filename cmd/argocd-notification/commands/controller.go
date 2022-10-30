@@ -7,9 +7,12 @@ import (
 	"strings"
 
 	"github.com/argoproj/argo-cd/v2/common"
+	"github.com/argoproj/argo-cd/v2/reposerver/apiclient"
 
+	"github.com/argoproj/argo-cd/v2/util/env"
 	"github.com/argoproj/argo-cd/v2/util/errors"
 	service "github.com/argoproj/argo-cd/v2/util/notification/argocd"
+	"github.com/argoproj/argo-cd/v2/util/tls"
 
 	notificationscontroller "github.com/argoproj/argo-cd/v2/notification_controller/controller"
 
@@ -105,7 +108,22 @@ func NewCommand() *cobra.Command {
 				return fmt.Errorf("Unknown log format '%s'", logFormat)
 			}
 
-			argocdService, err := service.NewArgoCDService(k8sClient, namespace, argocdRepoServer, argocdRepoServerPlaintext, argocdRepoServerStrictTLS)
+			tlsConfig := apiclient.TLSConfiguration{
+				DisableTLS:       argocdRepoServerPlaintext,
+				StrictValidation: argocdRepoServerStrictTLS,
+			}
+			if !tlsConfig.DisableTLS && tlsConfig.StrictValidation {
+				pool, err := tls.LoadX509CertPool(
+					fmt.Sprintf("%s/reposerver/tls/tls.crt", env.StringFromEnv(common.EnvAppConfigPath, common.DefaultAppConfigPath)),
+					fmt.Sprintf("%s/reposerver/tls/ca.crt", env.StringFromEnv(common.EnvAppConfigPath, common.DefaultAppConfigPath)),
+				)
+				if err != nil {
+					return err
+				}
+				tlsConfig.Certificates = pool
+			}
+			repoClientset := apiclient.NewRepoServerClientset(argocdRepoServer, 5, tlsConfig)
+			argocdService, err := service.NewArgoCDService(k8sClient, namespace, repoClientset)
 			if err != nil {
 				return err
 			}
