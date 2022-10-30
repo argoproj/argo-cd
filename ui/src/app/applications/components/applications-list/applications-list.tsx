@@ -194,7 +194,7 @@ function onFilterPrefChanged(ctx: ContextApis, newPref: AppsListPreferences) {
     );
 }
 
-const SearchBar = (props: {pref: AppsListPreferences, content: string; ctx: ContextApis; apps: models.Application[]}) => {
+const SearchBar = (props: {pref: AppsListPreferences; content: string; ctx: ContextApis; apps: models.Application[]}) => {
     const {pref, content, ctx, apps} = {...props};
 
     const searchBar = React.useRef<HTMLDivElement>(null);
@@ -271,8 +271,8 @@ const SearchBar = (props: {pref: AppsListPreferences, content: string; ctx: Cont
                 ctx.navigation.goto(`./${val}`);
             }}
             onChange={e => {
-                pref.searchFilter = e.target.value
-                onFilterPrefChanged(ctx, pref)
+                pref.searchFilter = e.target.value;
+                onFilterPrefChanged(ctx, pref);
             }}
             value={content || ''}
             items={apps.map(app => app.metadata.namespace + '/' + app.metadata.name)}

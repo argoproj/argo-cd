@@ -60,7 +60,7 @@ export class AppsListPreferences {
     }
 
     public static clearFilters(pref: AppsListPreferences) {
-        pref.searchFilter = "";
+        pref.searchFilter = '';
         pref.clustersFilter = [];
         pref.healthFilter = [];
         pref.labelsFilter = [];
@@ -123,7 +123,7 @@ const DEFAULT_PREFERENCES: ViewPreferences = {
     },
     appList: {
         view: 'tiles' as AppsListViewType,
-        searchFilter: "",
+        searchFilter: '',
         labelsFilter: new Array<string>(),
         projectsFilter: new Array<string>(),
         namespacesFilter: new Array<string>(),
