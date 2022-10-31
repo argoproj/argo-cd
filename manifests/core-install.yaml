@@ -283,7 +283,7 @@ spec:
                             type: string
                           version:
                             description: Version is the Helm version to use for templating
-                              (either "2" or "3")
+                              ("3")
                             type: string
                         type: object
                       kustomize:
@@ -301,6 +301,12 @@ spec:
                             description: CommonLabels is a list of additional labels
                               to add to rendered manifests
                             type: object
+                          components:
+                            description: Components specifies a list of kustomize
+                              components to add to the kustmization before building
+                            items:
+                              type: string
+                            type: array
                           forceCommonAnnotations:
                             description: ForceCommonAnnotations specifies whether
                               to force applying common annotations to resources for
@@ -309,6 +315,10 @@ spec:
                           forceCommonLabels:
                             description: ForceCommonLabels specifies whether to force
                               applying common labels to resources for Kustomize apps
+                            type: boolean
+                          forceNamespace:
+                            description: ForceNamespace if true, will use the application's
+                              destination namespace as a kustomization file namespace
                             type: boolean
                           images:
                             description: Images is a list of Kustomize image override
@@ -648,6 +658,12 @@ spec:
                         description: CommonLabels is a list of additional labels to
                           add to rendered manifests
                         type: object
+                      components:
+                        description: Components specifies a list of kustomize components
+                          to add to the kustmization before building
+                        items:
+                          type: string
+                        type: array
                       forceCommonAnnotations:
                         description: ForceCommonAnnotations specifies whether to force
                           applying common annotations to resources for Kustomize apps
@@ -655,6 +671,10 @@ spec:
                       forceCommonLabels:
                         description: ForceCommonLabels specifies whether to force
                           applying common labels to resources for Kustomize apps
+                        type: boolean
+                      forceNamespace:
+                        description: ForceNamespace if true, will use the application's
+                          destination namespace as a kustomization file namespace
                         type: boolean
                       images:
                         description: Images is a list of Kustomize image override
@@ -739,6 +759,10 @@ spec:
                           back to their desired state upon modification in the cluster
                           (default: false)'
                         type: boolean
+                    type: object
+                  createNamespaceLabels:
+                    additionalProperties:
+                      type: string
                     type: object
                   retry:
                     description: Retry controls failed sync retry behavior
@@ -1001,6 +1025,12 @@ spec:
                               description: CommonLabels is a list of additional labels
                                 to add to rendered manifests
                               type: object
+                            components:
+                              description: Components specifies a list of kustomize
+                                components to add to the kustmization before building
+                              items:
+                                type: string
+                              type: array
                             forceCommonAnnotations:
                               description: ForceCommonAnnotations specifies whether
                                 to force applying common annotations to resources
@@ -1010,6 +1040,10 @@ spec:
                               description: ForceCommonLabels specifies whether to
                                 force applying common labels to resources for Kustomize
                                 apps
+                              type: boolean
+                            forceNamespace:
+                              description: ForceNamespace if true, will use the application's
+                                destination namespace as a kustomization file namespace
                               type: boolean
                             images:
                               description: Images is a list of Kustomize image override
@@ -1372,6 +1406,13 @@ spec:
                                     description: CommonLabels is a list of additional
                                       labels to add to rendered manifests
                                     type: object
+                                  components:
+                                    description: Components specifies a list of kustomize
+                                      components to add to the kustmization before
+                                      building
+                                    items:
+                                      type: string
+                                    type: array
                                   forceCommonAnnotations:
                                     description: ForceCommonAnnotations specifies
                                       whether to force applying common annotations
@@ -1381,6 +1422,11 @@ spec:
                                     description: ForceCommonLabels specifies whether
                                       to force applying common labels to resources
                                       for Kustomize apps
+                                    type: boolean
+                                  forceNamespace:
+                                    description: ForceNamespace if true, will use
+                                      the application's destination namespace as a
+                                      kustomization file namespace
                                     type: boolean
                                   images:
                                     description: Images is a list of Kustomize image
@@ -1717,6 +1763,12 @@ spec:
                                 description: CommonLabels is a list of additional
                                   labels to add to rendered manifests
                                 type: object
+                              components:
+                                description: Components specifies a list of kustomize
+                                  components to add to the kustmization before building
+                                items:
+                                  type: string
+                                type: array
                               forceCommonAnnotations:
                                 description: ForceCommonAnnotations specifies whether
                                   to force applying common annotations to resources
@@ -1726,6 +1778,11 @@ spec:
                                 description: ForceCommonLabels specifies whether to
                                   force applying common labels to resources for Kustomize
                                   apps
+                                type: boolean
+                              forceNamespace:
+                                description: ForceNamespace if true, will use the
+                                  application's destination namespace as a kustomization
+                                  file namespace
                                 type: boolean
                               images:
                                 description: Images is a list of Kustomize image override
@@ -2051,6 +2108,12 @@ spec:
                                 description: CommonLabels is a list of additional
                                   labels to add to rendered manifests
                                 type: object
+                              components:
+                                description: Components specifies a list of kustomize
+                                  components to add to the kustmization before building
+                                items:
+                                  type: string
+                                type: array
                               forceCommonAnnotations:
                                 description: ForceCommonAnnotations specifies whether
                                   to force applying common annotations to resources
@@ -2060,6 +2123,11 @@ spec:
                                 description: ForceCommonLabels specifies whether to
                                   force applying common labels to resources for Kustomize
                                   apps
+                                type: boolean
+                              forceNamespace:
+                                description: ForceNamespace if true, will use the
+                                  application's destination namespace as a kustomization
+                                  file namespace
                                 type: boolean
                               images:
                                 description: Images is a list of Kustomize image override
@@ -2387,9 +2455,15 @@ spec:
                                           additionalProperties:
                                             type: string
                                           type: object
+                                        components:
+                                          items:
+                                            type: string
+                                          type: array
                                         forceCommonAnnotations:
                                           type: boolean
                                         forceCommonLabels:
+                                          type: boolean
+                                        forceNamespace:
                                           type: boolean
                                         images:
                                           items:
@@ -2438,6 +2512,10 @@ spec:
                                           type: boolean
                                         selfHeal:
                                           type: boolean
+                                      type: object
+                                    createNamespaceLabels:
+                                      additionalProperties:
+                                        type: string
                                       type: object
                                     retry:
                                       properties:
@@ -2674,9 +2752,15 @@ spec:
                                           additionalProperties:
                                             type: string
                                           type: object
+                                        components:
+                                          items:
+                                            type: string
+                                          type: array
                                         forceCommonAnnotations:
                                           type: boolean
                                         forceCommonLabels:
+                                          type: boolean
+                                        forceNamespace:
                                           type: boolean
                                         images:
                                           items:
@@ -2725,6 +2809,10 @@ spec:
                                           type: boolean
                                         selfHeal:
                                           type: boolean
+                                      type: object
+                                    createNamespaceLabels:
+                                      additionalProperties:
+                                        type: string
                                       type: object
                                     retry:
                                       properties:
@@ -2963,9 +3051,15 @@ spec:
                                           additionalProperties:
                                             type: string
                                           type: object
+                                        components:
+                                          items:
+                                            type: string
+                                          type: array
                                         forceCommonAnnotations:
                                           type: boolean
                                         forceCommonLabels:
+                                          type: boolean
+                                        forceNamespace:
                                           type: boolean
                                         images:
                                           items:
@@ -3014,6 +3108,10 @@ spec:
                                           type: boolean
                                         selfHeal:
                                           type: boolean
+                                      type: object
+                                    createNamespaceLabels:
+                                      additionalProperties:
+                                        type: string
                                       type: object
                                     retry:
                                       properties:
@@ -3228,9 +3326,15 @@ spec:
                                           additionalProperties:
                                             type: string
                                           type: object
+                                        components:
+                                          items:
+                                            type: string
+                                          type: array
                                         forceCommonAnnotations:
                                           type: boolean
                                         forceCommonLabels:
+                                          type: boolean
+                                        forceNamespace:
                                           type: boolean
                                         images:
                                           items:
@@ -3279,6 +3383,10 @@ spec:
                                           type: boolean
                                         selfHeal:
                                           type: boolean
+                                      type: object
+                                    createNamespaceLabels:
+                                      additionalProperties:
+                                        type: string
                                       type: object
                                     retry:
                                       properties:
@@ -3523,9 +3631,15 @@ spec:
                                                     additionalProperties:
                                                       type: string
                                                     type: object
+                                                  components:
+                                                    items:
+                                                      type: string
+                                                    type: array
                                                   forceCommonAnnotations:
                                                     type: boolean
                                                   forceCommonLabels:
+                                                    type: boolean
+                                                  forceNamespace:
                                                     type: boolean
                                                   images:
                                                     items:
@@ -3574,6 +3688,10 @@ spec:
                                                     type: boolean
                                                   selfHeal:
                                                     type: boolean
+                                                type: object
+                                              createNamespaceLabels:
+                                                additionalProperties:
+                                                  type: string
                                                 type: object
                                               retry:
                                                 properties:
@@ -3810,9 +3928,15 @@ spec:
                                                     additionalProperties:
                                                       type: string
                                                     type: object
+                                                  components:
+                                                    items:
+                                                      type: string
+                                                    type: array
                                                   forceCommonAnnotations:
                                                     type: boolean
                                                   forceCommonLabels:
+                                                    type: boolean
+                                                  forceNamespace:
                                                     type: boolean
                                                   images:
                                                     items:
@@ -3861,6 +3985,10 @@ spec:
                                                     type: boolean
                                                   selfHeal:
                                                     type: boolean
+                                                type: object
+                                              createNamespaceLabels:
+                                                additionalProperties:
+                                                  type: string
                                                 type: object
                                               retry:
                                                 properties:
@@ -4099,9 +4227,15 @@ spec:
                                                     additionalProperties:
                                                       type: string
                                                     type: object
+                                                  components:
+                                                    items:
+                                                      type: string
+                                                    type: array
                                                   forceCommonAnnotations:
                                                     type: boolean
                                                   forceCommonLabels:
+                                                    type: boolean
+                                                  forceNamespace:
                                                     type: boolean
                                                   images:
                                                     items:
@@ -4150,6 +4284,10 @@ spec:
                                                     type: boolean
                                                   selfHeal:
                                                     type: boolean
+                                                type: object
+                                              createNamespaceLabels:
+                                                additionalProperties:
+                                                  type: string
                                                 type: object
                                               retry:
                                                 properties:
@@ -4364,9 +4502,15 @@ spec:
                                                     additionalProperties:
                                                       type: string
                                                     type: object
+                                                  components:
+                                                    items:
+                                                      type: string
+                                                    type: array
                                                   forceCommonAnnotations:
                                                     type: boolean
                                                   forceCommonLabels:
+                                                    type: boolean
+                                                  forceNamespace:
                                                     type: boolean
                                                   images:
                                                     items:
@@ -4415,6 +4559,10 @@ spec:
                                                     type: boolean
                                                   selfHeal:
                                                     type: boolean
+                                                type: object
+                                              createNamespaceLabels:
+                                                additionalProperties:
+                                                  type: string
                                                 type: object
                                               retry:
                                                 properties:
@@ -4720,9 +4868,15 @@ spec:
                                                     additionalProperties:
                                                       type: string
                                                     type: object
+                                                  components:
+                                                    items:
+                                                      type: string
+                                                    type: array
                                                   forceCommonAnnotations:
                                                     type: boolean
                                                   forceCommonLabels:
+                                                    type: boolean
+                                                  forceNamespace:
                                                     type: boolean
                                                   images:
                                                     items:
@@ -4771,6 +4925,10 @@ spec:
                                                     type: boolean
                                                   selfHeal:
                                                     type: boolean
+                                                type: object
+                                              createNamespaceLabels:
+                                                additionalProperties:
+                                                  type: string
                                                 type: object
                                               retry:
                                                 properties:
@@ -5123,9 +5281,15 @@ spec:
                                                     additionalProperties:
                                                       type: string
                                                     type: object
+                                                  components:
+                                                    items:
+                                                      type: string
+                                                    type: array
                                                   forceCommonAnnotations:
                                                     type: boolean
                                                   forceCommonLabels:
+                                                    type: boolean
+                                                  forceNamespace:
                                                     type: boolean
                                                   images:
                                                     items:
@@ -5174,6 +5338,10 @@ spec:
                                                     type: boolean
                                                   selfHeal:
                                                     type: boolean
+                                                type: object
+                                              createNamespaceLabels:
+                                                additionalProperties:
+                                                  type: string
                                                 type: object
                                               retry:
                                                 properties:
@@ -5381,9 +5549,15 @@ spec:
                                           additionalProperties:
                                             type: string
                                           type: object
+                                        components:
+                                          items:
+                                            type: string
+                                          type: array
                                         forceCommonAnnotations:
                                           type: boolean
                                         forceCommonLabels:
+                                          type: boolean
+                                        forceNamespace:
                                           type: boolean
                                         images:
                                           items:
@@ -5432,6 +5606,10 @@ spec:
                                           type: boolean
                                         selfHeal:
                                           type: boolean
+                                      type: object
+                                    createNamespaceLabels:
+                                      additionalProperties:
+                                        type: string
                                       type: object
                                     retry:
                                       properties:
@@ -5676,9 +5854,15 @@ spec:
                                                     additionalProperties:
                                                       type: string
                                                     type: object
+                                                  components:
+                                                    items:
+                                                      type: string
+                                                    type: array
                                                   forceCommonAnnotations:
                                                     type: boolean
                                                   forceCommonLabels:
+                                                    type: boolean
+                                                  forceNamespace:
                                                     type: boolean
                                                   images:
                                                     items:
@@ -5727,6 +5911,10 @@ spec:
                                                     type: boolean
                                                   selfHeal:
                                                     type: boolean
+                                                type: object
+                                              createNamespaceLabels:
+                                                additionalProperties:
+                                                  type: string
                                                 type: object
                                               retry:
                                                 properties:
@@ -5963,9 +6151,15 @@ spec:
                                                     additionalProperties:
                                                       type: string
                                                     type: object
+                                                  components:
+                                                    items:
+                                                      type: string
+                                                    type: array
                                                   forceCommonAnnotations:
                                                     type: boolean
                                                   forceCommonLabels:
+                                                    type: boolean
+                                                  forceNamespace:
                                                     type: boolean
                                                   images:
                                                     items:
@@ -6014,6 +6208,10 @@ spec:
                                                     type: boolean
                                                   selfHeal:
                                                     type: boolean
+                                                type: object
+                                              createNamespaceLabels:
+                                                additionalProperties:
+                                                  type: string
                                                 type: object
                                               retry:
                                                 properties:
@@ -6252,9 +6450,15 @@ spec:
                                                     additionalProperties:
                                                       type: string
                                                     type: object
+                                                  components:
+                                                    items:
+                                                      type: string
+                                                    type: array
                                                   forceCommonAnnotations:
                                                     type: boolean
                                                   forceCommonLabels:
+                                                    type: boolean
+                                                  forceNamespace:
                                                     type: boolean
                                                   images:
                                                     items:
@@ -6303,6 +6507,10 @@ spec:
                                                     type: boolean
                                                   selfHeal:
                                                     type: boolean
+                                                type: object
+                                              createNamespaceLabels:
+                                                additionalProperties:
+                                                  type: string
                                                 type: object
                                               retry:
                                                 properties:
@@ -6517,9 +6725,15 @@ spec:
                                                     additionalProperties:
                                                       type: string
                                                     type: object
+                                                  components:
+                                                    items:
+                                                      type: string
+                                                    type: array
                                                   forceCommonAnnotations:
                                                     type: boolean
                                                   forceCommonLabels:
+                                                    type: boolean
+                                                  forceNamespace:
                                                     type: boolean
                                                   images:
                                                     items:
@@ -6568,6 +6782,10 @@ spec:
                                                     type: boolean
                                                   selfHeal:
                                                     type: boolean
+                                                type: object
+                                              createNamespaceLabels:
+                                                additionalProperties:
+                                                  type: string
                                                 type: object
                                               retry:
                                                 properties:
@@ -6873,9 +7091,15 @@ spec:
                                                     additionalProperties:
                                                       type: string
                                                     type: object
+                                                  components:
+                                                    items:
+                                                      type: string
+                                                    type: array
                                                   forceCommonAnnotations:
                                                     type: boolean
                                                   forceCommonLabels:
+                                                    type: boolean
+                                                  forceNamespace:
                                                     type: boolean
                                                   images:
                                                     items:
@@ -6924,6 +7148,10 @@ spec:
                                                     type: boolean
                                                   selfHeal:
                                                     type: boolean
+                                                type: object
+                                              createNamespaceLabels:
+                                                additionalProperties:
+                                                  type: string
                                                 type: object
                                               retry:
                                                 properties:
@@ -7276,9 +7504,15 @@ spec:
                                                     additionalProperties:
                                                       type: string
                                                     type: object
+                                                  components:
+                                                    items:
+                                                      type: string
+                                                    type: array
                                                   forceCommonAnnotations:
                                                     type: boolean
                                                   forceCommonLabels:
+                                                    type: boolean
+                                                  forceNamespace:
                                                     type: boolean
                                                   images:
                                                     items:
@@ -7327,6 +7561,10 @@ spec:
                                                     type: boolean
                                                   selfHeal:
                                                     type: boolean
+                                                type: object
+                                              createNamespaceLabels:
+                                                additionalProperties:
+                                                  type: string
                                                 type: object
                                               retry:
                                                 properties:
@@ -7538,9 +7776,15 @@ spec:
                                           additionalProperties:
                                             type: string
                                           type: object
+                                        components:
+                                          items:
+                                            type: string
+                                          type: array
                                         forceCommonAnnotations:
                                           type: boolean
                                         forceCommonLabels:
+                                          type: boolean
+                                        forceNamespace:
                                           type: boolean
                                         images:
                                           items:
@@ -7589,6 +7833,10 @@ spec:
                                           type: boolean
                                         selfHeal:
                                           type: boolean
+                                      type: object
+                                    createNamespaceLabels:
+                                      additionalProperties:
+                                        type: string
                                       type: object
                                     retry:
                                       properties:
@@ -7891,9 +8139,15 @@ spec:
                                           additionalProperties:
                                             type: string
                                           type: object
+                                        components:
+                                          items:
+                                            type: string
+                                          type: array
                                         forceCommonAnnotations:
                                           type: boolean
                                         forceCommonLabels:
+                                          type: boolean
+                                        forceNamespace:
                                           type: boolean
                                         images:
                                           items:
@@ -7942,6 +8196,10 @@ spec:
                                           type: boolean
                                         selfHeal:
                                           type: boolean
+                                      type: object
+                                    createNamespaceLabels:
+                                      additionalProperties:
+                                        type: string
                                       type: object
                                     retry:
                                       properties:
@@ -8294,9 +8552,15 @@ spec:
                                           additionalProperties:
                                             type: string
                                           type: object
+                                        components:
+                                          items:
+                                            type: string
+                                          type: array
                                         forceCommonAnnotations:
                                           type: boolean
                                         forceCommonLabels:
+                                          type: boolean
+                                        forceNamespace:
                                           type: boolean
                                         images:
                                           items:
@@ -8345,6 +8609,10 @@ spec:
                                           type: boolean
                                         selfHeal:
                                           type: boolean
+                                      type: object
+                                    createNamespaceLabels:
+                                      additionalProperties:
+                                        type: string
                                       type: object
                                     retry:
                                       properties:
@@ -8557,9 +8825,15 @@ spec:
                                 additionalProperties:
                                   type: string
                                 type: object
+                              components:
+                                items:
+                                  type: string
+                                type: array
                               forceCommonAnnotations:
                                 type: boolean
                               forceCommonLabels:
+                                type: boolean
+                              forceNamespace:
                                 type: boolean
                               images:
                                 items:
@@ -8608,6 +8882,10 @@ spec:
                                 type: boolean
                               selfHeal:
                                 type: boolean
+                            type: object
+                          createNamespaceLabels:
+                            additionalProperties:
+                              type: string
                             type: object
                           retry:
                             properties:
@@ -9384,7 +9662,7 @@ spec:
           valueFrom:
             fieldRef:
               fieldPath: metadata.namespace
-        image: quay.io/argoproj/argocd:v2.4.15
+        image: quay.io/codefresh/argocd:v2.4.15-cap-CR-14605-default-operation-revision
         imagePullPolicy: Always
         name: argocd-applicationset-controller
         ports:
@@ -9578,6 +9856,12 @@ spec:
               key: redis.server
               name: argocd-cmd-params-cm
               optional: true
+        - name: REDIS_COMPRESSION
+          valueFrom:
+            configMapKeyRef:
+              key: redis.compression
+              name: argocd-cmd-params-cm
+              optional: true
         - name: REDISDB
           valueFrom:
             configMapKeyRef:
@@ -9608,13 +9892,37 @@ spec:
               key: reposerver.plugin.tar.exclusions
               name: argocd-cmd-params-cm
               optional: true
+        - name: ARGOCD_REPO_SERVER_ALLOW_OUT_OF_BOUNDS_SYMLINKS
+          valueFrom:
+            configMapKeyRef:
+              key: reposerver.allow.oob.symlinks
+              name: argocd-cmd-params-cm
+              optional: true
+        - name: ARGOCD_REPO_SERVER_STREAMED_MANIFEST_MAX_TAR_SIZE
+          valueFrom:
+            configMapKeyRef:
+              key: reposerver.streamed.manifest.max.tar.size
+              name: argocd-cmd-params-cm
+              optional: true
+        - name: ARGOCD_REPO_SERVER_STREAMED_MANIFEST_MAX_EXTRACTED_SIZE
+          valueFrom:
+            configMapKeyRef:
+              key: reposerver.streamed.manifest.max.extracted.size
+              name: argocd-cmd-params-cm
+              optional: true
+        - name: ARGOCD_GIT_MODULES_ENABLED
+          valueFrom:
+            configMapKeyRef:
+              key: reposerver.enable.git.submodule
+              name: argocd-cmd-params-cm
+              optional: true
         - name: HELM_CACHE_HOME
           value: /helm-working-dir
         - name: HELM_CONFIG_HOME
           value: /helm-working-dir
         - name: HELM_DATA_HOME
           value: /helm-working-dir
-        image: quay.io/codefresh/argocd:latest
+        image: quay.io/codefresh/argocd:v2.4.15-cap-CR-14605-default-operation-revision
         imagePullPolicy: Always
         livenessProbe:
           failureThreshold: 3
@@ -9622,7 +9930,8 @@ spec:
             path: /healthz?full=true
             port: 8084
           initialDelaySeconds: 30
-          periodSeconds: 5
+          periodSeconds: 30
+          timeoutSeconds: 5
         name: argocd-repo-server
         ports:
         - containerPort: 8081
@@ -9637,9 +9946,11 @@ spec:
           allowPrivilegeEscalation: false
           capabilities:
             drop:
-            - all
+            - ALL
           readOnlyRootFilesystem: true
           runAsNonRoot: true
+          seccompProfile:
+            type: RuntimeDefault
         volumeMounts:
         - mountPath: /app/config/ssh
           name: ssh-known-hosts
@@ -9663,15 +9974,17 @@ spec:
         - -n
         - /usr/local/bin/argocd
         - /var/run/argocd/argocd-cmp-server
-        image: quay.io/codefresh/argocd:latest
+        image: quay.io/codefresh/argocd:v2.4.15-cap-CR-14605-default-operation-revision
         name: copyutil
         securityContext:
           allowPrivilegeEscalation: false
           capabilities:
             drop:
-            - all
+            - ALL
           readOnlyRootFilesystem: true
           runAsNonRoot: true
+          seccompProfile:
+            type: RuntimeDefault
         volumeMounts:
         - mountPath: /var/run/argocd
           name: var-files
@@ -9850,7 +10163,7 @@ spec:
               key: otlp.address
               name: argocd-cmd-params-cm
               optional: true
-        image: quay.io/codefresh/argocd:latest
+        image: quay.io/codefresh/argocd:v2.4.15-cap-CR-14605-default-operation-revision
         imagePullPolicy: Always
         livenessProbe:
           httpGet:
