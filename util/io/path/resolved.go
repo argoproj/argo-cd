@@ -150,8 +150,9 @@ func ResolveFilePath(appPath, repoRoot, valueFile string, allowedURLSchemes []st
 		requiredRootPath += string(os.PathSeparator)
 	}
 
-	// Make sure that the resolved path to values file is within the repository's root path
-	if !strings.HasPrefix(path, requiredRootPath) {
+	// Make sure that the resolved path to values file is within the repository's root path,
+	// or it resolves to the repository's root itself
+	if !strings.HasPrefix(path, requiredRootPath) && path+string(os.PathSeparator) != requiredRootPath {
 		return "", false, fmt.Errorf("value file '%s' resolved to outside repository root", valueFile)
 	}
 

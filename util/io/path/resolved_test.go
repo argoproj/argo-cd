@@ -109,6 +109,12 @@ func Test_resolveFilePath(t *testing.T) {
 		assert.False(t, remote)
 		assert.Equal(t, "/foo/bim.yaml", string(p))
 	})
+	t.Run("Resolve root path into absolute path", func(t *testing.T) {
+		p, remote, err := ResolveFilePath("/foo", "/foo", "./", allowedRemoteProtocols)
+		assert.NoError(t, err)
+		assert.False(t, remote)
+		assert.Equal(t, "/foo", string(p))
+	})
 	t.Run("Error on path resolving outside repository root", func(t *testing.T) {
 		p, remote, err := ResolveFilePath("/foo/bar", "/foo", "baz/../../../bim.yaml", allowedRemoteProtocols)
 		assert.Error(t, err)
