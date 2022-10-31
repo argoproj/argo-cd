@@ -150,6 +150,17 @@ func (e Env) Envsubst(s string) string {
 	})
 }
 
+// QualifiedName returns the full qualified name of the application, including
+// the name of the namespace it is created in delimited by a forward slash,
+// i.e. <namespace>/<appname>
+func (a *Application) QualifiedName() string {
+	if a.Namespace == "" {
+		return a.Name
+	} else {
+		return a.Namespace + "/" + a.Name
+	}
+}
+
 // ApplicationSource contains all required information about the source of an application
 type ApplicationSource struct {
 	// RepoURL is the URL to the repository (Git or Helm) that contains the application manifests

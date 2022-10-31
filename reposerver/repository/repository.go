@@ -1015,7 +1015,7 @@ func GenerateManifests(ctx context.Context, appPath, repoRoot, revision string, 
 			log.Infof("successful to retrieve git information, app name: %q, author: %q, message: %q", q.AppName, m.Author, m.Date)
 			res.CommitMessage = m.Message
 			res.CommitAuthor = m.Author
-			res.CommitDate = &metav1.Time{Time: m.Date}
+			// res.CommitDate = &metav1.Time{Time: m.Date}
 		}
 	} else {
 		log.Warnf("failed to retrieve git information, app name: %q, because git client is nil", q.AppName)
@@ -2173,4 +2173,8 @@ func (s *Service) ResolveRevision(ctx context.Context, q *apiclient.ResolveRevis
 			AmbiguousRevision: fmt.Sprintf("%s (%s)", ambiguousRevision, revision),
 		}, nil
 	}
+}
+
+func (s *Service) GenerateManifestWithFiles(server apiclient.RepoServerService_GenerateManifestWithFilesServer) error {
+	return nil
 }

@@ -142,6 +142,10 @@ func NewServer(
 	return server, server.getAppResources
 }
 
+func (s *Server) GetManifestsWithFiles(stream application.ApplicationService_GetManifestsWithFilesServer) error {
+	return nil
+}
+
 // List returns list of applications
 func (s *Server) List(ctx context.Context, q *application.ApplicationQuery) (*appv1.ApplicationList, error) {
 	labelsMap, err := labels.ConvertSelectorToLabelsMap(q.GetSelector())
@@ -957,6 +961,87 @@ func (s *Server) StartEventSource(es *events.EventSource, stream events.Eventing
 			return nil
 		}
 	}
+}
+
+func (s *Server) ValidateSrcAndDst(ctx context.Context, requset *application.ApplicationValidationRequest) (*application.ApplicationValidateResponse, error) {
+	app := requset.Application
+	proj, err := argo.GetAppProject(&app.Spec, applisters.NewAppProjectLister(s.projInformer.GetIndexer()), s.ns, s.settingsMgr, s.db, ctx)
+	if err != nil {
+		entity := projectEntity
+		if apierr.IsNotFound(err) {
+			errMsg := fmt.Sprintf("application references project %s which does not exist", app.Spec.Project)
+			return &application.ApplicationValidateResponse{
+				Error:  &errMsg,
+				Entity: &entity,
+			}, nil
+		}
+		errMsg := err.Error()
+		return &application.ApplicationValidateResponse{
+			Error:  &errMsg,
+			Entity: &entity,
+		}, nil
+	}
+
+	if err := argo.ValidateDestination(ctx, &app.Spec.Destination, s.db); err != nil {
+		entity := destinationEntity
+		errMsg := fmt.Sprintf("application destination spec for %s is invalid: %s", app.Name, err.Error())
+		return &application.ApplicationValidateResponse{
+			Error:  &errMsg,
+			Entity: &entity,
+		}, nil
+	}
+
+	// If source is Kustomize add build options
+	kustomizeSettings, err := s.settingsMgr.GetKustomizeSettings()
+	if err != nil {
+		entity := sourceEntity
+		errMsg := err.Error()
+		return &application.ApplicationValidateResponse{
+			Error:  &errMsg,
+			Entity: &entity,
+		}, nil
+	}
+	kustomizeOptions, err := kustomizeSettings.GetOptions(app.Spec.Source)
+	if err != nil {
+		entity := sourceEntity
+		errMsg := err.Error()
+		return &application.ApplicationValidateResponse{
+			Error:  &errMsg,
+			Entity: &entity,
+		}, nil
+	}
+	plugins, err := s.plugins()
+	if err != nil {
+		entity := sourceEntity
+		errMsg := err.Error()
+		return &application.ApplicationValidateResponse{
+			Error:  &errMsg,
+			Entity: &entity,
+		}, nil
+	}
+
+	var conditions []appv1.ApplicationCondition
+	conditions, err = argo.ValidateRepo(ctx, app, s.repoClientset, s.db, kustomizeOptions, plugins, s.kubectl, proj, s.settingsMgr)
+	if err != nil {
+		entity := sourceEntity
+		errMsg := err.Error()
+		return &application.ApplicationValidateResponse{
+			Error:  &errMsg,
+			Entity: &entity,
+		}, nil
+	}
+	if len(conditions) > 0 {
+		entity := sourceEntity
+		errMsg := fmt.Sprintf("application spec for %s is invalid: %s", app.Name, argo.FormatAppConditions(conditions))
+		return &application.ApplicationValidateResponse{
+			Error:  &errMsg,
+			Entity: &entity,
+		}, nil
+	}
+	return &application.ApplicationValidateResponse{
+		Error:  nil,
+		Entity: nil,
+	}, nil
 }
 
 func (s *Server) validateAndNormalizeApp(ctx context.Context, app *appv1.Application, validate bool) error {

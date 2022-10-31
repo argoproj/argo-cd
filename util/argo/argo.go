@@ -248,6 +248,28 @@ func ValidateRepo(
 	return conditions, nil
 }
 
+// ParseAppNamespacedName parses a namespaced name in the format namespace/name
+// and returns the components. If name wasn't namespaced, defaultNs will be
+// returned as namespace component.
+func ParseAppQualifiedName(appName string, defaultNs string) (string, string) {
+	return parseAppName(appName, defaultNs, "/")
+}
+
+// parseAppName will
+func parseAppName(appName string, defaultNs string, delim string) (string, string) {
+	var ns string
+	var name string
+	t := strings.SplitN(appName, delim, 2)
+	if len(t) == 2 {
+		ns = t[0]
+		name = t[1]
+	} else {
+		ns = defaultNs
+		name = t[0]
+	}
+	return name, ns
+}
+
 // ValidateDestination sets the 'Server' value of the ApplicationDestination, if it is not set.
 // NOTE: this function WILL write to the object pointed to by the 'dest' parameter.
 //
