@@ -43,7 +43,7 @@ jobs:
       GIT_EMAIL: argoproj@gmail.com
     steps:
       - name: Checkout code
-        uses: actions/checkout@v2
+        uses: actions/checkout@v3
         with:
           fetch-depth: 0
           token: ${{ secrets.GITHUB_TOKEN }}
@@ -147,7 +147,7 @@ jobs:
           echo "RELEASE_NOTES=${RELEASE_NOTES}" >> $GITHUB_ENV
 
       - name: Setup Golang
-        uses: actions/setup-go@v2
+        uses: actions/setup-go@v3
         with:
           go-version: ${{ env.GOLANG_VERSION }}
 
@@ -200,8 +200,8 @@ jobs:
           docker login --username "${DOCKER_USERNAME}" --password "${DOCKER_TOKEN}"
         if: ${{ env.DRY_RUN != 'true' }}
 
-      - uses: docker/setup-qemu-action@v1
-      - uses: docker/setup-buildx-action@v1
+      - uses: docker/setup-qemu-action@v2
+      - uses: docker/setup-buildx-action@v2
       - name: Build and push Docker image for release
         run: |
           set -ue
@@ -286,6 +286,14 @@ jobs:
           cd /tmp && tar -zcf sbom.tar.gz *.spdx
         if: ${{ env.DRY_RUN != 'true' }}
 
+      - name: Sign sbom
+        run: |
+          cosign sign-blob --key env://COSIGN_PRIVATE_KEY /tmp/sbom.tar.gz > /tmp/sbom.tar.gz.sig
+        env:
+          COSIGN_PRIVATE_KEY: ${{secrets.COSIGN_PRIVATE_KEY}}
+          COSIGN_PASSWORD: ${{secrets.COSIGN_PASSWORD}}
+        if: ${{ env.DRY_RUN != 'true' }}
+
       - name: Create GitHub release
         uses: softprops/action-gh-release@v1
         env:
@@ -300,6 +308,7 @@ jobs:
           files: |
             dist/argocd-*
             /tmp/sbom.tar.gz
+            /tmp/sbom.tar.gz.sig
         if: ${{ env.DRY_RUN != 'true' }}
 
       - name: Update homebrew formula

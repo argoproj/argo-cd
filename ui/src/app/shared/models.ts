@@ -228,6 +228,8 @@ interface ApplicationSourceJsonnet {
 export interface ApplicationSourceDirectory {
     recurse: boolean;
     jsonnet?: ApplicationSourceJsonnet;
+    include?: string;
+    exclude?: string;
 }
 
 export interface Automated {
@@ -310,6 +312,7 @@ export interface ResourceStatus {
     name: string;
     status: SyncStatusCode;
     health: HealthStatus;
+    createdAt?: models.Time;
     hook?: boolean;
     requiresPruning?: boolean;
     syncWave?: number;
@@ -530,6 +533,8 @@ export interface Cluster {
         connectionState: ConnectionState;
         cacheInfo: ClusterCacheInfo;
     };
+    annotations?: {[name: string]: string};
+    labels?: {[name: string]: string};
 }
 
 export interface ClusterCacheInfo {
