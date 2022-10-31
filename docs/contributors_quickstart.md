@@ -7,10 +7,13 @@
 - Install version 1.18 or newer (Verify version by running `go version`)
 
 - Get current value of `GOPATH` env:
+
 ```console
 go env | grep path
 ```
+
 - Change directory into that path
+
 ```
 cd <path>
 ```
