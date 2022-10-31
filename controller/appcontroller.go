@@ -1357,7 +1357,7 @@ func (ctrl *ApplicationController) processAppRefreshQueueItem() (processNext boo
 		} else {
 			var tree *appv1.ApplicationTree
 			if tree, err = ctrl.getResourceTree(app, managedResources); err == nil {
-				app.Status.Summary = tree.GetSummary()
+				app.Status.Summary = tree.GetSummary(app)
 				if err := ctrl.cache.SetAppResourcesTree(app.InstanceName(ctrl.namespace), tree); err != nil {
 					logCtx.Errorf("Failed to cache resources tree: %v", err)
 					return
@@ -1408,7 +1408,7 @@ func (ctrl *ApplicationController) processAppRefreshQueueItem() (processNext boo
 	if err != nil {
 		logCtx.Errorf("Failed to cache app resources: %v", err)
 	} else {
-		app.Status.Summary = tree.GetSummary()
+		app.Status.Summary = tree.GetSummary(app)
 	}
 
 	if project.Spec.SyncWindows.Matches(app).CanSync(false) {
