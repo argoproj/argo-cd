@@ -1525,6 +1525,8 @@ message ResourceStatus {
   optional bool hook = 8;
 
   optional bool requiresPruning = 9;
+
+  optional int64 syncWave = 10;
 }
 
 // RetryStrategy contains information about the strategy to apply when a sync failed
@@ -1569,7 +1571,6 @@ message RevisionMetadata {
   repeated string tags = 3;
 
   // Message contains the message associated with the revision, most likely the commit message.
-  // The message is truncated to the first newline or 64 characters (which ever comes first)
   optional string message = 4;
 
   // SignatureInfo contains a hint on the signer if the revision was signed with GPG, and signature verification is enabled.

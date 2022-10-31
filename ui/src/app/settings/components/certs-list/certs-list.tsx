@@ -35,9 +35,9 @@ export class CertsList extends React.Component<RouteComponentProps<any>> {
     public render() {
         return (
             <Page
-                title='Repository certificates'
+                title='Repository certificates and known hosts'
                 toolbar={{
-                    breadcrumbs: [{title: 'Settings', path: '/settings'}, {title: 'Repository certificates'}],
+                    breadcrumbs: [{title: 'Settings', path: '/settings'}, {title: 'Repository certificates and known hosts'}],
                     actionMenu: {
                         className: 'fa fa-plus',
                         items: [

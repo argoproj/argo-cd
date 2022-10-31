@@ -28,7 +28,7 @@ import {Link} from 'react-router-dom';
 import {EditNotificationSubscriptions, useEditNotificationSubscriptions} from './edit-notification-subscriptions';
 import {EditAnnotations} from './edit-annotations';
 
-require('./application-summary.scss');
+import './application-summary.scss';
 
 function swap(array: any[], a: number, b: number) {
     array = array.slice();
@@ -151,7 +151,7 @@ export const ApplicationSummary = (props: ApplicationSummaryProps) => {
             edit: (formApi: FormApi) => <FormField formApi={formApi} field='spec.destination.namespace' component={Text} />
         },
         {
-            title: 'CREATED_AT',
+            title: 'CREATED AT',
             view: formatCreationTimestamp(app.metadata.creationTimestamp)
         },
         {
@@ -219,7 +219,11 @@ export const ApplicationSummary = (props: ApplicationSummaryProps) => {
                   },
                   {
                       title: 'PATH',
-                      view: app.spec.source.path,
+                      view: (
+                          <Revision repoUrl={app.spec.source.repoURL} revision={app.spec.source.targetRevision || 'HEAD'} path={app.spec.source.path}>
+                              {app.spec.source.path}
+                          </Revision>
+                      ),
                       edit: (formApi: FormApi) => <FormField formApi={formApi} field='spec.source.path' component={Text} />
                   }
               ]),

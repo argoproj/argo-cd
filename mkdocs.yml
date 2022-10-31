@@ -35,6 +35,7 @@ nav:
   - Security:
     - Overview: operator-manual/security.md
     - snyk/index.md
+    - operator-manual/signed-release-assets.md
   - operator-manual/tls.md
   - operator-manual/cluster-bootstrapping.md
   - operator-manual/secret-management.md
