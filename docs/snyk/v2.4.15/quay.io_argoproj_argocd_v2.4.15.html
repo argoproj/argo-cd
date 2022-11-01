@@ -456,7 +456,7 @@
               <div class="header-wrap">
                   <h1 class="project__header__title">Snyk test report</h1>
     
-                <p class="timestamp">October 30th 2022, 12:24:01 am</p>
+                <p class="timestamp">November 1st 2022, 5:47:50 pm</p>
               </div>
               <div class="source-panel">
                 <span>Scanned the following path:</span>
@@ -649,6 +649,7 @@
         <li><a href="https://sqlite.org/releaselog/3_39_2.html">CONFIRM</a></li>
         <li><a href="https://security.netapp.com/advisory/ntap-20220915-0009/">CONFIRM</a></li>
         <li><a href="https://blog.trailofbits.com/2022/10/25/sqlite-vulnerability-july-2022-library-api/">MISC</a></li>
+        <li><a href="https://security.gentoo.org/glsa/202210-40">GENTOO</a></li>
         </ul>
         
               <hr/>
@@ -1024,6 +1025,7 @@
         <ul>
         <li><a href="http://people.ubuntu.com/~ubuntu-security/cve/CVE-2022-42916">ADVISORY</a></li>
         <li><a href="https://curl.se/docs/CVE-2022-42916.html">MISC</a></li>
+        <li><a href="https://lists.fedoraproject.org/archives/list/package-announce@lists.fedoraproject.org/message/HVU3IMZCKR4VE6KJ4GCWRL2ILLC6OV76/">FEDORA</a></li>
         </ul>
         
               <hr/>
@@ -1034,7 +1036,7 @@
         
         </div><!-- .card -->
         <div class="card card--vuln  disclosure--not-new severity--medium" data-snyk-test="medium">
-            <h2 class="card__title">CVE-2022-42915</h2>
+            <h2 class="card__title">Double Free</h2>
             <div class="card__section">
         
                 <div class="label label--medium">
@@ -1084,12 +1086,16 @@
               <hr/>
               <!-- Overview -->
               <h2 id="nvd-description">NVD Description</h2>
-        <p><em>This vulnerability has not been analyzed by NVD yet.</em></p>
+        <p><strong><em>Note:</em></strong> <em>Versions mentioned in the description apply to the upstream <code>curl</code> package.</em>
+        <em>See <code>How to fix?</code> for <code>Ubuntu:22.04</code> relevant versions.</em></p>
+        <p>curl before 7.86.0 has a double free. If curl is told to use an HTTP proxy for a transfer with a non-HTTP(S) URL, it sets up the connection to the remote server by issuing a CONNECT request to the proxy, and then tunnels the rest of the protocol through. An HTTP proxy might refuse this request (HTTP proxies often only allow outgoing connections to specific port numbers, like 443 for HTTPS) and instead return a non-200 status code to the client. Due to flaws in the error/cleanup handling, this could trigger a double free in curl if one of the following schemes were used in the URL for the transfer: dict, gopher, gophers, ldap, ldaps, rtmp, rtmps, or telnet. The earliest affected version is 7.77.0.</p>
         <h2 id="remediation">Remediation</h2>
         <p>Upgrade <code>Ubuntu:22.04</code> <code>curl</code> to version 7.81.0-1ubuntu1.6 or higher.</p>
         <h2 id="references">References</h2>
         <ul>
         <li><a href="http://people.ubuntu.com/~ubuntu-security/cve/CVE-2022-42915">ADVISORY</a></li>
+        <li><a href="https://curl.se/docs/CVE-2022-42915.html">MISC</a></li>
+        <li><a href="https://lists.fedoraproject.org/archives/list/package-announce@lists.fedoraproject.org/message/HVU3IMZCKR4VE6KJ4GCWRL2ILLC6OV76/">FEDORA</a></li>
         </ul>
         
               <hr/>
@@ -1256,6 +1262,7 @@
         <li><a href="https://lists.apache.org/thread.html/rf9fa47ab66495c78bb4120b0754dd9531ca2ff0430f6685ac9b07772@%3Cdev.mina.apache.org%3E">MLIST</a></li>
         <li><a href="https://bugzilla.redhat.com/show_bug.cgi?id=CVE-2013-4235">RedHat Bugzilla Bug</a></li>
         <li><a href="https://access.redhat.com/security/cve/cve-2013-4235">RedHat CVE Database</a></li>
+        <li><a href="https://security.gentoo.org/glsa/202210-26">GENTOO</a></li>
         </ul>
         
               <hr/>
@@ -2054,6 +2061,8 @@
         <li><a href="https://lists.gnu.org/archive/html/bug-ncurses/2022-04/msg00016.html">MISC</a></li>
         <li><a href="https://lists.gnu.org/archive/html/bug-ncurses/2022-04/msg00014.html">MISC</a></li>
         <li><a href="https://support.apple.com/kb/HT213488">CONFIRM</a></li>
+        <li><a href="https://lists.debian.org/debian-lts-announce/2022/10/msg00037.html">MLIST</a></li>
+        <li><a href="http://seclists.org/fulldisclosure/2022/Oct/41">FULLDISC</a></li>
         </ul>
         
               <hr/>
