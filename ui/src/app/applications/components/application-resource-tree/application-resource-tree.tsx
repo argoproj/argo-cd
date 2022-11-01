@@ -27,14 +27,13 @@ import {
 import {NodeUpdateAnimation} from './node-update-animation';
 import {PodGroup} from '../application-pod-view/pod-view';
 import {ArrowConnector} from './arrow-connector';
+import './application-resource-tree.scss';
 
 function treeNodeKey(node: NodeId & {uid?: string}) {
     return node.uid || nodeKey(node);
 }
 
 const color = require('color');
-
-require('./application-resource-tree.scss');
 
 export interface ResourceTreeNode extends models.ResourceNode {
     status?: models.SyncStatusCode;
