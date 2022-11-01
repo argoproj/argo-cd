@@ -31,10 +31,9 @@ jobs:
           docker images -a --format "{{.ID}}" | xargs -I {} docker rmi {}
           make image DEV_IMAGE=true DOCKER_PUSH=false IMAGE_NAMESPACE=ghcr.io/codefresh-io IMAGE_TAG=${{ steps.image.outputs.tag }}
         working-directory: ./src/github.com/argoproj/argo-cd
-      # publish docker push ghcr.io/codefresh-io/argocd:${{ steps.image.outputs.tag }}
       - run: |
           docker login ghcr.io --username $USERNAME --password $PASSWORD
-          echo ${{ steps.image.outputs.tag }}
+          docker push ghcr.io/codefresh-io/argocd:${{ steps.image.outputs.tag }}
         env:
           USERNAME: ${{ github.repository_owner }}
           PASSWORD: ${{ secrets.TOKEN }}

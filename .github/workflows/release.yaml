@@ -219,7 +219,6 @@ jobs:
           COSIGN_PASSWORD: ${{secrets.COSIGN_PASSWORD}}
         if: ${{ env.DRY_RUN != 'true' }}
 
-      #   docker push ${{ env.IMAGE_NAMESPACE }}/argocd:v${TARGET_VERSION}
       - name: Push docker image to repository
         env:
           QUAY_USERNAME: ${{ secrets.RELEASE_QUAY_USERNAME }}
@@ -227,6 +226,7 @@ jobs:
         run: |
           set -ue
           docker login quay.io --username "${QUAY_USERNAME}" --password "${QUAY_TOKEN}"
+          docker push ${{ env.IMAGE_NAMESPACE }}/argocd:v${TARGET_VERSION}
         if: ${{ env.DRY_RUN != 'true' }}
 
       - name: Read release notes file
