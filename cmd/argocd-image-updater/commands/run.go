@@ -110,7 +110,7 @@ func newRunCommand() *cobra.Command {
 			var err error
 			if !disableKubernetes {
 				ctx := context.Background()
-				cfg.KubeClient, err = getKubeConfig(ctx, cfg.ArgocdNamespace, kubeConfig)
+				cfg.KubeClient, err = GetKubeConfig(ctx, cfg.ArgocdNamespace, kubeConfig)
 				if err != nil {
 					log.Fatalf("could not create K8s client: %v", err)
 				}

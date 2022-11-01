@@ -53,7 +53,5 @@ func NewCommand() *cobra.Command {
 		Short: "Automatically update container images with ArgoCD",
 	}
 	rootCmd.AddCommand(newRunCommand())
-	rootCmd.AddCommand(newTestCommand())
-	rootCmd.AddCommand(newTemplateCommand())
 	return rootCmd
 }

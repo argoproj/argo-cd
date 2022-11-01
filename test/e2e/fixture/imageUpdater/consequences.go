@@ -1,8 +1,12 @@
 package imageUpdater
 
 import (
+	"context"
+
+	"github.com/argoproj/argo-cd/v2/pkg/apis/application/v1alpha1"
 	"github.com/argoproj/argo-cd/v2/test/e2e/fixture"
-	"github.com/stretchr/testify/require"
+	"github.com/argoproj/argo-cd/v2/util/errors"
+	v1 "k8s.io/apimachinery/pkg/apis/meta/v1"
 )
 
 // this implements the "then" part of given/when/then
@@ -11,21 +15,16 @@ type Consequences struct {
 	actions *Actions
 }
 
-func (a *Actions) And(block func()) *Actions {
-	a.context.t.Helper()
-	block()
-	return a
+func (c *Consequences) app() *v1alpha1.Application {
+	app, err := c.get()
+	errors.CheckError(err)
+	return app
 }
 
-func (a *Actions) Then() *Consequences {
-	a.context.t.Helper()
-	return &Consequences{a.context, a}
+func (c *Consequences) get() (*v1alpha1.Application, error) {
+	return fixture.AppClientset.ArgoprojV1alpha1().Applications(c.context.AppNamespace()).Get(context.Background(), c.context.AppName(), v1.GetOptions{})
 }
 
-func (a *Actions) runCli(args ...string) {
-	a.context.t.Helper()
-	a.lastOutput, a.lastError = fixture.RunCli(args...)
-	if !a.ignoreErrors {
-		require.Empty(a.context.t, a.lastError)
-	}
+func (c *Consequences) When() *Actions {
+	return c.actions
 }

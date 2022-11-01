@@ -26,7 +26,7 @@ func getPrintableHealthPort(port int) string {
 	}
 }
 
-func getKubeConfig(ctx context.Context, namespace string, kubeConfig string) (*kube.KubernetesClient, error) {
+func GetKubeConfig(ctx context.Context, namespace string, kubeConfig string) (*kube.KubernetesClient, error) {
 	var fullKubeConfigPath string
 	var kubeClient *kube.KubernetesClient
 	var err error
