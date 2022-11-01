@@ -18,7 +18,7 @@ See 'How to modify ApplicationSet container parameters' below for detailed steps
 
 The ApplicationSet controller supports a parameter `--policy`, which is specified on launch (within the controller Deployment container), and which restricts what types of modifications will be made to managed Argo CD `Application` resources.
 
-The `--policy` parameter takes four values: `sync`, `create-only`, `create-update`, and `create-delete`. (`sync` is the default, which is used if the `--policy` parameter is not specified; the other policies are described below).
+The `--policy` parameter takes one of the following valid values: `sync`, `create-only`, `create-update`, and `create-delete`. (`sync` is the default, which is used if the `--policy` parameter is not specified; the other policies are described below).
 
 To allow the ApplicationSet controller to *create* `Application` resources, but prevent any further modification, such as deletion, or modification of Application fields, add this parameter in the ApplicationSet controller:
 ```
