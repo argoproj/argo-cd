@@ -1832,7 +1832,6 @@ func TestReconcilerValidationErrorBehaviour(t *testing.T) {
 	}}, nil)
 
 	r := ApplicationSetReconciler{
-		Log:      ctrl.Log.WithName("controllers").WithName("ApplicationSet"),
 		Client:   client,
 		Scheme:   scheme,
 		Renderer: &utils.Render{},
@@ -1908,7 +1907,6 @@ func TestSetApplicationSetStatusCondition(t *testing.T) {
 	client := fake.NewClientBuilder().WithScheme(scheme).WithObjects(&appSet).Build()
 
 	r := ApplicationSetReconciler{
-		Log:      ctrl.Log.WithName("controllers").WithName("ApplicationSet"),
 		Client:   client,
 		Scheme:   scheme,
 		Renderer: &utils.Render{},

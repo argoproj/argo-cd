@@ -41,27 +41,30 @@ func setApplicationHealth(resources []managedResource, statuses []appv1.Resource
 				savedErr = err
 			}
 		}
-		if healthStatus != nil {
-			if persistResourceHealth {
-				resHealth := appv1.HealthStatus{Status: healthStatus.Status, Message: healthStatus.Message}
-				statuses[i].Health = &resHealth
-			} else {
-				statuses[i].Health = nil
-			}
 
-			// Is health status is missing but resource has not built-in/custom health check then it should not affect parent app health
-			if _, hasOverride := healthOverrides[lua.GetConfigMapKey(gvk)]; healthStatus.Status == health.HealthStatusMissing && !hasOverride && health.GetHealthCheckFunc(gvk) == nil {
-				continue
-			}
+		if healthStatus == nil {
+			continue
+		}
 
-			// Missing or Unknown health status of child Argo CD app should not affect parent
-			if res.Kind == application.ApplicationKind && res.Group == application.Group && (healthStatus.Status == health.HealthStatusMissing || healthStatus.Status == health.HealthStatusUnknown) {
-				continue
-			}
+		if persistResourceHealth {
+			resHealth := appv1.HealthStatus{Status: healthStatus.Status, Message: healthStatus.Message}
+			statuses[i].Health = &resHealth
+		} else {
+			statuses[i].Health = nil
+		}
 
-			if health.IsWorse(appHealth.Status, healthStatus.Status) {
-				appHealth.Status = healthStatus.Status
-			}
+		// Is health status is missing but resource has not built-in/custom health check then it should not affect parent app health
+		if _, hasOverride := healthOverrides[lua.GetConfigMapKey(gvk)]; healthStatus.Status == health.HealthStatusMissing && !hasOverride && health.GetHealthCheckFunc(gvk) == nil {
+			continue
+		}
+
+		// Missing or Unknown health status of child Argo CD app should not affect parent
+		if res.Kind == application.ApplicationKind && res.Group == application.Group && (healthStatus.Status == health.HealthStatusMissing || healthStatus.Status == health.HealthStatusUnknown) {
+			continue
+		}
+
+		if health.IsWorse(appHealth.Status, healthStatus.Status) {
+			appHealth.Status = healthStatus.Status
 		}
 	}
 	if persistResourceHealth {

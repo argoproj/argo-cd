@@ -336,8 +336,8 @@ spec:
                           and is only valid for applications sourced from Git.
                         type: string
                       plugin:
-                        description: ConfigManagementPlugin holds config management
-                          plugin specific options
+                        description: Plugin holds config management plugin specific
+                          options
                         properties:
                           env:
                             description: Env is a list of environment variable entries
@@ -682,8 +682,7 @@ spec:
                       and is only valid for applications sourced from Git.
                     type: string
                   plugin:
-                    description: ConfigManagementPlugin holds config management plugin
-                      specific options
+                    description: Plugin holds config management plugin specific options
                     properties:
                       env:
                         description: Env is a list of environment variable entries
@@ -1038,8 +1037,8 @@ spec:
                             and is only valid for applications sourced from Git.
                           type: string
                         plugin:
-                          description: ConfigManagementPlugin holds config management
-                            plugin specific options
+                          description: Plugin holds config management plugin specific
+                            options
                           properties:
                             env:
                               description: Env is a list of environment variable entries
@@ -1410,8 +1409,8 @@ spec:
                                   from Git.
                                 type: string
                               plugin:
-                                description: ConfigManagementPlugin holds config management
-                                  plugin specific options
+                                description: Plugin holds config management plugin
+                                  specific options
                                 properties:
                                   env:
                                     description: Env is a list of environment variable
@@ -1754,8 +1753,8 @@ spec:
                               and is only valid for applications sourced from Git.
                             type: string
                           plugin:
-                            description: ConfigManagementPlugin holds config management
-                              plugin specific options
+                            description: Plugin holds config management plugin specific
+                              options
                             properties:
                               env:
                                 description: Env is a list of environment variable
@@ -1846,6 +1845,9 @@ spec:
                       description: SyncStatusCode is a type which represents possible
                         comparison results
                       type: string
+                    syncWave:
+                      format: int64
+                      type: integer
                     version:
                       type: string
                   type: object
@@ -2092,8 +2094,8 @@ spec:
                               and is only valid for applications sourced from Git.
                             type: string
                           plugin:
-                            description: ConfigManagementPlugin holds config management
-                              plugin specific options
+                            description: Plugin holds config management plugin specific
+                              options
                             properties:
                               env:
                                 description: Env is a list of environment variable
@@ -2159,6 +2161,7 @@ kind: CustomResourceDefinition
 metadata:
   labels:
     app.kubernetes.io/name: applicationsets.argoproj.io
+    app.kubernetes.io/part-of: argocd
   name: applicationsets.argoproj.io
 spec:
   group: argoproj.io
@@ -10883,6 +10886,60 @@ spec:
           valueFrom:
             fieldRef:
               fieldPath: metadata.namespace
+        - name: ARGOCD_APPLICATIONSET_CONTROLLER_ENABLE_LEADER_ELECTION
+          valueFrom:
+            configMapKeyRef:
+              key: applicationsetcontroller.enable.leader.election
+              name: argocd-cmd-params-cm
+              optional: true
+        - name: ARGOCD_APPLICATIONSET_CONTROLLER_NAMESPACE
+          valueFrom:
+            configMapKeyRef:
+              key: applicationsetcontroller.namespace
+              name: argocd-cmd-params-cm
+              optional: true
+        - name: ARGOCD_APPLICATIONSET_CONTROLLER_REPO_SERVER
+          valueFrom:
+            configMapKeyRef:
+              key: repo.server
+              name: argocd-cmd-params-cm
+              optional: true
+        - name: ARGOCD_APPLICATIONSET_CONTROLLER_POLICY
+          valueFrom:
+            configMapKeyRef:
+              key: applicationsetcontroller.policy
+              name: argocd-cmd-params-cm
+              optional: true
+        - name: ARGOCD_APPLICATIONSET_CONTROLLER_DEBUG
+          valueFrom:
+            configMapKeyRef:
+              key: applicationsetcontroller.debug
+              name: argocd-cmd-params-cm
+              optional: true
+        - name: ARGOCD_APPLICATIONSET_CONTROLLER_LOGFORMAT
+          valueFrom:
+            configMapKeyRef:
+              key: applicationsetcontroller.log.format
+              name: argocd-cmd-params-cm
+              optional: true
+        - name: ARGOCD_APPLICATIONSET_CONTROLLER_LOGLEVEL
+          valueFrom:
+            configMapKeyRef:
+              key: applicationsetcontroller.log.level
+              name: argocd-cmd-params-cm
+              optional: true
+        - name: ARGOCD_APPLICATIONSET_CONTROLLER_DRY_RUN
+          valueFrom:
+            configMapKeyRef:
+              key: applicationsetcontroller.dryrun
+              name: argocd-cmd-params-cm
+              optional: true
+        - name: ARGOCD_GIT_MODULES_ENABLED
+          valueFrom:
+            configMapKeyRef:
+              key: applicationsetcontroller.enable.git.submodule
+              name: argocd-cmd-params-cm
+              optional: true
         image: quay.io/argoproj/argocd:latest
         imagePullPolicy: Always
         name: argocd-applicationset-controller
@@ -10964,7 +11021,7 @@ spec:
               key: dexserver.disable.tls
               name: argocd-cmd-params-cm
               optional: true
-        image: ghcr.io/dexidp/dex:v2.35.0-distroless
+        image: ghcr.io/dexidp/dex:v2.35.3-distroless
         imagePullPolicy: Always
         name: dex
         ports:
@@ -11337,6 +11394,12 @@ spec:
               key: reposerver.streamed.manifest.max.extracted.size
               name: argocd-cmd-params-cm
               optional: true
+        - name: ARGOCD_GIT_MODULES_ENABLED
+          valueFrom:
+            configMapKeyRef:
+              key: reposerver.enable.git.submodule
+              name: argocd-cmd-params-cm
+              optional: true
         - name: HELM_CACHE_HOME
           value: /helm-working-dir
         - name: HELM_CONFIG_HOME
@@ -11351,7 +11414,8 @@ spec:
             path: /healthz?full=true
             port: 8084
           initialDelaySeconds: 30
-          periodSeconds: 5
+          periodSeconds: 30
+          timeoutSeconds: 5
         name: argocd-repo-server
         ports:
         - containerPort: 8081
@@ -11675,6 +11739,7 @@ spec:
             port: 8080
           initialDelaySeconds: 3
           periodSeconds: 30
+          timeoutSeconds: 5
         name: argocd-server
         ports:
         - containerPort: 8080
