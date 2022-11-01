@@ -1,6 +1,19 @@
 # Release Cycle
 
-## Minor releases (e.g. 2.x.0)
+## Schedule
+
+These are the upcoming releases dates:
+
+| Release | Release Planning Meeting | Release Candidate 1   | General Availability    | Release Champion | Checklist                                                 |
+|---------|--------------------------|-----------------------|-------------------------|------------------|-----------------------------------------------------------|
+| v2.6    | Monday, Nov. 28, 2022    | Monday, Dec. 12, 2022 | Tuesday, Jan. 2, 2023   |                  | [checklist](https:/github.com/argoproj/releases/issues/1) |
+| v2.7    | Monday, Feb. 27, 2023    | Monday, Mar. 13, 2023 | Monday, Apr. 3, 2023    |
+| v2.8    | Monday, May 29, 2023     | Monday, Jun. 12, 2023 | Wednesday, Jul. 5, 2023 |
+| v2.9    | Monday, Aug. 28, 2023    | Monday, Sep. 11, 2023 | Monday, Oct. 2, 2023    |
+
+## Release Process
+
+### Minor Releases (e.g. 2.x.0)
 
 A minor Argo CD release occurs four times a year, once every three months. Each General Availability (GA) release is 
 preceded by several Release Candidates (RCs). The first RC is released three weeks before the scheduled GA date. This 
@@ -15,7 +28,13 @@ These are the approximate release dates:
 
 Dates may be shifted slightly to accommodate holidays. Those shifts should be minimal.
 
-### Release Planning Meeting
+### Patch Releases (e.g. 2.5.x)
+
+Argo CD patch releases occur on an as-needed basis. Only the three most recent minor versions are eligible for patch
+releases. Versions older than the three most recent minor versions are considered EOL and will not receive bug fixes or
+security updates.
+
+### Minor Release Planning Meeting
 
 Two weeks before the RC date, there will be a meeting to discuss which features are planned for the RC. This meeting is
 for contributors to advocate for certain features. Features which have at least one approver (besides the contributor) 
@@ -32,22 +51,7 @@ To help manage all the steps involved in a release, we will have a release champ
 responsible for a checklist of items for their release. The checklist will be an issue template in a new 
 argoproj/releases repository.
 
-## Patch releases (e.g. 2.5.x)
 
-Argo CD patch releases occur on an as-needed basis. Only the three most recent minor versions are eligible for patch 
-releases. Versions older than the three most recent minor versions are considered EOL and will not receive bug fixes or 
-security updates.
-
-## Schedule
-
-These are the upcoming releases dates:
-
-| Release | Release Planning Meeting | Release Candidate 1   | General Availability    | Release Champion | Checklist                                                 |
-|---------|--------------------------|-----------------------|-------------------------|------------------|-----------------------------------------------------------|
-| v2.6    | Monday, Nov. 28, 2022    | Monday, Dec. 12, 2022 | Tuesday, Jan. 2, 2023   |                  | [checklist](https:/github.com/argoproj/releases/issues/1) |
-| v2.7    | Monday, Feb. 27, 2023    | Monday, Mar. 13, 2023 | Monday, Apr. 3, 2023    |
-| v2.8    | Monday, May 29, 2023     | Monday, Jun. 12, 2023 | Wednesday, Jul. 5, 2023 |
-| v2.9    | Monday, Aug. 28, 2023    | Monday, Sep. 11, 2023 | Monday, Oct. 2, 2023    |
 
 ## Feature Acceptance Criteria
 
