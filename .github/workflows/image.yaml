@@ -6,14 +6,7 @@ on:
       - "release-*" # Codefresh change instead of `master`
 
 env:
-  GOLANG_VERSION: '1.18'
-
-concurrency:
-  group: ${{ github.workflow }}-${{ github.ref }}
-  cancel-in-progress: true
-
-permissions:
-  contents: read
+  GOLANG_VERSION: "1.18"
 
 jobs:
   publish:
@@ -21,7 +14,7 @@ jobs:
     env:
       GOPATH: /home/runner/work/argo-cd/argo-cd
     steps:
-      - uses: actions/setup-go@v3
+      - uses: actions/setup-go@v1
         with:
           go-version: ${{ env.GOLANG_VERSION }}
       - uses: actions/checkout@master
@@ -38,7 +31,6 @@ jobs:
           docker images -a --format "{{.ID}}" | xargs -I {} docker rmi {}
           make image DEV_IMAGE=true DOCKER_PUSH=false IMAGE_NAMESPACE=ghcr.io/codefresh-io IMAGE_TAG=${{ steps.image.outputs.tag }}
         working-directory: ./src/github.com/argoproj/argo-cd
-
       # publish
       - run: |
           docker login ghcr.io --username $USERNAME --password $PASSWORD
@@ -46,7 +38,6 @@ jobs:
         env:
           USERNAME: ${{ github.repository_owner }}
           PASSWORD: ${{ secrets.TOKEN }}
-
       # Codefresh step
       - name: Push docker image to quay repository
         env:
@@ -58,7 +49,6 @@ jobs:
           docker login quay.io --username "${QUAY_USERNAME}" --password "${QUAY_TOKEN}"
           docker tag ghcr.io/codefresh-io/argocd:${{ steps.image.outputs.tag }} ${IMAGE_NAMESPACE}/argocd:latest
           docker push ${IMAGE_NAMESPACE}/argocd:latest
-
       # deploy
       - run: git clone "https://$TOKEN@github.com/codefresh-io/argoproj-deployments"
         env:
@@ -70,4 +60,3 @@ jobs:
           git diff --exit-code && echo 'Already deployed' || (git commit -am 'Upgrade argocd to ${{ steps.image.outputs.tag }}' && git push)
         if: github.event_name == 'push'
         working-directory: argoproj-deployments/argocd
-      # TODO: clean up old images once github supports it: https://github.community/t5/How-to-use-Git-and-GitHub/Deleting-images-from-GitHub-Package-Registry/m-p/41202/thread-id/9811
