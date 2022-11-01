@@ -25,6 +25,12 @@ Since not everyone will be able to attend the meeting, there will be a meeting d
 to a table, and approvers can add their name to the table. Features with a corresponding approver will remain in the 
 release milestone.
 
+### Release Champion
+
+To help manage all the steps involved in a release, we will have a release champion. The release champion will be
+responsible for a checklist of items for their release. The checklist will be an issue template in a new 
+argoproj/releases repository.
+
 ## Patch releases (e.g. 2.5.x)
 
 Argo CD patch releases occur on an as-needed basis. Only the three most recent minor versions are eligible for patch 
@@ -35,9 +41,9 @@ security updates.
 
 These are the upcoming releases dates:
 
-| Release | Release Planning Meeting | Release Candidate 1   | General Availability    |
-|---------|--------------------------|-----------------------|-------------------------|
-| v2.6    | Monday, Nov. 28, 2022    | Monday, Dec. 12, 2022 | Tuesday, Jan. 2, 2022   |
+| Release | Release Planning Meeting | Release Candidate 1   | General Availability    | Release Champion                                                   |
+|---------|--------------------------|-----------------------|-------------------------|--------------------------------------------------------------------|
+| v2.6    | Monday, Nov. 28, 2022    | Monday, Dec. 12, 2022 | Tuesday, Jan. 2, 2022   | Michael Crenshaw ([@crenshaw-dev](https://github.com/crenshaw-dev) |
 | v2.7    | Monday, Feb. 27, 2022    | Monday, Mar. 13, 2022 | Monday, Apr. 3, 2022    |
 | v2.8    | Monday, May 29, 2022     | Monday, Jun. 12, 2022 | Wednesday, Jul. 5, 2022 |
 | v2.9    | Monday, Aug. 28, 2022    | Monday, Sep. 11, 2022 | Monday, Oct. 2, 2022    |
