@@ -3,10 +3,10 @@ package e2e
 import (
 	"context"
 	"fmt"
+	rbacv1 "k8s.io/api/rbac/v1"
 	"math/rand"
 	"path"
 	"reflect"
-	"regexp"
 	"strings"
 	"testing"
 	"time"
@@ -16,16 +16,12 @@ import (
 	. "github.com/argoproj/gitops-engine/pkg/sync/common"
 	"github.com/argoproj/gitops-engine/pkg/utils/kube"
 	"github.com/argoproj/pkg/errors"
-	log "github.com/sirupsen/logrus"
 	"github.com/stretchr/testify/assert"
 	"github.com/stretchr/testify/require"
 	v1 "k8s.io/api/core/v1"
-	networkingv1beta "k8s.io/api/networking/v1beta1"
 	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
-	"k8s.io/apimachinery/pkg/apis/meta/v1/unstructured"
 	"k8s.io/apimachinery/pkg/runtime/schema"
 	"k8s.io/apimachinery/pkg/types"
-	"k8s.io/apimachinery/pkg/util/intstr"
 	"k8s.io/utils/pointer"
 
 	"github.com/argoproj/argo-cd/v2/common"
@@ -595,124 +591,6 @@ func TestManipulateApplicationResources(t *testing.T) {
 			assert.NoError(t, err)
 		}).
 		Expect(SyncStatusIs(SyncStatusCodeOutOfSync))
-}
-
-func assetSecretDataHidden(t *testing.T, manifest string) {
-	secret, err := UnmarshalToUnstructured(manifest)
-	assert.NoError(t, err)
-
-	_, hasStringData, err := unstructured.NestedMap(secret.Object, "stringData")
-	assert.NoError(t, err)
-	assert.False(t, hasStringData)
-
-	secretData, hasData, err := unstructured.NestedMap(secret.Object, "data")
-	assert.NoError(t, err)
-	assert.True(t, hasData)
-	for _, v := range secretData {
-		assert.Regexp(t, regexp.MustCompile(`[*]*`), v)
-	}
-	var lastAppliedConfigAnnotation string
-	annotations := secret.GetAnnotations()
-	if annotations != nil {
-		lastAppliedConfigAnnotation = annotations[v1.LastAppliedConfigAnnotation]
-	}
-	if lastAppliedConfigAnnotation != "" {
-		assetSecretDataHidden(t, lastAppliedConfigAnnotation)
-	}
-}
-
-func TestAppWithSecrets(t *testing.T) {
-	closer, client, err := ArgoCDClientset.NewApplicationClient()
-	assert.NoError(t, err)
-	defer io.Close(closer)
-
-	Given(t).
-		Path("secrets").
-		When().
-		CreateApp().
-		Sync().
-		Then().
-		Expect(SyncStatusIs(SyncStatusCodeSynced)).
-		And(func(app *Application) {
-			res := FailOnErr(client.GetResource(context.Background(), &applicationpkg.ApplicationResourceRequest{
-				Namespace:    &app.Spec.Destination.Namespace,
-				Kind:         pointer.String(kube.SecretKind),
-				Group:        pointer.String(""),
-				Name:         &app.Name,
-				Version:      pointer.String("v1"),
-				ResourceName: pointer.String("test-secret"),
-			})).(*applicationpkg.ApplicationResourceResponse)
-			assetSecretDataHidden(t, res.GetManifest())
-
-			manifests, err := client.GetManifests(context.Background(), &applicationpkg.ApplicationManifestQuery{Name: &app.Name})
-			errors.CheckError(err)
-
-			for _, manifest := range manifests.Manifests {
-				assetSecretDataHidden(t, manifest)
-			}
-
-			diffOutput := FailOnErr(RunCli("app", "diff", app.Name)).(string)
-			assert.Empty(t, diffOutput)
-
-			// make sure resource update error does not print secret details
-			_, err = RunCli("app", "patch-resource", "test-app-with-secrets", "--resource-name", "test-secret",
-				"--kind", "Secret", "--patch", `{"op": "add", "path": "/data", "value": "hello"}'`,
-				"--patch-type", "application/json-patch+json")
-			require.Error(t, err)
-			assert.Contains(t, err.Error(), fmt.Sprintf("failed to patch Secret %s/test-secret", DeploymentNamespace()))
-			assert.NotContains(t, err.Error(), "username")
-			assert.NotContains(t, err.Error(), "password")
-
-			// patch secret and make sure app is out of sync and diff detects the change
-			FailOnErr(KubeClientset.CoreV1().Secrets(DeploymentNamespace()).Patch(context.Background(),
-				"test-secret", types.JSONPatchType, []byte(`[
-	{"op": "remove", "path": "/data/username"},
-	{"op": "add", "path": "/stringData", "value": {"password": "foo"}}
-]`), metav1.PatchOptions{}))
-		}).
-		When().
-		Refresh(RefreshTypeNormal).
-		Then().
-		Expect(SyncStatusIs(SyncStatusCodeOutOfSync)).
-		And(func(app *Application) {
-			diffOutput, err := RunCli("app", "diff", app.Name)
-			assert.Error(t, err)
-			assert.Contains(t, diffOutput, "username: ++++++++")
-			assert.Contains(t, diffOutput, "password: ++++++++++++")
-
-			// local diff should ignore secrets
-			diffOutput = FailOnErr(RunCli("app", "diff", app.Name, "--local", "testdata/secrets")).(string)
-			assert.Empty(t, diffOutput)
-
-			// ignore missing field and make sure diff shows no difference
-			app.Spec.IgnoreDifferences = []ResourceIgnoreDifferences{{
-				Kind: kube.SecretKind, JSONPointers: []string{"/data"},
-			}}
-			FailOnErr(client.UpdateSpec(context.Background(), &applicationpkg.ApplicationUpdateSpecRequest{Name: &app.Name, Spec: &app.Spec}))
-		}).
-		When().
-		Refresh(RefreshTypeNormal).
-		Then().
-		Expect(OperationPhaseIs(OperationSucceeded)).
-		Expect(SyncStatusIs(SyncStatusCodeSynced)).
-		And(func(app *Application) {
-			diffOutput := FailOnErr(RunCli("app", "diff", app.Name)).(string)
-			assert.Empty(t, diffOutput)
-		}).
-		// verify not committed secret also ignore during diffing
-		When().
-		WriteFile("secret3.yaml", `
-apiVersion: v1
-kind: Secret
-metadata:
-  name: test-secret3
-stringData:
-  username: test-username`).
-		Then().
-		And(func(app *Application) {
-			diffOutput := FailOnErr(RunCli("app", "diff", app.Name, "--local", "testdata/secrets")).(string)
-			assert.Empty(t, diffOutput)
-		})
 }
 
 func TestResourceDiffing(t *testing.T) {
@@ -1486,95 +1364,6 @@ func TestOrphanedResource(t *testing.T) {
 		Then().
 		Expect(SyncStatusIs(SyncStatusCodeSynced)).
 		Expect(NoConditions())
-}
-
-func TestNotPermittedResources(t *testing.T) {
-	ctx := Given(t)
-
-	pathType := networkingv1.PathTypePrefix
-	ingress := &networkingv1.Ingress{
-		ObjectMeta: metav1.ObjectMeta{
-			Name: "sample-ingress",
-			Labels: map[string]string{
-				common.LabelKeyAppInstance: ctx.GetName(),
-			},
-		},
-		Spec: networkingv1.IngressSpec{
-			Rules: []networkingv1.IngressRule{{
-				IngressRuleValue: networkingv1.IngressRuleValue{
-					HTTP: &networkingv1.HTTPIngressRuleValue{
-						Paths: []networkingv1.HTTPIngressPath{{
-							Path: "/",
-							Backend: networkingv1.IngressBackend{
-								Service: &networkingv1.IngressServiceBackend{
-									Name: "guestbook-ui",
-									Port: networkingv1.ServiceBackendPort{Number: 80},
-								},
-							},
-						}},
-					},
-				},
-			}},
-		},
-	}
-	defer func() {
-		log.Infof("Ingress 'sample-ingress' deleted from %s", ArgoCDNamespace)
-		CheckError(KubeClientset.NetworkingV1().Ingresses(ArgoCDNamespace).Delete(context.Background(), "sample-ingress", metav1.DeleteOptions{}))
-	}()
-
-	svc := &v1.Service{
-		ObjectMeta: metav1.ObjectMeta{
-			Name: "guestbook-ui",
-			Labels: map[string]string{
-				common.LabelKeyAppInstance: ctx.GetName(),
-			},
-		},
-		Spec: v1.ServiceSpec{
-			Ports: []v1.ServicePort{{
-				Port:       80,
-				TargetPort: intstr.IntOrString{Type: intstr.Int, IntVal: 80},
-			}},
-			Selector: map[string]string{
-				"app": "guestbook-ui",
-			},
-		},
-	}
-
-	ctx.ProjectSpec(AppProjectSpec{
-		SourceRepos:  []string{"*"},
-		Destinations: []ApplicationDestination{{Namespace: DeploymentNamespace(), Server: "*"}},
-		NamespaceResourceBlacklist: []metav1.GroupKind{
-			{Group: "", Kind: "Service"},
-		}}).
-		And(func() {
-			FailOnErr(KubeClientset.NetworkingV1().Ingresses(ArgoCDNamespace).Create(context.Background(), ingress, metav1.CreateOptions{}))
-			FailOnErr(KubeClientset.CoreV1().Services(DeploymentNamespace()).Create(context.Background(), svc, metav1.CreateOptions{}))
-		}).
-		Path(guestbookPath).
-		When().
-		CreateApp().
-		Then().
-		Expect(SyncStatusIs(SyncStatusCodeOutOfSync)).
-		And(func(app *Application) {
-			statusByKind := make(map[string]ResourceStatus)
-			for _, res := range app.Status.Resources {
-				statusByKind[res.Kind] = res
-			}
-			_, hasIngress := statusByKind[kube.IngressKind]
-			assert.False(t, hasIngress, "Ingress is prohibited not managed object and should be even visible to user")
-			serviceStatus := statusByKind[kube.ServiceKind]
-			assert.Equal(t, serviceStatus.Status, SyncStatusCodeUnknown, "Service is prohibited managed resource so should be set to Unknown")
-			deploymentStatus := statusByKind[kube.DeploymentKind]
-			assert.Equal(t, deploymentStatus.Status, SyncStatusCodeOutOfSync)
-		}).
-		When().
-		Delete(true).
-		Then().
-		Expect(DoesNotExist())
-
-	// Make sure prohibited resources are not deleted during application deletion
-	FailOnErr(KubeClientset.NetworkingV1().Ingresses(ArgoCDNamespace).Get(context.Background(), "sample-ingress", metav1.GetOptions{}))
-	FailOnErr(KubeClientset.CoreV1().Services(DeploymentNamespace()).Get(context.Background(), "guestbook-ui", metav1.GetOptions{}))
 }
 
 func TestSyncWithInfos(t *testing.T) {

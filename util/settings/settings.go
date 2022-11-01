@@ -361,8 +361,6 @@ const (
 	settingsApplicationInstanceLabelKey = "application.instanceLabelKey"
 	// settingsResourceTrackingMethodKey is the key to configure tracking method for application resources
 	settingsResourceTrackingMethodKey = "application.resourceTrackingMethod"
-	// settingsAppsAllowedDeliverToIncluster apps allowed deliver to incluster
-	settingsAppsAllowedDeliverToIncluster = "application.allowedDeliverToIncluster"
 	// resourcesCustomizationsKey is the key to the map of resource overrides
 	resourceCustomizationsKey = "resource.customizations"
 	// resourceExclusions is the key to the list of excluded resources

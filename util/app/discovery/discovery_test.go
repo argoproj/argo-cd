@@ -10,7 +10,7 @@ import (
 )
 
 func TestDiscover(t *testing.T) {
-	apps, err := Discover(context.Background(), "./testdata")
+	apps, err := Discover(context.Background(), "./testdata", map[string]bool{}, []string{})
 	assert.NoError(t, err)
 	assert.Equal(t, map[string]string{
 		"foo": "Kustomize",

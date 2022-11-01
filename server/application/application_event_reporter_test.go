@@ -40,8 +40,10 @@ func TestGetResourceEventPayload(t *testing.T) {
 		rs := v1alpha1.ResourceStatus{}
 		es := events.EventSource{}
 
+		man := "{ \"key\" : \"manifest\" }"
+
 		actualState := application.ApplicationResourceResponse{
-			Manifest: "{ \"key\" : \"manifest\" }",
+			Manifest: &man,
 		}
 		desiredState := apiclient.Manifest{
 			CompiledManifest: "{ \"key\" : \"manifest\" }",
@@ -75,9 +77,9 @@ func TestGetResourceEventPayload(t *testing.T) {
 		}
 		rs := v1alpha1.ResourceStatus{}
 		es := events.EventSource{}
-
+		man := "{ \"key\" : \"manifest\" }"
 		actualState := application.ApplicationResourceResponse{
-			Manifest: "{ \"key\" : \"manifest\" }",
+			Manifest: &man,
 		}
 		desiredState := apiclient.Manifest{
 			CompiledManifest: "{ \"key\" : \"manifest\" }",
@@ -263,7 +265,8 @@ func fakeServer() *Server {
 		1*time.Minute,
 	)
 
-	return NewServer(test.FakeArgoCDNamespace, kubeclientset, appClientSet, appLister, appInformer, nil, cache, nil, nil, nil, nil, nil, nil)
+	server, _ := NewServer(test.FakeArgoCDNamespace, kubeclientset, appClientSet, appLister, appInformer, nil, cache, nil, nil, nil, nil, nil, nil)
+	return server.(*Server)
 }
 
 func TestShouldSendEvent(t *testing.T) {
@@ -357,8 +360,10 @@ func TestGetResourceEventPayloadWithoutRevision(t *testing.T) {
 	rs := v1alpha1.ResourceStatus{}
 	es := events.EventSource{}
 
+	mf := "{ \"key\" : \"manifest\" }"
+
 	actualState := application.ApplicationResourceResponse{
-		Manifest: "{ \"key\" : \"manifest\" }",
+		Manifest: &mf,
 	}
 	desiredState := apiclient.Manifest{
 		CompiledManifest: "{ \"key\" : \"manifest\" }",
