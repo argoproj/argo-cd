@@ -114,7 +114,11 @@ require (
 	go.opentelemetry.io/otel/sdk v1.6.3
 )
 
-require github.com/emicklei/go-restful/v3 v3.8.0 // indirect
+require (
+	github.com/AdaLogics/go-fuzz-headers v0.0.0-20221007124625-37f5449ff7df // indirect
+	github.com/cyphar/filepath-securejoin v0.2.3 // indirect
+	github.com/emicklei/go-restful/v3 v3.8.0 // indirect
+)
 
 require (
 	cloud.google.com/go v0.99.0 // indirect
