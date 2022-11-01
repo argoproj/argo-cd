@@ -44,10 +44,10 @@ These are the upcoming releases dates:
 
 | Release | Release Planning Meeting | Release Candidate 1   | General Availability    | Release Champion |
 |---------|--------------------------|-----------------------|-------------------------|------------------|
-| v2.6    | Monday, Nov. 28, 2022    | Monday, Dec. 12, 2022 | Tuesday, Jan. 2, 2022   |                  |
-| v2.7    | Monday, Feb. 27, 2022    | Monday, Mar. 13, 2022 | Monday, Apr. 3, 2022    |
-| v2.8    | Monday, May 29, 2022     | Monday, Jun. 12, 2022 | Wednesday, Jul. 5, 2022 |
-| v2.9    | Monday, Aug. 28, 2022    | Monday, Sep. 11, 2022 | Monday, Oct. 2, 2022    |
+| v2.6    | Monday, Nov. 28, 2022    | Monday, Dec. 12, 2022 | Tuesday, Jan. 2, 2023   |                  |
+| v2.7    | Monday, Feb. 27, 2023    | Monday, Mar. 13, 2023 | Monday, Apr. 3, 2023    |
+| v2.8    | Monday, May 29, 2023     | Monday, Jun. 12, 2023 | Wednesday, Jul. 5, 2023 |
+| v2.9    | Monday, Aug. 28, 2023    | Monday, Sep. 11, 2023 | Monday, Oct. 2, 2023    |
 
 ## Feature Acceptance Criteria
 
