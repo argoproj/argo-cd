@@ -1,9 +1,5 @@
 # Release Cycle
 
-TODO:
-* Meeting to let folks advocate for their PRs and try to get reviews. 2 weeks before RC1?
-* Update the PR template.
-
 ## Minor releases (e.g. 2.x.0)
 
 A minor Argo CD release occurs four times a year, once every three months. Each General Availability (GA) release is 
