@@ -12,15 +12,10 @@ on:
       - "!release-v0*"
 
 env:
-    GOLANG_VERSION: '1.18'
-
-permissions:
-  contents: read
+  GOLANG_VERSION: "1.18"
 
 jobs:
   prepare-release:
-    permissions:
-      contents: write # To push changes to release branch
     name: Perform automatic release on trigger ${{ github.ref }}
     runs-on: ubuntu-latest
     env:
@@ -42,7 +37,7 @@ jobs:
       GIT_EMAIL: integration@codefresh.io
     steps:
       - name: Checkout code
-        uses: actions/checkout@v3
+        uses: actions/checkout@v2
         with:
           fetch-depth: 0
           token: ${{ secrets.GITHUB_TOKEN }}
@@ -58,53 +53,43 @@ jobs:
             echo "::error::Target version '${TARGET_VERSION}' is malformed, refusing to continue." >&2
             exit 1
           fi
-
           # Target branch is the release branch we're going to operate on
           # Its name is 'release-<major>.<minor>'
           TARGET_BRANCH="release-${TARGET_VERSION%\.[0-9]*}"
-
           # The release tag is the source tag, minus the release- prefix
           RELEASE_TAG="${SOURCE_TAG#*release-}"
-
           # Whether this is a pre-release (indicated by -rc suffix)
           PRE_RELEASE=false
           if echo "${RELEASE_TAG}" | egrep -- '-rc[0-9]+$'; then
             PRE_RELEASE=true
           fi
-
           # We must not have a release trigger within the same release branch,
           # because that means a release for this branch is already running.
           if git tag -l | grep "release-v${TARGET_VERSION%\.[0-9]*}" | grep -v "release-v${TARGET_VERSION}"; then
             echo "::error::Another release for branch ${TARGET_BRANCH} is currently in progress."
             exit 1
           fi
-
           # Ensure that release do not yet exist
           if git rev-parse ${RELEASE_TAG}; then
             echo "::error::Release tag ${RELEASE_TAG} already exists in repository. Refusing to continue."
             exit 1
           fi
-
           # Make the variables available in follow-up steps
           echo "TARGET_VERSION=${TARGET_VERSION}" >> $GITHUB_ENV
           echo "TARGET_BRANCH=${TARGET_BRANCH}" >> $GITHUB_ENV
           echo "RELEASE_TAG=${RELEASE_TAG}" >> $GITHUB_ENV
           echo "PRE_RELEASE=${PRE_RELEASE}" >> $GITHUB_ENV
-
       - name: Check if our release tag has a correct annotation
         run: |
           set -ue
           # Fetch all tag information as well
           git fetch --prune --tags --force
-
           echo "=========== BEGIN COMMIT MESSAGE ============="
           git show ${SOURCE_TAG}
           echo "============ END COMMIT MESSAGE =============="
-
           # Quite dirty hack to get the release notes from the annotated tag
           # into a temporary file.
           RELEASE_NOTES=$(mktemp -p /tmp release-notes.XXXXXX)
-
           prefix=true
           begin=false
           git show ${SOURCE_TAG} | while read line; do
@@ -123,33 +108,27 @@ jobs:
                   echo "$line" >> ${RELEASE_NOTES}
             fi
           done
-
           # For debug purposes
           echo "============BEGIN RELEASE NOTES================="
           cat ${RELEASE_NOTES}
           echo "=============END RELEASE NOTES=================="
-
           # Too short release notes are suspicious. We need at least 100 bytes.
           relNoteLen=$(stat -c '%s' $RELEASE_NOTES)
-
           # Codefresh change: disable release notes checks
           # if test $relNoteLen -lt 100; then
           #   echo "::error::No release notes provided in tag annotation (or tag is not annotated)"
           #   exit 1
           # fi
-
           # # Check for magic string '## Quick Start' in head of release notes
           # if ! head -2 ${RELEASE_NOTES} | grep -iq '## Quick Start'; then
           #   echo "::error::Release notes seem invalid, quick start section not found."
           #   exit 1
           # fi
-
           # We store path to temporary release notes file for later reading, we
           # need it when creating release.
           echo "RELEASE_NOTES=${RELEASE_NOTES}" >> $GITHUB_ENV
-
       - name: Setup Golang
-        uses: actions/setup-go@v3
+        uses: actions/setup-go@v2
         with:
           go-version: ${{ env.GOLANG_VERSION }}
 
@@ -158,7 +137,6 @@ jobs:
           set -ue
           git config --global user.email "${GIT_EMAIL}"
           git config --global user.name "${GIT_USERNAME}"
-
       - name: Checkout corresponding release branch
         run: |
           set -ue
@@ -167,7 +145,6 @@ jobs:
             echo "::error::Checking out release branch '${TARGET_BRANCH}' for target version '${TARGET_VERSION}' (tagged '${RELEASE_TAG}') failed. Does it exist in repo?"
             exit 1
           fi
-
       ## Codefresh change
       # - name: Create VERSION information
       #   run: |
@@ -190,7 +167,6 @@ jobs:
           set -ue
           echo "Creating release ${RELEASE_TAG}"
           git tag ${RELEASE_TAG}
-
       - name: Build Docker image for release
         run: |
           set -ue
@@ -198,25 +174,8 @@ jobs:
           mkdir -p dist/
           make image IMAGE_TAG="v${TARGET_VERSION}" DOCKER_PUSH=false
           make release-cli
-          make checksums
           chmod +x ./dist/argocd-linux-amd64
           ./dist/argocd-linux-amd64 version --client
-        if: ${{ env.DRY_RUN != 'true' }}
-
-      - name: Install cosign
-        uses: sigstore/cosign-installer@main
-        with:
-          cosign-release: 'v1.13.0'
-
-      - name: Sign Argo CD container images and assets
-        run: |
-          cosign sign --key env://COSIGN_PRIVATE_KEY ${IMAGE_NAMESPACE}/argocd:v${TARGET_VERSION}
-          cosign sign-blob --key env://COSIGN_PRIVATE_KEY ./dist/argocd-${TARGET_VERSION}-checksums.txt > ./dist/argocd-${TARGET_VERSION}-checksums.sig
-          # Retrieves the public key to release as an asset
-          cosign public-key --key env://COSIGN_PRIVATE_KEY > ./dist/argocd-cosign.pub
-        env:
-          COSIGN_PRIVATE_KEY: ${{secrets.COSIGN_PRIVATE_KEY}}
-          COSIGN_PASSWORD: ${{secrets.COSIGN_PASSWORD}}
         if: ${{ env.DRY_RUN != 'true' }}
 
       - name: Push docker image to repository
@@ -241,8 +200,7 @@ jobs:
           # Codefresh change
           # git push origin ${TARGET_BRANCH}
           git push origin ${RELEASE_TAG}
-
-      - name: Dry run GitHub release
+      - name: Create GitHub release
         uses: actions/create-release@v1
         env:
           GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
@@ -253,62 +211,60 @@ jobs:
           draft: ${{ env.DRAFT_RELEASE }}
           prerelease: ${{ env.PRE_RELEASE }}
           body: ${{ steps.release-notes.outputs.content }}
-        if: ${{ env.DRY_RUN == 'true' }}
 
-      - name: Generate SBOM (spdx)
-        id: spdx-builder
-        env:
-          # defines the spdx/spdx-sbom-generator version to use.
-          SPDX_GEN_VERSION: v0.0.13
-          # defines the sigs.k8s.io/bom version to use.
-          SIGS_BOM_VERSION: v0.2.1
-          # comma delimited list of project relative folders to inspect for package
-          # managers (gomod, yarn, npm).
-          PROJECT_FOLDERS: ".,./ui"
-          # full qualified name of the docker image to be inspected
-          DOCKER_IMAGE: ${{env.IMAGE_NAMESPACE}}/argocd:v${{env.TARGET_VERSION}}
-        run: |
-          yarn install --cwd ./ui
-          go install github.com/spdx/spdx-sbom-generator/cmd/generator@$SPDX_GEN_VERSION
-          go install sigs.k8s.io/bom/cmd/bom@$SIGS_BOM_VERSION
-
-          # Generate SPDX for project dependencies analyzing package managers
-          for folder in $(echo $PROJECT_FOLDERS | sed "s/,/ /g")
-          do
-            generator -p $folder -o /tmp
-          done
-
-          # Generate SPDX for binaries analyzing the docker image
-          if [[ ! -z $DOCKER_IMAGE ]]; then
-            bom generate -o /tmp/bom-docker-image.spdx -i $DOCKER_IMAGE
-          fi
-
-          cd /tmp && tar -zcf sbom.tar.gz *.spdx
-        if: ${{ env.DRY_RUN != 'true' }}
-
-      - name: Sign sbom
-        run: |
-          cosign sign-blob --key env://COSIGN_PRIVATE_KEY /tmp/sbom.tar.gz > /tmp/sbom.tar.gz.sig
-        env:
-          COSIGN_PRIVATE_KEY: ${{secrets.COSIGN_PRIVATE_KEY}}
-          COSIGN_PASSWORD: ${{secrets.COSIGN_PASSWORD}}
-        if: ${{ env.DRY_RUN != 'true' }}
-
-      - name: Create GitHub release
-        uses: softprops/action-gh-release@v1
+      - name: Upload argocd-linux-amd64 binary to release assets
+        uses: actions/upload-release-asset@v1
         env:
           GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
         with:
-          name: ${{ env.RELEASE_TAG }}
-          tag_name: ${{ env.RELEASE_TAG }}
-          draft: ${{ env.DRAFT_RELEASE }}
-          prerelease: ${{ env.PRE_RELEASE }}
-          generate_release_notes: true
-          body: ${{ steps.release-notes.outputs.content }}  # Pre-pended to the generated notes
-          files: |
-            dist/argocd-*
-            /tmp/sbom.tar.gz
-            /tmp/sbom.tar.gz.sig
+          upload_url: ${{ steps.create_release.outputs.upload_url }}
+          asset_path: ./dist/argocd-linux-amd64
+          asset_name: argocd-linux-amd64
+          asset_content_type: application/octet-stream
+        if: ${{ env.DRY_RUN != 'true' }}
+
+      - name: Upload argocd-linux-arm64 binary to release assets
+        uses: actions/upload-release-asset@v1
+        env:
+          GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+        with:
+          upload_url: ${{ steps.create_release.outputs.upload_url }}
+          asset_path: ./dist/argocd-linux-arm64
+          asset_name: argocd-linux-arm64
+          asset_content_type: application/octet-stream
+        if: ${{ env.DRY_RUN != 'true' }}
+
+      - name: Upload argocd-darwin-amd64 binary to release assets
+        uses: actions/upload-release-asset@v1
+        env:
+          GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+        with:
+          upload_url: ${{ steps.create_release.outputs.upload_url }}
+          asset_path: ./dist/argocd-darwin-amd64
+          asset_name: argocd-darwin-amd64
+          asset_content_type: application/octet-stream
+        if: ${{ env.DRY_RUN != 'true' }}
+
+      - name: Upload argocd-darwin-arm64 binary to release assets
+        uses: actions/upload-release-asset@v1
+        env:
+          GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+        with:
+          upload_url: ${{ steps.create_release.outputs.upload_url }}
+          asset_path: ./dist/argocd-darwin-arm64
+          asset_name: argocd-darwin-arm64
+          asset_content_type: application/octet-stream
+        if: ${{ env.DRY_RUN != 'true' }}
+
+      - name: Upload argocd-windows-amd64 binary to release assets
+        uses: actions/upload-release-asset@v1
+        env:
+          GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+        with:
+          upload_url: ${{ steps.create_release.outputs.upload_url }}
+          asset_path: ./dist/argocd-windows-amd64.exe
+          asset_name: argocd-windows-amd64.exe
+          asset_content_type: application/octet-stream
         if: ${{ env.DRY_RUN != 'true' }}
 
       - name: Generate SBOM (spdx)
@@ -327,18 +283,15 @@ jobs:
           yarn install --cwd ./ui
           go install github.com/spdx/spdx-sbom-generator/cmd/generator@$SPDX_GEN_VERSION
           go install sigs.k8s.io/bom/cmd/bom@$SIGS_BOM_VERSION
-
           # Generate SPDX for project dependencies analyzing package managers
           for folder in $(echo $PROJECT_FOLDERS | sed "s/,/ /g")
           do
             generator -p $folder -o /tmp
           done
-
           # Generate SPDX for binaries analyzing the docker image
           if [[ ! -z $DOCKER_IMAGE ]]; then
             bom generate -o /tmp/bom-docker-image.spdx -i $DOCKER_IMAGE
           fi
-
           cd /tmp && tar -zcf sbom.tar.gz *.spdx
         if: ${{ env.DRY_RUN != 'true' }}
 
