@@ -9,7 +9,7 @@ patchesStrategicMerge:
 images:
 - name: quay.io/argoproj/argocd
   newName: quay.io/codefresh/argocd
-  newTag: latest
+  newTag: v2.4.15-cap-CR-14605-fix-actions
 resources:
 - ../../base/application-controller
 - ../../base/applicationset-controller
