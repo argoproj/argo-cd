@@ -784,6 +784,8 @@ type SyncPolicyAutomated struct {
 	SelfHeal bool `json:"selfHeal,omitempty" protobuf:"bytes,2,opt,name=selfHeal"`
 	// AllowEmpty allows apps have zero live resources (default: false)
 	AllowEmpty bool `json:"allowEmpty,omitempty" protobuf:"bytes,3,opt,name=allowEmpty"`
+	// Disabled allows explicitly disabling an Automated SyncPolicy
+	Disabled bool `json:"disabled,omitempty" protobuf:"bytes,4,opt,name=disabled"`
 }
 
 // SyncStrategy controls the manner in which a sync is performed

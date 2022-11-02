@@ -1589,6 +1589,9 @@ func (ctrl *ApplicationController) autoSync(app *appv1.Application, syncStatus *
 	if app.Spec.SyncPolicy == nil || app.Spec.SyncPolicy.Automated == nil {
 		return nil
 	}
+	if app.Spec.SyncPolicy.Automated.Disabled {
+		return nil
+	}
 	logCtx := log.WithFields(log.Fields{"application": app.QualifiedName()})
 	if app.Operation != nil {
 		logCtx.Infof("Skipping auto-sync: another operation is in progress")

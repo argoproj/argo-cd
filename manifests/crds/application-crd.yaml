@@ -728,6 +728,10 @@ spec:
                         description: 'AllowEmpty allows apps have zero live resources
                           (default: false)'
                         type: boolean
+                      disabled:
+                        description: Disabled allows explicitly disabling an Automated
+                          SyncPolicy
+                        type: boolean
                       prune:
                         description: 'Prune specifies whether to delete resources
                           from the cluster that are not found in the sources anymore

@@ -7847,6 +7847,10 @@
           "type": "boolean",
           "title": "AllowEmpty allows apps have zero live resources (default: false)"
         },
+        "disabled": {
+          "type": "boolean",
+          "title": "Disabled allows explicitly disabling an Automated SyncPolicy"
+        },
         "prune": {
           "type": "boolean",
           "title": "Prune specifies whether to delete resources from the cluster that are not found in the sources anymore as part of automated sync (default: false)"

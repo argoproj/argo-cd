@@ -729,6 +729,10 @@ spec:
                         description: 'AllowEmpty allows apps have zero live resources
                           (default: false)'
                         type: boolean
+                      disabled:
+                        description: Disabled allows explicitly disabling an Automated
+                          SyncPolicy
+                        type: boolean
                       prune:
                         description: 'Prune specifies whether to delete resources
                           from the cluster that are not found in the sources anymore
@@ -2442,6 +2446,8 @@ spec:
                                       properties:
                                         allowEmpty:
                                           type: boolean
+                                        disabled:
+                                          type: boolean
                                         prune:
                                           type: boolean
                                         selfHeal:
@@ -2728,6 +2734,8 @@ spec:
                                     automated:
                                       properties:
                                         allowEmpty:
+                                          type: boolean
+                                        disabled:
                                           type: boolean
                                         prune:
                                           type: boolean
@@ -3018,6 +3026,8 @@ spec:
                                       properties:
                                         allowEmpty:
                                           type: boolean
+                                        disabled:
+                                          type: boolean
                                         prune:
                                           type: boolean
                                         selfHeal:
@@ -3282,6 +3292,8 @@ spec:
                                     automated:
                                       properties:
                                         allowEmpty:
+                                          type: boolean
+                                        disabled:
                                           type: boolean
                                         prune:
                                           type: boolean
@@ -3578,6 +3590,8 @@ spec:
                                                 properties:
                                                   allowEmpty:
                                                     type: boolean
+                                                  disabled:
+                                                    type: boolean
                                                   prune:
                                                     type: boolean
                                                   selfHeal:
@@ -3864,6 +3878,8 @@ spec:
                                               automated:
                                                 properties:
                                                   allowEmpty:
+                                                    type: boolean
+                                                  disabled:
                                                     type: boolean
                                                   prune:
                                                     type: boolean
@@ -4154,6 +4170,8 @@ spec:
                                                 properties:
                                                   allowEmpty:
                                                     type: boolean
+                                                  disabled:
+                                                    type: boolean
                                                   prune:
                                                     type: boolean
                                                   selfHeal:
@@ -4418,6 +4436,8 @@ spec:
                                               automated:
                                                 properties:
                                                   allowEmpty:
+                                                    type: boolean
+                                                  disabled:
                                                     type: boolean
                                                   prune:
                                                     type: boolean
@@ -4801,6 +4821,8 @@ spec:
                                               automated:
                                                 properties:
                                                   allowEmpty:
+                                                    type: boolean
+                                                  disabled:
                                                     type: boolean
                                                   prune:
                                                     type: boolean
@@ -5232,6 +5254,8 @@ spec:
                                                 properties:
                                                   allowEmpty:
                                                     type: boolean
+                                                  disabled:
+                                                    type: boolean
                                                   prune:
                                                     type: boolean
                                                   selfHeal:
@@ -5512,6 +5536,8 @@ spec:
                                     automated:
                                       properties:
                                         allowEmpty:
+                                          type: boolean
+                                        disabled:
                                           type: boolean
                                         prune:
                                           type: boolean
@@ -5808,6 +5834,8 @@ spec:
                                                 properties:
                                                   allowEmpty:
                                                     type: boolean
+                                                  disabled:
+                                                    type: boolean
                                                   prune:
                                                     type: boolean
                                                   selfHeal:
@@ -6094,6 +6122,8 @@ spec:
                                               automated:
                                                 properties:
                                                   allowEmpty:
+                                                    type: boolean
+                                                  disabled:
                                                     type: boolean
                                                   prune:
                                                     type: boolean
@@ -6384,6 +6414,8 @@ spec:
                                                 properties:
                                                   allowEmpty:
                                                     type: boolean
+                                                  disabled:
+                                                    type: boolean
                                                   prune:
                                                     type: boolean
                                                   selfHeal:
@@ -6648,6 +6680,8 @@ spec:
                                               automated:
                                                 properties:
                                                   allowEmpty:
+                                                    type: boolean
+                                                  disabled:
                                                     type: boolean
                                                   prune:
                                                     type: boolean
@@ -7031,6 +7065,8 @@ spec:
                                               automated:
                                                 properties:
                                                   allowEmpty:
+                                                    type: boolean
+                                                  disabled:
                                                     type: boolean
                                                   prune:
                                                     type: boolean
@@ -7462,6 +7498,8 @@ spec:
                                                 properties:
                                                   allowEmpty:
                                                     type: boolean
+                                                  disabled:
+                                                    type: boolean
                                                   prune:
                                                     type: boolean
                                                   selfHeal:
@@ -7746,6 +7784,8 @@ spec:
                                     automated:
                                       properties:
                                         allowEmpty:
+                                          type: boolean
+                                        disabled:
                                           type: boolean
                                         prune:
                                           type: boolean
@@ -8126,6 +8166,8 @@ spec:
                                     automated:
                                       properties:
                                         allowEmpty:
+                                          type: boolean
+                                        disabled:
                                           type: boolean
                                         prune:
                                           type: boolean
@@ -8557,6 +8599,8 @@ spec:
                                       properties:
                                         allowEmpty:
                                           type: boolean
+                                        disabled:
+                                          type: boolean
                                         prune:
                                           type: boolean
                                         selfHeal:
@@ -8844,6 +8888,8 @@ spec:
                           automated:
                             properties:
                               allowEmpty:
+                                type: boolean
+                              disabled:
                                 type: boolean
                               prune:
                                 type: boolean

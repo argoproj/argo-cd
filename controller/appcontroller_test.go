@@ -378,6 +378,22 @@ func TestSkipAutoSync(t *testing.T) {
 		assert.Nil(t, app.Operation)
 	})
 
+	// Verify we skip when auto-sync is explicitly disabled
+	t.Run("AutoSyncIsExplicitlyDisabled", func(t *testing.T) {
+		app := newFakeApp()
+		app.Spec.SyncPolicy.Automated.Disabled = true
+		ctrl := newFakeController(&fakeData{apps: []runtime.Object{app}})
+		syncStatus := argoappv1.SyncStatus{
+			Status:   argoappv1.SyncStatusCodeOutOfSync,
+			Revision: "bbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbb",
+		}
+		cond := ctrl.autoSync(app, &syncStatus, []argoappv1.ResourceStatus{})
+		assert.Nil(t, cond)
+		app, err := ctrl.applicationClientset.ArgoprojV1alpha1().Applications(test.FakeArgoCDNamespace).Get(context.Background(), "my-app", metav1.GetOptions{})
+		assert.NoError(t, err)
+		assert.Nil(t, app.Operation)
+	})
+
 	// Verify we skip when application is marked for deletion
 	t.Run("ApplicationIsMarkedForDeletion", func(t *testing.T) {
 		app := newFakeApp()
