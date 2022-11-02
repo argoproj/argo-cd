@@ -1,4 +1,4 @@
-# Contributors Quick-Start
+# Contributors Quick-Start 
 
 This guide is a starting point for first-time contributors running Argo CD locally for the first time.
 
