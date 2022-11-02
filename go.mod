@@ -105,6 +105,7 @@ require (
 )
 
 require (
+	github.com/AdaLogics/go-fuzz-headers v0.0.0-20221007124625-37f5449ff7df
 	github.com/gosimple/slug v1.12.0
 	github.com/microsoft/azure-devops-go-api/azuredevops v1.0.0-b5
 	github.com/robfig/cron/v3 v3.0.1
@@ -115,7 +116,6 @@ require (
 )
 
 require (
-	github.com/AdaLogics/go-fuzz-headers v0.0.0-20221007124625-37f5449ff7df // indirect
 	github.com/cyphar/filepath-securejoin v0.2.3 // indirect
 	github.com/emicklei/go-restful/v3 v3.8.0 // indirect
 )
