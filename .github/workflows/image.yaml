@@ -73,7 +73,7 @@ jobs:
           cosign-release: 'v1.13.1'
 
       - name: Install crane to get digest of image
-        uses: imjasonh/setup-crane@v0.1
+        uses: imjasonh/setup-crane@e82f1b9a8007d399333baba4d75915558e9fb6a4
 
       - name: Sign Argo CD latest image
         run: |
