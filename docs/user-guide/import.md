@@ -1,4 +1,4 @@
-# Importing argocd packages 
+# Importing Argo CD go packages 
 
 ## Issue 
 When importing argocd packages in your own projects, you may face some errors when downloading the dependencies, such as "unknown revision v0.0.0". This is because argocd directly depends on some Kubernetes packages which have these unknown v0.0.0 version in their go.mod.
