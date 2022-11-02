@@ -700,7 +700,7 @@ func (c *liveStateCache) GetClustersInfo() []clustercache.ClusterInfo {
 
 	res := make([]clustercache.ClusterInfo, 0)
 	for server, c := range clusters {
-		info := c.GetClusterInfo()
+		info := c.GetClusterInfoInstant()
 		info.Server = server
 		res = append(res, info)
 	}

@@ -290,3 +290,6 @@ replace (
 	k8s.io/pod-security-admission => k8s.io/pod-security-admission v0.24.2
 	k8s.io/sample-apiserver => k8s.io/sample-apiserver v0.24.2
 )
+
+// TODO remove it after gitops-engine bump version
+replace github.com/argoproj/gitops-engine => github.com/alswl/gitops-engine v0.4.1-0.20221102103729-ac85096b8211
