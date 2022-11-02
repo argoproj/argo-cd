@@ -245,7 +245,7 @@ export const ComparisonStatusIcon = ({
             break;
         case appModels.SyncStatuses.OutOfSync:
             const requiresPruning = resource && resource.requiresPruning;
-            className = requiresPruning ? 'fa fa-times-circle' : 'fa fa-arrow-alt-circle-up';
+            className = requiresPruning ? 'fa fa-trash' : 'fa fa-arrow-alt-circle-up';
             title = 'OutOfSync';
             if (requiresPruning) {
                 title = `${title} (This resource is not present in the application’s source. It will be deleted from Kubernetes if the prune option is enabled during sync)`;
