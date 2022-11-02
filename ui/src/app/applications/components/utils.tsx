@@ -248,7 +248,7 @@ export const ComparisonStatusIcon = ({
             className = requiresPruning ? 'fa fa-times-circle' : 'fa fa-arrow-alt-circle-up';
             title = 'OutOfSync';
             if (requiresPruning) {
-                title = `${title} (requires pruning)`;
+                title = `${title} (This resource is not present in the application’s source. It will be deleted from Kubernetes if the prune option is enabled during sync)`;
             }
             color = COLORS.sync.out_of_sync;
             break;
