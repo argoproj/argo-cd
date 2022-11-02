@@ -5,6 +5,7 @@ Patch application
 ### Synopsis
 
 Examples:
+
 	# Update an application's source path using json patch
 	argocd app patch myapplication --patch='[{"op": "replace", "path": "/spec/source/path", "value": "newPath"}]' --type json
 
