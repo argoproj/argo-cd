@@ -10,7 +10,7 @@ Add a replace section in your own go.mod as same as the replace section of the c
 
 ## Example
 
-If you are using argocd v2.4.15, your go.mod should contain,
+If you are using Argo CD v2.4.15, your go.mod should contain the following:
 
 ```bash
 replace (
