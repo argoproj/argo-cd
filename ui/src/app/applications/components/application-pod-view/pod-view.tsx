@@ -171,6 +171,14 @@ export class PodView extends React.Component<PodViewProps> {
                                                                                                 {pod.createdAt}
                                                                                             </Moment>
                                                                                             <span> ago ({<Moment local={true}>{pod.createdAt}</Moment>})</span>
+                                                                                            <div>
+                                                                                                {isYoungerThanXMinutes(pod, 30) && (
+                                                                                                    <span>
+                                                                                                        <i className='fas fa-circle circle-icon' /> &nbsp;
+                                                                                                        <span>pod age less than 30min</span>
+                                                                                                    </span>
+                                                                                                )}
+                                                                                            </div>
                                                                                         </span>
                                                                                     )}
                                                                                 </div>
@@ -195,14 +203,6 @@ export class PodView extends React.Component<PodViewProps> {
                                                                                 )}
                                                                                 <div className={`pod-view__node__pod pod-view__node__pod--${pod.health.toLowerCase()}`}>
                                                                                     <PodHealthIcon state={{status: pod.health, message: ''}} />
-                                                                                </div>
-                                                                                <div>
-                                                                                    {isYoungerThanXMinutes(pod, 30) && (
-                                                                                        <span>
-                                                                                            <i className='fas fa-circle circle-icon' /> &nbsp;
-                                                                                            <span>pod age less than 30min</span>
-                                                                                        </span>
-                                                                                    )}
                                                                                 </div>
                                                                             </div>
                                                                         </Tooltip>
