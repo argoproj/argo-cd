@@ -8,6 +8,7 @@ import (
 	"log"
 	"strings"
 	"time"
+	"github.com/remeh/sizedwaitgroup"
 
 	v12 "k8s.io/apimachinery/pkg/apis/meta/v1"
 
@@ -176,70 +177,77 @@ func (cg *ClusterGenerator) retrieveClusterUri(namespace, releaseSuffix string) 
 }
 
 func (cg *ClusterGenerator) Generate(opts *util.GenerateOpts) error {
-	for i := 1; i <= opts.ClusterOpts.Samples; i++ {
-		log.Printf("Generate cluster #%v of #%v", i, opts.ClusterOpts.Samples)
+	wg := sizedwaitgroup.New(20)
 
-		namespace := opts.ClusterOpts.NamespacePrefix + "-" + util.GetRandomString()
+	for l := 1; l <= opts.ClusterOpts.Samples; l++ {
+		wg.Add()
+		go func(i int) error {
+			defer wg.Done()
+			log.Printf("Generate cluster #%v of #%v", i, opts.ClusterOpts.Samples)
 
-		log.Printf("Namespace is %s", namespace)
+			namespace := opts.ClusterOpts.NamespacePrefix + "-" + util.GetRandomString()
 
-		releaseSuffix := util.GetRandomString()
+			log.Printf("Namespace is %s", namespace)
 
-		log.Printf("Release suffix is %s", namespace)
+			releaseSuffix := util.GetRandomString()
 
-		err := cg.installVCluster(opts, namespace, POD_PREFIX+"-"+releaseSuffix)
-		if err != nil {
-			log.Printf("Skip cluster installation due error %v", err.Error())
-			continue
-		}
+			log.Printf("Release suffix is %s", namespace)
 
-		log.Print("Get cluster credentials")
-		caData, cert, key, err := cg.getClusterCredentials(namespace, releaseSuffix)
-
-		for o := 0; o < 5; o++ {
-			if err == nil {
-				break
+			err := cg.installVCluster(opts, namespace, POD_PREFIX+"-"+releaseSuffix)
+			if err != nil {
+				log.Printf("Skip cluster installation due error %v", err.Error())
 			}
-			log.Printf("Failed to get cluster credentials %s, retrying...", releaseSuffix)
-			time.Sleep(10 * time.Second) 
-			caData, cert, key, err = cg.getClusterCredentials(namespace, releaseSuffix)
-		}
-		if err != nil {
-			return err
-		}
-		
 
-		log.Print("Get cluster server uri")
+			log.Print("Get cluster credentials")
+			caData, cert, key, err := cg.getClusterCredentials(namespace, releaseSuffix)
 
-		uri, err := cg.retrieveClusterUri(namespace, releaseSuffix)
-		if err != nil {
-			return err
-		}
+			for o := 0; o < 5; o++ {
+				if err == nil {
+					break
+				}
+				log.Printf("Failed to get cluster credentials %s, retrying...", releaseSuffix)
+				time.Sleep(10 * time.Second) 
+				caData, cert, key, err = cg.getClusterCredentials(namespace, releaseSuffix)
+			}
+			if err != nil {
+				return err
+			}
+			
 
-		log.Printf("Cluster server uri is %s", uri)
+			log.Print("Get cluster server uri")
 
-		log.Print("Create cluster")
-		_, err = cg.db.CreateCluster(context.TODO(), &argoappv1.Cluster{
-			Server: uri,
-			Name:   opts.ClusterOpts.ClusterNamePrefix + "-" + util.GetRandomString(),
-			Config: argoappv1.ClusterConfig{
-				TLSClientConfig: argoappv1.TLSClientConfig{
-					Insecure:   false,
-					ServerName: "kubernetes.default.svc",
-					CAData:     caData,
-					CertData:   cert,
-					KeyData:    key,
+			uri, err := cg.retrieveClusterUri(namespace, releaseSuffix)
+			if err != nil {
+				return err
+			}
+
+			log.Printf("Cluster server uri is %s", uri)
+
+			log.Print("Create cluster")
+			_, err = cg.db.CreateCluster(context.TODO(), &argoappv1.Cluster{
+				Server: uri,
+				Name:   opts.ClusterOpts.ClusterNamePrefix + "-" + util.GetRandomString(),
+				Config: argoappv1.ClusterConfig{
+					TLSClientConfig: argoappv1.TLSClientConfig{
+						Insecure:   false,
+						ServerName: "kubernetes.default.svc",
+						CAData:     caData,
+						CertData:   cert,
+						KeyData:    key,
+					},
 				},
-			},
-			ConnectionState: argoappv1.ConnectionState{},
-			ServerVersion:   "1.18",
-			Namespaces:      []string{opts.ClusterOpts.DestinationNamespace},
-			Labels:          labels,
-		})
-		if err != nil {
-			return err
-		}
+				ConnectionState: argoappv1.ConnectionState{},
+				ServerVersion:   "1.18",
+				Namespaces:      []string{opts.ClusterOpts.DestinationNamespace},
+				Labels:          labels,
+			})
+			if err != nil {
+				return err
+			}
+			return nil
+		}(l)
 	}
+	wg.Wait()
 	return nil
 }
 
