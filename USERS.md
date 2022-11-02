@@ -11,6 +11,7 @@ Currently, the following organizations are **officially** using Argo CD:
 1. [Adevinta](https://www.adevinta.com/)
 1. [Adfinis](https://adfinis.com)
 1. [Adventure](https://jp.adventurekk.com/)
+1. [AirQo](https://airqo.net/)
 1. [Akuity](https://akuity.io/)
 1. [Alibaba Group](https://www.alibabagroup.com/)
 1. [Allianz Direct](https://www.allianzdirect.de/)
