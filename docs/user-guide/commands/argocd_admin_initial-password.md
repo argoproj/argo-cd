@@ -2,7 +2,7 @@
 
 Prints the initial password to login into Argo CD.
 
-**Note**: This password must be only used for first time login. We strongly recommend you to update the password using `argocd account update-password`.
+**Note**: This password must be only used for first time login. We strongly recommend you update the password using `argocd account update-password`.
 
 ```
 argocd admin initial-password [flags]
@@ -19,7 +19,7 @@ argocd admin initial-password [flags]
       --client-key string              Path to a client key file for TLS
       --cluster string                 The name of the kubeconfig cluster to use
       --context string                 The name of the kubeconfig context to use
-  -h, --help                           help for export
+  -h, --help                           help for initial-password
       --insecure-skip-tls-verify       If true, the server's certificate will not be checked for validity. This will make your HTTPS connections insecure
       --kubeconfig string              Path to a kube config. Only required if out-of-cluster
   -n, --namespace string               If present, the namespace scope for this CLI request

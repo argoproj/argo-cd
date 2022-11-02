@@ -36,7 +36,7 @@ func NewInitialPasswordCommand() *cobra.Command {
 
 			if initialPass, ok := secret.Data["password"]; ok {
 				fmt.Println(string(initialPass))
-				fmt.Println("\n This password must be only used for first time login. We strongly recommend you to update the password using `argocd account update-password`.")
+				fmt.Println("\n This password must be only used for first time login. We strongly recommend you update the password using `argocd account update-password`.")
 			}
 		},
 	}

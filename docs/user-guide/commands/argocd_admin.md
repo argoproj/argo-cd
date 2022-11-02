@@ -48,4 +48,3 @@ argocd admin [flags]
 * [argocd admin proj](argocd_admin_proj.md)	 - Manage projects configuration
 * [argocd admin repo](argocd_admin_repo.md)	 - Manage repositories configuration
 * [argocd admin settings](argocd_admin_settings.md)	 - Provides set of commands for settings validation and troubleshooting
-
