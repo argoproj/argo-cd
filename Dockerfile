@@ -96,7 +96,7 @@ RUN HOST_ARCH='amd64' NODE_ENV='production' NODE_ONLINE_ENV='online' NODE_OPTION
 ####################################################################################################
 # Argo CD Build stage which performs the actual build of Argo CD binaries
 ####################################################################################################
-FROM --platform=$BUILDPLATFORM docker.io/library/golang:1.18 AS argocd-build
+FROM docker.io/library/golang:1.18 AS argocd-build
 
 WORKDIR /go/src/github.com/argoproj/argo-cd
 
