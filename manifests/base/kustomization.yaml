@@ -4,7 +4,7 @@ kind: Kustomization
 images:
 - name: quay.io/argoproj/argocd
   newName: quay.io/codefresh/argocd
-  newTag: vv2.4.15-cap-CR-14605-fix-event-reporter
+  newTag: v2.4.15-cap-CR-14605-fix-event-reporter-2
 resources:
 - ./application-controller
 - ./dex
