@@ -514,7 +514,7 @@ func (m *appStateManager) CompareAppState(app *v1alpha1.Application, project *ap
 		}
 		gvk := obj.GroupVersionKind()
 
-		isSelfReferencedObj := m.isSelfReferencedObj(liveObj, appLabelKey, trackingMethod)
+		isSelfReferencedObj := m.isSelfReferencedObj(liveObj, targetObj, app.GetName(), appLabelKey, trackingMethod)
 
 		resState := v1alpha1.ResourceStatus{
 			Namespace:       obj.GetNamespace(),
@@ -699,12 +699,13 @@ func NewAppStateManager(
 }
 
 // isSelfReferencedObj returns whether the given obj is managed by the application
-// according to the values in the tracking annotation. It returns true when all
-// of the properties in the annotation (name, namespace, group and kind) match
-// the properties of the inspected object, or if the tracking method used does
-// not provide the required properties for matching.
-func (m *appStateManager) isSelfReferencedObj(obj *unstructured.Unstructured, appLabelKey string, trackingMethod v1alpha1.TrackingMethod) bool {
-	if obj == nil {
+// according to the values of the tracking id (aka app instance value) annotation.
+// It returns true when all of the properties of the tracking id (app name, namespace,
+// group and kind) match the properties of the live object, or if the tracking method
+// used does not provide the required properties for matching.
+// Reference: https://github.com/argoproj/argo-cd/issues/8683
+func (m *appStateManager) isSelfReferencedObj(live, config *unstructured.Unstructured, appName, appLabelKey string, trackingMethod v1alpha1.TrackingMethod) bool {
+	if live == nil {
 		return true
 	}
 
@@ -714,17 +715,42 @@ func (m *appStateManager) isSelfReferencedObj(obj *unstructured.Unstructured, ap
 		return true
 	}
 
-	// In order for us to assume obj to be managed by this application, the
-	// values from the annotation have to match the properties from the live
-	// object. Cluster scoped objects carry the app's destination namespace
-	// in the tracking annotation, but are unique in GVK + name combination.
-	appInstance := m.resourceTracking.GetAppInstance(obj, appLabelKey, trackingMethod)
-	if appInstance != nil {
-		return (obj.GetNamespace() == appInstance.Namespace || obj.GetNamespace() == "") &&
-			obj.GetName() == appInstance.Name &&
-			obj.GetObjectKind().GroupVersionKind().Group == appInstance.Group &&
-			obj.GetObjectKind().GroupVersionKind().Kind == appInstance.Kind
+	// config != nil is the best-case scenario for constructing an accurate
+	// Tracking ID. `config` is the "desired state" (from git/helm/etc.).
+	// Using the desired state is important when there is an ApiGroup upgrade.
+	// When upgrading, the comparison must be made with the new tracking ID.
+	// Example:
+	//     live resource annotation will be:
+	//        ingress-app:extensions/Ingress:default/some-ingress
+	//     when it should be:
+	//        ingress-app:networking.k8s.io/Ingress:default/some-ingress
+	// More details in: https://github.com/argoproj/argo-cd/pull/11012
+	var aiv argo.AppInstanceValue
+	if config != nil {
+		aiv = argo.UnstructuredToAppInstanceValue(config, appName, "")
+		return isSelfReferencedObj(live, aiv)
 	}
 
+	// If config is nil then compare the live resource with the value
+	// of the annotation. In this case, in order to validate if obj is
+	// managed by this application, the values from the annotation have
+	// to match the properties from the live object. Cluster scoped objects
+	// carry the app's destination namespace in the tracking annotation,
+	// but are unique in GVK + name combination.
+	appInstance := m.resourceTracking.GetAppInstance(live, appLabelKey, trackingMethod)
+	if appInstance != nil {
+		return isSelfReferencedObj(live, *appInstance)
+	}
 	return true
+}
+
+// isSelfReferencedObj returns true if the given Tracking ID (`aiv`) matches
+// the given object. It returns false when the ID doesn't match. This sometimes
+// happens when a tracking label or annotation gets accidentally copied to a
+// different resource.
+func isSelfReferencedObj(obj *unstructured.Unstructured, aiv argo.AppInstanceValue) bool {
+	return (obj.GetNamespace() == aiv.Namespace || obj.GetNamespace() == "") &&
+		obj.GetName() == aiv.Name &&
+		obj.GetObjectKind().GroupVersionKind().Group == aiv.Group &&
+		obj.GetObjectKind().GroupVersionKind().Kind == aiv.Kind
 }
