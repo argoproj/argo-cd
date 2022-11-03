@@ -33,7 +33,6 @@ spec:
         - port: 26379
           protocol: TCP
     - to:
-      - namespaceSelector: {}
       ports:
         - port: 53
           protocol: UDP
