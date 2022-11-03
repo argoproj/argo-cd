@@ -4,7 +4,7 @@ import (
 	"fmt"
 	"testing"
 
-	"github.com/argoproj-labs/argocd-image-updater/test/fixture"
+	"github.com/argoproj/argo-cd/v2/test/fixture"
 
 	"github.com/sirupsen/logrus"
 	"github.com/stretchr/testify/assert"

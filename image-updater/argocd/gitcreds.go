@@ -42,6 +42,7 @@ func getCredsFromArgoCD(app *v1alpha1.Application, kubeClient *kube.KubernetesCl
 	if !repo.HasCredentials() {
 		return nil, fmt.Errorf("credentials for '%s' are not configured in Argo CD settings", app.Spec.Source.RepoURL)
 	}
+	gitCredStore.Add(string(repo.Username[:]), string(repo.Password[:]))
 	return repo.GetGitCreds(gitCredStore), nil
 }
 

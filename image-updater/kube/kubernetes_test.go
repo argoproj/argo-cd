@@ -7,8 +7,8 @@ import (
 	appv1alpha1 "github.com/argoproj/argo-cd/v2/pkg/apis/application/v1alpha1"
 	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
 
-	"github.com/argoproj-labs/argocd-image-updater/test/fake"
-	"github.com/argoproj-labs/argocd-image-updater/test/fixture"
+	"github.com/argoproj/argo-cd/v2/test/fake"
+	"github.com/argoproj/argo-cd/v2/test/fixture"
 
 	"github.com/stretchr/testify/assert"
 	"github.com/stretchr/testify/require"
@@ -16,14 +16,14 @@ import (
 
 func Test_NewKubernetesClient(t *testing.T) {
 	t.Run("Get new K8s client for remote cluster instance", func(t *testing.T) {
-		client, err := NewKubernetesClientFromConfig(context.TODO(), "", "../../test/testdata/kubernetes/config")
+		client, err := NewKubernetesClientFromConfig(context.TODO(), "", "../../test/image-updater/testdata/kubernetes/config")
 		require.NoError(t, err)
 		assert.NotNil(t, client)
 		assert.Equal(t, "default", client.Namespace)
 	})
 
 	t.Run("Get new K8s client for remote cluster instance specified namespace", func(t *testing.T) {
-		client, err := NewKubernetesClientFromConfig(context.TODO(), "argocd", "../../test/testdata/kubernetes/config")
+		client, err := NewKubernetesClientFromConfig(context.TODO(), "argocd", "../../test/image-updater/testdata/kubernetes/config")
 		require.NoError(t, err)
 		assert.NotNil(t, client)
 		assert.Equal(t, "argocd", client.Namespace)
@@ -32,7 +32,7 @@ func Test_NewKubernetesClient(t *testing.T) {
 
 func Test_GetDataFromSecrets(t *testing.T) {
 	t.Run("Get all data from dummy secret", func(t *testing.T) {
-		secret := fixture.MustCreateSecretFromFile("../../test/testdata/resources/dummy-secret.json")
+		secret := fixture.MustCreateSecretFromFile("../../test/image-updater/testdata/resources/dummy-secret.json")
 		clientset := fake.NewFakeClientsetWithResources(secret)
 		client := &KubernetesClient{Clientset: clientset}
 		data, err := client.GetSecretData("test-namespace", "test-secret")
@@ -43,7 +43,7 @@ func Test_GetDataFromSecrets(t *testing.T) {
 	})
 
 	t.Run("Get string data from dummy secret existing field", func(t *testing.T) {
-		secret := fixture.MustCreateSecretFromFile("../../test/testdata/resources/dummy-secret.json")
+		secret := fixture.MustCreateSecretFromFile("../../test/image-updater/testdata/resources/dummy-secret.json")
 		clientset := fake.NewFakeClientsetWithResources(secret)
 		client := &KubernetesClient{Clientset: clientset}
 		data, err := client.GetSecretField("test-namespace", "test-secret", "namespace")
@@ -52,7 +52,7 @@ func Test_GetDataFromSecrets(t *testing.T) {
 	})
 
 	t.Run("Get string data from dummy secret non-existing field", func(t *testing.T) {
-		secret := fixture.MustCreateSecretFromFile("../../test/testdata/resources/dummy-secret.json")
+		secret := fixture.MustCreateSecretFromFile("../../test/image-updater/testdata/resources/dummy-secret.json")
 		clientset := fake.NewFakeClientsetWithResources(secret)
 		client := &KubernetesClient{Clientset: clientset}
 		data, err := client.GetSecretField("test-namespace", "test-secret", "nonexisting")
@@ -61,7 +61,7 @@ func Test_GetDataFromSecrets(t *testing.T) {
 	})
 
 	t.Run("Get string data from non-existing secret non-existing field", func(t *testing.T) {
-		secret := fixture.MustCreateSecretFromFile("../../test/testdata/resources/dummy-secret.json")
+		secret := fixture.MustCreateSecretFromFile("../../test/image-updater/testdata/resources/dummy-secret.json")
 		clientset := fake.NewFakeClientsetWithResources(secret)
 		client := &KubernetesClient{Clientset: clientset}
 		data, err := client.GetSecretField("test-namespace", "test", "namespace")

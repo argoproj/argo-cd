@@ -7,8 +7,8 @@ import (
 
 	"github.com/argoproj/argo-cd/v2/image-updater/kube"
 
-	"github.com/argoproj-labs/argocd-image-updater/test/fake"
-	"github.com/argoproj-labs/argocd-image-updater/test/fixture"
+	"github.com/argoproj/argo-cd/v2/test/fake"
+	"github.com/argoproj/argo-cd/v2/test/fixture"
 
 	"github.com/stretchr/testify/assert"
 	"github.com/stretchr/testify/require"
@@ -132,7 +132,7 @@ func Test_ParseCredentialReference(t *testing.T) {
 
 func Test_FetchCredentialsFromPullSecret(t *testing.T) {
 	t.Run("Fetch credentials from pull secret", func(t *testing.T) {
-		dockerJson := fixture.MustReadFile("../../test/testdata/docker/valid-config.json")
+		dockerJson := fixture.MustReadFile("../../test/image-updater/testdata/docker/valid-config.json")
 		secretData := make(map[string][]byte)
 		secretData[pullSecretField] = []byte(dockerJson)
 		pullSecret := fixture.NewSecret("test", "test", secretData)
@@ -151,7 +151,7 @@ func Test_FetchCredentialsFromPullSecret(t *testing.T) {
 	})
 
 	t.Run("Fetch credentials from pull secret with protocol stripped", func(t *testing.T) {
-		dockerJson := fixture.MustReadFile("../../test/testdata/docker/valid-config-noproto.json")
+		dockerJson := fixture.MustReadFile("../../test/image-updater/testdata/docker/valid-config-noproto.json")
 		secretData := make(map[string][]byte)
 		secretData[pullSecretField] = []byte(dockerJson)
 		pullSecret := fixture.NewSecret("test", "test", secretData)
@@ -222,7 +222,7 @@ func Test_FetchCredentialsFromExt(t *testing.T) {
 		credSrc := &CredentialSource{
 			Type:       CredentialSourceExt,
 			Registry:   "https://registry-1.docker.io/v2",
-			ScriptPath: path.Join(pwd, "..", "..", "test", "testdata", "scripts", "get-credentials-valid.sh"),
+			ScriptPath: path.Join(pwd, "..", "..", "test", "image-updater", "testdata", "scripts", "get-credentials-valid.sh"),
 		}
 		creds, err := credSrc.FetchCredentials("https://registry-1.docker.io", nil)
 		require.NoError(t, err)
@@ -236,7 +236,7 @@ func Test_FetchCredentialsFromExt(t *testing.T) {
 		credSrc := &CredentialSource{
 			Type:       CredentialSourceExt,
 			Registry:   "https://registry-1.docker.io/v2",
-			ScriptPath: path.Join(pwd, "..", "..", "test", "testdata", "scripts", "get-credentials-invalid.sh"),
+			ScriptPath: path.Join(pwd, "..", "..", "test", "image-updater", "testdata", "scripts", "get-credentials-invalid.sh"),
 		}
 		creds, err := credSrc.FetchCredentials("https://registry-1.docker.io", nil)
 		require.Errorf(t, err, "invalid script output")
@@ -248,7 +248,7 @@ func Test_FetchCredentialsFromExt(t *testing.T) {
 		credSrc := &CredentialSource{
 			Type:       CredentialSourceExt,
 			Registry:   "https://registry-1.docker.io/v2",
-			ScriptPath: path.Join(pwd, "..", "..", "test", "testdata", "scripts", "get-credentials-notexist.sh"),
+			ScriptPath: path.Join(pwd, "..", "..", "test", "image-updater", "testdata", "scripts", "get-credentials-notexist.sh"),
 		}
 		creds, err := credSrc.FetchCredentials("https://registry-1.docker.io", nil)
 		require.Errorf(t, err, "no such file or directory")
@@ -268,7 +268,7 @@ func Test_FetchCredentialsFromExt(t *testing.T) {
 
 func Test_ParseDockerConfig(t *testing.T) {
 	t.Run("Parse valid Docker configuration with matching registry", func(t *testing.T) {
-		config := fixture.MustReadFile("../../test/testdata/docker/valid-config.json")
+		config := fixture.MustReadFile("../../test/image-updater/testdata/docker/valid-config.json")
 		username, password, err := parseDockerConfigJson("https://registry-1.docker.io", config)
 		require.NoError(t, err)
 		assert.Equal(t, "foo", username)
@@ -276,7 +276,7 @@ func Test_ParseDockerConfig(t *testing.T) {
 	})
 
 	t.Run("Parse valid Docker configuration with matching registry as prefix", func(t *testing.T) {
-		config := fixture.MustReadFile("../../test/testdata/docker/valid-config-noproto.json")
+		config := fixture.MustReadFile("../../test/image-updater/testdata/docker/valid-config-noproto.json")
 		username, password, err := parseDockerConfigJson("https://registry-1.docker.io", config)
 		require.NoError(t, err)
 		assert.Equal(t, "foo", username)
@@ -284,7 +284,7 @@ func Test_ParseDockerConfig(t *testing.T) {
 	})
 
 	t.Run("Parse valid Docker configuration with matching registry as prefix with / in the end", func(t *testing.T) {
-		config := fixture.MustReadFile("../../test/testdata/docker/valid-config-noproto.json")
+		config := fixture.MustReadFile("../../test/image-updater/testdata/docker/valid-config-noproto.json")
 		username, password, err := parseDockerConfigJson("https://registry-1.docker.io/", config)
 		require.NoError(t, err)
 		assert.Equal(t, "foo", username)
@@ -292,7 +292,7 @@ func Test_ParseDockerConfig(t *testing.T) {
 	})
 
 	t.Run("Parse valid Docker configuration without matching registry", func(t *testing.T) {
-		config := fixture.MustReadFile("../../test/testdata/docker/valid-config.json")
+		config := fixture.MustReadFile("../../test/image-updater/testdata/docker/valid-config.json")
 		username, password, err := parseDockerConfigJson("https://gcr.io", config)
 		assert.Error(t, err)
 		assert.Empty(t, username)

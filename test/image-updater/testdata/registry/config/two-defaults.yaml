@@ -1,0 +1,9 @@
+registries:
+- name: "Reg One"
+  prefix: regone.io
+  api_url: "https://regone.io"
+  default: true
+- name: "Reg Two"
+  prefix: regtwo.io
+  api_url: "https://regtwo.io"
+  default: true

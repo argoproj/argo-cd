@@ -4,7 +4,7 @@ import (
 	"testing"
 	"time"
 
-	"github.com/argoproj-labs/argocd-image-updater/test/fixture"
+	"github.com/argoproj/argo-cd/v2/test/fixture"
 
 	"github.com/stretchr/testify/assert"
 	"github.com/stretchr/testify/require"
@@ -12,7 +12,7 @@ import (
 
 func Test_ParseRegistryConfFromYaml(t *testing.T) {
 	t.Run("Parse from valid YAML", func(t *testing.T) {
-		data := fixture.MustReadFile("../../config/example-config.yaml")
+		data := fixture.MustReadFile("../../test/image-updater/testdata/config/example-config.yaml")
 		regList, err := ParseRegistryConfiguration(data)
 		require.NoError(t, err)
 		assert.Len(t, regList.Items, 4)
@@ -78,7 +78,7 @@ func Test_LoadRegistryConfiguration(t *testing.T) {
 	RestoreDefaultRegistryConfiguration()
 
 	t.Run("Load from valid location", func(t *testing.T) {
-		err := LoadRegistryConfiguration("../../config/example-config.yaml", true)
+		err := LoadRegistryConfiguration("../../test/image-updater/testdata/config/example-config.yaml", true)
 		require.NoError(t, err)
 		assert.Len(t, registries, 4)
 		reg, err := GetRegistryEndpoint("gcr.io")
@@ -95,13 +95,13 @@ func Test_LoadRegistryConfiguration(t *testing.T) {
 	})
 
 	t.Run("Load from invalid location", func(t *testing.T) {
-		err := LoadRegistryConfiguration("../../test/testdata/registry/config/does-not-exist.yaml", true)
+		err := LoadRegistryConfiguration("../../test/image-updater/testdata/registry/config/does-not-exist.yaml", true)
 		require.Error(t, err)
 		require.Contains(t, err.Error(), "no such file or directory")
 	})
 
 	t.Run("Two defaults defined in same config", func(t *testing.T) {
-		err := LoadRegistryConfiguration("../../test/testdata/registry/config/two-defaults.yaml", true)
+		err := LoadRegistryConfiguration("../../test/image-updater/testdata/registry/config/two-defaults.yaml", true)
 		require.Error(t, err)
 		require.Contains(t, err.Error(), "cannot set registry")
 	})

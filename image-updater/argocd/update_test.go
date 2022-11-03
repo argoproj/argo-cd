@@ -10,8 +10,6 @@ import (
 	"testing"
 	"time"
 
-	"github.com/argoproj-labs/argocd-image-updater/test/fake"
-	"github.com/argoproj-labs/argocd-image-updater/test/fixture"
 	argomock "github.com/argoproj/argo-cd/v2/image-updater/argocd/mocks"
 	"github.com/argoproj/argo-cd/v2/image-updater/common"
 	"github.com/argoproj/argo-cd/v2/image-updater/image"
@@ -19,6 +17,8 @@ import (
 	"github.com/argoproj/argo-cd/v2/image-updater/registry"
 	regmock "github.com/argoproj/argo-cd/v2/image-updater/registry/mocks"
 	"github.com/argoproj/argo-cd/v2/image-updater/tag"
+	"github.com/argoproj/argo-cd/v2/test/fake"
+	"github.com/argoproj/argo-cd/v2/test/fixture"
 	"github.com/argoproj/argo-cd/v2/util/git"
 	gitmock "github.com/argoproj/argo-cd/v2/util/git/mocks"
 

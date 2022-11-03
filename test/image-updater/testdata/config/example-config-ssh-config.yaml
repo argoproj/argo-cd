@@ -1,0 +1,10 @@
+apiVersion: v1
+kind: ConfigMap
+metadata:
+  name: argocd-image-updater-ssh-config
+  namespace: argocd
+data:
+  config: |
+    Host *
+          PubkeyAcceptedAlgorithms +ssh-rsa
+          HostkeyAlgorithms +ssh-rsa
