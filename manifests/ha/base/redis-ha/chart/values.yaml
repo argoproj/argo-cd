@@ -10,7 +10,6 @@ redis-ha:
     image:
       tag: 2.6.2-alpine
     containerSecurityContext: null
-    securityContext: null
     timeout:
       server: 6m
       client: 6m
@@ -18,4 +17,3 @@ redis-ha:
   image:
     tag: 7.0.5-alpine
   containerSecurityContext: null
-  securityContext: null

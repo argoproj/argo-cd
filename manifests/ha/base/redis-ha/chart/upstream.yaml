@@ -1051,7 +1051,9 @@ spec:
       
       serviceAccountName: argocd-redis-ha-haproxy
       securityContext: 
-        null
+        fsGroup: 99
+        runAsNonRoot: true
+        runAsUser: 99
       nodeSelector:
         {}
       tolerations:
@@ -1168,7 +1170,9 @@ spec:
                   argocd-redis-ha: replica
               topologyKey: kubernetes.io/hostname
       securityContext: 
-        null
+        fsGroup: 1000
+        runAsNonRoot: true
+        runAsUser: 1000
       serviceAccountName: argocd-redis-ha
       automountServiceAccountToken: false
       initContainers:

@@ -11217,7 +11217,10 @@ spec:
           readOnly: true
         - mountPath: /data
           name: data
-      securityContext: null
+      securityContext:
+        fsGroup: 99
+        runAsNonRoot: true
+        runAsUser: 99
       serviceAccountName: argocd-redis-ha-haproxy
       volumes:
       - configMap:
@@ -12176,7 +12179,10 @@ spec:
           readOnly: true
         - mountPath: /data
           name: data
-      securityContext: null
+      securityContext:
+        fsGroup: 1000
+        runAsNonRoot: true
+        runAsUser: 1000
       serviceAccountName: argocd-redis-ha
       terminationGracePeriodSeconds: 60
       volumes:
