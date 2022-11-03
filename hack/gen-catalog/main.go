@@ -150,7 +150,7 @@ func generateBuiltInTriggersDocs(out io.Writer, triggers map[string][]triggers.C
 }
 
 func generateCommandsDocs(out io.Writer) error {
-	toolsCmd := admin.NewNotificationsCommand()
+	toolsCmd := admin.NewNotificationsCommand("argocd admin notification")
 	for _, subCommand := range toolsCmd.Commands() {
 		for _, c := range subCommand.Commands() {
 			var cmdDesc bytes.Buffer
