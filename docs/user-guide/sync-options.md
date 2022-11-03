@@ -29,8 +29,6 @@ The app will be out of sync if Argo CD expects a resource to be pruned. You may 
 
 ## Disable Kubectl Validation
 
->v1.2
-
 For a certain class of objects, it is necessary to `kubectl apply` them using the `--validate=false` flag. Examples of this are kubernetes types which uses `RawExtension`, such as [ServiceCatalog](https://github.com/kubernetes-incubator/service-catalog/blob/master/pkg/apis/servicecatalog/v1beta1/types.go#L497). You can do using this annotations:
 
 
@@ -43,8 +41,6 @@ metadata:
 If you want to exclude a whole class of objects globally, consider setting `resource.customizations` in [system level configuration](../user-guide/diffing.md#system-level-configuration). 
     
 ## Skip Dry Run for new custom resources types
-
->v1.6
 
 When syncing a custom resource which is not yet known to the cluster, there are generally two options:
 
@@ -240,7 +236,7 @@ spec:
 
 ## Respect ignore difference configs
 
-This sync option is used to enable Argo CD to consider the configurations made in the `spec.ignoreDifferences` attribute also during the sync stage. By default, Argo CD uses the `ignoreDifferences` config just for computing the diff between the live and desired state which defines if the application is synced or not. However during the sync stage, the desired state is applied as-is. The patch is calculated using a 3-way-merge between the live state the desired state and the `last-applied-configuration` annotation. This sometimes leads to an undesired results. This behavior can be changed by setting the `RespectIgnoreDifferences=true` sync option like in the example bellow:
+This sync option is used to enable Argo CD to consider the configurations made in the `spec.ignoreDifferences` attribute also during the sync stage. By default, Argo CD uses the `ignoreDifferences` config just for computing the diff between the live and desired state which defines if the application is synced or not. However during the sync stage, the desired state is applied as-is. The patch is calculated using a 3-way-merge between the live state the desired state and the `last-applied-configuration` annotation. This sometimes leads to an undesired results. This behavior can be changed by setting the `RespectIgnoreDifferences=true` sync option like in the example below:
 
 ```yaml
 apiVersion: argoproj.io/v1alpha1

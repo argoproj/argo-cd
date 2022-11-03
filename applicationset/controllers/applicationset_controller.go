@@ -484,7 +484,7 @@ func (r *ApplicationSetReconciler) SetupWithManager(mgr ctrl.Manager) error {
 		// ...and if so, return it
 		return []string{owner.Name}
 	}); err != nil {
-		return err
+		return fmt.Errorf("error setting up with manager: %w", err)
 	}
 
 	return ctrl.NewControllerManagedBy(mgr).
@@ -567,7 +567,7 @@ func (r *ApplicationSetReconciler) createInCluster(ctx context.Context, applicat
 	var createApps []argov1alpha1.Application
 	current, err := r.getCurrentApplications(ctx, applicationSet)
 	if err != nil {
-		return err
+		return fmt.Errorf("error getting current applications: %w", err)
 	}
 
 	m := make(map[string]bool) // Will holds the app names that are current in the cluster
@@ -608,13 +608,13 @@ func (r *ApplicationSetReconciler) deleteInCluster(ctx context.Context, applicat
 	// clusterList, err := argoDB.ListClusters(ctx)
 	clusterList, err := utils.ListClusters(ctx, r.KubeClientset, applicationSet.Namespace)
 	if err != nil {
-		return err
+		return fmt.Errorf("error listing clusters: %w", err)
 	}
 
 	// Save current applications to be able to delete the ones that are not in appList
 	current, err := r.getCurrentApplications(ctx, applicationSet)
 	if err != nil {
-		return err
+		return fmt.Errorf("error getting current applications: %w", err)
 	}
 
 	m := make(map[string]bool) // Will holds the app names in appList for the deletion process
@@ -718,7 +718,7 @@ func (r *ApplicationSetReconciler) removeFinalizerOnInvalidDestination(ctx conte
 
 			err := r.Client.Update(ctx, app, &client.UpdateOptions{})
 			if err != nil {
-				return err
+				return fmt.Errorf("error updating finalizers: %w", err)
 			}
 		}
 	}

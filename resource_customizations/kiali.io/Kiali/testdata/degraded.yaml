@@ -14,14 +14,24 @@ metadata:
 spec: {}
 status:
   conditions:
-  - ansibleResult:
-      changed: 1
-      completion: 2020-06-08T13:41:20.133525
-      failures: 0
-      ok: 56
-      skipped: 82
-    lastTransitionTime: "2020-06-04T17:47:31Z"
-    message: Error Reconciling
-    reason: null 
-    status: "True"
-    type: Running
+    - lastTransitionTime: '2022-10-19T09:44:32Z'
+      message: ''
+      reason: ''
+      status: 'False'
+      type: Failure
+    - ansibleResult:
+        changed: 18
+        completion: '2022-10-19T09:44:32.289505'
+        failures: 0
+        ok: 101
+        skipped: 101
+      lastTransitionTime: '2022-10-19T09:43:39Z'
+      message: Awaiting next reconciliation
+      reason: Successful
+      status: 'True'
+      type: Running
+    - lastTransitionTime: '2022-10-19T09:44:32Z'
+      message: Error Reconciling
+      reason: Failure
+      status: 'True'
+      type: Failure

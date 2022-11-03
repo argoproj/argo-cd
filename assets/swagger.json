@@ -7423,6 +7423,10 @@
         "status": {
           "type": "string"
         },
+        "syncWave": {
+          "type": "string",
+          "format": "int64"
+        },
         "version": {
           "type": "string"
         }
@@ -7478,8 +7482,8 @@
           "$ref": "#/definitions/v1Time"
         },
         "message": {
-          "type": "string",
-          "title": "Message contains the message associated with the revision, most likely the commit message.\nThe message is truncated to the first newline or 64 characters (which ever comes first)"
+          "description": "Message contains the message associated with the revision, most likely the commit message.",
+          "type": "string"
         },
         "signatureInfo": {
           "description": "SignatureInfo contains a hint on the signer if the revision was signed with GPG, and signature verification is enabled.",

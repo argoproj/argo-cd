@@ -25,3 +25,12 @@
       - ALL
     seccompProfile:
       type: RuntimeDefault
+- op: add
+  path: /spec/template/spec/containers/2/securityContext
+  value:
+    allowPrivilegeEscalation: false
+    capabilities:
+      drop:
+      - ALL
+    seccompProfile:
+      type: RuntimeDefault
