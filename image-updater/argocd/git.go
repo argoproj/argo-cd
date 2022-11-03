@@ -25,11 +25,6 @@ import (
 	"github.com/argoproj/argo-cd/v2/pkg/apis/application/v1alpha1"
 )
 
-type gitWriteBackExtraParams struct {
-	credsStore       git.CredsStore
-	submoduleEnabled bool
-}
-
 // templateCommitMessage renders a commit message template and returns it as
 // as a string. If the template could not be rendered, returns a default
 // message.

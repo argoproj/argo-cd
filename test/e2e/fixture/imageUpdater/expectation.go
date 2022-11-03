@@ -98,7 +98,7 @@ func ApplicationImageUpdated(desiredImages v1alpha1.KustomizeImages) Expectation
 		foundApp, _ := c.actions.get()
 
 		if foundApp == nil {
-			return pending, fmt.Sprintf("missing app")
+			return pending, "missing app"
 		}
 
 		for i, image := range foundApp.Spec.Source.Kustomize.Images {

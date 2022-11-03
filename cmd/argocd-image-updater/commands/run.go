@@ -20,6 +20,7 @@ import (
 	"github.com/argoproj/argo-cd/v2/image-updater/registry"
 	"github.com/argoproj/argo-cd/v2/image-updater/version"
 	"github.com/argoproj/argo-cd/v2/reposerver/askpass"
+	argoerr "github.com/argoproj/argo-cd/v2/util/errors"
 
 	"github.com/spf13/cobra"
 
@@ -299,7 +300,7 @@ func runImageUpdater(cfg *ImageUpdaterConfig, warmUp bool) (argocd.ImageUpdaterR
 		}
 
 		gitCredsStore := askpass.NewServer()
-		gitCredsStore.Run(askpass.SocketPath)
+		go func() { argoerr.CheckError(gitCredsStore.Run(askpass.SocketPath)) }()
 
 		go func(app string, curApplication argocd.ApplicationImages) {
 			defer sem.Release(1)
