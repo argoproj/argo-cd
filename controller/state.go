@@ -715,9 +715,10 @@ func (m *appStateManager) isSelfReferencedObj(live, config *unstructured.Unstruc
 		return true
 	}
 
-	// Ideally the Tracking Id should be built from the config object.
-	// This is necessary because in case of an ApiGroup upgrade in the desired
-	// state, the comparison must be made with the new tracking id.
+	// config != nil is the best-case scenario for constructing an accurate
+	// Tracking ID. `config` is the "desired state" (from git/helm/etc.).
+	// Using the desired state is important when there is an ApiGroup upgrade.
+	// When upgrading, the comparison must be made with the new tracking ID.
 	// Example:
 	//     live resource annotation will be:
 	//        ingress-app:extensions/Ingress:default/some-ingress
@@ -743,6 +744,10 @@ func (m *appStateManager) isSelfReferencedObj(live, config *unstructured.Unstruc
 	return true
 }
 
+// isSelfReferencedObj returns true if the given Tracking ID (`aiv`) matches
+// the given object. It returns false when the ID doesn't match. This sometimes
+// happens when a tracking label or annotation gets accidentally copied to a
+// different resource.
 func isSelfReferencedObj(obj *unstructured.Unstructured, aiv argo.AppInstanceValue) bool {
 	return (obj.GetNamespace() == aiv.Namespace || obj.GetNamespace() == "") &&
 		obj.GetName() == aiv.Name &&

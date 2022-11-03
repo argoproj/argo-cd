@@ -103,7 +103,9 @@ func (rt *resourceTracking) GetAppInstance(un *unstructured.Unstructured, key st
 }
 
 // UnstructuredToAppInstanceValue will build the AppInstanceValue based
-// on the provided unstructured
+// on the provided unstructured. The given namespace works as a default
+// value if the resource's namespace is not defined. It should be the
+// Application's target destination namespace.
 func UnstructuredToAppInstanceValue(un *unstructured.Unstructured, appName, namespace string) AppInstanceValue {
 	ns := un.GetNamespace()
 	if ns == "" {
