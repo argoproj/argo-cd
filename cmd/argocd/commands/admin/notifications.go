@@ -23,7 +23,7 @@ var (
 	applications = schema.GroupVersionResource{Group: "argoproj.io", Version: "v1alpha1", Resource: "applications"}
 )
 
-func NewNotificationsCommand(cliName string) *cobra.Command {
+func NewNotificationsCommand() *cobra.Command {
 	var (
 		argocdRepoServer          string
 		argocdRepoServerPlaintext bool
@@ -31,12 +31,9 @@ func NewNotificationsCommand(cliName string) *cobra.Command {
 	)
 
 	var argocdService service.Service
-	if cliName == "" {
-	    cliName = "notifications"
-	}
 	toolsCommand := cmd.NewToolsCommand(
 		"notifications",
-		cliName,
+		"argocd admin notifications",
 		applications,
 		settings.GetFactorySettings(argocdService, "argocd-notifications-secret", "argocd-notifications-cm"), func(clientConfig clientcmd.ClientConfig) {
 			k8sCfg, err := clientConfig.ClientConfig()
