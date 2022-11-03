@@ -12144,7 +12144,13 @@ spec:
         imagePullPolicy: IfNotPresent
         name: split-brain-fix
         resources: {}
-        securityContext: null
+        securityContext:
+          allowPrivilegeEscalation: false
+          capabilities:
+            drop:
+            - ALL
+          seccompProfile:
+            type: RuntimeDefault
         volumeMounts:
         - mountPath: /readonly-config
           name: config
@@ -12296,7 +12302,9 @@ spec:
       protocol: UDP
     - port: 53
       protocol: TCP
-    to: null
+    to:
+    - ipBlock:
+        cidr: 0.0.0.0/0
   ingress:
   - from:
     - podSelector:
@@ -12340,7 +12348,9 @@ spec:
       protocol: UDP
     - port: 53
       protocol: TCP
-    to: null
+    to:
+    - ipBlock:
+        cidr: 0.0.0.0/0
   ingress:
   - from:
     - podSelector:
