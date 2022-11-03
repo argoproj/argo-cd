@@ -104,7 +104,6 @@ require (
 )
 
 require (
-	github.com/argoproj-labs/argocd-image-updater v0.12.0
 	github.com/distribution/distribution/v3 v3.0.0-20220816150328-6c237953cbbe
 	github.com/gosimple/slug v1.12.0
 	github.com/microsoft/azure-devops-go-api/azuredevops v1.0.0-b5
@@ -124,7 +123,10 @@ require (
 	github.com/opencontainers/image-spec v1.0.2 // indirect
 )
 
-require github.com/emicklei/go-restful/v3 v3.8.0 // indirect
+require (
+	github.com/emicklei/go-restful/v3 v3.8.0 // indirect
+	github.com/malexdev/utfutil v0.0.0-20180510171754-00c8d4a8e7a8 // indirect
+)
 
 require (
 	cloud.google.com/go v0.99.0 // indirect
