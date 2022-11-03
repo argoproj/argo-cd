@@ -9,7 +9,7 @@ import * as models from '../../../shared/models';
 import {services} from '../../../shared/services';
 import * as utils from '../utils';
 
-require('./application-operation-state.scss');
+import './application-operation-state.scss';
 
 interface Props {
     application: models.Application;

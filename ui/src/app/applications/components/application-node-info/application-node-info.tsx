@@ -10,7 +10,7 @@ import {ResourceTreeNode} from '../application-resource-tree/application-resourc
 import {ApplicationResourcesDiff} from '../application-resources-diff/application-resources-diff';
 import {ComparisonStatusIcon, formatCreationTimestamp, getPodStateReason, HealthStatusIcon} from '../utils';
 
-require('./application-node-info.scss');
+import './application-node-info.scss';
 
 export const ApplicationNodeInfo = (props: {
     application: models.Application;
