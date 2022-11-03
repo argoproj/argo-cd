@@ -309,7 +309,10 @@ export const ResourceDetails = (props: ResourceDetailsProps) => {
                                     className='argo-button argo-button--base'>
                                     <i className='fa fa-sync-alt' /> SYNC
                                 </button>
-                                <button onClick={() => AppUtils.deletePopup(appContext, selectedNode, application)} className='argo-button argo-button--base'>
+                                <button
+                                    onClick={() => AppUtils.deletePopup(appContext, selectedNode, application)}
+                                    style={{marginRight: '5px'}}
+                                    className='argo-button argo-button--base'>
                                     <i className='fa fa-trash' /> DELETE
                                 </button>
                                 <DropDown
