@@ -11118,7 +11118,8 @@ spec:
     - port: 53
       protocol: TCP
     to:
-    - namespaceSelector: {}
+    - ipBlock:
+        cidr: 0.0.0.0/0
   ingress:
   - from:
     - podSelector:
