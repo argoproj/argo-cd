@@ -887,7 +887,9 @@ func (s *Server) getAppResources(ctx context.Context, a *appv1.Application) (*ap
 
 func (s *Server) StartEventSource(es *events.EventSource, stream events.Eventing_StartEventSourceServer) error {
 	var (
-		logCtx log.FieldLogger = log.StandardLogger()
+		logCtx   log.FieldLogger = log.StandardLogger()
+		selector labels.Selector
+		err      error
 	)
 	q := application.ApplicationQuery{}
 	if err := yaml.Unmarshal(es.Config, &q); err != nil {
@@ -900,10 +902,14 @@ func (s *Server) StartEventSource(es *events.EventSource, stream events.Eventing
 	}
 
 	claims := stream.Context().Value("claims")
-	selector, err := labels.Parse(*q.Selector)
-	if err != nil {
-		return err
+
+	if q.Selector != nil {
+		selector, err = labels.Parse(*q.Selector)
+		if err != nil {
+			return err
+		}
 	}
+
 	minVersion := 0
 	if q.ResourceVersion != nil {
 		if minVersion, err = strconv.Atoi(*q.ResourceVersion); err != nil {
@@ -922,9 +928,11 @@ func (s *Server) StartEventSource(es *events.EventSource, stream events.Eventing
 			return
 		}
 
-		matchedEvent := (q.GetName() == "" || a.Name == q.GetName()) && selector.Matches(labels.Set(a.Labels))
-		if !matchedEvent {
-			return
+		if selector != nil {
+			matchedEvent := (q.GetName() == "" || a.Name == q.GetName()) && selector.Matches(labels.Set(a.Labels))
+			if !matchedEvent {
+				return
+			}
 		}
 
 		if !s.enf.Enforce(claims, rbacpolicy.ResourceApplications, rbacpolicy.ActionGet, a.RBACName(s.ns)) {
