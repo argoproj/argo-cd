@@ -11119,7 +11119,7 @@ spec:
       protocol: TCP
     to:
     - ipBlock:
-        cidr: 0.0.0.0/24
+        cidr: 0.0.0.0/0
   ingress:
   - from:
     - podSelector:
