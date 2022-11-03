@@ -1,8 +1,6 @@
 ## argocd admin initial-password
 
-Prints the initial password to login into Argo CD.
-
-**Note**: This password must be only used for first time login. We strongly recommend you update the password using `argocd account update-password`.
+Prints initial password to login into Argo CD for the first time
 
 ```
 argocd admin initial-password [flags]
