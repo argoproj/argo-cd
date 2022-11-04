@@ -245,6 +245,8 @@ message ApplicationSetSpec {
   optional ApplicationSetTemplate template = 3;
 
   optional ApplicationSetSyncPolicy syncPolicy = 4;
+
+  optional string stringTemplate = 5;
 }
 
 // ApplicationSetStatus defines the observed state of ApplicationSet

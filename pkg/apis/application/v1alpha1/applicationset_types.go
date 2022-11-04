@@ -48,10 +48,11 @@ type ApplicationSet struct {
 
 // ApplicationSetSpec represents a class of application set state.
 type ApplicationSetSpec struct {
-	GoTemplate bool                      `json:"goTemplate,omitempty" protobuf:"bytes,1,name=goTemplate"`
-	Generators []ApplicationSetGenerator `json:"generators" protobuf:"bytes,2,name=generators"`
-	Template   ApplicationSetTemplate    `json:"template" protobuf:"bytes,3,name=template"`
-	SyncPolicy *ApplicationSetSyncPolicy `json:"syncPolicy,omitempty" protobuf:"bytes,4,name=syncPolicy"`
+	GoTemplate     bool                          `json:"goTemplate,omitempty" protobuf:"bytes,1,name=goTemplate"`
+	Generators     []ApplicationSetGenerator     `json:"generators" protobuf:"bytes,2,name=generators"`
+	Template       *ApplicationSetTemplate       `json:"template" protobuf:"bytes,3,name=template"`
+	SyncPolicy     *ApplicationSetSyncPolicy     `json:"syncPolicy,omitempty" protobuf:"bytes,4,name=syncPolicy"`
+	StringTemplate *ApplicationSetStringTemplate `json:"stringTemplate,omitempty" protobuf:"bytes,5,opt,name=stringTemplate,casttype=ApplicationSetStringTemplate"`
 }
 
 // ApplicationSetSyncPolicy configures how generated Applications will relate to their
@@ -66,6 +67,9 @@ type ApplicationSetTemplate struct {
 	ApplicationSetTemplateMeta `json:"metadata" protobuf:"bytes,1,name=metadata"`
 	Spec                       ApplicationSpec `json:"spec" protobuf:"bytes,2,name=spec"`
 }
+
+// ApplicationSetStringTemplate represents argocd ApplicationSpec without type check
+type ApplicationSetStringTemplate string
 
 // ApplicationSetTemplateMeta represents the Argo CD application fields that may
 // be used for Applications generated from the ApplicationSet (based on metav1.ObjectMeta)
@@ -537,7 +541,7 @@ const (
 // prefix "Info" means informational condition
 type ApplicationSetConditionType string
 
-//ErrorOccurred / ParametersGenerated / TemplateRendered / ResourcesUpToDate
+// ErrorOccurred / ParametersGenerated / TemplateRendered / ResourcesUpToDate
 const (
 	ApplicationSetConditionErrorOccurred       ApplicationSetConditionType = "ErrorOccurred"
 	ApplicationSetConditionParametersGenerated ApplicationSetConditionType = "ParametersGenerated"

@@ -5728,6 +5728,9 @@
         "goTemplate": {
           "type": "boolean"
         },
+        "stringTemplate": {
+          "type": "string"
+        },
         "syncPolicy": {
           "$ref": "#/definitions/v1alpha1ApplicationSetSyncPolicy"
         },

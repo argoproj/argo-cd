@@ -9344,6 +9344,8 @@ spec:
                 type: array
               goTemplate:
                 type: boolean
+              stringTemplate:
+                type: string
               syncPolicy:
                 properties:
                   preserveResourcesOnDeletion:

@@ -45,7 +45,7 @@ func TestPrintApplicationSetTable(t *testing.T) {
 						},
 					},
 				},
-				Template: arogappsetv1.ApplicationSetTemplate{
+				Template: &arogappsetv1.ApplicationSetTemplate{
 					Spec: v1alpha1.ApplicationSpec{
 						Project: "default",
 					},

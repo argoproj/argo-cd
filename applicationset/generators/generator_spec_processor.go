@@ -1,8 +1,8 @@
 package generators
 
 import (
-	"fmt"
 	"encoding/json"
+	"fmt"
 	"reflect"
 
 	"github.com/argoproj/argo-cd/v2/applicationset/utils"
@@ -25,7 +25,7 @@ type TransformResult struct {
 	Template argoprojiov1alpha1.ApplicationSetTemplate
 }
 
-//Transform a spec generator to list of paramSets and a template
+// Transform a spec generator to list of paramSets and a template
 func Transform(requestedGenerator argoprojiov1alpha1.ApplicationSetGenerator, allGenerators map[string]Generator, baseTemplate argoprojiov1alpha1.ApplicationSetTemplate, appSet *argoprojiov1alpha1.ApplicationSet, genParams map[string]interface{}) ([]TransformResult, error) {
 	selector, err := metav1.LabelSelectorAsSelector(requestedGenerator.Selector)
 	if err != nil {
