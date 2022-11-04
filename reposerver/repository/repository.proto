@@ -3,6 +3,8 @@ option go_package = "github.com/argoproj/argo-cd/v2/reposerver/apiclient";
 
 package repository;
 
+import "k8s.io/api/core/v1/generated.proto";
+import "k8s.io/apimachinery/pkg/apis/meta/v1/generated.proto";
 import "github.com/argoproj/argo-cd/v2/pkg/apis/application/v1alpha1/generated.proto";
 
 // ManifestRequest is a query for manifest generation.
@@ -97,6 +99,7 @@ message ManifestResponse {
     string verifyResult = 7;
     string commitMessage = 8;
     string commitAuthor = 9;
+    k8s.io.apimachinery.pkg.apis.meta.v1.Time commitDate = 10;
 }
 
 message ListRefsRequest {

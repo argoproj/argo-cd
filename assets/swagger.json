@@ -4332,6 +4332,9 @@
         "commitAuthor": {
           "type": "string"
         },
+        "commitDate": {
+          "$ref": "#/definitions/v1Time"
+        },
         "commitMessage": {
           "type": "string"
         },
