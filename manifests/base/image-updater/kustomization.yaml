@@ -1,0 +1,11 @@
+apiVersion: kustomize.config.k8s.io/v1beta1
+kind: Kustomization
+
+resources:
+- argocd-image-updater-cm.yaml
+- argocd-image-updater-secret.yaml
+- argocd-image-updater-ssh-config.yaml
+- argocd-image-updater-deployment.yaml
+- argocd-image-updater-role.yaml
+- argocd-image-updater-rolebinding.yaml
+- argocd-image-updater-sa.yaml

@@ -133,8 +133,7 @@ func NewHTTPSCreds(username string, password string, clientCertData string, clie
 // Get additional required environment variables for executing git client to
 // access specific repository via HTTPS.
 func (c HTTPSCreds) Environ() (io.Closer, []string, error) {
-	var env []string
-
+	env := []string{fmt.Sprintf("GIT_ASKPASS=%s", "git-ask-pass.sh"), fmt.Sprintf("GIT_USERNAME=%s", c.username), fmt.Sprintf("GIT_PASSWORD=%s", c.password)}
 	httpCloser := authFilePaths(make([]string, 0))
 
 	// GIT_SSL_NO_VERIFY is used to tell git not to validate the server's cert at
@@ -303,7 +302,8 @@ func (g GitHubAppCreds) Environ() (io.Closer, []string, error) {
 	if err != nil {
 		return NopCloser{}, nil, err
 	}
-	var env []string
+
+	env := []string{fmt.Sprintf("GIT_ASKPASS=%s", "git-ask-pass.sh"), "GIT_USERNAME=x-access-token", fmt.Sprintf("GIT_PASSWORD=%s", token)}
 	httpCloser := authFilePaths(make([]string, 0))
 
 	// GIT_SSL_NO_VERIFY is used to tell git not to validate the server's cert at

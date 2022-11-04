@@ -15,3 +15,4 @@ resources:
 - ./redis
 - ./notification
 - ./applicationset-controller
+- ./image-updater

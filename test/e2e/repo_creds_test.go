@@ -53,7 +53,7 @@ func TestCanAddAppFromInsecurePrivateRepoWithCredCfg(t *testing.T) {
 	Given(t).
 		CustomCACertAdded().
 		RepoURLType(fixture.RepoURLTypeHTTPS).
-		Path(fixture.LocalOrRemotePath("https-kustomize-base")).
+		Path(fixture.LocalOrRemotePath("kustomize-app")).
 		And(func() {
 			secretName := fixture.CreateSecret(fixture.GitUsername, fixture.GitPassword)
 			FailOnErr(fixture.Run("", "kubectl", "patch", "cm", "argocd-cm",

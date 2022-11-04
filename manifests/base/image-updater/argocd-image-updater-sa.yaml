@@ -1,0 +1,8 @@
+apiVersion: v1
+kind: ServiceAccount
+metadata:
+  labels:
+    app.kubernetes.io/name: argocd-image-updater
+    app.kubernetes.io/part-of: argocd-image-updater
+    app.kubernetes.io/component: controller
+  name: argocd-image-updater

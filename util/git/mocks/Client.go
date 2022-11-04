@@ -12,6 +12,34 @@ type Client struct {
 	mock.Mock
 }
 
+// Add provides a mock function with given fields: path
+func (_m *Client) Add(path string) error {
+	ret := _m.Called(path)
+
+	var r0 error
+	if rf, ok := ret.Get(0).(func(string) error); ok {
+		r0 = rf(path)
+	} else {
+		r0 = ret.Error(0)
+	}
+
+	return r0
+}
+
+// Branch provides a mock function with given fields: sourceBranch, targetBranch
+func (_m *Client) Branch(sourceBranch string, targetBranch string) error {
+	ret := _m.Called(sourceBranch, targetBranch)
+
+	var r0 error
+	if rf, ok := ret.Get(0).(func(string, string) error); ok {
+		r0 = rf(sourceBranch, targetBranch)
+	} else {
+		r0 = ret.Error(0)
+	}
+
+	return r0
+}
+
 // Checkout provides a mock function with given fields: revision, submoduleEnabled
 func (_m *Client) Checkout(revision string, submoduleEnabled bool) error {
 	ret := _m.Called(revision, submoduleEnabled)
@@ -19,6 +47,20 @@ func (_m *Client) Checkout(revision string, submoduleEnabled bool) error {
 	var r0 error
 	if rf, ok := ret.Get(0).(func(string, bool) error); ok {
 		r0 = rf(revision, submoduleEnabled)
+	} else {
+		r0 = ret.Error(0)
+	}
+
+	return r0
+}
+
+// Commit provides a mock function with given fields: pathSpec, opts
+func (_m *Client) Commit(pathSpec string, opts *git.CommitOptions) error {
+	ret := _m.Called(pathSpec, opts)
+
+	var r0 error
+	if rf, ok := ret.Get(0).(func(string, *git.CommitOptions) error); ok {
+		r0 = rf(pathSpec, opts)
 	} else {
 		r0 = ret.Error(0)
 	}
@@ -45,6 +87,20 @@ func (_m *Client) CommitSHA() (string, error) {
 	}
 
 	return r0, r1
+}
+
+// Config provides a mock function with given fields: username, email
+func (_m *Client) Config(username string, email string) error {
+	ret := _m.Called(username, email)
+
+	var r0 error
+	if rf, ok := ret.Get(0).(func(string, string) error); ok {
+		r0 = rf(username, email)
+	} else {
+		r0 = ret.Error(0)
+	}
+
+	return r0
 }
 
 // Fetch provides a mock function with given fields: revision
@@ -165,6 +221,20 @@ func (_m *Client) LsRemote(revision string) (string, error) {
 	return r0, r1
 }
 
+// Push provides a mock function with given fields: remote, branch, force
+func (_m *Client) Push(remote string, branch string, force bool) error {
+	ret := _m.Called(remote, branch, force)
+
+	var r0 error
+	if rf, ok := ret.Get(0).(func(string, string, bool) error); ok {
+		r0 = rf(remote, branch, force)
+	} else {
+		r0 = ret.Error(0)
+	}
+
+	return r0
+}
+
 // RevisionMetadata provides a mock function with given fields: revision
 func (_m *Client) RevisionMetadata(revision string) (*git.RevisionMetadata, error) {
 	ret := _m.Called(revision)
@@ -214,6 +284,27 @@ func (_m *Client) Submodule() error {
 	}
 
 	return r0
+}
+
+// SymRefToBranch provides a mock function with given fields: symRef
+func (_m *Client) SymRefToBranch(symRef string) (string, error) {
+	ret := _m.Called(symRef)
+
+	var r0 string
+	if rf, ok := ret.Get(0).(func(string) string); ok {
+		r0 = rf(symRef)
+	} else {
+		r0 = ret.Get(0).(string)
+	}
+
+	var r1 error
+	if rf, ok := ret.Get(1).(func(string) error); ok {
+		r1 = rf(symRef)
+	} else {
+		r1 = ret.Error(1)
+	}
+
+	return r0, r1
 }
 
 // VerifyCommitSignature provides a mock function with given fields: _a0

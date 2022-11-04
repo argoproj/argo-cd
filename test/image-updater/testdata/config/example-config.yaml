@@ -1,0 +1,21 @@
+# Example configuration for argocd-image-controller
+registries:
+- name: Docker Hub 
+  api_url: https://registry-1.docker.io
+  prefix: docker.io
+  credentials: env:SOME_ENV_VAR
+  default: true
+  defaultns: library
+- name: Google Container Registry
+  api_url: https://gcr.io
+  prefix: gcr.io
+  credentials: pullsecret:foo/bar
+- name: RedHat Quay
+  api_url: https://quay.io
+  prefix: quay.io
+  credentials: secret:foo/bar#creds
+- name: GitHub Container Registry
+  api_url: https://ghcr.io
+  prefix: ghcr.io
+  credentials: ext:/some/script
+  credsexpire: 5h
