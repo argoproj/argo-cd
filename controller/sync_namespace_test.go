@@ -86,11 +86,10 @@ func Test_shouldNamespaceSync(t *testing.T) {
 			},
 		},
 		{
-			name:           "namespace does not yet exist and managedNamespaceMetadata nil",
-			expected:       true,
-			expectedLabels: map[string]string{},
-			//expectedAnnotations: map[string]string{"argocd.argoproj.io/tracking-id": "some-app:/Namespace:/some-namespace"},
-			expectedAnnotations: map[string]string{},
+			name:                "namespace does not yet exist and managedNamespaceMetadata nil",
+			expected:            true,
+			expectedLabels:      map[string]string{},
+			expectedAnnotations: map[string]string{"argocd.argoproj.io/tracking-id": "some-app:/Namespace:/some-namespace"},
 			un:                  createFakeNamespace("", "", map[string]string{}, map[string]string{}),
 			syncPolicy: &v1alpha1.SyncPolicy{
 				ManagedNamespaceMetadata: nil,
