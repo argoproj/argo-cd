@@ -28,7 +28,15 @@ func init() {
 	delete(sprigFuncMap, "env")
 	delete(sprigFuncMap, "expandenv")
 	delete(sprigFuncMap, "getHostByName")
-	sprigFuncMap["normalize"] = SanitizeName
+	extraFuncMap := template.FuncMap{
+		"toYaml":    ToYaml,
+		"normalize": SanitizeName,
+	}
+
+	for name, f := range extraFuncMap {
+		sprigFuncMap[name] = f
+	}
+
 }
 
 type Renderer interface {
@@ -366,4 +374,12 @@ func SanitizeName(name string) string {
 	}
 
 	return strings.Trim(name, "-.")
+}
+
+func ToYaml(v interface{}) (string, error) {
+	data, err := yaml.Marshal(v)
+	if err != nil {
+		return "", err
+	}
+	return string(data), nil
 }
