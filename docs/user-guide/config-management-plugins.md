@@ -259,6 +259,11 @@ If you are actively developing a sidecar-installed CMP, keep a few things in min
 3) CMP errors are cached by the repo-server in Redis. Restarting the repo-server Pod will not clear the cache. Always
    do a "Hard Refresh" when actively developing a CMP so you have the latest output.
 
+!!! note
+    Each Application can only have one config management plugin configured at a time. If you're converting an existing
+    plugin configured through the `argocd-cm` ConfigMap to a sidecar, make sure the discovery mechanism only returns
+    true for Applications that have had their `name` field in the `plugin` section of their spec removed.
+
 ## Plugin tar stream exclusions
 
 In order to increase the speed of manifest generation, certain files and folders can be excluded from being sent to your
