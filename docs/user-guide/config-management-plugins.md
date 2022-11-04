@@ -63,6 +63,10 @@ metadata:
   name: cmp-plugin
 spec:
   version: v1.0
+  init:
+    # Init always happens immediately before generate, but its output is not treated as manifests.
+    # This is a good place to, for example, download chart dependencies.
+    command: [sh, -c, 'echo "Initializing..."']
   generate:
     command: [sh, -c, 'echo "{\"kind\": \"ConfigMap\", \"apiVersion\": \"v1\", \"metadata\": { \"name\": \"$ARGOCD_APP_NAME\", \"namespace\": \"$ARGOCD_APP_NAMESPACE\", \"annotations\": {\"Foo\": \"$FOO\", \"KubeVersion\": \"$KUBE_VERSION\", \"KubeApiVersion\": \"$KUBE_API_VERSIONS\",\"Bar\": \"baz\"}}}"']
   discover:
@@ -110,6 +114,8 @@ data:
       name: cmp-plugin
     spec:
       version: v1.0
+      init:
+        command: [sh, -c, 'echo "Initializing..."']
       generate:
         command: [sh, -c, 'echo "{\"kind\": \"ConfigMap\", \"apiVersion\": \"v1\", \"metadata\": { \"name\": \"$ARGOCD_APP_NAME\", \"namespace\": \"$ARGOCD_APP_NAMESPACE\", \"annotations\": {\"Foo\": \"$FOO\", \"KubeVersion\": \"$KUBE_VERSION\", \"KubeApiVersion\": \"$KUBE_API_VERSIONS\",\"Bar\": \"baz\"}}}"']
       discover:
@@ -230,6 +236,11 @@ If you don't need to set any environment variables, you can set an empty plugin 
     Each CMP command will also independently timeout on the `ARGOCD_EXEC_TIMEOUT` set for the CMP sidecar. The default
     is 90s. So if you increase the repo server timeout greater than 90s, be sure to set `ARGOCD_EXEC_TIMEOUT` on the
     sidecar.
+
+!!! note
+    Each Application can only have one config management plugin configured at a time. If you're converting an existing
+    plugin configured through the `argocd-cm` ConfigMap to a sidecar, make sure the discovery mechanism only returns
+    true for Applications that have had their `name` field in the `plugin` section of their spec removed.
 
 ## Plugin tar stream exclusions
 
