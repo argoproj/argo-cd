@@ -1,7 +1,6 @@
 package controller
 
 import (
-	"errors"
 	"github.com/argoproj/argo-cd/v2/common"
 	"github.com/argoproj/argo-cd/v2/pkg/apis/application/v1alpha1"
 	"github.com/argoproj/argo-cd/v2/util/argo"
@@ -10,33 +9,6 @@ import (
 	"k8s.io/apimachinery/pkg/types"
 	"testing"
 )
-
-type fakeResourceTracking struct {
-}
-
-func (f fakeResourceTracking) GetAppName(un *unstructured.Unstructured, key string, trackingMethod v1alpha1.TrackingMethod) string {
-	panic("implement me")
-}
-
-func (f fakeResourceTracking) GetAppInstance(un *unstructured.Unstructured, key string, trackingMethod v1alpha1.TrackingMethod) *argo.AppInstanceValue {
-	return nil
-}
-
-func (f fakeResourceTracking) SetAppInstance(un *unstructured.Unstructured, key, val, namespace string, trackingMethod v1alpha1.TrackingMethod) error {
-	return errors.New("some error")
-}
-
-func (f fakeResourceTracking) BuildAppInstanceValue(value argo.AppInstanceValue) string {
-	panic("implement me")
-}
-
-func (f fakeResourceTracking) ParseAppInstanceValue(value string) (*argo.AppInstanceValue, error) {
-	panic("implement me")
-}
-
-func (f fakeResourceTracking) Normalize(config, live *unstructured.Unstructured, labelKey, trackingMethod string) error {
-	panic("implement me")
-}
 
 func createFakeNamespace(uid string, resourceVersion string, labels map[string]string, annotations map[string]string) *unstructured.Unstructured {
 	un := unstructured.Unstructured{}
