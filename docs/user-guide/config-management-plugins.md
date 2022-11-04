@@ -98,6 +98,11 @@ Argo CD expects the plugin configuration file to be located at `/home/argocd/cmp
 
 If you use a custom image for the sidecar, you can add the file directly to that image.
 
+```dockerfile
+WORKDIR /home/argocd/cmp-server/config/
+COPY plugin.yaml ./
+```
+
 If you use a stock image for the sidecar or would rather maintain the plugin configuration in a ConfigMap, just nest the
 plugin config file in a ConfigMap under the `plugin.yaml` key.
 
