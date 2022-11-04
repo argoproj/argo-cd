@@ -430,6 +430,14 @@ func (r *ApplicationSetReconciler) generateApplications(applicationSetInfo argov
 	var firstError error
 	var applicationSetReason argov1alpha1.ApplicationSetReasonType
 
+	if (applicationSetInfo.Spec.Template == nil && applicationSetInfo.Spec.StringTemplate == nil) ||
+		(applicationSetInfo.Spec.Template != nil && applicationSetInfo.Spec.StringTemplate != nil) {
+		firstError = fmt.Errorf("application set spec should have either template or stringTemplate defined")
+		applicationSetReason = argov1alpha1.ApplicationSetReasonErrorOccurred
+
+		return res, applicationSetReason, firstError
+	}
+
 	for _, requestedGenerator := range applicationSetInfo.Spec.Generators {
 		t, err := generators.Transform(requestedGenerator, r.Generators, *applicationSetInfo.Spec.Template, &applicationSetInfo, map[string]interface{}{})
 		if err != nil {
@@ -446,7 +454,7 @@ func (r *ApplicationSetReconciler) generateApplications(applicationSetInfo argov
 			tmplApplication := getTempApplication(a.Template)
 
 			for _, p := range a.Params {
-				app, err := r.Renderer.RenderTemplateParams(tmplApplication, applicationSetInfo.Spec.SyncPolicy, p, applicationSetInfo.Spec.GoTemplate)
+				app, err := r.Renderer.RenderTemplateParams(tmplApplication, applicationSetInfo.Spec.StringTemplate, applicationSetInfo.Spec.SyncPolicy, p, applicationSetInfo.Spec.GoTemplate)
 				if err != nil {
 					log.WithError(err).WithField("params", a.Params).WithField("generator", requestedGenerator).
 						Error("error generating application from params")

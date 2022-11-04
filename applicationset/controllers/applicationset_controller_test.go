@@ -60,7 +60,8 @@ func (g *generatorMock) GetRequeueAfter(appSetGenerator *argov1alpha1.Applicatio
 	return args.Get(0).(time.Duration)
 }
 
-func (r *rendererMock) RenderTemplateParams(tmpl *argov1alpha1.Application, syncPolicy *argov1alpha1.ApplicationSetSyncPolicy, params map[string]interface{}, useGoTemplate bool) (*argov1alpha1.Application, error) {
+func (r *rendererMock) RenderTemplateParams(tmpl *argov1alpha1.Application, stringTemplate *argov1alpha1.ApplicationSetStringTemplate, syncPolicy *argov1alpha1.ApplicationSetSyncPolicy, params map[string]interface{}, useGoTemplate bool) (*argov1alpha1.Application, error) {
+
 	args := r.Called(tmpl, params, useGoTemplate)
 
 	if args.Error(1) != nil {

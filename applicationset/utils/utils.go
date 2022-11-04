@@ -14,6 +14,7 @@ import (
 
 	"github.com/Masterminds/sprig/v3"
 	"github.com/valyala/fasttemplate"
+	"gopkg.in/yaml.v2"
 
 	log "github.com/sirupsen/logrus"
 
@@ -31,7 +32,7 @@ func init() {
 }
 
 type Renderer interface {
-	RenderTemplateParams(tmpl *argoappsv1.Application, syncPolicy *argoappsv1.ApplicationSetSyncPolicy, params map[string]interface{}, useGoTemplate bool) (*argoappsv1.Application, error)
+	RenderTemplateParams(tmpl *argoappsv1.Application, stringTemplate *argoappsv1.ApplicationSetStringTemplate, syncPolicy *argoappsv1.ApplicationSetSyncPolicy, params map[string]interface{}, useGoTemplate bool) (*argoappsv1.Application, error)
 }
 
 type Render struct {
@@ -172,7 +173,8 @@ func (r *Render) deeplyReplace(copy, original reflect.Value, replaceMap map[stri
 	return nil
 }
 
-func (r *Render) RenderTemplateParams(tmpl *argoappsv1.Application, syncPolicy *argoappsv1.ApplicationSetSyncPolicy, params map[string]interface{}, useGoTemplate bool) (*argoappsv1.Application, error) {
+func (r *Render) RenderTemplateParams(tmpl *argoappsv1.Application, stringTemplate *argoappsv1.ApplicationSetStringTemplate, syncPolicy *argoappsv1.ApplicationSetSyncPolicy, params map[string]interface{}, useGoTemplate bool) (*argoappsv1.Application, error) {
+
 	if tmpl == nil {
 		return nil, fmt.Errorf("application template is empty ")
 	}
@@ -180,16 +182,28 @@ func (r *Render) RenderTemplateParams(tmpl *argoappsv1.Application, syncPolicy *
 	if len(params) == 0 {
 		return tmpl, nil
 	}
+	var replacedTmpl *argoappsv1.Application
+	if stringTemplate == nil {
+		original := reflect.ValueOf(tmpl)
+		copy := reflect.New(original.Type()).Elem()
 
-	original := reflect.ValueOf(tmpl)
-	copy := reflect.New(original.Type()).Elem()
+		if err := r.deeplyReplace(copy, original, params, useGoTemplate); err != nil {
+			return nil, err
+		}
 
-	if err := r.deeplyReplace(copy, original, params, useGoTemplate); err != nil {
-		return nil, err
+		replacedTmpl = copy.Interface().(*argoappsv1.Application)
+	} else {
+		replacedTmplStr, err := r.Replace(string(*stringTemplate), params, true)
+		if err != nil {
+			return nil, err
+		}
+		// UnmarshalStrict to fail early and raise the fact that template
+		// result produced not what is expected
+		err = yaml.UnmarshalStrict([]byte(replacedTmplStr), &replacedTmpl)
+		if err != nil {
+			return nil, err
+		}
 	}
-
-	replacedTmpl := copy.Interface().(*argoappsv1.Application)
-
 	// Add the 'resources-finalizer' finalizer if:
 	// The template application doesn't have any finalizers, and:
 	// a) there is no syncPolicy, or
