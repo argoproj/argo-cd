@@ -124,6 +124,7 @@ nav:
   - user-guide/application_sources.md
   - user-guide/kustomize.md
   - user-guide/helm.md
+  - user-guide/import.md
   - user-guide/jsonnet.md
   - user-guide/directory.md
   - user-guide/config-management-plugins.md
