@@ -1,4 +1,4 @@
-import {DataLoader, FormField, MenuItem, NotificationType, Tooltip} from 'argo-ui';
+import {models, DataLoader, FormField, MenuItem, NotificationType, Tooltip} from 'argo-ui';
 import {ActionButton} from 'argo-ui/v2';
 import * as classNames from 'classnames';
 import * as React from 'react';
@@ -397,9 +397,9 @@ export const deletePopup = async (ctx: ContextApis, resource: ResourceTreeNode, 
     );
 };
 
-function getResourceActionsMenuItems(resource: ResourceTreeNode, application: appModels.Application, appContext: AppContext): Observable<ActionMenuItem[]> {
+function getResourceActionsMenuItems(resource: ResourceTreeNode, metadata: models.Metadata, appContext: AppContext): Observable<ActionMenuItem[]> {
     return services.applications
-        .getResourceActions(application.metadata.name, application.metadata.namespace, resource)
+        .getResourceActions(metadata.name, metadata.namespace, resource)
         .then(actions => {
             return actions.map(
                 action =>
@@ -413,7 +413,7 @@ function getResourceActionsMenuItems(resource: ResourceTreeNode, application: ap
                                     `Are you sure you want to execute '${action.name}' action?`
                                 );
                                 if (confirmed) {
-                                    await services.applications.runResourceAction(application.metadata.name, application.metadata.namespace, resource, action.name);
+                                    await services.applications.runResourceAction(metadata.name, metadata.namespace, resource, action.name);
                                 }
                             } catch (e) {
                                 appContext.apis.notifications.show({
@@ -540,9 +540,8 @@ export function renderResourceMenu(
 }
 
 export function renderResourceActionMenu(resource: ResourceTreeNode, application: appModels.Application, tree: appModels.ApplicationTree, appContext: AppContext): React.ReactNode {
-    let menuItems: Observable<ActionMenuItem[]>;
+    const menuItems = getResourceActionsMenuItems(resource, application.metadata, appContext);
 
-    menuItems = getResourceActionsMenuItems(resource, application, appContext);
     return (
         <DataLoader load={() => menuItems}>
             {items => (
