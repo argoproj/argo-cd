@@ -16,6 +16,105 @@ import (
 	argoappsv1 "github.com/argoproj/argo-cd/v2/pkg/apis/application/v1alpha1"
 )
 
+func TestRenderTemplateParamsStringTemplate(t *testing.T) {
+
+	// Believe it or not, this is actually less complex than the equivalent solution using reflection
+	fieldMap := map[string]func(app *argoappsetv1.Application) *string{}
+	fieldMap["Path"] = func(app *argoappsetv1.Application) *string { return &app.Spec.Source.Path }
+	fieldMap["RepoURL"] = func(app *argoappsetv1.Application) *string { return &app.Spec.Source.RepoURL }
+	fieldMap["TargetRevision"] = func(app *argoappsetv1.Application) *string { return &app.Spec.Source.TargetRevision }
+	fieldMap["Chart"] = func(app *argoappsetv1.Application) *string { return &app.Spec.Source.Chart }
+
+	fieldMap["Server"] = func(app *argoappsetv1.Application) *string { return &app.Spec.Destination.Server }
+	fieldMap["Namespace"] = func(app *argoappsetv1.Application) *string { return &app.Spec.Destination.Namespace }
+	fieldMap["Name"] = func(app *argoappsetv1.Application) *string { return &app.Spec.Destination.Name }
+
+	fieldMap["Project"] = func(app *argoappsetv1.Application) *string { return &app.Spec.Project }
+
+	emptyApplication := &argoappsetv1.Application{
+		ObjectMeta: metav1.ObjectMeta{
+			Annotations:       map[string]string{"annotation-key": "annotation-value", "annotation-key2": "annotation-value2"},
+			Labels:            map[string]string{"label-key": "label-value", "label-key2": "label-value2"},
+			CreationTimestamp: metav1.NewTime(time.Now()),
+			UID:               types.UID("d546da12-06b7-4f9a-8ea2-3adb16a20e2b"),
+			Name:              "application-one",
+			Namespace:         "default",
+		},
+		Spec: argoappsetv1.ApplicationSpec{
+			Source: argoappsetv1.ApplicationSource{
+				Path:           "",
+				RepoURL:        "",
+				TargetRevision: "",
+				Chart:          "",
+			},
+			Destination: argoappsetv1.ApplicationDestination{
+				Server:    "",
+				Namespace: "",
+				Name:      "",
+			},
+			Project: "",
+		},
+	}
+
+	tests := []struct {
+		name           string
+		stringTemplate argoappsetv1.ApplicationSetStringTemplate
+		params         map[string]interface{}
+		expectedVal    string
+		errorMessage   string
+	}{
+		{
+			name: "text template",
+			stringTemplate: argoappsetv1.ApplicationSetStringTemplate(`metadata:
+ name: {{ .name }}
+spec:
+ project: default
+ source:
+  repoURL: test-repo
+  targetRevision: HEAD
+  path: test-path
+ destination:
+  server: 'test-server'
+  namespace: guestbook
+ syncPolicy:
+  automated:
+   prune: {{ .prune }}
+   selfHeal: {{ .selfHeal }}
+`),
+			expectedVal: "[volume-one][volume-two]",
+			params: map[string]interface{}{
+				"name":     "test-name",
+				"prune":    false,
+				"selfHeal": true,
+			},
+		},
+	}
+
+	for _, test := range tests {
+
+		t.Run(test.name, func(t *testing.T) {
+
+			// Clone the template application
+			application := emptyApplication.DeepCopy()
+
+			// Render the cloned application, into a new application
+			render := Render{}
+			newApplication, err := render.RenderTemplateParams(application, &test.stringTemplate, nil, test.params, true)
+
+			// Retrieve the value of the target field from the newApplication, then verify that
+			// the target field has been templated into the expected value
+			if test.errorMessage != "" {
+				assert.Error(t, err)
+				assert.Equal(t, test.errorMessage, err.Error())
+			} else {
+				assert.NoError(t, err)
+				assert.Equal(t, newApplication.ObjectMeta.Name, "test-name")
+			}
+		})
+	}
+
+}
+
 func TestRenderTemplateParams(t *testing.T) {
 
 	// Believe it or not, this is actually less complex than the equivalent solution using reflection
