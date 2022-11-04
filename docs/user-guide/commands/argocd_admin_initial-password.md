@@ -1,6 +1,6 @@
 ## argocd admin initial-password
 
-Prints initial password to login into Argo CD for the first time
+Prints initial password to log in to Argo CD for the first time
 
 ```
 argocd admin initial-password [flags]
