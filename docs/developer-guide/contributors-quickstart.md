@@ -49,7 +49,7 @@ kubectl create namespace argocd &&
 kubectl apply -n argocd -f https://raw.githubusercontent.com/argoproj/argo-cd/master/manifests/install.yaml
 ```
 
-Set kubectl config to avoid specifying the namespace in every kubectl command. 
+Set kubectl config to avoid specifying the namespace in every kubectl command.  
 All following commands in this guide assume the namespace is already set.
 
 ```shell
