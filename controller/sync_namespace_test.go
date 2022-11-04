@@ -195,7 +195,7 @@ func Test_shouldNamespaceSync(t *testing.T) {
 			expected:            true,
 			expectedLabels:      map[string]string{"my-cool-label": "some-value"},
 			expectedAnnotations: map[string]string{"argocd.argoproj.io/sync-options": "ServerSideApply=true"},
-			managedNs:           createFakeNamespace("something", "1", map[string]string{}, map[string]string{}),
+			managedNs:           createFakeNamespace("", "", map[string]string{}, map[string]string{}),
 			liveNs:              createFakeNamespace("something", "1", map[string]string{}, map[string]string{}),
 			syncPolicy: &v1alpha1.SyncPolicy{
 				ManagedNamespaceMetadata: &v1alpha1.ManagedNamespaceMetadata{
@@ -207,7 +207,7 @@ func Test_shouldNamespaceSync(t *testing.T) {
 			name:                "namespace exists with no labels or annotations and managedNamespaceMetadata has annotations",
 			expected:            true,
 			expectedAnnotations: map[string]string{"my-cool-annotation": "some-value", "argocd.argoproj.io/sync-options": "ServerSideApply=true"},
-			managedNs:           createFakeNamespace("something", "1", map[string]string{}, map[string]string{}),
+			managedNs:           createFakeNamespace("", "", map[string]string{}, map[string]string{}),
 			liveNs:              createFakeNamespace("something", "1", map[string]string{}, map[string]string{}),
 			syncPolicy: &v1alpha1.SyncPolicy{
 				ManagedNamespaceMetadata: &v1alpha1.ManagedNamespaceMetadata{
@@ -220,7 +220,7 @@ func Test_shouldNamespaceSync(t *testing.T) {
 			expected:            true,
 			expectedLabels:      map[string]string{"my-cool-label": "some-value"},
 			expectedAnnotations: map[string]string{"my-cool-annotation": "some-value", "argocd.argoproj.io/sync-options": "ServerSideApply=true"},
-			managedNs:           createFakeNamespace("something", "1", map[string]string{}, map[string]string{}),
+			managedNs:           createFakeNamespace("", "", map[string]string{}, map[string]string{}),
 			liveNs:              createFakeNamespace("something", "1", map[string]string{}, map[string]string{}),
 			syncPolicy: &v1alpha1.SyncPolicy{
 				ManagedNamespaceMetadata: &v1alpha1.ManagedNamespaceMetadata{
@@ -234,7 +234,7 @@ func Test_shouldNamespaceSync(t *testing.T) {
 			expected:            true,
 			expectedAnnotations: map[string]string{"argocd.argoproj.io/sync-options": "ServerSideApply=true"},
 			expectedLabels:      map[string]string{"my-cool-label": "some-value", "my-other-label": "some-other-value"},
-			managedNs:           createFakeNamespace("something", "1", map[string]string{"my-cool-label": "some-value"}, map[string]string{}),
+			managedNs:           createFakeNamespace("", "", map[string]string{}, map[string]string{}),
 			liveNs:              createFakeNamespace("something", "1", map[string]string{"my-cool-label": "some-value"}, map[string]string{}),
 			syncPolicy: &v1alpha1.SyncPolicy{
 				ManagedNamespaceMetadata: &v1alpha1.ManagedNamespaceMetadata{
@@ -248,7 +248,7 @@ func Test_shouldNamespaceSync(t *testing.T) {
 			expected:            true,
 			expectedLabels:      map[string]string{},
 			expectedAnnotations: map[string]string{"my-cool-annotation": "some-value", "argocd.argoproj.io/sync-options": "ServerSideApply=true"},
-			managedNs:           createFakeNamespace("something", "1", map[string]string{}, map[string]string{"my-cool-annotation": "some-value", "my-other-annotation": "some-other-value"}),
+			managedNs:           createFakeNamespace("", "", map[string]string{}, map[string]string{}),
 			liveNs:              createFakeNamespace("something", "1", map[string]string{}, map[string]string{"my-cool-annotation": "some-value", "my-other-annotation": "some-other-value"}),
 			syncPolicy: &v1alpha1.SyncPolicy{
 				ManagedNamespaceMetadata: &v1alpha1.ManagedNamespaceMetadata{
@@ -262,7 +262,7 @@ func Test_shouldNamespaceSync(t *testing.T) {
 			expected:            true,
 			expectedLabels:      map[string]string{"my-cool-label": "some-value", "my-other-label": "some-other-value"},
 			expectedAnnotations: map[string]string{"my-cool-annotation": "some-value", "my-other-annotation": "some-other-value", "argocd.argoproj.io/sync-options": "ServerSideApply=true"},
-			managedNs:           createFakeNamespace("something", "1", map[string]string{"my-cool-label": "some-value"}, map[string]string{"my-cool-annotation": "some-value"}),
+			managedNs:           createFakeNamespace("", "", map[string]string{}, map[string]string{}),
 			liveNs:              createFakeNamespace("something", "1", map[string]string{"my-cool-label": "some-value"}, map[string]string{"my-cool-annotation": "some-value"}),
 			syncPolicy: &v1alpha1.SyncPolicy{
 				ManagedNamespaceMetadata: &v1alpha1.ManagedNamespaceMetadata{
