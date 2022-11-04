@@ -14,7 +14,7 @@ import (
 
 	"github.com/Masterminds/sprig/v3"
 	"github.com/valyala/fasttemplate"
-	"gopkg.in/yaml.v2"
+	"sigs.k8s.io/yaml"
 
 	log "github.com/sirupsen/logrus"
 
