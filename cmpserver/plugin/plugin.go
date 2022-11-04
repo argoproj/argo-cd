@@ -203,6 +203,11 @@ func (s *Service) generateManifest(ctx context.Context, appDir string, envEntrie
 
 	manifests, err := kube.SplitYAMLToString([]byte(out))
 	if err != nil {
+		sanitizedManifests := manifests
+		if len(sanitizedManifests) > 1000 {
+			sanitizedManifests = manifests[:1000]
+		}
+		log.Debugf("Failed to split generated manifests. Beginning of generated manifests: %q", sanitizedManifests)
 		return &apiclient.ManifestResponse{}, err
 	}
 
