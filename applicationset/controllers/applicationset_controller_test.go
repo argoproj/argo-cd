@@ -2018,7 +2018,7 @@ func TestGenerateAppsUsingPullRequestGenerator(t *testing.T) {
 					Generators: []argov1alpha1.ApplicationSetGenerator{{
 						PullRequest: &argov1alpha1.PullRequestGenerator{},
 					}},
-					Template: cases.template,
+					Template: &cases.template,
 				},
 			},
 			)
@@ -2105,7 +2105,7 @@ func TestPolicies(t *testing.T) {
 							},
 						},
 					},
-					Template: argov1alpha1.ApplicationSetTemplate{
+					Template: &argov1alpha1.ApplicationSetTemplate{
 						ApplicationSetTemplateMeta: argov1alpha1.ApplicationSetTemplateMeta{
 							Name:      "{{.name}}",
 							Namespace: "argocd",
