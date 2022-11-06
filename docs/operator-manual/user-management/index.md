@@ -153,7 +153,7 @@ Edit the argocd-cm configmap:
 kubectl edit configmap argocd-cm -n argocd
 ```
 
-* In the `url` key, input the base URL of Argo CD. In this example, it is `https://argocd.example.com`
+* In the `url` key, input the base URL of Argo CD. In this example, it is `https://argocd.example.com`. This step is mandatory in order to enable Dex and load the configurations.
 * In the `dex.config` key, add the `github` connector to the `connectors` sub field. See Dex's
   [GitHub connector](https://github.com/dexidp/website/blob/main/content/docs/connectors/github.md)
   documentation for explanation of the fields. A minimal config should populate the clientID,

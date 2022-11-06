@@ -1858,7 +1858,7 @@ func ReplaceStringSecret(val string, secretValues map[string]string) string {
 	secretKey := val[1:]
 	secretVal, ok := secretValues[secretKey]
 	if !ok {
-		log.Warnf("config referenced '%s', but key does not exist in secret", val)
+		log.Warnf("config referenced '%s', but key does not exist in secret, or secret is not annotated as part of argocd.", val)
 		return val
 	}
 	return strings.TrimSpace(secretVal)
