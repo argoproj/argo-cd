@@ -144,6 +144,7 @@ Currently, the following organizations are **officially** using Argo CD:
 1. [Nextdoor](https://nextdoor.com/)
 1. [Nikkei](https://www.nikkei.co.jp/nikkeiinfo/en/)
 1. [Nitro](https://gonitro.com)
+1. [Objective](https://www.objective.com.br/)
 1. [OCCMundial](https://occ.com.mx)
 1. [Octadesk](https://octadesk.com)
 1. [omegaUp](https://omegaUp.com)
