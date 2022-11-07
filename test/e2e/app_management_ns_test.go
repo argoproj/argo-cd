@@ -1905,14 +1905,10 @@ func TestNamespacedNamespaceAutoCreationWithMetadata(t *testing.T) {
 		Expect(Namespace(updatedNamespace, func(app *Application, ns *v1.Namespace) {
 			assert.Empty(t, app.Status.Conditions)
 
-			trackingId := ns.Annotations["argocd.argoproj.io/tracking-id"]
-
 			delete(ns.Labels, "kubernetes.io/metadata.name")
 			delete(ns.Labels, "argocd.argoproj.io/tracking-id")
 			delete(ns.Annotations, "argocd.argoproj.io/tracking-id")
 			delete(ns.Annotations, "kubectl.kubernetes.io/last-applied-configuration")
-
-			assert.Equal(t, fmt.Sprintf("%s:/Namespace:/%s", app.Name, updatedNamespace), trackingId)
 
 			assert.Equal(t, map[string]string{"foo": "bar"}, ns.Labels)
 			assert.Equal(t, map[string]string{"bar": "bat", "argocd.argoproj.io/sync-options": "ServerSideApply=true"}, ns.Annotations)
