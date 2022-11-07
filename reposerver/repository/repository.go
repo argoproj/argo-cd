@@ -1190,6 +1190,11 @@ var manifestFile = regexp.MustCompile(`^.*\.(yaml|yml|json|jsonnet)$`)
 
 // / findManifests looks at all yaml files in a directory and unmarshals them into a list of unstructured objects
 func findManifests(logCtx *log.Entry, appPath string, repoRoot string, env *v1alpha1.Env, directory v1alpha1.ApplicationSourceDirectory, enabledManifestGeneration map[string]bool, maxCombinedManifestQuantity resource.Quantity) ([]manifest, error) {
+	absRepoRoot, err := filepath.Abs(repoRoot)
+	if err != nil {
+		return nil, err
+	}
+
 	var manifests []manifest
 
 	// Validate the directory before loading any manifests to save memory.
@@ -1203,6 +1208,10 @@ func findManifests(logCtx *log.Entry, appPath string, repoRoot string, env *v1al
 	for _, potentiallyValidManifest := range potentiallyValidManifests {
 		manifestPath := potentiallyValidManifest.path
 		manifestFileInfo := potentiallyValidManifest.fileInfo
+
+		absPath, _ := filepath.Abs(manifestPath)
+
+		repoRelPath, _ := filepath.Rel(absRepoRoot, absPath)
 
 		if strings.HasSuffix(manifestFileInfo.Name(), ".jsonnet") {
 			if !discovery.IsManifestGenerationEnabled(v1alpha1.ApplicationSourceTypeDirectory, enabledManifestGeneration) {
@@ -1239,7 +1248,7 @@ func findManifests(logCtx *log.Entry, appPath string, repoRoot string, env *v1al
 				manifests = append(manifests, manifest{
 					rawManifest: rawBytes,
 					obj:         obj,
-					path:        manifestPath,
+					path:        repoRelPath,
 					line:        1, // TODO: can add later
 				})
 			}
@@ -1259,7 +1268,7 @@ func findManifests(logCtx *log.Entry, appPath string, repoRoot string, env *v1al
 				manifests = append(manifests, manifest{
 					rawManifest: rawBytes,
 					obj:         obj,
-					path:        manifestPath,
+					path:        repoRelPath,
 					line:        1, // TODO: can add later
 				})
 			}
