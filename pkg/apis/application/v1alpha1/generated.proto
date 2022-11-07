@@ -1207,6 +1207,12 @@ message PullRequestGeneratorGithub {
   repeated string labels = 6;
 }
 
+message RefTargeRevisionMapping {
+  optional Repository repo = 1;
+
+  optional string targetRevision = 2;
+}
+
 // RepoCreds holds the definition for repository credentials
 message RepoCreds {
   // URL is the URL that this credentials matches to

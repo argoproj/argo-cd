@@ -257,6 +257,11 @@ const (
 	RefreshTypeHard   RefreshType = "hard"
 )
 
+type RefTargeRevisionMapping struct {
+	Repo           Repository `protobuf:"bytes,1,opt,name=repo"`
+	TargetRevision string     `protobuf:"bytes,2,opt,name=targetRevision"`
+}
+
 // ApplicationSourceHelm holds helm specific options
 type ApplicationSourceHelm struct {
 	// ValuesFiles is a list of Helm value files to use when generating a template
