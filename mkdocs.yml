@@ -124,6 +124,7 @@ nav:
   - user-guide/application_sources.md
   - user-guide/kustomize.md
   - user-guide/helm.md
+  - user-guide/import.md
   - user-guide/jsonnet.md
   - user-guide/directory.md
   - user-guide/config-management-plugins.md
@@ -157,6 +158,7 @@ nav:
   - developer-guide/index.md
   - Code Contribution Guide: developer-guide/code-contributions.md
   - Toolchain Guide: developer-guide/toolchain-guide.md
+  - developer-guide/contributors-quickstart.md
   - developer-guide/release-process-and-cadence.md
   - developer-guide/running-locally.md
   - developer-guide/debugging-remote-environment.md
