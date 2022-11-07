@@ -133,6 +133,16 @@ func (r *Render) deeplyReplace(copy, original reflect.Value, replaceMap map[stri
 			if err := r.deeplyReplace(copyValue, originalValue, replaceMap, useGoTemplate); err != nil {
 				return err
 			}
+
+			// Keys can be templated as well as values (e.g. to template something into an annotation).
+			if key.Kind() == reflect.String {
+				templatedKey, err := r.Replace(key.String(), replaceMap, useGoTemplate)
+				if err != nil {
+					return err
+				}
+				key = reflect.ValueOf(templatedKey)
+			}
+
 			copy.SetMapIndex(key, copyValue)
 		}
 

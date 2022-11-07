@@ -134,6 +134,15 @@ spec:
     - CreateNamespace=true # Namespace Auto-Creation ensures that namespace specified as the application destination exists in the destination cluster.
     - PrunePropagationPolicy=foreground # Supported policies are background, foreground and orphan.
     - PruneLast=true # Allow the ability for resource pruning to happen as a final, implicit wave of a sync operation
+    managedNamespaceMetadata: # Sets the metadata for the application namespace. Only valid if CreateNamespace=true (see above), otherwise it's a no-op.
+      labels: # The labels to set on the application namespace
+        any: label
+        you: like
+      annotations: # The annotations to set on the application namespace
+        the: same
+        applies: for
+        annotations: on-the-namespace
+
     # The retry feature is available since v1.7
     retry:
       limit: 5 # number of failed sync attempt retries; unlimited number of attempts if less than 0
