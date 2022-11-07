@@ -856,7 +856,7 @@ func getLocalObjectsString(ctx context.Context, app *argoappv1.Application, loca
 		ApiVersions:       apiVersions,
 		Plugins:           configManagementPlugins,
 		TrackingMethod:    trackingMethod,
-	}, true, &git.NoopCredsStore{}, resource.MustParse("0"))
+	}, true, &git.NoopCredsStore{}, resource.MustParse("0"), nil)
 	errors.CheckError(err)
 
 	return res.Manifests

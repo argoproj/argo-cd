@@ -94,6 +94,7 @@ type Service struct {
 	newGitClient              func(rawRepoURL string, root string, creds git.Creds, insecure bool, enableLfs bool, proxy string, opts ...git.ClientOpts) (git.Client, error)
 	newHelmClient             func(repoURL string, creds helm.Creds, enableOci bool, proxy string, opts ...helm.ClientOpts) helm.Client
 	initConstants             RepoServerInitConstants
+	refTargeRevisions         map[string]v1alpha1.RefTargeRevisionMapping
 	// now is usually just time.Now, but may be replaced by unit tests for testing purposes
 	now func() time.Time
 }
@@ -135,6 +136,7 @@ func NewService(metricsServer *metrics.MetricsServer, cache *reposervercache.Cac
 		chartPaths:         io.NewTempPaths(rootDir),
 		gitRepoInitializer: directoryPermissionInitializer,
 		rootDir:            rootDir,
+		refTargeRevisions:  make(map[string]v1alpha1.RefTargeRevisionMapping),
 	}
 }
 
@@ -582,6 +584,10 @@ func (s *Service) runManifestGen(ctx context.Context, repoRoot, commitSHA, cache
 	return responsePromise
 }
 
+func getRefVariableName(namespace, appName, ref string) string {
+	return fmt.Sprintf("$%s_%s_%s", namespace, appName, ref)
+}
+
 func (s *Service) runManifestGenAsync(ctx context.Context, repoRoot, commitSHA, cacheKey string, opContextSrc operationContextSrc, q *apiclient.ManifestRequest, ch *generateManifestCh) {
 	defer func() {
 		close(ch.errCh)
@@ -595,9 +601,46 @@ func (s *Service) runManifestGenAsync(ctx context.Context, repoRoot, commitSHA, 
 	var manifestGenResult *apiclient.ManifestResponse
 	opContext, err := opContextSrc()
 	if err == nil {
-		manifestGenResult, err = GenerateManifests(ctx, opContext.appPath, repoRoot, commitSHA, q, false, s.gitCredsStore, s.initConstants.MaxCombinedDirectoryManifestsSize, WithCMPTarDoneChannel(ch.tarDoneCh), WithCMPTarExcludedGlobs(s.initConstants.CMPTarExcludedGlobs))
 		if q.HasMultipleSources {
-			// ManifestGenResult will be null if Path and Chart fields are not set for a source in Multiple Sources
+			revision := s.refTargeRevisions[q.ApplicationSource.Ref].TargetRevision
+
+			// Set source in the service repo map as refVariable:<RepoUrl, TargetRevision>
+			if q.ApplicationSource.Ref != "" {
+				ref := getRefVariableName(q.Namespace, q.AppName, q.ApplicationSource.Ref)
+				s.refTargeRevisions[ref] = v1alpha1.RefTargeRevisionMapping{
+					Repo:           *q.Repo,
+					TargetRevision: q.ApplicationSource.TargetRevision,
+				}
+			}
+
+			// do not generate manifests if Path and Chart fields are not set for a source in Multiple Sources
+			if q.ApplicationSource.Path == "" && q.ApplicationSource.Chart == "" {
+				log.WithFields(map[string]interface{}{
+					"source": q.ApplicationSource,
+				}).Warnf("not generating manifests as path and chart fields are empty")
+				ch.responseCh <- nil
+				return
+			}
+
+			if q.ApplicationSource.IsHelm() {
+				gitClient, _, err := s.newClientResolveRevision(q.Repo, q.Revision)
+				if err != nil {
+					log.Errorf("failed to get git client for repo %s", q.Repo.Repo)
+					return
+				}
+				closer, err := s.repoLock.Lock(gitClient.Root(), revision, true, func() (goio.Closer, error) {
+					return s.checkoutRevision(gitClient, revision, s.initConstants.SubmoduleEnabled)
+				})
+				if err != nil {
+					log.Errorf("failed to checkout revision %s for repo %s: %s", revision, q.Repo.Repo, err)
+					return
+				}
+				defer io.Close(closer)
+			}
+		}
+
+		manifestGenResult, err = GenerateManifests(ctx, opContext.appPath, repoRoot, commitSHA, q, false, s.gitCredsStore, s.initConstants.MaxCombinedDirectoryManifestsSize, s.gitRepoPaths, WithCMPTarDoneChannel(ch.tarDoneCh), WithCMPTarExcludedGlobs(s.initConstants.CMPTarExcludedGlobs))
+		if q.HasMultipleSources {
 			if manifestGenResult == nil {
 				ch.responseCh <- manifestGenResult
 				return
@@ -873,7 +916,7 @@ func populateRequestRepos(appPath string, q *apiclient.ManifestRequest) error {
 	return nil
 }
 
-func helmTemplate(appPath string, repoRoot string, env *v1alpha1.Env, q *apiclient.ManifestRequest, isLocal bool) ([]*unstructured.Unstructured, error) {
+func helmTemplate(appPath string, repoRoot string, env *v1alpha1.Env, q *apiclient.ManifestRequest, isLocal bool, gitRepoPaths *io.TempPaths) ([]*unstructured.Unstructured, error) {
 	concurrencyAllowed := isConcurrencyAllowed(appPath)
 	if !concurrencyAllowed {
 		manifestGenerateLock.Lock(appPath)
@@ -911,7 +954,14 @@ func helmTemplate(appPath string, repoRoot string, env *v1alpha1.Env, q *apiclie
 			// ValueFiles referring to another source within the application
 			if strings.HasPrefix(val, "$") {
 				pathStrings := strings.Split(val, "/")
-				pathStrings[0] = os.Getenv(strings.Split(val, "/")[0])
+				refVar := strings.Split(val, "/")[0]
+				repoPath, err := gitRepoPaths.GetPath(os.Getenv(refVar))
+				if err != nil {
+					log.Warnf("Failed to find path for ref %s", refVar)
+					continue
+				}
+				pathStrings[0] = repoPath
+
 				appHelm.ValueFiles[i] = strings.Join(pathStrings, "/")
 
 				defer func() {
@@ -1081,26 +1131,12 @@ func WithCMPTarExcludedGlobs(excludedGlobs []string) GenerateManifestOpt {
 }
 
 // GenerateManifests generates manifests from a path. Overrides are applied as a side effect on the given ApplicationSource.
-func GenerateManifests(ctx context.Context, appPath, repoRoot, revision string, q *apiclient.ManifestRequest, isLocal bool, gitCredsStore git.CredsStore, maxCombinedManifestQuantity resource.Quantity, opts ...GenerateManifestOpt) (*apiclient.ManifestResponse, error) {
+func GenerateManifests(ctx context.Context, appPath, repoRoot, revision string, q *apiclient.ManifestRequest, isLocal bool, gitCredsStore git.CredsStore, maxCombinedManifestQuantity resource.Quantity, gitRepoPaths *io.TempPaths, opts ...GenerateManifestOpt) (*apiclient.ManifestResponse, error) {
 	opt := newGenerateManifestOpt(opts...)
 	var targetObjs []*unstructured.Unstructured
 	var dest *v1alpha1.ApplicationDestination
 
 	resourceTracking := argo.NewResourceTracking()
-
-	// Set path of the source in the environment variable if ref field is set
-	if q.ApplicationSource.Ref != "" {
-		os.Setenv(fmt.Sprintf("$%s", q.ApplicationSource.Ref), appPath)
-	}
-
-	if q.HasMultipleSources {
-		if q.ApplicationSource.Path == "" && q.ApplicationSource.Chart == "" {
-			log.WithFields(map[string]interface{}{
-				"source": q.ApplicationSource,
-			}).Warnf("not generating manifests as path and chart fields are empty")
-			return &apiclient.ManifestResponse{}, nil
-		}
-	}
 
 	appSourceType, err := GetAppSourceType(ctx, q.ApplicationSource, appPath, q.AppName, q.EnabledSourceTypes, opt.cmpTarExcludedGlobs)
 	if err != nil {
@@ -1114,7 +1150,7 @@ func GenerateManifests(ctx context.Context, appPath, repoRoot, revision string, 
 
 	switch appSourceType {
 	case v1alpha1.ApplicationSourceTypeHelm:
-		targetObjs, err = helmTemplate(appPath, repoRoot, env, q, isLocal)
+		targetObjs, err = helmTemplate(appPath, repoRoot, env, q, isLocal, gitRepoPaths)
 	case v1alpha1.ApplicationSourceTypeKustomize:
 		kustomizeBinary := ""
 		if q.KustomizeOptions != nil {
@@ -1865,8 +1901,7 @@ func populateHelmAppDetails(res *apiclient.RepoAppDetailsResponse, appPath strin
 		// update path of value file if value file is referencing another ApplicationSource
 		if strings.HasPrefix(file, "$") {
 			pathStrings := strings.Split(file, "/")
-			key := strings.TrimPrefix(strings.Split(file, "/")[0], "$")
-			pathStrings[0] = os.Getenv(key)
+			pathStrings[0] = os.Getenv(strings.Split(file, "/")[0])
 			selectedValueFiles[i] = strings.Join(pathStrings, "/")
 
 			if _, err := os.Stat(selectedValueFiles[i]); err != nil {

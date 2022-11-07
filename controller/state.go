@@ -167,6 +167,13 @@ func (m *appStateManager) getRepoObjs(app *v1alpha1.Application, sources []v1alp
 	manifestInfoMap := make(map[*v1alpha1.ApplicationSource]*apiclient.ManifestResponse)
 	targetObjs := make([]*unstructured.Unstructured, 0)
 
+	// Get Repositories for all sources before generating Manifests
+	for _, source := range sources {
+		if _, err := m.db.GetRepository(context.TODO(), source.RepoURL); err != nil {
+			log.Errorf("Error getting repository for source %s: %s", source.RepoURL, err.Error())
+		}
+	}
+
 	for i, source := range sources {
 		if len(revisions) < len(sources) || revisions[i] == "" {
 			revisions[i] = source.TargetRevision
