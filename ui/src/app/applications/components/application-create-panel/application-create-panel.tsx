@@ -11,7 +11,7 @@ import {ApplicationSyncOptionsField} from '../application-sync-options/applicati
 import {RevisionFormField} from '../revision-form-field/revision-form-field';
 import {SetFinalizerOnApplication} from './set-finalizer-on-application';
 import './application-create-panel.scss';
-import {getAppDefaultSource} from "../utils";
+import {getAppDefaultSource} from '../utils';
 
 const jsonMergePatch = require('json-merge-patch');
 
