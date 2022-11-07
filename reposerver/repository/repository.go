@@ -94,6 +94,7 @@ type Service struct {
 	newGitClient              func(rawRepoURL string, root string, creds git.Creds, insecure bool, enableLfs bool, proxy string, opts ...git.ClientOpts) (git.Client, error)
 	newHelmClient             func(repoURL string, creds helm.Creds, enableOci bool, proxy string, opts ...helm.ClientOpts) helm.Client
 	initConstants             RepoServerInitConstants
+	refTargeRevisions         map[string]v1alpha1.RefTargeRevisionMapping
 	// now is usually just time.Now, but may be replaced by unit tests for testing purposes
 	now func() time.Time
 }
@@ -135,6 +136,7 @@ func NewService(metricsServer *metrics.MetricsServer, cache *reposervercache.Cac
 		chartPaths:         io.NewTempPaths(rootDir),
 		gitRepoInitializer: directoryPermissionInitializer,
 		rootDir:            rootDir,
+		refTargeRevisions:  make(map[string]v1alpha1.RefTargeRevisionMapping),
 	}
 }
 
@@ -1203,20 +1205,6 @@ func GenerateManifests(ctx context.Context, appPath, repoRoot, revision string, 
 	var dest *v1alpha1.ApplicationDestination
 
 	resourceTracking := argo.NewResourceTracking()
-
-	// Set path of the source in the environment variable if ref field is set
-	if q.ApplicationSource.Ref != "" {
-		os.Setenv(fmt.Sprintf("$%s", q.ApplicationSource.Ref), appPath)
-	}
-
-	if q.HasMultipleSources {
-		if q.ApplicationSource.Path == "" && q.ApplicationSource.Chart == "" {
-			log.WithFields(map[string]interface{}{
-				"source": q.ApplicationSource,
-			}).Warnf("not generating manifests as path and chart fields are empty")
-			return &apiclient.ManifestResponse{}, nil
-		}
-	}
 
 	appSourceType, err := GetAppSourceType(ctx, q.ApplicationSource, appPath, q.AppName, q.EnabledSourceTypes, opt.cmpTarExcludedGlobs)
 	if err != nil {
