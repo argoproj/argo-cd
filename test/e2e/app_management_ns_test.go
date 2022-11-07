@@ -1868,10 +1868,6 @@ func TestNamespacedNamespaceAutoCreation(t *testing.T) {
 //
 //	    Verify application --dest-namespace is created with managedNamespaceMetadata
 func TestNamespacedNamespaceAutoCreationWithMetadata(t *testing.T) {
-	oldval := os.Getenv("ARGOCD_GPG_ENABLED")
-	os.Setenv("ARGOCD_GPG_ENABLED", "false")
-	defer os.Setenv("ARGOCD_GPG_ENABLED", oldval)
-
 	SkipOnEnv(t, "OPENSHIFT")
 	updatedNamespace := getNewNamespace(t)
 	defer func() {
