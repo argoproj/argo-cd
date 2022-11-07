@@ -7057,6 +7057,17 @@ spec:
                                                   selfHeal:
                                                     type: boolean
                                                 type: object
+                                              managedNamespaceMetadata:
+                                                properties:
+                                                  annotations:
+                                                    additionalProperties:
+                                                      type: string
+                                                    type: object
+                                                  labels:
+                                                    additionalProperties:
+                                                      type: string
+                                                    type: object
+                                                type: object
                                               retry:
                                                 properties:
                                                   backoff:
