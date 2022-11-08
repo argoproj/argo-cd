@@ -109,12 +109,6 @@ func Test_resolveFilePath(t *testing.T) {
 		assert.False(t, remote)
 		assert.Equal(t, "/foo/bim.yaml", string(p))
 	})
-	t.Run("Resolve root path into absolute path", func(t *testing.T) {
-		p, remote, err := ResolveValueFilePathOrUrl("/foo", "/foo", "./", allowedRemoteProtocols)
-		assert.NoError(t, err)
-		assert.False(t, remote)
-		assert.Equal(t, "/foo", string(p))
-	})
 	t.Run("Error on path resolving outside repository root", func(t *testing.T) {
 		p, remote, err := ResolveValueFilePathOrUrl("/foo/bar", "/foo", "baz/../../../bim.yaml", allowedRemoteProtocols)
 		assert.Error(t, err)
@@ -183,5 +177,10 @@ func Test_resolveFilePath(t *testing.T) {
 		assert.Contains(t, err.Error(), "outside repository root")
 		assert.False(t, remote)
 		assert.Equal(t, "", string(p))
+	})
+	t.Run("Resolve root path into absolute path - jsonnet library path", func(t *testing.T) {
+		p, err := ResolveFileOrDirectoryPath("/foo", "/foo", "./")
+		assert.NoError(t, err)
+		assert.Equal(t, "/foo", string(p))
 	})
 }
