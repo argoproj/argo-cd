@@ -25,7 +25,8 @@ spec:
           port: 6379
   egress:
     - to:
-      - namespaceSelector: {}
+      - ipBlock:
+          cidr: 0.0.0.0/0
       ports:
         - port: 53
           protocol: UDP

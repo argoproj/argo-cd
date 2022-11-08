@@ -87,6 +87,19 @@ func NoConditions() Expectation {
 	}
 }
 
+func Namespace(name string, block func(app *Application, ns *v1.Namespace)) Expectation {
+	return func(c *Consequences) (state, string) {
+		ns, err := namespace(name)
+
+		if err != nil {
+			return failed, fmt.Sprintf("namespace not found %s", err.Error())
+		}
+
+		block(c.app(), ns)
+		return succeeded, fmt.Sprintf("namespace %s assertions passed", name)
+	}
+}
+
 func HealthIs(expected health.HealthStatusCode) Expectation {
 	return func(c *Consequences) (state, string) {
 		actual := c.app().Status.Health.Status
@@ -216,6 +229,23 @@ func pods() (*v1.PodList, error) {
 	fixture.KubeClientset.CoreV1()
 	pods, err := fixture.KubeClientset.CoreV1().Pods(fixture.DeploymentNamespace()).List(context.Background(), metav1.ListOptions{})
 	return pods, err
+}
+
+func NoNamespace(name string) Expectation {
+	return func(c *Consequences) (state, string) {
+		_, err := namespace(name)
+
+		if err != nil {
+			return succeeded, "namespace not found"
+		}
+
+		return failed, fmt.Sprintf("found namespace %s", name)
+	}
+}
+
+func namespace(name string) (*v1.Namespace, error) {
+	fixture.KubeClientset.CoreV1()
+	return fixture.KubeClientset.CoreV1().Namespaces().Get(context.Background(), name, metav1.GetOptions{})
 }
 
 func event(namespace string, reason string, message string) Expectation {
