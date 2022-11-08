@@ -379,7 +379,7 @@ func TestGenerateJsonnetLibOutside(t *testing.T) {
 	}
 	_, err := service.GenerateManifest(context.Background(), &q)
 	require.Error(t, err)
-	require.Contains(t, err.Error(), "value file '../../../testdata/jsonnet/vendor' resolved to outside repository root")
+	require.Contains(t, err.Error(), "file '../../../testdata/jsonnet/vendor' resolved to outside repository root")
 }
 
 func TestManifestGenErrorCacheByNumRequests(t *testing.T) {
