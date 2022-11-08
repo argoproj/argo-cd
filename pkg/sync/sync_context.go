@@ -157,9 +157,9 @@ func WithResourceModificationChecker(enabled bool, diffResults *diff.DiffResultL
 // of the `namespaceModifier` function, in the case it returns `true`. If the namespace already exists, the metadata
 // will overwrite what is already present if `namespaceModifier` returns `true`. If `namespaceModifier` returns `false`,
 // this will be a no-op.
-func WithNamespaceModifier(namespaceModifier func(*unstructured.Unstructured) (bool, error)) SyncOpt {
+func WithNamespaceModifier(namespaceModifier func(*unstructured.Unstructured, *unstructured.Unstructured) (bool, error)) SyncOpt {
 	return func(ctx *syncContext) {
-		ctx.namespaceModifier = namespaceModifier
+		ctx.syncNamespace = namespaceModifier
 	}
 }
 
@@ -351,7 +351,9 @@ type syncContext struct {
 	// lock to protect concurrent updates of the result list
 	lock sync.Mutex
 
-	namespaceModifier func(*unstructured.Unstructured) (bool, error)
+	// syncNamespace is a function that will determine if the managed
+	// namespace should be synced
+	syncNamespace func(*unstructured.Unstructured, *unstructured.Unstructured) (bool, error)
 
 	syncWaveHook common.SyncWaveHook
 
@@ -686,7 +688,7 @@ func (sc *syncContext) getSyncTasks() (_ syncTasks, successful bool) {
 		}
 	}
 
-	if sc.namespaceModifier != nil && sc.namespace != "" {
+	if sc.syncNamespace != nil && sc.namespace != "" {
 		tasks = sc.autoCreateNamespace(tasks)
 	}
 
@@ -801,24 +803,24 @@ func (sc *syncContext) autoCreateNamespace(tasks syncTasks) syncTasks {
 
 	if isNamespaceCreationNeeded {
 		nsSpec := &v1.Namespace{TypeMeta: metav1.TypeMeta{APIVersion: "v1", Kind: kube.NamespaceKind}, ObjectMeta: metav1.ObjectMeta{Name: sc.namespace}}
-		unstructuredObj, err := kube.ToUnstructured(nsSpec)
+		managedNs, err := kube.ToUnstructured(nsSpec)
 		if err == nil {
-			liveObj, err := sc.kubectl.GetResource(context.TODO(), sc.config, unstructuredObj.GroupVersionKind(), unstructuredObj.GetName(), metav1.NamespaceNone)
+			liveObj, err := sc.kubectl.GetResource(context.TODO(), sc.config, managedNs.GroupVersionKind(), managedNs.GetName(), metav1.NamespaceNone)
 			if err == nil {
-				nsTask := &syncTask{phase: common.SyncPhasePreSync, targetObj: unstructuredObj, liveObj: liveObj}
+				nsTask := &syncTask{phase: common.SyncPhasePreSync, targetObj: managedNs, liveObj: liveObj}
 				_, ok := sc.syncRes[nsTask.resultKey()]
 				if ok {
-					tasks = sc.appendNsTask(tasks, nsTask, unstructuredObj)
+					tasks = sc.appendNsTask(tasks, nsTask, managedNs, liveObj)
 				} else {
 					if liveObj != nil {
 						sc.log.WithValues("namespace", sc.namespace).Info("Namespace already exists")
-						tasks = sc.appendNsTask(tasks, &syncTask{phase: common.SyncPhasePreSync, targetObj: unstructuredObj, liveObj: liveObj}, unstructuredObj)
+						tasks = sc.appendNsTask(tasks, &syncTask{phase: common.SyncPhasePreSync, targetObj: managedNs, liveObj: liveObj}, managedNs, liveObj)
 					}
 				}
 			} else if apierr.IsNotFound(err) {
-				tasks = sc.appendNsTask(tasks, &syncTask{phase: common.SyncPhasePreSync, targetObj: unstructuredObj, liveObj: nil}, unstructuredObj)
+				tasks = sc.appendNsTask(tasks, &syncTask{phase: common.SyncPhasePreSync, targetObj: managedNs, liveObj: nil}, managedNs, nil)
 			} else {
-				tasks = sc.appendFailedNsTask(tasks, unstructuredObj, fmt.Errorf("Namespace auto creation failed: %s", err))
+				tasks = sc.appendFailedNsTask(tasks, managedNs, fmt.Errorf("Namespace auto creation failed: %s", err))
 			}
 		} else {
 			sc.setOperationPhase(common.OperationFailed, fmt.Sprintf("Namespace auto creation failed: %s", err))
@@ -827,10 +829,10 @@ func (sc *syncContext) autoCreateNamespace(tasks syncTasks) syncTasks {
 	return tasks
 }
 
-func (sc *syncContext) appendNsTask(tasks syncTasks, preTask *syncTask, unstructuredObj *unstructured.Unstructured) syncTasks {
-	modified, err := sc.namespaceModifier(unstructuredObj)
+func (sc *syncContext) appendNsTask(tasks syncTasks, preTask *syncTask, managedNs, liveNs *unstructured.Unstructured) syncTasks {
+	modified, err := sc.syncNamespace(managedNs, liveNs)
 	if err != nil {
-		tasks = sc.appendFailedNsTask(tasks, unstructuredObj, fmt.Errorf("namespaceModifier error: %s", err))
+		tasks = sc.appendFailedNsTask(tasks, managedNs, fmt.Errorf("namespaceModifier error: %s", err))
 	} else if modified {
 		tasks = append(tasks, preTask)
 	}

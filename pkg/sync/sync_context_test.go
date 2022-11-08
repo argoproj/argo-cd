@@ -922,7 +922,7 @@ func TestNamespaceAutoCreation(t *testing.T) {
 	namespace := NewNamespace()
 	syncCtx := newTestSyncCtx(nil)
 	syncCtx.namespace = FakeArgoCDNamespace
-	syncCtx.namespaceModifier = func(u *unstructured.Unstructured) (bool, error) {
+	syncCtx.syncNamespace = func(m, l *unstructured.Unstructured) (bool, error) {
 		return true, nil
 	}
 	namespace.SetName(FakeArgoCDNamespace)
@@ -992,7 +992,7 @@ func TestNamespaceAutoCreation(t *testing.T) {
 			Live:   []*unstructured.Unstructured{nil},
 			Target: []*unstructured.Unstructured{pod},
 		})
-		syncCtx.namespaceModifier = nil
+		syncCtx.syncNamespace = nil
 
 		res := synccommon.ResourceSyncResult{
 			ResourceKey: kube.GetResourceKey(task.obj()),
@@ -1031,7 +1031,7 @@ func TestNamespaceAutoCreationForNonExistingNs(t *testing.T) {
 			Target: []*unstructured.Unstructured{pod},
 		})
 		creatorCalled := false
-		syncCtx.namespaceModifier = func(*unstructured.Unstructured) (bool, error) {
+		syncCtx.syncNamespace = func(m, l *unstructured.Unstructured) (bool, error) {
 			creatorCalled = true
 			return true, nil
 		}
@@ -1048,7 +1048,7 @@ func TestNamespaceAutoCreationForNonExistingNs(t *testing.T) {
 			Target: []*unstructured.Unstructured{pod},
 		})
 		creatorCalled := false
-		syncCtx.namespaceModifier = func(*unstructured.Unstructured) (bool, error) {
+		syncCtx.syncNamespace = func(m, l *unstructured.Unstructured) (bool, error) {
 			creatorCalled = true
 			return false, nil
 		}
@@ -1065,7 +1065,7 @@ func TestNamespaceAutoCreationForNonExistingNs(t *testing.T) {
 			Target: []*unstructured.Unstructured{pod},
 		})
 		creatorCalled := false
-		syncCtx.namespaceModifier = func(*unstructured.Unstructured) (bool, error) {
+		syncCtx.syncNamespace = func(m, l *unstructured.Unstructured) (bool, error) {
 			creatorCalled = true
 			return false, errors.New("some error")
 		}
