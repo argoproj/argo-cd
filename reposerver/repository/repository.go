@@ -1967,7 +1967,7 @@ func (s *Service) newHelmClientResolveRevision(repo *v1alpha1.Repository, revisi
 	if enableOCI {
 		tags, err := helmClient.GetTags(chart, noRevisionCache)
 		if err != nil {
-			return nil, "", fmt.Errorf("unable to tags: %v", err)
+			return nil, "", fmt.Errorf("unable to get tags: %v", err)
 		}
 
 		version, err := tags.MaxVersion(constraints)

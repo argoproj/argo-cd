@@ -411,7 +411,7 @@ func (c *nativeHelmChart) getTags(chart string) ([]byte, error) {
 		} else {
 			logNextURL = nextURL
 		}
-		log.Infof("fetching %s tags from %s", chart, logNextURL)
+		log.Debugf("fetching %s tags from %s", chart, logNextURL)
 		data, nextURL, err = c.getTagsFromUrl(nextURL)
 		if err != nil {
 			return nil, fmt.Errorf("failed tags part: %v", err)
@@ -431,7 +431,7 @@ func (c *nativeHelmChart) getTags(chart string) ([]byte, error) {
 func getNextUrl(linkHeader string) string {
 	nextUrl := ""
 	if linkHeader != "" {
-		// drop < >; ref= from the Link header, see:
+		// drop < >; ref= from the Link header, see: https://docs.docker.com/registry/spec/api/#pagination
 		nextUrl = strings.Split(linkHeader, ";")[0][1:]
 		nextUrl = nextUrl[:len(nextUrl)-1]
 	}
