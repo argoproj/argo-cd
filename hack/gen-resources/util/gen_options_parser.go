@@ -27,10 +27,6 @@ type ProjectOpts struct {
 	Samples int `yaml:"samples"`
 }
 
-// type ExecutionContext struct {
-// 	Concurrency int `default:"7" yaml:parallel`
-// }
-
 type ClusterOpts struct {
 	Samples              int    `yaml:"samples"`
 	NamespacePrefix      string `yaml:"namespacePrefix"`
