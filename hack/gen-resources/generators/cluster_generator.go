@@ -177,8 +177,9 @@ func (cg *ClusterGenerator) retrieveClusterUri(namespace, releaseSuffix string) 
 }
 
 func (cg *ClusterGenerator) Generate(opts *util.GenerateOpts) error {
-	wg := sizedwaitgroup.New(20)
-
+	log.Printf("Excute in parallel with %v", opts.ClusterOpts.Concurrency)
+	
+	wg := sizedwaitgroup.New(int(opts.ClusterOpts.Concurrency))
 	for l := 1; l <= opts.ClusterOpts.Samples; l++ {
 		wg.Add()
 		go func(i int) error {
