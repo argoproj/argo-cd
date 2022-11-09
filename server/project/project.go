@@ -20,6 +20,7 @@ import (
 	"k8s.io/apimachinery/pkg/fields"
 	"k8s.io/client-go/kubernetes"
 	"k8s.io/client-go/tools/cache"
+	"k8s.io/client-go/util/retry"
 
 	"github.com/argoproj/argo-cd/v2/pkg/apiclient/project"
 	"github.com/argoproj/argo-cd/v2/pkg/apis/application/v1alpha1"
@@ -75,6 +76,16 @@ func validateProject(proj *v1alpha1.AppProject) error {
 
 // CreateToken creates a new token to access a project
 func (s *Server) CreateToken(ctx context.Context, q *project.ProjectTokenCreateRequest) (*project.ProjectTokenResponse, error) {
+	var resp *project.ProjectTokenResponse
+	err := retry.RetryOnConflict(retry.DefaultBackoff, func() error {
+		var createErr error
+		resp, createErr = s.createToken(ctx, q)
+		return createErr
+	})
+	return resp, err
+}
+
+func (s *Server) createToken(ctx context.Context, q *project.ProjectTokenCreateRequest) (*project.ProjectTokenResponse, error) {
 	prj, err := s.appclientset.ArgoprojV1alpha1().AppProjects(s.ns).Get(ctx, q.Project, metav1.GetOptions{})
 	if err != nil {
 		return nil, err
@@ -146,6 +157,16 @@ func (s *Server) CreateToken(ctx context.Context, q *project.ProjectTokenCreateR
 
 // DeleteToken deletes a token in a project
 func (s *Server) DeleteToken(ctx context.Context, q *project.ProjectTokenDeleteRequest) (*project.EmptyResponse, error) {
+	var resp *project.EmptyResponse
+	err := retry.RetryOnConflict(retry.DefaultBackoff, func() error {
+		var deleteErr error
+		resp, deleteErr = s.deleteToken(ctx, q)
+		return deleteErr
+	})
+	return resp, err
+}
+
+func (s *Server) deleteToken(ctx context.Context, q *project.ProjectTokenDeleteRequest) (*project.EmptyResponse, error) {
 	prj, err := s.appclientset.ArgoprojV1alpha1().AppProjects(s.ns).Get(ctx, q.Project, metav1.GetOptions{})
 	if err != nil {
 		return nil, err
