@@ -163,6 +163,7 @@ Currently, the following organizations are **officially** using Argo CD:
 1. [PagerDuty](https://www.pagerduty.com/)
 1. [PayPay](https://paypay.ne.jp/)
 1. [Peloton Interactive](https://www.onepeloton.com/)
+1. [Pigment](https://www.gopigment.com/)
 1. [Pipefy](https://www.pipefy.com/)
 1. [Pismo](https://pismo.io/)
 1. [Polarpoint.io](https://polarpoint.io)
