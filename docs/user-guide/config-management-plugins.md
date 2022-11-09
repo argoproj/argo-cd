@@ -262,8 +262,8 @@ If you are actively developing a sidecar-installed CMP, keep a few things in min
 ## Plugin tar stream exclusions
 
 In order to increase the speed of manifest generation, certain files and folders can be excluded from being sent to your
-plugin. We recommend excluding your `.git` folder if it isn't necessary. Use Go's 
-[filepatch.Match](https://pkg.go.dev/path/filepath#Match) syntax.
+plugin. We recommend excluding your `.git` folder if it isn't necessary. Use Go's
+[filepatch.Match](https://pkg.go.dev/path/filepath#Match) syntax. For example, `.git/*` to exclude `.git` folder.
 
 You can set it one of three ways:
 

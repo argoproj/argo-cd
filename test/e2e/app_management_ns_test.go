@@ -1901,14 +1901,10 @@ func TestNamespacedNamespaceAutoCreationWithMetadata(t *testing.T) {
 		Expect(Namespace(updatedNamespace, func(app *Application, ns *v1.Namespace) {
 			assert.Empty(t, app.Status.Conditions)
 
-			trackingId := ns.Annotations["argocd.argoproj.io/tracking-id"]
-
 			delete(ns.Labels, "kubernetes.io/metadata.name")
 			delete(ns.Labels, "argocd.argoproj.io/tracking-id")
 			delete(ns.Annotations, "argocd.argoproj.io/tracking-id")
 			delete(ns.Annotations, "kubectl.kubernetes.io/last-applied-configuration")
-
-			assert.Equal(t, fmt.Sprintf("%s:/Namespace:/%s", app.Name, updatedNamespace), trackingId)
 
 			assert.Equal(t, map[string]string{"foo": "bar"}, ns.Labels)
 			assert.Equal(t, map[string]string{"bar": "bat", "argocd.argoproj.io/sync-options": "ServerSideApply=true"}, ns.Annotations)
@@ -1927,14 +1923,11 @@ func TestNamespacedNamespaceAutoCreationWithMetadata(t *testing.T) {
 		Then().
 		Expect(Success("")).
 		Expect(Namespace(updatedNamespace, func(app *Application, ns *v1.Namespace) {
-			trackingId := ns.Annotations["argocd.argoproj.io/tracking-id"]
 
 			delete(ns.Labels, "kubernetes.io/metadata.name")
 			delete(ns.Labels, "argocd.argoproj.io/tracking-id")
 			delete(ns.Annotations, "kubectl.kubernetes.io/last-applied-configuration")
 			delete(ns.Annotations, "argocd.argoproj.io/tracking-id")
-
-			assert.Equal(t, fmt.Sprintf("%s:/Namespace:/%s", app.Name, updatedNamespace), trackingId)
 
 			assert.Equal(t, map[string]string{"new": "label"}, ns.Labels)
 			assert.Equal(t, map[string]string{"bar": "bat", "argocd.argoproj.io/sync-options": "ServerSideApply=true"}, ns.Annotations)
@@ -1950,14 +1943,10 @@ func TestNamespacedNamespaceAutoCreationWithMetadata(t *testing.T) {
 		Then().
 		Expect(Success("")).
 		Expect(Namespace(updatedNamespace, func(app *Application, ns *v1.Namespace) {
-			trackingId := ns.Annotations["argocd.argoproj.io/tracking-id"]
-
 			delete(ns.Labels, "kubernetes.io/metadata.name")
 			delete(ns.Labels, "argocd.argoproj.io/tracking-id")
 			delete(ns.Annotations, "argocd.argoproj.io/tracking-id")
 			delete(ns.Annotations, "kubectl.kubernetes.io/last-applied-configuration")
-
-			assert.Equal(t, fmt.Sprintf("%s:/Namespace:/%s", app.Name, updatedNamespace), trackingId)
 
 			assert.Equal(t, map[string]string{"new": "label"}, ns.Labels)
 			assert.Equal(t, map[string]string{"new": "custom-annotation", "argocd.argoproj.io/sync-options": "ServerSideApply=true"}, ns.Annotations)
@@ -2004,17 +1993,11 @@ func TestNamespacedNamespaceAutoCreationWithMetadataAndNsManifest(t *testing.T) 
 		Then().
 		Expect(Success("")).
 		Expect(Namespace(namespace, func(app *Application, ns *v1.Namespace) {
-			//assert.NotEmpty(t, app.Status.Conditions)
-
-			//trackingId := ns.Annotations["argocd.argoproj.io/tracking-id"]
-
 			delete(ns.Labels, "kubernetes.io/metadata.name")
 			delete(ns.Labels, "argocd.argoproj.io/tracking-id")
 			delete(ns.Labels, "kubectl.kubernetes.io/last-applied-configuration")
 			delete(ns.Annotations, "argocd.argoproj.io/tracking-id")
 			delete(ns.Annotations, "kubectl.kubernetes.io/last-applied-configuration")
-
-			//assert.Equal(t, fmt.Sprintf("%s:/Namespace:/%s/%s", AppNamespace(), namespace, namespace), trackingId)
 
 			// The application namespace manifest takes precedence over what is in managedNamespaceMetadata
 			assert.Equal(t, map[string]string{"test": "true"}, ns.Labels)
@@ -2091,16 +2074,12 @@ metadata:
 		Then().
 		Expect(Success("")).
 		Expect(Namespace(updatedNamespace, func(app *Application, ns *v1.Namespace) {
-			trackingId := ns.Annotations["argocd.argoproj.io/tracking-id"]
-
 			assert.Empty(t, app.Status.Conditions)
 
 			delete(ns.Labels, "kubernetes.io/metadata.name")
 			delete(ns.Labels, "argocd.argoproj.io/tracking-id")
 			delete(ns.Annotations, "argocd.argoproj.io/tracking-id")
 			delete(ns.Annotations, "kubectl.kubernetes.io/last-applied-configuration")
-
-			assert.Equal(t, fmt.Sprintf("%s:/Namespace:/%s", app.Name, updatedNamespace), trackingId)
 
 			assert.Equal(t, map[string]string{"test": "true", "foo": "bar"}, ns.Labels)
 			assert.Equal(t, map[string]string{"argocd.argoproj.io/sync-options": "ServerSideApply=true", "something": "whatevs", "bar": "bat"}, ns.Annotations)
@@ -2114,7 +2093,6 @@ metadata:
 		Then().
 		Expect(Success("")).
 		Expect(Namespace(updatedNamespace, func(app *Application, ns *v1.Namespace) {
-			trackingId := ns.Annotations["argocd.argoproj.io/tracking-id"]
 
 			assert.Empty(t, app.Status.Conditions)
 
@@ -2122,8 +2100,6 @@ metadata:
 			delete(ns.Labels, "argocd.argoproj.io/tracking-id")
 			delete(ns.Annotations, "kubectl.kubernetes.io/last-applied-configuration")
 			delete(ns.Annotations, "argocd.argoproj.io/tracking-id")
-
-			assert.Equal(t, fmt.Sprintf("%s:/Namespace:/%s", app.Name, updatedNamespace), trackingId)
 
 			assert.Equal(t, map[string]string{"test": "true", "foo": "bar"}, ns.Labels)
 			assert.Equal(t, map[string]string{"argocd.argoproj.io/sync-options": "ServerSideApply=true", "something": "hmm", "bar": "bat"}, ns.Annotations)
@@ -2138,7 +2114,6 @@ metadata:
 		Then().
 		Expect(Success("")).
 		Expect(Namespace(updatedNamespace, func(app *Application, ns *v1.Namespace) {
-			trackingId := ns.Annotations["argocd.argoproj.io/tracking-id"]
 
 			assert.Empty(t, app.Status.Conditions)
 
@@ -2146,8 +2121,6 @@ metadata:
 			delete(ns.Labels, "argocd.argoproj.io/tracking-id")
 			delete(ns.Annotations, "kubectl.kubernetes.io/last-applied-configuration")
 			delete(ns.Annotations, "argocd.argoproj.io/tracking-id")
-
-			assert.Equal(t, fmt.Sprintf("%s:/Namespace:/%s", app.Name, updatedNamespace), trackingId)
 
 			assert.Equal(t, map[string]string{"test": "true", "foo": "bar"}, ns.Labels)
 			assert.Equal(t, map[string]string{"argocd.argoproj.io/sync-options": "ServerSideApply=true", "bar": "bat"}, ns.Annotations)

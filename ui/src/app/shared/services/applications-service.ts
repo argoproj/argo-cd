@@ -298,7 +298,11 @@ export class ApplicationsService {
                 kind: resource.kind,
                 group: resource.group
             })
-            .then(res => (res.body.actions as models.ResourceAction[]) || []);
+            .then(res => {
+                const actions = (res.body.actions as models.ResourceAction[]) || [];
+                actions.sort((actionA, actionB) => actionA.name.localeCompare(actionB.name));
+                return actions;
+            });
     }
 
     public runResourceAction(name: string, appNamspace: string, resource: models.ResourceNode, action: string): Promise<models.ResourceAction[]> {
