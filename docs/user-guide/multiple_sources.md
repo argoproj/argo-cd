@@ -76,8 +76,9 @@ spec:
   - repoURL: 'https://prometheus-community.github.io/helm-charts'
     chart: prometheus
     targetRevision: 15.7.1
-    valueFiles:
-    - $prometheus/charts/prometheus/values.yaml
+    helm:
+        valueFiles:
+        - $prometheus/charts/prometheus/values.yaml
   destination:
     server: 'https://kubernetes.default.svc'
     namespace: argocd

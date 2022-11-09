@@ -167,10 +167,21 @@ func (m *appStateManager) getRepoObjs(app *v1alpha1.Application, sources []v1alp
 	manifestInfoMap := make(map[*v1alpha1.ApplicationSource]*apiclient.ManifestResponse)
 	targetObjs := make([]*unstructured.Unstructured, 0)
 
-	// Get Repositories for all sources before generating Manifests
-	for _, source := range sources {
-		if _, err := m.db.GetRepository(context.TODO(), source.RepoURL); err != nil {
-			log.Errorf("Error getting repository for source %s: %s", source.RepoURL, err.Error())
+	// Store the map of all sources having ref field into a map for applications with sources field
+	refSources := make(map[string]*appv1.RefTargeRevisionMapping)
+	if app.Spec.HasMultipleSources() {
+		// Get Repositories for all sources before generating Manifests
+		for _, source := range sources {
+			if source.Ref != "" {
+				repo, err := m.db.GetRepository(context.Background(), source.RepoURL)
+				if err != nil {
+					return nil, nil, err
+				}
+				refSources[source.Ref] = &appv1.RefTargeRevisionMapping{
+					Repo:           *repo,
+					TargetRevision: source.TargetRevision,
+				}
+			}
 		}
 	}
 
@@ -210,6 +221,7 @@ func (m *appStateManager) getRepoObjs(app *v1alpha1.Application, sources []v1alp
 			EnabledSourceTypes: enabledSourceTypes,
 			HelmOptions:        helmOptions,
 			HasMultipleSources: app.Spec.HasMultipleSources(),
+			RefSources:         refSources,
 		})
 
 		if err != nil {

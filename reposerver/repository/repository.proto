@@ -30,6 +30,7 @@ message ManifestRequest {
     map<string, bool> enabledSourceTypes = 21;
     github.com.argoproj.argo_cd.v2.pkg.apis.application.v1alpha1.HelmOptions helmOptions = 22;
     bool hasMultipleSources = 23;
+    map<string, github.com.argoproj.argo_cd.v2.pkg.apis.application.v1alpha1.RefTargeRevisionMapping> refSources = 24;
 }
 
 message ManifestRequestWithFiles {

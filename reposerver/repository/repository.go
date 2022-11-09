@@ -94,7 +94,6 @@ type Service struct {
 	newGitClient              func(rawRepoURL string, root string, creds git.Creds, insecure bool, enableLfs bool, proxy string, opts ...git.ClientOpts) (git.Client, error)
 	newHelmClient             func(repoURL string, creds helm.Creds, enableOci bool, proxy string, opts ...helm.ClientOpts) helm.Client
 	initConstants             RepoServerInitConstants
-	refTargeRevisions         map[string]v1alpha1.RefTargeRevisionMapping
 	// now is usually just time.Now, but may be replaced by unit tests for testing purposes
 	now func() time.Time
 }
@@ -136,7 +135,6 @@ func NewService(metricsServer *metrics.MetricsServer, cache *reposervercache.Cac
 		chartPaths:         io.NewTempPaths(rootDir),
 		gitRepoInitializer: directoryPermissionInitializer,
 		rootDir:            rootDir,
-		refTargeRevisions:  make(map[string]v1alpha1.RefTargeRevisionMapping),
 	}
 }
 
@@ -584,10 +582,6 @@ func (s *Service) runManifestGen(ctx context.Context, repoRoot, commitSHA, cache
 	return responsePromise
 }
 
-func getRefVariableName(namespace, appName, ref string) string {
-	return fmt.Sprintf("$%s_%s_%s", namespace, appName, ref)
-}
-
 func (s *Service) runManifestGenAsync(ctx context.Context, repoRoot, commitSHA, cacheKey string, opContextSrc operationContextSrc, q *apiclient.ManifestRequest, ch *generateManifestCh) {
 	defer func() {
 		close(ch.errCh)
@@ -598,21 +592,12 @@ func (s *Service) runManifestGenAsync(ctx context.Context, repoRoot, commitSHA, 
 	// key. Overrides will break the cache anyway, because changes to overrides will change the revision.
 	appSourceCopy := q.ApplicationSource.DeepCopy()
 
+	repoLocks := make([]goio.Closer, 0)
+
 	var manifestGenResult *apiclient.ManifestResponse
 	opContext, err := opContextSrc()
 	if err == nil {
 		if q.HasMultipleSources {
-			revision := s.refTargeRevisions[q.ApplicationSource.Ref].TargetRevision
-
-			// Set source in the service repo map as refVariable:<RepoUrl, TargetRevision>
-			if q.ApplicationSource.Ref != "" {
-				ref := getRefVariableName(q.Namespace, q.AppName, q.ApplicationSource.Ref)
-				s.refTargeRevisions[ref] = v1alpha1.RefTargeRevisionMapping{
-					Repo:           *q.Repo,
-					TargetRevision: q.ApplicationSource.TargetRevision,
-				}
-			}
-
 			// do not generate manifests if Path and Chart fields are not set for a source in Multiple Sources
 			if q.ApplicationSource.Path == "" && q.ApplicationSource.Chart == "" {
 				log.WithFields(map[string]interface{}{
@@ -623,23 +608,40 @@ func (s *Service) runManifestGenAsync(ctx context.Context, repoRoot, commitSHA, 
 			}
 
 			if q.ApplicationSource.IsHelm() {
-				gitClient, _, err := s.newClientResolveRevision(q.Repo, q.Revision)
-				if err != nil {
-					log.Errorf("failed to get git client for repo %s", q.Repo.Repo)
-					return
+				// Checkout every the referenced Source to the target revision before generating Manifests
+				for _, valueFile := range q.ApplicationSource.Helm.ValueFiles {
+					if strings.HasPrefix(valueFile, "$") {
+						refVar := strings.Split(valueFile, "/")[0]
+						refSourceKey := strings.TrimPrefix(refVar, "$")
+
+						refSourceMapping := q.RefSources[refSourceKey]
+						gitClient, _, err := s.newClientResolveRevision(&refSourceMapping.Repo, refSourceMapping.TargetRevision)
+						if err != nil {
+							log.Errorf("failed to get git client for repo %s", q.Repo.Repo)
+							ch.errCh <- err
+							return
+						}
+						closer, err := s.repoLock.Lock(gitClient.Root(), refSourceMapping.TargetRevision, true, func() (goio.Closer, error) {
+							return s.checkoutRevision(gitClient, refSourceMapping.TargetRevision, s.initConstants.SubmoduleEnabled)
+						})
+						if err != nil {
+							log.Errorf("failed to acquire lock for referenced source %s", refSourceMapping.Repo.Repo)
+							ch.errCh <- err
+							return
+						}
+
+						repoLocks = append(repoLocks, closer)
+					}
 				}
-				closer, err := s.repoLock.Lock(gitClient.Root(), revision, true, func() (goio.Closer, error) {
-					return s.checkoutRevision(gitClient, revision, s.initConstants.SubmoduleEnabled)
-				})
-				if err != nil {
-					log.Errorf("failed to checkout revision %s for repo %s: %s", revision, q.Repo.Repo, err)
-					return
-				}
-				defer io.Close(closer)
+
 			}
 		}
 
 		manifestGenResult, err = GenerateManifests(ctx, opContext.appPath, repoRoot, commitSHA, q, false, s.gitCredsStore, s.initConstants.MaxCombinedDirectoryManifestsSize, s.gitRepoPaths, WithCMPTarDoneChannel(ch.tarDoneCh), WithCMPTarExcludedGlobs(s.initConstants.CMPTarExcludedGlobs))
+
+		for _, closer := range repoLocks {
+			defer io.Close(closer)
+		}
 		if q.HasMultipleSources {
 			if manifestGenResult == nil {
 				ch.responseCh <- manifestGenResult
@@ -977,6 +979,7 @@ func helmTemplate(appPath string, repoRoot string, env *v1alpha1.Env, q *apiclie
 						log.Debugf("Successfully restored read/write/execute permissions on %s", appHelm.ValueFiles[i])
 					}
 				}
+				templateOpts.Values = append(templateOpts.Values, pathutil.ResolvedFilePath(appHelm.ValueFiles[i]))
 				continue
 			}
 
