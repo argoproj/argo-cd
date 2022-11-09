@@ -27,6 +27,7 @@ import (
 	argoio "github.com/argoproj/argo-cd/v2/util/io"
 	"github.com/argoproj/argo-cd/v2/util/io/files"
 	"github.com/argoproj/argo-cd/v2/util/proxy"
+	"github.com/argoproj/argo-cd/v2/util/text"
 )
 
 var (
@@ -385,14 +386,25 @@ func getIndexURL(rawURL string) (string, error) {
 }
 
 func getTagsListURL(rawURL string, chart string) (string, error) {
-	tagsList := path.Join("v2", chart, "tags/list")
 	repoURL, err := url.Parse(rawURL)
 	if err != nil {
 		return "", fmt.Errorf("unable to parse repo url: %v", err)
 	}
 	repoURL.Scheme = "https"
-	repoURL.Path = path.Join(repoURL.Path, tagsList)
-	repoURL.RawPath = path.Join(repoURL.RawPath, tagsList)
+	tagsList, err := url.JoinPath("v2", url.PathEscape(chart), "tags/list")
+	if err != nil {
+		return "", fmt.Errorf("unable to join chart name with tags/list path: %w", err)
+	}
+	path, err := url.JoinPath(repoURL.Path, tagsList)
+	if err != nil {
+		return "", fmt.Errorf("unable to join repo base path with tags/list path: %w", err)
+	}
+	rawPath, err := url.JoinPath(repoURL.RawPath, tagsList)
+	if err != nil {
+		return "", fmt.Errorf("unable to join raw repo base path with tags/list path: %w", err)
+	}
+	repoURL.Path = path
+	repoURL.RawPath = rawPath
 	return repoURL.String(), nil
 }
 
@@ -404,14 +416,8 @@ func (c *nativeHelmChart) getTags(chart string) ([]byte, error) {
 
 	allTags := &TagsList{}
 	var data []byte
-	var logNextURL string
 	for nextURL != "" {
-		if len(nextURL) > 100 {
-			logNextURL = nextURL[:100]
-		} else {
-			logNextURL = nextURL
-		}
-		log.Debugf("fetching %s tags from %s", chart, logNextURL)
+		log.Debugf("fetching %s tags from %s", chart, text.Trunc(nextURL, 100))
 		data, nextURL, err = c.getTagsFromUrl(nextURL)
 		if err != nil {
 			return nil, fmt.Errorf("failed tags part: %v", err)
@@ -468,7 +474,7 @@ func (c *nativeHelmChart) getTagsFromUrl(tagsURL string) ([]byte, string, error)
 			log.WithFields(log.Fields{
 				common.SecurityField:    common.SecurityMedium,
 				common.SecurityCWEField: 775,
-			}).Errorf("error closing response %q: %v", tagsURL, err)
+			}).Errorf("error closing response %q: %v", text.Trunc(tagsURL, 100), err)
 		}
 	}()
 
@@ -478,7 +484,7 @@ func (c *nativeHelmChart) getTagsFromUrl(tagsURL string) ([]byte, string, error)
 		if err != nil {
 			responseExcerpt = fmt.Sprintf("err: %v", err)
 		} else {
-			responseExcerpt = string(data[:100])
+			responseExcerpt = text.Trunc(string(data), 100)
 		}
 		return nil, "", fmt.Errorf("invalid response: %s %s", resp.Status, responseExcerpt)
 	}
