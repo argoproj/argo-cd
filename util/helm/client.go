@@ -391,20 +391,9 @@ func getTagsListURL(rawURL string, chart string) (string, error) {
 		return "", fmt.Errorf("unable to parse repo url: %v", err)
 	}
 	repoURL.Scheme = "https"
-	tagsList, err := url.JoinPath("v2", url.PathEscape(chart), "tags/list")
-	if err != nil {
-		return "", fmt.Errorf("unable to join chart name with tags/list path: %w", err)
-	}
-	path, err := url.JoinPath(repoURL.Path, tagsList)
-	if err != nil {
-		return "", fmt.Errorf("unable to join repo base path with tags/list path: %w", err)
-	}
-	rawPath, err := url.JoinPath(repoURL.RawPath, tagsList)
-	if err != nil {
-		return "", fmt.Errorf("unable to join raw repo base path with tags/list path: %w", err)
-	}
-	repoURL.Path = path
-	repoURL.RawPath = rawPath
+	tagsList := path.Join("v2", url.PathEscape(chart), "tags/list")
+	repoURL.Path = path.Join(repoURL.Path, tagsList)
+	repoURL.RawPath = path.Join(repoURL.RawPath, tagsList)
 	return repoURL.String(), nil
 }
 
