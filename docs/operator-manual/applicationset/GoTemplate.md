@@ -1,7 +1,5 @@
 # Go Template
 
-> v2.5
-
 ## Introduction
 
 ApplicationSet is able to use [Go Text Template](https://pkg.go.dev/text/template). To activate this feature, add 
@@ -75,6 +73,13 @@ possible with Go text templates:
 All your templates must replace parameters with GoTemplate Syntax:
 
 Example: `{{ some.value }}` becomes `{{ .some.value }}`
+
+### Cluster Generators
+
+By activating Go Templating, `{{ .metadata }}` becomes an object.
+
+- `{{ metadata.labels.my-label }}` becomes `{{ index .metadata.labels "my-label" }}`
+- `{{ metadata.annotations.my/annotation }}` becomes `{{ index .metadata.annotations "my/annotation" }}`
 
 ### Git Generators
 

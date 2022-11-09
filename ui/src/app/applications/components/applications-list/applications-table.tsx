@@ -10,7 +10,7 @@ import {OperationState} from '../utils';
 import {ApplicationsLabels} from './applications-labels';
 import {ApplicationsSource} from './applications-source';
 import {services} from '../../../shared/services';
-require('./applications-table.scss');
+import './applications-table.scss';
 
 export const ApplicationsTable = (props: {
     applications: models.Application[];
@@ -91,7 +91,11 @@ export const ApplicationsTable = (props: {
                                                 <div className='row'>
                                                     <div className=' columns small-2' />
                                                     <div className='show-for-xxlarge columns small-4'>Name:</div>
-                                                    <div className='columns small-12 xxlarge-6'>{app.metadata.name}</div>
+                                                    <div className='columns small-12 xxlarge-6'>
+                                                        <Tooltip content={app.metadata.name}>
+                                                            <span>{app.metadata.name}</span>
+                                                        </Tooltip>
+                                                    </div>
                                                 </div>
                                             </div>
 

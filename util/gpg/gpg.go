@@ -168,7 +168,10 @@ func writeKeyToFile(keyData string) (string, error) {
 	defer func() {
 		err = f.Close()
 		if err != nil {
-			log.Errorf("error closing file %q: %v", f.Name(), err)
+			log.WithFields(log.Fields{
+				common.SecurityField:    common.SecurityMedium,
+				common.SecurityCWEField: 775,
+			}).Errorf("error closing file %q: %v", f.Name(), err)
 		}
 	}()
 	return f.Name(), nil
@@ -215,7 +218,7 @@ func IsGPGEnabled() bool {
 	return true
 }
 
-// InitializePGP will initialize a GnuPG working directory and also create a
+// InitializeGnuPG will initialize a GnuPG working directory and also create a
 // transient private key so that the trust DB will work correctly.
 func InitializeGnuPG() error {
 
@@ -270,7 +273,10 @@ func InitializeGnuPG() error {
 	defer func() {
 		err = f.Close()
 		if err != nil {
-			log.Errorf("error closing file %q: %v", f.Name(), err)
+			log.WithFields(log.Fields{
+				common.SecurityField:    common.SecurityMedium,
+				common.SecurityCWEField: 775,
+			}).Errorf("error closing file %q: %v", f.Name(), err)
 		}
 	}()
 
@@ -294,13 +300,16 @@ func ImportPGPKeysFromString(keyData string) ([]*appsv1.GnuPGPublicKey, error) {
 	defer func() {
 		err = f.Close()
 		if err != nil {
-			log.Errorf("error closing file %q: %v", f.Name(), err)
+			log.WithFields(log.Fields{
+				common.SecurityField:    common.SecurityMedium,
+				common.SecurityCWEField: 775,
+			}).Errorf("error closing file %q: %v", f.Name(), err)
 		}
 	}()
 	return ImportPGPKeys(f.Name())
 }
 
-// ImportPGPKey imports one or more keys from a file into the local keyring and optionally
+// ImportPGPKeys imports one or more keys from a file into the local keyring and optionally
 // signs them with the transient private key for leveraging the trust DB.
 func ImportPGPKeys(keyFile string) ([]*appsv1.GnuPGPublicKey, error) {
 	keys := make([]*appsv1.GnuPGPublicKey, 0)
@@ -385,7 +394,7 @@ func ValidatePGPKeys(keyFile string) (map[string]*appsv1.GnuPGPublicKey, error) 
 	return keys, nil
 }
 
-// SetPGPTrustLevel sets the given trust level on keys with specified key IDs
+// SetPGPTrustLevelById sets the given trust level on keys with specified key IDs
 func SetPGPTrustLevelById(kids []string, trustLevel string) error {
 	keys := make([]*appsv1.GnuPGPublicKey, 0)
 	for _, kid := range kids {
@@ -419,7 +428,10 @@ func SetPGPTrustLevel(pgpKeys []*appsv1.GnuPGPublicKey, trustLevel string) error
 	defer func() {
 		err = f.Close()
 		if err != nil {
-			log.Errorf("error closing file %q: %v", f.Name(), err)
+			log.WithFields(log.Fields{
+				common.SecurityField:    common.SecurityMedium,
+				common.SecurityCWEField: 775,
+			}).Errorf("error closing file %q: %v", f.Name(), err)
 		}
 	}()
 
@@ -569,7 +581,7 @@ func GetInstalledPGPKeys(kids []string) ([]*appsv1.GnuPGPublicKey, error) {
 	return keys, nil
 }
 
-// ParsePGPCommitSignature parses the output of "git verify-commit" and returns the result
+// ParseGitCommitVerification parses the output of "git verify-commit" and returns the result
 func ParseGitCommitVerification(signature string) PGPVerifyResult {
 	result := PGPVerifyResult{Result: VerifyResultUnknown}
 	parseOk := false

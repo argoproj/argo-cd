@@ -29,6 +29,7 @@ argocd-repo-server [flags]
       --redis-ca-certificate string                    Path to Redis server CA certificate (e.g. /etc/certs/redis/ca.crt). If not specified, system trusted CAs will be used for server certificate validation.
       --redis-client-certificate string                Path to Redis client certificate (e.g. /etc/certs/redis/client.crt).
       --redis-client-key string                        Path to Redis client key (e.g. /etc/certs/redis/client.crt).
+      --redis-compress string                          Enable compression for data sent to Redis with the required compression algorithm. (possible values: none, gzip) (default "none")
       --redis-insecure-skip-tls-verify                 Skip Redis server certificate validation.
       --redis-use-tls                                  Use TLS when connecting to Redis. 
       --redisdb int                                    Redis database.
@@ -36,6 +37,8 @@ argocd-repo-server [flags]
       --revision-cache-expiration duration             Cache expiration for cached revision (default 3m0s)
       --sentinel stringArray                           Redis sentinel hostname and port (e.g. argocd-redis-ha-announce-0:6379). 
       --sentinelmaster string                          Redis sentinel master group name. (default "master")
+      --streamed-manifest-max-extracted-size string    Maximum size of streamed manifest archives when extracted (default "1G")
+      --streamed-manifest-max-tar-size string          Maximum size of streamed manifest archives (default "100M")
       --tlsciphers string                              The list of acceptable ciphers to be used when establishing TLS connections. Use 'list' to list available ciphers. (default "TLS_ECDHE_RSA_WITH_AES_256_GCM_SHA384:TLS_RSA_WITH_AES_256_GCM_SHA384")
       --tlsmaxversion string                           The maximum SSL/TLS version that is acceptable (one of: 1.0|1.1|1.2|1.3) (default "1.3")
       --tlsminversion string                           The minimum SSL/TLS version that is acceptable (one of: 1.0|1.1|1.2|1.3) (default "1.2")

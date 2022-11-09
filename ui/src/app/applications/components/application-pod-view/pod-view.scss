@@ -58,6 +58,7 @@ $num-stats: 2;
             div {
                 border-radius: 3px;
                 background-color: $argo-color-gray-3;
+                color: $argo-color-gray-7;
                 margin-right: 5px;
                 padding: 3px 5px;
             }
@@ -66,7 +67,8 @@ $num-stats: 2;
             margin: 1em 0;
             padding: 10px;
             border-radius: 3px;
-            background-color: $argo-color-gray-3;
+            background-color: $argo-color-gray-3;                            
+            color: $argo-color-gray-6;
             div {
                 display: flex;
                 & div:last-child {

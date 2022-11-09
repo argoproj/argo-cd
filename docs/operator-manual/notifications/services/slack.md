@@ -32,18 +32,18 @@ The Slack notification service configuration includes following settings:
         apiVersion: v1
         kind: Secret
         metadata:
-        name: <secret-name>
+          name: <secret-name>
         stringData:
-        slack-token: <Oauth-access-token>
+          slack-token: <Oauth-access-token>
 
 1. Define service type slack in data section of `argocd-notifications-cm` configmap:
 
         apiVersion: v1
         kind: ConfigMap
         metadata:
-        name: <config-map-name>
+          name: <config-map-name>
         data:
-        service.slack: |
+          service.slack: |
             token: $slack-token
 
 1. Add annotation in application yaml file to enable notifications for specific argocd app
@@ -51,28 +51,26 @@ The Slack notification service configuration includes following settings:
         apiVersion: argoproj.io/v1alpha1
         kind: Application
         metadata:
-        annotations:
+          annotations:
             notifications.argoproj.io/subscribe.on-sync-succeeded.slack: my_channel
 
 1. Annotation with more than one trigger multiple of destinations and recipients
 
-      ```yaml
-      apiVersion: argoproj.io/v1alpha1
-      kind: Application
-      metadata:
-      annotations:
-        notifications.argoproj.io/subscriptions: |
-          - trigger: [on-scaling-replica-set, on-rollout-updated, on-rollout-step-completed]
-            destinations:
-              - service: slack
-                recipients: [my-channel-1, my-channel-2]
-              - service: email
-                recipients: [recipient-1, recipient-2, recipient-3 ]
-          - trigger: [on-rollout-aborted, on-analysis-run-failed, on-analysis-run-error]
-            destinations:
-              - service: slack
-                recipients: [my-channel-21, my-channel-22]
-      ```
+        apiVersion: argoproj.io/v1alpha1
+        kind: Application
+        metadata:
+          annotations:
+            notifications.argoproj.io/subscriptions: |
+              - trigger: [on-scaling-replica-set, on-rollout-updated, on-rollout-step-completed]
+                destinations:
+                  - service: slack
+                    recipients: [my-channel-1, my-channel-2]
+                  - service: email
+                    recipients: [recipient-1, recipient-2, recipient-3 ]
+              - trigger: [on-rollout-aborted, on-analysis-run-failed, on-analysis-run-error]
+                destinations:
+                  - service: slack
+                    recipients: [my-channel-21, my-channel-22]
 
 ## Templates
 

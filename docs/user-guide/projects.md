@@ -293,3 +293,30 @@ stringData:
 ```
 
 All the examples above talk about Git repositories, but the same principles apply to clusters as well.
+
+With cluster-scoped clusters we can also restrict projects to only allow applications whose destinations belong to the 
+same project. The default behavior allows for applications to be installed onto clusters which are not a part of the same 
+project, as the example below demonstrates:
+
+```yaml
+apiVersion: argoproj.io/v1alpha1
+kind: Application
+metadata:
+  name: "some-ns"
+spec:
+  destination:
+    # This destination might not actually be a cluster which belongs to `foo-project`
+    server: https://some-k8s-server/
+    namespace: "some-ns"
+  project: foo-project
+```
+
+To prevent this behavior, we can set the attribute `permitOnlyProjectScopedClusters` on a project. 
+
+```yaml
+spec:
+  permitOnlyProjectScopedClusters: true
+```
+
+With this set, the application above would no longer be allowed to be synced to any cluster other than the ones which 
+are a part of the same project.    

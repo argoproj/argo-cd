@@ -10,10 +10,9 @@ import {ApplicationRetryOptions} from '../application-retry-options/application-
 import {ApplicationSyncOptionsField} from '../application-sync-options/application-sync-options';
 import {RevisionFormField} from '../revision-form-field/revision-form-field';
 import {SetFinalizerOnApplication} from './set-finalizer-on-application';
+import './application-create-panel.scss';
 
 const jsonMergePatch = require('json-merge-patch');
-
-require('./application-create-panel.scss');
 
 const appTypes = new Array<{field: string; type: models.AppSourceType}>(
     {type: 'Helm', field: 'helm'},
@@ -199,15 +198,6 @@ export const ApplicationCreatePanel = (props: {
                                                         label='Application Name'
                                                         qeId='application-create-field-app-name'
                                                         field='metadata.name'
-                                                        component={Text}
-                                                    />
-                                                </div>
-                                                <div className='argo-form-row'>
-                                                    <FormField
-                                                        formApi={api}
-                                                        label='Application Namespace'
-                                                        qeId='application-create-field-app-namespace'
-                                                        field='metadata.namespace'
                                                         component={Text}
                                                     />
                                                 </div>

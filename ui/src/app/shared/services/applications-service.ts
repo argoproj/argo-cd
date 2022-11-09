@@ -120,6 +120,13 @@ export class ApplicationsService {
     }
 
     public create(app: models.Application): Promise<models.Application> {
+        // Namespace may be specified in the app name. We need to parse and
+        // handle it accordingly.
+        if (app.metadata.name.includes('/')) {
+            const nns = app.metadata.name.split('/', 2);
+            app.metadata.name = nns[1];
+            app.metadata.namespace = nns[0];
+        }
         return requests
             .post(`/applications`)
             .send(app)
@@ -291,7 +298,11 @@ export class ApplicationsService {
                 kind: resource.kind,
                 group: resource.group
             })
-            .then(res => (res.body.actions as models.ResourceAction[]) || []);
+            .then(res => {
+                const actions = (res.body.actions as models.ResourceAction[]) || [];
+                actions.sort((actionA, actionB) => actionA.name.localeCompare(actionB.name));
+                return actions;
+            });
     }
 
     public runResourceAction(name: string, appNamspace: string, resource: models.ResourceNode, action: string): Promise<models.ResourceAction[]> {

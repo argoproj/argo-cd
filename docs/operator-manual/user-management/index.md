@@ -231,7 +231,7 @@ data:
 
 ### Requesting additional ID token claims
 
-By default Dex only retrieves the profile and email scopes. In order to retrieve more more claims you
+By default Dex only retrieves the profile and email scopes. In order to retrieve more claims you
 can add them under the `scopes` entry in the Dex configuration. To enable group claims through Dex,
 `insecureEnableGroups` also needs to enabled. Group information is currently only refreshed at authentication
 time and support to refresh group information more dynamically can be tracked here: [dexidp/dex#1065](https://github.com/dexidp/dex/issues/1065).
@@ -289,7 +289,7 @@ data:
 
 ## Existing OIDC Provider
 
-To configure Argo CD to delegate authenticate to your existing OIDC provider, add the OAuth2
+To configure Argo CD to delegate authentication to your existing OIDC provider, add the OAuth2
 configuration to the `argocd-cm` ConfigMap under the `oidc.config` key:
 
 ```yaml

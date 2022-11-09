@@ -98,6 +98,7 @@ export const ApplicationsSyncPanel = ({show, apps, hide}: {show: boolean; apps: 
                                 await services.applications
                                     .sync(
                                         app.metadata.name,
+                                        app.metadata.namespace,
                                         app.spec.source.targetRevision,
                                         syncFlags.Prune || false,
                                         syncFlags.DryRun || false,
@@ -140,10 +141,11 @@ export const ApplicationsSyncPanel = ({show, apps, hide}: {show: boolean; apps: 
                                                 formApi.setTouched('syncOptions', true);
                                                 formApi.setValue('syncOptions', opts);
                                             }}
+                                            id='applications-sync-panel'
                                         />
                                     </div>
 
-                                    <ApplicationRetryOptions formApi={formApi} />
+                                    <ApplicationRetryOptions id='applications-sync-panel' formApi={formApi} />
 
                                     <ApplicationSelector apps={apps} formApi={formApi} />
                                 </div>

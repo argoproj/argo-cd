@@ -7,12 +7,13 @@ import (
 	"github.com/sirupsen/logrus"
 	logtest "github.com/sirupsen/logrus/hooks/test"
 	"github.com/stretchr/testify/assert"
+	"github.com/stretchr/testify/require"
 	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
 	"k8s.io/apimachinery/pkg/runtime"
 	"k8s.io/apimachinery/pkg/types"
 
+	argoappsetv1 "github.com/argoproj/argo-cd/v2/pkg/apis/application/v1alpha1"
 	argoappsv1 "github.com/argoproj/argo-cd/v2/pkg/apis/application/v1alpha1"
-	argoappsetv1 "github.com/argoproj/argo-cd/v2/pkg/apis/applicationset/v1alpha1"
 )
 
 func TestRenderTemplateParams(t *testing.T) {
@@ -461,7 +462,49 @@ func TestRenderTemplateParamsGoTemplate(t *testing.T) {
 			}
 		})
 	}
+}
 
+func TestRenderTemplateKeys(t *testing.T) {
+	t.Run("fasttemplate", func(t *testing.T) {
+		application := &argoappsv1.Application{
+			ObjectMeta: metav1.ObjectMeta{
+				Annotations: map[string]string{
+					"annotation-{{key}}": "annotation-{{value}}",
+				},
+			},
+		}
+
+		params := map[string]interface{}{
+			"key":   "some-key",
+			"value": "some-value",
+		}
+
+		render := Render{}
+		newApplication, err := render.RenderTemplateParams(application, nil, params, false)
+		require.NoError(t, err)
+		require.Contains(t, newApplication.ObjectMeta.Annotations, "annotation-some-key")
+		assert.Equal(t, newApplication.ObjectMeta.Annotations["annotation-some-key"], "annotation-some-value")
+	})
+	t.Run("gotemplate", func(t *testing.T) {
+		application := &argoappsv1.Application{
+			ObjectMeta: metav1.ObjectMeta{
+				Annotations: map[string]string{
+					"annotation-{{ .key }}": "annotation-{{ .value }}",
+				},
+			},
+		}
+
+		params := map[string]interface{}{
+			"key":   "some-key",
+			"value": "some-value",
+		}
+
+		render := Render{}
+		newApplication, err := render.RenderTemplateParams(application, nil, params, true)
+		require.NoError(t, err)
+		require.Contains(t, newApplication.ObjectMeta.Annotations, "annotation-some-key")
+		assert.Equal(t, newApplication.ObjectMeta.Annotations["annotation-some-key"], "annotation-some-value")
+	})
 }
 
 func TestRenderTemplateParamsFinalizers(t *testing.T) {
@@ -662,7 +705,7 @@ func TestCheckInvalidGenerators(t *testing.T) {
 		defer logrus.StandardLogger().ReplaceHooks(oldhooks)
 		hook := logtest.NewGlobal()
 
-		CheckInvalidGenerators(&c.appSet)
+		_ = CheckInvalidGenerators(&c.appSet)
 		assert.True(t, len(hook.Entries) >= 1, c.testName)
 		assert.NotNil(t, hook.LastEntry(), c.testName)
 		if hook.LastEntry() != nil {

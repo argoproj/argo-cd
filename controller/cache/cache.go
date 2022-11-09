@@ -382,7 +382,7 @@ func (c *liveStateCache) getCluster(server string) (clustercache.ClusterCache, e
 
 	cluster, err := c.db.GetCluster(context.Background(), server)
 	if err != nil {
-		return nil, err
+		return nil, fmt.Errorf("error getting cluster: %w", err)
 	}
 
 	if !c.canHandleCluster(cluster) {
@@ -456,11 +456,11 @@ func (c *liveStateCache) getCluster(server string) (clustercache.ClusterCache, e
 func (c *liveStateCache) getSyncedCluster(server string) (clustercache.ClusterCache, error) {
 	clusterCache, err := c.getCluster(server)
 	if err != nil {
-		return nil, err
+		return nil, fmt.Errorf("error getting cluster: %w", err)
 	}
 	err = clusterCache.EnsureSynced()
 	if err != nil {
-		return nil, err
+		return nil, fmt.Errorf("error synchronizing cache state : %w", err)
 	}
 	return clusterCache, nil
 }
@@ -594,7 +594,7 @@ func (c *liveStateCache) watchSettings(ctx context.Context) {
 func (c *liveStateCache) Init() error {
 	cacheSettings, err := c.loadCacheSettings()
 	if err != nil {
-		return err
+		return fmt.Errorf("error loading cache settings: %w", err)
 	}
 	c.cacheSettings = *cacheSettings
 	return nil

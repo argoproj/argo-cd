@@ -10,7 +10,7 @@ import {ApplicationRetryOptions} from '../application-retry-options/application-
 import {ApplicationManualSyncFlags, ApplicationSyncOptions, FORCE_WARNING, SyncFlags, REPLACE_WARNING} from '../application-sync-options/application-sync-options';
 import {ComparisonStatusIcon, nodeKey} from '../utils';
 
-require('./application-sync-panel.scss');
+import './application-sync-panel.scss';
 
 export const ApplicationSyncPanel = ({application, selectedResource, hide}: {application: models.Application; selectedResource: string; hide: () => any}) => {
     const [form, setForm] = React.useState<FormApi>(null);
@@ -137,10 +137,15 @@ export const ApplicationSyncPanel = ({application, selectedResource, hide}: {app
                                                     formApi.setTouched('syncOptions', true);
                                                     formApi.setValue('syncOptions', opts);
                                                 }}
+                                                id='application-sync-panel'
                                             />
                                         </div>
 
-                                        <ApplicationRetryOptions formApi={formApi} initValues={application.spec.syncPolicy ? application.spec.syncPolicy.retry : null} />
+                                        <ApplicationRetryOptions
+                                            id='application-sync-panel'
+                                            formApi={formApi}
+                                            initValues={application.spec.syncPolicy ? application.spec.syncPolicy.retry : null}
+                                        />
 
                                         <label>Synchronize resources:</label>
                                         <div style={{float: 'right'}}>
@@ -176,9 +181,9 @@ export const ApplicationSyncPanel = ({application, selectedResource, hide}: {app
                                                 none
                                             </a>
                                         </div>
-                                        {!formApi.values.resources.every((item: boolean) => item) && (
-                                            <div className='application-details__warning'>WARNING: partial synchronization is not recorded in history</div>
-                                        )}
+                                        <div className='application-details__warning'>
+                                            {!formApi.values.resources.every((item: boolean) => item) && <div>WARNING: partial synchronization is not recorded in history</div>}
+                                        </div>
                                         <div>
                                             {application.status.resources
                                                 .filter(item => !item.hook)
