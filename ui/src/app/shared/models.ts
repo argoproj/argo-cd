@@ -456,7 +456,6 @@ export interface AuthSettings {
     uiBannerPermanent: boolean;
     uiBannerPosition: string;
     execEnabled: boolean;
-    controllerNamespace: string;
     appsInAnyNamespaceEnabled: boolean;
 }
 
