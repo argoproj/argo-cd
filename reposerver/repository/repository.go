@@ -930,6 +930,7 @@ func helmTemplate(appPath string, repoRoot string, env *v1alpha1.Env, q *apiclie
 						log.Debugf("Successfully restored read/write/execute permissions on %s", appHelm.ValueFiles[i])
 					}
 				}
+				templateOpts.Values = append(templateOpts.Values, pathutil.ResolvedFilePath(appHelm.ValueFiles[i]))
 				continue
 			}
 
@@ -2167,6 +2168,29 @@ func directoryPermissionInitializer(rootPath string) goio.Closer {
 		}
 		return nil
 	})
+}
+
+// CheckoutSource is a convenience function to initialize a repo, fetch, and checkout a revision
+// nolint:unparam
+func (s *Service) CheckoutSource(ctx context.Context, q *apiclient.CheckoutSourceRequest) (*apiclient.CheckoutSourceResponse, error) {
+	gitClient, commitSHA, err := s.newClientResolveRevision(q.Repo, q.Revision)
+	if err != nil {
+		return nil, err
+	}
+
+	s.metricsServer.IncPendingRepoRequest(q.Repo.Repo)
+	defer s.metricsServer.DecPendingRepoRequest(q.Repo.Repo)
+
+	closer, err := s.repoLock.Lock(gitClient.Root(), commitSHA, true, func() (goio.Closer, error) {
+		return s.checkoutRevision(gitClient, commitSHA, s.initConstants.SubmoduleEnabled)
+	})
+	if err != nil {
+		return nil, err
+	}
+
+	defer io.Close(closer)
+
+	return &apiclient.CheckoutSourceResponse{}, nil
 }
 
 // checkoutRevision is a convenience function to initialize a repo, fetch, and checkout a revision
