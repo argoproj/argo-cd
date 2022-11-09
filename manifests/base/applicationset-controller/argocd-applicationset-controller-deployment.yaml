@@ -28,10 +28,6 @@ spec:
           - containerPort: 8080
             name: metrics
           env:
-          - name: NAMESPACE
-            valueFrom:
-              fieldRef:
-                fieldPath: metadata.namespace
           - name: ARGOCD_APPLICATIONSET_CONTROLLER_ENABLE_LEADER_ELECTION
             valueFrom:
               configMapKeyRef:
@@ -102,11 +98,26 @@ spec:
               drop:
               - ALL
             allowPrivilegeEscalation: false
-            readOnlyRootFilesystem: true 
+            readOnlyRootFilesystem: true
             runAsNonRoot: true
             seccompProfile:
               type: RuntimeDefault
       serviceAccountName: argocd-applicationset-controller
+      affinity:
+        podAntiAffinity:
+          preferredDuringSchedulingIgnoredDuringExecution:
+          - weight: 100
+            podAffinityTerm:
+              labelSelector:
+                matchLabels:
+                  app.kubernetes.io/name: argocd-applicationset-controller
+              topologyKey: kubernetes.io/hostname
+          - weight: 5
+            podAffinityTerm:
+              labelSelector:
+                matchLabels:
+                  app.kubernetes.io/part-of: argocd
+              topologyKey: kubernetes.io/hostname
       volumes:
       - configMap:
           name: argocd-ssh-known-hosts-cm

@@ -3,9 +3,10 @@ kind: Kustomization
 
 
 patchesStrategicMerge:
+- overlays/argocd-application-controller-statefulset.yaml
+- overlays/argocd-applicationset-controller-deployment.yaml
 - overlays/argocd-repo-server-deployment.yaml
 - overlays/argocd-server-deployment.yaml
-- overlays/argocd-application-controller-statefulset.yaml
 
 
 images:

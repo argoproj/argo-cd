@@ -102,7 +102,7 @@ func NewCommand() *cobra.Command {
 				NewCache:               cache.MultiNamespacedCacheBuilder([]string{namespace}),
 				HealthProbeBindAddress: probeBindAddr,
 				Port:                   9443,
-				LeaderElection:         enableLeaderElection,
+				LeaderElection:         true,
 				LeaderElectionID:       "58ac56fa.applicationsets.argoproj.io",
 				DryRunClient:           dryRun,
 			})

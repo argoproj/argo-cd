@@ -24,17 +24,17 @@ rules:
   - apiGroups:
       - argoproj.io
     resources:
-      - appprojects
-    verbs:
-      - get
-  - apiGroups:
-      - argoproj.io
-    resources:
       - applicationsets/status
     verbs:
       - get
       - patch
       - update
+  - apiGroups:
+      - argoproj.io
+    resources:
+      - appprojects
+    verbs:
+      - get
   - apiGroups:
       - ''
     resources:
@@ -46,10 +46,21 @@ rules:
       - patch
       - watch
   - apiGroups:
+      - ""
+    resources:
+      - configmaps
+    verbs:
+      - create
+      - delete
+      - get
+      - list
+      - patch
+      - update
+      - watch
+  - apiGroups:
       - ''
     resources:
       - secrets
-      - configmaps
     verbs:
       - get
       - list
@@ -63,3 +74,15 @@ rules:
       - get
       - list
       - watch
+  - apiGroups:
+    - coordination.k8s.io
+    resources:
+    - leases
+    verbs:
+    - create
+    - delete
+    - get
+    - list
+    - patch
+    - update
+    - watch

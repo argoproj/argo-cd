@@ -136,17 +136,17 @@ rules:
 - apiGroups:
   - argoproj.io
   resources:
-  - appprojects
-  verbs:
-  - get
-- apiGroups:
-  - argoproj.io
-  resources:
   - applicationsets/status
   verbs:
   - get
   - patch
   - update
+- apiGroups:
+  - argoproj.io
+  resources:
+  - appprojects
+  verbs:
+  - get
 - apiGroups:
   - ""
   resources:
@@ -160,8 +160,19 @@ rules:
 - apiGroups:
   - ""
   resources:
-  - secrets
   - configmaps
+  verbs:
+  - create
+  - delete
+  - get
+  - list
+  - patch
+  - update
+  - watch
+- apiGroups:
+  - ""
+  resources:
+  - secrets
   verbs:
   - get
   - list
@@ -174,6 +185,18 @@ rules:
   verbs:
   - get
   - list
+  - watch
+- apiGroups:
+  - coordination.k8s.io
+  resources:
+  - leases
+  verbs:
+  - create
+  - delete
+  - get
+  - list
+  - patch
+  - update
   - watch
 ---
 apiVersion: rbac.authorization.k8s.io/v1
@@ -1526,6 +1549,7 @@ metadata:
     app.kubernetes.io/part-of: argocd-applicationset
   name: argocd-applicationset-controller
 spec:
+  replicas: 2
   selector:
     matchLabels:
       app.kubernetes.io/name: argocd-applicationset-controller
@@ -1534,15 +1558,30 @@ spec:
       labels:
         app.kubernetes.io/name: argocd-applicationset-controller
     spec:
+      affinity:
+        podAntiAffinity:
+          preferredDuringSchedulingIgnoredDuringExecution:
+          - podAffinityTerm:
+              labelSelector:
+                matchLabels:
+                  app.kubernetes.io/name: argocd-applicationset-controller
+              topologyKey: failure-domain.beta.kubernetes.io/zone
+            weight: 100
+          requiredDuringSchedulingIgnoredDuringExecution:
+          - labelSelector:
+              matchLabels:
+                app.kubernetes.io/name: argocd-applicationset-controller
+            topologyKey: kubernetes.io/hostname
       containers:
       - command:
         - entrypoint.sh
         - argocd-applicationset-controller
+        - --enable-leader-election=true
+        name: argocd-application-controller
+      - command:
+        - entrypoint.sh
+        - argocd-applicationset-controller
         env:
-        - name: NAMESPACE
-          valueFrom:
-            fieldRef:
-              fieldPath: metadata.namespace
         - name: ARGOCD_APPLICATIONSET_CONTROLLER_ENABLE_LEADER_ELECTION
           valueFrom:
             configMapKeyRef:

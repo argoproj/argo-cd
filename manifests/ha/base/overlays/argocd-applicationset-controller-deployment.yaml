@@ -1,0 +1,28 @@
+apiVersion: apps/v1
+kind: Deployment
+metadata:
+  name: argocd-applicationset-controller
+spec:
+  replicas: 2
+  template:
+    spec:
+      containers:
+      - name: argocd-application-controller
+        command:
+        - entrypoint.sh
+        - argocd-applicationset-controller
+        - --enable-leader-election=true
+      affinity:
+        podAntiAffinity:
+          requiredDuringSchedulingIgnoredDuringExecution:
+          - labelSelector:
+              matchLabels:
+                app.kubernetes.io/name: argocd-applicationset-controller
+            topologyKey: kubernetes.io/hostname
+          preferredDuringSchedulingIgnoredDuringExecution:
+          - weight: 100
+            podAffinityTerm:
+              labelSelector:
+                matchLabels:
+                  app.kubernetes.io/name: argocd-applicationset-controller
+              topologyKey: failure-domain.beta.kubernetes.io/zone
