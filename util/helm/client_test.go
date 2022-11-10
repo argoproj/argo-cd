@@ -183,3 +183,18 @@ func Test_getNextUrl(t *testing.T) {
 	nextUrl = getNextUrl("<https://my.repo.com/v2/chart/tags/list?token=123>; rel=next")
 	assert.Equal(t, nextUrl, "https://my.repo.com/v2/chart/tags/list?token=123")
 }
+
+func Test_getTagsListURL(t *testing.T) {
+	tagsListURL, err := getTagsListURL("account.dkr.ecr.eu-central-1.amazonaws.com", "dss")
+	assert.Nil(t, err)
+	assert.Equal(t, tagsListURL, "https://account.dkr.ecr.eu-central-1.amazonaws.com/v2/dss/tags/list")
+
+	tagsListURL, err = getTagsListURL("http://account.dkr.ecr.eu-central-1.amazonaws.com", "dss")
+	assert.Nil(t, err)
+	assert.Equal(t, tagsListURL, "https://account.dkr.ecr.eu-central-1.amazonaws.com/v2/dss/tags/list")
+
+	// with trailing /
+	tagsListURL, err = getTagsListURL("https://account.dkr.ecr.eu-central-1.amazonaws.com/", "dss")
+	assert.Nil(t, err)
+	assert.Equal(t, tagsListURL, "https://account.dkr.ecr.eu-central-1.amazonaws.com/v2/dss/tags/list")
+}

@@ -386,14 +386,14 @@ func getIndexURL(rawURL string) (string, error) {
 }
 
 func getTagsListURL(rawURL string, chart string) (string, error) {
-	repoURL, err := url.Parse(rawURL)
+	repoURL, err := url.Parse(strings.Trim(rawURL, "/"))
 	if err != nil {
 		return "", fmt.Errorf("unable to parse repo url: %v", err)
 	}
 	repoURL.Scheme = "https"
-	tagsList := path.Join("v2", url.PathEscape(chart), "tags/list")
-	repoURL.Path = path.Join(repoURL.Path, tagsList)
-	repoURL.RawPath = path.Join(repoURL.RawPath, tagsList)
+	tagsList := strings.Join([]string{"v2", url.PathEscape(chart), "tags/list"}, "/")
+	repoURL.Path = strings.Join([]string{repoURL.Path, tagsList}, "/")
+	repoURL.RawPath = strings.Join([]string{repoURL.RawPath, tagsList}, "/")
 	return repoURL.String(), nil
 }
 
