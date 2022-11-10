@@ -93,7 +93,9 @@
         }
 
         &--orphaned {
-            background-color: lighten($argo-color-gray-4, 10%);
+            @include themify($themes) {
+                background-color: themed('light-argo-gray-2');
+            }
         }
 
         &--load-balancer {
