@@ -29,10 +29,10 @@ argocd account update-password [flags]
 ### Options
 
 ```
-      --account string            an account name that should be updated. Defaults to current user account
-      --current-password string   password of the currently logged on user
+      --account string            An account name that should be updated. Defaults to current user account
+      --current-password string   Password of the currently logged on user
   -h, --help                      help for update-password
-      --new-password string       new password you want to update to
+      --new-password string       New password you want to update to
 ```
 
 ### Options inherited from parent commands
