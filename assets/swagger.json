@@ -6440,6 +6440,15 @@
         }
       }
     },
+    "v1alpha1BearerTokenBitbucketCloud": {
+      "description": "BearerTokenBitbucketCloud defines the Bearer token for BitBucket AppToken auth.",
+      "type": "object",
+      "properties": {
+        "tokenRef": {
+          "$ref": "#/definitions/v1alpha1SecretRef"
+        }
+      }
+    },
     "v1alpha1Cluster": {
       "type": "object",
       "title": "Cluster is the definition of a cluster resource",
@@ -7270,6 +7279,9 @@
       "description": "PullRequestGenerator defines a generator that scrapes a PullRequest API to find candidate pull requests.",
       "type": "object",
       "properties": {
+        "bitbucket": {
+          "$ref": "#/definitions/v1alpha1PullRequestGeneratorBitbucket"
+        },
         "bitbucketServer": {
           "$ref": "#/definitions/v1alpha1PullRequestGeneratorBitbucketServer"
         },
@@ -7296,6 +7308,30 @@
         },
         "template": {
           "$ref": "#/definitions/v1alpha1ApplicationSetTemplate"
+        }
+      }
+    },
+    "v1alpha1PullRequestGeneratorBitbucket": {
+      "description": "PullRequestGenerator defines connection info specific to Bitbucket.",
+      "type": "object",
+      "properties": {
+        "api": {
+          "description": "The Bitbucket REST API URL to talk to. If blank, uses https://api.bitbucket.org/2.0.",
+          "type": "string"
+        },
+        "basicAuth": {
+          "$ref": "#/definitions/v1alpha1BasicAuthBitbucketServer"
+        },
+        "bearerToken": {
+          "$ref": "#/definitions/v1alpha1BearerTokenBitbucketCloud"
+        },
+        "owner": {
+          "description": "Workspace to scan. Required.",
+          "type": "string"
+        },
+        "repo": {
+          "description": "Repo name to scan. Required.",
+          "type": "string"
         }
       }
     },

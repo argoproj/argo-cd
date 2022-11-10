@@ -453,11 +453,12 @@ type PullRequestGenerator struct {
 	GitLab          *PullRequestGeneratorGitLab          `json:"gitlab,omitempty" protobuf:"bytes,2,opt,name=gitlab"`
 	Gitea           *PullRequestGeneratorGitea           `json:"gitea,omitempty" protobuf:"bytes,3,opt,name=gitea"`
 	BitbucketServer *PullRequestGeneratorBitbucketServer `json:"bitbucketServer,omitempty" protobuf:"bytes,4,opt,name=bitbucketServer"`
+	Bitbucket       *PullRequestGeneratorBitbucket       `json:"bitbucket,omitempty" protobuf:"bytes,5,opt,name=bitbucket"`
 	// Filters for which pull requests should be considered.
-	Filters []PullRequestGeneratorFilter `json:"filters,omitempty" protobuf:"bytes,5,rep,name=filters"`
+	Filters []PullRequestGeneratorFilter `json:"filters,omitempty" protobuf:"bytes,6,rep,name=filters"`
 	// Standard parameters.
-	RequeueAfterSeconds *int64                 `json:"requeueAfterSeconds,omitempty" protobuf:"varint,6,opt,name=requeueAfterSeconds"`
-	Template            ApplicationSetTemplate `json:"template,omitempty" protobuf:"bytes,7,opt,name=template"`
+	RequeueAfterSeconds *int64                 `json:"requeueAfterSeconds,omitempty" protobuf:"varint,7,opt,name=requeueAfterSeconds"`
+	Template            ApplicationSetTemplate `json:"template,omitempty" protobuf:"bytes,8,opt,name=template"`
 }
 
 // PullRequestGenerator defines connection info specific to Gitea.
@@ -514,6 +515,26 @@ type PullRequestGeneratorBitbucketServer struct {
 	API string `json:"api" protobuf:"bytes,3,opt,name=api"`
 	// Credentials for Basic auth
 	BasicAuth *BasicAuthBitbucketServer `json:"basicAuth,omitempty" protobuf:"bytes,4,opt,name=basicAuth"`
+}
+
+// PullRequestGenerator defines connection info specific to Bitbucket.
+type PullRequestGeneratorBitbucket struct {
+	// Workspace to scan. Required.
+	Owner string `json:"owner" protobuf:"bytes,1,opt,name=owner"`
+	// Repo name to scan. Required.
+	Repo string `json:"repo" protobuf:"bytes,2,opt,name=repo"`
+	// The Bitbucket REST API URL to talk to. If blank, uses https://api.bitbucket.org/2.0.
+	API string `json:"api,omitempty" protobuf:"bytes,3,opt,name=api"`
+	// Credentials for Basic auth
+	BasicAuth *BasicAuthBitbucketServer `json:"basicAuth,omitempty" protobuf:"bytes,4,opt,name=basicAuth"`
+	// Credentials for AppToken (Bearer auth)
+	BearerToken *BearerTokenBitbucketCloud `json:"bearerToken,omitempty" protobuf:"bytes,5,opt,name=bearerToken"`
+}
+
+// BearerTokenBitbucketCloud defines the Bearer token for BitBucket AppToken auth.
+type BearerTokenBitbucketCloud struct {
+	// Password (or personal access token) reference.
+	TokenRef *SecretRef `json:"tokenRef" protobuf:"bytes,1,opt,name=tokenRef"`
 }
 
 // BasicAuthBitbucketServer defines the username/(password or personal access token) for Basic auth.

@@ -629,6 +629,12 @@ message BasicAuthBitbucketServer {
   optional SecretRef passwordRef = 2;
 }
 
+// BearerTokenBitbucketCloud defines the Bearer token for BitBucket AppToken auth.
+message BearerTokenBitbucketCloud {
+  // Password (or personal access token) reference.
+  optional SecretRef tokenRef = 1;
+}
+
 // Cluster is the definition of a cluster resource
 message Cluster {
   // Server is the API server URL of the Kubernetes cluster
@@ -1206,13 +1212,33 @@ message PullRequestGenerator {
 
   optional PullRequestGeneratorBitbucketServer bitbucketServer = 4;
 
+  optional PullRequestGeneratorBitbucket bitbucket = 5;
+
   // Filters for which pull requests should be considered.
-  repeated PullRequestGeneratorFilter filters = 5;
+  repeated PullRequestGeneratorFilter filters = 6;
 
   // Standard parameters.
-  optional int64 requeueAfterSeconds = 6;
+  optional int64 requeueAfterSeconds = 7;
 
-  optional ApplicationSetTemplate template = 7;
+  optional ApplicationSetTemplate template = 8;
+}
+
+// PullRequestGenerator defines connection info specific to Bitbucket.
+message PullRequestGeneratorBitbucket {
+  // Workspace to scan. Required.
+  optional string owner = 1;
+
+  // Repo name to scan. Required.
+  optional string repo = 2;
+
+  // The Bitbucket REST API URL to talk to. If blank, uses https://api.bitbucket.org/2.0.
+  optional string api = 3;
+
+  // Credentials for Basic auth
+  optional BasicAuthBitbucketServer basicAuth = 4;
+
+  // Credentials for AppToken (Bearer auth)
+  optional BearerTokenBitbucketCloud bearerToken = 5;
 }
 
 // PullRequestGenerator defines connection info specific to BitbucketServer.
