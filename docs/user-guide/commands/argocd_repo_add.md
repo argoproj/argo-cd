@@ -41,25 +41,25 @@ argocd repo add REPOURL [flags]
 ### Options
 
 ```
-      --enable-lfs                              enable git-lfs (Large File Support) on this repository
-      --enable-oci                              enable helm-oci (Helm OCI-Based Repository)
-      --github-app-enterprise-base-url string   base url to use when using GitHub Enterprise (e.g. https://ghe.example.com/api/v3
-      --github-app-id int                       id of the GitHub Application
-      --github-app-installation-id int          installation id of the GitHub Application
-      --github-app-private-key-path string      private key of the GitHub Application
+      --enable-lfs                              Enable git-lfs (Large File Support) on this repository
+      --enable-oci                              Enable helm-oci (Helm OCI-Based Repository)
+      --github-app-enterprise-base-url string   Base url to use when using GitHub Enterprise (e.g. https://ghe.example.com/api/v3
+      --github-app-id int                       ID of the GitHub Application
+      --github-app-installation-id int          Installation id of the GitHub Application
+      --github-app-private-key-path string      Private key of the GitHub Application
   -h, --help                                    help for add
-      --insecure-ignore-host-key                disables SSH strict host key checking (deprecated, use --insecure-skip-server-verification instead)
-      --insecure-skip-server-verification       disables server certificate and host key checks
-      --name string                             name of the repository, mandatory for repositories of type helm
-      --password string                         password to the repository
-      --project string                          project of the repository
-      --proxy string                            use proxy to access repository
-      --ssh-private-key-path string             path to the private ssh key (e.g. ~/.ssh/id_rsa)
-      --tls-client-cert-key-path string         path to the TLS client cert's key path (must be PEM format)
-      --tls-client-cert-path string             path to the TLS client cert (must be PEM format)
-      --type string                             type of the repository, "git" or "helm" (default "git")
+      --insecure-ignore-host-key                Disables SSH strict host key checking (deprecated, use --insecure-skip-server-verification instead)
+      --insecure-skip-server-verification       Disables server certificate and host key checks
+      --name string                             Name of the repository, mandatory for repositories of type helm
+      --password string                         Password to the repository
+      --project string                          Project of the repository
+      --proxy string                            Use proxy to access repository
+      --ssh-private-key-path string             Path to the private ssh key (e.g. ~/.ssh/id_rsa)
+      --tls-client-cert-key-path string         Path to the TLS client cert's key path (must be PEM format)
+      --tls-client-cert-path string             Path to the TLS client cert (must be PEM format)
+      --type string                             Type of the repository, "git" or "helm" (default "git")
       --upsert                                  Override an existing repository with the same name even if the spec differs
-      --username string                         username to the repository
+      --username string                         Username to the repository
 ```
 
 ### Options inherited from parent commands

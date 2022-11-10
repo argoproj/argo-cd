@@ -30,18 +30,18 @@ argocd repocreds add REPOURL [flags]
 
 ```
       --enable-oci                              Specifies whether helm-oci support should be enabled for this repo
-      --github-app-enterprise-base-url string   base url to use when using GitHub Enterprise (e.g. https://ghe.example.com/api/v3
-      --github-app-id int                       id of the GitHub Application
-      --github-app-installation-id int          installation id of the GitHub Application
-      --github-app-private-key-path string      private key of the GitHub Application
+      --github-app-enterprise-base-url string   Base url to use when using GitHub Enterprise (e.g. https://ghe.example.com/api/v3
+      --github-app-id int                       ID of the GitHub Application
+      --github-app-installation-id int          Installation id of the GitHub Application
+      --github-app-private-key-path string      Private key of the GitHub Application
   -h, --help                                    help for add
-      --password string                         password to the repository
-      --ssh-private-key-path string             path to the private ssh key (e.g. ~/.ssh/id_rsa)
-      --tls-client-cert-key-path string         path to the TLS client cert's key path (must be PEM format)
-      --tls-client-cert-path string             path to the TLS client cert (must be PEM format)
-      --type string                             type of the repository, "git" or "helm" (default "git")
+      --password string                         Password to the repository
+      --ssh-private-key-path string             Path to the private ssh key (e.g. ~/.ssh/id_rsa)
+      --tls-client-cert-key-path string         Path to the TLS client cert's key path (must be PEM format)
+      --tls-client-cert-path string             Path to the TLS client cert (must be PEM format)
+      --type string                             Type of the repository, "git" or "helm" (default "git")
       --upsert                                  Override an existing repository with the same name even if the spec differs
-      --username string                         username to the repository
+      --username string                         Username to the repository
 ```
 
 ### Options inherited from parent commands

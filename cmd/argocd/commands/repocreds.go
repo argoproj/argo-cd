@@ -146,18 +146,18 @@ func NewRepoCredsAddCommand(clientOpts *argocdclient.ClientOptions) *cobra.Comma
 			fmt.Printf("Repository credentials for '%s' added\n", createdRepo.URL)
 		},
 	}
-	command.Flags().StringVar(&repo.Username, "username", "", "username to the repository")
-	command.Flags().StringVar(&repo.Password, "password", "", "password to the repository")
-	command.Flags().StringVar(&sshPrivateKeyPath, "ssh-private-key-path", "", "path to the private ssh key (e.g. ~/.ssh/id_rsa)")
-	command.Flags().StringVar(&tlsClientCertPath, "tls-client-cert-path", "", "path to the TLS client cert (must be PEM format)")
-	command.Flags().StringVar(&tlsClientCertKeyPath, "tls-client-cert-key-path", "", "path to the TLS client cert's key path (must be PEM format)")
-	command.Flags().Int64Var(&repo.GithubAppId, "github-app-id", 0, "id of the GitHub Application")
-	command.Flags().Int64Var(&repo.GithubAppInstallationId, "github-app-installation-id", 0, "installation id of the GitHub Application")
-	command.Flags().StringVar(&githubAppPrivateKeyPath, "github-app-private-key-path", "", "private key of the GitHub Application")
-	command.Flags().StringVar(&repo.GitHubAppEnterpriseBaseURL, "github-app-enterprise-base-url", "", "base url to use when using GitHub Enterprise (e.g. https://ghe.example.com/api/v3")
+	command.Flags().StringVar(&repo.Username, "username", "", "Username to the repository")
+	command.Flags().StringVar(&repo.Password, "password", "", "Password to the repository")
+	command.Flags().StringVar(&sshPrivateKeyPath, "ssh-private-key-path", "", "Path to the private ssh key (e.g. ~/.ssh/id_rsa)")
+	command.Flags().StringVar(&tlsClientCertPath, "tls-client-cert-path", "", "Path to the TLS client cert (must be PEM format)")
+	command.Flags().StringVar(&tlsClientCertKeyPath, "tls-client-cert-key-path", "", "Path to the TLS client cert's key path (must be PEM format)")
+	command.Flags().Int64Var(&repo.GithubAppId, "github-app-id", 0, "ID of the GitHub Application")
+	command.Flags().Int64Var(&repo.GithubAppInstallationId, "github-app-installation-id", 0, "Installation id of the GitHub Application")
+	command.Flags().StringVar(&githubAppPrivateKeyPath, "github-app-private-key-path", "", "Private key of the GitHub Application")
+	command.Flags().StringVar(&repo.GitHubAppEnterpriseBaseURL, "github-app-enterprise-base-url", "", "Base url to use when using GitHub Enterprise (e.g. https://ghe.example.com/api/v3")
 	command.Flags().BoolVar(&upsert, "upsert", false, "Override an existing repository with the same name even if the spec differs")
 	command.Flags().BoolVar(&repo.EnableOCI, "enable-oci", false, "Specifies whether helm-oci support should be enabled for this repo")
-	command.Flags().StringVar(&repo.Type, "type", common.DefaultRepoType, "type of the repository, \"git\" or \"helm\"")
+	command.Flags().StringVar(&repo.Type, "type", common.DefaultRepoType, "Type of the repository, \"git\" or \"helm\"")
 	return command
 }
 
