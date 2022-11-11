@@ -488,6 +488,42 @@ func TestCreateAppWithDestName(t *testing.T) {
 	assert.Equal(t, app.Spec.Destination.Server, "https://cluster-api.com")
 }
 
+func TestCreateAppWithInvalidNameLength(t *testing.T) {
+	setLongName := func(app *appsv1.Application) {
+		app.ObjectMeta.Name = "example-cluster-example-namespace-service-example-xxxxx-xxxxxxxxxxxxx"
+	}
+	testApp := newTestApp(setLongName)
+	appServer := newTestAppServer()
+	testApp.Spec.Project = ""
+	createReq := application.ApplicationCreateRequest{
+		Application: testApp,
+	}
+	app, err := appServer.Create(context.Background(), &createReq)
+	assert.NoError(t, err)
+	assert.NotNil(t, app)
+	assert.NotNil(t, app.Spec)
+	assert.Equal(t, app.Spec.Project, "default")
+	assert.Equal(t, app.Name, "example-cluster-example-namespace-service-example-xxxxx-xxxxxxx")
+}
+
+func TestCreateAppWithValidNameLength(t *testing.T) {
+	setShortName := func(app *appsv1.Application) {
+		app.ObjectMeta.Name = "example-cluster"
+	}
+	testApp := newTestApp(setShortName)
+	appServer := newTestAppServer()
+	testApp.Spec.Project = ""
+	createReq := application.ApplicationCreateRequest{
+		Application: testApp,
+	}
+	app, err := appServer.Create(context.Background(), &createReq)
+	assert.NoError(t, err)
+	assert.NotNil(t, app)
+	assert.NotNil(t, app.Spec)
+	assert.Equal(t, app.Spec.Project, "default")
+	assert.Equal(t, app.Name, "example-cluster")
+}
+
 func TestUpdateApp(t *testing.T) {
 	testApp := newTestApp()
 	appServer := newTestAppServer(testApp)
