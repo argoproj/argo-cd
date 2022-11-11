@@ -1119,7 +1119,7 @@ export const urlPattern = new RegExp(
 );
 
 export function appQualifiedName(app: appModels.Application, nsEnabled: boolean): string {
-    return nsEnabled ? app.metadata.namespace + '/' + app.metadata.name : app.metadata.name;
+    return `${nsEnabled ? app.metadata.namespace + '/': ''}app.metadata.name`;
 }
 
 export function appInstanceName(app: appModels.Application): string {
