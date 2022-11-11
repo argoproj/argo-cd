@@ -21,8 +21,8 @@ export const ApplicationSelector = ({apps, formApi}: {apps: models.Application[]
                         <CheckboxField field={`app/${i}`} />
                         &nbsp;
                         {app.isAppOfAppsPattern
-                            ? `(App of Apps) ${appQualifiedName(app, authSettingsCtx.appsInAnyNamespaceEnabled)}`
-                            : appQualifiedName(app, authSettingsCtx.appsInAnyNamespaceEnabled)}
+                            ? `(App of Apps) ${appQualifiedName(app, authSettingsCtx?.appsInAnyNamespaceEnabled)}`
+                            : appQualifiedName(app, authSettingsCtx?.appsInAnyNamespaceEnabled)}
                         &nbsp;
                         <ComparisonStatusIcon status={app.status.sync.status} />
                         &nbsp;

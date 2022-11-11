@@ -131,7 +131,7 @@ export const ApplicationTiles = ({applications, syncApplication, refreshApplicat
                                                             <i className={'icon argo-icon-' + (app.spec.source.chart != null ? 'helm' : 'git')} />
                                                             <Tooltip content={AppUtils.appInstanceName(app)}>
                                                                 <span className='applications-list__title'>
-                                                                    {AppUtils.appQualifiedName(app, authSettingsCtx.appsInAnyNamespaceEnabled)}
+                                                                    {AppUtils.appQualifiedName(app, authSettingsCtx?.appsInAnyNamespaceEnabled)}
                                                                 </span>
                                                             </Tooltip>
                                                         </div>
