@@ -1,11 +1,11 @@
+extra:
+  analytics:
+    provider: google
+    property: UA-105170809-2
 extra_css:
 - assets/versions.css
 extra_javascript:
 - assets/versions.js
-extra:
-  analytics:
-    provider: google
-    property: UA-105170809-2 # FIXME
 markdown_extensions:
 - markdown_include.include
 - codehilite
