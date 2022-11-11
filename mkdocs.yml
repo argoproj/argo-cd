@@ -1,7 +1,7 @@
 extra:
   analytics:
-    provider: google
     property: UA-105170809-2
+    provider: google
 extra_css:
 - assets/versions.css
 extra_javascript:
