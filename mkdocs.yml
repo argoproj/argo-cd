@@ -175,7 +175,7 @@ nav:
 - faq.md
 - security_considerations.md
 - Support: SUPPORT.md
-- Roadmap ⧉: TBD
+- Roadmap ⧉: https://github.com/orgs/argoproj/projects/25
 - Releases ⧉: https://github.com/argoproj/argo-cd/releases
 - Blog ⧉: https://blog.argoproj.io/
 repo_url: https://github.com/argoproj/argo-cd
