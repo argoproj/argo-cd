@@ -26,6 +26,7 @@ import (
 	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
 	"k8s.io/apimachinery/pkg/fields"
 	"k8s.io/apimachinery/pkg/labels"
+	utilerrors "k8s.io/apimachinery/pkg/util/errors"
 	v1 "k8s.io/client-go/informers/core/v1"
 	"k8s.io/client-go/kubernetes"
 	v1listers "k8s.io/client-go/listers/core/v1"
@@ -1125,11 +1126,8 @@ func (mgr *SettingsManager) GetSettings() (*ArgoCDSettings, error) {
 	if err := mgr.updateSettingsFromSecret(&settings, argoCDSecret, secrets); err != nil {
 		errs = append(errs, err)
 	}
-	if len(errs) > 0 {
-		return &settings, errs[0]
-	}
 
-	return &settings, nil
+	return &settings, utilerrors.NewAggregate(errs)
 }
 
 // Clears cached settings on configmap/secret change
@@ -1367,10 +1365,7 @@ func (mgr *SettingsManager) updateSettingsFromSecret(settings *ArgoCDSettings, a
 		secretValues[k] = string(v)
 	}
 	settings.Secrets = secretValues
-	if len(errs) > 0 {
-		return errs[0]
-	}
-	return nil
+	return utilerrors.NewAggregate(errs)
 }
 
 // externalServerTLSCertificate will try and load a TLS certificate from an

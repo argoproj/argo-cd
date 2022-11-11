@@ -177,8 +177,8 @@ func TestInClusterServerAddressEnabledByDefault(t *testing.T) {
 				},
 			},
 			Data: map[string][]byte{
-				"admin.password":   nil,
-				"server.secretkey": nil,
+				"admin.password":          nil,
+				settingServerSignatureKey: nil,
 			},
 		},
 	)
@@ -700,7 +700,7 @@ func TestSettingsManager_GetSettings(t *testing.T) {
 					},
 				},
 				Data: map[string][]byte{
-					"server.secretkey": nil,
+					settingServerSignatureKey: nil,
 				},
 			},
 		)
@@ -732,7 +732,7 @@ func TestSettingsManager_GetSettings(t *testing.T) {
 					},
 				},
 				Data: map[string][]byte{
-					"server.secretkey": nil,
+					settingServerSignatureKey: nil,
 				},
 			},
 		)
@@ -764,7 +764,7 @@ func TestSettingsManager_GetSettings(t *testing.T) {
 					},
 				},
 				Data: map[string][]byte{
-					"server.secretkey": nil,
+					settingServerSignatureKey: nil,
 				},
 			},
 		)
@@ -798,8 +798,8 @@ func TestGetOIDCConfig(t *testing.T) {
 				},
 			},
 			Data: map[string][]byte{
-				"admin.password":   nil,
-				"server.secretkey": nil,
+				"admin.password":          nil,
+				settingServerSignatureKey: nil,
 			},
 		},
 	)
@@ -878,8 +878,8 @@ func TestGetOIDCSecretTrim(t *testing.T) {
 				},
 			},
 			Data: map[string][]byte{
-				"admin.password":   nil,
-				"server.secretkey": nil,
+				"admin.password":          nil,
+				settingServerSignatureKey: nil,
 			},
 		},
 	)
@@ -924,8 +924,8 @@ func Test_GetTLSConfiguration(t *testing.T) {
 					},
 				},
 				Data: map[string][]byte{
-					"admin.password":   nil,
-					"server.secretkey": nil,
+					"admin.password":          nil,
+					settingServerSignatureKey: nil,
 				},
 			},
 			&v1.Secret{
@@ -970,10 +970,10 @@ func Test_GetTLSConfiguration(t *testing.T) {
 					},
 				},
 				Data: map[string][]byte{
-					"admin.password":   nil,
-					"server.secretkey": nil,
-					"tls.crt":          []byte(testutil.MustLoadFileToString("../../test/fixture/certs/argocd-e2e-server.crt")),
-					"tls.key":          []byte(testutil.MustLoadFileToString("../../test/fixture/certs/argocd-e2e-server.key")),
+					"admin.password":          nil,
+					settingServerSignatureKey: nil,
+					"tls.crt":                 []byte(testutil.MustLoadFileToString("../../test/fixture/certs/argocd-e2e-server.crt")),
+					"tls.key":                 []byte(testutil.MustLoadFileToString("../../test/fixture/certs/argocd-e2e-server.key")),
 				},
 			},
 			&v1.Secret{
@@ -1017,8 +1017,8 @@ func Test_GetTLSConfiguration(t *testing.T) {
 					},
 				},
 				Data: map[string][]byte{
-					"admin.password":   nil,
-					"server.secretkey": nil,
+					"admin.password":          nil,
+					settingServerSignatureKey: nil,
 				},
 			},
 			&v1.Secret{
@@ -1035,6 +1035,50 @@ func Test_GetTLSConfiguration(t *testing.T) {
 		settingsManager := NewSettingsManager(context.Background(), kubeClient, "default")
 		settings, err := settingsManager.GetSettings()
 		assert.Error(t, err)
+		assert.Contains(t, err.Error(), "could not read from secret")
+		assert.NotNil(t, settings)
+	})
+	t.Run("Invalid external TLS secret  and server.secretkey is missing", func(t *testing.T) {
+		kubeClient := fake.NewSimpleClientset(
+			&v1.ConfigMap{
+				ObjectMeta: metav1.ObjectMeta{
+					Name:      common.ArgoCDConfigMapName,
+					Namespace: "default",
+					Labels: map[string]string{
+						"app.kubernetes.io/part-of": "argocd",
+					},
+				},
+				Data: map[string]string{
+					"oidc.config": "\n  name: Okta\n  clientSecret: test-secret\r\n \n  clientID: aaaabbbbccccddddeee\n",
+				},
+			},
+			&v1.Secret{
+				ObjectMeta: metav1.ObjectMeta{
+					Name:      common.ArgoCDSecretName,
+					Namespace: "default",
+					Labels: map[string]string{
+						"app.kubernetes.io/part-of": "argocd",
+					},
+				},
+				Data: map[string][]byte{
+					"admin.password": nil,
+				},
+			},
+			&v1.Secret{
+				ObjectMeta: metav1.ObjectMeta{
+					Name:      externalServerTLSSecretName,
+					Namespace: "default",
+				},
+				Data: map[string][]byte{
+					"tls.crt": []byte(""),
+					"tls.key": []byte(""),
+				},
+			},
+		)
+		settingsManager := NewSettingsManager(context.Background(), kubeClient, "default")
+		settings, err := settingsManager.GetSettings()
+		assert.Error(t, err)
+		assert.Contains(t, err.Error(), "server.secretkey is missing")
 		assert.Contains(t, err.Error(), "could not read from secret")
 		assert.NotNil(t, settings)
 	})
@@ -1061,10 +1105,10 @@ func Test_GetTLSConfiguration(t *testing.T) {
 					},
 				},
 				Data: map[string][]byte{
-					"admin.password":   nil,
-					"server.secretkey": nil,
-					"tls.crt":          []byte(testutil.MustLoadFileToString("../../test/fixture/certs/argocd-e2e-server.crt")),
-					"tls.key":          []byte(testutil.MustLoadFileToString("../../test/fixture/certs/argocd-e2e-server.key")),
+					"admin.password":          nil,
+					settingServerSignatureKey: nil,
+					"tls.crt":                 []byte(testutil.MustLoadFileToString("../../test/fixture/certs/argocd-e2e-server.crt")),
+					"tls.key":                 []byte(testutil.MustLoadFileToString("../../test/fixture/certs/argocd-e2e-server.key")),
 				},
 			},
 		)
@@ -1127,8 +1171,8 @@ requestedIDTokenClaims: {"groups": {"essential": true}}`,
 			Namespace: "default",
 		},
 		Data: map[string][]byte{
-			"admin.password":   nil,
-			"server.secretkey": nil,
+			"admin.password":          nil,
+			settingServerSignatureKey: nil,
 		},
 	}
 	secret := &v1.Secret{
@@ -1194,8 +1238,8 @@ func TestGetEnableManifestGeneration(t *testing.T) {
 					Namespace: "default",
 				},
 				Data: map[string][]byte{
-					"admin.password":   nil,
-					"server.secretkey": nil,
+					"admin.password":          nil,
+					settingServerSignatureKey: nil,
 				},
 			}
 
@@ -1252,8 +1296,8 @@ func TestGetHelmSettings(t *testing.T) {
 					Namespace: "default",
 				},
 				Data: map[string][]byte{
-					"admin.password":   nil,
-					"server.secretkey": nil,
+					"admin.password":          nil,
+					settingServerSignatureKey: nil,
 				},
 			}
 			secret := &v1.Secret{
