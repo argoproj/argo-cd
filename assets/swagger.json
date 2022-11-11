@@ -6544,6 +6544,23 @@
         }
       }
     },
+    "v1alpha1ManagedNamespaceMetadata": {
+      "type": "object",
+      "properties": {
+        "annotations": {
+          "type": "object",
+          "additionalProperties": {
+            "type": "string"
+          }
+        },
+        "labels": {
+          "type": "object",
+          "additionalProperties": {
+            "type": "string"
+          }
+        }
+      }
+    },
     "v1alpha1MatrixGenerator": {
       "description": "MatrixGenerator generates the cartesian product of two sets of parameters. The parameters are defined by two nested\ngenerators.",
       "type": "object",
@@ -7826,6 +7843,9 @@
       "properties": {
         "automated": {
           "$ref": "#/definitions/v1alpha1SyncPolicyAutomated"
+        },
+        "managedNamespaceMetadata": {
+          "$ref": "#/definitions/v1alpha1ManagedNamespaceMetadata"
         },
         "retry": {
           "$ref": "#/definitions/v1alpha1RetryStrategy"

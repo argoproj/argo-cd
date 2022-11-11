@@ -144,7 +144,7 @@ func (cg *ClusterGenerator) installVCluster(opts *util.GenerateOpts, namespace s
 		return err
 	}
 	log.Print("Execute helm install command")
-	_, err = cmd.Freestyle("install", releaseName, "vcluster", "--values", opts.ClusterOpts.ValuesFilePath, "--repo", "https://charts.loft.sh", "--namespace", namespace, "--repository-config", "", "--create-namespace", "--wait")
+	_, err = cmd.Freestyle("upgrade", "--install", releaseName, "vcluster", "--values", opts.ClusterOpts.ValuesFilePath, "--repo", "https://charts.loft.sh", "--namespace", namespace, "--repository-config", "", "--create-namespace", "--wait")
 	if err != nil {
 		return err
 	}
@@ -157,11 +157,13 @@ func (cg *ClusterGenerator) getClusterServerUri(namespace string, releaseSuffix 
 		return "", err
 	}
 	// TODO: should be moved to service instead pod
+	log.Printf("Get service for https://" + pod.Status.PodIP + ":8443")
 	return "https://" + pod.Status.PodIP + ":8443", nil
 }
 
 func (cg *ClusterGenerator) retrieveClusterUri(namespace, releaseSuffix string) (string, error) {
-	for i := 0; i < 3; i++ {
+	for i := 0; i < 10; i++ {
+		log.Printf("Attempting to get cluster uri")
 		uri, err := cg.getClusterServerUri(namespace, releaseSuffix)
 		if err != nil {
 			log.Printf("Failed to get cluster uri due to %s", err.Error())
@@ -174,8 +176,8 @@ func (cg *ClusterGenerator) retrieveClusterUri(namespace, releaseSuffix string) 
 }
 
 func (cg *ClusterGenerator) Generate(opts *util.GenerateOpts) error {
-	for i := 0; i < opts.ClusterOpts.Samples; i++ {
-		log.Printf("Generate cluster #%v", i)
+	for i := 1; i <= opts.ClusterOpts.Samples; i++ {
+		log.Printf("Generate cluster #%v of #%v", i, opts.ClusterOpts.Samples)
 
 		namespace := opts.ClusterOpts.NamespacePrefix + "-" + util.GetRandomString()
 
@@ -193,9 +195,19 @@ func (cg *ClusterGenerator) Generate(opts *util.GenerateOpts) error {
 
 		log.Print("Get cluster credentials")
 		caData, cert, key, err := cg.getClusterCredentials(namespace, releaseSuffix)
+
+		for o := 0; o < 5; o++ {
+			if err == nil {
+				break
+			}
+			log.Printf("Failed to get cluster credentials %s, retrying...", releaseSuffix)
+			time.Sleep(10 * time.Second) 
+			caData, cert, key, err = cg.getClusterCredentials(namespace, releaseSuffix)
+		}
 		if err != nil {
 			return err
 		}
+		
 
 		log.Print("Get cluster server uri")
 

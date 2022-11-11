@@ -7,6 +7,7 @@ import (
 	"github.com/sirupsen/logrus"
 	logtest "github.com/sirupsen/logrus/hooks/test"
 	"github.com/stretchr/testify/assert"
+	"github.com/stretchr/testify/require"
 	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
 	"k8s.io/apimachinery/pkg/runtime"
 	"k8s.io/apimachinery/pkg/types"
@@ -461,7 +462,49 @@ func TestRenderTemplateParamsGoTemplate(t *testing.T) {
 			}
 		})
 	}
+}
 
+func TestRenderTemplateKeys(t *testing.T) {
+	t.Run("fasttemplate", func(t *testing.T) {
+		application := &argoappsv1.Application{
+			ObjectMeta: metav1.ObjectMeta{
+				Annotations: map[string]string{
+					"annotation-{{key}}": "annotation-{{value}}",
+				},
+			},
+		}
+
+		params := map[string]interface{}{
+			"key":   "some-key",
+			"value": "some-value",
+		}
+
+		render := Render{}
+		newApplication, err := render.RenderTemplateParams(application, nil, params, false)
+		require.NoError(t, err)
+		require.Contains(t, newApplication.ObjectMeta.Annotations, "annotation-some-key")
+		assert.Equal(t, newApplication.ObjectMeta.Annotations["annotation-some-key"], "annotation-some-value")
+	})
+	t.Run("gotemplate", func(t *testing.T) {
+		application := &argoappsv1.Application{
+			ObjectMeta: metav1.ObjectMeta{
+				Annotations: map[string]string{
+					"annotation-{{ .key }}": "annotation-{{ .value }}",
+				},
+			},
+		}
+
+		params := map[string]interface{}{
+			"key":   "some-key",
+			"value": "some-value",
+		}
+
+		render := Render{}
+		newApplication, err := render.RenderTemplateParams(application, nil, params, true)
+		require.NoError(t, err)
+		require.Contains(t, newApplication.ObjectMeta.Annotations, "annotation-some-key")
+		assert.Equal(t, newApplication.ObjectMeta.Annotations["annotation-some-key"], "annotation-some-value")
+	})
 }
 
 func TestRenderTemplateParamsFinalizers(t *testing.T) {

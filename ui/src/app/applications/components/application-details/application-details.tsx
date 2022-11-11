@@ -29,7 +29,7 @@ import {ResourceStatus} from '../../../shared/models';
 import {ApplicationsDetailsAppDropdown} from './application-details-app-dropdown';
 import {useSidebarTarget} from '../../../sidebar/sidebar';
 
-require('./application-details.scss');
+import './application-details.scss';
 
 interface ApplicationDetailsState {
     page: number;
