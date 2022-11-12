@@ -292,11 +292,11 @@ func saveToFile(err error, outputFormat string, result reconcileResults, outputP
 	switch outputFormat {
 	case "yaml":
 		if data, err = yaml.Marshal(result); err != nil {
-			return err
+			return fmt.Errorf("error marshalling yaml: %w", err)
 		}
 	case "json":
 		if data, err = json.Marshal(result); err != nil {
-			return err
+			return fmt.Errorf("error marshalling json: %w", err)
 		}
 	default:
 		return fmt.Errorf("format %s is not supported", outputFormat)

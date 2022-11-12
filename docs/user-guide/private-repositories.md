@@ -34,11 +34,6 @@ or UI:
 
 1. Click `Connect` to test the connection and have the repository added 
 
-> earlier than v1.2
-
-1. Navigate to `Settings/Repositories`
-1. Click `Connect Repo` button and enter HTTPS credentials
-
 ![connect repo](../assets/connect-repo.png)
 
 #### Access Token
@@ -108,14 +103,6 @@ Using the UI:
 
 !!!note 
     When your SSH repository is served from a non-standard port, you have to use `ssh://`-style URLs to specify your repository. The scp-style `git@yourgit.com:yourrepo` URLs do **not** support port specification, and will treat any port number as part of the repository's path.
-
-> earlier than v1.2
-
-The Argo CD UI don't support configuring SSH credentials. The SSH credentials can only be configured using the Argo CD CLI:
-
-```
-argocd repo add git@github.com:argoproj/argocd-example-apps.git --ssh-private-key-path ~/.ssh/id_rsa
-```
 
 ### GitHub App Credential
 
@@ -268,12 +255,6 @@ It is possible to add and remove TLS certificates using the ArgoCD web UI:
 You can also manage TLS certificates in a declarative, self-managed ArgoCD setup. All TLS certificates are stored in the ConfigMap object `argocd-tls-cert-cm`.
 Please refer to the [Operator Manual](../../operator-manual/declarative-setup/#repositories-using-self-signed-tls-certificates-or-are-signed-by-custom-ca) for more information.
 
-> Before v1.2
-
-We do not currently have first-class support for this. See [#1513](https://github.com/argoproj/argo-cd/issues/1513).
-
-As a work-around, you can customize your Argo CD image. See [#1344](https://github.com/argoproj/argo-cd/issues/1344#issuecomment-479811810)
-
 ## Unknown SSH Hosts
 
 If you are using a privately hosted Git service over SSH, then you have the following  options:
@@ -351,28 +332,7 @@ It is possible to add and remove SSH known hosts entries using the ArgoCD web UI
 
 ### Managing SSH known hosts data using declarative setup
 
-You can also manage SSH known hosts entries in a declarative, self-managed ArgoCD setup. All SSH public host keys are stored in the ConfigMap object `argocd-ssh-known-hosts-cm`. For more details, please refer to the [Operator Manual](../../operator-manual/declarative-setup/#ssh-known-host-public-keys)
-
-> Before v1.2
-
- 
-(1) You can customize the Argo CD Docker image by adding the host's SSH public key to `/etc/ssh/ssh_known_hosts`. Additional entries to this file can be generated using the `ssh-keyscan` utility (e.g. `ssh-keyscan your-private-git-server.com`. For more information see [example](https://github.com/argoproj/argo-cd/tree/master/examples/known-hosts) which demonstrates how `/etc/ssh/ssh_known_hosts` can be customized.
-
-!!! note
-    The `/etc/ssh/ssh_known_hosts` should include Git host on each Argo CD deployment as well as on a computer where `argocd repo add` is executed. After resolving issue
-    [#1514](https://github.com/argoproj/argo-cd/issues/1514) only `argocd-repo-server` deployment has to be customized.
-
-(1) Add repository using Argo CD CLI and `--insecure-ignore-host-key` flag:
-
-```bash
-argocd repo add git@github.com:argoproj/argocd-example-apps.git --ssh-private-key-path ~/.ssh/id_rsa --insecure-ignore-host-key 
-```
-
-!!! warning "Don't use in production"
-    The `--insecure-ignore-host-key` should not be used in production as this is subject to man-in-the-middle attacks. 
-
-!!! warning "This does not work for Kustomize remote bases or custom plugins"
-    For Kustomize support, see [#827](https://github.com/argoproj/argo-cd/issues/827).
+You can also manage SSH known hosts entries in a declarative, self-managed ArgoCD setup. All SSH public host keys are stored in the ConfigMap object `argocd-ssh-known-hosts-cm`. For more details, please refer to the [Operator Manual](../operator-manual/declarative-setup.md#ssh-known-host-public-keys).
 
 ## Git Submodules
 
@@ -380,5 +340,5 @@ Submodules are supported and will be picked up automatically. If the submodule r
 
 ## Declarative Configuration
 
-See [declarative setup](../../operator-manual/declarative-setup#repositories)
+See [declarative setup](../operator-manual/declarative-setup.md#repositories)
 

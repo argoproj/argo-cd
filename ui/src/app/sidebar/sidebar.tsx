@@ -33,6 +33,17 @@ export const Sidebar = (props: SidebarProps) => {
     const [version, loading, error] = useData(() => services.version.version());
     const locationPath = context.history.location.pathname;
 
+    const tooltipProps = {
+        placement: 'right',
+        popperOptions: {
+            modifiers: {
+                preventOverflow: {
+                    boundariesElement: 'window'
+                }
+            }
+        }
+    };
+
     return (
         <div className={`sidebar ${props.pref.hideSidebar ? 'sidebar--collapsed' : ''}`}>
             <div className='sidebar__logo'>
@@ -42,17 +53,7 @@ export const Sidebar = (props: SidebarProps) => {
                 {loading ? 'Loading...' : error?.state ? 'Unknown' : version?.Version || 'Unknown'}
             </div>
             {(props.navItems || []).map(item => (
-                <Tooltip
-                    key={item.path}
-                    content={item?.tooltip || item.title}
-                    placement='right'
-                    popperOptions={{
-                        modifiers: {
-                            preventOverflow: {
-                                boundariesElement: 'window'
-                            }
-                        }
-                    }}>
+                <Tooltip key={item.path} content={item?.tooltip || item.title} {...tooltipProps}>
                     <div
                         key={item.title}
                         className={`sidebar__nav-item ${locationPath === item.path || locationPath.startsWith(`${item.path}/`) ? 'sidebar__nav-item--active' : ''}`}
@@ -69,6 +70,15 @@ export const Sidebar = (props: SidebarProps) => {
             <div onClick={() => services.viewPreferences.updatePreferences({...props.pref, hideSidebar: !props.pref.hideSidebar})} className='sidebar__collapse-button'>
                 <i className={`fas fa-arrow-${props.pref.hideSidebar ? 'right' : 'left'}`} />
             </div>
+            {props.pref.hideSidebar && (
+                <div onClick={() => services.viewPreferences.updatePreferences({...props.pref, hideSidebar: !props.pref.hideSidebar})} className='sidebar__collapse-button'>
+                    <Tooltip content='Show Filters' {...tooltipProps}>
+                        <div className='sidebar__nav-item'>
+                            <i className={`fas fa-filter`} style={{fontSize: '14px', margin: '0 auto'}} />
+                        </div>
+                    </Tooltip>
+                </div>
+            )}
             <div id={SIDEBAR_TOOLS_ID} />
         </div>
     );

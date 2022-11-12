@@ -6544,6 +6544,23 @@
         }
       }
     },
+    "v1alpha1ManagedNamespaceMetadata": {
+      "type": "object",
+      "properties": {
+        "annotations": {
+          "type": "object",
+          "additionalProperties": {
+            "type": "string"
+          }
+        },
+        "labels": {
+          "type": "object",
+          "additionalProperties": {
+            "type": "string"
+          }
+        }
+      }
+    },
     "v1alpha1MatrixGenerator": {
       "description": "MatrixGenerator generates the cartesian product of two sets of parameters. The parameters are defined by two nested\ngenerators.",
       "type": "object",
@@ -7423,6 +7440,10 @@
         "status": {
           "type": "string"
         },
+        "syncWave": {
+          "type": "string",
+          "format": "int64"
+        },
         "version": {
           "type": "string"
         }
@@ -7478,8 +7499,8 @@
           "$ref": "#/definitions/v1Time"
         },
         "message": {
-          "type": "string",
-          "title": "Message contains the message associated with the revision, most likely the commit message.\nThe message is truncated to the first newline or 64 characters (which ever comes first)"
+          "description": "Message contains the message associated with the revision, most likely the commit message.",
+          "type": "string"
         },
         "signatureInfo": {
           "description": "SignatureInfo contains a hint on the signer if the revision was signed with GPG, and signature verification is enabled.",
@@ -7822,6 +7843,9 @@
       "properties": {
         "automated": {
           "$ref": "#/definitions/v1alpha1SyncPolicyAutomated"
+        },
+        "managedNamespaceMetadata": {
+          "$ref": "#/definitions/v1alpha1ManagedNamespaceMetadata"
         },
         "retry": {
           "$ref": "#/definitions/v1alpha1RetryStrategy"

@@ -9,7 +9,7 @@ metadata:
   labels:
     heritage: Helm
     release: argocd
-    chart: redis-ha-4.17.8
+    chart: redis-ha-4.22.3
     app: argocd-redis-ha
 ---
 # Source: redis-ha/charts/redis-ha/templates/redis-haproxy-serviceaccount.yaml
@@ -21,7 +21,7 @@ metadata:
   labels:
     heritage: Helm
     release: argocd
-    chart: redis-ha-4.17.8
+    chart: redis-ha-4.22.3
     app: argocd-redis-ha
 ---
 # Source: redis-ha/charts/redis-ha/templates/redis-ha-configmap.yaml
@@ -33,7 +33,7 @@ metadata:
   labels:
     heritage: Helm
     release: argocd
-    chart: redis-ha-4.17.8
+    chart: redis-ha-4.22.3
     app: argocd-redis-ha
 data:
   redis.conf: |
@@ -41,7 +41,6 @@ data:
     port 6379
     rename-command FLUSHDB ""
     rename-command FLUSHALL ""
-    bind 0.0.0.0
     maxmemory 0
     maxmemory-policy volatile-lru
     min-replicas-max-lag 5
@@ -54,7 +53,6 @@ data:
   sentinel.conf: |
     dir "/data"
     port 26379
-    bind 0.0.0.0
         sentinel down-after-milliseconds argocd 10000
         sentinel failover-timeout argocd 180000
         maxclients 10000
@@ -176,11 +174,11 @@ data:
             echo "Getting redis master ip.."
             echo "  blindly assuming (${SERVICE}-announce-0) or (${SERVICE}-server-0) are master"
             DEFAULT_MASTER="$(getent_hosts 0 | awk '{ print $1 }')"
-            echo "  identified redis (may be redis master) ip (${DEFAULT_MASTER})"
             if [ -z "${DEFAULT_MASTER}" ]; then
                 echo "Error: Unable to resolve redis master (getent hosts)."
                 exit 1
             fi
+            echo "  identified redis (may be redis master) ip (${DEFAULT_MASTER})"
             echo "Setting default slave config for redis and sentinel.."
             echo "  using master ip (${DEFAULT_MASTER})"
             redis_update "${DEFAULT_MASTER}"
@@ -277,11 +275,7 @@ data:
     getent_hosts() {
         index=${1:-${INDEX}}
         service="${SERVICE}-announce-${index}"
-        pod="${SERVICE}-server-${index}"
         host=$(getent hosts "${service}")
-        if [ -z "${host}" ]; then
-            host=$(getent hosts "${pod}")
-        fi
         echo "${host}"
     }
 
@@ -443,11 +437,11 @@ data:
             echo "Getting redis master ip.."
             echo "  blindly assuming (${SERVICE}-announce-0) or (${SERVICE}-server-0) are master"
             DEFAULT_MASTER="$(getent_hosts 0 | awk '{ print $1 }')"
-            echo "  identified redis (may be redis master) ip (${DEFAULT_MASTER})"
             if [ -z "${DEFAULT_MASTER}" ]; then
                 echo "Error: Unable to resolve redis master (getent hosts)."
                 exit 1
             fi
+            echo "  identified redis (may be redis master) ip (${DEFAULT_MASTER})"
             echo "Setting default slave config for redis and sentinel.."
             echo "  using master ip (${DEFAULT_MASTER})"
             redis_update "${DEFAULT_MASTER}"
@@ -544,11 +538,7 @@ data:
     getent_hosts() {
         index=${1:-${INDEX}}
         service="${SERVICE}-announce-${index}"
-        pod="${SERVICE}-server-${index}"
         host=$(getent hosts "${service}")
-        if [ -z "${host}" ]; then
-            host=$(getent hosts "${pod}")
-        fi
         echo "${host}"
     }
 
@@ -593,18 +583,24 @@ data:
 
     identify_announce_ip
 
+    while [ -z "${ANNOUNCE_IP}" ]; do
+        echo "Error: Could not resolve the announce ip for this pod."
+        sleep 30
+        identify_announce_ip
+    done
+
     while true; do
         sleep 60
 
         # where is redis master
         identify_master
 
-        if [ "$MASTER" == "$ANNOUNCE_IP" ]; then
+        if [ "$MASTER" = "$ANNOUNCE_IP" ]; then
             redis_role
             if [ "$ROLE" != "master" ]; then
                 reinit
             fi
-        else
+        elif [ "${MASTER}" ]; then
             identify_redis_master
             if [ "$REDIS_MASTER" != "$MASTER" ]; then
                 reinit
@@ -622,7 +618,7 @@ data:
       timeout check 2s
 
     listen health_check_http_url
-      bind [::]:8888 v4v6
+      bind [::]:8888  v4v6
       mode http
       monitor-uri /healthz
       option      dontlognull
@@ -636,7 +632,6 @@ data:
       tcp-check send SENTINEL\ get-master-addr-by-name\ argocd\r\n
       tcp-check expect string REPLACE_ANNOUNCE0
       tcp-check send QUIT\r\n
-      tcp-check expect string +OK
       server R0 argocd-redis-ha-announce-0:26379 check inter 3s
       server R1 argocd-redis-ha-announce-1:26379 check inter 3s
       server R2 argocd-redis-ha-announce-2:26379 check inter 3s
@@ -650,7 +645,6 @@ data:
       tcp-check send SENTINEL\ get-master-addr-by-name\ argocd\r\n
       tcp-check expect string REPLACE_ANNOUNCE1
       tcp-check send QUIT\r\n
-      tcp-check expect string +OK
       server R0 argocd-redis-ha-announce-0:26379 check inter 3s
       server R1 argocd-redis-ha-announce-1:26379 check inter 3s
       server R2 argocd-redis-ha-announce-2:26379 check inter 3s
@@ -664,7 +658,6 @@ data:
       tcp-check send SENTINEL\ get-master-addr-by-name\ argocd\r\n
       tcp-check expect string REPLACE_ANNOUNCE2
       tcp-check send QUIT\r\n
-      tcp-check expect string +OK
       server R0 argocd-redis-ha-announce-0:26379 check inter 3s
       server R1 argocd-redis-ha-announce-1:26379 check inter 3s
       server R2 argocd-redis-ha-announce-2:26379 check inter 3s
@@ -764,7 +757,7 @@ metadata:
   labels:
     heritage: Helm
     release: argocd
-    chart: redis-ha-4.17.8
+    chart: redis-ha-4.22.3
     app: argocd-redis-ha
 data:
   redis_liveness.sh: |
@@ -814,7 +807,7 @@ metadata:
     app: redis-ha
     heritage: "Helm"
     release: "argocd"
-    chart: redis-ha-4.17.8
+    chart: redis-ha-4.22.3
 rules:
 - apiGroups:
     - ""
@@ -833,7 +826,7 @@ metadata:
     app: redis-ha
     heritage: "Helm"
     release: "argocd"
-    chart: redis-ha-4.17.8
+    chart: redis-ha-4.22.3
     component: argocd-redis-ha-haproxy
 rules:
 - apiGroups:
@@ -853,7 +846,7 @@ metadata:
     app: redis-ha
     heritage: "Helm"
     release: "argocd"
-    chart: redis-ha-4.17.8
+    chart: redis-ha-4.22.3
 subjects:
 - kind: ServiceAccount
   name: argocd-redis-ha
@@ -872,7 +865,7 @@ metadata:
     app: redis-ha
     heritage: "Helm"
     release: "argocd"
-    chart: redis-ha-4.17.8
+    chart: redis-ha-4.22.3
     component: argocd-redis-ha-haproxy
 subjects:
 - kind: ServiceAccount
@@ -892,7 +885,7 @@ metadata:
     app: redis-ha
     heritage: "Helm"
     release: "argocd"
-    chart: redis-ha-4.17.8
+    chart: redis-ha-4.22.3
   annotations:
     service.alpha.kubernetes.io/tolerate-unready-endpoints: "true"
 spec:
@@ -922,7 +915,7 @@ metadata:
     app: redis-ha
     heritage: "Helm"
     release: "argocd"
-    chart: redis-ha-4.17.8
+    chart: redis-ha-4.22.3
   annotations:
     service.alpha.kubernetes.io/tolerate-unready-endpoints: "true"
 spec:
@@ -952,7 +945,7 @@ metadata:
     app: redis-ha
     heritage: "Helm"
     release: "argocd"
-    chart: redis-ha-4.17.8
+    chart: redis-ha-4.22.3
   annotations:
     service.alpha.kubernetes.io/tolerate-unready-endpoints: "true"
 spec:
@@ -982,7 +975,7 @@ metadata:
     app: redis-ha
     heritage: "Helm"
     release: "argocd"
-    chart: redis-ha-4.17.8
+    chart: redis-ha-4.22.3
   annotations:
 spec:
   type: ClusterIP
@@ -1010,7 +1003,7 @@ metadata:
     app: redis-ha
     heritage: "Helm"
     release: "argocd"
-    chart: redis-ha-4.17.8
+    chart: redis-ha-4.22.3
     component: argocd-redis-ha-haproxy
   annotations:
 spec:
@@ -1034,7 +1027,7 @@ metadata:
     app: redis-ha
     heritage: "Helm"
     release: "argocd"
-    chart: redis-ha-4.17.8
+    chart: redis-ha-4.22.3
 spec:
   strategy:
     type: RollingUpdate
@@ -1052,11 +1045,15 @@ spec:
         release: argocd
         revision: "1"
       annotations:
-        checksum/config: 33967cee643b636d6e9a66e82b7f85814ceb8c55fba7a1d8af439ef056934e5c
+        checksum/config: 1f7a9ffcacb3871ceb9b0741c0714e3f7fa656d426a398c1f727fffb01073f35
     spec:
       # Needed when using unmodified rbac-setup.yml
       
       serviceAccountName: argocd-redis-ha-haproxy
+      securityContext: 
+        fsGroup: 99
+        runAsNonRoot: true
+        runAsUser: 99
       nodeSelector:
         {}
       tolerations:
@@ -1080,20 +1077,20 @@ spec:
         - sh
         args:
         - /readonly/haproxy_init.sh
+        securityContext: 
+          null
         volumeMounts:
         - name: config-volume
           mountPath: /readonly
           readOnly: true
         - name: data
           mountPath: /data
-      securityContext:
-        fsGroup: 1000
-        runAsNonRoot: true
-        runAsUser: 1000
       containers:
       - name: haproxy
         image: haproxy:2.6.2-alpine
         imagePullPolicy: IfNotPresent
+        securityContext: 
+          null
         livenessProbe:
           httpGet:
             path: /healthz
@@ -1140,7 +1137,7 @@ metadata:
     app: redis-ha
     heritage: "Helm"
     release: "argocd"
-    chart: redis-ha-4.17.8
+    chart: redis-ha-4.22.3
   annotations:
     {}
 spec:
@@ -1156,7 +1153,7 @@ spec:
   template:
     metadata:
       annotations:
-        checksum/init-config: 226aec192d2f29b5355769c9f1fbf093bf36c3a1e15b574b71fb8fe73fd37c05
+        checksum/init-config: 84ccf6a9b8a7fa3ae5b62a8f17d6c65a5197e9605da9b2761179bf942828eefe
       labels:
         release: argocd
         app: redis-ha
@@ -1172,7 +1169,7 @@ spec:
                   release: argocd
                   argocd-redis-ha: replica
               topologyKey: kubernetes.io/hostname
-      securityContext:
+      securityContext: 
         fsGroup: 1000
         runAsNonRoot: true
         runAsUser: 1000
@@ -1188,6 +1185,8 @@ spec:
         - sh
         args:
         - /readonly-config/init.sh
+        securityContext: 
+          null        
         env:
         - name: SENTINEL_ID_0
           value: 3c0d9c0320bb34888c2df5757c718ce6ca992ce6
@@ -1211,6 +1210,8 @@ spec:
         - redis-server
         args:
         - /data/conf/redis.conf
+        securityContext: 
+          null
         livenessProbe:
           initialDelaySeconds: 30
           periodSeconds: 15
@@ -1259,6 +1260,8 @@ spec:
           - redis-sentinel
         args:
           - /data/conf/sentinel.conf
+        securityContext: 
+          null
         livenessProbe:
           initialDelaySeconds: 30
           periodSeconds: 15
@@ -1301,6 +1304,8 @@ spec:
           - sh
         args:
           - /readonly-config/fix-split-brain.sh
+        securityContext: 
+          null        
         env:
         - name: SENTINEL_ID_0
           value: 3c0d9c0320bb34888c2df5757c718ce6ca992ce6

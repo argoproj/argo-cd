@@ -5,16 +5,15 @@ redis-ha:
     masterGroupName: argocd
     config:
       save: "\"\""
-      bind: "0.0.0.0"
   haproxy:
     enabled: true
     image:
       tag: 2.6.2-alpine
+    containerSecurityContext: null
     timeout:
       server: 6m
       client: 6m
     checkInterval: 3s
   image:
     tag: 7.0.5-alpine
-  sentinel:
-    bind: "0.0.0.0"
+  containerSecurityContext: null

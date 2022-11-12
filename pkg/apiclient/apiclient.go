@@ -33,7 +33,6 @@ import (
 	"github.com/argoproj/argo-cd/v2/common"
 	accountpkg "github.com/argoproj/argo-cd/v2/pkg/apiclient/account"
 	applicationpkg "github.com/argoproj/argo-cd/v2/pkg/apiclient/application"
-
 	applicationsetpkg "github.com/argoproj/argo-cd/v2/pkg/apiclient/applicationset"
 	certificatepkg "github.com/argoproj/argo-cd/v2/pkg/apiclient/certificate"
 	clusterpkg "github.com/argoproj/argo-cd/v2/pkg/apiclient/cluster"
@@ -233,7 +232,7 @@ func NewClient(opts *ClientOptions) (Client, error) {
 		c.AuthToken = authFromEnv
 	}
 	if opts.AuthToken != "" {
-		c.AuthToken = opts.AuthToken
+		c.AuthToken = strings.TrimSpace(opts.AuthToken)
 	}
 	// Override certificate data if specified from CLI flag
 	if opts.CertFile != "" {
