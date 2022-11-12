@@ -321,4 +321,4 @@ For more information about each event, please refer to the [official documentati
 
 ## Lifecycle
 
-An appliction will be generated when a Pull Request is discovered when the configured crietia is met - i.e. for Github when a Pull request matches the specified `labels` and/or `pullRequestState`. Applications will be removed when a Pull Request no longer meets the specified criteria.
+An Application will be generated when a Pull Request is discovered when the configured criteria is met - i.e. for GitHub when a Pull Request matches the specified `labels` and/or `pullRequestState`. Application will be removed when a Pull Request no longer meets the specified criteria.
