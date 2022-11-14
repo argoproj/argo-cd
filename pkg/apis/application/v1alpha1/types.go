@@ -14,6 +14,7 @@ import (
 	"strconv"
 	"strings"
 	"time"
+	"unicode"
 
 	"github.com/argoproj/gitops-engine/pkg/health"
 	synccommon "github.com/argoproj/gitops-engine/pkg/sync/common"
@@ -1618,6 +1619,7 @@ func validateRoleName(name string) error {
 var invalidChars = regexp.MustCompile("[\"\n\r\t]")
 
 func validateGroupName(name string) error {
+	n := []rune(name)
 	name = strings.TrimSpace(name)
 	if len(name) > 1 && strings.HasPrefix(name, "\"") && strings.HasSuffix(name, "\"") {
 		// Remove surrounding quotes for further inspection of the group name
@@ -1625,12 +1627,17 @@ func validateGroupName(name string) error {
 	} else if strings.Contains(name, ",") {
 		return status.Errorf(codes.InvalidArgument, "group '%s' must be quoted", name)
 	}
-
 	if name == "" {
 		return status.Errorf(codes.InvalidArgument, "group '%s' is empty", name)
 	}
 	if invalidChars.MatchString(name) {
 		return status.Errorf(codes.InvalidArgument, "group '%s' contains invalid characters", name)
+	}
+	if len(n) > 1 && unicode.IsSpace(n[0]) {
+		return status.Errorf(codes.InvalidArgument, "group '%s' contains a leading space", name)
+	}
+	if len(n) > 1 && unicode.IsSpace(n[len(n)-1]) {
+		return status.Errorf(codes.InvalidArgument, "group '%s' contains a trailing space", name)
 	}
 	return nil
 }
