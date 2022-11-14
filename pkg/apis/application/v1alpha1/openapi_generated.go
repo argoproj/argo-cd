@@ -80,6 +80,7 @@ func GetOpenAPIDefinitions(ref common.ReferenceCallback) map[string]common.OpenA
 		"github.com/argoproj/argo-cd/v2/pkg/apis/application/v1alpha1.KnownTypeField":                      schema_pkg_apis_application_v1alpha1_KnownTypeField(ref),
 		"github.com/argoproj/argo-cd/v2/pkg/apis/application/v1alpha1.KustomizeOptions":                    schema_pkg_apis_application_v1alpha1_KustomizeOptions(ref),
 		"github.com/argoproj/argo-cd/v2/pkg/apis/application/v1alpha1.ListGenerator":                       schema_pkg_apis_application_v1alpha1_ListGenerator(ref),
+		"github.com/argoproj/argo-cd/v2/pkg/apis/application/v1alpha1.ManagedNamespaceMetadata":            schema_pkg_apis_application_v1alpha1_ManagedNamespaceMetadata(ref),
 		"github.com/argoproj/argo-cd/v2/pkg/apis/application/v1alpha1.MatrixGenerator":                     schema_pkg_apis_application_v1alpha1_MatrixGenerator(ref),
 		"github.com/argoproj/argo-cd/v2/pkg/apis/application/v1alpha1.MergeGenerator":                      schema_pkg_apis_application_v1alpha1_MergeGenerator(ref),
 		"github.com/argoproj/argo-cd/v2/pkg/apis/application/v1alpha1.NestedMatrixGenerator":               schema_pkg_apis_application_v1alpha1_NestedMatrixGenerator(ref),
@@ -1209,7 +1210,7 @@ func schema_pkg_apis_application_v1alpha1_ApplicationSource(ref common.Reference
 					},
 					"plugin": {
 						SchemaProps: spec.SchemaProps{
-							Description: "ConfigManagementPlugin holds config management plugin specific options",
+							Description: "Plugin holds config management plugin specific options",
 							Ref:         ref("github.com/argoproj/argo-cd/v2/pkg/apis/application/v1alpha1.ApplicationSourcePlugin"),
 						},
 					},
@@ -3282,6 +3283,48 @@ func schema_pkg_apis_application_v1alpha1_ListGenerator(ref common.ReferenceCall
 	}
 }
 
+func schema_pkg_apis_application_v1alpha1_ManagedNamespaceMetadata(ref common.ReferenceCallback) common.OpenAPIDefinition {
+	return common.OpenAPIDefinition{
+		Schema: spec.Schema{
+			SchemaProps: spec.SchemaProps{
+				Type: []string{"object"},
+				Properties: map[string]spec.Schema{
+					"labels": {
+						SchemaProps: spec.SchemaProps{
+							Type: []string{"object"},
+							AdditionalProperties: &spec.SchemaOrBool{
+								Allows: true,
+								Schema: &spec.Schema{
+									SchemaProps: spec.SchemaProps{
+										Default: "",
+										Type:    []string{"string"},
+										Format:  "",
+									},
+								},
+							},
+						},
+					},
+					"annotations": {
+						SchemaProps: spec.SchemaProps{
+							Type: []string{"object"},
+							AdditionalProperties: &spec.SchemaOrBool{
+								Allows: true,
+								Schema: &spec.Schema{
+									SchemaProps: spec.SchemaProps{
+										Default: "",
+										Type:    []string{"string"},
+										Format:  "",
+									},
+								},
+							},
+						},
+					},
+				},
+			},
+		},
+	}
+}
+
 func schema_pkg_apis_application_v1alpha1_MatrixGenerator(ref common.ReferenceCallback) common.OpenAPIDefinition {
 	return common.OpenAPIDefinition{
 		Schema: spec.Schema{
@@ -5258,6 +5301,12 @@ func schema_pkg_apis_application_v1alpha1_ResourceStatus(ref common.ReferenceCal
 							Format: "",
 						},
 					},
+					"syncWave": {
+						SchemaProps: spec.SchemaProps{
+							Type:   []string{"integer"},
+							Format: "int64",
+						},
+					},
 				},
 			},
 		},
@@ -5384,7 +5433,7 @@ func schema_pkg_apis_application_v1alpha1_RevisionMetadata(ref common.ReferenceC
 					},
 					"message": {
 						SchemaProps: spec.SchemaProps{
-							Description: "Message contains the message associated with the revision, most likely the commit message. The message is truncated to the first newline or 64 characters (which ever comes first)",
+							Description: "Message contains the message associated with the revision, most likely the commit message.",
 							Type:        []string{"string"},
 							Format:      "",
 						},
@@ -6105,11 +6154,17 @@ func schema_pkg_apis_application_v1alpha1_SyncPolicy(ref common.ReferenceCallbac
 							Ref:         ref("github.com/argoproj/argo-cd/v2/pkg/apis/application/v1alpha1.RetryStrategy"),
 						},
 					},
+					"managedNamespaceMetadata": {
+						SchemaProps: spec.SchemaProps{
+							Description: "ManagedNamespaceMetadata controls metadata in the given namespace (if CreateNamespace=true)",
+							Ref:         ref("github.com/argoproj/argo-cd/v2/pkg/apis/application/v1alpha1.ManagedNamespaceMetadata"),
+						},
+					},
 				},
 			},
 		},
 		Dependencies: []string{
-			"github.com/argoproj/argo-cd/v2/pkg/apis/application/v1alpha1.RetryStrategy", "github.com/argoproj/argo-cd/v2/pkg/apis/application/v1alpha1.SyncPolicyAutomated"},
+			"github.com/argoproj/argo-cd/v2/pkg/apis/application/v1alpha1.ManagedNamespaceMetadata", "github.com/argoproj/argo-cd/v2/pkg/apis/application/v1alpha1.RetryStrategy", "github.com/argoproj/argo-cd/v2/pkg/apis/application/v1alpha1.SyncPolicyAutomated"},
 	}
 }
 

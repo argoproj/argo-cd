@@ -8,7 +8,7 @@ import {services} from '../../../shared/services';
 import {ApplicationSyncWindowStatusIcon, ComparisonStatusIcon, getAppOperationState, getConditionCategory, HealthStatusIcon, OperationState, syncStatusMessage} from '../utils';
 import {RevisionMetadataPanel} from './revision-metadata-panel';
 
-require('./application-status-panel.scss');
+import './application-status-panel.scss';
 
 interface Props {
     application: models.Application;

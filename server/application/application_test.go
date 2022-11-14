@@ -301,6 +301,106 @@ func createTestApp(testApp string, opts ...func(app *appsv1.Application)) *appsv
 	return &app
 }
 
+func TestListAppsInNamespaceWithLabels(t *testing.T) {
+	appServer := newTestAppServer(newTestApp(func(app *appsv1.Application) {
+		app.Name = "App1"
+		app.ObjectMeta.Namespace = "test-namespace"
+		app.SetLabels(map[string]string{"key1": "value1", "key2": "value1"})
+	}), newTestApp(func(app *appsv1.Application) {
+		app.Name = "App2"
+		app.ObjectMeta.Namespace = "test-namespace"
+		app.SetLabels(map[string]string{"key1": "value2"})
+	}), newTestApp(func(app *appsv1.Application) {
+		app.Name = "App3"
+		app.ObjectMeta.Namespace = "test-namespace"
+		app.SetLabels(map[string]string{"key1": "value3"})
+	}))
+	appServer.ns = "test-namespace"
+	appQuery := application.ApplicationQuery{}
+	namespace := "test-namespace"
+	appQuery.AppNamespace = &namespace
+	testListAppsWithLabels(t, appQuery, appServer)
+}
+
+func TestListAppsInDefaultNSWithLabels(t *testing.T) {
+	appServer := newTestAppServer(newTestApp(func(app *appsv1.Application) {
+		app.Name = "App1"
+		app.SetLabels(map[string]string{"key1": "value1", "key2": "value1"})
+	}), newTestApp(func(app *appsv1.Application) {
+		app.Name = "App2"
+		app.SetLabels(map[string]string{"key1": "value2"})
+	}), newTestApp(func(app *appsv1.Application) {
+		app.Name = "App3"
+		app.SetLabels(map[string]string{"key1": "value3"})
+	}))
+	appQuery := application.ApplicationQuery{}
+	testListAppsWithLabels(t, appQuery, appServer)
+}
+
+func testListAppsWithLabels(t *testing.T, appQuery application.ApplicationQuery, appServer *Server) {
+	validTests := []struct {
+		testName       string
+		label          string
+		expectedResult []string
+	}{
+		{testName: "Equality based filtering using '=' operator",
+			label:          "key1=value1",
+			expectedResult: []string{"App1"}},
+		{testName: "Equality based filtering using '==' operator",
+			label:          "key1==value1",
+			expectedResult: []string{"App1"}},
+		{testName: "Equality based filtering using '!=' operator",
+			label:          "key1!=value1",
+			expectedResult: []string{"App2", "App3"}},
+		{testName: "Set based filtering using 'in' operator",
+			label:          "key1 in (value1, value3)",
+			expectedResult: []string{"App1", "App3"}},
+		{testName: "Set based filtering using 'notin' operator",
+			label:          "key1 notin (value1, value3)",
+			expectedResult: []string{"App2"}},
+		{testName: "Set based filtering using 'exists' operator",
+			label:          "key1",
+			expectedResult: []string{"App1", "App2", "App3"}},
+		{testName: "Set based filtering using 'not exists' operator",
+			label:          "!key2",
+			expectedResult: []string{"App2", "App3"}},
+	}
+	//test valid scenarios
+	for _, validTest := range validTests {
+		t.Run(validTest.testName, func(t *testing.T) {
+			appQuery.Selector = &validTest.label
+			res, err := appServer.List(context.Background(), &appQuery)
+			assert.NoError(t, err)
+			apps := []string{}
+			for i := range res.Items {
+				apps = append(apps, res.Items[i].Name)
+			}
+			assert.Equal(t, validTest.expectedResult, apps)
+		})
+	}
+
+	invalidTests := []struct {
+		testName    string
+		label       string
+		errorMesage string
+	}{
+		{testName: "Set based filtering using '>' operator",
+			label:       "key1>value1",
+			errorMesage: "error parsing the selector"},
+		{testName: "Set based filtering using '<' operator",
+			label:       "key1<value1",
+			errorMesage: "error parsing the selector"},
+	}
+	//test invalid scenarios
+	for _, invalidTest := range invalidTests {
+		t.Run(invalidTest.testName, func(t *testing.T) {
+			appQuery.Selector = &invalidTest.label
+			_, err := appServer.List(context.Background(), &appQuery)
+			assert.ErrorContains(t, err, invalidTest.errorMesage)
+		})
+	}
+}
+
 func TestListApps(t *testing.T) {
 	appServer := newTestAppServer(newTestApp(func(app *appsv1.Application) {
 		app.Name = "bcd"

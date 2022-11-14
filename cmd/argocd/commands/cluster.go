@@ -288,7 +288,7 @@ argocd cluster rm cluster-name`,
 						lowercaseAnswer = cli.AskToProceedS("Are you sure you want to remove '" + clusterSelector + "'? Any Apps deploying to this cluster will go to health status Unknown.[y/n] ")
 					} else {
 						if !isConfirmAll {
-							lowercaseAnswer = cli.AskToProceedS("Are you sure you want to remove '" + clusterSelector + "'? Any Apps deploying to this cluster will go to health status Unknown.[y/n/A] where 'A' is to remove all specified apps and their resources without prompting ")
+							lowercaseAnswer = cli.AskToProceedS("Are you sure you want to remove '" + clusterSelector + "'? Any Apps deploying to this cluster will go to health status Unknown.[y/n/A] where 'A' is to remove all specified clusters without prompting. Any Apps deploying to these clusters will go to health status Unknown. ")
 							if lowercaseAnswer == "a" {
 								lowercaseAnswer = "y"
 								isConfirmAll = true

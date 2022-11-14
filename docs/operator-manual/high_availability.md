@@ -61,7 +61,7 @@ number of allowed concurrent kubectl fork/execs.
 * The controller uses Kubernetes watch APIs to maintain lightweight Kubernetes cluster cache. This allows to avoid querying Kubernetes during app reconciliation and significantly improve
 performance. For performance reasons controller monitors and caches only preferred the version of a resource. During reconciliation, the controller might have to convert cached resource from
 preferred version into a version of the resource stored in Git. If `kubectl convert` fails because conversion is not supported then controller falls back to Kubernetes API query which slows down
-reconciliation. In this case advice user-preferred resource version in Git.
+reconciliation. In this case, we advise you to use the preferred resource version in Git.
 
 * The controller polls Git every 3m by default. You can increase this duration using `timeout.reconciliation` setting in the `argocd-cm` ConfigMap. The value of `timeout.reconciliation` is a duration string e.g `60s`, `1m`, `1h` or `1d`.
 
@@ -126,20 +126,17 @@ If the manifest generation has no side effects then requests are processed in pa
 
 ### Webhook and Manifest Paths Annotation
 
-Argo CD aggressively caches generated manifests and uses repository commit SHA as a cache key. A new commit to the Git repository invalidates cache for all applications configured in the repository
-that again negatively affect mono repositories with multiple applications. You might use [webhooks ⧉](https://github.com/argoproj/argo-cd/blob/master/docs/operator-manual/webhook.md) and `argocd.argoproj.io/manifest-generate-paths` Application
-CRD annotation to solve this problem and improve performance.
+Argo CD aggressively caches generated manifests and uses the repository commit SHA as a cache key. A new commit to the Git repository invalidates the cache for all applications configured in the repository.
+This can negatively affect repositories with multiple applications. You can use [webhooks](https://github.com/argoproj/argo-cd/blob/master/docs/operator-manual/webhook.md) and the `argocd.argoproj.io/manifest-generate-paths` Application CRD annotation to solve this problem and improve performance.
 
-The `argocd.argoproj.io/manifest-generate-paths` contains a semicolon-separated list of paths within the Git repository that are used during manifest generation. The webhook compares paths specified in the annotation
-with the changed files specified in the webhook payload. If non of the changed files are located in the paths then webhook don't trigger application reconciliation and re-uses previously generated manifests cache for a new commit.
+The `argocd.argoproj.io/manifest-generate-paths` annotation contains a semicolon-separated list of paths within the Git repository that are used during manifest generation. The webhook compares paths specified in the annotation with the changed files specified in the webhook payload. If no modified files match the paths specified in `argocd.argoproj.io/manifest-generate-paths`, then the webhook will not trigger application reconciliation and the existing cache will be considered valid for the new commit.
 
-Installations that use a different repo for each app are **not** subject to this behavior and will likely get no benefit from using these annotations.
+Installations that use a different repository for each application are **not** subject to this behavior and will likely get no benefit from using these annotations.
 
 !!! note
-    Application manifest paths annotation support depends on the git provider used for the Application. It is currently only supported for GitHub, GitLab, and Gogs based repos
-I'm using `.Second()` modifier to avoid distracting users who already rely on `--app-resync` flag.
+    Application manifest paths annotation support depends on the git provider used for the Application. It is currently only supported for GitHub, GitLab, and Gogs based repos.
 
-* **Relative path** The annotation might contains relative path. In this case the path is considered relative to the path specified in the application source:
+* **Relative path** The annotation might contain a relative path. In this case the path is considered relative to the path specified in the application source:
 
 ```yaml
 apiVersion: argoproj.io/v1alpha1
@@ -157,7 +154,8 @@ spec:
     path: guestbook
 # ...
 ```
-* **Absolute path** The annotation value might be an absolute path started from '/'. In this case path is considered as an absolute path within the Git repository:
+
+* **Absolute path** The annotation value might be an absolute path starting with '/'. In this case path is considered as an absolute path within the Git repository:
 
 ```yaml
 apiVersion: argoproj.io/v1alpha1

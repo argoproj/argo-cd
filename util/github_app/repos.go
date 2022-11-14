@@ -20,7 +20,7 @@ type repoAsCredentials struct {
 func (r *repoAsCredentials) GetAuthSecret(ctx context.Context, secretName string) (*github_app_auth.Authentication, error) {
 	repo, err := r.GetRepoCredsBySecretName(ctx, secretName)
 	if err != nil {
-		return nil, err
+		return nil, fmt.Errorf("error getting creds for %s: %w", secretName, err)
 	}
 	if repo == nil || repo.GithubAppPrivateKey == "" {
 		return nil, fmt.Errorf("no github app found for %s", secretName)

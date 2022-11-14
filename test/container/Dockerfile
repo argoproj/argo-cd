@@ -1,4 +1,4 @@
-FROM docker.io/library/redis:7.0.4 as redis
+FROM docker.io/library/redis:7.0.5 as redis
 
 # There are libraries we will want to copy from here in the final stage of the
 # build, but the COPY directive does not have a way to determine system

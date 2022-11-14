@@ -8,7 +8,7 @@ import {DataLoader, ErrorNotification, Page, Spinner} from '../../../shared/comp
 import {AppContext} from '../../../shared/context';
 import {services} from '../../../shared/services';
 
-require('./user-info-overview.scss');
+import './user-info-overview.scss';
 
 export class UserInfoOverview extends React.Component<RouteComponentProps<any>, {connecting: boolean}> {
     public static contextTypes = {

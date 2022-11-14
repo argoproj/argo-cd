@@ -27,7 +27,7 @@ spec:
 
 ## GitHub
 
-The GitHub mode uses the GitHub API to scan and organization in either github.com or GitHub Enterprise.
+The GitHub mode uses the GitHub API to scan an organization in either github.com or GitHub Enterprise.
 
 ```yaml
 apiVersion: argoproj.io/v1alpha1

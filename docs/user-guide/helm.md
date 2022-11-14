@@ -37,6 +37,15 @@ argocd app set helm-guestbook --values values-production.yaml
     location in which case it can be accessed using a relative path relative to the root directory of
     the Helm chart.
 
+In the declarative syntax:
+
+```yaml
+source:
+  helm:
+    valueFiles:
+    - values-production.yaml
+```
+
 ## Helm Parameters
 
 Helm has the ability to set parameter values, which override any values in
@@ -51,6 +60,16 @@ in the form of `-p PARAM=VALUE`. For example:
 
 ```bash
 argocd app set helm-guestbook -p service.type=LoadBalancer
+```
+
+In the declarative syntax:
+
+```yaml
+source:
+  helm:
+    parameters:
+    - name: "service.type"
+      value: LoadBalancer
 ```
 
 ## Helm Release Name
@@ -109,7 +128,7 @@ Unsupported hooks are ignored. In Argo CD, hooks are created by using `kubectl a
 * Annotate  `pre-install` and `post-install` with `hook-weight: "-1"`. This will make sure it runs to success before any upgrade hooks.
 * Annotate `pre-upgrade` and `post-upgrade` with `hook-delete-policy: before-hook-creation` to make sure it runs on every sync.
 
-Read more about [Argo hooks](resource_hooks.md) and [Helm hooks](https://github.com/helm/helm/blob/dev-v2/docs/charts_hooks.md).
+Read more about [Argo hooks](resource_hooks.md) and [Helm hooks](https://helm.sh/docs/topics/charts_hooks/).
 
 ## Random Data
 

@@ -28,10 +28,64 @@ spec:
           - containerPort: 8080
             name: metrics
           env:
-            - name: NAMESPACE
-              valueFrom:
-                fieldRef:
-                  fieldPath: metadata.namespace
+          - name: NAMESPACE
+            valueFrom:
+              fieldRef:
+                fieldPath: metadata.namespace
+          - name: ARGOCD_APPLICATIONSET_CONTROLLER_ENABLE_LEADER_ELECTION
+            valueFrom:
+              configMapKeyRef:
+                key: applicationsetcontroller.enable.leader.election
+                name: argocd-cmd-params-cm
+                optional: true
+          - name: ARGOCD_APPLICATIONSET_CONTROLLER_NAMESPACE
+            valueFrom:
+              configMapKeyRef:
+                key: applicationsetcontroller.namespace
+                name: argocd-cmd-params-cm
+                optional: true
+          - name: ARGOCD_APPLICATIONSET_CONTROLLER_REPO_SERVER
+            valueFrom:
+              configMapKeyRef:
+                key: repo.server
+                name: argocd-cmd-params-cm
+                optional: true
+          - name: ARGOCD_APPLICATIONSET_CONTROLLER_POLICY
+            valueFrom:
+              configMapKeyRef:
+                key: applicationsetcontroller.policy
+                name: argocd-cmd-params-cm
+                optional: true
+          - name: ARGOCD_APPLICATIONSET_CONTROLLER_DEBUG
+            valueFrom:
+              configMapKeyRef:
+                key: applicationsetcontroller.debug
+                name: argocd-cmd-params-cm
+                optional: true
+          - name: ARGOCD_APPLICATIONSET_CONTROLLER_LOGFORMAT
+            valueFrom:
+              configMapKeyRef:
+                key: applicationsetcontroller.log.format
+                name: argocd-cmd-params-cm
+                optional: true
+          - name: ARGOCD_APPLICATIONSET_CONTROLLER_LOGLEVEL
+            valueFrom:
+              configMapKeyRef:
+                key: applicationsetcontroller.log.level
+                name: argocd-cmd-params-cm
+                optional: true
+          - name: ARGOCD_APPLICATIONSET_CONTROLLER_DRY_RUN
+            valueFrom:
+              configMapKeyRef:
+                key: applicationsetcontroller.dryrun
+                name: argocd-cmd-params-cm
+                optional: true
+          - name: ARGOCD_GIT_MODULES_ENABLED
+            valueFrom:
+              configMapKeyRef:
+                key: applicationsetcontroller.enable.git.submodule
+                name: argocd-cmd-params-cm
+                optional: true
           volumeMounts:
           - mountPath: /app/config/ssh
             name: ssh-known-hosts

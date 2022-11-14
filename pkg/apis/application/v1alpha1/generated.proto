@@ -322,7 +322,7 @@ message ApplicationSource {
   // Directory holds path/directory specific options
   optional ApplicationSourceDirectory directory = 10;
 
-  // ConfigManagementPlugin holds config management plugin specific options
+  // Plugin holds config management plugin specific options
   optional ApplicationSourcePlugin plugin = 11;
 
   // Chart is a Helm chart name, and must be specified for applications sourced from a Helm repo.
@@ -926,6 +926,12 @@ message ListGenerator {
   optional ApplicationSetTemplate template = 2;
 }
 
+message ManagedNamespaceMetadata {
+  map<string, string> labels = 1;
+
+  map<string, string> annotations = 2;
+}
+
 // MatrixGenerator generates the cartesian product of two sets of parameters. The parameters are defined by two nested
 // generators.
 message MatrixGenerator {
@@ -1525,6 +1531,8 @@ message ResourceStatus {
   optional bool hook = 8;
 
   optional bool requiresPruning = 9;
+
+  optional int64 syncWave = 10;
 }
 
 // RetryStrategy contains information about the strategy to apply when a sync failed
@@ -1569,7 +1577,6 @@ message RevisionMetadata {
   repeated string tags = 3;
 
   // Message contains the message associated with the revision, most likely the commit message.
-  // The message is truncated to the first newline or 64 characters (which ever comes first)
   optional string message = 4;
 
   // SignatureInfo contains a hint on the signer if the revision was signed with GPG, and signature verification is enabled.
@@ -1801,6 +1808,9 @@ message SyncPolicy {
 
   // Retry controls failed sync retry behavior
   optional RetryStrategy retry = 3;
+
+  // ManagedNamespaceMetadata controls metadata in the given namespace (if CreateNamespace=true)
+  optional ManagedNamespaceMetadata managedNamespaceMetadata = 4;
 }
 
 // SyncPolicyAutomated controls the behavior of an automated sync
