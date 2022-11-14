@@ -105,6 +105,7 @@ require (
 )
 
 require (
+	github.com/Masterminds/sprig/v3 v3.2.2
 	github.com/gosimple/slug v1.12.0
 	github.com/microsoft/azure-devops-go-api/azuredevops v1.0.0-b5
 	github.com/robfig/cron/v3 v3.0.1
@@ -115,7 +116,6 @@ require (
 )
 
 require (
-	github.com/Masterminds/sprig/v3 v3.2.2 // indirect
 	github.com/emicklei/go-restful/v3 v3.8.0 // indirect
 	github.com/shopspring/decimal v1.2.0 // indirect
 	github.com/spf13/cast v1.4.1 // indirect
@@ -133,7 +133,7 @@ require (
 	github.com/MakeNowJust/heredoc v0.0.0-20170808103936-bb23615498cd // indirect
 	github.com/Masterminds/goutils v1.1.1 // indirect
 	github.com/Masterminds/semver v1.5.0 // indirect
-	github.com/Masterminds/sprig v2.22.0+incompatible
+	github.com/Masterminds/sprig v2.22.0+incompatible // indirect
 	github.com/Microsoft/go-winio v0.4.17 // indirect
 	github.com/PagerDuty/go-pagerduty v1.5.0 // indirect
 	github.com/ProtonMail/go-crypto v0.0.0-20210428141323-04723f9f07d7 // indirect
