@@ -1,6 +1,7 @@
 package application
 
 import (
+	"fmt"
 	"testing"
 
 	"github.com/argoproj/gitops-engine/pkg/sync/common"
@@ -134,10 +135,12 @@ func TestParseResourceSyncResultErrors(t *testing.T) {
 
 func TestParseApplicationSyncResultErrorsFromConditions(t *testing.T) {
 	t.Run("conditions exists", func(t *testing.T) {
-		errors := parseApplicationSyncResultErrorsFromConditions([]v1alpha1.ApplicationCondition{
-			{
-				Type:    "error",
-				Message: "error message",
+		errors := parseApplicationSyncResultErrorsFromConditions(v1alpha1.ApplicationStatus{
+			Conditions: []v1alpha1.ApplicationCondition{
+				{
+					Type:    "error",
+					Message: "error message",
+				},
 			},
 		})
 
@@ -145,6 +148,55 @@ func TestParseApplicationSyncResultErrorsFromConditions(t *testing.T) {
 		assert.Equal(t, errors[0].Message, "error message")
 		assert.Equal(t, errors[0].Type, "sync")
 		assert.Equal(t, errors[0].Level, "error")
+	})
+
+	t.Run("conditions erorr replaced with sync result errors", func(t *testing.T) {
+		errors := parseApplicationSyncResultErrorsFromConditions(v1alpha1.ApplicationStatus{
+			Conditions: []v1alpha1.ApplicationCondition{
+				{
+					Type:    "error",
+					Message: syncTaskUnsuccessfullErrorMessage,
+				},
+			},
+			OperationState: &v1alpha1.OperationState{
+				SyncResult: &v1alpha1.SyncOperationResult{
+					Resources: v1alpha1.ResourceResults{
+						&v1alpha1.ResourceResult{
+							Kind:      "Job",
+							Name:      "some-job",
+							Message:   "job failed",
+							HookPhase: common.OperationFailed,
+						},
+						&v1alpha1.ResourceResult{
+							Kind:    "Pod",
+							Name:    "some-pod",
+							Message: "pod failed",
+							Status:  common.ResultCodeSyncFailed,
+						},
+						&v1alpha1.ResourceResult{
+							Kind:      "Job",
+							Name:      "some-succeded-hook",
+							Message:   "job succeded",
+							HookPhase: common.OperationSucceeded,
+						},
+						&v1alpha1.ResourceResult{
+							Kind:    "Pod",
+							Name:    "synced-pod",
+							Message: "pod synced",
+							Status:  common.ResultCodeSynced,
+						},
+					},
+				},
+			},
+		})
+
+		assert.Len(t, errors, 2)
+		assert.Equal(t, errors[0].Message, fmt.Sprintf("Resource %s(%s): \n %s", "Job", "some-job", "job failed"))
+		assert.Equal(t, errors[0].Type, "sync")
+		assert.Equal(t, errors[0].Level, "error")
+		assert.Equal(t, errors[1].Message, fmt.Sprintf("Resource %s(%s): \n %s", "Pod", "some-pod", "pod failed"))
+		assert.Equal(t, errors[1].Type, "sync")
+		assert.Equal(t, errors[1].Level, "error")
 	})
 }
 

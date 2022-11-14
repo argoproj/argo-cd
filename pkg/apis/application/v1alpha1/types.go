@@ -1175,6 +1175,10 @@ type ResourceNode struct {
 	Images          []string                `json:"images,omitempty" protobuf:"bytes,6,opt,name=images"`
 	Health          *HealthStatus           `json:"health,omitempty" protobuf:"bytes,7,opt,name=health"`
 	CreatedAt       *metav1.Time            `json:"createdAt,omitempty" protobuf:"bytes,8,opt,name=createdAt"`
+	// available for managed resource
+	Labels map[string]string `json:"labels,omitempty" protobuf:"bytes,9,opt,name=labels"`
+	// available for managed resource without k8s-last-applied-configuration
+	Annotations map[string]string `json:"annotations,omitempty" protobuf:"bytes,10,opt,name=annotations"`
 }
 
 // FullName returns a resource node's full name in the format "group/kind/namespace/name"

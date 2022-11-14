@@ -6552,6 +6552,13 @@
       "type": "object",
       "title": "ResourceNode contains information about live resource and its children\nTODO: describe members of this type",
       "properties": {
+        "annotations": {
+          "type": "object",
+          "title": "available for managed resource without k8s-last-applied-configuration",
+          "additionalProperties": {
+            "type": "string"
+          }
+        },
         "createdAt": {
           "$ref": "#/definitions/v1Time"
         },
@@ -6568,6 +6575,13 @@
           "type": "array",
           "items": {
             "$ref": "#/definitions/v1alpha1InfoItem"
+          }
+        },
+        "labels": {
+          "type": "object",
+          "title": "available for managed resource",
+          "additionalProperties": {
+            "type": "string"
           }
         },
         "networkingInfo": {

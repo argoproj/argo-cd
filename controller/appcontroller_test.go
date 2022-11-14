@@ -801,6 +801,9 @@ func TestGetResourceTree_HasOrphanedResources(t *testing.T) {
 
 	managedDeploy := argoappv1.ResourceNode{
 		ResourceRef: argoappv1.ResourceRef{Group: "apps", Kind: "Deployment", Namespace: "default", Name: "nginx-deployment", Version: "v1"},
+		Labels: map[string]string{
+			"app": "nginx",
+		},
 	}
 	orphanedDeploy1 := argoappv1.ResourceNode{
 		ResourceRef: argoappv1.ResourceRef{Group: "apps", Kind: "Deployment", Namespace: "default", Name: "deploy1"},

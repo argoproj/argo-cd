@@ -74,6 +74,7 @@ message ObjectSource {
     optional string cluster = 17 [(gogoproto.nullable) = false];
     optional int64 historyId = 18 [(gogoproto.nullable) = false];
     optional string operationSyncRevision = 19 [(gogoproto.nullable) = false];
+    optional string appUID = 20 [(gogoproto.nullable) = false];
 }
 
 /**

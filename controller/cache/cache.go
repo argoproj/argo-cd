@@ -230,7 +230,7 @@ func asResourceNode(r *clustercache.Resource) appv1.ResourceNode {
 	if resourceInfo.Health != nil {
 		resHealth = &appv1.HealthStatus{Status: resourceInfo.Health.Status, Message: resourceInfo.Health.Message}
 	}
-	return appv1.ResourceNode{
+	result := appv1.ResourceNode{
 		ResourceRef: appv1.ResourceRef{
 			UID:       string(r.Ref.UID),
 			Name:      r.Ref.Name,
@@ -247,6 +247,18 @@ func asResourceNode(r *clustercache.Resource) appv1.ResourceNode {
 		Health:          resHealth,
 		CreatedAt:       r.CreationTimestamp,
 	}
+
+	if r.Resource != nil {
+		if labels := r.Resource.GetLabels(); labels != nil {
+			result.Labels = labels
+		}
+		if annotations := r.Resource.GetAnnotations(); annotations != nil {
+			delete(annotations, "kubectl.kubernetes.io/last-applied-configuration")
+			result.Annotations = annotations
+		}
+	}
+
+	return result
 }
 
 func resInfo(r *clustercache.Resource) *ResourceInfo {

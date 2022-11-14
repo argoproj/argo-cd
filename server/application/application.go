@@ -990,9 +990,9 @@ func (s *Server) ValidateSrcAndDst(ctx context.Context, requset *application.App
 		}, nil
 	}
 
-	if err := argo.ValidateDestination(ctx, &app.Spec.Destination, s.db); err != nil {
+	if err := validateDestination(ctx, &app.Spec.Destination, s.db); err != nil {
 		entity := destinationEntity
-		errMsg := fmt.Sprintf("application destination spec for %s is invalid: %s", app.Name, err.Error())
+		errMsg := fmt.Sprintf("application destination spec for %s is invalid: %s", app.ObjectMeta.Name, err.Error())
 		return &application.ApplicationValidateResponse{
 			Error:  &errMsg,
 			Entity: &entity,
@@ -1040,7 +1040,7 @@ func (s *Server) ValidateSrcAndDst(ctx context.Context, requset *application.App
 	}
 	if len(conditions) > 0 {
 		entity := sourceEntity
-		errMsg := fmt.Sprintf("application spec for %s is invalid: %s", app.Name, argo.FormatAppConditions(conditions))
+		errMsg := fmt.Sprintf("application spec for %s is invalid: %s", app.ObjectMeta.Name, argo.FormatAppConditions(conditions))
 		return &application.ApplicationValidateResponse{
 			Error:  &errMsg,
 			Entity: &entity,
@@ -1050,6 +1050,31 @@ func (s *Server) ValidateSrcAndDst(ctx context.Context, requset *application.App
 		Error:  nil,
 		Entity: nil,
 	}, nil
+}
+
+// validates destination name (argo.ValidateDestination) and server with extra logic
+func validateDestination(ctx context.Context, dest *appv1.ApplicationDestination, db db.ArgoDB) error {
+	err := argo.ValidateDestination(ctx, dest, db)
+
+	if err != nil {
+		return err
+	}
+
+	if dest.Server != "" {
+		// Ensure the k8s cluster the app is referencing, is configured in Argo CD
+		_, err := db.GetCluster(ctx, dest.Server)
+		if err != nil {
+			if errStatus, ok := status.FromError(err); ok && errStatus.Code() == codes.NotFound {
+				return fmt.Errorf("cluster '%s' has not been configured", dest.Server)
+			} else {
+				return err
+			}
+		}
+	} else if dest.Server == "" {
+		return fmt.Errorf("destination server missing from app spec")
+	}
+
+	return nil
 }
 
 func (s *Server) validateAndNormalizeApp(ctx context.Context, app *appv1.Application, validate bool) error {
