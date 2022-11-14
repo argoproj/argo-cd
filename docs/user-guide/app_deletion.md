@@ -47,6 +47,6 @@ metadata:
 
 When deleting an Application with this finalizer, the Argo CD application controller will perform a cascading delete of the Application's resources.
 
-Adding the finalizer enables casading deletes when implementing [the App of Apps pattern](../operator-manual/cluster-bootstrapping.md#cascading-deletion).
+Adding the finalizer enables cascading deletes when implementing [the App of Apps pattern](../operator-manual/cluster-bootstrapping.md#cascading-deletion).
 
 When you invoke `argocd app delete` with `--cascade`, the finalizer is added automatically.
