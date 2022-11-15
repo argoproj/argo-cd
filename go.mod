@@ -10,7 +10,7 @@ require (
 	github.com/alicebob/miniredis/v2 v2.14.2
 	github.com/argoproj/gitops-engine v0.7.1-0.20221108210551-e284fd71cb96
 	github.com/argoproj/notifications-engine v0.3.1-0.20220812180936-4d8552b0775f
-	github.com/argoproj/pkg v0.11.1-0.20211203175135-36c59d8fafe0
+	github.com/argoproj/pkg v0.13.7-0.20221115212233-27bd8ce31415
 	github.com/aws/aws-sdk-go v1.44.129
 	github.com/bombsimon/logrusr/v2 v2.0.1
 	github.com/bradleyfalzon/ghinstallation/v2 v2.0.4
@@ -290,5 +290,3 @@ replace (
 	k8s.io/pod-security-admission => k8s.io/pod-security-admission v0.24.2
 	k8s.io/sample-apiserver => k8s.io/sample-apiserver v0.24.2
 )
-
-replace github.com/argoproj/pkg => github.com/alexmt/pkg v0.0.0-20221110012841-521cee1ec5a4

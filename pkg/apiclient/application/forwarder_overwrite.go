@@ -18,6 +18,9 @@ import (
 	"github.com/argoproj/argo-cd/v2/pkg/apis/application/v1alpha1"
 )
 
+// appFields is a map of fields that can be selected from an application.
+// The manually maintained list is required because application list response might include thousands of applications
+// and JSON based field handling is too slow.
 var appFields = map[string]func(app *v1alpha1.Application) interface{}{
 	"metadata.name":              func(app *v1alpha1.Application) interface{} { return app.Name },
 	"metadata.namespace":         func(app *v1alpha1.Application) interface{} { return app.Namespace },
