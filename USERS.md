@@ -37,6 +37,7 @@ Currently, the following organizations are **officially** using Argo CD:
 1. [Camptocamp](https://camptocamp.com)
 1. [Capital One](https://www.capitalone.com)
 1. [CARFAX](https://www.carfax.com)
+1. [CARFAX Europe](https://www.carfax.eu)
 1. [Casavo](https://casavo.com)
 1. [Celonis](https://www.celonis.com/)
 1. [CERN](https://home.cern/)
