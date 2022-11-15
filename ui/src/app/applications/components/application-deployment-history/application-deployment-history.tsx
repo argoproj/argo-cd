@@ -6,8 +6,7 @@ import * as models from '../../../shared/models';
 import {services} from '../../../shared/services';
 import {ApplicationParameters} from '../application-parameters/application-parameters';
 import {RevisionMetadataRows} from './revision-metadata-rows';
-
-require('./application-deployment-history.scss');
+import './application-deployment-history.scss';
 
 export const ApplicationDeploymentHistory = ({
     app,
