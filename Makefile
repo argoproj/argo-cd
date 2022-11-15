@@ -512,7 +512,7 @@ build-docs-local:
 
 .PHONY: build-docs
 build-docs:
-	docker run ${MKDOCS_RUN_ARGS} --rm -it -p 8000:8000 -v ${CURRENT_DIR}:/docs ${MKDOCS_DOCKER_IMAGE} build
+	docker run ${MKDOCS_RUN_ARGS} --rm -it -v ${CURRENT_DIR}:/docs --entrypoint "" ${MKDOCS_DOCKER_IMAGE} sh -c 'pip install -r docs/requirements.txt; mkdocs build'
 
 .PHONY: serve-docs-local
 serve-docs-local:
@@ -520,7 +520,7 @@ serve-docs-local:
 
 .PHONY: serve-docs
 serve-docs:
-	docker run ${MKDOCS_RUN_ARGS} --rm -it -p 8000:8000 -v ${CURRENT_DIR}:/docs ${MKDOCS_DOCKER_IMAGE} serve -a 0.0.0.0:8000
+	docker run ${MKDOCS_RUN_ARGS} --rm -it -p 8000:8000 -v ${CURRENT_DIR}/site:/site -w /site --entrypoint "" ${MKDOCS_DOCKER_IMAGE} python3 -m http.server --bind 0.0.0.0 8000
 
 
 # Verify that kubectl can connect to your K8s cluster from Docker

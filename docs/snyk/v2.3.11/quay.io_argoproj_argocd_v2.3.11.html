@@ -456,7 +456,7 @@
               <div class="header-wrap">
                   <h1 class="project__header__title">Snyk test report</h1>
     
-                <p class="timestamp">November 6th 2022, 12:25:43 am</p>
+                <p class="timestamp">November 13th 2022, 12:23:30 am</p>
               </div>
               <div class="source-panel">
                 <span>Scanned the following path:</span>
@@ -559,7 +559,7 @@
         
         </div><!-- .card -->
         <div class="card card--vuln  disclosure--not-new severity--medium" data-snyk-test="medium">
-            <h2 class="card__title">CVE-2022-3821</h2>
+            <h2 class="card__title">Off-by-one Error</h2>
             <div class="card__section">
         
                 <div class="label label--medium">
@@ -708,12 +708,17 @@
               <hr/>
               <!-- Overview -->
               <h2 id="nvd-description">NVD Description</h2>
-        <p><em>This vulnerability has not been analyzed by NVD yet.</em></p>
+        <p><strong><em>Note:</em></strong> <em>Versions mentioned in the description apply to the upstream <code>systemd</code> package.</em></p>
+        <p>An off-by-one Error issue was discovered in Systemd in format_timespan() function of time-util.c. An attacker could supply specific values for time and accuracy that leads to buffer overrun in format_timespan(), leading to a Denial of Service.</p>
         <h2 id="remediation">Remediation</h2>
         <p>There is no fixed version for <code>Ubuntu:22.04</code> <code>systemd</code>.</p>
         <h2 id="references">References</h2>
         <ul>
         <li><a href="http://people.ubuntu.com/~ubuntu-security/cve/CVE-2022-3821">ADVISORY</a></li>
+        <li><a href="https://github.com/systemd/systemd/issues/23928">MISC</a></li>
+        <li><a href="https://github.com/systemd/systemd/commit/9102c625a673a3246d7e73d8737f3494446bad4e">MISC</a></li>
+        <li><a href="https://github.com/systemd/systemd/pull/23933">MISC</a></li>
+        <li><a href="https://bugzilla.redhat.com/show_bug.cgi?id=2139327">MISC</a></li>
         </ul>
         
               <hr/>
@@ -774,10 +779,11 @@
               <hr/>
               <!-- Overview -->
               <h2 id="nvd-description">NVD Description</h2>
-        <p><strong><em>Note:</em></strong> <em>Versions mentioned in the description apply to the upstream <code>sqlite3</code> package.</em></p>
+        <p><strong><em>Note:</em></strong> <em>Versions mentioned in the description apply to the upstream <code>sqlite3</code> package.</em>
+        <em>See <code>How to fix?</code> for <code>Ubuntu:22.04</code> relevant versions.</em></p>
         <p>SQLite 1.0.12 through 3.39.x before 3.39.2 sometimes allows an array-bounds overflow if billions of bytes are used in a string argument to a C API.</p>
         <h2 id="remediation">Remediation</h2>
-        <p>There is no fixed version for <code>Ubuntu:22.04</code> <code>sqlite3</code>.</p>
+        <p>Upgrade <code>Ubuntu:22.04</code> <code>sqlite3</code> to version 3.37.2-2ubuntu0.1 or higher.</p>
         <h2 id="references">References</h2>
         <ul>
         <li><a href="http://people.ubuntu.com/~ubuntu-security/cve/CVE-2022-35737">ADVISORY</a></li>
