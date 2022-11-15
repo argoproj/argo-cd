@@ -10,9 +10,9 @@ import (
 	"time"
 
 	"github.com/argoproj/argo-cd/v2/util/settings"
+	"github.com/ghodss/yaml"
 	"github.com/gorilla/mux"
 	log "github.com/sirupsen/logrus"
-	"gopkg.in/yaml.v3"
 )
 
 const (
@@ -21,23 +21,23 @@ const (
 )
 
 type ExtensionConfigs struct {
-	Extensions []ExtensionConfig `yaml:"extensions"`
+	Extensions []ExtensionConfig `json:"extensions"`
 }
 
 type ExtensionConfig struct {
-	Name    string        `yaml:"name"`
-	Enabled bool          `yaml:"enabled"`
-	Backend BackendConfig `yaml:"backend"`
+	Name    string        `json:"name"`
+	Enabled bool          `json:"enabled"`
+	Backend BackendConfig `json:"backend"`
 }
 
 type BackendConfig struct {
-	IdleConnectionTimeout time.Duration   `yaml:"idleConnectionTimeout"`
-	Services              []ServiceConfig `yaml:"services"`
+	IdleConnectionTimeout time.Duration   `json:"idleConnectionTimeout"`
+	Services              []ServiceConfig `json:"services"`
 }
 
 type ServiceConfig struct {
-	URL         string `yaml:"url"`
-	ClusterName string `yaml:"clusterName"`
+	URL         string `json:"url"`
+	ClusterName string `json:"clusterName"`
 }
 
 type manager struct {
@@ -111,12 +111,23 @@ func (m *manager) registerExtensions(r *mux.Router, extConfigs *ExtensionConfigs
 		extRouter.PathPrefix(fmt.Sprintf("/%s/", ext.Name)).
 			HandlerFunc(m.ProxyHandler(ext.Name, proxyByCluster))
 	}
-	extRouter.HandleFunc("/", m.HiFrom("/"))
+	extRouter.HandleFunc("/", m.ListExtensions(extConfigs))
 	return nil
 }
-func (m *manager) HiFrom(from string) func(http.ResponseWriter, *http.Request) {
+func (m *manager) ListExtensions(extConfigs *ExtensionConfigs) func(http.ResponseWriter, *http.Request) {
 	return func(w http.ResponseWriter, r *http.Request) {
-		m.log.Infof("Hi From: %s", from)
+		extJson, err := json.Marshal(extConfigs)
+		if err != nil {
+			msg := fmt.Sprintf("error building extensions list response: %s", err)
+			m.writeErrorResponse(http.StatusInternalServerError, msg, w)
+			return
+		}
+		_, err = w.Write(extJson)
+		if err != nil {
+			msg := fmt.Sprintf("error writing extensions list response: %s", err)
+			m.writeErrorResponse(http.StatusInternalServerError, msg, w)
+			return
+		}
 	}
 }
 
@@ -138,14 +149,14 @@ func (m *manager) ProxyHandler(extName string, proxyByCluster map[string]*httput
 		proxy, ok := proxyByCluster[clusterName]
 		if !ok {
 			msg := fmt.Sprintf("No extension configured for cluster %q", clusterName)
-			writeErrorResponse(http.StatusBadRequest, msg, w)
+			m.writeErrorResponse(http.StatusBadRequest, msg, w)
 			return
 		}
 		proxy.ServeHTTP(w, r)
 	}
 }
 
-func writeErrorResponse(status int, message string, w http.ResponseWriter) {
+func (m *manager) writeErrorResponse(status int, message string, w http.ResponseWriter) {
 	w.WriteHeader(status)
 	w.Header().Set("Content-Type", "application/json")
 	resp := make(map[string]string)
@@ -153,8 +164,12 @@ func writeErrorResponse(status int, message string, w http.ResponseWriter) {
 	resp["message"] = message
 	jsonResp, err := json.Marshal(resp)
 	if err != nil {
-		// TODO log!!
+		m.log.Errorf("Error marshaling response for extension: %s", err)
 		return
 	}
-	w.Write(jsonResp)
+	_, err = w.Write(jsonResp)
+	if err != nil {
+		m.log.Errorf("Error writing response for extension: %s", err)
+		return
+	}
 }
