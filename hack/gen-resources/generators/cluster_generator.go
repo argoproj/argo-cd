@@ -8,7 +8,6 @@ import (
 	"log"
 	"strings"
 	"time"
-	"github.com/remeh/sizedwaitgroup"
 
 	v12 "k8s.io/apimachinery/pkg/apis/meta/v1"
 
@@ -178,11 +177,11 @@ func (cg *ClusterGenerator) retrieveClusterUri(namespace, releaseSuffix string) 
 
 func (cg *ClusterGenerator) Generate(opts *util.GenerateOpts) error {
 	log.Printf("Excute in parallel with %v", opts.ClusterOpts.Concurrency)
-	
-	wg := sizedwaitgroup.New(int(opts.ClusterOpts.Concurrency))
+
+	wg := util.New(opts.ClusterOpts.Concurrency)
 	for l := 1; l <= opts.ClusterOpts.Samples; l++ {
 		wg.Add()
-		go func(i int) error {
+		generateLoop := func(i int) error {
 			defer wg.Done()
 			log.Printf("Generate cluster #%v of #%v", i, opts.ClusterOpts.Samples)
 
@@ -207,13 +206,12 @@ func (cg *ClusterGenerator) Generate(opts *util.GenerateOpts) error {
 					break
 				}
 				log.Printf("Failed to get cluster credentials %s, retrying...", releaseSuffix)
-				time.Sleep(10 * time.Second) 
+				time.Sleep(10 * time.Second)
 				caData, cert, key, err = cg.getClusterCredentials(namespace, releaseSuffix)
 			}
 			if err != nil {
 				return err
 			}
-			
 
 			log.Print("Get cluster server uri")
 
@@ -246,7 +244,8 @@ func (cg *ClusterGenerator) Generate(opts *util.GenerateOpts) error {
 				return err
 			}
 			return nil
-		}(l)
+		}
+		go generateLoop(l)
 	}
 	wg.Wait()
 	return nil
