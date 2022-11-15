@@ -342,6 +342,27 @@ func TestGenerateJsonnetManifestInDir(t *testing.T) {
 	assert.Equal(t, 2, len(res1.Manifests))
 }
 
+func TestGenerateJsonnetManifestInRootDir(t *testing.T) {
+	service := newService("testdata/jsonnet-1")
+
+	q := apiclient.ManifestRequest{
+		Repo: &argoappv1.Repository{},
+		ApplicationSource: &argoappv1.ApplicationSource{
+			Path: ".",
+			Directory: &argoappv1.ApplicationSourceDirectory{
+				Jsonnet: argoappv1.ApplicationSourceJsonnet{
+					ExtVars: []argoappv1.JsonnetVar{{Name: "extVarString", Value: "extVarString"}, {Name: "extVarCode", Value: "\"extVarCode\"", Code: true}},
+					TLAs:    []argoappv1.JsonnetVar{{Name: "tlaString", Value: "tlaString"}, {Name: "tlaCode", Value: "\"tlaCode\"", Code: true}},
+					Libs:    []string{"."},
+				},
+			},
+		},
+	}
+	res1, err := service.GenerateManifest(context.Background(), &q)
+	assert.Nil(t, err)
+	assert.Equal(t, 2, len(res1.Manifests))
+}
+
 func TestGenerateJsonnetLibOutside(t *testing.T) {
 	service := newService(".")
 
@@ -358,7 +379,7 @@ func TestGenerateJsonnetLibOutside(t *testing.T) {
 	}
 	_, err := service.GenerateManifest(context.Background(), &q)
 	require.Error(t, err)
-	require.Contains(t, err.Error(), "value file '../../../testdata/jsonnet/vendor' resolved to outside repository root")
+	require.Contains(t, err.Error(), "file '../../../testdata/jsonnet/vendor' resolved to outside repository root")
 }
 
 func TestManifestGenErrorCacheByNumRequests(t *testing.T) {
