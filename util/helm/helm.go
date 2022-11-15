@@ -134,8 +134,7 @@ func Version(shortForm bool) (string, error) {
 func (h *helm) GetParameters(valuesFiles []pathutil.ResolvedFilePath, appPath, repoRoot string) (map[string]string, error) {
 	var values []string
 	// Don't load values.yaml if it's an out-of-bounds link.
-	if resolved, _, err := pathutil.ResolveFilePath(appPath, repoRoot, "values.yaml", []string{}); err == nil {
-		fmt.Println(resolved)
+	if _, _, err := pathutil.ResolveValueFilePathOrUrl(appPath, repoRoot, "values.yaml", []string{}); err == nil {
 		out, err := h.cmd.inspectValues(".")
 		if err != nil {
 			return nil, err
