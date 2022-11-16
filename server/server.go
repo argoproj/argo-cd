@@ -115,6 +115,7 @@ import (
 	"github.com/argoproj/argo-cd/v2/util/notification/k8s"
 	settings_notif "github.com/argoproj/argo-cd/v2/util/notification/settings"
 	"github.com/argoproj/argo-cd/v2/util/oidc"
+	"github.com/argoproj/argo-cd/v2/util/oidc/pkce"
 	"github.com/argoproj/argo-cd/v2/util/rbac"
 	util_session "github.com/argoproj/argo-cd/v2/util/session"
 	settings_util "github.com/argoproj/argo-cd/v2/util/settings"
@@ -172,6 +173,7 @@ type ArgoCDServer struct {
 	log            *log.Entry
 	sessionMgr     *util_session.SessionManager
 	settingsMgr    *settings_util.SettingsManager
+	pkceMgr        *pkce.PKCEManager
 	enf            *rbac.Enforcer
 	projInformer   cache.SharedIndexInformer
 	projLister     applisters.AppProjectNamespaceLister
@@ -264,6 +266,8 @@ func NewServer(ctx context.Context, opts ArgoCDServerOpts) *ArgoCDServer {
 	appsetLister := appFactory.Argoproj().V1alpha1().ApplicationSets().Lister().ApplicationSets(opts.Namespace)
 
 	userStateStorage := util_session.NewUserStateStorage(opts.RedisClient)
+	pkceStateStorage := pkce.NewPKCEStateStorage(opts.RedisClient)
+	pkceManager := pkce.NewPKCEManager(pkceStateStorage)
 	sessionMgr := util_session.NewSessionManager(settingsMgr, projLister, opts.DexServerAddr, opts.DexTLSConfig, userStateStorage)
 	enf := rbac.NewEnforcer(opts.KubeClientset, opts.Namespace, common.ArgoCDRBACConfigMapName, nil)
 	enf.EnableEnforce(!opts.DisableAuth)
@@ -307,6 +311,7 @@ func NewServer(ctx context.Context, opts ArgoCDServerOpts) *ArgoCDServer {
 		apiFactory:        apiFactory,
 		secretInformer:    secretInformer,
 		configMapInformer: configMapInformer,
+		pkceMgr:           pkceManager,
 	}
 }
 
@@ -989,7 +994,7 @@ func (a *ArgoCDServer) registerDexHandlers(mux *http.ServeMux) {
 	// Run dex OpenID Connect Identity Provider behind a reverse proxy (served at /api/dex)
 	var err error
 	mux.HandleFunc(common.DexAPIEndpoint+"/", dexutil.NewDexHTTPReverseProxy(a.DexServerAddr, a.BaseHRef, a.DexTLSConfig))
-	a.ssoClientApp, err = oidc.NewClientApp(a.settings, a.DexServerAddr, a.DexTLSConfig, a.BaseHRef)
+	a.ssoClientApp, err = oidc.NewClientApp(a.settings, a.DexServerAddr, a.DexTLSConfig, a.BaseHRef, a.pkceMgr)
 	errorsutil.CheckError(err)
 	mux.HandleFunc(common.LoginEndpoint, a.ssoClientApp.HandleLogin)
 	mux.HandleFunc(common.CallbackEndpoint, a.ssoClientApp.HandleCallback)

@@ -1,6 +1,7 @@
 package oidc
 
 import (
+	"context"
 	"encoding/hex"
 	"encoding/json"
 	"fmt"
@@ -24,6 +25,7 @@ import (
 	"github.com/argoproj/argo-cd/v2/util/crypto"
 	"github.com/argoproj/argo-cd/v2/util/dex"
 	httputil "github.com/argoproj/argo-cd/v2/util/http"
+	"github.com/argoproj/argo-cd/v2/util/oidc/pkce"
 	"github.com/argoproj/argo-cd/v2/util/rand"
 	"github.com/argoproj/argo-cd/v2/util/settings"
 )
@@ -70,6 +72,8 @@ type ClientApp struct {
 	encryptionKey []byte
 	// provider is the OIDC provider
 	provider Provider
+	// pkce manager for PKCE entries
+	pkceManager *pkce.PKCEManager
 }
 
 func GetScopesOrDefault(scopes []string) []string {
@@ -81,7 +85,7 @@ func GetScopesOrDefault(scopes []string) []string {
 
 // NewClientApp will register the Argo CD client app (either via Dex or external OIDC) and return an
 // object which has HTTP handlers for handling the HTTP responses for login and callback
-func NewClientApp(settings *settings.ArgoCDSettings, dexServerAddr string, dexTlsConfig *dex.DexTLSConfig, baseHRef string) (*ClientApp, error) {
+func NewClientApp(settings *settings.ArgoCDSettings, dexServerAddr string, dexTlsConfig *dex.DexTLSConfig, baseHRef string, pkceManager *pkce.PKCEManager) (*ClientApp, error) {
 	redirectURL, err := settings.RedirectURL()
 	if err != nil {
 		return nil, err
@@ -97,6 +101,7 @@ func NewClientApp(settings *settings.ArgoCDSettings, dexServerAddr string, dexTl
 		issuerURL:     settings.IssuerURL(),
 		baseHRef:      baseHRef,
 		encryptionKey: encryptionKey,
+		pkceManager:   pkceManager,
 	}
 	log.Infof("Creating client app (%s)", a.clientID)
 	u, err := url.Parse(settings.URL)
@@ -301,6 +306,12 @@ func (a *ClientApp) HandleLogin(w http.ResponseWriter, r *http.Request) {
 	var url string
 	switch grantType {
 	case GrantTypeAuthorizationCode:
+		ctx := context.Background()
+		pkceCodes := pkce.GeneratePKCECodes()
+		pkceCodes.Nonce = stateNonce
+		a.pkceManager.StorePKCEEntry(ctx, pkceCodes, time.Hour)
+		opts = append(opts, oauth2.SetAuthURLParam("code_challenge", pkceCodes.CodeChallenge))
+		opts = append(opts, oauth2.SetAuthURLParam("code_challenge_method", pkceCodes.CodeChallengeHash))
 		url = oauth2Config.AuthCodeURL(stateNonce, opts...)
 	case GrantTypeImplicit:
 		url, err = ImplicitFlowURL(oauth2Config, stateNonce, opts...)
@@ -343,7 +354,9 @@ func (a *ClientApp) HandleCallback(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 	ctx := gooidc.ClientContext(r.Context(), a.client)
-	token, err := oauth2Config.Exchange(ctx, code)
+	codeVerifier := a.pkceManager.RetrieveVerifierCode(state)
+	opts := []oauth2.AuthCodeOption{oauth2.SetAuthURLParam("code_verifier", codeVerifier)}
+	token, err := oauth2Config.Exchange(ctx, code, opts...)
 	if err != nil {
 		http.Error(w, fmt.Sprintf("failed to get token: %v", err), http.StatusInternalServerError)
 		return

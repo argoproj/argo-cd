@@ -2,8 +2,6 @@ package commands
 
 import (
 	"context"
-	"crypto/sha256"
-	"encoding/base64"
 	"fmt"
 	"html"
 	"net/http"
@@ -30,6 +28,7 @@ import (
 	jwtutil "github.com/argoproj/argo-cd/v2/util/jwt"
 	"github.com/argoproj/argo-cd/v2/util/localconfig"
 	oidcutil "github.com/argoproj/argo-cd/v2/util/oidc"
+	"github.com/argoproj/argo-cd/v2/util/oidc/pkce"
 	"github.com/argoproj/argo-cd/v2/util/rand"
 )
 
@@ -228,14 +227,7 @@ func oauth2Login(
 		completionChan <- errMsg
 	}
 
-	// PKCE implementation of https://tools.ietf.org/html/rfc7636
-	codeVerifier, err := rand.StringFromCharset(
-		43,
-		"ABCDEFGHIJKLMNOPQRSTUVWXYZabcdefghijklmnopqrstuvwxyz0123456789-._~",
-	)
-	errors.CheckError(err)
-	codeChallengeHash := sha256.Sum256([]byte(codeVerifier))
-	codeChallenge := base64.RawURLEncoding.EncodeToString(codeChallengeHash[:])
+	pkceCodes := pkce.GeneratePKCECodes()
 
 	// Authorization redirect callback from OAuth2 auth flow.
 	// Handles both implicit and authorization code flow
@@ -276,7 +268,7 @@ func oauth2Login(
 				handleErr(w, fmt.Sprintf("no code in request: %q", r.Form))
 				return
 			}
-			opts := []oauth2.AuthCodeOption{oauth2.SetAuthURLParam("code_verifier", codeVerifier)}
+			opts := []oauth2.AuthCodeOption{oauth2.SetAuthURLParam("code_verifier", pkceCodes.CodeVerifier)}
 			tok, err := oauth2conf.Exchange(ctx, code, opts...)
 			if err != nil {
 				handleErr(w, err.Error())
@@ -313,8 +305,8 @@ func oauth2Login(
 
 	switch grantType {
 	case oidcutil.GrantTypeAuthorizationCode:
-		opts = append(opts, oauth2.SetAuthURLParam("code_challenge", codeChallenge))
-		opts = append(opts, oauth2.SetAuthURLParam("code_challenge_method", "S256"))
+		opts = append(opts, oauth2.SetAuthURLParam("code_challenge", pkceCodes.CodeChallenge))
+		opts = append(opts, oauth2.SetAuthURLParam("code_challenge_method", pkceCodes.CodeChallengeHash))
 		url = oauth2conf.AuthCodeURL(stateNonce, opts...)
 	case oidcutil.GrantTypeImplicit:
 		url, err = oidcutil.ImplicitFlowURL(oauth2conf, stateNonce, opts...)
