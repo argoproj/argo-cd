@@ -46,9 +46,10 @@ func RunWithRedactor(cmd *exec.Cmd, redactor func(text string) string) (string, 
 	if err != nil {
 		re, ok := err.(*argoexec.CmdError)
 		if ok {
-			re.Args = text.Trunc(re.Args, 50)
+			// we truncate args as they fill the UI unnecesarily
+			re.Args = text.Trunc(re.Args, 80)
+			return output, re
 		}
-		return output, re
 	}
 	return output, err
 }
