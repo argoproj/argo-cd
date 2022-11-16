@@ -1,5 +1,5 @@
 import {Tooltip} from 'argo-ui';
-import {useData} from 'argo-ui/v2';
+import {Spinner, useData} from 'argo-ui/v2';
 import * as React from 'react';
 import {Context} from '../shared/context';
 import {services, ViewPreferences} from '../shared/services';
@@ -31,7 +31,10 @@ export const useSidebarTarget = () => {
 export const Sidebar = (props: SidebarProps) => {
     const context = React.useContext(Context);
     const [version, loading, error] = useData(() => services.version.version());
+    const [authSettings, authServiceLoading] = useData(() => services.authService.settings());
     const locationPath = context.history.location.pathname;
+
+    const uiDashboardLogo = authSettings?.uiDashboardLogo || 'assets/images/logo.png';
 
     const tooltipProps = {
         placement: 'right',
@@ -46,9 +49,15 @@ export const Sidebar = (props: SidebarProps) => {
 
     return (
         <div className={`sidebar ${props.pref.hideSidebar ? 'sidebar--collapsed' : ''}`}>
-            <div className='sidebar__logo'>
-                <img src='assets/images/logo.png' alt='Argo' /> {!props.pref.hideSidebar && 'Argo CD'}
-            </div>
+            {authServiceLoading ? (
+                <span className='sidebar__loading-logo'>
+                    <Spinner />
+                </span>
+            ) : (
+                <div className='sidebar__logo'>
+                    <img src={uiDashboardLogo} alt='Argo' /> {!props.pref.hideSidebar && 'Argo CD'}
+                </div>
+            )}
             <div className='sidebar__version' onClick={props.onVersionClick}>
                 {loading ? 'Loading...' : error?.state ? 'Unknown' : version?.Version || 'Unknown'}
             </div>

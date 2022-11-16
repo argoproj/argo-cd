@@ -118,6 +118,7 @@ func (s *Server) Get(ctx context.Context, q *settingspkg.SettingsQuery) (*settin
 		TrackingMethod:            trackingMethod,
 		ExecEnabled:               argoCDSettings.ExecEnabled,
 		AppsInAnyNamespaceEnabled: s.appsInAnyNamespaceEnabled,
+		UiLoginLogo:               argoCDSettings.UiLoginLogo,
 	}
 
 	if sessionmgr.LoggedIn(ctx) || s.disableAuth {
@@ -135,6 +136,7 @@ func (s *Server) Get(ctx context.Context, q *settingspkg.SettingsQuery) (*settin
 		set.UiBannerPermanent = argoCDSettings.UiBannerPermanent
 		set.UiBannerPosition = argoCDSettings.UiBannerPosition
 		set.ControllerNamespace = s.mgr.GetNamespace()
+		set.UiDashboardLogo = argoCDSettings.UiDashboardLogo
 	}
 	if argoCDSettings.DexConfig != "" {
 		var cfg settingspkg.DexConfig

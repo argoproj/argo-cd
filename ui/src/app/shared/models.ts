@@ -463,6 +463,8 @@ export interface AuthSettings {
     uiBannerURL: string;
     uiBannerPermanent: boolean;
     uiBannerPosition: string;
+    uiDashboardLogo: string;
+    uiLoginLogo: string;
     execEnabled: boolean;
     appsInAnyNamespaceEnabled: boolean;
 }

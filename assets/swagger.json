@@ -4328,6 +4328,12 @@
         "uiCssURL": {
           "type": "string"
         },
+        "uiDashboardLogo": {
+          "type": "string"
+        },
+        "uiLoginLogo": {
+          "type": "string"
+        },
         "url": {
           "type": "string"
         },

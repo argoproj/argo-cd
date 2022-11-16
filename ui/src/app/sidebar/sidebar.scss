@@ -90,4 +90,13 @@
             margin-left: 13px;
         }
     }
+
+    &__loading-logo {
+        display: flex;
+        justify-content: center;
+        .spinner {
+            color: white;
+            font-size: 18px;
+        }
+    }
 }

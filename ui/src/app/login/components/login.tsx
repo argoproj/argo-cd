@@ -53,7 +53,7 @@ export class Login extends React.Component<RouteComponentProps<{}>, State> {
             <div className='login'>
                 <div className='login__content show-for-medium'>
                     <div className='login__text'>Let's get stuff deployed!</div>
-                    <div className='argo__logo' />
+                    <div className='argo__logo' style={{backgroundImage: `url(${this.state.authSettings?.uiLoginLogo || 'assets/images/argo.png'})`}} />
                 </div>
                 <div className='login__box'>
                     <div className='login__logo width-control'>
