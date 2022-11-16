@@ -158,5 +158,6 @@ func URIToSecretName(uriType, uri string) (string, error) {
 	h := fnv.New32a()
 	_, _ = h.Write([]byte(uri))
 	host := strings.ToLower(strings.Split(parsedURI.Host, ":")[0])
+	host = strings.Replace(host, "[", "", -1)
 	return fmt.Sprintf("%s-%s-%v", uriType, host, h.Sum32()), nil
 }
