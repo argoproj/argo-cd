@@ -856,7 +856,7 @@ func helmTemplate(appPath string, repoRoot string, env *v1alpha1.Env, q *apiclie
 		for _, val := range appHelm.ValueFiles {
 
 			// This will resolve val to an absolute path (or an URL)
-			path, isRemote, err := pathutil.ResolveFilePath(appPath, repoRoot, env.Envsubst(val), q.GetValuesFileSchemes())
+			path, isRemote, err := pathutil.ResolveValueFilePathOrUrl(appPath, repoRoot, env.Envsubst(val), q.GetValuesFileSchemes())
 			if err != nil {
 				return nil, err
 			}
@@ -896,7 +896,7 @@ func helmTemplate(appPath string, repoRoot string, env *v1alpha1.Env, q *apiclie
 			}
 		}
 		for _, p := range appHelm.FileParameters {
-			resolvedPath, _, err := pathutil.ResolveFilePath(appPath, repoRoot, env.Envsubst(p.Path), q.GetValuesFileSchemes())
+			resolvedPath, _, err := pathutil.ResolveValueFilePathOrUrl(appPath, repoRoot, env.Envsubst(p.Path), q.GetValuesFileSchemes())
 			if err != nil {
 				return nil, err
 			}
@@ -1504,7 +1504,7 @@ func makeJsonnetVm(appPath string, repoRoot string, sourceJsonnet v1alpha1.Appli
 	jpaths := []string{appPath}
 	for _, p := range sourceJsonnet.Libs {
 		// the jsonnet library path is relative to the repository root, not application path
-		jpath, _, err := pathutil.ResolveFilePath(repoRoot, repoRoot, p, nil)
+		jpath, err := pathutil.ResolveFileOrDirectoryPath(repoRoot, repoRoot, p)
 		if err != nil {
 			return nil, err
 		}
@@ -1752,7 +1752,7 @@ func populateHelmAppDetails(res *apiclient.RepoAppDetailsResponse, appPath strin
 		return err
 	}
 
-	if resolvedValuesPath, _, err := pathutil.ResolveFilePath(appPath, repoRoot, "values.yaml", []string{}); err == nil {
+	if resolvedValuesPath, _, err := pathutil.ResolveValueFilePathOrUrl(appPath, repoRoot, "values.yaml", []string{}); err == nil {
 		if err := loadFileIntoIfExists(resolvedValuesPath, &res.Helm.Values); err != nil {
 			return err
 		}
@@ -1762,7 +1762,7 @@ func populateHelmAppDetails(res *apiclient.RepoAppDetailsResponse, appPath strin
 	var resolvedSelectedValueFiles []pathutil.ResolvedFilePath
 	// drop not allowed values files
 	for _, file := range selectedValueFiles {
-		if resolvedFile, _, err := pathutil.ResolveFilePath(appPath, repoRoot, file, q.GetValuesFileSchemes()); err == nil {
+		if resolvedFile, _, err := pathutil.ResolveValueFilePathOrUrl(appPath, repoRoot, file, q.GetValuesFileSchemes()); err == nil {
 			resolvedSelectedValueFiles = append(resolvedSelectedValueFiles, resolvedFile)
 		} else {
 			log.Warnf("Values file %s is not allowed: %v", file, err)
