@@ -58,6 +58,7 @@ Currently, the following organizations are **officially** using Argo CD:
 1. [Deutsche Telekom AG](https://telekom.com)
 1. [Devopsi - Poland Software/DevOps Consulting](https://devopsi.pl/)
 1. [Devtron Labs](https://github.com/devtron-labs/devtron)
+1. [Divistant](https://divistant.com)
 1. [EDF Renewables](https://www.edf-re.com/)
 1. [edX](https://edx.org)
 1. [Elastic](https://elastic.co/)
