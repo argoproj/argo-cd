@@ -389,10 +389,10 @@ func (c *liveStateCache) getCluster(server string) (clustercache.ClusterCache, e
 		return nil, fmt.Errorf("controller is configured to ignore cluster %s", cluster.Server)
 	}
 
-    resourceCustomLabel, err := c.settingsMgr.GetResourceCustomLabel()
-    if err != nil {
-        return nil, fmt.Errorf("error getting custom label: %w", err)
-    }
+	resourceCustomLabel, err := c.settingsMgr.GetResourceCustomLabel()
+	if err != nil {
+		return nil, fmt.Errorf("error getting custom label: %w", err)
+	}
 
 	clusterCacheOpts := []clustercache.UpdateSettingsFunc{
 		clustercache.SetListSemaphore(semaphore.NewWeighted(clusterCacheListSemaphoreSize)),

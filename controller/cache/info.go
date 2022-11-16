@@ -26,11 +26,11 @@ func populateNodeInfo(un *unstructured.Unstructured, res *ResourceInfo, customLa
 		res.Info = append(res.Info, v1alpha1.InfoItem{Name: "Revision", Value: fmt.Sprintf("Rev:%v", revision)})
 	}
 	if customLabel != "" {
-	    if labels := un.GetLabels(); labels != nil {
-            if value, ok := labels[customLabel]; ok {
-                res.Info = append(res.Info, v1alpha1.InfoItem{Name: customLabel, Value: value})
-            }
-    	}
+		if labels := un.GetLabels(); labels != nil {
+			if value, ok := labels[customLabel]; ok {
+				res.Info = append(res.Info, v1alpha1.InfoItem{Name: customLabel, Value: value})
+			}
+		}
 	}
 	switch gvk.Group {
 	case "":
