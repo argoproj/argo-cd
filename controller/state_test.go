@@ -13,6 +13,7 @@ import (
 	"github.com/stretchr/testify/assert"
 	v1 "k8s.io/api/apps/v1"
 	corev1 "k8s.io/api/core/v1"
+	networkingv1 "k8s.io/api/networking/v1"
 	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
 	"k8s.io/apimachinery/pkg/apis/meta/v1/unstructured"
 	"k8s.io/apimachinery/pkg/runtime"
@@ -852,6 +853,19 @@ func TestIsLiveResourceManaged(t *testing.T) {
 			},
 		},
 	})
+	managedWrongAPIGroup := kube.MustToUnstructured(&networkingv1.Ingress{
+		TypeMeta: metav1.TypeMeta{
+			APIVersion: "networking.k8s.io/v1",
+			Kind:       "Ingress",
+		},
+		ObjectMeta: metav1.ObjectMeta{
+			Name:      "some-ingress",
+			Namespace: "default",
+			Annotations: map[string]string{
+				common.AnnotationKeyAppInstance: "guestbook:extensions/Ingress:default/some-ingress",
+			},
+		},
+	})
 	ctrl := newFakeController(&fakeData{
 		apps: []runtime.Object{app, &defaultProj},
 		manifestResponse: &apiclient.ManifestResponse{
@@ -870,30 +884,69 @@ func TestIsLiveResourceManaged(t *testing.T) {
 	})
 
 	manager := ctrl.appStateManager.(*appStateManager)
+	appName := "guestbook"
 
-	// Managed resource w/ annotations
-	assert.True(t, manager.isSelfReferencedObj(managedObj, common.AnnotationKeyAppInstance, argo.TrackingMethodLabel))
-	assert.True(t, manager.isSelfReferencedObj(managedObj, common.AnnotationKeyAppInstance, argo.TrackingMethodAnnotation))
+	t.Run("will return true if trackingid matches the resource", func(t *testing.T) {
+		// given
+		t.Parallel()
+		configObj := managedObj.DeepCopy()
 
-	// Managed resource w/ label
-	assert.True(t, manager.isSelfReferencedObj(managedObjWithLabel, common.AnnotationKeyAppInstance, argo.TrackingMethodLabel))
+		// then
+		assert.True(t, manager.isSelfReferencedObj(managedObj, configObj, appName, common.AnnotationKeyAppInstance, argo.TrackingMethodLabel))
+		assert.True(t, manager.isSelfReferencedObj(managedObj, configObj, appName, common.AnnotationKeyAppInstance, argo.TrackingMethodAnnotation))
+	})
+	t.Run("will return true if tracked with label", func(t *testing.T) {
+		// given
+		t.Parallel()
+		configObj := managedObjWithLabel.DeepCopy()
 
-	// Wrong resource name
-	assert.True(t, manager.isSelfReferencedObj(unmanagedObjWrongName, common.AnnotationKeyAppInstance, argo.TrackingMethodLabel))
-	assert.False(t, manager.isSelfReferencedObj(unmanagedObjWrongName, common.AnnotationKeyAppInstance, argo.TrackingMethodAnnotation))
+		// then
+		assert.True(t, manager.isSelfReferencedObj(managedObjWithLabel, configObj, appName, common.AnnotationKeyAppInstance, argo.TrackingMethodLabel))
+	})
+	t.Run("will handle if trackingId has wrong resource name and config is nil", func(t *testing.T) {
+		// given
+		t.Parallel()
 
-	// Wrong resource group
-	assert.True(t, manager.isSelfReferencedObj(unmanagedObjWrongGroup, common.AnnotationKeyAppInstance, argo.TrackingMethodLabel))
-	assert.False(t, manager.isSelfReferencedObj(unmanagedObjWrongGroup, common.AnnotationKeyAppInstance, argo.TrackingMethodAnnotation))
+		// then
+		assert.True(t, manager.isSelfReferencedObj(unmanagedObjWrongName, nil, appName, common.AnnotationKeyAppInstance, argo.TrackingMethodLabel))
+		assert.False(t, manager.isSelfReferencedObj(unmanagedObjWrongName, nil, appName, common.AnnotationKeyAppInstance, argo.TrackingMethodAnnotation))
+	})
+	t.Run("will handle if trackingId has wrong resource group and config is nil", func(t *testing.T) {
+		// given
+		t.Parallel()
 
-	// Wrong resource kind
-	assert.True(t, manager.isSelfReferencedObj(unmanagedObjWrongKind, common.AnnotationKeyAppInstance, argo.TrackingMethodLabel))
-	assert.False(t, manager.isSelfReferencedObj(unmanagedObjWrongKind, common.AnnotationKeyAppInstance, argo.TrackingMethodAnnotation))
+		// then
+		assert.True(t, manager.isSelfReferencedObj(unmanagedObjWrongGroup, nil, appName, common.AnnotationKeyAppInstance, argo.TrackingMethodLabel))
+		assert.False(t, manager.isSelfReferencedObj(unmanagedObjWrongGroup, nil, appName, common.AnnotationKeyAppInstance, argo.TrackingMethodAnnotation))
+	})
+	t.Run("will handle if trackingId has wrong kind and config is nil", func(t *testing.T) {
+		// given
+		t.Parallel()
 
-	// Wrong resource namespace
-	assert.True(t, manager.isSelfReferencedObj(unmanagedObjWrongNamespace, common.AnnotationKeyAppInstance, argo.TrackingMethodLabel))
-	assert.False(t, manager.isSelfReferencedObj(unmanagedObjWrongNamespace, common.AnnotationKeyAppInstance, argo.TrackingMethodAnnotationAndLabel))
+		// then
+		assert.True(t, manager.isSelfReferencedObj(unmanagedObjWrongKind, nil, appName, common.AnnotationKeyAppInstance, argo.TrackingMethodLabel))
+		assert.False(t, manager.isSelfReferencedObj(unmanagedObjWrongKind, nil, appName, common.AnnotationKeyAppInstance, argo.TrackingMethodAnnotation))
+	})
+	t.Run("will handle if trackingId has wrong namespace and config is nil", func(t *testing.T) {
+		// given
+		t.Parallel()
 
-	// Nil resource
-	assert.True(t, manager.isSelfReferencedObj(nil, common.AnnotationKeyAppInstance, argo.TrackingMethodAnnotation))
+		// then
+		assert.True(t, manager.isSelfReferencedObj(unmanagedObjWrongNamespace, nil, appName, common.AnnotationKeyAppInstance, argo.TrackingMethodLabel))
+		assert.False(t, manager.isSelfReferencedObj(unmanagedObjWrongNamespace, nil, appName, common.AnnotationKeyAppInstance, argo.TrackingMethodAnnotationAndLabel))
+	})
+	t.Run("will return true if live is nil", func(t *testing.T) {
+		t.Parallel()
+		assert.True(t, manager.isSelfReferencedObj(nil, nil, appName, common.AnnotationKeyAppInstance, argo.TrackingMethodAnnotation))
+	})
+
+	t.Run("will handle upgrade in desired state APIGroup", func(t *testing.T) {
+		// given
+		t.Parallel()
+		config := managedWrongAPIGroup.DeepCopy()
+		delete(config.GetAnnotations(), common.AnnotationKeyAppInstance)
+
+		// then
+		assert.True(t, manager.isSelfReferencedObj(managedWrongAPIGroup, config, appName, common.AnnotationKeyAppInstance, argo.TrackingMethodAnnotation))
+	})
 }

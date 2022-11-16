@@ -36,19 +36,21 @@ metadata:
     app.kubernetes.io/name: argocd-cm
     app.kubernetes.io/part-of: argocd
 data:
-  resource.customizations.health.argoproj.io_Application: |
-    hs = {}
-    hs.status = "Progressing"
-    hs.message = ""
-    if obj.status ~= nil then
-      if obj.status.health ~= nil then
-        hs.status = obj.status.health.status
-        if obj.status.health.message ~= nil then
-          hs.message = obj.status.health.message
+  resource.customizations: |
+    argoproj.io/Application:
+      health.lua: |  
+        hs = {}
+        hs.status = "Progressing"
+        hs.message = ""
+        if obj.status ~= nil then
+          if obj.status.health ~= nil then
+            hs.status = obj.status.health.status
+            if obj.status.health.message ~= nil then
+              hs.message = obj.status.health.message
+            end
+          end
         end
-      end
-    end
-    return hs
+        return hs
 ```
 
 ## Custom Health Checks
@@ -62,34 +64,50 @@ There are two ways to configure a custom health check. The next two sections des
 
 ### Way 1. Define a Custom Health Check in `argocd-cm` ConfigMap
 
-Custom health checks can be defined in `resource.customizations.health.<group_kind>` field of `argocd-cm`. If you are using argocd-operator, this is overridden by [the argocd-operator resourceCustomizations](https://argocd-operator.readthedocs.io/en/latest/reference/argocd/#resource-customizations).
+Custom health checks can be defined in 
+```yaml
+  resource.customizations: |
+    <group/kind>:
+      health.lua: | 
+```
+field of `argocd-cm`. If you are using argocd-operator, this is overridden by [the argocd-operator resourceCustomizations](https://argocd-operator.readthedocs.io/en/latest/reference/argocd/#resource-customizations).
 
 The following example demonstrates a health check for `cert-manager.io/Certificate`.
 
 ```yaml
 data:
-  resource.customizations.health.cert-manager.io_Certificate: |
-    hs = {}
-    if obj.status ~= nil then
-      if obj.status.conditions ~= nil then
-        for i, condition in ipairs(obj.status.conditions) do
-          if condition.type == "Ready" and condition.status == "False" then
-            hs.status = "Degraded"
-            hs.message = condition.message
-            return hs
-          end
-          if condition.type == "Ready" and condition.status == "True" then
-            hs.status = "Healthy"
-            hs.message = condition.message
-            return hs
+  resource.customizations: |
+    cert-manager.io/Certificate:
+      health.lua: |
+        hs = {}
+        if obj.status ~= nil then
+          if obj.status.conditions ~= nil then
+            for i, condition in ipairs(obj.status.conditions) do
+              if condition.type == "Ready" and condition.status == "False" then
+                hs.status = "Degraded"
+                hs.message = condition.message
+                return hs
+              end
+              if condition.type == "Ready" and condition.status == "True" then
+                hs.status = "Healthy"
+                hs.message = condition.message
+                return hs
+              end
+            end
           end
         end
-      end
-    end
 
-    hs.status = "Progressing"
-    hs.message = "Waiting for certificate"
-    return hs
+        hs.status = "Progressing"
+        hs.message = "Waiting for certificate"
+        return hs
+```
+In order to prevent duplication of the same custom health check for potentially multiple resources, it is also possible to specify a wildcard in the resource kind, like this:
+
+```yaml
+  resource.customizations: |
+    ec2.aws.crossplane.io/*:
+      health.lua: | 
+        ...
 ```
 
 The `obj` is a global variable which contains the resource. The script must return an object with status and optional message field.
@@ -139,3 +157,5 @@ tests:
 To test the implemented custom health checks, run `go test -v ./util/lua/`.
 
 The [PR#1139](https://github.com/argoproj/argo-cd/pull/1139) is an example of Cert Manager CRDs custom health check.
+
+Please note that bundled health checks with wildcards are not supported.
