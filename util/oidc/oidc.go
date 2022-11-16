@@ -1,6 +1,8 @@
 package oidc
 
 import (
+	"crypto/sha256"
+	"encoding/base64"
 	"encoding/hex"
 	"encoding/json"
 	"fmt"
@@ -23,6 +25,7 @@ import (
 	"github.com/argoproj/argo-cd/v2/server/settings/oidc"
 	"github.com/argoproj/argo-cd/v2/util/crypto"
 	"github.com/argoproj/argo-cd/v2/util/dex"
+	"github.com/argoproj/argo-cd/v2/util/errors"
 	httputil "github.com/argoproj/argo-cd/v2/util/http"
 	"github.com/argoproj/argo-cd/v2/util/rand"
 	"github.com/argoproj/argo-cd/v2/util/settings"
@@ -77,6 +80,28 @@ func GetScopesOrDefault(scopes []string) []string {
 		return []string{"openid", "profile", "email", "groups"}
 	}
 	return scopes
+}
+
+type PKCECodes struct {
+	CodeVerifier      string
+	CodeChallenge     string
+	CodeChallengeHash string
+}
+
+func GeneratePKCECodes() *PKCECodes {
+	// PKCE implementation of https://tools.ietf.org/html/rfc7636
+	codeVerifier, err := rand.StringFromCharset(
+		43,
+		"ABCDEFGHIJKLMNOPQRSTUVWXYZabcdefghijklmnopqrstuvwxyz0123456789-._~",
+	)
+	errors.CheckError(err)
+	codeChallengeHash := sha256.Sum256([]byte(codeVerifier))
+	codeChallenge := base64.RawURLEncoding.EncodeToString(codeChallengeHash[:])
+	return &PKCECodes{
+		CodeVerifier:      codeVerifier,
+		CodeChallenge:     codeChallenge,
+		CodeChallengeHash: "S256",
+	}
 }
 
 // NewClientApp will register the Argo CD client app (either via Dex or external OIDC) and return an
@@ -150,19 +175,20 @@ func (a *ClientApp) oauth2Config(scopes []string) (*oauth2.Config, error) {
 }
 
 // generateAppState creates an app state nonce
-func (a *ClientApp) generateAppState(returnURL string, w http.ResponseWriter) (string, error) {
+func (a *ClientApp) generateAppState(returnURL string, w http.ResponseWriter) (string, *PKCECodes, error) {
 	// According to the spec (https://www.rfc-editor.org/rfc/rfc6749#section-10.10), this must be guessable with
 	// probability <= 2^(-128). The following call generates one of 52^24 random strings, ~= 2^136 possibilities.
 	randStr, err := rand.String(24)
 	if err != nil {
-		return "", fmt.Errorf("failed to generate app state: %w", err)
+		return "", nil, fmt.Errorf("failed to generate app state: %w", err)
 	}
+	pkceCodes := GeneratePKCECodes()
 	if returnURL == "" {
 		returnURL = a.baseHRef
 	}
-	cookieValue := fmt.Sprintf("%s:%s", randStr, returnURL)
+	cookieValue := fmt.Sprintf("%s:%s:%s", randStr, pkceCodes.CodeVerifier, returnURL)
 	if encrypted, err := crypto.Encrypt([]byte(cookieValue), a.encryptionKey); err != nil {
-		return "", err
+		return "", nil, err
 	} else {
 		cookieValue = hex.EncodeToString(encrypted)
 	}
@@ -175,38 +201,40 @@ func (a *ClientApp) generateAppState(returnURL string, w http.ResponseWriter) (s
 		SameSite: http.SameSiteLaxMode,
 		Secure:   a.secureCookie,
 	})
-	return randStr, nil
+	return randStr, pkceCodes, nil
 }
 
-func (a *ClientApp) verifyAppState(r *http.Request, w http.ResponseWriter, state string) (string, error) {
+func (a *ClientApp) verifyAppState(r *http.Request, w http.ResponseWriter, state string) (string, string, error) {
 	c, err := r.Cookie(common.StateCookieName)
 	if err != nil {
-		return "", err
+		return "", "", err
 	}
 	val, err := hex.DecodeString(c.Value)
 	if err != nil {
-		return "", err
+		return "", "", err
 	}
 	val, err = crypto.Decrypt(val, a.encryptionKey)
 	if err != nil {
-		return "", err
+		return "", "", err
 	}
 	cookieVal := string(val)
 	redirectURL := a.baseHRef
-	parts := strings.SplitN(cookieVal, ":", 2)
-	if len(parts) == 2 && parts[1] != "" {
-		if !isValidRedirectURL(parts[1], []string{a.settings.URL, a.baseHRef}) {
-			sanitizedUrl := parts[1]
+	codeVerifier := ""
+	parts := strings.SplitN(cookieVal, ":", 3)
+	if len(parts) == 3 && parts[2] != "" {
+		if !isValidRedirectURL(parts[2], []string{a.settings.URL, a.baseHRef}) {
+			sanitizedUrl := parts[2]
 			if len(sanitizedUrl) > 100 {
 				sanitizedUrl = sanitizedUrl[:100]
 			}
 			log.Warnf("Failed to verify app state - got invalid redirectURL %q", sanitizedUrl)
-			return "", fmt.Errorf("failed to verify app state: %w", InvalidRedirectURLError)
+			return "", "", fmt.Errorf("failed to verify app state: %w", InvalidRedirectURLError)
 		}
-		redirectURL = parts[1]
+		redirectURL = parts[2]
+		codeVerifier = parts[1]
 	}
 	if parts[0] != state {
-		return "", fmt.Errorf("invalid state in '%s' cookie", common.AuthCookieName)
+		return "", "", fmt.Errorf("invalid state in '%s' cookie", common.AuthCookieName)
 	}
 	// set empty cookie to clear it
 	http.SetCookie(w, &http.Cookie{
@@ -216,7 +244,7 @@ func (a *ClientApp) verifyAppState(r *http.Request, w http.ResponseWriter, state
 		SameSite: http.SameSiteLaxMode,
 		Secure:   a.secureCookie,
 	})
-	return redirectURL, nil
+	return redirectURL, codeVerifier, nil
 }
 
 // isValidRedirectURL checks whether the given redirectURL matches on of the
@@ -291,7 +319,7 @@ func (a *ClientApp) HandleLogin(w http.ResponseWriter, r *http.Request) {
 		http.Error(w, "Invalid redirect URL: the protocol and host (including port) must match and the path must be within allowed URLs if provided", http.StatusBadRequest)
 		return
 	}
-	stateNonce, err := a.generateAppState(returnURL, w)
+	stateNonce, pkceCodes, err := a.generateAppState(returnURL, w)
 	if err != nil {
 		log.Errorf("Failed to initiate login flow: %v", err)
 		http.Error(w, "Failed to initiate login flow", http.StatusInternalServerError)
@@ -301,6 +329,8 @@ func (a *ClientApp) HandleLogin(w http.ResponseWriter, r *http.Request) {
 	var url string
 	switch grantType {
 	case GrantTypeAuthorizationCode:
+		opts = append(opts, oauth2.SetAuthURLParam("code_challenge", pkceCodes.CodeChallenge))
+		opts = append(opts, oauth2.SetAuthURLParam("code_challenge_method", pkceCodes.CodeChallengeHash))
 		url = oauth2Config.AuthCodeURL(stateNonce, opts...)
 	case GrantTypeImplicit:
 		url, err = ImplicitFlowURL(oauth2Config, stateNonce, opts...)
@@ -337,13 +367,14 @@ func (a *ClientApp) HandleCallback(w http.ResponseWriter, r *http.Request) {
 		a.handleImplicitFlow(r, w, state)
 		return
 	}
-	returnURL, err := a.verifyAppState(r, w, state)
+	returnURL, codeVerifier, err := a.verifyAppState(r, w, state)
 	if err != nil {
 		http.Error(w, err.Error(), http.StatusBadRequest)
 		return
 	}
 	ctx := gooidc.ClientContext(r.Context(), a.client)
-	token, err := oauth2Config.Exchange(ctx, code)
+	opts := []oauth2.AuthCodeOption{oauth2.SetAuthURLParam("code_verifier", codeVerifier)}
+	token, err := oauth2Config.Exchange(ctx, code, opts...)
 	if err != nil {
 		http.Error(w, fmt.Sprintf("failed to get token: %v", err), http.StatusInternalServerError)
 		return
@@ -428,7 +459,7 @@ func (a *ClientApp) handleImplicitFlow(r *http.Request, w http.ResponseWriter, s
 		CookieName: common.AuthCookieName,
 	}
 	if state != "" {
-		returnURL, err := a.verifyAppState(r, w, state)
+		returnURL, _, err := a.verifyAppState(r, w, state)
 		if err != nil {
 			http.Error(w, err.Error(), http.StatusBadRequest)
 			return
