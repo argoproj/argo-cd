@@ -93,6 +93,22 @@ Note that the CSS file should be mounted within a subdirectory of the "/shared/a
 "incorrect MIME type" error. The subdirectory can be changed using `server.staticassets` key of the
 [argocd-cmd-params-cm.yaml](./argocd-cmd-params-cm.yaml) ConfigMap.
 
+## Custom Logo
+Argo CD dashboard and login screen logos can be customised using key `ui.dashboardlogo` and `ui.loginlogo` respectively. It accepts url of the logo file. Both are optional and if not set, the default logo will be shown.
+
+### argocd-cm
+```yaml
+---
+apiVersion: v1
+kind: ConfigMap
+metadata:
+  ...
+  name: argocd-cm
+data:
+    ui.dashboardlogo: "https://mysite.com/static/logo.png"
+    ui.loginlogo: "https://mysite.com/static/logo-hero.png"
+```
+
 ## Developing Style Overlays
 The styles specified in the injected CSS file should be specific to components and classes defined in [argo-ui](https://github.com/argoproj/argo-ui).
 It is recommended to test out the styles you wish to apply first by making use of your browser's built-in developer tools.  For a more full-featured
