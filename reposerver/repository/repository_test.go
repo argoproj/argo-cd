@@ -47,14 +47,14 @@ gpg:                using RSA key 4AEE18F83AFDEB23
 gpg: Good signature from "GitHub (web-flow commit signing) <noreply@github.com>" [ultimate]
 `
 
-type clientFunc func(*gitmocks.Client)
+type clientFunc func(*gitmocks.Client, *helmmocks.Client)
 
 func newServiceWithMocks(root string, signed bool) (*Service, *gitmocks.Client) {
 	root, err := filepath.Abs(root)
 	if err != nil {
 		panic(err)
 	}
-	return newServiceWithOpt(func(gitClient *gitmocks.Client) {
+	return newServiceWithOpt(func(gitClient *gitmocks.Client, helmClient *helmmocks.Client) {
 		gitClient.On("Init").Return(nil)
 		gitClient.On("Fetch", mock.Anything).Return(nil)
 		gitClient.On("Checkout", mock.Anything, mock.Anything).Return(nil)
@@ -66,30 +66,31 @@ func newServiceWithMocks(root string, signed bool) (*Service, *gitmocks.Client) 
 		} else {
 			gitClient.On("VerifyCommitSignature", mock.Anything).Return("", nil)
 		}
+
+		chart := "my-chart"
+		oobChart := "out-of-bounds-chart"
+		version := "1.1.0"
+		helmClient.On("GetIndex", true).Return(&helm.Index{Entries: map[string]helm.Entries{
+			chart:    {{Version: "1.0.0"}, {Version: version}},
+			oobChart: {{Version: "1.0.0"}, {Version: version}},
+		}}, nil)
+		helmClient.On("ExtractChart", chart, version).Return("./testdata/my-chart", io.NopCloser, nil)
+		helmClient.On("ExtractChart", oobChart, version).Return("./testdata2/out-of-bounds-chart", io.NopCloser, nil)
+		helmClient.On("CleanChartCache", chart, version).Return(nil)
+		helmClient.On("CleanChartCache", oobChart, version).Return(nil)
+		helmClient.On("DependencyBuild").Return(nil)
 	}, root)
 }
 
 func newServiceWithOpt(cf clientFunc, root string) (*Service, *gitmocks.Client) {
 	helmClient := &helmmocks.Client{}
 	gitClient := &gitmocks.Client{}
-	cf(gitClient)
+	cf(gitClient, helmClient)
 	service := NewService(metrics.NewMetricsServer(), cache.NewCache(
 		cacheutil.NewCache(cacheutil.NewInMemoryCache(1*time.Minute)),
 		1*time.Minute,
 		1*time.Minute,
 	), RepoServerInitConstants{ParallelismLimit: 1}, argo.NewResourceTracking(), &git.NoopCredsStore{}, root)
-
-	chart := "my-chart"
-	oobChart := "out-of-bounds-chart"
-	version := "1.1.0"
-	helmClient.On("GetIndex", true).Return(&helm.Index{Entries: map[string]helm.Entries{
-		chart:    {{Version: "1.0.0"}, {Version: version}},
-		oobChart: {{Version: "1.0.0"}, {Version: version}},
-	}}, nil)
-	helmClient.On("ExtractChart", chart, version).Return("./testdata/my-chart", io.NopCloser, nil)
-	helmClient.On("ExtractChart", oobChart, version).Return("./testdata2/out-of-bounds-chart", io.NopCloser, nil)
-	helmClient.On("CleanChartCache", chart, version).Return(nil)
-	helmClient.On("CleanChartCache", oobChart, version).Return(nil)
 
 	service.newGitClient = func(rawRepoURL string, root string, creds git.Creds, insecure bool, enableLfs bool, prosy string, opts ...git.ClientOpts) (client git.Client, e error) {
 		return gitClient, nil
@@ -121,7 +122,7 @@ func newServiceWithCommitSHA(root, revision string) *Service {
 		revisionErr = errors.New("not a commit SHA")
 	}
 
-	service, gitClient := newServiceWithOpt(func(gitClient *gitmocks.Client) {
+	service, gitClient := newServiceWithOpt(func(gitClient *gitmocks.Client, helmClient *helmmocks.Client) {
 		gitClient.On("Init").Return(nil)
 		gitClient.On("Fetch", mock.Anything).Return(nil)
 		gitClient.On("Checkout", mock.Anything, mock.Anything).Return(nil)
@@ -1190,6 +1191,7 @@ func TestListApps(t *testing.T) {
 		"kustomization_yml":                 "Kustomize",
 		"my-chart":                          "Helm",
 		"my-chart-2":                        "Helm",
+		"oci-dependencies":                  "Helm",
 		"out-of-bounds-values-file-link":    "Helm",
 		"values-files":                      "Helm",
 	}
@@ -2518,4 +2520,19 @@ func Test_populateHelmAppDetails_values_symlinks(t *testing.T) {
 		assert.Empty(t, res.Helm.Values)
 		assert.Empty(t, res.Helm.Parameters)
 	})
+}
+
+func TestOCIDependencies(t *testing.T) {
+	src := argoappv1.ApplicationSource{Path: "."}
+	q := apiclient.ManifestRequest{Repo: &argoappv1.Repository{}, ApplicationSource: &src, HelmRepoCreds: []*argoappv1.RepoCreds{
+		{URL: "example.com", Username: "test", Password: "test", EnableOCI: true},
+	}}
+
+	err := populateRequestRepos("./testdata/oci-dependencies", &q)
+	assert.Nil(t, err)
+
+	assert.Equal(t, len(q.Repos), 1)
+	assert.Equal(t, q.Repos[0].Username, "test")
+	assert.Equal(t, q.Repos[0].EnableOCI, true)
+	assert.Equal(t, q.Repos[0].Repo, "example.com")
 }
