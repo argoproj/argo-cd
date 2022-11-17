@@ -1,6 +1,7 @@
 package cluster
 
 import (
+	"net/url"
 	"time"
 
 	"github.com/argoproj/gitops-engine/pkg/utils/kube"
@@ -144,6 +145,12 @@ func (s *Server) getCluster(ctx context.Context, q *cluster.ClusterQuery) (*appv
 		q.Name = ""
 		if q.Id.Type == "name" {
 			q.Name = q.Id.Value
+		} else if q.Id.Type == "name_escaped" {
+			nameUnescaped, err := url.QueryUnescape(q.Id.Value)
+			if err != nil {
+				return nil, err
+			}
+			q.Name = nameUnescaped
 		} else {
 			q.Server = q.Id.Value
 		}
