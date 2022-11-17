@@ -42,8 +42,8 @@ jobs:
 
       # login
       - run: |
-          docker login ghcr.io --username $USERNAME --password $PASSWORD
-          docker login quay.io --username "${DOCKER_USERNAME}" --password "${DOCKER_TOKEN}"
+          docker login ghcr.io --username $USERNAME --password-stdin <<< "$PASSWORD"
+          docker login quay.io --username "$DOCKER_USERNAME" --password-stdin <<< "$DOCKER_TOKEN"
         if: github.event_name == 'push'
         env:
           USERNAME: ${{ secrets.USERNAME }}
