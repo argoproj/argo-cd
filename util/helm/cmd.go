@@ -58,13 +58,11 @@ func (c Cmd) run(args ...string) (string, error) {
 			fmt.Sprintf("XDG_CACHE_HOME=%s/cache", c.helmHome),
 			fmt.Sprintf("XDG_CONFIG_HOME=%s/config", c.helmHome),
 			fmt.Sprintf("XDG_DATA_HOME=%s/data", c.helmHome),
-			fmt.Sprintf("HELM_HOME=%s", c.helmHome))
+			fmt.Sprintf("HELM_CONFIG_HOME=%s/config", c.helmHome))
 	}
 
 	if c.IsHelmOci {
 		cmd.Env = append(cmd.Env, "HELM_EXPERIMENTAL_OCI=1")
-		// set the home for registry login/logout to use it as the registry/config.json location
-		cmd.Env = append(cmd.Env, fmt.Sprintf("HELM_CONFIG_HOME=%s/config", c.helmHome))
 	}
 
 	cmd.Env = proxy.UpsertEnv(cmd, c.proxy)
