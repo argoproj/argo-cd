@@ -27,6 +27,9 @@ import './flex-top-bar.scss';
 
 const EVENTS_BUFFER_TIMEOUT = 500;
 const WATCH_RETRY_TIMEOUT = 500;
+
+// The applications list/watch API supports only selected set of fields.
+// Make sure to register any new fields in the `appFields` map of `pkg/apiclient/application/forwarder_overwrite.go`.
 const APP_FIELDS = [
     'metadata.name',
     'metadata.namespace',
