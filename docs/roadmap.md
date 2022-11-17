@@ -1,224 +1,80 @@
 # Roadmap
 
-- [Roadmap](#roadmap)
-  - [v2.4](#v24)
-    - [Server side apply](#server-side-apply)
-    - [Input Forms UI Refresh](#input-forms-ui-refresh)
-    - [Web Shell](#web-shell)
-    - [Helm values from external repo](#helm-values-from-external-repo)
-    - [Support multiple sources for an Application](#support-multiple-sources-for-an-application)
-    - [Config Management Tools Enhancements: Parametrization & Security Improvements](#config-management-tools-enhancements-parametrization--security-improvements)
-  - [v2.5 and beyond](#v25-and-beyond)
-    - [Config Management Tools Enhancements: UI/CLI](#config-management-tools-enhancements-uicli)
-    - [First class support for ApplicationSet resources](#first-class-support-for-applicationset-resources)
-    - [Merge Argo CD Image Updater into Argo CD](#merge-argo-cd-image-updater-into-argo-cd)
-    - [Sharding application controller](#sharding-application-controller)
-    - [Add support for secrets in Application parameters](#add-support-for-secrets-in-application-parameters)
-    - [Allow specifying parent/child relationships in config](#allow-specifying-parentchild-relationships-in-config)
-    - [Dependencies between applications](#dependencies-between-applications)
-    - [Multi-tenancy improvements](#multi-tenancy-improvements)
-    - [GitOps Engine Enhancements](#gitops-engine-enhancements)
-  - [Completed](#completed)
-    - [✅ Merge Argo CD Notifications into Argo CD](#-merge-argo-cd-notifications-into-argo-cd)
-    - [✅ Merge ApplicationSet controller into Argo CD](#-merge-applicationset-controller-into-argo-cd)
-    - [✅ Compact resources tree](#-compact-resources-tree)
-    - [✅ Maintain difference in cluster and git values for specific fields](#-maintain-difference-in-cluster-and-git-values-for-specific-fields)
-    - [✅ ARM images and CLI binary](#-arm-images-and-cli-binary)
-    - [✅ Config Management Tools Integrations (proposal)](#-config-management-tools-integrations-proposal)
-    - [✅ Argo CD Extensions (proposal)](#-argo-cd-extensions-proposal)
-    - [✅ Project scoped repository and clusters (proposal)](#-project-scoped-repository-and-clusters-proposal)
-    - [✅ Core Argo CD (proposal)](#-core-argo-cd-proposal)
-    - [✅ Core Functionality Bug Fixes](#-core-functionality-bug-fixes)
-    - [✅ Performance](#-performance)
-    - [✅ ApplicationSet](#-applicationset)
-    - [✅ Large Applications support](#-large-applications-support)
-    - [✅ Serviceability](#-serviceability)
-    - [✅ Argo CD Notifications](#-argo-cd-notifications)
-    - [✅ Automated Registry Monitoring](#-automated-registry-monitoring)
-    - [✅ Projects Enhancements](#-projects-enhancements)
+The Argo CD roadmap is maintained in [a GitHub Project](https://github.com/orgs/argoproj/projects/25/views/14).
 
-## v2.4
+## Release Cycle
 
-> ETA: May 2022
+### Schedule
 
-### Server side apply
+These are the upcoming releases dates:
 
-Support using [server side apply](https://kubernetes.io/docs/reference/using-api/server-side-apply/) during application syncing
-[#2267](https://github.com/argoproj/argo-cd/issues/2267)
+| Release | Release Planning Meeting | Release Candidate 1   | General Availability    | Release Champion | Checklist                                                 |
+|---------|--------------------------|-----------------------|-------------------------|------------------|-----------------------------------------------------------|
+| v2.6    | Monday, Nov. 28, 2022    | Monday, Dec. 12, 2022 | Tuesday, Jan. 2, 2023   |                  | [checklist](https:/github.com/argoproj/releases/issues/1) |
+| v2.7    | Monday, Feb. 27, 2023    | Monday, Mar. 13, 2023 | Monday, Apr. 3, 2023    |
+| v2.8    | Monday, May 29, 2023     | Monday, Jun. 12, 2023 | Wednesday, Jul. 5, 2023 |
+| v2.9    | Monday, Aug. 28, 2023    | Monday, Sep. 11, 2023 | Monday, Oct. 2, 2023    |
 
-### Input Forms UI Refresh
+### Release Process
 
-Improved design of the input forms in Argo CD Web UI: https://www.figma.com/file/IIlsFqqmM5UhqMVul9fQNq/Argo-CD?node-id=0%3A1
+#### Minor Releases (e.g. 2.x.0)
 
-### Web Shell
+A minor Argo CD release occurs four times a year, once every three months. Each General Availability (GA) release is
+preceded by several Release Candidates (RCs). The first RC is released three weeks before the scheduled GA date. This
+effectively means that there is a three-week feature freeze.
 
-Exec into the Kubernetes Pod right from Argo CD Web UI! [#4351](https://github.com/argoproj/argo-cd/issues/4351)
+These are the approximate release dates:
 
-### Helm values from external repo
+* The first Monday of January
+* The first Monday of April
+* The first Monday of July
+* The first Monday of October
 
-The feature allows combining of-the-shelf Helm chart and value file in Git repository ([#2789](https://github.com/argoproj/argo-cd/issues/2789))
+Dates may be shifted slightly to accommodate holidays. Those shifts should be minimal.
 
-### Support multiple sources for an Application
+#### Patch Releases (e.g. 2.5.x)
 
-Support more than one source for creating an Application [#8322](https://github.com/argoproj/argo-cd/pull/8322).
+Argo CD patch releases occur on an as-needed basis. Only the three most recent minor versions are eligible for patch
+releases. Versions older than the three most recent minor versions are considered EOL and will not receive bug fixes or
+security updates.
 
-### Config Management Tools Enhancements: Parametrization & Security Improvements
+#### Minor Release Planning Meeting
 
-The continuation of the Config Management Tools of [proposal](https://github.com/argoproj/argo-cd/blob/master/docs/proposals/parameterized-config-management-plugins.md).
-The Argo config management plugin configuration allows users to specify the accepted parameters, default values to eventually power UI and CLI.
-Additionally, plugins implementation should provide better Argo CD tenant isolation and security.
+Two weeks before the RC date, there will be a meeting to discuss which features are planned for the RC. This meeting is
+for contributors to advocate for certain features. Features which have at least one approver (besides the contributor)
+who can assure they will review/merge by the RC date will be included in the release milestone. All other features will
+be dropped from the milestone (and potentially shifted to the next one).
 
-## v2.5 and beyond
+Since not everyone will be able to attend the meeting, there will be a meeting doc. Contributors can add their feature
+to a table, and Approvers can add their name to the table. Features with a corresponding approver will remain in the
+release milestone.
 
-### Config Management Tools Enhancements: UI/CLI
+#### Release Champion
 
-The Argo CD should provide a first-class experience for configured third-party config management tools. User should be able to view supported parameters,
-observe default parameter values and override them.
+To help manage all the steps involved in a release, we will have a release champion. The release champion will be
+responsible for a checklist of items for their release. The checklist will be an issue template in a new
+argoproj/releases repository.
 
-### First class support for ApplicationSet resources
+The release champion can be anyone in the Argo CD community. Some tasks (like cherry-picking bug fixes and cutting
+releases) require [Approver](https://github.com/argoproj/argoproj/blob/master/community/membership.md#community-membership)
+membership. The Release Champion can delegate tasks when necessary and will be responsible for coordinating with the
+Approver.
 
-The Argo CD UI/CLI/API allows to manage ApplicationSet resources same as Argo CD Applications ([#7352](https://github.com/argoproj/argo-cd/issues/7352)).
+### Feature Acceptance Criteria
 
-### Merge Argo CD Image Updater into Argo CD
+To be eligible for inclusion in a minor release, a new feature must meet the following criteria before the release’s RC
+date.
 
-The [Argo CD Image Updater](https://github.com/argoproj-labs/argocd-image-updater) should be merged into Argo CD and available out-of-the-box: [#7385](https://github.com/argoproj/argo-cd/issues/7385)
+If it is a large feature that involves significant design decisions, that feature must be described in a Proposal, and
+that Proposal must be reviewed and merged.
 
+The feature PR must include:
 
-### Sharding application controller 
+* Tests (passing)
+* Documentation
+* If necessary, a note in the Upgrading docs for the planned minor release
+* The PR must be reviewed, approved, and merged by an Approver.
 
-Application controller to scale automatically to provide high availability[#8340](https://github.com/argoproj/argo-cd/issues/8340).
+If these criteria are not met by the RC date, the feature will be ineligible for inclusion in the RC series or GA for
+that minor release. It will have to wait for the next minor release.
 
-### Add support for secrets in Application parameters
-
-The feature allows referencing secrets in Application parameters. [#1786](https://github.com/argoproj/argo-cd/issues/1786).
-
-### Allow specifying parent/child relationships in config
-
-The feature [#5082](https://github.com/argoproj/argo-cd/issues/5082) allows configuring parent/child relationships between resources. This allows to correctly
-visualize custom resources that don't have owner references.
-
-### Dependencies between applications
-
-The feature allows specifying dependencies between applications that allow orchestrating synchronization of multiple applications. [#3517](https://github.com/argoproj/argo-cd/issues/3517)
-
-
-### Multi-tenancy improvements
-
-The multi-tenancy improvements that allow end-users to create Argo CD applications using Kubernetes directly without accessing Argo CD API.
-
-* [Applications outside argocd namespace](https://github.com/argoproj/argo-cd/pull/6409)
-* [AppSource](https://github.com/argoproj-labs/appsource)
-
-
-### GitOps Engine Enhancements
-
-The [GitOps Engine](https://github.com/argoproj/gitops-engine) is a library that implements core GitOps functions such as K8S resource reconciliation and diffing.
-A lot of Argo CD features are still not available in GitOps engine. The following features have to be contributed to the GitOps Engine:
-
-* an ability to customize resources health assessment and existing CRD health [assessment functions](https://github.com/argoproj/argo-cd/tree/master/resource_customizations).
-* resource diffing [customization](../user-guide/diffing/).
-* config management [tools](../user-guide/application_sources/) integration.
-* unified syncing annotations [argoproj/gitops-engine#43](https://github.com/argoproj/gitops-engine/issues/43).
-
-## Completed
-
-### ✅ Merge Argo CD Notifications into Argo CD
-
-The [Argo CD Notifications](https://github.com/argoproj-labs/argocd-notifications) should be merged into Argo CD and available out-of-the-box: [#7350](https://github.com/argoproj/argo-cd/issues/7350)
-
-### ✅ Merge ApplicationSet controller into Argo CD
-
-The ApplicationSet functionality is available in Argo CD out-of-the-box ([#7351](https://github.com/argoproj/argo-cd/issues/7351)).
-
-### ✅ Compact resources tree
-
-An ability to collaps leaf resources tree to improve visualization of very large applications: [#7349](https://github.com/argoproj/argo-cd/issues/7349)
-
-### ✅ Maintain difference in cluster and git values for specific fields
-
-The feature allows to avoid updating fields excluded from diffing ([#2913](https://github.com/argoproj/argo-cd/issues/2913)).
-
-### ✅ ARM images and CLI binary
-
-The release workflow should build and publish ARM images and CLI binaries: ([#4211](https://github.com/argoproj/argo-cd/issues/4211))
-
-### ✅ Config Management Tools Integrations ([proposal](https://github.com/argoproj/argo-cd/pull/5927))
-
-The community likes the first class support of Helm, Kustomize and keeps requesting support for more tools.
-Argo CD provides a mechanism to integrate with any config management tool. We need to investigate why
-it is not enough and implement missing features.
-
-### ✅ Argo CD Extensions ([proposal](https://github.com/argoproj/argo-cd/pull/6240))
-
-Argo CD supports customizing handling of Kubernetes resources via diffing customizations,
-health checks, and custom actions. The Argo CD Extensions proposal takes it to next
-level and allows to deliver the resource customizations along with custom visualization in Argo CD
-via Git repository.
-
-### ✅ Project scoped repository and clusters ([proposal](https://github.com/argoproj/argo-cd/blob/master/docs/proposals/project-repos-and-clusters.md))
-
-The feature streamlines the process of adding repositories and clusters to the project and makes it self-service.
-Instead of asking an administrator to change Argo CD settings end users can perform the change independently.
-
-### ✅ Core Argo CD ([proposal](https://github.com/argoproj/argo-cd/pull/6385))
-
-Core Argo CD allows to installation and use of lightweight Argo CD that includes only the backend without exposing the API or UI.
-The Core Argo CD provides a better experience to users who need only core Argo CD features and don't want to deal with multi-tenancy features.
-
-### ✅ Core Functionality Bug Fixes
-
-The core GitOps features still have several known bugs and limitations. The full list is available in [v1.9 milestone](
-https://github.com/argoproj/argo-cd/issues?q=is%3Aopen+is%3Aissue+label%3Abug+milestone%3A%22v1.9%22+label%3Acomponent%3Acore)
-
-The most notable issues:
-
-* [Argo CD synchronization lasts incredibly long](https://github.com/argoproj/argo-cd/issues/3663)
-
-### ✅ Performance
-
-* 2000+ Applications support. The user interface becomes notably slower if one Argo CD instance manages more than 1 thousand applications.
-A set of optimizations is required to fix that issue.
-
-* 100+ Clusters support. The cluster addon management use-case requires connecting a large number of clusters to one Argo CD controller.
-Currently Argo CD controller is unable to handle that many clusters. The solution is to support horizontal controller scaling and automated sharding.
-
-* Mono Repository support. Argo CD is not optimized for mono repositories with a large number of applications. With 50+ applications in the same repository, manifest generation performance drops significantly. The repository server optimization is required to improve it.
-
-### ✅ ApplicationSet
-
-Argo CD Applications allow splitting the cluster configuration into logic groups that are managed independently. However, the set of applications
-is a configuration that should be managed declaratively as well. The app-of-apps pattern solves this problem but still has some challenges such as
-maintenance overhead, security, and lack of some additional features.
-
-[ApplicationSet](https://github.com/argoproj-labs/applicationset) project provides a better solution for managing applications across multiple environments.
-
-### ✅ Large Applications support
-
-The application details page is not suitable to visualize applications that include a large number of resources (hundreds of resources). The page has to be reworked
-to improve user experience.
-
-### ✅ Serviceability
-
-To make Argo CD successful we need to build tools that enable Argo CD administrators to handle scalability and performance issues in a self-service model.
-
-That includes more metrics, out-of-the-box alerts and a cluster management user interface.
-
-
-### ✅ Argo CD Notifications
-
-[Argo CD Notifications](https://github.com/argoproj-labs/argocd-notifications) provides the ability to notify users about Argo CD Application
-changes as well as implement integrations such as update GitHub commit status, trigger Jenkins job, set Grafana label, etc.
-
-### ✅ Automated Registry Monitoring
-
-[Argo CD Image Updater](https://github.com/argoproj-labs/argocd-image-updater) provides an ability to monitor Docker registries and automatically
-update image versions in the deployment repository. See [https://github.com/argoproj/argo-cd/issues/1648](https://github.com/argoproj/argo-cd/issues/1648).
-
-
-### ✅ Projects Enhancements
-
-Argo CD projects accumulated a lot of debt:
-
-* Users don't know how to use project roles and SSO. It is one of the key features but not documented well. We need to document and promote it
-* Project management UI has evolved organically and needs a complete redesign. We packaged everything into one sliding panel which is painful to use
-* Enhancements: [#3598](https://github.com/argoproj/argo-cd/issues/3598)
