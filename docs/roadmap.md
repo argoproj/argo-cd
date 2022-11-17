@@ -51,14 +51,17 @@ release milestone.
 
 #### Release Champion
 
-To help manage all the steps involved in a release, we will have a release champion. The release champion will be
+To help manage all the steps involved in a release, we will have a Release Champion. The Release Champion will be
 responsible for a checklist of items for their release. The checklist will be an issue template in a new
 argoproj/releases repository.
 
-The release champion can be anyone in the Argo CD community. Some tasks (like cherry-picking bug fixes and cutting
+The Release Champion can be anyone in the Argo CD community. Some tasks (like cherry-picking bug fixes and cutting
 releases) require [Approver](https://github.com/argoproj/argoproj/blob/master/community/membership.md#community-membership)
 membership. The Release Champion can delegate tasks when necessary and will be responsible for coordinating with the
 Approver.
+
+The Release Champion must be granted triage access in the Releases repository so that they can check off completed 
+tasks.
 
 ### Feature Acceptance Criteria
 
