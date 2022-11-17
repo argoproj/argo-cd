@@ -195,9 +195,9 @@ jobs:
           QUAY_TOKEN: ${{ secrets.RELEASE_QUAY_TOKEN }}
         run: |
           set -ue
-          docker login quay.io --username "${QUAY_USERNAME}" --password "${QUAY_TOKEN}"
+          docker login quay.io --username "${QUAY_USERNAME}" --password-stdin <<< "${QUAY_TOKEN}"
           # Remove the following when Docker Hub is gone
-          docker login --username "${DOCKER_USERNAME}" --password "${DOCKER_TOKEN}"
+          docker login --username "${DOCKER_USERNAME}" --password-stdin <<< "${DOCKER_TOKEN}"
         if: ${{ env.DRY_RUN != 'true' }}
 
       - uses: docker/setup-qemu-action@v2
