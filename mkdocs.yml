@@ -1,6 +1,6 @@
 extra:
   analytics:
-    property: UA-105170809-2
+    property: G-5Z1VTPDL73
     provider: google
 extra_css:
 - assets/versions.css
