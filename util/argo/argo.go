@@ -768,7 +768,12 @@ func ErrProjectNotPermitted(appName, appNamespace, projName string) error {
 // TruncateLabelName truncates a label name to a maximum length of characters specified in validation.LabelValueMaxLength
 func TruncateLabelName(name string) string {
 	if len(name) > validation.LabelValueMaxLength {
-		return name[:validation.LabelValueMaxLength]
+		name = name[:validation.LabelValueMaxLength]
 	}
-	return name
+	return stripTrailingHyphens(name)
+}
+
+// stripTrailingHyphens removes trailing hyphens from a string
+func stripTrailingHyphens(name string) string {
+	return strings.TrimRight(name, "-")
 }

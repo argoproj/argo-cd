@@ -524,6 +524,24 @@ func TestCreateAppWithValidNameLength(t *testing.T) {
 	assert.Equal(t, app.Name, "example-cluster")
 }
 
+func TestCreateShouldTrimAppNameWithTrailingHyphen(t *testing.T) {
+	setLongName := func(app *appsv1.Application) {
+		app.ObjectMeta.Name = "example-cluster-example-namespace-service-example-xxxxx-xxxxxx-123"
+	}
+	testApp := newTestApp(setLongName)
+	appServer := newTestAppServer()
+	testApp.Spec.Project = ""
+	createReq := application.ApplicationCreateRequest{
+		Application: testApp,
+	}
+	app, err := appServer.Create(context.Background(), &createReq)
+	assert.NoError(t, err)
+	assert.NotNil(t, app)
+	assert.NotNil(t, app.Spec)
+	assert.Equal(t, app.Spec.Project, "default")
+	assert.Equal(t, app.Name, "example-cluster-example-namespace-service-example-xxxxx-xxxxxx")
+}
+
 func TestUpdateApp(t *testing.T) {
 	testApp := newTestApp()
 	appServer := newTestAppServer(testApp)
