@@ -48,7 +48,7 @@ jobs:
         if: github.event_name == 'push'
         env:
           USERNAME: ${{ secrets.USERNAME }}
-          PASSWORD: ${{ secrets.TOKEN }}
+          PASSWORD: ${{ secrets.GITHUB_TOKEN }}
           DOCKER_USERNAME: ${{ secrets.RELEASE_QUAY_USERNAME }}
           DOCKER_TOKEN: ${{ secrets.RELEASE_QUAY_TOKEN }}
 
