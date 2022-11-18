@@ -19,16 +19,18 @@ import (
 	"github.com/argoproj/argo-cd/v2/util/resource"
 )
 
-func populateNodeInfo(un *unstructured.Unstructured, res *ResourceInfo, customLabel string) {
+func populateNodeInfo(un *unstructured.Unstructured, res *ResourceInfo, customLabels []string) {
 	gvk := un.GroupVersionKind()
 	revision := resource.GetRevision(un)
 	if revision > 0 {
 		res.Info = append(res.Info, v1alpha1.InfoItem{Name: "Revision", Value: fmt.Sprintf("Rev:%v", revision)})
 	}
-	if customLabel != "" {
+	if len(customLabels) > 0 {
 		if labels := un.GetLabels(); labels != nil {
-			if value, ok := labels[customLabel]; ok {
-				res.Info = append(res.Info, v1alpha1.InfoItem{Name: customLabel, Value: value})
+			for _, customLabel := range customLabels {
+				if value, ok := labels[customLabel]; ok {
+					res.Info = append(res.Info, v1alpha1.InfoItem{Name: customLabel, Value: value})
+				}
 			}
 		}
 	}

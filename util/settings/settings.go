@@ -368,7 +368,7 @@ const (
 	// resourceInclusions is the key to the list of explicitly watched resources
 	resourceInclusionsKey = "resource.inclusions"
 	// resourceCustomLabelKey is the key to a custom label to show in node info, if present
-	resourceCustomLabelKey = "resource.customLabel"
+	resourceCustomLabelsKey = "resource.customLabels"
 	// configManagementPluginsKey is the key to the list of config management plugins
 	configManagementPluginsKey = "configManagementPlugins"
 	// kustomizeBuildOptionsKey is a string of kustomize build parameters
@@ -1888,11 +1888,14 @@ func (mgr *SettingsManager) GetNamespace() string {
 	return mgr.namespace
 }
 
-func (mgr *SettingsManager) GetResourceCustomLabel() (string, error) {
+func (mgr *SettingsManager) GetResourceCustomLabels() ([]string, error) {
 	argoCDCM, err := mgr.getConfigMap()
 	if err != nil {
-		return "", err
+		return []string{}, fmt.Errorf("failed getting configmap: %v", err)
 	}
-	label := argoCDCM.Data[resourceCustomLabelKey]
-	return label, nil
+	labels := argoCDCM.Data[resourceCustomLabelsKey]
+	if labels != "" {
+		return strings.Split(labels, ","), nil
+	}
+	return []string{}, nil
 }

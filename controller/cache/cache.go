@@ -389,7 +389,7 @@ func (c *liveStateCache) getCluster(server string) (clustercache.ClusterCache, e
 		return nil, fmt.Errorf("controller is configured to ignore cluster %s", cluster.Server)
 	}
 
-	resourceCustomLabel, err := c.settingsMgr.GetResourceCustomLabel()
+	resourceCustomLabels, err := c.settingsMgr.GetResourceCustomLabels()
 	if err != nil {
 		return nil, fmt.Errorf("error getting custom label: %w", err)
 	}
@@ -405,7 +405,7 @@ func (c *liveStateCache) getCluster(server string) (clustercache.ClusterCache, e
 		clustercache.SetClusterResources(cluster.ClusterResources),
 		clustercache.SetPopulateResourceInfoHandler(func(un *unstructured.Unstructured, isRoot bool) (interface{}, bool) {
 			res := &ResourceInfo{}
-			populateNodeInfo(un, res, resourceCustomLabel)
+			populateNodeInfo(un, res, resourceCustomLabels)
 			c.lock.RLock()
 			cacheSettings := c.cacheSettings
 			c.lock.RUnlock()
