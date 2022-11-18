@@ -239,6 +239,7 @@ Currently, the following organizations are **officially** using Argo CD:
 1. [WeMo Scooter](https://www.wemoscooter.com/)
 1. [Whitehat Berlin](https://whitehat.berlin) by Guido Maria Serra +Fenaroli
 1. [Witick](https://witick.io/)
+1. [Wolffun Game](https://www.wolffungame.com/)
 1. [WooliesX](https://wooliesx.com.au/)
 1. [Woolworths Group](https://www.woolworthsgroup.com.au/)
 1. [WSpot](https://www.wspot.com.br/)
