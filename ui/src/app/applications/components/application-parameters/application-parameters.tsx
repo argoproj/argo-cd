@@ -190,7 +190,7 @@ export const ApplicationParameters = (props: {
                 />
             )
         });
-        if (app.spec.source.helm.values) {
+        if (app?.spec?.source?.helm?.values) {
             attributes.push({
                 title: 'VALUES',
                 view: app.spec.source.helm && (
