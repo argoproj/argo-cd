@@ -36,7 +36,7 @@ func TestAddRemovePublicRepo(t *testing.T) {
 		}
 		assert.True(t, exists)
 
-		_, err = fixture.RunCli("repo", "rm", repoUrl)
+		_, err = fixture.RunCli("repo", "rm", repoUrl, "--yes")
 		assert.NoError(t, err)
 
 		repo, err = repoClient.ListRepositories(context.Background(), &repositorypkg.RepoQuery{})
@@ -94,7 +94,7 @@ func TestAddRemoveHelmRepo(t *testing.T) {
 		}
 		assert.True(t, exists)
 
-		_, err = fixture.RunCli("repo", "rm", fixture.RepoURL(fixture.RepoURLTypeHelm))
+		_, err = fixture.RunCli("repo", "rm", fixture.RepoURL(fixture.RepoURLTypeHelm), "--yes")
 		assert.NoError(t, err)
 
 		repo, err = repoClient.ListRepositories(context.Background(), &repositorypkg.RepoQuery{})

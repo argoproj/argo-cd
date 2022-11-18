@@ -49,7 +49,7 @@ func (a *Actions) prepareCreateArgs(args []string) []string {
 
 func (a *Actions) Delete() *Actions {
 	a.context.t.Helper()
-	a.runCli("repo", "rm", a.context.path)
+	a.runCli("repo", "rm", a.context.path, "--yes")
 	return a
 }
 

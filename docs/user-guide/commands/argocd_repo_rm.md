@@ -10,6 +10,7 @@ argocd repo rm REPO [flags]
 
 ```
   -h, --help   help for rm
+  -y, --yes    Turn off prompting to confirm removal of repositories
 ```
 
 ### Options inherited from parent commands
