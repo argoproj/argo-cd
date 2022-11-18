@@ -111,6 +111,12 @@ const ViewPref = ({children}: {children: (pref: AppsListPreferences & {page: num
                                     .split(',')
                                     .filter(item => !!item);
                             }
+                            if (params.get('autoSync') != null) {
+                                viewPref.autosyncFilter = params
+                                    .get('autoSync')
+                                    .split(',')
+                                    .filter(item => !!item);
+                            }
                             if (params.get('health') != null) {
                                 viewPref.healthFilter = params
                                     .get('health')
@@ -332,6 +338,7 @@ export const ApplicationsList = (props: RouteComponentProps<{}>) => {
             {
                 proj: newPref.projectsFilter.join(','),
                 sync: newPref.syncFilter.join(','),
+                autoSync: newPref.autoSyncFilter.join(','),
                 health: newPref.healthFilter.join(','),
                 namespace: newPref.namespacesFilter.join(','),
                 cluster: newPref.clustersFilter.join(','),
