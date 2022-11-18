@@ -28,7 +28,7 @@ import {Link} from 'react-router-dom';
 import {EditNotificationSubscriptions, useEditNotificationSubscriptions} from './edit-notification-subscriptions';
 import {EditAnnotations} from './edit-annotations';
 
-require('./application-summary.scss');
+import './application-summary.scss';
 
 function swap(array: any[], a: number, b: number) {
     array = array.slice();

@@ -740,6 +740,19 @@ spec:
                           (default: false)'
                         type: boolean
                     type: object
+                  managedNamespaceMetadata:
+                    description: ManagedNamespaceMetadata controls metadata in the
+                      given namespace (if CreateNamespace=true)
+                    properties:
+                      annotations:
+                        additionalProperties:
+                          type: string
+                        type: object
+                      labels:
+                        additionalProperties:
+                          type: string
+                        type: object
+                    type: object
                   retry:
                     description: Retry controls failed sync retry behavior
                     properties:
@@ -2447,6 +2460,17 @@ spec:
                                         selfHeal:
                                           type: boolean
                                       type: object
+                                    managedNamespaceMetadata:
+                                      properties:
+                                        annotations:
+                                          additionalProperties:
+                                            type: string
+                                          type: object
+                                        labels:
+                                          additionalProperties:
+                                            type: string
+                                          type: object
+                                      type: object
                                     retry:
                                       properties:
                                         backoff:
@@ -2733,6 +2757,17 @@ spec:
                                           type: boolean
                                         selfHeal:
                                           type: boolean
+                                      type: object
+                                    managedNamespaceMetadata:
+                                      properties:
+                                        annotations:
+                                          additionalProperties:
+                                            type: string
+                                          type: object
+                                        labels:
+                                          additionalProperties:
+                                            type: string
+                                          type: object
                                       type: object
                                     retry:
                                       properties:
@@ -3023,6 +3058,17 @@ spec:
                                         selfHeal:
                                           type: boolean
                                       type: object
+                                    managedNamespaceMetadata:
+                                      properties:
+                                        annotations:
+                                          additionalProperties:
+                                            type: string
+                                          type: object
+                                        labels:
+                                          additionalProperties:
+                                            type: string
+                                          type: object
+                                      type: object
                                     retry:
                                       properties:
                                         backoff:
@@ -3291,6 +3337,17 @@ spec:
                                           type: boolean
                                         selfHeal:
                                           type: boolean
+                                      type: object
+                                    managedNamespaceMetadata:
+                                      properties:
+                                        annotations:
+                                          additionalProperties:
+                                            type: string
+                                          type: object
+                                        labels:
+                                          additionalProperties:
+                                            type: string
+                                          type: object
                                       type: object
                                     retry:
                                       properties:
@@ -3587,6 +3644,17 @@ spec:
                                                   selfHeal:
                                                     type: boolean
                                                 type: object
+                                              managedNamespaceMetadata:
+                                                properties:
+                                                  annotations:
+                                                    additionalProperties:
+                                                      type: string
+                                                    type: object
+                                                  labels:
+                                                    additionalProperties:
+                                                      type: string
+                                                    type: object
+                                                type: object
                                               retry:
                                                 properties:
                                                   backoff:
@@ -3873,6 +3941,17 @@ spec:
                                                     type: boolean
                                                   selfHeal:
                                                     type: boolean
+                                                type: object
+                                              managedNamespaceMetadata:
+                                                properties:
+                                                  annotations:
+                                                    additionalProperties:
+                                                      type: string
+                                                    type: object
+                                                  labels:
+                                                    additionalProperties:
+                                                      type: string
+                                                    type: object
                                                 type: object
                                               retry:
                                                 properties:
@@ -4163,6 +4242,17 @@ spec:
                                                   selfHeal:
                                                     type: boolean
                                                 type: object
+                                              managedNamespaceMetadata:
+                                                properties:
+                                                  annotations:
+                                                    additionalProperties:
+                                                      type: string
+                                                    type: object
+                                                  labels:
+                                                    additionalProperties:
+                                                      type: string
+                                                    type: object
+                                                type: object
                                               retry:
                                                 properties:
                                                   backoff:
@@ -4431,6 +4521,17 @@ spec:
                                                     type: boolean
                                                   selfHeal:
                                                     type: boolean
+                                                type: object
+                                              managedNamespaceMetadata:
+                                                properties:
+                                                  annotations:
+                                                    additionalProperties:
+                                                      type: string
+                                                    type: object
+                                                  labels:
+                                                    additionalProperties:
+                                                      type: string
+                                                    type: object
                                                 type: object
                                               retry:
                                                 properties:
@@ -4814,6 +4915,17 @@ spec:
                                                     type: boolean
                                                   selfHeal:
                                                     type: boolean
+                                                type: object
+                                              managedNamespaceMetadata:
+                                                properties:
+                                                  annotations:
+                                                    additionalProperties:
+                                                      type: string
+                                                    type: object
+                                                  labels:
+                                                    additionalProperties:
+                                                      type: string
+                                                    type: object
                                                 type: object
                                               retry:
                                                 properties:
@@ -5245,6 +5357,17 @@ spec:
                                                   selfHeal:
                                                     type: boolean
                                                 type: object
+                                              managedNamespaceMetadata:
+                                                properties:
+                                                  annotations:
+                                                    additionalProperties:
+                                                      type: string
+                                                    type: object
+                                                  labels:
+                                                    additionalProperties:
+                                                      type: string
+                                                    type: object
+                                                type: object
                                               retry:
                                                 properties:
                                                   backoff:
@@ -5529,6 +5652,17 @@ spec:
                                           type: boolean
                                         selfHeal:
                                           type: boolean
+                                      type: object
+                                    managedNamespaceMetadata:
+                                      properties:
+                                        annotations:
+                                          additionalProperties:
+                                            type: string
+                                          type: object
+                                        labels:
+                                          additionalProperties:
+                                            type: string
+                                          type: object
                                       type: object
                                     retry:
                                       properties:
@@ -5825,6 +5959,17 @@ spec:
                                                   selfHeal:
                                                     type: boolean
                                                 type: object
+                                              managedNamespaceMetadata:
+                                                properties:
+                                                  annotations:
+                                                    additionalProperties:
+                                                      type: string
+                                                    type: object
+                                                  labels:
+                                                    additionalProperties:
+                                                      type: string
+                                                    type: object
+                                                type: object
                                               retry:
                                                 properties:
                                                   backoff:
@@ -6111,6 +6256,17 @@ spec:
                                                     type: boolean
                                                   selfHeal:
                                                     type: boolean
+                                                type: object
+                                              managedNamespaceMetadata:
+                                                properties:
+                                                  annotations:
+                                                    additionalProperties:
+                                                      type: string
+                                                    type: object
+                                                  labels:
+                                                    additionalProperties:
+                                                      type: string
+                                                    type: object
                                                 type: object
                                               retry:
                                                 properties:
@@ -6401,6 +6557,17 @@ spec:
                                                   selfHeal:
                                                     type: boolean
                                                 type: object
+                                              managedNamespaceMetadata:
+                                                properties:
+                                                  annotations:
+                                                    additionalProperties:
+                                                      type: string
+                                                    type: object
+                                                  labels:
+                                                    additionalProperties:
+                                                      type: string
+                                                    type: object
+                                                type: object
                                               retry:
                                                 properties:
                                                   backoff:
@@ -6669,6 +6836,17 @@ spec:
                                                     type: boolean
                                                   selfHeal:
                                                     type: boolean
+                                                type: object
+                                              managedNamespaceMetadata:
+                                                properties:
+                                                  annotations:
+                                                    additionalProperties:
+                                                      type: string
+                                                    type: object
+                                                  labels:
+                                                    additionalProperties:
+                                                      type: string
+                                                    type: object
                                                 type: object
                                               retry:
                                                 properties:
@@ -7052,6 +7230,17 @@ spec:
                                                     type: boolean
                                                   selfHeal:
                                                     type: boolean
+                                                type: object
+                                              managedNamespaceMetadata:
+                                                properties:
+                                                  annotations:
+                                                    additionalProperties:
+                                                      type: string
+                                                    type: object
+                                                  labels:
+                                                    additionalProperties:
+                                                      type: string
+                                                    type: object
                                                 type: object
                                               retry:
                                                 properties:
@@ -7483,6 +7672,17 @@ spec:
                                                   selfHeal:
                                                     type: boolean
                                                 type: object
+                                              managedNamespaceMetadata:
+                                                properties:
+                                                  annotations:
+                                                    additionalProperties:
+                                                      type: string
+                                                    type: object
+                                                  labels:
+                                                    additionalProperties:
+                                                      type: string
+                                                    type: object
+                                                type: object
                                               retry:
                                                 properties:
                                                   backoff:
@@ -7771,6 +7971,17 @@ spec:
                                           type: boolean
                                         selfHeal:
                                           type: boolean
+                                      type: object
+                                    managedNamespaceMetadata:
+                                      properties:
+                                        annotations:
+                                          additionalProperties:
+                                            type: string
+                                          type: object
+                                        labels:
+                                          additionalProperties:
+                                            type: string
+                                          type: object
                                       type: object
                                     retry:
                                       properties:
@@ -8151,6 +8362,17 @@ spec:
                                           type: boolean
                                         selfHeal:
                                           type: boolean
+                                      type: object
+                                    managedNamespaceMetadata:
+                                      properties:
+                                        annotations:
+                                          additionalProperties:
+                                            type: string
+                                          type: object
+                                        labels:
+                                          additionalProperties:
+                                            type: string
+                                          type: object
                                       type: object
                                     retry:
                                       properties:
@@ -8582,6 +8804,17 @@ spec:
                                         selfHeal:
                                           type: boolean
                                       type: object
+                                    managedNamespaceMetadata:
+                                      properties:
+                                        annotations:
+                                          additionalProperties:
+                                            type: string
+                                          type: object
+                                        labels:
+                                          additionalProperties:
+                                            type: string
+                                          type: object
+                                      type: object
                                     retry:
                                       properties:
                                         backoff:
@@ -8873,6 +9106,17 @@ spec:
                                 type: boolean
                               selfHeal:
                                 type: boolean
+                            type: object
+                          managedNamespaceMetadata:
+                            properties:
+                              annotations:
+                                additionalProperties:
+                                  type: string
+                                type: object
+                              labels:
+                                additionalProperties:
+                                  type: string
+                                type: object
                             type: object
                           retry:
                             properties:
@@ -9985,7 +10229,8 @@ spec:
             path: /healthz?full=true
             port: 8084
           initialDelaySeconds: 30
-          periodSeconds: 5
+          periodSeconds: 30
+          timeoutSeconds: 5
         name: argocd-repo-server
         ports:
         - containerPort: 8081
@@ -10324,7 +10569,8 @@ spec:
     - port: 53
       protocol: TCP
     to:
-    - namespaceSelector: {}
+    - ipBlock:
+        cidr: 0.0.0.0/0
   ingress:
   - from:
     - podSelector:
