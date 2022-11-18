@@ -154,7 +154,7 @@ func (e Env) Envsubst(s string) string {
 // ApplicationSource contains all required information about the source of an application
 type ApplicationSource struct {
 	// RepoURL is the URL to the repository (Git or Helm) that contains the application manifests
-	RepoURL string `json:"repoURL" protobuf:"bytes,1,opt,name=repoURL"`
+	RepoURL string `json:"repoURL,omitempty" protobuf:"bytes,1,opt,name=repoURL"`
 	// Path is a directory path within the Git repository, and is only valid for applications sourced from Git.
 	Path string `json:"path,omitempty" protobuf:"bytes,2,opt,name=path"`
 	// TargetRevision defines the revision of the source to sync the application to.
@@ -1009,15 +1009,15 @@ type ApplicationCondition struct {
 // ComparedTo contains application source and target which was used for resources comparison
 type ComparedTo struct {
 	// Source is a reference to the application's source used for comparison
-	Source ApplicationSource `json:"source" protobuf:"bytes,1,opt,name=source"`
+	Source ApplicationSource `json:"source,omitempty" protobuf:"bytes,1,opt,name=source"`
 	// Destination is a reference to the application's destination used for comparison
-	Destination ApplicationDestination `json:"destination" protobuf:"bytes,2,opt,name=destination"`
+	Destination ApplicationDestination `json:"destination,omitempty" protobuf:"bytes,2,opt,name=destination"`
 }
 
 // SyncStatus contains information about the currently observed live and desired states of an application
 type SyncStatus struct {
 	// Status is the sync state of the comparison
-	Status SyncStatusCode `json:"status" protobuf:"bytes,1,opt,name=status,casttype=SyncStatusCode"`
+	Status SyncStatusCode `json:"status,omitempty" protobuf:"bytes,1,opt,name=status,casttype=SyncStatusCode"`
 	// ComparedTo contains information about what has been compared
 	ComparedTo ComparedTo `json:"comparedTo,omitempty" protobuf:"bytes,2,opt,name=comparedTo"`
 	// Revision contains information about the revision the comparison has been performed to
