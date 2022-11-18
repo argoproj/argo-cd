@@ -13,7 +13,7 @@ argocd app set APPNAME [flags]
       --auto-prune                                 Set automatic pruning when sync is automated
       --config-management-plugin string            Config management plugin name
       --dest-name string                           K8s cluster Name (e.g. minikube)
-      --dest-namespace string                      K8s target namespace (overrides the namespace specified in the ksonnet app.yaml)
+      --dest-namespace string                      K8s target namespace
       --dest-server string                         K8s cluster URL (e.g. https://kubernetes.default.svc)
       --directory-exclude string                   Set glob expression used to exclude files from application source path
       --directory-include string                   Set glob expression used to include files from application source path
@@ -74,6 +74,7 @@ argocd app set APPNAME [flags]
   -H, --header strings                  Sets additional header to all requests made by Argo CD CLI. (Can be repeated multiple times to add multiple headers, also supports comma separated headers)
       --http-retry-max int              Maximum number of retries to establish http connection to Argo CD server
       --insecure                        Skip server certificate and domain verification
+      --kube-context string             Directs the command to the given kube-context
       --logformat string                Set the logging format. One of: text|json (default "text")
       --loglevel string                 Set the logging level. One of: debug|info|warn|error (default "info")
       --plaintext                       Disable TLS

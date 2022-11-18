@@ -72,8 +72,8 @@ kubectl exec -it argocd-notifications-controller-<pod-hash> \
 
 ## Commands
 
-{!troubleshooting-commands.md!}
+{!docs/operator-manual/notifications/troubleshooting-commands.md!}
 
 ## Errors
 
-{!troubleshooting-errors.md!}
+{!docs/operator-manual/notifications/troubleshooting-errors.md!}

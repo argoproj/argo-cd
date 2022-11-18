@@ -1,4 +1,6 @@
+import * as deepMerge from 'deepmerge';
 import {BehaviorSubject, Observable} from 'rxjs';
+
 import {PodGroupType} from '../../applications/components/application-pod-view/pod-view';
 
 export type AppsDetailsViewType = 'tree' | 'network' | 'list' | 'pods';
@@ -22,7 +24,9 @@ export interface AppDetailsPreferences {
     darkMode: boolean;
     followLogs: boolean;
     hideFilters: boolean;
+    wrapLines: boolean;
     groupNodes?: boolean;
+    zoom: number;
 }
 
 export interface PodViewPreferences {
@@ -86,7 +90,9 @@ export interface ViewPreferences {
     appList: AppsListPreferences;
     pageSizes: {[key: string]: number};
     hideBannerContent: string;
+    hideSidebar: boolean;
     position: string;
+    theme: string;
 }
 
 const VIEW_PREFERENCES_KEY = 'view_preferences';
@@ -101,6 +107,7 @@ const DEFAULT_PREFERENCES: ViewPreferences = {
         resourceFilter: [],
         inlineDiff: false,
         compactDiff: false,
+        hideManagedFields: true,
         resourceView: 'manifest',
         orphanedResources: false,
         podView: {
@@ -108,7 +115,9 @@ const DEFAULT_PREFERENCES: ViewPreferences = {
             hideUnschedulable: true
         },
         darkMode: false,
-        followLogs: false
+        followLogs: false,
+        wrapLines: false,
+        zoom: 1.0
     },
     appList: {
         view: 'tiles' as AppsListViewType,
@@ -128,7 +137,9 @@ const DEFAULT_PREFERENCES: ViewPreferences = {
     },
     pageSizes: {},
     hideBannerContent: '',
-    position: ''
+    hideSidebar: false,
+    position: '',
+    theme: 'light'
 };
 
 export class ViewPreferencesService {
@@ -168,6 +179,6 @@ export class ViewPreferencesService {
         } else {
             preferences = DEFAULT_PREFERENCES;
         }
-        return Object.assign({}, DEFAULT_PREFERENCES, preferences);
+        return deepMerge(DEFAULT_PREFERENCES, preferences);
     }
 }

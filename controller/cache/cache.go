@@ -2,10 +2,16 @@ package cache
 
 import (
 	"context"
+	"errors"
 	"fmt"
 	"math"
+	"net"
+	"net/url"
+	"os/exec"
 	"reflect"
+	"strings"
 	"sync"
+	"syscall"
 	"time"
 
 	clustercache "github.com/argoproj/gitops-engine/pkg/cache"
@@ -14,6 +20,7 @@ import (
 	log "github.com/sirupsen/logrus"
 	"golang.org/x/sync/semaphore"
 	v1 "k8s.io/api/core/v1"
+	kerrors "k8s.io/apimachinery/pkg/api/errors"
 	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
 	"k8s.io/apimachinery/pkg/apis/meta/v1/unstructured"
 	"k8s.io/apimachinery/pkg/runtime/schema"
@@ -37,6 +44,9 @@ const (
 	// EnvClusterCacheWatchResyncDuration is the env variable that holds cluster cache watch re-sync duration
 	EnvClusterCacheWatchResyncDuration = "ARGOCD_CLUSTER_CACHE_WATCH_RESYNC_DURATION"
 
+	// EnvClusterRetryTimeoutDuration is the env variable that holds cluster retry duration when sync error happens
+	EnvClusterSyncRetryTimeoutDuration = "ARGOCD_CLUSTER_SYNC_RETRY_TIMEOUT_DURATION"
+
 	// EnvClusterCacheListPageSize is the env variable to control size of the list page size when making K8s queries
 	EnvClusterCacheListPageSize = "ARGOCD_CLUSTER_CACHE_LIST_PAGE_SIZE"
 
@@ -44,6 +54,12 @@ const (
 	// This is used to limit the number of concurrent memory consuming operations on the
 	// k8s list queries results across all clusters to avoid memory spikes during cache initialization.
 	EnvClusterCacheListSemaphore = "ARGOCD_CLUSTER_CACHE_LIST_SEMAPHORE"
+
+	// EnvClusterCacheRetryLimit is the env variable to control the retry limit for listing resources during cluster cache sync
+	EnvClusterCacheAttemptLimit = "ARGOCD_CLUSTER_CACHE_ATTEMPT_LIMIT"
+
+	// EnvClusterCacheRetryUseBackoff is the env variable to control whether to use a backoff strategy with the retry during cluster cache sync
+	EnvClusterCacheRetryUseBackoff = "ARGOCD_CLUSTER_CACHE_RETRY_USE_BACKOFF"
 )
 
 // GitOps engine cluster cache tuning options
@@ -56,19 +72,32 @@ var (
 	// for before relisting & restarting the watch
 	clusterCacheWatchResyncDuration = 10 * time.Minute
 
+	// clusterSyncRetryTimeoutDuration controls the sync retry duration when cluster sync error happens
+	clusterSyncRetryTimeoutDuration = 10 * time.Second
+
 	// The default limit of 50 is chosen based on experiments.
 	clusterCacheListSemaphoreSize int64 = 50
 
 	// clusterCacheListPageSize is the page size when performing K8s list requests.
 	// 500 is equal to kubectl's size
 	clusterCacheListPageSize int64 = 500
+
+	// clusterCacheRetryLimit sets a retry limit for failed requests during cluster cache sync
+	// If set to 1, retries are disabled.
+	clusterCacheAttemptLimit int32 = 1
+
+	// clusterCacheRetryUseBackoff specifies whether to use a backoff strategy on cluster cache sync, if retry is enabled
+	clusterCacheRetryUseBackoff bool = false
 )
 
 func init() {
 	clusterCacheResyncDuration = env.ParseDurationFromEnv(EnvClusterCacheResyncDuration, clusterCacheResyncDuration, 0, math.MaxInt64)
 	clusterCacheWatchResyncDuration = env.ParseDurationFromEnv(EnvClusterCacheWatchResyncDuration, clusterCacheWatchResyncDuration, 0, math.MaxInt64)
+	clusterSyncRetryTimeoutDuration = env.ParseDurationFromEnv(EnvClusterSyncRetryTimeoutDuration, clusterSyncRetryTimeoutDuration, 0, math.MaxInt64)
 	clusterCacheListPageSize = env.ParseInt64FromEnv(EnvClusterCacheListPageSize, clusterCacheListPageSize, 0, math.MaxInt64)
 	clusterCacheListSemaphoreSize = env.ParseInt64FromEnv(EnvClusterCacheListSemaphore, clusterCacheListSemaphoreSize, 0, math.MaxInt64)
+	clusterCacheAttemptLimit = int32(env.ParseInt64FromEnv(EnvClusterCacheAttemptLimit, 1, 1, math.MaxInt32))
+	clusterCacheRetryUseBackoff = env.ParseBoolFromEnv(EnvClusterCacheRetryUseBackoff, false)
 }
 
 type LiveStateCache interface {
@@ -79,7 +108,7 @@ type LiveStateCache interface {
 	// Returns synced cluster cache
 	GetClusterCache(server string) (clustercache.ClusterCache, error)
 	// Executes give callback against resource specified by the key and all its children
-	IterateHierarchy(server string, key kube.ResourceKey, action func(child appv1.ResourceNode, appName string)) error
+	IterateHierarchy(server string, key kube.ResourceKey, action func(child appv1.ResourceNode, appName string) bool) error
 	// Returns state of live nodes which correspond for target nodes of specified application.
 	GetManagedLiveObjs(a *appv1.Application, targetObjs []*unstructured.Unstructured) (map[kube.ResourceKey]*unstructured.Unstructured, error)
 	// IterateResources iterates all resource stored in cache
@@ -147,6 +176,7 @@ func NewLiveStateCache(
 type cacheSettings struct {
 	clusterSettings     clustercache.Settings
 	appInstanceLabelKey string
+	trackingMethod      appv1.TrackingMethod
 }
 
 type liveStateCache struct {
@@ -181,7 +211,7 @@ func (c *liveStateCache) loadCacheSettings() (*cacheSettings, error) {
 		ResourceHealthOverride: lua.ResourceHealthOverrides(resourceOverrides),
 		ResourcesFilter:        resourcesFilter,
 	}
-	return &cacheSettings{clusterSettings, appInstanceLabelKey}, nil
+	return &cacheSettings{clusterSettings, appInstanceLabelKey, argo.GetTrackingMethod(c.settingsMgr)}, nil
 }
 
 func asResourceNode(r *clustercache.Resource) appv1.ResourceNode {
@@ -278,6 +308,60 @@ func skipAppRequeuing(key kube.ResourceKey) bool {
 	return ignoredRefreshResources[key.Group+"/"+key.Kind]
 }
 
+// isRetryableError is a helper method to see whether an error
+// returned from the dynamic client is potentially retryable.
+func isRetryableError(err error) bool {
+	if err == nil {
+		return false
+	}
+	return kerrors.IsInternalError(err) ||
+		kerrors.IsInvalid(err) ||
+		kerrors.IsTooManyRequests(err) ||
+		kerrors.IsServerTimeout(err) ||
+		kerrors.IsServiceUnavailable(err) ||
+		kerrors.IsTimeout(err) ||
+		kerrors.IsUnexpectedObjectError(err) ||
+		kerrors.IsUnexpectedServerError(err) ||
+		isResourceQuotaConflictErr(err) ||
+		isTransientNetworkErr(err) ||
+		isExceededQuotaErr(err) ||
+		errors.Is(err, syscall.ECONNRESET)
+}
+
+func isExceededQuotaErr(err error) bool {
+	return kerrors.IsForbidden(err) && strings.Contains(err.Error(), "exceeded quota")
+}
+
+func isResourceQuotaConflictErr(err error) bool {
+	return kerrors.IsConflict(err) && strings.Contains(err.Error(), "Operation cannot be fulfilled on resourcequota")
+}
+
+func isTransientNetworkErr(err error) bool {
+	switch err.(type) {
+	case net.Error:
+		switch err.(type) {
+		case *net.DNSError, *net.OpError, net.UnknownNetworkError:
+			return true
+		case *url.Error:
+			// For a URL error, where it replies "connection closed"
+			// retry again.
+			return strings.Contains(err.Error(), "Connection closed by foreign host")
+		}
+	}
+
+	errorString := err.Error()
+	if exitErr, ok := err.(*exec.ExitError); ok {
+		errorString = fmt.Sprintf("%s %s", errorString, exitErr.Stderr)
+	}
+	if strings.Contains(errorString, "net/http: TLS handshake timeout") ||
+		strings.Contains(errorString, "i/o timeout") ||
+		strings.Contains(errorString, "connection timed out") ||
+		strings.Contains(errorString, "connection reset by peer") {
+		return true
+	}
+	return false
+}
+
 func (c *liveStateCache) getCluster(server string) (clustercache.ClusterCache, error) {
 	c.lock.RLock()
 	clusterCache, ok := c.clusters[server]
@@ -298,28 +382,36 @@ func (c *liveStateCache) getCluster(server string) (clustercache.ClusterCache, e
 
 	cluster, err := c.db.GetCluster(context.Background(), server)
 	if err != nil {
-		return nil, err
+		return nil, fmt.Errorf("error getting cluster: %w", err)
 	}
 
 	if !c.canHandleCluster(cluster) {
 		return nil, fmt.Errorf("controller is configured to ignore cluster %s", cluster.Server)
 	}
 
-	trackingMethod := argo.GetTrackingMethod(c.settingsMgr)
+	resourceCustomLabels, err := c.settingsMgr.GetResourceCustomLabels()
+	if err != nil {
+		return nil, fmt.Errorf("error getting custom label: %w", err)
+	}
+
 	clusterCacheOpts := []clustercache.UpdateSettingsFunc{
 		clustercache.SetListSemaphore(semaphore.NewWeighted(clusterCacheListSemaphoreSize)),
 		clustercache.SetListPageSize(clusterCacheListPageSize),
 		clustercache.SetWatchResyncTimeout(clusterCacheWatchResyncDuration),
+		clustercache.SetClusterSyncRetryTimeout(clusterSyncRetryTimeoutDuration),
 		clustercache.SetResyncTimeout(clusterCacheResyncDuration),
 		clustercache.SetSettings(cacheSettings.clusterSettings),
 		clustercache.SetNamespaces(cluster.Namespaces),
 		clustercache.SetClusterResources(cluster.ClusterResources),
 		clustercache.SetPopulateResourceInfoHandler(func(un *unstructured.Unstructured, isRoot bool) (interface{}, bool) {
 			res := &ResourceInfo{}
-			populateNodeInfo(un, res)
+			populateNodeInfo(un, res, resourceCustomLabels)
+			c.lock.RLock()
+			cacheSettings := c.cacheSettings
+			c.lock.RUnlock()
 			res.Health, _ = health.GetResourceHealth(un, cacheSettings.clusterSettings.ResourceHealthOverride)
 
-			appName := c.resourceTracking.GetAppName(un, cacheSettings.appInstanceLabelKey, trackingMethod)
+			appName := c.resourceTracking.GetAppName(un, cacheSettings.appInstanceLabelKey, cacheSettings.trackingMethod)
 			if isRoot && appName != "" {
 				res.AppName = appName
 			}
@@ -330,6 +422,7 @@ func (c *liveStateCache) getCluster(server string) (clustercache.ClusterCache, e
 			return res, res.AppName != "" || gvk.Kind == kube.CustomResourceDefinitionKind
 		}),
 		clustercache.SetLogr(logutils.NewLogrusLogger(log.WithField("server", cluster.Server))),
+		clustercache.SetRetryOptions(clusterCacheAttemptLimit, clusterCacheRetryUseBackoff, isRetryableError),
 	}
 
 	clusterCache = clustercache.NewClusterCache(cluster.RESTConfig(), clusterCacheOpts...)
@@ -368,11 +461,11 @@ func (c *liveStateCache) getCluster(server string) (clustercache.ClusterCache, e
 func (c *liveStateCache) getSyncedCluster(server string) (clustercache.ClusterCache, error) {
 	clusterCache, err := c.getCluster(server)
 	if err != nil {
-		return nil, err
+		return nil, fmt.Errorf("error getting cluster: %w", err)
 	}
 	err = clusterCache.EnsureSynced()
 	if err != nil {
-		return nil, err
+		return nil, fmt.Errorf("error synchronizing cache state : %w", err)
 	}
 	return clusterCache, nil
 }
@@ -397,13 +490,13 @@ func (c *liveStateCache) IsNamespaced(server string, gk schema.GroupKind) (bool,
 	return clusterInfo.IsNamespaced(gk)
 }
 
-func (c *liveStateCache) IterateHierarchy(server string, key kube.ResourceKey, action func(child appv1.ResourceNode, appName string)) error {
+func (c *liveStateCache) IterateHierarchy(server string, key kube.ResourceKey, action func(child appv1.ResourceNode, appName string) bool) error {
 	clusterInfo, err := c.getSyncedCluster(server)
 	if err != nil {
 		return err
 	}
-	clusterInfo.IterateHierarchy(key, func(resource *clustercache.Resource, namespaceResources map[kube.ResourceKey]*clustercache.Resource) {
-		action(asResourceNode(resource), getApp(resource, namespaceResources))
+	clusterInfo.IterateHierarchy(key, func(resource *clustercache.Resource, namespaceResources map[kube.ResourceKey]*clustercache.Resource) bool {
+		return action(asResourceNode(resource), getApp(resource, namespaceResources))
 	})
 	return nil
 }
@@ -441,7 +534,7 @@ func (c *liveStateCache) GetManagedLiveObjs(a *appv1.Application, targetObjs []*
 		return nil, err
 	}
 	return clusterInfo.GetManagedLiveObjs(targetObjs, func(r *clustercache.Resource) bool {
-		return resInfo(r).AppName == a.Name
+		return resInfo(r).AppName == a.InstanceName(c.settingsMgr.GetNamespace())
 	})
 }
 
@@ -506,7 +599,7 @@ func (c *liveStateCache) watchSettings(ctx context.Context) {
 func (c *liveStateCache) Init() error {
 	cacheSettings, err := c.loadCacheSettings()
 	if err != nil {
-		return err
+		return fmt.Errorf("error loading cache settings: %w", err)
 	}
 	c.cacheSettings = *cacheSettings
 	return nil

@@ -43,6 +43,7 @@ notifications template get app-sync-succeeded -o=yaml
       --kubeconfig string               Path to a kube config. Only required if out-of-cluster
   -n, --namespace string                If present, the namespace scope for this CLI request
       --password string                 Password for basic authentication to the API server
+      --proxy-url string                If provided, this URL will be used to connect via proxy
       --request-timeout string          The length of time to wait before giving up on a single server request. Non-zero values should contain a corresponding time unit (e.g. 1s, 2m, 3h). A value of zero means don't timeout requests. (default "0")
       --secret string                   argocd-notifications-secret.yaml file path. Use empty secret if provided value is ':empty'
       --server string                   The address and port of the Kubernetes API server
@@ -98,6 +99,7 @@ notifications template notify app-sync-succeeded guestbook
       --kubeconfig string               Path to a kube config. Only required if out-of-cluster
   -n, --namespace string                If present, the namespace scope for this CLI request
       --password string                 Password for basic authentication to the API server
+      --proxy-url string                If provided, this URL will be used to connect via proxy
       --request-timeout string          The length of time to wait before giving up on a single server request. Non-zero values should contain a corresponding time unit (e.g. 1s, 2m, 3h). A value of zero means don't timeout requests. (default "0")
       --secret string                   argocd-notifications-secret.yaml file path. Use empty secret if provided value is ':empty'
       --server string                   The address and port of the Kubernetes API server
@@ -152,6 +154,7 @@ notifications trigger get on-sync-failed -o=yaml
       --kubeconfig string               Path to a kube config. Only required if out-of-cluster
   -n, --namespace string                If present, the namespace scope for this CLI request
       --password string                 Password for basic authentication to the API server
+      --proxy-url string                If provided, this URL will be used to connect via proxy
       --request-timeout string          The length of time to wait before giving up on a single server request. Non-zero values should contain a corresponding time unit (e.g. 1s, 2m, 3h). A value of zero means don't timeout requests. (default "0")
       --secret string                   argocd-notifications-secret.yaml file path. Use empty secret if provided value is ':empty'
       --server string                   The address and port of the Kubernetes API server
@@ -206,6 +209,7 @@ notifications trigger run on-sync-status-unknown ./sample-app.yaml \
       --kubeconfig string               Path to a kube config. Only required if out-of-cluster
   -n, --namespace string                If present, the namespace scope for this CLI request
       --password string                 Password for basic authentication to the API server
+      --proxy-url string                If provided, this URL will be used to connect via proxy
       --request-timeout string          The length of time to wait before giving up on a single server request. Non-zero values should contain a corresponding time unit (e.g. 1s, 2m, 3h). A value of zero means don't timeout requests. (default "0")
       --secret string                   argocd-notifications-secret.yaml file path. Use empty secret if provided value is ':empty'
       --server string                   The address and port of the Kubernetes API server

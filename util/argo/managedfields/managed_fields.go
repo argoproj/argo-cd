@@ -2,6 +2,7 @@ package managedfields
 
 import (
 	"bytes"
+	"fmt"
 
 	v1 "k8s.io/apimachinery/pkg/apis/meta/v1"
 	"k8s.io/apimachinery/pkg/apis/meta/v1/unstructured"
@@ -13,9 +14,11 @@ import (
 // a field that belongs to one of the trustedManagers it will remove
 // that field from both live and config objects and return the normalized
 // objects in this order. This function won't modify the live and config
-// parameters. It is a no-op if no trustedManagers is provided. It is also
-// a no-op if live or config are nil.
-func Normalize(live, config *unstructured.Unstructured, trustedManagers []string) (*unstructured.Unstructured, *unstructured.Unstructured, error) {
+// parameters. If pt is nil, the normalization will use a deduced parseable
+// type which means that lists and maps are manipulated atomically.
+// It is a no-op if no trustedManagers is provided. It is also a no-op if
+// live or config are nil.
+func Normalize(live, config *unstructured.Unstructured, trustedManagers []string, pt *typed.ParseableType) (*unstructured.Unstructured, *unstructured.Unstructured, error) {
 	if len(trustedManagers) == 0 {
 		return nil, nil, nil
 	}
@@ -25,68 +28,87 @@ func Normalize(live, config *unstructured.Unstructured, trustedManagers []string
 
 	liveCopy := live.DeepCopy()
 	configCopy := config.DeepCopy()
-	comparison, err := Compare(liveCopy, configCopy)
+	results, err := newTypedResults(liveCopy, configCopy, pt)
 	if err != nil {
-		return nil, nil, err
+		return nil, nil, fmt.Errorf("error building typed results: %s", err)
 	}
 
+	normalized := false
 	for _, mf := range live.GetManagedFields() {
 		if trustedManager(mf.Manager, trustedManagers) {
-			err := normalize(liveCopy, configCopy, mf, comparison.Modified)
+			err := normalize(mf, results)
 			if err != nil {
-				return nil, nil, err
+				return nil, nil, fmt.Errorf("error normalizing manager %s: %s", mf.Manager, err)
 			}
+			normalized = true
 		}
 	}
 
-	return liveCopy, configCopy, nil
+	if !normalized {
+		return liveCopy, configCopy, nil
+	}
+	lvu := results.live.AsValue().Unstructured()
+	l, ok := lvu.(map[string]interface{})
+	if !ok {
+		return nil, nil, fmt.Errorf("error converting live typedValue: expected map got %T", lvu)
+	}
+	normLive := &unstructured.Unstructured{Object: l}
+
+	cvu := results.config.AsValue().Unstructured()
+	c, ok := cvu.(map[string]interface{})
+	if !ok {
+		return nil, nil, fmt.Errorf("error converting config typedValue: expected map got %T", cvu)
+	}
+	normConfig := &unstructured.Unstructured{Object: c}
+	return normLive, normConfig, nil
 }
 
 // normalize will check if the modified set has fields that are present
 // in the managed fields entry. If so, it will remove the fields from
 // the live and config objects so it is ignored in diffs.
-func normalize(live, config *unstructured.Unstructured, mf v1.ManagedFieldsEntry, modified *fieldpath.Set) error {
-	liveSet := &fieldpath.Set{}
-	err := liveSet.FromJSON(bytes.NewReader(mf.FieldsV1.Raw))
+func normalize(mf v1.ManagedFieldsEntry, tr *typedResults) error {
+	mfs := &fieldpath.Set{}
+	err := mfs.FromJSON(bytes.NewReader(mf.FieldsV1.Raw))
 	if err != nil {
 		return err
 	}
-
-	intersect := liveSet.Intersection(modified)
-	if !intersect.Empty() {
-		intersect.Iterate(func(p fieldpath.Path) {
-			fields := PathToNestedFields(p)
-			unstructured.RemoveNestedField(config.Object, fields...)
-			unstructured.RemoveNestedField(live.Object, fields...)
-		})
+	intersect := mfs.Intersection(tr.comparison.Modified)
+	if intersect.Empty() {
+		return nil
 	}
+	tr.live = tr.live.RemoveItems(intersect)
+	tr.config = tr.config.RemoveItems(intersect)
 	return nil
 }
 
-// Compare will compare the live and the config state and returned a typed.Comparison
-// as a result.
-func Compare(live, config *unstructured.Unstructured) (*typed.Comparison, error) {
-	typedLive, err := typed.DeducedParseableType.FromUnstructured(live.Object)
-	if err != nil {
-		return nil, err
-	}
-	typedConfig, err := typed.DeducedParseableType.FromUnstructured(config.Object)
-	if err != nil {
-		return nil, err
-	}
-	return typedLive.Compare(typedConfig)
+type typedResults struct {
+	live       *typed.TypedValue
+	config     *typed.TypedValue
+	comparison *typed.Comparison
 }
 
-// PathToNestedFields will convert a path into a slice of field names so it
-// can be used in unstructured nested fields operations.
-func PathToNestedFields(path fieldpath.Path) []string {
-	fields := []string{}
-	for _, element := range path {
-		if element.FieldName != nil {
-			fields = append(fields, *element.FieldName)
-		}
+// newTypedResults will convert live and config into a TypedValue using the given pt
+// and compare them. Returns a typedResults with the coverted types and the comparison.
+// If pt is nil, will use the DeducedParseableType.
+func newTypedResults(live, config *unstructured.Unstructured, pt *typed.ParseableType) (*typedResults, error) {
+	typedLive, err := pt.FromUnstructured(live.Object)
+	if err != nil {
+		return nil, fmt.Errorf("error creating typedLive: %s", err)
 	}
-	return fields
+
+	typedConfig, err := pt.FromUnstructured(config.Object)
+	if err != nil {
+		return nil, fmt.Errorf("error creating typedConfig: %s", err)
+	}
+	comparison, err := typedLive.Compare(typedConfig)
+	if err != nil {
+		return nil, fmt.Errorf("error comparing typed resources: %s", err)
+	}
+	return &typedResults{
+		live:       typedLive,
+		config:     typedConfig,
+		comparison: comparison,
+	}, nil
 }
 
 // trustedManager will return true if trustedManagers contains curManager.

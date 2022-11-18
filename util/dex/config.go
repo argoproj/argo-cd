@@ -9,7 +9,7 @@ import (
 	"github.com/argoproj/argo-cd/v2/util/settings"
 )
 
-func GenerateDexConfigYAML(settings *settings.ArgoCDSettings) ([]byte, error) {
+func GenerateDexConfigYAML(settings *settings.ArgoCDSettings, disableTls bool) ([]byte, error) {
 	if !settings.IsDexConfigured() {
 		return nil, nil
 	}
@@ -26,9 +26,18 @@ func GenerateDexConfigYAML(settings *settings.ArgoCDSettings) ([]byte, error) {
 	dexCfg["storage"] = map[string]interface{}{
 		"type": "memory",
 	}
-	dexCfg["web"] = map[string]interface{}{
-		"http": "0.0.0.0:5556",
+	if disableTls {
+		dexCfg["web"] = map[string]interface{}{
+			"http": "0.0.0.0:5556",
+		}
+	} else {
+		dexCfg["web"] = map[string]interface{}{
+			"https":   "0.0.0.0:5556",
+			"tlsCert": "/tmp/tls.crt",
+			"tlsKey":  "/tmp/tls.key",
+		}
 	}
+
 	dexCfg["grpc"] = map[string]interface{}{
 		"addr": "0.0.0.0:5557",
 	}

@@ -4,7 +4,6 @@ import (
 	"bytes"
 	"fmt"
 	"io"
-	"io/ioutil"
 	"os"
 	"path"
 	"path/filepath"
@@ -82,7 +81,7 @@ func newCatalogCommand() *cobra.Command {
 			d, err := yaml.Marshal(cm)
 			dieOnError(err, "Failed to marshal final configmap")
 
-			err = ioutil.WriteFile(target, d, 0644)
+			err = os.WriteFile(target, d, 0644)
 			dieOnError(err, "Failed to write builtin configmap")
 
 		},
@@ -103,14 +102,14 @@ func newDocsCommand() *cobra.Command {
 			notificationTemplates, notificationTriggers, err := buildConfigFromFS(templatesDir, triggersDir)
 			dieOnError(err, "Failed to build builtin config")
 			generateBuiltInTriggersDocs(&builtItDocsData, notificationTriggers, notificationTemplates)
-			if err := ioutil.WriteFile("./docs/operator-manual/notifications/catalog.md", builtItDocsData.Bytes(), 0644); err != nil {
+			if err := os.WriteFile("./docs/operator-manual/notifications/catalog.md", builtItDocsData.Bytes(), 0644); err != nil {
 				log.Fatal(err)
 			}
 			var commandDocs bytes.Buffer
 			if err := generateCommandsDocs(&commandDocs); err != nil {
 				log.Fatal(err)
 			}
-			if err := ioutil.WriteFile("./docs/operator-manual/notifications/troubleshooting-commands.md", commandDocs.Bytes(), 0644); err != nil {
+			if err := os.WriteFile("./docs/operator-manual/notifications/troubleshooting-commands.md", commandDocs.Bytes(), 0644); err != nil {
 				log.Fatal(err)
 			}
 		},
@@ -185,7 +184,7 @@ func buildConfigFromFS(templatesDir string, triggersDir string) (map[string]serv
 		if info.IsDir() {
 			return nil
 		}
-		data, err := ioutil.ReadFile(p)
+		data, err := os.ReadFile(p)
 		if err != nil {
 			return err
 		}
@@ -209,7 +208,7 @@ func buildConfigFromFS(templatesDir string, triggersDir string) (map[string]serv
 		if info.IsDir() {
 			return nil
 		}
-		data, err := ioutil.ReadFile(p)
+		data, err := os.ReadFile(p)
 		if err != nil {
 			return err
 		}

@@ -4,14 +4,19 @@ import (
 	"context"
 	"crypto/tls"
 	"crypto/x509"
+	"fmt"
 	"sort"
+	"strings"
 	"testing"
+	"time"
 
 	"github.com/argoproj/argo-cd/v2/common"
 	"github.com/argoproj/argo-cd/v2/pkg/apis/application/v1alpha1"
 	testutil "github.com/argoproj/argo-cd/v2/test"
+	"github.com/argoproj/argo-cd/v2/util/test"
 
 	"github.com/stretchr/testify/assert"
+	"github.com/stretchr/testify/require"
 	v1 "k8s.io/api/core/v1"
 	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
 	"k8s.io/client-go/kubernetes/fake"
@@ -135,6 +140,54 @@ func TestGetConfigManagementPlugins(t *testing.T) {
 	}}, plugins)
 }
 
+func TestInClusterServerAddressEnabled(t *testing.T) {
+	_, settingsManager := fixtures(map[string]string{
+		"cluster.inClusterEnabled": "true",
+	})
+	argoCDCM, err := settingsManager.getConfigMap()
+	assert.NoError(t, err)
+	assert.Equal(t, true, argoCDCM.Data[inClusterEnabledKey] == "true")
+
+	_, settingsManager = fixtures(map[string]string{
+		"cluster.inClusterEnabled": "false",
+	})
+	argoCDCM, err = settingsManager.getConfigMap()
+	assert.NoError(t, err)
+	assert.Equal(t, false, argoCDCM.Data[inClusterEnabledKey] == "true")
+}
+
+func TestInClusterServerAddressEnabledByDefault(t *testing.T) {
+	kubeClient := fake.NewSimpleClientset(
+		&v1.ConfigMap{
+			ObjectMeta: metav1.ObjectMeta{
+				Name:      common.ArgoCDConfigMapName,
+				Namespace: "default",
+				Labels: map[string]string{
+					"app.kubernetes.io/part-of": "argocd",
+				},
+			},
+			Data: map[string]string{},
+		},
+		&v1.Secret{
+			ObjectMeta: metav1.ObjectMeta{
+				Name:      common.ArgoCDSecretName,
+				Namespace: "default",
+				Labels: map[string]string{
+					"app.kubernetes.io/part-of": "argocd",
+				},
+			},
+			Data: map[string][]byte{
+				"admin.password":   nil,
+				"server.secretkey": nil,
+			},
+		},
+	)
+	settingsManager := NewSettingsManager(context.Background(), kubeClient, "default")
+	settings, err := settingsManager.GetSettings()
+	assert.NoError(t, err)
+	assert.Equal(t, true, settings.InClusterEnabled)
+}
+
 func TestGetAppInstanceLabelKey(t *testing.T) {
 	_, settingsManager := fixtures(map[string]string{
 		"application.instanceLabelKey": "testLabel",
@@ -142,6 +195,22 @@ func TestGetAppInstanceLabelKey(t *testing.T) {
 	label, err := settingsManager.GetAppInstanceLabelKey()
 	assert.NoError(t, err)
 	assert.Equal(t, "testLabel", label)
+}
+
+func TestGetServerRBACLogEnforceEnableKeyDefaultFalse(t *testing.T) {
+	_, settingsManager := fixtures(nil)
+	serverRBACLogEnforceEnable, err := settingsManager.GetServerRBACLogEnforceEnable()
+	assert.NoError(t, err)
+	assert.Equal(t, false, serverRBACLogEnforceEnable)
+}
+
+func TestGetServerRBACLogEnforceEnableKey(t *testing.T) {
+	_, settingsManager := fixtures(map[string]string{
+		"server.rbac.log.enforce.enable": "true",
+	})
+	serverRBACLogEnforceEnable, err := settingsManager.GetServerRBACLogEnforceEnable()
+	assert.NoError(t, err)
+	assert.Equal(t, true, serverRBACLogEnforceEnable)
 }
 
 func TestGetResourceOverrides(t *testing.T) {
@@ -600,11 +669,109 @@ func TestSettingsManager_GetHelp(t *testing.T) {
 	t.Run("GetBinaryUrls", func(t *testing.T) {
 		_, settingsManager := fixtures(map[string]string{
 			"help.download.darwin-amd64": "amd64-path",
+			"help.download.linux-s390x":  "s390x-path",
 			"help.download.unsupported":  "nowhere",
 		})
 		h, err := settingsManager.GetHelp()
 		assert.NoError(t, err)
-		assert.Equal(t, map[string]string{"darwin-amd64": "amd64-path"}, h.BinaryURLs)
+		assert.Equal(t, map[string]string{"darwin-amd64": "amd64-path", "linux-s390x": "s390x-path"}, h.BinaryURLs)
+	})
+}
+
+func TestSettingsManager_GetSettings(t *testing.T) {
+	t.Run("UserSessionDurationNotProvided", func(t *testing.T) {
+		kubeClient := fake.NewSimpleClientset(
+			&v1.ConfigMap{
+				ObjectMeta: metav1.ObjectMeta{
+					Name:      common.ArgoCDConfigMapName,
+					Namespace: "default",
+					Labels: map[string]string{
+						"app.kubernetes.io/part-of": "argocd",
+					},
+				},
+				Data: nil,
+			},
+			&v1.Secret{
+				ObjectMeta: metav1.ObjectMeta{
+					Name:      common.ArgoCDSecretName,
+					Namespace: "default",
+					Labels: map[string]string{
+						"app.kubernetes.io/part-of": "argocd",
+					},
+				},
+				Data: map[string][]byte{
+					"server.secretkey": nil,
+				},
+			},
+		)
+		settingsManager := NewSettingsManager(context.Background(), kubeClient, "default")
+		s, err := settingsManager.GetSettings()
+		assert.NoError(t, err)
+		assert.Equal(t, time.Hour*24, s.UserSessionDuration)
+	})
+	t.Run("UserSessionDurationInvalidFormat", func(t *testing.T) {
+		kubeClient := fake.NewSimpleClientset(
+			&v1.ConfigMap{
+				ObjectMeta: metav1.ObjectMeta{
+					Name:      common.ArgoCDConfigMapName,
+					Namespace: "default",
+					Labels: map[string]string{
+						"app.kubernetes.io/part-of": "argocd",
+					},
+				},
+				Data: map[string]string{
+					"users.session.duration": "10hh",
+				},
+			},
+			&v1.Secret{
+				ObjectMeta: metav1.ObjectMeta{
+					Name:      common.ArgoCDSecretName,
+					Namespace: "default",
+					Labels: map[string]string{
+						"app.kubernetes.io/part-of": "argocd",
+					},
+				},
+				Data: map[string][]byte{
+					"server.secretkey": nil,
+				},
+			},
+		)
+		settingsManager := NewSettingsManager(context.Background(), kubeClient, "default")
+		s, err := settingsManager.GetSettings()
+		assert.NoError(t, err)
+		assert.Equal(t, time.Hour*24, s.UserSessionDuration)
+	})
+	t.Run("UserSessionDurationProvided", func(t *testing.T) {
+		kubeClient := fake.NewSimpleClientset(
+			&v1.ConfigMap{
+				ObjectMeta: metav1.ObjectMeta{
+					Name:      common.ArgoCDConfigMapName,
+					Namespace: "default",
+					Labels: map[string]string{
+						"app.kubernetes.io/part-of": "argocd",
+					},
+				},
+				Data: map[string]string{
+					"users.session.duration": "10h",
+				},
+			},
+			&v1.Secret{
+				ObjectMeta: metav1.ObjectMeta{
+					Name:      common.ArgoCDSecretName,
+					Namespace: "default",
+					Labels: map[string]string{
+						"app.kubernetes.io/part-of": "argocd",
+					},
+				},
+				Data: map[string][]byte{
+					"server.secretkey": nil,
+				},
+			},
+		)
+		settingsManager := NewSettingsManager(context.Background(), kubeClient, "default")
+		s, err := settingsManager.GetSettings()
+		assert.NoError(t, err)
+		assert.Equal(t, time.Hour*10, s.UserSessionDuration)
 	})
 }
 
@@ -919,6 +1086,13 @@ func TestDownloadArgoCDBinaryUrls(t *testing.T) {
 	assert.Equal(t, "some-url", argoCDCM.Data["help.download.darwin-amd64"])
 
 	_, settingsManager = fixtures(map[string]string{
+		"help.download.linux-s390x": "some-url",
+	})
+	argoCDCM, err = settingsManager.getConfigMap()
+	assert.NoError(t, err)
+	assert.Equal(t, "some-url", argoCDCM.Data["help.download.linux-s390x"])
+
+	_, settingsManager = fixtures(map[string]string{
 		"help.download.unsupported": "some-url",
 	})
 	argoCDCM, err = settingsManager.getConfigMap()
@@ -977,4 +1151,195 @@ requestedIDTokenClaims: {"groups": {"essential": true}}`,
 
 	oidcConfig := settings.OIDCConfig()
 	assert.Equal(t, oidcConfig.ClientSecret, "deadbeef")
+}
+
+func TestGetEnableManifestGeneration(t *testing.T) {
+	testCases := []struct {
+		name    string
+		enabled bool
+		data    map[string]string
+		source  string
+	}{{
+		name:    "default",
+		enabled: true,
+		data:    map[string]string{},
+		source:  string(v1alpha1.ApplicationSourceTypeKustomize),
+	}, {
+		name:    "disabled",
+		enabled: false,
+		data:    map[string]string{"kustomize.enable": `false`},
+		source:  string(v1alpha1.ApplicationSourceTypeKustomize),
+	}, {
+		name:    "enabled",
+		enabled: true,
+		data:    map[string]string{"kustomize.enable": `true`},
+		source:  string(v1alpha1.ApplicationSourceTypeKustomize),
+	}}
+	for i := range testCases {
+		tc := testCases[i]
+		t.Run(tc.name, func(t *testing.T) {
+			cm := &v1.ConfigMap{
+				ObjectMeta: metav1.ObjectMeta{
+					Name:      common.ArgoCDConfigMapName,
+					Namespace: "default",
+					Labels: map[string]string{
+						"app.kubernetes.io/part-of": "argocd",
+					},
+				},
+				Data: tc.data,
+			}
+			argocdSecret := &v1.Secret{
+				ObjectMeta: metav1.ObjectMeta{
+					Name:      common.ArgoCDSecretName,
+					Namespace: "default",
+				},
+				Data: map[string][]byte{
+					"admin.password":   nil,
+					"server.secretkey": nil,
+				},
+			}
+
+			kubeClient := fake.NewSimpleClientset(cm, argocdSecret)
+			settingsManager := NewSettingsManager(context.Background(), kubeClient, "default")
+
+			enableManifestGeneration, err := settingsManager.GetEnabledSourceTypes()
+			require.NoError(t, err)
+
+			assert.Equal(t, enableManifestGeneration[tc.source], tc.enabled)
+		})
+	}
+}
+
+func TestGetHelmSettings(t *testing.T) {
+	testCases := []struct {
+		name     string
+		data     map[string]string
+		expected []string
+	}{{
+		name:     "Default",
+		data:     map[string]string{},
+		expected: []string{"http", "https"},
+	}, {
+		name: "Configured Not Empty",
+		data: map[string]string{
+			"helm.valuesFileSchemes": "s3, git",
+		},
+		expected: []string{"s3", "git"},
+	}, {
+		name: "Configured Empty",
+		data: map[string]string{
+			"helm.valuesFileSchemes": "",
+		},
+		expected: nil,
+	}}
+
+	for i := range testCases {
+		tc := testCases[i]
+		t.Run(tc.name, func(t *testing.T) {
+			cm := &v1.ConfigMap{
+				ObjectMeta: metav1.ObjectMeta{
+					Name:      common.ArgoCDConfigMapName,
+					Namespace: "default",
+					Labels: map[string]string{
+						"app.kubernetes.io/part-of": "argocd",
+					},
+				},
+				Data: tc.data,
+			}
+			argocdSecret := &v1.Secret{
+				ObjectMeta: metav1.ObjectMeta{
+					Name:      common.ArgoCDSecretName,
+					Namespace: "default",
+				},
+				Data: map[string][]byte{
+					"admin.password":   nil,
+					"server.secretkey": nil,
+				},
+			}
+			secret := &v1.Secret{
+				ObjectMeta: metav1.ObjectMeta{
+					Name:      "acme",
+					Namespace: "default",
+					Labels: map[string]string{
+						"app.kubernetes.io/part-of": "argocd",
+					},
+				},
+				Data: map[string][]byte{
+					"clientSecret": []byte("deadbeef"),
+				},
+			}
+			kubeClient := fake.NewSimpleClientset(cm, secret, argocdSecret)
+			settingsManager := NewSettingsManager(context.Background(), kubeClient, "default")
+
+			helmSettings, err := settingsManager.GetHelmSettings()
+			assert.NoError(t, err)
+
+			assert.ElementsMatch(t, tc.expected, helmSettings.ValuesFileSchemes)
+		})
+	}
+}
+func TestArgoCDSettings_OIDCTLSConfig_OIDCTLSInsecureSkipVerify(t *testing.T) {
+	certParsed, err := tls.X509KeyPair(test.Cert, test.PrivateKey)
+	require.NoError(t, err)
+
+	testCases := []struct {
+		name               string
+		settings           *ArgoCDSettings
+		expectNilTLSConfig bool
+	}{
+		{
+			name: "OIDC configured, no root CA",
+			settings: &ArgoCDSettings{OIDCConfigRAW: `name: Test
+issuer: aaa
+clientID: xxx
+clientSecret: yyy
+requestedScopes: ["oidc"]`},
+		},
+		{
+			name: "OIDC configured, valid root CA",
+			settings: &ArgoCDSettings{OIDCConfigRAW: fmt.Sprintf(`
+name: Test
+issuer: aaa
+clientID: xxx
+clientSecret: yyy
+requestedScopes: ["oidc"]
+rootCA: |
+  %s
+`, strings.Replace(string(test.Cert), "\n", "\n  ", -1))},
+		},
+		{
+			name: "OIDC configured, invalid root CA",
+			settings: &ArgoCDSettings{OIDCConfigRAW: `name: Test
+issuer: aaa
+clientID: xxx
+clientSecret: yyy
+requestedScopes: ["oidc"]
+rootCA: "invalid"`},
+		},
+		{
+			name:               "OIDC not configured, no cert configured",
+			settings:           &ArgoCDSettings{},
+			expectNilTLSConfig: true,
+		},
+		{
+			name:     "OIDC not configured, cert configured",
+			settings: &ArgoCDSettings{Certificate: &certParsed},
+		},
+	}
+
+	for _, testCase := range testCases {
+		testCase := testCase
+
+		t.Run(testCase.name, func(t *testing.T) {
+			if testCase.expectNilTLSConfig {
+				assert.Nil(t, testCase.settings.OIDCTLSConfig())
+			} else {
+				assert.False(t, testCase.settings.OIDCTLSConfig().InsecureSkipVerify)
+
+				testCase.settings.OIDCTLSInsecureSkipVerify = true
+
+				assert.True(t, testCase.settings.OIDCTLSConfig().InsecureSkipVerify)
+			}
+		})
+	}
 }

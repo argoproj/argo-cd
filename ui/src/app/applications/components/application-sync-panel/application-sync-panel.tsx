@@ -7,10 +7,10 @@ import {Consumer} from '../../../shared/context';
 import * as models from '../../../shared/models';
 import {services} from '../../../shared/services';
 import {ApplicationRetryOptions} from '../application-retry-options/application-retry-options';
-import {ApplicationManualSyncFlags, ApplicationSyncOptions, SyncFlags, REPLACE_WARNING} from '../application-sync-options/application-sync-options';
+import {ApplicationManualSyncFlags, ApplicationSyncOptions, FORCE_WARNING, SyncFlags, REPLACE_WARNING} from '../application-sync-options/application-sync-options';
 import {ComparisonStatusIcon, nodeKey} from '../utils';
 
-require('./application-sync-panel.scss');
+import './application-sync-panel.scss';
 
 export const ApplicationSyncPanel = ({application, selectedResource, hide}: {application: models.Application; selectedResource: string; hide: () => any}) => {
     const [form, setForm] = React.useState<FormApi>(null);
@@ -60,7 +60,6 @@ export const ApplicationSyncPanel = ({application, selectedResource, hide}: {app
                                 if (resources.length === appResources.length) {
                                     resources = null;
                                 }
-
                                 const replace = params.syncOptions?.findIndex((opt: string) => opt === 'Replace=true') > -1;
                                 if (replace) {
                                     const confirmed = await ctx.popup.confirm('Synchronize using replace?', () => (
@@ -75,16 +74,29 @@ export const ApplicationSyncPanel = ({application, selectedResource, hide}: {app
                                 }
 
                                 const syncFlags = {...params.syncFlags} as SyncFlags;
+                                const force = syncFlags.Force || false;
 
                                 if (syncFlags.ApplyOnly) {
-                                    syncStrategy.apply = {force: syncFlags.Force || false};
+                                    syncStrategy.apply = {force};
                                 } else {
-                                    syncStrategy.hook = {force: syncFlags.Force || false};
+                                    syncStrategy.hook = {force};
+                                }
+                                if (force) {
+                                    const confirmed = await ctx.popup.confirm('Synchronize with force?', () => (
+                                        <div>
+                                            <i className='fa fa-exclamation-triangle' style={{color: ARGO_WARNING_COLOR}} /> {FORCE_WARNING} Are you sure you want to continue?
+                                        </div>
+                                    ));
+                                    if (!confirmed) {
+                                        setPending(false);
+                                        return;
+                                    }
                                 }
 
                                 try {
                                     await services.applications.sync(
                                         application.metadata.name,
+                                        application.metadata.namespace,
                                         params.revision,
                                         syncFlags.Prune || false,
                                         syncFlags.DryRun || false,
@@ -125,10 +137,15 @@ export const ApplicationSyncPanel = ({application, selectedResource, hide}: {app
                                                     formApi.setTouched('syncOptions', true);
                                                     formApi.setValue('syncOptions', opts);
                                                 }}
+                                                id='application-sync-panel'
                                             />
                                         </div>
 
-                                        <ApplicationRetryOptions formApi={formApi} initValues={application.spec.syncPolicy ? application.spec.syncPolicy.retry : null} />
+                                        <ApplicationRetryOptions
+                                            id='application-sync-panel'
+                                            formApi={formApi}
+                                            initValues={application.spec.syncPolicy ? application.spec.syncPolicy.retry : null}
+                                        />
 
                                         <label>Synchronize resources:</label>
                                         <div style={{float: 'right'}}>
@@ -164,9 +181,9 @@ export const ApplicationSyncPanel = ({application, selectedResource, hide}: {app
                                                 none
                                             </a>
                                         </div>
-                                        {!formApi.values.resources.every((item: boolean) => item) && (
-                                            <div className='application-details__warning'>WARNING: partial synchronization is not recorded in history</div>
-                                        )}
+                                        <div className='application-details__warning'>
+                                            {!formApi.values.resources.every((item: boolean) => item) && <div>WARNING: partial synchronization is not recorded in history</div>}
+                                        </div>
                                         <div>
                                             {application.status.resources
                                                 .filter(item => !item.hook)

@@ -10,13 +10,13 @@ import * as AppUtils from '../utils';
 import {OperationState} from '../utils';
 import {services} from '../../../shared/services';
 
-require('./applications-tiles.scss');
+import './applications-tiles.scss';
 
 export interface ApplicationTilesProps {
     applications: models.Application[];
-    syncApplication: (appName: string) => any;
-    refreshApplication: (appName: string) => any;
-    deleteApplication: (appName: string) => any;
+    syncApplication: (appName: string, appNamespace: string) => any;
+    refreshApplication: (appName: string, appNamespace: string) => any;
+    deleteApplication: (appName: string, appNamespace: string) => any;
 }
 
 const useItemsPerContainer = (itemRef: any, containerRef: any): number => {
@@ -109,36 +109,59 @@ export const ApplicationTiles = ({applications, syncApplication, refreshApplicat
                                 className='applications-tiles argo-table-list argo-table-list--clickable row small-up-1 medium-up-2 large-up-3 xxxlarge-up-4'
                                 ref={appContainerRef}>
                                 {applications.map((app, i) => (
-                                    <div key={app.metadata.name} className='column column-block'>
+                                    <div key={AppUtils.appInstanceName(app)} className='column column-block'>
                                         <div
                                             ref={appRef.set ? null : appRef.ref}
                                             className={`argo-table-list__row applications-list__entry applications-list__entry--health-${app.status.health.status} ${
                                                 selectedApp === i ? 'applications-tiles__selected' : ''
                                             }`}>
-                                            <div className='row' onClick={e => ctx.navigation.goto(`/applications/${app.metadata.name}`, {view: pref.appDetails.view}, {event: e})}>
-                                                <div className={`columns small-12 applications-list__info qe-applications-list-${app.metadata.name}`}>
-                                                    <div className='applications-list__external-link'>
-                                                        <ApplicationURLs urls={AppUtils.getExternalUrls(app.metadata.annotations, app.status.summary.externalURLs)} />
-                                                        <Tooltip content={favList?.includes(app.metadata.name) ? 'Remove Favorite' : 'Add Favorite'}>
-                                                            <button
-                                                                onClick={e => {
-                                                                    e.stopPropagation();
-                                                                    favList?.includes(app.metadata.name)
-                                                                        ? favList.splice(favList.indexOf(app.metadata.name), 1)
-                                                                        : favList.push(app.metadata.name);
-                                                                    services.viewPreferences.updatePreferences({appList: {...pref.appList, favoritesAppList: favList}});
-                                                                }}>
-                                                                <i
-                                                                    className={'fas fa-star fa-lg'}
-                                                                    style={{cursor: 'pointer', marginLeft: '7px', color: favList?.includes(app.metadata.name) ? '#1FBDD0' : 'grey'}}
-                                                                />
-                                                            </button>
-                                                        </Tooltip>
-                                                    </div>
+                                            <div
+                                                className='row'
+                                                onClick={e =>
+                                                    ctx.navigation.goto(`/applications/${app.metadata.namespace}/${app.metadata.name}`, {view: pref.appDetails.view}, {event: e})
+                                                }>
+                                                <div className={`columns small-12 applications-list__info qe-applications-list-${AppUtils.appInstanceName(app)}`}>
                                                     <div className='row'>
-                                                        <div className='columns small-12'>
+                                                        <div
+                                                            className={
+                                                                AppUtils.getExternalUrls(app.metadata.annotations, app.status.summary.externalURLs)?.length > 0
+                                                                    ? 'columns small-10'
+                                                                    : 'columns small-11'
+                                                            }>
                                                             <i className={'icon argo-icon-' + (app.spec.source.chart != null ? 'helm' : 'git')} />
-                                                            <span className='applications-list__title'>{app.metadata.name}</span>
+                                                            <Tooltip content={AppUtils.appInstanceName(app)}>
+                                                                <span className='applications-list__title'>{AppUtils.appQualifiedName(app)}</span>
+                                                            </Tooltip>
+                                                        </div>
+                                                        <div
+                                                            className={
+                                                                AppUtils.getExternalUrls(app.metadata.annotations, app.status.summary.externalURLs)?.length > 0
+                                                                    ? 'columns small-2'
+                                                                    : 'columns small-1'
+                                                            }>
+                                                            <div className='applications-list__external-link'>
+                                                                <ApplicationURLs urls={AppUtils.getExternalUrls(app.metadata.annotations, app.status.summary.externalURLs)} />
+                                                                <Tooltip content={favList?.includes(app.metadata.name) ? 'Remove Favorite' : 'Add Favorite'}>
+                                                                    <button
+                                                                        className='large-text-height'
+                                                                        onClick={e => {
+                                                                            e.stopPropagation();
+                                                                            favList?.includes(app.metadata.name)
+                                                                                ? favList.splice(favList.indexOf(app.metadata.name), 1)
+                                                                                : favList.push(app.metadata.name);
+                                                                            services.viewPreferences.updatePreferences({appList: {...pref.appList, favoritesAppList: favList}});
+                                                                        }}>
+                                                                        <i
+                                                                            className={favList?.includes(app.metadata.name) ? 'fas fa-star fa-lg' : 'far fa-star fa-lg'}
+                                                                            style={{
+                                                                                cursor: 'pointer',
+                                                                                marginLeft: '7px',
+                                                                                color: favList?.includes(app.metadata.name) ? '#FFCE25' : '#8fa4b1'
+                                                                            }}
+                                                                        />
+                                                                    </button>
+                                                                </Tooltip>
+                                                            </div>
                                                         </div>
                                                     </div>
                                                     <div className='row'>
@@ -238,7 +261,7 @@ export const ApplicationTiles = ({applications, syncApplication, refreshApplicat
                                                                 qe-id='applications-tiles-button-sync'
                                                                 onClick={e => {
                                                                     e.stopPropagation();
-                                                                    syncApplication(app.metadata.name);
+                                                                    syncApplication(app.metadata.name, app.metadata.namespace);
                                                                 }}>
                                                                 <i className='fa fa-sync' /> Sync
                                                             </a>
@@ -249,7 +272,7 @@ export const ApplicationTiles = ({applications, syncApplication, refreshApplicat
                                                                 {...AppUtils.refreshLinkAttrs(app)}
                                                                 onClick={e => {
                                                                     e.stopPropagation();
-                                                                    refreshApplication(app.metadata.name);
+                                                                    refreshApplication(app.metadata.name, app.metadata.namespace);
                                                                 }}>
                                                                 <i className={classNames('fa fa-redo', {'status-icon--spin': AppUtils.isAppRefreshing(app)})} />{' '}
                                                                 <span className='show-for-xxlarge'>Refresh</span>
@@ -260,7 +283,7 @@ export const ApplicationTiles = ({applications, syncApplication, refreshApplicat
                                                                 qe-id='applications-tiles-button-delete'
                                                                 onClick={e => {
                                                                     e.stopPropagation();
-                                                                    deleteApplication(app.metadata.name);
+                                                                    deleteApplication(app.metadata.name, app.metadata.namespace);
                                                                 }}>
                                                                 <i className='fa fa-times-circle' /> <span className='show-for-xxlarge'>Delete</span>
                                                             </a>

@@ -6,8 +6,7 @@ import * as models from '../../../shared/models';
 import {services} from '../../../shared/services';
 import {ApplicationParameters} from '../application-parameters/application-parameters';
 import {RevisionMetadataRows} from './revision-metadata-rows';
-
-require('./application-deployment-history.scss');
+import './application-deployment-history.scss';
 
 export const ApplicationDeploymentHistory = ({
     app,
@@ -76,11 +75,12 @@ export const ApplicationDeploymentHistory = ({
                             <React.Fragment>
                                 <RevisionMetadataRows
                                     applicationName={app.metadata.name}
+                                    applicationNamespace={app.metadata.namespace}
                                     source={{...recentDeployments[index].source, targetRevision: recentDeployments[index].revision}}
                                 />
                                 <DataLoader
                                     input={{...recentDeployments[index].source, targetRevision: recentDeployments[index].revision, appName: app.metadata.name}}
-                                    load={src => services.repos.appDetails(src, src.appName)}>
+                                    load={src => services.repos.appDetails(src, src.appName, app.spec.project)}>
                                     {(details: models.RepoAppDetails) => (
                                         <div>
                                             <ApplicationParameters

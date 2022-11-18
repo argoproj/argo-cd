@@ -122,4 +122,4 @@ Example:
 when: time.Now().Sub(time.Parse(app.status.operationState.startedAt)).Minutes() >= 5
 ```
 
-{!functions.md!}
+{!docs/operator-manual/notifications/functions.md!}

@@ -1,0 +1,11 @@
+apiVersion: flink.apache.org/v1alpha1
+kind: FlinkDeployment
+spec:
+  job:
+    state: suspended
+status:
+  jobManagerDeploymentStatus: MISSING
+  jobStatus:
+    state: SUSPENDED
+  reconciliationStatus:
+    success: true

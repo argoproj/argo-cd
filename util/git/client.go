@@ -34,6 +34,8 @@ import (
 	"github.com/argoproj/argo-cd/v2/util/proxy"
 )
 
+var ErrInvalidRepoURL = fmt.Errorf("repo URL is invalid")
+
 type RevisionMetadata struct {
 	Author  string
 	Date    time.Time
@@ -58,7 +60,8 @@ type Client interface {
 	Root() string
 	Init() error
 	Fetch(revision string) error
-	Checkout(revision string) error
+	Submodule() error
+	Checkout(revision string, submoduleEnabled bool) error
 	LsRefs() (*Refs, error)
 	LsRemote(revision string) (string, error)
 	LsFiles(path string) ([]string, error)
@@ -136,9 +139,13 @@ func WithEventHandlers(handlers EventHandlers) ClientOpts {
 
 func NewClient(rawRepoURL string, creds Creds, insecure bool, enableLfs bool, proxy string, opts ...ClientOpts) (Client, error) {
 	r := regexp.MustCompile("(/|:)")
-	root := filepath.Join(os.TempDir(), r.ReplaceAllString(NormalizeGitURL(rawRepoURL), "_"))
+	normalizedGitURL := NormalizeGitURL(rawRepoURL)
+	if normalizedGitURL == "" {
+		return nil, fmt.Errorf("repository %q cannot be initialized: %w", rawRepoURL, ErrInvalidRepoURL)
+	}
+	root := filepath.Join(os.TempDir(), r.ReplaceAllString(normalizedGitURL, "_"))
 	if root == os.TempDir() {
-		return nil, fmt.Errorf("Repository '%s' cannot be initialized, because its root would be system temp at %s", rawRepoURL, root)
+		return nil, fmt.Errorf("repository %q cannot be initialized, because its root would be system temp at %s", rawRepoURL, root)
 	}
 	return NewClientExt(rawRepoURL, root, creds, insecure, enableLfs, proxy, opts...)
 }
@@ -203,46 +210,30 @@ func GetRepoHTTPClient(repoURL string, insecure bool, creds Creds, proxyURL stri
 
 		return &cert, nil
 	}
-
-	if insecure {
-		customHTTPClient.Transport = &http.Transport{
-			Proxy: proxyFunc,
-			TLSClientConfig: &tls.Config{
-				InsecureSkipVerify:   true,
-				GetClientCertificate: clientCertFunc,
-			},
-			DisableKeepAlives: true,
-		}
-	} else {
-		parsedURL, err := url.Parse(repoURL)
-		if err != nil {
-			return customHTTPClient
-		}
-		serverCertificatePem, err := certutil.GetCertificateForConnect(parsedURL.Host)
-		if err != nil {
-			return customHTTPClient
-		} else if len(serverCertificatePem) > 0 {
-			certPool := certutil.GetCertPoolFromPEMData(serverCertificatePem)
-			customHTTPClient.Transport = &http.Transport{
-				Proxy: proxyFunc,
-				TLSClientConfig: &tls.Config{
-					RootCAs:              certPool,
-					GetClientCertificate: clientCertFunc,
-				},
-				DisableKeepAlives: true,
-			}
-		} else {
-			// else no custom certificate stored.
-			customHTTPClient.Transport = &http.Transport{
-				Proxy: proxyFunc,
-				TLSClientConfig: &tls.Config{
-					GetClientCertificate: clientCertFunc,
-				},
-				DisableKeepAlives: true,
-			}
-		}
+	transport := &http.Transport{
+		Proxy: proxyFunc,
+		TLSClientConfig: &tls.Config{
+			GetClientCertificate: clientCertFunc,
+		},
+		DisableKeepAlives: true,
 	}
-
+	customHTTPClient.Transport = transport
+	if insecure {
+		transport.TLSClientConfig.InsecureSkipVerify = true
+		return customHTTPClient
+	}
+	parsedURL, err := url.Parse(repoURL)
+	if err != nil {
+		return customHTTPClient
+	}
+	serverCertificatePem, err := certutil.GetCertificateForConnect(parsedURL.Host)
+	if err != nil {
+		return customHTTPClient
+	}
+	if len(serverCertificatePem) > 0 {
+		certPool := certutil.GetCertPoolFromPEMData(serverCertificatePem)
+		transport.TLSClientConfig.RootCAs = certPool
+	}
 	return customHTTPClient
 }
 
@@ -326,6 +317,16 @@ func (m *nativeGitClient) IsLFSEnabled() bool {
 	return m.enableLfs
 }
 
+func (m *nativeGitClient) fetch(revision string) error {
+	var err error
+	if revision != "" {
+		err = m.runCredentialedCmd("git", "fetch", "origin", revision, "--tags", "--force", "--prune")
+	} else {
+		err = m.runCredentialedCmd("git", "fetch", "origin", "--tags", "--force", "--prune")
+	}
+	return err
+}
+
 // Fetch fetches latest updates from origin
 func (m *nativeGitClient) Fetch(revision string) error {
 	if m.OnFetch != nil {
@@ -333,12 +334,8 @@ func (m *nativeGitClient) Fetch(revision string) error {
 		defer done()
 	}
 
-	var err error
-	if revision != "" {
-		err = m.runCredentialedCmd("git", "fetch", "origin", revision, "--tags", "--force")
-	} else {
-		err = m.runCredentialedCmd("git", "fetch", "origin", "--tags", "--force")
-	}
+	err := m.fetch(revision)
+
 	// When we have LFS support enabled, check for large files and fetch them too.
 	if err == nil && m.IsLFSEnabled() {
 		largeFiles, err := m.LsLargeFiles()
@@ -349,6 +346,7 @@ func (m *nativeGitClient) Fetch(revision string) error {
 			}
 		}
 	}
+
 	return err
 }
 
@@ -373,8 +371,19 @@ func (m *nativeGitClient) LsLargeFiles() ([]string, error) {
 	return ss, nil
 }
 
+// Submodule embed other repositories into this repository
+func (m *nativeGitClient) Submodule() error {
+	if err := m.runCredentialedCmd("git", "submodule", "sync", "--recursive"); err != nil {
+		return err
+	}
+	if err := m.runCredentialedCmd("git", "submodule", "update", "--init", "--recursive"); err != nil {
+		return err
+	}
+	return nil
+}
+
 // Checkout checkout specified revision
-func (m *nativeGitClient) Checkout(revision string) error {
+func (m *nativeGitClient) Checkout(revision string, submoduleEnabled bool) error {
 	if revision == "" || revision == "HEAD" {
 		revision = "origin/HEAD"
 	}
@@ -395,8 +404,8 @@ func (m *nativeGitClient) Checkout(revision string) error {
 		}
 	}
 	if _, err := os.Stat(m.root + "/.gitmodules"); !os.IsNotExist(err) {
-		if submoduleEnabled := os.Getenv(common.EnvGitSubmoduleEnabled); submoduleEnabled != "false" {
-			if err := m.runCredentialedCmd("git", "submodule", "update", "--init", "--recursive"); err != nil {
+		if submoduleEnabled {
+			if err := m.Submodule(); err != nil {
 				return err
 			}
 		}
@@ -623,7 +632,7 @@ func (m *nativeGitClient) runCredentialedCmd(command string, args ...string) err
 
 func (m *nativeGitClient) runCmdOutput(cmd *exec.Cmd) (string, error) {
 	cmd.Dir = m.root
-	cmd.Env = append(cmd.Env, os.Environ()...)
+	cmd.Env = append(os.Environ(), cmd.Env...)
 	// Set $HOME to nowhere, so we can be execute Git regardless of any external
 	// authentication keys (e.g. in ~/.ssh) -- this is especially important for
 	// running tests on local machines and/or CircleCI.

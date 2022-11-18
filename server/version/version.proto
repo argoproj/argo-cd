@@ -19,7 +19,6 @@ message VersionMessage {
 	string GoVersion = 6;
 	string Compiler = 7;
 	string Platform = 8;
-	string KsonnetVersion = 9;
 	string KustomizeVersion = 10;
 	string HelmVersion = 11;
 	string KubectlVersion = 12;

@@ -35,7 +35,6 @@ the desired application state. Kubernetes manifests can be specified in several 
 
 * [kustomize](https://kustomize.io) applications
 * [helm](https://helm.sh) charts
-* [ksonnet](https://ksonnet.io) applications
 * [jsonnet](https://jsonnet.org) files
 * Plain directory of YAML/json manifests
 * Any custom config management tool configured as a config management plugin
@@ -67,7 +66,7 @@ For additional details, see [architecture overview](operator-manual/architecture
 ## Features
 
 * Automated deployment of applications to specified target environments
-* Support for multiple config management/templating tools (Kustomize, Helm, Ksonnet, Jsonnet, plain-YAML)
+* Support for multiple config management/templating tools (Kustomize, Helm, Jsonnet, plain-YAML)
 * Ability to manage and deploy to multiple clusters
 * SSO Integration (OIDC, OAuth2, LDAP, SAML 2.0, GitHub, GitLab, Microsoft, LinkedIn)
 * Multi-tenancy and RBAC policies for authorization
@@ -82,7 +81,7 @@ For additional details, see [architecture overview](operator-manual/architecture
 * PreSync, Sync, PostSync hooks to support complex application rollouts (e.g.blue/green & canary upgrades)
 * Audit trails for application events and API calls
 * Prometheus metrics
-* Parameter overrides for overriding ksonnet/helm parameters in Git
+* Parameter overrides for overriding helm parameters in Git
 
 ## Development Status
 

@@ -1,11 +1,16 @@
 package v1alpha1
 
 import (
+	"errors"
 	fmt "fmt"
+	"os"
+	"path"
 	"reflect"
+	"strings"
 	"testing"
 	"time"
 
+	argocdcommon "github.com/argoproj/argo-cd/v2/common"
 	"k8s.io/utils/pointer"
 
 	"github.com/argoproj/gitops-engine/pkg/sync/common"
@@ -137,8 +142,249 @@ func TestAppProject_IsDestinationPermitted(t *testing.T) {
 				Destinations: data.projDest,
 			},
 		}
-		assert.Equal(t, proj.IsDestinationPermitted(data.appDest), data.isPermitted)
+		permitted, _ := proj.IsDestinationPermitted(data.appDest, func(project string) ([]*Cluster, error) {
+			return []*Cluster{}, nil
+		})
+		assert.Equal(t, data.isPermitted, permitted)
 	}
+}
+
+func TestAppProject_IsNegatedDestinationPermitted(t *testing.T) {
+	testData := []struct {
+		projDest    []ApplicationDestination
+		appDest     ApplicationDestination
+		isPermitted bool
+	}{{
+		projDest: []ApplicationDestination{{
+			Server: "!https://kubernetes.default.svc", Namespace: "default",
+		}},
+		appDest:     ApplicationDestination{Server: "https://kubernetes.default.svc", Namespace: "default"},
+		isPermitted: false,
+	}, {
+		projDest: []ApplicationDestination{{
+			Server: "https://kubernetes.default.svc", Namespace: "!default",
+		}},
+		appDest:     ApplicationDestination{Server: "https://kubernetes.default.svc", Namespace: "kube-system"},
+		isPermitted: true,
+	}, {
+		projDest: []ApplicationDestination{{
+			Server: "!https://my-cluster", Namespace: "default",
+		}},
+		appDest:     ApplicationDestination{Server: "https://kubernetes.default.svc", Namespace: "default"},
+		isPermitted: true,
+	}, {
+		projDest: []ApplicationDestination{{
+			Server: "!https://kubernetes.default.svc", Namespace: "*",
+		}},
+		appDest:     ApplicationDestination{Server: "https://kubernetes.default.svc", Namespace: "kube-system"},
+		isPermitted: false,
+	}, {
+		projDest: []ApplicationDestination{{
+			Server: "!https://*.default.svc", Namespace: "default",
+		}},
+		appDest:     ApplicationDestination{Server: "https://kubernetes.default.svc", Namespace: "default"},
+		isPermitted: false,
+	}, {
+		projDest: []ApplicationDestination{{
+			Server: "!https://team1-*", Namespace: "default",
+		}},
+		appDest:     ApplicationDestination{Server: "https://test2-dev-cluster", Namespace: "default"},
+		isPermitted: true,
+	}, {
+		projDest: []ApplicationDestination{{
+			Server: "https://kubernetes.default.svc", Namespace: "!test-*",
+		}},
+		appDest:     ApplicationDestination{Server: "https://kubernetes.default.svc", Namespace: "test-foo"},
+		isPermitted: false,
+	}, {
+		projDest: []ApplicationDestination{{
+			Server: "https://kubernetes.default.svc", Namespace: "!test-*",
+		}},
+		appDest:     ApplicationDestination{Server: "https://kubernetes.default.svc", Namespace: "test"},
+		isPermitted: true,
+	}, {
+		projDest: []ApplicationDestination{{
+			Server: "", Namespace: "*", Name: "!test",
+		}},
+		appDest:     ApplicationDestination{Name: "test", Namespace: "test"},
+		isPermitted: false,
+	}, {
+		projDest: []ApplicationDestination{{
+			Server: "", Namespace: "*", Name: "!test2",
+		}},
+		appDest:     ApplicationDestination{Name: "test", Namespace: "test"},
+		isPermitted: true,
+	}, {
+		projDest: []ApplicationDestination{{
+			Server: "*", Namespace: "kube-system",
+		}, {
+			Server: "*", Namespace: "!kube-system",
+		}},
+		appDest:     ApplicationDestination{Server: "https://kubernetes.default.svc", Namespace: "kube-system"},
+		isPermitted: false,
+	}, {
+		projDest: []ApplicationDestination{{
+			Server: "*", Namespace: "*",
+		}, {
+			Server: "*", Namespace: "!kube-system",
+		}},
+		appDest:     ApplicationDestination{Server: "https://kubernetes.default.svc", Namespace: "kube-system"},
+		isPermitted: false,
+	}, {
+		projDest: []ApplicationDestination{{
+			Server: "https://kubernetes.default.svc", Namespace: "*",
+		}, {
+			Server: "!https://kubernetes.default.svc", Namespace: "*",
+		}},
+		appDest:     ApplicationDestination{Server: "https://kubernetes.default.svc", Namespace: "kube-system"},
+		isPermitted: false,
+	}, {
+		projDest: []ApplicationDestination{{
+			Server: "*", Namespace: "*",
+		}, {
+			Server: "!https://kubernetes.default.svc", Namespace: "kube-system",
+		}},
+		appDest:     ApplicationDestination{Server: "https://kubernetes.default.svc", Namespace: "kube-system"},
+		isPermitted: false,
+	}, {
+		projDest: []ApplicationDestination{{
+			Server: "*", Namespace: "*",
+		}, {
+			Server: "!https://kubernetes.default.svc", Namespace: "kube-system",
+		}, {
+			Server: "*", Namespace: "!kube-system",
+		}},
+		appDest:     ApplicationDestination{Server: "https://kubernetes.default.svc", Namespace: "kube-system"},
+		isPermitted: false,
+	}, {
+		projDest: []ApplicationDestination{{
+			Server: "*", Namespace: "*",
+		}, {
+			Server: "!https://kubernetes.default.svc", Namespace: "kube-system",
+		}, {
+			Server: "*", Namespace: "!kube-system",
+		}},
+		appDest:     ApplicationDestination{Server: "https://kubernetes.default.svc", Namespace: "default"},
+		isPermitted: false,
+	}, {
+		projDest: []ApplicationDestination{{
+			Server: "*", Namespace: "*",
+		}, {
+			Server: "!https://kubernetes.default.svc", Namespace: "kube-system",
+		}, {
+			Server: "*", Namespace: "!kube-system",
+		}},
+		appDest:     ApplicationDestination{Server: "https://test-dev-cluster", Namespace: "kube-system"},
+		isPermitted: false,
+	}, {
+		projDest: []ApplicationDestination{{
+			Server: "", Namespace: "*", Name: "test",
+		}, {
+			Server: "", Namespace: "*", Name: "!test",
+		}},
+		appDest:     ApplicationDestination{Name: "test", Namespace: "test"},
+		isPermitted: false,
+	}}
+
+	for _, data := range testData {
+		proj := AppProject{
+			Spec: AppProjectSpec{
+				Destinations: data.projDest,
+			},
+		}
+		permitted, _ := proj.IsDestinationPermitted(data.appDest, func(project string) ([]*Cluster, error) {
+			return []*Cluster{}, nil
+		})
+		assert.Equal(t, data.isPermitted, permitted)
+	}
+}
+
+func TestAppProject_IsDestinationPermitted_PermitOnlyProjectScopedClusters(t *testing.T) {
+	testData := []struct {
+		projDest    []ApplicationDestination
+		appDest     ApplicationDestination
+		clusters    []*Cluster
+		isPermitted bool
+	}{{
+		projDest: []ApplicationDestination{{
+			Server: "https://team1-*", Namespace: "default",
+		}},
+		clusters:    []*Cluster{},
+		appDest:     ApplicationDestination{Server: "https://team1-something.com", Namespace: "default"},
+		isPermitted: false,
+	}, {
+		projDest: []ApplicationDestination{{
+			Server: "https://my-cluster.123.com", Namespace: "default",
+		}},
+		appDest: ApplicationDestination{Server: "https://my-cluster.123.com", Namespace: "default"},
+		clusters: []*Cluster{{
+			Server: "https://my-cluster.123.com",
+		}},
+		isPermitted: true,
+	}, {
+		projDest: []ApplicationDestination{{
+			Server: "https://my-cluster.123.com", Namespace: "default",
+		}},
+		appDest: ApplicationDestination{Server: "https://some-other-cluster.com", Namespace: "default"},
+		clusters: []*Cluster{{
+			Server: "https://my-cluster.123.com",
+		}},
+		isPermitted: false,
+	}, {
+		projDest: []ApplicationDestination{{
+			Name: "some-server", Namespace: "default",
+		}},
+		clusters:    []*Cluster{},
+		appDest:     ApplicationDestination{Name: "some-server", Namespace: "default"},
+		isPermitted: false,
+	}, {
+		projDest: []ApplicationDestination{{
+			Name: "some-other-server", Namespace: "default",
+		}},
+		appDest: ApplicationDestination{Name: "some-other-server", Namespace: "default"},
+		clusters: []*Cluster{{
+			Name: "some-other-server",
+		}},
+		isPermitted: true,
+	}, {
+		projDest: []ApplicationDestination{{
+			Name: "some-server", Namespace: "default",
+		}},
+		appDest: ApplicationDestination{Name: "some-other-server", Namespace: "default"},
+		clusters: []*Cluster{{
+			Name: "some-server",
+		}},
+		isPermitted: false,
+	}}
+
+	for _, data := range testData {
+		proj := AppProject{
+			Spec: AppProjectSpec{
+				PermitOnlyProjectScopedClusters: true,
+				Destinations:                    data.projDest,
+			},
+		}
+
+		permitted, _ := proj.IsDestinationPermitted(data.appDest, func(_ string) ([]*Cluster, error) {
+			return data.clusters, nil
+		})
+		assert.Equal(t, data.isPermitted, permitted)
+	}
+
+	proj := AppProject{
+		Spec: AppProjectSpec{
+			PermitOnlyProjectScopedClusters: true,
+			Destinations: []ApplicationDestination{{
+				Server: "https://my-cluster.123.com", Namespace: "default",
+			}},
+		},
+	}
+
+	_, err := proj.IsDestinationPermitted(ApplicationDestination{Server: "https://my-cluster.123.com", Namespace: "default"}, func(_ string) ([]*Cluster, error) {
+		return nil, errors.New("some error")
+	})
+	assert.NotNil(t, err)
+	assert.True(t, strings.Contains(err.Error(), "could not retrieve project clusters"))
 }
 
 func TestAppProject_IsGroupKindPermitted(t *testing.T) {
@@ -256,9 +502,105 @@ func TestAppProject_RemoveGroupFromRole(t *testing.T) {
 func newTestProject() *AppProject {
 	p := AppProject{
 		ObjectMeta: metav1.ObjectMeta{Name: "my-proj"},
-		Spec:       AppProjectSpec{Roles: []ProjectRole{{Name: "my-role"}}},
+		Spec:       AppProjectSpec{Roles: []ProjectRole{{Name: "my-role"}}, Destinations: []ApplicationDestination{{}}},
 	}
 	return &p
+}
+
+// TestAppProject_ValidateDestinations tests for an invalid destination
+func TestAppProject_ValidateDestinations(t *testing.T) {
+	p := newTestProject()
+	err := p.ValidateProject()
+	assert.NoError(t, err)
+	badNamespaces := []string{
+		"!*",
+	}
+	for _, badName := range badNamespaces {
+		p.Spec.Destinations[0].Namespace = badName
+		err = p.ValidateProject()
+		assert.Error(t, err)
+	}
+
+	goodNamespaces := []string{
+		"*",
+		"some-namespace",
+	}
+	for _, goodNamespace := range goodNamespaces {
+		p.Spec.Destinations[0].Namespace = goodNamespace
+		err = p.ValidateProject()
+		assert.NoError(t, err)
+	}
+
+	badServers := []string{
+		"!*",
+	}
+	for _, badServer := range badServers {
+		p.Spec.Destinations[0].Server = badServer
+		err = p.ValidateProject()
+		assert.Error(t, err)
+	}
+
+	goodServers := []string{
+		"*",
+		"some-server",
+	}
+	for _, badName := range goodServers {
+		p.Spec.Destinations[0].Server = badName
+		err = p.ValidateProject()
+		assert.NoError(t, err)
+	}
+
+	badNames := []string{
+		"!*",
+	}
+	for _, badName := range badNames {
+		p.Spec.Destinations[0].Name = badName
+		err = p.ValidateProject()
+		assert.Error(t, err)
+	}
+
+	goodNames := []string{
+		"*",
+		"some-name",
+	}
+	for _, goodName := range goodNames {
+		p.Spec.Destinations[0].Name = goodName
+		err = p.ValidateProject()
+		assert.NoError(t, err)
+	}
+
+	validDestination := ApplicationDestination{
+		Server:    "some-server",
+		Namespace: "some-namespace",
+	}
+
+	p.Spec.Destinations[0] = validDestination
+	err = p.ValidateProject()
+	assert.NoError(t, err)
+
+	//no duplicates allowed
+	p.Spec.Destinations = []ApplicationDestination{validDestination, validDestination}
+	err = p.ValidateProject()
+	assert.Error(t, err)
+
+	cluster1Destination := ApplicationDestination{
+		Name:      "cluster1",
+		Namespace: "some-namespace",
+	}
+	cluster2Destination := ApplicationDestination{
+		Name:      "cluster2",
+		Namespace: "some-namespace",
+	}
+	// allow multiple destinations with blank server, same namespace but unique cluster name
+	p.Spec.Destinations = []ApplicationDestination{cluster1Destination, cluster2Destination}
+	err = p.ValidateProject()
+	assert.NoError(t, err)
+
+	t.Run("must reject duplicate source namespaces", func(t *testing.T) {
+		p.Spec.SourceNamespaces = []string{"argocd", "argocd"}
+		err = p.ValidateProject()
+		assert.Error(t, err)
+	})
 }
 
 // TestValidateRoleName tests for an invalid role name
@@ -309,6 +651,8 @@ func TestAppProject_ValidateGroupName(t *testing.T) {
 		"my,group",
 		"my\ngroup",
 		"my\rgroup",
+		" my:group",
+		"my:group ",
 	}
 	for _, badName := range badGroupNames {
 		p.Spec.Roles[0].Groups = []string{badName}
@@ -323,6 +667,22 @@ func TestAppProject_ValidateGroupName(t *testing.T) {
 		err = p.ValidateProject()
 		assert.NoError(t, err)
 	}
+}
+
+func TestAppProject_ValidateSyncWindowList(t *testing.T) {
+	t.Run("WorkingSyncWindow", func(t *testing.T) {
+		p := newTestProjectWithSyncWindows()
+		err := p.ValidateProject()
+		assert.NoError(t, err)
+	})
+	t.Run("HasNilSyncWindow", func(t *testing.T) {
+		p := newTestProjectWithSyncWindows()
+		err := p.ValidateProject()
+		assert.NoError(t, err)
+		p.Spec.SyncWindows = append(p.Spec.SyncWindows, nil)
+		err = p.ValidateProject()
+		assert.NoError(t, err)
+	})
 }
 
 // TestInvalidPolicyRules checks various errors in policy rules
@@ -400,9 +760,6 @@ func TestAppProject_ValidPolicyRules(t *testing.T) {
 
 func TestExplicitType(t *testing.T) {
 	src := ApplicationSource{
-		Ksonnet: &ApplicationSourceKsonnet{
-			Environment: "foo",
-		},
 		Kustomize: &ApplicationSourceKustomize{
 			NamePrefix: "foo",
 		},
@@ -426,9 +783,7 @@ func TestExplicitType(t *testing.T) {
 
 func TestExplicitTypeWithDirectory(t *testing.T) {
 	src := ApplicationSource{
-		Ksonnet: &ApplicationSourceKsonnet{
-			Environment: "foo",
-		},
+		Helm:      &ApplicationSourceHelm{},
 		Directory: &ApplicationSourceDirectory{},
 	}
 	_, err := src.ExplicitType()
@@ -841,7 +1196,6 @@ func TestApplicationSource_IsZero(t *testing.T) {
 		{"TargetRevision", &ApplicationSource{TargetRevision: "foo"}, false},
 		{"Helm", &ApplicationSource{Helm: &ApplicationSourceHelm{ReleaseName: "foo"}}, false},
 		{"Kustomize", &ApplicationSource{Kustomize: &ApplicationSourceKustomize{Images: KustomizeImages{""}}}, false},
-		{"Helm", &ApplicationSource{Ksonnet: &ApplicationSourceKsonnet{Environment: "foo"}}, false},
 		{"Directory", &ApplicationSource{Directory: &ApplicationSourceDirectory{Recurse: true}}, false},
 		{"Plugin", &ApplicationSource{Plugin: &ApplicationSourcePlugin{Name: "foo"}}, false},
 	}
@@ -946,24 +1300,6 @@ func TestApplicationSourceJsonnet_IsZero(t *testing.T) {
 		{"Empty", &ApplicationSourceJsonnet{}, true},
 		{"ExtVars", &ApplicationSourceJsonnet{ExtVars: []JsonnetVar{{}}}, false},
 		{"TLAs", &ApplicationSourceJsonnet{TLAs: []JsonnetVar{{}}}, false},
-	}
-	for _, tt := range tests {
-		t.Run(tt.name, func(t *testing.T) {
-			assert.Equal(t, tt.want, tt.source.IsZero())
-		})
-	}
-}
-
-func TestApplicationSourceKsonnet_IsZero(t *testing.T) {
-	tests := []struct {
-		name   string
-		source *ApplicationSourceKsonnet
-		want   bool
-	}{
-		{"Nil", nil, true},
-		{"Empty", &ApplicationSourceKsonnet{}, true},
-		{"Environment", &ApplicationSourceKsonnet{Environment: "foo"}, false},
-		{"Parameters", &ApplicationSourceKsonnet{Parameters: []KsonnetParameter{{}}}, false},
 	}
 	for _, tt := range tests {
 		t.Run(tt.name, func(t *testing.T) {
@@ -2477,22 +2813,6 @@ func TestRetryStrategy_NextRetryAtCustomBackoff(t *testing.T) {
 	}
 }
 
-func TestSourceAllowsConcurrentProcessing_KsonnetNoParams(t *testing.T) {
-	src := ApplicationSource{Path: "."}
-
-	assert.True(t, src.AllowsConcurrentProcessing())
-}
-
-func TestSourceAllowsConcurrentProcessing_KsonnetParams(t *testing.T) {
-	src := ApplicationSource{Path: ".", Ksonnet: &ApplicationSourceKsonnet{
-		Parameters: []KsonnetParameter{{
-			Name: "test", Component: "test", Value: "1",
-		}},
-	}}
-
-	assert.False(t, src.AllowsConcurrentProcessing())
-}
-
 func TestSourceAllowsConcurrentProcessing_KustomizeParams(t *testing.T) {
 	src := ApplicationSource{Path: ".", Kustomize: &ApplicationSourceKustomize{
 		NameSuffix: "test",
@@ -2582,10 +2902,19 @@ func Test_validatePolicy_projIsNotRegex(t *testing.T) {
 }
 
 func Test_validatePolicy_ValidResource(t *testing.T) {
-	err := validatePolicy("some-project", "org-admin", "p, proj:some-project:org-admin, repositories, *, some-project/*, allow")
+	err := validatePolicy("some-project", "org-admin", "p, proj:some-project:org-admin, applications, *, some-project/*, allow")
+	assert.NoError(t, err)
+	err = validatePolicy("some-project", "org-admin", "p, proj:some-project:org-admin, repositories, *, some-project/*, allow")
 	assert.NoError(t, err)
 	err = validatePolicy("some-project", "org-admin", "p, proj:some-project:org-admin, clusters, *, some-project/*, allow")
 	assert.NoError(t, err)
+	err = validatePolicy("some-project", "org-admin", "p, proj:some-project:org-admin, exec, *, some-project/*, allow")
+	assert.NoError(t, err)
+	err = validatePolicy("some-project", "org-admin", "p, proj:some-project:org-admin, logs, *, some-project/*, allow")
+	assert.NoError(t, err)
+	err = validatePolicy("some-project", "org-admin", "p, proj:some-project:org-admin, unknown, *, some-project/*, allow")
+	assert.Error(t, err)
+
 }
 
 func TestEnvsubst(t *testing.T) {
@@ -2595,4 +2924,237 @@ func TestEnvsubst(t *testing.T) {
 
 	assert.Equal(t, "bar", env.Envsubst("$foo"))
 	assert.Equal(t, "$foo", env.Envsubst("$$foo"))
+}
+
+func Test_validateGroupName(t *testing.T) {
+	tcs := []struct {
+		name      string
+		groupname string
+		isvalid   bool
+	}{
+		{"Just a double quote", "\"", false},
+		{"Just two double quotes", "\"\"", false},
+		{"Normal group name", "foo", true},
+		{"Quoted with commas", "\"foo,bar,baz\"", true},
+		{"Quoted without commas", "\"foo\"", true},
+		{"Quoted with leading and trailing whitespace", "  \"foo\" ", false},
+		{"Empty group name", "", false},
+		{"Empty group name with quotes", "\"\"", false},
+		{"Unquoted with comma", "foo,bar,baz", false},
+		{"Improperly quoted 1", "\"foo,bar,baz", false},
+		{"Improperly quoted 2", "foo,bar,baz\"", false},
+		{"Runaway quote in unqouted string", "foo,bar\",baz", false},
+		{"Runaway quote in quoted string", "\"foo,\"bar,baz\"", false},
+		{"Invalid characters unqouted", "foo\nbar", false},
+		{"Invalid characters qouted", "\"foo\nbar\"", false},
+		{"Runaway quote 1", "\"foo", false},
+		{"Runaway quote 2", "foo\"", false},
+	}
+	for _, tt := range tcs {
+		t.Run(tt.name, func(t *testing.T) {
+			err := validateGroupName(tt.groupname)
+			if tt.isvalid {
+				assert.NoError(t, err)
+			} else {
+				assert.Error(t, err)
+			}
+		})
+	}
+}
+
+func TestGetCAPath(t *testing.T) {
+
+	temppath := t.TempDir()
+	cert, err := os.ReadFile("../../../../test/fixture/certs/argocd-test-server.crt")
+	if err != nil {
+		panic(err)
+	}
+	err = os.WriteFile(path.Join(temppath, "foo.example.com"), cert, 0666)
+	if err != nil {
+		panic(err)
+	}
+	os.Setenv(argocdcommon.EnvVarTLSDataPath, temppath)
+	validcert := []string{
+		"https://foo.example.com",
+		"oci://foo.example.com",
+		"foo.example.com",
+	}
+	invalidpath := []string{
+		"https://bar.example.com",
+		"oci://bar.example.com",
+		"bar.example.com",
+		"ssh://foo.example.com",
+		"git@example.com:organization/reponame.git",
+		"/some/invalid/thing",
+		"../another/invalid/thing",
+		"./also/invalid",
+		"$invalid/as/well",
+		"..",
+	}
+
+	for _, str := range validcert {
+		path := getCAPath(str)
+		assert.NotEmpty(t, path)
+	}
+	for _, str := range invalidpath {
+		path := getCAPath(str)
+		assert.Empty(t, path)
+	}
+}
+
+func TestAppProjectIsSourceNamespacePermitted(t *testing.T) {
+	app1 := &Application{
+		ObjectMeta: metav1.ObjectMeta{
+			Name:      "app1",
+			Namespace: "argocd",
+		},
+		Spec: ApplicationSpec{},
+	}
+	app2 := &Application{
+		ObjectMeta: metav1.ObjectMeta{
+			Name:      "app2",
+			Namespace: "some-ns",
+		},
+		Spec: ApplicationSpec{},
+	}
+	app3 := &Application{
+		ObjectMeta: metav1.ObjectMeta{
+			Name:      "app2",
+			Namespace: "",
+		},
+		Spec: ApplicationSpec{},
+	}
+	app4 := &Application{
+		ObjectMeta: metav1.ObjectMeta{
+			Name:      "app2",
+			Namespace: "other-ns",
+		},
+		Spec: ApplicationSpec{},
+	}
+	app5 := &Application{
+		ObjectMeta: metav1.ObjectMeta{
+			Name:      "app2",
+			Namespace: "some-ns1",
+		},
+		Spec: ApplicationSpec{},
+	}
+	app6 := &Application{
+		ObjectMeta: metav1.ObjectMeta{
+			Name:      "app2",
+			Namespace: "some-ns2",
+		},
+		Spec: ApplicationSpec{},
+	}
+	app7 := &Application{
+		ObjectMeta: metav1.ObjectMeta{
+			Name:      "app2",
+			Namespace: "someotherns",
+		},
+		Spec: ApplicationSpec{},
+	}
+	t.Run("App in same namespace as controller", func(t *testing.T) {
+		proj := &AppProject{
+			ObjectMeta: metav1.ObjectMeta{
+				Name:      "default",
+				Namespace: "argocd",
+			},
+			Spec: AppProjectSpec{
+				SourceNamespaces: []string{"other-ns"},
+			},
+		}
+		// app1 is installed to argocd namespace, controller as well
+		assert.True(t, proj.IsAppNamespacePermitted(app1, "argocd"))
+		// app2 is installed to some-ns namespace, controller as well
+		assert.True(t, proj.IsAppNamespacePermitted(app2, "some-ns"))
+		// app3 has no namespace set, so will be implicitly created in controller's namespace
+		assert.True(t, proj.IsAppNamespacePermitted(app3, "argocd"))
+	})
+	t.Run("App not permitted when sourceNamespaces is empty", func(t *testing.T) {
+		proj := &AppProject{
+			ObjectMeta: metav1.ObjectMeta{
+				Name:      "default",
+				Namespace: "argocd",
+			},
+			Spec: AppProjectSpec{
+				SourceNamespaces: []string{},
+			},
+		}
+		// app1 is installed to argocd namespace
+		assert.True(t, proj.IsAppNamespacePermitted(app1, "argocd"))
+		// app2 is installed to some-ns, controller running in argocd
+		assert.False(t, proj.IsAppNamespacePermitted(app2, "argocd"))
+	})
+
+	t.Run("App permitted when sourceNamespaces has app namespace", func(t *testing.T) {
+		proj := &AppProject{
+			ObjectMeta: metav1.ObjectMeta{
+				Name:      "default",
+				Namespace: "argocd",
+			},
+			Spec: AppProjectSpec{
+				SourceNamespaces: []string{"some-ns"},
+			},
+		}
+		// app2 is installed to some-ns, controller running in argocd
+		assert.True(t, proj.IsAppNamespacePermitted(app2, "argocd"))
+		// app4 is installed to other-ns, controller running in argocd
+		assert.False(t, proj.IsAppNamespacePermitted(app4, "argocd"))
+	})
+
+	t.Run("App permitted by glob pattern", func(t *testing.T) {
+		proj := &AppProject{
+			ObjectMeta: metav1.ObjectMeta{
+				Name:      "default",
+				Namespace: "argocd",
+			},
+			Spec: AppProjectSpec{
+				SourceNamespaces: []string{"some-*"},
+			},
+		}
+		// app5 is installed to some-ns1, controller running in argocd
+		assert.True(t, proj.IsAppNamespacePermitted(app5, "argocd"))
+		// app6 is installed to some-ns2, controller running in argocd
+		assert.True(t, proj.IsAppNamespacePermitted(app6, "argocd"))
+		// app7 is installed to someotherns, controller running in argocd
+		assert.False(t, proj.IsAppNamespacePermitted(app7, "argocd"))
+	})
+
+}
+
+func Test_RBACName(t *testing.T) {
+	testApp := func(namespace, project string) *Application {
+		return &Application{
+			ObjectMeta: metav1.ObjectMeta{
+				Name:      "test-app",
+				Namespace: namespace,
+			},
+			Spec: ApplicationSpec{
+				Project: project,
+			},
+		}
+	}
+	t.Run("App in same namespace as controller when ns is argocd", func(t *testing.T) {
+		a := testApp("argocd", "default")
+		assert.Equal(t, "default/test-app", a.RBACName("argocd"))
+	})
+	t.Run("App in same namespace as controller when ns is not argocd", func(t *testing.T) {
+		a := testApp("some-ns", "default")
+		assert.Equal(t, "default/test-app", a.RBACName("some-ns"))
+	})
+	t.Run("App in different namespace as controller when ns is argocd", func(t *testing.T) {
+		a := testApp("some-ns", "default")
+		assert.Equal(t, "default/some-ns/test-app", a.RBACName("argocd"))
+	})
+	t.Run("App in different namespace as controller when ns is not argocd", func(t *testing.T) {
+		a := testApp("some-ns", "default")
+		assert.Equal(t, "default/some-ns/test-app", a.RBACName("other-ns"))
+	})
+	t.Run("App in same namespace as controller when project is not yet set", func(t *testing.T) {
+		a := testApp("argocd", "")
+		assert.Equal(t, "default/test-app", a.RBACName("argocd"))
+	})
+	t.Run("App in same namespace as controller when ns is not yet set", func(t *testing.T) {
+		a := testApp("", "")
+		assert.Equal(t, "default/test-app", a.RBACName("argocd"))
+	})
 }

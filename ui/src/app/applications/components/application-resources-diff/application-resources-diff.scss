@@ -1,8 +1,14 @@
+@import 'node_modules/argo-ui/src/styles/config';
+@import 'node_modules/argo-ui/src/styles/theme';
+
 .application-resources-diff {
     &__checkboxes {
         text-align: right;
         label {
             padding-right: 2em;
+            @include themify($themes) {            
+                color: themed('text-2');
+            }
         }
     }
     &__diff {
@@ -20,4 +26,8 @@
             }
         }
     }
+}
+
+.custom-diff-hunk {           
+    color: $argo-color-gray-6;
 }

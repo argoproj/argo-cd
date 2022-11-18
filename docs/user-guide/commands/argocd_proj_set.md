@@ -19,6 +19,7 @@ argocd proj set PROJECT [flags]
       --orphaned-resources                      Enables orphaned resources monitoring
       --orphaned-resources-warn                 Specifies if applications should have a warning condition when orphaned resources detected
       --signature-keys strings                  GnuPG public key IDs for commit signature verification
+      --source-namespaces strings               List of source namespaces for applications
   -s, --src stringArray                         Permitted source repository URL
 ```
 
@@ -35,6 +36,7 @@ argocd proj set PROJECT [flags]
   -H, --header strings                  Sets additional header to all requests made by Argo CD CLI. (Can be repeated multiple times to add multiple headers, also supports comma separated headers)
       --http-retry-max int              Maximum number of retries to establish http connection to Argo CD server
       --insecure                        Skip server certificate and domain verification
+      --kube-context string             Directs the command to the given kube-context
       --logformat string                Set the logging format. One of: text|json (default "text")
       --loglevel string                 Set the logging level. One of: debug|info|warn|error (default "info")
       --plaintext                       Disable TLS

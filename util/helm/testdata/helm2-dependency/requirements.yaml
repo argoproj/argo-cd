@@ -1,7 +1,0 @@
-dependencies:
-- name: mariadb
-  version: 8.x.x
-  repository: https://charts.bitnami.com/bitnami
-  condition: mariadb.enabled
-  tags:
-    - wordpress-database

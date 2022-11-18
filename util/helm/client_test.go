@@ -2,6 +2,7 @@ package helm
 
 import (
 	"bytes"
+	"fmt"
 	"os"
 	"testing"
 
@@ -119,4 +120,28 @@ func TestIsHelmOciRepo(t *testing.T) {
 	assert.True(t, IsHelmOciRepo("demo.goharbor.io:8080"))
 	assert.False(t, IsHelmOciRepo("https://demo.goharbor.io"))
 	assert.False(t, IsHelmOciRepo("https://demo.goharbor.io:8080"))
+}
+
+func TestGetIndexURL(t *testing.T) {
+	urlTemplate := `https://gitlab.com/projects/%s/packages/helm/stable`
+	t.Run("URL without escaped characters", func(t *testing.T) {
+		rawURL := fmt.Sprintf(urlTemplate, "232323982")
+		want := rawURL + "/index.yaml"
+		got, err := getIndexURL(rawURL)
+		assert.Equal(t, want, got)
+		assert.NoError(t, err)
+	})
+	t.Run("URL with escaped characters", func(t *testing.T) {
+		rawURL := fmt.Sprintf(urlTemplate, "mygroup%2Fmyproject")
+		want := rawURL + "/index.yaml"
+		got, err := getIndexURL(rawURL)
+		assert.Equal(t, want, got)
+		assert.NoError(t, err)
+	})
+	t.Run("URL with invalid escaped characters", func(t *testing.T) {
+		rawURL := fmt.Sprintf(urlTemplate, "mygroup%**myproject")
+		got, err := getIndexURL(rawURL)
+		assert.Equal(t, "", got)
+		assert.Error(t, err)
+	})
 }
