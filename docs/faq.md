@@ -225,3 +225,6 @@ resource.customizations.health.bitnami.com_SealedSecret: |
   hs.message = "Controller doesn't report resource status"
   return hs
 ```
+## Is there a community Argo Hands-on Playground?
+
+Yes, you can try the [Argo Playground](https://www.opsmx.com/isd-platform/argo-sandbox/) for trying ArgoCD.  The playground already has target cluster and sample applications setup and you can explore features of ArgoCD with a Google login.
