@@ -577,6 +577,17 @@ func (m *appStateManager) CompareAppState(app *v1alpha1.Application, project *ap
 
 		isSelfReferencedObj := m.isSelfReferencedObj(liveObj, targetObj, app.GetName(), appLabelKey, trackingMethod)
 
+		isNotPresentInGit := targetObj == nil && liveObj != nil && isSelfReferencedObj
+		isManagedNamespace := isNotPresentInGit && gvk.Kind == kubeutil.NamespaceKind && obj.GetName() == app.Spec.Destination.Namespace && app.Spec.SyncPolicy.ManagedNamespaceMetadata != nil
+
+		var requiresPruning bool
+		// A managed namespace should never be pruned. Any other resource that is not present in git, should be pruned.
+		if isManagedNamespace {
+			requiresPruning = false
+		} else {
+			requiresPruning = isNotPresentInGit
+		}
+
 		resState := v1alpha1.ResourceStatus{
 			Namespace:       obj.GetNamespace(),
 			Name:            obj.GetName(),
@@ -584,28 +595,43 @@ func (m *appStateManager) CompareAppState(app *v1alpha1.Application, project *ap
 			Version:         gvk.Version,
 			Group:           gvk.Group,
 			Hook:            hookutil.IsHook(obj),
-			RequiresPruning: targetObj == nil && liveObj != nil && isSelfReferencedObj,
+			RequiresPruning: requiresPruning,
 		}
 		if targetObj != nil {
 			resState.SyncWave = int64(syncwaves.Wave(targetObj))
 		}
 
 		var diffResult diff.DiffResult
-		if i < len(diffResults.Diffs) {
+		if i < len(diffResults.Diffs) && !isManagedNamespace {
 			diffResult = diffResults.Diffs[i]
+		} else if isManagedNamespace {
+			// A managed namespace has no target object (i.e. it is not present in git), which means we will compute the
+			// diff by saying that liveObj == targetObj.
+			bytes, err := liveObj.MarshalJSON()
+			if err != nil {
+				conditions = append(conditions, v1alpha1.ApplicationCondition{Type: v1alpha1.ApplicationConditionComparisonError, Message: err.Error(), LastTransitionTime: &now})
+				failedToLoadObjs = true
+				continue
+			}
+			// TODO: Verify that live ns metadata contains the managed namespace metadata? or can we reliably say that
+			// this will be handled in the pre-sync? otherwise we'll need to do some involved diffing with the live ns
+			// vs managedNamespaceMetadata
+			diffResult = diff.DiffResult{Modified: false, NormalizedLive: bytes, PredictedLive: bytes}
 		} else {
 			diffResult = diff.DiffResult{Modified: false, NormalizedLive: []byte("{}"), PredictedLive: []byte("{}")}
 		}
+
 		if resState.Hook || ignore.Ignore(obj) || (targetObj != nil && hookutil.Skip(targetObj)) || !isSelfReferencedObj {
 			// For resource hooks, skipped resources or objects that may have
 			// been created by another controller with annotations copied from
 			// the source object, don't store sync status, and do not affect
 			// overall sync status
-		} else if diffResult.Modified || targetObj == nil || liveObj == nil {
+		} else if !isManagedNamespace && (diffResult.Modified || targetObj == nil || liveObj == nil) {
 			// Set resource state to OutOfSync since one of the following is true:
 			// * target and live resource are different
 			// * target resource not defined and live resource is extra
 			// * target resource present but live resource is missing
+			// * live resource is NOT a managed namespace
 			resState.Status = v1alpha1.SyncStatusCodeOutOfSync
 			// we ignore the status if the obj needs pruning AND we have the annotation
 			needsPruning := targetObj == nil && liveObj != nil

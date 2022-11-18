@@ -365,6 +365,43 @@ func TestCompareAppStateDuplicatedNamespacedResources(t *testing.T) {
 	assert.Equal(t, 4, len(compRes.resources))
 }
 
+func TestCompareAppStateManagedNamespaceMetadata(t *testing.T) {
+	app := newFakeApp()
+	app.Spec.SyncPolicy = &argoappv1.SyncPolicy{
+		ManagedNamespaceMetadata: &argoappv1.ManagedNamespaceMetadata{
+			Labels:      nil,
+			Annotations: nil,
+		},
+	}
+
+	ns := NewNamespace()
+	ns.SetName(test.FakeDestNamespace)
+	ns.SetNamespace(test.FakeDestNamespace)
+	_ = argo.NewResourceTracking().SetAppInstance(ns, common.LabelKeyAppInstance, app.Name, "", argo.TrackingMethodLabel)
+
+	data := fakeData{
+		manifestResponse: &apiclient.ManifestResponse{
+			Manifests: []string{},
+			Namespace: test.FakeDestNamespace,
+			Server:    test.FakeClusterURL,
+			Revision:  "abc123",
+		},
+		managedLiveObjs: map[kube.ResourceKey]*unstructured.Unstructured{
+			kube.GetResourceKey(ns): ns,
+		},
+	}
+	ctrl := newFakeController(&data)
+	compRes := ctrl.appStateManager.CompareAppState(app, &defaultProj, "", app.Spec.Source, false, false, nil)
+
+	assert.NotNil(t, compRes)
+	assert.Equal(t, 0, len(app.Status.Conditions))
+	assert.NotNil(t, compRes)
+	assert.NotNil(t, compRes.syncStatus)
+	assert.Len(t, compRes.resources, 1)
+	assert.Len(t, compRes.managedResources, 1)
+	assert.Equal(t, argoappv1.SyncStatusCodeSynced, compRes.syncStatus.Status)
+}
+
 var defaultProj = argoappv1.AppProject{
 	ObjectMeta: metav1.ObjectMeta{
 		Name:      "default",

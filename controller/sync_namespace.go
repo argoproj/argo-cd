@@ -1,21 +1,24 @@
 package controller
 
 import (
+	"fmt"
 	"github.com/argoproj/argo-cd/v2/pkg/apis/application/v1alpha1"
 	"github.com/argoproj/argo-cd/v2/util/argo"
 	gitopscommon "github.com/argoproj/gitops-engine/pkg/sync/common"
+	log "github.com/sirupsen/logrus"
 	"k8s.io/apimachinery/pkg/apis/meta/v1/unstructured"
 )
 
-// syncNamespace determine if Argo CD should create and/or manage the namespace
+// syncNamespace determines whether Argo CD should create and/or manage the namespace
 // where the application will be deployed.
-func syncNamespace(resourceTracking argo.ResourceTracking, appLabelKey string, trackingMethod v1alpha1.TrackingMethod, appName string, syncPolicy *v1alpha1.SyncPolicy) func(m, l *unstructured.Unstructured) (bool, error) {
+func syncNamespace(resourceTracking argo.ResourceTracking, appLabelKey string, trackingMethod v1alpha1.TrackingMethod, app *v1alpha1.Application) func(m *unstructured.Unstructured, l *unstructured.Unstructured) (bool, error) {
 	// This function must return true for the managed namespace to be synced.
 	return func(managedNs, liveNs *unstructured.Unstructured) (bool, error) {
 		if managedNs == nil {
 			return false, nil
 		}
 
+		syncPolicy := app.Spec.SyncPolicy
 		isNewNamespace := liveNs == nil
 		isManagedNamespace := syncPolicy != nil && syncPolicy.ManagedNamespaceMetadata != nil
 
@@ -26,18 +29,27 @@ func syncNamespace(resourceTracking argo.ResourceTracking, appLabelKey string, t
 		}
 
 		if isManagedNamespace {
+			if liveNs != nil {
+				// first check if another application owns the live namespace
+				liveAppName := resourceTracking.GetAppName(liveNs, appLabelKey, trackingMethod)
+				if liveAppName != "" && liveAppName != app.Name {
+					log.Errorf("expected namespace %s to be managed by application %s, but it's managed by application %s", liveNs.GetName(), app.Name, liveAppName)
+					return false, fmt.Errorf("namespace %s is managed by another application than %s", liveNs.GetName(), app.Name)
+				}
+			}
+
 			managedNamespaceMetadata := syncPolicy.ManagedNamespaceMetadata
 			managedNs.SetLabels(managedNamespaceMetadata.Labels)
 			// managedNamespaceMetadata relies on SSA in order to avoid overriding
 			// existing labels and annotations in namespaces
 			managedNs.SetAnnotations(appendSSAAnnotation(managedNamespaceMetadata.Annotations))
-		}
 
-		// TODO: https://github.com/argoproj/argo-cd/issues/11196
-		// err := resourceTracking.SetAppInstance(managedNs, appLabelKey, appName, "", trackingMethod)
-		// if err != nil {
-		// 	return false, fmt.Errorf("failed to set app instance tracking on the namespace %s: %s", managedNs.GetName(), err)
-		// }
+			// set ownership of the namespace to the current application
+			err := resourceTracking.SetAppInstance(managedNs, appLabelKey, app.Name, "", trackingMethod)
+			if err != nil {
+				return false, fmt.Errorf("failed to set app instance tracking on the namespace %s: %s", managedNs.GetName(), err)
+			}
+		}
 
 		return true, nil
 	}

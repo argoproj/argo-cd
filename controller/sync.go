@@ -290,7 +290,7 @@ func (m *appStateManager) SyncAppState(app *v1alpha1.Application, state *v1alpha
 	}
 
 	if syncOp.SyncOptions.HasOption("CreateNamespace=true") {
-		opts = append(opts, sync.WithNamespaceModifier(syncNamespace(m.resourceTracking, appLabelKey, trackingMethod, app.Name, app.Spec.SyncPolicy)))
+		opts = append(opts, sync.WithNamespaceModifier(syncNamespace(m.resourceTracking, appLabelKey, trackingMethod, app)))
 	}
 
 	syncCtx, cleanup, err := sync.NewSyncContext(

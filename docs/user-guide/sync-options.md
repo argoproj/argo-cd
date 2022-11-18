@@ -339,6 +339,10 @@ spec:
     - CreateNamespace=true
 ```
 
+Keep in mind that having *multiple ArgoCD applications managing namespace metadata will raise an error*. It is fine for 
+other applications to have `CreateNamespace=true` set, as along as `managedNamespaceMetadata` is not present in said 
+namespaces (the metadata will remain untouched in those cases).
+
 In the case where ArgoCD is "adopting" an existing namespace which already has metadata set on it, we rely on using
 Server Side Apply in order not to lose metadata which has already been set. The main implication here is that it takes
 a few extra steps to get rid of an already preexisting field.
