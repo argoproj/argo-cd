@@ -23,6 +23,7 @@ jobs:
   publish:
     permissions:
       contents: write  # for git to push upgrade commit if not already deployed
+      packages: write  # for pushing packages to GHCR, which is used by cd.apps.argoproj.io to avoid polluting Quay with tags
     if: github.repository == 'argoproj/argo-cd'
     runs-on: ubuntu-22.04
     env:
