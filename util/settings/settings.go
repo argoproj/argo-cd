@@ -1576,7 +1576,7 @@ func (a *ArgoCDSettings) IsDexConfigured() bool {
 	}
 	dexCfg, err := UnmarshalDexConfig(a.DexConfig)
 	if err != nil {
-		log.Warn("invalid dex yaml config")
+		log.Warnf("invalid dex yaml config: %s", err.Error())
 		return false
 	}
 	return len(dexCfg) > 0
