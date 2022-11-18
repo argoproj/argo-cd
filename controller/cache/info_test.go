@@ -648,3 +648,31 @@ func TestExternalUrlWithNetworkingApi(t *testing.T) {
 	expectedExternalUrls := []string{"https://107.178.210.11"}
 	assert.Equal(t, expectedExternalUrls, info.NetworkingInfo.ExternalURLs)
 }
+
+func TestCustomLabel(t *testing.T) {
+	configmap := strToUnstructured(`
+  apiVersion: v1
+  kind: ConfigMap
+  metadata:
+    name: cm`)
+
+	info := &ResourceInfo{}
+	populateNodeInfo(configmap, info, "my-label")
+
+	assert.Equal(t, 0, len(info.Info))
+
+	configmap = strToUnstructured(`
+  apiVersion: v1
+  kind: ConfigMap
+  metadata:
+    name: cm
+    labels:
+      my-label: value`)
+
+	info = &ResourceInfo{}
+	populateNodeInfo(configmap, info, "my-label")
+
+	assert.Equal(t, 1, len(info.Info))
+	assert.Equal(t, "my-label", info.Info[0].Name)
+	assert.Equal(t, "value", info.Info[0].Value)
+}
