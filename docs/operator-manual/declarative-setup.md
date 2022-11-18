@@ -682,6 +682,10 @@ Notes:
 * Invalid globs result in the whole rule being ignored.
 * If you add a rule that matches existing resources, these will appear in the interface as `OutOfSync`.
 
+## Resource Custom Label
+
+A custom label configured with `resource.customLabel` will be displayed in the UI (for any resource that defines it).
+
 ## SSO & RBAC
 
 * SSO configuration details: [SSO](./user-management/index.md)
