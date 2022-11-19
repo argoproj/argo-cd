@@ -7,7 +7,7 @@
   <meta name="viewport" content="width=device-width, initial-scale=1.0">
   <meta http-equiv="X-UA-Compatible" content="IE=edge">
   <title>Snyk test report</title>
-  <meta name="description" content="6 known vulnerabilities found in 11 vulnerable dependency paths.">
+  <meta name="description" content="5 known vulnerabilities found in 9 vulnerable dependency paths.">
   <base target="_blank">
   <link rel="icon" type="image/png" href="https://res.cloudinary.com/snyk/image/upload/v1468845142/favicon/favicon.png"
     sizes="194x194">
@@ -456,7 +456,7 @@
               <div class="header-wrap">
                   <h1 class="project__header__title">Snyk test report</h1>
     
-                <p class="timestamp">November 6th 2022, 12:22:48 am</p>
+                <p class="timestamp">November 13th 2022, 12:18:10 am</p>
               </div>
               <div class="source-panel">
                 <span>Scanned the following paths:</span>
@@ -466,9 +466,9 @@
               </div>
     
               <div class="meta-counts">
-                <div class="meta-count"><span>6</span> <span>known vulnerabilities</span></div>
-                <div class="meta-count"><span>11 vulnerable dependency paths</span></div>
-                <div class="meta-count"><span>1648</span> <span>dependencies</span></div>
+                <div class="meta-count"><span>5</span> <span>known vulnerabilities</span></div>
+                <div class="meta-count"><span>9 vulnerable dependency paths</span></div>
+                <div class="meta-count"><span>1721</span> <span>dependencies</span></div>
               </div><!-- .meta-counts -->
             </div><!-- .layout-container--short -->
           </header><!-- .project__header -->
@@ -877,138 +877,6 @@
         
         </div><!-- .card -->
         <div class="card card--vuln  disclosure--not-new severity--medium" data-snyk-test="medium">
-            <h2 class="card__title">Denial of Service (DoS)</h2>
-            <div class="card__section">
-        
-                <div class="label label--medium">
-                    <span class="label__text">medium severity</span>
-                </div>
-        
-                <hr/>
-        
-                <ul class="card__meta">
-                    <li class="card__meta__item">
-                        Package Manager: golang
-                    </li>
-                    <li class="card__meta__item">
-                            Vulnerable module:
-        
-                            github.com/prometheus/client_golang/prometheus/promhttp
-                    </li>
-        
-                    <li class="card__meta__item">Introduced through:
-        
-                                github.com/argoproj/argo-cd/v2@0.0.0 and github.com/prometheus/client_golang/prometheus/promhttp@1.11.0
-        
-                    </li>
-                </ul>
-        
-                <hr/>
-        
-        
-                        <h3 class="card__section__title">Detailed paths</h3>
-        
-                    <ul class="card__meta__paths">
-                                <li>
-                                <span class="list-paths__item__introduced"><em>Introduced through</em>:
-                                        github.com/argoproj/argo-cd/v2@0.0.0
-                                         <span class="list-paths__item__arrow">›</span> 
-                                        github.com/prometheus/client_golang/prometheus/promhttp@1.11.0
-                                        
-                                </span>
-        
-                            </li>
-                                <li>
-                                <span class="list-paths__item__introduced"><em>Introduced through</em>:
-                                        github.com/argoproj/argo-cd/v2@0.0.0
-                                         <span class="list-paths__item__arrow">›</span> 
-                                        sigs.k8s.io/controller-runtime@0.11.0
-                                         <span class="list-paths__item__arrow">›</span> 
-                                        sigs.k8s.io/controller-runtime/pkg/manager@0.11.0
-                                         <span class="list-paths__item__arrow">›</span> 
-                                        github.com/prometheus/client_golang/prometheus/promhttp@1.11.0
-                                        
-                                </span>
-        
-                            </li>
-                                <li>
-                                <span class="list-paths__item__introduced"><em>Introduced through</em>:
-                                        github.com/argoproj/argo-cd/v2@0.0.0
-                                         <span class="list-paths__item__arrow">›</span> 
-                                        sigs.k8s.io/controller-runtime@0.11.0
-                                         <span class="list-paths__item__arrow">›</span> 
-                                        sigs.k8s.io/controller-runtime/pkg/manager@0.11.0
-                                         <span class="list-paths__item__arrow">›</span> 
-                                        sigs.k8s.io/controller-runtime/pkg/webhook@0.11.0
-                                         <span class="list-paths__item__arrow">›</span> 
-                                        sigs.k8s.io/controller-runtime/pkg/webhook/internal/metrics@0.11.0
-                                         <span class="list-paths__item__arrow">›</span> 
-                                        github.com/prometheus/client_golang/prometheus/promhttp@1.11.0
-                                        
-                                </span>
-        
-                            </li>
-                    </ul><!-- .list-paths -->
-        
-            </div><!-- .card__section -->
-        
-              <hr/>
-              <!-- Overview -->
-              <h2 id="overview">Overview</h2>
-        <p>Affected versions of this package are vulnerable to Denial of Service (DoS) when handling requests with non-standard HTTP methods. </p>
-        <p><strong>Note:</strong> In order to be affected, an instrumented software must:</p>
-        <ol>
-        <li><p>use <code>promhttp.InstrumentHandler*</code> middleware except <code>RequestsInFlight</code></p>
-        </li>
-        <li><p>not filter any specific methods (e.g GET) before middleware</p>
-        </li>
-        <li><p>pass metric with <code>method</code> label name to the middleware</p>
-        </li>
-        <li><p>not have any firewall/LB/proxy that filters away requests with unknown <code>method</code>.</p>
-        </li>
-        </ol>
-        <p><strong>Workarounds:</strong> </p>
-        <ol>
-        <li><p>removing the <code>method</code> label name from <code>counter/gauge</code> used in the <code>InstrumentHandler</code></p>
-        </li>
-        <li><p>turning off affected <code>promhttp</code> handlers</p>
-        </li>
-        <li><p>adding custom middleware before <code>promhttp</code> handler that will sanitize the request method given by Go <code>http.Request</code></p>
-        </li>
-        <li><p>using a reverse proxy or web application firewall, configured to only allow a limited set of methods.</p>
-        </li>
-        </ol>
-        <h2 id="details">Details</h2>
-        <p>Denial of Service (DoS) describes a family of attacks, all aimed at making a system inaccessible to its intended and legitimate users.</p>
-        <p>Unlike other vulnerabilities, DoS attacks usually do not aim at breaching security. Rather, they are focused on making websites and services unavailable to genuine users resulting in downtime.</p>
-        <p>One popular Denial of Service vulnerability is DDoS (a Distributed Denial of Service), an attack that attempts to clog network pipes to the system by generating a large volume of traffic from many machines.</p>
-        <p>When it comes to open source libraries, DoS vulnerabilities allow attackers to trigger such a crash or crippling of the service by using a flaw either in the application code or from the use of open source libraries.</p>
-        <p>Two common types of DoS vulnerabilities:</p>
-        <ul>
-        <li><p>High CPU/Memory Consumption- An attacker sending crafted requests that could cause the system to take a disproportionate amount of time to process. For example, <a href="SNYK-JAVA-COMMONSFILEUPLOAD-30082">commons-fileupload:commons-fileupload</a>.</p>
-        </li>
-        <li><p>Crash - An attacker sending crafted requests that could cause the system to crash. For Example,  <a href="https://snyk.io/vuln/npm:ws:20171108">npm <code>ws</code> package</a></p>
-        </li>
-        </ul>
-        <h2 id="remediation">Remediation</h2>
-        <p>Upgrade <code>github.com/prometheus/client_golang/prometheus/promhttp</code> to version 1.11.1 or higher.</p>
-        <h2 id="references">References</h2>
-        <ul>
-        <li><a href="https://github.com/prometheus/client_golang/commit/989baa30fe956631907493ccee1f8e7708660d96">GitHub Commit</a></li>
-        <li><a href="https://github.com/prometheus/client_golang/pull/987">GitHub PR</a></li>
-        <li><a href="https://github.com/prometheus/client_golang/releases/tag/v1.11.1">GitHub Release</a></li>
-        <li><a href="https://bugzilla.redhat.com/show_bug.cgi?id=2045880">RedHat Bugzilla Bug</a></li>
-        <li><a href="https://github.com/prometheus/client_golang/blob/22da9497b8f0d53072dfc4721904faa7395d8318/prometheus/promhttp/instrument_server.go#L95">Vulnerable Code</a></li>
-        </ul>
-        
-              <hr/>
-        
-            <div class="cta card__cta">
-                <p><a href="https://snyk.io/vuln/SNYK-GOLANG-GITHUBCOMPROMETHEUSCLIENTGOLANGPROMETHEUSPROMHTTP-2401819">More about this vulnerability</a></p>
-            </div>
-        
-        </div><!-- .card -->
-        <div class="card card--vuln  disclosure--not-new severity--medium" data-snyk-test="medium">
             <h2 class="card__title">Insecure Randomness</h2>
             <div class="card__section">
         
@@ -1031,7 +899,7 @@
                     <li class="card__meta__item">Introduced through:
         
         
-                                    github.com/argoproj/argo-cd/v2@0.0.0, github.com/argoproj/notifications-engine/pkg/api@#567361917320 and others
+                                    github.com/argoproj/argo-cd/v2@0.0.0, github.com/Masterminds/sprig@2.22.0 and others
                     </li>
                 </ul>
         
@@ -1045,9 +913,20 @@
                                 <span class="list-paths__item__introduced"><em>Introduced through</em>:
                                         github.com/argoproj/argo-cd/v2@0.0.0
                                          <span class="list-paths__item__arrow">›</span> 
-                                        github.com/argoproj/notifications-engine/pkg/api@#567361917320
+                                        github.com/Masterminds/sprig@2.22.0
                                          <span class="list-paths__item__arrow">›</span> 
-                                        github.com/argoproj/notifications-engine/pkg/templates@#567361917320
+                                        github.com/Masterminds/goutils@1.1.0
+                                        
+                                </span>
+        
+                            </li>
+                                <li>
+                                <span class="list-paths__item__introduced"><em>Introduced through</em>:
+                                        github.com/argoproj/argo-cd/v2@0.0.0
+                                         <span class="list-paths__item__arrow">›</span> 
+                                        github.com/argoproj/notifications-engine/pkg/api@#4d8552b0775f
+                                         <span class="list-paths__item__arrow">›</span> 
+                                        github.com/argoproj/notifications-engine/pkg/templates@#4d8552b0775f
                                          <span class="list-paths__item__arrow">›</span> 
                                         github.com/Masterminds/sprig@2.22.0
                                          <span class="list-paths__item__arrow">›</span> 
@@ -1060,11 +939,11 @@
                                 <span class="list-paths__item__introduced"><em>Introduced through</em>:
                                         github.com/argoproj/argo-cd/v2@0.0.0
                                          <span class="list-paths__item__arrow">›</span> 
-                                        github.com/argoproj/notifications-engine/pkg/cmd@#567361917320
+                                        github.com/argoproj/notifications-engine/pkg/cmd@#4d8552b0775f
                                          <span class="list-paths__item__arrow">›</span> 
-                                        github.com/argoproj/notifications-engine/pkg/api@#567361917320
+                                        github.com/argoproj/notifications-engine/pkg/api@#4d8552b0775f
                                          <span class="list-paths__item__arrow">›</span> 
-                                        github.com/argoproj/notifications-engine/pkg/templates@#567361917320
+                                        github.com/argoproj/notifications-engine/pkg/templates@#4d8552b0775f
                                          <span class="list-paths__item__arrow">›</span> 
                                         github.com/Masterminds/sprig@2.22.0
                                          <span class="list-paths__item__arrow">›</span> 
@@ -1077,11 +956,11 @@
                                 <span class="list-paths__item__introduced"><em>Introduced through</em>:
                                         github.com/argoproj/argo-cd/v2@0.0.0
                                          <span class="list-paths__item__arrow">›</span> 
-                                        github.com/argoproj/notifications-engine/pkg/controller@#567361917320
+                                        github.com/argoproj/notifications-engine/pkg/controller@#4d8552b0775f
                                          <span class="list-paths__item__arrow">›</span> 
-                                        github.com/argoproj/notifications-engine/pkg/api@#567361917320
+                                        github.com/argoproj/notifications-engine/pkg/api@#4d8552b0775f
                                          <span class="list-paths__item__arrow">›</span> 
-                                        github.com/argoproj/notifications-engine/pkg/templates@#567361917320
+                                        github.com/argoproj/notifications-engine/pkg/templates@#4d8552b0775f
                                          <span class="list-paths__item__arrow">›</span> 
                                         github.com/Masterminds/sprig@2.22.0
                                          <span class="list-paths__item__arrow">›</span> 

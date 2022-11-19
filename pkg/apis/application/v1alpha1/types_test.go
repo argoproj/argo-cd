@@ -651,6 +651,8 @@ func TestAppProject_ValidateGroupName(t *testing.T) {
 		"my,group",
 		"my\ngroup",
 		"my\rgroup",
+		" my:group",
+		"my:group ",
 	}
 	for _, badName := range badGroupNames {
 		p.Spec.Roles[0].Groups = []string{badName}
@@ -2935,7 +2937,7 @@ func Test_validateGroupName(t *testing.T) {
 		{"Normal group name", "foo", true},
 		{"Quoted with commas", "\"foo,bar,baz\"", true},
 		{"Quoted without commas", "\"foo\"", true},
-		{"Quoted with leading and trailing whitespace", "  \"foo\" ", true},
+		{"Quoted with leading and trailing whitespace", "  \"foo\" ", false},
 		{"Empty group name", "", false},
 		{"Empty group name with quotes", "\"\"", false},
 		{"Unquoted with comma", "foo,bar,baz", false},
