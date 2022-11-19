@@ -1429,17 +1429,7 @@ func (ctrl *ApplicationController) refreshAppConditions(app *appv1.Application) 
 	errorConditions := make([]appv1.ApplicationCondition, 0)
 	proj, err := ctrl.getAppProj(app)
 	if err != nil {
-		if apierr.IsNotFound(err) {
-			errorConditions = append(errorConditions, appv1.ApplicationCondition{
-				Type:    appv1.ApplicationConditionInvalidSpecError,
-				Message: fmt.Sprintf("Application referencing project %s which does not exist", app.Spec.Project),
-			})
-		} else {
-			errorConditions = append(errorConditions, appv1.ApplicationCondition{
-				Type:    appv1.ApplicationConditionUnknownError,
-				Message: err.Error(),
-			})
-		}
+		errorConditions = append(errorConditions, ctrl.projectErrorToCondition(err, app))
 	} else {
 		specConditions, err := argo.ValidatePermissions(context.Background(), &app.Spec, proj, ctrl.db)
 		if err != nil {
@@ -1768,6 +1758,19 @@ func (ctrl *ApplicationController) newApplicationInformerAndLister() (cache.Shar
 		},
 	)
 	return informer, lister
+}
+
+func (ctrl *ApplicationController) projectErrorToCondition(err error, app *appv1.Application) appv1.ApplicationCondition {
+	var condition appv1.ApplicationCondition
+	if apierr.IsNotFound(err) {
+		condition = appv1.ApplicationCondition{
+			Type:    appv1.ApplicationConditionInvalidSpecError,
+			Message: fmt.Sprintf("Application referencing project %s which does not exist", app.Spec.Project),
+		}
+	} else {
+		condition = appv1.ApplicationCondition{Type: appv1.ApplicationConditionUnknownError, Message: err.Error()}
+	}
+	return condition
 }
 
 func (ctrl *ApplicationController) RegisterClusterSecretUpdater(ctx context.Context) {
