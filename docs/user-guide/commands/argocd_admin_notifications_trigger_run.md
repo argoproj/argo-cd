@@ -11,10 +11,10 @@ argocd admin notifications trigger run NAME RESOURCE_NAME [flags]
 ```
 
 # Execute trigger configured in 'argocd-notification-cm' ConfigMap
-notifications trigger run on-sync-status-unknown ./sample-app.yaml
+argocd admin notifications trigger run on-sync-status-unknown ./sample-app.yaml
 
 # Execute trigger using my-config-map.yaml instead of 'argocd-notifications-cm' ConfigMap
-notifications trigger run on-sync-status-unknown ./sample-app.yaml \
+argocd admin notifications trigger run on-sync-status-unknown ./sample-app.yaml \
     --config-map ./my-config-map.yaml
 ```
 
