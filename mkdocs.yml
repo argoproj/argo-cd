@@ -57,9 +57,9 @@ nav:
     - operator-manual/notifications/catalog.md
     - operator-manual/notifications/monitoring.md
     - operator-manual/notifications/subscriptions.md
+    - operator-manual/notifications/troubleshooting.md
     - operator-manual/notifications/troubleshooting-commands.md
     - operator-manual/notifications/troubleshooting-errors.md
-    - operator-manual/notifications/troubleshooting.md
     - Notification Services:
       - operator-manual/notifications/services/alertmanager.md
       - operator-manual/notifications/services/email.md
