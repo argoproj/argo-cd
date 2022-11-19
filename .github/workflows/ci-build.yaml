@@ -312,7 +312,7 @@ jobs:
           name: test-results
           path: test-results
       - name: Upload code coverage information to codecov.io
-        uses: codecov/codecov-action@v1
+        uses: codecov/codecov-action@v3
         with:
           file: coverage.out
       - name: Perform static code analysis using SonarCloud
