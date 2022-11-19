@@ -367,6 +367,8 @@ const (
 	resourceExclusionsKey = "resource.exclusions"
 	// resourceInclusions is the key to the list of explicitly watched resources
 	resourceInclusionsKey = "resource.inclusions"
+	// resourceCustomLabelKey is the key to a custom label to show in node info, if present
+	resourceCustomLabelsKey = "resource.customLabels"
 	// configManagementPluginsKey is the key to the list of config management plugins
 	configManagementPluginsKey = "configManagementPlugins"
 	// kustomizeBuildOptionsKey is a string of kustomize build parameters
@@ -1576,7 +1578,7 @@ func (a *ArgoCDSettings) IsDexConfigured() bool {
 	}
 	dexCfg, err := UnmarshalDexConfig(a.DexConfig)
 	if err != nil {
-		log.Warn("invalid dex yaml config")
+		log.Warnf("invalid dex yaml config: %s", err.Error())
 		return false
 	}
 	return len(dexCfg) > 0
@@ -1884,4 +1886,16 @@ func (mgr *SettingsManager) GetGlobalProjectsSettings() ([]GlobalProjectSettings
 
 func (mgr *SettingsManager) GetNamespace() string {
 	return mgr.namespace
+}
+
+func (mgr *SettingsManager) GetResourceCustomLabels() ([]string, error) {
+	argoCDCM, err := mgr.getConfigMap()
+	if err != nil {
+		return []string{}, fmt.Errorf("failed getting configmap: %v", err)
+	}
+	labels := argoCDCM.Data[resourceCustomLabelsKey]
+	if labels != "" {
+		return strings.Split(labels, ","), nil
+	}
+	return []string{}, nil
 }
