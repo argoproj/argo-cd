@@ -700,7 +700,7 @@ Example of `kustomization.yaml`:
 
 ```yaml
 bases:
-- github.com/argoproj/argo-cd//manifests/cluster-install?ref=v1.0.1
+- https://raw.githubusercontent.com/argoproj/argo-cd/v2.5.2/manifests/install.yaml
 
 # additional resources like ingress rules, cluster and repository secrets.
 resources:
