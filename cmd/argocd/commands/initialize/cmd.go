@@ -14,6 +14,12 @@ func RetrieveContextIfChanged(contextFlag *flag.Flag) string {
 	}
 	return ""
 }
+func RetrieveNamespaceIfChanged(namespaceFlag *flag.Flag) string {
+	if namespaceFlag != nil && namespaceFlag.Changed {
+		return namespaceFlag.Value.String()
+	}
+	return ""
+}
 
 // InitCommand allows executing command in a headless mode: on the fly starts Argo CD API server and
 // changes provided client options to use started API server port

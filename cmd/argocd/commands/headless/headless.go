@@ -139,7 +139,7 @@ func testAPI(ctx context.Context, clientOpts *apiclient.ClientOptions) error {
 
 // StartLocalServer allows executing command in a headless mode: on the fly starts Argo CD API server and
 // changes provided client options to use started API server port
-func StartLocalServer(ctx context.Context, clientOpts *apiclient.ClientOptions, ctxStr string, port *int, address *string) error {
+func StartLocalServer(ctx context.Context, clientOpts *apiclient.ClientOptions, ctxStr string, namespace string, port *int, address *string) error {
 	flags := pflag.NewFlagSet("tmp", pflag.ContinueOnError)
 	clientConfig := cli.AddKubectlFlagsToSet(flags)
 	startInProcessAPI := clientOpts.Core
@@ -191,9 +191,12 @@ func StartLocalServer(ctx context.Context, clientOpts *apiclient.ClientOptions, 
 		return err
 	}
 
-	namespace, _, err := clientConfig.Namespace()
-	if err != nil {
-		return err
+	// if no namespace was passed, pull it from the config
+	if namespace == "" {
+		namespace, _, err = clientConfig.Namespace()
+		if err != nil {
+			return err
+		}
 	}
 
 	mr, err := miniredis.Run()
@@ -243,7 +246,8 @@ func NewClientOrDie(opts *apiclient.ClientOptions, c *cobra.Command) apiclient.C
 	ctx := c.Context()
 
 	ctxStr := initialize.RetrieveContextIfChanged(c.Flag("context"))
-	err := StartLocalServer(ctx, opts, ctxStr, nil, nil)
+	namespaceStr := initialize.RetrieveNamespaceIfChanged(c.Flag("namespace"))
+	err := StartLocalServer(ctx, opts, ctxStr, namespaceStr, nil, nil)
 	if err != nil {
 		log.Fatal(err)
 	}

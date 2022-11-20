@@ -23,7 +23,7 @@ func NewDashboardCommand() *cobra.Command {
 		Run: func(cmd *cobra.Command, args []string) {
 			ctx := cmd.Context()
 
-			errors.CheckError(headless.StartLocalServer(ctx, &argocdclient.ClientOptions{Core: true}, initialize.RetrieveContextIfChanged(cmd.Flag("context")), &port, &address))
+			errors.CheckError(headless.StartLocalServer(ctx, &argocdclient.ClientOptions{Core: true}, initialize.RetrieveContextIfChanged(cmd.Flag("context")), initialize.RetrieveNamespaceIfChanged(cmd.Flag("namespace")), &port, &address))
 			println(fmt.Sprintf("Argo CD UI is available at http://%s:%d", address, port))
 			<-ctx.Done()
 		},
