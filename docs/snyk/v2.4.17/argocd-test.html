@@ -7,7 +7,7 @@
   <meta name="viewport" content="width=device-width, initial-scale=1.0">
   <meta http-equiv="X-UA-Compatible" content="IE=edge">
   <title>Snyk test report</title>
-  <meta name="description" content="6 known vulnerabilities found in 11 vulnerable dependency paths.">
+  <meta name="description" content="7 known vulnerabilities found in 14 vulnerable dependency paths.">
   <base target="_blank">
   <link rel="icon" type="image/png" href="https://res.cloudinary.com/snyk/image/upload/v1468845142/favicon/favicon.png"
     sizes="194x194">
@@ -456,7 +456,7 @@
               <div class="header-wrap">
                   <h1 class="project__header__title">Snyk test report</h1>
     
-                <p class="timestamp">November 13th 2022, 12:20:21 am</p>
+                <p class="timestamp">November 20th 2022, 12:20:11 am</p>
               </div>
               <div class="source-panel">
                 <span>Scanned the following paths:</span>
@@ -466,8 +466,8 @@
               </div>
     
               <div class="meta-counts">
-                <div class="meta-count"><span>6</span> <span>known vulnerabilities</span></div>
-                <div class="meta-count"><span>11 vulnerable dependency paths</span></div>
+                <div class="meta-count"><span>7</span> <span>known vulnerabilities</span></div>
+                <div class="meta-count"><span>14 vulnerable dependency paths</span></div>
                 <div class="meta-count"><span>1648</span> <span>dependencies</span></div>
               </div><!-- .meta-counts -->
             </div><!-- .layout-container--short -->
@@ -1110,6 +1110,111 @@
         
             <div class="cta card__cta">
                 <p><a href="https://snyk.io/vuln/SNYK-GOLANG-GITHUBCOMMASTERMINDSGOUTILS-1296313">More about this vulnerability</a></p>
+            </div>
+        
+        </div><!-- .card -->
+        <div class="card card--vuln  disclosure--not-new severity--medium" data-snyk-test="medium">
+            <h2 class="card__title">Insecure Randomness</h2>
+            <div class="card__section">
+        
+                <div class="label label--medium">
+                    <span class="label__text">medium severity</span>
+                </div>
+        
+                <hr/>
+        
+                <ul class="card__meta">
+                    <li class="card__meta__item">
+                        Package Manager: golang
+                    </li>
+                    <li class="card__meta__item">
+                            Vulnerable module:
+        
+                            github.com/Masterminds/goutils
+                    </li>
+        
+                    <li class="card__meta__item">Introduced through:
+        
+        
+                                    github.com/argoproj/argo-cd/v2@0.0.0, github.com/argoproj/notifications-engine/pkg/api@#567361917320 and others
+                    </li>
+                </ul>
+        
+                <hr/>
+        
+        
+                        <h3 class="card__section__title">Detailed paths</h3>
+        
+                    <ul class="card__meta__paths">
+                                <li>
+                                <span class="list-paths__item__introduced"><em>Introduced through</em>:
+                                        github.com/argoproj/argo-cd/v2@0.0.0
+                                         <span class="list-paths__item__arrow">›</span> 
+                                        github.com/argoproj/notifications-engine/pkg/api@#567361917320
+                                         <span class="list-paths__item__arrow">›</span> 
+                                        github.com/argoproj/notifications-engine/pkg/templates@#567361917320
+                                         <span class="list-paths__item__arrow">›</span> 
+                                        github.com/Masterminds/sprig@2.22.0
+                                         <span class="list-paths__item__arrow">›</span> 
+                                        github.com/Masterminds/goutils@1.1.0
+                                        
+                                </span>
+        
+                            </li>
+                                <li>
+                                <span class="list-paths__item__introduced"><em>Introduced through</em>:
+                                        github.com/argoproj/argo-cd/v2@0.0.0
+                                         <span class="list-paths__item__arrow">›</span> 
+                                        github.com/argoproj/notifications-engine/pkg/cmd@#567361917320
+                                         <span class="list-paths__item__arrow">›</span> 
+                                        github.com/argoproj/notifications-engine/pkg/api@#567361917320
+                                         <span class="list-paths__item__arrow">›</span> 
+                                        github.com/argoproj/notifications-engine/pkg/templates@#567361917320
+                                         <span class="list-paths__item__arrow">›</span> 
+                                        github.com/Masterminds/sprig@2.22.0
+                                         <span class="list-paths__item__arrow">›</span> 
+                                        github.com/Masterminds/goutils@1.1.0
+                                        
+                                </span>
+        
+                            </li>
+                                <li>
+                                <span class="list-paths__item__introduced"><em>Introduced through</em>:
+                                        github.com/argoproj/argo-cd/v2@0.0.0
+                                         <span class="list-paths__item__arrow">›</span> 
+                                        github.com/argoproj/notifications-engine/pkg/controller@#567361917320
+                                         <span class="list-paths__item__arrow">›</span> 
+                                        github.com/argoproj/notifications-engine/pkg/api@#567361917320
+                                         <span class="list-paths__item__arrow">›</span> 
+                                        github.com/argoproj/notifications-engine/pkg/templates@#567361917320
+                                         <span class="list-paths__item__arrow">›</span> 
+                                        github.com/Masterminds/sprig@2.22.0
+                                         <span class="list-paths__item__arrow">›</span> 
+                                        github.com/Masterminds/goutils@1.1.0
+                                        
+                                </span>
+        
+                            </li>
+                    </ul><!-- .list-paths -->
+        
+            </div><!-- .card__section -->
+        
+              <hr/>
+              <!-- Overview -->
+              <h2 id="overview">Overview</h2>
+        <p><a href="https://pkg.go.dev/github.com/masterminds/goutils">github.com/masterminds/goutils</a> is a provides users with utility functions to manipulate strings in various ways.</p>
+        <p>Affected versions of this package are vulnerable to Insecure Randomness when randomly-generated alphanumeric strings contain significantly less entropy than expected, the <code>RandomAlphaNumeric</code> and <code>CryptoRandomAlphaNumeric</code> functions always return strings containing at least one digit from 0 to 9. This significantly reduces the amount of entropy in short strings generated by these functions.</p>
+        <h2 id="remediation">Remediation</h2>
+        <p>Upgrade <code>github.com/masterminds/goutils</code> to version 1.1.1 or higher.</p>
+        <h2 id="references">References</h2>
+        <ul>
+        <li><a href="https://github.com/Masterminds/goutils/commit/869801f20f9f1e7ecdbdb6422049d8241270d5e1">GitHub Commit</a></li>
+        </ul>
+        
+              <hr/>
+        
+            <div class="cta card__cta">
+                <p><a href="https://snyk.io/vuln/SNYK-GOLANG-GITHUBCOMMASTERMINDSGOUTILS-3121153">More about this vulnerability</a></p>
             </div>
         
         </div><!-- .card -->
