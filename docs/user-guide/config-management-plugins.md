@@ -251,19 +251,19 @@ If you don't need to set any environment variables, you can set an empty plugin 
 
 If you are actively developing a sidecar-installed CMP, keep a few things in mind:
 
-1) If you are mounting plugin.yaml from a ConfigMap, you will have to restart the repo-server Pod so the plugin will
+1. If you are mounting plugin.yaml from a ConfigMap, you will have to restart the repo-server Pod so the plugin will
    pick up the changes.
-2) If you have baked plugin.yaml into your image, you will have to build, push, and force a re-pull of that image on the
+2. If you have baked plugin.yaml into your image, you will have to build, push, and force a re-pull of that image on the
    repo-server Pod so the plugin will pick up the changes. If you are using `:latest`, the Pod will always pull the new
    image. If you're using a different, static tag, set `imagePullPolicy: Always` on the CMP's sidecar container.
-3) CMP errors are cached by the repo-server in Redis. Restarting the repo-server Pod will not clear the cache. Always
+3. CMP errors are cached by the repo-server in Redis. Restarting the repo-server Pod will not clear the cache. Always
    do a "Hard Refresh" when actively developing a CMP so you have the latest output.
 
 ## Plugin tar stream exclusions
 
 In order to increase the speed of manifest generation, certain files and folders can be excluded from being sent to your
-plugin. We recommend excluding your `.git` folder if it isn't necessary. Use Go's 
-[filepatch.Match](https://pkg.go.dev/path/filepath#Match) syntax.
+plugin. We recommend excluding your `.git` folder if it isn't necessary. Use Go's
+[filepatch.Match](https://pkg.go.dev/path/filepath#Match) syntax. For example, `.git/*` to exclude `.git` folder.
 
 You can set it one of three ways:
 

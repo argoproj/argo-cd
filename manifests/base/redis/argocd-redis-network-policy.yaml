@@ -10,27 +10,22 @@ spec:
   - Ingress
   - Egress
   ingress:
-    - from:
-      - podSelector:
-          matchLabels:
-            app.kubernetes.io/name: argocd-server
-      - podSelector:
-          matchLabels:
-            app.kubernetes.io/name: argocd-repo-server
-      - podSelector:
-          matchLabels:
-            app.kubernetes.io/name: argocd-application-controller
-      ports:
-        - protocol: TCP
-          port: 6379
+  - from:
+    - podSelector:
+        matchLabels:
+          app.kubernetes.io/name: argocd-server
+    - podSelector:
+        matchLabels:
+          app.kubernetes.io/name: argocd-repo-server
+    - podSelector:
+        matchLabels:
+          app.kubernetes.io/name: argocd-application-controller
+    ports:
+    - protocol: TCP
+      port: 6379
   egress:
-    - to:
-      - ipBlock:
-          cidr: 0.0.0.0/0
-      ports:
-        - port: 53
-          protocol: UDP
-        - port: 53
-          protocol: TCP 
-    
-      
+  - ports:
+    - port: 53
+      protocol: UDP
+    - port: 53
+      protocol: TCP
