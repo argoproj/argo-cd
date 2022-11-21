@@ -34,6 +34,8 @@ import (
 	"github.com/argoproj/argo-cd/v2/util/proxy"
 )
 
+//go:generate go run github.com/vektra/mockery/v2@v2.15.0 --name=Client
+
 var ErrInvalidRepoURL = fmt.Errorf("repo URL is invalid")
 
 type RevisionMetadata struct {
@@ -167,12 +169,12 @@ func NewClientExt(rawRepoURL string, root string, creds Creds, insecure bool, en
 
 // Returns a HTTP client object suitable for go-git to use using the following
 // pattern:
-// - If insecure is true, always returns a client with certificate verification
-//   turned off.
-// - If one or more custom certificates are stored for the repository, returns
-//   a client with those certificates in the list of root CAs used to verify
-//   the server's certificate.
-// - Otherwise (and on non-fatal errors), a default HTTP client is returned.
+//   - If insecure is true, always returns a client with certificate verification
+//     turned off.
+//   - If one or more custom certificates are stored for the repository, returns
+//     a client with those certificates in the list of root CAs used to verify
+//     the server's certificate.
+//   - Otherwise (and on non-fatal errors), a default HTTP client is returned.
 func GetRepoHTTPClient(repoURL string, insecure bool, creds Creds, proxyURL string) *http.Client {
 	// Default HTTP client
 	var customHTTPClient = &http.Client{
