@@ -232,7 +232,10 @@ func TestCMPDiscoverWithFindGlob(t *testing.T) {
 		}).
 		Path("guestbook").
 		When().
-		CreateApp().
+		CreateFromFile(func(app *Application) {
+			// specifically mention the plugin to use (name is based on <plugin name>-<version>
+			app.Spec.Source.Plugin = &ApplicationSourcePlugin{Name: "cmp-find-glob-v1.0"}
+		}).
 		Sync().
 		Then().
 		Expect(OperationPhaseIs(OperationSucceeded)).
