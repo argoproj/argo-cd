@@ -39,3 +39,10 @@ func TestHideUsernamePassword(t *testing.T) {
 	_, err = RunWithRedactor(exec.Command("helm registry login https://charts.bitnami.com/bitnami", "--username", "foo", "--password", "bar"), redactor)
 	assert.NotEmpty(t, err)
 }
+
+func TestTruncateCommandArgs(t *testing.T) {
+	_, err := RunWithRedactor(exec.Command("helm", "registry", "login", "https://charts.bitnami.com/bitnami", "--username", "foo", "--password", "bar", "--fake-argument"), nil)
+
+	assert.NotEmpty(t, err)
+	assert.Equal(t, err.Error(), "`helm registry login https://charts.bitnami.com/bitnami --username foo --passw...` failed exit status 1: Error: unknown flag: --fake-argument")
+}
