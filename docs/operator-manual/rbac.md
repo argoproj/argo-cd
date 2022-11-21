@@ -225,7 +225,7 @@ metadata:
   name: argocd-rbac-cm-extra
   namespace: argocd
   labels:
-    argocd.argoproj.io/cm-type: additional-rbac
+    argocd.argoproj.io/cm-type: rbac
 data:
   policy.csv: |
     p, role:org-admin, applications, *, */*, allow
