@@ -150,18 +150,27 @@ func generateBuiltInTriggersDocs(out io.Writer, triggers map[string][]triggers.C
 }
 
 func generateCommandsDocs(out io.Writer) error {
-	toolsCmd := admin.NewNotificationsCommand()
-	for _, subCommand := range toolsCmd.Commands() {
-		for _, c := range subCommand.Commands() {
-			var cmdDesc bytes.Buffer
-			if err := doc.GenMarkdown(c, &cmdDesc); err != nil {
-				return err
-			}
-			for _, line := range strings.Split(cmdDesc.String(), "\n") {
-				if strings.HasPrefix(line, "### SEE ALSO") {
-					break
+    // create parents so that CommandPath() is correctly resolved
+	mainCmd := &cobra.Command{Use: "argocd"}
+	adminCmd := &cobra.Command{Use: "admin"}
+	toolCmd := admin.NewNotificationsCommand()
+	adminCmd.AddCommand(toolCmd)
+	mainCmd.AddCommand(adminCmd)
+	for _, mainSubCommand := range mainCmd.Commands() {
+		for _, adminSubCommand := range mainSubCommand.Commands() {
+			for _, toolSubCommand := range adminSubCommand.Commands() {
+				for _, c := range toolSubCommand.Commands() {
+					var cmdDesc bytes.Buffer
+					if err := doc.GenMarkdown(c, &cmdDesc); err != nil {
+						return err
+					}
+					for _, line := range strings.Split(cmdDesc.String(), "\n") {
+						if strings.HasPrefix(line, "### SEE ALSO") {
+							break
+						}
+						_, _ = fmt.Fprintf(out, "%s\n", line)
+					}
 				}
-				_, _ = fmt.Fprintf(out, "%s\n", line)
 			}
 		}
 	}
