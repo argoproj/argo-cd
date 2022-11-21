@@ -23,7 +23,10 @@ function distinct<T>(first: IterableIterator<T>, second: IterableIterator<T>) {
     return Array.from(new Set(Array.from(first).concat(Array.from(second))));
 }
 
-function overridesFirst(first: {overrideIndex: number}, second: {overrideIndex: number}) {
+function overridesFirst(first: {overrideIndex: number; metadata: {name: string}}, second: {overrideIndex: number; metadata: {name: string}}) {
+    if (first.overrideIndex === second.overrideIndex) {
+        return first.metadata.name.localeCompare(second.metadata.name);
+    }
     if (first.overrideIndex < 0) {
         return 1;
     } else if (second.overrideIndex < 0) {
@@ -57,7 +60,7 @@ function getParamsEditableItems(
                 </span>
             ),
             edit: (formApi: FormApi) => {
-                const labelStyle = {position: 'absolute', right: 0, top: 0, zIndex: 1} as any;
+                const labelStyle = {position: 'absolute', right: 0, top: 0, zIndex: 11} as any;
                 const overrideRemoved = removedOverrides[i];
                 const fieldItemPath = `${fieldsPath}[${i}]`;
                 return (
@@ -98,11 +101,6 @@ function getParamsEditableItems(
                 );
             }
         }))
-        .sort((first, second) => {
-            const firstSortBy = first.key || first.title;
-            const secondSortBy = second.key || second.title;
-            return firstSortBy.localeCompare(secondSortBy);
-        })
         .map((item, i) => ({...item, before: (i === 0 && <p style={{marginTop: '1em'}}>{title}</p>) || null}));
 }
 
@@ -192,29 +190,31 @@ export const ApplicationParameters = (props: {
                 />
             )
         });
-        attributes.push({
-            title: 'VALUES',
-            view: app.spec.source.helm && (
-                <Expandable>
-                    <pre>{app.spec.source.helm.values}</pre>
-                </Expandable>
-            ),
-            edit: (formApi: FormApi) => (
-                <div>
-                    <pre>
-                        <FormField formApi={formApi} field='spec.source.helm.values' component={TextArea} />
-                    </pre>
-                    {props.details.helm.values && (
-                        <div>
-                            <label>values.yaml</label>
-                            <Expandable>
-                                <pre>{props.details.helm.values}</pre>
-                            </Expandable>
-                        </div>
-                    )}
-                </div>
-            )
-        });
+        if (app?.spec?.source?.helm?.values) {
+            attributes.push({
+                title: 'VALUES',
+                view: app.spec.source.helm && (
+                    <Expandable>
+                        <pre>{app.spec.source.helm.values}</pre>
+                    </Expandable>
+                ),
+                edit: (formApi: FormApi) => (
+                    <div>
+                        <pre>
+                            <FormField formApi={formApi} field='spec.source.helm.values' component={TextArea} />
+                        </pre>
+                        {props.details.helm.values && (
+                            <div>
+                                <label>values.yaml</label>
+                                <Expandable>
+                                    <pre>{props.details.helm.values}</pre>
+                                </Expandable>
+                            </div>
+                        )}
+                    </div>
+                )
+            });
+        }
         const paramsByName = new Map<string, models.HelmParameter>();
         (props.details.helm.parameters || []).forEach(param => paramsByName.set(param.name, param));
         const overridesByName = new Map<string, number>();
