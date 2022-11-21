@@ -22,9 +22,6 @@ brew install argocd
 
 ```bash
 curl -sSL -o argocd-linux-amd64 https://github.com/argoproj/argo-cd/releases/latest/download/argocd-linux-amd64
-mkdir -p /usr/local/bin/
-sudo install -m 555 argocd-linux-amd64 /usr/local/bin/argocd
-rm argocd-linux-amd64
 ```
 
 #### Download concrete version
@@ -33,10 +30,18 @@ Set `VERSION` replacing `<TAG>` in the command below with the version of Argo CD
 
 ```bash
 VERSION=<TAG> # Select desired TAG from https://github.com/argoproj/argo-cd/releases
-curl -sSL -o argocd-linux-amd64 https://github.com/argoproj/argo-cd/releases/download/$VERSION/argocd-linux-amd64
+curl -sSL -o argocd-linux-amd64 https://github.com/argoproj/argo-cd/releases/${VERSION}/download/argocd-linux-amd64
+```
+
+#### Installation steps
+
+```bash
+mkdir -p /usr/local/bin/
 sudo install -m 555 argocd-linux-amd64 /usr/local/bin/argocd
 rm argocd-linux-amd64
 ```
+
+Update `$PATH` environment variable if necessary (https://linuxconfig.org/linux-path-environment-variable).
 
 You should now be able to run `argocd` commands.
 
@@ -50,24 +55,7 @@ brew install argocd
 
 ### Download With Curl
 
-You can view the latest version of Argo CD at the link above or run the following command to grab the version:
-
-```bash
-VERSION=$(curl --silent "https://api.github.com/repos/argoproj/argo-cd/releases/latest" | grep '"tag_name"' | sed -E 's/.*"([^"]+)".*/\1/')
-```
-
-Replace `VERSION` in the command below with the version of Argo CD you would like to download:
-
-```bash
-curl -sSL -o argocd-darwin-amd64 https://github.com/argoproj/argo-cd/releases/download/$VERSION/argocd-darwin-amd64
-```
-
-Install the Argo CD CLI binary:
-
-```bash
-sudo install -m 555 argocd-darwin-amd64 /usr/local/bin/argocd
-rm argocd-darwin-amd64
-```
+See [Linux curl instructions](#download-with-curl).
 
 After finishing either of the instructions above, you should now be able to run `argocd` commands.
 
