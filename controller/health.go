@@ -13,7 +13,7 @@ import (
 )
 
 // setApplicationHealth updates the health statuses of all resources performed in the comparison
-func setApplicationHealth(resources []managedResource, statuses []appv1.ResourceStatus, resourceOverrides map[string]appv1.ResourceOverride, app *appv1.Application) (*appv1.HealthStatus, error) {
+func setApplicationHealth(resources []managedResource, statuses []appv1.ResourceStatus, resourceOverrides map[string]appv1.ResourceOverride, app *appv1.Application, persistResourceHealth bool) (*appv1.HealthStatus, error) {
 	var savedErr error
 	appHealth := appv1.HealthStatus{Status: health.HealthStatusHealthy}
 	for i, res := range resources {
@@ -41,24 +41,36 @@ func setApplicationHealth(resources []managedResource, statuses []appv1.Resource
 				savedErr = err
 			}
 		}
-		if healthStatus != nil {
+
+		if healthStatus == nil {
+			continue
+		}
+
+		if persistResourceHealth {
 			resHealth := appv1.HealthStatus{Status: healthStatus.Status, Message: healthStatus.Message}
 			statuses[i].Health = &resHealth
-
-			// Is health status is missing but resource has not built-in/custom health check then it should not affect parent app health
-			if _, hasOverride := healthOverrides[lua.GetConfigMapKey(gvk)]; healthStatus.Status == health.HealthStatusMissing && !hasOverride && health.GetHealthCheckFunc(gvk) == nil {
-				continue
-			}
-
-			// Missing or Unknown health status of child Argo CD app should not affect parent
-			if res.Kind == application.ApplicationKind && res.Group == application.Group && (healthStatus.Status == health.HealthStatusMissing || healthStatus.Status == health.HealthStatusUnknown) {
-				continue
-			}
-
-			if health.IsWorse(appHealth.Status, healthStatus.Status) {
-				appHealth.Status = healthStatus.Status
-			}
+		} else {
+			statuses[i].Health = nil
 		}
+
+		// Is health status is missing but resource has not built-in/custom health check then it should not affect parent app health
+		if _, hasOverride := healthOverrides[lua.GetConfigMapKey(gvk)]; healthStatus.Status == health.HealthStatusMissing && !hasOverride && health.GetHealthCheckFunc(gvk) == nil {
+			continue
+		}
+
+		// Missing or Unknown health status of child Argo CD app should not affect parent
+		if res.Kind == application.ApplicationKind && res.Group == application.Group && (healthStatus.Status == health.HealthStatusMissing || healthStatus.Status == health.HealthStatusUnknown) {
+			continue
+		}
+
+		if health.IsWorse(appHealth.Status, healthStatus.Status) {
+			appHealth.Status = healthStatus.Status
+		}
+	}
+	if persistResourceHealth {
+		app.Status.ResourceHealthSource = appv1.ResourceHealthLocationInline
+	} else {
+		app.Status.ResourceHealthSource = appv1.ResourceHealthLocationAppTree
 	}
 	return &appHealth, savedErr
 }

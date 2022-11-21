@@ -1,0 +1,175 @@
+{
+  "object_kind": "merge_request",
+  "event_type": "merge_request",
+  "user": {
+    "id": 1,
+    "name": "Administrator",
+    "username": "root",
+    "avatar_url": "http://www.gravatar.com/avatar/e64c7d89f26bd1972efa854d13d7dd61?s=40\u0026d=identicon",
+    "email": "admin@example.com"
+  },
+  "project": {
+    "id": 100500,
+    "name": "project",
+    "description": "",
+    "web_url": "https://gitlab.com/group/name",
+    "avatar_url": null,
+    "git_ssh_url": "ssh://git@gitlab:2222/group/name.git",
+    "git_http_url": "https://gitlab.com/group/name.git",
+    "namespace": "group",
+    "visibility_level": 1,
+    "path_with_namespace": "group/name",
+    "default_branch": "master",
+    "ci_config_path": null,
+    "homepage": "https://gitlab.com/group/name",
+    "url": "ssh://git@gitlab:2222/group/name.git",
+    "ssh_url": "ssh://git@gitlab:2222/group/name.git",
+    "http_url": "https://gitlab.com/group/name.git"
+  },
+  "repository": {
+    "name": "name",
+    "url": "ssh://git@gitlab:2222/group/name.git",
+    "description": "",
+    "homepage": "https://gitlab.com/group/name",
+    "git_http_url": "https://gitlab.com/group/name.git",
+    "git_ssh_url": "ssh://git@gitlab:2222/group/name.git",
+    "visibility_level": 10
+  },
+  "object_attributes": {
+    "id": 99,
+    "iid": 1,
+    "target_branch": "master",
+    "source_branch": "ms-viewport",
+    "source_project_id": 14,
+    "author_id": 51,
+    "assignee_id": 6,
+    "title": "MS-Viewport",
+    "created_at": "2013-12-03T17:23:34Z",
+    "updated_at": "2013-12-03T17:23:34Z",
+    "milestone_id": null,
+    "state": "opened",
+    "blocking_discussions_resolved": true,
+    "work_in_progress": false,
+    "first_contribution": true,
+    "merge_status": "unchecked",
+    "target_project_id": 100500,
+    "description": "",
+    "url": "https://gitlab.com/group/name/merge_requests/1",
+    "source": {
+      "name": "Awesome Project",
+      "description": "Aut reprehenderit ut est.",
+      "web_url": "https://gitlab.com/group/name",
+      "avatar_url": null,
+      "git_ssh_url": "ssh://git@gitlab:2222/group/name.git",
+      "git_http_url": "https://gitlab.com/group/name.git",
+      "namespace": "Awesome Space",
+      "visibility_level": 20,
+      "path_with_namespace": "group/name",
+      "default_branch": "master",
+      "homepage": "https://gitlab.com/group/name",
+      "url": "https://gitlab.com/group/name.git",
+      "ssh_url": "ssh://git@gitlab:2222/group/name.git",
+      "http_url": "https://gitlab.com/group/name.git"
+    },
+    "target": {
+      "name": "Awesome Project",
+      "description": "Aut reprehenderit ut est.",
+      "web_url": "https://gitlab.com/group/name",
+      "avatar_url": null,
+      "git_ssh_url": "ssh://git@gitlab:2222/group/name.git",
+      "git_http_url": "https://gitlab.com/group/name.git",
+      "namespace": "Awesome Space",
+      "visibility_level": 20,
+      "path_with_namespace": "group/name",
+      "default_branch": "master",
+      "homepage": "https://gitlab.com/group/name",
+      "url": "https://gitlab.com/group/name.git",
+      "ssh_url": "ssh://git@gitlab:2222/group/name.git",
+      "http_url": "https://gitlab.com/group/name.git"
+    },
+    "last_commit": {
+      "id": "da1560886d4f094c3e6c9ef40349f7d38b5d27d7",
+      "message": "fixed readme",
+      "timestamp": "2012-01-03T23:36:29+02:00",
+      "url": "https://gitlab.com/group/name/commits/da1560886d4f094c3e6c9ef40349f7d38b5d27d7",
+      "author": {
+        "name": "GitLab dev user",
+        "email": "gitlabdev@dv6700.(none)"
+      }
+    },
+    "labels": [
+      {
+        "id": 206,
+        "title": "API",
+        "color": "#ffffff",
+        "project_id": 14,
+        "created_at": "2013-12-03T17:15:43Z",
+        "updated_at": "2013-12-03T17:15:43Z",
+        "template": false,
+        "description": "API related issues",
+        "type": "ProjectLabel",
+        "group_id": 41
+      }
+    ],
+    "action": "approval",
+    "assignee": {
+      "name": "User1",
+      "username": "user1",
+      "avatar_url": "http://www.gravatar.com/avatar/e64c7d89f26bd1972efa854d13d7dd61?s=40\u0026d=identicon"
+    }
+  },
+  "labels": [
+    {
+      "id": 206,
+      "title": "API",
+      "color": "#ffffff",
+      "project_id": 14,
+      "created_at": "2013-12-03T17:15:43Z",
+      "updated_at": "2013-12-03T17:15:43Z",
+      "template": false,
+      "description": "API related issues",
+      "type": "ProjectLabel",
+      "group_id": 41
+    }
+  ],
+  "changes": {
+    "updated_by_id": {
+      "previous": null,
+      "current": 1
+    },
+    "updated_at": {
+      "previous": "2017-09-15 16:50:55 UTC",
+      "current": "2017-09-15 16:52:00 UTC"
+    },
+    "labels": {
+      "previous": [
+        {
+          "id": 206,
+          "title": "API",
+          "color": "#ffffff",
+          "project_id": 14,
+          "created_at": "2013-12-03T17:15:43Z",
+          "updated_at": "2013-12-03T17:15:43Z",
+          "template": false,
+          "description": "API related issues",
+          "type": "ProjectLabel",
+          "group_id": 41
+        }
+      ],
+      "current": [
+        {
+          "id": 205,
+          "title": "Platform",
+          "color": "#123123",
+          "project_id": 14,
+          "created_at": "2013-12-03T17:15:43Z",
+          "updated_at": "2013-12-03T17:15:43Z",
+          "template": false,
+          "description": "Platform related issues",
+          "type": "ProjectLabel",
+          "group_id": 41
+        }
+      ]
+    }
+  }
+}

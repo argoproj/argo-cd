@@ -4,6 +4,13 @@ This guide is for operators who have already installed Argo CD, and have a new c
 
 There's no one particular pattern to solve this problem, e.g. you could write a script to create your apps, or you could even manually create them. However, users of Argo CD tend to use the **app of apps pattern**.
 
+!!!warning "App of Apps is an admin-only tool"
+    The ability to create Applications in arbitrary [Projects](./declarative-setup.md#projects) 
+    is an admin-level capability. Only admins should have push access to the parent Application's source repository. 
+    Admins should review pull requests to that repository, paying particular attention to the `project` field in each 
+    Application. Projects with access to the namespace in which Argo CD is installed effectively have admin-level 
+    privileges.
+
 ## App Of Apps Pattern
 
 [Declaratively](declarative-setup.md) specify one Argo CD app that consists only of other apps.
@@ -77,6 +84,8 @@ argocd app sync apps
 The parent app will appear as in-sync but the child apps will be out of sync:
 
 ![New App Of Apps](../assets/new-app-of-apps.png)
+
+> NOTE: You may want to modify this behavior to bootstrap your cluster in waves; see [v1.8 upgrade notes](upgrading/1.7-1.8.md) for information on changing this.
 
 You can either sync via the UI, firstly filter by the correct label:
 

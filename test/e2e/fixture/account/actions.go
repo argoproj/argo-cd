@@ -11,6 +11,21 @@ import (
 type Actions struct {
 	context      *Context
 	ignoreErrors bool
+	lastOutput   string
+	lastError    error
+}
+
+func (a *Actions) prepareCanIGetLogsArgs() []string {
+	a.context.t.Helper()
+	return []string{
+		"account", "can-i", "get", "logs", a.context.project + "/*",
+	}
+}
+
+func (a *Actions) CanIGetLogs() *Actions {
+	a.context.t.Helper()
+	a.runCli(a.prepareCanIGetLogsArgs()...)
+	return a
 }
 
 func (a *Actions) IgnoreErrors() *Actions {
@@ -43,9 +58,19 @@ func (a *Actions) SetPermissions(permissions []fixture.ACL, roleName string) *Ac
 	return a
 }
 
+func (a *Actions) SetParamInSettingConfigMap(key, value string) *Actions {
+	fixture.SetParamInSettingConfigMap(key, value)
+	return a
+}
+
 func (a *Actions) Login() *Actions {
 	fixture.LoginAs(a.context.name)
 	return a
+}
+
+func (a *Actions) runCli(args ...string) {
+	a.context.t.Helper()
+	a.lastOutput, a.lastError = fixture.RunCli(args...)
 }
 
 func (a *Actions) Then() *Consequences {

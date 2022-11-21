@@ -103,7 +103,7 @@ func ParseDurationFromEnv(env string, defaultValue, min, max time.Duration) time
 	}
 	durPtr, err := timeutil.ParseDuration(str)
 	if err != nil {
-		log.Warnf("Could not parse '%s' as a number from environment %s", str, env)
+		log.Warnf("Could not parse '%s' as a duration string from environment %s", str, env)
 		return defaultValue
 	}
 
@@ -122,6 +122,20 @@ func ParseDurationFromEnv(env string, defaultValue, min, max time.Duration) time
 func StringFromEnv(env string, defaultValue string) string {
 	if str := os.Getenv(env); str != "" {
 		return str
+	}
+	return defaultValue
+}
+
+// StringsFromEnv parses given value from the environment as a list of strings,
+// using seperator as the delimeter, and returns them as a slice. The strings
+// in the returned slice will have leading and trailing white space removed.
+func StringsFromEnv(env string, defaultValue []string, separator string) []string {
+	if str := os.Getenv(env); str != "" {
+		ss := strings.Split(str, separator)
+		for i, s := range ss {
+			ss[i] = strings.TrimSpace(s)
+		}
+		return ss
 	}
 	return defaultValue
 }

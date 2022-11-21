@@ -4,7 +4,7 @@ Argo CD is being developed using the following process:
 
 * Maintainers commit to work on set of features and enhancements and create GitHub milestone to track the work.
 * We are trying to avoid delaying release and prefer moving the feature into the next release if we cannot complete it on time.
-* The new release is published every **3 month**.
+* The new release is published every **3 months**.
 * Critical bug-fixes are cherry-picked into the release branch and delivered using patch releases as frequently as needed.
 
 ## Release Planning

@@ -4,17 +4,12 @@ import (
 	"fmt"
 	"strings"
 
-	"github.com/argoproj/gitops-engine/pkg/utils/kube"
-
 	"github.com/argoproj/argo-cd/v2/common"
-
-	"k8s.io/apimachinery/pkg/apis/meta/v1/unstructured"
-
-	"github.com/argoproj/argo-cd/v2/util/settings"
-
 	"github.com/argoproj/argo-cd/v2/pkg/apis/application/v1alpha1"
-
+	"github.com/argoproj/argo-cd/v2/util/kube"
 	argokube "github.com/argoproj/argo-cd/v2/util/kube"
+	"github.com/argoproj/argo-cd/v2/util/settings"
+	"k8s.io/apimachinery/pkg/apis/meta/v1/unstructured"
 )
 
 const (
@@ -29,6 +24,7 @@ var LabelMaxLength = 63
 // ResourceTracking defines methods which allow setup and retrieve tracking information to resource
 type ResourceTracking interface {
 	GetAppName(un *unstructured.Unstructured, key string, trackingMethod v1alpha1.TrackingMethod) string
+	GetAppInstance(un *unstructured.Unstructured, key string, trackingMethod v1alpha1.TrackingMethod) *AppInstanceValue
 	SetAppInstance(un *unstructured.Unstructured, key, val, namespace string, trackingMethod v1alpha1.TrackingMethod) error
 	BuildAppInstanceValue(value AppInstanceValue) string
 	ParseAppInstanceValue(value string) (*AppInstanceValue, error)
@@ -54,7 +50,7 @@ func NewResourceTracking() ResourceTracking {
 // GetTrackingMethod retrieve tracking method from settings
 func GetTrackingMethod(settingsMgr *settings.SettingsManager) v1alpha1.TrackingMethod {
 	tm, err := settingsMgr.GetTrackingMethod()
-	if err != nil {
+	if err != nil || tm == "" {
 		return TrackingMethodLabel
 	}
 	return v1alpha1.TrackingMethod(tm)
@@ -64,15 +60,23 @@ func IsOldTrackingMethod(trackingMethod string) bool {
 	return trackingMethod == "" || trackingMethod == string(TrackingMethodLabel)
 }
 
+func (rt *resourceTracking) getAppInstanceValue(un *unstructured.Unstructured, key string, trackingMethod v1alpha1.TrackingMethod) *AppInstanceValue {
+	appInstanceAnnotation := argokube.GetAppInstanceAnnotation(un, common.AnnotationKeyAppInstance)
+	value, err := rt.ParseAppInstanceValue(appInstanceAnnotation)
+	if err != nil {
+		return nil
+	}
+	return value
+}
+
 // GetAppName retrieve application name base on tracking method
 func (rt *resourceTracking) GetAppName(un *unstructured.Unstructured, key string, trackingMethod v1alpha1.TrackingMethod) string {
 	retrieveAppInstanceValue := func() string {
-		appInstanceAnnotation := argokube.GetAppInstanceAnnotation(un, common.AnnotationKeyAppInstance)
-		value, err := rt.ParseAppInstanceValue(appInstanceAnnotation)
-		if err != nil {
-			return ""
+		value := rt.getAppInstanceValue(un, key, trackingMethod)
+		if value != nil {
+			return value.ApplicationName
 		}
-		return value.ApplicationName
+		return ""
 	}
 	switch trackingMethod {
 	case TrackingMethodLabel:
@@ -86,21 +90,41 @@ func (rt *resourceTracking) GetAppName(un *unstructured.Unstructured, key string
 	}
 }
 
+// GetAppInstance returns the representation of the app instance annotation.
+// If the tracking method does not support metadata, or the annotation could
+// not be parsed, it returns nil.
+func (rt *resourceTracking) GetAppInstance(un *unstructured.Unstructured, key string, trackingMethod v1alpha1.TrackingMethod) *AppInstanceValue {
+	switch trackingMethod {
+	case TrackingMethodAnnotation, TrackingMethodAnnotationAndLabel:
+		return rt.getAppInstanceValue(un, key, trackingMethod)
+	default:
+		return nil
+	}
+}
+
+// UnstructuredToAppInstanceValue will build the AppInstanceValue based
+// on the provided unstructured. The given namespace works as a default
+// value if the resource's namespace is not defined. It should be the
+// Application's target destination namespace.
+func UnstructuredToAppInstanceValue(un *unstructured.Unstructured, appName, namespace string) AppInstanceValue {
+	ns := un.GetNamespace()
+	if ns == "" {
+		ns = namespace
+	}
+	gvk := un.GetObjectKind().GroupVersionKind()
+	return AppInstanceValue{
+		ApplicationName: appName,
+		Group:           gvk.Group,
+		Kind:            gvk.Kind,
+		Namespace:       ns,
+		Name:            un.GetName(),
+	}
+}
+
 // SetAppInstance set label/annotation base on tracking method
 func (rt *resourceTracking) SetAppInstance(un *unstructured.Unstructured, key, val, namespace string, trackingMethod v1alpha1.TrackingMethod) error {
 	setAppInstanceAnnotation := func() error {
-		ns := un.GetNamespace()
-		if ns == "" {
-			ns = namespace
-		}
-		gvk := un.GetObjectKind().GroupVersionKind()
-		appInstanceValue := AppInstanceValue{
-			ApplicationName: val,
-			Group:           gvk.Group,
-			Kind:            gvk.Kind,
-			Namespace:       ns,
-			Name:            un.GetName(),
-		}
+		appInstanceValue := UnstructuredToAppInstanceValue(un, val, namespace)
 		return argokube.SetAppInstanceAnnotation(un, common.AnnotationKeyAppInstance, rt.BuildAppInstanceValue(appInstanceValue))
 	}
 	switch trackingMethod {

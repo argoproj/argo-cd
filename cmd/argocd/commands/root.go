@@ -37,12 +37,14 @@ func NewCommand() *cobra.Command {
 			c.HelpFunc()(c, args)
 		},
 		DisableAutoGenTag: true,
+		SilenceUsage:      true,
 	}
 
 	command.AddCommand(NewCompletionCommand())
-	command.AddCommand(initialize.InitCommand(NewVersionCmd(&clientOpts)))
+	command.AddCommand(initialize.InitCommand(NewVersionCmd(&clientOpts, nil)))
 	command.AddCommand(initialize.InitCommand(NewClusterCommand(&clientOpts, pathOpts)))
 	command.AddCommand(initialize.InitCommand(NewApplicationCommand(&clientOpts)))
+	command.AddCommand(initialize.InitCommand(NewAppSetCommand(&clientOpts)))
 	command.AddCommand(NewLoginCommand(&clientOpts))
 	command.AddCommand(NewReloginCommand(&clientOpts))
 	command.AddCommand(initialize.InitCommand(NewRepoCommand(&clientOpts)))
@@ -74,5 +76,9 @@ func NewCommand() *cobra.Command {
 	command.PersistentFlags().StringVar(&clientOpts.PortForwardNamespace, "port-forward-namespace", config.GetFlag("port-forward-namespace", ""), "Namespace name which should be used for port forwarding")
 	command.PersistentFlags().IntVar(&clientOpts.HttpRetryMax, "http-retry-max", 0, "Maximum number of retries to establish http connection to Argo CD server")
 	command.PersistentFlags().BoolVar(&clientOpts.Core, "core", false, "If set to true then CLI talks directly to Kubernetes instead of talking to Argo CD API server")
+
+	clientOpts.KubeOverrides = &clientcmd.ConfigOverrides{}
+	command.PersistentFlags().StringVar(&clientOpts.KubeOverrides.CurrentContext, "kube-context", "", "Directs the command to the given kube-context")
+
 	return command
 }

@@ -6,15 +6,6 @@ import (
 )
 
 var (
-	// HelmV2 represents helm V2 specific settings
-	HelmV2 = HelmVer{
-		binaryName:           "helm2",
-		templateNameArg:      "--name",
-		kubeVersionSupported: true,
-		showCommand:          "inspect",
-		pullCommand:          "fetch",
-		initSupported:        true,
-	}
 	// HelmV3 represents helm V3 specific settings
 	HelmV3 = HelmVer{
 		binaryName:                   "helm",

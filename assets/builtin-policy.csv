@@ -1,7 +1,7 @@
 # Built-in policy which defines two roles: role:readonly and role:admin,
 # and additionally assigns the admin user to the role:admin role.
 # There are two policy formats:
-# 1. Applications (which belong to a project):
+# 1. Applications, logs, and exec (which belong to a project):
 # p, <user/group>, <resource>, <action>, <project>/<object>
 # 2. All other resources:
 # p, <user/group>, <resource>, <action>, <object>
@@ -13,6 +13,7 @@ p, role:readonly, repositories, get, *, allow
 p, role:readonly, projects, get, *, allow
 p, role:readonly, accounts, get, *, allow
 p, role:readonly, gpgkeys, get, *, allow
+p, role:readonly, logs, get, */*, allow
 
 p, role:admin, applications, create, */*, allow
 p, role:admin, applications, update, */*, allow
@@ -20,6 +21,10 @@ p, role:admin, applications, delete, */*, allow
 p, role:admin, applications, sync, */*, allow
 p, role:admin, applications, override, */*, allow
 p, role:admin, applications, action/*, */*, allow
+p, role:admin, applicationsets, get, */*, allow
+p, role:admin, applicationsets, create, */*, allow
+p, role:admin, applicationsets, update, */*, allow
+p, role:admin, applicationsets, delete, */*, allow
 p, role:admin, certificates, create, *, allow
 p, role:admin, certificates, update, *, allow
 p, role:admin, certificates, delete, *, allow
@@ -35,6 +40,7 @@ p, role:admin, projects, delete, *, allow
 p, role:admin, accounts, update, *, allow
 p, role:admin, gpgkeys, create, *, allow
 p, role:admin, gpgkeys, delete, *, allow
+p, role:admin, exec, create, */*, allow
 
 g, role:admin, role:readonly
 g, admin, role:admin

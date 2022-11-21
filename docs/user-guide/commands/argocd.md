@@ -20,6 +20,7 @@ argocd [flags]
   -h, --help                            help for argocd
       --http-retry-max int              Maximum number of retries to establish http connection to Argo CD server
       --insecure                        Skip server certificate and domain verification
+      --kube-context string             Directs the command to the given kube-context
       --logformat string                Set the logging format. One of: text|json (default "text")
       --loglevel string                 Set the logging level. One of: debug|info|warn|error (default "info")
       --plaintext                       Disable TLS
@@ -34,6 +35,7 @@ argocd [flags]
 * [argocd account](argocd_account.md)	 - Manage account settings
 * [argocd admin](argocd_admin.md)	 - Contains a set of commands useful for Argo CD administrators and requires direct Kubernetes access
 * [argocd app](argocd_app.md)	 - Manage applications
+* [argocd appset](argocd_appset.md)	 - Manage ApplicationSets
 * [argocd cert](argocd_cert.md)	 - Manage repository certificates and SSH known hosts entries
 * [argocd cluster](argocd_cluster.md)	 - Manage cluster credentials
 * [argocd completion](argocd_completion.md)	 - output shell completion code for the specified shell (bash or zsh)

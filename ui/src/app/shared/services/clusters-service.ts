@@ -10,12 +10,7 @@ export class ClustersService {
     }
 
     public get(url: string, name: string): Promise<models.Cluster> {
-        let queryName = '';
-        if (url === undefined) {
-            url = '';
-            queryName = `?name=${name}`;
-        }
-        const requestUrl = `/clusters/${encodeURIComponent(url)}` + queryName;
+        const requestUrl = `/clusters/${url ? encodeURIComponent(url) : encodeURIComponent(name)}?id.type=${url ? 'url' : 'name_escaped'}`;
         return requests.get(requestUrl).then(res => res.body as models.Cluster);
     }
 
