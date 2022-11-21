@@ -453,6 +453,7 @@ export interface AuthSettings {
     uiBannerPermanent: boolean;
     uiBannerPosition: string;
     execEnabled: boolean;
+    appsInAnyNamespaceEnabled: boolean;
 }
 
 export interface UserInfo {

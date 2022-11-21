@@ -3,7 +3,7 @@ import * as classNames from 'classnames';
 import * as React from 'react';
 import {Key, KeybindingContext, NumKey, NumKeyToNumber, NumPadKey, useNav} from 'argo-ui/v2';
 import {Cluster} from '../../../shared/components';
-import {Consumer, Context} from '../../../shared/context';
+import {Consumer, Context, AuthSettingsCtx} from '../../../shared/context';
 import * as models from '../../../shared/models';
 import {ApplicationURLs} from '../application-urls';
 import * as AppUtils from '../utils';
@@ -53,6 +53,7 @@ export const ApplicationTiles = ({applications, syncApplication, refreshApplicat
     const appRef = {ref: React.useRef(null), set: false};
     const appContainerRef = React.useRef(null);
     const appsPerRow = useItemsPerContainer(appRef.ref, appContainerRef);
+    const authSettingsCtx = React.useContext(AuthSettingsCtx);
 
     const {useKeybinding} = React.useContext(KeybindingContext);
 
@@ -97,7 +98,6 @@ export const ApplicationTiles = ({applications, syncApplication, refreshApplicat
             return navApp(NumKeyToNumber(n));
         }
     });
-
     return (
         <Consumer>
             {ctx => (
@@ -130,7 +130,9 @@ export const ApplicationTiles = ({applications, syncApplication, refreshApplicat
                                                             }>
                                                             <i className={'icon argo-icon-' + (app.spec.source.chart != null ? 'helm' : 'git')} />
                                                             <Tooltip content={AppUtils.appInstanceName(app)}>
-                                                                <span className='applications-list__title'>{AppUtils.appQualifiedName(app)}</span>
+                                                                <span className='applications-list__title'>
+                                                                    {AppUtils.appQualifiedName(app, authSettingsCtx?.appsInAnyNamespaceEnabled)}
+                                                                </span>
                                                             </Tooltip>
                                                         </div>
                                                         <div
