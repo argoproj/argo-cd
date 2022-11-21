@@ -185,7 +185,7 @@ func TestEnforceClaims(t *testing.T) {
 g, org2:team2, role:admin
 g, bob, role:admin
 `
-	_ = enf.SetUserPolicy(policy)
+	_ = enf.SetUserPolicy(common.ArgoCDRBACConfigMapName, policy)
 	allowed := []jwt.Claims{
 		jwt.MapClaims{"groups": []string{"org1:team1", "org2:team2"}},
 		jwt.RegisteredClaims{Subject: "admin"},

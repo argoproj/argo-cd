@@ -9,6 +9,7 @@ import (
 	"sync"
 	"time"
 
+	"github.com/argoproj/argo-cd/v2/common"
 	"github.com/argoproj/argo-cd/v2/util/assets"
 	"github.com/argoproj/argo-cd/v2/util/glob"
 	jwtutil "github.com/argoproj/argo-cd/v2/util/jwt"
@@ -71,6 +72,8 @@ type Enforcer struct {
 	model              model.Model
 	defaultRole        string
 	matchMode          string
+	policyCache        map[string]string
+	policyLock         sync.Mutex
 }
 
 // cachedEnforcer holds the Casbin enforcer instances and optional custom project policy
@@ -168,6 +171,7 @@ func NewEnforcer(clientset kubernetes.Interface, namespace, configmap string, cl
 		model:              builtInModel,
 		claimsEnforcerFunc: claimsEnforcer,
 		enabled:            true,
+		policyCache:        make(map[string]string),
 	}
 }
 
@@ -317,6 +321,17 @@ func enforce(enf CasbinEnforcer, defaultRole string, claimsEnforcerFunc ClaimsEn
 	return ok && err == nil
 }
 
+// buildPolicy merges all the user policies into one
+func (e *Enforcer) buildPolicy() string {
+	e.policyLock.Lock()
+	fullPolicy := ""
+	for _, policy := range e.policyCache {
+		fullPolicy = fmt.Sprintf("%s%s\n", fullPolicy, policy)
+	}
+	e.policyLock.Unlock()
+	return fullPolicy
+}
+
 // SetBuiltinPolicy sets a built-in policy, which augments any user defined policies
 func (e *Enforcer) SetBuiltinPolicy(policy string) error {
 	e.invalidateCache(func() {
@@ -326,18 +341,41 @@ func (e *Enforcer) SetBuiltinPolicy(policy string) error {
 }
 
 // SetUserPolicy sets a user policy, augmenting the built-in policy
-func (e *Enforcer) SetUserPolicy(policy string) error {
+func (e *Enforcer) SetUserPolicy(policyName string, policy string) error {
+	e.policyLock.Lock()
+	e.policyCache[policyName] = policy
+	e.policyLock.Unlock()
 	e.invalidateCache(func() {
-		e.adapter.userDefinedPolicy = policy
+		e.adapter.userDefinedPolicy = e.buildPolicy()
 	})
 	return e.LoadPolicy()
 }
 
-// newInformers returns an informer which watches updates on the rbac configmap
+// DeleteUserPolicy deletes a user policy
+func (e *Enforcer) DeleteUserPolicy(policyName string) error {
+	e.policyLock.Lock()
+	delete(e.policyCache, policyName)
+	e.policyLock.Unlock()
+	e.invalidateCache(func() {
+		e.adapter.userDefinedPolicy = e.buildPolicy()
+	})
+	return e.LoadPolicy()
+}
+
+// newInformer returns an informer which watches updates on the rbac configmap
 func (e *Enforcer) newInformer() cache.SharedIndexInformer {
 	tweakConfigMap := func(options *metav1.ListOptions) {
 		cmFieldSelector := fields.ParseSelectorOrDie(fmt.Sprintf("metadata.name=%s", e.configmap))
 		options.FieldSelector = cmFieldSelector.String()
+	}
+	indexers := cache.Indexers{cache.NamespaceIndex: cache.MetaNamespaceIndexFunc}
+	return v1.NewFilteredConfigMapInformer(e.clientset, e.namespace, defaultRBACSyncPeriod, indexers, tweakConfigMap)
+}
+
+// newAdditionalInformer returns an informer which watches updates on the rbac configmap
+func (e *Enforcer) newAdditionalInformer() cache.SharedIndexInformer {
+	tweakConfigMap := func(options *metav1.ListOptions) {
+		options.LabelSelector = "argocd.argoproj.io/cm-type=additional-rbac"
 	}
 	indexers := cache.Indexers{cache.NamespaceIndex: cache.MetaNamespaceIndexFunc}
 	return v1.NewFilteredConfigMapInformer(e.clientset, e.namespace, defaultRBACSyncPeriod, indexers, tweakConfigMap)
@@ -356,6 +394,7 @@ func (e *Enforcer) RunPolicyLoader(ctx context.Context, onUpdated func(cm *apiv1
 			return err
 		}
 	}
+	go e.runAdditionalInformer(ctx)
 	e.runInformer(ctx, onUpdated)
 	return nil
 }
@@ -370,7 +409,7 @@ func (e *Enforcer) runInformer(ctx context.Context, onUpdated func(cm *apiv1.Con
 					if err != nil {
 						log.Error(err)
 					} else {
-						log.Infof("RBAC ConfigMap '%s' added", e.configmap)
+						log.WithField(common.SecurityField, common.SecurityMedium).Infof("RBAC ConfigMap '%s' added", cm.Name)
 					}
 				}
 			},
@@ -384,7 +423,7 @@ func (e *Enforcer) runInformer(ctx context.Context, onUpdated func(cm *apiv1.Con
 				if err != nil {
 					log.Error(err)
 				} else {
-					log.Infof("RBAC ConfigMap '%s' updated", e.configmap)
+					log.WithField(common.SecurityField, common.SecurityMedium).Infof("RBAC ConfigMap '%s' updated", newCM.Name)
 				}
 			},
 		},
@@ -405,7 +444,59 @@ func (e *Enforcer) syncUpdate(cm *apiv1.ConfigMap, onUpdated func(cm *apiv1.Conf
 	if err := onUpdated(cm); err != nil {
 		return err
 	}
-	return e.SetUserPolicy(policyCSV)
+	return e.SetUserPolicy(cm.Name, policyCSV)
+}
+
+func (e *Enforcer) runAdditionalInformer(ctx context.Context) {
+	cmInformer := e.newAdditionalInformer()
+	cmInformer.AddEventHandler(
+		cache.ResourceEventHandlerFuncs{
+			AddFunc: func(obj interface{}) {
+				if cm, ok := obj.(*apiv1.ConfigMap); ok {
+					err := e.syncAdditionalUpdate(cm)
+					if err != nil {
+						log.Error(err)
+					} else {
+						log.WithField(common.SecurityField, common.SecurityMedium).Infof("RBAC Additional ConfigMap '%s' added", cm.Name)
+					}
+				}
+			},
+			UpdateFunc: func(old, new interface{}) {
+				oldCM := old.(*apiv1.ConfigMap)
+				newCM := new.(*apiv1.ConfigMap)
+				if oldCM.ResourceVersion == newCM.ResourceVersion {
+					return
+				}
+				err := e.syncAdditionalUpdate(newCM)
+				if err != nil {
+					log.Error(err)
+				} else {
+					log.WithField(common.SecurityField, common.SecurityMedium).Infof("RBAC Additional ConfigMap '%s' updated", newCM.Name)
+				}
+			},
+			DeleteFunc: func(obj interface{}) {
+				cm := obj.(*apiv1.ConfigMap)
+				err := e.DeleteUserPolicy(cm.Name)
+				if err != nil {
+					log.Error(err)
+				} else {
+					log.WithField(common.SecurityField, common.SecurityMedium).Infof("RBAC Additional ConfigMap '%s' deleted", cm.Name)
+				}
+			},
+		},
+	)
+	log.Info("Starting additional rbac config informer")
+	cmInformer.Run(ctx.Done())
+	log.Info("rbac additional configmap informer cancelled")
+}
+
+// syncUpdate updates the enforcer
+func (e *Enforcer) syncAdditionalUpdate(cm *apiv1.ConfigMap) error {
+	policyCSV, ok := cm.Data[ConfigMapPolicyCSVKey]
+	if !ok {
+		policyCSV = ""
+	}
+	return e.SetUserPolicy(cm.Name, policyCSV)
 }
 
 // ValidatePolicy verifies a policy string is acceptable to casbin

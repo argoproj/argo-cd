@@ -315,7 +315,7 @@ func getPolicyConfigMap(ctx context.Context, client kubernetes.Interface, namesp
 // checkPolicy checks whether given subject is allowed to execute specified
 // action against specified resource
 func checkPolicy(subject, action, resource, subResource, builtinPolicy, userPolicy, defaultRole, matchMode string, strict bool) bool {
-	enf := rbac.NewEnforcer(nil, "argocd", "argocd-rbac-cm", nil)
+	enf := rbac.NewEnforcer(nil, "argocd", common.ArgoCDRBACConfigMapName, nil)
 	enf.SetDefaultRole(defaultRole)
 	enf.SetMatchMode(matchMode)
 	if builtinPolicy != "" {
@@ -329,7 +329,7 @@ func checkPolicy(subject, action, resource, subResource, builtinPolicy, userPoli
 			log.Fatalf("invalid user policy: %v", err)
 			return false
 		}
-		if err := enf.SetUserPolicy(userPolicy); err != nil {
+		if err := enf.SetUserPolicy(common.ArgoCDRBACConfigMapName, userPolicy); err != nil {
 			log.Fatalf("could not set user policy: %v", err)
 			return false
 		}

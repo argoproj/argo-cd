@@ -342,7 +342,7 @@ g, group-47, role:test2
 p, role:test3, applications, *, proj-20/*, allow
 g, group-49, role:test3
 `
-		_ = enf.SetUserPolicy(policy)
+		_ = enf.SetUserPolicy(common.ArgoCDRBACConfigMapName, policy)
 	}
 	appServer := newTestAppServerWithEnforcerConfigure(f, objects...)
 

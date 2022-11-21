@@ -394,7 +394,7 @@ func TestRepositoryServerGetAppDetails(t *testing.T) {
 		repoServerClient := mocks.RepoServerServiceClient{}
 		repoServerClientset := mocks.Clientset{RepoServerServiceClient: &repoServerClient}
 		enforcer := newEnforcer(kubeclientset)
-		_ = enforcer.SetUserPolicy("p, role:readrepos, repositories, get, *, allow")
+		_ = enforcer.SetUserPolicy(common.ArgoCDRBACConfigMapName, "p, role:readrepos, repositories, get, *, allow")
 		enforcer.SetDefaultRole("role:readrepos")
 
 		url := "https://test"
