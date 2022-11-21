@@ -23,6 +23,7 @@ jobs:
   publish:
     permissions:
       contents: write  # for git to push upgrade commit if not already deployed
+      packages: write  # for pushing packages to GHCR, which is used by cd.apps.argoproj.io to avoid polluting Quay with tags
     if: github.repository == 'argoproj/argo-cd'
     runs-on: ubuntu-22.04
     env:
@@ -46,8 +47,8 @@ jobs:
           docker login quay.io --username "$DOCKER_USERNAME" --password-stdin <<< "$DOCKER_TOKEN"
         if: github.event_name == 'push'
         env:
-          USERNAME: ${{ secrets.USERNAME }}
-          PASSWORD: ${{ secrets.TOKEN }}
+          USERNAME: ${{ github.actor }}
+          PASSWORD: ${{ secrets.GITHUB_TOKEN }}
           DOCKER_USERNAME: ${{ secrets.RELEASE_QUAY_USERNAME }}
           DOCKER_TOKEN: ${{ secrets.RELEASE_QUAY_TOKEN }}
 
