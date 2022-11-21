@@ -14,8 +14,6 @@ import (
 	"github.com/argoproj/argo-cd/v2/util/settings"
 )
 
-//go:generate mockgen -destination=./mocks/service.go -package=mocks github.com/argoproj-labs/argocd-notifications/shared/argocd Service
-
 type Service interface {
 	GetCommitMetadata(ctx context.Context, repoURL string, commitSHA string) (*shared.CommitMetadata, error)
 	GetAppDetails(ctx context.Context, appSource *v1alpha1.ApplicationSource, appName string) (*shared.AppDetail, error)
