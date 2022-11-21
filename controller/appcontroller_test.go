@@ -1068,6 +1068,34 @@ func TestUpdateReconciledAt(t *testing.T) {
 
 }
 
+func TestProjectErrorToCondition(t *testing.T) {
+	app := newFakeApp()
+	app.Spec.Project = "wrong project"
+	ctrl := newFakeController(&fakeData{
+		apps: []runtime.Object{app, &defaultProj},
+		manifestResponse: &apiclient.ManifestResponse{
+			Manifests: []string{},
+			Namespace: test.FakeDestNamespace,
+			Server:    test.FakeClusterURL,
+			Revision:  "abc123",
+		},
+		managedLiveObjs: make(map[kube.ResourceKey]*unstructured.Unstructured),
+	})
+	key, _ := cache.MetaNamespaceKeyFunc(app)
+	ctrl.appRefreshQueue.Add(key)
+	ctrl.requestAppRefresh(app.Name, CompareWithRecent.Pointer(), nil)
+
+	ctrl.processAppRefreshQueueItem()
+
+	obj, ok, err := ctrl.appInformer.GetIndexer().GetByKey(key)
+	assert.True(t, ok)
+	assert.NoError(t, err)
+	updatedApp := obj.(*argoappv1.Application)
+	assert.Equal(t, argoappv1.ApplicationConditionInvalidSpecError, updatedApp.Status.Conditions[0].Type)
+	assert.Equal(t, "Application referencing project wrong project which does not exist", updatedApp.Status.Conditions[0].Message)
+	assert.Equal(t, argoappv1.ApplicationConditionInvalidSpecError, updatedApp.Status.Conditions[0].Type)
+}
+
 func TestFinalizeProjectDeletion_HasApplications(t *testing.T) {
 	app := newFakeApp()
 	proj := &argoappv1.AppProject{ObjectMeta: metav1.ObjectMeta{Name: "default", Namespace: test.FakeArgoCDNamespace}}
