@@ -491,7 +491,7 @@ function getActionItems(
         })
         .catch(() => [] as MenuItem[]);
 
-    const resourceActions = getResourceActionsMenuItems(resource, application, appContext);
+    const resourceActions = getResourceActionsMenuItems(resource, application.metadata, appContext);
 
     return combineLatest(
         from([items]), // this resolves immediately
