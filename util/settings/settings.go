@@ -108,6 +108,8 @@ type ArgoCDSettings struct {
 	// token verification to pass despite the OIDC provider having an invalid certificate. Only set to `true` if you
 	// understand the risks.
 	OIDCTLSInsecureSkipVerify bool `json:"oidcTLSInsecureSkipVerify"`
+	// AppsInAnyNamespaceEnabled indicates whether applications are allowed to be created in any namespace
+	AppsInAnyNamespaceEnabled bool `json:"appsInAnyNamespaceEnabled"`
 }
 
 type GoogleAnalytics struct {
