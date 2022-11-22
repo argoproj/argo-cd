@@ -292,8 +292,26 @@ func (s *Service) runRepoOperation(
 		}
 	}
 
+	cacheKey := revision
+
+	if source.Kustomize != nil && len(source.Kustomize.Components) > 0 {
+		cacheKey, err = s.getCacheKeyWithKustomizeComponents(
+			revision,
+			repo,
+			source,
+			settings,
+			gitClient,
+		)
+		if err != nil {
+			log.WithError(err).
+				WithField("repo", repo.Repo).
+				Warn("failed to calculate cache key with components, using only the revision of the base repository")
+			cacheKey = revision
+		}
+	}
+
 	if !settings.noCache {
-		if ok, err := cacheFn(revision, true); ok {
+		if ok, err := cacheFn(cacheKey, true); ok {
 			return err
 		}
 	}
@@ -325,7 +343,7 @@ func (s *Service) runRepoOperation(
 			return err
 		}
 		defer io.Close(closer)
-		return operation(chartPath, revision, revision, func() (*operationContext, error) {
+		return operation(chartPath, revision, cacheKey, func() (*operationContext, error) {
 			return &operationContext{chartPath, ""}, nil
 		})
 	} else {
@@ -346,13 +364,13 @@ func (s *Service) runRepoOperation(
 
 		// double-check locking
 		if !settings.noCache {
-			if ok, err := cacheFn(revision, false); ok {
+			if ok, err := cacheFn(cacheKey, false); ok {
 				return err
 			}
 		}
 		// Here commitSHA refers to the SHA of the actual commit, whereas revision refers to the branch/tag name etc
 		// We use the commitSHA to generate manifests and store them in cache, and revision to retrieve them from cache
-		return operation(gitClient.Root(), commitSHA, revision, func() (*operationContext, error) {
+		return operation(gitClient.Root(), commitSHA, cacheKey, func() (*operationContext, error) {
 			var signature string
 			if verifyCommit {
 				signature, err = gitClient.VerifyCommitSignature(revision)
@@ -398,6 +416,40 @@ func WithCMPTarExcludedGlobs(excludedGlobs []string) GenerateManifestOpt {
 	return func(o *generateManifestOpt) {
 		o.cmpTarExcludedGlobs = excludedGlobs
 	}
+}
+
+func (s *Service) getCacheKeyWithKustomizeComponents(
+	revision string,
+	repo *v1alpha1.Repository,
+	source *v1alpha1.ApplicationSource,
+	settings operationSettings,
+	gitClient git.Client,
+) (string, error) {
+	closer, err := s.repoLock.Lock(gitClient.Root(), revision, settings.allowConcurrent, func() (goio.Closer, error) {
+		return s.checkoutRevision(gitClient, revision, s.initConstants.SubmoduleEnabled)
+	})
+
+	if err != nil {
+		return "", err
+	}
+
+	defer io.Close(closer)
+
+	appPath, err := argopath.Path(gitClient.Root(), source.Path)
+	if err != nil {
+		return "", err
+	}
+
+	k := kustomize.NewKustomizeApp(appPath, repo.GetGitCreds(s.gitCredsStore), repo.Repo, source.Kustomize.Version)
+
+	resolveRevisionFunc := func(repoURL, revision string, creds git.Creds) (string, error) {
+		cloneRepo := *repo
+		cloneRepo.Repo = repoURL
+		_, res, err := s.newClientResolveRevision(&cloneRepo, revision)
+		return res, err
+	}
+
+	return k.GetCacheKeyWithComponents(revision, source.Kustomize, resolveRevisionFunc)
 }
 
 func (s *Service) GenerateManifest(ctx context.Context, q *apiclient.ManifestRequest) (*apiclient.ManifestResponse, error) {
