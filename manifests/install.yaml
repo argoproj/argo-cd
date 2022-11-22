@@ -11361,9 +11361,6 @@ spec:
       protocol: UDP
     - port: 53
       protocol: TCP
-    to:
-    - ipBlock:
-        cidr: 0.0.0.0/0
   ingress:
   - from:
     - podSelector:

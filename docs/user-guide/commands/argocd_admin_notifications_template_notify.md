@@ -11,10 +11,10 @@ argocd admin notifications template notify NAME RESOURCE_NAME [flags]
 ```
 
 # Trigger notification using in-cluster config map and secret
-notifications template notify app-sync-succeeded guestbook --recipient slack:my-slack-channel
+argocd admin notifications template notify app-sync-succeeded guestbook --recipient slack:my-slack-channel
 
 # Render notification render generated notification in console
-notifications template notify app-sync-succeeded guestbook
+argocd admin notifications template notify app-sync-succeeded guestbook
 
 ```
 
