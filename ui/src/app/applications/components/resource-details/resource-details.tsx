@@ -129,6 +129,7 @@ export const ResourceDetails = (props: ResourceDetailsProps) => {
                         content: (
                             <PodTerminalViewer
                                 applicationName={application.metadata.name}
+                                applicationNamespace={application.metadata.namespace}
                                 projectName={application.spec.project}
                                 podState={podState}
                                 selectedNode={selectedNode}

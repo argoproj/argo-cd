@@ -2575,9 +2575,13 @@ func (a *Application) QualifiedName() string {
 // RBACName returns the full qualified RBAC resource name for the application
 // in a backwards-compatible way.
 func (a *Application) RBACName(defaultNS string) string {
-	if defaultNS != "" && a.Namespace != defaultNS && a.Namespace != "" {
-		return fmt.Sprintf("%s/%s/%s", a.Spec.GetProject(), a.Namespace, a.Name)
+	return AppRBACName(defaultNS, a.Spec.GetProject(), a.Namespace, a.Name)
+}
+
+func AppRBACName(defaultNS string, project string, namespace string, name string) string {
+	if defaultNS != "" && namespace != defaultNS && namespace != "" {
+		return fmt.Sprintf("%s/%s/%s", project, namespace, name)
 	} else {
-		return fmt.Sprintf("%s/%s", a.Spec.GetProject(), a.Name)
+		return fmt.Sprintf("%s/%s", project, name)
 	}
 }
