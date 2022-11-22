@@ -190,6 +190,9 @@ data:
       clusters:
       - "*.local"
 
+  # An optional comma-separated list of metadata.labels to observe in the UI.
+  resource.customLabels: tier
+
   resource.compareoptions: |
     # if ignoreAggregatedRoles set to true then differences caused by aggregated roles in RBAC resources are ignored.
     ignoreAggregatedRoles: true

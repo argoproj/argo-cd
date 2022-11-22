@@ -27,6 +27,9 @@ import './flex-top-bar.scss';
 
 const EVENTS_BUFFER_TIMEOUT = 500;
 const WATCH_RETRY_TIMEOUT = 500;
+
+// The applications list/watch API supports only selected set of fields.
+// Make sure to register any new fields in the `appFields` map of `pkg/apiclient/application/forwarder_overwrite.go`.
 const APP_FIELDS = [
     'metadata.name',
     'metadata.namespace',
@@ -105,6 +108,12 @@ const ViewPref = ({children}: {children: (pref: AppsListPreferences & {page: num
                             if (params.get('sync') != null) {
                                 viewPref.syncFilter = params
                                     .get('sync')
+                                    .split(',')
+                                    .filter(item => !!item);
+                            }
+                            if (params.get('autoSync') != null) {
+                                viewPref.autosyncFilter = params
+                                    .get('autoSync')
                                     .split(',')
                                     .filter(item => !!item);
                             }
@@ -329,6 +338,7 @@ export const ApplicationsList = (props: RouteComponentProps<{}>) => {
             {
                 proj: newPref.projectsFilter.join(','),
                 sync: newPref.syncFilter.join(','),
+                autoSync: newPref.autoSyncFilter.join(','),
                 health: newPref.healthFilter.join(','),
                 namespace: newPref.namespacesFilter.join(','),
                 cluster: newPref.clustersFilter.join(','),
