@@ -4097,6 +4097,9 @@
         "appLabelKey": {
           "type": "string"
         },
+        "appsInAnyNamespaceEnabled": {
+          "type": "boolean"
+        },
         "configManagementPlugins": {
           "type": "array",
           "items": {
