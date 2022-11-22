@@ -103,7 +103,7 @@ func DetectConfigManagementPlugin(ctx context.Context, repoPath, pluginName stri
 	} else {
 		files, err := os.ReadDir(pluginSockFilePath)
 		if err != nil {
-			return nil, nil, err
+			return nil, nil, fmt.Errorf("Failed to list all plugins in dir, error=%w", err)
 		}
 		for _, file := range files {
 			if file.Type() == os.ModeSocket {
