@@ -3,6 +3,7 @@ package discovery
 import (
 	"context"
 	"fmt"
+	"github.com/argoproj/argo-cd/v2/util/io/files"
 	"os"
 	"path/filepath"
 	"strings"
@@ -142,6 +143,11 @@ func matchRepositoryCMP(ctx context.Context, repoPath string, client pluginclien
 
 func cmpSupports(ctx context.Context, pluginSockFilePath, repoPath, fileName string, env []string, tarExcludedGlobs []string) (io.Closer, pluginclient.ConfigManagementPluginServiceClient, bool) {
 	address := filepath.Join(pluginSockFilePath, fileName)
+	if !files.Inbound(address, pluginSockFilePath) {
+		log.Errorf("invalid socket file path, %v is outside plugin socket dir %v", fileName, pluginSockFilePath)
+		return nil, nil, false
+	}
+
 	cmpclientset := pluginclient.NewConfigManagementPluginClientSet(address)
 
 	conn, cmpClient, err := cmpclientset.NewConfigManagementPluginClient()
