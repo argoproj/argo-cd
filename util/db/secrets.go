@@ -157,7 +157,17 @@ func URIToSecretName(uriType, uri string) (string, error) {
 	}
 	h := fnv.New32a()
 	_, _ = h.Write([]byte(uri))
-	host := strings.ToLower(strings.Split(parsedURI.Host, ":")[0])
-	host = strings.Replace(host, "[", "", -1)
+	var host string
+	parsedHost := strings.Split(parsedURI.Host, ":")
+	//If IPv6 with port
+	if len(parsedHost) >= 8 {
+		if len(parsedHost) > 8 {
+			host = strings.TrimSuffix(parsedURI.Host, parsedHost[8])
+		}
+		replacer := strings.NewReplacer(":", "", "[", "", "]", "")
+		host = replacer.Replace(parsedURI.Host)
+	} else {
+		host = strings.ToLower(strings.Split(parsedURI.Host, ":")[0])
+	}
 	return fmt.Sprintf("%s-%s-%v", uriType, host, h.Sum32()), nil
 }
