@@ -28,6 +28,7 @@ argocd admin app get-reconcile-results PATH [flags]
       --refresh                        If set to true then recalculates apps reconciliation
       --repo-server string             Repo server address.
       --request-timeout string         The length of time to wait before giving up on a single server request. Non-zero values should contain a corresponding time unit (e.g. 1s, 2m, 3h). A value of zero means don't timeout requests. (default "0")
+      --server string                  The address and port of the Kubernetes API server
       --tls-server-name string         If provided, this name will be used to validate server certificate. If this is not provided, hostname used to contact the server is used.
       --token string                   Bearer token for authentication to the API server
       --user string                    The name of the kubeconfig user to use
@@ -53,7 +54,6 @@ argocd admin app get-reconcile-results PATH [flags]
       --plaintext                       Disable TLS
       --port-forward                    Connect to a random argocd-server port using port forwarding
       --port-forward-namespace string   Namespace name which should be used for port forwarding
-      --server string                   Argo CD server address
       --server-crt string               Server certificate file
 ```
 
