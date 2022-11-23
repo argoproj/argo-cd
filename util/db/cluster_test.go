@@ -33,6 +33,7 @@ func Test_URIToSecretName_IPv6(t *testing.T) {
 	assert.NotContains(t, "[", "]", name)
 	assert.Equal(t, "cluster-fcff699005054fffea7810-2794801884", name)
 }
+
 func Test_secretToCluster(t *testing.T) {
 	labels := map[string]string{"key1": "val1"}
 	annotations := map[string]string{"key2": "val2"}
