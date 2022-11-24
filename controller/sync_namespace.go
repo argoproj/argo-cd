@@ -11,7 +11,7 @@ import (
 
 // syncNamespace determines whether Argo CD should create and/or manage the namespace
 // where the application will be deployed.
-func syncNamespace(resourceTracking argo.ResourceTracking, appLabelKey string, trackingMethod v1alpha1.TrackingMethod, app *v1alpha1.Application) func(m *unstructured.Unstructured, l *unstructured.Unstructured) (bool, error) {
+func syncNamespace(resourceTracking argo.ResourceTracking, appLabelKey string, trackingMethod v1alpha1.TrackingMethod, app *v1alpha1.Application, appNamespace string) func(m *unstructured.Unstructured, l *unstructured.Unstructured) (bool, error) {
 	// This function must return true for the managed namespace to be synced.
 	return func(managedNs, liveNs *unstructured.Unstructured) (bool, error) {
 		if managedNs == nil {
@@ -29,10 +29,11 @@ func syncNamespace(resourceTracking argo.ResourceTracking, appLabelKey string, t
 		}
 
 		if isManagedNamespace {
+			appInstanceName := app.InstanceName(appNamespace)
 			if liveNs != nil {
 				// first check if another application owns the live namespace
 				liveAppName := resourceTracking.GetAppName(liveNs, appLabelKey, trackingMethod)
-				if liveAppName != "" && liveAppName != app.Name {
+				if liveAppName != "" && liveAppName != appInstanceName {
 					log.Errorf("expected namespace %s to be managed by application %s, but it's managed by application %s", liveNs.GetName(), app.Name, liveAppName)
 					return false, fmt.Errorf("namespace %s is managed by another application than %s", liveNs.GetName(), app.Name)
 				}
@@ -45,7 +46,7 @@ func syncNamespace(resourceTracking argo.ResourceTracking, appLabelKey string, t
 			managedNs.SetAnnotations(appendSSAAnnotation(managedNamespaceMetadata.Annotations))
 
 			// set ownership of the namespace to the current application
-			err := resourceTracking.SetAppInstance(managedNs, appLabelKey, app.Name, "", trackingMethod)
+			err := resourceTracking.SetAppInstance(managedNs, appLabelKey, appInstanceName, "", trackingMethod)
 			if err != nil {
 				return false, fmt.Errorf("failed to set app instance tracking on the namespace %s: %s", managedNs.GetName(), err)
 			}

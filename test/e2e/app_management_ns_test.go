@@ -1916,7 +1916,7 @@ func TestNamespacedNamespaceAutoCreationWithMetadata(t *testing.T) {
 			delete(ns.Annotations, "argocd.argoproj.io/tracking-id")
 			delete(ns.Annotations, "kubectl.kubernetes.io/last-applied-configuration")
 
-			assert.Equal(t, fmt.Sprintf("%s:/Namespace:/%s", app.Name, updatedNamespace), trackingId)
+			assert.Equal(t, fmt.Sprintf("%s_%s:/Namespace:/%s", AppNamespace(), app.Name, updatedNamespace), trackingId)
 
 			assert.Equal(t, map[string]string{"foo": "bar"}, ns.Labels)
 			assert.Equal(t, map[string]string{"bar": "bat", "argocd.argoproj.io/sync-options": "ServerSideApply=true"}, ns.Annotations)
@@ -1942,7 +1942,7 @@ func TestNamespacedNamespaceAutoCreationWithMetadata(t *testing.T) {
 			delete(ns.Annotations, "kubectl.kubernetes.io/last-applied-configuration")
 			delete(ns.Annotations, "argocd.argoproj.io/tracking-id")
 
-			assert.Equal(t, fmt.Sprintf("%s:/Namespace:/%s", app.Name, updatedNamespace), trackingId)
+			assert.Equal(t, fmt.Sprintf("%s_%s:/Namespace:/%s", AppNamespace(), app.Name, updatedNamespace), trackingId)
 
 			assert.Equal(t, map[string]string{"new": "label"}, ns.Labels)
 			assert.Equal(t, map[string]string{"bar": "bat", "argocd.argoproj.io/sync-options": "ServerSideApply=true"}, ns.Annotations)
@@ -1965,7 +1965,7 @@ func TestNamespacedNamespaceAutoCreationWithMetadata(t *testing.T) {
 			delete(ns.Annotations, "argocd.argoproj.io/tracking-id")
 			delete(ns.Annotations, "kubectl.kubernetes.io/last-applied-configuration")
 
-			assert.Equal(t, fmt.Sprintf("%s:/Namespace:/%s", app.Name, updatedNamespace), trackingId)
+			assert.Equal(t, fmt.Sprintf("%s_%s:/Namespace:/%s", AppNamespace(), app.Name, updatedNamespace), trackingId)
 
 			assert.Equal(t, map[string]string{"new": "label"}, ns.Labels)
 			assert.Equal(t, map[string]string{"new": "custom-annotation", "argocd.argoproj.io/sync-options": "ServerSideApply=true"}, ns.Annotations)
@@ -2012,7 +2012,7 @@ func TestNamespacedNamespaceAutoCreationWithMetadataAndNsManifest(t *testing.T) 
 		Then().
 		Expect(Success("")).
 		Expect(Namespace(namespace, func(app *Application, ns *v1.Namespace) {
-			assert.NotEmpty(t, app.Status.Conditions)
+			assert.Empty(t, app.Status.Conditions)
 
 			trackingId := ns.Annotations["argocd.argoproj.io/tracking-id"]
 
@@ -2024,7 +2024,8 @@ func TestNamespacedNamespaceAutoCreationWithMetadataAndNsManifest(t *testing.T) 
 
 			// TODO: The tracking id is different for namespace manifests vs namespaces generated with CreateNamespace=true
 			// Should that be the case or should we change the format to be the same for both types?
-			assert.Equal(t, fmt.Sprintf("%s:/Namespace:%s/%s", app.Name, AppNamespace(), namespace), trackingId)
+			//assert.Equal(t, fmt.Sprintf("%s_%s:/Namespace:/%s", AppNamespace(), app.Name, namespace), trackingId)
+			assert.Equal(t, fmt.Sprintf("%s_%s:/Namespace:%s/%s", AppNamespace(), app.Name, namespace, namespace), trackingId)
 
 			// The application namespace manifest takes precedence over what is in managedNamespaceMetadata
 			assert.Equal(t, map[string]string{"test": "true"}, ns.Labels)
@@ -2110,7 +2111,7 @@ metadata:
 			delete(ns.Annotations, "argocd.argoproj.io/tracking-id")
 			delete(ns.Annotations, "kubectl.kubernetes.io/last-applied-configuration")
 
-			assert.Equal(t, fmt.Sprintf("%s:/Namespace:/%s", app.Name, updatedNamespace), trackingId)
+			assert.Equal(t, fmt.Sprintf("%s_%s:/Namespace:/%s", AppNamespace(), app.Name, updatedNamespace), trackingId)
 
 			assert.Equal(t, map[string]string{"test": "true", "foo": "bar"}, ns.Labels)
 			assert.Equal(t, map[string]string{"argocd.argoproj.io/sync-options": "ServerSideApply=true", "something": "whatevs", "bar": "bat"}, ns.Annotations)
@@ -2133,7 +2134,7 @@ metadata:
 			delete(ns.Annotations, "kubectl.kubernetes.io/last-applied-configuration")
 			delete(ns.Annotations, "argocd.argoproj.io/tracking-id")
 
-			assert.Equal(t, fmt.Sprintf("%s:/Namespace:/%s", app.Name, updatedNamespace), trackingId)
+			assert.Equal(t, fmt.Sprintf("%s_%s:/Namespace:/%s", AppNamespace(), app.Name, updatedNamespace), trackingId)
 
 			assert.Equal(t, map[string]string{"test": "true", "foo": "bar"}, ns.Labels)
 			assert.Equal(t, map[string]string{"argocd.argoproj.io/sync-options": "ServerSideApply=true", "something": "hmm", "bar": "bat"}, ns.Annotations)
@@ -2157,7 +2158,7 @@ metadata:
 			delete(ns.Annotations, "kubectl.kubernetes.io/last-applied-configuration")
 			delete(ns.Annotations, "argocd.argoproj.io/tracking-id")
 
-			assert.Equal(t, fmt.Sprintf("%s:/Namespace:/%s", app.Name, updatedNamespace), trackingId)
+			assert.Equal(t, fmt.Sprintf("%s_%s:/Namespace:/%s", AppNamespace(), app.Name, updatedNamespace), trackingId)
 
 			assert.Equal(t, map[string]string{"test": "true", "foo": "bar"}, ns.Labels)
 			assert.Equal(t, map[string]string{"argocd.argoproj.io/sync-options": "ServerSideApply=true", "bar": "bat"}, ns.Annotations)
