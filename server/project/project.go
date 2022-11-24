@@ -157,8 +157,17 @@ func (s *Server) createToken(ctx context.Context, q *project.ProjectTokenCreateR
 
 }
 
-func (s *Server) ListLinks(ctx context.Context, q *application.ListLinksRequest) (*application.LinksResponse, error) {
-	proj, err := s.appclientset.ArgoprojV1alpha1().AppProjects(s.ns).Get(ctx, q.GetName(), metav1.GetOptions{})
+func (s *Server) ListLinks(ctx context.Context, q *project.ListProjectLinksRequest) (*application.LinksResponse, error) {
+	projName := q.GetName()
+
+	if err := s.enf.EnforceErr(ctx.Value("claims"), rbacpolicy.ResourceProjects, rbacpolicy.ActionGet, projName); err != nil {
+		log.WithFields(map[string]interface{}{
+			"project": projName,
+		}).Warnf("unauthorized access to project, error=%v", err.Error())
+		return nil, fmt.Errorf("unauthorized access to project %v", projName)
+	}
+
+	proj, err := s.appclientset.ArgoprojV1alpha1().AppProjects(s.ns).Get(ctx, projName, metav1.GetOptions{})
 	if err != nil {
 		return nil, err
 	}

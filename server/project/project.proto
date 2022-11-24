@@ -70,6 +70,10 @@ message DetailedProjectsResponse {
     repeated github.com.argoproj.argo_cd.v2.pkg.apis.application.v1alpha1.Cluster clusters = 4;
 }
 
+message ListProjectLinksRequest {
+  string name = 1;
+}
+
 // ProjectService
 service ProjectService {
 
@@ -138,7 +142,7 @@ service ProjectService {
   }
 
   // ListLinks returns all deep links for the particular project
-  rpc ListLinks(application.ListLinksRequest) returns (application.LinksResponse) {
+  rpc ListLinks(ListProjectLinksRequest) returns (application.LinksResponse) {
     option (google.api.http).get = "/api/v1/projects/{name}/links";
   }
 

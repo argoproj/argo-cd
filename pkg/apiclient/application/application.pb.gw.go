@@ -1795,7 +1795,7 @@ var (
 )
 
 func request_ApplicationService_ListLinks_0(ctx context.Context, marshaler runtime.Marshaler, client ApplicationServiceClient, req *http.Request, pathParams map[string]string) (proto.Message, runtime.ServerMetadata, error) {
-	var protoReq ListLinksRequest
+	var protoReq ListAppLinksRequest
 	var metadata runtime.ServerMetadata
 
 	var (
@@ -1829,7 +1829,7 @@ func request_ApplicationService_ListLinks_0(ctx context.Context, marshaler runti
 }
 
 func local_request_ApplicationService_ListLinks_0(ctx context.Context, marshaler runtime.Marshaler, server ApplicationServiceServer, req *http.Request, pathParams map[string]string) (proto.Message, runtime.ServerMetadata, error) {
-	var protoReq ListLinksRequest
+	var protoReq ListAppLinksRequest
 	var metadata runtime.ServerMetadata
 
 	var (

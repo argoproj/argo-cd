@@ -275,9 +275,10 @@ message LinksResponse {
 	repeated LinkInfo items = 1;
 }
 
-message ListLinksRequest {
+message ListAppLinksRequest {
 	required string name = 1;
-	optional string namespace = 2;
+	required string project = 2;
+	optional string namespace = 3;
 }
 
 
@@ -444,7 +445,7 @@ service ApplicationService {
 	}
 
 	// ListLinks returns the list of all application deep links
-	rpc ListLinks(ListLinksRequest) returns (LinksResponse) {
+	rpc ListLinks(ListAppLinksRequest) returns (LinksResponse) {
 		option (google.api.http).get = "/api/v1/applications/{name}/links";
 	}
 
