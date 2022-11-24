@@ -15,13 +15,14 @@ spec:
   source:
     chart: sealed-secrets
     repoURL: https://bitnami-labs.github.io/sealed-secrets
+    path: overlays/prod
     targetRevision: 1.16.1
   destination:
     server: "https://kubernetes.default.svc"
     namespace: kubeseal
 ```
 
-If the `kustomization.yaml` file exists at the location pointed to by 'repoURL', Argo CD will deploy the application using Kustomize.
+If the `kustomization.yaml` file exists at the location pointed to by `repoURL` and `path`, Argo CD will deploy the application using Kustomize.
 
 The following configuration options are available for Kustomize:
 
