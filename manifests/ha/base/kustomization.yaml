@@ -12,7 +12,6 @@ images:
   newTag: latest
 resources:
 - ../../base/application-controller
-- ../../base/applicationset-controller
 - ../../base/dex
 - ../../base/repo-server
 - ../../base/server
