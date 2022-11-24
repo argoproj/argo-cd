@@ -41,6 +41,7 @@ data:
     port 6379
     rename-command FLUSHDB ""
     rename-command FLUSHALL ""
+    bind * -::*
     maxmemory 0
     maxmemory-policy volatile-lru
     min-replicas-max-lag 5
@@ -618,7 +619,7 @@ data:
       timeout check 2s
 
     listen health_check_http_url
-      bind [::]:8888  v4v6
+      bind :8888  
       mode http
       monitor-uri /healthz
       option      dontlognull
@@ -665,7 +666,7 @@ data:
     # decide redis backend to use
     #master
     frontend ft_redis_master
-      bind [::]:6379 v4v6
+      bind :6379 
       use_backend bk_redis_master
     # Check all redis servers to see if they think they are master
     backend bk_redis_master
@@ -1045,7 +1046,7 @@ spec:
         release: argocd
         revision: "1"
       annotations:
-        checksum/config: 1f7a9ffcacb3871ceb9b0741c0714e3f7fa656d426a398c1f727fffb01073f35
+        checksum/config: 718bbb277da8610063a7c0fd810984577c2e8ab215815a71211dfa6e20f67321
     spec:
       # Needed when using unmodified rbac-setup.yml
       
@@ -1153,7 +1154,7 @@ spec:
   template:
     metadata:
       annotations:
-        checksum/init-config: 84ccf6a9b8a7fa3ae5b62a8f17d6c65a5197e9605da9b2761179bf942828eefe
+        checksum/init-config: d100c39cabf3270bd22333e6829fa66dec42535444e9fb4413a31fab82b92990
       labels:
         release: argocd
         app: redis-ha
