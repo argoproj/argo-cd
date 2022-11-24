@@ -21,6 +21,8 @@ spec:
     namespace: kubeseal
 ```
 
+If the `kustomization.yaml` file exists at the location pointed to by 'repoURL', Argo CD will deploy the application using Kustomize.
+
 The following configuration options are available for Kustomize:
 
 * `namePrefix` is a prefix appended to resources for Kustomize apps
