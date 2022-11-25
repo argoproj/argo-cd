@@ -3,8 +3,10 @@ import {FormFunctionProps} from 'react-form';
 import {CheckboxField} from '..';
 import * as models from '../../models';
 import {appInstanceName, appQualifiedName, ComparisonStatusIcon, HealthStatusIcon, OperationPhaseIcon} from '../../../applications/components/utils';
+import {AuthSettingsCtx} from '../../context';
 
 export const ApplicationSelector = ({apps, formApi}: {apps: models.Application[]; formApi: FormFunctionProps}) => {
+    const authSettingsCtx = React.useContext(AuthSettingsCtx);
     return (
         <>
             <label>
@@ -18,7 +20,9 @@ export const ApplicationSelector = ({apps, formApi}: {apps: models.Application[]
                     <label key={appInstanceName(app)} style={{marginTop: '0.5em', cursor: 'pointer'}}>
                         <CheckboxField field={`app/${i}`} />
                         &nbsp;
-                        {app.isAppOfAppsPattern ? `(App of Apps) ${appQualifiedName(app)}` : appQualifiedName(app)}
+                        {app.isAppOfAppsPattern
+                            ? `(App of Apps) ${appQualifiedName(app, authSettingsCtx?.appsInAnyNamespaceEnabled)}`
+                            : appQualifiedName(app, authSettingsCtx?.appsInAnyNamespaceEnabled)}
                         &nbsp;
                         <ComparisonStatusIcon status={app.status.sync.status} />
                         &nbsp;

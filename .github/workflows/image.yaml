@@ -63,7 +63,7 @@ jobs:
           fi
           echo "Building image for platforms: $IMAGE_PLATFORMS"
           docker buildx build --platform $IMAGE_PLATFORMS --push="${{ github.event_name == 'push' }}" \
-            -t ghcr.io/argoproj/argocd:${{ steps.image.outputs.tag }} \
+            -t ghcr.io/argoproj/argo-cd/argocd:${{ steps.image.outputs.tag }} \
             -t quay.io/argoproj/argocd:latest .
         working-directory: ./src/github.com/argoproj/argo-cd
 
@@ -89,7 +89,7 @@ jobs:
         env:
           TOKEN: ${{ secrets.TOKEN }}
       - run: |
-          docker run -u $(id -u):$(id -g) -v $(pwd):/src -w /src --rm -t ghcr.io/argoproj/argocd:${{ steps.image.outputs.tag }} kustomize edit set image quay.io/argoproj/argocd=ghcr.io/argoproj/argocd:${{ steps.image.outputs.tag }}
+          docker run -u $(id -u):$(id -g) -v $(pwd):/src -w /src --rm -t ghcr.io/argoproj/argo-cd/argocd:${{ steps.image.outputs.tag }} kustomize edit set image quay.io/argoproj/argocd=ghcr.io/argoproj/argo-cd/argocd:${{ steps.image.outputs.tag }}
           git config --global user.email 'ci@argoproj.com'
           git config --global user.name 'CI'
           git diff --exit-code && echo 'Already deployed' || (git commit -am 'Upgrade argocd to ${{ steps.image.outputs.tag }}' && git push)
