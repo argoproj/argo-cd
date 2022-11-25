@@ -14,7 +14,7 @@ require (
 	github.com/aws/aws-sdk-go v1.44.129
 	github.com/bombsimon/logrusr/v2 v2.0.1
 	github.com/bradleyfalzon/ghinstallation/v2 v2.0.4
-	github.com/casbin/casbin/v2 v2.39.1
+	github.com/casbin/casbin/v2 v2.57.1
 	github.com/chai2010/gettext-go v0.0.0-20170215093142-bf70f2a70fb1 // indirect
 	github.com/coreos/go-oidc v2.2.1+incompatible
 	github.com/dustin/go-humanize v1.0.0
