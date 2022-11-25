@@ -80,7 +80,7 @@ resources:
 ## Helm
 
 The Argo CD can be installed using [Helm](https://helm.sh/). The Helm chart is currently community maintained and available at
-[argo-helm/charts/argo-cd](https://github.com/argoproj/argo-helm/tree/master/charts/argo-cd).
+[argo-helm/charts/argo-cd](https://github.com/argoproj/argo-helm/tree/main/charts/argo-cd).
 
 ## Supported versions
 
