@@ -1,6 +1,6 @@
 # Build Environment
 
-[Custom tools](config-management-plugins.md), [Helm](helm.md), [Jsonnet](jsonnet.md), and [Kustomize](kustomize.md) support the following build env vars:
+[Helm](helm.md), [Jsonnet](jsonnet.md), and [Custom tools](config-management-plugins.md) support the following build env vars:
 
 * `ARGOCD_APP_NAME` - name of application
 * `ARGOCD_APP_NAMESPACE` - destination application namespace.
