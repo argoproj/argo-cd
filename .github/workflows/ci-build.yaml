@@ -51,7 +51,7 @@ jobs:
         with:
           go-version: ${{ env.GOLANG_VERSION }}
       - name: Restore go build cache
-        uses: actions/cache@v1
+        uses: actions/cache@v3
         with:
           path: ~/.cache/go-build
           key: ${{ runner.os }}-go-build-v1-${{ github.run_id }}
@@ -116,7 +116,7 @@ jobs:
         run: |
           echo "/usr/local/bin" >> $GITHUB_PATH
       - name: Restore go build cache
-        uses: actions/cache@v1
+        uses: actions/cache@v3
         with:
           path: ~/.cache/go-build
           key: ${{ runner.os }}-go-build-v1-${{ github.run_id }}
@@ -133,12 +133,12 @@ jobs:
       - name: Run all unit tests
         run: make test-local
       - name: Generate code coverage artifacts
-        uses: actions/upload-artifact@v2
+        uses: actions/upload-artifact@v3
         with:
           name: code-coverage
           path: coverage.out
       - name: Generate test results artifacts
-        uses: actions/upload-artifact@v2
+        uses: actions/upload-artifact@v3
         with:
           name: test-results
           path: test-results/
@@ -179,7 +179,7 @@ jobs:
         run: |
           echo "/usr/local/bin" >> $GITHUB_PATH
       - name: Restore go build cache
-        uses: actions/cache@v1
+        uses: actions/cache@v3
         with:
           path: ~/.cache/go-build
           key: ${{ runner.os }}-go-build-v1-${{ github.run_id }}
@@ -196,7 +196,7 @@ jobs:
       - name: Run all unit tests
         run: make test-race-local
       - name: Generate test results artifacts
-        uses: actions/upload-artifact@v2
+        uses: actions/upload-artifact@v3
         with:
           name: race-results
           path: test-results/
@@ -252,12 +252,12 @@ jobs:
       - name: Checkout code
         uses: actions/checkout@v3
       - name: Setup NodeJS
-        uses: actions/setup-node@v1
+        uses: actions/setup-node@v3
         with:
           node-version: '12.18.4'
       - name: Restore node dependency cache
         id: cache-dependencies
-        uses: actions/cache@v1
+        uses: actions/cache@v3
         with:
           path: ui/node_modules
           key: ${{ runner.os }}-node-dep-v2-${{ hashFiles('**/yarn.lock') }}
@@ -292,7 +292,7 @@ jobs:
           fetch-depth: 0
       - name: Restore node dependency cache
         id: cache-dependencies
-        uses: actions/cache@v1
+        uses: actions/cache@v3
         with:
           path: ui/node_modules
           key: ${{ runner.os }}-node-dep-v2-${{ hashFiles('**/yarn.lock') }}
@@ -303,16 +303,16 @@ jobs:
         run: |
           mkdir -p test-results
       - name: Get code coverage artifiact
-        uses: actions/download-artifact@v2
+        uses: actions/download-artifact@v3
         with:
           name: code-coverage
       - name: Get test result artifact
-        uses: actions/download-artifact@v2
+        uses: actions/download-artifact@v3
         with:
           name: test-results
           path: test-results
       - name: Upload code coverage information to codecov.io
-        uses: codecov/codecov-action@v1
+        uses: codecov/codecov-action@v3
         with:
           file: coverage.out
       - name: Perform static code analysis using SonarCloud
@@ -386,7 +386,7 @@ jobs:
           sudo chown runner $HOME/.kube/config
           kubectl version
       - name: Restore go build cache
-        uses: actions/cache@v1
+        uses: actions/cache@v3
         with:
           path: ~/.cache/go-build
           key: ${{ runner.os }}-go-build-v1-${{ github.run_id }}
@@ -442,7 +442,7 @@ jobs:
           set -x
           make test-e2e-local
       - name: Upload e2e-server logs
-        uses: actions/upload-artifact@v2
+        uses: actions/upload-artifact@v3
         with:
           name: e2e-server-k8s${{ matrix.k3s-version }}.log
           path: /tmp/e2e-server.log
