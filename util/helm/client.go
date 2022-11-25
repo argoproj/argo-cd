@@ -420,7 +420,10 @@ func (c *nativeHelmChart) getTags(chart string) ([]byte, error) {
 		allTags.Tags = append(allTags.Tags, tags.Tags...)
 	}
 	data, err = json.Marshal(allTags)
-	return data, err
+	if err != nil {
+		return nil, fmt.Errorf("failed to marshal tag json: %w", err)
+	}
+	return data, nil
 }
 
 func getNextUrl(linkHeader string) string {
