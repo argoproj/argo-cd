@@ -7,10 +7,7 @@ import './applications-labels.scss';
 export const ApplicationsLabels = ({app}: {app: Application}) => {
     const labels = (
         <>
-            <span className='application-labels__item'>
-                {app.spec.source.targetRevision || 'HEAD'}
-                {app.status.sync?.revision !== app.spec.source.targetRevision && <> ({app.status.sync.revision})</>}
-            </span>
+            <span className='application-labels__item'>{app.spec.source.targetRevision || 'HEAD'}</span>
             {Object.keys(app.metadata.labels || {}).map(label => (
                 <span className='application-labels__item' key={label}>{`${label}=${app.metadata.labels[label]}`}</span>
             ))}
