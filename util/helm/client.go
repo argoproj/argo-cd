@@ -415,7 +415,7 @@ func (c *nativeHelmChart) getTags(chart string) ([]byte, error) {
 		tags := &TagsList{}
 		err := json.Unmarshal(data, tags)
 		if err != nil {
-			return nil, fmt.Errorf("unable to decode yaml: %v", err)
+			return nil, fmt.Errorf("unable to decode json: %v", err)
 		}
 		allTags.Tags = append(allTags.Tags, tags.Tags...)
 	}
