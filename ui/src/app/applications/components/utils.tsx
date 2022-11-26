@@ -491,7 +491,7 @@ function getActionItems(
         })
         .catch(() => [] as MenuItem[]);
 
-    const resourceActions = getResourceActionsMenuItems(resource, application, appContext);
+    const resourceActions = getResourceActionsMenuItems(resource, application.metadata, appContext);
 
     return combineLatest(
         from([items]), // this resolves immediately
@@ -1150,8 +1150,8 @@ export const urlPattern = new RegExp(
     )
 );
 
-export function appQualifiedName(app: appModels.Application): string {
-    return app.metadata.namespace + '/' + app.metadata.name;
+export function appQualifiedName(app: appModels.Application, nsEnabled: boolean): string {
+    return (nsEnabled ? app.metadata.namespace + '/' : '') + app.metadata.name;
 }
 
 export function appInstanceName(app: appModels.Application): string {

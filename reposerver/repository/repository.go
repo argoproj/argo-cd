@@ -856,7 +856,7 @@ func helmTemplate(appPath string, repoRoot string, env *v1alpha1.Env, q *apiclie
 		for _, val := range appHelm.ValueFiles {
 
 			// This will resolve val to an absolute path (or an URL)
-			path, isRemote, err := pathutil.ResolveFilePath(appPath, repoRoot, env.Envsubst(val), q.GetValuesFileSchemes())
+			path, isRemote, err := pathutil.ResolveValueFilePathOrUrl(appPath, repoRoot, env.Envsubst(val), q.GetValuesFileSchemes())
 			if err != nil {
 				return nil, err
 			}
@@ -896,7 +896,7 @@ func helmTemplate(appPath string, repoRoot string, env *v1alpha1.Env, q *apiclie
 			}
 		}
 		for _, p := range appHelm.FileParameters {
-			resolvedPath, _, err := pathutil.ResolveFilePath(appPath, repoRoot, env.Envsubst(p.Path), q.GetValuesFileSchemes())
+			resolvedPath, _, err := pathutil.ResolveValueFilePathOrUrl(appPath, repoRoot, env.Envsubst(p.Path), q.GetValuesFileSchemes())
 			if err != nil {
 				return nil, err
 			}
@@ -1504,7 +1504,7 @@ func makeJsonnetVm(appPath string, repoRoot string, sourceJsonnet v1alpha1.Appli
 	jpaths := []string{appPath}
 	for _, p := range sourceJsonnet.Libs {
 		// the jsonnet library path is relative to the repository root, not application path
-		jpath, _, err := pathutil.ResolveFilePath(repoRoot, repoRoot, p, nil)
+		jpath, err := pathutil.ResolveFileOrDirectoryPath(repoRoot, repoRoot, p)
 		if err != nil {
 			return nil, err
 		}
@@ -1752,7 +1752,7 @@ func populateHelmAppDetails(res *apiclient.RepoAppDetailsResponse, appPath strin
 		return err
 	}
 
-	if resolvedValuesPath, _, err := pathutil.ResolveFilePath(appPath, repoRoot, "values.yaml", []string{}); err == nil {
+	if resolvedValuesPath, _, err := pathutil.ResolveValueFilePathOrUrl(appPath, repoRoot, "values.yaml", []string{}); err == nil {
 		if err := loadFileIntoIfExists(resolvedValuesPath, &res.Helm.Values); err != nil {
 			return err
 		}
@@ -1762,7 +1762,7 @@ func populateHelmAppDetails(res *apiclient.RepoAppDetailsResponse, appPath strin
 	var resolvedSelectedValueFiles []pathutil.ResolvedFilePath
 	// drop not allowed values files
 	for _, file := range selectedValueFiles {
-		if resolvedFile, _, err := pathutil.ResolveFilePath(appPath, repoRoot, file, q.GetValuesFileSchemes()); err == nil {
+		if resolvedFile, _, err := pathutil.ResolveValueFilePathOrUrl(appPath, repoRoot, file, q.GetValuesFileSchemes()); err == nil {
 			resolvedSelectedValueFiles = append(resolvedSelectedValueFiles, resolvedFile)
 		} else {
 			log.Warnf("Values file %s is not allowed: %v", file, err)
@@ -1956,14 +1956,27 @@ func (s *Service) newClientResolveRevision(repo *v1alpha1.Repository, revision s
 func (s *Service) newHelmClientResolveRevision(repo *v1alpha1.Repository, revision string, chart string, noRevisionCache bool) (helm.Client, string, error) {
 	enableOCI := repo.EnableOCI || helm.IsHelmOciRepo(repo.Repo)
 	helmClient := s.newHelmClient(repo.Repo, repo.GetHelmCreds(), enableOCI, repo.Proxy, helm.WithIndexCache(s.cache), helm.WithChartPaths(s.chartPaths))
-	// OCI helm registers don't support semver ranges. Assuming that given revision is exact version
-	if helm.IsVersion(revision) || enableOCI {
+	if helm.IsVersion(revision) {
 		return helmClient, revision, nil
 	}
 	constraints, err := semver.NewConstraint(revision)
 	if err != nil {
 		return nil, "", fmt.Errorf("invalid revision '%s': %v", revision, err)
 	}
+
+	if enableOCI {
+		tags, err := helmClient.GetTags(chart, noRevisionCache)
+		if err != nil {
+			return nil, "", fmt.Errorf("unable to get tags: %v", err)
+		}
+
+		version, err := tags.MaxVersion(constraints)
+		if err != nil {
+			return nil, "", fmt.Errorf("no version for constraints: %v", err)
+		}
+		return helmClient, version.String(), nil
+	}
+
 	index, err := helmClient.GetIndex(noRevisionCache)
 	if err != nil {
 		return nil, "", err
@@ -2099,30 +2112,14 @@ func (s *Service) ResolveRevision(ctx context.Context, q *apiclient.ResolveRevis
 	ambiguousRevision := q.AmbiguousRevision
 	var revision string
 	if app.Spec.Source.IsHelm() {
+		_, revision, err := s.newHelmClientResolveRevision(repo, ambiguousRevision, app.Spec.Source.Chart, true)
 
-		if helm.IsVersion(ambiguousRevision) {
-			return &apiclient.ResolveRevisionResponse{Revision: ambiguousRevision, AmbiguousRevision: ambiguousRevision}, nil
-		}
-		client := helm.NewClient(repo.Repo, repo.GetHelmCreds(), repo.EnableOCI || app.Spec.Source.IsHelmOci(), repo.Proxy, helm.WithChartPaths(s.chartPaths))
-		index, err := client.GetIndex(false)
-		if err != nil {
-			return &apiclient.ResolveRevisionResponse{Revision: "", AmbiguousRevision: ""}, err
-		}
-		entries, err := index.GetEntries(app.Spec.Source.Chart)
-		if err != nil {
-			return &apiclient.ResolveRevisionResponse{Revision: "", AmbiguousRevision: ""}, err
-		}
-		constraints, err := semver.NewConstraint(ambiguousRevision)
-		if err != nil {
-			return &apiclient.ResolveRevisionResponse{Revision: "", AmbiguousRevision: ""}, err
-		}
-		version, err := entries.MaxVersion(constraints)
 		if err != nil {
 			return &apiclient.ResolveRevisionResponse{Revision: "", AmbiguousRevision: ""}, err
 		}
 		return &apiclient.ResolveRevisionResponse{
-			Revision:          version.String(),
-			AmbiguousRevision: fmt.Sprintf("%v (%v)", ambiguousRevision, version.String()),
+			Revision:          revision,
+			AmbiguousRevision: fmt.Sprintf("%v (%v)", ambiguousRevision, revision),
 		}, nil
 	} else {
 		gitClient, err := git.NewClient(repo.Repo, repo.GetGitCreds(s.gitCredsStore), repo.IsInsecure(), repo.IsLFSEnabled(), repo.Proxy)

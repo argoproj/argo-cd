@@ -389,6 +389,11 @@ func (c *liveStateCache) getCluster(server string) (clustercache.ClusterCache, e
 		return nil, fmt.Errorf("controller is configured to ignore cluster %s", cluster.Server)
 	}
 
+	resourceCustomLabels, err := c.settingsMgr.GetResourceCustomLabels()
+	if err != nil {
+		return nil, fmt.Errorf("error getting custom label: %w", err)
+	}
+
 	clusterCacheOpts := []clustercache.UpdateSettingsFunc{
 		clustercache.SetListSemaphore(semaphore.NewWeighted(clusterCacheListSemaphoreSize)),
 		clustercache.SetListPageSize(clusterCacheListPageSize),
@@ -400,7 +405,7 @@ func (c *liveStateCache) getCluster(server string) (clustercache.ClusterCache, e
 		clustercache.SetClusterResources(cluster.ClusterResources),
 		clustercache.SetPopulateResourceInfoHandler(func(un *unstructured.Unstructured, isRoot bool) (interface{}, bool) {
 			res := &ResourceInfo{}
-			populateNodeInfo(un, res)
+			populateNodeInfo(un, res, resourceCustomLabels)
 			c.lock.RLock()
 			cacheSettings := c.cacheSettings
 			c.lock.RUnlock()
