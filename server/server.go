@@ -1133,7 +1133,7 @@ func (a *ArgoCDServer) Authenticate(ctx context.Context) (context.Context, error
 	if a.DisableAuth {
 		return ctx, nil
 	}
-	claims, newToken, claimsErr := a.getClaims(ctx)
+	claims, newToken, isSSO, claimsErr := a.getClaims(ctx)
 	if claims != nil {
 		// Add claims to the context to inspect for RBAC
 		// nolint:staticcheck
@@ -1147,6 +1147,9 @@ func (a *ArgoCDServer) Authenticate(ctx context.Context) (context.Context, error
 			}
 		}
 	}
+	// Attach information about whether this user is an SSO user. This facilitates the auto-login UI feature for expired
+	// SSO tokens.
+	ctx = context.WithValue(ctx, util_session.IsSSOCtxKeyVal, isSSO)
 	if claimsErr != nil {
 		// nolint:staticcheck
 		ctx = context.WithValue(ctx, util_session.AuthErrorCtxKey, claimsErr)
@@ -1168,20 +1171,21 @@ func (a *ArgoCDServer) Authenticate(ctx context.Context) (context.Context, error
 	return ctx, nil
 }
 
-func (a *ArgoCDServer) getClaims(ctx context.Context) (jwt.Claims, string, error) {
+func (a *ArgoCDServer) getClaims(ctx context.Context) (claims jwt.Claims, newToken string, isSSO bool, err error) {
 	md, ok := metadata.FromIncomingContext(ctx)
 	if !ok {
-		return nil, "", ErrNoSession
+		return nil, "", false, ErrNoSession
 	}
 	tokenString := getToken(md)
 	if tokenString == "" {
-		return nil, "", ErrNoSession
+		return nil, "", false, ErrNoSession
 	}
-	claims, newToken, err := a.sessionMgr.VerifyToken(tokenString)
+	isSSO = util_session.IsSSO(tokenString)
+	claims, newToken, err = a.sessionMgr.VerifyToken(tokenString)
 	if err != nil {
-		return claims, "", status.Errorf(codes.Unauthenticated, "invalid session: %v", err)
+		return claims, "", isSSO, status.Errorf(codes.Unauthenticated, "invalid session: %v", err)
 	}
-	return claims, newToken, nil
+	return claims, newToken, isSSO, nil
 }
 
 // getToken extracts the token from gRPC metadata or cookie headers

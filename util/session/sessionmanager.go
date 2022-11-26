@@ -12,7 +12,7 @@ import (
 	"strings"
 	"time"
 
-	oidc "github.com/coreos/go-oidc"
+	"github.com/coreos/go-oidc"
 	"github.com/golang-jwt/jwt/v4"
 	"github.com/google/uuid"
 	log "github.com/sirupsen/logrus"
@@ -51,10 +51,13 @@ type LoginAttempts struct {
 	FailCount int `json:"failCount"`
 }
 
+type IsSSOCtxKey int
+
 const (
 	// SessionManagerClaimsIssuer fills the "iss" field of the token.
-	SessionManagerClaimsIssuer = "argocd"
-	AuthErrorCtxKey            = "auth-error"
+	SessionManagerClaimsIssuer             = "argocd"
+	AuthErrorCtxKey                        = "auth-error"
+	IsSSOCtxKeyVal             IsSSOCtxKey = iota
 
 	// invalidLoginError, for security purposes, doesn't say whether the username or password was invalid.  This does not mitigate the potential for timing attacks to determine which is which.
 	invalidLoginError           = "Invalid username or password"
@@ -199,9 +202,9 @@ func GetSubjectAccountAndCapability(subject string) (string, settings.AccountCap
 	return subject, capability
 }
 
-// Parse tries to parse the provided string and returns the token claims for local login.
-func (mgr *SessionManager) Parse(tokenString string) (jwt.Claims, string, error) {
-	// Parse takes the token string and a function for looking up the key. The latter is especially
+// VerifyTokenInternal tries to parse the provided string and returns the token claims for local login.
+func (mgr *SessionManager) VerifyTokenInternal(tokenString string) (jwt.Claims, string, error) {
+	// VerifyTokenInternal takes the token string and a function for looking up the key. The latter is especially
 	// useful if you use multiple keys for your application.  The standard is to use 'kid' in the
 	// head of the token to identify which key to use, but the parsed token (head and claims) is provided
 	// to the callback, providing flexibility.
@@ -419,7 +422,7 @@ func (mgr *SessionManager) VerifyUsernamePassword(username string, password stri
 			// introduces random delay to protect from timing-based user enumeration attack
 			delayNanoseconds := verificationDelayNoiseMin.Nanoseconds() +
 				int64(rand.Intn(int(verificationDelayNoiseMax.Nanoseconds()-verificationDelayNoiseMin.Nanoseconds())))
-				// take into account amount of time spent since the request start
+			// take into account amount of time spent since the request start
 			delayNanoseconds = delayNanoseconds - time.Since(start).Nanoseconds()
 			if delayNanoseconds > 0 {
 				mgr.sleep(time.Duration(delayNanoseconds))
@@ -463,60 +466,57 @@ func (mgr *SessionManager) VerifyUsernamePassword(username string, password stri
 	return nil
 }
 
-// VerifyToken verifies if a token is correct. Tokens can be issued either from us or by an IDP.
-// We choose how to verify based on the issuer.
-func (mgr *SessionManager) VerifyToken(tokenString string) (jwt.Claims, string, error) {
+func (mgr *SessionManager) VerifyToken(tokenString string) (claims jwt.Claims, newToken string, err error) {
+	// Try with IDP token
+	if claims, tok, err := mgr.verifyTokenIDP(tokenString); err == nil {
+		return claims, tok, nil
+	}
+
+	claims, newToken, err = mgr.VerifyTokenInternal(tokenString)
+	return claims, newToken, err
+}
+
+func (mgr *SessionManager) verifyTokenIDP(tokenString string) (jwt.Claims, string, error) {
 	parser := jwt.NewParser(jwt.WithoutClaimsValidation())
 	var claims jwt.RegisteredClaims
 	_, _, err := parser.ParseUnverified(tokenString, &claims)
 	if err != nil {
 		return nil, "", err
 	}
-	switch claims.Issuer {
-	case SessionManagerClaimsIssuer:
-		// Argo CD signed token
-		return mgr.Parse(tokenString)
-	default:
-		// IDP signed token
-		prov, err := mgr.provider()
-		if err != nil {
-			return nil, "", err
-		}
 
-		// Token must be verified for at least one audience
-		// TODO(jannfis): Is this the right way? Shouldn't we know our audience and only validate for the correct one?
-		var idToken *oidc.IDToken
-		for _, aud := range claims.Audience {
-			idToken, err = prov.Verify(aud, tokenString)
-			if err == nil {
-				break
-			}
-		}
-
-		// The token verification has failed. If the token has expired, we will
-		// return a dummy claims only containing a value for the issuer, so the
-		// UI can handle expired tokens appropriately.
-		if err != nil {
-			if strings.HasPrefix(err.Error(), "oidc: token is expired") {
-				claims = jwt.RegisteredClaims{
-					Issuer: "sso",
-				}
-				return claims, "", err
-			}
-			return nil, "", err
-		}
-
-		if idToken == nil {
-			return nil, "", fmt.Errorf("no audience found in the token")
-		}
-
-		var claims jwt.MapClaims
-		err = idToken.Claims(&claims)
-		if err != nil {
-			return nil, "", err
-		}
-		return claims, "", nil
+	prov, err := mgr.provider()
+	if err != nil {
+		return nil, "", err
 	}
+
+	settings, err := mgr.settingsMgr.GetSettings()
+	if err != nil || settings == nil {
+		log.Warnf("Cannot access settings while verifying the token: %v", err)
+		return nil, "", errors.New("failed to validate the token")
+	}
+
+	// Token must be verified for at least one audience
+	// TODO(jannfis): Is this the right way? Shouldn't we know our audience and only validate for the correct one?
+	var idToken *oidc.IDToken
+	for _, aud := range claims.Audience {
+		idToken, err = prov.Verify(aud, tokenString)
+		if err == nil {
+			break
+		}
+	}
+
+	if idToken == nil {
+		log.Warnf("Failed to validate the token audiences: %v", err)
+		return nil, "", errors.New("failed to validate the token")
+	}
+
+	mapClaims := &jwt.MapClaims{}
+	if err = idToken.Claims(mapClaims); err != nil {
+		log.Warnf("failed to process the claims: %v", err)
+		return nil, "", errors.New("failed to process the claims")
+	}
+
+	return mapClaims, "", nil
 }
 
 func (mgr *SessionManager) provider() (oidcutil.Provider, error) {
@@ -554,6 +554,26 @@ func Username(ctx context.Context) string {
 	default:
 		return jwtutil.StringField(mapClaims, "email")
 	}
+}
+
+// IsSSO returns true if the given token belongs to an SSO user.
+func IsSSO(tokenString string) bool {
+	parser := jwt.NewParser(jwt.WithoutClaimsValidation())
+	var claims jwt.RegisteredClaims
+	_, _, _ = parser.ParseUnverified(tokenString, &claims)
+	return claims.Issuer != "" && claims.Issuer != SessionManagerClaimsIssuer
+}
+
+func (mgr *SessionManager) IsSSO(ctx context.Context) (bool, error) {
+	isSSO, ok := ctx.Value(IsSSOCtxKeyVal).(bool)
+	if ok && isSSO {
+		authSettings, err := mgr.settingsMgr.GetSettings()
+		if err != nil {
+			return false, fmt.Errorf("failed to get Argo CD settings: %w", err)
+		}
+		return authSettings.IsSSOConfigured(), nil
+	}
+	return false, nil
 }
 
 func Iss(ctx context.Context) string {

@@ -33,6 +33,7 @@ message GetUserInfoResponse {
   string username = 2;
   string iss = 3;
   repeated string groups = 4;
+  bool isSSO = 5;
 }
 
 // SessionService 

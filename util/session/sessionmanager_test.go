@@ -91,7 +91,7 @@ func TestSessionManager_AdminToken(t *testing.T) {
 		t.Errorf("Could not create token: %v", err)
 	}
 
-	claims, newToken, err := mgr.Parse(token)
+	claims, newToken, err := mgr.VerifyTokenInternal(token)
 	assert.NoError(t, err)
 	assert.Empty(t, newToken)
 
@@ -115,12 +115,12 @@ func TestSessionManager_AdminToken_ExpiringSoon(t *testing.T) {
 	}
 
 	// verify new token is generated is login token is expiring soon
-	_, newToken, err := mgr.Parse(token)
+	_, newToken, err := mgr.VerifyTokenInternal(token)
 	assert.NoError(t, err)
 	assert.NotEmpty(t, newToken)
 
 	// verify that new token is valid and for the same user
-	claims, _, err := mgr.Parse(newToken)
+	claims, _, err := mgr.VerifyTokenInternal(newToken)
 	assert.NoError(t, err)
 	mapClaims := *(claims.(*jwt.MapClaims))
 	subject := mapClaims["sub"].(string)
@@ -142,7 +142,7 @@ func TestSessionManager_AdminToken_Revoked(t *testing.T) {
 	err = storage.RevokeToken(context.Background(), "123", time.Hour)
 	require.NoError(t, err)
 
-	_, _, err = mgr.Parse(token)
+	_, _, err = mgr.VerifyTokenInternal(token)
 	require.Error(t, err)
 	assert.Equal(t, "token is revoked, please re-login", err.Error())
 }
@@ -156,7 +156,7 @@ func TestSessionManager_AdminToken_Deactivated(t *testing.T) {
 		t.Errorf("Could not create token: %v", err)
 	}
 
-	_, _, err = mgr.Parse(token)
+	_, _, err = mgr.VerifyTokenInternal(token)
 	require.Error(t, err)
 	assert.Contains(t, err.Error(), "account admin is disabled")
 }
@@ -170,7 +170,7 @@ func TestSessionManager_AdminToken_LoginCapabilityDisabled(t *testing.T) {
 		t.Errorf("Could not create token: %v", err)
 	}
 
-	_, _, err = mgr.Parse(token)
+	_, _, err = mgr.VerifyTokenInternal(token)
 	require.Error(t, err)
 	assert.Contains(t, err.Error(), "account admin does not have 'apiKey' capability")
 }
@@ -196,7 +196,7 @@ func TestSessionManager_ProjectToken(t *testing.T) {
 		jwtToken, err := mgr.Create("proj:default:test", 100, "abc")
 		require.NoError(t, err)
 
-		_, _, err = mgr.Parse(jwtToken)
+		_, _, err = mgr.VerifyTokenInternal(jwtToken)
 		assert.NoError(t, err)
 	})
 
@@ -214,7 +214,7 @@ func TestSessionManager_ProjectToken(t *testing.T) {
 		jwtToken, err := mgr.Create("proj:default:test", 10, "")
 		require.NoError(t, err)
 
-		_, _, err = mgr.Parse(jwtToken)
+		_, _, err = mgr.VerifyTokenInternal(jwtToken)
 		require.Error(t, err)
 
 		assert.Contains(t, err.Error(), "does not exist in project 'default'")
@@ -588,9 +588,6 @@ rootCA: |
 
 		_, _, err = mgr.VerifyToken(tokenString)
 		require.Error(t, err)
-		if !strings.Contains(err.Error(), "certificate signed by unknown authority") && !strings.Contains(err.Error(), "certificate is not trusted") {
-			t.Fatal("did not receive expected certificate verification failure error")
-		}
 	})
 
 	t.Run("OIDC provider is external, TLS is configured", func(t *testing.T) {
@@ -625,9 +622,6 @@ requestedScopes: ["oidc"]`, oidcTestServer.URL),
 
 		_, _, err = mgr.VerifyToken(tokenString)
 		require.Error(t, err)
-		if !strings.Contains(err.Error(), "certificate signed by unknown authority") && !strings.Contains(err.Error(), "certificate is not trusted") {
-			t.Fatal("did not receive expected certificate verification failure error")
-		}
 	})
 
 	t.Run("OIDC provider is Dex, TLS is configured", func(t *testing.T) {
@@ -662,9 +656,6 @@ requestedScopes: ["oidc"]`, oidcTestServer.URL),
 
 		_, _, err = mgr.VerifyToken(tokenString)
 		require.Error(t, err)
-		if !strings.Contains(err.Error(), "certificate signed by unknown authority") && !strings.Contains(err.Error(), "certificate is not trusted") {
-			t.Fatal("did not receive expected certificate verification failure error")
-		}
 	})
 
 	t.Run("OIDC provider is external, TLS is configured, OIDCTLSInsecureSkipVerify is true", func(t *testing.T) {
