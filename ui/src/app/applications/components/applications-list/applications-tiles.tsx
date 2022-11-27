@@ -104,7 +104,6 @@ export const ApplicationTiles = ({applications, syncApplication, refreshApplicat
                 <DataLoader load={() => services.viewPreferences.getPreferences()}>
                     {pref => {
                         const favList = pref.appList.favoritesAppList || [];
-                        const source = getAppDefaultSource(app);
                         return (
                             <div
                                 className='applications-tiles argo-table-list argo-table-list--clickable row small-up-1 medium-up-2 large-up-3 xxxlarge-up-4'

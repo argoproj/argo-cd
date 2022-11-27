@@ -1819,103 +1819,6 @@ func (m *HelmChartsResponse) GetItems() []*HelmChart {
 	return nil
 }
 
-// CheckoutRevisionRequest requests a repository directory structure
-type CheckoutSourceRequest struct {
-	// the repo
-	Repo *v1alpha1.Repository `protobuf:"bytes,1,opt,name=repo,proto3" json:"repo,omitempty"`
-	// the revision within the repo
-	Revision             string   `protobuf:"bytes,2,opt,name=revision,proto3" json:"revision,omitempty"`
-	XXX_NoUnkeyedLiteral struct{} `json:"-"`
-	XXX_unrecognized     []byte   `json:"-"`
-	XXX_sizecache        int32    `json:"-"`
-}
-
-func (m *CheckoutSourceRequest) Reset()         { *m = CheckoutSourceRequest{} }
-func (m *CheckoutSourceRequest) String() string { return proto.CompactTextString(m) }
-func (*CheckoutSourceRequest) ProtoMessage()    {}
-func (*CheckoutSourceRequest) Descriptor() ([]byte, []int) {
-	return fileDescriptor_dd8723cfcc820480, []int{22}
-}
-func (m *CheckoutSourceRequest) XXX_Unmarshal(b []byte) error {
-	return m.Unmarshal(b)
-}
-func (m *CheckoutSourceRequest) XXX_Marshal(b []byte, deterministic bool) ([]byte, error) {
-	if deterministic {
-		return xxx_messageInfo_CheckoutSourceRequest.Marshal(b, m, deterministic)
-	} else {
-		b = b[:cap(b)]
-		n, err := m.MarshalToSizedBuffer(b)
-		if err != nil {
-			return nil, err
-		}
-		return b[:n], nil
-	}
-}
-func (m *CheckoutSourceRequest) XXX_Merge(src proto.Message) {
-	xxx_messageInfo_CheckoutSourceRequest.Merge(m, src)
-}
-func (m *CheckoutSourceRequest) XXX_Size() int {
-	return m.Size()
-}
-func (m *CheckoutSourceRequest) XXX_DiscardUnknown() {
-	xxx_messageInfo_CheckoutSourceRequest.DiscardUnknown(m)
-}
-
-var xxx_messageInfo_CheckoutSourceRequest proto.InternalMessageInfo
-
-func (m *CheckoutSourceRequest) GetRepo() *v1alpha1.Repository {
-	if m != nil {
-		return m.Repo
-	}
-	return nil
-}
-
-func (m *CheckoutSourceRequest) GetRevision() string {
-	if m != nil {
-		return m.Revision
-	}
-	return ""
-}
-
-type CheckoutSourceResponse struct {
-	XXX_NoUnkeyedLiteral struct{} `json:"-"`
-	XXX_unrecognized     []byte   `json:"-"`
-	XXX_sizecache        int32    `json:"-"`
-}
-
-func (m *CheckoutSourceResponse) Reset()         { *m = CheckoutSourceResponse{} }
-func (m *CheckoutSourceResponse) String() string { return proto.CompactTextString(m) }
-func (*CheckoutSourceResponse) ProtoMessage()    {}
-func (*CheckoutSourceResponse) Descriptor() ([]byte, []int) {
-	return fileDescriptor_dd8723cfcc820480, []int{23}
-}
-func (m *CheckoutSourceResponse) XXX_Unmarshal(b []byte) error {
-	return m.Unmarshal(b)
-}
-func (m *CheckoutSourceResponse) XXX_Marshal(b []byte, deterministic bool) ([]byte, error) {
-	if deterministic {
-		return xxx_messageInfo_CheckoutSourceResponse.Marshal(b, m, deterministic)
-	} else {
-		b = b[:cap(b)]
-		n, err := m.MarshalToSizedBuffer(b)
-		if err != nil {
-			return nil, err
-		}
-		return b[:n], nil
-	}
-}
-func (m *CheckoutSourceResponse) XXX_Merge(src proto.Message) {
-	xxx_messageInfo_CheckoutSourceResponse.Merge(m, src)
-}
-func (m *CheckoutSourceResponse) XXX_Size() int {
-	return m.Size()
-}
-func (m *CheckoutSourceResponse) XXX_DiscardUnknown() {
-	xxx_messageInfo_CheckoutSourceResponse.DiscardUnknown(m)
-}
-
-var xxx_messageInfo_CheckoutSourceResponse proto.InternalMessageInfo
-
 func init() {
 	proto.RegisterType((*ManifestRequest)(nil), "repository.ManifestRequest")
 	proto.RegisterMapType((map[string]bool)(nil), "repository.ManifestRequest.EnabledSourceTypesEntry")
@@ -1950,8 +1853,6 @@ func init() {
 	proto.RegisterType((*HelmChartsRequest)(nil), "repository.HelmChartsRequest")
 	proto.RegisterType((*HelmChart)(nil), "repository.HelmChart")
 	proto.RegisterType((*HelmChartsResponse)(nil), "repository.HelmChartsResponse")
-	proto.RegisterType((*CheckoutSourceRequest)(nil), "repository.CheckoutSourceRequest")
-	proto.RegisterType((*CheckoutSourceResponse)(nil), "repository.CheckoutSourceResponse")
 }
 
 func init() {
@@ -2103,8 +2004,6 @@ type RepoServerServiceClient interface {
 	ListPlugins(ctx context.Context, in *emptypb.Empty, opts ...grpc.CallOption) (*PluginList, error)
 	// Generate manifest for application in specified repo name and revision
 	GetAppDetails(ctx context.Context, in *RepoServerAppDetailsQuery, opts ...grpc.CallOption) (*RepoAppDetailsResponse, error)
-	// CheckoutSource checkouts the repo in the source
-	CheckoutSource(ctx context.Context, in *CheckoutSourceRequest, opts ...grpc.CallOption) (*CheckoutSourceResponse, error)
 	// Get the meta-data (author, date, tags, message) for a specific revision of the repo
 	GetRevisionMetadata(ctx context.Context, in *RepoServerRevisionMetadataRequest, opts ...grpc.CallOption) (*v1alpha1.RevisionMetadata, error)
 	// GetHelmCharts returns list of helm charts in the specified repository
@@ -2261,8 +2160,6 @@ type RepoServerServiceServer interface {
 	ListPlugins(context.Context, *emptypb.Empty) (*PluginList, error)
 	// Generate manifest for application in specified repo name and revision
 	GetAppDetails(context.Context, *RepoServerAppDetailsQuery) (*RepoAppDetailsResponse, error)
-	// CheckoutSource checkouts the repo in the source
-	CheckoutSource(context.Context, *CheckoutSourceRequest) (*CheckoutSourceResponse, error)
 	// Get the meta-data (author, date, tags, message) for a specific revision of the repo
 	GetRevisionMetadata(context.Context, *RepoServerRevisionMetadataRequest) (*v1alpha1.RevisionMetadata, error)
 	// GetHelmCharts returns list of helm charts in the specified repository
@@ -2296,9 +2193,6 @@ func (*UnimplementedRepoServerServiceServer) ListPlugins(ctx context.Context, re
 }
 func (*UnimplementedRepoServerServiceServer) GetAppDetails(ctx context.Context, req *RepoServerAppDetailsQuery) (*RepoAppDetailsResponse, error) {
 	return nil, status.Errorf(codes.Unimplemented, "method GetAppDetails not implemented")
-}
-func (*UnimplementedRepoServerServiceServer) CheckoutSource(ctx context.Context, req *CheckoutSourceRequest) (*CheckoutSourceResponse, error) {
-	return nil, status.Errorf(codes.Unimplemented, "method CheckoutSource not implemented")
 }
 func (*UnimplementedRepoServerServiceServer) GetRevisionMetadata(ctx context.Context, req *RepoServerRevisionMetadataRequest) (*v1alpha1.RevisionMetadata, error) {
 	return nil, status.Errorf(codes.Unimplemented, "method GetRevisionMetadata not implemented")
@@ -2451,14 +2345,14 @@ func _RepoServerService_GetAppDetails_Handler(srv interface{}, ctx context.Conte
 		return nil, err
 	}
 	if interceptor == nil {
-		return srv.(RepoServerServiceServer).GetAppDetails(ctx, in)
+		return srv.(RepoServerServiceServer).ListPlugins(ctx, in)
 	}
 	info := &grpc.UnaryServerInfo{
 		Server:     srv,
-		FullMethod: "/repository.RepoServerService/GetAppDetails",
+		FullMethod: "/repository.RepoServerService/ListPlugins",
 	}
 	handler := func(ctx context.Context, req interface{}) (interface{}, error) {
-		return srv.(RepoServerServiceServer).GetAppDetails(ctx, req.(*RepoServerAppDetailsQuery))
+		return srv.(RepoServerServiceServer).ListPlugins(ctx, req.(*emptypb.Empty))
 	}
 	return interceptor(ctx, in, info, handler)
 }
@@ -2548,10 +2442,6 @@ var _RepoServerService_serviceDesc = grpc.ServiceDesc{
 		{
 			MethodName: "GetAppDetails",
 			Handler:    _RepoServerService_GetAppDetails_Handler,
-		},
-		{
-			MethodName: "CheckoutSource",
-			Handler:    _RepoServerService_CheckoutSource_Handler,
 		},
 		{
 			MethodName: "GetRevisionMetadata",
@@ -4258,79 +4148,6 @@ func (m *HelmChartsResponse) MarshalToSizedBuffer(dAtA []byte) (int, error) {
 	return len(dAtA) - i, nil
 }
 
-func (m *CheckoutSourceRequest) Marshal() (dAtA []byte, err error) {
-	size := m.Size()
-	dAtA = make([]byte, size)
-	n, err := m.MarshalToSizedBuffer(dAtA[:size])
-	if err != nil {
-		return nil, err
-	}
-	return dAtA[:n], nil
-}
-
-func (m *CheckoutSourceRequest) MarshalTo(dAtA []byte) (int, error) {
-	size := m.Size()
-	return m.MarshalToSizedBuffer(dAtA[:size])
-}
-
-func (m *CheckoutSourceRequest) MarshalToSizedBuffer(dAtA []byte) (int, error) {
-	i := len(dAtA)
-	_ = i
-	var l int
-	_ = l
-	if m.XXX_unrecognized != nil {
-		i -= len(m.XXX_unrecognized)
-		copy(dAtA[i:], m.XXX_unrecognized)
-	}
-	if len(m.Revision) > 0 {
-		i -= len(m.Revision)
-		copy(dAtA[i:], m.Revision)
-		i = encodeVarintRepository(dAtA, i, uint64(len(m.Revision)))
-		i--
-		dAtA[i] = 0x12
-	}
-	if m.Repo != nil {
-		{
-			size, err := m.Repo.MarshalToSizedBuffer(dAtA[:i])
-			if err != nil {
-				return 0, err
-			}
-			i -= size
-			i = encodeVarintRepository(dAtA, i, uint64(size))
-		}
-		i--
-		dAtA[i] = 0xa
-	}
-	return len(dAtA) - i, nil
-}
-
-func (m *CheckoutSourceResponse) Marshal() (dAtA []byte, err error) {
-	size := m.Size()
-	dAtA = make([]byte, size)
-	n, err := m.MarshalToSizedBuffer(dAtA[:size])
-	if err != nil {
-		return nil, err
-	}
-	return dAtA[:n], nil
-}
-
-func (m *CheckoutSourceResponse) MarshalTo(dAtA []byte) (int, error) {
-	size := m.Size()
-	return m.MarshalToSizedBuffer(dAtA[:size])
-}
-
-func (m *CheckoutSourceResponse) MarshalToSizedBuffer(dAtA []byte) (int, error) {
-	i := len(dAtA)
-	_ = i
-	var l int
-	_ = l
-	if m.XXX_unrecognized != nil {
-		i -= len(m.XXX_unrecognized)
-		copy(dAtA[i:], m.XXX_unrecognized)
-	}
-	return len(dAtA) - i, nil
-}
-
 func encodeVarintRepository(dAtA []byte, offset int, v uint64) int {
 	offset -= sovRepository(v)
 	base := offset
@@ -5085,38 +4902,6 @@ func (m *HelmChartsResponse) Size() (n int) {
 			n += 1 + l + sovRepository(uint64(l))
 		}
 	}
-	if m.XXX_unrecognized != nil {
-		n += len(m.XXX_unrecognized)
-	}
-	return n
-}
-
-func (m *CheckoutSourceRequest) Size() (n int) {
-	if m == nil {
-		return 0
-	}
-	var l int
-	_ = l
-	if m.Repo != nil {
-		l = m.Repo.Size()
-		n += 1 + l + sovRepository(uint64(l))
-	}
-	l = len(m.Revision)
-	if l > 0 {
-		n += 1 + l + sovRepository(uint64(l))
-	}
-	if m.XXX_unrecognized != nil {
-		n += len(m.XXX_unrecognized)
-	}
-	return n
-}
-
-func (m *CheckoutSourceResponse) Size() (n int) {
-	if m == nil {
-		return 0
-	}
-	var l int
-	_ = l
 	if m.XXX_unrecognized != nil {
 		n += len(m.XXX_unrecognized)
 	}
@@ -9834,176 +9619,6 @@ func (m *HelmChartsResponse) Unmarshal(dAtA []byte) error {
 				return err
 			}
 			iNdEx = postIndex
-		default:
-			iNdEx = preIndex
-			skippy, err := skipRepository(dAtA[iNdEx:])
-			if err != nil {
-				return err
-			}
-			if (skippy < 0) || (iNdEx+skippy) < 0 {
-				return ErrInvalidLengthRepository
-			}
-			if (iNdEx + skippy) > l {
-				return io.ErrUnexpectedEOF
-			}
-			m.XXX_unrecognized = append(m.XXX_unrecognized, dAtA[iNdEx:iNdEx+skippy]...)
-			iNdEx += skippy
-		}
-	}
-
-	if iNdEx > l {
-		return io.ErrUnexpectedEOF
-	}
-	return nil
-}
-func (m *CheckoutSourceRequest) Unmarshal(dAtA []byte) error {
-	l := len(dAtA)
-	iNdEx := 0
-	for iNdEx < l {
-		preIndex := iNdEx
-		var wire uint64
-		for shift := uint(0); ; shift += 7 {
-			if shift >= 64 {
-				return ErrIntOverflowRepository
-			}
-			if iNdEx >= l {
-				return io.ErrUnexpectedEOF
-			}
-			b := dAtA[iNdEx]
-			iNdEx++
-			wire |= uint64(b&0x7F) << shift
-			if b < 0x80 {
-				break
-			}
-		}
-		fieldNum := int32(wire >> 3)
-		wireType := int(wire & 0x7)
-		if wireType == 4 {
-			return fmt.Errorf("proto: CheckoutSourceRequest: wiretype end group for non-group")
-		}
-		if fieldNum <= 0 {
-			return fmt.Errorf("proto: CheckoutSourceRequest: illegal tag %d (wire type %d)", fieldNum, wire)
-		}
-		switch fieldNum {
-		case 1:
-			if wireType != 2 {
-				return fmt.Errorf("proto: wrong wireType = %d for field Repo", wireType)
-			}
-			var msglen int
-			for shift := uint(0); ; shift += 7 {
-				if shift >= 64 {
-					return ErrIntOverflowRepository
-				}
-				if iNdEx >= l {
-					return io.ErrUnexpectedEOF
-				}
-				b := dAtA[iNdEx]
-				iNdEx++
-				msglen |= int(b&0x7F) << shift
-				if b < 0x80 {
-					break
-				}
-			}
-			if msglen < 0 {
-				return ErrInvalidLengthRepository
-			}
-			postIndex := iNdEx + msglen
-			if postIndex < 0 {
-				return ErrInvalidLengthRepository
-			}
-			if postIndex > l {
-				return io.ErrUnexpectedEOF
-			}
-			if m.Repo == nil {
-				m.Repo = &v1alpha1.Repository{}
-			}
-			if err := m.Repo.Unmarshal(dAtA[iNdEx:postIndex]); err != nil {
-				return err
-			}
-			iNdEx = postIndex
-		case 2:
-			if wireType != 2 {
-				return fmt.Errorf("proto: wrong wireType = %d for field Revision", wireType)
-			}
-			var stringLen uint64
-			for shift := uint(0); ; shift += 7 {
-				if shift >= 64 {
-					return ErrIntOverflowRepository
-				}
-				if iNdEx >= l {
-					return io.ErrUnexpectedEOF
-				}
-				b := dAtA[iNdEx]
-				iNdEx++
-				stringLen |= uint64(b&0x7F) << shift
-				if b < 0x80 {
-					break
-				}
-			}
-			intStringLen := int(stringLen)
-			if intStringLen < 0 {
-				return ErrInvalidLengthRepository
-			}
-			postIndex := iNdEx + intStringLen
-			if postIndex < 0 {
-				return ErrInvalidLengthRepository
-			}
-			if postIndex > l {
-				return io.ErrUnexpectedEOF
-			}
-			m.Revision = string(dAtA[iNdEx:postIndex])
-			iNdEx = postIndex
-		default:
-			iNdEx = preIndex
-			skippy, err := skipRepository(dAtA[iNdEx:])
-			if err != nil {
-				return err
-			}
-			if (skippy < 0) || (iNdEx+skippy) < 0 {
-				return ErrInvalidLengthRepository
-			}
-			if (iNdEx + skippy) > l {
-				return io.ErrUnexpectedEOF
-			}
-			m.XXX_unrecognized = append(m.XXX_unrecognized, dAtA[iNdEx:iNdEx+skippy]...)
-			iNdEx += skippy
-		}
-	}
-
-	if iNdEx > l {
-		return io.ErrUnexpectedEOF
-	}
-	return nil
-}
-func (m *CheckoutSourceResponse) Unmarshal(dAtA []byte) error {
-	l := len(dAtA)
-	iNdEx := 0
-	for iNdEx < l {
-		preIndex := iNdEx
-		var wire uint64
-		for shift := uint(0); ; shift += 7 {
-			if shift >= 64 {
-				return ErrIntOverflowRepository
-			}
-			if iNdEx >= l {
-				return io.ErrUnexpectedEOF
-			}
-			b := dAtA[iNdEx]
-			iNdEx++
-			wire |= uint64(b&0x7F) << shift
-			if b < 0x80 {
-				break
-			}
-		}
-		fieldNum := int32(wire >> 3)
-		wireType := int(wire & 0x7)
-		if wireType == 4 {
-			return fmt.Errorf("proto: CheckoutSourceResponse: wiretype end group for non-group")
-		}
-		if fieldNum <= 0 {
-			return fmt.Errorf("proto: CheckoutSourceResponse: illegal tag %d (wire type %d)", fieldNum, wire)
-		}
-		switch fieldNum {
 		default:
 			iNdEx = preIndex
 			skippy, err := skipRepository(dAtA[iNdEx:])

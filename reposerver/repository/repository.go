@@ -94,7 +94,6 @@ type Service struct {
 	newGitClient              func(rawRepoURL string, root string, creds git.Creds, insecure bool, enableLfs bool, proxy string, opts ...git.ClientOpts) (git.Client, error)
 	newHelmClient             func(repoURL string, creds helm.Creds, enableOci bool, proxy string, opts ...helm.ClientOpts) helm.Client
 	initConstants             RepoServerInitConstants
-	refTargeRevisions         map[string]v1alpha1.RefTargeRevisionMapping
 	// now is usually just time.Now, but may be replaced by unit tests for testing purposes
 	now func() time.Time
 }
@@ -136,7 +135,6 @@ func NewService(metricsServer *metrics.MetricsServer, cache *reposervercache.Cac
 		chartPaths:         io.NewTempPaths(rootDir),
 		gitRepoInitializer: directoryPermissionInitializer,
 		rootDir:            rootDir,
-		refTargeRevisions:  make(map[string]v1alpha1.RefTargeRevisionMapping),
 	}
 }
 
@@ -610,6 +608,8 @@ func (s *Service) runManifestGenAsync(ctx context.Context, repoRoot, commitSHA, 
 	// GenerateManifests mutates the source (applies overrides). Those overrides shouldn't be reflected in the cache
 	// key. Overrides will break the cache anyway, because changes to overrides will change the revision.
 	appSourceCopy := q.ApplicationSource.DeepCopy()
+
+	repoLocks := make([]goio.Closer, 0)
 
 	var manifestGenResult *apiclient.ManifestResponse
 	opContext, err := opContextSrc()
@@ -2263,29 +2263,6 @@ func directoryPermissionInitializer(rootPath string) goio.Closer {
 		}
 		return nil
 	})
-}
-
-// CheckoutSource is a convenience function to initialize a repo, fetch, and checkout a revision
-// nolint:unparam
-func (s *Service) CheckoutSource(ctx context.Context, q *apiclient.CheckoutSourceRequest) (*apiclient.CheckoutSourceResponse, error) {
-	gitClient, commitSHA, err := s.newClientResolveRevision(q.Repo, q.Revision)
-	if err != nil {
-		return nil, err
-	}
-
-	s.metricsServer.IncPendingRepoRequest(q.Repo.Repo)
-	defer s.metricsServer.DecPendingRepoRequest(q.Repo.Repo)
-
-	closer, err := s.repoLock.Lock(gitClient.Root(), commitSHA, true, func() (goio.Closer, error) {
-		return s.checkoutRevision(gitClient, commitSHA, s.initConstants.SubmoduleEnabled)
-	})
-	if err != nil {
-		return nil, err
-	}
-
-	defer io.Close(closer)
-
-	return &apiclient.CheckoutSourceResponse{}, nil
 }
 
 // checkoutRevision is a convenience function to initialize a repo, fetch, and checkout a revision
