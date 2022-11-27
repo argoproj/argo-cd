@@ -1391,7 +1391,7 @@ func (ctrl *ApplicationController) processAppRefreshQueueItem() (processNext boo
 	revisions := make([]string, 0)
 	sources := make([]appv1.ApplicationSource, 0)
 
-	hasMultipleSources := app.Spec.Sources != nil && len(app.Spec.Sources) > 0
+	hasMultipleSources := app.Spec.HasMultipleSources()
 
 	// If we have multiple sources, we use all the sources under `sources` field and ignore source under `source` field.
 	// else we use the source under the source field.
@@ -1487,7 +1487,7 @@ func (ctrl *ApplicationController) needRefreshAppStatus(app *appv1.Application, 
 		refreshType = requestedType
 		reason = fmt.Sprintf("%s refresh requested", refreshType)
 	} else {
-		if app.Spec.Sources != nil && len(app.Spec.Sources) > 0 {
+		if app.Spec.HasMultipleSources() {
 			if (len(app.Spec.Sources) != len(app.Status.Sync.ComparedTo.Sources)) || !reflect.DeepEqual(app.Spec.Sources, app.Status.Sync.ComparedTo.Sources) {
 				reason = "atleast one of the spec.sources differs"
 				compareWith = CompareWithLatestForceResolve
@@ -1628,7 +1628,6 @@ func (ctrl *ApplicationController) autoSync(app *appv1.Application, syncStatus *
 		return nil
 	}
 
-	hasMultipleSources := app.Spec.Sources != nil && len(app.Spec.Sources) > 0
 	if !app.Spec.SyncPolicy.Automated.Prune {
 		requirePruneOnly := true
 		for _, r := range resources {
@@ -1645,7 +1644,7 @@ func (ctrl *ApplicationController) autoSync(app *appv1.Application, syncStatus *
 
 	desiredCommitSHA := syncStatus.Revision
 	desiredCommitSHAsMS := syncStatus.Revisions
-	alreadyAttempted, attemptPhase := alreadyAttemptedSync(app, desiredCommitSHA, desiredCommitSHAsMS, hasMultipleSources)
+	alreadyAttempted, attemptPhase := alreadyAttemptedSync(app, desiredCommitSHA, desiredCommitSHAsMS, app.Spec.HasMultipleSources())
 	selfHeal := app.Spec.SyncPolicy.Automated.SelfHeal
 	op := appv1.Operation{
 		Sync: &appv1.SyncOperation{

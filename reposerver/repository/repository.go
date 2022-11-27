@@ -578,6 +578,7 @@ func (s *Service) runManifestGenAsync(ctx context.Context, repoRoot, commitSHA, 
 	appSourceCopy := q.ApplicationSource.DeepCopy()
 
 	var manifestGenResult *apiclient.ManifestResponse
+	var closer goio.Closer
 	opContext, err := opContextSrc()
 	if err == nil {
 		if q.HasMultipleSources {
@@ -607,18 +608,20 @@ func (s *Service) runManifestGenAsync(ctx context.Context, repoRoot, commitSHA, 
 					log.Errorf("failed to get git client for repo %s", q.Repo.Repo)
 					return
 				}
-				closer, err := s.repoLock.Lock(gitClient.Root(), revision, true, func() (goio.Closer, error) {
+				closer, err = s.repoLock.Lock(gitClient.Root(), revision, true, func() (goio.Closer, error) {
 					return s.checkoutRevision(gitClient, revision, s.initConstants.SubmoduleEnabled)
 				})
 				if err != nil {
 					log.Errorf("failed to checkout revision %s for repo %s: %s", revision, q.Repo.Repo, err)
 					return
 				}
-				defer io.Close(closer)
 			}
 		}
 
 		manifestGenResult, err = GenerateManifests(ctx, opContext.appPath, repoRoot, commitSHA, q, false, s.gitCredsStore, s.initConstants.MaxCombinedDirectoryManifestsSize, s.gitRepoPaths, WithCMPTarDoneChannel(ch.tarDoneCh), WithCMPTarExcludedGlobs(s.initConstants.CMPTarExcludedGlobs))
+		if closer != nil {
+			defer io.Close(closer)
+		}
 		if q.HasMultipleSources {
 			if manifestGenResult == nil {
 				ch.responseCh <- manifestGenResult

@@ -183,7 +183,7 @@ type ApplicationSources []ApplicationSource
 
 func (a *ApplicationSpec) GetSource() ApplicationSource {
 	// if Application has multiple sources, return the first source in sources
-	if a.Sources != nil && len(a.Sources) > 0 {
+	if a.HasMultipleSources() {
 		return a.Sources[0]
 	}
 	if a.Source != nil {
@@ -198,7 +198,7 @@ func (a *ApplicationSpec) HasMultipleSources() bool {
 
 func (a *ApplicationSpec) GetSourcePtr() *ApplicationSource {
 	// if Application has multiple sources, return the first source in sources
-	if a.Sources != nil && len(a.Sources) > 0 {
+	if a.HasMultipleSources() {
 		return &a.Sources[0]
 	}
 	return a.Source
