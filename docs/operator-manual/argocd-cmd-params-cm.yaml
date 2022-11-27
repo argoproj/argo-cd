@@ -139,6 +139,26 @@ data:
   reposerver.streamed.manifest.max.tar.size: "100M"
   # Maximum size of extracted manifests when streaming manifests to the repo server for generation
   reposerver.streamed.manifest.max.extracted.size: "1G"
+  # Enable git submodule support
+  reposerver.enable.git.submodule: "true"
 
   # Disable TLS on the HTTP endpoint
   dexserver.disable.tls: "false"
+
+  ## ApplicationSet Controller Properties
+  # Enable leader election for controller manager. Enabling this will ensure there is only one active controller manager.
+  applicationsetcontroller.enable.leader.election: "false"
+  # Argo CD repo namespace (default: argocd)
+  applicationsetcontroller.namespace: ""
+  # "Modify how application is synced between the generator and the cluster. Default is 'sync' (create & update & delete), options: 'create-only', 'create-update' (no deletion)"
+  applicationsetcontroller.policy: "sync"
+  # Print debug logs. Takes precedence over loglevel
+  applicationsetcontroller.debug: "false"
+  # Set the logging format. One of: text|json (default "text")
+  applicationsetcontroller.log.format: "text"
+  # Set the logging level. One of: debug|info|warn|error (default "info")
+  applicationsetcontroller.log.level: "info"
+  # Enable dry run mode
+  applicationsetcontroller.dryrun: "false"
+  # Enable git submodule support
+  applicationsetcontroller.enable.git.submodule: "true"

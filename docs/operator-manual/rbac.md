@@ -46,7 +46,7 @@ subresources of an application.
 #### The `action` action
 
 The `action` action corresponds to either built-in resource customizations defined
-[in the Argo CD repository](https://github.com/argoproj/argo-cd/search?q=filename%3Aaction.lua+path%3Aresource_customizations),
+[in the Argo CD repository](https://github.com/argoproj/argo-cd/tree/master/resource_customizations),
 or to [custom resource actions](resource_actions.md#custom-resource-actions) defined by you.
 The `action` path is of the form `action/<api-group>/<Kind>/<action-name>`. For
 example, a resource customization path
@@ -85,6 +85,10 @@ Additional roles and groups can be configured in `argocd-rbac-cm` ConfigMap. The
 configures a custom role, named `org-admin`. The role is assigned to any user which belongs to
 `your-github-org:your-team` group. All other users get the default policy of `role:readonly`,
 which cannot modify Argo CD settings.
+
+!!! warning
+    All authenticated users get _at least_ the permissions granted by the default policy. This access cannot be blocked 
+    by a `deny` rule. Instead, restrict the default policy and then grant permissions to individual roles as needed.
 
 *ArgoCD ConfigMap `argocd-rbac-cm` Example:*
 

@@ -9,13 +9,18 @@ argocd app delete APPNAME [flags]
 ### Examples
 
 ```
-argocd app delete app1
+  # Delete an app
+  argocd app delete my-app
 
-# Delete multiple apps
-argocd app delete app1 app2
+  # Delete multiple apps
+  argocd app delete my-app other-app
 
-# Delete apps by label
-argocd app delete -l foo=bar
+  # Delete apps by label
+  argocd app delete -l app.kubernetes.io/instance=my-app
+  argocd app delete -l app.kubernetes.io/instance!=my-app
+  argocd app delete -l app.kubernetes.io/instance
+  argocd app delete -l '!app.kubernetes.io/instance'
+  argocd app delete -l 'app.kubernetes.io/instance notin (my-app,other-app)'
 ```
 
 ### Options
@@ -24,7 +29,7 @@ argocd app delete -l foo=bar
       --cascade                     Perform a cascaded deletion of all application resources (default true)
   -h, --help                        help for delete
   -p, --propagation-policy string   Specify propagation policy for deletion of application's resources. One of: foreground|background (default "foreground")
-  -l, --selector string             Delete all apps with matching label
+  -l, --selector string             Delete all apps with matching label. Supports '=', '==', '!=', in, notin, exists & not exists. Matching apps must satisfy all of the specified label constraints.
   -y, --yes                         Turn off prompting to confirm cascaded deletion of application resources
 ```
 

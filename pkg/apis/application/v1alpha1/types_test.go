@@ -584,6 +584,25 @@ func TestAppProject_ValidateDestinations(t *testing.T) {
 	p.Spec.Destinations = []ApplicationDestination{validDestination, validDestination}
 	err = p.ValidateProject()
 	assert.Error(t, err)
+
+	cluster1Destination := ApplicationDestination{
+		Name:      "cluster1",
+		Namespace: "some-namespace",
+	}
+	cluster2Destination := ApplicationDestination{
+		Name:      "cluster2",
+		Namespace: "some-namespace",
+	}
+	// allow multiple destinations with blank server, same namespace but unique cluster name
+	p.Spec.Destinations = []ApplicationDestination{cluster1Destination, cluster2Destination}
+	err = p.ValidateProject()
+	assert.NoError(t, err)
+
+	t.Run("must reject duplicate source namespaces", func(t *testing.T) {
+		p.Spec.SourceNamespaces = []string{"argocd", "argocd"}
+		err = p.ValidateProject()
+		assert.Error(t, err)
+	})
 }
 
 // TestValidateRoleName tests for an invalid role name
@@ -634,6 +653,8 @@ func TestAppProject_ValidateGroupName(t *testing.T) {
 		"my,group",
 		"my\ngroup",
 		"my\rgroup",
+		" my:group",
+		"my:group ",
 	}
 	for _, badName := range badGroupNames {
 		p.Spec.Roles[0].Groups = []string{badName}
@@ -2918,7 +2939,7 @@ func Test_validateGroupName(t *testing.T) {
 		{"Normal group name", "foo", true},
 		{"Quoted with commas", "\"foo,bar,baz\"", true},
 		{"Quoted without commas", "\"foo\"", true},
-		{"Quoted with leading and trailing whitespace", "  \"foo\" ", true},
+		{"Quoted with leading and trailing whitespace", "  \"foo\" ", false},
 		{"Empty group name", "", false},
 		{"Empty group name with quotes", "\"\"", false},
 		{"Unquoted with comma", "foo,bar,baz", false},

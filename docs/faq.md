@@ -45,10 +45,9 @@ a secret named `argocd-initial-admin-secret`.
 To change the password, edit the `argocd-secret` secret and update the `admin.password` field with a new bcrypt hash.
 
 !!! note "Generating a bcrypt hash"
-    Use a trustworthy, offline `bcrypt` implementation such as the [Python bcrypt library](https://pypi.org/project/bcrypt/) to generate the hash.
+    Use the following command to generate a bcrypt hash for `admin.password`
 
-        pip3 install bcrypt
-        python3 -c "import bcrypt; print(bcrypt.hashpw(b'YOUR-PASSWORD-HERE', bcrypt.gensalt()).decode())"
+        argocd account bcrypt --password <YOUR-PASSWORD-HERE>
 
 To apply the new password hash, use the following command (replacing the hash with your own):
 
@@ -69,7 +68,7 @@ or a randomly generated password stored in a secret (Argo CD 1.9 and later).
 ## How to disable admin user?
 
 Add `admin.enabled: "false"` to the `argocd-cm` ConfigMap (
-see [user management](operator-manual/user-management/index.md)).
+see [user management](./operator-manual/user-management/index.md)).
 
 ## Argo CD cannot deploy Helm Chart based applications without internet access, how can I solve it?
 
@@ -81,11 +80,6 @@ might decide to refresh `stable` repo. As workaround override
 
 ```yaml
 data:
-  # v1.2 or earlier use `helm.repositories`
-  helm.repositories: |
-    - url: http://<internal-helm-repo-host>:8080
-      name: stable
-  # v1.3 or later use `repositories` with `type: helm`
   repositories: |
     - type: helm
       url: http://<internal-helm-repo-host>:8080
@@ -201,7 +195,7 @@ argocd ... --insecure
 ## I have configured Dex via `dex.config` in `argocd-cm`, it still says Dex is unconfigured. Why?
 
 Most likely you forgot to set the `url` in `argocd-cm` to point to your ArgoCD as well. See also
-[the docs](/operator-manual/user-management/#2-configure-argo-cd-for-sso).
+[the docs](./operator-manual/user-management/index.md#2-configure-argo-cd-for-sso).
 
 ## Why are `SealedSecret` resources reporting a `Status`?
 

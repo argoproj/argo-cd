@@ -9,8 +9,6 @@ spec:
   discover:
     find:
       glob: "**/kustomization.yaml"
-  allowConcurrency: true
-  lockRepo: false
   parameters:
     static:
       - name: string-param

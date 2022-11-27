@@ -18,15 +18,18 @@ concurrency:
   group: ${{ github.workflow }}-${{ github.ref }}
   cancel-in-progress: true
 
+permissions:
+  contents: read
+
 jobs:
   check-go:
     name: Ensure Go modules synchronicity
     runs-on: ubuntu-22.04
     steps:
       - name: Checkout code
-        uses: actions/checkout@v2
+        uses: actions/checkout@v3
       - name: Setup Golang
-        uses: actions/setup-go@v1
+        uses: actions/setup-go@v3
         with:
           go-version: ${{ env.GOLANG_VERSION }}
       - name: Download all Go modules
@@ -42,13 +45,13 @@ jobs:
     runs-on: ubuntu-22.04
     steps:
       - name: Checkout code
-        uses: actions/checkout@v2
+        uses: actions/checkout@v3
       - name: Setup Golang
-        uses: actions/setup-go@v1
+        uses: actions/setup-go@v3
         with:
           go-version: ${{ env.GOLANG_VERSION }}
       - name: Restore go build cache
-        uses: actions/cache@v1
+        uses: actions/cache@v3
         with:
           path: ~/.cache/go-build
           key: ${{ runner.os }}-go-build-v1-${{ github.run_id }}
@@ -59,13 +62,16 @@ jobs:
         run: make build-local
 
   lint-go:
+    permissions:
+      contents: read  # for actions/checkout to fetch code
+      pull-requests: read  # for golangci/golangci-lint-action to fetch pull requests
     name: Lint Go code
     runs-on: ubuntu-22.04
     steps:
       - name: Checkout code
-        uses: actions/checkout@v2
+        uses: actions/checkout@v3
       - name: Setup Golang
-        uses: actions/setup-go@v1
+        uses: actions/setup-go@v3
         with:
           go-version: ${{ env.GOLANG_VERSION }}
       - name: Run golangci-lint
@@ -86,11 +92,11 @@ jobs:
       - name: Create checkout directory
         run: mkdir -p ~/go/src/github.com/argoproj
       - name: Checkout code
-        uses: actions/checkout@v2
+        uses: actions/checkout@v3
       - name: Create symlink in GOPATH
         run: ln -s $(pwd) ~/go/src/github.com/argoproj/argo-cd
       - name: Setup Golang
-        uses: actions/setup-go@v1
+        uses: actions/setup-go@v3
         with:
           go-version: ${{ env.GOLANG_VERSION }}
       - name: Install required packages
@@ -110,7 +116,7 @@ jobs:
         run: |
           echo "/usr/local/bin" >> $GITHUB_PATH
       - name: Restore go build cache
-        uses: actions/cache@v1
+        uses: actions/cache@v3
         with:
           path: ~/.cache/go-build
           key: ${{ runner.os }}-go-build-v1-${{ github.run_id }}
@@ -127,12 +133,12 @@ jobs:
       - name: Run all unit tests
         run: make test-local
       - name: Generate code coverage artifacts
-        uses: actions/upload-artifact@v2
+        uses: actions/upload-artifact@v3
         with:
           name: code-coverage
           path: coverage.out
       - name: Generate test results artifacts
-        uses: actions/upload-artifact@v2
+        uses: actions/upload-artifact@v3
         with:
           name: test-results
           path: test-results/
@@ -149,11 +155,11 @@ jobs:
       - name: Create checkout directory
         run: mkdir -p ~/go/src/github.com/argoproj
       - name: Checkout code
-        uses: actions/checkout@v2
+        uses: actions/checkout@v3
       - name: Create symlink in GOPATH
         run: ln -s $(pwd) ~/go/src/github.com/argoproj/argo-cd
       - name: Setup Golang
-        uses: actions/setup-go@v1
+        uses: actions/setup-go@v3
         with:
           go-version: ${{ env.GOLANG_VERSION }}
       - name: Install required packages
@@ -173,7 +179,7 @@ jobs:
         run: |
           echo "/usr/local/bin" >> $GITHUB_PATH
       - name: Restore go build cache
-        uses: actions/cache@v1
+        uses: actions/cache@v3
         with:
           path: ~/.cache/go-build
           key: ${{ runner.os }}-go-build-v1-${{ github.run_id }}
@@ -190,7 +196,7 @@ jobs:
       - name: Run all unit tests
         run: make test-race-local
       - name: Generate test results artifacts
-        uses: actions/upload-artifact@v2
+        uses: actions/upload-artifact@v3
         with:
           name: race-results
           path: test-results/
@@ -200,9 +206,9 @@ jobs:
     runs-on: ubuntu-22.04
     steps:
       - name: Checkout code
-        uses: actions/checkout@v2
+        uses: actions/checkout@v3
       - name: Setup Golang
-        uses: actions/setup-go@v1
+        uses: actions/setup-go@v3
         with:
           go-version: ${{ env.GOLANG_VERSION }}
       - name: Create symlink in GOPATH
@@ -244,14 +250,14 @@ jobs:
     runs-on: ubuntu-22.04
     steps:
       - name: Checkout code
-        uses: actions/checkout@v2
+        uses: actions/checkout@v3
       - name: Setup NodeJS
-        uses: actions/setup-node@v1
+        uses: actions/setup-node@v3
         with:
           node-version: '12.18.4'
       - name: Restore node dependency cache
         id: cache-dependencies
-        uses: actions/cache@v1
+        uses: actions/cache@v3
         with:
           path: ui/node_modules
           key: ${{ runner.os }}-node-dep-v2-${{ hashFiles('**/yarn.lock') }}
@@ -281,12 +287,12 @@ jobs:
       sonar_secret: ${{ secrets.SONAR_TOKEN }}
     steps:
       - name: Checkout code
-        uses: actions/checkout@v2
+        uses: actions/checkout@v3
         with:
           fetch-depth: 0
       - name: Restore node dependency cache
         id: cache-dependencies
-        uses: actions/cache@v1
+        uses: actions/cache@v3
         with:
           path: ui/node_modules
           key: ${{ runner.os }}-node-dep-v2-${{ hashFiles('**/yarn.lock') }}
@@ -297,16 +303,16 @@ jobs:
         run: |
           mkdir -p test-results
       - name: Get code coverage artifiact
-        uses: actions/download-artifact@v2
+        uses: actions/download-artifact@v3
         with:
           name: code-coverage
       - name: Get test result artifact
-        uses: actions/download-artifact@v2
+        uses: actions/download-artifact@v3
         with:
           name: test-results
           path: test-results
       - name: Upload code coverage information to codecov.io
-        uses: codecov/codecov-action@v1
+        uses: codecov/codecov-action@v3
         with:
           file: coverage.out
       - name: Perform static code analysis using SonarCloud
@@ -360,9 +366,9 @@ jobs:
       GITLAB_TOKEN: ${{ secrets.E2E_TEST_GITLAB_TOKEN }}  
     steps:
       - name: Checkout code
-        uses: actions/checkout@v2
+        uses: actions/checkout@v3
       - name: Setup Golang
-        uses: actions/setup-go@v1
+        uses: actions/setup-go@v3
         with:
           go-version: ${{ env.GOLANG_VERSION }}
       - name: GH actions workaround - Kill XSP4 process
@@ -380,7 +386,7 @@ jobs:
           sudo chown runner $HOME/.kube/config
           kubectl version
       - name: Restore go build cache
-        uses: actions/cache@v1
+        uses: actions/cache@v3
         with:
           path: ~/.cache/go-build
           key: ${{ runner.os }}-go-build-v1-${{ github.run_id }}
@@ -406,7 +412,7 @@ jobs:
           git config --global user.email "john.doe@example.com"
       - name: Pull Docker image required for tests
         run: |
-          docker pull ghcr.io/dexidp/dex:v2.32.1-distroless
+          docker pull ghcr.io/dexidp/dex:v2.35.3
           docker pull argoproj/argo-cd-ci-builder:v1.0.0
           docker pull redis:7.0.5-alpine
       - name: Create target directory for binaries in the build-process
@@ -436,7 +442,7 @@ jobs:
           set -x
           make test-e2e-local
       - name: Upload e2e-server logs
-        uses: actions/upload-artifact@v2
+        uses: actions/upload-artifact@v3
         with:
           name: e2e-server-k8s${{ matrix.k3s-version }}.log
           path: /tmp/e2e-server.log

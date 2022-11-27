@@ -286,7 +286,7 @@ ifeq ($(DEV_IMAGE), true)
 # the dist directory is under .dockerignore.
 IMAGE_TAG="dev-$(shell git describe --always --dirty)"
 image: build-ui
-	DOCKER_BUILDKIT=1 docker build -t argocd-base --target argocd-base .
+	DOCKER_BUILDKIT=1 docker build --platform=linux/amd64 -t argocd-base --target argocd-base .
 	CGO_ENABLED=0 GOOS=linux GOARCH=amd64 go build -v -ldflags '${LDFLAGS}' -o ${DIST_DIR}/argocd ./cmd
 	ln -sfn ${DIST_DIR}/argocd ${DIST_DIR}/argocd-server
 	ln -sfn ${DIST_DIR}/argocd ${DIST_DIR}/argocd-application-controller
@@ -294,7 +294,7 @@ image: build-ui
 	ln -sfn ${DIST_DIR}/argocd ${DIST_DIR}/argocd-cmp-server
 	ln -sfn ${DIST_DIR}/argocd ${DIST_DIR}/argocd-dex
 	cp Dockerfile.dev dist
-	docker build -t $(IMAGE_PREFIX)argocd:$(IMAGE_TAG) -f dist/Dockerfile.dev dist
+	DOCKER_BUILDKIT=1 docker build --platform=linux/amd64 -t $(IMAGE_PREFIX)argocd:$(IMAGE_TAG) -f dist/Dockerfile.dev dist
 else
 image:
 	DOCKER_BUILDKIT=1 docker build -t $(IMAGE_PREFIX)argocd:$(IMAGE_TAG) .
@@ -512,7 +512,7 @@ build-docs-local:
 
 .PHONY: build-docs
 build-docs:
-	docker run ${MKDOCS_RUN_ARGS} --rm -it -p 8000:8000 -v ${CURRENT_DIR}:/docs ${MKDOCS_DOCKER_IMAGE} build
+	docker run ${MKDOCS_RUN_ARGS} --rm -it -v ${CURRENT_DIR}:/docs --entrypoint "" ${MKDOCS_DOCKER_IMAGE} sh -c 'pip install -r docs/requirements.txt; mkdocs build'
 
 .PHONY: serve-docs-local
 serve-docs-local:
@@ -520,7 +520,7 @@ serve-docs-local:
 
 .PHONY: serve-docs
 serve-docs:
-	docker run ${MKDOCS_RUN_ARGS} --rm -it -p 8000:8000 -v ${CURRENT_DIR}:/docs ${MKDOCS_DOCKER_IMAGE} serve -a 0.0.0.0:8000
+	docker run ${MKDOCS_RUN_ARGS} --rm -it -p 8000:8000 -v ${CURRENT_DIR}/site:/site -w /site --entrypoint "" ${MKDOCS_DOCKER_IMAGE} python3 -m http.server --bind 0.0.0.0 8000
 
 
 # Verify that kubectl can connect to your K8s cluster from Docker
@@ -576,7 +576,7 @@ applicationset-controller:
 
 .PHONY: checksums
 checksums:
-	for f in ./dist/$(BIN_NAME)-*; do openssl dgst -sha256 "$$f" | awk ' { print $$2 }' > "$$f".sha256 ; done
+	sha256sum ./dist/$(BIN_NAME)-* | awk -F './dist/' '{print $$1 $$2}' > ./dist/$(BIN_NAME)-$(TARGET_VERSION)-checksums.txt
 
 .PHONY: snyk-container-tests
 snyk-container-tests:

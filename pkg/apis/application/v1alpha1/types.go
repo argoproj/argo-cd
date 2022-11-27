@@ -14,11 +14,12 @@ import (
 	"strconv"
 	"strings"
 	"time"
+	"unicode"
 
 	"github.com/argoproj/gitops-engine/pkg/health"
 	synccommon "github.com/argoproj/gitops-engine/pkg/sync/common"
 	"github.com/ghodss/yaml"
-	"github.com/robfig/cron"
+	"github.com/robfig/cron/v3"
 	log "github.com/sirupsen/logrus"
 	"google.golang.org/grpc/codes"
 	"google.golang.org/grpc/status"
@@ -166,7 +167,7 @@ type ApplicationSource struct {
 	Kustomize *ApplicationSourceKustomize `json:"kustomize,omitempty" protobuf:"bytes,8,opt,name=kustomize"`
 	// Directory holds path/directory specific options
 	Directory *ApplicationSourceDirectory `json:"directory,omitempty" protobuf:"bytes,10,opt,name=directory"`
-	// ConfigManagementPlugin holds config management plugin specific options
+	// Plugin holds config management plugin specific options
 	Plugin *ApplicationSourcePlugin `json:"plugin,omitempty" protobuf:"bytes,11,opt,name=plugin"`
 	// Chart is a Helm chart name, and must be specified for applications sourced from a Helm repo.
 	Chart string `json:"chart,omitempty" protobuf:"bytes,12,opt,name=chart"`
@@ -748,6 +749,11 @@ func (o SyncOptions) HasOption(option string) bool {
 	return false
 }
 
+type ManagedNamespaceMetadata struct {
+	Labels      map[string]string `json:"labels,omitempty" protobuf:"bytes,1,opt,name=labels"`
+	Annotations map[string]string `json:"annotations,omitempty" protobuf:"bytes,2,opt,name=annotations"`
+}
+
 // SyncPolicy controls when a sync will be performed in response to updates in git
 type SyncPolicy struct {
 	// Automated will keep an application synced to the target revision
@@ -756,6 +762,8 @@ type SyncPolicy struct {
 	SyncOptions SyncOptions `json:"syncOptions,omitempty" protobuf:"bytes,2,opt,name=syncOptions"`
 	// Retry controls failed sync retry behavior
 	Retry *RetryStrategy `json:"retry,omitempty" protobuf:"bytes,3,opt,name=retry"`
+	// ManagedNamespaceMetadata controls metadata in the given namespace (if CreateNamespace=true)
+	ManagedNamespaceMetadata *ManagedNamespaceMetadata `json:"managedNamespaceMetadata,omitempty" protobuf:"bytes,4,opt,name=managedNamespaceMetadata"`
 }
 
 // IsZero returns true if the sync policy is empty
@@ -885,7 +893,6 @@ type RevisionMetadata struct {
 	// Floating tags can move from one revision to another
 	Tags []string `json:"tags,omitempty" protobuf:"bytes,3,opt,name=tags"`
 	// Message contains the message associated with the revision, most likely the commit message.
-	// The message is truncated to the first newline or 64 characters (which ever comes first)
 	Message string `json:"message,omitempty" protobuf:"bytes,4,opt,name=message"`
 	// SignatureInfo contains a hint on the signer if the revision was signed with GPG, and signature verification is enabled.
 	SignatureInfo string `json:"signatureInfo,omitempty" protobuf:"bytes,5,opt,name=signatureInfo"`
@@ -1235,6 +1242,7 @@ type ResourceStatus struct {
 	Health          *HealthStatus  `json:"health,omitempty" protobuf:"bytes,7,opt,name=health"`
 	Hook            bool           `json:"hook,omitempty" protobuf:"bytes,8,opt,name=hook"`
 	RequiresPruning bool           `json:"requiresPruning,omitempty" protobuf:"bytes,9,opt,name=requiresPruning"`
+	SyncWave        int64          `json:"syncWave,omitempty" protobuf:"bytes,10,opt,name=syncWave"`
 }
 
 // GroupKindVersion returns the GVK schema type for given resource status
@@ -1661,6 +1669,7 @@ func validateRoleName(name string) error {
 var invalidChars = regexp.MustCompile("[\"\n\r\t]")
 
 func validateGroupName(name string) error {
+	n := []rune(name)
 	name = strings.TrimSpace(name)
 	if len(name) > 1 && strings.HasPrefix(name, "\"") && strings.HasSuffix(name, "\"") {
 		// Remove surrounding quotes for further inspection of the group name
@@ -1668,12 +1677,17 @@ func validateGroupName(name string) error {
 	} else if strings.Contains(name, ",") {
 		return status.Errorf(codes.InvalidArgument, "group '%s' must be quoted", name)
 	}
-
 	if name == "" {
 		return status.Errorf(codes.InvalidArgument, "group '%s' is empty", name)
 	}
 	if invalidChars.MatchString(name) {
 		return status.Errorf(codes.InvalidArgument, "group '%s' contains invalid characters", name)
+	}
+	if len(n) > 1 && unicode.IsSpace(n[0]) {
+		return status.Errorf(codes.InvalidArgument, "group '%s' contains a leading space", name)
+	}
+	if len(n) > 1 && unicode.IsSpace(n[len(n)-1]) {
+		return status.Errorf(codes.InvalidArgument, "group '%s' contains a trailing space", name)
 	}
 	return nil
 }

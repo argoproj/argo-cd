@@ -335,8 +335,8 @@ spec:
                           and is only valid for applications sourced from Git.
                         type: string
                       plugin:
-                        description: ConfigManagementPlugin holds config management
-                          plugin specific options
+                        description: Plugin holds config management plugin specific
+                          options
                         properties:
                           env:
                             description: Env is a list of environment variable entries
@@ -704,8 +704,7 @@ spec:
                       and is only valid for applications sourced from Git.
                     type: string
                   plugin:
-                    description: ConfigManagementPlugin holds config management plugin
-                      specific options
+                    description: Plugin holds config management plugin specific options
                     properties:
                       env:
                         description: Env is a list of environment variable entries
@@ -783,6 +782,19 @@ spec:
                           back to their desired state upon modification in the cluster
                           (default: false)'
                         type: boolean
+                    type: object
+                  managedNamespaceMetadata:
+                    description: ManagedNamespaceMetadata controls metadata in the
+                      given namespace (if CreateNamespace=true)
+                    properties:
+                      annotations:
+                        additionalProperties:
+                          type: string
+                        type: object
+                      labels:
+                        additionalProperties:
+                          type: string
+                        type: object
                     type: object
                   retry:
                     description: Retry controls failed sync retry behavior
@@ -1081,8 +1093,8 @@ spec:
                             and is only valid for applications sourced from Git.
                           type: string
                         plugin:
-                          description: ConfigManagementPlugin holds config management
-                            plugin specific options
+                          description: Plugin holds config management plugin specific
+                            options
                           properties:
                             env:
                               description: Env is a list of environment variable entries
@@ -1476,8 +1488,8 @@ spec:
                                   from Git.
                                 type: string
                               plugin:
-                                description: ConfigManagementPlugin holds config management
-                                  plugin specific options
+                                description: Plugin holds config management plugin
+                                  specific options
                                 properties:
                                   env:
                                     description: Env is a list of environment variable
@@ -1845,8 +1857,8 @@ spec:
                               and is only valid for applications sourced from Git.
                             type: string
                           plugin:
-                            description: ConfigManagementPlugin holds config management
-                              plugin specific options
+                            description: Plugin holds config management plugin specific
+                              options
                             properties:
                               env:
                                 description: Env is a list of environment variable
@@ -1962,6 +1974,9 @@ spec:
                       description: SyncStatusCode is a type which represents possible
                         comparison results
                       type: string
+                    syncWave:
+                      format: int64
+                      type: integer
                     version:
                       type: string
                   type: object
@@ -2208,8 +2223,8 @@ spec:
                               and is only valid for applications sourced from Git.
                             type: string
                           plugin:
-                            description: ConfigManagementPlugin holds config management
-                              plugin specific options
+                            description: Plugin holds config management plugin specific
+                              options
                             properties:
                               env:
                                 description: Env is a list of environment variable

@@ -26,8 +26,6 @@ type PluginConfigSpec struct {
 	Init             Command    `json:"init,omitempty"`
 	Generate         Command    `json:"generate"`
 	Discover         Discover   `json:"discover"`
-	AllowConcurrency bool       `json:"allowConcurrency"`
-	LockRepo         bool       `json:"lockRepo"`
 	Parameters       Parameters `yaml:"parameters"`
 }
 
