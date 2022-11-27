@@ -309,6 +309,19 @@ func getPolicyConfigMap(ctx context.Context, client kubernetes.Interface, namesp
 	if err != nil {
 		return nil, err
 	}
+
+	cmList, err := client.CoreV1().ConfigMaps(namespace).List(ctx, v1.ListOptions{
+		LabelSelector: common.ArgoCDRBACConfigMapLabelSelector,
+	})
+	if err != nil {
+		return nil, err
+	}
+
+	for _, v := range cmList.Items {
+		cm.Data[rbac.ConfigMapPolicyCSVKey] += fmt.Sprintf("\n# concenated rbac data fetched by label %s\n%s",
+			common.ArgoCDRBACConfigMapLabelSelector, v.Data[rbac.ConfigMapPolicyCSVKey])
+	}
+
 	return cm, nil
 }
 
