@@ -40,6 +40,7 @@ const APP_FIELDS = [
     'spec',
     'operation.sync',
     'status.sync.status',
+    'status.sync.revision',
     'status.health',
     'status.operationState.phase',
     'status.operationState.operation.sync',
@@ -108,6 +109,12 @@ const ViewPref = ({children}: {children: (pref: AppsListPreferences & {page: num
                             if (params.get('sync') != null) {
                                 viewPref.syncFilter = params
                                     .get('sync')
+                                    .split(',')
+                                    .filter(item => !!item);
+                            }
+                            if (params.get('autoSync') != null) {
+                                viewPref.autosyncFilter = params
+                                    .get('autoSync')
                                     .split(',')
                                     .filter(item => !!item);
                             }
@@ -332,6 +339,7 @@ export const ApplicationsList = (props: RouteComponentProps<{}>) => {
             {
                 proj: newPref.projectsFilter.join(','),
                 sync: newPref.syncFilter.join(','),
+                autoSync: newPref.autoSyncFilter.join(','),
                 health: newPref.healthFilter.join(','),
                 namespace: newPref.namespacesFilter.join(','),
                 cluster: newPref.clustersFilter.join(','),

@@ -20,13 +20,15 @@ curl -sSfL https://raw.githubusercontent.com/argoproj/argo-cd/stable/manifests/i
 ## Connect
 Connect to one of the services, for example, to debug the main ArgoCD server run:
 ```shell
+kubectl config set-context --current --namespace argocd
 telepresence helm install # Installs telepresence into your cluster
-telepresence connect # Starts the connection to your cluster
-telepresence intercept argocd-server --port 8083:8083 --port 8080:8080 --env-file .envrc.remote --namespace argocd # Starts the interception
+telepresence connect # Starts the connection to your cluster (bound to the current namespace)
+telepresence intercept argocd-server --port 8080:http --env-file .envrc.remote # Starts the interception
 ```
-* `--port` forwards traffic of remote ports 8080 and 8083 to the same ports locally
+* `--port` forwards traffic of remote port http to 8080 locally (use `--port 8080:https` if argocd-server terminates TLS)
 * `--env-file` writes all the environment variables of the remote pod into a local file, the variables are also set on the subprocess of the `--run` command
-* `--namespace` specifies that the `argocd-server` is located in the `argocd` namespace
+
+With this, any traffic that hits your argocd-server service in the cluster (e.g through a LB / ingress) will be forwarded to your laptop on port 8080. So that you can now start argocd-server locally to debug or test new code. If you launch argocd-server using the environment variables in `.envrc.remote`, he is able to fetch all the configmaps, secrets and so one from the cluster and transparently connect to the other microservices so that no further configuration should be neccesary and he behaves exactly the same as in the cluster.
 
 List current status of Telepresence using:
 ```shell
@@ -63,11 +65,11 @@ Once a connection is established, use your favorite tools to start the server lo
 * Run `./dist/argocd-server`
 
 ### VSCode
-In VSCode use the integrated terminal to run the Telepresence command to connect. Then, to run argocd-server service use the following configuration.
-Update the configuration file to point to kubeconfig file: `KUBECONFIG=` (required)
+In VSCode use the following launch configuration to run argocd-server:
+
 ```json
         {
-            "name": "Launch",
+            "name": "Launch argocd-server",
             "type": "go",
             "request": "launch",
             "mode": "auto",
@@ -82,3 +84,4 @@ Update the configuration file to point to kubeconfig file: `KUBECONFIG=` (requir
             }
         }
 ```
+
