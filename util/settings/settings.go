@@ -108,6 +108,8 @@ type ArgoCDSettings struct {
 	// token verification to pass despite the OIDC provider having an invalid certificate. Only set to `true` if you
 	// understand the risks.
 	OIDCTLSInsecureSkipVerify bool `json:"oidcTLSInsecureSkipVerify"`
+	// AppsInAnyNamespaceEnabled indicates whether applications are allowed to be created in any namespace
+	AppsInAnyNamespaceEnabled bool `json:"appsInAnyNamespaceEnabled"`
 }
 
 type GoogleAnalytics struct {
@@ -367,6 +369,8 @@ const (
 	resourceExclusionsKey = "resource.exclusions"
 	// resourceInclusions is the key to the list of explicitly watched resources
 	resourceInclusionsKey = "resource.inclusions"
+	// resourceCustomLabelKey is the key to a custom label to show in node info, if present
+	resourceCustomLabelsKey = "resource.customLabels"
 	// configManagementPluginsKey is the key to the list of config management plugins
 	configManagementPluginsKey = "configManagementPlugins"
 	// kustomizeBuildOptionsKey is a string of kustomize build parameters
@@ -409,7 +413,7 @@ const (
 	settingsPasswordPatternKey = "passwordPattern"
 	// inClusterEnabledKey is the key to configure whether to allow in-cluster server address
 	inClusterEnabledKey = "cluster.inClusterEnabled"
-	// settingsServerRBACLogEnforceEnable is a temp param, it exists in order to mitigate the breaking change introduced by RBAC enforcing on app pod logs
+	// settingsServerRBACLogEnforceEnable is the key to configure whether logs RBAC enforcement is enabled
 	settingsServerRBACLogEnforceEnableKey = "server.rbac.log.enforce.enable"
 	// helmValuesFileSchemesKey is the key to configure the list of supported helm values file schemas
 	helmValuesFileSchemesKey = "helm.valuesFileSchemes"
@@ -749,9 +753,7 @@ func (mgr *SettingsManager) GetResourceOverrides() (map[string]v1alpha1.Resource
 	switch diffOptions.IgnoreResourceStatusField {
 	case "", "crd":
 		addStatusOverrideToGK(resourceOverrides, crdGK)
-		log.Info("Ignore status for CustomResourceDefinitions")
 		addIgnoreDiffItemOverrideToGK(resourceOverrides, crdGK, crdPrsvUnkn)
-		log.Infof("Ignore '%v' for CustomResourceDefinitions", crdPrsvUnkn)
 	case "all":
 		addStatusOverrideToGK(resourceOverrides, "*/*")
 		log.Info("Ignore status for all objects")
@@ -1239,7 +1241,7 @@ func (mgr *SettingsManager) ensureSynced(forceResync bool) error {
 
 func getDownloadBinaryUrlsFromConfigMap(argoCDCM *apiv1.ConfigMap) map[string]string {
 	binaryUrls := map[string]string{}
-	for _, archType := range []string{"darwin-amd64", "darwin-arm64", "windows-amd64", "linux-arm64", "linux-amd64"} {
+	for _, archType := range []string{"darwin-amd64", "darwin-arm64", "windows-amd64", "linux-amd64", "linux-arm64", "linux-ppc64le", "linux-s390x"} {
 		if val, ok := argoCDCM.Data[settingsBinaryUrlsKey+"."+archType]; ok {
 			binaryUrls[archType] = val
 		}
@@ -1269,14 +1271,13 @@ func updateSettingsFromConfigMap(settings *ArgoCDSettings, argoCDCM *apiv1.Confi
 		log.Warnf("Failed to validate UI banner URL in configmap: %v", err)
 	}
 	settings.UiBannerURL = argoCDCM.Data[settingUiBannerURLKey]
+	settings.UserSessionDuration = time.Hour * 24
 	if userSessionDurationStr, ok := argoCDCM.Data[userSessionDurationKey]; ok {
 		if val, err := timeutil.ParseDuration(userSessionDurationStr); err != nil {
 			log.Warnf("Failed to parse '%s' key: %v", userSessionDurationKey, err)
 		} else {
 			settings.UserSessionDuration = *val
 		}
-	} else {
-		settings.UserSessionDuration = time.Hour * 24
 	}
 	settings.PasswordPattern = argoCDCM.Data[settingsPasswordPatternKey]
 	if settings.PasswordPattern == "" {
@@ -1579,7 +1580,7 @@ func (a *ArgoCDSettings) IsDexConfigured() bool {
 	}
 	dexCfg, err := UnmarshalDexConfig(a.DexConfig)
 	if err != nil {
-		log.Warn("invalid dex yaml config")
+		log.Warnf("invalid dex yaml config: %s", err.Error())
 		return false
 	}
 	return len(dexCfg) > 0
@@ -1883,4 +1884,20 @@ func (mgr *SettingsManager) GetGlobalProjectsSettings() ([]GlobalProjectSettings
 		}
 	}
 	return globalProjectSettings, nil
+}
+
+func (mgr *SettingsManager) GetNamespace() string {
+	return mgr.namespace
+}
+
+func (mgr *SettingsManager) GetResourceCustomLabels() ([]string, error) {
+	argoCDCM, err := mgr.getConfigMap()
+	if err != nil {
+		return []string{}, fmt.Errorf("failed getting configmap: %v", err)
+	}
+	labels := argoCDCM.Data[resourceCustomLabelsKey]
+	if labels != "" {
+		return strings.Split(labels, ","), nil
+	}
+	return []string{}, nil
 }

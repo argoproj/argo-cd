@@ -1,10 +1,11 @@
+extra:
+  analytics:
+    property: G-5Z1VTPDL73
+    provider: google
 extra_css:
 - assets/versions.css
 extra_javascript:
 - assets/versions.js
-google_analytics:
-- UA-105170809-2
-- auto
 markdown_extensions:
 - markdown_include.include
 - codehilite
@@ -32,7 +33,10 @@ nav:
     - operator-manual/user-management/openunison.md
     - operator-manual/user-management/google.md
     - operator-manual/rbac.md
-  - operator-manual/security.md
+  - Security:
+    - Overview: operator-manual/security.md
+    - snyk/index.md
+    - operator-manual/signed-release-assets.md
   - operator-manual/tls.md
   - operator-manual/cluster-bootstrapping.md
   - operator-manual/secret-management.md
@@ -44,6 +48,7 @@ nav:
   - operator-manual/custom_tools.md
   - operator-manual/custom-styles.md
   - operator-manual/metrics.md
+  - operator-manual/web_based_terminal.md
   - Notification:
     - Overview: operator-manual/notifications/index.md
     - operator-manual/notifications/triggers.md
@@ -52,9 +57,9 @@ nav:
     - operator-manual/notifications/catalog.md
     - operator-manual/notifications/monitoring.md
     - operator-manual/notifications/subscriptions.md
+    - operator-manual/notifications/troubleshooting.md
     - operator-manual/notifications/troubleshooting-commands.md
     - operator-manual/notifications/troubleshooting-errors.md
-    - operator-manual/notifications/troubleshooting.md
     - Notification Services:
       - operator-manual/notifications/services/alertmanager.md
       - operator-manual/notifications/services/email.md
@@ -88,7 +93,9 @@ nav:
       - operator-manual/applicationset/Generators-SCM-Provider.md
       - operator-manual/applicationset/Generators-Cluster-Decision-Resource.md
       - operator-manual/applicationset/Generators-Pull-Request.md
-    - Template fields: operator-manual/applicationset/Template.md
+    - Template fields:
+      - operator-manual/applicationset/Template.md
+      - operator-manual/applicationset/GoTemplate.md
     - Controlling Resource Modification: operator-manual/applicationset/Controlling-Resource-Modification.md
     - Application Pruning & Resource Deletion: operator-manual/applicationset/Application-Deletion.md
   - Server Configuration Parameters:
@@ -99,6 +106,7 @@ nav:
     - operator-manual/server-commands/additional-configuration-method.md
   - Upgrading:
     - operator-manual/upgrading/overview.md
+    - operator-manual/upgrading/2.4-2.5.md
     - operator-manual/upgrading/2.3-2.4.md
     - operator-manual/upgrading/2.2-2.3.md
     - operator-manual/upgrading/2.1-2.2.md
@@ -117,7 +125,9 @@ nav:
   - user-guide/application_sources.md
   - user-guide/kustomize.md
   - user-guide/helm.md
+  - user-guide/import.md
   - user-guide/jsonnet.md
+  - user-guide/directory.md
   - user-guide/config-management-plugins.md
   - user-guide/tool_detection.md
   - user-guide/projects.md
@@ -149,6 +159,7 @@ nav:
   - developer-guide/index.md
   - Code Contribution Guide: developer-guide/code-contributions.md
   - Toolchain Guide: developer-guide/toolchain-guide.md
+  - developer-guide/contributors-quickstart.md
   - developer-guide/release-process-and-cadence.md
   - developer-guide/running-locally.md
   - developer-guide/debugging-remote-environment.md

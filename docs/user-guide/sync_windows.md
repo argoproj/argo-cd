@@ -67,12 +67,12 @@ spec:
     duration: 1h
     namespaces:
     - default
-   - kind: allow
-     schedule: '0 23 * * *'
-     duration: 1h
-     clusters:
-     - in-cluster
-     - cluster1
+  - kind: allow
+    schedule: '0 23 * * *'
+    duration: 1h
+    clusters:
+    - in-cluster
+    - cluster1
 ```
 
 In order to perform a sync when syncs are being prevented by a window, you can configure the window to allow manual syncs

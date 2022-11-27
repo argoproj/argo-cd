@@ -14,7 +14,7 @@ const (
 	// DefaultRepoServerAddr is the gRPC address of the Argo CD repo server
 	DefaultRepoServerAddr = "argocd-repo-server:8081"
 	// DefaultDexServerAddr is the HTTP address of the Dex OIDC server, which we run a reverse proxy against
-	DefaultDexServerAddr = "http://argocd-dex-server:5556"
+	DefaultDexServerAddr = "argocd-dex-server:5556"
 	// DefaultRedisAddr is the default redis address
 	DefaultRedisAddr = "argocd-redis:6379"
 )
@@ -25,6 +25,8 @@ const (
 	ArgoCDSecretName                 = "argocd-secret"
 	ArgoCDRBACConfigMapName          = "argocd-rbac-cm"
 	ArgoCDRBACConfigMapLabelSelector = "argocd.argoproj.io/cm-type=rbac"
+	ArgoCDNotificationsConfigMapName = "argocd-notifications-cm"
+	ArgoCDNotificationsSecretName    = "argocd-notifications-secret"
 	// Contains SSH known hosts data for connecting repositories. Will get mounted as volume to pods
 	ArgoCDKnownHostsConfigMapName = "argocd-ssh-known-hosts-cm"
 	// Contains TLS certificate data for connecting repositories. Will get mounted as volume to pods
@@ -79,6 +81,8 @@ const (
 	ArgoCDAdminUsername = "admin"
 	// ArgoCDUserAgentName is the default user-agent name used by the gRPC API client library and grpc-gateway
 	ArgoCDUserAgentName = "argocd-client"
+	// ArgoCDSSAManager is the default argocd manager name used by server-side apply syncs
+	ArgoCDSSAManager = "argocd-controller"
 	// AuthCookieName is the HTTP cookie name where we store our auth token
 	AuthCookieName = "argocd.token"
 	// StateCookieName is the HTTP cookie name that holds temporary nonce tokens for CSRF protection
@@ -218,6 +222,14 @@ const (
 
 	// DefaultCMPWorkDirName defines the work directory name used by the cmp-server
 	DefaultCMPWorkDirName = "_cmp_server"
+
+	ConfigMapPluginDeprecationWarning = "argocd-cm plugins are deprecated, and support will be removed in v2.6. Upgrade your plugin to be installed via sidecar. https://argo-cd.readthedocs.io/en/stable/user-guide/config-management-plugins/"
+
+	ConfigMapPluginCLIDeprecationWarning = "spec.plugin.name is set, which means this Application uses a plugin installed in the " +
+		"argocd-cm ConfigMap. Installing plugins via that ConfigMap is deprecated in Argo CD v2.5. " +
+		"Starting in Argo CD v2.6, this Application will fail to sync. Contact your Argo CD admin " +
+		"to make sure an upgrade plan is in place. More info: " +
+		"https://argo-cd.readthedocs.io/en/latest/operator-manual/upgrading/2.4-2.5/"
 )
 
 const (
@@ -284,7 +296,7 @@ func GetCMPWorkDir() string {
 }
 
 const (
-	// AnnotationApplicationRefresh is an annotation that is added when an ApplicationSet is requested to be refreshed by a webhook. The ApplicationSet controller will remove this annotation at the end of reconcilation.
+	// AnnotationApplicationRefresh is an annotation that is added when an ApplicationSet is requested to be refreshed by a webhook. The ApplicationSet controller will remove this annotation at the end of reconciliation.
 	AnnotationApplicationSetRefresh = "argocd.argoproj.io/application-set-refresh"
 )
 
@@ -295,11 +307,13 @@ const (
 	GRPCKeepAliveTime = 2 * GRPCKeepAliveEnforcementMinimum
 )
 
-// Security log levels
+// Security severity logging
 const (
-	SecurityField    = "security"
-	SecurityCritical = "4"
-	SecurityHigh     = "3"
-	SecurityMedium   = "2"
-	SecurityLow      = "1"
+	SecurityField     = "security"
+	SecurityCWEField  = "CWE"
+	SecurityEmergency = 5 // Indicates unmistakably malicious events that should NEVER occur accidentally and indicates an active attack (i.e. brute forcing, DoS)
+	SecurityCritical  = 4 // Indicates any malicious or exploitable event that had a side effect (i.e. secrets being left behind on the filesystem)
+	SecurityHigh      = 3 // Indicates likely malicious events but one that had no side effects or was blocked (i.e. out of bounds symlinks in repos)
+	SecurityMedium    = 2 // Could indicate malicious events, but has a high likelihood of being user/system error (i.e. access denied)
+	SecurityLow       = 1 // Unexceptional entries (i.e. successful access logs)
 )

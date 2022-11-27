@@ -36,11 +36,12 @@ import (
 // NewLoginCommand returns a new instance of `argocd login` command
 func NewLoginCommand(globalClientOpts *argocdclient.ClientOptions) *cobra.Command {
 	var (
-		ctxName  string
-		username string
-		password string
-		sso      bool
-		ssoPort  int
+		ctxName     string
+		username    string
+		password    string
+		sso         bool
+		ssoPort     int
+		skipTestTLS bool
 	)
 	var command = &cobra.Command{
 		Use:   "login SERVER",
@@ -70,22 +71,25 @@ argocd login cd.argoproj.io --core`,
 				server = "kubernetes"
 			} else {
 				server = args[0]
-				dialTime := 30 * time.Second
-				tlsTestResult, err := grpc_util.TestTLS(server, dialTime)
-				errors.CheckError(err)
-				if !tlsTestResult.TLS {
-					if !globalClientOpts.PlainText {
-						if !cli.AskToProceed("WARNING: server is not configured with TLS. Proceed (y/n)? ") {
-							os.Exit(1)
+
+				if !skipTestTLS {
+					dialTime := 30 * time.Second
+					tlsTestResult, err := grpc_util.TestTLS(server, dialTime)
+					errors.CheckError(err)
+					if !tlsTestResult.TLS {
+						if !globalClientOpts.PlainText {
+							if !cli.AskToProceed("WARNING: server is not configured with TLS. Proceed (y/n)? ") {
+								os.Exit(1)
+							}
+							globalClientOpts.PlainText = true
 						}
-						globalClientOpts.PlainText = true
-					}
-				} else if tlsTestResult.InsecureErr != nil {
-					if !globalClientOpts.Insecure {
-						if !cli.AskToProceed(fmt.Sprintf("WARNING: server certificate had error: %s. Proceed insecurely (y/n)? ", tlsTestResult.InsecureErr)) {
-							os.Exit(1)
+					} else if tlsTestResult.InsecureErr != nil {
+						if !globalClientOpts.Insecure {
+							if !cli.AskToProceed(fmt.Sprintf("WARNING: server certificate had error: %s. Proceed insecurely (y/n)? ", tlsTestResult.InsecureErr)) {
+								os.Exit(1)
+							}
+							globalClientOpts.Insecure = true
 						}
-						globalClientOpts.Insecure = true
 					}
 				}
 			}
@@ -176,6 +180,8 @@ argocd login cd.argoproj.io --core`,
 	command.Flags().StringVar(&password, "password", "", "the password of an account to authenticate")
 	command.Flags().BoolVar(&sso, "sso", false, "perform SSO login")
 	command.Flags().IntVar(&ssoPort, "sso-port", DefaultSSOLocalPort, "port to run local OAuth2 login application")
+	command.Flags().
+		BoolVar(&skipTestTLS, "skip-test-tls", false, "Skip testing whether the server is configured with TLS (this can help when the command hangs for no apparent reason)")
 	return command
 }
 
@@ -191,7 +197,13 @@ func userDisplayName(claims jwt.MapClaims) string {
 
 // oauth2Login opens a browser, runs a temporary HTTP server to delegate OAuth2 login flow and
 // returns the JWT token and a refresh token (if supported)
-func oauth2Login(ctx context.Context, port int, oidcSettings *settingspkg.OIDCConfig, oauth2conf *oauth2.Config, provider *oidc.Provider) (string, string) {
+func oauth2Login(
+	ctx context.Context,
+	port int,
+	oidcSettings *settingspkg.OIDCConfig,
+	oauth2conf *oauth2.Config,
+	provider *oidc.Provider,
+) (string, string) {
 	oauth2conf.RedirectURL = fmt.Sprintf("http://localhost:%d/auth/callback", port)
 	oidcConf, err := oidcutil.ParseConfig(provider)
 	errors.CheckError(err)
@@ -217,7 +229,10 @@ func oauth2Login(ctx context.Context, port int, oidcSettings *settingspkg.OIDCCo
 	}
 
 	// PKCE implementation of https://tools.ietf.org/html/rfc7636
-	codeVerifier, err := rand.StringFromCharset(43, "ABCDEFGHIJKLMNOPQRSTUVWXYZabcdefghijklmnopqrstuvwxyz0123456789-._~")
+	codeVerifier, err := rand.StringFromCharset(
+		43,
+		"ABCDEFGHIJKLMNOPQRSTUVWXYZabcdefghijklmnopqrstuvwxyz0123456789-._~",
+	)
 	errors.CheckError(err)
 	codeChallengeHash := sha256.Sum256([]byte(codeVerifier))
 	codeChallenge := base64.RawURLEncoding.EncodeToString(codeChallengeHash[:])

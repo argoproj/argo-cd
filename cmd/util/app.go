@@ -3,7 +3,7 @@ package util
 import (
 	"bufio"
 	"fmt"
-	"io/ioutil"
+	"io"
 	"net/url"
 	"os"
 	"strings"
@@ -21,6 +21,7 @@ import (
 
 	"github.com/argoproj/argo-cd/v2/pkg/apis/application"
 	argoappv1 "github.com/argoproj/argo-cd/v2/pkg/apis/application/v1alpha1"
+	"github.com/argoproj/argo-cd/v2/util/argo"
 	"github.com/argoproj/argo-cd/v2/util/config"
 	"github.com/argoproj/argo-cd/v2/util/errors"
 	"github.com/argoproj/argo-cd/v2/util/text/label"
@@ -159,7 +160,7 @@ func SetAppSpecOptions(flags *pflag.FlagSet, spec *argoappv1.ApplicationSpec, ap
 			// read uri
 			parsedURL, err := url.ParseRequestURI(appOpts.values)
 			if err != nil || !(parsedURL.Scheme == "http" || parsedURL.Scheme == "https") {
-				data, err = ioutil.ReadFile(appOpts.values)
+				data, err = os.ReadFile(appOpts.values)
 			} else {
 				data, err = config.ReadRemoteFile(appOpts.values)
 			}
@@ -520,7 +521,7 @@ func readApps(yml []byte, apps *[]*argoappv1.Application) error {
 
 func readAppsFromStdin(apps *[]*argoappv1.Application) error {
 	reader := bufio.NewReader(os.Stdin)
-	data, err := ioutil.ReadAll(reader)
+	data, err := io.ReadAll(reader)
 	if err != nil {
 		return err
 	}
@@ -536,7 +537,7 @@ func readAppsFromURI(fileURL string, apps *[]*argoappv1.Application) error {
 	readFilePayload := func() ([]byte, error) {
 		parsedURL, err := url.ParseRequestURI(fileURL)
 		if err != nil || !(parsedURL.Scheme == "http" || parsedURL.Scheme == "https") {
-			return ioutil.ReadFile(fileURL)
+			return os.ReadFile(fileURL)
 		}
 		return config.ReadRemoteFile(fileURL)
 	}
@@ -561,6 +562,7 @@ func constructAppsFromStdin() ([]*argoappv1.Application, error) {
 
 func constructAppsBaseOnName(appName string, labels, annotations, args []string, appOpts AppOptions, flags *pflag.FlagSet) ([]*argoappv1.Application, error) {
 	var app *argoappv1.Application
+
 	// read arguments
 	if len(args) == 1 {
 		if appName != "" && appName != args[0] {
@@ -568,13 +570,15 @@ func constructAppsBaseOnName(appName string, labels, annotations, args []string,
 		}
 		appName = args[0]
 	}
+	appName, appNs := argo.ParseAppQualifiedName(appName, "")
 	app = &argoappv1.Application{
 		TypeMeta: v1.TypeMeta{
 			Kind:       application.ApplicationKind,
 			APIVersion: application.Group + "/v1alpha1",
 		},
 		ObjectMeta: v1.ObjectMeta{
-			Name: appName,
+			Name:      appName,
+			Namespace: appNs,
 		},
 	}
 	SetAppSpecOptions(flags, &app.Spec, &appOpts)

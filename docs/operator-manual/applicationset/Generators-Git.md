@@ -45,7 +45,7 @@ spec:
       - path: applicationset/examples/git-generator-directory/cluster-addons/*
   template:
     metadata:
-      name: '{{path[0]}}'
+      name: '{{path.basename}}'
     spec:
       project: "my-project"
       source:
@@ -55,6 +55,9 @@ spec:
       destination:
         server: https://kubernetes.default.svc
         namespace: '{{path.basename}}'
+      syncPolicy:
+        syncOptions:
+        - CreateNamespace=true
 ```
 (*The full example can be found [here](https://github.com/argoproj/argo-cd/tree/master/applicationset/examples/git-generator-directory).*)
 
@@ -107,7 +110,7 @@ spec:
 ```
 (*The full example can be found [here](https://github.com/argoproj/argo-cd/tree/master/examples/applicationset/git-generator-directory/excludes).*)
 
-This example excludes the `exclude-helm-guestbook` directory from the list of directories scanned for this `ApplictionSet` resource.
+This example excludes the `exclude-helm-guestbook` directory from the list of directories scanned for this `ApplicationSet` resource.
 
 !!! note "Exclude rules have higher priority than include rules"
 

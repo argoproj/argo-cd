@@ -20,6 +20,7 @@ argocd proj create PROJECT [flags]
       --orphaned-resources                      Enables orphaned resources monitoring
       --orphaned-resources-warn                 Specifies if applications should have a warning condition when orphaned resources detected
       --signature-keys strings                  GnuPG public key IDs for commit signature verification
+      --source-namespaces strings               List of source namespaces for applications
   -s, --src stringArray                         Permitted source repository URL
       --upsert                                  Allows to override a project with the same name even if supplied project spec is different from existing spec
 ```

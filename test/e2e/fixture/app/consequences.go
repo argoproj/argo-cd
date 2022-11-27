@@ -69,7 +69,7 @@ func (c *Consequences) app() *Application {
 }
 
 func (c *Consequences) get() (*Application, error) {
-	return fixture.AppClientset.ArgoprojV1alpha1().Applications(fixture.ArgoCDNamespace).Get(context.Background(), c.context.name, v1.GetOptions{})
+	return fixture.AppClientset.ArgoprojV1alpha1().Applications(c.context.AppNamespace()).Get(context.Background(), c.context.AppName(), v1.GetOptions{})
 }
 
 func (c *Consequences) resource(kind, name, namespace string) ResourceStatus {
@@ -88,5 +88,11 @@ func (c *Consequences) resource(kind, name, namespace string) ResourceStatus {
 
 func (c *Consequences) Timeout(timeout int) *Consequences {
 	c.timeout = timeout
+	return c
+}
+
+func (c *Consequences) AndCLIOutput(block func(output string, err error)) *Consequences {
+	c.context.t.Helper()
+	block(c.actions.lastOutput, c.actions.lastError)
 	return c
 }

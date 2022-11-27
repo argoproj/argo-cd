@@ -7,3 +7,4 @@ resources:
 - argocd-applicationset-controller-deployment.yaml
 - argocd-applicationset-controller-role.yaml
 - argocd-applicationset-controller-service.yaml
+- argocd-applicationset-controller-network-policy.yaml

@@ -123,7 +123,7 @@ var (
 	}
 )
 
-func newAppAndProjLister(objects ...runtime.Object) (applisters.ApplicationNamespaceLister, applisters.AppProjectNamespaceLister) {
+func newAppAndProjLister(objects ...runtime.Object) (applisters.ApplicationLister, applisters.AppProjectNamespaceLister) {
 	fakeAppsClientset := fakeapps.NewSimpleClientset(objects...)
 	factory := appinformer.NewSharedInformerFactoryWithOptions(fakeAppsClientset, 0, appinformer.WithNamespace(""), appinformer.WithTweakListOptions(func(options *metav1.ListOptions) {}))
 	projInformer := factory.Argoproj().V1alpha1().AppProjects()
@@ -136,7 +136,7 @@ func newAppAndProjLister(objects ...runtime.Object) (applisters.ApplicationNames
 			_ = appsInformer.Informer().GetStore().Add(obj)
 		}
 	}
-	appLister := appsInformer.Lister().Applications(testNamespace)
+	appLister := appsInformer.Lister()
 	projLister := projInformer.Lister().AppProjects(testNamespace)
 	return appLister, projLister
 }

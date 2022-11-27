@@ -243,7 +243,11 @@ func tempFile(content string) (string, io.Closer, error) {
 		_ = os.Remove(f.Name())
 		return "", nil, err
 	}
-	defer f.Close()
+	defer func() {
+		if err = f.Close(); err != nil {
+			panic(err)
+		}
+	}()
 	return f.Name(), utils.NewCloser(func() error {
 		return os.Remove(f.Name())
 	}), nil

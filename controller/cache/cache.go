@@ -382,11 +382,16 @@ func (c *liveStateCache) getCluster(server string) (clustercache.ClusterCache, e
 
 	cluster, err := c.db.GetCluster(context.Background(), server)
 	if err != nil {
-		return nil, err
+		return nil, fmt.Errorf("error getting cluster: %w", err)
 	}
 
 	if !c.canHandleCluster(cluster) {
 		return nil, fmt.Errorf("controller is configured to ignore cluster %s", cluster.Server)
+	}
+
+	resourceCustomLabels, err := c.settingsMgr.GetResourceCustomLabels()
+	if err != nil {
+		return nil, fmt.Errorf("error getting custom label: %w", err)
 	}
 
 	clusterCacheOpts := []clustercache.UpdateSettingsFunc{
@@ -400,7 +405,7 @@ func (c *liveStateCache) getCluster(server string) (clustercache.ClusterCache, e
 		clustercache.SetClusterResources(cluster.ClusterResources),
 		clustercache.SetPopulateResourceInfoHandler(func(un *unstructured.Unstructured, isRoot bool) (interface{}, bool) {
 			res := &ResourceInfo{}
-			populateNodeInfo(un, res)
+			populateNodeInfo(un, res, resourceCustomLabels)
 			c.lock.RLock()
 			cacheSettings := c.cacheSettings
 			c.lock.RUnlock()
@@ -456,11 +461,11 @@ func (c *liveStateCache) getCluster(server string) (clustercache.ClusterCache, e
 func (c *liveStateCache) getSyncedCluster(server string) (clustercache.ClusterCache, error) {
 	clusterCache, err := c.getCluster(server)
 	if err != nil {
-		return nil, err
+		return nil, fmt.Errorf("error getting cluster: %w", err)
 	}
 	err = clusterCache.EnsureSynced()
 	if err != nil {
-		return nil, err
+		return nil, fmt.Errorf("error synchronizing cache state : %w", err)
 	}
 	return clusterCache, nil
 }
@@ -529,7 +534,7 @@ func (c *liveStateCache) GetManagedLiveObjs(a *appv1.Application, targetObjs []*
 		return nil, err
 	}
 	return clusterInfo.GetManagedLiveObjs(targetObjs, func(r *clustercache.Resource) bool {
-		return resInfo(r).AppName == a.Name
+		return resInfo(r).AppName == a.InstanceName(c.settingsMgr.GetNamespace())
 	})
 }
 
@@ -594,7 +599,7 @@ func (c *liveStateCache) watchSettings(ctx context.Context) {
 func (c *liveStateCache) Init() error {
 	cacheSettings, err := c.loadCacheSettings()
 	if err != nil {
-		return err
+		return fmt.Errorf("error loading cache settings: %w", err)
 	}
 	c.cacheSettings = *cacheSettings
 	return nil

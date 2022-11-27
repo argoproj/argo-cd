@@ -1,7 +1,6 @@
 package certs
 
 import (
-	"io/ioutil"
 	"os"
 	"path/filepath"
 
@@ -22,11 +21,11 @@ func AddCustomCACert() {
 		errors.FailOnErr(fixture.RunCli(args...))
 		args = []string{"cert", "add-tls", "127.0.0.1", "--from", caCertPath}
 		errors.FailOnErr(fixture.RunCli(args...))
-		certData, err := ioutil.ReadFile(caCertPath)
+		certData, err := os.ReadFile(caCertPath)
 		errors.CheckError(err)
-		err = ioutil.WriteFile(fixture.TmpDir+"/app/config/tls/localhost", certData, 0644)
+		err = os.WriteFile(fixture.TmpDir+"/app/config/tls/localhost", certData, 0644)
 		errors.CheckError(err)
-		err = ioutil.WriteFile(fixture.TmpDir+"/app/config/tls/127.0.0.1", certData, 0644)
+		err = os.WriteFile(fixture.TmpDir+"/app/config/tls/127.0.0.1", certData, 0644)
 		errors.CheckError(err)
 	} else {
 		args := []string{"cert", "add-tls", "argocd-e2e-server", "--from", caCertPath}
@@ -51,9 +50,9 @@ func AddCustomSSHKnownHostsKeys() {
 	errors.FailOnErr(fixture.RunCli(args...))
 
 	if fixture.IsLocal() {
-		knownHostsData, err := ioutil.ReadFile(knownHostsPath)
+		knownHostsData, err := os.ReadFile(knownHostsPath)
 		errors.CheckError(err)
-		err = ioutil.WriteFile(fixture.TmpDir+"/app/config/ssh/ssh_known_hosts", knownHostsData, 0644)
+		err = os.WriteFile(fixture.TmpDir+"/app/config/ssh/ssh_known_hosts", knownHostsData, 0644)
 		errors.CheckError(err)
 	} else {
 		fixture.RestartAPIServer()

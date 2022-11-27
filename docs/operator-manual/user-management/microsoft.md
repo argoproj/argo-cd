@@ -36,24 +36,24 @@
 1. Edit `argocd-cm` and add the following `dex.config` to the data section, replacing the `caData`, `my-argo-cd-url` and `my-login-url` your values from the Azure AD App:
 
             data:
-            url: https://my-argo-cd-url
-            dex.config: |
-               logger:
+              url: https://my-argo-cd-url
+              dex.config: |
+                logger:
                   level: debug
                   format: json
-               connectors:
-               - type: saml
+                connectors:
+                - type: saml
                   id: saml
                   name: saml
                   config:
-                  entityIssuer: https://my-argo-cd-url/api/dex/callback
-                  ssoURL: https://my-login-url (e.g. https://login.microsoftonline.com/xxxxx/a/saml2)
-                  caData: |
-                     MY-BASE64-ENCODED-CERTIFICATE-DATA
-                  redirectURI: https://my-argo-cd-url/api/dex/callback
-                  usernameAttr: email
-                  emailAttr: email
-                  groupsAttr: Group
+                    entityIssuer: https://my-argo-cd-url/api/dex/callback
+                    ssoURL: https://my-login-url (e.g. https://login.microsoftonline.com/xxxxx/a/saml2)
+                    caData: |
+                       MY-BASE64-ENCODED-CERTIFICATE-DATA
+                    redirectURI: https://my-argo-cd-url/api/dex/callback
+                    usernameAttr: email
+                    emailAttr: email
+                    groupsAttr: Group
 
 2. Edit `argocd-rbac-cm` to configure permissions, similar to example below.
       - Use Azure AD `Group IDs` for assigning roles.
@@ -169,7 +169,7 @@
                p, role:org-admin, repositories, update, *, allow
                p, role:org-admin, repositories, delete, *, allow
                g, "84ce98d1-e359-4f3b-85af-985b458de3c6", role:org-admin
-               scopes: '[roles, email]'
+            scopes: '[groups, email]'
 
    Refer to [operator-manual/argocd-rbac-cm.yaml](https://github.com/argoproj/argo-cd/blob/master/docs/operator-manual/argocd-rbac-cm.yaml) for all of the available variables.
 

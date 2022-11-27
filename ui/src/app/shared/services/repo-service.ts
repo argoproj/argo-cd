@@ -47,6 +47,37 @@ export class RepositoriesService {
             .then(res => res.body as models.Repository);
     }
 
+    public updateHTTPS({
+        type,
+        name,
+        url,
+        username,
+        password,
+        tlsClientCertData,
+        tlsClientCertKey,
+        insecure,
+        enableLfs,
+        proxy,
+        project
+    }: {
+        type: string;
+        name: string;
+        url: string;
+        username: string;
+        password: string;
+        tlsClientCertData: string;
+        tlsClientCertKey: string;
+        insecure: boolean;
+        enableLfs: boolean;
+        proxy: string;
+        project?: string;
+    }): Promise<models.Repository> {
+        return requests
+            .put(`/repositories/${encodeURIComponent(url)}`)
+            .send({type, name, repo: url, username, password, tlsClientCertData, tlsClientCertKey, insecure, enableLfs, proxy, project})
+            .then(res => res.body as models.Repository);
+    }
+
     public createSSH({
         type,
         name,
