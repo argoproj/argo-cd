@@ -219,6 +219,7 @@ type ArgoCDServerOpts struct {
 	ContentSecurityPolicy string
 	ListenHost            string
 	ApplicationNamespaces []string
+	EnableProxyExtension  bool
 }
 
 // initializeDefaultProject creates the default project if it does not already exist
@@ -940,7 +941,11 @@ func (a *ArgoCDServer) newHTTPServer(ctx context.Context, port int, grpcWebHandl
 		terminalHandler.ServeHTTP(writer, request)
 	})
 
-	mustRegisterExtensions(mux, a)
+	// Proxy extension is currently an experimental feature and will be disabled
+	// by default.
+	if a.EnableProxyExtension {
+		mustRegisterExtensions(mux, a)
+	}
 	mustRegisterGWHandler(versionpkg.RegisterVersionServiceHandler, ctx, gwmux, conn)
 	mustRegisterGWHandler(clusterpkg.RegisterClusterServiceHandler, ctx, gwmux, conn)
 	mustRegisterGWHandler(applicationpkg.RegisterApplicationServiceHandler, ctx, gwmux, conn)
@@ -993,7 +998,11 @@ func mustRegisterExtensions(mux *http.ServeMux, a *ArgoCDServer) {
 
 	r := gmux.NewRouter()
 	mux.Handle(fmt.Sprintf("%s/", extension.URLPrefix), r)
-	em.MustRegisterHandlers(r)
+
+	err := em.RegisterHandlers(r)
+	if err != nil {
+		panic(fmt.Sprintf("error registering extension handlers: %s", err))
+	}
 }
 
 var extensionsPattern = regexp.MustCompile(`^extension(.*)\.js$`)

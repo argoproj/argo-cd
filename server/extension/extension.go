@@ -12,7 +12,6 @@ import (
 	"time"
 
 	applicationpkg "github.com/argoproj/argo-cd/v2/pkg/apiclient/application"
-	"github.com/argoproj/argo-cd/v2/pkg/apiclient/cluster"
 	v1alpha1 "github.com/argoproj/argo-cd/v2/pkg/apis/application/v1alpha1"
 	"github.com/argoproj/argo-cd/v2/util/settings"
 	"github.com/ghodss/yaml"
@@ -86,25 +85,25 @@ func (a *DefaultApplicationGetter) Get(ns, name string) (*v1alpha1.Application, 
 	return a.svc.Get(context.Background(), query)
 }
 
-type ClusterGetter interface {
-	Get(*cluster.ClusterQuery) (*v1alpha1.Cluster, error)
-}
-
-type DefaultClusterGetter struct {
-	service *cluster.ClusterServiceServer
-}
-
-func NewDefaultClusterGetter(service *cluster.ClusterServiceServer) *DefaultClusterGetter {
-	return &DefaultClusterGetter{
-		service: service,
-	}
-}
+// type ClusterGetter interface {
+// 	Get(*cluster.ClusterQuery) (*v1alpha1.Cluster, error)
+// }
+//
+// type DefaultClusterGetter struct {
+// 	service *cluster.ClusterServiceServer
+// }
+//
+// func NewDefaultClusterGetter(service *cluster.ClusterServiceServer) *DefaultClusterGetter {
+// 	return &DefaultClusterGetter{
+// 		service: service,
+// 	}
+// }
 
 type manager struct {
 	log         *log.Entry
 	settings    SettingsGetter
 	application ApplicationGetter
-	cluster     ClusterGetter
+	// cluster     ClusterGetter
 }
 
 func NewManager(sg SettingsGetter, ag ApplicationGetter, log *log.Entry) *manager {
@@ -144,15 +143,8 @@ func NewProxy(targetURL string) (*httputil.ReverseProxy, error) {
 	return proxy, nil
 }
 
-func (m *manager) MustRegisterHandlers(r *mux.Router) {
-	m.log.Info("Registering extension handlers...")
-	err := m.RegisterHandlers(r)
-	if err != nil {
-		panic(fmt.Sprintf("error registering extension handlers: %s", err))
-	}
-}
-
 func (m *manager) RegisterHandlers(r *mux.Router) error {
+	m.log.Info("Registering extension handlers...")
 	config, err := m.settings.Get()
 	if err != nil {
 		return fmt.Errorf("error getting settings: %s", err)
@@ -213,10 +205,17 @@ func (m *manager) ProxyHandler(extName string, proxyByCluster map[string]*httput
 			m.writeErrorResponse(http.StatusBadRequest, msg, w)
 			return
 		}
-		appName := r.Header.Get(HeaderArgoCDApplicationName)
-		if appName != "" {
-			appParts := strings.Split(appName, "/")
-			_, err = m.application.Get(appParts[0], appParts[1])
+		var app *v1alpha1.Application
+		var appNamespace, appName string
+		appHeader := r.Header.Get(HeaderArgoCDApplicationName)
+		if appHeader != "" {
+			appNamespace, appName, err = getAppName(appHeader)
+			if err != nil {
+				msg := fmt.Sprintf("Error getting application name: %s", err)
+				m.writeErrorResponse(http.StatusBadRequest, msg, w)
+				return
+			}
+			app, err = m.application.Get(appNamespace, appName)
 			if err != nil {
 				msg := fmt.Sprintf("Error getting application: %s", err)
 				m.writeErrorResponse(http.StatusBadRequest, msg, w)
@@ -231,19 +230,27 @@ func (m *manager) ProxyHandler(extName string, proxyByCluster map[string]*httput
 			}
 		}
 
-		clusterName := ""
-		if appName == "" {
-			clusterName = "kubernetes.local"
+		clusterName := app.Spec.Destination.Name
+		if clusterName == "" {
+			clusterName = app.Spec.Destination.Server
 		}
 
 		proxy, ok := proxyByCluster[clusterName]
 		if !ok {
-			msg := fmt.Sprintf("No extension configured for cluster %q", appName)
+			msg := fmt.Sprintf("No extension configured for cluster %q", appHeader)
 			m.writeErrorResponse(http.StatusBadRequest, msg, w)
 			return
 		}
 		proxy.ServeHTTP(w, r)
 	}
+}
+
+func getAppName(appHeader string) (string, string, error) {
+	parts := strings.Split(appHeader, "/")
+	if len(parts) != 2 {
+		return "", "", fmt.Errorf("invalid header value %q: expected format: <namespace>/<app-name>", appHeader)
+	}
+	return parts[0], parts[1], nil
 }
 
 func sanitizeRequest(r *http.Request, extName string) error {
