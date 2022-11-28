@@ -23,6 +23,7 @@ jobs:
   publish:
     permissions:
       contents: write  # for git to push upgrade commit if not already deployed
+      packages: write  # for pushing packages to GHCR, which is used by cd.apps.argoproj.io to avoid polluting Quay with tags
     if: github.repository == 'argoproj/argo-cd'
     runs-on: ubuntu-22.04
     env:
@@ -46,8 +47,8 @@ jobs:
           docker login quay.io --username "$DOCKER_USERNAME" --password-stdin <<< "$DOCKER_TOKEN"
         if: github.event_name == 'push'
         env:
-          USERNAME: ${{ secrets.USERNAME }}
-          PASSWORD: ${{ secrets.TOKEN }}
+          USERNAME: ${{ github.actor }}
+          PASSWORD: ${{ secrets.GITHUB_TOKEN }}
           DOCKER_USERNAME: ${{ secrets.RELEASE_QUAY_USERNAME }}
           DOCKER_TOKEN: ${{ secrets.RELEASE_QUAY_TOKEN }}
 
@@ -62,7 +63,7 @@ jobs:
           fi
           echo "Building image for platforms: $IMAGE_PLATFORMS"
           docker buildx build --platform $IMAGE_PLATFORMS --push="${{ github.event_name == 'push' }}" \
-            -t ghcr.io/argoproj/argocd:${{ steps.image.outputs.tag }} \
+            -t ghcr.io/argoproj/argo-cd/argocd:${{ steps.image.outputs.tag }} \
             -t quay.io/argoproj/argocd:latest .
         working-directory: ./src/github.com/argoproj/argo-cd
 
@@ -88,7 +89,7 @@ jobs:
         env:
           TOKEN: ${{ secrets.TOKEN }}
       - run: |
-          docker run -u $(id -u):$(id -g) -v $(pwd):/src -w /src --rm -t ghcr.io/argoproj/argocd:${{ steps.image.outputs.tag }} kustomize edit set image quay.io/argoproj/argocd=ghcr.io/argoproj/argocd:${{ steps.image.outputs.tag }}
+          docker run -u $(id -u):$(id -g) -v $(pwd):/src -w /src --rm -t ghcr.io/argoproj/argo-cd/argocd:${{ steps.image.outputs.tag }} kustomize edit set image quay.io/argoproj/argocd=ghcr.io/argoproj/argo-cd/argocd:${{ steps.image.outputs.tag }}
           git config --global user.email 'ci@argoproj.com'
           git config --global user.name 'CI'
           git diff --exit-code && echo 'Already deployed' || (git commit -am 'Upgrade argocd to ${{ steps.image.outputs.tag }}' && git push)
