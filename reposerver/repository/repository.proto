@@ -29,6 +29,7 @@ message ManifestRequest {
     map<string, bool> enabledSourceTypes = 21;
     github.com.argoproj.argo_cd.v2.pkg.apis.application.v1alpha1.HelmOptions helmOptions = 22;
     bool hasMultipleSources = 23;
+    map<string, github.com.argoproj.argo_cd.v2.pkg.apis.application.v1alpha1.RefTargeRevisionMapping> refSources = 24;
 }
 
 message ManifestRequestWithFiles {
@@ -204,17 +205,6 @@ message HelmChartsResponse {
     repeated HelmChart items = 1;
 }
 
-// CheckoutRevisionRequest requests a repository directory structure
-message CheckoutSourceRequest {
-    // the repo
-    github.com.argoproj.argo_cd.v2.pkg.apis.application.v1alpha1.Repository repo = 1;
-    // the revision within the repo
-    string revision = 2;
-}
-
-message CheckoutSourceResponse {
-}
-
 // ManifestService
 service RepoServerService {
 
@@ -244,10 +234,6 @@ service RepoServerService {
 
     // Generate manifest for application in specified repo name and revision
     rpc GetAppDetails(RepoServerAppDetailsQuery) returns (RepoAppDetailsResponse) {
-    }
-
-    // CheckoutSource checkouts the repo in the source
-    rpc CheckoutSource(CheckoutSourceRequest) returns (CheckoutSourceResponse) {
     }
 
     // Get the meta-data (author, date, tags, message) for a specific revision of the repo
