@@ -1,7 +1,14 @@
-# Plugins
+# Config Management Plugins
 
-Argo CD allows integrating more config management tools using config management plugins. The following sections will
-describe how to create, install, and use plugins. Check out the
+Argo CD's "native" config management tools are Helm, Jsonnet, and Kustomize. If you want to use a different config
+management tools, or if Argo CD's native tool support does not include a feature you need, you might need to turn to
+a Config Management Plugin (CMP).
+
+The Argo CD "repo server" component is in charge of building Kubernetes manifests based on some source files from a
+Helm, OCI, or git repository. When a config management plugin is correctly configured, the repo server may delegate the
+task of building manifests to the plugin.
+
+The following sections will describe how to create, install, and use plugins. Check out the
 [example plugins](https://github.com/argoproj/argo-cd/tree/master/examples/plugins) for additional guidance.
 
 !!! warning
@@ -11,16 +18,17 @@ describe how to create, install, and use plugins. Check out the
 
 ## Installing a config management plugin
 
-There are two ways to install a Config Management Plugin (CMP):
+There are two ways to install a Config Management Plugin:
 
-1. Add the plugin config to the Argo CD ConfigMap. The repo-server container will run your plugin's commands.
-   This is a good option for a simple plugin that requires only a few lines of code that fit nicely in the Argo CD ConfigMap.
+1. Add the plugin config to the Argo CD ConfigMap (**this method is deprecated and will be removed in a future 
+   version**). The repo-server container will run your plugin's commands. This is a good option for a simple plugin that
+   requires only a few lines of code that fit nicely in the Argo CD ConfigMap.
 2. Add the plugin as a sidecar to the repo-server Pod.
    This is a good option for a more complex plugin that would clutter the Argo CD ConfigMap. A copy of the repository is 
    sent to the sidecar container as a tarball and processed individually per application, which makes it a good option 
    for [concurrent processing of monorepos](../operator-manual/high_availability.md#enable-concurrent-processing).
 
-### Option 1: Configure plugins via Argo CD configmap
+### Option 1: Configure plugins via Argo CD configmap (deprecated)
 
 The following changes are required to configure a new plugin:
 

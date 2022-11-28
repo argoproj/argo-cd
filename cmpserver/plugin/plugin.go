@@ -143,8 +143,7 @@ func environ(envVars []*apiclient.EnvEntry) []string {
 	return environ
 }
 
-// getTempDirMustCleanup creates a temporary directory and returns a cleanup function. The cleanup function panics if
-// cleanup fails. Use this function when failing to clean up the temporary directory is a security risk.
+// getTempDirMustCleanup creates a temporary directory and returns a cleanup function.
 func getTempDirMustCleanup(baseDir string) (workDir string, cleanup func(), err error) {
 	workDir, err = files.CreateTempDir(baseDir)
 	if err != nil {
@@ -152,8 +151,10 @@ func getTempDirMustCleanup(baseDir string) (workDir string, cleanup func(), err 
 	}
 	cleanup = func() {
 		if err := os.RemoveAll(workDir); err != nil {
-			// we panic here as the workDir may contain sensitive information
-			panic(fmt.Sprintf("error removing plugin workdir: %s", err))
+			log.WithFields(map[string]interface{}{
+				common.SecurityField:    common.SecurityHigh,
+				common.SecurityCWEField: 459,
+			}).Errorf("Failed to clean up temp directory: %s", err)
 		}
 	}
 	return workDir, cleanup, nil
@@ -249,10 +250,10 @@ type MatchRepositoryStream interface {
 // MatchRepository receives the application stream and checks whether
 // its repository type is supported by the config management plugin
 // server.
-//The checks are implemented in the following order:
-//   1. If spec.Discover.FileName is provided it finds for a name match in Applications files
-//   2. If spec.Discover.Find.Glob is provided if finds for a glob match in Applications files
-//   3. Otherwise it runs the spec.Discover.Find.Command
+// The checks are implemented in the following order:
+//  1. If spec.Discover.FileName is provided it finds for a name match in Applications files
+//  2. If spec.Discover.Find.Glob is provided if finds for a glob match in Applications files
+//  3. Otherwise it runs the spec.Discover.Find.Command
 func (s *Service) MatchRepository(stream apiclient.ConfigManagementPluginService_MatchRepositoryServer) error {
 	return s.matchRepositoryGeneric(stream)
 }
@@ -331,16 +332,14 @@ func (s *Service) matchRepository(ctx context.Context, workdir string, envEntrie
 	return false, nil
 }
 
+// ParametersAnnouncementStream defines an interface able to send/receive a stream of parameter announcements.
 type ParametersAnnouncementStream interface {
 	Stream
 	SendAndClose(response *apiclient.ParametersAnnouncementResponse) error
 }
 
+// GetParametersAnnouncement gets parameter announcements for a given Application and repo contents.
 func (s *Service) GetParametersAnnouncement(stream apiclient.ConfigManagementPluginService_GetParametersAnnouncementServer) error {
-	return s.getParametersAnnouncementGeneric(stream)
-}
-
-func (s *Service) getParametersAnnouncementGeneric(stream ParametersAnnouncementStream) error {
 	bufferedCtx, cancel := buffered_context.WithEarlierDeadline(stream.Context(), cmpTimeoutBuffer)
 	defer cancel()
 
@@ -372,6 +371,8 @@ func (s *Service) getParametersAnnouncementGeneric(stream ParametersAnnouncement
 }
 
 func getParametersAnnouncement(ctx context.Context, appDir string, announcements []*repoclient.ParameterAnnouncement, command Command) (*apiclient.ParametersAnnouncementResponse, error) {
+	augmentedAnnouncements := announcements
+
 	if len(command.Command) > 0 {
 		stdout, err := runCommand(ctx, command, appDir, os.Environ())
 		if err != nil {
@@ -385,11 +386,11 @@ func getParametersAnnouncement(ctx context.Context, appDir string, announcements
 		}
 
 		// dynamic goes first, because static should take precedence by being later.
-		announcements = append(dynamicParamAnnouncements, announcements...)
+		augmentedAnnouncements = append(dynamicParamAnnouncements, announcements...)
 	}
 
 	repoResponse := &apiclient.ParametersAnnouncementResponse{
-		ParameterAnnouncements: announcements,
+		ParameterAnnouncements: augmentedAnnouncements,
 	}
 	return repoResponse, nil
 }

@@ -475,6 +475,10 @@ type ApplicationSourcePluginParameter struct {
 
 type ApplicationSourcePluginParameters []ApplicationSourcePluginParameter
 
+// Environ builds a list of environment variables to represent parameters sent to a plugin from the Application
+// manifest. Parameters are represented as one large stringified JSON array (under `ARGOCD_APP_PARAMETERS`). They're
+// also represented as individual environment variables, each variable's key being an escaped version of the parameter's
+// name.
 func (p ApplicationSourcePluginParameters) Environ() ([]string, error) {
 	out, err := json.Marshal(p)
 	if err != nil {
@@ -504,10 +508,9 @@ func (p ApplicationSourcePluginParameters) Environ() ([]string, error) {
 	return env, nil
 }
 
-var invalidParamCharRegex = regexp.MustCompile("[^A-Z0-9_]")
-
 func escaped(paramName string) string {
 	newParamName := strings.ToUpper(paramName)
+	invalidParamCharRegex := regexp.MustCompile("[^A-Z0-9_]")
 	return invalidParamCharRegex.ReplaceAllString(newParamName, "_")
 }
 
