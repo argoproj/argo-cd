@@ -10,8 +10,8 @@ argocd account can-i ACTION RESOURCE SUBRESOURCE [flags]
 
 ```
 
-# Can I sync an app?
-argocd account can-i sync applications 'default/guestbook'
+# Can I sync any app?
+argocd account can-i sync applications '*'
 
 # Can I update a project?
 argocd account can-i update projects 'default'
@@ -55,4 +55,5 @@ Resources: [clusters projects applications applicationsets repositories certific
 
 ### SEE ALSO
 
-- [argocd account](argocd_account.md) - Manage account settings
+* [argocd account](argocd_account.md)	 - Manage account settings
+
