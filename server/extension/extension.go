@@ -36,8 +36,32 @@ type ExtensionConfig struct {
 }
 
 type BackendConfig struct {
-	IdleConnectionTimeout time.Duration   `json:"idleConnectionTimeout"`
-	Services              []ServiceConfig `json:"services"`
+	ProxyConfig
+	Services []ServiceConfig `json:"services"`
+}
+
+type ProxyConfig struct {
+	// ConnectionTimeout is the maximum amount of time a dial to
+	// the extension server will wait for a connect to complete.
+	// Default: 2 seconds
+	ConnectionTimeout time.Duration `json:"connectionTimeout"`
+
+	// KeepAlive specifies the interval between keep-alive probes
+	// for an active network connection between the API server and
+	// the extension server.
+	// Default: 15 seconds
+	KeepAlive time.Duration `json:"keepAlive"`
+
+	// IdleConnectionTimeout is the maximum amount of time an idle
+	// (keep-alive) connection between the API server and the extension
+	// server will remain idle before closing itself.
+	// Default: 60 seconds
+	IdleConnectionTimeout time.Duration `json:"idleConnectionTimeout"`
+
+	// MaxIdleConnections controls the maximum number of idle (keep-alive)
+	// connections between the API server and the extension server.
+	// Default: 30
+	MaxIdleConnections int `json:"maxIdleConnections"`
 }
 
 type ServiceConfig struct {
@@ -123,24 +147,41 @@ func parseConfig(config string) (*ExtensionConfigs, error) {
 	return &configs, nil
 }
 
-func NewProxy(targetURL string) (*httputil.ReverseProxy, error) {
+func NewProxy(targetURL string, config ProxyConfig) (*httputil.ReverseProxy, error) {
 	url, err := url.Parse(targetURL)
 	if err != nil {
 		return nil, err
 	}
-
 	proxy := httputil.NewSingleHostReverseProxy(url)
-	proxy.Transport = &http.Transport{
-		Dial: (&net.Dialer{
-			Timeout:   30 * time.Second,
-			KeepAlive: 30 * time.Second,
-		}).Dial,
-		MaxIdleConns:          50,
-		IdleConnTimeout:       90 * time.Second,
+	proxy.Transport = newTransport(config)
+	return proxy, nil
+}
+
+// newTransport will build a new transport to be used in the proxy
+// applying default values if not defined in the given config.
+func newTransport(config ProxyConfig) *http.Transport {
+	if config.ConnectionTimeout == 0 {
+		config.ConnectionTimeout = 2 * time.Second
+	}
+	if config.KeepAlive == 0 {
+		config.KeepAlive = 15 * time.Second
+	}
+	if config.IdleConnectionTimeout == 0 {
+		config.IdleConnectionTimeout = 60 * time.Second
+	}
+	if config.MaxIdleConnections == 0 {
+		config.MaxIdleConnections = 30
+	}
+	return &http.Transport{
+		DialContext: (&net.Dialer{
+			Timeout:   config.ConnectionTimeout,
+			KeepAlive: config.KeepAlive,
+		}).DialContext,
+		MaxIdleConns:          config.MaxIdleConnections,
+		IdleConnTimeout:       config.IdleConnectionTimeout,
 		TLSHandshakeTimeout:   10 * time.Second,
 		ExpectContinueTimeout: 1 * time.Second,
 	}
-	return proxy, nil
 }
 
 func (m *manager) RegisterHandlers(r *mux.Router) error {
@@ -167,7 +208,7 @@ func (m *manager) registerExtensions(r *mux.Router, extConfigs *ExtensionConfigs
 	for _, ext := range extConfigs.Extensions {
 		proxyByCluster := make(map[string]*httputil.ReverseProxy)
 		for _, service := range ext.Backend.Services {
-			proxy, err := NewProxy(service.URL)
+			proxy, err := NewProxy(service.URL, ext.Backend.ProxyConfig)
 			if err != nil {
 				return fmt.Errorf("error creating proxy: %s", err)
 			}
