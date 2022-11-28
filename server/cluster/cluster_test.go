@@ -49,6 +49,66 @@ func newNoopEnforcer() *rbac.Enforcer {
 	return enf
 }
 
+func TestGetCluster_UrlEncodedName(t *testing.T) {
+	db := &dbmocks.ArgoDB{}
+
+	mockCluster := v1alpha1.Cluster{
+		Name:       "test/ing",
+		Server:     "https://127.0.0.1",
+		Namespaces: []string{"default", "kube-system"},
+	}
+	mockClusterList := v1alpha1.ClusterList{
+		ListMeta: v1.ListMeta{},
+		Items: []v1alpha1.Cluster{
+			mockCluster,
+		},
+	}
+
+	db.On("ListClusters", mock.Anything).Return(&mockClusterList, nil)
+
+	server := NewServer(db, newNoopEnforcer(), newServerInMemoryCache(), &kubetest.MockKubectlCmd{})
+
+	cluster, err := server.Get(context.Background(), &clusterapi.ClusterQuery{
+		Id: &clusterapi.ClusterID{
+			Type:  "name_escaped",
+			Value: "test%2fing",
+		},
+	})
+	require.NoError(t, err)
+
+	assert.Equal(t, cluster.Name, "test/ing")
+}
+
+func TestGetCluster_NameWithUrlEncodingButShouldNotBeUnescaped(t *testing.T) {
+	db := &dbmocks.ArgoDB{}
+
+	mockCluster := v1alpha1.Cluster{
+		Name:       "test%2fing",
+		Server:     "https://127.0.0.1",
+		Namespaces: []string{"default", "kube-system"},
+	}
+	mockClusterList := v1alpha1.ClusterList{
+		ListMeta: v1.ListMeta{},
+		Items: []v1alpha1.Cluster{
+			mockCluster,
+		},
+	}
+
+	db.On("ListClusters", mock.Anything).Return(&mockClusterList, nil)
+
+	server := NewServer(db, newNoopEnforcer(), newServerInMemoryCache(), &kubetest.MockKubectlCmd{})
+
+	cluster, err := server.Get(context.Background(), &clusterapi.ClusterQuery{
+		Id: &clusterapi.ClusterID{
+			Type:  "name",
+			Value: "test%2fing",
+		},
+	})
+	require.NoError(t, err)
+
+	assert.Equal(t, cluster.Name, "test%2fing")
+}
+
 func TestUpdateCluster_NoFieldsPaths(t *testing.T) {
 	db := &dbmocks.ArgoDB{}
 	var updated *v1alpha1.Cluster

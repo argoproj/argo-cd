@@ -4,6 +4,7 @@ import (
 	"context"
 	"encoding/json"
 	"fmt"
+	cdcommon "github.com/argoproj/argo-cd/v2/common"
 	"os"
 	"strconv"
 	"sync/atomic"
@@ -20,7 +21,6 @@ import (
 	"k8s.io/apimachinery/pkg/util/managedfields"
 	"k8s.io/kubectl/pkg/util/openapi"
 
-	cdcommon "github.com/argoproj/argo-cd/v2/common"
 	"github.com/argoproj/argo-cd/v2/controller/metrics"
 	"github.com/argoproj/argo-cd/v2/pkg/apis/application/v1alpha1"
 	listersv1alpha1 "github.com/argoproj/argo-cd/v2/pkg/client/listers/application/v1alpha1"
@@ -212,14 +212,7 @@ func (m *appStateManager) SyncAppState(app *v1alpha1.Application, state *v1alpha
 	}
 	trackingMethod := argo.GetTrackingMethod(m.settingsMgr)
 
-	syncCtx, cleanup, err := sync.NewSyncContext(
-		compareResult.syncStatus.Revision,
-		reconciliationResult,
-		restConfig,
-		rawConfig,
-		m.kubectl,
-		app.Spec.Destination.Namespace,
-		openAPISchema,
+	opts := []sync.SyncOpt{
 		sync.WithLogr(logutils.NewLogrusLogger(logEntry)),
 		sync.WithHealthOverride(lua.ResourceHealthOverrides(resourceOverrides)),
 		sync.WithPermissionValidator(func(un *unstructured.Unstructured, res *v1.APIResource) error {
@@ -249,13 +242,6 @@ func (m *appStateManager) SyncAppState(app *v1alpha1.Application, state *v1alpha
 				m.isSelfReferencedObj(live, target, app.GetName(), appLabelKey, trackingMethod)
 		}),
 		sync.WithManifestValidation(!syncOp.SyncOptions.HasOption(common.SyncOptionsDisableValidation)),
-		sync.WithNamespaceCreation(syncOp.SyncOptions.HasOption("CreateNamespace=true"), func(un *unstructured.Unstructured) bool {
-			if un != nil && kube.GetAppInstanceLabel(un, cdcommon.LabelKeyAppInstance) != "" {
-				kube.UnsetLabel(un, cdcommon.LabelKeyAppInstance)
-				return true
-			}
-			return false
-		}),
 		sync.WithSyncWaveHook(delayBetweenSyncWaves),
 		sync.WithPruneLast(syncOp.SyncOptions.HasOption(common.SyncOptionPruneLast)),
 		sync.WithResourceModificationChecker(syncOp.SyncOptions.HasOption("ApplyOutOfSyncOnly=true"), compareResult.diffResultList),
@@ -263,6 +249,21 @@ func (m *appStateManager) SyncAppState(app *v1alpha1.Application, state *v1alpha
 		sync.WithReplace(syncOp.SyncOptions.HasOption(common.SyncOptionReplace)),
 		sync.WithServerSideApply(syncOp.SyncOptions.HasOption(common.SyncOptionServerSideApply)),
 		sync.WithServerSideApplyManager(cdcommon.ArgoCDSSAManager),
+	}
+
+	if syncOp.SyncOptions.HasOption("CreateNamespace=true") {
+		opts = append(opts, sync.WithNamespaceModifier(syncNamespace(m.resourceTracking, appLabelKey, trackingMethod, app.Name, app.Spec.SyncPolicy)))
+	}
+
+	syncCtx, cleanup, err := sync.NewSyncContext(
+		compareResult.syncStatus.Revision,
+		reconciliationResult,
+		restConfig,
+		rawConfig,
+		m.kubectl,
+		app.Spec.Destination.Namespace,
+		openAPISchema,
+		opts...,
 	)
 
 	if err != nil {

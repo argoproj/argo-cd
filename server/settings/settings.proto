@@ -40,6 +40,7 @@ message Settings {
     string statusBadgeRootUrl = 21;
     bool execEnabled = 22;
     string controllerNamespace = 23;
+    bool appsInAnyNamespaceEnabled = 24;
 }
 
 message GoogleAnalyticsConfig {

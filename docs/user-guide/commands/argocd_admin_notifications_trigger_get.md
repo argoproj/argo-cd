@@ -11,9 +11,9 @@ argocd admin notifications trigger get [flags]
 ```
 
 # prints all triggers
-notifications trigger get
+argocd admin notifications trigger get
 # print YAML formatted on-sync-failed trigger definition
-notifications trigger get on-sync-failed -o=yaml
+argocd admin notifications trigger get on-sync-failed -o=yaml
 
 ```
 
