@@ -10,12 +10,13 @@ import login from './login';
 import settings from './settings';
 import {Layout} from './shared/components/layout/layout';
 import {VersionPanel} from './shared/components/version-info/version-info-panel';
-import {Provider} from './shared/context';
+import {AuthSettingsCtx, Provider} from './shared/context';
 import {services} from './shared/services';
 import requests from './shared/services/requests';
 import {hashCode} from './shared/utils';
 import {Banner} from './ui-banner/ui-banner';
 import userInfo from './user-info';
+import {AuthSettings} from './shared/models';
 
 services.viewPreferences.init();
 const bases = document.getElementsByTagName('base');
@@ -71,8 +72,8 @@ const versionLoader = services.version.version();
 async function isExpiredSSO() {
     try {
         const {iss} = await services.users.get();
+        const authSettings = React.useContext(AuthSettingsCtx);
         if (iss && iss !== 'argocd') {
-            const authSettings = await services.authService.settings();
             return ((authSettings.dexConfig && authSettings.dexConfig.connectors) || []).length > 0 || authSettings.oidcConfig;
         }
     } catch {
@@ -106,7 +107,10 @@ requests.onError.subscribe(async err => {
     }
 });
 
-export class App extends React.Component<{}, {popupProps: PopupProps; showVersionPanel: boolean; error: Error; navItems: NavItem[]; routes: Routes; extensionsLoaded: boolean}> {
+export class App extends React.Component<
+    {},
+    {popupProps: PopupProps; showVersionPanel: boolean; error: Error; navItems: NavItem[]; routes: Routes; extensionsLoaded: boolean; authSettings: AuthSettings}
+> {
     public static childContextTypes = {
         history: PropTypes.object,
         apis: PropTypes.object
@@ -124,7 +128,7 @@ export class App extends React.Component<{}, {popupProps: PopupProps; showVersio
 
     constructor(props: {}) {
         super(props);
-        this.state = {popupProps: null, error: null, showVersionPanel: false, navItems: [], routes: null, extensionsLoaded: false};
+        this.state = {popupProps: null, error: null, showVersionPanel: false, navItems: [], routes: null, extensionsLoaded: false, authSettings: null};
         this.popupManager = new PopupManager();
         this.notificationsManager = new NotificationsManager();
         this.navigationManager = new NavigationManager(history);
@@ -181,7 +185,7 @@ export class App extends React.Component<{}, {popupProps: PopupProps; showVersio
             };
         }
 
-        this.setState({...this.state, navItems: extendedNavItems, routes: extendedRoutes, extensionsLoaded: true});
+        this.setState({...this.state, navItems: extendedNavItems, routes: extendedRoutes, extensionsLoaded: true, authSettings});
     }
 
     public render() {
@@ -211,42 +215,44 @@ export class App extends React.Component<{}, {popupProps: PopupProps; showVersio
                 <PageContext.Provider value={{title: 'Argo CD'}}>
                     <Provider value={{history, popup: this.popupManager, notifications: this.notificationsManager, navigation: this.navigationManager, baseHref: base}}>
                         {this.state.popupProps && <Popup {...this.state.popupProps} />}
-                        <Router history={history}>
-                            <Switch>
-                                <Redirect exact={true} path='/' to='/applications' />
-                                {Object.keys(this.routes).map(path => {
-                                    const route = this.routes[path];
-                                    return (
-                                        <Route
-                                            key={path}
-                                            path={path}
-                                            render={routeProps =>
-                                                route.noLayout ? (
-                                                    <div>
-                                                        <route.component {...routeProps} />
-                                                    </div>
-                                                ) : (
-                                                    <DataLoader load={() => services.viewPreferences.getPreferences()}>
-                                                        {pref => (
-                                                            <Layout
-                                                                onVersionClick={() => this.setState({showVersionPanel: true})}
-                                                                navItems={this.navItems}
-                                                                pref={pref}
-                                                                isExtension={route.extension}>
-                                                                <Banner>
-                                                                    <route.component {...routeProps} />
-                                                                </Banner>
-                                                            </Layout>
-                                                        )}
-                                                    </DataLoader>
-                                                )
-                                            }
-                                        />
-                                    );
-                                })}
-                                {this.state.extensionsLoaded && <Redirect path='*' to='/' />}
-                            </Switch>
-                        </Router>
+                        <AuthSettingsCtx.Provider value={this.state.authSettings}>
+                            <Router history={history}>
+                                <Switch>
+                                    <Redirect exact={true} path='/' to='/applications' />
+                                    {Object.keys(this.routes).map(path => {
+                                        const route = this.routes[path];
+                                        return (
+                                            <Route
+                                                key={path}
+                                                path={path}
+                                                render={routeProps =>
+                                                    route.noLayout ? (
+                                                        <div>
+                                                            <route.component {...routeProps} />
+                                                        </div>
+                                                    ) : (
+                                                        <DataLoader load={() => services.viewPreferences.getPreferences()}>
+                                                            {pref => (
+                                                                <Layout
+                                                                    onVersionClick={() => this.setState({showVersionPanel: true})}
+                                                                    navItems={this.navItems}
+                                                                    pref={pref}
+                                                                    isExtension={route.extension}>
+                                                                    <Banner>
+                                                                        <route.component {...routeProps} />
+                                                                    </Banner>
+                                                                </Layout>
+                                                            )}
+                                                        </DataLoader>
+                                                    )
+                                                }
+                                            />
+                                        );
+                                    })}
+                                    {this.state.extensionsLoaded && <Redirect path='*' to='/' />}
+                                </Switch>
+                            </Router>
+                        </AuthSettingsCtx.Provider>
                     </Provider>
                 </PageContext.Provider>
                 <Notifications notifications={this.notificationsManager.notifications} />
