@@ -10,7 +10,7 @@ argocd account can-i ACTION RESOURCE SUBRESOURCE [flags]
 
 ```
 
-# Can I sync any app?
+# Can I sync an app?
 argocd account can-i sync applications 'default/guestbook'
 
 # Can I update a project?
