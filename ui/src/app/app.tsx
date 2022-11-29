@@ -72,7 +72,7 @@ const versionLoader = services.version.version();
 async function isExpiredSSO() {
     try {
         const {iss} = await services.users.get();
-        const authSettings = React.useContext(AuthSettingsCtx);
+        const authSettings = await services.authService.settings();
         if (iss && iss !== 'argocd') {
             return ((authSettings.dexConfig && authSettings.dexConfig.connectors) || []).length > 0 || authSettings.oidcConfig;
         }
