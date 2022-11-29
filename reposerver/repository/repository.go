@@ -287,7 +287,8 @@ func (s *Service) runRepoOperation(
 	verifyCommit bool,
 	cacheFn func(cacheKey string, firstInvocation bool) (bool, error),
 	operation func(repoRoot, commitSHA, cacheKey string, ctxSrc operationContextSrc) error,
-	settings operationSettings) error {
+	settings operationSettings,
+	hasMultipleSources bool) error {
 
 	if sanitizer, ok := grpc.SanitizerFromContext(ctx); ok {
 		// make sure randomized path replaced with '.' in the error message
@@ -325,6 +326,14 @@ func (s *Service) runRepoOperation(
 			return err
 		}
 		defer settings.sem.Release(1)
+	}
+
+	// do not generate manifests if Path and Chart fields are not set for a source in Multiple Sources
+	if hasMultipleSources && source.Path == "" && source.Chart == "" {
+		log.WithFields(map[string]interface{}{
+			"source": source,
+		}).Warnf("not generating manifests as path and chart fields are empty")
+		return nil
 	}
 
 	if source.IsHelm() {
@@ -455,7 +464,7 @@ func (s *Service) GenerateManifest(ctx context.Context, q *apiclient.ManifestReq
 	}
 
 	settings := operationSettings{sem: s.parallelismLimitSemaphore, noCache: q.NoCache, noRevisionCache: q.NoRevisionCache, allowConcurrent: q.ApplicationSource.AllowsConcurrentProcessing()}
-	err = s.runRepoOperation(ctx, q.Revision, q.Repo, q.ApplicationSource, q.VerifySignature, cacheFn, operation, settings)
+	err = s.runRepoOperation(ctx, q.Revision, q.Repo, q.ApplicationSource, q.VerifySignature, cacheFn, operation, settings, q.HasMultipleSources)
 
 	// if the tarDoneCh message is sent it means that the manifest
 	// generation is being managed by the cmp-server. In this case
@@ -470,6 +479,9 @@ func (s *Service) GenerateManifest(ctx context.Context, q *apiclient.ManifestReq
 		}
 	}
 
+	if q.HasMultipleSources && err == nil && res == nil {
+		res = &apiclient.ManifestResponse{}
+	}
 	return res, err
 }
 
@@ -592,21 +604,12 @@ func (s *Service) runManifestGenAsync(ctx context.Context, repoRoot, commitSHA, 
 	// key. Overrides will break the cache anyway, because changes to overrides will change the revision.
 	appSourceCopy := q.ApplicationSource.DeepCopy()
 
-	repoLocks := make([]goio.Closer, 0)
+	repoLocks := make(map[string]goio.Closer)
 
 	var manifestGenResult *apiclient.ManifestResponse
 	opContext, err := opContextSrc()
 	if err == nil {
 		if q.HasMultipleSources {
-			// do not generate manifests if Path and Chart fields are not set for a source in Multiple Sources
-			if q.ApplicationSource.Path == "" && q.ApplicationSource.Chart == "" {
-				log.WithFields(map[string]interface{}{
-					"source": q.ApplicationSource,
-				}).Warnf("not generating manifests as path and chart fields are empty")
-				ch.responseCh <- nil
-				return
-			}
-
 			if q.ApplicationSource.IsHelm() {
 				// Checkout every the referenced Source to the target revision before generating Manifests
 				for _, valueFile := range q.ApplicationSource.Helm.ValueFiles {
@@ -615,25 +618,25 @@ func (s *Service) runManifestGenAsync(ctx context.Context, repoRoot, commitSHA, 
 						refSourceKey := strings.TrimPrefix(refVar, "$")
 
 						refSourceMapping := q.RefSources[refSourceKey]
-						gitClient, _, err := s.newClientResolveRevision(&refSourceMapping.Repo, refSourceMapping.TargetRevision)
+						gitClient, targetRevision, err := s.newClientResolveRevision(&refSourceMapping.Repo, refSourceMapping.TargetRevision)
 						if err != nil {
 							log.Errorf("failed to get git client for repo %s", q.Repo.Repo)
 							ch.errCh <- err
 							return
 						}
-						closer, err := s.repoLock.Lock(gitClient.Root(), refSourceMapping.TargetRevision, true, func() (goio.Closer, error) {
-							return s.checkoutRevision(gitClient, refSourceMapping.TargetRevision, s.initConstants.SubmoduleEnabled)
-						})
-						if err != nil {
-							log.Errorf("failed to acquire lock for referenced source %s", refSourceMapping.Repo.Repo)
-							ch.errCh <- err
-							return
+						if _, ok := repoLocks[refSourceMapping.Repo.Repo]; !ok {
+							closer, err := s.repoLock.Lock(gitClient.Root(), targetRevision, true, func() (goio.Closer, error) {
+								return s.checkoutRevision(gitClient, targetRevision, s.initConstants.SubmoduleEnabled)
+							})
+							if err != nil {
+								log.Errorf("failed to acquire lock for referenced source %s", refSourceMapping.Repo.Repo)
+								ch.errCh <- err
+								return
+							}
+							repoLocks[refSourceMapping.Repo.Repo] = closer
 						}
-
-						repoLocks = append(repoLocks, closer)
 					}
 				}
-
 			}
 		}
 
@@ -641,12 +644,6 @@ func (s *Service) runManifestGenAsync(ctx context.Context, repoRoot, commitSHA, 
 
 		for _, closer := range repoLocks {
 			defer io.Close(closer)
-		}
-		if q.HasMultipleSources {
-			if manifestGenResult == nil {
-				ch.responseCh <- manifestGenResult
-				return
-			}
 		}
 	}
 	if err != nil {
@@ -952,25 +949,20 @@ func helmTemplate(appPath string, repoRoot string, env *v1alpha1.Env, q *apiclie
 			templateOpts.Name = appHelm.ReleaseName
 		}
 
-		for i, val := range appHelm.ValueFiles {
+		for i := 0; i < len(appHelm.ValueFiles); i++ {
 			// ValueFiles referring to another source within the application
+			val := appHelm.ValueFiles[i]
 			if strings.HasPrefix(val, "$") {
 				pathStrings := strings.Split(val, "/")
 				refVar := strings.Split(val, "/")[0]
-				repoPath, err := gitRepoPaths.GetPath(os.Getenv(refVar))
+				refSourceRepo := q.RefSources[refVar].Repo.Repo
+				repoPath, err := gitRepoPaths.GetPath(refSourceRepo)
 				if err != nil {
 					log.Warnf("Failed to find path for ref %s", refVar)
 					continue
 				}
 				pathStrings[0] = repoPath
-
 				appHelm.ValueFiles[i] = strings.Join(pathStrings, "/")
-
-				defer func() {
-					if err := os.RemoveAll(appHelm.ValueFiles[i]); err != nil {
-						log.WithField(common.SecurityField, common.SecurityCritical).Errorf("error removing value file path: %v", err)
-					}
-				}()
 
 				if _, err := os.Stat(appHelm.ValueFiles[i]); err == nil {
 					if err := os.Chmod(appHelm.ValueFiles[i], 0700); err != nil {
@@ -1838,7 +1830,7 @@ func (s *Service) GetAppDetails(ctx context.Context, q *apiclient.RepoServerAppD
 	}
 
 	settings := operationSettings{allowConcurrent: q.Source.AllowsConcurrentProcessing(), noCache: q.NoCache, noRevisionCache: q.NoCache || q.NoRevisionCache}
-	err := s.runRepoOperation(ctx, q.Source.TargetRevision, q.Repo, q.Source, false, cacheFn, operation, settings)
+	err := s.runRepoOperation(ctx, q.Source.TargetRevision, q.Repo, q.Source, false, cacheFn, operation, settings, false)
 
 	return res, err
 }
