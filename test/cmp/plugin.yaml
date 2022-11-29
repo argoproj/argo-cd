@@ -9,3 +9,17 @@ spec:
   discover:
     find:
       glob: "**/kustomization.yaml"
+  parameters:
+    static:
+      - name: string-param
+        string: value
+      - name: array-param
+        collectionType: array
+        array:
+          - value1
+          - value2
+      - name: map-param
+        collectionType: map
+        map:
+          key: value
+          key2: value2
