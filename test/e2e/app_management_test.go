@@ -1878,6 +1878,7 @@ func TestNamespaceAutoCreation(t *testing.T) {
 		}
 	}()
 	Given(t).
+		SetTrackingMethod("annotation").
 		Timeout(30).
 		Path("guestbook").
 		When().
@@ -1926,7 +1927,7 @@ func TestNamespaceAutoCreationWithMetadata(t *testing.T) {
 	}()
 	ctx := Given(t)
 	ctx.
-		//SetTrackingMethod("annotation").
+		SetTrackingMethod("annotation").
 		Timeout(30).
 		Path("guestbook").
 		When().
