@@ -120,10 +120,12 @@ export const ApplicationTiles = ({applications, syncApplication, refreshApplicat
                                                 <div
                                                     className='row'
                                                     onClick={e =>
-                                                        ctx.navigation.goto(`/applications/${app.metadata.namespace}/${app.metadata.name}`,
+                                                        ctx.navigation.goto(
+                                                            `/applications/${app.metadata.namespace}/${app.metadata.name}`,
                                                             {view: pref.appDetails.view},
-                                                            {event: e})
-                                                        }>
+                                                            {event: e}
+                                                        )
+                                                    }>
                                                     <div className={`columns small-12 applications-list__info qe-applications-list-${AppUtils.appInstanceName(app)}`}>
                                                         <div className='row'>
                                                             <div

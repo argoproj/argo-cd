@@ -177,7 +177,8 @@ func (m *appStateManager) getRepoObjs(app *v1alpha1.Application, sources []v1alp
 				if err != nil {
 					return nil, nil, err
 				}
-				refSources[source.Ref] = &appv1.RefTargeRevisionMapping{
+				refKey := "$" + source.Ref
+				refSources[refKey] = &appv1.RefTargeRevisionMapping{
 					Repo:           *repo,
 					TargetRevision: source.TargetRevision,
 				}
@@ -223,10 +224,17 @@ func (m *appStateManager) getRepoObjs(app *v1alpha1.Application, sources []v1alp
 			HasMultipleSources: app.Spec.HasMultipleSources(),
 			RefSources:         refSources,
 		})
-
 		if err != nil {
 			return nil, nil, err
 		}
+
+		// GenerateManifest can return empty ManifestResponse without error if app has multiple sources
+		// and if any of the source does not have path and chart field not specified.
+		// In that scenario, we continue to the next source
+		if app.Spec.HasMultipleSources() && len(manifestInfo.Manifests) == 0 {
+			continue
+		}
+
 		targetObj, err := unmarshalManifests(manifestInfo.Manifests)
 
 		if err != nil {
