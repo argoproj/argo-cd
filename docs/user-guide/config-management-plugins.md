@@ -165,6 +165,49 @@ volumes:
     1. Make sure to use `/var/run/argocd/argocd-cmp-server` as an entrypoint. The `argocd-cmp-server` is a lightweight GRPC service that allows Argo CD to interact with the plugin.
     2. Make sure that sidecar container is running as user 999.
     3. Make sure that plugin configuration file is present at `/home/argocd/cmp-server/config/plugin.yaml`. It can either be volume mapped via configmap or baked into image.
+    4. Make sure that sidecar container contains the tools required to run the plugin (ie `helm`, `kustomize`, ...)
+
+To install a plugin using the `argo-cd` helm chart consider the following example helm values:
+
+```yaml
+repoServer:
+  extraContainers:
+    - name: cmp
+      command: [/var/run/argocd/argocd-cmp-server] # Entrypoint should be Argo CD lightweight CMP server i.e. argocd-cmp-server
+      image: busybox # This can be off-the-shelf or custom-built image
+      securityContext:
+        runAsNonRoot: true
+        runAsUser: 999
+      env:
+        # If your plugin uses helm, the following environment variables must point to an existing directory on the sidecar container
+        - name: HELM_CACHE_HOME
+          value: /helm-working-dir
+        - name: HELM_CONFIG_HOME
+          value: /helm-working-dir
+        - name: HELM_DATA_HOME
+          value: /helm-working-dir
+      volumeMounts:
+        - name: var-files
+          mountPath: /var/run/argocd
+        - name: plugins
+          mountPath: /home/argocd/cmp-server/plugins
+        - name: cmp-plugin
+          mountPath: /home/argocd/cmp-server/config/plugin.yaml
+          subPath: plugin.yaml
+        - name: cmp-tmp
+          mountPath: /tmp
+        - name: helm-temp-dir
+          mountPath: /helm-working-dir
+  volumes:
+    - name: cmp-plugin
+      configMap:
+        name: cmp-plugin
+    - name: cmp-tmp
+      emptyDir: {}
+    # To make the sidecar container more stateless/ephemeral avoid to reuse the helm-working-dir volume
+    - name: helm-temp-dir
+      emptyDir: {}
+```
 
 ### Environment
 
