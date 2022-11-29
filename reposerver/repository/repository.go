@@ -609,7 +609,7 @@ func (s *Service) runManifestGenAsync(ctx context.Context, repoRoot, commitSHA, 
 	// key. Overrides will break the cache anyway, because changes to overrides will change the revision.
 	appSourceCopy := q.ApplicationSource.DeepCopy()
 
-	repoLocks := make([]goio.Closer, 0)
+	repoLocks := make(map[string]goio.Closer)
 
 	var manifestGenResult *apiclient.ManifestResponse
 	opContext, err := opContextSrc()

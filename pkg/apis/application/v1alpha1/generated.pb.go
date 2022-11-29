@@ -2417,10 +2417,38 @@ func (m *PullRequestGeneratorGithub) XXX_DiscardUnknown() {
 
 var xxx_messageInfo_PullRequestGeneratorGithub proto.InternalMessageInfo
 
+func (m *RefTargeRevisionMapping) Reset()      { *m = RefTargeRevisionMapping{} }
+func (*RefTargeRevisionMapping) ProtoMessage() {}
+func (*RefTargeRevisionMapping) Descriptor() ([]byte, []int) {
+	return fileDescriptor_030104ce3b95bcac, []int{84}
+}
+func (m *RefTargeRevisionMapping) XXX_Unmarshal(b []byte) error {
+	return m.Unmarshal(b)
+}
+func (m *RefTargeRevisionMapping) XXX_Marshal(b []byte, deterministic bool) ([]byte, error) {
+	b = b[:cap(b)]
+	n, err := m.MarshalToSizedBuffer(b)
+	if err != nil {
+		return nil, err
+	}
+	return b[:n], nil
+}
+func (m *RefTargeRevisionMapping) XXX_Merge(src proto.Message) {
+	xxx_messageInfo_RefTargeRevisionMapping.Merge(m, src)
+}
+func (m *RefTargeRevisionMapping) XXX_Size() int {
+	return m.Size()
+}
+func (m *RefTargeRevisionMapping) XXX_DiscardUnknown() {
+	xxx_messageInfo_RefTargeRevisionMapping.DiscardUnknown(m)
+}
+
+var xxx_messageInfo_RefTargeRevisionMapping proto.InternalMessageInfo
+
 func (m *RepoCreds) Reset()      { *m = RepoCreds{} }
 func (*RepoCreds) ProtoMessage() {}
 func (*RepoCreds) Descriptor() ([]byte, []int) {
-	return fileDescriptor_030104ce3b95bcac, []int{86}
+	return fileDescriptor_030104ce3b95bcac, []int{85}
 }
 func (m *RepoCreds) XXX_Unmarshal(b []byte) error {
 	return m.Unmarshal(b)
@@ -2448,7 +2476,7 @@ var xxx_messageInfo_RepoCreds proto.InternalMessageInfo
 func (m *RepoCredsList) Reset()      { *m = RepoCredsList{} }
 func (*RepoCredsList) ProtoMessage() {}
 func (*RepoCredsList) Descriptor() ([]byte, []int) {
-	return fileDescriptor_030104ce3b95bcac, []int{87}
+	return fileDescriptor_030104ce3b95bcac, []int{86}
 }
 func (m *RepoCredsList) XXX_Unmarshal(b []byte) error {
 	return m.Unmarshal(b)
@@ -2476,7 +2504,7 @@ var xxx_messageInfo_RepoCredsList proto.InternalMessageInfo
 func (m *Repository) Reset()      { *m = Repository{} }
 func (*Repository) ProtoMessage() {}
 func (*Repository) Descriptor() ([]byte, []int) {
-	return fileDescriptor_030104ce3b95bcac, []int{88}
+	return fileDescriptor_030104ce3b95bcac, []int{87}
 }
 func (m *Repository) XXX_Unmarshal(b []byte) error {
 	return m.Unmarshal(b)
@@ -2504,7 +2532,7 @@ var xxx_messageInfo_Repository proto.InternalMessageInfo
 func (m *RepositoryCertificate) Reset()      { *m = RepositoryCertificate{} }
 func (*RepositoryCertificate) ProtoMessage() {}
 func (*RepositoryCertificate) Descriptor() ([]byte, []int) {
-	return fileDescriptor_030104ce3b95bcac, []int{89}
+	return fileDescriptor_030104ce3b95bcac, []int{88}
 }
 func (m *RepositoryCertificate) XXX_Unmarshal(b []byte) error {
 	return m.Unmarshal(b)
@@ -2532,7 +2560,7 @@ var xxx_messageInfo_RepositoryCertificate proto.InternalMessageInfo
 func (m *RepositoryCertificateList) Reset()      { *m = RepositoryCertificateList{} }
 func (*RepositoryCertificateList) ProtoMessage() {}
 func (*RepositoryCertificateList) Descriptor() ([]byte, []int) {
-	return fileDescriptor_030104ce3b95bcac, []int{90}
+	return fileDescriptor_030104ce3b95bcac, []int{89}
 }
 func (m *RepositoryCertificateList) XXX_Unmarshal(b []byte) error {
 	return m.Unmarshal(b)
@@ -2560,7 +2588,7 @@ var xxx_messageInfo_RepositoryCertificateList proto.InternalMessageInfo
 func (m *RepositoryList) Reset()      { *m = RepositoryList{} }
 func (*RepositoryList) ProtoMessage() {}
 func (*RepositoryList) Descriptor() ([]byte, []int) {
-	return fileDescriptor_030104ce3b95bcac, []int{91}
+	return fileDescriptor_030104ce3b95bcac, []int{90}
 }
 func (m *RepositoryList) XXX_Unmarshal(b []byte) error {
 	return m.Unmarshal(b)
@@ -2588,7 +2616,7 @@ var xxx_messageInfo_RepositoryList proto.InternalMessageInfo
 func (m *ResourceAction) Reset()      { *m = ResourceAction{} }
 func (*ResourceAction) ProtoMessage() {}
 func (*ResourceAction) Descriptor() ([]byte, []int) {
-	return fileDescriptor_030104ce3b95bcac, []int{92}
+	return fileDescriptor_030104ce3b95bcac, []int{91}
 }
 func (m *ResourceAction) XXX_Unmarshal(b []byte) error {
 	return m.Unmarshal(b)
@@ -2616,7 +2644,7 @@ var xxx_messageInfo_ResourceAction proto.InternalMessageInfo
 func (m *ResourceActionDefinition) Reset()      { *m = ResourceActionDefinition{} }
 func (*ResourceActionDefinition) ProtoMessage() {}
 func (*ResourceActionDefinition) Descriptor() ([]byte, []int) {
-	return fileDescriptor_030104ce3b95bcac, []int{93}
+	return fileDescriptor_030104ce3b95bcac, []int{92}
 }
 func (m *ResourceActionDefinition) XXX_Unmarshal(b []byte) error {
 	return m.Unmarshal(b)
@@ -2644,7 +2672,7 @@ var xxx_messageInfo_ResourceActionDefinition proto.InternalMessageInfo
 func (m *ResourceActionParam) Reset()      { *m = ResourceActionParam{} }
 func (*ResourceActionParam) ProtoMessage() {}
 func (*ResourceActionParam) Descriptor() ([]byte, []int) {
-	return fileDescriptor_030104ce3b95bcac, []int{94}
+	return fileDescriptor_030104ce3b95bcac, []int{93}
 }
 func (m *ResourceActionParam) XXX_Unmarshal(b []byte) error {
 	return m.Unmarshal(b)
@@ -2672,7 +2700,7 @@ var xxx_messageInfo_ResourceActionParam proto.InternalMessageInfo
 func (m *ResourceActions) Reset()      { *m = ResourceActions{} }
 func (*ResourceActions) ProtoMessage() {}
 func (*ResourceActions) Descriptor() ([]byte, []int) {
-	return fileDescriptor_030104ce3b95bcac, []int{95}
+	return fileDescriptor_030104ce3b95bcac, []int{94}
 }
 func (m *ResourceActions) XXX_Unmarshal(b []byte) error {
 	return m.Unmarshal(b)
@@ -2700,7 +2728,7 @@ var xxx_messageInfo_ResourceActions proto.InternalMessageInfo
 func (m *ResourceDiff) Reset()      { *m = ResourceDiff{} }
 func (*ResourceDiff) ProtoMessage() {}
 func (*ResourceDiff) Descriptor() ([]byte, []int) {
-	return fileDescriptor_030104ce3b95bcac, []int{96}
+	return fileDescriptor_030104ce3b95bcac, []int{95}
 }
 func (m *ResourceDiff) XXX_Unmarshal(b []byte) error {
 	return m.Unmarshal(b)
@@ -2728,7 +2756,7 @@ var xxx_messageInfo_ResourceDiff proto.InternalMessageInfo
 func (m *ResourceIgnoreDifferences) Reset()      { *m = ResourceIgnoreDifferences{} }
 func (*ResourceIgnoreDifferences) ProtoMessage() {}
 func (*ResourceIgnoreDifferences) Descriptor() ([]byte, []int) {
-	return fileDescriptor_030104ce3b95bcac, []int{97}
+	return fileDescriptor_030104ce3b95bcac, []int{96}
 }
 func (m *ResourceIgnoreDifferences) XXX_Unmarshal(b []byte) error {
 	return m.Unmarshal(b)
@@ -2756,7 +2784,7 @@ var xxx_messageInfo_ResourceIgnoreDifferences proto.InternalMessageInfo
 func (m *ResourceNetworkingInfo) Reset()      { *m = ResourceNetworkingInfo{} }
 func (*ResourceNetworkingInfo) ProtoMessage() {}
 func (*ResourceNetworkingInfo) Descriptor() ([]byte, []int) {
-	return fileDescriptor_030104ce3b95bcac, []int{98}
+	return fileDescriptor_030104ce3b95bcac, []int{97}
 }
 func (m *ResourceNetworkingInfo) XXX_Unmarshal(b []byte) error {
 	return m.Unmarshal(b)
@@ -2784,7 +2812,7 @@ var xxx_messageInfo_ResourceNetworkingInfo proto.InternalMessageInfo
 func (m *ResourceNode) Reset()      { *m = ResourceNode{} }
 func (*ResourceNode) ProtoMessage() {}
 func (*ResourceNode) Descriptor() ([]byte, []int) {
-	return fileDescriptor_030104ce3b95bcac, []int{99}
+	return fileDescriptor_030104ce3b95bcac, []int{98}
 }
 func (m *ResourceNode) XXX_Unmarshal(b []byte) error {
 	return m.Unmarshal(b)
@@ -2812,7 +2840,7 @@ var xxx_messageInfo_ResourceNode proto.InternalMessageInfo
 func (m *ResourceOverride) Reset()      { *m = ResourceOverride{} }
 func (*ResourceOverride) ProtoMessage() {}
 func (*ResourceOverride) Descriptor() ([]byte, []int) {
-	return fileDescriptor_030104ce3b95bcac, []int{100}
+	return fileDescriptor_030104ce3b95bcac, []int{99}
 }
 func (m *ResourceOverride) XXX_Unmarshal(b []byte) error {
 	return m.Unmarshal(b)
@@ -2840,7 +2868,7 @@ var xxx_messageInfo_ResourceOverride proto.InternalMessageInfo
 func (m *ResourceRef) Reset()      { *m = ResourceRef{} }
 func (*ResourceRef) ProtoMessage() {}
 func (*ResourceRef) Descriptor() ([]byte, []int) {
-	return fileDescriptor_030104ce3b95bcac, []int{101}
+	return fileDescriptor_030104ce3b95bcac, []int{100}
 }
 func (m *ResourceRef) XXX_Unmarshal(b []byte) error {
 	return m.Unmarshal(b)
@@ -2868,7 +2896,7 @@ var xxx_messageInfo_ResourceRef proto.InternalMessageInfo
 func (m *ResourceResult) Reset()      { *m = ResourceResult{} }
 func (*ResourceResult) ProtoMessage() {}
 func (*ResourceResult) Descriptor() ([]byte, []int) {
-	return fileDescriptor_030104ce3b95bcac, []int{102}
+	return fileDescriptor_030104ce3b95bcac, []int{101}
 }
 func (m *ResourceResult) XXX_Unmarshal(b []byte) error {
 	return m.Unmarshal(b)
@@ -2896,7 +2924,7 @@ var xxx_messageInfo_ResourceResult proto.InternalMessageInfo
 func (m *ResourceStatus) Reset()      { *m = ResourceStatus{} }
 func (*ResourceStatus) ProtoMessage() {}
 func (*ResourceStatus) Descriptor() ([]byte, []int) {
-	return fileDescriptor_030104ce3b95bcac, []int{103}
+	return fileDescriptor_030104ce3b95bcac, []int{102}
 }
 func (m *ResourceStatus) XXX_Unmarshal(b []byte) error {
 	return m.Unmarshal(b)
@@ -2924,7 +2952,7 @@ var xxx_messageInfo_ResourceStatus proto.InternalMessageInfo
 func (m *RetryStrategy) Reset()      { *m = RetryStrategy{} }
 func (*RetryStrategy) ProtoMessage() {}
 func (*RetryStrategy) Descriptor() ([]byte, []int) {
-	return fileDescriptor_030104ce3b95bcac, []int{104}
+	return fileDescriptor_030104ce3b95bcac, []int{103}
 }
 func (m *RetryStrategy) XXX_Unmarshal(b []byte) error {
 	return m.Unmarshal(b)
@@ -2952,7 +2980,7 @@ var xxx_messageInfo_RetryStrategy proto.InternalMessageInfo
 func (m *RevisionHistory) Reset()      { *m = RevisionHistory{} }
 func (*RevisionHistory) ProtoMessage() {}
 func (*RevisionHistory) Descriptor() ([]byte, []int) {
-	return fileDescriptor_030104ce3b95bcac, []int{105}
+	return fileDescriptor_030104ce3b95bcac, []int{104}
 }
 func (m *RevisionHistory) XXX_Unmarshal(b []byte) error {
 	return m.Unmarshal(b)
@@ -2980,7 +3008,7 @@ var xxx_messageInfo_RevisionHistory proto.InternalMessageInfo
 func (m *RevisionMetadata) Reset()      { *m = RevisionMetadata{} }
 func (*RevisionMetadata) ProtoMessage() {}
 func (*RevisionMetadata) Descriptor() ([]byte, []int) {
-	return fileDescriptor_030104ce3b95bcac, []int{106}
+	return fileDescriptor_030104ce3b95bcac, []int{105}
 }
 func (m *RevisionMetadata) XXX_Unmarshal(b []byte) error {
 	return m.Unmarshal(b)
@@ -3008,7 +3036,7 @@ var xxx_messageInfo_RevisionMetadata proto.InternalMessageInfo
 func (m *SCMProviderGenerator) Reset()      { *m = SCMProviderGenerator{} }
 func (*SCMProviderGenerator) ProtoMessage() {}
 func (*SCMProviderGenerator) Descriptor() ([]byte, []int) {
-	return fileDescriptor_030104ce3b95bcac, []int{107}
+	return fileDescriptor_030104ce3b95bcac, []int{106}
 }
 func (m *SCMProviderGenerator) XXX_Unmarshal(b []byte) error {
 	return m.Unmarshal(b)
@@ -3036,7 +3064,7 @@ var xxx_messageInfo_SCMProviderGenerator proto.InternalMessageInfo
 func (m *SCMProviderGeneratorAzureDevOps) Reset()      { *m = SCMProviderGeneratorAzureDevOps{} }
 func (*SCMProviderGeneratorAzureDevOps) ProtoMessage() {}
 func (*SCMProviderGeneratorAzureDevOps) Descriptor() ([]byte, []int) {
-	return fileDescriptor_030104ce3b95bcac, []int{108}
+	return fileDescriptor_030104ce3b95bcac, []int{107}
 }
 func (m *SCMProviderGeneratorAzureDevOps) XXX_Unmarshal(b []byte) error {
 	return m.Unmarshal(b)
@@ -3064,7 +3092,7 @@ var xxx_messageInfo_SCMProviderGeneratorAzureDevOps proto.InternalMessageInfo
 func (m *SCMProviderGeneratorBitbucket) Reset()      { *m = SCMProviderGeneratorBitbucket{} }
 func (*SCMProviderGeneratorBitbucket) ProtoMessage() {}
 func (*SCMProviderGeneratorBitbucket) Descriptor() ([]byte, []int) {
-	return fileDescriptor_030104ce3b95bcac, []int{109}
+	return fileDescriptor_030104ce3b95bcac, []int{108}
 }
 func (m *SCMProviderGeneratorBitbucket) XXX_Unmarshal(b []byte) error {
 	return m.Unmarshal(b)
@@ -3092,7 +3120,7 @@ var xxx_messageInfo_SCMProviderGeneratorBitbucket proto.InternalMessageInfo
 func (m *SCMProviderGeneratorBitbucketServer) Reset()      { *m = SCMProviderGeneratorBitbucketServer{} }
 func (*SCMProviderGeneratorBitbucketServer) ProtoMessage() {}
 func (*SCMProviderGeneratorBitbucketServer) Descriptor() ([]byte, []int) {
-	return fileDescriptor_030104ce3b95bcac, []int{110}
+	return fileDescriptor_030104ce3b95bcac, []int{109}
 }
 func (m *SCMProviderGeneratorBitbucketServer) XXX_Unmarshal(b []byte) error {
 	return m.Unmarshal(b)
@@ -3120,7 +3148,7 @@ var xxx_messageInfo_SCMProviderGeneratorBitbucketServer proto.InternalMessageInf
 func (m *SCMProviderGeneratorFilter) Reset()      { *m = SCMProviderGeneratorFilter{} }
 func (*SCMProviderGeneratorFilter) ProtoMessage() {}
 func (*SCMProviderGeneratorFilter) Descriptor() ([]byte, []int) {
-	return fileDescriptor_030104ce3b95bcac, []int{111}
+	return fileDescriptor_030104ce3b95bcac, []int{110}
 }
 func (m *SCMProviderGeneratorFilter) XXX_Unmarshal(b []byte) error {
 	return m.Unmarshal(b)
@@ -3148,7 +3176,7 @@ var xxx_messageInfo_SCMProviderGeneratorFilter proto.InternalMessageInfo
 func (m *SCMProviderGeneratorGitea) Reset()      { *m = SCMProviderGeneratorGitea{} }
 func (*SCMProviderGeneratorGitea) ProtoMessage() {}
 func (*SCMProviderGeneratorGitea) Descriptor() ([]byte, []int) {
-	return fileDescriptor_030104ce3b95bcac, []int{112}
+	return fileDescriptor_030104ce3b95bcac, []int{111}
 }
 func (m *SCMProviderGeneratorGitea) XXX_Unmarshal(b []byte) error {
 	return m.Unmarshal(b)
@@ -3176,7 +3204,7 @@ var xxx_messageInfo_SCMProviderGeneratorGitea proto.InternalMessageInfo
 func (m *SCMProviderGeneratorGithub) Reset()      { *m = SCMProviderGeneratorGithub{} }
 func (*SCMProviderGeneratorGithub) ProtoMessage() {}
 func (*SCMProviderGeneratorGithub) Descriptor() ([]byte, []int) {
-	return fileDescriptor_030104ce3b95bcac, []int{113}
+	return fileDescriptor_030104ce3b95bcac, []int{112}
 }
 func (m *SCMProviderGeneratorGithub) XXX_Unmarshal(b []byte) error {
 	return m.Unmarshal(b)
@@ -3204,7 +3232,7 @@ var xxx_messageInfo_SCMProviderGeneratorGithub proto.InternalMessageInfo
 func (m *SCMProviderGeneratorGitlab) Reset()      { *m = SCMProviderGeneratorGitlab{} }
 func (*SCMProviderGeneratorGitlab) ProtoMessage() {}
 func (*SCMProviderGeneratorGitlab) Descriptor() ([]byte, []int) {
-	return fileDescriptor_030104ce3b95bcac, []int{114}
+	return fileDescriptor_030104ce3b95bcac, []int{113}
 }
 func (m *SCMProviderGeneratorGitlab) XXX_Unmarshal(b []byte) error {
 	return m.Unmarshal(b)
@@ -3232,7 +3260,7 @@ var xxx_messageInfo_SCMProviderGeneratorGitlab proto.InternalMessageInfo
 func (m *SecretRef) Reset()      { *m = SecretRef{} }
 func (*SecretRef) ProtoMessage() {}
 func (*SecretRef) Descriptor() ([]byte, []int) {
-	return fileDescriptor_030104ce3b95bcac, []int{115}
+	return fileDescriptor_030104ce3b95bcac, []int{114}
 }
 func (m *SecretRef) XXX_Unmarshal(b []byte) error {
 	return m.Unmarshal(b)
@@ -3260,7 +3288,7 @@ var xxx_messageInfo_SecretRef proto.InternalMessageInfo
 func (m *SignatureKey) Reset()      { *m = SignatureKey{} }
 func (*SignatureKey) ProtoMessage() {}
 func (*SignatureKey) Descriptor() ([]byte, []int) {
-	return fileDescriptor_030104ce3b95bcac, []int{116}
+	return fileDescriptor_030104ce3b95bcac, []int{115}
 }
 func (m *SignatureKey) XXX_Unmarshal(b []byte) error {
 	return m.Unmarshal(b)
@@ -3288,7 +3316,7 @@ var xxx_messageInfo_SignatureKey proto.InternalMessageInfo
 func (m *SyncOperation) Reset()      { *m = SyncOperation{} }
 func (*SyncOperation) ProtoMessage() {}
 func (*SyncOperation) Descriptor() ([]byte, []int) {
-	return fileDescriptor_030104ce3b95bcac, []int{117}
+	return fileDescriptor_030104ce3b95bcac, []int{116}
 }
 func (m *SyncOperation) XXX_Unmarshal(b []byte) error {
 	return m.Unmarshal(b)
@@ -3316,7 +3344,7 @@ var xxx_messageInfo_SyncOperation proto.InternalMessageInfo
 func (m *SyncOperationResource) Reset()      { *m = SyncOperationResource{} }
 func (*SyncOperationResource) ProtoMessage() {}
 func (*SyncOperationResource) Descriptor() ([]byte, []int) {
-	return fileDescriptor_030104ce3b95bcac, []int{118}
+	return fileDescriptor_030104ce3b95bcac, []int{117}
 }
 func (m *SyncOperationResource) XXX_Unmarshal(b []byte) error {
 	return m.Unmarshal(b)
@@ -3344,7 +3372,7 @@ var xxx_messageInfo_SyncOperationResource proto.InternalMessageInfo
 func (m *SyncOperationResult) Reset()      { *m = SyncOperationResult{} }
 func (*SyncOperationResult) ProtoMessage() {}
 func (*SyncOperationResult) Descriptor() ([]byte, []int) {
-	return fileDescriptor_030104ce3b95bcac, []int{119}
+	return fileDescriptor_030104ce3b95bcac, []int{118}
 }
 func (m *SyncOperationResult) XXX_Unmarshal(b []byte) error {
 	return m.Unmarshal(b)
@@ -3372,7 +3400,7 @@ var xxx_messageInfo_SyncOperationResult proto.InternalMessageInfo
 func (m *SyncPolicy) Reset()      { *m = SyncPolicy{} }
 func (*SyncPolicy) ProtoMessage() {}
 func (*SyncPolicy) Descriptor() ([]byte, []int) {
-	return fileDescriptor_030104ce3b95bcac, []int{120}
+	return fileDescriptor_030104ce3b95bcac, []int{119}
 }
 func (m *SyncPolicy) XXX_Unmarshal(b []byte) error {
 	return m.Unmarshal(b)
@@ -3400,7 +3428,7 @@ var xxx_messageInfo_SyncPolicy proto.InternalMessageInfo
 func (m *SyncPolicyAutomated) Reset()      { *m = SyncPolicyAutomated{} }
 func (*SyncPolicyAutomated) ProtoMessage() {}
 func (*SyncPolicyAutomated) Descriptor() ([]byte, []int) {
-	return fileDescriptor_030104ce3b95bcac, []int{121}
+	return fileDescriptor_030104ce3b95bcac, []int{120}
 }
 func (m *SyncPolicyAutomated) XXX_Unmarshal(b []byte) error {
 	return m.Unmarshal(b)
@@ -3428,7 +3456,7 @@ var xxx_messageInfo_SyncPolicyAutomated proto.InternalMessageInfo
 func (m *SyncStatus) Reset()      { *m = SyncStatus{} }
 func (*SyncStatus) ProtoMessage() {}
 func (*SyncStatus) Descriptor() ([]byte, []int) {
-	return fileDescriptor_030104ce3b95bcac, []int{122}
+	return fileDescriptor_030104ce3b95bcac, []int{121}
 }
 func (m *SyncStatus) XXX_Unmarshal(b []byte) error {
 	return m.Unmarshal(b)
@@ -3456,7 +3484,7 @@ var xxx_messageInfo_SyncStatus proto.InternalMessageInfo
 func (m *SyncStrategy) Reset()      { *m = SyncStrategy{} }
 func (*SyncStrategy) ProtoMessage() {}
 func (*SyncStrategy) Descriptor() ([]byte, []int) {
-	return fileDescriptor_030104ce3b95bcac, []int{123}
+	return fileDescriptor_030104ce3b95bcac, []int{122}
 }
 func (m *SyncStrategy) XXX_Unmarshal(b []byte) error {
 	return m.Unmarshal(b)
@@ -3484,7 +3512,7 @@ var xxx_messageInfo_SyncStrategy proto.InternalMessageInfo
 func (m *SyncStrategyApply) Reset()      { *m = SyncStrategyApply{} }
 func (*SyncStrategyApply) ProtoMessage() {}
 func (*SyncStrategyApply) Descriptor() ([]byte, []int) {
-	return fileDescriptor_030104ce3b95bcac, []int{124}
+	return fileDescriptor_030104ce3b95bcac, []int{123}
 }
 func (m *SyncStrategyApply) XXX_Unmarshal(b []byte) error {
 	return m.Unmarshal(b)
@@ -3512,7 +3540,7 @@ var xxx_messageInfo_SyncStrategyApply proto.InternalMessageInfo
 func (m *SyncStrategyHook) Reset()      { *m = SyncStrategyHook{} }
 func (*SyncStrategyHook) ProtoMessage() {}
 func (*SyncStrategyHook) Descriptor() ([]byte, []int) {
-	return fileDescriptor_030104ce3b95bcac, []int{125}
+	return fileDescriptor_030104ce3b95bcac, []int{124}
 }
 func (m *SyncStrategyHook) XXX_Unmarshal(b []byte) error {
 	return m.Unmarshal(b)
@@ -3540,7 +3568,7 @@ var xxx_messageInfo_SyncStrategyHook proto.InternalMessageInfo
 func (m *SyncWindow) Reset()      { *m = SyncWindow{} }
 func (*SyncWindow) ProtoMessage() {}
 func (*SyncWindow) Descriptor() ([]byte, []int) {
-	return fileDescriptor_030104ce3b95bcac, []int{126}
+	return fileDescriptor_030104ce3b95bcac, []int{125}
 }
 func (m *SyncWindow) XXX_Unmarshal(b []byte) error {
 	return m.Unmarshal(b)
@@ -3568,7 +3596,7 @@ var xxx_messageInfo_SyncWindow proto.InternalMessageInfo
 func (m *TLSClientConfig) Reset()      { *m = TLSClientConfig{} }
 func (*TLSClientConfig) ProtoMessage() {}
 func (*TLSClientConfig) Descriptor() ([]byte, []int) {
-	return fileDescriptor_030104ce3b95bcac, []int{127}
+	return fileDescriptor_030104ce3b95bcac, []int{126}
 }
 func (m *TLSClientConfig) XXX_Unmarshal(b []byte) error {
 	return m.Unmarshal(b)
@@ -4453,6 +4481,484 @@ func (m *AppProjectList) MarshalToSizedBuffer(dAtA []byte) (int, error) {
 	return len(dAtA) - i, nil
 }
 
+func (m *AppProjectSpec) Marshal() (dAtA []byte, err error) {
+	size := m.Size()
+	dAtA = make([]byte, size)
+	n, err := m.MarshalToSizedBuffer(dAtA[:size])
+	if err != nil {
+		return nil, err
+	}
+	return dAtA[:n], nil
+}
+
+func (m *AppProjectSpec) MarshalTo(dAtA []byte) (int, error) {
+	size := m.Size()
+	return m.MarshalToSizedBuffer(dAtA[:size])
+}
+
+func (m *AppProjectSpec) MarshalToSizedBuffer(dAtA []byte) (int, error) {
+	i := len(dAtA)
+	_ = i
+	var l int
+	_ = l
+	i--
+	if m.PermitOnlyProjectScopedClusters {
+		dAtA[i] = 1
+	} else {
+		dAtA[i] = 0
+	}
+	i--
+	dAtA[i] = 0x68
+	if len(m.SourceNamespaces) > 0 {
+		for iNdEx := len(m.SourceNamespaces) - 1; iNdEx >= 0; iNdEx-- {
+			i -= len(m.SourceNamespaces[iNdEx])
+			copy(dAtA[i:], m.SourceNamespaces[iNdEx])
+			i = encodeVarintGenerated(dAtA, i, uint64(len(m.SourceNamespaces[iNdEx])))
+			i--
+			dAtA[i] = 0x62
+		}
+	}
+	if len(m.ClusterResourceBlacklist) > 0 {
+		for iNdEx := len(m.ClusterResourceBlacklist) - 1; iNdEx >= 0; iNdEx-- {
+			{
+				size, err := m.ClusterResourceBlacklist[iNdEx].MarshalToSizedBuffer(dAtA[:i])
+				if err != nil {
+					return 0, err
+				}
+				i -= size
+				i = encodeVarintGenerated(dAtA, i, uint64(size))
+			}
+			i--
+			dAtA[i] = 0x5a
+		}
+	}
+	if len(m.SignatureKeys) > 0 {
+		for iNdEx := len(m.SignatureKeys) - 1; iNdEx >= 0; iNdEx-- {
+			{
+				size, err := m.SignatureKeys[iNdEx].MarshalToSizedBuffer(dAtA[:i])
+				if err != nil {
+					return 0, err
+				}
+				i -= size
+				i = encodeVarintGenerated(dAtA, i, uint64(size))
+			}
+			i--
+			dAtA[i] = 0x52
+		}
+	}
+	if len(m.NamespaceResourceWhitelist) > 0 {
+		for iNdEx := len(m.NamespaceResourceWhitelist) - 1; iNdEx >= 0; iNdEx-- {
+			{
+				size, err := m.NamespaceResourceWhitelist[iNdEx].MarshalToSizedBuffer(dAtA[:i])
+				if err != nil {
+					return 0, err
+				}
+				i -= size
+				i = encodeVarintGenerated(dAtA, i, uint64(size))
+			}
+			i--
+			dAtA[i] = 0x4a
+		}
+	}
+	if len(m.SyncWindows) > 0 {
+		for iNdEx := len(m.SyncWindows) - 1; iNdEx >= 0; iNdEx-- {
+			{
+				size, err := m.SyncWindows[iNdEx].MarshalToSizedBuffer(dAtA[:i])
+				if err != nil {
+					return 0, err
+				}
+				i -= size
+				i = encodeVarintGenerated(dAtA, i, uint64(size))
+			}
+			i--
+			dAtA[i] = 0x42
+		}
+	}
+	if m.OrphanedResources != nil {
+		{
+			size, err := m.OrphanedResources.MarshalToSizedBuffer(dAtA[:i])
+			if err != nil {
+				return 0, err
+			}
+			i -= size
+			i = encodeVarintGenerated(dAtA, i, uint64(size))
+		}
+		i--
+		dAtA[i] = 0x3a
+	}
+	if len(m.NamespaceResourceBlacklist) > 0 {
+		for iNdEx := len(m.NamespaceResourceBlacklist) - 1; iNdEx >= 0; iNdEx-- {
+			{
+				size, err := m.NamespaceResourceBlacklist[iNdEx].MarshalToSizedBuffer(dAtA[:i])
+				if err != nil {
+					return 0, err
+				}
+				i -= size
+				i = encodeVarintGenerated(dAtA, i, uint64(size))
+			}
+			i--
+			dAtA[i] = 0x32
+		}
+	}
+	if len(m.ClusterResourceWhitelist) > 0 {
+		for iNdEx := len(m.ClusterResourceWhitelist) - 1; iNdEx >= 0; iNdEx-- {
+			{
+				size, err := m.ClusterResourceWhitelist[iNdEx].MarshalToSizedBuffer(dAtA[:i])
+				if err != nil {
+					return 0, err
+				}
+				i -= size
+				i = encodeVarintGenerated(dAtA, i, uint64(size))
+			}
+			i--
+			dAtA[i] = 0x2a
+		}
+	}
+	if len(m.Roles) > 0 {
+		for iNdEx := len(m.Roles) - 1; iNdEx >= 0; iNdEx-- {
+			{
+				size, err := m.Roles[iNdEx].MarshalToSizedBuffer(dAtA[:i])
+				if err != nil {
+					return 0, err
+				}
+				i -= size
+				i = encodeVarintGenerated(dAtA, i, uint64(size))
+			}
+			i--
+			dAtA[i] = 0x22
+		}
+	}
+	i -= len(m.Description)
+	copy(dAtA[i:], m.Description)
+	i = encodeVarintGenerated(dAtA, i, uint64(len(m.Description)))
+	i--
+	dAtA[i] = 0x1a
+	if len(m.Destinations) > 0 {
+		for iNdEx := len(m.Destinations) - 1; iNdEx >= 0; iNdEx-- {
+			{
+				size, err := m.Destinations[iNdEx].MarshalToSizedBuffer(dAtA[:i])
+				if err != nil {
+					return 0, err
+				}
+				i -= size
+				i = encodeVarintGenerated(dAtA, i, uint64(size))
+			}
+			i--
+			dAtA[i] = 0x12
+		}
+	}
+	if len(m.SourceRepos) > 0 {
+		for iNdEx := len(m.SourceRepos) - 1; iNdEx >= 0; iNdEx-- {
+			i -= len(m.SourceRepos[iNdEx])
+			copy(dAtA[i:], m.SourceRepos[iNdEx])
+			i = encodeVarintGenerated(dAtA, i, uint64(len(m.SourceRepos[iNdEx])))
+			i--
+			dAtA[i] = 0xa
+		}
+	}
+	return len(dAtA) - i, nil
+}
+
+func (m *AppProjectStatus) Marshal() (dAtA []byte, err error) {
+	size := m.Size()
+	dAtA = make([]byte, size)
+	n, err := m.MarshalToSizedBuffer(dAtA[:size])
+	if err != nil {
+		return nil, err
+	}
+	return dAtA[:n], nil
+}
+
+func (m *AppProjectStatus) MarshalTo(dAtA []byte) (int, error) {
+	size := m.Size()
+	return m.MarshalToSizedBuffer(dAtA[:size])
+}
+
+func (m *AppProjectStatus) MarshalToSizedBuffer(dAtA []byte) (int, error) {
+	i := len(dAtA)
+	_ = i
+	var l int
+	_ = l
+	if len(m.JWTTokensByRole) > 0 {
+		keysForJWTTokensByRole := make([]string, 0, len(m.JWTTokensByRole))
+		for k := range m.JWTTokensByRole {
+			keysForJWTTokensByRole = append(keysForJWTTokensByRole, string(k))
+		}
+		github_com_gogo_protobuf_sortkeys.Strings(keysForJWTTokensByRole)
+		for iNdEx := len(keysForJWTTokensByRole) - 1; iNdEx >= 0; iNdEx-- {
+			v := m.JWTTokensByRole[string(keysForJWTTokensByRole[iNdEx])]
+			baseI := i
+			{
+				size, err := (&v).MarshalToSizedBuffer(dAtA[:i])
+				if err != nil {
+					return 0, err
+				}
+				i -= size
+				i = encodeVarintGenerated(dAtA, i, uint64(size))
+			}
+			i--
+			dAtA[i] = 0x12
+			i -= len(keysForJWTTokensByRole[iNdEx])
+			copy(dAtA[i:], keysForJWTTokensByRole[iNdEx])
+			i = encodeVarintGenerated(dAtA, i, uint64(len(keysForJWTTokensByRole[iNdEx])))
+			i--
+			dAtA[i] = 0xa
+			i = encodeVarintGenerated(dAtA, i, uint64(baseI-i))
+			i--
+			dAtA[i] = 0xa
+		}
+	}
+	return len(dAtA) - i, nil
+}
+
+func (m *Application) Marshal() (dAtA []byte, err error) {
+	size := m.Size()
+	dAtA = make([]byte, size)
+	n, err := m.MarshalToSizedBuffer(dAtA[:size])
+	if err != nil {
+		return nil, err
+	}
+	return dAtA[:n], nil
+}
+
+func (m *Application) MarshalTo(dAtA []byte) (int, error) {
+	size := m.Size()
+	return m.MarshalToSizedBuffer(dAtA[:size])
+}
+
+func (m *Application) MarshalToSizedBuffer(dAtA []byte) (int, error) {
+	i := len(dAtA)
+	_ = i
+	var l int
+	_ = l
+	if m.Operation != nil {
+		{
+			size, err := m.Operation.MarshalToSizedBuffer(dAtA[:i])
+			if err != nil {
+				return 0, err
+			}
+			i -= size
+			i = encodeVarintGenerated(dAtA, i, uint64(size))
+		}
+		i--
+		dAtA[i] = 0x22
+	}
+	{
+		size, err := m.Status.MarshalToSizedBuffer(dAtA[:i])
+		if err != nil {
+			return 0, err
+		}
+		i -= size
+		i = encodeVarintGenerated(dAtA, i, uint64(size))
+	}
+	i--
+	dAtA[i] = 0x1a
+	{
+		size, err := m.Spec.MarshalToSizedBuffer(dAtA[:i])
+		if err != nil {
+			return 0, err
+		}
+		i -= size
+		i = encodeVarintGenerated(dAtA, i, uint64(size))
+	}
+	i--
+	dAtA[i] = 0x12
+	{
+		size, err := m.ObjectMeta.MarshalToSizedBuffer(dAtA[:i])
+		if err != nil {
+			return 0, err
+		}
+		i -= size
+		i = encodeVarintGenerated(dAtA, i, uint64(size))
+	}
+	i--
+	dAtA[i] = 0xa
+	return len(dAtA) - i, nil
+}
+
+func (m *ApplicationCondition) Marshal() (dAtA []byte, err error) {
+	size := m.Size()
+	dAtA = make([]byte, size)
+	n, err := m.MarshalToSizedBuffer(dAtA[:size])
+	if err != nil {
+		return nil, err
+	}
+	return dAtA[:n], nil
+}
+
+func (m *ApplicationCondition) MarshalTo(dAtA []byte) (int, error) {
+	size := m.Size()
+	return m.MarshalToSizedBuffer(dAtA[:size])
+}
+
+func (m *ApplicationCondition) MarshalToSizedBuffer(dAtA []byte) (int, error) {
+	i := len(dAtA)
+	_ = i
+	var l int
+	_ = l
+	if m.LastTransitionTime != nil {
+		{
+			size, err := m.LastTransitionTime.MarshalToSizedBuffer(dAtA[:i])
+			if err != nil {
+				return 0, err
+			}
+			i -= size
+			i = encodeVarintGenerated(dAtA, i, uint64(size))
+		}
+		i--
+		dAtA[i] = 0x1a
+	}
+	i -= len(m.Message)
+	copy(dAtA[i:], m.Message)
+	i = encodeVarintGenerated(dAtA, i, uint64(len(m.Message)))
+	i--
+	dAtA[i] = 0x12
+	i -= len(m.Type)
+	copy(dAtA[i:], m.Type)
+	i = encodeVarintGenerated(dAtA, i, uint64(len(m.Type)))
+	i--
+	dAtA[i] = 0xa
+	return len(dAtA) - i, nil
+}
+
+func (m *ApplicationDestination) Marshal() (dAtA []byte, err error) {
+	size := m.Size()
+	dAtA = make([]byte, size)
+	n, err := m.MarshalToSizedBuffer(dAtA[:size])
+	if err != nil {
+		return nil, err
+	}
+	return dAtA[:n], nil
+}
+
+func (m *ApplicationDestination) MarshalTo(dAtA []byte) (int, error) {
+	size := m.Size()
+	return m.MarshalToSizedBuffer(dAtA[:size])
+}
+
+func (m *ApplicationDestination) MarshalToSizedBuffer(dAtA []byte) (int, error) {
+	i := len(dAtA)
+	_ = i
+	var l int
+	_ = l
+	i -= len(m.Name)
+	copy(dAtA[i:], m.Name)
+	i = encodeVarintGenerated(dAtA, i, uint64(len(m.Name)))
+	i--
+	dAtA[i] = 0x1a
+	i -= len(m.Namespace)
+	copy(dAtA[i:], m.Namespace)
+	i = encodeVarintGenerated(dAtA, i, uint64(len(m.Namespace)))
+	i--
+	dAtA[i] = 0x12
+	i -= len(m.Server)
+	copy(dAtA[i:], m.Server)
+	i = encodeVarintGenerated(dAtA, i, uint64(len(m.Server)))
+	i--
+	dAtA[i] = 0xa
+	return len(dAtA) - i, nil
+}
+
+func (m *ApplicationList) Marshal() (dAtA []byte, err error) {
+	size := m.Size()
+	dAtA = make([]byte, size)
+	n, err := m.MarshalToSizedBuffer(dAtA[:size])
+	if err != nil {
+		return nil, err
+	}
+	return dAtA[:n], nil
+}
+
+func (m *ApplicationList) MarshalTo(dAtA []byte) (int, error) {
+	size := m.Size()
+	return m.MarshalToSizedBuffer(dAtA[:size])
+}
+
+func (m *ApplicationList) MarshalToSizedBuffer(dAtA []byte) (int, error) {
+	i := len(dAtA)
+	_ = i
+	var l int
+	_ = l
+	if len(m.Items) > 0 {
+		for iNdEx := len(m.Items) - 1; iNdEx >= 0; iNdEx-- {
+			{
+				size, err := m.Items[iNdEx].MarshalToSizedBuffer(dAtA[:i])
+				if err != nil {
+					return 0, err
+				}
+				i -= size
+				i = encodeVarintGenerated(dAtA, i, uint64(size))
+			}
+			i--
+			dAtA[i] = 0x12
+		}
+	}
+	{
+		size, err := m.ListMeta.MarshalToSizedBuffer(dAtA[:i])
+		if err != nil {
+			return 0, err
+		}
+		i -= size
+		i = encodeVarintGenerated(dAtA, i, uint64(size))
+	}
+	i--
+	dAtA[i] = 0xa
+	return len(dAtA) - i, nil
+}
+
+func (m *ApplicationSet) Marshal() (dAtA []byte, err error) {
+	size := m.Size()
+	dAtA = make([]byte, size)
+	n, err := m.MarshalToSizedBuffer(dAtA[:size])
+	if err != nil {
+		return nil, err
+	}
+	return dAtA[:n], nil
+}
+
+func (m *ApplicationSet) MarshalTo(dAtA []byte) (int, error) {
+	size := m.Size()
+	return m.MarshalToSizedBuffer(dAtA[:size])
+}
+
+func (m *ApplicationSet) MarshalToSizedBuffer(dAtA []byte) (int, error) {
+	i := len(dAtA)
+	_ = i
+	var l int
+	_ = l
+	{
+		size, err := m.Status.MarshalToSizedBuffer(dAtA[:i])
+		if err != nil {
+			return 0, err
+		}
+		i -= size
+		i = encodeVarintGenerated(dAtA, i, uint64(size))
+	}
+	i--
+	dAtA[i] = 0x1a
+	{
+		size, err := m.Spec.MarshalToSizedBuffer(dAtA[:i])
+		if err != nil {
+			return 0, err
+		}
+		i -= size
+		i = encodeVarintGenerated(dAtA, i, uint64(size))
+	}
+	i--
+	dAtA[i] = 0x12
+	{
+		size, err := m.ObjectMeta.MarshalToSizedBuffer(dAtA[:i])
+		if err != nil {
+			return 0, err
+		}
+		i -= size
+		i = encodeVarintGenerated(dAtA, i, uint64(size))
+	}
+	i--
+	dAtA[i] = 0xa
+	return len(dAtA) - i, nil
+}
+
 func (m *ApplicationSetCondition) Marshal() (dAtA []byte, err error) {
 	size := m.Size()
 	dAtA = make([]byte, size)
@@ -5180,446 +5686,6 @@ func (m *ApplicationSetTerminalGenerator) MarshalToSizedBuffer(dAtA []byte) (int
 	return len(dAtA) - i, nil
 }
 
-		dAtA[i] = 0x3a
-	}
-	if m.PullRequest != nil {
-		{
-			size, err := m.PullRequest.MarshalToSizedBuffer(dAtA[:i])
-			if err != nil {
-				return 0, err
-			}
-			i -= size
-			i = encodeVarintGenerated(dAtA, i, uint64(size))
-		}
-		i--
-		dAtA[i] = 0x32
-	}
-	if m.ClusterDecisionResource != nil {
-		{
-			size, err := m.ClusterDecisionResource.MarshalToSizedBuffer(dAtA[:i])
-			if err != nil {
-				return 0, err
-			}
-			i -= size
-			i = encodeVarintGenerated(dAtA, i, uint64(size))
-		}
-		i--
-		dAtA[i] = 0x2a
-	}
-	if m.SCMProvider != nil {
-		{
-			size, err := m.SCMProvider.MarshalToSizedBuffer(dAtA[:i])
-			if err != nil {
-				return 0, err
-			}
-			i -= size
-			i = encodeVarintGenerated(dAtA, i, uint64(size))
-		}
-		i--
-		dAtA[i] = 0x22
-	}
-	if m.Git != nil {
-		{
-			size, err := m.Git.MarshalToSizedBuffer(dAtA[:i])
-			if err != nil {
-				return 0, err
-			}
-			i -= size
-			i = encodeVarintGenerated(dAtA, i, uint64(size))
-		}
-		i--
-		dAtA[i] = 0x1a
-	}
-	if m.Clusters != nil {
-		{
-			size, err := m.Clusters.MarshalToSizedBuffer(dAtA[:i])
-			if err != nil {
-				return 0, err
-			}
-			i -= size
-			i = encodeVarintGenerated(dAtA, i, uint64(size))
-		}
-		i--
-		dAtA[i] = 0x12
-	}
-	if m.List != nil {
-		{
-			size, err := m.List.MarshalToSizedBuffer(dAtA[:i])
-			if err != nil {
-				return 0, err
-			}
-			i -= size
-			i = encodeVarintGenerated(dAtA, i, uint64(size))
-		}
-		i--
-		dAtA[i] = 0xa
-	}
-	return len(dAtA) - i, nil
-}
-
-func (m *ApplicationSetSpec) Marshal() (dAtA []byte, err error) {
-	size := m.Size()
-	dAtA = make([]byte, size)
-	n, err := m.MarshalToSizedBuffer(dAtA[:size])
-	if err != nil {
-		return nil, err
-	}
-	return dAtA[:n], nil
-}
-
-func (m *ApplicationSetSpec) MarshalTo(dAtA []byte) (int, error) {
-	size := m.Size()
-	return m.MarshalToSizedBuffer(dAtA[:size])
-}
-
-func (m *ApplicationSetSpec) MarshalToSizedBuffer(dAtA []byte) (int, error) {
-	i := len(dAtA)
-	_ = i
-	var l int
-	_ = l
-	if m.SyncPolicy != nil {
-		{
-			size, err := m.SyncPolicy.MarshalToSizedBuffer(dAtA[:i])
-			if err != nil {
-				return 0, err
-			}
-			i -= size
-			i = encodeVarintGenerated(dAtA, i, uint64(size))
-		}
-		i--
-		dAtA[i] = 0x22
-	}
-	{
-		size, err := m.Template.MarshalToSizedBuffer(dAtA[:i])
-		if err != nil {
-			return 0, err
-		}
-		i -= size
-		i = encodeVarintGenerated(dAtA, i, uint64(size))
-	}
-	i--
-	dAtA[i] = 0x1a
-	if len(m.Generators) > 0 {
-		for iNdEx := len(m.Generators) - 1; iNdEx >= 0; iNdEx-- {
-			{
-				size, err := m.Generators[iNdEx].MarshalToSizedBuffer(dAtA[:i])
-				if err != nil {
-					return 0, err
-				}
-				i -= size
-				i = encodeVarintGenerated(dAtA, i, uint64(size))
-			}
-			i--
-			dAtA[i] = 0x12
-		}
-	}
-	i--
-	if m.GoTemplate {
-		dAtA[i] = 1
-	} else {
-		dAtA[i] = 0
-	}
-	i--
-	dAtA[i] = 0x8
-	return len(dAtA) - i, nil
-}
-
-func (m *ApplicationSetStatus) Marshal() (dAtA []byte, err error) {
-	size := m.Size()
-	dAtA = make([]byte, size)
-	n, err := m.MarshalToSizedBuffer(dAtA[:size])
-	if err != nil {
-		return nil, err
-	}
-	return dAtA[:n], nil
-}
-
-func (m *ApplicationSetStatus) MarshalTo(dAtA []byte) (int, error) {
-	size := m.Size()
-	return m.MarshalToSizedBuffer(dAtA[:size])
-}
-
-func (m *ApplicationSetStatus) MarshalToSizedBuffer(dAtA []byte) (int, error) {
-	i := len(dAtA)
-	_ = i
-	var l int
-	_ = l
-	if len(m.Conditions) > 0 {
-		for iNdEx := len(m.Conditions) - 1; iNdEx >= 0; iNdEx-- {
-			{
-				size, err := m.Conditions[iNdEx].MarshalToSizedBuffer(dAtA[:i])
-				if err != nil {
-					return 0, err
-				}
-				i -= size
-				i = encodeVarintGenerated(dAtA, i, uint64(size))
-			}
-			i--
-			dAtA[i] = 0xa
-		}
-	}
-	return len(dAtA) - i, nil
-}
-
-func (m *ApplicationSetSyncPolicy) Marshal() (dAtA []byte, err error) {
-	size := m.Size()
-	dAtA = make([]byte, size)
-	n, err := m.MarshalToSizedBuffer(dAtA[:size])
-	if err != nil {
-		return nil, err
-	}
-	return dAtA[:n], nil
-}
-
-func (m *ApplicationSetSyncPolicy) MarshalTo(dAtA []byte) (int, error) {
-	size := m.Size()
-	return m.MarshalToSizedBuffer(dAtA[:size])
-}
-
-func (m *ApplicationSetSyncPolicy) MarshalToSizedBuffer(dAtA []byte) (int, error) {
-	i := len(dAtA)
-	_ = i
-	var l int
-	_ = l
-	i--
-	if m.PreserveResourcesOnDeletion {
-		dAtA[i] = 1
-	} else {
-		dAtA[i] = 0
-	}
-	i--
-	dAtA[i] = 0x8
-	return len(dAtA) - i, nil
-}
-
-func (m *ApplicationSetTemplate) Marshal() (dAtA []byte, err error) {
-	size := m.Size()
-	dAtA = make([]byte, size)
-	n, err := m.MarshalToSizedBuffer(dAtA[:size])
-	if err != nil {
-		return nil, err
-	}
-	return dAtA[:n], nil
-}
-
-func (m *ApplicationSetTemplate) MarshalTo(dAtA []byte) (int, error) {
-	size := m.Size()
-	return m.MarshalToSizedBuffer(dAtA[:size])
-}
-
-func (m *ApplicationSetTemplate) MarshalToSizedBuffer(dAtA []byte) (int, error) {
-	i := len(dAtA)
-	_ = i
-	var l int
-	_ = l
-	{
-		size, err := m.Spec.MarshalToSizedBuffer(dAtA[:i])
-		if err != nil {
-			return 0, err
-		}
-		i -= size
-		i = encodeVarintGenerated(dAtA, i, uint64(size))
-	}
-	i--
-	dAtA[i] = 0x12
-	{
-		size, err := m.ApplicationSetTemplateMeta.MarshalToSizedBuffer(dAtA[:i])
-		if err != nil {
-			return 0, err
-		}
-		i -= size
-		i = encodeVarintGenerated(dAtA, i, uint64(size))
-	}
-	i--
-	dAtA[i] = 0xa
-	return len(dAtA) - i, nil
-}
-
-func (m *ApplicationSetTemplateMeta) Marshal() (dAtA []byte, err error) {
-	size := m.Size()
-	dAtA = make([]byte, size)
-	n, err := m.MarshalToSizedBuffer(dAtA[:size])
-	if err != nil {
-		return nil, err
-	}
-	return dAtA[:n], nil
-}
-
-func (m *ApplicationSetTemplateMeta) MarshalTo(dAtA []byte) (int, error) {
-	size := m.Size()
-	return m.MarshalToSizedBuffer(dAtA[:size])
-}
-
-func (m *ApplicationSetTemplateMeta) MarshalToSizedBuffer(dAtA []byte) (int, error) {
-	i := len(dAtA)
-	_ = i
-	var l int
-	_ = l
-	if len(m.Finalizers) > 0 {
-		for iNdEx := len(m.Finalizers) - 1; iNdEx >= 0; iNdEx-- {
-			i -= len(m.Finalizers[iNdEx])
-			copy(dAtA[i:], m.Finalizers[iNdEx])
-			i = encodeVarintGenerated(dAtA, i, uint64(len(m.Finalizers[iNdEx])))
-			i--
-			dAtA[i] = 0x2a
-		}
-	}
-	if len(m.Annotations) > 0 {
-		keysForAnnotations := make([]string, 0, len(m.Annotations))
-		for k := range m.Annotations {
-			keysForAnnotations = append(keysForAnnotations, string(k))
-		}
-		github_com_gogo_protobuf_sortkeys.Strings(keysForAnnotations)
-		for iNdEx := len(keysForAnnotations) - 1; iNdEx >= 0; iNdEx-- {
-			v := m.Annotations[string(keysForAnnotations[iNdEx])]
-			baseI := i
-			i -= len(v)
-			copy(dAtA[i:], v)
-			i = encodeVarintGenerated(dAtA, i, uint64(len(v)))
-			i--
-			dAtA[i] = 0x12
-			i -= len(keysForAnnotations[iNdEx])
-			copy(dAtA[i:], keysForAnnotations[iNdEx])
-			i = encodeVarintGenerated(dAtA, i, uint64(len(keysForAnnotations[iNdEx])))
-			i--
-			dAtA[i] = 0xa
-			i = encodeVarintGenerated(dAtA, i, uint64(baseI-i))
-			i--
-			dAtA[i] = 0x22
-		}
-	}
-	if len(m.Labels) > 0 {
-		keysForLabels := make([]string, 0, len(m.Labels))
-		for k := range m.Labels {
-			keysForLabels = append(keysForLabels, string(k))
-		}
-		github_com_gogo_protobuf_sortkeys.Strings(keysForLabels)
-		for iNdEx := len(keysForLabels) - 1; iNdEx >= 0; iNdEx-- {
-			v := m.Labels[string(keysForLabels[iNdEx])]
-			baseI := i
-			i -= len(v)
-			copy(dAtA[i:], v)
-			i = encodeVarintGenerated(dAtA, i, uint64(len(v)))
-			i--
-			dAtA[i] = 0x12
-			i -= len(keysForLabels[iNdEx])
-			copy(dAtA[i:], keysForLabels[iNdEx])
-			i = encodeVarintGenerated(dAtA, i, uint64(len(keysForLabels[iNdEx])))
-			i--
-			dAtA[i] = 0xa
-			i = encodeVarintGenerated(dAtA, i, uint64(baseI-i))
-			i--
-			dAtA[i] = 0x1a
-		}
-	}
-	i -= len(m.Namespace)
-	copy(dAtA[i:], m.Namespace)
-	i = encodeVarintGenerated(dAtA, i, uint64(len(m.Namespace)))
-	i--
-	dAtA[i] = 0x12
-	i -= len(m.Name)
-	copy(dAtA[i:], m.Name)
-	i = encodeVarintGenerated(dAtA, i, uint64(len(m.Name)))
-	i--
-	dAtA[i] = 0xa
-	return len(dAtA) - i, nil
-}
-
-func (m *ApplicationSetTerminalGenerator) Marshal() (dAtA []byte, err error) {
-	size := m.Size()
-	dAtA = make([]byte, size)
-	n, err := m.MarshalToSizedBuffer(dAtA[:size])
-	if err != nil {
-		return nil, err
-	}
-	return dAtA[:n], nil
-}
-
-func (m *ApplicationSetTerminalGenerator) MarshalTo(dAtA []byte) (int, error) {
-	size := m.Size()
-	return m.MarshalToSizedBuffer(dAtA[:size])
-}
-
-func (m *ApplicationSetTerminalGenerator) MarshalToSizedBuffer(dAtA []byte) (int, error) {
-	i := len(dAtA)
-	_ = i
-	var l int
-	_ = l
-	if m.PullRequest != nil {
-		{
-			size, err := m.PullRequest.MarshalToSizedBuffer(dAtA[:i])
-			if err != nil {
-				return 0, err
-			}
-			i -= size
-			i = encodeVarintGenerated(dAtA, i, uint64(size))
-		}
-		i--
-		dAtA[i] = 0x32
-	}
-	if m.ClusterDecisionResource != nil {
-		{
-			size, err := m.ClusterDecisionResource.MarshalToSizedBuffer(dAtA[:i])
-			if err != nil {
-				return 0, err
-			}
-			i -= size
-			i = encodeVarintGenerated(dAtA, i, uint64(size))
-		}
-		i--
-		dAtA[i] = 0x2a
-	}
-	if m.SCMProvider != nil {
-		{
-			size, err := m.SCMProvider.MarshalToSizedBuffer(dAtA[:i])
-			if err != nil {
-				return 0, err
-			}
-			i -= size
-			i = encodeVarintGenerated(dAtA, i, uint64(size))
-		}
-		i--
-		dAtA[i] = 0x22
-	}
-	if m.Git != nil {
-		{
-			size, err := m.Git.MarshalToSizedBuffer(dAtA[:i])
-			if err != nil {
-				return 0, err
-			}
-			i -= size
-			i = encodeVarintGenerated(dAtA, i, uint64(size))
-		}
-		i--
-		dAtA[i] = 0x1a
-	}
-	if m.Clusters != nil {
-		{
-			size, err := m.Clusters.MarshalToSizedBuffer(dAtA[:i])
-			if err != nil {
-				return 0, err
-			}
-			i -= size
-			i = encodeVarintGenerated(dAtA, i, uint64(size))
-		}
-		i--
-		dAtA[i] = 0x12
-	}
-	if m.List != nil {
-		{
-			size, err := m.List.MarshalToSizedBuffer(dAtA[:i])
-			if err != nil {
-				return 0, err
-			}
-			i -= size
-			i = encodeVarintGenerated(dAtA, i, uint64(size))
-		}
-		i--
-		dAtA[i] = 0xa
-	}
-	return len(dAtA) - i, nil
-}
-
 func (m *ApplicationSource) Marshal() (dAtA []byte, err error) {
 	size := m.Size()
 	dAtA = make([]byte, size)
@@ -5640,11 +5706,6 @@ func (m *ApplicationSource) MarshalToSizedBuffer(dAtA []byte) (int, error) {
 	_ = i
 	var l int
 	_ = l
-	i -= len(m.Ref)
-	copy(dAtA[i:], m.Ref)
-	i = encodeVarintGenerated(dAtA, i, uint64(len(m.Ref)))
-	i--
-	dAtA[i] = 0x6a
 	i -= len(m.Chart)
 	copy(dAtA[i:], m.Chart)
 	i = encodeVarintGenerated(dAtA, i, uint64(len(m.Chart)))
@@ -6094,7 +6155,6 @@ func (m *ApplicationSourcePlugin) MarshalToSizedBuffer(dAtA []byte) (int, error)
 }
 
 func (m *ApplicationSourcePluginParameter) Marshal() (dAtA []byte, err error) {
-func (m *BasicAuthBitbucketServer) Marshal() (dAtA []byte, err error) {
 	size := m.Size()
 	dAtA = make([]byte, size)
 	n, err := m.MarshalToSizedBuffer(dAtA[:size])
@@ -6109,31 +6169,7 @@ func (m *ApplicationSourcePluginParameter) MarshalTo(dAtA []byte) (int, error) {
 	return m.MarshalToSizedBuffer(dAtA[:size])
 }
 
-func (m *BasicAuthBitbucketServer) MarshalToSizedBuffer(dAtA []byte) (int, error) {
-	i := len(dAtA)
-	_ = i
-	var l int
-	_ = l
-	if m.PasswordRef != nil {
-		{
-			size, err := m.PasswordRef.MarshalToSizedBuffer(dAtA[:i])
-			if err != nil {
-				return 0, err
-			}
-			i -= size
-			i = encodeVarintGenerated(dAtA, i, uint64(size))
-		}
-		i--
-		dAtA[i] = 0x12
-	}
-	i -= len(m.Username)
-	copy(dAtA[i:], m.Username)
-	i = encodeVarintGenerated(dAtA, i, uint64(len(m.Username)))
-	i--
-	dAtA[i] = 0xa
-	return len(dAtA) - i, nil
-}
-
+func (m *ApplicationSourcePluginParameter) MarshalToSizedBuffer(dAtA []byte) (int, error) {
 	i := len(dAtA)
 	_ = i
 	var l int
@@ -6206,20 +6242,6 @@ func (m *ApplicationSpec) MarshalToSizedBuffer(dAtA []byte) (int, error) {
 	_ = i
 	var l int
 	_ = l
-	if len(m.Sources) > 0 {
-		for iNdEx := len(m.Sources) - 1; iNdEx >= 0; iNdEx-- {
-			{
-				size, err := m.Sources[iNdEx].MarshalToSizedBuffer(dAtA[:i])
-				if err != nil {
-					return 0, err
-				}
-				i -= size
-				i = encodeVarintGenerated(dAtA, i, uint64(size))
-			}
-			i--
-			dAtA[i] = 0x42
-		}
-	}
 	if m.RevisionHistoryLimit != nil {
 		i = encodeVarintGenerated(dAtA, i, uint64(*m.RevisionHistoryLimit))
 		i--
@@ -6495,7 +6517,63 @@ func (m *ApplicationTree) Marshal() (dAtA []byte, err error) {
 	}
 	return dAtA[:n], nil
 }
-func (m *ClusterGenerator) Marshal() (dAtA []byte, err error) {
+
+func (m *ApplicationTree) MarshalTo(dAtA []byte) (int, error) {
+	size := m.Size()
+	return m.MarshalToSizedBuffer(dAtA[:size])
+}
+
+func (m *ApplicationTree) MarshalToSizedBuffer(dAtA []byte) (int, error) {
+	i := len(dAtA)
+	_ = i
+	var l int
+	_ = l
+	if len(m.Hosts) > 0 {
+		for iNdEx := len(m.Hosts) - 1; iNdEx >= 0; iNdEx-- {
+			{
+				size, err := m.Hosts[iNdEx].MarshalToSizedBuffer(dAtA[:i])
+				if err != nil {
+					return 0, err
+				}
+				i -= size
+				i = encodeVarintGenerated(dAtA, i, uint64(size))
+			}
+			i--
+			dAtA[i] = 0x1a
+		}
+	}
+	if len(m.OrphanedNodes) > 0 {
+		for iNdEx := len(m.OrphanedNodes) - 1; iNdEx >= 0; iNdEx-- {
+			{
+				size, err := m.OrphanedNodes[iNdEx].MarshalToSizedBuffer(dAtA[:i])
+				if err != nil {
+					return 0, err
+				}
+				i -= size
+				i = encodeVarintGenerated(dAtA, i, uint64(size))
+			}
+			i--
+			dAtA[i] = 0x12
+		}
+	}
+	if len(m.Nodes) > 0 {
+		for iNdEx := len(m.Nodes) - 1; iNdEx >= 0; iNdEx-- {
+			{
+				size, err := m.Nodes[iNdEx].MarshalToSizedBuffer(dAtA[:i])
+				if err != nil {
+					return 0, err
+				}
+				i -= size
+				i = encodeVarintGenerated(dAtA, i, uint64(size))
+			}
+			i--
+			dAtA[i] = 0xa
+		}
+	}
+	return len(dAtA) - i, nil
+}
+
+func (m *ApplicationWatchEvent) Marshal() (dAtA []byte, err error) {
 	size := m.Size()
 	dAtA = make([]byte, size)
 	n, err := m.MarshalToSizedBuffer(dAtA[:size])
@@ -6505,63 +6583,7 @@ func (m *ClusterGenerator) Marshal() (dAtA []byte, err error) {
 	return dAtA[:n], nil
 }
 
-func (m *ClusterGenerator) MarshalTo(dAtA []byte) (int, error) {
-	size := m.Size()
-	return m.MarshalToSizedBuffer(dAtA[:size])
-}
-
-func (m *ClusterGenerator) MarshalToSizedBuffer(dAtA []byte) (int, error) {
-	i := len(dAtA)
-	_ = i
-	var l int
-	_ = l
-	if len(m.Values) > 0 {
-		keysForValues := make([]string, 0, len(m.Values))
-		for k := range m.Values {
-			keysForValues = append(keysForValues, string(k))
-		}
-		github_com_gogo_protobuf_sortkeys.Strings(keysForValues)
-		for iNdEx := len(keysForValues) - 1; iNdEx >= 0; iNdEx-- {
-			v := m.Values[string(keysForValues[iNdEx])]
-			baseI := i
-			i -= len(v)
-			copy(dAtA[i:], v)
-			i = encodeVarintGenerated(dAtA, i, uint64(len(v)))
-			i--
-			dAtA[i] = 0x12
-			i -= len(keysForValues[iNdEx])
-			copy(dAtA[i:], keysForValues[iNdEx])
-			i = encodeVarintGenerated(dAtA, i, uint64(len(keysForValues[iNdEx])))
-			i--
-			dAtA[i] = 0xa
-			i = encodeVarintGenerated(dAtA, i, uint64(baseI-i))
-			i--
-			dAtA[i] = 0x1a
-		}
-	}
-	{
-		size, err := m.Template.MarshalToSizedBuffer(dAtA[:i])
-		if err != nil {
-			return 0, err
-		}
-		i -= size
-		i = encodeVarintGenerated(dAtA, i, uint64(size))
-	}
-	i--
-	dAtA[i] = 0x12
-	{
-		size, err := m.Selector.MarshalToSizedBuffer(dAtA[:i])
-		if err != nil {
-			return 0, err
-		}
-		i -= size
-		i = encodeVarintGenerated(dAtA, i, uint64(size))
-	}
-	i--
-	dAtA[i] = 0xa
-	return len(dAtA) - i, nil
-}
-
+func (m *ApplicationWatchEvent) MarshalTo(dAtA []byte) (int, error) {
 	size := m.Size()
 	return m.MarshalToSizedBuffer(dAtA[:size])
 }
@@ -6894,7 +6916,48 @@ func (m *ClusterConfig) MarshalToSizedBuffer(dAtA []byte) (int, error) {
 		}
 		i--
 		dAtA[i] = 0x32
-func (m *DuckTypeGenerator) Marshal() (dAtA []byte, err error) {
+	}
+	if m.AWSAuthConfig != nil {
+		{
+			size, err := m.AWSAuthConfig.MarshalToSizedBuffer(dAtA[:i])
+			if err != nil {
+				return 0, err
+			}
+			i -= size
+			i = encodeVarintGenerated(dAtA, i, uint64(size))
+		}
+		i--
+		dAtA[i] = 0x2a
+	}
+	{
+		size, err := m.TLSClientConfig.MarshalToSizedBuffer(dAtA[:i])
+		if err != nil {
+			return 0, err
+		}
+		i -= size
+		i = encodeVarintGenerated(dAtA, i, uint64(size))
+	}
+	i--
+	dAtA[i] = 0x22
+	i -= len(m.BearerToken)
+	copy(dAtA[i:], m.BearerToken)
+	i = encodeVarintGenerated(dAtA, i, uint64(len(m.BearerToken)))
+	i--
+	dAtA[i] = 0x1a
+	i -= len(m.Password)
+	copy(dAtA[i:], m.Password)
+	i = encodeVarintGenerated(dAtA, i, uint64(len(m.Password)))
+	i--
+	dAtA[i] = 0x12
+	i -= len(m.Username)
+	copy(dAtA[i:], m.Username)
+	i = encodeVarintGenerated(dAtA, i, uint64(len(m.Username)))
+	i--
+	dAtA[i] = 0xa
+	return len(dAtA) - i, nil
+}
+
+func (m *ClusterGenerator) Marshal() (dAtA []byte, err error) {
 	size := m.Size()
 	dAtA = make([]byte, size)
 	n, err := m.MarshalToSizedBuffer(dAtA[:size])
@@ -6904,12 +6967,12 @@ func (m *DuckTypeGenerator) Marshal() (dAtA []byte, err error) {
 	return dAtA[:n], nil
 }
 
-func (m *DuckTypeGenerator) MarshalTo(dAtA []byte) (int, error) {
+func (m *ClusterGenerator) MarshalTo(dAtA []byte) (int, error) {
 	size := m.Size()
 	return m.MarshalToSizedBuffer(dAtA[:size])
 }
 
-func (m *DuckTypeGenerator) MarshalToSizedBuffer(dAtA []byte) (int, error) {
+func (m *ClusterGenerator) MarshalToSizedBuffer(dAtA []byte) (int, error) {
 	i := len(dAtA)
 	_ = i
 	var l int
@@ -6935,47 +6998,6 @@ func (m *DuckTypeGenerator) MarshalToSizedBuffer(dAtA []byte) (int, error) {
 			dAtA[i] = 0xa
 			i = encodeVarintGenerated(dAtA, i, uint64(baseI-i))
 			i--
-			dAtA[i] = 0x32
-		}
-	}
-	{
-		size, err := m.Template.MarshalToSizedBuffer(dAtA[:i])
-		if err != nil {
-			return 0, err
-		}
-		i -= size
-		i = encodeVarintGenerated(dAtA, i, uint64(size))
-	}
-	i--
-	dAtA[i] = 0x2a
-	{
-		size, err := m.LabelSelector.MarshalToSizedBuffer(dAtA[:i])
-		if err != nil {
-			return 0, err
-		}
-		i -= size
-		i = encodeVarintGenerated(dAtA, i, uint64(size))
-	}
-	i--
-	dAtA[i] = 0x22
-	if m.RequeueAfterSeconds != nil {
-		i = encodeVarintGenerated(dAtA, i, uint64(*m.RequeueAfterSeconds))
-		i--
-		dAtA[i] = 0x18
-	}
-	i -= len(m.Name)
-	copy(dAtA[i:], m.Name)
-	i = encodeVarintGenerated(dAtA, i, uint64(len(m.Name)))
-	i--
-	dAtA[i] = 0x12
-	i -= len(m.ConfigMapRef)
-	copy(dAtA[i:], m.ConfigMapRef)
-	i = encodeVarintGenerated(dAtA, i, uint64(len(m.ConfigMapRef)))
-	i--
-	dAtA[i] = 0xa
-	return len(dAtA) - i, nil
-}
-
 			dAtA[i] = 0x1a
 		}
 	}
@@ -7080,7 +7102,36 @@ func (m *ClusterList) MarshalTo(dAtA []byte) (int, error) {
 func (m *ClusterList) MarshalToSizedBuffer(dAtA []byte) (int, error) {
 	i := len(dAtA)
 	_ = i
-func (m *GitDirectoryGeneratorItem) Marshal() (dAtA []byte, err error) {
+	var l int
+	_ = l
+	if len(m.Items) > 0 {
+		for iNdEx := len(m.Items) - 1; iNdEx >= 0; iNdEx-- {
+			{
+				size, err := m.Items[iNdEx].MarshalToSizedBuffer(dAtA[:i])
+				if err != nil {
+					return 0, err
+				}
+				i -= size
+				i = encodeVarintGenerated(dAtA, i, uint64(size))
+			}
+			i--
+			dAtA[i] = 0x12
+		}
+	}
+	{
+		size, err := m.ListMeta.MarshalToSizedBuffer(dAtA[:i])
+		if err != nil {
+			return 0, err
+		}
+		i -= size
+		i = encodeVarintGenerated(dAtA, i, uint64(size))
+	}
+	i--
+	dAtA[i] = 0xa
+	return len(dAtA) - i, nil
+}
+
+func (m *Command) Marshal() (dAtA []byte, err error) {
 	size := m.Size()
 	dAtA = make([]byte, size)
 	n, err := m.MarshalToSizedBuffer(dAtA[:size])
@@ -7090,24 +7141,16 @@ func (m *GitDirectoryGeneratorItem) Marshal() (dAtA []byte, err error) {
 	return dAtA[:n], nil
 }
 
-func (m *GitDirectoryGeneratorItem) MarshalTo(dAtA []byte) (int, error) {
+func (m *Command) MarshalTo(dAtA []byte) (int, error) {
 	size := m.Size()
 	return m.MarshalToSizedBuffer(dAtA[:size])
 }
 
-func (m *GitDirectoryGeneratorItem) MarshalToSizedBuffer(dAtA []byte) (int, error) {
+func (m *Command) MarshalToSizedBuffer(dAtA []byte) (int, error) {
 	i := len(dAtA)
 	_ = i
 	var l int
 	_ = l
-	i--
-	if m.Exclude {
-		dAtA[i] = 1
-	} else {
-		dAtA[i] = 0
-	}
-	i--
-	dAtA[i] = 0x10
 	i -= len(m.Path)
 	copy(dAtA[i:], m.Path)
 	i = encodeVarintGenerated(dAtA, i, uint64(len(m.Path)))
@@ -7116,7 +7159,7 @@ func (m *GitDirectoryGeneratorItem) MarshalToSizedBuffer(dAtA []byte) (int, erro
 	return len(dAtA) - i, nil
 }
 
-func (m *GitFileGeneratorItem) Marshal() (dAtA []byte, err error) {
+func (m *ComparedTo) Marshal() (dAtA []byte, err error) {
 	size := m.Size()
 	dAtA = make([]byte, size)
 	n, err := m.MarshalToSizedBuffer(dAtA[:size])
@@ -7126,12 +7169,12 @@ func (m *GitFileGeneratorItem) Marshal() (dAtA []byte, err error) {
 	return dAtA[:n], nil
 }
 
-func (m *GitFileGeneratorItem) MarshalTo(dAtA []byte) (int, error) {
+func (m *ComparedTo) MarshalTo(dAtA []byte) (int, error) {
 	size := m.Size()
 	return m.MarshalToSizedBuffer(dAtA[:size])
 }
 
-func (m *GitFileGeneratorItem) MarshalToSizedBuffer(dAtA []byte) (int, error) {
+func (m *ComparedTo) MarshalToSizedBuffer(dAtA []byte) (int, error) {
 	i := len(dAtA)
 	_ = i
 	var l int
@@ -7173,7 +7216,7 @@ func (m *GitFileGeneratorItem) MarshalToSizedBuffer(dAtA []byte) (int, error) {
 	return len(dAtA) - i, nil
 }
 
-func (m *GitGenerator) Marshal() (dAtA []byte, err error) {
+func (m *ComponentParameter) Marshal() (dAtA []byte, err error) {
 	size := m.Size()
 	dAtA = make([]byte, size)
 	n, err := m.MarshalToSizedBuffer(dAtA[:size])
@@ -7183,72 +7226,23 @@ func (m *GitGenerator) Marshal() (dAtA []byte, err error) {
 	return dAtA[:n], nil
 }
 
-func (m *GitGenerator) MarshalTo(dAtA []byte) (int, error) {
+func (m *ComponentParameter) MarshalTo(dAtA []byte) (int, error) {
 	size := m.Size()
 	return m.MarshalToSizedBuffer(dAtA[:size])
 }
 
-func (m *GitGenerator) MarshalToSizedBuffer(dAtA []byte) (int, error) {
+func (m *ComponentParameter) MarshalToSizedBuffer(dAtA []byte) (int, error) {
 	i := len(dAtA)
 	_ = i
 	var l int
 	_ = l
-	{
-		size, err := m.Template.MarshalToSizedBuffer(dAtA[:i])
-		if err != nil {
-			return 0, err
-		}
-		i -= size
-		i = encodeVarintGenerated(dAtA, i, uint64(size))
-	}
+	i -= len(m.Value)
+	copy(dAtA[i:], m.Value)
+	i = encodeVarintGenerated(dAtA, i, uint64(len(m.Value)))
 	i--
-	dAtA[i] = 0x32
-	if m.RequeueAfterSeconds != nil {
-		i = encodeVarintGenerated(dAtA, i, uint64(*m.RequeueAfterSeconds))
-		i--
-		dAtA[i] = 0x28
-	}
-	i -= len(m.Revision)
-	copy(dAtA[i:], m.Revision)
-	i = encodeVarintGenerated(dAtA, i, uint64(len(m.Revision)))
-	i--
-	dAtA[i] = 0x22
-	if len(m.Files) > 0 {
-		for iNdEx := len(m.Files) - 1; iNdEx >= 0; iNdEx-- {
-			{
-				size, err := m.Files[iNdEx].MarshalToSizedBuffer(dAtA[:i])
-				if err != nil {
-					return 0, err
-				}
-				i -= size
-				i = encodeVarintGenerated(dAtA, i, uint64(size))
-			}
-			i--
-			dAtA[i] = 0x1a
-		}
-	}
-	if len(m.Directories) > 0 {
-		for iNdEx := len(m.Directories) - 1; iNdEx >= 0; iNdEx-- {
-			{
-				size, err := m.Directories[iNdEx].MarshalToSizedBuffer(dAtA[:i])
-				if err != nil {
-					return 0, err
-				}
-				i -= size
-				i = encodeVarintGenerated(dAtA, i, uint64(size))
-			}
-			i--
-			dAtA[i] = 0x12
-		}
-	}
-	i -= len(m.RepoURL)
-	copy(dAtA[i:], m.RepoURL)
-	i = encodeVarintGenerated(dAtA, i, uint64(len(m.RepoURL)))
-	i--
-	dAtA[i] = 0xa
-	return len(dAtA) - i, nil
-}
-
+	dAtA[i] = 0x1a
+	i -= len(m.Name)
+	copy(dAtA[i:], m.Name)
 	i = encodeVarintGenerated(dAtA, i, uint64(len(m.Name)))
 	i--
 	dAtA[i] = 0x12
@@ -7826,7 +7820,8 @@ func (m *HealthStatus) MarshalToSizedBuffer(dAtA []byte) (int, error) {
 	dAtA[i] = 0xa
 	return len(dAtA) - i, nil
 }
-func (m *ListGenerator) Marshal() (dAtA []byte, err error) {
+
+func (m *HelmFileParameter) Marshal() (dAtA []byte, err error) {
 	size := m.Size()
 	dAtA = make([]byte, size)
 	n, err := m.MarshalToSizedBuffer(dAtA[:size])
@@ -7836,36 +7831,54 @@ func (m *ListGenerator) Marshal() (dAtA []byte, err error) {
 	return dAtA[:n], nil
 }
 
-func (m *ListGenerator) MarshalTo(dAtA []byte) (int, error) {
+func (m *HelmFileParameter) MarshalTo(dAtA []byte) (int, error) {
 	size := m.Size()
 	return m.MarshalToSizedBuffer(dAtA[:size])
 }
 
-func (m *ListGenerator) MarshalToSizedBuffer(dAtA []byte) (int, error) {
+func (m *HelmFileParameter) MarshalToSizedBuffer(dAtA []byte) (int, error) {
 	i := len(dAtA)
 	_ = i
 	var l int
 	_ = l
-	{
-		size, err := m.Template.MarshalToSizedBuffer(dAtA[:i])
-		if err != nil {
-			return 0, err
-		}
-		i -= size
-		i = encodeVarintGenerated(dAtA, i, uint64(size))
-	}
+	i -= len(m.Path)
+	copy(dAtA[i:], m.Path)
+	i = encodeVarintGenerated(dAtA, i, uint64(len(m.Path)))
 	i--
 	dAtA[i] = 0x12
-	if len(m.Elements) > 0 {
-		for iNdEx := len(m.Elements) - 1; iNdEx >= 0; iNdEx-- {
-			{
-				size, err := m.Elements[iNdEx].MarshalToSizedBuffer(dAtA[:i])
-				if err != nil {
-					return 0, err
-				}
-				i -= size
-				i = encodeVarintGenerated(dAtA, i, uint64(size))
-			}
+	i -= len(m.Name)
+	copy(dAtA[i:], m.Name)
+	i = encodeVarintGenerated(dAtA, i, uint64(len(m.Name)))
+	i--
+	dAtA[i] = 0xa
+	return len(dAtA) - i, nil
+}
+
+func (m *HelmOptions) Marshal() (dAtA []byte, err error) {
+	size := m.Size()
+	dAtA = make([]byte, size)
+	n, err := m.MarshalToSizedBuffer(dAtA[:size])
+	if err != nil {
+		return nil, err
+	}
+	return dAtA[:n], nil
+}
+
+func (m *HelmOptions) MarshalTo(dAtA []byte) (int, error) {
+	size := m.Size()
+	return m.MarshalToSizedBuffer(dAtA[:size])
+}
+
+func (m *HelmOptions) MarshalToSizedBuffer(dAtA []byte) (int, error) {
+	i := len(dAtA)
+	_ = i
+	var l int
+	_ = l
+	if len(m.ValuesFileSchemes) > 0 {
+		for iNdEx := len(m.ValuesFileSchemes) - 1; iNdEx >= 0; iNdEx-- {
+			i -= len(m.ValuesFileSchemes[iNdEx])
+			copy(dAtA[i:], m.ValuesFileSchemes[iNdEx])
+			i = encodeVarintGenerated(dAtA, i, uint64(len(m.ValuesFileSchemes[iNdEx])))
 			i--
 			dAtA[i] = 0xa
 		}
@@ -7873,7 +7886,7 @@ func (m *ListGenerator) MarshalToSizedBuffer(dAtA []byte) (int, error) {
 	return len(dAtA) - i, nil
 }
 
-func (m *MatrixGenerator) Marshal() (dAtA []byte, err error) {
+func (m *HelmParameter) Marshal() (dAtA []byte, err error) {
 	size := m.Size()
 	dAtA = make([]byte, size)
 	n, err := m.MarshalToSizedBuffer(dAtA[:size])
@@ -7883,44 +7896,38 @@ func (m *MatrixGenerator) Marshal() (dAtA []byte, err error) {
 	return dAtA[:n], nil
 }
 
-func (m *MatrixGenerator) MarshalTo(dAtA []byte) (int, error) {
+func (m *HelmParameter) MarshalTo(dAtA []byte) (int, error) {
 	size := m.Size()
 	return m.MarshalToSizedBuffer(dAtA[:size])
 }
 
-func (m *MatrixGenerator) MarshalToSizedBuffer(dAtA []byte) (int, error) {
+func (m *HelmParameter) MarshalToSizedBuffer(dAtA []byte) (int, error) {
 	i := len(dAtA)
 	_ = i
 	var l int
 	_ = l
-	{
-		size, err := m.Template.MarshalToSizedBuffer(dAtA[:i])
-		if err != nil {
-			return 0, err
-		}
-		i -= size
-		i = encodeVarintGenerated(dAtA, i, uint64(size))
+	i--
+	if m.ForceString {
+		dAtA[i] = 1
+	} else {
+		dAtA[i] = 0
 	}
 	i--
+	dAtA[i] = 0x18
+	i -= len(m.Value)
+	copy(dAtA[i:], m.Value)
+	i = encodeVarintGenerated(dAtA, i, uint64(len(m.Value)))
+	i--
 	dAtA[i] = 0x12
-	if len(m.Generators) > 0 {
-		for iNdEx := len(m.Generators) - 1; iNdEx >= 0; iNdEx-- {
-			{
-				size, err := m.Generators[iNdEx].MarshalToSizedBuffer(dAtA[:i])
-				if err != nil {
-					return 0, err
-				}
-				i -= size
-				i = encodeVarintGenerated(dAtA, i, uint64(size))
-			}
-			i--
-			dAtA[i] = 0xa
-		}
-	}
+	i -= len(m.Name)
+	copy(dAtA[i:], m.Name)
+	i = encodeVarintGenerated(dAtA, i, uint64(len(m.Name)))
+	i--
+	dAtA[i] = 0xa
 	return len(dAtA) - i, nil
 }
 
-func (m *MergeGenerator) Marshal() (dAtA []byte, err error) {
+func (m *HostInfo) Marshal() (dAtA []byte, err error) {
 	size := m.Size()
 	dAtA = make([]byte, size)
 	n, err := m.MarshalToSizedBuffer(dAtA[:size])
@@ -7930,18 +7937,18 @@ func (m *MergeGenerator) Marshal() (dAtA []byte, err error) {
 	return dAtA[:n], nil
 }
 
-func (m *MergeGenerator) MarshalTo(dAtA []byte) (int, error) {
+func (m *HostInfo) MarshalTo(dAtA []byte) (int, error) {
 	size := m.Size()
 	return m.MarshalToSizedBuffer(dAtA[:size])
 }
 
-func (m *MergeGenerator) MarshalToSizedBuffer(dAtA []byte) (int, error) {
+func (m *HostInfo) MarshalToSizedBuffer(dAtA []byte) (int, error) {
 	i := len(dAtA)
 	_ = i
 	var l int
 	_ = l
 	{
-		size, err := m.Template.MarshalToSizedBuffer(dAtA[:i])
+		size, err := m.SystemInfo.MarshalToSizedBuffer(dAtA[:i])
 		if err != nil {
 			return 0, err
 		}
@@ -7950,19 +7957,10 @@ func (m *MergeGenerator) MarshalToSizedBuffer(dAtA []byte) (int, error) {
 	}
 	i--
 	dAtA[i] = 0x1a
-	if len(m.MergeKeys) > 0 {
-		for iNdEx := len(m.MergeKeys) - 1; iNdEx >= 0; iNdEx-- {
-			i -= len(m.MergeKeys[iNdEx])
-			copy(dAtA[i:], m.MergeKeys[iNdEx])
-			i = encodeVarintGenerated(dAtA, i, uint64(len(m.MergeKeys[iNdEx])))
-			i--
-			dAtA[i] = 0x12
-		}
-	}
-	if len(m.Generators) > 0 {
-		for iNdEx := len(m.Generators) - 1; iNdEx >= 0; iNdEx-- {
+	if len(m.ResourcesInfo) > 0 {
+		for iNdEx := len(m.ResourcesInfo) - 1; iNdEx >= 0; iNdEx-- {
 			{
-				size, err := m.Generators[iNdEx].MarshalToSizedBuffer(dAtA[:i])
+				size, err := m.ResourcesInfo[iNdEx].MarshalToSizedBuffer(dAtA[:i])
 				if err != nil {
 					return 0, err
 				}
@@ -7970,13 +7968,18 @@ func (m *MergeGenerator) MarshalToSizedBuffer(dAtA []byte) (int, error) {
 				i = encodeVarintGenerated(dAtA, i, uint64(size))
 			}
 			i--
-			dAtA[i] = 0xa
+			dAtA[i] = 0x12
 		}
 	}
+	i -= len(m.Name)
+	copy(dAtA[i:], m.Name)
+	i = encodeVarintGenerated(dAtA, i, uint64(len(m.Name)))
+	i--
+	dAtA[i] = 0xa
 	return len(dAtA) - i, nil
 }
 
-func (m *NestedMatrixGenerator) Marshal() (dAtA []byte, err error) {
+func (m *HostResourceInfo) Marshal() (dAtA []byte, err error) {
 	size := m.Size()
 	dAtA = make([]byte, size)
 	n, err := m.MarshalToSizedBuffer(dAtA[:size])
@@ -7986,34 +7989,34 @@ func (m *NestedMatrixGenerator) Marshal() (dAtA []byte, err error) {
 	return dAtA[:n], nil
 }
 
-func (m *NestedMatrixGenerator) MarshalTo(dAtA []byte) (int, error) {
+func (m *HostResourceInfo) MarshalTo(dAtA []byte) (int, error) {
 	size := m.Size()
 	return m.MarshalToSizedBuffer(dAtA[:size])
 }
 
-func (m *NestedMatrixGenerator) MarshalToSizedBuffer(dAtA []byte) (int, error) {
+func (m *HostResourceInfo) MarshalToSizedBuffer(dAtA []byte) (int, error) {
 	i := len(dAtA)
 	_ = i
 	var l int
 	_ = l
-	if len(m.Generators) > 0 {
-		for iNdEx := len(m.Generators) - 1; iNdEx >= 0; iNdEx-- {
-			{
-				size, err := m.Generators[iNdEx].MarshalToSizedBuffer(dAtA[:i])
-				if err != nil {
-					return 0, err
-				}
-				i -= size
-				i = encodeVarintGenerated(dAtA, i, uint64(size))
-			}
-			i--
-			dAtA[i] = 0xa
-		}
-	}
+	i = encodeVarintGenerated(dAtA, i, uint64(m.Capacity))
+	i--
+	dAtA[i] = 0x20
+	i = encodeVarintGenerated(dAtA, i, uint64(m.RequestedByNeighbors))
+	i--
+	dAtA[i] = 0x18
+	i = encodeVarintGenerated(dAtA, i, uint64(m.RequestedByApp))
+	i--
+	dAtA[i] = 0x10
+	i -= len(m.ResourceName)
+	copy(dAtA[i:], m.ResourceName)
+	i = encodeVarintGenerated(dAtA, i, uint64(len(m.ResourceName)))
+	i--
+	dAtA[i] = 0xa
 	return len(dAtA) - i, nil
 }
 
-func (m *NestedMergeGenerator) Marshal() (dAtA []byte, err error) {
+func (m *Info) Marshal() (dAtA []byte, err error) {
 	size := m.Size()
 	dAtA = make([]byte, size)
 	n, err := m.MarshalToSizedBuffer(dAtA[:size])
@@ -8023,42 +8026,33 @@ func (m *NestedMergeGenerator) Marshal() (dAtA []byte, err error) {
 	return dAtA[:n], nil
 }
 
-func (m *NestedMergeGenerator) MarshalTo(dAtA []byte) (int, error) {
+func (m *Info) MarshalTo(dAtA []byte) (int, error) {
 	size := m.Size()
 	return m.MarshalToSizedBuffer(dAtA[:size])
 }
 
-func (m *NestedMergeGenerator) MarshalToSizedBuffer(dAtA []byte) (int, error) {
+func (m *Info) MarshalToSizedBuffer(dAtA []byte) (int, error) {
 	i := len(dAtA)
 	_ = i
 	var l int
 	_ = l
-	if len(m.MergeKeys) > 0 {
-		for iNdEx := len(m.MergeKeys) - 1; iNdEx >= 0; iNdEx-- {
-			i -= len(m.MergeKeys[iNdEx])
-			copy(dAtA[i:], m.MergeKeys[iNdEx])
-			i = encodeVarintGenerated(dAtA, i, uint64(len(m.MergeKeys[iNdEx])))
-			i--
-			dAtA[i] = 0x12
-		}
-	}
-	if len(m.Generators) > 0 {
-		for iNdEx := len(m.Generators) - 1; iNdEx >= 0; iNdEx-- {
-			{
-				size, err := m.Generators[iNdEx].MarshalToSizedBuffer(dAtA[:i])
-				if err != nil {
-					return 0, err
-				}
-				i -= size
-				i = encodeVarintGenerated(dAtA, i, uint64(size))
-			}
-			i--
-			dAtA[i] = 0xa
-		}
-	}
+	i -= len(m.Value)
+	copy(dAtA[i:], m.Value)
+	i = encodeVarintGenerated(dAtA, i, uint64(len(m.Value)))
+	i--
+	dAtA[i] = 0x12
+	i -= len(m.Name)
+	copy(dAtA[i:], m.Name)
+	i = encodeVarintGenerated(dAtA, i, uint64(len(m.Name)))
+	i--
+	dAtA[i] = 0xa
 	return len(dAtA) - i, nil
 }
 
+func (m *InfoItem) Marshal() (dAtA []byte, err error) {
+	size := m.Size()
+	dAtA = make([]byte, size)
+	n, err := m.MarshalToSizedBuffer(dAtA[:size])
 	if err != nil {
 		return nil, err
 	}
@@ -8626,7 +8620,7 @@ func (m *Operation) MarshalToSizedBuffer(dAtA []byte) (int, error) {
 	dAtA[i] = 0x12
 	if m.Sync != nil {
 		{
-			size, err := m.Github.MarshalToSizedBuffer(dAtA[:i])
+			size, err := m.Sync.MarshalToSizedBuffer(dAtA[:i])
 			if err != nil {
 				return 0, err
 			}
@@ -8639,7 +8633,7 @@ func (m *Operation) MarshalToSizedBuffer(dAtA []byte) (int, error) {
 	return len(dAtA) - i, nil
 }
 
-func (m *PullRequestGeneratorBitbucketServer) Marshal() (dAtA []byte, err error) {
+func (m *OperationInitiator) Marshal() (dAtA []byte, err error) {
 	size := m.Size()
 	dAtA = make([]byte, size)
 	n, err := m.MarshalToSizedBuffer(dAtA[:size])
@@ -8649,194 +8643,33 @@ func (m *PullRequestGeneratorBitbucketServer) Marshal() (dAtA []byte, err error)
 	return dAtA[:n], nil
 }
 
-func (m *PullRequestGeneratorBitbucketServer) MarshalTo(dAtA []byte) (int, error) {
+func (m *OperationInitiator) MarshalTo(dAtA []byte) (int, error) {
 	size := m.Size()
 	return m.MarshalToSizedBuffer(dAtA[:size])
 }
 
-func (m *PullRequestGeneratorBitbucketServer) MarshalToSizedBuffer(dAtA []byte) (int, error) {
-	i := len(dAtA)
-	_ = i
-	var l int
-	_ = l
-	if m.BasicAuth != nil {
-		{
-			size, err := m.BasicAuth.MarshalToSizedBuffer(dAtA[:i])
-			if err != nil {
-				return 0, err
-			}
-			i -= size
-			i = encodeVarintGenerated(dAtA, i, uint64(size))
-		}
-		i--
-		dAtA[i] = 0x22
-	}
-	i -= len(m.API)
-	copy(dAtA[i:], m.API)
-	i = encodeVarintGenerated(dAtA, i, uint64(len(m.API)))
-	i--
-	dAtA[i] = 0x1a
-	i -= len(m.Repo)
-	copy(dAtA[i:], m.Repo)
-	i = encodeVarintGenerated(dAtA, i, uint64(len(m.Repo)))
-	i--
-	dAtA[i] = 0x12
-	i -= len(m.Project)
-	copy(dAtA[i:], m.Project)
-	i = encodeVarintGenerated(dAtA, i, uint64(len(m.Project)))
-	i--
-	dAtA[i] = 0xa
-	return len(dAtA) - i, nil
-}
-
-func (m *PullRequestGeneratorFilter) Marshal() (dAtA []byte, err error) {
-	size := m.Size()
-	dAtA = make([]byte, size)
-	n, err := m.MarshalToSizedBuffer(dAtA[:size])
-	if err != nil {
-		return nil, err
-	}
-	return dAtA[:n], nil
-}
-
-func (m *PullRequestGeneratorFilter) MarshalTo(dAtA []byte) (int, error) {
-	size := m.Size()
-	return m.MarshalToSizedBuffer(dAtA[:size])
-}
-
-func (m *PullRequestGeneratorFilter) MarshalToSizedBuffer(dAtA []byte) (int, error) {
-	i := len(dAtA)
-	_ = i
-	var l int
-	_ = l
-	if m.BranchMatch != nil {
-		i -= len(*m.BranchMatch)
-		copy(dAtA[i:], *m.BranchMatch)
-		i = encodeVarintGenerated(dAtA, i, uint64(len(*m.BranchMatch)))
-		i--
-		dAtA[i] = 0xa
-	}
-	return len(dAtA) - i, nil
-}
-
-func (m *PullRequestGeneratorGitLab) Marshal() (dAtA []byte, err error) {
-	size := m.Size()
-	dAtA = make([]byte, size)
-	n, err := m.MarshalToSizedBuffer(dAtA[:size])
-	if err != nil {
-		return nil, err
-	}
-	return dAtA[:n], nil
-}
-
-func (m *PullRequestGeneratorGitLab) MarshalTo(dAtA []byte) (int, error) {
-	size := m.Size()
-	return m.MarshalToSizedBuffer(dAtA[:size])
-}
-
-func (m *PullRequestGeneratorGitLab) MarshalToSizedBuffer(dAtA []byte) (int, error) {
-	i := len(dAtA)
-	_ = i
-	var l int
-	_ = l
-	i -= len(m.PullRequestState)
-	copy(dAtA[i:], m.PullRequestState)
-	i = encodeVarintGenerated(dAtA, i, uint64(len(m.PullRequestState)))
-	i--
-	dAtA[i] = 0x2a
-	if len(m.Labels) > 0 {
-		for iNdEx := len(m.Labels) - 1; iNdEx >= 0; iNdEx-- {
-			i -= len(m.Labels[iNdEx])
-			copy(dAtA[i:], m.Labels[iNdEx])
-			i = encodeVarintGenerated(dAtA, i, uint64(len(m.Labels[iNdEx])))
-			i--
-			dAtA[i] = 0x22
-		}
-	}
-	if m.TokenRef != nil {
-		{
-			size, err := m.TokenRef.MarshalToSizedBuffer(dAtA[:i])
-			if err != nil {
-				return 0, err
-			}
-			i -= size
-			i = encodeVarintGenerated(dAtA, i, uint64(size))
-		}
-		i--
-		dAtA[i] = 0x1a
-	}
-	i -= len(m.API)
-	copy(dAtA[i:], m.API)
-	i = encodeVarintGenerated(dAtA, i, uint64(len(m.API)))
-	i--
-	dAtA[i] = 0x12
-	i -= len(m.Project)
-	copy(dAtA[i:], m.Project)
-	i = encodeVarintGenerated(dAtA, i, uint64(len(m.Project)))
-	i--
-	dAtA[i] = 0xa
-	return len(dAtA) - i, nil
-}
-
-func (m *PullRequestGeneratorGitea) Marshal() (dAtA []byte, err error) {
-	size := m.Size()
-	dAtA = make([]byte, size)
-	n, err := m.MarshalToSizedBuffer(dAtA[:size])
-	if err != nil {
-		return nil, err
-	}
-	return dAtA[:n], nil
-}
-
-func (m *PullRequestGeneratorGitea) MarshalTo(dAtA []byte) (int, error) {
-	size := m.Size()
-	return m.MarshalToSizedBuffer(dAtA[:size])
-}
-
-func (m *PullRequestGeneratorGitea) MarshalToSizedBuffer(dAtA []byte) (int, error) {
+func (m *OperationInitiator) MarshalToSizedBuffer(dAtA []byte) (int, error) {
 	i := len(dAtA)
 	_ = i
 	var l int
 	_ = l
 	i--
-	if m.Insecure {
+	if m.Automated {
 		dAtA[i] = 1
 	} else {
 		dAtA[i] = 0
 	}
 	i--
-	dAtA[i] = 0x28
-	if m.TokenRef != nil {
-		{
-			size, err := m.TokenRef.MarshalToSizedBuffer(dAtA[:i])
-			if err != nil {
-				return 0, err
-			}
-			i -= size
-			i = encodeVarintGenerated(dAtA, i, uint64(size))
-		}
-		i--
-		dAtA[i] = 0x22
-	}
-	i -= len(m.API)
-	copy(dAtA[i:], m.API)
-	i = encodeVarintGenerated(dAtA, i, uint64(len(m.API)))
-	i--
-	dAtA[i] = 0x1a
-	i -= len(m.Repo)
-	copy(dAtA[i:], m.Repo)
-	i = encodeVarintGenerated(dAtA, i, uint64(len(m.Repo)))
-	i--
-	dAtA[i] = 0x12
-	i -= len(m.Owner)
-	copy(dAtA[i:], m.Owner)
-	i = encodeVarintGenerated(dAtA, i, uint64(len(m.Owner)))
+	dAtA[i] = 0x10
+	i -= len(m.Username)
+	copy(dAtA[i:], m.Username)
+	i = encodeVarintGenerated(dAtA, i, uint64(len(m.Username)))
 	i--
 	dAtA[i] = 0xa
 	return len(dAtA) - i, nil
 }
 
-func (m *PullRequestGeneratorGithub) Marshal() (dAtA []byte, err error) {
+func (m *OperationState) Marshal() (dAtA []byte, err error) {
 	size := m.Size()
 	dAtA = make([]byte, size)
 	n, err := m.MarshalToSizedBuffer(dAtA[:size])
@@ -8846,33 +8679,44 @@ func (m *PullRequestGeneratorGithub) Marshal() (dAtA []byte, err error) {
 	return dAtA[:n], nil
 }
 
-func (m *PullRequestGeneratorGithub) MarshalTo(dAtA []byte) (int, error) {
+func (m *OperationState) MarshalTo(dAtA []byte) (int, error) {
 	size := m.Size()
 	return m.MarshalToSizedBuffer(dAtA[:size])
 }
 
-func (m *PullRequestGeneratorGithub) MarshalToSizedBuffer(dAtA []byte) (int, error) {
+func (m *OperationState) MarshalToSizedBuffer(dAtA []byte) (int, error) {
 	i := len(dAtA)
 	_ = i
 	var l int
 	_ = l
-	if len(m.Labels) > 0 {
-		for iNdEx := len(m.Labels) - 1; iNdEx >= 0; iNdEx-- {
-			i -= len(m.Labels[iNdEx])
-			copy(dAtA[i:], m.Labels[iNdEx])
-			i = encodeVarintGenerated(dAtA, i, uint64(len(m.Labels[iNdEx])))
-			i--
-			dAtA[i] = 0x32
-		}
-	}
-	i -= len(m.AppSecretName)
-	copy(dAtA[i:], m.AppSecretName)
-	i = encodeVarintGenerated(dAtA, i, uint64(len(m.AppSecretName)))
+	i = encodeVarintGenerated(dAtA, i, uint64(m.RetryCount))
 	i--
-	dAtA[i] = 0x2a
-	if m.TokenRef != nil {
+	dAtA[i] = 0x40
+	if m.FinishedAt != nil {
 		{
-			size, err := m.TokenRef.MarshalToSizedBuffer(dAtA[:i])
+			size, err := m.FinishedAt.MarshalToSizedBuffer(dAtA[:i])
+			if err != nil {
+				return 0, err
+			}
+			i -= size
+			i = encodeVarintGenerated(dAtA, i, uint64(size))
+		}
+		i--
+		dAtA[i] = 0x3a
+	}
+	{
+		size, err := m.StartedAt.MarshalToSizedBuffer(dAtA[:i])
+		if err != nil {
+			return 0, err
+		}
+		i -= size
+		i = encodeVarintGenerated(dAtA, i, uint64(size))
+	}
+	i--
+	dAtA[i] = 0x32
+	if m.SyncResult != nil {
+		{
+			size, err := m.SyncResult.MarshalToSizedBuffer(dAtA[:i])
 			if err != nil {
 				return 0, err
 			}
@@ -8882,24 +8726,150 @@ func (m *PullRequestGeneratorGithub) MarshalToSizedBuffer(dAtA []byte) (int, err
 		i--
 		dAtA[i] = 0x22
 	}
-	i -= len(m.API)
-	copy(dAtA[i:], m.API)
-	i = encodeVarintGenerated(dAtA, i, uint64(len(m.API)))
+	i -= len(m.Message)
+	copy(dAtA[i:], m.Message)
+	i = encodeVarintGenerated(dAtA, i, uint64(len(m.Message)))
 	i--
 	dAtA[i] = 0x1a
-	i -= len(m.Repo)
-	copy(dAtA[i:], m.Repo)
-	i = encodeVarintGenerated(dAtA, i, uint64(len(m.Repo)))
+	i -= len(m.Phase)
+	copy(dAtA[i:], m.Phase)
+	i = encodeVarintGenerated(dAtA, i, uint64(len(m.Phase)))
 	i--
 	dAtA[i] = 0x12
-	i -= len(m.Owner)
-	copy(dAtA[i:], m.Owner)
-	i = encodeVarintGenerated(dAtA, i, uint64(len(m.Owner)))
+	{
+		size, err := m.Operation.MarshalToSizedBuffer(dAtA[:i])
+		if err != nil {
+			return 0, err
+		}
+		i -= size
+		i = encodeVarintGenerated(dAtA, i, uint64(size))
+	}
 	i--
 	dAtA[i] = 0xa
 	return len(dAtA) - i, nil
 }
 
+func (m *OrphanedResourceKey) Marshal() (dAtA []byte, err error) {
+	size := m.Size()
+	dAtA = make([]byte, size)
+	n, err := m.MarshalToSizedBuffer(dAtA[:size])
+	if err != nil {
+		return nil, err
+	}
+	return dAtA[:n], nil
+}
+
+func (m *OrphanedResourceKey) MarshalTo(dAtA []byte) (int, error) {
+	size := m.Size()
+	return m.MarshalToSizedBuffer(dAtA[:size])
+}
+
+func (m *OrphanedResourceKey) MarshalToSizedBuffer(dAtA []byte) (int, error) {
+	i := len(dAtA)
+	_ = i
+	var l int
+	_ = l
+	i -= len(m.Name)
+	copy(dAtA[i:], m.Name)
+	i = encodeVarintGenerated(dAtA, i, uint64(len(m.Name)))
+	i--
+	dAtA[i] = 0x1a
+	i -= len(m.Kind)
+	copy(dAtA[i:], m.Kind)
+	i = encodeVarintGenerated(dAtA, i, uint64(len(m.Kind)))
+	i--
+	dAtA[i] = 0x12
+	i -= len(m.Group)
+	copy(dAtA[i:], m.Group)
+	i = encodeVarintGenerated(dAtA, i, uint64(len(m.Group)))
+	i--
+	dAtA[i] = 0xa
+	return len(dAtA) - i, nil
+}
+
+func (m *OrphanedResourcesMonitorSettings) Marshal() (dAtA []byte, err error) {
+	size := m.Size()
+	dAtA = make([]byte, size)
+	n, err := m.MarshalToSizedBuffer(dAtA[:size])
+	if err != nil {
+		return nil, err
+	}
+	return dAtA[:n], nil
+}
+
+func (m *OrphanedResourcesMonitorSettings) MarshalTo(dAtA []byte) (int, error) {
+	size := m.Size()
+	return m.MarshalToSizedBuffer(dAtA[:size])
+}
+
+func (m *OrphanedResourcesMonitorSettings) MarshalToSizedBuffer(dAtA []byte) (int, error) {
+	i := len(dAtA)
+	_ = i
+	var l int
+	_ = l
+	if len(m.Ignore) > 0 {
+		for iNdEx := len(m.Ignore) - 1; iNdEx >= 0; iNdEx-- {
+			{
+				size, err := m.Ignore[iNdEx].MarshalToSizedBuffer(dAtA[:i])
+				if err != nil {
+					return 0, err
+				}
+				i -= size
+				i = encodeVarintGenerated(dAtA, i, uint64(size))
+			}
+			i--
+			dAtA[i] = 0x12
+		}
+	}
+	if m.Warn != nil {
+		i--
+		if *m.Warn {
+			dAtA[i] = 1
+		} else {
+			dAtA[i] = 0
+		}
+		i--
+		dAtA[i] = 0x8
+	}
+	return len(dAtA) - i, nil
+}
+
+func (m *OverrideIgnoreDiff) Marshal() (dAtA []byte, err error) {
+	size := m.Size()
+	dAtA = make([]byte, size)
+	n, err := m.MarshalToSizedBuffer(dAtA[:size])
+	if err != nil {
+		return nil, err
+	}
+	return dAtA[:n], nil
+}
+
+func (m *OverrideIgnoreDiff) MarshalTo(dAtA []byte) (int, error) {
+	size := m.Size()
+	return m.MarshalToSizedBuffer(dAtA[:size])
+}
+
+func (m *OverrideIgnoreDiff) MarshalToSizedBuffer(dAtA []byte) (int, error) {
+	i := len(dAtA)
+	_ = i
+	var l int
+	_ = l
+	if len(m.ManagedFieldsManagers) > 0 {
+		for iNdEx := len(m.ManagedFieldsManagers) - 1; iNdEx >= 0; iNdEx-- {
+			i -= len(m.ManagedFieldsManagers[iNdEx])
+			copy(dAtA[i:], m.ManagedFieldsManagers[iNdEx])
+			i = encodeVarintGenerated(dAtA, i, uint64(len(m.ManagedFieldsManagers[iNdEx])))
+			i--
+			dAtA[i] = 0x1a
+		}
+	}
+	if len(m.JQPathExpressions) > 0 {
+		for iNdEx := len(m.JQPathExpressions) - 1; iNdEx >= 0; iNdEx-- {
+			i -= len(m.JQPathExpressions[iNdEx])
+			copy(dAtA[i:], m.JQPathExpressions[iNdEx])
+			i = encodeVarintGenerated(dAtA, i, uint64(len(m.JQPathExpressions[iNdEx])))
+			i--
+			dAtA[i] = 0x12
 		}
 	}
 	if len(m.JSONPointers) > 0 {
@@ -11351,8 +11321,7 @@ func (m *SecretRef) MarshalToSizedBuffer(dAtA []byte) (int, error) {
 	return len(dAtA) - i, nil
 }
 
-
-func (m *SCMProviderGeneratorAzureDevOps) Marshal() (dAtA []byte, err error) {
+func (m *SignatureKey) Marshal() (dAtA []byte, err error) {
 	size := m.Size()
 	dAtA = make([]byte, size)
 	n, err := m.MarshalToSizedBuffer(dAtA[:size])
@@ -11362,12 +11331,12 @@ func (m *SCMProviderGeneratorAzureDevOps) Marshal() (dAtA []byte, err error) {
 	return dAtA[:n], nil
 }
 
-func (m *SCMProviderGeneratorAzureDevOps) MarshalTo(dAtA []byte) (int, error) {
+func (m *SignatureKey) MarshalTo(dAtA []byte) (int, error) {
 	size := m.Size()
 	return m.MarshalToSizedBuffer(dAtA[:size])
 }
 
-func (m *SCMProviderGeneratorAzureDevOps) MarshalToSizedBuffer(dAtA []byte) (int, error) {
+func (m *SignatureKey) MarshalToSizedBuffer(dAtA []byte) (int, error) {
 	i := len(dAtA)
 	_ = i
 	var l int
@@ -11430,29 +11399,9 @@ func (m *SecretRef) MarshalToSizedBuffer(dAtA []byte) (int, error) {
 	_ = i
 	var l int
 	_ = l
-	i--
-	if m.AllBranches {
-		dAtA[i] = 1
-	} else {
-		dAtA[i] = 0
-	}
-	i--
-	dAtA[i] = 0x20
-	if m.AppPasswordRef != nil {
-		{
-			size, err := m.AppPasswordRef.MarshalToSizedBuffer(dAtA[:i])
-			if err != nil {
-				return 0, err
-			}
-			i -= size
-			i = encodeVarintGenerated(dAtA, i, uint64(size))
-		}
-		i--
-		dAtA[i] = 0x1a
-	}
-	i -= len(m.User)
-	copy(dAtA[i:], m.User)
-	i = encodeVarintGenerated(dAtA, i, uint64(len(m.User)))
+	i -= len(m.Key)
+	copy(dAtA[i:], m.Key)
+	i = encodeVarintGenerated(dAtA, i, uint64(len(m.Key)))
 	i--
 	dAtA[i] = 0x12
 	i -= len(m.SecretName)
@@ -11554,7 +11503,7 @@ func (m *SyncOperation) MarshalToSizedBuffer(dAtA []byte) (int, error) {
 	}
 	if m.Source != nil {
 		{
-			size, err := m.TokenRef.MarshalToSizedBuffer(dAtA[:i])
+			size, err := m.Source.MarshalToSizedBuffer(dAtA[:i])
 			if err != nil {
 				return 0, err
 			}
@@ -11562,7 +11511,7 @@ func (m *SyncOperation) MarshalToSizedBuffer(dAtA []byte) (int, error) {
 			i = encodeVarintGenerated(dAtA, i, uint64(size))
 		}
 		i--
-		dAtA[i] = 0x1a
+		dAtA[i] = 0x3a
 	}
 	i -= len(m.API)
 	copy(dAtA[i:], m.API)
@@ -11665,7 +11614,7 @@ func (m *SCMProviderGeneratorGitlab) MarshalToSizedBuffer(dAtA []byte) (int, err
 	dAtA[i] = 0x28
 	if m.TokenRef != nil {
 		{
-			size, err := m.TokenRef.MarshalToSizedBuffer(dAtA[:i])
+			size, err := m.SyncStrategy.MarshalToSizedBuffer(dAtA[:i])
 			if err != nil {
 				return 0, err
 			}
@@ -11675,201 +11624,31 @@ func (m *SCMProviderGeneratorGitlab) MarshalToSizedBuffer(dAtA []byte) (int, err
 		i--
 		dAtA[i] = 0x22
 	}
-	i -= len(m.API)
-	copy(dAtA[i:], m.API)
-	i = encodeVarintGenerated(dAtA, i, uint64(len(m.API)))
 	i--
-	dAtA[i] = 0x32
-	i -= len(m.Organization)
-	copy(dAtA[i:], m.Organization)
-	i = encodeVarintGenerated(dAtA, i, uint64(len(m.Organization)))
-	i--
-	dAtA[i] = 0x2a
-	return len(dAtA) - i, nil
-			copy(dAtA[i:], m.SyncOptions[iNdEx])
-
-func (m *SCMProviderGeneratorBitbucket) Marshal() (dAtA []byte, err error) {
-	size := m.Size()
-	dAtA = make([]byte, size)
-	n, err := m.MarshalToSizedBuffer(dAtA[:size])
-	if err != nil {
-		return nil, err
-	}
-	return dAtA[:n], nil
-}
-
-func (m *SCMProviderGeneratorBitbucket) MarshalTo(dAtA []byte) (int, error) {
-	size := m.Size()
-	return m.MarshalToSizedBuffer(dAtA[:size])
-}
-
-func (m *SCMProviderGeneratorBitbucket) MarshalToSizedBuffer(dAtA []byte) (int, error) {
-	i := len(dAtA)
-	_ = i
-	var l int
-	_ = l
-	i--
-	if m.AllBranches {
+	if m.DryRun {
 		dAtA[i] = 1
 	} else {
 		dAtA[i] = 0
 	}
 	i--
-	dAtA[i] = 0x20
-	if m.AppPasswordRef != nil {
-		{
-			size, err := m.AppPasswordRef.MarshalToSizedBuffer(dAtA[:i])
-			if err != nil {
-				return 0, err
-			}
-			i -= size
-			i = encodeVarintGenerated(dAtA, i, uint64(size))
-		}
-		i--
-		dAtA[i] = 0x1a
-	}
-	i -= len(m.User)
-	copy(dAtA[i:], m.User)
-	i = encodeVarintGenerated(dAtA, i, uint64(len(m.User)))
+	dAtA[i] = 0x18
 	i--
-	dAtA[i] = 0x12
-	i -= len(m.Owner)
-	copy(dAtA[i:], m.Owner)
-	i = encodeVarintGenerated(dAtA, i, uint64(len(m.Owner)))
-	i--
-	dAtA[i] = 0xa
-	return len(dAtA) - i, nil
-}
-
-func (m *SyncOperation) Marshal() (dAtA []byte, err error) {
-	size := m.Size()
-	dAtA = make([]byte, size)
-	n, err := m.MarshalToSizedBuffer(dAtA[:size])
-	if err != nil {
-				return 0, err
-			}
-			i -= size
-			i = encodeVarintGenerated(dAtA, i, uint64(size))
-		}
-		i--
-		dAtA[i] = 0x42
-	}
-	i -= len(m.TeamProject)
-	copy(dAtA[i:], m.TeamProject)
-	i = encodeVarintGenerated(dAtA, i, uint64(len(m.TeamProject)))
-	i--
-	dAtA[i] = 0x3a
-	i -= len(m.API)
-	copy(dAtA[i:], m.API)
-	i = encodeVarintGenerated(dAtA, i, uint64(len(m.API)))
-	i--
-	dAtA[i] = 0x32
-	i -= len(m.Organization)
-	copy(dAtA[i:], m.Organization)
-	i = encodeVarintGenerated(dAtA, i, uint64(len(m.Organization)))
-	i--
-	dAtA[i] = 0x2a
-	return len(dAtA) - i, nil
-}
-
-func (m *SCMProviderGeneratorBitbucket) Marshal() (dAtA []byte, err error) {
-	size := m.Size()
-	dAtA = make([]byte, size)
-	n, err := m.MarshalToSizedBuffer(dAtA[:size])
-	if err != nil {
-		return nil, err
-	}
-	return dAtA[:n], nil
-}
-
-func (m *SCMProviderGeneratorBitbucket) MarshalTo(dAtA []byte) (int, error) {
-	size := m.Size()
-	return m.MarshalToSizedBuffer(dAtA[:size])
-}
-
-func (m *SCMProviderGeneratorBitbucket) MarshalToSizedBuffer(dAtA []byte) (int, error) {
-	i := len(dAtA)
-	_ = i
-	var l int
-	_ = l
-	if len(m.SyncOptions) > 0 {
-		for iNdEx := len(m.SyncOptions) - 1; iNdEx >= 0; iNdEx-- {
-			i -= len(m.SyncOptions[iNdEx])
-			copy(dAtA[i:], m.SyncOptions[iNdEx])
-			i = encodeVarintGenerated(dAtA, i, uint64(len(m.SyncOptions[iNdEx])))
-			i--
-			dAtA[i] = 0x4a
-		}
-			i--
-			dAtA[i] = 0x42
-		}
-	i -= len(m.User)
-	copy(dAtA[i:], m.User)
-	i = encodeVarintGenerated(dAtA, i, uint64(len(m.User)))
-	i--
-	dAtA[i] = 0x12
-	i -= len(m.Owner)
-	copy(dAtA[i:], m.Owner)
-	i = encodeVarintGenerated(dAtA, i, uint64(len(m.Owner)))
-	i--
-	dAtA[i] = 0xa
-	return len(dAtA) - i, nil
-}
-
-func (m *SCMProviderGeneratorBitbucketServer) Marshal() (dAtA []byte, err error) {
-	size := m.Size()
-	dAtA = make([]byte, size)
-	n, err := m.MarshalToSizedBuffer(dAtA[:size])
-	if err != nil {
-		return nil, err
-	}
-	return dAtA[:n], nil
-}
-
-func (m *SCMProviderGeneratorBitbucketServer) MarshalTo(dAtA []byte) (int, error) {
-	size := m.Size()
-	return m.MarshalToSizedBuffer(dAtA[:size])
-}
-
-func (m *SCMProviderGeneratorBitbucketServer) MarshalToSizedBuffer(dAtA []byte) (int, error) {
-	i := len(dAtA)
-	_ = i
-	var l int
-	_ = l
-	i--
-	if m.AllBranches {
+	if m.Prune {
 		dAtA[i] = 1
 	} else {
 		dAtA[i] = 0
 	}
 	i--
-	dAtA[i] = 0x20
-	if m.BasicAuth != nil {
-		{
-			size, err := m.BasicAuth.MarshalToSizedBuffer(dAtA[:i])
-			if err != nil {
-				return 0, err
-			}
-			i -= size
-			i = encodeVarintGenerated(dAtA, i, uint64(size))
-		}
-		i--
-		dAtA[i] = 0x1a
-	}
-	i -= len(m.API)
-	copy(dAtA[i:], m.API)
-	i = encodeVarintGenerated(dAtA, i, uint64(len(m.API)))
-	i--
-	dAtA[i] = 0x12
-	i -= len(m.Project)
-	copy(dAtA[i:], m.Project)
-	i = encodeVarintGenerated(dAtA, i, uint64(len(m.Project)))
+	dAtA[i] = 0x10
+	i -= len(m.Revision)
+	copy(dAtA[i:], m.Revision)
+	i = encodeVarintGenerated(dAtA, i, uint64(len(m.Revision)))
 	i--
 	dAtA[i] = 0xa
 	return len(dAtA) - i, nil
 }
 
-func (m *SCMProviderGeneratorFilter) Marshal() (dAtA []byte, err error) {
+func (m *SyncOperationResource) Marshal() (dAtA []byte, err error) {
 	size := m.Size()
 	dAtA = make([]byte, size)
 	n, err := m.MarshalToSizedBuffer(dAtA[:size])
@@ -11879,12 +11658,12 @@ func (m *SCMProviderGeneratorFilter) Marshal() (dAtA []byte, err error) {
 	return dAtA[:n], nil
 }
 
-func (m *SCMProviderGeneratorFilter) MarshalTo(dAtA []byte) (int, error) {
+func (m *SyncOperationResource) MarshalTo(dAtA []byte) (int, error) {
 	size := m.Size()
 	return m.MarshalToSizedBuffer(dAtA[:size])
 }
 
-func (m *SCMProviderGeneratorFilter) MarshalToSizedBuffer(dAtA []byte) (int, error) {
+func (m *SyncOperationResource) MarshalToSizedBuffer(dAtA []byte) (int, error) {
 	i := len(dAtA)
 	_ = i
 	var l int
@@ -11932,20 +11711,6 @@ func (m *SyncOperationResult) MarshalToSizedBuffer(dAtA []byte) (int, error) {
 	_ = i
 	var l int
 	_ = l
-	if len(m.Revisions) > 0 {
-		for iNdEx := len(m.Revisions) - 1; iNdEx >= 0; iNdEx-- {
-			i -= len(m.Revisions[iNdEx])
-			copy(dAtA[i:], m.Revisions[iNdEx])
-			i = encodeVarintGenerated(dAtA, i, uint64(len(m.Revisions[iNdEx])))
-			i--
-			dAtA[i] = 0x22
-		}
-	}
-	i -= len(m.Revision)
-	copy(dAtA[i:], m.Revision)
-	i = encodeVarintGenerated(dAtA, i, uint64(len(m.Revision)))
-	i--
-	dAtA[i] = 0x1a
 	{
 		size, err := m.Source.MarshalToSizedBuffer(dAtA[:i])
 		if err != nil {
@@ -12113,6 +11878,15 @@ func (m *SyncStatus) MarshalToSizedBuffer(dAtA []byte) (int, error) {
 	_ = i
 	var l int
 	_ = l
+	if len(m.Revisions) > 0 {
+		for iNdEx := len(m.Revisions) - 1; iNdEx >= 0; iNdEx-- {
+			i -= len(m.Revisions[iNdEx])
+			copy(dAtA[i:], m.Revisions[iNdEx])
+			i = encodeVarintGenerated(dAtA, i, uint64(len(m.Revisions[iNdEx])))
+			i--
+			dAtA[i] = 0x22
+		}
+	}
 	i -= len(m.Revision)
 	copy(dAtA[i:], m.Revision)
 	i = encodeVarintGenerated(dAtA, i, uint64(len(m.Revision)))
@@ -12160,161 +11934,204 @@ func (m *SyncStrategy) MarshalToSizedBuffer(dAtA []byte) (int, error) {
 		{
 			size, err := m.Hook.MarshalToSizedBuffer(dAtA[:i])
 			if err != nil {
-func (m *ApplicationSet) Size() (n int) {
-	if m == nil {
-		return 0
+				return 0, err
+			}
+			i -= size
+			i = encodeVarintGenerated(dAtA, i, uint64(size))
+		}
+		i--
+		dAtA[i] = 0x12
 	}
-	var l int
-	_ = l
-	l = m.ObjectMeta.Size()
-	n += 1 + l + sovGenerated(uint64(l))
-	l = m.Spec.Size()
-	n += 1 + l + sovGenerated(uint64(l))
-	l = m.Status.Size()
-	n += 1 + l + sovGenerated(uint64(l))
-	return n
+	if m.Apply != nil {
+		{
+			size, err := m.Apply.MarshalToSizedBuffer(dAtA[:i])
+			if err != nil {
+				return 0, err
+			}
+			i -= size
+			i = encodeVarintGenerated(dAtA, i, uint64(size))
+		}
+		i--
+		dAtA[i] = 0xa
+	}
+	return len(dAtA) - i, nil
 }
 
-func (m *ApplicationSetCondition) Size() (n int) {
-	if m == nil {
-		return 0
+func (m *SyncStrategyApply) Marshal() (dAtA []byte, err error) {
+	size := m.Size()
+	dAtA = make([]byte, size)
+	n, err := m.MarshalToSizedBuffer(dAtA[:size])
+	if err != nil {
+		return nil, err
 	}
-	var l int
-	_ = l
-	l = len(m.Type)
-	n += 1 + l + sovGenerated(uint64(l))
-	l = len(m.Message)
-	n += 1 + l + sovGenerated(uint64(l))
-	if m.LastTransitionTime != nil {
-		l = m.LastTransitionTime.Size()
-		n += 1 + l + sovGenerated(uint64(l))
-	}
-	l = len(m.Status)
-	n += 1 + l + sovGenerated(uint64(l))
-	l = len(m.Reason)
-	n += 1 + l + sovGenerated(uint64(l))
-	return n
+	return dAtA[:n], nil
 }
 
-func (m *ApplicationSetGenerator) Size() (n int) {
-	if m == nil {
-		return 0
-	}
-	var l int
-	_ = l
-	if m.List != nil {
-		l = m.List.Size()
-		n += 1 + l + sovGenerated(uint64(l))
-	}
-	if m.Clusters != nil {
-		l = m.Clusters.Size()
-		n += 1 + l + sovGenerated(uint64(l))
-	}
-	if m.Git != nil {
-		l = m.Git.Size()
-		n += 1 + l + sovGenerated(uint64(l))
-	}
-	if m.SCMProvider != nil {
-		l = m.SCMProvider.Size()
-		n += 1 + l + sovGenerated(uint64(l))
-	}
-	if m.ClusterDecisionResource != nil {
-		l = m.ClusterDecisionResource.Size()
-		n += 1 + l + sovGenerated(uint64(l))
-	}
-	if m.PullRequest != nil {
-		l = m.PullRequest.Size()
-		n += 1 + l + sovGenerated(uint64(l))
-	}
-	if m.Matrix != nil {
-		l = m.Matrix.Size()
-		n += 1 + l + sovGenerated(uint64(l))
-	}
-	if m.Merge != nil {
-		l = m.Merge.Size()
-		n += 1 + l + sovGenerated(uint64(l))
-	}
-	if m.Selector != nil {
-		l = m.Selector.Size()
-		n += 1 + l + sovGenerated(uint64(l))
-	}
-	return n
+func (m *SyncStrategyApply) MarshalTo(dAtA []byte) (int, error) {
+	size := m.Size()
+	return m.MarshalToSizedBuffer(dAtA[:size])
 }
 
-func (m *ApplicationSetList) Size() (n int) {
-	if m == nil {
-		return 0
-	}
+func (m *SyncStrategyApply) MarshalToSizedBuffer(dAtA []byte) (int, error) {
+	i := len(dAtA)
+	_ = i
 	var l int
 	_ = l
-	l = m.ListMeta.Size()
-	n += 1 + l + sovGenerated(uint64(l))
-	if len(m.Items) > 0 {
-		for _, e := range m.Items {
-			l = e.Size()
-			n += 1 + l + sovGenerated(uint64(l))
+	i--
+	if m.Force {
+		dAtA[i] = 1
+	} else {
+		dAtA[i] = 0
+	}
+	i--
+	dAtA[i] = 0x8
+	return len(dAtA) - i, nil
+}
+
+func (m *SyncStrategyHook) Marshal() (dAtA []byte, err error) {
+	size := m.Size()
+	dAtA = make([]byte, size)
+	n, err := m.MarshalToSizedBuffer(dAtA[:size])
+	if err != nil {
+		return nil, err
+	}
+	return dAtA[:n], nil
+}
+
+func (m *SyncStrategyHook) MarshalTo(dAtA []byte) (int, error) {
+	size := m.Size()
+	return m.MarshalToSizedBuffer(dAtA[:size])
+}
+
+func (m *SyncStrategyHook) MarshalToSizedBuffer(dAtA []byte) (int, error) {
+	i := len(dAtA)
+	_ = i
+	var l int
+	_ = l
+	{
+		size, err := m.SyncStrategyApply.MarshalToSizedBuffer(dAtA[:i])
+		if err != nil {
+			return 0, err
+		}
+		i -= size
+		i = encodeVarintGenerated(dAtA, i, uint64(size))
+	}
+	i--
+	dAtA[i] = 0xa
+	return len(dAtA) - i, nil
+}
+
+func (m *SyncWindow) Marshal() (dAtA []byte, err error) {
+	size := m.Size()
+	dAtA = make([]byte, size)
+	n, err := m.MarshalToSizedBuffer(dAtA[:size])
+	if err != nil {
+		return nil, err
+	}
+	return dAtA[:n], nil
+}
+
+func (m *SyncWindow) MarshalTo(dAtA []byte) (int, error) {
+	size := m.Size()
+	return m.MarshalToSizedBuffer(dAtA[:size])
+}
+
+func (m *SyncWindow) MarshalToSizedBuffer(dAtA []byte) (int, error) {
+	i := len(dAtA)
+	_ = i
+	var l int
+	_ = l
+	i -= len(m.TimeZone)
+	copy(dAtA[i:], m.TimeZone)
+	i = encodeVarintGenerated(dAtA, i, uint64(len(m.TimeZone)))
+	i--
+	dAtA[i] = 0x42
+	i--
+	if m.ManualSync {
+		dAtA[i] = 1
+	} else {
+		dAtA[i] = 0
+	}
+	i--
+	dAtA[i] = 0x38
+	if len(m.Clusters) > 0 {
+		for iNdEx := len(m.Clusters) - 1; iNdEx >= 0; iNdEx-- {
+			i -= len(m.Clusters[iNdEx])
+			copy(dAtA[i:], m.Clusters[iNdEx])
+			i = encodeVarintGenerated(dAtA, i, uint64(len(m.Clusters[iNdEx])))
+			i--
+			dAtA[i] = 0x32
 		}
 	}
-	return n
-}
-
-func (m *ApplicationSetNestedGenerator) Size() (n int) {
-	if m == nil {
-		return 0
-	}
-	var l int
-	_ = l
-	if m.List != nil {
-		l = m.List.Size()
-		n += 1 + l + sovGenerated(uint64(l))
-	}
-	if m.Clusters != nil {
-		l = m.Clusters.Size()
-		n += 1 + l + sovGenerated(uint64(l))
-	}
-	if m.Git != nil {
-		l = m.Git.Size()
-		n += 1 + l + sovGenerated(uint64(l))
-	}
-	if m.SCMProvider != nil {
-		l = m.SCMProvider.Size()
-		n += 1 + l + sovGenerated(uint64(l))
-	}
-	if m.ClusterDecisionResource != nil {
-		l = m.ClusterDecisionResource.Size()
-		n += 1 + l + sovGenerated(uint64(l))
-	}
-	if m.PullRequest != nil {
-		l = m.PullRequest.Size()
-		n += 1 + l + sovGenerated(uint64(l))
-	}
-	if m.Matrix != nil {
-		l = m.Matrix.Size()
-		n += 1 + l + sovGenerated(uint64(l))
-	}
-	if m.Merge != nil {
-		l = m.Merge.Size()
-		n += 1 + l + sovGenerated(uint64(l))
-	}
-	if m.Selector != nil {
-		l = m.Selector.Size()
-		n += 1 + l + sovGenerated(uint64(l))
-	}
-	return n
-}
-
-func (m *ApplicationSetSpec) Size() (n int) {
-	if m == nil {
-		return 0
-	}
-	var l int
-	_ = l
-	n += 2
-	if len(m.Generators) > 0 {
-		for _, e := range m.Generators {
-			l = e.Size()
-			n += 1 + l + sovGenerated(uint64(l))
+	if len(m.Namespaces) > 0 {
+		for iNdEx := len(m.Namespaces) - 1; iNdEx >= 0; iNdEx-- {
+			i -= len(m.Namespaces[iNdEx])
+			copy(dAtA[i:], m.Namespaces[iNdEx])
+			i = encodeVarintGenerated(dAtA, i, uint64(len(m.Namespaces[iNdEx])))
+			i--
+			dAtA[i] = 0x2a
 		}
+	}
+	if len(m.Applications) > 0 {
+		for iNdEx := len(m.Applications) - 1; iNdEx >= 0; iNdEx-- {
+			i -= len(m.Applications[iNdEx])
+			copy(dAtA[i:], m.Applications[iNdEx])
+			i = encodeVarintGenerated(dAtA, i, uint64(len(m.Applications[iNdEx])))
+			i--
+			dAtA[i] = 0x22
+		}
+	}
+	i -= len(m.Duration)
+	copy(dAtA[i:], m.Duration)
+	i = encodeVarintGenerated(dAtA, i, uint64(len(m.Duration)))
+	i--
+	dAtA[i] = 0x1a
+	i -= len(m.Schedule)
+	copy(dAtA[i:], m.Schedule)
+	i = encodeVarintGenerated(dAtA, i, uint64(len(m.Schedule)))
+	i--
+	dAtA[i] = 0x12
+	i -= len(m.Kind)
+	copy(dAtA[i:], m.Kind)
+	i = encodeVarintGenerated(dAtA, i, uint64(len(m.Kind)))
+	i--
+	dAtA[i] = 0xa
+	return len(dAtA) - i, nil
+}
+
+func (m *TLSClientConfig) Marshal() (dAtA []byte, err error) {
+	size := m.Size()
+	dAtA = make([]byte, size)
+	n, err := m.MarshalToSizedBuffer(dAtA[:size])
+	if err != nil {
+		return nil, err
+	}
+	return dAtA[:n], nil
+}
+
+func (m *TLSClientConfig) MarshalTo(dAtA []byte) (int, error) {
+	size := m.Size()
+	return m.MarshalToSizedBuffer(dAtA[:size])
+}
+
+func (m *TLSClientConfig) MarshalToSizedBuffer(dAtA []byte) (int, error) {
+	i := len(dAtA)
+	_ = i
+	var l int
+	_ = l
+	if m.CAData != nil {
+		i -= len(m.CAData)
+		copy(dAtA[i:], m.CAData)
+		i = encodeVarintGenerated(dAtA, i, uint64(len(m.CAData)))
+		i--
+		dAtA[i] = 0x2a
+	}
+	if m.KeyData != nil {
+		i -= len(m.KeyData)
+		copy(dAtA[i:], m.KeyData)
+		i = encodeVarintGenerated(dAtA, i, uint64(len(m.KeyData)))
+		i--
+		dAtA[i] = 0x22
 	}
 	if m.CertData != nil {
 		i -= len(m.CertData)
@@ -12339,97 +12156,55 @@ func (m *ApplicationSetSpec) Size() (n int) {
 	return len(dAtA) - i, nil
 }
 
-func (m *ApplicationSetSyncPolicy) Size() (n int) {
+func encodeVarintGenerated(dAtA []byte, offset int, v uint64) int {
+	offset -= sovGenerated(v)
+	base := offset
+	for v >= 1<<7 {
+		dAtA[offset] = uint8(v&0x7f | 0x80)
+		v >>= 7
+		offset++
+	}
+	dAtA[offset] = uint8(v)
+	return base
+}
+func (m *AWSAuthConfig) Size() (n int) {
 	if m == nil {
 		return 0
 	}
 	var l int
 	_ = l
-	n += 2
+	l = len(m.ClusterName)
+	n += 1 + l + sovGenerated(uint64(l))
+	l = len(m.RoleARN)
+	n += 1 + l + sovGenerated(uint64(l))
 	return n
 }
 
-func (m *ApplicationSetTemplate) Size() (n int) {
+func (m *AppProject) Size() (n int) {
 	if m == nil {
 		return 0
 	}
 	var l int
 	_ = l
-	l = m.ApplicationSetTemplateMeta.Size()
+	l = m.ObjectMeta.Size()
 	n += 1 + l + sovGenerated(uint64(l))
 	l = m.Spec.Size()
 	n += 1 + l + sovGenerated(uint64(l))
+	l = m.Status.Size()
+	n += 1 + l + sovGenerated(uint64(l))
 	return n
 }
 
-func (m *ApplicationSetTemplateMeta) Size() (n int) {
+func (m *AppProjectList) Size() (n int) {
 	if m == nil {
 		return 0
 	}
 	var l int
 	_ = l
-	l = len(m.Name)
+	l = m.ListMeta.Size()
 	n += 1 + l + sovGenerated(uint64(l))
-	l = len(m.Namespace)
-	n += 1 + l + sovGenerated(uint64(l))
-	if len(m.Labels) > 0 {
-		for k, v := range m.Labels {
-			_ = k
-			_ = v
-			mapEntrySize := 1 + len(k) + sovGenerated(uint64(len(k))) + 1 + len(v) + sovGenerated(uint64(len(v)))
-			n += mapEntrySize + 1 + sovGenerated(uint64(mapEntrySize))
-		}
-	}
-	if len(m.Annotations) > 0 {
-		for k, v := range m.Annotations {
-			_ = k
-			_ = v
-			mapEntrySize := 1 + len(k) + sovGenerated(uint64(len(k))) + 1 + len(v) + sovGenerated(uint64(len(v)))
-			n += mapEntrySize + 1 + sovGenerated(uint64(mapEntrySize))
-		}
-	}
-	if len(m.Finalizers) > 0 {
-		for _, s := range m.Finalizers {
-			l = len(s)
-			n += 1 + l + sovGenerated(uint64(l))
-		}
-	}
-	return n
-}
-
-func (m *ApplicationSetTerminalGenerator) Size() (n int) {
-	if m == nil {
-		return 0
-	}
-	var l int
-	_ = l
-	if m.List != nil {
-		l = m.List.Size()
-		n += 1 + l + sovGenerated(uint64(l))
-	}
-	if m.Clusters != nil {
-		l = m.Clusters.Size()
-		n += 1 + l + sovGenerated(uint64(l))
-	}
-	if m.Git != nil {
-		l = m.Git.Size()
-		n += 1 + l + sovGenerated(uint64(l))
-	}
-	if m.SCMProvider != nil {
-		l = m.SCMProvider.Size()
-		n += 1 + l + sovGenerated(uint64(l))
-	}
-	if m.ClusterDecisionResource != nil {
-		l = m.ClusterDecisionResource.Size()
-		n += 1 + l + sovGenerated(uint64(l))
-	}
-	if m.PullRequest != nil {
-		l = m.PullRequest.Size()
-		n += 1 + l + sovGenerated(uint64(l))
-	}
-	return n
-}
-
+	if len(m.Items) > 0 {
+		for _, e := range m.Items {
 			l = e.Size()
 			n += 1 + l + sovGenerated(uint64(l))
 		}
@@ -12758,21 +12533,21 @@ func (m *ApplicationSetSpec) Size() (n int) {
 	l = m.Template.Size()
 	n += 1 + l + sovGenerated(uint64(l))
 	if m.SyncPolicy != nil {
-func (m *BasicAuthBitbucketServer) Size() (n int) {
-	if m == nil {
-		return 0
-	}
-	var l int
-	_ = l
-	l = len(m.Username)
-	n += 1 + l + sovGenerated(uint64(l))
-	if m.PasswordRef != nil {
-		l = m.PasswordRef.Size()
+		l = m.SyncPolicy.Size()
 		n += 1 + l + sovGenerated(uint64(l))
 	}
 	return n
 }
 
+func (m *ApplicationSetStatus) Size() (n int) {
+	if m == nil {
+		return 0
+	}
+	var l int
+	_ = l
+	if len(m.Conditions) > 0 {
+		for _, e := range m.Conditions {
+			l = e.Size()
 			n += 1 + l + sovGenerated(uint64(l))
 		}
 	}
@@ -12866,27 +12641,27 @@ func (m *ApplicationSetTerminalGenerator) Size() (n int) {
 	if m.PullRequest != nil {
 		l = m.PullRequest.Size()
 		n += 1 + l + sovGenerated(uint64(l))
-func (m *ClusterGenerator) Size() (n int) {
+	}
+	return n
+}
+
+func (m *ApplicationSource) Size() (n int) {
 	if m == nil {
 		return 0
 	}
 	var l int
 	_ = l
-	l = m.Selector.Size()
+	l = len(m.RepoURL)
 	n += 1 + l + sovGenerated(uint64(l))
-	l = m.Template.Size()
+	l = len(m.Path)
 	n += 1 + l + sovGenerated(uint64(l))
-	if len(m.Values) > 0 {
-		for k, v := range m.Values {
-			_ = k
-			_ = v
-			mapEntrySize := 1 + len(k) + sovGenerated(uint64(len(k))) + 1 + len(v) + sovGenerated(uint64(len(v)))
-			n += mapEntrySize + 1 + sovGenerated(uint64(mapEntrySize))
-		}
+	l = len(m.TargetRevision)
+	n += 1 + l + sovGenerated(uint64(l))
+	if m.Helm != nil {
+		l = m.Helm.Size()
+		n += 1 + l + sovGenerated(uint64(l))
 	}
-	return n
-}
-
+	if m.Kustomize != nil {
 		l = m.Kustomize.Size()
 		n += 1 + l + sovGenerated(uint64(l))
 	}
@@ -12899,8 +12674,6 @@ func (m *ClusterGenerator) Size() (n int) {
 		n += 1 + l + sovGenerated(uint64(l))
 	}
 	l = len(m.Chart)
-	n += 1 + l + sovGenerated(uint64(l))
-	l = len(m.Ref)
 	n += 1 + l + sovGenerated(uint64(l))
 	return n
 }
@@ -13012,29 +12785,29 @@ func (m *ApplicationSourceKustomize) Size() (n int) {
 	n += 1 + l + sovGenerated(uint64(l))
 	if len(m.CommonAnnotations) > 0 {
 		for k, v := range m.CommonAnnotations {
-func (m *DuckTypeGenerator) Size() (n int) {
+			_ = k
+			_ = v
+			mapEntrySize := 1 + len(k) + sovGenerated(uint64(len(k))) + 1 + len(v) + sovGenerated(uint64(len(v)))
+			n += mapEntrySize + 1 + sovGenerated(uint64(mapEntrySize))
+		}
+	}
+	n += 2
+	n += 2
+	return n
+}
+
+func (m *ApplicationSourcePlugin) Size() (n int) {
 	if m == nil {
 		return 0
 	}
 	var l int
 	_ = l
-	l = len(m.ConfigMapRef)
-	n += 1 + l + sovGenerated(uint64(l))
 	l = len(m.Name)
 	n += 1 + l + sovGenerated(uint64(l))
-	if m.RequeueAfterSeconds != nil {
-		n += 1 + sovGenerated(uint64(*m.RequeueAfterSeconds))
-	}
-	l = m.LabelSelector.Size()
-	n += 1 + l + sovGenerated(uint64(l))
-	l = m.Template.Size()
-	n += 1 + l + sovGenerated(uint64(l))
-	if len(m.Values) > 0 {
-		for k, v := range m.Values {
-			_ = k
-			_ = v
-			mapEntrySize := 1 + len(k) + sovGenerated(uint64(len(k))) + 1 + len(v) + sovGenerated(uint64(len(v)))
-			n += mapEntrySize + 1 + sovGenerated(uint64(mapEntrySize))
+	if len(m.Env) > 0 {
+		for _, e := range m.Env {
+			l = e.Size()
+			n += 1 + l + sovGenerated(uint64(l))
 		}
 	}
 	if len(m.Parameters) > 0 {
@@ -13108,12 +12881,6 @@ func (m *ApplicationSpec) Size() (n int) {
 	if m.RevisionHistoryLimit != nil {
 		n += 1 + sovGenerated(uint64(*m.RevisionHistoryLimit))
 	}
-	if len(m.Sources) > 0 {
-		for _, e := range m.Sources {
-			l = e.Size()
-			n += 1 + l + sovGenerated(uint64(l))
-		}
-	}
 	return n
 }
 
@@ -13172,6 +12939,18 @@ func (m *ApplicationStatus) Size() (n int) {
 	return n
 }
 
+func (m *ApplicationSummary) Size() (n int) {
+	if m == nil {
+		return 0
+	}
+	var l int
+	_ = l
+	if len(m.ExternalURLs) > 0 {
+		for _, s := range m.ExternalURLs {
+			l = len(s)
+			n += 1 + l + sovGenerated(uint64(l))
+		}
+	}
 	if len(m.Images) > 0 {
 		for _, s := range m.Images {
 			l = len(s)
@@ -13392,48 +13171,52 @@ func (m *ClusterList) Size() (n int) {
 	if m == nil {
 		return 0
 	}
-func (m *ListGenerator) Size() (n int) {
-	if m == nil {
-		return 0
-	}
 	var l int
 	_ = l
-	if len(m.Elements) > 0 {
-		for _, e := range m.Elements {
+	l = m.ListMeta.Size()
+	n += 1 + l + sovGenerated(uint64(l))
+	if len(m.Items) > 0 {
+		for _, e := range m.Items {
 			l = e.Size()
 			n += 1 + l + sovGenerated(uint64(l))
 		}
 	}
-	l = m.Template.Size()
-	n += 1 + l + sovGenerated(uint64(l))
 	return n
 }
 
-func (m *MatrixGenerator) Size() (n int) {
+func (m *Command) Size() (n int) {
 	if m == nil {
 		return 0
 	}
 	var l int
 	_ = l
-	if len(m.Generators) > 0 {
-		for _, e := range m.Generators {
-			l = e.Size()
+	if len(m.Command) > 0 {
+		for _, s := range m.Command {
+			l = len(s)
 			n += 1 + l + sovGenerated(uint64(l))
 		}
 	}
-	l = m.Template.Size()
-	n += 1 + l + sovGenerated(uint64(l))
+	if len(m.Args) > 0 {
+		for _, s := range m.Args {
+			l = len(s)
+			n += 1 + l + sovGenerated(uint64(l))
+		}
+	}
 	return n
 }
 
-func (m *MergeGenerator) Size() (n int) {
+func (m *ComparedTo) Size() (n int) {
 	if m == nil {
 		return 0
 	}
 	var l int
 	_ = l
-	if len(m.Generators) > 0 {
-		for _, e := range m.Generators {
+	l = m.Source.Size()
+	n += 1 + l + sovGenerated(uint64(l))
+	l = m.Destination.Size()
+	n += 1 + l + sovGenerated(uint64(l))
+	if len(m.Sources) > 0 {
+		for _, e := range m.Sources {
 			l = e.Size()
 			n += 1 + l + sovGenerated(uint64(l))
 		}
@@ -13637,10 +13420,6 @@ func (m *GnuPGPublicKeyList) Size() (n int) {
 	if m == nil {
 		return 0
 	}
-func (m *PullRequestGenerator) Size() (n int) {
-	if m == nil {
-		return 0
-	}
 	var l int
 	_ = l
 	l = m.ListMeta.Size()
@@ -13667,26 +13446,20 @@ func (m *HealthStatus) Size() (n int) {
 	return n
 }
 
-func (m *PullRequestGeneratorBitbucketServer) Size() (n int) {
+func (m *HelmFileParameter) Size() (n int) {
 	if m == nil {
 		return 0
 	}
 	var l int
 	_ = l
-	l = len(m.Project)
+	l = len(m.Name)
 	n += 1 + l + sovGenerated(uint64(l))
-	l = len(m.Repo)
+	l = len(m.Path)
 	n += 1 + l + sovGenerated(uint64(l))
-	l = len(m.API)
-	n += 1 + l + sovGenerated(uint64(l))
-	if m.BasicAuth != nil {
-		l = m.BasicAuth.Size()
-		n += 1 + l + sovGenerated(uint64(l))
-	}
 	return n
 }
 
-func (m *PullRequestGeneratorFilter) Size() (n int) {
+func (m *HelmOptions) Size() (n int) {
 	if m == nil {
 		return 0
 	}
@@ -13701,75 +13474,89 @@ func (m *PullRequestGeneratorFilter) Size() (n int) {
 	return n
 }
 
-func (m *PullRequestGeneratorGitLab) Size() (n int) {
+func (m *HelmParameter) Size() (n int) {
 	if m == nil {
 		return 0
 	}
 	var l int
 	_ = l
-	l = len(m.Project)
+	l = len(m.Name)
 	n += 1 + l + sovGenerated(uint64(l))
-	l = len(m.API)
+	l = len(m.Value)
 	n += 1 + l + sovGenerated(uint64(l))
-	if m.TokenRef != nil {
-		l = m.TokenRef.Size()
-		n += 1 + l + sovGenerated(uint64(l))
-	}
-	if len(m.Labels) > 0 {
-		for _, s := range m.Labels {
-			l = len(s)
-			n += 1 + l + sovGenerated(uint64(l))
-		}
-	}
-	l = len(m.PullRequestState)
-	n += 1 + l + sovGenerated(uint64(l))
-	return n
-}
-
-func (m *PullRequestGeneratorGitea) Size() (n int) {
-	if m == nil {
-		return 0
-	}
-	var l int
-	_ = l
-	l = len(m.Owner)
-	n += 1 + l + sovGenerated(uint64(l))
-	l = len(m.Repo)
-	n += 1 + l + sovGenerated(uint64(l))
-	l = len(m.API)
-	n += 1 + l + sovGenerated(uint64(l))
-	if m.TokenRef != nil {
-		l = m.TokenRef.Size()
-		n += 1 + l + sovGenerated(uint64(l))
-	}
 	n += 2
 	return n
 }
 
-func (m *PullRequestGeneratorGithub) Size() (n int) {
+func (m *HostInfo) Size() (n int) {
 	if m == nil {
 		return 0
 	}
 	var l int
 	_ = l
-	l = len(m.Owner)
+	l = len(m.Name)
 	n += 1 + l + sovGenerated(uint64(l))
-	l = len(m.Repo)
-	n += 1 + l + sovGenerated(uint64(l))
-	l = len(m.API)
-	n += 1 + l + sovGenerated(uint64(l))
-	if m.TokenRef != nil {
-		l = m.TokenRef.Size()
-		n += 1 + l + sovGenerated(uint64(l))
-	}
-	l = len(m.AppSecretName)
-	n += 1 + l + sovGenerated(uint64(l))
-	if len(m.Labels) > 0 {
-		for _, s := range m.Labels {
-			l = len(s)
+	if len(m.ResourcesInfo) > 0 {
+		for _, e := range m.ResourcesInfo {
+			l = e.Size()
 			n += 1 + l + sovGenerated(uint64(l))
 		}
 	}
+	l = m.SystemInfo.Size()
+	n += 1 + l + sovGenerated(uint64(l))
+	return n
+}
+
+func (m *HostResourceInfo) Size() (n int) {
+	if m == nil {
+		return 0
+	}
+	var l int
+	_ = l
+	l = len(m.ResourceName)
+	n += 1 + l + sovGenerated(uint64(l))
+	n += 1 + sovGenerated(uint64(m.RequestedByApp))
+	n += 1 + sovGenerated(uint64(m.RequestedByNeighbors))
+	n += 1 + sovGenerated(uint64(m.Capacity))
+	return n
+}
+
+func (m *Info) Size() (n int) {
+	if m == nil {
+		return 0
+	}
+	var l int
+	_ = l
+	l = len(m.Name)
+	n += 1 + l + sovGenerated(uint64(l))
+	l = len(m.Value)
+	n += 1 + l + sovGenerated(uint64(l))
+	return n
+}
+
+func (m *InfoItem) Size() (n int) {
+	if m == nil {
+		return 0
+	}
+	var l int
+	_ = l
+	l = len(m.Name)
+	n += 1 + l + sovGenerated(uint64(l))
+	l = len(m.Value)
+	n += 1 + l + sovGenerated(uint64(l))
+	return n
+}
+
+func (m *JWTToken) Size() (n int) {
+	if m == nil {
+		return 0
+	}
+	var l int
+	_ = l
+	n += 1 + sovGenerated(uint64(m.IssuedAt))
+	n += 1 + sovGenerated(uint64(m.ExpiresAt))
+	l = len(m.ID)
+	n += 1 + l + sovGenerated(uint64(l))
 	return n
 }
 
@@ -14319,22 +14106,32 @@ func (m *Repository) Size() (n int) {
 	n += 2
 	n += 2
 	l = len(m.GithubAppPrivateKey)
-func (m *SCMProviderGenerator) Size() (n int) {
+	n += 1 + l + sovGenerated(uint64(l))
+	n += 2 + sovGenerated(uint64(m.GithubAppId))
+	n += 2 + sovGenerated(uint64(m.GithubAppInstallationId))
+	l = len(m.GitHubAppEnterpriseBaseURL)
+	n += 2 + l + sovGenerated(uint64(l))
+	l = len(m.Proxy)
+	n += 2 + l + sovGenerated(uint64(l))
+	l = len(m.Project)
+	n += 2 + l + sovGenerated(uint64(l))
+	return n
+}
+
+func (m *RepositoryCertificate) Size() (n int) {
 	if m == nil {
 		return 0
 	}
 	var l int
 	_ = l
-	if m.Github != nil {
-		l = m.Github.Size()
-		n += 1 + l + sovGenerated(uint64(l))
-	}
-	if m.Gitlab != nil {
-		l = m.Gitlab.Size()
-		n += 1 + l + sovGenerated(uint64(l))
-	}
-	if m.Bitbucket != nil {
-		l = m.Bitbucket.Size()
+	l = len(m.ServerName)
+	n += 1 + l + sovGenerated(uint64(l))
+	l = len(m.CertType)
+	n += 1 + l + sovGenerated(uint64(l))
+	l = len(m.CertSubType)
+	n += 1 + l + sovGenerated(uint64(l))
+	if m.CertData != nil {
+		l = len(m.CertData)
 		n += 1 + l + sovGenerated(uint64(l))
 	}
 	l = len(m.CertInfo)
@@ -14356,144 +14153,93 @@ func (m *RepositoryCertificateList) Size() (n int) {
 			n += 1 + l + sovGenerated(uint64(l))
 		}
 	}
-	l = len(m.CloneProtocol)
-	n += 1 + l + sovGenerated(uint64(l))
-	if m.RequeueAfterSeconds != nil {
-		n += 1 + sovGenerated(uint64(*m.RequeueAfterSeconds))
-	}
-	l = m.Template.Size()
-	n += 1 + l + sovGenerated(uint64(l))
 	return n
 }
 
-func (m *SCMProviderGeneratorAzureDevOps) Size() (n int) {
+func (m *RepositoryList) Size() (n int) {
 	if m == nil {
 		return 0
 	}
 	var l int
 	_ = l
-	l = len(m.Organization)
+	l = m.ListMeta.Size()
 	n += 1 + l + sovGenerated(uint64(l))
-	l = len(m.API)
-	n += 1 + l + sovGenerated(uint64(l))
-	l = len(m.TeamProject)
-	n += 1 + l + sovGenerated(uint64(l))
-	if m.AccessTokenRef != nil {
-		l = m.AccessTokenRef.Size()
-		n += 1 + l + sovGenerated(uint64(l))
-	}
-	n += 2
-	return n
-}
-
-func (m *SCMProviderGeneratorBitbucket) Size() (n int) {
-	if m == nil {
-		return 0
-	}
-	var l int
-	_ = l
-	l = len(m.Owner)
-	n += 1 + l + sovGenerated(uint64(l))
-	l = len(m.User)
-	n += 1 + l + sovGenerated(uint64(l))
-	if m.AppPasswordRef != nil {
-		l = m.AppPasswordRef.Size()
-		n += 1 + l + sovGenerated(uint64(l))
-	}
-	n += 2
-	return n
-}
-
-func (m *SCMProviderGeneratorBitbucketServer) Size() (n int) {
-	if m == nil {
-		return 0
-	}
-	var l int
-	_ = l
-	l = len(m.Project)
-	n += 1 + l + sovGenerated(uint64(l))
-	l = len(m.API)
-	n += 1 + l + sovGenerated(uint64(l))
-	if m.BasicAuth != nil {
-		l = m.BasicAuth.Size()
-		n += 1 + l + sovGenerated(uint64(l))
-	}
-	n += 2
-	return n
-}
-
-func (m *SCMProviderGeneratorFilter) Size() (n int) {
-	if m == nil {
-		return 0
-	}
-	var l int
-	_ = l
-	if m.RepositoryMatch != nil {
-		l = len(*m.RepositoryMatch)
-		n += 1 + l + sovGenerated(uint64(l))
-	}
-	if len(m.PathsExist) > 0 {
-		for _, s := range m.PathsExist {
-			l = len(s)
+	if len(m.Items) > 0 {
+		for _, e := range m.Items {
+			l = e.Size()
 			n += 1 + l + sovGenerated(uint64(l))
 		}
 	}
-	if len(m.PathsDoNotExist) > 0 {
-		for _, s := range m.PathsDoNotExist {
-			l = len(s)
+	return n
+}
+
+func (m *ResourceAction) Size() (n int) {
+	if m == nil {
+		return 0
+	}
+	var l int
+	_ = l
+	l = len(m.Name)
+	n += 1 + l + sovGenerated(uint64(l))
+	if len(m.Params) > 0 {
+		for _, e := range m.Params {
+			l = e.Size()
 			n += 1 + l + sovGenerated(uint64(l))
 		}
 	}
-	if m.LabelMatch != nil {
-		l = len(*m.LabelMatch)
-		n += 1 + l + sovGenerated(uint64(l))
-	}
-	if m.BranchMatch != nil {
-		l = len(*m.BranchMatch)
-		n += 1 + l + sovGenerated(uint64(l))
-	}
+	n += 2
 	return n
 }
 
-func (m *SCMProviderGeneratorGitea) Size() (n int) {
+func (m *ResourceActionDefinition) Size() (n int) {
 	if m == nil {
 		return 0
 	}
 	var l int
 	_ = l
-	l = len(m.Owner)
+	l = len(m.Name)
 	n += 1 + l + sovGenerated(uint64(l))
-	l = len(m.API)
+	l = len(m.ActionLua)
 	n += 1 + l + sovGenerated(uint64(l))
-	if m.TokenRef != nil {
-		l = m.TokenRef.Size()
-		n += 1 + l + sovGenerated(uint64(l))
-	}
-	n += 2
 	return n
 }
 
-func (m *SCMProviderGeneratorGithub) Size() (n int) {
+func (m *ResourceActionParam) Size() (n int) {
 	if m == nil {
 		return 0
 	}
 	var l int
 	_ = l
-	l = len(m.Organization)
+	l = len(m.Name)
 	n += 1 + l + sovGenerated(uint64(l))
-	l = len(m.API)
+	l = len(m.Value)
 	n += 1 + l + sovGenerated(uint64(l))
-	if m.TokenRef != nil {
-		l = m.TokenRef.Size()
-		n += 1 + l + sovGenerated(uint64(l))
+	l = len(m.Type)
+	n += 1 + l + sovGenerated(uint64(l))
+	l = len(m.Default)
+	n += 1 + l + sovGenerated(uint64(l))
+	return n
+}
+
+func (m *ResourceActions) Size() (n int) {
+	if m == nil {
+		return 0
 	}
-	l = len(m.AppSecretName)
+	var l int
+	_ = l
+	l = len(m.ActionDiscoveryLua)
 	n += 1 + l + sovGenerated(uint64(l))
+	if len(m.Definitions) > 0 {
+		for _, e := range m.Definitions {
+			l = e.Size()
+			n += 1 + l + sovGenerated(uint64(l))
+		}
+	}
 	n += 2
 	return n
 }
 
-func (m *SCMProviderGeneratorGitlab) Size() (n int) {
+func (m *ResourceDiff) Size() (n int) {
 	if m == nil {
 		return 0
 	}
@@ -14501,30 +14247,72 @@ func (m *SCMProviderGeneratorGitlab) Size() (n int) {
 	_ = l
 	l = len(m.Group)
 	n += 1 + l + sovGenerated(uint64(l))
-	n += 2
-	l = len(m.API)
+	l = len(m.Kind)
 	n += 1 + l + sovGenerated(uint64(l))
-	if m.TokenRef != nil {
-		l = m.TokenRef.Size()
-		n += 1 + l + sovGenerated(uint64(l))
-	}
+	l = len(m.Namespace)
+	n += 1 + l + sovGenerated(uint64(l))
+	l = len(m.Name)
+	n += 1 + l + sovGenerated(uint64(l))
+	l = len(m.TargetState)
+	n += 1 + l + sovGenerated(uint64(l))
+	l = len(m.LiveState)
+	n += 1 + l + sovGenerated(uint64(l))
+	l = len(m.Diff)
+	n += 1 + l + sovGenerated(uint64(l))
+	n += 2
+	l = len(m.NormalizedLiveState)
+	n += 1 + l + sovGenerated(uint64(l))
+	l = len(m.PredictedLiveState)
+	n += 1 + l + sovGenerated(uint64(l))
+	l = len(m.ResourceVersion)
+	n += 1 + l + sovGenerated(uint64(l))
 	n += 2
 	return n
 }
 
-func (m *SecretRef) Size() (n int) {
+func (m *ResourceIgnoreDifferences) Size() (n int) {
 	if m == nil {
 		return 0
 	}
 	var l int
 	_ = l
-	l = len(m.SecretName)
+	l = len(m.Group)
 	n += 1 + l + sovGenerated(uint64(l))
-	l = len(m.Key)
+	l = len(m.Kind)
 	n += 1 + l + sovGenerated(uint64(l))
+	l = len(m.Name)
+	n += 1 + l + sovGenerated(uint64(l))
+	l = len(m.Namespace)
+	n += 1 + l + sovGenerated(uint64(l))
+	if len(m.JSONPointers) > 0 {
+		for _, s := range m.JSONPointers {
+			l = len(s)
+			n += 1 + l + sovGenerated(uint64(l))
+		}
+	}
+	if len(m.JQPathExpressions) > 0 {
+		for _, s := range m.JQPathExpressions {
+			l = len(s)
+			n += 1 + l + sovGenerated(uint64(l))
+		}
+	}
+	if len(m.ManagedFieldsManagers) > 0 {
+		for _, s := range m.ManagedFieldsManagers {
+			l = len(s)
+			n += 1 + l + sovGenerated(uint64(l))
+		}
+	}
 	return n
 }
 
+func (m *ResourceNetworkingInfo) Size() (n int) {
+	if m == nil {
+		return 0
+	}
+	var l int
+	_ = l
+	if len(m.TargetLabels) > 0 {
+		for k, v := range m.TargetLabels {
 			_ = k
 			_ = v
 			mapEntrySize := 1 + len(k) + sovGenerated(uint64(len(k))) + 1 + len(v) + sovGenerated(uint64(len(v)))
@@ -14952,115 +14740,88 @@ func (m *SCMProviderGeneratorGitlab) Size() (n int) {
 	}
 	var l int
 	_ = l
-func (this *ApplicationSet) String() string {
-	if this == nil {
-		return "nil"
+	l = len(m.Group)
+	n += 1 + l + sovGenerated(uint64(l))
+	n += 2
+	l = len(m.API)
+	n += 1 + l + sovGenerated(uint64(l))
+	if m.TokenRef != nil {
+		l = m.TokenRef.Size()
+		n += 1 + l + sovGenerated(uint64(l))
 	}
-	s := strings.Join([]string{`&ApplicationSet{`,
-		`ObjectMeta:` + strings.Replace(strings.Replace(fmt.Sprintf("%v", this.ObjectMeta), "ObjectMeta", "v1.ObjectMeta", 1), `&`, ``, 1) + `,`,
-		`Spec:` + strings.Replace(strings.Replace(this.Spec.String(), "ApplicationSetSpec", "ApplicationSetSpec", 1), `&`, ``, 1) + `,`,
-		`Status:` + strings.Replace(strings.Replace(this.Status.String(), "ApplicationSetStatus", "ApplicationSetStatus", 1), `&`, ``, 1) + `,`,
-		`}`,
-	}, "")
-	return s
-}
-func (this *ApplicationSetCondition) String() string {
-	if this == nil {
-		return "nil"
-	}
-	s := strings.Join([]string{`&ApplicationSetCondition{`,
-		`Type:` + fmt.Sprintf("%v", this.Type) + `,`,
-		`Message:` + fmt.Sprintf("%v", this.Message) + `,`,
-		`LastTransitionTime:` + strings.Replace(fmt.Sprintf("%v", this.LastTransitionTime), "Time", "v1.Time", 1) + `,`,
-		`Status:` + fmt.Sprintf("%v", this.Status) + `,`,
-		`Reason:` + fmt.Sprintf("%v", this.Reason) + `,`,
-		`}`,
-	}, "")
-	return s
-}
-func (this *ApplicationSetGenerator) String() string {
-	if this == nil {
-		return "nil"
-	}
-	s := strings.Join([]string{`&ApplicationSetGenerator{`,
-		`List:` + strings.Replace(this.List.String(), "ListGenerator", "ListGenerator", 1) + `,`,
-		`Clusters:` + strings.Replace(this.Clusters.String(), "ClusterGenerator", "ClusterGenerator", 1) + `,`,
-		`Git:` + strings.Replace(this.Git.String(), "GitGenerator", "GitGenerator", 1) + `,`,
-		`SCMProvider:` + strings.Replace(this.SCMProvider.String(), "SCMProviderGenerator", "SCMProviderGenerator", 1) + `,`,
-		`ClusterDecisionResource:` + strings.Replace(this.ClusterDecisionResource.String(), "DuckTypeGenerator", "DuckTypeGenerator", 1) + `,`,
-		`PullRequest:` + strings.Replace(this.PullRequest.String(), "PullRequestGenerator", "PullRequestGenerator", 1) + `,`,
-		`Matrix:` + strings.Replace(this.Matrix.String(), "MatrixGenerator", "MatrixGenerator", 1) + `,`,
-		`Merge:` + strings.Replace(this.Merge.String(), "MergeGenerator", "MergeGenerator", 1) + `,`,
-		`Selector:` + strings.Replace(fmt.Sprintf("%v", this.Selector), "LabelSelector", "v1.LabelSelector", 1) + `,`,
-		`}`,
-	}, "")
-	return s
-}
-func (this *ApplicationSetList) String() string {
-	if this == nil {
-		return "nil"
-	}
-	repeatedStringForItems := "[]ApplicationSet{"
-	for _, f := range this.Items {
-		repeatedStringForItems += strings.Replace(strings.Replace(f.String(), "ApplicationSet", "ApplicationSet", 1), `&`, ``, 1) + ","
-	}
-	if len(m.Sources) > 0 {
-		for _, e := range m.Sources {
-			l = e.Size()
-			n += 1 + l + sovGenerated(uint64(l))
-		}
-	}
-	if len(m.Revisions) > 0 {
-		for _, s := range m.Revisions {
-			l = len(s)
-			n += 1 + l + sovGenerated(uint64(l))
-		}
-	}
+	n += 2
 	return n
+}
+
+func (m *SecretRef) Size() (n int) {
+	if m == nil {
+		return 0
+	}
+	var l int
+	_ = l
+	l = len(m.SecretName)
+	n += 1 + l + sovGenerated(uint64(l))
+	l = len(m.Key)
+	n += 1 + l + sovGenerated(uint64(l))
+	return n
+}
+
+func (m *SignatureKey) Size() (n int) {
+	if m == nil {
+		return 0
+	}
+	var l int
+	_ = l
+	l = len(m.KeyID)
+	n += 1 + l + sovGenerated(uint64(l))
+	return n
+}
+
+func (m *SyncOperation) Size() (n int) {
+	if m == nil {
+		return 0
+	}
+	var l int
+	_ = l
+	l = len(m.Revision)
+	n += 1 + l + sovGenerated(uint64(l))
+	n += 2
+	n += 2
+	if m.SyncStrategy != nil {
+		l = m.SyncStrategy.Size()
+		n += 1 + l + sovGenerated(uint64(l))
+	}
+	repeatedStringForItems += "}"
+	s := strings.Join([]string{`&ApplicationSetList{`,
+		`ListMeta:` + strings.Replace(strings.Replace(fmt.Sprintf("%v", this.ListMeta), "ListMeta", "v1.ListMeta", 1), `&`, ``, 1) + `,`,
+		`Items:` + repeatedStringForItems + `,`,
+		`}`,
+	}, "")
+	return s
 }
 func (this *ApplicationSetNestedGenerator) String() string {
 	if this == nil {
 		return "nil"
 	}
-	s := strings.Join([]string{`&ApplicationSetNestedGenerator{`,
-		`List:` + strings.Replace(this.List.String(), "ListGenerator", "ListGenerator", 1) + `,`,
-		`Clusters:` + strings.Replace(this.Clusters.String(), "ClusterGenerator", "ClusterGenerator", 1) + `,`,
-		`Git:` + strings.Replace(this.Git.String(), "GitGenerator", "GitGenerator", 1) + `,`,
-		`SCMProvider:` + strings.Replace(this.SCMProvider.String(), "SCMProviderGenerator", "SCMProviderGenerator", 1) + `,`,
-		`ClusterDecisionResource:` + strings.Replace(this.ClusterDecisionResource.String(), "DuckTypeGenerator", "DuckTypeGenerator", 1) + `,`,
-		`PullRequest:` + strings.Replace(this.PullRequest.String(), "PullRequestGenerator", "PullRequestGenerator", 1) + `,`,
-		`Matrix:` + strings.Replace(fmt.Sprintf("%v", this.Matrix), "JSON", "v11.JSON", 1) + `,`,
-		`Merge:` + strings.Replace(fmt.Sprintf("%v", this.Merge), "JSON", "v11.JSON", 1) + `,`,
-		`Selector:` + strings.Replace(fmt.Sprintf("%v", this.Selector), "LabelSelector", "v1.LabelSelector", 1) + `,`,
-		`}`,
-	}, "")
-	return s
-}
-func (this *ApplicationSetSpec) String() string {
-	if this == nil {
-		return "nil"
+	if m.Source != nil {
+		l = m.Source.Size()
+		n += 1 + l + sovGenerated(uint64(l))
 	}
-	repeatedStringForGenerators := "[]ApplicationSetGenerator{"
-	for _, f := range this.Generators {
-		repeatedStringForGenerators += strings.Replace(strings.Replace(f.String(), "ApplicationSetGenerator", "ApplicationSetGenerator", 1), `&`, ``, 1) + ","
-	}
-	l = len(m.Revision)
-	n += 1 + l + sovGenerated(uint64(l))
-	l = m.Source.Size()
-	n += 1 + l + sovGenerated(uint64(l))
-	if len(m.Sources) > 0 {
-		for _, e := range m.Sources {
-			l = e.Size()
-			n += 1 + l + sovGenerated(uint64(l))
-		}
-	}
-	if len(m.Revisions) > 0 {
-		for _, s := range m.Revisions {
+	if len(m.Manifests) > 0 {
+		for _, s := range m.Manifests {
 			l = len(s)
 			n += 1 + l + sovGenerated(uint64(l))
 		}
 	}
-	return n
+	repeatedStringForGenerators += "}"
+	s := strings.Join([]string{`&ApplicationSetSpec{`,
+		`GoTemplate:` + fmt.Sprintf("%v", this.GoTemplate) + `,`,
+		`Generators:` + repeatedStringForGenerators + `,`,
+		`Template:` + strings.Replace(strings.Replace(this.Template.String(), "ApplicationSetTemplate", "ApplicationSetTemplate", 1), `&`, ``, 1) + `,`,
+		`SyncPolicy:` + strings.Replace(this.SyncPolicy.String(), "ApplicationSetSyncPolicy", "ApplicationSetSyncPolicy", 1) + `,`,
+		`}`,
+	}, "")
+	return s
 }
 func (this *ApplicationSetStatus) String() string {
 	if this == nil {
@@ -15113,47 +14874,104 @@ func (this *ApplicationSetTemplateMeta) String() string {
 	if this == nil {
 		return "nil"
 	}
-	github_com_gogo_protobuf_sortkeys.Strings(keysForLabels)
-	mapStringForLabels := "map[string]string{"
-	for _, k := range keysForLabels {
-		mapStringForLabels += fmt.Sprintf("%v: %v,", k, this.Labels[k])
+	l = len(m.Revision)
+	n += 1 + l + sovGenerated(uint64(l))
+	l = m.Source.Size()
+	n += 1 + l + sovGenerated(uint64(l))
+	if len(m.Sources) > 0 {
+		for _, e := range m.Sources {
+			l = e.Size()
+			n += 1 + l + sovGenerated(uint64(l))
+		}
 	}
-	mapStringForLabels += "}"
-	keysForAnnotations := make([]string, 0, len(this.Annotations))
-	for k := range this.Annotations {
-		keysForAnnotations = append(keysForAnnotations, k)
+	if len(m.Revisions) > 0 {
+		for _, s := range m.Revisions {
+			l = len(s)
+			n += 1 + l + sovGenerated(uint64(l))
+		}
 	}
-	github_com_gogo_protobuf_sortkeys.Strings(keysForAnnotations)
-	mapStringForAnnotations := "map[string]string{"
-	for _, k := range keysForAnnotations {
-		mapStringForAnnotations += fmt.Sprintf("%v: %v,", k, this.Annotations[k])
-	}
-	mapStringForAnnotations += "}"
-	s := strings.Join([]string{`&ApplicationSetTemplateMeta{`,
-		`Name:` + fmt.Sprintf("%v", this.Name) + `,`,
-		`Namespace:` + fmt.Sprintf("%v", this.Namespace) + `,`,
-		`Labels:` + mapStringForLabels + `,`,
-		`Annotations:` + mapStringForAnnotations + `,`,
-		`Finalizers:` + fmt.Sprintf("%v", this.Finalizers) + `,`,
-		`}`,
-	}, "")
-	return s
+	return n
 }
-func (this *ApplicationSetTerminalGenerator) String() string {
-	if this == nil {
-		return "nil"
+
+func (m *SyncPolicy) Size() (n int) {
+	if m == nil {
+		return 0
 	}
-	s := strings.Join([]string{`&ApplicationSetTerminalGenerator{`,
-		`List:` + strings.Replace(this.List.String(), "ListGenerator", "ListGenerator", 1) + `,`,
-		`Clusters:` + strings.Replace(this.Clusters.String(), "ClusterGenerator", "ClusterGenerator", 1) + `,`,
-		`Git:` + strings.Replace(this.Git.String(), "GitGenerator", "GitGenerator", 1) + `,`,
-		`SCMProvider:` + strings.Replace(this.SCMProvider.String(), "SCMProviderGenerator", "SCMProviderGenerator", 1) + `,`,
-		`ClusterDecisionResource:` + strings.Replace(this.ClusterDecisionResource.String(), "DuckTypeGenerator", "DuckTypeGenerator", 1) + `,`,
-		`PullRequest:` + strings.Replace(this.PullRequest.String(), "PullRequestGenerator", "PullRequestGenerator", 1) + `,`,
-		`}`,
-	}, "")
-	return s
+	var l int
+	_ = l
+	if m.Automated != nil {
+		l = m.Automated.Size()
+		n += 1 + l + sovGenerated(uint64(l))
+	}
+	if len(m.SyncOptions) > 0 {
+		for _, s := range m.SyncOptions {
+			l = len(s)
+			n += 1 + l + sovGenerated(uint64(l))
+		}
+	}
+	if m.Retry != nil {
+		l = m.Retry.Size()
+		n += 1 + l + sovGenerated(uint64(l))
+	}
+	if m.ManagedNamespaceMetadata != nil {
+		l = m.ManagedNamespaceMetadata.Size()
+		n += 1 + l + sovGenerated(uint64(l))
+	}
+	return n
 }
+
+func (m *SyncPolicyAutomated) Size() (n int) {
+	if m == nil {
+		return 0
+	}
+	var l int
+	_ = l
+	n += 2
+	n += 2
+	n += 2
+	return n
+}
+
+func (m *SyncStatus) Size() (n int) {
+	if m == nil {
+		return 0
+	}
+	var l int
+	_ = l
+	l = len(m.Status)
+	n += 1 + l + sovGenerated(uint64(l))
+	l = m.ComparedTo.Size()
+	n += 1 + l + sovGenerated(uint64(l))
+	l = len(m.Revision)
+	n += 1 + l + sovGenerated(uint64(l))
+	if len(m.Revisions) > 0 {
+		for _, s := range m.Revisions {
+			l = len(s)
+			n += 1 + l + sovGenerated(uint64(l))
+		}
+	}
+	return n
+}
+
+func (m *SyncStrategy) Size() (n int) {
+	if m == nil {
+		return 0
+	}
+	var l int
+	_ = l
+	if m.Apply != nil {
+		l = m.Apply.Size()
+		n += 1 + l + sovGenerated(uint64(l))
+	}
+	if m.Hook != nil {
+		l = m.Hook.Size()
+		n += 1 + l + sovGenerated(uint64(l))
+	}
+	return n
+}
+
+func (m *SyncStrategyApply) Size() (n int) {
+	if m == nil {
 		return 0
 	}
 	var l int
@@ -15409,17 +15227,17 @@ func (this *ApplicationList) String() string {
 	s := strings.Join([]string{`&ApplicationList{`,
 		`ListMeta:` + strings.Replace(strings.Replace(fmt.Sprintf("%v", this.ListMeta), "ListMeta", "v1.ListMeta", 1), `&`, ``, 1) + `,`,
 		`Items:` + repeatedStringForItems + `,`,
-func (this *BasicAuthBitbucketServer) String() string {
-	if this == nil {
-		return "nil"
-	}
-	s := strings.Join([]string{`&BasicAuthBitbucketServer{`,
-		`Username:` + fmt.Sprintf("%v", this.Username) + `,`,
-		`PasswordRef:` + strings.Replace(this.PasswordRef.String(), "SecretRef", "SecretRef", 1) + `,`,
 		`}`,
 	}, "")
 	return s
 }
+func (this *ApplicationSet) String() string {
+	if this == nil {
+		return "nil"
+	}
+	s := strings.Join([]string{`&ApplicationSet{`,
+		`ObjectMeta:` + strings.Replace(strings.Replace(fmt.Sprintf("%v", this.ObjectMeta), "ObjectMeta", "v1.ObjectMeta", 1), `&`, ``, 1) + `,`,
+		`Spec:` + strings.Replace(strings.Replace(this.Spec.String(), "ApplicationSetSpec", "ApplicationSetSpec", 1), `&`, ``, 1) + `,`,
 		`Status:` + strings.Replace(strings.Replace(this.Status.String(), "ApplicationSetStatus", "ApplicationSetStatus", 1), `&`, ``, 1) + `,`,
 		`}`,
 	}, "")
@@ -15489,28 +15307,28 @@ func (this *ApplicationSetNestedGenerator) String() string {
 		`Selector:` + strings.Replace(fmt.Sprintf("%v", this.Selector), "LabelSelector", "v1.LabelSelector", 1) + `,`,
 		`}`,
 	}, "")
-func (this *ClusterGenerator) String() string {
+	return s
+}
+func (this *ApplicationSetSpec) String() string {
 	if this == nil {
 		return "nil"
 	}
-	keysForValues := make([]string, 0, len(this.Values))
-	for k := range this.Values {
-		keysForValues = append(keysForValues, k)
+	repeatedStringForGenerators := "[]ApplicationSetGenerator{"
+	for _, f := range this.Generators {
+		repeatedStringForGenerators += strings.Replace(strings.Replace(f.String(), "ApplicationSetGenerator", "ApplicationSetGenerator", 1), `&`, ``, 1) + ","
 	}
-	github_com_gogo_protobuf_sortkeys.Strings(keysForValues)
-	mapStringForValues := "map[string]string{"
-	for _, k := range keysForValues {
-		mapStringForValues += fmt.Sprintf("%v: %v,", k, this.Values[k])
-	}
-	mapStringForValues += "}"
-	s := strings.Join([]string{`&ClusterGenerator{`,
-		`Selector:` + strings.Replace(strings.Replace(fmt.Sprintf("%v", this.Selector), "LabelSelector", "v1.LabelSelector", 1), `&`, ``, 1) + `,`,
+	repeatedStringForGenerators += "}"
+	s := strings.Join([]string{`&ApplicationSetSpec{`,
+		`GoTemplate:` + fmt.Sprintf("%v", this.GoTemplate) + `,`,
+		`Generators:` + repeatedStringForGenerators + `,`,
 		`Template:` + strings.Replace(strings.Replace(this.Template.String(), "ApplicationSetTemplate", "ApplicationSetTemplate", 1), `&`, ``, 1) + `,`,
-		`Values:` + mapStringForValues + `,`,
+		`SyncPolicy:` + strings.Replace(this.SyncPolicy.String(), "ApplicationSetSyncPolicy", "ApplicationSetSyncPolicy", 1) + `,`,
 		`}`,
 	}, "")
 	return s
 }
+func (this *ApplicationSetStatus) String() string {
+	if this == nil {
 		return "nil"
 	}
 	repeatedStringForConditions := "[]ApplicationSetCondition{"
@@ -15600,43 +15418,20 @@ func (this *ApplicationSource) String() string {
 	}
 	s := strings.Join([]string{`&ApplicationSource{`,
 		`RepoURL:` + fmt.Sprintf("%v", this.RepoURL) + `,`,
-		`Path:` + fmt.Sprintf("%v", this.Path) + `,`,
-		`TargetRevision:` + fmt.Sprintf("%v", this.TargetRevision) + `,`,
-		`Helm:` + strings.Replace(this.Helm.String(), "ApplicationSourceHelm", "ApplicationSourceHelm", 1) + `,`,
-		`Kustomize:` + strings.Replace(this.Kustomize.String(), "ApplicationSourceKustomize", "ApplicationSourceKustomize", 1) + `,`,
-		`Directory:` + strings.Replace(this.Directory.String(), "ApplicationSourceDirectory", "ApplicationSourceDirectory", 1) + `,`,
-		`Plugin:` + strings.Replace(this.Plugin.String(), "ApplicationSourcePlugin", "ApplicationSourcePlugin", 1) + `,`,
-		`Chart:` + fmt.Sprintf("%v", this.Chart) + `,`,
-		`Ref:` + fmt.Sprintf("%v", this.Ref) + `,`,
-		`}`,
-	}, "")
-	return s
-}
-func (this *ApplicationSourceDirectory) String() string {
+func (this *DuckTypeGenerator) String() string {
 	if this == nil {
 		return "nil"
 	}
-	keysForValues := make([]string, 0, len(this.Values))
-	for k := range this.Values {
-		keysForValues = append(keysForValues, k)
-	}
-	github_com_gogo_protobuf_sortkeys.Strings(keysForValues)
-	mapStringForValues := "map[string]string{"
-	for _, k := range keysForValues {
-		mapStringForValues += fmt.Sprintf("%v: %v,", k, this.Values[k])
-	}
-	mapStringForValues += "}"
-	s := strings.Join([]string{`&DuckTypeGenerator{`,
-		`ConfigMapRef:` + fmt.Sprintf("%v", this.ConfigMapRef) + `,`,
-		`Name:` + fmt.Sprintf("%v", this.Name) + `,`,
-		`RequeueAfterSeconds:` + valueToStringGenerated(this.RequeueAfterSeconds) + `,`,
-		`LabelSelector:` + strings.Replace(strings.Replace(fmt.Sprintf("%v", this.LabelSelector), "LabelSelector", "v1.LabelSelector", 1), `&`, ``, 1) + `,`,
-		`Template:` + strings.Replace(strings.Replace(this.Template.String(), "ApplicationSetTemplate", "ApplicationSetTemplate", 1), `&`, ``, 1) + `,`,
-		`Values:` + mapStringForValues + `,`,
+	s := strings.Join([]string{`&ApplicationSourceDirectory{`,
+		`Recurse:` + fmt.Sprintf("%v", this.Recurse) + `,`,
+		`Jsonnet:` + strings.Replace(strings.Replace(this.Jsonnet.String(), "ApplicationSourceJsonnet", "ApplicationSourceJsonnet", 1), `&`, ``, 1) + `,`,
+		`Exclude:` + fmt.Sprintf("%v", this.Exclude) + `,`,
+		`Include:` + fmt.Sprintf("%v", this.Include) + `,`,
 		`}`,
 	}, "")
 	return s
 }
+func (this *ApplicationSourceHelm) String() string {
 	if this == nil {
 		return "nil"
 	}
@@ -15672,34 +15467,37 @@ func (this *ApplicationSourceJsonnet) String() string {
 	for _, f := range this.ExtVars {
 		repeatedStringForExtVars += strings.Replace(strings.Replace(f.String(), "JsonnetVar", "JsonnetVar", 1), `&`, ``, 1) + ","
 	}
-func (this *GitDirectoryGeneratorItem) String() string {
-	if this == nil {
-		return "nil"
+	repeatedStringForExtVars += "}"
+	repeatedStringForTLAs := "[]JsonnetVar{"
+	for _, f := range this.TLAs {
+		repeatedStringForTLAs += strings.Replace(strings.Replace(f.String(), "JsonnetVar", "JsonnetVar", 1), `&`, ``, 1) + ","
 	}
-	s := strings.Join([]string{`&GitDirectoryGeneratorItem{`,
-		`Path:` + fmt.Sprintf("%v", this.Path) + `,`,
-		`Exclude:` + fmt.Sprintf("%v", this.Exclude) + `,`,
+	repeatedStringForTLAs += "}"
+	s := strings.Join([]string{`&ApplicationSourceJsonnet{`,
+		`ExtVars:` + repeatedStringForExtVars + `,`,
+		`TLAs:` + repeatedStringForTLAs + `,`,
+		`Libs:` + fmt.Sprintf("%v", this.Libs) + `,`,
 		`}`,
 	}, "")
 	return s
 }
-func (this *GitFileGeneratorItem) String() string {
+func (this *ApplicationSourceKustomize) String() string {
 	if this == nil {
 		return "nil"
 	}
-	s := strings.Join([]string{`&GitFileGeneratorItem{`,
-		`Path:` + fmt.Sprintf("%v", this.Path) + `,`,
-		`}`,
-	}, "")
-	return s
-}
-func (this *GitGenerator) String() string {
-	if this == nil {
-		return "nil"
+	keysForCommonLabels := make([]string, 0, len(this.CommonLabels))
+	for k := range this.CommonLabels {
+		keysForCommonLabels = append(keysForCommonLabels, k)
 	}
-	repeatedStringForDirectories := "[]GitDirectoryGeneratorItem{"
-	for _, f := range this.Directories {
-		repeatedStringForDirectories += strings.Replace(strings.Replace(f.String(), "GitDirectoryGeneratorItem", "GitDirectoryGeneratorItem", 1), `&`, ``, 1) + ","
+	github_com_gogo_protobuf_sortkeys.Strings(keysForCommonLabels)
+	mapStringForCommonLabels := "map[string]string{"
+	for _, k := range keysForCommonLabels {
+		mapStringForCommonLabels += fmt.Sprintf("%v: %v,", k, this.CommonLabels[k])
+	}
+	mapStringForCommonLabels += "}"
+	keysForCommonAnnotations := make([]string, 0, len(this.CommonAnnotations))
+	for k := range this.CommonAnnotations {
+		keysForCommonAnnotations = append(keysForCommonAnnotations, k)
 	}
 	github_com_gogo_protobuf_sortkeys.Strings(keysForCommonAnnotations)
 	mapStringForCommonAnnotations := "map[string]string{"
@@ -15779,11 +15577,6 @@ func (this *ApplicationSpec) String() string {
 		repeatedStringForInfo += strings.Replace(strings.Replace(f.String(), "Info", "Info", 1), `&`, ``, 1) + ","
 	}
 	repeatedStringForInfo += "}"
-	repeatedStringForSources := "[]ApplicationSource{"
-	for _, f := range this.Sources {
-		repeatedStringForSources += strings.Replace(strings.Replace(f.String(), "ApplicationSource", "ApplicationSource", 1), `&`, ``, 1) + ","
-	}
-	repeatedStringForSources += "}"
 	s := strings.Join([]string{`&ApplicationSpec{`,
 		`Source:` + strings.Replace(this.Source.String(), "ApplicationSource", "ApplicationSource", 1) + `,`,
 		`Destination:` + strings.Replace(strings.Replace(this.Destination.String(), "ApplicationDestination", "ApplicationDestination", 1), `&`, ``, 1) + `,`,
@@ -15792,7 +15585,6 @@ func (this *ApplicationSpec) String() string {
 		`IgnoreDifferences:` + repeatedStringForIgnoreDifferences + `,`,
 		`Info:` + repeatedStringForInfo + `,`,
 		`RevisionHistoryLimit:` + valueToStringGenerated(this.RevisionHistoryLimit) + `,`,
-		`Sources:` + repeatedStringForSources + `,`,
 		`}`,
 	}, "")
 	return s
@@ -15838,7 +15630,7 @@ func (this *ApplicationSummary) String() string {
 		return "nil"
 	}
 	s := strings.Join([]string{`&ApplicationSummary{`,
-		`SystemInfo:` + strings.Replace(strings.Replace(fmt.Sprintf("%v", this.SystemInfo), "NodeSystemInfo", "v12.NodeSystemInfo", 1), `&`, ``, 1) + `,`,
+		`ExternalURLs:` + fmt.Sprintf("%v", this.ExternalURLs) + `,`,
 		`Images:` + fmt.Sprintf("%v", this.Images) + `,`,
 		`}`,
 	}, "")
@@ -15939,86 +15731,86 @@ func (this *Cluster) String() string {
 		`RefreshRequestedAt:` + strings.Replace(fmt.Sprintf("%v", this.RefreshRequestedAt), "Time", "v1.Time", 1) + `,`,
 		`Info:` + strings.Replace(strings.Replace(this.Info.String(), "ClusterInfo", "ClusterInfo", 1), `&`, ``, 1) + `,`,
 		`Shard:` + valueToStringGenerated(this.Shard) + `,`,
-func (this *ListGenerator) String() string {
+		`ClusterResources:` + fmt.Sprintf("%v", this.ClusterResources) + `,`,
+		`Project:` + fmt.Sprintf("%v", this.Project) + `,`,
+		`Labels:` + mapStringForLabels + `,`,
+		`Annotations:` + mapStringForAnnotations + `,`,
+		`}`,
+	}, "")
+	return s
+}
+func (this *ClusterCacheInfo) String() string {
 	if this == nil {
 		return "nil"
 	}
-	repeatedStringForElements := "[]JSON{"
-	for _, f := range this.Elements {
-		repeatedStringForElements += fmt.Sprintf("%v", f) + ","
+	s := strings.Join([]string{`&ClusterCacheInfo{`,
+		`ResourcesCount:` + fmt.Sprintf("%v", this.ResourcesCount) + `,`,
+		`APIsCount:` + fmt.Sprintf("%v", this.APIsCount) + `,`,
+		`LastCacheSyncTime:` + strings.Replace(fmt.Sprintf("%v", this.LastCacheSyncTime), "Time", "v1.Time", 1) + `,`,
+		`}`,
+	}, "")
+	return s
+}
+func (this *ClusterConfig) String() string {
+	if this == nil {
+		return "nil"
 	}
-	repeatedStringForElements += "}"
-	s := strings.Join([]string{`&ListGenerator{`,
-		`Elements:` + repeatedStringForElements + `,`,
+	s := strings.Join([]string{`&ClusterConfig{`,
+		`Username:` + fmt.Sprintf("%v", this.Username) + `,`,
+		`Password:` + fmt.Sprintf("%v", this.Password) + `,`,
+		`BearerToken:` + fmt.Sprintf("%v", this.BearerToken) + `,`,
+		`TLSClientConfig:` + strings.Replace(strings.Replace(this.TLSClientConfig.String(), "TLSClientConfig", "TLSClientConfig", 1), `&`, ``, 1) + `,`,
+		`AWSAuthConfig:` + strings.Replace(this.AWSAuthConfig.String(), "AWSAuthConfig", "AWSAuthConfig", 1) + `,`,
+		`ExecProviderConfig:` + strings.Replace(this.ExecProviderConfig.String(), "ExecProviderConfig", "ExecProviderConfig", 1) + `,`,
+		`}`,
+	}, "")
+	return s
+}
+func (this *ClusterGenerator) String() string {
+	if this == nil {
+		return "nil"
+	}
+	keysForValues := make([]string, 0, len(this.Values))
+	for k := range this.Values {
+		keysForValues = append(keysForValues, k)
+	}
+	github_com_gogo_protobuf_sortkeys.Strings(keysForValues)
+	mapStringForValues := "map[string]string{"
+	for _, k := range keysForValues {
+		mapStringForValues += fmt.Sprintf("%v: %v,", k, this.Values[k])
+	}
+	mapStringForValues += "}"
+	s := strings.Join([]string{`&ClusterGenerator{`,
+		`Selector:` + strings.Replace(strings.Replace(fmt.Sprintf("%v", this.Selector), "LabelSelector", "v1.LabelSelector", 1), `&`, ``, 1) + `,`,
 		`Template:` + strings.Replace(strings.Replace(this.Template.String(), "ApplicationSetTemplate", "ApplicationSetTemplate", 1), `&`, ``, 1) + `,`,
+		`Values:` + mapStringForValues + `,`,
 		`}`,
 	}, "")
 	return s
 }
-func (this *MatrixGenerator) String() string {
+func (this *ClusterInfo) String() string {
 	if this == nil {
 		return "nil"
 	}
-	repeatedStringForGenerators := "[]ApplicationSetNestedGenerator{"
-	for _, f := range this.Generators {
-		repeatedStringForGenerators += strings.Replace(strings.Replace(f.String(), "ApplicationSetNestedGenerator", "ApplicationSetNestedGenerator", 1), `&`, ``, 1) + ","
-	}
-	repeatedStringForGenerators += "}"
-	s := strings.Join([]string{`&MatrixGenerator{`,
-		`Generators:` + repeatedStringForGenerators + `,`,
-		`Template:` + strings.Replace(strings.Replace(this.Template.String(), "ApplicationSetTemplate", "ApplicationSetTemplate", 1), `&`, ``, 1) + `,`,
+	s := strings.Join([]string{`&ClusterInfo{`,
+		`ConnectionState:` + strings.Replace(strings.Replace(this.ConnectionState.String(), "ConnectionState", "ConnectionState", 1), `&`, ``, 1) + `,`,
+		`ServerVersion:` + fmt.Sprintf("%v", this.ServerVersion) + `,`,
+		`CacheInfo:` + strings.Replace(strings.Replace(this.CacheInfo.String(), "ClusterCacheInfo", "ClusterCacheInfo", 1), `&`, ``, 1) + `,`,
+		`ApplicationsCount:` + fmt.Sprintf("%v", this.ApplicationsCount) + `,`,
+		`APIVersions:` + fmt.Sprintf("%v", this.APIVersions) + `,`,
 		`}`,
 	}, "")
 	return s
 }
-func (this *MergeGenerator) String() string {
+func (this *ClusterList) String() string {
 	if this == nil {
 		return "nil"
 	}
-	repeatedStringForGenerators := "[]ApplicationSetNestedGenerator{"
-	for _, f := range this.Generators {
-		repeatedStringForGenerators += strings.Replace(strings.Replace(f.String(), "ApplicationSetNestedGenerator", "ApplicationSetNestedGenerator", 1), `&`, ``, 1) + ","
+	repeatedStringForItems := "[]Cluster{"
+	for _, f := range this.Items {
+		repeatedStringForItems += strings.Replace(strings.Replace(f.String(), "Cluster", "Cluster", 1), `&`, ``, 1) + ","
 	}
-	repeatedStringForGenerators += "}"
-	s := strings.Join([]string{`&MergeGenerator{`,
-		`Generators:` + repeatedStringForGenerators + `,`,
-		`MergeKeys:` + fmt.Sprintf("%v", this.MergeKeys) + `,`,
-		`Template:` + strings.Replace(strings.Replace(this.Template.String(), "ApplicationSetTemplate", "ApplicationSetTemplate", 1), `&`, ``, 1) + `,`,
-		`}`,
-	}, "")
-	return s
-}
-func (this *NestedMatrixGenerator) String() string {
-	if this == nil {
-		return "nil"
-	}
-	repeatedStringForGenerators := "[]ApplicationSetTerminalGenerator{"
-	for _, f := range this.Generators {
-		repeatedStringForGenerators += strings.Replace(strings.Replace(f.String(), "ApplicationSetTerminalGenerator", "ApplicationSetTerminalGenerator", 1), `&`, ``, 1) + ","
-	}
-	repeatedStringForGenerators += "}"
-	s := strings.Join([]string{`&NestedMatrixGenerator{`,
-		`Generators:` + repeatedStringForGenerators + `,`,
-		`}`,
-	}, "")
-	return s
-}
-func (this *NestedMergeGenerator) String() string {
-	if this == nil {
-		return "nil"
-	}
-	repeatedStringForGenerators := "[]ApplicationSetTerminalGenerator{"
-	for _, f := range this.Generators {
-		repeatedStringForGenerators += strings.Replace(strings.Replace(f.String(), "ApplicationSetTerminalGenerator", "ApplicationSetTerminalGenerator", 1), `&`, ``, 1) + ","
-	}
-	repeatedStringForGenerators += "}"
-	s := strings.Join([]string{`&NestedMergeGenerator{`,
-		`Generators:` + repeatedStringForGenerators + `,`,
-		`MergeKeys:` + fmt.Sprintf("%v", this.MergeKeys) + `,`,
-		`}`,
-	}, "")
-	return s
-}
+	repeatedStringForItems += "}"
 	s := strings.Join([]string{`&ClusterList{`,
 		`ListMeta:` + strings.Replace(strings.Replace(fmt.Sprintf("%v", this.ListMeta), "ListMeta", "v1.ListMeta", 1), `&`, ``, 1) + `,`,
 		`Items:` + repeatedStringForItems + `,`,
@@ -16041,15 +15833,9 @@ func (this *ComparedTo) String() string {
 	if this == nil {
 		return "nil"
 	}
-	repeatedStringForSources := "[]ApplicationSource{"
-	for _, f := range this.Sources {
-		repeatedStringForSources += strings.Replace(strings.Replace(f.String(), "ApplicationSource", "ApplicationSource", 1), `&`, ``, 1) + ","
-	}
-	repeatedStringForSources += "}"
 	s := strings.Join([]string{`&ComparedTo{`,
 		`Source:` + strings.Replace(strings.Replace(this.Source.String(), "ApplicationSource", "ApplicationSource", 1), `&`, ``, 1) + `,`,
 		`Destination:` + strings.Replace(strings.Replace(this.Destination.String(), "ApplicationDestination", "ApplicationDestination", 1), `&`, ``, 1) + `,`,
-		`Sources:` + repeatedStringForSources + `,`,
 		`}`,
 	}, "")
 	return s
@@ -16129,51 +15915,50 @@ func (this *EnvEntry) String() string {
 }
 func (this *ExecProviderConfig) String() string {
 	if this == nil {
-func (this *PullRequestGenerator) String() string {
-	if this == nil {
 		return "nil"
 	}
-	repeatedStringForFilters := "[]PullRequestGeneratorFilter{"
-	for _, f := range this.Filters {
-		repeatedStringForFilters += strings.Replace(strings.Replace(f.String(), "PullRequestGeneratorFilter", "PullRequestGeneratorFilter", 1), `&`, ``, 1) + ","
+	keysForEnv := make([]string, 0, len(this.Env))
+	for k := range this.Env {
+		keysForEnv = append(keysForEnv, k)
 	}
-	repeatedStringForFilters += "}"
-	s := strings.Join([]string{`&PullRequestGenerator{`,
-		`Github:` + strings.Replace(this.Github.String(), "PullRequestGeneratorGithub", "PullRequestGeneratorGithub", 1) + `,`,
-		`GitLab:` + strings.Replace(this.GitLab.String(), "PullRequestGeneratorGitLab", "PullRequestGeneratorGitLab", 1) + `,`,
-		`Gitea:` + strings.Replace(this.Gitea.String(), "PullRequestGeneratorGitea", "PullRequestGeneratorGitea", 1) + `,`,
-		`BitbucketServer:` + strings.Replace(this.BitbucketServer.String(), "PullRequestGeneratorBitbucketServer", "PullRequestGeneratorBitbucketServer", 1) + `,`,
-		`Filters:` + repeatedStringForFilters + `,`,
-		`RequeueAfterSeconds:` + valueToStringGenerated(this.RequeueAfterSeconds) + `,`,
-		`Template:` + strings.Replace(strings.Replace(this.Template.String(), "ApplicationSetTemplate", "ApplicationSetTemplate", 1), `&`, ``, 1) + `,`,
+	github_com_gogo_protobuf_sortkeys.Strings(keysForEnv)
+	mapStringForEnv := "map[string]string{"
+	for _, k := range keysForEnv {
+		mapStringForEnv += fmt.Sprintf("%v: %v,", k, this.Env[k])
+	}
+	mapStringForEnv += "}"
+	s := strings.Join([]string{`&ExecProviderConfig{`,
+		`Command:` + fmt.Sprintf("%v", this.Command) + `,`,
+		`Args:` + fmt.Sprintf("%v", this.Args) + `,`,
+		`Env:` + mapStringForEnv + `,`,
+		`APIVersion:` + fmt.Sprintf("%v", this.APIVersion) + `,`,
+		`InstallHint:` + fmt.Sprintf("%v", this.InstallHint) + `,`,
 		`}`,
 	}, "")
 	return s
 }
-func (this *PullRequestGeneratorBitbucketServer) String() string {
+func (this *GitDirectoryGeneratorItem) String() string {
 	if this == nil {
 		return "nil"
 	}
-	s := strings.Join([]string{`&PullRequestGeneratorBitbucketServer{`,
-		`Project:` + fmt.Sprintf("%v", this.Project) + `,`,
-		`Repo:` + fmt.Sprintf("%v", this.Repo) + `,`,
-		`API:` + fmt.Sprintf("%v", this.API) + `,`,
-		`BasicAuth:` + strings.Replace(this.BasicAuth.String(), "BasicAuthBitbucketServer", "BasicAuthBitbucketServer", 1) + `,`,
+	s := strings.Join([]string{`&GitDirectoryGeneratorItem{`,
+		`Path:` + fmt.Sprintf("%v", this.Path) + `,`,
+		`Exclude:` + fmt.Sprintf("%v", this.Exclude) + `,`,
 		`}`,
 	}, "")
 	return s
 }
-func (this *PullRequestGeneratorFilter) String() string {
+func (this *GitFileGeneratorItem) String() string {
 	if this == nil {
 		return "nil"
 	}
-	s := strings.Join([]string{`&PullRequestGeneratorFilter{`,
-		`BranchMatch:` + valueToStringGenerated(this.BranchMatch) + `,`,
+	s := strings.Join([]string{`&GitFileGeneratorItem{`,
+		`Path:` + fmt.Sprintf("%v", this.Path) + `,`,
 		`}`,
 	}, "")
 	return s
 }
-func (this *PullRequestGeneratorGitLab) String() string {
+func (this *GitGenerator) String() string {
 	if this == nil {
 		return "nil"
 	}
@@ -16199,35 +15984,25 @@ func (this *PullRequestGeneratorGitLab) String() string {
 	}, "")
 	return s
 }
-func (this *PullRequestGeneratorGitea) String() string {
+func (this *GnuPGPublicKey) String() string {
 	if this == nil {
 		return "nil"
 	}
-	s := strings.Join([]string{`&PullRequestGeneratorGitea{`,
+	s := strings.Join([]string{`&GnuPGPublicKey{`,
+		`KeyID:` + fmt.Sprintf("%v", this.KeyID) + `,`,
+		`Fingerprint:` + fmt.Sprintf("%v", this.Fingerprint) + `,`,
 		`Owner:` + fmt.Sprintf("%v", this.Owner) + `,`,
-		`Repo:` + fmt.Sprintf("%v", this.Repo) + `,`,
-		`API:` + fmt.Sprintf("%v", this.API) + `,`,
-		`TokenRef:` + strings.Replace(this.TokenRef.String(), "SecretRef", "SecretRef", 1) + `,`,
-		`Insecure:` + fmt.Sprintf("%v", this.Insecure) + `,`,
+		`Trust:` + fmt.Sprintf("%v", this.Trust) + `,`,
+		`SubType:` + fmt.Sprintf("%v", this.SubType) + `,`,
+		`KeyData:` + fmt.Sprintf("%v", this.KeyData) + `,`,
 		`}`,
 	}, "")
 	return s
 }
-func (this *PullRequestGeneratorGithub) String() string {
+func (this *GnuPGPublicKeyList) String() string {
 	if this == nil {
 		return "nil"
 	}
-	s := strings.Join([]string{`&PullRequestGeneratorGithub{`,
-		`Owner:` + fmt.Sprintf("%v", this.Owner) + `,`,
-		`Repo:` + fmt.Sprintf("%v", this.Repo) + `,`,
-		`API:` + fmt.Sprintf("%v", this.API) + `,`,
-		`TokenRef:` + strings.Replace(this.TokenRef.String(), "SecretRef", "SecretRef", 1) + `,`,
-		`AppSecretName:` + fmt.Sprintf("%v", this.AppSecretName) + `,`,
-		`Labels:` + fmt.Sprintf("%v", this.Labels) + `,`,
-		`}`,
-	}, "")
-	return s
-}
 	repeatedStringForItems := "[]GnuPGPublicKey{"
 	for _, f := range this.Items {
 		repeatedStringForItems += strings.Replace(strings.Replace(f.String(), "GnuPGPublicKey", "GnuPGPublicKey", 1), `&`, ``, 1) + ","
@@ -16646,66 +16421,55 @@ func (this *PullRequestGeneratorBitbucketServer) String() string {
 	}, "")
 	return s
 }
-func (this *SCMProviderGenerator) String() string {
+func (this *PullRequestGeneratorFilter) String() string {
 	if this == nil {
 		return "nil"
 	}
-	repeatedStringForFilters := "[]SCMProviderGeneratorFilter{"
-	for _, f := range this.Filters {
-		repeatedStringForFilters += strings.Replace(strings.Replace(f.String(), "SCMProviderGeneratorFilter", "SCMProviderGeneratorFilter", 1), `&`, ``, 1) + ","
-	}
-	repeatedStringForFilters += "}"
-	s := strings.Join([]string{`&SCMProviderGenerator{`,
-		`Github:` + strings.Replace(this.Github.String(), "SCMProviderGeneratorGithub", "SCMProviderGeneratorGithub", 1) + `,`,
-		`Gitlab:` + strings.Replace(this.Gitlab.String(), "SCMProviderGeneratorGitlab", "SCMProviderGeneratorGitlab", 1) + `,`,
-		`Bitbucket:` + strings.Replace(this.Bitbucket.String(), "SCMProviderGeneratorBitbucket", "SCMProviderGeneratorBitbucket", 1) + `,`,
-		`BitbucketServer:` + strings.Replace(this.BitbucketServer.String(), "SCMProviderGeneratorBitbucketServer", "SCMProviderGeneratorBitbucketServer", 1) + `,`,
-		`Gitea:` + strings.Replace(this.Gitea.String(), "SCMProviderGeneratorGitea", "SCMProviderGeneratorGitea", 1) + `,`,
-		`AzureDevOps:` + strings.Replace(this.AzureDevOps.String(), "SCMProviderGeneratorAzureDevOps", "SCMProviderGeneratorAzureDevOps", 1) + `,`,
-		`Filters:` + repeatedStringForFilters + `,`,
-		`CloneProtocol:` + fmt.Sprintf("%v", this.CloneProtocol) + `,`,
-		`RequeueAfterSeconds:` + valueToStringGenerated(this.RequeueAfterSeconds) + `,`,
-		`Template:` + strings.Replace(strings.Replace(this.Template.String(), "ApplicationSetTemplate", "ApplicationSetTemplate", 1), `&`, ``, 1) + `,`,
+	s := strings.Join([]string{`&PullRequestGeneratorFilter{`,
+		`BranchMatch:` + valueToStringGenerated(this.BranchMatch) + `,`,
 		`}`,
 	}, "")
 	return s
 }
-func (this *SCMProviderGeneratorAzureDevOps) String() string {
+func (this *PullRequestGeneratorGitLab) String() string {
 	if this == nil {
 		return "nil"
 	}
-	s := strings.Join([]string{`&SCMProviderGeneratorAzureDevOps{`,
-		`Organization:` + fmt.Sprintf("%v", this.Organization) + `,`,
-		`API:` + fmt.Sprintf("%v", this.API) + `,`,
-		`TeamProject:` + fmt.Sprintf("%v", this.TeamProject) + `,`,
-		`AccessTokenRef:` + strings.Replace(this.AccessTokenRef.String(), "SecretRef", "SecretRef", 1) + `,`,
-		`AllBranches:` + fmt.Sprintf("%v", this.AllBranches) + `,`,
-		`}`,
-	}, "")
-	return s
-}
-func (this *SCMProviderGeneratorBitbucket) String() string {
-	if this == nil {
-		return "nil"
-	}
-	s := strings.Join([]string{`&SCMProviderGeneratorBitbucket{`,
-		`Owner:` + fmt.Sprintf("%v", this.Owner) + `,`,
-		`User:` + fmt.Sprintf("%v", this.User) + `,`,
-		`AppPasswordRef:` + strings.Replace(this.AppPasswordRef.String(), "SecretRef", "SecretRef", 1) + `,`,
-		`AllBranches:` + fmt.Sprintf("%v", this.AllBranches) + `,`,
-		`}`,
-	}, "")
-	return s
-}
-func (this *SCMProviderGeneratorBitbucketServer) String() string {
-	if this == nil {
-		return "nil"
-	}
-	s := strings.Join([]string{`&SCMProviderGeneratorBitbucketServer{`,
+	s := strings.Join([]string{`&PullRequestGeneratorGitLab{`,
 		`Project:` + fmt.Sprintf("%v", this.Project) + `,`,
 		`API:` + fmt.Sprintf("%v", this.API) + `,`,
-		`BasicAuth:` + strings.Replace(this.BasicAuth.String(), "BasicAuthBitbucketServer", "BasicAuthBitbucketServer", 1) + `,`,
-		`AllBranches:` + fmt.Sprintf("%v", this.AllBranches) + `,`,
+		`TokenRef:` + strings.Replace(this.TokenRef.String(), "SecretRef", "SecretRef", 1) + `,`,
+		`Labels:` + fmt.Sprintf("%v", this.Labels) + `,`,
+		`PullRequestState:` + fmt.Sprintf("%v", this.PullRequestState) + `,`,
+		`}`,
+	}, "")
+	return s
+}
+func (this *PullRequestGeneratorGitea) String() string {
+	if this == nil {
+		return "nil"
+	}
+	s := strings.Join([]string{`&PullRequestGeneratorGitea{`,
+		`Owner:` + fmt.Sprintf("%v", this.Owner) + `,`,
+		`Repo:` + fmt.Sprintf("%v", this.Repo) + `,`,
+		`API:` + fmt.Sprintf("%v", this.API) + `,`,
+		`TokenRef:` + strings.Replace(this.TokenRef.String(), "SecretRef", "SecretRef", 1) + `,`,
+		`Insecure:` + fmt.Sprintf("%v", this.Insecure) + `,`,
+		`}`,
+	}, "")
+	return s
+}
+func (this *PullRequestGeneratorGithub) String() string {
+	if this == nil {
+		return "nil"
+	}
+	s := strings.Join([]string{`&PullRequestGeneratorGithub{`,
+		`Owner:` + fmt.Sprintf("%v", this.Owner) + `,`,
+		`Repo:` + fmt.Sprintf("%v", this.Repo) + `,`,
+		`API:` + fmt.Sprintf("%v", this.API) + `,`,
+		`TokenRef:` + strings.Replace(this.TokenRef.String(), "SecretRef", "SecretRef", 1) + `,`,
+		`AppSecretName:` + fmt.Sprintf("%v", this.AppSecretName) + `,`,
+		`Labels:` + fmt.Sprintf("%v", this.Labels) + `,`,
 		`}`,
 	}, "")
 	return s
@@ -16733,59 +16497,63 @@ func (this *SCMProviderGeneratorFilter) String() string {
 	}, "")
 	return s
 }
-func (this *SCMProviderGeneratorGitea) String() string {
+func (this *RepoCredsList) String() string {
 	if this == nil {
 		return "nil"
 	}
-	s := strings.Join([]string{`&SCMProviderGeneratorGitea{`,
-		`Owner:` + fmt.Sprintf("%v", this.Owner) + `,`,
-		`API:` + fmt.Sprintf("%v", this.API) + `,`,
-		`TokenRef:` + strings.Replace(this.TokenRef.String(), "SecretRef", "SecretRef", 1) + `,`,
-		`AllBranches:` + fmt.Sprintf("%v", this.AllBranches) + `,`,
+	repeatedStringForItems := "[]RepoCreds{"
+	for _, f := range this.Items {
+		repeatedStringForItems += strings.Replace(strings.Replace(f.String(), "RepoCreds", "RepoCreds", 1), `&`, ``, 1) + ","
+	}
+	repeatedStringForItems += "}"
+	s := strings.Join([]string{`&RepoCredsList{`,
+		`ListMeta:` + strings.Replace(strings.Replace(fmt.Sprintf("%v", this.ListMeta), "ListMeta", "v1.ListMeta", 1), `&`, ``, 1) + `,`,
+		`Items:` + repeatedStringForItems + `,`,
+		`}`,
+	}, "")
+	return s
+}
+func (this *Repository) String() string {
+	if this == nil {
+		return "nil"
+	}
+	s := strings.Join([]string{`&Repository{`,
+		`Repo:` + fmt.Sprintf("%v", this.Repo) + `,`,
+		`Username:` + fmt.Sprintf("%v", this.Username) + `,`,
+		`Password:` + fmt.Sprintf("%v", this.Password) + `,`,
+		`SSHPrivateKey:` + fmt.Sprintf("%v", this.SSHPrivateKey) + `,`,
+		`ConnectionState:` + strings.Replace(strings.Replace(this.ConnectionState.String(), "ConnectionState", "ConnectionState", 1), `&`, ``, 1) + `,`,
+		`InsecureIgnoreHostKey:` + fmt.Sprintf("%v", this.InsecureIgnoreHostKey) + `,`,
 		`Insecure:` + fmt.Sprintf("%v", this.Insecure) + `,`,
+		`EnableLFS:` + fmt.Sprintf("%v", this.EnableLFS) + `,`,
+		`TLSClientCertData:` + fmt.Sprintf("%v", this.TLSClientCertData) + `,`,
+		`TLSClientCertKey:` + fmt.Sprintf("%v", this.TLSClientCertKey) + `,`,
+		`Type:` + fmt.Sprintf("%v", this.Type) + `,`,
+		`Name:` + fmt.Sprintf("%v", this.Name) + `,`,
+		`InheritedCreds:` + fmt.Sprintf("%v", this.InheritedCreds) + `,`,
+		`EnableOCI:` + fmt.Sprintf("%v", this.EnableOCI) + `,`,
+		`GithubAppPrivateKey:` + fmt.Sprintf("%v", this.GithubAppPrivateKey) + `,`,
+		`GithubAppId:` + fmt.Sprintf("%v", this.GithubAppId) + `,`,
+		`GithubAppInstallationId:` + fmt.Sprintf("%v", this.GithubAppInstallationId) + `,`,
+		`GitHubAppEnterpriseBaseURL:` + fmt.Sprintf("%v", this.GitHubAppEnterpriseBaseURL) + `,`,
+		`Proxy:` + fmt.Sprintf("%v", this.Proxy) + `,`,
+		`Project:` + fmt.Sprintf("%v", this.Project) + `,`,
 		`}`,
 	}, "")
 	return s
 }
-func (this *SCMProviderGeneratorGithub) String() string {
+func (this *RepositoryCertificate) String() string {
 	if this == nil {
 		return "nil"
 	}
-	s := strings.Join([]string{`&SCMProviderGeneratorGithub{`,
-		`Organization:` + fmt.Sprintf("%v", this.Organization) + `,`,
-		`API:` + fmt.Sprintf("%v", this.API) + `,`,
-		`TokenRef:` + strings.Replace(this.TokenRef.String(), "SecretRef", "SecretRef", 1) + `,`,
-		`AppSecretName:` + fmt.Sprintf("%v", this.AppSecretName) + `,`,
-		`AllBranches:` + fmt.Sprintf("%v", this.AllBranches) + `,`,
+	s := strings.Join([]string{`&RepositoryCertificate{`,
+		`ServerName:` + fmt.Sprintf("%v", this.ServerName) + `,`,
+		`CertType:` + fmt.Sprintf("%v", this.CertType) + `,`,
+		`CertSubType:` + fmt.Sprintf("%v", this.CertSubType) + `,`,
+		`CertData:` + valueToStringGenerated(this.CertData) + `,`,
+		`CertInfo:` + fmt.Sprintf("%v", this.CertInfo) + `,`,
 		`}`,
 	}, "")
-	return s
-}
-func (this *SCMProviderGeneratorGitlab) String() string {
-	if this == nil {
-		return "nil"
-	}
-	s := strings.Join([]string{`&SCMProviderGeneratorGitlab{`,
-		`Group:` + fmt.Sprintf("%v", this.Group) + `,`,
-		`IncludeSubgroups:` + fmt.Sprintf("%v", this.IncludeSubgroups) + `,`,
-		`API:` + fmt.Sprintf("%v", this.API) + `,`,
-		`TokenRef:` + strings.Replace(this.TokenRef.String(), "SecretRef", "SecretRef", 1) + `,`,
-		`AllBranches:` + fmt.Sprintf("%v", this.AllBranches) + `,`,
-		`}`,
-	}, "")
-	return s
-}
-func (this *SecretRef) String() string {
-	if this == nil {
-		return "nil"
-	}
-	s := strings.Join([]string{`&SecretRef{`,
-		`SecretName:` + fmt.Sprintf("%v", this.SecretName) + `,`,
-		`Key:` + fmt.Sprintf("%v", this.Key) + `,`,
-		`}`,
-	}, "")
-	return s
-}
 	return s
 }
 func (this *RepositoryCertificateList) String() string {
@@ -17072,11 +16840,6 @@ func (this *RevisionHistory) String() string {
 	if this == nil {
 		return "nil"
 	}
-	repeatedStringForSources := "[]ApplicationSource{"
-	for _, f := range this.Sources {
-		repeatedStringForSources += strings.Replace(strings.Replace(f.String(), "ApplicationSource", "ApplicationSource", 1), `&`, ``, 1) + ","
-	}
-	repeatedStringForSources += "}"
 	s := strings.Join([]string{`&RevisionHistory{`,
 		`Revision:` + fmt.Sprintf("%v", this.Revision) + `,`,
 		`DeployedAt:` + strings.Replace(strings.Replace(fmt.Sprintf("%v", this.DeployedAt), "Time", "v1.Time", 1), `&`, ``, 1) + `,`,
@@ -17253,11 +17016,6 @@ func (this *SyncOperation) String() string {
 		repeatedStringForResources += strings.Replace(strings.Replace(f.String(), "SyncOperationResource", "SyncOperationResource", 1), `&`, ``, 1) + ","
 	}
 	repeatedStringForResources += "}"
-	repeatedStringForSources := "[]ApplicationSource{"
-	for _, f := range this.Sources {
-		repeatedStringForSources += strings.Replace(strings.Replace(f.String(), "ApplicationSource", "ApplicationSource", 1), `&`, ``, 1) + ","
-	}
-	repeatedStringForSources += "}"
 	s := strings.Join([]string{`&SyncOperation{`,
 		`Revision:` + fmt.Sprintf("%v", this.Revision) + `,`,
 		`Prune:` + fmt.Sprintf("%v", this.Prune) + `,`,
@@ -17295,17 +17053,10 @@ func (this *SyncOperationResult) String() string {
 		repeatedStringForResources += strings.Replace(f.String(), "ResourceResult", "ResourceResult", 1) + ","
 	}
 	repeatedStringForResources += "}"
-	repeatedStringForSources := "[]ApplicationSource{"
-	for _, f := range this.Sources {
-		repeatedStringForSources += strings.Replace(strings.Replace(f.String(), "ApplicationSource", "ApplicationSource", 1), `&`, ``, 1) + ","
-	}
-	repeatedStringForSources += "}"
 	s := strings.Join([]string{`&SyncOperationResult{`,
 		`Resources:` + repeatedStringForResources + `,`,
 		`Revision:` + fmt.Sprintf("%v", this.Revision) + `,`,
 		`Source:` + strings.Replace(strings.Replace(this.Source.String(), "ApplicationSource", "ApplicationSource", 1), `&`, ``, 1) + `,`,
-		`Sources:` + repeatedStringForSources + `,`,
-		`Revisions:` + fmt.Sprintf("%v", this.Revisions) + `,`,
 		`}`,
 	}, "")
 	return s
@@ -17343,7 +17094,6 @@ func (this *SyncStatus) String() string {
 		`Status:` + fmt.Sprintf("%v", this.Status) + `,`,
 		`ComparedTo:` + strings.Replace(strings.Replace(this.ComparedTo.String(), "ComparedTo", "ComparedTo", 1), `&`, ``, 1) + `,`,
 		`Revision:` + fmt.Sprintf("%v", this.Revision) + `,`,
-		`Revisions:` + fmt.Sprintf("%v", this.Revisions) + `,`,
 		`}`,
 	}, "")
 	return s
@@ -18609,6 +18359,446 @@ func (m *Application) Unmarshal(dAtA []byte) error {
 				return io.ErrUnexpectedEOF
 			}
 			if m.Operation == nil {
+				m.Operation = &Operation{}
+			}
+			if err := m.Operation.Unmarshal(dAtA[iNdEx:postIndex]); err != nil {
+				return err
+			}
+			iNdEx = postIndex
+		default:
+			iNdEx = preIndex
+			skippy, err := skipGenerated(dAtA[iNdEx:])
+			if err != nil {
+				return err
+			}
+			if (skippy < 0) || (iNdEx+skippy) < 0 {
+				return ErrInvalidLengthGenerated
+			}
+			if (iNdEx + skippy) > l {
+				return io.ErrUnexpectedEOF
+			}
+			iNdEx += skippy
+		}
+	}
+
+	if iNdEx > l {
+		return io.ErrUnexpectedEOF
+	}
+	return nil
+}
+func (m *ApplicationCondition) Unmarshal(dAtA []byte) error {
+	l := len(dAtA)
+	iNdEx := 0
+	for iNdEx < l {
+		preIndex := iNdEx
+		var wire uint64
+		for shift := uint(0); ; shift += 7 {
+			if shift >= 64 {
+				return ErrIntOverflowGenerated
+			}
+			if iNdEx >= l {
+				return io.ErrUnexpectedEOF
+			}
+			b := dAtA[iNdEx]
+			iNdEx++
+			wire |= uint64(b&0x7F) << shift
+			if b < 0x80 {
+				break
+			}
+		}
+		fieldNum := int32(wire >> 3)
+		wireType := int(wire & 0x7)
+		if wireType == 4 {
+			return fmt.Errorf("proto: ApplicationCondition: wiretype end group for non-group")
+		}
+		if fieldNum <= 0 {
+			return fmt.Errorf("proto: ApplicationCondition: illegal tag %d (wire type %d)", fieldNum, wire)
+		}
+		switch fieldNum {
+		case 1:
+			if wireType != 2 {
+				return fmt.Errorf("proto: wrong wireType = %d for field Type", wireType)
+			}
+			var stringLen uint64
+			for shift := uint(0); ; shift += 7 {
+				if shift >= 64 {
+					return ErrIntOverflowGenerated
+				}
+				if iNdEx >= l {
+					return io.ErrUnexpectedEOF
+				}
+				b := dAtA[iNdEx]
+				iNdEx++
+				stringLen |= uint64(b&0x7F) << shift
+				if b < 0x80 {
+					break
+				}
+			}
+			intStringLen := int(stringLen)
+			if intStringLen < 0 {
+				return ErrInvalidLengthGenerated
+			}
+			postIndex := iNdEx + intStringLen
+			if postIndex < 0 {
+				return ErrInvalidLengthGenerated
+			}
+			if postIndex > l {
+				return io.ErrUnexpectedEOF
+			}
+			m.Type = string(dAtA[iNdEx:postIndex])
+			iNdEx = postIndex
+		case 2:
+			if wireType != 2 {
+				return fmt.Errorf("proto: wrong wireType = %d for field Message", wireType)
+			}
+			var stringLen uint64
+			for shift := uint(0); ; shift += 7 {
+				if shift >= 64 {
+					return ErrIntOverflowGenerated
+				}
+				if iNdEx >= l {
+					return io.ErrUnexpectedEOF
+				}
+				b := dAtA[iNdEx]
+				iNdEx++
+				stringLen |= uint64(b&0x7F) << shift
+				if b < 0x80 {
+					break
+				}
+			}
+			intStringLen := int(stringLen)
+			if intStringLen < 0 {
+				return ErrInvalidLengthGenerated
+			}
+			postIndex := iNdEx + intStringLen
+			if postIndex < 0 {
+				return ErrInvalidLengthGenerated
+			}
+			if postIndex > l {
+				return io.ErrUnexpectedEOF
+			}
+			m.Message = string(dAtA[iNdEx:postIndex])
+			iNdEx = postIndex
+		case 3:
+			if wireType != 2 {
+				return fmt.Errorf("proto: wrong wireType = %d for field LastTransitionTime", wireType)
+			}
+			var msglen int
+			for shift := uint(0); ; shift += 7 {
+				if shift >= 64 {
+					return ErrIntOverflowGenerated
+				}
+				if iNdEx >= l {
+					return io.ErrUnexpectedEOF
+				}
+				b := dAtA[iNdEx]
+				iNdEx++
+				msglen |= int(b&0x7F) << shift
+				if b < 0x80 {
+					break
+				}
+			}
+			if msglen < 0 {
+				return ErrInvalidLengthGenerated
+			}
+			postIndex := iNdEx + msglen
+			if postIndex < 0 {
+				return ErrInvalidLengthGenerated
+			}
+			if postIndex > l {
+				return io.ErrUnexpectedEOF
+			}
+			if m.LastTransitionTime == nil {
+				m.LastTransitionTime = &v1.Time{}
+			}
+			if err := m.LastTransitionTime.Unmarshal(dAtA[iNdEx:postIndex]); err != nil {
+				return err
+			}
+			iNdEx = postIndex
+		default:
+			iNdEx = preIndex
+			skippy, err := skipGenerated(dAtA[iNdEx:])
+			if err != nil {
+				return err
+			}
+			if (skippy < 0) || (iNdEx+skippy) < 0 {
+				return ErrInvalidLengthGenerated
+			}
+			if (iNdEx + skippy) > l {
+				return io.ErrUnexpectedEOF
+			}
+			iNdEx += skippy
+		}
+	}
+
+	if iNdEx > l {
+		return io.ErrUnexpectedEOF
+	}
+	return nil
+}
+func (m *ApplicationDestination) Unmarshal(dAtA []byte) error {
+	l := len(dAtA)
+	iNdEx := 0
+	for iNdEx < l {
+		preIndex := iNdEx
+		var wire uint64
+		for shift := uint(0); ; shift += 7 {
+			if shift >= 64 {
+				return ErrIntOverflowGenerated
+			}
+			if iNdEx >= l {
+				return io.ErrUnexpectedEOF
+			}
+			b := dAtA[iNdEx]
+			iNdEx++
+			wire |= uint64(b&0x7F) << shift
+			if b < 0x80 {
+				break
+			}
+		}
+		fieldNum := int32(wire >> 3)
+		wireType := int(wire & 0x7)
+		if wireType == 4 {
+			return fmt.Errorf("proto: ApplicationDestination: wiretype end group for non-group")
+		}
+		if fieldNum <= 0 {
+			return fmt.Errorf("proto: ApplicationDestination: illegal tag %d (wire type %d)", fieldNum, wire)
+		}
+		switch fieldNum {
+		case 1:
+			if wireType != 2 {
+				return fmt.Errorf("proto: wrong wireType = %d for field Server", wireType)
+			}
+			var stringLen uint64
+			for shift := uint(0); ; shift += 7 {
+				if shift >= 64 {
+					return ErrIntOverflowGenerated
+				}
+				if iNdEx >= l {
+					return io.ErrUnexpectedEOF
+				}
+				b := dAtA[iNdEx]
+				iNdEx++
+				stringLen |= uint64(b&0x7F) << shift
+				if b < 0x80 {
+					break
+				}
+			}
+			intStringLen := int(stringLen)
+			if intStringLen < 0 {
+				return ErrInvalidLengthGenerated
+			}
+			postIndex := iNdEx + intStringLen
+			if postIndex < 0 {
+				return ErrInvalidLengthGenerated
+			}
+			if postIndex > l {
+				return io.ErrUnexpectedEOF
+			}
+			m.Server = string(dAtA[iNdEx:postIndex])
+			iNdEx = postIndex
+		case 2:
+			if wireType != 2 {
+				return fmt.Errorf("proto: wrong wireType = %d for field Namespace", wireType)
+			}
+			var stringLen uint64
+			for shift := uint(0); ; shift += 7 {
+				if shift >= 64 {
+					return ErrIntOverflowGenerated
+				}
+				if iNdEx >= l {
+					return io.ErrUnexpectedEOF
+				}
+				b := dAtA[iNdEx]
+				iNdEx++
+				stringLen |= uint64(b&0x7F) << shift
+				if b < 0x80 {
+					break
+				}
+			}
+			intStringLen := int(stringLen)
+			if intStringLen < 0 {
+				return ErrInvalidLengthGenerated
+			}
+			postIndex := iNdEx + intStringLen
+			if postIndex < 0 {
+				return ErrInvalidLengthGenerated
+			}
+			if postIndex > l {
+				return io.ErrUnexpectedEOF
+			}
+			m.Namespace = string(dAtA[iNdEx:postIndex])
+			iNdEx = postIndex
+		case 3:
+			if wireType != 2 {
+				return fmt.Errorf("proto: wrong wireType = %d for field Name", wireType)
+			}
+			var stringLen uint64
+			for shift := uint(0); ; shift += 7 {
+				if shift >= 64 {
+					return ErrIntOverflowGenerated
+				}
+				if iNdEx >= l {
+					return io.ErrUnexpectedEOF
+				}
+				b := dAtA[iNdEx]
+				iNdEx++
+				stringLen |= uint64(b&0x7F) << shift
+				if b < 0x80 {
+					break
+				}
+			}
+			intStringLen := int(stringLen)
+			if intStringLen < 0 {
+				return ErrInvalidLengthGenerated
+			}
+			postIndex := iNdEx + intStringLen
+			if postIndex < 0 {
+				return ErrInvalidLengthGenerated
+			}
+			if postIndex > l {
+				return io.ErrUnexpectedEOF
+			}
+			m.Name = string(dAtA[iNdEx:postIndex])
+			iNdEx = postIndex
+		default:
+			iNdEx = preIndex
+			skippy, err := skipGenerated(dAtA[iNdEx:])
+			if err != nil {
+				return err
+			}
+			if (skippy < 0) || (iNdEx+skippy) < 0 {
+				return ErrInvalidLengthGenerated
+			}
+			if (iNdEx + skippy) > l {
+				return io.ErrUnexpectedEOF
+			}
+			iNdEx += skippy
+		}
+	}
+
+	if iNdEx > l {
+		return io.ErrUnexpectedEOF
+	}
+	return nil
+}
+func (m *ApplicationList) Unmarshal(dAtA []byte) error {
+	l := len(dAtA)
+	iNdEx := 0
+	for iNdEx < l {
+		preIndex := iNdEx
+		var wire uint64
+		for shift := uint(0); ; shift += 7 {
+			if shift >= 64 {
+				return ErrIntOverflowGenerated
+			}
+			if iNdEx >= l {
+				return io.ErrUnexpectedEOF
+			}
+			b := dAtA[iNdEx]
+			iNdEx++
+			wire |= uint64(b&0x7F) << shift
+			if b < 0x80 {
+				break
+			}
+		}
+		fieldNum := int32(wire >> 3)
+		wireType := int(wire & 0x7)
+		if wireType == 4 {
+			return fmt.Errorf("proto: ApplicationList: wiretype end group for non-group")
+		}
+		if fieldNum <= 0 {
+			return fmt.Errorf("proto: ApplicationList: illegal tag %d (wire type %d)", fieldNum, wire)
+		}
+		switch fieldNum {
+		case 1:
+			if wireType != 2 {
+				return fmt.Errorf("proto: wrong wireType = %d for field ListMeta", wireType)
+			}
+			var msglen int
+			for shift := uint(0); ; shift += 7 {
+				if shift >= 64 {
+					return ErrIntOverflowGenerated
+				}
+				if iNdEx >= l {
+					return io.ErrUnexpectedEOF
+				}
+				b := dAtA[iNdEx]
+				iNdEx++
+				msglen |= int(b&0x7F) << shift
+				if b < 0x80 {
+					break
+				}
+			}
+			if msglen < 0 {
+				return ErrInvalidLengthGenerated
+			}
+			postIndex := iNdEx + msglen
+			if postIndex < 0 {
+				return ErrInvalidLengthGenerated
+			}
+			if postIndex > l {
+				return io.ErrUnexpectedEOF
+			}
+			if err := m.ListMeta.Unmarshal(dAtA[iNdEx:postIndex]); err != nil {
+				return err
+			}
+			iNdEx = postIndex
+		case 2:
+			if wireType != 2 {
+				return fmt.Errorf("proto: wrong wireType = %d for field Items", wireType)
+			}
+			var msglen int
+			for shift := uint(0); ; shift += 7 {
+				if shift >= 64 {
+					return ErrIntOverflowGenerated
+				}
+				if iNdEx >= l {
+					return io.ErrUnexpectedEOF
+				}
+				b := dAtA[iNdEx]
+				iNdEx++
+				msglen |= int(b&0x7F) << shift
+				if b < 0x80 {
+					break
+				}
+			}
+			if msglen < 0 {
+				return ErrInvalidLengthGenerated
+			}
+			postIndex := iNdEx + msglen
+			if postIndex < 0 {
+				return ErrInvalidLengthGenerated
+			}
+			if postIndex > l {
+				return io.ErrUnexpectedEOF
+			}
+			m.Items = append(m.Items, Application{})
+			if err := m.Items[len(m.Items)-1].Unmarshal(dAtA[iNdEx:postIndex]); err != nil {
+				return err
+			}
+			iNdEx = postIndex
+		default:
+			iNdEx = preIndex
+			skippy, err := skipGenerated(dAtA[iNdEx:])
+			if err != nil {
+				return err
+			}
+			if (skippy < 0) || (iNdEx+skippy) < 0 {
+				return ErrInvalidLengthGenerated
+			}
+			if (iNdEx + skippy) > l {
+				return io.ErrUnexpectedEOF
+			}
+			iNdEx += skippy
+		}
+	}
+
+	if iNdEx > l {
+		return io.ErrUnexpectedEOF
+	}
+	return nil
+}
 func (m *ApplicationSet) Unmarshal(dAtA []byte) error {
 	l := len(dAtA)
 	iNdEx := 0
@@ -19254,33 +19444,33 @@ func (m *ApplicationSetGenerator) Unmarshal(dAtA []byte) error {
 			}
 			iNdEx = postIndex
 		case 8:
-			if postIndex > l {
+			if wireType != 2 {
 				return fmt.Errorf("proto: wrong wireType = %d for field Merge", wireType)
 			}
 			var msglen int
-			iNdEx = postIndex
-		case 2:
-			if wireType != 2 {
-				return fmt.Errorf("proto: wrong wireType = %d for field Message", wireType)
-			}
-			var stringLen uint64
 			for shift := uint(0); ; shift += 7 {
 				if shift >= 64 {
 					return ErrIntOverflowGenerated
-				msglen |= int(b&0x7F) << shift
+				}
 				if iNdEx >= l {
 					return io.ErrUnexpectedEOF
 				}
 				b := dAtA[iNdEx]
-			if msglen < 0 {
-				stringLen |= uint64(b&0x7F) << shift
+				iNdEx++
+				msglen |= int(b&0x7F) << shift
 				if b < 0x80 {
-			postIndex := iNdEx + msglen
+					break
 				}
 			}
-			intStringLen := int(stringLen)
-			if intStringLen < 0 {
+			if msglen < 0 {
 				return ErrInvalidLengthGenerated
+			}
+			postIndex := iNdEx + msglen
+			if postIndex < 0 {
+				return ErrInvalidLengthGenerated
+			}
+			if postIndex > l {
+				return io.ErrUnexpectedEOF
 			}
 			if m.Merge == nil {
 				m.Merge = &MergeGenerator{}
@@ -19288,12 +19478,10 @@ func (m *ApplicationSetGenerator) Unmarshal(dAtA []byte) error {
 			if err := m.Merge.Unmarshal(dAtA[iNdEx:postIndex]); err != nil {
 				return err
 			}
-			}
-		case 9:
 			iNdEx = postIndex
-				return fmt.Errorf("proto: wrong wireType = %d for field Selector", wireType)
+		case 9:
 			if wireType != 2 {
-			var msglen int
+				return fmt.Errorf("proto: wrong wireType = %d for field Selector", wireType)
 			}
 			var msglen int
 			for shift := uint(0); ; shift += 7 {
@@ -19303,28 +19491,30 @@ func (m *ApplicationSetGenerator) Unmarshal(dAtA []byte) error {
 				if iNdEx >= l {
 					return io.ErrUnexpectedEOF
 				}
-				msglen |= int(b&0x7F) << shift
+				b := dAtA[iNdEx]
 				iNdEx++
 				msglen |= int(b&0x7F) << shift
 				if b < 0x80 {
 					break
-			if msglen < 0 {
+				}
 			}
 			if msglen < 0 {
-			postIndex := iNdEx + msglen
+				return ErrInvalidLengthGenerated
 			}
 			postIndex := iNdEx + msglen
 			if postIndex < 0 {
 				return ErrInvalidLengthGenerated
 			}
 			if postIndex > l {
+				return io.ErrUnexpectedEOF
+			}
 			if m.Selector == nil {
 				m.Selector = &v1.LabelSelector{}
 			}
 			if err := m.Selector.Unmarshal(dAtA[iNdEx:postIndex]); err != nil {
 				return err
 			}
-				return err
+			iNdEx = postIndex
 		default:
 			iNdEx = preIndex
 			skippy, err := skipGenerated(dAtA[iNdEx:])
@@ -19376,72 +19566,72 @@ func (m *ApplicationSetList) Unmarshal(dAtA []byte) error {
 		}
 		switch fieldNum {
 		case 1:
-				}
+			if wireType != 2 {
 				return fmt.Errorf("proto: wrong wireType = %d for field ListMeta", wireType)
-			intStringLen := int(stringLen)
-			if intStringLen < 0 {
+			}
+			var msglen int
+			for shift := uint(0); ; shift += 7 {
+				if shift >= 64 {
+					return ErrIntOverflowGenerated
+				}
+				if iNdEx >= l {
+					return io.ErrUnexpectedEOF
+				}
+				b := dAtA[iNdEx]
+				iNdEx++
+				msglen |= int(b&0x7F) << shift
+				if b < 0x80 {
+					break
+				}
+			}
+			if msglen < 0 {
 				return ErrInvalidLengthGenerated
 			}
-			postIndex := iNdEx + intStringLen
+			postIndex := iNdEx + msglen
 			if postIndex < 0 {
 				return ErrInvalidLengthGenerated
 			}
 			if postIndex > l {
 				return io.ErrUnexpectedEOF
 			}
-			m.Reason = string(dAtA[iNdEx:postIndex])
-			iNdEx = postIndex
-		default:
-			iNdEx = preIndex
-			skippy, err := skipGenerated(dAtA[iNdEx:])
-			if err != nil {
+			if err := m.ListMeta.Unmarshal(dAtA[iNdEx:postIndex]); err != nil {
 				return err
 			}
-			if (skippy < 0) || (iNdEx+skippy) < 0 {
+			iNdEx = postIndex
+		case 2:
+			if wireType != 2 {
+				return fmt.Errorf("proto: wrong wireType = %d for field Items", wireType)
+			}
+			var msglen int
+			for shift := uint(0); ; shift += 7 {
+				if shift >= 64 {
+					return ErrIntOverflowGenerated
+				}
+				if iNdEx >= l {
+					return io.ErrUnexpectedEOF
+				}
+				b := dAtA[iNdEx]
+				iNdEx++
+				msglen |= int(b&0x7F) << shift
+				if b < 0x80 {
+					break
+				}
+			}
+			if msglen < 0 {
 				return ErrInvalidLengthGenerated
 			}
-			if (iNdEx + skippy) > l {
+			postIndex := iNdEx + msglen
+			if postIndex < 0 {
+				return ErrInvalidLengthGenerated
+			}
+			if postIndex > l {
 				return io.ErrUnexpectedEOF
 			}
-			iNdEx += skippy
-			if err := m.ListMeta.Unmarshal(dAtA[iNdEx:postIndex]); err != nil {
-	}
-
-	if iNdEx > l {
-		case 2:
-	}
-				return fmt.Errorf("proto: wrong wireType = %d for field Items", wireType)
-}
-func (m *ApplicationSetGenerator) Unmarshal(dAtA []byte) error {
-	l := len(dAtA)
-	iNdEx := 0
-	for iNdEx < l {
-		preIndex := iNdEx
-		var wire uint64
-		for shift := uint(0); ; shift += 7 {
-			if shift >= 64 {
-				return ErrIntOverflowGenerated
-			}
-			if iNdEx >= l {
-				return io.ErrUnexpectedEOF
-			}
-			b := dAtA[iNdEx]
-			iNdEx++
-			wire |= uint64(b&0x7F) << shift
-			if b < 0x80 {
-				break
-			}
-		}
-		fieldNum := int32(wire >> 3)
-		wireType := int(wire & 0x7)
-		if wireType == 4 {
-			return fmt.Errorf("proto: ApplicationSetGenerator: wiretype end group for non-group")
-		}
 			m.Items = append(m.Items, ApplicationSet{})
 			if err := m.Items[len(m.Items)-1].Unmarshal(dAtA[iNdEx:postIndex]); err != nil {
-		}
-		switch fieldNum {
-		case 1:
+				return err
+			}
+			iNdEx = postIndex
 		default:
 			iNdEx = preIndex
 			skippy, err := skipGenerated(dAtA[iNdEx:])
@@ -19493,9 +19683,24 @@ func (m *ApplicationSetNestedGenerator) Unmarshal(dAtA []byte) error {
 		}
 		switch fieldNum {
 		case 1:
-					break
+			if wireType != 2 {
 				return fmt.Errorf("proto: wrong wireType = %d for field List", wireType)
 			}
+			var msglen int
+			for shift := uint(0); ; shift += 7 {
+				if shift >= 64 {
+					return ErrIntOverflowGenerated
+				}
+				if iNdEx >= l {
+					return io.ErrUnexpectedEOF
+				}
+				b := dAtA[iNdEx]
+				iNdEx++
+				msglen |= int(b&0x7F) << shift
+				if b < 0x80 {
+					break
+				}
+			}
 			if msglen < 0 {
 				return ErrInvalidLengthGenerated
 			}
@@ -19506,31 +19711,67 @@ func (m *ApplicationSetNestedGenerator) Unmarshal(dAtA []byte) error {
 			if postIndex > l {
 				return io.ErrUnexpectedEOF
 			}
-			if m.Clusters == nil {
-				m.Clusters = &ClusterGenerator{}
-			}
-			if err := m.Clusters.Unmarshal(dAtA[iNdEx:postIndex]); err != nil {
-				return err
-			}
-			iNdEx = postIndex
-		case 3:
-			if wireType != 2 {
-				return fmt.Errorf("proto: wrong wireType = %d for field Git", wireType)
-			}
-			var msglen int
-			for shift := uint(0); ; shift += 7 {
-				if shift >= 64 {
-					return ErrIntOverflowGenerated
 			if m.List == nil {
 				m.List = &ListGenerator{}
-					return io.ErrUnexpectedEOF
+			}
 			if err := m.List.Unmarshal(dAtA[iNdEx:postIndex]); err != nil {
+				return err
+			}
+			iNdEx = postIndex
+		case 2:
+			if wireType != 2 {
+				return fmt.Errorf("proto: wrong wireType = %d for field Clusters", wireType)
+			}
+			var msglen int
+			for shift := uint(0); ; shift += 7 {
+				if shift >= 64 {
+					return ErrIntOverflowGenerated
+				}
+				if iNdEx >= l {
+					return io.ErrUnexpectedEOF
+				}
 				b := dAtA[iNdEx]
 				iNdEx++
 				msglen |= int(b&0x7F) << shift
-		case 2:
+				if b < 0x80 {
 					break
-				return fmt.Errorf("proto: wrong wireType = %d for field Clusters", wireType)
+				}
+			}
+			if msglen < 0 {
+				return ErrInvalidLengthGenerated
+			}
+			postIndex := iNdEx + msglen
+			if postIndex < 0 {
+				return ErrInvalidLengthGenerated
+			}
+			if postIndex > l {
+				return io.ErrUnexpectedEOF
+			}
+			if m.Clusters == nil {
+				m.Clusters = &ClusterGenerator{}
+			}
+			if err := m.Clusters.Unmarshal(dAtA[iNdEx:postIndex]); err != nil {
+				return err
+			}
+			iNdEx = postIndex
+		case 3:
+			if wireType != 2 {
+				return fmt.Errorf("proto: wrong wireType = %d for field Git", wireType)
+			}
+			var msglen int
+			for shift := uint(0); ; shift += 7 {
+				if shift >= 64 {
+					return ErrIntOverflowGenerated
+				}
+				if iNdEx >= l {
+					return io.ErrUnexpectedEOF
+				}
+				b := dAtA[iNdEx]
+				iNdEx++
+				msglen |= int(b&0x7F) << shift
+				if b < 0x80 {
+					break
+				}
 			}
 			if msglen < 0 {
 				return ErrInvalidLengthGenerated
@@ -19557,18 +19798,18 @@ func (m *ApplicationSetNestedGenerator) Unmarshal(dAtA []byte) error {
 			for shift := uint(0); ; shift += 7 {
 				if shift >= 64 {
 					return ErrIntOverflowGenerated
-			if m.Clusters == nil {
-				m.Clusters = &ClusterGenerator{}
+				}
+				if iNdEx >= l {
 					return io.ErrUnexpectedEOF
-			if err := m.Clusters.Unmarshal(dAtA[iNdEx:postIndex]); err != nil {
+				}
 				b := dAtA[iNdEx]
 				iNdEx++
 				msglen |= int(b&0x7F) << shift
-		case 3:
+				if b < 0x80 {
 					break
-				return fmt.Errorf("proto: wrong wireType = %d for field Git", wireType)
+				}
 			}
-			var msglen int
+			if msglen < 0 {
 				return ErrInvalidLengthGenerated
 			}
 			postIndex := iNdEx + msglen
@@ -19578,63 +19819,12 @@ func (m *ApplicationSetNestedGenerator) Unmarshal(dAtA []byte) error {
 			if postIndex > l {
 				return io.ErrUnexpectedEOF
 			}
-				msglen |= int(b&0x7F) << shift
-				m.SCMProvider = &SCMProviderGenerator{}
-			}
-			if err := m.SCMProvider.Unmarshal(dAtA[iNdEx:postIndex]); err != nil {
-				return err
-			if msglen < 0 {
-			iNdEx = postIndex
-		case 5:
-			postIndex := iNdEx + msglen
-				return fmt.Errorf("proto: wrong wireType = %d for field ClusterDecisionResource", wireType)
-			}
-			var msglen int
-			for shift := uint(0); ; shift += 7 {
-				if shift >= 64 {
-					return ErrIntOverflowGenerated
-			if m.Git == nil {
-				m.Git = &GitGenerator{}
-			}
-			if err := m.Git.Unmarshal(dAtA[iNdEx:postIndex]); err != nil {
-				return err
-			}
-				msglen |= int(b&0x7F) << shift
-		case 4:
-					break
-				return fmt.Errorf("proto: wrong wireType = %d for field SCMProvider", wireType)
-			}
-			var msglen int
-				return ErrInvalidLengthGenerated
-			}
-			postIndex := iNdEx + msglen
-			if postIndex < 0 {
-				return ErrInvalidLengthGenerated
-			}
-			if postIndex > l {
-				return io.ErrUnexpectedEOF
-			}
-				msglen |= int(b&0x7F) << shift
-				m.ClusterDecisionResource = &DuckTypeGenerator{}
-			}
-			if err := m.ClusterDecisionResource.Unmarshal(dAtA[iNdEx:postIndex]); err != nil {
-				return err
-			if msglen < 0 {
-			iNdEx = postIndex
-		case 6:
-			postIndex := iNdEx + msglen
-				return fmt.Errorf("proto: wrong wireType = %d for field PullRequest", wireType)
-			}
-			var msglen int
-			for shift := uint(0); ; shift += 7 {
-				if shift >= 64 {
-					return ErrIntOverflowGenerated
 			if m.SCMProvider == nil {
 				m.SCMProvider = &SCMProviderGenerator{}
 			}
 			if err := m.SCMProvider.Unmarshal(dAtA[iNdEx:postIndex]); err != nil {
-				b := dAtA[iNdEx]
-				iNdEx++
+				return err
+			}
 			iNdEx = postIndex
 		case 5:
 			if wireType != 2 {
@@ -19664,7 +19854,7 @@ func (m *ApplicationSetNestedGenerator) Unmarshal(dAtA []byte) error {
 			}
 			if postIndex > l {
 				return io.ErrUnexpectedEOF
-					return ErrIntOverflowGenerated
+			}
 			if m.ClusterDecisionResource == nil {
 				m.ClusterDecisionResource = &DuckTypeGenerator{}
 			}
@@ -19677,20 +19867,20 @@ func (m *ApplicationSetNestedGenerator) Unmarshal(dAtA []byte) error {
 				return fmt.Errorf("proto: wrong wireType = %d for field PullRequest", wireType)
 			}
 			var msglen int
-				return ErrInvalidLengthGenerated
-			}
-			postIndex := iNdEx + msglen
-			if postIndex < 0 {
-				return ErrInvalidLengthGenerated
-			}
-			if postIndex > l {
-				return io.ErrUnexpectedEOF
-			}
+			for shift := uint(0); ; shift += 7 {
+				if shift >= 64 {
+					return ErrIntOverflowGenerated
+				}
+				if iNdEx >= l {
+					return io.ErrUnexpectedEOF
+				}
+				b := dAtA[iNdEx]
+				iNdEx++
 				msglen |= int(b&0x7F) << shift
-				m.Matrix = &MatrixGenerator{}
+				if b < 0x80 {
+					break
+				}
 			}
-			if err := m.Matrix.Unmarshal(dAtA[iNdEx:postIndex]); err != nil {
-				return err
 			if msglen < 0 {
 				return ErrInvalidLengthGenerated
 			}
@@ -19709,115 +19899,8 @@ func (m *ApplicationSetNestedGenerator) Unmarshal(dAtA []byte) error {
 			}
 			iNdEx = postIndex
 		case 7:
-					break
+			if wireType != 2 {
 				return fmt.Errorf("proto: wrong wireType = %d for field Matrix", wireType)
-			}
-			if msglen < 0 {
-				return ErrInvalidLengthGenerated
-			}
-			postIndex := iNdEx + msglen
-			if postIndex < 0 {
-				return ErrInvalidLengthGenerated
-			}
-			if postIndex > l {
-				return io.ErrUnexpectedEOF
-			}
-			if m.Merge == nil {
-				m.Merge = &MergeGenerator{}
-			}
-			if err := m.Merge.Unmarshal(dAtA[iNdEx:postIndex]); err != nil {
-				return err
-			}
-			iNdEx = postIndex
-		case 9:
-			if wireType != 2 {
-				return fmt.Errorf("proto: wrong wireType = %d for field Selector", wireType)
-			}
-			var msglen int
-			for shift := uint(0); ; shift += 7 {
-				if shift >= 64 {
-					return ErrIntOverflowGenerated
-			if m.Matrix == nil {
-				m.Matrix = &v11.JSON{}
-			}
-			if err := m.Matrix.Unmarshal(dAtA[iNdEx:postIndex]); err != nil {
-				b := dAtA[iNdEx]
-				iNdEx++
-				msglen |= int(b&0x7F) << shift
-		case 8:
-					break
-				return fmt.Errorf("proto: wrong wireType = %d for field Merge", wireType)
-			}
-			var msglen int
-				return ErrInvalidLengthGenerated
-			}
-			postIndex := iNdEx + msglen
-			if postIndex < 0 {
-				return ErrInvalidLengthGenerated
-			}
-			if postIndex > l {
-				return io.ErrUnexpectedEOF
-			}
-				msglen |= int(b&0x7F) << shift
-				m.Selector = &v1.LabelSelector{}
-			}
-			if err := m.Selector.Unmarshal(dAtA[iNdEx:postIndex]); err != nil {
-				return err
-			if msglen < 0 {
-			iNdEx = postIndex
-		default:
-			postIndex := iNdEx + msglen
-			skippy, err := skipGenerated(dAtA[iNdEx:])
-			if err != nil {
-				return err
-			}
-			if (skippy < 0) || (iNdEx+skippy) < 0 {
-				return ErrInvalidLengthGenerated
-			if m.Merge == nil {
-				m.Merge = &v11.JSON{}
-			}
-			if err := m.Merge.Unmarshal(dAtA[iNdEx:postIndex]); err != nil {
-				return err
-			}
-	}
-		case 9:
-	if iNdEx > l {
-				return fmt.Errorf("proto: wrong wireType = %d for field Selector", wireType)
-	}
-			var msglen int
-}
-func (m *ApplicationSetList) Unmarshal(dAtA []byte) error {
-	l := len(dAtA)
-	iNdEx := 0
-	for iNdEx < l {
-		preIndex := iNdEx
-		var wire uint64
-		for shift := uint(0); ; shift += 7 {
-			if shift >= 64 {
-				msglen |= int(b&0x7F) << shift
-			}
-			if iNdEx >= l {
-				return io.ErrUnexpectedEOF
-			}
-			if msglen < 0 {
-			iNdEx++
-			wire |= uint64(b&0x7F) << shift
-			postIndex := iNdEx + msglen
-				break
-			}
-		}
-		fieldNum := int32(wire >> 3)
-		wireType := int(wire & 0x7)
-		if wireType == 4 {
-			if m.Selector == nil {
-				m.Selector = &v1.LabelSelector{}
-			}
-			if err := m.Selector.Unmarshal(dAtA[iNdEx:postIndex]); err != nil {
-				return err
-			}
-		case 1:
-			if wireType != 2 {
-				return fmt.Errorf("proto: wrong wireType = %d for field ListMeta", wireType)
 			}
 			var msglen int
 			for shift := uint(0); ; shift += 7 {
@@ -19837,20 +19920,23 @@ func (m *ApplicationSetList) Unmarshal(dAtA []byte) error {
 			if msglen < 0 {
 				return ErrInvalidLengthGenerated
 			}
-func (m *ApplicationSetSpec) Unmarshal(dAtA []byte) error {
+			postIndex := iNdEx + msglen
 			if postIndex < 0 {
 				return ErrInvalidLengthGenerated
 			}
 			if postIndex > l {
 				return io.ErrUnexpectedEOF
 			}
-			if err := m.ListMeta.Unmarshal(dAtA[iNdEx:postIndex]); err != nil {
+			if m.Matrix == nil {
+				m.Matrix = &v11.JSON{}
+			}
+			if err := m.Matrix.Unmarshal(dAtA[iNdEx:postIndex]); err != nil {
 				return err
 			}
 			iNdEx = postIndex
-		case 2:
+		case 8:
 			if wireType != 2 {
-				return fmt.Errorf("proto: wrong wireType = %d for field Items", wireType)
+				return fmt.Errorf("proto: wrong wireType = %d for field Merge", wireType)
 			}
 			var msglen int
 			for shift := uint(0); ; shift += 7 {
@@ -19860,458 +19946,122 @@ func (m *ApplicationSetSpec) Unmarshal(dAtA []byte) error {
 				if iNdEx >= l {
 					return io.ErrUnexpectedEOF
 				}
-			return fmt.Errorf("proto: ApplicationSetSpec: wiretype end group for non-group")
+				b := dAtA[iNdEx]
 				iNdEx++
 				msglen |= int(b&0x7F) << shift
+				if b < 0x80 {
+					break
+				}
+			}
+			if msglen < 0 {
+				return ErrInvalidLengthGenerated
+			}
+			postIndex := iNdEx + msglen
+			if postIndex < 0 {
+				return ErrInvalidLengthGenerated
+			}
+			if postIndex > l {
+				return io.ErrUnexpectedEOF
+			}
+			if m.Merge == nil {
+				m.Merge = &v11.JSON{}
+			}
+			if err := m.Merge.Unmarshal(dAtA[iNdEx:postIndex]); err != nil {
+				return err
+			}
+			iNdEx = postIndex
+		case 9:
+			if wireType != 2 {
+				return fmt.Errorf("proto: wrong wireType = %d for field Selector", wireType)
+			}
+			var msglen int
+			for shift := uint(0); ; shift += 7 {
+				if shift >= 64 {
+					return ErrIntOverflowGenerated
+				}
+				if iNdEx >= l {
+					return io.ErrUnexpectedEOF
+				}
+				b := dAtA[iNdEx]
+				iNdEx++
+				msglen |= int(b&0x7F) << shift
+				if b < 0x80 {
+					break
+				}
+			}
+			if msglen < 0 {
+				return ErrInvalidLengthGenerated
+			}
+			postIndex := iNdEx + msglen
+			if postIndex < 0 {
+				return ErrInvalidLengthGenerated
+			}
+			if postIndex > l {
+				return io.ErrUnexpectedEOF
+			}
+			if m.Selector == nil {
+				m.Selector = &v1.LabelSelector{}
+			}
+			if err := m.Selector.Unmarshal(dAtA[iNdEx:postIndex]); err != nil {
+				return err
+			}
+			iNdEx = postIndex
+		default:
+			iNdEx = preIndex
+			skippy, err := skipGenerated(dAtA[iNdEx:])
+			if err != nil {
+				return err
+			}
+			if (skippy < 0) || (iNdEx+skippy) < 0 {
+				return ErrInvalidLengthGenerated
+			}
+			if (iNdEx + skippy) > l {
+				return io.ErrUnexpectedEOF
+			}
+			iNdEx += skippy
+		}
+	}
+
+	if iNdEx > l {
+		return io.ErrUnexpectedEOF
+	}
+	return nil
+}
+func (m *ApplicationSetSpec) Unmarshal(dAtA []byte) error {
+	l := len(dAtA)
+	iNdEx := 0
+	for iNdEx < l {
+		preIndex := iNdEx
+		var wire uint64
+		for shift := uint(0); ; shift += 7 {
+			if shift >= 64 {
+				return ErrIntOverflowGenerated
+			}
+			if iNdEx >= l {
+				return io.ErrUnexpectedEOF
+			}
+			b := dAtA[iNdEx]
+			iNdEx++
+			wire |= uint64(b&0x7F) << shift
+			if b < 0x80 {
+				break
+			}
+		}
+		fieldNum := int32(wire >> 3)
+		wireType := int(wire & 0x7)
+		if wireType == 4 {
+			return fmt.Errorf("proto: ApplicationSetSpec: wiretype end group for non-group")
+		}
+		if fieldNum <= 0 {
 			return fmt.Errorf("proto: ApplicationSetSpec: illegal tag %d (wire type %d)", fieldNum, wire)
-					break
-				}
-			}
+		}
+		switch fieldNum {
+		case 1:
 			if wireType != 0 {
 				return fmt.Errorf("proto: wrong wireType = %d for field GoTemplate", wireType)
 			}
 			var v int
-			if postIndex < 0 {
-				return ErrInvalidLengthGenerated
-			}
-			if postIndex > l {
-				return io.ErrUnexpectedEOF
-			}
-			m.Items = append(m.Items, ApplicationSet{})
-			if err := m.Items[len(m.Items)-1].Unmarshal(dAtA[iNdEx:postIndex]); err != nil {
-				return err
-				v |= int(b&0x7F) << shift
-			iNdEx = postIndex
-		default:
-			iNdEx = preIndex
-			skippy, err := skipGenerated(dAtA[iNdEx:])
-			m.GoTemplate = bool(v != 0)
-				return err
-			}
-				return fmt.Errorf("proto: wrong wireType = %d for field Generators", wireType)
-				return ErrInvalidLengthGenerated
-			}
-			if (iNdEx + skippy) > l {
-				return io.ErrUnexpectedEOF
-			}
-			iNdEx += skippy
-		}
-	}
-
-	if iNdEx > l {
-		return io.ErrUnexpectedEOF
-	}
-	return nil
-}
-func (m *ApplicationSetNestedGenerator) Unmarshal(dAtA []byte) error {
-	l := len(dAtA)
-	iNdEx := 0
-	for iNdEx < l {
-		preIndex := iNdEx
-		var wire uint64
-		for shift := uint(0); ; shift += 7 {
-			if shift >= 64 {
-				return ErrIntOverflowGenerated
-			}
-			if iNdEx >= l {
-				return io.ErrUnexpectedEOF
-			m.Generators = append(m.Generators, ApplicationSetGenerator{})
-			if err := m.Generators[len(m.Generators)-1].Unmarshal(dAtA[iNdEx:postIndex]); err != nil {
-			iNdEx++
-			wire |= uint64(b&0x7F) << shift
-			if b < 0x80 {
-				break
-			}
-				return fmt.Errorf("proto: wrong wireType = %d for field Template", wireType)
-		fieldNum := int32(wire >> 3)
-			var msglen int
-		if wireType == 4 {
-			return fmt.Errorf("proto: ApplicationSetNestedGenerator: wiretype end group for non-group")
-		}
-		if fieldNum <= 0 {
-			return fmt.Errorf("proto: ApplicationSetNestedGenerator: illegal tag %d (wire type %d)", fieldNum, wire)
-		}
-		switch fieldNum {
-		case 1:
-			if wireType != 2 {
-				msglen |= int(b&0x7F) << shift
-			}
-			var msglen int
 			for shift := uint(0); ; shift += 7 {
-				if shift >= 64 {
-			if msglen < 0 {
-				}
-				if iNdEx >= l {
-			postIndex := iNdEx + msglen
-				}
-				b := dAtA[iNdEx]
-				iNdEx++
-				msglen |= int(b&0x7F) << shift
-				if b < 0x80 {
-					break
-			if err := m.Template.Unmarshal(dAtA[iNdEx:postIndex]); err != nil {
-				return err
-			}
-				return ErrInvalidLengthGenerated
-			}
-			postIndex := iNdEx + msglen
-				return fmt.Errorf("proto: wrong wireType = %d for field SyncPolicy", wireType)
-				return ErrInvalidLengthGenerated
-			var msglen int
-			if postIndex > l {
-				return io.ErrUnexpectedEOF
-			}
-			if m.List == nil {
-				m.List = &ListGenerator{}
-			}
-			if err := m.List.Unmarshal(dAtA[iNdEx:postIndex]); err != nil {
-				return err
-			}
-				msglen |= int(b&0x7F) << shift
-		case 2:
-			if wireType != 2 {
-				return fmt.Errorf("proto: wrong wireType = %d for field Clusters", wireType)
-			}
-			if msglen < 0 {
-			for shift := uint(0); ; shift += 7 {
-				if shift >= 64 {
-			postIndex := iNdEx + msglen
-				}
-				if iNdEx >= l {
-					return io.ErrUnexpectedEOF
-				}
-				b := dAtA[iNdEx]
-				iNdEx++
-			if m.SyncPolicy == nil {
-				m.SyncPolicy = &ApplicationSetSyncPolicy{}
-			}
-			if err := m.SyncPolicy.Unmarshal(dAtA[iNdEx:postIndex]); err != nil {
-				return err
-			}
-				return ErrInvalidLengthGenerated
-		default:
-			iNdEx = preIndex
-			skippy, err := skipGenerated(dAtA[iNdEx:])
-			if err != nil {
-				return err
-			if postIndex > l {
-			if (skippy < 0) || (iNdEx+skippy) < 0 {
-				return ErrInvalidLengthGenerated
-			}
-			if (iNdEx + skippy) > l {
-				return io.ErrUnexpectedEOF
-			}
-			iNdEx += skippy
-		}
-	}
-
-	if iNdEx > l {
-		return io.ErrUnexpectedEOF
-	}
-	return nil
-}
-func (m *ApplicationSetStatus) Unmarshal(dAtA []byte) error {
-	l := len(dAtA)
-	iNdEx := 0
-	for iNdEx < l {
-		preIndex := iNdEx
-		var wire uint64
-		for shift := uint(0); ; shift += 7 {
-			if shift >= 64 {
-				return ErrIntOverflowGenerated
-			}
-			if iNdEx >= l {
-				return io.ErrUnexpectedEOF
-			}
-			b := dAtA[iNdEx]
-			iNdEx++
-			wire |= uint64(b&0x7F) << shift
-			if b < 0x80 {
-				break
-			}
-		}
-		fieldNum := int32(wire >> 3)
-		wireType := int(wire & 0x7)
-		if wireType == 4 {
-			return fmt.Errorf("proto: ApplicationSetStatus: wiretype end group for non-group")
-		}
-		if fieldNum <= 0 {
-			return fmt.Errorf("proto: ApplicationSetStatus: illegal tag %d (wire type %d)", fieldNum, wire)
-		}
-		switch fieldNum {
-		case 1:
-		case 4:
-				return fmt.Errorf("proto: wrong wireType = %d for field Conditions", wireType)
-				return fmt.Errorf("proto: wrong wireType = %d for field SCMProvider", wireType)
-			var msglen int
-			var msglen int
-			for shift := uint(0); ; shift += 7 {
-				if shift >= 64 {
-					return ErrIntOverflowGenerated
-				}
-				if iNdEx >= l {
-					return io.ErrUnexpectedEOF
-				}
-				b := dAtA[iNdEx]
-				msglen |= int(b&0x7F) << shift
-				msglen |= int(b&0x7F) << shift
-				if b < 0x80 {
-					break
-				}
-			if msglen < 0 {
-			if msglen < 0 {
-				return ErrInvalidLengthGenerated
-			postIndex := iNdEx + msglen
-			postIndex := iNdEx + msglen
-			if postIndex < 0 {
-				return ErrInvalidLengthGenerated
-			}
-			if postIndex > l {
-				return io.ErrUnexpectedEOF
-			m.Conditions = append(m.Conditions, ApplicationSetCondition{})
-			if err := m.Conditions[len(m.Conditions)-1].Unmarshal(dAtA[iNdEx:postIndex]); err != nil {
-				return err
-			}
-			if err := m.SCMProvider.Unmarshal(dAtA[iNdEx:postIndex]); err != nil {
-		default:
-			iNdEx = preIndex
-			skippy, err := skipGenerated(dAtA[iNdEx:])
-			if err != nil {
-				return err
-				return fmt.Errorf("proto: wrong wireType = %d for field ClusterDecisionResource", wireType)
-			if (skippy < 0) || (iNdEx+skippy) < 0 {
-				return ErrInvalidLengthGenerated
-			}
-			if (iNdEx + skippy) > l {
-				return io.ErrUnexpectedEOF
-			}
-			iNdEx += skippy
-		}
-	}
-
-	if iNdEx > l {
-		return io.ErrUnexpectedEOF
-	}
-	return nil
-}
-func (m *ApplicationSetSyncPolicy) Unmarshal(dAtA []byte) error {
-	l := len(dAtA)
-	iNdEx := 0
-	for iNdEx < l {
-		preIndex := iNdEx
-		var wire uint64
-		for shift := uint(0); ; shift += 7 {
-			if shift >= 64 {
-				return ErrIntOverflowGenerated
-			}
-			if iNdEx >= l {
-				return io.ErrUnexpectedEOF
-			}
-			b := dAtA[iNdEx]
-			iNdEx++
-			wire |= uint64(b&0x7F) << shift
-			if b < 0x80 {
-				break
-			}
-		}
-		fieldNum := int32(wire >> 3)
-		wireType := int(wire & 0x7)
-		if wireType == 4 {
-			return fmt.Errorf("proto: ApplicationSetSyncPolicy: wiretype end group for non-group")
-		}
-		if fieldNum <= 0 {
-			return fmt.Errorf("proto: ApplicationSetSyncPolicy: illegal tag %d (wire type %d)", fieldNum, wire)
-		}
-		switch fieldNum {
-		case 1:
-				b := dAtA[iNdEx]
-				return fmt.Errorf("proto: wrong wireType = %d for field PreserveResourcesOnDeletion", wireType)
-				msglen |= int(b&0x7F) << shift
-				if b < 0x80 {
-					break
-				}
-			}
-			if msglen < 0 {
-				return ErrInvalidLengthGenerated
-			}
-			postIndex := iNdEx + msglen
-			if postIndex < 0 {
-				return ErrInvalidLengthGenerated
-			}
-			if postIndex > l {
-				return io.ErrUnexpectedEOF
-			}
-			if m.PullRequest == nil {
-			m.PreserveResourcesOnDeletion = bool(v != 0)
-			}
-			if err := m.PullRequest.Unmarshal(dAtA[iNdEx:postIndex]); err != nil {
-				return err
-			}
-			iNdEx = postIndex
-		case 7:
-			if wireType != 2 {
-				return fmt.Errorf("proto: wrong wireType = %d for field Matrix", wireType)
-			}
-			var msglen int
-			for shift := uint(0); ; shift += 7 {
-				if shift >= 64 {
-					return ErrIntOverflowGenerated
-				}
-				if iNdEx >= l {
-					return io.ErrUnexpectedEOF
-				}
-				b := dAtA[iNdEx]
-				iNdEx++
-				msglen |= int(b&0x7F) << shift
-				if b < 0x80 {
-func (m *ApplicationSetTemplate) Unmarshal(dAtA []byte) error {
-				}
-			}
-			if msglen < 0 {
-				return ErrInvalidLengthGenerated
-			}
-			postIndex := iNdEx + msglen
-			if postIndex < 0 {
-				return ErrInvalidLengthGenerated
-			}
-			if postIndex > l {
-				return io.ErrUnexpectedEOF
-			}
-			if m.Matrix == nil {
-				m.Matrix = &v11.JSON{}
-			}
-			if err := m.Matrix.Unmarshal(dAtA[iNdEx:postIndex]); err != nil {
-				return err
-			}
-			iNdEx = postIndex
-		case 8:
-			if wireType != 2 {
-				return fmt.Errorf("proto: wrong wireType = %d for field Merge", wireType)
-			return fmt.Errorf("proto: ApplicationSetTemplate: wiretype end group for non-group")
-			var msglen int
-			for shift := uint(0); ; shift += 7 {
-			return fmt.Errorf("proto: ApplicationSetTemplate: illegal tag %d (wire type %d)", fieldNum, wire)
-					return ErrIntOverflowGenerated
-				}
-				if iNdEx >= l {
-					return io.ErrUnexpectedEOF
-				return fmt.Errorf("proto: wrong wireType = %d for field ApplicationSetTemplateMeta", wireType)
-				b := dAtA[iNdEx]
-				iNdEx++
-				msglen |= int(b&0x7F) << shift
-				if b < 0x80 {
-					break
-				}
-			}
-			if msglen < 0 {
-				return ErrInvalidLengthGenerated
-			}
-			postIndex := iNdEx + msglen
-			if postIndex < 0 {
-				return ErrInvalidLengthGenerated
-			}
-			if postIndex > l {
-				return io.ErrUnexpectedEOF
-			}
-			if m.Merge == nil {
-				m.Merge = &v11.JSON{}
-			}
-			if err := m.Merge.Unmarshal(dAtA[iNdEx:postIndex]); err != nil {
-				return err
-			}
-			iNdEx = postIndex
-		case 9:
-			if wireType != 2 {
-			if err := m.ApplicationSetTemplateMeta.Unmarshal(dAtA[iNdEx:postIndex]); err != nil {
-			}
-			var msglen int
-			for shift := uint(0); ; shift += 7 {
-				if shift >= 64 {
-					return ErrIntOverflowGenerated
-				return fmt.Errorf("proto: wrong wireType = %d for field Spec", wireType)
-				if iNdEx >= l {
-					return io.ErrUnexpectedEOF
-				}
-				b := dAtA[iNdEx]
-				iNdEx++
-				msglen |= int(b&0x7F) << shift
-				if b < 0x80 {
-					break
-				}
-			}
-			if msglen < 0 {
-				return ErrInvalidLengthGenerated
-			}
-			postIndex := iNdEx + msglen
-			if postIndex < 0 {
-				return ErrInvalidLengthGenerated
-			}
-			if postIndex > l {
-				return io.ErrUnexpectedEOF
-			}
-			if m.Selector == nil {
-				m.Selector = &v1.LabelSelector{}
-			}
-			if err := m.Selector.Unmarshal(dAtA[iNdEx:postIndex]); err != nil {
-				return err
-			}
-			if err := m.Spec.Unmarshal(dAtA[iNdEx:postIndex]); err != nil {
-		default:
-			iNdEx = preIndex
-			skippy, err := skipGenerated(dAtA[iNdEx:])
-			if err != nil {
-				return err
-			}
-			if (skippy < 0) || (iNdEx+skippy) < 0 {
-				return ErrInvalidLengthGenerated
-			}
-			if (iNdEx + skippy) > l {
-				return io.ErrUnexpectedEOF
-			}
-			iNdEx += skippy
-		}
-	}
-
-	if iNdEx > l {
-		return io.ErrUnexpectedEOF
-	}
-	return nil
-}
-func (m *ApplicationSetSpec) Unmarshal(dAtA []byte) error {
-	l := len(dAtA)
-	iNdEx := 0
-func (m *ApplicationSetTemplateMeta) Unmarshal(dAtA []byte) error {
-		preIndex := iNdEx
-		var wire uint64
-		for shift := uint(0); ; shift += 7 {
-			if shift >= 64 {
-				return ErrIntOverflowGenerated
-			}
-			if iNdEx >= l {
-				return io.ErrUnexpectedEOF
-			}
-			b := dAtA[iNdEx]
-			iNdEx++
-			wire |= uint64(b&0x7F) << shift
-			if b < 0x80 {
-				break
-			}
-		}
-		fieldNum := int32(wire >> 3)
-		wireType := int(wire & 0x7)
-		if wireType == 4 {
-			return fmt.Errorf("proto: ApplicationSetSpec: wiretype end group for non-group")
-		}
-		if fieldNum <= 0 {
-			return fmt.Errorf("proto: ApplicationSetTemplateMeta: wiretype end group for non-group")
-		}
-		switch fieldNum {
-			return fmt.Errorf("proto: ApplicationSetTemplateMeta: illegal tag %d (wire type %d)", fieldNum, wire)
-			if wireType != 0 {
-				return fmt.Errorf("proto: wrong wireType = %d for field GoTemplate", wireType)
-			}
-			var v int
-				return fmt.Errorf("proto: wrong wireType = %d for field Name", wireType)
 				if shift >= 64 {
 					return ErrIntOverflowGenerated
 				}
@@ -20339,11 +20089,11 @@ func (m *ApplicationSetTemplateMeta) Unmarshal(dAtA []byte) error {
 					return io.ErrUnexpectedEOF
 				}
 				b := dAtA[iNdEx]
-			m.Name = string(dAtA[iNdEx:postIndex])
+				iNdEx++
 				msglen |= int(b&0x7F) << shift
 				if b < 0x80 {
 					break
-				return fmt.Errorf("proto: wrong wireType = %d for field Namespace", wireType)
+				}
 			}
 			if msglen < 0 {
 				return ErrInvalidLengthGenerated
@@ -20371,11 +20121,11 @@ func (m *ApplicationSetTemplateMeta) Unmarshal(dAtA []byte) error {
 				}
 				if iNdEx >= l {
 					return io.ErrUnexpectedEOF
-			m.Namespace = string(dAtA[iNdEx:postIndex])
+				}
 				b := dAtA[iNdEx]
 				iNdEx++
 				msglen |= int(b&0x7F) << shift
-				return fmt.Errorf("proto: wrong wireType = %d for field Labels", wireType)
+				if b < 0x80 {
 					break
 				}
 			}
@@ -20402,8 +20152,8 @@ func (m *ApplicationSetTemplateMeta) Unmarshal(dAtA []byte) error {
 				if shift >= 64 {
 					return ErrIntOverflowGenerated
 				}
-			if m.Labels == nil {
-				m.Labels = make(map[string]string)
+				if iNdEx >= l {
+					return io.ErrUnexpectedEOF
 				}
 				b := dAtA[iNdEx]
 				iNdEx++
@@ -20498,11 +20248,11 @@ func (m *ApplicationSetStatus) Unmarshal(dAtA []byte) error {
 					break
 				}
 			}
-			m.Labels[mapkey] = mapvalue
+			if msglen < 0 {
 				return ErrInvalidLengthGenerated
-		case 4:
+			}
 			postIndex := iNdEx + msglen
-				return fmt.Errorf("proto: wrong wireType = %d for field Annotations", wireType)
+			if postIndex < 0 {
 				return ErrInvalidLengthGenerated
 			}
 			if postIndex > l {
@@ -20529,8 +20279,8 @@ func (m *ApplicationSetStatus) Unmarshal(dAtA []byte) error {
 		}
 	}
 
-			if m.Annotations == nil {
-				m.Annotations = make(map[string]string)
+	if iNdEx > l {
+		return io.ErrUnexpectedEOF
 	}
 	return nil
 }
@@ -20625,11 +20375,11 @@ func (m *ApplicationSetTemplate) Unmarshal(dAtA []byte) error {
 			}
 		}
 		fieldNum := int32(wire >> 3)
-			m.Annotations[mapkey] = mapvalue
+		wireType := int(wire & 0x7)
 		if wireType == 4 {
-		case 5:
+			return fmt.Errorf("proto: ApplicationSetTemplate: wiretype end group for non-group")
 		}
-				return fmt.Errorf("proto: wrong wireType = %d for field Finalizers", wireType)
+		if fieldNum <= 0 {
 			return fmt.Errorf("proto: ApplicationSetTemplate: illegal tag %d (wire type %d)", fieldNum, wire)
 		}
 		switch fieldNum {
@@ -20657,7 +20407,7 @@ func (m *ApplicationSetTemplate) Unmarshal(dAtA []byte) error {
 			}
 			postIndex := iNdEx + msglen
 			if postIndex < 0 {
-			m.Finalizers = append(m.Finalizers, string(dAtA[iNdEx:postIndex]))
+				return ErrInvalidLengthGenerated
 			}
 			if postIndex > l {
 				return io.ErrUnexpectedEOF
@@ -20680,7 +20430,7 @@ func (m *ApplicationSetTemplate) Unmarshal(dAtA []byte) error {
 				}
 				b := dAtA[iNdEx]
 				iNdEx++
-func (m *ApplicationSetTerminalGenerator) Unmarshal(dAtA []byte) error {
+				msglen |= int(b&0x7F) << shift
 				if b < 0x80 {
 					break
 				}
@@ -20703,15 +20453,15 @@ func (m *ApplicationSetTerminalGenerator) Unmarshal(dAtA []byte) error {
 			iNdEx = preIndex
 			skippy, err := skipGenerated(dAtA[iNdEx:])
 			if err != nil {
-			return fmt.Errorf("proto: ApplicationSetTerminalGenerator: wiretype end group for non-group")
+				return err
 			}
 			if (skippy < 0) || (iNdEx+skippy) < 0 {
-			return fmt.Errorf("proto: ApplicationSetTerminalGenerator: illegal tag %d (wire type %d)", fieldNum, wire)
+				return ErrInvalidLengthGenerated
 			}
 			if (iNdEx + skippy) > l {
 				return io.ErrUnexpectedEOF
 			}
-				return fmt.Errorf("proto: wrong wireType = %d for field List", wireType)
+			iNdEx += skippy
 		}
 	}
 
@@ -20738,16 +20488,16 @@ func (m *ApplicationSetTemplateMeta) Unmarshal(dAtA []byte) error {
 			wire |= uint64(b&0x7F) << shift
 			if b < 0x80 {
 				break
-			if m.List == nil {
-				m.List = &ListGenerator{}
 			}
-			if err := m.List.Unmarshal(dAtA[iNdEx:postIndex]); err != nil {
+		}
+		fieldNum := int32(wire >> 3)
+		wireType := int(wire & 0x7)
 		if wireType == 4 {
 			return fmt.Errorf("proto: ApplicationSetTemplateMeta: wiretype end group for non-group")
 		}
 		if fieldNum <= 0 {
 			return fmt.Errorf("proto: ApplicationSetTemplateMeta: illegal tag %d (wire type %d)", fieldNum, wire)
-				return fmt.Errorf("proto: wrong wireType = %d for field Clusters", wireType)
+		}
 		switch fieldNum {
 		case 1:
 			if wireType != 2 {
@@ -20774,16 +20524,16 @@ func (m *ApplicationSetTemplateMeta) Unmarshal(dAtA []byte) error {
 			}
 			postIndex := iNdEx + intStringLen
 			if postIndex < 0 {
-			if m.Clusters == nil {
-				m.Clusters = &ClusterGenerator{}
+				return ErrInvalidLengthGenerated
 			}
-			if err := m.Clusters.Unmarshal(dAtA[iNdEx:postIndex]); err != nil {
+			if postIndex > l {
+				return io.ErrUnexpectedEOF
 			}
 			m.Name = string(dAtA[iNdEx:postIndex])
 			iNdEx = postIndex
 		case 2:
 			if wireType != 2 {
-				return fmt.Errorf("proto: wrong wireType = %d for field Git", wireType)
+				return fmt.Errorf("proto: wrong wireType = %d for field Namespace", wireType)
 			}
 			var stringLen uint64
 			for shift := uint(0); ; shift += 7 {
@@ -20810,16 +20560,16 @@ func (m *ApplicationSetTemplateMeta) Unmarshal(dAtA []byte) error {
 			}
 			if postIndex > l {
 				return io.ErrUnexpectedEOF
-			if m.Git == nil {
-				m.Git = &GitGenerator{}
+			}
+			m.Namespace = string(dAtA[iNdEx:postIndex])
 			iNdEx = postIndex
-			if err := m.Git.Unmarshal(dAtA[iNdEx:postIndex]); err != nil {
+		case 3:
 			if wireType != 2 {
 				return fmt.Errorf("proto: wrong wireType = %d for field Labels", wireType)
 			}
-		case 4:
+			var msglen int
 			for shift := uint(0); ; shift += 7 {
-				return fmt.Errorf("proto: wrong wireType = %d for field SCMProvider", wireType)
+				if shift >= 64 {
 					return ErrIntOverflowGenerated
 				}
 				if iNdEx >= l {
@@ -20846,16 +20596,16 @@ func (m *ApplicationSetTemplateMeta) Unmarshal(dAtA []byte) error {
 				m.Labels = make(map[string]string)
 			}
 			var mapkey string
-			if m.SCMProvider == nil {
-				m.SCMProvider = &SCMProviderGenerator{}
-			}
-			if err := m.SCMProvider.Unmarshal(dAtA[iNdEx:postIndex]); err != nil {
+			var mapvalue string
+			for iNdEx < postIndex {
+				entryPreIndex := iNdEx
+				var wire uint64
 				for shift := uint(0); ; shift += 7 {
 					if shift >= 64 {
 						return ErrIntOverflowGenerated
-		case 5:
+					}
 					if iNdEx >= l {
-				return fmt.Errorf("proto: wrong wireType = %d for field ClusterDecisionResource", wireType)
+						return io.ErrUnexpectedEOF
 					}
 					b := dAtA[iNdEx]
 					iNdEx++
@@ -20882,16 +20632,16 @@ func (m *ApplicationSetTemplateMeta) Unmarshal(dAtA []byte) error {
 						}
 					}
 					intStringLenmapkey := int(stringLenmapkey)
-			if m.ClusterDecisionResource == nil {
-				m.ClusterDecisionResource = &DuckTypeGenerator{}
-			}
-			if err := m.ClusterDecisionResource.Unmarshal(dAtA[iNdEx:postIndex]); err != nil {
+					if intStringLenmapkey < 0 {
+						return ErrInvalidLengthGenerated
+					}
+					postStringIndexmapkey := iNdEx + intStringLenmapkey
 					if postStringIndexmapkey < 0 {
 						return ErrInvalidLengthGenerated
 					}
-		case 6:
+					if postStringIndexmapkey > l {
 						return io.ErrUnexpectedEOF
-				return fmt.Errorf("proto: wrong wireType = %d for field PullRequest", wireType)
+					}
 					mapkey = string(dAtA[iNdEx:postStringIndexmapkey])
 					iNdEx = postStringIndexmapkey
 				} else if fieldNum == 2 {
@@ -20918,10 +20668,10 @@ func (m *ApplicationSetTemplateMeta) Unmarshal(dAtA []byte) error {
 					if postStringIndexmapvalue < 0 {
 						return ErrInvalidLengthGenerated
 					}
-			if m.PullRequest == nil {
-				m.PullRequest = &PullRequestGenerator{}
-			}
-			if err := m.PullRequest.Unmarshal(dAtA[iNdEx:postIndex]); err != nil {
+					if postStringIndexmapvalue > l {
+						return io.ErrUnexpectedEOF
+					}
+					mapvalue = string(dAtA[iNdEx:postStringIndexmapvalue])
 					iNdEx = postStringIndexmapvalue
 				} else {
 					iNdEx = entryPreIndex
@@ -20946,7 +20696,7 @@ func (m *ApplicationSetTemplateMeta) Unmarshal(dAtA []byte) error {
 			}
 			var msglen int
 			for shift := uint(0); ; shift += 7 {
-func (m *ApplicationSource) Unmarshal(dAtA []byte) error {
+				if shift >= 64 {
 					return ErrIntOverflowGenerated
 				}
 				if iNdEx >= l {
@@ -20969,17 +20719,17 @@ func (m *ApplicationSource) Unmarshal(dAtA []byte) error {
 			if postIndex > l {
 				return io.ErrUnexpectedEOF
 			}
-			return fmt.Errorf("proto: ApplicationSource: wiretype end group for non-group")
+			if m.Annotations == nil {
 				m.Annotations = make(map[string]string)
 			}
-			return fmt.Errorf("proto: ApplicationSource: illegal tag %d (wire type %d)", fieldNum, wire)
+			var mapkey string
 			var mapvalue string
 			for iNdEx < postIndex {
 				entryPreIndex := iNdEx
 				var wire uint64
-				return fmt.Errorf("proto: wrong wireType = %d for field RepoURL", wireType)
+				for shift := uint(0); ; shift += 7 {
 					if shift >= 64 {
-			var stringLen uint64
+						return ErrIntOverflowGenerated
 					}
 					if iNdEx >= l {
 						return io.ErrUnexpectedEOF
@@ -20989,29 +20739,29 @@ func (m *ApplicationSource) Unmarshal(dAtA []byte) error {
 					wire |= uint64(b&0x7F) << shift
 					if b < 0x80 {
 						break
-				stringLen |= uint64(b&0x7F) << shift
+					}
 				}
 				fieldNum := int32(wire >> 3)
 				if fieldNum == 1 {
 					var stringLenmapkey uint64
-			intStringLen := int(stringLen)
-			if intStringLen < 0 {
+					for shift := uint(0); ; shift += 7 {
+						if shift >= 64 {
 							return ErrIntOverflowGenerated
 						}
-			postIndex := iNdEx + intStringLen
+						if iNdEx >= l {
 							return io.ErrUnexpectedEOF
 						}
 						b := dAtA[iNdEx]
 						iNdEx++
 						stringLenmapkey |= uint64(b&0x7F) << shift
 						if b < 0x80 {
-			m.RepoURL = string(dAtA[iNdEx:postIndex])
+							break
 						}
 					}
 					intStringLenmapkey := int(stringLenmapkey)
-				return fmt.Errorf("proto: wrong wireType = %d for field Path", wireType)
+					if intStringLenmapkey < 0 {
 						return ErrInvalidLengthGenerated
-			var stringLen uint64
+					}
 					postStringIndexmapkey := iNdEx + intStringLenmapkey
 					if postStringIndexmapkey < 0 {
 						return ErrInvalidLengthGenerated
@@ -21021,29 +20771,29 @@ func (m *ApplicationSource) Unmarshal(dAtA []byte) error {
 					}
 					mapkey = string(dAtA[iNdEx:postStringIndexmapkey])
 					iNdEx = postStringIndexmapkey
-				stringLen |= uint64(b&0x7F) << shift
+				} else if fieldNum == 2 {
 					var stringLenmapvalue uint64
 					for shift := uint(0); ; shift += 7 {
 						if shift >= 64 {
 							return ErrIntOverflowGenerated
-			intStringLen := int(stringLen)
-			if intStringLen < 0 {
+						}
+						if iNdEx >= l {
 							return io.ErrUnexpectedEOF
 						}
-			postIndex := iNdEx + intStringLen
+						b := dAtA[iNdEx]
 						iNdEx++
 						stringLenmapvalue |= uint64(b&0x7F) << shift
 						if b < 0x80 {
 							break
 						}
 					}
-			m.Path = string(dAtA[iNdEx:postIndex])
+					intStringLenmapvalue := int(stringLenmapvalue)
 					if intStringLenmapvalue < 0 {
-		case 4:
+						return ErrInvalidLengthGenerated
 					}
-				return fmt.Errorf("proto: wrong wireType = %d for field TargetRevision", wireType)
+					postStringIndexmapvalue := iNdEx + intStringLenmapvalue
 					if postStringIndexmapvalue < 0 {
-			var stringLen uint64
+						return ErrInvalidLengthGenerated
 					}
 					if postStringIndexmapvalue > l {
 						return io.ErrUnexpectedEOF
@@ -21053,27 +20803,27 @@ func (m *ApplicationSource) Unmarshal(dAtA []byte) error {
 				} else {
 					iNdEx = entryPreIndex
 					skippy, err := skipGenerated(dAtA[iNdEx:])
-				stringLen |= uint64(b&0x7F) << shift
+					if err != nil {
 						return err
 					}
 					if (skippy < 0) || (iNdEx+skippy) < 0 {
 						return ErrInvalidLengthGenerated
-			intStringLen := int(stringLen)
-			if intStringLen < 0 {
+					}
+					if (iNdEx + skippy) > postIndex {
 						return io.ErrUnexpectedEOF
 					}
-			postIndex := iNdEx + intStringLen
+					iNdEx += skippy
 				}
 			}
 			m.Annotations[mapkey] = mapvalue
 			iNdEx = postIndex
 		case 5:
 			if wireType != 2 {
-			m.TargetRevision = string(dAtA[iNdEx:postIndex])
+				return fmt.Errorf("proto: wrong wireType = %d for field Finalizers", wireType)
 			}
-		case 7:
+			var stringLen uint64
 			for shift := uint(0); ; shift += 7 {
-				return fmt.Errorf("proto: wrong wireType = %d for field Helm", wireType)
+				if shift >= 64 {
 					return ErrIntOverflowGenerated
 				}
 				if iNdEx >= l {
@@ -21100,6 +20850,446 @@ func (m *ApplicationSource) Unmarshal(dAtA []byte) error {
 			m.Finalizers = append(m.Finalizers, string(dAtA[iNdEx:postIndex]))
 			iNdEx = postIndex
 		default:
+			iNdEx = preIndex
+			skippy, err := skipGenerated(dAtA[iNdEx:])
+			if err != nil {
+				return err
+			}
+			if (skippy < 0) || (iNdEx+skippy) < 0 {
+				return ErrInvalidLengthGenerated
+			}
+			if (iNdEx + skippy) > l {
+				return io.ErrUnexpectedEOF
+			}
+			iNdEx += skippy
+		}
+	}
+
+	if iNdEx > l {
+		return io.ErrUnexpectedEOF
+	}
+	return nil
+}
+func (m *ApplicationSetTerminalGenerator) Unmarshal(dAtA []byte) error {
+	l := len(dAtA)
+	iNdEx := 0
+	for iNdEx < l {
+		preIndex := iNdEx
+		var wire uint64
+		for shift := uint(0); ; shift += 7 {
+			if shift >= 64 {
+				return ErrIntOverflowGenerated
+			}
+			if iNdEx >= l {
+				return io.ErrUnexpectedEOF
+			}
+			b := dAtA[iNdEx]
+			iNdEx++
+			wire |= uint64(b&0x7F) << shift
+			if b < 0x80 {
+				break
+			}
+		}
+		fieldNum := int32(wire >> 3)
+		wireType := int(wire & 0x7)
+		if wireType == 4 {
+			return fmt.Errorf("proto: ApplicationSetTerminalGenerator: wiretype end group for non-group")
+		}
+		if fieldNum <= 0 {
+			return fmt.Errorf("proto: ApplicationSetTerminalGenerator: illegal tag %d (wire type %d)", fieldNum, wire)
+		}
+		switch fieldNum {
+		case 1:
+			if wireType != 2 {
+				return fmt.Errorf("proto: wrong wireType = %d for field List", wireType)
+			}
+			var msglen int
+			for shift := uint(0); ; shift += 7 {
+				if shift >= 64 {
+					return ErrIntOverflowGenerated
+				}
+				if iNdEx >= l {
+					return io.ErrUnexpectedEOF
+				}
+				b := dAtA[iNdEx]
+				iNdEx++
+				msglen |= int(b&0x7F) << shift
+				if b < 0x80 {
+					break
+				}
+			}
+			if msglen < 0 {
+				return ErrInvalidLengthGenerated
+			}
+			postIndex := iNdEx + msglen
+			if postIndex < 0 {
+				return ErrInvalidLengthGenerated
+			}
+			if postIndex > l {
+				return io.ErrUnexpectedEOF
+			}
+			if m.List == nil {
+				m.List = &ListGenerator{}
+			}
+			if err := m.List.Unmarshal(dAtA[iNdEx:postIndex]); err != nil {
+				return err
+			}
+			iNdEx = postIndex
+		case 2:
+			if wireType != 2 {
+				return fmt.Errorf("proto: wrong wireType = %d for field Clusters", wireType)
+			}
+			var msglen int
+			for shift := uint(0); ; shift += 7 {
+				if shift >= 64 {
+					return ErrIntOverflowGenerated
+				}
+				if iNdEx >= l {
+					return io.ErrUnexpectedEOF
+				}
+				b := dAtA[iNdEx]
+				iNdEx++
+				msglen |= int(b&0x7F) << shift
+				if b < 0x80 {
+					break
+				}
+			}
+			if msglen < 0 {
+				return ErrInvalidLengthGenerated
+			}
+			postIndex := iNdEx + msglen
+			if postIndex < 0 {
+				return ErrInvalidLengthGenerated
+			}
+			if postIndex > l {
+				return io.ErrUnexpectedEOF
+			}
+			if m.Clusters == nil {
+				m.Clusters = &ClusterGenerator{}
+			}
+			if err := m.Clusters.Unmarshal(dAtA[iNdEx:postIndex]); err != nil {
+				return err
+			}
+			iNdEx = postIndex
+		case 3:
+			if wireType != 2 {
+				return fmt.Errorf("proto: wrong wireType = %d for field Git", wireType)
+			}
+			var msglen int
+			for shift := uint(0); ; shift += 7 {
+				if shift >= 64 {
+					return ErrIntOverflowGenerated
+				}
+				if iNdEx >= l {
+					return io.ErrUnexpectedEOF
+				}
+				b := dAtA[iNdEx]
+				iNdEx++
+				msglen |= int(b&0x7F) << shift
+				if b < 0x80 {
+					break
+				}
+			}
+			if msglen < 0 {
+				return ErrInvalidLengthGenerated
+			}
+			postIndex := iNdEx + msglen
+			if postIndex < 0 {
+				return ErrInvalidLengthGenerated
+			}
+			if postIndex > l {
+				return io.ErrUnexpectedEOF
+			}
+			if m.Git == nil {
+				m.Git = &GitGenerator{}
+			}
+			if err := m.Git.Unmarshal(dAtA[iNdEx:postIndex]); err != nil {
+				return err
+			}
+			iNdEx = postIndex
+		case 4:
+			if wireType != 2 {
+				return fmt.Errorf("proto: wrong wireType = %d for field SCMProvider", wireType)
+			}
+			var msglen int
+			for shift := uint(0); ; shift += 7 {
+				if shift >= 64 {
+					return ErrIntOverflowGenerated
+				}
+				if iNdEx >= l {
+					return io.ErrUnexpectedEOF
+				}
+				b := dAtA[iNdEx]
+				iNdEx++
+				msglen |= int(b&0x7F) << shift
+				if b < 0x80 {
+					break
+				}
+			}
+			if msglen < 0 {
+				return ErrInvalidLengthGenerated
+			}
+			postIndex := iNdEx + msglen
+			if postIndex < 0 {
+				return ErrInvalidLengthGenerated
+			}
+			if postIndex > l {
+				return io.ErrUnexpectedEOF
+			}
+			if m.SCMProvider == nil {
+				m.SCMProvider = &SCMProviderGenerator{}
+			}
+			if err := m.SCMProvider.Unmarshal(dAtA[iNdEx:postIndex]); err != nil {
+				return err
+			}
+			iNdEx = postIndex
+		case 5:
+			if wireType != 2 {
+				return fmt.Errorf("proto: wrong wireType = %d for field ClusterDecisionResource", wireType)
+			}
+			var msglen int
+			for shift := uint(0); ; shift += 7 {
+				if shift >= 64 {
+					return ErrIntOverflowGenerated
+				}
+				if iNdEx >= l {
+					return io.ErrUnexpectedEOF
+				}
+				b := dAtA[iNdEx]
+				iNdEx++
+				msglen |= int(b&0x7F) << shift
+				if b < 0x80 {
+					break
+				}
+			}
+			if msglen < 0 {
+				return ErrInvalidLengthGenerated
+			}
+			postIndex := iNdEx + msglen
+			if postIndex < 0 {
+				return ErrInvalidLengthGenerated
+			}
+			if postIndex > l {
+				return io.ErrUnexpectedEOF
+			}
+			if m.ClusterDecisionResource == nil {
+				m.ClusterDecisionResource = &DuckTypeGenerator{}
+			}
+			if err := m.ClusterDecisionResource.Unmarshal(dAtA[iNdEx:postIndex]); err != nil {
+				return err
+			}
+			iNdEx = postIndex
+		case 6:
+			if wireType != 2 {
+				return fmt.Errorf("proto: wrong wireType = %d for field PullRequest", wireType)
+			}
+			var msglen int
+			for shift := uint(0); ; shift += 7 {
+				if shift >= 64 {
+					return ErrIntOverflowGenerated
+				}
+				if iNdEx >= l {
+					return io.ErrUnexpectedEOF
+				}
+				b := dAtA[iNdEx]
+				iNdEx++
+				msglen |= int(b&0x7F) << shift
+				if b < 0x80 {
+					break
+				}
+			}
+			if msglen < 0 {
+				return ErrInvalidLengthGenerated
+			}
+			postIndex := iNdEx + msglen
+			if postIndex < 0 {
+				return ErrInvalidLengthGenerated
+			}
+			if postIndex > l {
+				return io.ErrUnexpectedEOF
+			}
+			if m.PullRequest == nil {
+				m.PullRequest = &PullRequestGenerator{}
+			}
+			if err := m.PullRequest.Unmarshal(dAtA[iNdEx:postIndex]); err != nil {
+				return err
+			}
+			iNdEx = postIndex
+		default:
+			iNdEx = preIndex
+			skippy, err := skipGenerated(dAtA[iNdEx:])
+			if err != nil {
+				return err
+			}
+			if (skippy < 0) || (iNdEx+skippy) < 0 {
+				return ErrInvalidLengthGenerated
+			}
+			if (iNdEx + skippy) > l {
+				return io.ErrUnexpectedEOF
+			}
+			iNdEx += skippy
+		}
+	}
+
+	if iNdEx > l {
+		return io.ErrUnexpectedEOF
+	}
+	return nil
+}
+func (m *ApplicationSource) Unmarshal(dAtA []byte) error {
+	l := len(dAtA)
+	iNdEx := 0
+	for iNdEx < l {
+		preIndex := iNdEx
+		var wire uint64
+		for shift := uint(0); ; shift += 7 {
+			if shift >= 64 {
+				return ErrIntOverflowGenerated
+			}
+			if iNdEx >= l {
+				return io.ErrUnexpectedEOF
+			}
+			b := dAtA[iNdEx]
+			iNdEx++
+			wire |= uint64(b&0x7F) << shift
+			if b < 0x80 {
+				break
+			}
+		}
+		fieldNum := int32(wire >> 3)
+		wireType := int(wire & 0x7)
+		if wireType == 4 {
+			return fmt.Errorf("proto: ApplicationSource: wiretype end group for non-group")
+		}
+		if fieldNum <= 0 {
+			return fmt.Errorf("proto: ApplicationSource: illegal tag %d (wire type %d)", fieldNum, wire)
+		}
+		switch fieldNum {
+		case 1:
+			if wireType != 2 {
+				return fmt.Errorf("proto: wrong wireType = %d for field RepoURL", wireType)
+			}
+			var stringLen uint64
+			for shift := uint(0); ; shift += 7 {
+				if shift >= 64 {
+					return ErrIntOverflowGenerated
+				}
+				if iNdEx >= l {
+					return io.ErrUnexpectedEOF
+				}
+				b := dAtA[iNdEx]
+				iNdEx++
+				stringLen |= uint64(b&0x7F) << shift
+				if b < 0x80 {
+					break
+				}
+			}
+			intStringLen := int(stringLen)
+			if intStringLen < 0 {
+				return ErrInvalidLengthGenerated
+			}
+			postIndex := iNdEx + intStringLen
+			if postIndex < 0 {
+				return ErrInvalidLengthGenerated
+			}
+			if postIndex > l {
+				return io.ErrUnexpectedEOF
+			}
+			m.RepoURL = string(dAtA[iNdEx:postIndex])
+			iNdEx = postIndex
+		case 2:
+			if wireType != 2 {
+				return fmt.Errorf("proto: wrong wireType = %d for field Path", wireType)
+			}
+			var stringLen uint64
+			for shift := uint(0); ; shift += 7 {
+				if shift >= 64 {
+					return ErrIntOverflowGenerated
+				}
+				if iNdEx >= l {
+					return io.ErrUnexpectedEOF
+				}
+				b := dAtA[iNdEx]
+				iNdEx++
+				stringLen |= uint64(b&0x7F) << shift
+				if b < 0x80 {
+					break
+				}
+			}
+			intStringLen := int(stringLen)
+			if intStringLen < 0 {
+				return ErrInvalidLengthGenerated
+			}
+			postIndex := iNdEx + intStringLen
+			if postIndex < 0 {
+				return ErrInvalidLengthGenerated
+			}
+			if postIndex > l {
+				return io.ErrUnexpectedEOF
+			}
+			m.Path = string(dAtA[iNdEx:postIndex])
+			iNdEx = postIndex
+		case 4:
+			if wireType != 2 {
+				return fmt.Errorf("proto: wrong wireType = %d for field TargetRevision", wireType)
+			}
+			var stringLen uint64
+			for shift := uint(0); ; shift += 7 {
+				if shift >= 64 {
+					return ErrIntOverflowGenerated
+				}
+				if iNdEx >= l {
+					return io.ErrUnexpectedEOF
+				}
+				b := dAtA[iNdEx]
+				iNdEx++
+				stringLen |= uint64(b&0x7F) << shift
+				if b < 0x80 {
+					break
+				}
+			}
+			intStringLen := int(stringLen)
+			if intStringLen < 0 {
+				return ErrInvalidLengthGenerated
+			}
+			postIndex := iNdEx + intStringLen
+			if postIndex < 0 {
+				return ErrInvalidLengthGenerated
+			}
+			if postIndex > l {
+				return io.ErrUnexpectedEOF
+			}
+			m.TargetRevision = string(dAtA[iNdEx:postIndex])
+			iNdEx = postIndex
+		case 7:
+			if wireType != 2 {
+				return fmt.Errorf("proto: wrong wireType = %d for field Helm", wireType)
+			}
+			var msglen int
+			for shift := uint(0); ; shift += 7 {
+				if shift >= 64 {
+					return ErrIntOverflowGenerated
+				}
+				if iNdEx >= l {
+					return io.ErrUnexpectedEOF
+				}
+				b := dAtA[iNdEx]
+				iNdEx++
+				msglen |= int(b&0x7F) << shift
+				if b < 0x80 {
+					break
+				}
+			}
+			if msglen < 0 {
+				return ErrInvalidLengthGenerated
+			}
+			postIndex := iNdEx + msglen
+			if postIndex < 0 {
+				return ErrInvalidLengthGenerated
+			}
+			if postIndex > l {
+				return io.ErrUnexpectedEOF
+			}
 			if m.Helm == nil {
 				m.Helm = &ApplicationSourceHelm{}
 			}
@@ -21246,38 +21436,6 @@ func (m *ApplicationSource) Unmarshal(dAtA []byte) error {
 				return io.ErrUnexpectedEOF
 			}
 			m.Chart = string(dAtA[iNdEx:postIndex])
-			iNdEx = postIndex
-		case 13:
-			if wireType != 2 {
-				return fmt.Errorf("proto: wrong wireType = %d for field Ref", wireType)
-			}
-			var stringLen uint64
-			for shift := uint(0); ; shift += 7 {
-				if shift >= 64 {
-					return ErrIntOverflowGenerated
-				}
-				if iNdEx >= l {
-					return io.ErrUnexpectedEOF
-				}
-				b := dAtA[iNdEx]
-				iNdEx++
-				stringLen |= uint64(b&0x7F) << shift
-				if b < 0x80 {
-					break
-				}
-			}
-			intStringLen := int(stringLen)
-			if intStringLen < 0 {
-				return ErrInvalidLengthGenerated
-			}
-			postIndex := iNdEx + intStringLen
-			if postIndex < 0 {
-				return ErrInvalidLengthGenerated
-			}
-			if postIndex > l {
-				return io.ErrUnexpectedEOF
-			}
-			m.Ref = string(dAtA[iNdEx:postIndex])
 			iNdEx = postIndex
 		default:
 			iNdEx = preIndex
@@ -23073,40 +23231,6 @@ func (m *ApplicationSpec) Unmarshal(dAtA []byte) error {
 				}
 			}
 			m.RevisionHistoryLimit = &v
-		case 8:
-			if wireType != 2 {
-				return fmt.Errorf("proto: wrong wireType = %d for field Sources", wireType)
-			}
-			var msglen int
-			for shift := uint(0); ; shift += 7 {
-				if shift >= 64 {
-					return ErrIntOverflowGenerated
-				}
-				if iNdEx >= l {
-					return io.ErrUnexpectedEOF
-				}
-				b := dAtA[iNdEx]
-				iNdEx++
-				msglen |= int(b&0x7F) << shift
-				if b < 0x80 {
-					break
-				}
-			}
-			if msglen < 0 {
-				return ErrInvalidLengthGenerated
-			}
-			postIndex := iNdEx + msglen
-			if postIndex < 0 {
-				return ErrInvalidLengthGenerated
-			}
-			if postIndex > l {
-				return io.ErrUnexpectedEOF
-			}
-			m.Sources = append(m.Sources, ApplicationSource{})
-			if err := m.Sources[len(m.Sources)-1].Unmarshal(dAtA[iNdEx:postIndex]); err != nil {
-				return err
-			}
-			iNdEx = postIndex
 		default:
 			iNdEx = preIndex
 			skippy, err := skipGenerated(dAtA[iNdEx:])
@@ -25995,40 +26119,6 @@ func (m *ComparedTo) Unmarshal(dAtA []byte) error {
 				return io.ErrUnexpectedEOF
 			}
 			if err := m.Destination.Unmarshal(dAtA[iNdEx:postIndex]); err != nil {
-				return err
-			}
-			iNdEx = postIndex
-		case 3:
-			if wireType != 2 {
-				return fmt.Errorf("proto: wrong wireType = %d for field Sources", wireType)
-			}
-			var msglen int
-			for shift := uint(0); ; shift += 7 {
-				if shift >= 64 {
-					return ErrIntOverflowGenerated
-				}
-				if iNdEx >= l {
-					return io.ErrUnexpectedEOF
-				}
-				b := dAtA[iNdEx]
-				iNdEx++
-				msglen |= int(b&0x7F) << shift
-				if b < 0x80 {
-					break
-				}
-			}
-			if msglen < 0 {
-				return ErrInvalidLengthGenerated
-			}
-			postIndex := iNdEx + msglen
-			if postIndex < 0 {
-				return ErrInvalidLengthGenerated
-			}
-			if postIndex > l {
-				return io.ErrUnexpectedEOF
-			}
-			m.Sources = append(m.Sources, ApplicationSource{})
-			if err := m.Sources[len(m.Sources)-1].Unmarshal(dAtA[iNdEx:postIndex]); err != nil {
 				return err
 			}
 			iNdEx = postIndex
@@ -41408,38 +41498,6 @@ func (m *SyncStatus) Unmarshal(dAtA []byte) error {
 				return io.ErrUnexpectedEOF
 			}
 			m.Revision = string(dAtA[iNdEx:postIndex])
-			iNdEx = postIndex
-		case 4:
-			if wireType != 2 {
-				return fmt.Errorf("proto: wrong wireType = %d for field Revisions", wireType)
-			}
-			var stringLen uint64
-			for shift := uint(0); ; shift += 7 {
-				if shift >= 64 {
-					return ErrIntOverflowGenerated
-				}
-				if iNdEx >= l {
-					return io.ErrUnexpectedEOF
-				}
-				b := dAtA[iNdEx]
-				iNdEx++
-				stringLen |= uint64(b&0x7F) << shift
-				if b < 0x80 {
-					break
-				}
-			}
-			intStringLen := int(stringLen)
-			if intStringLen < 0 {
-				return ErrInvalidLengthGenerated
-			}
-			postIndex := iNdEx + intStringLen
-			if postIndex < 0 {
-				return ErrInvalidLengthGenerated
-			}
-			if postIndex > l {
-				return io.ErrUnexpectedEOF
-			}
-			m.Revisions = append(m.Revisions, string(dAtA[iNdEx:postIndex]))
 			iNdEx = postIndex
 		default:
 			iNdEx = preIndex
