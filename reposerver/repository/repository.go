@@ -1956,14 +1956,27 @@ func (s *Service) newClientResolveRevision(repo *v1alpha1.Repository, revision s
 func (s *Service) newHelmClientResolveRevision(repo *v1alpha1.Repository, revision string, chart string, noRevisionCache bool) (helm.Client, string, error) {
 	enableOCI := repo.EnableOCI || helm.IsHelmOciRepo(repo.Repo)
 	helmClient := s.newHelmClient(repo.Repo, repo.GetHelmCreds(), enableOCI, repo.Proxy, helm.WithIndexCache(s.cache), helm.WithChartPaths(s.chartPaths))
-	// OCI helm registers don't support semver ranges. Assuming that given revision is exact version
-	if helm.IsVersion(revision) || enableOCI {
+	if helm.IsVersion(revision) {
 		return helmClient, revision, nil
 	}
 	constraints, err := semver.NewConstraint(revision)
 	if err != nil {
 		return nil, "", fmt.Errorf("invalid revision '%s': %v", revision, err)
 	}
+
+	if enableOCI {
+		tags, err := helmClient.GetTags(chart, noRevisionCache)
+		if err != nil {
+			return nil, "", fmt.Errorf("unable to get tags: %v", err)
+		}
+
+		version, err := tags.MaxVersion(constraints)
+		if err != nil {
+			return nil, "", fmt.Errorf("no version for constraints: %v", err)
+		}
+		return helmClient, version.String(), nil
+	}
+
 	index, err := helmClient.GetIndex(noRevisionCache)
 	if err != nil {
 		return nil, "", err
@@ -2099,30 +2112,14 @@ func (s *Service) ResolveRevision(ctx context.Context, q *apiclient.ResolveRevis
 	ambiguousRevision := q.AmbiguousRevision
 	var revision string
 	if app.Spec.Source.IsHelm() {
+		_, revision, err := s.newHelmClientResolveRevision(repo, ambiguousRevision, app.Spec.Source.Chart, true)
 
-		if helm.IsVersion(ambiguousRevision) {
-			return &apiclient.ResolveRevisionResponse{Revision: ambiguousRevision, AmbiguousRevision: ambiguousRevision}, nil
-		}
-		client := helm.NewClient(repo.Repo, repo.GetHelmCreds(), repo.EnableOCI || app.Spec.Source.IsHelmOci(), repo.Proxy, helm.WithChartPaths(s.chartPaths))
-		index, err := client.GetIndex(false)
-		if err != nil {
-			return &apiclient.ResolveRevisionResponse{Revision: "", AmbiguousRevision: ""}, err
-		}
-		entries, err := index.GetEntries(app.Spec.Source.Chart)
-		if err != nil {
-			return &apiclient.ResolveRevisionResponse{Revision: "", AmbiguousRevision: ""}, err
-		}
-		constraints, err := semver.NewConstraint(ambiguousRevision)
-		if err != nil {
-			return &apiclient.ResolveRevisionResponse{Revision: "", AmbiguousRevision: ""}, err
-		}
-		version, err := entries.MaxVersion(constraints)
 		if err != nil {
 			return &apiclient.ResolveRevisionResponse{Revision: "", AmbiguousRevision: ""}, err
 		}
 		return &apiclient.ResolveRevisionResponse{
-			Revision:          version.String(),
-			AmbiguousRevision: fmt.Sprintf("%v (%v)", ambiguousRevision, version.String()),
+			Revision:          revision,
+			AmbiguousRevision: fmt.Sprintf("%v (%v)", ambiguousRevision, revision),
 		}, nil
 	} else {
 		gitClient, err := git.NewClient(repo.Repo, repo.GetGitCreds(s.gitCredsStore), repo.IsInsecure(), repo.IsLFSEnabled(), repo.Proxy)

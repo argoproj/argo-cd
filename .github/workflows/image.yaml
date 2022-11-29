@@ -37,7 +37,7 @@ jobs:
           path: src/github.com/argoproj/argo-cd
 
       # get image tag
-      - run: echo ::set-output name=tag::$(cat ./VERSION)-${GITHUB_SHA::8}
+      - run: echo "tag=$(cat ./VERSION)-${GITHUB_SHA::8}" >> $GITHUB_OUTPUT
         working-directory: ./src/github.com/argoproj/argo-cd
         id: image
 

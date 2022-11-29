@@ -224,7 +224,7 @@ export const ApplicationTiles = ({applications, syncApplication, refreshApplicat
                                                         <div className='columns small-3' title='Target Revision:'>
                                                             Target Revision:
                                                         </div>
-                                                        <div className='columns small-9'>{app.spec.source.targetRevision}</div>
+                                                        <div className='columns small-9'>{app.spec.source.targetRevision || 'HEAD'}</div>
                                                     </div>
                                                     {app.spec.source.path && (
                                                         <div className='row'>
