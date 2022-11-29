@@ -13,7 +13,7 @@ require (
 	github.com/argoproj/pkg v0.13.7-0.20221115212233-27bd8ce31415
 	github.com/aws/aws-sdk-go v1.44.129
 	github.com/bombsimon/logrusr/v2 v2.0.1
-	github.com/bradleyfalzon/ghinstallation/v2 v2.0.4
+	github.com/bradleyfalzon/ghinstallation/v2 v2.1.0
 	github.com/casbin/casbin/v2 v2.57.1
 	github.com/chai2010/gettext-go v0.0.0-20170215093142-bf70f2a70fb1 // indirect
 	github.com/coreos/go-oidc v2.2.1+incompatible
@@ -116,6 +116,7 @@ require (
 
 require (
 	github.com/emicklei/go-restful/v3 v3.8.0 // indirect
+	github.com/google/go-github/v45 v45.2.0 // indirect
 	github.com/rivo/uniseg v0.2.0 // indirect
 )
 
