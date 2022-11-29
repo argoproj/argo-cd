@@ -13,6 +13,7 @@ import (
 
 	"github.com/stretchr/testify/assert"
 	"github.com/stretchr/testify/require"
+	"google.golang.org/grpc/metadata"
 	"gopkg.in/yaml.v2"
 	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
 
@@ -319,7 +320,7 @@ func TestGenerateManifest_deadline_exceeded(t *testing.T) {
 	service, err := newService(configFilePath)
 	require.NoError(t, err)
 
-	expiredCtx, cancel := context.WithTimeout(context.Background(), time.Second * 0)
+	expiredCtx, cancel := context.WithTimeout(context.Background(), time.Second*0)
 	defer cancel()
 	_, err = service.generateManifest(expiredCtx, "", nil)
 	assert.ErrorContains(t, err, "context deadline exceeded")
@@ -498,11 +499,11 @@ func TestEnviron(t *testing.T) {
 }
 
 type MockGenerateManifestStream struct {
-	metadataSent bool
-	fileSent bool
+	metadataSent    bool
+	fileSent        bool
 	metadataRequest *apiclient.AppStreamRequest
-	fileRequest *apiclient.AppStreamRequest
-	response *apiclient.ManifestResponse
+	fileRequest     *apiclient.AppStreamRequest
+	response        *apiclient.ManifestResponse
 }
 
 func NewMockGenerateManifestStream(repoPath, appPath string, env []string) (*MockGenerateManifestStream, error) {
@@ -520,7 +521,7 @@ func NewMockGenerateManifestStream(repoPath, appPath string, env []string) (*Moc
 
 	return &MockGenerateManifestStream{
 		metadataRequest: mr,
-		fileRequest: cmp.AppFileRequest(tgzBuffer.Bytes()),
+		fileRequest:     cmp.AppFileRequest(tgzBuffer.Bytes()),
 	}, nil
 }
 
@@ -572,11 +573,11 @@ func TestService_GenerateManifest(t *testing.T) {
 }
 
 type MockMatchRepositoryStream struct {
-	metadataSent bool
-	fileSent bool
+	metadataSent    bool
+	fileSent        bool
 	metadataRequest *apiclient.AppStreamRequest
-	fileRequest *apiclient.AppStreamRequest
-	response *apiclient.RepositoryResponse
+	fileRequest     *apiclient.AppStreamRequest
+	response        *apiclient.RepositoryResponse
 }
 
 func NewMockMatchRepositoryStream(repoPath, appPath string, env []string) (*MockMatchRepositoryStream, error) {
@@ -594,7 +595,7 @@ func NewMockMatchRepositoryStream(repoPath, appPath string, env []string) (*Mock
 
 	return &MockMatchRepositoryStream{
 		metadataRequest: mr,
-		fileRequest: cmp.AppFileRequest(tgzBuffer.Bytes()),
+		fileRequest:     cmp.AppFileRequest(tgzBuffer.Bytes()),
 	}, nil
 }
 
@@ -645,11 +646,11 @@ func TestService_MatchRepository(t *testing.T) {
 }
 
 type MockParametersAnnouncementStream struct {
-	metadataSent bool
-	fileSent bool
+	metadataSent    bool
+	fileSent        bool
 	metadataRequest *apiclient.AppStreamRequest
-	fileRequest *apiclient.AppStreamRequest
-	response *apiclient.ParametersAnnouncementResponse
+	fileRequest     *apiclient.AppStreamRequest
+	response        *apiclient.ParametersAnnouncementResponse
 }
 
 func NewMockParametersAnnouncementStream(repoPath, appPath string, env []string) (*MockParametersAnnouncementStream, error) {
@@ -667,7 +668,7 @@ func NewMockParametersAnnouncementStream(repoPath, appPath string, env []string)
 
 	return &MockParametersAnnouncementStream{
 		metadataRequest: mr,
-		fileRequest: cmp.AppFileRequest(tgzBuffer.Bytes()),
+		fileRequest:     cmp.AppFileRequest(tgzBuffer.Bytes()),
 	}, nil
 }
 
@@ -689,8 +690,28 @@ func (m *MockParametersAnnouncementStream) Recv() (*apiclient.AppStreamRequest, 
 	return nil, io.EOF
 }
 
+func (m *MockParametersAnnouncementStream) SetHeader(metadata.MD) error {
+	return nil
+}
+
+func (m *MockParametersAnnouncementStream) SendHeader(metadata.MD) error {
+	return nil
+}
+
+func (m *MockParametersAnnouncementStream) SetTrailer(metadata.MD) {
+	return
+}
+
 func (m *MockParametersAnnouncementStream) Context() context.Context {
 	return context.Background()
+}
+
+func (m *MockParametersAnnouncementStream) SendMsg(interface{}) error {
+	return nil
+}
+
+func (m *MockParametersAnnouncementStream) RecvMsg(interface{}) error {
+	return nil
 }
 
 func TestService_GetParametersAnnouncement(t *testing.T) {
@@ -701,7 +722,7 @@ func TestService_GetParametersAnnouncement(t *testing.T) {
 	t.Run("successful response", func(t *testing.T) {
 		s, err := NewMockParametersAnnouncementStream("./testdata/kustomize", "./testdata/kustomize", nil)
 		require.NoError(t, err)
-		err = service.getParametersAnnouncementGeneric(s)
+		err = service.GetParametersAnnouncement(s)
 		require.NoError(t, err)
 		require.NotNil(t, s.response)
 		require.Len(t, s.response.ParameterAnnouncements, 1)
@@ -712,7 +733,7 @@ func TestService_GetParametersAnnouncement(t *testing.T) {
 		require.NoError(t, err)
 		// set a malicious app path on the metadata
 		s.metadataRequest.Request.(*apiclient.AppStreamRequest_Metadata).Metadata.AppRelPath = "../out-of-bounds"
-		err = service.getParametersAnnouncementGeneric(s)
+		err = service.GetParametersAnnouncement(s)
 		require.ErrorContains(t, err, "illegal appPath")
 		require.Nil(t, s.response)
 	})
