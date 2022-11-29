@@ -383,13 +383,13 @@ func (l *legacyRepositoryBackend) credentialsToRepository(repoInfo settings.Repo
 		GitHubAppEnterpriseBaseURL: repoInfo.GithubAppEnterpriseBaseURL,
 		Proxy:                      repoInfo.Proxy,
 	}
-	err := l.db.unmarshalFromSecretsStr(map[*SecretMaperValidation]*apiv1.SecretKeySelector{
-		&SecretMaperValidation{Dest: &repo.Username, Transform: StripCRLFCharacter}:            repoInfo.UsernameSecret,
-		&SecretMaperValidation{Dest: &repo.Password, Transform: StripCRLFCharacter}:            repoInfo.PasswordSecret,
-		&SecretMaperValidation{Dest: &repo.SSHPrivateKey, Transform: StripCRLFCharacter}:       repoInfo.SSHPrivateKeySecret,
-		&SecretMaperValidation{Dest: &repo.TLSClientCertData, Transform: StripCRLFCharacter}:   repoInfo.TLSClientCertDataSecret,
-		&SecretMaperValidation{Dest: &repo.TLSClientCertKey, Transform: StripCRLFCharacter}:    repoInfo.TLSClientCertKeySecret,
-		&SecretMaperValidation{Dest: &repo.GithubAppPrivateKey, Transform: StripCRLFCharacter}: repoInfo.GithubAppPrivateKeySecret,
+	err := l.db.unmarshalFromSecretsStr(map[*SecretMapperValidation]*apiv1.SecretKeySelector{
+		&SecretMapperValidation{Dest: &repo.Username, Transform: StripCRLFCharacter}:            repoInfo.UsernameSecret,
+		&SecretMapperValidation{Dest: &repo.Password, Transform: StripCRLFCharacter}:            repoInfo.PasswordSecret,
+		&SecretMapperValidation{Dest: &repo.SSHPrivateKey, Transform: StripCRLFCharacter}:       repoInfo.SSHPrivateKeySecret,
+		&SecretMapperValidation{Dest: &repo.TLSClientCertData, Transform: StripCRLFCharacter}:   repoInfo.TLSClientCertDataSecret,
+		&SecretMapperValidation{Dest: &repo.TLSClientCertKey, Transform: StripCRLFCharacter}:    repoInfo.TLSClientCertKeySecret,
+		&SecretMapperValidation{Dest: &repo.GithubAppPrivateKey, Transform: StripCRLFCharacter}: repoInfo.GithubAppPrivateKeySecret,
 	}, make(map[string]*apiv1.Secret))
 	return repo, err
 }
@@ -402,13 +402,13 @@ func (l *legacyRepositoryBackend) credentialsToRepositoryCredentials(repoInfo se
 		GitHubAppEnterpriseBaseURL: repoInfo.GithubAppEnterpriseBaseURL,
 		EnableOCI:                  repoInfo.EnableOCI,
 	}
-	err := l.db.unmarshalFromSecretsStr(map[*SecretMaperValidation]*apiv1.SecretKeySelector{
-		&SecretMaperValidation{Dest: &creds.Username}:            repoInfo.UsernameSecret,
-		&SecretMaperValidation{Dest: &creds.Password}:            repoInfo.PasswordSecret,
-		&SecretMaperValidation{Dest: &creds.SSHPrivateKey}:       repoInfo.SSHPrivateKeySecret,
-		&SecretMaperValidation{Dest: &creds.TLSClientCertData}:   repoInfo.TLSClientCertDataSecret,
-		&SecretMaperValidation{Dest: &creds.TLSClientCertKey}:    repoInfo.TLSClientCertKeySecret,
-		&SecretMaperValidation{Dest: &creds.GithubAppPrivateKey}: repoInfo.GithubAppPrivateKeySecret,
+	err := l.db.unmarshalFromSecretsStr(map[*SecretMapperValidation]*apiv1.SecretKeySelector{
+		&SecretMapperValidation{Dest: &creds.Username}:            repoInfo.UsernameSecret,
+		&SecretMapperValidation{Dest: &creds.Password}:            repoInfo.PasswordSecret,
+		&SecretMapperValidation{Dest: &creds.SSHPrivateKey}:       repoInfo.SSHPrivateKeySecret,
+		&SecretMapperValidation{Dest: &creds.TLSClientCertData}:   repoInfo.TLSClientCertDataSecret,
+		&SecretMapperValidation{Dest: &creds.TLSClientCertKey}:    repoInfo.TLSClientCertKeySecret,
+		&SecretMapperValidation{Dest: &creds.GithubAppPrivateKey}: repoInfo.GithubAppPrivateKeySecret,
 	}, make(map[string]*apiv1.Secret))
 	return creds, err
 }

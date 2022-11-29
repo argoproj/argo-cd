@@ -25,7 +25,7 @@ const (
 	// EnvK8sTCPTimeout is the duration for TCP timeouts when communicating with K8s API servers
 	EnvK8sTCPTimeout = "ARGOCD_K8S_TCP_TIMEOUT"
 
-	// EnvK8sTCPKeepalive is the interval for TCP keep alive probes to be sent when communicating with K8s API servers
+	// EnvK8sTCPKeepAlive is the interval for TCP keep alive probes to be sent when communicating with K8s API servers
 	EnvK8sTCPKeepAlive = "ARGOCD_K8S_TCP_KEEPALIVE"
 
 	// EnvK8sTLSHandshakeTimeout is the duration for TLS handshake timeouts when establishing connections to K8s API servers

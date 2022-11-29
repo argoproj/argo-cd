@@ -2,11 +2,14 @@
 
 ## Run Argo CD outside of Kubernetes
 
-During development, it might be viable to run Argo CD outside of a Kubernetes cluster. This will greatly speed up development, as you don't have to constantly build, push and install new Argo CD Docker images with your latest changes.
+During development, it might be viable to run Argo CD outside a Kubernetes cluster. 
+This will greatly speed up development, as you don't have to constantly build, push and install new Argo CD Docker images with your latest changes.
 
-You will still need a working Kubernetes cluster, as described in the [Toolchain Guide](toolchain-guide.md), where Argo CD will store all of its resources and configuration.
+You will still need a working Kubernetes cluster, as described in the [Toolchain Guide](toolchain-guide.md),
+where Argo CD will store all of its resources and configuration.
 
-If you followed the [Toolchain Guide](toolchain-guide.md) in setting up your toolchain, you can run Argo CD locally with these simple steps:
+If you followed the [Toolchain Guide](toolchain-guide.md) in setting up your toolchain, 
+you can run Argo CD locally with these simple steps:
 
 ### Install Argo CD resources to your cluster
 
@@ -125,7 +128,8 @@ $ goreman run status
 
 If not all critical processes run (marked with `*`), check logs to see why they terminated.
 
-In case of an error like `gpg: key generation failed: Unknown elliptic curve` (a [gnupg bug](https://dev.gnupg.org/T5444)), disable GPG verification before running `make start-local`:
+In case of an error like `gpg: key generation failed: Unknown elliptic curve` 
+(a [gnupg bug](https://dev.gnupg.org/T5444)), disable GPG verification before running `make start-local`:
 
 ```sh
 export ARGOCD_GPG_ENABLED=false
@@ -158,7 +162,8 @@ goreman run restart repo-server
 Clean up when you're done:
 
 ```sh
-kind delete cluster; rm -f ~/.kube/config-kind
+kind delete cluster; 
+rm -f ~/.kube/config-kind
 ```
 
 ### Scale up Argo CD in your cluster

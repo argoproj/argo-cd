@@ -2,15 +2,19 @@
 
 In this guide, we will describe how to debug a remote ArgoCD environment with [Telepresence](https://telepresence.io/).
 
-Telepresence allows you to connect & debug a service deployed in a remote environment and to "cherry-pick" one service to run locally, staying connected to the remote cluster. This will:
+Telepresence allows you to connect & debug a service deployed in a remote environment and to "cherry-pick" 
+one service to run locally, staying connected to the remote cluster. This will:
 
 * Reduce resource footprint on the local machine
 * Decrease the feedback loop time
 * Result in more confidence about the delivered code.
 
-To read more about it, refer to the official documentation at [telepresence.io](https://telepresence.io/) or [Medium](https://medium.com/containers-101/development-environment-using-telepresence-634bd7210c26).
+To read more about it, refer to the official documentation at 
+[telepresence.io](https://telepresence.io/) or 
+[Medium](https://medium.com/containers-101/development-environment-using-telepresence-634bd7210c26).
 
 ## Install ArgoCD
+
 First of all, install ArgoCD on your cluster
 ```shell
 kubectl create ns argocd
@@ -18,6 +22,7 @@ curl -sSfL https://raw.githubusercontent.com/argoproj/argo-cd/stable/manifests/i
 ```
 
 ## Connect
+
 Connect to one of the services, for example, to debug the main ArgoCD server run:
 ```shell
 kubectl config set-context --current --namespace argocd
@@ -31,6 +36,7 @@ telepresence intercept argocd-server --port 8080:http --env-file .envrc.remote #
 With this, any traffic that hits your argocd-server service in the cluster (e.g through a LB / ingress) will be forwarded to your laptop on port 8080. So that you can now start argocd-server locally to debug or test new code. If you launch argocd-server using the environment variables in `.envrc.remote`, he is able to fetch all the configmaps, secrets and so one from the cluster and transparently connect to the other microservices so that no further configuration should be neccesary and he behaves exactly the same as in the cluster.
 
 List current status of Telepresence using:
+
 ```shell
 telepresence status
 ```
