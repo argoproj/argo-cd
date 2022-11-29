@@ -435,16 +435,6 @@ func Test_getTempDirMustCleanup(t *testing.T) {
 	workDir, cleanup, err := getTempDirMustCleanup(tempDir)
 	require.NoError(t, err)
 	require.DirExists(t, workDir)
-
-	// Induce a cleanup error to verify panic behavior.
-	err = os.Chmod(tempDir, 0000)
-	require.NoError(t, err)
-	assert.Panics(t, func() {
-		cleanup()
-	}, "cleanup must panic to protect from directory traversal vulnerabilities")
-
-	err = os.Chmod(tempDir, 0700)
-	require.NoError(t, err)
 	cleanup()
 	assert.NoDirExists(t, workDir)
 }
@@ -698,9 +688,7 @@ func (m *MockParametersAnnouncementStream) SendHeader(metadata.MD) error {
 	return nil
 }
 
-func (m *MockParametersAnnouncementStream) SetTrailer(metadata.MD) {
-	return
-}
+func (m *MockParametersAnnouncementStream) SetTrailer(metadata.MD) {}
 
 func (m *MockParametersAnnouncementStream) Context() context.Context {
 	return context.Background()
