@@ -365,7 +365,7 @@ func TestCompareAppStateDuplicatedNamespacedResources(t *testing.T) {
 	assert.Equal(t, 4, len(compRes.resources))
 }
 
-func TestCompareAppStateManagedNamespaceMetadata(t *testing.T) {
+func TestCompareAppStateManagedNamespaceMetadataWithLiveNs(t *testing.T) {
 	app := newFakeApp()
 	app.Spec.SyncPolicy = &argoappv1.SyncPolicy{
 		ManagedNamespaceMetadata: &argoappv1.ManagedNamespaceMetadata{
@@ -377,6 +377,8 @@ func TestCompareAppStateManagedNamespaceMetadata(t *testing.T) {
 	ns := NewNamespace()
 	ns.SetName(test.FakeDestNamespace)
 	ns.SetNamespace(test.FakeDestNamespace)
+	ns.SetAnnotations(map[string]string{"argocd.argoproj.io/sync-options": "ServerSideApply=true"})
+
 	_ = argo.NewResourceTracking().SetAppInstance(ns, common.LabelKeyAppInstance, app.Name, "", argo.TrackingMethodLabel)
 
 	data := fakeData{
