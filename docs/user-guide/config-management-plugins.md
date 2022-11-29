@@ -63,6 +63,10 @@ metadata:
   name: cmp-plugin
 spec:
   version: v1.0
+  init:
+    # Init always happens immediately before generate, but its output is not treated as manifests.
+    # This is a good place to, for example, download chart dependencies.
+    command: [sh, -c, 'echo "Initializing..."']
   generate:
     command: [sh, -c, 'echo "{\"kind\": \"ConfigMap\", \"apiVersion\": \"v1\", \"metadata\": { \"name\": \"$ARGOCD_APP_NAME\", \"namespace\": \"$ARGOCD_APP_NAMESPACE\", \"annotations\": {\"Foo\": \"$FOO\", \"KubeVersion\": \"$KUBE_VERSION\", \"KubeApiVersion\": \"$KUBE_API_VERSIONS\",\"Bar\": \"baz\"}}}"']
   discover:
@@ -94,6 +98,11 @@ Argo CD expects the plugin configuration file to be located at `/home/argocd/cmp
 
 If you use a custom image for the sidecar, you can add the file directly to that image.
 
+```dockerfile
+WORKDIR /home/argocd/cmp-server/config/
+COPY plugin.yaml ./
+```
+
 If you use a stock image for the sidecar or would rather maintain the plugin configuration in a ConfigMap, just nest the
 plugin config file in a ConfigMap under the `plugin.yaml` key.
 
@@ -110,6 +119,8 @@ data:
       name: cmp-plugin
     spec:
       version: v1.0
+      init:
+        command: [sh, -c, 'echo "Initializing..."']
       generate:
         command: [sh, -c, 'echo "{\"kind\": \"ConfigMap\", \"apiVersion\": \"v1\", \"metadata\": { \"name\": \"$ARGOCD_APP_NAME\", \"namespace\": \"$ARGOCD_APP_NAMESPACE\", \"annotations\": {\"Foo\": \"$FOO\", \"KubeVersion\": \"$KUBE_VERSION\", \"KubeApiVersion\": \"$KUBE_API_VERSIONS\",\"Bar\": \"baz\"}}}"']
       discover:
@@ -230,12 +241,29 @@ If you don't need to set any environment variables, you can set an empty plugin 
     Each CMP command will also independently timeout on the `ARGOCD_EXEC_TIMEOUT` set for the CMP sidecar. The default
     is 90s. So if you increase the repo server timeout greater than 90s, be sure to set `ARGOCD_EXEC_TIMEOUT` on the
     sidecar.
+    
+!!! note
+    Each Application can only have one config management plugin configured at a time. If you're converting an existing
+    plugin configured through the `argocd-cm` ConfigMap to a sidecar, make sure the discovery mechanism only returns
+    true for Applications that have had their `name` field in the `plugin` section of their spec removed.
+
+## Debugging a CMP
+
+If you are actively developing a sidecar-installed CMP, keep a few things in mind:
+
+1. If you are mounting plugin.yaml from a ConfigMap, you will have to restart the repo-server Pod so the plugin will
+   pick up the changes.
+2. If you have baked plugin.yaml into your image, you will have to build, push, and force a re-pull of that image on the
+   repo-server Pod so the plugin will pick up the changes. If you are using `:latest`, the Pod will always pull the new
+   image. If you're using a different, static tag, set `imagePullPolicy: Always` on the CMP's sidecar container.
+3. CMP errors are cached by the repo-server in Redis. Restarting the repo-server Pod will not clear the cache. Always
+   do a "Hard Refresh" when actively developing a CMP so you have the latest output.
 
 ## Plugin tar stream exclusions
 
 In order to increase the speed of manifest generation, certain files and folders can be excluded from being sent to your
-plugin. We recommend excluding your `.git` folder if it isn't necessary. Use Go's 
-[filepatch.Match](https://pkg.go.dev/path/filepath#Match) syntax.
+plugin. We recommend excluding your `.git` folder if it isn't necessary. Use Go's
+[filepatch.Match](https://pkg.go.dev/path/filepath#Match) syntax. For example, `.git/*` to exclude `.git` folder.
 
 You can set it one of three ways:
 

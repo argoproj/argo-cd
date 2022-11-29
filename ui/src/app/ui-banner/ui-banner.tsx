@@ -43,6 +43,7 @@ export const Banner = (props: React.Props<any>) => {
                 position: string;
             }) => {
                 const heightOfBanner = permanent ? '28px' : '70px';
+                const leftOffset = prefs.hideSidebar ? '60px' : '230px';
                 let show = false;
                 if (!content || content === '' || content === null) {
                     if (prefs.hideBannerContent) {
@@ -68,7 +69,7 @@ export const Banner = (props: React.Props<any>) => {
                 }
                 return (
                     <React.Fragment>
-                        <div className={combinedBannerClassName} style={{visibility: show ? 'visible' : 'hidden', height: heightOfBanner}}>
+                        <div className={combinedBannerClassName} style={{visibility: show ? 'visible' : 'hidden', height: heightOfBanner, left: leftOffset}}>
                             <div className='ui-banner-text' style={{maxHeight: permanent ? '25px' : '50px'}}>
                                 {url !== undefined ? (
                                     <a href={url} target='_blank' rel='noopener noreferrer'>

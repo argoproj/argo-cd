@@ -14,6 +14,7 @@ import (
 	"strconv"
 	"strings"
 	"time"
+	"unicode"
 
 	"github.com/argoproj/gitops-engine/pkg/health"
 	synccommon "github.com/argoproj/gitops-engine/pkg/sync/common"
@@ -698,6 +699,11 @@ func (o SyncOptions) HasOption(option string) bool {
 	return false
 }
 
+type ManagedNamespaceMetadata struct {
+	Labels      map[string]string `json:"labels,omitempty" protobuf:"bytes,1,opt,name=labels"`
+	Annotations map[string]string `json:"annotations,omitempty" protobuf:"bytes,2,opt,name=annotations"`
+}
+
 // SyncPolicy controls when a sync will be performed in response to updates in git
 type SyncPolicy struct {
 	// Automated will keep an application synced to the target revision
@@ -706,6 +712,8 @@ type SyncPolicy struct {
 	SyncOptions SyncOptions `json:"syncOptions,omitempty" protobuf:"bytes,2,opt,name=syncOptions"`
 	// Retry controls failed sync retry behavior
 	Retry *RetryStrategy `json:"retry,omitempty" protobuf:"bytes,3,opt,name=retry"`
+	// ManagedNamespaceMetadata controls metadata in the given namespace (if CreateNamespace=true)
+	ManagedNamespaceMetadata *ManagedNamespaceMetadata `json:"managedNamespaceMetadata,omitempty" protobuf:"bytes,4,opt,name=managedNamespaceMetadata"`
 }
 
 // IsZero returns true if the sync policy is empty
@@ -1611,6 +1619,7 @@ func validateRoleName(name string) error {
 var invalidChars = regexp.MustCompile("[\"\n\r\t]")
 
 func validateGroupName(name string) error {
+	n := []rune(name)
 	name = strings.TrimSpace(name)
 	if len(name) > 1 && strings.HasPrefix(name, "\"") && strings.HasSuffix(name, "\"") {
 		// Remove surrounding quotes for further inspection of the group name
@@ -1618,12 +1627,17 @@ func validateGroupName(name string) error {
 	} else if strings.Contains(name, ",") {
 		return status.Errorf(codes.InvalidArgument, "group '%s' must be quoted", name)
 	}
-
 	if name == "" {
 		return status.Errorf(codes.InvalidArgument, "group '%s' is empty", name)
 	}
 	if invalidChars.MatchString(name) {
 		return status.Errorf(codes.InvalidArgument, "group '%s' contains invalid characters", name)
+	}
+	if len(n) > 1 && unicode.IsSpace(n[0]) {
+		return status.Errorf(codes.InvalidArgument, "group '%s' contains a leading space", name)
+	}
+	if len(n) > 1 && unicode.IsSpace(n[len(n)-1]) {
+		return status.Errorf(codes.InvalidArgument, "group '%s' contains a trailing space", name)
 	}
 	return nil
 }

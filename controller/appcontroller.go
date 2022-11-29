@@ -907,7 +907,7 @@ func (ctrl *ApplicationController) processProjectQueueItem() (processNext bool) 
 func (ctrl *ApplicationController) finalizeProjectDeletion(proj *appv1.AppProject) error {
 	apps, err := ctrl.appLister.Applications(ctrl.namespace).List(labels.Everything())
 	if err != nil {
-		return err
+		return fmt.Errorf("error listing applications: %w", err)
 	}
 	appsCount := 0
 	for i := range apps {
@@ -1077,7 +1077,7 @@ func (ctrl *ApplicationController) finalizeApplicationDeletion(app *appv1.Applic
 func (ctrl *ApplicationController) removeCascadeFinalizer(app *appv1.Application) error {
 	_, err := ctrl.getAppProj(app)
 	if err != nil {
-		return err
+		return fmt.Errorf("error getting project: %w", err)
 	}
 	app.UnSetCascadedDeletion()
 	var patch []byte
@@ -1256,12 +1256,12 @@ func (ctrl *ApplicationController) setOperationState(app *appv1.Application, sta
 		}
 		patchJSON, err := json.Marshal(patch)
 		if err != nil {
-			return err
+			return fmt.Errorf("error marshaling json: %w", err)
 		}
 		if app.Status.OperationState != nil && app.Status.OperationState.FinishedAt != nil && state.FinishedAt == nil {
 			patchJSON, err = jsonpatch.MergeMergePatches(patchJSON, []byte(`{"status": {"operationState": {"finishedAt": null}}}`))
 			if err != nil {
-				return err
+				return fmt.Errorf("error merging operation state patch: %w", err)
 			}
 		}
 
@@ -1272,7 +1272,7 @@ func (ctrl *ApplicationController) setOperationState(app *appv1.Application, sta
 			if apierr.IsNotFound(err) {
 				return nil
 			}
-			return err
+			return fmt.Errorf("error patching application with operation state: %w", err)
 		}
 		log.Infof("updated '%s' operation (phase: %s)", app.QualifiedName(), state.Phase)
 		if state.Phase.Completed() {
@@ -1497,17 +1497,7 @@ func (ctrl *ApplicationController) refreshAppConditions(app *appv1.Application) 
 	errorConditions := make([]appv1.ApplicationCondition, 0)
 	proj, err := ctrl.getAppProj(app)
 	if err != nil {
-		if apierr.IsNotFound(err) {
-			errorConditions = append(errorConditions, appv1.ApplicationCondition{
-				Type:    appv1.ApplicationConditionInvalidSpecError,
-				Message: fmt.Sprintf("Application referencing project %s which does not exist", app.Spec.Project),
-			})
-		} else {
-			errorConditions = append(errorConditions, appv1.ApplicationCondition{
-				Type:    appv1.ApplicationConditionUnknownError,
-				Message: err.Error(),
-			})
-		}
+		errorConditions = append(errorConditions, ctrl.projectErrorToCondition(err, app))
 	} else {
 		specConditions, err := argo.ValidatePermissions(context.Background(), &app.Spec, proj, ctrl.db)
 		if err != nil {
@@ -1798,7 +1788,7 @@ func (ctrl *ApplicationController) newApplicationInformerAndLister() (cache.Shar
 					// If the application is not allowed to use the project,
 					// log an error.
 					if _, err := ctrl.getAppProj(app); err != nil {
-						ctrl.setAppCondition(app, appv1.ApplicationCondition{Type: appv1.ApplicationConditionUnknownError, Message: err.Error()})
+						ctrl.setAppCondition(app, ctrl.projectErrorToCondition(err, app))
 					}
 				}
 
@@ -1867,6 +1857,19 @@ func (ctrl *ApplicationController) newApplicationInformerAndLister() (cache.Shar
 		},
 	)
 	return informer, lister
+}
+
+func (ctrl *ApplicationController) projectErrorToCondition(err error, app *appv1.Application) appv1.ApplicationCondition {
+	var condition appv1.ApplicationCondition
+	if apierr.IsNotFound(err) {
+		condition = appv1.ApplicationCondition{
+			Type:    appv1.ApplicationConditionInvalidSpecError,
+			Message: fmt.Sprintf("Application referencing project %s which does not exist", app.Spec.Project),
+		}
+	} else {
+		condition = appv1.ApplicationCondition{Type: appv1.ApplicationConditionUnknownError, Message: err.Error()}
+	}
+	return condition
 }
 
 func (ctrl *ApplicationController) RegisterClusterSecretUpdater(ctx context.Context) {
