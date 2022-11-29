@@ -462,10 +462,63 @@ func (d *ApplicationSourceDirectory) IsZero() bool {
 	return d == nil || !d.Recurse && d.Jsonnet.IsZero()
 }
 
+type ApplicationSourcePluginParameter struct {
+	// Name is the name identifying a parameter.
+	Name string `json:"name,omitempty" protobuf:"bytes,1,opt,name=name"`
+	// String_ is the value of a string type parameter.
+	String_ *string `json:"string,omitempty" protobuf:"bytes,5,opt,name=string"`
+	// Map is the value of a map type parameter.
+	Map map[string]string `json:"map,omitempty" protobuf:"bytes,3,rep,name=map"`
+	// Array is the value of an array type parameter.
+	Array []string `json:"array,omitempty" protobuf:"bytes,4,rep,name=array"`
+}
+
+type ApplicationSourcePluginParameters []ApplicationSourcePluginParameter
+
+// Environ builds a list of environment variables to represent parameters sent to a plugin from the Application
+// manifest. Parameters are represented as one large stringified JSON array (under `ARGOCD_APP_PARAMETERS`). They're
+// also represented as individual environment variables, each variable's key being an escaped version of the parameter's
+// name.
+func (p ApplicationSourcePluginParameters) Environ() ([]string, error) {
+	out, err := json.Marshal(p)
+	if err != nil {
+		return nil, fmt.Errorf("failed to marshal plugin parameters: %w", err)
+	}
+	jsonParam := fmt.Sprintf("ARGOCD_APP_PARAMETERS=%s", string(out))
+
+	env := []string{jsonParam}
+
+	for _, param := range p {
+		envBaseName := fmt.Sprintf("PARAM_%s", escaped(param.Name))
+		if param.String_ != nil {
+			env = append(env, fmt.Sprintf("%s=%s", envBaseName, *param.String_))
+		}
+		if param.Map != nil {
+			for key, value := range param.Map {
+				env = append(env, fmt.Sprintf("%s_%s=%s", envBaseName, escaped(key), value))
+			}
+		}
+		if param.Array != nil {
+			for i, value := range param.Array {
+				env = append(env, fmt.Sprintf("%s_%d=%s", envBaseName, i, value))
+			}
+		}
+	}
+
+	return env, nil
+}
+
+func escaped(paramName string) string {
+	newParamName := strings.ToUpper(paramName)
+	invalidParamCharRegex := regexp.MustCompile("[^A-Z0-9_]")
+	return invalidParamCharRegex.ReplaceAllString(newParamName, "_")
+}
+
 // ApplicationSourcePlugin holds options specific to config management plugins
 type ApplicationSourcePlugin struct {
-	Name string `json:"name,omitempty" protobuf:"bytes,1,opt,name=name"`
-	Env  `json:"env,omitempty" protobuf:"bytes,2,opt,name=env"`
+	Name       string `json:"name,omitempty" protobuf:"bytes,1,opt,name=name"`
+	Env        `json:"env,omitempty" protobuf:"bytes,2,opt,name=env"`
+	Parameters ApplicationSourcePluginParameters `json:"parameters,omitempty" protobuf:"bytes,3,opt,name=parameters"`
 }
 
 // IsZero returns true if the ApplicationSourcePlugin is considered empty
