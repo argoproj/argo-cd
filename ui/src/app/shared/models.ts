@@ -212,6 +212,14 @@ export interface EnvEntry {
 export interface ApplicationSourcePlugin {
     name: string;
     env: EnvEntry[];
+    parameters?: Parameter[];
+}
+
+export interface Parameter {
+    name: string;
+    string?: string;
+    array?: string[];
+    map?: Map<string, string>;
 }
 
 export interface JsonnetVar {
@@ -599,6 +607,19 @@ export interface KustomizeAppSpec {
 export interface PluginAppSpec {
     name: string;
     env: EnvEntry[];
+    parametersAnnouncement?: ParameterAnnouncement[];
+}
+
+export interface ParameterAnnouncement {
+    name?: string;
+    title?: string;
+    tooltip?: string;
+    required?: boolean;
+    itemType?: string;
+    collectionType?: string;
+    string?: string;
+    array?: string[];
+    map?: Map<string, string>;
 }
 
 export interface ObjectReference {
