@@ -1574,13 +1574,22 @@ func runConfigManagementPlugin(appPath, repoRoot string, envVars *v1alpha1.Env, 
 	return kube.SplitYAML([]byte(out))
 }
 
-func getPluginEnvs(envVars *v1alpha1.Env, q *apiclient.ManifestRequest, creds git.Creds, remote bool) ([]string, error) {
-	env := envVars.Environ()
+func getPluginEnvs(env *v1alpha1.Env, q *apiclient.ManifestRequest, creds git.Creds, remote bool) ([]string, error) {
+	envVars := env.Environ()
+	envVars = append(envVars, "KUBE_VERSION="+text.SemVer(q.KubeVersion))
+	envVars = append(envVars, "KUBE_API_VERSIONS="+strings.Join(q.ApiVersions, ","))
+
+	return getPluginParamEnvs(envVars, q.ApplicationSource.Plugin, creds, remote)
+}
+
+// getPluginParamEnvs gets environment variables for plugin parameter announcement generation.
+func getPluginParamEnvs(envVars []string, plugin *v1alpha1.ApplicationSourcePlugin, creds git.Creds, remote bool) ([]string, error) {
+	env := envVars
 	// Local plugins need also to have access to the local environment variables.
-	// Remote side car plugins will use the environment in the side car
+	// Remote sidecar plugins will use the environment in the sidecar
 	// container.
 	if !remote {
-		env = append(os.Environ(), env...)
+		env = append(os.Environ(), envVars...)
 	}
 	if creds != nil {
 		closer, environ, err := creds.Environ()
@@ -1590,8 +1599,6 @@ func getPluginEnvs(envVars *v1alpha1.Env, q *apiclient.ManifestRequest, creds gi
 		defer func() { _ = closer.Close() }()
 		env = append(env, environ...)
 	}
-	env = append(env, "KUBE_VERSION="+text.SemVer(q.KubeVersion))
-	env = append(env, "KUBE_API_VERSIONS="+strings.Join(q.ApiVersions, ","))
 
 	parsedEnv := make(v1alpha1.Env, len(env))
 	for i, v := range env {
@@ -1602,13 +1609,19 @@ func getPluginEnvs(envVars *v1alpha1.Env, q *apiclient.ManifestRequest, creds gi
 		parsedEnv[i] = parsedVar
 	}
 
-	if q.ApplicationSource.Plugin != nil {
-		pluginEnv := q.ApplicationSource.Plugin.Env
+	if plugin != nil {
+		pluginEnv := plugin.Env
 		for _, entry := range pluginEnv {
 			newValue := parsedEnv.Envsubst(entry.Value)
 			env = append(env, fmt.Sprintf("ARGOCD_ENV_%s=%s", entry.Name, newValue))
 		}
+		paramEnv, err := plugin.Parameters.Environ()
+		if err != nil {
+			return nil, fmt.Errorf("failed to generate env vars from parameters: %w", err)
+		}
+		env = append(env, paramEnv...)
 	}
+
 	return env, nil
 }
 
@@ -1653,7 +1666,7 @@ func runConfigManagementPluginSidecars(ctx context.Context, appPath, repoPath st
 func generateManifestsCMP(ctx context.Context, appPath, repoPath string, env []string, cmpClient pluginclient.ConfigManagementPluginServiceClient, tarDoneCh chan<- bool, tarExcludedGlobs []string) (*pluginclient.ManifestResponse, error) {
 	generateManifestStream, err := cmpClient.GenerateManifest(ctx, grpc_retry.Disable())
 	if err != nil {
-		return nil, fmt.Errorf("error getting generateManifestStream: %s", err)
+		return nil, fmt.Errorf("error getting generateManifestStream: %w", err)
 	}
 	opts := []cmp.SenderOption{
 		cmp.WithTarDoneChan(tarDoneCh),
@@ -1692,6 +1705,10 @@ func (s *Service) GetAppDetails(ctx context.Context, q *apiclient.RepoServerAppD
 		case v1alpha1.ApplicationSourceTypeKustomize:
 			if err := populateKustomizeAppDetails(res, q, opContext.appPath, commitSHA, s.gitCredsStore); err != nil {
 				return err
+			}
+		case v1alpha1.ApplicationSourceTypePlugin:
+			if err := populatePluginAppDetails(ctx, res, opContext.appPath, repoRoot, q, s.gitCredsStore, s.initConstants.CMPTarExcludedGlobs); err != nil {
+				return fmt.Errorf("failed to populate plugin app details: %w", err)
 			}
 		}
 		_ = s.cache.SetAppDetails(revision, q.Source, res, v1alpha1.TrackingMethod(q.TrackingMethod))
@@ -1846,6 +1863,51 @@ func populateKustomizeAppDetails(res *apiclient.RepoAppDetailsResponse, q *apicl
 	return nil
 }
 
+func populatePluginAppDetails(ctx context.Context, res *apiclient.RepoAppDetailsResponse, appPath string, repoPath string, q *apiclient.RepoServerAppDetailsQuery, store git.CredsStore, tarExcludedGlobs []string) error {
+	res.Plugin = &apiclient.PluginAppSpec{}
+
+	creds := q.Repo.GetGitCreds(store)
+
+	envVars := []string{
+		fmt.Sprintf("ARGOCD_APP_NAME=%s", q.AppName),
+		fmt.Sprintf("ARGOCD_APP_SOURCE_REPO_URL=%s", q.Repo.Repo),
+		fmt.Sprintf("ARGOCD_APP_SOURCE_PATH=%s", q.Source.Path),
+		fmt.Sprintf("ARGOCD_APP_SOURCE_TARGET_REVISION=%s", q.Source.TargetRevision),
+	}
+
+	env, err := getPluginParamEnvs(envVars, q.Source.Plugin, creds, true)
+	if err != nil {
+		return fmt.Errorf("failed to get env vars for plugin: %w", err)
+	}
+
+	// detect config management plugin server (sidecar)
+	conn, cmpClient, err := discovery.DetectConfigManagementPlugin(ctx, appPath, env, tarExcludedGlobs)
+	if err != nil {
+		return fmt.Errorf("failed to detect CMP for app: %w", err)
+	}
+	defer io.Close(conn)
+
+	generateManifestStream, err := cmpClient.GetParametersAnnouncement(ctx, grpc_retry.Disable())
+	if err != nil {
+		return fmt.Errorf("error getting generateManifestStream: %w", err)
+	}
+
+	err = cmp.SendRepoStream(generateManifestStream.Context(), appPath, repoPath, generateManifestStream, env, tarExcludedGlobs)
+	if err != nil {
+		return fmt.Errorf("error sending file to cmp-server: %s", err)
+	}
+
+	announcement, err := generateManifestStream.CloseAndRecv()
+	if err != nil {
+		return fmt.Errorf("failed to get parameter anouncement: %w", err)
+	}
+
+	res.Plugin = &apiclient.PluginAppSpec{
+		ParametersAnnouncement: announcement.ParameterAnnouncements,
+	}
+	return nil
+}
+
 func (s *Service) GetRevisionMetadata(ctx context.Context, q *apiclient.RepoServerRevisionMetadataRequest) (*v1alpha1.RevisionMetadata, error) {
 	if !(git.IsCommitSHA(q.Revision) || git.IsTruncatedCommitSHA(q.Revision)) {
 		return nil, fmt.Errorf("revision %s must be resolved", q.Revision)
@@ -1956,14 +2018,27 @@ func (s *Service) newClientResolveRevision(repo *v1alpha1.Repository, revision s
 func (s *Service) newHelmClientResolveRevision(repo *v1alpha1.Repository, revision string, chart string, noRevisionCache bool) (helm.Client, string, error) {
 	enableOCI := repo.EnableOCI || helm.IsHelmOciRepo(repo.Repo)
 	helmClient := s.newHelmClient(repo.Repo, repo.GetHelmCreds(), enableOCI, repo.Proxy, helm.WithIndexCache(s.cache), helm.WithChartPaths(s.chartPaths))
-	// OCI helm registers don't support semver ranges. Assuming that given revision is exact version
-	if helm.IsVersion(revision) || enableOCI {
+	if helm.IsVersion(revision) {
 		return helmClient, revision, nil
 	}
 	constraints, err := semver.NewConstraint(revision)
 	if err != nil {
 		return nil, "", fmt.Errorf("invalid revision '%s': %v", revision, err)
 	}
+
+	if enableOCI {
+		tags, err := helmClient.GetTags(chart, noRevisionCache)
+		if err != nil {
+			return nil, "", fmt.Errorf("unable to get tags: %v", err)
+		}
+
+		version, err := tags.MaxVersion(constraints)
+		if err != nil {
+			return nil, "", fmt.Errorf("no version for constraints: %v", err)
+		}
+		return helmClient, version.String(), nil
+	}
+
 	index, err := helmClient.GetIndex(noRevisionCache)
 	if err != nil {
 		return nil, "", err
@@ -2099,30 +2174,14 @@ func (s *Service) ResolveRevision(ctx context.Context, q *apiclient.ResolveRevis
 	ambiguousRevision := q.AmbiguousRevision
 	var revision string
 	if app.Spec.Source.IsHelm() {
+		_, revision, err := s.newHelmClientResolveRevision(repo, ambiguousRevision, app.Spec.Source.Chart, true)
 
-		if helm.IsVersion(ambiguousRevision) {
-			return &apiclient.ResolveRevisionResponse{Revision: ambiguousRevision, AmbiguousRevision: ambiguousRevision}, nil
-		}
-		client := helm.NewClient(repo.Repo, repo.GetHelmCreds(), repo.EnableOCI || app.Spec.Source.IsHelmOci(), repo.Proxy, helm.WithChartPaths(s.chartPaths))
-		index, err := client.GetIndex(false)
-		if err != nil {
-			return &apiclient.ResolveRevisionResponse{Revision: "", AmbiguousRevision: ""}, err
-		}
-		entries, err := index.GetEntries(app.Spec.Source.Chart)
-		if err != nil {
-			return &apiclient.ResolveRevisionResponse{Revision: "", AmbiguousRevision: ""}, err
-		}
-		constraints, err := semver.NewConstraint(ambiguousRevision)
-		if err != nil {
-			return &apiclient.ResolveRevisionResponse{Revision: "", AmbiguousRevision: ""}, err
-		}
-		version, err := entries.MaxVersion(constraints)
 		if err != nil {
 			return &apiclient.ResolveRevisionResponse{Revision: "", AmbiguousRevision: ""}, err
 		}
 		return &apiclient.ResolveRevisionResponse{
-			Revision:          version.String(),
-			AmbiguousRevision: fmt.Sprintf("%v (%v)", ambiguousRevision, version.String()),
+			Revision:          revision,
+			AmbiguousRevision: fmt.Sprintf("%v (%v)", ambiguousRevision, revision),
 		}, nil
 	} else {
 		gitClient, err := git.NewClient(repo.Repo, repo.GetGitCreds(s.gitCredsStore), repo.IsInsecure(), repo.IsLFSEnabled(), repo.Proxy)
