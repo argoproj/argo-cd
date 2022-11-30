@@ -4508,6 +4508,65 @@
         }
       }
     },
+    "repositoryParameterAnnouncement": {
+      "type": "object",
+      "properties": {
+        "array": {
+          "description": "array is the default value of the parameter if the parameter is an array.",
+          "type": "array",
+          "items": {
+            "type": "string"
+          }
+        },
+        "collectionType": {
+          "description": "collectionType is the type of value this parameter holds - either a single value (a string) or a collection\n(array or map). If collectionType is set, only the field with that type will be used. If collectionType is not\nset, `string` is the default. If collectionType is set to an invalid value, a validation error is thrown.",
+          "type": "string"
+        },
+        "itemType": {
+          "description": "itemType determines the primitive data type represented by the parameter. Parameters are always encoded as\nstrings, but this field lets them be interpreted as other primitive types.",
+          "type": "string"
+        },
+        "map": {
+          "description": "map is the default value of the parameter if the parameter is a map.",
+          "type": "object",
+          "additionalProperties": {
+            "type": "string"
+          }
+        },
+        "name": {
+          "description": "name is the name identifying a parameter.",
+          "type": "string"
+        },
+        "required": {
+          "description": "required defines if this given parameter is mandatory.",
+          "type": "boolean"
+        },
+        "string": {
+          "description": "string is the default value of the parameter if the parameter is a string.",
+          "type": "string"
+        },
+        "title": {
+          "description": "title is a human-readable text of the parameter name.",
+          "type": "string"
+        },
+        "tooltip": {
+          "description": "tooltip is a human-readable description of the parameter.",
+          "type": "string"
+        }
+      }
+    },
+    "repositoryPluginAppSpec": {
+      "type": "object",
+      "title": "PluginAppSpec contains details about a plugin-type Application",
+      "properties": {
+        "parametersAnnouncement": {
+          "type": "array",
+          "items": {
+            "$ref": "#/definitions/repositoryParameterAnnouncement"
+          }
+        }
+      }
+    },
     "repositoryRefs": {
       "type": "object",
       "title": "A subset of the repository's named refs",
@@ -4553,6 +4612,9 @@
         },
         "kustomize": {
           "$ref": "#/definitions/repositoryKustomizeAppSpec"
+        },
+        "plugin": {
+          "$ref": "#/definitions/repositoryPluginAppSpec"
         },
         "type": {
           "type": "string"
@@ -5774,6 +5836,39 @@
           }
         },
         "name": {
+          "type": "string"
+        },
+        "parameters": {
+          "type": "array",
+          "items": {
+            "$ref": "#/definitions/v1alpha1ApplicationSourcePluginParameter"
+          }
+        }
+      }
+    },
+    "v1alpha1ApplicationSourcePluginParameter": {
+      "type": "object",
+      "properties": {
+        "array": {
+          "description": "Array is the value of an array type parameter.",
+          "type": "array",
+          "items": {
+            "type": "string"
+          }
+        },
+        "map": {
+          "description": "Map is the value of a map type parameter.",
+          "type": "object",
+          "additionalProperties": {
+            "type": "string"
+          }
+        },
+        "name": {
+          "description": "Name is the name identifying a parameter.",
+          "type": "string"
+        },
+        "string": {
+          "description": "String_ is the value of a string type parameter.",
           "type": "string"
         }
       }
