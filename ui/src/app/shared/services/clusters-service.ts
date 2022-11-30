@@ -9,29 +9,29 @@ export class ClustersService {
             .then(list => list.items || []);
     }
 
-    public get(url: string, name: string): Promise<models.Cluster> {
-        const requestUrl = `/clusters/${url ? encodeURIComponent(url) : encodeURIComponent(name)}?id.type=${url ? 'url' : 'name_escaped'}`;
+    public getByName(name: string): Promise<models.Cluster> {
+        const requestUrl = `/clusters/${encodeURIComponent(name)}?id.type=name`;
         return requests.get(requestUrl).then(res => res.body as models.Cluster);
     }
 
-    public update(cluster: models.Cluster, ...paths: string[]): Promise<models.Cluster> {
+    public updateByName(cluster: models.Cluster, ...paths: string[]): Promise<models.Cluster> {
         return requests
-            .put(`/clusters/${encodeURIComponent(cluster.server)}`)
+            .put(`/clusters/${encodeURIComponent(cluster.name)}`)
             .query({updatedFields: paths})
             .send(cluster)
             .then(res => res.body as models.Cluster);
     }
 
-    public invalidateCache(url: string): Promise<models.Cluster> {
+    public invalidateCacheByName(name: string): Promise<models.Cluster> {
         return requests
-            .post(`/clusters/${encodeURIComponent(url)}/invalidate-cache`)
+            .post(`/clusters/${encodeURIComponent(name)}/invalidate-cache`)
             .send({})
             .then(res => res.body as models.Cluster);
     }
 
-    public delete(server: string): Promise<models.Cluster> {
+    public deleteByName(name: string): Promise<models.Cluster> {
         return requests
-            .delete(`/clusters/${encodeURIComponent(server)}`)
+            .delete(`/clusters/${encodeURIComponent(name)}`)
             .send()
             .then(res => res.body as models.Cluster);
     }

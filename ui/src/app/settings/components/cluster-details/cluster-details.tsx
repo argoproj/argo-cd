@@ -25,7 +25,7 @@ export const ClusterDetails = (props: RouteComponentProps<{server: string}>) => 
     const loaderRef = React.useRef<DataLoader>();
     const [updating, setUpdating] = React.useState(false);
     return (
-        <DataLoader ref={loaderRef} input={server} load={(url: string) => timer(0, 1000).pipe(mergeMap(() => from(services.clusters.get(url, ''))))}>
+        <DataLoader ref={loaderRef} input={server} load={(name: string) => timer(0, 5000).pipe(mergeMap(() => from(services.clusters.getByName(name))))}>
             {(cluster: Cluster) => (
                 <Page
                     title={server}
@@ -40,7 +40,7 @@ export const ClusterDetails = (props: RouteComponentProps<{server: string}>) => 
                                     action: async () => {
                                         setUpdating(true);
                                         try {
-                                            const updated = await services.clusters.invalidateCache(props.match.params.server);
+                                            const updated = await services.clusters.invalidateCacheByName(props.match.params.server);
                                             loaderRef.current.setData(updated);
                                         } finally {
                                             setUpdating(false);
@@ -56,18 +56,19 @@ export const ClusterDetails = (props: RouteComponentProps<{server: string}>) => 
                         <EditablePanel
                             values={cluster}
                             save={async updated => {
-                                const item = await services.clusters.get(updated.server, '');
+                                const item = await services.clusters.getByName(updated.name);
                                 item.name = updated.name;
                                 item.namespaces = updated.namespaces;
                                 item.labels = updated.labels;
                                 item.annotations = updated.annotations;
-                                loaderRef.current.setData(await services.clusters.update(item, 'name', 'namespaces', 'labels', 'annotations'));
+                                loaderRef.current.setData(await services.clusters.updateByName(item, 'name', 'server', 'namespaces', 'labels', 'annotations'));
                             }}
                             title='GENERAL'
                             items={[
                                 {
                                     title: 'SERVER',
-                                    view: cluster.server
+                                    view: cluster.server,
+                                    edit: formApi => <FormField formApi={formApi} field="server" component={Text}/>
                                 },
                                 {
                                     title: 'CREDENTIALS TYPE',
