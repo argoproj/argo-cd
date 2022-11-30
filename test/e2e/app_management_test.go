@@ -1968,7 +1968,7 @@ func TestNamespaceAutoCreationWithMetadata(t *testing.T) {
 		Expect(ResourceSyncStatusWithNamespaceIs("Deployment", "guestbook-ui", updatedNamespace, SyncStatusCodeSynced)).
 		When().
 		And(func() {
-			FailOnErr(AppClientset.ArgoprojV1alpha1().Applications(AppNamespace()).Patch(context.Background(),
+			FailOnErr(AppClientset.ArgoprojV1alpha1().Applications(ArgoCDNamespace).Patch(context.Background(),
 				ctx.GetName(), types.JSONPatchType, []byte(`[{ "op": "replace", "path": "/spec/syncPolicy/managedNamespaceMetadata/labels", "value": {"new":"label"} }]`), metav1.PatchOptions{}))
 		}).
 		Sync().
@@ -1991,7 +1991,7 @@ func TestNamespaceAutoCreationWithMetadata(t *testing.T) {
 		})).
 		When().
 		And(func() {
-			FailOnErr(AppClientset.ArgoprojV1alpha1().Applications(AppNamespace()).Patch(context.Background(),
+			FailOnErr(AppClientset.ArgoprojV1alpha1().Applications(ArgoCDNamespace).Patch(context.Background(),
 				ctx.GetName(), types.JSONPatchType, []byte(`[{ "op": "replace", "path": "/spec/syncPolicy/managedNamespaceMetadata/annotations", "value": {"new":"custom-annotation"} }]`), metav1.PatchOptions{}))
 		}).
 		Sync().
@@ -2051,7 +2051,7 @@ func TestNamespaceAutoCreationWithMetadataAndNsManifest(t *testing.T) {
 		Then().
 		Expect(Success("")).
 		Expect(Namespace(namespace, func(app *Application, ns *v1.Namespace) {
-			assert.NotEmpty(t, app.Status.Conditions)
+			assert.Empty(t, app.Status.Conditions)
 
 			trackingId := ns.Annotations["argocd.argoproj.io/tracking-id"]
 
@@ -2097,7 +2097,7 @@ metadata:
   labels:
     test: "true"
   annotations:
-    something: "whatevs"		
+    something: "whatevs"
 `
 	s := fmt.Sprintf(existingNs, updatedNamespace)
 
@@ -2155,7 +2155,7 @@ metadata:
 		})).
 		When().
 		And(func() {
-			FailOnErr(AppClientset.ArgoprojV1alpha1().Applications(AppNamespace()).Patch(context.Background(),
+			FailOnErr(AppClientset.ArgoprojV1alpha1().Applications(ArgoCDNamespace).Patch(context.Background(),
 				ctx.GetName(), types.JSONPatchType, []byte(`[{ "op": "add", "path": "/spec/syncPolicy/managedNamespaceMetadata/annotations/something", "value": "hmm" }]`), metav1.PatchOptions{}))
 		}).
 		Sync().
@@ -2179,7 +2179,7 @@ metadata:
 		})).
 		When().
 		And(func() {
-			FailOnErr(AppClientset.ArgoprojV1alpha1().Applications(AppNamespace()).Patch(context.Background(),
+			FailOnErr(AppClientset.ArgoprojV1alpha1().Applications(ArgoCDNamespace).Patch(context.Background(),
 				ctx.GetName(), types.JSONPatchType, []byte(`[{ "op": "remove", "path": "/spec/syncPolicy/managedNamespaceMetadata/annotations/something" }]`), metav1.PatchOptions{}))
 		}).
 		Sync().
