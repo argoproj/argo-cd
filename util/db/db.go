@@ -11,8 +11,8 @@ import (
 	"github.com/argoproj/argo-cd/v2/util/settings"
 )
 
-// SecretMaperValidation determine whether the secret should be transformed(i.e. trailing CRLF characters trimmed)
-type SecretMaperValidation struct {
+// SecretMapperValidation determine whether the secret should be transformed(i.e. trailing CRLF characters trimmed)
+type SecretMapperValidation struct {
 	Dest      *string
 	Transform func(string) string
 }
@@ -121,7 +121,7 @@ func (db *db) getSecret(name string, cache map[string]*v1.Secret) (*v1.Secret, e
 	return secret, nil
 }
 
-func (db *db) unmarshalFromSecretsStr(secrets map[*SecretMaperValidation]*v1.SecretKeySelector, cache map[string]*v1.Secret) error {
+func (db *db) unmarshalFromSecretsStr(secrets map[*SecretMapperValidation]*v1.SecretKeySelector, cache map[string]*v1.Secret) error {
 	for dst, src := range secrets {
 		if src != nil {
 			secret, err := db.getSecret(src.Name, cache)
