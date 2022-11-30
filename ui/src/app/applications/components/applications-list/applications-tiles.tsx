@@ -1,6 +1,7 @@
 import {DataLoader, Tooltip} from 'argo-ui';
 import * as classNames from 'classnames';
 import * as React from 'react';
+import Moment from 'react-moment';
 import {Key, KeybindingContext, NumKey, NumKeyToNumber, NumPadKey, useNav} from 'argo-ui/v2';
 import {Cluster} from '../../../shared/components';
 import {Consumer, Context, AuthSettingsCtx} from '../../../shared/context';
@@ -255,6 +256,16 @@ export const ApplicationTiles = ({applications, syncApplication, refreshApplicat
                                                             Namespace:
                                                         </div>
                                                         <div className='columns small-9'>{app.spec.destination.namespace}</div>
+                                                    </div>
+                                                    <div className='row'>
+                                                        <div className='columns small-3' title='Age:'>
+                                                            Age:
+                                                        </div>
+                                                        <div className='columns small-9'>
+                                                            <Moment fromNow={true} ago={true}>
+                                                                {app.metadata.creationTimestamp}
+                                                            </Moment>
+                                                        </div>
                                                     </div>
                                                     <div className='row'>
                                                         <div className='columns applications-list__entry--actions'>

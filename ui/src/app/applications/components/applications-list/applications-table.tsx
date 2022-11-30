@@ -1,5 +1,6 @@
 import {DataLoader, DropDownMenu, Tooltip} from 'argo-ui';
 import * as React from 'react';
+import Moment from 'react-moment';
 import {Key, KeybindingContext, useNav} from 'argo-ui/v2';
 import {Cluster} from '../../../shared/components';
 import {Consumer, Context} from '../../../shared/context';
@@ -118,22 +119,32 @@ export const ApplicationsTable = (props: {
                                                     </div>
                                                 </div>
                                             </div>
+
                                             <div className='columns small-2'>
-                                                <AppUtils.HealthStatusIcon state={app.status.health} /> <span>{app.status.health.status}</span> <br />
-                                                <AppUtils.ComparisonStatusIcon status={app.status.sync.status} />
-                                                <span>{app.status.sync.status}</span> <OperationState app={app} quiet={true} />
-                                                <DropDownMenu
-                                                    anchor={() => (
-                                                        <button className='argo-button argo-button--light argo-button--lg argo-button--short'>
-                                                            <i className='fa fa-ellipsis-v' />
-                                                        </button>
-                                                    )}
-                                                    items={[
-                                                        {title: 'Sync', action: () => props.syncApplication(app.metadata.name, app.metadata.namespace)},
-                                                        {title: 'Refresh', action: () => props.refreshApplication(app.metadata.name, app.metadata.namespace)},
-                                                        {title: 'Delete', action: () => props.deleteApplication(app.metadata.name, app.metadata.namespace)}
-                                                    ]}
-                                                />
+                                                <div className='row'>
+                                                    <div className='columns small-4'>
+                                                        <Moment style={{marginLeft: 'auto'}} fromNow={true} ago={true}>
+                                                            {app.metadata.creationTimestamp}
+                                                        </Moment>
+                                                    </div>
+                                                    <div className='columns small-8'>
+                                                        <AppUtils.HealthStatusIcon state={app.status.health} /> <span>{app.status.health.status}</span> <br />
+                                                        <AppUtils.ComparisonStatusIcon status={app.status.sync.status} />
+                                                        <span>{app.status.sync.status}</span> <OperationState app={app} quiet={true} />
+                                                        <DropDownMenu
+                                                            anchor={() => (
+                                                                <button className='argo-button argo-button--light argo-button--lg argo-button--short'>
+                                                                    <i className='fa fa-ellipsis-v' />
+                                                                </button>
+                                                            )}
+                                                            items={[
+                                                                {title: 'Sync', action: () => props.syncApplication(app.metadata.name, app.metadata.namespace)},
+                                                                {title: 'Refresh', action: () => props.refreshApplication(app.metadata.name, app.metadata.namespace)},
+                                                                {title: 'Delete', action: () => props.deleteApplication(app.metadata.name, app.metadata.namespace)}
+                                                            ]}
+                                                        />
+                                                    </div>
+                                                </div>
                                             </div>
                                         </div>
                                     </div>
