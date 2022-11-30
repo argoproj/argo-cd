@@ -108,6 +108,7 @@ spec:
 
     # plugin specific config
     plugin:
+      # NOTE: this field is deprecated in v2.5 and must be removed to use sidecar-based plugins.
       # Only set the plugin name if the plugin is defined in argocd-cm.
       # If the plugin is defined as a sidecar, omit the name. The plugin will be automatically matched with the
       # Application according to the plugin's discovery rules.
@@ -116,6 +117,15 @@ spec:
       env:
         - name: FOO
           value: bar
+      # Plugin parameters are new in v2.5.
+      parameters:
+        - name: string-param
+          string: example-string
+        - name: array-param
+          array: [item1, item2]
+        - name: map-param
+          map:
+            param-name: param-value
 
   # Destination cluster and namespace to deploy the application
   destination:

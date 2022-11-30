@@ -3,7 +3,7 @@
 .ui-banner {
     background: $argo-color-gray-5;
     position: fixed;
-    width: 100%;
+    width: -webkit-fill-available;
     z-index: 10;
     text-align: center;
     color: $argo-color-teal-8;
