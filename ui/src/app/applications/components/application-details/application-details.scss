@@ -274,3 +274,20 @@ $header: 120px;
         }
     }
 }
+
+.sliding-panel__body {
+    @media screen and (max-width: map-get($breakpoints, large)) {
+        padding: 0 !important;
+    }
+}
+
+.sliding-panel--is-middle .sliding-panel__wrapper {
+    @media screen and (max-width: map-get($breakpoints, large)) {
+        width: 90% !important;
+    }
+}
+.sliding-panel--is-middle .sliding-panel__body {
+    @media screen and (max-width: map-get($breakpoints, large)) {
+        padding: 18px !important;
+    }
+}
