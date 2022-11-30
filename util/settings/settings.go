@@ -252,45 +252,45 @@ func (ks *KustomizeSettings) GetOptions(source v1alpha1.ApplicationSource) (*v1a
 	}, nil
 }
 
-// Credentials for accessing a Git repository
+// Repository contains the configuration to access a repository (Git / Helm)
 type Repository struct {
-	// The URL to the repository
+	// The URL to the Git repository / Helm Chart
 	URL string `json:"url,omitempty"`
-	// the type of the repo, "git" or "helm", assumed to be "git" if empty or absent
+	// Type is type of the repo, can be either "git" or "helm", assumed to be "git" if empty or absent
 	Type string `json:"type,omitempty"`
-	// helm only
+	// Name of the Helm Chart (Helm Only)
 	Name string `json:"name,omitempty"`
-	// Name of the secret storing the username used to access the repo
+	// UsernameSecret is the name of the secret storing the username used to access the repo
 	UsernameSecret *apiv1.SecretKeySelector `json:"usernameSecret,omitempty"`
-	// Name of the secret storing the password used to access the repo
+	// PasswordSecret is the name of the secret storing the password used to access the repo
 	PasswordSecret *apiv1.SecretKeySelector `json:"passwordSecret,omitempty"`
-	// Name of the secret storing the SSH private key used to access the repo. Git only
+	// SSHPrivateKeySecret is the name of the secret storing the SSH private key used to access the repo. Git only
 	SSHPrivateKeySecret *apiv1.SecretKeySelector `json:"sshPrivateKeySecret,omitempty"`
-	// Whether to connect the repository in an insecure way (deprecated)
+	// InsecureIgnoreHostKey defines whether to connect the repository in an insecure way (deprecated)
 	InsecureIgnoreHostKey bool `json:"insecureIgnoreHostKey,omitempty"`
-	// Whether to connect the repository in an insecure way
+	// Insecure defines whether to connect the repository in an insecure way
 	Insecure bool `json:"insecure,omitempty"`
-	// Whether the repo is git-lfs enabled. Git only.
+	// EnableLFS defines whether the repo is git-lfs enabled. Git only.
 	EnableLFS bool `json:"enableLfs,omitempty"`
-	// Name of the secret storing the TLS client cert data
+	// TLSClientCertDataSecret is the name of the secret storing the TLS client cert data
 	TLSClientCertDataSecret *apiv1.SecretKeySelector `json:"tlsClientCertDataSecret,omitempty"`
-	// Name of the secret storing the TLS client cert's key data
+	// TLSClientCertKeySecret is the name of the secret storing the TLS client cert's key data
 	TLSClientCertKeySecret *apiv1.SecretKeySelector `json:"tlsClientCertKeySecret,omitempty"`
-	// Whether the repo is helm-oci enabled. Git only.
+	// EnableOci Whether the repo is helm-oci enabled. Git only.
 	EnableOci bool `json:"enableOci,omitempty"`
-	// Github App Private Key PEM data
+	// GithubAppPrivateKeySecret Private Key PEM data for GitHub
 	GithubAppPrivateKeySecret *apiv1.SecretKeySelector `json:"githubAppPrivateKeySecret,omitempty"`
-	// Github App ID of the app used to access the repo
+	// GithubAppId APP ID of the app used to access the repo
 	GithubAppId int64 `json:"githubAppID,omitempty"`
-	// Github App Installation ID of the installed GitHub App
+	// GithubAppInstallationId Installation ID of the installed GitHub App
 	GithubAppInstallationId int64 `json:"githubAppInstallationID,omitempty"`
-	// Github App Enterprise base url if empty will default to https://api.github.com
+	// GithubAppEnterpriseBaseURL the base url to use for GitHub Enterprise: if empty will default to https://api.github.com
 	GithubAppEnterpriseBaseURL string `json:"githubAppEnterpriseBaseUrl,omitempty"`
 	// Proxy specifies the HTTP/HTTPS proxy used to access the repo
 	Proxy string `json:"proxy,omitempty"`
 }
 
-// Credential template for accessing repositories
+// RepositoryCredentials defines the credentials used to access a Repository
 type RepositoryCredentials struct {
 	// The URL pattern the repository URL has to match
 	URL string `json:"url,omitempty"`

@@ -850,7 +850,7 @@ func (a *ArgoCDServer) newHTTPServer(ctx context.Context, port int, grpcWebHandl
 	// NOTE: if a marshaller option is not supplied, grpc-gateway will default to the jsonpb from
 	// golang/protobuf. Which does not support types such as time.Time. gogo/protobuf does support
 	// time.Time, but does not support custom UnmarshalJSON() and MarshalJSON() methods. Therefore
-	// we use our own Marshaler
+	// we use our own Marshaller
 	gwMuxOpts := runtime.WithMarshalerOption(runtime.MIMEWildcard, new(grpc_util.JSONMarshaler))
 	gwCookieOpts := runtime.WithForwardResponseOption(a.translateGrpcCookieHeader)
 	gwmux := runtime.NewServeMux(gwMuxOpts, gwCookieOpts)
