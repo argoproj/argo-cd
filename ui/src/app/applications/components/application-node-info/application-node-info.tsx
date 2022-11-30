@@ -1,10 +1,10 @@
 import {Checkbox, DataLoader, Tab, Tabs} from 'argo-ui';
 import * as deepMerge from 'deepmerge';
-import * as moment from 'moment';
 import * as React from 'react';
 
 import {YamlEditor, ClipboardText} from '../../../shared/components';
 import * as models from '../../../shared/models';
+import {HealthStatusCode} from '../../../shared/models';
 import {services} from '../../../shared/services';
 import {ResourceTreeNode} from '../application-resource-tree/application-resource-tree';
 import {ApplicationResourcesDiff} from '../application-resources-diff/application-resources-diff';
@@ -45,10 +45,37 @@ export const ApplicationNodeInfo = (props: {
     }
     if (props.live) {
         if (props.node.kind === 'Pod') {
-            const {reason, message} = getPodStateReason(props.live);
+            const {reason, message, netContainerStatuses} = getPodStateReason(props.live);
             attributes.push({title: 'STATE', value: reason});
             if (message) {
                 attributes.push({title: 'STATE DETAILS', value: message});
+            }
+            if (netContainerStatuses.length > 0) {
+                attributes.push({
+                    title: 'CONTAINER STATUS',
+                    value: (
+                        <div className='application-node-info__labels' style={{marginTop: 5, overflowY: 'auto', maxHeight: 50}}>
+                            {netContainerStatuses.map((container, i) => {
+                                let failurereason =
+                                    container.state.waiting?.reason ||
+                                    (container.state.terminated && container.state.terminated.exitCode != 0 && container.state.terminated.reason);
+                                return (
+                                    <div className='boxcolumns small-9' key={i}>
+                                        <span>
+                                            <HealthStatusIcon
+                                                state={{
+                                                    status: container.ready ? 'Healthy' : ('Degraded' as HealthStatusCode),
+                                                    message: container.state.waiting ? container.state.waiting.reason : 'Healthy'
+                                                }}
+                                            />{' '}
+                                            {container.name} {failurereason && `-- container is failing because of ${failurereason}`}
+                                        </span>
+                                    </div>
+                                );
+                            })}
+                        </div>
+                    )
+                });
             }
         } else if (props.node.kind === 'Service') {
             attributes.push({title: 'TYPE', value: props.live.spec.type});
