@@ -68,7 +68,7 @@ export const ClusterDetails = (props: RouteComponentProps<{server: string}>) => 
                                 {
                                     title: 'SERVER',
                                     view: cluster.server,
-                                    edit: formApi => <FormField formApi={formApi} field="server" component={Text}/>
+                                    edit: formApi => <FormField formApi={formApi} field='server' component={Text} />
                                 },
                                 {
                                     title: 'CREDENTIALS TYPE',
