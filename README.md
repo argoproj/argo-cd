@@ -75,4 +75,4 @@ The following links are to resources hosted by Argo CD vendors (companies which 
 These resources are vendor-neutral (overwhelmingly _about_ Argo CD, but may briefly mention the vendor) and do not require providing information for marketing purposes.
 
 1. [Unveil the Secret Ingredients of Continuous Delivery at Enterprise Scale with Argo CD](https://blog.akuity.io/unveil-the-secret-ingredients-of-continuous-delivery-at-enterprise-scale-with-argo-cd-7c5b4057ee49)
-1. [Argo Sandbox (demo instance)](https://argocd.argo.opsmx.net/) (requires logging into the demo instance with a Google account)
+1. [Argo CD Sandbox (demo instance)](https://argocd.argo.opsmx.net/) (requires logging into the demo instance with a Google account)
