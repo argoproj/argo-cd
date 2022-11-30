@@ -12,7 +12,8 @@ console.log(`Bundling in ${isProd ? 'production' : 'development'}...`);
 
 const proxyConf = {
     target: process.env.ARGOCD_API_URL || 'http://localhost:8080',
-    secure: false
+    secure: false,
+    changeOrigin: process.env.ARGOCD_API_CHANGE_ORIGIN === 'true',
 };
 
 const config = {
