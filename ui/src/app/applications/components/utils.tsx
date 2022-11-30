@@ -863,7 +863,7 @@ export const OperationState = ({app, quiet}: {app: appModels.Application; quiet?
     );
 };
 
-export function getPodStateReason(pod: appModels.State): {message: string; reason: string} {
+export function getPodStateReason(pod: appModels.State): {message: string; reason: string; netContainerStatuses: any[]} {
     let reason = pod.status.phase;
     let message = '';
     if (pod.status.reason) {
@@ -871,6 +871,10 @@ export function getPodStateReason(pod: appModels.State): {message: string; reaso
     }
 
     let initializing = false;
+
+    let netContainerStatuses = pod.status.initContainerStatuses || [];
+    netContainerStatuses = netContainerStatuses.concat(pod.status.containerStatuses || []);
+
     for (const container of (pod.status.initContainerStatuses || []).slice().reverse()) {
         if (container.state.terminated && container.state.terminated.exitCode === 0) {
             continue;
@@ -930,7 +934,7 @@ export function getPodStateReason(pod: appModels.State): {message: string; reaso
         message = '';
     }
 
-    return {reason, message};
+    return {reason, message, netContainerStatuses};
 }
 
 export function getConditionCategory(condition: appModels.ApplicationCondition): 'error' | 'warning' | 'info' {
