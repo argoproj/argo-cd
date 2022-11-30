@@ -127,6 +127,7 @@ message RepoAppDetailsResponse {
 	HelmAppSpec helm = 3;
 	KustomizeAppSpec kustomize = 4;
 	DirectoryAppSpec directory = 5;
+	PluginAppSpec plugin = 6;
 }
 
 message RepoServerRevisionMetadataRequest {
@@ -160,6 +161,34 @@ message KustomizeAppSpec {
 message DirectoryAppSpec {
 }
 
+message ParameterAnnouncement {
+    // name is the name identifying a parameter.
+    string name = 1;
+    // title is a human-readable text of the parameter name.
+    string title = 2;
+    // tooltip is a human-readable description of the parameter.
+    string tooltip = 3;
+    // required defines if this given parameter is mandatory.
+    bool required = 4;
+    // itemType determines the primitive data type represented by the parameter. Parameters are always encoded as
+    // strings, but this field lets them be interpreted as other primitive types.
+    string itemType = 5;
+    // collectionType is the type of value this parameter holds - either a single value (a string) or a collection
+    // (array or map). If collectionType is set, only the field with that type will be used. If collectionType is not
+    // set, `string` is the default. If collectionType is set to an invalid value, a validation error is thrown.
+    string collectionType = 6;
+    // string is the default value of the parameter if the parameter is a string.
+    string string = 7;
+    // array is the default value of the parameter if the parameter is an array.
+    repeated string array = 8;
+    // map is the default value of the parameter if the parameter is a map.
+    map<string, string> map = 9;
+}
+
+// PluginAppSpec contains details about a plugin-type Application
+message PluginAppSpec {
+    repeated ParameterAnnouncement parametersAnnouncement = 1;
+}
 
 message HelmChartsRequest {
     github.com.argoproj.argo_cd.v2.pkg.apis.application.v1alpha1.Repository repo = 1;
