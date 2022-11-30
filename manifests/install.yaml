@@ -630,6 +630,29 @@ spec:
                               type: array
                             name:
                               type: string
+                            parameters:
+                              items:
+                                properties:
+                                  array:
+                                    description: Array is the value of an array type
+                                      parameter.
+                                    items:
+                                      type: string
+                                    type: array
+                                  map:
+                                    additionalProperties:
+                                      type: string
+                                    description: Map is the value of a map type parameter.
+                                    type: object
+                                  name:
+                                    description: Name is the name identifying a parameter.
+                                    type: string
+                                  string:
+                                    description: String_ is the value of a string
+                                      type parameter.
+                                    type: string
+                                type: object
+                              type: array
                           type: object
                         ref:
                           description: Ref is reference to another source within sources
@@ -1237,6 +1260,28 @@ spec:
                           type: array
                         name:
                           type: string
+                        parameters:
+                          items:
+                            properties:
+                              array:
+                                description: Array is the value of an array type parameter.
+                                items:
+                                  type: string
+                                type: array
+                              map:
+                                additionalProperties:
+                                  type: string
+                                description: Map is the value of a map type parameter.
+                                type: object
+                              name:
+                                description: Name is the name identifying a parameter.
+                                type: string
+                              string:
+                                description: String_ is the value of a string type
+                                  parameter.
+                                type: string
+                            type: object
+                          type: array
                       type: object
                     ref:
                       description: Ref is reference to another source within sources
@@ -1617,6 +1662,29 @@ spec:
                               type: array
                             name:
                               type: string
+                            parameters:
+                              items:
+                                properties:
+                                  array:
+                                    description: Array is the value of an array type
+                                      parameter.
+                                    items:
+                                      type: string
+                                    type: array
+                                  map:
+                                    additionalProperties:
+                                      type: string
+                                    description: Map is the value of a map type parameter.
+                                    type: object
+                                  name:
+                                    description: Name is the name identifying a parameter.
+                                    type: string
+                                  string:
+                                    description: String_ is the value of a string
+                                      type parameter.
+                                    type: string
+                                type: object
+                              type: array
                           type: object
                         ref:
                           description: Ref is reference to another source within sources
@@ -1860,83 +1928,32 @@ spec:
                                 type: array
                               name:
                                 type: string
-                              type: array
-                            namePrefix:
-                              description: NamePrefix is a prefix appended to resources
-                                for Kustomize apps
-                              type: string
-                            nameSuffix:
-                              description: NameSuffix is a suffix appended to resources
-                                for Kustomize apps
-                              type: string
-                            version:
-                              description: Version controls which version of Kustomize
-                                to use for rendering manifests
-                              type: string
-                          type: object
-                        path:
-                          description: Path is a directory path within the Git repository,
-                            and is only valid for applications sourced from Git.
-                          type: string
-                        plugin:
-                          description: Plugin holds config management plugin specific
-                            options
-                          properties:
-                            env:
-                              description: Env is a list of environment variable entries
-                              items:
-                                description: EnvEntry represents an entry in the application's
-                                  environment
-                                properties:
-                                  name:
-                                    description: Name is the name of the variable,
-                                      usually expressed in uppercase
-                                    type: string
-                                  value:
-                                    description: Value is the value of the variable
-                                    type: string
-                                required:
-                                - name
-                                - value
-                                type: object
-                              type: array
-                            name:
-                              type: string
-                            parameters:
-                              items:
-                                properties:
-                                  array:
-                                    description: Array is the value of an array type
-                                      parameter.
-                                    items:
+                              parameters:
+                                items:
+                                  properties:
+                                    array:
+                                      description: Array is the value of an array
+                                        type parameter.
+                                      items:
+                                        type: string
+                                      type: array
+                                    map:
+                                      additionalProperties:
+                                        type: string
+                                      description: Map is the value of a map type
+                                        parameter.
+                                      type: object
+                                    name:
+                                      description: Name is the name identifying a
+                                        parameter.
                                       type: string
-                                    type: array
-                                  map:
-                                    additionalProperties:
+                                    string:
+                                      description: String_ is the value of a string
+                                        type parameter.
                                       type: string
-                                    description: Map is the value of a map type parameter.
-                                    type: object
-                                  name:
-                                    description: Name is the name identifying a parameter.
-                                    type: string
-                                  string:
-                                    description: String_ is the value of a string
-                                      type parameter.
-                                    type: string
-                                type: object
-                              type: array
-                          type: object
-                        repoURL:
-                          description: RepoURL is the URL to the repository (Git or
-                            Helm) that contains the application manifests
-                          type: string
-                        targetRevision:
-                          description: TargetRevision defines the revision of the
-                            source to sync the application to. In case of Git, this
-                            can be commit, tag, or branch. If omitted, will equal
-                            to HEAD. In case of Helm, this is a semver tag for the
-                            Chart's version.
-                          type: string
+                                  type: object
+                                type: array
+                            type: object
                           ref:
                             description: Ref is reference to another source within
                               sources field. This field will not be used if used with
@@ -2606,6 +2623,31 @@ spec:
                                       type: array
                                     name:
                                       type: string
+                                    parameters:
+                                      items:
+                                        properties:
+                                          array:
+                                            description: Array is the value of an
+                                              array type parameter.
+                                            items:
+                                              type: string
+                                            type: array
+                                          map:
+                                            additionalProperties:
+                                              type: string
+                                            description: Map is the value of a map
+                                              type parameter.
+                                            type: object
+                                          name:
+                                            description: Name is the name identifying
+                                              a parameter.
+                                            type: string
+                                          string:
+                                            description: String_ is the value of a
+                                              string type parameter.
+                                            type: string
+                                        type: object
+                                      type: array
                                   type: object
                                 ref:
                                   description: Ref is reference to another source
@@ -3239,6 +3281,31 @@ spec:
                                   type: array
                                 name:
                                   type: string
+                                parameters:
+                                  items:
+                                    properties:
+                                      array:
+                                        description: Array is the value of an array
+                                          type parameter.
+                                        items:
+                                          type: string
+                                        type: array
+                                      map:
+                                        additionalProperties:
+                                          type: string
+                                        description: Map is the value of a map type
+                                          parameter.
+                                        type: object
+                                      name:
+                                        description: Name is the name identifying
+                                          a parameter.
+                                        type: string
+                                      string:
+                                        description: String_ is the value of a string
+                                          type parameter.
+                                        type: string
+                                    type: object
+                                  type: array
                               type: object
                             ref:
                               description: Ref is reference to another source within
@@ -3871,6 +3938,31 @@ spec:
                                   type: array
                                 name:
                                   type: string
+                                parameters:
+                                  items:
+                                    properties:
+                                      array:
+                                        description: Array is the value of an array
+                                          type parameter.
+                                        items:
+                                          type: string
+                                        type: array
+                                      map:
+                                        additionalProperties:
+                                          type: string
+                                        description: Map is the value of a map type
+                                          parameter.
+                                        type: object
+                                      name:
+                                        description: Name is the name identifying
+                                          a parameter.
+                                        type: string
+                                      string:
+                                        description: String_ is the value of a string
+                                          type parameter.
+                                        type: string
+                                    type: object
+                                  type: array
                               type: object
                             ref:
                               description: Ref is reference to another source within
@@ -4350,6 +4442,23 @@ spec:
                                             type: array
                                           name:
                                             type: string
+                                          parameters:
+                                            items:
+                                              properties:
+                                                array:
+                                                  items:
+                                                    type: string
+                                                  type: array
+                                                map:
+                                                  additionalProperties:
+                                                    type: string
+                                                  type: object
+                                                name:
+                                                  type: string
+                                                string:
+                                                  type: string
+                                              type: object
+                                            type: array
                                         type: object
                                       ref:
                                         type: string
@@ -4808,6 +4917,23 @@ spec:
                                             type: array
                                           name:
                                             type: string
+                                          parameters:
+                                            items:
+                                              properties:
+                                                array:
+                                                  items:
+                                                    type: string
+                                                  type: array
+                                                map:
+                                                  additionalProperties:
+                                                    type: string
+                                                  type: object
+                                                name:
+                                                  type: string
+                                                string:
+                                                  type: string
+                                              type: object
+                                            type: array
                                         type: object
                                       ref:
                                         type: string
@@ -5268,6 +5394,23 @@ spec:
                                             type: array
                                           name:
                                             type: string
+                                          parameters:
+                                            items:
+                                              properties:
+                                                array:
+                                                  items:
+                                                    type: string
+                                                  type: array
+                                                map:
+                                                  additionalProperties:
+                                                    type: string
+                                                  type: object
+                                                name:
+                                                  type: string
+                                                string:
+                                                  type: string
+                                              type: object
+                                            type: array
                                         type: object
                                       ref:
                                         type: string
@@ -5704,6 +5847,23 @@ spec:
                                             type: array
                                           name:
                                             type: string
+                                          parameters:
+                                            items:
+                                              properties:
+                                                array:
+                                                  items:
+                                                    type: string
+                                                  type: array
+                                                map:
+                                                  additionalProperties:
+                                                    type: string
+                                                  type: object
+                                                name:
+                                                  type: string
+                                                string:
+                                                  type: string
+                                              type: object
+                                            type: array
                                         type: object
                                       ref:
                                         type: string
@@ -6170,6 +6330,23 @@ spec:
                                                       type: array
                                                     name:
                                                       type: string
+                                                    parameters:
+                                                      items:
+                                                        properties:
+                                                          array:
+                                                            items:
+                                                              type: string
+                                                            type: array
+                                                          map:
+                                                            additionalProperties:
+                                                              type: string
+                                                            type: object
+                                                          name:
+                                                            type: string
+                                                          string:
+                                                            type: string
+                                                        type: object
+                                                      type: array
                                                   type: object
                                                 ref:
                                                   type: string
@@ -6628,6 +6805,23 @@ spec:
                                                       type: array
                                                     name:
                                                       type: string
+                                                    parameters:
+                                                      items:
+                                                        properties:
+                                                          array:
+                                                            items:
+                                                              type: string
+                                                            type: array
+                                                          map:
+                                                            additionalProperties:
+                                                              type: string
+                                                            type: object
+                                                          name:
+                                                            type: string
+                                                          string:
+                                                            type: string
+                                                        type: object
+                                                      type: array
                                                   type: object
                                                 ref:
                                                   type: string
@@ -7088,6 +7282,23 @@ spec:
                                                       type: array
                                                     name:
                                                       type: string
+                                                    parameters:
+                                                      items:
+                                                        properties:
+                                                          array:
+                                                            items:
+                                                              type: string
+                                                            type: array
+                                                          map:
+                                                            additionalProperties:
+                                                              type: string
+                                                            type: object
+                                                          name:
+                                                            type: string
+                                                          string:
+                                                            type: string
+                                                        type: object
+                                                      type: array
                                                   type: object
                                                 ref:
                                                   type: string
@@ -7524,6 +7735,23 @@ spec:
                                                       type: array
                                                     name:
                                                       type: string
+                                                    parameters:
+                                                      items:
+                                                        properties:
+                                                          array:
+                                                            items:
+                                                              type: string
+                                                            type: array
+                                                          map:
+                                                            additionalProperties:
+                                                              type: string
+                                                            type: object
+                                                          name:
+                                                            type: string
+                                                          string:
+                                                            type: string
+                                                        type: object
+                                                      type: array
                                                   type: object
                                                 ref:
                                                   type: string
@@ -8078,6 +8306,23 @@ spec:
                                                       type: array
                                                     name:
                                                       type: string
+                                                    parameters:
+                                                      items:
+                                                        properties:
+                                                          array:
+                                                            items:
+                                                              type: string
+                                                            type: array
+                                                          map:
+                                                            additionalProperties:
+                                                              type: string
+                                                            type: object
+                                                          name:
+                                                            type: string
+                                                          string:
+                                                            type: string
+                                                        type: object
+                                                      type: array
                                                   type: object
                                                 ref:
                                                   type: string
@@ -8679,6 +8924,23 @@ spec:
                                                       type: array
                                                     name:
                                                       type: string
+                                                    parameters:
+                                                      items:
+                                                        properties:
+                                                          array:
+                                                            items:
+                                                              type: string
+                                                            type: array
+                                                          map:
+                                                            additionalProperties:
+                                                              type: string
+                                                            type: object
+                                                          name:
+                                                            type: string
+                                                          string:
+                                                            type: string
+                                                        type: object
+                                                      type: array
                                                   type: object
                                                 ref:
                                                   type: string
@@ -9131,6 +9393,23 @@ spec:
                                             type: array
                                           name:
                                             type: string
+                                          parameters:
+                                            items:
+                                              properties:
+                                                array:
+                                                  items:
+                                                    type: string
+                                                  type: array
+                                                map:
+                                                  additionalProperties:
+                                                    type: string
+                                                  type: object
+                                                name:
+                                                  type: string
+                                                string:
+                                                  type: string
+                                              type: object
+                                            type: array
                                         type: object
                                       ref:
                                         type: string
@@ -9597,6 +9876,23 @@ spec:
                                                       type: array
                                                     name:
                                                       type: string
+                                                    parameters:
+                                                      items:
+                                                        properties:
+                                                          array:
+                                                            items:
+                                                              type: string
+                                                            type: array
+                                                          map:
+                                                            additionalProperties:
+                                                              type: string
+                                                            type: object
+                                                          name:
+                                                            type: string
+                                                          string:
+                                                            type: string
+                                                        type: object
+                                                      type: array
                                                   type: object
                                                 ref:
                                                   type: string
@@ -10055,6 +10351,23 @@ spec:
                                                       type: array
                                                     name:
                                                       type: string
+                                                    parameters:
+                                                      items:
+                                                        properties:
+                                                          array:
+                                                            items:
+                                                              type: string
+                                                            type: array
+                                                          map:
+                                                            additionalProperties:
+                                                              type: string
+                                                            type: object
+                                                          name:
+                                                            type: string
+                                                          string:
+                                                            type: string
+                                                        type: object
+                                                      type: array
                                                   type: object
                                                 ref:
                                                   type: string
@@ -10515,6 +10828,23 @@ spec:
                                                       type: array
                                                     name:
                                                       type: string
+                                                    parameters:
+                                                      items:
+                                                        properties:
+                                                          array:
+                                                            items:
+                                                              type: string
+                                                            type: array
+                                                          map:
+                                                            additionalProperties:
+                                                              type: string
+                                                            type: object
+                                                          name:
+                                                            type: string
+                                                          string:
+                                                            type: string
+                                                        type: object
+                                                      type: array
                                                   type: object
                                                 ref:
                                                   type: string
@@ -10951,6 +11281,23 @@ spec:
                                                       type: array
                                                     name:
                                                       type: string
+                                                    parameters:
+                                                      items:
+                                                        properties:
+                                                          array:
+                                                            items:
+                                                              type: string
+                                                            type: array
+                                                          map:
+                                                            additionalProperties:
+                                                              type: string
+                                                            type: object
+                                                          name:
+                                                            type: string
+                                                          string:
+                                                            type: string
+                                                        type: object
+                                                      type: array
                                                   type: object
                                                 ref:
                                                   type: string
@@ -11505,6 +11852,23 @@ spec:
                                                       type: array
                                                     name:
                                                       type: string
+                                                    parameters:
+                                                      items:
+                                                        properties:
+                                                          array:
+                                                            items:
+                                                              type: string
+                                                            type: array
+                                                          map:
+                                                            additionalProperties:
+                                                              type: string
+                                                            type: object
+                                                          name:
+                                                            type: string
+                                                          string:
+                                                            type: string
+                                                        type: object
+                                                      type: array
                                                   type: object
                                                 ref:
                                                   type: string
@@ -12106,6 +12470,23 @@ spec:
                                                       type: array
                                                     name:
                                                       type: string
+                                                    parameters:
+                                                      items:
+                                                        properties:
+                                                          array:
+                                                            items:
+                                                              type: string
+                                                            type: array
+                                                          map:
+                                                            additionalProperties:
+                                                              type: string
+                                                            type: object
+                                                          name:
+                                                            type: string
+                                                          string:
+                                                            type: string
+                                                        type: object
+                                                      type: array
                                                   type: object
                                                 ref:
                                                   type: string
@@ -12562,6 +12943,23 @@ spec:
                                             type: array
                                           name:
                                             type: string
+                                          parameters:
+                                            items:
+                                              properties:
+                                                array:
+                                                  items:
+                                                    type: string
+                                                  type: array
+                                                map:
+                                                  additionalProperties:
+                                                    type: string
+                                                  type: object
+                                                name:
+                                                  type: string
+                                                string:
+                                                  type: string
+                                              type: object
+                                            type: array
                                         type: object
                                       ref:
                                         type: string
@@ -13113,6 +13511,23 @@ spec:
                                             type: array
                                           name:
                                             type: string
+                                          parameters:
+                                            items:
+                                              properties:
+                                                array:
+                                                  items:
+                                                    type: string
+                                                  type: array
+                                                map:
+                                                  additionalProperties:
+                                                    type: string
+                                                  type: object
+                                                name:
+                                                  type: string
+                                                string:
+                                                  type: string
+                                              type: object
+                                            type: array
                                         type: object
                                       ref:
                                         type: string
@@ -13714,6 +14129,23 @@ spec:
                                             type: array
                                           name:
                                             type: string
+                                          parameters:
+                                            items:
+                                              properties:
+                                                array:
+                                                  items:
+                                                    type: string
+                                                  type: array
+                                                map:
+                                                  additionalProperties:
+                                                    type: string
+                                                  type: object
+                                                name:
+                                                  type: string
+                                                string:
+                                                  type: string
+                                              type: object
+                                            type: array
                                         type: object
                                       ref:
                                         type: string
@@ -14173,6 +14605,23 @@ spec:
                                   type: array
                                 name:
                                   type: string
+                                parameters:
+                                  items:
+                                    properties:
+                                      array:
+                                        items:
+                                          type: string
+                                        type: array
+                                      map:
+                                        additionalProperties:
+                                          type: string
+                                        type: object
+                                      name:
+                                        type: string
+                                      string:
+                                        type: string
+                                    type: object
+                                  type: array
                               type: object
                             ref:
                               type: string

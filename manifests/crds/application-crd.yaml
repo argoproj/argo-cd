@@ -629,6 +629,29 @@ spec:
                               type: array
                             name:
                               type: string
+                            parameters:
+                              items:
+                                properties:
+                                  array:
+                                    description: Array is the value of an array type
+                                      parameter.
+                                    items:
+                                      type: string
+                                    type: array
+                                  map:
+                                    additionalProperties:
+                                      type: string
+                                    description: Map is the value of a map type parameter.
+                                    type: object
+                                  name:
+                                    description: Name is the name identifying a parameter.
+                                    type: string
+                                  string:
+                                    description: String_ is the value of a string
+                                      type parameter.
+                                    type: string
+                                type: object
+                              type: array
                           type: object
                         ref:
                           description: Ref is reference to another source within sources
@@ -1236,6 +1259,28 @@ spec:
                           type: array
                         name:
                           type: string
+                        parameters:
+                          items:
+                            properties:
+                              array:
+                                description: Array is the value of an array type parameter.
+                                items:
+                                  type: string
+                                type: array
+                              map:
+                                additionalProperties:
+                                  type: string
+                                description: Map is the value of a map type parameter.
+                                type: object
+                              name:
+                                description: Name is the name identifying a parameter.
+                                type: string
+                              string:
+                                description: String_ is the value of a string type
+                                  parameter.
+                                type: string
+                            type: object
+                          type: array
                       type: object
                     ref:
                       description: Ref is reference to another source within sources
@@ -1882,6 +1927,31 @@ spec:
                                 type: array
                               name:
                                 type: string
+                              parameters:
+                                items:
+                                  properties:
+                                    array:
+                                      description: Array is the value of an array
+                                        type parameter.
+                                      items:
+                                        type: string
+                                      type: array
+                                    map:
+                                      additionalProperties:
+                                        type: string
+                                      description: Map is the value of a map type
+                                        parameter.
+                                      type: object
+                                    name:
+                                      description: Name is the name identifying a
+                                        parameter.
+                                      type: string
+                                    string:
+                                      description: String_ is the value of a string
+                                        type parameter.
+                                      type: string
+                                  type: object
+                                type: array
                             type: object
                           ref:
                             description: Ref is reference to another source within
@@ -2552,6 +2622,31 @@ spec:
                                       type: array
                                     name:
                                       type: string
+                                    parameters:
+                                      items:
+                                        properties:
+                                          array:
+                                            description: Array is the value of an
+                                              array type parameter.
+                                            items:
+                                              type: string
+                                            type: array
+                                          map:
+                                            additionalProperties:
+                                              type: string
+                                            description: Map is the value of a map
+                                              type parameter.
+                                            type: object
+                                          name:
+                                            description: Name is the name identifying
+                                              a parameter.
+                                            type: string
+                                          string:
+                                            description: String_ is the value of a
+                                              string type parameter.
+                                            type: string
+                                        type: object
+                                      type: array
                                   type: object
                                 ref:
                                   description: Ref is reference to another source
@@ -3185,6 +3280,31 @@ spec:
                                   type: array
                                 name:
                                   type: string
+                                parameters:
+                                  items:
+                                    properties:
+                                      array:
+                                        description: Array is the value of an array
+                                          type parameter.
+                                        items:
+                                          type: string
+                                        type: array
+                                      map:
+                                        additionalProperties:
+                                          type: string
+                                        description: Map is the value of a map type
+                                          parameter.
+                                        type: object
+                                      name:
+                                        description: Name is the name identifying
+                                          a parameter.
+                                        type: string
+                                      string:
+                                        description: String_ is the value of a string
+                                          type parameter.
+                                        type: string
+                                    type: object
+                                  type: array
                               type: object
                             ref:
                               description: Ref is reference to another source within
@@ -3817,6 +3937,31 @@ spec:
                                   type: array
                                 name:
                                   type: string
+                                parameters:
+                                  items:
+                                    properties:
+                                      array:
+                                        description: Array is the value of an array
+                                          type parameter.
+                                        items:
+                                          type: string
+                                        type: array
+                                      map:
+                                        additionalProperties:
+                                          type: string
+                                        description: Map is the value of a map type
+                                          parameter.
+                                        type: object
+                                      name:
+                                        description: Name is the name identifying
+                                          a parameter.
+                                        type: string
+                                      string:
+                                        description: String_ is the value of a string
+                                          type parameter.
+                                        type: string
+                                    type: object
+                                  type: array
                               type: object
                             ref:
                               description: Ref is reference to another source within
