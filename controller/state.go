@@ -509,8 +509,8 @@ func (m *appStateManager) CompareAppState(app *v1alpha1.Application, project *ap
 			// CreateNamespace=true and has non-nil managedNamespaceMetadata) will (usually) not have a corresponding
 			// entry in source control. In order for the namespace not to risk being pruned, we'll need to generate a
 			// namespace which we can compare the live namespace with. For that, we'll do the same as is done in
-			// gitops-engine and create a managed namespace which is only used for comparison.
-			if liveObj.GetKind() == kubeutil.NamespaceKind && liveObj.GetName() == app.Spec.Destination.Namespace && app.Spec.SyncPolicy.ManagedNamespaceMetadata != nil {
+			// gitops-engine, the difference here being that we create a managed namespace which is only used for comparison.
+			if liveObj.GetKind() == kubeutil.NamespaceKind && liveObj.GetName() == app.Spec.Destination.Namespace && app.Spec.SyncPolicy != nil && app.Spec.SyncPolicy.ManagedNamespaceMetadata != nil {
 				nsSpec := &v1.Namespace{TypeMeta: metav1.TypeMeta{APIVersion: "v1", Kind: kubeutil.NamespaceKind}, ObjectMeta: metav1.ObjectMeta{Name: liveObj.GetName()}}
 				managedNs, err := kubeutil.ToUnstructured(nsSpec)
 
@@ -521,11 +521,11 @@ func (m *appStateManager) CompareAppState(app *v1alpha1.Application, project *ap
 					continue
 				}
 
+				// No need to care about the return value here, we just want the modified managedNs
 				_, err = syncNamespace(m.resourceTracking, appLabelKey, trackingMethod, app, m.namespace)(managedNs, liveObj)
 				if err != nil {
 					conditions = append(conditions, v1alpha1.ApplicationCondition{Type: v1alpha1.ApplicationConditionComparisonError, Message: err.Error(), LastTransitionTime: &now})
 					failedToLoadObjs = true
-					continue
 				} else {
 					targetObjs = append(targetObjs, managedNs)
 				}
