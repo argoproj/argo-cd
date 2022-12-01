@@ -151,7 +151,7 @@ func TestExtensionsHandlers(t *testing.T) {
 
 	startBackendTestSrv := func(response string) *httptest.Server {
 		return httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
-			fmt.Fprintf(w, response)
+			fmt.Fprintln(w, response)
 		}))
 
 	}
@@ -193,7 +193,7 @@ func TestExtensionsHandlers(t *testing.T) {
 		backendResponse := "some data"
 		backendEndpoint := "some-backend"
 		backendSrv := httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
-			fmt.Fprintf(w, backendResponse)
+			fmt.Fprintln(w, backendResponse)
 		}))
 		defer backendSrv.Close()
 		withExtensionConfig(getExtensionConfig(backendEndpoint, backendSrv.URL), f)
