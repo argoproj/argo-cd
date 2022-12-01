@@ -21,25 +21,40 @@ import (
 )
 
 const (
-	URLPrefix                   = "/extensions"
-	HeaderArgoCDApplicationName = "Argocd-Application-Name"
+	URLPrefix                    = "/extensions"
+	HeaderArgoCDApplicationName  = "Argocd-Application-Name"
+	DefaultConnectionTimeout     = 2 * time.Second
+	DefaultKeepAlive             = 15 * time.Second
+	DefaultIdleConnectionTimeout = 60 * time.Second
+	DefaultMaxIdleConnections    = 30
 )
 
+// ExtensionConfigs defines the configurations for all extensions
+// retrieved from Argo CD configmap (argocd-cm).
 type ExtensionConfigs struct {
 	Extensions []ExtensionConfig `json:"extensions"`
 }
 
+// ExtensionConfig defines the configuration for one extension.
 type ExtensionConfig struct {
+	// Name defines the endpoint that will be used to register
+	// the extension route. Mandatory field.
 	Name    string        `json:"name"`
-	Enabled bool          `json:"enabled"`
 	Backend BackendConfig `json:"backend"`
 }
 
+// BackendConfig defines the backend service configurations that will
+// be used by an specific extension. An extension can have multiple services
+// associated. This is necessary when Argo CD is managing applications in
+// external clusters. In this case, each cluster may have its own backend
+// service.
 type BackendConfig struct {
 	ProxyConfig
 	Services []ServiceConfig `json:"services"`
 }
 
+// ProxyConfig allows configuring connection behaviour between Argo CD
+// API Server and the backend service.
 type ProxyConfig struct {
 	// ConnectionTimeout is the maximum amount of time a dial to
 	// the extension server will wait for a connect to complete.
@@ -64,43 +79,58 @@ type ProxyConfig struct {
 	MaxIdleConnections int `json:"maxIdleConnections"`
 }
 
+// ServiceConfig provides the configuration for a backend service.
 type ServiceConfig struct {
-	URL         string `json:"url"`
+	// URL is the address where the extension backend must be available.
+	// Mandatory field.
+	URL string `json:"url"`
+
+	// ClusterName if provided, will have to match the application
+	// destination name to have requests properly forwarded to this
+	// service URL.
 	ClusterName string `json:"clusterName"`
 }
 
+// SettingsGetter defines the contract to retrieve Argo CD Settings.
 type SettingsGetter interface {
 	Get() (*settings.ArgoCDSettings, error)
 }
 
+// DefaultSettingsGetter is the real settings getter implementation.
 type DefaultSettingsGetter struct {
 	settingsMgr *settings.SettingsManager
 }
 
+// NewDefaultSettingsGetter returns a new default settings getter.
 func NewDefaultSettingsGetter(mgr *settings.SettingsManager) *DefaultSettingsGetter {
 	return &DefaultSettingsGetter{
 		settingsMgr: mgr,
 	}
 }
 
+// Get will retrieve the Argo CD settings.
 func (s *DefaultSettingsGetter) Get() (*settings.ArgoCDSettings, error) {
 	return s.settingsMgr.GetSettings()
 }
 
+// ApplicationGetter defines the contract to retrieve the application resource.
 type ApplicationGetter interface {
 	Get(ns, name string) (*v1alpha1.Application, error)
 }
 
+// DefaultApplicationGetter is the real application getter implementation.
 type DefaultApplicationGetter struct {
 	svc applicationpkg.ApplicationServiceServer
 }
 
+// NewDefaultApplicationGetter returns the default application getter.
 func NewDefaultApplicationGetter(appSvc applicationpkg.ApplicationServiceServer) *DefaultApplicationGetter {
 	return &DefaultApplicationGetter{
 		svc: appSvc,
 	}
 }
 
+// Get will retrieve the application resorce for the given namespace and name.
 func (a *DefaultApplicationGetter) Get(ns, name string) (*v1alpha1.Application, error) {
 	query := &applicationpkg.ApplicationQuery{
 		Name:         pointer.String(name),
@@ -123,15 +153,18 @@ func (a *DefaultApplicationGetter) Get(ns, name string) (*v1alpha1.Application, 
 // 	}
 // }
 
-type manager struct {
+// Manager is the object that will be responsible for registering
+// and handling proxy extensions.
+type Manager struct {
 	log         *log.Entry
 	settings    SettingsGetter
 	application ApplicationGetter
 	// cluster     ClusterGetter
 }
 
-func NewManager(sg SettingsGetter, ag ApplicationGetter, log *log.Entry) *manager {
-	return &manager{
+// NewManager will initialize a new manager.
+func NewManager(sg SettingsGetter, ag ApplicationGetter, log *log.Entry) *Manager {
+	return &Manager{
 		log:         log,
 		settings:    sg,
 		application: ag,
@@ -142,11 +175,35 @@ func parseConfig(config string) (*ExtensionConfigs, error) {
 	configs := ExtensionConfigs{}
 	err := yaml.Unmarshal([]byte(config), &configs)
 	if err != nil {
-		return nil, err
+		return nil, fmt.Errorf("invalid yaml: %s", err)
+	}
+	err = validateConfigs(&configs)
+	if err != nil {
+		return nil, fmt.Errorf("validation error: %s", err)
 	}
 	return &configs, nil
 }
 
+func validateConfigs(configs *ExtensionConfigs) error {
+	for _, ext := range configs.Extensions {
+		if ext.Name == "" {
+			return fmt.Errorf("extensions.name must be configured")
+		}
+		svcTotal := len(ext.Backend.Services)
+		for _, svc := range ext.Backend.Services {
+			if svc.URL == "" {
+				return fmt.Errorf("extensions.backend.services.url must be configured")
+			}
+			if svcTotal > 1 && svc.ClusterName == "" {
+				return fmt.Errorf("extensions.backend.services.clusterName must be configured when defining more than one service per extension")
+			}
+		}
+	}
+	return nil
+}
+
+// NewProxy will instantiate a new reverse proxy based on the provided
+// targetURL and config.
 func NewProxy(targetURL string, config ProxyConfig) (*httputil.ReverseProxy, error) {
 	url, err := url.Parse(targetURL)
 	if err != nil {
@@ -160,18 +217,7 @@ func NewProxy(targetURL string, config ProxyConfig) (*httputil.ReverseProxy, err
 // newTransport will build a new transport to be used in the proxy
 // applying default values if not defined in the given config.
 func newTransport(config ProxyConfig) *http.Transport {
-	if config.ConnectionTimeout == 0 {
-		config.ConnectionTimeout = 2 * time.Second
-	}
-	if config.KeepAlive == 0 {
-		config.KeepAlive = 15 * time.Second
-	}
-	if config.IdleConnectionTimeout == 0 {
-		config.IdleConnectionTimeout = 60 * time.Second
-	}
-	if config.MaxIdleConnections == 0 {
-		config.MaxIdleConnections = 30
-	}
+	applyProxyConfigDefaults(&config)
 	return &http.Transport{
 		DialContext: (&net.Dialer{
 			Timeout:   config.ConnectionTimeout,
@@ -184,7 +230,25 @@ func newTransport(config ProxyConfig) *http.Transport {
 	}
 }
 
-func (m *manager) RegisterHandlers(r *mux.Router) error {
+func applyProxyConfigDefaults(c *ProxyConfig) {
+	if c.ConnectionTimeout == 0 {
+		c.ConnectionTimeout = DefaultConnectionTimeout
+	}
+	if c.KeepAlive == 0 {
+		c.KeepAlive = DefaultKeepAlive
+	}
+	if c.IdleConnectionTimeout == 0 {
+		c.IdleConnectionTimeout = DefaultIdleConnectionTimeout
+	}
+	if c.MaxIdleConnections == 0 {
+		c.MaxIdleConnections = DefaultMaxIdleConnections
+	}
+}
+
+// RegisterHandlers will retrieve all configured extensions
+// and register the respective http handlers in the given
+// router.
+func (m *Manager) RegisterHandlers(r *mux.Router) error {
 	m.log.Info("Registering extension handlers...")
 	config, err := m.settings.Get()
 	if err != nil {
@@ -192,8 +256,7 @@ func (m *manager) RegisterHandlers(r *mux.Router) error {
 	}
 
 	if config.ExtensionConfig == "" {
-		m.log.Info("No extensions configurations found...")
-		return nil
+		return fmt.Errorf("No extensions configurations found")
 	}
 
 	extConfigs, err := parseConfig(config.ExtensionConfig)
@@ -203,7 +266,10 @@ func (m *manager) RegisterHandlers(r *mux.Router) error {
 	return m.registerExtensions(r, extConfigs)
 }
 
-func (m *manager) registerExtensions(r *mux.Router, extConfigs *ExtensionConfigs) error {
+// registerExtensions will iterate over the given extConfigs and register
+// http handlers for every extension. It also registers a list extensions
+// handler under the "/extensions/" endpoint.
+func (m *Manager) registerExtensions(r *mux.Router, extConfigs *ExtensionConfigs) error {
 	extRouter := r.PathPrefix(fmt.Sprintf("%s/", URLPrefix)).Subrouter()
 	for _, ext := range extConfigs.Extensions {
 		proxyByCluster := make(map[string]*httputil.ReverseProxy)
@@ -216,12 +282,15 @@ func (m *manager) registerExtensions(r *mux.Router, extConfigs *ExtensionConfigs
 		}
 		m.log.Infof("Registering handler for %s/%s...", URLPrefix, ext.Name)
 		extRouter.PathPrefix(fmt.Sprintf("/%s/", ext.Name)).
-			HandlerFunc(m.ProxyHandler(ext.Name, proxyByCluster))
+			HandlerFunc(m.CallExtension(ext.Name, proxyByCluster))
 	}
+	// register /extensions/ endpoint to list all configured extensions
 	extRouter.HandleFunc("/", m.ListExtensions(extConfigs))
 	return nil
 }
-func (m *manager) ListExtensions(extConfigs *ExtensionConfigs) func(http.ResponseWriter, *http.Request) {
+
+// ListExtensions returns a handler func to list all configured extensions
+func (m *Manager) ListExtensions(extConfigs *ExtensionConfigs) func(http.ResponseWriter, *http.Request) {
 	return func(w http.ResponseWriter, r *http.Request) {
 		extJson, err := json.Marshal(extConfigs)
 		if err != nil {
@@ -238,7 +307,9 @@ func (m *manager) ListExtensions(extConfigs *ExtensionConfigs) func(http.Respons
 	}
 }
 
-func (m *manager) ProxyHandler(extName string, proxyByCluster map[string]*httputil.ReverseProxy) func(http.ResponseWriter, *http.Request) {
+// CallExtension returns a handler func responsible for forwarding requests to the
+// extension service. The request will be sanitized by removing sensitive headers.
+func (m *Manager) CallExtension(extName string, proxyByCluster map[string]*httputil.ReverseProxy) func(http.ResponseWriter, *http.Request) {
 	return func(w http.ResponseWriter, r *http.Request) {
 		err := sanitizeRequest(r, extName)
 		if err != nil {
@@ -246,6 +317,13 @@ func (m *manager) ProxyHandler(extName string, proxyByCluster map[string]*httput
 			m.writeErrorResponse(http.StatusBadRequest, msg, w)
 			return
 		}
+		if len(proxyByCluster) == 1 {
+			for _, proxy := range proxyByCluster {
+				proxy.ServeHTTP(w, r)
+				return
+			}
+		}
+
 		var app *v1alpha1.Application
 		var appNamespace, appName string
 		appHeader := r.Header.Get(HeaderArgoCDApplicationName)
@@ -262,15 +340,12 @@ func (m *manager) ProxyHandler(extName string, proxyByCluster map[string]*httput
 				m.writeErrorResponse(http.StatusBadRequest, msg, w)
 				return
 			}
-
 		}
-		if len(proxyByCluster) == 1 {
-			for _, proxy := range proxyByCluster {
-				proxy.ServeHTTP(w, r)
-				return
-			}
+		if app == nil {
+			msg := fmt.Sprintf("Invalid Application: %s", appHeader)
+			m.writeErrorResponse(http.StatusBadRequest, msg, w)
+			return
 		}
-
 		clusterName := app.Spec.Destination.Name
 		if clusterName == "" {
 			clusterName = app.Spec.Destination.Server
@@ -278,7 +353,7 @@ func (m *manager) ProxyHandler(extName string, proxyByCluster map[string]*httput
 
 		proxy, ok := proxyByCluster[clusterName]
 		if !ok {
-			msg := fmt.Sprintf("No extension configured for cluster %q", appHeader)
+			msg := fmt.Sprintf("No extension configured for cluster %q", clusterName)
 			m.writeErrorResponse(http.StatusBadRequest, msg, w)
 			return
 		}
@@ -299,7 +374,7 @@ func sanitizeRequest(r *http.Request, extName string) error {
 	return nil
 }
 
-func (m *manager) writeErrorResponse(status int, message string, w http.ResponseWriter) {
+func (m *Manager) writeErrorResponse(status int, message string, w http.ResponseWriter) {
 	w.WriteHeader(status)
 	w.Header().Set("Content-Type", "application/json")
 	resp := make(map[string]string)

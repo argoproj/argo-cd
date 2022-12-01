@@ -941,10 +941,13 @@ func (a *ArgoCDServer) newHTTPServer(ctx context.Context, port int, grpcWebHandl
 		terminalHandler.ServeHTTP(writer, request)
 	})
 
-	// Proxy extension is currently an experimental feature and will be disabled
+	// Proxy extension is currently an experimental feature and is disabled
 	// by default.
 	if a.EnableProxyExtension {
-		mustRegisterExtensions(mux, a)
+		// API server won't panic if extensions fail to register. In
+		// this case an error log will be sent and no extension route
+		// will be added in mux.
+		registerExtensions(mux, a)
 	}
 	mustRegisterGWHandler(versionpkg.RegisterVersionServiceHandler, ctx, gwmux, conn)
 	mustRegisterGWHandler(clusterpkg.RegisterClusterServiceHandler, ctx, gwmux, conn)
@@ -991,18 +994,21 @@ func (a *ArgoCDServer) newHTTPServer(ctx context.Context, port int, grpcWebHandl
 	return &httpS
 }
 
-func mustRegisterExtensions(mux *http.ServeMux, a *ArgoCDServer) {
+// registerExtensions will try to register all configured extensions
+// in the given mux. If any error is returned while registering
+// extensions handlers, no route will be added in the given mux.
+func registerExtensions(mux *http.ServeMux, a *ArgoCDServer) {
 	sg := extension.NewDefaultSettingsGetter(a.settingsMgr)
 	ag := extension.NewDefaultApplicationGetter(a.serviceSet.ApplicationService)
 	em := extension.NewManager(sg, ag, a.log)
-
 	r := gmux.NewRouter()
-	mux.Handle(fmt.Sprintf("%s/", extension.URLPrefix), r)
 
 	err := em.RegisterHandlers(r)
 	if err != nil {
-		panic(fmt.Sprintf("error registering extension handlers: %s", err))
+		a.log.Errorf("error registering extension handlers: %s", err)
+		return
 	}
+	mux.Handle(fmt.Sprintf("%s/", extension.URLPrefix), r)
 }
 
 var extensionsPattern = regexp.MustCompile(`^extension(.*)\.js$`)
