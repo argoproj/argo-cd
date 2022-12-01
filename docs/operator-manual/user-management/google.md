@@ -19,6 +19,10 @@ metadata:
   namespace: argocd
 data:
   policy.default: role:readonly
+  
+  # scopes controls which OIDC scopes to examine during rbac enforcement (in addition to `sub` scope).
+  # If omitted, defaults to: '[groups]'. The scope value can be a string, or a list of strings.
+  scopes: '[cognito:groups, email]'
 ```
 
 ## OpenID Connect using Dex
