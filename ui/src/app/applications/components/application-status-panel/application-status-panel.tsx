@@ -70,8 +70,7 @@ export const ApplicationStatusPanel = ({application, showOperation, showConditio
                 {sectionLabel({title: 'APP HEALTH', helpContent: 'The health status of your app'})}
                 <div className='application-status-panel__item-value'>
                     <HealthStatusIcon state={application.status.health} />
-                    &nbsp;
-                    {application.status.health.status}
+                    <span className='show-for-large'>&nbsp;{application.status.health.status}</span>
                 </div>
                 {application.status.health.message && <div className='application-status-panel__item-name'>{application.status.health.message}</div>}
             </div>
@@ -88,7 +87,7 @@ export const ApplicationStatusPanel = ({application, showOperation, showConditio
                         <div>
                             <ComparisonStatusIcon status={application.status.sync.status} label={true} />
                         </div>
-                        <div className='application-status-panel__item-value__revision'>{syncStatusMessage(application)}</div>
+                        <div className='application-status-panel__item-value__revision show-for-large'>{syncStatusMessage(application)}</div>
                     </div>
                     {application.status && application.status.sync && application.status.sync.revision && !application.spec.source.chart && (
                         <div className='application-status-panel__item-name'>
@@ -121,7 +120,7 @@ export const ApplicationStatusPanel = ({application, showOperation, showConditio
                                 <OperationState app={application} />{' '}
                             </a>
                             {appOperationState.syncResult && appOperationState.syncResult.revision && (
-                                <div className='application-status-panel__item-value__revision'>
+                                <div className='application-status-panel__item-value__revision show-for-large'>
                                     To <Revision repoUrl={application.spec.source.repoURL} revision={appOperationState.syncResult.revision} />
                                 </div>
                             )}

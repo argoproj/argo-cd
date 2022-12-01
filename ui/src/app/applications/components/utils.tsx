@@ -258,7 +258,7 @@ export const ComparisonStatusIcon = ({
     }
     return (
         <React.Fragment>
-            <i qe-id='utils-sync-status-title' title={title} className={className} style={{color}} /> {label && title}
+            <i qe-id='utils-sync-status-title' title={title} className={className} style={{color}} /> <span className='show-for-large'>{label && title}</span>
         </React.Fragment>
     );
 };
@@ -858,7 +858,7 @@ export const OperationState = ({app, quiet}: {app: appModels.Application; quiet?
 
     return (
         <React.Fragment>
-            <OperationPhaseIcon app={app} /> {getOperationStateTitle(app)}
+            <OperationPhaseIcon app={app} /> <span className='show-for-large'>{getOperationStateTitle(app)}</span>
         </React.Fragment>
     );
 };
