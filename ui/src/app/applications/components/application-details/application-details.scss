@@ -302,9 +302,6 @@ $header: 120px;
 .top-bar__right-side {
     justify-content: right !important;
 }
-.sb-page-wrapper .top-bar.row {
-    display: none !important;
-}
 .application-status-panel.row {
     flex-flow: unset;
 }
@@ -340,5 +337,11 @@ $header: 120px;
 
 .editable-panel__buttons {
     top: unset;
+}
+}
+
+@media screen and (max-width: map-get($breakpoints, medium)) {
+.sb-page-wrapper .top-bar.row {
+    display: none !important;
 }
 }
