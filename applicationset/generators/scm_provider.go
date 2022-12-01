@@ -101,6 +101,15 @@ func (g *SCMProviderGenerator) GenerateParams(appSetGenerator *argoprojiov1alpha
 		if scmError != nil {
 			return nil, fmt.Errorf("error initializing Bitbucket Server service: %v", scmError)
 		}
+	} else if providerConfig.Bitbucket != nil {
+		appPassword, err := g.getSecretRef(ctx, providerConfig.Bitbucket.AppPasswordRef, applicationSetInfo.Namespace)
+		if err != nil {
+			return nil, fmt.Errorf("error fetching Bitbucket cloud appPassword: %v", err)
+		}
+		provider, err = scm_provider.NewBitBucketCloudProvider(ctx, providerConfig.Bitbucket.Owner, providerConfig.Bitbucket.User, appPassword, providerConfig.Bitbucket.AllBranches)
+		if err != nil {
+			return nil, fmt.Errorf("error initializing Bitbucket cloud service: %v", err)
+		}
 	} else {
 		return nil, fmt.Errorf("no SCM provider implementation configured")
 	}
