@@ -29,7 +29,6 @@ import {NodeUpdateAnimation} from './node-update-animation';
 import {PodGroup} from '../application-pod-view/pod-view';
 import {ArrowConnector} from './arrow-connector';
 import './application-resource-tree.scss';
-import {node} from 'prop-types';
 
 function treeNodeKey(node: NodeId & {uid?: string}) {
     return node.uid || nodeKey(node);
@@ -598,7 +597,7 @@ function expandCollapse(node: ResourceTreeNode, props: ApplicationResourceTreePr
 }
 
 function NodeInfoDetails({tag: tag, kind: kind}: {tag: models.InfoItem; kind: string}) {
-    if (kind == 'Pod') {
+    if (kind === 'Pod') {
         const val = `${tag.name}`;
         if (val === 'Status Reason') {
             if (`${tag.value}` !== 'ImagePullBackOff')

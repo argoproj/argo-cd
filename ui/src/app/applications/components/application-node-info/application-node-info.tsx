@@ -56,9 +56,9 @@ export const ApplicationNodeInfo = (props: {
                     value: (
                         <div className='application-node-info__labels' style={{marginTop: 5, overflowY: 'auto', maxHeight: 50}}>
                             {netContainerStatuses.map((container, i) => {
-                                let failurereason =
+                                const failurereason =
                                     container.state.waiting?.reason ||
-                                    (container.state.terminated && container.state.terminated.exitCode != 0 && container.state.terminated.reason);
+                                    (container.state.terminated && container.state.terminated.exitCode !== 0 && container.state.terminated.reason);
                                 return (
                                     <div className='boxcolumns small-9' key={i}>
                                         <span>
