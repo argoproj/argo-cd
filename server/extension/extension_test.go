@@ -6,6 +6,7 @@ import (
 	"io/ioutil"
 	"net/http"
 	"net/http/httptest"
+	"strings"
 	"testing"
 
 	v1alpha1 "github.com/argoproj/argo-cd/v2/pkg/apis/application/v1alpha1"
@@ -209,7 +210,8 @@ func TestExtensionsHandlers(t *testing.T) {
 		require.Equal(t, http.StatusOK, resp.StatusCode)
 		body, err := ioutil.ReadAll(resp.Body)
 		require.NoError(t, err)
-		assert.Equal(t, backendResponse, string(body))
+		actual := strings.TrimSuffix(string(body), "\n")
+		assert.Equal(t, backendResponse, actual)
 	})
 	t.Run("will route requests with 2 backends for the same extension successfully", func(t *testing.T) {
 		// given
@@ -271,13 +273,15 @@ func TestExtensionsHandlers(t *testing.T) {
 		require.Equal(t, http.StatusOK, resp1.StatusCode)
 		body, err := ioutil.ReadAll(resp1.Body)
 		require.NoError(t, err)
-		assert.Equal(t, response1, string(body))
+		actual := strings.TrimSuffix(string(body), "\n")
+		assert.Equal(t, response1, actual)
 
 		require.NotNil(t, resp2)
 		require.Equal(t, http.StatusOK, resp2.StatusCode)
 		body, err = ioutil.ReadAll(resp2.Body)
 		require.NoError(t, err)
-		assert.Equal(t, response2, string(body))
+		actual = strings.TrimSuffix(string(body), "\n")
+		assert.Equal(t, response2, actual)
 	})
 }
 
