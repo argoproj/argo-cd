@@ -3,10 +3,11 @@ package discovery
 import (
 	"context"
 	"fmt"
-	"github.com/argoproj/argo-cd/v2/util/io/files"
 	"os"
 	"path/filepath"
 	"strings"
+
+	"github.com/argoproj/argo-cd/v2/util/io/files"
 
 	grpc_retry "github.com/grpc-ecosystem/go-grpc-middleware/retry"
 	log "github.com/sirupsen/logrus"
@@ -99,14 +100,14 @@ func DetectConfigManagementPlugin(ctx context.Context, repoPath, pluginName stri
 		// check if the given plugin supports the repo
 		conn, cmpClient, connFound = cmpSupports(ctx, pluginSockFilePath, repoPath, fmt.Sprintf("%v.sock", pluginName), env, tarExcludedGlobs)
 		if !connFound {
-			return nil, nil, fmt.Errorf("Couldn't find cmp-server plugin with name %v supporting repository %s", pluginName, repoPath)
+			return nil, nil, fmt.Errorf("couldn't find cmp-server plugin with name %v supporting the given repository", pluginName)
 		}
 	} else {
-		files, err := os.ReadDir(pluginSockFilePath)
+		fileList, err := os.ReadDir(pluginSockFilePath)
 		if err != nil {
 			return nil, nil, fmt.Errorf("Failed to list all plugins in dir, error=%w", err)
 		}
-		for _, file := range files {
+		for _, file := range fileList {
 			if file.Type() == os.ModeSocket {
 				conn, cmpClient, connFound = cmpSupports(ctx, pluginSockFilePath, repoPath, file.Name(), env, tarExcludedGlobs)
 				if connFound {
@@ -115,7 +116,7 @@ func DetectConfigManagementPlugin(ctx context.Context, repoPath, pluginName stri
 			}
 		}
 		if !connFound {
-			return nil, nil, fmt.Errorf("Couldn't find cmp-server plugin supporting repository %s", repoPath)
+			return nil, nil, fmt.Errorf("could not find plugin supporting the given repository")
 		}
 	}
 	return conn, cmpClient, nil

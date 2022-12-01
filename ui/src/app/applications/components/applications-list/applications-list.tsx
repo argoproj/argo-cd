@@ -40,6 +40,7 @@ const APP_FIELDS = [
     'spec',
     'operation.sync',
     'status.sync.status',
+    'status.sync.revision',
     'status.health',
     'status.operationState.phase',
     'status.operationState.operation.sync',
