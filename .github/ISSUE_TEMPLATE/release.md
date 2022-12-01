@@ -1,0 +1,27 @@
+---
+name: Argo CD Release
+about: Used by our Release Champion to track progress of a minor release
+title: 'Argo CD Release vX.X'
+labels: 'release'
+assignees: ''
+---
+
+ - [ ] Create new section in the Release Planning doc
+ - [ ] Schedule a Release Pruning meeting ~3wk before the scheduled Release freeze date by adding it to the community calendar (or delegate this task to someone with write access to the community calendar)
+     - [ ] Include Zoom link in the invite
+ - [ ] Post in #argo-cd and #argo-contributors 1 week before the meeting
+ - [ ] Post again 1hr before the meeting
+ - [ ] At the meeting, remove issues/PRs from the project's column for that release which have not been “claimed” by at least one Approver (add it to the next column if Approver requests that)
+ - [ ] 1wk before feature freeze post in #argo-contributors that PRs must be merged by DD-MM-YYYY to be included in the release - ask approvers to drop items from milestone they can’t merge
+ - [ ] At least 2 days before RC1 date, draft RC blog post and submit it for review (or delegate this task)
+ - [ ] Cut RC1 (or delegate this task to an Approver and coordinate timing)
+ - [ ] Create new release branch
+    - [ ] Add the release branch to ReadTheDocs
+    - [ ] Confirm that tweet and blog post are ready
+    - [ ] Trigger the release
+    - [ ] After the release is finished, publish tweet and blog post
+    - [ ] Post in #argo-cd and #argo-announcements with lots of emojis announcing the release and requesting help testing
+ - [ ] Monitor support channels for issues, cherry-picking bugfixes and docs fixes as appropriate (or delegate this task to an Approver and coordinate timing)
+ - [ ] At release date, evaluate if any bugs justify delaying the release. If not, cut the release (or delegate this task to an Approver and coordinate timing)
+ - [ ] If unreleased changes are on the release branch for {current minor version minus 3}, cut a final patch release for that series (or delegate this task to an Approver and coordinate timing)
+ - [ ] After the release, post in #argo-cd that the {current minor version minus 3} has reached EOL (example: https://cloud-native.slack.com/archives/C01TSERG0KZ/p1667336234059729)
