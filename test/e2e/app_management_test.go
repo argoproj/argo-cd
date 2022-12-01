@@ -1878,7 +1878,6 @@ func TestNamespaceAutoCreation(t *testing.T) {
 		}
 	}()
 	Given(t).
-		SetTrackingMethod("annotation").
 		Timeout(30).
 		Path("guestbook").
 		When().
