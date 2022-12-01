@@ -205,7 +205,7 @@ func NewClient(opts *ClientOptions) (Client, error) {
 	if serverFromEnv := os.Getenv(EnvArgoCDServer); serverFromEnv != "" {
 		c.ServerAddr = serverFromEnv
 	}
-	if opts.PortForward || opts.PortForwardNamespace != "" {
+	if opts.PortForward {
 		if opts.KubeOverrides == nil {
 			opts.KubeOverrides = &clientcmd.ConfigOverrides{}
 		}
