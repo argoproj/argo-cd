@@ -589,14 +589,24 @@ func (s *Service) runManifestGenAsync(ctx context.Context, repoRoot, commitSHA, 
 	opContext, err := opContextSrc()
 	if err == nil {
 		if q.HasMultipleSources {
-			if q.ApplicationSource.IsHelm() {
+			if q.ApplicationSource.Helm != nil {
 				// Checkout every the referenced Source to the target revision before generating Manifests
 				for _, valueFile := range q.ApplicationSource.Helm.ValueFiles {
 					if strings.HasPrefix(valueFile, "$") {
 						refVar := strings.Split(valueFile, "/")[0]
-						refSourceKey := strings.TrimPrefix(refVar, "$")
 
-						refSourceMapping := q.RefSources[refSourceKey]
+						refSourceMapping, ok := q.RefSources[refVar]
+						if !ok {
+							var refKeys []string
+							for refKey, _ := range q.RefSources {
+								refKeys = append(refKeys, refKey)
+							}
+							if len(refKeys) == 0 {
+								ch.errCh <- fmt.Errorf("source referenced %q, but no source has a 'ref' field defined", refVar)
+							}
+							ch.errCh <- fmt.Errorf("source referenced %q, which is not one of the available sources (%s)", refVar, strings.Join(refKeys, ", "))
+							return
+						}
 						gitClient, targetRevision, err := s.newClientResolveRevision(&refSourceMapping.Repo, refSourceMapping.TargetRevision)
 						if err != nil {
 							log.Errorf("failed to get git client for repo %s", q.Repo.Repo)
