@@ -64,7 +64,11 @@ export const ApplicationNodeInfo = (props: {
                                         <span>
                                             <HealthStatusIcon
                                                 state={{
-                                                    status: container.ready ? 'Healthy' : ('Degraded' as HealthStatusCode),
+                                                    status: container.ready
+                                                        ? 'Healthy'
+                                                        : container.started
+                                                        ? ('Progressing' as HealthStatusCode)
+                                                        : ('Degraded' as HealthStatusCode),
                                                     message: container.state.waiting ? container.state.waiting.reason : 'Healthy'
                                                 }}
                                             />{' '}
