@@ -68,7 +68,6 @@ import (
 
 const (
 	cachedManifestGenerationPrefix = "Manifest generation error (cached)"
-	pluginNotSupported             = "config management plugin not supported."
 	helmDepUpMarkerFile            = ".argocd-helm-dep-up"
 	allowConcurrencyFile           = ".argocd-allow-concurrency"
 	repoSourceFile                 = ".argocd-source.yaml"
@@ -1055,15 +1054,25 @@ func GenerateManifests(ctx context.Context, appPath, repoRoot, revision string, 
 		k := kustomize.NewKustomizeApp(appPath, q.Repo.GetGitCreds(gitCredsStore), repoURL, kustomizeBinary)
 		targetObjs, _, err = k.Build(q.ApplicationSource.Kustomize, q.KustomizeOptions, env)
 	case v1alpha1.ApplicationSourceTypePlugin:
+		var plugin *v1alpha1.ConfigManagementPlugin
 		if q.ApplicationSource.Plugin != nil && q.ApplicationSource.Plugin.Name != "" {
+			plugin = findPlugin(q.Plugins, q.ApplicationSource.Plugin.Name)
+		}
+		if plugin != nil {
+			// argocd-cm deprecated plugin is being used
+			targetObjs, err = runConfigManagementPlugin(appPath, repoRoot, env, q, q.Repo.GetGitCreds(gitCredsStore), plugin)
 			log.WithFields(map[string]interface{}{
 				"application": q.AppName,
 				"plugin":      q.ApplicationSource.Plugin.Name,
 			}).Warnf(common.ConfigMapPluginDeprecationWarning)
-
-			targetObjs, err = runConfigManagementPlugin(appPath, repoRoot, env, q, q.Repo.GetGitCreds(gitCredsStore))
 		} else {
-			targetObjs, err = runConfigManagementPluginSidecars(ctx, appPath, repoRoot, env, q, q.Repo.GetGitCreds(gitCredsStore), opt.cmpTarDoneCh, opt.cmpTarExcludedGlobs)
+			// if the named plugin was not found in argocd-cm try sidecar plugin
+			pluginName := ""
+			if q.ApplicationSource.Plugin != nil {
+				pluginName = q.ApplicationSource.Plugin.Name
+			}
+			// if pluginName is provided it has to be `<metadata.name>-<spec.version>` or just `<metadata.name>` if plugin version is empty
+			targetObjs, err = runConfigManagementPluginSidecars(ctx, appPath, repoRoot, pluginName, env, q, q.Repo.GetGitCreds(gitCredsStore), opt.cmpTarDoneCh, opt.cmpTarExcludedGlobs)
 			if err != nil {
 				err = fmt.Errorf("plugin sidecar failed. %s", err.Error())
 			}
@@ -1547,12 +1556,7 @@ func findPlugin(plugins []*v1alpha1.ConfigManagementPlugin, name string) *v1alph
 	return nil
 }
 
-func runConfigManagementPlugin(appPath, repoRoot string, envVars *v1alpha1.Env, q *apiclient.ManifestRequest, creds git.Creds) ([]*unstructured.Unstructured, error) {
-	plugin := findPlugin(q.Plugins, q.ApplicationSource.Plugin.Name)
-	if plugin == nil {
-		return nil, fmt.Errorf(pluginNotSupported+" plugin name %s", q.ApplicationSource.Plugin.Name)
-	}
-
+func runConfigManagementPlugin(appPath, repoRoot string, envVars *v1alpha1.Env, q *apiclient.ManifestRequest, creds git.Creds, plugin *v1alpha1.ConfigManagementPlugin) ([]*unstructured.Unstructured, error) {
 	// Plugins can request to lock the complete repository when they need to
 	// use git client operations.
 	if plugin.LockRepo {
@@ -1635,7 +1639,7 @@ func getPluginParamEnvs(envVars []string, plugin *v1alpha1.ApplicationSourcePlug
 	return env, nil
 }
 
-func runConfigManagementPluginSidecars(ctx context.Context, appPath, repoPath string, envVars *v1alpha1.Env, q *apiclient.ManifestRequest, creds git.Creds, tarDoneCh chan<- bool, tarExcludedGlobs []string) ([]*unstructured.Unstructured, error) {
+func runConfigManagementPluginSidecars(ctx context.Context, appPath, repoPath, pluginName string, envVars *v1alpha1.Env, q *apiclient.ManifestRequest, creds git.Creds, tarDoneCh chan<- bool, tarExcludedGlobs []string) ([]*unstructured.Unstructured, error) {
 	// compute variables.
 	env, err := getPluginEnvs(envVars, q, creds, true)
 	if err != nil {
@@ -1643,7 +1647,7 @@ func runConfigManagementPluginSidecars(ctx context.Context, appPath, repoPath st
 	}
 
 	// detect config management plugin server (sidecar)
-	conn, cmpClient, err := discovery.DetectConfigManagementPlugin(ctx, appPath, env, tarExcludedGlobs)
+	conn, cmpClient, err := discovery.DetectConfigManagementPlugin(ctx, appPath, pluginName, env, tarExcludedGlobs)
 	if err != nil {
 		return nil, err
 	}
@@ -1890,8 +1894,12 @@ func populatePluginAppDetails(ctx context.Context, res *apiclient.RepoAppDetails
 		return fmt.Errorf("failed to get env vars for plugin: %w", err)
 	}
 
+	pluginName := ""
+	if q.Source != nil && q.Source.Plugin != nil {
+		pluginName = q.Source.Plugin.Name
+	}
 	// detect config management plugin server (sidecar)
-	conn, cmpClient, err := discovery.DetectConfigManagementPlugin(ctx, appPath, env, tarExcludedGlobs)
+	conn, cmpClient, err := discovery.DetectConfigManagementPlugin(ctx, appPath, pluginName, env, tarExcludedGlobs)
 	if err != nil {
 		return fmt.Errorf("failed to detect CMP for app: %w", err)
 	}
