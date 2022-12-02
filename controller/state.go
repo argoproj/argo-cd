@@ -181,6 +181,7 @@ func (m *appStateManager) getRepoObjs(app *v1alpha1.Application, sources []v1alp
 				refSources[refKey] = &appv1.RefTargeRevisionMapping{
 					Repo:           *repo,
 					TargetRevision: source.TargetRevision,
+					Chart:          source.Chart,
 				}
 			}
 		}

@@ -1211,6 +1211,8 @@ message RefTargeRevisionMapping {
   optional Repository repo = 1;
 
   optional string targetRevision = 2;
+
+  optional string chart = 3;
 }
 
 // RepoCreds holds the definition for repository credentials

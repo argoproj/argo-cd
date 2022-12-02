@@ -4268,8 +4268,15 @@ func schema_pkg_apis_application_v1alpha1_RefTargeRevisionMapping(ref common.Ref
 							Format:  "",
 						},
 					},
+					"Chart": {
+						SchemaProps: spec.SchemaProps{
+							Default: "",
+							Type:    []string{"string"},
+							Format:  "",
+						},
+					},
 				},
-				Required: []string{"Repo", "TargetRevision"},
+				Required: []string{"Repo", "TargetRevision", "Chart"},
 			},
 		},
 		Dependencies: []string{

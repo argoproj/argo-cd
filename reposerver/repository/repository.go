@@ -597,8 +597,8 @@ func (s *Service) runManifestGenAsync(ctx context.Context, repoRoot, commitSHA, 
 
 						refSourceMapping, ok := q.RefSources[refVar]
 						if !ok {
-							var refKeys []string
-							for refKey, _ := range q.RefSources {
+							refKeys := make([]string, 0)
+							for refKey := range q.RefSources {
 								refKeys = append(refKeys, refKey)
 							}
 							if len(refKeys) == 0 {
@@ -607,10 +607,14 @@ func (s *Service) runManifestGenAsync(ctx context.Context, repoRoot, commitSHA, 
 							ch.errCh <- fmt.Errorf("source referenced %q, which is not one of the available sources (%s)", refVar, strings.Join(refKeys, ", "))
 							return
 						}
+						if refSourceMapping.Chart != "" {
+							log.Error("sorry, we do not support referencing a Helm chart yet")
+							ch.errCh <- err
+							return
+						}
 						gitClient, targetRevision, err := s.newClientResolveRevision(&refSourceMapping.Repo, refSourceMapping.TargetRevision)
 						if err != nil {
-							log.Errorf("failed to get git client for repo %s", q.Repo.Repo)
-							ch.errCh <- err
+							ch.errCh <- fmt.Errorf("failed to get git client for repo %s", q.Repo.Repo)
 							return
 						}
 						if _, ok := repoLocks[refSourceMapping.Repo.Repo]; !ok {

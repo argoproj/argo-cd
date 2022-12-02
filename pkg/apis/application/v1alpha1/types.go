@@ -260,6 +260,7 @@ const (
 type RefTargeRevisionMapping struct {
 	Repo           Repository `protobuf:"bytes,1,opt,name=repo"`
 	TargetRevision string     `protobuf:"bytes,2,opt,name=targetRevision"`
+	Chart          string     `protobuf:"bytes,3,opt,name=chart"`
 }
 
 func (a *ApplicationSource) GetRefVariableName(namespace, appName string) string {
