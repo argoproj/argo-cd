@@ -1227,6 +1227,9 @@ message RepoCreds {
   // GithubAppEnterpriseBaseURL specifies the GitHub API URL for GitHub app authentication. If empty will default to https://api.github.com
   optional string githubAppEnterpriseBaseUrl = 10;
 
+  // GCPServiceAccountKey specifies the service account key in JSON format to be used for getting credentials to Google Cloud Source repos
+  optional string gcpServiceAccountKey = 13;
+
   // EnableOCI specifies whether helm-oci support should be enabled for this repo
   optional bool enableOCI = 11;
 
@@ -1303,6 +1306,9 @@ message Repository {
 
   // Reference between project and repository that allow you automatically to be added as item inside SourceRepos project entity
   optional string project = 20;
+
+  // GCPServiceAccountKey specifies the service account key in JSON format to be used for getting credentials to Google Cloud Source repos
+  optional string gcpServiceAccountKey = 21;
 }
 
 // A RepositoryCertificate is either SSH known hosts entry or TLS certificate
