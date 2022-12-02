@@ -814,7 +814,7 @@ func TestGenerateHelmWithValues(t *testing.T) {
 			Path: ".",
 			Helm: &argoappv1.ApplicationSourceHelm{
 				ValueFiles: []string{"values-production.yaml"},
-				Values:     `cluster: {slaveCount: 2}`,
+				Values:     &runtime.RawExtension{Raw: []byte(`cluster: {slaveCount: 2}`)},
 			},
 		},
 		ProjectName:        "something",
@@ -915,7 +915,7 @@ func TestGenerateHelmWithValuesDirectoryTraversal(t *testing.T) {
 			Path: "./redis",
 			Helm: &argoappv1.ApplicationSourceHelm{
 				ValueFiles: []string{"../minio/values.yaml"},
-				Values:     `cluster: {slaveCount: 2}`,
+				Values:     &runtime.RawExtension{Raw: []byte(`cluster: {slaveCount: 2}`)},
 			},
 		},
 		ProjectName:        "something",
@@ -1017,7 +1017,7 @@ func TestGenerateHelmWithURL(t *testing.T) {
 			Path: ".",
 			Helm: &argoappv1.ApplicationSourceHelm{
 				ValueFiles: []string{"https://raw.githubusercontent.com/argoproj/argocd-example-apps/master/helm-guestbook/values.yaml"},
-				Values:     `cluster: {slaveCount: 2}`,
+				Values:     &runtime.RawExtension{Raw: []byte(`cluster: {slaveCount: 2}`)},
 			},
 		},
 		ProjectName:        "something",
@@ -1039,7 +1039,7 @@ func TestGenerateHelmWithValuesDirectoryTraversalOutsideRepo(t *testing.T) {
 				Path: ".",
 				Helm: &argoappv1.ApplicationSourceHelm{
 					ValueFiles: []string{"../minio/values.yaml"},
-					Values:     `cluster: {slaveCount: 2}`,
+					Values:     &runtime.RawExtension{Raw: []byte(`cluster: {slaveCount: 2}`)},
 				},
 			},
 			ProjectName:        "something",
@@ -1058,7 +1058,7 @@ func TestGenerateHelmWithValuesDirectoryTraversalOutsideRepo(t *testing.T) {
 				Path: "./my-chart",
 				Helm: &argoappv1.ApplicationSourceHelm{
 					ValueFiles: []string{"../my-chart/my-chart-values.yaml"},
-					Values:     `cluster: {slaveCount: 2}`,
+					Values:     &runtime.RawExtension{Raw: []byte(`cluster: {slaveCount: 2}`)},
 				},
 			},
 			ProjectName:        "something",
@@ -1076,7 +1076,7 @@ func TestGenerateHelmWithValuesDirectoryTraversalOutsideRepo(t *testing.T) {
 				Path: "./my-chart",
 				Helm: &argoappv1.ApplicationSourceHelm{
 					ValueFiles: []string{"/my-chart/my-chart-values.yaml"},
-					Values:     `cluster: {slaveCount: 2}`,
+					Values:     &runtime.RawExtension{Raw: []byte(`cluster: {slaveCount: 2}`)},
 				},
 			},
 			ProjectName:        "something",
@@ -1094,7 +1094,7 @@ func TestGenerateHelmWithValuesDirectoryTraversalOutsideRepo(t *testing.T) {
 				Path: "./my-chart",
 				Helm: &argoappv1.ApplicationSourceHelm{
 					ValueFiles: []string{"/../../../my-chart-values.yaml"},
-					Values:     `cluster: {slaveCount: 2}`,
+					Values:     &runtime.RawExtension{Raw: []byte(`cluster: {slaveCount: 2}`)},
 				},
 			},
 			ProjectName:        "something",
@@ -1113,7 +1113,7 @@ func TestGenerateHelmWithValuesDirectoryTraversalOutsideRepo(t *testing.T) {
 				Path: "./my-chart",
 				Helm: &argoappv1.ApplicationSourceHelm{
 					ValueFiles: []string{"file://../../../../my-chart-values.yaml"},
-					Values:     `cluster: {slaveCount: 2}`,
+					Values:     &runtime.RawExtension{Raw: []byte(`cluster: {slaveCount: 2}`)},
 				},
 			},
 			ProjectName:        "something",
@@ -1168,7 +1168,7 @@ func TestGenerateHelmWithAbsoluteFileParameter(t *testing.T) {
 			Path: "./util/helm/testdata/redis",
 			Helm: &argoappv1.ApplicationSourceHelm{
 				ValueFiles: []string{"values-production.yaml"},
-				Values:     `cluster: {slaveCount: 2}`,
+				Values:     &runtime.RawExtension{Raw: []byte(`cluster: {slaveCount: 2}`)},
 				FileParameters: []argoappv1.HelmFileParameter{{
 					Name: "passwordContent",
 					Path: externalSecretPath,
@@ -1195,7 +1195,7 @@ func TestGenerateHelmWithFileParameter(t *testing.T) {
 			Path: "./redis",
 			Helm: &argoappv1.ApplicationSourceHelm{
 				ValueFiles: []string{"values-production.yaml"},
-				Values:     `cluster: {slaveCount: 2}`,
+				Values:     &runtime.RawExtension{Raw: []byte(`cluster: {slaveCount: 2}`)},
 				FileParameters: []argoappv1.HelmFileParameter{
 					argoappv1.HelmFileParameter{
 						Name: "passwordContent",

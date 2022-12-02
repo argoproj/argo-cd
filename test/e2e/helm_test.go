@@ -201,7 +201,7 @@ func TestHelmValuesLiteralFileLocal(t *testing.T) {
 			if err != nil {
 				panic(err)
 			}
-			assert.Equal(t, string(data), app.Spec.GetSource().Helm.Values)
+			assert.Equal(t, string(data), app.Spec.GetSource().Helm.ValuesString())
 		}).
 		When().
 		AppUnSet("--values-literal").
@@ -243,7 +243,7 @@ func TestHelmValuesLiteralFileRemote(t *testing.T) {
 		AppSet("--values-literal-file", "http://"+address).
 		Then().
 		And(func(app *Application) {
-			assert.Equal(t, "a: b", app.Spec.GetSource().Helm.Values)
+			assert.Equal(t, "a: b", app.Spec.GetSource().Helm.ValuesString())
 		}).
 		When().
 		AppUnSet("--values-literal").

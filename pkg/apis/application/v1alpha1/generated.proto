@@ -421,7 +421,9 @@ message ApplicationSourceHelm {
   optional string releaseName = 3;
 
   // Values specifies Helm values to be passed to helm template, typically defined as a block
-  optional string values = 4;
+  // +kubebuilder:pruning:PreserveUnknownFields
+  // +patchStrategy=replace
+  optional k8s.io.apimachinery.pkg.runtime.RawExtension values = 4;
 
   // FileParameters are file parameters to the helm template
   repeated HelmFileParameter fileParameters = 5;

@@ -945,6 +945,11 @@ func (in *ApplicationSourceHelm) DeepCopyInto(out *ApplicationSourceHelm) {
 		*out = make([]HelmParameter, len(*in))
 		copy(*out, *in)
 	}
+	if in.Values != nil {
+		in, out := &in.Values, &out.Values
+		*out = new(runtime.RawExtension)
+		(*in).DeepCopyInto(*out)
+	}
 	if in.FileParameters != nil {
 		in, out := &in.FileParameters, &out.FileParameters
 		*out = make([]HelmFileParameter, len(*in))

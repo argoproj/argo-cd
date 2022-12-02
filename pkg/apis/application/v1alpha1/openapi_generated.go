@@ -1596,10 +1596,14 @@ func schema_pkg_apis_application_v1alpha1_ApplicationSourceHelm(ref common.Refer
 						},
 					},
 					"values": {
+						VendorExtensible: spec.VendorExtensible{
+							Extensions: spec.Extensions{
+								"x-kubernetes-patch-strategy": "replace",
+							},
+						},
 						SchemaProps: spec.SchemaProps{
 							Description: "Values specifies Helm values to be passed to helm template, typically defined as a block",
-							Type:        []string{"string"},
-							Format:      "",
+							Ref:         ref("k8s.io/apimachinery/pkg/runtime.RawExtension"),
 						},
 					},
 					"fileParameters": {
@@ -1648,7 +1652,7 @@ func schema_pkg_apis_application_v1alpha1_ApplicationSourceHelm(ref common.Refer
 			},
 		},
 		Dependencies: []string{
-			"github.com/argoproj/argo-cd/v2/pkg/apis/application/v1alpha1.HelmFileParameter", "github.com/argoproj/argo-cd/v2/pkg/apis/application/v1alpha1.HelmParameter"},
+			"github.com/argoproj/argo-cd/v2/pkg/apis/application/v1alpha1.HelmFileParameter", "github.com/argoproj/argo-cd/v2/pkg/apis/application/v1alpha1.HelmParameter", "k8s.io/apimachinery/pkg/runtime.RawExtension"},
 	}
 }
 

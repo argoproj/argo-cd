@@ -25,6 +25,7 @@ import (
 	v1 "k8s.io/api/core/v1"
 	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
 	"k8s.io/apimachinery/pkg/apis/meta/v1/unstructured"
+	"k8s.io/apimachinery/pkg/runtime"
 	"k8s.io/apimachinery/pkg/runtime/schema"
 	"k8s.io/apimachinery/pkg/util/intstr"
 	utilnet "k8s.io/apimachinery/pkg/util/net"
@@ -299,7 +300,9 @@ type ApplicationSourceHelm struct {
 	// ReleaseName is the Helm release name to use. If omitted it will use the application name
 	ReleaseName string `json:"releaseName,omitempty" protobuf:"bytes,3,opt,name=releaseName"`
 	// Values specifies Helm values to be passed to helm template, typically defined as a block
-	Values string `json:"values,omitempty" protobuf:"bytes,4,opt,name=values"`
+	// +kubebuilder:pruning:PreserveUnknownFields
+	// +patchStrategy=replace
+	Values *runtime.RawExtension `json:"values,omitempty" patchStrategy:"replace" protobuf:"bytes,4,opt,name=values"`
 	// FileParameters are file parameters to the helm template
 	FileParameters []HelmFileParameter `json:"fileParameters,omitempty" protobuf:"bytes,5,opt,name=fileParameters"`
 	// Version is the Helm version to use for templating ("3")
@@ -391,7 +394,32 @@ func (in *ApplicationSourceHelm) AddFileParameter(p HelmFileParameter) {
 
 // IsZero Returns true if the Helm options in an application source are considered zero
 func (h *ApplicationSourceHelm) IsZero() bool {
-	return h == nil || (h.Version == "") && (h.ReleaseName == "") && len(h.ValueFiles) == 0 && len(h.Parameters) == 0 && len(h.FileParameters) == 0 && h.Values == "" && !h.PassCredentials && !h.IgnoreMissingValueFiles && !h.SkipCrds
+	return h == nil || (h.Version == "") && (h.ReleaseName == "") && len(h.ValueFiles) == 0 && len(h.Parameters) == 0 && len(h.FileParameters) == 0 && h.ValuesIsEmpty() && !h.PassCredentials && !h.IgnoreMissingValueFiles && !h.SkipCrds
+}
+
+func (h *ApplicationSourceHelm) SetValuesString(value string) error {
+	h.Values = &runtime.RawExtension{Raw: []byte(value)}
+	return nil
+}
+
+func (h *ApplicationSourceHelm) ValuesYAML() []byte {
+	if h.Values == nil {
+		return []byte{}
+	}
+	b, err := yaml.JSONToYAML(h.Values.Raw)
+	if err != nil {
+		// This should be impossible, because rawValue isn't set directly.
+		return []byte{}
+	}
+	return b
+}
+
+func (h *ApplicationSourceHelm) ValuesIsEmpty() bool {
+	return len(h.ValuesYAML()) == 0
+}
+
+func (h *ApplicationSourceHelm) ValuesString() string {
+	return string(h.ValuesYAML())
 }
 
 // KustomizeImage represents a Kustomize image definition in the format [old_image_name=]<image_name>:<image_tag>
