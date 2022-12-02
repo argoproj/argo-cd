@@ -168,22 +168,9 @@ func (m *appStateManager) getRepoObjs(app *v1alpha1.Application, sources []v1alp
 	targetObjs := make([]*unstructured.Unstructured, 0)
 
 	// Store the map of all sources having ref field into a map for applications with sources field
-	refSources := make(map[string]*appv1.RefTargeRevisionMapping)
-	if app.Spec.HasMultipleSources() {
-		// Get Repositories for all sources before generating Manifests
-		for _, source := range sources {
-			if source.Ref != "" {
-				repo, err := m.db.GetRepository(context.Background(), source.RepoURL)
-				if err != nil {
-					return nil, nil, err
-				}
-				refKey := "$" + source.Ref
-				refSources[refKey] = &appv1.RefTargeRevisionMapping{
-					Repo:           *repo,
-					TargetRevision: source.TargetRevision,
-				}
-			}
-		}
+	refSources, err := argo.GetRefSources(context.Background(), app.Spec, m.db)
+	if err != nil {
+		return nil, nil, fmt.Errorf("failed to get ref sources: %v", err)
 	}
 
 	for i, source := range sources {

@@ -239,7 +239,7 @@ func TestGenerateManifests_K8SAPIResetCache(t *testing.T) {
 
 	cachedFakeResponse := &apiclient.ManifestResponse{Manifests: []string{"Fake"}}
 
-	err := service.cache.SetManifests(mock.Anything, &src, &q, "", "", "", "", &cache.CachedManifestResponse{ManifestResponse: cachedFakeResponse})
+	err := service.cache.SetManifests(mock.Anything, &src, q.RefSources, &q, "", "", "", "", &cache.CachedManifestResponse{ManifestResponse: cachedFakeResponse})
 	assert.NoError(t, err)
 
 	res, err := service.GenerateManifest(context.Background(), &q)
@@ -261,7 +261,7 @@ func TestGenerateManifests_EmptyCache(t *testing.T) {
 		Repo: &argoappv1.Repository{}, ApplicationSource: &src,
 	}
 
-	err := service.cache.SetManifests(mock.Anything, &src, &q, "", "", "", "", &cache.CachedManifestResponse{ManifestResponse: nil})
+	err := service.cache.SetManifests(mock.Anything, &src, q.RefSources, &q, "", "", "", "", &cache.CachedManifestResponse{ManifestResponse: nil})
 	assert.NoError(t, err)
 
 	res, err := service.GenerateManifest(context.Background(), &q)
@@ -391,7 +391,7 @@ func TestManifestGenErrorCacheByNumRequests(t *testing.T) {
 		assert.NotNil(t, manifestRequest)
 
 		cachedManifestResponse := &cache.CachedManifestResponse{}
-		err := service.cache.GetManifests(mock.Anything, manifestRequest.ApplicationSource, manifestRequest, manifestRequest.Namespace, "", manifestRequest.AppLabelKey, manifestRequest.AppName, cachedManifestResponse)
+		err := service.cache.GetManifests(mock.Anything, manifestRequest.ApplicationSource, manifestRequest.RefSources, manifestRequest, manifestRequest.Namespace, "", manifestRequest.AppLabelKey, manifestRequest.AppName, cachedManifestResponse)
 		assert.Nil(t, err)
 		return cachedManifestResponse
 	}
@@ -1081,28 +1081,37 @@ func TestGenerateHelmWithFileParameter(t *testing.T) {
 func TestGenerateNullList(t *testing.T) {
 	service := newService(".")
 
-	res1, err := service.GenerateManifest(context.Background(), &apiclient.ManifestRequest{
-		Repo:              &argoappv1.Repository{},
-		ApplicationSource: &argoappv1.ApplicationSource{Path: "./testdata/null-list"},
+	t.Run("null list", func(t *testing.T) {
+		res1, err := service.GenerateManifest(context.Background(), &apiclient.ManifestRequest{
+			Repo:              &argoappv1.Repository{},
+			ApplicationSource: &argoappv1.ApplicationSource{Path: "./testdata/null-list"},
+			NoCache:           true,
+		})
+		assert.Nil(t, err)
+		assert.Equal(t, len(res1.Manifests), 1)
+		assert.Contains(t, res1.Manifests[0], "prometheus-operator-operator")
 	})
-	assert.Nil(t, err)
-	assert.Equal(t, len(res1.Manifests), 1)
-	assert.Contains(t, res1.Manifests[0], "prometheus-operator-operator")
 
-	res1, err = service.GenerateManifest(context.Background(), &apiclient.ManifestRequest{
-		Repo:              &argoappv1.Repository{},
-		ApplicationSource: &argoappv1.ApplicationSource{Path: "./testdata/empty-list"},
+	t.Run("empty list", func(t *testing.T) {
+		res1, err := service.GenerateManifest(context.Background(), &apiclient.ManifestRequest{
+			Repo:              &argoappv1.Repository{},
+			ApplicationSource: &argoappv1.ApplicationSource{Path: "./testdata/empty-list"},
+			NoCache:           true,
+		})
+		assert.Nil(t, err)
+		assert.Equal(t, len(res1.Manifests), 1)
+		assert.Contains(t, res1.Manifests[0], "prometheus-operator-operator")
 	})
-	assert.Nil(t, err)
-	assert.Equal(t, len(res1.Manifests), 1)
-	assert.Contains(t, res1.Manifests[0], "prometheus-operator-operator")
 
-	res1, err = service.GenerateManifest(context.Background(), &apiclient.ManifestRequest{
-		Repo:              &argoappv1.Repository{},
-		ApplicationSource: &argoappv1.ApplicationSource{Path: "./testdata/weird-list"},
+	t.Run("weird list", func(t *testing.T) {
+		res1, err := service.GenerateManifest(context.Background(), &apiclient.ManifestRequest{
+			Repo:              &argoappv1.Repository{},
+			ApplicationSource: &argoappv1.ApplicationSource{Path: "./testdata/weird-list"},
+			NoCache:           true,
+		})
+		assert.Nil(t, err)
+		assert.Len(t, res1.Manifests, 2)
 	})
-	assert.Nil(t, err)
-	assert.Equal(t, 2, len(res1.Manifests))
 }
 
 func TestIdentifyAppSourceTypeByAppDirWithKustomizations(t *testing.T) {
@@ -1661,7 +1670,7 @@ func TestGenerateManifestsWithAppParameterFile(t *testing.T) {
 			// Try to pull from the cache with a `source` that does not include any overrides. Overrides should not be
 			// part of the cache key, because you can't get the overrides without a repo operation. And avoiding repo
 			// operations is the point of the cache.
-			err = service.cache.GetManifests(mock.Anything, source, &argoappv1.ClusterInfo{}, "", "", "", "test", res)
+			err = service.cache.GetManifests(mock.Anything, source, argoappv1.RefTargetRevisionMapping{}, &argoappv1.ClusterInfo{}, "", "", "", "test", res)
 			assert.NoError(t, err)
 		})
 	})

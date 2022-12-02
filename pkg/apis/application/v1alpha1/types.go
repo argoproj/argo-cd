@@ -192,6 +192,19 @@ func (a *ApplicationSpec) GetSource() ApplicationSource {
 	return ApplicationSource{}
 }
 
+func (a *ApplicationSpec) GetSources() ApplicationSources {
+	if a.HasMultipleSources() {
+		return a.Sources
+	}
+	if a.Source != nil {
+		if a.Source == nil {
+			return ApplicationSources{}
+		}
+		return ApplicationSources{*a.Source}
+	}
+	return ApplicationSources{}
+}
+
 func (a *ApplicationSpec) HasMultipleSources() bool {
 	return a.Sources != nil && len(a.Sources) > 0
 }
@@ -257,10 +270,13 @@ const (
 	RefreshTypeHard   RefreshType = "hard"
 )
 
-type RefTargeRevisionMapping struct {
+type RefTarget struct {
 	Repo           Repository `protobuf:"bytes,1,opt,name=repo"`
 	TargetRevision string     `protobuf:"bytes,2,opt,name=targetRevision"`
+	Chart          string     `protobuf:"bytes,3,opt,name=chart"`
 }
+
+type RefTargetRevisionMapping map[string]*RefTarget
 
 func (a *ApplicationSource) GetRefVariableName(namespace, appName string) string {
 	return fmt.Sprintf("$%s_%s_%s", namespace, appName, a.Ref)

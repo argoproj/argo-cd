@@ -2417,15 +2417,15 @@ func (m *PullRequestGeneratorGithub) XXX_DiscardUnknown() {
 
 var xxx_messageInfo_PullRequestGeneratorGithub proto.InternalMessageInfo
 
-func (m *RefTargeRevisionMapping) Reset()      { *m = RefTargeRevisionMapping{} }
-func (*RefTargeRevisionMapping) ProtoMessage() {}
-func (*RefTargeRevisionMapping) Descriptor() ([]byte, []int) {
+func (m *RefTarget) Reset()      { *m = RefTarget{} }
+func (*RefTarget) ProtoMessage() {}
+func (*RefTarget) Descriptor() ([]byte, []int) {
 	return fileDescriptor_030104ce3b95bcac, []int{85}
 }
-func (m *RefTargeRevisionMapping) XXX_Unmarshal(b []byte) error {
+func (m *RefTarget) XXX_Unmarshal(b []byte) error {
 	return m.Unmarshal(b)
 }
-func (m *RefTargeRevisionMapping) XXX_Marshal(b []byte, deterministic bool) ([]byte, error) {
+func (m *RefTarget) XXX_Marshal(b []byte, deterministic bool) ([]byte, error) {
 	b = b[:cap(b)]
 	n, err := m.MarshalToSizedBuffer(b)
 	if err != nil {
@@ -2433,17 +2433,17 @@ func (m *RefTargeRevisionMapping) XXX_Marshal(b []byte, deterministic bool) ([]b
 	}
 	return b[:n], nil
 }
-func (m *RefTargeRevisionMapping) XXX_Merge(src proto.Message) {
-	xxx_messageInfo_RefTargeRevisionMapping.Merge(m, src)
+func (m *RefTarget) XXX_Merge(src proto.Message) {
+	xxx_messageInfo_RefTarget.Merge(m, src)
 }
-func (m *RefTargeRevisionMapping) XXX_Size() int {
+func (m *RefTarget) XXX_Size() int {
 	return m.Size()
 }
-func (m *RefTargeRevisionMapping) XXX_DiscardUnknown() {
-	xxx_messageInfo_RefTargeRevisionMapping.DiscardUnknown(m)
+func (m *RefTarget) XXX_DiscardUnknown() {
+	xxx_messageInfo_RefTarget.DiscardUnknown(m)
 }
 
-var xxx_messageInfo_RefTargeRevisionMapping proto.InternalMessageInfo
+var xxx_messageInfo_RefTarget proto.InternalMessageInfo
 
 func (m *RepoCreds) Reset()      { *m = RepoCreds{} }
 func (*RepoCreds) ProtoMessage() {}
@@ -3720,7 +3720,7 @@ func init() {
 	proto.RegisterType((*PullRequestGeneratorGitLab)(nil), "github.com.argoproj.argo_cd.v2.pkg.apis.application.v1alpha1.PullRequestGeneratorGitLab")
 	proto.RegisterType((*PullRequestGeneratorGitea)(nil), "github.com.argoproj.argo_cd.v2.pkg.apis.application.v1alpha1.PullRequestGeneratorGitea")
 	proto.RegisterType((*PullRequestGeneratorGithub)(nil), "github.com.argoproj.argo_cd.v2.pkg.apis.application.v1alpha1.PullRequestGeneratorGithub")
-	proto.RegisterType((*RefTargeRevisionMapping)(nil), "github.com.argoproj.argo_cd.v2.pkg.apis.application.v1alpha1.RefTargeRevisionMapping")
+	proto.RegisterType((*RefTarget)(nil), "github.com.argoproj.argo_cd.v2.pkg.apis.application.v1alpha1.RefTarget")
 	proto.RegisterType((*RepoCreds)(nil), "github.com.argoproj.argo_cd.v2.pkg.apis.application.v1alpha1.RepoCreds")
 	proto.RegisterType((*RepoCredsList)(nil), "github.com.argoproj.argo_cd.v2.pkg.apis.application.v1alpha1.RepoCredsList")
 	proto.RegisterType((*Repository)(nil), "github.com.argoproj.argo_cd.v2.pkg.apis.application.v1alpha1.Repository")
@@ -4930,7 +4930,6 @@ func (m *ApplicationSet) MarshalToSizedBuffer(dAtA []byte) (int, error) {
 	{
 		size, err := m.Status.MarshalToSizedBuffer(dAtA[:i])
 		if err != nil {
-			return 0, err
 		}
 		i -= size
 		i = encodeVarintGenerated(dAtA, i, uint64(size))
@@ -9343,7 +9342,7 @@ func (m *PullRequestGeneratorGithub) MarshalToSizedBuffer(dAtA []byte) (int, err
 	return len(dAtA) - i, nil
 }
 
-func (m *RefTargeRevisionMapping) Marshal() (dAtA []byte, err error) {
+func (m *RefTarget) Marshal() (dAtA []byte, err error) {
 	size := m.Size()
 	dAtA = make([]byte, size)
 	n, err := m.MarshalToSizedBuffer(dAtA[:size])
@@ -9353,16 +9352,21 @@ func (m *RefTargeRevisionMapping) Marshal() (dAtA []byte, err error) {
 	return dAtA[:n], nil
 }
 
-func (m *RefTargeRevisionMapping) MarshalTo(dAtA []byte) (int, error) {
+func (m *RefTarget) MarshalTo(dAtA []byte) (int, error) {
 	size := m.Size()
 	return m.MarshalToSizedBuffer(dAtA[:size])
 }
 
-func (m *RefTargeRevisionMapping) MarshalToSizedBuffer(dAtA []byte) (int, error) {
+func (m *RefTarget) MarshalToSizedBuffer(dAtA []byte) (int, error) {
 	i := len(dAtA)
 	_ = i
 	var l int
 	_ = l
+	i -= len(m.Chart)
+	copy(dAtA[i:], m.Chart)
+	i = encodeVarintGenerated(dAtA, i, uint64(len(m.Chart)))
+	i--
+	dAtA[i] = 0x1a
 	i -= len(m.TargetRevision)
 	copy(dAtA[i:], m.TargetRevision)
 	i = encodeVarintGenerated(dAtA, i, uint64(len(m.TargetRevision)))
@@ -13955,7 +13959,7 @@ func (m *PullRequestGeneratorGithub) Size() (n int) {
 	return n
 }
 
-func (m *RefTargeRevisionMapping) Size() (n int) {
+func (m *RefTarget) Size() (n int) {
 	if m == nil {
 		return 0
 	}
@@ -13964,6 +13968,8 @@ func (m *RefTargeRevisionMapping) Size() (n int) {
 	l = m.Repo.Size()
 	n += 1 + l + sovGenerated(uint64(l))
 	l = len(m.TargetRevision)
+	n += 1 + l + sovGenerated(uint64(l))
+	l = len(m.Chart)
 	n += 1 + l + sovGenerated(uint64(l))
 	return n
 }
@@ -16424,13 +16430,14 @@ func (this *PullRequestGeneratorGithub) String() string {
 	}, "")
 	return s
 }
-func (this *RefTargeRevisionMapping) String() string {
+func (this *RefTarget) String() string {
 	if this == nil {
 		return "nil"
 	}
-	s := strings.Join([]string{`&RefTargeRevisionMapping{`,
+	s := strings.Join([]string{`&RefTarget{`,
 		`Repo:` + strings.Replace(strings.Replace(this.Repo.String(), "Repository", "Repository", 1), `&`, ``, 1) + `,`,
 		`TargetRevision:` + fmt.Sprintf("%v", this.TargetRevision) + `,`,
+		`Chart:` + fmt.Sprintf("%v", this.Chart) + `,`,
 		`}`,
 	}, "")
 	return s
@@ -33034,7 +33041,7 @@ func (m *PullRequestGeneratorGithub) Unmarshal(dAtA []byte) error {
 	}
 	return nil
 }
-func (m *RefTargeRevisionMapping) Unmarshal(dAtA []byte) error {
+func (m *RefTarget) Unmarshal(dAtA []byte) error {
 	l := len(dAtA)
 	iNdEx := 0
 	for iNdEx < l {
@@ -33057,10 +33064,10 @@ func (m *RefTargeRevisionMapping) Unmarshal(dAtA []byte) error {
 		fieldNum := int32(wire >> 3)
 		wireType := int(wire & 0x7)
 		if wireType == 4 {
-			return fmt.Errorf("proto: RefTargeRevisionMapping: wiretype end group for non-group")
+			return fmt.Errorf("proto: RefTarget: wiretype end group for non-group")
 		}
 		if fieldNum <= 0 {
-			return fmt.Errorf("proto: RefTargeRevisionMapping: illegal tag %d (wire type %d)", fieldNum, wire)
+			return fmt.Errorf("proto: RefTarget: illegal tag %d (wire type %d)", fieldNum, wire)
 		}
 		switch fieldNum {
 		case 1:
@@ -33127,6 +33134,38 @@ func (m *RefTargeRevisionMapping) Unmarshal(dAtA []byte) error {
 				return io.ErrUnexpectedEOF
 			}
 			m.TargetRevision = string(dAtA[iNdEx:postIndex])
+			iNdEx = postIndex
+		case 3:
+			if wireType != 2 {
+				return fmt.Errorf("proto: wrong wireType = %d for field Chart", wireType)
+			}
+			var stringLen uint64
+			for shift := uint(0); ; shift += 7 {
+				if shift >= 64 {
+					return ErrIntOverflowGenerated
+				}
+				if iNdEx >= l {
+					return io.ErrUnexpectedEOF
+				}
+				b := dAtA[iNdEx]
+				iNdEx++
+				stringLen |= uint64(b&0x7F) << shift
+				if b < 0x80 {
+					break
+				}
+			}
+			intStringLen := int(stringLen)
+			if intStringLen < 0 {
+				return ErrInvalidLengthGenerated
+			}
+			postIndex := iNdEx + intStringLen
+			if postIndex < 0 {
+				return ErrInvalidLengthGenerated
+			}
+			if postIndex > l {
+				return io.ErrUnexpectedEOF
+			}
+			m.Chart = string(dAtA[iNdEx:postIndex])
 			iNdEx = postIndex
 		default:
 			iNdEx = preIndex
