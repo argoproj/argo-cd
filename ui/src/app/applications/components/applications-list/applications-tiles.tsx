@@ -1,7 +1,6 @@
 import {DataLoader, Tooltip} from 'argo-ui';
 import * as classNames from 'classnames';
 import * as React from 'react';
-import Moment from 'react-moment';
 import {Key, KeybindingContext, NumKey, NumKeyToNumber, NumPadKey, useNav} from 'argo-ui/v2';
 import {Cluster} from '../../../shared/components';
 import {Consumer, Context, AuthSettingsCtx} from '../../../shared/context';
