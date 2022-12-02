@@ -418,6 +418,22 @@ message ApplicationSourcePlugin {
   optional string name = 1;
 
   repeated EnvEntry env = 2;
+
+  repeated ApplicationSourcePluginParameter parameters = 3;
+}
+
+message ApplicationSourcePluginParameter {
+  // Name is the name identifying a parameter.
+  optional string name = 1;
+
+  // String_ is the value of a string type parameter.
+  optional string string = 5;
+
+  // Map is the value of a map type parameter.
+  map<string, string> map = 3;
+
+  // Array is the value of an array type parameter.
+  repeated string array = 4;
 }
 
 // ApplicationSpec represents desired application state. Contains link to repository with application definition and additional parameters link definition revision.
@@ -924,6 +940,12 @@ message ListGenerator {
   repeated k8s.io.apiextensions_apiserver.pkg.apis.apiextensions.v1.JSON elements = 1;
 
   optional ApplicationSetTemplate template = 2;
+}
+
+message ManagedNamespaceMetadata {
+  map<string, string> labels = 1;
+
+  map<string, string> annotations = 2;
 }
 
 // MatrixGenerator generates the cartesian product of two sets of parameters. The parameters are defined by two nested
@@ -1802,6 +1824,9 @@ message SyncPolicy {
 
   // Retry controls failed sync retry behavior
   optional RetryStrategy retry = 3;
+
+  // ManagedNamespaceMetadata controls metadata in the given namespace (if CreateNamespace=true)
+  optional ManagedNamespaceMetadata managedNamespaceMetadata = 4;
 }
 
 // SyncPolicyAutomated controls the behavior of an automated sync

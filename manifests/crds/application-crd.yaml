@@ -358,6 +358,29 @@ spec:
                             type: array
                           name:
                             type: string
+                          parameters:
+                            items:
+                              properties:
+                                array:
+                                  description: Array is the value of an array type
+                                    parameter.
+                                  items:
+                                    type: string
+                                  type: array
+                                map:
+                                  additionalProperties:
+                                    type: string
+                                  description: Map is the value of a map type parameter.
+                                  type: object
+                                name:
+                                  description: Name is the name identifying a parameter.
+                                  type: string
+                                string:
+                                  description: String_ is the value of a string type
+                                    parameter.
+                                  type: string
+                              type: object
+                            type: array
                         type: object
                       repoURL:
                         description: RepoURL is the URL to the repository (Git or
@@ -703,6 +726,27 @@ spec:
                         type: array
                       name:
                         type: string
+                      parameters:
+                        items:
+                          properties:
+                            array:
+                              description: Array is the value of an array type parameter.
+                              items:
+                                type: string
+                              type: array
+                            map:
+                              additionalProperties:
+                                type: string
+                              description: Map is the value of a map type parameter.
+                              type: object
+                            name:
+                              description: Name is the name identifying a parameter.
+                              type: string
+                            string:
+                              description: String_ is the value of a string type parameter.
+                              type: string
+                          type: object
+                        type: array
                     type: object
                   repoURL:
                     description: RepoURL is the URL to the repository (Git or Helm)
@@ -738,6 +782,19 @@ spec:
                           back to their desired state upon modification in the cluster
                           (default: false)'
                         type: boolean
+                    type: object
+                  managedNamespaceMetadata:
+                    description: ManagedNamespaceMetadata controls metadata in the
+                      given namespace (if CreateNamespace=true)
+                    properties:
+                      annotations:
+                        additionalProperties:
+                          type: string
+                        type: object
+                      labels:
+                        additionalProperties:
+                          type: string
+                        type: object
                     type: object
                   retry:
                     description: Retry controls failed sync retry behavior
@@ -1059,6 +1116,29 @@ spec:
                               type: array
                             name:
                               type: string
+                            parameters:
+                              items:
+                                properties:
+                                  array:
+                                    description: Array is the value of an array type
+                                      parameter.
+                                    items:
+                                      type: string
+                                    type: array
+                                  map:
+                                    additionalProperties:
+                                      type: string
+                                    description: Map is the value of a map type parameter.
+                                    type: object
+                                  name:
+                                    description: Name is the name identifying a parameter.
+                                    type: string
+                                  string:
+                                    description: String_ is the value of a string
+                                      type parameter.
+                                    type: string
+                                type: object
+                              type: array
                           type: object
                         repoURL:
                           description: RepoURL is the URL to the repository (Git or
@@ -1432,6 +1512,31 @@ spec:
                                     type: array
                                   name:
                                     type: string
+                                  parameters:
+                                    items:
+                                      properties:
+                                        array:
+                                          description: Array is the value of an array
+                                            type parameter.
+                                          items:
+                                            type: string
+                                          type: array
+                                        map:
+                                          additionalProperties:
+                                            type: string
+                                          description: Map is the value of a map type
+                                            parameter.
+                                          type: object
+                                        name:
+                                          description: Name is the name identifying
+                                            a parameter.
+                                          type: string
+                                        string:
+                                          description: String_ is the value of a string
+                                            type parameter.
+                                          type: string
+                                      type: object
+                                    type: array
                                 type: object
                               repoURL:
                                 description: RepoURL is the URL to the repository
@@ -1776,6 +1881,31 @@ spec:
                                 type: array
                               name:
                                 type: string
+                              parameters:
+                                items:
+                                  properties:
+                                    array:
+                                      description: Array is the value of an array
+                                        type parameter.
+                                      items:
+                                        type: string
+                                      type: array
+                                    map:
+                                      additionalProperties:
+                                        type: string
+                                      description: Map is the value of a map type
+                                        parameter.
+                                      type: object
+                                    name:
+                                      description: Name is the name identifying a
+                                        parameter.
+                                      type: string
+                                    string:
+                                      description: String_ is the value of a string
+                                        type parameter.
+                                      type: string
+                                  type: object
+                                type: array
                             type: object
                           repoURL:
                             description: RepoURL is the URL to the repository (Git
@@ -2117,6 +2247,31 @@ spec:
                                 type: array
                               name:
                                 type: string
+                              parameters:
+                                items:
+                                  properties:
+                                    array:
+                                      description: Array is the value of an array
+                                        type parameter.
+                                      items:
+                                        type: string
+                                      type: array
+                                    map:
+                                      additionalProperties:
+                                        type: string
+                                      description: Map is the value of a map type
+                                        parameter.
+                                      type: object
+                                    name:
+                                      description: Name is the name identifying a
+                                        parameter.
+                                      type: string
+                                    string:
+                                      description: String_ is the value of a string
+                                        type parameter.
+                                      type: string
+                                  type: object
+                                type: array
                             type: object
                           repoURL:
                             description: RepoURL is the URL to the repository (Git

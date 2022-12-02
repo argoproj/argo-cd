@@ -90,16 +90,17 @@ export const ApplicationStatusPanel = ({application, showOperation, showConditio
                         </div>
                         <div className='application-status-panel__item-value__revision'>{syncStatusMessage(application)}</div>
                     </div>
-                    <div className='application-status-panel__item-name'>
-                        {application.status && application.status.sync && application.status.sync.revision && (
+                    {application.status && application.status.sync && application.status.sync.revision && !application.spec.source.chart && (
+                        <div className='application-status-panel__item-name'>
                             <RevisionMetadataPanel
                                 appName={application.metadata.name}
                                 appNamespace={application.metadata.namespace}
                                 type={application.spec.source.chart && 'helm'}
                                 revision={application.status.sync.revision}
                             />
-                        )}
-                    </div>
+                        </div>
+                    )}
+                    <div className='application-status-panel__item-name'>{application.spec.syncPolicy?.automated ? 'Auto sync is enabled.' : 'Auto sync is not enabled.'}</div>
                 </React.Fragment>
             </div>
             {appOperationState && (
