@@ -93,7 +93,16 @@ export const ApplicationsTable = (props: {
                                                     <div className=' columns small-2' />
                                                     <div className='show-for-xxlarge columns small-4'>Name:</div>
                                                     <div className='columns small-12 xxlarge-6'>
-                                                        <Tooltip content={app.metadata.name}>
+                                                        <Tooltip
+                                                            content={
+                                                                <>
+                                                                    {app.metadata.name}
+                                                                    <br />
+                                                                    <Moment fromNow={true} ago={true}>
+                                                                        {app.metadata.creationTimestamp}
+                                                                    </Moment>
+                                                                </>
+                                                            }>
                                                             <span>{app.metadata.name}</span>
                                                         </Tooltip>
                                                     </div>
@@ -121,30 +130,21 @@ export const ApplicationsTable = (props: {
                                             </div>
 
                                             <div className='columns small-2'>
-                                                <div className='row'>
-                                                    <div className='columns small-4'>
-                                                        <Moment style={{marginLeft: 'auto'}} fromNow={true} ago={true}>
-                                                            {app.metadata.creationTimestamp}
-                                                        </Moment>
-                                                    </div>
-                                                    <div className='columns small-8'>
-                                                        <AppUtils.HealthStatusIcon state={app.status.health} /> <span>{app.status.health.status}</span> <br />
-                                                        <AppUtils.ComparisonStatusIcon status={app.status.sync.status} />
-                                                        <span>{app.status.sync.status}</span> <OperationState app={app} quiet={true} />
-                                                        <DropDownMenu
-                                                            anchor={() => (
-                                                                <button className='argo-button argo-button--light argo-button--lg argo-button--short'>
-                                                                    <i className='fa fa-ellipsis-v' />
-                                                                </button>
-                                                            )}
-                                                            items={[
-                                                                {title: 'Sync', action: () => props.syncApplication(app.metadata.name, app.metadata.namespace)},
-                                                                {title: 'Refresh', action: () => props.refreshApplication(app.metadata.name, app.metadata.namespace)},
-                                                                {title: 'Delete', action: () => props.deleteApplication(app.metadata.name, app.metadata.namespace)}
-                                                            ]}
-                                                        />
-                                                    </div>
-                                                </div>
+                                                <AppUtils.HealthStatusIcon state={app.status.health} /> <span>{app.status.health.status}</span> <br />
+                                                <AppUtils.ComparisonStatusIcon status={app.status.sync.status} />
+                                                <span>{app.status.sync.status}</span> <OperationState app={app} quiet={true} />
+                                                <DropDownMenu
+                                                    anchor={() => (
+                                                        <button className='argo-button argo-button--light argo-button--lg argo-button--short'>
+                                                            <i className='fa fa-ellipsis-v' />
+                                                        </button>
+                                                    )}
+                                                    items={[
+                                                        {title: 'Sync', action: () => props.syncApplication(app.metadata.name, app.metadata.namespace)},
+                                                        {title: 'Refresh', action: () => props.refreshApplication(app.metadata.name, app.metadata.namespace)},
+                                                        {title: 'Delete', action: () => props.deleteApplication(app.metadata.name, app.metadata.namespace)}
+                                                    ]}
+                                                />
                                             </div>
                                         </div>
                                     </div>
