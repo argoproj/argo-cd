@@ -334,8 +334,10 @@ If your CMP is defined in the `argocd-cm` ConfigMap, you can create a new Applic
 argocd app create <appName> --config-management-plugin <pluginName>
 ```
 
-If your plugin is defined as a sidecar, you must manually define the Application manifest. Do not configure a `name` field
-in the `plugin` section. The plugin will be automatically matched with the Application based on its discovery rules.
+If your CMP is defined as a sidecar, you must manually define the Application manifest. You may leave the `name` field
+empty in the `plugin` section for the plugin to be automatically matched with the Application based on its discovery rules. If you do mention the name make sure 
+it is either `<metadata.name>-<spec.version>` if version is mentioned in the `ConfigManagementPlugin` spec or else just `<metadata.name>`. When name is explicitly 
+specified only that particular plugin will be used iff it's discovery pattern/command matches the provided application repo.
 
 ```yaml
 apiVersion: argoproj.io/v1alpha1
@@ -373,8 +375,9 @@ If you don't need to set any environment variables, you can set an empty plugin 
     
 !!! note
     Each Application can only have one config management plugin configured at a time. If you're converting an existing
-    plugin configured through the `argocd-cm` ConfigMap to a sidecar, make sure the discovery mechanism only returns
-    true for Applications that have had their `name` field in the `plugin` section of their spec removed.
+    plugin configured through the `argocd-cm` ConfigMap to a sidecar, make sure to update the plugin name to either `<metadata.name>-<spec.version>` 
+    if version was mentioned in the `ConfigManagementPlugin` spec or else just use `<metadata.name>`. You can also remove the name altogether 
+    and let the automatic discovery to identify the plugin.
 
 ## Debugging a CMP
 
