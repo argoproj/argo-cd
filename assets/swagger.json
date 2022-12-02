@@ -3287,6 +3287,12 @@
           },
           {
             "type": "string",
+            "description": "GCPServiceAccountKey specifies the service account key in JSON format to be used for getting credentials to Google Cloud Source repos.",
+            "name": "gcpServiceAccountKey",
+            "in": "query"
+          },
+          {
+            "type": "string",
             "description": "HTTP/HTTPS proxy to access the repository.",
             "name": "proxy",
             "in": "query"

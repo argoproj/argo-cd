@@ -33,6 +33,8 @@ type RepoCreds struct {
 	GithubAppInstallationId int64 `json:"githubAppInstallationID,omitempty" protobuf:"bytes,9,opt,name=githubAppInstallationID"`
 	// GithubAppEnterpriseBaseURL specifies the GitHub API URL for GitHub app authentication. If empty will default to https://api.github.com
 	GitHubAppEnterpriseBaseURL string `json:"githubAppEnterpriseBaseUrl,omitempty" protobuf:"bytes,10,opt,name=githubAppEnterpriseBaseUrl"`
+	// GCPServiceAccountKey specifies the service account key in JSON format to be used for getting credentials to Google Cloud Source repos
+	GCPServiceAccountKey string `json:"gcpServiceAccountKey,omitempty" protobuf:"bytes,13,opt,name=gcpServiceAccountKey"`
 	// EnableOCI specifies whether helm-oci support should be enabled for this repo
 	EnableOCI bool `json:"enableOCI,omitempty" protobuf:"bytes,11,opt,name=enableOCI"`
 	// Type specifies the type of the repoCreds. Can be either "git" or "helm. "git" is assumed if empty or absent.
@@ -82,6 +84,8 @@ type Repository struct {
 	Proxy string `json:"proxy,omitempty" protobuf:"bytes,19,opt,name=proxy"`
 	// Reference between project and repository that allow you automatically to be added as item inside SourceRepos project entity
 	Project string `json:"project,omitempty" protobuf:"bytes,20,opt,name=project"`
+	// GCPServiceAccountKey specifies the service account key in JSON format to be used for getting credentials to Google Cloud Source repos
+	GCPServiceAccountKey string `json:"gcpServiceAccountKey,omitempty" protobuf:"bytes,21,opt,name=gcpServiceAccountKey"`
 }
 
 // IsInsecure returns true if the repository has been configured to skip server verification
@@ -129,6 +133,9 @@ func (repo *Repository) CopyCredentialsFromRepo(source *Repository) {
 		if repo.GitHubAppEnterpriseBaseURL == "" {
 			repo.GitHubAppEnterpriseBaseURL = source.GitHubAppEnterpriseBaseURL
 		}
+		if repo.GCPServiceAccountKey == "" {
+			repo.GCPServiceAccountKey = source.GCPServiceAccountKey
+		}
 	}
 }
 
@@ -162,6 +169,9 @@ func (repo *Repository) CopyCredentialsFrom(source *RepoCreds) {
 		if repo.GitHubAppEnterpriseBaseURL == "" {
 			repo.GitHubAppEnterpriseBaseURL = source.GitHubAppEnterpriseBaseURL
 		}
+		if repo.GCPServiceAccountKey == "" {
+			repo.GCPServiceAccountKey = source.GCPServiceAccountKey
+		}
 	}
 }
 
@@ -178,6 +188,9 @@ func (repo *Repository) GetGitCreds(store git.CredsStore) git.Creds {
 	}
 	if repo.GithubAppPrivateKey != "" && repo.GithubAppId != 0 && repo.GithubAppInstallationId != 0 {
 		return git.NewGitHubAppCreds(repo.GithubAppId, repo.GithubAppInstallationId, repo.GithubAppPrivateKey, repo.GitHubAppEnterpriseBaseURL, repo.Repo, repo.TLSClientCertData, repo.TLSClientCertKey, repo.IsInsecure(), store)
+	}
+	if repo.GCPServiceAccountKey != "" {
+		return git.NewGoogleCloudCreds(repo.GCPServiceAccountKey)
 	}
 	return git.NopCreds{}
 }

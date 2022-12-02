@@ -4291,6 +4291,13 @@ func schema_pkg_apis_application_v1alpha1_RepoCreds(ref common.ReferenceCallback
 							Format:      "",
 						},
 					},
+					"gcpServiceAccountKey": {
+						SchemaProps: spec.SchemaProps{
+							Description: "GCPServiceAccountKey specifies the service account key in JSON format to be used for getting credentials to Google Cloud Source repos",
+							Type:        []string{"string"},
+							Format:      "",
+						},
+					},
 				},
 				Required: []string{"url"},
 			},
@@ -4477,6 +4484,13 @@ func schema_pkg_apis_application_v1alpha1_Repository(ref common.ReferenceCallbac
 					"project": {
 						SchemaProps: spec.SchemaProps{
 							Description: "Reference between project and repository that allow you automatically to be added as item inside SourceRepos project entity",
+							Type:        []string{"string"},
+							Format:      "",
+						},
+					},
+					"gcpServiceAccountKey": {
+						SchemaProps: spec.SchemaProps{
+							Description: "GCPServiceAccountKey specifies the service account key in JSON format to be used for getting credentials to Google Cloud Source repos",
 							Type:        []string{"string"},
 							Format:      "",
 						},

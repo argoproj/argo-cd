@@ -9411,6 +9411,13 @@ func (m *Repository) MarshalToSizedBuffer(dAtA []byte) (int, error) {
 	_ = i
 	var l int
 	_ = l
+	i -= len(m.GCPServiceAccountKey)
+	copy(dAtA[i:], m.GCPServiceAccountKey)
+	i = encodeVarintGenerated(dAtA, i, uint64(len(m.GCPServiceAccountKey)))
+	i--
+	dAtA[i] = 0x1
+	i--
+	dAtA[i] = 0xaa
 	i -= len(m.Project)
 	copy(dAtA[i:], m.Project)
 	i = encodeVarintGenerated(dAtA, i, uint64(len(m.Project)))
@@ -13801,6 +13808,8 @@ func (m *Repository) Size() (n int) {
 	n += 2 + l + sovGenerated(uint64(l))
 	l = len(m.Project)
 	n += 2 + l + sovGenerated(uint64(l))
+	l = len(m.GCPServiceAccountKey)
+	n += 2 + l + sovGenerated(uint64(l))
 	return n
 }
 
@@ -16126,6 +16135,7 @@ func (this *RepoCreds) String() string {
 		`GitHubAppEnterpriseBaseURL:` + fmt.Sprintf("%v", this.GitHubAppEnterpriseBaseURL) + `,`,
 		`EnableOCI:` + fmt.Sprintf("%v", this.EnableOCI) + `,`,
 		`Type:` + fmt.Sprintf("%v", this.Type) + `,`,
+		`GCPServiceAccountKey:` + fmt.Sprintf("%v", this.GCPServiceAccountKey) + `,`,
 		`}`,
 	}, "")
 	return s
@@ -32892,6 +32902,38 @@ func (m *RepoCreds) Unmarshal(dAtA []byte) error {
 			}
 			m.Type = string(dAtA[iNdEx:postIndex])
 			iNdEx = postIndex
+		case 13:
+			if wireType != 2 {
+				return fmt.Errorf("proto: wrong wireType = %d for field GCPServiceAccountKey", wireType)
+			}
+			var stringLen uint64
+			for shift := uint(0); ; shift += 7 {
+				if shift >= 64 {
+					return ErrIntOverflowGenerated
+				}
+				if iNdEx >= l {
+					return io.ErrUnexpectedEOF
+				}
+				b := dAtA[iNdEx]
+				iNdEx++
+				stringLen |= uint64(b&0x7F) << shift
+				if b < 0x80 {
+					break
+				}
+			}
+			intStringLen := int(stringLen)
+			if intStringLen < 0 {
+				return ErrInvalidLengthGenerated
+			}
+			postIndex := iNdEx + intStringLen
+			if postIndex < 0 {
+				return ErrInvalidLengthGenerated
+			}
+			if postIndex > l {
+				return io.ErrUnexpectedEOF
+			}
+			m.GCPServiceAccountKey = string(dAtA[iNdEx:postIndex])
+			iNdEx = postIndex
 		default:
 			iNdEx = preIndex
 			skippy, err := skipGenerated(dAtA[iNdEx:])
@@ -33613,6 +33655,38 @@ func (m *Repository) Unmarshal(dAtA []byte) error {
 				return io.ErrUnexpectedEOF
 			}
 			m.Project = string(dAtA[iNdEx:postIndex])
+			iNdEx = postIndex
+		case 21:
+			if wireType != 2 {
+				return fmt.Errorf("proto: wrong wireType = %d for field GCPServiceAccountKey", wireType)
+			}
+			var stringLen uint64
+			for shift := uint(0); ; shift += 7 {
+				if shift >= 64 {
+					return ErrIntOverflowGenerated
+				}
+				if iNdEx >= l {
+					return io.ErrUnexpectedEOF
+				}
+				b := dAtA[iNdEx]
+				iNdEx++
+				stringLen |= uint64(b&0x7F) << shift
+				if b < 0x80 {
+					break
+				}
+			}
+			intStringLen := int(stringLen)
+			if intStringLen < 0 {
+				return ErrInvalidLengthGenerated
+			}
+			postIndex := iNdEx + intStringLen
+			if postIndex < 0 {
+				return ErrInvalidLengthGenerated
+			}
+			if postIndex > l {
+				return io.ErrUnexpectedEOF
+			}
+			m.GCPServiceAccountKey = string(dAtA[iNdEx:postIndex])
 			iNdEx = postIndex
 		default:
 			iNdEx = preIndex

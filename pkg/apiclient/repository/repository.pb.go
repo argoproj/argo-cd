@@ -364,7 +364,9 @@ type RepoAccessQuery struct {
 	// HTTP/HTTPS proxy to access the repository
 	Proxy string `protobuf:"bytes,16,opt,name=proxy,proto3" json:"proxy,omitempty"`
 	// Reference between project and repository that allow you automatically to be added as item inside SourceRepos project entity
-	Project              string   `protobuf:"bytes,17,opt,name=project,proto3" json:"project,omitempty"`
+	Project string `protobuf:"bytes,17,opt,name=project,proto3" json:"project,omitempty"`
+	// Google Cloud Platform service account key
+	GcpServiceAccountKey string   `protobuf:"bytes,18,opt,name=gcpServiceAccountKey,proto3" json:"gcpServiceAccountKey,omitempty"`
 	XXX_NoUnkeyedLiteral struct{} `json:"-"`
 	XXX_unrecognized     []byte   `json:"-"`
 	XXX_sizecache        int32    `json:"-"`
@@ -511,6 +513,13 @@ func (m *RepoAccessQuery) GetProxy() string {
 func (m *RepoAccessQuery) GetProject() string {
 	if m != nil {
 		return m.Project
+	}
+	return ""
+}
+
+func (m *RepoAccessQuery) GetGcpServiceAccountKey() string {
+	if m != nil {
+		return m.GcpServiceAccountKey
 	}
 	return ""
 }
@@ -1594,6 +1603,15 @@ func (m *RepoAccessQuery) MarshalToSizedBuffer(dAtA []byte) (int, error) {
 		i -= len(m.XXX_unrecognized)
 		copy(dAtA[i:], m.XXX_unrecognized)
 	}
+	if len(m.GcpServiceAccountKey) > 0 {
+		i -= len(m.GcpServiceAccountKey)
+		copy(dAtA[i:], m.GcpServiceAccountKey)
+		i = encodeVarintRepository(dAtA, i, uint64(len(m.GcpServiceAccountKey)))
+		i--
+		dAtA[i] = 0x1
+		i--
+		dAtA[i] = 0x92
+	}
 	if len(m.Project) > 0 {
 		i -= len(m.Project)
 		copy(dAtA[i:], m.Project)
@@ -2023,6 +2041,10 @@ func (m *RepoAccessQuery) Size() (n int) {
 		n += 2 + l + sovRepository(uint64(l))
 	}
 	l = len(m.Project)
+	if l > 0 {
+		n += 2 + l + sovRepository(uint64(l))
+	}
+	l = len(m.GcpServiceAccountKey)
 	if l > 0 {
 		n += 2 + l + sovRepository(uint64(l))
 	}
@@ -3211,6 +3233,38 @@ func (m *RepoAccessQuery) Unmarshal(dAtA []byte) error {
 				return io.ErrUnexpectedEOF
 			}
 			m.Project = string(dAtA[iNdEx:postIndex])
+			iNdEx = postIndex
+		case 18:
+			if wireType != 2 {
+				return fmt.Errorf("proto: wrong wireType = %d for field GcpServiceAccountKey", wireType)
+			}
+			var stringLen uint64
+			for shift := uint(0); ; shift += 7 {
+				if shift >= 64 {
+					return ErrIntOverflowRepository
+				}
+				if iNdEx >= l {
+					return io.ErrUnexpectedEOF
+				}
+				b := dAtA[iNdEx]
+				iNdEx++
+				stringLen |= uint64(b&0x7F) << shift
+				if b < 0x80 {
+					break
+				}
+			}
+			intStringLen := int(stringLen)
+			if intStringLen < 0 {
+				return ErrInvalidLengthRepository
+			}
+			postIndex := iNdEx + intStringLen
+			if postIndex < 0 {
+				return ErrInvalidLengthRepository
+			}
+			if postIndex > l {
+				return io.ErrUnexpectedEOF
+			}
+			m.GcpServiceAccountKey = string(dAtA[iNdEx:postIndex])
 			iNdEx = postIndex
 		default:
 			iNdEx = preIndex
