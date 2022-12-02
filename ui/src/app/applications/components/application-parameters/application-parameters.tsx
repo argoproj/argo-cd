@@ -24,6 +24,9 @@ import * as kustomize from './kustomize-image';
 import {VarsInputField} from './vars-input-field';
 import {concatMaps} from '../../../shared/utils';
 import {getAppDefaultSource} from '../utils';
+import * as jsYaml from 'js-yaml';
+
+let isValuesRaw = false;
 
 const TextWithMetadataField = ReactFormField((props: {metadata: {value: string}; fieldApi: FieldApi; className: string}) => {
     const {
@@ -130,6 +133,12 @@ export const ApplicationParameters = (props: {
     const [removedOverrides, setRemovedOverrides] = React.useState(new Array<boolean>());
 
     let attributes: EditablePanelItem[] = [];
+    let appValues: string;
+    if (app && app.spec && app.spec.source && app.spec.source.helm && app.spec.source.helm.values) {
+        isValuesRaw = typeof app.spec.source.helm.values !== 'string'; // nolint
+        appValues = isValuesRaw ? jsYaml.safeDump(app.spec.source.helm.values) : app.spec.source.helm.values;
+        app.spec.source.helm.values = isValuesRaw ? jsYaml.safeDump(app.spec.source.helm.values) : app.spec.source.helm.values;
+    }
     const [appParamsDeletedState, setAppParamsDeletedState] = React.useState([]);
 
     if (props.details.type === 'Kustomize' && props.details.kustomize) {
@@ -216,7 +225,7 @@ export const ApplicationParameters = (props: {
             title: 'VALUES',
             view: source.helm && (
                 <Expandable>
-                    <pre>{source.helm.values}</pre>
+                    <pre>{appValues}</pre>
                 </Expandable>
             ),
             edit: (formApi: FormApi) => (
@@ -518,7 +527,11 @@ export const ApplicationParameters = (props: {
                         params = params.filter(param => !appParamsDeletedState.includes(param.name));
                         input.spec.source.plugin.parameters = params;
                     }
-
+                    if (input.spec.source.helm && input.spec.source.helm.values) {
+                        if (isValuesRaw) {
+                            input.spec.source.helm.values = jsYaml.safeLoad(input.spec.source.helm.values); // Load values as json
+                        }
+                    }
                     await props.save(input, {});
                     setRemovedOverrides(new Array<boolean>());
                 })
