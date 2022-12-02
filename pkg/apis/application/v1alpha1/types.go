@@ -282,10 +282,6 @@ func (a *ApplicationSource) GetRefVariableName(namespace, appName string) string
 	return fmt.Sprintf("$%s_%s_%s", namespace, appName, a.Ref)
 }
 
-func (a *ApplicationSource) GetRefVariableName(namespace, appName string) string {
-	return fmt.Sprintf("$%s_%s_%s", namespace, appName, a.Ref)
-}
-
 // ApplicationSourceHelm holds helm specific options
 type ApplicationSourceHelm struct {
 	// ValuesFiles is a list of Helm value files to use when generating a template

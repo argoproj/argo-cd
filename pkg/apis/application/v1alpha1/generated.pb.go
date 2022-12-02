@@ -2422,10 +2422,10 @@ func (*RefTargeRevisionMapping) ProtoMessage() {}
 func (*RefTargeRevisionMapping) Descriptor() ([]byte, []int) {
 	return fileDescriptor_030104ce3b95bcac, []int{84}
 }
-func (m *RefTargeRevisionMapping) XXX_Unmarshal(b []byte) error {
+func (m *RefTarget) XXX_Unmarshal(b []byte) error {
 	return m.Unmarshal(b)
 }
-func (m *RefTargeRevisionMapping) XXX_Marshal(b []byte, deterministic bool) ([]byte, error) {
+func (m *RefTarget) XXX_Marshal(b []byte, deterministic bool) ([]byte, error) {
 	b = b[:cap(b)]
 	n, err := m.MarshalToSizedBuffer(b)
 	if err != nil {
@@ -2433,17 +2433,17 @@ func (m *RefTargeRevisionMapping) XXX_Marshal(b []byte, deterministic bool) ([]b
 	}
 	return b[:n], nil
 }
-func (m *RefTargeRevisionMapping) XXX_Merge(src proto.Message) {
-	xxx_messageInfo_RefTargeRevisionMapping.Merge(m, src)
+func (m *RefTarget) XXX_Merge(src proto.Message) {
+	xxx_messageInfo_RefTarget.Merge(m, src)
 }
-func (m *RefTargeRevisionMapping) XXX_Size() int {
+func (m *RefTarget) XXX_Size() int {
 	return m.Size()
 }
-func (m *RefTargeRevisionMapping) XXX_DiscardUnknown() {
-	xxx_messageInfo_RefTargeRevisionMapping.DiscardUnknown(m)
+func (m *RefTarget) XXX_DiscardUnknown() {
+	xxx_messageInfo_RefTarget.DiscardUnknown(m)
 }
 
-var xxx_messageInfo_RefTargeRevisionMapping proto.InternalMessageInfo
+var xxx_messageInfo_RefTarget proto.InternalMessageInfo
 
 func (m *RepoCreds) Reset()      { *m = RepoCreds{} }
 func (*RepoCreds) ProtoMessage() {}
@@ -4929,7 +4929,6 @@ func (m *ApplicationSet) MarshalToSizedBuffer(dAtA []byte) (int, error) {
 	{
 		size, err := m.Status.MarshalToSizedBuffer(dAtA[:i])
 		if err != nil {
-			return 0, err
 		}
 		i -= size
 		i = encodeVarintGenerated(dAtA, i, uint64(size))

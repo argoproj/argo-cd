@@ -436,7 +436,7 @@ func (s *Service) GenerateManifest(ctx context.Context, q *apiclient.ManifestReq
 	var res *apiclient.ManifestResponse
 	var err error
 	cacheFn := func(cacheKey string, firstInvocation bool) (bool, error) {
-		ok, resp, err := s.getManifestCacheEntry(cacheKey, q, q.ApplicationSource, firstInvocation)
+		ok, resp, err := s.getManifestCacheEntry(cacheKey, q, firstInvocation)
 		res = resp
 		return ok, err
 	}
@@ -608,8 +608,6 @@ func (s *Service) runManifestGenAsync(ctx context.Context, repoRoot, commitSHA, 
 	// GenerateManifests mutates the source (applies overrides). Those overrides shouldn't be reflected in the cache
 	// key. Overrides will break the cache anyway, because changes to overrides will change the revision.
 	appSourceCopy := q.ApplicationSource.DeepCopy()
-
-	repoLocks := make(map[string]goio.Closer)
 
 	var manifestGenResult *apiclient.ManifestResponse
 	opContext, err := opContextSrc()
