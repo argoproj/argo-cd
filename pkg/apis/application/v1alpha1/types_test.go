@@ -1,6 +1,7 @@
 package v1alpha1
 
 import (
+	"encoding/json"
 	"errors"
 	fmt "fmt"
 	"os"
@@ -11,6 +12,7 @@ import (
 	"time"
 
 	argocdcommon "github.com/argoproj/argo-cd/v2/common"
+	"github.com/stretchr/testify/require"
 	"k8s.io/utils/pointer"
 
 	"github.com/argoproj/gitops-engine/pkg/sync/common"
@@ -3158,3 +3160,84 @@ func Test_RBACName(t *testing.T) {
 		assert.Equal(t, "default/test-app", a.RBACName("argocd"))
 	})
 }
+
+func TestApplicationSourcePluginParameters_Environ_string(t *testing.T) {
+	params := ApplicationSourcePluginParameters{
+		{
+			Name: "version",
+			String_: pointer.String("1.2.3"),
+		},
+	}
+	environ, err := params.Environ()
+	require.NoError(t, err)
+	assert.Len(t, environ, 2)
+	assert.Contains(t, environ, "PARAM_VERSION=1.2.3")
+	paramsJson, err := json.Marshal(params)
+	require.NoError(t, err)
+	assert.Contains(t, environ, fmt.Sprintf("ARGOCD_APP_PARAMETERS=%s", paramsJson))
+}
+
+func TestApplicationSourcePluginParameters_Environ_array(t *testing.T) {
+	params := ApplicationSourcePluginParameters{
+		{
+			Name: "dependencies",
+			Array: []string{"redis", "minio"},
+		},
+	}
+	environ, err := params.Environ()
+	require.NoError(t, err)
+	assert.Len(t, environ, 3)
+	assert.Contains(t, environ, "PARAM_DEPENDENCIES_0=redis")
+	assert.Contains(t, environ, "PARAM_DEPENDENCIES_1=minio")
+	paramsJson, err := json.Marshal(params)
+	require.NoError(t, err)
+	assert.Contains(t, environ, fmt.Sprintf("ARGOCD_APP_PARAMETERS=%s", paramsJson))
+}
+
+func TestApplicationSourcePluginParameters_Environ_map(t *testing.T) {
+	params := ApplicationSourcePluginParameters{
+		{
+			Name: "helm-parameters",
+			Map: map[string]string{
+				"image.repo": "quay.io/argoproj/argo-cd",
+				"image.tag": "v2.4.0",
+			},
+		},
+	}
+	environ, err := params.Environ()
+	require.NoError(t, err)
+	assert.Len(t, environ, 3)
+	assert.Contains(t, environ, "PARAM_HELM_PARAMETERS_IMAGE_REPO=quay.io/argoproj/argo-cd")
+	assert.Contains(t, environ, "PARAM_HELM_PARAMETERS_IMAGE_TAG=v2.4.0")
+	paramsJson, err := json.Marshal(params)
+	require.NoError(t, err)
+	assert.Contains(t, environ, fmt.Sprintf("ARGOCD_APP_PARAMETERS=%s", paramsJson))
+}
+
+func TestApplicationSourcePluginParameters_Environ_all(t *testing.T) {
+	// Technically there's no rule against specifying multiple types as values. It's up to the CMP how to handle them.
+	// Name collisions can happen for the convenience env vars. When in doubt, CMP authors should use the JSON env var.
+	params := ApplicationSourcePluginParameters{
+		{
+			Name: "some-name",
+			String_: pointer.String("1.2.3"),
+			Array: []string{"redis", "minio"},
+			Map: map[string]string{
+				"image.repo": "quay.io/argoproj/argo-cd",
+				"image.tag": "v2.4.0",
+			},
+		},
+	}
+	environ, err := params.Environ()
+	require.NoError(t, err)
+	assert.Len(t, environ, 6)
+	assert.Contains(t, environ, "PARAM_SOME_NAME=1.2.3")
+	assert.Contains(t, environ, "PARAM_SOME_NAME_0=redis")
+	assert.Contains(t, environ, "PARAM_SOME_NAME_1=minio")
+	assert.Contains(t, environ, "PARAM_SOME_NAME_IMAGE_REPO=quay.io/argoproj/argo-cd")
+	assert.Contains(t, environ, "PARAM_SOME_NAME_IMAGE_TAG=v2.4.0")
+	paramsJson, err := json.Marshal(params)
+	require.NoError(t, err)
+	assert.Contains(t, environ, fmt.Sprintf("ARGOCD_APP_PARAMETERS=%s", paramsJson))
+}
+
