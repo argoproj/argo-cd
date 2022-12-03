@@ -397,38 +397,6 @@ func (h *ApplicationSourceHelm) IsZero() bool {
 	return h == nil || (h.Version == "") && (h.ReleaseName == "") && len(h.ValueFiles) == 0 && len(h.Parameters) == 0 && len(h.FileParameters) == 0 && h.ValuesIsEmpty() && !h.PassCredentials && !h.IgnoreMissingValueFiles && !h.SkipCrds
 }
 
-func (h *ApplicationSourceHelm) SetValuesString(value string) error {
-	if value == "" {
-		h.Values = nil
-	} else {
-		h.Values = &runtime.RawExtension{Raw: []byte(value)}
-	}
-	return nil
-}
-
-func (h *ApplicationSourceHelm) ValuesYAML() []byte {
-	if h.Values == nil || h.Values.Raw == nil {
-		return []byte{}
-	}
-	b, err := yaml.JSONToYAML(h.Values.Raw)
-	if err != nil {
-		// This should be impossible, because rawValue isn't set directly.
-		return []byte{}
-	}
-	return b
-}
-
-func (h *ApplicationSourceHelm) ValuesIsEmpty() bool {
-	return len(h.ValuesYAML()) == 0
-}
-
-func (h *ApplicationSourceHelm) ValuesString() string {
-	if h.Values == nil || h.Values.Raw == nil {
-		return ""
-	}
-	return strings.TrimSuffix(string(h.ValuesYAML()), "\n")
-}
-
 // KustomizeImage represents a Kustomize image definition in the format [old_image_name=]<image_name>:<image_tag>
 type KustomizeImage string
 
