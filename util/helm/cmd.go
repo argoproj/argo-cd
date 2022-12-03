@@ -119,6 +119,10 @@ func (c *Cmd) RepoAdd(name string, url string, opts Creds, passCredentials bool)
 		args = append(args, "--password", opts.Password)
 	}
 
+	if opts.CAPath != "" {
+		args = append(args, "--ca-file", opts.CAPath)
+	}
+
 	if opts.InsecureSkipVerify && c.insecureSkipVerifySupported {
 		args = append(args, "--insecure-skip-tls-verify")
 	}
