@@ -418,6 +418,22 @@ message ApplicationSourcePlugin {
   optional string name = 1;
 
   repeated EnvEntry env = 2;
+
+  repeated ApplicationSourcePluginParameter parameters = 3;
+}
+
+message ApplicationSourcePluginParameter {
+  // Name is the name identifying a parameter.
+  optional string name = 1;
+
+  // String_ is the value of a string type parameter.
+  optional string string = 5;
+
+  // Map is the value of a map type parameter.
+  map<string, string> map = 3;
+
+  // Array is the value of an array type parameter.
+  repeated string array = 4;
 }
 
 // ApplicationSpec represents desired application state. Contains link to repository with application definition and additional parameters link definition revision.

@@ -39,14 +39,14 @@ kubectl delete app APPNAME
 
 # About The Deletion Finalizer
 
-For the technical amongst you, the Argo CD application controller watches for this finalizer:
-
 ```yaml
 metadata:
   finalizers:
     - resources-finalizer.argocd.argoproj.io
 ```
 
-Argo CD's app controller watches for this and will then delete both the app and its resources.
+When deleting an Application with this finalizer, the Argo CD application controller will perform a cascading delete of the Application's resources.
+
+Adding the finalizer enables cascading deletes when implementing [the App of Apps pattern](../operator-manual/cluster-bootstrapping.md#cascading-deletion).
 
 When you invoke `argocd app delete` with `--cascade`, the finalizer is added automatically.
