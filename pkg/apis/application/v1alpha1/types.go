@@ -398,12 +398,16 @@ func (h *ApplicationSourceHelm) IsZero() bool {
 }
 
 func (h *ApplicationSourceHelm) SetValuesString(value string) error {
-	h.Values = &runtime.RawExtension{Raw: []byte(value)}
+	if value == "" {
+		h.Values = nil
+	} else {
+		h.Values = &runtime.RawExtension{Raw: []byte(value)}
+	}
 	return nil
 }
 
 func (h *ApplicationSourceHelm) ValuesYAML() []byte {
-	if h.Values == nil {
+	if h.Values == nil || h.Values.Raw == nil {
 		return []byte{}
 	}
 	b, err := yaml.JSONToYAML(h.Values.Raw)
@@ -419,7 +423,10 @@ func (h *ApplicationSourceHelm) ValuesIsEmpty() bool {
 }
 
 func (h *ApplicationSourceHelm) ValuesString() string {
-	return string(h.ValuesYAML())
+	if h.Values == nil || h.Values.Raw == nil {
+		return ""
+	}
+	return strings.TrimSuffix(string(h.ValuesYAML()), "\n")
 }
 
 // KustomizeImage represents a Kustomize image definition in the format [old_image_name=]<image_name>:<image_tag>
