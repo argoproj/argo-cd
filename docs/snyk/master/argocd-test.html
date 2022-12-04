@@ -7,7 +7,7 @@
   <meta name="viewport" content="width=device-width, initial-scale=1.0">
   <meta http-equiv="X-UA-Compatible" content="IE=edge">
   <title>Snyk test report</title>
-  <meta name="description" content="5 known vulnerabilities found in 9 vulnerable dependency paths.">
+  <meta name="description" content="4 known vulnerabilities found in 5 vulnerable dependency paths.">
   <base target="_blank">
   <link rel="icon" type="image/png" href="https://res.cloudinary.com/snyk/image/upload/v1468845142/favicon/favicon.png"
     sizes="194x194">
@@ -456,7 +456,7 @@
               <div class="header-wrap">
                   <h1 class="project__header__title">Snyk test report</h1>
     
-                <p class="timestamp">November 13th 2022, 12:15:47 am</p>
+                <p class="timestamp">December 4th 2022, 3:16:39 am</p>
               </div>
               <div class="source-panel">
                 <span>Scanned the following paths:</span>
@@ -466,9 +466,9 @@
               </div>
     
               <div class="meta-counts">
-                <div class="meta-count"><span>5</span> <span>known vulnerabilities</span></div>
-                <div class="meta-count"><span>9 vulnerable dependency paths</span></div>
-                <div class="meta-count"><span>1721</span> <span>dependencies</span></div>
+                <div class="meta-count"><span>4</span> <span>known vulnerabilities</span></div>
+                <div class="meta-count"><span>5 vulnerable dependency paths</span></div>
+                <div class="meta-count"><span>1734</span> <span>dependencies</span></div>
               </div><!-- .meta-counts -->
             </div><!-- .layout-container--short -->
           </header><!-- .project__header -->
@@ -873,122 +873,6 @@
         
             <div class="cta card__cta">
                 <p><a href="https://snyk.io/vuln/SNYK-GOLANG-GOMONGODBORGMONGODRIVERBSONBSONRW-1303393">More about this vulnerability</a></p>
-            </div>
-        
-        </div><!-- .card -->
-        <div class="card card--vuln  disclosure--not-new severity--medium" data-snyk-test="medium">
-            <h2 class="card__title">Insecure Randomness</h2>
-            <div class="card__section">
-        
-                <div class="label label--medium">
-                    <span class="label__text">medium severity</span>
-                </div>
-        
-                <hr/>
-        
-                <ul class="card__meta">
-                    <li class="card__meta__item">
-                        Package Manager: golang
-                    </li>
-                    <li class="card__meta__item">
-                            Vulnerable module:
-        
-                            github.com/Masterminds/goutils
-                    </li>
-        
-                    <li class="card__meta__item">Introduced through:
-        
-        
-                                    github.com/argoproj/argo-cd/v2@0.0.0, github.com/Masterminds/sprig@2.22.0 and others
-                    </li>
-                </ul>
-        
-                <hr/>
-        
-        
-                        <h3 class="card__section__title">Detailed paths</h3>
-        
-                    <ul class="card__meta__paths">
-                                <li>
-                                <span class="list-paths__item__introduced"><em>Introduced through</em>:
-                                        github.com/argoproj/argo-cd/v2@0.0.0
-                                         <span class="list-paths__item__arrow">›</span> 
-                                        github.com/Masterminds/sprig@2.22.0
-                                         <span class="list-paths__item__arrow">›</span> 
-                                        github.com/Masterminds/goutils@1.1.0
-                                        
-                                </span>
-        
-                            </li>
-                                <li>
-                                <span class="list-paths__item__introduced"><em>Introduced through</em>:
-                                        github.com/argoproj/argo-cd/v2@0.0.0
-                                         <span class="list-paths__item__arrow">›</span> 
-                                        github.com/argoproj/notifications-engine/pkg/api@#4d8552b0775f
-                                         <span class="list-paths__item__arrow">›</span> 
-                                        github.com/argoproj/notifications-engine/pkg/templates@#4d8552b0775f
-                                         <span class="list-paths__item__arrow">›</span> 
-                                        github.com/Masterminds/sprig@2.22.0
-                                         <span class="list-paths__item__arrow">›</span> 
-                                        github.com/Masterminds/goutils@1.1.0
-                                        
-                                </span>
-        
-                            </li>
-                                <li>
-                                <span class="list-paths__item__introduced"><em>Introduced through</em>:
-                                        github.com/argoproj/argo-cd/v2@0.0.0
-                                         <span class="list-paths__item__arrow">›</span> 
-                                        github.com/argoproj/notifications-engine/pkg/cmd@#4d8552b0775f
-                                         <span class="list-paths__item__arrow">›</span> 
-                                        github.com/argoproj/notifications-engine/pkg/api@#4d8552b0775f
-                                         <span class="list-paths__item__arrow">›</span> 
-                                        github.com/argoproj/notifications-engine/pkg/templates@#4d8552b0775f
-                                         <span class="list-paths__item__arrow">›</span> 
-                                        github.com/Masterminds/sprig@2.22.0
-                                         <span class="list-paths__item__arrow">›</span> 
-                                        github.com/Masterminds/goutils@1.1.0
-                                        
-                                </span>
-        
-                            </li>
-                                <li>
-                                <span class="list-paths__item__introduced"><em>Introduced through</em>:
-                                        github.com/argoproj/argo-cd/v2@0.0.0
-                                         <span class="list-paths__item__arrow">›</span> 
-                                        github.com/argoproj/notifications-engine/pkg/controller@#4d8552b0775f
-                                         <span class="list-paths__item__arrow">›</span> 
-                                        github.com/argoproj/notifications-engine/pkg/api@#4d8552b0775f
-                                         <span class="list-paths__item__arrow">›</span> 
-                                        github.com/argoproj/notifications-engine/pkg/templates@#4d8552b0775f
-                                         <span class="list-paths__item__arrow">›</span> 
-                                        github.com/Masterminds/sprig@2.22.0
-                                         <span class="list-paths__item__arrow">›</span> 
-                                        github.com/Masterminds/goutils@1.1.0
-                                        
-                                </span>
-        
-                            </li>
-                    </ul><!-- .list-paths -->
-        
-            </div><!-- .card__section -->
-        
-              <hr/>
-              <!-- Overview -->
-              <h2 id="overview">Overview</h2>
-        <p><a href="https://pkg.go.dev/github.com/masterminds/goutils">github.com/masterminds/goutils</a> is a provides users with utility functions to manipulate strings in various ways.</p>
-        <p>Affected versions of this package are vulnerable to Insecure Randomness via the <code>RandomAlphaNumeric(int)</code> and <code>CryptoRandomAlphaNumeric(int)</code> functions. Small values of <code>int</code> in the functions above will return a smaller subset of results than they should. For example, <code>RandomAlphaNumeric(1)</code> would always return a digit in the 0-9 range, while <code>RandomAlphaNumeric(4)</code> return around ~7 million of the ~13M possible permutations.</p>
-        <h2 id="remediation">Remediation</h2>
-        <p>Upgrade <code>github.com/masterminds/goutils</code> to version 1.1.1 or higher.</p>
-        <h2 id="references">References</h2>
-        <ul>
-        <li><a href="https://github.com/Masterminds/goutils/commit/f1923532a168b8203bfe956d8cd3b17ebece5982">GitHub Commit</a></li>
-        </ul>
-        
-              <hr/>
-        
-            <div class="cta card__cta">
-                <p><a href="https://snyk.io/vuln/SNYK-GOLANG-GITHUBCOMMASTERMINDSGOUTILS-1296313">More about this vulnerability</a></p>
             </div>
         
         </div><!-- .card -->
