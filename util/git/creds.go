@@ -450,11 +450,11 @@ func NewGoogleCloudCreds(jsonData string) GoogleCloudCreds {
 func (c GoogleCloudCreds) Environ() (io.Closer, []string, error) {
 	username, err := c.getUsername()
 	if err != nil {
-		return NopCloser{}, nil, err
+		return NopCloser{}, nil, fmt.Errorf("failed to get username from creds: %w", err)
 	}
 	token, err := c.getAccessToken()
 	if err != nil {
-		return NopCloser{}, nil, err
+		return NopCloser{}, nil, fmt.Errorf("failed to get access token from creds: %w", err)
 	}
 
 	env := []string{fmt.Sprintf("GIT_ASKPASS=%s", "git-ask-pass.sh"), fmt.Sprintf("GIT_USERNAME=%s", username), fmt.Sprintf("GIT_PASSWORD=%s", token)}
@@ -481,7 +481,7 @@ func (c GoogleCloudCreds) getUsername() (string, error) {
 
 	var f googleCredentialsFile
 	if err := json.Unmarshal(c.creds.JSON, &f); err != nil {
-		return "", err
+		return "", fmt.Errorf("failed to unmarshal Google Cloud credentials: %w", err)
 	}
 	return f.ClientEmail, nil
 }
@@ -495,7 +495,7 @@ func (c GoogleCloudCreds) getAccessToken() (string, error) {
 	h := sha256.New()
 	_, err := h.Write(c.creds.JSON)
 	if err != nil {
-		return "", err
+		return "", fmt.Errorf("failed to get get SHA256 hash for Google Cloud credentials: %w", err)
 	}
 	key := fmt.Sprintf("%x", h.Sum(nil))
 
@@ -504,7 +504,7 @@ func (c GoogleCloudCreds) getAccessToken() (string, error) {
 		ts := t.(*oauth2.TokenSource)
 		token, err := (*ts).Token()
 		if err != nil {
-			return "", err
+			return "", fmt.Errorf("failed to get token from Google Cloud token source: %w", err)
 		}
 		return token.AccessToken, nil
 	}
@@ -517,7 +517,7 @@ func (c GoogleCloudCreds) getAccessToken() (string, error) {
 
 	token, err := ts.Token()
 	if err != nil {
-		return "", err
+		return "", fmt.Errorf("failed to get Google Cloud token from token store: %w", err)
 	}
 
 	return token.AccessToken, nil

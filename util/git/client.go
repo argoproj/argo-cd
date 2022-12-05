@@ -278,11 +278,11 @@ func newAuth(repoURL string, credsObj Creds) (transport.AuthMethod, error) {
 	case GoogleCloudCreds:
 		username, err := creds.getUsername()
 		if err != nil {
-			return nil, err
+			return nil, fmt.Errorf("failed to get username from creds: %w", err)
 		}
 		token, err := creds.getAccessToken()
 		if err != nil {
-			return nil, err
+			return nil, fmt.Errorf("failed to get access token from creds: %w", err)
 		}
 
 		auth := githttp.BasicAuth{Username: username, Password: token}
