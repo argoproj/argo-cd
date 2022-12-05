@@ -40,6 +40,7 @@ func GetOpenAPIDefinitions(ref common.ReferenceCallback) map[string]common.OpenA
 		"github.com/argoproj/argo-cd/v2/pkg/apis/application/v1alpha1.ApplicationSourceJsonnet":            schema_pkg_apis_application_v1alpha1_ApplicationSourceJsonnet(ref),
 		"github.com/argoproj/argo-cd/v2/pkg/apis/application/v1alpha1.ApplicationSourceKustomize":          schema_pkg_apis_application_v1alpha1_ApplicationSourceKustomize(ref),
 		"github.com/argoproj/argo-cd/v2/pkg/apis/application/v1alpha1.ApplicationSourcePlugin":             schema_pkg_apis_application_v1alpha1_ApplicationSourcePlugin(ref),
+		"github.com/argoproj/argo-cd/v2/pkg/apis/application/v1alpha1.ApplicationSourcePluginParameter":    schema_pkg_apis_application_v1alpha1_ApplicationSourcePluginParameter(ref),
 		"github.com/argoproj/argo-cd/v2/pkg/apis/application/v1alpha1.ApplicationSpec":                     schema_pkg_apis_application_v1alpha1_ApplicationSpec(ref),
 		"github.com/argoproj/argo-cd/v2/pkg/apis/application/v1alpha1.ApplicationStatus":                   schema_pkg_apis_application_v1alpha1_ApplicationStatus(ref),
 		"github.com/argoproj/argo-cd/v2/pkg/apis/application/v1alpha1.ApplicationSummary":                  schema_pkg_apis_application_v1alpha1_ApplicationSummary(ref),
@@ -1551,11 +1552,81 @@ func schema_pkg_apis_application_v1alpha1_ApplicationSourcePlugin(ref common.Ref
 							},
 						},
 					},
+					"parameters": {
+						SchemaProps: spec.SchemaProps{
+							Type: []string{"array"},
+							Items: &spec.SchemaOrArray{
+								Schema: &spec.Schema{
+									SchemaProps: spec.SchemaProps{
+										Default: map[string]interface{}{},
+										Ref:     ref("github.com/argoproj/argo-cd/v2/pkg/apis/application/v1alpha1.ApplicationSourcePluginParameter"),
+									},
+								},
+							},
+						},
+					},
 				},
 			},
 		},
 		Dependencies: []string{
-			"github.com/argoproj/argo-cd/v2/pkg/apis/application/v1alpha1.EnvEntry"},
+			"github.com/argoproj/argo-cd/v2/pkg/apis/application/v1alpha1.ApplicationSourcePluginParameter", "github.com/argoproj/argo-cd/v2/pkg/apis/application/v1alpha1.EnvEntry"},
+	}
+}
+
+func schema_pkg_apis_application_v1alpha1_ApplicationSourcePluginParameter(ref common.ReferenceCallback) common.OpenAPIDefinition {
+	return common.OpenAPIDefinition{
+		Schema: spec.Schema{
+			SchemaProps: spec.SchemaProps{
+				Type: []string{"object"},
+				Properties: map[string]spec.Schema{
+					"name": {
+						SchemaProps: spec.SchemaProps{
+							Description: "Name is the name identifying a parameter.",
+							Type:        []string{"string"},
+							Format:      "",
+						},
+					},
+					"string": {
+						SchemaProps: spec.SchemaProps{
+							Description: "String_ is the value of a string type parameter.",
+							Type:        []string{"string"},
+							Format:      "",
+						},
+					},
+					"map": {
+						SchemaProps: spec.SchemaProps{
+							Description: "Map is the value of a map type parameter.",
+							Type:        []string{"object"},
+							AdditionalProperties: &spec.SchemaOrBool{
+								Allows: true,
+								Schema: &spec.Schema{
+									SchemaProps: spec.SchemaProps{
+										Default: "",
+										Type:    []string{"string"},
+										Format:  "",
+									},
+								},
+							},
+						},
+					},
+					"array": {
+						SchemaProps: spec.SchemaProps{
+							Description: "Array is the value of an array type parameter.",
+							Type:        []string{"array"},
+							Items: &spec.SchemaOrArray{
+								Schema: &spec.Schema{
+									SchemaProps: spec.SchemaProps{
+										Default: "",
+										Type:    []string{"string"},
+										Format:  "",
+									},
+								},
+							},
+						},
+					},
+				},
+			},
+		},
 	}
 }
 
