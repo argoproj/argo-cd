@@ -901,6 +901,13 @@ type RevisionMetadata struct {
 	SignatureInfo string `json:"signatureInfo,omitempty" protobuf:"bytes,5,opt,name=signatureInfo"`
 }
 
+// ChartDetails contains helm chart metadata for a specific version
+type ChartDetails struct {
+	Description string `json:"description" protobuf:"bytes,1,opt,name=description"`
+	// Home string
+	Maintainers string `protobuf:"bytes,2,opt,name=maintainers"`
+}
+
 // SyncOperationResult represent result of sync operation
 type SyncOperationResult struct {
 	// Resources contains a list of sync result items for each individual resource in a sync operation

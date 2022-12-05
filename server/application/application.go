@@ -1428,6 +1428,10 @@ func (s *Server) RevisionMetadata(ctx context.Context, q *application.RevisionMe
 	})
 }
 
+func (s *Server) ChartDetails(ctx context.Context, q *application.RevisionMetadataQuery) (*appv1.RevisionMetadata, error) {
+	return nil, fmt.Errorf("not implemented")
+}
+
 func isMatchingResource(q *application.ResourcesQuery, key kube.ResourceKey) bool {
 	return (q.GetName() == "" || q.GetName() == key.Name) &&
 		(q.GetNamespace() == "" || q.GetNamespace() == key.Namespace) &&

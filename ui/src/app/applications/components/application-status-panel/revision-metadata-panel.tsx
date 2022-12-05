@@ -4,12 +4,30 @@ import {Timestamp} from '../../../shared/components/timestamp';
 import {services} from '../../../shared/services';
 
 export const RevisionMetadataPanel = (props: {appName: string; appNamespace: string; type: string; revision: string}) => {
-    if (props.type === 'helm') {
-        return <React.Fragment />;
-    }
     return (
         <DataLoader load={() => services.applications.revisionMetadata(props.appName, props.appNamespace, props.revision)} errorRenderer={() => <div />}>
             {m => (
+                props.type === 'helm' ?
+                <Tooltip
+                    popperOptions={{
+                        modifiers: {
+                            preventOverflow: {
+                                enabled: false
+                            },
+                            hide: {
+                                enabled: false
+                            },
+                            flip: {
+                                enabled: false
+                            }
+                        }
+                    }}
+                    content={
+                        <span>yo helm</span>
+                    }
+                    placement='bottom'
+                    allowHTML={true}/>
+                :
                 <Tooltip
                     popperOptions={{
                         modifiers: {
