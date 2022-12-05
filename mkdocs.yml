@@ -67,6 +67,7 @@ nav:
       - operator-manual/notifications/services/googlechat.md
       - operator-manual/notifications/services/grafana.md
       - operator-manual/notifications/services/mattermost.md
+      - operator-manual/notifications/services/newrelic.md
       - operator-manual/notifications/services/opsgenie.md
       - operator-manual/notifications/services/overview.md
       - operator-manual/notifications/services/pagerduty.md
@@ -75,6 +76,7 @@ nav:
       - operator-manual/notifications/services/slack.md
       - operator-manual/notifications/services/teams.md
       - operator-manual/notifications/services/telegram.md
+      - operator-manual/notifications/services/webex.md
       - operator-manual/notifications/services/webhook.md
   - operator-manual/troubleshooting.md
   - ApplicationSet:
