@@ -142,7 +142,7 @@ spec:
 
 If the `Replace=true` sync option is set the Argo CD will use `kubectl replace` or `kubectl create` command to apply changes.
 
-!!! danger
+!!! warning
       During the sync process, the resources will be synchronized using the 'kubectl replace/create' command.
       This sync option has the potential to be destructive and might lead to resources having to be recreated, which could cause an outage for your application.
 
