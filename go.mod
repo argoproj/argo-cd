@@ -51,7 +51,7 @@ require (
 	github.com/itchyny/gojq v0.12.9
 	github.com/jeremywohl/flatten v1.0.1
 	github.com/kballard/go-shellquote v0.0.0-20180428030007-95032a82bc51
-	github.com/ktrysmt/go-bitbucket v0.9.40
+	github.com/ktrysmt/go-bitbucket v0.9.54
 	github.com/malexdev/utfutil v0.0.0-20180510171754-00c8d4a8e7a8 // indirect
 	github.com/mattn/go-isatty v0.0.16
 	github.com/mattn/go-zglob v0.0.4
