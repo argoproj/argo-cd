@@ -7034,6 +7034,10 @@
           "type": "string",
           "title": "Password for authenticating at the repo server"
         },
+        "proxy": {
+          "type": "string",
+          "title": "Proxy specifies the HTTP/HTTPS proxy used to access repos at the repo server"
+        },
         "sshPrivateKey": {
           "type": "string",
           "title": "SSHPrivateKey contains the private key data for authenticating at the repo server using SSH (only Git repos)"
