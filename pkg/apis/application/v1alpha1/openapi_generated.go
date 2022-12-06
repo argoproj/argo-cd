@@ -4291,6 +4291,13 @@ func schema_pkg_apis_application_v1alpha1_RepoCreds(ref common.ReferenceCallback
 							Format:      "",
 						},
 					},
+					"proxy": {
+						SchemaProps: spec.SchemaProps{
+							Description: "Proxy specifies the HTTP/HTTPS proxy used to access repos at the repo server",
+							Type:        []string{"string"},
+							Format:      "",
+						},
+					},
 				},
 				Required: []string{"url"},
 			},
