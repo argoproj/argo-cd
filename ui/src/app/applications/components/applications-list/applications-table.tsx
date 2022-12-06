@@ -1,5 +1,6 @@
 import {DataLoader, DropDownMenu, Tooltip} from 'argo-ui';
 import * as React from 'react';
+import Moment from 'react-moment';
 import {Key, KeybindingContext, useNav} from 'argo-ui/v2';
 import {Cluster} from '../../../shared/components';
 import {Consumer, Context} from '../../../shared/context';
@@ -92,7 +93,16 @@ export const ApplicationsTable = (props: {
                                                     <div className=' columns small-2' />
                                                     <div className='show-for-xxlarge columns small-4'>Name:</div>
                                                     <div className='columns small-12 xxlarge-6'>
-                                                        <Tooltip content={app.metadata.name}>
+                                                        <Tooltip
+                                                            content={
+                                                                <>
+                                                                    {app.metadata.name}
+                                                                    <br />
+                                                                    <Moment fromNow={true} ago={true}>
+                                                                        {app.metadata.creationTimestamp}
+                                                                    </Moment>
+                                                                </>
+                                                            }>
                                                             <span>{app.metadata.name}</span>
                                                         </Tooltip>
                                                     </div>
@@ -118,6 +128,7 @@ export const ApplicationsTable = (props: {
                                                     </div>
                                                 </div>
                                             </div>
+
                                             <div className='columns small-2'>
                                                 <AppUtils.HealthStatusIcon state={app.status.health} /> <span>{app.status.health.status}</span> <br />
                                                 <AppUtils.ComparisonStatusIcon status={app.status.sync.status} />
