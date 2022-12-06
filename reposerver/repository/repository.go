@@ -573,6 +573,12 @@ func (s *Service) runManifestGen(ctx context.Context, repoRoot, commitSHA, cache
 	return responsePromise
 }
 
+type repoRef struct {
+	revision  string
+	commitSHA string
+	key       string
+}
+
 func (s *Service) runManifestGenAsync(ctx context.Context, repoRoot, commitSHA, cacheKey string, opContextSrc operationContextSrc, q *apiclient.ManifestRequest, ch *generateManifestCh) {
 	defer func() {
 		close(ch.errCh)
@@ -583,50 +589,67 @@ func (s *Service) runManifestGenAsync(ctx context.Context, repoRoot, commitSHA, 
 	// key. Overrides will break the cache anyway, because changes to overrides will change the revision.
 	appSourceCopy := q.ApplicationSource.DeepCopy()
 
-	repoLocks := make(map[string]goio.Closer)
-
 	var manifestGenResult *apiclient.ManifestResponse
 	opContext, err := opContextSrc()
 	if err == nil {
 		if q.HasMultipleSources {
 			if q.ApplicationSource.Helm != nil {
-				// Checkout every the referenced Source to the target revision before generating Manifests
+				repoRefs := make(map[string]repoRef)
+
+				// Checkout every one of the referenced sources to the target revision before generating Manifests
 				for _, valueFile := range q.ApplicationSource.Helm.ValueFiles {
 					if strings.HasPrefix(valueFile, "$") {
 						refVar := strings.Split(valueFile, "/")[0]
 
 						refSourceMapping, ok := q.RefSources[refVar]
 						if !ok {
+							if len(q.RefSources) == 0 {
+								ch.errCh <- fmt.Errorf("source referenced %q, but no source has a 'ref' field defined", refVar)
+							}
 							refKeys := make([]string, 0)
 							for refKey := range q.RefSources {
 								refKeys = append(refKeys, refKey)
-							}
-							if len(refKeys) == 0 {
-								ch.errCh <- fmt.Errorf("source referenced %q, but no source has a 'ref' field defined", refVar)
 							}
 							ch.errCh <- fmt.Errorf("source referenced %q, which is not one of the available sources (%s)", refVar, strings.Join(refKeys, ", "))
 							return
 						}
 						if refSourceMapping.Chart != "" {
-							log.Error("sorry, we do not support referencing a Helm chart yet")
+							log.Error("source has a 'chart' field defined, but Helm charts are not yet not supported for 'ref' sources")
 							ch.errCh <- err
 							return
 						}
-						gitClient, targetRevision, err := s.newClientResolveRevision(&refSourceMapping.Repo, refSourceMapping.TargetRevision)
-						if err != nil {
-							ch.errCh <- fmt.Errorf("failed to get git client for repo %s", q.Repo.Repo)
-							return
-						}
-						if _, ok := repoLocks[refSourceMapping.Repo.Repo]; !ok {
-							closer, err := s.repoLock.Lock(gitClient.Root(), targetRevision, true, func() (goio.Closer, error) {
-								return s.checkoutRevision(gitClient, targetRevision, s.initConstants.SubmoduleEnabled)
+						normalizedRepoURL := git.NormalizeGitURL(refSourceMapping.Repo.Repo)
+						closer, ok := repoRefs[normalizedRepoURL]
+						if ok {
+							if closer.revision != refSourceMapping.TargetRevision {
+								ch.errCh <- fmt.Errorf("cannot reference multiple revisions for the same repository (%s references %q while %s references %q)", refVar, refSourceMapping.TargetRevision, closer.key, closer.revision)
+								return
+							}
+						} else {
+							gitClient, referencedCommitSHA, err := s.newClientResolveRevision(&refSourceMapping.Repo, refSourceMapping.TargetRevision)
+							if err != nil {
+								ch.errCh <- fmt.Errorf("failed to get git client for repo %s", q.Repo.Repo)
+								return
+							}
+							if git.NormalizeGitURL(q.ApplicationSource.RepoURL) == normalizedRepoURL && commitSHA != referencedCommitSHA {
+								ch.errCh <- fmt.Errorf("cannot reference a different revision of the same repository (%s references %q which resolves to %q while the application references %q which resolves to %q)", refVar, refSourceMapping.TargetRevision, referencedCommitSHA, q.Revision, commitSHA)
+								return
+							}
+							closer, err := s.repoLock.Lock(gitClient.Root(), referencedCommitSHA, true, func() (goio.Closer, error) {
+								return s.checkoutRevision(gitClient, referencedCommitSHA, s.initConstants.SubmoduleEnabled)
 							})
 							if err != nil {
-								log.Errorf("failed to acquire lock for referenced source %s", refSourceMapping.Repo.Repo)
+								log.Errorf("failed to acquire lock for referenced source %s", normalizedRepoURL)
 								ch.errCh <- err
 								return
 							}
-							repoLocks[refSourceMapping.Repo.Repo] = closer
+							repoRefs[normalizedRepoURL] = repoRef{revision: refSourceMapping.TargetRevision, commitSHA: referencedCommitSHA, key: refVar}
+							defer func(closer goio.Closer) {
+								err := closer.Close()
+								if err != nil {
+									log.Errorf("Failed to release repo lock: %v", err)
+								}
+							}(closer)
 						}
 					}
 				}
@@ -634,10 +657,6 @@ func (s *Service) runManifestGenAsync(ctx context.Context, repoRoot, commitSHA, 
 		}
 
 		manifestGenResult, err = GenerateManifests(ctx, opContext.appPath, repoRoot, commitSHA, q, false, s.gitCredsStore, s.initConstants.MaxCombinedDirectoryManifestsSize, s.gitRepoPaths, WithCMPTarDoneChannel(ch.tarDoneCh), WithCMPTarExcludedGlobs(s.initConstants.CMPTarExcludedGlobs))
-
-		for _, closer := range repoLocks {
-			defer io.Close(closer)
-		}
 	}
 	if err != nil {
 		// If manifest generation error caching is enabled
