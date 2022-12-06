@@ -1232,6 +1232,9 @@ message RepoCreds {
 
   // Type specifies the type of the repoCreds. Can be either "git" or "helm. "git" is assumed if empty or absent.
   optional string type = 12;
+
+  // Proxy specifies the HTTP/HTTPS proxy used to access repos at the repo server
+  optional string proxy = 19;
 }
 
 // RepositoryList is a collection of Repositories.

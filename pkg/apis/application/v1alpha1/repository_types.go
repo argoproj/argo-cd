@@ -37,6 +37,8 @@ type RepoCreds struct {
 	EnableOCI bool `json:"enableOCI,omitempty" protobuf:"bytes,11,opt,name=enableOCI"`
 	// Type specifies the type of the repoCreds. Can be either "git" or "helm. "git" is assumed if empty or absent.
 	Type string `json:"type,omitempty" protobuf:"bytes,12,opt,name=type"`
+	// Proxy specifies the HTTP/HTTPS proxy used to access repos at the repo server
+	Proxy string `json:"proxy,omitempty" protobuf:"bytes,19,opt,name=proxy"`
 }
 
 // Repository is a repository holding application configurations
@@ -161,6 +163,9 @@ func (repo *Repository) CopyCredentialsFrom(source *RepoCreds) {
 		}
 		if repo.GitHubAppEnterpriseBaseURL == "" {
 			repo.GitHubAppEnterpriseBaseURL = source.GitHubAppEnterpriseBaseURL
+		}
+		if repo.Proxy == "" {
+			repo.Proxy = source.Proxy
 		}
 	}
 }
