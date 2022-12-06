@@ -391,6 +391,7 @@ func (s *secretsRepositoryBackend) secretToRepoCred(secret *corev1.Secret) (*app
 		Type:                       string(secret.Data["type"]),
 		GithubAppPrivateKey:        string(secret.Data["githubAppPrivateKey"]),
 		GitHubAppEnterpriseBaseURL: string(secret.Data["githubAppEnterpriseBaseUrl"]),
+		Proxy:                      string(secret.Data["proxy"]),
 	}
 
 	enableOCI, err := boolOrFalse(secret, "enableOCI")
@@ -431,6 +432,7 @@ func repoCredsToSecret(repoCreds *appsv1.RepoCreds, secret *corev1.Secret) {
 	updateSecretInt(secret, "githubAppID", repoCreds.GithubAppId)
 	updateSecretInt(secret, "githubAppInstallationID", repoCreds.GithubAppInstallationId)
 	updateSecretString(secret, "githubAppEnterpriseBaseUrl", repoCreds.GitHubAppEnterpriseBaseURL)
+	updateSecretString(secret, "proxy", repoCreds.Proxy)
 	addSecretMetadata(secret, common.LabelValueSecretTypeRepoCreds)
 }
 
