@@ -42,3 +42,13 @@ func (p *TempPaths) GetPath(key string) (string, error) {
 	p.paths[key] = repoPath
 	return repoPath, nil
 }
+
+// GetPathIfExists gets a path for the given key if it exists. Otherwise, returns an empty string.
+func (p *TempPaths) GetPathIfExists(key string) string {
+	p.lock.Lock()
+	defer p.lock.Unlock()
+	if val, ok := p.paths[key]; ok {
+		return val
+	}
+	return ""
+}

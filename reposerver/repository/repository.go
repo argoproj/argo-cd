@@ -923,8 +923,8 @@ func helmTemplate(appPath string, repoRoot string, env *v1alpha1.Env, q *apiclie
 				pathStrings := strings.Split(val, "/")
 				refVar := strings.Split(val, "/")[0]
 				refSourceRepo := q.RefSources[refVar].Repo.Repo
-				repoPath, err := gitRepoPaths.GetPath(refSourceRepo)
-				if err != nil {
+				repoPath := gitRepoPaths.GetPathIfExists(git.NormalizeGitURL(refSourceRepo))
+				if repoPath == "" {
 					log.Warnf("Failed to find path for ref %s", refVar)
 					continue
 				}
