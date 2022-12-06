@@ -497,7 +497,8 @@ func (mgr *SessionManager) VerifyToken(tokenString string) (jwt.Claims, string, 
 		// return a dummy claims only containing a value for the issuer, so the
 		// UI can handle expired tokens appropriately.
 		if err != nil {
-			if strings.HasPrefix(err.Error(), "oidc: token is expired") {
+			tokenExpiredError := &oidc.TokenExpiredError{}
+			if errors.As(err, &tokenExpiredError) {
 				claims = jwt.RegisteredClaims{
 					Issuer: "sso",
 				}
