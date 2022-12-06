@@ -137,7 +137,7 @@ export const ApplicationParameters = (props: {
     if (app && app.spec && app.spec.source && app.spec.source.helm && app.spec.source.helm.values) {
         isValuesRaw = typeof app.spec.source.helm.values !== 'string'; // nolint
         appValues = isValuesRaw ? jsYaml.safeDump(app.spec.source.helm.values) : app.spec.source.helm.values;
-        app.spec.source.helm.values = isValuesRaw ? jsYaml.safeDump(app.spec.source.helm.values) : app.spec.source.helm.values;
+        app.spec.source.helm.values = appValues;
     }
     const [appParamsDeletedState, setAppParamsDeletedState] = React.useState([]);
 
@@ -543,6 +543,11 @@ export const ApplicationParameters = (props: {
                 for (const fieldPath of ['spec.source.directory.jsonnet.tlas', 'spec.source.directory.jsonnet.extVars']) {
                     const invalid = ((getNestedField(updatedApp, fieldPath) || []) as Array<models.JsonnetVar>).filter(item => !item.name && !item.code);
                     errors[fieldPath] = invalid.length > 0 ? 'All fields must have name' : null;
+                }
+
+                if (updatedApp.spec.source.helm && updatedApp.spec.source.helm.values) {
+                   const parsedValues = jsYaml.safeLoad(updatedApp.spec.source.helm.values);
+                   errors['spec.source.helm.values'] =  typeof parsedValues == 'object' ? null : 'Values must be a map';
                 }
 
                 return errors;
