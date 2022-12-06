@@ -12,7 +12,7 @@ import (
 	"strings"
 	"time"
 
-	oidc "github.com/coreos/go-oidc"
+	"github.com/coreos/go-oidc/v3/oidc"
 	"github.com/golang-jwt/jwt/v4"
 	"github.com/google/uuid"
 	log "github.com/sirupsen/logrus"
@@ -419,7 +419,7 @@ func (mgr *SessionManager) VerifyUsernamePassword(username string, password stri
 			// introduces random delay to protect from timing-based user enumeration attack
 			delayNanoseconds := verificationDelayNoiseMin.Nanoseconds() +
 				int64(rand.Intn(int(verificationDelayNoiseMax.Nanoseconds()-verificationDelayNoiseMin.Nanoseconds())))
-				// take into account amount of time spent since the request start
+			// take into account amount of time spent since the request start
 			delayNanoseconds = delayNanoseconds - time.Since(start).Nanoseconds()
 			if delayNanoseconds > 0 {
 				mgr.sleep(time.Duration(delayNanoseconds))
