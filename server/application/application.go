@@ -1896,33 +1896,21 @@ func (s *Server) Rollback(ctx context.Context, rollbackReq *application.Applicat
 func (s *Server) ListLinks(ctx context.Context, req *application.ListAppLinksRequest) (*application.LinksResponse, error) {
 	appName := req.GetName()
 	appNs := s.appNamespaceOrDefault(req.GetNamespace())
-	appProject := req.GetProject()
-
-	if err := s.enf.EnforceErr(ctx.Value("claims"), rbacpolicy.ResourceApplications, rbacpolicy.ActionGet, getRBACName(s.ns, appNs, appName, appProject)); err != nil {
-		log.WithFields(map[string]interface{}{
-			"application": appName,
-			"ns":          appNs,
-			"project":     appProject,
-		}).Warnf("unauthorized access to app, error=%v", err.Error())
-		return nil, fmt.Errorf("error getting application")
-	}
 
 	a, err := s.appclientset.ArgoprojV1alpha1().Applications(appNs).Get(ctx, appName, metav1.GetOptions{})
 	if err != nil {
 		log.WithFields(map[string]interface{}{
 			"application": appName,
 			"ns":          appNs,
-			"project":     appProject,
 		}).Errorf("failed to get application, error=%v", err.Error())
 		return nil, fmt.Errorf("error getting application")
 	}
 
-	if a.Spec.GetProject() != req.GetProject() {
+	if err := s.enf.EnforceErr(ctx.Value("claims"), rbacpolicy.ResourceApplications, rbacpolicy.ActionGet, a.RBACName(s.ns)); err != nil {
 		log.WithFields(map[string]interface{}{
-			"application": a.Name,
+			"application": appName,
 			"ns":          appNs,
-			"project":     appProject,
-		}).Warnf("unauthorized access to app, app project %v does not match requested project %v", a.Spec.GetProject(), appProject)
+		}).Warnf("unauthorized access to app, error=%v", err.Error())
 		return nil, fmt.Errorf("error getting application")
 	}
 
@@ -2364,12 +2352,4 @@ func (s *Server) isNamespaceEnabled(namespace string) bool {
 
 func namespaceNotPermittedError(namespace string) error {
 	return fmt.Errorf("namespace '%s' is not permitted", namespace)
-}
-
-func getRBACName(defaultNS, appNamespace, appName, projectName string) string {
-	if defaultNS != "" && appNamespace != defaultNS && appNamespace != "" {
-		return fmt.Sprintf("%s/%s/%s", projectName, appNamespace, appName)
-	} else {
-		return fmt.Sprintf("%s/%s", projectName, appName)
-	}
 }

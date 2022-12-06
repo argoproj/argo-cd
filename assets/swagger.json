@@ -751,11 +751,6 @@
           },
           {
             "type": "string",
-            "name": "project",
-            "in": "query"
-          },
-          {
-            "type": "string",
             "name": "namespace",
             "in": "query"
           }

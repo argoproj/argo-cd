@@ -277,7 +277,6 @@ message LinksResponse {
 
 message ListAppLinksRequest {
 	required string name = 1;
-	required string project = 2;
 	optional string namespace = 3;
 }
 
