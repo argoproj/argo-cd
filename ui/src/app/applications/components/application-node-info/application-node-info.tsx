@@ -69,7 +69,7 @@ export const ApplicationNodeInfo = (props: {
                                                         : container.started
                                                         ? ('Progressing' as HealthStatusCode)
                                                         : ('Degraded' as HealthStatusCode),
-                                                    message: container.state.waiting ? container.state.waiting.reason : 'Healthy'
+                                                    message: ''
                                                 }}
                                             />{' '}
                                             {container.name} {failurereason && `-- container is failing because of ${failurereason}`}
