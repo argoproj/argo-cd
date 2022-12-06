@@ -45,6 +45,9 @@ spec:
       valueFiles:
       - values-prod.yaml
 
+      # Ignore locally missing valueFiles when installing Helm chart. Defaults to false
+      ignoreMissingValueFiles: false
+
       # Values file as block file
       values: |
         ingress:
@@ -60,6 +63,9 @@ spec:
             - secretName: mydomain-tls
               hosts:
                 - mydomain.example.com
+
+      # Skip custom resource definition installation if chart contains custom resource definitions. Defaults to false
+      skipCrds: false
 
       # Optional Helm version to template with. If omitted it will fall back to look at the 'apiVersion' in Chart.yaml
       # and decide which Helm binary to use automatically. This field can be either 'v2' or 'v3'.

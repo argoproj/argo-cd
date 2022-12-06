@@ -257,6 +257,12 @@ export const ApplicationTiles = ({applications, syncApplication, refreshApplicat
                                                         <div className='columns small-9'>{app.spec.destination.namespace}</div>
                                                     </div>
                                                     <div className='row'>
+                                                        <div className='columns small-3' title='Age:'>
+                                                            Created At:
+                                                        </div>
+                                                        <div className='columns small-9'>{AppUtils.formatCreationTimestamp(app.metadata.creationTimestamp)}</div>
+                                                    </div>
+                                                    <div className='row'>
                                                         <div className='columns applications-list__entry--actions'>
                                                             <a
                                                                 className='argo-button argo-button--base'
