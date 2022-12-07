@@ -6,8 +6,7 @@ import (
 	"reflect"
 	"strings"
 
-	"github.com/argoproj/argo-cd/v2/util/db"
-
+	"github.com/argoproj/gitops-engine/pkg/utils/kube"
 	"github.com/argoproj/pkg/sync"
 	"github.com/golang-jwt/jwt/v4"
 	"github.com/google/uuid"
@@ -22,12 +21,15 @@ import (
 	"k8s.io/client-go/tools/cache"
 	"k8s.io/client-go/util/retry"
 
+	"github.com/argoproj/argo-cd/v2/pkg/apiclient/application"
 	"github.com/argoproj/argo-cd/v2/pkg/apiclient/project"
 	"github.com/argoproj/argo-cd/v2/pkg/apis/application/v1alpha1"
 	appclientset "github.com/argoproj/argo-cd/v2/pkg/client/clientset/versioned"
 	listersv1alpha1 "github.com/argoproj/argo-cd/v2/pkg/client/listers/application/v1alpha1"
+	"github.com/argoproj/argo-cd/v2/server/deeplinks"
 	"github.com/argoproj/argo-cd/v2/server/rbacpolicy"
 	"github.com/argoproj/argo-cd/v2/util/argo"
+	"github.com/argoproj/argo-cd/v2/util/db"
 	jwtutil "github.com/argoproj/argo-cd/v2/util/jwt"
 	"github.com/argoproj/argo-cd/v2/util/rbac"
 	"github.com/argoproj/argo-cd/v2/util/session"
@@ -153,6 +155,39 @@ func (s *Server) createToken(ctx context.Context, q *project.ProjectTokenCreateR
 	s.logEvent(prj, ctx, argo.EventReasonResourceCreated, "created token")
 	return &project.ProjectTokenResponse{Token: jwtToken}, nil
 
+}
+
+func (s *Server) ListLinks(ctx context.Context, q *project.ListProjectLinksRequest) (*application.LinksResponse, error) {
+	projName := q.GetName()
+
+	if err := s.enf.EnforceErr(ctx.Value("claims"), rbacpolicy.ResourceProjects, rbacpolicy.ActionGet, projName); err != nil {
+		log.WithFields(map[string]interface{}{
+			"project": projName,
+		}).Warnf("unauthorized access to project, error=%v", err.Error())
+		return nil, fmt.Errorf("unauthorized access to project %v", projName)
+	}
+
+	proj, err := s.appclientset.ArgoprojV1alpha1().AppProjects(s.ns).Get(ctx, projName, metav1.GetOptions{})
+	if err != nil {
+		return nil, err
+	}
+
+	obj, err := kube.ToUnstructured(proj)
+	if err != nil {
+		return nil, fmt.Errorf("error getting application: %w", err)
+	}
+
+	deepLinks, err := s.settingsMgr.GetDeepLinks(settings.ProjectDeepLinks)
+	if err != nil {
+		return nil, fmt.Errorf("failed to read application deep links from configmap: %w", err)
+	}
+
+	finalList, errorList := deeplinks.EvaluateDeepLinksResponse(*obj, deepLinks)
+	if len(errorList) > 0 {
+		log.Errorf("errorList while evaluating project deep links, %v", strings.Join(errorList, ", "))
+	}
+
+	return finalList, nil
 }
 
 // DeleteToken deletes a token in a project
