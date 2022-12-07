@@ -5,78 +5,63 @@ import {services} from '../../../shared/services';
 
 export const RevisionMetadataPanel = (props: {appName: string; appNamespace: string; type: string; revision: string}) => {
     return (
-        <DataLoader load={() => services.applications.revisionMetadata(props.appName, props.appNamespace, props.revision)} errorRenderer={() => <div />}>
-            {m => (
-                props.type === 'helm' ?
-                <Tooltip
-                    popperOptions={{
-                        modifiers: {
-                            preventOverflow: {
-                                enabled: false
-                            },
-                            hide: {
-                                enabled: false
-                            },
-                            flip: {
-                                enabled: false
-                            }
-                        }
-                    }}
-                    content={
-                        <span>yo helm</span>
-                    }
-                    placement='bottom'
-                    allowHTML={true}/>
-                :
-                <Tooltip
-                    popperOptions={{
-                        modifiers: {
-                            preventOverflow: {
-                                enabled: false
-                            },
-                            hide: {
-                                enabled: false
-                            },
-                            flip: {
-                                enabled: false
-                            }
-                        }
-                    }}
-                    content={
-                        <span>
-                            {m.author && <React.Fragment>Authored by {m.author}</React.Fragment>}
-                            <br />
-                            {m.date && <Timestamp date={m.date} />}
-                            <br />
-                            {m.tags && (
+        <>
+            {props.type === 'helm' ? (
+                <React.Fragment />
+            ) : (
+                <DataLoader load={() => services.applications.revisionMetadata(props.appName, props.appNamespace, props.revision)} errorRenderer={() => <div />}>
+                    {m => (
+                        <Tooltip
+                            popperOptions={{
+                                modifiers: {
+                                    preventOverflow: {
+                                        enabled: false
+                                    },
+                                    hide: {
+                                        enabled: false
+                                    },
+                                    flip: {
+                                        enabled: false
+                                    }
+                                }
+                            }}
+                            content={
                                 <span>
-                                    Tags: {m.tags}
+                                    {m.author && <React.Fragment>Authored by {m.author}</React.Fragment>}
                                     <br />
+                                    {m.date && <Timestamp date={m.date} />}
+                                    <br />
+                                    {m.tags && (
+                                        <span>
+                                            Tags: {m.tags}
+                                            <br />
+                                        </span>
+                                    )}
+                                    {m.signatureInfo}
+                                    <br />
+                                    {m.message}
                                 </span>
-                            )}
-                            {m.signatureInfo}
-                            <br />
-                            {m.message}
-                        </span>
-                    }
-                    placement='bottom'
-                    allowHTML={true}>
-                    <div className='application-status-panel__item-name'>
-                        {m.author && (
-                            <div className='application-status-panel__item__row'>
-                                <div>Author:</div>
-                                <div>
-                                    {m.author} - {m.signatureInfo}
+                            }
+                            placement='bottom'
+                            allowHTML={true}>
+                            <div className='application-status-panel__item-name'>
+                                {m.author && (
+                                    <div className='application-status-panel__item__row'>
+                                        <div>Author:</div>
+                                        <div>
+                                            {m.author} - {m.signatureInfo}
+                                        </div>
+                                    </div>
+                                )}
+                                <div className='application-status-panel__item__row'>
+                                    <div>Comment:</div>
+                                    <div>{m.message?.split('\n')[0].slice(0, 64)}</div>
                                 </div>
                             </div>
-                        )}
-                        <div className='application-status-panel__item__row'>
-                            <div>Comment:</div>
-                            <div>{m.message?.split('\n')[0].slice(0, 64)}</div>
-                        </div>
-                    </div>
-                </Tooltip>
+                        </Tooltip>
+                    )}
+                </DataLoader>
             )}
-        </DataLoader>
+        </>
     );
 };

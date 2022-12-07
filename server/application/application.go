@@ -37,6 +37,7 @@ import (
 
 	argocommon "github.com/argoproj/argo-cd/v2/common"
 	"github.com/argoproj/argo-cd/v2/pkg/apiclient/application"
+	"github.com/argoproj/argo-cd/v2/pkg/apis/application/v1alpha1"
 	appv1 "github.com/argoproj/argo-cd/v2/pkg/apis/application/v1alpha1"
 	appclientset "github.com/argoproj/argo-cd/v2/pkg/client/clientset/versioned"
 	applisters "github.com/argoproj/argo-cd/v2/pkg/client/listers/application/v1alpha1"
@@ -1429,8 +1430,11 @@ func (s *Server) RevisionMetadata(ctx context.Context, q *application.RevisionMe
 	})
 }
 
-func (s *Server) ChartDetails(ctx context.Context, q *application.RevisionMetadataQuery) (*appv1.RevisionMetadata, error) {
-	return nil, fmt.Errorf("not implemented")
+func (s *Server) RevisionChartDetails(ctx context.Context, in *application.RevisionMetadataQuery) (*v1alpha1.ChartDetails, error) {
+	return &v1alpha1.ChartDetails{
+		Description: "I am commit message",
+		Maintainers: "Alex Eftimie",
+	}, nil
 }
 
 func isMatchingResource(q *application.ResourcesQuery, key kube.ResourceKey) bool {

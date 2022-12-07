@@ -2003,6 +2003,13 @@ func (s *Service) GetRevisionMetadata(ctx context.Context, q *apiclient.RepoServ
 	return metadata, nil
 }
 
+func (s *Service) GetRevisionChartDetails(ctx context.Context, in *apiclient.RepoServerRevisionChartDetailsRequest) (*v1alpha1.ChartDetails, error) {
+	return &v1alpha1.ChartDetails{
+		Description: "Repo commit message",
+		Maintainers: "Gugu",
+	}, nil
+}
+
 func fileParameters(q *apiclient.RepoServerAppDetailsQuery) []v1alpha1.HelmFileParameter {
 	if q.Source.Helm == nil {
 		return nil
