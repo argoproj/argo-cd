@@ -2820,7 +2820,7 @@ type ApplicationServiceClient interface {
 	GetApplicationSyncWindows(ctx context.Context, in *ApplicationSyncWindowsQuery, opts ...grpc.CallOption) (*ApplicationSyncWindowsResponse, error)
 	// Get the meta-data (author, date, tags, message) for a specific revision of the application
 	RevisionMetadata(ctx context.Context, in *RevisionMetadataQuery, opts ...grpc.CallOption) (*v1alpha1.RevisionMetadata, error)
-	// Get the chart meta-data (author, date, tags, message) for a specific revision of the application
+	// Get the chart metadata (description, maintainers, home) for a specific revision of the application
 	RevisionChartDetails(ctx context.Context, in *RevisionMetadataQuery, opts ...grpc.CallOption) (*v1alpha1.ChartDetails, error)
 	// GetManifests returns application manifests
 	GetManifests(ctx context.Context, in *ApplicationManifestQuery, opts ...grpc.CallOption) (*apiclient.ManifestResponse, error)
@@ -3234,7 +3234,7 @@ type ApplicationServiceServer interface {
 	GetApplicationSyncWindows(context.Context, *ApplicationSyncWindowsQuery) (*ApplicationSyncWindowsResponse, error)
 	// Get the meta-data (author, date, tags, message) for a specific revision of the application
 	RevisionMetadata(context.Context, *RevisionMetadataQuery) (*v1alpha1.RevisionMetadata, error)
-	// Get the chart meta-data (author, date, tags, message) for a specific revision of the application
+	// Get the chart metadata (description, maintainers, home) for a specific revision of the application
 	RevisionChartDetails(context.Context, *RevisionMetadataQuery) (*v1alpha1.ChartDetails, error)
 	// GetManifests returns application manifests
 	GetManifests(context.Context, *ApplicationManifestQuery) (*apiclient.ManifestResponse, error)

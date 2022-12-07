@@ -1434,6 +1434,7 @@ func (s *Server) RevisionChartDetails(ctx context.Context, in *application.Revis
 	return &v1alpha1.ChartDetails{
 		Description: "I am commit message",
 		Maintainers: "Alex Eftimie",
+		Home:        "https://drone.example.com",
 	}, nil
 }
 

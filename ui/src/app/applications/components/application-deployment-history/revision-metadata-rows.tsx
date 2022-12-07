@@ -12,7 +12,19 @@ export const RevisionMetadataRows = (props: {applicationName: string; applicatio
                     <div>
                         <div className='row'>
                             <div className='columns small-3'>Helm Chart:</div>
-                            <div className='columns small-9'>{props.source.chart}</div>
+                            <div className='columns small-9'>
+                                {props.source.chart}&nbsp;
+                                {m.home && (
+                                    <a
+                                        title={m.home}
+                                        onClick={e => {
+                                            e.stopPropagation();
+                                            window.open(m.home);
+                                        }}>
+                                        <i className='fa fa-external-link-alt' />
+                                    </a>
+                                )}
+                            </div>
                         </div>
                         {m.description && (
                             <div className='row'>
