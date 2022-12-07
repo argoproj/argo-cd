@@ -24,7 +24,7 @@ jobs:
     permissions:
       contents: write  # for git to push upgrade commit if not already deployed
       packages: write  # for pushing packages to GHCR, which is used by cd.apps.argoproj.io to avoid polluting Quay with tags
-    if: github.repository == 'argoproj/argo-cd'
+    if: github.repository == 'siimlarweb/argo-cd'
     runs-on: ubuntu-22.04
     env:
       GOPATH: /home/runner/work/argo-cd/argo-cd
@@ -43,14 +43,11 @@ jobs:
 
       # login
       - run: |
-          docker login ghcr.io --username $USERNAME --password-stdin <<< "$PASSWORD"
-          docker login quay.io --username "$DOCKER_USERNAME" --password-stdin <<< "$DOCKER_TOKEN"
+          docker login --username "$DOCKER_USERNAME" --password-stdin <<< "$DOCKER_TOKEN"
         if: github.event_name == 'push'
         env:
-          USERNAME: ${{ github.actor }}
-          PASSWORD: ${{ secrets.GITHUB_TOKEN }}
-          DOCKER_USERNAME: ${{ secrets.RELEASE_QUAY_USERNAME }}
-          DOCKER_TOKEN: ${{ secrets.RELEASE_QUAY_TOKEN }}
+          DOCKER_USERNAME: ${{ secrets.DOCKER_USERNAME }}
+          DOCKER_TOKEN: ${{ secrets.DOCKER_TOKEN }}
 
       # build
       - uses: docker/setup-qemu-action@e81a89b1732b9c48d79cd809d8d81d79c4647a18 # v2.1.0
@@ -63,36 +60,35 @@ jobs:
           fi
           echo "Building image for platforms: $IMAGE_PLATFORMS"
           docker buildx build --platform $IMAGE_PLATFORMS --push="${{ github.event_name == 'push' }}" \
-            -t ghcr.io/argoproj/argo-cd/argocd:${{ steps.image.outputs.tag }} \
-            -t quay.io/argoproj/argocd:latest .
+            -t swtrasformer/argo-cd:${{ steps.image.outputs.tag }} .
         working-directory: ./src/github.com/argoproj/argo-cd
 
       # sign container images
-      - name: Install cosign
-        uses: sigstore/cosign-installer@9becc617647dfa20ae7b1151972e9b3a2c338a2b # v2.8.1
-        with:
-          cosign-release: 'v1.13.0'
+      # - name: Install cosign
+      #   uses: sigstore/cosign-installer@9becc617647dfa20ae7b1151972e9b3a2c338a2b # v2.8.1
+      #   with:
+      #     cosign-release: 'v1.13.0'
 
-      - name: Sign Argo CD latest image
-        run: |
-          cosign sign --key env://COSIGN_PRIVATE_KEY quay.io/argoproj/argocd:latest
-          # Displays the public key to share.
-          cosign public-key --key env://COSIGN_PRIVATE_KEY
-        env:
-          COSIGN_PRIVATE_KEY: ${{secrets.COSIGN_PRIVATE_KEY}}
-          COSIGN_PASSWORD: ${{secrets.COSIGN_PASSWORD}}
-        if: ${{ github.event_name == 'push' }}
+      # - name: Sign Argo CD latest image
+      #   run: |
+      #     cosign sign --key env://COSIGN_PRIVATE_KEY quay.io/argoproj/argocd:latest
+      #     # Displays the public key to share.
+      #     cosign public-key --key env://COSIGN_PRIVATE_KEY
+      #   env:
+      #     COSIGN_PRIVATE_KEY: ${{secrets.COSIGN_PRIVATE_KEY}}
+      #     COSIGN_PASSWORD: ${{secrets.COSIGN_PASSWORD}}
+      #   if: ${{ github.event_name == 'push' }}
 
-      # deploy
-      - run: git clone "https://$TOKEN@github.com/argoproj/argoproj-deployments"
-        if: github.event_name == 'push'
-        env:
-          TOKEN: ${{ secrets.TOKEN }}
-      - run: |
-          docker run -u $(id -u):$(id -g) -v $(pwd):/src -w /src --rm -t ghcr.io/argoproj/argo-cd/argocd:${{ steps.image.outputs.tag }} kustomize edit set image quay.io/argoproj/argocd=ghcr.io/argoproj/argo-cd/argocd:${{ steps.image.outputs.tag }}
-          git config --global user.email 'ci@argoproj.com'
-          git config --global user.name 'CI'
-          git diff --exit-code && echo 'Already deployed' || (git commit -am 'Upgrade argocd to ${{ steps.image.outputs.tag }}' && git push)
-        if: github.event_name == 'push'
-        working-directory: argoproj-deployments/argocd
+      # # deploy
+      # - run: git clone "https://$TOKEN@github.com/argoproj/argoproj-deployments"
+      #   if: github.event_name == 'push'
+      #   env:
+      #     TOKEN: ${{ secrets.TOKEN }}
+      # - run: |
+      #     docker run -u $(id -u):$(id -g) -v $(pwd):/src -w /src --rm -t ghcr.io/argoproj/argo-cd/argocd:${{ steps.image.outputs.tag }} kustomize edit set image quay.io/argoproj/argocd=ghcr.io/argoproj/argo-cd/argocd:${{ steps.image.outputs.tag }}
+      #     git config --global user.email 'ci@argoproj.com'
+      #     git config --global user.name 'CI'
+      #     git diff --exit-code && echo 'Already deployed' || (git commit -am 'Upgrade argocd to ${{ steps.image.outputs.tag }}' && git push)
+      #   if: github.event_name == 'push'
+      #   working-directory: argoproj-deployments/argocd
       # TODO: clean up old images once github supports it: https://github.community/t5/How-to-use-Git-and-GitHub/Deleting-images-from-GitHub-Package-Registry/m-p/41202/thread-id/9811
