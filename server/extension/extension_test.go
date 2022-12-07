@@ -85,6 +85,10 @@ func TestRegisterHandlers(t *testing.T) {
 				name:       "no URL",
 				configYaml: getExtensionConfigNoURL(),
 			},
+			{
+				name:       "invalid name",
+				configYaml: getExtensionConfigInvalidName(),
+			},
 		}
 
 		// when
@@ -328,6 +332,15 @@ func getExtensionConfigNoName() string {
 	return `
 extensions:
 - backend:
+    services:
+    - url: https://httpbin.org
+`
+}
+func getExtensionConfigInvalidName() string {
+	return `
+extensions:
+- name: invalid/name
+  backend:
     services:
     - url: https://httpbin.org
 `
