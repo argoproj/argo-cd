@@ -291,7 +291,7 @@ const FlexTopBar = (props: {toolbar: Toolbar | Observable<Toolbar>}) => {
                                                 style={{marginRight: 2}}
                                                 key={i}>
                                                 {item.iconClassName && <i className={item.iconClassName} style={{marginLeft: '-5px', marginRight: '5px'}} />}
-                                                {item.title}
+                                                <span className='show-for-large'>{item.title}</span>
                                             </button>
                                         ))}
                                     </React.Fragment>

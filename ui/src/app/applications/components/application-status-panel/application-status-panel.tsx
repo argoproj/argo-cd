@@ -88,7 +88,7 @@ export const ApplicationStatusPanel = ({application, showOperation, showConditio
                         <div>
                             <ComparisonStatusIcon status={application.status.sync.status} label={true} />
                         </div>
-                        <div className='application-status-panel__item-value__revision'>{syncStatusMessage(application)}</div>
+                        <div className='application-status-panel__item-value__revision show-for-large'>{syncStatusMessage(application)}</div>
                     </div>
                     {application.status && application.status.sync && application.status.sync.revision && !application.spec.source.chart && (
                         <div className='application-status-panel__item-name'>
@@ -121,7 +121,7 @@ export const ApplicationStatusPanel = ({application, showOperation, showConditio
                                 <OperationState app={application} />{' '}
                             </a>
                             {appOperationState.syncResult && appOperationState.syncResult.revision && (
-                                <div className='application-status-panel__item-value__revision'>
+                                <div className='application-status-panel__item-value__revision show-for-large'>
                                     To <Revision repoUrl={application.spec.source.repoURL} revision={appOperationState.syncResult.revision} />
                                 </div>
                             )}
