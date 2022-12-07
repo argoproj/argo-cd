@@ -89,26 +89,6 @@ func (c *Cmd) RegistryLogin(repo string, creds Creds) (string, error) {
 		args = append(args, "--password", creds.Password)
 	}
 
-	if creds.CAPath != "" {
-		args = append(args, "--ca-file", creds.CAPath)
-	}
-	if len(creds.CertData) > 0 {
-		filePath, closer, err := writeToTmp(creds.CertData)
-		if err != nil {
-			return "", err
-		}
-		defer argoio.Close(closer)
-		args = append(args, "--cert-file", filePath)
-	}
-	if len(creds.KeyData) > 0 {
-		filePath, closer, err := writeToTmp(creds.KeyData)
-		if err != nil {
-			return "", err
-		}
-		defer argoio.Close(closer)
-		args = append(args, "--key-file", filePath)
-	}
-
 	if creds.InsecureSkipVerify {
 		args = append(args, "--insecure")
 	}
@@ -118,26 +98,6 @@ func (c *Cmd) RegistryLogin(repo string, creds Creds) (string, error) {
 func (c *Cmd) RegistryLogout(repo string, creds Creds) (string, error) {
 	args := []string{"registry", "logout"}
 	args = append(args, repo)
-
-	if creds.CAPath != "" {
-		args = append(args, "--ca-file", creds.CAPath)
-	}
-	if len(creds.CertData) > 0 {
-		filePath, closer, err := writeToTmp(creds.CertData)
-		if err != nil {
-			return "", err
-		}
-		defer argoio.Close(closer)
-		args = append(args, "--cert-file", filePath)
-	}
-	if len(creds.KeyData) > 0 {
-		filePath, closer, err := writeToTmp(creds.KeyData)
-		if err != nil {
-			return "", err
-		}
-		defer argoio.Close(closer)
-		args = append(args, "--key-file", filePath)
-	}
 
 	return c.run(args...)
 }

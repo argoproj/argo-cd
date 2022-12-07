@@ -43,7 +43,7 @@ jobs:
       GIT_EMAIL: argoproj@gmail.com
     steps:
       - name: Checkout code
-        uses: actions/checkout@v3
+        uses: actions/checkout@93ea575cb5d8a053eaa0ac8fa3b40d7e05a33cc8 # v3.1.0
         with:
           fetch-depth: 0
           token: ${{ secrets.GITHUB_TOKEN }}
@@ -147,7 +147,7 @@ jobs:
           echo "RELEASE_NOTES=${RELEASE_NOTES}" >> $GITHUB_ENV
 
       - name: Setup Golang
-        uses: actions/setup-go@v3
+        uses: actions/setup-go@d0a58c1c4d2b25278816e339b944508c875f3613 # v3.4.0
         with:
           go-version: ${{ env.GOLANG_VERSION }}
 
@@ -200,8 +200,8 @@ jobs:
           docker login --username "${DOCKER_USERNAME}" --password-stdin <<< "${DOCKER_TOKEN}"
         if: ${{ env.DRY_RUN != 'true' }}
 
-      - uses: docker/setup-qemu-action@v2
-      - uses: docker/setup-buildx-action@v2
+      - uses: docker/setup-qemu-action@e81a89b1732b9c48d79cd809d8d81d79c4647a18 # v2.1.0
+      - uses: docker/setup-buildx-action@8c0edbc76e98fa90f69d9a2c020dcb50019dc325 # v2.2.1
       - name: Build and push Docker image for release
         run: |
           set -ue
@@ -215,7 +215,7 @@ jobs:
         if: ${{ env.DRY_RUN != 'true' }}
 
       - name: Install cosign
-        uses: sigstore/cosign-installer@main
+        uses: sigstore/cosign-installer@9becc617647dfa20ae7b1151972e9b3a2c338a2b # v2.8.1
         with:
           cosign-release: 'v1.13.0'
 
@@ -232,7 +232,7 @@ jobs:
 
       - name: Read release notes file
         id: release-notes
-        uses: juliangruber/read-file-action@v1
+        uses: juliangruber/read-file-action@02bbba9876a8f870efd4ad64e3b9088d3fb94d4b # v1.1.6
         with:
           path: ${{ env.RELEASE_NOTES }}
 
@@ -243,7 +243,7 @@ jobs:
           git push origin ${RELEASE_TAG}
 
       - name: Dry run GitHub release
-        uses: actions/create-release@v1
+        uses: actions/create-release@0cb9c9b65d5d1901c1f53e5e66eaf4afd303e70e # v1.1.4
         env:
           GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
         id: create_release
@@ -295,7 +295,7 @@ jobs:
         if: ${{ env.DRY_RUN != 'true' }}
 
       - name: Create GitHub release
-        uses: softprops/action-gh-release@v1
+        uses: softprops/action-gh-release@de2c0eb89ae2a093876385947365aca7b0e5f844 # v0.1.15
         env:
           GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
         with:
@@ -313,7 +313,7 @@ jobs:
       - name: Update homebrew formula
         env:
           HOMEBREW_TOKEN: ${{ secrets.RELEASE_HOMEBREW_TOKEN }}
-        uses: dawidd6/action-homebrew-bump-formula@v3
+        uses: dawidd6/action-homebrew-bump-formula@02e79d9da43d79efa846d73695b6052cbbdbf48a # v3.8.3
         with:
           token: ${{env.HOMEBREW_TOKEN}}
           formula: argocd
