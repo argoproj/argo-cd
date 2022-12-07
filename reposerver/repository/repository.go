@@ -2003,11 +2003,26 @@ func (s *Service) GetRevisionMetadata(ctx context.Context, q *apiclient.RepoServ
 	return metadata, nil
 }
 
-func (s *Service) GetRevisionChartDetails(ctx context.Context, in *apiclient.RepoServerRevisionChartDetailsRequest) (*v1alpha1.ChartDetails, error) {
-	return &v1alpha1.ChartDetails{
-		Description: "Repo commit message",
+func (s *Service) GetRevisionChartDetails(ctx context.Context, q *apiclient.RepoServerRevisionChartDetailsRequest) (*v1alpha1.ChartDetails, error) {
+	details, err := s.cache.GetRevisionChartDetails(q.Repo.Repo, q.Name, q.Revision)
+	if err == nil {
+		log.Infof("revision chart details cache hit: %s/%s/%s", q.Repo.Repo, q.Name, q.Revision)
+		return details, nil
+	} else {
+		if err != reposervercache.ErrCacheMiss {
+			log.Warnf("revision metadata cache error %s/%s/%s: %v", q.Repo.Repo, q.Name, q.Revision, err)
+		} else {
+			log.Infof("revision metadata cache miss: %s/%s/%s", q.Repo.Repo, q.Name, q.Revision)
+		}
+	}
+	// FIXME: actually fetch the chart details
+	details = &v1alpha1.ChartDetails{
+		Description: fmt.Sprintf("Repo %v commit message at %v", q.Name, q.Revision),
 		Maintainers: "Gugu",
-	}, nil
+		Home:        "https://example.com",
+	}
+	s.cache.SetRevisionChartDetails(q.Repo.Repo, q.Name, q.Revision, details)
+	return details, nil
 }
 
 func fileParameters(q *apiclient.RepoServerAppDetailsQuery) []v1alpha1.HelmFileParameter {

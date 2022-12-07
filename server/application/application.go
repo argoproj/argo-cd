@@ -37,7 +37,6 @@ import (
 
 	argocommon "github.com/argoproj/argo-cd/v2/common"
 	"github.com/argoproj/argo-cd/v2/pkg/apiclient/application"
-	"github.com/argoproj/argo-cd/v2/pkg/apis/application/v1alpha1"
 	appv1 "github.com/argoproj/argo-cd/v2/pkg/apis/application/v1alpha1"
 	appclientset "github.com/argoproj/argo-cd/v2/pkg/client/clientset/versioned"
 	applisters "github.com/argoproj/argo-cd/v2/pkg/client/listers/application/v1alpha1"
@@ -1430,12 +1429,33 @@ func (s *Server) RevisionMetadata(ctx context.Context, q *application.RevisionMe
 	})
 }
 
-func (s *Server) RevisionChartDetails(ctx context.Context, in *application.RevisionMetadataQuery) (*v1alpha1.ChartDetails, error) {
-	return &v1alpha1.ChartDetails{
-		Description: "I am commit message",
-		Maintainers: "Alex Eftimie",
-		Home:        "https://drone.example.com",
-	}, nil
+func (s *Server) RevisionChartDetails(ctx context.Context, q *application.RevisionMetadataQuery) (*appv1.ChartDetails, error) {
+	appName := q.GetName()
+	appNs := s.appNamespaceOrDefault(q.GetAppNamespace())
+	a, err := s.appLister.Applications(appNs).Get(appName)
+	if err != nil {
+		return nil, fmt.Errorf("error getting app by name: %w", err)
+	}
+	if err := s.enf.EnforceErr(ctx.Value("claims"), rbacpolicy.ResourceApplications, rbacpolicy.ActionGet, a.RBACName(s.ns)); err != nil {
+		return nil, fmt.Errorf("error enforcing claims: %w", err)
+	}
+	if a.Spec.Source.Chart == "" {
+		return nil, fmt.Errorf("no chart found for application: %v", appName)
+	}
+	repo, err := s.db.GetRepository(ctx, a.Spec.Source.RepoURL)
+	if err != nil {
+		return nil, fmt.Errorf("error getting repository by URL: %w", err)
+	}
+	conn, repoClient, err := s.repoClientset.NewRepoServerClient()
+	if err != nil {
+		return nil, fmt.Errorf("error creating repo server client: %w", err)
+	}
+	defer ioutil.Close(conn)
+	return repoClient.GetRevisionChartDetails(ctx, &apiclient.RepoServerRevisionChartDetailsRequest{
+		Repo:     repo,
+		Name:     a.Spec.Source.Chart,
+		Revision: q.GetRevision(),
+	})
 }
 
 func isMatchingResource(q *application.ResourcesQuery, key kube.ResourceKey) bool {
