@@ -174,7 +174,7 @@ export const ApplicationSummary = (props: ApplicationSummaryProps) => {
                               load={src => services.repos.charts(src.repoURL).catch(() => new Array<models.HelmChart>())}>
                               {(charts: models.HelmChart[]) => (
                                   <div className='row'>
-                                      <div className='columns small-10'>
+                                      <div className='columns small-8'>
                                           <FormField
                                               formApi={formApi}
                                               field='spec.source.chart'
@@ -192,7 +192,7 @@ export const ApplicationSummary = (props: ApplicationSummaryProps) => {
                                               return (chartInfo && chartInfo.versions) || new Array<string>();
                                           }}>
                                           {(versions: string[]) => (
-                                              <div className='columns small-2'>
+                                              <div className='columns small-4'>
                                                   <FormField
                                                       formApi={formApi}
                                                       field='spec.source.targetRevision'
