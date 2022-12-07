@@ -16,6 +16,7 @@ Kubernetes), then the user effectively has the same privileges as that ServiceAc
 
 2. Patch the `argocd-server` Role (if using namespaced Argo) or ClusterRole (if using clustered Argo) to allow `argocd-server`
 to exec into pods
+
     ```yaml
     - apiGroups:
       - ""
@@ -25,7 +26,8 @@ to exec into pods
       - create
     ```
 
-3. Add RBAC rules to allow your users to `create` the `exec` resource, i.e.
+3. Add RBAC rules to allow your users to `create` the `exec` resource, i.e. 
+
     ```
     p, role:myrole, exec, create, */*, allow
     ```
