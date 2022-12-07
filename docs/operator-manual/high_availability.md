@@ -96,10 +96,28 @@ non-preferred version and causes performance issues.
 
 ### argocd-server
 
-The `argocd-server` is stateless and probably least likely to cause issues. You might consider increasing number of replicas to 3 or more to ensure there is no downtime during upgrades.
+The `argocd-server` is stateless and probably the least likely to cause issues. To ensure there is no downtime during upgrades, consider increasing the number of replicas to `3` or more and repeat number of replicas in `ARGOCD_API_SERVER_REPLICAS` environment variable. The strategic merge patch below
+demonstrates this.
+
+```yaml
+apiVersion: apps/v1
+kind: Deployment
+metadata:
+  name: argocd-server
+spec:
+  replicas: 3
+  template:
+    spec:
+      containers:
+      - name: argocd-server
+        env:
+        - name: ARGOCD_API_SERVER_REPLICAS
+          value: "3"
+```
 
 **settings:**
 
+* The `ARGOCD_API_SERVER_REPLICAS` environment variable is used to divide [the limit of concurrent login requests (`ARGOCD_MAX_CONCURRENT_LOGIN_REQUESTS_COUNT`)](./user-management/index.md#failed-logins-rate-limiting) between each replica.
 * The `ARGOCD_GRPC_MAX_SIZE_MB` environment variable allows specifying the max size of the server response message in megabytes.
 The default value is 200. You might need to increase for an Argo CD instance that manages 3000+ applications.    
 
