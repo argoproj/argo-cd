@@ -472,6 +472,7 @@ export interface UserInfo {
     username: string;
     iss: string;
     groups: string[];
+    isSSO?: boolean;
 }
 
 export type ConnectionStatus = 'Unknown' | 'Successful' | 'Failed';

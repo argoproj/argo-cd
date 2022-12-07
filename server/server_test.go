@@ -565,54 +565,54 @@ connectors:
 
 func TestAuthenticate_3rd_party_JWTs(t *testing.T) {
 	type testData struct {
-		test                  string
-		anonymousEnabled      bool
-		claims                jwt.RegisteredClaims
-		expectedErrorContains string
-		expectedClaims        interface{}
+		test             string
+		anonymousEnabled bool
+		claims           jwt.RegisteredClaims
+		errorExpected    bool
+		expectedClaims   interface{}
 	}
 	var tests = []testData{
 		{
-			test:                  "anonymous disabled, no audience",
-			anonymousEnabled:      false,
-			claims:                jwt.RegisteredClaims{},
-			expectedErrorContains: "no audience found in the token",
-			expectedClaims:        nil,
+			test:             "anonymous disabled, no audience",
+			anonymousEnabled: false,
+			claims:           jwt.RegisteredClaims{},
+			errorExpected:    true,
+			expectedClaims:   nil,
 		},
 		{
-			test:                  "anonymous enabled, no audience",
-			anonymousEnabled:      true,
-			claims:                jwt.RegisteredClaims{},
-			expectedErrorContains: "",
-			expectedClaims:        "",
+			test:             "anonymous enabled, no audience",
+			anonymousEnabled: true,
+			claims:           jwt.RegisteredClaims{},
+			errorExpected:    false,
+			expectedClaims:   "",
 		},
 		{
-			test:                  "anonymous disabled, unexpired token, admin claim",
-			anonymousEnabled:      false,
-			claims:                jwt.RegisteredClaims{Audience: jwt.ClaimStrings{"test-client"}, Subject: "admin", ExpiresAt: jwt.NewNumericDate(time.Now().Add(time.Hour * 24))},
-			expectedErrorContains: "id token signed with unsupported algorithm",
-			expectedClaims:        nil,
+			test:             "anonymous disabled, unexpired token, admin claim",
+			anonymousEnabled: false,
+			claims:           jwt.RegisteredClaims{Audience: jwt.ClaimStrings{"test-client"}, Subject: "admin", ExpiresAt: jwt.NewNumericDate(time.Now().Add(time.Hour * 24))},
+			errorExpected:    true,
+			expectedClaims:   nil,
 		},
 		{
-			test:                  "anonymous enabled, unexpired token, admin claim",
-			anonymousEnabled:      true,
-			claims:                jwt.RegisteredClaims{Audience: jwt.ClaimStrings{"test-client"}, Subject: "admin", ExpiresAt: jwt.NewNumericDate(time.Now().Add(time.Hour * 24))},
-			expectedErrorContains: "",
-			expectedClaims:        "",
+			test:             "anonymous enabled, unexpired token, admin claim",
+			anonymousEnabled: true,
+			claims:           jwt.RegisteredClaims{Audience: jwt.ClaimStrings{"test-client"}, Subject: "admin", ExpiresAt: jwt.NewNumericDate(time.Now().Add(time.Hour * 24))},
+			errorExpected:    false,
+			expectedClaims:   "",
 		},
 		{
-			test:                  "anonymous disabled, expired token, admin claim",
-			anonymousEnabled:      false,
-			claims:                jwt.RegisteredClaims{Audience: jwt.ClaimStrings{"test-client"}, Subject: "admin", ExpiresAt: jwt.NewNumericDate(time.Now())},
-			expectedErrorContains: "token is expired",
-			expectedClaims:        jwt.RegisteredClaims{Issuer: "sso"},
+			test:             "anonymous disabled, expired token, admin claim",
+			anonymousEnabled: false,
+			claims:           jwt.RegisteredClaims{Audience: jwt.ClaimStrings{"test-client"}, Subject: "admin", ExpiresAt: jwt.NewNumericDate(time.Now())},
+			errorExpected:    true,
+			expectedClaims:   nil,
 		},
 		{
-			test:                  "anonymous enabled, expired token, admin claim",
-			anonymousEnabled:      true,
-			claims:                jwt.RegisteredClaims{Audience: jwt.ClaimStrings{"test-client"}, Subject: "admin", ExpiresAt: jwt.NewNumericDate(time.Now())},
-			expectedErrorContains: "",
-			expectedClaims:        "",
+			test:             "anonymous enabled, expired token, admin claim",
+			anonymousEnabled: true,
+			claims:           jwt.RegisteredClaims{Audience: jwt.ClaimStrings{"test-client"}, Subject: "admin", ExpiresAt: jwt.NewNumericDate(time.Now())},
+			errorExpected:    false,
+			expectedClaims:   "",
 		},
 	}
 
@@ -639,8 +639,8 @@ func TestAuthenticate_3rd_party_JWTs(t *testing.T) {
 			} else {
 				assert.Equal(t, testDataCopy.expectedClaims, claims)
 			}
-			if testDataCopy.expectedErrorContains != "" {
-				assert.ErrorContains(t, err, testDataCopy.expectedErrorContains, "Authenticate should have thrown an error and blocked the request")
+			if testDataCopy.errorExpected {
+				assert.Error(t, err)
 			} else {
 				assert.NoError(t, err)
 			}
@@ -693,23 +693,23 @@ func TestAuthenticate_no_request_metadata(t *testing.T) {
 
 func TestAuthenticate_no_SSO(t *testing.T) {
 	type testData struct {
-		test                 string
-		anonymousEnabled     bool
-		expectedErrorMessage string
-		expectedClaims       interface{}
+		test             string
+		anonymousEnabled bool
+		errorExpected    bool
+		expectedClaims   interface{}
 	}
 	var tests = []testData{
 		{
-			test:                 "anonymous disabled",
-			anonymousEnabled:     false,
-			expectedErrorMessage: "SSO is not configured",
-			expectedClaims:       nil,
+			test:             "anonymous disabled",
+			anonymousEnabled: false,
+			errorExpected:    true,
+			expectedClaims:   nil,
 		},
 		{
-			test:                 "anonymous enabled",
-			anonymousEnabled:     true,
-			expectedErrorMessage: "",
-			expectedClaims:       "",
+			test:             "anonymous enabled",
+			anonymousEnabled: true,
+			errorExpected:    false,
+			expectedClaims:   "",
 		},
 	}
 
@@ -731,8 +731,8 @@ func TestAuthenticate_no_SSO(t *testing.T) {
 			ctx, err = argocd.Authenticate(ctx)
 			claims := ctx.Value("claims")
 			assert.Equal(t, testDataCopy.expectedClaims, claims)
-			if testDataCopy.expectedErrorMessage != "" {
-				assert.ErrorContains(t, err, testDataCopy.expectedErrorMessage, "Authenticate should have thrown an error and blocked the request")
+			if testDataCopy.errorExpected {
+				assert.Error(t, err)
 			} else {
 				assert.NoError(t, err)
 			}
@@ -742,82 +742,82 @@ func TestAuthenticate_no_SSO(t *testing.T) {
 
 func TestAuthenticate_bad_request_metadata(t *testing.T) {
 	type testData struct {
-		test                 string
-		anonymousEnabled     bool
-		metadata             metadata.MD
-		expectedErrorMessage string
-		expectedClaims       interface{}
+		test             string
+		anonymousEnabled bool
+		metadata         metadata.MD
+		errorExpected    bool
+		expectedClaims   interface{}
 	}
 	var tests = []testData{
 		{
-			test:                 "anonymous disabled, empty metadata",
-			anonymousEnabled:     false,
-			metadata:             metadata.MD{},
-			expectedErrorMessage: "no session information",
-			expectedClaims:       nil,
+			test:             "anonymous disabled, empty metadata",
+			anonymousEnabled: false,
+			metadata:         metadata.MD{},
+			errorExpected:    true,
+			expectedClaims:   nil,
 		},
 		{
-			test:                 "anonymous enabled, empty metadata",
-			anonymousEnabled:     true,
-			metadata:             metadata.MD{},
-			expectedErrorMessage: "",
-			expectedClaims:       "",
+			test:             "anonymous enabled, empty metadata",
+			anonymousEnabled: true,
+			metadata:         metadata.MD{},
+			errorExpected:    false,
+			expectedClaims:   "",
 		},
 		{
-			test:                 "anonymous disabled, empty tokens",
-			anonymousEnabled:     false,
-			metadata:             metadata.MD{apiclient.MetaDataTokenKey: []string{}},
-			expectedErrorMessage: "no session information",
-			expectedClaims:       nil,
+			test:             "anonymous disabled, empty tokens",
+			anonymousEnabled: false,
+			metadata:         metadata.MD{apiclient.MetaDataTokenKey: []string{}},
+			errorExpected:    true,
+			expectedClaims:   nil,
 		},
 		{
-			test:                 "anonymous enabled, empty tokens",
-			anonymousEnabled:     true,
-			metadata:             metadata.MD{apiclient.MetaDataTokenKey: []string{}},
-			expectedErrorMessage: "",
-			expectedClaims:       "",
+			test:             "anonymous enabled, empty tokens",
+			anonymousEnabled: true,
+			metadata:         metadata.MD{apiclient.MetaDataTokenKey: []string{}},
+			errorExpected:    false,
+			expectedClaims:   "",
 		},
 		{
-			test:                 "anonymous disabled, bad tokens",
-			anonymousEnabled:     false,
-			metadata:             metadata.Pairs(apiclient.MetaDataTokenKey, "bad"),
-			expectedErrorMessage: "token contains an invalid number of segments",
-			expectedClaims:       nil,
+			test:             "anonymous disabled, bad tokens",
+			anonymousEnabled: false,
+			metadata:         metadata.Pairs(apiclient.MetaDataTokenKey, "bad"),
+			errorExpected:    true,
+			expectedClaims:   nil,
 		},
 		{
-			test:                 "anonymous enabled, bad tokens",
-			anonymousEnabled:     true,
-			metadata:             metadata.Pairs(apiclient.MetaDataTokenKey, "bad"),
-			expectedErrorMessage: "",
-			expectedClaims:       "",
+			test:             "anonymous enabled, bad tokens",
+			anonymousEnabled: true,
+			metadata:         metadata.Pairs(apiclient.MetaDataTokenKey, "bad"),
+			errorExpected:    false,
+			expectedClaims:   "",
 		},
 		{
-			test:                 "anonymous disabled, bad auth header",
-			anonymousEnabled:     false,
-			metadata:             metadata.MD{"authorization": []string{"Bearer eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJzdWIiOiJhZG1pbiJ9.TGGTTHuuGpEU8WgobXxkrBtW3NiR3dgw5LR-1DEW3BQ"}},
-			expectedErrorMessage: "no audience found in the token",
-			expectedClaims:       nil,
+			test:             "anonymous disabled, bad auth header",
+			anonymousEnabled: false,
+			metadata:         metadata.MD{"authorization": []string{"Bearer eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJzdWIiOiJhZG1pbiJ9.TGGTTHuuGpEU8WgobXxkrBtW3NiR3dgw5LR-1DEW3BQ"}},
+			errorExpected:    true,
+			expectedClaims:   nil,
 		},
 		{
-			test:                 "anonymous enabled, bad auth header",
-			anonymousEnabled:     true,
-			metadata:             metadata.MD{"authorization": []string{"Bearer eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJzdWIiOiJhZG1pbiJ9.TGGTTHuuGpEU8WgobXxkrBtW3NiR3dgw5LR-1DEW3BQ"}},
-			expectedErrorMessage: "",
-			expectedClaims:       "",
+			test:             "anonymous enabled, bad auth header",
+			anonymousEnabled: true,
+			metadata:         metadata.MD{"authorization": []string{"Bearer eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJzdWIiOiJhZG1pbiJ9.TGGTTHuuGpEU8WgobXxkrBtW3NiR3dgw5LR-1DEW3BQ"}},
+			errorExpected:    false,
+			expectedClaims:   "",
 		},
 		{
-			test:                 "anonymous disabled, bad auth cookie",
-			anonymousEnabled:     false,
-			metadata:             metadata.MD{"grpcgateway-cookie": []string{"argocd.token=eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJzdWIiOiJhZG1pbiJ9.TGGTTHuuGpEU8WgobXxkrBtW3NiR3dgw5LR-1DEW3BQ"}},
-			expectedErrorMessage: "no audience found in the token",
-			expectedClaims:       nil,
+			test:             "anonymous disabled, bad auth cookie",
+			anonymousEnabled: false,
+			metadata:         metadata.MD{"grpcgateway-cookie": []string{"argocd.token=eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJzdWIiOiJhZG1pbiJ9.TGGTTHuuGpEU8WgobXxkrBtW3NiR3dgw5LR-1DEW3BQ"}},
+			errorExpected:    true,
+			expectedClaims:   nil,
 		},
 		{
-			test:                 "anonymous enabled, bad auth cookie",
-			anonymousEnabled:     true,
-			metadata:             metadata.MD{"grpcgateway-cookie": []string{"argocd.token=eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJzdWIiOiJhZG1pbiJ9.TGGTTHuuGpEU8WgobXxkrBtW3NiR3dgw5LR-1DEW3BQ"}},
-			expectedErrorMessage: "",
-			expectedClaims:       "",
+			test:             "anonymous enabled, bad auth cookie",
+			anonymousEnabled: true,
+			metadata:         metadata.MD{"grpcgateway-cookie": []string{"argocd.token=eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJzdWIiOiJhZG1pbiJ9.TGGTTHuuGpEU8WgobXxkrBtW3NiR3dgw5LR-1DEW3BQ"}},
+			errorExpected:    false,
+			expectedClaims:   "",
 		},
 	}
 
@@ -836,8 +836,8 @@ func TestAuthenticate_bad_request_metadata(t *testing.T) {
 			ctx, err := argocd.Authenticate(ctx)
 			claims := ctx.Value("claims")
 			assert.Equal(t, testDataCopy.expectedClaims, claims)
-			if testDataCopy.expectedErrorMessage != "" {
-				assert.ErrorContains(t, err, testDataCopy.expectedErrorMessage, "Authenticate should have thrown an error and blocked the request")
+			if testDataCopy.errorExpected {
+				assert.Error(t, err)
 			} else {
 				assert.NoError(t, err)
 			}

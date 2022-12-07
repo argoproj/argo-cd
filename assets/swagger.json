@@ -4848,6 +4848,9 @@
             "type": "string"
           }
         },
+        "isSSO": {
+          "type": "boolean"
+        },
         "iss": {
           "type": "string"
         },

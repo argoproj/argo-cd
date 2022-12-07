@@ -2,7 +2,10 @@ package session
 
 import (
 	"context"
+	"errors"
 	"fmt"
+
+	log "github.com/sirupsen/logrus"
 
 	"github.com/argoproj/argo-cd/v2/util/settings"
 
@@ -90,10 +93,16 @@ func (s *Server) AuthFuncOverride(ctx context.Context, fullMethodName string) (c
 }
 
 func (s *Server) GetUserInfo(ctx context.Context, q *session.GetUserInfoRequest) (*session.GetUserInfoResponse, error) {
+	isSSO, err := s.mgr.IsSSO(ctx)
+	if err != nil {
+		log.Errorf("failed to determine whether session was an SSO session: %s", err)
+		return nil, errors.New("failed to determine whether session as an SSO session")
+	}
 	return &session.GetUserInfoResponse{
 		LoggedIn: sessionmgr.LoggedIn(ctx),
 		Username: sessionmgr.Username(ctx),
 		Iss:      sessionmgr.Iss(ctx),
 		Groups:   sessionmgr.Groups(ctx, s.policyEnf.GetScopes()),
+		IsSSO:    isSSO,
 	}, nil
 }
