@@ -2171,7 +2171,7 @@ metadata:
     app.kubernetes.io/part-of: argocd
   name: argocd-server
 spec:
-  replicas: 2
+  replicas: 3
   selector:
     matchLabels:
       app.kubernetes.io/name: argocd-server
@@ -2201,7 +2201,7 @@ spec:
         - argocd-redis-ha-haproxy:6379
         env:
         - name: ARGOCD_API_SERVER_REPLICAS
-          value: "2"
+          value: "3"
         - name: ARGOCD_SERVER_INSECURE
           valueFrom:
             configMapKeyRef:
