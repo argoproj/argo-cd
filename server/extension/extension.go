@@ -8,6 +8,7 @@ import (
 	"net/http"
 	"net/http/httputil"
 	"net/url"
+	"regexp"
 	"strings"
 	"time"
 
@@ -171,7 +172,7 @@ func NewManager(sg SettingsGetter, ag ApplicationGetter, log *log.Entry) *Manage
 	}
 }
 
-func parseConfig(config string) (*ExtensionConfigs, error) {
+func parseAndValidateConfig(config string) (*ExtensionConfigs, error) {
 	configs := ExtensionConfigs{}
 	err := yaml.Unmarshal([]byte(config), &configs)
 	if err != nil {
@@ -185,9 +186,13 @@ func parseConfig(config string) (*ExtensionConfigs, error) {
 }
 
 func validateConfigs(configs *ExtensionConfigs) error {
+	nameSafeRegex := regexp.MustCompile(`^[A-Za-z0-9-_]+$`)
 	for _, ext := range configs.Extensions {
 		if ext.Name == "" {
 			return fmt.Errorf("extensions.name must be configured")
+		}
+		if !nameSafeRegex.MatchString(ext.Name) {
+			return fmt.Errorf("invalid extensions.name: only alphanumeric characters are allowed (^[A-Za-z0-9-_]+$)")
 		}
 		svcTotal := len(ext.Backend.Services)
 		for _, svc := range ext.Backend.Services {
@@ -207,7 +212,7 @@ func validateConfigs(configs *ExtensionConfigs) error {
 func NewProxy(targetURL string, config ProxyConfig) (*httputil.ReverseProxy, error) {
 	url, err := url.Parse(targetURL)
 	if err != nil {
-		return nil, err
+		return nil, fmt.Errorf("failed to parse proxy URL: %s", err)
 	}
 	proxy := httputil.NewSingleHostReverseProxy(url)
 	proxy.Transport = newTransport(config)
@@ -259,7 +264,7 @@ func (m *Manager) RegisterHandlers(r *mux.Router) error {
 		return fmt.Errorf("No extensions configurations found")
 	}
 
-	extConfigs, err := parseConfig(config.ExtensionConfig)
+	extConfigs, err := parseAndValidateConfig(config.ExtensionConfig)
 	if err != nil {
 		return fmt.Errorf("error parsing extension config: %s", err)
 	}
@@ -311,35 +316,30 @@ func (m *Manager) ListExtensions(extConfigs *ExtensionConfigs) func(http.Respons
 // extension service. The request will be sanitized by removing sensitive headers.
 func (m *Manager) CallExtension(extName string, proxyByCluster map[string]*httputil.ReverseProxy) func(http.ResponseWriter, *http.Request) {
 	return func(w http.ResponseWriter, r *http.Request) {
-		err := sanitizeRequest(r, extName)
-		if err != nil {
-			msg := fmt.Sprintf("Error validating request: %s", err)
-			m.writeErrorResponse(http.StatusBadRequest, msg, w)
-			return
-		}
+		sanitizeRequest(r, extName)
 		if len(proxyByCluster) == 1 {
 			for _, proxy := range proxyByCluster {
 				proxy.ServeHTTP(w, r)
 				return
 			}
 		}
-
-		var app *v1alpha1.Application
-		var appNamespace, appName string
 		appHeader := r.Header.Get(HeaderArgoCDApplicationName)
-		if appHeader != "" {
-			appNamespace, appName, err = getAppName(appHeader)
-			if err != nil {
-				msg := fmt.Sprintf("Error getting application name: %s", err)
-				m.writeErrorResponse(http.StatusBadRequest, msg, w)
-				return
-			}
-			app, err = m.application.Get(appNamespace, appName)
-			if err != nil {
-				msg := fmt.Sprintf("Error getting application: %s", err)
-				m.writeErrorResponse(http.StatusBadRequest, msg, w)
-				return
-			}
+		if appHeader == "" {
+			msg := fmt.Sprintf("Header %q must be provided", HeaderArgoCDApplicationName)
+			m.writeErrorResponse(http.StatusBadRequest, msg, w)
+			return
+		}
+		appNamespace, appName, err := getAppName(appHeader)
+		if err != nil {
+			msg := fmt.Sprintf("Error getting application name: %s", err)
+			m.writeErrorResponse(http.StatusBadRequest, msg, w)
+			return
+		}
+		app, err := m.application.Get(appNamespace, appName)
+		if err != nil {
+			msg := fmt.Sprintf("Error getting application: %s", err)
+			m.writeErrorResponse(http.StatusBadRequest, msg, w)
+			return
 		}
 		if app == nil {
 			msg := fmt.Sprintf("Invalid Application: %s", appHeader)
@@ -369,9 +369,8 @@ func getAppName(appHeader string) (string, string, error) {
 	return parts[0], parts[1], nil
 }
 
-func sanitizeRequest(r *http.Request, extName string) error {
+func sanitizeRequest(r *http.Request, extName string) {
 	r.URL.Path = strings.TrimPrefix(r.URL.String(), fmt.Sprintf("%s/%s", URLPrefix, extName))
-	return nil
 }
 
 func (m *Manager) writeErrorResponse(status int, message string, w http.ResponseWriter) {
