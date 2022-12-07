@@ -96,7 +96,7 @@ non-preferred version and causes performance issues.
 
 ### argocd-server
 
-The `argocd-server` is stateless and probably the least likely to cause issues. To ensure there is no downtime during upgrades, consider increasing the number of replicas to `3` or more and repeat number of replicas in `ARGOCD_API_SERVER_REPLICAS` environment variable. The strategic merge patch below
+The `argocd-server` is stateless and probably the least likely to cause issues. To ensure there is no downtime during upgrades, consider increasing the number of replicas to `3` or more and repeat the number in the `ARGOCD_API_SERVER_REPLICAS` environment variable. The strategic merge patch below
 demonstrates this.
 
 ```yaml
