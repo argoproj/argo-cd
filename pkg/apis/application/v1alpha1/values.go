@@ -10,9 +10,12 @@ import (
 	runtime "k8s.io/apimachinery/pkg/runtime"
 )
 
+// Set the ValuesObject property to the json representation of the yaml contained in value
+// Remove Values property if present
 func (h *ApplicationSourceHelm) SetValuesString(value string) error {
 	if value == "" {
-		h.Values = nil
+		h.ValuesObject = nil
+		h.Values = ""
 	} else {
 		data, err := yaml.YAMLToJSON([]byte(value))
 		if err != nil {
@@ -28,16 +31,17 @@ func (h *ApplicationSourceHelm) SetValuesString(value string) error {
 		default:
 			return fmt.Errorf("invalid type %q", reflect.TypeOf(v))
 		}
-		h.Values = &runtime.RawExtension{Raw: data}
+		h.ValuesObject = &runtime.RawExtension{Raw: data}
+		h.Values = ""
 	}
 	return nil
 }
 
 func (h *ApplicationSourceHelm) ValuesYAML() []byte {
-	if h.Values == nil || h.Values.Raw == nil {
-		return []byte{}
+	if h.ValuesObject == nil || h.ValuesObject.Raw == nil {
+		return []byte(h.Values)
 	}
-	b, err := yaml.JSONToYAML(h.Values.Raw)
+	b, err := yaml.JSONToYAML(h.ValuesObject.Raw)
 	if err != nil {
 		// This should be impossible, because rawValue isn't set directly.
 		return []byte{}
@@ -50,8 +54,8 @@ func (h *ApplicationSourceHelm) ValuesIsEmpty() bool {
 }
 
 func (h *ApplicationSourceHelm) ValuesString() string {
-	if h.Values == nil || h.Values.Raw == nil {
-		return ""
+	if h.ValuesObject == nil || h.ValuesObject.Raw == nil {
+		return h.Values
 	}
 	return strings.TrimSuffix(string(h.ValuesYAML()), "\n")
 }

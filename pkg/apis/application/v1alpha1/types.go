@@ -300,9 +300,12 @@ type ApplicationSourceHelm struct {
 	// ReleaseName is the Helm release name to use. If omitted it will use the application name
 	ReleaseName string `json:"releaseName,omitempty" protobuf:"bytes,3,opt,name=releaseName"`
 	// Values specifies Helm values to be passed to helm template, typically defined as a block
-	// +kubebuilder:pruning:PreserveUnknownFields
 	// +patchStrategy=replace
-	Values *runtime.RawExtension `json:"values,omitempty" patchStrategy:"replace" protobuf:"bytes,4,opt,name=values"`
+	// Deprecated: use valuesObject instead
+	Values string `json:"values,omitempty" patchStrategy:"replace" protobuf:"bytes,4,opt,name=values"`
+	// ValuesObject specifies Helm values to be passed to helm template, defined as a map
+	// +kubebuilder:pruning:PreserveUnknownFields
+	ValuesObject *runtime.RawExtension `json:"valuesObject,omitempty" protobuf:"bytes,11,opt,name=valuesObject"`
 	// FileParameters are file parameters to the helm template
 	FileParameters []HelmFileParameter `json:"fileParameters,omitempty" protobuf:"bytes,5,opt,name=fileParameters"`
 	// Version is the Helm version to use for templating ("3")
