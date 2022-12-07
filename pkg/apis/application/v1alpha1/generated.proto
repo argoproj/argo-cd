@@ -427,7 +427,7 @@ message ApplicationSourceHelm {
 
   // ValuesObject specifies Helm values to be passed to helm template, defined as a map
   // +kubebuilder:pruning:PreserveUnknownFields
-  optional k8s.io.apimachinery.pkg.runtime.RawExtension valuesObject = 11;
+  optional k8s.io.apimachinery.pkg.runtime.RawExtension valuesObject = 10;
 
   // FileParameters are file parameters to the helm template
   repeated HelmFileParameter fileParameters = 5;

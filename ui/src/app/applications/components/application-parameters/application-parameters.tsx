@@ -546,8 +546,8 @@ export const ApplicationParameters = (props: {
                 }
 
                 if (updatedApp.spec.source.helm && updatedApp.spec.source.helm.values) {
-                   const parsedValues = jsYaml.safeLoad(updatedApp.spec.source.helm.values);
-                   errors['spec.source.helm.values'] =  typeof parsedValues == 'object' ? null : 'Values must be a map';
+                    const parsedValues = jsYaml.safeLoad(updatedApp.spec.source.helm.values);
+                    errors['spec.source.helm.values'] = typeof parsedValues == 'object' ? null : 'Values must be a map';
                 }
 
                 return errors;

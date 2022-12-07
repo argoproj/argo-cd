@@ -61,15 +61,16 @@ func TestValues_SetString(t *testing.T) {
 	}
 
 	for _, testCase := range testCases {
+		var err error
 		t.Run(testCase.name, func(t *testing.T) {
 			source := &ApplicationSourceHelm{}
-			err := source.SetValuesString(testCase.inputValue)
+			err = source.SetValuesString(testCase.inputValue)
 
 			if !testCase.expectError {
 				assert.Equal(t, testCase.expectValue, source.ValuesString())
-				data, err := source.Values.MarshalJSON()
+				data, err := source.ValuesObject.MarshalJSON()
 				assert.NoError(t, err)
-				err = source.Values.UnmarshalJSON(data)
+				err = source.ValuesObject.UnmarshalJSON(data)
 				assert.NoError(t, err)
 				assert.Equal(t, testCase.expectValue, source.ValuesString())
 			} else {

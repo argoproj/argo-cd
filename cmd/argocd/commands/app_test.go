@@ -779,7 +779,7 @@ func Test_unset(t *testing.T) {
 				},
 			},
 			PassCredentials: true,
-			Values:          &runtime.RawExtension{Raw: []byte("some: yaml")},
+			ValuesObject:    &runtime.RawExtension{Raw: []byte("some: yaml")},
 			ValueFiles: []string{
 				"values-1.yaml",
 				"values-2.yaml",
