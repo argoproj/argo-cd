@@ -2026,20 +2026,18 @@ func (s *Service) GetRevisionChartDetails(ctx context.Context, q *apiclient.Repo
 	defer io.Close(closer)
 	helmCmd, err := helm.NewCmdWithVersion(chartPath, helm.HelmV3, q.Repo.EnableOCI, q.Repo.Proxy)
 	if err != nil {
-		return nil, fmt.Errorf("helm cli: %v", err)
+		return nil, fmt.Errorf("helm cmd: %v", err)
 	}
 	defer helmCmd.Close()
 	helmDetails, err := helmCmd.InspectChart()
 	if err != nil {
-		return nil, fmt.Errorf("helm cli: %v", err)
+		return nil, fmt.Errorf("inspect chart: %v", err)
 	}
-	// FIXME: actually fetch the chart details
-	details = &v1alpha1.ChartDetails{
-		Description: helmDetails,
-		Maintainers: "Gugu",
-		Home:        "https://example.com",
+	details, err = getChartDetails(helmDetails)
+	if err != nil {
+		return nil, err
 	}
-	s.cache.SetRevisionChartDetails(q.Repo.Repo, q.Name, q.Revision, details)
+	_ = s.cache.SetRevisionChartDetails(q.Repo.Repo, q.Name, q.Revision, details)
 	return details, nil
 }
 
