@@ -17,6 +17,8 @@ import (
 	"strings"
 	"time"
 
+	"github.com/golang/protobuf/ptypes/empty"
+
 	kubeyaml "k8s.io/apimachinery/pkg/util/yaml"
 
 	"k8s.io/apimachinery/pkg/api/resource"
@@ -226,6 +228,26 @@ func (s *Service) ListApps(ctx context.Context, q *apiclient.ListAppsRequest) (*
 		log.Warnf("cache set error %s/%s: %v", q.Repo.Repo, commitSHA, err)
 	}
 	res := apiclient.AppList{Apps: apps}
+	return &res, nil
+}
+
+// ListPlugins lists the contents of a GitHub repo
+func (s *Service) ListPlugins(ctx context.Context, _ *empty.Empty) (*apiclient.PluginList, error) {
+	pluginSockFilePath := common.GetPluginSockFilePath()
+
+	sockFiles, err := os.ReadDir(pluginSockFilePath)
+	if err != nil {
+		return nil, fmt.Errorf("failed to get plugins from dir %v, error=%w", pluginSockFilePath, err)
+	}
+
+	plugins := []string{}
+	for _, file := range sockFiles {
+		if file.Type() == os.ModeSocket {
+			plugins = append(plugins, strings.TrimSuffix(file.Name(), ".sock"))
+		}
+	}
+
+	res := apiclient.PluginList{Plugins: plugins}
 	return &res, nil
 }
 

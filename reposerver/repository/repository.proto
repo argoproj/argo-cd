@@ -4,6 +4,7 @@ option go_package = "github.com/argoproj/argo-cd/v2/reposerver/apiclient";
 package repository;
 
 import "github.com/argoproj/argo-cd/v2/pkg/apis/application/v1alpha1/generated.proto";
+import "google/protobuf/empty.proto";
 
 // ManifestRequest is a query for manifest generation.
 message ManifestRequest {
@@ -105,6 +106,11 @@ message ListAppsRequest {
 // AppList returns the contents of the repo of a ListApps request
 message AppList {
     map<string, string> apps = 1;
+}
+
+// PluginList returns the list of all cmp v2 plugins running as sidecars
+message PluginList {
+    repeated  string plugins = 1;
 }
 
 // RepoServerAppDetailsQuery contains query information for app details request
@@ -228,6 +234,10 @@ service RepoServerService {
 
     // ListApps returns a list of apps in the repo
     rpc ListApps(ListAppsRequest) returns (AppList) {
+    }
+
+    // ListPlugins returns a list of cmp v2 plugins running as sidecar to reposerver
+    rpc ListPlugins(google.protobuf.Empty) returns (PluginList) {
     }
 
     // Generate manifest for application in specified repo name and revision
