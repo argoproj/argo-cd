@@ -1,6 +1,6 @@
 # Secret Management
 
-Argo CD is un-opinionated about how secrets are managed. There's many ways to do it and there's no one-size-fits-all solution.
+Argo CD is un-opinionated about how secrets are managed. There are many ways to do it, and there's no one-size-fits-all solution.
 
 Many solutions use plugins to inject secrets into the application manifests. See [Mitigating Risks of Secret-Injection Plugins](#mitigating-risks-of-secret-injection-plugins)
 below to make sure you use those plugins securely.
