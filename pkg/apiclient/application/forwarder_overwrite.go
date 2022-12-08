@@ -69,14 +69,15 @@ func processApplicationListField(v interface{}, fields map[string]interface{}, e
 					continue
 				}
 				value := fn(&app)
+				if value == nil {
+					continue
+				}
 				parts := strings.Split(field, ".")
 				item := converted
 				for i := 0; i < len(parts); i++ {
 					subField := parts[i]
 					if i == len(parts)-1 {
-						if value != nil {
-							item[subField] = value
-						}
+						item[subField] = value
 					} else {
 						if _, ok := item[subField]; !ok {
 							item[subField] = make(map[string]interface{})
