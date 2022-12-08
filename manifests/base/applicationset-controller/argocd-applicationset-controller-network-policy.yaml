@@ -1,0 +1,18 @@
+apiVersion: networking.k8s.io/v1
+kind: NetworkPolicy
+metadata:
+  name: argocd-applicationset-controller-network-policy
+spec:
+  podSelector:
+    matchLabels:
+      app.kubernetes.io/name: argocd-applicationset-controller
+  ingress:
+    - from:
+        - namespaceSelector: { }
+      ports:
+        - protocol: TCP
+          port: 7000
+        - protocol: TCP
+          port: 8080
+  policyTypes:
+  - Ingress

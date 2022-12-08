@@ -77,7 +77,7 @@ func TestGetAppProjectWithNoProjDefined(t *testing.T) {
 	kubeClient := fake.NewSimpleClientset(&cm)
 	settingsMgr := settings.NewSettingsManager(context.Background(), kubeClient, test.FakeArgoCDNamespace)
 	argoDB := db.NewDB("default", settingsMgr, kubeClient)
-	proj, err := GetAppProject(&testApp.Spec, applisters.NewAppProjectLister(informer.GetIndexer()), namespace, settingsMgr, argoDB, ctx)
+	proj, err := GetAppProject(&testApp, applisters.NewAppProjectLister(informer.GetIndexer()), namespace, settingsMgr, argoDB, ctx)
 	assert.Nil(t, err)
 	assert.Equal(t, proj.Name, projName)
 }
@@ -127,12 +127,6 @@ func TestNilOutZerValueAppSources(t *testing.T) {
 		assert.Nil(t, spec.Source.Helm)
 	}
 	{
-		spec = NormalizeApplicationSpec(&argoappv1.ApplicationSpec{Source: argoappv1.ApplicationSource{Ksonnet: &argoappv1.ApplicationSourceKsonnet{Environment: "foo"}}})
-		assert.NotNil(t, spec.Source.Ksonnet)
-		spec = NormalizeApplicationSpec(&argoappv1.ApplicationSpec{Source: argoappv1.ApplicationSource{Ksonnet: &argoappv1.ApplicationSourceKsonnet{Environment: ""}}})
-		assert.Nil(t, spec.Source.Ksonnet)
-	}
-	{
 		spec = NormalizeApplicationSpec(&argoappv1.ApplicationSpec{Source: argoappv1.ApplicationSource{Directory: &argoappv1.ApplicationSourceDirectory{Recurse: true}}})
 		assert.NotNil(t, spec.Source.Directory)
 		spec = NormalizeApplicationSpec(&argoappv1.ApplicationSpec{Source: argoappv1.ApplicationSource{Directory: &argoappv1.ApplicationSourceDirectory{Recurse: false}}})
@@ -169,44 +163,6 @@ func TestValidateChartWithoutRevision(t *testing.T) {
 	assert.Equal(t, 1, len(conditions))
 	assert.Equal(t, argoappv1.ApplicationConditionInvalidSpecError, conditions[0].Type)
 	assert.Equal(t, "spec.source.targetRevision is required if the manifest source is a helm chart", conditions[0].Message)
-}
-
-func Test_enrichSpec(t *testing.T) {
-	t.Run("Empty", func(t *testing.T) {
-		spec := &argoappv1.ApplicationSpec{}
-		enrichSpec(spec, &apiclient.RepoAppDetailsResponse{})
-		assert.Empty(t, spec.Destination.Server)
-		assert.Empty(t, spec.Destination.Namespace)
-	})
-	t.Run("Ksonnet", func(t *testing.T) {
-		spec := &argoappv1.ApplicationSpec{
-			Source: argoappv1.ApplicationSource{
-				Ksonnet: &argoappv1.ApplicationSourceKsonnet{
-					Environment: "qa",
-				},
-			},
-		}
-		response := &apiclient.RepoAppDetailsResponse{
-			Ksonnet: &apiclient.KsonnetAppSpec{
-				Environments: map[string]*apiclient.KsonnetEnvironment{
-					"prod": {
-						Destination: &apiclient.KsonnetEnvironmentDestination{
-							Server:    "my-server",
-							Namespace: "my-namespace",
-						},
-					},
-				},
-			},
-		}
-		enrichSpec(spec, response)
-		assert.Empty(t, spec.Destination.Server)
-		assert.Empty(t, spec.Destination.Namespace)
-
-		spec.Source.Ksonnet.Environment = "prod"
-		enrichSpec(spec, response)
-		assert.Equal(t, "my-server", spec.Destination.Server)
-		assert.Equal(t, "my-namespace", spec.Destination.Namespace)
-	})
 }
 
 func TestAPIResourcesToStrings(t *testing.T) {
@@ -268,6 +224,7 @@ func TestValidateRepo(t *testing.T) {
 		Source:           &app.Spec.Source,
 		Repos:            helmRepos,
 		KustomizeOptions: kustomizeOptions,
+		HelmOptions:      &argoappv1.HelmOptions{ValuesFileSchemes: []string{"https", "http"}},
 		NoRevisionCache:  true,
 	}).Return(&apiclient.RepoAppDetailsResponse{}, nil)
 
@@ -777,7 +734,7 @@ func TestValidateDestination(t *testing.T) {
 		db.On("GetClusterServersByName", context.Background(), mock.Anything).Return(nil, fmt.Errorf("an error occurred"))
 
 		err := ValidateDestination(context.Background(), &dest, db)
-		assert.Equal(t, "unable to find destination server: an error occurred", err.Error())
+		assert.Contains(t, err.Error(), "an error occurred")
 		assert.False(t, dest.IsServerInferred())
 	})
 
@@ -965,5 +922,97 @@ func Test_GenerateSpecIsDifferentErrorMessageWithDiff(t *testing.T) {
 
 	msg := GenerateSpecIsDifferentErrorMessage("repo", r1, r2)
 	assert.Equal(t, msg, "existing repo spec is different; use upsert flag to force update; difference in keys \"Name\"")
+
+}
+
+func Test_ParseAppQualifiedName(t *testing.T) {
+	testcases := []struct {
+		name       string
+		input      string
+		implicitNs string
+		appName    string
+		appNs      string
+	}{
+		{"Full qualified without implicit NS", "namespace/name", "", "name", "namespace"},
+		{"Non qualified without implicit NS", "name", "", "name", ""},
+		{"Full qualified with implicit NS", "namespace/name", "namespace2", "name", "namespace"},
+		{"Non qualified with implicit NS", "name", "namespace2", "name", "namespace2"},
+		{"Invalid without implicit NS", "namespace_name", "", "namespace_name", ""},
+	}
+
+	for _, tt := range testcases {
+		t.Run(tt.name, func(t *testing.T) {
+			appName, appNs := ParseAppQualifiedName(tt.input, tt.implicitNs)
+			assert.Equal(t, tt.appName, appName)
+			assert.Equal(t, tt.appNs, appNs)
+		})
+	}
+}
+
+func Test_ParseAppInstanceName(t *testing.T) {
+	testcases := []struct {
+		name       string
+		input      string
+		implicitNs string
+		appName    string
+		appNs      string
+	}{
+		{"Full qualified without implicit NS", "namespace_name", "", "name", "namespace"},
+		{"Non qualified without implicit NS", "name", "", "name", ""},
+		{"Full qualified with implicit NS", "namespace_name", "namespace2", "name", "namespace"},
+		{"Non qualified with implicit NS", "name", "namespace2", "name", "namespace2"},
+		{"Invalid without implicit NS", "namespace/name", "", "namespace/name", ""},
+	}
+
+	for _, tt := range testcases {
+		t.Run(tt.name, func(t *testing.T) {
+			appName, appNs := ParseAppInstanceName(tt.input, tt.implicitNs)
+			assert.Equal(t, tt.appName, appName)
+			assert.Equal(t, tt.appNs, appNs)
+		})
+	}
+}
+
+func Test_AppInstanceName(t *testing.T) {
+	testcases := []struct {
+		name         string
+		appName      string
+		appNamespace string
+		defaultNs    string
+		result       string
+	}{
+		{"defaultns different as appns", "appname", "appns", "defaultns", "appns_appname"},
+		{"defaultns same as appns", "appname", "appns", "appns", "appname"},
+		{"defaultns set and appns not given", "appname", "", "appns", "appname"},
+		{"neither defaultns nor appns set", "appname", "", "appns", "appname"},
+	}
+
+	for _, tt := range testcases {
+		t.Run(tt.name, func(t *testing.T) {
+			result := AppInstanceName(tt.appName, tt.appNamespace, tt.defaultNs)
+			assert.Equal(t, tt.result, result)
+		})
+	}
+}
+
+func Test_AppInstanceNameFromQualified(t *testing.T) {
+	testcases := []struct {
+		name      string
+		appName   string
+		defaultNs string
+		result    string
+	}{
+		{"Qualified name with namespace not being defaultns", "appns/appname", "defaultns", "appns_appname"},
+		{"Qualified name with namespace being defaultns", "defaultns/appname", "defaultns", "appname"},
+		{"Qualified name without namespace", "appname", "defaultns", "appname"},
+		{"Qualified name without namespace and defaultns", "appname", "", "appname"},
+	}
+
+	for _, tt := range testcases {
+		t.Run(tt.name, func(t *testing.T) {
+			result := AppInstanceNameFromQualified(tt.appName, tt.defaultNs)
+			assert.Equal(t, tt.result, result)
+		})
+	}
 
 }

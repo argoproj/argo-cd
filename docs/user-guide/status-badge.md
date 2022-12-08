@@ -1,7 +1,5 @@
 # Status Badge
 
-> v1.2
-
 Argo CD can display a badge with health and sync status for any application. The feature is disabled by default because badge image is available to any user without authentication.
 The feature can be enabled using `statusbadge.enabled` key of `argocd-cm` ConfigMap (see [argocd-cm.yaml](../operator-manual/argocd-cm.yaml)).
 

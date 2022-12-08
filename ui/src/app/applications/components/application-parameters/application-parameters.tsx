@@ -9,6 +9,7 @@ import {services} from '../../../shared/services';
 import {ImageTagFieldEditor} from './kustomize';
 import * as kustomize from './kustomize-image';
 import {VarsInputField} from './vars-input-field';
+import {concatMaps} from '../../../shared/utils';
 
 const TextWithMetadataField = ReactFormField((props: {metadata: {value: string}; fieldApi: FieldApi; className: string}) => {
     const {
@@ -23,7 +24,10 @@ function distinct<T>(first: IterableIterator<T>, second: IterableIterator<T>) {
     return Array.from(new Set(Array.from(first).concat(Array.from(second))));
 }
 
-function overridesFirst(first: {overrideIndex: number}, second: {overrideIndex: number}) {
+function overridesFirst(first: {overrideIndex: number; metadata: {name: string}}, second: {overrideIndex: number; metadata: {name: string}}) {
+    if (first.overrideIndex === second.overrideIndex) {
+        return first.metadata.name.localeCompare(second.metadata.name);
+    }
     if (first.overrideIndex < 0) {
         return 1;
     } else if (second.overrideIndex < 0) {
@@ -57,7 +61,7 @@ function getParamsEditableItems(
                 </span>
             ),
             edit: (formApi: FormApi) => {
-                const labelStyle = {position: 'absolute', right: 0, top: 0, zIndex: 1} as any;
+                const labelStyle = {position: 'absolute', right: 0, top: 0, zIndex: 11} as any;
                 const overrideRemoved = removedOverrides[i];
                 const fieldItemPath = `${fieldsPath}[${i}]`;
                 return (
@@ -98,11 +102,6 @@ function getParamsEditableItems(
                 );
             }
         }))
-        .sort((first, second) => {
-            const firstSortBy = first.key || first.title;
-            const secondSortBy = second.key || second.title;
-            return firstSortBy.localeCompare(secondSortBy);
-        })
         .map((item, i) => ({...item, before: (i === 0 && <p style={{marginTop: '1em'}}>{title}</p>) || null}));
 }
 
@@ -118,46 +117,7 @@ export const ApplicationParameters = (props: {
 
     let attributes: EditablePanelItem[] = [];
 
-    if (props.details.type === 'Ksonnet' && props.details.ksonnet) {
-        attributes.push({
-            title: 'ENVIRONMENT',
-            view: app.spec.source.ksonnet && app.spec.source.ksonnet.environment,
-            edit: (formApi: FormApi) => (
-                <FormField
-                    formApi={formApi}
-                    field='spec.source.ksonnet.environment'
-                    component={FormSelect}
-                    componentProps={{options: Object.keys(props.details.ksonnet.environments || {})}}
-                />
-            )
-        });
-        const paramsByComponentName = new Map<string, models.KsonnetParameter>();
-        ((props.details.ksonnet && props.details.ksonnet.parameters) || []).forEach(param => paramsByComponentName.set(`${param.component}-${param.name}`, param));
-        const overridesByComponentName = new Map<string, number>();
-        ((source.ksonnet && source.ksonnet.parameters) || []).forEach((override, i) => overridesByComponentName.set(`${override.component}-${override.name}`, i));
-        attributes = attributes.concat(
-            getParamsEditableItems(
-                app,
-                'PARAMETERS',
-                'spec.source.ksonnet.parameters',
-                removedOverrides,
-                setRemovedOverrides,
-                distinct(paramsByComponentName.keys(), overridesByComponentName.keys()).map(componentName => {
-                    let param = paramsByComponentName.get(componentName);
-                    const original = (param && param.value) || '';
-                    let overrideIndex = overridesByComponentName.get(componentName);
-                    if (overrideIndex === undefined) {
-                        overrideIndex = -1;
-                    }
-                    if (!param && overrideIndex > -1) {
-                        param = {...source.ksonnet.parameters[overrideIndex]};
-                    }
-                    const value = (overrideIndex > -1 && source.ksonnet.parameters[overrideIndex].value) || original;
-                    return {key: componentName, overrideIndex, original, metadata: {name: param.name, component: param.component, value}};
-                })
-            )
-        );
-    } else if (props.details.type === 'Kustomize' && props.details.kustomize) {
+    if (props.details.type === 'Kustomize' && props.details.kustomize) {
         attributes.push({
             title: 'VERSION',
             view: (app.spec.source.kustomize && app.spec.source.kustomize.version) || <span>default</span>,
@@ -231,29 +191,31 @@ export const ApplicationParameters = (props: {
                 />
             )
         });
-        attributes.push({
-            title: 'VALUES',
-            view: app.spec.source.helm && (
-                <Expandable>
-                    <pre>{app.spec.source.helm.values}</pre>
-                </Expandable>
-            ),
-            edit: (formApi: FormApi) => (
-                <div>
-                    <pre>
-                        <FormField formApi={formApi} field='spec.source.helm.values' component={TextArea} />
-                    </pre>
-                    {props.details.helm.values && (
-                        <div>
-                            <label>values.yaml</label>
-                            <Expandable>
-                                <pre>{props.details.helm.values}</pre>
-                            </Expandable>
-                        </div>
-                    )}
-                </div>
-            )
-        });
+        if (app?.spec?.source?.helm?.values) {
+            attributes.push({
+                title: 'VALUES',
+                view: app.spec.source.helm && (
+                    <Expandable>
+                        <pre>{app.spec.source.helm.values}</pre>
+                    </Expandable>
+                ),
+                edit: (formApi: FormApi) => (
+                    <div>
+                        <pre>
+                            <FormField formApi={formApi} field='spec.source.helm.values' component={TextArea} />
+                        </pre>
+                        {props.details.helm.values && (
+                            <div>
+                                <label>values.yaml</label>
+                                <Expandable>
+                                    <pre>{props.details.helm.values}</pre>
+                                </Expandable>
+                            </div>
+                        )}
+                    </div>
+                )
+            });
+        }
         const paramsByName = new Map<string, models.HelmParameter>();
         (props.details.helm.parameters || []).forEach(param => paramsByName.set(param.name, param));
         const overridesByName = new Map<string, number>();
@@ -317,6 +279,36 @@ export const ApplicationParameters = (props: {
             view: app.spec.source.plugin && (app.spec.source.plugin.env || []).map(i => `${i.name}='${i.value}'`).join(' '),
             edit: (formApi: FormApi) => <FormField field='spec.source.plugin.env' formApi={formApi} component={ArrayInputField} />
         });
+        if (props.details.plugin.parametersAnnouncement) {
+            for (const announcement of props.details.plugin.parametersAnnouncement) {
+                const liveParam = app.spec.source.plugin.parameters?.find(param => param.name === announcement.name);
+                if (announcement.collectionType === undefined || announcement.collectionType === '' || announcement.collectionType === 'string') {
+                    attributes.push({
+                        title: announcement.title ?? announcement.name,
+                        view: liveParam?.string || announcement.string,
+                        edit: () => liveParam?.string || announcement.string
+                    });
+                } else if (announcement.collectionType === 'array') {
+                    attributes.push({
+                        title: announcement.title ?? announcement.name,
+                        view: (liveParam?.array || announcement.array || []).join(' '),
+                        edit: () => (liveParam?.array || announcement.array || []).join(' ')
+                    });
+                } else if (announcement.collectionType === 'map') {
+                    const entries = concatMaps(announcement.map, liveParam?.map).entries();
+                    attributes.push({
+                        title: announcement.title ?? announcement.name,
+                        view: Array.from(entries)
+                            .map(([key, value]) => `${key}='${value}'`)
+                            .join(' '),
+                        edit: () =>
+                            Array.from(entries)
+                                .map(([key, value]) => `${key}='${value}'`)
+                                .join(' ')
+                    });
+                }
+            }
+        }
     } else if (props.details.type === 'Directory') {
         const directory = app.spec.source.directory || ({} as ApplicationSourceDirectory);
         attributes.push({
@@ -342,6 +334,18 @@ export const ApplicationParameters = (props: {
             )),
             edit: (formApi: FormApi) => <FormField field='spec.source.directory.jsonnet.extVars' formApi={formApi} component={VarsInputField} />
         });
+
+        attributes.push({
+            title: 'INCLUDE',
+            view: app.spec.source.directory && app.spec.source.directory.include,
+            edit: (formApi: FormApi) => <FormField formApi={formApi} field='spec.source.directory.include' component={Text} />
+        });
+
+        attributes.push({
+            title: 'EXCLUDE',
+            view: app.spec.source.directory && app.spec.source.directory.exclude,
+            edit: (formApi: FormApi) => <FormField formApi={formApi} field='spec.source.directory.exclude' component={Text} />
+        });
     }
 
     return (
@@ -358,9 +362,6 @@ export const ApplicationParameters = (props: {
 
                     if (input.spec.source.helm && input.spec.source.helm.parameters) {
                         input.spec.source.helm.parameters = input.spec.source.helm.parameters.filter(isDefined);
-                    }
-                    if (input.spec.source.ksonnet && input.spec.source.ksonnet.parameters) {
-                        input.spec.source.ksonnet.parameters = input.spec.source.ksonnet.parameters.filter(isDefined);
                     }
                     if (input.spec.source.kustomize && input.spec.source.kustomize.images) {
                         input.spec.source.kustomize.images = input.spec.source.kustomize.images.filter(isDefinedWithVersion);

@@ -1,0 +1,23 @@
+@import 'node_modules/argo-ui/src/styles/config';
+@import 'node_modules/argo-ui/src/styles/theme';
+
+.appearance-list {
+    &__panel {
+        margin: 18px 0;
+        position: relative;
+        padding: 20px;
+        font-size: 16px;
+        @include themify($themes) {
+            background-color: themed('background-2'); 
+            color: themed('text-1');                              
+        }
+        border-radius: 4px;
+        box-shadow: 1px 2px 3px rgba(#000, 0.1);
+    }
+
+    &__button {
+        position: absolute;
+        top: 25%;
+        right: 30px;
+    }
+}

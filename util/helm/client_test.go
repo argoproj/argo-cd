@@ -2,8 +2,14 @@ package helm
 
 import (
 	"bytes"
+	"encoding/json"
+	"fmt"
 	"os"
+	"strings"
 	"testing"
+
+	"net/http"
+	"net/http/httptest"
 
 	"github.com/stretchr/testify/assert"
 	"github.com/stretchr/testify/require"
@@ -119,4 +125,76 @@ func TestIsHelmOciRepo(t *testing.T) {
 	assert.True(t, IsHelmOciRepo("demo.goharbor.io:8080"))
 	assert.False(t, IsHelmOciRepo("https://demo.goharbor.io"))
 	assert.False(t, IsHelmOciRepo("https://demo.goharbor.io:8080"))
+}
+
+func TestGetIndexURL(t *testing.T) {
+	urlTemplate := `https://gitlab.com/projects/%s/packages/helm/stable`
+	t.Run("URL without escaped characters", func(t *testing.T) {
+		rawURL := fmt.Sprintf(urlTemplate, "232323982")
+		want := rawURL + "/index.yaml"
+		got, err := getIndexURL(rawURL)
+		assert.Equal(t, want, got)
+		assert.NoError(t, err)
+	})
+	t.Run("URL with escaped characters", func(t *testing.T) {
+		rawURL := fmt.Sprintf(urlTemplate, "mygroup%2Fmyproject")
+		want := rawURL + "/index.yaml"
+		got, err := getIndexURL(rawURL)
+		assert.Equal(t, want, got)
+		assert.NoError(t, err)
+	})
+	t.Run("URL with invalid escaped characters", func(t *testing.T) {
+		rawURL := fmt.Sprintf(urlTemplate, "mygroup%**myproject")
+		got, err := getIndexURL(rawURL)
+		assert.Equal(t, "", got)
+		assert.Error(t, err)
+	})
+}
+
+func TestGetTagsFromUrl(t *testing.T) {
+	server := httptest.NewTLSServer(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+		responseTags := TagsList{}
+		w.Header().Set("Content-Type", "application/json")
+		if !strings.Contains(r.URL.String(), "token") {
+			w.Header().Set("Link", fmt.Sprintf("<https://%s%s?token=next-token>; rel=next", r.Host, r.URL.Path))
+			responseTags.Tags = []string{"first"}
+		} else {
+			responseTags.Tags = []string{"second"}
+		}
+		w.WriteHeader(http.StatusOK)
+		err := json.NewEncoder(w).Encode(responseTags)
+		if err != nil {
+			t.Fatal(err)
+		}
+	}))
+
+	client := NewClient(server.URL, Creds{InsecureSkipVerify: true}, true, "")
+
+	tags, err := client.GetTags("mychart", true)
+	assert.NoError(t, err)
+	assert.Equal(t, tags.Tags[0], "first")
+	assert.Equal(t, tags.Tags[1], "second")
+}
+
+func Test_getNextUrl(t *testing.T) {
+	nextUrl := getNextUrl("")
+	assert.Equal(t, nextUrl, "")
+
+	nextUrl = getNextUrl("<https://my.repo.com/v2/chart/tags/list?token=123>; rel=next")
+	assert.Equal(t, nextUrl, "https://my.repo.com/v2/chart/tags/list?token=123")
+}
+
+func Test_getTagsListURL(t *testing.T) {
+	tagsListURL, err := getTagsListURL("account.dkr.ecr.eu-central-1.amazonaws.com", "dss")
+	assert.Nil(t, err)
+	assert.Equal(t, tagsListURL, "https://account.dkr.ecr.eu-central-1.amazonaws.com/v2/dss/tags/list")
+
+	tagsListURL, err = getTagsListURL("http://account.dkr.ecr.eu-central-1.amazonaws.com", "dss")
+	assert.Nil(t, err)
+	assert.Equal(t, tagsListURL, "https://account.dkr.ecr.eu-central-1.amazonaws.com/v2/dss/tags/list")
+
+	// with trailing /
+	tagsListURL, err = getTagsListURL("https://account.dkr.ecr.eu-central-1.amazonaws.com/", "dss")
+	assert.Nil(t, err)
+	assert.Equal(t, tagsListURL, "https://account.dkr.ecr.eu-central-1.amazonaws.com/v2/dss/tags/list")
 }

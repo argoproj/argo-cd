@@ -2,7 +2,6 @@ package util
 
 import (
 	"fmt"
-	"io/ioutil"
 	"os"
 	"sort"
 	"strings"
@@ -64,17 +63,17 @@ func NewCluster(name string, namespaces []string, clusterResources bool, conf *r
 		KeyData:    conf.TLSClientConfig.KeyData,
 	}
 	if len(conf.TLSClientConfig.CAData) == 0 && conf.TLSClientConfig.CAFile != "" {
-		data, err := ioutil.ReadFile(conf.TLSClientConfig.CAFile)
+		data, err := os.ReadFile(conf.TLSClientConfig.CAFile)
 		errors.CheckError(err)
 		tlsClientConfig.CAData = data
 	}
 	if len(conf.TLSClientConfig.CertData) == 0 && conf.TLSClientConfig.CertFile != "" {
-		data, err := ioutil.ReadFile(conf.TLSClientConfig.CertFile)
+		data, err := os.ReadFile(conf.TLSClientConfig.CertFile)
 		errors.CheckError(err)
 		tlsClientConfig.CertData = data
 	}
 	if len(conf.TLSClientConfig.KeyData) == 0 && conf.TLSClientConfig.KeyFile != "" {
-		data, err := ioutil.ReadFile(conf.TLSClientConfig.KeyFile)
+		data, err := os.ReadFile(conf.TLSClientConfig.KeyFile)
 		errors.CheckError(err)
 		tlsClientConfig.KeyData = data
 	}

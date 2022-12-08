@@ -282,34 +282,8 @@ spec:
                             type: string
                           version:
                             description: Version is the Helm version to use for templating
-                              (either "2" or "3")
+                              ("3")
                             type: string
-                        type: object
-                      ksonnet:
-                        description: Ksonnet holds ksonnet specific options
-                        properties:
-                          environment:
-                            description: Environment is a ksonnet application environment
-                              name
-                            type: string
-                          parameters:
-                            description: Parameters are a list of ksonnet component
-                              parameter override values
-                            items:
-                              description: KsonnetParameter is a ksonnet component
-                                parameter
-                              properties:
-                                component:
-                                  type: string
-                                name:
-                                  type: string
-                                value:
-                                  type: string
-                              required:
-                              - name
-                              - value
-                              type: object
-                            type: array
                         type: object
                       kustomize:
                         description: Kustomize holds kustomize specific options
@@ -361,8 +335,8 @@ spec:
                           and is only valid for applications sourced from Git.
                         type: string
                       plugin:
-                        description: ConfigManagementPlugin holds config management
-                          plugin specific options
+                        description: Plugin holds config management plugin specific
+                          options
                         properties:
                           env:
                             description: Env is a list of environment variable entries
@@ -384,6 +358,29 @@ spec:
                             type: array
                           name:
                             type: string
+                          parameters:
+                            items:
+                              properties:
+                                array:
+                                  description: Array is the value of an array type
+                                    parameter.
+                                  items:
+                                    type: string
+                                  type: array
+                                map:
+                                  additionalProperties:
+                                    type: string
+                                  description: Map is the value of a map type parameter.
+                                  type: object
+                                name:
+                                  description: Name is the name identifying a parameter.
+                                  type: string
+                                string:
+                                  description: String_ is the value of a string type
+                                    parameter.
+                                  type: string
+                              type: object
+                            type: array
                         type: object
                       repoURL:
                         description: RepoURL is the URL to the repository (Git or
@@ -655,33 +652,8 @@ spec:
                         type: string
                       version:
                         description: Version is the Helm version to use for templating
-                          (either "2" or "3")
+                          ("3")
                         type: string
-                    type: object
-                  ksonnet:
-                    description: Ksonnet holds ksonnet specific options
-                    properties:
-                      environment:
-                        description: Environment is a ksonnet application environment
-                          name
-                        type: string
-                      parameters:
-                        description: Parameters are a list of ksonnet component parameter
-                          override values
-                        items:
-                          description: KsonnetParameter is a ksonnet component parameter
-                          properties:
-                            component:
-                              type: string
-                            name:
-                              type: string
-                            value:
-                              type: string
-                          required:
-                          - name
-                          - value
-                          type: object
-                        type: array
                     type: object
                   kustomize:
                     description: Kustomize holds kustomize specific options
@@ -732,8 +704,7 @@ spec:
                       and is only valid for applications sourced from Git.
                     type: string
                   plugin:
-                    description: ConfigManagementPlugin holds config management plugin
-                      specific options
+                    description: Plugin holds config management plugin specific options
                     properties:
                       env:
                         description: Env is a list of environment variable entries
@@ -755,6 +726,27 @@ spec:
                         type: array
                       name:
                         type: string
+                      parameters:
+                        items:
+                          properties:
+                            array:
+                              description: Array is the value of an array type parameter.
+                              items:
+                                type: string
+                              type: array
+                            map:
+                              additionalProperties:
+                                type: string
+                              description: Map is the value of a map type parameter.
+                              type: object
+                            name:
+                              description: Name is the name identifying a parameter.
+                              type: string
+                            string:
+                              description: String_ is the value of a string type parameter.
+                              type: string
+                          type: object
+                        type: array
                     type: object
                   repoURL:
                     description: RepoURL is the URL to the repository (Git or Helm)
@@ -790,6 +782,19 @@ spec:
                           back to their desired state upon modification in the cluster
                           (default: false)'
                         type: boolean
+                    type: object
+                  managedNamespaceMetadata:
+                    description: ManagedNamespaceMetadata controls metadata in the
+                      given namespace (if CreateNamespace=true)
+                    properties:
+                      annotations:
+                        additionalProperties:
+                          type: string
+                        type: object
+                      labels:
+                        additionalProperties:
+                          type: string
+                        type: object
                     type: object
                   retry:
                     description: Retry controls failed sync retry behavior
@@ -1034,34 +1039,8 @@ spec:
                               type: string
                             version:
                               description: Version is the Helm version to use for
-                                templating (either "2" or "3")
+                                templating ("3")
                               type: string
-                          type: object
-                        ksonnet:
-                          description: Ksonnet holds ksonnet specific options
-                          properties:
-                            environment:
-                              description: Environment is a ksonnet application environment
-                                name
-                              type: string
-                            parameters:
-                              description: Parameters are a list of ksonnet component
-                                parameter override values
-                              items:
-                                description: KsonnetParameter is a ksonnet component
-                                  parameter
-                                properties:
-                                  component:
-                                    type: string
-                                  name:
-                                    type: string
-                                  value:
-                                    type: string
-                                required:
-                                - name
-                                - value
-                                type: object
-                              type: array
                           type: object
                         kustomize:
                           description: Kustomize holds kustomize specific options
@@ -1114,8 +1093,8 @@ spec:
                             and is only valid for applications sourced from Git.
                           type: string
                         plugin:
-                          description: ConfigManagementPlugin holds config management
-                            plugin specific options
+                          description: Plugin holds config management plugin specific
+                            options
                           properties:
                             env:
                               description: Env is a list of environment variable entries
@@ -1137,6 +1116,29 @@ spec:
                               type: array
                             name:
                               type: string
+                            parameters:
+                              items:
+                                properties:
+                                  array:
+                                    description: Array is the value of an array type
+                                      parameter.
+                                    items:
+                                      type: string
+                                    type: array
+                                  map:
+                                    additionalProperties:
+                                      type: string
+                                    description: Map is the value of a map type parameter.
+                                    type: object
+                                  name:
+                                    description: Name is the name identifying a parameter.
+                                    type: string
+                                  string:
+                                    description: String_ is the value of a string
+                                      type parameter.
+                                    type: string
+                                type: object
+                              type: array
                           type: object
                         repoURL:
                           description: RepoURL is the URL to the repository (Git or
@@ -1431,34 +1433,8 @@ spec:
                                     type: string
                                   version:
                                     description: Version is the Helm version to use
-                                      for templating (either "2" or "3")
+                                      for templating ("3")
                                     type: string
-                                type: object
-                              ksonnet:
-                                description: Ksonnet holds ksonnet specific options
-                                properties:
-                                  environment:
-                                    description: Environment is a ksonnet application
-                                      environment name
-                                    type: string
-                                  parameters:
-                                    description: Parameters are a list of ksonnet
-                                      component parameter override values
-                                    items:
-                                      description: KsonnetParameter is a ksonnet component
-                                        parameter
-                                      properties:
-                                        component:
-                                          type: string
-                                        name:
-                                          type: string
-                                        value:
-                                          type: string
-                                      required:
-                                      - name
-                                      - value
-                                      type: object
-                                    type: array
                                 type: object
                               kustomize:
                                 description: Kustomize holds kustomize specific options
@@ -1512,8 +1488,8 @@ spec:
                                   from Git.
                                 type: string
                               plugin:
-                                description: ConfigManagementPlugin holds config management
-                                  plugin specific options
+                                description: Plugin holds config management plugin
+                                  specific options
                                 properties:
                                   env:
                                     description: Env is a list of environment variable
@@ -1536,6 +1512,31 @@ spec:
                                     type: array
                                   name:
                                     type: string
+                                  parameters:
+                                    items:
+                                      properties:
+                                        array:
+                                          description: Array is the value of an array
+                                            type parameter.
+                                          items:
+                                            type: string
+                                          type: array
+                                        map:
+                                          additionalProperties:
+                                            type: string
+                                          description: Map is the value of a map type
+                                            parameter.
+                                          type: object
+                                        name:
+                                          description: Name is the name identifying
+                                            a parameter.
+                                          type: string
+                                        string:
+                                          description: String_ is the value of a string
+                                            type parameter.
+                                          type: string
+                                      type: object
+                                    type: array
                                 type: object
                               repoURL:
                                 description: RepoURL is the URL to the repository
@@ -1802,34 +1803,8 @@ spec:
                                 type: string
                               version:
                                 description: Version is the Helm version to use for
-                                  templating (either "2" or "3")
+                                  templating ("3")
                                 type: string
-                            type: object
-                          ksonnet:
-                            description: Ksonnet holds ksonnet specific options
-                            properties:
-                              environment:
-                                description: Environment is a ksonnet application
-                                  environment name
-                                type: string
-                              parameters:
-                                description: Parameters are a list of ksonnet component
-                                  parameter override values
-                                items:
-                                  description: KsonnetParameter is a ksonnet component
-                                    parameter
-                                  properties:
-                                    component:
-                                      type: string
-                                    name:
-                                      type: string
-                                    value:
-                                      type: string
-                                  required:
-                                  - name
-                                  - value
-                                  type: object
-                                type: array
                             type: object
                           kustomize:
                             description: Kustomize holds kustomize specific options
@@ -1882,8 +1857,8 @@ spec:
                               and is only valid for applications sourced from Git.
                             type: string
                           plugin:
-                            description: ConfigManagementPlugin holds config management
-                              plugin specific options
+                            description: Plugin holds config management plugin specific
+                              options
                             properties:
                               env:
                                 description: Env is a list of environment variable
@@ -1906,6 +1881,31 @@ spec:
                                 type: array
                               name:
                                 type: string
+                              parameters:
+                                items:
+                                  properties:
+                                    array:
+                                      description: Array is the value of an array
+                                        type parameter.
+                                      items:
+                                        type: string
+                                      type: array
+                                    map:
+                                      additionalProperties:
+                                        type: string
+                                      description: Map is the value of a map type
+                                        parameter.
+                                      type: object
+                                    name:
+                                      description: Name is the name identifying a
+                                        parameter.
+                                      type: string
+                                    string:
+                                      description: String_ is the value of a string
+                                        type parameter.
+                                      type: string
+                                  type: object
+                                type: array
                             type: object
                           repoURL:
                             description: RepoURL is the URL to the repository (Git
@@ -1933,6 +1933,10 @@ spec:
                 description: ReconciledAt indicates when the application state was
                   reconciled using the latest git version
                 format: date-time
+                type: string
+              resourceHealthSource:
+                description: 'ResourceHealthSource indicates where the resource health
+                  status is stored: inline if not set or appTree'
                 type: string
               resources:
                 description: Resources is a list of Kubernetes resources managed by
@@ -1970,6 +1974,9 @@ spec:
                       description: SyncStatusCode is a type which represents possible
                         comparison results
                       type: string
+                    syncWave:
+                      format: int64
+                      type: integer
                     version:
                       type: string
                   type: object
@@ -2162,34 +2169,8 @@ spec:
                                 type: string
                               version:
                                 description: Version is the Helm version to use for
-                                  templating (either "2" or "3")
+                                  templating ("3")
                                 type: string
-                            type: object
-                          ksonnet:
-                            description: Ksonnet holds ksonnet specific options
-                            properties:
-                              environment:
-                                description: Environment is a ksonnet application
-                                  environment name
-                                type: string
-                              parameters:
-                                description: Parameters are a list of ksonnet component
-                                  parameter override values
-                                items:
-                                  description: KsonnetParameter is a ksonnet component
-                                    parameter
-                                  properties:
-                                    component:
-                                      type: string
-                                    name:
-                                      type: string
-                                    value:
-                                      type: string
-                                  required:
-                                  - name
-                                  - value
-                                  type: object
-                                type: array
                             type: object
                           kustomize:
                             description: Kustomize holds kustomize specific options
@@ -2242,8 +2223,8 @@ spec:
                               and is only valid for applications sourced from Git.
                             type: string
                           plugin:
-                            description: ConfigManagementPlugin holds config management
-                              plugin specific options
+                            description: Plugin holds config management plugin specific
+                              options
                             properties:
                               env:
                                 description: Env is a list of environment variable
@@ -2266,6 +2247,31 @@ spec:
                                 type: array
                               name:
                                 type: string
+                              parameters:
+                                items:
+                                  properties:
+                                    array:
+                                      description: Array is the value of an array
+                                        type parameter.
+                                      items:
+                                        type: string
+                                      type: array
+                                    map:
+                                      additionalProperties:
+                                        type: string
+                                      description: Map is the value of a map type
+                                        parameter.
+                                      type: object
+                                    name:
+                                      description: Name is the name identifying a
+                                        parameter.
+                                      type: string
+                                    string:
+                                      description: String_ is the value of a string
+                                        type parameter.
+                                      type: string
+                                  type: object
+                                type: array
                             type: object
                           repoURL:
                             description: RepoURL is the URL to the repository (Git

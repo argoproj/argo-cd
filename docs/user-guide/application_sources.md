@@ -6,7 +6,6 @@ Argo CD supports several different ways in which Kubernetes manifests can be def
 
 * [Kustomize](kustomize.md) applications
 * [Helm](helm.md) charts
-* [Ksonnet](ksonnet.md) applications
 * A directory of YAML/JSON/Jsonnet manifests, including [Jsonnet](jsonnet.md).
 * Any [custom config management tool](config-management-plugins.md) configured as a config management plugin
 

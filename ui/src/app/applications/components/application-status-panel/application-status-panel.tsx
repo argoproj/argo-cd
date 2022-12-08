@@ -8,7 +8,7 @@ import {services} from '../../../shared/services';
 import {ApplicationSyncWindowStatusIcon, ComparisonStatusIcon, getAppOperationState, getConditionCategory, HealthStatusIcon, OperationState, syncStatusMessage} from '../utils';
 import {RevisionMetadataPanel} from './revision-metadata-panel';
 
-require('./application-status-panel.scss');
+import './application-status-panel.scss';
 
 interface Props {
     application: models.Application;
@@ -88,13 +88,19 @@ export const ApplicationStatusPanel = ({application, showOperation, showConditio
                         <div>
                             <ComparisonStatusIcon status={application.status.sync.status} label={true} />
                         </div>
-                        <div className='application-status-panel__item-value__revision'>{syncStatusMessage(application)}</div>
+                        <div className='application-status-panel__item-value__revision show-for-large'>{syncStatusMessage(application)}</div>
                     </div>
-                    <div className='application-status-panel__item-name'>
-                        {application.status && application.status.sync && application.status.sync.revision && (
-                            <RevisionMetadataPanel appName={application.metadata.name} type={application.spec.source.chart && 'helm'} revision={application.status.sync.revision} />
-                        )}
-                    </div>
+                    {application.status && application.status.sync && application.status.sync.revision && !application.spec.source.chart && (
+                        <div className='application-status-panel__item-name'>
+                            <RevisionMetadataPanel
+                                appName={application.metadata.name}
+                                appNamespace={application.metadata.namespace}
+                                type={application.spec.source.chart && 'helm'}
+                                revision={application.status.sync.revision}
+                            />
+                        </div>
+                    )}
+                    <div className='application-status-panel__item-name'>{application.spec.syncPolicy?.automated ? 'Auto sync is enabled.' : 'Auto sync is not enabled.'}</div>
                 </React.Fragment>
             </div>
             {appOperationState && (
@@ -115,7 +121,7 @@ export const ApplicationStatusPanel = ({application, showOperation, showConditio
                                 <OperationState app={application} />{' '}
                             </a>
                             {appOperationState.syncResult && appOperationState.syncResult.revision && (
-                                <div className='application-status-panel__item-value__revision'>
+                                <div className='application-status-panel__item-value__revision show-for-large'>
                                     To <Revision repoUrl={application.spec.source.repoURL} revision={appOperationState.syncResult.revision} />
                                 </div>
                             )}
@@ -127,6 +133,7 @@ export const ApplicationStatusPanel = ({application, showOperation, showConditio
                         {(appOperationState.syncResult && appOperationState.syncResult.revision && (
                             <RevisionMetadataPanel
                                 appName={application.metadata.name}
+                                appNamespace={application.metadata.namespace}
                                 type={application.spec.source.chart && 'helm'}
                                 revision={appOperationState.syncResult.revision}
                             />
@@ -158,9 +165,9 @@ export const ApplicationStatusPanel = ({application, showOperation, showConditio
             )}
             <DataLoader
                 noLoaderOnInputChange={true}
-                input={application.metadata.name}
-                load={async name => {
-                    return await services.applications.getApplicationSyncWindowState(name);
+                input={application}
+                load={async app => {
+                    return await services.applications.getApplicationSyncWindowState(app.metadata.name, app.metadata.namespace);
                 }}>
                 {(data: models.ApplicationSyncWindowState) => (
                     <React.Fragment>

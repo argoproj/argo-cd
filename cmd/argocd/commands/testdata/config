@@ -1,25 +1,31 @@
-contexts:
-- name: argocd1.example.com:443
-  server: argocd1.example.com:443
-  user: argocd1.example.com:443
-- name: argocd2.example.com:443
-  server: argocd2.example.com:443
-  user: argocd2.example.com:443
-- name: localhost:8080
-  server: localhost:8080
-  user: localhost:8080
-current-context: localhost:8080
-servers:
-- server: argocd1.example.com:443
-- server: argocd2.example.com:443
-- plain-text: true
-  server: localhost:8080
-users:
-- auth-token: vErrYS3c3tReFRe$hToken
+clusters:
+- cluster:
+    server: argocd1.example.com:443
   name: argocd1.example.com:443
-  refresh-token: vErrYS3c3tReFRe$hToken
-- auth-token: vErrYS3c3tReFRe$hToken
+- cluster:
+    server: argocd2.example.com:443
   name: argocd2.example.com:443
-  refresh-token: vErrYS3c3tReFRe$hToken
-- auth-token: vErrYS3c3tReFRe$hToken
+- cluster:
+    server: localhost:8080
   name: localhost:8080
+contexts:
+- context:
+    server: argocd1.example.com:443
+    user: argocd1.example.com:443
+    cluster: argocd1.example.com:443
+  name: argocd1.example.com:443
+- context:
+    server: argocd2.example.com:443
+    user: argocd2.example.com:443
+    cluster: argocd2.example.com:443
+  name: argocd2.example.com:443
+- context:
+    server: localhost:8080
+    user: localhost:8080
+    cluster: localhost:8080
+  name: localhost:8080
+current-context: localhost:8080
+users:
+- name:  argocd1.example.com:443
+- name:  argocd2.example.com:443
+- name:  localhost:8080

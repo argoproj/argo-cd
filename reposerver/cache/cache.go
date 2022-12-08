@@ -63,24 +63,35 @@ func AddCacheFlagsToCmd(cmd *cobra.Command, opts ...func(client *redis.Client)) 
 }
 
 func appSourceKey(appSrc *appv1.ApplicationSource) uint32 {
+	return hash.FNVa(appSourceKeyJSON(appSrc))
+}
+
+func appSourceKeyJSON(appSrc *appv1.ApplicationSource) string {
 	appSrc = appSrc.DeepCopy()
 	if !appSrc.IsHelm() {
 		appSrc.RepoURL = ""        // superseded by commitSHA
 		appSrc.TargetRevision = "" // superseded by commitSHA
 	}
 	appSrcStr, _ := json.Marshal(appSrc)
-	return hash.FNVa(string(appSrcStr))
+	return string(appSrcStr)
 }
 
 func clusterRuntimeInfoKey(info ClusterRuntimeInfo) uint32 {
 	if info == nil {
 		return 0
 	}
+	key := clusterRuntimeInfoKeyUnhashed(info)
+	return hash.FNVa(key)
+}
+
+// clusterRuntimeInfoKeyUnhashed gets the cluster runtime info for a cache key, but does not hash the info. Does not
+// check if info is nil, the caller must do that.
+func clusterRuntimeInfoKeyUnhashed(info ClusterRuntimeInfo) string {
 	apiVersions := info.GetApiVersions()
 	sort.Slice(apiVersions, func(i, j int) bool {
 		return apiVersions[i] < apiVersions[j]
 	})
-	return hash.FNVa(info.GetKubeVersion() + "|" + strings.Join(apiVersions, ","))
+	return info.GetKubeVersion() + "|" + strings.Join(apiVersions, ",")
 }
 
 func listApps(repoURL, revision string) string {
@@ -139,11 +150,32 @@ func (c *Cache) GetGitReferences(repo string, references *[]*plumbing.Reference)
 }
 
 func manifestCacheKey(revision string, appSrc *appv1.ApplicationSource, namespace string, trackingMethod string, appLabelKey string, appName string, info ClusterRuntimeInfo) string {
+	trackingKey := trackingKey(appLabelKey, trackingMethod)
+	return fmt.Sprintf("mfst|%s|%s|%s|%s|%d", trackingKey, appName, revision, namespace, appSourceKey(appSrc)+clusterRuntimeInfoKey(info))
+}
+
+func trackingKey(appLabelKey string, trackingMethod string) string {
 	trackingKey := appLabelKey
 	if text.FirstNonEmpty(trackingMethod, string(argo.TrackingMethodLabel)) != string(argo.TrackingMethodLabel) {
 		trackingKey = trackingMethod + ":" + trackingKey
 	}
-	return fmt.Sprintf("mfst|%s|%s|%s|%s|%d", trackingKey, appName, revision, namespace, appSourceKey(appSrc)+clusterRuntimeInfoKey(info))
+	return trackingKey
+}
+
+// LogDebugManifestCacheKeyFields logs all the information included in a manifest cache key. It's intended to be run
+// before every manifest cache operation to help debug cache misses.
+func LogDebugManifestCacheKeyFields(message string, reason string, revision string, appSrc *appv1.ApplicationSource, clusterInfo ClusterRuntimeInfo, namespace string, trackingMethod string, appLabelKey string, appName string) {
+	if log.IsLevelEnabled(log.DebugLevel) {
+		log.WithFields(log.Fields{
+			"revision":    revision,
+			"appSrc":      appSourceKeyJSON(appSrc),
+			"namespace":   namespace,
+			"trackingKey": trackingKey(appLabelKey, trackingMethod),
+			"appName":     appName,
+			"clusterInfo": clusterRuntimeInfoKeyUnhashed(clusterInfo),
+			"reason":      reason,
+		}).Debug(message)
+	}
 }
 
 func (c *Cache) GetManifests(revision string, appSrc *appv1.ApplicationSource, clusterInfo ClusterRuntimeInfo, namespace string, trackingMethod string, appLabelKey string, appName string, res *CachedManifestResponse) error {
@@ -162,6 +194,8 @@ func (c *Cache) GetManifests(revision string, appSrc *appv1.ApplicationSource, c
 	if hash != res.CacheEntryHash || res.ManifestResponse == nil && res.MostRecentError == "" {
 		log.Warnf("Manifest hash did not match expected value or cached manifests response is empty, treating as a cache miss: %s", appName)
 
+		LogDebugManifestCacheKeyFields("deleting manifests cache", "manifest hash did not match or cached response is empty", revision, appSrc, clusterInfo, namespace, trackingMethod, appLabelKey, appName)
+
 		err = c.DeleteManifests(revision, appSrc, clusterInfo, namespace, trackingMethod, appLabelKey, appName)
 		if err != nil {
 			return fmt.Errorf("Unable to delete manifest after hash mismatch, %v", err)
@@ -178,7 +212,6 @@ func (c *Cache) GetManifests(revision string, appSrc *appv1.ApplicationSource, c
 }
 
 func (c *Cache) SetManifests(revision string, appSrc *appv1.ApplicationSource, clusterInfo ClusterRuntimeInfo, namespace string, trackingMethod string, appLabelKey string, appName string, res *CachedManifestResponse) error {
-
 	// Generate and apply the cache entry hash, before writing
 	if res != nil {
 		res = res.shallowCopy()
@@ -192,7 +225,7 @@ func (c *Cache) SetManifests(revision string, appSrc *appv1.ApplicationSource, c
 	return c.cache.SetItem(manifestCacheKey(revision, appSrc, namespace, trackingMethod, appLabelKey, appName, clusterInfo), res, c.repoCacheExpiration, res == nil)
 }
 
-func (c *Cache) DeleteManifests(revision string, appSrc *appv1.ApplicationSource, clusterInfo ClusterRuntimeInfo, namespace string, trackingMethod string, appLabelKey string, appName string) error {
+func (c *Cache) DeleteManifests(revision string, appSrc *appv1.ApplicationSource, clusterInfo ClusterRuntimeInfo, namespace, trackingMethod, appLabelKey, appName string) error {
 	return c.cache.SetItem(manifestCacheKey(revision, appSrc, namespace, trackingMethod, appLabelKey, appName, clusterInfo), "", c.repoCacheExpiration, true)
 }
 

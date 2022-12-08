@@ -1,8 +1,9 @@
 package settings
 
 import (
+	"context"
+
 	"github.com/ghodss/yaml"
-	"golang.org/x/net/context"
 
 	sessionmgr "github.com/argoproj/argo-cd/v2/util/session"
 
@@ -13,9 +14,10 @@ import (
 
 // Server provides a Settings service
 type Server struct {
-	mgr           *settings.SettingsManager
-	authenticator Authenticator
-	disableAuth   bool
+	mgr                       *settings.SettingsManager
+	authenticator             Authenticator
+	disableAuth               bool
+	appsInAnyNamespaceEnabled bool
 }
 
 type Authenticator interface {
@@ -23,8 +25,8 @@ type Authenticator interface {
 }
 
 // NewServer returns a new instance of the Settings service
-func NewServer(mgr *settings.SettingsManager, authenticator Authenticator, disableAuth bool) *Server {
-	return &Server{mgr: mgr, authenticator: authenticator, disableAuth: disableAuth}
+func NewServer(mgr *settings.SettingsManager, authenticator Authenticator, disableAuth, appsInAnyNamespaceEnabled bool) *Server {
+	return &Server{mgr: mgr, authenticator: authenticator, disableAuth: disableAuth, appsInAnyNamespaceEnabled: appsInAnyNamespaceEnabled}
 }
 
 // Get returns Argo CD settings
@@ -89,6 +91,7 @@ func (s *Server) Get(ctx context.Context, q *settingspkg.SettingsQuery) (*settin
 		AppLabelKey:        appInstanceLabelKey,
 		ResourceOverrides:  overrides,
 		StatusBadgeEnabled: argoCDSettings.StatusBadgeEnabled,
+		StatusBadgeRootUrl: argoCDSettings.StatusBadgeRootUrl,
 		KustomizeOptions: &v1alpha1.KustomizeOptions{
 			BuildOptions: argoCDSettings.KustomizeBuildOptions,
 		},
@@ -101,12 +104,14 @@ func (s *Server) Get(ctx context.Context, q *settingspkg.SettingsQuery) (*settin
 			ChatText:   help.ChatText,
 			BinaryUrls: help.BinaryURLs,
 		},
-		Plugins:            plugins,
-		UserLoginsDisabled: userLoginsDisabled,
-		KustomizeVersions:  kustomizeVersions,
-		UiCssURL:           argoCDSettings.UiCssURL,
-		PasswordPattern:    argoCDSettings.PasswordPattern,
-		TrackingMethod:     trackingMethod,
+		Plugins:                   plugins,
+		UserLoginsDisabled:        userLoginsDisabled,
+		KustomizeVersions:         kustomizeVersions,
+		UiCssURL:                  argoCDSettings.UiCssURL,
+		PasswordPattern:           argoCDSettings.PasswordPattern,
+		TrackingMethod:            trackingMethod,
+		ExecEnabled:               argoCDSettings.ExecEnabled,
+		AppsInAnyNamespaceEnabled: s.appsInAnyNamespaceEnabled,
 	}
 
 	if sessionmgr.LoggedIn(ctx) || s.disableAuth {
@@ -123,6 +128,7 @@ func (s *Server) Get(ctx context.Context, q *settingspkg.SettingsQuery) (*settin
 		set.UiBannerURL = argoCDSettings.UiBannerURL
 		set.UiBannerPermanent = argoCDSettings.UiBannerPermanent
 		set.UiBannerPosition = argoCDSettings.UiBannerPosition
+		set.ControllerNamespace = s.mgr.GetNamespace()
 	}
 	if argoCDSettings.DexConfig != "" {
 		var cfg settingspkg.DexConfig

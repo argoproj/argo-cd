@@ -7,7 +7,9 @@ import (
 	grpc_middleware "github.com/grpc-ecosystem/go-grpc-middleware"
 	grpc_retry "github.com/grpc-ecosystem/go-grpc-middleware/retry"
 	log "github.com/sirupsen/logrus"
+	"go.opentelemetry.io/contrib/instrumentation/google.golang.org/grpc/otelgrpc"
 	"google.golang.org/grpc"
+	"google.golang.org/grpc/credentials/insecure"
 
 	grpc_util "github.com/argoproj/argo-cd/v2/util/grpc"
 	"github.com/argoproj/argo-cd/v2/util/io"
@@ -45,9 +47,11 @@ func NewConnection(address string) (*grpc.ClientConn, error) {
 		grpc.WithStreamInterceptor(grpc_retry.StreamClientInterceptor(retryOpts...)),
 		grpc.WithUnaryInterceptor(grpc_middleware.ChainUnaryClient(unaryInterceptors...)),
 		grpc.WithDefaultCallOptions(grpc.MaxCallRecvMsgSize(MaxGRPCMessageSize), grpc.MaxCallSendMsgSize(MaxGRPCMessageSize)),
+		grpc.WithUnaryInterceptor(otelgrpc.UnaryClientInterceptor()),
+		grpc.WithStreamInterceptor(otelgrpc.StreamClientInterceptor()),
 	}
 
-	dialOpts = append(dialOpts, grpc.WithInsecure())
+	dialOpts = append(dialOpts, grpc.WithTransportCredentials(insecure.NewCredentials()))
 	conn, err := grpc_util.BlockingDial(context.Background(), "unix", address, nil, dialOpts...)
 	if err != nil {
 		log.Errorf("Unable to connect to config management plugin service with address %s", address)

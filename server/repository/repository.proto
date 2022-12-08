@@ -6,9 +6,7 @@ option go_package = "github.com/argoproj/argo-cd/v2/pkg/apiclient/repository";
 // Repository Service API performs CRUD actions against repository resources
 package repository;
 
-import "gogoproto/gogo.proto";
 import "google/api/annotations.proto";
-import "k8s.io/api/core/v1/generated.proto";
 import "github.com/argoproj/argo-cd/v2/pkg/apis/application/v1alpha1/generated.proto";
 import "github.com/argoproj/argo-cd/v2/reposerver/repository/repository.proto";
 
@@ -16,6 +14,8 @@ import "github.com/argoproj/argo-cd/v2/reposerver/repository/repository.proto";
 message RepoAppsQuery {
 	string repo = 1;
 	string revision = 2;
+	string appName = 3;
+	string appProject = 4;
 }
 
 
@@ -29,6 +29,7 @@ message AppInfo {
 message RepoAppDetailsQuery {
 	github.com.argoproj.argo_cd.v2.pkg.apis.application.v1alpha1.ApplicationSource source = 1;
 	string appName = 2;
+	string appProject = 3;
 }
 
 // RepoAppsResponse contains applications of specified repository

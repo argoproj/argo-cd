@@ -1,11 +1,11 @@
 package db
 
 import (
+	"context"
 	"fmt"
 	"strings"
 
 	log "github.com/sirupsen/logrus"
-	"golang.org/x/net/context"
 	"google.golang.org/grpc/codes"
 	"google.golang.org/grpc/status"
 	corev1 "k8s.io/api/core/v1"
@@ -71,6 +71,14 @@ func (s *secretsRepositoryBackend) hasRepoTypeLabel(secretName string) (bool, er
 		return true, nil
 	}
 	return false, nil
+}
+
+func (s *secretsRepositoryBackend) GetRepoCredsBySecretName(_ context.Context, name string) (*appsv1.RepoCreds, error) {
+	secret, err := s.db.getSecret(name, map[string]*corev1.Secret{})
+	if err != nil {
+		return nil, fmt.Errorf("failed to get secret %s: %v", name, err)
+	}
+	return s.secretToRepoCred(secret)
 }
 
 func (s *secretsRepositoryBackend) GetRepository(ctx context.Context, repoURL string) (*appsv1.Repository, error) {
@@ -386,6 +394,7 @@ func (s *secretsRepositoryBackend) secretToRepoCred(secret *corev1.Secret) (*app
 		GithubAppPrivateKey:        string(secret.Data["githubAppPrivateKey"]),
 		GitHubAppEnterpriseBaseURL: string(secret.Data["githubAppEnterpriseBaseUrl"]),
 		GCPServiceAccountKey:       string(secret.Data["gcpServiceAccountKey"]),
+		Proxy:                      string(secret.Data["proxy"]),
 	}
 
 	enableOCI, err := boolOrFalse(secret, "enableOCI")
@@ -427,6 +436,7 @@ func repoCredsToSecret(repoCreds *appsv1.RepoCreds, secret *corev1.Secret) {
 	updateSecretInt(secret, "githubAppInstallationID", repoCreds.GithubAppInstallationId)
 	updateSecretString(secret, "githubAppEnterpriseBaseUrl", repoCreds.GitHubAppEnterpriseBaseURL)
 	updateSecretString(secret, "gcpServiceAccountKey", repoCreds.GCPServiceAccountKey)
+	updateSecretString(secret, "proxy", repoCreds.Proxy)
 	addSecretMetadata(secret, common.LabelValueSecretTypeRepoCreds)
 }
 

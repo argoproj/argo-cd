@@ -4,6 +4,7 @@ import (
 	"context"
 	"encoding/json"
 	"fmt"
+	cdcommon "github.com/argoproj/argo-cd/v2/common"
 	"os"
 	"strconv"
 	"sync/atomic"
@@ -17,9 +18,9 @@ import (
 	v1 "k8s.io/apimachinery/pkg/apis/meta/v1"
 	"k8s.io/apimachinery/pkg/apis/meta/v1/unstructured"
 	"k8s.io/apimachinery/pkg/runtime/schema"
+	"k8s.io/apimachinery/pkg/util/managedfields"
 	"k8s.io/kubectl/pkg/util/openapi"
 
-	cdcommon "github.com/argoproj/argo-cd/v2/common"
 	"github.com/argoproj/argo-cd/v2/controller/metrics"
 	"github.com/argoproj/argo-cd/v2/pkg/apis/application/v1alpha1"
 	listersv1alpha1 "github.com/argoproj/argo-cd/v2/pkg/client/listers/application/v1alpha1"
@@ -44,6 +45,14 @@ func (m *appStateManager) getOpenAPISchema(server string) (openapi.Resources, er
 		return nil, err
 	}
 	return cluster.GetOpenAPISchema(), nil
+}
+
+func (m *appStateManager) getGVKParser(server string) (*managedfields.GvkParser, error) {
+	cluster, err := m.liveStateCache.GetClusterCache(server)
+	if err != nil {
+		return nil, err
+	}
+	return cluster.GetGVKParser(), nil
 }
 
 func (m *appStateManager) SyncAppState(app *v1alpha1.Application, state *v1alpha1.OperationState) {
@@ -100,7 +109,7 @@ func (m *appStateManager) SyncAppState(app *v1alpha1.Application, state *v1alpha
 		revision = syncOp.Revision
 	}
 
-	proj, err := argo.GetAppProject(&app.Spec, listersv1alpha1.NewAppProjectLister(m.projInformer.GetIndexer()), m.namespace, m.settingsMgr, m.db, context.TODO())
+	proj, err := argo.GetAppProject(app, listersv1alpha1.NewAppProjectLister(m.projInformer.GetIndexer()), m.namespace, m.settingsMgr, m.db, context.TODO())
 	if err != nil {
 		state.Phase = common.OperationError
 		state.Message = fmt.Sprintf("Failed to load application project: %v", err)
@@ -140,9 +149,15 @@ func (m *appStateManager) SyncAppState(app *v1alpha1.Application, state *v1alpha
 	}
 
 	atomic.AddUint64(&syncIdPrefix, 1)
-	syncId := fmt.Sprintf("%05d-%s", syncIdPrefix, rand.RandString(5))
+	randSuffix, err := rand.String(5)
+	if err != nil {
+		state.Phase = common.OperationError
+		state.Message = fmt.Sprintf("Failed generate random sync ID: %v", err)
+		return
+	}
+	syncId := fmt.Sprintf("%05d-%s", syncIdPrefix, randSuffix)
 
-	logEntry := log.WithFields(log.Fields{"application": app.Name, "syncId": syncId})
+	logEntry := log.WithFields(log.Fields{"application": app.QualifiedName(), "syncId": syncId})
 	initialResourcesRes := make([]common.ResourceSyncResult, 0)
 	for i, res := range syncRes.Resources {
 		key := kube.ResourceKey{Group: res.Group, Kind: res.Kind, Namespace: res.Namespace, Name: res.Name}
@@ -190,6 +205,56 @@ func (m *appStateManager) SyncAppState(app *v1alpha1.Application, state *v1alpha
 		reconciliationResult.Target = patchedTargets
 	}
 
+	appLabelKey, err := m.settingsMgr.GetAppInstanceLabelKey()
+	if err != nil {
+		log.Errorf("Could not get appInstanceLabelKey: %v", err)
+		return
+	}
+	trackingMethod := argo.GetTrackingMethod(m.settingsMgr)
+
+	opts := []sync.SyncOpt{
+		sync.WithLogr(logutils.NewLogrusLogger(logEntry)),
+		sync.WithHealthOverride(lua.ResourceHealthOverrides(resourceOverrides)),
+		sync.WithPermissionValidator(func(un *unstructured.Unstructured, res *v1.APIResource) error {
+			if !proj.IsGroupKindPermitted(un.GroupVersionKind().GroupKind(), res.Namespaced) {
+				return fmt.Errorf("resource %s:%s is not permitted in project %s", un.GroupVersionKind().Group, un.GroupVersionKind().Kind, proj.Name)
+			}
+			if res.Namespaced {
+				permitted, err := proj.IsDestinationPermitted(v1alpha1.ApplicationDestination{Namespace: un.GetNamespace(), Server: app.Spec.Destination.Server, Name: app.Spec.Destination.Name}, func(project string) ([]*v1alpha1.Cluster, error) {
+					return m.db.GetProjectClusters(context.TODO(), project)
+				})
+
+				if err != nil {
+					return err
+				}
+
+				if !permitted {
+					return fmt.Errorf("namespace %v is not permitted in project '%s'", un.GetNamespace(), proj.Name)
+				}
+			}
+			return nil
+		}),
+		sync.WithOperationSettings(syncOp.DryRun, syncOp.Prune, syncOp.SyncStrategy.Force(), syncOp.IsApplyStrategy() || len(syncOp.Resources) > 0),
+		sync.WithInitialState(state.Phase, state.Message, initialResourcesRes, state.StartedAt),
+		sync.WithResourcesFilter(func(key kube.ResourceKey, target *unstructured.Unstructured, live *unstructured.Unstructured) bool {
+			return (len(syncOp.Resources) == 0 ||
+				argo.ContainsSyncResource(key.Name, key.Namespace, schema.GroupVersionKind{Kind: key.Kind, Group: key.Group}, syncOp.Resources)) &&
+				m.isSelfReferencedObj(live, target, app.GetName(), appLabelKey, trackingMethod)
+		}),
+		sync.WithManifestValidation(!syncOp.SyncOptions.HasOption(common.SyncOptionsDisableValidation)),
+		sync.WithSyncWaveHook(delayBetweenSyncWaves),
+		sync.WithPruneLast(syncOp.SyncOptions.HasOption(common.SyncOptionPruneLast)),
+		sync.WithResourceModificationChecker(syncOp.SyncOptions.HasOption("ApplyOutOfSyncOnly=true"), compareResult.diffResultList),
+		sync.WithPrunePropagationPolicy(&prunePropagationPolicy),
+		sync.WithReplace(syncOp.SyncOptions.HasOption(common.SyncOptionReplace)),
+		sync.WithServerSideApply(syncOp.SyncOptions.HasOption(common.SyncOptionServerSideApply)),
+		sync.WithServerSideApplyManager(cdcommon.ArgoCDSSAManager),
+	}
+
+	if syncOp.SyncOptions.HasOption("CreateNamespace=true") {
+		opts = append(opts, sync.WithNamespaceModifier(syncNamespace(m.resourceTracking, appLabelKey, trackingMethod, app.Name, app.Spec.SyncPolicy)))
+	}
+
 	syncCtx, cleanup, err := sync.NewSyncContext(
 		compareResult.syncStatus.Revision,
 		reconciliationResult,
@@ -198,35 +263,7 @@ func (m *appStateManager) SyncAppState(app *v1alpha1.Application, state *v1alpha
 		m.kubectl,
 		app.Spec.Destination.Namespace,
 		openAPISchema,
-		sync.WithLogr(logutils.NewLogrusLogger(logEntry)),
-		sync.WithHealthOverride(lua.ResourceHealthOverrides(resourceOverrides)),
-		sync.WithPermissionValidator(func(un *unstructured.Unstructured, res *v1.APIResource) error {
-			if !proj.IsGroupKindPermitted(un.GroupVersionKind().GroupKind(), res.Namespaced) {
-				return fmt.Errorf("Resource %s:%s is not permitted in project %s.", un.GroupVersionKind().Group, un.GroupVersionKind().Kind, proj.Name)
-			}
-			if res.Namespaced && !proj.IsDestinationPermitted(v1alpha1.ApplicationDestination{Namespace: un.GetNamespace(), Server: app.Spec.Destination.Server, Name: app.Spec.Destination.Name}) {
-				return fmt.Errorf("namespace %v is not permitted in project '%s'", un.GetNamespace(), proj.Name)
-			}
-			return nil
-		}),
-		sync.WithOperationSettings(syncOp.DryRun, syncOp.Prune, syncOp.SyncStrategy.Force(), syncOp.IsApplyStrategy() || len(syncOp.Resources) > 0),
-		sync.WithInitialState(state.Phase, state.Message, initialResourcesRes, state.StartedAt),
-		sync.WithResourcesFilter(func(key kube.ResourceKey, target *unstructured.Unstructured, live *unstructured.Unstructured) bool {
-			return len(syncOp.Resources) == 0 || argo.ContainsSyncResource(key.Name, key.Namespace, schema.GroupVersionKind{Kind: key.Kind, Group: key.Group}, syncOp.Resources)
-		}),
-		sync.WithManifestValidation(!syncOp.SyncOptions.HasOption(common.SyncOptionsDisableValidation)),
-		sync.WithNamespaceCreation(syncOp.SyncOptions.HasOption("CreateNamespace=true"), func(un *unstructured.Unstructured) bool {
-			if un != nil && kube.GetAppInstanceLabel(un, cdcommon.LabelKeyAppInstance) != "" {
-				kube.UnsetLabel(un, cdcommon.LabelKeyAppInstance)
-				return true
-			}
-			return false
-		}),
-		sync.WithSyncWaveHook(delayBetweenSyncWaves),
-		sync.WithPruneLast(syncOp.SyncOptions.HasOption(common.SyncOptionPruneLast)),
-		sync.WithResourceModificationChecker(syncOp.SyncOptions.HasOption("ApplyOutOfSyncOnly=true"), compareResult.diffResultList),
-		sync.WithPrunePropagationPolicy(&prunePropagationPolicy),
-		sync.WithReplace(syncOp.SyncOptions.HasOption(common.SyncOptionReplace)),
+		opts...,
 	)
 
 	if err != nil {

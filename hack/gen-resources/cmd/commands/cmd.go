@@ -45,7 +45,6 @@ func NewCommand() *cobra.Command {
 	command.AddCommand(NewGenerateCommand(&generateOpts))
 	command.AddCommand(NewCleanCommand(&generateOpts))
 
-	command.PersistentFlags().StringVar(&generateOpts.Namespace, "kube-namespace", "argocd", "Name of the namespace on which Argo agent should be installed [$KUBE_NAMESPACE]")
 	return command
 }
 
@@ -128,5 +127,6 @@ func NewCleanCommand(opts *util.GenerateOpts) *cobra.Command {
 			}
 		},
 	}
+	command.PersistentFlags().StringVar(&opts.Namespace, "kube-namespace", "argocd", "Name of the namespace where argocd is running [$KUBE_NAMESPACE]")
 	return command
 }

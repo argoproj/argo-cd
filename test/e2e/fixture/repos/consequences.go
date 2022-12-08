@@ -39,7 +39,7 @@ func (c *Consequences) repo() (*v1alpha1.Repository, error) {
 func (c *Consequences) get() (*v1alpha1.Repository, error) {
 	_, repoClient, _ := fixture.ArgoCDClientset.NewRepoClient()
 
-	repo, _ := repoClient.List(context.Background(), &repositorypkg.RepoQuery{})
+	repo, _ := repoClient.ListRepositories(context.Background(), &repositorypkg.RepoQuery{})
 	for i := range repo.Items {
 		if repo.Items[i].Repo == c.context.path {
 			return repo.Items[i], nil

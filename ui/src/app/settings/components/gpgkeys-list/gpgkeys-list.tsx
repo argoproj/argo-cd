@@ -36,6 +36,7 @@ export class GpgKeysList extends React.Component<RouteComponentProps<any>> {
                         items: [
                             {
                                 title: 'Add GnuPG key',
+                                iconClassName: 'fa fa-plus',
                                 action: () => (this.showAddGnuPGKey = true)
                             }
                         ]
@@ -107,7 +108,6 @@ export class GpgKeysList extends React.Component<RouteComponentProps<any>> {
                             </button>
                         </div>
                     }>
-                    <h4>Add GnuPG public key</h4>
                     <Form
                         onSubmit={params => this.addGnuPGPublicKey({keyData: params.keyData})}
                         getApi={api => (this.formApi = api)}
@@ -115,12 +115,15 @@ export class GpgKeysList extends React.Component<RouteComponentProps<any>> {
                             keyData: params.keyData
                         })}
                         validateError={(params: NewGnuPGPublicKeyParams) => ({
-                            keyData: !params.keyData && 'Key data is required'
+                            keyData: !params.keyData && 'GnuPG public key data is required'
                         })}>
                         {formApi => (
                             <form onSubmit={formApi.submitForm} role='form' className='gpgkeys-list width-control' encType='multipart/form-data'>
-                                <div className='argo-form-row'>
-                                    <FormField formApi={formApi} label='GnuPG public key data (ASCII-armored)' field='keyData' component={TextArea} />
+                                <div className='white-box'>
+                                    <p>ADD GnuPG PUBLIC KEY</p>
+                                    <div className='argo-form-row'>
+                                        <FormField formApi={formApi} label='GnuPG public key data (ASCII-armored)' field='keyData' component={TextArea} />
+                                    </div>
                                 </div>
                             </form>
                         )}

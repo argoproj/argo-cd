@@ -4,9 +4,8 @@ kind: Dummy
 metadata:
   name: dummy-crd-instance
 spec:
-  requests:
-    cpu: 2000m
-    memory: 32Mi
+  cpu: 2000m
+  memory: 32Mi
 ---
 apiVersion: argoproj.io/v1alpha1
 kind: Dummy

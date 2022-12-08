@@ -90,4 +90,4 @@ data:
     message: "Author: {{(call .repo.GetCommitMetadata .app.status.sync.revision).Author}}"
 ```
 
-{!functions.md!}
+{!docs/operator-manual/notifications/functions.md!}

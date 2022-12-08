@@ -1,0 +1,68 @@
+kind: DeploymentConfig
+apiVersion: apps.openshift.io/v1
+metadata:
+  name: example
+  namespace: default
+spec:
+  strategy:
+    type: Rolling
+    rollingParams:
+      updatePeriodSeconds: 1
+      intervalSeconds: 1
+      timeoutSeconds: 600
+      maxUnavailable: 25%
+      maxSurge: 25%
+    resources: {}
+    activeDeadlineSeconds: 21600
+  triggers:
+    - type: ConfigChange
+  replicas: 3
+  revisionHistoryLimit: 10
+  test: false
+  selector:
+    app: httpd
+  template:
+    metadata:
+      creationTimestamp: null
+      labels:
+        app: httpd
+    spec:
+      containers:
+        - name: httpd
+          image: >-
+            image-registry.openshift-image-registry.svc:5000/openshift/httpd:latest
+          ports:
+            - containerPort: 8080
+              protocol: TCP
+          resources: {}
+          terminationMessagePath: /dev/termination-log
+          terminationMessagePolicy: File
+          imagePullPolicy: Always
+      restartPolicy: Always
+      terminationGracePeriodSeconds: 30
+      dnsPolicy: ClusterFirst
+      securityContext: {}
+      schedulerName: default-scheduler
+status:
+  availableReplicas: 0
+  conditions:
+    - lastTransitionTime: '2022-02-02T12:22:22Z'
+      lastUpdateTime: '2022-02-02T12:23:53Z'
+      message: replication controller "jenkins-1" successfully rolled out
+      reason: NewReplicationControllerAvailable
+      status: 'True'
+      type: Progressing
+    - lastTransitionTime: '2022-02-02T14:11:11Z'
+      lastUpdateTime: '2022-02-02T14:11:11Z'
+      message: Deployment config does not have minimum availability.
+      status: 'False'
+      type: Available
+  details:
+    causes:
+      - type: ConfigChange
+    message: config change
+  latestVersion: 1
+  observedGeneration: 5
+  replicas: 0
+  unavailableReplicas: 0
+  updatedReplicas: 0

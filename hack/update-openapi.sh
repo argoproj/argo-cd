@@ -8,7 +8,7 @@ set -o pipefail
 PROJECT_ROOT=$(cd $(dirname "$0")/.. ; pwd)
 PATH="${PROJECT_ROOT}/dist:${PATH}"
 VERSION="v1alpha1"
-
+ 
 [ -e ./v2 ] || ln -s . v2
 openapi-gen \
   --go-header-file ${PROJECT_ROOT}/hack/custom-boilerplate.go.txt \
@@ -18,6 +18,7 @@ openapi-gen \
   $@
 [ -e ./v2 ] && rm -rf v2
 
-export GO111MODULE=off
+export GO111MODULE=on
 go build -o ./dist/gen-crd-spec ${PROJECT_ROOT}/hack/gen-crd-spec
 ./dist/gen-crd-spec
+

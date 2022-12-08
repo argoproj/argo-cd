@@ -1,0 +1,21 @@
+tests:
+  - healthStatus:
+      status: Healthy
+      message: "we are done"
+    inputPath: testdata/healthyCronWorkflow.yaml
+  - healthStatus:
+      status: Degraded
+      message: "something is wrong with the spec"
+    inputPath: testdata/degradedCronWorkflowWithSpecError.yaml
+  - healthStatus:
+      status: Degraded
+      message: "there is a submission error"
+    inputPath: testdata/degradedCronWorkflowWithSubmissionError.yaml
+  - healthStatus:
+      status: Healthy
+      message: "CronWorkflow is healthy."
+    inputPath: testdata/noConditionsCronWorkflow.yaml
+  - healthStatus:
+      status: Healthy
+      message: "CronWorkflow is healthy."
+    inputPath: testdata/withConditionButHealthyCronWorkflow.yaml

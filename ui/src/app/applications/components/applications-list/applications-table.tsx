@@ -1,8 +1,9 @@
 import {DataLoader, DropDownMenu, Tooltip} from 'argo-ui';
 import * as React from 'react';
+import Moment from 'react-moment';
 import {Key, KeybindingContext, useNav} from 'argo-ui/v2';
 import {Cluster} from '../../../shared/components';
-import {Consumer} from '../../../shared/context';
+import {Consumer, Context} from '../../../shared/context';
 import * as models from '../../../shared/models';
 import {ApplicationURLs} from '../application-urls';
 import * as AppUtils from '../utils';
@@ -10,15 +11,16 @@ import {OperationState} from '../utils';
 import {ApplicationsLabels} from './applications-labels';
 import {ApplicationsSource} from './applications-source';
 import {services} from '../../../shared/services';
-require('./applications-table.scss');
+import './applications-table.scss';
 
 export const ApplicationsTable = (props: {
     applications: models.Application[];
-    syncApplication: (appName: string) => any;
-    refreshApplication: (appName: string) => any;
-    deleteApplication: (appName: string) => any;
+    syncApplication: (appName: string, appNamespace: string) => any;
+    refreshApplication: (appName: string, appNamespace: string) => any;
+    deleteApplication: (appName: string, appNamespace: string) => any;
 }) => {
     const [selectedApp, navApp, reset] = useNav(props.applications.length);
+    const ctxh = React.useContext(Context);
 
     const {useKeybinding} = React.useContext(KeybindingContext);
 
@@ -29,6 +31,16 @@ export const ApplicationsTable = (props: {
         action: () => {
             reset();
             return selectedApp > -1 ? true : false;
+        }
+    });
+    useKeybinding({
+        keys: Key.ENTER,
+        action: () => {
+            if (selectedApp > -1) {
+                ctxh.navigation.goto(`/applications/${props.applications[selectedApp].metadata.name}`);
+                return true;
+            }
+            return false;
         }
     });
 
@@ -42,12 +54,12 @@ export const ApplicationsTable = (props: {
                             <div className='applications-table argo-table-list argo-table-list--clickable'>
                                 {props.applications.map((app, i) => (
                                     <div
-                                        key={app.metadata.name}
+                                        key={AppUtils.appInstanceName(app)}
                                         className={`argo-table-list__row
                 applications-list__entry applications-list__entry--health-${app.status.health.status} ${selectedApp === i ? 'applications-tiles__selected' : ''}`}>
                                         <div
                                             className={`row applications-list__table-row`}
-                                            onClick={e => ctx.navigation.goto(`/applications/${app.metadata.name}`, {}, {event: e})}>
+                                            onClick={e => ctx.navigation.goto(`/applications/${app.metadata.namespace}/${app.metadata.name}`, {}, {event: e})}>
                                             <div className='columns small-4'>
                                                 <div className='row'>
                                                     <div className=' columns small-2'>
@@ -62,11 +74,11 @@ export const ApplicationsTable = (props: {
                                                                         services.viewPreferences.updatePreferences({appList: {...pref.appList, favoritesAppList: favList}});
                                                                     }}>
                                                                     <i
-                                                                        className={'fas fa-star'}
+                                                                        className={favList?.includes(app.metadata.name) ? 'fas fa-star' : 'far fa-star'}
                                                                         style={{
                                                                             cursor: 'pointer',
                                                                             marginRight: '7px',
-                                                                            color: favList?.includes(app.metadata.name) ? '#1FBDD0' : 'grey'
+                                                                            color: favList?.includes(app.metadata.name) ? '#FFCE25' : '#8fa4b1'
                                                                         }}
                                                                     />
                                                                 </button>
@@ -80,7 +92,20 @@ export const ApplicationsTable = (props: {
                                                 <div className='row'>
                                                     <div className=' columns small-2' />
                                                     <div className='show-for-xxlarge columns small-4'>Name:</div>
-                                                    <div className='columns small-12 xxlarge-6'>{app.metadata.name}</div>
+                                                    <div className='columns small-12 xxlarge-6'>
+                                                        <Tooltip
+                                                            content={
+                                                                <>
+                                                                    {app.metadata.name}
+                                                                    <br />
+                                                                    <Moment fromNow={true} ago={true}>
+                                                                        {app.metadata.creationTimestamp}
+                                                                    </Moment>
+                                                                </>
+                                                            }>
+                                                            <span>{app.metadata.name}</span>
+                                                        </Tooltip>
+                                                    </div>
                                                 </div>
                                             </div>
 
@@ -103,6 +128,7 @@ export const ApplicationsTable = (props: {
                                                     </div>
                                                 </div>
                                             </div>
+
                                             <div className='columns small-2'>
                                                 <AppUtils.HealthStatusIcon state={app.status.health} /> <span>{app.status.health.status}</span> <br />
                                                 <AppUtils.ComparisonStatusIcon status={app.status.sync.status} />
@@ -114,9 +140,9 @@ export const ApplicationsTable = (props: {
                                                         </button>
                                                     )}
                                                     items={[
-                                                        {title: 'Sync', action: () => props.syncApplication(app.metadata.name)},
-                                                        {title: 'Refresh', action: () => props.refreshApplication(app.metadata.name)},
-                                                        {title: 'Delete', action: () => props.deleteApplication(app.metadata.name)}
+                                                        {title: 'Sync', action: () => props.syncApplication(app.metadata.name, app.metadata.namespace)},
+                                                        {title: 'Refresh', action: () => props.refreshApplication(app.metadata.name, app.metadata.namespace)},
+                                                        {title: 'Delete', action: () => props.deleteApplication(app.metadata.name, app.metadata.namespace)}
                                                     ]}
                                                 />
                                             </div>

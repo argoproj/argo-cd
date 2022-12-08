@@ -78,22 +78,34 @@ func TestNormalizeMatchedResourceOverrides(t *testing.T) {
 }
 
 const testCRDYAML = `
-apiVersion: apiextensions.k8s.io/v1beta1
+apiVersion: apiextensions.k8s.io/v1
 kind: CustomResourceDefinition
 metadata:
   name: certificates.cert-manager.io
 spec:
+  conversion:
+    strategy: None
   group: cert-manager.io
   names:
     kind: Certificate
     listKind: CertificateList
     plural: certificates
     shortNames:
-      - cert
-      - certs
+    - cert
+    - certs
     singular: certificate
   scope: Namespaced
-  version: v1alpha1`
+  version: v1alpha1
+  versions:
+  - name: v1alpha1
+    served: true
+    storage: true
+    schema:
+      openAPIV3Schema:
+        type: object
+        properties:
+          json:
+            x-kubernetes-preserve-unknown-fields: true`
 
 func TestNormalizeMissingJsonPointer(t *testing.T) {
 	normalizer, err := NewIgnoreNormalizer([]v1alpha1.ResourceIgnoreDifferences{}, map[string]v1alpha1.ResourceOverride{

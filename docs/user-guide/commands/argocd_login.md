@@ -29,6 +29,7 @@ argocd login cd.argoproj.io --core
   -h, --help              help for login
       --name string       name to use for the context
       --password string   the password of an account to authenticate
+      --skip-test-tls     Skip testing whether the server is configured with TLS (this can help when the command hangs for no apparent reason)
       --sso               perform SSO login
       --sso-port int      port to run local OAuth2 login application (default 8085)
       --username string   the username of an account to authenticate
@@ -47,6 +48,7 @@ argocd login cd.argoproj.io --core
   -H, --header strings                  Sets additional header to all requests made by Argo CD CLI. (Can be repeated multiple times to add multiple headers, also supports comma separated headers)
       --http-retry-max int              Maximum number of retries to establish http connection to Argo CD server
       --insecure                        Skip server certificate and domain verification
+      --kube-context string             Directs the command to the given kube-context
       --logformat string                Set the logging format. One of: text|json (default "text")
       --loglevel string                 Set the logging level. One of: debug|info|warn|error (default "info")
       --plaintext                       Disable TLS
