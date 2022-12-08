@@ -2015,9 +2015,27 @@ func (s *Service) GetRevisionChartDetails(ctx context.Context, q *apiclient.Repo
 			log.Infof("revision metadata cache miss: %s/%s/%s", q.Repo.Repo, q.Name, q.Revision)
 		}
 	}
+	helmClient, revision, err := s.newHelmClientResolveRevision(q.Repo, q.Revision, q.Name, true)
+	if err != nil {
+		return nil, fmt.Errorf("helm client error: %v", err)
+	}
+	chartPath, closer, err := helmClient.ExtractChart(q.Name, revision, false)
+	if err != nil {
+		return nil, fmt.Errorf("extract chart: %v", err)
+	}
+	defer io.Close(closer)
+	helmCmd, err := helm.NewCmdWithVersion(chartPath, helm.HelmV3, q.Repo.EnableOCI, q.Repo.Proxy)
+	if err != nil {
+		return nil, fmt.Errorf("helm cli: %v", err)
+	}
+	defer helmCmd.Close()
+	helmDetails, err := helmCmd.InspectChart()
+	if err != nil {
+		return nil, fmt.Errorf("helm cli: %v", err)
+	}
 	// FIXME: actually fetch the chart details
 	details = &v1alpha1.ChartDetails{
-		Description: fmt.Sprintf("Repo %v commit message at %v", q.Name, q.Revision),
+		Description: helmDetails,
 		Maintainers: "Gugu",
 		Home:        "https://example.com",
 	}
