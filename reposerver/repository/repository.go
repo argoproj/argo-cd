@@ -2033,7 +2033,7 @@ func (s *Service) GetRevisionChartDetails(ctx context.Context, q *apiclient.Repo
 	if err != nil {
 		return nil, fmt.Errorf("inspect chart: %v", err)
 	}
-	details, err = GetChartDetailsFromShow(helmDetails)
+	details, err = getChartDetails(helmDetails)
 	if err != nil {
 		return nil, err
 	}
