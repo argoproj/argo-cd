@@ -224,6 +224,7 @@ Currently, the following organizations are **officially** using Argo CD:
 1. [Toss](https://toss.im/en)
 1. [Trendyol](https://www.trendyol.com/)
 1. [tru.ID](https://tru.id)
+1. [Trusting Social](https://trustingsocial.com/)
 1. [Twilio SendGrid](https://sendgrid.com)
 1. [tZERO](https://www.tzero.com/)
 1. [UBIO](https://ub.io/)
@@ -253,4 +254,3 @@ Currently, the following organizations are **officially** using Argo CD:
 1. [Yubo](https://www.yubo.live/)
 1. [Zimpler](https://www.zimpler.com/)
 1. [ZOZO](https://corp.zozo.com/)
-1. [Trusting Social](https://trustingsocial.com/)
