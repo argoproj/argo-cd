@@ -81,7 +81,7 @@ func (_m *Client) GetIndex(noCache bool) (*helm.Index, error) {
 	return r0, r1
 }
 
-// GetTags provides a mock function with given fields: noCache
+// GetTags provides a mock function with given fields: chart, noCache
 func (_m *Client) GetTags(chart string, noCache bool) (*helm.TagsList, error) {
 	ret := _m.Called(chart, noCache)
 
