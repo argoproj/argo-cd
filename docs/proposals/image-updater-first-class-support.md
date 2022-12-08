@@ -166,9 +166,6 @@ Based on this proposal, the image updater controller would need to write to the 
 
 ### Security Considerations
 
-* How does this proposal impact the security aspects of Argo CD workloads ?
-* Are there any unresolved follow-ups that need to be done to make the enhancement more robust ?
-
 With the rise in interest in software supply chain security across the industry, one aspect worth considering is that the introduction of image updater into Argo CD would expose Argo CD toward an entirely new type of source repository in image registries. Image Updater interfaces directly with various image registries, and as such pulls image manifests from these sources, curently trusting that the user has configured reputable image registries for their purposes. Moving forwards it would be reasonable to suggest that we could be more careful and selective about which images/registries we would want to allow Argo CD to pull images from, in order to minimize exposure to bad actors. 
 
 One of the potential enhancements that could be introduced within Image Updater down the line would be the ability to verify that images are signed through potentially leveraging existing container verification solutions. The above proposed CR fields could be expanded to build out `.spec.image.verification` for e.g which could store specific configuration/constraints expressed by the user to ensure the trustworthiness of containers being used in their applications (for e.g storing the location of a public key to verify an image against)
@@ -183,24 +180,15 @@ A potential option that was discussed was to combine less resource intensive wor
 
 ### Upgrade / Downgrade Strategy
 
-If applicable, how will the component be upgraded and downgraded? Make sure this is in the test
-plan.
-
-Consider the following in developing an upgrade/downgrade strategy for this enhancement:
-
-- What changes (in invocations, configurations, API use, etc.) is an existing cluster required to
-  make on upgrade in order to keep previous behavior?
-- What changes (in invocations, configurations, API use, etc.) is an existing cluster required to
-  make on upgrade in order to make use of the enhancement?
+TBD
 
 ## Drawbacks
 
-The idea is to find the best form of an argument why this enhancement should _not_ be implemented.
+TBD
 
 ## Alternatives
 
-Similar to the `Drawbacks` section the `Alternatives` section is used to highlight and record other
-possible approaches to delivering the value proposed by an enhancement.
+TBD
 
 ## Future enhancements
 
