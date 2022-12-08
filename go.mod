@@ -23,9 +23,9 @@ require (
 	github.com/ghodss/yaml v1.0.0
 	github.com/go-git/go-git/v5 v5.4.2
 	github.com/go-logr/logr v1.2.3
-	github.com/go-openapi/loads v0.21.1
+	github.com/go-openapi/loads v0.21.2
 	github.com/go-openapi/runtime v0.25.0
-	github.com/go-openapi/spec v0.20.4 // indirect
+	github.com/go-openapi/spec v0.20.6 // indirect
 	github.com/go-openapi/validate v0.21.0 // indirect
 	github.com/go-redis/cache/v8 v8.4.2
 	github.com/go-redis/redis/v8 v8.11.3
@@ -93,7 +93,7 @@ require (
 	k8s.io/utils v0.0.0-20220210201930-3a6ce19ff2f9
 	layeh.com/gopher-json v0.0.0-20190114024228-97fed8db8427
 	sigs.k8s.io/controller-runtime v0.11.0
-	sigs.k8s.io/structured-merge-diff/v4 v4.2.1
+	sigs.k8s.io/structured-merge-diff/v4 v4.2.3
 	sigs.k8s.io/yaml v1.3.0
 )
 
@@ -106,6 +106,7 @@ require (
 
 require (
 	github.com/Masterminds/sprig/v3 v3.2.2
+	github.com/antonmedv/expr v1.9.0
 	github.com/gosimple/slug v1.13.1
 	github.com/microsoft/azure-devops-go-api/azuredevops v1.0.0-b5
 	github.com/robfig/cron/v3 v3.0.1
@@ -139,12 +140,9 @@ require (
 	github.com/Microsoft/go-winio v0.4.17 // indirect
 	github.com/PagerDuty/go-pagerduty v1.6.0 // indirect
 	github.com/ProtonMail/go-crypto v0.0.0-20210428141323-04723f9f07d7 // indirect
-	github.com/PuerkitoBio/purell v1.1.1 // indirect
-	github.com/PuerkitoBio/urlesc v0.0.0-20170810143723-de5bf2ad4578 // indirect
 	github.com/RocketChat/Rocket.Chat.Go.SDK v0.0.0-20210112200207-10ab4d695d60 // indirect
 	github.com/acomagu/bufpipe v1.0.3 // indirect
 	github.com/alicebob/gopher-json v0.0.0-20200520072559-a9ecdc9d1d3a // indirect
-	github.com/antonmedv/expr v1.9.0 // indirect
 	github.com/asaskevich/govalidator v0.0.0-20210307081110-f21760c49a8d // indirect
 	github.com/beorn7/perks v1.0.1 // indirect
 	github.com/cenkalti/backoff/v4 v4.1.3 // indirect
@@ -163,13 +161,12 @@ require (
 	github.com/go-git/gcfg v1.5.0 // indirect
 	github.com/go-git/go-billy/v5 v5.3.1 // indirect
 	github.com/go-logr/stdr v1.2.2 // indirect
-	github.com/go-openapi/analysis v0.21.2 // indirect
+	github.com/go-openapi/analysis v0.21.4 // indirect
 	github.com/go-openapi/errors v0.20.2 // indirect
 	github.com/go-openapi/jsonpointer v0.19.5 // indirect
-	github.com/go-openapi/jsonreference v0.19.6 // indirect
-	github.com/go-openapi/strfmt v0.21.2 // indirect
+	github.com/go-openapi/jsonreference v0.20.0 // indirect
+	github.com/go-openapi/strfmt v0.21.3 // indirect
 	github.com/go-openapi/swag v0.21.1 // indirect
-	github.com/go-stack/stack v1.8.1 // indirect
 	github.com/go-telegram-bot-api/telegram-bot-api/v5 v5.5.1 // indirect
 	github.com/golang/glog v1.0.0 // indirect
 	github.com/golang/groupcache v0.0.0-20210331224755-41bb18bfe9da // indirect
@@ -226,7 +223,7 @@ require (
 	github.com/vmihailenco/tagparser/v2 v2.0.0 // indirect
 	github.com/xanzy/ssh-agent v0.3.0 // indirect
 	github.com/xlab/treeprint v0.0.0-20181112141820-a009c3971eca // indirect
-	go.mongodb.org/mongo-driver v1.8.3 // indirect
+	go.mongodb.org/mongo-driver v1.10.0 // indirect
 	go.opentelemetry.io/otel/exporters/otlp/internal/retry v1.11.1 // indirect
 	go.opentelemetry.io/otel/exporters/otlp/otlptrace v1.11.1 // indirect
 	go.opentelemetry.io/otel/trace v1.11.1 // indirect
