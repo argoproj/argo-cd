@@ -12,40 +12,83 @@ Let's see those options in turn:
 
 ## Installing Argo CD on each deployment cluster
 
+This is arguably the simplest way to install Argo CD. Each deployment cluster gets its own instance and each Argo CD installation controls the same cluster it is installed on.
+
+IMAGE HERE
+
+This approach has several advantages when it comes to maintainance and upgrades but also suffers from several issues when you have too many clusters. 
+
 Advantages
 
-Clusters operate independently without reliance on an external instance of Argo CD
-Security surface is limited to each individual cluster, (compromising one does not compromise the rest)
-Low memory/cpu overhead for Argo CD with small impact on each cluster.
- 
+ * Straightforward installation
+ * Target clusters do not need network connectivity which each other and can even work fully isolated from each other
+ * Clusters operate independently without reliance on an external instance of Argo CD
+ * Security surface is limited to each individual cluster, (compromising one does not compromise the rest)
+ * Upgrades can happen in a gradual way by moving Argo CD instances to a new version one-by-one or in waves
+ * Different plugins and configurations/policies can be set on each deployment cluster
+ * Easy to split environments (QA/Staging/Production)
 
 Disadvantages
 
-Difficult to manage
-Many instances often lead to many instances being out-of-date, introducing a new class of security problem
-Poor visibility across organizations
-Difficult to implement policy across many instances
+ * Difficult to manage in a uniform way
+ * Can lead to many instances being out-of-date, introducing a new class of security problems
+ * Poor visibility across organizations
+ * Difficult to implement policy across many instances
+ * More resources used for each cluster in order to run Argo CD itself
+ * Multiple dashboards, users, SSO setups and possible RBAC setups are confusing for end users. 
+
 
 ## Using a central Argo CD installation
 
+At the other end of the spectrum we can have a centralized Argo CD installation which controls and manages all deployment clusters. The cluster that hosts Argo CD can be dedicated to Argo CD only or it can also be used for deploying applications as well.
+
 Advantages
 
-Easy to maintain (one instance of Argo CD to manage)
-Centralized control
-One instance to worry about
-Better visibility across organization
+* Easy to maintain and upgrade
+* Centralized control (including SSO and RBAC)
+* Better visibility across organization
+* Single dashboard for all clusters
+
 Disadvantages
 
-Single attack surface
-RBAC and SSO are not perfect (more on that later)
-Target cluster API’s must be accessible to the central instance
-Single point of failure, if this instance goes down, all clusters cannot be updated
-No separation between staging and production management
-Argo CD performance may degrade with many applications and clusters as they scale
+* Single point of failure
+* Target cluster API’s must be accessible to the central instance
+* Single attack surface
+* RBAC and SSO might not match organizational requirements
+* Impossible to upgrade different clusters in waves
+* No separation between QA/Staging/Prod installations
+* Argo CD performance may degrade with many applications and clusters as they scale
+* In theory requires less resources per each deployment cluster (as it only runs apps and not ArgoCD itself)
+
+While a single Argo CD instance might be tempting (especially for big organizations) it is important to understand the tradeoffs regarding security and performance if you go down that route. Also note the networking requirements.
 
 ## Hybrid approaches
 
+An alternative approach (and most often the recommended one) is a hybrid architecture that either combines Argo CD instances that control other clusters or mixes internal and external clusters in the different Argo CD installations.
+
+A hybrid approach combines the best of both worlds by allowing you to mitigate the risks of each one according to your own requirements.
+
+Example 1 - Different Argo CD instances per environment
+
+IMAGE HERE
+
+In this example there are 3 management Argo CD instances. This allows the Production instance to have different constraints than the non-production instances while also making upgrades of Argo CD itself more granular (Production instance can be updated at the end after QA and staging).
+
+Example 2 - Mix of Argo CD instances per region and environment
+
+IMAGE HERE
+
+In this example there are different Argo CD instances per region that manage other clusters, while each time gets also its own Argo CD instance. This allows developer teams to have their own config for their ArgoCD instance and also there is no fear of affecting other teams during upgrades.
+
 ## Which strategy to choose
 
+There is no right or wrong Argo CD topology. Each organization has different needs. It is also possible to start with one topology and change to another as the organization needs are changing.
+
+As a starting point we suggest we have at least 2 ArgoCD categories (which might be individual instance of multiple installations)
+
+* Argo CD instance(s) for production systems
+* Argo CD instance(s) for NON production systems
+
+This would help you during upgrades as you can test a new version of Argo CD itself without affecting production.
 
 
