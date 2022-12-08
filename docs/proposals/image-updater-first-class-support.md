@@ -48,9 +48,11 @@ TBD
 As a User of Argo CD, I would like to be able to have my application images updated automatically within expressed constraints when there is a new version available, natively within Argo CD. 
 
 #### Use case 2:
-As a user of Argo CD and Argo CD Image Updater, I would like to have image-updater honor rollbacks to my applications  
+As a user of Argo CD and Argo CD Image Updater, I would like to have image-updater honor rollbacks to my applications 
+ 
 
 ### Implementation Details/Notes/Constraints [optional]
+
 
 - Argo CD Image Updater code base will need to be updated to look for application resources in namespaces other than the control-plane namespace when configured to use the k8s api instead of the argocd api to retrieve resources (see https://argocd-image-updater.readthedocs.io/en/stable/install/installation/#installation-methods). Currently it only recognizes applications present in the control plane namespace when installed in this manner. 
 
@@ -61,6 +63,10 @@ As a user of Argo CD and Argo CD Image Updater, I would like to have image-updat
 - In terms of the actual merging of the codebases, the ideal approach would likely be to pull the image-updater code into the core Argo CD codebase, but keep it largely isolated as its own controller. This would seem logical since there is sufficient distinction between the purpose of the image-updater controller code and the tasks rest of the core components (like application-controller) perform that we can maintain a clean separation of concerns. It would also be easier to maintain in the long run. There is also a case that can be made to keep the code completely de-coupled in its own repository in the argoproj org since there is not as much interdependency between the 2 projects, however this may send mixed signals to the community regarding the capacity in which image updater has been granted "first class" status within Argo CD. 
 
 ### Detailed examples
+
+
+At present, users of image updater must add a host of specific annotations to their applications in order to configure automatic image updates on them. As the user base of the Image Updater project has grown, the use cases and requirements have also gotten more complex and demanding. As these features have been implemented and delivered to the users, the ways to use annotations to leverage these features have become more complicated, involving somewhat convoluted mechanisms to express references to resources like secrets, and setting up templates for branch names.
+Converting these fields to first class fields in the CR would simplify the expression and usage of these fields and make them more intuitive for users to understand and leverage. 
 
 Example of proposed additions to Application CR to accomodate image update configuration;
 
@@ -118,9 +124,15 @@ spec:
       writeBack:
         method: git
         target: kustomization
+        kustomization:
+          path: "../../base"
 
-        # branch can contrinue supporting existing features like specifying templates for new branch creation & usage of SHA # identifiers the same way as currently uesd, for e.g    # branch: main:image-updater{{range .Images}}-{{.Name}}-{{.NewTag}}{{end}} 
-        branch: <branch_name>
+        # baseBranch and targetBranch can contrinue supporting existing features like specifying templates for new branch creation & usage of SHA
+        # identifiers the same way as currently used, for e.g:   
+        # argocd-image-updater.argoproj.io/git-branch: main:image-updater{{range .Images}}-{{.Name}}-{{.NewTag}}{{end}}
+        # see https://argocd-image-updater.readthedocs.io/en/stable/basics/update-methods/#specifying-a-separate-base-and-commit-branch for details 
+        baseBranch: <base_branch_name>
+        targetBranch: <target_branch_name>
         secret:
           namespace: argocd
           name: git-creds
