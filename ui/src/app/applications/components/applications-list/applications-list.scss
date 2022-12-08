@@ -4,6 +4,9 @@
 
 .applications-list {
     padding: 1em;
+    @media screen and (max-width: 1024px) {
+        padding: 0;
+    }
     min-height: 88vh;
     &__title {
         font-weight: bolder;
@@ -207,4 +210,12 @@
 }
 i.menu_icon {
     vertical-align: middle;
+}
+
+.argo-button {
+    i {
+        @media screen and (max-width: map-get($breakpoints, large)) {
+            margin: 0 auto !important;
+        }
+    }
 }

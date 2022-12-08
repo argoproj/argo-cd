@@ -64,6 +64,7 @@ interface NewHTTPSRepoCredsParams {
     password: string;
     tlsClientCertData: string;
     tlsClientCertKey: string;
+    proxy: string;
 }
 
 interface NewGitHubAppRepoCredsParams {
@@ -74,6 +75,7 @@ interface NewGitHubAppRepoCredsParams {
     githubAppEnterpriseBaseURL: string;
     tlsClientCertData: string;
     tlsClientCertKey: string;
+    proxy: string;
 }
 
 export enum ConnectionMethod {
@@ -630,7 +632,8 @@ export class ReposList extends React.Component<
                 username: params.username,
                 password: params.password,
                 tlsClientCertData: params.tlsClientCertData,
-                tlsClientCertKey: params.tlsClientCertKey
+                tlsClientCertKey: params.tlsClientCertKey,
+                proxy: params.proxy
             });
         } else {
             this.setState({connecting: true});
@@ -676,7 +679,8 @@ export class ReposList extends React.Component<
                 githubAppInstallationId: params.githubAppInstallationId,
                 githubAppEnterpriseBaseURL: params.githubAppEnterpriseBaseURL,
                 tlsClientCertData: params.tlsClientCertData,
-                tlsClientCertKey: params.tlsClientCertKey
+                tlsClientCertKey: params.tlsClientCertKey,
+                proxy: params.proxy
             });
         } else {
             this.setState({connecting: true});
