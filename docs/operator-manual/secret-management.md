@@ -5,7 +5,7 @@ Argo CD is un-opinionated about how secrets are managed. There are many ways to 
 Many solutions use plugins to inject secrets into the application manifests. See [Mitigating Risks of Secret-Injection Plugins](#mitigating-risks-of-secret-injection-plugins)
 below to make sure you use those plugins securely.
 
-Here's some ways people are doing GitOps secrets:
+Here are some ways people are doing GitOps secrets:
 
 * [Bitnami Sealed Secrets](https://github.com/bitnami-labs/sealed-secrets)
 * [External Secrets Operator](https://github.com/external-secrets/external-secrets)
