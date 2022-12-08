@@ -51,7 +51,7 @@ You can send [simple text](https://developers.google.com/chat/reference/message-
 
 ```yaml
 template.app-sync-succeeded: |
-  message: The app {{ .app.metadata.name }} has succesfully synced!
+  message: The app {{ .app.metadata.name }} has successfully synced!
 ```
 
 A card message can be defined as follows:
@@ -65,7 +65,7 @@ template.app-sync-succeeded: |
         sections:
           - widgets:
               - textParagraph:
-                  text: The app {{ .app.metadata.name }} has succesfully synced!
+                  text: The app {{ .app.metadata.name }} has successfully synced!
           - widgets:
               - keyValue:
                   topLabel: Repository
@@ -79,3 +79,14 @@ template.app-sync-succeeded: |
 ```
 
 The card message can be written in JSON too.
+
+## Chat Threads
+
+It is possible send both simple text and card messages in a chat thread by specifying a unique key for the thread. The thread key can be defined as follows:
+
+```yaml
+template.app-sync-succeeded: |
+  message: The app {{ .app.metadata.name }} has succesfully synced!
+  googlechat:
+    threadKey: {{ .app.metadata.name }}
+```
