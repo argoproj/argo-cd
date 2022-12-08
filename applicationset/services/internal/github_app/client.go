@@ -19,6 +19,7 @@ func Client(g github_app_auth.Authentication, url string) (*github.Client, error
 	if url == "" {
 		url = g.EnterpriseBaseURL
 	}
+	rt.BaseURL = url
 	var client *github.Client
 	httpClient := http.Client{Transport: rt}
 	if url == "" {
