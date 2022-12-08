@@ -5,7 +5,7 @@ go 1.18
 require (
 	code.gitea.io/sdk/gitea v0.15.1
 	github.com/Knetic/govaluate v3.0.1-0.20171022003610-9aa49832a739+incompatible
-	github.com/Masterminds/semver/v3 v3.1.1
+	github.com/Masterminds/semver/v3 v3.2.0
 	github.com/TomOnTime/utfutil v0.0.0-20180511104225-09c41003ee1d
 	github.com/alicebob/miniredis/v2 v2.23.1
 	github.com/argoproj/gitops-engine v0.7.1-0.20221108210551-e284fd71cb96
