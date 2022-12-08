@@ -74,7 +74,7 @@ As a user of Argo CD and Argo CD Image Updater, I would like to have image-updat
 At present, users of image updater must add a host of specific annotations to their applications in order to configure automatic image updates on them. As the user base of the Image Updater project has grown, the use cases and requirements have also gotten more complex and demanding. As these features have been implemented and delivered to the users, the ways to use annotations to leverage these features have become more complicated, involving somewhat convoluted mechanisms to express references to resources like secrets, and setting up templates for branch names.
 Converting these fields to first class fields in the CR would simplify the expression and usage of these fields and make them more intuitive for users to understand and leverage. 
 
-Example of proposed additions to Application CR to accomodate image update configuration;
+Example of proposed additions to Application CR spec and status to accomodate image update configuration:
 
 ```
 apiVersion: argoproj.io/v1alpha1
