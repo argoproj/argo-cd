@@ -48,13 +48,19 @@ TBD
 As a User of Argo CD, I would like to be able to have my application images updated automatically within expressed constraints when there is a new version available, natively within Argo CD. 
 
 #### Use case 2:
-As a user of Argo CD and Argo CD Image Updater, I would like to have image-updater honor rollbacks to my applications 
+As a user of Argo CD and Argo CD Image Updater, I would like to be able to express advanced Image update configurations through custom resource fields in my application
  
+#### Use case 3:
+As a user of Argo CD and Argo CD Image Updater, I would like to have image-updater honor rollbacks to my applications
 
 ### Implementation Details/Notes/Constraints [optional]
 
 
-- Argo CD Image Updater code base will need to be updated to look for application resources in namespaces other than the control-plane namespace when configured to use the k8s api instead of the argocd api to retrieve resources (see https://argocd-image-updater.readthedocs.io/en/stable/install/installation/#installation-methods). Currently it only recognizes applications present in the control plane namespace when installed in this manner. 
+- Argo CD Image Updater code base will need to be updated to look for application resources in namespaces other than the control-plane namespace when configured to use the k8s api instead of the argocd api to retrieve resources (see https://argocd-image-updater.readthedocs.io/en/stable/install/installation/#installation-methods). Currently it only recognizes applications present in the control plane namespace when installed in this manner. Exposed prometheus metric labels will need to be updated to take application namespace into account for accurate filtering. 
+
+- Image Updater controller code will need to be updated to watch and react to changes in newly defined application CR fields, and code to parse and react to annotations will need to be removed. 
+
+- Image Updater git write back code will need to be modified to figure out the correct set of manifest updates to be written back to each source repository in case the application has multiple source repositories. 
 
 - Image Updater controller would need to be able to modify fields in the status of the Application CR in order to maintain state, as described in the following section.
 
@@ -151,7 +157,7 @@ status:
      
 ```
 
-There is a need to introduce state by tracking the status of image Updates in the application CR. This is mainly important to honor application rollbacks, avoid repeated image updates, as well to support future use cases such as enabling image-updater to create Pull Requests against the source repositories. The above detailed `.spec.imageUpdates` field could be extended to store metadata regarding pull request creation that would serve to avoid duplicate/excessive number of pull requests being opened, for example.
+There is a need to introduce state by tracking the status of image Updates in the application CR. This is mainly important to honor application rollbacks, avoid repeated image updates in case of failure, as well as to support future use cases such as enabling image-updater to create pull requests against the source repositories. The above detailed `.spec.imageUpdates` field could be extended to store metadata regarding pull request creation that would serve to avoid duplicate/excessive number of pull requests being opened, for example.
 
 There could be a few different options in terms of placement for this block of information:
 
