@@ -19,13 +19,13 @@ export function repoUrl(url: string): string {
             return null;
         }
 
-        let url_parsed = `${protocol(parsed.protocol)}://${parsed.resource}`
+        let urlParsed = `${protocol(parsed.protocol)}://${parsed.resource}`;
         if (parsed.owner) {
-            url_parsed += `/${parsed.owner}`
+            urlParsed += `/${parsed.owner}`;
         }
-        url_parsed += `/${parsed.name}`
+        urlParsed += `/${parsed.name}`;
 
-        return url_parsed
+        return urlParsed;
     } catch {
         return null;
     }
