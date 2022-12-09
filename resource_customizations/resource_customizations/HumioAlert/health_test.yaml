@@ -1,0 +1,21 @@
+tests:
+- healthStatus:
+    status: Healthy
+    message: "Component state: Exists."
+  inputPath: testdata/healthy.yaml
+- healthStatus:
+    status: Missing
+    message: "Component state: NotFound."
+  inputPath: testdata/notfound.yaml
+- healthStatus:
+    status: Degraded
+    message: "Component state: ConfigError."
+  inputPath: testdata/configerror.yaml
+- healthStatus:
+    status: Unknown
+    message: "Component state: Unknown."
+  inputPath: testdata/unknown.yaml
+- healthStatus:
+    status: Progressing
+    message: "Update in progress"
+  inputPath: testdata/progressing.yaml
