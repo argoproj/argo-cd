@@ -10,7 +10,7 @@ import (
 	"strings"
 	"time"
 
-	"github.com/argoproj/gitops-engine/pkg/utils/text"
+	"github.com/argoproj/argo-cd/v2/gitops-engine/pkg/utils/text"
 	"github.com/go-git/go-git/v5/plumbing"
 	"github.com/go-redis/redis/v8"
 	log "github.com/sirupsen/logrus"

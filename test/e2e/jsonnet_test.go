@@ -3,8 +3,8 @@ package e2e
 import (
 	"testing"
 
-	. "github.com/argoproj/gitops-engine/pkg/sync/common"
-	"github.com/argoproj/gitops-engine/pkg/utils/kube"
+	. "github.com/argoproj/argo-cd/v2/gitops-engine/pkg/sync/common"
+	"github.com/argoproj/argo-cd/v2/gitops-engine/pkg/utils/kube"
 	"github.com/stretchr/testify/assert"
 
 	. "github.com/argoproj/argo-cd/v2/pkg/apis/application/v1alpha1"
@@ -102,7 +102,7 @@ func TestJsonnetExtVarEnv(t *testing.T) {
 		})
 }
 
-//Jsonnet file located in nested sub directory uses import
+// Jsonnet file located in nested sub directory uses import
 func TestJsonnetNestedDirWithImports(t *testing.T) {
 	Given(t).
 		Path("jsonnet-nested-dir-with-imports/apps").

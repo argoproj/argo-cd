@@ -4,8 +4,8 @@ import (
 	"reflect"
 	"testing"
 
-	"github.com/argoproj/gitops-engine/pkg/sync/common"
-	. "github.com/argoproj/gitops-engine/pkg/utils/testing"
+	"github.com/argoproj/argo-cd/v2/gitops-engine/pkg/sync/common"
+	. "github.com/argoproj/argo-cd/v2/gitops-engine/pkg/utils/testing"
 	"k8s.io/apimachinery/pkg/apis/meta/v1/unstructured"
 )
 

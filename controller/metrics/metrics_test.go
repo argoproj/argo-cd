@@ -10,8 +10,8 @@ import (
 	"testing"
 	"time"
 
-	gitopsCache "github.com/argoproj/gitops-engine/pkg/cache"
-	"github.com/argoproj/gitops-engine/pkg/sync/common"
+	gitopsCache "github.com/argoproj/argo-cd/v2/gitops-engine/pkg/cache"
+	"github.com/argoproj/argo-cd/v2/gitops-engine/pkg/sync/common"
 	"github.com/ghodss/yaml"
 	"github.com/stretchr/testify/assert"
 	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"

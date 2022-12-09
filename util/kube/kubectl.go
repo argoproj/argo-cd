@@ -5,8 +5,8 @@ import (
 
 	"github.com/argoproj/argo-cd/v2/util/log"
 
-	"github.com/argoproj/gitops-engine/pkg/utils/kube"
-	"github.com/argoproj/gitops-engine/pkg/utils/tracing"
+	"github.com/argoproj/argo-cd/v2/gitops-engine/pkg/utils/kube"
+	"github.com/argoproj/argo-cd/v2/gitops-engine/pkg/utils/tracing"
 )
 
 var tracer tracing.Tracer = &tracing.NopTracer{}

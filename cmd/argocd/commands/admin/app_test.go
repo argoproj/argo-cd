@@ -4,9 +4,9 @@ import (
 	"context"
 	"testing"
 
-	clustermocks "github.com/argoproj/gitops-engine/pkg/cache/mocks"
-	"github.com/argoproj/gitops-engine/pkg/health"
-	"github.com/argoproj/gitops-engine/pkg/utils/kube"
+	clustermocks "github.com/argoproj/argo-cd/v2/gitops-engine/pkg/cache/mocks"
+	"github.com/argoproj/argo-cd/v2/gitops-engine/pkg/health"
+	"github.com/argoproj/argo-cd/v2/gitops-engine/pkg/utils/kube"
 	"github.com/stretchr/testify/assert"
 	"github.com/stretchr/testify/mock"
 	corev1 "k8s.io/api/core/v1"

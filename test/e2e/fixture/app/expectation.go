@@ -6,8 +6,8 @@ import (
 	"regexp"
 	"strings"
 
-	"github.com/argoproj/gitops-engine/pkg/health"
-	. "github.com/argoproj/gitops-engine/pkg/sync/common"
+	"github.com/argoproj/argo-cd/v2/gitops-engine/pkg/health"
+	. "github.com/argoproj/argo-cd/v2/gitops-engine/pkg/sync/common"
 	v1 "k8s.io/api/core/v1"
 	apierr "k8s.io/apimachinery/pkg/api/errors"
 	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"

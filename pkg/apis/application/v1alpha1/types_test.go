@@ -15,7 +15,7 @@ import (
 	"github.com/stretchr/testify/require"
 	"k8s.io/utils/pointer"
 
-	"github.com/argoproj/gitops-engine/pkg/sync/common"
+	"github.com/argoproj/argo-cd/v2/gitops-engine/pkg/sync/common"
 	"github.com/stretchr/testify/assert"
 	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
 	"k8s.io/apimachinery/pkg/runtime/schema"
@@ -3164,7 +3164,7 @@ func Test_RBACName(t *testing.T) {
 func TestApplicationSourcePluginParameters_Environ_string(t *testing.T) {
 	params := ApplicationSourcePluginParameters{
 		{
-			Name: "version",
+			Name:    "version",
 			String_: pointer.String("1.2.3"),
 		},
 	}
@@ -3180,7 +3180,7 @@ func TestApplicationSourcePluginParameters_Environ_string(t *testing.T) {
 func TestApplicationSourcePluginParameters_Environ_array(t *testing.T) {
 	params := ApplicationSourcePluginParameters{
 		{
-			Name: "dependencies",
+			Name:  "dependencies",
 			Array: []string{"redis", "minio"},
 		},
 	}
@@ -3200,7 +3200,7 @@ func TestApplicationSourcePluginParameters_Environ_map(t *testing.T) {
 			Name: "helm-parameters",
 			Map: map[string]string{
 				"image.repo": "quay.io/argoproj/argo-cd",
-				"image.tag": "v2.4.0",
+				"image.tag":  "v2.4.0",
 			},
 		},
 	}
@@ -3219,12 +3219,12 @@ func TestApplicationSourcePluginParameters_Environ_all(t *testing.T) {
 	// Name collisions can happen for the convenience env vars. When in doubt, CMP authors should use the JSON env var.
 	params := ApplicationSourcePluginParameters{
 		{
-			Name: "some-name",
+			Name:    "some-name",
 			String_: pointer.String("1.2.3"),
-			Array: []string{"redis", "minio"},
+			Array:   []string{"redis", "minio"},
 			Map: map[string]string{
 				"image.repo": "quay.io/argoproj/argo-cd",
-				"image.tag": "v2.4.0",
+				"image.tag":  "v2.4.0",
 			},
 		},
 	}

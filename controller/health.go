@@ -1,10 +1,10 @@
 package controller
 
 import (
-	"github.com/argoproj/gitops-engine/pkg/health"
-	hookutil "github.com/argoproj/gitops-engine/pkg/sync/hook"
-	"github.com/argoproj/gitops-engine/pkg/sync/ignore"
-	kubeutil "github.com/argoproj/gitops-engine/pkg/utils/kube"
+	"github.com/argoproj/argo-cd/v2/gitops-engine/pkg/health"
+	hookutil "github.com/argoproj/argo-cd/v2/gitops-engine/pkg/sync/hook"
+	"github.com/argoproj/argo-cd/v2/gitops-engine/pkg/sync/ignore"
+	kubeutil "github.com/argoproj/argo-cd/v2/gitops-engine/pkg/utils/kube"
 	"k8s.io/apimachinery/pkg/runtime/schema"
 
 	"github.com/argoproj/argo-cd/v2/pkg/apis/application"

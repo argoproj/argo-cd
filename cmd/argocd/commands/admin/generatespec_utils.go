@@ -7,7 +7,7 @@ import (
 	"io"
 	"os"
 
-	"github.com/argoproj/gitops-engine/pkg/utils/kube"
+	"github.com/argoproj/argo-cd/v2/gitops-engine/pkg/utils/kube"
 	"github.com/ghodss/yaml"
 	v1 "k8s.io/api/core/v1"
 

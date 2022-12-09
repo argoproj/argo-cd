@@ -16,8 +16,8 @@ import (
 	"time"
 	"unicode"
 
-	"github.com/argoproj/gitops-engine/pkg/health"
-	synccommon "github.com/argoproj/gitops-engine/pkg/sync/common"
+	"github.com/argoproj/argo-cd/v2/gitops-engine/pkg/health"
+	synccommon "github.com/argoproj/argo-cd/v2/gitops-engine/pkg/sync/common"
 	"github.com/ghodss/yaml"
 	"github.com/robfig/cron/v3"
 	log "github.com/sirupsen/logrus"

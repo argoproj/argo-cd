@@ -6,7 +6,7 @@ import (
 	"os/exec"
 	"time"
 
-	"github.com/argoproj/gitops-engine/pkg/utils/tracing"
+	"github.com/argoproj/argo-cd/v2/gitops-engine/pkg/utils/tracing"
 	argoexec "github.com/argoproj/pkg/exec"
 
 	"github.com/argoproj/argo-cd/v2/util/log"
