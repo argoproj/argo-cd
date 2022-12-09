@@ -177,7 +177,7 @@ func validateConfigs(configs *ExtensionConfigs) error {
 			return fmt.Errorf("extensions.name must be configured")
 		}
 		if !nameSafeRegex.MatchString(ext.Name) {
-			return fmt.Errorf("invalid extensions.name: only alphanumeric characters are allowed (^[A-Za-z0-9-_]+$)")
+			return fmt.Errorf("invalid extensions.name: only alphanumeric characters, hyphens, and underscores are allowed")
 		}
 		svcTotal := len(ext.Backend.Services)
 		for _, svc := range ext.Backend.Services {
