@@ -5,9 +5,8 @@ import (
 	"crypto/sha256"
 	"encoding/base64"
 	"fmt"
-	"github.com/argoproj/argo-cd/v2/gitops-engine/pkg/utils/text"
-	"io/ioutil"
 	"net/http"
+	_ "net/http/pprof"
 	"os"
 	"os/exec"
 	"path/filepath"
@@ -15,6 +14,8 @@ import (
 	"strings"
 	"text/tabwriter"
 	"time"
+
+	"github.com/argoproj/argo-cd/v2/gitops-engine/pkg/utils/text"
 
 	"github.com/go-logr/logr"
 	"github.com/spf13/cobra"
@@ -26,8 +27,6 @@ import (
 	"github.com/argoproj/argo-cd/v2/gitops-engine/pkg/engine"
 	"github.com/argoproj/argo-cd/v2/gitops-engine/pkg/sync"
 	"github.com/argoproj/argo-cd/v2/gitops-engine/pkg/utils/kube"
-
-	_ "net/http/pprof"
 )
 
 const (
@@ -78,7 +77,7 @@ func (s *settings) parseManifests() ([]*unstructured.Unstructured, string, error
 			if ext := strings.ToLower(filepath.Ext(info.Name())); ext != ".json" && ext != ".yml" && ext != ".yaml" {
 				return nil
 			}
-			data, err := ioutil.ReadFile(path)
+			data, err := os.ReadFile(path)
 			if err != nil {
 				return err
 			}

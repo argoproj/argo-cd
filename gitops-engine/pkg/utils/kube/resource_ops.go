@@ -6,7 +6,7 @@ import (
 	"encoding/json"
 	"errors"
 	"fmt"
-	"io/ioutil"
+	"os"
 	"strings"
 
 	"github.com/go-logr/logr"
@@ -60,7 +60,7 @@ func (k *kubectlResourceOperations) runResourceCommand(ctx context.Context, obj 
 	if err != nil {
 		return "", err
 	}
-	manifestFile, err := ioutil.TempFile(io.TempDir, "")
+	manifestFile, err := os.CreateTemp(io.TempDir, "")
 	if err != nil {
 		return "", fmt.Errorf("Failed to generate temp file for manifest: %v", err)
 	}
