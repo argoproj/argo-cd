@@ -86,10 +86,10 @@ type ServiceConfig struct {
 	// Mandatory field.
 	URL string `json:"url"`
 
-	// ClusterName if provided, will have to match the application
+	// Cluster if provided, will have to match the application
 	// destination name to have requests properly forwarded to this
 	// service URL.
-	ClusterName string `json:"clusterName"`
+	Cluster string `json:"cluster"`
 }
 
 // SettingsGetter defines the contract to retrieve Argo CD Settings.
@@ -140,27 +140,12 @@ func (a *DefaultApplicationGetter) Get(ns, name string) (*v1alpha1.Application, 
 	return a.svc.Get(context.Background(), query)
 }
 
-// type ClusterGetter interface {
-// 	Get(*cluster.ClusterQuery) (*v1alpha1.Cluster, error)
-// }
-//
-// type DefaultClusterGetter struct {
-// 	service *cluster.ClusterServiceServer
-// }
-//
-// func NewDefaultClusterGetter(service *cluster.ClusterServiceServer) *DefaultClusterGetter {
-// 	return &DefaultClusterGetter{
-// 		service: service,
-// 	}
-// }
-
 // Manager is the object that will be responsible for registering
 // and handling proxy extensions.
 type Manager struct {
 	log         *log.Entry
 	settings    SettingsGetter
 	application ApplicationGetter
-	// cluster     ClusterGetter
 }
 
 // NewManager will initialize a new manager.
@@ -199,8 +184,8 @@ func validateConfigs(configs *ExtensionConfigs) error {
 			if svc.URL == "" {
 				return fmt.Errorf("extensions.backend.services.url must be configured")
 			}
-			if svcTotal > 1 && svc.ClusterName == "" {
-				return fmt.Errorf("extensions.backend.services.clusterName must be configured when defining more than one service per extension")
+			if svcTotal > 1 && svc.Cluster == "" {
+				return fmt.Errorf("extensions.backend.services.cluster must be configured when defining more than one service per extension")
 			}
 		}
 	}
@@ -283,33 +268,13 @@ func (m *Manager) registerExtensions(r *mux.Router, extConfigs *ExtensionConfigs
 			if err != nil {
 				return fmt.Errorf("error creating proxy: %s", err)
 			}
-			proxyByCluster[service.ClusterName] = proxy
+			proxyByCluster[service.Cluster] = proxy
 		}
 		m.log.Infof("Registering handler for %s/%s...", URLPrefix, ext.Name)
 		extRouter.PathPrefix(fmt.Sprintf("/%s/", ext.Name)).
 			HandlerFunc(m.CallExtension(ext.Name, proxyByCluster))
 	}
-	// register /extensions/ endpoint to list all configured extensions
-	extRouter.HandleFunc("/", m.ListExtensions(extConfigs))
 	return nil
-}
-
-// ListExtensions returns a handler func to list all configured extensions
-func (m *Manager) ListExtensions(extConfigs *ExtensionConfigs) func(http.ResponseWriter, *http.Request) {
-	return func(w http.ResponseWriter, r *http.Request) {
-		extJson, err := json.Marshal(extConfigs)
-		if err != nil {
-			msg := fmt.Sprintf("error building extensions list response: %s", err)
-			m.writeErrorResponse(http.StatusInternalServerError, msg, w)
-			return
-		}
-		_, err = w.Write(extJson)
-		if err != nil {
-			msg := fmt.Sprintf("error writing extensions list response: %s", err)
-			m.writeErrorResponse(http.StatusInternalServerError, msg, w)
-			return
-		}
-	}
 }
 
 // CallExtension returns a handler func responsible for forwarding requests to the

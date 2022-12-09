@@ -947,7 +947,9 @@ func (a *ArgoCDServer) newHTTPServer(ctx context.Context, port int, grpcWebHandl
 		// API server won't panic if extensions fail to register. In
 		// this case an error log will be sent and no extension route
 		// will be added in mux.
-		registerExtensions(mux, a)
+
+		// Dead code for now
+		// registerExtensions(mux, a)
 	}
 	mustRegisterGWHandler(versionpkg.RegisterVersionServiceHandler, ctx, gwmux, conn)
 	mustRegisterGWHandler(clusterpkg.RegisterClusterServiceHandler, ctx, gwmux, conn)

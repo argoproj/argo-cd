@@ -160,22 +160,6 @@ func TestExtensionsHandlers(t *testing.T) {
 		}))
 
 	}
-
-	t.Run("will list registered extensions successfully", func(t *testing.T) {
-		// given
-		f := setup()
-		withExtensionConfig(getExtensionConfigString(), f)
-		ts := startTestServer(t, f)
-		defer ts.Close()
-
-		// when
-		resp, err := http.Get(fmt.Sprintf("%s/extensions/", ts.URL))
-
-		// then
-		require.NoError(t, err)
-		require.NotNil(t, resp)
-		assert.Equal(t, http.StatusOK, resp.StatusCode)
-	})
 	t.Run("proxy will return 404 if no extension endpoint is registered", func(t *testing.T) {
 		// given
 		f := setup()
@@ -307,9 +291,9 @@ extensions:
   backend:
     services:
     - url: %s
-      clusterName: %s
+      cluster: %s
     - url: %s
-      clusterName: %s
+      cluster: %s
 `
 	return fmt.Sprintf(cfg, name, url1, clus1, url2, clus2)
 }
@@ -352,6 +336,6 @@ extensions:
 - name: some-backend
   backend:
     services:
-    - clusterName: some-cluster
+    - cluster: some-cluster
 `
 }
