@@ -980,50 +980,12 @@ func helmTemplate(appPath string, repoRoot string, env *v1alpha1.Env, q *apiclie
 			templateOpts.Name = appHelm.ReleaseName
 		}
 
-		for i := 0; i < len(appHelm.ValueFiles); i++ {
-			// ValueFiles referring to another source within the application
-			val := appHelm.ValueFiles[i]
-			if strings.HasPrefix(val, "$") {
-				pathStrings := strings.Split(val, "/")
-				refVar := strings.Split(val, "/")[0]
-				refSourceRepo := q.RefSources[refVar].Repo.Repo
-				repoPath := gitRepoPaths.GetPathIfExists(git.NormalizeGitURL(refSourceRepo))
-				if repoPath == "" {
-					log.Warnf("Failed to find path for ref %s", refVar)
-					continue
-				}
-				pathStrings[0] = repoPath
-				appHelm.ValueFiles[i] = strings.Join(pathStrings, "/")
-
-				if _, err := os.Stat(appHelm.ValueFiles[i]); err == nil {
-					if err := os.Chmod(appHelm.ValueFiles[i], 0700); err != nil {
-						log.Warnf("Failed to restore read/write/execute permissions on %s: %v", appHelm.ValueFiles[i], err)
-					} else {
-						log.Debugf("Successfully restored read/write/execute permissions on %s", appHelm.ValueFiles[i])
-					}
-				}
-				templateOpts.Values = append(templateOpts.Values, pathutil.ResolvedFilePath(appHelm.ValueFiles[i]))
-				continue
-			}
-
-			// This will resolve val to an absolute path (or an URL)
-			path, isRemote, err := pathutil.ResolveValueFilePathOrUrl(appPath, repoRoot, env.Envsubst(val), q.GetValuesFileSchemes())
-			if err != nil {
-				return nil, err
-			}
-
-			if !isRemote {
-				_, err = os.Stat(string(path))
-				if os.IsNotExist(err) {
-					if appHelm.IgnoreMissingValueFiles {
-						log.Debugf(" %s values file does not exist", path)
-						continue
-					}
-				}
-			}
-
-			templateOpts.Values = append(templateOpts.Values, path)
+		resolvedValueFiles, err := getResolvedValueFiles(appPath, repoRoot, env, q.GetValuesFileSchemes(), appHelm.ValueFiles, q.RefSources, gitRepoPaths, appHelm.IgnoreMissingValueFiles)
+		if err != nil {
+			return nil, err
 		}
+
+		templateOpts.Values = resolvedValueFiles
 
 		if appHelm.Values != "" {
 			rand, err := uuid.NewRandom()
@@ -1113,6 +1075,84 @@ func helmTemplate(appPath string, repoRoot string, env *v1alpha1.Env, q *apiclie
 		}
 	}
 	return kube.SplitYAML([]byte(out))
+}
+
+func getResolvedValueFiles(
+	appPath string,
+	repoRoot string,
+	env *v1alpha1.Env,
+	allowedValueFilesSchemas []string,
+	rawValueFiles []string,
+	refSources map[string]*v1alpha1.RefTarget,
+	gitRepoPaths *io.TempPaths,
+	ignoreMissingValueFiles bool,
+) ([]pathutil.ResolvedFilePath, error) {
+	var resolvedValueFiles []pathutil.ResolvedFilePath
+	for _, rawValueFile := range rawValueFiles {
+		var isRemote = false
+		var resolvedPath pathutil.ResolvedFilePath
+		var err error
+
+		referencedSource := getReferencedSource(rawValueFile, refSources)
+		if referencedSource != nil {
+			// If the $-prefixed path appears to reference another source, do env substitution _after_ resolving that source.
+			resolvedPath, err = getResolvedRefValueFile(rawValueFile, env, allowedValueFilesSchemas, referencedSource.Repo.Repo, gitRepoPaths)
+			if err != nil {
+				return nil, err
+			}
+		} else {
+			// This will resolve val to an absolute path (or an URL)
+			resolvedPath, isRemote, err = pathutil.ResolveValueFilePathOrUrl(appPath, repoRoot, env.Envsubst(rawValueFile), allowedValueFilesSchemas)
+			if err != nil {
+				return nil, err
+			}
+		}
+
+		if !isRemote {
+			_, err = os.Stat(string(resolvedPath))
+			if os.IsNotExist(err) {
+				if ignoreMissingValueFiles {
+					log.Debugf(" %s values file does not exist", resolvedPath)
+					continue
+				}
+			}
+		}
+
+		resolvedValueFiles = append(resolvedValueFiles, resolvedPath)
+	}
+	return resolvedValueFiles, nil
+}
+
+func getResolvedRefValueFile(
+	rawValueFile string,
+	env *v1alpha1.Env,
+	allowedValueFilesSchemas []string,
+	refSourceRepo string,
+	gitRepoPaths *io.TempPaths,
+) (pathutil.ResolvedFilePath, error) {
+	pathStrings := strings.Split(rawValueFile, "/")
+	repoPath := gitRepoPaths.GetPathIfExists(git.NormalizeGitURL(refSourceRepo))
+	if repoPath == "" {
+		return "", fmt.Errorf("failed to find repo %q", refSourceRepo)
+	}
+	pathStrings[0] = "" // Remove first segment. It will be inserted by pathutil.ResolveValueFilePathOrUrl.
+	substitutedPath := strings.Join(pathStrings, "/")
+
+	// Resolve the path relative to the referenced repo and block any attempt at traversal.
+	resolvedPath, _, err := pathutil.ResolveValueFilePathOrUrl(repoPath, repoPath, env.Envsubst(substitutedPath), allowedValueFilesSchemas)
+	if err != nil {
+		return "", err
+	}
+	return resolvedPath, nil
+}
+
+func getReferencedSource(rawValueFile string, refSources map[string]*v1alpha1.RefTarget) *v1alpha1.RefTarget {
+	if !strings.HasPrefix(rawValueFile, "$") {
+		return nil
+	}
+	refVar := strings.Split(rawValueFile, "/")[0]
+	referencedSource, _ := refSources[refVar]
+	return referencedSource
 }
 
 func getRepoCredential(repoCredentials []*v1alpha1.RepoCreds, repoURL string) *v1alpha1.RepoCreds {
@@ -1844,7 +1884,7 @@ func (s *Service) GetAppDetails(ctx context.Context, q *apiclient.RepoServerAppD
 
 		switch appSourceType {
 		case v1alpha1.ApplicationSourceTypeHelm:
-			if err := populateHelmAppDetails(res, opContext.appPath, repoRoot, q); err != nil {
+			if err := populateHelmAppDetails(res, opContext.appPath, repoRoot, q, s.gitRepoPaths); err != nil {
 				return err
 			}
 		case v1alpha1.ApplicationSourceTypeKustomize:
@@ -1883,7 +1923,7 @@ func (s *Service) createGetAppDetailsCacheHandler(res *apiclient.RepoAppDetailsR
 	}
 }
 
-func populateHelmAppDetails(res *apiclient.RepoAppDetailsResponse, appPath string, repoRoot string, q *apiclient.RepoServerAppDetailsQuery) error {
+func populateHelmAppDetails(res *apiclient.RepoAppDetailsResponse, appPath string, repoRoot string, q *apiclient.RepoServerAppDetailsQuery, gitRepoPaths *io.TempPaths) error {
 	var selectedValueFiles []string
 
 	if q.Source.Helm != nil {
@@ -1921,25 +1961,13 @@ func populateHelmAppDetails(res *apiclient.RepoAppDetailsResponse, appPath strin
 	} else {
 		log.Warnf("Values file %s is not allowed: %v", filepath.Join(appPath, "values.yaml"), err)
 	}
-	var resolvedSelectedValueFiles []pathutil.ResolvedFilePath
-	// drop not allowed values files
-	for i, file := range selectedValueFiles {
-		// update path of value file if value file is referencing another ApplicationSource
-		if strings.HasPrefix(file, "$") {
-			pathStrings := strings.Split(file, "/")
-			pathStrings[0] = os.Getenv(strings.Split(file, "/")[0])
-			selectedValueFiles[i] = strings.Join(pathStrings, "/")
-
-			if _, err := os.Stat(selectedValueFiles[i]); err != nil {
-				log.Warnf("Values file %s is not allowed: %v", file, err)
-			}
-			continue
-		}
-		if resolvedFile, _, err := pathutil.ResolveValueFilePathOrUrl(appPath, repoRoot, file, q.GetValuesFileSchemes()); err == nil {
-			resolvedSelectedValueFiles = append(resolvedSelectedValueFiles, resolvedFile)
-		} else {
-			log.Warnf("Values file %s is not allowed: %v", file, err)
-		}
+	ignoreMissingValueFiles := false
+	if q.Source.Helm != nil {
+		ignoreMissingValueFiles = q.Source.Helm.IgnoreMissingValueFiles
+	}
+	resolvedSelectedValueFiles, err := getResolvedValueFiles(appPath, repoRoot, &v1alpha1.Env{}, q.GetValuesFileSchemes(), selectedValueFiles, q.RefSources, gitRepoPaths, ignoreMissingValueFiles)
+	if err != nil {
+		return fmt.Errorf("failed to resolve value files: %w", err)
 	}
 	params, err := h.GetParameters(resolvedSelectedValueFiles, appPath, repoRoot)
 	if err != nil {

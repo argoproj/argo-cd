@@ -2496,6 +2496,7 @@ func Test_findHelmValueFilesInPath(t *testing.T) {
 }
 
 func Test_populateHelmAppDetails(t *testing.T) {
+	var emptyTempPaths = io.NewTempPaths(t.TempDir())
 	res := apiclient.RepoAppDetailsResponse{}
 	q := apiclient.RepoServerAppDetailsQuery{
 		Repo: &argoappv1.Repository{},
@@ -2505,17 +2506,18 @@ func Test_populateHelmAppDetails(t *testing.T) {
 	}
 	appPath, err := filepath.Abs("./testdata/values-files/")
 	require.NoError(t, err)
-	err = populateHelmAppDetails(&res, appPath, appPath, &q)
+	err = populateHelmAppDetails(&res, appPath, appPath, &q, emptyTempPaths)
 	require.NoError(t, err)
 	assert.Len(t, res.Helm.Parameters, 3)
 	assert.Len(t, res.Helm.ValueFiles, 4)
 }
 
 func Test_populateHelmAppDetails_values_symlinks(t *testing.T) {
+	var emptyTempPaths = io.NewTempPaths(t.TempDir())
 	t.Run("inbound", func(t *testing.T) {
 		res := apiclient.RepoAppDetailsResponse{}
 		q := apiclient.RepoServerAppDetailsQuery{Repo: &argoappv1.Repository{}, Source: &argoappv1.ApplicationSource{}}
-		err := populateHelmAppDetails(&res, "./testdata/in-bounds-values-file-link/", "./testdata/in-bounds-values-file-link/", &q)
+		err := populateHelmAppDetails(&res, "./testdata/in-bounds-values-file-link/", "./testdata/in-bounds-values-file-link/", &q, emptyTempPaths)
 		require.NoError(t, err)
 		assert.NotEmpty(t, res.Helm.Values)
 		assert.NotEmpty(t, res.Helm.Parameters)
@@ -2524,7 +2526,7 @@ func Test_populateHelmAppDetails_values_symlinks(t *testing.T) {
 	t.Run("out of bounds", func(t *testing.T) {
 		res := apiclient.RepoAppDetailsResponse{}
 		q := apiclient.RepoServerAppDetailsQuery{Repo: &argoappv1.Repository{}, Source: &argoappv1.ApplicationSource{}}
-		err := populateHelmAppDetails(&res, "./testdata/out-of-bounds-values-file-link/", "./testdata/out-of-bounds-values-file-link/", &q)
+		err := populateHelmAppDetails(&res, "./testdata/out-of-bounds-values-file-link/", "./testdata/out-of-bounds-values-file-link/", &q, emptyTempPaths)
 		require.NoError(t, err)
 		assert.Empty(t, res.Helm.Values)
 		assert.Empty(t, res.Helm.Parameters)
@@ -2544,4 +2546,160 @@ func TestOCIDependencies(t *testing.T) {
 	assert.Equal(t, q.Repos[0].Username, "test")
 	assert.Equal(t, q.Repos[0].EnableOCI, true)
 	assert.Equal(t, q.Repos[0].Repo, "example.com")
+}
+
+func Test_getResolvedValueFiles(t *testing.T) {
+	tempDir := t.TempDir()
+	paths := io.NewTempPaths(tempDir)
+	paths.Add(git.NormalizeGitURL("https://github.com/org/repo1"), path.Join(tempDir, "repo1"))
+
+	testCases := []struct {
+		name         string
+		rawPath      string
+		env          *argoappv1.Env
+		refSources   map[string]*argoappv1.RefTarget
+		expectedPath string
+		expectedErr  bool
+	}{
+		{
+			name:         "simple path",
+			rawPath:      "values.yaml",
+			env:          &argoappv1.Env{},
+			refSources:   map[string]*argoappv1.RefTarget{},
+			expectedPath: path.Join(tempDir, "main-repo", "values.yaml"),
+		},
+		{
+			name:    "simple ref",
+			rawPath: "$ref/values.yaml",
+			env:     &argoappv1.Env{},
+			refSources: map[string]*argoappv1.RefTarget{
+				"$ref": {
+					Repo: argoappv1.Repository{
+						Repo: "https://github.com/org/repo1",
+					},
+				},
+			},
+			expectedPath: path.Join(tempDir, "repo1", "values.yaml"),
+		},
+		{
+			name:    "only ref",
+			rawPath: "$ref",
+			env:     &argoappv1.Env{},
+			refSources: map[string]*argoappv1.RefTarget{
+				"$ref": {
+					Repo: argoappv1.Repository{
+						Repo: "https://github.com/org/repo1",
+					},
+				},
+			},
+			expectedErr: true,
+		},
+		{
+			name:    "attempted traversal",
+			rawPath: "$ref/../values.yaml",
+			env:     &argoappv1.Env{},
+			refSources: map[string]*argoappv1.RefTarget{
+				"$ref": {
+					Repo: argoappv1.Repository{
+						Repo: "https://github.com/org/repo1",
+					},
+				},
+			},
+			expectedErr: true,
+		},
+		{
+			// Since $ref doesn't resolve to a ref target, we assume it's an env var. Since the env var isn't specified,
+			// it's replaced with an empty string. This is necessary for backwards compatibility with behavior before
+			// ref targets were introduced.
+			name:         "ref doesn't exist",
+			rawPath:      "$ref/values.yaml",
+			env:          &argoappv1.Env{},
+			refSources:   map[string]*argoappv1.RefTarget{},
+			expectedPath: path.Join(tempDir, "main-repo", "values.yaml"),
+		},
+		{
+			name:    "repo doesn't exist",
+			rawPath: "$ref/values.yaml",
+			env:     &argoappv1.Env{},
+			refSources: map[string]*argoappv1.RefTarget{
+				"$ref": {
+					Repo: argoappv1.Repository{
+						Repo: "https://github.com/org/repo2",
+					},
+				},
+			},
+			expectedErr: true,
+		},
+		{
+			name:    "env var is resolved",
+			rawPath: "$ref/$APP_PATH/values.yaml",
+			env: &argoappv1.Env{
+				&argoappv1.EnvEntry{
+					Name:  "APP_PATH",
+					Value: "app-path",
+				},
+			},
+			refSources: map[string]*argoappv1.RefTarget{
+				"$ref": {
+					Repo: argoappv1.Repository{
+						Repo: "https://github.com/org/repo1",
+					},
+				},
+			},
+			expectedPath: path.Join(tempDir, "repo1", "app-path", "values.yaml"),
+		},
+		{
+			name:    "traversal in env var is blocked",
+			rawPath: "$ref/$APP_PATH/values.yaml",
+			env: &argoappv1.Env{
+				&argoappv1.EnvEntry{
+					Name:  "APP_PATH",
+					Value: "..",
+				},
+			},
+			refSources: map[string]*argoappv1.RefTarget{
+				"$ref": {
+					Repo: argoappv1.Repository{
+						Repo: "https://github.com/org/repo1",
+					},
+				},
+			},
+			expectedErr: true,
+		},
+		{
+			name:    "env var prefix",
+			rawPath: "$APP_PATH/values.yaml",
+			env: &argoappv1.Env{
+				&argoappv1.EnvEntry{
+					Name:  "APP_PATH",
+					Value: "app-path",
+				},
+			},
+			refSources:   map[string]*argoappv1.RefTarget{},
+			expectedPath: path.Join(tempDir, "main-repo", "app-path", "values.yaml"),
+		},
+		{
+			name:         "unresolved env var",
+			rawPath:      "$APP_PATH/values.yaml",
+			env:          &argoappv1.Env{},
+			refSources:   map[string]*argoappv1.RefTarget{},
+			expectedPath: path.Join(tempDir, "main-repo", "values.yaml"),
+		},
+	}
+
+	for _, tc := range testCases {
+		tcc := tc
+		t.Run(tcc.name, func(t *testing.T) {
+			t.Parallel()
+			resolvedPaths, err := getResolvedValueFiles(path.Join(tempDir, "main-repo"), path.Join(tempDir, "main-repo"), tcc.env, []string{}, []string{tcc.rawPath}, tcc.refSources, paths, false)
+			if !tcc.expectedErr {
+				assert.NoError(t, err)
+				require.Len(t, resolvedPaths, 1)
+				assert.Equal(t, tcc.expectedPath, string(resolvedPaths[0]))
+			} else {
+				assert.Error(t, err)
+				assert.Empty(t, resolvedPaths)
+			}
+		})
+	}
 }
