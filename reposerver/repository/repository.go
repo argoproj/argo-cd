@@ -818,6 +818,32 @@ func runHelmBuild(appPath string, h helm.Helm) error {
 	return os.WriteFile(markerFile, []byte("marker"), 0644)
 }
 
+func populateRequestRepos(appPath string, q *apiclient.ManifestRequest) error {
+	repos, err := getHelmDependencyRepos(appPath)
+	if err != nil {
+		return err
+	}
+
+	for _, r := range repos {
+		if !repoExists(r.Repo, q.Repos) {
+			repositoryCredential := getRepoCredential(q.HelmRepoCreds, r.Repo)
+			if repositoryCredential != nil {
+				if repositoryCredential.EnableOCI {
+					r.Repo = strings.TrimPrefix(r.Repo, ociPrefix)
+				}
+				r.EnableOCI = repositoryCredential.EnableOCI
+				r.Password = repositoryCredential.Password
+				r.Username = repositoryCredential.Username
+				r.SSHPrivateKey = repositoryCredential.SSHPrivateKey
+				r.TLSClientCertData = repositoryCredential.TLSClientCertData
+				r.TLSClientCertKey = repositoryCredential.TLSClientCertKey
+			}
+			q.Repos = append(q.Repos, r)
+		}
+	}
+	return nil
+}
+
 func helmTemplate(appPath string, repoRoot string, env *v1alpha1.Env, q *apiclient.ManifestRequest, isLocal bool) ([]*unstructured.Unstructured, error) {
 	concurrencyAllowed := isConcurrencyAllowed(appPath)
 	if !concurrencyAllowed {
@@ -914,24 +940,8 @@ func helmTemplate(appPath string, repoRoot string, env *v1alpha1.Env, q *apiclie
 		templateOpts.SetString[i] = env.Envsubst(j)
 	}
 
-	repos, err := getHelmDependencyRepos(appPath)
-	if err != nil {
-		return nil, err
-	}
-
-	for _, r := range repos {
-		if !repoExists(r.Repo, q.Repos) {
-			repositoryCredential := getRepoCredential(q.HelmRepoCreds, r.Repo)
-			if repositoryCredential != nil {
-				r.EnableOCI = repositoryCredential.EnableOCI
-				r.Password = repositoryCredential.Password
-				r.Username = repositoryCredential.Username
-				r.SSHPrivateKey = repositoryCredential.SSHPrivateKey
-				r.TLSClientCertData = repositoryCredential.TLSClientCertData
-				r.TLSClientCertKey = repositoryCredential.TLSClientCertKey
-			}
-			q.Repos = append(q.Repos, r)
-		}
+	if err := populateRequestRepos(appPath, q); err != nil {
+		return nil, fmt.Errorf("failed parsing dependencies: %v", err)
 	}
 
 	var proxy string
