@@ -20,10 +20,6 @@ if obj.status ~= nil then
             hs.status = "Unknown"
             hs.message = "Component state: Unknown."
         end
-        if obj.status.state == "Unknown" then
-            hs.status = "Unknown"
-            hs.message = "Component state: Unknown."
-        end
     end
     return hs
 end
