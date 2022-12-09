@@ -32,6 +32,18 @@ var appFields = map[string]func(app *v1alpha1.Application) interface{}{
 	"status.sync.status":         func(app *v1alpha1.Application) interface{} { return app.Status.Sync.Status },
 	"status.health":              func(app *v1alpha1.Application) interface{} { return app.Status.Health },
 	"status.summary":             func(app *v1alpha1.Application) interface{} { return app.Status.Summary },
+	"status.operationState.startedAt": func(app *v1alpha1.Application) interface{} {
+		if app.Status.OperationState != nil {
+			return app.Status.OperationState.StartedAt
+		}
+		return nil
+	},
+	"status.operationState.finishedAt": func(app *v1alpha1.Application) interface{} {
+		if app.Status.OperationState != nil {
+			return app.Status.OperationState.FinishedAt
+		}
+		return nil
+	},
 	"status.resources": func(app *v1alpha1.Application) interface{} {
 		if len(app.Status.Resources) > 0 {
 			return app.Status.Resources
