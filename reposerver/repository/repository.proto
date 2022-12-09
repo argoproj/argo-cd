@@ -23,14 +23,14 @@ message ManifestRequest {
     string kubeVersion = 14;
     repeated string apiVersions = 15;
     // Request to verify the signature when generating the manifests (only for Git repositories)
-    bool verifySignature = 17;
-    repeated github.com.argoproj.argo_cd.v2.pkg.apis.application.v1alpha1.RepoCreds helmRepoCreds = 18;
-    bool noRevisionCache = 19;
-    string trackingMethod = 20;
-    map<string, bool> enabledSourceTypes = 21;
-    github.com.argoproj.argo_cd.v2.pkg.apis.application.v1alpha1.HelmOptions helmOptions = 22;
-    bool hasMultipleSources = 23;
-    map<string, github.com.argoproj.argo_cd.v2.pkg.apis.application.v1alpha1.RefTarget> refSources = 24;
+    bool verifySignature = 16;
+    repeated github.com.argoproj.argo_cd.v2.pkg.apis.application.v1alpha1.RepoCreds helmRepoCreds = 17;
+    bool noRevisionCache = 18;
+    string trackingMethod = 19;
+    map<string, bool> enabledSourceTypes = 20;
+    github.com.argoproj.argo_cd.v2.pkg.apis.application.v1alpha1.HelmOptions helmOptions = 21;
+    bool hasMultipleSources = 22;
+    map<string, github.com.argoproj.argo_cd.v2.pkg.apis.application.v1alpha1.RefTarget> refSources = 23;
 }
 
 message ManifestRequestWithFiles {

@@ -134,6 +134,7 @@ nav:
   - user-guide/tool_detection.md
   - user-guide/projects.md
   - user-guide/private-repositories.md
+  - user-guide/multiple_sources.md
   - GnuPG verification: user-guide/gpg-verification.md
   - user-guide/auto_sync.md
   - user-guide/diffing.md
