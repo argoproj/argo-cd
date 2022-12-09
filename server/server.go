@@ -1000,6 +1000,7 @@ func (a *ArgoCDServer) newHTTPServer(ctx context.Context, port int, grpcWebHandl
 // in the given mux. If any error is returned while registering
 // extensions handlers, no route will be added in the given mux.
 // nolint:deadcode
+// nolint:unused
 func registerExtensions(mux *http.ServeMux, a *ArgoCDServer) {
 	sg := extension.NewDefaultSettingsGetter(a.settingsMgr)
 	ag := extension.NewDefaultApplicationGetter(a.serviceSet.ApplicationService)
