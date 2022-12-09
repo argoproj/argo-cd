@@ -941,16 +941,15 @@ func (a *ArgoCDServer) newHTTPServer(ctx context.Context, port int, grpcWebHandl
 		terminalHandler.ServeHTTP(writer, request)
 	})
 
+	// Dead code for now
 	// Proxy extension is currently an experimental feature and is disabled
 	// by default.
-	if a.EnableProxyExtension {
-		// API server won't panic if extensions fail to register. In
-		// this case an error log will be sent and no extension route
-		// will be added in mux.
-
-		// Dead code for now
-		// registerExtensions(mux, a)
-	}
+	// if a.EnableProxyExtension {
+	// // API server won't panic if extensions fail to register. In
+	// // this case an error log will be sent and no extension route
+	// // will be added in mux.
+	// registerExtensions(mux, a)
+	// }
 	mustRegisterGWHandler(versionpkg.RegisterVersionServiceHandler, ctx, gwmux, conn)
 	mustRegisterGWHandler(clusterpkg.RegisterClusterServiceHandler, ctx, gwmux, conn)
 	mustRegisterGWHandler(applicationpkg.RegisterApplicationServiceHandler, ctx, gwmux, conn)
