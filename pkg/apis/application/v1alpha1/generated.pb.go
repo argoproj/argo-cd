@@ -4929,6 +4929,7 @@ func (m *ApplicationSet) MarshalToSizedBuffer(dAtA []byte) (int, error) {
 	{
 		size, err := m.Status.MarshalToSizedBuffer(dAtA[:i])
 		if err != nil {
+			return 0, err
 		}
 		i -= size
 		i = encodeVarintGenerated(dAtA, i, uint64(size))
