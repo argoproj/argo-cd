@@ -1,4 +1,4 @@
-import {DataLoader, Tab, Tabs} from 'argo-ui';
+import {DataLoader, DropDown, Tab, Tabs} from 'argo-ui';
 import * as React from 'react';
 import {useState} from 'react';
 import {EventsList, YamlEditor} from '../../../shared/components';
@@ -307,11 +307,23 @@ export const ResourceDetails = (props: ResourceDetailsProps) => {
                                     onClick={() => appContext.navigation.goto('.', {deploy: AppUtils.nodeKey(selectedNode)}, {replace: true})}
                                     style={{marginLeft: 'auto', marginRight: '5px'}}
                                     className='argo-button argo-button--base'>
-                                    <i className='fa fa-sync-alt' /> SYNC
+                                    <i className='fa fa-sync-alt' /> <span className='show-for-large'>SYNC</span>
                                 </button>
-                                <button onClick={() => AppUtils.deletePopup(appContext, selectedNode, application)} className='argo-button argo-button--base'>
-                                    <i className='fa fa-trash' /> DELETE
+                                <button
+                                    onClick={() => AppUtils.deletePopup(appContext, selectedNode, application)}
+                                    style={{marginRight: '5px'}}
+                                    className='argo-button argo-button--base'>
+                                    <i className='fa fa-trash' /> <span className='show-for-large'>DELETE</span>
                                 </button>
+                                <DropDown
+                                    isMenu={true}
+                                    anchor={() => (
+                                        <button className='argo-button argo-button--light argo-button--lg argo-button--short'>
+                                            <i className='fa fa-ellipsis-v' />
+                                        </button>
+                                    )}>
+                                    {() => AppUtils.renderResourceActionMenu(selectedNode, application, tree, {apis: appContext})}
+                                </DropDown>
                             </div>
                             <Tabs
                                 navTransparent={true}
