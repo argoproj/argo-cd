@@ -1151,7 +1151,7 @@ func getReferencedSource(rawValueFile string, refSources map[string]*v1alpha1.Re
 		return nil
 	}
 	refVar := strings.Split(rawValueFile, "/")[0]
-	referencedSource, _ := refSources[refVar]
+	referencedSource := refSources[refVar]
 	return referencedSource
 }
 

@@ -342,7 +342,7 @@ lint-local:
 	golangci-lint --version
 	# NOTE: If you get a "Killed" OOM message, try reducing the value of GOGC
 	# See https://github.com/golangci/golangci-lint#memory-usage-of-golangci-lint
-	GOGC=$(ARGOCD_LINT_GOGC) GOMAXPROCS=2 golangci-lint run --fix --verbose --timeout 300s
+	GOGC=$(ARGOCD_LINT_GOGC) GOMAXPROCS=2 golangci-lint run --fix --verbose --timeout 3000s
 
 .PHONY: lint-ui
 lint-ui: test-tools-image

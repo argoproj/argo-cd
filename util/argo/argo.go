@@ -4,6 +4,7 @@ import (
 	"context"
 	"encoding/json"
 	"fmt"
+	"regexp"
 	"sort"
 	"strings"
 	"time"
@@ -346,6 +347,10 @@ func GetRefSources(ctx context.Context, spec argoappv1.ApplicationSpec, db db.Ar
 				repo, err := db.GetRepository(ctx, source.RepoURL)
 				if err != nil {
 					return nil, fmt.Errorf("failed to get repository %s: %v", source.RepoURL, err)
+				}
+				isValidRefKey := regexp.MustCompile(`^[a-zA-Z0-9]+$`).MatchString
+				if !isValidRefKey(source.Ref) {
+					return nil, fmt.Errorf("source.ref %s cannot contain any special characters except '_' and '-'", source.Ref)
 				}
 				refKey := "$" + source.Ref
 				refSources[refKey] = &argoappv1.RefTarget{
