@@ -157,7 +157,7 @@ status:
      
 ```
 
-There is a need to introduce state by tracking the status of image Updates in the application CR. This is mainly important to honor application rollbacks, avoid repeated image updates in case of failure, as well as to support future use cases such as enabling image-updater to create pull requests against the source repositories. The above detailed `.spec.imageUpdates` field could be extended to store metadata regarding pull request creation that would serve to avoid duplicate/excessive number of pull requests being opened, for example.
+There is a need to introduce state by tracking the status of image Updates in the application CR. This is mainly important to honor application rollbacks, avoid repeated image updates in case of failure, as well as to support future use cases such as enabling image-updater to create pull requests against the source repositories. The above detailed `.status.imageUpdates` field could be extended to store metadata regarding pull request creation that would serve to avoid duplicate/excessive number of pull requests being opened, for example.
 
 There could be a few different options in terms of placement for this block of information:
 
