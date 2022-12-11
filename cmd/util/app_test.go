@@ -86,6 +86,12 @@ func Test_setKustomizeOpt(t *testing.T) {
 		setKustomizeOpt(&src, kustomizeOpts{images: []string{"org/image:v1", "org/image:v2"}})
 		assert.Equal(t, &v1alpha1.ApplicationSourceKustomize{Images: v1alpha1.KustomizeImages{v1alpha1.KustomizeImage("org/image:v2")}}, src.Kustomize)
 	})
+	t.Run("Replicas", func(t *testing.T) {
+		src := v1alpha1.ApplicationSource{}
+		testReplicas := []string{"my-deployment=2", "my-statefulset=4"}
+		setKustomizeOpt(&src, kustomizeOpts{replicas: testReplicas})
+		assert.Equal(t, &v1alpha1.ApplicationSourceKustomize{Replicas: testReplicas}, src.Kustomize)
+	})
 	t.Run("Version", func(t *testing.T) {
 		src := v1alpha1.ApplicationSource{}
 		setKustomizeOpt(&src, kustomizeOpts{version: "v0.1"})
