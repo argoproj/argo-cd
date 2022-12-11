@@ -1,6 +1,8 @@
 package e2e
 
 import (
+	"net/http"
+	"net/http/httptest"
 	"strings"
 	"testing"
 	"time"
@@ -11,6 +13,7 @@ import (
 
 	"github.com/argoproj/argo-cd/v2/pkg/apis/application/v1alpha1"
 	argov1alpha1 "github.com/argoproj/argo-cd/v2/pkg/apis/application/v1alpha1"
+	testutil "github.com/argoproj/argo-cd/v2/test"
 	"github.com/argoproj/argo-cd/v2/test/e2e/fixture"
 	. "github.com/argoproj/argo-cd/v2/test/e2e/fixture/applicationsets"
 	"github.com/argoproj/argo-cd/v2/test/e2e/fixture/applicationsets/utils"
@@ -785,20 +788,25 @@ func TestSimpleGitFilesPreserveResourcesOnDeletionGoTemplate(t *testing.T) {
 }
 
 func TestSimpleSCMProviderGenerator(t *testing.T) {
+	// Use mocked API response to avoid rate-limiting.
+	ts := httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+		testutil.GitHubMockHandler(t)(w, r)
+	}))
+
 	expectedApp := argov1alpha1.Application{
 		TypeMeta: metav1.TypeMeta{
 			Kind:       "Application",
 			APIVersion: "argoproj.io/v1alpha1",
 		},
 		ObjectMeta: metav1.ObjectMeta{
-			Name:       "argocd-example-apps-guestbook",
+			Name:       "argo-cd-guestbook",
 			Namespace:  utils.ArgoCDNamespace,
 			Finalizers: []string{"resources-finalizer.argocd.argoproj.io"},
 		},
 		Spec: argov1alpha1.ApplicationSpec{
 			Project: "default",
 			Source: argov1alpha1.ApplicationSource{
-				RepoURL:        "git@github.com:argoproj/argocd-example-apps.git",
+				RepoURL:        "git@github.com:argoproj/argo-cd.git",
 				TargetRevision: "master",
 				Path:           "guestbook",
 			},
@@ -810,7 +818,7 @@ func TestSimpleSCMProviderGenerator(t *testing.T) {
 	}
 
 	// Because you can't &"".
-	repoMatch := "example-apps"
+	repoMatch := "argo-cd"
 
 	Given(t).
 		// Create an SCMProviderGenerator-based ApplicationSet
@@ -838,6 +846,7 @@ func TestSimpleSCMProviderGenerator(t *testing.T) {
 					SCMProvider: &v1alpha1.SCMProviderGenerator{
 						Github: &v1alpha1.SCMProviderGeneratorGithub{
 							Organization: "argoproj",
+							API:          ts.URL,
 						},
 						Filters: []v1alpha1.SCMProviderGeneratorFilter{
 							{
@@ -852,20 +861,25 @@ func TestSimpleSCMProviderGenerator(t *testing.T) {
 }
 
 func TestSimpleSCMProviderGeneratorGoTemplate(t *testing.T) {
+	// Use mocked API response to avoid rate-limiting.
+	ts := httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+		testutil.GitHubMockHandler(t)(w, r)
+	}))
+
 	expectedApp := argov1alpha1.Application{
 		TypeMeta: metav1.TypeMeta{
 			Kind:       "Application",
 			APIVersion: "argoproj.io/v1alpha1",
 		},
 		ObjectMeta: metav1.ObjectMeta{
-			Name:       "argocd-example-apps-guestbook",
+			Name:       "argo-cd-guestbook",
 			Namespace:  utils.ArgoCDNamespace,
 			Finalizers: []string{"resources-finalizer.argocd.argoproj.io"},
 		},
 		Spec: argov1alpha1.ApplicationSpec{
 			Project: "default",
 			Source: argov1alpha1.ApplicationSource{
-				RepoURL:        "git@github.com:argoproj/argocd-example-apps.git",
+				RepoURL:        "git@github.com:argoproj/argo-cd.git",
 				TargetRevision: "master",
 				Path:           "guestbook",
 			},
@@ -877,7 +891,7 @@ func TestSimpleSCMProviderGeneratorGoTemplate(t *testing.T) {
 	}
 
 	// Because you can't &"".
-	repoMatch := "example-apps"
+	repoMatch := "argo-cd"
 
 	Given(t).
 		// Create an SCMProviderGenerator-based ApplicationSet
@@ -906,6 +920,7 @@ func TestSimpleSCMProviderGeneratorGoTemplate(t *testing.T) {
 					SCMProvider: &v1alpha1.SCMProviderGenerator{
 						Github: &v1alpha1.SCMProviderGeneratorGithub{
 							Organization: "argoproj",
+							API:          ts.URL,
 						},
 						Filters: []v1alpha1.SCMProviderGeneratorFilter{
 							{
