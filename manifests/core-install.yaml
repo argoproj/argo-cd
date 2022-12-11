@@ -326,6 +326,12 @@ spec:
                             description: NameSuffix is a suffix appended to resources
                               for Kustomize apps
                             type: string
+                          replicas:
+                            description: Replicas is a list of Kustomize Replicas
+                              override specifications
+                            items:
+                              type: string
+                            type: array
                           version:
                             description: Version controls which version of Kustomize
                               to use for rendering manifests
@@ -695,6 +701,12 @@ spec:
                         description: NameSuffix is a suffix appended to resources
                           for Kustomize apps
                         type: string
+                      replicas:
+                        description: Replicas is a list of Kustomize Replicas override
+                          specifications
+                        items:
+                          type: string
+                        type: array
                       version:
                         description: Version controls which version of Kustomize to
                           use for rendering manifests
@@ -1084,6 +1096,12 @@ spec:
                               description: NameSuffix is a suffix appended to resources
                                 for Kustomize apps
                               type: string
+                            replicas:
+                              description: Replicas is a list of Kustomize Replicas
+                                override specifications
+                              items:
+                                type: string
+                              type: array
                             version:
                               description: Version controls which version of Kustomize
                                 to use for rendering manifests
@@ -1478,6 +1496,12 @@ spec:
                                     description: NameSuffix is a suffix appended to
                                       resources for Kustomize apps
                                     type: string
+                                  replicas:
+                                    description: Replicas is a list of Kustomize Replicas
+                                      override specifications
+                                    items:
+                                      type: string
+                                    type: array
                                   version:
                                     description: Version controls which version of
                                       Kustomize to use for rendering manifests
@@ -1848,6 +1872,12 @@ spec:
                                 description: NameSuffix is a suffix appended to resources
                                   for Kustomize apps
                                 type: string
+                              replicas:
+                                description: Replicas is a list of Kustomize Replicas
+                                  override specifications
+                                items:
+                                  type: string
+                                type: array
                               version:
                                 description: Version controls which version of Kustomize
                                   to use for rendering manifests
@@ -2214,6 +2244,12 @@ spec:
                                 description: NameSuffix is a suffix appended to resources
                                   for Kustomize apps
                                 type: string
+                              replicas:
+                                description: Replicas is a list of Kustomize Replicas
+                                  override specifications
+                                items:
+                                  type: string
+                                type: array
                               version:
                                 description: Version controls which version of Kustomize
                                   to use for rendering manifests
@@ -2562,6 +2598,10 @@ spec:
                                           type: string
                                         nameSuffix:
                                           type: string
+                                        replicas:
+                                          items:
+                                            type: string
+                                          type: array
                                         version:
                                           type: string
                                       type: object
@@ -2877,6 +2917,10 @@ spec:
                                           type: string
                                         nameSuffix:
                                           type: string
+                                        replicas:
+                                          items:
+                                            type: string
+                                          type: array
                                         version:
                                           type: string
                                       type: object
@@ -3194,6 +3238,10 @@ spec:
                                           type: string
                                         nameSuffix:
                                           type: string
+                                        replicas:
+                                          items:
+                                            type: string
+                                          type: array
                                         version:
                                           type: string
                                       type: object
@@ -3487,6 +3535,10 @@ spec:
                                           type: string
                                         nameSuffix:
                                           type: string
+                                        replicas:
+                                          items:
+                                            type: string
+                                          type: array
                                         version:
                                           type: string
                                       type: object
@@ -3810,6 +3862,10 @@ spec:
                                                     type: string
                                                   nameSuffix:
                                                     type: string
+                                                  replicas:
+                                                    items:
+                                                      type: string
+                                                    type: array
                                                   version:
                                                     type: string
                                                 type: object
@@ -4125,6 +4181,10 @@ spec:
                                                     type: string
                                                   nameSuffix:
                                                     type: string
+                                                  replicas:
+                                                    items:
+                                                      type: string
+                                                    type: array
                                                   version:
                                                     type: string
                                                 type: object
@@ -4442,6 +4502,10 @@ spec:
                                                     type: string
                                                   nameSuffix:
                                                     type: string
+                                                  replicas:
+                                                    items:
+                                                      type: string
+                                                    type: array
                                                   version:
                                                     type: string
                                                 type: object
@@ -4735,6 +4799,10 @@ spec:
                                                     type: string
                                                   nameSuffix:
                                                     type: string
+                                                  replicas:
+                                                    items:
+                                                      type: string
+                                                    type: array
                                                   version:
                                                     type: string
                                                 type: object
@@ -5146,6 +5214,10 @@ spec:
                                                     type: string
                                                   nameSuffix:
                                                     type: string
+                                                  replicas:
+                                                    items:
+                                                      type: string
+                                                    type: array
                                                   version:
                                                     type: string
                                                 type: object
@@ -5604,6 +5676,10 @@ spec:
                                                     type: string
                                                   nameSuffix:
                                                     type: string
+                                                  replicas:
+                                                    items:
+                                                      type: string
+                                                    type: array
                                                   version:
                                                     type: string
                                                 type: object
@@ -5913,6 +5989,10 @@ spec:
                                           type: string
                                         nameSuffix:
                                           type: string
+                                        replicas:
+                                          items:
+                                            type: string
+                                          type: array
                                         version:
                                           type: string
                                       type: object
@@ -6236,6 +6316,10 @@ spec:
                                                     type: string
                                                   nameSuffix:
                                                     type: string
+                                                  replicas:
+                                                    items:
+                                                      type: string
+                                                    type: array
                                                   version:
                                                     type: string
                                                 type: object
@@ -6551,6 +6635,10 @@ spec:
                                                     type: string
                                                   nameSuffix:
                                                     type: string
+                                                  replicas:
+                                                    items:
+                                                      type: string
+                                                    type: array
                                                   version:
                                                     type: string
                                                 type: object
@@ -6868,6 +6956,10 @@ spec:
                                                     type: string
                                                   nameSuffix:
                                                     type: string
+                                                  replicas:
+                                                    items:
+                                                      type: string
+                                                    type: array
                                                   version:
                                                     type: string
                                                 type: object
@@ -7161,6 +7253,10 @@ spec:
                                                     type: string
                                                   nameSuffix:
                                                     type: string
+                                                  replicas:
+                                                    items:
+                                                      type: string
+                                                    type: array
                                                   version:
                                                     type: string
                                                 type: object
@@ -7572,6 +7668,10 @@ spec:
                                                     type: string
                                                   nameSuffix:
                                                     type: string
+                                                  replicas:
+                                                    items:
+                                                      type: string
+                                                    type: array
                                                   version:
                                                     type: string
                                                 type: object
@@ -8030,6 +8130,10 @@ spec:
                                                     type: string
                                                   nameSuffix:
                                                     type: string
+                                                  replicas:
+                                                    items:
+                                                      type: string
+                                                    type: array
                                                   version:
                                                     type: string
                                                 type: object
@@ -8343,6 +8447,10 @@ spec:
                                           type: string
                                         nameSuffix:
                                           type: string
+                                        replicas:
+                                          items:
+                                            type: string
+                                          type: array
                                         version:
                                           type: string
                                       type: object
@@ -8751,6 +8859,10 @@ spec:
                                           type: string
                                         nameSuffix:
                                           type: string
+                                        replicas:
+                                          items:
+                                            type: string
+                                          type: array
                                         version:
                                           type: string
                                       type: object
@@ -9209,6 +9321,10 @@ spec:
                                           type: string
                                         nameSuffix:
                                           type: string
+                                        replicas:
+                                          items:
+                                            type: string
+                                          type: array
                                         version:
                                           type: string
                                       type: object
@@ -9525,6 +9641,10 @@ spec:
                                 type: string
                               nameSuffix:
                                 type: string
+                              replicas:
+                                items:
+                                  type: string
+                                type: array
                               version:
                                 type: string
                             type: object

@@ -5975,6 +5975,13 @@
           "type": "string",
           "title": "NameSuffix is a suffix appended to resources for Kustomize apps"
         },
+        "replicas": {
+          "type": "array",
+          "title": "Replicas is a list of Kustomize Replicas override specifications",
+          "items": {
+            "type": "string"
+          }
+        },
         "version": {
           "type": "string",
           "title": "Version controls which version of Kustomize to use for rendering manifests"
