@@ -7145,16 +7145,7 @@ prompts@^2.0.1:
     kleur "^3.0.3"
     sisteransi "^1.0.5"
 
-prop-types@^15.5.0, prop-types@^15.5.10, prop-types@^15.5.4, prop-types@^15.6.1, prop-types@^15.7.2:
-  version "15.7.2"
-  resolved "https://registry.yarnpkg.com/prop-types/-/prop-types-15.7.2.tgz#52c41e75b8c87e72b9d9360e0206b99dcbffa6c5"
-  integrity sha512-8QQikdH7//R2vurIJSutZ1smHYTcLpRWEOlHnzcWHmBYrOGUysKwSsrC89BCiFj3CbrfJ/nXFdJepOVrY1GCHQ==
-  dependencies:
-    loose-envify "^1.4.0"
-    object-assign "^4.1.1"
-    react-is "^16.8.1"
-
-prop-types@^15.6.2, prop-types@^15.8.1:
+prop-types@^15, prop-types@^15.5.0, prop-types@^15.5.10, prop-types@^15.5.4, prop-types@^15.6.1, prop-types@^15.6.2, prop-types@^15.7.2, prop-types@^15.8.1:
   version "15.8.1"
   resolved "https://registry.yarnpkg.com/prop-types/-/prop-types-15.8.1.tgz#67d87bf1a694f48435cf332c24af10214a3140b5"
   integrity sha512-oj87CgZICdulUohogVAR7AjlC0327U4el4L6eAvOqCeudMDVU0NThNaV+b9Df4dXgSP1gXMTnPdhfe/2qDH5cg==
@@ -7803,7 +7794,7 @@ react-hot-loader@^3.1.3:
     redbox-react "^1.3.6"
     source-map "^0.6.1"
 
-react-is@^16.12.0, react-is@^16.13.1, react-is@^16.8.1:
+react-is@^16.12.0, react-is@^16.13.1:
   version "16.13.1"
   resolved "https://registry.yarnpkg.com/react-is/-/react-is-16.13.1.tgz#789729a4dc36de2999dc156dd6c1d9c18cea56a4"
   integrity sha512-24e6ynE2H+OKt4kqsOvNd8kBpV65zoxbA4BVsEOB3ARVWQki/DHzaUoC5KuON/BiccDaCCTZBuOcfZs70kR8bQ==
@@ -7828,12 +7819,12 @@ react-moment@^0.9.7:
   resolved "https://registry.yarnpkg.com/react-moment/-/react-moment-0.9.7.tgz#ca570466595b1aa4f7619e62da18b3bb2de8b6f3"
   integrity sha512-ifzUrUGF6KRsUN2pRG5k56kO0mJBr8kRkWb0wNvtFIsBIxOuPxhUpL1YlXwpbQCbHq23hUu6A0VEk64HsFxk9g==
 
-react-paginate@^6.5.0:
-  version "6.5.0"
-  resolved "https://registry.yarnpkg.com/react-paginate/-/react-paginate-6.5.0.tgz#b9baf53627b115cfd688afa048776aa45bffda19"
-  integrity sha512-H7xSi9jyiJzgfaj+2nNhQcjZfwzJ/Mxb64V2RiyDctjZyCWojwsaGwMqhLBpQ58iAuMVtBMRQ7ECqMcUKG9QSQ==
+react-paginate@^8.1.4:
+  version "8.1.4"
+  resolved "https://registry.yarnpkg.com/react-paginate/-/react-paginate-8.1.4.tgz#f62bfef4f07bb420f3a994e0284d1065a865a6b9"
+  integrity sha512-c3rxjcTEqeDQa6LqXifxLeFguY2qy2CHGRphVjHLFFMGfIHyaJ+v3bOvIlLYEeohwQ1q+cQpknjsqBVrkc/SNA==
   dependencies:
-    prop-types "^15.6.1"
+    prop-types "^15"
 
 react-proxy@^3.0.0-alpha.0:
   version "3.0.0-alpha.1"
