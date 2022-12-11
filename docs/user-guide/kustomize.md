@@ -84,4 +84,4 @@ argocd app set <appyName> --kustomize-version v3.5.4
 
 ## Build Environment
 
-Kustomize does not support parameters and therefore cannot support the standard [build environment](build-environment.md).
+Kustomize apps have access to the [standard build environment](build-environment.md) which can be used in combination with a [config managment plugin](config-management-plugins.md) to alter the rendered manifests.
