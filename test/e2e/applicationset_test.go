@@ -1141,6 +1141,7 @@ func TestSimplePullRequestGeneratorGoTemplate(t *testing.T) {
 			Name:       "guestbook-1",
 			Namespace:  utils.ArgoCDNamespace,
 			Finalizers: []string{"resources-finalizer.argocd.argoproj.io"},
+			Labels:     map[string]string{"app": "preview"},
 		},
 		Spec: argov1alpha1.ApplicationSpec{
 			Project: "default",
@@ -1167,7 +1168,9 @@ func TestSimplePullRequestGeneratorGoTemplate(t *testing.T) {
 		Spec: v1alpha1.ApplicationSetSpec{
 			GoTemplate: true,
 			Template: v1alpha1.ApplicationSetTemplate{
-				ApplicationSetTemplateMeta: v1alpha1.ApplicationSetTemplateMeta{Name: "guestbook-{{ .number }}"},
+				ApplicationSetTemplateMeta: v1alpha1.ApplicationSetTemplateMeta{
+					Name:   "guestbook-{{ .number }}",
+					Labels: map[string]string{"app": "{{index .labels 0}}"}},
 				Spec: argov1alpha1.ApplicationSpec{
 					Project: "default",
 					Source: argov1alpha1.ApplicationSource{
