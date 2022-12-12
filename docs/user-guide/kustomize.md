@@ -5,6 +5,7 @@ The following configuration options are available for Kustomize:
 * `namePrefix` is a prefix appended to resources for Kustomize apps
 * `nameSuffix` is a suffix appended to resources for Kustomize apps
 * `images` is a list of Kustomize image overrides
+* `replicas` is a list of Kustomize replica overrides
 * `commonLabels` is a string map of additional labels
 * `commonAnnotations` is a string map of additional annotations
 
