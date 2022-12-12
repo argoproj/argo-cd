@@ -71,6 +71,7 @@ func NewCommand() *cobra.Command {
 		dexServerStrictTLS       bool
 		staticAssetsDir          string
 		applicationNamespaces    []string
+		enableProxyExtension     bool
 	)
 	var command = &cobra.Command{
 		Use:               cliName,
@@ -184,6 +185,7 @@ func NewCommand() *cobra.Command {
 				RedisClient:           redisClient,
 				StaticAssetsDir:       staticAssetsDir,
 				ApplicationNamespaces: applicationNamespaces,
+				EnableProxyExtension:  enableProxyExtension,
 			}
 
 			stats.RegisterStackDumper()
@@ -235,6 +237,7 @@ func NewCommand() *cobra.Command {
 	command.Flags().BoolVar(&dexServerPlaintext, "dex-server-plaintext", env.ParseBoolFromEnv("ARGOCD_SERVER_DEX_SERVER_PLAINTEXT", false), "Use a plaintext client (non-TLS) to connect to dex server")
 	command.Flags().BoolVar(&dexServerStrictTLS, "dex-server-strict-tls", env.ParseBoolFromEnv("ARGOCD_SERVER_DEX_SERVER_STRICT_TLS", false), "Perform strict validation of TLS certificates when connecting to dex server")
 	command.Flags().StringSliceVar(&applicationNamespaces, "application-namespaces", env.StringsFromEnv("ARGOCD_APPLICATION_NAMESPACES", []string{}, ","), "List of additional namespaces where application resources can be managed in")
+	command.Flags().BoolVar(&enableProxyExtension, "enable-proxy-extension", env.ParseBoolFromEnv("ARGOCD_SERVER_ENABLE_PROXY_EXTENSION", false), "Enable Proxy Extension feature")
 	tlsConfigCustomizerSrc = tls.AddTLSFlagsToCmd(command)
 	cacheSrc = servercache.AddCacheFlagsToCmd(command, func(client *redis.Client) {
 		redisClient = client
