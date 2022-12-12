@@ -13,7 +13,7 @@ import (
 	sessionmgr "github.com/argoproj/argo-cd/v2/util/session"
 )
 
-type server struct {
+type Server struct {
 	kustomizeVersion string
 	helmVersion      string
 	jsonnetVersion   string
@@ -21,12 +21,12 @@ type server struct {
 	disableAuth      func() (bool, error)
 }
 
-func NewServer(authenticator settings.Authenticator, disableAuth func() (bool, error)) *server {
-	return &server{authenticator: authenticator, disableAuth: disableAuth}
+func NewServer(authenticator settings.Authenticator, disableAuth func() (bool, error)) *Server {
+	return &Server{authenticator: authenticator, disableAuth: disableAuth}
 }
 
 // Version returns the version of the API server
-func (s *server) Version(ctx context.Context, _ *empty.Empty) (*version.VersionMessage, error) {
+func (s *Server) Version(ctx context.Context, _ *empty.Empty) (*version.VersionMessage, error) {
 	vers := common.GetVersion()
 	disableAuth, err := s.disableAuth()
 	if err != nil {
@@ -71,7 +71,7 @@ func (s *server) Version(ctx context.Context, _ *empty.Empty) (*version.VersionM
 }
 
 // AuthFuncOverride allows the version to be returned without auth
-func (s *server) AuthFuncOverride(ctx context.Context, fullMethodName string) (context.Context, error) {
+func (s *Server) AuthFuncOverride(ctx context.Context, fullMethodName string) (context.Context, error) {
 	if s.authenticator != nil {
 		// this authenticates the user, but ignores any error, so that we have claims populated
 		ctx, _ = s.authenticator.Authenticate(ctx)
