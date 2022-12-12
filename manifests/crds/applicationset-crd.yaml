@@ -249,6 +249,10 @@ spec:
                                           type: string
                                         nameSuffix:
                                           type: string
+                                        replicas:
+                                          items:
+                                            type: string
+                                          type: array
                                         version:
                                           type: string
                                       type: object
@@ -564,6 +568,10 @@ spec:
                                           type: string
                                         nameSuffix:
                                           type: string
+                                        replicas:
+                                          items:
+                                            type: string
+                                          type: array
                                         version:
                                           type: string
                                       type: object
@@ -881,6 +889,10 @@ spec:
                                           type: string
                                         nameSuffix:
                                           type: string
+                                        replicas:
+                                          items:
+                                            type: string
+                                          type: array
                                         version:
                                           type: string
                                       type: object
@@ -1174,6 +1186,10 @@ spec:
                                           type: string
                                         nameSuffix:
                                           type: string
+                                        replicas:
+                                          items:
+                                            type: string
+                                          type: array
                                         version:
                                           type: string
                                       type: object
@@ -1497,6 +1513,10 @@ spec:
                                                     type: string
                                                   nameSuffix:
                                                     type: string
+                                                  replicas:
+                                                    items:
+                                                      type: string
+                                                    type: array
                                                   version:
                                                     type: string
                                                 type: object
@@ -1812,6 +1832,10 @@ spec:
                                                     type: string
                                                   nameSuffix:
                                                     type: string
+                                                  replicas:
+                                                    items:
+                                                      type: string
+                                                    type: array
                                                   version:
                                                     type: string
                                                 type: object
@@ -2129,6 +2153,10 @@ spec:
                                                     type: string
                                                   nameSuffix:
                                                     type: string
+                                                  replicas:
+                                                    items:
+                                                      type: string
+                                                    type: array
                                                   version:
                                                     type: string
                                                 type: object
@@ -2422,6 +2450,10 @@ spec:
                                                     type: string
                                                   nameSuffix:
                                                     type: string
+                                                  replicas:
+                                                    items:
+                                                      type: string
+                                                    type: array
                                                   version:
                                                     type: string
                                                 type: object
@@ -2833,6 +2865,10 @@ spec:
                                                     type: string
                                                   nameSuffix:
                                                     type: string
+                                                  replicas:
+                                                    items:
+                                                      type: string
+                                                    type: array
                                                   version:
                                                     type: string
                                                 type: object
@@ -3291,6 +3327,10 @@ spec:
                                                     type: string
                                                   nameSuffix:
                                                     type: string
+                                                  replicas:
+                                                    items:
+                                                      type: string
+                                                    type: array
                                                   version:
                                                     type: string
                                                 type: object
@@ -3600,6 +3640,10 @@ spec:
                                           type: string
                                         nameSuffix:
                                           type: string
+                                        replicas:
+                                          items:
+                                            type: string
+                                          type: array
                                         version:
                                           type: string
                                       type: object
@@ -3923,6 +3967,10 @@ spec:
                                                     type: string
                                                   nameSuffix:
                                                     type: string
+                                                  replicas:
+                                                    items:
+                                                      type: string
+                                                    type: array
                                                   version:
                                                     type: string
                                                 type: object
@@ -4238,6 +4286,10 @@ spec:
                                                     type: string
                                                   nameSuffix:
                                                     type: string
+                                                  replicas:
+                                                    items:
+                                                      type: string
+                                                    type: array
                                                   version:
                                                     type: string
                                                 type: object
@@ -4555,6 +4607,10 @@ spec:
                                                     type: string
                                                   nameSuffix:
                                                     type: string
+                                                  replicas:
+                                                    items:
+                                                      type: string
+                                                    type: array
                                                   version:
                                                     type: string
                                                 type: object
@@ -4848,6 +4904,10 @@ spec:
                                                     type: string
                                                   nameSuffix:
                                                     type: string
+                                                  replicas:
+                                                    items:
+                                                      type: string
+                                                    type: array
                                                   version:
                                                     type: string
                                                 type: object
@@ -5259,6 +5319,10 @@ spec:
                                                     type: string
                                                   nameSuffix:
                                                     type: string
+                                                  replicas:
+                                                    items:
+                                                      type: string
+                                                    type: array
                                                   version:
                                                     type: string
                                                 type: object
@@ -5717,6 +5781,10 @@ spec:
                                                     type: string
                                                   nameSuffix:
                                                     type: string
+                                                  replicas:
+                                                    items:
+                                                      type: string
+                                                    type: array
                                                   version:
                                                     type: string
                                                 type: object
@@ -6030,6 +6098,10 @@ spec:
                                           type: string
                                         nameSuffix:
                                           type: string
+                                        replicas:
+                                          items:
+                                            type: string
+                                          type: array
                                         version:
                                           type: string
                                       type: object
@@ -6438,6 +6510,10 @@ spec:
                                           type: string
                                         nameSuffix:
                                           type: string
+                                        replicas:
+                                          items:
+                                            type: string
+                                          type: array
                                         version:
                                           type: string
                                       type: object
@@ -6896,6 +6972,10 @@ spec:
                                           type: string
                                         nameSuffix:
                                           type: string
+                                        replicas:
+                                          items:
+                                            type: string
+                                          type: array
                                         version:
                                           type: string
                                       type: object
@@ -7212,6 +7292,10 @@ spec:
                                 type: string
                               nameSuffix:
                                 type: string
+                              replicas:
+                                items:
+                                  type: string
+                                type: array
                               version:
                                 type: string
                             type: object
