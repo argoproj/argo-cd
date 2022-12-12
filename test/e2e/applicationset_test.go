@@ -413,7 +413,7 @@ func TestSimpleGitFilesPreserveResourcesOnDeletion(t *testing.T) {
 		}).Then().Expect(Pod(func(p corev1.Pod) bool { return strings.Contains(p.Name, "guestbook-ui") }))
 }
 
-func githubMockHandler(t *testing.T) func(http.ResponseWriter, *http.Request) {
+func githubSCMMockHandler(t *testing.T) func(http.ResponseWriter, *http.Request) {
 	return func(w http.ResponseWriter, r *http.Request) {
 		w.Header().Set("Content-Type", "application/json")
 		switch r.RequestURI {
@@ -605,7 +605,7 @@ func githubMockHandler(t *testing.T) func(http.ResponseWriter, *http.Request) {
 func TestSimpleSCMProviderGenerator(t *testing.T) {
 	// Use mocked API response to avoid rate-limiting.
 	ts := httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
-		githubMockHandler(t)(w, r)
+		githubSCMMockHandler(t)(w, r)
 	}))
 
 	expectedApp := argov1alpha1.Application{
@@ -741,11 +741,39 @@ func TestCustomApplicationFinalizers(t *testing.T) {
 		Delete().Then().Expect(ApplicationsDoNotExist([]argov1alpha1.Application{expectedApp}))
 }
 
-func TestSimplePullRequestGenerator(t *testing.T) {
-
-	if utils.IsGitHubAPISkippedTest(t) {
-		return
+func githubPullMockHandler(t *testing.T) func(http.ResponseWriter, *http.Request) {
+	return func(w http.ResponseWriter, r *http.Request) {
+		w.Header().Set("Content-Type", "application/json")
+		switch r.RequestURI {
+		case "/api/v3/repos/applicationset-test-org/argocd-example-apps/pulls?per_page=100":
+			_, err := io.WriteString(w, `[
+  {
+    "number": 1,
+    "labels": [
+      {
+        "name": "preview"
+      }
+    ],
+    "head": {
+      "ref": "pull-request",
+      "sha": "824a5c987fdfb2b0629e9dbf5f31636c69ba4772"
+    }
+  }
+]`)
+			if err != nil {
+				t.Fail()
+			}
+		default:
+			w.WriteHeader(404)
+		}
 	}
+}
+
+func TestSimplePullRequestGenerator(t *testing.T) {
+	// Use mocked API response to avoid rate-limiting.
+	ts := httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+		githubPullMockHandler(t)(w, r)
+	}))
 
 	expectedApp := argov1alpha1.Application{
 		TypeMeta: metav1.TypeMeta{
@@ -802,6 +830,7 @@ func TestSimplePullRequestGenerator(t *testing.T) {
 				{
 					PullRequest: &v1alpha1.PullRequestGenerator{
 						Github: &v1alpha1.PullRequestGeneratorGithub{
+							API:   ts.URL,
 							Owner: "applicationset-test-org",
 							Repo:  "argocd-example-apps",
 							Labels: []string{
