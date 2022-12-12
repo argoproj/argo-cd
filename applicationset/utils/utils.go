@@ -150,6 +150,9 @@ func (r *Render) deeplyReplace(copy, original reflect.Value, replaceMap map[stri
 	// If it is a string translate it (yay finally we're doing what we came for)
 	case reflect.String:
 		strToTemplate := original.String()
+		if strToTemplate == "" {
+			return nil
+		}
 		templated, err := r.Replace(strToTemplate, replaceMap, useGoTemplate)
 		if err != nil {
 			return err
