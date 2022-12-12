@@ -30,6 +30,7 @@ import (
 	"github.com/argoproj/argo-cd/v2/pkg/apis/application/v1alpha1"
 	argov1alpha1 "github.com/argoproj/argo-cd/v2/pkg/apis/application/v1alpha1"
 	appclientset "github.com/argoproj/argo-cd/v2/pkg/client/clientset/versioned/fake"
+	"github.com/argoproj/argo-cd/v2/util/collections"
 	dbmocks "github.com/argoproj/argo-cd/v2/util/db/mocks"
 )
 
@@ -1923,4 +1924,107 @@ func TestSetApplicationSetStatusCondition(t *testing.T) {
 	assert.Nil(t, err)
 
 	assert.Len(t, appSet.Status.Conditions, 3)
+}
+
+// Test app generation from a go template application set using a pull request generator
+func TestGenerateAppsUsingPullRequestGenerator(t *testing.T) {
+	scheme := runtime.NewScheme()
+	client := fake.NewClientBuilder().WithScheme(scheme).Build()
+
+	for _, cases := range []struct {
+		name        string
+		params      []map[string]interface{}
+		template    argov1alpha1.ApplicationSetTemplate
+		expectedApp []argov1alpha1.Application
+	}{
+		{
+			name: "Generate an application from a go template application set manifest using a pull request generator",
+			params: []map[string]interface{}{{
+				"number":         "1",
+				"branch":         "branch1",
+				"branch_slug":    "branchSlug1",
+				"head_sha":       "089d92cbf9ff857a39e6feccd32798ca700fb958",
+				"head_short_sha": "089d92cb",
+				"labels":         []string{"label1"}}},
+			template: argov1alpha1.ApplicationSetTemplate{
+				ApplicationSetTemplateMeta: argov1alpha1.ApplicationSetTemplateMeta{
+					Name: "AppSet-{{.branch}}-{{.number}}",
+					Labels: map[string]string{
+						"app1": "{{index .labels 0}}",
+					},
+				},
+				Spec: argov1alpha1.ApplicationSpec{
+					Source: argov1alpha1.ApplicationSource{
+						RepoURL:        "https://testurl/testRepo",
+						TargetRevision: "{{.head_short_sha}}",
+					},
+					Destination: argov1alpha1.ApplicationDestination{
+						Server:    "https://kubernetes.default.svc",
+						Namespace: "AppSet-{{.branch_slug}}-{{.head_sha}}",
+					},
+				},
+			},
+			expectedApp: []argov1alpha1.Application{
+				{
+					ObjectMeta: metav1.ObjectMeta{
+						Name: "AppSet-branch1-1",
+						Labels: map[string]string{
+							"app1": "label1",
+						},
+					},
+					Spec: v1alpha1.ApplicationSpec{
+						Source: v1alpha1.ApplicationSource{
+							RepoURL:        "https://testurl/testRepo",
+							TargetRevision: "089d92cb",
+						},
+						Destination: v1alpha1.ApplicationDestination{
+							Server:    "https://kubernetes.default.svc",
+							Namespace: "AppSet-branchSlug1-089d92cbf9ff857a39e6feccd32798ca700fb958",
+						},
+					},
+				},
+			},
+		},
+	} {
+
+		t.Run(cases.name, func(t *testing.T) {
+
+			generatorMock := generatorMock{}
+			generator := argov1alpha1.ApplicationSetGenerator{
+				PullRequest: &argov1alpha1.PullRequestGenerator{},
+			}
+
+			generatorMock.On("GenerateParams", &generator).
+				Return(cases.params, nil)
+
+			generatorMock.On("GetTemplate", &generator).
+				Return(&cases.template, nil)
+
+			appSetReconciler := ApplicationSetReconciler{
+				Client:   client,
+				Scheme:   scheme,
+				Recorder: record.NewFakeRecorder(1),
+				Generators: map[string]generators.Generator{
+					"PullRequest": &generatorMock,
+				},
+				Renderer:      &utils.Render{},
+				KubeClientset: kubefake.NewSimpleClientset(),
+			}
+
+			gotApp, _, _ := appSetReconciler.generateApplications(argov1alpha1.ApplicationSet{
+				Spec: argov1alpha1.ApplicationSetSpec{
+					GoTemplate: true,
+					Generators: []argov1alpha1.ApplicationSetGenerator{{
+						PullRequest: &argov1alpha1.PullRequestGenerator{},
+					}},
+					Template: cases.template,
+				},
+			},
+			)
+			assert.EqualValues(t, cases.expectedApp[0].ObjectMeta.Name, gotApp[0].ObjectMeta.Name)
+			assert.EqualValues(t, cases.expectedApp[0].Spec.Source.TargetRevision, gotApp[0].Spec.Source.TargetRevision)
+			assert.EqualValues(t, cases.expectedApp[0].Spec.Destination.Namespace, gotApp[0].Spec.Destination.Namespace)
+			assert.True(t, collections.StringMapsEqual(cases.expectedApp[0].ObjectMeta.Labels, gotApp[0].ObjectMeta.Labels))
+		})
+	}
 }
