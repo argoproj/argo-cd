@@ -9,7 +9,7 @@ require (
 	github.com/TomOnTime/utfutil v0.0.0-20180511104225-09c41003ee1d
 	github.com/alicebob/miniredis/v2 v2.23.1
 	github.com/argoproj/gitops-engine v0.7.1-0.20221108210551-e284fd71cb96
-	github.com/argoproj/notifications-engine v0.3.1-0.20221203221941-490d98afd1d6
+	github.com/argoproj/notifications-engine v0.3.1-0.20221206124514-c419c904e2c0
 	github.com/argoproj/pkg v0.13.7-0.20221115212233-27bd8ce31415
 	github.com/aws/aws-sdk-go v1.44.156
 	github.com/bombsimon/logrusr/v2 v2.0.1

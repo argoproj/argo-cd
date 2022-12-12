@@ -144,6 +144,7 @@ Currently, the following organizations are **officially** using Argo CD:
 1. [MOO Print](https://www.moo.com/)
 1. [MTN Group](https://www.mtn.com/)
 1. [Natura &Co](https://naturaeco.com/)
+1. [Neovops](https://neovops.io)
 1. [Nethopper](https://nethopper.io)
 1. [New Relic](https://newrelic.com/)
 1. [Nextdoor](https://nextdoor.com/)
