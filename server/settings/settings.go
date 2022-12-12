@@ -3,6 +3,7 @@ package settings
 import (
 	"context"
 	"fmt"
+
 	"github.com/argoproj/argo-cd/v2/reposerver/apiclient"
 	ioutil "github.com/argoproj/argo-cd/v2/util/io"
 	"github.com/golang/protobuf/ptypes/empty"
@@ -177,9 +178,9 @@ func (s *Server) plugins(ctx context.Context) ([]*settingspkg.Plugin, error) {
 		out = append(out, &settingspkg.Plugin{Name: p.Name})
 
 	}
-	if pluginList != nil && len(pluginList.Plugins) > 0 {
-		for _, p := range pluginList.Plugins {
-			out = append(out, &settingspkg.Plugin{Name: p})
+	if pluginList != nil && len(pluginList.Items) > 0 {
+		for _, p := range pluginList.Items {
+			out = append(out, &settingspkg.Plugin{Name: p.Name})
 		}
 	}
 

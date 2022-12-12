@@ -108,9 +108,13 @@ message AppList {
     map<string, string> apps = 1;
 }
 
+message PluginInfo {
+    string name = 1;
+}
+
 // PluginList returns the list of all cmp v2 plugins running as sidecars
 message PluginList {
-    repeated  string plugins = 1;
+    repeated PluginInfo items = 1;
 }
 
 // RepoServerAppDetailsQuery contains query information for app details request

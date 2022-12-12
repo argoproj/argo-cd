@@ -240,14 +240,14 @@ func (s *Service) ListPlugins(ctx context.Context, _ *empty.Empty) (*apiclient.P
 		return nil, fmt.Errorf("failed to get plugins from dir %v, error=%w", pluginSockFilePath, err)
 	}
 
-	plugins := []string{}
+	plugins := []*apiclient.PluginInfo{}
 	for _, file := range sockFiles {
 		if file.Type() == os.ModeSocket {
-			plugins = append(plugins, strings.TrimSuffix(file.Name(), ".sock"))
+			plugins = append(plugins, &apiclient.PluginInfo{Name: strings.TrimSuffix(file.Name(), ".sock")})
 		}
 	}
 
-	res := apiclient.PluginList{Plugins: plugins}
+	res := apiclient.PluginList{Items: plugins}
 	return &res, nil
 }
 
