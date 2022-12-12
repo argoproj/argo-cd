@@ -1346,6 +1346,7 @@ func TestApplicationSourceKustomize_IsZero(t *testing.T) {
 		{"NamePrefix", &ApplicationSourceKustomize{NamePrefix: "foo"}, false},
 		{"NameSuffix", &ApplicationSourceKustomize{NameSuffix: "foo"}, false},
 		{"Images", &ApplicationSourceKustomize{Images: []KustomizeImage{""}}, false},
+		{"Replicas", &ApplicationSourceKustomize{Replicas: []string{""}}, false},
 		{"CommonLabels", &ApplicationSourceKustomize{CommonLabels: map[string]string{"": ""}}, false},
 		{"CommonAnnotations", &ApplicationSourceKustomize{CommonAnnotations: map[string]string{"": ""}}, false},
 	}

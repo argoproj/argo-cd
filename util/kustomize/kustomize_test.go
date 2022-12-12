@@ -9,6 +9,8 @@ import (
 
 	"github.com/argoproj/pkg/exec"
 	"github.com/stretchr/testify/assert"
+	"github.com/stretchr/testify/require"
+	"k8s.io/apimachinery/pkg/apis/meta/v1/unstructured"
 
 	"github.com/argoproj/argo-cd/v2/pkg/apis/application/v1alpha1"
 	"github.com/argoproj/argo-cd/v2/util/git"
@@ -47,6 +49,7 @@ func TestKustomizeBuild(t *testing.T) {
 			"app.kubernetes.io/managed-by": "argo-cd",
 			"app.kubernetes.io/part-of":    "argo-cd-tests",
 		},
+		Replicas: []string{"nginx-deployment=2", "web=4"},
 	}
 	objs, images, err := kustomize.Build(&kustomizeSource, nil, nil)
 	assert.Nil(t, err)
@@ -67,6 +70,10 @@ func TestKustomizeBuild(t *testing.T) {
 				"app.kubernetes.io/managed-by": "argo-cd",
 				"app.kubernetes.io/part-of":    "argo-cd-tests",
 			}, obj.GetAnnotations())
+			replicas, ok, err := unstructured.NestedInt64(obj.Object, "spec", "replicas")
+			require.NoError(t, err)
+			require.True(t, ok)
+			assert.Equal(t, int64(4), replicas)
 		case "Deployment":
 			assert.Equal(t, namePrefix+"nginx-deployment"+nameSuffix, obj.GetName())
 			assert.Equal(t, map[string]string{
@@ -78,6 +85,10 @@ func TestKustomizeBuild(t *testing.T) {
 				"app.kubernetes.io/managed-by": "argo-cd",
 				"app.kubernetes.io/part-of":    "argo-cd-tests",
 			}, obj.GetAnnotations())
+			replicas, ok, err := unstructured.NestedInt64(obj.Object, "spec", "replicas")
+			require.NoError(t, err)
+			require.True(t, ok)
+			assert.Equal(t, int64(2), replicas)
 		}
 	}
 

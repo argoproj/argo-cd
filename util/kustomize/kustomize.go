@@ -118,6 +118,20 @@ func (k *kustomize) Build(opts *v1alpha1.ApplicationSourceKustomize, kustomizeOp
 			}
 		}
 
+		if len(opts.Replicas) > 0 {
+			// set replicas my-development=2 my-statefulset=4
+			args := []string{"edit", "set", "replicas"}
+			for _, replica := range opts.Replicas {
+				args = append(args, string(replica))
+			}
+			cmd := exec.Command(k.getBinaryPath(), args...)
+			cmd.Dir = k.path
+			_, err := executil.Run(cmd)
+			if err != nil {
+				return nil, nil, err
+			}
+		}
+
 		if len(opts.CommonLabels) > 0 {
 			//  edit add label foo:bar
 			args := []string{"edit", "add", "label"}
@@ -258,7 +272,8 @@ func getSemver() (*semver.Version, error) {
 
 // getSemverSafe returns parsed kustomize version;
 // if version cannot be parsed assumes that "kustomize version" output format changed again
-//  and fallback to latest ( v99.99.99 )
+//
+//	and fallback to latest ( v99.99.99 )
 func getSemverSafe() *semver.Version {
 	if semVer == nil {
 		semVerLock.Lock()

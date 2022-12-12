@@ -750,6 +750,10 @@ func Test_unset(t *testing.T) {
 				"old1=new:tag",
 				"old2=new:tag",
 			},
+			Replicas: []string{
+				"my-deployment=2",
+				"my-statefulset=4",
+			},
 		},
 	}
 
@@ -823,6 +827,15 @@ func Test_unset(t *testing.T) {
 	assert.True(t, updated)
 	assert.False(t, nothingToUnset)
 	updated, nothingToUnset = unset(kustomizeSource, unsetOpts{kustomizeImages: []string{"old1=new:tag"}})
+	assert.False(t, updated)
+	assert.False(t, nothingToUnset)
+
+	assert.Equal(t, 2, len(kustomizeSource.Kustomize.Replicas))
+	updated, nothingToUnset = unset(kustomizeSource, unsetOpts{kustomizeReplicas: []string{"my-deployment=2"}})
+	assert.Equal(t, 1, len(kustomizeSource.Kustomize.Replicas))
+	assert.True(t, updated)
+	assert.False(t, nothingToUnset)
+	updated, nothingToUnset = unset(kustomizeSource, unsetOpts{kustomizeReplicas: []string{"my-deployment=2"}})
 	assert.False(t, updated)
 	assert.False(t, nothingToUnset)
 

@@ -179,6 +179,41 @@ func TestKustomizeImages(t *testing.T) {
 		})
 }
 
+// make sure we we can invoke the CLI to replace replicas and actual deployment is set to correct value
+func TestKustomizeReplicas2AppSource(t *testing.T) {
+	const deploymentName = "guestbook-ui"
+	checkReplicasFor := func(kind string) func(app *Application) {
+		return func(app *Application) {
+			name := deploymentName
+			replicas, err := fixture.Run(
+				"", "kubectl", "-n="+fixture.DeploymentNamespace(),
+				"get", kind, name,
+				"-ojsonpath={.spec.replicas}")
+			assert.NoError(t, err)
+			assert.Equal(t, "2", replicas, "wrong value of replicas %s %s", kind, name)
+		}
+	}
+
+	Given(t).
+		Path("guestbook").
+		When().
+		CreateApp().
+		AppSet("--kustomize-replica", deploymentName+"=2").
+		Then().
+		And(func(app *Application) {
+			assert.Contains(t, app.Spec.Source.Kustomize.Replicas, deploymentName+"=2")
+		}). // check Kustomize CLI
+		Expect(Success("")).
+		When().
+		Sync().
+		Then().
+		Expect(Success("")).
+		Expect(OperationPhaseIs(OperationSucceeded)).
+		Expect(SyncStatusIs(SyncStatusCodeSynced)).
+		Expect(HealthIs(health.HealthStatusHealthy)).
+		And(checkReplicasFor("Deployment"))
+}
+
 // make sure we we can invoke the CLI to set namesuffix
 func TestKustomizeNameSuffix(t *testing.T) {
 	Given(t).
