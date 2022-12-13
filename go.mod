@@ -14,7 +14,7 @@ require (
 	github.com/aws/aws-sdk-go v1.44.156
 	github.com/bombsimon/logrusr/v2 v2.0.1
 	github.com/bradleyfalzon/ghinstallation/v2 v2.1.0
-	github.com/casbin/casbin/v2 v2.59.0
+	github.com/casbin/casbin/v2 v2.60.0
 	github.com/chai2010/gettext-go v0.0.0-20170215093142-bf70f2a70fb1 // indirect
 	github.com/coreos/go-oidc v2.2.1+incompatible
 	github.com/dustin/go-humanize v1.0.0
@@ -52,7 +52,7 @@ require (
 	github.com/itchyny/gojq v0.12.9
 	github.com/jeremywohl/flatten v1.0.1
 	github.com/kballard/go-shellquote v0.0.0-20180428030007-95032a82bc51
-	github.com/ktrysmt/go-bitbucket v0.9.54
+	github.com/ktrysmt/go-bitbucket v0.9.55
 	github.com/malexdev/utfutil v0.0.0-20180510171754-00c8d4a8e7a8 // indirect
 	github.com/mattn/go-isatty v0.0.16
 	github.com/mattn/go-zglob v0.0.4
