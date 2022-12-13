@@ -1954,7 +1954,7 @@ func TestGenerateAppsUsingPullRequestGenerator(t *testing.T) {
 					},
 				},
 				Spec: argov1alpha1.ApplicationSpec{
-					Source: argov1alpha1.ApplicationSource{
+					Source: &argov1alpha1.ApplicationSource{
 						RepoURL:        "https://testurl/testRepo",
 						TargetRevision: "{{.head_short_sha}}",
 					},
@@ -1973,7 +1973,7 @@ func TestGenerateAppsUsingPullRequestGenerator(t *testing.T) {
 						},
 					},
 					Spec: v1alpha1.ApplicationSpec{
-						Source: v1alpha1.ApplicationSource{
+						Source: &v1alpha1.ApplicationSource{
 							RepoURL:        "https://testurl/testRepo",
 							TargetRevision: "089d92cb",
 						},

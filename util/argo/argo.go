@@ -431,6 +431,7 @@ func ValidatePermissions(ctx context.Context, spec *argoappv1.ApplicationSpec, p
 		for _, source := range spec.Sources {
 			condition := validateSourcePermissions(ctx, source, proj, spec.Project, spec.HasMultipleSources())
 			if len(condition) > 0 {
+				conditions = append(conditions, condition...)
 				return conditions, nil
 			}
 

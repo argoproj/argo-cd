@@ -1025,3 +1025,149 @@ func Test_AppInstanceNameFromQualified(t *testing.T) {
 	}
 
 }
+
+func getMultiSourceAppSpec() *argoappv1.ApplicationSpec {
+
+	repoPath, _ := filepath.Abs("./../..")
+
+	return &argoappv1.ApplicationSpec{
+		Sources: argoappv1.ApplicationSources{
+			{RepoURL: fmt.Sprintf("file://%s", repoPath), Ref: "source1"},
+			{RepoURL: fmt.Sprintf("file://%s", repoPath)},
+		},
+	}
+}
+
+func Test_GetRefSources(t *testing.T) {
+
+	repoPath, err := filepath.Abs("./../..")
+	assert.NoError(t, err)
+
+	repo := &argoappv1.Repository{Repo: fmt.Sprintf("file://%s", repoPath)}
+
+	argoSpec := getMultiSourceAppSpec()
+
+	db := &dbmocks.ArgoDB{}
+
+	db.On("GetRepository", context.Background(), repo.Repo).Return(repo, nil)
+
+	refSources, err := GetRefSources(context.TODO(), *argoSpec, db)
+
+	expectedRefSource := argoappv1.RefTargetRevisionMapping{
+		"$source1": &argoappv1.RefTarget{
+			Repo: *repo,
+		},
+	}
+	assert.NoError(t, err)
+	assert.Equal(t, 1, len(refSources))
+	assert.Equal(t, expectedRefSource, refSources)
+}
+
+func TestValidatePermissionsMultipleSources(t *testing.T) {
+
+	t.Run("Empty Repo URL result in condition", func(t *testing.T) {
+		spec := argoappv1.ApplicationSpec{
+			Sources: argoappv1.ApplicationSources{
+				{RepoURL: ""},
+			},
+		}
+
+		proj := argoappv1.AppProject{}
+		db := &dbmocks.ArgoDB{}
+		conditions, err := ValidatePermissions(context.Background(), &spec, &proj, db)
+		assert.NoError(t, err)
+		assert.Len(t, conditions, 1)
+		assert.Equal(t, argoappv1.ApplicationConditionInvalidSpecError, conditions[0].Type)
+		assert.Contains(t, conditions[0].Message, "are required")
+	})
+
+	t.Run("Incomplete Path/Chart/Ref combo result in condition", func(t *testing.T) {
+		spec := argoappv1.ApplicationSpec{
+			Sources: argoappv1.ApplicationSources{{
+				RepoURL: "http://some/where",
+				Path:    "",
+				Chart:   "",
+				Ref:     "",
+			},
+			},
+		}
+		proj := argoappv1.AppProject{}
+		db := &dbmocks.ArgoDB{}
+		conditions, err := ValidatePermissions(context.Background(), &spec, &proj, db)
+		assert.NoError(t, err)
+		assert.Len(t, conditions, 1)
+		assert.Equal(t, argoappv1.ApplicationConditionInvalidSpecError, conditions[0].Type)
+		assert.Contains(t, conditions[0].Message, "are required")
+	})
+
+	t.Run("One of the Application sources is not permitted in project", func(t *testing.T) {
+		spec := argoappv1.ApplicationSpec{
+			Sources: argoappv1.ApplicationSources{{
+				RepoURL:        "http://some/where",
+				Path:           "",
+				Chart:          "somechart",
+				TargetRevision: "1.4.1",
+			},
+			},
+			Destination: argoappv1.ApplicationDestination{
+				Server:    "https://127.0.0.1:6443",
+				Namespace: "testns",
+			},
+		}
+		proj := argoappv1.AppProject{
+			Spec: argoappv1.AppProjectSpec{
+				Destinations: []argoappv1.ApplicationDestination{
+					{
+						Server:    "*",
+						Namespace: "*",
+					},
+				},
+				SourceRepos: []string{"http://some/where/else"},
+			},
+		}
+		cluster := &argoappv1.Cluster{Server: "https://127.0.0.1:6443"}
+		db := &dbmocks.ArgoDB{}
+		db.On("GetCluster", context.Background(), spec.Destination.Server).Return(cluster, nil)
+		conditions, err := ValidatePermissions(context.Background(), &spec, &proj, db)
+		assert.NoError(t, err)
+		assert.Len(t, conditions, 1)
+		assert.Contains(t, conditions[0].Message, "application repo http://some/where is not permitted")
+	})
+
+	t.Run("Source with a Ref field and missing Path/Chart field", func(t *testing.T) {
+		spec := argoappv1.ApplicationSpec{
+			Sources: argoappv1.ApplicationSources{{
+				RepoURL: "http://some/where",
+				Path:    "",
+				Chart:   "",
+				Ref:     "somechart",
+			},
+			},
+			Destination: argoappv1.ApplicationDestination{
+				Name:      "does-exist",
+				Namespace: "default",
+			},
+		}
+		proj := argoappv1.AppProject{
+			Spec: argoappv1.AppProjectSpec{
+				Destinations: []argoappv1.ApplicationDestination{
+					{
+						Server:    "*",
+						Namespace: "default",
+					},
+				},
+				SourceRepos: []string{"http://some/where"},
+			},
+		}
+		db := &dbmocks.ArgoDB{}
+		cluster := argoappv1.Cluster{
+			Name:   "does-exist",
+			Server: "https://127.0.0.1:6443",
+		}
+		db.On("GetClusterServersByName", context.Background(), "does-exist").Return([]string{"https://127.0.0.1:6443"}, nil)
+		db.On("GetCluster", context.Background(), "https://127.0.0.1:6443").Return(&cluster, nil)
+		conditions, err := ValidatePermissions(context.Background(), &spec, &proj, db)
+		assert.NoError(t, err)
+		assert.Len(t, conditions, 0)
+	})
+}

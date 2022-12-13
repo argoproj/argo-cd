@@ -197,9 +197,6 @@ func (a *ApplicationSpec) GetSources() ApplicationSources {
 		return a.Sources
 	}
 	if a.Source != nil {
-		if a.Source == nil {
-			return ApplicationSources{}
-		}
 		return ApplicationSources{*a.Source}
 	}
 	return ApplicationSources{}
