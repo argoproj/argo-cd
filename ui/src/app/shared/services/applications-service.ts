@@ -3,6 +3,7 @@ import {Observable} from 'rxjs';
 import {map, repeat, retry} from 'rxjs/operators';
 
 import * as models from '../models';
+import {isValidURL} from '../utils';
 import requests from './requests';
 
 interface QueryOptions {
@@ -410,7 +411,17 @@ export class ApplicationsService {
                 group: resource.group || '' // The group query param must be present even if empty.
             })
             .send()
-            .then(res => res.body as models.LinksResponse);
+            .then(res => {
+                const links = res.body as models.LinksResponse;
+                const items: models.LinkInfo[] = [];
+                (links?.items || []).forEach(link => {
+                    if (isValidURL(link.url)) {
+                        items.push(link);
+                    }
+                });
+                links.items = items;
+                return links;
+            });
     }
 
     private getLogsQuery(

@@ -493,10 +493,22 @@ function getActionItems(
 
     const resourceActions = getResourceActionsMenuItems(resource, application.metadata, appContext);
 
+    const links = services.applications.getResourceLinks(application.metadata.name, application.metadata.namespace, resource).then(data => {
+        return (data.items || []).map(
+            link =>
+                ({
+                    title: link.title,
+                    iconClassName: 'fa fa-external-link',
+                    action: () => window.open(link.url, '_blank')
+                } as MenuItem)
+        );
+    });
+
     return combineLatest(
         from([items]), // this resolves immediately
         concat([[] as MenuItem[]], resourceActions), // this resolves at first to [] and then whatever the API returns
-        concat([[] as MenuItem[]], execAction) // this resolves at first to [] and then whatever the API returns
+        concat([[] as MenuItem[]], execAction), // this resolves at first to [] and then whatever the API returns
+        concat([[] as MenuItem[]], links) // this resolves at first to [] and then whatever the API returns
     ).pipe(map(res => ([] as MenuItem[]).concat(...res)));
 }
 
