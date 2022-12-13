@@ -237,16 +237,18 @@ func (a *ArgoCDWebhookHandler) HandleEvent(payload interface{}) {
 			continue
 		}
 		for _, app := range apps.Items {
-			if appRevisionHasChanged(&app, revision, touchedHead) && appUsesURL(&app, webURL, repoRegexp) {
-				if appFilesHaveChanged(&app, changedFiles) {
-					_, err = argo.RefreshApp(appIf, app.ObjectMeta.Name, v1alpha1.RefreshTypeNormal)
-					if err != nil {
-						log.Warnf("Failed to refresh app '%s' for controller reprocessing: %v", app.ObjectMeta.Name, err)
-						continue
-					}
-				} else if change.shaBefore != "" && change.shaAfter != "" {
-					if err := a.storePreviouslyCachedManifests(&app, change, trackingMethod, appInstanceLabelKey); err != nil {
-						log.Warnf("Failed to store cached manifests of previous revision for app '%s': %v", app.Name, err)
+			for _, source := range app.Spec.GetSources() {
+				if sourceRevisionHasChanged(source, revision, touchedHead) && sourceUsesURL(source, webURL, repoRegexp) {
+					if appFilesHaveChanged(&app, changedFiles) {
+						_, err = argo.RefreshApp(appIf, app.ObjectMeta.Name, v1alpha1.RefreshTypeNormal)
+						if err != nil {
+							log.Warnf("Failed to refresh app '%s' for controller reprocessing: %v", app.ObjectMeta.Name, err)
+							continue
+						}
+					} else if change.shaBefore != "" && change.shaAfter != "" {
+						if err := a.storePreviouslyCachedManifests(&app, change, trackingMethod, appInstanceLabelKey); err != nil {
+							log.Warnf("Failed to store cached manifests of previous revision for app '%s': %v", app.Name, err)
+						}
 					}
 				}
 			}
@@ -313,11 +315,12 @@ func getAppRefreshPaths(app *v1alpha1.Application) []string {
 				continue
 			}
 			if filepath.IsAbs(item) {
-				item = item[1:]
+				paths = append(paths, item[1:])
 			} else {
-				item = filepath.Clean(filepath.Join(app.Spec.GetSource().Path, item))
+				for _, source := range app.Spec.GetSources() {
+					paths = append(paths, filepath.Clean(filepath.Join(source.Path, item)))
+				}
 			}
-			paths = append(paths, item)
 		}
 	}
 	return paths
@@ -368,28 +371,28 @@ func ensureAbsPath(input string) string {
 	return input
 }
 
-func appRevisionHasChanged(app *v1alpha1.Application, revision string, touchedHead bool) bool {
-	targetRev := parseRevision(app.Spec.GetSource().TargetRevision)
+func sourceRevisionHasChanged(source v1alpha1.ApplicationSource, revision string, touchedHead bool) bool {
+	targetRev := parseRevision(source.TargetRevision)
 	if targetRev == "HEAD" || targetRev == "" { // revision is head
 		return touchedHead
 	}
 	targetRevisionHasPrefixList := []string{"refs/heads/", "refs/tags/"}
 	for _, prefix := range targetRevisionHasPrefixList {
-		if strings.HasPrefix(app.Spec.GetSource().TargetRevision, prefix) {
+		if strings.HasPrefix(source.TargetRevision, prefix) {
 			return revision == targetRev
 		}
 	}
 
-	return app.Spec.GetSource().TargetRevision == revision
+	return source.TargetRevision == revision
 }
 
-func appUsesURL(app *v1alpha1.Application, webURL string, repoRegexp *regexp.Regexp) bool {
-	if !repoRegexp.MatchString(app.Spec.GetSource().RepoURL) {
-		log.Debugf("%s does not match %s", app.Spec.GetSource().RepoURL, repoRegexp.String())
+func sourceUsesURL(source v1alpha1.ApplicationSource, webURL string, repoRegexp *regexp.Regexp) bool {
+	if !repoRegexp.MatchString(source.RepoURL) {
+		log.Debugf("%s does not match %s", source.RepoURL, repoRegexp.String())
 		return false
 	}
 
-	log.Debugf("%s uses repoURL %s", app.Spec.GetSource().RepoURL, webURL)
+	log.Debugf("%s uses repoURL %s", source.RepoURL, webURL)
 	return true
 }
 

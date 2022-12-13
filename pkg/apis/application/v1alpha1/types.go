@@ -217,6 +217,14 @@ func (a *ApplicationSpec) GetSourcePtr() *ApplicationSource {
 	return a.Source
 }
 
+func (a *ApplicationSpec) GetSourcePtr() *ApplicationSource {
+	// if Application has multiple sources, return the first source in sources
+	if a.Sources != nil && len(a.Sources) > 0 {
+		return &a.Sources[0]
+	}
+	return a.Source
+}
+
 // AllowsConcurrentProcessing returns true if given application source can be processed concurrently
 func (a *ApplicationSource) AllowsConcurrentProcessing() bool {
 	switch {

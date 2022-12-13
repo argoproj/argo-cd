@@ -436,7 +436,7 @@ func (s *Service) GenerateManifest(ctx context.Context, q *apiclient.ManifestReq
 	var res *apiclient.ManifestResponse
 	var err error
 	cacheFn := func(cacheKey string, firstInvocation bool) (bool, error) {
-		ok, resp, err := s.getManifestCacheEntry(cacheKey, q, firstInvocation)
+		ok, resp, err := s.getManifestCacheEntry(cacheKey, q, q.ApplicationSource, firstInvocation)
 		res = resp
 		return ok, err
 	}
@@ -1204,6 +1204,11 @@ func GenerateManifests(ctx context.Context, appPath, repoRoot, revision string, 
 
 	resourceTracking := argo.NewResourceTracking()
 
+	// Set path of the source in the environment variable if ref field is set
+	if q.ApplicationSource.Ref != "" {
+		os.Setenv(q.ApplicationSource.Ref, appPath)
+	}
+
 	appSourceType, err := GetAppSourceType(ctx, q.ApplicationSource, appPath, q.AppName, q.EnabledSourceTypes, opt.cmpTarExcludedGlobs)
 	if err != nil {
 		return nil, err
@@ -1928,6 +1933,15 @@ func populateHelmAppDetails(res *apiclient.RepoAppDetailsResponse, appPath strin
 
 	if q.Source.Helm != nil {
 		selectedValueFiles = q.Source.Helm.ValueFiles
+		for i, file := range selectedValueFiles {
+			// update path of value file if value file is referencing another ApplicationSource
+			if strings.HasPrefix(file, "$") {
+				pathStrings := strings.Split(file, "/")
+				key := os.Getenv(strings.Split(file, "/")[0])
+				pathStrings[0] = strings.TrimPrefix(key, "$")
+				selectedValueFiles[i] = strings.Join(pathStrings, "/")
+			}
+		}
 	}
 
 	availableValueFiles, err := findHelmValueFilesInPath(appPath)
