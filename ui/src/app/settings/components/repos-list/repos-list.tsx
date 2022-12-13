@@ -87,16 +87,16 @@ interface NewGitHubAppRepoCredsParams {
     proxy: string;
 }
 
+interface NewGoogleCloudSourceRepoCredsParams {
+    url: string;
+    gcpServiceAccountKey: string;
+}
+
 export enum ConnectionMethod {
     SSH = 'via SSH',
     HTTPS = 'via HTTPS',
     GITHUBAPP = 'via GitHub App',
     GOOGLECLOUD = 'via Google Cloud'
-}
-
-interface NewGoogleCloudSourceRepoCredsParams {
-    url: string;
-    gcpServiceAccountKey: string;
 }
 
 export class ReposList extends React.Component<
