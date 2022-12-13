@@ -921,3 +921,14 @@ export enum PodPhase {
 export interface NotificationChunk {
     name: string;
 }
+
+export interface LinkInfo {
+    title: string;
+    url: string;
+    description?: string;
+    iconClass?: string;
+}
+
+export interface LinksResponse {
+    items: LinkInfo[];
+}
