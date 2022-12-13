@@ -26,7 +26,7 @@ export interface NodeId {
 
 export const ExternalLinkAnnotation = 'link.argocd.argoproj.io/external-link';
 
-type ActionMenuItem = MenuItem & {disabled?: boolean};
+type ActionMenuItem = MenuItem & {disabled?: boolean; tooltip?: string};
 
 export function nodeKey(node: NodeId) {
     return [node.group, node.kind, node.namespace, node.name].join('/');
@@ -498,8 +498,9 @@ function getActionItems(
             link =>
                 ({
                     title: link.title,
-                    iconClassName: 'fa fa-external-link',
-                    action: () => window.open(link.url, '_blank')
+                    iconClassName: `fa ${link.iconClass ? link.iconClass : 'fa-external-link'}`,
+                    action: () => window.open(link.url, '_blank'),
+                    tooltip: link.description
                 } as MenuItem)
         );
     });
@@ -542,7 +543,17 @@ export function renderResourceMenu(
                                     document.body.click();
                                 }
                             }}>
-                            {item.iconClassName && <i className={item.iconClassName} />} {item.title}
+                            {item.tooltip ? (
+                                <Tooltip content={item.tooltip || ''}>
+                                    <div>
+                                        {item.iconClassName && <i className={item.iconClassName} />} {item.title}
+                                    </div>
+                                </Tooltip>
+                            ) : (
+                                <>
+                                    {item.iconClassName && <i className={item.iconClassName} />} {item.title}
+                                </>
+                            )}
                         </li>
                     ))}
                 </ul>
