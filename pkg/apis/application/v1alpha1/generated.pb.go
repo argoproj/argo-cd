@@ -2417,10 +2417,10 @@ func (m *PullRequestGeneratorGithub) XXX_DiscardUnknown() {
 
 var xxx_messageInfo_PullRequestGeneratorGithub proto.InternalMessageInfo
 
-func (m *RefTargeRevisionMapping) Reset()      { *m = RefTargeRevisionMapping{} }
-func (*RefTargeRevisionMapping) ProtoMessage() {}
-func (*RefTargeRevisionMapping) Descriptor() ([]byte, []int) {
-	return fileDescriptor_030104ce3b95bcac, []int{84}
+func (m *RefTarget) Reset()      { *m = RefTarget{} }
+func (*RefTarget) ProtoMessage() {}
+func (*RefTarget) Descriptor() ([]byte, []int) {
+	return fileDescriptor_030104ce3b95bcac, []int{85}
 }
 func (m *RefTarget) XXX_Unmarshal(b []byte) error {
 	return m.Unmarshal(b)
@@ -2448,7 +2448,7 @@ var xxx_messageInfo_RefTarget proto.InternalMessageInfo
 func (m *RepoCreds) Reset()      { *m = RepoCreds{} }
 func (*RepoCreds) ProtoMessage() {}
 func (*RepoCreds) Descriptor() ([]byte, []int) {
-	return fileDescriptor_030104ce3b95bcac, []int{85}
+	return fileDescriptor_030104ce3b95bcac, []int{86}
 }
 func (m *RepoCreds) XXX_Unmarshal(b []byte) error {
 	return m.Unmarshal(b)
@@ -2476,7 +2476,7 @@ var xxx_messageInfo_RepoCreds proto.InternalMessageInfo
 func (m *RepoCredsList) Reset()      { *m = RepoCredsList{} }
 func (*RepoCredsList) ProtoMessage() {}
 func (*RepoCredsList) Descriptor() ([]byte, []int) {
-	return fileDescriptor_030104ce3b95bcac, []int{86}
+	return fileDescriptor_030104ce3b95bcac, []int{87}
 }
 func (m *RepoCredsList) XXX_Unmarshal(b []byte) error {
 	return m.Unmarshal(b)
@@ -2504,7 +2504,7 @@ var xxx_messageInfo_RepoCredsList proto.InternalMessageInfo
 func (m *Repository) Reset()      { *m = Repository{} }
 func (*Repository) ProtoMessage() {}
 func (*Repository) Descriptor() ([]byte, []int) {
-	return fileDescriptor_030104ce3b95bcac, []int{87}
+	return fileDescriptor_030104ce3b95bcac, []int{88}
 }
 func (m *Repository) XXX_Unmarshal(b []byte) error {
 	return m.Unmarshal(b)
@@ -2532,7 +2532,7 @@ var xxx_messageInfo_Repository proto.InternalMessageInfo
 func (m *RepositoryCertificate) Reset()      { *m = RepositoryCertificate{} }
 func (*RepositoryCertificate) ProtoMessage() {}
 func (*RepositoryCertificate) Descriptor() ([]byte, []int) {
-	return fileDescriptor_030104ce3b95bcac, []int{88}
+	return fileDescriptor_030104ce3b95bcac, []int{89}
 }
 func (m *RepositoryCertificate) XXX_Unmarshal(b []byte) error {
 	return m.Unmarshal(b)
@@ -2560,7 +2560,7 @@ var xxx_messageInfo_RepositoryCertificate proto.InternalMessageInfo
 func (m *RepositoryCertificateList) Reset()      { *m = RepositoryCertificateList{} }
 func (*RepositoryCertificateList) ProtoMessage() {}
 func (*RepositoryCertificateList) Descriptor() ([]byte, []int) {
-	return fileDescriptor_030104ce3b95bcac, []int{89}
+	return fileDescriptor_030104ce3b95bcac, []int{90}
 }
 func (m *RepositoryCertificateList) XXX_Unmarshal(b []byte) error {
 	return m.Unmarshal(b)
@@ -2588,7 +2588,7 @@ var xxx_messageInfo_RepositoryCertificateList proto.InternalMessageInfo
 func (m *RepositoryList) Reset()      { *m = RepositoryList{} }
 func (*RepositoryList) ProtoMessage() {}
 func (*RepositoryList) Descriptor() ([]byte, []int) {
-	return fileDescriptor_030104ce3b95bcac, []int{90}
+	return fileDescriptor_030104ce3b95bcac, []int{91}
 }
 func (m *RepositoryList) XXX_Unmarshal(b []byte) error {
 	return m.Unmarshal(b)
@@ -2616,7 +2616,7 @@ var xxx_messageInfo_RepositoryList proto.InternalMessageInfo
 func (m *ResourceAction) Reset()      { *m = ResourceAction{} }
 func (*ResourceAction) ProtoMessage() {}
 func (*ResourceAction) Descriptor() ([]byte, []int) {
-	return fileDescriptor_030104ce3b95bcac, []int{91}
+	return fileDescriptor_030104ce3b95bcac, []int{92}
 }
 func (m *ResourceAction) XXX_Unmarshal(b []byte) error {
 	return m.Unmarshal(b)
@@ -2644,7 +2644,7 @@ var xxx_messageInfo_ResourceAction proto.InternalMessageInfo
 func (m *ResourceActionDefinition) Reset()      { *m = ResourceActionDefinition{} }
 func (*ResourceActionDefinition) ProtoMessage() {}
 func (*ResourceActionDefinition) Descriptor() ([]byte, []int) {
-	return fileDescriptor_030104ce3b95bcac, []int{92}
+	return fileDescriptor_030104ce3b95bcac, []int{93}
 }
 func (m *ResourceActionDefinition) XXX_Unmarshal(b []byte) error {
 	return m.Unmarshal(b)
@@ -2672,7 +2672,7 @@ var xxx_messageInfo_ResourceActionDefinition proto.InternalMessageInfo
 func (m *ResourceActionParam) Reset()      { *m = ResourceActionParam{} }
 func (*ResourceActionParam) ProtoMessage() {}
 func (*ResourceActionParam) Descriptor() ([]byte, []int) {
-	return fileDescriptor_030104ce3b95bcac, []int{93}
+	return fileDescriptor_030104ce3b95bcac, []int{94}
 }
 func (m *ResourceActionParam) XXX_Unmarshal(b []byte) error {
 	return m.Unmarshal(b)
@@ -2700,7 +2700,7 @@ var xxx_messageInfo_ResourceActionParam proto.InternalMessageInfo
 func (m *ResourceActions) Reset()      { *m = ResourceActions{} }
 func (*ResourceActions) ProtoMessage() {}
 func (*ResourceActions) Descriptor() ([]byte, []int) {
-	return fileDescriptor_030104ce3b95bcac, []int{94}
+	return fileDescriptor_030104ce3b95bcac, []int{95}
 }
 func (m *ResourceActions) XXX_Unmarshal(b []byte) error {
 	return m.Unmarshal(b)
@@ -2728,7 +2728,7 @@ var xxx_messageInfo_ResourceActions proto.InternalMessageInfo
 func (m *ResourceDiff) Reset()      { *m = ResourceDiff{} }
 func (*ResourceDiff) ProtoMessage() {}
 func (*ResourceDiff) Descriptor() ([]byte, []int) {
-	return fileDescriptor_030104ce3b95bcac, []int{95}
+	return fileDescriptor_030104ce3b95bcac, []int{96}
 }
 func (m *ResourceDiff) XXX_Unmarshal(b []byte) error {
 	return m.Unmarshal(b)
@@ -2756,7 +2756,7 @@ var xxx_messageInfo_ResourceDiff proto.InternalMessageInfo
 func (m *ResourceIgnoreDifferences) Reset()      { *m = ResourceIgnoreDifferences{} }
 func (*ResourceIgnoreDifferences) ProtoMessage() {}
 func (*ResourceIgnoreDifferences) Descriptor() ([]byte, []int) {
-	return fileDescriptor_030104ce3b95bcac, []int{96}
+	return fileDescriptor_030104ce3b95bcac, []int{97}
 }
 func (m *ResourceIgnoreDifferences) XXX_Unmarshal(b []byte) error {
 	return m.Unmarshal(b)
@@ -2784,7 +2784,7 @@ var xxx_messageInfo_ResourceIgnoreDifferences proto.InternalMessageInfo
 func (m *ResourceNetworkingInfo) Reset()      { *m = ResourceNetworkingInfo{} }
 func (*ResourceNetworkingInfo) ProtoMessage() {}
 func (*ResourceNetworkingInfo) Descriptor() ([]byte, []int) {
-	return fileDescriptor_030104ce3b95bcac, []int{97}
+	return fileDescriptor_030104ce3b95bcac, []int{98}
 }
 func (m *ResourceNetworkingInfo) XXX_Unmarshal(b []byte) error {
 	return m.Unmarshal(b)
@@ -2812,7 +2812,7 @@ var xxx_messageInfo_ResourceNetworkingInfo proto.InternalMessageInfo
 func (m *ResourceNode) Reset()      { *m = ResourceNode{} }
 func (*ResourceNode) ProtoMessage() {}
 func (*ResourceNode) Descriptor() ([]byte, []int) {
-	return fileDescriptor_030104ce3b95bcac, []int{98}
+	return fileDescriptor_030104ce3b95bcac, []int{99}
 }
 func (m *ResourceNode) XXX_Unmarshal(b []byte) error {
 	return m.Unmarshal(b)
@@ -2840,7 +2840,7 @@ var xxx_messageInfo_ResourceNode proto.InternalMessageInfo
 func (m *ResourceOverride) Reset()      { *m = ResourceOverride{} }
 func (*ResourceOverride) ProtoMessage() {}
 func (*ResourceOverride) Descriptor() ([]byte, []int) {
-	return fileDescriptor_030104ce3b95bcac, []int{99}
+	return fileDescriptor_030104ce3b95bcac, []int{100}
 }
 func (m *ResourceOverride) XXX_Unmarshal(b []byte) error {
 	return m.Unmarshal(b)
@@ -2868,7 +2868,7 @@ var xxx_messageInfo_ResourceOverride proto.InternalMessageInfo
 func (m *ResourceRef) Reset()      { *m = ResourceRef{} }
 func (*ResourceRef) ProtoMessage() {}
 func (*ResourceRef) Descriptor() ([]byte, []int) {
-	return fileDescriptor_030104ce3b95bcac, []int{100}
+	return fileDescriptor_030104ce3b95bcac, []int{101}
 }
 func (m *ResourceRef) XXX_Unmarshal(b []byte) error {
 	return m.Unmarshal(b)
@@ -2896,7 +2896,7 @@ var xxx_messageInfo_ResourceRef proto.InternalMessageInfo
 func (m *ResourceResult) Reset()      { *m = ResourceResult{} }
 func (*ResourceResult) ProtoMessage() {}
 func (*ResourceResult) Descriptor() ([]byte, []int) {
-	return fileDescriptor_030104ce3b95bcac, []int{101}
+	return fileDescriptor_030104ce3b95bcac, []int{102}
 }
 func (m *ResourceResult) XXX_Unmarshal(b []byte) error {
 	return m.Unmarshal(b)
@@ -2924,7 +2924,7 @@ var xxx_messageInfo_ResourceResult proto.InternalMessageInfo
 func (m *ResourceStatus) Reset()      { *m = ResourceStatus{} }
 func (*ResourceStatus) ProtoMessage() {}
 func (*ResourceStatus) Descriptor() ([]byte, []int) {
-	return fileDescriptor_030104ce3b95bcac, []int{102}
+	return fileDescriptor_030104ce3b95bcac, []int{103}
 }
 func (m *ResourceStatus) XXX_Unmarshal(b []byte) error {
 	return m.Unmarshal(b)
@@ -2952,7 +2952,7 @@ var xxx_messageInfo_ResourceStatus proto.InternalMessageInfo
 func (m *RetryStrategy) Reset()      { *m = RetryStrategy{} }
 func (*RetryStrategy) ProtoMessage() {}
 func (*RetryStrategy) Descriptor() ([]byte, []int) {
-	return fileDescriptor_030104ce3b95bcac, []int{103}
+	return fileDescriptor_030104ce3b95bcac, []int{104}
 }
 func (m *RetryStrategy) XXX_Unmarshal(b []byte) error {
 	return m.Unmarshal(b)
@@ -2980,7 +2980,7 @@ var xxx_messageInfo_RetryStrategy proto.InternalMessageInfo
 func (m *RevisionHistory) Reset()      { *m = RevisionHistory{} }
 func (*RevisionHistory) ProtoMessage() {}
 func (*RevisionHistory) Descriptor() ([]byte, []int) {
-	return fileDescriptor_030104ce3b95bcac, []int{104}
+	return fileDescriptor_030104ce3b95bcac, []int{105}
 }
 func (m *RevisionHistory) XXX_Unmarshal(b []byte) error {
 	return m.Unmarshal(b)
@@ -3008,7 +3008,7 @@ var xxx_messageInfo_RevisionHistory proto.InternalMessageInfo
 func (m *RevisionMetadata) Reset()      { *m = RevisionMetadata{} }
 func (*RevisionMetadata) ProtoMessage() {}
 func (*RevisionMetadata) Descriptor() ([]byte, []int) {
-	return fileDescriptor_030104ce3b95bcac, []int{105}
+	return fileDescriptor_030104ce3b95bcac, []int{106}
 }
 func (m *RevisionMetadata) XXX_Unmarshal(b []byte) error {
 	return m.Unmarshal(b)
@@ -3036,7 +3036,7 @@ var xxx_messageInfo_RevisionMetadata proto.InternalMessageInfo
 func (m *SCMProviderGenerator) Reset()      { *m = SCMProviderGenerator{} }
 func (*SCMProviderGenerator) ProtoMessage() {}
 func (*SCMProviderGenerator) Descriptor() ([]byte, []int) {
-	return fileDescriptor_030104ce3b95bcac, []int{106}
+	return fileDescriptor_030104ce3b95bcac, []int{107}
 }
 func (m *SCMProviderGenerator) XXX_Unmarshal(b []byte) error {
 	return m.Unmarshal(b)
@@ -3064,7 +3064,7 @@ var xxx_messageInfo_SCMProviderGenerator proto.InternalMessageInfo
 func (m *SCMProviderGeneratorAzureDevOps) Reset()      { *m = SCMProviderGeneratorAzureDevOps{} }
 func (*SCMProviderGeneratorAzureDevOps) ProtoMessage() {}
 func (*SCMProviderGeneratorAzureDevOps) Descriptor() ([]byte, []int) {
-	return fileDescriptor_030104ce3b95bcac, []int{107}
+	return fileDescriptor_030104ce3b95bcac, []int{108}
 }
 func (m *SCMProviderGeneratorAzureDevOps) XXX_Unmarshal(b []byte) error {
 	return m.Unmarshal(b)
@@ -3092,7 +3092,7 @@ var xxx_messageInfo_SCMProviderGeneratorAzureDevOps proto.InternalMessageInfo
 func (m *SCMProviderGeneratorBitbucket) Reset()      { *m = SCMProviderGeneratorBitbucket{} }
 func (*SCMProviderGeneratorBitbucket) ProtoMessage() {}
 func (*SCMProviderGeneratorBitbucket) Descriptor() ([]byte, []int) {
-	return fileDescriptor_030104ce3b95bcac, []int{108}
+	return fileDescriptor_030104ce3b95bcac, []int{109}
 }
 func (m *SCMProviderGeneratorBitbucket) XXX_Unmarshal(b []byte) error {
 	return m.Unmarshal(b)
@@ -3120,7 +3120,7 @@ var xxx_messageInfo_SCMProviderGeneratorBitbucket proto.InternalMessageInfo
 func (m *SCMProviderGeneratorBitbucketServer) Reset()      { *m = SCMProviderGeneratorBitbucketServer{} }
 func (*SCMProviderGeneratorBitbucketServer) ProtoMessage() {}
 func (*SCMProviderGeneratorBitbucketServer) Descriptor() ([]byte, []int) {
-	return fileDescriptor_030104ce3b95bcac, []int{109}
+	return fileDescriptor_030104ce3b95bcac, []int{110}
 }
 func (m *SCMProviderGeneratorBitbucketServer) XXX_Unmarshal(b []byte) error {
 	return m.Unmarshal(b)
@@ -3148,7 +3148,7 @@ var xxx_messageInfo_SCMProviderGeneratorBitbucketServer proto.InternalMessageInf
 func (m *SCMProviderGeneratorFilter) Reset()      { *m = SCMProviderGeneratorFilter{} }
 func (*SCMProviderGeneratorFilter) ProtoMessage() {}
 func (*SCMProviderGeneratorFilter) Descriptor() ([]byte, []int) {
-	return fileDescriptor_030104ce3b95bcac, []int{110}
+	return fileDescriptor_030104ce3b95bcac, []int{111}
 }
 func (m *SCMProviderGeneratorFilter) XXX_Unmarshal(b []byte) error {
 	return m.Unmarshal(b)
@@ -3176,7 +3176,7 @@ var xxx_messageInfo_SCMProviderGeneratorFilter proto.InternalMessageInfo
 func (m *SCMProviderGeneratorGitea) Reset()      { *m = SCMProviderGeneratorGitea{} }
 func (*SCMProviderGeneratorGitea) ProtoMessage() {}
 func (*SCMProviderGeneratorGitea) Descriptor() ([]byte, []int) {
-	return fileDescriptor_030104ce3b95bcac, []int{111}
+	return fileDescriptor_030104ce3b95bcac, []int{112}
 }
 func (m *SCMProviderGeneratorGitea) XXX_Unmarshal(b []byte) error {
 	return m.Unmarshal(b)
@@ -3204,7 +3204,7 @@ var xxx_messageInfo_SCMProviderGeneratorGitea proto.InternalMessageInfo
 func (m *SCMProviderGeneratorGithub) Reset()      { *m = SCMProviderGeneratorGithub{} }
 func (*SCMProviderGeneratorGithub) ProtoMessage() {}
 func (*SCMProviderGeneratorGithub) Descriptor() ([]byte, []int) {
-	return fileDescriptor_030104ce3b95bcac, []int{112}
+	return fileDescriptor_030104ce3b95bcac, []int{113}
 }
 func (m *SCMProviderGeneratorGithub) XXX_Unmarshal(b []byte) error {
 	return m.Unmarshal(b)
@@ -3232,7 +3232,7 @@ var xxx_messageInfo_SCMProviderGeneratorGithub proto.InternalMessageInfo
 func (m *SCMProviderGeneratorGitlab) Reset()      { *m = SCMProviderGeneratorGitlab{} }
 func (*SCMProviderGeneratorGitlab) ProtoMessage() {}
 func (*SCMProviderGeneratorGitlab) Descriptor() ([]byte, []int) {
-	return fileDescriptor_030104ce3b95bcac, []int{113}
+	return fileDescriptor_030104ce3b95bcac, []int{114}
 }
 func (m *SCMProviderGeneratorGitlab) XXX_Unmarshal(b []byte) error {
 	return m.Unmarshal(b)
@@ -3260,7 +3260,7 @@ var xxx_messageInfo_SCMProviderGeneratorGitlab proto.InternalMessageInfo
 func (m *SecretRef) Reset()      { *m = SecretRef{} }
 func (*SecretRef) ProtoMessage() {}
 func (*SecretRef) Descriptor() ([]byte, []int) {
-	return fileDescriptor_030104ce3b95bcac, []int{114}
+	return fileDescriptor_030104ce3b95bcac, []int{115}
 }
 func (m *SecretRef) XXX_Unmarshal(b []byte) error {
 	return m.Unmarshal(b)
@@ -3288,7 +3288,7 @@ var xxx_messageInfo_SecretRef proto.InternalMessageInfo
 func (m *SignatureKey) Reset()      { *m = SignatureKey{} }
 func (*SignatureKey) ProtoMessage() {}
 func (*SignatureKey) Descriptor() ([]byte, []int) {
-	return fileDescriptor_030104ce3b95bcac, []int{115}
+	return fileDescriptor_030104ce3b95bcac, []int{116}
 }
 func (m *SignatureKey) XXX_Unmarshal(b []byte) error {
 	return m.Unmarshal(b)
@@ -3316,7 +3316,7 @@ var xxx_messageInfo_SignatureKey proto.InternalMessageInfo
 func (m *SyncOperation) Reset()      { *m = SyncOperation{} }
 func (*SyncOperation) ProtoMessage() {}
 func (*SyncOperation) Descriptor() ([]byte, []int) {
-	return fileDescriptor_030104ce3b95bcac, []int{116}
+	return fileDescriptor_030104ce3b95bcac, []int{117}
 }
 func (m *SyncOperation) XXX_Unmarshal(b []byte) error {
 	return m.Unmarshal(b)
@@ -3344,7 +3344,7 @@ var xxx_messageInfo_SyncOperation proto.InternalMessageInfo
 func (m *SyncOperationResource) Reset()      { *m = SyncOperationResource{} }
 func (*SyncOperationResource) ProtoMessage() {}
 func (*SyncOperationResource) Descriptor() ([]byte, []int) {
-	return fileDescriptor_030104ce3b95bcac, []int{117}
+	return fileDescriptor_030104ce3b95bcac, []int{118}
 }
 func (m *SyncOperationResource) XXX_Unmarshal(b []byte) error {
 	return m.Unmarshal(b)
@@ -3372,7 +3372,7 @@ var xxx_messageInfo_SyncOperationResource proto.InternalMessageInfo
 func (m *SyncOperationResult) Reset()      { *m = SyncOperationResult{} }
 func (*SyncOperationResult) ProtoMessage() {}
 func (*SyncOperationResult) Descriptor() ([]byte, []int) {
-	return fileDescriptor_030104ce3b95bcac, []int{118}
+	return fileDescriptor_030104ce3b95bcac, []int{119}
 }
 func (m *SyncOperationResult) XXX_Unmarshal(b []byte) error {
 	return m.Unmarshal(b)
@@ -3400,7 +3400,7 @@ var xxx_messageInfo_SyncOperationResult proto.InternalMessageInfo
 func (m *SyncPolicy) Reset()      { *m = SyncPolicy{} }
 func (*SyncPolicy) ProtoMessage() {}
 func (*SyncPolicy) Descriptor() ([]byte, []int) {
-	return fileDescriptor_030104ce3b95bcac, []int{119}
+	return fileDescriptor_030104ce3b95bcac, []int{120}
 }
 func (m *SyncPolicy) XXX_Unmarshal(b []byte) error {
 	return m.Unmarshal(b)
@@ -3428,7 +3428,7 @@ var xxx_messageInfo_SyncPolicy proto.InternalMessageInfo
 func (m *SyncPolicyAutomated) Reset()      { *m = SyncPolicyAutomated{} }
 func (*SyncPolicyAutomated) ProtoMessage() {}
 func (*SyncPolicyAutomated) Descriptor() ([]byte, []int) {
-	return fileDescriptor_030104ce3b95bcac, []int{120}
+	return fileDescriptor_030104ce3b95bcac, []int{121}
 }
 func (m *SyncPolicyAutomated) XXX_Unmarshal(b []byte) error {
 	return m.Unmarshal(b)
@@ -3456,7 +3456,7 @@ var xxx_messageInfo_SyncPolicyAutomated proto.InternalMessageInfo
 func (m *SyncStatus) Reset()      { *m = SyncStatus{} }
 func (*SyncStatus) ProtoMessage() {}
 func (*SyncStatus) Descriptor() ([]byte, []int) {
-	return fileDescriptor_030104ce3b95bcac, []int{121}
+	return fileDescriptor_030104ce3b95bcac, []int{122}
 }
 func (m *SyncStatus) XXX_Unmarshal(b []byte) error {
 	return m.Unmarshal(b)
@@ -3484,7 +3484,7 @@ var xxx_messageInfo_SyncStatus proto.InternalMessageInfo
 func (m *SyncStrategy) Reset()      { *m = SyncStrategy{} }
 func (*SyncStrategy) ProtoMessage() {}
 func (*SyncStrategy) Descriptor() ([]byte, []int) {
-	return fileDescriptor_030104ce3b95bcac, []int{122}
+	return fileDescriptor_030104ce3b95bcac, []int{123}
 }
 func (m *SyncStrategy) XXX_Unmarshal(b []byte) error {
 	return m.Unmarshal(b)
@@ -3512,7 +3512,7 @@ var xxx_messageInfo_SyncStrategy proto.InternalMessageInfo
 func (m *SyncStrategyApply) Reset()      { *m = SyncStrategyApply{} }
 func (*SyncStrategyApply) ProtoMessage() {}
 func (*SyncStrategyApply) Descriptor() ([]byte, []int) {
-	return fileDescriptor_030104ce3b95bcac, []int{123}
+	return fileDescriptor_030104ce3b95bcac, []int{124}
 }
 func (m *SyncStrategyApply) XXX_Unmarshal(b []byte) error {
 	return m.Unmarshal(b)
@@ -3540,7 +3540,7 @@ var xxx_messageInfo_SyncStrategyApply proto.InternalMessageInfo
 func (m *SyncStrategyHook) Reset()      { *m = SyncStrategyHook{} }
 func (*SyncStrategyHook) ProtoMessage() {}
 func (*SyncStrategyHook) Descriptor() ([]byte, []int) {
-	return fileDescriptor_030104ce3b95bcac, []int{124}
+	return fileDescriptor_030104ce3b95bcac, []int{125}
 }
 func (m *SyncStrategyHook) XXX_Unmarshal(b []byte) error {
 	return m.Unmarshal(b)
@@ -3568,7 +3568,7 @@ var xxx_messageInfo_SyncStrategyHook proto.InternalMessageInfo
 func (m *SyncWindow) Reset()      { *m = SyncWindow{} }
 func (*SyncWindow) ProtoMessage() {}
 func (*SyncWindow) Descriptor() ([]byte, []int) {
-	return fileDescriptor_030104ce3b95bcac, []int{125}
+	return fileDescriptor_030104ce3b95bcac, []int{126}
 }
 func (m *SyncWindow) XXX_Unmarshal(b []byte) error {
 	return m.Unmarshal(b)
@@ -3596,7 +3596,7 @@ var xxx_messageInfo_SyncWindow proto.InternalMessageInfo
 func (m *TLSClientConfig) Reset()      { *m = TLSClientConfig{} }
 func (*TLSClientConfig) ProtoMessage() {}
 func (*TLSClientConfig) Descriptor() ([]byte, []int) {
-	return fileDescriptor_030104ce3b95bcac, []int{126}
+	return fileDescriptor_030104ce3b95bcac, []int{127}
 }
 func (m *TLSClientConfig) XXX_Unmarshal(b []byte) error {
 	return m.Unmarshal(b)
@@ -3720,6 +3720,7 @@ func init() {
 	proto.RegisterType((*PullRequestGeneratorGitLab)(nil), "github.com.argoproj.argo_cd.v2.pkg.apis.application.v1alpha1.PullRequestGeneratorGitLab")
 	proto.RegisterType((*PullRequestGeneratorGitea)(nil), "github.com.argoproj.argo_cd.v2.pkg.apis.application.v1alpha1.PullRequestGeneratorGitea")
 	proto.RegisterType((*PullRequestGeneratorGithub)(nil), "github.com.argoproj.argo_cd.v2.pkg.apis.application.v1alpha1.PullRequestGeneratorGithub")
+	proto.RegisterType((*RefTarget)(nil), "github.com.argoproj.argo_cd.v2.pkg.apis.application.v1alpha1.RefTarget")
 	proto.RegisterType((*RepoCreds)(nil), "github.com.argoproj.argo_cd.v2.pkg.apis.application.v1alpha1.RepoCreds")
 	proto.RegisterType((*RepoCredsList)(nil), "github.com.argoproj.argo_cd.v2.pkg.apis.application.v1alpha1.RepoCredsList")
 	proto.RegisterType((*Repository)(nil), "github.com.argoproj.argo_cd.v2.pkg.apis.application.v1alpha1.Repository")
@@ -5706,6 +5707,11 @@ func (m *ApplicationSource) MarshalToSizedBuffer(dAtA []byte) (int, error) {
 	_ = i
 	var l int
 	_ = l
+	i -= len(m.Ref)
+	copy(dAtA[i:], m.Ref)
+	i = encodeVarintGenerated(dAtA, i, uint64(len(m.Ref)))
+	i--
+	dAtA[i] = 0x6a
 	i -= len(m.Chart)
 	copy(dAtA[i:], m.Chart)
 	i = encodeVarintGenerated(dAtA, i, uint64(len(m.Chart)))
@@ -6242,6 +6248,20 @@ func (m *ApplicationSpec) MarshalToSizedBuffer(dAtA []byte) (int, error) {
 	_ = i
 	var l int
 	_ = l
+	if len(m.Sources) > 0 {
+		for iNdEx := len(m.Sources) - 1; iNdEx >= 0; iNdEx-- {
+			{
+				size, err := m.Sources[iNdEx].MarshalToSizedBuffer(dAtA[:i])
+				if err != nil {
+					return 0, err
+				}
+				i -= size
+				i = encodeVarintGenerated(dAtA, i, uint64(size))
+			}
+			i--
+			dAtA[i] = 0x42
+		}
+	}
 	if m.RevisionHistoryLimit != nil {
 		i = encodeVarintGenerated(dAtA, i, uint64(*m.RevisionHistoryLimit))
 		i--
@@ -7151,11 +7171,24 @@ func (m *Command) MarshalToSizedBuffer(dAtA []byte) (int, error) {
 	_ = i
 	var l int
 	_ = l
-	i -= len(m.Path)
-	copy(dAtA[i:], m.Path)
-	i = encodeVarintGenerated(dAtA, i, uint64(len(m.Path)))
-	i--
-	dAtA[i] = 0xa
+	if len(m.Args) > 0 {
+		for iNdEx := len(m.Args) - 1; iNdEx >= 0; iNdEx-- {
+			i -= len(m.Args[iNdEx])
+			copy(dAtA[i:], m.Args[iNdEx])
+			i = encodeVarintGenerated(dAtA, i, uint64(len(m.Args[iNdEx])))
+			i--
+			dAtA[i] = 0x12
+		}
+	}
+	if len(m.Command) > 0 {
+		for iNdEx := len(m.Command) - 1; iNdEx >= 0; iNdEx-- {
+			i -= len(m.Command[iNdEx])
+			copy(dAtA[i:], m.Command[iNdEx])
+			i = encodeVarintGenerated(dAtA, i, uint64(len(m.Command[iNdEx])))
+			i--
+			dAtA[i] = 0xa
+		}
+	}
 	return len(dAtA) - i, nil
 }
 
@@ -9310,6 +9343,49 @@ func (m *PullRequestGeneratorGithub) MarshalToSizedBuffer(dAtA []byte) (int, err
 	return len(dAtA) - i, nil
 }
 
+func (m *RefTarget) Marshal() (dAtA []byte, err error) {
+	size := m.Size()
+	dAtA = make([]byte, size)
+	n, err := m.MarshalToSizedBuffer(dAtA[:size])
+	if err != nil {
+		return nil, err
+	}
+	return dAtA[:n], nil
+}
+
+func (m *RefTarget) MarshalTo(dAtA []byte) (int, error) {
+	size := m.Size()
+	return m.MarshalToSizedBuffer(dAtA[:size])
+}
+
+func (m *RefTarget) MarshalToSizedBuffer(dAtA []byte) (int, error) {
+	i := len(dAtA)
+	_ = i
+	var l int
+	_ = l
+	i -= len(m.Chart)
+	copy(dAtA[i:], m.Chart)
+	i = encodeVarintGenerated(dAtA, i, uint64(len(m.Chart)))
+	i--
+	dAtA[i] = 0x1a
+	i -= len(m.TargetRevision)
+	copy(dAtA[i:], m.TargetRevision)
+	i = encodeVarintGenerated(dAtA, i, uint64(len(m.TargetRevision)))
+	i--
+	dAtA[i] = 0x12
+	{
+		size, err := m.Repo.MarshalToSizedBuffer(dAtA[:i])
+		if err != nil {
+			return 0, err
+		}
+		i -= size
+		i = encodeVarintGenerated(dAtA, i, uint64(size))
+	}
+	i--
+	dAtA[i] = 0xa
+	return len(dAtA) - i, nil
+}
+
 func (m *RepoCreds) Marshal() (dAtA []byte, err error) {
 	size := m.Size()
 	dAtA = make([]byte, size)
@@ -11341,97 +11417,6 @@ func (m *SignatureKey) MarshalToSizedBuffer(dAtA []byte) (int, error) {
 	_ = i
 	var l int
 	_ = l
-	i--
-	if m.AllBranches {
-		dAtA[i] = 1
-	} else {
-		dAtA[i] = 0
-	}
-	i--
-	dAtA[i] = 0x48
-	if m.AccessTokenRef != nil {
-		{
-			size, err := m.AccessTokenRef.MarshalToSizedBuffer(dAtA[:i])
-			if err != nil {
-				return 0, err
-			}
-			i -= size
-			i = encodeVarintGenerated(dAtA, i, uint64(size))
-		}
-		i--
-		dAtA[i] = 0x42
-	}
-	i -= len(m.TeamProject)
-	copy(dAtA[i:], m.TeamProject)
-	i = encodeVarintGenerated(dAtA, i, uint64(len(m.TeamProject)))
-	i--
-	dAtA[i] = 0x3a
-	i -= len(m.API)
-	copy(dAtA[i:], m.API)
-	i = encodeVarintGenerated(dAtA, i, uint64(len(m.API)))
-	i--
-	dAtA[i] = 0x32
-	i -= len(m.Organization)
-	copy(dAtA[i:], m.Organization)
-	i = encodeVarintGenerated(dAtA, i, uint64(len(m.Organization)))
-	i--
-	dAtA[i] = 0x2a
-	return len(dAtA) - i, nil
-			copy(dAtA[i:], m.SyncOptions[iNdEx])
-
-func (m *SCMProviderGeneratorBitbucket) Marshal() (dAtA []byte, err error) {
-	size := m.Size()
-	dAtA = make([]byte, size)
-	n, err := m.MarshalToSizedBuffer(dAtA[:size])
-	if err != nil {
-		return nil, err
-	}
-	return dAtA[:n], nil
-}
-
-func (m *SecretRef) MarshalTo(dAtA []byte) (int, error) {
-	size := m.Size()
-	return m.MarshalToSizedBuffer(dAtA[:size])
-}
-
-func (m *SecretRef) MarshalToSizedBuffer(dAtA []byte) (int, error) {
-	i := len(dAtA)
-	_ = i
-	var l int
-	_ = l
-	i -= len(m.Key)
-	copy(dAtA[i:], m.Key)
-	i = encodeVarintGenerated(dAtA, i, uint64(len(m.Key)))
-	i--
-	dAtA[i] = 0x12
-	i -= len(m.SecretName)
-	copy(dAtA[i:], m.SecretName)
-	i = encodeVarintGenerated(dAtA, i, uint64(len(m.SecretName)))
-	i--
-	dAtA[i] = 0xa
-	return len(dAtA) - i, nil
-}
-
-func (m *SCMProviderGeneratorBitbucketServer) Marshal() (dAtA []byte, err error) {
-	size := m.Size()
-	dAtA = make([]byte, size)
-	n, err := m.MarshalToSizedBuffer(dAtA[:size])
-	if err != nil {
-		return nil, err
-	}
-	return dAtA[:n], nil
-}
-
-func (m *SCMProviderGeneratorBitbucketServer) MarshalTo(dAtA []byte) (int, error) {
-	size := m.Size()
-	return m.MarshalToSizedBuffer(dAtA[:size])
-}
-
-func (m *SCMProviderGeneratorBitbucketServer) MarshalToSizedBuffer(dAtA []byte) (int, error) {
-	i := len(dAtA)
-	_ = i
-	var l int
-	_ = l
 	i -= len(m.KeyID)
 	copy(dAtA[i:], m.KeyID)
 	i = encodeVarintGenerated(dAtA, i, uint64(len(m.KeyID)))
@@ -11513,106 +11498,21 @@ func (m *SyncOperation) MarshalToSizedBuffer(dAtA []byte) (int, error) {
 		i--
 		dAtA[i] = 0x3a
 	}
-	i -= len(m.API)
-	copy(dAtA[i:], m.API)
-	i = encodeVarintGenerated(dAtA, i, uint64(len(m.API)))
-	i--
-	dAtA[i] = 0x12
-	i -= len(m.Owner)
-	copy(dAtA[i:], m.Owner)
-	i = encodeVarintGenerated(dAtA, i, uint64(len(m.Owner)))
-	i--
-	dAtA[i] = 0xa
-	return len(dAtA) - i, nil
-}
-
-func (m *SCMProviderGeneratorGithub) Marshal() (dAtA []byte, err error) {
-	size := m.Size()
-	dAtA = make([]byte, size)
-	n, err := m.MarshalToSizedBuffer(dAtA[:size])
-	if err != nil {
-		return nil, err
-	}
-	return dAtA[:n], nil
-}
-
-func (m *SCMProviderGeneratorGithub) MarshalTo(dAtA []byte) (int, error) {
-	size := m.Size()
-	return m.MarshalToSizedBuffer(dAtA[:size])
-}
-
-func (m *SCMProviderGeneratorGithub) MarshalToSizedBuffer(dAtA []byte) (int, error) {
-	i := len(dAtA)
-	_ = i
-	var l int
-	_ = l
-	i--
-	if m.AllBranches {
-		dAtA[i] = 1
-	} else {
-		dAtA[i] = 0
-	}
-	i--
-	dAtA[i] = 0x28
-	i -= len(m.AppSecretName)
-	copy(dAtA[i:], m.AppSecretName)
-	i = encodeVarintGenerated(dAtA, i, uint64(len(m.AppSecretName)))
-	i--
-	dAtA[i] = 0x22
-	if m.TokenRef != nil {
-		{
-			size, err := m.TokenRef.MarshalToSizedBuffer(dAtA[:i])
-			if err != nil {
-				return 0, err
+	if len(m.Resources) > 0 {
+		for iNdEx := len(m.Resources) - 1; iNdEx >= 0; iNdEx-- {
+			{
+				size, err := m.Resources[iNdEx].MarshalToSizedBuffer(dAtA[:i])
+				if err != nil {
+					return 0, err
+				}
+				i -= size
+				i = encodeVarintGenerated(dAtA, i, uint64(size))
 			}
-			i -= size
-			i = encodeVarintGenerated(dAtA, i, uint64(size))
+			i--
+			dAtA[i] = 0x32
 		}
-		i--
-		dAtA[i] = 0x1a
 	}
-	i -= len(m.API)
-	copy(dAtA[i:], m.API)
-	i = encodeVarintGenerated(dAtA, i, uint64(len(m.API)))
-	i--
-	dAtA[i] = 0x12
-	i -= len(m.Organization)
-	copy(dAtA[i:], m.Organization)
-	i = encodeVarintGenerated(dAtA, i, uint64(len(m.Organization)))
-	i--
-	dAtA[i] = 0xa
-	return len(dAtA) - i, nil
-}
-
-func (m *SCMProviderGeneratorGitlab) Marshal() (dAtA []byte, err error) {
-	size := m.Size()
-	dAtA = make([]byte, size)
-	n, err := m.MarshalToSizedBuffer(dAtA[:size])
-	if err != nil {
-		return nil, err
-	}
-	return dAtA[:n], nil
-}
-
-func (m *SCMProviderGeneratorGitlab) MarshalTo(dAtA []byte) (int, error) {
-	size := m.Size()
-	return m.MarshalToSizedBuffer(dAtA[:size])
-}
-
-func (m *SCMProviderGeneratorGitlab) MarshalToSizedBuffer(dAtA []byte) (int, error) {
-	i := len(dAtA)
-	_ = i
-	var l int
-	_ = l
-	i--
-	if m.AllBranches {
-		dAtA[i] = 1
-	} else {
-		dAtA[i] = 0
-	}
-	i--
-	dAtA[i] = 0x28
-	if m.TokenRef != nil {
+	if m.SyncStrategy != nil {
 		{
 			size, err := m.SyncStrategy.MarshalToSizedBuffer(dAtA[:i])
 			if err != nil {
@@ -11711,6 +11611,29 @@ func (m *SyncOperationResult) MarshalToSizedBuffer(dAtA []byte) (int, error) {
 	_ = i
 	var l int
 	_ = l
+	if len(m.Revisions) > 0 {
+		for iNdEx := len(m.Revisions) - 1; iNdEx >= 0; iNdEx-- {
+			i -= len(m.Revisions[iNdEx])
+			copy(dAtA[i:], m.Revisions[iNdEx])
+			i = encodeVarintGenerated(dAtA, i, uint64(len(m.Revisions[iNdEx])))
+			i--
+			dAtA[i] = 0x2a
+		}
+	}
+	if len(m.Sources) > 0 {
+		for iNdEx := len(m.Sources) - 1; iNdEx >= 0; iNdEx-- {
+			{
+				size, err := m.Sources[iNdEx].MarshalToSizedBuffer(dAtA[:i])
+				if err != nil {
+					return 0, err
+				}
+				i -= size
+				i = encodeVarintGenerated(dAtA, i, uint64(size))
+			}
+			i--
+			dAtA[i] = 0x22
+		}
+	}
 	{
 		size, err := m.Source.MarshalToSizedBuffer(dAtA[:i])
 		if err != nil {
@@ -12675,6 +12598,8 @@ func (m *ApplicationSource) Size() (n int) {
 	}
 	l = len(m.Chart)
 	n += 1 + l + sovGenerated(uint64(l))
+	l = len(m.Ref)
+	n += 1 + l + sovGenerated(uint64(l))
 	return n
 }
 
@@ -12880,6 +12805,12 @@ func (m *ApplicationSpec) Size() (n int) {
 	}
 	if m.RevisionHistoryLimit != nil {
 		n += 1 + sovGenerated(uint64(*m.RevisionHistoryLimit))
+	}
+	if len(m.Sources) > 0 {
+		for _, e := range m.Sources {
+			l = e.Size()
+			n += 1 + l + sovGenerated(uint64(l))
+		}
 	}
 	return n
 }
@@ -13231,6 +13162,10 @@ func (m *ComponentParameter) Size() (n int) {
 	var l int
 	_ = l
 	l = len(m.Component)
+	n += 1 + l + sovGenerated(uint64(l))
+	l = len(m.Name)
+	n += 1 + l + sovGenerated(uint64(l))
+	l = len(m.Value)
 	n += 1 + l + sovGenerated(uint64(l))
 	return n
 }
@@ -14025,6 +13960,21 @@ func (m *PullRequestGeneratorGithub) Size() (n int) {
 	return n
 }
 
+func (m *RefTarget) Size() (n int) {
+	if m == nil {
+		return 0
+	}
+	var l int
+	_ = l
+	l = m.Repo.Size()
+	n += 1 + l + sovGenerated(uint64(l))
+	l = len(m.TargetRevision)
+	n += 1 + l + sovGenerated(uint64(l))
+	l = len(m.Chart)
+	n += 1 + l + sovGenerated(uint64(l))
+	return n
+}
+
 func (m *RepoCreds) Size() (n int) {
 	if m == nil {
 		return 0
@@ -14791,17 +14741,11 @@ func (m *SyncOperation) Size() (n int) {
 		l = m.SyncStrategy.Size()
 		n += 1 + l + sovGenerated(uint64(l))
 	}
-	repeatedStringForItems += "}"
-	s := strings.Join([]string{`&ApplicationSetList{`,
-		`ListMeta:` + strings.Replace(strings.Replace(fmt.Sprintf("%v", this.ListMeta), "ListMeta", "v1.ListMeta", 1), `&`, ``, 1) + `,`,
-		`Items:` + repeatedStringForItems + `,`,
-		`}`,
-	}, "")
-	return s
-}
-func (this *ApplicationSetNestedGenerator) String() string {
-	if this == nil {
-		return "nil"
+	if len(m.Resources) > 0 {
+		for _, e := range m.Resources {
+			l = e.Size()
+			n += 1 + l + sovGenerated(uint64(l))
+		}
 	}
 	if m.Source != nil {
 		l = m.Source.Size()
@@ -14813,19 +14757,11 @@ func (this *ApplicationSetNestedGenerator) String() string {
 			n += 1 + l + sovGenerated(uint64(l))
 		}
 	}
-	repeatedStringForGenerators += "}"
-	s := strings.Join([]string{`&ApplicationSetSpec{`,
-		`GoTemplate:` + fmt.Sprintf("%v", this.GoTemplate) + `,`,
-		`Generators:` + repeatedStringForGenerators + `,`,
-		`Template:` + strings.Replace(strings.Replace(this.Template.String(), "ApplicationSetTemplate", "ApplicationSetTemplate", 1), `&`, ``, 1) + `,`,
-		`SyncPolicy:` + strings.Replace(this.SyncPolicy.String(), "ApplicationSetSyncPolicy", "ApplicationSetSyncPolicy", 1) + `,`,
-		`}`,
-	}, "")
-	return s
-}
-func (this *ApplicationSetStatus) String() string {
-	if this == nil {
-		return "nil"
+	if len(m.SyncOptions) > 0 {
+		for _, s := range m.SyncOptions {
+			l = len(s)
+			n += 1 + l + sovGenerated(uint64(l))
+		}
 	}
 	if len(m.Sources) > 0 {
 		for _, e := range m.Sources {
@@ -14863,16 +14799,13 @@ func (m *SyncOperationResult) Size() (n int) {
 	if m == nil {
 		return 0
 	}
-	s := strings.Join([]string{`&ApplicationSetTemplate{`,
-		`ApplicationSetTemplateMeta:` + strings.Replace(strings.Replace(this.ApplicationSetTemplateMeta.String(), "ApplicationSetTemplateMeta", "ApplicationSetTemplateMeta", 1), `&`, ``, 1) + `,`,
-		`Spec:` + strings.Replace(strings.Replace(this.Spec.String(), "ApplicationSpec", "ApplicationSpec", 1), `&`, ``, 1) + `,`,
-		`}`,
-	}, "")
-	return s
-}
-func (this *ApplicationSetTemplateMeta) String() string {
-	if this == nil {
-		return "nil"
+	var l int
+	_ = l
+	if len(m.Resources) > 0 {
+		for _, e := range m.Resources {
+			l = e.Size()
+			n += 1 + l + sovGenerated(uint64(l))
+		}
 	}
 	l = len(m.Revision)
 	n += 1 + l + sovGenerated(uint64(l))
@@ -15418,7 +15351,19 @@ func (this *ApplicationSource) String() string {
 	}
 	s := strings.Join([]string{`&ApplicationSource{`,
 		`RepoURL:` + fmt.Sprintf("%v", this.RepoURL) + `,`,
-func (this *DuckTypeGenerator) String() string {
+		`Path:` + fmt.Sprintf("%v", this.Path) + `,`,
+		`TargetRevision:` + fmt.Sprintf("%v", this.TargetRevision) + `,`,
+		`Helm:` + strings.Replace(this.Helm.String(), "ApplicationSourceHelm", "ApplicationSourceHelm", 1) + `,`,
+		`Kustomize:` + strings.Replace(this.Kustomize.String(), "ApplicationSourceKustomize", "ApplicationSourceKustomize", 1) + `,`,
+		`Directory:` + strings.Replace(this.Directory.String(), "ApplicationSourceDirectory", "ApplicationSourceDirectory", 1) + `,`,
+		`Plugin:` + strings.Replace(this.Plugin.String(), "ApplicationSourcePlugin", "ApplicationSourcePlugin", 1) + `,`,
+		`Chart:` + fmt.Sprintf("%v", this.Chart) + `,`,
+		`Ref:` + fmt.Sprintf("%v", this.Ref) + `,`,
+		`}`,
+	}, "")
+	return s
+}
+func (this *ApplicationSourceDirectory) String() string {
 	if this == nil {
 		return "nil"
 	}
@@ -15577,6 +15522,11 @@ func (this *ApplicationSpec) String() string {
 		repeatedStringForInfo += strings.Replace(strings.Replace(f.String(), "Info", "Info", 1), `&`, ``, 1) + ","
 	}
 	repeatedStringForInfo += "}"
+	repeatedStringForSources := "[]ApplicationSource{"
+	for _, f := range this.Sources {
+		repeatedStringForSources += strings.Replace(strings.Replace(f.String(), "ApplicationSource", "ApplicationSource", 1), `&`, ``, 1) + ","
+	}
+	repeatedStringForSources += "}"
 	s := strings.Join([]string{`&ApplicationSpec{`,
 		`Source:` + strings.Replace(this.Source.String(), "ApplicationSource", "ApplicationSource", 1) + `,`,
 		`Destination:` + strings.Replace(strings.Replace(this.Destination.String(), "ApplicationDestination", "ApplicationDestination", 1), `&`, ``, 1) + `,`,
@@ -15585,6 +15535,7 @@ func (this *ApplicationSpec) String() string {
 		`IgnoreDifferences:` + repeatedStringForIgnoreDifferences + `,`,
 		`Info:` + repeatedStringForInfo + `,`,
 		`RevisionHistoryLimit:` + valueToStringGenerated(this.RevisionHistoryLimit) + `,`,
+		`Sources:` + repeatedStringForSources + `,`,
 		`}`,
 	}, "")
 	return s
@@ -15833,9 +15784,15 @@ func (this *ComparedTo) String() string {
 	if this == nil {
 		return "nil"
 	}
+	repeatedStringForSources := "[]ApplicationSource{"
+	for _, f := range this.Sources {
+		repeatedStringForSources += strings.Replace(strings.Replace(f.String(), "ApplicationSource", "ApplicationSource", 1), `&`, ``, 1) + ","
+	}
+	repeatedStringForSources += "}"
 	s := strings.Join([]string{`&ComparedTo{`,
 		`Source:` + strings.Replace(strings.Replace(this.Source.String(), "ApplicationSource", "ApplicationSource", 1), `&`, ``, 1) + `,`,
 		`Destination:` + strings.Replace(strings.Replace(this.Destination.String(), "ApplicationDestination", "ApplicationDestination", 1), `&`, ``, 1) + `,`,
+		`Sources:` + repeatedStringForSources + `,`,
 		`}`,
 	}, "")
 	return s
@@ -16474,7 +16431,19 @@ func (this *PullRequestGeneratorGithub) String() string {
 	}, "")
 	return s
 }
-func (this *SCMProviderGeneratorFilter) String() string {
+func (this *RefTarget) String() string {
+	if this == nil {
+		return "nil"
+	}
+	s := strings.Join([]string{`&RefTarget{`,
+		`Repo:` + strings.Replace(strings.Replace(this.Repo.String(), "Repository", "Repository", 1), `&`, ``, 1) + `,`,
+		`TargetRevision:` + fmt.Sprintf("%v", this.TargetRevision) + `,`,
+		`Chart:` + fmt.Sprintf("%v", this.Chart) + `,`,
+		`}`,
+	}, "")
+	return s
+}
+func (this *RepoCreds) String() string {
 	if this == nil {
 		return "nil"
 	}
@@ -16840,6 +16809,11 @@ func (this *RevisionHistory) String() string {
 	if this == nil {
 		return "nil"
 	}
+	repeatedStringForSources := "[]ApplicationSource{"
+	for _, f := range this.Sources {
+		repeatedStringForSources += strings.Replace(strings.Replace(f.String(), "ApplicationSource", "ApplicationSource", 1), `&`, ``, 1) + ","
+	}
+	repeatedStringForSources += "}"
 	s := strings.Join([]string{`&RevisionHistory{`,
 		`Revision:` + fmt.Sprintf("%v", this.Revision) + `,`,
 		`DeployedAt:` + strings.Replace(strings.Replace(fmt.Sprintf("%v", this.DeployedAt), "Time", "v1.Time", 1), `&`, ``, 1) + `,`,
@@ -17016,6 +16990,11 @@ func (this *SyncOperation) String() string {
 		repeatedStringForResources += strings.Replace(strings.Replace(f.String(), "SyncOperationResource", "SyncOperationResource", 1), `&`, ``, 1) + ","
 	}
 	repeatedStringForResources += "}"
+	repeatedStringForSources := "[]ApplicationSource{"
+	for _, f := range this.Sources {
+		repeatedStringForSources += strings.Replace(strings.Replace(f.String(), "ApplicationSource", "ApplicationSource", 1), `&`, ``, 1) + ","
+	}
+	repeatedStringForSources += "}"
 	s := strings.Join([]string{`&SyncOperation{`,
 		`Revision:` + fmt.Sprintf("%v", this.Revision) + `,`,
 		`Prune:` + fmt.Sprintf("%v", this.Prune) + `,`,
@@ -17053,10 +17032,17 @@ func (this *SyncOperationResult) String() string {
 		repeatedStringForResources += strings.Replace(f.String(), "ResourceResult", "ResourceResult", 1) + ","
 	}
 	repeatedStringForResources += "}"
+	repeatedStringForSources := "[]ApplicationSource{"
+	for _, f := range this.Sources {
+		repeatedStringForSources += strings.Replace(strings.Replace(f.String(), "ApplicationSource", "ApplicationSource", 1), `&`, ``, 1) + ","
+	}
+	repeatedStringForSources += "}"
 	s := strings.Join([]string{`&SyncOperationResult{`,
 		`Resources:` + repeatedStringForResources + `,`,
 		`Revision:` + fmt.Sprintf("%v", this.Revision) + `,`,
 		`Source:` + strings.Replace(strings.Replace(this.Source.String(), "ApplicationSource", "ApplicationSource", 1), `&`, ``, 1) + `,`,
+		`Sources:` + repeatedStringForSources + `,`,
+		`Revisions:` + fmt.Sprintf("%v", this.Revisions) + `,`,
 		`}`,
 	}, "")
 	return s
@@ -17094,6 +17080,7 @@ func (this *SyncStatus) String() string {
 		`Status:` + fmt.Sprintf("%v", this.Status) + `,`,
 		`ComparedTo:` + strings.Replace(strings.Replace(this.ComparedTo.String(), "ComparedTo", "ComparedTo", 1), `&`, ``, 1) + `,`,
 		`Revision:` + fmt.Sprintf("%v", this.Revision) + `,`,
+		`Revisions:` + fmt.Sprintf("%v", this.Revisions) + `,`,
 		`}`,
 	}, "")
 	return s
@@ -21437,6 +21424,38 @@ func (m *ApplicationSource) Unmarshal(dAtA []byte) error {
 			}
 			m.Chart = string(dAtA[iNdEx:postIndex])
 			iNdEx = postIndex
+		case 13:
+			if wireType != 2 {
+				return fmt.Errorf("proto: wrong wireType = %d for field Ref", wireType)
+			}
+			var stringLen uint64
+			for shift := uint(0); ; shift += 7 {
+				if shift >= 64 {
+					return ErrIntOverflowGenerated
+				}
+				if iNdEx >= l {
+					return io.ErrUnexpectedEOF
+				}
+				b := dAtA[iNdEx]
+				iNdEx++
+				stringLen |= uint64(b&0x7F) << shift
+				if b < 0x80 {
+					break
+				}
+			}
+			intStringLen := int(stringLen)
+			if intStringLen < 0 {
+				return ErrInvalidLengthGenerated
+			}
+			postIndex := iNdEx + intStringLen
+			if postIndex < 0 {
+				return ErrInvalidLengthGenerated
+			}
+			if postIndex > l {
+				return io.ErrUnexpectedEOF
+			}
+			m.Ref = string(dAtA[iNdEx:postIndex])
+			iNdEx = postIndex
 		default:
 			iNdEx = preIndex
 			skippy, err := skipGenerated(dAtA[iNdEx:])
@@ -23231,6 +23250,40 @@ func (m *ApplicationSpec) Unmarshal(dAtA []byte) error {
 				}
 			}
 			m.RevisionHistoryLimit = &v
+		case 8:
+			if wireType != 2 {
+				return fmt.Errorf("proto: wrong wireType = %d for field Sources", wireType)
+			}
+			var msglen int
+			for shift := uint(0); ; shift += 7 {
+				if shift >= 64 {
+					return ErrIntOverflowGenerated
+				}
+				if iNdEx >= l {
+					return io.ErrUnexpectedEOF
+				}
+				b := dAtA[iNdEx]
+				iNdEx++
+				msglen |= int(b&0x7F) << shift
+				if b < 0x80 {
+					break
+				}
+			}
+			if msglen < 0 {
+				return ErrInvalidLengthGenerated
+			}
+			postIndex := iNdEx + msglen
+			if postIndex < 0 {
+				return ErrInvalidLengthGenerated
+			}
+			if postIndex > l {
+				return io.ErrUnexpectedEOF
+			}
+			m.Sources = append(m.Sources, ApplicationSource{})
+			if err := m.Sources[len(m.Sources)-1].Unmarshal(dAtA[iNdEx:postIndex]); err != nil {
+				return err
+			}
+			iNdEx = postIndex
 		default:
 			iNdEx = preIndex
 			skippy, err := skipGenerated(dAtA[iNdEx:])
@@ -26119,6 +26172,40 @@ func (m *ComparedTo) Unmarshal(dAtA []byte) error {
 				return io.ErrUnexpectedEOF
 			}
 			if err := m.Destination.Unmarshal(dAtA[iNdEx:postIndex]); err != nil {
+				return err
+			}
+			iNdEx = postIndex
+		case 3:
+			if wireType != 2 {
+				return fmt.Errorf("proto: wrong wireType = %d for field Sources", wireType)
+			}
+			var msglen int
+			for shift := uint(0); ; shift += 7 {
+				if shift >= 64 {
+					return ErrIntOverflowGenerated
+				}
+				if iNdEx >= l {
+					return io.ErrUnexpectedEOF
+				}
+				b := dAtA[iNdEx]
+				iNdEx++
+				msglen |= int(b&0x7F) << shift
+				if b < 0x80 {
+					break
+				}
+			}
+			if msglen < 0 {
+				return ErrInvalidLengthGenerated
+			}
+			postIndex := iNdEx + msglen
+			if postIndex < 0 {
+				return ErrInvalidLengthGenerated
+			}
+			if postIndex > l {
+				return io.ErrUnexpectedEOF
+			}
+			m.Sources = append(m.Sources, ApplicationSource{})
+			if err := m.Sources[len(m.Sources)-1].Unmarshal(dAtA[iNdEx:postIndex]); err != nil {
 				return err
 			}
 			iNdEx = postIndex
@@ -32933,6 +33020,153 @@ func (m *PullRequestGeneratorGithub) Unmarshal(dAtA []byte) error {
 				return io.ErrUnexpectedEOF
 			}
 			m.Labels = append(m.Labels, string(dAtA[iNdEx:postIndex]))
+			iNdEx = postIndex
+		default:
+			iNdEx = preIndex
+			skippy, err := skipGenerated(dAtA[iNdEx:])
+			if err != nil {
+				return err
+			}
+			if (skippy < 0) || (iNdEx+skippy) < 0 {
+				return ErrInvalidLengthGenerated
+			}
+			if (iNdEx + skippy) > l {
+				return io.ErrUnexpectedEOF
+			}
+			iNdEx += skippy
+		}
+	}
+
+	if iNdEx > l {
+		return io.ErrUnexpectedEOF
+	}
+	return nil
+}
+func (m *RefTarget) Unmarshal(dAtA []byte) error {
+	l := len(dAtA)
+	iNdEx := 0
+	for iNdEx < l {
+		preIndex := iNdEx
+		var wire uint64
+		for shift := uint(0); ; shift += 7 {
+			if shift >= 64 {
+				return ErrIntOverflowGenerated
+			}
+			if iNdEx >= l {
+				return io.ErrUnexpectedEOF
+			}
+			b := dAtA[iNdEx]
+			iNdEx++
+			wire |= uint64(b&0x7F) << shift
+			if b < 0x80 {
+				break
+			}
+		}
+		fieldNum := int32(wire >> 3)
+		wireType := int(wire & 0x7)
+		if wireType == 4 {
+			return fmt.Errorf("proto: RefTarget: wiretype end group for non-group")
+		}
+		if fieldNum <= 0 {
+			return fmt.Errorf("proto: RefTarget: illegal tag %d (wire type %d)", fieldNum, wire)
+		}
+		switch fieldNum {
+		case 1:
+			if wireType != 2 {
+				return fmt.Errorf("proto: wrong wireType = %d for field Repo", wireType)
+			}
+			var msglen int
+			for shift := uint(0); ; shift += 7 {
+				if shift >= 64 {
+					return ErrIntOverflowGenerated
+				}
+				if iNdEx >= l {
+					return io.ErrUnexpectedEOF
+				}
+				b := dAtA[iNdEx]
+				iNdEx++
+				msglen |= int(b&0x7F) << shift
+				if b < 0x80 {
+					break
+				}
+			}
+			if msglen < 0 {
+				return ErrInvalidLengthGenerated
+			}
+			postIndex := iNdEx + msglen
+			if postIndex < 0 {
+				return ErrInvalidLengthGenerated
+			}
+			if postIndex > l {
+				return io.ErrUnexpectedEOF
+			}
+			if err := m.Repo.Unmarshal(dAtA[iNdEx:postIndex]); err != nil {
+				return err
+			}
+			iNdEx = postIndex
+		case 2:
+			if wireType != 2 {
+				return fmt.Errorf("proto: wrong wireType = %d for field TargetRevision", wireType)
+			}
+			var stringLen uint64
+			for shift := uint(0); ; shift += 7 {
+				if shift >= 64 {
+					return ErrIntOverflowGenerated
+				}
+				if iNdEx >= l {
+					return io.ErrUnexpectedEOF
+				}
+				b := dAtA[iNdEx]
+				iNdEx++
+				stringLen |= uint64(b&0x7F) << shift
+				if b < 0x80 {
+					break
+				}
+			}
+			intStringLen := int(stringLen)
+			if intStringLen < 0 {
+				return ErrInvalidLengthGenerated
+			}
+			postIndex := iNdEx + intStringLen
+			if postIndex < 0 {
+				return ErrInvalidLengthGenerated
+			}
+			if postIndex > l {
+				return io.ErrUnexpectedEOF
+			}
+			m.TargetRevision = string(dAtA[iNdEx:postIndex])
+			iNdEx = postIndex
+		case 3:
+			if wireType != 2 {
+				return fmt.Errorf("proto: wrong wireType = %d for field Chart", wireType)
+			}
+			var stringLen uint64
+			for shift := uint(0); ; shift += 7 {
+				if shift >= 64 {
+					return ErrIntOverflowGenerated
+				}
+				if iNdEx >= l {
+					return io.ErrUnexpectedEOF
+				}
+				b := dAtA[iNdEx]
+				iNdEx++
+				stringLen |= uint64(b&0x7F) << shift
+				if b < 0x80 {
+					break
+				}
+			}
+			intStringLen := int(stringLen)
+			if intStringLen < 0 {
+				return ErrInvalidLengthGenerated
+			}
+			postIndex := iNdEx + intStringLen
+			if postIndex < 0 {
+				return ErrInvalidLengthGenerated
+			}
+			if postIndex > l {
+				return io.ErrUnexpectedEOF
+			}
+			m.Chart = string(dAtA[iNdEx:postIndex])
 			iNdEx = postIndex
 		default:
 			iNdEx = preIndex
@@ -40560,72 +40794,6 @@ func (m *SyncOperation) Unmarshal(dAtA []byte) error {
 			}
 			m.Revisions = append(m.Revisions, string(dAtA[iNdEx:postIndex]))
 			iNdEx = postIndex
-		case 10:
-			if wireType != 2 {
-				return fmt.Errorf("proto: wrong wireType = %d for field Sources", wireType)
-			}
-			var msglen int
-			for shift := uint(0); ; shift += 7 {
-				if shift >= 64 {
-					return ErrIntOverflowGenerated
-				}
-				if iNdEx >= l {
-					return io.ErrUnexpectedEOF
-				}
-				b := dAtA[iNdEx]
-				iNdEx++
-				msglen |= int(b&0x7F) << shift
-				if b < 0x80 {
-					break
-				}
-			}
-			if msglen < 0 {
-				return ErrInvalidLengthGenerated
-			}
-			postIndex := iNdEx + msglen
-			if postIndex < 0 {
-				return ErrInvalidLengthGenerated
-			}
-			if postIndex > l {
-				return io.ErrUnexpectedEOF
-			}
-			m.Sources = append(m.Sources, ApplicationSource{})
-			if err := m.Sources[len(m.Sources)-1].Unmarshal(dAtA[iNdEx:postIndex]); err != nil {
-				return err
-			}
-			iNdEx = postIndex
-		case 11:
-			if wireType != 2 {
-				return fmt.Errorf("proto: wrong wireType = %d for field Revisions", wireType)
-			}
-			var stringLen uint64
-			for shift := uint(0); ; shift += 7 {
-				if shift >= 64 {
-					return ErrIntOverflowGenerated
-				}
-				if iNdEx >= l {
-					return io.ErrUnexpectedEOF
-				}
-				b := dAtA[iNdEx]
-				iNdEx++
-				stringLen |= uint64(b&0x7F) << shift
-				if b < 0x80 {
-					break
-				}
-			}
-			intStringLen := int(stringLen)
-			if intStringLen < 0 {
-				return ErrInvalidLengthGenerated
-			}
-			postIndex := iNdEx + intStringLen
-			if postIndex < 0 {
-				return ErrInvalidLengthGenerated
-			}
-			if postIndex > l {
-				return io.ErrUnexpectedEOF
-			}
-			m.Revisions = append(m.Revisions, string(dAtA[iNdEx:postIndex]))
-			iNdEx = postIndex
 		default:
 			iNdEx = preIndex
 			skippy, err := skipGenerated(dAtA[iNdEx:])
@@ -41018,39 +41186,6 @@ func (m *SyncOperationResult) Unmarshal(dAtA []byte) error {
 				return io.ErrUnexpectedEOF
 			}
 			m.Revisions = append(m.Revisions, string(dAtA[iNdEx:postIndex]))
-			iNdEx = postIndex
-		case 3:
-			if wireType != 2 {
-				return fmt.Errorf("proto: wrong wireType = %d for field Source", wireType)
-			}
-			var msglen int
-			for shift := uint(0); ; shift += 7 {
-				if shift >= 64 {
-					return ErrIntOverflowGenerated
-				}
-				if iNdEx >= l {
-					return io.ErrUnexpectedEOF
-				}
-				b := dAtA[iNdEx]
-				iNdEx++
-				msglen |= int(b&0x7F) << shift
-				if b < 0x80 {
-					break
-				}
-			}
-			if msglen < 0 {
-				return ErrInvalidLengthGenerated
-			}
-			postIndex := iNdEx + msglen
-			if postIndex < 0 {
-				return ErrInvalidLengthGenerated
-			}
-			if postIndex > l {
-				return io.ErrUnexpectedEOF
-			}
-			if err := m.Source.Unmarshal(dAtA[iNdEx:postIndex]); err != nil {
-				return err
-			}
 			iNdEx = postIndex
 		default:
 			iNdEx = preIndex
@@ -41498,6 +41633,38 @@ func (m *SyncStatus) Unmarshal(dAtA []byte) error {
 				return io.ErrUnexpectedEOF
 			}
 			m.Revision = string(dAtA[iNdEx:postIndex])
+			iNdEx = postIndex
+		case 4:
+			if wireType != 2 {
+				return fmt.Errorf("proto: wrong wireType = %d for field Revisions", wireType)
+			}
+			var stringLen uint64
+			for shift := uint(0); ; shift += 7 {
+				if shift >= 64 {
+					return ErrIntOverflowGenerated
+				}
+				if iNdEx >= l {
+					return io.ErrUnexpectedEOF
+				}
+				b := dAtA[iNdEx]
+				iNdEx++
+				stringLen |= uint64(b&0x7F) << shift
+				if b < 0x80 {
+					break
+				}
+			}
+			intStringLen := int(stringLen)
+			if intStringLen < 0 {
+				return ErrInvalidLengthGenerated
+			}
+			postIndex := iNdEx + intStringLen
+			if postIndex < 0 {
+				return ErrInvalidLengthGenerated
+			}
+			if postIndex > l {
+				return io.ErrUnexpectedEOF
+			}
+			m.Revisions = append(m.Revisions, string(dAtA[iNdEx:postIndex]))
 			iNdEx = postIndex
 		default:
 			iNdEx = preIndex

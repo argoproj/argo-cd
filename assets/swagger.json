@@ -6136,13 +6136,6 @@
             "type": "string"
           }
         },
-        "sourceTypes": {
-          "type": "array",
-          "title": "SourceTypes specifies the type of the sources included in the application",
-          "items": {
-            "type": "string"
-          }
-        },
         "summary": {
           "$ref": "#/definitions/v1alpha1ApplicationSummary"
         },
