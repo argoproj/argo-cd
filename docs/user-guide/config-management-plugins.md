@@ -20,47 +20,15 @@ The following sections will describe how to create, install, and use plugins. Ch
 
 There are two ways to install a Config Management Plugin:
 
-1. Add the plugin config to the Argo CD ConfigMap (**this method is deprecated and will be removed in a future 
+1. Add the plugin as a sidecar to the repo-server Pod.
+   This is a good option for a more complex plugin that would clutter the Argo CD ConfigMap. A copy of the repository is
+   sent to the sidecar container as a tarball and processed individually per application, which makes it a good option
+   for [concurrent processing of monorepos](../operator-manual/high_availability.md#enable-concurrent-processing).
+2. Add the plugin config to the Argo CD ConfigMap (**this method is deprecated and will be removed in a future 
    version**). The repo-server container will run your plugin's commands. This is a good option for a simple plugin that
    requires only a few lines of code that fit nicely in the Argo CD ConfigMap.
-2. Add the plugin as a sidecar to the repo-server Pod.
-   This is a good option for a more complex plugin that would clutter the Argo CD ConfigMap. A copy of the repository is 
-   sent to the sidecar container as a tarball and processed individually per application, which makes it a good option 
-   for [concurrent processing of monorepos](../operator-manual/high_availability.md#enable-concurrent-processing).
 
-### Option 1: Configure plugins via Argo CD configmap (deprecated)
-
-The following changes are required to configure a new plugin:
-
-1. Make sure required binaries are available in `argocd-repo-server` pod. The binaries can be added via volume mounts or 
-   using a custom image (see [custom_tools](../operator-manual/custom_tools.md) for examples of both).
-2. Register a new plugin in `argocd-cm` ConfigMap:
-
-        :::yaml
-        data:
-          configManagementPlugins: |
-            - name: pluginName
-              init:                          # Optional command to initialize application source directory
-                command: ["sample command"]
-                args: ["sample args"]
-              generate:                      # Command to generate manifests YAML
-                command: ["sample command"]
-                args: ["sample args"]
-              lockRepo: true                 # Defaults to false. See below.
-    
-    The `generate` command must print a valid YAML or JSON stream to stdout. Both `init` and `generate` commands are executed inside the application source directory or in `path` when specified for the app.
-
-3. [Create an Application which uses your new CMP](#using-a-cmp).
-
-More CMP examples are available in [argocd-example-apps](https://github.com/argoproj/argocd-example-apps/tree/master/plugins).
-
-!!!note "Repository locking"
-    If your plugin makes use of `git` (e.g. `git crypt`), it is advised to set
-    `lockRepo` to `true` so that your plugin will have exclusive access to the
-    repository at the time it is executed. Otherwise, two applications synced
-    at the same time may result in a race condition and sync failure.
-
-### Option 2: Configure plugin via sidecar
+### Option 1: Configure plugin via sidecar
 
 An operator can configure a plugin tool via a sidecar to repo-server. The following changes are required to configure a new plugin:
 
@@ -241,6 +209,37 @@ volumes:
     2. Make sure that sidecar container is running as user 999.
     3. Make sure that plugin configuration file is present at `/home/argocd/cmp-server/config/plugin.yaml`. It can either be volume mapped via configmap or baked into image.
 
+### Option 2: Configure plugins via Argo CD configmap (deprecated)
+
+The following changes are required to configure a new plugin:
+
+1. Make sure required binaries are available in `argocd-repo-server` pod. The binaries can be added via volume mounts or
+   using a custom image (see [custom_tools](../operator-manual/custom_tools.md) for examples of both).
+2. Register a new plugin in `argocd-cm` ConfigMap:
+
+        data:
+          configManagementPlugins: |
+            - name: pluginName
+              init:                          # Optional command to initialize application source directory
+                command: ["sample command"]
+                args: ["sample args"]
+              generate:                      # Command to generate manifests YAML
+                command: ["sample command"]
+                args: ["sample args"]
+              lockRepo: true                 # Defaults to false. See below.
+   
+    The `generate` command must print a valid YAML or JSON stream to stdout. Both `init` and `generate` commands are executed inside the application source directory or in `path` when specified for the app.
+
+3. [Create an Application which uses your new CMP](#using-a-cmp).
+
+More CMP examples are available in [argocd-example-apps](https://github.com/argoproj/argocd-example-apps/tree/master/plugins).
+
+!!!note "Repository locking"
+    If your plugin makes use of `git` (e.g. `git crypt`), it is advised to set
+    `lockRepo` to `true` so that your plugin will have exclusive access to the
+    repository at the time it is executed. Otherwise, two applications synced
+    at the same time may result in a race condition and sync failure.
+
 ### Using environment variables in your plugin
 
 Plugin commands have access to
@@ -249,81 +248,72 @@ Plugin commands have access to
 2. [Standard build environment variables](build-environment.md)
 3. Variables in the Application spec (References to system and build variables will get interpolated in the variables' values):
 
-```yaml
-apiVersion: argoproj.io/v1alpha1
-kind: Application
-spec:
-  source:
-    plugin:
-      env:
-        - name: FOO
-          value: bar
-        - name: REV
-          value: test-$ARGOCD_APP_REVISION
-```
-
-!!! note
-    The `discover.command` command only has access to the above environment starting with v2.4.
-
-Before reaching the `init.command`, `generate.command`, and `discover.command` commands, Argo CD prefixes all 
-user-supplied environment variables (#3 above) with `ARGOCD_ENV_`. This prevents users from directly setting 
-potentially-sensitive environment variables.
-
-If your plugin was written before 2.4 and depends on user-supplied environment variables, then you will need to update
-your plugin's behavior to work with 2.4. If you use a third-party plugin, make sure they explicitly advertise support
-for 2.4.
-
-4. (Starting in v2.4) Parameters in the Application spec:
-
-```yaml
-apiVersion: argoproj.io/v1alpha1
-kind: Application
-spec:
- source:
-   plugin:
-     parameters:
-       - name: values-files
-         array: [values-dev.yaml]
-       - name: helm-parameters
-         map:
-           image.tag: v1.2.3
-```
-
-The parameters are available as JSON in the `ARGOCD_APP_PARAMETERS` environment variable. The example above would
-produce this JSON:
-
-```json
-[{"name": "values-files", "array": ["values-dev.yaml"]}, {"name": "helm-parameters", "map": {"image.tag": "v1.2.3"}}]
-```
-
-!!! note
-    Parameter announcements, even if they specify defaults, are _not_ sent to the plugin in `ARGOCD_APP_PARAMETERS`.
-    Only parameters explicitly set in the Application spec are sent to the plugin. It is up to the plugin to apply
-    the same defaults as the ones announced to the UI.
-
-The same parameters are also available as individual environment variables. The names of the environment variables
-follows this convention:
-
-```yaml
-   - name: some-string-param
-     string: some-string-value
-   # PARAM_SOME_STRING_PARAM=some-string-value
+        apiVersion: argoproj.io/v1alpha1
+        kind: Application
+        spec:
+          source:
+            plugin:
+              env:
+                - name: FOO
+                  value: bar
+                - name: REV
+                  value: test-$ARGOCD_APP_REVISION
    
-   - name: some-array-param
-     value: [item1, item2]
-   # PARAM_SOME_ARRAY_PARAM_0=item1
-   # PARAM_SOME_ARRAY_PARAM_1=item2
-   
-   - name: some-map-param
-     map:
-       image.tag: v1.2.3
-   # PARAM_SOME_MAP_PARAM_IMAGE_TAG=v1.2.3
-```
+    !!! note
+        The `discover.find.command` command only has access to the above environment starting with v2.4.
+    
+    Before reaching the `init.command`, `generate.command`, and `discover.find.command` commands, Argo CD prefixes all 
+    user-supplied environment variables (#3 above) with `ARGOCD_ENV_`. This prevents users from directly setting 
+    potentially-sensitive environment variables.
+    
+    If your plugin was written before 2.4 and depends on user-supplied environment variables, then you will need to update
+    your plugin's behavior to work with 2.4. If you use a third-party plugin, make sure they explicitly advertise support
+    for 2.4.
 
-!!! warning 
-    Sanitize/escape user input. As part of Argo CD's manifest generation system, config management plugins are treated with a level of trust. Be
+4. (Starting in v2.6) Parameters in the Application spec:
+
+        apiVersion: argoproj.io/v1alpha1
+        kind: Application
+        spec:
+         source:
+           plugin:
+             parameters:
+               - name: values-files
+                 array: [values-dev.yaml]
+               - name: helm-parameters
+                 map:
+                   image.tag: v1.2.3
+   
+    The parameters are available as JSON in the `ARGOCD_APP_PARAMETERS` environment variable. The example above would
+    produce this JSON:
+   
+        [{"name": "values-files", "array": ["values-dev.yaml"]}, {"name": "helm-parameters", "map": {"image.tag": "v1.2.3"}}]
+   
+    !!! note
+        Parameter announcements, even if they specify defaults, are _not_ sent to the plugin in `ARGOCD_APP_PARAMETERS`.
+        Only parameters explicitly set in the Application spec are sent to the plugin. It is up to the plugin to apply
+        the same defaults as the ones announced to the UI.
+   
+    The same parameters are also available as individual environment variables. The names of the environment variables
+    follows this convention:
+   
+           - name: some-string-param
+             string: some-string-value
+           # PARAM_SOME_STRING_PARAM=some-string-value
+           
+           - name: some-array-param
+             value: [item1, item2]
+           # PARAM_SOME_ARRAY_PARAM_0=item1
+           # PARAM_SOME_ARRAY_PARAM_1=item2
+           
+           - name: some-map-param
+             map:
+               image.tag: v1.2.3
+           # PARAM_SOME_MAP_PARAM_IMAGE_TAG=v1.2.3
+   
+!!! warning "Sanitize/escape user input" 
+    As part of Argo CD's manifest generation system, config management plugins are treated with a level of trust. Be
     sure to escape user input in your plugin to prevent malicious input from causing unwanted behavior.
-
 
 ## Using a config management plugin with an Application
 
