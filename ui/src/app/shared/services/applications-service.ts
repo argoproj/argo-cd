@@ -390,6 +390,13 @@ export class ApplicationsService {
             .then(() => true);
     }
 
+    public getLinks(applicationName: string): Promise<models.LinksResponse> {
+        return requests
+            .get(`/applications/${applicationName}/links`)
+            .send()
+            .then(res => res.body as models.LinksResponse);
+    }
+
     private getLogsQuery(
         namespace: string,
         appNamespace: string,

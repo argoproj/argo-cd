@@ -1,4 +1,4 @@
-import {AutocompleteField, DropDownMenu, ErrorNotification, FormField, FormSelect, HelpIcon, NotificationType} from 'argo-ui';
+import {AutocompleteField, DropDownMenu, ErrorNotification, FormField, FormSelect, HelpIcon, NotificationType, Tooltip} from 'argo-ui';
 import * as React from 'react';
 import {FormApi, Text} from 'react-form';
 import {
@@ -292,6 +292,26 @@ export const ApplicationSummary = (props: ApplicationSummaryProps) => {
                 <span>
                     <HealthStatusIcon state={app.status.health} /> {app.status.health.status}
                 </span>
+            )
+        },
+        {
+            title: 'LINKS',
+            view: (
+                <DataLoader load={() => services.applications.getLinks(app.metadata.name)} input={app} key='appLinks'>
+                    {(links: models.LinksResponse) => (
+                        <div style={{margin: '10px 0'}}>
+                            {(links?.items || []).map(link => (
+                                <div key={link.title} style={{display: 'flex', alignItems: 'center', height: '35px'}}>
+                                    <a href={link.url} target='_blank' style={{display: 'flex', alignItems: 'center', marginRight: '7px'}}>
+                                        <i className='fa fa-external-link-alt' style={{marginRight: '5px'}} />
+                                        <div>{link.title}</div>
+                                    </a>
+                                    {link.description && <>({link.description})</>}
+                                </div>
+                            ))}
+                        </div>
+                    )}
+                </DataLoader>
             )
         }
     ];
