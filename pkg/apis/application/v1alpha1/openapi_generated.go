@@ -80,6 +80,7 @@ func GetOpenAPIDefinitions(ref common.ReferenceCallback) map[string]common.OpenA
 		"github.com/argoproj/argo-cd/v2/pkg/apis/application/v1alpha1.JsonnetVar":                          schema_pkg_apis_application_v1alpha1_JsonnetVar(ref),
 		"github.com/argoproj/argo-cd/v2/pkg/apis/application/v1alpha1.KnownTypeField":                      schema_pkg_apis_application_v1alpha1_KnownTypeField(ref),
 		"github.com/argoproj/argo-cd/v2/pkg/apis/application/v1alpha1.KustomizeOptions":                    schema_pkg_apis_application_v1alpha1_KustomizeOptions(ref),
+		"github.com/argoproj/argo-cd/v2/pkg/apis/application/v1alpha1.KustomizeReplica":                    schema_pkg_apis_application_v1alpha1_KustomizeReplica(ref),
 		"github.com/argoproj/argo-cd/v2/pkg/apis/application/v1alpha1.ListGenerator":                       schema_pkg_apis_application_v1alpha1_ListGenerator(ref),
 		"github.com/argoproj/argo-cd/v2/pkg/apis/application/v1alpha1.ManagedNamespaceMetadata":            schema_pkg_apis_application_v1alpha1_ManagedNamespaceMetadata(ref),
 		"github.com/argoproj/argo-cd/v2/pkg/apis/application/v1alpha1.MatrixGenerator":                     schema_pkg_apis_application_v1alpha1_MatrixGenerator(ref),
@@ -1528,9 +1529,8 @@ func schema_pkg_apis_application_v1alpha1_ApplicationSourceKustomize(ref common.
 							Items: &spec.SchemaOrArray{
 								Schema: &spec.Schema{
 									SchemaProps: spec.SchemaProps{
-										Default: "",
-										Type:    []string{"string"},
-										Format:  "",
+										Default: map[string]interface{}{},
+										Ref:     ref("github.com/argoproj/argo-cd/v2/pkg/apis/application/v1alpha1.KustomizeReplica"),
 									},
 								},
 							},
@@ -1539,6 +1539,8 @@ func schema_pkg_apis_application_v1alpha1_ApplicationSourceKustomize(ref common.
 				},
 			},
 		},
+		Dependencies: []string{
+			"github.com/argoproj/argo-cd/v2/pkg/apis/application/v1alpha1.KustomizeReplica"},
 	}
 }
 
@@ -3329,6 +3331,32 @@ func schema_pkg_apis_application_v1alpha1_KustomizeOptions(ref common.ReferenceC
 					},
 				},
 				Required: []string{"BuildOptions", "BinaryPath"},
+			},
+		},
+	}
+}
+
+func schema_pkg_apis_application_v1alpha1_KustomizeReplica(ref common.ReferenceCallback) common.OpenAPIDefinition {
+	return common.OpenAPIDefinition{
+		Schema: spec.Schema{
+			SchemaProps: spec.SchemaProps{
+				Type: []string{"object"},
+				Properties: map[string]spec.Schema{
+					"name": {
+						SchemaProps: spec.SchemaProps{
+							Description: "Name of Deployment or StatefulSet",
+							Type:        []string{"string"},
+							Format:      "",
+						},
+					},
+					"count": {
+						SchemaProps: spec.SchemaProps{
+							Description: "Number of replicas",
+							Type:        []string{"integer"},
+							Format:      "int64",
+						},
+					},
+				},
 			},
 		},
 	}

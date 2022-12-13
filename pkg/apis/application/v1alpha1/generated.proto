@@ -413,7 +413,7 @@ message ApplicationSourceKustomize {
   optional bool forceCommonAnnotations = 8;
 
   // Replicas is a list of Kustomize Replicas override specifications
-  repeated string replicas = 9;
+  repeated KustomizeReplica replicas = 9;
 }
 
 // ApplicationSourcePlugin holds options specific to config management plugins
@@ -936,6 +936,14 @@ message KustomizeOptions {
 
   // BinaryPath holds optional path to kustomize binary
   optional string binaryPath = 2;
+}
+
+message KustomizeReplica {
+  // Name of Deployment or StatefulSet
+  optional string name = 1;
+
+  // Number of replicas
+  optional int64 count = 2;
 }
 
 // ListGenerator include items info

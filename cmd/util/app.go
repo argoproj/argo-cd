@@ -363,9 +363,14 @@ func setKustomizeOpt(src *argoappv1.ApplicationSource, opts kustomizeOpts) {
 	for _, image := range opts.images {
 		src.Kustomize.MergeImage(argoappv1.KustomizeImage(image))
 	}
-	if len(opts.replicas) > 0 {
-		src.Kustomize.Replicas = opts.replicas
+	for _, replica := range opts.replicas {
+		r, err := argoappv1.NewKusomizeReplica(replica)
+		if err != nil {
+			log.Fatal(err)
+		}
+		src.Kustomize.MergeReplica(*r)
 	}
+
 	if src.Kustomize.IsZero() {
 		src.Kustomize = nil
 	}

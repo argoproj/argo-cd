@@ -1315,6 +1315,45 @@ func TestNewHelmParameter(t *testing.T) {
 	})
 }
 
+func TestNewKustomizeReplica(t *testing.T) {
+	t.Run("Valid", func(t *testing.T) {
+		r, err := NewKusomizeReplica("my-deployment=2")
+		assert.NoError(t, err)
+		assert.Equal(t, &KustomizeReplica{Name: "my-deployment", Count: 2}, r)
+	})
+	t.Run("InvalidFormat", func(t *testing.T) {
+		_, err := NewKusomizeReplica("garbage")
+		assert.EqualError(t, err, "expected parameter of the form: name=count. Received: garbage")
+	})
+	t.Run("InvalidCount", func(t *testing.T) {
+		_, err := NewKusomizeReplica("my-deployment=garbage")
+		assert.EqualError(t, err, "expected integer value for count. Received: garbage")
+	})
+}
+
+func TestApplicationSourceKustomize_MergeReplica(t *testing.T) {
+	r1 := KustomizeReplica{
+		Name:  "my-deployment",
+		Count: 2,
+	}
+	r2 := KustomizeReplica{
+		Name:  "my-deployment",
+		Count: 4,
+	}
+	t.Run("Add", func(t *testing.T) {
+		r := ApplicationSourceKustomize{Replicas: KustomizeReplicas{}}
+		r.MergeReplica(r1)
+		assert.Equal(t, KustomizeReplicas{r1}, r.Replicas)
+	})
+	t.Run("Replace", func(t *testing.T) {
+		k := ApplicationSourceKustomize{Replicas: KustomizeReplicas{r1}}
+		k.MergeReplica(r2)
+		assert.Equal(t, 1, len(k.Replicas))
+		assert.Equal(t, k.Replicas[0].Name, r2.Name)
+		assert.Equal(t, k.Replicas[0].Count, r2.Count)
+	})
+}
+
 func TestApplicationSourceHelm_IsZero(t *testing.T) {
 	tests := []struct {
 		name   string
@@ -1346,7 +1385,7 @@ func TestApplicationSourceKustomize_IsZero(t *testing.T) {
 		{"NamePrefix", &ApplicationSourceKustomize{NamePrefix: "foo"}, false},
 		{"NameSuffix", &ApplicationSourceKustomize{NameSuffix: "foo"}, false},
 		{"Images", &ApplicationSourceKustomize{Images: []KustomizeImage{""}}, false},
-		{"Replicas", &ApplicationSourceKustomize{Replicas: []string{""}}, false},
+		{"Replicas", &ApplicationSourceKustomize{Replicas: []KustomizeReplica{{Name: "", Count: 0}}}, false},
 		{"CommonLabels", &ApplicationSourceKustomize{CommonLabels: map[string]string{"": ""}}, false},
 		{"CommonAnnotations", &ApplicationSourceKustomize{CommonAnnotations: map[string]string{"": ""}}, false},
 	}

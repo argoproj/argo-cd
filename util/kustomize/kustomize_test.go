@@ -49,7 +49,16 @@ func TestKustomizeBuild(t *testing.T) {
 			"app.kubernetes.io/managed-by": "argo-cd",
 			"app.kubernetes.io/part-of":    "argo-cd-tests",
 		},
-		Replicas: []string{"nginx-deployment=2", "web=4"},
+		Replicas: []v1alpha1.KustomizeReplica{
+			{
+				Name:  "nginx-deployment",
+				Count: 2,
+			},
+			{
+				Name:  "web",
+				Count: 4,
+			},
+		},
 	}
 	objs, images, err := kustomize.Build(&kustomizeSource, nil, nil)
 	assert.Nil(t, err)

@@ -5979,7 +5979,7 @@
           "type": "array",
           "title": "Replicas is a list of Kustomize Replicas override specifications",
           "items": {
-            "type": "string"
+            "$ref": "#/definitions/v1alpha1KustomizeReplica"
           }
         },
         "version": {
@@ -6787,6 +6787,20 @@
         "buildOptions": {
           "type": "string",
           "title": "BuildOptions is a string of build parameters to use when calling `kustomize build`"
+        }
+      }
+    },
+    "v1alpha1KustomizeReplica": {
+      "type": "object",
+      "properties": {
+        "count": {
+          "type": "string",
+          "format": "int64",
+          "title": "Number of replicas"
+        },
+        "name": {
+          "type": "string",
+          "title": "Name of Deployment or StatefulSet"
         }
       }
     },

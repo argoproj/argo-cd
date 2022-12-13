@@ -88,8 +88,18 @@ func Test_setKustomizeOpt(t *testing.T) {
 	})
 	t.Run("Replicas", func(t *testing.T) {
 		src := v1alpha1.ApplicationSource{}
-		testReplicas := []string{"my-deployment=2", "my-statefulset=4"}
-		setKustomizeOpt(&src, kustomizeOpts{replicas: testReplicas})
+		testReplicasString := []string{"my-deployment=2", "my-statefulset=4"}
+		testReplicas := v1alpha1.KustomizeReplicas{
+			{
+				Name:  "my-deployment",
+				Count: 2,
+			},
+			{
+				Name:  "my-statefulset",
+				Count: 4,
+			},
+		}
+		setKustomizeOpt(&src, kustomizeOpts{replicas: testReplicasString})
 		assert.Equal(t, &v1alpha1.ApplicationSourceKustomize{Replicas: testReplicas}, src.Kustomize)
 	})
 	t.Run("Version", func(t *testing.T) {

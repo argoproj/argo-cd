@@ -330,7 +330,15 @@ spec:
                             description: Replicas is a list of Kustomize Replicas
                               override specifications
                             items:
-                              type: string
+                              properties:
+                                count:
+                                  description: Number of replicas
+                                  format: int64
+                                  type: integer
+                                name:
+                                  description: Name of Deployment or StatefulSet
+                                  type: string
+                              type: object
                             type: array
                           version:
                             description: Version controls which version of Kustomize
@@ -705,7 +713,15 @@ spec:
                         description: Replicas is a list of Kustomize Replicas override
                           specifications
                         items:
-                          type: string
+                          properties:
+                            count:
+                              description: Number of replicas
+                              format: int64
+                              type: integer
+                            name:
+                              description: Name of Deployment or StatefulSet
+                              type: string
+                          type: object
                         type: array
                       version:
                         description: Version controls which version of Kustomize to
@@ -1100,7 +1116,15 @@ spec:
                               description: Replicas is a list of Kustomize Replicas
                                 override specifications
                               items:
-                                type: string
+                                properties:
+                                  count:
+                                    description: Number of replicas
+                                    format: int64
+                                    type: integer
+                                  name:
+                                    description: Name of Deployment or StatefulSet
+                                    type: string
+                                type: object
                               type: array
                             version:
                               description: Version controls which version of Kustomize
@@ -1500,7 +1524,15 @@ spec:
                                     description: Replicas is a list of Kustomize Replicas
                                       override specifications
                                     items:
-                                      type: string
+                                      properties:
+                                        count:
+                                          description: Number of replicas
+                                          format: int64
+                                          type: integer
+                                        name:
+                                          description: Name of Deployment or StatefulSet
+                                          type: string
+                                      type: object
                                     type: array
                                   version:
                                     description: Version controls which version of
@@ -1876,7 +1908,15 @@ spec:
                                 description: Replicas is a list of Kustomize Replicas
                                   override specifications
                                 items:
-                                  type: string
+                                  properties:
+                                    count:
+                                      description: Number of replicas
+                                      format: int64
+                                      type: integer
+                                    name:
+                                      description: Name of Deployment or StatefulSet
+                                      type: string
+                                  type: object
                                 type: array
                               version:
                                 description: Version controls which version of Kustomize
@@ -2248,7 +2288,15 @@ spec:
                                 description: Replicas is a list of Kustomize Replicas
                                   override specifications
                                 items:
-                                  type: string
+                                  properties:
+                                    count:
+                                      description: Number of replicas
+                                      format: int64
+                                      type: integer
+                                    name:
+                                      description: Name of Deployment or StatefulSet
+                                      type: string
+                                  type: object
                                 type: array
                               version:
                                 description: Version controls which version of Kustomize
@@ -2600,7 +2648,13 @@ spec:
                                           type: string
                                         replicas:
                                           items:
-                                            type: string
+                                            properties:
+                                              count:
+                                                format: int64
+                                                type: integer
+                                              name:
+                                                type: string
+                                            type: object
                                           type: array
                                         version:
                                           type: string
@@ -2919,7 +2973,13 @@ spec:
                                           type: string
                                         replicas:
                                           items:
-                                            type: string
+                                            properties:
+                                              count:
+                                                format: int64
+                                                type: integer
+                                              name:
+                                                type: string
+                                            type: object
                                           type: array
                                         version:
                                           type: string
@@ -3240,7 +3300,13 @@ spec:
                                           type: string
                                         replicas:
                                           items:
-                                            type: string
+                                            properties:
+                                              count:
+                                                format: int64
+                                                type: integer
+                                              name:
+                                                type: string
+                                            type: object
                                           type: array
                                         version:
                                           type: string
@@ -3537,7 +3603,13 @@ spec:
                                           type: string
                                         replicas:
                                           items:
-                                            type: string
+                                            properties:
+                                              count:
+                                                format: int64
+                                                type: integer
+                                              name:
+                                                type: string
+                                            type: object
                                           type: array
                                         version:
                                           type: string
@@ -3864,7 +3936,13 @@ spec:
                                                     type: string
                                                   replicas:
                                                     items:
-                                                      type: string
+                                                      properties:
+                                                        count:
+                                                          format: int64
+                                                          type: integer
+                                                        name:
+                                                          type: string
+                                                      type: object
                                                     type: array
                                                   version:
                                                     type: string
@@ -4183,7 +4261,13 @@ spec:
                                                     type: string
                                                   replicas:
                                                     items:
-                                                      type: string
+                                                      properties:
+                                                        count:
+                                                          format: int64
+                                                          type: integer
+                                                        name:
+                                                          type: string
+                                                      type: object
                                                     type: array
                                                   version:
                                                     type: string
@@ -4504,7 +4588,13 @@ spec:
                                                     type: string
                                                   replicas:
                                                     items:
-                                                      type: string
+                                                      properties:
+                                                        count:
+                                                          format: int64
+                                                          type: integer
+                                                        name:
+                                                          type: string
+                                                      type: object
                                                     type: array
                                                   version:
                                                     type: string
@@ -4801,7 +4891,13 @@ spec:
                                                     type: string
                                                   replicas:
                                                     items:
-                                                      type: string
+                                                      properties:
+                                                        count:
+                                                          format: int64
+                                                          type: integer
+                                                        name:
+                                                          type: string
+                                                      type: object
                                                     type: array
                                                   version:
                                                     type: string
@@ -5216,7 +5312,13 @@ spec:
                                                     type: string
                                                   replicas:
                                                     items:
-                                                      type: string
+                                                      properties:
+                                                        count:
+                                                          format: int64
+                                                          type: integer
+                                                        name:
+                                                          type: string
+                                                      type: object
                                                     type: array
                                                   version:
                                                     type: string
@@ -5678,7 +5780,13 @@ spec:
                                                     type: string
                                                   replicas:
                                                     items:
-                                                      type: string
+                                                      properties:
+                                                        count:
+                                                          format: int64
+                                                          type: integer
+                                                        name:
+                                                          type: string
+                                                      type: object
                                                     type: array
                                                   version:
                                                     type: string
@@ -5991,7 +6099,13 @@ spec:
                                           type: string
                                         replicas:
                                           items:
-                                            type: string
+                                            properties:
+                                              count:
+                                                format: int64
+                                                type: integer
+                                              name:
+                                                type: string
+                                            type: object
                                           type: array
                                         version:
                                           type: string
@@ -6318,7 +6432,13 @@ spec:
                                                     type: string
                                                   replicas:
                                                     items:
-                                                      type: string
+                                                      properties:
+                                                        count:
+                                                          format: int64
+                                                          type: integer
+                                                        name:
+                                                          type: string
+                                                      type: object
                                                     type: array
                                                   version:
                                                     type: string
@@ -6637,7 +6757,13 @@ spec:
                                                     type: string
                                                   replicas:
                                                     items:
-                                                      type: string
+                                                      properties:
+                                                        count:
+                                                          format: int64
+                                                          type: integer
+                                                        name:
+                                                          type: string
+                                                      type: object
                                                     type: array
                                                   version:
                                                     type: string
@@ -6958,7 +7084,13 @@ spec:
                                                     type: string
                                                   replicas:
                                                     items:
-                                                      type: string
+                                                      properties:
+                                                        count:
+                                                          format: int64
+                                                          type: integer
+                                                        name:
+                                                          type: string
+                                                      type: object
                                                     type: array
                                                   version:
                                                     type: string
@@ -7255,7 +7387,13 @@ spec:
                                                     type: string
                                                   replicas:
                                                     items:
-                                                      type: string
+                                                      properties:
+                                                        count:
+                                                          format: int64
+                                                          type: integer
+                                                        name:
+                                                          type: string
+                                                      type: object
                                                     type: array
                                                   version:
                                                     type: string
@@ -7670,7 +7808,13 @@ spec:
                                                     type: string
                                                   replicas:
                                                     items:
-                                                      type: string
+                                                      properties:
+                                                        count:
+                                                          format: int64
+                                                          type: integer
+                                                        name:
+                                                          type: string
+                                                      type: object
                                                     type: array
                                                   version:
                                                     type: string
@@ -8132,7 +8276,13 @@ spec:
                                                     type: string
                                                   replicas:
                                                     items:
-                                                      type: string
+                                                      properties:
+                                                        count:
+                                                          format: int64
+                                                          type: integer
+                                                        name:
+                                                          type: string
+                                                      type: object
                                                     type: array
                                                   version:
                                                     type: string
@@ -8449,7 +8599,13 @@ spec:
                                           type: string
                                         replicas:
                                           items:
-                                            type: string
+                                            properties:
+                                              count:
+                                                format: int64
+                                                type: integer
+                                              name:
+                                                type: string
+                                            type: object
                                           type: array
                                         version:
                                           type: string
@@ -8861,7 +9017,13 @@ spec:
                                           type: string
                                         replicas:
                                           items:
-                                            type: string
+                                            properties:
+                                              count:
+                                                format: int64
+                                                type: integer
+                                              name:
+                                                type: string
+                                            type: object
                                           type: array
                                         version:
                                           type: string
@@ -9323,7 +9485,13 @@ spec:
                                           type: string
                                         replicas:
                                           items:
-                                            type: string
+                                            properties:
+                                              count:
+                                                format: int64
+                                                type: integer
+                                              name:
+                                                type: string
+                                            type: object
                                           type: array
                                         version:
                                           type: string
@@ -9643,7 +9811,13 @@ spec:
                                 type: string
                               replicas:
                                 items:
-                                  type: string
+                                  properties:
+                                    count:
+                                      format: int64
+                                      type: integer
+                                    name:
+                                      type: string
+                                  type: object
                                 type: array
                               version:
                                 type: string

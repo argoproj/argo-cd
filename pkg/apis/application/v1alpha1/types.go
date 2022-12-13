@@ -383,7 +383,32 @@ type ApplicationSourceKustomize struct {
 	// ForceCommonAnnotations specifies whether to force applying common annotations to resources for Kustomize apps
 	ForceCommonAnnotations bool `json:"forceCommonAnnotations,omitempty" protobuf:"bytes,8,opt,name=forceCommonAnnotations"`
 	// Replicas is a list of Kustomize Replicas override specifications
-	Replicas []string `json:"replicas,omitempty" protobuf:"bytes,9,opt,name=replicas"`
+	Replicas KustomizeReplicas `json:"replicas,omitempty" protobuf:"bytes,9,opt,name=replicas"`
+}
+
+type KustomizeReplica struct {
+	// Name of Deployment or StatefulSet
+	Name string `json:"name,omitempty" protobuf:"bytes,1,name=name"`
+	// Number of replicas
+	Count int64 `json:"count,omitempty" protobuf:"bytes,2,name=count"`
+}
+
+type KustomizeReplicas []KustomizeReplica
+
+// NewKustomizeReplica parses a string in format name=count into a KustomizeReplica object and returns it
+func NewKusomizeReplica(text string) (*KustomizeReplica, error) {
+	parts := strings.SplitN(text, "=", 2)
+	if len(parts) != 2 {
+		return nil, fmt.Errorf("expected parameter of the form: name=count. Received: %s", text)
+	}
+	count, err := strconv.ParseInt(parts[1], 10, 64)
+	if err != nil {
+		return nil, fmt.Errorf("expected integer value for count. Received: %s", parts[1])
+	}
+	return &KustomizeReplica{
+		Name:  parts[0],
+		Count: count,
+	}, nil
 }
 
 // AllowsConcurrentProcessing returns true if multiple processes can run Kustomize builds on the same source at the same time
@@ -414,6 +439,26 @@ func (k *ApplicationSourceKustomize) MergeImage(image KustomizeImage) {
 	} else {
 		k.Images = append(k.Images, image)
 	}
+}
+
+// MergeReplicas merges a new Kustomize replica identifier in to a list of replicas
+func (k *ApplicationSourceKustomize) MergeReplica(replica KustomizeReplica) {
+	i := k.Replicas.FindByName(replica.Name)
+	if i >= 0 {
+		k.Replicas[i] = replica
+	} else {
+		k.Replicas = append(k.Replicas, replica)
+	}
+}
+
+// Find returns a positive integer representing the index in the list of replicas
+func (rs KustomizeReplicas) FindByName(name string) int {
+	for i, r := range rs {
+		if r.Name == name {
+			return i
+		}
+	}
+	return -1
 }
 
 // JsonnetVar represents a variable to be passed to jsonnet during manifest generation

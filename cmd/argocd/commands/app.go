@@ -734,7 +734,7 @@ func NewApplicationUnsetCommand(clientOpts *argocdclient.ClientOptions) *cobra.C
 	command.Flags().BoolVar(&opts.namePrefix, "nameprefix", false, "Kustomize nameprefix")
 	command.Flags().BoolVar(&opts.kustomizeVersion, "kustomize-version", false, "Kustomize version")
 	command.Flags().StringArrayVar(&opts.kustomizeImages, "kustomize-image", []string{}, "Kustomize images name (e.g. --kustomize-image node --kustomize-image mysql)")
-	command.Flags().StringArrayVar(&opts.kustomizeReplicas, "kustomize-replica", []string{}, "Kustomize replicas name")
+	command.Flags().StringArrayVar(&opts.kustomizeReplicas, "kustomize-replica", []string{}, "Kustomize replicas name (e.g. --kustomize-replica my-deployment --kustomize-replica my-statefulset)")
 	command.Flags().StringArrayVar(&opts.pluginEnvs, "plugin-env", []string{}, "Unset plugin env variables (e.g --plugin-env name)")
 	command.Flags().BoolVar(&opts.passCredentials, "pass-credentials", false, "Unset passCredentials")
 	return command
@@ -776,15 +776,12 @@ func unset(source *argoappv1.ApplicationSource, opts unsetOpts) (updated bool, n
 		}
 
 		for _, kustomizeReplica := range opts.kustomizeReplicas {
-			for i, item := range source.Kustomize.Replicas {
-				if kustomizeReplica == item {
+			kustomizeReplicas := source.Kustomize.Replicas
+			for i, item := range kustomizeReplicas {
+				if kustomizeReplica == item.Name {
+					source.Kustomize.Replicas = append(kustomizeReplicas[0:i], kustomizeReplicas[i+1:]...)
 					updated = true
-					//remove i
-					a := source.Kustomize.Replicas
-					copy(a[i:], a[i+1:]) // Shift a[i+1:] left one index.
-					a[len(a)-1] = ""     // Erase last element (write zero value).
-					a = a[:len(a)-1]     // Truncate slice.
-					source.Kustomize.Replicas = a
+					break
 				}
 			}
 		}

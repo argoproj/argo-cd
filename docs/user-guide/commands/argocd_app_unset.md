@@ -25,7 +25,7 @@ argocd app unset APPNAME parameters [flags]
   -h, --help                            help for unset
       --ignore-missing-value-files      Unset the helm ignore-missing-value-files option (revert to false)
       --kustomize-image stringArray     Kustomize images name (e.g. --kustomize-image node --kustomize-image mysql)
-      --kustomize-replica stringArray   Kustomize replicas name
+      --kustomize-replica stringArray   Kustomize replicas name (e.g. --kustomize-replica my-deployment --kustomize-replica my-statefulset)
       --kustomize-version               Kustomize version
       --nameprefix                      Kustomize nameprefix
       --namesuffix                      Kustomize namesuffix

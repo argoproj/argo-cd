@@ -122,8 +122,10 @@ func (k *kustomize) Build(opts *v1alpha1.ApplicationSourceKustomize, kustomizeOp
 			// set replicas my-development=2 my-statefulset=4
 			args := []string{"edit", "set", "replicas"}
 			for _, replica := range opts.Replicas {
-				args = append(args, string(replica))
+				arg := fmt.Sprintf("%s=%d", replica.Name, replica.Count)
+				args = append(args, arg)
 			}
+
 			cmd := exec.Command(k.getBinaryPath(), args...)
 			cmd.Dir = k.path
 			_, err := executil.Run(cmd)
