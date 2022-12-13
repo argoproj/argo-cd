@@ -2,7 +2,9 @@
 
 ## Declarative
 
-You can install Helm charts through the UI, or in the declarative GitOps way. Here is an example:
+You can install Helm charts through the UI, or in the declarative GitOps way.  
+Helm is only used to inflate charts, the lifecycle of the application is handle by  ArgoCD.  
+Here is an example:
 
 ```yaml
 apiVersion: argoproj.io/v1alpha1
