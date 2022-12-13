@@ -110,25 +110,25 @@ if [ "$new_contributors_num" -lt 20 ] && [ "$new_contributors_num" -gt 0 ]; then
   echo
 fi
 if [ "$features_num" -gt 0 ]; then
-  echo "### Features"
+  echo "### Features ($features_num)"
   echo
   echo "$features"
   echo
 fi
 if [ "$fixes_num" -gt 0 ]; then
-  echo "### Bug fixes"
+  echo "### Bug fixes ($fixes_num)"
   echo
   echo "$fixes"
   echo
 fi
 if [ "$docs_num" -gt 0 ]; then
-  echo "### Documentation"
+  echo "### Documentation ($docs_num)"
   echo
   echo "$docs"
   echo
 fi
 if [ "$other_num" -gt 0 ]; then
-  echo "### Other"
+  echo "### Other ($other_num)"
   echo
   echo "$other"
   echo
