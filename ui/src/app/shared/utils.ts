@@ -28,7 +28,7 @@ export function isValidURL(url: string): boolean {
         try {
             // Try parsing as a relative URL.
             const parsedUrl = new URL(url, window.location.origin);
-            return parsedUrl.protocol !== 'javascript:' && parsedUrl.protocol !== 'data:' && parsedUrl.protocol !== ' vbscript:';
+            return parsedUrl.protocol !== 'javascript:' && parsedUrl.protocol !== 'data:' && parsedUrl.protocol !== 'vbscript:';
         } catch (TypeError) {
             return false;
         }
