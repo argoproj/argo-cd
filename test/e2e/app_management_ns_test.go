@@ -3,11 +3,9 @@ package e2e
 import (
 	"context"
 	"fmt"
-	"math/rand"
 	"os"
 	"path"
 	"reflect"
-	"strings"
 	"testing"
 	"time"
 
@@ -378,25 +376,20 @@ func TestNamespacedDeleteAppResource(t *testing.T) {
 // demonstrate that we cannot use a standard sync when an immutable field is changed, we must use "force"
 func TestNamespacedImmutableChange(t *testing.T) {
 	SkipOnEnv(t, "OPENSHIFT")
-	text := FailOnErr(Run(".", "kubectl", "get", "service", "-n", "kube-system", "kube-dns", "-o", "jsonpath={.spec.clusterIP}")).(string)
-	parts := strings.Split(text, ".")
-	n := rand.Intn(254)
-	ip1 := fmt.Sprintf("%s.%s.%s.%d", parts[0], parts[1], parts[2], n)
-	ip2 := fmt.Sprintf("%s.%s.%s.%d", parts[0], parts[1], parts[2], n+1)
 	Given(t).
-		Path("service").
+		Path("secrets").
 		SetTrackingMethod("annotation").
 		SetAppNamespace(AppNamespace()).
 		When().
 		CreateApp().
-		PatchFile("service.yaml", fmt.Sprintf(`[{"op": "add", "path": "/spec/clusterIP", "value": "%s"}]`, ip1)).
+		PatchFile("secrets.yaml", `[{"op": "add", "path": "/data/new-field", "value": "dGVzdA=="}, {"op": "add", "path": "/immutable", "value": true}]`).
 		Sync().
 		Then().
 		Expect(OperationPhaseIs(OperationSucceeded)).
 		Expect(SyncStatusIs(SyncStatusCodeSynced)).
 		Expect(HealthIs(health.HealthStatusHealthy)).
 		When().
-		PatchFile("service.yaml", fmt.Sprintf(`[{"op": "add", "path": "/spec/clusterIP", "value": "%s"}]`, ip2)).
+		PatchFile("secrets.yaml", `[{"op": "add", "path": "/data/new-field", "value": "dGVzdDI="}]`).
 		IgnoreErrors().
 		Sync().
 		DoNotIgnoreErrors().
@@ -405,14 +398,14 @@ func TestNamespacedImmutableChange(t *testing.T) {
 		Expect(SyncStatusIs(SyncStatusCodeOutOfSync)).
 		Expect(ResourceResultNumbering(1)).
 		Expect(ResourceResultMatches(ResourceResult{
-			Kind:      "Service",
+			Kind:      "Secret",
 			Version:   "v1",
 			Namespace: DeploymentNamespace(),
-			Name:      "my-service",
+			Name:      "test-secret",
 			SyncPhase: "Sync",
 			Status:    "SyncFailed",
 			HookPhase: "Failed",
-			Message:   `Service "my-service" is invalid`,
+			Message:   `Secret "test-secret" is invalid`,
 		})).
 		// now we can do this will a force
 		Given().
