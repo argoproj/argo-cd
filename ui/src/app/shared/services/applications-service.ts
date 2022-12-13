@@ -397,6 +397,22 @@ export class ApplicationsService {
             .then(res => res.body as models.LinksResponse);
     }
 
+    public getResourceLinks(applicationName: string, appNamespace: string, resource: models.ResourceNode): Promise<models.LinksResponse> {
+        return requests
+            .get(`/applications/${applicationName}/resource/links`)
+            .query({
+                name: resource.name,
+                appNamespace,
+                namespace: resource.namespace,
+                resourceName: resource.name,
+                version: resource.version,
+                kind: resource.kind,
+                group: resource.group || '' // The group query param must be present even if empty.
+            })
+            .send()
+            .then(res => res.body as models.LinksResponse);
+    }
+
     private getLogsQuery(
         namespace: string,
         appNamespace: string,

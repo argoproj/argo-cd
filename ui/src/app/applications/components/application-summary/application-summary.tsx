@@ -29,6 +29,7 @@ import {EditNotificationSubscriptions, useEditNotificationSubscriptions} from '.
 import {EditAnnotations} from './edit-annotations';
 
 import './application-summary.scss';
+import {DeepLinks} from '../../../shared/components/deep-links';
 
 function swap(array: any[], a: number, b: number) {
     array = array.slice();
@@ -298,19 +299,7 @@ export const ApplicationSummary = (props: ApplicationSummaryProps) => {
             title: 'LINKS',
             view: (
                 <DataLoader load={() => services.applications.getLinks(app.metadata.name)} input={app} key='appLinks'>
-                    {(links: models.LinksResponse) => (
-                        <div style={{margin: '10px 0'}}>
-                            {(links?.items || []).map(link => (
-                                <div key={link.title} style={{display: 'flex', alignItems: 'center', height: '35px'}}>
-                                    <a href={link.url} target='_blank' style={{display: 'flex', alignItems: 'center', marginRight: '7px'}}>
-                                        <i className='fa fa-external-link-alt' style={{marginRight: '5px'}} />
-                                        <div>{link.title}</div>
-                                    </a>
-                                    {link.description && <>({link.description})</>}
-                                </div>
-                            ))}
-                        </div>
-                    )}
+                    {(links: models.LinksResponse) => <DeepLinks links={links.items} />}
                 </DataLoader>
             )
         }
