@@ -31,7 +31,7 @@ type ResourceTracking interface {
 	Normalize(config, live *unstructured.Unstructured, labelKey, trackingMethod string) error
 }
 
-//AppInstanceValue store information about resource tracking info
+// AppInstanceValue store information about resource tracking info
 type AppInstanceValue struct {
 	ApplicationName string
 	Group           string
@@ -129,7 +129,7 @@ func (rt *resourceTracking) SetAppInstance(un *unstructured.Unstructured, key, v
 	}
 	switch trackingMethod {
 	case TrackingMethodLabel:
-		return argokube.SetAppInstanceLabel(un, key, val)
+		return argokube.SetAppLabel(un, key, val)
 	case TrackingMethodAnnotation:
 		return setAppInstanceAnnotation()
 	case TrackingMethodAnnotationAndLabel:
@@ -140,18 +140,18 @@ func (rt *resourceTracking) SetAppInstance(un *unstructured.Unstructured, key, v
 		if len(val) > LabelMaxLength {
 			val = val[:LabelMaxLength]
 		}
-		return argokube.SetAppInstanceLabel(un, key, val)
+		return argokube.SetAppLabel(un, key, val)
 	default:
-		return argokube.SetAppInstanceLabel(un, key, val)
+		return argokube.SetAppLabel(un, key, val)
 	}
 }
 
-//BuildAppInstanceValue build resource tracking id in format <application-name>;<group>/<kind>/<namespace>/<name>
+// BuildAppInstanceValue build resource tracking id in format <application-name>;<group>/<kind>/<namespace>/<name>
 func (rt *resourceTracking) BuildAppInstanceValue(value AppInstanceValue) string {
 	return fmt.Sprintf("%s:%s/%s:%s/%s", value.ApplicationName, value.Group, value.Kind, value.Namespace, value.Name)
 }
 
-//ParseAppInstanceValue parse resource tracking id from format <application-name>:<group>/<kind>:<namespace>/<name> to struct
+// ParseAppInstanceValue parse resource tracking id from format <application-name>:<group>/<kind>:<namespace>/<name> to struct
 func (rt *resourceTracking) ParseAppInstanceValue(value string) (*AppInstanceValue, error) {
 	var appInstanceValue AppInstanceValue
 	parts := strings.Split(value, ":")

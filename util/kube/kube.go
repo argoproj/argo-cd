@@ -17,9 +17,9 @@ func IsValidResourceName(name string) bool {
 	return len(name) < 64 && resourceNamePattern.MatchString(name)
 }
 
-// SetAppInstanceLabel the recommended app.kubernetes.io/instance label against an unstructured object
+// SetAppLabel the recommended app.kubernetes.io/instance label against an unstructured object
 // Uses the legacy labeling if environment variable is set
-func SetAppInstanceLabel(target *unstructured.Unstructured, key, val string) error {
+func SetAppLabel(target *unstructured.Unstructured, key, val string) error {
 	labels := target.GetLabels()
 	if labels == nil {
 		labels = make(map[string]string)

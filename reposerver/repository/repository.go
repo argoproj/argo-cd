@@ -64,6 +64,7 @@ import (
 	"github.com/argoproj/argo-cd/v2/util/helm"
 	"github.com/argoproj/argo-cd/v2/util/io"
 	pathutil "github.com/argoproj/argo-cd/v2/util/io/path"
+	argokube "github.com/argoproj/argo-cd/v2/util/kube"
 	"github.com/argoproj/argo-cd/v2/util/kustomize"
 	"github.com/argoproj/argo-cd/v2/util/text"
 )
@@ -1137,10 +1138,18 @@ func GenerateManifests(ctx context.Context, appPath, repoRoot, revision string, 
 		}
 
 		for _, target := range targets {
+
 			if q.AppLabelKey != "" && q.AppName != "" && !kube.IsCRD(target) {
 				err = resourceTracking.SetAppInstance(target, q.AppLabelKey, q.AppName, q.Namespace, v1alpha1.TrackingMethod(q.TrackingMethod))
 				if err != nil {
 					return nil, err
+				}
+				//Iterate over Application labels and set them into manifest.
+				for k, v := range target.GetLabels() {
+					err := argokube.SetAppLabel(target, k, v)
+					if err != nil {
+						return nil, err
+					}
 				}
 			}
 			manifestStr, err := json.Marshal(target.Object)

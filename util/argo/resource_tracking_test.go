@@ -13,7 +13,7 @@ import (
 	"github.com/argoproj/argo-cd/v2/common"
 )
 
-func TestSetAppInstanceLabel(t *testing.T) {
+func TestSetAppLabel(t *testing.T) {
 	yamlBytes, err := os.ReadFile("testdata/svc.yaml")
 	assert.Nil(t, err)
 
