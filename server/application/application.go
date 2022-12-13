@@ -42,6 +42,7 @@ import (
 	applisters "github.com/argoproj/argo-cd/v2/pkg/client/listers/application/v1alpha1"
 	"github.com/argoproj/argo-cd/v2/reposerver/apiclient"
 	servercache "github.com/argoproj/argo-cd/v2/server/cache"
+	"github.com/argoproj/argo-cd/v2/server/deeplinks"
 	"github.com/argoproj/argo-cd/v2/server/rbacpolicy"
 	"github.com/argoproj/argo-cd/v2/util/argo"
 	argoutil "github.com/argoproj/argo-cd/v2/util/argo"
@@ -1890,6 +1891,64 @@ func (s *Server) Rollback(ctx context.Context, rollbackReq *application.Applicat
 	}
 	s.logAppEvent(a, ctx, argo.EventReasonOperationStarted, fmt.Sprintf("initiated rollback to %d", rollbackReq.GetId()))
 	return a, nil
+}
+
+func (s *Server) ListLinks(ctx context.Context, req *application.ListAppLinksRequest) (*application.LinksResponse, error) {
+	appName := req.GetName()
+	appNs := s.appNamespaceOrDefault(req.GetNamespace())
+
+	a, err := s.appclientset.ArgoprojV1alpha1().Applications(appNs).Get(ctx, appName, metav1.GetOptions{})
+	if err != nil {
+		log.WithFields(map[string]interface{}{
+			"application": appName,
+			"ns":          appNs,
+		}).Errorf("failed to get application, error=%v", err.Error())
+		return nil, fmt.Errorf("error getting application")
+	}
+
+	if err := s.enf.EnforceErr(ctx.Value("claims"), rbacpolicy.ResourceApplications, rbacpolicy.ActionGet, a.RBACName(s.ns)); err != nil {
+		log.WithFields(map[string]interface{}{
+			"application": appName,
+			"ns":          appNs,
+		}).Warnf("unauthorized access to app, error=%v", err.Error())
+		return nil, fmt.Errorf("error getting application")
+	}
+
+	obj, err := kube.ToUnstructured(a)
+	if err != nil {
+		return nil, fmt.Errorf("error getting application: %w", err)
+	}
+
+	deepLinks, err := s.settingsMgr.GetDeepLinks(settings.ApplicationDeepLinks)
+	if err != nil {
+		return nil, fmt.Errorf("failed to read application deep links from configmap: %w", err)
+	}
+
+	finalList, errorList := deeplinks.EvaluateDeepLinksResponse(*obj, deepLinks)
+	if len(errorList) > 0 {
+		log.Errorf("errorList while evaluating application deep links, %v", strings.Join(errorList, ", "))
+	}
+
+	return finalList, nil
+}
+
+func (s *Server) ListResourceLinks(ctx context.Context, req *application.ApplicationResourceRequest) (*application.LinksResponse, error) {
+	obj, _, _, _, err := s.getUnstructuredLiveResourceOrApp(ctx, rbacpolicy.ActionGet, req)
+	if err != nil {
+		return nil, err
+	}
+
+	deepLinks, err := s.settingsMgr.GetDeepLinks(settings.ResourceDeepLinks)
+	if err != nil {
+		return nil, fmt.Errorf("failed to read application deep links from configmap: %w", err)
+	}
+
+	finalList, errorList := deeplinks.EvaluateDeepLinksResponse(*obj, deepLinks)
+	if len(errorList) > 0 {
+		log.Errorf("errors while evaluating resource deep links, %v", strings.Join(errorList, ", "))
+	}
+
+	return finalList, nil
 }
 
 // resolveRevision resolves the revision specified either in the sync request, or the

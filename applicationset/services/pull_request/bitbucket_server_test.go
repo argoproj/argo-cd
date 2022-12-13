@@ -122,16 +122,19 @@ func TestListPullRequestPagination(t *testing.T) {
 		Number:  101,
 		Branch:  "feature-101",
 		HeadSHA: "ab3cf2e4d1517c83e720d2585b9402dbef71f992",
+		Labels:  []string{},
 	}, *pullRequests[0])
 	assert.Equal(t, PullRequest{
 		Number:  102,
 		Branch:  "feature-102",
 		HeadSHA: "bb3cf2e4d1517c83e720d2585b9402dbef71f992",
+		Labels:  []string{},
 	}, *pullRequests[1])
 	assert.Equal(t, PullRequest{
 		Number:  200,
 		Branch:  "feature-200",
 		HeadSHA: "cb3cf2e4d1517c83e720d2585b9402dbef71f992",
+		Labels:  []string{},
 	}, *pullRequests[2])
 }
 
@@ -284,11 +287,13 @@ func TestListPullRequestBranchMatch(t *testing.T) {
 		Number:  101,
 		Branch:  "feature-101",
 		HeadSHA: "ab3cf2e4d1517c83e720d2585b9402dbef71f992",
+		Labels:  []string{},
 	}, *pullRequests[0])
 	assert.Equal(t, PullRequest{
 		Number:  102,
 		Branch:  "feature-102",
 		HeadSHA: "bb3cf2e4d1517c83e720d2585b9402dbef71f992",
+		Labels:  []string{},
 	}, *pullRequests[1])
 
 	regexp = `.*2$`
@@ -305,6 +310,7 @@ func TestListPullRequestBranchMatch(t *testing.T) {
 		Number:  102,
 		Branch:  "feature-102",
 		HeadSHA: "bb3cf2e4d1517c83e720d2585b9402dbef71f992",
+		Labels:  []string{},
 	}, *pullRequests[0])
 
 	regexp = `[\d{2}`

@@ -38,8 +38,8 @@ metadata:
     argocd.argoproj.io/sync-options: Validate=false
 ```
 
-If you want to exclude a whole class of objects globally, consider setting `resource.customizations` in [system level configuration](../user-guide/diffing.md#system-level-configuration). 
-    
+If you want to exclude a whole class of objects globally, consider setting `resource.customizations` in [system level configuration](../user-guide/diffing.md#system-level-configuration).
+
 ## Skip Dry Run for new custom resources types
 
 When syncing a custom resource which is not yet known to the cluster, there are generally two options:
@@ -60,9 +60,9 @@ The dry run will still be executed if the CRD is already present in the cluster.
 
 ## Selective Sync
 
-Currently when syncing using auto sync Argo CD applies every object in the application. 
+Currently when syncing using auto sync Argo CD applies every object in the application.
 For applications containing thousands of objects this takes quite a long time and puts undue pressure on the api server.
-Turning on selective sync option which will sync only out-of-sync resources. 
+Turning on selective sync option which will sync only out-of-sync resources.
 
 You can add this option by following ways
 
@@ -77,7 +77,7 @@ spec:
   syncPolicy:
     syncOptions:
     - ApplyOutOfSyncOnly=true
-``` 
+```
 
 2) Set sync option via argocd cli
 
@@ -104,8 +104,8 @@ spec:
 
 ## Prune Last
 
-This feature is to allow the ability for resource pruning to happen as a final, implicit wave of a sync operation, 
-after the other resources have been deployed and become healthy, and after all other waves completed successfully. 
+This feature is to allow the ability for resource pruning to happen as a final, implicit wave of a sync operation,
+after the other resources have been deployed and become healthy, and after all other waves completed successfully.
 
 ```yaml
 apiVersion: argoproj.io/v1alpha1
@@ -141,6 +141,10 @@ spec:
 ```
 
 If the `Replace=true` sync option is set the Argo CD will use `kubectl replace` or `kubectl create` command to apply changes.
+
+!!! warning
+      During the sync process, the resources will be synchronized using the 'kubectl replace/create' command.
+      This sync option has the potential to be destructive and might lead to resources having to be recreated, which could cause an outage for your application.
 
 This can also be configured at individual resource level.
 ```yaml
@@ -299,8 +303,8 @@ sync option, otherwise nothing will happen. If the namespace doesn't already exi
 already have labels and/or annotations set on it, you're good to go. Using `managedNamespaceMetadata` will also set the
 resource tracking label (or annotation) on the namespace, so you can easily track which namespaces are managed by ArgoCD.
 
-In the case you do not have any custom annotations or labels but would nonetheless want to have resource tracking set on 
-your namespace, that can be done by setting `managedNamespaceMetadata` with an empty `labels` and/or `annotations` map, 
+In the case you do not have any custom annotations or labels but would nonetheless want to have resource tracking set on
+your namespace, that can be done by setting `managedNamespaceMetadata` with an empty `labels` and/or `annotations` map,
 like the example below:
 
 ```yaml
@@ -311,7 +315,7 @@ metadata:
 spec:
   syncPolicy:
     managedNamespaceMetadata:
-      labels: # The labels to set on the application namespace 
+      labels: # The labels to set on the application namespace
       annotations: # The annotations to set on the application namespace
     syncOptions:
     - CreateNamespace=true
@@ -374,7 +378,7 @@ spec:
   syncPolicy:
     managedNamespaceMetadata:
       annotations:
-        abc: 123 
+        abc: 123
     syncOptions:
       - CreateNamespace=true
 ```
@@ -398,4 +402,3 @@ The resulting namespace will have its annotations set to
     foo: bar
     something: completely-different
 ```
-

@@ -735,6 +735,42 @@
         }
       }
     },
+    "/api/v1/applications/{name}/links": {
+      "get": {
+        "tags": [
+          "ApplicationService"
+        ],
+        "summary": "ListLinks returns the list of all application deep links",
+        "operationId": "ApplicationService_ListLinks",
+        "parameters": [
+          {
+            "type": "string",
+            "name": "name",
+            "in": "path",
+            "required": true
+          },
+          {
+            "type": "string",
+            "name": "namespace",
+            "in": "query"
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "A successful response.",
+            "schema": {
+              "$ref": "#/definitions/applicationLinksResponse"
+            }
+          },
+          "default": {
+            "description": "An unexpected error response.",
+            "schema": {
+              "$ref": "#/definitions/runtimeError"
+            }
+          }
+        }
+      }
+    },
     "/api/v1/applications/{name}/logs": {
       "get": {
         "tags": [
@@ -1374,6 +1410,67 @@
             "description": "A successful response.",
             "schema": {
               "$ref": "#/definitions/applicationApplicationResponse"
+            }
+          },
+          "default": {
+            "description": "An unexpected error response.",
+            "schema": {
+              "$ref": "#/definitions/runtimeError"
+            }
+          }
+        }
+      }
+    },
+    "/api/v1/applications/{name}/resource/links": {
+      "get": {
+        "tags": [
+          "ApplicationService"
+        ],
+        "summary": "ListResourceLinks returns the list of all resource deep links",
+        "operationId": "ApplicationService_ListResourceLinks",
+        "parameters": [
+          {
+            "type": "string",
+            "name": "name",
+            "in": "path",
+            "required": true
+          },
+          {
+            "type": "string",
+            "name": "namespace",
+            "in": "query"
+          },
+          {
+            "type": "string",
+            "name": "resourceName",
+            "in": "query"
+          },
+          {
+            "type": "string",
+            "name": "version",
+            "in": "query"
+          },
+          {
+            "type": "string",
+            "name": "group",
+            "in": "query"
+          },
+          {
+            "type": "string",
+            "name": "kind",
+            "in": "query"
+          },
+          {
+            "type": "string",
+            "name": "appNamespace",
+            "in": "query"
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "A successful response.",
+            "schema": {
+              "$ref": "#/definitions/applicationLinksResponse"
             }
           },
           "default": {
@@ -2549,6 +2646,37 @@
             "description": "A successful response.",
             "schema": {
               "$ref": "#/definitions/projectGlobalProjectsResponse"
+            }
+          },
+          "default": {
+            "description": "An unexpected error response.",
+            "schema": {
+              "$ref": "#/definitions/runtimeError"
+            }
+          }
+        }
+      }
+    },
+    "/api/v1/projects/{name}/links": {
+      "get": {
+        "tags": [
+          "ProjectService"
+        ],
+        "summary": "ListLinks returns all deep links for the particular project",
+        "operationId": "ProjectService_ListLinks",
+        "parameters": [
+          {
+            "type": "string",
+            "name": "name",
+            "in": "path",
+            "required": true
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "A successful response.",
+            "schema": {
+              "$ref": "#/definitions/applicationLinksResponse"
             }
           },
           "default": {
@@ -3897,6 +4025,34 @@
         "chunk": {
           "type": "string",
           "format": "byte"
+        }
+      }
+    },
+    "applicationLinkInfo": {
+      "type": "object",
+      "properties": {
+        "description": {
+          "type": "string"
+        },
+        "iconClass": {
+          "type": "string"
+        },
+        "title": {
+          "type": "string"
+        },
+        "url": {
+          "type": "string"
+        }
+      }
+    },
+    "applicationLinksResponse": {
+      "type": "object",
+      "properties": {
+        "items": {
+          "type": "array",
+          "items": {
+            "$ref": "#/definitions/applicationLinkInfo"
+          }
         }
       }
     },
@@ -7033,6 +7189,10 @@
         "password": {
           "type": "string",
           "title": "Password for authenticating at the repo server"
+        },
+        "proxy": {
+          "type": "string",
+          "title": "Proxy specifies the HTTP/HTTPS proxy used to access repos at the repo server"
         },
         "sshPrivateKey": {
           "type": "string",

@@ -90,7 +90,7 @@ spec:
     command: [sh, -c]
     args:
       - |
-        echo "{\"kind\": \"ConfigMap\", \"apiVersion\": \"v1\", \"metadata\": { \"name\": \"$ARGOCD_APP_NAME\", \"namespace\": \"$ARGOCD_APP_NAMESPACE\", \"annotations\": {\"Foo\": \"$FOO\", \"KubeVersion\": \"$KUBE_VERSION\", \"KubeApiVersion\": \"$KUBE_API_VERSIONS\",\"Bar\": \"baz\"}}}"
+        echo "{\"kind\": \"ConfigMap\", \"apiVersion\": \"v1\", \"metadata\": { \"name\": \"$ARGOCD_APP_NAME\", \"namespace\": \"$ARGOCD_APP_NAMESPACE\", \"annotations\": {\"Foo\": \"$ARGOCD_ENV_FOO\", \"KubeVersion\": \"$KUBE_VERSION\", \"KubeApiVersion\": \"$KUBE_API_VERSIONS\",\"Bar\": \"baz\"}}}"
   # The discovery config is applied to a repository. If every configured discovery tool matches, then the plugin may be
   # used to generate manifests for Applications using the repository. 
   # Only one of fileName, find.glob, or find.command should be specified. If multiple are specified then only the 
@@ -197,7 +197,7 @@ data:
       init:
         command: [sh, -c, 'echo "Initializing..."']
       generate:
-        command: [sh, -c, 'echo "{\"kind\": \"ConfigMap\", \"apiVersion\": \"v1\", \"metadata\": { \"name\": \"$ARGOCD_APP_NAME\", \"namespace\": \"$ARGOCD_APP_NAMESPACE\", \"annotations\": {\"Foo\": \"$FOO\", \"KubeVersion\": \"$KUBE_VERSION\", \"KubeApiVersion\": \"$KUBE_API_VERSIONS\",\"Bar\": \"baz\"}}}"']
+        command: [sh, -c, 'echo "{\"kind\": \"ConfigMap\", \"apiVersion\": \"v1\", \"metadata\": { \"name\": \"$ARGOCD_APP_NAME\", \"namespace\": \"$ARGOCD_APP_NAMESPACE\", \"annotations\": {\"Foo\": \"$ARGOCD_ENV_FOO\", \"KubeVersion\": \"$KUBE_VERSION\", \"KubeApiVersion\": \"$KUBE_API_VERSIONS\",\"Bar\": \"baz\"}}}"']
       discover:
         fileName: "./subdir/s*.yaml"
 ```
@@ -263,7 +263,7 @@ spec:
 ```
 
 !!! note
-The `discover.command` command only has access to the above environment starting with v2.4.
+    The `discover.command` command only has access to the above environment starting with v2.4.
 
 Before reaching the `init.command`, `generate.command`, and `discover.command` commands, Argo CD prefixes all 
 user-supplied environment variables (#3 above) with `ARGOCD_ENV_`. This prevents users from directly setting 
@@ -275,36 +275,36 @@ for 2.4.
 
 4. (Starting in v2.4) Parameters in the Application spec:
 
-   ```yaml
-   apiVersion: argoproj.io/v1alpha1
-   kind: Application
-   spec:
-     source:
-       plugin:
-         parameters:
-           - name: values-files
-             array: [values-dev.yaml]
-           - name: helm-parameters
-             map:
-               image.tag: v1.2.3
-   ```
+```yaml
+apiVersion: argoproj.io/v1alpha1
+kind: Application
+spec:
+ source:
+   plugin:
+     parameters:
+       - name: values-files
+         array: [values-dev.yaml]
+       - name: helm-parameters
+         map:
+           image.tag: v1.2.3
+```
 
-   The parameters are available as JSON in the `ARGOCD_APP_PARAMETERS` environment variable. The example above would
-   produce this JSON:
+The parameters are available as JSON in the `ARGOCD_APP_PARAMETERS` environment variable. The example above would
+produce this JSON:
 
-   ```json
-   [{"name": "values-files", "array": ["values-dev.yaml"]}, {"name": "helm-parameters", "map": {"image.tag": "v1.2.3"}}]
-   ```
+```json
+[{"name": "values-files", "array": ["values-dev.yaml"]}, {"name": "helm-parameters", "map": {"image.tag": "v1.2.3"}}]
+```
 
-   !!! note
-   Parameter announcements, even if they specify defaults, are _not_ sent to the plugin in `ARGOCD_APP_PARAMETERS`.
-   Only parameters explicitly set in the Application spec are sent to the plugin. It is up to the plugin to apply
-   the same defaults as the ones announced to the UI.
+!!! note
+    Parameter announcements, even if they specify defaults, are _not_ sent to the plugin in `ARGOCD_APP_PARAMETERS`.
+    Only parameters explicitly set in the Application spec are sent to the plugin. It is up to the plugin to apply
+    the same defaults as the ones announced to the UI.
 
-   The same parameters are also available as individual environment variables. The names of the environment variables
-   follows this convention:
+The same parameters are also available as individual environment variables. The names of the environment variables
+follows this convention:
 
-   ```yaml
+```yaml
    - name: some-string-param
      string: some-string-value
    # PARAM_SOME_STRING_PARAM=some-string-value
@@ -318,11 +318,11 @@ for 2.4.
      map:
        image.tag: v1.2.3
    # PARAM_SOME_MAP_PARAM_IMAGE_TAG=v1.2.3
-   ```
+```
 
-!!! warning Sanitize/escape user input
-As part of Argo CD's manifest generation system, config management plugins are treated with a level of trust. Be
-sure to escape user input in your plugin to prevent malicious input from causing unwanted behavior.
+!!! warning 
+    Sanitize/escape user input. As part of Argo CD's manifest generation system, config management plugins are treated with a level of trust. Be
+    sure to escape user input in your plugin to prevent malicious input from causing unwanted behavior.
 
 
 ## Using a config management plugin with an Application
@@ -334,8 +334,10 @@ If your CMP is defined in the `argocd-cm` ConfigMap, you can create a new Applic
 argocd app create <appName> --config-management-plugin <pluginName>
 ```
 
-If your plugin is defined as a sidecar, you must manually define the Application manifest. Do not configure a `name` field
-in the `plugin` section. The plugin will be automatically matched with the Application based on its discovery rules.
+If your CMP is defined as a sidecar, you must manually define the Application manifest. You may leave the `name` field
+empty in the `plugin` section for the plugin to be automatically matched with the Application based on its discovery rules. If you do mention the name make sure 
+it is either `<metadata.name>-<spec.version>` if version is mentioned in the `ConfigManagementPlugin` spec or else just `<metadata.name>`. When name is explicitly 
+specified only that particular plugin will be used iff it's discovery pattern/command matches the provided application repo.
 
 ```yaml
 apiVersion: argoproj.io/v1alpha1
@@ -373,8 +375,9 @@ If you don't need to set any environment variables, you can set an empty plugin 
     
 !!! note
     Each Application can only have one config management plugin configured at a time. If you're converting an existing
-    plugin configured through the `argocd-cm` ConfigMap to a sidecar, make sure the discovery mechanism only returns
-    true for Applications that have had their `name` field in the `plugin` section of their spec removed.
+    plugin configured through the `argocd-cm` ConfigMap to a sidecar, make sure to update the plugin name to either `<metadata.name>-<spec.version>` 
+    if version was mentioned in the `ConfigManagementPlugin` spec or else just use `<metadata.name>`. You can also remove the name altogether 
+    and let the automatic discovery to identify the plugin.
 
 ## Debugging a CMP
 
@@ -443,9 +446,9 @@ spec:
     args: ["sample args"]
 ```
 
-!!!note
-The `lockRepo` key is not relevant for sidecar plugins, because sidecar plugins do not share a single source repo
-directory when generating manifests.
+!!! note
+    The `lockRepo` key is not relevant for sidecar plugins, because sidecar plugins do not share a single source repo
+    directory when generating manifests.
 
 ### 2. Write discovery rules for your plugin
 
@@ -454,20 +457,21 @@ Sidecar plugins use discovery rules instead of a plugin name to match Applicatio
 Write rules applicable to your plugin [using the instructions above](#1-write-the-plugin-configuration-file) and add
 them to your configuration file.
 
-!!!important
-After installing your sidecar plugin, you'll need to remove the `name` field from the plugin config in your
-Application specs. For example:
+!!! note
+    After installing your sidecar plugin, you may remove the `name` field from the plugin config in your
+    Application specs for auto-discovery or update the name to `<metadata.name>-<spec.version>`
+    if version was mentioned in the `ConfigManagementPlugin` spec or else just use `<metadata.name>`. For example:
 
-    ```yaml
-    apiVersion: argoproj.io/v1alpha1
-    kind: Application
-    metadata:
-      name: guestbook
-    spec:
-      source:
-        plugin:
-          name: pluginName  # Delete this (and set `plugin: {}` if `name` was the only value).
-    ```
+```yaml
+apiVersion: argoproj.io/v1alpha1
+kind: Application
+metadata:
+  name: guestbook
+spec:
+  source:
+    plugin:
+      name: pluginName  # Delete this for auto-discovery (and set `plugin: {}` if `name` was the only value) or use proper sidecar plugin name
+```
 
 ### 3. Make sure the plugin has access to the tools it needs
 
