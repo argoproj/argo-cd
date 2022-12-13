@@ -79,7 +79,7 @@ new_commits_no_email=$(echo "$new_commits" | strip_last_word)
 features=$(echo "$new_commits_no_email" | grep '^feat' | to_list_items)
 fixes=$(echo "$new_commits_no_email" | grep '^fix' | to_list_items)
 docs=$(echo "$new_commits_no_email" | grep '^docs' | to_list_items)
-other=$(echo "$new_commits_no_email" | grep -v -e '^feat' -e '^fix' -e '^docs' | to_list_items)
+other=$(echo "$new_commits_no_email" | grep -v -e '^feat' -e '^fix' -e '^docs' -e '^\[Bot\]' | to_list_items)
 
 contributors_num=$(echo "$new_commits" | only_last_word | sort -u | nonempty_line_count)
 
