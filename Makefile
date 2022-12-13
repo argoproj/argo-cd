@@ -326,7 +326,7 @@ mod-vendor: test-tools-image
 mod-vendor-local: mod-download-local
 	go mod vendor
 
-# Deprecated - replace by install-local-tools
+# Deprecated - replace by install-tools-local
 .PHONY: install-lint-tools
 install-lint-tools:
 	./hack/install.sh lint-tools
