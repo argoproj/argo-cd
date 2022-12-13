@@ -25,6 +25,7 @@ import (
 	"github.com/argoproj/argo-cd/v2/util/rbac"
 	"github.com/argoproj/argo-cd/v2/util/security"
 	sessionmgr "github.com/argoproj/argo-cd/v2/util/session"
+	"github.com/argoproj/argo-cd/v2/util/settings"
 )
 
 type terminalHandler struct {
@@ -92,6 +93,25 @@ func isValidContainerName(name string) bool {
 	// https://github.com/kubernetes/kubernetes/blob/53a9d106c4aabcd550cc32ae4e8004f32fb0ae7b/pkg/api/validation/validation.go#L280
 	validationErrors := apimachineryvalidation.NameIsDNSLabel(name, false)
 	return len(validationErrors) == 0
+}
+
+type GetSettingsFunc func() (*settings.ArgoCDSettings, error)
+
+// WithEnabledMiddleware is an HTTP middleware to verify if the terminal
+// feature is enabled before invoking the main handler
+func (s *terminalHandler) WithEnabledMiddleware(getSettings GetSettingsFunc, next http.Handler) http.Handler {
+	return http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+		argocdSettings, err := getSettings()
+		if err != nil {
+			http.Error(w, fmt.Sprintf("Failed to get settings: %v", err), http.StatusBadRequest)
+			return
+		}
+		if !argocdSettings.ExecEnabled {
+			w.WriteHeader(http.StatusNotFound)
+			return
+		}
+		next.ServeHTTP(w, r)
+	})
 }
 
 func (s *terminalHandler) ServeHTTP(w http.ResponseWriter, r *http.Request) {

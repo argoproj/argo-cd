@@ -463,6 +463,33 @@ func (mgr *SessionManager) VerifyUsernamePassword(username string, password stri
 	return nil
 }
 
+func (mgr *SessionManager) WithAuthMiddleware(disabled bool, next http.Handler) http.Handler {
+	return http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+		if !disabled {
+			cookies := r.Cookies()
+			tokenString, err := httputil.JoinCookies(common.AuthCookieName, cookies)
+			if err != nil {
+				w.WriteHeader(http.StatusBadRequest)
+				return
+			}
+			claims, _, err := mgr.VerifyToken(tokenString)
+			if err != nil {
+				w.WriteHeader(http.StatusUnauthorized)
+				return
+			}
+			if claims == nil {
+				w.WriteHeader(http.StatusUnauthorized)
+				return
+			}
+			ctx := r.Context()
+			// Add claims to the context to inspect for RBAC
+			ctx = context.WithValue(ctx, "claims", claims)
+			r = r.WithContext(ctx)
+		}
+		next.ServeHTTP(w, r)
+	})
+}
+
 // VerifyToken verifies if a token is correct. Tokens can be issued either from us or by an IDP.
 // We choose how to verify based on the issuer.
 func (mgr *SessionManager) VerifyToken(tokenString string) (jwt.Claims, string, error) {
