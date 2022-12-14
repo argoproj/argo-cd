@@ -245,6 +245,8 @@ func (a *ArgoCDWebhookHandler) HandleEvent(payload interface{}) {
 							log.Warnf("Failed to refresh app '%s' for controller reprocessing: %v", app.ObjectMeta.Name, err)
 							continue
 						}
+						// No need to refresh multiple times if multiple sources match.
+						break
 					} else if change.shaBefore != "" && change.shaAfter != "" {
 						if err := a.storePreviouslyCachedManifests(&app, change, trackingMethod, appInstanceLabelKey); err != nil {
 							log.Warnf("Failed to store cached manifests of previous revision for app '%s': %v", app.Name, err)

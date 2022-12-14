@@ -2,6 +2,7 @@ package argo
 
 import (
 	"context"
+	"errors"
 	"fmt"
 	"path/filepath"
 	"testing"
@@ -1023,44 +1024,77 @@ func Test_AppInstanceNameFromQualified(t *testing.T) {
 			assert.Equal(t, tt.result, result)
 		})
 	}
-
-}
-
-func getMultiSourceAppSpec() *argoappv1.ApplicationSpec {
-
-	repoPath, _ := filepath.Abs("./../..")
-
-	return &argoappv1.ApplicationSpec{
-		Sources: argoappv1.ApplicationSources{
-			{RepoURL: fmt.Sprintf("file://%s", repoPath), Ref: "source1"},
-			{RepoURL: fmt.Sprintf("file://%s", repoPath)},
-		},
-	}
 }
 
 func Test_GetRefSources(t *testing.T) {
-
 	repoPath, err := filepath.Abs("./../..")
 	assert.NoError(t, err)
 
+	getMultiSourceAppSpec := func(sources argoappv1.ApplicationSources) *argoappv1.ApplicationSpec {
+		return &argoappv1.ApplicationSpec{
+			Sources: sources,
+		}
+	}
+
 	repo := &argoappv1.Repository{Repo: fmt.Sprintf("file://%s", repoPath)}
 
-	argoSpec := getMultiSourceAppSpec()
+	t.Run("target ref exists", func(t *testing.T) {
+		repoDB := &dbmocks.ArgoDB{}
+		repoDB.On("GetRepository", context.Background(), repo.Repo).Return(repo, nil)
 
-	db := &dbmocks.ArgoDB{}
+		argoSpec := getMultiSourceAppSpec(argoappv1.ApplicationSources{
+			{RepoURL: fmt.Sprintf("file://%s", repoPath), Ref: "source1"},
+			{RepoURL: fmt.Sprintf("file://%s", repoPath)},
+		})
 
-	db.On("GetRepository", context.Background(), repo.Repo).Return(repo, nil)
+		refSources, err := GetRefSources(context.TODO(), *argoSpec, repoDB)
 
-	refSources, err := GetRefSources(context.TODO(), *argoSpec, db)
+		expectedRefSource := argoappv1.RefTargetRevisionMapping{
+			"$source1": &argoappv1.RefTarget{
+				Repo: *repo,
+			},
+		}
+		assert.NoError(t, err)
+		assert.Len(t, refSources, 1)
+		assert.Equal(t, expectedRefSource, refSources)
+	})
 
-	expectedRefSource := argoappv1.RefTargetRevisionMapping{
-		"$source1": &argoappv1.RefTarget{
-			Repo: *repo,
-		},
-	}
-	assert.NoError(t, err)
-	assert.Equal(t, 1, len(refSources))
-	assert.Equal(t, expectedRefSource, refSources)
+	t.Run("target ref does not exist", func(t *testing.T) {
+		repoDB := &dbmocks.ArgoDB{}
+		repoDB.On("GetRepository", context.Background(), "file://does-not-exist").Return(nil, errors.New("repo does not exist"))
+
+		argoSpec := getMultiSourceAppSpec(argoappv1.ApplicationSources{
+			{RepoURL: "file://does-not-exist", Ref: "source1"},
+		})
+
+		refSources, err := GetRefSources(context.TODO(), *argoSpec, repoDB)
+
+		assert.Error(t, err)
+		assert.Empty(t, refSources)
+	})
+
+	t.Run("invalid ref", func(t *testing.T) {
+		argoSpec := getMultiSourceAppSpec(argoappv1.ApplicationSources{
+			{RepoURL: "file://does-not-exist", Ref: "%invalid-name%"},
+		})
+
+		refSources, err := GetRefSources(context.TODO(), *argoSpec, &dbmocks.ArgoDB{})
+
+		assert.Error(t, err)
+		assert.Empty(t, refSources)
+	})
+
+	t.Run("duplicate ref keys", func(t *testing.T) {
+		argoSpec := getMultiSourceAppSpec(argoappv1.ApplicationSources{
+			{RepoURL: "file://does-not-exist", Ref: "source1"},
+			{RepoURL: "file://does-not-exist", Ref: "source1"},
+		})
+
+		refSources, err := GetRefSources(context.TODO(), *argoSpec, &dbmocks.ArgoDB{})
+
+		assert.Error(t, err)
+		assert.Empty(t, refSources)
+	})
 }
 
 func TestValidatePermissionsMultipleSources(t *testing.T) {

@@ -16,6 +16,8 @@ import (
 	bitbucketserver "gopkg.in/go-playground/webhooks.v5/bitbucket-server"
 	"gopkg.in/go-playground/webhooks.v5/github"
 	"gopkg.in/go-playground/webhooks.v5/gitlab"
+	"k8s.io/apimachinery/pkg/runtime"
+	kubetesting "k8s.io/client-go/testing"
 
 	"github.com/argoproj/argo-cd/v2/util/cache/appstate"
 
@@ -45,8 +47,22 @@ func (f fakeSettingsSrc) GetTrackingMethod() (string, error) {
 	return "", nil
 }
 
-func NewMockHandler() *ArgoCDWebhookHandler {
-	appClientset := appclientset.NewSimpleClientset()
+type reactorDef struct {
+	verb     string
+	resource string
+	reaction kubetesting.ReactionFunc
+}
+
+func NewMockHandler(reactor *reactorDef, objects ...runtime.Object) *ArgoCDWebhookHandler {
+	appClientset := appclientset.NewSimpleClientset(objects...)
+	if reactor != nil {
+		defaultReactor := appClientset.ReactionChain[0]
+		appClientset.ReactionChain = nil
+		appClientset.AddReactor("list", "*", func(action kubetesting.Action) (handled bool, ret runtime.Object, err error) {
+			return defaultReactor.React(action)
+		})
+		appClientset.AddReactor(reactor.verb, reactor.resource, reactor.reaction)
+	}
 	cacheClient := cacheutil.NewCache(cacheutil.NewInMemoryCache(1 * time.Hour))
 	return NewHandler("", appClientset, &settings.ArgoCDSettings{}, &fakeSettingsSrc{}, cache.NewCache(
 		cacheClient,
@@ -57,7 +73,7 @@ func NewMockHandler() *ArgoCDWebhookHandler {
 
 func TestGitHubCommitEvent(t *testing.T) {
 	hook := test.NewGlobal()
-	h := NewMockHandler()
+	h := NewMockHandler(nil)
 	req := httptest.NewRequest("POST", "/api/webhook", nil)
 	req.Header.Set("X-GitHub-Event", "push")
 	eventJSON, err := os.ReadFile("testdata/github-commit-event.json")
@@ -71,9 +87,63 @@ func TestGitHubCommitEvent(t *testing.T) {
 	hook.Reset()
 }
 
+// TestGitHubCommitEvent_MultiSource_Refresh makes sure that a webhook will refresh a multi-source app when at least
+// one source matches.
+func TestGitHubCommitEvent_MultiSource_Refresh(t *testing.T) {
+	hook := test.NewGlobal()
+	var patched bool
+	reaction := func(action kubetesting.Action) (handled bool, ret runtime.Object, err error) {
+		patchAction := action.(kubetesting.PatchAction)
+		assert.Equal(t, "app-to-refresh", patchAction.GetName())
+		patched = true
+		return true, nil, nil
+	}
+	h := NewMockHandler(&reactorDef{"patch", "applications", reaction}, &v1alpha1.Application{
+		ObjectMeta: metav1.ObjectMeta{
+			Name: "app-to-refresh",
+		},
+		Spec: v1alpha1.ApplicationSpec{
+			Sources: v1alpha1.ApplicationSources{
+				{
+					RepoURL: "https://github.com/some/unrelated-repo",
+					Path:    ".",
+				},
+				{
+					RepoURL: "https://github.com/jessesuen/test-repo",
+					Path:    ".",
+				},
+			},
+		},
+	}, &v1alpha1.Application{
+		ObjectMeta: metav1.ObjectMeta{
+			Name: "app-to-ignore",
+		},
+		Spec: v1alpha1.ApplicationSpec{
+			Sources: v1alpha1.ApplicationSources{
+				{
+					RepoURL: "https://github.com/some/unrelated-repo",
+					Path:    ".",
+				},
+			},
+		},
+	})
+	req := httptest.NewRequest("POST", "/api/webhook", nil)
+	req.Header.Set("X-GitHub-Event", "push")
+	eventJSON, err := os.ReadFile("testdata/github-commit-event.json")
+	assert.NoError(t, err)
+	req.Body = io.NopCloser(bytes.NewReader(eventJSON))
+	w := httptest.NewRecorder()
+	h.Handler(w, req)
+	assert.Equal(t, w.Code, http.StatusOK)
+	expectedLogResult := "Requested app 'app-to-refresh' refresh"
+	assert.Equal(t, expectedLogResult, hook.LastEntry().Message)
+	assert.True(t, patched)
+	hook.Reset()
+}
+
 func TestGitHubTagEvent(t *testing.T) {
 	hook := test.NewGlobal()
-	h := NewMockHandler()
+	h := NewMockHandler(nil)
 	req := httptest.NewRequest("POST", "/api/webhook", nil)
 	req.Header.Set("X-GitHub-Event", "push")
 	eventJSON, err := os.ReadFile("testdata/github-tag-event.json")
@@ -89,7 +159,7 @@ func TestGitHubTagEvent(t *testing.T) {
 
 func TestGitHubPingEvent(t *testing.T) {
 	hook := test.NewGlobal()
-	h := NewMockHandler()
+	h := NewMockHandler(nil)
 	req := httptest.NewRequest("POST", "/api/webhook", nil)
 	req.Header.Set("X-GitHub-Event", "ping")
 	eventJSON, err := os.ReadFile("testdata/github-ping-event.json")
@@ -105,7 +175,7 @@ func TestGitHubPingEvent(t *testing.T) {
 
 func TestBitbucketServerRepositoryReferenceChangedEvent(t *testing.T) {
 	hook := test.NewGlobal()
-	h := NewMockHandler()
+	h := NewMockHandler(nil)
 	req := httptest.NewRequest("POST", "/api/webhook", nil)
 	req.Header.Set("X-Event-Key", "repo:refs_changed")
 	eventJSON, err := os.ReadFile("testdata/bitbucket-server-event.json")
@@ -123,7 +193,7 @@ func TestBitbucketServerRepositoryReferenceChangedEvent(t *testing.T) {
 
 func TestBitbucketServerRepositoryDiagnosticPingEvent(t *testing.T) {
 	hook := test.NewGlobal()
-	h := NewMockHandler()
+	h := NewMockHandler(nil)
 	eventJSON := "{\"test\": true}"
 	req := httptest.NewRequest("POST", "/api/webhook", bytes.NewBufferString(eventJSON))
 	req.Header.Set("X-Event-Key", "diagnostics:ping")
@@ -137,7 +207,7 @@ func TestBitbucketServerRepositoryDiagnosticPingEvent(t *testing.T) {
 
 func TestGogsPushEvent(t *testing.T) {
 	hook := test.NewGlobal()
-	h := NewMockHandler()
+	h := NewMockHandler(nil)
 	req := httptest.NewRequest("POST", "/api/webhook", nil)
 	req.Header.Set("X-Gogs-Event", "push")
 	eventJSON, err := os.ReadFile("testdata/gogs-event.json")
@@ -153,7 +223,7 @@ func TestGogsPushEvent(t *testing.T) {
 
 func TestGitLabPushEvent(t *testing.T) {
 	hook := test.NewGlobal()
-	h := NewMockHandler()
+	h := NewMockHandler(nil)
 	req := httptest.NewRequest("POST", "/api/webhook", nil)
 	req.Header.Set("X-Gitlab-Event", "Push Hook")
 	eventJSON, err := os.ReadFile("testdata/gitlab-event.json")
@@ -169,7 +239,7 @@ func TestGitLabPushEvent(t *testing.T) {
 
 func TestInvalidMethod(t *testing.T) {
 	hook := test.NewGlobal()
-	h := NewMockHandler()
+	h := NewMockHandler(nil)
 	req := httptest.NewRequest("GET", "/api/webhook", nil)
 	req.Header.Set("X-GitHub-Event", "push")
 	w := httptest.NewRecorder()
@@ -183,7 +253,7 @@ func TestInvalidMethod(t *testing.T) {
 
 func TestInvalidEvent(t *testing.T) {
 	hook := test.NewGlobal()
-	h := NewMockHandler()
+	h := NewMockHandler(nil)
 	req := httptest.NewRequest("POST", "/api/webhook", nil)
 	req.Header.Set("X-GitHub-Event", "push")
 	w := httptest.NewRecorder()
@@ -197,7 +267,7 @@ func TestInvalidEvent(t *testing.T) {
 
 func TestUnknownEvent(t *testing.T) {
 	hook := test.NewGlobal()
-	h := NewMockHandler()
+	h := NewMockHandler(nil)
 	req := httptest.NewRequest("POST", "/api/webhook", nil)
 	req.Header.Set("X-Unknown-Event", "push")
 	w := httptest.NewRecorder()
