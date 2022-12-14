@@ -196,6 +196,7 @@ func Test_getNextUrl(t *testing.T) {
 		"Link": []string{fmt.Sprintf(`<%s>; rel="next"`, nextUrlAbsolute)},
 	}
 	nextUrl, err = getNextUrl(resp)
+	assert.NoError(t, err)
 	assert.Equal(t, nextUrl, nextUrlAbsolute)
 
 	var nextUrlRelative = "/v2/chart/tags/list?n=123&orderby="
@@ -203,6 +204,7 @@ func Test_getNextUrl(t *testing.T) {
 		"Link": []string{fmt.Sprintf(`<%s>; rel="next"`, nextUrlRelative)},
 	}
 	nextUrl, err = getNextUrl(resp)
+	assert.NoError(t, err)
 	assert.Equal(t, nextUrl, "https://my.repo.com/v2/chart/tags/list?n=123&orderby=")
 }
 

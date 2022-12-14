@@ -440,9 +440,7 @@ func getNextUrl(resp *http.Response) (string, error) {
 	} else {
 		link = link[1:i]
 	}
-	fmt.Println(link)
 	linkURL, err := resp.Request.URL.Parse(link)
-	fmt.Println(linkURL)
 	if err != nil {
 		return "", err
 	}
