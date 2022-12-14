@@ -407,7 +407,7 @@ func (c *nativeHelmChart) getTags(chart string) ([]byte, error) {
 	allTags := &TagsList{}
 	var data []byte
 	for nextURL != "" {
-		log.Debugf("fetching %s tags from %s", chart, text.Trunc(nextURL, 100))
+		log.Debugf("fetching %s tags from %s", chart, sanitizeLog(text.Trunc(nextURL, 100)))
 		data, nextURL, err = c.getTagsFromUrl(nextURL)
 		if err != nil && err != errNoLink {
 			return nil, fmt.Errorf("failed tags part: %v", err)
@@ -445,6 +445,12 @@ func getNextUrl(resp *http.Response) (string, error) {
 		return "", err
 	}
 	return linkURL.String(), nil
+}
+
+func sanitizeLog(input string) string {
+	sanitized := strings.ReplaceAll(input, "\r", "")
+	sanitized = strings.ReplaceAll(sanitized, "\n", "")
+	return sanitized
 }
 
 func (c *nativeHelmChart) getTagsFromUrl(tagsURL string) ([]byte, string, error) {
