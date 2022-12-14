@@ -3,7 +3,7 @@
 ## Declarative
 
 You can install Helm charts through the UI, or in the declarative GitOps way.  
-Helm is only used to inflate charts, the lifecycle of the application is handled by ArgoCD.  
+Helm is [only used to inflate charts](../../faq#after-deploying-my-helm-application-with-argo-cd-i-cannot-see-it-with-helm-ls-and-other-helm-commands), the lifecycle of the application is handled by ArgoCD.  
 Here is an example:
 
 ```yaml
