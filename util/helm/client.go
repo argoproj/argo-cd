@@ -391,10 +391,10 @@ func getTagsListURL(rawURL string, chart string) (string, error) {
 	if err != nil {
 		return "", fmt.Errorf("unable to parse repo url: %v", err)
 	}
+	tagsPathFormat := "%s/v2/%s/tags/list"
 	repoURL.Scheme = "https"
-	tagsList := strings.Join([]string{"v2", url.PathEscape(chart), "tags/list"}, "/")
-	repoURL.Path = strings.Join([]string{repoURL.Path, tagsList}, "/")
-	repoURL.RawPath = strings.Join([]string{repoURL.RawPath, tagsList}, "/")
+	repoURL.Path = fmt.Sprintf(tagsPathFormat, repoURL.Path, chart)
+	repoURL.RawPath = fmt.Sprintf(tagsPathFormat, repoURL.RawPath, url.PathEscape(chart))
 	return repoURL.String(), nil
 }
 

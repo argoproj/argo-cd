@@ -221,4 +221,14 @@ func Test_getTagsListURL(t *testing.T) {
 	tagsListURL, err = getTagsListURL("https://account.dkr.ecr.eu-central-1.amazonaws.com/", "dss")
 	assert.Nil(t, err)
 	assert.Equal(t, tagsListURL, "https://account.dkr.ecr.eu-central-1.amazonaws.com/v2/dss/tags/list")
+
+	// with unescaped characters allowed by https://www.rfc-editor.org/rfc/rfc3986#page-50
+	tagsListURL, err = getTagsListURL("https://account.dkr.ecr.eu-central-1.amazonaws.com/", "charts.-_~$&+=:@dss")
+	assert.Nil(t, err)
+	assert.Equal(t, tagsListURL, "https://account.dkr.ecr.eu-central-1.amazonaws.com/v2/charts.-_~$&+=:@dss/tags/list")
+
+	// with escaped characters not allowed in path by https://www.rfc-editor.org/rfc/rfc3986#page-50
+	tagsListURL, err = getTagsListURL("https://account.dkr.ecr.eu-central-1.amazonaws.com/", "charts%/dss")
+	assert.Nil(t, err)
+	assert.Equal(t, tagsListURL, "https://account.dkr.ecr.eu-central-1.amazonaws.com/v2/charts%25%2Fdss/tags/list")
 }
