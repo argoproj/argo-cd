@@ -82,6 +82,7 @@ Currently, the following organizations are **officially** using Argo CD:
 1. [Garner](https://www.garnercorp.com)
 1. [Generali Deutschland AG](https://www.generali.de/)
 1. [Gepardec](https://gepardec.com/)
+1. [GetYourGuide](https://www.getyourguide.com/)
 1. [Gitpod](https://www.gitpod.io)
 1. [Gllue](https://gllue.com)
 1. [gloat](https://gloat.com/)
