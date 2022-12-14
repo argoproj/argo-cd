@@ -20,13 +20,15 @@ This approach works ok in most cases, as the name of the label is standardized a
 
 There are however several limitations:
 
-* Labels are truncated to 63 characters. Depending on the size of the label you might want to store a longer name for your application
-* Other external tools might write/append to this label and create conflicts with Argo CD. For example several Helm charts and operators also use this label for generated manifests confusing Argo CD about the owner of the application
-* You might want to deploy more than one Argo CD instance on the same cluster (with cluster wide privileges) and have an easy way to identify which resource is managed by which instance of Argo CD
+- Labels are truncated to 63 characters. Depending on the size of the label you might want to store a longer name for your application
+- Other external tools might write/append to this label and create conflicts with Argo CD. For example several Helm charts and operators also use this label for generated manifests confusing Argo CD about the owner of the application
+- You might want to deploy more than one Argo CD instance on the same cluster (with cluster wide privileges) and have an easy way to identify which resource is managed by which instance of Argo CD
+
+ArgoCD propagates manually set Application labels to every object of manifest it propagates `app.kubernetes.io/instance` label. The feature allows building logging/monitoring ecosystem based on environment-specific labels.
 
 ## Additional tracking methods via an annotation
 
->v2.2
+> v2.2
 
 To offer more flexible options for tracking resources and solve some of the issues outlined in the previous section Argo CD can be instructed to use the following methods for tracking:
 
@@ -59,6 +61,7 @@ data:
   application.resourceTrackingMethod: annotation
 kind: ConfigMap
 ```
+
 Possible values are `label`, `annotation+label` and `annotation` as described in the previous section.
 
 Note that once you change the value you need to sync your applications again (or wait for the sync mechanism to kick-in) in order to apply your changes.
