@@ -1,6 +1,7 @@
 package v1alpha1
 
 import (
+	"encoding/json"
 	"errors"
 	fmt "fmt"
 	"os"
@@ -11,6 +12,7 @@ import (
 	"time"
 
 	argocdcommon "github.com/argoproj/argo-cd/v2/common"
+	"github.com/stretchr/testify/require"
 	"k8s.io/utils/pointer"
 
 	"github.com/argoproj/gitops-engine/pkg/sync/common"
@@ -48,6 +50,47 @@ func TestAppProject_IsSourcePermitted(t *testing.T) {
 		projSources: []string{"https://gitlab.com/group/*/*/*"}, appSource: "https://gitlab.com/group/sub-group/repo/owner", isPermitted: true,
 	}, {
 		projSources: []string{"https://gitlab.com/group/**"}, appSource: "https://gitlab.com/group/sub-group/repo/owner", isPermitted: true,
+	}}
+
+	for _, data := range testData {
+		proj := AppProject{
+			Spec: AppProjectSpec{
+				SourceRepos: data.projSources,
+			},
+		}
+		assert.Equal(t, proj.IsSourcePermitted(ApplicationSource{
+			RepoURL: data.appSource,
+		}), data.isPermitted)
+	}
+}
+
+func TestAppProject_IsNegatedSourcePermitted(t *testing.T) {
+	testData := []struct {
+		projSources []string
+		appSource   string
+		isPermitted bool
+	}{{
+		projSources: []string{"!https://github.com/argoproj/test.git"}, appSource: "https://github.com/argoproj/test.git", isPermitted: false,
+	}, {
+		projSources: []string{"!ssh://git@GITHUB.com:argoproj/test"}, appSource: "ssh://git@github.com:argoproj/test", isPermitted: false,
+	}, {
+		projSources: []string{"!https://github.com/argoproj/*"}, appSource: "https://github.com/argoproj/argoproj.git", isPermitted: false,
+	}, {
+		projSources: []string{"https://github.com/test1/test.git", "!https://github.com/test2/test.git"}, appSource: "https://github.com/test2/test.git", isPermitted: false,
+	}, {
+		projSources: []string{"!https://github.com/argoproj/foo*"}, appSource: "https://github.com/argoproj/foo1", isPermitted: false,
+	}, {
+		projSources: []string{"!https://gitlab.com/group/*/*"}, appSource: "https://gitlab.com/group/repo/owner", isPermitted: false,
+	}, {
+		projSources: []string{"!https://gitlab.com/group/*/*/*"}, appSource: "https://gitlab.com/group/sub-group/repo/owner", isPermitted: false,
+	}, {
+		projSources: []string{"!https://gitlab.com/group/**"}, appSource: "https://gitlab.com/group/sub-group/repo/owner", isPermitted: false,
+	}, {
+		projSources: []string{"*"}, appSource: "https://github.com/argoproj/test.git", isPermitted: true,
+	}, {
+		projSources: []string{"https://github.com/argoproj/test1.git", "*"}, appSource: "https://github.com/argoproj/test2.git", isPermitted: true,
+	}, {
+		projSources: []string{"!https://github.com/argoproj/*.git", "*"}, appSource: "https://github.com/argoproj1/test2.git", isPermitted: true,
 	}}
 
 	for _, data := range testData {
@@ -505,6 +548,29 @@ func newTestProject() *AppProject {
 		Spec:       AppProjectSpec{Roles: []ProjectRole{{Name: "my-role"}}, Destinations: []ApplicationDestination{{}}},
 	}
 	return &p
+}
+
+// TestAppProject_ValidateSources tests for an invalid source
+func TestAppProject_ValidateSources(t *testing.T) {
+	p := newTestProject()
+	err := p.ValidateProject()
+	assert.NoError(t, err)
+	badSources := []string{
+		"!*",
+	}
+	for _, badName := range badSources {
+		p.Spec.SourceRepos = []string{badName}
+		err = p.ValidateProject()
+		assert.Error(t, err)
+	}
+
+	duplicateSources := []string{
+		"foo",
+		"foo",
+	}
+	p.Spec.SourceRepos = duplicateSources
+	err = p.ValidateProject()
+	assert.Error(t, err)
 }
 
 // TestAppProject_ValidateDestinations tests for an invalid destination
@@ -3157,4 +3223,84 @@ func Test_RBACName(t *testing.T) {
 		a := testApp("", "")
 		assert.Equal(t, "default/test-app", a.RBACName("argocd"))
 	})
+}
+
+func TestApplicationSourcePluginParameters_Environ_string(t *testing.T) {
+	params := ApplicationSourcePluginParameters{
+		{
+			Name:    "version",
+			String_: pointer.String("1.2.3"),
+		},
+	}
+	environ, err := params.Environ()
+	require.NoError(t, err)
+	assert.Len(t, environ, 2)
+	assert.Contains(t, environ, "PARAM_VERSION=1.2.3")
+	paramsJson, err := json.Marshal(params)
+	require.NoError(t, err)
+	assert.Contains(t, environ, fmt.Sprintf("ARGOCD_APP_PARAMETERS=%s", paramsJson))
+}
+
+func TestApplicationSourcePluginParameters_Environ_array(t *testing.T) {
+	params := ApplicationSourcePluginParameters{
+		{
+			Name:  "dependencies",
+			Array: []string{"redis", "minio"},
+		},
+	}
+	environ, err := params.Environ()
+	require.NoError(t, err)
+	assert.Len(t, environ, 3)
+	assert.Contains(t, environ, "PARAM_DEPENDENCIES_0=redis")
+	assert.Contains(t, environ, "PARAM_DEPENDENCIES_1=minio")
+	paramsJson, err := json.Marshal(params)
+	require.NoError(t, err)
+	assert.Contains(t, environ, fmt.Sprintf("ARGOCD_APP_PARAMETERS=%s", paramsJson))
+}
+
+func TestApplicationSourcePluginParameters_Environ_map(t *testing.T) {
+	params := ApplicationSourcePluginParameters{
+		{
+			Name: "helm-parameters",
+			Map: map[string]string{
+				"image.repo": "quay.io/argoproj/argo-cd",
+				"image.tag":  "v2.4.0",
+			},
+		},
+	}
+	environ, err := params.Environ()
+	require.NoError(t, err)
+	assert.Len(t, environ, 3)
+	assert.Contains(t, environ, "PARAM_HELM_PARAMETERS_IMAGE_REPO=quay.io/argoproj/argo-cd")
+	assert.Contains(t, environ, "PARAM_HELM_PARAMETERS_IMAGE_TAG=v2.4.0")
+	paramsJson, err := json.Marshal(params)
+	require.NoError(t, err)
+	assert.Contains(t, environ, fmt.Sprintf("ARGOCD_APP_PARAMETERS=%s", paramsJson))
+}
+
+func TestApplicationSourcePluginParameters_Environ_all(t *testing.T) {
+	// Technically there's no rule against specifying multiple types as values. It's up to the CMP how to handle them.
+	// Name collisions can happen for the convenience env vars. When in doubt, CMP authors should use the JSON env var.
+	params := ApplicationSourcePluginParameters{
+		{
+			Name:    "some-name",
+			String_: pointer.String("1.2.3"),
+			Array:   []string{"redis", "minio"},
+			Map: map[string]string{
+				"image.repo": "quay.io/argoproj/argo-cd",
+				"image.tag":  "v2.4.0",
+			},
+		},
+	}
+	environ, err := params.Environ()
+	require.NoError(t, err)
+	assert.Len(t, environ, 6)
+	assert.Contains(t, environ, "PARAM_SOME_NAME=1.2.3")
+	assert.Contains(t, environ, "PARAM_SOME_NAME_0=redis")
+	assert.Contains(t, environ, "PARAM_SOME_NAME_1=minio")
+	assert.Contains(t, environ, "PARAM_SOME_NAME_IMAGE_REPO=quay.io/argoproj/argo-cd")
+	assert.Contains(t, environ, "PARAM_SOME_NAME_IMAGE_TAG=v2.4.0")
+	paramsJson, err := json.Marshal(params)
+	require.NoError(t, err)
+	assert.Contains(t, environ, fmt.Sprintf("ARGOCD_APP_PARAMETERS=%s", paramsJson))
 }

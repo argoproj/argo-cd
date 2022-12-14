@@ -9,6 +9,7 @@ import {services} from '../../../shared/services';
 import {ImageTagFieldEditor} from './kustomize';
 import * as kustomize from './kustomize-image';
 import {VarsInputField} from './vars-input-field';
+import {concatMaps} from '../../../shared/utils';
 
 const TextWithMetadataField = ReactFormField((props: {metadata: {value: string}; fieldApi: FieldApi; className: string}) => {
     const {
@@ -278,6 +279,36 @@ export const ApplicationParameters = (props: {
             view: app.spec.source.plugin && (app.spec.source.plugin.env || []).map(i => `${i.name}='${i.value}'`).join(' '),
             edit: (formApi: FormApi) => <FormField field='spec.source.plugin.env' formApi={formApi} component={ArrayInputField} />
         });
+        if (props.details.plugin.parametersAnnouncement) {
+            for (const announcement of props.details.plugin.parametersAnnouncement) {
+                const liveParam = app.spec.source.plugin.parameters?.find(param => param.name === announcement.name);
+                if (announcement.collectionType === undefined || announcement.collectionType === '' || announcement.collectionType === 'string') {
+                    attributes.push({
+                        title: announcement.title ?? announcement.name,
+                        view: liveParam?.string || announcement.string,
+                        edit: () => liveParam?.string || announcement.string
+                    });
+                } else if (announcement.collectionType === 'array') {
+                    attributes.push({
+                        title: announcement.title ?? announcement.name,
+                        view: (liveParam?.array || announcement.array || []).join(' '),
+                        edit: () => (liveParam?.array || announcement.array || []).join(' ')
+                    });
+                } else if (announcement.collectionType === 'map') {
+                    const entries = concatMaps(announcement.map, liveParam?.map).entries();
+                    attributes.push({
+                        title: announcement.title ?? announcement.name,
+                        view: Array.from(entries)
+                            .map(([key, value]) => `${key}='${value}'`)
+                            .join(' '),
+                        edit: () =>
+                            Array.from(entries)
+                                .map(([key, value]) => `${key}='${value}'`)
+                                .join(' ')
+                    });
+                }
+            }
+        }
     } else if (props.details.type === 'Directory') {
         const directory = app.spec.source.directory || ({} as ApplicationSourceDirectory);
         attributes.push({

@@ -7,6 +7,7 @@ import (
 	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
 
 	"github.com/argoproj/argo-cd/v2/common"
+	"github.com/argoproj/argo-cd/v2/reposerver/apiclient"
 	configUtil "github.com/argoproj/argo-cd/v2/util/config"
 )
 
@@ -21,10 +22,11 @@ type PluginConfig struct {
 }
 
 type PluginConfigSpec struct {
-	Version          string   `json:"version"`
-	Init             Command  `json:"init,omitempty"`
-	Generate         Command  `json:"generate"`
-	Discover         Discover `json:"discover"`
+	Version          string     `json:"version"`
+	Init             Command    `json:"init,omitempty"`
+	Generate         Command    `json:"generate"`
+	Discover         Discover   `json:"discover"`
+	Parameters       Parameters `yaml:"parameters"`
 }
 
 //Discover holds find and fileName
@@ -43,6 +45,17 @@ type Command struct {
 type Find struct {
 	Command
 	Glob string `json:"glob"`
+}
+
+// Parameters holds static and dynamic configurations
+type Parameters struct {
+	Static  []*apiclient.ParameterAnnouncement `yaml:"static"`
+	Dynamic Command                            `yaml:"dynamic"`
+}
+
+// Dynamic hold the dynamic announcements for CMP's
+type Dynamic struct {
+	Command
 }
 
 func ReadPluginConfig(filePath string) (*PluginConfig, error) {

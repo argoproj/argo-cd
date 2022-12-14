@@ -7,8 +7,12 @@ spec:
   init:
     command: [kustomize, version]
   generate:
-    command: [sh, -c, "cd testdata/kustomize && kustomize build"]
+    command: [sh, -c, "kustomize build"]
   discover:
     find:
       command: [sh, -c, find . -name kustomization.yaml]
-      glob: "**/*/kustomization.yaml"
+      glob: "**/kustomization.yaml"
+  parameters:
+    static:
+      - name: test-param
+        string: test-value

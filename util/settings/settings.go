@@ -110,6 +110,9 @@ type ArgoCDSettings struct {
 	OIDCTLSInsecureSkipVerify bool `json:"oidcTLSInsecureSkipVerify"`
 	// AppsInAnyNamespaceEnabled indicates whether applications are allowed to be created in any namespace
 	AppsInAnyNamespaceEnabled bool `json:"appsInAnyNamespaceEnabled"`
+	// ExtensionConfig configurations related to ArgoCD proxy extensions. The value
+	// is a yaml string defined in extension.ExtensionConfigs struct.
+	ExtensionConfig string `json:"extensionConfig,omitempty"`
 }
 
 type GoogleAnalytics struct {
@@ -318,6 +321,20 @@ type RepositoryCredentials struct {
 	Type string `json:"type,omitempty"`
 }
 
+// DeepLink structure
+type DeepLink struct {
+	// URL that the deep link will redirect to
+	URL string `json:"url"`
+	// Title that will be displayed in the UI corresponding to that link
+	Title string `json:"title"`
+	// Description (optional) a description for what the deep link is about
+	Description *string `json:"description,omitempty"`
+	// IconClass (optional) a font-awesome icon class to be used when displaying the links in dropdown menus.
+	IconClass *string `json:"icon.class,omitempty"`
+	// Condition (optional) a conditional statement depending on which the deep link shall be rendered
+	Condition *string `json:"if,omitempty"`
+}
+
 const (
 	// settingServerSignatureKey designates the key for a server secret key inside a Kubernetes secret.
 	settingServerSignatureKey = "server.secretkey"
@@ -423,6 +440,13 @@ const (
 	execShellsKey = "exec.shells"
 	// oidcTLSInsecureSkipVerifyKey is the key to configure whether TLS cert verification is skipped for OIDC connections
 	oidcTLSInsecureSkipVerifyKey = "oidc.tls.insecure.skip.verify"
+	// ApplicationDeepLinks is the application deep link key
+	ApplicationDeepLinks = "application.links"
+	// ProjectDeepLinks is the project deep link key
+	ProjectDeepLinks = "project.links"
+	// ResourceDeepLinks is the resource deep link key
+	ResourceDeepLinks = "resource.links"
+	extensionConfig   = "extension.config"
 )
 
 var (
@@ -699,6 +723,21 @@ func (mgr *SettingsManager) GetConfigManagementPlugins() ([]v1alpha1.ConfigManag
 		}
 	}
 	return plugins, nil
+}
+
+func (mgr *SettingsManager) GetDeepLinks(deeplinkType string) ([]DeepLink, error) {
+	argoCDCM, err := mgr.getConfigMap()
+	if err != nil {
+		return nil, err
+	}
+	deepLinks := make([]DeepLink, 0)
+	if value, ok := argoCDCM.Data[deeplinkType]; ok {
+		err := yaml.Unmarshal([]byte(value), &deepLinks)
+		if err != nil {
+			return nil, err
+		}
+	}
+	return deepLinks, nil
 }
 
 func (mgr *SettingsManager) GetEnabledSourceTypes() (map[string]bool, error) {
@@ -1294,6 +1333,7 @@ func updateSettingsFromConfigMap(settings *ArgoCDSettings, argoCDCM *apiv1.Confi
 	}
 	settings.TrackingMethod = argoCDCM.Data[settingsResourceTrackingMethodKey]
 	settings.OIDCTLSInsecureSkipVerify = argoCDCM.Data[oidcTLSInsecureSkipVerifyKey] == "true"
+	settings.ExtensionConfig = argoCDCM.Data[extensionConfig]
 }
 
 // validateExternalURL ensures the external URL that is set on the configmap is valid

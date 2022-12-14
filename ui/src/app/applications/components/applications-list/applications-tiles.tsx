@@ -53,7 +53,7 @@ export const ApplicationTiles = ({applications, syncApplication, refreshApplicat
     const appRef = {ref: React.useRef(null), set: false};
     const appContainerRef = React.useRef(null);
     const appsPerRow = useItemsPerContainer(appRef.ref, appContainerRef);
-    const authSettingsCtx = React.useContext(AuthSettingsCtx);
+    const useAuthSettingsCtx = React.useContext(AuthSettingsCtx);
 
     const {useKeybinding} = React.useContext(KeybindingContext);
 
@@ -131,7 +131,7 @@ export const ApplicationTiles = ({applications, syncApplication, refreshApplicat
                                                             <i className={'icon argo-icon-' + (app.spec.source.chart != null ? 'helm' : 'git')} />
                                                             <Tooltip content={AppUtils.appInstanceName(app)}>
                                                                 <span className='applications-list__title'>
-                                                                    {AppUtils.appQualifiedName(app, authSettingsCtx?.appsInAnyNamespaceEnabled)}
+                                                                    {AppUtils.appQualifiedName(app, useAuthSettingsCtx?.appsInAnyNamespaceEnabled)}
                                                                 </span>
                                                             </Tooltip>
                                                         </div>
@@ -255,6 +255,12 @@ export const ApplicationTiles = ({applications, syncApplication, refreshApplicat
                                                             Namespace:
                                                         </div>
                                                         <div className='columns small-9'>{app.spec.destination.namespace}</div>
+                                                    </div>
+                                                    <div className='row'>
+                                                        <div className='columns small-3' title='Age:'>
+                                                            Created At:
+                                                        </div>
+                                                        <div className='columns small-9'>{AppUtils.formatCreationTimestamp(app.metadata.creationTimestamp)}</div>
                                                     </div>
                                                     <div className='row'>
                                                         <div className='columns applications-list__entry--actions'>
