@@ -33,6 +33,7 @@ import (
 var (
 	globalLock = sync.NewKeyLock()
 	indexLock  = sync.NewKeyLock()
+	errNoLink  = errors.New("no Link header in response")
 )
 
 type Creds struct {
@@ -408,7 +409,7 @@ func (c *nativeHelmChart) getTags(chart string) ([]byte, error) {
 	for nextURL != "" {
 		log.Debugf("fetching %s tags from %s", chart, text.Trunc(nextURL, 100))
 		data, nextURL, err = c.getTagsFromUrl(nextURL)
-		if err != nil {
+		if err != nil && err != errNoLink {
 			return nil, fmt.Errorf("failed tags part: %v", err)
 		}
 
@@ -426,14 +427,26 @@ func (c *nativeHelmChart) getTags(chart string) ([]byte, error) {
 	return data, nil
 }
 
-func getNextUrl(linkHeader string) string {
-	nextUrl := ""
-	if linkHeader != "" {
-		// drop < >; ref= from the Link header, see: https://docs.docker.com/registry/spec/api/#pagination
-		nextUrl = strings.Split(linkHeader, ";")[0][1:]
-		nextUrl = nextUrl[:len(nextUrl)-1]
+func getNextUrl(resp *http.Response) (string, error) {
+	link := resp.Header.Get("Link")
+	if link == "" {
+		return "", errNoLink
 	}
-	return nextUrl
+	if link[0] != '<' {
+		return "", fmt.Errorf("invalid next link %q: missing '<'", link)
+	}
+	if i := strings.IndexByte(link, '>'); i == -1 {
+		return "", fmt.Errorf("invalid next link %q: missing '>'", link)
+	} else {
+		link = link[1:i]
+	}
+	fmt.Println(link)
+	linkURL, err := resp.Request.URL.Parse(link)
+	fmt.Println(linkURL)
+	if err != nil {
+		return "", err
+	}
+	return linkURL.String(), nil
 }
 
 func (c *nativeHelmChart) getTagsFromUrl(tagsURL string) ([]byte, string, error) {
@@ -484,8 +497,8 @@ func (c *nativeHelmChart) getTagsFromUrl(tagsURL string) ([]byte, string, error)
 	if err != nil {
 		return nil, "", fmt.Errorf("failed to read body: %v", err)
 	}
-	nextUrl := getNextUrl(resp.Header.Get("Link"))
-	return data, nextUrl, nil
+	nextUrl, err := getNextUrl(resp)
+	return data, nextUrl, err
 }
 
 func (c *nativeHelmChart) GetTags(chart string, noCache bool) (*TagsList, error) {

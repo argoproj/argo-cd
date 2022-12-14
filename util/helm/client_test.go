@@ -10,6 +10,7 @@ import (
 
 	"net/http"
 	"net/http/httptest"
+	"net/url"
 
 	"github.com/stretchr/testify/assert"
 	"github.com/stretchr/testify/require"
@@ -177,11 +178,32 @@ func TestGetTagsFromUrl(t *testing.T) {
 }
 
 func Test_getNextUrl(t *testing.T) {
-	nextUrl := getNextUrl("")
+	baseUrl, err := url.Parse("https://my.repo.com/v2/chart/tags/list")
+	if err != nil {
+		t.Errorf("failed to parse url in test case: %v", err)
+	}
+	resp := &http.Response{
+		Request: &http.Request{
+			URL: baseUrl,
+		},
+	}
+	nextUrl, err := getNextUrl(resp)
 	assert.Equal(t, nextUrl, "")
+	assert.Equal(t, err, errNoLink)
 
-	nextUrl = getNextUrl("<https://my.repo.com/v2/chart/tags/list?token=123>; rel=next")
-	assert.Equal(t, nextUrl, "https://my.repo.com/v2/chart/tags/list?token=123")
+	var nextUrlAbsolute = "https://my.repo.com/v2/chart/tags/list?n=123&orderby="
+	resp.Header = http.Header{
+		"Link": []string{fmt.Sprintf(`<%s>; rel="next"`, nextUrlAbsolute)},
+	}
+	nextUrl, err = getNextUrl(resp)
+	assert.Equal(t, nextUrl, nextUrlAbsolute)
+
+	var nextUrlRelative = "/v2/chart/tags/list?n=123&orderby="
+	resp.Header = http.Header{
+		"Link": []string{fmt.Sprintf(`<%s>; rel="next"`, nextUrlRelative)},
+	}
+	nextUrl, err = getNextUrl(resp)
+	assert.Equal(t, nextUrl, "https://my.repo.com/v2/chart/tags/list?n=123&orderby=")
 }
 
 func Test_getTagsListURL(t *testing.T) {
