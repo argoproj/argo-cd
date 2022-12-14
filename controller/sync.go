@@ -271,20 +271,8 @@ func (m *appStateManager) SyncAppState(app *v1alpha1.Application, state *v1alpha
 	var resState []common.ResourceSyncResult
 	state.Phase, state.Message, resState = syncCtx.GetState()
 	state.SyncResult.Resources = nil
-	for _, res := range resState {
-		state.SyncResult.Resources = append(state.SyncResult.Resources, &v1alpha1.ResourceResult{
-			HookType:  res.HookType,
-			Group:     res.ResourceKey.Group,
-			Kind:      res.ResourceKey.Kind,
-			Namespace: res.ResourceKey.Namespace,
-			Name:      res.ResourceKey.Name,
-			Version:   res.Version,
-			SyncPhase: res.SyncPhase,
-			HookPhase: res.HookPhase,
-			Status:    res.Status,
-			Message:   res.Message,
-		})
-	}
+
+	m.FixWrongKubectlMessage(resState, state, compareResult)
 
 	logEntry.WithField("duration", time.Since(start)).Info("sync/terminate complete")
 
