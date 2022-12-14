@@ -388,15 +388,15 @@ type ApplicationSourceKustomize struct {
 
 type KustomizeReplica struct {
 	// Name of Deployment or StatefulSet
-	Name string `json:"name,omitempty" protobuf:"bytes,1,name=name"`
+	Name string `json:"name" protobuf:"bytes,1,name=name"`
 	// Number of replicas
-	Count int64 `json:"count,omitempty" protobuf:"bytes,2,name=count"`
+	Count int64 `json:"count" protobuf:"bytes,2,name=count"`
 }
 
 type KustomizeReplicas []KustomizeReplica
 
 // NewKustomizeReplica parses a string in format name=count into a KustomizeReplica object and returns it
-func NewKusomizeReplica(text string) (*KustomizeReplica, error) {
+func NewKustomizeReplica(text string) (*KustomizeReplica, error) {
 	parts := strings.SplitN(text, "=", 2)
 	if len(parts) != 2 {
 		return nil, fmt.Errorf("expected parameter of the form: name=count. Received: %s", text)

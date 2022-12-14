@@ -1317,16 +1317,16 @@ func TestNewHelmParameter(t *testing.T) {
 
 func TestNewKustomizeReplica(t *testing.T) {
 	t.Run("Valid", func(t *testing.T) {
-		r, err := NewKusomizeReplica("my-deployment=2")
+		r, err := NewKustomizeReplica("my-deployment=2")
 		assert.NoError(t, err)
 		assert.Equal(t, &KustomizeReplica{Name: "my-deployment", Count: 2}, r)
 	})
 	t.Run("InvalidFormat", func(t *testing.T) {
-		_, err := NewKusomizeReplica("garbage")
+		_, err := NewKustomizeReplica("garbage")
 		assert.EqualError(t, err, "expected parameter of the form: name=count. Received: garbage")
 	})
 	t.Run("InvalidCount", func(t *testing.T) {
-		_, err := NewKusomizeReplica("my-deployment=garbage")
+		_, err := NewKustomizeReplica("my-deployment=garbage")
 		assert.EqualError(t, err, "expected integer value for count. Received: garbage")
 	})
 }

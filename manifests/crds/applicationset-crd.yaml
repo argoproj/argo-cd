@@ -257,6 +257,9 @@ spec:
                                                 type: integer
                                               name:
                                                 type: string
+                                            required:
+                                            - count
+                                            - name
                                             type: object
                                           type: array
                                         version:
@@ -582,6 +585,9 @@ spec:
                                                 type: integer
                                               name:
                                                 type: string
+                                            required:
+                                            - count
+                                            - name
                                             type: object
                                           type: array
                                         version:
@@ -909,6 +915,9 @@ spec:
                                                 type: integer
                                               name:
                                                 type: string
+                                            required:
+                                            - count
+                                            - name
                                             type: object
                                           type: array
                                         version:
@@ -1212,6 +1221,9 @@ spec:
                                                 type: integer
                                               name:
                                                 type: string
+                                            required:
+                                            - count
+                                            - name
                                             type: object
                                           type: array
                                         version:
@@ -1545,6 +1557,9 @@ spec:
                                                           type: integer
                                                         name:
                                                           type: string
+                                                      required:
+                                                      - count
+                                                      - name
                                                       type: object
                                                     type: array
                                                   version:
@@ -1870,6 +1885,9 @@ spec:
                                                           type: integer
                                                         name:
                                                           type: string
+                                                      required:
+                                                      - count
+                                                      - name
                                                       type: object
                                                     type: array
                                                   version:
@@ -2197,6 +2215,9 @@ spec:
                                                           type: integer
                                                         name:
                                                           type: string
+                                                      required:
+                                                      - count
+                                                      - name
                                                       type: object
                                                     type: array
                                                   version:
@@ -2500,6 +2521,9 @@ spec:
                                                           type: integer
                                                         name:
                                                           type: string
+                                                      required:
+                                                      - count
+                                                      - name
                                                       type: object
                                                     type: array
                                                   version:
@@ -2921,6 +2945,9 @@ spec:
                                                           type: integer
                                                         name:
                                                           type: string
+                                                      required:
+                                                      - count
+                                                      - name
                                                       type: object
                                                     type: array
                                                   version:
@@ -3389,6 +3416,9 @@ spec:
                                                           type: integer
                                                         name:
                                                           type: string
+                                                      required:
+                                                      - count
+                                                      - name
                                                       type: object
                                                     type: array
                                                   version:
@@ -3708,6 +3738,9 @@ spec:
                                                 type: integer
                                               name:
                                                 type: string
+                                            required:
+                                            - count
+                                            - name
                                             type: object
                                           type: array
                                         version:
@@ -4041,6 +4074,9 @@ spec:
                                                           type: integer
                                                         name:
                                                           type: string
+                                                      required:
+                                                      - count
+                                                      - name
                                                       type: object
                                                     type: array
                                                   version:
@@ -4366,6 +4402,9 @@ spec:
                                                           type: integer
                                                         name:
                                                           type: string
+                                                      required:
+                                                      - count
+                                                      - name
                                                       type: object
                                                     type: array
                                                   version:
@@ -4693,6 +4732,9 @@ spec:
                                                           type: integer
                                                         name:
                                                           type: string
+                                                      required:
+                                                      - count
+                                                      - name
                                                       type: object
                                                     type: array
                                                   version:
@@ -4996,6 +5038,9 @@ spec:
                                                           type: integer
                                                         name:
                                                           type: string
+                                                      required:
+                                                      - count
+                                                      - name
                                                       type: object
                                                     type: array
                                                   version:
@@ -5417,6 +5462,9 @@ spec:
                                                           type: integer
                                                         name:
                                                           type: string
+                                                      required:
+                                                      - count
+                                                      - name
                                                       type: object
                                                     type: array
                                                   version:
@@ -5885,6 +5933,9 @@ spec:
                                                           type: integer
                                                         name:
                                                           type: string
+                                                      required:
+                                                      - count
+                                                      - name
                                                       type: object
                                                     type: array
                                                   version:
@@ -6208,6 +6259,9 @@ spec:
                                                 type: integer
                                               name:
                                                 type: string
+                                            required:
+                                            - count
+                                            - name
                                             type: object
                                           type: array
                                         version:
@@ -6626,6 +6680,9 @@ spec:
                                                 type: integer
                                               name:
                                                 type: string
+                                            required:
+                                            - count
+                                            - name
                                             type: object
                                           type: array
                                         version:
@@ -7094,6 +7151,9 @@ spec:
                                                 type: integer
                                               name:
                                                 type: string
+                                            required:
+                                            - count
+                                            - name
                                             type: object
                                           type: array
                                         version:
@@ -7420,6 +7480,9 @@ spec:
                                       type: integer
                                     name:
                                       type: string
+                                  required:
+                                  - count
+                                  - name
                                   type: object
                                 type: array
                               version:

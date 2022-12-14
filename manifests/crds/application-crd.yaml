@@ -337,6 +337,9 @@ spec:
                                 name:
                                   description: Name of Deployment or StatefulSet
                                   type: string
+                              required:
+                              - count
+                              - name
                               type: object
                             type: array
                           version:
@@ -720,6 +723,9 @@ spec:
                             name:
                               description: Name of Deployment or StatefulSet
                               type: string
+                          required:
+                          - count
+                          - name
                           type: object
                         type: array
                       version:
@@ -1123,6 +1129,9 @@ spec:
                                   name:
                                     description: Name of Deployment or StatefulSet
                                     type: string
+                                required:
+                                - count
+                                - name
                                 type: object
                               type: array
                             version:
@@ -1531,6 +1540,9 @@ spec:
                                         name:
                                           description: Name of Deployment or StatefulSet
                                           type: string
+                                      required:
+                                      - count
+                                      - name
                                       type: object
                                     type: array
                                   version:
@@ -1915,6 +1927,9 @@ spec:
                                     name:
                                       description: Name of Deployment or StatefulSet
                                       type: string
+                                  required:
+                                  - count
+                                  - name
                                   type: object
                                 type: array
                               version:
@@ -2295,6 +2310,9 @@ spec:
                                     name:
                                       description: Name of Deployment or StatefulSet
                                       type: string
+                                  required:
+                                  - count
+                                  - name
                                   type: object
                                 type: array
                               version:

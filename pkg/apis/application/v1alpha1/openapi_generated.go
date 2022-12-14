@@ -3345,6 +3345,7 @@ func schema_pkg_apis_application_v1alpha1_KustomizeReplica(ref common.ReferenceC
 					"name": {
 						SchemaProps: spec.SchemaProps{
 							Description: "Name of Deployment or StatefulSet",
+							Default:     "",
 							Type:        []string{"string"},
 							Format:      "",
 						},
@@ -3352,11 +3353,13 @@ func schema_pkg_apis_application_v1alpha1_KustomizeReplica(ref common.ReferenceC
 					"count": {
 						SchemaProps: spec.SchemaProps{
 							Description: "Number of replicas",
+							Default:     0,
 							Type:        []string{"integer"},
 							Format:      "int64",
 						},
 					},
 				},
+				Required: []string{"name", "count"},
 			},
 		},
 	}
