@@ -492,7 +492,7 @@ func SetParameterOverrides(app *argoappv1.Application, parameters []string) {
 
 	switch sourceType {
 	case argoappv1.ApplicationSourceTypeHelm:
-		if app.Spec.GetSource().Helm == nil {
+		if source.Helm == nil {
 			source.Helm = &argoappv1.ApplicationSourceHelm{}
 		}
 		for _, p := range parameters {

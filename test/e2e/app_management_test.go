@@ -3,10 +3,8 @@ package e2e
 import (
 	"context"
 	"fmt"
-	"math/rand"
 	"reflect"
 	"regexp"
-	"strings"
 	"testing"
 	"time"
 

@@ -995,7 +995,7 @@ func TestSimpleSCMProviderGenerator(t *testing.T) {
 		Spec: argov1alpha1.ApplicationSpec{
 			Project: "default",
 			Source: &argov1alpha1.ApplicationSource{
-				RepoURL:        "git@github.com:argoproj/argocd-example-apps.git",
+				RepoURL:        "git@github.com:argoproj/argo-cd.git",
 				TargetRevision: "master",
 				Path:           "guestbook",
 			},
@@ -1068,7 +1068,7 @@ func TestSimpleSCMProviderGeneratorGoTemplate(t *testing.T) {
 		Spec: argov1alpha1.ApplicationSpec{
 			Project: "default",
 			Source: &argov1alpha1.ApplicationSource{
-				RepoURL:        "git@github.com:argoproj/argocd-example-apps.git",
+				RepoURL:        "git@github.com:argoproj/argo-cd.git",
 				TargetRevision: "master",
 				Path:           "guestbook",
 			},

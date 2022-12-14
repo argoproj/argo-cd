@@ -319,7 +319,7 @@ export const ApplicationParameters = (props: {
         });
         attributes.push({
             title: 'TOP-LEVEL ARGUMENTS',
-            view: ((directory.jsonnet && directory.jsonnet.tlas) || []).map((i, j) => (
+            view: ((directory?.jsonnet && directory?.jsonnet.tlas) || []).map((i, j) => (
                 <label key={j}>
                     {i.name}='{i.value}' {i.code && 'code'}
                 </label>
@@ -338,13 +338,13 @@ export const ApplicationParameters = (props: {
 
         attributes.push({
             title: 'INCLUDE',
-            view: app.spec.source.directory && app.spec.source.directory.include,
+            view: directory && directory.include,
             edit: (formApi: FormApi) => <FormField formApi={formApi} field='spec.source.directory.include' component={Text} />
         });
 
         attributes.push({
             title: 'EXCLUDE',
-            view: app.spec.source.directory && app.spec.source.directory.exclude,
+            view: directory && directory.exclude,
             edit: (formApi: FormApi) => <FormField formApi={formApi} field='spec.source.directory.exclude' component={Text} />
         });
     }
