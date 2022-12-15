@@ -275,7 +275,10 @@ spec:
     syncOptions:
     - CreateNamespace=true
 ```
-The example above shows how an Argo CD Application can be configured, so it will create namespaces for the Application resources if the namespaces don't exist already. Without this either declared in the Application manifest or passed in the cli via `--sync-option CreateNamespace=true`, the Application will fail to sync if the resources' namespaces do not exist. Note that the namespace to be created must be informed in the `spec.destination.namespace` field of the Application resource. The `metadata.namespace` field in the Application's child manifests must match this value, or can be omitted, so resources are created in the proper destination.
+
+The example above shows how an Argo CD Application can be configured so it will create the namespace specified in `spec.destination.namespace` if it doesn't exist already. Without this either declared in the Application manifest or passed in the CLI via `--sync-option CreateNamespace=true`, the Application will fail to sync if the namespace doesn't exist.
+
+Note that the namespace to be created must be informed in the `spec.destination.namespace` field of the Application resource. The `metadata.namespace` field in the Application's child manifests must match this value, or can be omitted, so resources are created in the proper destination.
 
 ### Namespace Metadata
 
