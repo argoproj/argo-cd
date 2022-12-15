@@ -653,6 +653,26 @@ func (s *Service) runManifestGenAsync(ctx context.Context, repoRoot, commitSHA, 
 								return
 							}
 
+							if git.NormalizeGitURL(q.ApplicationSource.RepoURL) == normalizedRepoURL && commitSHA != referencedCommitSHA {
+								ch.errCh <- fmt.Errorf("cannot reference a different revision of the same repository (%s references %q which resolves to %q while the application references %q which resolves to %q)", refVar, refSourceMapping.TargetRevision, referencedCommitSHA, q.Revision, commitSHA)
+								return
+							}
+							closer, err := s.repoLock.Lock(gitClient.Root(), referencedCommitSHA, true, func() (goio.Closer, error) {
+								return s.checkoutRevision(gitClient, referencedCommitSHA, s.initConstants.SubmoduleEnabled)
+							})
+							if err != nil {
+								log.Errorf("failed to acquire lock for referenced source %s", normalizedRepoURL)
+								ch.errCh <- err
+								return
+							}
+							defer func(closer goio.Closer) {
+								err := closer.Close()
+								if err != nil {
+									log.Errorf("Failed to release repo lock: %v", err)
+								}
+							}(closer)
+
+							// Symlink check must happen after acquiring lock.
 							if !s.initConstants.AllowOutOfBoundsSymlinks {
 								err := argopath.CheckOutOfBoundsSymlinks(gitClient.Root())
 								if err != nil {
@@ -673,25 +693,7 @@ func (s *Service) runManifestGenAsync(ctx context.Context, repoRoot, commitSHA, 
 								}
 							}
 
-							if git.NormalizeGitURL(q.ApplicationSource.RepoURL) == normalizedRepoURL && commitSHA != referencedCommitSHA {
-								ch.errCh <- fmt.Errorf("cannot reference a different revision of the same repository (%s references %q which resolves to %q while the application references %q which resolves to %q)", refVar, refSourceMapping.TargetRevision, referencedCommitSHA, q.Revision, commitSHA)
-								return
-							}
-							closer, err := s.repoLock.Lock(gitClient.Root(), referencedCommitSHA, true, func() (goio.Closer, error) {
-								return s.checkoutRevision(gitClient, referencedCommitSHA, s.initConstants.SubmoduleEnabled)
-							})
-							if err != nil {
-								log.Errorf("failed to acquire lock for referenced source %s", normalizedRepoURL)
-								ch.errCh <- err
-								return
-							}
 							repoRefs[normalizedRepoURL] = repoRef{revision: refSourceMapping.TargetRevision, commitSHA: referencedCommitSHA, key: refVar}
-							defer func(closer goio.Closer) {
-								err := closer.Close()
-								if err != nil {
-									log.Errorf("Failed to release repo lock: %v", err)
-								}
-							}(closer)
 						}
 					}
 				}
