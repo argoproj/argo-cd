@@ -13,7 +13,7 @@ import (
 	appclientset "github.com/argoproj/argo-cd/v2/pkg/client/clientset/versioned/fake"
 	"github.com/argoproj/argo-cd/v2/util/settings"
 
-	"github.com/argoproj/gitops-engine/pkg/health"
+	"github.com/argoproj/argo-cd/v2/gitops-engine/pkg/health"
 	"github.com/stretchr/testify/assert"
 	corev1 "k8s.io/api/core/v1"
 	v1 "k8s.io/apimachinery/pkg/apis/meta/v1"

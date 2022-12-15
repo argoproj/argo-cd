@@ -6,7 +6,7 @@ import (
 	"reflect"
 	"strings"
 
-	"github.com/argoproj/gitops-engine/pkg/utils/kube"
+	"github.com/argoproj/argo-cd/v2/gitops-engine/pkg/utils/kube"
 	"github.com/argoproj/pkg/sync"
 	"github.com/golang-jwt/jwt/v4"
 	"github.com/google/uuid"

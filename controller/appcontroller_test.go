@@ -8,15 +8,15 @@ import (
 
 	"k8s.io/apimachinery/pkg/api/resource"
 
-	clustercache "github.com/argoproj/gitops-engine/pkg/cache"
+	clustercache "github.com/argoproj/argo-cd/v2/gitops-engine/pkg/cache"
 
 	"github.com/argoproj/argo-cd/v2/common"
 	statecache "github.com/argoproj/argo-cd/v2/controller/cache"
 
-	"github.com/argoproj/gitops-engine/pkg/cache/mocks"
-	synccommon "github.com/argoproj/gitops-engine/pkg/sync/common"
-	"github.com/argoproj/gitops-engine/pkg/utils/kube"
-	"github.com/argoproj/gitops-engine/pkg/utils/kube/kubetest"
+	"github.com/argoproj/argo-cd/v2/gitops-engine/pkg/cache/mocks"
+	synccommon "github.com/argoproj/argo-cd/v2/gitops-engine/pkg/sync/common"
+	"github.com/argoproj/argo-cd/v2/gitops-engine/pkg/utils/kube"
+	"github.com/argoproj/argo-cd/v2/gitops-engine/pkg/utils/kube/kubetest"
 	"github.com/ghodss/yaml"
 	"github.com/stretchr/testify/assert"
 	"github.com/stretchr/testify/mock"

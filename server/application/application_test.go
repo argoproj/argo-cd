@@ -8,9 +8,9 @@ import (
 	"testing"
 	"time"
 
-	"github.com/argoproj/gitops-engine/pkg/health"
-	synccommon "github.com/argoproj/gitops-engine/pkg/sync/common"
-	"github.com/argoproj/gitops-engine/pkg/utils/kube/kubetest"
+	"github.com/argoproj/argo-cd/v2/gitops-engine/pkg/health"
+	synccommon "github.com/argoproj/argo-cd/v2/gitops-engine/pkg/sync/common"
+	"github.com/argoproj/argo-cd/v2/gitops-engine/pkg/utils/kube/kubetest"
 	"github.com/argoproj/pkg/sync"
 	"github.com/ghodss/yaml"
 	"github.com/golang-jwt/jwt/v4"

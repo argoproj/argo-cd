@@ -8,8 +8,8 @@ import (
 	"strings"
 	"time"
 
-	"github.com/argoproj/gitops-engine/pkg/cache"
-	"github.com/argoproj/gitops-engine/pkg/utils/kube"
+	"github.com/argoproj/argo-cd/v2/gitops-engine/pkg/cache"
+	"github.com/argoproj/argo-cd/v2/gitops-engine/pkg/utils/kube"
 	"github.com/r3labs/diff"
 	log "github.com/sirupsen/logrus"
 	"google.golang.org/grpc/codes"

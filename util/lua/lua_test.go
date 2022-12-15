@@ -4,7 +4,7 @@ import (
 	"fmt"
 	"testing"
 
-	"github.com/argoproj/gitops-engine/pkg/health"
+	"github.com/argoproj/argo-cd/v2/gitops-engine/pkg/health"
 	"github.com/ghodss/yaml"
 	"github.com/stretchr/testify/assert"
 	lua "github.com/yuin/gopher-lua"

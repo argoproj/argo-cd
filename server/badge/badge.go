@@ -7,7 +7,7 @@ import (
 	"regexp"
 	"strings"
 
-	healthutil "github.com/argoproj/gitops-engine/pkg/health"
+	healthutil "github.com/argoproj/argo-cd/v2/gitops-engine/pkg/health"
 	"k8s.io/apimachinery/pkg/api/errors"
 	v1 "k8s.io/apimachinery/pkg/apis/meta/v1"
 

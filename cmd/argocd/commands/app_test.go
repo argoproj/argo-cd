@@ -6,11 +6,11 @@ import (
 	"testing"
 	"time"
 
+	"github.com/argoproj/argo-cd/v2/gitops-engine/pkg/health"
+	"github.com/argoproj/argo-cd/v2/gitops-engine/pkg/utils/kube"
 	argocdclient "github.com/argoproj/argo-cd/v2/pkg/apiclient"
 	"github.com/argoproj/argo-cd/v2/pkg/apis/application/v1alpha1"
 	argoappv1 "github.com/argoproj/argo-cd/v2/pkg/apis/application/v1alpha1"
-	"github.com/argoproj/gitops-engine/pkg/health"
-	"github.com/argoproj/gitops-engine/pkg/utils/kube"
 	"github.com/google/go-cmp/cmp"
 	"github.com/google/go-cmp/cmp/cmpopts"
 	"github.com/stretchr/testify/assert"

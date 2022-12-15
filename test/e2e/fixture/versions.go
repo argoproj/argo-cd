@@ -5,8 +5,8 @@ import (
 	"fmt"
 	"strings"
 
-	"github.com/argoproj/gitops-engine/pkg/cache"
-	"github.com/argoproj/gitops-engine/pkg/utils/kube"
+	"github.com/argoproj/argo-cd/v2/gitops-engine/pkg/cache"
+	"github.com/argoproj/argo-cd/v2/gitops-engine/pkg/utils/kube"
 
 	"github.com/argoproj/argo-cd/v2/util/argo"
 	"github.com/argoproj/argo-cd/v2/util/errors"

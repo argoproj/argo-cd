@@ -11,8 +11,8 @@ import (
 
 	"github.com/stretchr/testify/assert"
 
-	"github.com/argoproj/gitops-engine/pkg/cache"
-	"github.com/argoproj/gitops-engine/pkg/cache/mocks"
+	"github.com/argoproj/argo-cd/v2/gitops-engine/pkg/cache"
+	"github.com/argoproj/argo-cd/v2/gitops-engine/pkg/cache/mocks"
 	"github.com/stretchr/testify/mock"
 
 	appv1 "github.com/argoproj/argo-cd/v2/pkg/apis/application/v1alpha1"

@@ -12,9 +12,9 @@ import (
 	appstatecache "github.com/argoproj/argo-cd/v2/util/cache/appstate"
 	k8smanagedfields "k8s.io/apimachinery/pkg/util/managedfields"
 
-	"github.com/argoproj/gitops-engine/pkg/diff"
-	"github.com/argoproj/gitops-engine/pkg/utils/kube"
-	"github.com/argoproj/gitops-engine/pkg/utils/kube/scheme"
+	"github.com/argoproj/argo-cd/v2/gitops-engine/pkg/diff"
+	"github.com/argoproj/argo-cd/v2/gitops-engine/pkg/utils/kube"
+	"github.com/argoproj/argo-cd/v2/gitops-engine/pkg/utils/kube/scheme"
 	"k8s.io/apimachinery/pkg/apis/meta/v1/unstructured"
 )
 

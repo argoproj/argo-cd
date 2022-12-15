@@ -10,8 +10,8 @@ import (
 	"strings"
 	"time"
 
-	argoio "github.com/argoproj/gitops-engine/pkg/utils/io"
-	"github.com/argoproj/gitops-engine/pkg/utils/text"
+	argoio "github.com/argoproj/argo-cd/v2/gitops-engine/pkg/utils/io"
+	"github.com/argoproj/argo-cd/v2/gitops-engine/pkg/utils/text"
 	"github.com/bradleyfalzon/ghinstallation/v2"
 	gocache "github.com/patrickmn/go-cache"
 	log "github.com/sirupsen/logrus"

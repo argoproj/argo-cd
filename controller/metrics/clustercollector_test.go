@@ -4,7 +4,7 @@ import (
 	"errors"
 	"testing"
 
-	gitopsCache "github.com/argoproj/gitops-engine/pkg/cache"
+	gitopsCache "github.com/argoproj/argo-cd/v2/gitops-engine/pkg/cache"
 )
 
 func TestMetricClusterConnectivity(t *testing.T) {

@@ -11,7 +11,7 @@ import (
 	"strings"
 	"text/tabwriter"
 
-	healthutil "github.com/argoproj/gitops-engine/pkg/health"
+	healthutil "github.com/argoproj/argo-cd/v2/gitops-engine/pkg/health"
 	"github.com/ghodss/yaml"
 	log "github.com/sirupsen/logrus"
 	"github.com/spf13/cobra"

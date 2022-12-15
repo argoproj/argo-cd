@@ -12,7 +12,7 @@ import (
 
 	"github.com/argoproj/argo-cd/v2/util/argo/managedfields"
 	"github.com/argoproj/argo-cd/v2/util/argo/testdata"
-	"github.com/argoproj/gitops-engine/pkg/utils/kube/scheme"
+	"github.com/argoproj/argo-cd/v2/gitops-engine/pkg/utils/kube/scheme"
 )
 
 func TestNormalize(t *testing.T) {

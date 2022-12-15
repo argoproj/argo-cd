@@ -6,7 +6,7 @@ import (
 
 	appv1 "github.com/argoproj/argo-cd/v2/pkg/apis/application/v1alpha1"
 
-	"github.com/argoproj/gitops-engine/pkg/health"
+	"github.com/argoproj/argo-cd/v2/gitops-engine/pkg/health"
 )
 
 var (

@@ -5,11 +5,11 @@ package mocks
 import (
 	context "context"
 
-	cache "github.com/argoproj/gitops-engine/pkg/cache"
+	cache "github.com/argoproj/argo-cd/v2/gitops-engine/pkg/cache"
 
 	controllercache "github.com/argoproj/argo-cd/v2/controller/cache"
 
-	kube "github.com/argoproj/gitops-engine/pkg/utils/kube"
+	kube "github.com/argoproj/argo-cd/v2/gitops-engine/pkg/utils/kube"
 
 	mock "github.com/stretchr/testify/mock"
 
