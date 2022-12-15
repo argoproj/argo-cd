@@ -1,3 +1,4 @@
+apiVersion: lifecycle.keptn.sh/v1alpha2
 kind: KeptnEvaluation
 metadata:
   creationTimestamp: "2022-12-14T13:17:36Z"
