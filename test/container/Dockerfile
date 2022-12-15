@@ -103,12 +103,10 @@ RUN useradd -l -u ${UID} -d /home/user -s /bin/bash user && \
     mkdir -p /var/run/sshd && \
     mkdir -p /root/.ssh && \
     mkdir -p /go && \
-    chmod -R 777 /go && \
     chown root /etc/ssh/ssh_host_*_key* && \
     chmod 0600 /etc/ssh/ssh_host_*_key && \
-    mkdir -p /tmp/go-build-cache && chmod -R 777 /tmp/go-build-cache && \
-    mkdir -p /home/user/.cache && chmod 777 /home/user/.cache && \
-    chmod -R 777 /usr/local/go && \
+    mkdir -p /tmp/go-build-cache && \
+    mkdir -p /home/user/.cache && chown user /home/user/.cache && \
     ln -s /usr/local/bin/node /usr/local/bin/nodejs && \
     ln -s /usr/local/lib/node_modules/npm/bin/npm-cli.js /usr/local/bin/npm && \
     ln -s /usr/local/lib/node_modules/npm/bin/npx-cli.js /usr/local/bin/npx && \
