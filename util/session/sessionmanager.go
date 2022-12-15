@@ -472,16 +472,16 @@ func (mgr *SessionManager) WithAuthMiddleware(disabled bool, next http.Handler) 
 			cookies := r.Cookies()
 			tokenString, err := httputil.JoinCookies(common.AuthCookieName, cookies)
 			if err != nil {
-				w.WriteHeader(http.StatusBadRequest)
+				http.Error(w, "Auth cookie not found", http.StatusBadRequest)
 				return
 			}
 			claims, _, err := mgr.VerifyToken(tokenString)
 			if err != nil {
-				w.WriteHeader(http.StatusUnauthorized)
+				http.Error(w, "Invalid token", http.StatusUnauthorized)
 				return
 			}
 			if claims == nil {
-				w.WriteHeader(http.StatusUnauthorized)
+				http.Error(w, "Invalid token", http.StatusUnauthorized)
 				return
 			}
 			ctx := r.Context()
