@@ -9,7 +9,9 @@ argocd admin [flags]
 ### Options
 
 ```
-  -h, --help   help for admin
+  -h, --help               help for admin
+      --logformat string   Set the logging format. One of: text|json (default "text")
+      --loglevel string    Set the logging level. One of: debug|info|warn|error (default "info")
 ```
 
 ### Options inherited from parent commands
@@ -26,8 +28,6 @@ argocd admin [flags]
       --http-retry-max int              Maximum number of retries to establish http connection to Argo CD server
       --insecure                        Skip server certificate and domain verification
       --kube-context string             Directs the command to the given kube-context
-      --logformat string                Set the logging format. One of: text|json (default "text")
-      --loglevel string                 Set the logging level. One of: debug|info|warn|error (default "info")
       --plaintext                       Disable TLS
       --port-forward                    Connect to a random argocd-server port using port forwarding
       --port-forward-namespace string   Namespace name which should be used for port forwarding

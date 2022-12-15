@@ -29,6 +29,7 @@ import {EditNotificationSubscriptions, useEditNotificationSubscriptions} from '.
 import {EditAnnotations} from './edit-annotations';
 
 import './application-summary.scss';
+import {DeepLinks} from '../../../shared/components/deep-links';
 
 function swap(array: any[], a: number, b: number) {
     array = array.slice();
@@ -174,7 +175,7 @@ export const ApplicationSummary = (props: ApplicationSummaryProps) => {
                               load={src => services.repos.charts(src.repoURL).catch(() => new Array<models.HelmChart>())}>
                               {(charts: models.HelmChart[]) => (
                                   <div className='row'>
-                                      <div className='columns small-10'>
+                                      <div className='columns small-8'>
                                           <FormField
                                               formApi={formApi}
                                               field='spec.source.chart'
@@ -192,7 +193,7 @@ export const ApplicationSummary = (props: ApplicationSummaryProps) => {
                                               return (chartInfo && chartInfo.versions) || new Array<string>();
                                           }}>
                                           {(versions: string[]) => (
-                                              <div className='columns small-2'>
+                                              <div className='columns small-4'>
                                                   <FormField
                                                       formApi={formApi}
                                                       field='spec.source.targetRevision'
@@ -292,6 +293,14 @@ export const ApplicationSummary = (props: ApplicationSummaryProps) => {
                 <span>
                     <HealthStatusIcon state={app.status.health} /> {app.status.health.status}
                 </span>
+            )
+        },
+        {
+            title: 'LINKS',
+            view: (
+                <DataLoader load={() => services.applications.getLinks(app.metadata.name)} input={app} key='appLinks'>
+                    {(links: models.LinksResponse) => <DeepLinks links={links.items} />}
+                </DataLoader>
             )
         }
     ];

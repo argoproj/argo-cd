@@ -29,6 +29,7 @@ argocd admin notifications [flags]
       --proxy-url string                If provided, this URL will be used to connect via proxy
       --request-timeout string          The length of time to wait before giving up on a single server request. Non-zero values should contain a corresponding time unit (e.g. 1s, 2m, 3h). A value of zero means don't timeout requests. (default "0")
       --secret string                   argocd-notifications-secret.yaml file path. Use empty secret if provided value is ':empty'
+      --server string                   The address and port of the Kubernetes API server
       --tls-server-name string          If provided, this name will be used to validate server certificate. If this is not provided, hostname used to contact the server is used.
       --token string                    Bearer token for authentication to the API server
       --user string                     The name of the kubeconfig user to use
@@ -54,7 +55,6 @@ argocd admin notifications [flags]
       --plaintext                       Disable TLS
       --port-forward                    Connect to a random argocd-server port using port forwarding
       --port-forward-namespace string   Namespace name which should be used for port forwarding
-      --server string                   Argo CD server address
       --server-crt string               Server certificate file
 ```
 

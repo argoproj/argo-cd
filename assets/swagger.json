@@ -735,6 +735,42 @@
         }
       }
     },
+    "/api/v1/applications/{name}/links": {
+      "get": {
+        "tags": [
+          "ApplicationService"
+        ],
+        "summary": "ListLinks returns the list of all application deep links",
+        "operationId": "ApplicationService_ListLinks",
+        "parameters": [
+          {
+            "type": "string",
+            "name": "name",
+            "in": "path",
+            "required": true
+          },
+          {
+            "type": "string",
+            "name": "namespace",
+            "in": "query"
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "A successful response.",
+            "schema": {
+              "$ref": "#/definitions/applicationLinksResponse"
+            }
+          },
+          "default": {
+            "description": "An unexpected error response.",
+            "schema": {
+              "$ref": "#/definitions/runtimeError"
+            }
+          }
+        }
+      }
+    },
     "/api/v1/applications/{name}/logs": {
       "get": {
         "tags": [
@@ -1374,6 +1410,67 @@
             "description": "A successful response.",
             "schema": {
               "$ref": "#/definitions/applicationApplicationResponse"
+            }
+          },
+          "default": {
+            "description": "An unexpected error response.",
+            "schema": {
+              "$ref": "#/definitions/runtimeError"
+            }
+          }
+        }
+      }
+    },
+    "/api/v1/applications/{name}/resource/links": {
+      "get": {
+        "tags": [
+          "ApplicationService"
+        ],
+        "summary": "ListResourceLinks returns the list of all resource deep links",
+        "operationId": "ApplicationService_ListResourceLinks",
+        "parameters": [
+          {
+            "type": "string",
+            "name": "name",
+            "in": "path",
+            "required": true
+          },
+          {
+            "type": "string",
+            "name": "namespace",
+            "in": "query"
+          },
+          {
+            "type": "string",
+            "name": "resourceName",
+            "in": "query"
+          },
+          {
+            "type": "string",
+            "name": "version",
+            "in": "query"
+          },
+          {
+            "type": "string",
+            "name": "group",
+            "in": "query"
+          },
+          {
+            "type": "string",
+            "name": "kind",
+            "in": "query"
+          },
+          {
+            "type": "string",
+            "name": "appNamespace",
+            "in": "query"
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "A successful response.",
+            "schema": {
+              "$ref": "#/definitions/applicationLinksResponse"
             }
           },
           "default": {
@@ -2549,6 +2646,37 @@
             "description": "A successful response.",
             "schema": {
               "$ref": "#/definitions/projectGlobalProjectsResponse"
+            }
+          },
+          "default": {
+            "description": "An unexpected error response.",
+            "schema": {
+              "$ref": "#/definitions/runtimeError"
+            }
+          }
+        }
+      }
+    },
+    "/api/v1/projects/{name}/links": {
+      "get": {
+        "tags": [
+          "ProjectService"
+        ],
+        "summary": "ListLinks returns all deep links for the particular project",
+        "operationId": "ProjectService_ListLinks",
+        "parameters": [
+          {
+            "type": "string",
+            "name": "name",
+            "in": "path",
+            "required": true
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "A successful response.",
+            "schema": {
+              "$ref": "#/definitions/applicationLinksResponse"
             }
           },
           "default": {
@@ -3900,6 +4028,34 @@
         }
       }
     },
+    "applicationLinkInfo": {
+      "type": "object",
+      "properties": {
+        "description": {
+          "type": "string"
+        },
+        "iconClass": {
+          "type": "string"
+        },
+        "title": {
+          "type": "string"
+        },
+        "url": {
+          "type": "string"
+        }
+      }
+    },
+    "applicationLinksResponse": {
+      "type": "object",
+      "properties": {
+        "items": {
+          "type": "array",
+          "items": {
+            "$ref": "#/definitions/applicationLinkInfo"
+          }
+        }
+      }
+    },
     "applicationLogEntry": {
       "type": "object",
       "properties": {
@@ -4096,6 +4252,9 @@
       "properties": {
         "appLabelKey": {
           "type": "string"
+        },
+        "appsInAnyNamespaceEnabled": {
+          "type": "boolean"
         },
         "configManagementPlugins": {
           "type": "array",
@@ -4505,6 +4664,65 @@
         }
       }
     },
+    "repositoryParameterAnnouncement": {
+      "type": "object",
+      "properties": {
+        "array": {
+          "description": "array is the default value of the parameter if the parameter is an array.",
+          "type": "array",
+          "items": {
+            "type": "string"
+          }
+        },
+        "collectionType": {
+          "description": "collectionType is the type of value this parameter holds - either a single value (a string) or a collection\n(array or map). If collectionType is set, only the field with that type will be used. If collectionType is not\nset, `string` is the default. If collectionType is set to an invalid value, a validation error is thrown.",
+          "type": "string"
+        },
+        "itemType": {
+          "description": "itemType determines the primitive data type represented by the parameter. Parameters are always encoded as\nstrings, but this field lets them be interpreted as other primitive types.",
+          "type": "string"
+        },
+        "map": {
+          "description": "map is the default value of the parameter if the parameter is a map.",
+          "type": "object",
+          "additionalProperties": {
+            "type": "string"
+          }
+        },
+        "name": {
+          "description": "name is the name identifying a parameter.",
+          "type": "string"
+        },
+        "required": {
+          "description": "required defines if this given parameter is mandatory.",
+          "type": "boolean"
+        },
+        "string": {
+          "description": "string is the default value of the parameter if the parameter is a string.",
+          "type": "string"
+        },
+        "title": {
+          "description": "title is a human-readable text of the parameter name.",
+          "type": "string"
+        },
+        "tooltip": {
+          "description": "tooltip is a human-readable description of the parameter.",
+          "type": "string"
+        }
+      }
+    },
+    "repositoryPluginAppSpec": {
+      "type": "object",
+      "title": "PluginAppSpec contains details about a plugin-type Application",
+      "properties": {
+        "parametersAnnouncement": {
+          "type": "array",
+          "items": {
+            "$ref": "#/definitions/repositoryParameterAnnouncement"
+          }
+        }
+      }
+    },
     "repositoryRefs": {
       "type": "object",
       "title": "A subset of the repository's named refs",
@@ -4550,6 +4768,9 @@
         },
         "kustomize": {
           "$ref": "#/definitions/repositoryKustomizeAppSpec"
+        },
+        "plugin": {
+          "$ref": "#/definitions/repositoryPluginAppSpec"
         },
         "type": {
           "type": "string"
@@ -5772,6 +5993,39 @@
         },
         "name": {
           "type": "string"
+        },
+        "parameters": {
+          "type": "array",
+          "items": {
+            "$ref": "#/definitions/v1alpha1ApplicationSourcePluginParameter"
+          }
+        }
+      }
+    },
+    "v1alpha1ApplicationSourcePluginParameter": {
+      "type": "object",
+      "properties": {
+        "array": {
+          "description": "Array is the value of an array type parameter.",
+          "type": "array",
+          "items": {
+            "type": "string"
+          }
+        },
+        "map": {
+          "description": "Map is the value of a map type parameter.",
+          "type": "object",
+          "additionalProperties": {
+            "type": "string"
+          }
+        },
+        "name": {
+          "description": "Name is the name identifying a parameter.",
+          "type": "string"
+        },
+        "string": {
+          "description": "String_ is the value of a string type parameter.",
+          "type": "string"
         }
       }
     },
@@ -6938,6 +7192,10 @@
         "password": {
           "type": "string",
           "title": "Password for authenticating at the repo server"
+        },
+        "proxy": {
+          "type": "string",
+          "title": "Proxy specifies the HTTP/HTTPS proxy used to access repos at the repo server"
         },
         "sshPrivateKey": {
           "type": "string",

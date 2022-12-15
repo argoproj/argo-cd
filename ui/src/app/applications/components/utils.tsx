@@ -26,7 +26,7 @@ export interface NodeId {
 
 export const ExternalLinkAnnotation = 'link.argocd.argoproj.io/external-link';
 
-type ActionMenuItem = MenuItem & {disabled?: boolean};
+type ActionMenuItem = MenuItem & {disabled?: boolean; tooltip?: string};
 
 export function nodeKey(node: NodeId) {
     return [node.group, node.kind, node.namespace, node.name].join('/');
@@ -491,12 +491,25 @@ function getActionItems(
         })
         .catch(() => [] as MenuItem[]);
 
-    const resourceActions = getResourceActionsMenuItems(resource, application, appContext);
+    const resourceActions = getResourceActionsMenuItems(resource, application.metadata, appContext);
+
+    const links = services.applications.getResourceLinks(application.metadata.name, application.metadata.namespace, resource).then(data => {
+        return (data.items || []).map(
+            link =>
+                ({
+                    title: link.title,
+                    iconClassName: `fa ${link.iconClass ? link.iconClass : 'fa-external-link'}`,
+                    action: () => window.open(link.url, '_blank'),
+                    tooltip: link.description
+                } as MenuItem)
+        );
+    });
 
     return combineLatest(
         from([items]), // this resolves immediately
         concat([[] as MenuItem[]], resourceActions), // this resolves at first to [] and then whatever the API returns
-        concat([[] as MenuItem[]], execAction) // this resolves at first to [] and then whatever the API returns
+        concat([[] as MenuItem[]], execAction), // this resolves at first to [] and then whatever the API returns
+        concat([[] as MenuItem[]], links) // this resolves at first to [] and then whatever the API returns
     ).pipe(map(res => ([] as MenuItem[]).concat(...res)));
 }
 
@@ -530,7 +543,17 @@ export function renderResourceMenu(
                                     document.body.click();
                                 }
                             }}>
-                            {item.iconClassName && <i className={item.iconClassName} />} {item.title}
+                            {item.tooltip ? (
+                                <Tooltip content={item.tooltip || ''}>
+                                    <div>
+                                        {item.iconClassName && <i className={item.iconClassName} />} {item.title}
+                                    </div>
+                                </Tooltip>
+                            ) : (
+                                <>
+                                    {item.iconClassName && <i className={item.iconClassName} />} {item.title}
+                                </>
+                            )}
                         </li>
                     ))}
                 </ul>
@@ -1150,8 +1173,8 @@ export const urlPattern = new RegExp(
     )
 );
 
-export function appQualifiedName(app: appModels.Application): string {
-    return app.metadata.namespace + '/' + app.metadata.name;
+export function appQualifiedName(app: appModels.Application, nsEnabled: boolean): string {
+    return (nsEnabled ? app.metadata.namespace + '/' : '') + app.metadata.name;
 }
 
 export function appInstanceName(app: appModels.Application): string {
