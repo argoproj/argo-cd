@@ -78,7 +78,7 @@ export const ApplicationOperationState: React.StatelessComponent<Props> = ({appl
                         const confirmed = await ctx.apis.popup.confirm('Terminate operation', 'Are you sure you want to terminate operation?');
                         if (confirmed) {
                             try {
-                                await services.applications.terminateOperation(application.metadata.name);
+                                await services.applications.terminateOperation(application.metadata.name, application.metadata.namespace);
                             } catch (e) {
                                 ctx.apis.notifications.show({
                                     content: <ErrorNotification title='Unable to terminate operation' e={e} />,
