@@ -108,7 +108,7 @@ var (
 		},
 		Spec: appsv1.ApplicationSpec{
 			Project: "default",
-			Source: appsv1.ApplicationSource{
+			Source: &appsv1.ApplicationSource{
 				RepoURL:        "https://test",
 				TargetRevision: "HEAD",
 				Helm: &appsv1.ApplicationSourceHelm{
@@ -524,7 +524,7 @@ func TestRepositoryServerGetAppDetails(t *testing.T) {
 
 		s := NewServer(&repoServerClientset, db, enforcer, newFixtures().Cache, appLister, projLister, settingsMgr)
 		resp, err := s.GetAppDetails(context.TODO(), &repository.RepoAppDetailsQuery{
-			Source:     &guestbookApp.Spec.Source,
+			Source:     guestbookApp.Spec.GetSourcePtr(),
 			AppName:    "guestbook",
 			AppProject: "default",
 		})
@@ -543,7 +543,7 @@ func TestRepositoryServerGetAppDetails(t *testing.T) {
 
 		s := NewServer(&repoServerClientset, db, enforcer, newFixtures().Cache, appLister, projLister, settingsMgr)
 		resp, err := s.GetAppDetails(context.TODO(), &repository.RepoAppDetailsQuery{
-			Source:     &guestbookApp.Spec.Source,
+			Source:     guestbookApp.Spec.GetSourcePtr(),
 			AppName:    "guestbook",
 			AppProject: "mismatch",
 		})

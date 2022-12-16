@@ -5831,6 +5831,10 @@
         "plugin": {
           "$ref": "#/definitions/v1alpha1ApplicationSourcePlugin"
         },
+        "ref": {
+          "description": "Ref is reference to another source within sources field. This field will not be used if used with a `source` tag.",
+          "type": "string"
+        },
         "repoURL": {
           "type": "string",
           "title": "RepoURL is the URL to the repository (Git or Helm) that contains the application manifests"
@@ -6068,6 +6072,13 @@
         "source": {
           "$ref": "#/definitions/v1alpha1ApplicationSource"
         },
+        "sources": {
+          "type": "array",
+          "title": "Sources is a reference to the location of the application's manifests or chart",
+          "items": {
+            "$ref": "#/definitions/v1alpha1ApplicationSource"
+          }
+        },
         "syncPolicy": {
           "$ref": "#/definitions/v1alpha1SyncPolicy"
         }
@@ -6117,6 +6128,13 @@
         "sourceType": {
           "type": "string",
           "title": "SourceType specifies the type of this application"
+        },
+        "sourceTypes": {
+          "type": "array",
+          "title": "SourceTypes specifies the type of the sources included in the application",
+          "items": {
+            "type": "string"
+          }
         },
         "summary": {
           "$ref": "#/definitions/v1alpha1ApplicationSummary"
@@ -6415,6 +6433,13 @@
         },
         "source": {
           "$ref": "#/definitions/v1alpha1ApplicationSource"
+        },
+        "sources": {
+          "type": "array",
+          "title": "Sources is a reference to the application's multiple sources used for comparison",
+          "items": {
+            "$ref": "#/definitions/v1alpha1ApplicationSource"
+          }
         }
       }
     },
@@ -7757,8 +7782,22 @@
           "type": "string",
           "title": "Revision holds the revision the sync was performed against"
         },
+        "revisions": {
+          "type": "array",
+          "title": "Revisions holds the revision of each source in sources field the sync was performed against",
+          "items": {
+            "type": "string"
+          }
+        },
         "source": {
           "$ref": "#/definitions/v1alpha1ApplicationSource"
+        },
+        "sources": {
+          "type": "array",
+          "title": "Sources is a reference to the application sources used for the sync operation",
+          "items": {
+            "$ref": "#/definitions/v1alpha1ApplicationSource"
+          }
         }
       }
     },
@@ -8059,8 +8098,22 @@
           "description": "Revision is the revision (Git) or chart version (Helm) which to sync the application to\nIf omitted, will use the revision specified in app spec.",
           "type": "string"
         },
+        "revisions": {
+          "description": "Revisions is the list of revision (Git) or chart version (Helm) which to sync each source in sources field for the application to\nIf omitted, will use the revision specified in app spec.",
+          "type": "array",
+          "items": {
+            "type": "string"
+          }
+        },
         "source": {
           "$ref": "#/definitions/v1alpha1ApplicationSource"
+        },
+        "sources": {
+          "type": "array",
+          "title": "Sources overrides the source definition set in the application.\nThis is typically set in a Rollback operation and is nil during a Sync operation",
+          "items": {
+            "$ref": "#/definitions/v1alpha1ApplicationSource"
+          }
         },
         "syncOptions": {
           "type": "array",
@@ -8107,8 +8160,22 @@
           "type": "string",
           "title": "Revision holds the revision this sync operation was performed to"
         },
+        "revisions": {
+          "type": "array",
+          "title": "Revisions holds the revision this sync operation was performed for respective indexed source in sources field",
+          "items": {
+            "type": "string"
+          }
+        },
         "source": {
           "$ref": "#/definitions/v1alpha1ApplicationSource"
+        },
+        "sources": {
+          "type": "array",
+          "title": "Source records the application source information of the sync, used for comparing auto-sync",
+          "items": {
+            "$ref": "#/definitions/v1alpha1ApplicationSource"
+          }
         }
       }
     },
@@ -8162,6 +8229,13 @@
         "revision": {
           "type": "string",
           "title": "Revision contains information about the revision the comparison has been performed to"
+        },
+        "revisions": {
+          "type": "array",
+          "title": "Revisions contains information about the revisions of multiple sources the comparison has been performed to",
+          "items": {
+            "type": "string"
+          }
         },
         "status": {
           "type": "string",
