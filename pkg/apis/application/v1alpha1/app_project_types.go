@@ -59,6 +59,8 @@ func (p *AppProject) GetRoleByName(name string) (*ProjectRole, int, error) {
 }
 
 // GetJWTTokenFromSpec looks up the index of a JWTToken in a project by id (new token), if not then by the issue at time (old token)
+//
+// Deprecated: use GetJWTToken instead. This method will be removed in v3.0.
 func (p *AppProject) GetJWTTokenFromSpec(roleName string, issuedAt int64, id string) (*JWTToken, int, error) {
 	// This is for backward compatibility. In the oder version, JWTTokens are stored under spec.role
 	role, _, err := p.GetRoleByName(roleName)
@@ -134,7 +136,9 @@ func (p AppProject) RemoveJWTToken(roleIndex int, issuedAt int64, id string) err
 	}
 }
 
-// TODO: document this method
+// ValidateJWTTokenID checks for empty or duplicate JWT token IDs.
+//
+// Deprecated: the token IDs are no longer stored in spec.roles[].jstTokens. This method will be removed in v3.0.
 func (p *AppProject) ValidateJWTTokenID(roleName string, id string) error {
 	role, _, err := p.GetRoleByName(roleName)
 	if err != nil {

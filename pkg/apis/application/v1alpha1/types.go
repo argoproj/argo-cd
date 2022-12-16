@@ -2131,6 +2131,9 @@ type ProjectRole struct {
 	// Policies Stores a list of casbin formatted strings that define access policies for the role in the project
 	Policies []string `json:"policies,omitempty" protobuf:"bytes,3,rep,name=policies"`
 	// JWTTokens are a list of generated JWT tokens bound to this role
+	//
+	// Deprecated: JWT tokens are now stored in the status field. https://github.com/argoproj/argo-cd/issues/2718#issuecomment-572124961
+	// This field will be removed in v3.0.
 	JWTTokens []JWTToken `json:"jwtTokens,omitempty" protobuf:"bytes,4,rep,name=jwtTokens"`
 	// Groups are a list of OIDC group claims bound to this role
 	Groups []string `json:"groups,omitempty" protobuf:"bytes,5,rep,name=groups"`
