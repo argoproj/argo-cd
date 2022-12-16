@@ -10,6 +10,7 @@ import "k8s.io/apiextensions-apiserver/pkg/apis/apiextensions/v1/generated.proto
 import "k8s.io/apimachinery/pkg/apis/meta/v1/generated.proto";
 import "k8s.io/apimachinery/pkg/runtime/generated.proto";
 import "k8s.io/apimachinery/pkg/runtime/schema/generated.proto";
+import "k8s.io/apimachinery/pkg/util/intstr/generated.proto";
 
 // Package-wide variables from generator "generated".
 option go_package = "github.com/argoproj/argo-cd/v2/pkg/apis/application/v1alpha1";
@@ -148,6 +149,14 @@ message ApplicationList {
   repeated Application items = 2;
 }
 
+message ApplicationMatchExpression {
+  optional string key = 1;
+
+  optional string operator = 2;
+
+  repeated string values = 3;
+}
+
 // ApplicationSet is a set of Application resources
 // +genclient
 // +genclient:noStatus
@@ -160,6 +169,21 @@ message ApplicationSet {
   optional ApplicationSetSpec spec = 2;
 
   optional ApplicationSetStatus status = 3;
+}
+
+// ApplicationSetApplicationStatus contains details about each Application managed by the ApplicationSet
+message ApplicationSetApplicationStatus {
+  // Application contains the name of the Application resource
+  optional string application = 1;
+
+  // LastTransitionTime is the time the status was last updated
+  optional k8s.io.apimachinery.pkg.apis.meta.v1.Time lastTransitionTime = 2;
+
+  // Message contains human-readable message indicating details about the status
+  optional string message = 3;
+
+  // Status contains the AppSet's perceived status of the managed Application resource: (Waiting, Pending, Progressing, Healthy)
+  optional string status = 5;
 }
 
 // ApplicationSetCondition contains details about an applicationset condition, which is usally an error or warning
@@ -236,6 +260,16 @@ message ApplicationSetNestedGenerator {
   optional k8s.io.apimachinery.pkg.apis.meta.v1.LabelSelector selector = 9;
 }
 
+message ApplicationSetRolloutStep {
+  repeated ApplicationMatchExpression matchExpressions = 1;
+
+  optional k8s.io.apimachinery.pkg.util.intstr.IntOrString maxUpdate = 2;
+}
+
+message ApplicationSetRolloutStrategy {
+  repeated ApplicationSetRolloutStep steps = 1;
+}
+
 // ApplicationSetSpec represents a class of application set state.
 message ApplicationSetSpec {
   optional bool goTemplate = 1;
@@ -245,6 +279,8 @@ message ApplicationSetSpec {
   optional ApplicationSetTemplate template = 3;
 
   optional ApplicationSetSyncPolicy syncPolicy = 4;
+
+  optional ApplicationSetStrategy strategy = 5;
 }
 
 // ApplicationSetStatus defines the observed state of ApplicationSet
@@ -252,6 +288,15 @@ message ApplicationSetStatus {
   // INSERT ADDITIONAL STATUS FIELD - define observed state of cluster
   // Important: Run "make" to regenerate code after modifying this file
   repeated ApplicationSetCondition conditions = 1;
+
+  repeated ApplicationSetApplicationStatus applicationStatus = 2;
+}
+
+// ApplicationSetStrategy configures how generated Applications are updated in sequence.
+message ApplicationSetStrategy {
+  optional string type = 1;
+
+  optional ApplicationSetRolloutStrategy rollingSync = 2;
 }
 
 // ApplicationSetSyncPolicy configures how generated Applications will relate to their
