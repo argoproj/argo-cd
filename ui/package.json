@@ -18,6 +18,7 @@
     "color": "^3.2.1",
     "dagre": "^0.8.5",
     "deepmerge": "^3.2.0",
+    "formidable": "^2.1.1",
     "foundation-sites": "^6.7.4",
     "git-url-parse": "^11.6.0",
     "js-yaml": "^3.14.1",
