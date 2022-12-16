@@ -2028,3 +2028,172 @@ func TestGenerateAppsUsingPullRequestGenerator(t *testing.T) {
 		})
 	}
 }
+
+func TestPolicies(t *testing.T) {
+	scheme := runtime.NewScheme()
+	err := argov1alpha1.AddToScheme(scheme)
+	assert.Nil(t, err)
+
+	err = argov1alpha1.AddToScheme(scheme)
+	assert.Nil(t, err)
+
+	defaultProject := argov1alpha1.AppProject{
+		ObjectMeta: metav1.ObjectMeta{Name: "default", Namespace: "argocd"},
+		Spec:       argov1alpha1.AppProjectSpec{SourceRepos: []string{"*"}, Destinations: []argov1alpha1.ApplicationDestination{{Namespace: "*", Server: "https://kubernetes.default.svc"}}},
+	}
+	myCluster := argov1alpha1.Cluster{
+		Server: "https://kubernetes.default.svc",
+		Name:   "my-cluster",
+	}
+
+	kubeclientset := kubefake.NewSimpleClientset()
+	argoDBMock := dbmocks.ArgoDB{}
+	argoDBMock.On("GetCluster", mock.Anything, "https://kubernetes.default.svc").Return(&myCluster, nil)
+	argoObjs := []runtime.Object{&defaultProject}
+
+	for _, c := range []struct {
+		name          string
+		policyName    string
+		allowedUpdate bool
+		allowedDelete bool
+	}{
+		{
+			name:          "Apps are allowed to update and delete",
+			policyName:    "sync",
+			allowedUpdate: true,
+			allowedDelete: true,
+		},
+		{
+			name:          "Apps are not allowed to update and delete",
+			policyName:    "create-only",
+			allowedUpdate: false,
+			allowedDelete: false,
+		},
+		{
+			name:          "Apps are allowed to update, not allowed to delete",
+			policyName:    "create-update",
+			allowedUpdate: true,
+			allowedDelete: false,
+		},
+		{
+			name:          "Apps are allowed to delete, not allowed to update",
+			policyName:    "create-delete",
+			allowedUpdate: false,
+			allowedDelete: true,
+		},
+	} {
+		t.Run(c.name, func(t *testing.T) {
+			policy := utils.Policies[c.policyName]
+			assert.NotNil(t, policy)
+
+			appSet := argov1alpha1.ApplicationSet{
+				ObjectMeta: metav1.ObjectMeta{
+					Name:      "name",
+					Namespace: "argocd",
+				},
+				Spec: argov1alpha1.ApplicationSetSpec{
+					GoTemplate: true,
+					Generators: []argov1alpha1.ApplicationSetGenerator{
+						{
+							List: &argov1alpha1.ListGenerator{
+								Elements: []apiextensionsv1.JSON{
+									{
+										Raw: []byte(`{"name": "my-app"}`),
+									},
+								},
+							},
+						},
+					},
+					Template: argov1alpha1.ApplicationSetTemplate{
+						ApplicationSetTemplateMeta: argov1alpha1.ApplicationSetTemplateMeta{
+							Name:      "{{.name}}",
+							Namespace: "argocd",
+							Annotations: map[string]string{
+								"key": "value",
+							},
+						},
+						Spec: argov1alpha1.ApplicationSpec{
+							Source:      argov1alpha1.ApplicationSource{RepoURL: "https://github.com/argoproj/argocd-example-apps", Path: "guestbook"},
+							Project:     "default",
+							Destination: argov1alpha1.ApplicationDestination{Server: "https://kubernetes.default.svc"},
+						},
+					},
+				},
+			}
+
+			client := fake.NewClientBuilder().WithScheme(scheme).WithObjects(&appSet).Build()
+
+			r := ApplicationSetReconciler{
+				Client:   client,
+				Scheme:   scheme,
+				Renderer: &utils.Render{},
+				Recorder: record.NewFakeRecorder(10),
+				Generators: map[string]generators.Generator{
+					"List": generators.NewListGenerator(),
+				},
+				ArgoDB:           &argoDBMock,
+				ArgoAppClientset: appclientset.NewSimpleClientset(argoObjs...),
+				KubeClientset:    kubeclientset,
+				Policy:           policy,
+			}
+
+			req := ctrl.Request{
+				NamespacedName: types.NamespacedName{
+					Namespace: "argocd",
+					Name:      "name",
+				},
+			}
+
+			// Check if Application is created
+			res, err := r.Reconcile(context.Background(), req)
+			assert.Nil(t, err)
+			assert.True(t, res.RequeueAfter == 0)
+
+			var app argov1alpha1.Application
+			err = r.Client.Get(context.TODO(), crtclient.ObjectKey{Namespace: "argocd", Name: "my-app"}, &app)
+			assert.NoError(t, err)
+			assert.Equal(t, app.Annotations["key"], "value")
+
+			// Check if Application is updated
+			app.Annotations["key"] = "edited"
+			err = r.Client.Update(context.TODO(), &app)
+			assert.NoError(t, err)
+
+			res, err = r.Reconcile(context.Background(), req)
+			assert.Nil(t, err)
+			assert.True(t, res.RequeueAfter == 0)
+
+			err = r.Client.Get(context.TODO(), crtclient.ObjectKey{Namespace: "argocd", Name: "my-app"}, &app)
+			assert.NoError(t, err)
+
+			if c.allowedUpdate {
+				assert.Equal(t, app.Annotations["key"], "value")
+			} else {
+				assert.Equal(t, app.Annotations["key"], "edited")
+			}
+
+			// Check if Application is deleted
+			err = r.Client.Get(context.TODO(), crtclient.ObjectKey{Namespace: "argocd", Name: "name"}, &appSet)
+			assert.NoError(t, err)
+			appSet.Spec.Generators[0] = argov1alpha1.ApplicationSetGenerator{
+				List: &argov1alpha1.ListGenerator{
+					Elements: []apiextensionsv1.JSON{},
+				},
+			}
+			err = r.Client.Update(context.TODO(), &appSet)
+			assert.NoError(t, err)
+
+			res, err = r.Reconcile(context.Background(), req)
+			assert.Nil(t, err)
+			assert.True(t, res.RequeueAfter == 0)
+
+			err = r.Client.Get(context.TODO(), crtclient.ObjectKey{Namespace: "argocd", Name: "my-app"}, &app)
+			assert.NoError(t, err)
+			if c.allowedDelete {
+				assert.NotNil(t, app.DeletionTimestamp)
+			} else {
+				assert.Nil(t, app.DeletionTimestamp)
+			}
+		})
+	}
+}
