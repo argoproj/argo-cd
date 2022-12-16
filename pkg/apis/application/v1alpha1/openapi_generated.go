@@ -2822,8 +2822,15 @@ func schema_pkg_apis_application_v1alpha1_GitGenerator(ref common.ReferenceCallb
 							Ref:     ref("github.com/argoproj/argo-cd/v2/pkg/apis/application/v1alpha1.ApplicationSetTemplate"),
 						},
 					},
+					"pathParamPrefix": {
+						SchemaProps: spec.SchemaProps{
+							Default: "",
+							Type:    []string{"string"},
+							Format:  "",
+						},
+					},
 				},
-				Required: []string{"repoURL", "revision"},
+				Required: []string{"repoURL", "revision", "pathParamPrefix"},
 			},
 		},
 		Dependencies: []string{
@@ -4291,6 +4298,13 @@ func schema_pkg_apis_application_v1alpha1_RepoCreds(ref common.ReferenceCallback
 							Format:      "",
 						},
 					},
+					"gcpServiceAccountKey": {
+						SchemaProps: spec.SchemaProps{
+							Description: "GCPServiceAccountKey specifies the service account key in JSON format to be used for getting credentials to Google Cloud Source repos",
+							Type:        []string{"string"},
+							Format:      "",
+						},
+					},
 					"proxy": {
 						SchemaProps: spec.SchemaProps{
 							Description: "Proxy specifies the HTTP/HTTPS proxy used to access repos at the repo server",
@@ -4484,6 +4498,13 @@ func schema_pkg_apis_application_v1alpha1_Repository(ref common.ReferenceCallbac
 					"project": {
 						SchemaProps: spec.SchemaProps{
 							Description: "Reference between project and repository that allow you automatically to be added as item inside SourceRepos project entity",
+							Type:        []string{"string"},
+							Format:      "",
+						},
+					},
+					"gcpServiceAccountKey": {
+						SchemaProps: spec.SchemaProps{
+							Description: "GCPServiceAccountKey specifies the service account key in JSON format to be used for getting credentials to Google Cloud Source repos",
 							Type:        []string{"string"},
 							Format:      "",
 						},

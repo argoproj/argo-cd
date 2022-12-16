@@ -387,6 +387,7 @@ export class ApplicationsService {
     public terminateOperation(applicationName: string, appNamespace: string): Promise<boolean> {
         return requests
             .delete(`/applications/${applicationName}/operation`)
+            .query({appNamespace})
             .send()
             .then(() => true);
     }
