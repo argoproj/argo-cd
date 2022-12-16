@@ -179,7 +179,7 @@ endif
 .PHONY: gogen
 gogen: ensure-gopath
 	export GO111MODULE=off
-	go generate ./util/argo/...
+	go generate ./...
 
 .PHONY: protogen
 protogen: ensure-gopath mod-vendor-local
