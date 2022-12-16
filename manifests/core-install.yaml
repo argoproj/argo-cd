@@ -7156,101 +7156,7 @@ spec:
                                             required:
                                             - repoURL
                                             type: object
-                                          syncPolicy:
-                                            properties:
-                                              automated:
-                                                properties:
-                                                  allowEmpty:
-                                                    type: boolean
-                                                  prune:
-                                                    type: boolean
-                                                  selfHeal:
-                                                    type: boolean
-                                                type: object
-                                              managedNamespaceMetadata:
-                                                properties:
-                                                  annotations:
-                                                    additionalProperties:
-                                                      type: string
-                                                    type: object
-                                                  labels:
-                                                    additionalProperties:
-                                                      type: string
-                                                    type: object
-                                                type: object
-                                              retry:
-                                                properties:
-                                                  backoff:
-                                                    properties:
-                                                      duration:
-                                                        type: string
-                                                      factor:
-                                                        format: int64
-                                                        type: integer
-                                                      maxDuration:
-                                                        type: string
-                                                    type: object
-                                                  limit:
-                                                    format: int64
-                                                    type: integer
-                                                type: object
-                                              syncOptions:
-                                                items:
-                                                  type: string
-                                                type: array
-                                            type: object
-                                        required:
-                                        - destination
-                                        - project
-                                        type: object
-                                    required:
-                                    - metadata
-                                    - spec
-                                    type: object
-                                required:
-                                - pathParamPrefix
-                                - repoURL
-                                - revision
-                                type: object
-                              list:
-                                properties:
-                                  elements:
-                                    items:
-                                      x-kubernetes-preserve-unknown-fields: true
-                                    type: array
-                                  template:
-                                    properties:
-                                      metadata:
-                                        properties:
-                                          annotations:
-                                            additionalProperties:
-                                              type: string
-                                            type: object
-                                          finalizers:
-                                            items:
-                                              type: string
-                                            type: array
-                                          labels:
-                                            additionalProperties:
-                                              type: string
-                                            type: object
-                                          name:
-                                            type: string
-                                          namespace:
-                                            type: string
-                                        type: object
-                                      spec:
-                                        properties:
-                                          destination:
-                                            properties:
-                                              name:
-                                                type: string
-                                              namespace:
-                                                type: string
-                                              server:
-                                                type: string
-                                            type: object
-                                          ignoreDifferences:
+                                          sources:
                                             items:
                                               properties:
                                                 chart:
@@ -7461,6 +7367,7 @@ spec:
                                     - spec
                                     type: object
                                 required:
+                                - pathParamPrefix
                                 - repoURL
                                 - revision
                                 type: object
