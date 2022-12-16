@@ -26,7 +26,7 @@ func TestSimpleClusterGenerator(t *testing.T) {
 		},
 		Spec: argov1alpha1.ApplicationSpec{
 			Project: "default",
-			Source: argov1alpha1.ApplicationSource{
+			Source: &argov1alpha1.ApplicationSource{
 				RepoURL:        "https://github.com/argoproj/argocd-example-apps.git",
 				TargetRevision: "HEAD",
 				Path:           "guestbook",
@@ -53,7 +53,7 @@ func TestSimpleClusterGenerator(t *testing.T) {
 					ApplicationSetTemplateMeta: v1alpha1.ApplicationSetTemplateMeta{Name: "{{name}}-guestbook"},
 					Spec: argov1alpha1.ApplicationSpec{
 						Project: "default",
-						Source: argov1alpha1.ApplicationSource{
+						Source: &argov1alpha1.ApplicationSource{
 							RepoURL:        "https://github.com/argoproj/argocd-example-apps.git",
 							TargetRevision: "HEAD",
 							Path:           "guestbook",
@@ -119,7 +119,7 @@ func TestClusterGeneratorWithLocalCluster(t *testing.T) {
 		},
 		Spec: argov1alpha1.ApplicationSpec{
 			Project: "default",
-			Source: argov1alpha1.ApplicationSource{
+			Source: &argov1alpha1.ApplicationSource{
 				RepoURL:        "https://github.com/argoproj/argocd-example-apps.git",
 				TargetRevision: "HEAD",
 				Path:           "guestbook",
@@ -177,7 +177,7 @@ func TestClusterGeneratorWithLocalCluster(t *testing.T) {
 							ApplicationSetTemplateMeta: v1alpha1.ApplicationSetTemplateMeta{Name: "{{name}}-guestbook"},
 							Spec: argov1alpha1.ApplicationSpec{
 								Project: "default",
-								Source: argov1alpha1.ApplicationSource{
+								Source: &argov1alpha1.ApplicationSource{
 									RepoURL:        "https://github.com/argoproj/argocd-example-apps.git",
 									TargetRevision: "HEAD",
 									Path:           "guestbook",
@@ -236,7 +236,7 @@ func TestSimpleClusterGeneratorAddingCluster(t *testing.T) {
 		},
 		Spec: argov1alpha1.ApplicationSpec{
 			Project: "default",
-			Source: argov1alpha1.ApplicationSource{
+			Source: &argov1alpha1.ApplicationSource{
 				RepoURL:        "https://github.com/argoproj/argocd-example-apps.git",
 				TargetRevision: "HEAD",
 				Path:           "guestbook",
@@ -268,7 +268,7 @@ func TestSimpleClusterGeneratorAddingCluster(t *testing.T) {
 					ApplicationSetTemplateMeta: v1alpha1.ApplicationSetTemplateMeta{Name: "{{name}}-guestbook"},
 					Spec: argov1alpha1.ApplicationSpec{
 						Project: "default",
-						Source: argov1alpha1.ApplicationSource{
+						Source: &argov1alpha1.ApplicationSource{
 							RepoURL:        "https://github.com/argoproj/argocd-example-apps.git",
 							TargetRevision: "HEAD",
 							Path:           "guestbook",
@@ -318,7 +318,7 @@ func TestSimpleClusterGeneratorDeletingCluster(t *testing.T) {
 		},
 		Spec: argov1alpha1.ApplicationSpec{
 			Project: "default",
-			Source: argov1alpha1.ApplicationSource{
+			Source: &argov1alpha1.ApplicationSource{
 				RepoURL:        "https://github.com/argoproj/argocd-example-apps.git",
 				TargetRevision: "HEAD",
 				Path:           "guestbook",
@@ -351,7 +351,7 @@ func TestSimpleClusterGeneratorDeletingCluster(t *testing.T) {
 					ApplicationSetTemplateMeta: v1alpha1.ApplicationSetTemplateMeta{Name: "{{name}}-guestbook"},
 					Spec: argov1alpha1.ApplicationSpec{
 						Project: "default",
-						Source: argov1alpha1.ApplicationSource{
+						Source: &argov1alpha1.ApplicationSource{
 							RepoURL:        "https://github.com/argoproj/argocd-example-apps.git",
 							TargetRevision: "HEAD",
 							Path:           "guestbook",

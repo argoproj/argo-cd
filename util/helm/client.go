@@ -65,7 +65,7 @@ func WithIndexCache(indexCache indexCache) ClientOpts {
 	}
 }
 
-func WithChartPaths(chartPaths *argoio.TempPaths) ClientOpts {
+func WithChartPaths(chartPaths argoio.TempPaths) ClientOpts {
 	return func(c *nativeHelmChart) {
 		c.chartCachePaths = chartPaths
 	}
@@ -82,7 +82,7 @@ func NewClientWithLock(repoURL string, creds Creds, repoLock sync.KeyLock, enabl
 		repoLock:        repoLock,
 		enableOci:       enableOci,
 		proxy:           proxy,
-		chartCachePaths: argoio.NewTempPaths(os.TempDir()),
+		chartCachePaths: argoio.NewRandomizedTempPaths(os.TempDir()),
 	}
 	for i := range opts {
 		opts[i](c)
@@ -93,7 +93,7 @@ func NewClientWithLock(repoURL string, creds Creds, repoLock sync.KeyLock, enabl
 var _ Client = &nativeHelmChart{}
 
 type nativeHelmChart struct {
-	chartCachePaths *argoio.TempPaths
+	chartCachePaths argoio.TempPaths
 	repoURL         string
 	creds           Creds
 	repoLock        sync.KeyLock
