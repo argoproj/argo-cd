@@ -2113,7 +2113,7 @@ func TestPolicies(t *testing.T) {
 							},
 						},
 						Spec: argov1alpha1.ApplicationSpec{
-							Source:      argov1alpha1.ApplicationSource{RepoURL: "https://github.com/argoproj/argocd-example-apps", Path: "guestbook"},
+							Source:      &argov1alpha1.ApplicationSource{RepoURL: "https://github.com/argoproj/argocd-example-apps", Path: "guestbook"},
 							Project:     "default",
 							Destination: argov1alpha1.ApplicationDestination{Server: "https://kubernetes.default.svc"},
 						},
