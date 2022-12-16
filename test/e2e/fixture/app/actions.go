@@ -143,6 +143,43 @@ func (a *Actions) CreateFromFile(handler func(app *Application), flags ...string
 	return a
 }
 
+func (a *Actions) CreateMultiSourceAppFromFile(flags ...string) *Actions {
+	a.context.t.Helper()
+	app := &Application{
+		ObjectMeta: v1.ObjectMeta{
+			Name:      a.context.AppName(),
+			Namespace: a.context.AppNamespace(),
+		},
+		Spec: ApplicationSpec{
+			Project: a.context.project,
+			Sources: a.context.sources,
+			Destination: ApplicationDestination{
+				Server:    a.context.destServer,
+				Namespace: fixture.DeploymentNamespace(),
+			},
+			SyncPolicy: &SyncPolicy{
+				Automated: &SyncPolicyAutomated{
+					SelfHeal: true,
+				},
+			},
+		},
+	}
+
+	data := grpc.MustMarshal(app)
+	tmpFile, err := os.CreateTemp("", "")
+	errors.CheckError(err)
+	_, err = tmpFile.Write(data)
+	errors.CheckError(err)
+
+	args := append([]string{
+		"app", "create",
+		"-f", tmpFile.Name(),
+	}, flags...)
+	defer tmpFile.Close()
+	a.runCli(args...)
+	return a
+}
+
 func (a *Actions) CreateWithNoNameSpace(args ...string) *Actions {
 	args = a.prepareCreateAppArgs(args)
 	//  are you adding new context values? if you only use them for this func, then use args instead
