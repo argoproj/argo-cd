@@ -1,10 +1,15 @@
 # Multiple Sources for an Application
 
-Argo CD has the ability to specify multiple sources to add services to the Application. Argo CD compiles all the sources
-and reconciles each source individually for creating the application.
+!!! warning "Beta Feature"
+    Specifying multiple sources for an application is a beta feature. The UI and CLI still generally behave as if only
+    the first source is specified. Full UI/CLI support will be added in a future release.
+    This feature is subject to change in backwards incompatible ways until it is marked stable.
+
+Argo CD has the ability to specify multiple sources for a single Application. Argo CD compiles all the sources
+and reconciles the combined resources.
 
 You can provide multiple sources using the `sources` field. When you specify the `sources` field, Argo CD will ignore 
-the `source` (singular) field when generating manifests for the application.
+the `source` (singular) field.
 
 See the below example for specifying multiple sources:
 
@@ -14,17 +19,11 @@ kind: Application
 metadata:
   name: guestbook
   namespace: argocd
-  labels:
-    argocd.argoproj.io/refresh: hard
 spec:
   project: default
-  syncPolicy:
-    automated:
-      prune: true
-      selfHeal: true
   destination:
     server: https://kubernetes.default.svc
-    namespace: argocd
+    namespace: default
   sources:
     - chart: elasticsearch
       repoURL: https://helm.elastic.co
@@ -37,49 +36,38 @@ spec:
 The above example has two sources specified. Argo CD will generate the manifests for each source separately and combine 
 the resulting manifests.
 
-In case an application has multiple entries for the same source (repoURL), Argo CD will pick the source that is 
-mentioned later in the list of sources. For example, consider the below list of sources:
+If multiple sources produce the same resource (same `group`, `kind`, `name`, and `namespace`), the last source to 
+produce the resource will take precedence. Argo CD will produce a `RepeatedResourceWarning` in this case, but it will 
+sync the resources. This provides a convenient way to override a resource from a chart with a resource from a Git repo.
+
+## Helm value files from external Git repository
+
+Helm sources can reference value files from git sources. This allows you to use a third-party Helm chart with custom,
+git-hosted values.
 
 ```yaml
-sources:
-- chart: elasticsearch
-  repoURL: https://helm.elastic.co
-  targetRevision: 7.6.0
-- repoURL: https://github.com/argoproj/argocd-example-apps.git
-  path: guestbook
-  targetRevision: HEAD
-- chart: elasticsearch
-  repoURL: https://helm.elastic.co
-  targetRevision: 7.7.0
-```
-
-In the above list, the application has two sources referring to the same repoURL. In this case, Argo CD will generate 
-the manifests for source with `targetRevision: 7.6.0` and then append the manifests generated for source with 
-`targetRevision: 7.7.0`. 
-
-## Helm Value files from external Git repository
-
-Users can now provide provide value files to the helm repositories from external sources. See below example ApplicationSpec for the same,
-
-```yaml
+apiVersion: argoproj.io/v1alpha1
+kind: Application
 spec:
-  project: default
   sources:
-  - repoURL: 'https://prometheus-community.github.io/helm-charts'
-    chart: prometheus
-    targetRevision: 15.6.0
-    ref: prometheus
   - repoURL: 'https://prometheus-community.github.io/helm-charts'
     chart: prometheus
     targetRevision: 15.7.1
     helm:
-        valueFiles:
-        - $prometheus/charts/prometheus/values.yaml
-  destination:
-    server: 'https://kubernetes.default.svc'
-    namespace: argocd
+      valueFiles:
+      - $values/charts/prometheus/values.yaml
+  - repoURL: 'https://git.example.gom/org/value-files.git'
+    targetRevision: dev
+    ref: values
 ```
 
-In the above example, the source with `targetRevision 15.7.1` will use the value files from source with `targetRevision 15.6.0` with the help of ref `$prometheus`.
+In the above example, the `prometheus` chart will use the value file from `git.example.gom/org/value-files.git`. 
+`$values` resolves to the root of the `value-files` repository. The `$values` variable may only be specified at the 
+beginning of the value file path.
 
-Note: The source with `ref` field needs to be mentioned before referencing it in another source. For example, source with `ref: prometheus` needs to come before we use `$prometheus` in another source.
+If the `path` field is set in the `$values` source, Argo CD will attempt to generate resources from the git repository
+at that URL. If the `path` field is not set, Argo CD will use the repository solely as a source of value files.
+
+!!! note
+    Sources with the `ref` field set must not also specify the `chart` field. Argo CD does not currently support using  
+    another Helm chart as a source for value files.
