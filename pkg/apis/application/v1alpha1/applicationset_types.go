@@ -285,6 +285,7 @@ type GitGenerator struct {
 	Revision            string                      `json:"revision" protobuf:"bytes,4,name=revision"`
 	RequeueAfterSeconds *int64                      `json:"requeueAfterSeconds,omitempty" protobuf:"bytes,5,name=requeueAfterSeconds"`
 	Template            ApplicationSetTemplate      `json:"template,omitempty" protobuf:"bytes,6,name=template"`
+	PathParamPrefix     string                      `json:"pathParamPrefix" protobuf:"bytes,7,name=pathParamPrefix"`
 }
 
 type GitDirectoryGeneratorItem struct {
