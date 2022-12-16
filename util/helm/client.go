@@ -33,7 +33,6 @@ import (
 var (
 	globalLock = sync.NewKeyLock()
 	indexLock  = sync.NewKeyLock()
-	errNoLink  = errors.New("no Link header in response")
 )
 
 type Creds struct {
@@ -409,7 +408,7 @@ func (c *nativeHelmChart) getTags(chart string) ([]byte, error) {
 	for nextURL != "" {
 		log.Debugf("fetching %s tags from %s", chart, sanitizeLog(text.Trunc(nextURL, 100)))
 		data, nextURL, err = c.getTagsFromUrl(nextURL)
-		if err != nil && err != errNoLink {
+		if err != nil {
 			return nil, fmt.Errorf("failed tags part: %v", err)
 		}
 
@@ -430,7 +429,7 @@ func (c *nativeHelmChart) getTags(chart string) ([]byte, error) {
 func getNextUrl(resp *http.Response) (string, error) {
 	link := resp.Header.Get("Link")
 	if link == "" {
-		return "", errNoLink
+		return "", nil
 	}
 	if link[0] != '<' {
 		return "", fmt.Errorf("invalid next link %q: missing '<'", link)

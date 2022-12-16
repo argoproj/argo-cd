@@ -189,7 +189,7 @@ func Test_getNextUrl(t *testing.T) {
 	}
 	nextUrl, err := getNextUrl(resp)
 	assert.Equal(t, nextUrl, "")
-	assert.Equal(t, err, errNoLink)
+	assert.NoError(t, err)
 
 	var nextUrlAbsolute = "https://my.repo.com/v2/chart/tags/list?n=123&orderby="
 	resp.Header = http.Header{
