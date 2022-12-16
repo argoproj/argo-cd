@@ -23,6 +23,8 @@ spec:
   template:
     metadata:
       name: 'myapp-{{ .branch }}-{{ .number }}'
+      labels:
+        key1: '{{ index .labels 0 }}'
     spec:
       source:
         repoURL: 'https://github.com/myorg/myrepo.git'

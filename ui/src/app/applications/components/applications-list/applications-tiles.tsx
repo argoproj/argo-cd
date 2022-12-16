@@ -3,7 +3,7 @@ import * as classNames from 'classnames';
 import * as React from 'react';
 import {Key, KeybindingContext, NumKey, NumKeyToNumber, NumPadKey, useNav} from 'argo-ui/v2';
 import {Cluster} from '../../../shared/components';
-import {Consumer, Context} from '../../../shared/context';
+import {Consumer, Context, AuthSettingsCtx} from '../../../shared/context';
 import * as models from '../../../shared/models';
 import {ApplicationURLs} from '../application-urls';
 import * as AppUtils from '../utils';
@@ -53,6 +53,7 @@ export const ApplicationTiles = ({applications, syncApplication, refreshApplicat
     const appRef = {ref: React.useRef(null), set: false};
     const appContainerRef = React.useRef(null);
     const appsPerRow = useItemsPerContainer(appRef.ref, appContainerRef);
+    const useAuthSettingsCtx = React.useContext(AuthSettingsCtx);
 
     const {useKeybinding} = React.useContext(KeybindingContext);
 
@@ -97,7 +98,6 @@ export const ApplicationTiles = ({applications, syncApplication, refreshApplicat
             return navApp(NumKeyToNumber(n));
         }
     });
-
     return (
         <Consumer>
             {ctx => (
@@ -130,7 +130,9 @@ export const ApplicationTiles = ({applications, syncApplication, refreshApplicat
                                                             }>
                                                             <i className={'icon argo-icon-' + (app.spec.source.chart != null ? 'helm' : 'git')} />
                                                             <Tooltip content={AppUtils.appInstanceName(app)}>
-                                                                <span className='applications-list__title'>{AppUtils.appQualifiedName(app)}</span>
+                                                                <span className='applications-list__title'>
+                                                                    {AppUtils.appQualifiedName(app, useAuthSettingsCtx?.appsInAnyNamespaceEnabled)}
+                                                                </span>
                                                             </Tooltip>
                                                         </div>
                                                         <div
@@ -222,7 +224,7 @@ export const ApplicationTiles = ({applications, syncApplication, refreshApplicat
                                                         <div className='columns small-3' title='Target Revision:'>
                                                             Target Revision:
                                                         </div>
-                                                        <div className='columns small-9'>{app.spec.source.targetRevision}</div>
+                                                        <div className='columns small-9'>{app.spec.source.targetRevision || 'HEAD'}</div>
                                                     </div>
                                                     {app.spec.source.path && (
                                                         <div className='row'>
@@ -253,6 +255,12 @@ export const ApplicationTiles = ({applications, syncApplication, refreshApplicat
                                                             Namespace:
                                                         </div>
                                                         <div className='columns small-9'>{app.spec.destination.namespace}</div>
+                                                    </div>
+                                                    <div className='row'>
+                                                        <div className='columns small-3' title='Age:'>
+                                                            Created At:
+                                                        </div>
+                                                        <div className='columns small-9'>{AppUtils.formatCreationTimestamp(app.metadata.creationTimestamp)}</div>
                                                     </div>
                                                     <div className='row'>
                                                         <div className='columns applications-list__entry--actions'>

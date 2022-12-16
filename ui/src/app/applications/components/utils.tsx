@@ -1,4 +1,4 @@
-import {DataLoader, FormField, MenuItem, NotificationType, Tooltip} from 'argo-ui';
+import {models, DataLoader, FormField, MenuItem, NotificationType, Tooltip} from 'argo-ui';
 import {ActionButton} from 'argo-ui/v2';
 import * as classNames from 'classnames';
 import * as React from 'react';
@@ -26,7 +26,7 @@ export interface NodeId {
 
 export const ExternalLinkAnnotation = 'link.argocd.argoproj.io/external-link';
 
-type ActionMenuItem = MenuItem & {disabled?: boolean};
+type ActionMenuItem = MenuItem & {disabled?: boolean; tooltip?: string};
 
 export function nodeKey(node: NodeId) {
     return [node.group, node.kind, node.namespace, node.name].join('/');
@@ -397,6 +397,37 @@ export const deletePopup = async (ctx: ContextApis, resource: ResourceTreeNode, 
     );
 };
 
+function getResourceActionsMenuItems(resource: ResourceTreeNode, metadata: models.Metadata, appContext: AppContext): Observable<ActionMenuItem[]> {
+    return services.applications
+        .getResourceActions(metadata.name, metadata.namespace, resource)
+        .then(actions => {
+            return actions.map(
+                action =>
+                    ({
+                        title: action.name,
+                        disabled: !!action.disabled,
+                        action: async () => {
+                            try {
+                                const confirmed = await appContext.apis.popup.confirm(
+                                    `Execute '${action.name}' action?`,
+                                    `Are you sure you want to execute '${action.name}' action?`
+                                );
+                                if (confirmed) {
+                                    await services.applications.runResourceAction(metadata.name, metadata.namespace, resource, action.name);
+                                }
+                            } catch (e) {
+                                appContext.apis.notifications.show({
+                                    content: <ErrorNotification title='Unable to execute resource action' e={e} />,
+                                    type: NotificationType.Error
+                                });
+                            }
+                        }
+                    } as MenuItem)
+            );
+        })
+        .catch(() => [] as MenuItem[]);
+}
+
 function getActionItems(
     resource: ResourceTreeNode,
     application: appModels.Application,
@@ -460,38 +491,25 @@ function getActionItems(
         })
         .catch(() => [] as MenuItem[]);
 
-    const resourceActions = services.applications
-        .getResourceActions(application.metadata.name, application.metadata.namespace, resource)
-        .then(actions => {
-            return actions.map(
-                action =>
-                    ({
-                        title: action.name,
-                        disabled: !!action.disabled,
-                        action: async () => {
-                            try {
-                                const confirmed = await appContext.apis.popup.confirm(
-                                    `Execute '${action.name}' action?`,
-                                    `Are you sure you want to execute '${action.name}' action?`
-                                );
-                                if (confirmed) {
-                                    await services.applications.runResourceAction(application.metadata.name, application.metadata.namespace, resource, action.name);
-                                }
-                            } catch (e) {
-                                appContext.apis.notifications.show({
-                                    content: <ErrorNotification title='Unable to execute resource action' e={e} />,
-                                    type: NotificationType.Error
-                                });
-                            }
-                        }
-                    } as MenuItem)
-            );
-        })
-        .catch(() => [] as MenuItem[]);
+    const resourceActions = getResourceActionsMenuItems(resource, application.metadata, appContext);
+
+    const links = services.applications.getResourceLinks(application.metadata.name, application.metadata.namespace, resource).then(data => {
+        return (data.items || []).map(
+            link =>
+                ({
+                    title: link.title,
+                    iconClassName: `fa ${link.iconClass ? link.iconClass : 'fa-external-link'}`,
+                    action: () => window.open(link.url, '_blank'),
+                    tooltip: link.description
+                } as MenuItem)
+        );
+    });
+
     return combineLatest(
         from([items]), // this resolves immediately
         concat([[] as MenuItem[]], resourceActions), // this resolves at first to [] and then whatever the API returns
-        concat([[] as MenuItem[]], execAction) // this resolves at first to [] and then whatever the API returns
+        concat([[] as MenuItem[]], execAction), // this resolves at first to [] and then whatever the API returns
+        concat([[] as MenuItem[]], links) // this resolves at first to [] and then whatever the API returns
     ).pipe(map(res => ([] as MenuItem[]).concat(...res)));
 }
 
@@ -510,6 +528,43 @@ export function renderResourceMenu(
     } else {
         menuItems = getActionItems(resource, application, tree, appContext, appChanged, false);
     }
+    return (
+        <DataLoader load={() => menuItems}>
+            {items => (
+                <ul>
+                    {items.map((item, i) => (
+                        <li
+                            className={classNames('application-details__action-menu', {disabled: item.disabled})}
+                            key={i}
+                            onClick={e => {
+                                e.stopPropagation();
+                                if (!item.disabled) {
+                                    item.action();
+                                    document.body.click();
+                                }
+                            }}>
+                            {item.tooltip ? (
+                                <Tooltip content={item.tooltip || ''}>
+                                    <div>
+                                        {item.iconClassName && <i className={item.iconClassName} />} {item.title}
+                                    </div>
+                                </Tooltip>
+                            ) : (
+                                <>
+                                    {item.iconClassName && <i className={item.iconClassName} />} {item.title}
+                                </>
+                            )}
+                        </li>
+                    ))}
+                </ul>
+            )}
+        </DataLoader>
+    );
+}
+
+export function renderResourceActionMenu(resource: ResourceTreeNode, application: appModels.Application, tree: appModels.ApplicationTree, appContext: AppContext): React.ReactNode {
+    const menuItems = getResourceActionsMenuItems(resource, application.metadata, appContext);
+
     return (
         <DataLoader load={() => menuItems}>
             {items => (
@@ -1118,8 +1173,8 @@ export const urlPattern = new RegExp(
     )
 );
 
-export function appQualifiedName(app: appModels.Application): string {
-    return app.metadata.namespace + '/' + app.metadata.name;
+export function appQualifiedName(app: appModels.Application, nsEnabled: boolean): string {
+    return (nsEnabled ? app.metadata.namespace + '/' : '') + app.metadata.name;
 }
 
 export function appInstanceName(app: appModels.Application): string {

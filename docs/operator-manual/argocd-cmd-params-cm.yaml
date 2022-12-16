@@ -104,6 +104,8 @@ data:
   server.app.state.cache.expiration: "1h0m0s"
   # Cache expiration default (default 24h0m0s)
   server.default.cache.expiration: "24h0m0s"
+  # Enable the experimental proxy extension feature
+  server.enable.proxy.extension: "false"
 
   ## Repo-server properties
   # Set the logging format. One of: text|json (default "text")
