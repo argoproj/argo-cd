@@ -670,7 +670,7 @@ func TestAppWithSecrets(t *testing.T) {
 			assert.Contains(t, diffOutput, "password: ++++++++++++")
 
 			// local diff should ignore secrets
-			diffOutput = FailOnErr(RunCli("app", "diff", app.Name, "--local", "testdata", "--server-side-generate")).(string)
+			diffOutput = FailOnErr(RunCli("app", "diff", app.Name, "--local", "testdata")).(string)
 			assert.Empty(t, diffOutput)
 
 			// ignore missing field and make sure diff shows no difference
@@ -699,7 +699,7 @@ stringData:
   username: test-username`).
 		Then().
 		And(func(app *Application) {
-			diffOutput := FailOnErr(RunCli("app", "diff", app.Name, "--local", "testdata", "--server-side-generate")).(string)
+			diffOutput := FailOnErr(RunCli("app", "diff", app.Name, "--local", "testdata")).(string)
 			assert.Empty(t, diffOutput)
 		})
 }
@@ -723,7 +723,7 @@ func TestResourceDiffing(t *testing.T) {
 		Then().
 		Expect(SyncStatusIs(SyncStatusCodeOutOfSync)).
 		And(func(app *Application) {
-			diffOutput, err := RunCli("app", "diff", app.Name, "--local", "testdata", "--server-side-generate")
+			diffOutput, err := RunCli("app", "diff", app.Name, "--local", "testdata")
 			assert.Error(t, err)
 			assert.Contains(t, diffOutput, fmt.Sprintf("===== apps/Deployment %s/guestbook-ui ======", DeploymentNamespace()))
 		}).
@@ -736,7 +736,7 @@ func TestResourceDiffing(t *testing.T) {
 		Then().
 		Expect(SyncStatusIs(SyncStatusCodeSynced)).
 		And(func(app *Application) {
-			diffOutput, err := RunCli("app", "diff", app.Name, "--local", "testdata", "--server-side-generate")
+			diffOutput, err := RunCli("app", "diff", app.Name, "--local", "testdata")
 			assert.NoError(t, err)
 			assert.Empty(t, diffOutput)
 		}).
@@ -854,7 +854,7 @@ func testEdgeCasesApplicationResources(t *testing.T, appPath string, statusCode 
 	expect.
 		Expect(HealthIs(statusCode)).
 		And(func(app *Application) {
-			diffOutput, err := RunCli("app", "diff", app.Name, "--local", "testdata", "--server-side-generate")
+			diffOutput, err := RunCli("app", "diff", app.Name, "--local", "testdata")
 			assert.Empty(t, diffOutput)
 			assert.NoError(t, err)
 		})

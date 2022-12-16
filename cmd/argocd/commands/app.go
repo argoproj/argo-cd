@@ -955,27 +955,16 @@ func NewApplicationDiffCommand(clientOpts *argocdclient.ClientOptions) *cobra.Co
 				diffOption.res = res
 				diffOption.revision = revision
 			} else if local != "" {
-				if serverSideGenerate {
-					client, err := appIf.GetManifestsWithFiles(ctx, grpc_retry.Disable())
-					errors.CheckError(err)
+				client, err := appIf.GetManifestsWithFiles(ctx, grpc_retry.Disable())
+				errors.CheckError(err)
 
-					err = manifeststream.SendApplicationManifestQueryWithFiles(ctx, client, appName, appNs, local, localIncludes)
-					errors.CheckError(err)
+				err = manifeststream.SendApplicationManifestQueryWithFiles(ctx, client, appName, appNs, local, localIncludes)
+				errors.CheckError(err)
 
-					res, err := client.CloseAndRecv()
-					errors.CheckError(err)
+				res, err := client.CloseAndRecv()
+				errors.CheckError(err)
 
-					diffOption.serversideRes = res
-				} else {
-					fmt.Fprintf(os.Stderr, "Warning: local diff without --server-side-generate is deprecated and does not work with plugins. Server-side generation will be the default in v2.6.")
-					conn, clusterIf := clientset.NewClusterClientOrDie()
-					defer argoio.Close(conn)
-					cluster, err := clusterIf.Get(ctx, &clusterpkg.ClusterQuery{Name: app.Spec.Destination.Name, Server: app.Spec.Destination.Server})
-					errors.CheckError(err)
-					diffOption.local = local
-					diffOption.localRepoRoot = localRepoRoot
-					diffOption.cluster = cluster
-				}
+				diffOption.serversideRes = res
 			}
 			foundDiffs := findandPrintDiff(ctx, app, resources, argoSettings, appName, diffOption)
 			if foundDiffs && exitCode {
@@ -989,8 +978,8 @@ func NewApplicationDiffCommand(clientOpts *argocdclient.ClientOptions) *cobra.Co
 	command.Flags().StringVar(&local, "local", "", "Compare live app to a local manifests")
 	command.Flags().StringVar(&revision, "revision", "", "Compare live app to a particular revision")
 	command.Flags().StringVar(&localRepoRoot, "local-repo-root", "/", "Path to the repository root. Used together with --local allows setting the repository root")
-	command.Flags().BoolVar(&serverSideGenerate, "server-side-generate", false, "Used with --local, this will send your manifests to the server for diffing")
-	command.Flags().StringArrayVar(&localIncludes, "local-include", []string{"*.yaml", "*.yml", "*.json"}, "Used with --server-side-generate, specify patterns of filenames to send. Matching is based on filename and not path.")
+	command.Flags().BoolVar(&serverSideGenerate, "server-side-generate", true, "As of v2.6, this flag is no longer used. All diffs are now server-side generated.")
+	command.Flags().StringArrayVar(&localIncludes, "local-include", []string{"*.yaml", "*.yml", "*.json"}, "Used with --local, specify patterns of filenames to send to send. Matching is based on filename and not path.")
 	return command
 }
 
