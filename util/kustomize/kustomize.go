@@ -274,8 +274,7 @@ func getSemver() (*semver.Version, error) {
 
 // getSemverSafe returns parsed kustomize version;
 // if version cannot be parsed assumes that "kustomize version" output format changed again
-//
-//	and fallback to latest ( v99.99.99 )
+// and fallback to latest ( v99.99.99 )
 func getSemverSafe() *semver.Version {
 	if semVer == nil {
 		semVerLock.Lock()

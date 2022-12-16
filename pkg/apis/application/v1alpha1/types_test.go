@@ -1341,9 +1341,9 @@ func TestApplicationSourceKustomize_MergeReplica(t *testing.T) {
 		Count: 4,
 	}
 	t.Run("Add", func(t *testing.T) {
-		r := ApplicationSourceKustomize{Replicas: KustomizeReplicas{}}
-		r.MergeReplica(r1)
-		assert.Equal(t, KustomizeReplicas{r1}, r.Replicas)
+		k := ApplicationSourceKustomize{Replicas: KustomizeReplicas{}}
+		k.MergeReplica(r1)
+		assert.Equal(t, KustomizeReplicas{r1}, k.Replicas)
 	})
 	t.Run("Replace", func(t *testing.T) {
 		k := ApplicationSourceKustomize{Replicas: KustomizeReplicas{r1}}
@@ -1351,6 +1351,27 @@ func TestApplicationSourceKustomize_MergeReplica(t *testing.T) {
 		assert.Equal(t, 1, len(k.Replicas))
 		assert.Equal(t, k.Replicas[0].Name, r2.Name)
 		assert.Equal(t, k.Replicas[0].Count, r2.Count)
+	})
+}
+func TestApplicationSourceKustomize_FindByName(t *testing.T) {
+	r1 := KustomizeReplica{
+		Name:  "my-deployment",
+		Count: 2,
+	}
+	r2 := KustomizeReplica{
+		Name:  "my-statefulset",
+		Count: 4,
+	}
+	Replicas := KustomizeReplicas{r1, r2}
+	t.Run("Found", func(t *testing.T) {
+		i1 := Replicas.FindByName("my-deployment")
+		i2 := Replicas.FindByName("my-statefulset")
+		assert.Equal(t, 0, i1)
+		assert.Equal(t, 1, i2)
+	})
+	t.Run("Not Found", func(t *testing.T) {
+		i := Replicas.FindByName("not-found")
+		assert.Equal(t, -1, i)
 	})
 }
 

@@ -205,6 +205,11 @@ func Test_setAppSpecOptions(t *testing.T) {
 		assert.NoError(t, f.SetFlag("sync-retry-limit", "0"))
 		assert.Nil(t, f.spec.SyncPolicy.Retry)
 	})
+	t.Run("Kustomize", func(t *testing.T) {
+		assert.NoError(t, f.SetFlag("kustomize-replica", "my-deployment=2"))
+		assert.NoError(t, f.SetFlag("kustomize-replica", "my-statefulset=4"))
+		assert.Equal(t, f.spec.Source.Kustomize.Replicas, argoappv1.KustomizeReplicas{{Name: "my-deployment", Count: 2}, {Name: "my-statefulset", Count: 4}})
+	})
 }
 
 func Test_setAnnotations(t *testing.T) {
