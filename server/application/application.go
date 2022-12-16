@@ -1374,7 +1374,6 @@ func (s *Server) ManagedResources(ctx context.Context, q *application.ResourcesQ
 		return nil, fmt.Errorf("error verifying rbac: %w", err)
 	}
 
-	source := a.Spec.GetSource()
 	items := make([]*appv1.ResourceDiff, 0)
 	err = s.getCachedAppState(ctx, a, func() error {
 		return s.cache.GetAppManagedResources(a.InstanceName(s.ns), &items)
@@ -1437,8 +1436,6 @@ func (s *Server) PodLogs(q *application.ApplicationPodLogsQuery, ws application.
 	if err := s.enf.EnforceErr(ws.Context().Value("claims"), rbacpolicy.ResourceApplications, rbacpolicy.ActionGet, a.RBACName(s.ns)); err != nil {
 		return err
 	}
-
-	source := a.Spec.GetSource()
 
 	// Logs RBAC will be enforced only if an internal var serverRBACLogEnforceEnable (representing server.rbac.log.enforce.enable env var)
 	// is defined and has a "true" value
@@ -1746,8 +1743,6 @@ func (s *Server) Rollback(ctx context.Context, rollbackReq *application.Applicat
 	if err := s.enf.EnforceErr(ctx.Value("claims"), rbacpolicy.ResourceApplications, rbacpolicy.ActionSync, a.RBACName(s.ns)); err != nil {
 		return nil, err
 	}
-
-	source := a.Spec.GetSource()
 
 	s.inferResourcesStatusHealth(a)
 
