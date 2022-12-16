@@ -374,6 +374,14 @@ jobs:
       - name: GH actions workaround - Kill XSP4 process
         run: |
           sudo pkill mono || true
+      # ubuntu-22.04 comes with kubectl, but the version is not pinned. The version as of 2022-12-05 is 1.26.0 which
+      # breaks the `TestNamespacedResourceDiffing` e2e test. So we'll pin to 1.25 and then fix the underlying issue.
+      - name: Install kubectl
+        run: |
+          rm /usr/local/bin/kubectl
+          curl -LO https://dl.k8s.io/release/v1.25.4/bin/linux/amd64/kubectl
+          mv kubectl /usr/local/bin/kubectl
+          chmod +x /usr/local/bin/kubectl
       - name: Install K3S
         env:
           INSTALL_K3S_VERSION: ${{ matrix.k3s-version }}+k3s1

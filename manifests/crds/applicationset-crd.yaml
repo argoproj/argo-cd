@@ -689,6 +689,8 @@ spec:
                             - path
                             type: object
                           type: array
+                        pathParamPrefix:
+                          type: string
                         repoURL:
                           type: string
                         requeueAfterSeconds:
@@ -980,6 +982,7 @@ spec:
                           - spec
                           type: object
                       required:
+                      - pathParamPrefix
                       - repoURL
                       - revision
                       type: object
@@ -1937,6 +1940,8 @@ spec:
                                       - path
                                       type: object
                                     type: array
+                                  pathParamPrefix:
+                                    type: string
                                   repoURL:
                                     type: string
                                   requeueAfterSeconds:
@@ -2228,6 +2233,7 @@ spec:
                                     - spec
                                     type: object
                                 required:
+                                - pathParamPrefix
                                 - repoURL
                                 - revision
                                 type: object
@@ -4363,6 +4369,8 @@ spec:
                                       - path
                                       type: object
                                     type: array
+                                  pathParamPrefix:
+                                    type: string
                                   repoURL:
                                     type: string
                                   requeueAfterSeconds:
@@ -4654,6 +4662,7 @@ spec:
                                     - spec
                                     type: object
                                 required:
+                                - pathParamPrefix
                                 - repoURL
                                 - revision
                                 type: object
