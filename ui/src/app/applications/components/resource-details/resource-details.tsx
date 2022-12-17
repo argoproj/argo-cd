@@ -172,9 +172,9 @@ export const ResourceDetails = (props: ResourceDetailsProps) => {
                         key='appDetails'
                         input={application}
                         load={app =>
-                            services.repos.appDetails(app.spec.source, app.metadata.name, app.spec.project).catch(() => ({
+                            services.repos.appDetails(AppUtils.getAppDefaultSource(app), app.metadata.name, app.spec.project).catch(() => ({
                                 type: 'Directory' as AppSourceType,
-                                path: application.spec.source.path
+                                path: AppUtils.getAppDefaultSource(app).path
                             }))
                         }>
                         {(details: RepoAppDetails) => (
@@ -285,7 +285,8 @@ export const ResourceDetails = (props: ResourceDetailsProps) => {
                         const execEnabled = settings.execEnabled;
                         const logsAllowed = await services.accounts.canI('logs', 'get', application.spec.project + '/' + application.metadata.name);
                         const execAllowed = await services.accounts.canI('exec', 'create', application.spec.project + '/' + application.metadata.name);
-                        return {controlledState, liveState, events, podState, execEnabled, execAllowed, logsAllowed};
+                        const links = await services.applications.getResourceLinks(application.metadata.name, application.metadata.namespace, selectedNode);
+                        return {controlledState, liveState, events, podState, execEnabled, execAllowed, logsAllowed, links};
                     }}>
                     {data => (
                         <React.Fragment>
@@ -307,13 +308,13 @@ export const ResourceDetails = (props: ResourceDetailsProps) => {
                                     onClick={() => appContext.navigation.goto('.', {deploy: AppUtils.nodeKey(selectedNode)}, {replace: true})}
                                     style={{marginLeft: 'auto', marginRight: '5px'}}
                                     className='argo-button argo-button--base'>
-                                    <i className='fa fa-sync-alt' /> SYNC
+                                    <i className='fa fa-sync-alt' /> <span className='show-for-large'>SYNC</span>
                                 </button>
                                 <button
                                     onClick={() => AppUtils.deletePopup(appContext, selectedNode, application)}
                                     style={{marginRight: '5px'}}
                                     className='argo-button argo-button--base'>
-                                    <i className='fa fa-trash' /> DELETE
+                                    <i className='fa fa-trash' /> <span className='show-for-large'>DELETE</span>
                                 </button>
                                 <DropDown
                                     isMenu={true}
@@ -338,7 +339,15 @@ export const ResourceDetails = (props: ResourceDetailsProps) => {
                                             title: 'SUMMARY',
                                             icon: 'fa fa-file-alt',
                                             key: 'summary',
-                                            content: <ApplicationNodeInfo application={application} live={data.liveState} controlled={data.controlledState} node={selectedNode} />
+                                            content: (
+                                                <ApplicationNodeInfo
+                                                    application={application}
+                                                    live={data.liveState}
+                                                    controlled={data.controlledState}
+                                                    node={selectedNode}
+                                                    links={data.links}
+                                                />
+                                            )
                                         }
                                     ],
                                     data.execEnabled,
