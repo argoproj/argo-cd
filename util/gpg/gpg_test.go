@@ -3,7 +3,6 @@ package gpg
 import (
 	"fmt"
 	"io"
-	"io/ioutil"
 	"os"
 	"os/exec"
 	"path"
@@ -31,7 +30,7 @@ var syncTestSources = map[string]string{
 func initTempDir(t *testing.T) string {
 	// Intentionally avoid using t.TempDir. That function creates really long paths, which can exceed the socket file
 	// path length on some OSes. The GPG tests rely on sockets.
-	p, err := ioutil.TempDir(os.TempDir(), "")
+	p, err := os.MkdirTemp(os.TempDir(), "")
 	if err != nil {
 		panic(err)
 	}
@@ -87,7 +86,7 @@ func Test_GPG_InitializeGnuPG(t *testing.T) {
 	assert.Equal(t, keys[0].Trust, "ultimate")
 
 	// GNUPGHOME is a file - we need to error out
-	f, err := ioutil.TempFile("", "gpg-test")
+	f, err := os.CreateTemp("", "gpg-test")
 	assert.NoError(t, err)
 	defer os.Remove(f.Name())
 
@@ -303,7 +302,7 @@ func Test_GPG_ParseGitCommitVerification(t *testing.T) {
 
 	// Good case
 	{
-		c, err := ioutil.ReadFile("testdata/good_signature.txt")
+		c, err := os.ReadFile("testdata/good_signature.txt")
 		if err != nil {
 			panic(err.Error())
 		}
@@ -317,7 +316,7 @@ func Test_GPG_ParseGitCommitVerification(t *testing.T) {
 
 	// Signature with unknown key - considered invalid
 	{
-		c, err := ioutil.ReadFile("testdata/unknown_signature1.txt")
+		c, err := os.ReadFile("testdata/unknown_signature1.txt")
 		if err != nil {
 			panic(err.Error())
 		}
@@ -331,7 +330,7 @@ func Test_GPG_ParseGitCommitVerification(t *testing.T) {
 
 	// Signature with unknown key and additional fields - considered invalid
 	{
-		c, err := ioutil.ReadFile("testdata/unknown_signature2.txt")
+		c, err := os.ReadFile("testdata/unknown_signature2.txt")
 		if err != nil {
 			panic(err.Error())
 		}
@@ -345,7 +344,7 @@ func Test_GPG_ParseGitCommitVerification(t *testing.T) {
 
 	// Bad signature with known key
 	{
-		c, err := ioutil.ReadFile("testdata/bad_signature_bad.txt")
+		c, err := os.ReadFile("testdata/bad_signature_bad.txt")
 		if err != nil {
 			panic(err.Error())
 		}
@@ -359,7 +358,7 @@ func Test_GPG_ParseGitCommitVerification(t *testing.T) {
 
 	// Bad case: Manipulated/invalid clear text signature
 	{
-		c, err := ioutil.ReadFile("testdata/bad_signature_manipulated.txt")
+		c, err := os.ReadFile("testdata/bad_signature_manipulated.txt")
 		if err != nil {
 			panic(err.Error())
 		}
@@ -370,7 +369,7 @@ func Test_GPG_ParseGitCommitVerification(t *testing.T) {
 
 	// Bad case: Incomplete signature data #1
 	{
-		c, err := ioutil.ReadFile("testdata/bad_signature_preeof1.txt")
+		c, err := os.ReadFile("testdata/bad_signature_preeof1.txt")
 		if err != nil {
 			panic(err.Error())
 		}
@@ -381,7 +380,7 @@ func Test_GPG_ParseGitCommitVerification(t *testing.T) {
 
 	// Bad case: Incomplete signature data #2
 	{
-		c, err := ioutil.ReadFile("testdata/bad_signature_preeof2.txt")
+		c, err := os.ReadFile("testdata/bad_signature_preeof2.txt")
 		if err != nil {
 			panic(err.Error())
 		}
@@ -392,7 +391,7 @@ func Test_GPG_ParseGitCommitVerification(t *testing.T) {
 
 	// Bad case: No signature data #1
 	{
-		c, err := ioutil.ReadFile("testdata/bad_signature_nodata.txt")
+		c, err := os.ReadFile("testdata/bad_signature_nodata.txt")
 		if err != nil {
 			panic(err.Error())
 		}
@@ -403,7 +402,7 @@ func Test_GPG_ParseGitCommitVerification(t *testing.T) {
 
 	// Bad case: Malformed signature data #1
 	{
-		c, err := ioutil.ReadFile("testdata/bad_signature_malformed1.txt")
+		c, err := os.ReadFile("testdata/bad_signature_malformed1.txt")
 		if err != nil {
 			panic(err.Error())
 		}
@@ -414,7 +413,7 @@ func Test_GPG_ParseGitCommitVerification(t *testing.T) {
 
 	// Bad case: Malformed signature data #2
 	{
-		c, err := ioutil.ReadFile("testdata/bad_signature_malformed2.txt")
+		c, err := os.ReadFile("testdata/bad_signature_malformed2.txt")
 		if err != nil {
 			panic(err.Error())
 		}
@@ -425,7 +424,7 @@ func Test_GPG_ParseGitCommitVerification(t *testing.T) {
 
 	// Bad case: Malformed signature data #3
 	{
-		c, err := ioutil.ReadFile("testdata/bad_signature_malformed3.txt")
+		c, err := os.ReadFile("testdata/bad_signature_malformed3.txt")
 		if err != nil {
 			panic(err.Error())
 		}
@@ -436,7 +435,7 @@ func Test_GPG_ParseGitCommitVerification(t *testing.T) {
 
 	// Bad case: Invalid key ID in signature
 	{
-		c, err := ioutil.ReadFile("testdata/bad_signature_badkeyid.txt")
+		c, err := os.ReadFile("testdata/bad_signature_badkeyid.txt")
 		if err != nil {
 			panic(err.Error())
 		}

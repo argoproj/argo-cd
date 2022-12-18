@@ -2,7 +2,6 @@ package jwt
 
 import (
 	"encoding/json"
-	"errors"
 	"fmt"
 	"strings"
 	"time"
@@ -77,7 +76,7 @@ func GetScopeValues(claims jwtgo.MapClaims, scopes []string) []string {
 func numField(m jwtgo.MapClaims, key string) (int64, error) {
 	field, ok := m[key]
 	if !ok {
-		return 0, errors.New("token does not have iat claim")
+		return 0, fmt.Errorf("token does not have %s claim", key)
 	}
 	switch val := field.(type) {
 	case float64:

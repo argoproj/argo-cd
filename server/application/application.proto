@@ -72,16 +72,16 @@ message ApplicationManifestQueryWithFiles {
 	optional string appNamespace = 3;
 }
 
-message ApplicationValidateResponse {
-	optional string error = 1;
-	optional string entity = 2;
-}
-
 message ApplicationManifestQueryWithFilesWrapper {
 	oneof part {
 		ApplicationManifestQueryWithFiles query = 1;
 		FileChunk chunk = 2;
 	}
+}
+
+message ApplicationValidateResponse {
+	optional string error = 1;
+	optional string entity = 2;
 }
 
 message ApplicationResponse {}

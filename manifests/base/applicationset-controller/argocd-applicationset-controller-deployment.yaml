@@ -18,7 +18,7 @@ spec:
       containers:
         - command:
             - entrypoint.sh
-            - applicationset-controller
+            - argocd-applicationset-controller
           image: quay.io/argoproj/argocd:latest
           imagePullPolicy: Always
           name: argocd-applicationset-controller
@@ -43,6 +43,15 @@ spec:
             name: gpg-keyring
           - mountPath: /tmp
             name: tmp
+          securityContext:
+            capabilities:
+              drop:
+              - ALL
+            allowPrivilegeEscalation: false
+            readOnlyRootFilesystem: true
+            runAsNonRoot: true
+            seccompProfile:
+              type: RuntimeDefault
       serviceAccountName: argocd-applicationset-controller
       volumes:
       - configMap:

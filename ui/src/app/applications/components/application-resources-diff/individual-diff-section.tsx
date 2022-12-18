@@ -25,7 +25,7 @@ export const IndividualDiffSection = (props: IndividualDiffSectionProps) => {
             )}
             {!collapsed && (
                 <Diff viewType={viewType} diffType={file.type} hunks={file.hunks}>
-                    {(hunks: any) => hunks.map((hunk: any) => <Hunk key={hunk.content} hunk={hunk} />)}
+                    {(hunks: any) => hunks.map((hunk: any) => <Hunk className={'custom-diff-hunk'} key={hunk.content} hunk={hunk} />)}
                 </Diff>
             )}
         </div>

@@ -3,8 +3,6 @@ package managedfields
 import (
 	"bytes"
 	"fmt"
-	"reflect"
-	"sync"
 
 	v1 "k8s.io/apimachinery/pkg/apis/meta/v1"
 	"k8s.io/apimachinery/pkg/apis/meta/v1/unstructured"

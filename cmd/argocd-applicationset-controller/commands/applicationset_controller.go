@@ -1,11 +1,9 @@
 package command
 
 import (
-	"context"
 	"fmt"
 	"net/http"
 	"os"
-	"strings"
 	"time"
 
 	"github.com/argoproj/pkg/stats"
@@ -16,9 +14,12 @@ import (
 	"github.com/argoproj/argo-cd/v2/applicationset/controllers"
 	"github.com/argoproj/argo-cd/v2/applicationset/generators"
 	"github.com/argoproj/argo-cd/v2/applicationset/utils"
+	"github.com/argoproj/argo-cd/v2/applicationset/webhook"
+	cmdutil "github.com/argoproj/argo-cd/v2/cmd/util"
 	"github.com/argoproj/argo-cd/v2/common"
 	"github.com/argoproj/argo-cd/v2/reposerver/askpass"
 	"github.com/argoproj/argo-cd/v2/util/env"
+	"github.com/argoproj/argo-cd/v2/util/github_app"
 
 	log "github.com/sirupsen/logrus"
 	"github.com/spf13/cobra"
@@ -29,8 +30,8 @@ import (
 	"k8s.io/client-go/tools/clientcmd"
 
 	"github.com/argoproj/argo-cd/v2/applicationset/services"
+	appsetv1alpha1 "github.com/argoproj/argo-cd/v2/pkg/apis/application/v1alpha1"
 	appv1alpha1 "github.com/argoproj/argo-cd/v2/pkg/apis/application/v1alpha1"
-	appsetv1alpha1 "github.com/argoproj/argo-cd/v2/pkg/apis/applicationset/v1alpha1"
 	appclientset "github.com/argoproj/argo-cd/v2/pkg/client/clientset/versioned"
 	"github.com/argoproj/argo-cd/v2/util/cli"
 	"github.com/argoproj/argo-cd/v2/util/db"
@@ -55,8 +56,6 @@ func NewCommand() *cobra.Command {
 		policy               string
 		debugLog             bool
 		dryRun               bool
-		logFormat            string
-		logLevel             string
 	)
 	scheme := runtime.NewScheme()
 	_ = clientgoscheme.AddToScheme(scheme)
@@ -66,34 +65,28 @@ func NewCommand() *cobra.Command {
 		Use:   "controller",
 		Short: "Starts Argo CD ApplicationSet controller",
 		RunE: func(c *cobra.Command, args []string) error {
+			ctx := c.Context()
+
+			vers := common.GetVersion()
+			namespace, _, err := clientConfig.Namespace()
+			errors.CheckError(err)
+			vers.LogStartupInfo(
+				"ArgoCD ApplicationSet Controller",
+				map[string]any{
+					"namespace": namespace,
+				},
+			)
+
+			cli.SetLogFormat(cmdutil.LogFormat)
+			cli.SetLogLevel(cmdutil.LogLevel)
+
 			restConfig, err := clientConfig.ClientConfig()
 			if err != nil {
 				return err
 			}
-			vers := common.GetVersion()
+
 			restConfig.UserAgent = fmt.Sprintf("argocd-applicationset-controller/%s (%s)", vers.Version, vers.Platform)
-			if namespace == "" {
-				namespace, _, err = clientConfig.Namespace()
-				if err != nil {
-					return err
-				}
-			}
-			level, err := log.ParseLevel(logLevel)
-			if err != nil {
-				return err
-			}
-			log.SetLevel(level)
-			log.Info(fmt.Sprintf("ApplicationSet controller %s using namespace '%s' ", vers.Version, namespace), "namespace", namespace, "COMMIT_ID", vers.GitCommit)
-			switch strings.ToLower(logFormat) {
-			case "json":
-				log.SetFormatter(&log.JSONFormatter{})
-			case "text":
-				if os.Getenv("FORCE_LOG_COLORS") == "1" {
-					log.SetFormatter(&log.TextFormatter{ForceColors: true})
-				}
-			default:
-				return fmt.Errorf("Unknown log format '%s'", logFormat)
-			}
+
 			policyObj, exists := utils.Policies[policy]
 			if !exists {
 				log.Info("Policy value can be: sync, create-only, create-update")
@@ -125,27 +118,21 @@ func NewCommand() *cobra.Command {
 			if err != nil {
 				return err
 			}
-			argoSettingsMgr := argosettings.NewSettingsManager(context.Background(), k8sClient, namespace)
+			argoSettingsMgr := argosettings.NewSettingsManager(ctx, k8sClient, namespace)
 			appSetConfig := appclientset.NewForConfigOrDie(mgr.GetConfig())
 			argoCDDB := db.NewDB(namespace, argoSettingsMgr, k8sClient)
-			// start a webhook server that listens to incoming webhook payloads
-			webhookHandler, err := utils.NewWebhookHandler(namespace, argoSettingsMgr, mgr.GetClient())
-			if err != nil {
-				log.Error(err, "failed to create webhook handler")
-			}
 
-			if webhookHandler != nil {
-				startWebhookServer(webhookHandler, webhookAddr)
-			}
 			askPassServer := askpass.NewServer()
-			go func() { errors.CheckError(askPassServer.Run(askpass.SocketPath)) }()
+			scmAuth := generators.SCMAuthProviders{
+				GitHubApps: github_app.NewAuthCredentials(argoCDDB.(db.RepoCredsDB)),
+			}
 			terminalGenerators := map[string]generators.Generator{
 				"List":                    generators.NewListGenerator(),
-				"Clusters":                generators.NewClusterGenerator(mgr.GetClient(), context.Background(), k8sClient, namespace),
+				"Clusters":                generators.NewClusterGenerator(mgr.GetClient(), ctx, k8sClient, namespace),
 				"Git":                     generators.NewGitGenerator(services.NewArgoCDService(argoCDDB, askPassServer, getSubmoduleEnabled())),
-				"SCMProvider":             generators.NewSCMProviderGenerator(mgr.GetClient()),
-				"ClusterDecisionResource": generators.NewDuckTypeGenerator(context.Background(), dynamicClient, k8sClient, namespace),
-				"PullRequest":             generators.NewPullRequestGenerator(mgr.GetClient()),
+				"SCMProvider":             generators.NewSCMProviderGenerator(mgr.GetClient(), scmAuth),
+				"ClusterDecisionResource": generators.NewDuckTypeGenerator(ctx, dynamicClient, k8sClient, namespace),
+				"PullRequest":             generators.NewPullRequestGenerator(mgr.GetClient(), scmAuth),
 			}
 
 			nestedGenerators := map[string]generators.Generator{
@@ -170,10 +157,19 @@ func NewCommand() *cobra.Command {
 				"Merge":                   generators.NewMergeGenerator(nestedGenerators),
 			}
 
+			// start a webhook server that listens to incoming webhook payloads
+			webhookHandler, err := webhook.NewWebhookHandler(namespace, argoSettingsMgr, mgr.GetClient(), topLevelGenerators)
+			if err != nil {
+				log.Error(err, "failed to create webhook handler")
+			}
+			if webhookHandler != nil {
+				startWebhookServer(webhookHandler, webhookAddr)
+			}
+
+			go func() { errors.CheckError(askPassServer.Run(askpass.SocketPath)) }()
 			if err = (&controllers.ApplicationSetReconciler{
 				Generators:       topLevelGenerators,
 				Client:           mgr.GetClient(),
-				Log:              ctrl.Log.WithName("controllers").WithName("ApplicationSet"),
 				Scheme:           mgr.GetScheme(),
 				Recorder:         mgr.GetEventRecorderFor("applicationset-controller"),
 				Renderer:         &utils.Render{},
@@ -206,13 +202,13 @@ func NewCommand() *cobra.Command {
 	command.Flags().StringVar(&argocdRepoServer, "argocd-repo-server", "argocd-repo-server:8081", "Argo CD repo server address")
 	command.Flags().StringVar(&policy, "policy", "sync", "Modify how application is synced between the generator and the cluster. Default is 'sync' (create & update & delete), options: 'create-only', 'create-update' (no deletion)")
 	command.Flags().BoolVar(&debugLog, "debug", false, "Print debug logs. Takes precedence over loglevel")
-	command.Flags().StringVar(&logLevel, "loglevel", "info", "Set the logging level. One of: debug|info|warn|error")
+	command.Flags().StringVar(&cmdutil.LogFormat, "logformat", "text", "Set the logging format. One of: text|json")
+	command.Flags().StringVar(&cmdutil.LogLevel, "loglevel", "info", "Set the logging level. One of: debug|info|warn|error")
 	command.Flags().BoolVar(&dryRun, "dry-run", false, "Enable dry run mode")
-	command.Flags().StringVar(&logFormat, "logformat", "text", "Set the logging format. One of: text|json")
 	return &command
 }
 
-func startWebhookServer(webhookHandler *utils.WebhookHandler, webhookAddr string) {
+func startWebhookServer(webhookHandler *webhook.WebhookHandler, webhookAddr string) {
 	mux := http.NewServeMux()
 	mux.HandleFunc("/api/webhook", webhookHandler.Handler)
 	go func() {

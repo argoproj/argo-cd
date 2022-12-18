@@ -3,11 +3,8 @@ package e2e
 import (
 	"context"
 	"fmt"
-	rbacv1 "k8s.io/api/rbac/v1"
-	"math/rand"
-	"path"
 	"reflect"
-	"strings"
+	"regexp"
 	"testing"
 	"time"
 
@@ -16,12 +13,17 @@ import (
 	. "github.com/argoproj/gitops-engine/pkg/sync/common"
 	"github.com/argoproj/gitops-engine/pkg/utils/kube"
 	"github.com/argoproj/pkg/errors"
+	log "github.com/sirupsen/logrus"
 	"github.com/stretchr/testify/assert"
 	"github.com/stretchr/testify/require"
 	v1 "k8s.io/api/core/v1"
+	networkingv1 "k8s.io/api/networking/v1"
+	rbacv1 "k8s.io/api/rbac/v1"
 	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
+	"k8s.io/apimachinery/pkg/apis/meta/v1/unstructured"
 	"k8s.io/apimachinery/pkg/runtime/schema"
 	"k8s.io/apimachinery/pkg/types"
+	"k8s.io/apimachinery/pkg/util/intstr"
 	"k8s.io/utils/pointer"
 
 	"github.com/argoproj/argo-cd/v2/common"
@@ -52,8 +54,6 @@ const (
 func TestGetLogsAllowNoSwitch(t *testing.T) {
 }
 
-// There is some code duplication in the below GetLogs tests, the reason for that is to allow getting rid of most of those tests easily in the next release,
-// when the temporary switch would die
 func TestGetLogsDenySwitchOn(t *testing.T) {
 	SkipOnEnv(t, "OPENSHIFT")
 
@@ -269,7 +269,6 @@ func TestSyncToSignedCommitKeyWithKnownKey(t *testing.T) {
 
 func TestAppCreation(t *testing.T) {
 	ctx := Given(t)
-
 	ctx.
 		Path(guestbookPath).
 		When().
@@ -322,7 +321,7 @@ func TestAppCreationWithoutForceUpdate(t *testing.T) {
 		Then().
 		Expect(SyncStatusIs(SyncStatusCodeOutOfSync)).
 		And(func(app *Application) {
-			assert.Equal(t, Name(), app.Name)
+			assert.Equal(t, ctx.AppName(), app.Name)
 			assert.Equal(t, RepoURL(RepoURLTypeFile), app.Spec.Source.RepoURL)
 			assert.Equal(t, guestbookPath, app.Spec.Source.Path)
 			assert.Equal(t, DeploymentNamespace(), app.Spec.Destination.Namespace)
@@ -365,23 +364,18 @@ func TestDeleteAppResource(t *testing.T) {
 // demonstrate that we cannot use a standard sync when an immutable field is changed, we must use "force"
 func TestImmutableChange(t *testing.T) {
 	SkipOnEnv(t, "OPENSHIFT")
-	text := FailOnErr(Run(".", "kubectl", "get", "service", "-n", "kube-system", "kube-dns", "-o", "jsonpath={.spec.clusterIP}")).(string)
-	parts := strings.Split(text, ".")
-	n := rand.Intn(254)
-	ip1 := fmt.Sprintf("%s.%s.%s.%d", parts[0], parts[1], parts[2], n)
-	ip2 := fmt.Sprintf("%s.%s.%s.%d", parts[0], parts[1], parts[2], n+1)
 	Given(t).
-		Path("service").
+		Path("secrets").
 		When().
 		CreateApp().
-		PatchFile("service.yaml", fmt.Sprintf(`[{"op": "add", "path": "/spec/clusterIP", "value": "%s"}]`, ip1)).
+		PatchFile("secrets.yaml", `[{"op": "add", "path": "/data/new-field", "value": "dGVzdA=="}, {"op": "add", "path": "/immutable", "value": true}]`).
 		Sync().
 		Then().
 		Expect(OperationPhaseIs(OperationSucceeded)).
 		Expect(SyncStatusIs(SyncStatusCodeSynced)).
 		Expect(HealthIs(health.HealthStatusHealthy)).
 		When().
-		PatchFile("service.yaml", fmt.Sprintf(`[{"op": "add", "path": "/spec/clusterIP", "value": "%s"}]`, ip2)).
+		PatchFile("secrets.yaml", `[{"op": "add", "path": "/data/new-field", "value": "dGVzdDI="}]`).
 		IgnoreErrors().
 		Sync().
 		DoNotIgnoreErrors().
@@ -390,14 +384,14 @@ func TestImmutableChange(t *testing.T) {
 		Expect(SyncStatusIs(SyncStatusCodeOutOfSync)).
 		Expect(ResourceResultNumbering(1)).
 		Expect(ResourceResultMatches(ResourceResult{
-			Kind:      "Service",
+			Kind:      "Secret",
 			Version:   "v1",
 			Namespace: DeploymentNamespace(),
-			Name:      "my-service",
+			Name:      "test-secret",
 			SyncPhase: "Sync",
 			Status:    "SyncFailed",
 			HookPhase: "Failed",
-			Message:   `Service "my-service" is invalid`,
+			Message:   `Secret "test-secret" is invalid`,
 		})).
 		// now we can do this will a force
 		Given().
@@ -458,7 +452,7 @@ func TestAppLabels(t *testing.T) {
 		Sync("-l", "foo=rubbish").
 		DoNotIgnoreErrors().
 		Then().
-		Expect(Error("", "no apps match selector foo=rubbish")).
+		Expect(Error("", "No matching apps found for filter: selector foo=rubbish")).
 		// check we can update the app and it is then sync'd
 		Given().
 		When().
@@ -508,21 +502,20 @@ func TestAppRollbackSuccessful(t *testing.T) {
 				Source:     app.Spec.Source,
 			}}
 			patch, _, err := diff.CreateTwoWayMergePatch(app, appWithHistory, &Application{})
-			assert.NoError(t, err)
-
+			require.NoError(t, err)
 			app, err = AppClientset.ArgoprojV1alpha1().Applications(ArgoCDNamespace).Patch(context.Background(), app.Name, types.MergePatchType, patch, metav1.PatchOptions{})
-			assert.NoError(t, err)
+			require.NoError(t, err)
 
 			// sync app and make sure it reaches InSync state
 			_, err = RunCli("app", "rollback", app.Name, "1")
-			assert.NoError(t, err)
+			require.NoError(t, err)
 
 		}).
 		Expect(Event(EventReasonOperationStarted, "rollback")).
 		Expect(SyncStatusIs(SyncStatusCodeSynced)).
 		And(func(app *Application) {
 			assert.Equal(t, SyncStatusCodeSynced, app.Status.Sync.Status)
-			assert.NotNil(t, app.Status.OperationState.SyncResult)
+			require.NotNil(t, app.Status.OperationState.SyncResult)
 			assert.Equal(t, 2, len(app.Status.OperationState.SyncResult.Resources))
 			assert.Equal(t, OperationSucceeded, app.Status.OperationState.Phase)
 			assert.Equal(t, 3, len(app.Status.History))
@@ -593,6 +586,124 @@ func TestManipulateApplicationResources(t *testing.T) {
 		Expect(SyncStatusIs(SyncStatusCodeOutOfSync))
 }
 
+func assetSecretDataHidden(t *testing.T, manifest string) {
+	secret, err := UnmarshalToUnstructured(manifest)
+	assert.NoError(t, err)
+
+	_, hasStringData, err := unstructured.NestedMap(secret.Object, "stringData")
+	assert.NoError(t, err)
+	assert.False(t, hasStringData)
+
+	secretData, hasData, err := unstructured.NestedMap(secret.Object, "data")
+	assert.NoError(t, err)
+	assert.True(t, hasData)
+	for _, v := range secretData {
+		assert.Regexp(t, regexp.MustCompile(`[*]*`), v)
+	}
+	var lastAppliedConfigAnnotation string
+	annotations := secret.GetAnnotations()
+	if annotations != nil {
+		lastAppliedConfigAnnotation = annotations[v1.LastAppliedConfigAnnotation]
+	}
+	if lastAppliedConfigAnnotation != "" {
+		assetSecretDataHidden(t, lastAppliedConfigAnnotation)
+	}
+}
+
+func TestAppWithSecrets(t *testing.T) {
+	closer, client, err := ArgoCDClientset.NewApplicationClient()
+	assert.NoError(t, err)
+	defer io.Close(closer)
+
+	Given(t).
+		Path("secrets").
+		When().
+		CreateApp().
+		Sync().
+		Then().
+		Expect(SyncStatusIs(SyncStatusCodeSynced)).
+		And(func(app *Application) {
+			res := FailOnErr(client.GetResource(context.Background(), &applicationpkg.ApplicationResourceRequest{
+				Namespace:    &app.Spec.Destination.Namespace,
+				Kind:         pointer.String(kube.SecretKind),
+				Group:        pointer.String(""),
+				Name:         &app.Name,
+				Version:      pointer.String("v1"),
+				ResourceName: pointer.String("test-secret"),
+			})).(*applicationpkg.ApplicationResourceResponse)
+			assetSecretDataHidden(t, res.GetManifest())
+
+			manifests, err := client.GetManifests(context.Background(), &applicationpkg.ApplicationManifestQuery{Name: &app.Name})
+			errors.CheckError(err)
+
+			for _, manifest := range manifests.Manifests {
+				assetSecretDataHidden(t, manifest)
+			}
+
+			diffOutput := FailOnErr(RunCli("app", "diff", app.Name)).(string)
+			assert.Empty(t, diffOutput)
+
+			// make sure resource update error does not print secret details
+			_, err = RunCli("app", "patch-resource", "test-app-with-secrets", "--resource-name", "test-secret",
+				"--kind", "Secret", "--patch", `{"op": "add", "path": "/data", "value": "hello"}'`,
+				"--patch-type", "application/json-patch+json")
+			require.Error(t, err)
+			assert.Contains(t, err.Error(), fmt.Sprintf("failed to patch Secret %s/test-secret", DeploymentNamespace()))
+			assert.NotContains(t, err.Error(), "username")
+			assert.NotContains(t, err.Error(), "password")
+
+			// patch secret and make sure app is out of sync and diff detects the change
+			FailOnErr(KubeClientset.CoreV1().Secrets(DeploymentNamespace()).Patch(context.Background(),
+				"test-secret", types.JSONPatchType, []byte(`[
+	{"op": "remove", "path": "/data/username"},
+	{"op": "add", "path": "/stringData", "value": {"password": "foo"}}
+]`), metav1.PatchOptions{}))
+		}).
+		When().
+		Refresh(RefreshTypeNormal).
+		Then().
+		Expect(SyncStatusIs(SyncStatusCodeOutOfSync)).
+		And(func(app *Application) {
+			diffOutput, err := RunCli("app", "diff", app.Name)
+			assert.Error(t, err)
+			assert.Contains(t, diffOutput, "username: ++++++++")
+			assert.Contains(t, diffOutput, "password: ++++++++++++")
+
+			// local diff should ignore secrets
+			diffOutput = FailOnErr(RunCli("app", "diff", app.Name, "--local", "testdata", "--server-side-generate")).(string)
+			assert.Empty(t, diffOutput)
+
+			// ignore missing field and make sure diff shows no difference
+			app.Spec.IgnoreDifferences = []ResourceIgnoreDifferences{{
+				Kind: kube.SecretKind, JSONPointers: []string{"/data"},
+			}}
+			FailOnErr(client.UpdateSpec(context.Background(), &applicationpkg.ApplicationUpdateSpecRequest{Name: &app.Name, Spec: &app.Spec}))
+		}).
+		When().
+		Refresh(RefreshTypeNormal).
+		Then().
+		Expect(OperationPhaseIs(OperationSucceeded)).
+		Expect(SyncStatusIs(SyncStatusCodeSynced)).
+		And(func(app *Application) {
+			diffOutput := FailOnErr(RunCli("app", "diff", app.Name)).(string)
+			assert.Empty(t, diffOutput)
+		}).
+		// verify not committed secret also ignore during diffing
+		When().
+		WriteFile("secret3.yaml", `
+apiVersion: v1
+kind: Secret
+metadata:
+  name: test-secret3
+stringData:
+  username: test-username`).
+		Then().
+		And(func(app *Application) {
+			diffOutput := FailOnErr(RunCli("app", "diff", app.Name, "--local", "testdata", "--server-side-generate")).(string)
+			assert.Empty(t, diffOutput)
+		})
+}
+
 func TestResourceDiffing(t *testing.T) {
 	Given(t).
 		Path(guestbookPath).
@@ -612,7 +723,7 @@ func TestResourceDiffing(t *testing.T) {
 		Then().
 		Expect(SyncStatusIs(SyncStatusCodeOutOfSync)).
 		And(func(app *Application) {
-			diffOutput, err := RunCli("app", "diff", app.Name, "--local", "testdata/guestbook")
+			diffOutput, err := RunCli("app", "diff", app.Name, "--local", "testdata", "--server-side-generate")
 			assert.Error(t, err)
 			assert.Contains(t, diffOutput, fmt.Sprintf("===== apps/Deployment %s/guestbook-ui ======", DeploymentNamespace()))
 		}).
@@ -625,7 +736,7 @@ func TestResourceDiffing(t *testing.T) {
 		Then().
 		Expect(SyncStatusIs(SyncStatusCodeSynced)).
 		And(func(app *Application) {
-			diffOutput, err := RunCli("app", "diff", app.Name, "--local", "testdata/guestbook")
+			diffOutput, err := RunCli("app", "diff", app.Name, "--local", "testdata", "--server-side-generate")
 			assert.NoError(t, err)
 			assert.Empty(t, diffOutput)
 		}).
@@ -743,7 +854,7 @@ func testEdgeCasesApplicationResources(t *testing.T, appPath string, statusCode 
 	expect.
 		Expect(HealthIs(statusCode)).
 		And(func(app *Application) {
-			diffOutput, err := RunCli("app", "diff", app.Name, "--local", path.Join("testdata", appPath))
+			diffOutput, err := RunCli("app", "diff", app.Name, "--local", "testdata", "--server-side-generate")
 			assert.Empty(t, diffOutput)
 			assert.NoError(t, err)
 		})
@@ -811,6 +922,24 @@ func TestSyncResourceByLabel(t *testing.T) {
 		Expect(SyncStatusIs(SyncStatusCodeSynced)).
 		And(func(app *Application) {
 			_, err := RunCli("app", "sync", app.Name, "--label", "this-label=does-not-exist")
+			assert.Error(t, err)
+			assert.Contains(t, err.Error(), "level=fatal")
+		})
+}
+
+func TestSyncResourceByProject(t *testing.T) {
+	Given(t).
+		Path(guestbookPath).
+		When().
+		CreateApp().
+		Sync().
+		Then().
+		And(func(app *Application) {
+			_, _ = RunCli("app", "sync", app.Name, "--project", app.Spec.Project)
+		}).
+		Expect(SyncStatusIs(SyncStatusCodeSynced)).
+		And(func(app *Application) {
+			_, err := RunCli("app", "sync", app.Name, "--project", "this-project-does-not-exist")
 			assert.Error(t, err)
 			assert.Contains(t, err.Error(), "level=fatal")
 		})
@@ -1039,7 +1168,9 @@ func TestPermissions(t *testing.T) {
 		And(func(app *Application) {
 			closer, cdClient := ArgoCDClientset.NewApplicationClientOrDie()
 			defer io.Close(closer)
-			tree, err := cdClient.ResourceTree(context.Background(), &applicationpkg.ResourcesQuery{ApplicationName: &app.Name})
+			appName, appNs := argo.ParseAppQualifiedName(app.Name, "")
+			fmt.Printf("APP NAME: %s\n", appName)
+			tree, err := cdClient.ResourceTree(context.Background(), &applicationpkg.ResourcesQuery{ApplicationName: &appName, AppNamespace: &appNs})
 			require.NoError(t, err)
 			assert.Len(t, tree.Nodes, 0)
 			assert.Len(t, tree.OrphanedNodes, 0)
@@ -1064,6 +1195,7 @@ func TestPermissions(t *testing.T) {
 
 func TestPermissionWithScopedRepo(t *testing.T) {
 	projName := "argo-project"
+	fixture.EnsureCleanState(t)
 	projectFixture.
 		Given(t).
 		Name(projName).
@@ -1124,7 +1256,60 @@ func TestPermissionDeniedWithScopedRepo(t *testing.T) {
 		CreateApp().
 		Then().
 		Expect(Error("", "is not permitted in project"))
+}
 
+func TestPermissionDeniedWithNegatedNamespace(t *testing.T) {
+	projName := "argo-project"
+	projectFixture.
+		Given(t).
+		Name(projName).
+		Destination("*,!*test-permission-denied-with-negated-namespace*").
+		When().
+		Create()
+
+	repoFixture.Given(t, true).
+		When().
+		Path(RepoURL(RepoURLTypeFile)).
+		Project(projName).
+		Create()
+
+	GivenWithSameState(t).
+		Project(projName).
+		RepoURLType(RepoURLTypeFile).
+		Path("two-nice-pods").
+		When().
+		PatchFile("pod-1.yaml", `[{"op": "add", "path": "/metadata/annotations", "value": {"argocd.argoproj.io/sync-options": "Prune=false"}}]`).
+		IgnoreErrors().
+		CreateApp().
+		Then().
+		Expect(Error("", "is not permitted in project"))
+}
+
+func TestPermissionDeniedWithNegatedServer(t *testing.T) {
+	projName := "argo-project"
+	projectFixture.
+		Given(t).
+		Name(projName).
+		Destination("!https://kubernetes.default.svc,*").
+		When().
+		Create()
+
+	repoFixture.Given(t, true).
+		When().
+		Path(RepoURL(RepoURLTypeFile)).
+		Project(projName).
+		Create()
+
+	GivenWithSameState(t).
+		Project(projName).
+		RepoURLType(RepoURLTypeFile).
+		Path("two-nice-pods").
+		When().
+		PatchFile("pod-1.yaml", `[{"op": "add", "path": "/metadata/annotations", "value": {"argocd.argoproj.io/sync-options": "Prune=false"}}]`).
+		IgnoreErrors().
+		CreateApp().
+		Then().
+		Expect(Error("", "is not permitted in project"))
 }
 
 // make sure that if we deleted a resource from the app, it is not pruned if annotated with Prune=false
@@ -1364,6 +1549,96 @@ func TestOrphanedResource(t *testing.T) {
 		Then().
 		Expect(SyncStatusIs(SyncStatusCodeSynced)).
 		Expect(NoConditions())
+}
+
+func TestNotPermittedResources(t *testing.T) {
+	ctx := Given(t)
+
+	pathType := networkingv1.PathTypePrefix
+	ingress := &networkingv1.Ingress{
+		ObjectMeta: metav1.ObjectMeta{
+			Name: "sample-ingress",
+			Labels: map[string]string{
+				common.LabelKeyAppInstance: ctx.GetName(),
+			},
+		},
+		Spec: networkingv1.IngressSpec{
+			Rules: []networkingv1.IngressRule{{
+				IngressRuleValue: networkingv1.IngressRuleValue{
+					HTTP: &networkingv1.HTTPIngressRuleValue{
+						Paths: []networkingv1.HTTPIngressPath{{
+							Path: "/",
+							Backend: networkingv1.IngressBackend{
+								Service: &networkingv1.IngressServiceBackend{
+									Name: "guestbook-ui",
+									Port: networkingv1.ServiceBackendPort{Number: 80},
+								},
+							},
+							PathType: &pathType,
+						}},
+					},
+				},
+			}},
+		},
+	}
+	defer func() {
+		log.Infof("Ingress 'sample-ingress' deleted from %s", ArgoCDNamespace)
+		CheckError(KubeClientset.NetworkingV1().Ingresses(ArgoCDNamespace).Delete(context.Background(), "sample-ingress", metav1.DeleteOptions{}))
+	}()
+
+	svc := &v1.Service{
+		ObjectMeta: metav1.ObjectMeta{
+			Name: "guestbook-ui",
+			Labels: map[string]string{
+				common.LabelKeyAppInstance: ctx.GetName(),
+			},
+		},
+		Spec: v1.ServiceSpec{
+			Ports: []v1.ServicePort{{
+				Port:       80,
+				TargetPort: intstr.IntOrString{Type: intstr.Int, IntVal: 80},
+			}},
+			Selector: map[string]string{
+				"app": "guestbook-ui",
+			},
+		},
+	}
+
+	ctx.ProjectSpec(AppProjectSpec{
+		SourceRepos:  []string{"*"},
+		Destinations: []ApplicationDestination{{Namespace: DeploymentNamespace(), Server: "*"}},
+		NamespaceResourceBlacklist: []metav1.GroupKind{
+			{Group: "", Kind: "Service"},
+		}}).
+		And(func() {
+			FailOnErr(KubeClientset.NetworkingV1().Ingresses(ArgoCDNamespace).Create(context.Background(), ingress, metav1.CreateOptions{}))
+			FailOnErr(KubeClientset.CoreV1().Services(DeploymentNamespace()).Create(context.Background(), svc, metav1.CreateOptions{}))
+		}).
+		Path(guestbookPath).
+		When().
+		CreateApp().
+		Then().
+		Expect(SyncStatusIs(SyncStatusCodeOutOfSync)).
+		And(func(app *Application) {
+			statusByKind := make(map[string]ResourceStatus)
+			for _, res := range app.Status.Resources {
+				statusByKind[res.Kind] = res
+			}
+			_, hasIngress := statusByKind[kube.IngressKind]
+			assert.False(t, hasIngress, "Ingress is prohibited not managed object and should be even visible to user")
+			serviceStatus := statusByKind[kube.ServiceKind]
+			assert.Equal(t, serviceStatus.Status, SyncStatusCodeUnknown, "Service is prohibited managed resource so should be set to Unknown")
+			deploymentStatus := statusByKind[kube.DeploymentKind]
+			assert.Equal(t, deploymentStatus.Status, SyncStatusCodeOutOfSync)
+		}).
+		When().
+		Delete(true).
+		Then().
+		Expect(DoesNotExist())
+
+	// Make sure prohibited resources are not deleted during application deletion
+	FailOnErr(KubeClientset.NetworkingV1().Ingresses(ArgoCDNamespace).Get(context.Background(), "sample-ingress", metav1.GetOptions{}))
+	FailOnErr(KubeClientset.CoreV1().Services(DeploymentNamespace()).Get(context.Background(), "guestbook-ui", metav1.GetOptions{}))
 }
 
 func TestSyncWithInfos(t *testing.T) {
@@ -1738,7 +2013,8 @@ func TestAppLogs(t *testing.T) {
 }
 
 func TestAppWaitOperationInProgress(t *testing.T) {
-	Given(t).
+	ctx := Given(t)
+	ctx.
 		And(func() {
 			SetResourceOverrides(map[string]ResourceOverride{
 				"batch/Job": {
@@ -1759,7 +2035,7 @@ func TestAppWaitOperationInProgress(t *testing.T) {
 		Expect(OperationPhaseIs(OperationRunning)).
 		When().
 		And(func() {
-			_, err := RunCli("app", "wait", Name(), "--suspended")
+			_, err := RunCli("app", "wait", ctx.AppName(), "--suspended")
 			errors.CheckError(err)
 		})
 }

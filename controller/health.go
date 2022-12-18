@@ -13,7 +13,7 @@ import (
 )
 
 // setApplicationHealth updates the health statuses of all resources performed in the comparison
-func setApplicationHealth(resources []managedResource, statuses []appv1.ResourceStatus, resourceOverrides map[string]appv1.ResourceOverride, app *appv1.Application) (*appv1.HealthStatus, error) {
+func setApplicationHealth(resources []managedResource, statuses []appv1.ResourceStatus, resourceOverrides map[string]appv1.ResourceOverride, app *appv1.Application, persistResourceHealth bool) (*appv1.HealthStatus, error) {
 	var savedErr error
 	appHealth := appv1.HealthStatus{Status: health.HealthStatusHealthy}
 	for i, res := range resources {
@@ -42,8 +42,12 @@ func setApplicationHealth(resources []managedResource, statuses []appv1.Resource
 			}
 		}
 		if healthStatus != nil {
-			resHealth := appv1.HealthStatus{Status: healthStatus.Status, Message: healthStatus.Message}
-			statuses[i].Health = &resHealth
+			if persistResourceHealth {
+				resHealth := appv1.HealthStatus{Status: healthStatus.Status, Message: healthStatus.Message}
+				statuses[i].Health = &resHealth
+			} else {
+				statuses[i].Health = nil
+			}
 
 			// Is health status is missing but resource has not built-in/custom health check then it should not affect parent app health
 			if _, hasOverride := healthOverrides[lua.GetConfigMapKey(gvk)]; healthStatus.Status == health.HealthStatusMissing && !hasOverride && health.GetHealthCheckFunc(gvk) == nil {
@@ -59,6 +63,11 @@ func setApplicationHealth(resources []managedResource, statuses []appv1.Resource
 				appHealth.Status = healthStatus.Status
 			}
 		}
+	}
+	if persistResourceHealth {
+		app.Status.ResourceHealthSource = appv1.ResourceHealthLocationInline
+	} else {
+		app.Status.ResourceHealthSource = appv1.ResourceHealthLocationAppTree
 	}
 	return &appHealth, savedErr
 }

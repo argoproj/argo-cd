@@ -301,12 +301,6 @@ spec:
                             description: CommonLabels is a list of additional labels
                               to add to rendered manifests
                             type: object
-                          components:
-                            description: Components specifies a list of kustomize
-                              components to add to the kustmization before building
-                            items:
-                              type: string
-                            type: array
                           forceCommonAnnotations:
                             description: ForceCommonAnnotations specifies whether
                               to force applying common annotations to resources for
@@ -315,10 +309,6 @@ spec:
                           forceCommonLabels:
                             description: ForceCommonLabels specifies whether to force
                               applying common labels to resources for Kustomize apps
-                            type: boolean
-                          forceNamespace:
-                            description: ForceNamespace if true, will use the application's
-                              destination namespace as a kustomization file namespace
                             type: boolean
                           images:
                             description: Images is a list of Kustomize image override
@@ -658,12 +648,6 @@ spec:
                         description: CommonLabels is a list of additional labels to
                           add to rendered manifests
                         type: object
-                      components:
-                        description: Components specifies a list of kustomize components
-                          to add to the kustmization before building
-                        items:
-                          type: string
-                        type: array
                       forceCommonAnnotations:
                         description: ForceCommonAnnotations specifies whether to force
                           applying common annotations to resources for Kustomize apps
@@ -671,10 +655,6 @@ spec:
                       forceCommonLabels:
                         description: ForceCommonLabels specifies whether to force
                           applying common labels to resources for Kustomize apps
-                        type: boolean
-                      forceNamespace:
-                        description: ForceNamespace if true, will use the application's
-                          destination namespace as a kustomization file namespace
                         type: boolean
                       images:
                         description: Images is a list of Kustomize image override
@@ -759,10 +739,6 @@ spec:
                           back to their desired state upon modification in the cluster
                           (default: false)'
                         type: boolean
-                    type: object
-                  createNamespaceLabels:
-                    additionalProperties:
-                      type: string
                     type: object
                   retry:
                     description: Retry controls failed sync retry behavior
@@ -1025,12 +1001,6 @@ spec:
                               description: CommonLabels is a list of additional labels
                                 to add to rendered manifests
                               type: object
-                            components:
-                              description: Components specifies a list of kustomize
-                                components to add to the kustmization before building
-                              items:
-                                type: string
-                              type: array
                             forceCommonAnnotations:
                               description: ForceCommonAnnotations specifies whether
                                 to force applying common annotations to resources
@@ -1040,10 +1010,6 @@ spec:
                               description: ForceCommonLabels specifies whether to
                                 force applying common labels to resources for Kustomize
                                 apps
-                              type: boolean
-                            forceNamespace:
-                              description: ForceNamespace if true, will use the application's
-                                destination namespace as a kustomization file namespace
                               type: boolean
                             images:
                               description: Images is a list of Kustomize image override
@@ -1406,13 +1372,6 @@ spec:
                                     description: CommonLabels is a list of additional
                                       labels to add to rendered manifests
                                     type: object
-                                  components:
-                                    description: Components specifies a list of kustomize
-                                      components to add to the kustmization before
-                                      building
-                                    items:
-                                      type: string
-                                    type: array
                                   forceCommonAnnotations:
                                     description: ForceCommonAnnotations specifies
                                       whether to force applying common annotations
@@ -1422,11 +1381,6 @@ spec:
                                     description: ForceCommonLabels specifies whether
                                       to force applying common labels to resources
                                       for Kustomize apps
-                                    type: boolean
-                                  forceNamespace:
-                                    description: ForceNamespace if true, will use
-                                      the application's destination namespace as a
-                                      kustomization file namespace
                                     type: boolean
                                   images:
                                     description: Images is a list of Kustomize image
@@ -1763,12 +1717,6 @@ spec:
                                 description: CommonLabels is a list of additional
                                   labels to add to rendered manifests
                                 type: object
-                              components:
-                                description: Components specifies a list of kustomize
-                                  components to add to the kustmization before building
-                                items:
-                                  type: string
-                                type: array
                               forceCommonAnnotations:
                                 description: ForceCommonAnnotations specifies whether
                                   to force applying common annotations to resources
@@ -1778,11 +1726,6 @@ spec:
                                 description: ForceCommonLabels specifies whether to
                                   force applying common labels to resources for Kustomize
                                   apps
-                                type: boolean
-                              forceNamespace:
-                                description: ForceNamespace if true, will use the
-                                  application's destination namespace as a kustomization
-                                  file namespace
                                 type: boolean
                               images:
                                 description: Images is a list of Kustomize image override
@@ -1862,6 +1805,10 @@ spec:
                   reconciled using the latest git version
                 format: date-time
                 type: string
+              resourceHealthSource:
+                description: 'ResourceHealthSource indicates where the resource health
+                  status is stored: inline if not set or appTree'
+                type: string
               resources:
                 description: Resources is a list of Kubernetes resources managed by
                   this application
@@ -1898,6 +1845,9 @@ spec:
                       description: SyncStatusCode is a type which represents possible
                         comparison results
                       type: string
+                    syncWave:
+                      format: int64
+                      type: integer
                     version:
                       type: string
                   type: object
@@ -2108,12 +2058,6 @@ spec:
                                 description: CommonLabels is a list of additional
                                   labels to add to rendered manifests
                                 type: object
-                              components:
-                                description: Components specifies a list of kustomize
-                                  components to add to the kustmization before building
-                                items:
-                                  type: string
-                                type: array
                               forceCommonAnnotations:
                                 description: ForceCommonAnnotations specifies whether
                                   to force applying common annotations to resources
@@ -2123,11 +2067,6 @@ spec:
                                 description: ForceCommonLabels specifies whether to
                                   force applying common labels to resources for Kustomize
                                   apps
-                                type: boolean
-                              forceNamespace:
-                                description: ForceNamespace if true, will use the
-                                  application's destination namespace as a kustomization
-                                  file namespace
                                 type: boolean
                               images:
                                 description: Images is a list of Kustomize image override
@@ -2222,6 +2161,7 @@ kind: CustomResourceDefinition
 metadata:
   labels:
     app.kubernetes.io/name: applicationsets.argoproj.io
+    app.kubernetes.io/part-of: argocd
   name: applicationsets.argoproj.io
 spec:
   group: argoproj.io
@@ -2455,15 +2395,9 @@ spec:
                                           additionalProperties:
                                             type: string
                                           type: object
-                                        components:
-                                          items:
-                                            type: string
-                                          type: array
                                         forceCommonAnnotations:
                                           type: boolean
                                         forceCommonLabels:
-                                          type: boolean
-                                        forceNamespace:
                                           type: boolean
                                         images:
                                           items:
@@ -2512,10 +2446,6 @@ spec:
                                           type: boolean
                                         selfHeal:
                                           type: boolean
-                                      type: object
-                                    createNamespaceLabels:
-                                      additionalProperties:
-                                        type: string
                                       type: object
                                     retry:
                                       properties:
@@ -2752,15 +2682,9 @@ spec:
                                           additionalProperties:
                                             type: string
                                           type: object
-                                        components:
-                                          items:
-                                            type: string
-                                          type: array
                                         forceCommonAnnotations:
                                           type: boolean
                                         forceCommonLabels:
-                                          type: boolean
-                                        forceNamespace:
                                           type: boolean
                                         images:
                                           items:
@@ -2809,10 +2733,6 @@ spec:
                                           type: boolean
                                         selfHeal:
                                           type: boolean
-                                      type: object
-                                    createNamespaceLabels:
-                                      additionalProperties:
-                                        type: string
                                       type: object
                                     retry:
                                       properties:
@@ -3051,15 +2971,9 @@ spec:
                                           additionalProperties:
                                             type: string
                                           type: object
-                                        components:
-                                          items:
-                                            type: string
-                                          type: array
                                         forceCommonAnnotations:
                                           type: boolean
                                         forceCommonLabels:
-                                          type: boolean
-                                        forceNamespace:
                                           type: boolean
                                         images:
                                           items:
@@ -3108,10 +3022,6 @@ spec:
                                           type: boolean
                                         selfHeal:
                                           type: boolean
-                                      type: object
-                                    createNamespaceLabels:
-                                      additionalProperties:
-                                        type: string
                                       type: object
                                     retry:
                                       properties:
@@ -3326,15 +3236,9 @@ spec:
                                           additionalProperties:
                                             type: string
                                           type: object
-                                        components:
-                                          items:
-                                            type: string
-                                          type: array
                                         forceCommonAnnotations:
                                           type: boolean
                                         forceCommonLabels:
-                                          type: boolean
-                                        forceNamespace:
                                           type: boolean
                                         images:
                                           items:
@@ -3383,10 +3287,6 @@ spec:
                                           type: boolean
                                         selfHeal:
                                           type: boolean
-                                      type: object
-                                    createNamespaceLabels:
-                                      additionalProperties:
-                                        type: string
                                       type: object
                                     retry:
                                       properties:
@@ -3631,15 +3531,9 @@ spec:
                                                     additionalProperties:
                                                       type: string
                                                     type: object
-                                                  components:
-                                                    items:
-                                                      type: string
-                                                    type: array
                                                   forceCommonAnnotations:
                                                     type: boolean
                                                   forceCommonLabels:
-                                                    type: boolean
-                                                  forceNamespace:
                                                     type: boolean
                                                   images:
                                                     items:
@@ -3688,10 +3582,6 @@ spec:
                                                     type: boolean
                                                   selfHeal:
                                                     type: boolean
-                                                type: object
-                                              createNamespaceLabels:
-                                                additionalProperties:
-                                                  type: string
                                                 type: object
                                               retry:
                                                 properties:
@@ -3928,15 +3818,9 @@ spec:
                                                     additionalProperties:
                                                       type: string
                                                     type: object
-                                                  components:
-                                                    items:
-                                                      type: string
-                                                    type: array
                                                   forceCommonAnnotations:
                                                     type: boolean
                                                   forceCommonLabels:
-                                                    type: boolean
-                                                  forceNamespace:
                                                     type: boolean
                                                   images:
                                                     items:
@@ -3985,10 +3869,6 @@ spec:
                                                     type: boolean
                                                   selfHeal:
                                                     type: boolean
-                                                type: object
-                                              createNamespaceLabels:
-                                                additionalProperties:
-                                                  type: string
                                                 type: object
                                               retry:
                                                 properties:
@@ -4227,15 +4107,9 @@ spec:
                                                     additionalProperties:
                                                       type: string
                                                     type: object
-                                                  components:
-                                                    items:
-                                                      type: string
-                                                    type: array
                                                   forceCommonAnnotations:
                                                     type: boolean
                                                   forceCommonLabels:
-                                                    type: boolean
-                                                  forceNamespace:
                                                     type: boolean
                                                   images:
                                                     items:
@@ -4284,10 +4158,6 @@ spec:
                                                     type: boolean
                                                   selfHeal:
                                                     type: boolean
-                                                type: object
-                                              createNamespaceLabels:
-                                                additionalProperties:
-                                                  type: string
                                                 type: object
                                               retry:
                                                 properties:
@@ -4502,15 +4372,9 @@ spec:
                                                     additionalProperties:
                                                       type: string
                                                     type: object
-                                                  components:
-                                                    items:
-                                                      type: string
-                                                    type: array
                                                   forceCommonAnnotations:
                                                     type: boolean
                                                   forceCommonLabels:
-                                                    type: boolean
-                                                  forceNamespace:
                                                     type: boolean
                                                   images:
                                                     items:
@@ -4559,10 +4423,6 @@ spec:
                                                     type: boolean
                                                   selfHeal:
                                                     type: boolean
-                                                type: object
-                                              createNamespaceLabels:
-                                                additionalProperties:
-                                                  type: string
                                                 type: object
                                               retry:
                                                 properties:
@@ -4670,6 +4530,8 @@ spec:
                                     properties:
                                       api:
                                         type: string
+                                      appSecretName:
+                                        type: string
                                       labels:
                                         items:
                                           type: string
@@ -4691,6 +4553,31 @@ spec:
                                     required:
                                     - owner
                                     - repo
+                                    type: object
+                                  gitlab:
+                                    properties:
+                                      api:
+                                        type: string
+                                      labels:
+                                        items:
+                                          type: string
+                                        type: array
+                                      project:
+                                        type: string
+                                      pullRequestState:
+                                        type: string
+                                      tokenRef:
+                                        properties:
+                                          key:
+                                            type: string
+                                          secretName:
+                                            type: string
+                                        required:
+                                        - key
+                                        - secretName
+                                        type: object
+                                    required:
+                                    - project
                                     type: object
                                   requeueAfterSeconds:
                                     format: int64
@@ -4868,15 +4755,9 @@ spec:
                                                     additionalProperties:
                                                       type: string
                                                     type: object
-                                                  components:
-                                                    items:
-                                                      type: string
-                                                    type: array
                                                   forceCommonAnnotations:
                                                     type: boolean
                                                   forceCommonLabels:
-                                                    type: boolean
-                                                  forceNamespace:
                                                     type: boolean
                                                   images:
                                                     items:
@@ -4926,10 +4807,6 @@ spec:
                                                   selfHeal:
                                                     type: boolean
                                                 type: object
-                                              createNamespaceLabels:
-                                                additionalProperties:
-                                                  type: string
-                                                type: object
                                               retry:
                                                 properties:
                                                   backoff:
@@ -4963,6 +4840,31 @@ spec:
                                 type: object
                               scmProvider:
                                 properties:
+                                  azureDevOps:
+                                    properties:
+                                      accessTokenRef:
+                                        properties:
+                                          key:
+                                            type: string
+                                          secretName:
+                                            type: string
+                                        required:
+                                        - key
+                                        - secretName
+                                        type: object
+                                      allBranches:
+                                        type: boolean
+                                      api:
+                                        type: string
+                                      organization:
+                                        type: string
+                                      teamProject:
+                                        type: string
+                                    required:
+                                    - accessTokenRef
+                                    - organization
+                                    - teamProject
+                                    type: object
                                   bitbucket:
                                     properties:
                                       allBranches:
@@ -5066,6 +4968,8 @@ spec:
                                       allBranches:
                                         type: boolean
                                       api:
+                                        type: string
+                                      appSecretName:
                                         type: string
                                       organization:
                                         type: string
@@ -5281,15 +5185,9 @@ spec:
                                                     additionalProperties:
                                                       type: string
                                                     type: object
-                                                  components:
-                                                    items:
-                                                      type: string
-                                                    type: array
                                                   forceCommonAnnotations:
                                                     type: boolean
                                                   forceCommonLabels:
-                                                    type: boolean
-                                                  forceNamespace:
                                                     type: boolean
                                                   images:
                                                     items:
@@ -5339,10 +5237,6 @@ spec:
                                                   selfHeal:
                                                     type: boolean
                                                 type: object
-                                              createNamespaceLabels:
-                                                additionalProperties:
-                                                  type: string
-                                                type: object
                                               retry:
                                                 properties:
                                                   backoff:
@@ -5372,6 +5266,29 @@ spec:
                                     required:
                                     - metadata
                                     - spec
+                                    type: object
+                                type: object
+                              selector:
+                                properties:
+                                  matchExpressions:
+                                    items:
+                                      properties:
+                                        key:
+                                          type: string
+                                        operator:
+                                          type: string
+                                        values:
+                                          items:
+                                            type: string
+                                          type: array
+                                      required:
+                                      - key
+                                      - operator
+                                      type: object
+                                    type: array
+                                  matchLabels:
+                                    additionalProperties:
+                                      type: string
                                     type: object
                                 type: object
                             type: object
@@ -5549,15 +5466,9 @@ spec:
                                           additionalProperties:
                                             type: string
                                           type: object
-                                        components:
-                                          items:
-                                            type: string
-                                          type: array
                                         forceCommonAnnotations:
                                           type: boolean
                                         forceCommonLabels:
-                                          type: boolean
-                                        forceNamespace:
                                           type: boolean
                                         images:
                                           items:
@@ -5606,10 +5517,6 @@ spec:
                                           type: boolean
                                         selfHeal:
                                           type: boolean
-                                      type: object
-                                    createNamespaceLabels:
-                                      additionalProperties:
-                                        type: string
                                       type: object
                                     retry:
                                       properties:
@@ -5854,15 +5761,9 @@ spec:
                                                     additionalProperties:
                                                       type: string
                                                     type: object
-                                                  components:
-                                                    items:
-                                                      type: string
-                                                    type: array
                                                   forceCommonAnnotations:
                                                     type: boolean
                                                   forceCommonLabels:
-                                                    type: boolean
-                                                  forceNamespace:
                                                     type: boolean
                                                   images:
                                                     items:
@@ -5911,10 +5812,6 @@ spec:
                                                     type: boolean
                                                   selfHeal:
                                                     type: boolean
-                                                type: object
-                                              createNamespaceLabels:
-                                                additionalProperties:
-                                                  type: string
                                                 type: object
                                               retry:
                                                 properties:
@@ -6151,15 +6048,9 @@ spec:
                                                     additionalProperties:
                                                       type: string
                                                     type: object
-                                                  components:
-                                                    items:
-                                                      type: string
-                                                    type: array
                                                   forceCommonAnnotations:
                                                     type: boolean
                                                   forceCommonLabels:
-                                                    type: boolean
-                                                  forceNamespace:
                                                     type: boolean
                                                   images:
                                                     items:
@@ -6208,10 +6099,6 @@ spec:
                                                     type: boolean
                                                   selfHeal:
                                                     type: boolean
-                                                type: object
-                                              createNamespaceLabels:
-                                                additionalProperties:
-                                                  type: string
                                                 type: object
                                               retry:
                                                 properties:
@@ -6450,15 +6337,9 @@ spec:
                                                     additionalProperties:
                                                       type: string
                                                     type: object
-                                                  components:
-                                                    items:
-                                                      type: string
-                                                    type: array
                                                   forceCommonAnnotations:
                                                     type: boolean
                                                   forceCommonLabels:
-                                                    type: boolean
-                                                  forceNamespace:
                                                     type: boolean
                                                   images:
                                                     items:
@@ -6507,10 +6388,6 @@ spec:
                                                     type: boolean
                                                   selfHeal:
                                                     type: boolean
-                                                type: object
-                                              createNamespaceLabels:
-                                                additionalProperties:
-                                                  type: string
                                                 type: object
                                               retry:
                                                 properties:
@@ -6725,15 +6602,9 @@ spec:
                                                     additionalProperties:
                                                       type: string
                                                     type: object
-                                                  components:
-                                                    items:
-                                                      type: string
-                                                    type: array
                                                   forceCommonAnnotations:
                                                     type: boolean
                                                   forceCommonLabels:
-                                                    type: boolean
-                                                  forceNamespace:
                                                     type: boolean
                                                   images:
                                                     items:
@@ -6782,10 +6653,6 @@ spec:
                                                     type: boolean
                                                   selfHeal:
                                                     type: boolean
-                                                type: object
-                                              createNamespaceLabels:
-                                                additionalProperties:
-                                                  type: string
                                                 type: object
                                               retry:
                                                 properties:
@@ -6893,6 +6760,8 @@ spec:
                                     properties:
                                       api:
                                         type: string
+                                      appSecretName:
+                                        type: string
                                       labels:
                                         items:
                                           type: string
@@ -6914,6 +6783,31 @@ spec:
                                     required:
                                     - owner
                                     - repo
+                                    type: object
+                                  gitlab:
+                                    properties:
+                                      api:
+                                        type: string
+                                      labels:
+                                        items:
+                                          type: string
+                                        type: array
+                                      project:
+                                        type: string
+                                      pullRequestState:
+                                        type: string
+                                      tokenRef:
+                                        properties:
+                                          key:
+                                            type: string
+                                          secretName:
+                                            type: string
+                                        required:
+                                        - key
+                                        - secretName
+                                        type: object
+                                    required:
+                                    - project
                                     type: object
                                   requeueAfterSeconds:
                                     format: int64
@@ -7091,15 +6985,9 @@ spec:
                                                     additionalProperties:
                                                       type: string
                                                     type: object
-                                                  components:
-                                                    items:
-                                                      type: string
-                                                    type: array
                                                   forceCommonAnnotations:
                                                     type: boolean
                                                   forceCommonLabels:
-                                                    type: boolean
-                                                  forceNamespace:
                                                     type: boolean
                                                   images:
                                                     items:
@@ -7149,10 +7037,6 @@ spec:
                                                   selfHeal:
                                                     type: boolean
                                                 type: object
-                                              createNamespaceLabels:
-                                                additionalProperties:
-                                                  type: string
-                                                type: object
                                               retry:
                                                 properties:
                                                   backoff:
@@ -7186,6 +7070,31 @@ spec:
                                 type: object
                               scmProvider:
                                 properties:
+                                  azureDevOps:
+                                    properties:
+                                      accessTokenRef:
+                                        properties:
+                                          key:
+                                            type: string
+                                          secretName:
+                                            type: string
+                                        required:
+                                        - key
+                                        - secretName
+                                        type: object
+                                      allBranches:
+                                        type: boolean
+                                      api:
+                                        type: string
+                                      organization:
+                                        type: string
+                                      teamProject:
+                                        type: string
+                                    required:
+                                    - accessTokenRef
+                                    - organization
+                                    - teamProject
+                                    type: object
                                   bitbucket:
                                     properties:
                                       allBranches:
@@ -7289,6 +7198,8 @@ spec:
                                       allBranches:
                                         type: boolean
                                       api:
+                                        type: string
+                                      appSecretName:
                                         type: string
                                       organization:
                                         type: string
@@ -7504,15 +7415,9 @@ spec:
                                                     additionalProperties:
                                                       type: string
                                                     type: object
-                                                  components:
-                                                    items:
-                                                      type: string
-                                                    type: array
                                                   forceCommonAnnotations:
                                                     type: boolean
                                                   forceCommonLabels:
-                                                    type: boolean
-                                                  forceNamespace:
                                                     type: boolean
                                                   images:
                                                     items:
@@ -7562,10 +7467,6 @@ spec:
                                                   selfHeal:
                                                     type: boolean
                                                 type: object
-                                              createNamespaceLabels:
-                                                additionalProperties:
-                                                  type: string
-                                                type: object
                                               retry:
                                                 properties:
                                                   backoff:
@@ -7595,6 +7496,29 @@ spec:
                                     required:
                                     - metadata
                                     - spec
+                                    type: object
+                                type: object
+                              selector:
+                                properties:
+                                  matchExpressions:
+                                    items:
+                                      properties:
+                                        key:
+                                          type: string
+                                        operator:
+                                          type: string
+                                        values:
+                                          items:
+                                            type: string
+                                          type: array
+                                      required:
+                                      - key
+                                      - operator
+                                      type: object
+                                    type: array
+                                  matchLabels:
+                                    additionalProperties:
+                                      type: string
                                     type: object
                                 type: object
                             type: object
@@ -7776,15 +7700,9 @@ spec:
                                           additionalProperties:
                                             type: string
                                           type: object
-                                        components:
-                                          items:
-                                            type: string
-                                          type: array
                                         forceCommonAnnotations:
                                           type: boolean
                                         forceCommonLabels:
-                                          type: boolean
-                                        forceNamespace:
                                           type: boolean
                                         images:
                                           items:
@@ -7833,10 +7751,6 @@ spec:
                                           type: boolean
                                         selfHeal:
                                           type: boolean
-                                      type: object
-                                    createNamespaceLabels:
-                                      additionalProperties:
-                                        type: string
                                       type: object
                                     retry:
                                       properties:
@@ -7941,6 +7855,8 @@ spec:
                           properties:
                             api:
                               type: string
+                            appSecretName:
+                              type: string
                             labels:
                               items:
                                 type: string
@@ -7962,6 +7878,31 @@ spec:
                           required:
                           - owner
                           - repo
+                          type: object
+                        gitlab:
+                          properties:
+                            api:
+                              type: string
+                            labels:
+                              items:
+                                type: string
+                              type: array
+                            project:
+                              type: string
+                            pullRequestState:
+                              type: string
+                            tokenRef:
+                              properties:
+                                key:
+                                  type: string
+                                secretName:
+                                  type: string
+                              required:
+                              - key
+                              - secretName
+                              type: object
+                          required:
+                          - project
                           type: object
                         requeueAfterSeconds:
                           format: int64
@@ -8139,15 +8080,9 @@ spec:
                                           additionalProperties:
                                             type: string
                                           type: object
-                                        components:
-                                          items:
-                                            type: string
-                                          type: array
                                         forceCommonAnnotations:
                                           type: boolean
                                         forceCommonLabels:
-                                          type: boolean
-                                        forceNamespace:
                                           type: boolean
                                         images:
                                           items:
@@ -8197,10 +8132,6 @@ spec:
                                         selfHeal:
                                           type: boolean
                                       type: object
-                                    createNamespaceLabels:
-                                      additionalProperties:
-                                        type: string
-                                      type: object
                                     retry:
                                       properties:
                                         backoff:
@@ -8234,6 +8165,31 @@ spec:
                       type: object
                     scmProvider:
                       properties:
+                        azureDevOps:
+                          properties:
+                            accessTokenRef:
+                              properties:
+                                key:
+                                  type: string
+                                secretName:
+                                  type: string
+                              required:
+                              - key
+                              - secretName
+                              type: object
+                            allBranches:
+                              type: boolean
+                            api:
+                              type: string
+                            organization:
+                              type: string
+                            teamProject:
+                              type: string
+                          required:
+                          - accessTokenRef
+                          - organization
+                          - teamProject
+                          type: object
                         bitbucket:
                           properties:
                             allBranches:
@@ -8337,6 +8293,8 @@ spec:
                             allBranches:
                               type: boolean
                             api:
+                              type: string
+                            appSecretName:
                               type: string
                             organization:
                               type: string
@@ -8552,15 +8510,9 @@ spec:
                                           additionalProperties:
                                             type: string
                                           type: object
-                                        components:
-                                          items:
-                                            type: string
-                                          type: array
                                         forceCommonAnnotations:
                                           type: boolean
                                         forceCommonLabels:
-                                          type: boolean
-                                        forceNamespace:
                                           type: boolean
                                         images:
                                           items:
@@ -8610,10 +8562,6 @@ spec:
                                         selfHeal:
                                           type: boolean
                                       type: object
-                                    createNamespaceLabels:
-                                      additionalProperties:
-                                        type: string
-                                      type: object
                                     retry:
                                       properties:
                                         backoff:
@@ -8645,8 +8593,33 @@ spec:
                           - spec
                           type: object
                       type: object
+                    selector:
+                      properties:
+                        matchExpressions:
+                          items:
+                            properties:
+                              key:
+                                type: string
+                              operator:
+                                type: string
+                              values:
+                                items:
+                                  type: string
+                                type: array
+                            required:
+                            - key
+                            - operator
+                            type: object
+                          type: array
+                        matchLabels:
+                          additionalProperties:
+                            type: string
+                          type: object
+                      type: object
                   type: object
                 type: array
+              goTemplate:
+                type: boolean
               syncPolicy:
                 properties:
                   preserveResourcesOnDeletion:
@@ -8825,15 +8798,9 @@ spec:
                                 additionalProperties:
                                   type: string
                                 type: object
-                              components:
-                                items:
-                                  type: string
-                                type: array
                               forceCommonAnnotations:
                                 type: boolean
                               forceCommonLabels:
-                                type: boolean
-                              forceNamespace:
                                 type: boolean
                               images:
                                 items:
@@ -8882,10 +8849,6 @@ spec:
                                 type: boolean
                               selfHeal:
                                 type: boolean
-                            type: object
-                          createNamespaceLabels:
-                            additionalProperties:
-                              type: string
                             type: object
                           retry:
                             properties:
@@ -9115,6 +9078,10 @@ spec:
                       for apps which have orphaned resources
                     type: boolean
                 type: object
+              permitOnlyProjectScopedClusters:
+                description: PermitOnlyProjectScopedClusters determines whether destinations
+                  can only reference clusters which are project-scoped
+                type: boolean
               roles:
                 description: Roles are user defined RBAC roles associated with this
                   project
@@ -9176,6 +9143,12 @@ spec:
                   required:
                   - keyID
                   type: object
+                type: array
+              sourceNamespaces:
+                description: SourceNamespaces defines the namespaces application resources
+                  are allowed to be created in
+                items:
+                  type: string
                 type: array
               sourceRepos:
                 description: SourceRepos contains list of repository URLs which can
@@ -9293,6 +9266,15 @@ metadata:
     app.kubernetes.io/name: argocd-dex-server
     app.kubernetes.io/part-of: argocd
   name: argocd-dex-server
+---
+apiVersion: v1
+kind: ServiceAccount
+metadata:
+  labels:
+    app.kubernetes.io/component: notifications-controller
+    app.kubernetes.io/name: argocd-notifications-controller
+    app.kubernetes.io/part-of: argocd
+  name: argocd-notifications-controller
 ---
 apiVersion: v1
 kind: ServiceAccount
@@ -9448,6 +9430,47 @@ rules:
 apiVersion: rbac.authorization.k8s.io/v1
 kind: Role
 metadata:
+  name: argocd-notifications-controller
+rules:
+- apiGroups:
+  - argoproj.io
+  resources:
+  - applications
+  - appprojects
+  verbs:
+  - get
+  - list
+  - watch
+  - update
+  - patch
+- apiGroups:
+  - ""
+  resources:
+  - configmaps
+  - secrets
+  verbs:
+  - list
+  - watch
+- apiGroups:
+  - ""
+  resourceNames:
+  - argocd-notifications-cm
+  resources:
+  - configmaps
+  verbs:
+  - get
+- apiGroups:
+  - ""
+  resourceNames:
+  - argocd-notifications-secret
+  resources:
+  - secrets
+  verbs:
+  - get
+---
+apiVersion: rbac.authorization.k8s.io/v1
+kind: Role
+metadata:
   labels:
     app.kubernetes.io/component: server
     app.kubernetes.io/name: argocd-server
@@ -9472,6 +9495,7 @@ rules:
   resources:
   - applications
   - appprojects
+  - applicationsets
   verbs:
   - create
   - get
@@ -9538,6 +9562,14 @@ rules:
   - pods/log
   verbs:
   - get
+- apiGroups:
+  - argoproj.io
+  resources:
+  - applications
+  verbs:
+  - get
+  - list
+  - watch
 ---
 apiVersion: rbac.authorization.k8s.io/v1
 kind: RoleBinding
@@ -9586,6 +9618,18 @@ roleRef:
 subjects:
 - kind: ServiceAccount
   name: argocd-dex-server
+---
+apiVersion: rbac.authorization.k8s.io/v1
+kind: RoleBinding
+metadata:
+  name: argocd-notifications-controller
+roleRef:
+  apiGroup: rbac.authorization.k8s.io
+  kind: Role
+  name: argocd-notifications-controller
+subjects:
+- kind: ServiceAccount
+  name: argocd-notifications-controller
 ---
 apiVersion: rbac.authorization.k8s.io/v1
 kind: RoleBinding
@@ -9680,6 +9724,11 @@ metadata:
 apiVersion: v1
 kind: ConfigMap
 metadata:
+  name: argocd-notifications-cm
+---
+apiVersion: v1
+kind: ConfigMap
+metadata:
   labels:
     app.kubernetes.io/name: argocd-rbac-cm
     app.kubernetes.io/part-of: argocd
@@ -9711,6 +9760,12 @@ metadata:
     app.kubernetes.io/name: argocd-tls-certs-cm
     app.kubernetes.io/part-of: argocd
   name: argocd-tls-certs-cm
+---
+apiVersion: v1
+kind: Secret
+metadata:
+  name: argocd-notifications-secret
+type: Opaque
 ---
 apiVersion: v1
 kind: Secret
@@ -9783,6 +9838,21 @@ spec:
     targetPort: 8082
   selector:
     app.kubernetes.io/name: argocd-application-controller
+---
+apiVersion: v1
+kind: Service
+metadata:
+  labels:
+    app.kubernetes.io/name: argocd-notifications-controller-metrics
+  name: argocd-notifications-controller-metrics
+spec:
+  ports:
+  - name: metrics
+    port: 9001
+    protocol: TCP
+    targetPort: 9001
+  selector:
+    app.kubernetes.io/name: argocd-notifications-controller
 ---
 apiVersion: v1
 kind: Service
@@ -9879,13 +9949,13 @@ spec:
       containers:
       - command:
         - entrypoint.sh
-        - applicationset-controller
+        - argocd-applicationset-controller
         env:
         - name: NAMESPACE
           valueFrom:
             fieldRef:
               fieldPath: metadata.namespace
-        image: quay.io/codefresh/applicationset:latest
+        image: quay.io/argoproj/argocd:v2.5.5
         imagePullPolicy: Always
         name: argocd-applicationset-controller
         ports:
@@ -9893,6 +9963,15 @@ spec:
           name: webhook
         - containerPort: 8080
           name: metrics
+        securityContext:
+          allowPrivilegeEscalation: false
+          capabilities:
+            drop:
+            - ALL
+          readOnlyRootFilesystem: true
+          runAsNonRoot: true
+          seccompProfile:
+            type: RuntimeDefault
         volumeMounts:
         - mountPath: /app/config/ssh
           name: ssh-known-hosts
@@ -9950,7 +10029,14 @@ spec:
       - command:
         - /shared/argocd-dex
         - rundex
-        image: ghcr.io/dexidp/dex:v2.35.3-distroless
+        env:
+        - name: ARGOCD_DEX_SERVER_DISABLE_TLS
+          valueFrom:
+            configMapKeyRef:
+              key: dexserver.disable.tls
+              name: argocd-cmd-params-cm
+              optional: true
+        image: ghcr.io/dexidp/dex:v2.35.3
         imagePullPolicy: Always
         name: dex
         ports:
@@ -9964,18 +10050,22 @@ spec:
             - ALL
           readOnlyRootFilesystem: true
           runAsNonRoot: true
+          seccompProfile:
+            type: RuntimeDefault
         volumeMounts:
         - mountPath: /shared
           name: static-files
         - mountPath: /tmp
           name: dexconfig
+        - mountPath: /tls
+          name: argocd-dex-server-tls
       initContainers:
       - command:
         - cp
         - -n
         - /usr/local/bin/argocd
         - /shared/argocd-dex
-        image: quay.io/codefresh/argocd:latest
+        image: quay.io/argoproj/argocd:v2.5.5
         imagePullPolicy: Always
         name: copyutil
         securityContext:
@@ -9985,6 +10075,8 @@ spec:
             - ALL
           readOnlyRootFilesystem: true
           runAsNonRoot: true
+          seccompProfile:
+            type: RuntimeDefault
         volumeMounts:
         - mountPath: /shared
           name: static-files
@@ -9996,6 +10088,74 @@ spec:
         name: static-files
       - emptyDir: {}
         name: dexconfig
+      - name: argocd-dex-server-tls
+        secret:
+          items:
+          - key: tls.crt
+            path: tls.crt
+          - key: tls.key
+            path: tls.key
+          - key: ca.crt
+            path: ca.crt
+          optional: true
+          secretName: argocd-dex-server-tls
+---
+apiVersion: apps/v1
+kind: Deployment
+metadata:
+  name: argocd-notifications-controller
+spec:
+  selector:
+    matchLabels:
+      app.kubernetes.io/name: argocd-notifications-controller
+  strategy:
+    type: Recreate
+  template:
+    metadata:
+      labels:
+        app.kubernetes.io/name: argocd-notifications-controller
+    spec:
+      containers:
+      - command:
+        - argocd-notifications
+        image: quay.io/argoproj/argocd:v2.5.5
+        imagePullPolicy: Always
+        livenessProbe:
+          tcpSocket:
+            port: 9001
+        name: argocd-notifications-controller
+        securityContext:
+          allowPrivilegeEscalation: false
+          capabilities:
+            drop:
+            - ALL
+          readOnlyRootFilesystem: true
+        volumeMounts:
+        - mountPath: /app/config/tls
+          name: tls-certs
+        - mountPath: /app/config/reposerver/tls
+          name: argocd-repo-server-tls
+        workingDir: /app
+      securityContext:
+        runAsNonRoot: true
+        seccompProfile:
+          type: RuntimeDefault
+      serviceAccountName: argocd-notifications-controller
+      volumes:
+      - configMap:
+          name: argocd-tls-certs-cm
+        name: tls-certs
+      - name: argocd-repo-server-tls
+        secret:
+          items:
+          - key: tls.crt
+            path: tls.crt
+          - key: tls.key
+            path: tls.key
+          - key: ca.crt
+            path: ca.crt
+          optional: true
+          secretName: argocd-repo-server-tls
 ---
 apiVersion: apps/v1
 kind: Deployment
@@ -10035,7 +10195,7 @@ spec:
         - ""
         - --appendonly
         - "no"
-        image: quay.io/codefresh/redis:7.0.4-alpine
+        image: redis:7.0.5-alpine
         imagePullPolicy: Always
         name: redis
         ports:
@@ -10044,10 +10204,12 @@ spec:
           allowPrivilegeEscalation: false
           capabilities:
             drop:
-            - all
+            - ALL
       securityContext:
         runAsNonRoot: true
         runAsUser: 999
+        seccompProfile:
+          type: RuntimeDefault
       serviceAccountName: argocd-redis
 ---
 apiVersion: apps/v1
@@ -10203,19 +10365,13 @@ spec:
               key: reposerver.streamed.manifest.max.extracted.size
               name: argocd-cmd-params-cm
               optional: true
-        - name: ARGOCD_GIT_MODULES_ENABLED
-          valueFrom:
-            configMapKeyRef:
-              key: reposerver.enable.git.submodule
-              name: argocd-cmd-params-cm
-              optional: true
         - name: HELM_CACHE_HOME
           value: /helm-working-dir
         - name: HELM_CONFIG_HOME
           value: /helm-working-dir
         - name: HELM_DATA_HOME
           value: /helm-working-dir
-        image: quay.io/codefresh/argocd:latest
+        image: quay.io/argoproj/argocd:v2.5.5
         imagePullPolicy: Always
         livenessProbe:
           failureThreshold: 3
@@ -10223,8 +10379,7 @@ spec:
             path: /healthz?full=true
             port: 8084
           initialDelaySeconds: 30
-          periodSeconds: 30
-          timeoutSeconds: 5
+          periodSeconds: 5
         name: argocd-repo-server
         ports:
         - containerPort: 8081
@@ -10267,7 +10422,7 @@ spec:
         - -n
         - /usr/local/bin/argocd
         - /var/run/argocd/argocd-cmp-server
-        image: quay.io/codefresh/argocd:latest
+        image: quay.io/argoproj/argocd:v2.5.5
         name: copyutil
         securityContext:
           allowPrivilegeEscalation: false
@@ -10281,6 +10436,7 @@ spec:
         volumeMounts:
         - mountPath: /var/run/argocd
           name: var-files
+      serviceAccountName: argocd-repo-server
       volumes:
       - configMap:
           name: argocd-ssh-known-hosts-cm
@@ -10373,7 +10529,7 @@ spec:
               key: server.log.format
               name: argocd-cmd-params-cm
               optional: true
-        - name: ARGOCD_REPO_SERVER_LOGLEVEL
+        - name: ARGOCD_SERVER_LOG_LEVEL
           valueFrom:
             configMapKeyRef:
               key: server.log.level
@@ -10433,6 +10589,18 @@ spec:
               key: server.repo.server.strict.tls
               name: argocd-cmd-params-cm
               optional: true
+        - name: ARGOCD_SERVER_DEX_SERVER_PLAINTEXT
+          valueFrom:
+            configMapKeyRef:
+              key: server.dex.server.plaintext
+              name: argocd-cmd-params-cm
+              optional: true
+        - name: ARGOCD_SERVER_DEX_SERVER_STRICT_TLS
+          valueFrom:
+            configMapKeyRef:
+              key: server.dex.server.strict.tls
+              name: argocd-cmd-params-cm
+              optional: true
         - name: ARGOCD_TLS_MIN_VERSION
           valueFrom:
             configMapKeyRef:
@@ -10487,6 +10655,12 @@ spec:
               key: redis.server
               name: argocd-cmd-params-cm
               optional: true
+        - name: REDIS_COMPRESSION
+          valueFrom:
+            configMapKeyRef:
+              key: redis.compression
+              name: argocd-cmd-params-cm
+              optional: true
         - name: REDISDB
           valueFrom:
             configMapKeyRef:
@@ -10511,7 +10685,13 @@ spec:
               key: otlp.address
               name: argocd-cmd-params-cm
               optional: true
-        image: quay.io/codefresh/argocd:latest
+        - name: ARGOCD_APPLICATION_NAMESPACES
+          valueFrom:
+            configMapKeyRef:
+              key: application.namespaces
+              name: argocd-cmd-params-cm
+              optional: true
+        image: quay.io/argoproj/argocd:v2.5.5
         imagePullPolicy: Always
         livenessProbe:
           httpGet:
@@ -10533,9 +10713,11 @@ spec:
           allowPrivilegeEscalation: false
           capabilities:
             drop:
-            - all
+            - ALL
           readOnlyRootFilesystem: true
           runAsNonRoot: true
+          seccompProfile:
+            type: RuntimeDefault
         volumeMounts:
         - mountPath: /app/config/ssh
           name: ssh-known-hosts
@@ -10543,6 +10725,8 @@ spec:
           name: tls-certs
         - mountPath: /app/config/server/tls
           name: argocd-repo-server-tls
+        - mountPath: /app/config/dex/tls
+          name: argocd-dex-server-tls
         - mountPath: /home/argocd
           name: plugins-home
         - mountPath: /tmp
@@ -10570,6 +10754,15 @@ spec:
             path: ca.crt
           optional: true
           secretName: argocd-repo-server-tls
+      - name: argocd-dex-server-tls
+        secret:
+          items:
+          - key: tls.crt
+            path: tls.crt
+          - key: ca.crt
+            path: ca.crt
+          optional: true
+          secretName: argocd-dex-server-tls
 ---
 apiVersion: apps/v1
 kind: StatefulSet
@@ -10683,6 +10876,12 @@ spec:
               key: controller.repo.server.strict.tls
               name: argocd-cmd-params-cm
               optional: true
+        - name: ARGOCD_APPLICATION_CONTROLLER_PERSIST_RESOURCE_HEALTH
+          valueFrom:
+            configMapKeyRef:
+              key: controller.resource.health.persist
+              name: argocd-cmd-params-cm
+              optional: true
         - name: ARGOCD_APP_STATE_CACHE_EXPIRATION
           valueFrom:
             configMapKeyRef:
@@ -10693,6 +10892,12 @@ spec:
           valueFrom:
             configMapKeyRef:
               key: redis.server
+              name: argocd-cmd-params-cm
+              optional: true
+        - name: REDIS_COMPRESSION
+          valueFrom:
+            configMapKeyRef:
+              key: redis.compression
               name: argocd-cmd-params-cm
               optional: true
         - name: REDISDB
@@ -10713,14 +10918,14 @@ spec:
               key: otlp.address
               name: argocd-cmd-params-cm
               optional: true
-        image: quay.io/codefresh/argocd:latest
+        - name: ARGOCD_APPLICATION_NAMESPACES
+          valueFrom:
+            configMapKeyRef:
+              key: application.namespaces
+              name: argocd-cmd-params-cm
+              optional: true
+        image: quay.io/argoproj/argocd:v2.5.5
         imagePullPolicy: Always
-        livenessProbe:
-          httpGet:
-            path: /healthz
-            port: 8082
-          initialDelaySeconds: 5
-          periodSeconds: 10
         name: argocd-application-controller
         ports:
         - containerPort: 8082
@@ -10734,9 +10939,11 @@ spec:
           allowPrivilegeEscalation: false
           capabilities:
             drop:
-            - all
+            - ALL
           readOnlyRootFilesystem: true
           runAsNonRoot: true
+          seccompProfile:
+            type: RuntimeDefault
         volumeMounts:
         - mountPath: /app/config/controller/tls
           name: argocd-repo-server-tls
@@ -10778,6 +10985,25 @@ spec:
 apiVersion: networking.k8s.io/v1
 kind: NetworkPolicy
 metadata:
+  name: argocd-applicationset-controller-network-policy
+spec:
+  ingress:
+  - from:
+    - namespaceSelector: {}
+    ports:
+    - port: 7000
+      protocol: TCP
+    - port: 8080
+      protocol: TCP
+  podSelector:
+    matchLabels:
+      app.kubernetes.io/name: argocd-applicationset-controller
+  policyTypes:
+  - Ingress
+---
+apiVersion: networking.k8s.io/v1
+kind: NetworkPolicy
+metadata:
   name: argocd-dex-server-network-policy
 spec:
   ingress:
@@ -10804,8 +11030,31 @@ spec:
 apiVersion: networking.k8s.io/v1
 kind: NetworkPolicy
 metadata:
+  name: argocd-notifications-controller-network-policy
+spec:
+  ingress:
+  - from:
+    - namespaceSelector: {}
+    ports:
+    - port: 9001
+      protocol: TCP
+  podSelector:
+    matchLabels:
+      app.kubernetes.io/name: argocd-notifications-controller
+  policyTypes:
+  - Ingress
+---
+apiVersion: networking.k8s.io/v1
+kind: NetworkPolicy
+metadata:
   name: argocd-redis-network-policy
 spec:
+  egress:
+  - ports:
+    - port: 53
+      protocol: UDP
+    - port: 53
+      protocol: TCP
   ingress:
   - from:
     - podSelector:
@@ -10825,6 +11074,7 @@ spec:
       app.kubernetes.io/name: argocd-redis
   policyTypes:
   - Ingress
+  - Egress
 ---
 apiVersion: networking.k8s.io/v1
 kind: NetworkPolicy

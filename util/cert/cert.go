@@ -16,6 +16,7 @@ import (
 	"regexp"
 	"strings"
 
+	log "github.com/sirupsen/logrus"
 	"golang.org/x/crypto/ssh"
 
 	"github.com/argoproj/argo-cd/v2/common"
@@ -88,8 +89,7 @@ func IsValidHostname(hostname string, fqdn bool) bool {
 // filesystem. If ARGOCD_TLS_DATA_PATH environment is set, path is taken from
 // there, otherwise the default will be returned.
 func GetTLSCertificateDataPath() string {
-	envPath := os.Getenv(common.EnvVarTLSDataPath)
-	if envPath != "" {
+	if envPath := os.Getenv(common.EnvVarTLSDataPath); envPath != "" {
 		return envPath
 	} else {
 		return common.DefaultPathTLSConfig
@@ -100,11 +100,10 @@ func GetTLSCertificateDataPath() string {
 // filesystem. If ARGOCD_SSH_DATA_PATH environment is set, path is taken from
 // there, otherwise the default will be returned.
 func GetSSHKnownHostsDataPath() string {
-	envPath := os.Getenv(common.EnvVarSSHDataPath)
-	if envPath != "" {
-		return envPath + "/" + common.DefaultSSHKnownHostsName
+	if envPath := os.Getenv(common.EnvVarSSHDataPath); envPath != "" {
+		return filepath.Join(envPath, common.DefaultSSHKnownHostsName)
 	} else {
-		return common.DefaultPathSSHConfig + "/" + common.DefaultSSHKnownHostsName
+		return filepath.Join(common.DefaultPathSSHConfig, common.DefaultSSHKnownHostsName)
 	}
 }
 
@@ -132,7 +131,14 @@ func ParseTLSCertificatesFromPath(sourceFile string) ([]string, error) {
 	if err != nil {
 		return nil, err
 	}
-	defer fileHandle.Close()
+	defer func() {
+		if err = fileHandle.Close(); err != nil {
+			log.WithFields(log.Fields{
+				common.SecurityField:    common.SecurityMedium,
+				common.SecurityCWEField: 775,
+			}).Errorf("error closing file %q: %v", fileHandle.Name(), err)
+		}
+	}()
 	return ParseTLSCertificatesFromStream(fileHandle)
 }
 
@@ -189,7 +195,14 @@ func ParseSSHKnownHostsFromPath(sourceFile string) ([]string, error) {
 	if err != nil {
 		return nil, err
 	}
-	defer fileHandle.Close()
+	defer func() {
+		if err = fileHandle.Close(); err != nil {
+			log.WithFields(log.Fields{
+				common.SecurityField:    common.SecurityMedium,
+				common.SecurityCWEField: 775,
+			}).Errorf("error closing file %q: %v", fileHandle.Name(), err)
+		}
+	}()
 	return ParseSSHKnownHostsFromStream(fileHandle)
 }
 
@@ -302,9 +315,6 @@ func ServerNameWithoutPort(serverName string) string {
 // consider it an error and just return empty data.
 func GetCertificateForConnect(serverName string) ([]string, error) {
 	dataPath := GetTLSCertificateDataPath()
-	if !strings.HasSuffix(dataPath, "/") {
-		dataPath += "/"
-	}
 	certPath, err := filepath.Abs(filepath.Join(dataPath, ServerNameWithoutPort(serverName)))
 	if err != nil {
 		return nil, err
@@ -332,7 +342,7 @@ func GetCertificateForConnect(serverName string) ([]string, error) {
 // mount. This function makes sure that the path returned actually contain
 // at least one valid certificate, and no invalid data.
 func GetCertBundlePathForRepository(serverName string) (string, error) {
-	certPath := fmt.Sprintf("%s/%s", GetTLSCertificateDataPath(), ServerNameWithoutPort(serverName))
+	certPath := filepath.Join(GetTLSCertificateDataPath(), ServerNameWithoutPort(serverName))
 	certs, err := GetCertificateForConnect(serverName)
 	if err != nil {
 		return "", nil

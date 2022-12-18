@@ -87,7 +87,10 @@ func DetectConfigManagementPlugin(ctx context.Context, repoPath string, env []st
 	var cmpClient pluginclient.ConfigManagementPluginServiceClient
 
 	pluginSockFilePath := common.GetPluginSockFilePath()
-	log.Debugf("pluginSockFilePath is: %s", pluginSockFilePath)
+	log.WithFields(log.Fields{
+		common.SecurityField:    common.SecurityLow,
+		common.SecurityCWEField: 775,
+	}).Debugf("pluginSockFilePath is: %s", pluginSockFilePath)
 
 	files, err := os.ReadDir(pluginSockFilePath)
 	if err != nil {
@@ -97,23 +100,32 @@ func DetectConfigManagementPlugin(ctx context.Context, repoPath string, env []st
 	var connFound bool
 	for _, file := range files {
 		if file.Type() == os.ModeSocket {
-			address := fmt.Sprintf("%s/%s", strings.TrimRight(pluginSockFilePath, "/"), file.Name())
+			address := filepath.Join(pluginSockFilePath, file.Name())
 			cmpclientset := pluginclient.NewConfigManagementPluginClientSet(address)
 
 			conn, cmpClient, err = cmpclientset.NewConfigManagementPluginClient()
 			if err != nil {
-				log.Errorf("error dialing to cmp-server for plugin %s, %v", file.Name(), err)
+				log.WithFields(log.Fields{
+					common.SecurityField:    common.SecurityMedium,
+					common.SecurityCWEField: 775,
+				}).Errorf("error dialing to cmp-server for plugin %s, %v", file.Name(), err)
 				continue
 			}
 
 			isSupported, err := matchRepositoryCMP(ctx, repoPath, cmpClient, env, tarExcludedGlobs)
 			if err != nil {
-				log.Errorf("repository %s is not the match because %v", repoPath, err)
+				log.WithFields(log.Fields{
+					common.SecurityField:    common.SecurityMedium,
+					common.SecurityCWEField: 775,
+				}).Errorf("repository %s is not the match because %v", repoPath, err)
 				continue
 			}
 
 			if !isSupported {
-				log.Debugf("Reponse from socket file %s is not supported", file.Name())
+				log.WithFields(log.Fields{
+					common.SecurityField:    common.SecurityLow,
+					common.SecurityCWEField: 775,
+				}).Debugf("Reponse from socket file %s is not supported", file.Name())
 				io.Close(conn)
 			} else {
 				connFound = true

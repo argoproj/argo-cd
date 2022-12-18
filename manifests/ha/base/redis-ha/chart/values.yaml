@@ -5,18 +5,17 @@ redis-ha:
     masterGroupName: argocd
     config:
       save: "\"\""
-      bind: "0.0.0.0"
   haproxy:
     enabled: true
     image:
       repository: quay.io/codefresh/haproxy
-      tag: 2.0.29-alpine
+      tag: 2.6.2-alpine
+    containerSecurityContext: null
     timeout:
       server: 6m
       client: 6m
     checkInterval: 3s
   image:
-    repository: quay.io/codefresh/redis
-    tag: 7.0.4-alpine
-  sentinel:
-    bind: "0.0.0.0"
+    repository: quay.io/codefresh/haproxy
+    tag: 7.0.5-alpine
+  containerSecurityContext: null

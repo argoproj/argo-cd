@@ -92,7 +92,12 @@ export const ApplicationStatusPanel = ({application, showOperation, showConditio
                     </div>
                     <div className='application-status-panel__item-name'>
                         {application.status && application.status.sync && application.status.sync.revision && (
-                            <RevisionMetadataPanel appName={application.metadata.name} type={application.spec.source.chart && 'helm'} revision={application.status.sync.revision} />
+                            <RevisionMetadataPanel
+                                appName={application.metadata.name}
+                                appNamespace={application.metadata.namespace}
+                                type={application.spec.source.chart && 'helm'}
+                                revision={application.status.sync.revision}
+                            />
                         )}
                     </div>
                 </React.Fragment>
@@ -127,6 +132,7 @@ export const ApplicationStatusPanel = ({application, showOperation, showConditio
                         {(appOperationState.syncResult && appOperationState.syncResult.revision && (
                             <RevisionMetadataPanel
                                 appName={application.metadata.name}
+                                appNamespace={application.metadata.namespace}
                                 type={application.spec.source.chart && 'helm'}
                                 revision={appOperationState.syncResult.revision}
                             />
@@ -158,9 +164,9 @@ export const ApplicationStatusPanel = ({application, showOperation, showConditio
             )}
             <DataLoader
                 noLoaderOnInputChange={true}
-                input={application.metadata.name}
-                load={async name => {
-                    return await services.applications.getApplicationSyncWindowState(name);
+                input={application}
+                load={async app => {
+                    return await services.applications.getApplicationSyncWindowState(app.metadata.name, app.metadata.namespace);
                 }}>
                 {(data: models.ApplicationSyncWindowState) => (
                     <React.Fragment>

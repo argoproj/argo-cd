@@ -184,7 +184,7 @@ As per one of the [comment]((https://github.com/argoproj/argo-cd/issues/2789#iss
 ```
 We have a Helm Chart which is used in 30+ Services and each of them is customized for 3 possible environments.
 Replicating this Chart 30 times without a centralized Repo looks dirty. Can be a show stopper for the whole migration.
-Modifying the Application definition is not an option since the whole goal is to reduce the rights that the CI-solution has. Giving it the right to update all Application-definitions from various teams in the argocd namespace is a a hard thing to convince people with.
+Modifying the Application definition is not an option since the whole goal is to reduce the rights that the CI-solution has. Giving it the right to update all Application-definitions from various teams in the argocd namespace is a hard thing to convince people with.
 ```
 
 ### Implementation Details

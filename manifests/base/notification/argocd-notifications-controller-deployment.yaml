@@ -48,7 +48,9 @@ spec:
               drop:
               - ALL
             allowPrivilegeEscalation: false
-            readOnlyRootFilesystem: true 
+            readOnlyRootFilesystem: true
       serviceAccountName: argocd-notifications-controller
       securityContext:
-          runAsNonRoot: true
+        runAsNonRoot: true
+        seccompProfile:
+          type: RuntimeDefault

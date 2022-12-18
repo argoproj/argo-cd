@@ -3,14 +3,14 @@ import {ActionButton} from 'argo-ui/v2';
 import * as classNames from 'classnames';
 import * as React from 'react';
 import * as ReactForm from 'react-form';
-import {Text} from 'react-form';
+import {FormApi, Text} from 'react-form';
 import * as moment from 'moment';
 import {BehaviorSubject, combineLatest, concat, from, fromEvent, Observable, Observer, Subscription} from 'rxjs';
 import {debounceTime, map} from 'rxjs/operators';
 import {AppContext, Context, ContextApis} from '../../shared/context';
 import {ResourceTreeNode} from './application-resource-tree/application-resource-tree';
 
-import {COLORS, ErrorNotification, Revision} from '../../shared/components';
+import {CheckboxField, COLORS, ErrorNotification, Revision} from '../../shared/components';
 import * as appModels from '../../shared/models';
 import {services} from '../../shared/services';
 
@@ -45,7 +45,7 @@ export function helpTip(text: string) {
         </Tooltip>
     );
 }
-export async function deleteApplication(appName: string, apis: ContextApis): Promise<boolean> {
+export async function deleteApplication(appName: string, appNamespace: string, apis: ContextApis): Promise<boolean> {
     let confirmed = false;
     const propagationPolicies: {name: string; message: string}[] = [
         {
@@ -65,7 +65,9 @@ export async function deleteApplication(appName: string, apis: ContextApis): Pro
         'Delete application',
         api => (
             <div>
-                <p>Are you sure you want to delete the application '{appName}'?</p>
+                <p>
+                    Are you sure you want to delete the application <kbd>{appName}</kbd>?
+                </p>
                 <div className='argo-form-row'>
                     <FormField
                         label={`Please type '${appName}' to confirm the deletion of the resource`}
@@ -100,7 +102,7 @@ export async function deleteApplication(appName: string, apis: ContextApis): Pro
             }),
             submit: async (vals, _, close) => {
                 try {
-                    await services.applications.delete(appName, vals.propagationPolicy);
+                    await services.applications.delete(appName, appNamespace, vals.propagationPolicy);
                     confirmed = true;
                     close();
                 } catch (e) {
@@ -114,6 +116,52 @@ export async function deleteApplication(appName: string, apis: ContextApis): Pro
         {name: 'argo-icon-warning', color: 'warning'},
         'yellow',
         {propagationPolicy: 'foreground'}
+    );
+    return confirmed;
+}
+
+export async function confirmSyncingAppOfApps(apps: appModels.Application[], apis: ContextApis, form: FormApi): Promise<boolean> {
+    let confirmed = false;
+    const appNames: string[] = apps.map(app => app.metadata.name);
+    const appNameList = appNames.join(', ');
+    await apis.popup.prompt(
+        'Warning: Synchronize App of Multiple Apps using replace?',
+        api => (
+            <div>
+                <p>
+                    Are you sure you want to sync the application '{appNameList}' which contain(s) multiple apps with 'replace' option? This action will delete and recreate all
+                    apps linked to '{appNameList}'.
+                </p>
+                <div className='argo-form-row'>
+                    <FormField
+                        label={`Please type '${appNameList}' to confirm the Syncing of the resource`}
+                        formApi={api}
+                        field='applicationName'
+                        qeId='name-field-delete-confirmation'
+                        component={Text}
+                    />
+                </div>
+            </div>
+        ),
+        {
+            validate: vals => ({
+                applicationName: vals.applicationName !== appNameList && 'Enter the application name(s) to confirm syncing'
+            }),
+            submit: async (_vals, _, close) => {
+                try {
+                    await form.submitForm(null);
+                    confirmed = true;
+                    close();
+                } catch (e) {
+                    apis.notifications.show({
+                        content: <ErrorNotification title='Unable to sync application' e={e} />,
+                        type: NotificationType.Error
+                    });
+                }
+            }
+        },
+        {name: 'argo-icon-warning', color: 'warning'},
+        'yellow'
     );
     return confirmed;
 }
@@ -242,6 +290,37 @@ export function findChildPod(node: appModels.ResourceNode, tree: appModels.Appli
     });
 }
 
+export const deletePodAction = async (pod: appModels.Pod, appContext: AppContext, appName: string, appNamespace: string) => {
+    appContext.apis.popup.prompt(
+        'Delete pod',
+        () => (
+            <div>
+                <p>
+                    Are you sure you want to delete Pod <kbd>{pod.name}</kbd>?
+                </p>
+                <div className='argo-form-row' style={{paddingLeft: '30px'}}>
+                    <CheckboxField id='force-delete-checkbox' field='force'>
+                        <label htmlFor='force-delete-checkbox'>Force delete</label>
+                    </CheckboxField>
+                </div>
+            </div>
+        ),
+        {
+            submit: async (vals, _, close) => {
+                try {
+                    await services.applications.deleteResource(appName, appNamespace, pod, !!vals.force, false);
+                    close();
+                } catch (e) {
+                    appContext.apis.notifications.show({
+                        content: <ErrorNotification title='Unable to delete resource' e={e} />,
+                        type: NotificationType.Error
+                    });
+                }
+            }
+        }
+    );
+};
+
 export const deletePopup = async (ctx: ContextApis, resource: ResourceTreeNode, application: appModels.Application, appChanged?: BehaviorSubject<appModels.Application>) => {
     const isManaged = !!resource.status;
     const deleteOptions = {
@@ -255,7 +334,7 @@ export const deletePopup = async (ctx: ContextApis, resource: ResourceTreeNode, 
         api => (
             <div>
                 <p>
-                    Are you sure you want to delete {resource.kind} '{resource.name}'?
+                    Are you sure you want to delete {resource.kind} <kbd>{resource.name}</kbd>?
                 </p>
                 {isManaged ? (
                     <div className='argo-form-row'>
@@ -295,9 +374,9 @@ export const deletePopup = async (ctx: ContextApis, resource: ResourceTreeNode, 
                 const force = deleteOptions.option === 'force';
                 const orphan = deleteOptions.option === 'orphan';
                 try {
-                    await services.applications.deleteResource(application.metadata.name, resource, !!force, !!orphan);
+                    await services.applications.deleteResource(application.metadata.name, application.metadata.namespace, resource, !!force, !!orphan);
                     if (appChanged) {
-                        appChanged.next(await services.applications.get(application.metadata.name));
+                        appChanged.next(await services.applications.get(application.metadata.name, application.metadata.namespace));
                     }
                     close();
                 } catch (e) {
@@ -377,7 +456,7 @@ function getActionItems(
         .catch(() => [] as MenuItem[]);
 
     const resourceActions = services.applications
-        .getResourceActions(application.metadata.name, resource)
+        .getResourceActions(application.metadata.name, application.metadata.namespace, resource)
         .then(actions => {
             return actions.map(
                 action =>
@@ -391,7 +470,7 @@ function getActionItems(
                                     `Are you sure you want to execute '${action.name}' action?`
                                 );
                                 if (confirmed) {
-                                    await services.applications.runResourceAction(application.metadata.name, resource, action.name);
+                                    await services.applications.runResourceAction(application.metadata.name, application.metadata.namespace, resource, action.name);
                                 }
                             } catch (e) {
                                 appContext.apis.notifications.show({
@@ -1002,9 +1081,12 @@ export function parseApiVersion(apiVersion: string): {group: string; version: st
     return {version: parts[0], group: ''};
 }
 
-export function getContainerName(pod: any, containerIndex: number): string {
+export function getContainerName(pod: any, containerIndex: number | null): string {
+    if (containerIndex == null && pod.metadata?.annotations?.['kubectl.kubernetes.io/default-container']) {
+        return pod.metadata?.annotations?.['kubectl.kubernetes.io/default-container'];
+    }
     const containers = (pod.spec.containers || []).concat(pod.spec.initContainers || []);
-    const container = containers[containerIndex];
+    const container = containers[containerIndex || 0];
     return container.name;
 }
 
@@ -1030,3 +1112,28 @@ export const urlPattern = new RegExp(
         'gi'
     )
 );
+
+export function appQualifiedName(app: appModels.Application, nsEnabled: boolean): string {
+    return (nsEnabled ? app.metadata.namespace + '/' : '') + app.metadata.name;
+}
+
+export function appInstanceName(app: appModels.Application): string {
+    return app.metadata.namespace + '_' + app.metadata.name;
+}
+
+export function formatCreationTimestamp(creationTimestamp: string) {
+    const createdAt = moment
+        .utc(creationTimestamp)
+        .local()
+        .format('MM/DD/YYYY HH:mm:ss');
+    const fromNow = moment
+        .utc(creationTimestamp)
+        .local()
+        .fromNow();
+    return (
+        <span>
+            {createdAt}
+            <i style={{padding: '2px'}} /> ({fromNow})
+        </span>
+    );
+}

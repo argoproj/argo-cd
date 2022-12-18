@@ -1,7 +1,7 @@
 package application
 
 import (
-	"io/ioutil"
+	"io"
 	"strings"
 	"testing"
 	"time"
@@ -11,7 +11,7 @@ import (
 )
 
 func TestParseLogsStream_Successful(t *testing.T) {
-	r := ioutil.NopCloser(strings.NewReader(`2021-02-09T22:13:45.916570818Z hello
+	r := io.NopCloser(strings.NewReader(`2021-02-09T22:13:45.916570818Z hello
 2021-02-09T22:13:45.916570818Z world`))
 
 	res := make(chan logEntry)
@@ -35,7 +35,7 @@ func TestParseLogsStream_Successful(t *testing.T) {
 }
 
 func TestParseLogsStream_ParsingError(t *testing.T) {
-	r := ioutil.NopCloser(strings.NewReader(`hello world`))
+	r := io.NopCloser(strings.NewReader(`hello world`))
 
 	res := make(chan logEntry)
 	go func() {
@@ -56,14 +56,14 @@ func TestMergeLogStreams(t *testing.T) {
 
 	first := make(chan logEntry)
 	go func() {
-		parseLogsStream("first", ioutil.NopCloser(strings.NewReader(`2021-02-09T00:00:01Z 1
+		parseLogsStream("first", io.NopCloser(strings.NewReader(`2021-02-09T00:00:01Z 1
 2021-02-09T00:00:03Z 3`)), first)
 		close(first)
 	}()
 
 	second := make(chan logEntry)
 	go func() {
-		parseLogsStream("second", ioutil.NopCloser(strings.NewReader(`2021-02-09T00:00:02Z 2
+		parseLogsStream("second", io.NopCloser(strings.NewReader(`2021-02-09T00:00:02Z 2
 2021-02-09T00:00:04Z 4`)), second)
 		close(second)
 	}()

@@ -14,16 +14,18 @@ const (
 	// DefaultRepoServerAddr is the gRPC address of the Argo CD repo server
 	DefaultRepoServerAddr = "argocd-repo-server:8081"
 	// DefaultDexServerAddr is the HTTP address of the Dex OIDC server, which we run a reverse proxy against
-	DefaultDexServerAddr = "http://argocd-dex-server:5556"
+	DefaultDexServerAddr = "argocd-dex-server:5556"
 	// DefaultRedisAddr is the default redis address
 	DefaultRedisAddr = "argocd-redis:6379"
 )
 
 // Kubernetes ConfigMap and Secret resource names which hold Argo CD settings
 const (
-	ArgoCDConfigMapName     = "argocd-cm"
-	ArgoCDSecretName        = "argocd-secret"
-	ArgoCDRBACConfigMapName = "argocd-rbac-cm"
+	ArgoCDConfigMapName              = "argocd-cm"
+	ArgoCDSecretName                 = "argocd-secret"
+	ArgoCDNotificationsConfigMapName = "argocd-notifications-cm"
+	ArgoCDNotificationsSecretName    = "argocd-notifications-secret"
+	ArgoCDRBACConfigMapName          = "argocd-rbac-cm"
 	// Contains SSH known hosts data for connecting repositories. Will get mounted as volume to pods
 	ArgoCDKnownHostsConfigMapName = "argocd-ssh-known-hosts-cm"
 	// Contains TLS certificate data for connecting repositories. Will get mounted as volume to pods
