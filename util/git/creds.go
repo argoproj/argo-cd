@@ -3,6 +3,8 @@ package git
 import (
 	"context"
 	"crypto/sha256"
+	"encoding/json"
+	"errors"
 	"fmt"
 	"io"
 	"os"
@@ -10,10 +12,14 @@ import (
 	"strings"
 	"time"
 
+	"golang.org/x/oauth2"
+	"golang.org/x/oauth2/google"
+
+	gocache "github.com/patrickmn/go-cache"
+
 	argoio "github.com/argoproj/gitops-engine/pkg/utils/io"
 	"github.com/argoproj/gitops-engine/pkg/utils/text"
 	"github.com/bradleyfalzon/ghinstallation/v2"
-	gocache "github.com/patrickmn/go-cache"
 	log "github.com/sirupsen/logrus"
 
 	"github.com/argoproj/argo-cd/v2/common"
@@ -24,6 +30,8 @@ import (
 var (
 	// In memory cache for storing github APP api token credentials
 	githubAppTokenCache *gocache.Cache
+	// In memory cache for storing oauth2.TokenSource used to generate Google Cloud OAuth tokens
+	googleCloudTokenSource *gocache.Cache
 )
 
 const (
@@ -42,6 +50,8 @@ func init() {
 	}
 
 	githubAppTokenCache = gocache.New(githubAppCredsExp, 1*time.Minute)
+	// oauth2.TokenSource handles fetching new Tokens once they are expired. The oauth2.TokenSource itself does not expire.
+	googleCloudTokenSource = gocache.New(gocache.NoExpiration, 0)
 }
 
 type NoopCredsStore struct {
@@ -423,4 +433,94 @@ func (g GitHubAppCreds) GetClientCertData() string {
 
 func (g GitHubAppCreds) GetClientCertKey() string {
 	return g.clientCertKey
+}
+
+// GoogleCloudCreds to authenticate to Google Cloud Source repositories
+type GoogleCloudCreds struct {
+	creds *google.Credentials
+}
+
+func NewGoogleCloudCreds(jsonData string) GoogleCloudCreds {
+	creds, err := google.CredentialsFromJSON(context.Background(), []byte(jsonData), "https://www.googleapis.com/auth/cloud-platform")
+	if err != nil {
+		// Invalid JSON
+		log.Errorf("Failed reading credentials from JSON: %+v", err)
+	}
+	return GoogleCloudCreds{creds}
+}
+
+func (c GoogleCloudCreds) Environ() (io.Closer, []string, error) {
+	username, err := c.getUsername()
+	if err != nil {
+		return NopCloser{}, nil, fmt.Errorf("failed to get username from creds: %w", err)
+	}
+	token, err := c.getAccessToken()
+	if err != nil {
+		return NopCloser{}, nil, fmt.Errorf("failed to get access token from creds: %w", err)
+	}
+
+	env := []string{fmt.Sprintf("GIT_ASKPASS=%s", "git-ask-pass.sh"), fmt.Sprintf("GIT_USERNAME=%s", username), fmt.Sprintf("GIT_PASSWORD=%s", token)}
+
+	return NopCloser{}, env, nil
+}
+
+func (c GoogleCloudCreds) getUsername() (string, error) {
+	type googleCredentialsFile struct {
+		Type string `json:"type"`
+
+		// Service Account fields
+		ClientEmail  string `json:"client_email"`
+		PrivateKeyID string `json:"private_key_id"`
+		PrivateKey   string `json:"private_key"`
+		AuthURL      string `json:"auth_uri"`
+		TokenURL     string `json:"token_uri"`
+		ProjectID    string `json:"project_id"`
+	}
+
+	if c.creds == nil {
+		return "", errors.New("credentials for Google Cloud Source repositories are invalid")
+	}
+
+	var f googleCredentialsFile
+	if err := json.Unmarshal(c.creds.JSON, &f); err != nil {
+		return "", fmt.Errorf("failed to unmarshal Google Cloud credentials: %w", err)
+	}
+	return f.ClientEmail, nil
+}
+
+func (c GoogleCloudCreds) getAccessToken() (string, error) {
+	if c.creds == nil {
+		return "", errors.New("credentials for Google Cloud Source repositories are invalid")
+	}
+
+	// Compute hash of creds for lookup in cache
+	h := sha256.New()
+	_, err := h.Write(c.creds.JSON)
+	if err != nil {
+		return "", err
+	}
+	key := fmt.Sprintf("%x", h.Sum(nil))
+
+	t, found := googleCloudTokenSource.Get(key)
+	if found {
+		ts := t.(*oauth2.TokenSource)
+		token, err := (*ts).Token()
+		if err != nil {
+			return "", fmt.Errorf("failed to get token from Google Cloud token source: %w", err)
+		}
+		return token.AccessToken, nil
+	}
+
+	ts := c.creds.TokenSource
+
+	// Add TokenSource to cache
+	// As TokenSource handles refreshing tokens once they expire itself, TokenSource itself can be reused. Hence, no expiration.
+	googleCloudTokenSource.Set(key, &ts, gocache.NoExpiration)
+
+	token, err := ts.Token()
+	if err != nil {
+		return "", fmt.Errorf("failed to get get SHA256 hash for Google Cloud credentials: %w", err)
+	}
+
+	return token.AccessToken, nil
 }
