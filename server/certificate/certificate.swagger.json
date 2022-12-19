@@ -1,0 +1,246 @@
+{
+  "swagger": "2.0",
+  "info": {
+    "title": "Certificate Service",
+    "description": "Certificate Service API performs CRUD actions against repository certificate\nresources.",
+    "version": "version not set"
+  },
+  "consumes": [
+    "application/json"
+  ],
+  "produces": [
+    "application/json"
+  ],
+  "paths": {
+    "/api/v1/certificates": {
+      "get": {
+        "summary": "List all available repository certificates",
+        "operationId": "CertificateService_ListCertificates",
+        "responses": {
+          "200": {
+            "description": "A successful response.",
+            "schema": {
+              "$ref": "#/definitions/v1alpha1RepositoryCertificateList"
+            }
+          },
+          "default": {
+            "description": "An unexpected error response.",
+            "schema": {
+              "$ref": "#/definitions/runtimeError"
+            }
+          }
+        },
+        "parameters": [
+          {
+            "name": "hostNamePattern",
+            "description": "A file-glob pattern (not regular expression) the host name has to match.",
+            "in": "query",
+            "required": false,
+            "type": "string"
+          },
+          {
+            "name": "certType",
+            "description": "The type of the certificate to match (ssh or https).",
+            "in": "query",
+            "required": false,
+            "type": "string"
+          },
+          {
+            "name": "certSubType",
+            "description": "The sub type of the certificate to match (protocol dependent, usually only used for ssh certs).",
+            "in": "query",
+            "required": false,
+            "type": "string"
+          }
+        ],
+        "tags": [
+          "CertificateService"
+        ]
+      },
+      "delete": {
+        "summary": "Delete the certificates that match the RepositoryCertificateQuery",
+        "operationId": "CertificateService_DeleteCertificate",
+        "responses": {
+          "200": {
+            "description": "A successful response.",
+            "schema": {
+              "$ref": "#/definitions/v1alpha1RepositoryCertificateList"
+            }
+          },
+          "default": {
+            "description": "An unexpected error response.",
+            "schema": {
+              "$ref": "#/definitions/runtimeError"
+            }
+          }
+        },
+        "parameters": [
+          {
+            "name": "hostNamePattern",
+            "description": "A file-glob pattern (not regular expression) the host name has to match.",
+            "in": "query",
+            "required": false,
+            "type": "string"
+          },
+          {
+            "name": "certType",
+            "description": "The type of the certificate to match (ssh or https).",
+            "in": "query",
+            "required": false,
+            "type": "string"
+          },
+          {
+            "name": "certSubType",
+            "description": "The sub type of the certificate to match (protocol dependent, usually only used for ssh certs).",
+            "in": "query",
+            "required": false,
+            "type": "string"
+          }
+        ],
+        "tags": [
+          "CertificateService"
+        ]
+      },
+      "post": {
+        "summary": "Creates repository certificates on the server",
+        "operationId": "CertificateService_CreateCertificate",
+        "responses": {
+          "200": {
+            "description": "A successful response.",
+            "schema": {
+              "$ref": "#/definitions/v1alpha1RepositoryCertificateList"
+            }
+          },
+          "default": {
+            "description": "An unexpected error response.",
+            "schema": {
+              "$ref": "#/definitions/runtimeError"
+            }
+          }
+        },
+        "parameters": [
+          {
+            "name": "body",
+            "description": "List of certificates to be created",
+            "in": "body",
+            "required": true,
+            "schema": {
+              "$ref": "#/definitions/v1alpha1RepositoryCertificateList"
+            }
+          },
+          {
+            "name": "upsert",
+            "description": "Whether to upsert already existing certificates.",
+            "in": "query",
+            "required": false,
+            "type": "boolean"
+          }
+        ],
+        "tags": [
+          "CertificateService"
+        ]
+      }
+    }
+  },
+  "definitions": {
+    "protobufAny": {
+      "type": "object",
+      "properties": {
+        "type_url": {
+          "type": "string"
+        },
+        "value": {
+          "type": "string",
+          "format": "byte"
+        }
+      }
+    },
+    "runtimeError": {
+      "type": "object",
+      "properties": {
+        "error": {
+          "type": "string"
+        },
+        "code": {
+          "type": "integer",
+          "format": "int32"
+        },
+        "message": {
+          "type": "string"
+        },
+        "details": {
+          "type": "array",
+          "items": {
+            "$ref": "#/definitions/protobufAny"
+          }
+        }
+      }
+    },
+    "v1ListMeta": {
+      "type": "object",
+      "properties": {
+        "selfLink": {
+          "type": "string",
+          "title": "Deprecated: selfLink is a legacy read-only field that is no longer populated by the system.\n+optional"
+        },
+        "resourceVersion": {
+          "type": "string",
+          "title": "String that identifies the server's internal version of this object that\ncan be used by clients to determine when objects have changed.\nValue must be treated as opaque by clients and passed unmodified back to the server.\nPopulated by the system.\nRead-only.\nMore info: https://git.k8s.io/community/contributors/devel/sig-architecture/api-conventions.md#concurrency-control-and-consistency\n+optional"
+        },
+        "continue": {
+          "type": "string",
+          "description": "continue may be set if the user set a limit on the number of items returned, and indicates that\nthe server has more data available. The value is opaque and may be used to issue another request\nto the endpoint that served this list to retrieve the next set of available objects. Continuing a\nconsistent list may not be possible if the server configuration has changed or more than a few\nminutes have passed. The resourceVersion field returned when using this continue value will be\nidentical to the value in the first response, unless you have received this token from an error\nmessage."
+        },
+        "remainingItemCount": {
+          "type": "string",
+          "format": "int64",
+          "title": "remainingItemCount is the number of subsequent items in the list which are not included in this\nlist response. If the list request contained label or field selectors, then the number of\nremaining items is unknown and the field will be left unset and omitted during serialization.\nIf the list is complete (either because it is not chunking or because this is the last chunk),\nthen there are no more remaining items and this field will be left unset and omitted during\nserialization.\nServers older than v1.15 do not set this field.\nThe intended use of the remainingItemCount is *estimating* the size of a collection. Clients\nshould not rely on the remainingItemCount to be set or to be exact.\n+optional"
+        }
+      },
+      "description": "ListMeta describes metadata that synthetic resources must have, including lists and\nvarious status objects. A resource may have only one of {ObjectMeta, ListMeta}."
+    },
+    "v1alpha1RepositoryCertificate": {
+      "type": "object",
+      "properties": {
+        "serverName": {
+          "type": "string",
+          "title": "ServerName specifies the DNS name of the server this certificate is intended for"
+        },
+        "certType": {
+          "type": "string",
+          "title": "CertType specifies the type of the certificate - currently one of \"https\" or \"ssh\""
+        },
+        "certSubType": {
+          "type": "string",
+          "title": "CertSubType specifies the sub type of the cert, i.e. \"ssh-rsa\""
+        },
+        "certData": {
+          "type": "string",
+          "format": "byte",
+          "title": "CertData contains the actual certificate data, dependent on the certificate type"
+        },
+        "certInfo": {
+          "type": "string",
+          "title": "CertInfo will hold additional certificate info, depdendent on the certificate type (e.g. SSH fingerprint, X509 CommonName)"
+        }
+      },
+      "title": "A RepositoryCertificate is either SSH known hosts entry or TLS certificate"
+    },
+    "v1alpha1RepositoryCertificateList": {
+      "type": "object",
+      "properties": {
+        "metadata": {
+          "$ref": "#/definitions/v1ListMeta"
+        },
+        "items": {
+          "type": "array",
+          "items": {
+            "$ref": "#/definitions/v1alpha1RepositoryCertificate"
+          },
+          "title": "List of certificates to be processed"
+        }
+      },
+      "title": "RepositoryCertificateList is a collection of RepositoryCertificates"
+    }
+  }
+}

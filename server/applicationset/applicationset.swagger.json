@@ -1,0 +1,1672 @@
+{
+  "swagger": "2.0",
+  "info": {
+    "title": "ApplicationSet Service",
+    "description": "ApplicationSet Service API performs CRUD actions against applicationset resources",
+    "version": "version not set"
+  },
+  "consumes": [
+    "application/json"
+  ],
+  "produces": [
+    "application/json"
+  ],
+  "paths": {
+    "/api/v1/applicationsets": {
+      "get": {
+        "summary": "List returns list of applicationset",
+        "operationId": "ApplicationSetService_List",
+        "responses": {
+          "200": {
+            "description": "A successful response.",
+            "schema": {
+              "$ref": "#/definitions/v1alpha1ApplicationSetList"
+            }
+          },
+          "default": {
+            "description": "An unexpected error response.",
+            "schema": {
+              "$ref": "#/definitions/runtimeError"
+            }
+          }
+        },
+        "parameters": [
+          {
+            "name": "projects",
+            "description": "the project names to restrict returned list applicationsets.",
+            "in": "query",
+            "required": false,
+            "type": "array",
+            "items": {
+              "type": "string"
+            },
+            "collectionFormat": "multi"
+          },
+          {
+            "name": "selector",
+            "description": "the selector to restrict returned list to applications only with matched labels.",
+            "in": "query",
+            "required": false,
+            "type": "string"
+          }
+        ],
+        "tags": [
+          "ApplicationSetService"
+        ]
+      },
+      "post": {
+        "summary": "Create creates an applicationset",
+        "operationId": "ApplicationSetService_Create",
+        "responses": {
+          "200": {
+            "description": "A successful response.",
+            "schema": {
+              "$ref": "#/definitions/v1alpha1ApplicationSet"
+            }
+          },
+          "default": {
+            "description": "An unexpected error response.",
+            "schema": {
+              "$ref": "#/definitions/runtimeError"
+            }
+          }
+        },
+        "parameters": [
+          {
+            "name": "body",
+            "in": "body",
+            "required": true,
+            "schema": {
+              "$ref": "#/definitions/v1alpha1ApplicationSet"
+            }
+          },
+          {
+            "name": "upsert",
+            "in": "query",
+            "required": false,
+            "type": "boolean"
+          }
+        ],
+        "tags": [
+          "ApplicationSetService"
+        ]
+      }
+    },
+    "/api/v1/applicationsets/{name}": {
+      "get": {
+        "summary": "Get returns an applicationset by name",
+        "operationId": "ApplicationSetService_Get",
+        "responses": {
+          "200": {
+            "description": "A successful response.",
+            "schema": {
+              "$ref": "#/definitions/v1alpha1ApplicationSet"
+            }
+          },
+          "default": {
+            "description": "An unexpected error response.",
+            "schema": {
+              "$ref": "#/definitions/runtimeError"
+            }
+          }
+        },
+        "parameters": [
+          {
+            "name": "name",
+            "description": "the applicationsets's name",
+            "in": "path",
+            "required": true,
+            "type": "string"
+          }
+        ],
+        "tags": [
+          "ApplicationSetService"
+        ]
+      },
+      "delete": {
+        "summary": "Delete deletes an application set",
+        "operationId": "ApplicationSetService_Delete",
+        "responses": {
+          "200": {
+            "description": "A successful response.",
+            "schema": {
+              "$ref": "#/definitions/applicationsetApplicationSetResponse"
+            }
+          },
+          "default": {
+            "description": "An unexpected error response.",
+            "schema": {
+              "$ref": "#/definitions/runtimeError"
+            }
+          }
+        },
+        "parameters": [
+          {
+            "name": "name",
+            "in": "path",
+            "required": true,
+            "type": "string"
+          }
+        ],
+        "tags": [
+          "ApplicationSetService"
+        ]
+      }
+    }
+  },
+  "definitions": {
+    "applicationsetApplicationSetResponse": {
+      "type": "object",
+      "properties": {
+        "project": {
+          "type": "string"
+        },
+        "applicationset": {
+          "$ref": "#/definitions/v1alpha1ApplicationSet"
+        }
+      }
+    },
+    "applicationv1alpha1EnvEntry": {
+      "type": "object",
+      "properties": {
+        "name": {
+          "type": "string",
+          "title": "Name is the name of the variable, usually expressed in uppercase"
+        },
+        "value": {
+          "type": "string",
+          "title": "Value is the value of the variable"
+        }
+      },
+      "title": "EnvEntry represents an entry in the application's environment"
+    },
+    "protobufAny": {
+      "type": "object",
+      "properties": {
+        "type_url": {
+          "type": "string"
+        },
+        "value": {
+          "type": "string",
+          "format": "byte"
+        }
+      }
+    },
+    "runtimeError": {
+      "type": "object",
+      "properties": {
+        "error": {
+          "type": "string"
+        },
+        "code": {
+          "type": "integer",
+          "format": "int32"
+        },
+        "message": {
+          "type": "string"
+        },
+        "details": {
+          "type": "array",
+          "items": {
+            "$ref": "#/definitions/protobufAny"
+          }
+        }
+      }
+    },
+    "v1FieldsV1": {
+      "type": "object",
+      "properties": {
+        "Raw": {
+          "type": "string",
+          "format": "byte",
+          "description": "Raw is the underlying serialization of this object."
+        }
+      },
+      "description": "FieldsV1 stores a set of fields in a data structure like a Trie, in JSON format.\n\nEach key is either a '.' representing the field itself, and will always map to an empty set,\nor a string representing a sub-field or item. The string will follow one of these four formats:\n'f:\u003cname\u003e', where \u003cname\u003e is the name of a field in a struct, or key in a map\n'v:\u003cvalue\u003e', where \u003cvalue\u003e is the exact json formatted value of a list item\n'i:\u003cindex\u003e', where \u003cindex\u003e is position of a item in a list\n'k:\u003ckeys\u003e', where \u003ckeys\u003e is a map of  a list item's key fields to their unique values\nIf a key maps to an empty Fields value, the field that key represents is part of the set.\n\nThe exact format is defined in sigs.k8s.io/structured-merge-diff\n+protobuf.options.(gogoproto.goproto_stringer)=false"
+    },
+    "v1JSON": {
+      "type": "object",
+      "properties": {
+        "raw": {
+          "type": "string",
+          "format": "byte"
+        }
+      },
+      "description": "JSON represents any valid JSON value.\nThese types are supported: bool, int64, float64, string, []interface{}, map[string]interface{} and nil."
+    },
+    "v1LabelSelector": {
+      "type": "object",
+      "properties": {
+        "matchLabels": {
+          "type": "object",
+          "additionalProperties": {
+            "type": "string"
+          },
+          "title": "matchLabels is a map of {key,value} pairs. A single {key,value} in the matchLabels\nmap is equivalent to an element of matchExpressions, whose key field is \"key\", the\noperator is \"In\", and the values array contains only \"value\". The requirements are ANDed.\n+optional"
+        },
+        "matchExpressions": {
+          "type": "array",
+          "items": {
+            "$ref": "#/definitions/v1LabelSelectorRequirement"
+          },
+          "title": "matchExpressions is a list of label selector requirements. The requirements are ANDed.\n+optional"
+        }
+      },
+      "title": "A label selector is a label query over a set of resources. The result of matchLabels and\nmatchExpressions are ANDed. An empty label selector matches all objects. A null\nlabel selector matches no objects.\n+structType=atomic"
+    },
+    "v1LabelSelectorRequirement": {
+      "type": "object",
+      "properties": {
+        "key": {
+          "type": "string",
+          "title": "key is the label key that the selector applies to.\n+patchMergeKey=key\n+patchStrategy=merge"
+        },
+        "operator": {
+          "type": "string",
+          "description": "operator represents a key's relationship to a set of values.\nValid operators are In, NotIn, Exists and DoesNotExist."
+        },
+        "values": {
+          "type": "array",
+          "items": {
+            "type": "string"
+          },
+          "title": "values is an array of string values. If the operator is In or NotIn,\nthe values array must be non-empty. If the operator is Exists or DoesNotExist,\nthe values array must be empty. This array is replaced during a strategic\nmerge patch.\n+optional"
+        }
+      },
+      "description": "A label selector requirement is a selector that contains values, a key, and an operator that\nrelates the key and values."
+    },
+    "v1ListMeta": {
+      "type": "object",
+      "properties": {
+        "selfLink": {
+          "type": "string",
+          "title": "Deprecated: selfLink is a legacy read-only field that is no longer populated by the system.\n+optional"
+        },
+        "resourceVersion": {
+          "type": "string",
+          "title": "String that identifies the server's internal version of this object that\ncan be used by clients to determine when objects have changed.\nValue must be treated as opaque by clients and passed unmodified back to the server.\nPopulated by the system.\nRead-only.\nMore info: https://git.k8s.io/community/contributors/devel/sig-architecture/api-conventions.md#concurrency-control-and-consistency\n+optional"
+        },
+        "continue": {
+          "type": "string",
+          "description": "continue may be set if the user set a limit on the number of items returned, and indicates that\nthe server has more data available. The value is opaque and may be used to issue another request\nto the endpoint that served this list to retrieve the next set of available objects. Continuing a\nconsistent list may not be possible if the server configuration has changed or more than a few\nminutes have passed. The resourceVersion field returned when using this continue value will be\nidentical to the value in the first response, unless you have received this token from an error\nmessage."
+        },
+        "remainingItemCount": {
+          "type": "string",
+          "format": "int64",
+          "title": "remainingItemCount is the number of subsequent items in the list which are not included in this\nlist response. If the list request contained label or field selectors, then the number of\nremaining items is unknown and the field will be left unset and omitted during serialization.\nIf the list is complete (either because it is not chunking or because this is the last chunk),\nthen there are no more remaining items and this field will be left unset and omitted during\nserialization.\nServers older than v1.15 do not set this field.\nThe intended use of the remainingItemCount is *estimating* the size of a collection. Clients\nshould not rely on the remainingItemCount to be set or to be exact.\n+optional"
+        }
+      },
+      "description": "ListMeta describes metadata that synthetic resources must have, including lists and\nvarious status objects. A resource may have only one of {ObjectMeta, ListMeta}."
+    },
+    "v1ManagedFieldsEntry": {
+      "type": "object",
+      "properties": {
+        "manager": {
+          "type": "string",
+          "description": "Manager is an identifier of the workflow managing these fields."
+        },
+        "operation": {
+          "type": "string",
+          "description": "Operation is the type of operation which lead to this ManagedFieldsEntry being created.\nThe only valid values for this field are 'Apply' and 'Update'."
+        },
+        "apiVersion": {
+          "type": "string",
+          "description": "APIVersion defines the version of this resource that this field set\napplies to. The format is \"group/version\" just like the top-level\nAPIVersion field. It is necessary to track the version of a field\nset because it cannot be automatically converted."
+        },
+        "time": {
+          "$ref": "#/definitions/v1Time",
+          "title": "Time is the timestamp of when the ManagedFields entry was added. The\ntimestamp will also be updated if a field is added, the manager\nchanges any of the owned fields value or removes a field. The\ntimestamp does not update when a field is removed from the entry\nbecause another manager took it over.\n+optional"
+        },
+        "fieldsType": {
+          "type": "string",
+          "title": "FieldsType is the discriminator for the different fields format and version.\nThere is currently only one possible value: \"FieldsV1\""
+        },
+        "fieldsV1": {
+          "$ref": "#/definitions/v1FieldsV1",
+          "title": "FieldsV1 holds the first JSON version format as described in the \"FieldsV1\" type.\n+optional"
+        },
+        "subresource": {
+          "type": "string",
+          "description": "Subresource is the name of the subresource used to update that object, or\nempty string if the object was updated through the main resource. The\nvalue of this field is used to distinguish between managers, even if they\nshare the same name. For example, a status update will be distinct from a\nregular update using the same manager name.\nNote that the APIVersion field is not related to the Subresource field and\nit always corresponds to the version of the main resource."
+        }
+      },
+      "description": "ManagedFieldsEntry is a workflow-id, a FieldSet and the group version of the resource\nthat the fieldset applies to."
+    },
+    "v1ObjectMeta": {
+      "type": "object",
+      "properties": {
+        "name": {
+          "type": "string",
+          "title": "Name must be unique within a namespace. Is required when creating resources, although\nsome resources may allow a client to request the generation of an appropriate name\nautomatically. Name is primarily intended for creation idempotence and configuration\ndefinition.\nCannot be updated.\nMore info: http://kubernetes.io/docs/user-guide/identifiers#names\n+optional"
+        },
+        "generateName": {
+          "type": "string",
+          "description": "GenerateName is an optional prefix, used by the server, to generate a unique\nname ONLY IF the Name field has not been provided.\nIf this field is used, the name returned to the client will be different\nthan the name passed. This value will also be combined with a unique suffix.\nThe provided value has the same validation rules as the Name field,\nand may be truncated by the length of the suffix required to make the value\nunique on the server.\n\nIf this field is specified and the generated name exists, the server will return a 409.\n\nApplied only if Name is not specified.\nMore info: https://git.k8s.io/community/contributors/devel/sig-architecture/api-conventions.md#idempotency\n+optional"
+        },
+        "namespace": {
+          "type": "string",
+          "description": "Namespace defines the space within which each name must be unique. An empty namespace is\nequivalent to the \"default\" namespace, but \"default\" is the canonical representation.\nNot all objects are required to be scoped to a namespace - the value of this field for\nthose objects will be empty.\n\nMust be a DNS_LABEL.\nCannot be updated.\nMore info: http://kubernetes.io/docs/user-guide/namespaces\n+optional"
+        },
+        "selfLink": {
+          "type": "string",
+          "title": "Deprecated: selfLink is a legacy read-only field that is no longer populated by the system.\n+optional"
+        },
+        "uid": {
+          "type": "string",
+          "description": "UID is the unique in time and space value for this object. It is typically generated by\nthe server on successful creation of a resource and is not allowed to change on PUT\noperations.\n\nPopulated by the system.\nRead-only.\nMore info: http://kubernetes.io/docs/user-guide/identifiers#uids\n+optional"
+        },
+        "resourceVersion": {
+          "type": "string",
+          "description": "An opaque value that represents the internal version of this object that can\nbe used by clients to determine when objects have changed. May be used for optimistic\nconcurrency, change detection, and the watch operation on a resource or set of resources.\nClients must treat these values as opaque and passed unmodified back to the server.\nThey may only be valid for a particular resource or set of resources.\n\nPopulated by the system.\nRead-only.\nValue must be treated as opaque by clients and .\nMore info: https://git.k8s.io/community/contributors/devel/sig-architecture/api-conventions.md#concurrency-control-and-consistency\n+optional"
+        },
+        "generation": {
+          "type": "string",
+          "format": "int64",
+          "title": "A sequence number representing a specific generation of the desired state.\nPopulated by the system. Read-only.\n+optional"
+        },
+        "creationTimestamp": {
+          "$ref": "#/definitions/v1Time",
+          "description": "CreationTimestamp is a timestamp representing the server time when this object was\ncreated. It is not guaranteed to be set in happens-before order across separate operations.\nClients may not set this value. It is represented in RFC3339 form and is in UTC.\n\nPopulated by the system.\nRead-only.\nNull for lists.\nMore info: https://git.k8s.io/community/contributors/devel/sig-architecture/api-conventions.md#metadata\n+optional"
+        },
+        "deletionTimestamp": {
+          "$ref": "#/definitions/v1Time",
+          "description": "DeletionTimestamp is RFC 3339 date and time at which this resource will be deleted. This\nfield is set by the server when a graceful deletion is requested by the user, and is not\ndirectly settable by a client. The resource is expected to be deleted (no longer visible\nfrom resource lists, and not reachable by name) after the time in this field, once the\nfinalizers list is empty. As long as the finalizers list contains items, deletion is blocked.\nOnce the deletionTimestamp is set, this value may not be unset or be set further into the\nfuture, although it may be shortened or the resource may be deleted prior to this time.\nFor example, a user may request that a pod is deleted in 30 seconds. The Kubelet will react\nby sending a graceful termination signal to the containers in the pod. After that 30 seconds,\nthe Kubelet will send a hard termination signal (SIGKILL) to the container and after cleanup,\nremove the pod from the API. In the presence of network partitions, this object may still\nexist after this timestamp, until an administrator or automated process can determine the\nresource is fully terminated.\nIf not set, graceful deletion of the object has not been requested.\n\nPopulated by the system when a graceful deletion is requested.\nRead-only.\nMore info: https://git.k8s.io/community/contributors/devel/sig-architecture/api-conventions.md#metadata\n+optional"
+        },
+        "deletionGracePeriodSeconds": {
+          "type": "string",
+          "format": "int64",
+          "title": "Number of seconds allowed for this object to gracefully terminate before\nit will be removed from the system. Only set when deletionTimestamp is also set.\nMay only be shortened.\nRead-only.\n+optional"
+        },
+        "labels": {
+          "type": "object",
+          "additionalProperties": {
+            "type": "string"
+          },
+          "title": "Map of string keys and values that can be used to organize and categorize\n(scope and select) objects. May match selectors of replication controllers\nand services.\nMore info: http://kubernetes.io/docs/user-guide/labels\n+optional"
+        },
+        "annotations": {
+          "type": "object",
+          "additionalProperties": {
+            "type": "string"
+          },
+          "title": "Annotations is an unstructured key value map stored with a resource that may be\nset by external tools to store and retrieve arbitrary metadata. They are not\nqueryable and should be preserved when modifying objects.\nMore info: http://kubernetes.io/docs/user-guide/annotations\n+optional"
+        },
+        "ownerReferences": {
+          "type": "array",
+          "items": {
+            "$ref": "#/definitions/v1OwnerReference"
+          },
+          "title": "List of objects depended by this object. If ALL objects in the list have\nbeen deleted, this object will be garbage collected. If this object is managed by a controller,\nthen an entry in this list will point to this controller, with the controller field set to true.\nThere cannot be more than one managing controller.\n+optional\n+patchMergeKey=uid\n+patchStrategy=merge"
+        },
+        "finalizers": {
+          "type": "array",
+          "items": {
+            "type": "string"
+          },
+          "title": "Must be empty before the object is deleted from the registry. Each entry\nis an identifier for the responsible component that will remove the entry\nfrom the list. If the deletionTimestamp of the object is non-nil, entries\nin this list can only be removed.\nFinalizers may be processed and removed in any order.  Order is NOT enforced\nbecause it introduces significant risk of stuck finalizers.\nfinalizers is a shared field, any actor with permission can reorder it.\nIf the finalizer list is processed in order, then this can lead to a situation\nin which the component responsible for the first finalizer in the list is\nwaiting for a signal (field value, external system, or other) produced by a\ncomponent responsible for a finalizer later in the list, resulting in a deadlock.\nWithout enforced ordering finalizers are free to order amongst themselves and\nare not vulnerable to ordering changes in the list.\n+optional\n+patchStrategy=merge"
+        },
+        "clusterName": {
+          "type": "string",
+          "description": "Deprecated: ClusterName is a legacy field that was always cleared by\nthe system and never used; it will be removed completely in 1.25.\n\nThe name in the go struct is changed to help clients detect\naccidental use.\n\n+optional"
+        },
+        "managedFields": {
+          "type": "array",
+          "items": {
+            "$ref": "#/definitions/v1ManagedFieldsEntry"
+          },
+          "description": "ManagedFields maps workflow-id and version to the set of fields\nthat are managed by that workflow. This is mostly for internal\nhousekeeping, and users typically shouldn't need to set or\nunderstand this field. A workflow can be the user's name, a\ncontroller's name, or the name of a specific apply path like\n\"ci-cd\". The set of fields is always in the version that the\nworkflow used when modifying the object.\n\n+optional"
+        }
+      },
+      "description": "ObjectMeta is metadata that all persisted resources must have, which includes all objects\nusers must create."
+    },
+    "v1OwnerReference": {
+      "type": "object",
+      "properties": {
+        "apiVersion": {
+          "type": "string",
+          "description": "API version of the referent."
+        },
+        "kind": {
+          "type": "string",
+          "title": "Kind of the referent.\nMore info: https://git.k8s.io/community/contributors/devel/sig-architecture/api-conventions.md#types-kinds"
+        },
+        "name": {
+          "type": "string",
+          "title": "Name of the referent.\nMore info: http://kubernetes.io/docs/user-guide/identifiers#names"
+        },
+        "uid": {
+          "type": "string",
+          "title": "UID of the referent.\nMore info: http://kubernetes.io/docs/user-guide/identifiers#uids"
+        },
+        "controller": {
+          "type": "boolean",
+          "title": "If true, this reference points to the managing controller.\n+optional"
+        },
+        "blockOwnerDeletion": {
+          "type": "boolean",
+          "title": "If true, AND if the owner has the \"foregroundDeletion\" finalizer, then\nthe owner cannot be deleted from the key-value store until this\nreference is removed.\nSee https://kubernetes.io/docs/concepts/architecture/garbage-collection/#foreground-deletion\nfor how the garbage collector interacts with this field and enforces the foreground deletion.\nDefaults to false.\nTo set this field, a user needs \"delete\" permission of the owner,\notherwise 422 (Unprocessable Entity) will be returned.\n+optional"
+        }
+      },
+      "title": "OwnerReference contains enough information to let you identify an owning\nobject. An owning object must be in the same namespace as the dependent, or\nbe cluster-scoped, so there is no namespace field.\n+structType=atomic"
+    },
+    "v1Time": {
+      "type": "object",
+      "properties": {
+        "seconds": {
+          "type": "string",
+          "format": "int64",
+          "description": "Represents seconds of UTC time since Unix epoch\n1970-01-01T00:00:00Z. Must be from 0001-01-01T00:00:00Z to\n9999-12-31T23:59:59Z inclusive."
+        },
+        "nanos": {
+          "type": "integer",
+          "format": "int32",
+          "description": "Non-negative fractions of a second at nanosecond resolution. Negative\nsecond values with fractions must still have non-negative nanos values\nthat count forward in time. Must be from 0 to 999,999,999\ninclusive. This field may be limited in precision depending on context."
+        }
+      },
+      "description": "Time is a wrapper around time.Time which supports correct\nmarshaling to YAML and JSON.  Wrappers are provided for many\nof the factory methods that the time package offers.\n\n+protobuf.options.marshal=false\n+protobuf.as=Timestamp\n+protobuf.options.(gogoproto.goproto_stringer)=false"
+    },
+    "v1alpha1ApplicationDestination": {
+      "type": "object",
+      "properties": {
+        "server": {
+          "type": "string",
+          "title": "Server specifies the URL of the target cluster and must be set to the Kubernetes control plane API"
+        },
+        "namespace": {
+          "type": "string",
+          "title": "Namespace specifies the target namespace for the application's resources.\nThe namespace will only be set for namespace-scoped resources that have not set a value for .metadata.namespace"
+        },
+        "name": {
+          "type": "string",
+          "title": "Name is an alternate way of specifying the target cluster by its symbolic name"
+        }
+      },
+      "title": "ApplicationDestination holds information about the application's destination"
+    },
+    "v1alpha1ApplicationSet": {
+      "type": "object",
+      "properties": {
+        "metadata": {
+          "$ref": "#/definitions/v1ObjectMeta"
+        },
+        "spec": {
+          "$ref": "#/definitions/v1alpha1ApplicationSetSpec"
+        },
+        "status": {
+          "$ref": "#/definitions/v1alpha1ApplicationSetStatus"
+        }
+      },
+      "title": "ApplicationSet is a set of Application resources\n+genclient\n+genclient:noStatus\n+k8s:deepcopy-gen:interfaces=k8s.io/apimachinery/pkg/runtime.Object\n+kubebuilder:resource:path=applicationsets,shortName=appset;appsets\n+kubebuilder:subresource:status"
+    },
+    "v1alpha1ApplicationSetCondition": {
+      "type": "object",
+      "properties": {
+        "type": {
+          "type": "string",
+          "title": "Type is an applicationset condition type"
+        },
+        "message": {
+          "type": "string",
+          "title": "Message contains human-readable message indicating details about condition"
+        },
+        "lastTransitionTime": {
+          "$ref": "#/definitions/v1Time",
+          "title": "LastTransitionTime is the time the condition was last observed"
+        },
+        "status": {
+          "type": "string",
+          "title": "True/False/Unknown"
+        },
+        "reason": {
+          "type": "string",
+          "title": "Single word camelcase representing the reason for the status eg ErrorOccurred"
+        }
+      },
+      "title": "ApplicationSetCondition contains details about an applicationset condition, which is usally an error or warning"
+    },
+    "v1alpha1ApplicationSetGenerator": {
+      "type": "object",
+      "properties": {
+        "list": {
+          "$ref": "#/definitions/v1alpha1ListGenerator"
+        },
+        "clusters": {
+          "$ref": "#/definitions/v1alpha1ClusterGenerator"
+        },
+        "git": {
+          "$ref": "#/definitions/v1alpha1GitGenerator"
+        },
+        "scmProvider": {
+          "$ref": "#/definitions/v1alpha1SCMProviderGenerator"
+        },
+        "clusterDecisionResource": {
+          "$ref": "#/definitions/v1alpha1DuckTypeGenerator"
+        },
+        "pullRequest": {
+          "$ref": "#/definitions/v1alpha1PullRequestGenerator"
+        },
+        "matrix": {
+          "$ref": "#/definitions/v1alpha1MatrixGenerator"
+        },
+        "merge": {
+          "$ref": "#/definitions/v1alpha1MergeGenerator"
+        },
+        "selector": {
+          "$ref": "#/definitions/v1LabelSelector",
+          "description": "Selector allows to post-filter all generator."
+        }
+      },
+      "description": "ApplicationSetGenerator represents a generator at the top level of an ApplicationSet."
+    },
+    "v1alpha1ApplicationSetList": {
+      "type": "object",
+      "properties": {
+        "metadata": {
+          "$ref": "#/definitions/v1ListMeta"
+        },
+        "items": {
+          "type": "array",
+          "items": {
+            "$ref": "#/definitions/v1alpha1ApplicationSet"
+          }
+        }
+      },
+      "title": "ApplicationSetList contains a list of ApplicationSet\n+k8s:deepcopy-gen:interfaces=k8s.io/apimachinery/pkg/runtime.Object\n+kubebuilder:object:root=true"
+    },
+    "v1alpha1ApplicationSetNestedGenerator": {
+      "type": "object",
+      "properties": {
+        "list": {
+          "$ref": "#/definitions/v1alpha1ListGenerator"
+        },
+        "clusters": {
+          "$ref": "#/definitions/v1alpha1ClusterGenerator"
+        },
+        "git": {
+          "$ref": "#/definitions/v1alpha1GitGenerator"
+        },
+        "scmProvider": {
+          "$ref": "#/definitions/v1alpha1SCMProviderGenerator"
+        },
+        "clusterDecisionResource": {
+          "$ref": "#/definitions/v1alpha1DuckTypeGenerator"
+        },
+        "pullRequest": {
+          "$ref": "#/definitions/v1alpha1PullRequestGenerator"
+        },
+        "matrix": {
+          "$ref": "#/definitions/v1JSON",
+          "title": "Matrix should have the form of NestedMatrixGenerator"
+        },
+        "merge": {
+          "$ref": "#/definitions/v1JSON",
+          "title": "Merge should have the form of NestedMergeGenerator"
+        },
+        "selector": {
+          "$ref": "#/definitions/v1LabelSelector",
+          "description": "Selector allows to post-filter all generator."
+        }
+      },
+      "description": "ApplicationSetNestedGenerator represents a generator nested within a combination-type generator (MatrixGenerator or\nMergeGenerator)."
+    },
+    "v1alpha1ApplicationSetSpec": {
+      "type": "object",
+      "properties": {
+        "goTemplate": {
+          "type": "boolean"
+        },
+        "generators": {
+          "type": "array",
+          "items": {
+            "$ref": "#/definitions/v1alpha1ApplicationSetGenerator"
+          }
+        },
+        "template": {
+          "$ref": "#/definitions/v1alpha1ApplicationSetTemplate"
+        },
+        "syncPolicy": {
+          "$ref": "#/definitions/v1alpha1ApplicationSetSyncPolicy"
+        }
+      },
+      "description": "ApplicationSetSpec represents a class of application set state."
+    },
+    "v1alpha1ApplicationSetStatus": {
+      "type": "object",
+      "properties": {
+        "conditions": {
+          "type": "array",
+          "items": {
+            "$ref": "#/definitions/v1alpha1ApplicationSetCondition"
+          },
+          "title": "INSERT ADDITIONAL STATUS FIELD - define observed state of cluster\nImportant: Run \"make\" to regenerate code after modifying this file"
+        }
+      },
+      "title": "ApplicationSetStatus defines the observed state of ApplicationSet"
+    },
+    "v1alpha1ApplicationSetSyncPolicy": {
+      "type": "object",
+      "properties": {
+        "preserveResourcesOnDeletion": {
+          "type": "boolean",
+          "description": "PreserveResourcesOnDeletion will preserve resources on deletion. If PreserveResourcesOnDeletion is set to true, these Applications will not be deleted."
+        }
+      },
+      "description": "ApplicationSetSyncPolicy configures how generated Applications will relate to their\nApplicationSet."
+    },
+    "v1alpha1ApplicationSetTemplate": {
+      "type": "object",
+      "properties": {
+        "metadata": {
+          "$ref": "#/definitions/v1alpha1ApplicationSetTemplateMeta"
+        },
+        "spec": {
+          "$ref": "#/definitions/v1alpha1ApplicationSpec"
+        }
+      },
+      "title": "ApplicationSetTemplate represents argocd ApplicationSpec"
+    },
+    "v1alpha1ApplicationSetTemplateMeta": {
+      "type": "object",
+      "properties": {
+        "name": {
+          "type": "string"
+        },
+        "namespace": {
+          "type": "string"
+        },
+        "labels": {
+          "type": "object",
+          "additionalProperties": {
+            "type": "string"
+          }
+        },
+        "annotations": {
+          "type": "object",
+          "additionalProperties": {
+            "type": "string"
+          }
+        },
+        "finalizers": {
+          "type": "array",
+          "items": {
+            "type": "string"
+          }
+        }
+      },
+      "title": "ApplicationSetTemplateMeta represents the Argo CD application fields that may\nbe used for Applications generated from the ApplicationSet (based on metav1.ObjectMeta)"
+    },
+    "v1alpha1ApplicationSource": {
+      "type": "object",
+      "properties": {
+        "repoURL": {
+          "type": "string",
+          "title": "RepoURL is the URL to the repository (Git or Helm) that contains the application manifests"
+        },
+        "path": {
+          "type": "string",
+          "description": "Path is a directory path within the Git repository, and is only valid for applications sourced from Git."
+        },
+        "targetRevision": {
+          "type": "string",
+          "description": "TargetRevision defines the revision of the source to sync the application to.\nIn case of Git, this can be commit, tag, or branch. If omitted, will equal to HEAD.\nIn case of Helm, this is a semver tag for the Chart's version."
+        },
+        "helm": {
+          "$ref": "#/definitions/v1alpha1ApplicationSourceHelm",
+          "title": "Helm holds helm specific options"
+        },
+        "kustomize": {
+          "$ref": "#/definitions/v1alpha1ApplicationSourceKustomize",
+          "title": "Kustomize holds kustomize specific options"
+        },
+        "directory": {
+          "$ref": "#/definitions/v1alpha1ApplicationSourceDirectory",
+          "title": "Directory holds path/directory specific options"
+        },
+        "plugin": {
+          "$ref": "#/definitions/v1alpha1ApplicationSourcePlugin",
+          "title": "Plugin holds config management plugin specific options"
+        },
+        "chart": {
+          "type": "string",
+          "description": "Chart is a Helm chart name, and must be specified for applications sourced from a Helm repo."
+        }
+      },
+      "title": "ApplicationSource contains all required information about the source of an application"
+    },
+    "v1alpha1ApplicationSourceDirectory": {
+      "type": "object",
+      "properties": {
+        "recurse": {
+          "type": "boolean",
+          "title": "Recurse specifies whether to scan a directory recursively for manifests"
+        },
+        "jsonnet": {
+          "$ref": "#/definitions/v1alpha1ApplicationSourceJsonnet",
+          "title": "Jsonnet holds options specific to Jsonnet"
+        },
+        "exclude": {
+          "type": "string",
+          "title": "Exclude contains a glob pattern to match paths against that should be explicitly excluded from being used during manifest generation"
+        },
+        "include": {
+          "type": "string",
+          "title": "Include contains a glob pattern to match paths against that should be explicitly included during manifest generation"
+        }
+      },
+      "title": "ApplicationSourceDirectory holds options for applications of type plain YAML or Jsonnet"
+    },
+    "v1alpha1ApplicationSourceHelm": {
+      "type": "object",
+      "properties": {
+        "valueFiles": {
+          "type": "array",
+          "items": {
+            "type": "string"
+          },
+          "title": "ValuesFiles is a list of Helm value files to use when generating a template"
+        },
+        "parameters": {
+          "type": "array",
+          "items": {
+            "$ref": "#/definitions/v1alpha1HelmParameter"
+          },
+          "title": "Parameters is a list of Helm parameters which are passed to the helm template command upon manifest generation"
+        },
+        "releaseName": {
+          "type": "string",
+          "title": "ReleaseName is the Helm release name to use. If omitted it will use the application name"
+        },
+        "values": {
+          "type": "string",
+          "title": "Values specifies Helm values to be passed to helm template, typically defined as a block"
+        },
+        "fileParameters": {
+          "type": "array",
+          "items": {
+            "$ref": "#/definitions/v1alpha1HelmFileParameter"
+          },
+          "title": "FileParameters are file parameters to the helm template"
+        },
+        "version": {
+          "type": "string",
+          "title": "Version is the Helm version to use for templating (\"3\")"
+        },
+        "passCredentials": {
+          "type": "boolean",
+          "title": "PassCredentials pass credentials to all domains (Helm's --pass-credentials)"
+        },
+        "ignoreMissingValueFiles": {
+          "type": "boolean",
+          "title": "IgnoreMissingValueFiles prevents helm template from failing when valueFiles do not exist locally by not appending them to helm template --values"
+        },
+        "skipCrds": {
+          "type": "boolean",
+          "title": "SkipCrds skips custom resource definition installation step (Helm's --skip-crds)"
+        }
+      },
+      "title": "ApplicationSourceHelm holds helm specific options"
+    },
+    "v1alpha1ApplicationSourceJsonnet": {
+      "type": "object",
+      "properties": {
+        "extVars": {
+          "type": "array",
+          "items": {
+            "$ref": "#/definitions/v1alpha1JsonnetVar"
+          },
+          "title": "ExtVars is a list of Jsonnet External Variables"
+        },
+        "tlas": {
+          "type": "array",
+          "items": {
+            "$ref": "#/definitions/v1alpha1JsonnetVar"
+          },
+          "title": "TLAS is a list of Jsonnet Top-level Arguments"
+        },
+        "libs": {
+          "type": "array",
+          "items": {
+            "type": "string"
+          },
+          "title": "Additional library search dirs"
+        }
+      },
+      "title": "ApplicationSourceJsonnet holds options specific to applications of type Jsonnet"
+    },
+    "v1alpha1ApplicationSourceKustomize": {
+      "type": "object",
+      "properties": {
+        "namePrefix": {
+          "type": "string",
+          "title": "NamePrefix is a prefix appended to resources for Kustomize apps"
+        },
+        "nameSuffix": {
+          "type": "string",
+          "title": "NameSuffix is a suffix appended to resources for Kustomize apps"
+        },
+        "images": {
+          "type": "array",
+          "items": {
+            "type": "string"
+          },
+          "title": "Images is a list of Kustomize image override specifications"
+        },
+        "commonLabels": {
+          "type": "object",
+          "additionalProperties": {
+            "type": "string"
+          },
+          "title": "CommonLabels is a list of additional labels to add to rendered manifests"
+        },
+        "version": {
+          "type": "string",
+          "title": "Version controls which version of Kustomize to use for rendering manifests"
+        },
+        "commonAnnotations": {
+          "type": "object",
+          "additionalProperties": {
+            "type": "string"
+          },
+          "title": "CommonAnnotations is a list of additional annotations to add to rendered manifests"
+        },
+        "forceCommonLabels": {
+          "type": "boolean",
+          "title": "ForceCommonLabels specifies whether to force applying common labels to resources for Kustomize apps"
+        },
+        "forceCommonAnnotations": {
+          "type": "boolean",
+          "title": "ForceCommonAnnotations specifies whether to force applying common annotations to resources for Kustomize apps"
+        },
+        "forceNamespace": {
+          "type": "boolean",
+          "title": "ForceNamespace if true, will use the application's destination namespace as a kustomization file namespace"
+        },
+        "components": {
+          "type": "array",
+          "items": {
+            "type": "string"
+          },
+          "title": "Components specifies a list of kustomize components to add to the kustmization before building"
+        }
+      },
+      "title": "ApplicationSourceKustomize holds options specific to an Application source specific to Kustomize"
+    },
+    "v1alpha1ApplicationSourcePlugin": {
+      "type": "object",
+      "properties": {
+        "name": {
+          "type": "string"
+        },
+        "env": {
+          "type": "array",
+          "items": {
+            "$ref": "#/definitions/applicationv1alpha1EnvEntry"
+          }
+        }
+      },
+      "title": "ApplicationSourcePlugin holds options specific to config management plugins"
+    },
+    "v1alpha1ApplicationSpec": {
+      "type": "object",
+      "properties": {
+        "source": {
+          "$ref": "#/definitions/v1alpha1ApplicationSource",
+          "title": "Source is a reference to the location of the application's manifests or chart"
+        },
+        "destination": {
+          "$ref": "#/definitions/v1alpha1ApplicationDestination",
+          "title": "Destination is a reference to the target Kubernetes server and namespace"
+        },
+        "project": {
+          "type": "string",
+          "description": "Project is a reference to the project this application belongs to.\nThe empty string means that application belongs to the 'default' project."
+        },
+        "syncPolicy": {
+          "$ref": "#/definitions/v1alpha1SyncPolicy",
+          "title": "SyncPolicy controls when and how a sync will be performed"
+        },
+        "ignoreDifferences": {
+          "type": "array",
+          "items": {
+            "$ref": "#/definitions/v1alpha1ResourceIgnoreDifferences"
+          },
+          "title": "IgnoreDifferences is a list of resources and their fields which should be ignored during comparison"
+        },
+        "info": {
+          "type": "array",
+          "items": {
+            "$ref": "#/definitions/v1alpha1Info"
+          },
+          "title": "Info contains a list of information (URLs, email addresses, and plain text) that relates to the application"
+        },
+        "revisionHistoryLimit": {
+          "type": "string",
+          "format": "int64",
+          "description": "RevisionHistoryLimit limits the number of items kept in the application's revision history, which is used for informational purposes as well as for rollbacks to previous versions.\nThis should only be changed in exceptional circumstances.\nSetting to zero will store no history. This will reduce storage used.\nIncreasing will increase the space used to store the history, so we do not recommend increasing it.\nDefault is 10."
+        }
+      },
+      "description": "ApplicationSpec represents desired application state. Contains link to repository with application definition and additional parameters link definition revision."
+    },
+    "v1alpha1Backoff": {
+      "type": "object",
+      "properties": {
+        "duration": {
+          "type": "string",
+          "title": "Duration is the amount to back off. Default unit is seconds, but could also be a duration (e.g. \"2m\", \"1h\")"
+        },
+        "factor": {
+          "type": "string",
+          "format": "int64",
+          "title": "Factor is a factor to multiply the base duration after each failed retry"
+        },
+        "maxDuration": {
+          "type": "string",
+          "title": "MaxDuration is the maximum amount of time allowed for the backoff strategy"
+        }
+      },
+      "title": "Backoff is the backoff strategy to use on subsequent retries for failing syncs"
+    },
+    "v1alpha1BasicAuthBitbucketServer": {
+      "type": "object",
+      "properties": {
+        "username": {
+          "type": "string",
+          "title": "Username for Basic auth"
+        },
+        "passwordRef": {
+          "$ref": "#/definitions/v1alpha1SecretRef",
+          "description": "Password (or personal access token) reference."
+        }
+      },
+      "description": "BasicAuthBitbucketServer defines the username/(password or personal access token) for Basic auth."
+    },
+    "v1alpha1ClusterGenerator": {
+      "type": "object",
+      "properties": {
+        "selector": {
+          "$ref": "#/definitions/v1LabelSelector",
+          "description": "Selector defines a label selector to match against all clusters registered with ArgoCD.\nClusters today are stored as Kubernetes Secrets, thus the Secret labels will be used\nfor matching the selector."
+        },
+        "template": {
+          "$ref": "#/definitions/v1alpha1ApplicationSetTemplate"
+        },
+        "values": {
+          "type": "object",
+          "additionalProperties": {
+            "type": "string"
+          },
+          "title": "Values contains key/value pairs which are passed directly as parameters to the template"
+        }
+      },
+      "description": "ClusterGenerator defines a generator to match against clusters registered with ArgoCD."
+    },
+    "v1alpha1DuckTypeGenerator": {
+      "type": "object",
+      "properties": {
+        "configMapRef": {
+          "type": "string",
+          "title": "ConfigMapRef is a ConfigMap with the duck type definitions needed to retrieve the data\n             this includes apiVersion(group/version), kind, matchKey and validation settings\nName is the resource name of the kind, group and version, defined in the ConfigMapRef\nRequeueAfterSeconds is how long before the duckType will be rechecked for a change"
+        },
+        "name": {
+          "type": "string"
+        },
+        "requeueAfterSeconds": {
+          "type": "string",
+          "format": "int64"
+        },
+        "labelSelector": {
+          "$ref": "#/definitions/v1LabelSelector"
+        },
+        "template": {
+          "$ref": "#/definitions/v1alpha1ApplicationSetTemplate"
+        },
+        "values": {
+          "type": "object",
+          "additionalProperties": {
+            "type": "string"
+          },
+          "title": "Values contains key/value pairs which are passed directly as parameters to the template"
+        }
+      },
+      "description": "DuckType defines a generator to match against clusters registered with ArgoCD."
+    },
+    "v1alpha1GitDirectoryGeneratorItem": {
+      "type": "object",
+      "properties": {
+        "path": {
+          "type": "string"
+        },
+        "exclude": {
+          "type": "boolean"
+        }
+      }
+    },
+    "v1alpha1GitFileGeneratorItem": {
+      "type": "object",
+      "properties": {
+        "path": {
+          "type": "string"
+        }
+      }
+    },
+    "v1alpha1GitGenerator": {
+      "type": "object",
+      "properties": {
+        "repoURL": {
+          "type": "string"
+        },
+        "directories": {
+          "type": "array",
+          "items": {
+            "$ref": "#/definitions/v1alpha1GitDirectoryGeneratorItem"
+          }
+        },
+        "files": {
+          "type": "array",
+          "items": {
+            "$ref": "#/definitions/v1alpha1GitFileGeneratorItem"
+          }
+        },
+        "revision": {
+          "type": "string"
+        },
+        "requeueAfterSeconds": {
+          "type": "string",
+          "format": "int64"
+        },
+        "template": {
+          "$ref": "#/definitions/v1alpha1ApplicationSetTemplate"
+        }
+      }
+    },
+    "v1alpha1HelmFileParameter": {
+      "type": "object",
+      "properties": {
+        "name": {
+          "type": "string",
+          "title": "Name is the name of the Helm parameter"
+        },
+        "path": {
+          "type": "string",
+          "title": "Path is the path to the file containing the values for the Helm parameter"
+        }
+      },
+      "title": "HelmFileParameter is a file parameter that's passed to helm template during manifest generation"
+    },
+    "v1alpha1HelmParameter": {
+      "type": "object",
+      "properties": {
+        "name": {
+          "type": "string",
+          "title": "Name is the name of the Helm parameter"
+        },
+        "value": {
+          "type": "string",
+          "title": "Value is the value for the Helm parameter"
+        },
+        "forceString": {
+          "type": "boolean",
+          "title": "ForceString determines whether to tell Helm to interpret booleans and numbers as strings"
+        }
+      },
+      "title": "HelmParameter is a parameter that's passed to helm template during manifest generation"
+    },
+    "v1alpha1Info": {
+      "type": "object",
+      "properties": {
+        "name": {
+          "type": "string"
+        },
+        "value": {
+          "type": "string"
+        }
+      }
+    },
+    "v1alpha1JsonnetVar": {
+      "type": "object",
+      "properties": {
+        "name": {
+          "type": "string"
+        },
+        "value": {
+          "type": "string"
+        },
+        "code": {
+          "type": "boolean"
+        }
+      },
+      "title": "JsonnetVar represents a variable to be passed to jsonnet during manifest generation"
+    },
+    "v1alpha1ListGenerator": {
+      "type": "object",
+      "properties": {
+        "elements": {
+          "type": "array",
+          "items": {
+            "$ref": "#/definitions/v1JSON"
+          }
+        },
+        "template": {
+          "$ref": "#/definitions/v1alpha1ApplicationSetTemplate"
+        }
+      },
+      "title": "ListGenerator include items info"
+    },
+    "v1alpha1MatrixGenerator": {
+      "type": "object",
+      "properties": {
+        "generators": {
+          "type": "array",
+          "items": {
+            "$ref": "#/definitions/v1alpha1ApplicationSetNestedGenerator"
+          }
+        },
+        "template": {
+          "$ref": "#/definitions/v1alpha1ApplicationSetTemplate"
+        }
+      },
+      "description": "MatrixGenerator generates the cartesian product of two sets of parameters. The parameters are defined by two nested\ngenerators."
+    },
+    "v1alpha1MergeGenerator": {
+      "type": "object",
+      "properties": {
+        "generators": {
+          "type": "array",
+          "items": {
+            "$ref": "#/definitions/v1alpha1ApplicationSetNestedGenerator"
+          }
+        },
+        "mergeKeys": {
+          "type": "array",
+          "items": {
+            "type": "string"
+          }
+        },
+        "template": {
+          "$ref": "#/definitions/v1alpha1ApplicationSetTemplate"
+        }
+      },
+      "description": "MergeGenerator merges the output of two or more generators. Where the values for all specified merge keys are equal\nbetween two sets of generated parameters, the parameter sets will be merged with the parameters from the latter\ngenerator taking precedence. Parameter sets with merge keys not present in the base generator's params will be\nignored.\nFor example, if the first generator produced [{a: '1', b: '2'}, {c: '1', d: '1'}] and the second generator produced\n[{'a': 'override'}], the united parameters for merge keys = ['a'] would be\n[{a: 'override', b: '1'}, {c: '1', d: '1'}].\n\nMergeGenerator supports template overriding. If a MergeGenerator is one of multiple top-level generators, its\ntemplate will be merged with the top-level generator before the parameters are applied."
+    },
+    "v1alpha1PullRequestGenerator": {
+      "type": "object",
+      "properties": {
+        "github": {
+          "$ref": "#/definitions/v1alpha1PullRequestGeneratorGithub",
+          "description": "Which provider to use and config for it."
+        },
+        "gitlab": {
+          "$ref": "#/definitions/v1alpha1PullRequestGeneratorGitLab"
+        },
+        "gitea": {
+          "$ref": "#/definitions/v1alpha1PullRequestGeneratorGitea"
+        },
+        "bitbucketServer": {
+          "$ref": "#/definitions/v1alpha1PullRequestGeneratorBitbucketServer"
+        },
+        "filters": {
+          "type": "array",
+          "items": {
+            "$ref": "#/definitions/v1alpha1PullRequestGeneratorFilter"
+          },
+          "description": "Filters for which pull requests should be considered."
+        },
+        "requeueAfterSeconds": {
+          "type": "string",
+          "format": "int64",
+          "description": "Standard parameters."
+        },
+        "template": {
+          "$ref": "#/definitions/v1alpha1ApplicationSetTemplate"
+        }
+      },
+      "description": "PullRequestGenerator defines a generator that scrapes a PullRequest API to find candidate pull requests."
+    },
+    "v1alpha1PullRequestGeneratorBitbucketServer": {
+      "type": "object",
+      "properties": {
+        "project": {
+          "type": "string",
+          "description": "Project to scan. Required."
+        },
+        "repo": {
+          "type": "string",
+          "description": "Repo name to scan. Required."
+        },
+        "api": {
+          "type": "string",
+          "description": "The Bitbucket REST API URL to talk to e.g. https://bitbucket.org/rest Required."
+        },
+        "basicAuth": {
+          "$ref": "#/definitions/v1alpha1BasicAuthBitbucketServer",
+          "title": "Credentials for Basic auth"
+        }
+      },
+      "description": "PullRequestGenerator defines connection info specific to BitbucketServer."
+    },
+    "v1alpha1PullRequestGeneratorFilter": {
+      "type": "object",
+      "properties": {
+        "branchMatch": {
+          "type": "string"
+        }
+      },
+      "description": "PullRequestGeneratorFilter is a single pull request filter.\nIf multiple filter types are set on a single struct, they will be AND'd together. All filters must\npass for a pull request to be included."
+    },
+    "v1alpha1PullRequestGeneratorGitLab": {
+      "type": "object",
+      "properties": {
+        "project": {
+          "type": "string",
+          "description": "GitLab project to scan. Required."
+        },
+        "api": {
+          "type": "string",
+          "description": "The GitLab API URL to talk to. If blank, uses https://gitlab.com/."
+        },
+        "tokenRef": {
+          "$ref": "#/definitions/v1alpha1SecretRef",
+          "description": "Authentication token reference."
+        },
+        "labels": {
+          "type": "array",
+          "items": {
+            "type": "string"
+          },
+          "title": "Labels is used to filter the MRs that you want to target"
+        },
+        "pullRequestState": {
+          "type": "string",
+          "title": "PullRequestState is an additional MRs filter to get only those with a certain state. Default: \"\" (all states)"
+        }
+      },
+      "description": "PullRequestGeneratorGitLab defines connection info specific to GitLab."
+    },
+    "v1alpha1PullRequestGeneratorGitea": {
+      "type": "object",
+      "properties": {
+        "owner": {
+          "type": "string",
+          "description": "Gitea org or user to scan. Required."
+        },
+        "repo": {
+          "type": "string",
+          "description": "Gitea repo name to scan. Required."
+        },
+        "api": {
+          "type": "string",
+          "title": "The Gitea API URL to talk to. Required"
+        },
+        "tokenRef": {
+          "$ref": "#/definitions/v1alpha1SecretRef",
+          "description": "Authentication token reference."
+        },
+        "insecure": {
+          "type": "boolean",
+          "description": "Allow insecure tls, for self-signed certificates; default: false."
+        }
+      },
+      "description": "PullRequestGenerator defines connection info specific to Gitea."
+    },
+    "v1alpha1PullRequestGeneratorGithub": {
+      "type": "object",
+      "properties": {
+        "owner": {
+          "type": "string",
+          "description": "GitHub org or user to scan. Required."
+        },
+        "repo": {
+          "type": "string",
+          "description": "GitHub repo name to scan. Required."
+        },
+        "api": {
+          "type": "string",
+          "description": "The GitHub API URL to talk to. If blank, use https://api.github.com/."
+        },
+        "tokenRef": {
+          "$ref": "#/definitions/v1alpha1SecretRef",
+          "description": "Authentication token reference."
+        },
+        "appSecretName": {
+          "type": "string",
+          "description": "AppSecretName is a reference to a GitHub App repo-creds secret with permission to access pull requests."
+        },
+        "labels": {
+          "type": "array",
+          "items": {
+            "type": "string"
+          },
+          "title": "Labels is used to filter the PRs that you want to target"
+        }
+      },
+      "description": "PullRequestGenerator defines connection info specific to GitHub."
+    },
+    "v1alpha1ResourceIgnoreDifferences": {
+      "type": "object",
+      "properties": {
+        "group": {
+          "type": "string"
+        },
+        "kind": {
+          "type": "string"
+        },
+        "name": {
+          "type": "string"
+        },
+        "namespace": {
+          "type": "string"
+        },
+        "jsonPointers": {
+          "type": "array",
+          "items": {
+            "type": "string"
+          }
+        },
+        "jqPathExpressions": {
+          "type": "array",
+          "items": {
+            "type": "string"
+          }
+        },
+        "managedFieldsManagers": {
+          "type": "array",
+          "items": {
+            "type": "string"
+          },
+          "title": "ManagedFieldsManagers is a list of trusted managers. Fields mutated by those managers will take precedence over the\ndesired state defined in the SCM and won't be displayed in diffs"
+        }
+      },
+      "description": "ResourceIgnoreDifferences contains resource filter and list of json paths which should be ignored during comparison with live state."
+    },
+    "v1alpha1RetryStrategy": {
+      "type": "object",
+      "properties": {
+        "limit": {
+          "type": "string",
+          "format": "int64",
+          "description": "Limit is the maximum number of attempts for retrying a failed sync. If set to 0, no retries will be performed."
+        },
+        "backoff": {
+          "$ref": "#/definitions/v1alpha1Backoff",
+          "title": "Backoff controls how to backoff on subsequent retries of failed syncs"
+        }
+      },
+      "title": "RetryStrategy contains information about the strategy to apply when a sync failed"
+    },
+    "v1alpha1SCMProviderGenerator": {
+      "type": "object",
+      "properties": {
+        "github": {
+          "$ref": "#/definitions/v1alpha1SCMProviderGeneratorGithub",
+          "description": "Which provider to use and config for it."
+        },
+        "gitlab": {
+          "$ref": "#/definitions/v1alpha1SCMProviderGeneratorGitlab"
+        },
+        "bitbucket": {
+          "$ref": "#/definitions/v1alpha1SCMProviderGeneratorBitbucket"
+        },
+        "bitbucketServer": {
+          "$ref": "#/definitions/v1alpha1SCMProviderGeneratorBitbucketServer"
+        },
+        "gitea": {
+          "$ref": "#/definitions/v1alpha1SCMProviderGeneratorGitea"
+        },
+        "azureDevOps": {
+          "$ref": "#/definitions/v1alpha1SCMProviderGeneratorAzureDevOps"
+        },
+        "filters": {
+          "type": "array",
+          "items": {
+            "$ref": "#/definitions/v1alpha1SCMProviderGeneratorFilter"
+          },
+          "description": "Filters for which repos should be considered."
+        },
+        "cloneProtocol": {
+          "type": "string",
+          "description": "Which protocol to use for the SCM URL. Default is provider-specific but ssh if possible. Not all providers\nnecessarily support all protocols."
+        },
+        "requeueAfterSeconds": {
+          "type": "string",
+          "format": "int64",
+          "description": "Standard parameters."
+        },
+        "template": {
+          "$ref": "#/definitions/v1alpha1ApplicationSetTemplate"
+        }
+      },
+      "description": "SCMProviderGenerator defines a generator that scrapes a SCMaaS API to find candidate repos."
+    },
+    "v1alpha1SCMProviderGeneratorAzureDevOps": {
+      "type": "object",
+      "properties": {
+        "organization": {
+          "type": "string",
+          "description": "Azure Devops organization. Required. E.g. \"my-organization\"."
+        },
+        "api": {
+          "type": "string",
+          "description": "The URL to Azure DevOps. If blank, use https://dev.azure.com."
+        },
+        "teamProject": {
+          "type": "string",
+          "description": "Azure Devops team project. Required. E.g. \"my-team\"."
+        },
+        "accessTokenRef": {
+          "$ref": "#/definitions/v1alpha1SecretRef",
+          "description": "The Personal Access Token (PAT) to use when connecting. Required."
+        },
+        "allBranches": {
+          "type": "boolean",
+          "description": "Scan all branches instead of just the default branch."
+        }
+      },
+      "description": "SCMProviderGeneratorAzureDevOps defines connection info specific to Azure DevOps."
+    },
+    "v1alpha1SCMProviderGeneratorBitbucket": {
+      "type": "object",
+      "properties": {
+        "owner": {
+          "type": "string",
+          "description": "Bitbucket workspace to scan. Required."
+        },
+        "user": {
+          "type": "string",
+          "title": "Bitbucket user to use when authenticating.  Should have a \"member\" role to be able to read all repositories and branches.  Required"
+        },
+        "appPasswordRef": {
+          "$ref": "#/definitions/v1alpha1SecretRef",
+          "title": "The app password to use for the user.  Required. See: https://support.atlassian.com/bitbucket-cloud/docs/app-passwords/"
+        },
+        "allBranches": {
+          "type": "boolean",
+          "description": "Scan all branches instead of just the main branch."
+        }
+      },
+      "description": "SCMProviderGeneratorBitbucket defines connection info specific to Bitbucket Cloud (API version 2)."
+    },
+    "v1alpha1SCMProviderGeneratorBitbucketServer": {
+      "type": "object",
+      "properties": {
+        "project": {
+          "type": "string",
+          "description": "Project to scan. Required."
+        },
+        "api": {
+          "type": "string",
+          "description": "The Bitbucket Server REST API URL to talk to. Required."
+        },
+        "basicAuth": {
+          "$ref": "#/definitions/v1alpha1BasicAuthBitbucketServer",
+          "title": "Credentials for Basic auth"
+        },
+        "allBranches": {
+          "type": "boolean",
+          "description": "Scan all branches instead of just the default branch."
+        }
+      },
+      "description": "SCMProviderGeneratorBitbucketServer defines connection info specific to Bitbucket Server."
+    },
+    "v1alpha1SCMProviderGeneratorFilter": {
+      "type": "object",
+      "properties": {
+        "repositoryMatch": {
+          "type": "string",
+          "description": "A regex for repo names."
+        },
+        "pathsExist": {
+          "type": "array",
+          "items": {
+            "type": "string"
+          },
+          "description": "An array of paths, all of which must exist."
+        },
+        "pathsDoNotExist": {
+          "type": "array",
+          "items": {
+            "type": "string"
+          },
+          "description": "An array of paths, all of which must not exist."
+        },
+        "labelMatch": {
+          "type": "string",
+          "description": "A regex which must match at least one label."
+        },
+        "branchMatch": {
+          "type": "string",
+          "description": "A regex which must match the branch name."
+        }
+      },
+      "description": "SCMProviderGeneratorFilter is a single repository filter.\nIf multiple filter types are set on a single struct, they will be AND'd together. All filters must\npass for a repo to be included."
+    },
+    "v1alpha1SCMProviderGeneratorGitea": {
+      "type": "object",
+      "properties": {
+        "owner": {
+          "type": "string",
+          "description": "Gitea organization or user to scan. Required."
+        },
+        "api": {
+          "type": "string",
+          "description": "The Gitea URL to talk to. For example https://gitea.mydomain.com/."
+        },
+        "tokenRef": {
+          "$ref": "#/definitions/v1alpha1SecretRef",
+          "description": "Authentication token reference."
+        },
+        "allBranches": {
+          "type": "boolean",
+          "description": "Scan all branches instead of just the default branch."
+        },
+        "insecure": {
+          "type": "boolean",
+          "title": "Allow self-signed TLS / Certificates; default: false"
+        }
+      },
+      "description": "SCMProviderGeneratorGitea defines a connection info specific to Gitea."
+    },
+    "v1alpha1SCMProviderGeneratorGithub": {
+      "type": "object",
+      "properties": {
+        "organization": {
+          "type": "string",
+          "description": "GitHub org to scan. Required."
+        },
+        "api": {
+          "type": "string",
+          "description": "The GitHub API URL to talk to. If blank, use https://api.github.com/."
+        },
+        "tokenRef": {
+          "$ref": "#/definitions/v1alpha1SecretRef",
+          "description": "Authentication token reference."
+        },
+        "appSecretName": {
+          "type": "string",
+          "description": "AppSecretName is a reference to a GitHub App repo-creds secret."
+        },
+        "allBranches": {
+          "type": "boolean",
+          "description": "Scan all branches instead of just the default branch."
+        }
+      },
+      "description": "SCMProviderGeneratorGithub defines connection info specific to GitHub."
+    },
+    "v1alpha1SCMProviderGeneratorGitlab": {
+      "type": "object",
+      "properties": {
+        "group": {
+          "type": "string",
+          "description": "Gitlab group to scan. Required.  You can use either the project id (recommended) or the full namespaced path."
+        },
+        "includeSubgroups": {
+          "type": "boolean",
+          "title": "Recurse through subgroups (true) or scan only the base group (false).  Defaults to \"false\""
+        },
+        "api": {
+          "type": "string",
+          "description": "The Gitlab API URL to talk to."
+        },
+        "tokenRef": {
+          "$ref": "#/definitions/v1alpha1SecretRef",
+          "description": "Authentication token reference."
+        },
+        "allBranches": {
+          "type": "boolean",
+          "description": "Scan all branches instead of just the default branch."
+        }
+      },
+      "description": "SCMProviderGeneratorGitlab defines connection info specific to Gitlab."
+    },
+    "v1alpha1SecretRef": {
+      "type": "object",
+      "properties": {
+        "secretName": {
+          "type": "string"
+        },
+        "key": {
+          "type": "string"
+        }
+      },
+      "description": "Utility struct for a reference to a secret key."
+    },
+    "v1alpha1SyncPolicy": {
+      "type": "object",
+      "properties": {
+        "automated": {
+          "$ref": "#/definitions/v1alpha1SyncPolicyAutomated",
+          "title": "Automated will keep an application synced to the target revision"
+        },
+        "syncOptions": {
+          "type": "array",
+          "items": {
+            "type": "string"
+          },
+          "title": "Options allow you to specify whole app sync-options"
+        },
+        "retry": {
+          "$ref": "#/definitions/v1alpha1RetryStrategy",
+          "title": "Retry controls failed sync retry behavior"
+        }
+      },
+      "title": "SyncPolicy controls when a sync will be performed in response to updates in git"
+    },
+    "v1alpha1SyncPolicyAutomated": {
+      "type": "object",
+      "properties": {
+        "prune": {
+          "type": "boolean",
+          "title": "Prune specifies whether to delete resources from the cluster that are not found in the sources anymore as part of automated sync (default: false)"
+        },
+        "selfHeal": {
+          "type": "boolean",
+          "title": "SelfHeal specifes whether to revert resources back to their desired state upon modification in the cluster (default: false)"
+        },
+        "allowEmpty": {
+          "type": "boolean",
+          "title": "AllowEmpty allows apps have zero live resources (default: false)"
+        }
+      },
+      "title": "SyncPolicyAutomated controls the behavior of an automated sync"
+    }
+  }
+}

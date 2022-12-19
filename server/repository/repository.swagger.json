@@ -1,0 +1,1151 @@
+{
+  "swagger": "2.0",
+  "info": {
+    "title": "Repository Service",
+    "description": "Repository Service API performs CRUD actions against repository resources",
+    "version": "version not set"
+  },
+  "consumes": [
+    "application/json"
+  ],
+  "produces": [
+    "application/json"
+  ],
+  "paths": {
+    "/api/v1/repositories": {
+      "get": {
+        "summary": "ListRepositories gets a list of all configured repositories",
+        "operationId": "RepositoryService_ListRepositories",
+        "responses": {
+          "200": {
+            "description": "A successful response.",
+            "schema": {
+              "$ref": "#/definitions/v1alpha1RepositoryList"
+            }
+          },
+          "default": {
+            "description": "An unexpected error response.",
+            "schema": {
+              "$ref": "#/definitions/runtimeError"
+            }
+          }
+        },
+        "parameters": [
+          {
+            "name": "repo",
+            "description": "Repo URL for query.",
+            "in": "query",
+            "required": false,
+            "type": "string"
+          },
+          {
+            "name": "forceRefresh",
+            "description": "Whether to force a cache refresh on repo's connection state.",
+            "in": "query",
+            "required": false,
+            "type": "boolean"
+          }
+        ],
+        "tags": [
+          "RepositoryService"
+        ]
+      },
+      "post": {
+        "summary": "CreateRepository creates a new repository configuration",
+        "operationId": "RepositoryService_CreateRepository",
+        "responses": {
+          "200": {
+            "description": "A successful response.",
+            "schema": {
+              "$ref": "#/definitions/v1alpha1Repository"
+            }
+          },
+          "default": {
+            "description": "An unexpected error response.",
+            "schema": {
+              "$ref": "#/definitions/runtimeError"
+            }
+          }
+        },
+        "parameters": [
+          {
+            "name": "body",
+            "description": "Repository definition",
+            "in": "body",
+            "required": true,
+            "schema": {
+              "$ref": "#/definitions/v1alpha1Repository"
+            }
+          },
+          {
+            "name": "upsert",
+            "description": "Whether to create in upsert mode.",
+            "in": "query",
+            "required": false,
+            "type": "boolean"
+          },
+          {
+            "name": "credsOnly",
+            "description": "Whether to operate on credential set instead of repository.",
+            "in": "query",
+            "required": false,
+            "type": "boolean"
+          }
+        ],
+        "tags": [
+          "RepositoryService"
+        ]
+      }
+    },
+    "/api/v1/repositories/{repo.repo}": {
+      "put": {
+        "summary": "UpdateRepository updates a repository configuration",
+        "operationId": "RepositoryService_UpdateRepository",
+        "responses": {
+          "200": {
+            "description": "A successful response.",
+            "schema": {
+              "$ref": "#/definitions/v1alpha1Repository"
+            }
+          },
+          "default": {
+            "description": "An unexpected error response.",
+            "schema": {
+              "$ref": "#/definitions/runtimeError"
+            }
+          }
+        },
+        "parameters": [
+          {
+            "name": "repo.repo",
+            "description": "Repo contains the URL to the remote repository",
+            "in": "path",
+            "required": true,
+            "type": "string"
+          },
+          {
+            "name": "body",
+            "in": "body",
+            "required": true,
+            "schema": {
+              "$ref": "#/definitions/v1alpha1Repository"
+            }
+          }
+        ],
+        "tags": [
+          "RepositoryService"
+        ]
+      }
+    },
+    "/api/v1/repositories/{repo}": {
+      "get": {
+        "summary": "Get returns a repository or its credentials",
+        "operationId": "RepositoryService_Get",
+        "responses": {
+          "200": {
+            "description": "A successful response.",
+            "schema": {
+              "$ref": "#/definitions/v1alpha1Repository"
+            }
+          },
+          "default": {
+            "description": "An unexpected error response.",
+            "schema": {
+              "$ref": "#/definitions/runtimeError"
+            }
+          }
+        },
+        "parameters": [
+          {
+            "name": "repo",
+            "description": "Repo URL for query",
+            "in": "path",
+            "required": true,
+            "type": "string"
+          },
+          {
+            "name": "forceRefresh",
+            "description": "Whether to force a cache refresh on repo's connection state.",
+            "in": "query",
+            "required": false,
+            "type": "boolean"
+          }
+        ],
+        "tags": [
+          "RepositoryService"
+        ]
+      },
+      "delete": {
+        "summary": "DeleteRepository deletes a repository from the configuration",
+        "operationId": "RepositoryService_DeleteRepository",
+        "responses": {
+          "200": {
+            "description": "A successful response.",
+            "schema": {
+              "$ref": "#/definitions/repositoryRepoResponse"
+            }
+          },
+          "default": {
+            "description": "An unexpected error response.",
+            "schema": {
+              "$ref": "#/definitions/runtimeError"
+            }
+          }
+        },
+        "parameters": [
+          {
+            "name": "repo",
+            "description": "Repo URL for query",
+            "in": "path",
+            "required": true,
+            "type": "string"
+          },
+          {
+            "name": "forceRefresh",
+            "description": "Whether to force a cache refresh on repo's connection state.",
+            "in": "query",
+            "required": false,
+            "type": "boolean"
+          }
+        ],
+        "tags": [
+          "RepositoryService"
+        ]
+      }
+    },
+    "/api/v1/repositories/{repo}/apps": {
+      "get": {
+        "summary": "ListApps returns list of apps in the repo",
+        "operationId": "RepositoryService_ListApps",
+        "responses": {
+          "200": {
+            "description": "A successful response.",
+            "schema": {
+              "$ref": "#/definitions/repositoryRepoAppsResponse"
+            }
+          },
+          "default": {
+            "description": "An unexpected error response.",
+            "schema": {
+              "$ref": "#/definitions/runtimeError"
+            }
+          }
+        },
+        "parameters": [
+          {
+            "name": "repo",
+            "in": "path",
+            "required": true,
+            "type": "string"
+          },
+          {
+            "name": "revision",
+            "in": "query",
+            "required": false,
+            "type": "string"
+          },
+          {
+            "name": "appName",
+            "in": "query",
+            "required": false,
+            "type": "string"
+          },
+          {
+            "name": "appProject",
+            "in": "query",
+            "required": false,
+            "type": "string"
+          }
+        ],
+        "tags": [
+          "RepositoryService"
+        ]
+      }
+    },
+    "/api/v1/repositories/{repo}/helmcharts": {
+      "get": {
+        "summary": "GetHelmCharts returns list of helm charts in the specified repository",
+        "operationId": "RepositoryService_GetHelmCharts",
+        "responses": {
+          "200": {
+            "description": "A successful response.",
+            "schema": {
+              "$ref": "#/definitions/repositoryHelmChartsResponse"
+            }
+          },
+          "default": {
+            "description": "An unexpected error response.",
+            "schema": {
+              "$ref": "#/definitions/runtimeError"
+            }
+          }
+        },
+        "parameters": [
+          {
+            "name": "repo",
+            "description": "Repo URL for query",
+            "in": "path",
+            "required": true,
+            "type": "string"
+          },
+          {
+            "name": "forceRefresh",
+            "description": "Whether to force a cache refresh on repo's connection state.",
+            "in": "query",
+            "required": false,
+            "type": "boolean"
+          }
+        ],
+        "tags": [
+          "RepositoryService"
+        ]
+      }
+    },
+    "/api/v1/repositories/{repo}/refs": {
+      "get": {
+        "operationId": "RepositoryService_ListRefs",
+        "responses": {
+          "200": {
+            "description": "A successful response.",
+            "schema": {
+              "$ref": "#/definitions/repositoryRefs"
+            }
+          },
+          "default": {
+            "description": "An unexpected error response.",
+            "schema": {
+              "$ref": "#/definitions/runtimeError"
+            }
+          }
+        },
+        "parameters": [
+          {
+            "name": "repo",
+            "description": "Repo URL for query",
+            "in": "path",
+            "required": true,
+            "type": "string"
+          },
+          {
+            "name": "forceRefresh",
+            "description": "Whether to force a cache refresh on repo's connection state.",
+            "in": "query",
+            "required": false,
+            "type": "boolean"
+          }
+        ],
+        "tags": [
+          "RepositoryService"
+        ]
+      }
+    },
+    "/api/v1/repositories/{repo}/validate": {
+      "post": {
+        "summary": "ValidateAccess validates access to a repository with given parameters",
+        "operationId": "RepositoryService_ValidateAccess",
+        "responses": {
+          "200": {
+            "description": "A successful response.",
+            "schema": {
+              "$ref": "#/definitions/repositoryRepoResponse"
+            }
+          },
+          "default": {
+            "description": "An unexpected error response.",
+            "schema": {
+              "$ref": "#/definitions/runtimeError"
+            }
+          }
+        },
+        "parameters": [
+          {
+            "name": "repo",
+            "description": "The URL to the repo",
+            "in": "path",
+            "required": true,
+            "type": "string"
+          },
+          {
+            "name": "body",
+            "description": "The URL to the repo",
+            "in": "body",
+            "required": true,
+            "schema": {
+              "type": "string"
+            }
+          },
+          {
+            "name": "username",
+            "description": "Username for accessing repo.",
+            "in": "query",
+            "required": false,
+            "type": "string"
+          },
+          {
+            "name": "password",
+            "description": "Password for accessing repo.",
+            "in": "query",
+            "required": false,
+            "type": "string"
+          },
+          {
+            "name": "sshPrivateKey",
+            "description": "Private key data for accessing SSH repository.",
+            "in": "query",
+            "required": false,
+            "type": "string"
+          },
+          {
+            "name": "insecure",
+            "description": "Whether to skip certificate or host key validation.",
+            "in": "query",
+            "required": false,
+            "type": "boolean"
+          },
+          {
+            "name": "tlsClientCertData",
+            "description": "TLS client cert data for accessing HTTPS repository.",
+            "in": "query",
+            "required": false,
+            "type": "string"
+          },
+          {
+            "name": "tlsClientCertKey",
+            "description": "TLS client cert key for accessing HTTPS repository.",
+            "in": "query",
+            "required": false,
+            "type": "string"
+          },
+          {
+            "name": "type",
+            "description": "The type of the repo.",
+            "in": "query",
+            "required": false,
+            "type": "string"
+          },
+          {
+            "name": "name",
+            "description": "The name of the repo.",
+            "in": "query",
+            "required": false,
+            "type": "string"
+          },
+          {
+            "name": "enableOci",
+            "description": "Whether helm-oci support should be enabled for this repo.",
+            "in": "query",
+            "required": false,
+            "type": "boolean"
+          },
+          {
+            "name": "githubAppPrivateKey",
+            "description": "Github App Private Key PEM data.",
+            "in": "query",
+            "required": false,
+            "type": "string"
+          },
+          {
+            "name": "githubAppID",
+            "description": "Github App ID of the app used to access the repo.",
+            "in": "query",
+            "required": false,
+            "type": "string",
+            "format": "int64"
+          },
+          {
+            "name": "githubAppInstallationID",
+            "description": "Github App Installation ID of the installed GitHub App.",
+            "in": "query",
+            "required": false,
+            "type": "string",
+            "format": "int64"
+          },
+          {
+            "name": "githubAppEnterpriseBaseUrl",
+            "description": "Github App Enterprise base url if empty will default to https://api.github.com.",
+            "in": "query",
+            "required": false,
+            "type": "string"
+          },
+          {
+            "name": "proxy",
+            "description": "HTTP/HTTPS proxy to access the repository.",
+            "in": "query",
+            "required": false,
+            "type": "string"
+          },
+          {
+            "name": "project",
+            "description": "Reference between project and repository that allow you automatically to be added as item inside SourceRepos project entity.",
+            "in": "query",
+            "required": false,
+            "type": "string"
+          }
+        ],
+        "tags": [
+          "RepositoryService"
+        ]
+      }
+    },
+    "/api/v1/repositories/{source.repoURL}/appdetails": {
+      "post": {
+        "summary": "GetAppDetails returns application details by given path",
+        "operationId": "RepositoryService_GetAppDetails",
+        "responses": {
+          "200": {
+            "description": "A successful response.",
+            "schema": {
+              "$ref": "#/definitions/repositoryRepoAppDetailsResponse"
+            }
+          },
+          "default": {
+            "description": "An unexpected error response.",
+            "schema": {
+              "$ref": "#/definitions/runtimeError"
+            }
+          }
+        },
+        "parameters": [
+          {
+            "name": "source.repoURL",
+            "description": "RepoURL is the URL to the repository (Git or Helm) that contains the application manifests",
+            "in": "path",
+            "required": true,
+            "type": "string"
+          },
+          {
+            "name": "body",
+            "in": "body",
+            "required": true,
+            "schema": {
+              "$ref": "#/definitions/repositoryRepoAppDetailsQuery"
+            }
+          }
+        ],
+        "tags": [
+          "RepositoryService"
+        ]
+      }
+    }
+  },
+  "definitions": {
+    "applicationv1alpha1EnvEntry": {
+      "type": "object",
+      "properties": {
+        "name": {
+          "type": "string",
+          "title": "Name is the name of the variable, usually expressed in uppercase"
+        },
+        "value": {
+          "type": "string",
+          "title": "Value is the value of the variable"
+        }
+      },
+      "title": "EnvEntry represents an entry in the application's environment"
+    },
+    "protobufAny": {
+      "type": "object",
+      "properties": {
+        "type_url": {
+          "type": "string"
+        },
+        "value": {
+          "type": "string",
+          "format": "byte"
+        }
+      }
+    },
+    "repositoryAppInfo": {
+      "type": "object",
+      "properties": {
+        "type": {
+          "type": "string"
+        },
+        "path": {
+          "type": "string"
+        }
+      },
+      "title": "AppInfo contains application type and app file path"
+    },
+    "repositoryDirectoryAppSpec": {
+      "type": "object",
+      "title": "DirectoryAppSpec contains directory"
+    },
+    "repositoryHelmAppSpec": {
+      "type": "object",
+      "properties": {
+        "name": {
+          "type": "string"
+        },
+        "valueFiles": {
+          "type": "array",
+          "items": {
+            "type": "string"
+          }
+        },
+        "parameters": {
+          "type": "array",
+          "items": {
+            "$ref": "#/definitions/v1alpha1HelmParameter"
+          },
+          "title": "the output of `helm inspect values`"
+        },
+        "values": {
+          "type": "string",
+          "title": "the contents of values.yaml"
+        },
+        "fileParameters": {
+          "type": "array",
+          "items": {
+            "$ref": "#/definitions/v1alpha1HelmFileParameter"
+          },
+          "title": "helm file parameters"
+        }
+      },
+      "title": "HelmAppSpec contains helm app name  in source repo"
+    },
+    "repositoryHelmChart": {
+      "type": "object",
+      "properties": {
+        "name": {
+          "type": "string"
+        },
+        "versions": {
+          "type": "array",
+          "items": {
+            "type": "string"
+          }
+        }
+      }
+    },
+    "repositoryHelmChartsResponse": {
+      "type": "object",
+      "properties": {
+        "items": {
+          "type": "array",
+          "items": {
+            "$ref": "#/definitions/repositoryHelmChart"
+          }
+        }
+      }
+    },
+    "repositoryKustomizeAppSpec": {
+      "type": "object",
+      "properties": {
+        "images": {
+          "type": "array",
+          "items": {
+            "type": "string"
+          },
+          "description": "images is a list of available images."
+        }
+      },
+      "title": "KustomizeAppSpec contains kustomize images"
+    },
+    "repositoryRefs": {
+      "type": "object",
+      "properties": {
+        "branches": {
+          "type": "array",
+          "items": {
+            "type": "string"
+          }
+        },
+        "tags": {
+          "type": "array",
+          "items": {
+            "type": "string"
+          }
+        }
+      },
+      "title": "A subset of the repository's named refs"
+    },
+    "repositoryRepoAppDetailsQuery": {
+      "type": "object",
+      "properties": {
+        "source": {
+          "$ref": "#/definitions/v1alpha1ApplicationSource"
+        },
+        "appName": {
+          "type": "string"
+        },
+        "appProject": {
+          "type": "string"
+        }
+      },
+      "title": "RepoAppDetailsQuery contains query information for app details request"
+    },
+    "repositoryRepoAppDetailsResponse": {
+      "type": "object",
+      "properties": {
+        "type": {
+          "type": "string"
+        },
+        "helm": {
+          "$ref": "#/definitions/repositoryHelmAppSpec"
+        },
+        "kustomize": {
+          "$ref": "#/definitions/repositoryKustomizeAppSpec"
+        },
+        "directory": {
+          "$ref": "#/definitions/repositoryDirectoryAppSpec"
+        }
+      },
+      "title": "RepoAppDetailsResponse application details"
+    },
+    "repositoryRepoAppsResponse": {
+      "type": "object",
+      "properties": {
+        "items": {
+          "type": "array",
+          "items": {
+            "$ref": "#/definitions/repositoryAppInfo"
+          }
+        }
+      },
+      "title": "RepoAppsResponse contains applications of specified repository"
+    },
+    "repositoryRepoResponse": {
+      "type": "object"
+    },
+    "runtimeError": {
+      "type": "object",
+      "properties": {
+        "error": {
+          "type": "string"
+        },
+        "code": {
+          "type": "integer",
+          "format": "int32"
+        },
+        "message": {
+          "type": "string"
+        },
+        "details": {
+          "type": "array",
+          "items": {
+            "$ref": "#/definitions/protobufAny"
+          }
+        }
+      }
+    },
+    "v1ListMeta": {
+      "type": "object",
+      "properties": {
+        "selfLink": {
+          "type": "string",
+          "title": "Deprecated: selfLink is a legacy read-only field that is no longer populated by the system.\n+optional"
+        },
+        "resourceVersion": {
+          "type": "string",
+          "title": "String that identifies the server's internal version of this object that\ncan be used by clients to determine when objects have changed.\nValue must be treated as opaque by clients and passed unmodified back to the server.\nPopulated by the system.\nRead-only.\nMore info: https://git.k8s.io/community/contributors/devel/sig-architecture/api-conventions.md#concurrency-control-and-consistency\n+optional"
+        },
+        "continue": {
+          "type": "string",
+          "description": "continue may be set if the user set a limit on the number of items returned, and indicates that\nthe server has more data available. The value is opaque and may be used to issue another request\nto the endpoint that served this list to retrieve the next set of available objects. Continuing a\nconsistent list may not be possible if the server configuration has changed or more than a few\nminutes have passed. The resourceVersion field returned when using this continue value will be\nidentical to the value in the first response, unless you have received this token from an error\nmessage."
+        },
+        "remainingItemCount": {
+          "type": "string",
+          "format": "int64",
+          "title": "remainingItemCount is the number of subsequent items in the list which are not included in this\nlist response. If the list request contained label or field selectors, then the number of\nremaining items is unknown and the field will be left unset and omitted during serialization.\nIf the list is complete (either because it is not chunking or because this is the last chunk),\nthen there are no more remaining items and this field will be left unset and omitted during\nserialization.\nServers older than v1.15 do not set this field.\nThe intended use of the remainingItemCount is *estimating* the size of a collection. Clients\nshould not rely on the remainingItemCount to be set or to be exact.\n+optional"
+        }
+      },
+      "description": "ListMeta describes metadata that synthetic resources must have, including lists and\nvarious status objects. A resource may have only one of {ObjectMeta, ListMeta}."
+    },
+    "v1Time": {
+      "type": "object",
+      "properties": {
+        "seconds": {
+          "type": "string",
+          "format": "int64",
+          "description": "Represents seconds of UTC time since Unix epoch\n1970-01-01T00:00:00Z. Must be from 0001-01-01T00:00:00Z to\n9999-12-31T23:59:59Z inclusive."
+        },
+        "nanos": {
+          "type": "integer",
+          "format": "int32",
+          "description": "Non-negative fractions of a second at nanosecond resolution. Negative\nsecond values with fractions must still have non-negative nanos values\nthat count forward in time. Must be from 0 to 999,999,999\ninclusive. This field may be limited in precision depending on context."
+        }
+      },
+      "description": "Time is a wrapper around time.Time which supports correct\nmarshaling to YAML and JSON.  Wrappers are provided for many\nof the factory methods that the time package offers.\n\n+protobuf.options.marshal=false\n+protobuf.as=Timestamp\n+protobuf.options.(gogoproto.goproto_stringer)=false"
+    },
+    "v1alpha1ApplicationSource": {
+      "type": "object",
+      "properties": {
+        "repoURL": {
+          "type": "string",
+          "title": "RepoURL is the URL to the repository (Git or Helm) that contains the application manifests"
+        },
+        "path": {
+          "type": "string",
+          "description": "Path is a directory path within the Git repository, and is only valid for applications sourced from Git."
+        },
+        "targetRevision": {
+          "type": "string",
+          "description": "TargetRevision defines the revision of the source to sync the application to.\nIn case of Git, this can be commit, tag, or branch. If omitted, will equal to HEAD.\nIn case of Helm, this is a semver tag for the Chart's version."
+        },
+        "helm": {
+          "$ref": "#/definitions/v1alpha1ApplicationSourceHelm",
+          "title": "Helm holds helm specific options"
+        },
+        "kustomize": {
+          "$ref": "#/definitions/v1alpha1ApplicationSourceKustomize",
+          "title": "Kustomize holds kustomize specific options"
+        },
+        "directory": {
+          "$ref": "#/definitions/v1alpha1ApplicationSourceDirectory",
+          "title": "Directory holds path/directory specific options"
+        },
+        "plugin": {
+          "$ref": "#/definitions/v1alpha1ApplicationSourcePlugin",
+          "title": "Plugin holds config management plugin specific options"
+        },
+        "chart": {
+          "type": "string",
+          "description": "Chart is a Helm chart name, and must be specified for applications sourced from a Helm repo."
+        }
+      },
+      "title": "ApplicationSource contains all required information about the source of an application"
+    },
+    "v1alpha1ApplicationSourceDirectory": {
+      "type": "object",
+      "properties": {
+        "recurse": {
+          "type": "boolean",
+          "title": "Recurse specifies whether to scan a directory recursively for manifests"
+        },
+        "jsonnet": {
+          "$ref": "#/definitions/v1alpha1ApplicationSourceJsonnet",
+          "title": "Jsonnet holds options specific to Jsonnet"
+        },
+        "exclude": {
+          "type": "string",
+          "title": "Exclude contains a glob pattern to match paths against that should be explicitly excluded from being used during manifest generation"
+        },
+        "include": {
+          "type": "string",
+          "title": "Include contains a glob pattern to match paths against that should be explicitly included during manifest generation"
+        }
+      },
+      "title": "ApplicationSourceDirectory holds options for applications of type plain YAML or Jsonnet"
+    },
+    "v1alpha1ApplicationSourceHelm": {
+      "type": "object",
+      "properties": {
+        "valueFiles": {
+          "type": "array",
+          "items": {
+            "type": "string"
+          },
+          "title": "ValuesFiles is a list of Helm value files to use when generating a template"
+        },
+        "parameters": {
+          "type": "array",
+          "items": {
+            "$ref": "#/definitions/v1alpha1HelmParameter"
+          },
+          "title": "Parameters is a list of Helm parameters which are passed to the helm template command upon manifest generation"
+        },
+        "releaseName": {
+          "type": "string",
+          "title": "ReleaseName is the Helm release name to use. If omitted it will use the application name"
+        },
+        "values": {
+          "type": "string",
+          "title": "Values specifies Helm values to be passed to helm template, typically defined as a block"
+        },
+        "fileParameters": {
+          "type": "array",
+          "items": {
+            "$ref": "#/definitions/v1alpha1HelmFileParameter"
+          },
+          "title": "FileParameters are file parameters to the helm template"
+        },
+        "version": {
+          "type": "string",
+          "title": "Version is the Helm version to use for templating (\"3\")"
+        },
+        "passCredentials": {
+          "type": "boolean",
+          "title": "PassCredentials pass credentials to all domains (Helm's --pass-credentials)"
+        },
+        "ignoreMissingValueFiles": {
+          "type": "boolean",
+          "title": "IgnoreMissingValueFiles prevents helm template from failing when valueFiles do not exist locally by not appending them to helm template --values"
+        },
+        "skipCrds": {
+          "type": "boolean",
+          "title": "SkipCrds skips custom resource definition installation step (Helm's --skip-crds)"
+        }
+      },
+      "title": "ApplicationSourceHelm holds helm specific options"
+    },
+    "v1alpha1ApplicationSourceJsonnet": {
+      "type": "object",
+      "properties": {
+        "extVars": {
+          "type": "array",
+          "items": {
+            "$ref": "#/definitions/v1alpha1JsonnetVar"
+          },
+          "title": "ExtVars is a list of Jsonnet External Variables"
+        },
+        "tlas": {
+          "type": "array",
+          "items": {
+            "$ref": "#/definitions/v1alpha1JsonnetVar"
+          },
+          "title": "TLAS is a list of Jsonnet Top-level Arguments"
+        },
+        "libs": {
+          "type": "array",
+          "items": {
+            "type": "string"
+          },
+          "title": "Additional library search dirs"
+        }
+      },
+      "title": "ApplicationSourceJsonnet holds options specific to applications of type Jsonnet"
+    },
+    "v1alpha1ApplicationSourceKustomize": {
+      "type": "object",
+      "properties": {
+        "namePrefix": {
+          "type": "string",
+          "title": "NamePrefix is a prefix appended to resources for Kustomize apps"
+        },
+        "nameSuffix": {
+          "type": "string",
+          "title": "NameSuffix is a suffix appended to resources for Kustomize apps"
+        },
+        "images": {
+          "type": "array",
+          "items": {
+            "type": "string"
+          },
+          "title": "Images is a list of Kustomize image override specifications"
+        },
+        "commonLabels": {
+          "type": "object",
+          "additionalProperties": {
+            "type": "string"
+          },
+          "title": "CommonLabels is a list of additional labels to add to rendered manifests"
+        },
+        "version": {
+          "type": "string",
+          "title": "Version controls which version of Kustomize to use for rendering manifests"
+        },
+        "commonAnnotations": {
+          "type": "object",
+          "additionalProperties": {
+            "type": "string"
+          },
+          "title": "CommonAnnotations is a list of additional annotations to add to rendered manifests"
+        },
+        "forceCommonLabels": {
+          "type": "boolean",
+          "title": "ForceCommonLabels specifies whether to force applying common labels to resources for Kustomize apps"
+        },
+        "forceCommonAnnotations": {
+          "type": "boolean",
+          "title": "ForceCommonAnnotations specifies whether to force applying common annotations to resources for Kustomize apps"
+        },
+        "forceNamespace": {
+          "type": "boolean",
+          "title": "ForceNamespace if true, will use the application's destination namespace as a kustomization file namespace"
+        },
+        "components": {
+          "type": "array",
+          "items": {
+            "type": "string"
+          },
+          "title": "Components specifies a list of kustomize components to add to the kustmization before building"
+        }
+      },
+      "title": "ApplicationSourceKustomize holds options specific to an Application source specific to Kustomize"
+    },
+    "v1alpha1ApplicationSourcePlugin": {
+      "type": "object",
+      "properties": {
+        "name": {
+          "type": "string"
+        },
+        "env": {
+          "type": "array",
+          "items": {
+            "$ref": "#/definitions/applicationv1alpha1EnvEntry"
+          }
+        }
+      },
+      "title": "ApplicationSourcePlugin holds options specific to config management plugins"
+    },
+    "v1alpha1ConnectionState": {
+      "type": "object",
+      "properties": {
+        "status": {
+          "type": "string",
+          "title": "Status contains the current status indicator for the connection"
+        },
+        "message": {
+          "type": "string",
+          "title": "Message contains human readable information about the connection status"
+        },
+        "attemptedAt": {
+          "$ref": "#/definitions/v1Time",
+          "title": "ModifiedAt contains the timestamp when this connection status has been determined"
+        }
+      },
+      "title": "ConnectionState contains information about remote resource connection state, currently used for clusters and repositories"
+    },
+    "v1alpha1HelmFileParameter": {
+      "type": "object",
+      "properties": {
+        "name": {
+          "type": "string",
+          "title": "Name is the name of the Helm parameter"
+        },
+        "path": {
+          "type": "string",
+          "title": "Path is the path to the file containing the values for the Helm parameter"
+        }
+      },
+      "title": "HelmFileParameter is a file parameter that's passed to helm template during manifest generation"
+    },
+    "v1alpha1HelmParameter": {
+      "type": "object",
+      "properties": {
+        "name": {
+          "type": "string",
+          "title": "Name is the name of the Helm parameter"
+        },
+        "value": {
+          "type": "string",
+          "title": "Value is the value for the Helm parameter"
+        },
+        "forceString": {
+          "type": "boolean",
+          "title": "ForceString determines whether to tell Helm to interpret booleans and numbers as strings"
+        }
+      },
+      "title": "HelmParameter is a parameter that's passed to helm template during manifest generation"
+    },
+    "v1alpha1JsonnetVar": {
+      "type": "object",
+      "properties": {
+        "name": {
+          "type": "string"
+        },
+        "value": {
+          "type": "string"
+        },
+        "code": {
+          "type": "boolean"
+        }
+      },
+      "title": "JsonnetVar represents a variable to be passed to jsonnet during manifest generation"
+    },
+    "v1alpha1Repository": {
+      "type": "object",
+      "properties": {
+        "repo": {
+          "type": "string",
+          "title": "Repo contains the URL to the remote repository"
+        },
+        "username": {
+          "type": "string",
+          "title": "Username contains the user name used for authenticating at the remote repository"
+        },
+        "password": {
+          "type": "string",
+          "title": "Password contains the password or PAT used for authenticating at the remote repository"
+        },
+        "sshPrivateKey": {
+          "type": "string",
+          "description": "SSHPrivateKey contains the PEM data for authenticating at the repo server. Only used with Git repos."
+        },
+        "connectionState": {
+          "$ref": "#/definitions/v1alpha1ConnectionState",
+          "title": "ConnectionState contains information about the current state of connection to the repository server"
+        },
+        "insecureIgnoreHostKey": {
+          "type": "boolean",
+          "title": "InsecureIgnoreHostKey should not be used anymore, Insecure is favoured\nUsed only for Git repos"
+        },
+        "insecure": {
+          "type": "boolean",
+          "title": "Insecure specifies whether the connection to the repository ignores any errors when verifying TLS certificates or SSH host keys"
+        },
+        "enableLfs": {
+          "type": "boolean",
+          "description": "EnableLFS specifies whether git-lfs support should be enabled for this repo. Only valid for Git repositories."
+        },
+        "tlsClientCertData": {
+          "type": "string",
+          "title": "TLSClientCertData contains a certificate in PEM format for authenticating at the repo server"
+        },
+        "tlsClientCertKey": {
+          "type": "string",
+          "title": "TLSClientCertKey contains a private key in PEM format for authenticating at the repo server"
+        },
+        "type": {
+          "type": "string",
+          "description": "Type specifies the type of the repo. Can be either \"git\" or \"helm. \"git\" is assumed if empty or absent."
+        },
+        "name": {
+          "type": "string",
+          "title": "Name specifies a name to be used for this repo. Only used with Helm repos"
+        },
+        "inheritedCreds": {
+          "type": "boolean",
+          "title": "Whether credentials were inherited from a credential set"
+        },
+        "enableOCI": {
+          "type": "boolean",
+          "title": "EnableOCI specifies whether helm-oci support should be enabled for this repo"
+        },
+        "githubAppPrivateKey": {
+          "type": "string",
+          "title": "Github App Private Key PEM data"
+        },
+        "githubAppID": {
+          "type": "string",
+          "format": "int64",
+          "title": "GithubAppId specifies the ID of the GitHub app used to access the repo"
+        },
+        "githubAppInstallationID": {
+          "type": "string",
+          "format": "int64",
+          "title": "GithubAppInstallationId specifies the installation ID of the GitHub App used to access the repo"
+        },
+        "githubAppEnterpriseBaseUrl": {
+          "type": "string",
+          "title": "GithubAppEnterpriseBaseURL specifies the base URL of GitHub Enterprise installation. If empty will default to https://api.github.com"
+        },
+        "proxy": {
+          "type": "string",
+          "title": "Proxy specifies the HTTP/HTTPS proxy used to access the repo"
+        },
+        "project": {
+          "type": "string",
+          "title": "Reference between project and repository that allow you automatically to be added as item inside SourceRepos project entity"
+        }
+      },
+      "title": "Repository is a repository holding application configurations"
+    },
+    "v1alpha1RepositoryList": {
+      "type": "object",
+      "properties": {
+        "metadata": {
+          "$ref": "#/definitions/v1ListMeta"
+        },
+        "items": {
+          "type": "array",
+          "items": {
+            "$ref": "#/definitions/v1alpha1Repository"
+          }
+        }
+      },
+      "description": "RepositoryList is a collection of Repositories."
+    }
+  }
+}

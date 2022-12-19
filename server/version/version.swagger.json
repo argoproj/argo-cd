@@ -1,0 +1,116 @@
+{
+  "swagger": "2.0",
+  "info": {
+    "title": "Version Service",
+    "description": "Version Service API returns the version of the API server.",
+    "version": "version not set"
+  },
+  "consumes": [
+    "application/json"
+  ],
+  "produces": [
+    "application/json"
+  ],
+  "paths": {
+    "/api/version": {
+      "get": {
+        "summary": "Version returns version information of the API server",
+        "operationId": "VersionService_Version",
+        "responses": {
+          "200": {
+            "description": "A successful response.",
+            "schema": {
+              "$ref": "#/definitions/versionVersionMessage"
+            }
+          },
+          "default": {
+            "description": "An unexpected error response.",
+            "schema": {
+              "$ref": "#/definitions/runtimeError"
+            }
+          }
+        },
+        "tags": [
+          "VersionService"
+        ]
+      }
+    }
+  },
+  "definitions": {
+    "protobufAny": {
+      "type": "object",
+      "properties": {
+        "type_url": {
+          "type": "string"
+        },
+        "value": {
+          "type": "string",
+          "format": "byte"
+        }
+      }
+    },
+    "runtimeError": {
+      "type": "object",
+      "properties": {
+        "error": {
+          "type": "string"
+        },
+        "code": {
+          "type": "integer",
+          "format": "int32"
+        },
+        "message": {
+          "type": "string"
+        },
+        "details": {
+          "type": "array",
+          "items": {
+            "$ref": "#/definitions/protobufAny"
+          }
+        }
+      }
+    },
+    "versionVersionMessage": {
+      "type": "object",
+      "properties": {
+        "Version": {
+          "type": "string"
+        },
+        "BuildDate": {
+          "type": "string"
+        },
+        "GitCommit": {
+          "type": "string"
+        },
+        "GitTag": {
+          "type": "string"
+        },
+        "GitTreeState": {
+          "type": "string"
+        },
+        "GoVersion": {
+          "type": "string"
+        },
+        "Compiler": {
+          "type": "string"
+        },
+        "Platform": {
+          "type": "string"
+        },
+        "KustomizeVersion": {
+          "type": "string"
+        },
+        "HelmVersion": {
+          "type": "string"
+        },
+        "KubectlVersion": {
+          "type": "string"
+        },
+        "JsonnetVersion": {
+          "type": "string"
+        }
+      },
+      "title": "VersionMessage represents version of the Argo CD API server"
+    }
+  }
+}

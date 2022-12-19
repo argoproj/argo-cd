@@ -8,6 +8,7 @@ import (
 	"fmt"
 	goio "io"
 	"io/fs"
+	"io/ioutil"
 	"net/url"
 	"os"
 	"os/exec"
@@ -21,12 +22,10 @@ import (
 
 	"k8s.io/apimachinery/pkg/api/resource"
 
-	"github.com/argoproj/argo-cd/v2/common"
-	"github.com/argoproj/argo-cd/v2/util/io/files"
-	"github.com/argoproj/argo-cd/v2/util/manifeststream"
-
 	"github.com/Masterminds/semver/v3"
 	"github.com/TomOnTime/utfutil"
+	"github.com/argoproj/argo-cd/v2/common"
+	"github.com/argoproj/argo-cd/v2/util/io/files"
 	"github.com/argoproj/gitops-engine/pkg/utils/kube"
 	textutils "github.com/argoproj/gitops-engine/pkg/utils/text"
 	"github.com/argoproj/pkg/sync"
@@ -601,7 +600,7 @@ func (s *Service) runManifestGenAsync(ctx context.Context, repoRoot, commitSHA, 
 
 	opContext, err := opContextSrc()
 	if err == nil {
-		manifestGenResult, err = GenerateManifests(ctx, opContext.appPath, repoRoot, commitSHA, q, false, s.gitCredsStore, s.initConstants.MaxCombinedDirectoryManifestsSize, WithCMPTarDoneChannel(ch.tarDoneCh), WithCMPTarExcludedGlobs(s.initConstants.CMPTarExcludedGlobs))
+		manifestGenResult, err = GenerateManifests(ctx, opContext.appPath, repoRoot, commitSHA, q, false, s.gitCredsStore, gitClient, s.initConstants.MaxCombinedDirectoryManifestsSize, WithCMPTarDoneChannel(ch.tarDoneCh), WithCMPTarExcludedGlobs(s.initConstants.CMPTarExcludedGlobs))
 	}
 	if err != nil {
 		// If manifest generation error caching is enabled
@@ -1054,39 +1053,8 @@ func getRepoCredential(repoCredentials []*v1alpha1.RepoCreds, repoURL string) *v
 	return nil
 }
 
-type GenerateManifestOpt func(*generateManifestOpt)
-type generateManifestOpt struct {
-	cmpTarDoneCh        chan<- bool
-	cmpTarExcludedGlobs []string
-}
-
-func newGenerateManifestOpt(opts ...GenerateManifestOpt) *generateManifestOpt {
-	o := &generateManifestOpt{}
-	for _, opt := range opts {
-		opt(o)
-	}
-	return o
-}
-
-// WithCMPTarDoneChannel defines the channel to be used to signalize when the tarball
-// generation is concluded when generating manifests with the CMP server. This is used
-// to unlock the git repo as soon as possible.
-func WithCMPTarDoneChannel(ch chan<- bool) GenerateManifestOpt {
-	return func(o *generateManifestOpt) {
-		o.cmpTarDoneCh = ch
-	}
-}
-
-// WithCMPTarExcludedGlobs defines globs for files to filter out when streaming the tarball
-// to a CMP sidecar.
-func WithCMPTarExcludedGlobs(excludedGlobs []string) GenerateManifestOpt {
-	return func(o *generateManifestOpt) {
-		o.cmpTarExcludedGlobs = excludedGlobs
-	}
-}
-
-// GenerateManifests generates manifests from a path. Overrides are applied as a side effect on the given ApplicationSource.
-func GenerateManifests(ctx context.Context, appPath, repoRoot, revision string, q *apiclient.ManifestRequest, isLocal bool, gitCredsStore git.CredsStore, maxCombinedManifestQuantity resource.Quantity, opts ...GenerateManifestOpt) (*apiclient.ManifestResponse, error) {
+// GenerateManifests generates manifests from a path
+func GenerateManifests(ctx context.Context, appPath, repoRoot, revision string, q *apiclient.ManifestRequest, isLocal bool, gitCredsStore git.CredsStore, gitClient git.Client, maxCombinedManifestQuantity resource.Quantity, opts ...GenerateManifestOpt) (*apiclient.ManifestResponse, error) {
 	opt := newGenerateManifestOpt(opts...)
 
 	var (

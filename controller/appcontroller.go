@@ -445,7 +445,7 @@ func (ctrl *ApplicationController) getResourceTree(a *appv1.Application, managed
 		}
 
 		if live == nil {
-			newNode := appv1.ResourceNode{
+			nodes = append(nodes, appv1.ResourceNode{
 				ResourceRef: appv1.ResourceRef{
 					Version:   target.GroupVersionKind().Version,
 					Name:      managedResource.Name,
@@ -453,16 +453,7 @@ func (ctrl *ApplicationController) getResourceTree(a *appv1.Application, managed
 					Group:     managedResource.Group,
 					Namespace: managedResource.Namespace,
 				},
-			}
-
-			if targetLabels := target.GetLabels(); targetLabels != nil {
-				newNode.Labels = targetLabels
-			}
-			if targetAnnotations := target.GetAnnotations(); targetAnnotations != nil {
-				newNode.Annotations = targetAnnotations
-			}
-
-			nodes = append(nodes, newNode)
+			})
 		} else {
 			err := ctrl.stateCache.IterateHierarchy(a.Spec.Destination.Server, kube.GetResourceKey(live), func(child appv1.ResourceNode, appName string) bool {
 				permitted, _ := proj.IsResourcePermitted(schema.GroupKind{Group: child.ResourceRef.Group, Kind: child.ResourceRef.Kind}, child.Namespace, a.Spec.Destination, func(project string) ([]*appv1.Cluster, error) {

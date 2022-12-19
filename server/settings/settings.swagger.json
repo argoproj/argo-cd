@@ -1,0 +1,387 @@
+{
+  "swagger": "2.0",
+  "info": {
+    "title": "Settings Service",
+    "description": "Settings Service API retrieves Argo CD settings",
+    "version": "version not set"
+  },
+  "consumes": [
+    "application/json"
+  ],
+  "produces": [
+    "application/json"
+  ],
+  "paths": {
+    "/api/v1/settings": {
+      "get": {
+        "summary": "Get returns Argo CD settings",
+        "operationId": "SettingsService_Get",
+        "responses": {
+          "200": {
+            "description": "A successful response.",
+            "schema": {
+              "$ref": "#/definitions/clusterSettings"
+            }
+          },
+          "default": {
+            "description": "An unexpected error response.",
+            "schema": {
+              "$ref": "#/definitions/runtimeError"
+            }
+          }
+        },
+        "tags": [
+          "SettingsService"
+        ]
+      }
+    }
+  },
+  "definitions": {
+    "clusterConnector": {
+      "type": "object",
+      "properties": {
+        "name": {
+          "type": "string"
+        },
+        "type": {
+          "type": "string"
+        }
+      }
+    },
+    "clusterDexConfig": {
+      "type": "object",
+      "properties": {
+        "connectors": {
+          "type": "array",
+          "items": {
+            "$ref": "#/definitions/clusterConnector"
+          }
+        }
+      }
+    },
+    "clusterGoogleAnalyticsConfig": {
+      "type": "object",
+      "properties": {
+        "trackingID": {
+          "type": "string"
+        },
+        "anonymizeUsers": {
+          "type": "boolean"
+        }
+      }
+    },
+    "clusterHelp": {
+      "type": "object",
+      "properties": {
+        "chatUrl": {
+          "type": "string",
+          "title": "the URL for getting chat help, this will typically be your Slack channel for support"
+        },
+        "chatText": {
+          "type": "string",
+          "title": "the text for getting chat help, defaults to \"Chat now!\""
+        },
+        "binaryUrls": {
+          "type": "object",
+          "additionalProperties": {
+            "type": "string"
+          },
+          "title": "the URLs for downloading argocd binaries"
+        }
+      },
+      "title": "Help settings"
+    },
+    "clusterOIDCConfig": {
+      "type": "object",
+      "properties": {
+        "name": {
+          "type": "string"
+        },
+        "issuer": {
+          "type": "string"
+        },
+        "clientID": {
+          "type": "string"
+        },
+        "cliClientID": {
+          "type": "string"
+        },
+        "scopes": {
+          "type": "array",
+          "items": {
+            "type": "string"
+          }
+        },
+        "idTokenClaims": {
+          "type": "object",
+          "additionalProperties": {
+            "$ref": "#/definitions/oidcClaim"
+          }
+        }
+      }
+    },
+    "clusterPlugin": {
+      "type": "object",
+      "properties": {
+        "name": {
+          "type": "string",
+          "title": "the name of the plugin, e.g. \"kasane\""
+        }
+      },
+      "title": "Plugin settings"
+    },
+    "clusterSettings": {
+      "type": "object",
+      "properties": {
+        "url": {
+          "type": "string"
+        },
+        "dexConfig": {
+          "$ref": "#/definitions/clusterDexConfig"
+        },
+        "oidcConfig": {
+          "$ref": "#/definitions/clusterOIDCConfig"
+        },
+        "appLabelKey": {
+          "type": "string"
+        },
+        "resourceOverrides": {
+          "type": "object",
+          "additionalProperties": {
+            "$ref": "#/definitions/v1alpha1ResourceOverride"
+          }
+        },
+        "statusBadgeEnabled": {
+          "type": "boolean"
+        },
+        "googleAnalytics": {
+          "$ref": "#/definitions/clusterGoogleAnalyticsConfig"
+        },
+        "kustomizeOptions": {
+          "$ref": "#/definitions/v1alpha1KustomizeOptions"
+        },
+        "help": {
+          "$ref": "#/definitions/clusterHelp",
+          "title": "Help settings"
+        },
+        "plugins": {
+          "type": "array",
+          "items": {
+            "$ref": "#/definitions/clusterPlugin"
+          }
+        },
+        "userLoginsDisabled": {
+          "type": "boolean"
+        },
+        "configManagementPlugins": {
+          "type": "array",
+          "items": {
+            "$ref": "#/definitions/v1alpha1ConfigManagementPlugin"
+          }
+        },
+        "kustomizeVersions": {
+          "type": "array",
+          "items": {
+            "type": "string"
+          }
+        },
+        "uiCssURL": {
+          "type": "string"
+        },
+        "uiBannerContent": {
+          "type": "string"
+        },
+        "uiBannerURL": {
+          "type": "string"
+        },
+        "passwordPattern": {
+          "type": "string"
+        },
+        "trackingMethod": {
+          "type": "string"
+        },
+        "uiBannerPermanent": {
+          "type": "boolean"
+        },
+        "uiBannerPosition": {
+          "type": "string"
+        },
+        "statusBadgeRootUrl": {
+          "type": "string"
+        },
+        "execEnabled": {
+          "type": "boolean"
+        },
+        "controllerNamespace": {
+          "type": "string"
+        },
+        "appsInAnyNamespaceEnabled": {
+          "type": "boolean"
+        }
+      }
+    },
+    "oidcClaim": {
+      "type": "object",
+      "properties": {
+        "essential": {
+          "type": "boolean"
+        },
+        "value": {
+          "type": "string"
+        },
+        "values": {
+          "type": "array",
+          "items": {
+            "type": "string"
+          }
+        }
+      }
+    },
+    "protobufAny": {
+      "type": "object",
+      "properties": {
+        "type_url": {
+          "type": "string"
+        },
+        "value": {
+          "type": "string",
+          "format": "byte"
+        }
+      }
+    },
+    "runtimeError": {
+      "type": "object",
+      "properties": {
+        "error": {
+          "type": "string"
+        },
+        "code": {
+          "type": "integer",
+          "format": "int32"
+        },
+        "message": {
+          "type": "string"
+        },
+        "details": {
+          "type": "array",
+          "items": {
+            "$ref": "#/definitions/protobufAny"
+          }
+        }
+      }
+    },
+    "v1alpha1Command": {
+      "type": "object",
+      "properties": {
+        "command": {
+          "type": "array",
+          "items": {
+            "type": "string"
+          }
+        },
+        "args": {
+          "type": "array",
+          "items": {
+            "type": "string"
+          }
+        }
+      },
+      "title": "Command holds binary path and arguments list"
+    },
+    "v1alpha1ConfigManagementPlugin": {
+      "type": "object",
+      "properties": {
+        "name": {
+          "type": "string"
+        },
+        "init": {
+          "$ref": "#/definitions/v1alpha1Command"
+        },
+        "generate": {
+          "$ref": "#/definitions/v1alpha1Command"
+        },
+        "lockRepo": {
+          "type": "boolean"
+        }
+      },
+      "title": "ConfigManagementPlugin contains config management plugin configuration"
+    },
+    "v1alpha1KnownTypeField": {
+      "type": "object",
+      "properties": {
+        "field": {
+          "type": "string"
+        },
+        "type": {
+          "type": "string"
+        }
+      },
+      "title": "KnownTypeField contains mapping between CRD field and known Kubernetes type.\nThis is mainly used for unit conversion in unknown resources (e.g. 0.1 == 100mi)\nTODO: Describe the members of this type"
+    },
+    "v1alpha1KustomizeOptions": {
+      "type": "object",
+      "properties": {
+        "buildOptions": {
+          "type": "string",
+          "title": "BuildOptions is a string of build parameters to use when calling `kustomize build`"
+        },
+        "binaryPath": {
+          "type": "string",
+          "title": "BinaryPath holds optional path to kustomize binary"
+        }
+      },
+      "title": "KustomizeOptions are options for kustomize to use when building manifests"
+    },
+    "v1alpha1OverrideIgnoreDiff": {
+      "type": "object",
+      "properties": {
+        "jSONPointers": {
+          "type": "array",
+          "items": {
+            "type": "string"
+          },
+          "title": "JSONPointers is a JSON path list following the format defined in RFC4627 (https://datatracker.ietf.org/doc/html/rfc6902#section-3)"
+        },
+        "jqPathExpressions": {
+          "type": "array",
+          "items": {
+            "type": "string"
+          },
+          "title": "JQPathExpressions is a JQ path list that will be evaludated during the diff process"
+        },
+        "managedFieldsManagers": {
+          "type": "array",
+          "items": {
+            "type": "string"
+          },
+          "title": "ManagedFieldsManagers is a list of trusted managers. Fields mutated by those managers will take precedence over the\ndesired state defined in the SCM and won't be displayed in diffs"
+        }
+      },
+      "title": "OverrideIgnoreDiff contains configurations about how fields should be ignored during diffs between\nthe desired state and live state"
+    },
+    "v1alpha1ResourceOverride": {
+      "type": "object",
+      "properties": {
+        "healthLua": {
+          "type": "string"
+        },
+        "useOpenLibs": {
+          "type": "boolean"
+        },
+        "actions": {
+          "type": "string"
+        },
+        "ignoreDifferences": {
+          "$ref": "#/definitions/v1alpha1OverrideIgnoreDiff"
+        },
+        "knownTypeFields": {
+          "type": "array",
+          "items": {
+            "$ref": "#/definitions/v1alpha1KnownTypeField"
+          }
+        }
+      },
+      "title": "ResourceOverride holds configuration to customize resource diffing and health assessment\nTODO: describe the members of this type"
+    }
+  }
+}

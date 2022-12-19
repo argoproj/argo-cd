@@ -1,0 +1,291 @@
+{
+  "swagger": "2.0",
+  "info": {
+    "title": "Repository Service",
+    "description": "Repository Service API performs CRUD actions against repository resources",
+    "version": "version not set"
+  },
+  "consumes": [
+    "application/json"
+  ],
+  "produces": [
+    "application/json"
+  ],
+  "paths": {
+    "/api/v1/repocreds": {
+      "get": {
+        "summary": "ListRepositoryCredentials gets a list of all configured repository credential sets",
+        "operationId": "RepoCredsService_ListRepositoryCredentials",
+        "responses": {
+          "200": {
+            "description": "A successful response.",
+            "schema": {
+              "$ref": "#/definitions/v1alpha1RepoCredsList"
+            }
+          },
+          "default": {
+            "description": "An unexpected error response.",
+            "schema": {
+              "$ref": "#/definitions/runtimeError"
+            }
+          }
+        },
+        "parameters": [
+          {
+            "name": "url",
+            "description": "Repo URL for query.",
+            "in": "query",
+            "required": false,
+            "type": "string"
+          }
+        ],
+        "tags": [
+          "RepoCredsService"
+        ]
+      },
+      "post": {
+        "summary": "CreateRepositoryCredentials creates a new repository credential set",
+        "operationId": "RepoCredsService_CreateRepositoryCredentials",
+        "responses": {
+          "200": {
+            "description": "A successful response.",
+            "schema": {
+              "$ref": "#/definitions/v1alpha1RepoCreds"
+            }
+          },
+          "default": {
+            "description": "An unexpected error response.",
+            "schema": {
+              "$ref": "#/definitions/runtimeError"
+            }
+          }
+        },
+        "parameters": [
+          {
+            "name": "body",
+            "description": "Repository definition",
+            "in": "body",
+            "required": true,
+            "schema": {
+              "$ref": "#/definitions/v1alpha1RepoCreds"
+            }
+          },
+          {
+            "name": "upsert",
+            "description": "Whether to create in upsert mode.",
+            "in": "query",
+            "required": false,
+            "type": "boolean"
+          }
+        ],
+        "tags": [
+          "RepoCredsService"
+        ]
+      }
+    },
+    "/api/v1/repocreds/{creds.url}": {
+      "put": {
+        "summary": "UpdateRepositoryCredentials updates a repository credential set",
+        "operationId": "RepoCredsService_UpdateRepositoryCredentials",
+        "responses": {
+          "200": {
+            "description": "A successful response.",
+            "schema": {
+              "$ref": "#/definitions/v1alpha1RepoCreds"
+            }
+          },
+          "default": {
+            "description": "An unexpected error response.",
+            "schema": {
+              "$ref": "#/definitions/runtimeError"
+            }
+          }
+        },
+        "parameters": [
+          {
+            "name": "creds.url",
+            "description": "URL is the URL that this credentials matches to",
+            "in": "path",
+            "required": true,
+            "type": "string"
+          },
+          {
+            "name": "body",
+            "in": "body",
+            "required": true,
+            "schema": {
+              "$ref": "#/definitions/v1alpha1RepoCreds"
+            }
+          }
+        ],
+        "tags": [
+          "RepoCredsService"
+        ]
+      }
+    },
+    "/api/v1/repocreds/{url}": {
+      "delete": {
+        "summary": "DeleteRepositoryCredentials deletes a repository credential set from the configuration",
+        "operationId": "RepoCredsService_DeleteRepositoryCredentials",
+        "responses": {
+          "200": {
+            "description": "A successful response.",
+            "schema": {
+              "$ref": "#/definitions/repocredsRepoCredsResponse"
+            }
+          },
+          "default": {
+            "description": "An unexpected error response.",
+            "schema": {
+              "$ref": "#/definitions/runtimeError"
+            }
+          }
+        },
+        "parameters": [
+          {
+            "name": "url",
+            "in": "path",
+            "required": true,
+            "type": "string"
+          }
+        ],
+        "tags": [
+          "RepoCredsService"
+        ]
+      }
+    }
+  },
+  "definitions": {
+    "protobufAny": {
+      "type": "object",
+      "properties": {
+        "type_url": {
+          "type": "string"
+        },
+        "value": {
+          "type": "string",
+          "format": "byte"
+        }
+      }
+    },
+    "repocredsRepoCredsResponse": {
+      "type": "object",
+      "title": "RepoCredsResponse is a response to most repository credentials requests"
+    },
+    "runtimeError": {
+      "type": "object",
+      "properties": {
+        "error": {
+          "type": "string"
+        },
+        "code": {
+          "type": "integer",
+          "format": "int32"
+        },
+        "message": {
+          "type": "string"
+        },
+        "details": {
+          "type": "array",
+          "items": {
+            "$ref": "#/definitions/protobufAny"
+          }
+        }
+      }
+    },
+    "v1ListMeta": {
+      "type": "object",
+      "properties": {
+        "selfLink": {
+          "type": "string",
+          "title": "Deprecated: selfLink is a legacy read-only field that is no longer populated by the system.\n+optional"
+        },
+        "resourceVersion": {
+          "type": "string",
+          "title": "String that identifies the server's internal version of this object that\ncan be used by clients to determine when objects have changed.\nValue must be treated as opaque by clients and passed unmodified back to the server.\nPopulated by the system.\nRead-only.\nMore info: https://git.k8s.io/community/contributors/devel/sig-architecture/api-conventions.md#concurrency-control-and-consistency\n+optional"
+        },
+        "continue": {
+          "type": "string",
+          "description": "continue may be set if the user set a limit on the number of items returned, and indicates that\nthe server has more data available. The value is opaque and may be used to issue another request\nto the endpoint that served this list to retrieve the next set of available objects. Continuing a\nconsistent list may not be possible if the server configuration has changed or more than a few\nminutes have passed. The resourceVersion field returned when using this continue value will be\nidentical to the value in the first response, unless you have received this token from an error\nmessage."
+        },
+        "remainingItemCount": {
+          "type": "string",
+          "format": "int64",
+          "title": "remainingItemCount is the number of subsequent items in the list which are not included in this\nlist response. If the list request contained label or field selectors, then the number of\nremaining items is unknown and the field will be left unset and omitted during serialization.\nIf the list is complete (either because it is not chunking or because this is the last chunk),\nthen there are no more remaining items and this field will be left unset and omitted during\nserialization.\nServers older than v1.15 do not set this field.\nThe intended use of the remainingItemCount is *estimating* the size of a collection. Clients\nshould not rely on the remainingItemCount to be set or to be exact.\n+optional"
+        }
+      },
+      "description": "ListMeta describes metadata that synthetic resources must have, including lists and\nvarious status objects. A resource may have only one of {ObjectMeta, ListMeta}."
+    },
+    "v1alpha1RepoCreds": {
+      "type": "object",
+      "properties": {
+        "url": {
+          "type": "string",
+          "title": "URL is the URL that this credentials matches to"
+        },
+        "username": {
+          "type": "string",
+          "title": "Username for authenticating at the repo server"
+        },
+        "password": {
+          "type": "string",
+          "title": "Password for authenticating at the repo server"
+        },
+        "sshPrivateKey": {
+          "type": "string",
+          "title": "SSHPrivateKey contains the private key data for authenticating at the repo server using SSH (only Git repos)"
+        },
+        "tlsClientCertData": {
+          "type": "string",
+          "title": "TLSClientCertData specifies the TLS client cert data for authenticating at the repo server"
+        },
+        "tlsClientCertKey": {
+          "type": "string",
+          "title": "TLSClientCertKey specifies the TLS client cert key for authenticating at the repo server"
+        },
+        "githubAppPrivateKey": {
+          "type": "string",
+          "title": "GithubAppPrivateKey specifies the private key PEM data for authentication via GitHub app"
+        },
+        "githubAppID": {
+          "type": "string",
+          "format": "int64",
+          "title": "GithubAppId specifies the Github App ID of the app used to access the repo for GitHub app authentication"
+        },
+        "githubAppInstallationID": {
+          "type": "string",
+          "format": "int64",
+          "title": "GithubAppInstallationId specifies the ID of the installed GitHub App for GitHub app authentication"
+        },
+        "githubAppEnterpriseBaseUrl": {
+          "type": "string",
+          "title": "GithubAppEnterpriseBaseURL specifies the GitHub API URL for GitHub app authentication. If empty will default to https://api.github.com"
+        },
+        "enableOCI": {
+          "type": "boolean",
+          "title": "EnableOCI specifies whether helm-oci support should be enabled for this repo"
+        },
+        "type": {
+          "type": "string",
+          "description": "Type specifies the type of the repoCreds. Can be either \"git\" or \"helm. \"git\" is assumed if empty or absent."
+        }
+      },
+      "title": "RepoCreds holds the definition for repository credentials"
+    },
+    "v1alpha1RepoCredsList": {
+      "type": "object",
+      "properties": {
+        "metadata": {
+          "$ref": "#/definitions/v1ListMeta"
+        },
+        "items": {
+          "type": "array",
+          "items": {
+            "$ref": "#/definitions/v1alpha1RepoCreds"
+          }
+        }
+      },
+      "description": "RepositoryList is a collection of Repositories."
+    }
+  }
+}

@@ -754,34 +754,3 @@ func isSelfReferencedObj(obj *unstructured.Unstructured, aiv argo.AppInstanceVal
 		obj.GetObjectKind().GroupVersionKind().Group == aiv.Group &&
 		obj.GetObjectKind().GroupVersionKind().Kind == aiv.Kind
 }
-
-// isSelfReferencedObj returns whether the given obj is managed by the application
-// according to the values in the tracking annotation. It returns true when all
-// of the properties in the annotation (name, namespace, group and kind) match
-// the properties of the inspected object, or if the tracking method used does
-// not provide the required properties for matching.
-func (m *appStateManager) isSelfReferencedObj(obj *unstructured.Unstructured, appLabelKey string, trackingMethod v1alpha1.TrackingMethod) bool {
-	if obj == nil {
-		return true
-	}
-
-	// If tracking method doesn't contain required metadata for this check,
-	// we are not able to determine and just assume the object to be managed.
-	if trackingMethod == argo.TrackingMethodLabel {
-		return true
-	}
-
-	// In order for us to assume obj to be managed by this application, the
-	// values from the annotation have to match the properties from the live
-	// object. Cluster scoped objects carry the app's destination namespace
-	// in the tracking annotation, but are unique in GVK + name combination.
-	appInstance := m.resourceTracking.GetAppInstance(obj, appLabelKey, trackingMethod)
-	if appInstance != nil {
-		return (obj.GetNamespace() == appInstance.Namespace || obj.GetNamespace() == "") &&
-			obj.GetName() == appInstance.Name &&
-			obj.GetObjectKind().GroupVersionKind().Group == appInstance.Group &&
-			obj.GetObjectKind().GroupVersionKind().Kind == appInstance.Kind
-	}
-
-	return true
-}

@@ -1,0 +1,669 @@
+{
+  "swagger": "2.0",
+  "info": {
+    "title": "Cluster Service",
+    "description": "Cluster Service API performs CRUD actions against cluster resources",
+    "version": "version not set"
+  },
+  "consumes": [
+    "application/json"
+  ],
+  "produces": [
+    "application/json"
+  ],
+  "paths": {
+    "/api/v1/clusters": {
+      "get": {
+        "summary": "List returns list of clusters",
+        "operationId": "ClusterService_List",
+        "responses": {
+          "200": {
+            "description": "A successful response.",
+            "schema": {
+              "$ref": "#/definitions/v1alpha1ClusterList"
+            }
+          },
+          "default": {
+            "description": "An unexpected error response.",
+            "schema": {
+              "$ref": "#/definitions/runtimeError"
+            }
+          }
+        },
+        "parameters": [
+          {
+            "name": "server",
+            "in": "query",
+            "required": false,
+            "type": "string"
+          },
+          {
+            "name": "name",
+            "in": "query",
+            "required": false,
+            "type": "string"
+          },
+          {
+            "name": "id.type",
+            "description": "type is the type of the specified cluster identifier ( \"server\" - default, \"name\" ).",
+            "in": "query",
+            "required": false,
+            "type": "string"
+          },
+          {
+            "name": "id.value",
+            "description": "value holds the cluster server URL or cluster name.",
+            "in": "query",
+            "required": false,
+            "type": "string"
+          }
+        ],
+        "tags": [
+          "ClusterService"
+        ]
+      },
+      "post": {
+        "summary": "Create creates a cluster",
+        "operationId": "ClusterService_Create",
+        "responses": {
+          "200": {
+            "description": "A successful response.",
+            "schema": {
+              "$ref": "#/definitions/v1alpha1Cluster"
+            }
+          },
+          "default": {
+            "description": "An unexpected error response.",
+            "schema": {
+              "$ref": "#/definitions/runtimeError"
+            }
+          }
+        },
+        "parameters": [
+          {
+            "name": "body",
+            "in": "body",
+            "required": true,
+            "schema": {
+              "$ref": "#/definitions/v1alpha1Cluster"
+            }
+          },
+          {
+            "name": "upsert",
+            "in": "query",
+            "required": false,
+            "type": "boolean"
+          }
+        ],
+        "tags": [
+          "ClusterService"
+        ]
+      }
+    },
+    "/api/v1/clusters/{id.value}": {
+      "get": {
+        "summary": "Get returns a cluster by server address",
+        "operationId": "ClusterService_Get",
+        "responses": {
+          "200": {
+            "description": "A successful response.",
+            "schema": {
+              "$ref": "#/definitions/v1alpha1Cluster"
+            }
+          },
+          "default": {
+            "description": "An unexpected error response.",
+            "schema": {
+              "$ref": "#/definitions/runtimeError"
+            }
+          }
+        },
+        "parameters": [
+          {
+            "name": "id.value",
+            "description": "value holds the cluster server URL or cluster name",
+            "in": "path",
+            "required": true,
+            "type": "string"
+          },
+          {
+            "name": "server",
+            "in": "query",
+            "required": false,
+            "type": "string"
+          },
+          {
+            "name": "name",
+            "in": "query",
+            "required": false,
+            "type": "string"
+          },
+          {
+            "name": "id.type",
+            "description": "type is the type of the specified cluster identifier ( \"server\" - default, \"name\" ).",
+            "in": "query",
+            "required": false,
+            "type": "string"
+          }
+        ],
+        "tags": [
+          "ClusterService"
+        ]
+      },
+      "delete": {
+        "summary": "Delete deletes a cluster",
+        "operationId": "ClusterService_Delete",
+        "responses": {
+          "200": {
+            "description": "A successful response.",
+            "schema": {
+              "$ref": "#/definitions/clusterClusterResponse"
+            }
+          },
+          "default": {
+            "description": "An unexpected error response.",
+            "schema": {
+              "$ref": "#/definitions/runtimeError"
+            }
+          }
+        },
+        "parameters": [
+          {
+            "name": "id.value",
+            "description": "value holds the cluster server URL or cluster name",
+            "in": "path",
+            "required": true,
+            "type": "string"
+          },
+          {
+            "name": "server",
+            "in": "query",
+            "required": false,
+            "type": "string"
+          },
+          {
+            "name": "name",
+            "in": "query",
+            "required": false,
+            "type": "string"
+          },
+          {
+            "name": "id.type",
+            "description": "type is the type of the specified cluster identifier ( \"server\" - default, \"name\" ).",
+            "in": "query",
+            "required": false,
+            "type": "string"
+          }
+        ],
+        "tags": [
+          "ClusterService"
+        ]
+      },
+      "put": {
+        "summary": "Update updates a cluster",
+        "operationId": "ClusterService_Update",
+        "responses": {
+          "200": {
+            "description": "A successful response.",
+            "schema": {
+              "$ref": "#/definitions/v1alpha1Cluster"
+            }
+          },
+          "default": {
+            "description": "An unexpected error response.",
+            "schema": {
+              "$ref": "#/definitions/runtimeError"
+            }
+          }
+        },
+        "parameters": [
+          {
+            "name": "id.value",
+            "description": "value holds the cluster server URL or cluster name",
+            "in": "path",
+            "required": true,
+            "type": "string"
+          },
+          {
+            "name": "body",
+            "in": "body",
+            "required": true,
+            "schema": {
+              "$ref": "#/definitions/v1alpha1Cluster"
+            }
+          },
+          {
+            "name": "updatedFields",
+            "in": "query",
+            "required": false,
+            "type": "array",
+            "items": {
+              "type": "string"
+            },
+            "collectionFormat": "multi"
+          },
+          {
+            "name": "id.type",
+            "description": "type is the type of the specified cluster identifier ( \"server\" - default, \"name\" ).",
+            "in": "query",
+            "required": false,
+            "type": "string"
+          }
+        ],
+        "tags": [
+          "ClusterService"
+        ]
+      }
+    },
+    "/api/v1/clusters/{id.value}/invalidate-cache": {
+      "post": {
+        "summary": "InvalidateCache invalidates cluster cache",
+        "operationId": "ClusterService_InvalidateCache",
+        "responses": {
+          "200": {
+            "description": "A successful response.",
+            "schema": {
+              "$ref": "#/definitions/v1alpha1Cluster"
+            }
+          },
+          "default": {
+            "description": "An unexpected error response.",
+            "schema": {
+              "$ref": "#/definitions/runtimeError"
+            }
+          }
+        },
+        "parameters": [
+          {
+            "name": "id.value",
+            "description": "value holds the cluster server URL or cluster name",
+            "in": "path",
+            "required": true,
+            "type": "string"
+          }
+        ],
+        "tags": [
+          "ClusterService"
+        ]
+      }
+    },
+    "/api/v1/clusters/{id.value}/rotate-auth": {
+      "post": {
+        "summary": "RotateAuth rotates the bearer token used for a cluster",
+        "operationId": "ClusterService_RotateAuth",
+        "responses": {
+          "200": {
+            "description": "A successful response.",
+            "schema": {
+              "$ref": "#/definitions/clusterClusterResponse"
+            }
+          },
+          "default": {
+            "description": "An unexpected error response.",
+            "schema": {
+              "$ref": "#/definitions/runtimeError"
+            }
+          }
+        },
+        "parameters": [
+          {
+            "name": "id.value",
+            "description": "value holds the cluster server URL or cluster name",
+            "in": "path",
+            "required": true,
+            "type": "string"
+          }
+        ],
+        "tags": [
+          "ClusterService"
+        ]
+      }
+    }
+  },
+  "definitions": {
+    "clusterClusterID": {
+      "type": "object",
+      "properties": {
+        "type": {
+          "type": "string",
+          "title": "type is the type of the specified cluster identifier ( \"server\" - default, \"name\" )"
+        },
+        "value": {
+          "type": "string",
+          "title": "value holds the cluster server URL or cluster name"
+        }
+      },
+      "title": "ClusterID holds a cluster server URL or cluster name"
+    },
+    "clusterClusterResponse": {
+      "type": "object"
+    },
+    "protobufAny": {
+      "type": "object",
+      "properties": {
+        "type_url": {
+          "type": "string"
+        },
+        "value": {
+          "type": "string",
+          "format": "byte"
+        }
+      }
+    },
+    "runtimeError": {
+      "type": "object",
+      "properties": {
+        "error": {
+          "type": "string"
+        },
+        "code": {
+          "type": "integer",
+          "format": "int32"
+        },
+        "message": {
+          "type": "string"
+        },
+        "details": {
+          "type": "array",
+          "items": {
+            "$ref": "#/definitions/protobufAny"
+          }
+        }
+      }
+    },
+    "v1ListMeta": {
+      "type": "object",
+      "properties": {
+        "selfLink": {
+          "type": "string",
+          "title": "Deprecated: selfLink is a legacy read-only field that is no longer populated by the system.\n+optional"
+        },
+        "resourceVersion": {
+          "type": "string",
+          "title": "String that identifies the server's internal version of this object that\ncan be used by clients to determine when objects have changed.\nValue must be treated as opaque by clients and passed unmodified back to the server.\nPopulated by the system.\nRead-only.\nMore info: https://git.k8s.io/community/contributors/devel/sig-architecture/api-conventions.md#concurrency-control-and-consistency\n+optional"
+        },
+        "continue": {
+          "type": "string",
+          "description": "continue may be set if the user set a limit on the number of items returned, and indicates that\nthe server has more data available. The value is opaque and may be used to issue another request\nto the endpoint that served this list to retrieve the next set of available objects. Continuing a\nconsistent list may not be possible if the server configuration has changed or more than a few\nminutes have passed. The resourceVersion field returned when using this continue value will be\nidentical to the value in the first response, unless you have received this token from an error\nmessage."
+        },
+        "remainingItemCount": {
+          "type": "string",
+          "format": "int64",
+          "title": "remainingItemCount is the number of subsequent items in the list which are not included in this\nlist response. If the list request contained label or field selectors, then the number of\nremaining items is unknown and the field will be left unset and omitted during serialization.\nIf the list is complete (either because it is not chunking or because this is the last chunk),\nthen there are no more remaining items and this field will be left unset and omitted during\nserialization.\nServers older than v1.15 do not set this field.\nThe intended use of the remainingItemCount is *estimating* the size of a collection. Clients\nshould not rely on the remainingItemCount to be set or to be exact.\n+optional"
+        }
+      },
+      "description": "ListMeta describes metadata that synthetic resources must have, including lists and\nvarious status objects. A resource may have only one of {ObjectMeta, ListMeta}."
+    },
+    "v1Time": {
+      "type": "object",
+      "properties": {
+        "seconds": {
+          "type": "string",
+          "format": "int64",
+          "description": "Represents seconds of UTC time since Unix epoch\n1970-01-01T00:00:00Z. Must be from 0001-01-01T00:00:00Z to\n9999-12-31T23:59:59Z inclusive."
+        },
+        "nanos": {
+          "type": "integer",
+          "format": "int32",
+          "description": "Non-negative fractions of a second at nanosecond resolution. Negative\nsecond values with fractions must still have non-negative nanos values\nthat count forward in time. Must be from 0 to 999,999,999\ninclusive. This field may be limited in precision depending on context."
+        }
+      },
+      "description": "Time is a wrapper around time.Time which supports correct\nmarshaling to YAML and JSON.  Wrappers are provided for many\nof the factory methods that the time package offers.\n\n+protobuf.options.marshal=false\n+protobuf.as=Timestamp\n+protobuf.options.(gogoproto.goproto_stringer)=false"
+    },
+    "v1alpha1AWSAuthConfig": {
+      "type": "object",
+      "properties": {
+        "clusterName": {
+          "type": "string",
+          "title": "ClusterName contains AWS cluster name"
+        },
+        "roleARN": {
+          "type": "string",
+          "description": "RoleARN contains optional role ARN. If set then AWS IAM Authenticator assume a role to perform cluster operations instead of the default AWS credential provider chain."
+        }
+      },
+      "title": "AWSAuthConfig is an AWS IAM authentication configuration"
+    },
+    "v1alpha1Cluster": {
+      "type": "object",
+      "properties": {
+        "server": {
+          "type": "string",
+          "title": "Server is the API server URL of the Kubernetes cluster"
+        },
+        "name": {
+          "type": "string",
+          "title": "Name of the cluster. If omitted, will use the server address"
+        },
+        "config": {
+          "$ref": "#/definitions/v1alpha1ClusterConfig",
+          "title": "Config holds cluster information for connecting to a cluster"
+        },
+        "connectionState": {
+          "$ref": "#/definitions/v1alpha1ConnectionState",
+          "title": "DEPRECATED: use Info.ConnectionState field instead.\nConnectionState contains information about cluster connection state"
+        },
+        "serverVersion": {
+          "type": "string",
+          "title": "DEPRECATED: use Info.ServerVersion field instead.\nThe server version"
+        },
+        "namespaces": {
+          "type": "array",
+          "items": {
+            "type": "string"
+          },
+          "description": "Holds list of namespaces which are accessible in that cluster. Cluster level resources will be ignored if namespace list is not empty."
+        },
+        "refreshRequestedAt": {
+          "$ref": "#/definitions/v1Time",
+          "title": "RefreshRequestedAt holds time when cluster cache refresh has been requested"
+        },
+        "info": {
+          "$ref": "#/definitions/v1alpha1ClusterInfo",
+          "title": "Info holds information about cluster cache and state"
+        },
+        "shard": {
+          "type": "string",
+          "format": "int64",
+          "description": "Shard contains optional shard number. Calculated on the fly by the application controller if not specified."
+        },
+        "clusterResources": {
+          "type": "boolean",
+          "description": "Indicates if cluster level resources should be managed. This setting is used only if cluster is connected in a namespaced mode."
+        },
+        "project": {
+          "type": "string",
+          "title": "Reference between project and cluster that allow you automatically to be added as item inside Destinations project entity"
+        },
+        "labels": {
+          "type": "object",
+          "additionalProperties": {
+            "type": "string"
+          },
+          "title": "Labels for cluster secret metadata"
+        },
+        "annotations": {
+          "type": "object",
+          "additionalProperties": {
+            "type": "string"
+          },
+          "title": "Annotations for cluster secret metadata"
+        }
+      },
+      "title": "Cluster is the definition of a cluster resource"
+    },
+    "v1alpha1ClusterCacheInfo": {
+      "type": "object",
+      "properties": {
+        "resourcesCount": {
+          "type": "string",
+          "format": "int64",
+          "title": "ResourcesCount holds number of observed Kubernetes resources"
+        },
+        "apisCount": {
+          "type": "string",
+          "format": "int64",
+          "title": "APIsCount holds number of observed Kubernetes API count"
+        },
+        "lastCacheSyncTime": {
+          "$ref": "#/definitions/v1Time",
+          "title": "LastCacheSyncTime holds time of most recent cache synchronization"
+        }
+      },
+      "title": "ClusterCacheInfo contains information about the cluster cache"
+    },
+    "v1alpha1ClusterConfig": {
+      "type": "object",
+      "properties": {
+        "username": {
+          "type": "string",
+          "title": "Server requires Basic authentication"
+        },
+        "password": {
+          "type": "string"
+        },
+        "bearerToken": {
+          "type": "string",
+          "description": "Server requires Bearer authentication. This client will not attempt to use\nrefresh tokens for an OAuth2 flow.\nTODO: demonstrate an OAuth2 compatible client."
+        },
+        "tlsClientConfig": {
+          "$ref": "#/definitions/v1alpha1TLSClientConfig",
+          "title": "TLSClientConfig contains settings to enable transport layer security"
+        },
+        "awsAuthConfig": {
+          "$ref": "#/definitions/v1alpha1AWSAuthConfig",
+          "title": "AWSAuthConfig contains IAM authentication configuration"
+        },
+        "execProviderConfig": {
+          "$ref": "#/definitions/v1alpha1ExecProviderConfig",
+          "title": "ExecProviderConfig contains configuration for an exec provider"
+        }
+      },
+      "description": "ClusterConfig is the configuration attributes. This structure is subset of the go-client\nrest.Config with annotations added for marshalling."
+    },
+    "v1alpha1ClusterInfo": {
+      "type": "object",
+      "properties": {
+        "connectionState": {
+          "$ref": "#/definitions/v1alpha1ConnectionState",
+          "title": "ConnectionState contains information about the connection to the cluster"
+        },
+        "serverVersion": {
+          "type": "string",
+          "title": "ServerVersion contains information about the Kubernetes version of the cluster"
+        },
+        "cacheInfo": {
+          "$ref": "#/definitions/v1alpha1ClusterCacheInfo",
+          "title": "CacheInfo contains information about the cluster cache"
+        },
+        "applicationsCount": {
+          "type": "string",
+          "format": "int64",
+          "title": "ApplicationsCount is the number of applications managed by Argo CD on the cluster"
+        },
+        "apiVersions": {
+          "type": "array",
+          "items": {
+            "type": "string"
+          },
+          "title": "APIVersions contains list of API versions supported by the cluster"
+        }
+      },
+      "title": "ClusterInfo contains information about the cluster"
+    },
+    "v1alpha1ClusterList": {
+      "type": "object",
+      "properties": {
+        "metadata": {
+          "$ref": "#/definitions/v1ListMeta"
+        },
+        "items": {
+          "type": "array",
+          "items": {
+            "$ref": "#/definitions/v1alpha1Cluster"
+          }
+        }
+      },
+      "description": "ClusterList is a collection of Clusters."
+    },
+    "v1alpha1ConnectionState": {
+      "type": "object",
+      "properties": {
+        "status": {
+          "type": "string",
+          "title": "Status contains the current status indicator for the connection"
+        },
+        "message": {
+          "type": "string",
+          "title": "Message contains human readable information about the connection status"
+        },
+        "attemptedAt": {
+          "$ref": "#/definitions/v1Time",
+          "title": "ModifiedAt contains the timestamp when this connection status has been determined"
+        }
+      },
+      "title": "ConnectionState contains information about remote resource connection state, currently used for clusters and repositories"
+    },
+    "v1alpha1ExecProviderConfig": {
+      "type": "object",
+      "properties": {
+        "command": {
+          "type": "string",
+          "title": "Command to execute"
+        },
+        "args": {
+          "type": "array",
+          "items": {
+            "type": "string"
+          },
+          "title": "Arguments to pass to the command when executing it"
+        },
+        "env": {
+          "type": "object",
+          "additionalProperties": {
+            "type": "string"
+          },
+          "title": "Env defines additional environment variables to expose to the process"
+        },
+        "apiVersion": {
+          "type": "string",
+          "title": "Preferred input version of the ExecInfo"
+        },
+        "installHint": {
+          "type": "string",
+          "title": "This text is shown to the user when the executable doesn't seem to be present"
+        }
+      },
+      "title": "ExecProviderConfig is config used to call an external command to perform cluster authentication\nSee: https://godoc.org/k8s.io/client-go/tools/clientcmd/api#ExecConfig"
+    },
+    "v1alpha1TLSClientConfig": {
+      "type": "object",
+      "properties": {
+        "insecure": {
+          "type": "boolean",
+          "description": "Insecure specifies that the server should be accessed without verifying the TLS certificate. For testing only."
+        },
+        "serverName": {
+          "type": "string",
+          "description": "ServerName is passed to the server for SNI and is used in the client to check server\ncertificates against. If ServerName is empty, the hostname used to contact the\nserver is used."
+        },
+        "certData": {
+          "type": "string",
+          "format": "byte",
+          "title": "CertData holds PEM-encoded bytes (typically read from a client certificate file).\nCertData takes precedence over CertFile"
+        },
+        "keyData": {
+          "type": "string",
+          "format": "byte",
+          "title": "KeyData holds PEM-encoded bytes (typically read from a client certificate key file).\nKeyData takes precedence over KeyFile"
+        },
+        "caData": {
+          "type": "string",
+          "format": "byte",
+          "title": "CAData holds PEM-encoded bytes (typically read from a root certificates bundle).\nCAData takes precedence over CAFile"
+        }
+      },
+      "title": "TLSClientConfig contains settings to enable transport layer security"
+    }
+  }
+}

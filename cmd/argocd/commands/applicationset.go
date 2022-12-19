@@ -5,7 +5,9 @@ import (
 	"io"
 	"os"
 	"reflect"
+	"strings"
 	"text/tabwriter"
+	"unicode/utf8"
 
 	"github.com/mattn/go-isatty"
 	"github.com/spf13/cobra"
@@ -15,6 +17,7 @@ import (
 	cmdutil "github.com/argoproj/argo-cd/v2/cmd/util"
 	argocdclient "github.com/argoproj/argo-cd/v2/pkg/apiclient"
 	"github.com/argoproj/argo-cd/v2/pkg/apiclient/applicationset"
+	argoappv1 "github.com/argoproj/argo-cd/v2/pkg/apis/application/v1alpha1"
 	arogappsetv1 "github.com/argoproj/argo-cd/v2/pkg/apis/application/v1alpha1"
 	"github.com/argoproj/argo-cd/v2/util/cli"
 	"github.com/argoproj/argo-cd/v2/util/errors"
@@ -39,6 +42,8 @@ var (
 	`)
 )
 
+const printOpFmtStr = "%-20s%s\n"
+
 // NewAppSetCommand returns a new instance of an `argocd appset` command
 func NewAppSetCommand(clientOpts *argocdclient.ClientOptions) *cobra.Command {
 	var command = &cobra.Command{
@@ -55,6 +60,31 @@ func NewAppSetCommand(clientOpts *argocdclient.ClientOptions) *cobra.Command {
 	command.AddCommand(NewApplicationSetListCommand(clientOpts))
 	command.AddCommand(NewApplicationSetDeleteCommand(clientOpts))
 	return command
+}
+
+func truncateString(str string, num int) string {
+	bnoden := str
+	if utf8.RuneCountInString(str) > num {
+		if num > 3 {
+			num -= 3
+		}
+		bnoden = string([]rune(str)[0:num]) + "..."
+	}
+	return bnoden
+}
+
+func printHelmParams(helm *argoappv1.ApplicationSourceHelm) {
+	paramLenLimit := 80
+	fmt.Println()
+	w := tabwriter.NewWriter(os.Stdout, 0, 0, 2, ' ', 0)
+	if helm != nil {
+		fmt.Println()
+		_, _ = fmt.Fprintf(w, "NAME\tVALUE\n")
+		for _, p := range helm.Parameters {
+			_, _ = fmt.Fprintf(w, "%s\t%s\n", p.Name, truncateString(p.Value, paramLenLimit))
+		}
+	}
+	_ = w.Flush()
 }
 
 // NewApplicationSetGetCommand returns a new instance of an `argocd appset get` command
@@ -330,6 +360,15 @@ func getServerForAppSet(appSet *arogappsetv1.ApplicationSet) string {
 	}
 
 	return appSet.Spec.Template.Spec.Destination.Server
+}
+
+func printAppSourceDetails(appSrc *argoappv1.ApplicationSource) {
+	if appSrc.Helm != nil && len(appSrc.Helm.ValueFiles) > 0 {
+		fmt.Printf(printOpFmtStr, "Helm Values:", strings.Join(appSrc.Helm.ValueFiles, ","))
+	}
+	if appSrc.Kustomize != nil && appSrc.Kustomize.NamePrefix != "" {
+		fmt.Printf(printOpFmtStr, "Name Prefix:", appSrc.Kustomize.NamePrefix)
+	}
 }
 
 func printAppSetSummaryTable(appSet *arogappsetv1.ApplicationSet) {

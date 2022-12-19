@@ -844,11 +844,6 @@ func (in *ApplicationSourceKustomize) DeepCopyInto(out *ApplicationSourceKustomi
 			(*out)[key] = val
 		}
 	}
-	if in.Components != nil {
-		in, out := &in.Components, &out.Components
-		*out = make([]string, len(*in))
-		copy(*out, *in)
-	}
 	return
 }
 
@@ -3227,13 +3222,6 @@ func (in *SyncPolicy) DeepCopyInto(out *SyncPolicy) {
 		in, out := &in.Retry, &out.Retry
 		*out = new(RetryStrategy)
 		(*in).DeepCopyInto(*out)
-	}
-	if in.CreateNamespaceLabels != nil {
-		in, out := &in.CreateNamespaceLabels, &out.CreateNamespaceLabels
-		*out = make(map[string]string, len(*in))
-		for key, val := range *in {
-			(*out)[key] = val
-		}
 	}
 	return
 }

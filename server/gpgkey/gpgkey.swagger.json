@@ -1,0 +1,273 @@
+{
+  "swagger": "2.0",
+  "info": {
+    "title": "GPG public key service",
+    "description": "GPG public key API performs CRUD actions against GnuPGPublicKey resources",
+    "version": "version not set"
+  },
+  "consumes": [
+    "application/json"
+  ],
+  "produces": [
+    "application/json"
+  ],
+  "paths": {
+    "/api/v1/gpgkeys": {
+      "get": {
+        "summary": "List all available repository certificates",
+        "operationId": "GPGKeyService_List",
+        "responses": {
+          "200": {
+            "description": "A successful response.",
+            "schema": {
+              "$ref": "#/definitions/v1alpha1GnuPGPublicKeyList"
+            }
+          },
+          "default": {
+            "description": "An unexpected error response.",
+            "schema": {
+              "$ref": "#/definitions/runtimeError"
+            }
+          }
+        },
+        "parameters": [
+          {
+            "name": "keyID",
+            "description": "The GPG key ID to query for.",
+            "in": "query",
+            "required": false,
+            "type": "string"
+          }
+        ],
+        "tags": [
+          "GPGKeyService"
+        ]
+      },
+      "delete": {
+        "summary": "Delete specified GPG public key from the server's configuration",
+        "operationId": "GPGKeyService_Delete",
+        "responses": {
+          "200": {
+            "description": "A successful response.",
+            "schema": {
+              "$ref": "#/definitions/gpgkeyGnuPGPublicKeyResponse"
+            }
+          },
+          "default": {
+            "description": "An unexpected error response.",
+            "schema": {
+              "$ref": "#/definitions/runtimeError"
+            }
+          }
+        },
+        "parameters": [
+          {
+            "name": "keyID",
+            "description": "The GPG key ID to query for.",
+            "in": "query",
+            "required": false,
+            "type": "string"
+          }
+        ],
+        "tags": [
+          "GPGKeyService"
+        ]
+      },
+      "post": {
+        "summary": "Create one or more GPG public keys in the server's configuration",
+        "operationId": "GPGKeyService_Create",
+        "responses": {
+          "200": {
+            "description": "A successful response.",
+            "schema": {
+              "$ref": "#/definitions/gpgkeyGnuPGPublicKeyCreateResponse"
+            }
+          },
+          "default": {
+            "description": "An unexpected error response.",
+            "schema": {
+              "$ref": "#/definitions/runtimeError"
+            }
+          }
+        },
+        "parameters": [
+          {
+            "name": "body",
+            "description": "Raw key data of the GPG key(s) to create",
+            "in": "body",
+            "required": true,
+            "schema": {
+              "$ref": "#/definitions/v1alpha1GnuPGPublicKey"
+            }
+          },
+          {
+            "name": "upsert",
+            "description": "Whether to upsert already existing public keys.",
+            "in": "query",
+            "required": false,
+            "type": "boolean"
+          }
+        ],
+        "tags": [
+          "GPGKeyService"
+        ]
+      }
+    },
+    "/api/v1/gpgkeys/{keyID}": {
+      "get": {
+        "summary": "Get information about specified GPG public key from the server",
+        "operationId": "GPGKeyService_Get",
+        "responses": {
+          "200": {
+            "description": "A successful response.",
+            "schema": {
+              "$ref": "#/definitions/v1alpha1GnuPGPublicKey"
+            }
+          },
+          "default": {
+            "description": "An unexpected error response.",
+            "schema": {
+              "$ref": "#/definitions/runtimeError"
+            }
+          }
+        },
+        "parameters": [
+          {
+            "name": "keyID",
+            "description": "The GPG key ID to query for",
+            "in": "path",
+            "required": true,
+            "type": "string"
+          }
+        ],
+        "tags": [
+          "GPGKeyService"
+        ]
+      }
+    }
+  },
+  "definitions": {
+    "gpgkeyGnuPGPublicKeyCreateResponse": {
+      "type": "object",
+      "properties": {
+        "created": {
+          "$ref": "#/definitions/v1alpha1GnuPGPublicKeyList",
+          "title": "List of GPG public keys that have been created"
+        },
+        "skipped": {
+          "type": "array",
+          "items": {
+            "type": "string"
+          },
+          "title": "List of key IDs that haven been skipped because they already exist on the server"
+        }
+      },
+      "title": "Response to a public key creation request"
+    },
+    "gpgkeyGnuPGPublicKeyResponse": {
+      "type": "object",
+      "title": "Generic (empty) response for GPG public key CRUD requests"
+    },
+    "protobufAny": {
+      "type": "object",
+      "properties": {
+        "type_url": {
+          "type": "string"
+        },
+        "value": {
+          "type": "string",
+          "format": "byte"
+        }
+      }
+    },
+    "runtimeError": {
+      "type": "object",
+      "properties": {
+        "error": {
+          "type": "string"
+        },
+        "code": {
+          "type": "integer",
+          "format": "int32"
+        },
+        "message": {
+          "type": "string"
+        },
+        "details": {
+          "type": "array",
+          "items": {
+            "$ref": "#/definitions/protobufAny"
+          }
+        }
+      }
+    },
+    "v1ListMeta": {
+      "type": "object",
+      "properties": {
+        "selfLink": {
+          "type": "string",
+          "title": "Deprecated: selfLink is a legacy read-only field that is no longer populated by the system.\n+optional"
+        },
+        "resourceVersion": {
+          "type": "string",
+          "title": "String that identifies the server's internal version of this object that\ncan be used by clients to determine when objects have changed.\nValue must be treated as opaque by clients and passed unmodified back to the server.\nPopulated by the system.\nRead-only.\nMore info: https://git.k8s.io/community/contributors/devel/sig-architecture/api-conventions.md#concurrency-control-and-consistency\n+optional"
+        },
+        "continue": {
+          "type": "string",
+          "description": "continue may be set if the user set a limit on the number of items returned, and indicates that\nthe server has more data available. The value is opaque and may be used to issue another request\nto the endpoint that served this list to retrieve the next set of available objects. Continuing a\nconsistent list may not be possible if the server configuration has changed or more than a few\nminutes have passed. The resourceVersion field returned when using this continue value will be\nidentical to the value in the first response, unless you have received this token from an error\nmessage."
+        },
+        "remainingItemCount": {
+          "type": "string",
+          "format": "int64",
+          "title": "remainingItemCount is the number of subsequent items in the list which are not included in this\nlist response. If the list request contained label or field selectors, then the number of\nremaining items is unknown and the field will be left unset and omitted during serialization.\nIf the list is complete (either because it is not chunking or because this is the last chunk),\nthen there are no more remaining items and this field will be left unset and omitted during\nserialization.\nServers older than v1.15 do not set this field.\nThe intended use of the remainingItemCount is *estimating* the size of a collection. Clients\nshould not rely on the remainingItemCount to be set or to be exact.\n+optional"
+        }
+      },
+      "description": "ListMeta describes metadata that synthetic resources must have, including lists and\nvarious status objects. A resource may have only one of {ObjectMeta, ListMeta}."
+    },
+    "v1alpha1GnuPGPublicKey": {
+      "type": "object",
+      "properties": {
+        "keyID": {
+          "type": "string",
+          "title": "KeyID specifies the key ID, in hexadecimal string format"
+        },
+        "fingerprint": {
+          "type": "string",
+          "title": "Fingerprint is the fingerprint of the key"
+        },
+        "owner": {
+          "type": "string",
+          "title": "Owner holds the owner identification, e.g. a name and e-mail address"
+        },
+        "trust": {
+          "type": "string",
+          "title": "Trust holds the level of trust assigned to this key"
+        },
+        "subType": {
+          "type": "string",
+          "title": "SubType holds the key's sub type (e.g. rsa4096)"
+        },
+        "keyData": {
+          "type": "string",
+          "title": "KeyData holds the raw key data, in base64 encoded format"
+        }
+      },
+      "title": "GnuPGPublicKey is a representation of a GnuPG public key"
+    },
+    "v1alpha1GnuPGPublicKeyList": {
+      "type": "object",
+      "properties": {
+        "metadata": {
+          "$ref": "#/definitions/v1ListMeta"
+        },
+        "items": {
+          "type": "array",
+          "items": {
+            "$ref": "#/definitions/v1alpha1GnuPGPublicKey"
+          }
+        }
+      },
+      "title": "GnuPGPublicKeyList is a collection of GnuPGPublicKey objects"
+    }
+  }
+}

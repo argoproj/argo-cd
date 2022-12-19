@@ -1,0 +1,124 @@
+{
+  "swagger": "2.0",
+  "info": {
+    "title": "cmpserver/plugin/plugin.proto",
+    "version": "version not set"
+  },
+  "consumes": [
+    "application/json"
+  ],
+  "produces": [
+    "application/json"
+  ],
+  "paths": {},
+  "definitions": {
+    "pluginEnvEntry": {
+      "type": "object",
+      "properties": {
+        "name": {
+          "type": "string",
+          "title": "Name is the name of the variable, usually expressed in uppercase"
+        },
+        "value": {
+          "type": "string",
+          "title": "Value is the value of the variable"
+        }
+      },
+      "title": "EnvEntry represents an entry in the application's environment"
+    },
+    "pluginFile": {
+      "type": "object",
+      "properties": {
+        "chunk": {
+          "type": "string",
+          "format": "byte"
+        }
+      }
+    },
+    "pluginManifestRequestMetadata": {
+      "type": "object",
+      "properties": {
+        "appName": {
+          "type": "string",
+          "title": "appName refers to the ArgoCD Application name"
+        },
+        "appRelPath": {
+          "type": "string",
+          "title": "appRelPath points to the application relative path inside the tarball"
+        },
+        "checksum": {
+          "type": "string",
+          "title": "checksum is used to verify the integrity of the file"
+        },
+        "size": {
+          "type": "string",
+          "format": "int64",
+          "title": "size relates to the file size in bytes"
+        },
+        "env": {
+          "type": "array",
+          "items": {
+            "$ref": "#/definitions/pluginEnvEntry"
+          },
+          "title": "env is a list with the environment variables needed to generate manifests"
+        }
+      },
+      "description": "ManifestRequestMetadata defines the metada related to the file being sent\nto the CMP server."
+    },
+    "pluginManifestResponse": {
+      "type": "object",
+      "properties": {
+        "manifests": {
+          "type": "array",
+          "items": {
+            "type": "string"
+          }
+        },
+        "sourceType": {
+          "type": "string"
+        }
+      }
+    },
+    "pluginRepositoryResponse": {
+      "type": "object",
+      "properties": {
+        "isSupported": {
+          "type": "boolean"
+        }
+      }
+    },
+    "protobufAny": {
+      "type": "object",
+      "properties": {
+        "type_url": {
+          "type": "string"
+        },
+        "value": {
+          "type": "string",
+          "format": "byte"
+        }
+      }
+    },
+    "runtimeError": {
+      "type": "object",
+      "properties": {
+        "error": {
+          "type": "string"
+        },
+        "code": {
+          "type": "integer",
+          "format": "int32"
+        },
+        "message": {
+          "type": "string"
+        },
+        "details": {
+          "type": "array",
+          "items": {
+            "$ref": "#/definitions/protobufAny"
+          }
+        }
+      }
+    }
+  }
+}

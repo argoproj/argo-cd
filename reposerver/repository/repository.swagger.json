@@ -1,0 +1,1703 @@
+{
+  "swagger": "2.0",
+  "info": {
+    "title": "reposerver/repository/repository.proto",
+    "version": "version not set"
+  },
+  "consumes": [
+    "application/json"
+  ],
+  "produces": [
+    "application/json"
+  ],
+  "paths": {},
+  "definitions": {
+    "applicationv1alpha1EnvEntry": {
+      "type": "object",
+      "properties": {
+        "name": {
+          "type": "string",
+          "title": "Name is the name of the variable, usually expressed in uppercase"
+        },
+        "value": {
+          "type": "string",
+          "title": "Value is the value of the variable"
+        }
+      },
+      "title": "EnvEntry represents an entry in the application's environment"
+    },
+    "protobufAny": {
+      "type": "object",
+      "properties": {
+        "type_url": {
+          "type": "string"
+        },
+        "value": {
+          "type": "string",
+          "format": "byte"
+        }
+      }
+    },
+    "repositoryAppList": {
+      "type": "object",
+      "properties": {
+        "apps": {
+          "type": "object",
+          "additionalProperties": {
+            "type": "string"
+          }
+        }
+      },
+      "title": "AppList returns the contents of the repo of a ListApps request"
+    },
+    "repositoryDirectoryAppSpec": {
+      "type": "object",
+      "title": "DirectoryAppSpec contains directory"
+    },
+    "repositoryHelmAppSpec": {
+      "type": "object",
+      "properties": {
+        "name": {
+          "type": "string"
+        },
+        "valueFiles": {
+          "type": "array",
+          "items": {
+            "type": "string"
+          }
+        },
+        "parameters": {
+          "type": "array",
+          "items": {
+            "$ref": "#/definitions/v1alpha1HelmParameter"
+          },
+          "title": "the output of `helm inspect values`"
+        },
+        "values": {
+          "type": "string",
+          "title": "the contents of values.yaml"
+        },
+        "fileParameters": {
+          "type": "array",
+          "items": {
+            "$ref": "#/definitions/v1alpha1HelmFileParameter"
+          },
+          "title": "helm file parameters"
+        }
+      },
+      "title": "HelmAppSpec contains helm app name  in source repo"
+    },
+    "repositoryHelmChart": {
+      "type": "object",
+      "properties": {
+        "name": {
+          "type": "string"
+        },
+        "versions": {
+          "type": "array",
+          "items": {
+            "type": "string"
+          }
+        }
+      }
+    },
+    "repositoryHelmChartsResponse": {
+      "type": "object",
+      "properties": {
+        "items": {
+          "type": "array",
+          "items": {
+            "$ref": "#/definitions/repositoryHelmChart"
+          }
+        }
+      }
+    },
+    "repositoryKustomizeAppSpec": {
+      "type": "object",
+      "properties": {
+        "images": {
+          "type": "array",
+          "items": {
+            "type": "string"
+          },
+          "description": "images is a list of available images."
+        }
+      },
+      "title": "KustomizeAppSpec contains kustomize images"
+    },
+    "repositoryManifest": {
+      "type": "object",
+      "properties": {
+        "compiledManifest": {
+          "type": "string",
+          "title": "The processed manifest that needs to be applied to the cluster"
+        },
+        "rawManifest": {
+          "type": "string",
+          "description": "The pre-processed manifest (for example the kustomization.yaml\nwhen using kustmize or the values.yaml when using helm)."
+        },
+        "path": {
+          "type": "string",
+          "title": "The path of the raw manifest inside the repo"
+        },
+        "line": {
+          "type": "integer",
+          "format": "int32",
+          "title": "The line in the file where the object starts"
+        }
+      }
+    },
+    "repositoryManifestFileChunk": {
+      "type": "object",
+      "properties": {
+        "chunk": {
+          "type": "string",
+          "format": "byte"
+        }
+      }
+    },
+    "repositoryManifestFileMetadata": {
+      "type": "object",
+      "properties": {
+        "checksum": {
+          "type": "string",
+          "title": "checksum is used to verify the integrity of the file"
+        },
+        "size": {
+          "type": "string",
+          "format": "int64",
+          "title": "size relates to the file size in bytes"
+        }
+      }
+    },
+    "repositoryManifestRequest": {
+      "type": "object",
+      "properties": {
+        "repo": {
+          "$ref": "#/definitions/v1alpha1Repository"
+        },
+        "revision": {
+          "type": "string",
+          "title": "revision, potentially un-resolved"
+        },
+        "noCache": {
+          "type": "boolean"
+        },
+        "appLabelKey": {
+          "type": "string"
+        },
+        "appName": {
+          "type": "string",
+          "title": "Name of the application for which the request is triggered"
+        },
+        "namespace": {
+          "type": "string"
+        },
+        "applicationSource": {
+          "$ref": "#/definitions/v1alpha1ApplicationSource"
+        },
+        "repos": {
+          "type": "array",
+          "items": {
+            "$ref": "#/definitions/v1alpha1Repository"
+          }
+        },
+        "plugins": {
+          "type": "array",
+          "items": {
+            "$ref": "#/definitions/v1alpha1ConfigManagementPlugin"
+          }
+        },
+        "kustomizeOptions": {
+          "$ref": "#/definitions/v1alpha1KustomizeOptions"
+        },
+        "kubeVersion": {
+          "type": "string"
+        },
+        "apiVersions": {
+          "type": "array",
+          "items": {
+            "type": "string"
+          }
+        },
+        "verifySignature": {
+          "type": "boolean",
+          "title": "Request to verify the signature when generating the manifests (only for Git repositories)"
+        },
+        "helmRepoCreds": {
+          "type": "array",
+          "items": {
+            "$ref": "#/definitions/v1alpha1RepoCreds"
+          }
+        },
+        "noRevisionCache": {
+          "type": "boolean"
+        },
+        "trackingMethod": {
+          "type": "string"
+        },
+        "enabledSourceTypes": {
+          "type": "object",
+          "additionalProperties": {
+            "type": "boolean"
+          }
+        },
+        "helmOptions": {
+          "$ref": "#/definitions/v1alpha1HelmOptions"
+        }
+      },
+      "description": "ManifestRequest is a query for manifest generation."
+    },
+    "repositoryManifestResponse": {
+      "type": "object",
+      "properties": {
+        "manifests": {
+          "type": "array",
+          "items": {
+            "$ref": "#/definitions/repositoryManifest"
+          }
+        },
+        "namespace": {
+          "type": "string"
+        },
+        "server": {
+          "type": "string"
+        },
+        "revision": {
+          "type": "string",
+          "title": "resolved revision"
+        },
+        "sourceType": {
+          "type": "string"
+        },
+        "verifyResult": {
+          "type": "string",
+          "title": "Raw response of git verify-commit operation (always the empty string for Helm)"
+        },
+        "commitMessage": {
+          "type": "string"
+        },
+        "commitAuthor": {
+          "type": "string"
+        },
+        "commitDate": {
+          "$ref": "#/definitions/v1Time"
+        }
+      }
+    },
+    "repositoryRefs": {
+      "type": "object",
+      "properties": {
+        "branches": {
+          "type": "array",
+          "items": {
+            "type": "string"
+          }
+        },
+        "tags": {
+          "type": "array",
+          "items": {
+            "type": "string"
+          }
+        }
+      },
+      "title": "A subset of the repository's named refs"
+    },
+    "repositoryRepoAppDetailsResponse": {
+      "type": "object",
+      "properties": {
+        "type": {
+          "type": "string"
+        },
+        "helm": {
+          "$ref": "#/definitions/repositoryHelmAppSpec"
+        },
+        "kustomize": {
+          "$ref": "#/definitions/repositoryKustomizeAppSpec"
+        },
+        "directory": {
+          "$ref": "#/definitions/repositoryDirectoryAppSpec"
+        }
+      },
+      "title": "RepoAppDetailsResponse application details"
+    },
+    "repositoryResolveRevisionResponse": {
+      "type": "object",
+      "properties": {
+        "revision": {
+          "type": "string",
+          "title": "returns the resolved revision"
+        },
+        "ambiguousRevision": {
+          "type": "string"
+        }
+      },
+      "title": "ResolveRevisionResponse"
+    },
+    "repositoryTestRepositoryResponse": {
+      "type": "object",
+      "properties": {
+        "verifiedRepository": {
+          "type": "boolean",
+          "title": "Request to verify the signature when generating the manifests (only for Git repositories)"
+        }
+      },
+      "title": "TestRepositoryResponse represents the TestRepository response"
+    },
+    "runtimeError": {
+      "type": "object",
+      "properties": {
+        "error": {
+          "type": "string"
+        },
+        "code": {
+          "type": "integer",
+          "format": "int32"
+        },
+        "message": {
+          "type": "string"
+        },
+        "details": {
+          "type": "array",
+          "items": {
+            "$ref": "#/definitions/protobufAny"
+          }
+        }
+      }
+    },
+    "v1FieldsV1": {
+      "type": "object",
+      "properties": {
+        "Raw": {
+          "type": "string",
+          "format": "byte",
+          "description": "Raw is the underlying serialization of this object."
+        }
+      },
+      "description": "FieldsV1 stores a set of fields in a data structure like a Trie, in JSON format.\n\nEach key is either a '.' representing the field itself, and will always map to an empty set,\nor a string representing a sub-field or item. The string will follow one of these four formats:\n'f:\u003cname\u003e', where \u003cname\u003e is the name of a field in a struct, or key in a map\n'v:\u003cvalue\u003e', where \u003cvalue\u003e is the exact json formatted value of a list item\n'i:\u003cindex\u003e', where \u003cindex\u003e is position of a item in a list\n'k:\u003ckeys\u003e', where \u003ckeys\u003e is a map of  a list item's key fields to their unique values\nIf a key maps to an empty Fields value, the field that key represents is part of the set.\n\nThe exact format is defined in sigs.k8s.io/structured-merge-diff\n+protobuf.options.(gogoproto.goproto_stringer)=false"
+    },
+    "v1ManagedFieldsEntry": {
+      "type": "object",
+      "properties": {
+        "manager": {
+          "type": "string",
+          "description": "Manager is an identifier of the workflow managing these fields."
+        },
+        "operation": {
+          "type": "string",
+          "description": "Operation is the type of operation which lead to this ManagedFieldsEntry being created.\nThe only valid values for this field are 'Apply' and 'Update'."
+        },
+        "apiVersion": {
+          "type": "string",
+          "description": "APIVersion defines the version of this resource that this field set\napplies to. The format is \"group/version\" just like the top-level\nAPIVersion field. It is necessary to track the version of a field\nset because it cannot be automatically converted."
+        },
+        "time": {
+          "$ref": "#/definitions/v1Time",
+          "title": "Time is the timestamp of when the ManagedFields entry was added. The\ntimestamp will also be updated if a field is added, the manager\nchanges any of the owned fields value or removes a field. The\ntimestamp does not update when a field is removed from the entry\nbecause another manager took it over.\n+optional"
+        },
+        "fieldsType": {
+          "type": "string",
+          "title": "FieldsType is the discriminator for the different fields format and version.\nThere is currently only one possible value: \"FieldsV1\""
+        },
+        "fieldsV1": {
+          "$ref": "#/definitions/v1FieldsV1",
+          "title": "FieldsV1 holds the first JSON version format as described in the \"FieldsV1\" type.\n+optional"
+        },
+        "subresource": {
+          "type": "string",
+          "description": "Subresource is the name of the subresource used to update that object, or\nempty string if the object was updated through the main resource. The\nvalue of this field is used to distinguish between managers, even if they\nshare the same name. For example, a status update will be distinct from a\nregular update using the same manager name.\nNote that the APIVersion field is not related to the Subresource field and\nit always corresponds to the version of the main resource."
+        }
+      },
+      "description": "ManagedFieldsEntry is a workflow-id, a FieldSet and the group version of the resource\nthat the fieldset applies to."
+    },
+    "v1ObjectMeta": {
+      "type": "object",
+      "properties": {
+        "name": {
+          "type": "string",
+          "title": "Name must be unique within a namespace. Is required when creating resources, although\nsome resources may allow a client to request the generation of an appropriate name\nautomatically. Name is primarily intended for creation idempotence and configuration\ndefinition.\nCannot be updated.\nMore info: http://kubernetes.io/docs/user-guide/identifiers#names\n+optional"
+        },
+        "generateName": {
+          "type": "string",
+          "description": "GenerateName is an optional prefix, used by the server, to generate a unique\nname ONLY IF the Name field has not been provided.\nIf this field is used, the name returned to the client will be different\nthan the name passed. This value will also be combined with a unique suffix.\nThe provided value has the same validation rules as the Name field,\nand may be truncated by the length of the suffix required to make the value\nunique on the server.\n\nIf this field is specified and the generated name exists, the server will return a 409.\n\nApplied only if Name is not specified.\nMore info: https://git.k8s.io/community/contributors/devel/sig-architecture/api-conventions.md#idempotency\n+optional"
+        },
+        "namespace": {
+          "type": "string",
+          "description": "Namespace defines the space within which each name must be unique. An empty namespace is\nequivalent to the \"default\" namespace, but \"default\" is the canonical representation.\nNot all objects are required to be scoped to a namespace - the value of this field for\nthose objects will be empty.\n\nMust be a DNS_LABEL.\nCannot be updated.\nMore info: http://kubernetes.io/docs/user-guide/namespaces\n+optional"
+        },
+        "selfLink": {
+          "type": "string",
+          "title": "Deprecated: selfLink is a legacy read-only field that is no longer populated by the system.\n+optional"
+        },
+        "uid": {
+          "type": "string",
+          "description": "UID is the unique in time and space value for this object. It is typically generated by\nthe server on successful creation of a resource and is not allowed to change on PUT\noperations.\n\nPopulated by the system.\nRead-only.\nMore info: http://kubernetes.io/docs/user-guide/identifiers#uids\n+optional"
+        },
+        "resourceVersion": {
+          "type": "string",
+          "description": "An opaque value that represents the internal version of this object that can\nbe used by clients to determine when objects have changed. May be used for optimistic\nconcurrency, change detection, and the watch operation on a resource or set of resources.\nClients must treat these values as opaque and passed unmodified back to the server.\nThey may only be valid for a particular resource or set of resources.\n\nPopulated by the system.\nRead-only.\nValue must be treated as opaque by clients and .\nMore info: https://git.k8s.io/community/contributors/devel/sig-architecture/api-conventions.md#concurrency-control-and-consistency\n+optional"
+        },
+        "generation": {
+          "type": "string",
+          "format": "int64",
+          "title": "A sequence number representing a specific generation of the desired state.\nPopulated by the system. Read-only.\n+optional"
+        },
+        "creationTimestamp": {
+          "$ref": "#/definitions/v1Time",
+          "description": "CreationTimestamp is a timestamp representing the server time when this object was\ncreated. It is not guaranteed to be set in happens-before order across separate operations.\nClients may not set this value. It is represented in RFC3339 form and is in UTC.\n\nPopulated by the system.\nRead-only.\nNull for lists.\nMore info: https://git.k8s.io/community/contributors/devel/sig-architecture/api-conventions.md#metadata\n+optional"
+        },
+        "deletionTimestamp": {
+          "$ref": "#/definitions/v1Time",
+          "description": "DeletionTimestamp is RFC 3339 date and time at which this resource will be deleted. This\nfield is set by the server when a graceful deletion is requested by the user, and is not\ndirectly settable by a client. The resource is expected to be deleted (no longer visible\nfrom resource lists, and not reachable by name) after the time in this field, once the\nfinalizers list is empty. As long as the finalizers list contains items, deletion is blocked.\nOnce the deletionTimestamp is set, this value may not be unset or be set further into the\nfuture, although it may be shortened or the resource may be deleted prior to this time.\nFor example, a user may request that a pod is deleted in 30 seconds. The Kubelet will react\nby sending a graceful termination signal to the containers in the pod. After that 30 seconds,\nthe Kubelet will send a hard termination signal (SIGKILL) to the container and after cleanup,\nremove the pod from the API. In the presence of network partitions, this object may still\nexist after this timestamp, until an administrator or automated process can determine the\nresource is fully terminated.\nIf not set, graceful deletion of the object has not been requested.\n\nPopulated by the system when a graceful deletion is requested.\nRead-only.\nMore info: https://git.k8s.io/community/contributors/devel/sig-architecture/api-conventions.md#metadata\n+optional"
+        },
+        "deletionGracePeriodSeconds": {
+          "type": "string",
+          "format": "int64",
+          "title": "Number of seconds allowed for this object to gracefully terminate before\nit will be removed from the system. Only set when deletionTimestamp is also set.\nMay only be shortened.\nRead-only.\n+optional"
+        },
+        "labels": {
+          "type": "object",
+          "additionalProperties": {
+            "type": "string"
+          },
+          "title": "Map of string keys and values that can be used to organize and categorize\n(scope and select) objects. May match selectors of replication controllers\nand services.\nMore info: http://kubernetes.io/docs/user-guide/labels\n+optional"
+        },
+        "annotations": {
+          "type": "object",
+          "additionalProperties": {
+            "type": "string"
+          },
+          "title": "Annotations is an unstructured key value map stored with a resource that may be\nset by external tools to store and retrieve arbitrary metadata. They are not\nqueryable and should be preserved when modifying objects.\nMore info: http://kubernetes.io/docs/user-guide/annotations\n+optional"
+        },
+        "ownerReferences": {
+          "type": "array",
+          "items": {
+            "$ref": "#/definitions/v1OwnerReference"
+          },
+          "title": "List of objects depended by this object. If ALL objects in the list have\nbeen deleted, this object will be garbage collected. If this object is managed by a controller,\nthen an entry in this list will point to this controller, with the controller field set to true.\nThere cannot be more than one managing controller.\n+optional\n+patchMergeKey=uid\n+patchStrategy=merge"
+        },
+        "finalizers": {
+          "type": "array",
+          "items": {
+            "type": "string"
+          },
+          "title": "Must be empty before the object is deleted from the registry. Each entry\nis an identifier for the responsible component that will remove the entry\nfrom the list. If the deletionTimestamp of the object is non-nil, entries\nin this list can only be removed.\nFinalizers may be processed and removed in any order.  Order is NOT enforced\nbecause it introduces significant risk of stuck finalizers.\nfinalizers is a shared field, any actor with permission can reorder it.\nIf the finalizer list is processed in order, then this can lead to a situation\nin which the component responsible for the first finalizer in the list is\nwaiting for a signal (field value, external system, or other) produced by a\ncomponent responsible for a finalizer later in the list, resulting in a deadlock.\nWithout enforced ordering finalizers are free to order amongst themselves and\nare not vulnerable to ordering changes in the list.\n+optional\n+patchStrategy=merge"
+        },
+        "clusterName": {
+          "type": "string",
+          "description": "Deprecated: ClusterName is a legacy field that was always cleared by\nthe system and never used; it will be removed completely in 1.25.\n\nThe name in the go struct is changed to help clients detect\naccidental use.\n\n+optional"
+        },
+        "managedFields": {
+          "type": "array",
+          "items": {
+            "$ref": "#/definitions/v1ManagedFieldsEntry"
+          },
+          "description": "ManagedFields maps workflow-id and version to the set of fields\nthat are managed by that workflow. This is mostly for internal\nhousekeeping, and users typically shouldn't need to set or\nunderstand this field. A workflow can be the user's name, a\ncontroller's name, or the name of a specific apply path like\n\"ci-cd\". The set of fields is always in the version that the\nworkflow used when modifying the object.\n\n+optional"
+        }
+      },
+      "description": "ObjectMeta is metadata that all persisted resources must have, which includes all objects\nusers must create."
+    },
+    "v1OwnerReference": {
+      "type": "object",
+      "properties": {
+        "apiVersion": {
+          "type": "string",
+          "description": "API version of the referent."
+        },
+        "kind": {
+          "type": "string",
+          "title": "Kind of the referent.\nMore info: https://git.k8s.io/community/contributors/devel/sig-architecture/api-conventions.md#types-kinds"
+        },
+        "name": {
+          "type": "string",
+          "title": "Name of the referent.\nMore info: http://kubernetes.io/docs/user-guide/identifiers#names"
+        },
+        "uid": {
+          "type": "string",
+          "title": "UID of the referent.\nMore info: http://kubernetes.io/docs/user-guide/identifiers#uids"
+        },
+        "controller": {
+          "type": "boolean",
+          "title": "If true, this reference points to the managing controller.\n+optional"
+        },
+        "blockOwnerDeletion": {
+          "type": "boolean",
+          "title": "If true, AND if the owner has the \"foregroundDeletion\" finalizer, then\nthe owner cannot be deleted from the key-value store until this\nreference is removed.\nSee https://kubernetes.io/docs/concepts/architecture/garbage-collection/#foreground-deletion\nfor how the garbage collector interacts with this field and enforces the foreground deletion.\nDefaults to false.\nTo set this field, a user needs \"delete\" permission of the owner,\notherwise 422 (Unprocessable Entity) will be returned.\n+optional"
+        }
+      },
+      "title": "OwnerReference contains enough information to let you identify an owning\nobject. An owning object must be in the same namespace as the dependent, or\nbe cluster-scoped, so there is no namespace field.\n+structType=atomic"
+    },
+    "v1Time": {
+      "type": "object",
+      "properties": {
+        "seconds": {
+          "type": "string",
+          "format": "int64",
+          "description": "Represents seconds of UTC time since Unix epoch\n1970-01-01T00:00:00Z. Must be from 0001-01-01T00:00:00Z to\n9999-12-31T23:59:59Z inclusive."
+        },
+        "nanos": {
+          "type": "integer",
+          "format": "int32",
+          "description": "Non-negative fractions of a second at nanosecond resolution. Negative\nsecond values with fractions must still have non-negative nanos values\nthat count forward in time. Must be from 0 to 999,999,999\ninclusive. This field may be limited in precision depending on context."
+        }
+      },
+      "description": "Time is a wrapper around time.Time which supports correct\nmarshaling to YAML and JSON.  Wrappers are provided for many\nof the factory methods that the time package offers.\n\n+protobuf.options.marshal=false\n+protobuf.as=Timestamp\n+protobuf.options.(gogoproto.goproto_stringer)=false"
+    },
+    "v1alpha1Application": {
+      "type": "object",
+      "properties": {
+        "metadata": {
+          "$ref": "#/definitions/v1ObjectMeta"
+        },
+        "spec": {
+          "$ref": "#/definitions/v1alpha1ApplicationSpec"
+        },
+        "status": {
+          "$ref": "#/definitions/v1alpha1ApplicationStatus"
+        },
+        "operation": {
+          "$ref": "#/definitions/v1alpha1Operation"
+        }
+      },
+      "title": "Application is a definition of Application resource.\n+genclient\n+genclient:noStatus\n+k8s:deepcopy-gen:interfaces=k8s.io/apimachinery/pkg/runtime.Object\n+kubebuilder:resource:path=applications,shortName=app;apps\n+kubebuilder:printcolumn:name=\"Sync Status\",type=string,JSONPath=`.status.sync.status`\n+kubebuilder:printcolumn:name=\"Health Status\",type=string,JSONPath=`.status.health.status`\n+kubebuilder:printcolumn:name=\"Revision\",type=string,JSONPath=`.status.sync.revision`,priority=10"
+    },
+    "v1alpha1ApplicationCondition": {
+      "type": "object",
+      "properties": {
+        "type": {
+          "type": "string",
+          "title": "Type is an application condition type"
+        },
+        "message": {
+          "type": "string",
+          "title": "Message contains human-readable message indicating details about condition"
+        },
+        "lastTransitionTime": {
+          "$ref": "#/definitions/v1Time",
+          "title": "LastTransitionTime is the time the condition was last observed"
+        }
+      },
+      "title": "ApplicationCondition contains details about an application condition, which is usally an error or warning"
+    },
+    "v1alpha1ApplicationDestination": {
+      "type": "object",
+      "properties": {
+        "server": {
+          "type": "string",
+          "title": "Server specifies the URL of the target cluster and must be set to the Kubernetes control plane API"
+        },
+        "namespace": {
+          "type": "string",
+          "title": "Namespace specifies the target namespace for the application's resources.\nThe namespace will only be set for namespace-scoped resources that have not set a value for .metadata.namespace"
+        },
+        "name": {
+          "type": "string",
+          "title": "Name is an alternate way of specifying the target cluster by its symbolic name"
+        }
+      },
+      "title": "ApplicationDestination holds information about the application's destination"
+    },
+    "v1alpha1ApplicationSource": {
+      "type": "object",
+      "properties": {
+        "repoURL": {
+          "type": "string",
+          "title": "RepoURL is the URL to the repository (Git or Helm) that contains the application manifests"
+        },
+        "path": {
+          "type": "string",
+          "description": "Path is a directory path within the Git repository, and is only valid for applications sourced from Git."
+        },
+        "targetRevision": {
+          "type": "string",
+          "description": "TargetRevision defines the revision of the source to sync the application to.\nIn case of Git, this can be commit, tag, or branch. If omitted, will equal to HEAD.\nIn case of Helm, this is a semver tag for the Chart's version."
+        },
+        "helm": {
+          "$ref": "#/definitions/v1alpha1ApplicationSourceHelm",
+          "title": "Helm holds helm specific options"
+        },
+        "kustomize": {
+          "$ref": "#/definitions/v1alpha1ApplicationSourceKustomize",
+          "title": "Kustomize holds kustomize specific options"
+        },
+        "directory": {
+          "$ref": "#/definitions/v1alpha1ApplicationSourceDirectory",
+          "title": "Directory holds path/directory specific options"
+        },
+        "plugin": {
+          "$ref": "#/definitions/v1alpha1ApplicationSourcePlugin",
+          "title": "Plugin holds config management plugin specific options"
+        },
+        "chart": {
+          "type": "string",
+          "description": "Chart is a Helm chart name, and must be specified for applications sourced from a Helm repo."
+        }
+      },
+      "title": "ApplicationSource contains all required information about the source of an application"
+    },
+    "v1alpha1ApplicationSourceDirectory": {
+      "type": "object",
+      "properties": {
+        "recurse": {
+          "type": "boolean",
+          "title": "Recurse specifies whether to scan a directory recursively for manifests"
+        },
+        "jsonnet": {
+          "$ref": "#/definitions/v1alpha1ApplicationSourceJsonnet",
+          "title": "Jsonnet holds options specific to Jsonnet"
+        },
+        "exclude": {
+          "type": "string",
+          "title": "Exclude contains a glob pattern to match paths against that should be explicitly excluded from being used during manifest generation"
+        },
+        "include": {
+          "type": "string",
+          "title": "Include contains a glob pattern to match paths against that should be explicitly included during manifest generation"
+        }
+      },
+      "title": "ApplicationSourceDirectory holds options for applications of type plain YAML or Jsonnet"
+    },
+    "v1alpha1ApplicationSourceHelm": {
+      "type": "object",
+      "properties": {
+        "valueFiles": {
+          "type": "array",
+          "items": {
+            "type": "string"
+          },
+          "title": "ValuesFiles is a list of Helm value files to use when generating a template"
+        },
+        "parameters": {
+          "type": "array",
+          "items": {
+            "$ref": "#/definitions/v1alpha1HelmParameter"
+          },
+          "title": "Parameters is a list of Helm parameters which are passed to the helm template command upon manifest generation"
+        },
+        "releaseName": {
+          "type": "string",
+          "title": "ReleaseName is the Helm release name to use. If omitted it will use the application name"
+        },
+        "values": {
+          "type": "string",
+          "title": "Values specifies Helm values to be passed to helm template, typically defined as a block"
+        },
+        "fileParameters": {
+          "type": "array",
+          "items": {
+            "$ref": "#/definitions/v1alpha1HelmFileParameter"
+          },
+          "title": "FileParameters are file parameters to the helm template"
+        },
+        "version": {
+          "type": "string",
+          "title": "Version is the Helm version to use for templating (\"3\")"
+        },
+        "passCredentials": {
+          "type": "boolean",
+          "title": "PassCredentials pass credentials to all domains (Helm's --pass-credentials)"
+        },
+        "ignoreMissingValueFiles": {
+          "type": "boolean",
+          "title": "IgnoreMissingValueFiles prevents helm template from failing when valueFiles do not exist locally by not appending them to helm template --values"
+        },
+        "skipCrds": {
+          "type": "boolean",
+          "title": "SkipCrds skips custom resource definition installation step (Helm's --skip-crds)"
+        }
+      },
+      "title": "ApplicationSourceHelm holds helm specific options"
+    },
+    "v1alpha1ApplicationSourceJsonnet": {
+      "type": "object",
+      "properties": {
+        "extVars": {
+          "type": "array",
+          "items": {
+            "$ref": "#/definitions/v1alpha1JsonnetVar"
+          },
+          "title": "ExtVars is a list of Jsonnet External Variables"
+        },
+        "tlas": {
+          "type": "array",
+          "items": {
+            "$ref": "#/definitions/v1alpha1JsonnetVar"
+          },
+          "title": "TLAS is a list of Jsonnet Top-level Arguments"
+        },
+        "libs": {
+          "type": "array",
+          "items": {
+            "type": "string"
+          },
+          "title": "Additional library search dirs"
+        }
+      },
+      "title": "ApplicationSourceJsonnet holds options specific to applications of type Jsonnet"
+    },
+    "v1alpha1ApplicationSourceKustomize": {
+      "type": "object",
+      "properties": {
+        "namePrefix": {
+          "type": "string",
+          "title": "NamePrefix is a prefix appended to resources for Kustomize apps"
+        },
+        "nameSuffix": {
+          "type": "string",
+          "title": "NameSuffix is a suffix appended to resources for Kustomize apps"
+        },
+        "images": {
+          "type": "array",
+          "items": {
+            "type": "string"
+          },
+          "title": "Images is a list of Kustomize image override specifications"
+        },
+        "commonLabels": {
+          "type": "object",
+          "additionalProperties": {
+            "type": "string"
+          },
+          "title": "CommonLabels is a list of additional labels to add to rendered manifests"
+        },
+        "version": {
+          "type": "string",
+          "title": "Version controls which version of Kustomize to use for rendering manifests"
+        },
+        "commonAnnotations": {
+          "type": "object",
+          "additionalProperties": {
+            "type": "string"
+          },
+          "title": "CommonAnnotations is a list of additional annotations to add to rendered manifests"
+        },
+        "forceCommonLabels": {
+          "type": "boolean",
+          "title": "ForceCommonLabels specifies whether to force applying common labels to resources for Kustomize apps"
+        },
+        "forceCommonAnnotations": {
+          "type": "boolean",
+          "title": "ForceCommonAnnotations specifies whether to force applying common annotations to resources for Kustomize apps"
+        },
+        "forceNamespace": {
+          "type": "boolean",
+          "title": "ForceNamespace if true, will use the application's destination namespace as a kustomization file namespace"
+        },
+        "components": {
+          "type": "array",
+          "items": {
+            "type": "string"
+          },
+          "title": "Components specifies a list of kustomize components to add to the kustmization before building"
+        }
+      },
+      "title": "ApplicationSourceKustomize holds options specific to an Application source specific to Kustomize"
+    },
+    "v1alpha1ApplicationSourcePlugin": {
+      "type": "object",
+      "properties": {
+        "name": {
+          "type": "string"
+        },
+        "env": {
+          "type": "array",
+          "items": {
+            "$ref": "#/definitions/applicationv1alpha1EnvEntry"
+          }
+        }
+      },
+      "title": "ApplicationSourcePlugin holds options specific to config management plugins"
+    },
+    "v1alpha1ApplicationSpec": {
+      "type": "object",
+      "properties": {
+        "source": {
+          "$ref": "#/definitions/v1alpha1ApplicationSource",
+          "title": "Source is a reference to the location of the application's manifests or chart"
+        },
+        "destination": {
+          "$ref": "#/definitions/v1alpha1ApplicationDestination",
+          "title": "Destination is a reference to the target Kubernetes server and namespace"
+        },
+        "project": {
+          "type": "string",
+          "description": "Project is a reference to the project this application belongs to.\nThe empty string means that application belongs to the 'default' project."
+        },
+        "syncPolicy": {
+          "$ref": "#/definitions/v1alpha1SyncPolicy",
+          "title": "SyncPolicy controls when and how a sync will be performed"
+        },
+        "ignoreDifferences": {
+          "type": "array",
+          "items": {
+            "$ref": "#/definitions/v1alpha1ResourceIgnoreDifferences"
+          },
+          "title": "IgnoreDifferences is a list of resources and their fields which should be ignored during comparison"
+        },
+        "info": {
+          "type": "array",
+          "items": {
+            "$ref": "#/definitions/v1alpha1Info"
+          },
+          "title": "Info contains a list of information (URLs, email addresses, and plain text) that relates to the application"
+        },
+        "revisionHistoryLimit": {
+          "type": "string",
+          "format": "int64",
+          "description": "RevisionHistoryLimit limits the number of items kept in the application's revision history, which is used for informational purposes as well as for rollbacks to previous versions.\nThis should only be changed in exceptional circumstances.\nSetting to zero will store no history. This will reduce storage used.\nIncreasing will increase the space used to store the history, so we do not recommend increasing it.\nDefault is 10."
+        }
+      },
+      "description": "ApplicationSpec represents desired application state. Contains link to repository with application definition and additional parameters link definition revision."
+    },
+    "v1alpha1ApplicationStatus": {
+      "type": "object",
+      "properties": {
+        "resources": {
+          "type": "array",
+          "items": {
+            "$ref": "#/definitions/v1alpha1ResourceStatus"
+          },
+          "title": "Resources is a list of Kubernetes resources managed by this application"
+        },
+        "sync": {
+          "$ref": "#/definitions/v1alpha1SyncStatus",
+          "title": "Sync contains information about the application's current sync status"
+        },
+        "health": {
+          "$ref": "#/definitions/v1alpha1HealthStatus",
+          "title": "Health contains information about the application's current health status"
+        },
+        "history": {
+          "type": "array",
+          "items": {
+            "$ref": "#/definitions/v1alpha1RevisionHistory"
+          },
+          "title": "History contains information about the application's sync history"
+        },
+        "conditions": {
+          "type": "array",
+          "items": {
+            "$ref": "#/definitions/v1alpha1ApplicationCondition"
+          },
+          "title": "Conditions is a list of currently observed application conditions"
+        },
+        "reconciledAt": {
+          "$ref": "#/definitions/v1Time",
+          "title": "ReconciledAt indicates when the application state was reconciled using the latest git version"
+        },
+        "operationState": {
+          "$ref": "#/definitions/v1alpha1OperationState",
+          "title": "OperationState contains information about any ongoing operations, such as a sync"
+        },
+        "observedAt": {
+          "$ref": "#/definitions/v1Time",
+          "title": "ObservedAt indicates when the application state was updated without querying latest git state\nDeprecated: controller no longer updates ObservedAt field"
+        },
+        "sourceType": {
+          "type": "string",
+          "title": "SourceType specifies the type of this application"
+        },
+        "summary": {
+          "$ref": "#/definitions/v1alpha1ApplicationSummary",
+          "title": "Summary contains a list of URLs and container images used by this application"
+        },
+        "resourceHealthSource": {
+          "type": "string",
+          "title": "ResourceHealthSource indicates where the resource health status is stored: inline if not set or appTree"
+        }
+      },
+      "title": "ApplicationStatus contains status information for the application"
+    },
+    "v1alpha1ApplicationSummary": {
+      "type": "object",
+      "properties": {
+        "externalURLs": {
+          "type": "array",
+          "items": {
+            "type": "string"
+          },
+          "description": "ExternalURLs holds all external URLs of application child resources."
+        },
+        "images": {
+          "type": "array",
+          "items": {
+            "type": "string"
+          },
+          "description": "Images holds all images of application child resources."
+        }
+      },
+      "title": "ApplicationSummary contains information about URLs and container images used by an application"
+    },
+    "v1alpha1Backoff": {
+      "type": "object",
+      "properties": {
+        "duration": {
+          "type": "string",
+          "title": "Duration is the amount to back off. Default unit is seconds, but could also be a duration (e.g. \"2m\", \"1h\")"
+        },
+        "factor": {
+          "type": "string",
+          "format": "int64",
+          "title": "Factor is a factor to multiply the base duration after each failed retry"
+        },
+        "maxDuration": {
+          "type": "string",
+          "title": "MaxDuration is the maximum amount of time allowed for the backoff strategy"
+        }
+      },
+      "title": "Backoff is the backoff strategy to use on subsequent retries for failing syncs"
+    },
+    "v1alpha1Command": {
+      "type": "object",
+      "properties": {
+        "command": {
+          "type": "array",
+          "items": {
+            "type": "string"
+          }
+        },
+        "args": {
+          "type": "array",
+          "items": {
+            "type": "string"
+          }
+        }
+      },
+      "title": "Command holds binary path and arguments list"
+    },
+    "v1alpha1ComparedTo": {
+      "type": "object",
+      "properties": {
+        "source": {
+          "$ref": "#/definitions/v1alpha1ApplicationSource",
+          "title": "Source is a reference to the application's source used for comparison"
+        },
+        "destination": {
+          "$ref": "#/definitions/v1alpha1ApplicationDestination",
+          "title": "Destination is a reference to the application's destination used for comparison"
+        }
+      },
+      "title": "ComparedTo contains application source and target which was used for resources comparison"
+    },
+    "v1alpha1ConfigManagementPlugin": {
+      "type": "object",
+      "properties": {
+        "name": {
+          "type": "string"
+        },
+        "init": {
+          "$ref": "#/definitions/v1alpha1Command"
+        },
+        "generate": {
+          "$ref": "#/definitions/v1alpha1Command"
+        },
+        "lockRepo": {
+          "type": "boolean"
+        }
+      },
+      "title": "ConfigManagementPlugin contains config management plugin configuration"
+    },
+    "v1alpha1ConnectionState": {
+      "type": "object",
+      "properties": {
+        "status": {
+          "type": "string",
+          "title": "Status contains the current status indicator for the connection"
+        },
+        "message": {
+          "type": "string",
+          "title": "Message contains human readable information about the connection status"
+        },
+        "attemptedAt": {
+          "$ref": "#/definitions/v1Time",
+          "title": "ModifiedAt contains the timestamp when this connection status has been determined"
+        }
+      },
+      "title": "ConnectionState contains information about remote resource connection state, currently used for clusters and repositories"
+    },
+    "v1alpha1HealthStatus": {
+      "type": "object",
+      "properties": {
+        "status": {
+          "type": "string",
+          "title": "Status holds the status code of the application or resource"
+        },
+        "message": {
+          "type": "string",
+          "title": "Message is a human-readable informational message describing the health status"
+        }
+      },
+      "title": "HealthStatus contains information about the currently observed health state of an application or resource"
+    },
+    "v1alpha1HelmFileParameter": {
+      "type": "object",
+      "properties": {
+        "name": {
+          "type": "string",
+          "title": "Name is the name of the Helm parameter"
+        },
+        "path": {
+          "type": "string",
+          "title": "Path is the path to the file containing the values for the Helm parameter"
+        }
+      },
+      "title": "HelmFileParameter is a file parameter that's passed to helm template during manifest generation"
+    },
+    "v1alpha1HelmOptions": {
+      "type": "object",
+      "properties": {
+        "valuesFileSchemes": {
+          "type": "array",
+          "items": {
+            "type": "string"
+          }
+        }
+      },
+      "title": "HelmOptions holds helm options"
+    },
+    "v1alpha1HelmParameter": {
+      "type": "object",
+      "properties": {
+        "name": {
+          "type": "string",
+          "title": "Name is the name of the Helm parameter"
+        },
+        "value": {
+          "type": "string",
+          "title": "Value is the value for the Helm parameter"
+        },
+        "forceString": {
+          "type": "boolean",
+          "title": "ForceString determines whether to tell Helm to interpret booleans and numbers as strings"
+        }
+      },
+      "title": "HelmParameter is a parameter that's passed to helm template during manifest generation"
+    },
+    "v1alpha1Info": {
+      "type": "object",
+      "properties": {
+        "name": {
+          "type": "string"
+        },
+        "value": {
+          "type": "string"
+        }
+      }
+    },
+    "v1alpha1JsonnetVar": {
+      "type": "object",
+      "properties": {
+        "name": {
+          "type": "string"
+        },
+        "value": {
+          "type": "string"
+        },
+        "code": {
+          "type": "boolean"
+        }
+      },
+      "title": "JsonnetVar represents a variable to be passed to jsonnet during manifest generation"
+    },
+    "v1alpha1KustomizeOptions": {
+      "type": "object",
+      "properties": {
+        "buildOptions": {
+          "type": "string",
+          "title": "BuildOptions is a string of build parameters to use when calling `kustomize build`"
+        },
+        "binaryPath": {
+          "type": "string",
+          "title": "BinaryPath holds optional path to kustomize binary"
+        }
+      },
+      "title": "KustomizeOptions are options for kustomize to use when building manifests"
+    },
+    "v1alpha1Operation": {
+      "type": "object",
+      "properties": {
+        "sync": {
+          "$ref": "#/definitions/v1alpha1SyncOperation",
+          "title": "Sync contains parameters for the operation"
+        },
+        "initiatedBy": {
+          "$ref": "#/definitions/v1alpha1OperationInitiator",
+          "title": "InitiatedBy contains information about who initiated the operations"
+        },
+        "info": {
+          "type": "array",
+          "items": {
+            "$ref": "#/definitions/v1alpha1Info"
+          },
+          "title": "Info is a list of informational items for this operation"
+        },
+        "retry": {
+          "$ref": "#/definitions/v1alpha1RetryStrategy",
+          "title": "Retry controls the strategy to apply if a sync fails"
+        }
+      },
+      "title": "Operation contains information about a requested or running operation"
+    },
+    "v1alpha1OperationInitiator": {
+      "type": "object",
+      "properties": {
+        "username": {
+          "type": "string",
+          "title": "Username contains the name of a user who started operation"
+        },
+        "automated": {
+          "type": "boolean",
+          "description": "Automated is set to true if operation was initiated automatically by the application controller."
+        }
+      },
+      "title": "OperationInitiator contains information about the initiator of an operation"
+    },
+    "v1alpha1OperationState": {
+      "type": "object",
+      "properties": {
+        "operation": {
+          "$ref": "#/definitions/v1alpha1Operation",
+          "title": "Operation is the original requested operation"
+        },
+        "phase": {
+          "type": "string",
+          "title": "Phase is the current phase of the operation"
+        },
+        "message": {
+          "type": "string",
+          "description": "Message holds any pertinent messages when attempting to perform operation (typically errors)."
+        },
+        "syncResult": {
+          "$ref": "#/definitions/v1alpha1SyncOperationResult",
+          "title": "SyncResult is the result of a Sync operation"
+        },
+        "startedAt": {
+          "$ref": "#/definitions/v1Time",
+          "title": "StartedAt contains time of operation start"
+        },
+        "finishedAt": {
+          "$ref": "#/definitions/v1Time",
+          "title": "FinishedAt contains time of operation completion"
+        },
+        "retryCount": {
+          "type": "string",
+          "format": "int64",
+          "title": "RetryCount contains time of operation retries"
+        }
+      },
+      "title": "OperationState contains information about state of a running operation"
+    },
+    "v1alpha1RepoCreds": {
+      "type": "object",
+      "properties": {
+        "url": {
+          "type": "string",
+          "title": "URL is the URL that this credentials matches to"
+        },
+        "username": {
+          "type": "string",
+          "title": "Username for authenticating at the repo server"
+        },
+        "password": {
+          "type": "string",
+          "title": "Password for authenticating at the repo server"
+        },
+        "sshPrivateKey": {
+          "type": "string",
+          "title": "SSHPrivateKey contains the private key data for authenticating at the repo server using SSH (only Git repos)"
+        },
+        "tlsClientCertData": {
+          "type": "string",
+          "title": "TLSClientCertData specifies the TLS client cert data for authenticating at the repo server"
+        },
+        "tlsClientCertKey": {
+          "type": "string",
+          "title": "TLSClientCertKey specifies the TLS client cert key for authenticating at the repo server"
+        },
+        "githubAppPrivateKey": {
+          "type": "string",
+          "title": "GithubAppPrivateKey specifies the private key PEM data for authentication via GitHub app"
+        },
+        "githubAppID": {
+          "type": "string",
+          "format": "int64",
+          "title": "GithubAppId specifies the Github App ID of the app used to access the repo for GitHub app authentication"
+        },
+        "githubAppInstallationID": {
+          "type": "string",
+          "format": "int64",
+          "title": "GithubAppInstallationId specifies the ID of the installed GitHub App for GitHub app authentication"
+        },
+        "githubAppEnterpriseBaseUrl": {
+          "type": "string",
+          "title": "GithubAppEnterpriseBaseURL specifies the GitHub API URL for GitHub app authentication. If empty will default to https://api.github.com"
+        },
+        "enableOCI": {
+          "type": "boolean",
+          "title": "EnableOCI specifies whether helm-oci support should be enabled for this repo"
+        },
+        "type": {
+          "type": "string",
+          "description": "Type specifies the type of the repoCreds. Can be either \"git\" or \"helm. \"git\" is assumed if empty or absent."
+        }
+      },
+      "title": "RepoCreds holds the definition for repository credentials"
+    },
+    "v1alpha1Repository": {
+      "type": "object",
+      "properties": {
+        "repo": {
+          "type": "string",
+          "title": "Repo contains the URL to the remote repository"
+        },
+        "username": {
+          "type": "string",
+          "title": "Username contains the user name used for authenticating at the remote repository"
+        },
+        "password": {
+          "type": "string",
+          "title": "Password contains the password or PAT used for authenticating at the remote repository"
+        },
+        "sshPrivateKey": {
+          "type": "string",
+          "description": "SSHPrivateKey contains the PEM data for authenticating at the repo server. Only used with Git repos."
+        },
+        "connectionState": {
+          "$ref": "#/definitions/v1alpha1ConnectionState",
+          "title": "ConnectionState contains information about the current state of connection to the repository server"
+        },
+        "insecureIgnoreHostKey": {
+          "type": "boolean",
+          "title": "InsecureIgnoreHostKey should not be used anymore, Insecure is favoured\nUsed only for Git repos"
+        },
+        "insecure": {
+          "type": "boolean",
+          "title": "Insecure specifies whether the connection to the repository ignores any errors when verifying TLS certificates or SSH host keys"
+        },
+        "enableLfs": {
+          "type": "boolean",
+          "description": "EnableLFS specifies whether git-lfs support should be enabled for this repo. Only valid for Git repositories."
+        },
+        "tlsClientCertData": {
+          "type": "string",
+          "title": "TLSClientCertData contains a certificate in PEM format for authenticating at the repo server"
+        },
+        "tlsClientCertKey": {
+          "type": "string",
+          "title": "TLSClientCertKey contains a private key in PEM format for authenticating at the repo server"
+        },
+        "type": {
+          "type": "string",
+          "description": "Type specifies the type of the repo. Can be either \"git\" or \"helm. \"git\" is assumed if empty or absent."
+        },
+        "name": {
+          "type": "string",
+          "title": "Name specifies a name to be used for this repo. Only used with Helm repos"
+        },
+        "inheritedCreds": {
+          "type": "boolean",
+          "title": "Whether credentials were inherited from a credential set"
+        },
+        "enableOCI": {
+          "type": "boolean",
+          "title": "EnableOCI specifies whether helm-oci support should be enabled for this repo"
+        },
+        "githubAppPrivateKey": {
+          "type": "string",
+          "title": "Github App Private Key PEM data"
+        },
+        "githubAppID": {
+          "type": "string",
+          "format": "int64",
+          "title": "GithubAppId specifies the ID of the GitHub app used to access the repo"
+        },
+        "githubAppInstallationID": {
+          "type": "string",
+          "format": "int64",
+          "title": "GithubAppInstallationId specifies the installation ID of the GitHub App used to access the repo"
+        },
+        "githubAppEnterpriseBaseUrl": {
+          "type": "string",
+          "title": "GithubAppEnterpriseBaseURL specifies the base URL of GitHub Enterprise installation. If empty will default to https://api.github.com"
+        },
+        "proxy": {
+          "type": "string",
+          "title": "Proxy specifies the HTTP/HTTPS proxy used to access the repo"
+        },
+        "project": {
+          "type": "string",
+          "title": "Reference between project and repository that allow you automatically to be added as item inside SourceRepos project entity"
+        }
+      },
+      "title": "Repository is a repository holding application configurations"
+    },
+    "v1alpha1ResourceIgnoreDifferences": {
+      "type": "object",
+      "properties": {
+        "group": {
+          "type": "string"
+        },
+        "kind": {
+          "type": "string"
+        },
+        "name": {
+          "type": "string"
+        },
+        "namespace": {
+          "type": "string"
+        },
+        "jsonPointers": {
+          "type": "array",
+          "items": {
+            "type": "string"
+          }
+        },
+        "jqPathExpressions": {
+          "type": "array",
+          "items": {
+            "type": "string"
+          }
+        },
+        "managedFieldsManagers": {
+          "type": "array",
+          "items": {
+            "type": "string"
+          },
+          "title": "ManagedFieldsManagers is a list of trusted managers. Fields mutated by those managers will take precedence over the\ndesired state defined in the SCM and won't be displayed in diffs"
+        }
+      },
+      "description": "ResourceIgnoreDifferences contains resource filter and list of json paths which should be ignored during comparison with live state."
+    },
+    "v1alpha1ResourceResult": {
+      "type": "object",
+      "properties": {
+        "group": {
+          "type": "string",
+          "title": "Group specifies the API group of the resource"
+        },
+        "version": {
+          "type": "string",
+          "title": "Version specifies the API version of the resource"
+        },
+        "kind": {
+          "type": "string",
+          "title": "Kind specifies the API kind of the resource"
+        },
+        "namespace": {
+          "type": "string",
+          "title": "Namespace specifies the target namespace of the resource"
+        },
+        "name": {
+          "type": "string",
+          "title": "Name specifies the name of the resource"
+        },
+        "status": {
+          "type": "string",
+          "title": "Status holds the final result of the sync. Will be empty if the resources is yet to be applied/pruned and is always zero-value for hooks"
+        },
+        "message": {
+          "type": "string",
+          "title": "Message contains an informational or error message for the last sync OR operation"
+        },
+        "hookType": {
+          "type": "string",
+          "title": "HookType specifies the type of the hook. Empty for non-hook resources"
+        },
+        "hookPhase": {
+          "type": "string",
+          "description": "HookPhase contains the state of any operation associated with this resource OR hook\nThis can also contain values for non-hook resources."
+        },
+        "syncPhase": {
+          "type": "string",
+          "title": "SyncPhase indicates the particular phase of the sync that this result was acquired in"
+        }
+      },
+      "title": "ResourceResult holds the operation result details of a specific resource"
+    },
+    "v1alpha1ResourceStatus": {
+      "type": "object",
+      "properties": {
+        "group": {
+          "type": "string"
+        },
+        "version": {
+          "type": "string"
+        },
+        "kind": {
+          "type": "string"
+        },
+        "namespace": {
+          "type": "string"
+        },
+        "name": {
+          "type": "string"
+        },
+        "status": {
+          "type": "string"
+        },
+        "health": {
+          "$ref": "#/definitions/v1alpha1HealthStatus"
+        },
+        "hook": {
+          "type": "boolean"
+        },
+        "requiresPruning": {
+          "type": "boolean"
+        },
+        "syncWave": {
+          "type": "string",
+          "format": "int64"
+        }
+      },
+      "title": "ResourceStatus holds the current sync and health status of a resource\nTODO: describe members of this type"
+    },
+    "v1alpha1RetryStrategy": {
+      "type": "object",
+      "properties": {
+        "limit": {
+          "type": "string",
+          "format": "int64",
+          "description": "Limit is the maximum number of attempts for retrying a failed sync. If set to 0, no retries will be performed."
+        },
+        "backoff": {
+          "$ref": "#/definitions/v1alpha1Backoff",
+          "title": "Backoff controls how to backoff on subsequent retries of failed syncs"
+        }
+      },
+      "title": "RetryStrategy contains information about the strategy to apply when a sync failed"
+    },
+    "v1alpha1RevisionHistory": {
+      "type": "object",
+      "properties": {
+        "revision": {
+          "type": "string",
+          "title": "Revision holds the revision the sync was performed against"
+        },
+        "deployedAt": {
+          "$ref": "#/definitions/v1Time",
+          "title": "DeployedAt holds the time the sync operation completed"
+        },
+        "id": {
+          "type": "string",
+          "format": "int64",
+          "title": "ID is an auto incrementing identifier of the RevisionHistory"
+        },
+        "source": {
+          "$ref": "#/definitions/v1alpha1ApplicationSource",
+          "title": "Source is a reference to the application source used for the sync operation"
+        },
+        "deployStartedAt": {
+          "$ref": "#/definitions/v1Time",
+          "title": "DeployStartedAt holds the time the sync operation started"
+        }
+      },
+      "title": "RevisionHistory contains history information about a previous sync"
+    },
+    "v1alpha1RevisionMetadata": {
+      "type": "object",
+      "properties": {
+        "author": {
+          "type": "string",
+          "title": "who authored this revision,\ntypically their name and email, e.g. \"John Doe \u003cjohn_doe@my-company.com\u003e\",\nbut might not match this example"
+        },
+        "date": {
+          "$ref": "#/definitions/v1Time",
+          "title": "Date specifies when the revision was authored"
+        },
+        "tags": {
+          "type": "array",
+          "items": {
+            "type": "string"
+          },
+          "title": "Tags specifies any tags currently attached to the revision\nFloating tags can move from one revision to another"
+        },
+        "message": {
+          "type": "string",
+          "title": "Message contains the message associated with the revision, most likely the commit message.\nThe message is truncated to the first newline or 64 characters (which ever comes first)"
+        },
+        "signatureInfo": {
+          "type": "string",
+          "description": "SignatureInfo contains a hint on the signer if the revision was signed with GPG, and signature verification is enabled."
+        }
+      },
+      "title": "RevisionMetadata contains metadata for a specific revision in a Git repository"
+    },
+    "v1alpha1SyncOperation": {
+      "type": "object",
+      "properties": {
+        "revision": {
+          "type": "string",
+          "description": "Revision is the revision (Git) or chart version (Helm) which to sync the application to\nIf omitted, will use the revision specified in app spec."
+        },
+        "prune": {
+          "type": "boolean",
+          "title": "Prune specifies to delete resources from the cluster that are no longer tracked in git"
+        },
+        "dryRun": {
+          "type": "boolean",
+          "title": "DryRun specifies to perform a `kubectl apply --dry-run` without actually performing the sync"
+        },
+        "syncStrategy": {
+          "$ref": "#/definitions/v1alpha1SyncStrategy",
+          "title": "SyncStrategy describes how to perform the sync"
+        },
+        "resources": {
+          "type": "array",
+          "items": {
+            "$ref": "#/definitions/v1alpha1SyncOperationResource"
+          },
+          "title": "Resources describes which resources shall be part of the sync"
+        },
+        "source": {
+          "$ref": "#/definitions/v1alpha1ApplicationSource",
+          "title": "Source overrides the source definition set in the application.\nThis is typically set in a Rollback operation and is nil during a Sync operation"
+        },
+        "manifests": {
+          "type": "array",
+          "items": {
+            "type": "string"
+          },
+          "title": "Manifests is an optional field that overrides sync source with a local directory for development"
+        },
+        "syncOptions": {
+          "type": "array",
+          "items": {
+            "type": "string"
+          },
+          "title": "SyncOptions provide per-sync sync-options, e.g. Validate=false"
+        }
+      },
+      "description": "SyncOperation contains details about a sync operation."
+    },
+    "v1alpha1SyncOperationResource": {
+      "type": "object",
+      "properties": {
+        "group": {
+          "type": "string"
+        },
+        "kind": {
+          "type": "string"
+        },
+        "name": {
+          "type": "string"
+        },
+        "namespace": {
+          "type": "string"
+        }
+      },
+      "description": "SyncOperationResource contains resources to sync."
+    },
+    "v1alpha1SyncOperationResult": {
+      "type": "object",
+      "properties": {
+        "resources": {
+          "type": "array",
+          "items": {
+            "$ref": "#/definitions/v1alpha1ResourceResult"
+          },
+          "title": "Resources contains a list of sync result items for each individual resource in a sync operation"
+        },
+        "revision": {
+          "type": "string",
+          "title": "Revision holds the revision this sync operation was performed to"
+        },
+        "source": {
+          "$ref": "#/definitions/v1alpha1ApplicationSource",
+          "title": "Source records the application source information of the sync, used for comparing auto-sync"
+        }
+      },
+      "title": "SyncOperationResult represent result of sync operation"
+    },
+    "v1alpha1SyncPolicy": {
+      "type": "object",
+      "properties": {
+        "automated": {
+          "$ref": "#/definitions/v1alpha1SyncPolicyAutomated",
+          "title": "Automated will keep an application synced to the target revision"
+        },
+        "syncOptions": {
+          "type": "array",
+          "items": {
+            "type": "string"
+          },
+          "title": "Options allow you to specify whole app sync-options"
+        },
+        "retry": {
+          "$ref": "#/definitions/v1alpha1RetryStrategy",
+          "title": "Retry controls failed sync retry behavior"
+        }
+      },
+      "title": "SyncPolicy controls when a sync will be performed in response to updates in git"
+    },
+    "v1alpha1SyncPolicyAutomated": {
+      "type": "object",
+      "properties": {
+        "prune": {
+          "type": "boolean",
+          "title": "Prune specifies whether to delete resources from the cluster that are not found in the sources anymore as part of automated sync (default: false)"
+        },
+        "selfHeal": {
+          "type": "boolean",
+          "title": "SelfHeal specifes whether to revert resources back to their desired state upon modification in the cluster (default: false)"
+        },
+        "allowEmpty": {
+          "type": "boolean",
+          "title": "AllowEmpty allows apps have zero live resources (default: false)"
+        }
+      },
+      "title": "SyncPolicyAutomated controls the behavior of an automated sync"
+    },
+    "v1alpha1SyncStatus": {
+      "type": "object",
+      "properties": {
+        "status": {
+          "type": "string",
+          "title": "Status is the sync state of the comparison"
+        },
+        "comparedTo": {
+          "$ref": "#/definitions/v1alpha1ComparedTo",
+          "title": "ComparedTo contains information about what has been compared"
+        },
+        "revision": {
+          "type": "string",
+          "title": "Revision contains information about the revision the comparison has been performed to"
+        }
+      },
+      "title": "SyncStatus contains information about the currently observed live and desired states of an application"
+    },
+    "v1alpha1SyncStrategy": {
+      "type": "object",
+      "properties": {
+        "apply": {
+          "$ref": "#/definitions/v1alpha1SyncStrategyApply",
+          "description": "Apply will perform a `kubectl apply` to perform the sync."
+        },
+        "hook": {
+          "$ref": "#/definitions/v1alpha1SyncStrategyHook",
+          "title": "Hook will submit any referenced resources to perform the sync. This is the default strategy"
+        }
+      },
+      "title": "SyncStrategy controls the manner in which a sync is performed"
+    },
+    "v1alpha1SyncStrategyApply": {
+      "type": "object",
+      "properties": {
+        "force": {
+          "type": "boolean",
+          "description": "Force indicates whether or not to supply the --force flag to `kubectl apply`.\nThe --force flag deletes and re-create the resource, when PATCH encounters conflict and has\nretried for 5 times."
+        }
+      },
+      "title": "SyncStrategyApply uses `kubectl apply` to perform the apply"
+    },
+    "v1alpha1SyncStrategyHook": {
+      "type": "object",
+      "properties": {
+        "syncStrategyApply": {
+          "$ref": "#/definitions/v1alpha1SyncStrategyApply",
+          "title": "Embed SyncStrategyApply type to inherit any `apply` options\n+optional"
+        }
+      },
+      "description": "SyncStrategyHook will perform a sync using hooks annotations.\nIf no hook annotation is specified falls back to `kubectl apply`."
+    }
+  }
+}
