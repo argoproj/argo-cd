@@ -7,7 +7,7 @@ import {RouteComponentProps} from 'react-router';
 import {combineLatest, from, merge, Observable} from 'rxjs';
 import {bufferTime, delay, filter, map, mergeMap, repeat, retryWhen} from 'rxjs/operators';
 import {AddAuthToToolbar, ClusterCtx, DataLoader, EmptyState, ObservableQuery, Page, Paginate, Query, Spinner} from '../../../shared/components';
-import {Consumer, Context, ContextApis} from '../../../shared/context';
+import {AuthSettingsCtx, Consumer, Context, ContextApis} from '../../../shared/context';
 import * as models from '../../../shared/models';
 import {AppsListViewKey, AppsListPreferences, AppsListViewType, HealthStatusBarPreferences, services} from '../../../shared/services';
 import {ApplicationCreatePanel} from '../application-create-panel/application-create-panel';
@@ -198,6 +198,7 @@ const SearchBar = (props: {content: string; ctx: ContextApis; apps: models.Appli
 
     const {useKeybinding} = React.useContext(KeybindingContext);
     const [isFocused, setFocus] = React.useState(false);
+    const useAuthSettingsCtx = React.useContext(AuthSettingsCtx);
 
     useKeybinding({
         keys: Key.SLASH,
@@ -266,7 +267,7 @@ const SearchBar = (props: {content: string; ctx: ContextApis; apps: models.Appli
             }}
             onChange={e => ctx.navigation.goto('.', {search: e.target.value}, {replace: true})}
             value={content || ''}
-            items={apps.map(app => app.metadata.namespace + '/' + app.metadata.name)}
+            items={apps.map(app => AppUtils.appQualifiedName(app, useAuthSettingsCtx?.appsInAnyNamespaceEnabled))}
         />
     );
 };
