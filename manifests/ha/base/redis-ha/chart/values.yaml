@@ -5,7 +5,7 @@ redis-ha:
     masterGroupName: argocd
     config:
       save: "\"\""
-      bind: "* -::*"
+      bind: "0.0.0.0"
   haproxy:
     enabled: true
     IPv6:

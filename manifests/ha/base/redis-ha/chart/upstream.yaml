@@ -41,7 +41,7 @@ data:
     port 6379
     rename-command FLUSHDB ""
     rename-command FLUSHALL ""
-    bind * -::*
+    bind 0.0.0.0
     maxmemory 0
     maxmemory-policy volatile-lru
     min-replicas-max-lag 5
@@ -1154,7 +1154,7 @@ spec:
   template:
     metadata:
       annotations:
-        checksum/init-config: d100c39cabf3270bd22333e6829fa66dec42535444e9fb4413a31fab82b92990
+        checksum/init-config: 7f5662bb81997c45701c86ae4a1a5a25dc0bf4b504f695532ff7a6abe92f24f4
       labels:
         release: argocd
         app: redis-ha
