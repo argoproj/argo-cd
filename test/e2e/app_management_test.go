@@ -707,7 +707,6 @@ stringData:
 func TestResourceDiffing(t *testing.T) {
 	Given(t).
 		Path(guestbookPath).
-		SetTrackingMethod("annotation").
 		When().
 		CreateApp().
 		Sync().
