@@ -74,7 +74,7 @@ Participation in the Argo CD project is governed by the [CNCF Code of Conduct](h
 1. [Using Argo CD & Datree for Stable Kubernetes CI/CD Deployments](https://youtu.be/17894DTru2Y)
 
 
-## Vendor-sponsored community resources
+## Vendor-hosted community resources
 
 The following links are to resources hosted by Argo CD vendors (companies which use Argo CD as part of their software offerings). These resources are vendor-neutral and do not require providing information for marketing purposes.
 
