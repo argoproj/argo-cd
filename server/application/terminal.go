@@ -136,7 +136,7 @@ func (s *terminalHandler) ServeHTTP(w http.ResponseWriter, r *http.Request) {
 
 	ctx := r.Context()
 
-	appRBACName := appv1.AppRBACName(s.namespace, project, appNamespace, app)
+	appRBACName := rbac.AppRBACName(s.namespace, project, appNamespace, app)
 	if err := s.enf.EnforceErr(ctx.Value("claims"), rbacpolicy.ResourceApplications, rbacpolicy.ActionGet, appRBACName); err != nil {
 		http.Error(w, err.Error(), http.StatusUnauthorized)
 		return
