@@ -88,7 +88,7 @@ func (s *Server) Get(ctx context.Context, q *applicationset.ApplicationSetGetQue
 	if err != nil {
 		return nil, fmt.Errorf("error getting ApplicationSet: %w", err)
 	}
-	if err = s.enf.EnforceErr(ctx.Value("claims"), rbacpolicy.ResourceApplicationSets, rbacpolicy.ActionGet, rbac.AppSetRBACName(a)); err != nil {
+	if err = s.enf.EnforceErr(ctx.Value("claims"), rbacpolicy.ResourceApplicationSets, rbacpolicy.ActionGet, a.RBACName()); err != nil {
 		return nil, err
 	}
 
@@ -110,7 +110,7 @@ func (s *Server) List(ctx context.Context, q *applicationset.ApplicationSetListQ
 
 	newItems := make([]v1alpha1.ApplicationSet, 0)
 	for _, a := range appsetList.Items {
-		if s.enf.Enforce(ctx.Value("claims"), rbacpolicy.ResourceApplicationSets, rbacpolicy.ActionGet, rbac.AppSetRBACName(&a)) {
+		if s.enf.Enforce(ctx.Value("claims"), rbacpolicy.ResourceApplicationSets, rbacpolicy.ActionGet, a.RBACName()) {
 			newItems = append(newItems, a)
 		}
 	}
@@ -181,7 +181,7 @@ func (s *Server) Create(ctx context.Context, q *applicationset.ApplicationSetCre
 	if !q.Upsert {
 		return nil, status.Errorf(codes.InvalidArgument, "existing ApplicationSet spec is different, use upsert flag to force update")
 	}
-	if err = s.enf.EnforceErr(ctx.Value("claims"), rbacpolicy.ResourceApplicationSets, rbacpolicy.ActionUpdate, rbac.AppSetRBACName(appset)); err != nil {
+	if err = s.enf.EnforceErr(ctx.Value("claims"), rbacpolicy.ResourceApplicationSets, rbacpolicy.ActionUpdate, appset.RBACName()); err != nil {
 		return nil, err
 	}
 	updated, err := s.updateAppSet(existing, appset, ctx, true)
@@ -209,11 +209,11 @@ func (s *Server) updateAppSet(appset *v1alpha1.ApplicationSet, newAppset *v1alph
 	if appset != nil && appset.Spec.Template.Spec.Project != newAppset.Spec.Template.Spec.Project {
 		// When changing projects, caller must have applicationset create and update privileges in new project
 		// NOTE: the update check was already verified in the caller to this function
-		if err := s.enf.EnforceErr(ctx.Value("claims"), rbacpolicy.ResourceApplicationSets, rbacpolicy.ActionCreate, rbac.AppSetRBACName(newAppset)); err != nil {
+		if err := s.enf.EnforceErr(ctx.Value("claims"), rbacpolicy.ResourceApplicationSets, rbacpolicy.ActionCreate, newAppset.RBACName()); err != nil {
 			return nil, err
 		}
 		// They also need 'update' privileges in the old project
-		if err := s.enf.EnforceErr(ctx.Value("claims"), rbacpolicy.ResourceApplicationSets, rbacpolicy.ActionUpdate, rbac.AppSetRBACName(appset)); err != nil {
+		if err := s.enf.EnforceErr(ctx.Value("claims"), rbacpolicy.ResourceApplicationSets, rbacpolicy.ActionUpdate, appset.RBACName()); err != nil {
 			return nil, err
 		}
 	}
@@ -253,7 +253,7 @@ func (s *Server) Delete(ctx context.Context, q *applicationset.ApplicationSetDel
 		return nil, fmt.Errorf("error getting ApplicationSets: %w", err)
 	}
 
-	if err := s.enf.EnforceErr(ctx.Value("claims"), rbacpolicy.ResourceApplicationSets, rbacpolicy.ActionDelete, rbac.AppSetRBACName(appset)); err != nil {
+	if err := s.enf.EnforceErr(ctx.Value("claims"), rbacpolicy.ResourceApplicationSets, rbacpolicy.ActionDelete, appset.RBACName()); err != nil {
 		return nil, err
 	}
 
@@ -289,7 +289,7 @@ func (s *Server) validateAppSet(ctx context.Context, appset *v1alpha1.Applicatio
 
 func (s *Server) checkCreatePermissions(ctx context.Context, appset *v1alpha1.ApplicationSet, projectName string) error {
 
-	if err := s.enf.EnforceErr(ctx.Value("claims"), rbacpolicy.ResourceApplicationSets, rbacpolicy.ActionCreate, rbac.AppSetRBACName(appset)); err != nil {
+	if err := s.enf.EnforceErr(ctx.Value("claims"), rbacpolicy.ResourceApplicationSets, rbacpolicy.ActionCreate, appset.RBACName()); err != nil {
 		return err
 	}
 

@@ -2,6 +2,7 @@ package server
 
 import (
 	"context"
+	netCtx "context"
 	"crypto/tls"
 	"fmt"
 	goio "io"
@@ -23,8 +24,6 @@ import (
 
 	// nolint:staticcheck
 	golang_proto "github.com/golang/protobuf/proto"
-
-	netCtx "context"
 
 	"github.com/argoproj/notifications-engine/pkg/api"
 	"github.com/argoproj/pkg/sync"
@@ -60,6 +59,8 @@ import (
 	"github.com/argoproj/argo-cd/v2/pkg/apiclient"
 	accountpkg "github.com/argoproj/argo-cd/v2/pkg/apiclient/account"
 	applicationpkg "github.com/argoproj/argo-cd/v2/pkg/apiclient/application"
+
+	"github.com/pkg/errors"
 
 	applicationsetpkg "github.com/argoproj/argo-cd/v2/pkg/apiclient/applicationset"
 	certificatepkg "github.com/argoproj/argo-cd/v2/pkg/apiclient/certificate"
@@ -121,7 +122,6 @@ import (
 	"github.com/argoproj/argo-cd/v2/util/swagger"
 	tlsutil "github.com/argoproj/argo-cd/v2/util/tls"
 	"github.com/argoproj/argo-cd/v2/util/webhook"
-	"github.com/pkg/errors"
 )
 
 const maxConcurrentLoginRequestsCountEnv = "ARGOCD_MAX_CONCURRENT_LOGIN_REQUESTS_COUNT"
@@ -860,7 +860,7 @@ func (a *ArgoCDServer) newHTTPServer(ctx context.Context, port int, grpcWebHandl
 	}
 	mux.Handle("/api/", handler)
 
-	terminalHandler := application.NewHandler(a.appLister, a.Namespace, a.db, a.enf, a.Cache, appResourceTreeFn, a.settings.ExecShells)
+	terminalHandler := application.NewHandler(a.appLister, a.Namespace, a.ApplicationNamespaces, a.db, a.enf, a.Cache, appResourceTreeFn, a.settings.ExecShells)
 	mux.HandleFunc("/terminal", func(writer http.ResponseWriter, request *http.Request) {
 		argocdSettings, err := a.settingsMgr.GetSettings()
 		if err != nil {

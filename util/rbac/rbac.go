@@ -9,7 +9,6 @@ import (
 	"sync"
 	"time"
 
-	"github.com/argoproj/argo-cd/v2/pkg/apis/application/v1alpha1"
 	"github.com/argoproj/argo-cd/v2/util/assets"
 	"github.com/argoproj/argo-cd/v2/util/glob"
 	jwtutil "github.com/argoproj/argo-cd/v2/util/jwt"
@@ -499,18 +498,4 @@ func (a *argocdAdapter) RemovePolicy(sec string, ptype string, rule []string) er
 
 func (a *argocdAdapter) RemoveFilteredPolicy(sec string, ptype string, fieldIndex int, fieldValues ...string) error {
 	return errors.New("not implemented")
-}
-
-// AppRBACName constructs name of the app for use in RBAC checks.
-func AppRBACName(defaultNS string, project string, namespace string, name string) string {
-	if defaultNS != "" && namespace != defaultNS && namespace != "" {
-		return fmt.Sprintf("%s/%s/%s", project, namespace, name)
-	} else {
-		return fmt.Sprintf("%s/%s", project, name)
-	}
-}
-
-// AppSetRBACName formats fully qualified application name for RBAC check.
-func AppSetRBACName(appSet *v1alpha1.ApplicationSet) string {
-	return fmt.Sprintf("%s/%s", appSet.Spec.Template.Spec.GetProject(), appSet.ObjectMeta.Name)
 }

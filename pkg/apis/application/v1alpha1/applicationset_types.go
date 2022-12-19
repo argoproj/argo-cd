@@ -46,6 +46,11 @@ type ApplicationSet struct {
 	Status            ApplicationSetStatus `json:"status,omitempty" protobuf:"bytes,3,opt,name=status"`
 }
 
+// RBACName formats fully qualified application name for RBAC check.
+func (a *ApplicationSet) RBACName() string {
+	return fmt.Sprintf("%s/%s", a.Spec.Template.Spec.GetProject(), a.ObjectMeta.Name)
+}
+
 // ApplicationSetSpec represents a class of application set state.
 type ApplicationSetSpec struct {
 	GoTemplate bool                      `json:"goTemplate,omitempty" protobuf:"bytes,1,name=goTemplate"`
@@ -536,7 +541,7 @@ const (
 // prefix "Info" means informational condition
 type ApplicationSetConditionType string
 
-//ErrorOccurred / ParametersGenerated / TemplateRendered / ResourcesUpToDate
+// ErrorOccurred / ParametersGenerated / TemplateRendered / ResourcesUpToDate
 const (
 	ApplicationSetConditionErrorOccurred       ApplicationSetConditionType = "ErrorOccurred"
 	ApplicationSetConditionParametersGenerated ApplicationSetConditionType = "ParametersGenerated"
