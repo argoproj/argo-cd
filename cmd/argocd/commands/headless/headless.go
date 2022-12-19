@@ -202,17 +202,18 @@ func StartLocalServer(ctx context.Context, clientOpts *apiclient.ClientOptions, 
 	}
 	appstateCache := appstatecache.NewCache(cache.NewCache(&forwardCacheClient{namespace: namespace, context: ctxStr}), time.Hour)
 	srv := server.NewServer(ctx, server.ArgoCDServerOpts{
-		EnableGZip:    false,
-		Namespace:     namespace,
-		ListenPort:    *port,
-		AppClientset:  appClientset,
-		DisableAuth:   true,
-		RedisClient:   redis.NewClient(&redis.Options{Addr: mr.Addr()}),
-		Cache:         servercache.NewCache(appstateCache, 0, 0, 0),
-		KubeClientset: kubeClientset,
-		Insecure:      true,
-		ListenHost:    *address,
-		RepoClientset: &forwardRepoClientset{namespace: namespace, context: ctxStr},
+		EnableGZip:           false,
+		Namespace:            namespace,
+		ListenPort:           *port,
+		AppClientset:         appClientset,
+		DisableAuth:          true,
+		RedisClient:          redis.NewClient(&redis.Options{Addr: mr.Addr()}),
+		Cache:                servercache.NewCache(appstateCache, 0, 0, 0),
+		KubeClientset:        kubeClientset,
+		Insecure:             true,
+		ListenHost:           *address,
+		RepoClientset:        &forwardRepoClientset{namespace: namespace, context: ctxStr},
+		EnableProxyExtension: false,
 	})
 	srv.Init(ctx)
 
