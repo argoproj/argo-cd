@@ -87,7 +87,7 @@ By activating Go Templating, `{{ .path }}` becomes an object. Therefore, some ch
 generators' templating:
 
 - `{{ path }}` becomes `{{ .path.path }}`
-- `{{ path[n] }}` becomes `{{ .path.segments[n] }}`
+- `{{ path[n] }}` becomes `{{ index .path.segments n }}`
 
 Here is an example:
 
@@ -155,7 +155,7 @@ It is also possible to use Sprig functions to construct the path variables manua
 | `{{path.filename}}` | `{{.path.filename}}` | `{{.path.filename}}` |
 | `{{path.basenameNormalized}}` | `{{.path.basenameNormalized}}` | `{{normalize .path.path}}` |
 | `{{path.filenameNormalized}}` | `{{.path.filenameNormalized}}` | `{{normalize .path.filename}}` |
-| `{{path[N]}}` | `{{.path.segments[N]}}` | `{{index (splitList "/" .path.path) N}}` |
+| `{{path[N]}}` | `-` | `{{index .path.segments N}}` |
 
 ## Examples
 
