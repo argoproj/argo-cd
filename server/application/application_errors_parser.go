@@ -102,7 +102,7 @@ func parseAggregativeHealthErrors(rs *appv1.ResourceStatus, apptree *appv1.Appli
 		return errs
 	}
 
-	childNodes := n.GetAllChildNodes(apptree)
+	childNodes := n.GetAllChildNodes(apptree, "")
 
 	for _, cn := range childNodes {
 		if cn.Health != nil && cn.Health.Status == health.HealthStatusDegraded {

@@ -1196,11 +1196,11 @@ func (n *ResourceNode) GroupKindVersion() schema.GroupVersionKind {
 	}
 }
 
-func (n *ResourceNode) GetAllChildNodes(tree *ApplicationTree) []ResourceNode {
+func (n *ResourceNode) GetAllChildNodes(tree *ApplicationTree, kind string) []ResourceNode {
 	curChildren := []ResourceNode{}
 
 	for _, c := range tree.Nodes {
-		if c.hasInParents(tree, n) {
+		if (kind == "" || kind == c.Kind) && c.hasInParents(tree, n) {
 			curChildren = append(curChildren, c)
 		}
 	}
