@@ -192,10 +192,10 @@ func filterFields(input argov1alpha1.Application) argov1alpha1.Application {
 			Finalizers:  metaCopy.Finalizers,
 		},
 		Spec: argov1alpha1.ApplicationSpec{
-			Source: argov1alpha1.ApplicationSource{
-				Path:           spec.Source.Path,
-				RepoURL:        spec.Source.RepoURL,
-				TargetRevision: spec.Source.TargetRevision,
+			Source: &argov1alpha1.ApplicationSource{
+				Path:           spec.GetSource().Path,
+				RepoURL:        spec.GetSource().RepoURL,
+				TargetRevision: spec.GetSource().TargetRevision,
 			},
 			Destination: argov1alpha1.ApplicationDestination{
 				Server:    spec.Destination.Server,

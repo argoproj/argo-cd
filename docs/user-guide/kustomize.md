@@ -70,7 +70,7 @@ spec:
   source:
     repoURL: https://github.com/argoproj/argocd-example-apps.git
     targetRevision: HEAD
-    path: guestbook-kustomize
+    path: kustomize-guestbook
 
     kustomize:
       version: v3.5.4
