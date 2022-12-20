@@ -2,11 +2,12 @@ import * as React from 'react';
 import {revisionUrl} from './urls';
 
 export const Revision = ({repoUrl, revision, path, title, children}: {repoUrl: string; revision: string; path?: string; title?: string; children?: React.ReactNode}) => {
-    const hasPath = path && path !== '.';
     if (title == 'PATH' && path) {
+        // This source literally has no path, so we won't show one.
         return <span></span>
     }
     revision = revision || '';
+    const hasPath = path && path !== '.';
     let url = revisionUrl(repoUrl, revision, hasPath);
     if (hasPath) {
         url += '/' + path;
