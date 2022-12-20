@@ -237,7 +237,7 @@ func (db *db) GetProjectClusters(ctx context.Context, project string) ([]*appv1.
 	}
 	secrets, err := informer.GetIndexer().ByIndex(settings.ByProjectClusterIndexer, project)
 	if err != nil {
-		return nil, fmt.Errorf("failed to get index by project cluster indexer: %w", err)
+		return nil, fmt.Errorf("failed to get index by project cluster indexer for project %q: %w", project, err)
 	}
 	var res []*appv1.Cluster
 	for i := range secrets {
