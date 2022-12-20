@@ -10,6 +10,12 @@ on:
 permissions:
   contents: read
 
+# PR updates can happen in quick succession leading to this
+# workflow being trigger a number of times. This limits it
+# to one run per PR.
+concurrency:
+  group: ${{ github.workflow }}-${{ github.ref }}
+
 jobs:
   main:
     permissions:
