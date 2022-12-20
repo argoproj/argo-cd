@@ -334,7 +334,7 @@ func (s *Service) runRepoOperation(
 	if hasMultipleSources && source.Path == "" && source.Chart == "" {
 		log.WithFields(map[string]interface{}{
 			"source": source,
-		}).Warnf("not generating manifests as path and chart fields are empty")
+		}).Debugf("not generating manifests as path and chart fields are empty")
 		return nil
 	}
 
