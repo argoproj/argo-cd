@@ -440,17 +440,16 @@ spec:
     The `lockRepo` key is not relevant for sidecar plugins, because sidecar plugins do not share a single source repo
     directory when generating manifests.
 
-### 2. Write discovery rules for your plugin
+### 2. Write discovery rules for your plugin, or use the plugin name
 
-Sidecar plugins use discovery rules instead of a plugin name to match Applications to plugins.
+Sidecar plugins can use discovery rules instead of a plugin name to match Applications to plugins.
 
-Write rules applicable to your plugin [using the instructions above](#1-write-the-plugin-configuration-file) and add
-them to your configuration file.
+If you want to use discovery instead of the plugin name to match applications to your plugin, write rules applicable to 
+your plugin [using the instructions above](#1-write-the-plugin-configuration-file) and add them to your configuration 
+file.
 
-!!! note
-    After installing your sidecar plugin, you may remove the `name` field from the plugin config in your
-    Application specs for auto-discovery or update the name to `<metadata.name>-<spec.version>`
-    if version was mentioned in the `ConfigManagementPlugin` spec or else just use `<metadata.name>`. For example:
+To use the name instead of discovery, update the name in your application manifest to `<metadata.name>-<spec.version>` 
+if version was mentioned in the `ConfigManagementPlugin` spec or else just use `<metadata.name>`. For example:
 
 ```yaml
 apiVersion: argoproj.io/v1alpha1
