@@ -218,12 +218,17 @@ jobs:
       - name: Install cosign
         uses: sigstore/cosign-installer@9becc617647dfa20ae7b1151972e9b3a2c338a2b # v2.8.1
         with:
-          cosign-release: 'v1.13.0'
+          cosign-release: 'v1.13.1'
+
+      - name: Install crane to get digest of image
+        uses: imjasonh/setup-crane@e82f1b9a8007d399333baba4d75915558e9fb6a4
 
       - name: Sign Argo CD container images
         run: |
-          cosign sign --key env://COSIGN_PRIVATE_KEY ${IMAGE_NAMESPACE}/argocd:v${TARGET_VERSION}
-          cosign sign --key env://COSIGN_PRIVATE_KEY docker.io/argoproj/argocd:v${TARGET_VERSION}
+          echo "IMAGE_DIGEST=$(crane digest quay.io/argoproj/argocd:v${TARGET_VERSION})" >> $GITHUB_ENV
+          cosign sign --key env://COSIGN_PRIVATE_KEY ${IMAGE_NAMESPACE}/argocd@${{ env.IMAGE_DIGEST }}
+          cosign sign --key env://COSIGN_PRIVATE_KEY docker.io/argoproj/argocd:${{ env.IMAGE_DIGEST }}
+          cosign sign-blob --key env://COSIGN_PRIVATE_KEY ./dist/argocd-${TARGET_VERSION}-checksums.txt > ./dist/argocd-${TARGET_VERSION}-checksums.sig
           # Retrieves the public key to release as an asset
           cosign public-key --key env://COSIGN_PRIVATE_KEY > ./dist/argocd-cosign.pub
         env:
