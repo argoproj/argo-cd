@@ -58,7 +58,7 @@ spec:
 * `repo`: Required name of the GitHub repository.
 * `api`: If using GitHub Enterprise, the URL to access it. (Optional)
 * `tokenRef`: A `Secret` name and key containing the GitHub access token to use for requests. If not specified, will make anonymous requests which have a lower rate limit and can only see public repositories. (Optional)
-* `labels`: Labels is used to filter the PRs that you want to target. (Optional)
+* `labels`: Filter the PRs to those containing **all** of the labels listed. (Optional)
 
 ## Gitea
 
