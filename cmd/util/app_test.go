@@ -149,7 +149,9 @@ func (f *appOptionsFixture) SetFlag(key, value string) error {
 
 func newAppOptionsFixture() *appOptionsFixture {
 	fixture := &appOptionsFixture{
-		spec:    &v1alpha1.ApplicationSpec{},
+		spec: &v1alpha1.ApplicationSpec{
+			Source: &v1alpha1.ApplicationSource{},
+		},
 		command: &cobra.Command{},
 		options: &AppOptions{},
 	}

@@ -27,9 +27,9 @@ jobs:
     runs-on: ubuntu-22.04
     steps:
       - name: Checkout code
-        uses: actions/checkout@93ea575cb5d8a053eaa0ac8fa3b40d7e05a33cc8 # v3.1.0
+        uses: actions/checkout@755da8c3cf115ac066823e79a1e1788f8940201b # v3.2.0
       - name: Setup Golang
-        uses: actions/setup-go@d0a58c1c4d2b25278816e339b944508c875f3613 # v3.4.0
+        uses: actions/setup-go@6edd4406fa81c3da01a34fa6f6343087c207a568 # v3.5.0
         with:
           go-version: ${{ env.GOLANG_VERSION }}
       - name: Download all Go modules
@@ -45,9 +45,9 @@ jobs:
     runs-on: ubuntu-22.04
     steps:
       - name: Checkout code
-        uses: actions/checkout@93ea575cb5d8a053eaa0ac8fa3b40d7e05a33cc8 # v3.1.0
+        uses: actions/checkout@755da8c3cf115ac066823e79a1e1788f8940201b # v3.2.0
       - name: Setup Golang
-        uses: actions/setup-go@d0a58c1c4d2b25278816e339b944508c875f3613 # v3.4.0
+        uses: actions/setup-go@6edd4406fa81c3da01a34fa6f6343087c207a568 # v3.5.0
         with:
           go-version: ${{ env.GOLANG_VERSION }}
       - name: Restore go build cache
@@ -69,9 +69,9 @@ jobs:
     runs-on: ubuntu-22.04
     steps:
       - name: Checkout code
-        uses: actions/checkout@93ea575cb5d8a053eaa0ac8fa3b40d7e05a33cc8 # v3.1.0
+        uses: actions/checkout@755da8c3cf115ac066823e79a1e1788f8940201b # v3.2.0
       - name: Setup Golang
-        uses: actions/setup-go@d0a58c1c4d2b25278816e339b944508c875f3613 # v3.4.0
+        uses: actions/setup-go@6edd4406fa81c3da01a34fa6f6343087c207a568 # v3.5.0
         with:
           go-version: ${{ env.GOLANG_VERSION }}
       - name: Run golangci-lint
@@ -92,11 +92,11 @@ jobs:
       - name: Create checkout directory
         run: mkdir -p ~/go/src/github.com/argoproj
       - name: Checkout code
-        uses: actions/checkout@93ea575cb5d8a053eaa0ac8fa3b40d7e05a33cc8 # v3.1.0
+        uses: actions/checkout@755da8c3cf115ac066823e79a1e1788f8940201b # v3.2.0
       - name: Create symlink in GOPATH
         run: ln -s $(pwd) ~/go/src/github.com/argoproj/argo-cd
       - name: Setup Golang
-        uses: actions/setup-go@d0a58c1c4d2b25278816e339b944508c875f3613 # v3.4.0
+        uses: actions/setup-go@6edd4406fa81c3da01a34fa6f6343087c207a568 # v3.5.0
         with:
           go-version: ${{ env.GOLANG_VERSION }}
       - name: Install required packages
@@ -155,11 +155,11 @@ jobs:
       - name: Create checkout directory
         run: mkdir -p ~/go/src/github.com/argoproj
       - name: Checkout code
-        uses: actions/checkout@93ea575cb5d8a053eaa0ac8fa3b40d7e05a33cc8 # v3.1.0
+        uses: actions/checkout@755da8c3cf115ac066823e79a1e1788f8940201b # v3.2.0
       - name: Create symlink in GOPATH
         run: ln -s $(pwd) ~/go/src/github.com/argoproj/argo-cd
       - name: Setup Golang
-        uses: actions/setup-go@d0a58c1c4d2b25278816e339b944508c875f3613 # v3.4.0
+        uses: actions/setup-go@6edd4406fa81c3da01a34fa6f6343087c207a568 # v3.5.0
         with:
           go-version: ${{ env.GOLANG_VERSION }}
       - name: Install required packages
@@ -206,9 +206,9 @@ jobs:
     runs-on: ubuntu-22.04
     steps:
       - name: Checkout code
-        uses: actions/checkout@93ea575cb5d8a053eaa0ac8fa3b40d7e05a33cc8 # v3.1.0
+        uses: actions/checkout@755da8c3cf115ac066823e79a1e1788f8940201b # v3.2.0
       - name: Setup Golang
-        uses: actions/setup-go@d0a58c1c4d2b25278816e339b944508c875f3613 # v3.4.0
+        uses: actions/setup-go@6edd4406fa81c3da01a34fa6f6343087c207a568 # v3.5.0
         with:
           go-version: ${{ env.GOLANG_VERSION }}
       - name: Create symlink in GOPATH
@@ -250,7 +250,7 @@ jobs:
     runs-on: ubuntu-22.04
     steps:
       - name: Checkout code
-        uses: actions/checkout@93ea575cb5d8a053eaa0ac8fa3b40d7e05a33cc8 # v3.1.0
+        uses: actions/checkout@755da8c3cf115ac066823e79a1e1788f8940201b # v3.2.0
       - name: Setup NodeJS
         uses: actions/setup-node@8c91899e586c5b171469028077307d293428b516 # v3.5.1
         with:
@@ -287,7 +287,7 @@ jobs:
       sonar_secret: ${{ secrets.SONAR_TOKEN }}
     steps:
       - name: Checkout code
-        uses: actions/checkout@93ea575cb5d8a053eaa0ac8fa3b40d7e05a33cc8 # v3.1.0
+        uses: actions/checkout@755da8c3cf115ac066823e79a1e1788f8940201b # v3.2.0
         with:
           fetch-depth: 0
       - name: Restore node dependency cache
@@ -366,9 +366,9 @@ jobs:
       GITLAB_TOKEN: ${{ secrets.E2E_TEST_GITLAB_TOKEN }}  
     steps:
       - name: Checkout code
-        uses: actions/checkout@93ea575cb5d8a053eaa0ac8fa3b40d7e05a33cc8 # v3.1.0
+        uses: actions/checkout@755da8c3cf115ac066823e79a1e1788f8940201b # v3.2.0
       - name: Setup Golang
-        uses: actions/setup-go@d0a58c1c4d2b25278816e339b944508c875f3613 # v3.4.0
+        uses: actions/setup-go@6edd4406fa81c3da01a34fa6f6343087c207a568 # v3.5.0
         with:
           go-version: ${{ env.GOLANG_VERSION }}
       - name: GH actions workaround - Kill XSP4 process
