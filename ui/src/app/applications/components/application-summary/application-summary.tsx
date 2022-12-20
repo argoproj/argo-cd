@@ -222,7 +222,7 @@ export const ApplicationSummary = (props: ApplicationSummaryProps) => {
                   {
                       title: 'PATH',
                       view: (
-                          <Revision repoUrl={source.repoURL} revision={source.targetRevision || 'HEAD'} path={source.path} title='PATH'>
+                          <Revision repoUrl={source.repoURL} revision={source.targetRevision || 'HEAD'} path={source.path} isForPath={true}>
                               {source.path ?? ''}
                           </Revision>
                       ),
