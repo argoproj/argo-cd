@@ -13,7 +13,7 @@ The Progressive Rollouts feature set is intended to be light and flexible. The f
 ## Enabling Progressive Rollouts
 As an experimental feature, progressive rollouts must be explicitly enabled, in one of these ways.
 1. Pass `--enable-progressive-rollouts` to the ApplicationSet controller args.
-1. Set `ARGOCD_APPLICATIONSET_ENABLE_PROGRESSIVE_ROLLOUTS=true` in the ApplicationSet controller environment variables.
+1. Set `ARGOCD_APPLICATIONSET_CONTROLLER_ENABLE_PROGRESSIVE_ROLLOUTS=true` in the ApplicationSet controller environment variables.
 1. Set `applicationsetcontroller.enable.progressive.rollouts: true` in the ArgoCD ConfigMap.
 
 ## Strategies
