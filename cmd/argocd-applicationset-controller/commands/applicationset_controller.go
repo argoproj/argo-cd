@@ -207,7 +207,7 @@ func NewCommand() *cobra.Command {
 	command.Flags().StringVar(&cmdutil.LogFormat, "logformat", env.StringFromEnv("ARGOCD_APPLICATIONSET_CONTROLLER_LOGFORMAT", "text"), "Set the logging format. One of: text|json")
 	command.Flags().StringVar(&cmdutil.LogLevel, "loglevel", env.StringFromEnv("ARGOCD_APPLICATIONSET_CONTROLLER_LOGLEVEL", "info"), "Set the logging level. One of: debug|info|warn|error")
 	command.Flags().BoolVar(&dryRun, "dry-run", env.ParseBoolFromEnv("ARGOCD_APPLICATIONSET_CONTROLLER_DRY_RUN", false), "Enable dry run mode")
-	command.Flags().BoolVar(&enableProgressiveRollouts, "enable-progressive-rollouts", env.ParseBoolFromEnv("ARGOCD_APPLICATIONSET_ENABLE_PROGRESSIVE_ROLLOUTS", false), "Enable use of the experimental progressive rollouts feature.")
+	command.Flags().BoolVar(&enableProgressiveRollouts, "enable-progressive-rollouts", env.ParseBoolFromEnv("ARGOCD_APPLICATIONSET_CONTROLLER_ENABLE_PROGRESSIVE_ROLLOUTS", false), "Enable use of the experimental progressive rollouts feature.")
 	return &command
 }
 
