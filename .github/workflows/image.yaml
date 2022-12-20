@@ -76,9 +76,12 @@ jobs:
       - name: Install crane to get digest of image
         uses: imjasonh/setup-crane@e82f1b9a8007d399333baba4d75915558e9fb6a4
 
-      - name: Sign Argo CD latest image
+      - name: Get digest of image
         run: |
           echo "IMAGE_DIGEST=$(crane digest quay.io/argoproj/argocd:latest)" >> $GITHUB_ENV
+
+      - name: Sign Argo CD latest image
+        run: |
           cosign sign --key env://COSIGN_PRIVATE_KEY quay.io/argoproj/argocd@${{ env.IMAGE_DIGEST }}
           # Displays the public key to share.
           cosign public-key --key env://COSIGN_PRIVATE_KEY
