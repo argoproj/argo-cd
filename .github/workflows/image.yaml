@@ -119,11 +119,15 @@ jobs:
       - name: Install cosign
         uses: sigstore/cosign-installer@9becc617647dfa20ae7b1151972e9b3a2c338a2b # v2.8.1
         with:
-          cosign-release: 'v1.13.0'
+          cosign-release: 'v1.13.1'
+
+      - name: Install crane to get digest of image
+        uses: imjasonh/setup-crane@e82f1b9a8007d399333baba4d75915558e9fb6a4
 
       - name: Sign Argo CD latest image
         run: |
-          cosign sign --key env://COSIGN_PRIVATE_KEY quay.io/argoproj/argocd:latest
+          echo "IMAGE_DIGEST=$(crane digest quay.io/argoproj/argocd:latest)" >> $GITHUB_ENV
+          cosign sign --key env://COSIGN_PRIVATE_KEY quay.io/argoproj/argocd@${{ env.IMAGE_DIGEST }}
           # Displays the public key to share.
           cosign public-key --key env://COSIGN_PRIVATE_KEY
         env:
