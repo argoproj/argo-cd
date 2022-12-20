@@ -11,7 +11,7 @@ approvers:
   - TBD
 
 creation-date: 2022-12-01
-last-updated: 2022-12-01
+last-updated: 2022-12-20
 ---
 
 # Provide first class status to Image Updater within Argo CD
@@ -26,7 +26,11 @@ Argo CD users would benefit from having Image Updater included as a first class 
 
 ## Motivation
 
-Argo CD Image Updater is a popular project which solves an important gap within the CI/CD workflow by providing the ability to update application workload images automatically (subject to appropriate constraints). It is designed around Argo CD itself and naturally compliments it. The configuration required for it revolves almost entirely around the Application resource itself. Currently the Image Updater uses annotations on the application resource to store configuration, which is not the preferred way to do this. It also doesn't store any state, and is, as such, unable to provide some key features that are discussed in further sections. Consolidating this configuration into the Application CR as first class fields in the spec and status is a natural next step in the Image Updater's journey. 
+Argo CD Image Updater is a popular project which solves an important gap within the CI/CD workflow by providing the ability to update application workload images automatically (subject to appropriate constraints). It is designed around Argo CD itself and naturally compliments it. The configuration required for it revolves almost entirely around the Application resource itself. Currently the Image Updater uses annotations on the application resource to store configuration, which is not the preferred way to do this for a number of reasons, including:
+  - It is easy to make errors and misconfigurations as a user when using annotations
+  - It is harder to validate annotations. Error checking on the controller's end could involve complex string parsing and does not allow us to leverage existing validation solutions provided to us by Kubernetes.
+  - It is harder to express complicated configuration. Leveraging powerful features often results in complex and verbose annotations that are not easy to work with or troubleshoot. 
+It also doesn't store any state, and is, as such, unable to provide some key features that are discussed in further sections. Consolidating this configuration into the Application CR as first class fields in the spec and status is a natural next step in the Image Updater's journey. 
 
 ### Goals
 
@@ -43,10 +47,12 @@ TBD
 ### Use cases
 
 #### Use case 1:
-As a User of Argo CD, I would like to be able to have my application images updated automatically within expressed constraints when there is a new version available, natively within Argo CD. 
+As a User of Argo CD, I would like to be able to have my application images updated automatically within expressed constraints when there is a new version available, out of the box with Argo CD. 
 
 #### Use case 2:
-As a user of Argo CD and Argo CD Image Updater, I would like to be able to express advanced Image update configurations through custom resource fields in my application
+As a user of Argo CD and Argo CD Image Updater, I would like to be able to express advanced Image update configurations through custom resource fields in my application.
+
+For users wanting to use Image Updater in production, it is common to have a strict set of restrictions in place in terms of which images can/should be automatically updated, where these images should come from, which reposoitry/branch the commits should be made to and what credentials should be used among many others. It is important to have a set of first class custom resource fields to be able to express this information accurately and reliably. This would add considerable value to the user experience, including but not limited to increased ease of use, stronger validation and standardization for these fields.
  
 #### Use case 3:
 As a user of Argo CD and Argo CD Image Updater, I would like to have image-updater honor rollbacks to my applications
@@ -60,7 +66,7 @@ As a user of Argo CD and Argo CD Image Updater, I would like to have image-updat
 
 - Image Updater git write back code will need to be modified to figure out the correct set of manifest updates to be written back to each source repository in case the application has multiple source repositories. 
 
-- Image Updater controller would need to be able to modify fields in the status of the Application CR in order to maintain state, as described in the following section.
+- Image Updater controller would need to be able to modify fields in the status of the Application CR in order to maintain state, as described in the following section. This would also mean there would be fields in the Application CR that would not be used by Argo CD itself, but by a different component (Image Updater). 
 
 - There could be a case made for separating Image Updater configuration into its own dedicated CRD, however since the application resource is so central to the image update configurations, it would be a lot more intuitive for this configuration to belong within the application CR itself. Secondly, having a dedicated CR would mean that the number of required resources on the cluster would double since we would need to have a dedicated image update CR for each application.
 
@@ -69,8 +75,8 @@ As a user of Argo CD and Argo CD Image Updater, I would like to have image-updat
 ### Detailed examples
 
 
-At present, users of Image Updater must add a host of specific annotations to their applications in order to configure automatic image updates on them. As the user base of the Image Updater project has grown, the use cases and requirements have also gotten more complex and demanding. As these features have been implemented and delivered to the users, the ways to use annotations to leverage these features have become more complicated, involving somewhat convoluted mechanisms to express references to resources like secrets, and setting up templates for branch names.
-Converting these fields to first class fields in the CR would simplify the expression and usage of these fields and make them more intuitive for users to understand and leverage. 
+At present, users of Image Updater must add a host of specific annotations to their applications in order to configure automatic image updates on them. As the user base of the Image Updater project has grown, the use cases and requirements have also gotten more complex and demanding. As these features have been implemented and delivered to the users, the ways to use annotations to leverage these features have become more complicated, involving somewhat convoluted mechanisms to express references to resources like secrets, and setting up templates for branch names. Using annotations also opens up the possibility of misconfigurations by means of usage of "random" annotation names (containing typos) which make it cumbersome to troubleshoot issues.
+Aside from providing strict type validation, converting these fields to first class fields in the CR would simplify the expression and usage of these fields and make them more intuitive for users to understand and leverage. 
 
 Example of proposed additions to Application CR spec and status to accomodate image update configuration:
 
@@ -172,7 +178,7 @@ Based on this proposal, the Image Updater controller would need to write to the 
 
 With the rise in interest in software supply chain security across the industry, one aspect worth considering is that the introduction of Image Updater into Argo CD would expose Argo CD toward an entirely new type of source repository in image registries. Image Updater interfaces directly with various image registries, and as such pulls image manifests from these sources, currently trusting that the user has configured reputable image registries for their purposes. Moving forward, it would be reasonable to suggest that we could be more careful and selective about which images/registries we would want to allow Argo CD to pull images from, in order to minimize exposure to bad actors. 
 
-One of the potential enhancements that could be introduced within Image Updater down the line would be the ability to verify that images are signed through potentially leveraging existing container verification solutions. The above proposed CR fields could be expanded to build out `.spec.image.verification` for e.g which could store specific configuration/constraints expressed by the user to ensure the trustworthiness of containers being used in their applications (for e.g storing the location of a public key to verify an image against)
+One of the potential enhancements that could be introduced within Image Updater down the line would be the ability to verify that images are signed through potentially leveraging existing container verification solutions. The above proposed CR fields could be expanded to build out `.spec.image.verification`, for instance. This could be used to store specific configuration/constraints expressed by the user to ensure the trustworthiness of containers being used in their applications. One example of this would be storing the location of a public key to verify an image against.
 
 
 ### Risks and Mitigations
