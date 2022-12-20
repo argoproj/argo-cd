@@ -4,7 +4,7 @@ import {revisionUrl} from './urls';
 export const Revision = ({repoUrl, revision, path, isForPath, children}: {repoUrl: string; revision: string; path?: string; isForPath?: boolean; children?: React.ReactNode}) => {
     if (isForPath && path) {
         // This source literally has no path, so we won't show one.
-        return <span/>;
+        return <span />;
     }
     revision = revision || '';
     const hasPath = path && path !== '.';
