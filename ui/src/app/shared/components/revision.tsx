@@ -1,9 +1,12 @@
 import * as React from 'react';
 import {revisionUrl} from './urls';
 
-export const Revision = ({repoUrl, revision, path, children}: {repoUrl: string; revision: string; path?: string; children?: React.ReactNode}) => {
-    revision = revision || '';
+export const Revision = ({repoUrl, revision, path, title, children}: {repoUrl: string; revision: string; path?: string; title?: string; children?: React.ReactNode}) => {
     const hasPath = path && path !== '.';
+    if (title == 'PATH' && !hasPath) {
+        return <span></span>
+    }
+    revision = revision || '';
     let url = revisionUrl(repoUrl, revision, hasPath);
     if (hasPath) {
         url += '/' + path;
