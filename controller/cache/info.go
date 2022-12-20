@@ -6,9 +6,11 @@ import (
 	"strings"
 
 	"k8s.io/apimachinery/pkg/runtime/schema"
+	"k8s.io/kubernetes/pkg/apis/autoscaling"
 
 	"github.com/argoproj/gitops-engine/pkg/utils/kube"
 	"github.com/argoproj/gitops-engine/pkg/utils/text"
+	appsv1 "k8s.io/api/apps/v1"
 	v1 "k8s.io/api/core/v1"
 	"k8s.io/apimachinery/pkg/apis/meta/v1/unstructured"
 	"k8s.io/apimachinery/pkg/runtime"
@@ -43,6 +45,16 @@ func populateNodeInfo(un *unstructured.Unstructured, res *ResourceInfo, customLa
 			populateServiceInfo(un, res)
 		case "Node":
 			populateHostNodeInfo(un, res)
+		}
+	case appsv1.GroupName:
+		switch gvk.Kind {
+		case kube.ReplicaSetKind:
+			populateRSInfo(un, res)
+		}
+	case autoscaling.GroupName:
+		switch gvk.Kind {
+		case "HorizontalPodAutoscaler":
+			populateHPAInfo(un, res)
 		}
 	case "extensions", "networking.k8s.io":
 		switch gvk.Kind {
@@ -385,4 +397,28 @@ func populateHostNodeInfo(un *unstructured.Unstructured, res *ResourceInfo) {
 		Capacity:   node.Status.Capacity,
 		SystemInfo: node.Status.NodeInfo,
 	}
+}
+
+func populateRSInfo(un *unstructured.Unstructured, res *ResourceInfo) {
+	rs := appsv1.ReplicaSet{}
+	err := runtime.DefaultUnstructuredConverter.FromUnstructured(un.Object, &rs)
+	if err != nil {
+		return
+	}
+	var replicas string
+	if rs.Spec.Replicas == nil {
+		replicas = fmt.Sprintf("-/%d/%d", rs.Status.ReadyReplicas, rs.Status.Replicas)
+	} else {
+		replicas = fmt.Sprintf("%d/%d/%d", *rs.Spec.Replicas, rs.Status.ReadyReplicas, rs.Status.Replicas)
+	}
+	res.Info = append(res.Info, v1alpha1.InfoItem{Name: "Replicas", Value: replicas})
+}
+
+func populateHPAInfo(un *unstructured.Unstructured, res *ResourceInfo) {
+	hpa := autoscaling.HorizontalPodAutoscaler{}
+	err := runtime.DefaultUnstructuredConverter.FromUnstructured(un.Object, &hpa)
+	if err != nil {
+		return
+	}
+	res.Info = append(res.Info, v1alpha1.InfoItem{Name: "Replicas", Value: fmt.Sprintf("%d/%d", hpa.Status.DesiredReplicas, hpa.Status.CurrentReplicas)})
 }
