@@ -420,6 +420,19 @@ spec:
                                             type: string
                                           nameSuffix:
                                             type: string
+                                          replicas:
+                                            items:
+                                              properties:
+                                                count:
+                                                  format: int64
+                                                  type: integer
+                                                name:
+                                                  type: string
+                                              required:
+                                              - count
+                                              - name
+                                              type: object
+                                            type: array
                                           version:
                                             type: string
                                         type: object
@@ -908,6 +921,19 @@ spec:
                                             type: string
                                           nameSuffix:
                                             type: string
+                                          replicas:
+                                            items:
+                                              properties:
+                                                count:
+                                                  format: int64
+                                                  type: integer
+                                                name:
+                                                  type: string
+                                              required:
+                                              - count
+                                              - name
+                                              type: object
+                                            type: array
                                           version:
                                             type: string
                                         type: object
@@ -1400,6 +1426,19 @@ spec:
                                             type: string
                                           nameSuffix:
                                             type: string
+                                          replicas:
+                                            items:
+                                              properties:
+                                                count:
+                                                  format: int64
+                                                  type: integer
+                                                name:
+                                                  type: string
+                                              required:
+                                              - count
+                                              - name
+                                              type: object
+                                            type: array
                                           version:
                                             type: string
                                         type: object
@@ -1867,6 +1906,19 @@ spec:
                                             type: string
                                           nameSuffix:
                                             type: string
+                                          replicas:
+                                            items:
+                                              properties:
+                                                count:
+                                                  format: int64
+                                                  type: integer
+                                                name:
+                                                  type: string
+                                              required:
+                                              - count
+                                              - name
+                                              type: object
+                                            type: array
                                           version:
                                             type: string
                                         type: object
@@ -2363,6 +2415,19 @@ spec:
                                                       type: string
                                                     nameSuffix:
                                                       type: string
+                                                    replicas:
+                                                      items:
+                                                        properties:
+                                                          count:
+                                                            format: int64
+                                                            type: integer
+                                                          name:
+                                                            type: string
+                                                        required:
+                                                        - count
+                                                        - name
+                                                        type: object
+                                                      type: array
                                                     version:
                                                       type: string
                                                   type: object
@@ -2851,6 +2916,19 @@ spec:
                                                       type: string
                                                     nameSuffix:
                                                       type: string
+                                                    replicas:
+                                                      items:
+                                                        properties:
+                                                          count:
+                                                            format: int64
+                                                            type: integer
+                                                          name:
+                                                            type: string
+                                                        required:
+                                                        - count
+                                                        - name
+                                                        type: object
+                                                      type: array
                                                     version:
                                                       type: string
                                                   type: object
@@ -3343,6 +3421,19 @@ spec:
                                                       type: string
                                                     nameSuffix:
                                                       type: string
+                                                    replicas:
+                                                      items:
+                                                        properties:
+                                                          count:
+                                                            format: int64
+                                                            type: integer
+                                                          name:
+                                                            type: string
+                                                        required:
+                                                        - count
+                                                        - name
+                                                        type: object
+                                                      type: array
                                                     version:
                                                       type: string
                                                   type: object
@@ -3810,6 +3901,19 @@ spec:
                                                       type: string
                                                     nameSuffix:
                                                       type: string
+                                                    replicas:
+                                                      items:
+                                                        properties:
+                                                          count:
+                                                            format: int64
+                                                            type: integer
+                                                          name:
+                                                            type: string
+                                                        required:
+                                                        - count
+                                                        - name
+                                                        type: object
+                                                      type: array
                                                     version:
                                                       type: string
                                                   type: object
@@ -4394,6 +4498,19 @@ spec:
                                                       type: string
                                                     nameSuffix:
                                                       type: string
+                                                    replicas:
+                                                      items:
+                                                        properties:
+                                                          count:
+                                                            format: int64
+                                                            type: integer
+                                                          name:
+                                                            type: string
+                                                        required:
+                                                        - count
+                                                        - name
+                                                        type: object
+                                                      type: array
                                                     version:
                                                       type: string
                                                   type: object
@@ -5025,6 +5142,19 @@ spec:
                                                       type: string
                                                     nameSuffix:
                                                       type: string
+                                                    replicas:
+                                                      items:
+                                                        properties:
+                                                          count:
+                                                            format: int64
+                                                            type: integer
+                                                          name:
+                                                            type: string
+                                                        required:
+                                                        - count
+                                                        - name
+                                                        type: object
+                                                      type: array
                                                     version:
                                                       type: string
                                                   type: object
@@ -5507,6 +5637,19 @@ spec:
                                             type: string
                                           nameSuffix:
                                             type: string
+                                          replicas:
+                                            items:
+                                              properties:
+                                                count:
+                                                  format: int64
+                                                  type: integer
+                                                name:
+                                                  type: string
+                                              required:
+                                              - count
+                                              - name
+                                              type: object
+                                            type: array
                                           version:
                                             type: string
                                         type: object
@@ -6003,6 +6146,19 @@ spec:
                                                       type: string
                                                     nameSuffix:
                                                       type: string
+                                                    replicas:
+                                                      items:
+                                                        properties:
+                                                          count:
+                                                            format: int64
+                                                            type: integer
+                                                          name:
+                                                            type: string
+                                                        required:
+                                                        - count
+                                                        - name
+                                                        type: object
+                                                      type: array
                                                     version:
                                                       type: string
                                                   type: object
@@ -6491,6 +6647,19 @@ spec:
                                                       type: string
                                                     nameSuffix:
                                                       type: string
+                                                    replicas:
+                                                      items:
+                                                        properties:
+                                                          count:
+                                                            format: int64
+                                                            type: integer
+                                                          name:
+                                                            type: string
+                                                        required:
+                                                        - count
+                                                        - name
+                                                        type: object
+                                                      type: array
                                                     version:
                                                       type: string
                                                   type: object
@@ -6983,6 +7152,19 @@ spec:
                                                       type: string
                                                     nameSuffix:
                                                       type: string
+                                                    replicas:
+                                                      items:
+                                                        properties:
+                                                          count:
+                                                            format: int64
+                                                            type: integer
+                                                          name:
+                                                            type: string
+                                                        required:
+                                                        - count
+                                                        - name
+                                                        type: object
+                                                      type: array
                                                     version:
                                                       type: string
                                                   type: object
@@ -7450,6 +7632,19 @@ spec:
                                                       type: string
                                                     nameSuffix:
                                                       type: string
+                                                    replicas:
+                                                      items:
+                                                        properties:
+                                                          count:
+                                                            format: int64
+                                                            type: integer
+                                                          name:
+                                                            type: string
+                                                        required:
+                                                        - count
+                                                        - name
+                                                        type: object
+                                                      type: array
                                                     version:
                                                       type: string
                                                   type: object
@@ -8034,6 +8229,19 @@ spec:
                                                       type: string
                                                     nameSuffix:
                                                       type: string
+                                                    replicas:
+                                                      items:
+                                                        properties:
+                                                          count:
+                                                            format: int64
+                                                            type: integer
+                                                          name:
+                                                            type: string
+                                                        required:
+                                                        - count
+                                                        - name
+                                                        type: object
+                                                      type: array
                                                     version:
                                                       type: string
                                                   type: object
@@ -8665,6 +8873,19 @@ spec:
                                                       type: string
                                                     nameSuffix:
                                                       type: string
+                                                    replicas:
+                                                      items:
+                                                        properties:
+                                                          count:
+                                                            format: int64
+                                                            type: integer
+                                                          name:
+                                                            type: string
+                                                        required:
+                                                        - count
+                                                        - name
+                                                        type: object
+                                                      type: array
                                                     version:
                                                       type: string
                                                   type: object
@@ -9151,6 +9372,19 @@ spec:
                                             type: string
                                           nameSuffix:
                                             type: string
+                                          replicas:
+                                            items:
+                                              properties:
+                                                count:
+                                                  format: int64
+                                                  type: integer
+                                                name:
+                                                  type: string
+                                              required:
+                                              - count
+                                              - name
+                                              type: object
+                                            type: array
                                           version:
                                             type: string
                                         type: object
@@ -9732,6 +9966,19 @@ spec:
                                             type: string
                                           nameSuffix:
                                             type: string
+                                          replicas:
+                                            items:
+                                              properties:
+                                                count:
+                                                  format: int64
+                                                  type: integer
+                                                name:
+                                                  type: string
+                                              required:
+                                              - count
+                                              - name
+                                              type: object
+                                            type: array
                                           version:
                                             type: string
                                         type: object
@@ -10363,6 +10610,19 @@ spec:
                                             type: string
                                           nameSuffix:
                                             type: string
+                                          replicas:
+                                            items:
+                                              properties:
+                                                count:
+                                                  format: int64
+                                                  type: integer
+                                                name:
+                                                  type: string
+                                              required:
+                                              - count
+                                              - name
+                                              type: object
+                                            type: array
                                           version:
                                             type: string
                                         type: object
@@ -10883,6 +11143,19 @@ spec:
                                   type: string
                                 nameSuffix:
                                   type: string
+                                replicas:
+                                  items:
+                                    properties:
+                                      count:
+                                        format: int64
+                                        type: integer
+                                      name:
+                                        type: string
+                                    required:
+                                    - count
+                                    - name
+                                    type: object
+                                  type: array
                                 version:
                                   type: string
                               type: object
