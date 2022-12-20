@@ -3,7 +3,7 @@ import {revisionUrl} from './urls';
 
 export const Revision = ({repoUrl, revision, path, title, children}: {repoUrl: string; revision: string; path?: string; title?: string; children?: React.ReactNode}) => {
     const hasPath = path && path !== '.';
-    if (title == 'PATH' && !hasPath) {
+    if (title == 'PATH' && path) {
         return <span></span>
     }
     revision = revision || '';
