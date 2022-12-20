@@ -348,9 +348,9 @@ func GetRefSources(ctx context.Context, spec argoappv1.ApplicationSpec, db db.Ar
 		refKeys := make(map[string]bool)
 		for _, source := range spec.Sources {
 			if source.Ref != "" {
-				isValidRefKey := regexp.MustCompile(`^[a-zA-Z0-9]+$`).MatchString
+				isValidRefKey := regexp.MustCompile(`^[a-zA-Z0-9_-]+$`).MatchString
 				if !isValidRefKey(source.Ref) {
-					return nil, fmt.Errorf("source.ref %s cannot contain any special characters except '_' and '-'", source.Ref)
+					return nil, fmt.Errorf("sources.ref %s cannot contain any special characters except '_' and '-'", source.Ref)
 				}
 				refKey := "$" + source.Ref
 				if _, ok := refKeys[refKey]; ok {

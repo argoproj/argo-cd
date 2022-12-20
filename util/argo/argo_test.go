@@ -1043,14 +1043,14 @@ func Test_GetRefSources(t *testing.T) {
 		repoDB.On("GetRepository", context.Background(), repo.Repo).Return(repo, nil)
 
 		argoSpec := getMultiSourceAppSpec(argoappv1.ApplicationSources{
-			{RepoURL: fmt.Sprintf("file://%s", repoPath), Ref: "source1"},
+			{RepoURL: fmt.Sprintf("file://%s", repoPath), Ref: "source-1_2"},
 			{RepoURL: fmt.Sprintf("file://%s", repoPath)},
 		})
 
 		refSources, err := GetRefSources(context.TODO(), *argoSpec, repoDB)
 
 		expectedRefSource := argoappv1.RefTargetRevisionMapping{
-			"$source1": &argoappv1.RefTarget{
+			"$source-1_2": &argoappv1.RefTarget{
 				Repo: *repo,
 			},
 		}
