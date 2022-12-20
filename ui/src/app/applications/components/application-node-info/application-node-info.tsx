@@ -61,7 +61,7 @@ export const ApplicationNodeInfo = (props: {
             }
             attributes.push({title: 'HOSTNAMES', value: hostNames});
         } else if (props.node.kind === 'ReplicaSet') {
-            attributes.push({title: 'REPLICAS', value: `${props.live.spec?.replicas || 0}/${props.live.status?.readyReplicas || 0}/${props.live.spec?.replicas || 0}`});
+            attributes.push({title: 'REPLICAS', value: `${props.live.spec?.replicas || 0}/${props.live.status?.readyReplicas || 0}/${props.live.status?.replicas || 0}`});
         }
     }
 
