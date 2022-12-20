@@ -5,6 +5,7 @@ import (
 	"reflect"
 
 	"context"
+
 	"github.com/argoproj/gitops-engine/pkg/utils/kube"
 	"github.com/argoproj/gitops-engine/pkg/utils/text"
 	log "github.com/sirupsen/logrus"
@@ -505,6 +506,7 @@ func (s *Server) ValidateAccess(ctx context.Context, q *repositorypkg.RepoAccess
 		GithubAppInstallationId:    q.GithubAppInstallationID,
 		GitHubAppEnterpriseBaseURL: q.GithubAppEnterpriseBaseUrl,
 		Proxy:                      q.Proxy,
+		GCPServiceAccountKey:       q.GcpServiceAccountKey,
 	}
 
 	// If repo does not have credentials, check if there are credentials stored
@@ -552,7 +554,7 @@ func (s *Server) isRepoPermittedInProject(repo string, projName string) error {
 // isSourceInHistory checks if the supplied application source is either our current application
 // source, or was something which we synced to previously.
 func isSourceInHistory(app *v1alpha1.Application, source v1alpha1.ApplicationSource) bool {
-	if source.Equals(app.Spec.Source) {
+	if source.Equals(app.Spec.GetSource()) {
 		return true
 	}
 	// Iterate history. When comparing items in our history, use the actual synced revision to
