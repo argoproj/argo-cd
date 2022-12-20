@@ -642,7 +642,7 @@ export class ApplicationDetails extends React.Component<RouteComponentProps<{app
                 title: hasMultipleSources ? (
                     <React.Fragment>
                         <ActionMenuItem actionLabel=' History and rollback' />
-                        {helpTip('Rollback is disabled for apps with multiple sources')}
+                        {helpTip('Rollback is not supported for apps with multiple sources')}
                     </React.Fragment>
                 ) : (
                     <ActionMenuItem actionLabel='History and rollback' />
