@@ -964,12 +964,6 @@ func (a *ArgoCDServer) newHTTPServer(ctx context.Context, port int, grpcWebHandl
 	return &httpS
 }
 
-func authMiddlewareFunc(a *ArgoCDServer) func(http.Handler) http.Handler {
-	return func(h http.Handler) http.Handler {
-		return a.sessionMgr.WithAuthMiddleware(a.DisableAuth, h)
-	}
-}
-
 // registerExtensions will try to register all configured extensions
 // in the given mux. If any error is returned while registering
 // extensions handlers, no route will be added in the given mux.
@@ -978,7 +972,9 @@ func registerExtensions(mux *http.ServeMux, a *ArgoCDServer) {
 	ag := extension.NewDefaultApplicationGetter(a.serviceSet.ApplicationService)
 	em := extension.NewManager(sg, ag, a.log)
 	r := gmux.NewRouter()
-	r.Use(authMiddlewareFunc(a))
+	// register an Auth middleware to ensure all requests to
+	// extensions are authenticated first.
+	r.Use(a.sessionMgr.AuthMiddlewareFunc(a.DisableAuth))
 
 	err := em.RegisterHandlers(r)
 	if err != nil {

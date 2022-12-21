@@ -51,6 +51,9 @@ type LoginAttempts struct {
 	FailCount int `json:"failCount"`
 }
 
+// contextKey is a private type to avoid colision and protect
+// context keys.
+// See: https://pkg.go.dev/context#WithValue
 type contextKey string
 
 const (
@@ -466,6 +469,17 @@ func (mgr *SessionManager) VerifyUsernamePassword(username string, password stri
 	return nil
 }
 
+// AuthMiddlewareFunc returns a function that can be used as an
+// authentication middleware for HTTP requests.
+func (mgr *SessionManager) AuthMiddlewareFunc(disabled bool) func(http.Handler) http.Handler {
+	return func(h http.Handler) http.Handler {
+		return mgr.WithAuthMiddleware(disabled, h)
+	}
+}
+
+// WithAuthMiddleware is an HTTP middleware used to ensure incoming
+// requests are authenticated before invoking the target handler. If
+// disabled is true, it will just invoke the next handler in the chain.
 func (mgr *SessionManager) WithAuthMiddleware(disabled bool, next http.Handler) http.Handler {
 	return http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
 		if !disabled {

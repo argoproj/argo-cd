@@ -18,17 +18,116 @@ import (
 	"github.com/ghodss/yaml"
 	"github.com/gorilla/mux"
 	log "github.com/sirupsen/logrus"
+	"k8s.io/apimachinery/pkg/runtime/schema"
 	"k8s.io/utils/pointer"
 )
 
 const (
 	URLPrefix                    = "/extensions"
-	HeaderArgoCDApplicationName  = "Argocd-Application-Name"
 	DefaultConnectionTimeout     = 2 * time.Second
 	DefaultKeepAlive             = 15 * time.Second
 	DefaultIdleConnectionTimeout = 60 * time.Second
 	DefaultMaxIdleConnections    = 30
+	HeaderArgoCDApplicationName  = "Argocd-Application-Name"
+	HeaderArgoCDProjectName      = "Argocd-Project-Name"
+	HeaderArgoCDResourceGVKName  = "Argocd-Resource-GVK-Name"
 )
+
+// RequestResources defines the authorization scope for
+// an incoming request to a given extension. This struct
+// is populated from pre-defined Argo CD headers.
+type RequestResources struct {
+	ApplicationName      string
+	ApplicationNamespace string
+	ProjectName          string
+	Resources            []Resource
+}
+
+// Resource defines the Kubernetes resource used for checking
+// the authorization scope.
+type Resource struct {
+	Gvk  schema.GroupVersionKind
+	Name string
+}
+
+// ToRequestResources will inspect the pre-defined Argo CD
+// request headers for extensions and extract the resources
+// information populating and returning a RequestResources
+// object.
+// The pre-defined headers are:
+// - Argocd-Application-Name
+// - Argocd-Project-Name
+// - Argocd-Resource-GVK-Name
+//
+// The headers expected format is documented in each of the constant
+// types defined for them.
+func ToRequestResources(r *http.Request) (*RequestResources, error) {
+	appHeader := r.Header.Get(HeaderArgoCDApplicationName)
+	if appHeader == "" {
+		return nil, fmt.Errorf("header %q must be provided", HeaderArgoCDApplicationName)
+	}
+	appNamespace, appName, err := getAppName(appHeader)
+	if err != nil {
+		return nil, fmt.Errorf("error getting app details: %s", err)
+	}
+	projName := r.Header.Get(HeaderArgoCDProjectName)
+	if projName == "" {
+		return nil, fmt.Errorf("header %q must be provided", HeaderArgoCDProjectName)
+	}
+	resources := []Resource{}
+	resourcesHeader := r.Header.Get(HeaderArgoCDResourceGVKName)
+	if resourcesHeader != "" {
+		resourceList, err := getResourceList(resourcesHeader)
+		if err != nil {
+			return nil, fmt.Errorf("error getting resource: %s", err)
+		}
+		resources = append(resources, resourceList...)
+	}
+
+	return &RequestResources{
+		ApplicationName:      appName,
+		ApplicationNamespace: appNamespace,
+		ProjectName:          projName,
+		Resources:            resources,
+	}, nil
+}
+
+func getAppName(appHeader string) (string, string, error) {
+	parts := strings.Split(appHeader, "/")
+	if len(parts) != 2 {
+		return "", "", fmt.Errorf("invalid value for %q header: expected format: <namespace>/<app-name>", appHeader)
+	}
+	return parts[0], parts[1], nil
+}
+
+func getResourceList(resourcesHeader string) ([]Resource, error) {
+	resources := []Resource{}
+	parts := strings.Split(resourcesHeader, ",")
+	for _, part := range parts {
+		resource, err := getResource(part)
+		if err != nil {
+			return nil, fmt.Errorf("resource error: %s", err)
+		}
+		if resource != nil {
+			resources = append(resources, *resource)
+		}
+	}
+
+	return resources, nil
+}
+
+// TODO
+func getResource(resourceString string) (*Resource, error) {
+	parts := strings.Split(resourceString, "/")
+	if len(parts) != 4 {
+		return nil, fmt.Errorf("invalid value for %q header: expected format: <apiVersion>/<kind>/<metadata.name>", HeaderArgoCDResourceGVKName)
+	}
+	gvk := schema.FromAPIVersionAndKind(parts[0]+"/"+parts[1], parts[2])
+	return &Resource{
+		Gvk:  gvk,
+		Name: parts[3],
+	}, nil
+}
 
 // ExtensionConfigs defines the configurations for all extensions
 // retrieved from Argo CD configmap (argocd-cm).
@@ -277,10 +376,26 @@ func (m *Manager) registerExtensions(r *mux.Router, extConfigs *ExtensionConfigs
 	return nil
 }
 
+// TODO
+func authorize(ctx context.Context, rr *RequestResources) error {
+	panic("unimplemented")
+}
+
 // CallExtension returns a handler func responsible for forwarding requests to the
 // extension service. The request will be sanitized by removing sensitive headers.
 func (m *Manager) CallExtension(extName string, proxyByCluster map[string]*httputil.ReverseProxy) func(http.ResponseWriter, *http.Request) {
 	return func(w http.ResponseWriter, r *http.Request) {
+		reqResources, err := ToRequestResources(r)
+		if err != nil {
+			http.Error(w, fmt.Sprintf("Invalid headers: %s", err), http.StatusBadRequest)
+			return
+		}
+		err = authorize(r.Context(), reqResources)
+		if err != nil {
+			http.Error(w, fmt.Sprintf("Unauthorized: %s", err), http.StatusUnauthorized)
+			return
+		}
+
 		sanitizeRequest(r, extName)
 		if len(proxyByCluster) == 1 {
 			for _, proxy := range proxyByCluster {
@@ -288,26 +403,14 @@ func (m *Manager) CallExtension(extName string, proxyByCluster map[string]*httpu
 				return
 			}
 		}
-		appHeader := r.Header.Get(HeaderArgoCDApplicationName)
-		if appHeader == "" {
-			msg := fmt.Sprintf("Header %q must be provided", HeaderArgoCDApplicationName)
-			m.writeErrorResponse(http.StatusBadRequest, msg, w)
-			return
-		}
-		appNamespace, appName, err := getAppName(appHeader)
-		if err != nil {
-			msg := fmt.Sprintf("Error getting application name: %s", err)
-			m.writeErrorResponse(http.StatusBadRequest, msg, w)
-			return
-		}
-		app, err := m.application.Get(appNamespace, appName)
+		app, err := m.application.Get(reqResources.ApplicationNamespace, reqResources.ApplicationName)
 		if err != nil {
 			msg := fmt.Sprintf("Error getting application: %s", err)
 			m.writeErrorResponse(http.StatusBadRequest, msg, w)
 			return
 		}
 		if app == nil {
-			msg := fmt.Sprintf("Invalid Application: %s", appHeader)
+			msg := fmt.Sprintf("Invalid Application: %s/%s", reqResources.ApplicationNamespace, reqResources.ApplicationName)
 			m.writeErrorResponse(http.StatusBadRequest, msg, w)
 			return
 		}
@@ -326,16 +429,9 @@ func (m *Manager) CallExtension(extName string, proxyByCluster map[string]*httpu
 	}
 }
 
-func getAppName(appHeader string) (string, string, error) {
-	parts := strings.Split(appHeader, "/")
-	if len(parts) != 2 {
-		return "", "", fmt.Errorf("invalid header value %q: expected format: <namespace>/<app-name>", appHeader)
-	}
-	return parts[0], parts[1], nil
-}
-
 func sanitizeRequest(r *http.Request, extName string) {
 	r.URL.Path = strings.TrimPrefix(r.URL.String(), fmt.Sprintf("%s/%s", URLPrefix, extName))
+	r.Header.Del("Cookie")
 }
 
 func (m *Manager) writeErrorResponse(status int, message string, w http.ResponseWriter) {
