@@ -25,6 +25,7 @@ import (
 	"k8s.io/apimachinery/pkg/runtime"
 	"k8s.io/apimachinery/pkg/watch"
 	"k8s.io/client-go/kubernetes/fake"
+	k8sfake "k8s.io/client-go/kubernetes/fake"
 	kubetesting "k8s.io/client-go/testing"
 	k8scache "k8s.io/client-go/tools/cache"
 	"k8s.io/utils/pointer"
@@ -276,6 +277,32 @@ spec:
     namespace: ` + test.FakeDestNamespace + `
     server: https://cluster-api.com
 `
+
+const fakeAppWithDeleteNamespace = `
+apiVersion: argoproj.io/v1alpha1
+kind: Application
+metadata:
+  name: test-app
+  namespace: default
+spec:
+  source:
+    path: some/path
+    repoURL: https://github.com/argoproj/argocd-example-apps.git
+    targetRevision: HEAD
+    ksonnet:
+      environment: default
+  destination:
+    namespace: ` + test.FakeDestNamespace + `
+    name: fake-cluster
+  syncPolicy:
+    syncOptions:     # Sync options which modifies sync behavior
+    - CreateNamespace=true
+    - DeleteNamespace=true
+`
+
+func newTestAppWithDeleteNamespace(opts ...func(app *appsv1.Application)) *appsv1.Application {
+	return createTestApp(fakeAppWithDeleteNamespace, opts...)
+}
 
 func newTestAppWithDestName(opts ...func(app *appsv1.Application)) *appsv1.Application {
 	return createTestApp(fakeAppWithDestName, opts...)
@@ -613,6 +640,87 @@ func TestDeleteApp_InvalidName(t *testing.T) {
 		return
 	}
 	assert.True(t, apierrors.IsNotFound(err))
+}
+
+func TestDeleteApp_DeleteNamespace(t *testing.T) {
+	ctx := context.Background()
+	appServer := newTestAppServer()
+	createReq := application.ApplicationCreateRequest{
+		Application: newTestAppWithDeleteNamespace(),
+	}
+	appLabelKey, err := appServer.settingsMgr.GetAppInstanceLabelKey()
+	assert.Nil(t, err)
+
+	app, err := appServer.Create(ctx, &createReq)
+	assert.Nil(t, err)
+	ns := v1.Namespace{}
+
+	// Flag whether Delete is called
+	appDeleted := false
+	nsDeleted := false
+	revertValues := func() {
+		appDeleted = false
+		nsDeleted = false
+	}
+
+	// Fake Application response
+	fakeAppCs := appServer.appclientset.(*apps.Clientset)
+	// this removes the default */* reactor so we can set our own patch/delete reactor
+	fakeAppCs.ReactionChain = nil
+	fakeAppCs.AddReactor("delete", "applications", func(action kubetesting.Action) (handled bool, ret runtime.Object, err error) {
+		appDeleted = true
+		return true, nil, nil
+	})
+	fakeAppCs.AddReactor("get", "applications", func(action kubetesting.Action) (handled bool, ret runtime.Object, err error) {
+		return true, app, nil
+	})
+	appServer.appclientset = fakeAppCs
+
+	// Fake Namespace response
+	fakeKubeCs := appServer.kubeclientset.(*k8sfake.Clientset)
+	// this removes the default */* reactor so we can set our own patch/delete reactor
+	fakeKubeCs.ReactionChain = nil
+	fakeKubeCs.AddReactor("get", "namespaces", func(action kubetesting.Action) (handled bool, ret runtime.Object, err error) {
+		return true, &ns, nil
+	})
+	fakeKubeCs.AddReactor("delete", "namespaces", func(action kubetesting.Action) (handled bool, ret runtime.Object, err error) {
+		nsDeleted = true
+		return true, nil, nil
+	})
+	appServer.kubeclientset = fakeKubeCs
+
+	t.Run("Success to delete namespace", func(t *testing.T) {
+		ns = v1.Namespace{
+			ObjectMeta: metav1.ObjectMeta{
+				Name: test.FakeDestNamespace,
+				Labels: map[string]string{
+					appLabelKey: app.Name,
+				},
+			},
+		}
+		_, err = appServer.Delete(ctx, &application.ApplicationDeleteRequest{Name: &app.Name})
+		assert.Nil(t, err)
+		assert.True(t, appDeleted)
+		assert.True(t, nsDeleted)
+		t.Cleanup(revertValues)
+	})
+
+	t.Run("Fail to delete namespace because of invalid label", func(t *testing.T) {
+		ns = v1.Namespace{
+			ObjectMeta: metav1.ObjectMeta{
+				Name: test.FakeDestNamespace,
+				Labels: map[string]string{
+					appLabelKey: "this-is-invalid",
+				},
+			},
+		}
+		_, err = appServer.Delete(ctx, &application.ApplicationDeleteRequest{Name: &app.Name})
+		assert.NotNil(t, err)
+		assert.Equal(t, fmt.Sprintf("error deleting namespace: error cannot delete namespace %s which is not managed by test-app", test.FakeDestNamespace), err.Error())
+		assert.True(t, appDeleted)
+		assert.False(t, nsDeleted)
+		t.Cleanup(revertValues)
+	})
 }
 
 func TestSyncAndTerminate(t *testing.T) {

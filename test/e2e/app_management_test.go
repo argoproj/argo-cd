@@ -2459,3 +2459,122 @@ func TestAnnotationTrackingExtraResources(t *testing.T) {
 		Expect(HealthIs(health.HealthStatusHealthy))
 
 }
+
+// Given
+//   - application is set with --sync-option CreateNamespace=true  --sync-option DeleteNamespace=true
+//   - application --dest-namespace does not exist
+//
+// Verity
+//   - application --dest-namespace is created
+//   - application sync successful
+//   - when application is deleted, --dest-namespace is deleted
+func TestAppDeletionDeleteNamespace(t *testing.T) {
+	appName := "test-app-deletion-delete-namespace"
+	SkipOnEnv(t, "OPENSHIFT")
+	createdNamespace := getNewNamespace(t)
+	Given(t).
+		Timeout(30).
+		Path("guestbook").
+		When().
+		CreateFromFile(func(app *Application) {
+			app.Spec.SyncPolicy = &SyncPolicy{
+				SyncOptions: SyncOptions{"CreateNamespace=true", "DeleteNamespace=true", "PruneLast=true"},
+				ManagedNamespaceMetadata: &ManagedNamespaceMetadata{
+					Labels: map[string]string{"app.kubernetes.io/instance": appName},
+				}}
+		}).
+		Then().
+		Expect(NoNamespace(createdNamespace)).
+		When().
+		AppSet("--dest-namespace", createdNamespace).
+		Sync().
+		Then().
+		Expect(Success("")).
+		Expect(OperationPhaseIs(OperationSucceeded)).
+		Expect(ResourceHealthWithNamespaceIs("Deployment", "guestbook-ui", createdNamespace, health.HealthStatusHealthy)).
+		Expect(ResourceHealthWithNamespaceIs("Deployment", "guestbook-ui", createdNamespace, health.HealthStatusHealthy)).
+		Expect(ResourceSyncStatusWithNamespaceIs("Deployment", "guestbook-ui", createdNamespace, SyncStatusCodeSynced)).
+		Expect(ResourceSyncStatusWithNamespaceIs("Deployment", "guestbook-ui", createdNamespace, SyncStatusCodeSynced)).
+		And(func(app *Application) {
+			// Verify ns is created
+			output, err := Run("", "kubectl", "get", "namespace", createdNamespace)
+			assert.NoError(t, err)
+			assert.Contains(t, output, createdNamespace)
+		}).
+		When().
+		Delete(true).
+		Then().
+		Expect(Success("")).
+		And(func(app *Application) {
+			//Verify app delete the namespace auto created
+			_, err := Run("", "kubectl", "wait", "--for=delete", "namespace", createdNamespace, "--timeout=60s")
+			assert.NoError(t, err)
+		}).
+		Expect(NoNamespace(createdNamespace))
+}
+
+// Given
+//   - application is set with --sync-option CreateNamespace=true  --sync-option DeleteNamespace=true
+//   - namespace does not have an appropriate label ("app.kubernetes.io/instance": application-name)
+//   - application --dest-namespace does not exist
+//
+// Verity
+//   - application --dest-namespace is created
+//   - application sync successful
+//   - when application is deleted, --dest-namespace is not deleted
+//   - deletion process shows error
+func TestAppDeletionDoesNotDeleteNamespace(t *testing.T) {
+	appName := "test-app-deletion-does-not-delete-namespace"
+	SkipOnEnv(t, "OPENSHIFT")
+	createdNamespace := getNewNamespace(t)
+	defer func() {
+		if !t.Skipped() {
+			_, err := Run("", "kubectl", "delete", "namespace", createdNamespace)
+			assert.NoError(t, err)
+		}
+	}()
+	Given(t).
+		Timeout(30).
+		Path("guestbook").
+		When().
+		CreateFromFile(func(app *Application) {
+			app.Spec.SyncPolicy = &SyncPolicy{
+				SyncOptions: SyncOptions{"CreateNamespace=true", "DeleteNamespace=true", "PruneLast=true"},
+				ManagedNamespaceMetadata: &ManagedNamespaceMetadata{
+					Labels: map[string]string{"app.kubernetes.io/instance": appName},
+				}}
+		}).
+		Then().
+		Expect(NoNamespace(createdNamespace)).
+		When().
+		AppSet("--dest-namespace", createdNamespace).
+		Sync().
+		Then().
+		Expect(Success("")).
+		Expect(OperationPhaseIs(OperationSucceeded)).
+		Expect(ResourceHealthWithNamespaceIs("Deployment", "guestbook-ui", createdNamespace, health.HealthStatusHealthy)).
+		Expect(ResourceHealthWithNamespaceIs("Deployment", "guestbook-ui", createdNamespace, health.HealthStatusHealthy)).
+		Expect(ResourceSyncStatusWithNamespaceIs("Deployment", "guestbook-ui", createdNamespace, SyncStatusCodeSynced)).
+		Expect(ResourceSyncStatusWithNamespaceIs("Deployment", "guestbook-ui", createdNamespace, SyncStatusCodeSynced)).
+		When().
+		And(func() {
+			_, err := Run("", "kubectl", "label", "--overwrite", "namespace", createdNamespace, "app.kubernetes.io/instance=wrong-owner")
+			assert.NoError(t, err)
+		}).
+		Then().
+		Expect(Namespace(createdNamespace, func(app *Application, ns *v1.Namespace) {
+			delete(ns.Labels, "kubernetes.io/metadata.name")
+			assert.Equal(t, map[string]string{"app.kubernetes.io/instance": "wrong-owner"}, ns.Labels)
+		})).
+		When().
+		IgnoreErrors().
+		Delete(true).
+		Then().
+		Expect(Error("", "which is not managed by "+appName)).
+		And(func(app *Application) {
+			//Verify delete app does not delete the namespace auto created
+			output, err := Run("", "kubectl", "get", "namespace", createdNamespace)
+			assert.NoError(t, err)
+			assert.Contains(t, output, createdNamespace)
+		})
+}

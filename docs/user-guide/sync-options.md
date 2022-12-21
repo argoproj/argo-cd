@@ -280,6 +280,13 @@ The example above shows how an Argo CD Application can be configured so it will 
 
 Note that the namespace to be created must be informed in the `spec.destination.namespace` field of the Application resource. The `metadata.namespace` field in the Application's child manifests must match this value, or can be omitted, so resources are created in the proper destination.
 
+### Delete Namespace
+
+If `DeleteNamespace=true` is set, we can delete an auto-created namespace when an application is deleted.
+Note that the namespace is deleted only when both `CreateNamespace=true` and `DeleteNamespace=true` are set.  
+In addition, the namespace must have a label or an annotation to indicate the application tracks the namespace [see [resource tracking](resource_tracking.md)].  
+Otherwise, the application is deleted, but the namespace remains throwing error.
+
 ### Namespace Metadata
 
 We can also add labels and annotations to the namespace through `managedNamespaceMetadata`. If we extend the example above

@@ -1000,6 +1000,19 @@ func (s *Server) Delete(ctx context.Context, q *application.ApplicationDeleteReq
 		return nil, fmt.Errorf("error deleting application: %w", err)
 	}
 	s.logAppEvent(a, ctx, argo.EventReasonResourceDeleted, "deleted application")
+
+	// Delete a namespace when both CreateNamespace and DeleteNamespace are set to true.
+	if a.Spec.SyncPolicy != nil {
+		syncOptions := a.Spec.SyncPolicy.SyncOptions
+		if syncOptions.HasOption("CreateNamespace=true") && syncOptions.HasOption("DeleteNamespace=true") {
+			err := s.deleteNamespace(ctx, a.Name, a.Spec.Destination.Namespace, metav1.DeleteOptions{})
+			if err != nil {
+				return nil, fmt.Errorf("error deleting namespace: %w", err)
+			}
+			s.logAppEvent(a, ctx, argo.EventReasonResourceDeleted, fmt.Sprintf("deleted namespace: %s", a.Spec.Destination.Namespace))
+		}
+	}
+
 	return &application.ApplicationResponse{}, nil
 }
 
@@ -2352,4 +2365,42 @@ func (s *Server) appNamespaceOrDefault(appNs string) string {
 
 func (s *Server) isNamespaceEnabled(namespace string) bool {
 	return security.IsNamespaceEnabled(namespace, s.ns, s.enabledNamespaces)
+}
+
+// The namespace can only be deleted when the namespace has an appropriate label or annotation which shows the namespace is tracked by the application.
+func (s *Server) deleteNamespace(ctx context.Context, appName, namespace string, opts metav1.DeleteOptions) error {
+	canDelete, err := s.isNamespaceTrackedByApplication(ctx, appName, namespace, metav1.GetOptions{})
+	if err != nil {
+		return err
+	}
+
+	if canDelete {
+		err := s.kubeclientset.CoreV1().Namespaces().Delete(ctx, namespace, metav1.DeleteOptions{})
+		return err
+	} else {
+		return fmt.Errorf("error cannot delete namespace %s which is not managed by %s", namespace, appName)
+	}
+}
+
+func (s *Server) isNamespaceTrackedByApplication(ctx context.Context, appName, namespace string, opts metav1.GetOptions) (bool, error) {
+	appLabelKey, err := s.settingsMgr.GetAppInstanceLabelKey()
+	if err != nil {
+		log.Errorf("Could not get appInstanceLabelKey: %v", err)
+		return false, err
+	}
+
+	ns, err := s.kubeclientset.CoreV1().Namespaces().Get(ctx, namespace, opts)
+	if err != nil {
+		return false, err
+	}
+
+	unstructedNs, err := kube.ToUnstructured(ns)
+	if err != nil {
+		return false, err
+	}
+
+	trackingMethod := argo.GetTrackingMethod(s.settingsMgr)
+	nsOwner := argo.NewResourceTracking().GetAppName(unstructedNs, appLabelKey, trackingMethod)
+
+	return nsOwner == appName, nil
 }
