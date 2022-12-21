@@ -222,8 +222,8 @@ export const ApplicationSummary = (props: ApplicationSummaryProps) => {
                   {
                       title: 'PATH',
                       view: (
-                          <Revision repoUrl={source.repoURL} revision={source.targetRevision || 'HEAD'} path={source.path}>
-                              {source.path}
+                          <Revision repoUrl={source.repoURL} revision={source.targetRevision || 'HEAD'} path={source.path} isForPath={true}>
+                              {source.path ?? ''}
                           </Revision>
                       ),
                       edit: (formApi: FormApi) => <FormField formApi={formApi} field='spec.source.path' component={Text} />
