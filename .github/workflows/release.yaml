@@ -12,7 +12,7 @@ on:
       - '!release-v0*'
 
 env:
-    GOLANG_VERSION: '1.17'
+  GOLANG_VERSION: '1.17'
 
 permissions:
   contents: read
@@ -223,8 +223,8 @@ jobs:
       - name: Install crane to get digest of image
         uses: imjasonh/setup-crane@e82f1b9a8007d399333baba4d75915558e9fb6a4
 
-     - name: Get digest of image
-       run: |
+      - name: Get digest of image
+        run: |
           echo "IMAGE_DIGEST_QUAY=$(crane digest quay.io/argoproj/argocd:v${TARGET_VERSION})" >> $GITHUB_ENV
           echo "IMAGE_DIGEST_DOCK=$(crane digest docker.io/argoproj/argocd:v${TARGET_VERSION})" >> $GITHUB_ENV
 
@@ -274,7 +274,7 @@ jobs:
           SIGS_BOM_VERSION: v0.2.1
           # comma delimited list of project relative folders to inspect for package
           # managers (gomod, yarn, npm).
-          PROJECT_FOLDERS: ".,./ui" 
+          PROJECT_FOLDERS: ".,./ui"
           # full qualified name of the docker image to be inspected
           DOCKER_IMAGE: ${{env.IMAGE_NAMESPACE}}/argocd:v${{env.TARGET_VERSION}}
         run: |
