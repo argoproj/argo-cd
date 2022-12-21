@@ -55,7 +55,7 @@ As a user of Argo CD and Argo CD Image Updater, I would like to be able to expre
 For users wanting to use Image Updater in production, it is common to have a strict set of restrictions in place in terms of which images can/should be automatically updated, where these images should come from, which reposoitry/branch the commits should be made to and what credentials should be used among many others. It is important to have a set of first class custom resource fields to be able to express this information accurately and reliably. This would add considerable value to the user experience, including but not limited to increased ease of use, stronger validation and standardization for these fields.
  
 #### Use case 3:
-As a user of Argo CD and Argo CD Image Updater, I would like to have image-updater honor rollbacks to my applications
+As a user of Argo CD and Argo CD Image Updater, I would like to have image-updater honor rollbacks to my applications by leveraging status information stored in my application.
 
 ### Implementation Details/Notes/Constraints [optional]
 
@@ -194,11 +194,19 @@ TBD
 
 ## Drawbacks
 
-TBD
+Some potential drawbacks of this proposal are:
+- Addition of new fields to the application CRD for Image update configuration could make the CRD heavier, with potentially more fields being added to the future
+- Addition of Image Updater controller code to the core Argo CD codebase would increase the overall complexity of the codebase and increase maintenance overhead.
+
+That being said, we believe the benefits that we will achieve through this proposal would be worth the risks/drawbacks involved.
 
 ## Alternatives
 
-TBD
+An alternative approach would be to keep Argo CD Image Updater as a separate component altogether and store the previously described configuration in a new, dedicated CRD for the Image Updater. This would also satisfy some of the use cases described in this proposal. However, it would come with considerations of its own, some of which are:
+- Users would have to move all Image Updater configuration away from the application CR (presently expressed as annotations on the application) into this new CR.
+- The new CRD would need to have a field to express an application reference so it is clear which application the image update configuration targets.
+- There would need to be an instance of the new CR for each application that is targeted, essentially doubling the number of resources on the cluster.
+- This might introduce some complications when it comes to working with ApplicationSets, as there would need to be some mechanism in place to express how ApplicationSets would be targeted in the new CR, and how the image update configuration would be applied to the applications created by the ApplicationSet.
 
 ## Future enhancements
 
