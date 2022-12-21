@@ -416,35 +416,6 @@ func TestReturnUnknownComparisonStateOnSettingLoadError(t *testing.T) {
 	assert.Equal(t, argoappv1.SyncStatusCodeUnknown, compRes.syncStatus.Status)
 }
 
-func TestSetManagedResourcesKnownOrphanedResourceExceptions(t *testing.T) {
-	proj := defaultProj.DeepCopy()
-	proj.Spec.OrphanedResources = &argoappv1.OrphanedResourcesMonitorSettings{}
-
-	app := newFakeApp()
-	app.Namespace = "default"
-
-	ctrl := newFakeController(&fakeData{
-		apps: []runtime.Object{app, proj},
-		namespacedResources: map[kube.ResourceKey]namespacedResource{
-			kube.NewResourceKey("apps", kube.DeploymentKind, app.Namespace, "guestbook"): {
-				ResourceNode: argoappv1.ResourceNode{ResourceRef: argoappv1.ResourceRef{Group: "apps", Kind: kube.DeploymentKind, Name: "guestbook", Namespace: app.Namespace}},
-			},
-			kube.NewResourceKey("", kube.ServiceAccountKind, app.Namespace, "default"): {
-				ResourceNode: argoappv1.ResourceNode{ResourceRef: argoappv1.ResourceRef{Kind: kube.ServiceAccountKind, Name: "default", Namespace: app.Namespace}},
-			},
-			kube.NewResourceKey("", kube.ServiceKind, app.Namespace, "kubernetes"): {
-				ResourceNode: argoappv1.ResourceNode{ResourceRef: argoappv1.ResourceRef{Kind: kube.ServiceAccountKind, Name: "kubernetes", Namespace: app.Namespace}},
-			},
-		},
-	})
-
-	tree, err := ctrl.setAppManagedResources(app, &comparisonResult{managedResources: make([]managedResource, 0)})
-
-	assert.NoError(t, err)
-	assert.Len(t, tree.OrphanedNodes, 1)
-	assert.Equal(t, "guestbook", tree.OrphanedNodes[0].Name)
-}
-
 func Test_appStateManager_persistRevisionHistory(t *testing.T) {
 	app := newFakeApp()
 	ctrl := newFakeController(&fakeData{
