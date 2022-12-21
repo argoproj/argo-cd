@@ -12,6 +12,7 @@ The Progressive Rollouts feature set is intended to be light and flexible. The f
 
 ## Enabling Progressive Rollouts
 As an experimental feature, progressive rollouts must be explicitly enabled, in one of these ways.
+
 1. Pass `--enable-progressive-rollouts` to the ApplicationSet controller args.
 1. Set `ARGOCD_APPLICATIONSET_CONTROLLER_ENABLE_PROGRESSIVE_ROLLOUTS=true` in the ApplicationSet controller environment variables.
 1. Set `applicationsetcontroller.enable.progressive.rollouts: true` in the ArgoCD ConfigMap.
@@ -46,6 +47,7 @@ When the ApplicationSet changes, the changes will be applied to each group of Ap
 The following example illustrates how to stage a progressive rollout over Applications with explicitly configured environment labels.
 
 Once a change is pushed, the following will happen in order.
+
 * All `env-dev` Applications will be updated simultaneously.
 * The rollout will wait for all `env-qa` Applications to be manually synced via the `argocd` CLI or by clicking the Sync button in the UI.
 * 10% of all `env-prod` Applications will be updated at a time until all `env-prod` Applications have been updated.
