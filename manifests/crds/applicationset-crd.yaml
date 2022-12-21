@@ -295,10 +295,6 @@ spec:
                                         selfHeal:
                                           type: boolean
                                       type: object
-                                    createNamespaceLabels:
-                                      additionalProperties:
-                                        type: string
-                                      type: object
                                     retry:
                                       properties:
                                         backoff:
@@ -591,10 +587,6 @@ spec:
                                           type: boolean
                                         selfHeal:
                                           type: boolean
-                                      type: object
-                                    createNamespaceLabels:
-                                      additionalProperties:
-                                        type: string
                                       type: object
                                     retry:
                                       properties:
@@ -891,10 +883,6 @@ spec:
                                         selfHeal:
                                           type: boolean
                                       type: object
-                                    createNamespaceLabels:
-                                      additionalProperties:
-                                        type: string
-                                      type: object
                                     retry:
                                       properties:
                                         backoff:
@@ -1165,10 +1153,6 @@ spec:
                                           type: boolean
                                         selfHeal:
                                           type: boolean
-                                      type: object
-                                    createNamespaceLabels:
-                                      additionalProperties:
-                                        type: string
                                       type: object
                                     retry:
                                       properties:
@@ -1471,10 +1455,6 @@ spec:
                                                   selfHeal:
                                                     type: boolean
                                                 type: object
-                                              createNamespaceLabels:
-                                                additionalProperties:
-                                                  type: string
-                                                type: object
                                               retry:
                                                 properties:
                                                   backoff:
@@ -1767,10 +1747,6 @@ spec:
                                                     type: boolean
                                                   selfHeal:
                                                     type: boolean
-                                                type: object
-                                              createNamespaceLabels:
-                                                additionalProperties:
-                                                  type: string
                                                 type: object
                                               retry:
                                                 properties:
@@ -2067,10 +2043,6 @@ spec:
                                                   selfHeal:
                                                     type: boolean
                                                 type: object
-                                              createNamespaceLabels:
-                                                additionalProperties:
-                                                  type: string
-                                                type: object
                                               retry:
                                                 properties:
                                                   backoff:
@@ -2341,10 +2313,6 @@ spec:
                                                     type: boolean
                                                   selfHeal:
                                                     type: boolean
-                                                type: object
-                                              createNamespaceLabels:
-                                                additionalProperties:
-                                                  type: string
                                                 type: object
                                               retry:
                                                 properties:
@@ -2734,10 +2702,6 @@ spec:
                                                     type: boolean
                                                   selfHeal:
                                                     type: boolean
-                                                type: object
-                                              createNamespaceLabels:
-                                                additionalProperties:
-                                                  type: string
                                                 type: object
                                               retry:
                                                 properties:
@@ -3175,10 +3139,6 @@ spec:
                                                   selfHeal:
                                                     type: boolean
                                                 type: object
-                                              createNamespaceLabels:
-                                                additionalProperties:
-                                                  type: string
-                                                type: object
                                               retry:
                                                 properties:
                                                   backoff:
@@ -3465,10 +3425,6 @@ spec:
                                           type: boolean
                                         selfHeal:
                                           type: boolean
-                                      type: object
-                                    createNamespaceLabels:
-                                      additionalProperties:
-                                        type: string
                                       type: object
                                     retry:
                                       properties:
@@ -3771,10 +3727,6 @@ spec:
                                                   selfHeal:
                                                     type: boolean
                                                 type: object
-                                              createNamespaceLabels:
-                                                additionalProperties:
-                                                  type: string
-                                                type: object
                                               retry:
                                                 properties:
                                                   backoff:
@@ -4067,10 +4019,6 @@ spec:
                                                     type: boolean
                                                   selfHeal:
                                                     type: boolean
-                                                type: object
-                                              createNamespaceLabels:
-                                                additionalProperties:
-                                                  type: string
                                                 type: object
                                               retry:
                                                 properties:
@@ -4367,10 +4315,6 @@ spec:
                                                   selfHeal:
                                                     type: boolean
                                                 type: object
-                                              createNamespaceLabels:
-                                                additionalProperties:
-                                                  type: string
-                                                type: object
                                               retry:
                                                 properties:
                                                   backoff:
@@ -4641,10 +4585,6 @@ spec:
                                                     type: boolean
                                                   selfHeal:
                                                     type: boolean
-                                                type: object
-                                              createNamespaceLabels:
-                                                additionalProperties:
-                                                  type: string
                                                 type: object
                                               retry:
                                                 properties:
@@ -5034,10 +4974,6 @@ spec:
                                                     type: boolean
                                                   selfHeal:
                                                     type: boolean
-                                                type: object
-                                              createNamespaceLabels:
-                                                additionalProperties:
-                                                  type: string
                                                 type: object
                                               retry:
                                                 properties:
@@ -5475,10 +5411,6 @@ spec:
                                                   selfHeal:
                                                     type: boolean
                                                 type: object
-                                              createNamespaceLabels:
-                                                additionalProperties:
-                                                  type: string
-                                                type: object
                                               retry:
                                                 properties:
                                                   backoff:
@@ -5769,10 +5701,6 @@ spec:
                                           type: boolean
                                         selfHeal:
                                           type: boolean
-                                      type: object
-                                    createNamespaceLabels:
-                                      additionalProperties:
-                                        type: string
                                       type: object
                                     retry:
                                       properties:
@@ -6159,10 +6087,6 @@ spec:
                                           type: boolean
                                         selfHeal:
                                           type: boolean
-                                      type: object
-                                    createNamespaceLabels:
-                                      additionalProperties:
-                                        type: string
                                       type: object
                                     retry:
                                       properties:
@@ -6600,10 +6524,6 @@ spec:
                                         selfHeal:
                                           type: boolean
                                       type: object
-                                    createNamespaceLabels:
-                                      additionalProperties:
-                                        type: string
-                                      type: object
                                     retry:
                                       properties:
                                         backoff:
@@ -6897,10 +6817,6 @@ spec:
                                 type: boolean
                               selfHeal:
                                 type: boolean
-                            type: object
-                          createNamespaceLabels:
-                            additionalProperties:
-                              type: string
                             type: object
                           retry:
                             properties:

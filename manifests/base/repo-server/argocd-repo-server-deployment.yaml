@@ -59,30 +59,30 @@ spec:
                   name: argocd-cmd-params-cm
                   key: reposerver.tls.minversion
                   optional: true
-            - name: ARGOCD_TLS_MAX_VERSION
-              valueFrom:
-                configMapKeyRef:
-                  name: argocd-cmd-params-cm
-                  key: reposerver.tls.maxversion
-                  optional: true
-            - name: ARGOCD_TLS_CIPHERS
-              valueFrom:
-                configMapKeyRef:
-                  name: argocd-cmd-params-cm
-                  key: reposerver.tls.ciphers
-                  optional: true
-            - name: ARGOCD_REPO_CACHE_EXPIRATION
-              valueFrom:
-                configMapKeyRef:
-                  name: argocd-cmd-params-cm
-                  key: reposerver.repo.cache.expiration
-                  optional: true
-            - name: REDIS_SERVER
-              valueFrom:
-                configMapKeyRef:
-                  name: argocd-cmd-params-cm
-                  key: redis.server
-                  optional: true
+          - name: ARGOCD_TLS_MAX_VERSION
+            valueFrom:
+              configMapKeyRef:
+                name: argocd-cmd-params-cm
+                key: reposerver.tls.maxversion
+                optional: true
+          - name: ARGOCD_TLS_CIPHERS
+            valueFrom:
+              configMapKeyRef:
+                name: argocd-cmd-params-cm
+                key: reposerver.tls.ciphers
+                optional: true
+          - name: ARGOCD_REPO_CACHE_EXPIRATION
+            valueFrom:
+              configMapKeyRef:
+                name: argocd-cmd-params-cm
+                key: reposerver.repo.cache.expiration
+                optional: true
+          - name: REDIS_SERVER
+            valueFrom:
+              configMapKeyRef:
+                name: argocd-cmd-params-cm
+                key: redis.server
+                optional: true
           - name: REDIS_COMPRESSION
             valueFrom:
               configMapKeyRef:
@@ -95,54 +95,54 @@ spec:
                   name: argocd-cmd-params-cm
                   key: redis.db
                   optional: true
-            - name: ARGOCD_DEFAULT_CACHE_EXPIRATION
-              valueFrom:
-                configMapKeyRef:
-                  name: argocd-cmd-params-cm
-                  key: reposerver.default.cache.expiration
-                  optional: true
-            - name: ARGOCD_REPO_SERVER_OTLP_ADDRESS
-              valueFrom:
-                configMapKeyRef:
-                  name: argocd-cmd-params-cm
-                  key: otlp.address
-                  optional: true
-            - name: ARGOCD_REPO_SERVER_MAX_COMBINED_DIRECTORY_MANIFESTS_SIZE
-              valueFrom:
-                configMapKeyRef:
-                  name: argocd-cmd-params-cm
-                  key: reposerver.max.combined.directory.manifests.size
-                  optional: true
-            - name: ARGOCD_REPO_SERVER_PLUGIN_TAR_EXCLUSIONS
-              valueFrom:
-                configMapKeyRef:
-                  name: argocd-cmd-params-cm
-                  key: reposerver.plugin.tar.exclusions
-                  optional: true
-            - name: ARGOCD_REPO_SERVER_ALLOW_OUT_OF_BOUNDS_SYMLINKS
-              valueFrom:
-                configMapKeyRef:
-                  key: reposerver.allow.oob.symlinks
-                  name: argocd-cmd-params-cm
-                  optional: true
-            - name: ARGOCD_REPO_SERVER_STREAMED_MANIFEST_MAX_TAR_SIZE
-              valueFrom:
-                configMapKeyRef:
-                  key: reposerver.streamed.manifest.max.tar.size
-                  name: argocd-cmd-params-cm
-                  optional: true
-            - name: ARGOCD_REPO_SERVER_STREAMED_MANIFEST_MAX_EXTRACTED_SIZE
-              valueFrom:
-                configMapKeyRef:
-                  key: reposerver.streamed.manifest.max.extracted.size
-                  name: argocd-cmd-params-cm
-                  optional: true
-            - name: ARGOCD_GIT_MODULES_ENABLED
-              valueFrom:
-                configMapKeyRef:
-                  key: reposerver.enable.git.submodule
-                  name: argocd-cmd-params-cm
-                  optional: true
+          - name: ARGOCD_DEFAULT_CACHE_EXPIRATION
+            valueFrom:
+              configMapKeyRef:
+                name: argocd-cmd-params-cm
+                key: reposerver.default.cache.expiration
+                optional: true
+          - name: ARGOCD_REPO_SERVER_OTLP_ADDRESS
+            valueFrom:
+              configMapKeyRef:
+                name: argocd-cmd-params-cm
+                key: otlp.address
+                optional: true
+          - name: ARGOCD_REPO_SERVER_MAX_COMBINED_DIRECTORY_MANIFESTS_SIZE
+            valueFrom:
+              configMapKeyRef:
+                name: argocd-cmd-params-cm
+                key: reposerver.max.combined.directory.manifests.size
+                optional: true
+          - name: ARGOCD_REPO_SERVER_PLUGIN_TAR_EXCLUSIONS
+            valueFrom:
+              configMapKeyRef:
+                name: argocd-cmd-params-cm
+                key: reposerver.plugin.tar.exclusions
+                optional: true
+          - name: ARGOCD_REPO_SERVER_ALLOW_OUT_OF_BOUNDS_SYMLINKS
+            valueFrom:
+              configMapKeyRef:
+                key: reposerver.allow.oob.symlinks
+                name: argocd-cmd-params-cm
+                optional: true
+          - name: ARGOCD_REPO_SERVER_STREAMED_MANIFEST_MAX_TAR_SIZE
+            valueFrom:
+              configMapKeyRef:
+                key: reposerver.streamed.manifest.max.tar.size
+                name: argocd-cmd-params-cm
+                optional: true
+          - name: ARGOCD_REPO_SERVER_STREAMED_MANIFEST_MAX_EXTRACTED_SIZE
+            valueFrom:
+              configMapKeyRef:
+                key: reposerver.streamed.manifest.max.extracted.size
+                name: argocd-cmd-params-cm
+                optional: true
+          - name: ARGOCD_GIT_MODULES_ENABLED
+            valueFrom:
+              configMapKeyRef:
+                key: reposerver.enable.git.submodule
+                name: argocd-cmd-params-cm
+                optional: true
           - name: HELM_CACHE_HOME
             value: /helm-working-dir
           - name: HELM_CONFIG_HOME

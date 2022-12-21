@@ -759,10 +759,6 @@ spec:
                           (default: false)'
                         type: boolean
                     type: object
-                  createNamespaceLabels:
-                    additionalProperties:
-                      type: string
-                    type: object
                   retry:
                     description: Retry controls failed sync retry behavior
                     properties:

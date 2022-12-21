@@ -111,10 +111,14 @@ EOF
 
     rm -f "${SWAGGER_OUT}"
 
-    find "${SWAGGER_ROOT}" -name '*.swagger.json' -exec swagger mixin -c "${EXPECTED_COLLISIONS}" "${PRIMARY_SWAGGER}" '{}' \+ > "${COMBINED_SWAGGER}"
+    echo ${SWAGGER_ROOT}
+    echo ${PRIMARY_SWAGGER}
+    echo ${COMBINED_SWAGGER}
+
+    find "${SWAGGER_ROOT}" -name '*.swagger.json' -exec swagger mixin "${PRIMARY_SWAGGER}" '{}' \+ > "${COMBINED_SWAGGER}"
     jq -r 'del(.definitions[].properties[]? | select(."$ref"!=null and .description!=null).description) | del(.definitions[].properties[]? | select(."$ref"!=null and .title!=null).title)' "${COMBINED_SWAGGER}" > "${SWAGGER_OUT}"
 
-    /bin/rm "${PRIMARY_SWAGGER}" "${COMBINED_SWAGGER}"
+    #/bin/rm "${PRIMARY_SWAGGER}" "${COMBINED_SWAGGER}"
 }
 
 # clean up generated swagger files (should come after collect_swagger)
@@ -124,7 +128,7 @@ clean_swagger() {
 }
 
 echo "If additional types are added, the number of expected collisions may need to be increased"
-EXPECTED_COLLISION_COUNT=90
+EXPECTED_COLLISION_COUNT=91
 collect_swagger server ${EXPECTED_COLLISION_COUNT}
 clean_swagger server
 clean_swagger reposerver

@@ -48,7 +48,7 @@ go_mod_install k8s.io/kube-openapi/cmd/openapi-gen
 go install sigs.k8s.io/controller-tools/cmd/controller-gen@v0.4.1
 
 # swagger cli is used to generate swagger docs
-go install github.com/go-swagger/go-swagger/cmd/swagger@v0.28.0
+go install github.com/go-swagger/go-swagger/cmd/swagger@v0.30.3
 
 # goimports is used to auto-format generated code
 go install golang.org/x/tools/cmd/goimports@v0.1.8

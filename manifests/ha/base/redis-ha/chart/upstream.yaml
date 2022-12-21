@@ -1050,7 +1050,7 @@ spec:
       # Needed when using unmodified rbac-setup.yml
       
       serviceAccountName: argocd-redis-ha-haproxy
-      securityContext:
+      securityContext: 
         fsGroup: 99
         runAsNonRoot: true
         runAsUser: 99
@@ -1077,7 +1077,7 @@ spec:
         - sh
         args:
         - /readonly/haproxy_init.sh
-        securityContext:
+        securityContext: 
           null
         volumeMounts:
         - name: config-volume
@@ -1089,7 +1089,7 @@ spec:
       - name: haproxy
         image: quay.io/codefresh/haproxy:2.6.2-alpine
         imagePullPolicy: IfNotPresent
-        securityContext:
+        securityContext: 
           null
         livenessProbe:
           httpGet:
@@ -1169,7 +1169,7 @@ spec:
                   release: argocd
                   argocd-redis-ha: replica
               topologyKey: kubernetes.io/hostname
-      securityContext:
+      securityContext: 
         fsGroup: 1000
         runAsNonRoot: true
         runAsUser: 1000
@@ -1177,7 +1177,7 @@ spec:
       automountServiceAccountToken: false
       initContainers:
       - name: config-init
-        image: quay.io/codefresh/redis:7.0.5-alpine
+        image: quay.io/codefresh/haproxy:7.0.5-alpine
         imagePullPolicy: IfNotPresent
         resources:
           {}
@@ -1185,8 +1185,8 @@ spec:
         - sh
         args:
         - /readonly-config/init.sh
-        securityContext:
-          null
+        securityContext: 
+          null        
         env:
         - name: SENTINEL_ID_0
           value: 3c0d9c0320bb34888c2df5757c718ce6ca992ce6
@@ -1204,13 +1204,13 @@ spec:
 
       containers:
       - name: redis
-        image: quay.io/codefresh/redis:7.0.5-alpine
+        image: quay.io/codefresh/haproxy:7.0.5-alpine
         imagePullPolicy: IfNotPresent
         command:
         - redis-server
         args:
         - /data/conf/redis.conf
-        securityContext:
+        securityContext: 
           null
         livenessProbe:
           initialDelaySeconds: 30
@@ -1254,13 +1254,13 @@ spec:
               - /bin/sh
               - /readonly-config/trigger-failover-if-master.sh
       - name: sentinel
-        image: quay.io/codefresh/redis:7.0.5-alpine
+        image: quay.io/codefresh/haproxy:7.0.5-alpine
         imagePullPolicy: IfNotPresent
         command:
           - redis-sentinel
         args:
           - /data/conf/sentinel.conf
-        securityContext:
+        securityContext: 
           null
         livenessProbe:
           initialDelaySeconds: 30
@@ -1298,14 +1298,14 @@ spec:
           {}
 
       - name: split-brain-fix
-        image: redis:7.0.5-alpine
+        image: quay.io/codefresh/haproxy:7.0.5-alpine
         imagePullPolicy: IfNotPresent
         command:
           - sh
         args:
           - /readonly-config/fix-split-brain.sh
-        securityContext:
-          null
+        securityContext: 
+          null        
         env:
         - name: SENTINEL_ID_0
           value: 3c0d9c0320bb34888c2df5757c718ce6ca992ce6
