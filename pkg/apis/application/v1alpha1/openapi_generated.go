@@ -6729,12 +6729,18 @@ func schema_pkg_apis_application_v1alpha1_SyncStatus(ref common.ReferenceCallbac
 							},
 						},
 					},
+					"comparedAt": {
+						SchemaProps: spec.SchemaProps{
+							Description: "ComparedAt is the time the comparison was done.",
+							Ref:         ref("k8s.io/apimachinery/pkg/apis/meta/v1.Time"),
+						},
+					},
 				},
 				Required: []string{"status"},
 			},
 		},
 		Dependencies: []string{
-			"github.com/argoproj/argo-cd/v2/pkg/apis/application/v1alpha1.ComparedTo"},
+			"github.com/argoproj/argo-cd/v2/pkg/apis/application/v1alpha1.ComparedTo", "k8s.io/apimachinery/pkg/apis/meta/v1.Time"},
 	}
 }
 

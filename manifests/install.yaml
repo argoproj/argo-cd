@@ -3418,6 +3418,10 @@ spec:
                 description: Sync contains information about the application's current
                   sync status
                 properties:
+                  comparedAt:
+                    description: ComparedAt is the time the comparison was done.
+                    format: date-time
+                    type: string
                   comparedTo:
                     description: ComparedTo contains information about what has been
                       compared

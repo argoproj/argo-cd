@@ -664,8 +664,9 @@ func (m *appStateManager) CompareAppState(app *v1alpha1.Application, project *ap
 				Destination: app.Spec.Destination,
 				Sources:     sources,
 			},
-			Status:    syncCode,
-			Revisions: manifestRevisions,
+			Status:     syncCode,
+			Revisions:  manifestRevisions,
+			ComparedAt: &now,
 		}
 	} else {
 		syncStatus = v1alpha1.SyncStatus{
@@ -673,8 +674,9 @@ func (m *appStateManager) CompareAppState(app *v1alpha1.Application, project *ap
 				Destination: app.Spec.Destination,
 				Source:      app.Spec.GetSource(),
 			},
-			Status:   syncCode,
-			Revision: revision,
+			Status:     syncCode,
+			Revision:   revision,
+			ComparedAt: &now,
 		}
 	}
 

@@ -1159,6 +1159,8 @@ type SyncStatus struct {
 	Revision string `json:"revision,omitempty" protobuf:"bytes,3,opt,name=revision"`
 	// Revisions contains information about the revisions of multiple sources the comparison has been performed to
 	Revisions []string `json:"revisions,omitempty" protobuf:"bytes,4,opt,name=revisions"`
+	// ComparedAt is the time the comparison was done.
+	ComparedAt *metav1.Time `json:"comparedAt,omitempty" protobuf:"bytes,5,opt,name=comparedAt"`
 }
 
 // HealthStatus contains information about the currently observed health state of an application or resource

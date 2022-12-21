@@ -1959,6 +1959,9 @@ message SyncStatus {
 
   // Revisions contains information about the revisions of multiple sources the comparison has been performed to
   repeated string revisions = 4;
+
+  // ComparedAt is the time the comparison was done.
+  optional k8s.io.apimachinery.pkg.apis.meta.v1.Time comparedAt = 5;
 }
 
 // SyncStrategy controls the manner in which a sync is performed

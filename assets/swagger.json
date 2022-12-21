@@ -8377,6 +8377,9 @@
       "type": "object",
       "title": "SyncStatus contains information about the currently observed live and desired states of an application",
       "properties": {
+        "comparedAt": {
+          "$ref": "#/definitions/v1Time"
+        },
         "comparedTo": {
           "$ref": "#/definitions/v1alpha1ComparedTo"
         },

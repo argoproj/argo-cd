@@ -3612,6 +3612,10 @@ func (in *SyncStatus) DeepCopyInto(out *SyncStatus) {
 		*out = make([]string, len(*in))
 		copy(*out, *in)
 	}
+	if in.ComparedAt != nil {
+		in, out := &in.ComparedAt, &out.ComparedAt
+		*out = (*in).DeepCopy()
+	}
 	return
 }
 
