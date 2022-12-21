@@ -129,8 +129,8 @@ clean_swagger() {
 
 echo "If additional types are added, the number of expected collisions may need to be increased"
 EXPECTED_COLLISION_COUNT=91
-collect_swagger server ${EXPECTED_COLLISION_COUNT}
-clean_swagger server
-clean_swagger reposerver
-clean_swagger controller
-clean_swagger cmpserver
+#collect_swagger server ${EXPECTED_COLLISION_COUNT}
+#clean_swagger server
+#clean_swagger reposerver
+#clean_swagger controller
+#clean_swagger cmpserver
