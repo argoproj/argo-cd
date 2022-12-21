@@ -10,7 +10,7 @@ require (
 	github.com/alicebob/miniredis/v2 v2.23.1
 	github.com/argoproj/gitops-engine v0.7.1-0.20221208230615-917f5a0f16d5
 	github.com/argoproj/notifications-engine v0.3.1-0.20221203221941-490d98afd1d6
-	github.com/argoproj/pkg v0.13.7-0.20221115212233-27bd8ce31415
+	github.com/argoproj/pkg v0.13.7-0.20221221191914-44694015343d
 	github.com/aws/aws-sdk-go v1.44.164
 	github.com/bombsimon/logrusr/v2 v2.0.1
 	github.com/bradleyfalzon/ghinstallation/v2 v2.1.0
