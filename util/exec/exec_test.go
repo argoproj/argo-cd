@@ -4,9 +4,11 @@ import (
 	"os"
 	"os/exec"
 	"regexp"
+	"syscall"
 	"testing"
 	"time"
 
+	argoexec "github.com/argoproj/pkg/exec"
 	"github.com/stretchr/testify/assert"
 )
 
@@ -38,4 +40,19 @@ func TestHideUsernamePassword(t *testing.T) {
 	}
 	_, err = RunWithRedactor(exec.Command("helm registry login https://charts.bitnami.com/bitnami", "--username", "foo", "--password", "bar"), redactor)
 	assert.NotEmpty(t, err)
+}
+
+func TestRunWithExecRunOpts(t *testing.T) {
+	defer func() { _ = os.Unsetenv("ARGOCD_EXEC_TIMEOUT") }()
+	_ = os.Setenv("ARGOCD_EXEC_TIMEOUT", "200ms")
+	initTimeout()
+
+	opts := ExecRunOpts{
+		TimeoutBehavior: argoexec.TimeoutBehavior{
+			Signal:     syscall.SIGTERM,
+			ShouldWait: true,
+		},
+	}
+	_, err := RunWithExecRunOpts(exec.Command("sh", "-c", "trap 'trap - 15 && echo captured && exit' 15 && sleep 2"), opts)
+	assert.Contains(t, err.Error(), "failed timeout after 200ms")
 }
