@@ -34,14 +34,5 @@ jobs:
             ci
             chore
             [Bot] docs
-          scopes: |
-            controller
-            applicationset
-            repo-server
-            api
-            ui
-            deps
-            cli
-          requireScope: false
         env:
           GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
