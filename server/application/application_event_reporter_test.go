@@ -195,7 +195,7 @@ func TestGetLatestAppHistoryId(t *testing.T) {
 	})
 }
 
-func newAppLister(objects ...runtime.Object) applisters.ApplicationNamespaceLister {
+func newAppLister(objects ...runtime.Object) applisters.ApplicationLister {
 	fakeAppsClientset := fakeapps.NewSimpleClientset(objects...)
 	factory := appinformer.NewSharedInformerFactoryWithOptions(fakeAppsClientset, 0, appinformer.WithNamespace(""), appinformer.WithTweakListOptions(func(options *metav1.ListOptions) {}))
 	appsInformer := factory.Argoproj().V1alpha1().Applications()
@@ -205,7 +205,7 @@ func newAppLister(objects ...runtime.Object) applisters.ApplicationNamespaceList
 			_ = appsInformer.Informer().GetStore().Add(obj)
 		}
 	}
-	appLister := appsInformer.Lister().Applications(testNamespace)
+	appLister := appsInformer.Lister()
 	return appLister
 }
 
@@ -265,7 +265,7 @@ func fakeServer() *Server {
 		1*time.Minute,
 	)
 
-	server, _ := NewServer(test.FakeArgoCDNamespace, kubeclientset, appClientSet, appLister, appInformer, nil, cache, nil, nil, nil, nil, nil, nil)
+	server, _ := NewServer(test.FakeArgoCDNamespace, kubeclientset, appClientSet, appLister, appInformer, nil, cache, nil, nil, nil, nil, nil, nil, nil)
 	return server.(*Server)
 }
 

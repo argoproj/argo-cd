@@ -813,9 +813,6 @@ func TestGetResourceTree_HasOrphanedResources(t *testing.T) {
 
 	managedDeploy := argoappv1.ResourceNode{
 		ResourceRef: argoappv1.ResourceRef{Group: "apps", Kind: "Deployment", Namespace: "default", Name: "nginx-deployment", Version: "v1"},
-		Labels: map[string]string{
-			"app": "nginx",
-		},
 	}
 	orphanedDeploy1 := argoappv1.ResourceNode{
 		ResourceRef: argoappv1.ResourceRef{Group: "apps", Kind: "Deployment", Namespace: "default", Name: "deploy1"},
@@ -1077,7 +1074,7 @@ func TestProjectErrorToCondition(t *testing.T) {
 	ctrl := newFakeController(&fakeData{
 		apps: []runtime.Object{app, &defaultProj},
 		manifestResponse: &apiclient.ManifestResponse{
-			Manifests: []string{},
+			Manifests: []*apiclient.Manifest{},
 			Namespace: test.FakeDestNamespace,
 			Server:    test.FakeClusterURL,
 			Revision:  "abc123",
