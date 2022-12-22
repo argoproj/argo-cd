@@ -20,10 +20,12 @@ func Client(g github_app_auth.Authentication, url string) (*github.Client, error
 		url = g.EnterpriseBaseURL
 	}
 	var client *github.Client
-	httpClient := http.Client{Transport: rt}
 	if url == "" {
+		httpClient := http.Client{Transport: rt}
 		client = github.NewClient(&httpClient)
 	} else {
+		rt.BaseURL = url
+		httpClient := http.Client{Transport: rt}
 		client, err = github.NewEnterpriseClient(url, url, &httpClient)
 		if err != nil {
 			return nil, fmt.Errorf("failed to create github enterprise client: %w", err)

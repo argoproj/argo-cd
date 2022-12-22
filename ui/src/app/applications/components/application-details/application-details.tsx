@@ -1,4 +1,4 @@
-import {DropDownMenu, NotificationType, SlidingPanel} from 'argo-ui';
+import {DropDownMenu, NotificationType, SlidingPanel, Tooltip} from 'argo-ui';
 import * as classNames from 'classnames';
 import * as PropTypes from 'prop-types';
 import * as React from 'react';
@@ -24,12 +24,12 @@ import {ResourceDetails} from '../resource-details/resource-details';
 import * as AppUtils from '../utils';
 import {ApplicationResourceList} from './application-resource-list';
 import {Filters, FiltersProps} from './application-resource-filter';
-import {urlPattern} from '../utils';
+import {getAppDefaultSource, urlPattern, helpTip} from '../utils';
 import {ResourceStatus} from '../../../shared/models';
 import {ApplicationsDetailsAppDropdown} from './application-details-app-dropdown';
 import {useSidebarTarget} from '../../../sidebar/sidebar';
 
-require('./application-details.scss');
+import './application-details.scss';
 
 interface ApplicationDetailsState {
     page: number;
@@ -195,7 +195,7 @@ export class ApplicationDetails extends React.Component<RouteComponentProps<{app
                             const conditions = application.status.conditions || [];
                             const syncResourceKey = new URLSearchParams(this.props.history.location.search).get('deploy');
                             const tab = new URLSearchParams(this.props.history.location.search).get('tab');
-
+                            const source = getAppDefaultSource(application);
                             const resourceNodes = (): any[] => {
                                 const statusByKey = new Map<string, models.ResourceStatus>();
                                 application.status.resources.forEach(res => statusByKey.set(AppUtils.nodeKey(res), res));
@@ -211,6 +211,7 @@ export class ApplicationDetails extends React.Component<RouteComponentProps<{app
                                             resource.health = status.health;
                                             resource.status = status.status;
                                             resource.hook = status.hook;
+                                            resource.syncWave = status.syncWave;
                                             resource.requiresPruning = status.requiresPruning;
                                         }
                                         resources.set(node.uid || AppUtils.nodeKey(node), resource);
@@ -450,75 +451,49 @@ export class ApplicationDetails extends React.Component<RouteComponentProps<{app
                                                         quickStarts={node => AppUtils.renderResourceButtons(node, application, tree, this.appContext, this.appChanged)}
                                                     />
                                                 )) || (
-                                                    <DataLoader
-                                                        input={{filteredRes: filteredRes.map(res => AppUtils.nodeKey(res))}}
-                                                        load={async () => {
-                                                            const liveStatePromises = filteredRes.map(async resource => {
-                                                                const resourceRow: any = {...resource, group: resource.group || ''};
-                                                                const liveState =
-                                                                    typeof resource.group !== 'undefined' &&
-                                                                    (await services.applications
-                                                                        .getResource(application.metadata.name, application.metadata.namespace, resource)
-                                                                        .catch(() => null));
-                                                                if (liveState?.metadata?.annotations?.[models.AnnotationHookKey]) {
-                                                                    resourceRow.syncOrder = liveState?.metadata.annotations[models.AnnotationHookKey];
-                                                                    if (liveState?.metadata?.annotations?.[models.AnnotationSyncWaveKey]) {
-                                                                        resourceRow.syncOrder =
-                                                                            resourceRow.syncOrder + ': ' + liveState?.metadata.annotations[models.AnnotationSyncWaveKey];
-                                                                    }
-                                                                } else {
-                                                                    resourceRow.syncOrder = '-';
-                                                                }
-                                                                return resourceRow;
-                                                            });
-                                                            return await Promise.all(liveStatePromises);
-                                                        }}>
-                                                        {(filteredResWithSyncInfo: any[]) => (
-                                                            <div>
-                                                                <DataLoader load={() => services.viewPreferences.getPreferences()}>
-                                                                    {viewPref => (
-                                                                        <ApplicationDetailsFilters
-                                                                            pref={pref}
-                                                                            tree={tree}
-                                                                            onSetFilter={setFilter}
-                                                                            onClearFilter={clearFilter}
-                                                                            collapsed={viewPref.hideSidebar}
-                                                                            resourceNodes={filteredResWithSyncInfo}
-                                                                        />
-                                                                    )}
-                                                                </DataLoader>
-                                                                {(filteredResWithSyncInfo.length > 0 && (
-                                                                    <Paginate
-                                                                        page={this.state.page}
-                                                                        data={filteredResWithSyncInfo}
-                                                                        onPageChange={page => this.setState({page})}
-                                                                        preferencesKey='application-details'>
-                                                                        {data => (
-                                                                            <ApplicationResourceList
-                                                                                onNodeClick={fullName => this.selectNode(fullName)}
-                                                                                resources={data}
-                                                                                nodeMenu={node =>
-                                                                                    AppUtils.renderResourceMenu(
-                                                                                        {...node, root: node},
-                                                                                        application,
-                                                                                        tree,
-                                                                                        this.appContext,
-                                                                                        this.appChanged,
-                                                                                        () => this.getApplicationActionMenu(application, false)
-                                                                                    )
-                                                                                }
-                                                                            />
-                                                                        )}
-                                                                    </Paginate>
-                                                                )) || (
-                                                                    <EmptyState icon='fa fa-search'>
-                                                                        <h4>No resources found</h4>
-                                                                        <h5>Try to change filter criteria</h5>
-                                                                    </EmptyState>
+                                                    <div>
+                                                        <DataLoader load={() => services.viewPreferences.getPreferences()}>
+                                                            {viewPref => (
+                                                                <ApplicationDetailsFilters
+                                                                    pref={pref}
+                                                                    tree={tree}
+                                                                    onSetFilter={setFilter}
+                                                                    onClearFilter={clearFilter}
+                                                                    collapsed={viewPref.hideSidebar}
+                                                                    resourceNodes={filteredRes}
+                                                                />
+                                                            )}
+                                                        </DataLoader>
+                                                        {(filteredRes.length > 0 && (
+                                                            <Paginate
+                                                                page={this.state.page}
+                                                                data={filteredRes}
+                                                                onPageChange={page => this.setState({page})}
+                                                                preferencesKey='application-details'>
+                                                                {data => (
+                                                                    <ApplicationResourceList
+                                                                        onNodeClick={fullName => this.selectNode(fullName)}
+                                                                        resources={data}
+                                                                        nodeMenu={node =>
+                                                                            AppUtils.renderResourceMenu(
+                                                                                {...node, root: node},
+                                                                                application,
+                                                                                tree,
+                                                                                this.appContext,
+                                                                                this.appChanged,
+                                                                                () => this.getApplicationActionMenu(application, false)
+                                                                            )
+                                                                        }
+                                                                    />
                                                                 )}
-                                                            </div>
+                                                            </Paginate>
+                                                        )) || (
+                                                            <EmptyState icon='fa fa-search'>
+                                                                <h4>No resources found</h4>
+                                                                <h5>Try to change filter criteria</h5>
+                                                            </EmptyState>
                                                         )}
-                                                    </DataLoader>
+                                                    </div>
                                                 )}
                                         </div>
                                         <SlidingPanel isShown={this.state.groupedResources.length > 0} onClose={() => this.closeGroupedNodesPanel()}>
@@ -585,7 +560,7 @@ export class ApplicationDetails extends React.Component<RouteComponentProps<{app
                                                                 <div className='row white-box__details-row'>
                                                                     <div className='columns small-3'>SHA:</div>
                                                                     <div className='columns small-9'>
-                                                                        <Revision repoUrl={application.spec.source.repoURL} revision={this.state.revision} />
+                                                                        <Revision repoUrl={source.repoURL} revision={this.state.revision} />
                                                                     </div>
                                                                 </div>
                                                             </div>
@@ -638,6 +613,7 @@ export class ApplicationDetails extends React.Component<RouteComponentProps<{app
         const refreshing = app.metadata.annotations && app.metadata.annotations[appModels.AnnotationRefreshKey];
         const fullName = AppUtils.nodeKey({group: 'argoproj.io', kind: app.kind, name: app.metadata.name, namespace: app.metadata.namespace});
         const ActionMenuItem = (prop: {actionLabel: string}) => <span className={needOverlapLabelOnNarrowScreen ? 'show-for-large' : ''}>{prop.actionLabel}</span>;
+        const hasMultipleSources = app.spec.sources && app.spec.sources.length > 0;
         return [
             {
                 iconClassName: 'fa fa-info-circle',
@@ -663,9 +639,18 @@ export class ApplicationDetails extends React.Component<RouteComponentProps<{app
             },
             {
                 iconClassName: 'fa fa-history',
-                title: <ActionMenuItem actionLabel='History and rollback' />,
-                action: () => this.setRollbackPanelVisible(0),
-                disabled: !app.status.operationState
+                title: hasMultipleSources ? (
+                    <React.Fragment>
+                        <ActionMenuItem actionLabel=' History and rollback' />
+                        {helpTip('Rollback is not supported for apps with multiple sources')}
+                    </React.Fragment>
+                ) : (
+                    <ActionMenuItem actionLabel='History and rollback' />
+                ),
+                action: () => {
+                    this.setRollbackPanelVisible(0);
+                },
+                disabled: !app.status.operationState || hasMultipleSources
             },
             {
                 iconClassName: 'fa fa-times-circle',

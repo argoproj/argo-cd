@@ -45,10 +45,9 @@ a secret named `argocd-initial-admin-secret`.
 To change the password, edit the `argocd-secret` secret and update the `admin.password` field with a new bcrypt hash.
 
 !!! note "Generating a bcrypt hash"
-    Use a trustworthy, offline `bcrypt` implementation such as the [Python bcrypt library](https://pypi.org/project/bcrypt/) to generate the hash.
+    Use the following command to generate a bcrypt hash for `admin.password`
 
-        pip3 install bcrypt
-        python3 -c "import bcrypt; print(bcrypt.hashpw(b'YOUR-PASSWORD-HERE', bcrypt.gensalt()).decode())"
+        argocd account bcrypt --password <YOUR-PASSWORD-HERE>
 
 To apply the new password hash, use the following command (replacing the hash with your own):
 

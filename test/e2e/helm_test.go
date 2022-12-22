@@ -121,7 +121,7 @@ func TestHelmValues(t *testing.T) {
 		AppSet("--values", "foo.yml").
 		Then().
 		And(func(app *Application) {
-			assert.Equal(t, []string{"foo.yml"}, app.Spec.Source.Helm.ValueFiles)
+			assert.Equal(t, []string{"foo.yml"}, app.Spec.GetSource().Helm.ValueFiles)
 		})
 }
 
@@ -132,14 +132,14 @@ func TestHelmIgnoreMissingValueFiles(t *testing.T) {
 		Declarative("declarative-apps/invalid-helm.yaml").
 		Then().
 		And(func(app *Application) {
-			assert.Equal(t, []string{"does-not-exist-values.yaml"}, app.Spec.Source.Helm.ValueFiles)
-			assert.Equal(t, false, app.Spec.Source.Helm.IgnoreMissingValueFiles)
+			assert.Equal(t, []string{"does-not-exist-values.yaml"}, app.Spec.GetSource().Helm.ValueFiles)
+			assert.Equal(t, false, app.Spec.GetSource().Helm.IgnoreMissingValueFiles)
 		}).
 		When().
 		AppSet("--ignore-missing-value-files").
 		Then().
 		And(func(app *Application) {
-			assert.Equal(t, true, app.Spec.Source.Helm.IgnoreMissingValueFiles)
+			assert.Equal(t, true, app.Spec.GetSource().Helm.IgnoreMissingValueFiles)
 		}).
 		When().
 		Sync().
@@ -151,7 +151,7 @@ func TestHelmIgnoreMissingValueFiles(t *testing.T) {
 		AppUnSet("--ignore-missing-value-files").
 		Then().
 		And(func(app *Application) {
-			assert.Equal(t, false, app.Spec.Source.Helm.IgnoreMissingValueFiles)
+			assert.Equal(t, false, app.Spec.GetSource().Helm.IgnoreMissingValueFiles)
 		}).
 		When().
 		IgnoreErrors().
@@ -170,21 +170,21 @@ func TestHelmValuesMultipleUnset(t *testing.T) {
 		AppSet("--values", "foo.yml", "--values", "baz.yml").
 		Then().
 		And(func(app *Application) {
-			assert.NotNil(t, app.Spec.Source.Helm)
-			assert.Equal(t, []string{"foo.yml", "baz.yml"}, app.Spec.Source.Helm.ValueFiles)
+			assert.NotNil(t, app.Spec.GetSource().Helm)
+			assert.Equal(t, []string{"foo.yml", "baz.yml"}, app.Spec.GetSource().Helm.ValueFiles)
 		}).
 		When().
 		AppUnSet("--values", "foo.yml").
 		Then().
 		And(func(app *Application) {
-			assert.NotNil(t, app.Spec.Source.Helm)
-			assert.Equal(t, []string{"baz.yml"}, app.Spec.Source.Helm.ValueFiles)
+			assert.NotNil(t, app.Spec.GetSource().Helm)
+			assert.Equal(t, []string{"baz.yml"}, app.Spec.GetSource().Helm.ValueFiles)
 		}).
 		When().
 		AppUnSet("--values", "baz.yml").
 		Then().
 		And(func(app *Application) {
-			assert.Nil(t, app.Spec.Source.Helm)
+			assert.Nil(t, app.Spec.GetSource().Helm)
 		})
 }
 
@@ -200,13 +200,13 @@ func TestHelmValuesLiteralFileLocal(t *testing.T) {
 			if err != nil {
 				panic(err)
 			}
-			assert.Equal(t, string(data), app.Spec.Source.Helm.Values)
+			assert.Equal(t, string(data), app.Spec.GetSource().Helm.Values)
 		}).
 		When().
 		AppUnSet("--values-literal").
 		Then().
 		And(func(app *Application) {
-			assert.Nil(t, app.Spec.Source.Helm)
+			assert.Nil(t, app.Spec.GetSource().Helm)
 		})
 }
 
@@ -242,13 +242,13 @@ func TestHelmValuesLiteralFileRemote(t *testing.T) {
 		AppSet("--values-literal-file", "http://"+address).
 		Then().
 		And(func(app *Application) {
-			assert.Equal(t, "a: b", app.Spec.Source.Helm.Values)
+			assert.Equal(t, "a: b", app.Spec.GetSource().Helm.Values)
 		}).
 		When().
 		AppUnSet("--values-literal").
 		Then().
 		And(func(app *Application) {
-			assert.Nil(t, app.Spec.Source.Helm)
+			assert.Nil(t, app.Spec.GetSource().Helm)
 		})
 }
 
@@ -274,7 +274,7 @@ func TestHelmReleaseName(t *testing.T) {
 		AppSet("--release-name", "foo").
 		Then().
 		And(func(app *Application) {
-			assert.Equal(t, "foo", app.Spec.Source.Helm.ReleaseName)
+			assert.Equal(t, "foo", app.Spec.GetSource().Helm.ReleaseName)
 		})
 }
 
@@ -286,7 +286,7 @@ func TestHelmSet(t *testing.T) {
 		AppSet("--helm-set", "foo=bar", "--helm-set", "foo=baz", "--helm-set", "app=$ARGOCD_APP_NAME").
 		Then().
 		And(func(app *Application) {
-			assert.Equal(t, []HelmParameter{{Name: "foo", Value: "baz"}, {Name: "app", Value: "$ARGOCD_APP_NAME"}}, app.Spec.Source.Helm.Parameters)
+			assert.Equal(t, []HelmParameter{{Name: "foo", Value: "baz"}, {Name: "app", Value: "$ARGOCD_APP_NAME"}}, app.Spec.GetSource().Helm.Parameters)
 		})
 }
 
@@ -298,7 +298,7 @@ func TestHelmSetString(t *testing.T) {
 		AppSet("--helm-set-string", "foo=bar", "--helm-set-string", "foo=baz", "--helm-set-string", "app=$ARGOCD_APP_NAME").
 		Then().
 		And(func(app *Application) {
-			assert.Equal(t, []HelmParameter{{Name: "foo", Value: "baz", ForceString: true}, {Name: "app", Value: "$ARGOCD_APP_NAME", ForceString: true}}, app.Spec.Source.Helm.Parameters)
+			assert.Equal(t, []HelmParameter{{Name: "foo", Value: "baz", ForceString: true}, {Name: "app", Value: "$ARGOCD_APP_NAME", ForceString: true}}, app.Spec.GetSource().Helm.Parameters)
 		})
 }
 
@@ -310,7 +310,7 @@ func TestHelmSetFile(t *testing.T) {
 		AppSet("--helm-set-file", "foo=bar.yaml", "--helm-set-file", "foo=baz.yaml").
 		Then().
 		And(func(app *Application) {
-			assert.Equal(t, []HelmFileParameter{{Name: "foo", Path: "baz.yaml"}}, app.Spec.Source.Helm.FileParameters)
+			assert.Equal(t, []HelmFileParameter{{Name: "foo", Path: "baz.yaml"}}, app.Spec.GetSource().Helm.FileParameters)
 		})
 }
 
