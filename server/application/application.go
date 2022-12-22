@@ -54,6 +54,7 @@ import (
 	"github.com/argoproj/argo-cd/v2/util/lua"
 	"github.com/argoproj/argo-cd/v2/util/manifeststream"
 	"github.com/argoproj/argo-cd/v2/util/rbac"
+	"github.com/argoproj/argo-cd/v2/util/security"
 	"github.com/argoproj/argo-cd/v2/util/session"
 	"github.com/argoproj/argo-cd/v2/util/settings"
 )
@@ -210,7 +211,7 @@ func (s *Server) Create(ctx context.Context, q *application.ApplicationCreateReq
 	appNs := s.appNamespaceOrDefault(a.Namespace)
 
 	if !s.isNamespaceEnabled(appNs) {
-		return nil, namespaceNotPermittedError(appNs)
+		return nil, security.NamespaceNotPermittedError(appNs)
 	}
 
 	created, err := s.appclientset.ArgoprojV1alpha1().Applications(appNs).Create(ctx, a, metav1.CreateOptions{})
@@ -342,7 +343,7 @@ func (s *Server) GetManifests(ctx context.Context, q *application.ApplicationMan
 	}
 
 	if !s.isNamespaceEnabled(a.Namespace) {
-		return nil, namespaceNotPermittedError(a.Namespace)
+		return nil, security.NamespaceNotPermittedError(a.Namespace)
 	}
 
 	var manifestInfo *apiclient.ManifestResponse
@@ -2289,9 +2290,5 @@ func (s *Server) appNamespaceOrDefault(appNs string) string {
 }
 
 func (s *Server) isNamespaceEnabled(namespace string) bool {
-	return namespace == s.ns || glob.MatchStringInList(s.enabledNamespaces, namespace, false)
-}
-
-func namespaceNotPermittedError(namespace string) error {
-	return fmt.Errorf("namespace '%s' is not permitted", namespace)
+	return security.IsNamespaceEnabled(namespace, s.ns, s.enabledNamespaces)
 }

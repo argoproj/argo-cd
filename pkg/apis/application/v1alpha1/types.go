@@ -34,6 +34,7 @@ import (
 
 	"github.com/argoproj/argo-cd/v2/util/collections"
 	"github.com/argoproj/argo-cd/v2/util/helm"
+	"github.com/argoproj/argo-cd/v2/util/security"
 )
 
 // Application is a definition of Application resource.
@@ -2562,9 +2563,5 @@ func (a *Application) QualifiedName() string {
 // RBACName returns the full qualified RBAC resource name for the application
 // in a backwards-compatible way.
 func (a *Application) RBACName(defaultNS string) string {
-	if defaultNS != "" && a.Namespace != defaultNS && a.Namespace != "" {
-		return fmt.Sprintf("%s/%s/%s", a.Spec.GetProject(), a.Namespace, a.Name)
-	} else {
-		return fmt.Sprintf("%s/%s", a.Spec.GetProject(), a.Name)
-	}
+	return security.AppRBACName(defaultNS, a.Spec.GetProject(), a.Namespace, a.Name)
 }
