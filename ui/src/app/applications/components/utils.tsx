@@ -24,7 +24,8 @@ export interface NodeId {
     createdAt?: appModels.Time;
 }
 
-type ActionMenuItem = MenuItem & {disabled?: boolean};
+
+type ActionMenuItem = MenuItem & {disabled?: boolean; tooltip?: string};
 
 export function nodeKey(node: NodeId) {
     return [node.group, node.kind, node.namespace, node.name].join('/');
@@ -491,10 +492,23 @@ function getActionItems(
 
     const resourceActions = getResourceActionsMenuItems(resource, application.metadata, appContext);
 
+    const links = services.applications.getResourceLinks(application.metadata.name, application.metadata.namespace, resource).then(data => {
+        return (data.items || []).map(
+            link =>
+                ({
+                    title: link.title,
+                    iconClassName: `fa ${link.iconClass ? link.iconClass : 'fa-external-link'}`,
+                    action: () => window.open(link.url, '_blank'),
+                    tooltip: link.description
+                } as MenuItem)
+        );
+    });
+
     return combineLatest(
         from([items]), // this resolves immediately
         concat([[] as MenuItem[]], resourceActions), // this resolves at first to [] and then whatever the API returns
-        concat([[] as MenuItem[]], execAction) // this resolves at first to [] and then whatever the API returns
+        concat([[] as MenuItem[]], execAction), // this resolves at first to [] and then whatever the API returns
+        concat([[] as MenuItem[]], links) // this resolves at first to [] and then whatever the API returns
     ).pipe(map(res => ([] as MenuItem[]).concat(...res)));
 }
 
@@ -528,7 +542,17 @@ export function renderResourceMenu(
                                     document.body.click();
                                 }
                             }}>
-                            {item.iconClassName && <i className={item.iconClassName} />} {item.title}
+                            {item.tooltip ? (
+                                <Tooltip content={item.tooltip || ''}>
+                                    <div>
+                                        {item.iconClassName && <i className={item.iconClassName} />} {item.title}
+                                    </div>
+                                </Tooltip>
+                            ) : (
+                                <>
+                                    {item.iconClassName && <i className={item.iconClassName} />} {item.title}
+                                </>
+                            )}
                         </li>
                     ))}
                 </ul>
@@ -604,12 +628,14 @@ export function renderResourceButtons(
 }
 
 export function syncStatusMessage(app: appModels.Application) {
-    const rev = app.status.sync.revision || app.spec.source.targetRevision || 'HEAD';
-    let message = app.spec.source.targetRevision || 'HEAD';
+    const source = getAppDefaultSource(app);
+    const rev = app.status.sync.revision || source.targetRevision || 'HEAD';
+    let message = source.targetRevision || 'HEAD';
+
     if (app.status.sync.revision) {
-        if (app.spec.source.chart) {
+        if (source.chart) {
             message += ' (' + app.status.sync.revision + ')';
-        } else if (app.status.sync.revision.length >= 7 && !app.status.sync.revision.startsWith(app.spec.source.targetRevision)) {
+        } else if (app.status.sync.revision.length >= 7 && !app.status.sync.revision.startsWith(source.targetRevision)) {
             message += ' (' + app.status.sync.revision.substr(0, 7) + ')';
         }
     }
@@ -618,7 +644,7 @@ export function syncStatusMessage(app: appModels.Application) {
             return (
                 <span>
                     To{' '}
-                    <Revision repoUrl={app.spec.source.repoURL} revision={rev}>
+                    <Revision repoUrl={source.repoURL} revision={rev}>
                         {message}
                     </Revision>{' '}
                 </span>
@@ -627,7 +653,7 @@ export function syncStatusMessage(app: appModels.Application) {
             return (
                 <span>
                     From{' '}
-                    <Revision repoUrl={app.spec.source.repoURL} revision={rev}>
+                    <Revision repoUrl={source.repoURL} revision={rev}>
                         {message}
                     </Revision>{' '}
                 </span>
@@ -932,13 +958,27 @@ export function isAppNode(node: appModels.ResourceNode) {
 }
 
 export function getAppOverridesCount(app: appModels.Application) {
-    if (app.spec.source.kustomize && app.spec.source.kustomize.images) {
-        return app.spec.source.kustomize.images.length;
+    const source = getAppDefaultSource(app);
+    if (source.kustomize && source.kustomize.images) {
+        return source.kustomize.images.length;
     }
-    if (app.spec.source.helm && app.spec.source.helm.parameters) {
-        return app.spec.source.helm.parameters.length;
+    if (source.helm && source.helm.parameters) {
+        return source.helm.parameters.length;
     }
     return 0;
+}
+
+// getAppDefaultSource gets the first app source from `sources` or, if that list is missing or empty, the `source`
+// field.
+export function getAppDefaultSource(app?: appModels.Application) {
+    if (!app) {
+        return null;
+    }
+    return app.spec.sources && app.spec.sources.length > 0 ? app.spec.sources[0] : app.spec.source;
+}
+
+export function getAppSpecDefaultSource(spec: appModels.ApplicationSpec) {
+    return spec.sources && spec.sources.length > 0 ? spec.sources[0] : spec.source;
 }
 
 export function isAppRefreshing(app: appModels.Application) {

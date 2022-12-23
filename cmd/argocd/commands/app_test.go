@@ -498,7 +498,7 @@ func TestPrintAppSummaryTable(t *testing.T) {
 				},
 				Project:     "default",
 				Destination: v1alpha1.ApplicationDestination{Server: "local", Namespace: "argocd"},
-				Source: v1alpha1.ApplicationSource{
+				Source: &v1alpha1.ApplicationSource{
 					RepoURL:        "test",
 					TargetRevision: "master",
 					Path:           "/test",
@@ -604,7 +604,7 @@ func TestPrintParams(t *testing.T) {
 	output, _ := captureOutput(func() error {
 		app := &v1alpha1.Application{
 			Spec: v1alpha1.ApplicationSpec{
-				Source: v1alpha1.ApplicationSource{
+				Source: &v1alpha1.ApplicationSource{
 					Helm: &v1alpha1.ApplicationSourceHelm{
 						Parameters: []v1alpha1.HelmParameter{
 							{
@@ -985,7 +985,7 @@ func TestPrintApplicationTableWide(t *testing.T) {
 					Server:    "http://localhost:8080",
 					Namespace: "default",
 				},
-				Source: v1alpha1.ApplicationSource{
+				Source: &v1alpha1.ApplicationSource{
 					RepoURL:        "https://github.com/argoproj/argocd-example-apps",
 					Path:           "guestbook",
 					TargetRevision: "123",
@@ -1261,7 +1261,7 @@ func testApp(name, project string, labels map[string]string, annotations map[str
 			Finalizers:  finalizers,
 		},
 		Spec: argoappv1.ApplicationSpec{
-			Source: argoappv1.ApplicationSource{
+			Source: &argoappv1.ApplicationSource{
 				RepoURL: "https://github.com/argoproj/argocd-example-apps.git",
 			},
 			Project: project,

@@ -12,7 +12,7 @@ import (
 	"strings"
 	"time"
 
-	oidc "github.com/coreos/go-oidc"
+	"github.com/coreos/go-oidc/v3/oidc"
 	"github.com/golang-jwt/jwt/v4"
 	"github.com/google/uuid"
 	log "github.com/sirupsen/logrus"
@@ -419,7 +419,7 @@ func (mgr *SessionManager) VerifyUsernamePassword(username string, password stri
 			// introduces random delay to protect from timing-based user enumeration attack
 			delayNanoseconds := verificationDelayNoiseMin.Nanoseconds() +
 				int64(rand.Intn(int(verificationDelayNoiseMax.Nanoseconds()-verificationDelayNoiseMin.Nanoseconds())))
-				// take into account amount of time spent since the request start
+			// take into account amount of time spent since the request start
 			delayNanoseconds = delayNanoseconds - time.Since(start).Nanoseconds()
 			if delayNanoseconds > 0 {
 				mgr.sleep(time.Duration(delayNanoseconds))
@@ -497,7 +497,8 @@ func (mgr *SessionManager) VerifyToken(tokenString string) (jwt.Claims, string, 
 		// return a dummy claims only containing a value for the issuer, so the
 		// UI can handle expired tokens appropriately.
 		if err != nil {
-			if strings.HasPrefix(err.Error(), "oidc: token is expired") {
+			tokenExpiredError := &oidc.TokenExpiredError{}
+			if errors.As(err, &tokenExpiredError) {
 				claims = jwt.RegisteredClaims{
 					Issuer: "sso",
 				}
