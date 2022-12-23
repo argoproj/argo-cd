@@ -24,7 +24,6 @@ export interface NodeId {
     createdAt?: appModels.Time;
 }
 
-
 type ActionMenuItem = MenuItem & {disabled?: boolean; tooltip?: string};
 
 export function nodeKey(node: NodeId) {
