@@ -1,0 +1,15 @@
+apiVersion: batch/v1
+kind: Job
+metadata:
+  name: $jobName
+  namespace: $cronJobNamespace
+  ownerReferences:
+    - apiVersion: batch/v1
+      blockOwnerDeletion: true
+      controller: true
+      kind: CronJob
+      name: $cronJobName
+      uid: $cronJobUid
+spec:
+  template:
+    spec: $cronJobTemplateSpec
