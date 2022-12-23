@@ -3,7 +3,6 @@ kind: CronJob
 metadata:
   name: hello
   annotations:
-    gu: gu
     kuku: muku
 spec:
   schedule: "* * * * *"
