@@ -11,7 +11,7 @@ require (
 	github.com/argoproj/gitops-engine v0.7.1-0.20221108210551-e284fd71cb96
 	github.com/argoproj/notifications-engine v0.3.1-0.20221203221941-490d98afd1d6
 	github.com/argoproj/pkg v0.13.7-0.20221115212233-27bd8ce31415
-	github.com/aws/aws-sdk-go v1.44.156
+	github.com/aws/aws-sdk-go v1.44.164
 	github.com/bombsimon/logrusr/v2 v2.0.1
 	github.com/bradleyfalzon/ghinstallation/v2 v2.1.0
 	github.com/casbin/casbin/v2 v2.60.0
@@ -75,7 +75,7 @@ require (
 	golang.org/x/net v0.1.0 // indirect
 	golang.org/x/oauth2 v0.0.0-20220822191816-0ebed06d0094
 	golang.org/x/sync v0.0.0-20220722155255-886fb9371eb4
-	golang.org/x/term v0.1.0
+	golang.org/x/term v0.3.0
 	google.golang.org/genproto v0.0.0-20220616135557-88e70c0c3a90
 	google.golang.org/grpc v1.51.0
 	google.golang.org/protobuf v1.28.1
@@ -231,7 +231,7 @@ require (
 	go.starlark.net v0.0.0-20200306205701-8dd3e2ee1dd5 // indirect
 	golang.org/x/exp v0.0.0-20210901193431-a062eea981d2 // indirect
 	golang.org/x/mod v0.6.0-dev.0.20220419223038-86c51ed26bb4 // indirect
-	golang.org/x/sys v0.2.0 // indirect
+	golang.org/x/sys v0.3.0 // indirect
 	golang.org/x/text v0.4.0 // indirect
 	golang.org/x/time v0.0.0-20220210224613-90d013bbcef8 // indirect
 	golang.org/x/tools v0.1.12 // indirect
