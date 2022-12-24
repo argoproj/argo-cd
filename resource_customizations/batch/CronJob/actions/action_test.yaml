@@ -1,4 +1,0 @@
-actionTests:
-- action: create-from
-  inputPath: testdata/cronjob.yaml
-  expectedOutputPath: testdata/cronjob-altered.yaml
