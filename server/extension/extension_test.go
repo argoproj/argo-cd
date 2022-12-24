@@ -3,21 +3,22 @@ package extension_test
 import (
 	"context"
 	"fmt"
-	"io/ioutil"
+	"io"
 	"net/http"
 	"net/http/httptest"
 	"strings"
 	"testing"
 
-	v1alpha1 "github.com/argoproj/argo-cd/v2/pkg/apis/application/v1alpha1"
-	"github.com/argoproj/argo-cd/v2/server/extension"
-	"github.com/argoproj/argo-cd/v2/server/extension/mocks"
-	"github.com/argoproj/argo-cd/v2/util/settings"
 	"github.com/gorilla/mux"
 	"github.com/sirupsen/logrus/hooks/test"
 	"github.com/stretchr/testify/assert"
 	"github.com/stretchr/testify/mock"
 	"github.com/stretchr/testify/require"
+
+	"github.com/argoproj/argo-cd/v2/pkg/apis/application/v1alpha1"
+	"github.com/argoproj/argo-cd/v2/server/extension"
+	"github.com/argoproj/argo-cd/v2/server/extension/mocks"
+	"github.com/argoproj/argo-cd/v2/util/settings"
 )
 
 func TestRegisterHandlers(t *testing.T) {
@@ -196,7 +197,7 @@ func TestExtensionsHandlers(t *testing.T) {
 		require.NoError(t, err)
 		require.NotNil(t, resp)
 		require.Equal(t, http.StatusOK, resp.StatusCode)
-		body, err := ioutil.ReadAll(resp.Body)
+		body, err := io.ReadAll(resp.Body)
 		require.NoError(t, err)
 		actual := strings.TrimSuffix(string(body), "\n")
 		assert.Equal(t, backendResponse, actual)
@@ -259,14 +260,14 @@ func TestExtensionsHandlers(t *testing.T) {
 		// then
 		require.NotNil(t, resp1)
 		require.Equal(t, http.StatusOK, resp1.StatusCode)
-		body, err := ioutil.ReadAll(resp1.Body)
+		body, err := io.ReadAll(resp1.Body)
 		require.NoError(t, err)
 		actual := strings.TrimSuffix(string(body), "\n")
 		assert.Equal(t, response1, actual)
 
 		require.NotNil(t, resp2)
 		require.Equal(t, http.StatusOK, resp2.StatusCode)
-		body, err = ioutil.ReadAll(resp2.Body)
+		body, err = io.ReadAll(resp2.Body)
 		require.NoError(t, err)
 		actual = strings.TrimSuffix(string(body), "\n")
 		assert.Equal(t, response2, actual)

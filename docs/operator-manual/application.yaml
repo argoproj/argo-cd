@@ -132,6 +132,13 @@ spec:
         - name: map-param
           map:
             param-name: param-value
+  
+  # Sources field specifies the list of sources for the application
+  sources:
+    - repoURL: https://github.com/argoproj/argocd-example-apps.git  # Can point to either a Helm chart repo or a git repo.
+      targetRevision: HEAD  # For Helm, this refers to the chart version.
+      path: guestbook  # This has no meaning for Helm charts pulled directly from a Helm repo instead of git.
+      ref: my-repo  # For Helm, acts as a reference to this source for fetching values files from this source. Has no meaning when under `source` field
 
   # Destination cluster and namespace to deploy the application
   destination:
