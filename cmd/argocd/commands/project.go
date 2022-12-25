@@ -18,10 +18,12 @@ import (
 
 	"github.com/argoproj/argo-cd/v2/cmd/argocd/commands/headless"
 	cmdutil "github.com/argoproj/argo-cd/v2/cmd/util"
+	"github.com/argoproj/argo-cd/v2/common"
 	argocdclient "github.com/argoproj/argo-cd/v2/pkg/apiclient"
 	projectpkg "github.com/argoproj/argo-cd/v2/pkg/apiclient/project"
 	"github.com/argoproj/argo-cd/v2/pkg/apis/application/v1alpha1"
 	"github.com/argoproj/argo-cd/v2/util/cli"
+	"github.com/argoproj/argo-cd/v2/util/env"
 	"github.com/argoproj/argo-cd/v2/util/errors"
 	"github.com/argoproj/argo-cd/v2/util/git"
 	"github.com/argoproj/argo-cd/v2/util/gpg"
@@ -102,6 +104,10 @@ func NewProjectCreateCommand(clientOpts *argocdclient.ClientOptions) *cobra.Comm
 	}
 	command.Flags().BoolVar(&upsert, "upsert", false, "Allows to override a project with the same name even if supplied project spec is different from existing spec")
 	command.Flags().StringVarP(&fileURL, "file", "f", "", "Filename or URL to Kubernetes manifests for the project")
+	command.Flags().StringVar(&clientOpts.ServerName, "server-name", env.StringFromEnv(common.EnvServerName, common.DefaultServerName), "Server name")
+	command.Flags().StringVar(&clientOpts.RedisHaHaProxyName, "redis-ha-haproxy-name", env.StringFromEnv(common.EnvRedisHaHaproxyName, common.DefaultRedisHaHaproxyName), "Redis HA HAProxy name")
+	command.Flags().StringVar(&clientOpts.RedisName, "redis-name", env.StringFromEnv(common.EnvRedisName, common.DefaultRedisName), "Redis name")
+	command.Flags().StringVar(&clientOpts.RepoServerName, "repo-server-name", env.StringFromEnv(common.EnvRepoServerName, common.DefaultRepoServerName), "Repo server name")
 	err := command.Flags().SetAnnotation("file", cobra.BashCompFilenameExt, []string{"json", "yaml", "yml"})
 	if err != nil {
 		log.Fatal(err)
@@ -142,6 +148,10 @@ func NewProjectSetCommand(clientOpts *argocdclient.ClientOptions) *cobra.Command
 			errors.CheckError(err)
 		},
 	}
+	command.Flags().StringVar(&clientOpts.ServerName, "server-name", env.StringFromEnv(common.EnvServerName, common.DefaultServerName), "Server name")
+	command.Flags().StringVar(&clientOpts.RedisHaHaProxyName, "redis-ha-haproxy-name", env.StringFromEnv(common.EnvRedisHaHaproxyName, common.DefaultRedisHaHaproxyName), "Redis HA HAProxy name")
+	command.Flags().StringVar(&clientOpts.RedisName, "redis-name", env.StringFromEnv(common.EnvRedisName, common.DefaultRedisName), "Redis name")
+	command.Flags().StringVar(&clientOpts.RepoServerName, "repo-server-name", env.StringFromEnv(common.EnvRepoServerName, common.DefaultRepoServerName), "Repo server name")
 	cmdutil.AddProjFlags(command, &opts)
 	return command
 }
@@ -181,6 +191,10 @@ func NewProjectAddSignatureKeyCommand(clientOpts *argocdclient.ClientOptions) *c
 			errors.CheckError(err)
 		},
 	}
+	command.Flags().StringVar(&clientOpts.ServerName, "server-name", env.StringFromEnv(common.EnvServerName, common.DefaultServerName), "Server name")
+	command.Flags().StringVar(&clientOpts.RedisHaHaProxyName, "redis-ha-haproxy-name", env.StringFromEnv(common.EnvRedisHaHaproxyName, common.DefaultRedisHaHaproxyName), "Redis HA HAProxy name")
+	command.Flags().StringVar(&clientOpts.RedisName, "redis-name", env.StringFromEnv(common.EnvRedisName, common.DefaultRedisName), "Redis name")
+	command.Flags().StringVar(&clientOpts.RepoServerName, "repo-server-name", env.StringFromEnv(common.EnvRepoServerName, common.DefaultRepoServerName), "Repo server name")
 	return command
 }
 
@@ -221,7 +235,10 @@ func NewProjectRemoveSignatureKeyCommand(clientOpts *argocdclient.ClientOptions)
 			}
 		},
 	}
-
+	command.Flags().StringVar(&clientOpts.ServerName, "server-name", env.StringFromEnv(common.EnvServerName, common.DefaultServerName), "Server name")
+	command.Flags().StringVar(&clientOpts.RedisHaHaProxyName, "redis-ha-haproxy-name", env.StringFromEnv(common.EnvRedisHaHaproxyName, common.DefaultRedisHaHaproxyName), "Redis HA HAProxy name")
+	command.Flags().StringVar(&clientOpts.RedisName, "redis-name", env.StringFromEnv(common.EnvRedisName, common.DefaultRedisName), "Redis name")
+	command.Flags().StringVar(&clientOpts.RepoServerName, "repo-server-name", env.StringFromEnv(common.EnvRepoServerName, common.DefaultRepoServerName), "Repo server name")
 	return command
 }
 
@@ -268,6 +285,10 @@ func NewProjectAddDestinationCommand(clientOpts *argocdclient.ClientOptions) *co
 		},
 	}
 	command.Flags().BoolVar(&nameInsteadServer, "name", false, "Use name as destination instead server")
+	command.Flags().StringVar(&clientOpts.ServerName, "server-name", env.StringFromEnv(common.EnvServerName, common.DefaultServerName), "Server name")
+	command.Flags().StringVar(&clientOpts.RedisHaHaProxyName, "redis-ha-haproxy-name", env.StringFromEnv(common.EnvRedisHaHaproxyName, common.DefaultRedisHaHaproxyName), "Redis HA HAProxy name")
+	command.Flags().StringVar(&clientOpts.RedisName, "redis-name", env.StringFromEnv(common.EnvRedisName, common.DefaultRedisName), "Redis name")
+	command.Flags().StringVar(&clientOpts.RepoServerName, "repo-server-name", env.StringFromEnv(common.EnvRepoServerName, common.DefaultRepoServerName), "Repo server name")
 	return command
 }
 
@@ -308,7 +329,10 @@ func NewProjectRemoveDestinationCommand(clientOpts *argocdclient.ClientOptions) 
 			}
 		},
 	}
-
+	command.Flags().StringVar(&clientOpts.ServerName, "server-name", env.StringFromEnv(common.EnvServerName, common.DefaultServerName), "Server name")
+	command.Flags().StringVar(&clientOpts.RedisHaHaProxyName, "redis-ha-haproxy-name", env.StringFromEnv(common.EnvRedisHaHaproxyName, common.DefaultRedisHaHaproxyName), "Redis HA HAProxy name")
+	command.Flags().StringVar(&clientOpts.RedisName, "redis-name", env.StringFromEnv(common.EnvRedisName, common.DefaultRedisName), "Redis name")
+	command.Flags().StringVar(&clientOpts.RepoServerName, "repo-server-name", env.StringFromEnv(common.EnvRepoServerName, common.DefaultRepoServerName), "Repo server name")
 	return command
 }
 
@@ -354,6 +378,10 @@ func NewProjectAddOrphanedIgnoreCommand(clientOpts *argocdclient.ClientOptions) 
 		},
 	}
 	command.Flags().StringVar(&name, "name", "", "Resource name pattern")
+	command.Flags().StringVar(&clientOpts.ServerName, "server-name", env.StringFromEnv(common.EnvServerName, common.DefaultServerName), "Server name")
+	command.Flags().StringVar(&clientOpts.RedisHaHaProxyName, "redis-ha-haproxy-name", env.StringFromEnv(common.EnvRedisHaHaproxyName, common.DefaultRedisHaHaproxyName), "Redis HA HAProxy name")
+	command.Flags().StringVar(&clientOpts.RedisName, "redis-name", env.StringFromEnv(common.EnvRedisName, common.DefaultRedisName), "Redis name")
+	command.Flags().StringVar(&clientOpts.RepoServerName, "repo-server-name", env.StringFromEnv(common.EnvRepoServerName, common.DefaultRepoServerName), "Repo server name")
 	return command
 }
 
@@ -403,6 +431,10 @@ func NewProjectRemoveOrphanedIgnoreCommand(clientOpts *argocdclient.ClientOption
 		},
 	}
 	command.Flags().StringVar(&name, "name", "", "Resource name pattern")
+	command.Flags().StringVar(&clientOpts.ServerName, "server-name", env.StringFromEnv(common.EnvServerName, common.DefaultServerName), "Server name")
+	command.Flags().StringVar(&clientOpts.RedisHaHaProxyName, "redis-ha-haproxy-name", env.StringFromEnv(common.EnvRedisHaHaproxyName, common.DefaultRedisHaHaproxyName), "Redis HA HAProxy name")
+	command.Flags().StringVar(&clientOpts.RedisName, "redis-name", env.StringFromEnv(common.EnvRedisName, common.DefaultRedisName), "Redis name")
+	command.Flags().StringVar(&clientOpts.RepoServerName, "repo-server-name", env.StringFromEnv(common.EnvRepoServerName, common.DefaultRepoServerName), "Repo server name")
 	return command
 }
 
@@ -441,6 +473,10 @@ func NewProjectAddSourceCommand(clientOpts *argocdclient.ClientOptions) *cobra.C
 			errors.CheckError(err)
 		},
 	}
+	command.Flags().StringVar(&clientOpts.ServerName, "server-name", env.StringFromEnv(common.EnvServerName, common.DefaultServerName), "Server name")
+	command.Flags().StringVar(&clientOpts.RedisHaHaProxyName, "redis-ha-haproxy-name", env.StringFromEnv(common.EnvRedisHaHaproxyName, common.DefaultRedisHaHaproxyName), "Redis HA HAProxy name")
+	command.Flags().StringVar(&clientOpts.RedisName, "redis-name", env.StringFromEnv(common.EnvRedisName, common.DefaultRedisName), "Redis name")
+	command.Flags().StringVar(&clientOpts.RepoServerName, "repo-server-name", env.StringFromEnv(common.EnvRepoServerName, common.DefaultRepoServerName), "Repo server name")
 	return command
 }
 
@@ -527,6 +563,10 @@ func modifyResourceListCmd(cmdUse, cmdDesc string, clientOpts *argocdclient.Clie
 		},
 	}
 	command.Flags().StringVarP(&listType, "list", "l", defaultList, "Use deny list or allow list. This can only be 'allow' or 'deny'")
+	command.Flags().StringVar(&clientOpts.ServerName, "server-name", env.StringFromEnv(common.EnvServerName, common.DefaultServerName), "Server name")
+	command.Flags().StringVar(&clientOpts.RedisHaHaProxyName, "redis-ha-haproxy-name", env.StringFromEnv(common.EnvRedisHaHaproxyName, common.DefaultRedisHaHaproxyName), "Redis HA HAProxy name")
+	command.Flags().StringVar(&clientOpts.RedisName, "redis-name", env.StringFromEnv(common.EnvRedisName, common.DefaultRedisName), "Redis name")
+	command.Flags().StringVar(&clientOpts.RepoServerName, "repo-server-name", env.StringFromEnv(common.EnvRepoServerName, common.DefaultRepoServerName), "Repo server name")
 	return command
 }
 
@@ -594,7 +634,10 @@ func NewProjectRemoveSourceCommand(clientOpts *argocdclient.ClientOptions) *cobr
 			}
 		},
 	}
-
+	command.Flags().StringVar(&clientOpts.ServerName, "server-name", env.StringFromEnv(common.EnvServerName, common.DefaultServerName), "Server name")
+	command.Flags().StringVar(&clientOpts.RedisHaHaProxyName, "redis-ha-haproxy-name", env.StringFromEnv(common.EnvRedisHaHaproxyName, common.DefaultRedisHaHaproxyName), "Redis HA HAProxy name")
+	command.Flags().StringVar(&clientOpts.RedisName, "redis-name", env.StringFromEnv(common.EnvRedisName, common.DefaultRedisName), "Redis name")
+	command.Flags().StringVar(&clientOpts.RepoServerName, "repo-server-name", env.StringFromEnv(common.EnvRepoServerName, common.DefaultRepoServerName), "Repo server name")
 	return command
 }
 
@@ -618,6 +661,10 @@ func NewProjectDeleteCommand(clientOpts *argocdclient.ClientOptions) *cobra.Comm
 			}
 		},
 	}
+	command.Flags().StringVar(&clientOpts.ServerName, "server-name", env.StringFromEnv(common.EnvServerName, common.DefaultServerName), "Server name")
+	command.Flags().StringVar(&clientOpts.RedisHaHaProxyName, "redis-ha-haproxy-name", env.StringFromEnv(common.EnvRedisHaHaproxyName, common.DefaultRedisHaHaproxyName), "Redis HA HAProxy name")
+	command.Flags().StringVar(&clientOpts.RedisName, "redis-name", env.StringFromEnv(common.EnvRedisName, common.DefaultRedisName), "Redis name")
+	command.Flags().StringVar(&clientOpts.RepoServerName, "repo-server-name", env.StringFromEnv(common.EnvRepoServerName, common.DefaultRepoServerName), "Repo server name")
 	return command
 }
 
@@ -667,6 +714,10 @@ func NewProjectListCommand(clientOpts *argocdclient.ClientOptions) *cobra.Comman
 		},
 	}
 	command.Flags().StringVarP(&output, "output", "o", "wide", "Output format. One of: json|yaml|wide|name")
+	command.Flags().StringVar(&clientOpts.ServerName, "server-name", env.StringFromEnv(common.EnvServerName, common.DefaultServerName), "Server name")
+	command.Flags().StringVar(&clientOpts.RedisHaHaProxyName, "redis-ha-haproxy-name", env.StringFromEnv(common.EnvRedisHaHaproxyName, common.DefaultRedisHaHaproxyName), "Redis HA HAProxy name")
+	command.Flags().StringVar(&clientOpts.RedisName, "redis-name", env.StringFromEnv(common.EnvRedisName, common.DefaultRedisName), "Redis name")
+	command.Flags().StringVar(&clientOpts.RepoServerName, "repo-server-name", env.StringFromEnv(common.EnvRepoServerName, common.DefaultRepoServerName), "Repo server name")
 	return command
 }
 
@@ -836,6 +887,10 @@ func NewProjectGetCommand(clientOpts *argocdclient.ClientOptions) *cobra.Command
 		},
 	}
 	command.Flags().StringVarP(&output, "output", "o", "wide", "Output format. One of: json|yaml|wide")
+	command.Flags().StringVar(&clientOpts.ServerName, "server-name", env.StringFromEnv(common.EnvServerName, common.DefaultServerName), "Server name")
+	command.Flags().StringVar(&clientOpts.RedisHaHaProxyName, "redis-ha-haproxy-name", env.StringFromEnv(common.EnvRedisHaHaproxyName, common.DefaultRedisHaHaproxyName), "Redis HA HAProxy name")
+	command.Flags().StringVar(&clientOpts.RedisName, "redis-name", env.StringFromEnv(common.EnvRedisName, common.DefaultRedisName), "Redis name")
+	command.Flags().StringVar(&clientOpts.RepoServerName, "repo-server-name", env.StringFromEnv(common.EnvRepoServerName, common.DefaultRepoServerName), "Repo server name")
 	return command
 }
 
@@ -883,5 +938,9 @@ func NewProjectEditCommand(clientOpts *argocdclient.ClientOptions) *cobra.Comman
 			})
 		},
 	}
+	command.Flags().StringVar(&clientOpts.ServerName, "server-name", env.StringFromEnv(common.EnvServerName, common.DefaultServerName), "Server name")
+	command.Flags().StringVar(&clientOpts.RedisHaHaProxyName, "redis-ha-haproxy-name", env.StringFromEnv(common.EnvRedisHaHaproxyName, common.DefaultRedisHaHaproxyName), "Redis HA HAProxy name")
+	command.Flags().StringVar(&clientOpts.RedisName, "redis-name", env.StringFromEnv(common.EnvRedisName, common.DefaultRedisName), "Redis name")
+	command.Flags().StringVar(&clientOpts.RepoServerName, "repo-server-name", env.StringFromEnv(common.EnvRepoServerName, common.DefaultRepoServerName), "Repo server name")
 	return command
 }

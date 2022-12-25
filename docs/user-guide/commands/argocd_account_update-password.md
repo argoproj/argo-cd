@@ -29,10 +29,14 @@ argocd account update-password [flags]
 ### Options
 
 ```
-      --account string            an account name that should be updated. Defaults to current user account
-      --current-password string   password of the currently logged on user
-  -h, --help                      help for update-password
-      --new-password string       new password you want to update to
+      --account string                 an account name that should be updated. Defaults to current user account
+      --current-password string        password of the currently logged on user
+  -h, --help                           help for update-password
+      --new-password string            new password you want to update to
+      --redis-ha-haproxy-name string   Redis HA HAProxy name (default "argocd-redis-ha-haproxy")
+      --redis-name string              Redis name (default "argocd-redis")
+      --repo-server-name string        Repo server name (default "argocd-repo-server")
+      --server-name string             Server name (default "argocd-server")
 ```
 
 ### Options inherited from parent commands

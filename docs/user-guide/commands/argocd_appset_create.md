@@ -16,8 +16,12 @@ argocd appset create [flags]
 ### Options
 
 ```
-  -h, --help     help for create
-      --upsert   Allows to override ApplicationSet with the same name even if supplied ApplicationSet spec is different from existing spec
+  -h, --help                           help for create
+      --redis-ha-haproxy-name string   Redis HA HAProxy name (default "argocd-redis-ha-haproxy")
+      --redis-name string              Redis name (default "argocd-redis")
+      --repo-server-name string        Repo server name (default "argocd-repo-server")
+      --server-name string             Server name (default "argocd-server")
+      --upsert                         Allows to override ApplicationSet with the same name even if supplied ApplicationSet spec is different from existing spec
 ```
 
 ### Options inherited from parent commands

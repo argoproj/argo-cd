@@ -9,8 +9,12 @@ argocd gpg add [flags]
 ### Options
 
 ```
-  -f, --from string   Path to the file that contains the GPG public key to import
-  -h, --help          help for add
+  -f, --from string                    Path to the file that contains the GPG public key to import
+  -h, --help                           help for add
+      --redis-ha-haproxy-name string   Redis HA HAProxy name (default "argocd-redis-ha-haproxy")
+      --redis-name string              Redis name (default "argocd-redis")
+      --repo-server-name string        Repo server name (default "argocd-repo-server")
+      --server-name string             Server name (default "argocd-server")
 ```
 
 ### Options inherited from parent commands

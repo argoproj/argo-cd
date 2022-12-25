@@ -16,10 +16,14 @@ argocd appset list [flags]
 ### Options
 
 ```
-  -h, --help                  help for list
-  -o, --output string         Output format. One of: wide|name|json|yaml (default "wide")
-  -p, --project stringArray   Filter by project name
-  -l, --selector string       List applicationsets by label
+  -h, --help                           help for list
+  -o, --output string                  Output format. One of: wide|name|json|yaml (default "wide")
+  -p, --project stringArray            Filter by project name
+      --redis-ha-haproxy-name string   Redis HA HAProxy name (default "argocd-redis-ha-haproxy")
+      --redis-name string              Redis name (default "argocd-redis")
+      --repo-server-name string        Repo server name (default "argocd-repo-server")
+  -l, --selector string                List applicationsets by label
+      --server-name string             Server name (default "argocd-server")
 ```
 
 ### Options inherited from parent commands

@@ -25,6 +25,10 @@ argocd cluster add CONTEXT [flags]
       --name string                        Overwrite the cluster name
       --namespace stringArray              List of namespaces which are allowed to manage
       --project string                     project of the cluster
+      --redis-ha-haproxy-name string       Redis HA HAProxy name (default "argocd-redis-ha-haproxy")
+      --redis-name string                  Redis name (default "argocd-redis")
+      --repo-server-name string            Repo server name (default "argocd-repo-server")
+      --server-name string                 Server name (default "argocd-server")
       --service-account string             System namespace service account to use for kubernetes resource management. If not set then default "argocd-manager" SA will be created
       --shard int                          Cluster shard number; inferred from hostname if not set (default -1)
       --system-namespace string            Use different system namespace (default "kube-system")

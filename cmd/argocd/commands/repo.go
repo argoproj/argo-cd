@@ -10,10 +10,12 @@ import (
 
 	"github.com/argoproj/argo-cd/v2/cmd/argocd/commands/headless"
 	cmdutil "github.com/argoproj/argo-cd/v2/cmd/util"
+	"github.com/argoproj/argo-cd/v2/common"
 	argocdclient "github.com/argoproj/argo-cd/v2/pkg/apiclient"
 	repositorypkg "github.com/argoproj/argo-cd/v2/pkg/apiclient/repository"
 	appsv1 "github.com/argoproj/argo-cd/v2/pkg/apis/application/v1alpha1"
 	"github.com/argoproj/argo-cd/v2/util/cli"
+	"github.com/argoproj/argo-cd/v2/util/env"
 	"github.com/argoproj/argo-cd/v2/util/errors"
 	"github.com/argoproj/argo-cd/v2/util/git"
 	"github.com/argoproj/argo-cd/v2/util/io"
@@ -215,6 +217,10 @@ func NewRepoAddCommand(clientOpts *argocdclient.ClientOptions) *cobra.Command {
 	}
 	command.Flags().BoolVar(&repoOpts.Upsert, "upsert", false, "Override an existing repository with the same name even if the spec differs")
 	cmdutil.AddRepoFlags(command, &repoOpts)
+	command.Flags().StringVar(&clientOpts.ServerName, "server-name", env.StringFromEnv(common.EnvServerName, common.DefaultServerName), "Server name")
+	command.Flags().StringVar(&clientOpts.RedisHaHaProxyName, "redis-ha-haproxy-name", env.StringFromEnv(common.EnvRedisHaHaproxyName, common.DefaultRedisHaHaproxyName), "Redis HA HAProxy name")
+	command.Flags().StringVar(&clientOpts.RedisName, "redis-name", env.StringFromEnv(common.EnvRedisName, common.DefaultRedisName), "Redis name")
+	command.Flags().StringVar(&clientOpts.RepoServerName, "repo-server-name", env.StringFromEnv(common.EnvRepoServerName, common.DefaultRepoServerName), "Repo server name")
 	return command
 }
 
@@ -239,6 +245,10 @@ func NewRepoRemoveCommand(clientOpts *argocdclient.ClientOptions) *cobra.Command
 			}
 		},
 	}
+	command.Flags().StringVar(&clientOpts.ServerName, "server-name", env.StringFromEnv(common.EnvServerName, common.DefaultServerName), "Server name")
+	command.Flags().StringVar(&clientOpts.RedisHaHaProxyName, "redis-ha-haproxy-name", env.StringFromEnv(common.EnvRedisHaHaproxyName, common.DefaultRedisHaHaproxyName), "Redis HA HAProxy name")
+	command.Flags().StringVar(&clientOpts.RedisName, "redis-name", env.StringFromEnv(common.EnvRedisName, common.DefaultRedisName), "Redis name")
+	command.Flags().StringVar(&clientOpts.RepoServerName, "repo-server-name", env.StringFromEnv(common.EnvRepoServerName, common.DefaultRepoServerName), "Repo server name")
 	return command
 }
 
@@ -310,6 +320,10 @@ func NewRepoListCommand(clientOpts *argocdclient.ClientOptions) *cobra.Command {
 	}
 	command.Flags().StringVarP(&output, "output", "o", "wide", "Output format. One of: json|yaml|wide|url")
 	command.Flags().StringVar(&refresh, "refresh", "", "Force a cache refresh on connection status , must be one of: 'hard'")
+	command.Flags().StringVar(&clientOpts.ServerName, "server-name", env.StringFromEnv(common.EnvServerName, common.DefaultServerName), "Server name")
+	command.Flags().StringVar(&clientOpts.RedisHaHaProxyName, "redis-ha-haproxy-name", env.StringFromEnv(common.EnvRedisHaHaproxyName, common.DefaultRedisHaHaproxyName), "Redis HA HAProxy name")
+	command.Flags().StringVar(&clientOpts.RedisName, "redis-name", env.StringFromEnv(common.EnvRedisName, common.DefaultRedisName), "Redis name")
+	command.Flags().StringVar(&clientOpts.RepoServerName, "repo-server-name", env.StringFromEnv(common.EnvRepoServerName, common.DefaultRepoServerName), "Repo server name")
 	return command
 }
 
@@ -361,5 +375,9 @@ func NewRepoGetCommand(clientOpts *argocdclient.ClientOptions) *cobra.Command {
 	}
 	command.Flags().StringVarP(&output, "output", "o", "wide", "Output format. One of: json|yaml|wide|url")
 	command.Flags().StringVar(&refresh, "refresh", "", "Force a cache refresh on connection status , must be one of: 'hard'")
+	command.Flags().StringVar(&clientOpts.ServerName, "server-name", env.StringFromEnv(common.EnvServerName, common.DefaultServerName), "Server name")
+	command.Flags().StringVar(&clientOpts.RedisHaHaProxyName, "redis-ha-haproxy-name", env.StringFromEnv(common.EnvRedisHaHaproxyName, common.DefaultRedisHaHaproxyName), "Redis HA HAProxy name")
+	command.Flags().StringVar(&clientOpts.RedisName, "redis-name", env.StringFromEnv(common.EnvRedisName, common.DefaultRedisName), "Redis name")
+	command.Flags().StringVar(&clientOpts.RepoServerName, "repo-server-name", env.StringFromEnv(common.EnvRepoServerName, common.DefaultRepoServerName), "Repo server name")
 	return command
 }

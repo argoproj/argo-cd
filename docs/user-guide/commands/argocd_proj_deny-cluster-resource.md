@@ -9,8 +9,12 @@ argocd proj deny-cluster-resource PROJECT GROUP KIND [flags]
 ### Options
 
 ```
-  -h, --help          help for deny-cluster-resource
-  -l, --list string   Use deny list or allow list. This can only be 'allow' or 'deny' (default "allow")
+  -h, --help                           help for deny-cluster-resource
+  -l, --list string                    Use deny list or allow list. This can only be 'allow' or 'deny' (default "allow")
+      --redis-ha-haproxy-name string   Redis HA HAProxy name (default "argocd-redis-ha-haproxy")
+      --redis-name string              Redis name (default "argocd-redis")
+      --repo-server-name string        Repo server name (default "argocd-repo-server")
+      --server-name string             Server name (default "argocd-server")
 ```
 
 ### Options inherited from parent commands

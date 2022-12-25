@@ -9,7 +9,11 @@ argocd proj add-signature-key PROJECT KEY-ID [flags]
 ### Options
 
 ```
-  -h, --help   help for add-signature-key
+  -h, --help                           help for add-signature-key
+      --redis-ha-haproxy-name string   Redis HA HAProxy name (default "argocd-redis-ha-haproxy")
+      --redis-name string              Redis name (default "argocd-redis")
+      --repo-server-name string        Repo server name (default "argocd-repo-server")
+      --server-name string             Server name (default "argocd-server")
 ```
 
 ### Options inherited from parent commands

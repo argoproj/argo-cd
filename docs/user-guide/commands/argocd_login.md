@@ -26,13 +26,17 @@ argocd login cd.argoproj.io --core
 ### Options
 
 ```
-  -h, --help              help for login
-      --name string       name to use for the context
-      --password string   the password of an account to authenticate
-      --skip-test-tls     Skip testing whether the server is configured with TLS (this can help when the command hangs for no apparent reason)
-      --sso               perform SSO login
-      --sso-port int      port to run local OAuth2 login application (default 8085)
-      --username string   the username of an account to authenticate
+  -h, --help                           help for login
+      --name string                    name to use for the context
+      --password string                the password of an account to authenticate
+      --redis-ha-haproxy-name string   Redis HA HAProxy name (default "argocd-redis-ha-haproxy")
+      --redis-name string              Redis name (default "argocd-redis")
+      --repo-server-name string        Repo server name (default "argocd-repo-server")
+      --server-name string             Server name (default "argocd-server")
+      --skip-test-tls                  Skip testing whether the server is configured with TLS (this can help when the command hangs for no apparent reason)
+      --sso                            perform SSO login
+      --sso-port int                   port to run local OAuth2 login application (default 8085)
+      --username string                the username of an account to authenticate
 ```
 
 ### Options inherited from parent commands

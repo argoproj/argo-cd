@@ -9,12 +9,16 @@ argocd app actions list APPNAME [flags]
 ### Options
 
 ```
-      --group string           Group
-  -h, --help                   help for list
-      --kind string            Kind
-      --namespace string       Namespace
-  -o, --out string             Output format. One of: yaml, json
-      --resource-name string   Name of resource
+      --group string                   Group
+  -h, --help                           help for list
+      --kind string                    Kind
+      --namespace string               Namespace
+  -o, --out string                     Output format. One of: yaml, json
+      --redis-ha-haproxy-name string   Redis HA HAProxy name (default "argocd-redis-ha-haproxy")
+      --redis-name string              Redis name (default "argocd-redis")
+      --repo-server-name string        Repo server name (default "argocd-repo-server")
+      --resource-name string           Name of resource
+      --server-name string             Server name (default "argocd-server")
 ```
 
 ### Options inherited from parent commands

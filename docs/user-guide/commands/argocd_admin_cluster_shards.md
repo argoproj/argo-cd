@@ -10,6 +10,7 @@ argocd admin cluster shards [flags]
 
 ```
       --app-state-cache-expiration duration   Cache expiration for app state (default 1h0m0s)
+      --application-controller-name string    Application controller name (default "argocd-application-controller")
       --as string                             Username to impersonate for the operation
       --as-group stringArray                  Group to impersonate for the operation, this flag can be repeated to specify multiple groups.
       --as-uid string                         UID to impersonate for the operation
@@ -31,7 +32,9 @@ argocd admin cluster shards [flags]
       --redis-client-certificate string       Path to Redis client certificate (e.g. /etc/certs/redis/client.crt).
       --redis-client-key string               Path to Redis client key (e.g. /etc/certs/redis/client.crt).
       --redis-compress string                 Enable compression for data sent to Redis with the required compression algorithm. (possible values: none, gzip) (default "none")
+      --redis-ha-haproxy-name string          Redis HA HAProxy name (default "argocd-redis-ha-haproxy")
       --redis-insecure-skip-tls-verify        Skip Redis server certificate validation.
+      --redis-name string                     Redis name (default "argocd-redis")
       --redis-use-tls                         Use TLS when connecting to Redis. 
       --redisdb int                           Redis database.
       --replicas int                          Application controller replicas count. Inferred from number of running controller pods if not specified

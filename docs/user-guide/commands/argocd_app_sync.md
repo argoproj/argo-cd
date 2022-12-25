@@ -48,7 +48,10 @@ argocd app sync [APPNAME... | -l selector | --project project-name] [flags]
       --preview-changes                       Preview difference against the target and live state before syncing app and wait for user confirmation
       --project stringArray                   Sync apps that belong to the specified projects. This option may be specified repeatedly.
       --prune                                 Allow deleting unexpected resources
+      --redis-ha-haproxy-name string          Redis HA HAProxy name (default "argocd-redis-ha-haproxy")
+      --redis-name string                     Redis name (default "argocd-redis")
       --replace                               Use a kubectl create/replace instead apply
+      --repo-server-name string               Repo server name (default "argocd-repo-server")
       --resource stringArray                  Sync only specific resources as GROUP:KIND:NAME or !GROUP:KIND:NAME. Fields may be blank and '*' can be used. This option may be specified repeatedly
       --retry-backoff-duration duration       Retry backoff base duration. Input needs to be a duration (e.g. 2m, 1h) (default 5s)
       --retry-backoff-factor int              Factor multiplies the base duration after each failed retry (default 2)
@@ -56,6 +59,7 @@ argocd app sync [APPNAME... | -l selector | --project project-name] [flags]
       --retry-limit int                       Max number of allowed sync retries
       --revision string                       Sync to a specific revision. Preserves parameter overrides
   -l, --selector string                       Sync apps that match this label. Supports '=', '==', '!=', in, notin, exists & not exists. Matching apps must satisfy all of the specified label constraints.
+      --server-name string                    Server name (default "argocd-server")
       --server-side                           Use server-side apply while syncing the application
       --strategy string                       Sync strategy (one of: apply|hook)
       --timeout uint                          Time out after this many seconds

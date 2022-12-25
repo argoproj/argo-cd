@@ -17,11 +17,13 @@ import (
 	"golang.org/x/term"
 
 	"github.com/argoproj/argo-cd/v2/cmd/argocd/commands/headless"
+	"github.com/argoproj/argo-cd/v2/common"
 	argocdclient "github.com/argoproj/argo-cd/v2/pkg/apiclient"
 	accountpkg "github.com/argoproj/argo-cd/v2/pkg/apiclient/account"
 	"github.com/argoproj/argo-cd/v2/pkg/apiclient/session"
 	"github.com/argoproj/argo-cd/v2/server/rbacpolicy"
 	"github.com/argoproj/argo-cd/v2/util/cli"
+	"github.com/argoproj/argo-cd/v2/util/env"
 	"github.com/argoproj/argo-cd/v2/util/errors"
 	"github.com/argoproj/argo-cd/v2/util/io"
 	"github.com/argoproj/argo-cd/v2/util/localconfig"
@@ -133,6 +135,10 @@ has appropriate RBAC permissions to change other accounts.
 	command.Flags().StringVar(&currentPassword, "current-password", "", "password of the currently logged on user")
 	command.Flags().StringVar(&newPassword, "new-password", "", "new password you want to update to")
 	command.Flags().StringVar(&account, "account", "", "an account name that should be updated. Defaults to current user account")
+	command.Flags().StringVar(&clientOpts.ServerName, "server-name", env.StringFromEnv(common.EnvServerName, common.DefaultServerName), "Server name")
+	command.Flags().StringVar(&clientOpts.RedisHaHaProxyName, "redis-ha-haproxy-name", env.StringFromEnv(common.EnvRedisHaHaproxyName, common.DefaultRedisHaHaproxyName), "Redis HA HAProxy name")
+	command.Flags().StringVar(&clientOpts.RedisName, "redis-name", env.StringFromEnv(common.EnvRedisName, common.DefaultRedisName), "Redis name")
+	command.Flags().StringVar(&clientOpts.RepoServerName, "repo-server-name", env.StringFromEnv(common.EnvRepoServerName, common.DefaultRepoServerName), "Repo server name")
 	return command
 }
 
@@ -179,11 +185,15 @@ func NewAccountGetUserInfoCommand(clientOpts *argocdclient.ClientOptions) *cobra
 		},
 	}
 	command.Flags().StringVarP(&output, "output", "o", "", "Output format. One of: yaml, json")
+	command.Flags().StringVar(&clientOpts.ServerName, "server-name", env.StringFromEnv(common.EnvServerName, common.DefaultServerName), "Server name")
+	command.Flags().StringVar(&clientOpts.RedisHaHaProxyName, "redis-ha-haproxy-name", env.StringFromEnv(common.EnvRedisHaHaproxyName, common.DefaultRedisHaHaproxyName), "Redis HA HAProxy name")
+	command.Flags().StringVar(&clientOpts.RedisName, "redis-name", env.StringFromEnv(common.EnvRedisName, common.DefaultRedisName), "Redis name")
+	command.Flags().StringVar(&clientOpts.RepoServerName, "repo-server-name", env.StringFromEnv(common.EnvRepoServerName, common.DefaultRepoServerName), "Repo server name")
 	return command
 }
 
 func NewAccountCanICommand(clientOpts *argocdclient.ClientOptions) *cobra.Command {
-	return &cobra.Command{
+	var command = &cobra.Command{
 		Use:   "can-i ACTION RESOURCE SUBRESOURCE",
 		Short: "Can I",
 		Example: fmt.Sprintf(`
@@ -219,6 +229,11 @@ Resources: %v
 			fmt.Println(response.Value)
 		},
 	}
+	command.Flags().StringVar(&clientOpts.ServerName, "server-name", env.StringFromEnv(common.EnvServerName, common.DefaultServerName), "Server name")
+	command.Flags().StringVar(&clientOpts.RedisHaHaProxyName, "redis-ha-haproxy-name", env.StringFromEnv(common.EnvRedisHaHaproxyName, common.DefaultRedisHaHaproxyName), "Redis HA HAProxy name")
+	command.Flags().StringVar(&clientOpts.RedisName, "redis-name", env.StringFromEnv(common.EnvRedisName, common.DefaultRedisName), "Redis name")
+	command.Flags().StringVar(&clientOpts.RepoServerName, "repo-server-name", env.StringFromEnv(common.EnvRepoServerName, common.DefaultRepoServerName), "Repo server name")
+	return command
 }
 
 func printAccountNames(accounts []*accountpkg.Account) {
@@ -267,6 +282,10 @@ func NewAccountListCommand(clientOpts *argocdclient.ClientOptions) *cobra.Comman
 		},
 	}
 	cmd.Flags().StringVarP(&output, "output", "o", "wide", "Output format. One of: json|yaml|wide|name")
+	cmd.Flags().StringVar(&clientOpts.ServerName, "server-name", env.StringFromEnv(common.EnvServerName, common.DefaultServerName), "Server name")
+	cmd.Flags().StringVar(&clientOpts.RedisHaHaProxyName, "redis-ha-haproxy-name", env.StringFromEnv(common.EnvRedisHaHaproxyName, common.DefaultRedisHaHaproxyName), "Redis HA HAProxy name")
+	cmd.Flags().StringVar(&clientOpts.RedisName, "redis-name", env.StringFromEnv(common.EnvRedisName, common.DefaultRedisName), "Redis name")
+	cmd.Flags().StringVar(&clientOpts.RepoServerName, "repo-server-name", env.StringFromEnv(common.EnvRepoServerName, common.DefaultRepoServerName), "Repo server name")
 	return cmd
 }
 
@@ -321,6 +340,10 @@ argocd account get --account <account-name>`,
 	}
 	cmd.Flags().StringVarP(&output, "output", "o", "wide", "Output format. One of: json|yaml|wide|name")
 	cmd.Flags().StringVarP(&account, "account", "a", "", "Account name. Defaults to the current account.")
+	cmd.Flags().StringVar(&clientOpts.ServerName, "server-name", env.StringFromEnv(common.EnvServerName, common.DefaultServerName), "Server name")
+	cmd.Flags().StringVar(&clientOpts.RedisHaHaProxyName, "redis-ha-haproxy-name", env.StringFromEnv(common.EnvRedisHaHaproxyName, common.DefaultRedisHaHaproxyName), "Redis HA HAProxy name")
+	cmd.Flags().StringVar(&clientOpts.RedisName, "redis-name", env.StringFromEnv(common.EnvRedisName, common.DefaultRedisName), "Redis name")
+	cmd.Flags().StringVar(&clientOpts.RepoServerName, "repo-server-name", env.StringFromEnv(common.EnvRepoServerName, common.DefaultRepoServerName), "Repo server name")
 	return cmd
 }
 
@@ -387,6 +410,10 @@ argocd account generate-token --account <account-name>`,
 	cmd.Flags().StringVarP(&account, "account", "a", "", "Account name. Defaults to the current account.")
 	cmd.Flags().StringVarP(&expiresIn, "expires-in", "e", "0s", "Duration before the token will expire. (Default: No expiration)")
 	cmd.Flags().StringVar(&id, "id", "", "Optional token id. Fall back to uuid if not value specified.")
+	cmd.Flags().StringVar(&clientOpts.ServerName, "server-name", env.StringFromEnv(common.EnvServerName, common.DefaultServerName), "Server name")
+	cmd.Flags().StringVar(&clientOpts.RedisHaHaProxyName, "redis-ha-haproxy-name", env.StringFromEnv(common.EnvRedisHaHaproxyName, common.DefaultRedisHaHaproxyName), "Redis HA HAProxy name")
+	cmd.Flags().StringVar(&clientOpts.RedisName, "redis-name", env.StringFromEnv(common.EnvRedisName, common.DefaultRedisName), "Redis name")
+	cmd.Flags().StringVar(&clientOpts.RepoServerName, "repo-server-name", env.StringFromEnv(common.EnvRepoServerName, common.DefaultRepoServerName), "Repo server name")
 	return cmd
 }
 
@@ -422,5 +449,9 @@ argocd account delete-token --account <account-name> ID`,
 		},
 	}
 	cmd.Flags().StringVarP(&account, "account", "a", "", "Account name. Defaults to the current account.")
+	cmd.Flags().StringVar(&clientOpts.ServerName, "server-name", env.StringFromEnv(common.EnvServerName, common.DefaultServerName), "Server name")
+	cmd.Flags().StringVar(&clientOpts.RedisHaHaProxyName, "redis-ha-haproxy-name", env.StringFromEnv(common.EnvRedisHaHaproxyName, common.DefaultRedisHaHaproxyName), "Redis HA HAProxy name")
+	cmd.Flags().StringVar(&clientOpts.RedisName, "redis-name", env.StringFromEnv(common.EnvRedisName, common.DefaultRedisName), "Redis name")
+	cmd.Flags().StringVar(&clientOpts.RepoServerName, "repo-server-name", env.StringFromEnv(common.EnvRepoServerName, common.DefaultRepoServerName), "Repo server name")
 	return cmd
 }

@@ -22,17 +22,21 @@ argocd app unset APPNAME parameters [flags]
 ### Options
 
 ```
-  -h, --help                          help for unset
-      --ignore-missing-value-files    Unset the helm ignore-missing-value-files option (revert to false)
-      --kustomize-image stringArray   Kustomize images name (e.g. --kustomize-image node --kustomize-image mysql)
-      --kustomize-version             Kustomize version
-      --nameprefix                    Kustomize nameprefix
-      --namesuffix                    Kustomize namesuffix
-  -p, --parameter stringArray         Unset a parameter override (e.g. -p guestbook=image)
-      --pass-credentials              Unset passCredentials
-      --plugin-env stringArray        Unset plugin env variables (e.g --plugin-env name)
-      --values stringArray            Unset one or more Helm values files
-      --values-literal                Unset literal Helm values block
+  -h, --help                           help for unset
+      --ignore-missing-value-files     Unset the helm ignore-missing-value-files option (revert to false)
+      --kustomize-image stringArray    Kustomize images name (e.g. --kustomize-image node --kustomize-image mysql)
+      --kustomize-version              Kustomize version
+      --nameprefix                     Kustomize nameprefix
+      --namesuffix                     Kustomize namesuffix
+  -p, --parameter stringArray          Unset a parameter override (e.g. -p guestbook=image)
+      --pass-credentials               Unset passCredentials
+      --plugin-env stringArray         Unset plugin env variables (e.g --plugin-env name)
+      --redis-ha-haproxy-name string   Redis HA HAProxy name (default "argocd-redis-ha-haproxy")
+      --redis-name string              Redis name (default "argocd-redis")
+      --repo-server-name string        Repo server name (default "argocd-repo-server")
+      --server-name string             Server name (default "argocd-server")
+      --values stringArray             Unset one or more Helm values files
+      --values-literal                 Unset literal Helm values block
 ```
 
 ### Options inherited from parent commands

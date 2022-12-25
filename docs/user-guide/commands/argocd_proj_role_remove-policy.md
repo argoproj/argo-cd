@@ -9,10 +9,14 @@ argocd proj role remove-policy PROJECT ROLE-NAME [flags]
 ### Options
 
 ```
-  -a, --action string       Action to grant/deny permission on (e.g. get, create, list, update, delete)
-  -h, --help                help for remove-policy
-  -o, --object string       Object within the project to grant/deny access.  Use '*' for a wildcard. Will want access to '<project>/<object>'
-  -p, --permission string   Whether to allow or deny access to object with the action.  This can only be 'allow' or 'deny' (default "allow")
+  -a, --action string                  Action to grant/deny permission on (e.g. get, create, list, update, delete)
+  -h, --help                           help for remove-policy
+  -o, --object string                  Object within the project to grant/deny access.  Use '*' for a wildcard. Will want access to '<project>/<object>'
+  -p, --permission string              Whether to allow or deny access to object with the action.  This can only be 'allow' or 'deny' (default "allow")
+      --redis-ha-haproxy-name string   Redis HA HAProxy name (default "argocd-redis-ha-haproxy")
+      --redis-name string              Redis name (default "argocd-redis")
+      --repo-server-name string        Repo server name (default "argocd-repo-server")
+      --server-name string             Server name (default "argocd-server")
 ```
 
 ### Options inherited from parent commands

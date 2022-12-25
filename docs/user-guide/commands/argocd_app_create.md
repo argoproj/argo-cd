@@ -72,11 +72,15 @@ argocd app create APPNAME [flags]
       --path string                                Path in repository to the app directory, ignored if a file is set
       --plugin-env stringArray                     Additional plugin envs
       --project string                             Application project name
+      --redis-ha-haproxy-name string               Redis HA HAProxy name (default "argocd-redis-ha-haproxy")
+      --redis-name string                          Redis name (default "argocd-redis")
       --release-name string                        Helm release-name
       --repo string                                Repository URL, ignored if a file is set
+      --repo-server-name string                    Repo server name (default "argocd-repo-server")
       --revision string                            The tracking source branch, tag, commit or Helm chart version the application will sync to
       --revision-history-limit int                 How many items to keep in revision history (default 10)
       --self-heal                                  Set self healing when sync is automated
+      --server-name string                         Server name (default "argocd-server")
       --set-finalizer                              Sets deletion finalizer on the application, application resources will be cascaded on deletion
       --sync-option Prune=false                    Add or remove a sync option, e.g add Prune=false. Remove using `!` prefix, e.g. `!Prune=false`
       --sync-policy string                         Set the sync policy (one of: none, automated (aliases of automated: auto, automatic))

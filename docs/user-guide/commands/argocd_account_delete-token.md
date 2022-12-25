@@ -19,8 +19,12 @@ argocd account delete-token --account <account-name> ID
 ### Options
 
 ```
-  -a, --account string   Account name. Defaults to the current account.
-  -h, --help             help for delete-token
+  -a, --account string                 Account name. Defaults to the current account.
+  -h, --help                           help for delete-token
+      --redis-ha-haproxy-name string   Redis HA HAProxy name (default "argocd-redis-ha-haproxy")
+      --redis-name string              Redis name (default "argocd-redis")
+      --repo-server-name string        Repo server name (default "argocd-repo-server")
+      --server-name string             Server name (default "argocd-server")
 ```
 
 ### Options inherited from parent commands

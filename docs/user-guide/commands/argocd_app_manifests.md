@@ -9,11 +9,15 @@ argocd app manifests APPNAME [flags]
 ### Options
 
 ```
-  -h, --help                     help for manifests
-      --local string             If set, show locally-generated manifests. Value is the absolute path to app manifests within the manifest repo. Example: '/home/username/apps/env/app-1'.
-      --local-repo-root string   Path to the local repository root. Used together with --local allows setting the repository root. Example: '/home/username/apps'. (default ".")
-      --revision string          Show manifests at a specific revision
-      --source string            Source of manifests. One of: live|git (default "git")
+  -h, --help                           help for manifests
+      --local string                   If set, show locally-generated manifests. Value is the absolute path to app manifests within the manifest repo. Example: '/home/username/apps/env/app-1'.
+      --local-repo-root string         Path to the local repository root. Used together with --local allows setting the repository root. Example: '/home/username/apps'. (default ".")
+      --redis-ha-haproxy-name string   Redis HA HAProxy name (default "argocd-redis-ha-haproxy")
+      --redis-name string              Redis name (default "argocd-redis")
+      --repo-server-name string        Repo server name (default "argocd-repo-server")
+      --revision string                Show manifests at a specific revision
+      --server-name string             Server name (default "argocd-server")
+      --source string                  Source of manifests. One of: live|git (default "git")
 ```
 
 ### Options inherited from parent commands

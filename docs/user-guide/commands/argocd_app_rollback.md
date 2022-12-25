@@ -9,9 +9,13 @@ argocd app rollback APPNAME [ID] [flags]
 ### Options
 
 ```
-  -h, --help           help for rollback
-      --prune          Allow deleting unexpected resources
-      --timeout uint   Time out after this many seconds
+  -h, --help                           help for rollback
+      --prune                          Allow deleting unexpected resources
+      --redis-ha-haproxy-name string   Redis HA HAProxy name (default "argocd-redis-ha-haproxy")
+      --redis-name string              Redis name (default "argocd-redis")
+      --repo-server-name string        Repo server name (default "argocd-repo-server")
+      --server-name string             Server name (default "argocd-server")
+      --timeout uint                   Time out after this many seconds
 ```
 
 ### Options inherited from parent commands

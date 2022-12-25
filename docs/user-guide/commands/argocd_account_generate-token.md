@@ -19,10 +19,14 @@ argocd account generate-token --account <account-name>
 ### Options
 
 ```
-  -a, --account string      Account name. Defaults to the current account.
-  -e, --expires-in string   Duration before the token will expire. (Default: No expiration) (default "0s")
-  -h, --help                help for generate-token
-      --id string           Optional token id. Fall back to uuid if not value specified.
+  -a, --account string                 Account name. Defaults to the current account.
+  -e, --expires-in string              Duration before the token will expire. (Default: No expiration) (default "0s")
+  -h, --help                           help for generate-token
+      --id string                      Optional token id. Fall back to uuid if not value specified.
+      --redis-ha-haproxy-name string   Redis HA HAProxy name (default "argocd-redis-ha-haproxy")
+      --redis-name string              Redis name (default "argocd-redis")
+      --repo-server-name string        Repo server name (default "argocd-repo-server")
+      --server-name string             Server name (default "argocd-server")
 ```
 
 ### Options inherited from parent commands

@@ -9,18 +9,22 @@ argocd app logs APPNAME [flags]
 ### Options
 
 ```
-      --container string    Optional container name
-      --filter string       Show logs contain this string
-      --follow              Specify if the logs should be streamed
-      --group string        Resource group
-  -h, --help                help for logs
-      --kind string         Resource kind
-      --name string         Resource name
-      --namespace string    Resource namespace
-  -p, --previous            Specify if the previously terminated container logs should be returned
-      --since-seconds int   A relative time in seconds before the current time from which to show logs
-      --tail int            The number of lines from the end of the logs to show
-      --until-time string   Show logs until this time
+      --container string               Optional container name
+      --filter string                  Show logs contain this string
+      --follow                         Specify if the logs should be streamed
+      --group string                   Resource group
+  -h, --help                           help for logs
+      --kind string                    Resource kind
+      --name string                    Resource name
+      --namespace string               Resource namespace
+  -p, --previous                       Specify if the previously terminated container logs should be returned
+      --redis-ha-haproxy-name string   Redis HA HAProxy name (default "argocd-redis-ha-haproxy")
+      --redis-name string              Redis name (default "argocd-redis")
+      --repo-server-name string        Repo server name (default "argocd-repo-server")
+      --server-name string             Server name (default "argocd-server")
+      --since-seconds int              A relative time in seconds before the current time from which to show logs
+      --tail int                       The number of lines from the end of the logs to show
+      --until-time string              Show logs until this time
 ```
 
 ### Options inherited from parent commands

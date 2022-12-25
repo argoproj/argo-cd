@@ -9,14 +9,18 @@ argocd app delete-resource APPNAME [flags]
 ### Options
 
 ```
-      --all                    Indicates whether to patch multiple matching of resources
-      --force                  Indicates whether to orphan the dependents of the deleted resource
-      --group string           Group
-  -h, --help                   help for delete-resource
-      --kind string            Kind
-      --namespace string       Namespace
-      --orphan                 Indicates whether to force delete the resource
-      --resource-name string   Name of resource
+      --all                            Indicates whether to patch multiple matching of resources
+      --force                          Indicates whether to orphan the dependents of the deleted resource
+      --group string                   Group
+  -h, --help                           help for delete-resource
+      --kind string                    Kind
+      --namespace string               Namespace
+      --orphan                         Indicates whether to force delete the resource
+      --redis-ha-haproxy-name string   Redis HA HAProxy name (default "argocd-redis-ha-haproxy")
+      --redis-name string              Redis name (default "argocd-redis")
+      --repo-server-name string        Repo server name (default "argocd-repo-server")
+      --resource-name string           Name of resource
+      --server-name string             Server name (default "argocd-server")
 ```
 
 ### Options inherited from parent commands

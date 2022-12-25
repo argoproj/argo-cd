@@ -31,6 +31,7 @@ import (
 	"github.com/argoproj/argo-cd/v2/util/cli"
 	"github.com/argoproj/argo-cd/v2/util/clusterauth"
 	"github.com/argoproj/argo-cd/v2/util/db"
+	"github.com/argoproj/argo-cd/v2/util/env"
 	"github.com/argoproj/argo-cd/v2/util/errors"
 	"github.com/argoproj/argo-cd/v2/util/glob"
 	kubeutil "github.com/argoproj/argo-cd/v2/util/kube"
@@ -67,7 +68,7 @@ type ClusterWithInfo struct {
 	Namespaces []string
 }
 
-func loadClusters(ctx context.Context, kubeClient *kubernetes.Clientset, appClient *versioned.Clientset, replicas int, namespace string, portForwardRedis bool, cacheSrc func() (*appstatecache.Cache, error), shard int) ([]ClusterWithInfo, error) {
+func loadClusters(ctx context.Context, kubeClient *kubernetes.Clientset, appClient *versioned.Clientset, replicas int, namespace string, portForwardRedis bool, cacheSrc func() (*appstatecache.Cache, error), shard int, redisName string, redisHaHaproxyName string) ([]ClusterWithInfo, error) {
 	settingsMgr := settings.NewSettingsManager(ctx, kubeClient, namespace)
 
 	argoDB := db.NewDB(namespace, settingsMgr, kubeClient)
@@ -78,8 +79,10 @@ func loadClusters(ctx context.Context, kubeClient *kubernetes.Clientset, appClie
 	var cache *appstatecache.Cache
 	if portForwardRedis {
 		overrides := clientcmd.ConfigOverrides{}
+		redisHaHaproxyPodLabelSelector := common.LabelKeyAppName + "=" + redisHaHaproxyName
+		redisPodLabelSelector := common.LabelKeyAppName + "=" + redisName
 		port, err := kubeutil.PortForward(6379, namespace, &overrides,
-			"app.kubernetes.io/name=argocd-redis-ha-haproxy", "app.kubernetes.io/name=argocd-redis")
+			redisHaHaproxyPodLabelSelector, redisPodLabelSelector)
 		if err != nil {
 			return nil, err
 		}
@@ -142,9 +145,10 @@ func loadClusters(ctx context.Context, kubeClient *kubernetes.Clientset, appClie
 	return clusters, nil
 }
 
-func getControllerReplicas(ctx context.Context, kubeClient *kubernetes.Clientset, namespace string) (int, error) {
+func getControllerReplicas(ctx context.Context, kubeClient *kubernetes.Clientset, namespace string, applicationControllerName string) (int, error) {
+	appControllerPodLabelSelector := common.LabelKeyAppName + "=" + applicationControllerName
 	controllerPods, err := kubeClient.CoreV1().Pods(namespace).List(ctx, v1.ListOptions{
-		LabelSelector: "app.kubernetes.io/name=argocd-application-controller"})
+		LabelSelector: appControllerPodLabelSelector})
 	if err != nil {
 		return 0, err
 	}
@@ -153,11 +157,14 @@ func getControllerReplicas(ctx context.Context, kubeClient *kubernetes.Clientset
 
 func NewClusterShardsCommand() *cobra.Command {
 	var (
-		shard            int
-		replicas         int
-		clientConfig     clientcmd.ClientConfig
-		cacheSrc         func() (*appstatecache.Cache, error)
-		portForwardRedis bool
+		shard                     int
+		replicas                  int
+		clientConfig              clientcmd.ClientConfig
+		cacheSrc                  func() (*appstatecache.Cache, error)
+		portForwardRedis          bool
+		applicationControllerName string
+		redisHaHaProxyName        string
+		redisName                 string
 	)
 	var command = cobra.Command{
 		Use:   "shards",
@@ -175,14 +182,14 @@ func NewClusterShardsCommand() *cobra.Command {
 			appClient := versioned.NewForConfigOrDie(clientCfg)
 
 			if replicas == 0 {
-				replicas, err = getControllerReplicas(ctx, kubeClient, namespace)
+				replicas, err = getControllerReplicas(ctx, kubeClient, namespace, applicationControllerName)
 				errors.CheckError(err)
 			}
 			if replicas == 0 {
 				return
 			}
 
-			clusters, err := loadClusters(ctx, kubeClient, appClient, replicas, namespace, portForwardRedis, cacheSrc, shard)
+			clusters, err := loadClusters(ctx, kubeClient, appClient, replicas, namespace, portForwardRedis, cacheSrc, shard, redisName, redisHaHaProxyName)
 			errors.CheckError(err)
 			if len(clusters) == 0 {
 				return
@@ -195,6 +202,9 @@ func NewClusterShardsCommand() *cobra.Command {
 	command.Flags().IntVar(&shard, "shard", -1, "Cluster shard filter")
 	command.Flags().IntVar(&replicas, "replicas", 0, "Application controller replicas count. Inferred from number of running controller pods if not specified")
 	command.Flags().BoolVar(&portForwardRedis, "port-forward-redis", true, "Automatically port-forward ha proxy redis from current namespace?")
+	command.Flags().StringVar(&applicationControllerName, "application-controller-name", env.StringFromEnv(common.EnvAppControllerName, common.DefaultApplicationControllerName), "Application controller name")
+	command.Flags().StringVar(&redisHaHaProxyName, "redis-ha-haproxy-name", env.StringFromEnv(common.EnvRedisHaHaproxyName, common.DefaultRedisHaHaproxyName), "Redis HA HAProxy name")
+	command.Flags().StringVar(&redisName, "redis-name", env.StringFromEnv(common.EnvRedisName, common.DefaultRedisName), "Redis name")
 	cacheSrc = appstatecache.AddCacheFlagsToCmd(&command)
 	return &command
 }
@@ -431,11 +441,14 @@ func NewClusterDisableNamespacedMode() *cobra.Command {
 
 func NewClusterStatsCommand() *cobra.Command {
 	var (
-		shard            int
-		replicas         int
-		clientConfig     clientcmd.ClientConfig
-		cacheSrc         func() (*appstatecache.Cache, error)
-		portForwardRedis bool
+		shard                     int
+		replicas                  int
+		clientConfig              clientcmd.ClientConfig
+		cacheSrc                  func() (*appstatecache.Cache, error)
+		portForwardRedis          bool
+		applicationControllerName string
+		redisHaHaProxyName        string
+		redisName                 string
 	)
 	var command = cobra.Command{
 		Use:   "stats",
@@ -453,10 +466,10 @@ func NewClusterStatsCommand() *cobra.Command {
 			kubeClient := kubernetes.NewForConfigOrDie(clientCfg)
 			appClient := versioned.NewForConfigOrDie(clientCfg)
 			if replicas == 0 {
-				replicas, err = getControllerReplicas(ctx, kubeClient, namespace)
+				replicas, err = getControllerReplicas(ctx, kubeClient, namespace, applicationControllerName)
 				errors.CheckError(err)
 			}
-			clusters, err := loadClusters(ctx, kubeClient, appClient, replicas, namespace, portForwardRedis, cacheSrc, shard)
+			clusters, err := loadClusters(ctx, kubeClient, appClient, replicas, namespace, portForwardRedis, cacheSrc, shard, redisName, redisHaHaProxyName)
 			errors.CheckError(err)
 
 			w := tabwriter.NewWriter(os.Stdout, 0, 0, 2, ' ', 0)
@@ -471,6 +484,9 @@ func NewClusterStatsCommand() *cobra.Command {
 	command.Flags().IntVar(&shard, "shard", -1, "Cluster shard filter")
 	command.Flags().IntVar(&replicas, "replicas", 0, "Application controller replicas count. Inferred from number of running controller pods if not specified")
 	command.Flags().BoolVar(&portForwardRedis, "port-forward-redis", true, "Automatically port-forward ha proxy redis from current namespace?")
+	command.Flags().StringVar(&applicationControllerName, "application-controller-name", env.StringFromEnv(common.EnvAppControllerName, common.DefaultApplicationControllerName), "Application controller name")
+	command.Flags().StringVar(&redisHaHaProxyName, "redis-ha-haproxy-name", env.StringFromEnv(common.EnvRedisHaHaproxyName, common.DefaultRedisHaHaproxyName), "Redis HA HAProxy name")
+	command.Flags().StringVar(&redisName, "redis-name", env.StringFromEnv(common.EnvRedisName, common.DefaultRedisName), "Redis name")
 	cacheSrc = appstatecache.AddCacheFlagsToCmd(&command)
 	return &command
 }

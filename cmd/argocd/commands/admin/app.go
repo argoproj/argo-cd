@@ -20,6 +20,7 @@ import (
 	"k8s.io/client-go/tools/clientcmd"
 
 	cmdutil "github.com/argoproj/argo-cd/v2/cmd/util"
+	"github.com/argoproj/argo-cd/v2/common"
 	"github.com/argoproj/argo-cd/v2/controller"
 	"github.com/argoproj/argo-cd/v2/controller/cache"
 	"github.com/argoproj/argo-cd/v2/controller/metrics"
@@ -33,6 +34,7 @@ import (
 	"github.com/argoproj/argo-cd/v2/util/cli"
 	"github.com/argoproj/argo-cd/v2/util/config"
 	"github.com/argoproj/argo-cd/v2/util/db"
+	"github.com/argoproj/argo-cd/v2/util/env"
 	"github.com/argoproj/argo-cd/v2/util/errors"
 	"github.com/argoproj/argo-cd/v2/util/io"
 	kubeutil "github.com/argoproj/argo-cd/v2/util/kube"
@@ -231,6 +233,7 @@ func NewReconcileCommand() *cobra.Command {
 		repoServerAddress string
 		outputFormat      string
 		refresh           bool
+		repoServerName    string
 	)
 
 	var command = &cobra.Command{
@@ -259,7 +262,8 @@ func NewReconcileCommand() *cobra.Command {
 				if repoServerAddress == "" {
 					printLine("Repo server is not provided, trying to port-forward to argocd-repo-server pod.")
 					overrides := clientcmd.ConfigOverrides{}
-					repoServerPort, err := kubeutil.PortForward(8081, namespace, &overrides, "app.kubernetes.io/name=argocd-repo-server")
+					repoServerPodLabelSelector := common.LabelKeyAppName + "=" + repoServerName
+					repoServerPort, err := kubeutil.PortForward(8081, namespace, &overrides, repoServerPodLabelSelector)
 					errors.CheckError(err)
 					repoServerAddress = fmt.Sprintf("localhost:%d", repoServerPort)
 				}
@@ -282,6 +286,7 @@ func NewReconcileCommand() *cobra.Command {
 	command.Flags().StringVar(&selector, "l", "", "Label selector")
 	command.Flags().StringVar(&outputFormat, "o", "yaml", "Output format (yaml|json)")
 	command.Flags().BoolVar(&refresh, "refresh", false, "If set to true then recalculates apps reconciliation")
+	command.Flags().StringVar(&repoServerName, "repo-server-name", env.StringFromEnv(common.EnvRepoServerName, common.DefaultRepoServerName), "Repo server name")
 
 	return command
 }

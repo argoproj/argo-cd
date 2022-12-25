@@ -109,24 +109,29 @@ type Client interface {
 
 // ClientOptions hold address, security, and other settings for the API client.
 type ClientOptions struct {
-	ServerAddr           string
-	PlainText            bool
-	Insecure             bool
-	CertFile             string
-	ClientCertFile       string
-	ClientCertKeyFile    string
-	AuthToken            string
-	ConfigPath           string
-	Context              string
-	UserAgent            string
-	GRPCWeb              bool
-	GRPCWebRootPath      string
-	Core                 bool
-	PortForward          bool
-	PortForwardNamespace string
-	Headers              []string
-	HttpRetryMax         int
-	KubeOverrides        *clientcmd.ConfigOverrides
+	ServerAddr                string
+	PlainText                 bool
+	Insecure                  bool
+	CertFile                  string
+	ClientCertFile            string
+	ClientCertKeyFile         string
+	AuthToken                 string
+	ConfigPath                string
+	Context                   string
+	UserAgent                 string
+	GRPCWeb                   bool
+	GRPCWebRootPath           string
+	Core                      bool
+	PortForward               bool
+	PortForwardNamespace      string
+	Headers                   []string
+	HttpRetryMax              int
+	KubeOverrides             *clientcmd.ConfigOverrides
+	ServerName                string
+	RedisHaHaProxyName        string
+	RedisName                 string
+	RepoServerName            string
+	ApplicationControllerName string
 }
 
 type client struct {
@@ -210,7 +215,8 @@ func NewClient(opts *ClientOptions) (Client, error) {
 		if opts.KubeOverrides == nil {
 			opts.KubeOverrides = &clientcmd.ConfigOverrides{}
 		}
-		port, err := kube.PortForward(8080, opts.PortForwardNamespace, opts.KubeOverrides, "app.kubernetes.io/name=argocd-server")
+		serverPodLabelSelector := common.LabelKeyAppName + "=" + opts.ServerName
+		port, err := kube.PortForward(8080, opts.PortForwardNamespace, opts.KubeOverrides, serverPodLabelSelector)
 		if err != nil {
 			return nil, err
 		}

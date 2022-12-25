@@ -9,9 +9,13 @@ argocd cert add-tls SERVERNAME [flags]
 ### Options
 
 ```
-      --from string   read TLS certificate data from file (default is to read from stdin)
-  -h, --help          help for add-tls
-      --upsert        Replace existing TLS certificate if certificate is different in input
+      --from string                    read TLS certificate data from file (default is to read from stdin)
+  -h, --help                           help for add-tls
+      --redis-ha-haproxy-name string   Redis HA HAProxy name (default "argocd-redis-ha-haproxy")
+      --redis-name string              Redis name (default "argocd-redis")
+      --repo-server-name string        Repo server name (default "argocd-repo-server")
+      --server-name string             Server name (default "argocd-server")
+      --upsert                         Replace existing TLS certificate if certificate is different in input
 ```
 
 ### Options inherited from parent commands

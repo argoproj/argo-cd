@@ -9,9 +9,13 @@ argocd cert rm REPOSERVER [flags]
 ### Options
 
 ```
-      --cert-sub-type string   Only remove certs of given sub-type (only for ssh)
-      --cert-type string       Only remove certs of given type (ssh, https)
-  -h, --help                   help for rm
+      --cert-sub-type string           Only remove certs of given sub-type (only for ssh)
+      --cert-type string               Only remove certs of given type (ssh, https)
+  -h, --help                           help for rm
+      --redis-ha-haproxy-name string   Redis HA HAProxy name (default "argocd-redis-ha-haproxy")
+      --redis-name string              Redis name (default "argocd-redis")
+      --repo-server-name string        Repo server name (default "argocd-repo-server")
+      --server-name string             Server name (default "argocd-server")
 ```
 
 ### Options inherited from parent commands

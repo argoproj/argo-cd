@@ -18,6 +18,10 @@ argocd proj set PROJECT [flags]
   -h, --help                                    help for set
       --orphaned-resources                      Enables orphaned resources monitoring
       --orphaned-resources-warn                 Specifies if applications should have a warning condition when orphaned resources detected
+      --redis-ha-haproxy-name string            Redis HA HAProxy name (default "argocd-redis-ha-haproxy")
+      --redis-name string                       Redis name (default "argocd-redis")
+      --repo-server-name string                 Repo server name (default "argocd-repo-server")
+      --server-name string                      Server name (default "argocd-server")
       --signature-keys strings                  GnuPG public key IDs for commit signature verification
       --source-namespaces strings               List of source namespaces for applications
   -s, --src stringArray                         Permitted source repository URL

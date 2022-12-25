@@ -9,8 +9,12 @@ argocd proj add-orphaned-ignore PROJECT GROUP KIND [flags]
 ### Options
 
 ```
-  -h, --help          help for add-orphaned-ignore
-      --name string   Resource name pattern
+  -h, --help                           help for add-orphaned-ignore
+      --name string                    Resource name pattern
+      --redis-ha-haproxy-name string   Redis HA HAProxy name (default "argocd-redis-ha-haproxy")
+      --redis-name string              Redis name (default "argocd-redis")
+      --repo-server-name string        Repo server name (default "argocd-repo-server")
+      --server-name string             Server name (default "argocd-server")
 ```
 
 ### Options inherited from parent commands

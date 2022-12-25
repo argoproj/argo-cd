@@ -9,14 +9,18 @@ argocd app patch-resource APPNAME [flags]
 ### Options
 
 ```
-      --all                    Indicates whether to patch multiple matching of resources
-      --group string           Group
-  -h, --help                   help for patch-resource
-      --kind string            Kind
-      --namespace string       Namespace
-      --patch string           Patch
-      --patch-type string      Which Patching strategy to use: 'application/json-patch+json', 'application/merge-patch+json', or 'application/strategic-merge-patch+json'. Defaults to 'application/merge-patch+json' (default "application/merge-patch+json")
-      --resource-name string   Name of resource
+      --all                            Indicates whether to patch multiple matching of resources
+      --group string                   Group
+  -h, --help                           help for patch-resource
+      --kind string                    Kind
+      --namespace string               Namespace
+      --patch string                   Patch
+      --patch-type string              Which Patching strategy to use: 'application/json-patch+json', 'application/merge-patch+json', or 'application/strategic-merge-patch+json'. Defaults to 'application/merge-patch+json' (default "application/merge-patch+json")
+      --redis-ha-haproxy-name string   Redis HA HAProxy name (default "argocd-redis-ha-haproxy")
+      --redis-name string              Redis name (default "argocd-redis")
+      --repo-server-name string        Repo server name (default "argocd-repo-server")
+      --resource-name string           Name of resource
+      --server-name string             Server name (default "argocd-server")
 ```
 
 ### Options inherited from parent commands

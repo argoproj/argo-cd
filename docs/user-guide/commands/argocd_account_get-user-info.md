@@ -9,8 +9,12 @@ argocd account get-user-info [flags]
 ### Options
 
 ```
-  -h, --help            help for get-user-info
-  -o, --output string   Output format. One of: yaml, json
+  -h, --help                           help for get-user-info
+  -o, --output string                  Output format. One of: yaml, json
+      --redis-ha-haproxy-name string   Redis HA HAProxy name (default "argocd-redis-ha-haproxy")
+      --redis-name string              Redis name (default "argocd-redis")
+      --repo-server-name string        Repo server name (default "argocd-repo-server")
+      --server-name string             Server name (default "argocd-server")
 ```
 
 ### Options inherited from parent commands

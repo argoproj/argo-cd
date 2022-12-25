@@ -27,6 +27,7 @@ argocd admin app get-reconcile-results PATH [flags]
       --proxy-url string               If provided, this URL will be used to connect via proxy
       --refresh                        If set to true then recalculates apps reconciliation
       --repo-server string             Repo server address.
+      --repo-server-name string        Repo server name (default "argocd-repo-server")
       --request-timeout string         The length of time to wait before giving up on a single server request. Non-zero values should contain a corresponding time unit (e.g. 1s, 2m, 3h). A value of zero means don't timeout requests. (default "0")
       --server string                  The address and port of the Kubernetes API server
       --tls-server-name string         If provided, this name will be used to validate server certificate. If this is not provided, hostname used to contact the server is used.

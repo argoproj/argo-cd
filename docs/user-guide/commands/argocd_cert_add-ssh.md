@@ -9,10 +9,14 @@ argocd cert add-ssh --batch [flags]
 ### Options
 
 ```
-      --batch         Perform batch processing by reading in SSH known hosts data (mandatory flag)
-      --from string   Read SSH known hosts data from file (default is to read from stdin)
-  -h, --help          help for add-ssh
-      --upsert        Replace existing SSH server public host keys if key is different in input
+      --batch                          Perform batch processing by reading in SSH known hosts data (mandatory flag)
+      --from string                    Read SSH known hosts data from file (default is to read from stdin)
+  -h, --help                           help for add-ssh
+      --redis-ha-haproxy-name string   Redis HA HAProxy name (default "argocd-redis-ha-haproxy")
+      --redis-name string              Redis name (default "argocd-redis")
+      --repo-server-name string        Repo server name (default "argocd-repo-server")
+      --server-name string             Server name (default "argocd-server")
+      --upsert                         Replace existing SSH server public host keys if key is different in input
 ```
 
 ### Options inherited from parent commands

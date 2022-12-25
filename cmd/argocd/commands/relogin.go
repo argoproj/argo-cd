@@ -9,8 +9,10 @@ import (
 	"github.com/spf13/cobra"
 
 	"github.com/argoproj/argo-cd/v2/cmd/argocd/commands/headless"
+	"github.com/argoproj/argo-cd/v2/common"
 	argocdclient "github.com/argoproj/argo-cd/v2/pkg/apiclient"
 	settingspkg "github.com/argoproj/argo-cd/v2/pkg/apiclient/settings"
+	"github.com/argoproj/argo-cd/v2/util/env"
 	"github.com/argoproj/argo-cd/v2/util/errors"
 	argoio "github.com/argoproj/argo-cd/v2/util/io"
 	"github.com/argoproj/argo-cd/v2/util/localconfig"
@@ -45,15 +47,19 @@ func NewReloginCommand(globalClientOpts *argocdclient.ClientOptions) *cobra.Comm
 			var tokenString string
 			var refreshToken string
 			clientOpts := argocdclient.ClientOptions{
-				ConfigPath:        "",
-				ServerAddr:        configCtx.Server.Server,
-				Insecure:          configCtx.Server.Insecure,
-				ClientCertFile:    globalClientOpts.ClientCertFile,
-				ClientCertKeyFile: globalClientOpts.ClientCertKeyFile,
-				GRPCWeb:           globalClientOpts.GRPCWeb,
-				GRPCWebRootPath:   globalClientOpts.GRPCWebRootPath,
-				PlainText:         configCtx.Server.PlainText,
-				Headers:           globalClientOpts.Headers,
+				ConfigPath:         "",
+				ServerAddr:         configCtx.Server.Server,
+				Insecure:           configCtx.Server.Insecure,
+				ClientCertFile:     globalClientOpts.ClientCertFile,
+				ClientCertKeyFile:  globalClientOpts.ClientCertKeyFile,
+				GRPCWeb:            globalClientOpts.GRPCWeb,
+				GRPCWebRootPath:    globalClientOpts.GRPCWebRootPath,
+				PlainText:          configCtx.Server.PlainText,
+				Headers:            globalClientOpts.Headers,
+				ServerName:         globalClientOpts.ServerName,
+				RedisHaHaProxyName: globalClientOpts.RedisHaHaProxyName,
+				RedisName:          globalClientOpts.RedisName,
+				RepoServerName:     globalClientOpts.RepoServerName,
 			}
 			acdClient := headless.NewClientOrDie(&clientOpts, c)
 			claims, err := configCtx.User.Claims()
@@ -87,5 +93,9 @@ func NewReloginCommand(globalClientOpts *argocdclient.ClientOptions) *cobra.Comm
 	}
 	command.Flags().StringVar(&password, "password", "", "the password of an account to authenticate")
 	command.Flags().IntVar(&ssoPort, "sso-port", DefaultSSOLocalPort, "port to run local OAuth2 login application")
+	command.Flags().StringVar(&globalClientOpts.ServerName, "server-name", env.StringFromEnv(common.EnvServerName, common.DefaultServerName), "Server name")
+	command.Flags().StringVar(&globalClientOpts.RedisHaHaProxyName, "redis-ha-haproxy-name", env.StringFromEnv(common.EnvRedisHaHaproxyName, common.DefaultRedisHaHaproxyName), "Redis HA HAProxy name")
+	command.Flags().StringVar(&globalClientOpts.RedisName, "redis-name", env.StringFromEnv(common.EnvRedisName, common.DefaultRedisName), "Redis name")
+	command.Flags().StringVar(&globalClientOpts.RepoServerName, "repo-server-name", env.StringFromEnv(common.EnvRepoServerName, common.DefaultRepoServerName), "Repo server name")
 	return command
 }

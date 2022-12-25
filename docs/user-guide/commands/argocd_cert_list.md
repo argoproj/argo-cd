@@ -9,11 +9,15 @@ argocd cert list [flags]
 ### Options
 
 ```
-      --cert-type string          only list certificates of given type, valid: 'ssh','https'
-  -h, --help                      help for list
-      --hostname-pattern string   only list certificates for hosts matching given glob-pattern
-  -o, --output string             Output format. One of: json|yaml|wide (default "wide")
-      --sort string               set display sort order for output format wide. One of: hostname|type
+      --cert-type string               only list certificates of given type, valid: 'ssh','https'
+  -h, --help                           help for list
+      --hostname-pattern string        only list certificates for hosts matching given glob-pattern
+  -o, --output string                  Output format. One of: json|yaml|wide (default "wide")
+      --redis-ha-haproxy-name string   Redis HA HAProxy name (default "argocd-redis-ha-haproxy")
+      --redis-name string              Redis name (default "argocd-redis")
+      --repo-server-name string        Repo server name (default "argocd-repo-server")
+      --server-name string             Server name (default "argocd-server")
+      --sort string                    set display sort order for output format wide. One of: hostname|type
 ```
 
 ### Options inherited from parent commands

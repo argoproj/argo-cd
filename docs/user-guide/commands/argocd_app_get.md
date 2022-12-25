@@ -9,12 +9,16 @@ argocd app get APPNAME [flags]
 ### Options
 
 ```
-      --hard-refresh     Refresh application data as well as target manifests cache
-  -h, --help             help for get
-  -o, --output string    Output format. One of: json|yaml|wide (default "wide")
-      --refresh          Refresh application data when retrieving
-      --show-operation   Show application operation
-      --show-params      Show application parameters and overrides
+      --hard-refresh                   Refresh application data as well as target manifests cache
+  -h, --help                           help for get
+  -o, --output string                  Output format. One of: json|yaml|wide (default "wide")
+      --redis-ha-haproxy-name string   Redis HA HAProxy name (default "argocd-redis-ha-haproxy")
+      --redis-name string              Redis name (default "argocd-redis")
+      --refresh                        Refresh application data when retrieving
+      --repo-server-name string        Repo server name (default "argocd-repo-server")
+      --server-name string             Server name (default "argocd-server")
+      --show-operation                 Show application operation
+      --show-params                    Show application parameters and overrides
 ```
 
 ### Options inherited from parent commands

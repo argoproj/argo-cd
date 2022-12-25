@@ -13,13 +13,17 @@ argocd proj windows update PROJECT ID [flags]
 ### Options
 
 ```
-      --applications strings   Applications that the schedule will be applied to. Comma separated, wildcards supported (e.g. --applications prod-\*,website)
-      --clusters strings       Clusters that the schedule will be applied to. Comma separated, wildcards supported (e.g. --clusters prod,staging)
-      --duration string        Sync window duration. (e.g. --duration 1h)
-  -h, --help                   help for update
-      --namespaces strings     Namespaces that the schedule will be applied to. Comma separated, wildcards supported (e.g. --namespaces default,\*-prod)
-      --schedule string        Sync window schedule in cron format. (e.g. --schedule "0 22 * * *")
-      --time-zone string       Time zone of the sync window. (e.g. --time-zone "America/New_York") (default "UTC")
+      --applications strings           Applications that the schedule will be applied to. Comma separated, wildcards supported (e.g. --applications prod-\*,website)
+      --clusters strings               Clusters that the schedule will be applied to. Comma separated, wildcards supported (e.g. --clusters prod,staging)
+      --duration string                Sync window duration. (e.g. --duration 1h)
+  -h, --help                           help for update
+      --namespaces strings             Namespaces that the schedule will be applied to. Comma separated, wildcards supported (e.g. --namespaces default,\*-prod)
+      --redis-ha-haproxy-name string   Redis HA HAProxy name (default "argocd-redis-ha-haproxy")
+      --redis-name string              Redis name (default "argocd-redis")
+      --repo-server-name string        Repo server name (default "argocd-repo-server")
+      --schedule string                Sync window schedule in cron format. (e.g. --schedule "0 22 * * *")
+      --server-name string             Server name (default "argocd-server")
+      --time-zone string               Time zone of the sync window. (e.g. --time-zone "America/New_York") (default "UTC")
 ```
 
 ### Options inherited from parent commands

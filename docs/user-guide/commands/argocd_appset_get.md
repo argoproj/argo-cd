@@ -9,9 +9,13 @@ argocd appset get APPSETNAME [flags]
 ### Options
 
 ```
-  -h, --help            help for get
-  -o, --output string   Output format. One of: json|yaml|wide (default "wide")
-      --show-params     Show ApplicationSet parameters and overrides
+  -h, --help                           help for get
+  -o, --output string                  Output format. One of: json|yaml|wide (default "wide")
+      --redis-ha-haproxy-name string   Redis HA HAProxy name (default "argocd-redis-ha-haproxy")
+      --redis-name string              Redis name (default "argocd-redis")
+      --repo-server-name string        Repo server name (default "argocd-repo-server")
+      --server-name string             Server name (default "argocd-server")
+      --show-params                    Show ApplicationSet parameters and overrides
 ```
 
 ### Options inherited from parent commands

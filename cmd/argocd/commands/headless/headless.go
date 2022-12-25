@@ -11,6 +11,7 @@ import (
 	"github.com/spf13/cobra"
 
 	"github.com/argoproj/argo-cd/v2/cmd/argocd/commands/initialize"
+	"github.com/argoproj/argo-cd/v2/common"
 
 	"github.com/alicebob/miniredis/v2"
 	"github.com/go-redis/redis/v8"
@@ -38,11 +39,13 @@ import (
 )
 
 type forwardCacheClient struct {
-	namespace string
-	context   string
-	init      sync.Once
-	client    cache.CacheClient
-	err       error
+	namespace          string
+	context            string
+	init               sync.Once
+	client             cache.CacheClient
+	err                error
+	redisHaHaProxyName string
+	redisName          string
 }
 
 func (c *forwardCacheClient) doLazy(action func(client cache.CacheClient) error) error {
@@ -50,8 +53,10 @@ func (c *forwardCacheClient) doLazy(action func(client cache.CacheClient) error)
 		overrides := clientcmd.ConfigOverrides{
 			CurrentContext: c.context,
 		}
+		redisHaHaproxyPodLabelSelector := common.LabelKeyAppName + "=" + c.redisHaHaProxyName
+		redisPodLabelSelector := common.LabelKeyAppName + "=" + c.redisName
 		redisPort, err := kubeutil.PortForward(6379, c.namespace, &overrides,
-			"app.kubernetes.io/name=argocd-redis-ha-haproxy", "app.kubernetes.io/name=argocd-redis")
+			redisHaHaproxyPodLabelSelector, redisPodLabelSelector)
 		if err != nil {
 			c.err = err
 			return
@@ -97,11 +102,12 @@ func (c *forwardCacheClient) NotifyUpdated(key string) error {
 }
 
 type forwardRepoClientset struct {
-	namespace     string
-	context       string
-	init          sync.Once
-	repoClientset repoapiclient.Clientset
-	err           error
+	namespace      string
+	context        string
+	init           sync.Once
+	repoClientset  repoapiclient.Clientset
+	err            error
+	repoServerName string
 }
 
 func (c *forwardRepoClientset) NewRepoServerClient() (io.Closer, repoapiclient.RepoServerServiceClient, error) {
@@ -109,7 +115,8 @@ func (c *forwardRepoClientset) NewRepoServerClient() (io.Closer, repoapiclient.R
 		overrides := clientcmd.ConfigOverrides{
 			CurrentContext: c.context,
 		}
-		repoServerPort, err := kubeutil.PortForward(8081, c.namespace, &overrides, "app.kubernetes.io/name=argocd-repo-server")
+		repoServerPodLabelSelector := common.LabelKeyAppName + "=" + c.repoServerName
+		repoServerPort, err := kubeutil.PortForward(8081, c.namespace, &overrides, repoServerPodLabelSelector)
 		if err != nil {
 			c.err = err
 			return
@@ -200,7 +207,7 @@ func StartLocalServer(ctx context.Context, clientOpts *apiclient.ClientOptions, 
 	if err != nil {
 		return err
 	}
-	appstateCache := appstatecache.NewCache(cache.NewCache(&forwardCacheClient{namespace: namespace, context: ctxStr}), time.Hour)
+	appstateCache := appstatecache.NewCache(cache.NewCache(&forwardCacheClient{namespace: namespace, context: ctxStr, redisHaHaProxyName: clientOpts.RedisHaHaProxyName, redisName: clientOpts.RedisName}), time.Hour)
 	srv := server.NewServer(ctx, server.ArgoCDServerOpts{
 		EnableGZip:           false,
 		Namespace:            namespace,
@@ -212,7 +219,7 @@ func StartLocalServer(ctx context.Context, clientOpts *apiclient.ClientOptions, 
 		KubeClientset:        kubeClientset,
 		Insecure:             true,
 		ListenHost:           *address,
-		RepoClientset:        &forwardRepoClientset{namespace: namespace, context: ctxStr},
+		RepoClientset:        &forwardRepoClientset{namespace: namespace, context: ctxStr, repoServerName: clientOpts.RepoServerName},
 		EnableProxyExtension: false,
 	})
 	srv.Init(ctx)

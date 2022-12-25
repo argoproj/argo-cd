@@ -13,9 +13,13 @@ argocd relogin [flags]
 ### Options
 
 ```
-  -h, --help              help for relogin
-      --password string   the password of an account to authenticate
-      --sso-port int      port to run local OAuth2 login application (default 8085)
+  -h, --help                           help for relogin
+      --password string                the password of an account to authenticate
+      --redis-ha-haproxy-name string   Redis HA HAProxy name (default "argocd-redis-ha-haproxy")
+      --redis-name string              Redis name (default "argocd-redis")
+      --repo-server-name string        Repo server name (default "argocd-repo-server")
+      --server-name string             Server name (default "argocd-server")
+      --sso-port int                   port to run local OAuth2 login application (default 8085)
 ```
 
 ### Options inherited from parent commands

@@ -36,15 +36,19 @@ argocd app wait [APPNAME.. | -l selector] [flags]
 ### Options
 
 ```
-      --degraded               Wait for degraded
-      --health                 Wait for health
-  -h, --help                   help for wait
-      --operation              Wait for pending operations
-      --resource stringArray   Sync only specific resources as GROUP:KIND:NAME or !GROUP:KIND:NAME. Fields may be blank and '*' can be used. This option may be specified repeatedly
-  -l, --selector string        Wait for apps by label. Supports '=', '==', '!=', in, notin, exists & not exists. Matching apps must satisfy all of the specified label constraints.
-      --suspended              Wait for suspended
-      --sync                   Wait for sync
-      --timeout uint           Time out after this many seconds
+      --degraded                       Wait for degraded
+      --health                         Wait for health
+  -h, --help                           help for wait
+      --operation                      Wait for pending operations
+      --redis-ha-haproxy-name string   Redis HA HAProxy name (default "argocd-redis-ha-haproxy")
+      --redis-name string              Redis name (default "argocd-redis")
+      --repo-server-name string        Repo server name (default "argocd-repo-server")
+      --resource stringArray           Sync only specific resources as GROUP:KIND:NAME or !GROUP:KIND:NAME. Fields may be blank and '*' can be used. This option may be specified repeatedly
+  -l, --selector string                Wait for apps by label. Supports '=', '==', '!=', in, notin, exists & not exists. Matching apps must satisfy all of the specified label constraints.
+      --server-name string             Server name (default "argocd-server")
+      --suspended                      Wait for suspended
+      --sync                           Wait for sync
+      --timeout uint                   Time out after this many seconds
 ```
 
 ### Options inherited from parent commands

@@ -9,12 +9,16 @@ argocd app actions run APPNAME ACTION [flags]
 ### Options
 
 ```
-      --all                    Indicates whether to run the action on multiple matching resources
-      --group string           Group
-  -h, --help                   help for run
-      --kind string            Kind
-      --namespace string       Namespace
-      --resource-name string   Name of resource
+      --all                            Indicates whether to run the action on multiple matching resources
+      --group string                   Group
+  -h, --help                           help for run
+      --kind string                    Kind
+      --namespace string               Namespace
+      --redis-ha-haproxy-name string   Redis HA HAProxy name (default "argocd-redis-ha-haproxy")
+      --redis-name string              Redis name (default "argocd-redis")
+      --repo-server-name string        Repo server name (default "argocd-repo-server")
+      --resource-name string           Name of resource
+      --server-name string             Server name (default "argocd-server")
 ```
 
 ### Options inherited from parent commands

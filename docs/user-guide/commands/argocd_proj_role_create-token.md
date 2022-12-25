@@ -9,10 +9,14 @@ argocd proj role create-token PROJECT ROLE-NAME [flags]
 ### Options
 
 ```
-  -e, --expires-in string   Duration before the token will expire, e.g. "12h", "7d". (Default: No expiration)
-  -h, --help                help for create-token
-  -i, --id string           Token unique identifier. (Default: Random UUID)
-  -t, --token-only          Output token only - for use in scripts.
+  -e, --expires-in string              Duration before the token will expire, e.g. "12h", "7d". (Default: No expiration)
+  -h, --help                           help for create-token
+  -i, --id string                      Token unique identifier. (Default: Random UUID)
+      --redis-ha-haproxy-name string   Redis HA HAProxy name (default "argocd-redis-ha-haproxy")
+      --redis-name string              Redis name (default "argocd-redis")
+      --repo-server-name string        Repo server name (default "argocd-repo-server")
+      --server-name string             Server name (default "argocd-server")
+  -t, --token-only                     Output token only - for use in scripts.
 ```
 
 ### Options inherited from parent commands

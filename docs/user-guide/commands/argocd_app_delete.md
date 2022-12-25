@@ -26,11 +26,15 @@ argocd app delete APPNAME [flags]
 ### Options
 
 ```
-      --cascade                     Perform a cascaded deletion of all application resources (default true)
-  -h, --help                        help for delete
-  -p, --propagation-policy string   Specify propagation policy for deletion of application's resources. One of: foreground|background (default "foreground")
-  -l, --selector string             Delete all apps with matching label. Supports '=', '==', '!=', in, notin, exists & not exists. Matching apps must satisfy all of the specified label constraints.
-  -y, --yes                         Turn off prompting to confirm cascaded deletion of application resources
+      --cascade                        Perform a cascaded deletion of all application resources (default true)
+  -h, --help                           help for delete
+  -p, --propagation-policy string      Specify propagation policy for deletion of application's resources. One of: foreground|background (default "foreground")
+      --redis-ha-haproxy-name string   Redis HA HAProxy name (default "argocd-redis-ha-haproxy")
+      --redis-name string              Redis name (default "argocd-redis")
+      --repo-server-name string        Repo server name (default "argocd-repo-server")
+  -l, --selector string                Delete all apps with matching label. Supports '=', '==', '!=', in, notin, exists & not exists. Matching apps must satisfy all of the specified label constraints.
+      --server-name string             Server name (default "argocd-server")
+  -y, --yes                            Turn off prompting to confirm cascaded deletion of application resources
 ```
 
 ### Options inherited from parent commands

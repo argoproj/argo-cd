@@ -23,13 +23,17 @@ argocd app list [flags]
 ### Options
 
 ```
-  -N, --app-namespace string   Only list applications in namespace
-  -c, --cluster string         List apps by cluster name or url
-  -h, --help                   help for list
-  -o, --output string          Output format. One of: wide|name|json|yaml (default "wide")
-  -p, --project stringArray    Filter by project name
-  -r, --repo string            List apps by source repo URL
-  -l, --selector string        List apps by label. Supports '=', '==', '!=', in, notin, exists & not exists. Matching apps must satisfy all of the specified label constraints.
+  -N, --app-namespace string           Only list applications in namespace
+  -c, --cluster string                 List apps by cluster name or url
+  -h, --help                           help for list
+  -o, --output string                  Output format. One of: wide|name|json|yaml (default "wide")
+  -p, --project stringArray            Filter by project name
+      --redis-ha-haproxy-name string   Redis HA HAProxy name (default "argocd-redis-ha-haproxy")
+      --redis-name string              Redis name (default "argocd-redis")
+  -r, --repo string                    List apps by source repo URL
+      --repo-server-name string        Repo server name (default "argocd-repo-server")
+  -l, --selector string                List apps by label. Supports '=', '==', '!=', in, notin, exists & not exists. Matching apps must satisfy all of the specified label constraints.
+      --server-name string             Server name (default "argocd-server")
 ```
 
 ### Options inherited from parent commands

@@ -16,8 +16,12 @@ argocd cluster rm cluster-name
 ### Options
 
 ```
-  -h, --help   help for rm
-  -y, --yes    Turn off prompting to confirm remove of cluster resources
+  -h, --help                           help for rm
+      --redis-ha-haproxy-name string   Redis HA HAProxy name (default "argocd-redis-ha-haproxy")
+      --redis-name string              Redis name (default "argocd-redis")
+      --repo-server-name string        Repo server name (default "argocd-repo-server")
+      --server-name string             Server name (default "argocd-server")
+  -y, --yes                            Turn off prompting to confirm remove of cluster resources
 ```
 
 ### Options inherited from parent commands

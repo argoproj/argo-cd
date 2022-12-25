@@ -9,9 +9,13 @@ argocd repo get [flags]
 ### Options
 
 ```
-  -h, --help             help for get
-  -o, --output string    Output format. One of: json|yaml|wide|url (default "wide")
-      --refresh string   Force a cache refresh on connection status , must be one of: 'hard'
+  -h, --help                           help for get
+  -o, --output string                  Output format. One of: json|yaml|wide|url (default "wide")
+      --redis-ha-haproxy-name string   Redis HA HAProxy name (default "argocd-redis-ha-haproxy")
+      --redis-name string              Redis name (default "argocd-redis")
+      --refresh string                 Force a cache refresh on connection status , must be one of: 'hard'
+      --repo-server-name string        Repo server name (default "argocd-repo-server")
+      --server-name string             Server name (default "argocd-server")
 ```
 
 ### Options inherited from parent commands

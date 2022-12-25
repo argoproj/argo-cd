@@ -9,8 +9,12 @@ argocd proj role list-tokens PROJECT ROLE-NAME [flags]
 ### Options
 
 ```
-  -h, --help       help for list-tokens
-  -u, --unixtime   Print timestamps as Unix time instead of converting. Useful for piping into delete-token.
+  -h, --help                           help for list-tokens
+      --redis-ha-haproxy-name string   Redis HA HAProxy name (default "argocd-redis-ha-haproxy")
+      --redis-name string              Redis name (default "argocd-redis")
+      --repo-server-name string        Repo server name (default "argocd-repo-server")
+      --server-name string             Server name (default "argocd-server")
+  -u, --unixtime                       Print timestamps as Unix time instead of converting. Useful for piping into delete-token.
 ```
 
 ### Options inherited from parent commands
