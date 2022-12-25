@@ -50,12 +50,11 @@ See [this quickstart](https://www.telepresence.io/docs/latest/howtos/intercepts/
 ### Connect (telepresence v1)
 Use the following command instead:
 ```shell
-telepresence --swap-deployment argocd-server --namespace argocd --env-file .envrc.remote --expose 8080:8080 --expose 8083:8083 --run bash
+telepresence intercept argocd-server --port 8083:8083 --env-file .envrc.remote --namespace argocd -- bash
 ```
-* `--swap-deployment` changes the argocd-server deployment
-* `--expose` forwards traffic of remote ports 8080 and 8083 to the same ports locally
-* `--env-file` writes all the environment variables of the remote pod into a local file, the variables are also set on the subprocess of the `--run` command
-* `--run` defines which command to run once a connection is established, use `bash`, `zsh` or others
+* `intercept` intercept a service.
+* `--port` specify the port the local instance of your service is running on. If the intercepted service exposes multiple ports, specify the port you want to intercept after a colon.
+* `--env-file` specify a file path for Telepresence to write the environment variables that are set in the pod.
 
 ## Debug
 Once a connection is established, use your favorite tools to start the server locally.
