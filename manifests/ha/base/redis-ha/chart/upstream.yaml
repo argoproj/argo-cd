@@ -9,7 +9,7 @@ metadata:
   labels:
     heritage: Helm
     release: argocd
-    chart: redis-ha-4.22.3
+    chart: redis-ha-4.22.4
     app: argocd-redis-ha
 ---
 # Source: redis-ha/charts/redis-ha/templates/redis-haproxy-serviceaccount.yaml
@@ -21,7 +21,7 @@ metadata:
   labels:
     heritage: Helm
     release: argocd
-    chart: redis-ha-4.22.3
+    chart: redis-ha-4.22.4
     app: argocd-redis-ha
 ---
 # Source: redis-ha/charts/redis-ha/templates/redis-ha-configmap.yaml
@@ -33,7 +33,7 @@ metadata:
   labels:
     heritage: Helm
     release: argocd
-    chart: redis-ha-4.22.3
+    chart: redis-ha-4.22.4
     app: argocd-redis-ha
 data:
   redis.conf: |
@@ -757,7 +757,7 @@ metadata:
   labels:
     heritage: Helm
     release: argocd
-    chart: redis-ha-4.22.3
+    chart: redis-ha-4.22.4
     app: argocd-redis-ha
 data:
   redis_liveness.sh: |
@@ -807,7 +807,7 @@ metadata:
     app: redis-ha
     heritage: "Helm"
     release: "argocd"
-    chart: redis-ha-4.22.3
+    chart: redis-ha-4.22.4
 rules:
 - apiGroups:
     - ""
@@ -826,7 +826,7 @@ metadata:
     app: redis-ha
     heritage: "Helm"
     release: "argocd"
-    chart: redis-ha-4.22.3
+    chart: redis-ha-4.22.4
     component: argocd-redis-ha-haproxy
 rules:
 - apiGroups:
@@ -846,7 +846,7 @@ metadata:
     app: redis-ha
     heritage: "Helm"
     release: "argocd"
-    chart: redis-ha-4.22.3
+    chart: redis-ha-4.22.4
 subjects:
 - kind: ServiceAccount
   name: argocd-redis-ha
@@ -865,7 +865,7 @@ metadata:
     app: redis-ha
     heritage: "Helm"
     release: "argocd"
-    chart: redis-ha-4.22.3
+    chart: redis-ha-4.22.4
     component: argocd-redis-ha-haproxy
 subjects:
 - kind: ServiceAccount
@@ -885,7 +885,7 @@ metadata:
     app: redis-ha
     heritage: "Helm"
     release: "argocd"
-    chart: redis-ha-4.22.3
+    chart: redis-ha-4.22.4
   annotations:
     service.alpha.kubernetes.io/tolerate-unready-endpoints: "true"
 spec:
@@ -915,7 +915,7 @@ metadata:
     app: redis-ha
     heritage: "Helm"
     release: "argocd"
-    chart: redis-ha-4.22.3
+    chart: redis-ha-4.22.4
   annotations:
     service.alpha.kubernetes.io/tolerate-unready-endpoints: "true"
 spec:
@@ -945,7 +945,7 @@ metadata:
     app: redis-ha
     heritage: "Helm"
     release: "argocd"
-    chart: redis-ha-4.22.3
+    chart: redis-ha-4.22.4
   annotations:
     service.alpha.kubernetes.io/tolerate-unready-endpoints: "true"
 spec:
@@ -975,7 +975,7 @@ metadata:
     app: redis-ha
     heritage: "Helm"
     release: "argocd"
-    chart: redis-ha-4.22.3
+    chart: redis-ha-4.22.4
   annotations:
 spec:
   type: ClusterIP
@@ -1003,7 +1003,7 @@ metadata:
     app: redis-ha
     heritage: "Helm"
     release: "argocd"
-    chart: redis-ha-4.22.3
+    chart: redis-ha-4.22.4
     component: argocd-redis-ha-haproxy
   annotations:
 spec:
@@ -1027,7 +1027,7 @@ metadata:
     app: redis-ha
     heritage: "Helm"
     release: "argocd"
-    chart: redis-ha-4.22.3
+    chart: redis-ha-4.22.4
 spec:
   strategy:
     type: RollingUpdate
@@ -1137,7 +1137,7 @@ metadata:
     app: redis-ha
     heritage: "Helm"
     release: "argocd"
-    chart: redis-ha-4.22.3
+    chart: redis-ha-4.22.4
   annotations:
     {}
 spec:
