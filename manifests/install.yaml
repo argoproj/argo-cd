@@ -9635,7 +9635,6 @@ rules:
   resources:
   - applications
   - appprojects
-  - applicationsets
   verbs:
   - create
   - get
@@ -9702,14 +9701,6 @@ rules:
   - pods/log
   verbs:
   - get
-- apiGroups:
-  - argoproj.io
-  resources:
-  - applications
-  verbs:
-  - get
-  - list
-  - watch
 ---
 apiVersion: rbac.authorization.k8s.io/v1
 kind: RoleBinding
@@ -10478,7 +10469,6 @@ spec:
         volumeMounts:
         - mountPath: /var/run/argocd
           name: var-files
-      serviceAccountName: argocd-repo-server
       volumes:
       - configMap:
           name: argocd-ssh-known-hosts-cm
