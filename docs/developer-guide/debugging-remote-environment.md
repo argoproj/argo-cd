@@ -57,6 +57,15 @@ telepresence --swap-deployment argocd-server --namespace argocd --env-file .envr
 * `--env-file` writes all the environment variables of the remote pod into a local file, the variables are also set on the subprocess of the `--run` command
 * `--run` defines which command to run once a connection is established, use `bash`, `zsh` or others
 
+### Connect (telepresence v2)
+Use the following command instead:
+```shell
+telepresence intercept argocd-server --port localport:svcPortIdentifier --env-file .envrc.remote --namespace argocd -- bash
+```
+* `intercept` intercept a service.
+* `--port` local port to forward to. If intercepting a service with multiple ports, use <local port>:<svcPortIdentifier>, where the identifier is the port name or port number.
+* `--env-file` specify a file path for Telepresence to write the environment variables that are set in the pod.
+
 ## Debug
 Once a connection is established, use your favorite tools to start the server locally.
 
