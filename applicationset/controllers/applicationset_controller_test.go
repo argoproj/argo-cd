@@ -35,6 +35,8 @@ import (
 	appclientset "github.com/argoproj/argo-cd/v2/pkg/client/clientset/versioned/fake"
 	"github.com/argoproj/argo-cd/v2/util/collections"
 	dbmocks "github.com/argoproj/argo-cd/v2/util/db/mocks"
+
+	"github.com/argoproj/argo-cd/v2/pkg/apis/application"
 )
 
 type generatorMock struct {
@@ -355,7 +357,7 @@ func TestCreateOrUpdateInCluster(t *testing.T) {
 			expected: []argov1alpha1.Application{
 				{
 					TypeMeta: metav1.TypeMeta{
-						Kind:       "Application",
+						Kind:       application.ApplicationKind,
 						APIVersion: "argoproj.io/v1alpha1",
 					},
 					ObjectMeta: metav1.ObjectMeta{
@@ -384,7 +386,7 @@ func TestCreateOrUpdateInCluster(t *testing.T) {
 			existingApps: []argov1alpha1.Application{
 				{
 					TypeMeta: metav1.TypeMeta{
-						Kind:       "Application",
+						Kind:       application.ApplicationKind,
 						APIVersion: "argoproj.io/v1alpha1",
 					},
 					ObjectMeta: metav1.ObjectMeta{
@@ -410,7 +412,7 @@ func TestCreateOrUpdateInCluster(t *testing.T) {
 			expected: []argov1alpha1.Application{
 				{
 					TypeMeta: metav1.TypeMeta{
-						Kind:       "Application",
+						Kind:       application.ApplicationKind,
 						APIVersion: "argoproj.io/v1alpha1",
 					},
 					ObjectMeta: metav1.ObjectMeta{
@@ -442,7 +444,7 @@ func TestCreateOrUpdateInCluster(t *testing.T) {
 			existingApps: []argov1alpha1.Application{
 				{
 					TypeMeta: metav1.TypeMeta{
-						Kind:       "Application",
+						Kind:       application.ApplicationKind,
 						APIVersion: "argoproj.io/v1alpha1",
 					},
 					ObjectMeta: metav1.ObjectMeta{
@@ -468,7 +470,7 @@ func TestCreateOrUpdateInCluster(t *testing.T) {
 			expected: []argov1alpha1.Application{
 				{
 					TypeMeta: metav1.TypeMeta{
-						Kind:       "Application",
+						Kind:       application.ApplicationKind,
 						APIVersion: "argoproj.io/v1alpha1",
 					},
 					ObjectMeta: metav1.ObjectMeta{
@@ -500,7 +502,7 @@ func TestCreateOrUpdateInCluster(t *testing.T) {
 			existingApps: []argov1alpha1.Application{
 				{
 					TypeMeta: metav1.TypeMeta{
-						Kind:       "Application",
+						Kind:       application.ApplicationKind,
 						APIVersion: "argoproj.io/v1alpha1",
 					},
 					ObjectMeta: metav1.ObjectMeta{
@@ -528,7 +530,7 @@ func TestCreateOrUpdateInCluster(t *testing.T) {
 			expected: []argov1alpha1.Application{
 				{
 					TypeMeta: metav1.TypeMeta{
-						Kind:       "Application",
+						Kind:       application.ApplicationKind,
 						APIVersion: "argoproj.io/v1alpha1",
 					},
 					ObjectMeta: metav1.ObjectMeta{
@@ -562,7 +564,7 @@ func TestCreateOrUpdateInCluster(t *testing.T) {
 			existingApps: []argov1alpha1.Application{
 				{
 					TypeMeta: metav1.TypeMeta{
-						Kind:       "Application",
+						Kind:       application.ApplicationKind,
 						APIVersion: "argoproj.io/v1alpha1",
 					},
 					ObjectMeta: metav1.ObjectMeta{
@@ -590,7 +592,7 @@ func TestCreateOrUpdateInCluster(t *testing.T) {
 			expected: []argov1alpha1.Application{
 				{
 					TypeMeta: metav1.TypeMeta{
-						Kind:       "Application",
+						Kind:       application.ApplicationKind,
 						APIVersion: "argoproj.io/v1alpha1",
 					},
 					ObjectMeta: metav1.ObjectMeta{
@@ -622,7 +624,7 @@ func TestCreateOrUpdateInCluster(t *testing.T) {
 			existingApps: []argov1alpha1.Application{
 				{
 					TypeMeta: metav1.TypeMeta{
-						Kind:       "Application",
+						Kind:       application.ApplicationKind,
 						APIVersion: "argoproj.io/v1alpha1",
 					},
 					ObjectMeta: metav1.ObjectMeta{
@@ -656,7 +658,7 @@ func TestCreateOrUpdateInCluster(t *testing.T) {
 			expected: []argov1alpha1.Application{
 				{
 					TypeMeta: metav1.TypeMeta{
-						Kind:       "Application",
+						Kind:       application.ApplicationKind,
 						APIVersion: "argoproj.io/v1alpha1",
 					},
 					ObjectMeta: metav1.ObjectMeta{
@@ -696,7 +698,7 @@ func TestCreateOrUpdateInCluster(t *testing.T) {
 			existingApps: []argov1alpha1.Application{
 				{
 					TypeMeta: metav1.TypeMeta{
-						Kind:       "Application",
+						Kind:       application.ApplicationKind,
 						APIVersion: "argoproj.io/v1alpha1",
 					},
 					ObjectMeta: metav1.ObjectMeta{
@@ -732,7 +734,7 @@ func TestCreateOrUpdateInCluster(t *testing.T) {
 			expected: []argov1alpha1.Application{
 				{
 					TypeMeta: metav1.TypeMeta{
-						Kind:       "Application",
+						Kind:       application.ApplicationKind,
 						APIVersion: "argoproj.io/v1alpha1",
 					},
 					ObjectMeta: metav1.ObjectMeta{
@@ -774,7 +776,7 @@ func TestCreateOrUpdateInCluster(t *testing.T) {
 			existingApps: []argov1alpha1.Application{
 				{
 					TypeMeta: metav1.TypeMeta{
-						Kind:       "Application",
+						Kind:       application.ApplicationKind,
 						APIVersion: "argoproj.io/v1alpha1",
 					},
 					ObjectMeta: metav1.ObjectMeta{
@@ -806,7 +808,7 @@ func TestCreateOrUpdateInCluster(t *testing.T) {
 			expected: []argov1alpha1.Application{
 				{
 					TypeMeta: metav1.TypeMeta{
-						Kind:       "Application",
+						Kind:       application.ApplicationKind,
 						APIVersion: "argoproj.io/v1alpha1",
 					},
 					ObjectMeta: metav1.ObjectMeta{
@@ -1245,7 +1247,7 @@ func TestCreateApplications(t *testing.T) {
 			expected: []argov1alpha1.Application{
 				{
 					TypeMeta: metav1.TypeMeta{
-						Kind:       "Application",
+						Kind:       application.ApplicationKind,
 						APIVersion: "argoproj.io/v1alpha1",
 					},
 					ObjectMeta: metav1.ObjectMeta{
@@ -1273,7 +1275,7 @@ func TestCreateApplications(t *testing.T) {
 			existsApps: []argov1alpha1.Application{
 				{
 					TypeMeta: metav1.TypeMeta{
-						Kind:       "Application",
+						Kind:       application.ApplicationKind,
 						APIVersion: "argoproj.io/v1alpha1",
 					},
 					ObjectMeta: metav1.ObjectMeta{
@@ -1299,7 +1301,7 @@ func TestCreateApplications(t *testing.T) {
 			expected: []argov1alpha1.Application{
 				{
 					TypeMeta: metav1.TypeMeta{
-						Kind:       "Application",
+						Kind:       application.ApplicationKind,
 						APIVersion: "argoproj.io/v1alpha1",
 					},
 					ObjectMeta: metav1.ObjectMeta{
@@ -1330,7 +1332,7 @@ func TestCreateApplications(t *testing.T) {
 			existsApps: []argov1alpha1.Application{
 				{
 					TypeMeta: metav1.TypeMeta{
-						Kind:       "Application",
+						Kind:       application.ApplicationKind,
 						APIVersion: "argoproj.io/v1alpha1",
 					},
 					ObjectMeta: metav1.ObjectMeta{
@@ -1356,7 +1358,7 @@ func TestCreateApplications(t *testing.T) {
 			expected: []argov1alpha1.Application{
 				{
 					TypeMeta: metav1.TypeMeta{
-						Kind:       "Application",
+						Kind:       application.ApplicationKind,
 						APIVersion: "argoproj.io/v1alpha1",
 					},
 					ObjectMeta: metav1.ObjectMeta{
@@ -1442,7 +1444,7 @@ func TestDeleteInCluster(t *testing.T) {
 			existingApps: []argov1alpha1.Application{
 				{
 					TypeMeta: metav1.TypeMeta{
-						Kind:       "Application",
+						Kind:       application.ApplicationKind,
 						APIVersion: "argoproj.io/v1alpha1",
 					},
 					ObjectMeta: metav1.ObjectMeta{
@@ -1456,7 +1458,7 @@ func TestDeleteInCluster(t *testing.T) {
 				},
 				{
 					TypeMeta: metav1.TypeMeta{
-						Kind:       "Application",
+						Kind:       application.ApplicationKind,
 						APIVersion: "argoproj.io/v1alpha1",
 					},
 					ObjectMeta: metav1.ObjectMeta{
@@ -1482,7 +1484,7 @@ func TestDeleteInCluster(t *testing.T) {
 			expected: []argov1alpha1.Application{
 				{
 					TypeMeta: metav1.TypeMeta{
-						Kind:       "Application",
+						Kind:       application.ApplicationKind,
 						APIVersion: "argoproj.io/v1alpha1",
 					},
 					ObjectMeta: metav1.ObjectMeta{
@@ -1498,7 +1500,7 @@ func TestDeleteInCluster(t *testing.T) {
 			notExpected: []argov1alpha1.Application{
 				{
 					TypeMeta: metav1.TypeMeta{
-						Kind:       "Application",
+						Kind:       application.ApplicationKind,
 						APIVersion: "argoproj.io/v1alpha1",
 					},
 					ObjectMeta: metav1.ObjectMeta{

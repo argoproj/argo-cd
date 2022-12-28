@@ -57,6 +57,8 @@ import (
 	"github.com/argoproj/argo-cd/v2/util/security"
 	"github.com/argoproj/argo-cd/v2/util/session"
 	"github.com/argoproj/argo-cd/v2/util/settings"
+
+	applicationType "github.com/argoproj/argo-cd/v2/pkg/apis/application"
 )
 
 type AppResourceTreeFn func(ctx context.Context, app *appv1.Application) (*appv1.ApplicationTree, error)
@@ -1975,7 +1977,7 @@ func (s *Server) ListResourceActions(ctx context.Context, q *application.Applica
 }
 
 func (s *Server) getUnstructuredLiveResourceOrApp(ctx context.Context, rbacRequest string, q *application.ApplicationResourceRequest) (obj *unstructured.Unstructured, res *appv1.ResourceNode, app *appv1.Application, config *rest.Config, err error) {
-	if q.GetKind() == "Application" && q.GetGroup() == "argoproj.io" && q.GetName() == q.GetResourceName() {
+	if q.GetKind() == applicationType.ApplicationKind && q.GetGroup() == applicationType.Group && q.GetName() == q.GetResourceName() {
 		namespace := s.appNamespaceOrDefault(q.GetAppNamespace())
 		app, err = s.appLister.Applications(namespace).Get(q.GetName())
 		if err != nil {

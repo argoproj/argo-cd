@@ -12,6 +12,8 @@ import (
 	"k8s.io/apimachinery/pkg/types"
 	"k8s.io/client-go/kubernetes"
 
+	"github.com/argoproj/argo-cd/v2/pkg/apis/application"
+
 	"github.com/argoproj/argo-cd/v2/pkg/apis/application/v1alpha1"
 )
 
@@ -53,9 +55,9 @@ func (l *AuditLogger) logEvent(objMeta ObjectRef, gvk schema.GroupVersionKind, i
 	}
 
 	switch gvk.Kind {
-	case "Application":
+	case application.ApplicationKind:
 		logCtx = logCtx.WithField("application", objMeta.Name)
-	case "AppProject":
+	case application.AppProjectKind:
 		logCtx = logCtx.WithField("project", objMeta.Name)
 	default:
 		logCtx = logCtx.WithField("name", objMeta.Name)

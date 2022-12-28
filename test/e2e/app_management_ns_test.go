@@ -36,6 +36,7 @@ import (
 	repoFixture "github.com/argoproj/argo-cd/v2/test/e2e/fixture/repos"
 	"github.com/argoproj/argo-cd/v2/test/e2e/testdata"
 
+	"github.com/argoproj/argo-cd/v2/pkg/apis/application"
 	. "github.com/argoproj/argo-cd/v2/util/argo"
 	. "github.com/argoproj/argo-cd/v2/util/errors"
 	"github.com/argoproj/argo-cd/v2/util/io"
@@ -834,7 +835,7 @@ func TestNamespacedResourceDiffing(t *testing.T) {
 // }
 
 func TestNamespacedKnownTypesInCRDDiffing(t *testing.T) {
-	dummiesGVR := schema.GroupVersionResource{Group: "argoproj.io", Version: "v1alpha1", Resource: "dummies"}
+	dummiesGVR := schema.GroupVersionResource{Group: application.Group, Version: "v1alpha1", Resource: "dummies"}
 
 	ctx := Given(t)
 	ctx.
