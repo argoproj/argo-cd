@@ -35,6 +35,7 @@ import (
 	projectFixture "github.com/argoproj/argo-cd/v2/test/e2e/fixture/project"
 	repoFixture "github.com/argoproj/argo-cd/v2/test/e2e/fixture/repos"
 	"github.com/argoproj/argo-cd/v2/test/e2e/testdata"
+
 	. "github.com/argoproj/argo-cd/v2/util/argo"
 	. "github.com/argoproj/argo-cd/v2/util/errors"
 	"github.com/argoproj/argo-cd/v2/util/io"
@@ -284,8 +285,8 @@ func TestNamespacedAppCreation(t *testing.T) {
 		And(func(app *Application) {
 			assert.Equal(t, Name(), app.Name)
 			assert.Equal(t, AppNamespace(), app.Namespace)
-			assert.Equal(t, RepoURL(RepoURLTypeFile), app.Spec.Source.RepoURL)
-			assert.Equal(t, guestbookPath, app.Spec.Source.Path)
+			assert.Equal(t, RepoURL(RepoURLTypeFile), app.Spec.GetSource().RepoURL)
+			assert.Equal(t, guestbookPath, app.Spec.GetSource().Path)
 			assert.Equal(t, DeploymentNamespace(), app.Spec.Destination.Namespace)
 			assert.Equal(t, KubernetesInternalAPIServerAddr, app.Spec.Destination.Server)
 		}).
@@ -313,7 +314,7 @@ func TestNamespacedAppCreation(t *testing.T) {
 		And(func(app *Application) {
 			assert.Equal(t, "label", app.Labels["test"])
 			assert.Equal(t, "annotation", app.Annotations["test"])
-			assert.Equal(t, "master", app.Spec.Source.TargetRevision)
+			assert.Equal(t, "master", app.Spec.GetSource().TargetRevision)
 		})
 }
 
@@ -332,8 +333,8 @@ func TestNamespacedAppCreationWithoutForceUpdate(t *testing.T) {
 		And(func(app *Application) {
 			assert.Equal(t, ctx.AppName(), app.Name)
 			assert.Equal(t, AppNamespace(), app.Namespace)
-			assert.Equal(t, RepoURL(RepoURLTypeFile), app.Spec.Source.RepoURL)
-			assert.Equal(t, guestbookPath, app.Spec.Source.Path)
+			assert.Equal(t, RepoURL(RepoURLTypeFile), app.Spec.GetSource().RepoURL)
+			assert.Equal(t, guestbookPath, app.Spec.GetSource().Path)
 			assert.Equal(t, DeploymentNamespace(), app.Spec.Destination.Namespace)
 			assert.Equal(t, "in-cluster", app.Spec.Destination.Name)
 		}).
@@ -521,12 +522,12 @@ func TestNamespacedAppRollbackSuccessful(t *testing.T) {
 				ID:         1,
 				Revision:   app.Status.Sync.Revision,
 				DeployedAt: metav1.Time{Time: metav1.Now().UTC().Add(-1 * time.Minute)},
-				Source:     app.Spec.Source,
+				Source:     app.Spec.GetSource(),
 			}, {
 				ID:         2,
 				Revision:   "cdb",
 				DeployedAt: metav1.Time{Time: metav1.Now().UTC().Add(-2 * time.Minute)},
-				Source:     app.Spec.Source,
+				Source:     app.Spec.GetSource(),
 			}}
 			patch, _, err := diff.CreateTwoWayMergePatch(app, appWithHistory, &Application{})
 			require.NoError(t, err)
@@ -763,6 +764,17 @@ func TestNamespacedResourceDiffing(t *testing.T) {
 		}).
 		Given().
 		When().
+		// Now we migrate from client-side apply to server-side apply
+		// This is necessary, as starting with kubectl 1.26, all previously
+		// client-side owned fields have ownership migrated to the manager from
+		// the first ssa.
+		// More details: https://github.com/kubernetes/kubectl/issues/1337
+		PatchApp(`[{
+			"op": "add",
+			"path": "/spec/syncPolicy",
+			"value": { "syncOptions": ["ServerSideApply=true"] }
+			}]`).
+		Sync().
 		And(func() {
 			output, err := RunWithStdin(testdata.SSARevisionHistoryDeployment, "", "kubectl", "apply", "-n", DeploymentNamespace(), "--server-side=true", "--field-manager=revision-history-manager", "--validate=false", "--force-conflicts", "-f", "-")
 			assert.NoError(t, err)
@@ -2190,8 +2202,8 @@ spec:
 			assert.Equal(t, map[string]string{"labels.local/from-file": "file", "labels.local/from-args": "args"}, app.ObjectMeta.Labels)
 			assert.Equal(t, map[string]string{"annotations.local/from-file": "file"}, app.ObjectMeta.Annotations)
 			assert.Equal(t, []string{"resources-finalizer.argocd.argoproj.io"}, app.ObjectMeta.Finalizers)
-			assert.Equal(t, path, app.Spec.Source.Path)
-			assert.Equal(t, []HelmParameter{{Name: "foo", Value: "foo"}}, app.Spec.Source.Helm.Parameters)
+			assert.Equal(t, path, app.Spec.GetSource().Path)
+			assert.Equal(t, []HelmParameter{{Name: "foo", Value: "foo"}}, app.Spec.GetSource().Helm.Parameters)
 		})
 }
 

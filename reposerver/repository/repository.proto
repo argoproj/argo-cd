@@ -29,6 +29,8 @@ message ManifestRequest {
     string trackingMethod = 19;
     map<string, bool> enabledSourceTypes = 20;
     github.com.argoproj.argo_cd.v2.pkg.apis.application.v1alpha1.HelmOptions helmOptions = 21;
+    bool hasMultipleSources = 22;
+    map<string, github.com.argoproj.argo_cd.v2.pkg.apis.application.v1alpha1.RefTarget> refSources = 23;
 }
 
 message ManifestRequestWithFiles {
@@ -129,6 +131,7 @@ message RepoServerAppDetailsQuery {
     string trackingMethod = 8;
     map<string, bool> enabledSourceTypes = 9;
     github.com.argoproj.argo_cd.v2.pkg.apis.application.v1alpha1.HelmOptions helmOptions = 10;
+    map<string, github.com.argoproj.argo_cd.v2.pkg.apis.application.v1alpha1.RefTarget> refSources = 11;
 }
 
 // RepoAppDetailsResponse application details
