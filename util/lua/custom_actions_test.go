@@ -92,6 +92,11 @@ func TestLuaResourceActionsScript(t *testing.T) {
 				diffResult, err := diff.Diff(expectedObj, result, diff.WithNormalizer(testNormalizer{}))
 				assert.NoError(t, err)
 				if diffResult.Modified {
+					// If the diff is ONLY in the restartedAt, ignore it, since the current timestamp is compared to a fixed value,
+					// which will never be identical.
+					// This diff ignoring does not go into Gitops Engine, since it useful only for tests and not for actual
+					// detecting of what has changed.
+					// Maybe to be reconsidered in the future.
 					t.Error("Output does not match input:")
 					err = cli.PrintDiff(test.Action, expectedObj, result)
 					assert.NoError(t, err)
