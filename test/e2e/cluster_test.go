@@ -184,8 +184,6 @@ func TestClusterURLInRestAPI(t *testing.T) {
 }
 
 func TestClusterDeleteDenied(t *testing.T) {
-	EnsureCleanState(t)
-
 	accountFixture.Given(t).
 		Name("test").
 		When().
@@ -279,7 +277,7 @@ func TestClusterDelete(t *testing.T) {
 
 	_, err = fixture.Run("", "kubectl", "get", "clusterrolebinding", "argocd-manager-role-binding")
 	if err != nil {
-		t.Errorf("Expected no error from not finding clusterrole argocd-manager-role but got:\n%s", err.Error())
+		t.Errorf("Expected no error from not finding clusterrolebinding argocd-manager-role-binding but got:\n%s", err.Error())
 	}
 
 	clstAction.DeleteByName().
@@ -301,6 +299,6 @@ func TestClusterDelete(t *testing.T) {
 
 	output, err = fixture.Run("", "kubectl", "get", "clusterrolebinding", "argocd-manager-role-binding")
 	if err == nil {
-		t.Errorf("Expected error from not finding clusterrole argocd-manager-role but got:\n%s", output)
+		t.Errorf("Expected error from not finding clusterrolebinding argocd-manager-role-binding but got:\n%s", output)
 	}
 }

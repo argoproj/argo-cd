@@ -109,7 +109,9 @@ func newFakeController(data *fakeData) *ApplicationController {
 		data.metricsCacheExpiration,
 		[]string{},
 		0,
+		true,
 		nil,
+		[]string{},
 	)
 	if err != nil {
 		panic(err)
@@ -121,6 +123,7 @@ func newFakeController(data *fakeData) *ApplicationController {
 	clusterCacheMock := mocks.ClusterCache{}
 	clusterCacheMock.On("IsNamespaced", mock.Anything).Return(true, nil)
 	clusterCacheMock.On("GetOpenAPISchema").Return(nil, nil)
+	clusterCacheMock.On("GetGVKParser").Return(nil)
 
 	mockStateCache := mockstatecache.LiveStateCache{}
 	ctrl.appStateManager.(*appStateManager).liveStateCache = &mockStateCache
@@ -551,7 +554,9 @@ func TestFinalizeAppDeletion(t *testing.T) {
 			patched = true
 			return true, nil, nil
 		})
-		_, err := ctrl.finalizeApplicationDeletion(app)
+		_, err := ctrl.finalizeApplicationDeletion(app, func(project string) ([]*argoappv1.Cluster, error) {
+			return []*argoappv1.Cluster{}, nil
+		})
 		assert.NoError(t, err)
 		assert.True(t, patched)
 	})
@@ -599,7 +604,9 @@ func TestFinalizeAppDeletion(t *testing.T) {
 			patched = true
 			return true, nil, nil
 		})
-		objs, err := ctrl.finalizeApplicationDeletion(app)
+		objs, err := ctrl.finalizeApplicationDeletion(app, func(project string) ([]*argoappv1.Cluster, error) {
+			return []*argoappv1.Cluster{}, nil
+		})
 		assert.NoError(t, err)
 		assert.True(t, patched)
 		objsMap, err := ctrl.stateCache.GetManagedLiveObjs(app, []*unstructured.Unstructured{})
@@ -631,7 +638,9 @@ func TestFinalizeAppDeletion(t *testing.T) {
 			patched = true
 			return true, nil, nil
 		})
-		_, err := ctrl.finalizeApplicationDeletion(app)
+		_, err := ctrl.finalizeApplicationDeletion(app, func(project string) ([]*argoappv1.Cluster, error) {
+			return []*argoappv1.Cluster{}, nil
+		})
 		assert.NoError(t, err)
 		assert.True(t, patched)
 	})
@@ -654,7 +663,9 @@ func TestFinalizeAppDeletion(t *testing.T) {
 			fakeAppCs.AddReactor("get", "*", func(action kubetesting.Action) (handled bool, ret runtime.Object, err error) {
 				return defaultReactor.React(action)
 			})
-			_, err := ctrl.finalizeApplicationDeletion(app)
+			_, err := ctrl.finalizeApplicationDeletion(app, func(project string) ([]*argoappv1.Cluster, error) {
+				return []*argoappv1.Cluster{}, nil
+			})
 			assert.NoError(t, err)
 		}
 
@@ -753,15 +764,17 @@ func TestHandleAppUpdated(t *testing.T) {
 	app := newFakeApp()
 	app.Spec.Destination.Namespace = test.FakeArgoCDNamespace
 	app.Spec.Destination.Server = argoappv1.KubernetesInternalAPIServerAddr
-	ctrl := newFakeController(&fakeData{apps: []runtime.Object{app}})
+	proj := defaultProj.DeepCopy()
+	proj.Spec.SourceNamespaces = []string{test.FakeArgoCDNamespace}
+	ctrl := newFakeController(&fakeData{apps: []runtime.Object{app, proj}})
 
-	ctrl.handleObjectUpdated(map[string]bool{app.Name: true}, kube.GetObjectRef(kube.MustToUnstructured(app)))
-	isRequested, level := ctrl.isRefreshRequested(app.Name)
+	ctrl.handleObjectUpdated(map[string]bool{app.InstanceName(ctrl.namespace): true}, kube.GetObjectRef(kube.MustToUnstructured(app)))
+	isRequested, level := ctrl.isRefreshRequested(app.QualifiedName())
 	assert.False(t, isRequested)
 	assert.Equal(t, ComparisonWithNothing, level)
 
-	ctrl.handleObjectUpdated(map[string]bool{app.Name: true}, corev1.ObjectReference{UID: "test", Kind: kube.DeploymentKind, Name: "test", Namespace: "default"})
-	isRequested, level = ctrl.isRefreshRequested(app.Name)
+	ctrl.handleObjectUpdated(map[string]bool{app.InstanceName(ctrl.namespace): true}, corev1.ObjectReference{UID: "test", Kind: kube.DeploymentKind, Name: "test", Namespace: "default"})
+	isRequested, level = ctrl.isRefreshRequested(app.QualifiedName())
 	assert.True(t, isRequested)
 	assert.Equal(t, CompareWithRecent, level)
 }
@@ -784,11 +797,11 @@ func TestHandleOrphanedResourceUpdated(t *testing.T) {
 
 	ctrl.handleObjectUpdated(map[string]bool{}, corev1.ObjectReference{UID: "test", Kind: kube.DeploymentKind, Name: "test", Namespace: test.FakeArgoCDNamespace})
 
-	isRequested, level := ctrl.isRefreshRequested(app1.Name)
+	isRequested, level := ctrl.isRefreshRequested(app1.QualifiedName())
 	assert.True(t, isRequested)
 	assert.Equal(t, CompareWithRecent, level)
 
-	isRequested, level = ctrl.isRefreshRequested(app2.Name)
+	isRequested, level = ctrl.isRefreshRequested(app2.QualifiedName())
 	assert.True(t, isRequested)
 	assert.Equal(t, CompareWithRecent, level)
 }
@@ -852,7 +865,7 @@ func TestNeedRefreshAppStatus(t *testing.T) {
 	app.Status.Sync = argoappv1.SyncStatus{
 		Status: argoappv1.SyncStatusCodeSynced,
 		ComparedTo: argoappv1.ComparedTo{
-			Source:      app.Spec.Source,
+			Source:      app.Spec.GetSource(),
 			Destination: app.Spec.Destination,
 		},
 	}
@@ -896,7 +909,7 @@ func TestNeedRefreshAppStatus(t *testing.T) {
 		app.Status.Sync = argoappv1.SyncStatus{
 			Status: argoappv1.SyncStatusCodeSynced,
 			ComparedTo: argoappv1.ComparedTo{
-				Source:      app.Spec.Source,
+				Source:      app.Spec.GetSource(),
 				Destination: app.Spec.Destination,
 			},
 		}
@@ -999,7 +1012,7 @@ func TestUpdateReconciledAt(t *testing.T) {
 	app := newFakeApp()
 	reconciledAt := metav1.NewTime(time.Now().Add(-1 * time.Second))
 	app.Status = argoappv1.ApplicationStatus{ReconciledAt: &reconciledAt}
-	app.Status.Sync = argoappv1.SyncStatus{ComparedTo: argoappv1.ComparedTo{Source: app.Spec.Source, Destination: app.Spec.Destination}}
+	app.Status.Sync = argoappv1.SyncStatus{ComparedTo: argoappv1.ComparedTo{Source: app.Spec.GetSource(), Destination: app.Spec.Destination}}
 	ctrl := newFakeController(&fakeData{
 		apps: []runtime.Object{app, &defaultProj},
 		manifestResponse: &apiclient.ManifestResponse{
@@ -1055,6 +1068,34 @@ func TestUpdateReconciledAt(t *testing.T) {
 
 }
 
+func TestProjectErrorToCondition(t *testing.T) {
+	app := newFakeApp()
+	app.Spec.Project = "wrong project"
+	ctrl := newFakeController(&fakeData{
+		apps: []runtime.Object{app, &defaultProj},
+		manifestResponse: &apiclient.ManifestResponse{
+			Manifests: []string{},
+			Namespace: test.FakeDestNamespace,
+			Server:    test.FakeClusterURL,
+			Revision:  "abc123",
+		},
+		managedLiveObjs: make(map[kube.ResourceKey]*unstructured.Unstructured),
+	})
+	key, _ := cache.MetaNamespaceKeyFunc(app)
+	ctrl.appRefreshQueue.Add(key)
+	ctrl.requestAppRefresh(app.Name, CompareWithRecent.Pointer(), nil)
+
+	ctrl.processAppRefreshQueueItem()
+
+	obj, ok, err := ctrl.appInformer.GetIndexer().GetByKey(key)
+	assert.True(t, ok)
+	assert.NoError(t, err)
+	updatedApp := obj.(*argoappv1.Application)
+	assert.Equal(t, argoappv1.ApplicationConditionInvalidSpecError, updatedApp.Status.Conditions[0].Type)
+	assert.Equal(t, "Application referencing project wrong project which does not exist", updatedApp.Status.Conditions[0].Message)
+	assert.Equal(t, argoappv1.ApplicationConditionInvalidSpecError, updatedApp.Status.Conditions[0].Type)
+}
+
 func TestFinalizeProjectDeletion_HasApplications(t *testing.T) {
 	app := newFakeApp()
 	proj := &argoappv1.AppProject{ObjectMeta: metav1.ObjectMeta{Name: "default", Namespace: test.FakeArgoCDNamespace}}
@@ -1096,7 +1137,7 @@ func TestFinalizeProjectDeletion_DoesNotHaveApplications(t *testing.T) {
 
 func TestProcessRequestedAppOperation_FailedNoRetries(t *testing.T) {
 	app := newFakeApp()
-	app.Spec.Project = "invalid-project"
+	app.Spec.Project = "default"
 	app.Operation = &argoappv1.Operation{
 		Sync: &argoappv1.SyncOperation{},
 	}
@@ -1122,7 +1163,10 @@ func TestProcessRequestedAppOperation_InvalidDestination(t *testing.T) {
 	app.Operation = &argoappv1.Operation{
 		Sync: &argoappv1.SyncOperation{},
 	}
-	ctrl := newFakeController(&fakeData{apps: []runtime.Object{app}})
+	proj := defaultProj
+	proj.Name = "test-project"
+	proj.Spec.SourceNamespaces = []string{test.FakeArgoCDNamespace}
+	ctrl := newFakeController(&fakeData{apps: []runtime.Object{app, &proj}})
 	fakeAppCs := ctrl.applicationClientset.(*appclientset.Clientset)
 	receivedPatch := map[string]interface{}{}
 	func() {
@@ -1309,4 +1353,23 @@ func TestMetricsExpiration(t *testing.T) {
 	// Check expiration is enabled if set
 	ctrl = newFakeController(&fakeData{apps: []runtime.Object{app}, metricsCacheExpiration: 10 * time.Second})
 	assert.True(t, ctrl.metricsServer.HasExpiration())
+}
+
+func TestToAppKey(t *testing.T) {
+	ctrl := newFakeController(&fakeData{})
+	tests := []struct {
+		name     string
+		input    string
+		expected string
+	}{
+		{"From instance name", "foo_bar", "foo/bar"},
+		{"From qualified name", "foo/bar", "foo/bar"},
+		{"From unqualified name", "bar", ctrl.namespace + "/bar"},
+	}
+
+	for _, tt := range tests {
+		t.Run(tt.name, func(t *testing.T) {
+			assert.Equal(t, tt.expected, ctrl.toAppKey(tt.input))
+		})
+	}
 }

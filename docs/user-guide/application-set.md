@@ -4,6 +4,10 @@ The [ApplicationSet controller](../operator-manual/applicationset/index.md) is a
 
 The set of tools provided by the ApplicationSet controller may also be used to allow developers (without access to the Argo CD namespace) to independently create Applications without cluster-administrator intervention.
 
+!!! warning
+    Be aware of the [security implications](../operator-manual/applicationset/Security.md) before allowing developers to
+    create Applications via ApplicationSets.
+
 The ApplicationSet controller is installed alongside Argo CD (within the same namespace), and the controller automatically generates Argo CD Applications based on the contents of a new `ApplicationSet` Custom Resource (CR).
 
 Here is an example of an `ApplicationSet` resource that can be used to target an Argo CD Application to multiple clusters:
@@ -45,3 +49,39 @@ Within ApplicationSet there exist other more powerful generators in addition to 
 To learn more about the ApplicationSet controller, check out [ApplicationSet documentation](../operator-manual/applicationset/index.md) to install the ApplicationSet controller alongside Argo CD.
 
 **Note:** Starting `v2.3` of Argo CD, we don't need to install ApplicationSet Controller separately. It would be instead as part of Argo CD installation.
+
+#### Post Selector all generators
+
+The Selector allows to post-filter based on generated values using the kubernetes common labelSelector format. In the example, the list generator generates a set of two application which then filter by the key value to only select the `env` with value `staging`:
+
+```yaml
+apiVersion: argoproj.io/v1alpha1
+kind: ApplicationSet
+metadata:
+  name: guestbook
+spec:
+  generators:
+  - list:
+      elements:
+        - cluster: engineering-dev
+          url: https://kubernetes.default.svc
+          env: staging
+        - cluster: engineering-prod
+          url: https://kubernetes.default.svc
+          env: prod
+    selector:
+      matchLabels:
+        env: staging
+  template:
+    metadata:
+      name: '{{cluster}}-guestbook'
+    spec:
+      project: default
+      source:
+        repoURL: https://github.com/argoproj-labs/applicationset.git
+        targetRevision: HEAD
+        path: examples/list-generator/guestbook/{{cluster}}
+      destination:
+        server: '{{url}}'
+        namespace: guestbook
+```

@@ -9,6 +9,8 @@ import (
 	"sync/atomic"
 	"time"
 
+	cdcommon "github.com/argoproj/argo-cd/v2/common"
+
 	"github.com/argoproj/gitops-engine/pkg/sync"
 	"github.com/argoproj/gitops-engine/pkg/sync/common"
 	"github.com/argoproj/gitops-engine/pkg/utils/kube"
@@ -17,9 +19,9 @@ import (
 	v1 "k8s.io/apimachinery/pkg/apis/meta/v1"
 	"k8s.io/apimachinery/pkg/apis/meta/v1/unstructured"
 	"k8s.io/apimachinery/pkg/runtime/schema"
+	"k8s.io/apimachinery/pkg/util/managedfields"
 	"k8s.io/kubectl/pkg/util/openapi"
 
-	cdcommon "github.com/argoproj/argo-cd/v2/common"
 	"github.com/argoproj/argo-cd/v2/controller/metrics"
 	"github.com/argoproj/argo-cd/v2/pkg/apis/application/v1alpha1"
 	listersv1alpha1 "github.com/argoproj/argo-cd/v2/pkg/client/listers/application/v1alpha1"
@@ -46,6 +48,14 @@ func (m *appStateManager) getOpenAPISchema(server string) (openapi.Resources, er
 	return cluster.GetOpenAPISchema(), nil
 }
 
+func (m *appStateManager) getGVKParser(server string) (*managedfields.GvkParser, error) {
+	cluster, err := m.liveStateCache.GetClusterCache(server)
+	if err != nil {
+		return nil, err
+	}
+	return cluster.GetGVKParser(), nil
+}
+
 func (m *appStateManager) SyncAppState(app *v1alpha1.Application, state *v1alpha1.OperationState) {
 	// Sync requests might be requested with ambiguous revisions (e.g. master, HEAD, v1.2.3).
 	// This can change meaning when resuming operations (e.g a hook sync). After calculating a
@@ -56,6 +66,8 @@ func (m *appStateManager) SyncAppState(app *v1alpha1.Application, state *v1alpha
 	var syncOp v1alpha1.SyncOperation
 	var syncRes *v1alpha1.SyncOperationResult
 	var source v1alpha1.ApplicationSource
+	var sources []v1alpha1.ApplicationSource
+	revisions := make([]string, 0)
 
 	if state.Operation.Sync == nil {
 		state.Phase = common.OperationFailed
@@ -73,44 +85,79 @@ func (m *appStateManager) SyncAppState(app *v1alpha1.Application, state *v1alpha
 		return
 	}
 
-	if syncOp.Source == nil {
-		// normal sync case (where source is taken from app.spec.source)
-		source = app.Spec.Source
+	if syncOp.Source == nil || (syncOp.Sources != nil && len(syncOp.Sources) > 0) {
+		// normal sync case (where source is taken from app.spec.sources)
+		if app.Spec.HasMultipleSources() {
+			sources = app.Spec.Sources
+		} else {
+			// normal sync case (where source is taken from app.spec.source)
+			source = app.Spec.GetSource()
+			sources = make([]v1alpha1.ApplicationSource, 0)
+		}
 	} else {
 		// rollback case
-		source = *state.Operation.Sync.Source
+		if app.Spec.HasMultipleSources() {
+			sources = state.Operation.Sync.Sources
+		} else {
+			source = *state.Operation.Sync.Source
+			sources = make([]v1alpha1.ApplicationSource, 0)
+		}
 	}
 
 	if state.SyncResult != nil {
 		syncRes = state.SyncResult
 		revision = state.SyncResult.Revision
+		revisions = append(revisions, state.SyncResult.Revisions...)
 	} else {
 		syncRes = &v1alpha1.SyncOperationResult{}
 		// status.operationState.syncResult.source. must be set properly since auto-sync relies
 		// on this information to decide if it should sync (if source is different than the last
 		// sync attempt)
-		syncRes.Source = source
+		if app.Spec.HasMultipleSources() {
+			syncRes.Sources = sources
+		} else {
+			syncRes.Source = source
+		}
 		state.SyncResult = syncRes
 	}
 
-	if revision == "" {
-		// if we get here, it means we did not remember a commit SHA which we should be syncing to.
-		// This typically indicates we are just about to begin a brand new sync/rollback operation.
-		// Take the value in the requested operation. We will resolve this to a SHA later.
-		revision = syncOp.Revision
+	// if we get here, it means we did not remember a commit SHA which we should be syncing to.
+	// This typically indicates we are just about to begin a brand new sync/rollback operation.
+	// Take the value in the requested operation. We will resolve this to a SHA later.
+	if app.Spec.HasMultipleSources() {
+		if len(revisions) != len(sources) {
+			revisions = syncOp.Revisions
+		}
+	} else {
+		if revision == "" {
+			revision = syncOp.Revision
+		}
 	}
 
-	proj, err := argo.GetAppProject(&app.Spec, listersv1alpha1.NewAppProjectLister(m.projInformer.GetIndexer()), m.namespace, m.settingsMgr, m.db, context.TODO())
+	proj, err := argo.GetAppProject(app, listersv1alpha1.NewAppProjectLister(m.projInformer.GetIndexer()), m.namespace, m.settingsMgr, m.db, context.TODO())
 	if err != nil {
 		state.Phase = common.OperationError
 		state.Message = fmt.Sprintf("Failed to load application project: %v", err)
 		return
 	}
 
-	compareResult := m.CompareAppState(app, proj, revision, source, false, true, syncOp.Manifests)
+	if app.Spec.HasMultipleSources() {
+		revisions = syncRes.Revisions
+	} else {
+		revisions = append(revisions, revision)
+	}
+
+	if !app.Spec.HasMultipleSources() {
+		sources = []v1alpha1.ApplicationSource{source}
+		revisions = []string{revision}
+	}
+
+	compareResult := m.CompareAppState(app, proj, revisions, sources, false, true, syncOp.Manifests, app.Spec.HasMultipleSources())
 	// We now have a concrete commit SHA. Save this in the sync result revision so that we remember
 	// what we should be syncing to when resuming operations.
+
 	syncRes.Revision = compareResult.syncStatus.Revision
+	syncRes.Revisions = compareResult.syncStatus.Revisions
 
 	// If there are any comparison or spec errors error conditions do not perform the operation
 	if errConditions := app.Status.GetConditions(map[v1alpha1.ApplicationConditionType]bool{
@@ -140,9 +187,15 @@ func (m *appStateManager) SyncAppState(app *v1alpha1.Application, state *v1alpha
 	}
 
 	atomic.AddUint64(&syncIdPrefix, 1)
-	syncId := fmt.Sprintf("%05d-%s", syncIdPrefix, rand.RandString(5))
+	randSuffix, err := rand.String(5)
+	if err != nil {
+		state.Phase = common.OperationError
+		state.Message = fmt.Sprintf("Failed generate random sync ID: %v", err)
+		return
+	}
+	syncId := fmt.Sprintf("%05d-%s", syncIdPrefix, randSuffix)
 
-	logEntry := log.WithFields(log.Fields{"application": app.Name, "syncId": syncId})
+	logEntry := log.WithFields(log.Fields{"application": app.QualifiedName(), "syncId": syncId})
 	initialResourcesRes := make([]common.ResourceSyncResult, 0)
 	for i, res := range syncRes.Resources {
 		key := kube.ResourceKey{Group: res.Group, Kind: res.Kind, Namespace: res.Namespace, Name: res.Name}
@@ -190,6 +243,56 @@ func (m *appStateManager) SyncAppState(app *v1alpha1.Application, state *v1alpha
 		reconciliationResult.Target = patchedTargets
 	}
 
+	appLabelKey, err := m.settingsMgr.GetAppInstanceLabelKey()
+	if err != nil {
+		log.Errorf("Could not get appInstanceLabelKey: %v", err)
+		return
+	}
+	trackingMethod := argo.GetTrackingMethod(m.settingsMgr)
+
+	opts := []sync.SyncOpt{
+		sync.WithLogr(logutils.NewLogrusLogger(logEntry)),
+		sync.WithHealthOverride(lua.ResourceHealthOverrides(resourceOverrides)),
+		sync.WithPermissionValidator(func(un *unstructured.Unstructured, res *v1.APIResource) error {
+			if !proj.IsGroupKindPermitted(un.GroupVersionKind().GroupKind(), res.Namespaced) {
+				return fmt.Errorf("resource %s:%s is not permitted in project %s", un.GroupVersionKind().Group, un.GroupVersionKind().Kind, proj.Name)
+			}
+			if res.Namespaced {
+				permitted, err := proj.IsDestinationPermitted(v1alpha1.ApplicationDestination{Namespace: un.GetNamespace(), Server: app.Spec.Destination.Server, Name: app.Spec.Destination.Name}, func(project string) ([]*v1alpha1.Cluster, error) {
+					return m.db.GetProjectClusters(context.TODO(), project)
+				})
+
+				if err != nil {
+					return err
+				}
+
+				if !permitted {
+					return fmt.Errorf("namespace %v is not permitted in project '%s'", un.GetNamespace(), proj.Name)
+				}
+			}
+			return nil
+		}),
+		sync.WithOperationSettings(syncOp.DryRun, syncOp.Prune, syncOp.SyncStrategy.Force(), syncOp.IsApplyStrategy() || len(syncOp.Resources) > 0),
+		sync.WithInitialState(state.Phase, state.Message, initialResourcesRes, state.StartedAt),
+		sync.WithResourcesFilter(func(key kube.ResourceKey, target *unstructured.Unstructured, live *unstructured.Unstructured) bool {
+			return (len(syncOp.Resources) == 0 ||
+				argo.ContainsSyncResource(key.Name, key.Namespace, schema.GroupVersionKind{Kind: key.Kind, Group: key.Group}, syncOp.Resources)) &&
+				m.isSelfReferencedObj(live, target, app.GetName(), appLabelKey, trackingMethod)
+		}),
+		sync.WithManifestValidation(!syncOp.SyncOptions.HasOption(common.SyncOptionsDisableValidation)),
+		sync.WithSyncWaveHook(delayBetweenSyncWaves),
+		sync.WithPruneLast(syncOp.SyncOptions.HasOption(common.SyncOptionPruneLast)),
+		sync.WithResourceModificationChecker(syncOp.SyncOptions.HasOption("ApplyOutOfSyncOnly=true"), compareResult.diffResultList),
+		sync.WithPrunePropagationPolicy(&prunePropagationPolicy),
+		sync.WithReplace(syncOp.SyncOptions.HasOption(common.SyncOptionReplace)),
+		sync.WithServerSideApply(syncOp.SyncOptions.HasOption(common.SyncOptionServerSideApply)),
+		sync.WithServerSideApplyManager(cdcommon.ArgoCDSSAManager),
+	}
+
+	if syncOp.SyncOptions.HasOption("CreateNamespace=true") {
+		opts = append(opts, sync.WithNamespaceModifier(syncNamespace(m.resourceTracking, appLabelKey, trackingMethod, app.Name, app.Spec.SyncPolicy)))
+	}
+
 	syncCtx, cleanup, err := sync.NewSyncContext(
 		compareResult.syncStatus.Revision,
 		reconciliationResult,
@@ -198,35 +301,7 @@ func (m *appStateManager) SyncAppState(app *v1alpha1.Application, state *v1alpha
 		m.kubectl,
 		app.Spec.Destination.Namespace,
 		openAPISchema,
-		sync.WithLogr(logutils.NewLogrusLogger(logEntry)),
-		sync.WithHealthOverride(lua.ResourceHealthOverrides(resourceOverrides)),
-		sync.WithPermissionValidator(func(un *unstructured.Unstructured, res *v1.APIResource) error {
-			if !proj.IsGroupKindPermitted(un.GroupVersionKind().GroupKind(), res.Namespaced) {
-				return fmt.Errorf("Resource %s:%s is not permitted in project %s.", un.GroupVersionKind().Group, un.GroupVersionKind().Kind, proj.Name)
-			}
-			if res.Namespaced && !proj.IsDestinationPermitted(v1alpha1.ApplicationDestination{Namespace: un.GetNamespace(), Server: app.Spec.Destination.Server, Name: app.Spec.Destination.Name}) {
-				return fmt.Errorf("namespace %v is not permitted in project '%s'", un.GetNamespace(), proj.Name)
-			}
-			return nil
-		}),
-		sync.WithOperationSettings(syncOp.DryRun, syncOp.Prune, syncOp.SyncStrategy.Force(), syncOp.IsApplyStrategy() || len(syncOp.Resources) > 0),
-		sync.WithInitialState(state.Phase, state.Message, initialResourcesRes, state.StartedAt),
-		sync.WithResourcesFilter(func(key kube.ResourceKey, target *unstructured.Unstructured, live *unstructured.Unstructured) bool {
-			return len(syncOp.Resources) == 0 || argo.ContainsSyncResource(key.Name, key.Namespace, schema.GroupVersionKind{Kind: key.Kind, Group: key.Group}, syncOp.Resources)
-		}),
-		sync.WithManifestValidation(!syncOp.SyncOptions.HasOption(common.SyncOptionsDisableValidation)),
-		sync.WithNamespaceCreation(syncOp.SyncOptions.HasOption("CreateNamespace=true"), func(un *unstructured.Unstructured) bool {
-			if un != nil && kube.GetAppInstanceLabel(un, cdcommon.LabelKeyAppInstance) != "" {
-				kube.UnsetLabel(un, cdcommon.LabelKeyAppInstance)
-				return true
-			}
-			return false
-		}),
-		sync.WithSyncWaveHook(delayBetweenSyncWaves),
-		sync.WithPruneLast(syncOp.SyncOptions.HasOption(common.SyncOptionPruneLast)),
-		sync.WithResourceModificationChecker(syncOp.SyncOptions.HasOption("ApplyOutOfSyncOnly=true"), compareResult.diffResultList),
-		sync.WithPrunePropagationPolicy(&prunePropagationPolicy),
-		sync.WithReplace(syncOp.SyncOptions.HasOption(common.SyncOptionReplace)),
+		opts...,
 	)
 
 	if err != nil {
@@ -265,7 +340,7 @@ func (m *appStateManager) SyncAppState(app *v1alpha1.Application, state *v1alpha
 	logEntry.WithField("duration", time.Since(start)).Info("sync/terminate complete")
 
 	if !syncOp.DryRun && len(syncOp.Resources) == 0 && state.Phase.Successful() {
-		err := m.persistRevisionHistory(app, compareResult.syncStatus.Revision, source, state.StartedAt)
+		err := m.persistRevisionHistory(app, compareResult.syncStatus.Revision, source, compareResult.syncStatus.Revisions, compareResult.syncStatus.ComparedTo.Sources, app.Spec.HasMultipleSources(), state.StartedAt)
 		if err != nil {
 			state.Phase = common.OperationError
 			state.Message = fmt.Sprintf("failed to record sync to history: %v", err)

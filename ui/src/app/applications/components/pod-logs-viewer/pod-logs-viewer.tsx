@@ -1,4 +1,4 @@
-import {DataLoader, DropDownMenu, Tooltip} from 'argo-ui';
+import {DataLoader, DropDownMenu, Tooltip, Checkbox} from 'argo-ui';
 import * as classNames from 'classnames';
 import * as React from 'react';
 import {useState} from 'react';
@@ -15,6 +15,7 @@ import './pod-logs-viewer.scss';
 const maxLines = 100;
 export interface PodLogsProps {
     namespace: string;
+    applicationNamespace: string;
     applicationName: string;
     podName?: string;
     containerName: string;
@@ -25,11 +26,12 @@ export interface PodLogsProps {
     timestamp?: string;
     setPage: (pageData: {number: number; untilTimes: string[]}) => void;
     containerGroups?: any[];
-    onClickContainer?: (group: any, i: number) => any;
+    onClickContainer?: (group: any, i: number, tab: string) => any;
 }
 
 export const PodsLogsViewer = (props: PodLogsProps & {fullscreen?: boolean}) => {
-    if (!props.containerName || props.containerName === '') {
+    const {containerName, onClickContainer} = props;
+    if (!containerName || containerName === '') {
         return <div>Pod does not have container with name {props.containerName}</div>;
     }
 
@@ -55,7 +57,7 @@ export const PodsLogsViewer = (props: PodLogsProps & {fullscreen?: boolean}) => 
             group.containers.forEach((container: any, index: number) => {
                 const title = (
                     <div className='d-inline-block'>
-                        <i className={`fa fa-angle-right ${container.name === props.containerName ? '' : 'invisible'}`} />
+                        {container.name === containerName && <i className='fa fa-angle-right' />}
                         <span title={container.name} className='container-item'>
                             {container.name.toUpperCase()}
                         </span>
@@ -63,7 +65,7 @@ export const PodsLogsViewer = (props: PodLogsProps & {fullscreen?: boolean}) => 
                 );
                 containerItems.push({
                     title,
-                    action: () => (container.name === props.containerName ? {} : props.onClickContainer(group, index))
+                    action: () => (container.name === containerName ? {} : onClickContainer(group, index, 'logs'))
                 });
             });
         });
@@ -111,7 +113,7 @@ export const PodsLogsViewer = (props: PodLogsProps & {fullscreen?: boolean}) => 
     };
 
     const fullscreenURL =
-        `/applications/${props.applicationName}/${props.namespace}/${props.containerName}/logs?` +
+        `/applications/${props.applicationNamespace}/${props.applicationName}/${props.namespace}/${props.containerName}/logs?` +
         `podName=${props.podName}&group=${props.group}&kind=${props.kind}&name=${props.name}`;
     return (
         <DataLoader load={() => services.viewPreferences.getPreferences()}>
@@ -164,6 +166,7 @@ export const PodsLogsViewer = (props: PodLogsProps & {fullscreen?: boolean}) => 
                                 onClick={async () => {
                                     const downloadURL = services.applications.getDownloadLogsURL(
                                         props.applicationName,
+                                        props.applicationNamespace,
                                         props.namespace,
                                         props.podName,
                                         {group: props.group, kind: props.kind, name: props.name},
@@ -188,7 +191,7 @@ export const PodsLogsViewer = (props: PodLogsProps & {fullscreen?: boolean}) => 
                         )}
                         <Tooltip content='Follow'>
                             <button
-                                className={classNames(`argo-button argo-button--base${prefs.appDetails.followLogs && page.number === 0 ? '' : '-o'}`, {
+                                className={classNames(`argo-button argo-button--base-o`, {
                                     disabled: page.number > 0
                                 })}
                                 onClick={() => {
@@ -202,29 +205,30 @@ export const PodsLogsViewer = (props: PodLogsProps & {fullscreen?: boolean}) => 
                                     }
                                     loader.reload();
                                 }}>
+                                <Checkbox checked={prefs.appDetails.followLogs} />
                                 <i className='fa fa-arrow-right' />
-                                {prefs.appDetails.followLogs && <i className='fa fa-check' />}
                             </button>
                         </Tooltip>
                         <Tooltip content='Wrap Lines'>
                             <button
-                                className={`argo-button argo-button--base${prefs.appDetails.wrapLines ? '' : '-o'}`}
+                                className={`argo-button argo-button--base-o`}
                                 onClick={() => {
                                     const wrap = prefs.appDetails.wrapLines;
                                     services.viewPreferences.updatePreferences({...prefs, appDetails: {...prefs.appDetails, wrapLines: !wrap}});
                                 }}>
+                                <Checkbox checked={prefs.appDetails.wrapLines} />
                                 <i className='fa fa-paragraph' />
                             </button>
                         </Tooltip>
                         <Tooltip content='Show previous logs'>
                             <button
-                                className={`argo-button argo-button--base${showPreviousLogs ? '' : '-o'}`}
+                                className={`argo-button argo-button--base-o`}
                                 onClick={() => {
                                     setPreviousLogs(!showPreviousLogs);
                                     loader.reload();
                                 }}>
+                                <Checkbox checked={showPreviousLogs} />
                                 <i className='fa fa-backward' />
-                                {showPreviousLogs && <i className='fa fa-check' />}
                             </button>
                         </Tooltip>
                         <Tooltip content={prefs.appDetails.darkMode ? 'Light Mode' : 'Dark Mode'}>
@@ -240,13 +244,14 @@ export const PodsLogsViewer = (props: PodLogsProps & {fullscreen?: boolean}) => 
                         {!props.timestamp && (
                             <Tooltip content={viewTimestamps ? 'Hide timestamps' : 'Show timestamps'}>
                                 <button
-                                    className={classNames('argo-button', {'argo-button--base': viewTimestamps, 'argo-button--base-o': !viewTimestamps})}
+                                    className={'argo-button argo-button--base-o'}
                                     onClick={() => {
                                         setViewTimestamps(!viewTimestamps);
                                         if (viewPodNames) {
                                             setViewPodNames(false);
                                         }
                                     }}>
+                                    <Checkbox checked={viewTimestamps} />
                                     <i className='fa fa-clock' />
                                 </button>
                             </Tooltip>
@@ -264,15 +269,16 @@ export const PodsLogsViewer = (props: PodLogsProps & {fullscreen?: boolean}) => 
                         <div className='pod-logs-viewer__filter'>
                             <Tooltip content={`Show lines that ${!filter.inverse ? '' : 'do not'} match filter`}>
                                 <button
-                                    className={`argo-button argo-button--base${filter.inverse ? '' : '-o'}`}
+                                    className={`argo-button argo-button--base-o`}
                                     onClick={() => setFilter({...filter, inverse: !filter.inverse})}
                                     style={{marginRight: '10px'}}>
-                                    !
+                                    <Checkbox checked={filter.inverse} />
+                                    <span>!</span>
                                 </button>
                             </Tooltip>
                             <input
                                 type='text'
-                                placeholder='Filter string'
+                                placeholder={`Filter ${filter.inverse ? 'out' : ''} string`}
                                 className='argo-field'
                                 value={filterText}
                                 onChange={e => setFilterText(e.target.value)}
@@ -293,6 +299,7 @@ export const PodsLogsViewer = (props: PodLogsProps & {fullscreen?: boolean}) => 
                             let logsSource = services.applications
                                 .getContainerLogs(
                                     props.applicationName,
+                                    props.applicationNamespace,
                                     props.namespace,
                                     props.podName,
                                     {group: props.group, kind: props.kind, name: props.name},

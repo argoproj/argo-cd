@@ -5,7 +5,7 @@ import * as models from '../models';
 import {services} from '../services';
 
 export const clusterName = (name: string | null) => {
-    return name || 'in-cluster';
+    return name || 'Unknown';
 };
 
 export const clusterTitle = (cluster: models.Cluster) => {

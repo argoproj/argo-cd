@@ -4,10 +4,11 @@ import (
 	"fmt"
 	"reflect"
 
+	"context"
+
 	"github.com/argoproj/gitops-engine/pkg/utils/kube"
 	"github.com/argoproj/gitops-engine/pkg/utils/text"
 	log "github.com/sirupsen/logrus"
-	"golang.org/x/net/context"
 	"google.golang.org/grpc/codes"
 	"google.golang.org/grpc/status"
 	apierr "k8s.io/apimachinery/pkg/api/errors"
@@ -35,7 +36,7 @@ type Server struct {
 	repoClientset apiclient.Clientset
 	enf           *rbac.Enforcer
 	cache         *servercache.Cache
-	appLister     applisters.ApplicationNamespaceLister
+	appLister     applisters.ApplicationLister
 	projLister    applisters.AppProjectNamespaceLister
 	settings      *settings.SettingsManager
 }
@@ -46,7 +47,7 @@ func NewServer(
 	db db.ArgoDB,
 	enf *rbac.Enforcer,
 	cache *servercache.Cache,
-	appLister applisters.ApplicationNamespaceLister,
+	appLister applisters.ApplicationLister,
 	projLister applisters.AppProjectNamespaceLister,
 	settings *settings.SettingsManager,
 ) *Server {
@@ -287,8 +288,8 @@ func (s *Server) GetAppDetails(ctx context.Context, q *repositorypkg.RepoAppDeta
 	if err := s.enf.EnforceErr(claims, rbacpolicy.ResourceRepositories, rbacpolicy.ActionGet, createRBACObject(repo.Project, repo.Repo)); err != nil {
 		return nil, err
 	}
-
-	app, err := s.appLister.Get(q.AppName)
+	appName, appNs := argo.ParseAppQualifiedName(q.AppName, s.settings.GetNamespace())
+	app, err := s.appLister.Applications(appNs).Get(appName)
 	appRBACObj := createRBACObject(q.AppProject, q.AppName)
 	// ensure caller has read privileges to app
 	if err := s.enf.EnforceErr(claims, rbacpolicy.ResourceApplications, rbacpolicy.ActionGet, appRBACObj); err != nil {
@@ -505,6 +506,7 @@ func (s *Server) ValidateAccess(ctx context.Context, q *repositorypkg.RepoAccess
 		GithubAppInstallationId:    q.GithubAppInstallationID,
 		GitHubAppEnterpriseBaseURL: q.GithubAppEnterpriseBaseUrl,
 		Proxy:                      q.Proxy,
+		GCPServiceAccountKey:       q.GcpServiceAccountKey,
 	}
 
 	// If repo does not have credentials, check if there are credentials stored
@@ -552,7 +554,7 @@ func (s *Server) isRepoPermittedInProject(repo string, projName string) error {
 // isSourceInHistory checks if the supplied application source is either our current application
 // source, or was something which we synced to previously.
 func isSourceInHistory(app *v1alpha1.Application, source v1alpha1.ApplicationSource) bool {
-	if source.Equals(app.Spec.Source) {
+	if source.Equals(app.Spec.GetSource()) {
 		return true
 	}
 	// Iterate history. When comparing items in our history, use the actual synced revision to

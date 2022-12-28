@@ -24,8 +24,7 @@ You will need at least the following things in your toolchain in order to develo
 
 * A Kubernetes cluster. You won't need a fully blown multi-master, multi-node cluster, but you will need something like K3S, Minikube or microk8s. You will also need a working Kubernetes client (`kubectl`) configuration in your development environment. The configuration must reside in `~/.kube/config` and the API server URL must point to the IP address of your local machine (or VM), and **not** to `localhost` or `127.0.0.1` if you are using the virtualized development toolchain (see below)
 
-* You will also need a working Docker runtime environment, to be able to build and run images.
-The Docker version must be fairly recent, and support multi-stage builds. You should not work as root. Make your local user a member of the `docker` group to be able to control the Docker service on your machine.
+* You will also need a working Docker runtime environment, to be able to build and run images. The Docker version must be 17.05.0 or higher, to support multi-stage builds. 
 
 * Obviously, you will need a `git` client for pulling source code and pushing back your changes.
 

@@ -26,6 +26,7 @@ type SCMProviderService interface {
 type Filter struct {
 	RepositoryMatch *regexp.Regexp
 	PathsExist      []string
+	PathsDoNotExist []string
 	LabelMatch      *regexp.Regexp
 	BranchMatch     *regexp.Regexp
 	FilterType      FilterType

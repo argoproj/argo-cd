@@ -19,7 +19,8 @@ import (
 
 // make sure we can echo back the Git creds
 func TestCustomToolWithGitCreds(t *testing.T) {
-	Given(t).
+	ctx := Given(t)
+	ctx.
 		// path does not matter, we ignore it
 		ConfigManagementPlugin(
 			ConfigManagementPlugin{
@@ -43,7 +44,7 @@ func TestCustomToolWithGitCreds(t *testing.T) {
 		Expect(SyncStatusIs(SyncStatusCodeSynced)).
 		Expect(HealthIs(health.HealthStatusHealthy)).
 		And(func(app *Application) {
-			output, err := Run("", "kubectl", "-n", DeploymentNamespace(), "get", "cm", Name(), "-o", "jsonpath={.metadata.annotations.GitAskpass}")
+			output, err := Run("", "kubectl", "-n", DeploymentNamespace(), "get", "cm", ctx.AppName(), "-o", "jsonpath={.metadata.annotations.GitAskpass}")
 			assert.NoError(t, err)
 			assert.Equal(t, "argocd", output)
 		})
@@ -51,7 +52,8 @@ func TestCustomToolWithGitCreds(t *testing.T) {
 
 // make sure we can echo back the Git creds
 func TestCustomToolWithGitCredsTemplate(t *testing.T) {
-	Given(t).
+	ctx := Given(t)
+	ctx.
 		// path does not matter, we ignore it
 		ConfigManagementPlugin(
 			ConfigManagementPlugin{
@@ -77,71 +79,33 @@ func TestCustomToolWithGitCredsTemplate(t *testing.T) {
 		Expect(SyncStatusIs(SyncStatusCodeSynced)).
 		Expect(HealthIs(health.HealthStatusHealthy)).
 		And(func(app *Application) {
-			output, err := Run("", "kubectl", "-n", DeploymentNamespace(), "get", "cm", Name(), "-o", "jsonpath={.metadata.annotations.GitAskpass}")
+			output, err := Run("", "kubectl", "-n", DeploymentNamespace(), "get", "cm", ctx.AppName(), "-o", "jsonpath={.metadata.annotations.GitAskpass}")
 			assert.NoError(t, err)
 			assert.Equal(t, "argocd", output)
 		}).
 		And(func(app *Application) {
-			output, err := Run("", "kubectl", "-n", DeploymentNamespace(), "get", "cm", Name(), "-o", "jsonpath={.metadata.annotations.GitUsername}")
+			output, err := Run("", "kubectl", "-n", DeploymentNamespace(), "get", "cm", ctx.AppName(), "-o", "jsonpath={.metadata.annotations.GitUsername}")
 			assert.NoError(t, err)
 			assert.Empty(t, output)
 		}).
 		And(func(app *Application) {
-			output, err := Run("", "kubectl", "-n", DeploymentNamespace(), "get", "cm", Name(), "-o", "jsonpath={.metadata.annotations.GitPassword}")
+			output, err := Run("", "kubectl", "-n", DeploymentNamespace(), "get", "cm", ctx.AppName(), "-o", "jsonpath={.metadata.annotations.GitPassword}")
 			assert.NoError(t, err)
 			assert.Empty(t, output)
-		})
-}
-
-// make sure we can read the Git creds stored in a temporary file
-func TestCustomToolWithSSHGitCreds(t *testing.T) {
-	Given(t).
-		// path does not matter, we ignore it
-		ConfigManagementPlugin(
-			ConfigManagementPlugin{
-				Name: Name(),
-				Generate: Command{
-					Command: []string{"sh", "-c"},
-					Args:    []string{`echo "{\"kind\": \"ConfigMap\", \"apiVersion\": \"v1\", \"metadata\": { \"name\": \"$ARGOCD_APP_NAME\", \"namespace\": \"$ARGOCD_APP_NAMESPACE\", \"annotations\": {\"GitSSHCommand\":\"$GIT_SSH_COMMAND\",\"GitSSHCredsFileSHA\": \"$(sha256sum $(echo "$GIT_SSH_COMMAND" | grep -oP '\-i \K[/\w]+'))\"}}}"`},
-				},
-			},
-		).
-		CustomCACertAdded().
-		// add the private repo with ssh credentials
-		CustomSSHKnownHostsAdded().
-		SSHRepoURLAdded(true).
-		RepoURLType(RepoURLTypeSSH).
-		Path("guestbook").
-		When().
-		CreateApp().
-		Sync().
-		Then().
-		Timeout(30).
-		Expect(OperationPhaseIs(OperationSucceeded)).
-		Expect(SyncStatusIs(SyncStatusCodeSynced)).
-		Expect(HealthIs(health.HealthStatusHealthy)).
-		And(func(app *Application) {
-			output, err := Run("", "kubectl", "-n", DeploymentNamespace(), "get", "cm", Name(), "-o", "jsonpath={.metadata.annotations.GitSSHCommand}")
-			assert.NoError(t, err)
-			assert.Regexp(t, `-i [^ ]+`, output, "test plugin expects $GIT_SSH_COMMAND to contain the option '-i <path to ssh private key>'")
-		}).
-		And(func(app *Application) {
-			output, err := Run("", "kubectl", "-n", DeploymentNamespace(), "get", "cm", Name(), "-o", "jsonpath={.metadata.annotations.GitSSHCredsFileSHA}")
-			assert.NoError(t, err)
-			assert.Regexp(t, `\w+\s+[\/\w]+`, output, "git ssh credentials file should be able to be read, hashing the contents")
 		})
 }
 
 // make sure we can echo back the env
 func TestCustomToolWithEnv(t *testing.T) {
-	Given(t).
+	ctx := Given(t)
+	ctx.
 		// path does not matter, we ignore it
 		ConfigManagementPlugin(
 			ConfigManagementPlugin{
 				Name: Name(),
 				Generate: Command{
 					Command: []string{"sh", "-c"},
-					Args:    []string{`echo "{\"kind\": \"ConfigMap\", \"apiVersion\": \"v1\", \"metadata\": { \"name\": \"$ARGOCD_APP_NAME\", \"namespace\": \"$ARGOCD_APP_NAMESPACE\", \"annotations\": {\"Foo\": \"$FOO\", \"KubeVersion\": \"$KUBE_VERSION\", \"KubeApiVersion\": \"$KUBE_API_VERSIONS\",\"Bar\": \"baz\"}}}"`},
+					Args:    []string{`echo "{\"kind\": \"ConfigMap\", \"apiVersion\": \"v1\", \"metadata\": { \"name\": \"$ARGOCD_APP_NAME\", \"namespace\": \"$ARGOCD_APP_NAMESPACE\", \"annotations\": {\"Foo\": \"$ARGOCD_ENV_FOO\", \"KubeVersion\": \"$KUBE_VERSION\", \"KubeApiVersion\": \"$KUBE_API_VERSIONS\",\"Bar\": \"baz\"}}}"`},
 				},
 			},
 		).
@@ -149,7 +113,7 @@ func TestCustomToolWithEnv(t *testing.T) {
 		Path("guestbook").
 		When().
 		CreateFromFile(func(app *Application) {
-			app.Spec.Source.Plugin.Env = Env{{
+			app.Spec.GetSource().Plugin.Env = Env{{
 				Name:  "FOO",
 				Value: "bar",
 			}}
@@ -163,18 +127,18 @@ func TestCustomToolWithEnv(t *testing.T) {
 			time.Sleep(1 * time.Second)
 		}).
 		And(func(app *Application) {
-			output, err := Run("", "kubectl", "-n", DeploymentNamespace(), "get", "cm", Name(), "-o", "jsonpath={.metadata.annotations.Bar}")
+			output, err := Run("", "kubectl", "-n", DeploymentNamespace(), "get", "cm", ctx.AppName(), "-o", "jsonpath={.metadata.annotations.Bar}")
 			assert.NoError(t, err)
 			assert.Equal(t, "baz", output)
 		}).
 		And(func(app *Application) {
-			output, err := Run("", "kubectl", "-n", DeploymentNamespace(), "get", "cm", Name(), "-o", "jsonpath={.metadata.annotations.Foo}")
+			output, err := Run("", "kubectl", "-n", DeploymentNamespace(), "get", "cm", ctx.AppName(), "-o", "jsonpath={.metadata.annotations.Foo}")
 			assert.NoError(t, err)
 			assert.Equal(t, "bar", output)
 		}).
 		And(func(app *Application) {
 			expectedKubeVersion := GetVersions().ServerVersion.Format("%s.%s")
-			output, err := Run("", "kubectl", "-n", DeploymentNamespace(), "get", "cm", Name(), "-o", "jsonpath={.metadata.annotations.KubeVersion}")
+			output, err := Run("", "kubectl", "-n", DeploymentNamespace(), "get", "cm", ctx.AppName(), "-o", "jsonpath={.metadata.annotations.KubeVersion}")
 			assert.NoError(t, err)
 			assert.Equal(t, expectedKubeVersion, output)
 		}).
@@ -183,7 +147,7 @@ func TestCustomToolWithEnv(t *testing.T) {
 			expectedApiVersionSlice := strings.Split(expectedApiVersion, ",")
 			sort.Strings(expectedApiVersionSlice)
 
-			output, err := Run("", "kubectl", "-n", DeploymentNamespace(), "get", "cm", Name(), "-o", "jsonpath={.metadata.annotations.KubeApiVersion}")
+			output, err := Run("", "kubectl", "-n", DeploymentNamespace(), "get", "cm", ctx.AppName(), "-o", "jsonpath={.metadata.annotations.KubeApiVersion}")
 			assert.NoError(t, err)
 			outputSlice := strings.Split(output, ",")
 			sort.Strings(outputSlice)
@@ -194,21 +158,22 @@ func TestCustomToolWithEnv(t *testing.T) {
 
 //make sure we can sync and diff with --local
 func TestCustomToolSyncAndDiffLocal(t *testing.T) {
-	Given(t).
+	ctx := Given(t)
+	ctx.
 		// path does not matter, we ignore it
 		ConfigManagementPlugin(
 			ConfigManagementPlugin{
 				Name: Name(),
 				Generate: Command{
 					Command: []string{"sh", "-c"},
-					Args:    []string{`echo "{\"kind\": \"ConfigMap\", \"apiVersion\": \"v1\", \"metadata\": { \"name\": \"$ARGOCD_APP_NAME\", \"namespace\": \"$ARGOCD_APP_NAMESPACE\", \"annotations\": {\"Foo\": \"$FOO\", \"KubeVersion\": \"$KUBE_VERSION\", \"KubeApiVersion\": \"$KUBE_API_VERSIONS\",\"Bar\": \"baz\"}}}"`},
+					Args:    []string{`echo "{\"kind\": \"ConfigMap\", \"apiVersion\": \"v1\", \"metadata\": { \"name\": \"$ARGOCD_APP_NAME\", \"namespace\": \"$ARGOCD_APP_NAMESPACE\", \"annotations\": {\"Foo\": \"$ARGOCD_ENV_FOO\", \"KubeVersion\": \"$KUBE_VERSION\", \"KubeApiVersion\": \"$KUBE_API_VERSIONS\",\"Bar\": \"baz\"}}}"`},
 				},
 			},
 		).
 		// does not matter what the path is
 		Path("guestbook").
 		When().
-		CreateApp("--config-management-plugin", Name()).
+		CreateApp("--config-management-plugin", ctx.AppName()).
 		Sync("--local", "testdata/guestbook").
 		Then().
 		Expect(OperationPhaseIs(OperationSucceeded)).
@@ -218,10 +183,10 @@ func TestCustomToolSyncAndDiffLocal(t *testing.T) {
 			time.Sleep(1 * time.Second)
 		}).
 		And(func(app *Application) {
-			FailOnErr(RunCli("app", "sync", app.Name, "--local", "testdata/guestbook"))
+			FailOnErr(RunCli("app", "sync", ctx.AppName(), "--local", "testdata/guestbook"))
 		}).
 		And(func(app *Application) {
-			FailOnErr(RunCli("app", "diff", app.Name, "--local", "testdata/guestbook"))
+			FailOnErr(RunCli("app", "diff", ctx.AppName(), "--local", "testdata/guestbook"))
 		})
 }
 
@@ -275,10 +240,32 @@ func TestCMPDiscoverWithFindGlob(t *testing.T) {
 		Expect(HealthIs(health.HealthStatusHealthy))
 }
 
+//Discover by Plugin Name
+func TestCMPDiscoverWithPluginName(t *testing.T) {
+	Given(t).
+		And(func() {
+			go startCMPServer("./testdata/cmp-find-glob")
+			time.Sleep(1 * time.Second)
+			os.Setenv("ARGOCD_BINARY_NAME", "argocd")
+		}).
+		Path("guestbook").
+		When().
+		CreateFromFile(func(app *Application) {
+			// specifically mention the plugin to use (name is based on <plugin name>-<version>
+			app.Spec.Source.Plugin = &ApplicationSourcePlugin{Name: "cmp-find-glob-v1.0"}
+		}).
+		Sync().
+		Then().
+		Expect(OperationPhaseIs(OperationSucceeded)).
+		Expect(SyncStatusIs(SyncStatusCodeSynced)).
+		Expect(HealthIs(health.HealthStatusHealthy))
+}
+
 //Discover by Find command
 func TestCMPDiscoverWithFindCommandWithEnv(t *testing.T) {
 	pluginName := "cmp-find-command"
-	Given(t).
+	ctx := Given(t)
+	ctx.
 		And(func() {
 			go startCMPServer("./testdata/cmp-find-command")
 			time.Sleep(1 * time.Second)
@@ -296,13 +283,13 @@ func TestCMPDiscoverWithFindCommandWithEnv(t *testing.T) {
 			time.Sleep(1 * time.Second)
 		}).
 		And(func(app *Application) {
-			output, err := Run("", "kubectl", "-n", DeploymentNamespace(), "get", "cm", Name(), "-o", "jsonpath={.metadata.annotations.Bar}")
+			output, err := Run("", "kubectl", "-n", DeploymentNamespace(), "get", "cm", ctx.AppName(), "-o", "jsonpath={.metadata.annotations.Bar}")
 			assert.NoError(t, err)
 			assert.Equal(t, "baz", output)
 		}).
 		And(func(app *Application) {
 			expectedKubeVersion := GetVersions().ServerVersion.Format("%s.%s")
-			output, err := Run("", "kubectl", "-n", DeploymentNamespace(), "get", "cm", Name(), "-o", "jsonpath={.metadata.annotations.KubeVersion}")
+			output, err := Run("", "kubectl", "-n", DeploymentNamespace(), "get", "cm", ctx.AppName(), "-o", "jsonpath={.metadata.annotations.KubeVersion}")
 			assert.NoError(t, err)
 			assert.Equal(t, expectedKubeVersion, output)
 		}).
@@ -311,7 +298,7 @@ func TestCMPDiscoverWithFindCommandWithEnv(t *testing.T) {
 			expectedApiVersionSlice := strings.Split(expectedApiVersion, ",")
 			sort.Strings(expectedApiVersionSlice)
 
-			output, err := Run("", "kubectl", "-n", DeploymentNamespace(), "get", "cm", Name(), "-o", "jsonpath={.metadata.annotations.KubeApiVersion}")
+			output, err := Run("", "kubectl", "-n", DeploymentNamespace(), "get", "cm", ctx.AppName(), "-o", "jsonpath={.metadata.annotations.KubeApiVersion}")
 			assert.NoError(t, err)
 			outputSlice := strings.Split(output, ",")
 			sort.Strings(outputSlice)

@@ -46,7 +46,7 @@ Transforms given GIT URL into HTTPs format.
 <hr>
 **`repo.FullNameByRepoURL(url string) string`**
 
-Returns repository URL full name `(<owner>/<repoName>)`. Currently supports only Github, Gitlab and Bitbucket.
+Returns repository URL full name `(<owner>/<repoName>)`. Currently supports only Github, GitLab and Bitbucket.
 
 <hr>
 **`repo.GetCommitMetadata(sha string) CommitMetadata`**
@@ -55,7 +55,7 @@ Returns commit metadata. The commit must belong to the application source reposi
 
 * `Message string` commit message
 * `Author string` - commit author
-* `Date time.Time` - commit creation date  
+* `Date time.Time` - commit creation date
 * `Tags []string` - Associated tags
 
 <hr>

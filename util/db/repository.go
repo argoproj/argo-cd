@@ -1,11 +1,11 @@
 package db
 
 import (
+	"context"
 	"fmt"
 	"hash/fnv"
 
 	log "github.com/sirupsen/logrus"
-	"golang.org/x/net/context"
 	"google.golang.org/grpc/codes"
 	"google.golang.org/grpc/status"
 	apiv1 "k8s.io/api/core/v1"
@@ -32,6 +32,8 @@ const (
 	tlsClientCertKey = "tlsClientCertKey"
 	// The name of the key storing the GitHub App private key in the secret
 	githubAppPrivateKey = "githubAppPrivateKey"
+	// The name of the key storing the service account to access Google Cloud Source repositories
+	gcpServiceAccountKey = "gcpServiceAccountKey"
 )
 
 // repositoryBackend defines the API for types that wish to provide interaction with repository storage

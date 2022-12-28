@@ -3,7 +3,6 @@
 Argo CD is un-opinionated about how secrets are managed. There's many ways to do it and there's no one-size-fits-all solution. Here's some ways people are doing GitOps secrets:
 
 * [Bitnami Sealed Secrets](https://github.com/bitnami-labs/sealed-secrets)
-* [GoDaddy Kubernetes External Secrets](https://github.com/godaddy/kubernetes-external-secrets)
 * [External Secrets Operator](https://github.com/external-secrets/external-secrets)
 * [Hashicorp Vault](https://www.vaultproject.io)
 * [Banzai Cloud Bank-Vaults](https://github.com/banzaicloud/bank-vaults)
@@ -13,5 +12,6 @@ Argo CD is un-opinionated about how secrets are managed. There's many ways to do
 * [KSOPS](https://github.com/viaduct-ai/kustomize-sops#argo-cd-integration)
 * [argocd-vault-plugin](https://github.com/argoproj-labs/argocd-vault-plugin)
 * [argocd-vault-replacer](https://github.com/crumbhole/argocd-vault-replacer)
+* [Kubernetes Secrets Store CSI Driver](https://github.com/kubernetes-sigs/secrets-store-csi-driver)
 
 For discussion, see [#1364](https://github.com/argoproj/argo-cd/issues/1364)

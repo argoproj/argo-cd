@@ -1,15 +1,18 @@
 package commands
 
 import (
-	"context"
 	"fmt"
 	"net/http"
 	"os"
 	"strings"
 
 	"github.com/argoproj/argo-cd/v2/common"
+	"github.com/argoproj/argo-cd/v2/reposerver/apiclient"
 
+	"github.com/argoproj/argo-cd/v2/util/env"
+	"github.com/argoproj/argo-cd/v2/util/errors"
 	service "github.com/argoproj/argo-cd/v2/util/notification/argocd"
+	"github.com/argoproj/argo-cd/v2/util/tls"
 
 	notificationscontroller "github.com/argoproj/argo-cd/v2/notification_controller/controller"
 
@@ -57,11 +60,22 @@ func NewCommand() *cobra.Command {
 		Use:   "controller",
 		Short: "Starts Argo CD Notifications controller",
 		RunE: func(c *cobra.Command, args []string) error {
+			ctx := c.Context()
+
+			vers := common.GetVersion()
+			namespace, _, err := clientConfig.Namespace()
+			errors.CheckError(err)
+			vers.LogStartupInfo(
+				"ArgoCD Notifications Controller",
+				map[string]any{
+					"namespace": namespace,
+				},
+			)
+
 			restConfig, err := clientConfig.ClientConfig()
 			if err != nil {
 				return err
 			}
-			vers := common.GetVersion()
 			restConfig.UserAgent = fmt.Sprintf("argocd-notifications-controller/%s (%s)", vers.Version, vers.Platform)
 			dynamicClient, err := dynamic.NewForConfig(restConfig)
 			if err != nil {
@@ -94,7 +108,22 @@ func NewCommand() *cobra.Command {
 				return fmt.Errorf("Unknown log format '%s'", logFormat)
 			}
 
-			argocdService, err := service.NewArgoCDService(k8sClient, namespace, argocdRepoServer, argocdRepoServerPlaintext, argocdRepoServerStrictTLS)
+			tlsConfig := apiclient.TLSConfiguration{
+				DisableTLS:       argocdRepoServerPlaintext,
+				StrictValidation: argocdRepoServerStrictTLS,
+			}
+			if !tlsConfig.DisableTLS && tlsConfig.StrictValidation {
+				pool, err := tls.LoadX509CertPool(
+					fmt.Sprintf("%s/reposerver/tls/tls.crt", env.StringFromEnv(common.EnvAppConfigPath, common.DefaultAppConfigPath)),
+					fmt.Sprintf("%s/reposerver/tls/ca.crt", env.StringFromEnv(common.EnvAppConfigPath, common.DefaultAppConfigPath)),
+				)
+				if err != nil {
+					return err
+				}
+				tlsConfig.Certificates = pool
+			}
+			repoClientset := apiclient.NewRepoServerClientset(argocdRepoServer, 5, tlsConfig)
+			argocdService, err := service.NewArgoCDService(k8sClient, namespace, repoClientset)
 			if err != nil {
 				return err
 			}
@@ -110,13 +139,13 @@ func NewCommand() *cobra.Command {
 			log.Infof("loading configuration %d", metricsPort)
 
 			ctrl := notificationscontroller.NewController(k8sClient, dynamicClient, argocdService, namespace, appLabelSelector, registry, secretName, configMapName)
-			err = ctrl.Init(context.Background())
+			err = ctrl.Init(ctx)
 			if err != nil {
 				return err
 			}
 
-			go ctrl.Run(context.Background(), processorsCount)
-			<-context.Background().Done()
+			go ctrl.Run(ctx, processorsCount)
+			<-ctx.Done()
 			return nil
 		},
 	}

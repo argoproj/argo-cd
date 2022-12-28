@@ -87,6 +87,19 @@ func NoConditions() Expectation {
 	}
 }
 
+func Namespace(name string, block func(app *Application, ns *v1.Namespace)) Expectation {
+	return func(c *Consequences) (state, string) {
+		ns, err := namespace(name)
+
+		if err != nil {
+			return failed, fmt.Sprintf("namespace not found %s", err.Error())
+		}
+
+		block(c.app(), ns)
+		return succeeded, fmt.Sprintf("namespace %s assertions passed", name)
+	}
+}
+
 func HealthIs(expected health.HealthStatusCode) Expectation {
 	return func(c *Consequences) (state, string) {
 		actual := c.app().Status.Health.Status
@@ -218,12 +231,29 @@ func pods() (*v1.PodList, error) {
 	return pods, err
 }
 
-func Event(reason string, message string) Expectation {
+func NoNamespace(name string) Expectation {
 	return func(c *Consequences) (state, string) {
-		list, err := fixture.KubeClientset.CoreV1().Events(fixture.ArgoCDNamespace).List(context.Background(), metav1.ListOptions{
+		_, err := namespace(name)
+
+		if err != nil {
+			return succeeded, "namespace not found"
+		}
+
+		return failed, fmt.Sprintf("found namespace %s", name)
+	}
+}
+
+func namespace(name string) (*v1.Namespace, error) {
+	fixture.KubeClientset.CoreV1()
+	return fixture.KubeClientset.CoreV1().Namespaces().Get(context.Background(), name, metav1.GetOptions{})
+}
+
+func event(namespace string, reason string, message string) Expectation {
+	return func(c *Consequences) (state, string) {
+		list, err := fixture.KubeClientset.CoreV1().Events(namespace).List(context.Background(), metav1.ListOptions{
 			FieldSelector: fields.SelectorFromSet(map[string]string{
-				"involvedObject.name":      c.context.name,
-				"involvedObject.namespace": fixture.ArgoCDNamespace,
+				"involvedObject.name":      c.context.AppName(),
+				"involvedObject.namespace": namespace,
 			}).String(),
 		})
 		if err != nil {
@@ -238,6 +268,14 @@ func Event(reason string, message string) Expectation {
 		}
 		return failed, fmt.Sprintf("unable to find event with reason=%s; message=%s", reason, message)
 	}
+}
+
+func Event(reason string, message string) Expectation {
+	return event(fixture.ArgoCDNamespace, reason, message)
+}
+
+func NamespacedEvent(namespace string, reason string, message string) Expectation {
+	return event(namespace, reason, message)
 }
 
 // asserts that the last command was successful
