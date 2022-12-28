@@ -101,7 +101,7 @@ data:
         hs.message = "Waiting for certificate"
         return hs
 ```
-In order to prevent duplication of the same custom health check for potentially multiple resources, it is also possible to specify a wildcard in the resource kind, like this:
+In order to prevent duplication of the custom health check for potentially multiple resources, it is also possible to specify a wildcard in the resource kind, and anywhere in the resource group, like this:
 
 ```yaml
   resource.customizations: |
@@ -109,6 +109,15 @@ In order to prevent duplication of the same custom health check for potentially 
       health.lua: | 
         ...
 ```
+
+```yaml
+  resource.customizations: |
+    *.aws.crossplane.io/*:
+      health.lua: | 
+        ...
+```
+
+
 
 The `obj` is a global variable which contains the resource. The script must return an object with status and optional message field.
 The custom health check might return one of the following health statuses:
