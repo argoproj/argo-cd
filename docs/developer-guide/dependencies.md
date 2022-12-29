@@ -13,7 +13,7 @@ After your GitOps Engine PR has been merged, ArgoCD needs to be updated to pull 
 * Retrieve the SHA hash for your commit. You will use this in the next step.
 * From the `argo-cd` folder, run the following command
 
-    `go get github.com/argoproj/gitops-engine@<git-commit-sha>`
+    `go install github.com/argoproj/gitops-engine@<git-commit-sha>`
 
     If you get an error message `invalid version: unknown revision` then you got the wrong SHA hash
 
