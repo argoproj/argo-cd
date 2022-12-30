@@ -12,7 +12,7 @@ on:
       - "!release-v0*"
 
 env:
-    GOLANG_VERSION: '1.18'
+  GOLANG_VERSION: '1.18'
 
 permissions:
   contents: read
@@ -222,9 +222,12 @@ jobs:
       - name: Install crane to get digest of image
         uses: imjasonh/setup-crane@e82f1b9a8007d399333baba4d75915558e9fb6a4
 
-      - name: Sign Argo CD container images and assets
+      - name: Get digest of image
         run: |
           echo "IMAGE_DIGEST=$(crane digest quay.io/argoproj/argocd:v${TARGET_VERSION})" >> $GITHUB_ENV
+
+      - name: Sign Argo CD container images and assets
+        run: |
           cosign sign --key env://COSIGN_PRIVATE_KEY ${IMAGE_NAMESPACE}/argocd@${{ env.IMAGE_DIGEST }}
           cosign sign-blob --key env://COSIGN_PRIVATE_KEY ./dist/argocd-${TARGET_VERSION}-checksums.txt > ./dist/argocd-${TARGET_VERSION}-checksums.sig
           # Retrieves the public key to release as an asset
@@ -268,7 +271,7 @@ jobs:
           SIGS_BOM_VERSION: v0.2.1
           # comma delimited list of project relative folders to inspect for package
           # managers (gomod, yarn, npm).
-          PROJECT_FOLDERS: ".,./ui" 
+          PROJECT_FOLDERS: ".,./ui"
           # full qualified name of the docker image to be inspected
           DOCKER_IMAGE: ${{env.IMAGE_NAMESPACE}}/argocd:v${{env.TARGET_VERSION}}
         run: |
