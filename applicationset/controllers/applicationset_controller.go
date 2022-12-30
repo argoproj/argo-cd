@@ -30,6 +30,7 @@ import (
 	"k8s.io/client-go/tools/record"
 	ctrl "sigs.k8s.io/controller-runtime"
 	"sigs.k8s.io/controller-runtime/pkg/client"
+	"sigs.k8s.io/controller-runtime/pkg/controller"
 	"sigs.k8s.io/controller-runtime/pkg/controller/controllerutil"
 	"sigs.k8s.io/controller-runtime/pkg/handler"
 	"sigs.k8s.io/controller-runtime/pkg/source"
@@ -540,6 +541,9 @@ func (r *ApplicationSetReconciler) SetupWithManager(mgr ctrl.Manager) error {
 				Client: mgr.GetClient(),
 				Log:    log.WithField("type", "createSecretEventHandler"),
 			}).
+		WithOptions(controller.Options{
+			MaxConcurrentReconciles: 10,
+		}).
 		// TODO: also watch Applications and respond on changes if we own them.
 		Complete(r)
 }

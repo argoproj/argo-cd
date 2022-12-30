@@ -7,6 +7,8 @@ import (
 	"path/filepath"
 	"strings"
 
+	"github.com/argoproj/argo-cd/v2/applicationset/utils"
+
 	"github.com/argoproj/argo-cd/v2/pkg/apis/application/v1alpha1"
 	"github.com/argoproj/argo-cd/v2/util/db"
 	"github.com/argoproj/argo-cd/v2/util/git"
@@ -22,6 +24,7 @@ type argoCDService struct {
 	repositoriesDB   RepositoryDB
 	storecreds       git.CredsStore
 	submoduleEnabled bool
+	keyLock          *utils.KeyLock
 }
 
 type Repos interface {
@@ -33,12 +36,13 @@ type Repos interface {
 	GetDirectories(ctx context.Context, repoURL string, revision string) ([]string, error)
 }
 
-func NewArgoCDService(db db.ArgoDB, gitCredStore git.CredsStore, submoduleEnabled bool) Repos {
+func NewArgoCDService(db db.ArgoDB, gitCredStore git.CredsStore, submoduleEnabled bool, keyLock *utils.KeyLock) Repos {
 
 	return &argoCDService{
 		repositoriesDB:   db.(RepositoryDB),
 		storecreds:       gitCredStore,
 		submoduleEnabled: submoduleEnabled,
+		keyLock:          keyLock,
 	}
 }
 
@@ -54,6 +58,7 @@ func (a *argoCDService) GetFiles(ctx context.Context, repoURL string, revision s
 		return nil, err
 	}
 
+	defer a.keyLock.Lock(repoURL)()
 	err = checkoutRepo(gitRepoClient, revision, a.submoduleEnabled)
 	if err != nil {
 		return nil, err
@@ -88,6 +93,7 @@ func (a *argoCDService) GetDirectories(ctx context.Context, repoURL string, revi
 		return nil, fmt.Errorf("error creating a new git client: %w", err)
 	}
 
+	defer a.keyLock.Lock(repoURL)()
 	err = checkoutRepo(gitRepoClient, revision, a.submoduleEnabled)
 	if err != nil {
 		return nil, fmt.Errorf("error while checking out repo: %w", err)

@@ -130,7 +130,7 @@ func NewCommand() *cobra.Command {
 			terminalGenerators := map[string]generators.Generator{
 				"List":                    generators.NewListGenerator(),
 				"Clusters":                generators.NewClusterGenerator(mgr.GetClient(), ctx, k8sClient, namespace),
-				"Git":                     generators.NewGitGenerator(services.NewArgoCDService(argoCDDB, askPassServer, getSubmoduleEnabled())),
+				"Git":                     generators.NewGitGenerator(services.NewArgoCDService(argoCDDB, askPassServer, getSubmoduleEnabled(), utils.NewKeyLock())),
 				"SCMProvider":             generators.NewSCMProviderGenerator(mgr.GetClient(), scmAuth),
 				"ClusterDecisionResource": generators.NewDuckTypeGenerator(ctx, dynamicClient, k8sClient, namespace),
 				"PullRequest":             generators.NewPullRequestGenerator(mgr.GetClient(), scmAuth),

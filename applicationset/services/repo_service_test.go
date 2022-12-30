@@ -4,13 +4,18 @@ import (
 	"context"
 	"fmt"
 	"sort"
+	"sync"
 	"testing"
 
+	"github.com/argoproj/argo-cd/v2/applicationset/utils"
+	"github.com/argoproj/argo-cd/v2/util/git"
 	"github.com/stretchr/testify/assert"
 	"github.com/stretchr/testify/mock"
 
 	"github.com/argoproj/argo-cd/v2/pkg/apis/application/v1alpha1"
 )
+
+const argocdExampleAppCommitID = "08f72e2a309beab929d9fd14626071b1a61a47f9"
 
 type ArgocdRepositoryMock struct {
 	mock *mock.Mock
@@ -29,7 +34,7 @@ func TestGetDirectories(t *testing.T) {
 	//   Author: Alexander Matyushentsev <Alexander_Matyushentsev@intuit.com>
 	//   Date:   Sun Jan 31 09:54:53 2021 -0800
 	//   chore: downgrade kustomize guestbook image tag (#73)
-	exampleRepoRevision := "08f72e2a309beab929d9fd14626071b1a61a47f9"
+	exampleRepoRevision := argocdExampleAppCommitID
 
 	for _, c := range []struct {
 		name          string
@@ -85,6 +90,7 @@ func TestGetDirectories(t *testing.T) {
 
 			argocd := argoCDService{
 				repositoriesDB: argocdRepositoryMock,
+				keyLock:        utils.NewKeyLock(),
 			}
 
 			got, err := argocd.GetDirectories(context.TODO(), cc.repoURL, cc.revision)
@@ -106,7 +112,7 @@ func TestGetFiles(t *testing.T) {
 
 	// Hardcode a specific commit, so that changes to argoproj/argocd-example-apps/ don't break our tests
 	// "chore: downgrade kustomize guestbook image tag (#73)"
-	commitID := "08f72e2a309beab929d9fd14626071b1a61a47f9"
+	commitID := argocdExampleAppCommitID
 
 	tests := []struct {
 		name     string
@@ -228,6 +234,135 @@ func TestGetFiles(t *testing.T) {
 			} else {
 				assert.EqualError(t, err, cc.expectedError.Error())
 			}
+		})
+	}
+}
+
+func TestConcurrentGitRequestsDirectories(t *testing.T) {
+	repoMock := ArgocdRepositoryMock{mock: &mock.Mock{}}
+	argocdExampleURL := "https://github.com/argoproj/argocd-example-apps/"
+	commitID := argocdExampleAppCommitID
+	// https://github.com/argoproj/argocd-example-apps/tree/67de934fd7f22062a4e2ac8b8d20cfc97f2b4e7f/guestbook
+	lessDirectoriesCommit := "67de934fd7f22062a4e2ac8b8d20cfc97f2b4e7f"
+
+	repoMock.mock.On("GetRepository", mock.Anything, argocdExampleURL).Return(&v1alpha1.Repository{
+		Insecure:              true,
+		InsecureIgnoreHostKey: true,
+		Repo:                  "https://github.com/argoproj/argocd-example-apps/",
+	}, nil)
+
+	type fields struct {
+		repositoriesDB   RepositoryDB
+		storecreds       git.CredsStore
+		submoduleEnabled bool
+		keyLock          *utils.KeyLock
+		workers          int
+	}
+	type args struct {
+		ctx      context.Context
+		repoURL  string
+		revision []string
+	}
+	tests := []struct {
+		name    string
+		fields  fields
+		args    args
+		want    map[string][]string
+		wantErr assert.ErrorAssertionFunc
+	}{
+		{name: "Single", fields: fields{
+			repositoriesDB: repoMock,
+			keyLock:        utils.NewKeyLock(),
+			workers:        1,
+		}, args: args{
+			ctx:      context.Background(),
+			repoURL:  argocdExampleURL,
+			revision: []string{commitID},
+		}, want: map[string][]string{commitID: {"apps", "apps/templates", "blue-green", "blue-green/templates", "guestbook", "helm-dependency",
+			"helm-guestbook", "helm-guestbook/templates", "helm-hooks", "jsonnet-guestbook", "jsonnet-guestbook-tla",
+			"ksonnet-guestbook", "ksonnet-guestbook/components", "ksonnet-guestbook/environments", "ksonnet-guestbook/environments/default",
+			"ksonnet-guestbook/environments/dev", "ksonnet-guestbook/environments/prod", "kustomize-guestbook", "plugins", "plugins/kasane",
+			"plugins/kustomized-helm", "plugins/kustomized-helm/overlays", "pre-post-sync", "sock-shop", "sock-shop/base", "sync-waves"}}, wantErr: assert.NoError},
+		{name: "Many", fields: fields{
+			repositoriesDB: repoMock,
+			keyLock:        utils.NewKeyLock(),
+			workers:        5,
+		}, args: args{
+			ctx:      context.Background(),
+			repoURL:  argocdExampleURL,
+			revision: []string{lessDirectoriesCommit, commitID, commitID, lessDirectoriesCommit, commitID},
+		}, want: map[string][]string{
+			commitID: {"apps", "apps/templates", "blue-green", "blue-green/templates", "guestbook", "helm-dependency",
+				"helm-guestbook", "helm-guestbook/templates", "helm-hooks", "jsonnet-guestbook", "jsonnet-guestbook-tla",
+				"ksonnet-guestbook", "ksonnet-guestbook/components", "ksonnet-guestbook/environments", "ksonnet-guestbook/environments/default",
+				"ksonnet-guestbook/environments/dev", "ksonnet-guestbook/environments/prod", "kustomize-guestbook", "plugins", "plugins/kasane",
+				"plugins/kustomized-helm", "plugins/kustomized-helm/overlays", "pre-post-sync", "sock-shop", "sock-shop/base", "sync-waves"},
+			lessDirectoriesCommit: {"guestbook", "guestbook/components", "guestbook/environments", "guestbook/environments/default"}},
+			wantErr: assert.NoError,
+		},
+	}
+
+	for _, tt := range tests {
+		t.Run(tt.name, func(t *testing.T) {
+			a := &argoCDService{
+				repositoriesDB:   tt.fields.repositoriesDB,
+				storecreds:       tt.fields.storecreds,
+				submoduleEnabled: tt.fields.submoduleEnabled,
+				keyLock:          tt.fields.keyLock,
+			}
+			var wg sync.WaitGroup
+			for i := 0; i < len(tt.args.revision); i++ {
+				wg.Add(1)
+				revision := tt.args.revision[i]
+				go func() {
+					got, err := a.GetDirectories(tt.args.ctx, tt.args.repoURL, revision)
+					if !tt.wantErr(t, err, fmt.Sprintf("GetDirectories(%v, %v, %v)", tt.args.ctx, tt.args.repoURL, revision)) {
+						return
+					}
+					assert.Equalf(t, tt.want[revision], got, "GetDirectories(%v, %v, %v)", tt.args.ctx, tt.args.repoURL, revision)
+					wg.Done()
+				}()
+			}
+			wg.Wait()
+		})
+	}
+}
+
+func TestConcurrentGitRequestsFiles(t *testing.T) {
+	type fields struct {
+		repositoriesDB   RepositoryDB
+		storecreds       git.CredsStore
+		submoduleEnabled bool
+		keyLock          *utils.KeyLock
+	}
+	type args struct {
+		ctx      context.Context
+		repoURL  string
+		revision string
+		pattern  string
+	}
+	tests := []struct {
+		name    string
+		fields  fields
+		args    args
+		want    map[string][]byte
+		wantErr assert.ErrorAssertionFunc
+	}{
+		// TODO: Add test cases.
+	}
+	for _, tt := range tests {
+		t.Run(tt.name, func(t *testing.T) {
+			a := &argoCDService{
+				repositoriesDB:   tt.fields.repositoriesDB,
+				storecreds:       tt.fields.storecreds,
+				submoduleEnabled: tt.fields.submoduleEnabled,
+				keyLock:          tt.fields.keyLock,
+			}
+			got, err := a.GetFiles(tt.args.ctx, tt.args.repoURL, tt.args.revision, tt.args.pattern)
+			if !tt.wantErr(t, err, fmt.Sprintf("GetFiles(%v, %v, %v, %v)", tt.args.ctx, tt.args.repoURL, tt.args.revision, tt.args.pattern)) {
+				return
+			}
+			assert.Equalf(t, tt.want, got, "GetFiles(%v, %v, %v, %v)", tt.args.ctx, tt.args.repoURL, tt.args.revision, tt.args.pattern)
 		})
 	}
 }
