@@ -16316,6 +16316,7 @@ data:
     port 6379
     rename-command FLUSHDB ""
     rename-command FLUSHALL ""
+    bind 0.0.0.0
     maxmemory 0
     maxmemory-policy volatile-lru
     min-replicas-max-lag 5
@@ -16327,6 +16328,7 @@ data:
   sentinel.conf: |
     dir "/data"
     port 26379
+    bind 0.0.0.0
         sentinel down-after-milliseconds argocd 10000
         sentinel failover-timeout argocd 180000
         maxclients 10000
@@ -17892,7 +17894,7 @@ spec:
   template:
     metadata:
       annotations:
-        checksum/init-config: 84ccf6a9b8a7fa3ae5b62a8f17d6c65a5197e9605da9b2761179bf942828eefe
+        checksum/init-config: 69130412bda04eacad3530cb7bcf26cf121401e725e15d0959dd71a7380afe75
       labels:
         app.kubernetes.io/name: argocd-redis-ha
     spec:
