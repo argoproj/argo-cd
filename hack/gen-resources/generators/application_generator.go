@@ -98,7 +98,7 @@ func (pg *ApplicationGenerator) Generate(opts *util.GenerateOpts) error {
 			Spec: v1alpha1.ApplicationSpec{
 				Project:     "default",
 				Destination: *destination,
-				Source:      *source,
+				Source:      source,
 			},
 		}, v1.CreateOptions{})
 		if err != nil {
