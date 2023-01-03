@@ -28,3 +28,5 @@ Target GA date: ___. __, ____
  - [ ] At release date, evaluate if any bugs justify delaying the release. If not, cut the release (or delegate this task to an Approver and coordinate timing)
  - [ ] If unreleased changes are on the release branch for {current minor version minus 3}, cut a final patch release for that series (or delegate this task to an Approver and coordinate timing)
  - [ ] After the release, post in #argo-cd that the {current minor version minus 3} has reached EOL (example: https://cloud-native.slack.com/archives/C01TSERG0KZ/p1667336234059729)
+ - [ ] (For the next release champion) Review the [items scheduled for the next release](https://github.com/orgs/argoproj/projects/25). If any item does not have an assignee who can commit to finish the feature, move it to the next release.
+ - [ ] (For the next release champion) Schedule a time mid-way through the release cycle to review items again.
