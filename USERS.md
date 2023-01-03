@@ -162,6 +162,7 @@ Currently, the following organizations are **officially** using Argo CD:
 1. [openLooKeng](https://openlookeng.io)
 1. [OpenSaaS Studio](https://opensaas.studio)
 1. [Opensurvey](https://www.opensurvey.co.kr/)
+1. [OpsMx](https://opsmx.io)
 1. [OpsVerse](https://opsverse.io)
 1. [Optoro](https://www.optoro.com/)
 1. [Orbital Insight](https://orbitalinsight.com/)
