@@ -1597,6 +1597,12 @@ spec:
               key: applicationsetcontroller.enable.git.submodule
               name: argocd-cmd-params-cm
               optional: true
+        - name: ARGOCD_APPLICATIONSET_CONTROLLER_ENABLE_PROGRESSIVE_ROLLOUTS
+          valueFrom:
+            configMapKeyRef:
+              key: applicationsetcontroller.enable.progressive.rollouts
+              name: argocd-cmd-params-cm
+              optional: true
         image: quay.io/argoproj/argocd:latest
         imagePullPolicy: Always
         name: argocd-applicationset-controller
@@ -2386,6 +2392,12 @@ spec:
           valueFrom:
             configMapKeyRef:
               key: application.namespaces
+              name: argocd-cmd-params-cm
+              optional: true
+        - name: ARGOCD_SERVER_ENABLE_PROXY_EXTENSION
+          valueFrom:
+            configMapKeyRef:
+              key: server.enable.proxy.extension
               name: argocd-cmd-params-cm
               optional: true
         image: quay.io/argoproj/argocd:latest

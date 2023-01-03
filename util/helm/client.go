@@ -65,7 +65,7 @@ func WithIndexCache(indexCache indexCache) ClientOpts {
 	}
 }
 
-func WithChartPaths(chartPaths *argoio.TempPaths) ClientOpts {
+func WithChartPaths(chartPaths argoio.TempPaths) ClientOpts {
 	return func(c *nativeHelmChart) {
 		c.chartCachePaths = chartPaths
 	}
@@ -82,7 +82,7 @@ func NewClientWithLock(repoURL string, creds Creds, repoLock sync.KeyLock, enabl
 		repoLock:        repoLock,
 		enableOci:       enableOci,
 		proxy:           proxy,
-		chartCachePaths: argoio.NewTempPaths(os.TempDir()),
+		chartCachePaths: argoio.NewRandomizedTempPaths(os.TempDir()),
 	}
 	for i := range opts {
 		opts[i](c)
@@ -93,7 +93,7 @@ func NewClientWithLock(repoURL string, creds Creds, repoLock sync.KeyLock, enabl
 var _ Client = &nativeHelmChart{}
 
 type nativeHelmChart struct {
-	chartCachePaths *argoio.TempPaths
+	chartCachePaths argoio.TempPaths
 	repoURL         string
 	creds           Creds
 	repoLock        sync.KeyLock
@@ -390,10 +390,10 @@ func getTagsListURL(rawURL string, chart string) (string, error) {
 	if err != nil {
 		return "", fmt.Errorf("unable to parse repo url: %v", err)
 	}
+	tagsPathFormat := "%s/v2/%s/tags/list"
 	repoURL.Scheme = "https"
-	tagsList := strings.Join([]string{"v2", url.PathEscape(chart), "tags/list"}, "/")
-	repoURL.Path = strings.Join([]string{repoURL.Path, tagsList}, "/")
-	repoURL.RawPath = strings.Join([]string{repoURL.RawPath, tagsList}, "/")
+	repoURL.Path = fmt.Sprintf(tagsPathFormat, repoURL.Path, chart)
+	repoURL.RawPath = fmt.Sprintf(tagsPathFormat, repoURL.RawPath, url.PathEscape(chart))
 	return repoURL.String(), nil
 }
 
@@ -406,7 +406,7 @@ func (c *nativeHelmChart) getTags(chart string) ([]byte, error) {
 	allTags := &TagsList{}
 	var data []byte
 	for nextURL != "" {
-		log.Debugf("fetching %s tags from %s", chart, text.Trunc(nextURL, 100))
+		log.Debugf("fetching %s tags from %s", chart, sanitizeLog(text.Trunc(nextURL, 100)))
 		data, nextURL, err = c.getTagsFromUrl(nextURL)
 		if err != nil {
 			return nil, fmt.Errorf("failed tags part: %v", err)
@@ -426,14 +426,30 @@ func (c *nativeHelmChart) getTags(chart string) ([]byte, error) {
 	return data, nil
 }
 
-func getNextUrl(linkHeader string) string {
-	nextUrl := ""
-	if linkHeader != "" {
-		// drop < >; ref= from the Link header, see: https://docs.docker.com/registry/spec/api/#pagination
-		nextUrl = strings.Split(linkHeader, ";")[0][1:]
-		nextUrl = nextUrl[:len(nextUrl)-1]
+func getNextUrl(resp *http.Response) (string, error) {
+	link := resp.Header.Get("Link")
+	if link == "" {
+		return "", nil
 	}
-	return nextUrl
+	if link[0] != '<' {
+		return "", fmt.Errorf("invalid next link %q: missing '<'", link)
+	}
+	if i := strings.IndexByte(link, '>'); i == -1 {
+		return "", fmt.Errorf("invalid next link %q: missing '>'", link)
+	} else {
+		link = link[1:i]
+	}
+	linkURL, err := resp.Request.URL.Parse(link)
+	if err != nil {
+		return "", err
+	}
+	return linkURL.String(), nil
+}
+
+func sanitizeLog(input string) string {
+	sanitized := strings.ReplaceAll(input, "\r", "")
+	sanitized = strings.ReplaceAll(sanitized, "\n", "")
+	return sanitized
 }
 
 func (c *nativeHelmChart) getTagsFromUrl(tagsURL string) ([]byte, string, error) {
@@ -484,8 +500,8 @@ func (c *nativeHelmChart) getTagsFromUrl(tagsURL string) ([]byte, string, error)
 	if err != nil {
 		return nil, "", fmt.Errorf("failed to read body: %v", err)
 	}
-	nextUrl := getNextUrl(resp.Header.Get("Link"))
-	return data, nextUrl, nil
+	nextUrl, err := getNextUrl(resp)
+	return data, nextUrl, err
 }
 
 func (c *nativeHelmChart) GetTags(chart string, noCache bool) (*TagsList, error) {

@@ -208,6 +208,12 @@ spec:
                 name: argocd-cmd-params-cm
                 key: application.namespaces
                 optional: true
+        - name: ARGOCD_SERVER_ENABLE_PROXY_EXTENSION
+          valueFrom:
+              configMapKeyRef:
+                name: argocd-cmd-params-cm
+                key: server.enable.proxy.extension
+                optional: true
         volumeMounts:
         - name: ssh-known-hosts
           mountPath: /app/config/ssh
