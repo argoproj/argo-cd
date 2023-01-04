@@ -3225,6 +3225,23 @@ func Test_RBACName(t *testing.T) {
 	})
 }
 
+func TestGetSummary(t *testing.T) {
+	tree := ApplicationTree{}
+	app := newTestApp()
+
+	summary := tree.GetSummary(app)
+	assert.Equal(t, len(summary.ExternalURLs), 0)
+
+	const annotationName = argocdcommon.AnnotationKeyLinkPrefix + "/my-link"
+	const url = "https://example.com"
+	app.Annotations = make(map[string]string)
+	app.Annotations[annotationName] = url
+
+	summary = tree.GetSummary(app)
+	assert.Equal(t, len(summary.ExternalURLs), 1)
+	assert.Equal(t, summary.ExternalURLs[0], url)
+}
+
 func TestApplicationSourcePluginParameters_Environ_string(t *testing.T) {
 	params := ApplicationSourcePluginParameters{
 		{
