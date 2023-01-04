@@ -2,6 +2,7 @@ package command
 
 import (
 	"fmt"
+	"math"
 	"net/http"
 	"os"
 	"time"
@@ -57,6 +58,7 @@ func NewCommand() *cobra.Command {
 		debugLog                  bool
 		dryRun                    bool
 		enableProgressiveRollouts bool
+		maxConcurrentReconciles   int
 	)
 	scheme := runtime.NewScheme()
 	_ = clientgoscheme.AddToScheme(scheme)
@@ -179,6 +181,7 @@ func NewCommand() *cobra.Command {
 				KubeClientset:             k8sClient,
 				ArgoDB:                    argoCDDB,
 				EnableProgressiveRollouts: enableProgressiveRollouts,
+				MaxConcurrentReconciles:   maxConcurrentReconciles,
 			}).SetupWithManager(mgr); err != nil {
 				log.Error(err, "unable to create controller", "controller", "ApplicationSet")
 				os.Exit(1)
@@ -208,6 +211,7 @@ func NewCommand() *cobra.Command {
 	command.Flags().StringVar(&cmdutil.LogLevel, "loglevel", env.StringFromEnv("ARGOCD_APPLICATIONSET_CONTROLLER_LOGLEVEL", "info"), "Set the logging level. One of: debug|info|warn|error")
 	command.Flags().BoolVar(&dryRun, "dry-run", env.ParseBoolFromEnv("ARGOCD_APPLICATIONSET_CONTROLLER_DRY_RUN", false), "Enable dry run mode")
 	command.Flags().BoolVar(&enableProgressiveRollouts, "enable-progressive-rollouts", env.ParseBoolFromEnv("ARGOCD_APPLICATIONSET_CONTROLLER_ENABLE_PROGRESSIVE_ROLLOUTS", false), "Enable use of the experimental progressive rollouts feature.")
+	command.Flags().IntVar(&maxConcurrentReconciles, "max-concurrent-reconciles", env.ParseNumFromEnv("ARGOCD_APPLICATIONSET_MAX_CONCURRENT_RECONCILES", 1, 1, math.MaxInt), "Set the number of concurrent ApplicationSets processed by the controller (default: 1).")
 	return &command
 }
 

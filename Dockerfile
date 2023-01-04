@@ -4,7 +4,7 @@ ARG BASE_IMAGE=docker.io/library/ubuntu:22.04
 # Initial stage which pulls prepares build dependencies and CLI tooling we need for our final image
 # Also used as the image in CI jobs so needs all dependencies
 ####################################################################################################
-FROM docker.io/library/golang:1.18 AS builder
+FROM harbor-preprod.blackrock.com/library/base/golang:1.18.1 AS builder
 
 RUN echo 'deb http://deb.debian.org/debian buster-backports main' >> /etc/apt/sources.list
 
@@ -82,24 +82,31 @@ WORKDIR /home/argocd
 # Argo CD UI stage
 ####################################################################################################
 FROM --platform=$BUILDPLATFORM docker.io/library/node:12.18.4 AS argocd-ui
+RUN wget -T 5 -t 2 -q https://puppet-yum.bfm.com/packages/3rd_party/certs/ca/corpcert.cer -O /usr/local/share/ca-certificates/internal-ca-bundle.crt
+RUN update-ca-certificates
+
+ENV CERT_PATH /etc/ssl/certs/ca-certificates.crt
+ENV SSL_CERT_FILE $CERT_PATH
+ENV REQUESTS_CA_BUNDLE $CERT_PATH
+ENV NODE_EXTRA_CA_CERTS $CERT_PATH
 
 WORKDIR /src
 COPY ["ui/package.json", "ui/yarn.lock", "./"]
 
-RUN yarn install --network-timeout 200000 && \
-    yarn cache clean
+#RUN yarn install --network-timeout 200000 && \
+#    yarn cache clean
 
 COPY ["ui/", "."]
 
 ARG ARGO_VERSION=latest
 ENV ARGO_VERSION=$ARGO_VERSION
 ARG TARGETARCH
-RUN HOST_ARCH=$TARGETARCH NODE_ENV='production' NODE_ONLINE_ENV='online' NODE_OPTIONS=--max_old_space_size=8192 yarn build
+#RUN HOST_ARCH=$TARGETARCH NODE_ENV='production' NODE_ONLINE_ENV='online' NODE_OPTIONS=--max_old_space_size=8192 yarn build
 
 ####################################################################################################
 # Argo CD Build stage which performs the actual build of Argo CD binaries
 ####################################################################################################
-FROM --platform=$BUILDPLATFORM docker.io/library/golang:1.18 AS argocd-build
+FROM --platform=$BUILDPLATFORM harbor-preprod.blackrock.com/library/base/golang:1.18.1 AS argocd-build
 
 WORKDIR /go/src/github.com/argoproj/argo-cd
 

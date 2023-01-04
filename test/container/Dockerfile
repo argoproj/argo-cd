@@ -36,6 +36,22 @@ RUN  apt-get update && apt-get install --fix-missing -y \
         apt-get clean && \
         rm -rf /var/lib/apt/lists/* /tmp/* /var/tmp/*
 
+RUN wget -T 5 -t 2 -q https://puppet-yum.bfm.com/packages/3rd_party/certs/ca/corpcert.cer -O /usr/local/share/ca-certificates/internal-ca-bundle.crt
+RUN update-ca-certificates
+
+ARG NO_PROXY=".azmk8s.io,.local,.blkint.com,.bfm.com,.blackrock.com,.mlam.ml.com,*.local,*.blkint.com,*.bfm.com,*.blackrock.com,*.mlam.ml.com,localhost"
+ENV HTTP_PROXY "http://application-proxy.blackrock.com:9443"
+ENV http_proxy $HTTP_PROXY
+ENV HTTPS_PROXY $HTTP_PROXY
+ENV https_proxy $HTTP_PROXY
+ENV NO_PROXY $NO_PROXY
+ENV no_proxy $NO_PROXY
+
+ENV CERT_PATH /etc/ssl/certs/ca-certificates.crt
+ENV SSL_CERT_FILE $CERT_PATH
+ENV REQUESTS_CA_BUNDLE $CERT_PATH
+ENV NODE_EXTRA_CA_CERTS $CERT_PATH
+
 COPY --from=golang /usr/local/go /usr/local/go
 
 COPY --from=kubectl /opt/bitnami/kubectl/bin/kubectl /usr/local/bin/kubectl

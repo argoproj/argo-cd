@@ -73,6 +73,7 @@ type ApplicationSetReconciler struct {
 	utils.Renderer
 
 	EnableProgressiveRollouts bool
+	MaxConcurrentReconciles   int
 }
 
 // +kubebuilder:rbac:groups=argoproj.io,resources=applicationsets,verbs=get;list;watch;create;update;patch;delete
@@ -542,7 +543,7 @@ func (r *ApplicationSetReconciler) SetupWithManager(mgr ctrl.Manager) error {
 				Log:    log.WithField("type", "createSecretEventHandler"),
 			}).
 		WithOptions(controller.Options{
-			MaxConcurrentReconciles: 10,
+			MaxConcurrentReconciles: r.MaxConcurrentReconciles,
 		}).
 		// TODO: also watch Applications and respond on changes if we own them.
 		Complete(r)
