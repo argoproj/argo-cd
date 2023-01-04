@@ -10,6 +10,7 @@ import (
 	"sort"
 	"strconv"
 	"strings"
+	"sync"
 	"time"
 
 	kubecache "github.com/argoproj/gitops-engine/pkg/cache"
@@ -17,7 +18,7 @@ import (
 	"github.com/argoproj/gitops-engine/pkg/sync/common"
 	"github.com/argoproj/gitops-engine/pkg/utils/kube"
 	"github.com/argoproj/gitops-engine/pkg/utils/text"
-	"github.com/argoproj/pkg/sync"
+	argosync "github.com/argoproj/pkg/sync"
 	jsonpatch "github.com/evanphx/json-patch"
 	log "github.com/sirupsen/logrus"
 	"google.golang.org/grpc/codes"
@@ -83,7 +84,7 @@ type Server struct {
 	kubectl           kube.Kubectl
 	db                db.ArgoDB
 	enf               *rbac.Enforcer
-	projectLock       sync.KeyLock
+	projectLock       argosync.KeyLock
 	auditLogger       *argo.AuditLogger
 	settingsMgr       *settings.SettingsManager
 	cache             *servercache.Cache
@@ -103,7 +104,7 @@ func NewServer(
 	kubectl kube.Kubectl,
 	db db.ArgoDB,
 	enf *rbac.Enforcer,
-	projectLock sync.KeyLock,
+	projectLock argosync.KeyLock,
 	settingsMgr *settings.SettingsManager,
 	projInformer cache.SharedIndexInformer,
 	enabledNamespaces []string,
@@ -146,17 +147,32 @@ func (s *Server) List(ctx context.Context, q *application.ApplicationQuery) (*ap
 	if err != nil {
 		return nil, fmt.Errorf("error listing apps with selectors: %w", err)
 	}
-	newItems := make([]appv1.Application, 0)
-	for _, a := range apps {
-		// Skip any application that is neither in the conrol plane's namespace
-		// nor in the list of enabled namespaces.
-		if a.Namespace != s.ns && !glob.MatchStringInList(s.enabledNamespaces, a.Namespace, false) {
-			continue
-		}
-		if s.enf.Enforce(ctx.Value("claims"), rbacpolicy.ResourceApplications, rbacpolicy.ActionGet, a.RBACName(s.ns)) {
-			newItems = append(newItems, *a)
-		}
+	// warm cache
+	_ = s.enf.LoadPolicy()
+
+	newItems := make([]appv1.Application, 0, len(apps))
+	var wg sync.WaitGroup
+	var appMap sync.Map
+	for idx, a := range apps {
+		wg.Add(1)
+		go func(idx int, a *appv1.Application) {
+			defer wg.Done()
+			// Skip any application that is neither in the control plane's namespace
+			// nor in the list of enabled namespaces.
+			if a.Namespace != s.ns && !glob.MatchStringInList(s.enabledNamespaces, a.Namespace, false) {
+				return
+			}
+			if s.enf.Enforce(ctx.Value("claims"), rbacpolicy.ResourceApplications, rbacpolicy.ActionGet, a.RBACName(s.ns)) {
+				appMap.Store(idx, struct{}{})
+			}
+		}(idx, a)
 	}
+	wg.Wait()
+	appMap.Range(func(key, value interface{}) bool {
+		idx := key.(int)
+		newItems = append(newItems, *apps[idx])
+		return true
+	})
 
 	if q.Name != nil {
 		newItems, err = argoutil.FilterByName(newItems, *q.Name)

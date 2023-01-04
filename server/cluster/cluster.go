@@ -2,6 +2,7 @@ package cluster
 
 import (
 	"net/url"
+	"sync"
 	"time"
 
 	"context"
@@ -56,12 +57,28 @@ func (s *Server) List(ctx context.Context, q *cluster.ClusterQuery) (*appv1.Clus
 		return nil, err
 	}
 
+	// warm cache
+	_ = s.enf.LoadPolicy()
+
 	items := make([]appv1.Cluster, 0)
-	for _, clust := range clusterList.Items {
-		if s.enf.Enforce(ctx.Value("claims"), rbacpolicy.ResourceClusters, rbacpolicy.ActionGet, createRBACObject(clust.Project, clust.Server)) {
-			items = append(items, clust)
-		}
+	var wg sync.WaitGroup
+	var clusterMap sync.Map
+	for idx := range clusterList.Items {
+		wg.Add(1)
+		go func(idx int, project, server string) {
+			defer wg.Done()
+			if s.enf.Enforce(ctx.Value("claims"), rbacpolicy.ResourceClusters, rbacpolicy.ActionGet, createRBACObject(project, server)) {
+				clusterMap.Store(idx, struct{}{})
+			}
+		}(idx, clusterList.Items[idx].Project, clusterList.Items[idx].Server)
 	}
+	wg.Wait()
+	clusterMap.Range(func(key, value interface{}) bool {
+		idx := key.(int)
+		items = append(items, clusterList.Items[idx])
+		return true
+	})
+
 	err = kube.RunAllAsync(len(items), func(i int) error {
 		items[i] = *s.toAPIResponse(&items[i])
 		return nil

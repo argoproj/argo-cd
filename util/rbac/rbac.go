@@ -59,7 +59,7 @@ type CasbinEnforcer interface {
 // * supports a user-defined policy
 // * supports a custom JWT claims enforce function
 type Enforcer struct {
-	lock               sync.Mutex
+	lock               sync.RWMutex
 	enforcerCache      *gocache.Cache
 	adapter            *argocdAdapter
 	enableLog          bool
@@ -89,28 +89,42 @@ func (e *Enforcer) invalidateCache(actions ...func()) {
 	e.enforcerCache.Flush()
 }
 
-func (e *Enforcer) getCabinEnforcer(project string, policy string) CasbinEnforcer {
-	res, err := e.tryGetCabinEnforcer(project, policy)
+func (e *Enforcer) getCasbinEnforcer(project string, policy string) CasbinEnforcer {
+	res, err := e.tryGetCasbinEnforcer(project, policy)
 	if err != nil {
 		panic(err)
 	}
 	return res
 }
 
-// tryGetCabinEnforcer returns the cached enforcer for the given optional project and project policy.
-func (e *Enforcer) tryGetCabinEnforcer(project string, policy string) (CasbinEnforcer, error) {
-	e.lock.Lock()
-	defer e.lock.Unlock()
-	var cached *cachedEnforcer
-	val, ok := e.enforcerCache.Get(project)
-	if ok {
-		if c, ok := val.(*cachedEnforcer); ok && c.policy == policy {
-			cached = c
+func (e *Enforcer) tryGetCacheCasbinEnforcer(project string, policy string) CasbinEnforcer {
+	e.lock.RLock()
+	defer e.lock.RUnlock()
+
+	// prevent redundant creation
+	if project != "" && policy == "" {
+		val, ok := e.enforcerCache.Get("")
+		if ok {
+			if cached, ok := val.(*cachedEnforcer); ok && cached.policy == "" {
+				return cached.enforcer
+			}
 		}
 	}
-	if cached != nil {
-		return cached.enforcer, nil
+
+	val, ok := e.enforcerCache.Get(project)
+	if ok {
+		if cached, ok := val.(*cachedEnforcer); ok && cached.policy == policy {
+			return cached.enforcer
+		}
 	}
+
+	return nil
+}
+
+func (e *Enforcer) trySetCasbinEnforcer(project string, policy string) (CasbinEnforcer, error) {
+	e.lock.Lock()
+	defer e.lock.Unlock()
+
 	matchFunc := globMatchFunc
 	if e.matchMode == RegexMatchMode {
 		matchFunc = util.RegexMatchFunc
@@ -136,6 +150,15 @@ func (e *Enforcer) tryGetCabinEnforcer(project string, policy string) (CasbinEnf
 	enforcer.EnableEnforce(e.enabled)
 	e.enforcerCache.SetDefault(project, &cachedEnforcer{enforcer: enforcer, policy: policy})
 	return enforcer, nil
+}
+
+// tryGetCasbinEnforcer returns the cached enforcer for the given optional project and project policy.
+func (e *Enforcer) tryGetCasbinEnforcer(project string, policy string) (CasbinEnforcer, error) {
+	if cachedEnf := e.tryGetCacheCasbinEnforcer(project, policy); cachedEnf != nil {
+		return cachedEnf, nil
+	}
+
+	return e.trySetCasbinEnforcer(project, policy)
 }
 
 // ClaimsEnforcerFunc is func template to enforce a JWT claims. The subject is replaced
@@ -187,7 +210,7 @@ func (e *Enforcer) EnableEnforce(s bool) {
 
 // LoadPolicy executes casbin.Enforcer functionality and will invalidate cache if required.
 func (e *Enforcer) LoadPolicy() error {
-	_, err := e.tryGetCabinEnforcer("", "")
+	_, err := e.tryGetCasbinEnforcer("", "")
 	return err
 }
 
@@ -236,7 +259,7 @@ func (e *Enforcer) SetClaimsEnforcerFunc(claimsEnforcer ClaimsEnforcerFunc) {
 // Enforce is a wrapper around casbin.Enforce to additionally enforce a default role and a custom
 // claims function
 func (e *Enforcer) Enforce(rvals ...interface{}) bool {
-	return enforce(e.getCabinEnforcer("", ""), e.defaultRole, e.claimsEnforcerFunc, rvals...)
+	return enforce(e.getCasbinEnforcer("", ""), e.defaultRole, e.claimsEnforcerFunc, rvals...)
 }
 
 // EnforceErr is a convenience helper to wrap a failed enforcement with a detailed error about the request
@@ -280,7 +303,7 @@ func (e *Enforcer) EnforceRuntimePolicy(project string, policy string, rvals ...
 // user-defined policy. This allows any explicit denies of the built-in, and user-defined policies
 // to override the run-time policy. Runs normal enforcement if run-time policy is empty.
 func (e *Enforcer) CreateEnforcerWithRuntimePolicy(project string, policy string) CasbinEnforcer {
-	return e.getCabinEnforcer(project, policy)
+	return e.getCasbinEnforcer(project, policy)
 }
 
 // EnforceWithCustomEnforcer wraps enforce with an custom enforcer

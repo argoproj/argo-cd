@@ -126,6 +126,7 @@ func (p *RBACPolicyEnforcer) EnforceClaims(claims jwt.Claims, rvals ...interface
 
 	// Check the subject. This is typically the 'admin' case.
 	// NOTE: the call to EnforceWithCustomEnforcer will also consider the default role
+	// TODO: better have a check here for reducing redundant enforcement, because the jwt->subject might be meaningless for Argo CD
 	vals := append([]interface{}{subject}, rvals[1:]...)
 	if p.enf.EnforceWithCustomEnforcer(enforcer, vals...) {
 		return true
@@ -137,21 +138,23 @@ func (p *RBACPolicyEnforcer) EnforceClaims(claims jwt.Claims, rvals ...interface
 	}
 	// Finally check if any of the user's groups grant them permissions
 	groups := jwtutil.GetScopeValues(mapClaims, scopes)
+	groupMap := make(map[string]struct{})
+	for _, group := range groups {
+		groupMap[group] = struct{}{}
+	}
 
 	// Get groups to reduce the amount to checking groups
 	groupingPolicies := enforcer.GetGroupingPolicy()
-	for gidx := range groups {
-		for gpidx := range groupingPolicies {
-			// Prefilter user groups by groups defined in the model
-			if groupingPolicies[gpidx][0] == groups[gidx] {
-				vals := append([]interface{}{groups[gidx]}, rvals[1:]...)
-				if p.enf.EnforceWithCustomEnforcer(enforcer, vals...) {
-					return true
-				}
-				break
+	for gpidx := range groupingPolicies {
+		group := groupingPolicies[gpidx][0]
+		if _, ok := groupMap[group]; ok {
+			vals := append([]interface{}{group}, rvals[1:]...)
+			if p.enf.EnforceWithCustomEnforcer(enforcer, vals...) {
+				return true
 			}
 		}
 	}
+
 	logCtx := log.WithField("claims", claims).WithField("rval", rvals)
 	logCtx.Debug("enforce failed")
 	return false
