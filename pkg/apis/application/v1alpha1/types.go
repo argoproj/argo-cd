@@ -33,6 +33,7 @@ import (
 	"k8s.io/client-go/tools/clientcmd"
 	"k8s.io/client-go/tools/clientcmd/api"
 
+	"github.com/argoproj/argo-cd/v2/common"
 	"github.com/argoproj/argo-cd/v2/util/collections"
 	"github.com/argoproj/argo-cd/v2/util/helm"
 	"github.com/argoproj/argo-cd/v2/util/security"
@@ -1235,7 +1236,7 @@ func (t *ApplicationTree) FindNode(group string, kind string, namespace string, 
 }
 
 // TODO: Document purpose of this method
-func (t *ApplicationTree) GetSummary() ApplicationSummary {
+func (t *ApplicationTree) GetSummary(app *Application) ApplicationSummary {
 	urlsSet := make(map[string]bool)
 	imagesSet := make(map[string]bool)
 	for _, node := range t.Nodes {
@@ -1246,6 +1247,12 @@ func (t *ApplicationTree) GetSummary() ApplicationSummary {
 		}
 		for _, image := range node.Images {
 			imagesSet[image] = true
+		}
+	}
+	// also add Application's own links
+	for k, v := range app.GetAnnotations() {
+		if strings.HasPrefix(k, common.AnnotationKeyLinkPrefix) {
+			urlsSet[v] = true
 		}
 	}
 	urls := make([]string, 0)
