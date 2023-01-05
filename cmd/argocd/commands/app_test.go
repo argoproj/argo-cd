@@ -904,11 +904,220 @@ func Test_unset_nothingToUnset(t *testing.T) {
 	}
 }
 
+func TestFilterAppResources(t *testing.T) {
+	// App resources
+	var (
+		appReplicaSet1 = v1alpha1.ResourceStatus{
+			Group:     "apps",
+			Kind:      "ReplicaSet",
+			Namespace: "default",
+			Name:      "replicaSet-name1",
+		}
+		appReplicaSet2 = v1alpha1.ResourceStatus{
+			Group:     "apps",
+			Kind:      "ReplicaSet",
+			Namespace: "default",
+			Name:      "replicaSet-name2",
+		}
+		appJob = v1alpha1.ResourceStatus{
+			Group:     "batch",
+			Kind:      "Job",
+			Namespace: "default",
+			Name:      "job-name",
+		}
+		appService1 = v1alpha1.ResourceStatus{
+			Group:     "",
+			Kind:      "Service",
+			Namespace: "default",
+			Name:      "service-name1",
+		}
+		appService2 = v1alpha1.ResourceStatus{
+			Group:     "",
+			Kind:      "Service",
+			Namespace: "default",
+			Name:      "service-name2",
+		}
+		appDeployment = v1alpha1.ResourceStatus{
+			Group:     "apps",
+			Kind:      "Deployment",
+			Namespace: "default",
+			Name:      "deployment-name",
+		}
+	)
+	app := v1alpha1.Application{
+		Status: v1alpha1.ApplicationStatus{
+			Resources: []v1alpha1.ResourceStatus{
+				appReplicaSet1, appReplicaSet2, appJob, appService1, appService2, appDeployment},
+		},
+	}
+	// Resource filters
+	var (
+		blankValues = argoappv1.SyncOperationResource{
+			Group:     "",
+			Kind:      "",
+			Name:      "",
+			Namespace: "",
+			Exclude:   false}
+		// *:*:*
+		includeAllResources = argoappv1.SyncOperationResource{
+			Group:     "*",
+			Kind:      "*",
+			Name:      "*",
+			Namespace: "",
+			Exclude:   false}
+		// !*:*:*
+		excludeAllResources = argoappv1.SyncOperationResource{
+			Group:     "*",
+			Kind:      "*",
+			Name:      "*",
+			Namespace: "",
+			Exclude:   true}
+		// *:Service:*
+		includeAllServiceResources = argoappv1.SyncOperationResource{
+			Group:     "*",
+			Kind:      "Service",
+			Name:      "*",
+			Namespace: "",
+			Exclude:   false}
+		// !*:Service:*
+		excludeAllServiceResources = argoappv1.SyncOperationResource{
+			Group:     "*",
+			Kind:      "Service",
+			Name:      "*",
+			Namespace: "",
+			Exclude:   true}
+		// apps:ReplicaSet:replicaSet-name1
+		includeReplicaSet1Resource = argoappv1.SyncOperationResource{
+			Group:     "apps",
+			Kind:      "ReplicaSet",
+			Name:      "replicaSet-name1",
+			Namespace: "",
+			Exclude:   false}
+		// !apps:ReplicaSet:replicaSet-name2
+		excludeReplicaSet2Resource = argoappv1.SyncOperationResource{
+			Group:     "apps",
+			Kind:      "ReplicaSet",
+			Name:      "replicaSet-name2",
+			Namespace: "",
+			Exclude:   true}
+	)
+
+	// Filtered resources
+	var (
+		replicaSet1 = v1alpha1.SyncOperationResource{
+			Group:     "apps",
+			Kind:      "ReplicaSet",
+			Namespace: "default",
+			Name:      "replicaSet-name1",
+		}
+		replicaSet2 = v1alpha1.SyncOperationResource{
+			Group:     "apps",
+			Kind:      "ReplicaSet",
+			Namespace: "default",
+			Name:      "replicaSet-name2",
+		}
+		job = v1alpha1.SyncOperationResource{
+			Group:     "batch",
+			Kind:      "Job",
+			Namespace: "default",
+			Name:      "job-name",
+		}
+		service1 = v1alpha1.SyncOperationResource{
+			Group:     "",
+			Kind:      "Service",
+			Namespace: "default",
+			Name:      "service-name1",
+		}
+		service2 = v1alpha1.SyncOperationResource{
+			Group:     "",
+			Kind:      "Service",
+			Namespace: "default",
+			Name:      "service-name2",
+		}
+		deployment = v1alpha1.SyncOperationResource{
+			Group:     "apps",
+			Kind:      "Deployment",
+			Namespace: "default",
+			Name:      "deployment-name",
+		}
+	)
+	tests := []struct {
+		testName          string
+		selectedResources []*argoappv1.SyncOperationResource
+		expectedResult    []*argoappv1.SyncOperationResource
+	}{
+		//--resource apps:ReplicaSet:replicaSet-name1 --resource *:Service:*
+		{testName: "Include ReplicaSet replicaSet-name1 resouce and all service resources",
+			selectedResources: []*argoappv1.SyncOperationResource{&includeAllServiceResources, &includeReplicaSet1Resource},
+			expectedResult:    []*argoappv1.SyncOperationResource{&replicaSet1, &service1, &service2},
+		},
+		//--resource apps:ReplicaSet:replicaSet-name1 --resource !*:Service:*
+		{testName: "Include ReplicaSet replicaSet-name1 resouce and exclude all service resources",
+			selectedResources: []*argoappv1.SyncOperationResource{&excludeAllServiceResources, &includeReplicaSet1Resource},
+			expectedResult:    []*argoappv1.SyncOperationResource{&replicaSet1, &replicaSet2, &job, &deployment},
+		},
+		// --resource !apps:ReplicaSet:replicaSet-name2 --resource !*:Service:*
+		{testName: "Exclude ReplicaSet replicaSet-name2 resouce and all service resources",
+			selectedResources: []*argoappv1.SyncOperationResource{&excludeReplicaSet2Resource, &excludeAllServiceResources},
+			expectedResult:    []*argoappv1.SyncOperationResource{&replicaSet1, &replicaSet2, &job, &service1, &service2, &deployment},
+		},
+		// --resource !apps:ReplicaSet:replicaSet-name2
+		{testName: "Exclude ReplicaSet replicaSet-name2 resouce",
+			selectedResources: []*argoappv1.SyncOperationResource{&excludeReplicaSet2Resource},
+			expectedResult:    []*argoappv1.SyncOperationResource{&replicaSet1, &job, &service1, &service2, &deployment},
+		},
+		// --resource apps:ReplicaSet:replicaSet-name1
+		{testName: "Include ReplicaSet replicaSet-name1 resouce",
+			selectedResources: []*argoappv1.SyncOperationResource{&includeReplicaSet1Resource},
+			expectedResult:    []*argoappv1.SyncOperationResource{&replicaSet1},
+		},
+		// --resource !*:Service:*
+		{testName: "Exclude Service resouces",
+			selectedResources: []*argoappv1.SyncOperationResource{&excludeAllServiceResources},
+			expectedResult:    []*argoappv1.SyncOperationResource{&replicaSet1, &replicaSet2, &job, &deployment},
+		},
+		// --resource *:Service:*
+		{testName: "Include Service resouces",
+			selectedResources: []*argoappv1.SyncOperationResource{&includeAllServiceResources},
+			expectedResult:    []*argoappv1.SyncOperationResource{&service1, &service2},
+		},
+		// --resource !*:*:*
+		{testName: "Exclude all resouces",
+			selectedResources: []*argoappv1.SyncOperationResource{&excludeAllResources},
+			expectedResult:    nil,
+		},
+		// --resource *:*:*
+		{testName: "Include all resouces",
+			selectedResources: []*argoappv1.SyncOperationResource{&includeAllResources},
+			expectedResult:    []*argoappv1.SyncOperationResource{&replicaSet1, &replicaSet2, &job, &service1, &service2, &deployment},
+		},
+		{testName: "No Filters",
+			selectedResources: []*argoappv1.SyncOperationResource{&blankValues},
+			expectedResult:    nil,
+		},
+		{testName: "Empty Filter",
+			selectedResources: []*argoappv1.SyncOperationResource{},
+			expectedResult:    nil,
+		},
+	}
+
+	for _, test := range tests {
+		t.Run(test.testName, func(t *testing.T) {
+			filteredResources := filterAppResources(&app, test.selectedResources)
+			assert.Equal(t, test.expectedResult, filteredResources)
+		})
+	}
+}
+
 func TestParseSelectedResources(t *testing.T) {
-	resources := []string{"v1alpha:Application:test", "v1alpha:Application:namespace/test"}
+	resources := []string{"v1alpha:Application:test",
+		"v1alpha:Application:namespace/test",
+		"!v1alpha:Application:test",
+		"apps:Deployment:default/test",
+		"!*:*:*"}
 	operationResources, err := parseSelectedResources(resources)
 	assert.NoError(t, err)
-	assert.Len(t, operationResources, 2)
+	assert.Len(t, operationResources, 5)
 	assert.Equal(t, *operationResources[0], v1alpha1.SyncOperationResource{
 		Namespace: "",
 		Name:      "test",
@@ -920,6 +1129,27 @@ func TestParseSelectedResources(t *testing.T) {
 		Name:      "test",
 		Kind:      "Application",
 		Group:     "v1alpha",
+	})
+	assert.Equal(t, *operationResources[2], v1alpha1.SyncOperationResource{
+		Namespace: "",
+		Name:      "test",
+		Kind:      "Application",
+		Group:     "v1alpha",
+		Exclude:   true,
+	})
+	assert.Equal(t, *operationResources[3], v1alpha1.SyncOperationResource{
+		Namespace: "default",
+		Name:      "test",
+		Kind:      "Deployment",
+		Group:     "apps",
+		Exclude:   false,
+	})
+	assert.Equal(t, *operationResources[4], v1alpha1.SyncOperationResource{
+		Namespace: "",
+		Name:      "*",
+		Kind:      "*",
+		Group:     "*",
+		Exclude:   true,
 	})
 }
 
