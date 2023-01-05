@@ -114,7 +114,7 @@ func ValidateHeaders(r *http.Request) (*RequestResources, error) {
 func getAppName(appHeader string) (string, string, error) {
 	parts := strings.Split(appHeader, ":")
 	if len(parts) != 2 {
-		return "", "", fmt.Errorf("invalid value for %q header: expected format: <namespace>:<app-name>", appHeader)
+		return "", "", fmt.Errorf("invalid value for %q header: expected format: <namespace>:<app-name>", HeaderArgoCDApplicationName)
 	}
 	return parts[0], parts[1], nil
 }
