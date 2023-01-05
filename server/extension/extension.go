@@ -28,9 +28,28 @@ const (
 	DefaultKeepAlive             = 15 * time.Second
 	DefaultIdleConnectionTimeout = 60 * time.Second
 	DefaultMaxIdleConnections    = 30
-	HeaderArgoCDApplicationName  = "Argocd-Application-Name"
-	HeaderArgoCDProjectName      = "Argocd-Project-Name"
-	HeaderArgoCDResourceGVKName  = "Argocd-Resource-GVK-Name"
+
+	// HeaderArgoCDApplicationName defines the name of the
+	// expected application header to be passed to the extension
+	// handler. The header value must follow the format:
+	//     "<namespace>:<app-name>"
+	// Example:
+	//     Argocd-Application-Name: "namespace:app-name"
+	HeaderArgoCDApplicationName = "Argocd-Application-Name"
+
+	// HeaderArgoCDProjectName defines the name of the expected
+	// project header to be passed to the extension handler.
+	// Example:
+	//     Argocd-Project-Name: "default"
+	HeaderArgoCDProjectName = "Argocd-Project-Name"
+
+	// HeaderArgoCDResourceGVKName defines the name of the
+	// expected GVK name header to be passed to the extension
+	// handler. The header value must follow the format:
+	//     "<apiVersion>:<kind>:<metadata.name>"
+	// Example:
+	//     Argocd-Resource-GVK-Name: "apps/v1:Pod:some-pod"
+	HeaderArgoCDResourceGVKName = "Argocd-Resource-GVK-Name"
 )
 
 // RequestResources defines the authorization scope for
@@ -50,7 +69,7 @@ type Resource struct {
 	Name string
 }
 
-// ToRequestResources will inspect the pre-defined Argo CD
+// ValidateHeaders will validate the pre-defined Argo CD
 // request headers for extensions and extract the resources
 // information populating and returning a RequestResources
 // object.
@@ -61,7 +80,7 @@ type Resource struct {
 //
 // The headers expected format is documented in each of the constant
 // types defined for them.
-func ToRequestResources(r *http.Request) (*RequestResources, error) {
+func ValidateHeaders(r *http.Request) (*RequestResources, error) {
 	appHeader := r.Header.Get(HeaderArgoCDApplicationName)
 	if appHeader == "" {
 		return nil, fmt.Errorf("header %q must be provided", HeaderArgoCDApplicationName)
@@ -93,9 +112,9 @@ func ToRequestResources(r *http.Request) (*RequestResources, error) {
 }
 
 func getAppName(appHeader string) (string, string, error) {
-	parts := strings.Split(appHeader, "/")
+	parts := strings.Split(appHeader, ":")
 	if len(parts) != 2 {
-		return "", "", fmt.Errorf("invalid value for %q header: expected format: <namespace>/<app-name>", appHeader)
+		return "", "", fmt.Errorf("invalid value for %q header: expected format: <namespace>:<app-name>", appHeader)
 	}
 	return parts[0], parts[1], nil
 }
@@ -116,16 +135,15 @@ func getResourceList(resourcesHeader string) ([]Resource, error) {
 	return resources, nil
 }
 
-// TODO
 func getResource(resourceString string) (*Resource, error) {
-	parts := strings.Split(resourceString, "/")
-	if len(parts) != 4 {
-		return nil, fmt.Errorf("invalid value for %q header: expected format: <apiVersion>/<kind>/<metadata.name>", HeaderArgoCDResourceGVKName)
+	parts := strings.Split(resourceString, ":")
+	if len(parts) != 3 {
+		return nil, fmt.Errorf("invalid value for %q header: expected format: <apiVersion>:<kind>:<metadata.name>", HeaderArgoCDResourceGVKName)
 	}
-	gvk := schema.FromAPIVersionAndKind(parts[0]+"/"+parts[1], parts[2])
+	gvk := schema.FromAPIVersionAndKind(strings.TrimSpace(parts[0]), strings.TrimSpace(parts[1]))
 	return &Resource{
 		Gvk:  gvk,
-		Name: parts[3],
+		Name: strings.TrimSpace(parts[2]),
 	}, nil
 }
 
@@ -385,7 +403,7 @@ func authorize(ctx context.Context, rr *RequestResources) error {
 // extension service. The request will be sanitized by removing sensitive headers.
 func (m *Manager) CallExtension(extName string, proxyByCluster map[string]*httputil.ReverseProxy) func(http.ResponseWriter, *http.Request) {
 	return func(w http.ResponseWriter, r *http.Request) {
-		reqResources, err := ToRequestResources(r)
+		reqResources, err := ValidateHeaders(r)
 		if err != nil {
 			http.Error(w, fmt.Sprintf("Invalid headers: %s", err), http.StatusBadRequest)
 			return

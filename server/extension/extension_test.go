@@ -21,19 +21,19 @@ import (
 	"github.com/argoproj/argo-cd/v2/util/settings"
 )
 
-func TestToRequestResources(t *testing.T) {
+func TestValidateHeaders(t *testing.T) {
 	t.Run("will build RequestResources successfully", func(t *testing.T) {
 		// given
 		r, err := http.NewRequest("Get", "http://null", nil)
 		if err != nil {
 			t.Fatalf("error initializing request: %s", err)
 		}
-		r.Header.Add(extension.HeaderArgoCDApplicationName, "namespace/app-name")
+		r.Header.Add(extension.HeaderArgoCDApplicationName, "namespace:app-name")
 		r.Header.Add(extension.HeaderArgoCDProjectName, "project-name")
-		r.Header.Add(extension.HeaderArgoCDResourceGVKName, "apps/v1/Pod/some-pod, argoproj.io/v1alpha1/Application/app-name")
+		r.Header.Add(extension.HeaderArgoCDResourceGVKName, "apps/v1:Pod:some-pod, argoproj.io/v1alpha1:Application:app-name, v1:Service:some-svc")
 
 		// when
-		rr, err := extension.ToRequestResources(r)
+		rr, err := extension.ValidateHeaders(r)
 
 		// then
 		require.NoError(t, err)
@@ -41,8 +41,83 @@ func TestToRequestResources(t *testing.T) {
 		assert.Equal(t, "namespace", rr.ApplicationNamespace)
 		assert.Equal(t, "app-name", rr.ApplicationName)
 		assert.Equal(t, "project-name", rr.ProjectName)
-		require.Len(t, rr.Resources, 2)
+		require.Len(t, rr.Resources, 3)
+		assert.Equal(t, "apps", rr.Resources[0].Gvk.Group)
+		assert.Equal(t, "v1", rr.Resources[0].Gvk.Version)
+		assert.Equal(t, "Pod", rr.Resources[0].Gvk.Kind)
+		assert.Equal(t, "some-pod", rr.Resources[0].Name)
+		assert.Equal(t, "argoproj.io", rr.Resources[1].Gvk.Group)
+		assert.Equal(t, "v1alpha1", rr.Resources[1].Gvk.Version)
+		assert.Equal(t, "Application", rr.Resources[1].Gvk.Kind)
+		assert.Equal(t, "app-name", rr.Resources[1].Name)
+		assert.Equal(t, "", rr.Resources[2].Gvk.Group)
+		assert.Equal(t, "v1", rr.Resources[2].Gvk.Version)
+		assert.Equal(t, "Service", rr.Resources[2].Gvk.Kind)
+		assert.Equal(t, "some-svc", rr.Resources[2].Name)
+	})
+	t.Run("will return error if application is malformatted", func(t *testing.T) {
+		// given
+		r, err := http.NewRequest("Get", "http://null", nil)
+		if err != nil {
+			t.Fatalf("error initializing request: %s", err)
+		}
+		r.Header.Add(extension.HeaderArgoCDApplicationName, "no-namespace")
 
+		// when
+		rr, err := extension.ValidateHeaders(r)
+
+		// then
+		assert.Error(t, err)
+		assert.Nil(t, rr)
+	})
+	t.Run("will return error if gvk header is malformatted", func(t *testing.T) {
+		// given
+		r, err := http.NewRequest("Get", "http://null", nil)
+		if err != nil {
+			t.Fatalf("error initializing request: %s", err)
+		}
+		r.Header.Add(extension.HeaderArgoCDApplicationName, "namespace:app-name")
+		r.Header.Add(extension.HeaderArgoCDProjectName, "project-name")
+		r.Header.Add(extension.HeaderArgoCDResourceGVKName, "no-gvk-info")
+
+		// when
+		rr, err := extension.ValidateHeaders(r)
+
+		// then
+		assert.Error(t, err)
+		assert.Nil(t, rr)
+	})
+	t.Run("will return error if application header is missing", func(t *testing.T) {
+		// given
+		r, err := http.NewRequest("Get", "http://null", nil)
+		if err != nil {
+			t.Fatalf("error initializing request: %s", err)
+		}
+		r.Header.Add(extension.HeaderArgoCDProjectName, "project-name")
+		r.Header.Add(extension.HeaderArgoCDResourceGVKName, "apps/v1:Pod:some-pod")
+
+		// when
+		rr, err := extension.ValidateHeaders(r)
+
+		// then
+		assert.Error(t, err)
+		assert.Nil(t, rr)
+	})
+	t.Run("will return error if project header is missing", func(t *testing.T) {
+		// given
+		r, err := http.NewRequest("Get", "http://null", nil)
+		if err != nil {
+			t.Fatalf("error initializing request: %s", err)
+		}
+		r.Header.Add(extension.HeaderArgoCDApplicationName, "namespace:app-name")
+		r.Header.Add(extension.HeaderArgoCDResourceGVKName, "apps/v1:Pod:some-pod")
+
+		// when
+		rr, err := extension.ValidateHeaders(r)
+
+		// then
+		assert.Error(t, err)
+		assert.Nil(t, rr)
 	})
 }
 
