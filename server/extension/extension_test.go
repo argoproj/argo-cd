@@ -261,6 +261,18 @@ func TestExtensionsHandler(t *testing.T) {
 		}))
 
 	}
+	newExtensionRequest := func(t *testing.T, method, url string) *http.Request {
+		t.Helper()
+		r, err := http.NewRequest(method, url, nil)
+		if err != nil {
+			t.Fatalf("error initializing request: %s", err)
+		}
+		r.Header.Add(extension.HeaderArgoCDApplicationName, "namespace:app-name")
+		r.Header.Add(extension.HeaderArgoCDProjectName, "project-name")
+		r.Header.Add(extension.HeaderArgoCDResourceGVKName, "apps/v1:Pod:some-pod")
+		return r
+	}
+
 	t.Run("proxy will return 404 if no extension endpoint is registered", func(t *testing.T) {
 		// given
 		f := setup()
@@ -289,9 +301,10 @@ func TestExtensionsHandler(t *testing.T) {
 		withExtensionConfig(getExtensionConfig(backendEndpoint, backendSrv.URL), f)
 		ts := startTestServer(t, f)
 		defer ts.Close()
+		r := newExtensionRequest(t, "Get", fmt.Sprintf("%s/extensions/%s/", ts.URL, backendEndpoint))
 
 		// when
-		resp, err := http.Get(fmt.Sprintf("%s/extensions/%s/", ts.URL, backendEndpoint))
+		resp, err := http.DefaultClient.Do(r)
 
 		// then
 		require.NoError(t, err)
@@ -342,14 +355,13 @@ func TestExtensionsHandler(t *testing.T) {
 		f.appGetterMock.On("Get", "ns2", "app2").Return(app2, nil)
 
 		url := fmt.Sprintf("%s/extensions/%s/", ts.URL, extName)
-		req, err := http.NewRequest(http.MethodGet, url, nil)
-		if err != nil {
-			t.Fatalf("error creating request: %s", err)
-		}
+		req := newExtensionRequest(t, http.MethodGet, url)
+		req.Header.Del(extension.HeaderArgoCDApplicationName)
+
 		req1 := req.Clone(context.Background())
-		req1.Header.Add(extension.HeaderArgoCDApplicationName, "ns1/app1")
+		req1.Header.Add(extension.HeaderArgoCDApplicationName, "ns1:app1")
 		req2 := req.Clone(context.Background())
-		req2.Header.Add(extension.HeaderArgoCDApplicationName, "ns2/app2")
+		req2.Header.Add(extension.HeaderArgoCDApplicationName, "ns2:app2")
 
 		// when
 		resp1, err := http.DefaultClient.Do(req1)

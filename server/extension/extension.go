@@ -396,7 +396,7 @@ func (m *Manager) registerExtensions(r *mux.Router, extConfigs *ExtensionConfigs
 
 // TODO
 func authorize(ctx context.Context, rr *RequestResources) error {
-	panic("unimplemented")
+	return nil
 }
 
 // CallExtension returns a handler func responsible for forwarding requests to the
