@@ -141,6 +141,7 @@ func TestRegisterHandlers(t *testing.T) {
 	}
 	t.Run("will register handlers successfully", func(t *testing.T) {
 		// given
+		t.Parallel()
 		f := setup()
 		router := mux.NewRouter()
 		settings := &settings.ArgoCDSettings{
@@ -169,6 +170,7 @@ func TestRegisterHandlers(t *testing.T) {
 	})
 	t.Run("will return error if extension config is invalid", func(t *testing.T) {
 		// given
+		t.Parallel()
 		type testCase struct {
 			name       string
 			configYaml string
@@ -197,6 +199,7 @@ func TestRegisterHandlers(t *testing.T) {
 			tc := tc
 			t.Run(tc.name, func(t *testing.T) {
 				// given
+				t.Parallel()
 				f := setup()
 				router := mux.NewRouter()
 				settings := &settings.ArgoCDSettings{
@@ -275,6 +278,7 @@ func TestExtensionsHandler(t *testing.T) {
 
 	t.Run("proxy will return 404 if no extension endpoint is registered", func(t *testing.T) {
 		// given
+		t.Parallel()
 		f := setup()
 		withExtensionConfig(getExtensionConfigString(), f)
 		ts := startTestServer(t, f)
@@ -291,6 +295,7 @@ func TestExtensionsHandler(t *testing.T) {
 	})
 	t.Run("will call extension backend successfully", func(t *testing.T) {
 		// given
+		t.Parallel()
 		f := setup()
 		backendResponse := "some data"
 		backendEndpoint := "some-backend"
@@ -317,6 +322,7 @@ func TestExtensionsHandler(t *testing.T) {
 	})
 	t.Run("will route requests with 2 backends for the same extension successfully", func(t *testing.T) {
 		// given
+		t.Parallel()
 		f := setup()
 		extName := "some-extension"
 
