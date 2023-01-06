@@ -13,13 +13,17 @@ RUN apt-get update && apt-get install --no-install-recommends -y \
     nginx \
     unzip \
     fcgiwrap \
-    git \
-    git-lfs \
     make \
     wget \
     gcc \
     sudo \
-    zip && \
+    zip \
+    software-properties-common
+
+RUN apt-add-repository ppa:git-core/ppa && apt-get update && apt-get install --no-install-recommends -y \
+    git \
+    git-lfs \
+&& \
     apt-get clean && \
     rm -rf /var/lib/apt/lists/* /tmp/* /var/tmp/*
 
