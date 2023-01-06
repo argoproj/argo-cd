@@ -8,6 +8,10 @@ FROM docker.io/library/golang:1.18 AS builder
 
 RUN echo 'deb http://deb.debian.org/debian buster-backports main' >> /etc/apt/sources.list
 
+# See: https://launchpad.net/~git-core/+archive/ubuntu/ppa
+RUN apt-key adv --keyserver keyserver.ubuntu.com --recv-keys E1DD270288B4E6030699E45FA1715D88E1DF1F24
+RUN echo 'deb https://ppa.launchpadcontent.net/git-core/ppa/ubuntu jammy main' >> /etc/apt/sources.list
+
 RUN apt-get update && apt-get install --no-install-recommends -y \
     openssh-server \
     nginx \
@@ -15,14 +19,12 @@ RUN apt-get update && apt-get install --no-install-recommends -y \
     fcgiwrap \
     make \
     wget \
+    git \
+    git-lfs \
     gcc \
     sudo \
     zip \
-    software-properties-common
-
-RUN apt-add-repository ppa:git-core/ppa && apt-get update && apt-get install --no-install-recommends -y \
-    git \
-    git-lfs \
+    software-properties-common \
 && \
     apt-get clean && \
     rm -rf /var/lib/apt/lists/* /tmp/* /var/tmp/*
