@@ -25,6 +25,10 @@ import (
 	"github.com/argoproj/argo-cd/v2/util/rbac"
 )
 
+const (
+	maxGoroutinesForListCluster = 50
+)
+
 // Server provides a Cluster service
 type Server struct {
 	db      db.ArgoDB
@@ -61,18 +65,24 @@ func (s *Server) List(ctx context.Context, q *cluster.ClusterQuery) (*appv1.Clus
 	_ = s.enf.LoadPolicy()
 
 	items := make([]appv1.Cluster, 0)
-	var wg sync.WaitGroup
+	semaphore := make(chan struct{}, maxGoroutinesForListCluster)
 	var clusterMap sync.Map
 	for idx := range clusterList.Items {
-		wg.Add(1)
+		semaphore <- struct{}{}
+
 		go func(idx int, project, server string) {
-			defer wg.Done()
+			defer func() {
+				<-semaphore
+			}()
+
 			if s.enf.Enforce(ctx.Value("claims"), rbacpolicy.ResourceClusters, rbacpolicy.ActionGet, createRBACObject(project, server)) {
 				clusterMap.Store(idx, struct{}{})
 			}
 		}(idx, clusterList.Items[idx].Project, clusterList.Items[idx].Server)
 	}
-	wg.Wait()
+	for i := maxGoroutinesForListCluster; i > 0; i-- {
+		semaphore <- struct{}{}
+	}
 	clusterMap.Range(func(key, value interface{}) bool {
 		idx := key.(int)
 		items = append(items, clusterList.Items[idx])

@@ -63,9 +63,10 @@ import (
 type AppResourceTreeFn func(ctx context.Context, app *appv1.Application) (*appv1.ApplicationTree, error)
 
 const (
-	maxPodLogsToRender                 = 10
-	backgroundPropagationPolicy string = "background"
-	foregroundPropagationPolicy string = "foreground"
+	maxPodLogsToRender                     = 10
+	backgroundPropagationPolicy     string = "background"
+	foregroundPropagationPolicy     string = "foreground"
+	maxGoroutinesForListApplication        = 50
 )
 
 var (
@@ -147,16 +148,21 @@ func (s *Server) List(ctx context.Context, q *application.ApplicationQuery) (*ap
 	if err != nil {
 		return nil, fmt.Errorf("error listing apps with selectors: %w", err)
 	}
+
 	// warm cache
 	_ = s.enf.LoadPolicy()
 
 	newItems := make([]appv1.Application, 0, len(apps))
-	var wg sync.WaitGroup
 	var appMap sync.Map
+	semaphore := make(chan struct{}, maxGoroutinesForListApplication)
 	for idx, a := range apps {
-		wg.Add(1)
+		semaphore <- struct{}{}
+
 		go func(idx int, a *appv1.Application) {
-			defer wg.Done()
+			defer func() {
+				<-semaphore
+			}()
+
 			// Skip any application that is neither in the control plane's namespace
 			// nor in the list of enabled namespaces.
 			if a.Namespace != s.ns && !glob.MatchStringInList(s.enabledNamespaces, a.Namespace, false) {
@@ -167,7 +173,9 @@ func (s *Server) List(ctx context.Context, q *application.ApplicationQuery) (*ap
 			}
 		}(idx, a)
 	}
-	wg.Wait()
+	for i := maxGoroutinesForListApplication; i > 0; i-- {
+		semaphore <- struct{}{}
+	}
 	appMap.Range(func(key, value interface{}) bool {
 		idx := key.(int)
 		newItems = append(newItems, *apps[idx])
