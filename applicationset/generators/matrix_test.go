@@ -443,8 +443,7 @@ func TestMatrixGetRequeueAfter(t *testing.T) {
 					PullRequest: pullRequestGenerator,
 				},
 			},
-			gitGetRequeueAfter: time.Duration(3 * 60000000000),
-			expected:           time.Duration(3 * 60000000000),
+			expected: time.Duration(30 * time.Minute),
 		},
 	}
 
