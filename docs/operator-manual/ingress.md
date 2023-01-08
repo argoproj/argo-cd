@@ -414,6 +414,82 @@ Once we create this service, we can configure the Ingress to conditionally route
       - argocd.argoproj.io
 ```
 
+### Web UI only Ingress
+
+If you only want to expose the web ui over Ingress, follow these steps.
+
+First, in the argocd installation manifest edit `Deployment` resource of `argocd-server`.  It should currently say:
+```yaml
+containers:
+  - command:
+      - argocd-server
+```
+change this to:
+
+```yaml
+containers:
+  - command:
+      - argocd-server
+      - --staticassets
+      - /shared/app
+      - --insecure
+```
+This will disable TLS termination on the pod and prevent any redirects from HTTP to HTTPS. This is needed since you will be terminating TLS on your ALB.
+
+Next, create a `Service` of type `NodePort` which can direct the incoming requests to the `argocd-server` pods.
+
+```yaml
+apiVersion: v1
+kind: Service
+metadata:
+  name: argoweb
+  namespace: argocd
+  labels:
+    app: argoweb
+spec:
+  type: NodePort
+  sessionAffinity: None
+  selector:
+    app.kubernetes.io/name: argocd-server
+  ports:
+    - name: "8080"
+      port: 8080
+      protocol: TCP
+      targetPort: 8080
+
+```
+
+Finally create the ingress resource to send requests to this service:
+
+```yaml
+apiVersion: networking.k8s.io/v1
+kind: Ingress
+metadata:
+  name: argocd
+  namespace: argocd
+  annotations:
+    kubernetes.io/ingress.class: alb
+    alb.ingress.kubernetes.io/scheme: internal
+    alb.ingress.kubernetes.io/listen-ports: '[{"HTTPS":443}]'
+    alb.ingress.kubernetes.io/certificate-arn: arn:aws:acm:us-east-1:12123123:certificate/asdasdasdasd
+    alb.ingress.kubernetes.io/backend-protocol: HTTP
+    alb.ingress.kubernetes.io/ssl-policy:  ELBSecurityPolicy-TLS-1-2-Ext-2018-06
+spec:
+  rules:
+    - host: myargowebui.mydomain.com
+      http:
+        paths:
+          - path: /
+            backend:
+              service:
+                name: argoweb
+                port:
+                  number: 8080
+            pathType: Prefix
+```
+
+Now when you browse to `https://myargowebui.mydomain.com` you will be presented with the argocd web dashboard.
+
 ## Google Cloud load balancers with Kubernetes Ingress
 
 You can make use of the integration of GKE with Google Cloud to deploy Load Balancers using just Kubernetes objects.
