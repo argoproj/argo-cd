@@ -434,7 +434,20 @@ func TestMatrixGetRequeueAfter(t *testing.T) {
 			expected:           time.Duration(1),
 		},
 		{
-			name: "returns the default time",
+			name: "returns the minimal time for pull request",
+			baseGenerators: []argoprojiov1alpha1.ApplicationSetNestedGenerator{
+				{
+					Git: gitGenerator,
+				},
+				{
+					PullRequest: pullRequestGenerator,
+				},
+			},
+			gitGetRequeueAfter: time.Duration(15 * time.Second),
+			expected:           time.Duration(15 * time.Second),
+		},
+		{
+			name: "returns the default time if no requeueAfterSeconds is provided",
 			baseGenerators: []argoprojiov1alpha1.ApplicationSetNestedGenerator{
 				{
 					Git: gitGenerator,
