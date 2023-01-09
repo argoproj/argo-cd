@@ -16,6 +16,8 @@ with at least one value for `hostname` or `IP`.
 ### Ingress
 * The `status.loadBalancer.ingress` list is non-empty, with at least one value for `hostname` or `IP`.
 
+### Job
+* If job `.spec.suspended` is set to 'true', then the job and app health will be marked as suspended.
 ### PersistentVolumeClaim
 * The `status.phase` is `Bound`
 
@@ -38,7 +40,7 @@ metadata:
 data:
   resource.customizations: |
     argoproj.io/Application:
-      health.lua: |  
+      health.lua: |
         hs = {}
         hs.status = "Progressing"
         hs.message = ""
@@ -64,11 +66,11 @@ There are two ways to configure a custom health check. The next two sections des
 
 ### Way 1. Define a Custom Health Check in `argocd-cm` ConfigMap
 
-Custom health checks can be defined in 
+Custom health checks can be defined in
 ```yaml
   resource.customizations: |
     <group/kind>:
-      health.lua: | 
+      health.lua: |
 ```
 field of `argocd-cm`. If you are using argocd-operator, this is overridden by [the argocd-operator resourceCustomizations](https://argocd-operator.readthedocs.io/en/latest/reference/argocd/#resource-customizations).
 
@@ -106,7 +108,7 @@ In order to prevent duplication of the same custom health check for potentially 
 ```yaml
   resource.customizations: |
     ec2.aws.crossplane.io/*:
-      health.lua: | 
+      health.lua: |
         ...
 ```
 
