@@ -31,6 +31,6 @@ jobs:
           git config --global user.email 'ci@argoproj.com'
           git config --global user.name 'CI'
           git add docs/snyk
-          git commit -m "[Bot] Update Snyk reports" --signoff
+          git commit -m "[Bot] docs: Update Snyk reports" --signoff
           git push --set-upstream origin "$pr_branch"
           gh pr create -B master -H "$pr_branch" --title '[Bot] docs: Update Snyk report' --body ''
