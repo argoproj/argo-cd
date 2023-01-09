@@ -26,6 +26,9 @@ Each link in the list has five subfields :
    data as the `url` field. If the condition resolves to `true` the deep link will be displayed - else it will be hidden. If
    the field is omitted, by default the deep links will be displayed. This uses [antonmedv/expr](https://github.com/antonmedv/expr/tree/master/docs) for evaluating conditions
 
+!!!warning
+   Make sure to validate the url templates and inputs to prevent data leaks or possible generation of any malicious links.
+
 
 An example `argocd-cm.yaml` file with deep links and their variations :
 
