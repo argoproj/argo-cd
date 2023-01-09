@@ -26,21 +26,22 @@ export function repoUrl(url: string): string {
 }
 
 export function revisionUrl(url: string, revision: string, forPath: boolean): string {
+    let parsed;
     try {
-        const parsed = GitUrlParse(url);
-        let urlSubPath = isSHA(revision) ? 'commit' : 'tree';
-
-        if (url.indexOf('bitbucket') >= 0) {
-            // The reason for the condition of 'forPath' is that when we build nested path, we need to use 'src'
-            urlSubPath = isSHA(revision) && !forPath ? 'commits' : 'src';
-        }
-
-        if (!supportedSource(parsed)) {
-            return null;
-        }
-
-        return `${protocol(parsed.protocol)}://${parsed.resource}/${parsed.owner}/${parsed.name}/${urlSubPath}/${revision || 'HEAD'}`;
+        parsed = GitUrlParse(url);
     } catch {
         return null;
     }
+    let urlSubPath = isSHA(revision) ? 'commit' : 'tree';
+
+    if (url.indexOf('bitbucket') >= 0) {
+        // The reason for the condition of 'forPath' is that when we build nested path, we need to use 'src'
+        urlSubPath = isSHA(revision) && !forPath ? 'commits' : 'src';
+    }
+
+    if (!supportedSource(parsed)) {
+        return null;
+    }
+
+    return `${protocol(parsed.protocol)}://${parsed.resource}/${parsed.owner}/${parsed.name}/${urlSubPath}/${revision || 'HEAD'}`;
 }
