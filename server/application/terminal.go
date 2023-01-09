@@ -49,6 +49,7 @@ func NewHandler(appLister applisters.ApplicationLister, namespace string, enable
 		appResourceTreeFn: appResourceTree,
 		allowedShells:     allowedShells,
 		namespace:         namespace,
+		enabledNamespaces: enabledNamespaces,
 	}
 }
 
