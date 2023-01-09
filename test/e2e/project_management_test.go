@@ -329,7 +329,7 @@ func TestUseJWTToken(t *testing.T) {
 			Name: appName,
 		},
 		Spec: v1alpha1.ApplicationSpec{
-			Source: v1alpha1.ApplicationSource{
+			Source: &v1alpha1.ApplicationSource{
 				RepoURL: fixture.RepoURL(fixture.RepoURLTypeFile),
 				Path:    "guestbook",
 			},

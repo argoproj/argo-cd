@@ -6,7 +6,7 @@ import {Application, ApplicationDestination, Cluster, HealthStatusCode, HealthSt
 import {AppsListPreferences, services} from '../../../shared/services';
 import {Filter, FiltersGroup} from '../filter/filter';
 import * as LabelSelector from '../label-selector';
-import {ComparisonStatusIcon, HealthStatusIcon} from '../utils';
+import {ComparisonStatusIcon, getAppDefaultSource, HealthStatusIcon} from '../utils';
 
 export interface FilterResult {
     repos: boolean;
@@ -34,7 +34,7 @@ export function getFilterResults(applications: Application[], pref: AppsListPref
     return applications.map(app => ({
         ...app,
         filterResult: {
-            repos: pref.reposFilter.length === 0 || pref.reposFilter.includes(app.spec.source.repoURL),
+            repos: pref.reposFilter.length === 0 || pref.reposFilter.includes(getAppDefaultSource(app).repoURL),
             sync: pref.syncFilter.length === 0 || pref.syncFilter.includes(app.status.sync.status),
             autosync: pref.autoSyncFilter.length === 0 || pref.autoSyncFilter.includes(getAutoSyncStatus(app.spec.syncPolicy)),
             health: pref.healthFilter.length === 0 || pref.healthFilter.includes(app.status.health.status),
