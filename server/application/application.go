@@ -1945,6 +1945,11 @@ func (s *Server) ListResourceLinks(ctx context.Context, req *application.Applica
 		return nil, fmt.Errorf("failed to read application deep links from configmap: %w", err)
 	}
 
+	obj, err = replaceSecretValues(obj)
+	if err != nil {
+		return nil, fmt.Errorf("error replacing secret values: %w", err)
+	}
+
 	finalList, errorList := deeplinks.EvaluateDeepLinksResponse(*obj, deepLinks)
 	if len(errorList) > 0 {
 		log.Errorf("errors while evaluating resource deep links, %v", strings.Join(errorList, ", "))
