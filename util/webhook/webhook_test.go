@@ -64,7 +64,7 @@ func NewMockHandler(reactor *reactorDef, objects ...runtime.Object) *ArgoCDWebho
 		appClientset.AddReactor(reactor.verb, reactor.resource, reactor.reaction)
 	}
 	cacheClient := cacheutil.NewCache(cacheutil.NewInMemoryCache(1 * time.Hour))
-	return NewHandler("", appClientset, &settings.ArgoCDSettings{}, &fakeSettingsSrc{}, cache.NewCache(
+	return NewHandler([]string{"argocd"}, appClientset, &settings.ArgoCDSettings{}, &fakeSettingsSrc{}, cache.NewCache(
 		cacheClient,
 		1*time.Minute,
 		1*time.Minute,
@@ -101,6 +101,7 @@ func TestGitHubCommitEvent_MultiSource_Refresh(t *testing.T) {
 	h := NewMockHandler(&reactorDef{"patch", "applications", reaction}, &v1alpha1.Application{
 		ObjectMeta: metav1.ObjectMeta{
 			Name: "app-to-refresh",
+			Namespace: "argocd",
 		},
 		Spec: v1alpha1.ApplicationSpec{
 			Sources: v1alpha1.ApplicationSources{
@@ -117,6 +118,7 @@ func TestGitHubCommitEvent_MultiSource_Refresh(t *testing.T) {
 	}, &v1alpha1.Application{
 		ObjectMeta: metav1.ObjectMeta{
 			Name: "app-to-ignore",
+			Namespace: "argocd",
 		},
 		Spec: v1alpha1.ApplicationSpec{
 			Sources: v1alpha1.ApplicationSources{

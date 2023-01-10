@@ -42,7 +42,7 @@ type ArgoCDWebhookHandler struct {
 	repoCache       *cache.Cache
 	serverCache     *servercache.Cache
 	db              db.ArgoDB
-	ns              string
+	namespaces      []string
 	appClientset    appclientset.Interface
 	github          *github.Webhook
 	gitlab          *gitlab.Webhook
@@ -52,7 +52,7 @@ type ArgoCDWebhookHandler struct {
 	settingsSrc     settingsSource
 }
 
-func NewHandler(namespace string, appClientset appclientset.Interface, set *settings.ArgoCDSettings, settingsSrc settingsSource, repoCache *cache.Cache, serverCache *servercache.Cache, argoDB db.ArgoDB) *ArgoCDWebhookHandler {
+func NewHandler(applicationNamespaces []string, appClientset appclientset.Interface, set *settings.ArgoCDSettings, settingsSrc settingsSource, repoCache *cache.Cache, serverCache *servercache.Cache, argoDB db.ArgoDB) *ArgoCDWebhookHandler {
 	githubWebhook, err := github.New(github.Options.Secret(set.WebhookGitHubSecret))
 	if err != nil {
 		log.Warnf("Unable to init the GitHub webhook")
@@ -75,7 +75,7 @@ func NewHandler(namespace string, appClientset appclientset.Interface, set *sett
 	}
 
 	acdWebhook := ArgoCDWebhookHandler{
-		ns:              namespace,
+		namespaces:      applicationNamespaces,
 		appClientset:    appClientset,
 		github:          githubWebhook,
 		gitlab:          gitlabWebhook,
@@ -212,44 +212,45 @@ func (a *ArgoCDWebhookHandler) HandleEvent(payload interface{}) {
 	for _, webURL := range webURLs {
 		log.Infof("Received push event repo: %s, revision: %s, touchedHead: %v", webURL, revision, touchedHead)
 	}
-	appIf := a.appClientset.ArgoprojV1alpha1().Applications(a.ns)
-	apps, err := appIf.List(context.Background(), metav1.ListOptions{})
-	if err != nil {
-		log.Warnf("Failed to list applications: %v", err)
-		return
-	}
 
-	trackingMethod, err := a.settingsSrc.GetTrackingMethod()
-	if err != nil {
-		log.Warnf("Failed to get trackingMethod: %v", err)
-		return
-	}
-	appInstanceLabelKey, err := a.settingsSrc.GetAppInstanceLabelKey()
-	if err != nil {
-		log.Warnf("Failed to get appInstanceLabelKey: %v", err)
-		return
-	}
-
-	for _, webURL := range webURLs {
-		repoRegexp, err := getWebUrlRegex(webURL)
+	for _, namespace := range(a.namespaces) {
+		appIf := a.appClientset.ArgoprojV1alpha1().Applications(namespace)
+		apps, err := appIf.List(context.Background(), metav1.ListOptions{})
 		if err != nil {
-			log.Warnf("Failed to get repoRegexp: %s", err)
-			continue
+			log.Warnf("Failed to list applications: %v", err)
+			return
 		}
-		for _, app := range apps.Items {
-			for _, source := range app.Spec.GetSources() {
-				if sourceRevisionHasChanged(source, revision, touchedHead) && sourceUsesURL(source, webURL, repoRegexp) {
-					if appFilesHaveChanged(&app, changedFiles) {
-						_, err = argo.RefreshApp(appIf, app.ObjectMeta.Name, v1alpha1.RefreshTypeNormal)
-						if err != nil {
-							log.Warnf("Failed to refresh app '%s' for controller reprocessing: %v", app.ObjectMeta.Name, err)
-							continue
-						}
-						// No need to refresh multiple times if multiple sources match.
-						break
-					} else if change.shaBefore != "" && change.shaAfter != "" {
-						if err := a.storePreviouslyCachedManifests(&app, change, trackingMethod, appInstanceLabelKey); err != nil {
-							log.Warnf("Failed to store cached manifests of previous revision for app '%s': %v", app.Name, err)
+		
+		trackingMethod, err := a.settingsSrc.GetTrackingMethod()
+		if err != nil {
+			log.Warnf("Failed to get trackingMethod: %v", err)
+			return
+		}
+		appInstanceLabelKey, err := a.settingsSrc.GetAppInstanceLabelKey()
+		if err != nil {
+			log.Warnf("Failed to get appInstanceLabelKey: %v", err)
+			return
+		}
+
+		for _, webURL := range webURLs {
+			repoRegexp, err := getWebUrlRegex(webURL)
+			if err != nil {
+				log.Warnf("Failed to get repoRegexp: %s", err)
+				continue
+			}
+			for _, app := range apps.Items {
+				for _, source := range app.Spec.GetSources() {
+					if sourceRevisionHasChanged(source, revision, touchedHead) && sourceUsesURL(source, webURL, repoRegexp) {
+						if appFilesHaveChanged(&app, changedFiles) {
+							_, err = argo.RefreshApp(appIf, app.ObjectMeta.Name, v1alpha1.RefreshTypeNormal)
+							if err != nil {
+								log.Warnf("Failed to refresh app '%s' for controller reprocessing: %v", app.ObjectMeta.Name, err)
+								continue
+							}
+						} else if change.shaBefore != "" && change.shaAfter != "" {
+							if err := a.storePreviouslyCachedManifests(&app, change, trackingMethod, appInstanceLabelKey); err != nil {
+								log.Warnf("Failed to store cached manifests of previous revision for app '%s': %v", app.Name, err)
+							}
 						}
 					}
 				}
