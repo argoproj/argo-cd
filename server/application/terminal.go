@@ -25,6 +25,7 @@ import (
 	"github.com/argoproj/argo-cd/v2/util/db"
 	"github.com/argoproj/argo-cd/v2/util/rbac"
 	"github.com/argoproj/argo-cd/v2/util/security"
+	"github.com/argoproj/argo-cd/v2/util/session"
 	sessionmgr "github.com/argoproj/argo-cd/v2/util/session"
 	"github.com/argoproj/argo-cd/v2/util/settings"
 )
@@ -98,9 +99,9 @@ func isValidContainerName(name string) bool {
 
 type GetSettingsFunc func() (*settings.ArgoCDSettings, error)
 
-// WithEnabledMiddleware is an HTTP middleware to verify if the terminal
+// WithFeatureFlagMiddleware is an HTTP middleware to verify if the terminal
 // feature is enabled before invoking the main handler
-func (s *terminalHandler) WithEnabledMiddleware(getSettings GetSettingsFunc, next http.Handler) http.Handler {
+func (s *terminalHandler) WithFeatureFlagMiddleware(getSettings GetSettingsFunc, next http.Handler) http.Handler {
 	return http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
 		argocdSettings, err := getSettings()
 		if err != nil {
@@ -171,12 +172,12 @@ func (s *terminalHandler) ServeHTTP(w http.ResponseWriter, r *http.Request) {
 	ctx := r.Context()
 
 	appRBACName := security.AppRBACName(s.namespace, project, appNamespace, app)
-	if err := s.enf.EnforceErr(ctx.Value("claims"), rbacpolicy.ResourceApplications, rbacpolicy.ActionGet, appRBACName); err != nil {
+	if err := s.enf.EnforceErr(ctx.Value(session.CtxKeyClaims), rbacpolicy.ResourceApplications, rbacpolicy.ActionGet, appRBACName); err != nil {
 		http.Error(w, err.Error(), http.StatusUnauthorized)
 		return
 	}
 
-	if err := s.enf.EnforceErr(ctx.Value("claims"), rbacpolicy.ResourceExec, rbacpolicy.ActionCreate, appRBACName); err != nil {
+	if err := s.enf.EnforceErr(ctx.Value(session.CtxKeyClaims), rbacpolicy.ResourceExec, rbacpolicy.ActionCreate, appRBACName); err != nil {
 		http.Error(w, err.Error(), http.StatusUnauthorized)
 		return
 	}

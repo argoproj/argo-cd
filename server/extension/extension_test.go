@@ -2,6 +2,7 @@ package extension_test
 
 import (
 	"context"
+	"errors"
 	"fmt"
 	"io"
 	"net/http"
@@ -14,10 +15,12 @@ import (
 	"github.com/stretchr/testify/assert"
 	"github.com/stretchr/testify/mock"
 	"github.com/stretchr/testify/require"
+	"k8s.io/apimachinery/pkg/apis/meta/v1"
 
 	"github.com/argoproj/argo-cd/v2/pkg/apis/application/v1alpha1"
 	"github.com/argoproj/argo-cd/v2/server/extension"
 	"github.com/argoproj/argo-cd/v2/server/extension/mocks"
+	"github.com/argoproj/argo-cd/v2/server/rbacpolicy"
 	"github.com/argoproj/argo-cd/v2/util/settings"
 )
 
@@ -132,7 +135,7 @@ func TestRegisterHandlers(t *testing.T) {
 
 		logger, _ := test.NewNullLogger()
 		logEntry := logger.WithContext(context.Background())
-		m := extension.NewManager(settMock, nil, logEntry)
+		m := extension.NewManager(logEntry, settMock, nil, nil)
 
 		return &fixture{
 			settingsGetterMock: settMock,
@@ -222,16 +225,18 @@ func TestExtensionsHandler(t *testing.T) {
 		router             *mux.Router
 		appGetterMock      *mocks.ApplicationGetter
 		settingsGetterMock *mocks.SettingsGetter
+		rbacMock           *mocks.RbacEnforcer
 		manager            *extension.Manager
 	}
 
 	setup := func() *fixture {
 		appMock := &mocks.ApplicationGetter{}
 		settMock := &mocks.SettingsGetter{}
+		rbacMock := &mocks.RbacEnforcer{}
 
 		logger, _ := test.NewNullLogger()
 		logEntry := logger.WithContext(context.Background())
-		m := extension.NewManager(settMock, appMock, logEntry)
+		m := extension.NewManager(logEntry, settMock, appMock, rbacMock)
 
 		router := mux.NewRouter()
 
@@ -239,8 +244,46 @@ func TestExtensionsHandler(t *testing.T) {
 			router:             router,
 			appGetterMock:      appMock,
 			settingsGetterMock: settMock,
+			rbacMock:           rbacMock,
 			manager:            m,
 		}
+	}
+
+	getApp := func(destName, destServer string) *v1alpha1.Application {
+		return &v1alpha1.Application{
+			TypeMeta:   v1.TypeMeta{},
+			ObjectMeta: v1.ObjectMeta{},
+			Spec: v1alpha1.ApplicationSpec{
+				Destination: v1alpha1.ApplicationDestination{
+					Name:   destName,
+					Server: destServer,
+				},
+			},
+			Status: v1alpha1.ApplicationStatus{
+				Resources: []v1alpha1.ResourceStatus{
+					{
+						Group:     "apps",
+						Version:   "v1",
+						Kind:      "Pod",
+						Namespace: "default",
+						Name:      "some-pod",
+					},
+				},
+			},
+		}
+	}
+
+	withRbac := func(f *fixture, allowApp, allowExt bool) {
+		var appAccessError error
+		var extAccessError error
+		if !allowApp {
+			appAccessError = errors.New("no app permission")
+		}
+		if !allowExt {
+			extAccessError = errors.New("no extension permission")
+		}
+		f.rbacMock.On("EnforceErr", mock.Anything, rbacpolicy.ResourceApplications, rbacpolicy.ActionGet, mock.Anything).Return(appAccessError)
+		f.rbacMock.On("EnforceErr", mock.Anything, rbacpolicy.ResourceExtensions, rbacpolicy.ActionInvoke, mock.Anything).Return(extAccessError)
 	}
 
 	withExtensionConfig := func(configYaml string, f *fixture) {
@@ -303,10 +346,12 @@ func TestExtensionsHandler(t *testing.T) {
 			fmt.Fprintln(w, backendResponse)
 		}))
 		defer backendSrv.Close()
+		withRbac(f, true, true)
 		withExtensionConfig(getExtensionConfig(backendEndpoint, backendSrv.URL), f)
 		ts := startTestServer(t, f)
 		defer ts.Close()
 		r := newExtensionRequest(t, "Get", fmt.Sprintf("%s/extensions/%s/", ts.URL, backendEndpoint))
+		f.appGetterMock.On("Get", mock.Anything, mock.Anything).Return(getApp("", ""), nil)
 
 		// when
 		resp, err := http.DefaultClient.Do(r)
@@ -314,7 +359,7 @@ func TestExtensionsHandler(t *testing.T) {
 		// then
 		require.NoError(t, err)
 		require.NotNil(t, resp)
-		require.Equal(t, http.StatusOK, resp.StatusCode)
+		assert.Equal(t, http.StatusOK, resp.StatusCode)
 		body, err := io.ReadAll(resp.Body)
 		require.NoError(t, err)
 		actual := strings.TrimSuffix(string(body), "\n")
@@ -336,29 +381,13 @@ func TestExtensionsHandler(t *testing.T) {
 		beSrv2 := startBackendTestSrv(response2)
 		defer beSrv2.Close()
 
+		f.appGetterMock.On("Get", "ns1", "app1").Return(getApp(cluster1, beSrv1.URL), nil)
+		f.appGetterMock.On("Get", "ns2", "app2").Return(getApp("", beSrv2.URL), nil)
+
+		withRbac(f, true, true)
 		withExtensionConfig(getExtensionConfigWith2Backends(extName, beSrv1.URL, cluster1, beSrv2.URL, cluster2), f)
 		ts := startTestServer(t, f)
 		defer ts.Close()
-
-		app1 := &v1alpha1.Application{
-			Spec: v1alpha1.ApplicationSpec{
-				Destination: v1alpha1.ApplicationDestination{
-					Server: beSrv1.URL,
-					Name:   cluster1,
-				},
-			},
-		}
-		f.appGetterMock.On("Get", "ns1", "app1").Return(app1, nil)
-
-		app2 := &v1alpha1.Application{
-			Spec: v1alpha1.ApplicationSpec{
-				Destination: v1alpha1.ApplicationDestination{
-					Server: beSrv2.URL,
-					Name:   cluster2,
-				},
-			},
-		}
-		f.appGetterMock.On("Get", "ns2", "app2").Return(app2, nil)
 
 		url := fmt.Sprintf("%s/extensions/%s/", ts.URL, extName)
 		req := newExtensionRequest(t, http.MethodGet, url)
@@ -377,18 +406,98 @@ func TestExtensionsHandler(t *testing.T) {
 
 		// then
 		require.NotNil(t, resp1)
-		require.Equal(t, http.StatusOK, resp1.StatusCode)
+		assert.Equal(t, http.StatusOK, resp1.StatusCode)
 		body, err := io.ReadAll(resp1.Body)
 		require.NoError(t, err)
 		actual := strings.TrimSuffix(string(body), "\n")
 		assert.Equal(t, response1, actual)
 
 		require.NotNil(t, resp2)
-		require.Equal(t, http.StatusOK, resp2.StatusCode)
+		assert.Equal(t, http.StatusOK, resp2.StatusCode)
 		body, err = io.ReadAll(resp2.Body)
 		require.NoError(t, err)
 		actual = strings.TrimSuffix(string(body), "\n")
 		assert.Equal(t, response2, actual)
+	})
+	t.Run("will return 401 if sub has no access to get application", func(t *testing.T) {
+		// given
+		t.Parallel()
+		f := setup()
+		allowApp := false
+		allowExtension := true
+		extName := "some-extension"
+		withRbac(f, allowApp, allowExtension)
+		withExtensionConfig(getExtensionConfig(extName, "http://fake"), f)
+		ts := startTestServer(t, f)
+		defer ts.Close()
+		r := newExtensionRequest(t, "Get", fmt.Sprintf("%s/extensions/%s/", ts.URL, extName))
+		f.appGetterMock.On("Get", mock.Anything, mock.Anything).Return(getApp("", ""), nil)
+
+		// when
+		resp, err := http.DefaultClient.Do(r)
+
+		// then
+		require.NoError(t, err)
+		require.NotNil(t, resp)
+		assert.Equal(t, http.StatusUnauthorized, resp.StatusCode)
+		body, err := io.ReadAll(resp.Body)
+		require.NoError(t, err)
+		actual := strings.TrimSuffix(string(body), "\n")
+		assert.Contains(t, actual, "no app permission")
+	})
+	t.Run("will return 401 if sub has no access to invoke extension", func(t *testing.T) {
+		// given
+		t.Parallel()
+		f := setup()
+		allowApp := true
+		allowExtension := false
+		extName := "some-extension"
+		withRbac(f, allowApp, allowExtension)
+		withExtensionConfig(getExtensionConfig(extName, "http://fake"), f)
+		ts := startTestServer(t, f)
+		defer ts.Close()
+		r := newExtensionRequest(t, "Get", fmt.Sprintf("%s/extensions/%s/", ts.URL, extName))
+		f.appGetterMock.On("Get", mock.Anything, mock.Anything).Return(getApp("", ""), nil)
+
+		// when
+		resp, err := http.DefaultClient.Do(r)
+
+		// then
+		require.NoError(t, err)
+		require.NotNil(t, resp)
+		assert.Equal(t, http.StatusUnauthorized, resp.StatusCode)
+		body, err := io.ReadAll(resp.Body)
+		require.NoError(t, err)
+		actual := strings.TrimSuffix(string(body), "\n")
+		assert.Contains(t, actual, "no extension permission")
+	})
+	t.Run("will return 401 if requested resource does not belong to app", func(t *testing.T) {
+		// given
+		t.Parallel()
+		f := setup()
+		allowApp := true
+		allowExtension := true
+		extName := "some-extension"
+		withRbac(f, allowApp, allowExtension)
+		withExtensionConfig(getExtensionConfig(extName, "http://fake"), f)
+		ts := startTestServer(t, f)
+		defer ts.Close()
+		r := newExtensionRequest(t, "Get", fmt.Sprintf("%s/extensions/%s/", ts.URL, extName))
+		app := getApp("", "")
+		app.Status.Resources[0].Name = "something-else"
+		f.appGetterMock.On("Get", mock.Anything, mock.Anything).Return(app, nil)
+
+		// when
+		resp, err := http.DefaultClient.Do(r)
+
+		// then
+		require.NoError(t, err)
+		require.NotNil(t, resp)
+		assert.Equal(t, http.StatusUnauthorized, resp.StatusCode)
+		body, err := io.ReadAll(resp.Body)
+		require.NoError(t, err)
+		actual := strings.TrimSuffix(string(body), "\n")
+		assert.Contains(t, actual, "does not belong to the application")
 	})
 }
 
@@ -414,7 +523,10 @@ extensions:
     - url: %s
       cluster: %s
 `
-	return fmt.Sprintf(cfg, name, url1, clus1, url2, clus2)
+	// second extension is configured with the cluster url rather
+	// than the cluster name so we can validate that both use-cases
+	// are working
+	return fmt.Sprintf(cfg, name, url1, clus1, url2, url2)
 }
 
 func getExtensionConfigString() string {

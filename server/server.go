@@ -908,7 +908,7 @@ func (a *ArgoCDServer) newHTTPServer(ctx context.Context, port int, grpcWebHandl
 
 	terminal := application.NewHandler(a.appLister, a.Namespace, a.ApplicationNamespaces, a.db, a.enf, a.Cache, appResourceTreeFn, a.settings.ExecShells)
 	th := a.sessionMgr.WithAuthMiddleware(a.DisableAuth,
-		terminal.WithEnabledMiddleware(a.settingsMgr.GetSettings, terminal))
+		terminal.WithFeatureFlagMiddleware(a.settingsMgr.GetSettings, terminal))
 	mux.Handle("/terminal", th)
 
 	// Proxy extension is currently an alpha feature and is disabled
@@ -969,8 +969,8 @@ func (a *ArgoCDServer) newHTTPServer(ctx context.Context, port int, grpcWebHandl
 // extensions handlers, no route will be added in the given mux.
 func registerExtensions(mux *http.ServeMux, a *ArgoCDServer) {
 	sg := extension.NewDefaultSettingsGetter(a.settingsMgr)
-	ag := extension.NewDefaultApplicationGetter(a.serviceSet.ApplicationService)
-	em := extension.NewManager(sg, ag, a.log)
+	ag := extension.NewDefaultApplicationGetter(a.appLister)
+	em := extension.NewManager(a.log, sg, ag, a.enf)
 	r := gmux.NewRouter()
 	// register an Auth middleware to ensure all requests to
 	// extensions are authenticated first.

@@ -2,7 +2,6 @@ package extension
 
 import (
 	"context"
-	"encoding/json"
 	"fmt"
 	"net"
 	"net/http"
@@ -12,14 +11,16 @@ import (
 	"strings"
 	"time"
 
-	applicationpkg "github.com/argoproj/argo-cd/v2/pkg/apiclient/application"
 	v1alpha1 "github.com/argoproj/argo-cd/v2/pkg/apis/application/v1alpha1"
+	applisters "github.com/argoproj/argo-cd/v2/pkg/client/listers/application/v1alpha1"
+	"github.com/argoproj/argo-cd/v2/server/rbacpolicy"
+	"github.com/argoproj/argo-cd/v2/util/security"
+	"github.com/argoproj/argo-cd/v2/util/session"
 	"github.com/argoproj/argo-cd/v2/util/settings"
 	"github.com/ghodss/yaml"
 	"github.com/gorilla/mux"
 	log "github.com/sirupsen/logrus"
 	"k8s.io/apimachinery/pkg/runtime/schema"
-	"k8s.io/utils/pointer"
 )
 
 const (
@@ -67,6 +68,10 @@ type RequestResources struct {
 type Resource struct {
 	Gvk  schema.GroupVersionKind
 	Name string
+}
+
+func (r Resource) String() string {
+	return fmt.Sprintf("%s, Name=%s", r.Gvk.String(), r.Name)
 }
 
 // ValidateHeaders will validate the pre-defined Argo CD
@@ -238,23 +243,24 @@ type ApplicationGetter interface {
 
 // DefaultApplicationGetter is the real application getter implementation.
 type DefaultApplicationGetter struct {
-	svc applicationpkg.ApplicationServiceServer
+	appLister applisters.ApplicationLister
 }
 
 // NewDefaultApplicationGetter returns the default application getter.
-func NewDefaultApplicationGetter(appSvc applicationpkg.ApplicationServiceServer) *DefaultApplicationGetter {
+func NewDefaultApplicationGetter(al applisters.ApplicationLister) *DefaultApplicationGetter {
 	return &DefaultApplicationGetter{
-		svc: appSvc,
+		appLister: al,
 	}
 }
 
 // Get will retrieve the application resorce for the given namespace and name.
 func (a *DefaultApplicationGetter) Get(ns, name string) (*v1alpha1.Application, error) {
-	query := &applicationpkg.ApplicationQuery{
-		Name:         pointer.String(name),
-		AppNamespace: pointer.String(ns),
-	}
-	return a.svc.Get(context.Background(), query)
+	return a.appLister.Applications(ns).Get(name)
+}
+
+// RbacEnforcer defines the contract to enforce rbac rules
+type RbacEnforcer interface {
+	EnforceErr(rvals ...interface{}) error
 }
 
 // Manager is the object that will be responsible for registering
@@ -263,14 +269,16 @@ type Manager struct {
 	log         *log.Entry
 	settings    SettingsGetter
 	application ApplicationGetter
+	rbac        RbacEnforcer
 }
 
 // NewManager will initialize a new manager.
-func NewManager(sg SettingsGetter, ag ApplicationGetter, log *log.Entry) *Manager {
+func NewManager(log *log.Entry, sg SettingsGetter, ag ApplicationGetter, rbac RbacEnforcer) *Manager {
 	return &Manager{
 		log:         log,
 		settings:    sg,
 		application: ag,
+		rbac:        rbac,
 	}
 }
 
@@ -394,9 +402,55 @@ func (m *Manager) registerExtensions(r *mux.Router, extConfigs *ExtensionConfigs
 	return nil
 }
 
-// TODO
-func authorize(ctx context.Context, rr *RequestResources) error {
-	return nil
+// authorize will enforce rbac rules are satified for the given RequestResources.
+// The following validations are executed:
+//   - enforce the subject has permission to read application/project provided
+//     in HeaderArgoCDApplicationName and HeaderArgoCDProjectName.
+//   - enforce the subject has permission to invoke the extension identified by
+//     extName.
+//   - enforce that all resources provided in the HeaderArgoCDResourceGVKName belong
+//     to the application identified by HeaderArgoCDApplicationName.
+//
+// If all validations are satified it will return the Application resource
+func (m *Manager) authorize(ctx context.Context, rr *RequestResources, extName string) (*v1alpha1.Application, error) {
+	if m.rbac == nil {
+		return nil, fmt.Errorf("rbac enforcer not set in extension manager")
+	}
+	appRBACName := security.AppRBACName(rr.ApplicationNamespace, rr.ProjectName, rr.ApplicationNamespace, rr.ApplicationName)
+	if err := m.rbac.EnforceErr(ctx.Value(session.CtxKeyClaims), rbacpolicy.ResourceApplications, rbacpolicy.ActionGet, appRBACName); err != nil {
+		return nil, fmt.Errorf("application authorization error: %s", err)
+	}
+
+	if err := m.rbac.EnforceErr(ctx.Value(session.CtxKeyClaims), rbacpolicy.ResourceExtensions, rbacpolicy.ActionInvoke, extName); err != nil {
+		return nil, fmt.Errorf("unauthorized to invoke extension %q: %s", extName, err)
+	}
+
+	// just retrieve the app after checking if subject has access to it
+	app, err := m.application.Get(rr.ApplicationNamespace, rr.ApplicationName)
+	if err != nil {
+		return nil, fmt.Errorf("error getting application: %s", err)
+	}
+	if app == nil {
+		return nil, fmt.Errorf("invalid Application: %s/%s", rr.ApplicationNamespace, rr.ApplicationName)
+	}
+
+	// if resources are provided in the HeaderArgoCDResourceGVKName
+	// it will validate if it belongs to the application
+	for _, resource := range rr.Resources {
+		found := false
+		for _, child := range app.Status.Resources {
+			if child.GroupVersionKind() == resource.Gvk &&
+				child.Name == resource.Name {
+				found = true
+				break
+			}
+		}
+		if !found {
+			return nil, fmt.Errorf("resource %q does not belong to the application %q", resource.String(), rr.ApplicationName)
+		}
+	}
+
+	return app, nil
 }
 
 // CallExtension returns a handler func responsible for forwarding requests to the
@@ -408,64 +462,46 @@ func (m *Manager) CallExtension(extName string, proxyByCluster map[string]*httpu
 			http.Error(w, fmt.Sprintf("Invalid headers: %s", err), http.StatusBadRequest)
 			return
 		}
-		err = authorize(r.Context(), reqResources)
+		app, err := m.authorize(r.Context(), reqResources, extName)
 		if err != nil {
-			http.Error(w, fmt.Sprintf("Unauthorized: %s", err), http.StatusUnauthorized)
+			http.Error(w, fmt.Sprintf("Unauthorized extension request: %s", err), http.StatusUnauthorized)
 			return
 		}
 
 		sanitizeRequest(r, extName)
+
+		// This is the case where there is only one proxy configured
+		// for this extension.
 		if len(proxyByCluster) == 1 {
 			for _, proxy := range proxyByCluster {
+				// in this case we just forward the request to the single
+				// proxy and return
 				proxy.ServeHTTP(w, r)
 				return
 			}
-		}
-		app, err := m.application.Get(reqResources.ApplicationNamespace, reqResources.ApplicationName)
-		if err != nil {
-			msg := fmt.Sprintf("Error getting application: %s", err)
-			m.writeErrorResponse(http.StatusBadRequest, msg, w)
-			return
-		}
-		if app == nil {
-			msg := fmt.Sprintf("Invalid Application: %s/%s", reqResources.ApplicationNamespace, reqResources.ApplicationName)
-			m.writeErrorResponse(http.StatusBadRequest, msg, w)
-			return
 		}
 		clusterName := app.Spec.Destination.Name
 		if clusterName == "" {
 			clusterName = app.Spec.Destination.Server
 		}
 
+		// This is the case where there are more than one proxy configured
+		// for this extension. In this case we need to get the proper proxy
+		// instance configured for the target cluster.
 		proxy, ok := proxyByCluster[clusterName]
 		if !ok {
 			msg := fmt.Sprintf("No extension configured for cluster %q", clusterName)
-			m.writeErrorResponse(http.StatusBadRequest, msg, w)
+			http.Error(w, msg, http.StatusBadRequest)
 			return
 		}
 		proxy.ServeHTTP(w, r)
 	}
 }
 
+// sanitizeRequest is reponsible for preparing and cleaning the given
+// request, removing sensitive information before forwarding it to the
+// proxy extension.
 func sanitizeRequest(r *http.Request, extName string) {
 	r.URL.Path = strings.TrimPrefix(r.URL.String(), fmt.Sprintf("%s/%s", URLPrefix, extName))
 	r.Header.Del("Cookie")
-}
-
-func (m *Manager) writeErrorResponse(status int, message string, w http.ResponseWriter) {
-	w.WriteHeader(status)
-	w.Header().Set("Content-Type", "application/json")
-	resp := make(map[string]string)
-	resp["status"] = http.StatusText(status)
-	resp["message"] = message
-	jsonResp, err := json.Marshal(resp)
-	if err != nil {
-		m.log.Errorf("Error marshaling response for extension: %s", err)
-		return
-	}
-	_, err = w.Write(jsonResp)
-	if err != nil {
-		m.log.Errorf("Error writing response for extension: %s", err)
-		return
-	}
 }
