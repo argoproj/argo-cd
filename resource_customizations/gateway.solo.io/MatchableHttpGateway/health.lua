@@ -1,7 +1,7 @@
-  hs = {
-    status = "Progressing",
-    message = "Update in progress"
-  }
+hs = {
+  status = "Progressing",
+  message = "Update in progress"
+}
 
 function getStatus(status)
   -- Accepted
