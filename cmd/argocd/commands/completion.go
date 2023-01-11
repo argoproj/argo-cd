@@ -146,6 +146,7 @@ __argocd_custom_func() {
 			;;
 		argocd_cluster_get | \
 		argocd_cluster_rm | \
+		argocd_cluster_set | \
 		argocd_login | \
 		argocd_cluster_add)
 			__argocd_list_servers
