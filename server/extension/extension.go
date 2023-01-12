@@ -446,7 +446,7 @@ func (m *Manager) authorize(ctx context.Context, rr *RequestResources, extName s
 			}
 		}
 		if !found {
-			return nil, fmt.Errorf("resource %q does not belong to the application %q", resource.String(), rr.ApplicationName)
+			return nil, fmt.Errorf("resource from header %q does not belong to the application", HeaderArgoCDResourceGVKName)
 		}
 	}
 
