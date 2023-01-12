@@ -26,10 +26,10 @@ export function repoUrl(url: string): string {
 }
 
 export function revisionUrl(url: string, revision: string, forPath: boolean): string {
+    let parsed;
     try {
-        const parsed = GitUrlParse(url);
+        parsed = GitUrlParse(url);
     } catch {
-        // URL Parsing failed
         return null;
     }
     let urlSubPath = isSHA(revision) ? 'commit' : 'tree';
