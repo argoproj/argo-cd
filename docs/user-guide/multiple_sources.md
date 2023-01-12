@@ -55,17 +55,18 @@ spec:
     targetRevision: 15.7.1
     helm:
       valueFiles:
-      - $values/charts/prometheus/values.yaml
+      - '$(values)/charts/prometheus/values.yaml'
+      - 'secrets://$(values)/charts/prometheus/values.yaml'
   - repoURL: 'https://git.example.gom/org/value-files.git'
     targetRevision: dev
     ref: values
 ```
 
 In the above example, the `prometheus` chart will use the value file from `git.example.gom/org/value-files.git`. 
-`$values` resolves to the root of the `value-files` repository. The `$values` variable may only be specified at the 
-beginning of the value file path.
+`$(values)` resolves to the root of the `value-files` repository. The `$(values)` reference can be specified anywhere at the value file path.
+To prevent the evaluation inside of `$(values)` inside URL, you have to url-encode the string, e.g. `%24%28values%29`
 
-If the `path` field is set in the `$values` source, Argo CD will attempt to generate resources from the git repository
+If the `path` field is set in the `$(values)` source, Argo CD will attempt to generate resources from the git repository
 at that URL. If the `path` field is not set, Argo CD will use the repository solely as a source of value files.
 
 !!! note

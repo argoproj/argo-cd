@@ -1118,10 +1118,16 @@ func getResolvedValueFiles(
 		var resolvedPath pathutil.ResolvedFilePath
 		var err error
 
-		referencedSource := getReferencedSource(rawValueFile, refSources)
+		regexSourceReference, _ := regexp.Compile(`\$\(([a-z]+)\)(?:/|$)`)
+
+		referencedSource, err := getReferencedSource(rawValueFile, refSources, regexSourceReference)
+		if err != nil {
+			return nil, err
+		}
+
 		if referencedSource != nil {
 			// If the $-prefixed path appears to reference another source, do env substitution _after_ resolving that source.
-			resolvedPath, err = getResolvedRefValueFile(rawValueFile, env, allowedValueFilesSchemas, referencedSource.Repo.Repo, gitRepoPaths)
+			resolvedPath, err = getResolvedRefValueFile(rawValueFile, env, allowedValueFilesSchemas, referencedSource.Repo.Repo, gitRepoPaths, regexSourceReference)
 			if err != nil {
 				return nil, err
 			}
@@ -1154,14 +1160,15 @@ func getResolvedRefValueFile(
 	allowedValueFilesSchemas []string,
 	refSourceRepo string,
 	gitRepoPaths io.TempPaths,
+	regexSourceReference *regexp.Regexp,
 ) (pathutil.ResolvedFilePath, error) {
-	pathStrings := strings.Split(rawValueFile, "/")
+	matched := regexSourceReference.FindStringSubmatch(rawValueFile)
+
 	repoPath := gitRepoPaths.GetPathIfExists(git.NormalizeGitURL(refSourceRepo))
 	if repoPath == "" {
 		return "", fmt.Errorf("failed to find repo %q", refSourceRepo)
 	}
-	pathStrings[0] = "" // Remove first segment. It will be inserted by pathutil.ResolveValueFilePathOrUrl.
-	substitutedPath := strings.Join(pathStrings, "/")
+	substitutedPath := strings.ReplaceAll(rawValueFile, matched[0], repoPath+"/")
 
 	// Resolve the path relative to the referenced repo and block any attempt at traversal.
 	resolvedPath, _, err := pathutil.ResolveValueFilePathOrUrl(repoPath, repoPath, env.Envsubst(substitutedPath), allowedValueFilesSchemas)
@@ -1171,13 +1178,19 @@ func getResolvedRefValueFile(
 	return resolvedPath, nil
 }
 
-func getReferencedSource(rawValueFile string, refSources map[string]*v1alpha1.RefTarget) *v1alpha1.RefTarget {
-	if !strings.HasPrefix(rawValueFile, "$") {
-		return nil
+func getReferencedSource(rawValueFile string, refSources map[string]*v1alpha1.RefTarget, regexSourceReference *regexp.Regexp) (*v1alpha1.RefTarget, error) {
+	matched := regexSourceReference.FindStringSubmatch(rawValueFile)
+
+	if matched == nil {
+		return nil, nil
 	}
-	refVar := strings.Split(rawValueFile, "/")[0]
-	referencedSource := refSources[refVar]
-	return referencedSource
+
+	refVar := matched[1]
+	referencedSource, ok := refSources[refVar]
+	if !ok {
+		return nil, fmt.Errorf("source ref '%q' does not exists", refVar)
+	}
+	return referencedSource, nil
 }
 
 func getRepoCredential(repoCredentials []*v1alpha1.RepoCreds, repoURL string) *v1alpha1.RepoCreds {
