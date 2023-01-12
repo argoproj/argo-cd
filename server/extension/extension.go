@@ -431,7 +431,7 @@ func (m *Manager) authorize(ctx context.Context, rr *RequestResources, extName s
 		return nil, fmt.Errorf("error getting application: %s", err)
 	}
 	if app == nil {
-		return nil, fmt.Errorf("invalid Application: %s/%s", rr.ApplicationNamespace, rr.ApplicationName)
+		return nil, fmt.Errorf("invalid Application provided in the %q header", HeaderArgoCDApplicationName)
 	}
 
 	// if resources are provided in the HeaderArgoCDResourceGVKName
