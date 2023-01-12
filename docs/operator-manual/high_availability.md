@@ -6,8 +6,8 @@ A set of HA manifests are provided for users who wish to run Argo CD in a highly
 
 [Manifests ⧉](https://github.com/argoproj/argo-cd/tree/master/manifests) 
 
-!!! note
-    The HA installation will require at least three different nodes due to pod anti-affinity roles in the specs.
+> **NOTE:** The HA installation will require at least three different nodes due to pod anti-affinity roles in the
+> specs. Additionally, IPv6 only clusters are not supported.
 
 ## Scaling Up
 
