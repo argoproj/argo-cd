@@ -1,0 +1,86 @@
+apiVersion: kustomize.config.k8s.io/v1beta1
+kind: Kustomization
+namespace: argocd
+patchesJson6902:
+  # This is needed in order for there to be a stable password on each invocation of `skaffold dev`, otherwise a new
+  # password will be generated each time.
+  - target:
+      version: v1
+      kind: Secret
+      name: argocd-secret
+    patch: |-
+      - op: replace
+        path: /stringData
+        value: 
+          # admin.password is "password"
+          admin.password: $2a$10$RncPyHW/B5ll2Z3J8s.IBOnbZ9uoJ4JhHLKzj5lzG/kU1KN1Oj3/K
+          admin.passwordMtime: 2019-03-20T17:54:53Z
+  # In order for Skaffold to do its thing, we need to modify all `imagePullPolicy` blocks to be `IfNotPresent`, since
+  # otherwise the kubelet will attempt to fetch the latest matching SHA-256 sum from the remote repository
+  # `quay.io/argoproj/argocd` (which probably does not exist).
+  - target:
+      group: apps
+      version: v1
+      kind: StatefulSet
+      name: argocd-application-controller
+    patch: |-
+      - op: replace
+        path: /spec/template/spec/containers/0/imagePullPolicy
+        value: IfNotPresent
+  - target:
+      group: apps
+      version: v1
+      kind: Deployment
+      name: argocd-applicationset-controller
+    patch: |-
+      - op: replace
+        path: /spec/template/spec/containers/0/imagePullPolicy
+        value: IfNotPresent
+  - target:
+      group: apps
+      version: v1
+      kind: Deployment
+      name: argocd-repo-server
+    patch: |-
+      - op: replace
+        path: /spec/template/spec/containers/0/imagePullPolicy
+        value: IfNotPresent
+  - target:
+      group: apps
+      version: v1
+      kind: Deployment
+      name: argocd-server
+    patch: |-
+      - op: replace
+        path: /spec/template/spec/containers/0/imagePullPolicy
+        value: IfNotPresent
+  - target:
+      group: apps
+      version: v1
+      kind: Deployment
+      name: argocd-notifications-controller
+    patch: |-
+      - op: replace
+        path: /spec/template/spec/containers/0/imagePullPolicy
+        value: IfNotPresent
+  - target:
+      group: apps
+      version: v1
+      kind: Deployment
+      name: argocd-dex-server
+    patch: |-
+      - op: replace
+        path: /spec/template/spec/initContainers/0/imagePullPolicy
+        value: IfNotPresent
+
+resources:
+- ../manifests/crds
+- ../manifests/cluster-rbac/application-controller
+- ../manifests/base/config
+- ../manifests/base/application-controller
+- ../manifests/base/applicationset-controller
+- ../manifests/base/repo-server
+- ../manifests/base/server
+- ../manifests/base/redis
+- ../manifests/base/dex
+- ../manifests/base/notification

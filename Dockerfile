@@ -118,7 +118,11 @@ ARG GIT_TAG
 ARG BUILD_DATE
 ARG GIT_TREE_STATE
 ARG GIT_COMMIT
-RUN GIT_COMMIT=$GIT_COMMIT \
+# The mount=type=cache part is there to enable local incremental compilation for development purposes. From what I can
+# see in the Github workflows, this shouldn't be an issue but if we want to be really sure to have a clean build we
+# could either disable Docker caching in the workflow, alternatively copy this Dockerfile to make a dev version of it.
+RUN --mount=type=cache,target=/root/.cache/go-build \
+    GIT_COMMIT=$GIT_COMMIT \
     GIT_TREE_STATE=$GIT_TREE_STATE \
     GIT_TAG=$GIT_TAG \
     BUILD_DATE=$BUILD_DATE \
