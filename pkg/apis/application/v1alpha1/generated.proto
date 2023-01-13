@@ -1305,6 +1305,9 @@ message RepoCreds {
 
   // Proxy specifies the HTTP/HTTPS proxy used to access repos at the repo server
   optional string proxy = 19;
+
+  // ForceHttpBasicAuth specifies whether Argo CD should attempt to force basic auth for HTTP connections
+  optional bool forceHttpBasicAuth = 20;
 }
 
 // RepositoryList is a collection of Repositories.
@@ -1379,6 +1382,9 @@ message Repository {
 
   // GCPServiceAccountKey specifies the service account key in JSON format to be used for getting credentials to Google Cloud Source repos
   optional string gcpServiceAccountKey = 21;
+
+  // ForceHttpBasicAuth specifies whether Argo CD should attempt to force basic auth for HTTP connections
+  optional bool forceHttpBasicAuth = 22;
 }
 
 // A RepositoryCertificate is either SSH known hosts entry or TLS certificate

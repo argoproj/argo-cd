@@ -516,6 +516,7 @@ export interface Repository {
     insecure?: boolean;
     enableLfs?: boolean;
     githubAppId?: string;
+    forceHttpBasicAuth?: boolean;
 }
 
 export interface RepositoryList extends ItemsList<Repository> {}
