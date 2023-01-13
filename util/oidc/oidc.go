@@ -16,7 +16,8 @@ import (
 	"time"
 
 	gooidc "github.com/coreos/go-oidc/v3/oidc"
-	"github.com/golang-jwt/jwt/v4"
+	jose "github.com/go-jose/go-jose/v3"
+	josejwt "github.com/go-jose/go-jose/v3/jwt"
 	log "github.com/sirupsen/logrus"
 	"golang.org/x/oauth2"
 
@@ -47,7 +48,8 @@ type OIDCConfiguration struct {
 
 type Claims struct {
 	Groups []string `json:"groups,omitempty"`
-	jwt.RegisteredClaims
+	josejwt.Claims
+	RawClaim map[string]interface{} `json:"-"`
 }
 
 type ClaimsRequest struct {
@@ -76,6 +78,8 @@ type ClientApp struct {
 	settings *settings.ArgoCDSettings
 	// encryptionKey holds server encryption key
 	encryptionKey []byte
+	// encryper is an JWE encryptor
+	encrypter jose.Encrypter
 	// provider is the OIDC provider
 	provider Provider
 }
@@ -109,6 +113,11 @@ func NewClientApp(settings *settings.ArgoCDSettings, dexServerAddr string, dexTl
 	if err != nil {
 		return nil, err
 	}
+	encrypter, err := jose.NewEncrypter(jose.ContentEncryption(jose.HS256), jose.Recipient{Algorithm: jose.KeyAlgorithm(jose.HS256), Key: encryptionKey}, &jose.EncrypterOptions{Compression: jose.DEFLATE})
+	if err != nil {
+		return nil, fmt.Errorf("failed to create JWT encrpytor: %w", err)
+	}
+
 	a := ClientApp{
 		clientID:      settings.OAuth2ClientID(),
 		clientSecret:  settings.OAuth2ClientSecret(),
@@ -117,6 +126,7 @@ func NewClientApp(settings *settings.ArgoCDSettings, dexServerAddr string, dexTl
 		userInfoPath:  settings.UserInfoPath(),
 		baseHRef:      baseHRef,
 		encryptionKey: encryptionKey,
+		encrypter:     encrypter,
 	}
 	log.Infof("Creating client app (%s)", a.clientID)
 	u, err := url.Parse(settings.URL)
@@ -389,9 +399,8 @@ func (a *ClientApp) HandleCallback(w http.ResponseWriter, r *http.Request) {
 		flags = append(flags, "Secure")
 	}
 	claims := Claims{}
-	err = idToken.Claims(&claims)
-	if err != nil {
-		http.Error(w, err.Error(), http.StatusInternalServerError)
+	if err = idToken.Claims(&claims); err != nil {
+		http.Error(w, err.Error(), http.StatusUnauthorized)
 		return
 	}
 	groups := claims.Groups
@@ -401,45 +410,41 @@ func (a *ClientApp) HandleCallback(w http.ResponseWriter, r *http.Request) {
 	if a.userInfoPath != "" {
 		userInfo, unauthorized, err := a.GetUserInfo(token.AccessToken, a.settings.IssuerURL(), a.userInfoPath)
 		if unauthorized {
-			w.WriteHeader(401)
-			_, _ = w.Write([]byte(fmt.Sprintf("failed to get claims from unserinfo endpoint: %v", err)))
+			http.Error(w, fmt.Sprintf("failed to get claims from unserinfo endpoint: %v", err), 401)
 			return
 		}
 		if err != nil {
-			w.WriteHeader(500)
-			_, _ = w.Write([]byte(fmt.Sprintf("failed to get claims from userinfo endpoint: %v", err)))
+			http.Error(w, fmt.Sprintf("failed to get claims from userinfo endpoint: %v", err), 500)
+			return
 		}
 		if idToken.Subject != userInfo.Subject {
-			log.Warning("Subject of Claims from UserInfo endpoint didn't match Subject of idToken, see https://openid.net/specs/openid-connect-core-1_0.html#UserInfo")
+			log.Warning("subject of claims from user info endpoint didn't match subject of idToken, see https://openid.net/specs/openid-connect-core-1_0.html#UserInfo")
 			return
 		}
 		groups = userInfo.Groups
 	}
 
-	// reassamble the JWT claims
-	argoClaims := Claims{
-		groups,
-		jwt.RegisteredClaims{
-			ExpiresAt: jwt.NewNumericDate(idToken.Expiry),
-			IssuedAt:  jwt.NewNumericDate(time.Now()),
-			NotBefore: jwt.NewNumericDate(time.Now()),
-			//Issuer:    session.SessionManagerClaimsIssuer, // token will now be validated against argocd instead of IDP
-			Issuer:   "argocd",
-			Subject:  idToken.Subject,
-			Audience: idToken.Audience,
+	// create JWE
+	argoClaims := &Claims{
+		RawClaim: claims.RawClaim,
+		Groups:   groups,
+		Claims: josejwt.Claims{
+			// Issuer:  session.SessionManagerClaimsIssuer,
+			Issuer:  "argocd",
+			Subject: claims.Subject,
+			Expiry:  josejwt.NewNumericDate(time.Now().Add(time.Duration(*claims.Expiry))),
 		},
 	}
-	newToken := jwt.NewWithClaims(jwt.SigningMethodHS256, argoClaims)
-	idTokenRAW, err = newToken.SignedString(a.settings.ServerSignature)
+	raw, err := josejwt.Encrypted(a.encrypter).Claims(argoClaims).CompactSerialize()
 	if err != nil {
-		w.WriteHeader(500)
-		_, _ = w.Write([]byte(fmt.Sprintf("failed to sign jwt token: %v", err)))
+		http.Error(w, "", 401)
+		return
 	}
 
-	if idTokenRAW != "" {
-		cookies, err := httputil.MakeCookieMetadata(common.AuthCookieName, idTokenRAW, flags...)
+	if raw != "" {
+		cookies, err := httputil.MakeCookieMetadata(common.AuthCookieName, raw, flags...)
 		if err != nil {
-			claimsJSON, _ := json.Marshal(claims)
+			claimsJSON, _ := json.Marshal(argoClaims)
 			http.Error(w, fmt.Sprintf("claims=%s, err=%v", claimsJSON, err), http.StatusInternalServerError)
 			return
 		}
@@ -453,7 +458,7 @@ func (a *ClientApp) HandleCallback(w http.ResponseWriter, r *http.Request) {
 	log.Infof("Web login successful. Claims: %s", claimsJSON)
 	if os.Getenv(common.EnvVarSSODebug) == "1" {
 		claimsJSON, _ := json.MarshalIndent(claims, "", "  ")
-		renderToken(w, a.redirectURI, idTokenRAW, token.RefreshToken, claimsJSON)
+		renderToken(w, a.redirectURI, raw, token.RefreshToken, claimsJSON)
 	} else {
 		http.Redirect(w, r, returnURL, http.StatusSeeOther)
 	}

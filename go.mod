@@ -107,6 +107,7 @@ require (
 	github.com/Masterminds/sprig/v3 v3.2.2
 	github.com/antonmedv/expr v1.9.0
 	github.com/coreos/go-oidc/v3 v3.4.0
+	github.com/go-jose/go-jose/v3 v3.0.0
 	github.com/gosimple/slug v1.13.1
 	github.com/microsoft/azure-devops-go-api/azuredevops v1.0.0-b5
 	github.com/robfig/cron/v3 v3.0.1
