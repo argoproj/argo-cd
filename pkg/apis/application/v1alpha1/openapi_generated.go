@@ -3066,13 +3066,12 @@ func schema_pkg_apis_application_v1alpha1_GitGenerator(ref common.ReferenceCallb
 					},
 					"pathParamPrefix": {
 						SchemaProps: spec.SchemaProps{
-							Default: "",
-							Type:    []string{"string"},
-							Format:  "",
+							Type:   []string{"string"},
+							Format: "",
 						},
 					},
 				},
-				Required: []string{"repoURL", "revision", "pathParamPrefix"},
+				Required: []string{"repoURL", "revision"},
 			},
 		},
 		Dependencies: []string{
