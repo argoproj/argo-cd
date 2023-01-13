@@ -1,0 +1,23 @@
+apiVersion: skaffold/v4beta1
+kind: Config
+build:
+  artifacts:
+    - image: quay.io/argoproj/argocd
+      docker:
+        buildArgs:
+          # Change this to the platform your local k8s cluster is running on
+          BUILDPLATFORM: amd64
+  local:
+    useDockerCLI: false
+    useBuildkit: true
+# Do any modifications in skaffold/kustomize.yaml (e.g. if you do not want to run dex or the applicationset controller etc.)
+manifests:
+  kustomize:
+    paths:
+      - skaffold
+portForward:
+  - resourceType: deployment
+    resourceName: argocd-server
+    namespace: argocd
+    port: 8080
+    localPort: 4000
