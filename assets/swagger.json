@@ -5942,6 +5942,10 @@
       "description": "ApplicationSetSpec represents a class of application set state.",
       "type": "object",
       "properties": {
+        "applyNestedSelectors": {
+          "type": "boolean",
+          "title": "ApplyNestedSelectors enables selectors defined within the generators of two level-nested matrix or merge generators"
+        },
         "generators": {
           "type": "array",
           "items": {

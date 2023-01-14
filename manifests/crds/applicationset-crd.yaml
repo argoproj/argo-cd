@@ -29,6 +29,8 @@ spec:
             type: object
           spec:
             properties:
+              applyNestedSelectors:
+                type: boolean
               generators:
                 items:
                   properties:
