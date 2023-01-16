@@ -54,6 +54,7 @@ import (
 	"github.com/argoproj/argo-cd/v2/util/lua"
 	"github.com/argoproj/argo-cd/v2/util/manifeststream"
 	"github.com/argoproj/argo-cd/v2/util/rbac"
+	"github.com/argoproj/argo-cd/v2/util/security"
 	"github.com/argoproj/argo-cd/v2/util/session"
 	"github.com/argoproj/argo-cd/v2/util/settings"
 )
@@ -210,15 +211,15 @@ func (s *Server) Create(ctx context.Context, q *application.ApplicationCreateReq
 	appNs := s.appNamespaceOrDefault(a.Namespace)
 
 	if !s.isNamespaceEnabled(appNs) {
-		return nil, namespaceNotPermittedError(appNs)
+		return nil, security.NamespaceNotPermittedError(appNs)
 	}
 
 	created, err := s.appclientset.ArgoprojV1alpha1().Applications(appNs).Create(ctx, a, metav1.CreateOptions{})
 	if err == nil {
-		if a.Spec.Source.Plugin != nil && a.Spec.Source.Plugin.Name != "" {
+		if a.Spec.GetSource().Plugin != nil && a.Spec.GetSource().Plugin.Name != "" {
 			log.WithFields(map[string]interface{}{
 				"application": a.Name,
-				"plugin":      a.Spec.Source.Plugin.Name,
+				"plugin":      a.Spec.GetSource().Plugin.Name,
 			}).Warnf(argocommon.ConfigMapPluginDeprecationWarning)
 		}
 
@@ -271,7 +272,7 @@ func (s *Server) queryRepoServer(ctx context.Context, a *appv1.Application, acti
 		return fmt.Errorf("error creating repo server client: %w", err)
 	}
 	defer ioutil.Close(closer)
-	repo, err := s.db.GetRepository(ctx, a.Spec.Source.RepoURL)
+	repo, err := s.db.GetRepository(ctx, a.Spec.GetSource().RepoURL)
 	if err != nil {
 		return fmt.Errorf("error getting repository: %w", err)
 	}
@@ -279,7 +280,7 @@ func (s *Server) queryRepoServer(ctx context.Context, a *appv1.Application, acti
 	if err != nil {
 		return fmt.Errorf("error getting kustomize settings: %w", err)
 	}
-	kustomizeOptions, err := kustomizeSettings.GetOptions(a.Spec.Source)
+	kustomizeOptions, err := kustomizeSettings.GetOptions(a.Spec.GetSource())
 	if err != nil {
 		return fmt.Errorf("error getting kustomize settings options: %w", err)
 	}
@@ -334,21 +335,22 @@ func (s *Server) GetManifests(ctx context.Context, q *application.ApplicationMan
 		return nil, err
 	}
 
-	if a.Spec.Source.Plugin != nil && a.Spec.Source.Plugin.Name != "" {
+	source := a.Spec.GetSource()
+	if source.Plugin != nil && source.Plugin.Name != "" {
 		log.WithFields(map[string]interface{}{
 			"application": a.Name,
-			"plugin":      a.Spec.Source.Plugin.Name,
+			"plugin":      source.Plugin.Name,
 		}).Warnf(argocommon.ConfigMapPluginDeprecationWarning)
 	}
 
 	if !s.isNamespaceEnabled(a.Namespace) {
-		return nil, namespaceNotPermittedError(a.Namespace)
+		return nil, security.NamespaceNotPermittedError(a.Namespace)
 	}
 
 	var manifestInfo *apiclient.ManifestResponse
 	err = s.queryRepoServer(ctx, a, func(
 		client apiclient.RepoServerServiceClient, repo *appv1.Repository, helmRepos []*appv1.Repository, helmCreds []*appv1.RepoCreds, helmOptions *appv1.HelmOptions, kustomizeOptions *appv1.KustomizeOptions, enableGenerateManifests map[string]bool) error {
-		revision := a.Spec.Source.TargetRevision
+		revision := source.TargetRevision
 		if q.GetRevision() != "" {
 			revision = q.GetRevision()
 		}
@@ -382,7 +384,7 @@ func (s *Server) GetManifests(ctx context.Context, q *application.ApplicationMan
 			AppLabelKey:        appInstanceLabelKey,
 			AppName:            a.InstanceName(s.ns),
 			Namespace:          a.Spec.Destination.Namespace,
-			ApplicationSource:  &a.Spec.Source,
+			ApplicationSource:  &source,
 			Repos:              helmRepos,
 			Plugins:            plugins,
 			KustomizeOptions:   kustomizeOptions,
@@ -476,13 +478,14 @@ func (s *Server) GetManifestsWithFiles(stream application.ApplicationService_Get
 			return fmt.Errorf("error getting API resources: %w", err)
 		}
 
+		source := a.Spec.GetSource()
 		req := &apiclient.ManifestRequest{
 			Repo:               repo,
-			Revision:           a.Spec.Source.TargetRevision,
+			Revision:           source.TargetRevision,
 			AppLabelKey:        appInstanceLabelKey,
 			AppName:            a.Name,
 			Namespace:          a.Spec.Destination.Namespace,
-			ApplicationSource:  &a.Spec.Source,
+			ApplicationSource:  &source,
 			Repos:              helmRepos,
 			Plugins:            plugins,
 			KustomizeOptions:   kustomizeOptions,
@@ -559,10 +562,10 @@ func (s *Server) Get(ctx context.Context, q *application.ApplicationQuery) (*app
 		return nil, err
 	}
 
-	if a.Spec.Source.Plugin != nil && a.Spec.Source.Plugin.Name != "" {
+	if a.Spec.GetSource().Plugin != nil && a.Spec.GetSource().Plugin.Name != "" {
 		log.WithFields(map[string]interface{}{
 			"application": a.Name,
-			"plugin":      a.Spec.Source.Plugin.Name,
+			"plugin":      a.Spec.GetSource().Plugin.Name,
 		}).Warnf(argocommon.ConfigMapPluginDeprecationWarning)
 	}
 
@@ -601,9 +604,10 @@ func (s *Server) Get(ctx context.Context, q *application.ApplicationQuery) (*app
 			kustomizeOptions *appv1.KustomizeOptions,
 			enabledSourceTypes map[string]bool,
 		) error {
+			source := app.Spec.GetSource()
 			_, err := client.GetAppDetails(ctx, &apiclient.RepoServerAppDetailsQuery{
 				Repo:               repo,
-				Source:             &app.Spec.Source,
+				Source:             &source,
 				AppName:            appName,
 				KustomizeOptions:   kustomizeOptions,
 				Repos:              helmRepos,
@@ -653,10 +657,10 @@ func (s *Server) ListResourceEvents(ctx context.Context, q *application.Applicat
 		return nil, err
 	}
 
-	if a.Spec.Source.Plugin != nil && a.Spec.Source.Plugin.Name != "" {
+	if a.Spec.GetSource().Plugin != nil && a.Spec.GetSource().Plugin.Name != "" {
 		log.WithFields(map[string]interface{}{
 			"application": a.Name,
-			"plugin":      a.Spec.Source.Plugin.Name,
+			"plugin":      a.Spec.GetSource().Plugin.Name,
 		}).Warnf(argocommon.ConfigMapPluginDeprecationWarning)
 	}
 
@@ -826,10 +830,10 @@ func (s *Server) Update(ctx context.Context, q *application.ApplicationUpdateReq
 		return nil, err
 	}
 
-	if a.Spec.Source.Plugin != nil && a.Spec.Source.Plugin.Name != "" {
+	if a.Spec.GetSource().Plugin != nil && a.Spec.GetSource().Plugin.Name != "" {
 		log.WithFields(map[string]interface{}{
 			"application": a.Name,
-			"plugin":      a.Spec.Source.Plugin.Name,
+			"plugin":      a.Spec.GetSource().Plugin.Name,
 		}).Warnf(argocommon.ConfigMapPluginDeprecationWarning)
 	}
 
@@ -855,10 +859,10 @@ func (s *Server) UpdateSpec(ctx context.Context, q *application.ApplicationUpdat
 		return nil, err
 	}
 
-	if a.Spec.Source.Plugin != nil && a.Spec.Source.Plugin.Name != "" {
+	if a.Spec.GetSource().Plugin != nil && a.Spec.GetSource().Plugin.Name != "" {
 		log.WithFields(map[string]interface{}{
 			"application": a.Name,
-			"plugin":      a.Spec.Source.Plugin.Name,
+			"plugin":      a.Spec.GetSource().Plugin.Name,
 		}).Warnf(argocommon.ConfigMapPluginDeprecationWarning)
 	}
 
@@ -887,10 +891,10 @@ func (s *Server) Patch(ctx context.Context, q *application.ApplicationPatchReque
 		return nil, err
 	}
 
-	if app.Spec.Source.Plugin != nil && app.Spec.Source.Plugin.Name != "" {
+	if app.Spec.GetSource().Plugin != nil && app.Spec.GetSource().Plugin.Name != "" {
 		log.WithFields(map[string]interface{}{
 			"application": app.Name,
-			"plugin":      app.Spec.Source.Plugin.Name,
+			"plugin":      app.Spec.GetSource().Plugin.Name,
 		}).Warnf(argocommon.ConfigMapPluginDeprecationWarning)
 	}
 
@@ -944,10 +948,10 @@ func (s *Server) Delete(ctx context.Context, q *application.ApplicationDeleteReq
 		return nil, err
 	}
 
-	if a.Spec.Source.Plugin != nil && a.Spec.Source.Plugin.Name != "" {
+	if a.Spec.GetSource().Plugin != nil && a.Spec.GetSource().Plugin.Name != "" {
 		log.WithFields(map[string]interface{}{
 			"application": a.Name,
-			"plugin":      a.Spec.Source.Plugin.Name,
+			"plugin":      a.Spec.GetSource().Plugin.Name,
 		}).Warnf(argocommon.ConfigMapPluginDeprecationWarning)
 	}
 
@@ -1113,16 +1117,6 @@ func (s *Server) validateAndNormalizeApp(ctx context.Context, app *appv1.Applica
 			return err
 		}
 	}
-
-	// If source is Kustomize add build options
-	kustomizeSettings, err := s.settingsMgr.GetKustomizeSettings()
-	if err != nil {
-		return fmt.Errorf("error getting kustomize settings: %w", err)
-	}
-	kustomizeOptions, err := kustomizeSettings.GetOptions(app.Spec.Source)
-	if err != nil {
-		return fmt.Errorf("error getting kustomize options from settings: %w", err)
-	}
 	plugins, err := s.plugins()
 	if err != nil {
 		return fmt.Errorf("error getting plugins: %w", err)
@@ -1134,10 +1128,12 @@ func (s *Server) validateAndNormalizeApp(ctx context.Context, app *appv1.Applica
 
 	var conditions []appv1.ApplicationCondition
 	if validate {
-		conditions, err = argo.ValidateRepo(ctx, app, s.repoClientset, s.db, kustomizeOptions, plugins, s.kubectl, proj, s.settingsMgr)
+		conditions := make([]appv1.ApplicationCondition, 0)
+		condition, err := argo.ValidateRepo(ctx, app, s.repoClientset, s.db, plugins, s.kubectl, proj, s.settingsMgr)
 		if err != nil {
 			return fmt.Errorf("error validating the repo: %w", err)
 		}
+		conditions = append(conditions, condition...)
 		if len(conditions) > 0 {
 			return status.Errorf(codes.InvalidArgument, "application spec for %s is invalid: %s", app.Name, argo.FormatAppConditions(conditions))
 		}
@@ -1357,10 +1353,11 @@ func (s *Server) ResourceTree(ctx context.Context, q *application.ResourcesQuery
 		return nil, err
 	}
 
-	if a.Spec.Source.Plugin != nil && a.Spec.Source.Plugin.Name != "" {
+	source := a.Spec.GetSource()
+	if source.Plugin != nil && source.Plugin.Name != "" {
 		log.WithFields(map[string]interface{}{
 			"application": a.Name,
-			"plugin":      a.Spec.Source.Plugin.Name,
+			"plugin":      source.Plugin.Name,
 		}).Warnf(argocommon.ConfigMapPluginDeprecationWarning)
 	}
 
@@ -1400,14 +1397,15 @@ func (s *Server) RevisionMetadata(ctx context.Context, q *application.RevisionMe
 		return nil, err
 	}
 
-	if a.Spec.Source.Plugin != nil && a.Spec.Source.Plugin.Name != "" {
+	source := a.Spec.GetSource()
+	if source.Plugin != nil && source.Plugin.Name != "" {
 		log.WithFields(map[string]interface{}{
 			"application": a.Name,
-			"plugin":      a.Spec.Source.Plugin.Name,
+			"plugin":      source.Plugin.Name,
 		}).Warnf(argocommon.ConfigMapPluginDeprecationWarning)
 	}
 
-	repo, err := s.db.GetRepository(ctx, a.Spec.Source.RepoURL)
+	repo, err := s.db.GetRepository(ctx, source.RepoURL)
 	if err != nil {
 		return nil, fmt.Errorf("error getting repository by URL: %w", err)
 	}
@@ -1447,10 +1445,11 @@ func (s *Server) ManagedResources(ctx context.Context, q *application.ResourcesQ
 		return nil, fmt.Errorf("error verifying rbac: %w", err)
 	}
 
-	if a.Spec.Source.Plugin != nil && a.Spec.Source.Plugin.Name != "" {
+	source := a.Spec.GetSource()
+	if source.Plugin != nil && source.Plugin.Name != "" {
 		log.WithFields(map[string]interface{}{
 			"application": a.Name,
-			"plugin":      a.Spec.Source.Plugin.Name,
+			"plugin":      source.Plugin.Name,
 		}).Warnf(argocommon.ConfigMapPluginDeprecationWarning)
 	}
 
@@ -1517,10 +1516,11 @@ func (s *Server) PodLogs(q *application.ApplicationPodLogsQuery, ws application.
 		return err
 	}
 
-	if a.Spec.Source.Plugin != nil && a.Spec.Source.Plugin.Name != "" {
+	source := a.Spec.GetSource()
+	if source.Plugin != nil && source.Plugin.Name != "" {
 		log.WithFields(map[string]interface{}{
 			"application": a.Name,
-			"plugin":      a.Spec.Source.Plugin.Name,
+			"plugin":      source.Plugin.Name,
 		}).Warnf(argocommon.ConfigMapPluginDeprecationWarning)
 	}
 
@@ -1737,10 +1737,11 @@ func (s *Server) Sync(ctx context.Context, syncReq *application.ApplicationSyncR
 		return nil, err
 	}
 
-	if a.Spec.Source.Plugin != nil && a.Spec.Source.Plugin.Name != "" {
+	source := a.Spec.GetSource()
+	if source.Plugin != nil && source.Plugin.Name != "" {
 		log.WithFields(map[string]interface{}{
 			"application": a.Name,
-			"plugin":      a.Spec.Source.Plugin.Name,
+			"plugin":      source.Plugin.Name,
 		}).Warnf(argocommon.ConfigMapPluginDeprecationWarning)
 	}
 
@@ -1756,8 +1757,8 @@ func (s *Server) Sync(ctx context.Context, syncReq *application.ApplicationSyncR
 		return nil, status.Errorf(codes.FailedPrecondition, "application is deleting")
 	}
 	if a.Spec.SyncPolicy != nil && a.Spec.SyncPolicy.Automated != nil {
-		if syncReq.GetRevision() != "" && syncReq.GetRevision() != text.FirstNonEmpty(a.Spec.Source.TargetRevision, "HEAD") {
-			return nil, status.Errorf(codes.FailedPrecondition, "Cannot sync to %s: auto-sync currently set to %s", syncReq.GetRevision(), a.Spec.Source.TargetRevision)
+		if syncReq.GetRevision() != "" && syncReq.GetRevision() != text.FirstNonEmpty(source.TargetRevision, "HEAD") {
+			return nil, status.Errorf(codes.FailedPrecondition, "Cannot sync to %s: auto-sync currently set to %s", syncReq.GetRevision(), source.TargetRevision)
 		}
 	}
 	revision, displayRevision, err := s.resolveRevision(ctx, a, syncReq)
@@ -1836,10 +1837,11 @@ func (s *Server) Rollback(ctx context.Context, rollbackReq *application.Applicat
 		return nil, err
 	}
 
-	if a.Spec.Source.Plugin != nil && a.Spec.Source.Plugin.Name != "" {
+	source := a.Spec.GetSource()
+	if source.Plugin != nil && source.Plugin.Name != "" {
 		log.WithFields(map[string]interface{}{
 			"application": a.Name,
-			"plugin":      a.Spec.Source.Plugin.Name,
+			"plugin":      source.Plugin.Name,
 		}).Warnf(argocommon.ConfigMapPluginDeprecationWarning)
 	}
 
@@ -1943,6 +1945,11 @@ func (s *Server) ListResourceLinks(ctx context.Context, req *application.Applica
 		return nil, fmt.Errorf("failed to read application deep links from configmap: %w", err)
 	}
 
+	obj, err = replaceSecretValues(obj)
+	if err != nil {
+		return nil, fmt.Errorf("error replacing secret values: %w", err)
+	}
+
 	finalList, errorList := deeplinks.EvaluateDeepLinksResponse(*obj, deepLinks)
 	if len(errorList) > 0 {
 		log.Errorf("errors while evaluating resource deep links, %v", strings.Join(errorList, ", "))
@@ -1959,9 +1966,9 @@ func (s *Server) resolveRevision(ctx context.Context, app *appv1.Application, sy
 	}
 	ambiguousRevision := syncReq.GetRevision()
 	if ambiguousRevision == "" {
-		ambiguousRevision = app.Spec.Source.TargetRevision
+		ambiguousRevision = app.Spec.GetSource().TargetRevision
 	}
-	repo, err := s.db.GetRepository(ctx, app.Spec.Source.RepoURL)
+	repo, err := s.db.GetRepository(ctx, app.Spec.GetSource().RepoURL)
 	if err != nil {
 		return "", "", fmt.Errorf("error getting repository by URL: %w", err)
 	}
@@ -1971,7 +1978,8 @@ func (s *Server) resolveRevision(ctx context.Context, app *appv1.Application, sy
 	}
 	defer ioutil.Close(conn)
 
-	if !app.Spec.Source.IsHelm() {
+	source := app.Spec.GetSource()
+	if !source.IsHelm() {
 		if git.IsCommitSHA(ambiguousRevision) {
 			// If it's already a commit SHA, then no need to look it up
 			return ambiguousRevision, ambiguousRevision, nil
@@ -2266,10 +2274,11 @@ func (s *Server) GetApplicationSyncWindows(ctx context.Context, q *application.A
 		return nil, err
 	}
 
-	if a.Spec.Source.Plugin != nil && a.Spec.Source.Plugin.Name != "" {
+	source := a.Spec.GetSource()
+	if source.Plugin != nil && source.Plugin.Name != "" {
 		log.WithFields(map[string]interface{}{
 			"application": a.Name,
-			"plugin":      a.Spec.Source.Plugin.Name,
+			"plugin":      source.Plugin.Name,
 		}).Warnf(argocommon.ConfigMapPluginDeprecationWarning)
 	}
 
@@ -2347,9 +2356,5 @@ func (s *Server) appNamespaceOrDefault(appNs string) string {
 }
 
 func (s *Server) isNamespaceEnabled(namespace string) bool {
-	return namespace == s.ns || glob.MatchStringInList(s.enabledNamespaces, namespace, false)
-}
-
-func namespaceNotPermittedError(namespace string) error {
-	return fmt.Errorf("namespace '%s' is not permitted", namespace)
+	return security.IsNamespaceEnabled(namespace, s.ns, s.enabledNamespaces)
 }
