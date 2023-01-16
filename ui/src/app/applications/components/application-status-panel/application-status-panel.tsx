@@ -36,9 +36,8 @@ const sectionHeader = (info: SectionInfo, hasMultipleSources: boolean, onClick?:
             {sectionLabel(info)}
             {onClick && (
                 <button className='argo-button argo-button--base-o argo-button--sm application-status-panel__more-button' onClick={onClick} disabled={hasMultipleSources}>
-                    {hasMultipleSources && (helpTip("More details are not supported for apps with multiple sources"))} 
-                    &nbsp;
-                    MORE
+                    {hasMultipleSources && helpTip('More details are not supported for apps with multiple sources')}
+                    &nbsp; MORE
                 </button>
             )}
         </div>
