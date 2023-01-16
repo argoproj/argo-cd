@@ -102,6 +102,22 @@ func Test_PolicyFromK8s(t *testing.T) {
 		ok := checkPolicy("role:user", "get", "certificates", ".*", assets.BuiltinPolicyCSV, uPol, "role:readonly", "regex", true)
 		require.False(t, ok)
 	})
+	t.Run("get logs", func(t *testing.T) {
+		ok := checkPolicy("role:test", "get", "logs", "*/*", assets.BuiltinPolicyCSV, uPol, dRole, "", true)
+		require.True(t, ok)
+	})
+	t.Run("create exec", func(t *testing.T) {
+		ok := checkPolicy("role:test", "create", "exec", "*/*", assets.BuiltinPolicyCSV, uPol, dRole, "", true)
+		require.True(t, ok)
+	})
+	t.Run("create applicationsets", func(t *testing.T) {
+		ok := checkPolicy("role:user", "create", "applicationsets", "*/*", assets.BuiltinPolicyCSV, uPol, dRole, "", true)
+		require.True(t, ok)
+	})
+	t.Run("delete applicationsets", func(t *testing.T) {
+		ok := checkPolicy("role:user", "delete", "applicationsets", "*/*", assets.BuiltinPolicyCSV, uPol, dRole, "", true)
+		require.True(t, ok)
+	})
 }
 
 func Test_PolicyFromK8sUsingRegex(t *testing.T) {
@@ -111,7 +127,12 @@ func Test_PolicyFromK8sUsingRegex(t *testing.T) {
 p, role:user, clusters, get, .+, allow
 p, role:user, clusters, get, https://kubernetes.*, deny
 p, role:user, applications, get, .*, allow
-p, role:user, applications, create, .*/.*, allow`
+p, role:user, applications, create, .*/.*, allow
+p, role:user, applicationsets, create, .*/.*, allow
+p, role:user, applicationsets, delete, .*/.*, allow
+p, role:user, logs, get, .*/.*, allow
+p, role:user, exec, create, .*/.*, allow
+`
 
 	kubeclientset := fake.NewSimpleClientset(&v1.ConfigMap{
 		ObjectMeta: metav1.ObjectMeta{
@@ -156,5 +177,21 @@ p, role:, certificates, get, .*, allow`
 	t.Run("use glob match mode instead of regex", func(t *testing.T) {
 		ok := checkPolicy("role:user", "get", "certificates", ".+", builtInPolicy, uPol, dRole, "glob", true)
 		require.False(t, ok)
+	})
+	t.Run("get logs via glob match mode", func(t *testing.T) {
+		ok := checkPolicy("role:user", "get", "logs", ".*/.*", builtInPolicy, uPol, dRole, "glob", true)
+		require.True(t, ok)
+	})
+	t.Run("create exec", func(t *testing.T) {
+		ok := checkPolicy("role:user", "create", "exec", ".*/.*", builtInPolicy, uPol, dRole, "regex", true)
+		require.True(t, ok)
+	})
+	t.Run("create applicationsets", func(t *testing.T) {
+		ok := checkPolicy("role:user", "create", "applicationsets", ".*/.*", builtInPolicy, uPol, dRole, "regex", true)
+		require.True(t, ok)
+	})
+	t.Run("delete applicationsets", func(t *testing.T) {
+		ok := checkPolicy("role:user", "delete", "applicationsets", ".*/.*", builtInPolicy, uPol, dRole, "regex", true)
+		require.True(t, ok)
 	})
 }
