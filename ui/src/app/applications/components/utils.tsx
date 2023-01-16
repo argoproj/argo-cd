@@ -24,8 +24,6 @@ export interface NodeId {
     createdAt?: appModels.Time;
 }
 
-export const ExternalLinkAnnotation = 'link.argocd.argoproj.io/external-link';
-
 type ActionMenuItem = MenuItem & {disabled?: boolean; tooltip?: string};
 
 export function nodeKey(node: NodeId) {
@@ -245,10 +243,10 @@ export const ComparisonStatusIcon = ({
             break;
         case appModels.SyncStatuses.OutOfSync:
             const requiresPruning = resource && resource.requiresPruning;
-            className = requiresPruning ? 'fa fa-times-circle' : 'fa fa-arrow-alt-circle-up';
+            className = requiresPruning ? 'fa fa-trash' : 'fa fa-arrow-alt-circle-up';
             title = 'OutOfSync';
             if (requiresPruning) {
-                title = `${title} (requires pruning)`;
+                title = `${title} (This resource is not present in the application's source. It will be deleted from Kubernetes if the prune option is enabled during sync.)`;
             }
             color = COLORS.sync.out_of_sync;
             break;
@@ -823,20 +821,6 @@ export const getAppOperationState = (app: appModels.Application): appModels.Oper
         return app.status.operationState;
     }
 };
-
-export function getExternalUrls(annotations: {[name: string]: string}, urls: string[]): string[] {
-    if (!annotations) {
-        return urls;
-    }
-    const extLinks = urls || [];
-    const extLink: string = annotations[ExternalLinkAnnotation];
-    if (extLink) {
-        if (!extLinks.includes(extLink)) {
-            extLinks.push(extLink);
-        }
-    }
-    return extLinks;
-}
 
 export function getOperationType(application: appModels.Application) {
     const operation = application.operation || (application.status && application.status.operationState && application.status.operationState.operation);

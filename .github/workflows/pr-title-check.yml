@@ -7,6 +7,8 @@ on:
       - edited
       - synchronize
 
+# IMPORTANT: No checkout actions, scripts, or builds should be added to this workflow. Permissions should always be used
+# with extreme caution.
 permissions:
   contents: read
 
@@ -24,6 +26,7 @@ jobs:
     name: Validate PR title
     runs-on: ubuntu-latest
     steps:
+      # IMPORTANT: Carefully review changes when updating this action. Using the pull_request_target event requires caution.
       - uses: amannn/action-semantic-pull-request@01d5fd8a8ebb9aafe902c40c53f0f4744f7381eb # v5.0.2
         with:
           types: |

@@ -732,6 +732,21 @@ func ContainsSyncResource(name string, namespace string, gvk schema.GroupVersion
 	return false
 }
 
+// IncludeResource checks if an app resource matches atleast one of the filters, then it returns true.
+func IncludeResource(resourceName string, resourceNamespace string, gvk schema.GroupVersionKind,
+	syncOperationResources []*argoappv1.SyncOperationResource) bool {
+	for _, syncOperationResource := range syncOperationResources {
+		includeResource := syncOperationResource.Compare(resourceName, resourceNamespace, gvk)
+		if syncOperationResource.Exclude {
+			includeResource = !includeResource
+		}
+		if includeResource {
+			return true
+		}
+	}
+	return false
+}
+
 // NormalizeApplicationSpec will normalize an application spec to a preferred state. This is used
 // for migrating application objects which are using deprecated legacy fields into the new fields,
 // and defaulting fields in the spec (e.g. spec.project)
