@@ -95,7 +95,7 @@ func (a *Actions) CreateFromFile(handler func(app *Application), flags ...string
 		},
 		Spec: ApplicationSpec{
 			Project: a.context.project,
-			Source: ApplicationSource{
+			Source: &ApplicationSource{
 				RepoURL: fixture.RepoURL(a.context.repoURLType),
 				Path:    a.context.path,
 			},
@@ -105,14 +105,15 @@ func (a *Actions) CreateFromFile(handler func(app *Application), flags ...string
 			},
 		},
 	}
+	source := app.Spec.GetSource()
 	if a.context.namePrefix != "" || a.context.nameSuffix != "" {
-		app.Spec.Source.Kustomize = &ApplicationSourceKustomize{
+		source.Kustomize = &ApplicationSourceKustomize{
 			NamePrefix: a.context.namePrefix,
 			NameSuffix: a.context.nameSuffix,
 		}
 	}
 	if a.context.configManagementPlugin != "" {
-		app.Spec.Source.Plugin = &ApplicationSourcePlugin{
+		source.Plugin = &ApplicationSourcePlugin{
 			Name: a.context.configManagementPlugin,
 		}
 	}
@@ -122,10 +123,48 @@ func (a *Actions) CreateFromFile(handler func(app *Application), flags ...string
 	}
 
 	if a.context.directoryRecurse {
-		app.Spec.Source.Directory = &ApplicationSourceDirectory{Recurse: true}
+		source.Directory = &ApplicationSourceDirectory{Recurse: true}
 	}
+	app.Spec.Source = &source
 
 	handler(app)
+	data := grpc.MustMarshal(app)
+	tmpFile, err := os.CreateTemp("", "")
+	errors.CheckError(err)
+	_, err = tmpFile.Write(data)
+	errors.CheckError(err)
+
+	args := append([]string{
+		"app", "create",
+		"-f", tmpFile.Name(),
+	}, flags...)
+	defer tmpFile.Close()
+	a.runCli(args...)
+	return a
+}
+
+func (a *Actions) CreateMultiSourceAppFromFile(flags ...string) *Actions {
+	a.context.t.Helper()
+	app := &Application{
+		ObjectMeta: v1.ObjectMeta{
+			Name:      a.context.AppName(),
+			Namespace: a.context.AppNamespace(),
+		},
+		Spec: ApplicationSpec{
+			Project: a.context.project,
+			Sources: a.context.sources,
+			Destination: ApplicationDestination{
+				Server:    a.context.destServer,
+				Namespace: fixture.DeploymentNamespace(),
+			},
+			SyncPolicy: &SyncPolicy{
+				Automated: &SyncPolicyAutomated{
+					SelfHeal: true,
+				},
+			},
+		},
+	}
+
 	data := grpc.MustMarshal(app)
 	tmpFile, err := os.CreateTemp("", "")
 	errors.CheckError(err)
@@ -271,6 +310,9 @@ func (a *Actions) Sync(args ...string) *Actions {
 	}
 
 	if a.context.resource != "" {
+		// Waiting for the app to be successfully created.
+		// Else the sync would fail to retrieve the app resources.
+		a.context.Sleep(5)
 		args = append(args, "--resource", a.context.resource)
 	}
 
@@ -314,6 +356,12 @@ func (a *Actions) Refresh(refreshType RefreshType) *Actions {
 func (a *Actions) Delete(cascade bool) *Actions {
 	a.context.t.Helper()
 	a.runCli("app", "delete", a.context.AppQualifiedName(), fmt.Sprintf("--cascade=%v", cascade), "--yes")
+	return a
+}
+
+func (a *Actions) DeleteBySelector(selector string) *Actions {
+	a.context.t.Helper()
+	a.runCli("app", "delete", fmt.Sprintf("--selector=%s", selector), "--yes")
 	return a
 }
 

@@ -3,6 +3,7 @@ import {Observable} from 'rxjs';
 import {map, repeat, retry} from 'rxjs/operators';
 
 import * as models from '../models';
+import {isValidURL} from '../utils';
 import requests from './requests';
 
 interface QueryOptions {
@@ -120,6 +121,13 @@ export class ApplicationsService {
     }
 
     public create(app: models.Application): Promise<models.Application> {
+        // Namespace may be specified in the app name. We need to parse and
+        // handle it accordingly.
+        if (app.metadata.name.includes('/')) {
+            const nns = app.metadata.name.split('/', 2);
+            app.metadata.name = nns[1];
+            app.metadata.namespace = nns[0];
+        }
         return requests
             .post(`/applications`)
             .send(app)
@@ -291,7 +299,11 @@ export class ApplicationsService {
                 kind: resource.kind,
                 group: resource.group
             })
-            .then(res => (res.body.actions as models.ResourceAction[]) || []);
+            .then(res => {
+                const actions = (res.body.actions as models.ResourceAction[]) || [];
+                actions.sort((actionA, actionB) => actionA.name.localeCompare(actionB.name));
+                return actions;
+            });
     }
 
     public runResourceAction(name: string, appNamspace: string, resource: models.ResourceNode, action: string): Promise<models.ResourceAction[]> {
@@ -375,8 +387,42 @@ export class ApplicationsService {
     public terminateOperation(applicationName: string, appNamespace: string): Promise<boolean> {
         return requests
             .delete(`/applications/${applicationName}/operation`)
+            .query({appNamespace})
             .send()
             .then(() => true);
+    }
+
+    public getLinks(applicationName: string): Promise<models.LinksResponse> {
+        return requests
+            .get(`/applications/${applicationName}/links`)
+            .send()
+            .then(res => res.body as models.LinksResponse);
+    }
+
+    public getResourceLinks(applicationName: string, appNamespace: string, resource: models.ResourceNode): Promise<models.LinksResponse> {
+        return requests
+            .get(`/applications/${applicationName}/resource/links`)
+            .query({
+                name: resource.name,
+                appNamespace,
+                namespace: resource.namespace,
+                resourceName: resource.name,
+                version: resource.version,
+                kind: resource.kind,
+                group: resource.group || '' // The group query param must be present even if empty.
+            })
+            .send()
+            .then(res => {
+                const links = res.body as models.LinksResponse;
+                const items: models.LinkInfo[] = [];
+                (links?.items || []).forEach(link => {
+                    if (isValidURL(link.url)) {
+                        items.push(link);
+                    }
+                });
+                links.items = items;
+                return links;
+            });
     }
 
     private getLogsQuery(

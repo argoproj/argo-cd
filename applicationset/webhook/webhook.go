@@ -16,7 +16,7 @@ import (
 
 	"github.com/argoproj/argo-cd/v2/applicationset/generators"
 	"github.com/argoproj/argo-cd/v2/common"
-	"github.com/argoproj/argo-cd/v2/pkg/apis/applicationset/v1alpha1"
+	"github.com/argoproj/argo-cd/v2/pkg/apis/application/v1alpha1"
 	argosettings "github.com/argoproj/argo-cd/v2/util/settings"
 
 	log "github.com/sirupsen/logrus"

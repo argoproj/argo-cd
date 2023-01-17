@@ -1,7 +1,8 @@
-import {DropDownMenu, NotificationType, SlidingPanel} from 'argo-ui';
+import {DropDownMenu, NotificationType, SlidingPanel, Tooltip} from 'argo-ui';
 import * as classNames from 'classnames';
 import * as PropTypes from 'prop-types';
 import * as React from 'react';
+import * as ReactDOM from 'react-dom';
 import * as models from '../../../shared/models';
 import {RouteComponentProps} from 'react-router';
 import {BehaviorSubject, combineLatest, from, merge, Observable} from 'rxjs';
@@ -22,12 +23,13 @@ import {ApplicationSyncPanel} from '../application-sync-panel/application-sync-p
 import {ResourceDetails} from '../resource-details/resource-details';
 import * as AppUtils from '../utils';
 import {ApplicationResourceList} from './application-resource-list';
-import {Filters} from './application-resource-filter';
-import {urlPattern} from '../utils';
+import {Filters, FiltersProps} from './application-resource-filter';
+import {getAppDefaultSource, urlPattern, helpTip} from '../utils';
 import {ResourceStatus} from '../../../shared/models';
 import {ApplicationsDetailsAppDropdown} from './application-details-app-dropdown';
+import {useSidebarTarget} from '../../../sidebar/sidebar';
 
-require('./application-details.scss');
+import './application-details.scss';
 
 interface ApplicationDetailsState {
     page: number;
@@ -46,6 +48,11 @@ interface FilterInput {
     sync: string[];
     namespace: string[];
 }
+
+const ApplicationDetailsFilters = (props: FiltersProps) => {
+    const sidebarTarget = useSidebarTarget();
+    return ReactDOM.createPortal(<Filters {...props} />, sidebarTarget?.current);
+};
 
 export const NodeInfo = (node?: string): {key: string; container: number} => {
     const nodeContainer = {key: '', container: 0};
@@ -188,7 +195,7 @@ export class ApplicationDetails extends React.Component<RouteComponentProps<{app
                             const conditions = application.status.conditions || [];
                             const syncResourceKey = new URLSearchParams(this.props.history.location.search).get('deploy');
                             const tab = new URLSearchParams(this.props.history.location.search).get('tab');
-
+                            const source = getAppDefaultSource(application);
                             const resourceNodes = (): any[] => {
                                 const statusByKey = new Map<string, models.ResourceStatus>();
                                 application.status.resources.forEach(res => statusByKey.set(AppUtils.nodeKey(res), res));
@@ -204,6 +211,7 @@ export class ApplicationDetails extends React.Component<RouteComponentProps<{app
                                             resource.health = status.health;
                                             resource.status = status.status;
                                             resource.hook = status.hook;
+                                            resource.syncWave = status.syncWave;
                                             resource.requiresPruning = status.requiresPruning;
                                         }
                                         resources.set(node.uid || AppUtils.nodeKey(node), resource);
@@ -353,7 +361,19 @@ export class ApplicationDetails extends React.Component<RouteComponentProps<{app
                                         <div className='application-details__tree'>
                                             {refreshing && <p className='application-details__refreshing-label'>Refreshing</p>}
                                             {((pref.view === 'tree' || pref.view === 'network') && (
-                                                <Filters pref={pref} tree={tree} resourceNodes={this.state.filteredGraph} onSetFilter={setFilter} onClearFilter={clearFilter}>
+                                                <>
+                                                    <DataLoader load={() => services.viewPreferences.getPreferences()}>
+                                                        {viewPref => (
+                                                            <ApplicationDetailsFilters
+                                                                pref={pref}
+                                                                tree={tree}
+                                                                onSetFilter={setFilter}
+                                                                onClearFilter={clearFilter}
+                                                                collapsed={viewPref.hideSidebar}
+                                                                resourceNodes={this.state.filteredGraph}
+                                                            />
+                                                        )}
+                                                    </DataLoader>
                                                     <div className='graph-options-panel'>
                                                         <a
                                                             className={`group-nodes-button`}
@@ -416,7 +436,7 @@ export class ApplicationDetails extends React.Component<RouteComponentProps<{app
                                                         setNodeExpansion={(node, isExpanded) => this.setNodeExpansion(node, isExpanded)}
                                                         getNodeExpansion={node => this.getNodeExpansion(node)}
                                                     />
-                                                </Filters>
+                                                </>
                                             )) ||
                                                 (pref.view === 'pods' && (
                                                     <PodView
@@ -431,70 +451,49 @@ export class ApplicationDetails extends React.Component<RouteComponentProps<{app
                                                         quickStarts={node => AppUtils.renderResourceButtons(node, application, tree, this.appContext, this.appChanged)}
                                                     />
                                                 )) || (
-                                                    <DataLoader
-                                                        input={{filteredRes}}
-                                                        load={async () => {
-                                                            const liveStatePromises = filteredRes.map(async resource => {
-                                                                const resourceRow: any = {...resource, group: resource.group || ''};
-                                                                const liveState =
-                                                                    typeof resource.group !== 'undefined' &&
-                                                                    (await services.applications
-                                                                        .getResource(application.metadata.name, application.metadata.namespace, resource)
-                                                                        .catch(() => null));
-                                                                if (liveState?.metadata?.annotations?.[models.AnnotationHookKey]) {
-                                                                    resourceRow.syncOrder = liveState?.metadata.annotations[models.AnnotationHookKey];
-                                                                    if (liveState?.metadata?.annotations?.[models.AnnotationSyncWaveKey]) {
-                                                                        resourceRow.syncOrder =
-                                                                            resourceRow.syncOrder + ': ' + liveState?.metadata.annotations[models.AnnotationSyncWaveKey];
-                                                                    }
-                                                                } else {
-                                                                    resourceRow.syncOrder = '-';
-                                                                }
-                                                                return resourceRow;
-                                                            });
-                                                            return await Promise.all(liveStatePromises);
-                                                        }}>
-                                                        {(filteredResWithSyncInfo: any[]) => (
-                                                            <div>
-                                                                <Filters
+                                                    <div>
+                                                        <DataLoader load={() => services.viewPreferences.getPreferences()}>
+                                                            {viewPref => (
+                                                                <ApplicationDetailsFilters
                                                                     pref={pref}
                                                                     tree={tree}
-                                                                    resourceNodes={filteredResWithSyncInfo}
                                                                     onSetFilter={setFilter}
-                                                                    onClearFilter={clearFilter}>
-                                                                    {(filteredResWithSyncInfo.length > 0 && (
-                                                                        <Paginate
-                                                                            page={this.state.page}
-                                                                            data={filteredResWithSyncInfo}
-                                                                            onPageChange={page => this.setState({page})}
-                                                                            preferencesKey='application-details'>
-                                                                            {data => (
-                                                                                <ApplicationResourceList
-                                                                                    onNodeClick={fullName => this.selectNode(fullName)}
-                                                                                    resources={data}
-                                                                                    nodeMenu={node =>
-                                                                                        AppUtils.renderResourceMenu(
-                                                                                            {...node, root: node},
-                                                                                            application,
-                                                                                            tree,
-                                                                                            this.appContext,
-                                                                                            this.appChanged,
-                                                                                            () => this.getApplicationActionMenu(application, false)
-                                                                                        )
-                                                                                    }
-                                                                                />
-                                                                            )}
-                                                                        </Paginate>
-                                                                    )) || (
-                                                                        <EmptyState icon='fa fa-search'>
-                                                                            <h4>No resources found</h4>
-                                                                            <h5>Try to change filter criteria</h5>
-                                                                        </EmptyState>
-                                                                    )}
-                                                                </Filters>
-                                                            </div>
+                                                                    onClearFilter={clearFilter}
+                                                                    collapsed={viewPref.hideSidebar}
+                                                                    resourceNodes={filteredRes}
+                                                                />
+                                                            )}
+                                                        </DataLoader>
+                                                        {(filteredRes.length > 0 && (
+                                                            <Paginate
+                                                                page={this.state.page}
+                                                                data={filteredRes}
+                                                                onPageChange={page => this.setState({page})}
+                                                                preferencesKey='application-details'>
+                                                                {data => (
+                                                                    <ApplicationResourceList
+                                                                        onNodeClick={fullName => this.selectNode(fullName)}
+                                                                        resources={data}
+                                                                        nodeMenu={node =>
+                                                                            AppUtils.renderResourceMenu(
+                                                                                {...node, root: node},
+                                                                                application,
+                                                                                tree,
+                                                                                this.appContext,
+                                                                                this.appChanged,
+                                                                                () => this.getApplicationActionMenu(application, false)
+                                                                            )
+                                                                        }
+                                                                    />
+                                                                )}
+                                                            </Paginate>
+                                                        )) || (
+                                                            <EmptyState icon='fa fa-search'>
+                                                                <h4>No resources found</h4>
+                                                                <h5>Try to change filter criteria</h5>
+                                                            </EmptyState>
                                                         )}
-                                                    </DataLoader>
+                                                    </div>
                                                 )}
                                         </div>
                                         <SlidingPanel isShown={this.state.groupedResources.length > 0} onClose={() => this.closeGroupedNodesPanel()}>
@@ -561,7 +560,7 @@ export class ApplicationDetails extends React.Component<RouteComponentProps<{app
                                                                 <div className='row white-box__details-row'>
                                                                     <div className='columns small-3'>SHA:</div>
                                                                     <div className='columns small-9'>
-                                                                        <Revision repoUrl={application.spec.source.repoURL} revision={this.state.revision} />
+                                                                        <Revision repoUrl={source.repoURL} revision={this.state.revision} />
                                                                     </div>
                                                                 </div>
                                                             </div>
@@ -614,6 +613,7 @@ export class ApplicationDetails extends React.Component<RouteComponentProps<{app
         const refreshing = app.metadata.annotations && app.metadata.annotations[appModels.AnnotationRefreshKey];
         const fullName = AppUtils.nodeKey({group: 'argoproj.io', kind: app.kind, name: app.metadata.name, namespace: app.metadata.namespace});
         const ActionMenuItem = (prop: {actionLabel: string}) => <span className={needOverlapLabelOnNarrowScreen ? 'show-for-large' : ''}>{prop.actionLabel}</span>;
+        const hasMultipleSources = app.spec.sources && app.spec.sources.length > 0;
         return [
             {
                 iconClassName: 'fa fa-info-circle',
@@ -639,9 +639,18 @@ export class ApplicationDetails extends React.Component<RouteComponentProps<{app
             },
             {
                 iconClassName: 'fa fa-history',
-                title: <ActionMenuItem actionLabel='History and rollback' />,
-                action: () => this.setRollbackPanelVisible(0),
-                disabled: !app.status.operationState
+                title: hasMultipleSources ? (
+                    <React.Fragment>
+                        <ActionMenuItem actionLabel=' History and rollback' />
+                        {helpTip('Rollback is not supported for apps with multiple sources')}
+                    </React.Fragment>
+                ) : (
+                    <ActionMenuItem actionLabel='History and rollback' />
+                ),
+                action: () => {
+                    this.setRollbackPanelVisible(0);
+                },
+                disabled: !app.status.operationState || hasMultipleSources
             },
             {
                 iconClassName: 'fa fa-times-circle',
@@ -746,7 +755,7 @@ export class ApplicationDetails extends React.Component<RouteComponentProps<{app
 
     private onAppDeleted() {
         this.appContext.apis.notifications.show({type: NotificationType.Success, content: `Application '${this.props.match.params.name}' was deleted`});
-        this.appContext.apis.navigation.goto('/applications', {view: 'tiles'});
+        this.appContext.apis.navigation.goto('/applications');
     }
 
     private async updateApp(app: appModels.Application, query: {validate?: boolean}) {

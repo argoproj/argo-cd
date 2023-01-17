@@ -13,18 +13,21 @@ import (
 )
 
 type tgz struct {
-	srcPath    string
-	exclusions []string
-	tarWriter  *tar.Writer
+	srcPath      string
+	inclusions   []string
+	exclusions   []string
+	tarWriter    *tar.Writer
+	filesWritten int
 }
 
 // Tgz will iterate over all files found in srcPath compressing them with gzip
 // and archiving with Tar. Will invoke every given writer while generating the tgz.
 // This is useful to generate checksums. Will exclude files matching the exclusions
-// list blob.
-func Tgz(srcPath string, exclusions []string, writers ...io.Writer) error {
+// list blob if exclusions is not nil. Will include only the files matching the
+// inclusions list if inclusions is not nil.
+func Tgz(srcPath string, inclusions []string, exclusions []string, writers ...io.Writer) (int, error) {
 	if _, err := os.Stat(srcPath); err != nil {
-		return fmt.Errorf("error inspecting srcPath %q: %w", srcPath, err)
+		return 0, fmt.Errorf("error inspecting srcPath %q: %w", srcPath, err)
 	}
 
 	mw := io.MultiWriter(writers...)
@@ -37,10 +40,17 @@ func Tgz(srcPath string, exclusions []string, writers ...io.Writer) error {
 
 	t := &tgz{
 		srcPath:    srcPath,
+		inclusions: inclusions,
 		exclusions: exclusions,
 		tarWriter:  tw,
 	}
-	return filepath.Walk(srcPath, t.tgzFile)
+	err := filepath.Walk(srcPath, t.tgzFile)
+
+	if err != nil {
+		return 0, err
+	}
+
+	return t.filesWritten, nil
 }
 
 // Untgz will loop over the tar reader creating the file structure at dstPath.
@@ -48,7 +58,7 @@ func Tgz(srcPath string, exclusions []string, writers ...io.Writer) error {
 //   - a full path
 //   - points to an empty directory or
 //   - points to a non existing directory
-func Untgz(dstPath string, r io.Reader) error {
+func Untgz(dstPath string, r io.Reader, maxSize int64) error {
 	if !filepath.IsAbs(dstPath) {
 		return fmt.Errorf("dstPath points to a relative path: %s", dstPath)
 	}
@@ -59,7 +69,8 @@ func Untgz(dstPath string, r io.Reader) error {
 	}
 	defer gzr.Close()
 
-	tr := tar.NewReader(gzr)
+	lr := io.LimitReader(gzr, maxSize)
+	tr := tar.NewReader(lr)
 
 	for {
 		header, err := tr.Next()
@@ -124,27 +135,48 @@ func Untgz(dstPath string, r io.Reader) error {
 
 // tgzFile is used as a filepath.WalkFunc implementing the logic to write
 // the given file in the tgz.tarWriter applying the exclusion pattern defined
-// in tgz.exclusions. Only regular files will be added in the tarball.
+// in tgz.exclusions, or the inclusion pattern defined in tgz.inclusions.
+// Only regular files will be added in the tarball.
 func (t *tgz) tgzFile(path string, fi os.FileInfo, err error) error {
 	if err != nil {
 		return fmt.Errorf("error walking in %q: %w", t.srcPath, err)
 	}
+
+	base := filepath.Base(path)
 
 	relativePath, err := RelativePath(path, t.srcPath)
 	if err != nil {
 		return fmt.Errorf("relative path error: %s", err)
 	}
 
-	for _, exclusionPattern := range t.exclusions {
-		found, err := filepath.Match(exclusionPattern, relativePath)
-		if err != nil {
-			return fmt.Errorf("error verifying exclusion pattern %q: %w", exclusionPattern, err)
-		}
-		if found {
-			if fi.IsDir() {
-				return filepath.SkipDir
+	if t.inclusions != nil && base != "." && !fi.IsDir() {
+		included := false
+		for _, inclusionPattern := range t.inclusions {
+			found, err := filepath.Match(inclusionPattern, base)
+			if err != nil {
+				return fmt.Errorf("error verifying inclusion pattern %q: %w", inclusionPattern, err)
 			}
+			if found {
+				included = true
+				break
+			}
+		}
+		if !included {
 			return nil
+		}
+	}
+	if t.exclusions != nil {
+		for _, exclusionPattern := range t.exclusions {
+			found, err := filepath.Match(exclusionPattern, relativePath)
+			if err != nil {
+				return fmt.Errorf("error verifying exclusion pattern %q: %w", exclusionPattern, err)
+			}
+			if found {
+				if fi.IsDir() {
+					return filepath.SkipDir
+				}
+				return nil
+			}
 		}
 	}
 
@@ -189,6 +221,7 @@ func (t *tgz) tgzFile(path string, fi os.FileInfo, err error) error {
 		if _, err := io.Copy(t.tarWriter, f); err != nil {
 			return fmt.Errorf("error copying tgz file to writers: %w", err)
 		}
+		t.filesWritten++
 	}
 
 	return nil

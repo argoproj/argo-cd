@@ -47,6 +47,33 @@ argocd proj add-source <PROJECT> <REPO>
 argocd proj remove-source <PROJECT> <REPO>
 ```
 
+We can also do negations of sources (i.e. do _not_ use this repo).
+
+```bash
+argocd proj add-source <PROJECT> !<REPO>
+argocd proj remove-source <PROJECT> !<REPO>
+```
+
+Declaratively we can do something like this:
+
+```yaml
+spec:
+  sourceRepos:
+    # Do not use the test repo in argoproj
+    - '!ssh://git@GITHUB.com:argoproj/test'
+    # Nor any Gitlab repo under group/ 
+    - '!https://gitlab.com/group/**'
+    # Any other repo is fine though
+    - '*'
+```
+
+A source repository is considered valid if the following conditions hold:
+
+1) _Any_ allow source rule (i.e. a rule which isn't prefixed with `!`) permits the source
+2) AND *no* deny source (i.e. a rule which is prefixed with `!`) rejects the source
+
+Keep in mind that `!*` is an invalid rule, since it doesn't make any sense to disallow everything.
+
 Permitted destination clusters and namespaces are managed with the commands (for clusters always provide server, the name is not used for matching):
 
 ```bash
@@ -54,7 +81,7 @@ argocd proj add-destination <PROJECT> <CLUSTER>,<NAMESPACE>
 argocd proj remove-destination <PROJECT> <CLUSTER>,<NAMESPACE>
 ```
 
-We can also do negations of destinations (i.e. install anywhere _apart from_).
+As with sources, we can also do negations of destinations (i.e. install anywhere _apart from_).
 
 ```bash
 argocd proj add-destination <PROJECT> !<CLUSTER>,!<NAMESPACE>
@@ -77,7 +104,7 @@ spec:
     server: '*'
 ```
 
-A destination is considered valid if the following conditions hold:
+As with sources, a destination is considered valid if the following conditions hold:
 
 1) _Any_ allow destination rule (i.e. a rule which isn't prefixed with `!`) permits the destination
 2) AND *no* deny destination (i.e. a rule which is prefixed with `!`) rejects the destination
@@ -293,3 +320,30 @@ stringData:
 ```
 
 All the examples above talk about Git repositories, but the same principles apply to clusters as well.
+
+With cluster-scoped clusters we can also restrict projects to only allow applications whose destinations belong to the 
+same project. The default behavior allows for applications to be installed onto clusters which are not a part of the same 
+project, as the example below demonstrates:
+
+```yaml
+apiVersion: argoproj.io/v1alpha1
+kind: Application
+metadata:
+  name: "some-ns"
+spec:
+  destination:
+    # This destination might not actually be a cluster which belongs to `foo-project`
+    server: https://some-k8s-server/
+    namespace: "some-ns"
+  project: foo-project
+```
+
+To prevent this behavior, we can set the attribute `permitOnlyProjectScopedClusters` on a project. 
+
+```yaml
+spec:
+  permitOnlyProjectScopedClusters: true
+```
+
+With this set, the application above would no longer be allowed to be synced to any cluster other than the ones which 
+are a part of the same project.    

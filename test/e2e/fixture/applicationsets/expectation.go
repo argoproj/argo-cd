@@ -10,8 +10,8 @@ import (
 	corev1 "k8s.io/api/core/v1"
 	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
 
+	"github.com/argoproj/argo-cd/v2/pkg/apis/application/v1alpha1"
 	argov1alpha1 "github.com/argoproj/argo-cd/v2/pkg/apis/application/v1alpha1"
-	"github.com/argoproj/argo-cd/v2/pkg/apis/applicationset/v1alpha1"
 	"github.com/argoproj/argo-cd/v2/test/e2e/fixture/applicationsets/utils"
 )
 
@@ -192,10 +192,10 @@ func filterFields(input argov1alpha1.Application) argov1alpha1.Application {
 			Finalizers:  metaCopy.Finalizers,
 		},
 		Spec: argov1alpha1.ApplicationSpec{
-			Source: argov1alpha1.ApplicationSource{
-				Path:           spec.Source.Path,
-				RepoURL:        spec.Source.RepoURL,
-				TargetRevision: spec.Source.TargetRevision,
+			Source: &argov1alpha1.ApplicationSource{
+				Path:           spec.GetSource().Path,
+				RepoURL:        spec.GetSource().RepoURL,
+				TargetRevision: spec.GetSource().TargetRevision,
 			},
 			Destination: argov1alpha1.ApplicationDestination{
 				Server:    spec.Destination.Server,

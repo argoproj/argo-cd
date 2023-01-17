@@ -1,9 +1,14 @@
 package path
 
 import (
+	"os"
+	"path"
 	"testing"
 
 	"github.com/stretchr/testify/assert"
+	"github.com/stretchr/testify/require"
+
+	fileutil "github.com/argoproj/argo-cd/v2/test/fixture/path"
 )
 
 func TestPathRoot(t *testing.T) {
@@ -77,7 +82,10 @@ func TestBadSymlinks3(t *testing.T) {
 
 // No absolute symlinks allowed
 func TestAbsSymlink(t *testing.T) {
-	err := CheckOutOfBoundsSymlinks("./testdata/abslink")
+	const testDir = "./testdata/abslink"
+	require.NoError(t, fileutil.CreateSymlink(t, testDir, "/somethingbad", "abslink"))
+	defer os.Remove(path.Join(testDir, "abslink"))
+	err := CheckOutOfBoundsSymlinks(testDir)
 	oobError := &OutOfBoundsSymlinkError{}
 	assert.ErrorAs(t, err, &oobError)
 	assert.Equal(t, oobError.File, "abslink")

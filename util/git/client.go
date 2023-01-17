@@ -167,12 +167,12 @@ func NewClientExt(rawRepoURL string, root string, creds Creds, insecure bool, en
 
 // Returns a HTTP client object suitable for go-git to use using the following
 // pattern:
-// - If insecure is true, always returns a client with certificate verification
-//   turned off.
-// - If one or more custom certificates are stored for the repository, returns
-//   a client with those certificates in the list of root CAs used to verify
-//   the server's certificate.
-// - Otherwise (and on non-fatal errors), a default HTTP client is returned.
+//   - If insecure is true, always returns a client with certificate verification
+//     turned off.
+//   - If one or more custom certificates are stored for the repository, returns
+//     a client with those certificates in the list of root CAs used to verify
+//     the server's certificate.
+//   - Otherwise (and on non-fatal errors), a default HTTP client is returned.
 func GetRepoHTTPClient(repoURL string, insecure bool, creds Creds, proxyURL string) *http.Client {
 	// Default HTTP client
 	var customHTTPClient = &http.Client{
@@ -275,6 +275,18 @@ func newAuth(repoURL string, creds Creds) (transport.AuthMethod, error) {
 		}
 		auth := githttp.BasicAuth{Username: "x-access-token", Password: token}
 		return &auth, nil
+	case GoogleCloudCreds:
+		username, err := creds.getUsername()
+		if err != nil {
+			return nil, fmt.Errorf("failed to get username from creds: %w", err)
+		}
+		token, err := creds.getAccessToken()
+		if err != nil {
+			return nil, fmt.Errorf("failed to get access token from creds: %w", err)
+		}
+
+		auth := githttp.BasicAuth{Username: username, Password: token}
+		return &auth, nil
 	}
 	return nil, nil
 }
@@ -320,9 +332,9 @@ func (m *nativeGitClient) IsLFSEnabled() bool {
 func (m *nativeGitClient) fetch(revision string) error {
 	var err error
 	if revision != "" {
-		err = m.runCredentialedCmd("git", "fetch", "origin", revision, "--tags", "--force")
+		err = m.runCredentialedCmd("git", "fetch", "origin", revision, "--tags", "--force", "--prune")
 	} else {
-		err = m.runCredentialedCmd("git", "fetch", "origin", "--tags", "--force")
+		err = m.runCredentialedCmd("git", "fetch", "origin", "--tags", "--force", "--prune")
 	}
 	return err
 }
@@ -334,19 +346,7 @@ func (m *nativeGitClient) Fetch(revision string) error {
 		defer done()
 	}
 
-	var err error
-
-	err = m.fetch(revision)
-	if err != nil {
-		errMsg := strings.ReplaceAll(err.Error(), "\n", "")
-		if strings.Contains(errMsg, "try running 'git remote prune origin'") {
-			// Prune any deleted refs, then try fetching again
-			if err := m.runCredentialedCmd("git", "remote", "prune", "origin"); err != nil {
-				return err
-			}
-			err = m.fetch(revision)
-		}
-	}
+	err := m.fetch(revision)
 
 	// When we have LFS support enabled, check for large files and fetch them too.
 	if err == nil && m.IsLFSEnabled() {

@@ -1,6 +1,7 @@
 package generators
 
 import (
+	"fmt"
 	"encoding/json"
 	"reflect"
 
@@ -9,7 +10,7 @@ import (
 	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
 	"k8s.io/apimachinery/pkg/labels"
 
-	argoprojiov1alpha1 "github.com/argoproj/argo-cd/v2/pkg/apis/applicationset/v1alpha1"
+	argoprojiov1alpha1 "github.com/argoproj/argo-cd/v2/pkg/apis/application/v1alpha1"
 
 	"github.com/imdario/mergo"
 	log "github.com/sirupsen/logrus"
@@ -28,7 +29,7 @@ type TransformResult struct {
 func Transform(requestedGenerator argoprojiov1alpha1.ApplicationSetGenerator, allGenerators map[string]Generator, baseTemplate argoprojiov1alpha1.ApplicationSetTemplate, appSet *argoprojiov1alpha1.ApplicationSet, genParams map[string]interface{}) ([]TransformResult, error) {
 	selector, err := metav1.LabelSelectorAsSelector(requestedGenerator.Selector)
 	if err != nil {
-		return nil, err
+		return nil, fmt.Errorf("error parsing label selector: %w", err)
 	}
 
 	res := []TransformResult{}

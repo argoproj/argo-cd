@@ -5,6 +5,7 @@ import (
 	"reflect"
 
 	"context"
+
 	"github.com/argoproj/gitops-engine/pkg/utils/kube"
 	"github.com/argoproj/gitops-engine/pkg/utils/text"
 	log "github.com/sirupsen/logrus"
@@ -12,6 +13,7 @@ import (
 	"google.golang.org/grpc/status"
 	apierr "k8s.io/apimachinery/pkg/api/errors"
 	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
+	"k8s.io/client-go/tools/cache"
 
 	"github.com/argoproj/argo-cd/v2/common"
 	repositorypkg "github.com/argoproj/argo-cd/v2/pkg/apiclient/repository"
@@ -36,8 +38,9 @@ type Server struct {
 	enf           *rbac.Enforcer
 	cache         *servercache.Cache
 	appLister     applisters.ApplicationLister
-	projLister    applisters.AppProjectNamespaceLister
+	projLister    cache.SharedIndexInformer
 	settings      *settings.SettingsManager
+	namespace     string
 }
 
 // NewServer returns a new instance of the Repository service
@@ -47,7 +50,8 @@ func NewServer(
 	enf *rbac.Enforcer,
 	cache *servercache.Cache,
 	appLister applisters.ApplicationLister,
-	projLister applisters.AppProjectNamespaceLister,
+	projLister cache.SharedIndexInformer,
+	namespace string,
 	settings *settings.SettingsManager,
 ) *Server {
 	return &Server{
@@ -57,6 +61,7 @@ func NewServer(
 		cache:         cache,
 		appLister:     appLister,
 		projLister:    projLister,
+		namespace:     namespace,
 		settings:      settings,
 	}
 }
@@ -247,7 +252,7 @@ func (s *Server) ListApps(ctx context.Context, q *repositorypkg.RepoAppsQuery) (
 		return nil, errPermissionDenied
 	}
 	// Also ensure the repo is actually allowed in the project in question
-	if err := s.isRepoPermittedInProject(q.Repo, q.AppProject); err != nil {
+	if err := s.isRepoPermittedInProject(ctx, q.Repo, q.AppProject); err != nil {
 		return nil, err
 	}
 
@@ -311,7 +316,7 @@ func (s *Server) GetAppDetails(ctx context.Context, q *repositorypkg.RepoAppDeta
 		}
 	}
 	// Ensure the repo is actually allowed in the project in question
-	if err := s.isRepoPermittedInProject(q.Source.RepoURL, q.AppProject); err != nil {
+	if err := s.isRepoPermittedInProject(ctx, q.Source.RepoURL, q.AppProject); err != nil {
 		return nil, err
 	}
 
@@ -505,6 +510,7 @@ func (s *Server) ValidateAccess(ctx context.Context, q *repositorypkg.RepoAccess
 		GithubAppInstallationId:    q.GithubAppInstallationID,
 		GitHubAppEnterpriseBaseURL: q.GithubAppEnterpriseBaseUrl,
 		Proxy:                      q.Proxy,
+		GCPServiceAccountKey:       q.GcpServiceAccountKey,
 	}
 
 	// If repo does not have credentials, check if there are credentials stored
@@ -538,8 +544,8 @@ func (s *Server) testRepo(ctx context.Context, repo *appsv1.Repository) error {
 	return err
 }
 
-func (s *Server) isRepoPermittedInProject(repo string, projName string) error {
-	proj, err := s.projLister.Get(projName)
+func (s *Server) isRepoPermittedInProject(ctx context.Context, repo string, projName string) error {
+	proj, err := argo.GetAppProjectByName(projName, applisters.NewAppProjectLister(s.projLister.GetIndexer()), s.namespace, s.settings, s.db, ctx)
 	if err != nil {
 		return err
 	}
@@ -552,7 +558,7 @@ func (s *Server) isRepoPermittedInProject(repo string, projName string) error {
 // isSourceInHistory checks if the supplied application source is either our current application
 // source, or was something which we synced to previously.
 func isSourceInHistory(app *v1alpha1.Application, source v1alpha1.ApplicationSource) bool {
-	if source.Equals(app.Spec.Source) {
+	if source.Equals(app.Spec.GetSource()) {
 		return true
 	}
 	// Iterate history. When comparing items in our history, use the actual synced revision to

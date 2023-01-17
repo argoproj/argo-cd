@@ -5,6 +5,7 @@ import (
 	"errors"
 	"fmt"
 	"log"
+	"strings"
 
 	"github.com/argoproj/argo-cd/v2/common"
 	"github.com/argoproj/argo-cd/v2/pkg/apis/application/v1alpha1"
@@ -103,17 +104,29 @@ func (a *Actions) Get() *Actions {
 	return a
 }
 
+func (a *Actions) GetByName(name string) *Actions {
+	a.context.t.Helper()
+	a.runCli("cluster", "get", name)
+	return a
+}
+
+func (a *Actions) SetNamespaces() *Actions {
+	a.context.t.Helper()
+	a.runCli("cluster", "set", a.context.name, "--namespace", strings.Join(a.context.namespaces, ","))
+	return a
+}
+
 func (a *Actions) DeleteByName() *Actions {
 	a.context.t.Helper()
 
-	a.runCli("cluster", "rm", a.context.name)
+	a.runCli("cluster", "rm", a.context.name, "--yes")
 	return a
 }
 
 func (a *Actions) DeleteByServer() *Actions {
 	a.context.t.Helper()
 
-	a.runCli("cluster", "rm", a.context.server)
+	a.runCli("cluster", "rm", a.context.server, "--yes")
 	return a
 }
 

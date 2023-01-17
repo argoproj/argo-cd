@@ -58,7 +58,7 @@ func (g *GithubService) List(ctx context.Context) ([]*PullRequest, error) {
 	for {
 		pulls, resp, err := g.client.PullRequests.List(ctx, g.owner, g.repo, opts)
 		if err != nil {
-			return nil, fmt.Errorf("error listing pull requests for %s/%s: %v", g.owner, g.repo, err)
+			return nil, fmt.Errorf("error listing pull requests for %s/%s: %w", g.owner, g.repo, err)
 		}
 		for _, pull := range pulls {
 			if !containLabels(g.labels, pull.Labels) {
@@ -68,6 +68,7 @@ func (g *GithubService) List(ctx context.Context) ([]*PullRequest, error) {
 				Number:  *pull.Number,
 				Branch:  *pull.Head.Ref,
 				HeadSHA: *pull.Head.SHA,
+				Labels:  getGithubPRLabelNames(pull.Labels),
 			})
 		}
 		if resp.NextPage == 0 {
@@ -96,4 +97,13 @@ func containLabels(expectedLabels []string, gotLabels []*github.Label) bool {
 		}
 	}
 	return true
+}
+
+// Get the Github pull request label names.
+func getGithubPRLabelNames(gitHubLabels []*github.Label) []string {
+	var labelNames []string
+	for _, gitHubLabel := range gitHubLabels {
+		labelNames = append(labelNames, *gitHubLabel.Name)
+	}
+	return labelNames
 }

@@ -27,7 +27,7 @@ spec:
 
 ## GitHub
 
-The GitHub mode uses the GitHub API to scan and organization in either github.com or GitHub Enterprise.
+The GitHub mode uses the GitHub API to scan an organization in either github.com or GitHub Enterprise.
 
 ```yaml
 apiVersion: argoproj.io/v1alpha1
@@ -48,6 +48,8 @@ spec:
         tokenRef:
           secretName: github-token
           key: token
+        # (optional) use a GitHub App to access the API instead of a PAT.
+        appSecretName: gh-app-repo-creds
   template:
   # ...
 ```
@@ -56,6 +58,9 @@ spec:
 * `api`: If using GitHub Enterprise, the URL to access it.
 * `allBranches`: By default (false) the template will only be evaluated for the default branch of each repo. If this is true, every branch of every repository will be passed to the filters. If using this flag, you likely want to use a `branchMatch` filter.
 * `tokenRef`: A `Secret` name and key containing the GitHub access token to use for requests. If not specified, will make anonymous requests which have a lower rate limit and can only see public repositories.
+* `appSecretName`: A `Secret` name containing a GitHub App secret in [repo-creds format][repo-creds].
+
+[repo-creds]: ../declarative-setup.md#repository-credentials
 
 For label filtering, the repository topics are used.
 
@@ -214,6 +219,41 @@ spec:
 * `api`: Optional. URL to Azure DevOps. If not set, `https://dev.azure.com` is used.
 * `allBranches`: Optional, default `false`. If `true`, scans every branch of eligible repositories. If `false`, check only the default branch of the eligible repositories.
 
+## Bitbucket Cloud
+
+The Bitbucket mode uses the Bitbucket API V2 to scan a workspace in bitbucket.org.
+
+```yaml
+apiVersion: argoproj.io/v1alpha1
+kind: ApplicationSet
+metadata:
+  name: myapps
+spec:
+  generators:
+  - scmProvider:
+      bitbucket:
+        # The workspace id (slug).  
+        owner: "example-owner"
+        # The user to use for basic authentication with an app password.
+        user: "example-user"
+        # If true, scan every branch of every repository. If false, scan only the main branch. Defaults to false.
+        allBranches: true
+        # Reference to a Secret containing an app password.
+        appPasswordRef:
+          secretName: appPassword
+          key: password
+  template:
+  # ...
+```
+
+* `owner`: The workspace ID (slug) to use when looking up repositories.
+* `user`: The user to use for authentication to the Bitbucket API V2 at bitbucket.org.
+* `allBranches`: By default (false) the template will only be evaluated for the main branch of each repo. If this is true, every branch of every repository will be passed to the filters. If using this flag, you likely want to use a `branchMatch` filter.
+* `appPasswordRef`: A `Secret` name and key containing the bitbucket app password to use for requests.
+
+This SCM provider does not yet support label filtering
+
+Available clone protocols are `ssh` and `https`.
 
 ## Filters
 

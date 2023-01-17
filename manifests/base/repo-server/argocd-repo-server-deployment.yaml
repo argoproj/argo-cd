@@ -125,6 +125,24 @@ spec:
                 key: reposerver.allow.oob.symlinks
                 name: argocd-cmd-params-cm
                 optional: true
+          - name: ARGOCD_REPO_SERVER_STREAMED_MANIFEST_MAX_TAR_SIZE
+            valueFrom:
+              configMapKeyRef:
+                key: reposerver.streamed.manifest.max.tar.size
+                name: argocd-cmd-params-cm
+                optional: true
+          - name: ARGOCD_REPO_SERVER_STREAMED_MANIFEST_MAX_EXTRACTED_SIZE
+            valueFrom:
+              configMapKeyRef:
+                key: reposerver.streamed.manifest.max.extracted.size
+                name: argocd-cmd-params-cm
+                optional: true
+          - name: ARGOCD_GIT_MODULES_ENABLED
+            valueFrom:
+              configMapKeyRef:
+                key: reposerver.enable.git.submodule
+                name: argocd-cmd-params-cm
+                optional: true
           - name: HELM_CACHE_HOME
             value: /helm-working-dir
           - name: HELM_CONFIG_HOME
@@ -139,8 +157,9 @@ spec:
             path: /healthz?full=true
             port: 8084
           initialDelaySeconds: 30
-          periodSeconds: 5
+          periodSeconds: 30
           failureThreshold: 3
+          timeoutSeconds: 5
         readinessProbe:
           httpGet:
             path: /healthz

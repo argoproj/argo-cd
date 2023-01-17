@@ -95,6 +95,12 @@ spec:
                 name: argocd-cmd-params-cm
                 key: controller.repo.server.strict.tls
                 optional: true
+        - name: ARGOCD_APPLICATION_CONTROLLER_PERSIST_RESOURCE_HEALTH
+          valueFrom:
+            configMapKeyRef:
+              name: argocd-cmd-params-cm
+              key: controller.resource.health.persist
+              optional: true
         - name: ARGOCD_APP_STATE_CACHE_EXPIRATION
           valueFrom:
               configMapKeyRef:

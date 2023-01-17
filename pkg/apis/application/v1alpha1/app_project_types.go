@@ -1,10 +1,10 @@
 package v1alpha1
 
 import (
-	fmt "fmt"
+	"fmt"
 	"sort"
 	"strconv"
-	strings "strings"
+	"strings"
 
 	"github.com/argoproj/argo-cd/v2/util/git"
 	"github.com/argoproj/argo-cd/v2/util/glob"
@@ -167,6 +167,10 @@ func (p *AppProject) ValidateProject() error {
 		}
 
 		key := fmt.Sprintf("%s/%s", dest.Server, dest.Namespace)
+		if dest.Server == "" && dest.Name != "" {
+			// destination cluster set using name instead of server endpoint
+			key = fmt.Sprintf("%s/%s", dest.Name, dest.Namespace)
+		}
 		if _, ok := destKeys[key]; ok {
 			return status.Errorf(codes.InvalidArgument, "destination '%s' already added", key)
 		}
@@ -176,13 +180,17 @@ func (p *AppProject) ValidateProject() error {
 	srcNamespaces := make(map[string]bool)
 	for _, ns := range p.Spec.SourceNamespaces {
 		if _, ok := srcNamespaces[ns]; ok {
-			return status.Errorf(codes.InvalidArgument, "source namespaces '%s' already added", ns)
+			return status.Errorf(codes.InvalidArgument, "source namespace '%s' already added", ns)
 		}
-		destKeys[ns] = true
+		srcNamespaces[ns] = true
 	}
 
 	srcRepos := make(map[string]bool)
 	for _, src := range p.Spec.SourceRepos {
+		if src == "!*" {
+			return status.Errorf(codes.InvalidArgument, "source repository has an invalid format, '!*'")
+		}
+
 		if _, ok := srcRepos[src]; ok {
 			return status.Errorf(codes.InvalidArgument, "source repository '%s' already added", src)
 		}
@@ -336,18 +344,18 @@ func (proj AppProject) IsGroupKindPermitted(gk schema.GroupKind, namespaced bool
 }
 
 // IsLiveResourcePermitted returns whether a live resource found in the cluster is permitted by an AppProject
-func (proj AppProject) IsLiveResourcePermitted(un *unstructured.Unstructured, server string, name string) bool {
-	return proj.IsResourcePermitted(un.GroupVersionKind().GroupKind(), un.GetNamespace(), ApplicationDestination{Server: server, Name: name})
+func (proj AppProject) IsLiveResourcePermitted(un *unstructured.Unstructured, server string, name string, projectClusters func(project string) ([]*Cluster, error)) (bool, error) {
+	return proj.IsResourcePermitted(un.GroupVersionKind().GroupKind(), un.GetNamespace(), ApplicationDestination{Server: server, Name: name}, projectClusters)
 }
 
-func (proj AppProject) IsResourcePermitted(groupKind schema.GroupKind, namespace string, dest ApplicationDestination) bool {
+func (proj AppProject) IsResourcePermitted(groupKind schema.GroupKind, namespace string, dest ApplicationDestination, projectClusters func(project string) ([]*Cluster, error)) (bool, error) {
 	if !proj.IsGroupKindPermitted(groupKind, namespace != "") {
-		return false
+		return false, nil
 	}
 	if namespace != "" {
-		return proj.IsDestinationPermitted(ApplicationDestination{Server: dest.Server, Name: dest.Name, Namespace: namespace})
+		return proj.IsDestinationPermitted(ApplicationDestination{Server: dest.Server, Name: dest.Name, Namespace: namespace}, projectClusters)
 	}
-	return true
+	return true, nil
 }
 
 // HasFinalizer returns true if a resource finalizer is set on an AppProject
@@ -361,7 +369,7 @@ func (proj *AppProject) RemoveFinalizer() {
 }
 
 func globMatch(pattern string, val string, allowNegation bool, separators ...rune) bool {
-	if allowNegation && isDenyDestination(pattern) {
+	if allowNegation && isDenyPattern(pattern) {
 		return !glob.Match(pattern[1:], val, separators...)
 	}
 
@@ -374,17 +382,50 @@ func globMatch(pattern string, val string, allowNegation bool, separators ...run
 // IsSourcePermitted validates if the provided application's source is a one of the allowed sources for the project.
 func (proj AppProject) IsSourcePermitted(src ApplicationSource) bool {
 	srcNormalized := git.NormalizeGitURL(src.RepoURL)
+
+	var normalized string
+	anySourceMatched := false
+
 	for _, repoURL := range proj.Spec.SourceRepos {
-		normalized := git.NormalizeGitURL(repoURL)
-		if globMatch(normalized, srcNormalized, false, '/') {
-			return true
+		if isDenyPattern(repoURL) {
+			normalized = "!" + git.NormalizeGitURL(strings.TrimPrefix(repoURL, "!"))
+		} else {
+			normalized = git.NormalizeGitURL(repoURL)
+		}
+
+		matched := globMatch(normalized, srcNormalized, true, '/')
+		if matched {
+			anySourceMatched = true
+		} else if !matched && isDenyPattern(normalized) {
+			return false
 		}
 	}
-	return false
+
+	return anySourceMatched
 }
 
 // IsDestinationPermitted validates if the provided application's destination is one of the allowed destinations for the project
-func (proj AppProject) IsDestinationPermitted(dst ApplicationDestination) bool {
+func (proj AppProject) IsDestinationPermitted(dst ApplicationDestination, projectClusters func(project string) ([]*Cluster, error)) (bool, error) {
+	destinationMatched := proj.isDestinationMatched(dst)
+	if destinationMatched && proj.Spec.PermitOnlyProjectScopedClusters {
+		clusters, err := projectClusters(proj.Name)
+		if err != nil {
+			return false, fmt.Errorf("could not retrieve project clusters: %s", err)
+		}
+
+		for _, cluster := range clusters {
+			if cluster.Name == dst.Name || cluster.Server == dst.Server {
+				return true, nil
+			}
+		}
+
+		return false, nil
+	}
+
+	return destinationMatched, nil
+}
+
+func (proj AppProject) isDestinationMatched(dst ApplicationDestination) bool {
 	anyDestinationMatched := false
 	noDenyDestinationsMatched := true
 
@@ -396,7 +437,7 @@ func (proj AppProject) IsDestinationPermitted(dst ApplicationDestination) bool {
 		matched := (dstServerMatched || dstNameMatched) && dstNamespaceMatched
 		if matched {
 			anyDestinationMatched = true
-		} else if ((!dstNameMatched && isDenyDestination(item.Name)) || (!dstServerMatched && isDenyDestination(item.Server))) || (!dstNamespaceMatched && isDenyDestination(item.Namespace)) {
+		} else if ((!dstNameMatched && isDenyPattern(item.Name)) || (!dstServerMatched && isDenyPattern(item.Server))) || (!dstNamespaceMatched && isDenyPattern(item.Namespace)) {
 			noDenyDestinationsMatched = false
 		}
 	}
@@ -404,7 +445,7 @@ func (proj AppProject) IsDestinationPermitted(dst ApplicationDestination) bool {
 	return anyDestinationMatched && noDenyDestinationsMatched
 }
 
-func isDenyDestination(pattern string) bool {
+func isDenyPattern(pattern string) bool {
 	return strings.HasPrefix(pattern, "!")
 }
 

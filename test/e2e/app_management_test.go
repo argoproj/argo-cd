@@ -3,11 +3,8 @@ package e2e
 import (
 	"context"
 	"fmt"
-	"math/rand"
-	"path"
 	"reflect"
 	"regexp"
-	"strings"
 	"testing"
 	"time"
 
@@ -21,6 +18,7 @@ import (
 	"github.com/stretchr/testify/require"
 	v1 "k8s.io/api/core/v1"
 	networkingv1 "k8s.io/api/networking/v1"
+	rbacv1 "k8s.io/api/rbac/v1"
 	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
 	"k8s.io/apimachinery/pkg/apis/meta/v1/unstructured"
 	"k8s.io/apimachinery/pkg/runtime/schema"
@@ -56,8 +54,6 @@ const (
 func TestGetLogsAllowNoSwitch(t *testing.T) {
 }
 
-// There is some code duplication in the below GetLogs tests, the reason for that is to allow getting rid of most of those tests easily in the next release,
-// when the temporary switch would die
 func TestGetLogsDenySwitchOn(t *testing.T) {
 	SkipOnEnv(t, "OPENSHIFT")
 
@@ -281,8 +277,8 @@ func TestAppCreation(t *testing.T) {
 		Expect(SyncStatusIs(SyncStatusCodeOutOfSync)).
 		And(func(app *Application) {
 			assert.Equal(t, Name(), app.Name)
-			assert.Equal(t, RepoURL(RepoURLTypeFile), app.Spec.Source.RepoURL)
-			assert.Equal(t, guestbookPath, app.Spec.Source.Path)
+			assert.Equal(t, RepoURL(RepoURLTypeFile), app.Spec.GetSource().RepoURL)
+			assert.Equal(t, guestbookPath, app.Spec.GetSource().Path)
 			assert.Equal(t, DeploymentNamespace(), app.Spec.Destination.Namespace)
 			assert.Equal(t, KubernetesInternalAPIServerAddr, app.Spec.Destination.Server)
 		}).
@@ -310,7 +306,7 @@ func TestAppCreation(t *testing.T) {
 		And(func(app *Application) {
 			assert.Equal(t, "label", app.Labels["test"])
 			assert.Equal(t, "annotation", app.Annotations["test"])
-			assert.Equal(t, "master", app.Spec.Source.TargetRevision)
+			assert.Equal(t, "master", app.Spec.GetSource().TargetRevision)
 		})
 }
 
@@ -326,8 +322,8 @@ func TestAppCreationWithoutForceUpdate(t *testing.T) {
 		Expect(SyncStatusIs(SyncStatusCodeOutOfSync)).
 		And(func(app *Application) {
 			assert.Equal(t, ctx.AppName(), app.Name)
-			assert.Equal(t, RepoURL(RepoURLTypeFile), app.Spec.Source.RepoURL)
-			assert.Equal(t, guestbookPath, app.Spec.Source.Path)
+			assert.Equal(t, RepoURL(RepoURLTypeFile), app.Spec.GetSource().RepoURL)
+			assert.Equal(t, guestbookPath, app.Spec.GetSource().Path)
 			assert.Equal(t, DeploymentNamespace(), app.Spec.Destination.Namespace)
 			assert.Equal(t, "in-cluster", app.Spec.Destination.Name)
 		}).
@@ -368,23 +364,18 @@ func TestDeleteAppResource(t *testing.T) {
 // demonstrate that we cannot use a standard sync when an immutable field is changed, we must use "force"
 func TestImmutableChange(t *testing.T) {
 	SkipOnEnv(t, "OPENSHIFT")
-	text := FailOnErr(Run(".", "kubectl", "get", "service", "-n", "kube-system", "kube-dns", "-o", "jsonpath={.spec.clusterIP}")).(string)
-	parts := strings.Split(text, ".")
-	n := rand.Intn(254)
-	ip1 := fmt.Sprintf("%s.%s.%s.%d", parts[0], parts[1], parts[2], n)
-	ip2 := fmt.Sprintf("%s.%s.%s.%d", parts[0], parts[1], parts[2], n+1)
 	Given(t).
-		Path("service").
+		Path("secrets").
 		When().
 		CreateApp().
-		PatchFile("service.yaml", fmt.Sprintf(`[{"op": "add", "path": "/spec/clusterIP", "value": "%s"}]`, ip1)).
+		PatchFile("secrets.yaml", `[{"op": "add", "path": "/data/new-field", "value": "dGVzdA=="}, {"op": "add", "path": "/immutable", "value": true}]`).
 		Sync().
 		Then().
 		Expect(OperationPhaseIs(OperationSucceeded)).
 		Expect(SyncStatusIs(SyncStatusCodeSynced)).
 		Expect(HealthIs(health.HealthStatusHealthy)).
 		When().
-		PatchFile("service.yaml", fmt.Sprintf(`[{"op": "add", "path": "/spec/clusterIP", "value": "%s"}]`, ip2)).
+		PatchFile("secrets.yaml", `[{"op": "add", "path": "/data/new-field", "value": "dGVzdDI="}]`).
 		IgnoreErrors().
 		Sync().
 		DoNotIgnoreErrors().
@@ -393,14 +384,14 @@ func TestImmutableChange(t *testing.T) {
 		Expect(SyncStatusIs(SyncStatusCodeOutOfSync)).
 		Expect(ResourceResultNumbering(1)).
 		Expect(ResourceResultMatches(ResourceResult{
-			Kind:      "Service",
+			Kind:      "Secret",
 			Version:   "v1",
 			Namespace: DeploymentNamespace(),
-			Name:      "my-service",
+			Name:      "test-secret",
 			SyncPhase: "Sync",
 			Status:    "SyncFailed",
 			HookPhase: "Failed",
-			Message:   `Service "my-service" is invalid`,
+			Message:   `Secret "test-secret" is invalid`,
 		})).
 		// now we can do this will a force
 		Given().
@@ -503,12 +494,12 @@ func TestAppRollbackSuccessful(t *testing.T) {
 				ID:         1,
 				Revision:   app.Status.Sync.Revision,
 				DeployedAt: metav1.Time{Time: metav1.Now().UTC().Add(-1 * time.Minute)},
-				Source:     app.Spec.Source,
+				Source:     app.Spec.GetSource(),
 			}, {
 				ID:         2,
 				Revision:   "cdb",
 				DeployedAt: metav1.Time{Time: metav1.Now().UTC().Add(-2 * time.Minute)},
-				Source:     app.Spec.Source,
+				Source:     app.Spec.GetSource(),
 			}}
 			patch, _, err := diff.CreateTwoWayMergePatch(app, appWithHistory, &Application{})
 			require.NoError(t, err)
@@ -679,7 +670,7 @@ func TestAppWithSecrets(t *testing.T) {
 			assert.Contains(t, diffOutput, "password: ++++++++++++")
 
 			// local diff should ignore secrets
-			diffOutput = FailOnErr(RunCli("app", "diff", app.Name, "--local", "testdata/secrets")).(string)
+			diffOutput = FailOnErr(RunCli("app", "diff", app.Name, "--local", "testdata", "--server-side-generate")).(string)
 			assert.Empty(t, diffOutput)
 
 			// ignore missing field and make sure diff shows no difference
@@ -708,7 +699,7 @@ stringData:
   username: test-username`).
 		Then().
 		And(func(app *Application) {
-			diffOutput := FailOnErr(RunCli("app", "diff", app.Name, "--local", "testdata/secrets")).(string)
+			diffOutput := FailOnErr(RunCli("app", "diff", app.Name, "--local", "testdata", "--server-side-generate")).(string)
 			assert.Empty(t, diffOutput)
 		})
 }
@@ -732,7 +723,7 @@ func TestResourceDiffing(t *testing.T) {
 		Then().
 		Expect(SyncStatusIs(SyncStatusCodeOutOfSync)).
 		And(func(app *Application) {
-			diffOutput, err := RunCli("app", "diff", app.Name, "--local", "testdata/guestbook")
+			diffOutput, err := RunCli("app", "diff", app.Name, "--local", "testdata", "--server-side-generate")
 			assert.Error(t, err)
 			assert.Contains(t, diffOutput, fmt.Sprintf("===== apps/Deployment %s/guestbook-ui ======", DeploymentNamespace()))
 		}).
@@ -745,12 +736,23 @@ func TestResourceDiffing(t *testing.T) {
 		Then().
 		Expect(SyncStatusIs(SyncStatusCodeSynced)).
 		And(func(app *Application) {
-			diffOutput, err := RunCli("app", "diff", app.Name, "--local", "testdata/guestbook")
+			diffOutput, err := RunCli("app", "diff", app.Name, "--local", "testdata", "--server-side-generate")
 			assert.NoError(t, err)
 			assert.Empty(t, diffOutput)
 		}).
 		Given().
 		When().
+		// Now we migrate from client-side apply to server-side apply
+		// This is necessary, as starting with kubectl 1.26, all previously
+		// client-side owned fields have ownership migrated to the manager from
+		// the first ssa.
+		// More details: https://github.com/kubernetes/kubectl/issues/1337
+		PatchApp(`[{
+			"op": "add",
+			"path": "/spec/syncPolicy",
+			"value": { "syncOptions": ["ServerSideApply=true"] }
+			}]`).
+		Sync().
 		And(func() {
 			output, err := RunWithStdin(testdata.SSARevisionHistoryDeployment, "", "kubectl", "apply", "-n", DeploymentNamespace(), "--server-side=true", "--field-manager=revision-history-manager", "--validate=false", "--force-conflicts", "-f", "-")
 			assert.NoError(t, err)
@@ -863,7 +865,7 @@ func testEdgeCasesApplicationResources(t *testing.T, appPath string, statusCode 
 	expect.
 		Expect(HealthIs(statusCode)).
 		And(func(app *Application) {
-			diffOutput, err := RunCli("app", "diff", app.Name, "--local", path.Join("testdata", appPath))
+			diffOutput, err := RunCli("app", "diff", app.Name, "--local", "testdata", "--server-side-generate")
 			assert.Empty(t, diffOutput)
 			assert.NoError(t, err)
 		})
@@ -1356,8 +1358,8 @@ func TestSyncOptionValidateFalse(t *testing.T) {
 		IgnoreErrors().
 		Sync().
 		Then().
-		// client error
-		Expect(Error("error validating data", "")).
+		// client error. K8s API changed error message w/ 1.25, so for now, we need to check both
+		Expect(ErrorRegex("error validating data|of type int32", "")).
 		When().
 		PatchFile("deployment.yaml", `[{"op": "add", "path": "/metadata/annotations", "value": {"argocd.argoproj.io/sync-options": "Validate=false"}}]`).
 		Sync().
@@ -1672,9 +1674,11 @@ func TestSyncWithInfos(t *testing.T) {
 		})
 }
 
-//Given: argocd app create does not provide --dest-namespace
-//       Manifest contains resource console which does not require namespace
-//Expect: no app.Status.Conditions
+// Given: argocd app create does not provide --dest-namespace
+//
+//	Manifest contains resource console which does not require namespace
+//
+// Expect: no app.Status.Conditions
 func TestCreateAppWithNoNameSpaceForGlobalResource(t *testing.T) {
 	Given(t).
 		Path(globalWithNoNameSpace).
@@ -1689,10 +1693,12 @@ func TestCreateAppWithNoNameSpaceForGlobalResource(t *testing.T) {
 		})
 }
 
-//Given: argocd app create does not provide --dest-namespace
-//       Manifest contains resource deployment, and service which requires namespace
-//       Deployment and service do not have namespace in manifest
-//Expect: app.Status.Conditions for deployment ans service which does not have namespace in manifest
+// Given: argocd app create does not provide --dest-namespace
+//
+//	Manifest contains resource deployment, and service which requires namespace
+//	Deployment and service do not have namespace in manifest
+//
+// Expect: app.Status.Conditions for deployment ans service which does not have namespace in manifest
 func TestCreateAppWithNoNameSpaceWhenRequired(t *testing.T) {
 	Given(t).
 		Path(guestbookPath).
@@ -1710,11 +1716,13 @@ func TestCreateAppWithNoNameSpaceWhenRequired(t *testing.T) {
 		})
 }
 
-//Given: argocd app create does not provide --dest-namespace
-//       Manifest contains resource deployment, and service which requires namespace
-//       Some deployment and service has namespace in manifest
-//       Some deployment and service does not have namespace in manifest
-//Expect: app.Status.Conditions for deployment and service which does not have namespace in manifest
+// Given: argocd app create does not provide --dest-namespace
+//
+//	Manifest contains resource deployment, and service which requires namespace
+//	Some deployment and service has namespace in manifest
+//	Some deployment and service does not have namespace in manifest
+//
+// Expect: app.Status.Conditions for deployment and service which does not have namespace in manifest
 func TestCreateAppWithNoNameSpaceWhenRequired2(t *testing.T) {
 	Given(t).
 		Path(guestbookWithNamespace).
@@ -1790,10 +1798,13 @@ func TestListResource(t *testing.T) {
 }
 
 // Given application is set with --sync-option CreateNamespace=true
-//       application --dest-namespace does not exist
+//
+//	application --dest-namespace does not exist
+//
 // Verity application --dest-namespace is created
-//        application sync successful
-//        when application is deleted, --dest-namespace is not deleted
+//
+//	application sync successful
+//	when application is deleted, --dest-namespace is not deleted
 func TestNamespaceAutoCreation(t *testing.T) {
 	SkipOnEnv(t, "OPENSHIFT")
 	updatedNamespace := getNewNamespace(t)
@@ -1896,8 +1907,8 @@ spec:
 			assert.Equal(t, map[string]string{"labels.local/from-file": "file", "labels.local/from-args": "args"}, app.ObjectMeta.Labels)
 			assert.Equal(t, map[string]string{"annotations.local/from-file": "file"}, app.ObjectMeta.Annotations)
 			assert.Equal(t, []string{"resources-finalizer.argocd.argoproj.io"}, app.ObjectMeta.Finalizers)
-			assert.Equal(t, path, app.Spec.Source.Path)
-			assert.Equal(t, []HelmParameter{{Name: "foo", Value: "foo"}}, app.Spec.Source.Helm.Parameters)
+			assert.Equal(t, path, app.Spec.GetSource().Path)
+			assert.Equal(t, []HelmParameter{{Name: "foo", Value: "foo"}}, app.Spec.GetSource().Helm.Parameters)
 		})
 }
 
@@ -2393,5 +2404,58 @@ func TestAnnotationTrackingExtraResources(t *testing.T) {
 		Then().
 		Expect(OperationPhaseIs(OperationSucceeded)).
 		Expect(SyncStatusIs(SyncStatusCodeSynced)).
+		Expect(HealthIs(health.HealthStatusHealthy)).
+		When().
+		And(func() {
+			// Add a cluster-scoped resource that is not referencing itself
+			FailOnErr(KubeClientset.RbacV1().ClusterRoles().Create(context.Background(), &rbacv1.ClusterRole{
+				ObjectMeta: metav1.ObjectMeta{
+					Name: "e2e-test-clusterrole",
+					Annotations: map[string]string{
+						common.AnnotationKeyAppInstance: fmt.Sprintf("%s:rbac.authorization.k8s.io/ClusterRole:%s/e2e-other-clusterrole", Name(), DeploymentNamespace()),
+					},
+					Labels: map[string]string{
+						fixture.TestingLabel: "true",
+					},
+				},
+			}, metav1.CreateOptions{}))
+		}).
+		Refresh(RefreshTypeNormal).
+		Then().
+		Expect(OperationPhaseIs(OperationSucceeded)).
+		Expect(SyncStatusIs(SyncStatusCodeSynced)).
+		Expect(HealthIs(health.HealthStatusHealthy)).
+		When().
+		And(func() {
+			// Add a cluster-scoped resource that is referencing itself
+			FailOnErr(KubeClientset.RbacV1().ClusterRoles().Create(context.Background(), &rbacv1.ClusterRole{
+				ObjectMeta: metav1.ObjectMeta{
+					Name: "e2e-other-clusterrole",
+					Annotations: map[string]string{
+						common.AnnotationKeyAppInstance: fmt.Sprintf("%s:rbac.authorization.k8s.io/ClusterRole:%s/e2e-other-clusterrole", Name(), DeploymentNamespace()),
+					},
+					Labels: map[string]string{
+						fixture.TestingLabel: "true",
+					},
+				},
+			}, metav1.CreateOptions{}))
+		}).
+		Refresh(RefreshTypeNormal).
+		Then().
+		Expect(OperationPhaseIs(OperationSucceeded)).
+		Expect(SyncStatusIs(SyncStatusCodeOutOfSync)).
+		Expect(HealthIs(health.HealthStatusHealthy)).
+		When().
+		Sync("--prune").
+		And(func() {
+			// The extra configmap must be pruned now, because it's tracked and does not exist in git
+			cr, err := KubeClientset.RbacV1().ClusterRoles().Get(context.Background(), "e2e-other-clusterrole", metav1.GetOptions{})
+			require.Error(t, err)
+			require.Equal(t, "", cr.Name)
+		}).
+		Then().
+		Expect(OperationPhaseIs(OperationSucceeded)).
+		Expect(SyncStatusIs(SyncStatusCodeSynced)).
 		Expect(HealthIs(health.HealthStatusHealthy))
+
 }

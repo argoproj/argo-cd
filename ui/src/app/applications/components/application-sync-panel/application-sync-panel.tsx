@@ -8,9 +8,9 @@ import * as models from '../../../shared/models';
 import {services} from '../../../shared/services';
 import {ApplicationRetryOptions} from '../application-retry-options/application-retry-options';
 import {ApplicationManualSyncFlags, ApplicationSyncOptions, FORCE_WARNING, SyncFlags, REPLACE_WARNING} from '../application-sync-options/application-sync-options';
-import {ComparisonStatusIcon, nodeKey} from '../utils';
+import {ComparisonStatusIcon, getAppDefaultSource, nodeKey} from '../utils';
 
-require('./application-sync-panel.scss');
+import './application-sync-panel.scss';
 
 export const ApplicationSyncPanel = ({application, selectedResource, hide}: {application: models.Application; selectedResource: string; hide: () => any}) => {
     const [form, setForm] = React.useState<FormApi>(null);
@@ -21,6 +21,7 @@ export const ApplicationSyncPanel = ({application, selectedResource, hide}: {app
     const syncResIndex = appResources.findIndex(item => nodeKey(item) === selectedResource);
     const syncStrategy = {} as models.SyncStrategy;
     const [isPending, setPending] = React.useState(false);
+    const source = getAppDefaultSource(application);
 
     return (
         <Consumer>
@@ -47,7 +48,7 @@ export const ApplicationSyncPanel = ({application, selectedResource, hide}: {app
                     {isVisible && (
                         <Form
                             defaultValues={{
-                                revision: application.spec.source.targetRevision || 'HEAD',
+                                revision: source.targetRevision || 'HEAD',
                                 resources: appResources.map((_, i) => i === syncResIndex || syncResIndex === -1),
                                 syncOptions: application.spec.syncPolicy ? application.spec.syncPolicy.syncOptions : []
                             }}
@@ -62,11 +63,28 @@ export const ApplicationSyncPanel = ({application, selectedResource, hide}: {app
                                 }
                                 const replace = params.syncOptions?.findIndex((opt: string) => opt === 'Replace=true') > -1;
                                 if (replace) {
-                                    const confirmed = await ctx.popup.confirm('Synchronize using replace?', () => (
-                                        <div>
-                                            <i className='fa fa-exclamation-triangle' style={{color: ARGO_WARNING_COLOR}} /> {REPLACE_WARNING} Are you sure you want to continue?
-                                        </div>
-                                    ));
+                                    let confirmed = false;
+                                    await ctx.popup.prompt(
+                                        'Warning: Synchronize using replace',
+                                        api => (
+                                            <div>
+                                                <p>{REPLACE_WARNING} Are you sure you want to continue?</p>
+                                                <div style={{display: 'none'}}>
+                                                    <FormField label='' formApi={api} field='none' component={Text} />
+                                                </div>
+                                            </div>
+                                        ),
+                                        {
+                                            validate: null,
+                                            submit: async (_vals, _, close) => {
+                                                confirmed = true;
+                                                close();
+                                            }
+                                        },
+                                        {name: 'argo-icon-warning', color: 'warning'},
+                                        'yellow'
+                                    );
+
                                     if (!confirmed) {
                                         setPending(false);
                                         return;
@@ -119,7 +137,7 @@ export const ApplicationSyncPanel = ({application, selectedResource, hide}: {app
                             {formApi => (
                                 <form role='form' className='width-control' onSubmit={formApi.submitForm}>
                                     <h6>
-                                        Synchronizing application manifests from <a href={application.spec.source.repoURL}>{application.spec.source.repoURL}</a>
+                                        Synchronizing application manifests from <a href={source.repoURL}>{source.repoURL}</a>
                                     </h6>
                                     <div className='argo-form-row'>
                                         <FormField formApi={formApi} label='Revision' field='revision' component={Text} />
@@ -137,10 +155,15 @@ export const ApplicationSyncPanel = ({application, selectedResource, hide}: {app
                                                     formApi.setTouched('syncOptions', true);
                                                     formApi.setValue('syncOptions', opts);
                                                 }}
+                                                id='application-sync-panel'
                                             />
                                         </div>
 
-                                        <ApplicationRetryOptions formApi={formApi} initValues={application.spec.syncPolicy ? application.spec.syncPolicy.retry : null} />
+                                        <ApplicationRetryOptions
+                                            id='application-sync-panel'
+                                            formApi={formApi}
+                                            initValues={application.spec.syncPolicy ? application.spec.syncPolicy.retry : null}
+                                        />
 
                                         <label>Synchronize resources:</label>
                                         <div style={{float: 'right'}}>
@@ -176,9 +199,9 @@ export const ApplicationSyncPanel = ({application, selectedResource, hide}: {app
                                                 none
                                             </a>
                                         </div>
-                                        {!formApi.values.resources.every((item: boolean) => item) && (
-                                            <div className='application-details__warning'>WARNING: partial synchronization is not recorded in history</div>
-                                        )}
+                                        <div className='application-details__warning'>
+                                            {!formApi.values.resources.every((item: boolean) => item) && <div>WARNING: partial synchronization is not recorded in history</div>}
+                                        </div>
                                         <div>
                                             {application.status.resources
                                                 .filter(item => !item.hook)

@@ -11,15 +11,16 @@ import (
 	"sigs.k8s.io/controller-runtime/pkg/client/fake"
 
 	pullrequest "github.com/argoproj/argo-cd/v2/applicationset/services/pull_request"
-	argoprojiov1alpha1 "github.com/argoproj/argo-cd/v2/pkg/apis/applicationset/v1alpha1"
+	argoprojiov1alpha1 "github.com/argoproj/argo-cd/v2/pkg/apis/application/v1alpha1"
 )
 
 func TestPullRequestGithubGenerateParams(t *testing.T) {
 	ctx := context.Background()
 	cases := []struct {
-		selectFunc  func(context.Context, *argoprojiov1alpha1.PullRequestGenerator, *argoprojiov1alpha1.ApplicationSet) (pullrequest.PullRequestService, error)
-		expected    []map[string]interface{}
-		expectedErr error
+		selectFunc     func(context.Context, *argoprojiov1alpha1.PullRequestGenerator, *argoprojiov1alpha1.ApplicationSet) (pullrequest.PullRequestService, error)
+		expected       []map[string]interface{}
+		expectedErr    error
+		applicationSet argoprojiov1alpha1.ApplicationSet
 	}{
 		{
 			selectFunc: func(context.Context, *argoprojiov1alpha1.PullRequestGenerator, *argoprojiov1alpha1.ApplicationSet) (pullrequest.PullRequestService, error) {
@@ -107,6 +108,71 @@ func TestPullRequestGithubGenerateParams(t *testing.T) {
 			expected:    nil,
 			expectedErr: fmt.Errorf("error listing repos: fake error"),
 		},
+		{
+			selectFunc: func(context.Context, *argoprojiov1alpha1.PullRequestGenerator, *argoprojiov1alpha1.ApplicationSet) (pullrequest.PullRequestService, error) {
+				return pullrequest.NewFakeService(
+					ctx,
+					[]*pullrequest.PullRequest{
+						&pullrequest.PullRequest{
+							Number:  1,
+							Branch:  "branch1",
+							HeadSHA: "089d92cbf9ff857a39e6feccd32798ca700fb958",
+							Labels:  []string{"preview"},
+						},
+					},
+					nil,
+				)
+			},
+			expected: []map[string]interface{}{
+				{
+					"number":         "1",
+					"branch":         "branch1",
+					"branch_slug":    "branch1",
+					"head_sha":       "089d92cbf9ff857a39e6feccd32798ca700fb958",
+					"head_short_sha": "089d92cb",
+					"labels":         []string{"preview"},
+				},
+			},
+			expectedErr: nil,
+			applicationSet: argoprojiov1alpha1.ApplicationSet{
+				Spec: argoprojiov1alpha1.ApplicationSetSpec{
+					// Application set is using Go Template.
+					GoTemplate: true,
+				},
+			},
+		},
+		{
+			selectFunc: func(context.Context, *argoprojiov1alpha1.PullRequestGenerator, *argoprojiov1alpha1.ApplicationSet) (pullrequest.PullRequestService, error) {
+				return pullrequest.NewFakeService(
+					ctx,
+					[]*pullrequest.PullRequest{
+						&pullrequest.PullRequest{
+							Number:  1,
+							Branch:  "branch1",
+							HeadSHA: "089d92cbf9ff857a39e6feccd32798ca700fb958",
+							Labels:  []string{"preview"},
+						},
+					},
+					nil,
+				)
+			},
+			expected: []map[string]interface{}{
+				{
+					"number":         "1",
+					"branch":         "branch1",
+					"branch_slug":    "branch1",
+					"head_sha":       "089d92cbf9ff857a39e6feccd32798ca700fb958",
+					"head_short_sha": "089d92cb",
+				},
+			},
+			expectedErr: nil,
+			applicationSet: argoprojiov1alpha1.ApplicationSet{
+				Spec: argoprojiov1alpha1.ApplicationSetSpec{
+					// Application set is using fasttemplate.
+					GoTemplate: false,
+				},
+			},
+		},
 	}
 
 	for _, c := range cases {
@@ -117,7 +183,7 @@ func TestPullRequestGithubGenerateParams(t *testing.T) {
 			PullRequest: &argoprojiov1alpha1.PullRequestGenerator{},
 		}
 
-		got, gotErr := gen.GenerateParams(&generatorConfig, nil)
+		got, gotErr := gen.GenerateParams(&generatorConfig, &c.applicationSet)
 		assert.Equal(t, c.expectedErr, gotErr)
 		assert.ElementsMatch(t, c.expected, got)
 	}
