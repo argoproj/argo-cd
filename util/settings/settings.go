@@ -1722,7 +1722,8 @@ func (a *ArgoCDSettings) IssuerURL() string {
 		return oidcConfig.Issuer
 	}
 	if a.DexConfig != "" {
-		return a.URL + common.DexAPIEndpoint
+		baseUrl := strings.TrimSuffix(a.URL, "/")
+		return baseUrl + common.DexAPIEndpoint
 	}
 	return ""
 }
@@ -1819,7 +1820,8 @@ func (a *ArgoCDSettings) RedirectURL() (string, error) {
 }
 
 func (a *ArgoCDSettings) DexRedirectURL() (string, error) {
-	return appendURLPath(a.URL, common.DexCallbackEndpoint)
+	baseUrl := strings.TrimSuffix(a.URL, "/")
+	return appendURLPath(baseUrl, common.DexCallbackEndpoint)
 }
 
 // DexOAuth2ClientSecret calculates an arbitrary, but predictable OAuth2 client secret string derived
