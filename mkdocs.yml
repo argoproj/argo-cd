@@ -163,6 +163,8 @@ nav:
   - Command Reference: user-guide/commands/argocd.md
 - Developer Guide:
   - developer-guide/index.md
+  - Architecture:
+    - developer-guide/architecture/authz-authn.md
   - Code Contribution Guide: developer-guide/code-contributions.md
   - Toolchain Guide: developer-guide/toolchain-guide.md
   - developer-guide/contributors-quickstart.md
