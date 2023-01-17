@@ -36,7 +36,7 @@ distinction is not represented in the diagram.
 
 Incoming requests can reach Argo CD API server from the web UI as well
 as from the `argocd` CLI. The responsibility of the represented
-elements are described bellow with their respective numbers:
+elements are described below with their respective numbers:
 
 1. **cmux**: Uses the [cmux][1] library to provide a connection
    multiplexer capability making it possible to use the same port to
@@ -47,8 +47,9 @@ elements are described bellow with their respective numbers:
    has the header `content-type: application/grpc`, it will delegate
    to the *gRPC Server*.
 
-1. **http mux**: A standard HTTP multiplexer that will handle non gRPC
-   requests. It is responsible for serving a [REST API][3] to the web UI.
+1. **http mux**: A [standard HTTP multiplexer][8] that will handle non
+   gRPC requests. It is responsible for serving a unified [REST
+   API][3] to the web UI exposing all gRPC and non-gRPC services.
 
 1. **grpc-gateway**: Uses the [grpc-gateway][2] library to translate
    internal gRPC services and expose them as a [REST API][3]. The
@@ -59,7 +60,7 @@ elements are described bellow with their respective numbers:
 1. **Server**: The internal gRPC Server responsible for handling gRPC
    requests.
 
-1. **authN**: Is responsible for invoking the authentication logic. It
+1. **AuthN**: Is responsible for invoking the authentication logic. It
    is registered as a gRPC interceptor which will automatically
    trigger for every gRPC request.
 
@@ -76,16 +77,16 @@ elements are described bellow with their respective numbers:
 1. **Service Method**: represents the method implementing the business
    logic (core functionality) requested. An example of business logic
    is: `List Applications`. Service methods are also responsible for
-   invoking the RBAC enforcement function to validate if the
+   invoking the [RBAC][7] enforcement function to validate if the
    authenticated user has permission to execute this method.
 
 1. **RBAC**: Is a collection of functions to provide the capability to
    verify if the user has permission to execute a specific action in
    Argo CD. It does so by validating the incoming request action
-   against pre-defined RBAC rules that can be configured in Argo CD
+   against predefined [RBAC][7] rules that can be configured in Argo CD
    API server as well as in Argo CD `Project` CRD.
 
-1. **Casbin**: Uses the [Casbin][5] library to enforce RBAC rules.
+1. **Casbin**: Uses the [Casbin][5] library to enforce [RBAC][7] rules.
 
 1. **AuthN Middleware**: Is an [HTTP Middleware][6] configured to
    invoke the logic to verify the token for HTTP services that are not
@@ -93,8 +94,8 @@ elements are described bellow with their respective numbers:
 
 1. **http Handler**: represents the http handlers responsible for
    invoking the business logic (core functionality) requested. An
-   example of business logic is: `List Applications`. http handlers
-   are also responsible for invoking the RBAC enforcement function to
+   example of business logic is: `List Applications`. Http handlers
+   are also responsible for invoking the [RBAC][7] enforcement function to
    validate if the authenticated user has permission to execute this
    business logic.
 
@@ -104,3 +105,5 @@ elements are described bellow with their respective numbers:
 [4]: https://grpc.io/
 [5]: https://casbin.org/
 [6]: https://github.com/golang/go/wiki/LearnServerProgramming#middleware
+[7]: https://en.wikipedia.org/wiki/Role-based_access_control
+[8]: https://pkg.go.dev/net/http#ServeMux
