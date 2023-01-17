@@ -22,6 +22,7 @@ nav:
   - operator-manual/architecture.md
   - operator-manual/installation.md
   - operator-manual/declarative-setup.md
+  - operator-manual/app-any-namespace.md
   - operator-manual/ingress.md
   - User Management:
     - operator-manual/user-management/index.md
@@ -49,6 +50,8 @@ nav:
   - operator-manual/custom-styles.md
   - operator-manual/metrics.md
   - operator-manual/web_based_terminal.md
+  - operator-manual/config-management-plugins.md
+  - operator-manual/deep_links.md
   - Notification:
     - Overview: operator-manual/notifications/index.md
     - operator-manual/notifications/triggers.md
@@ -67,6 +70,7 @@ nav:
       - operator-manual/notifications/services/googlechat.md
       - operator-manual/notifications/services/grafana.md
       - operator-manual/notifications/services/mattermost.md
+      - operator-manual/notifications/services/newrelic.md
       - operator-manual/notifications/services/opsgenie.md
       - operator-manual/notifications/services/overview.md
       - operator-manual/notifications/services/pagerduty.md
@@ -75,6 +79,7 @@ nav:
       - operator-manual/notifications/services/slack.md
       - operator-manual/notifications/services/teams.md
       - operator-manual/notifications/services/telegram.md
+      - operator-manual/notifications/services/webex.md
       - operator-manual/notifications/services/webhook.md
   - operator-manual/troubleshooting.md
   - ApplicationSet:
@@ -98,6 +103,7 @@ nav:
       - operator-manual/applicationset/GoTemplate.md
     - Controlling Resource Modification: operator-manual/applicationset/Controlling-Resource-Modification.md
     - Application Pruning & Resource Deletion: operator-manual/applicationset/Application-Deletion.md
+    - Progressive Rollouts: operator-manual/applicationset/Progressive-Rollouts.md
   - Server Configuration Parameters:
     - operator-manual/server-commands/argocd-server.md
     - operator-manual/server-commands/argocd-application-controller.md
@@ -128,10 +134,10 @@ nav:
   - user-guide/import.md
   - user-guide/jsonnet.md
   - user-guide/directory.md
-  - user-guide/config-management-plugins.md
   - user-guide/tool_detection.md
   - user-guide/projects.md
   - user-guide/private-repositories.md
+  - user-guide/multiple_sources.md
   - GnuPG verification: user-guide/gpg-verification.md
   - user-guide/auto_sync.md
   - user-guide/diffing.md

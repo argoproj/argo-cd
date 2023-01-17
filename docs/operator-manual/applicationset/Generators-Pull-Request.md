@@ -60,7 +60,7 @@ spec:
 * `repo`: Required name of the GitHub repository.
 * `api`: If using GitHub Enterprise, the URL to access it. (Optional)
 * `tokenRef`: A `Secret` name and key containing the GitHub access token to use for requests. If not specified, will make anonymous requests which have a lower rate limit and can only see public repositories. (Optional)
-* `labels`: Labels is used to filter the PRs that you want to target. (Optional)
+* `labels`: Filter the PRs to those containing **all** of the labels listed. (Optional)
 * `appSecretName`: A `Secret` name containing a GitHub App secret in [repo-creds format][repo-creds].
 
 [repo-creds]: ../declarative-setup.md#repository-credentials
@@ -274,6 +274,7 @@ spec:
 * `branch_slug`: The branch name will be cleaned to be conform to the DNS label standard as defined in [RFC 1123](https://kubernetes.io/docs/concepts/overview/working-with-objects/names/#dns-label-names), and truncated to 50 characters to give room to append/suffix-ing it with 13 more characters.
 * `head_sha`: This is the SHA of the head of the pull request.
 * `head_short_sha`: This is the short SHA of the head of the pull request (8 characters long or the length of the head SHA if it's shorter).
+* `labels`: The array of pull request labels. (Supported only for Go Template ApplicationSet manifests.)
 
 ## Webhook Configuration
 
@@ -318,3 +319,7 @@ The Pull Request Generator will requeue when the next action occurs.
 - `merge`
 
 For more information about each event, please refer to the [official documentation](https://docs.gitlab.com/ee/user/project/integrations/webhook_events.html#merge-request-events).
+
+## Lifecycle
+
+An Application will be generated when a Pull Request is discovered when the configured criteria is met - i.e. for GitHub when a Pull Request matches the specified `labels` and/or `pullRequestState`. Application will be removed when a Pull Request no longer meets the specified criteria.

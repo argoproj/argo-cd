@@ -3,6 +3,8 @@ option go_package = "github.com/argoproj/argo-cd/v2/cmpserver/apiclient";
 
 package plugin;
 
+import "github.com/argoproj/argo-cd/v2/reposerver/repository/repository.proto";
+
 // AppStreamRequest is the request object used to send the application's
 // files over a stream.
 message AppStreamRequest {
@@ -44,6 +46,12 @@ message RepositoryResponse {
     bool isSupported = 1;
 }
 
+// ParametersAnnouncementResponse contains a list of announcements. This list represents all the parameters which a CMP
+// is able to accept.
+message ParametersAnnouncementResponse {
+    repeated repository.ParameterAnnouncement parameterAnnouncements = 1;
+}
+
 message File {
     bytes chunk = 1;
 }
@@ -57,5 +65,9 @@ service ConfigManagementPluginService {
 
     // MatchRepository returns whether or not the given application is supported by the plugin
     rpc MatchRepository(stream AppStreamRequest) returns (RepositoryResponse) {
+    }
+
+    // GetParametersAnnouncement gets a list of parameter announcements for the given app
+    rpc GetParametersAnnouncement(stream AppStreamRequest) returns (ParametersAnnouncementResponse) {
     }
 }

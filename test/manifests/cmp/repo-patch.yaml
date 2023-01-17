@@ -1,0 +1,40 @@
+apiVersion: apps/v1
+kind: Deployment
+metadata:
+  labels:
+    app.kubernetes.io/name: argocd-repo-server
+    app.kubernetes.io/part-of: argocd
+    app.kubernetes.io/component: repo-server
+  name: argocd-repo-server
+spec:
+  selector:
+    matchLabels:
+      app.kubernetes.io/name: argocd-repo-server
+  template:
+    metadata:
+      labels:
+        app.kubernetes.io/name: argocd-repo-server
+    spec:
+      serviceAccountName: argocd-repo-server
+      automountServiceAccountToken: false
+      containers:
+        - name: my-plugin
+          command: [/var/run/argocd/argocd-cmp-server]
+          image: stedolan/jq
+          securityContext:
+            runAsNonRoot: true
+            runAsUser: 999
+          volumeMounts:
+            - mountPath: /var/run/argocd
+              name: var-files
+            - mountPath: /home/argocd/cmp-server/plugins
+              name: plugins
+            - mountPath: /home/argocd/cmp-server/config/plugin.yaml
+              subPath: plugin.yaml
+              name: my-plugin-config
+      volumes:
+        - configMap:
+            name: my-plugin-config
+          name: my-plugin-config
+        - emptyDir: {}
+          name: cmp-tmp
