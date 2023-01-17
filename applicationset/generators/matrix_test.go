@@ -399,6 +399,8 @@ func TestMatrixGetRequeueAfter(t *testing.T) {
 		Elements: []apiextensionsv1.JSON{{Raw: []byte(`{"cluster": "Cluster","url": "Url"}`)}},
 	}
 
+	pullRequestGenerator := &argoprojiov1alpha1.PullRequestGenerator{}
+
 	testCases := []struct {
 		name               string
 		baseGenerators     []argoprojiov1alpha1.ApplicationSetNestedGenerator
@@ -431,6 +433,31 @@ func TestMatrixGetRequeueAfter(t *testing.T) {
 			gitGetRequeueAfter: time.Duration(1),
 			expected:           time.Duration(1),
 		},
+		{
+			name: "returns the minimal time for pull request",
+			baseGenerators: []argoprojiov1alpha1.ApplicationSetNestedGenerator{
+				{
+					Git: gitGenerator,
+				},
+				{
+					PullRequest: pullRequestGenerator,
+				},
+			},
+			gitGetRequeueAfter: time.Duration(15 * time.Second),
+			expected:           time.Duration(15 * time.Second),
+		},
+		{
+			name: "returns the default time if no requeueAfterSeconds is provided",
+			baseGenerators: []argoprojiov1alpha1.ApplicationSetNestedGenerator{
+				{
+					Git: gitGenerator,
+				},
+				{
+					PullRequest: pullRequestGenerator,
+				},
+			},
+			expected: time.Duration(30 * time.Minute),
+		},
 	}
 
 	for _, testCase := range testCases {
@@ -441,16 +468,18 @@ func TestMatrixGetRequeueAfter(t *testing.T) {
 
 			for _, g := range testCaseCopy.baseGenerators {
 				gitGeneratorSpec := argoprojiov1alpha1.ApplicationSetGenerator{
-					Git:  g.Git,
-					List: g.List,
+					Git:         g.Git,
+					List:        g.List,
+					PullRequest: g.PullRequest,
 				}
 				mock.On("GetRequeueAfter", &gitGeneratorSpec).Return(testCaseCopy.gitGetRequeueAfter, nil)
 			}
 
 			var matrixGenerator = NewMatrixGenerator(
 				map[string]Generator{
-					"Git":  mock,
-					"List": &ListGenerator{},
+					"Git":         mock,
+					"List":        &ListGenerator{},
+					"PullRequest": &PullRequestGenerator{},
 				},
 			)
 
