@@ -61,7 +61,7 @@ require (
 	github.com/patrickmn/go-cache v2.1.0+incompatible
 	github.com/pkg/errors v0.9.1
 	github.com/pquerna/cachecontrol v0.1.0 // indirect
-	github.com/prometheus/client_golang v1.11.0
+	github.com/prometheus/client_golang v1.11.1
 	github.com/r3labs/diff v1.1.0
 	github.com/robfig/cron v1.2.0
 	github.com/rs/cors v1.8.0 // indirect
