@@ -30,6 +30,7 @@ import {ApplicationsDetailsAppDropdown} from './application-details-app-dropdown
 import {useSidebarTarget} from '../../../sidebar/sidebar';
 
 import './application-details.scss';
+import {AppViewExtension, ExtensionComponentProps} from '../../../shared/services/extensions-service';
 
 interface ApplicationDetailsState {
     page: number;
@@ -39,6 +40,8 @@ interface ApplicationDetailsState {
     filteredGraph?: any[];
     truncateNameOnRight?: boolean;
     collapsedNodes?: string[];
+    extensions?: AppViewExtension[];
+    extensionsMap?: {[key: string]: AppViewExtension};
 }
 
 interface FilterInput {
@@ -79,7 +82,13 @@ export class ApplicationDetails extends React.Component<RouteComponentProps<{app
 
     constructor(props: RouteComponentProps<{appnamespace: string; name: string}>) {
         super(props);
-        this.state = {page: 0, groupedResources: [], slidingPanelPage: 0, filteredGraph: [], truncateNameOnRight: false, collapsedNodes: []};
+        const extensions = services.extensions.getAppViewExtensions();
+        const extensionsMap: {[key: string]: AppViewExtension} = {};
+        extensions.forEach(ext => {
+            extensionsMap[ext.title] = ext;
+        });
+
+        this.state = {page: 0, groupedResources: [], slidingPanelPage: 0, filteredGraph: [], truncateNameOnRight: false, collapsedNodes: [], extensions, extensionsMap};
         if (typeof this.props.match.params.appnamespace === 'undefined') {
             this.appNamespace = '';
         } else {
@@ -346,6 +355,18 @@ export class ApplicationDetails extends React.Component<RouteComponentProps<{app
                                                                 services.viewPreferences.updatePreferences({appDetails: {...pref, view: List}});
                                                             }}
                                                         />
+                                                        {this.state.extensions &&
+                                                            (this.state.extensions || []).map(ext => (
+                                                                <i
+                                                                    key={ext.title}
+                                                                    className={classNames(`fa ${ext.icon}`, {selected: pref.view === ext.title})}
+                                                                    title={ext.title}
+                                                                    onClick={() => {
+                                                                        this.appContext.apis.navigation.goto('.', {view: ext.title});
+                                                                        services.viewPreferences.updatePreferences({appDetails: {...pref, view: ext.title}});
+                                                                    }}
+                                                                />
+                                                            ))}
                                                     </div>
                                                 </React.Fragment>
                                             )
@@ -450,6 +471,9 @@ export class ApplicationDetails extends React.Component<RouteComponentProps<{app
                                                         }
                                                         quickStarts={node => AppUtils.renderResourceButtons(node, application, tree, this.appContext, this.appChanged)}
                                                     />
+                                                )) ||
+                                                (this.state.extensionsMap[pref.view] != null && (
+                                                    <ExtensionView extension={this.state.extensionsMap[pref.view]} application={application} tree={tree} />
                                                 )) || (
                                                     <div>
                                                         <DataLoader load={() => services.viewPreferences.getPreferences()}>
@@ -855,3 +879,8 @@ Are you sure you want to disable auto-sync and rollback application '${this.prop
         await AppUtils.deleteApplication(this.props.match.params.name, this.appNamespace, this.appContext.apis);
     }
 }
+
+const ExtensionView = (props: {extension: AppViewExtension; application: models.Application; tree: models.ApplicationTree}) => {
+    const {extension, application, tree} = props;
+    return <extension.component application={application} tree={tree} />;
+};
