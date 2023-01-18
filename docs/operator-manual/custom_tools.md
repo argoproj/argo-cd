@@ -69,5 +69,5 @@ RUN apt-get update && \
     chmod +x /usr/local/bin/sops
 
 # Switch back to non-root user
-USER 999
+USER $ARGOCD_USER_ID
 ```
