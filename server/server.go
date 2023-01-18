@@ -4,6 +4,7 @@ import (
 	"context"
 	netCtx "context"
 	"crypto/tls"
+	"errors"
 	"fmt"
 	goio "io"
 	"io/fs"
@@ -60,8 +61,6 @@ import (
 	"github.com/argoproj/argo-cd/v2/pkg/apiclient"
 	accountpkg "github.com/argoproj/argo-cd/v2/pkg/apiclient/account"
 	applicationpkg "github.com/argoproj/argo-cd/v2/pkg/apiclient/application"
-
-	"github.com/pkg/errors"
 
 	applicationsetpkg "github.com/argoproj/argo-cd/v2/pkg/apiclient/applicationset"
 	certificatepkg "github.com/argoproj/argo-cd/v2/pkg/apiclient/certificate"
