@@ -24,7 +24,8 @@ apiVersion: v1
 kind: ConfigMap
 metadata:
   name: argocd-cm
-  namespace: argocd data:
+  namespace: argocd
+data:
   extension.config: |
     extensions:
     - name: httpbin
