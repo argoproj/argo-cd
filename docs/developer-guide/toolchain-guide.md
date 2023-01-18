@@ -117,6 +117,27 @@ The Docker container for the virtualized toolchain will use the following local 
 
 The following steps are required no matter whether you chose to use a virtualized or a local toolchain.
 
+!!!note "Docker privileges"
+    If you opt in to use the virtualized toolchain, you will need to have the
+    appropriate privileges to interact with the Docker daemon. It is not
+    recommended to work as the root user, and if your user does not have the
+    permissions to talk to the Docker user, but you have `sudo` setup on your
+    system, you can set the environment variable `SUDO` to `sudo` in order to
+    have the build scripts make any calls to the `docker` CLI using sudo,
+    without affecting the other parts of the build scripts (which should be
+    executed with your normal user privileges).
+
+    You can either set this before calling `make`, like so for example:
+
+    ```
+    SUDO=sudo make sometarget
+    ```
+
+    Or you can opt to export this permanently to your environment, for example
+    ```
+    export SUDO=sudo
+    ```
+
 ### Clone the Argo CD repository from your personal fork on GitHub
 
 * `mkdir -p ~/go/src/github.com/argoproj`
