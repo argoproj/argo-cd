@@ -24,15 +24,15 @@ The `--parallelismlimit` flag controls how many manifests generations are runnin
 or custom plugin. As a result Git repositories with multiple applications might be affect repository server performance.
 Read [Monorepo Scaling Considerations](#monorepo-scaling-considerations) for more information.
 
-* `argocd-repo-server` clones the repository into `/tmp` (the path specified in the `TMPDIR` env variable). The Pod might run out of disk space if it has too many repositories
+* `argocd-repo-server` clones the repository into `/tmp` (or the path specified in the `TMPDIR` env variable). The Pod might run out of disk space if it has too many repositories
 or if the repositories have a lot of files. To avoid this problem mount a persistent volume.
 
-* `argocd-repo-server` `git ls-remote` to resolve ambiguous revisions such as `HEAD`, branch or tag name. This operation happens frequently
+* `argocd-repo-server` uses `git ls-remote` to resolve ambiguous revisions such as `HEAD`, a branch or a tag name. This operation happens frequently
 and might fail. To avoid failed syncs use the `ARGOCD_GIT_ATTEMPTS_COUNT` environment variable to retry failed requests.
 
 * `argocd-repo-server` Every 3m (by default) Argo CD checks for changes to the app manifests. Argo CD assumes by default that manifests only change when the repo changes, so it caches generated manifests (for 24h by default). With Kustomize remote bases, or Helm patch releases, the manifests can change even though the repo has not changed. By reducing the cache time, you can get the changes without waiting for 24h. Use `--repo-cache-expiration duration`, and we'd suggest in low volume environments you try '1h'. Bear in mind this will negate the benefit of caching if set too low. 
 
-* `argocd-repo-server` fork exec config management tools such as `helm` or `kustomize` enforce a 90 second timeout. This timeout can be increased by using the `ARGOCD_EXEC_TIMEOUT` env variable. The value should be in the Go time duration string format, for example, `2m30s`.
+* `argocd-repo-server` executes config management tools such as `helm` or `kustomize` and enforces a 90 second timeout. This timeout can be changed by using the `ARGOCD_EXEC_TIMEOUT` env variable. The value should be in the Go time duration string format, for example, `2m30s`.
 
 **metrics:**
 
@@ -51,19 +51,15 @@ The `argocd-application-controller` uses `argocd-repo-server` to get generated m
 For 1000 application we use 50 for `--status-processors` and 25 for `--operation-processors`
 
 * The manifest generation typically takes the most time during reconciliation. The duration of manifest generation is limited to make sure the controller refresh queue does not overflow.
-The app reconciliation fails with `Context deadline exceeded` error if the manifest generation is taking too much time. As a workaround increase the value or `--repo-server-timeout-seconds` and
+The app reconciliation fails with `Context deadline exceeded` error if the manifest generation is taking too much time. As a workaround increase the value of `--repo-server-timeout-seconds` and
 consider scaling up the `argocd-repo-server` deployment.
-
-* The controller uses `kubectl` fork/exec to push changes into the cluster and to convert resources from the preferred version into the user specified version
-(e.g. Deployment `apps/v1` into `extensions/v1beta1`). The same applies for the config management tool `kubectl` fork/exec, it might cause a pod OOM kill. Use `--kubectl-parallelism-limit` flag to limit the
-number of allowed concurrent kubectl fork/execs.
 
 * The controller uses Kubernetes watch APIs to maintain a lightweight Kubernetes cluster cache. This allows avoiding querying Kubernetes during app reconciliation and significantly improves
 performance. For performance reasons the controller monitors and caches only the preferred versions of a resource. During reconciliation, the controller might have to convert cached resources from the
 preferred version into a version of the resource stored in Git. If `kubectl convert` fails because the conversion is not supported then the controller falls back to Kubernetes API query which slows down
 reconciliation. In this case, we advise to use the preferred resource version in Git.
 
-* The controller polls Git every 3m by default. You can increase this duration using the `timeout.reconciliation` setting in the `argocd-cm` ConfigMap. The value of `timeout.reconciliation` is a duration string e.g `60s`, `1m`, `1h` or `1d`.
+* The controller polls Git every 3m by default. You can change this duration using the `timeout.reconciliation` setting in the `argocd-cm` ConfigMap. The value of `timeout.reconciliation` is a duration string e.g `60s`, `1m`, `1h` or `1d`.
 
 * If the controller is managing too many clusters and uses too much memory then you can shard clusters across multiple
 controller replicas. To enable sharding increase the number of replicas in `argocd-application-controller` `StatefulSet`
