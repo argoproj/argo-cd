@@ -397,6 +397,7 @@ type SCMProviderGenerator struct {
 	// Values contains key/value pairs which are passed directly as parameters to the template
 	Values        map[string]string                  `json:"values,omitempty" protobuf:"bytes,11,name=values"`
 	AWSCodeCommit *SCMProviderGeneratorAWSCodeCommit `json:"awsCodeCommit,omitempty" protobuf:"bytes,12,opt,name=awsCodeCommit"`
+	ScmManager    *SCMProviderGeneratorScmManager    `json:"scmManager,omitempty" protobuf:"bytes,13,opt,name=scmManager"`
 }
 
 // SCMProviderGeneratorGitea defines a connection info specific to Gitea.
@@ -411,6 +412,18 @@ type SCMProviderGeneratorGitea struct {
 	AllBranches bool `json:"allBranches,omitempty" protobuf:"varint,4,opt,name=allBranches"`
 	// Allow self-signed TLS / Certificates; default: false
 	Insecure bool `json:"insecure,omitempty" protobuf:"varint,5,opt,name=insecure"`
+}
+
+// SCMProviderGeneratorScmManager defines a connection info specific to Scm-Manager.
+type SCMProviderGeneratorScmManager struct {
+	// The SCM-Manager URL to talk to. For example https://scm-manager.org/scm.
+	API string `json:"api" protobuf:"bytes,1,opt,name=api"`
+	// Authentication token reference.
+	TokenRef *SecretRef `json:"tokenRef,omitempty" protobuf:"bytes,2,opt,name=tokenRef"`
+	// Scan all branches instead of just the default branch.
+	AllBranches bool `json:"allBranches,omitempty" protobuf:"varint,3,opt,name=allBranches"`
+	// Allow self-signed TLS / Certificates; default: false
+	Insecure bool `json:"insecure,omitempty" protobuf:"varint,4,opt,name=insecure"`
 }
 
 // SCMProviderGeneratorGithub defines connection info specific to GitHub.
@@ -529,6 +542,7 @@ type PullRequestGenerator struct {
 	Bitbucket           *PullRequestGeneratorBitbucket `json:"bitbucket,omitempty" protobuf:"bytes,8,opt,name=bitbucket"`
 	// Additional provider to use and config for it.
 	AzureDevOps *PullRequestGeneratorAzureDevOps `json:"azuredevops,omitempty" protobuf:"bytes,9,opt,name=azuredevops"`
+	ScmManager  *PullRequestGeneratorScmManager  `json:"scmManager,omitempty" protobuf:"bytes,10,opt,name=scmManager"`
 }
 
 // PullRequestGeneratorGitea defines connection info specific to Gitea.
@@ -538,6 +552,20 @@ type PullRequestGeneratorGitea struct {
 	// Gitea repo name to scan. Required.
 	Repo string `json:"repo" protobuf:"bytes,2,opt,name=repo"`
 	// The Gitea API URL to talk to. Required
+	API string `json:"api" protobuf:"bytes,3,opt,name=api"`
+	// Authentication token reference.
+	TokenRef *SecretRef `json:"tokenRef,omitempty" protobuf:"bytes,4,opt,name=tokenRef"`
+	// Allow insecure tls, for self-signed certificates; default: false.
+	Insecure bool `json:"insecure,omitempty" protobuf:"varint,5,opt,name=insecure"`
+}
+
+// PullRequestGenerator defines connection info specific to SCM-Manager.
+type PullRequestGeneratorScmManager struct {
+	// SCM-Manager namespace. Required.
+	Namespace string `json:"namespace" protobuf:"bytes,1,opt,name=namespace"`
+	// SCM-Manager repo name to scan. Required.
+	Name string `json:"name" protobuf:"bytes,2,opt,name=name"`
+	// SCM-Manager Instance URL with context path. Required
 	API string `json:"api" protobuf:"bytes,3,opt,name=api"`
 	// Authentication token reference.
 	TokenRef *SecretRef `json:"tokenRef,omitempty" protobuf:"bytes,4,opt,name=tokenRef"`

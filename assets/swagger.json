@@ -7486,6 +7486,9 @@
           "type": "string",
           "format": "int64"
         },
+        "scmManager": {
+          "$ref": "#/definitions/v1alpha1PullRequestGeneratorScmManager"
+        },
         "template": {
           "$ref": "#/definitions/v1alpha1ApplicationSetTemplate"
         }
@@ -7658,6 +7661,31 @@
         },
         "repo": {
           "description": "GitHub repo name to scan. Required.",
+          "type": "string"
+        },
+        "tokenRef": {
+          "$ref": "#/definitions/v1alpha1SecretRef"
+        }
+      }
+    },
+    "v1alpha1PullRequestGeneratorScmManager": {
+      "description": "PullRequestGenerator defines connection info specific to SCM-Manager.",
+      "type": "object",
+      "properties": {
+        "api": {
+          "type": "string",
+          "title": "SCM-Manager Instance URL with context path. Required"
+        },
+        "insecure": {
+          "description": "Allow insecure tls, for self-signed certificates; default: false.",
+          "type": "boolean"
+        },
+        "name": {
+          "description": "SCM-Manager repo name to scan. Required.",
+          "type": "string"
+        },
+        "namespace": {
+          "description": "SCM-Manager namespace. Required.",
           "type": "string"
         },
         "tokenRef": {
@@ -8352,6 +8380,9 @@
           "type": "string",
           "format": "int64"
         },
+        "scmManager": {
+          "$ref": "#/definitions/v1alpha1SCMProviderGeneratorScmManager"
+        },
         "template": {
           "$ref": "#/definitions/v1alpha1ApplicationSetTemplate"
         },
@@ -8557,6 +8588,27 @@
         "includeSubgroups": {
           "type": "boolean",
           "title": "Recurse through subgroups (true) or scan only the base group (false).  Defaults to \"false\""
+        },
+        "tokenRef": {
+          "$ref": "#/definitions/v1alpha1SecretRef"
+        }
+      }
+    },
+    "v1alpha1SCMProviderGeneratorScmManager": {
+      "description": "SCMProviderGeneratorScmManager defines a connection info specific to Scm-Manager.",
+      "type": "object",
+      "properties": {
+        "allBranches": {
+          "description": "Scan all branches instead of just the default branch.",
+          "type": "boolean"
+        },
+        "api": {
+          "description": "The SCM-Manager URL to talk to. For example https://scm-manager.org/scm.",
+          "type": "string"
+        },
+        "insecure": {
+          "type": "boolean",
+          "title": "Allow self-signed TLS / Certificates; default: false"
         },
         "tokenRef": {
           "$ref": "#/definitions/v1alpha1SecretRef"

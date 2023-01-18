@@ -174,6 +174,14 @@ func (g *PullRequestGenerator) selectServiceProvider(ctx context.Context, genera
 		}
 		return pullrequest.NewAzureDevOpsService(ctx, token, providerConfig.API, providerConfig.Organization, providerConfig.Project, providerConfig.Repo, providerConfig.Labels)
 	}
+	if generatorConfig.ScmManager != nil {
+		providerConfig := generatorConfig.ScmManager
+		token, err := g.getSecretRef(ctx, providerConfig.TokenRef, applicationSetInfo.Namespace)
+		if err != nil {
+			return nil, fmt.Errorf("error fetching Secret token: %v", err)
+		}
+		return pullrequest.NewScmManagerService(ctx, token, providerConfig.API, providerConfig.Namespace, providerConfig.Name, providerConfig.Insecure)
+	}
 	return nil, fmt.Errorf("no Pull Request provider implementation configured")
 }
 
