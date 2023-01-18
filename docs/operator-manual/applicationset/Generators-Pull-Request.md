@@ -322,6 +322,45 @@ spec:
 * `tokenRef`: A `Secret` name and key containing the Azure DevOps access token to use for requests. If not specified, will make anonymous requests which have a lower rate limit and can only see public repositories. (Optional)
 * `labels`: Filter the PRs to those containing **all** of the labels listed. (Optional)
 
+## SCM-Manager
+
+Fetch pull requests from a repo hosted on a SCM-Manager Server. The Review plugin must be installed on your SCM-Manager to enable pull requests.
+
+```yaml
+apiVersion: argoproj.io/v1alpha1
+kind: ApplicationSet
+metadata:
+  name: myapps
+spec:
+  generators:
+  - pullRequest:
+      scmManager:
+        # Repository Namespace. Required.
+        namespace: myproject
+        # Repository Name. Required.
+        repo: myrepository
+        # URL of the SCM-Manager server
+        api: https://scm-manager.org/scm
+        # Reference to a Secret containing an access token. (optional)
+        tokenRef:
+          secretName: scmm-token
+          key: token
+        # May be required for self-hosted and self-signed certificates
+        insecure: true
+      # Labels are not supported by SCM-Manager yet.
+      # Filter PRs using the source branch name. (optional)
+      filters:
+      - branchMatch: ".*-argocd"
+  template:
+  # ...
+```
+
+* `namespace`: Required namespace of the SCM-Manager repository.
+* `name`: Required name of the SCM-Manager repository.
+* `api`: Required URL to access the SCM-Manager REST API. For e.g. to fetch all pull requests of your repository.
+* `tokenRef`: A `Secret` name and key containing the SCM-Manager access token to use for requests. If not specified, will make anonymous requests which can only see public repositories. (Optional)
+* `insecure`: `Allow for self-signed certificates, primarily for testing.`
+
 ## Filters
 
 Filters allow selecting which pull requests to generate for. Each filter can declare one or more conditions, all of which must pass. If multiple filters are present, any can match for a repository to be included. If no filters are specified, all pull requests will be processed.

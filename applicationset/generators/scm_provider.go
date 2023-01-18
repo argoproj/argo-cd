@@ -223,6 +223,15 @@ func (g *SCMProviderGenerator) GenerateParams(appSetGenerator *argoprojiov1alpha
 		if awsErr != nil {
 			return nil, fmt.Errorf("error initializing AWS codecommit service: %w", awsErr)
 		}
+	} else if providerConfig.ScmManager != nil {
+		token, err := utils.GetSecretRef(ctx, g.client, providerConfig.ScmManager.TokenRef, applicationSetInfo.Namespace)
+		if err != nil {
+			return nil, fmt.Errorf("error fetching SCM-Manager token: %v", err)
+		}
+		provider, err = scm_provider.NewScmManagerProvider(ctx, token, providerConfig.ScmManager.API, providerConfig.ScmManager.AllBranches, providerConfig.ScmManager.Insecure)
+		if err != nil {
+			return nil, fmt.Errorf("error initializing SCM-Manager provider: %v", err)
+		}
 	} else {
 		return nil, fmt.Errorf("no SCM provider implementation configured")
 	}
