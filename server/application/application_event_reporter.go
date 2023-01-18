@@ -553,7 +553,7 @@ func (s *applicationEventReporter) getApplicationEventPayload(ctx context.Contex
 		syncFinished = a.Status.OperationState.FinishedAt
 	}
 
-	if a.Status.Sync.Revision != "" || (a.Status.History != nil && len(a.Status.History) > 0) {
+	if !a.Spec.Source.IsHelm() && (a.Status.Sync.Revision != "" || (a.Status.History != nil && len(a.Status.History) > 0)) {
 		revisionMetadata, err := s.getApplicationRevisionDetails(ctx, a, getOperationRevision(a))
 
 		if err != nil {
