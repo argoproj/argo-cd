@@ -192,31 +192,21 @@ export const ApplicationParameters = (props: {
                 />
             )
         });
-        if (source?.helm?.values) {
-            attributes.push({
-                title: 'VALUES',
-                view: source.helm && (
-                    <Expandable>
-                        <pre>{source.helm.values}</pre>
-                    </Expandable>
-                ),
-                edit: (formApi: FormApi) => (
-                    <div>
-                        <pre>
-                            <FormField formApi={formApi} field='spec.source.helm.values' component={TextArea} />
-                        </pre>
-                        {props.details.helm.values && (
-                            <div>
-                                <label>values.yaml</label>
-                                <Expandable>
-                                    <pre>{props.details.helm.values}</pre>
-                                </Expandable>
-                            </div>
-                        )}
-                    </div>
-                )
-            });
-        }
+        attributes.push({
+            title: 'VALUES',
+            view: source.helm && (
+                <Expandable>
+                    <pre>{source.helm.values}</pre>
+                </Expandable>
+            ),
+            edit: (formApi: FormApi) => (
+                <div>
+                    <pre>
+                        <FormField formApi={formApi} field='spec.source.helm.values' component={TextArea} />
+                    </pre>
+                </div>
+            )
+        });
         const paramsByName = new Map<string, models.HelmParameter>();
         (props.details.helm.parameters || []).forEach(param => paramsByName.set(param.name, param));
         const overridesByName = new Map<string, number>();
