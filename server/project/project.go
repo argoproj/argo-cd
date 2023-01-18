@@ -538,11 +538,11 @@ func (s *Server) NormalizeProjs() error {
 			if proj.NormalizeJWTTokens() {
 				_, err := s.appclientset.ArgoprojV1alpha1().AppProjects(s.ns).Update(context.Background(), &proj, metav1.UpdateOptions{})
 				if err == nil {
-					log.Info(fmt.Sprintf("Successfully normalized project %s.", proj.Name))
+					log.Infof("Successfully normalized project %s.", proj.Name)
 					break
 				}
 				if !apierr.IsConflict(err) {
-					log.Warn(fmt.Sprintf("Failed normalize project %s", proj.Name))
+					log.Warnf("Failed normalize project %s", proj.Name)
 					break
 				}
 				projGet, err := s.appclientset.ArgoprojV1alpha1().AppProjects(s.ns).Get(context.Background(), proj.Name, metav1.GetOptions{})

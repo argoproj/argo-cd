@@ -26,14 +26,14 @@ There are two ways to install a Config Management Plugin:
 2. Add the plugin as a sidecar to the repo-server Pod.
    This is a good option for a more complex plugin that would clutter the Argo CD ConfigMap. A copy of the repository is 
    sent to the sidecar container as a tarball and processed individually per application, which makes it a good option 
-   for [concurrent processing of monorepos](../operator-manual/high_availability.md#enable-concurrent-processing).
+   for [concurrent processing of monorepos](high_availability.md#enable-concurrent-processing).
 
 ### Option 1: Configure plugins via Argo CD configmap (deprecated)
 
 The following changes are required to configure a new plugin:
 
 1. Make sure required binaries are available in `argocd-repo-server` pod. The binaries can be added via volume mounts or 
-   using a custom image (see [custom_tools](../operator-manual/custom_tools.md) for examples of both).
+   using a custom image (see [custom_tools](custom_tools.md) for examples of both).
 2. Register a new plugin in `argocd-cm` ConfigMap:
 
         :::yaml
@@ -246,7 +246,7 @@ volumes:
 Plugin commands have access to
 
 1. The system environment variables (of the repo-server container for argocd-cm plugins or of the sidecar for sidecar plugins)
-2. [Standard build environment variables](build-environment.md)
+2. [Standard build environment variables](../user-guide/build-environment.md)
 3. Variables in the Application spec (References to system and build variables will get interpolated in the variables' values):
 
 ```yaml
