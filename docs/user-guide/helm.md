@@ -82,7 +82,7 @@ spec:
 
 ```
 !!! note
-  The values must be provided as a string. In yaml the | operator can be used to provide a multi-line string as shown in the example above.
+    The values must be provided as a string. In yaml the | operator can be used to provide a multi-line string as shown in the example above.
 ## Helm Parameters
 
 Helm has the ability to set parameter values, which override any values in
