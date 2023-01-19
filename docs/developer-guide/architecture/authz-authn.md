@@ -38,7 +38,7 @@ Incoming requests can reach Argo CD API server from the web UI as well
 as from the `argocd` CLI. The responsibility of the represented
 elements are described below with their respective numbers:
 
-1. **cmux**: Uses the [cmux][1] library to provide a connection
+1. **Cmux**: Uses the [cmux][1] library to provide a connection
    multiplexer capability making it possible to use the same port to
    handle standard HTTP as well as gRPC requests. It is responsible
    for inspecting incoming requests and dispatch to appropriate
@@ -47,11 +47,11 @@ elements are described below with their respective numbers:
    has the header `content-type: application/grpc`, it will delegate
    to the *gRPC Server*.
 
-1. **http mux**: A [standard HTTP multiplexer][8] that will handle non
+1. **HTTP mux**: A [standard HTTP multiplexer][8] that will handle non
    gRPC requests. It is responsible for serving a unified [REST
    API][3] to the web UI exposing all gRPC and non-gRPC services.
 
-1. **grpc-gateway**: Uses the [grpc-gateway][2] library to translate
+1. **gRPC-gateway**: Uses the [grpc-gateway][2] library to translate
    internal gRPC services and expose them as a [REST API][3]. The
    great majority of API services in Argo CD are implemented in gRPC.
    The grpc-gateway makes it possible to access gRPC services from the
@@ -92,7 +92,7 @@ elements are described below with their respective numbers:
    invoke the logic to verify the token for HTTP services that are not
    implemented as gRPC and requires authentication.
 
-1. **http Handler**: represents the http handlers responsible for
+1. **HTTP Handler**: represents the http handlers responsible for
    invoking the business logic (core functionality) requested. An
    example of business logic is: `List Applications`. Http handlers
    are also responsible for invoking the [RBAC][7] enforcement function to
