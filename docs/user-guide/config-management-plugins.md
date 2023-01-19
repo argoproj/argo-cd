@@ -60,7 +60,7 @@ Plugins will be configured via a ConfigManagementPlugin manifest located inside 
 apiVersion: argoproj.io/v1alpha1
 kind: ConfigManagementPlugin
 metadata:
-  name: cmp-plugin
+  name: pluginName
 spec:
   version: v1.0
   init:
@@ -117,13 +117,13 @@ plugin config file in a ConfigMap under the `plugin.yaml` key.
 apiVersion: v1
 kind: ConfigMap
 metadata:
-  name: cmp-plugin
+  name: cmp-plugin-cm
 data:
   plugin.yaml: |
     apiVersion: argoproj.io/v1alpha1
     kind: ConfigManagementPlugin
     metadata:
-      name: cmp-plugin
+      name: pluginName
     spec:
       version: v1.0
       init:
@@ -155,15 +155,15 @@ containers:
     # Remove this volumeMount if you've chosen to bake the config file into the sidecar image.
     - mountPath: /home/argocd/cmp-server/config/plugin.yaml
       subPath: plugin.yaml
-      name: cmp-plugin
+      name: cmp-plugin-volume
     # Starting with v2.4, do NOT mount the same tmp volume as the repo-server container. The filesystem separation helps 
     # mitigate path traversal attacks.
     - mountPath: /tmp
       name: cmp-tmp
 volumes:
   - configMap:
-      name: cmp-plugin
-    name: cmp-plugin
+      name: cmp-plugin-cm
+    name: cmp-plugin-volume
   - emptyDir: {}
     name: cmp-tmp
 ``` 
