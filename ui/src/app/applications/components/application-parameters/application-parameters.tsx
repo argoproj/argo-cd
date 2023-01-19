@@ -376,6 +376,7 @@ export const ApplicationParameters = (props: {
             title={props.details.type.toLocaleUpperCase()}
             items={attributes}
             noReadonlyMode={props.noReadonlyMode}
+            hasMultipleSources={app.spec.sources && app.spec.sources.length > 0}
         />
     );
 };

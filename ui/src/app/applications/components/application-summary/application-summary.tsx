@@ -473,6 +473,7 @@ export const ApplicationSummary = (props: ApplicationSummaryProps) => {
                 title={app.metadata.name.toLocaleUpperCase()}
                 items={attributes}
                 onModeSwitch={() => notificationSubscriptions.onResetNotificationSubscriptions()}
+                hasMultipleSources={app.spec.sources && app.spec.sources.length > 0}
             />
             <Consumer>
                 {ctx => (
