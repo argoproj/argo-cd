@@ -11,7 +11,7 @@ approvers:
   - TBD
 
 creation-date: 2022-12-01
-last-updated: 2022-12-20
+last-updated: 2023-01-19
 ---
 
 # Provide first class status to Image Updater within Argo CD
@@ -202,11 +202,31 @@ That being said, we believe the benefits that we will achieve through this propo
 
 ## Alternatives
 
-An alternative approach would be to keep Argo CD Image Updater as a separate component altogether and store the previously described configuration in a new, dedicated CRD for the Image Updater. This would also satisfy some of the use cases described in this proposal. However, it would come with considerations of its own, some of which are:
+### Alternave #1: 
+
+One alternative approach would be to keep Argo CD Image Updater as a separate component altogether and store the previously described configuration in a new, dedicated CRD for the Image Updater. This would also satisfy some of the use cases described in this proposal. However, it would come with considerations of its own, some of which are:
 - Users would have to move all Image Updater configuration away from the application CR (presently expressed as annotations on the application) into this new CR.
 - The new CRD would need to have a field to express an application reference so it is clear which application the image update configuration targets.
 - There would need to be an instance of the new CR for each application that is targeted, essentially doubling the number of resources on the cluster.
 - This might introduce some complications when it comes to working with ApplicationSets, as there would need to be some mechanism in place to express how ApplicationSets would be targeted in the new CR, and how the image update configuration would be applied to the applications created by the ApplicationSet.
+
+### Alternative #2:
+
+Following up on the discussion had during the contributor meeting, a second alternative approach would be to integrate the image-udpater controller completely into the application-controller. 
+
+Benefits of merging image-updater into application-controller:
+
+- Avoids addition of a new/separate component that needs to be enabled/disabled/managed within an Argo-cd deployment
+- Eliminates concern outlined in Open Questions as there would only be a single component reading/writing to the application resource
+- Provides Image Updater functionality out of the box for all Argo CD installations even more natively
+- Image updater would receive native awareness of all applications in control-plane and non-control plane namespaces
+
+Drawbacks:
+
+- Loss of separation of concerns between application resource management and image updation that currently exists (it can probably still be achieved within the application-controller but the code may need to be structured more carefully)
+- Adds additional complexity to the application-controller that would now have to interact with image-registries & perform git write-backs as well (alternatively, git write-back functionality may potentially need to be extracted out and added to the repo-server instead)
+- Might impact maintenance/reliability of application-controller code
+- Separate controller would be consistent with how projects like appset and notifications controller have been merged into argo-cd in the past
 
 ## Future enhancements
 
