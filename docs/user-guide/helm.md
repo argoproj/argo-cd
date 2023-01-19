@@ -46,6 +46,43 @@ source:
     - values-production.yaml
 ```
 
+## Values
+
+The helm values can be provided in the application definition. 
+```yaml
+apiVersion: argoproj.io/v1alpha1
+kind: Application
+metadata:
+  name: sealed-secrets
+  namespace: argocd
+spec:
+  project: default
+  source:
+    chart: sealed-secrets
+    repoURL: https://bitnami-labs.github.io/sealed-secrets
+    targetRevision: 1.16.1
+    helm:
+      releaseName: sealed-secrets
+      values: |
+        kubeVersion: ""
+        nameOverride: ""
+        fullnameOverride: ""
+        namespace: ""
+        extraDeploy: []
+        commonAnnotations: {}
+        image:
+          registry: docker.io
+          repository: bitnami/sealed-secrets-controller
+          tag: v0.19.4
+          pullPolicy: IfNotPresent
+          pullSecrets: []
+  destination:
+    server: "https://kubernetes.default.svc"
+    namespace: kubeseal
+
+```
+!!! note
+  The values must be provided as a string. In yaml the | operator can be used to provide a multi-line string as shown in the example above.
 ## Helm Parameters
 
 Helm has the ability to set parameter values, which override any values in
