@@ -57,7 +57,7 @@ require (
 	github.com/mattn/go-zglob v0.0.4
 	github.com/olekukonko/tablewriter v0.0.5
 	github.com/patrickmn/go-cache v2.1.0+incompatible
-	github.com/pkg/errors v0.9.1
+	github.com/pkg/errors v0.9.1 // indirect
 	github.com/prometheus/client_golang v1.14.0
 	github.com/r3labs/diff v1.1.0
 	github.com/rs/cors v1.8.0 // indirect
