@@ -51,16 +51,10 @@ type LoginAttempts struct {
 	FailCount int `json:"failCount"`
 }
 
-// contextKey is a private type to avoid colision and protect
-// context keys.
-// See: https://pkg.go.dev/context#WithValue
-type contextKey string
-
 const (
 	// SessionManagerClaimsIssuer fills the "iss" field of the token.
 	SessionManagerClaimsIssuer = "argocd"
 	AuthErrorCtxKey            = "auth-error"
-	CtxKeyClaims               = contextKey("claim")
 
 	// invalidLoginError, for security purposes, doesn't say whether the username or password was invalid.  This does not mitigate the potential for timing attacks to determine which is which.
 	invalidLoginError           = "Invalid username or password"
@@ -500,7 +494,8 @@ func (mgr *SessionManager) WithAuthMiddleware(disabled bool, next http.Handler) 
 			}
 			ctx := r.Context()
 			// Add claims to the context to inspect for RBAC
-			ctx = context.WithValue(ctx, CtxKeyClaims, claims)
+			// nolint:staticcheck
+			ctx = context.WithValue(ctx, "claims", claims)
 			r = r.WithContext(ctx)
 		}
 		next.ServeHTTP(w, r)
