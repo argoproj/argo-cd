@@ -220,10 +220,10 @@ func asResourceNode(r *clustercache.Resource) appv1.ResourceNode {
 		gv = schema.GroupVersion{}
 	}
 	parentRefs := make([]appv1.ResourceRef, len(r.OwnerRefs))
-	for _, ownerRef := range r.OwnerRefs {
+	for i, ownerRef := range r.OwnerRefs {
 		ownerGvk := schema.FromAPIVersionAndKind(ownerRef.APIVersion, ownerRef.Kind)
 		ownerKey := kube.NewResourceKey(ownerGvk.Group, ownerRef.Kind, r.Ref.Namespace, ownerRef.Name)
-		parentRefs[0] = appv1.ResourceRef{Name: ownerRef.Name, Kind: ownerKey.Kind, Namespace: r.Ref.Namespace, Group: ownerKey.Group, UID: string(ownerRef.UID)}
+		parentRefs[i] = appv1.ResourceRef{Name: ownerRef.Name, Kind: ownerKey.Kind, Namespace: r.Ref.Namespace, Group: ownerKey.Group, UID: string(ownerRef.UID)}
 	}
 	var resHealth *appv1.HealthStatus
 	resourceInfo := resInfo(r)
