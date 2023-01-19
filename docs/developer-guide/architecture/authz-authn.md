@@ -26,7 +26,7 @@ collaborate to provide authentication and authorization.
 - **AuthZ**: The AuthZ represents the layer responsible for
   authorization.
 
-![Argo CD Architecture](../../assets/argocd-arch-authn-authz.png)
+![Argo CD Architecture](../../assets/argocd-arch-authn-authz.jpg)
 
 ## Logical elements
 
