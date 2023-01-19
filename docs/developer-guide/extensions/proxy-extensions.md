@@ -49,7 +49,11 @@ Defines configurations for all extensions enabled.
 (mandatory)
 
 Defines the endpoint that will be used to register the extension
-route.
+route. For example, if the value of the property is `extensions.name:
+my-extension` then the backend service will be exposed under the
+following url:
+
+    <argocd-host>/extensions/my-extension
 
 #### `extensions.backend.connectionTimeout` (*duration string*)
 (optional. Default: 2s)
@@ -90,7 +94,8 @@ Is the address where the extension backend must be available.
 (optional)
 
 If provided, will have to match the application destination name to
-have requests properly forwarded to this service URL.
+have requests properly forwarded to this service URL. If there are
+multiple backends for the same extension this field is required.
 
 ## Usage
 
@@ -122,6 +127,8 @@ configuration:
                                              └─────────────────┘
 ```
 
+### Headers
+
 Note that Argo CD API Server requires additional HTTP headers to be
 sent in order to enforce if the incoming request is authenticated and
 authorized before being proxied to the Backend Extension. The headers
@@ -139,7 +146,6 @@ Example:
 
 The entire Argo CD cookie list can also be sent. The API server will
 filter out the `argocd.token` automatically in this case.
-
 
 #### `Argocd-Application-Name` (mandatory)
 
@@ -177,6 +183,30 @@ Example:
 
 It is also possible to send multiple values in this header separated
 by commas.
+
+### Multi Backend Use-Case
+
+In some cases when Argo CD is configured to sync with multiple remote
+clusters, there might be a need to call a specific backend service in
+each of those clusters. The proxy-extension can be configured to
+address this use-case by defining multiple services for the same
+extension. Consider the following configuration as an example:
+
+```yaml
+extension.config: |
+  extensions:
+  - name: some-extension
+    backend:
+      services:
+      - url: http://extension-name.com:8080
+        clusterName: kubernetes.local
+      - url: https://extension-name.ppd.cluster.k8s.local:8080
+        clusterName: user@ppd.cluster.k8s.local
+```
+
+In the example above, the API server will inspect the Application
+destination to verify which URL should be used to proxy the incoming
+request to.
 
 ## Security
 

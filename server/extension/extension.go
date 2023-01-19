@@ -504,4 +504,5 @@ func (m *Manager) CallExtension(extName string, proxyByCluster map[string]*httpu
 func sanitizeRequest(r *http.Request, extName string) {
 	r.URL.Path = strings.TrimPrefix(r.URL.String(), fmt.Sprintf("%s/%s", URLPrefix, extName))
 	r.Header.Del("Cookie")
+	r.Header.Del("Authorization")
 }
