@@ -865,7 +865,7 @@ func TestNeedRefreshAppStatus(t *testing.T) {
 	app.Status.Sync = argoappv1.SyncStatus{
 		Status: argoappv1.SyncStatusCodeSynced,
 		ComparedTo: argoappv1.ComparedTo{
-			Source:      app.Spec.Source,
+			Source:      app.Spec.GetSource(),
 			Destination: app.Spec.Destination,
 		},
 	}
@@ -909,7 +909,7 @@ func TestNeedRefreshAppStatus(t *testing.T) {
 		app.Status.Sync = argoappv1.SyncStatus{
 			Status: argoappv1.SyncStatusCodeSynced,
 			ComparedTo: argoappv1.ComparedTo{
-				Source:      app.Spec.Source,
+				Source:      app.Spec.GetSource(),
 				Destination: app.Spec.Destination,
 			},
 		}
@@ -1012,7 +1012,7 @@ func TestUpdateReconciledAt(t *testing.T) {
 	app := newFakeApp()
 	reconciledAt := metav1.NewTime(time.Now().Add(-1 * time.Second))
 	app.Status = argoappv1.ApplicationStatus{ReconciledAt: &reconciledAt}
-	app.Status.Sync = argoappv1.SyncStatus{ComparedTo: argoappv1.ComparedTo{Source: app.Spec.Source, Destination: app.Spec.Destination}}
+	app.Status.Sync = argoappv1.SyncStatus{ComparedTo: argoappv1.ComparedTo{Source: app.Spec.GetSource(), Destination: app.Spec.Destination}}
 	ctrl := newFakeController(&fakeData{
 		apps: []runtime.Object{app, &defaultProj},
 		manifestResponse: &apiclient.ManifestResponse{
@@ -1066,6 +1066,34 @@ func TestUpdateReconciledAt(t *testing.T) {
 		assert.False(t, updated)
 	})
 
+}
+
+func TestProjectErrorToCondition(t *testing.T) {
+	app := newFakeApp()
+	app.Spec.Project = "wrong project"
+	ctrl := newFakeController(&fakeData{
+		apps: []runtime.Object{app, &defaultProj},
+		manifestResponse: &apiclient.ManifestResponse{
+			Manifests: []string{},
+			Namespace: test.FakeDestNamespace,
+			Server:    test.FakeClusterURL,
+			Revision:  "abc123",
+		},
+		managedLiveObjs: make(map[kube.ResourceKey]*unstructured.Unstructured),
+	})
+	key, _ := cache.MetaNamespaceKeyFunc(app)
+	ctrl.appRefreshQueue.Add(key)
+	ctrl.requestAppRefresh(app.Name, CompareWithRecent.Pointer(), nil)
+
+	ctrl.processAppRefreshQueueItem()
+
+	obj, ok, err := ctrl.appInformer.GetIndexer().GetByKey(key)
+	assert.True(t, ok)
+	assert.NoError(t, err)
+	updatedApp := obj.(*argoappv1.Application)
+	assert.Equal(t, argoappv1.ApplicationConditionInvalidSpecError, updatedApp.Status.Conditions[0].Type)
+	assert.Equal(t, "Application referencing project wrong project which does not exist", updatedApp.Status.Conditions[0].Message)
+	assert.Equal(t, argoappv1.ApplicationConditionInvalidSpecError, updatedApp.Status.Conditions[0].Type)
 }
 
 func TestFinalizeProjectDeletion_HasApplications(t *testing.T) {
