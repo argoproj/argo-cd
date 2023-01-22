@@ -3225,6 +3225,23 @@ func Test_RBACName(t *testing.T) {
 	})
 }
 
+func TestGetSummary(t *testing.T) {
+	tree := ApplicationTree{}
+	app := newTestApp()
+
+	summary := tree.GetSummary(app)
+	assert.Equal(t, len(summary.ExternalURLs), 0)
+
+	const annotationName = argocdcommon.AnnotationKeyLinkPrefix + "/my-link"
+	const url = "https://example.com"
+	app.Annotations = make(map[string]string)
+	app.Annotations[annotationName] = url
+
+	summary = tree.GetSummary(app)
+	assert.Equal(t, len(summary.ExternalURLs), 1)
+	assert.Equal(t, summary.ExternalURLs[0], url)
+}
+
 func TestApplicationSourcePluginParameters_Environ_string(t *testing.T) {
 	params := ApplicationSourcePluginParameters{
 		{
@@ -3303,4 +3320,84 @@ func TestApplicationSourcePluginParameters_Environ_all(t *testing.T) {
 	paramsJson, err := json.Marshal(params)
 	require.NoError(t, err)
 	assert.Contains(t, environ, fmt.Sprintf("ARGOCD_APP_PARAMETERS=%s", paramsJson))
+}
+
+func getApplicationSpec() *ApplicationSpec {
+	return &ApplicationSpec{
+		Source: &ApplicationSource{
+			Path: "source",
+		}, Sources: ApplicationSources{
+			{
+				Path: "sources/source1",
+			}, {
+				Path: "sources/source2",
+			},
+		},
+	}
+}
+
+func TestGetSource(t *testing.T) {
+	tests := []struct {
+		name           string
+		hasSources     bool
+		hasSource      bool
+		appSpec        *ApplicationSpec
+		expectedSource ApplicationSource
+	}{
+		{"GetSource with Source and Sources field present", true, true, getApplicationSpec(), ApplicationSource{Path: "sources/source1"}},
+		{"GetSource with only Sources field", true, false, getApplicationSpec(), ApplicationSource{Path: "sources/source1"}},
+		{"GetSource with only Source field", false, true, getApplicationSpec(), ApplicationSource{Path: "source"}},
+		{"GetSource with no Source and Sources field", false, false, getApplicationSpec(), ApplicationSource{}},
+	}
+	for _, testCase := range tests {
+		testCopy := testCase
+		t.Run(testCopy.name, func(t *testing.T) {
+			t.Parallel()
+			if !testCopy.hasSources {
+				testCopy.appSpec.Sources = nil
+			}
+			if !testCopy.hasSource {
+				testCopy.appSpec.Source = nil
+			}
+			source := testCopy.appSpec.GetSource()
+			assert.Equal(t, testCopy.expectedSource, source)
+		})
+	}
+}
+
+func TestGetSources(t *testing.T) {
+	tests := []struct {
+		name            string
+		hasSources      bool
+		hasSource       bool
+		appSpec         *ApplicationSpec
+		expectedSources ApplicationSources
+	}{
+		{"GetSources with Source and Sources field present", true, true, getApplicationSpec(), ApplicationSources{
+			{Path: "sources/source1"},
+			{Path: "sources/source2"},
+		}},
+		{"GetSources with only Sources field", true, false, getApplicationSpec(), ApplicationSources{
+			{Path: "sources/source1"},
+			{Path: "sources/source2"},
+		}},
+		{"GetSources with only Source field", false, true, getApplicationSpec(), ApplicationSources{
+			{Path: "source"},
+		}},
+		{"GetSources with no Source and Sources field", false, false, getApplicationSpec(), ApplicationSources{}},
+	}
+	for _, testCase := range tests {
+		testCopy := testCase
+		t.Run(testCopy.name, func(t *testing.T) {
+			t.Parallel()
+			if !testCopy.hasSources {
+				testCopy.appSpec.Sources = nil
+			}
+			if !testCopy.hasSource {
+				testCopy.appSpec.Source = nil
+			}
+			sources := testCopy.appSpec.GetSources()
+			assert.Equal(t, testCopy.expectedSources, sources)
+		})
+	}
 }
