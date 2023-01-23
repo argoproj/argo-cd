@@ -1462,7 +1462,6 @@ spec:
                           - spec
                           type: object
                       required:
-                      - pathParamPrefix
                       - repoURL
                       - revision
                       type: object
@@ -3353,7 +3352,6 @@ spec:
                                     - spec
                                     type: object
                                 required:
-                                - pathParamPrefix
                                 - repoURL
                                 - revision
                                 type: object
@@ -6902,7 +6900,6 @@ spec:
                                     - spec
                                     type: object
                                 required:
-                                - pathParamPrefix
                                 - repoURL
                                 - revision
                                 type: object
