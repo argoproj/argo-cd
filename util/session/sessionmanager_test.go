@@ -259,7 +259,6 @@ func TestSessionManager_WithAuthMiddleware(t *testing.T) {
 			if err != nil {
 				t.Fatalf("error writing response: %s", err)
 			}
-			return
 		}
 	}
 	type testCase struct {
