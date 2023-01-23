@@ -2,7 +2,6 @@ package application
 
 import (
 	"context"
-	"fmt"
 	"io"
 	"net/http"
 
@@ -25,9 +24,7 @@ import (
 	"github.com/argoproj/argo-cd/v2/util/db"
 	"github.com/argoproj/argo-cd/v2/util/rbac"
 	"github.com/argoproj/argo-cd/v2/util/security"
-	"github.com/argoproj/argo-cd/v2/util/session"
 	sessionmgr "github.com/argoproj/argo-cd/v2/util/session"
-	"github.com/argoproj/argo-cd/v2/util/settings"
 )
 
 type terminalHandler struct {
@@ -52,6 +49,7 @@ func NewHandler(appLister applisters.ApplicationLister, namespace string, enable
 		appResourceTreeFn: appResourceTree,
 		allowedShells:     allowedShells,
 		namespace:         namespace,
+		enabledNamespaces: enabledNamespaces,
 	}
 }
 
@@ -95,25 +93,6 @@ func isValidContainerName(name string) bool {
 	// https://github.com/kubernetes/kubernetes/blob/53a9d106c4aabcd550cc32ae4e8004f32fb0ae7b/pkg/api/validation/validation.go#L280
 	validationErrors := apimachineryvalidation.NameIsDNSLabel(name, false)
 	return len(validationErrors) == 0
-}
-
-type GetSettingsFunc func() (*settings.ArgoCDSettings, error)
-
-// WithFeatureFlagMiddleware is an HTTP middleware to verify if the terminal
-// feature is enabled before invoking the main handler
-func (s *terminalHandler) WithFeatureFlagMiddleware(getSettings GetSettingsFunc, next http.Handler) http.Handler {
-	return http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
-		argocdSettings, err := getSettings()
-		if err != nil {
-			http.Error(w, fmt.Sprintf("Failed to get settings: %v", err), http.StatusBadRequest)
-			return
-		}
-		if !argocdSettings.ExecEnabled {
-			w.WriteHeader(http.StatusNotFound)
-			return
-		}
-		next.ServeHTTP(w, r)
-	})
 }
 
 func (s *terminalHandler) ServeHTTP(w http.ResponseWriter, r *http.Request) {
@@ -172,12 +151,12 @@ func (s *terminalHandler) ServeHTTP(w http.ResponseWriter, r *http.Request) {
 	ctx := r.Context()
 
 	appRBACName := security.AppRBACName(s.namespace, project, appNamespace, app)
-	if err := s.enf.EnforceErr(ctx.Value(session.CtxKeyClaims), rbacpolicy.ResourceApplications, rbacpolicy.ActionGet, appRBACName); err != nil {
+	if err := s.enf.EnforceErr(ctx.Value("claims"), rbacpolicy.ResourceApplications, rbacpolicy.ActionGet, appRBACName); err != nil {
 		http.Error(w, err.Error(), http.StatusUnauthorized)
 		return
 	}
 
-	if err := s.enf.EnforceErr(ctx.Value(session.CtxKeyClaims), rbacpolicy.ResourceExec, rbacpolicy.ActionCreate, appRBACName); err != nil {
+	if err := s.enf.EnforceErr(ctx.Value("claims"), rbacpolicy.ResourceExec, rbacpolicy.ActionCreate, appRBACName); err != nil {
 		http.Error(w, err.Error(), http.StatusUnauthorized)
 		return
 	}
