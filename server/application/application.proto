@@ -72,16 +72,21 @@ message ApplicationManifestQueryWithFiles {
 	optional string appNamespace = 3;
 }
 
+message ApplicationValidateResponse {
+	optional string error = 1;
+	optional string entity = 2;
+}
+
+message ApplicationRolloutRollbackResponse {
+	required string rollout = 1;
+	required int64 newRevision = 2;
+}
+
 message ApplicationManifestQueryWithFilesWrapper {
 	oneof part {
 		ApplicationManifestQueryWithFiles query = 1;
 		FileChunk chunk = 2;
 	}
-}
-
-message ApplicationValidateResponse {
-	optional string error = 1;
-	optional string entity = 2;
 }
 
 message ApplicationResponse {}
@@ -125,6 +130,13 @@ message ApplicationSyncRequest {
 
 message ApplicationValidationRequest {
 	required github.com.argoproj.argo_cd.v2.pkg.apis.application.v1alpha1.Application application = 1;
+}
+
+message ApplicationRolloutRollbackRequest {
+	required string name = 1;
+	required string rolloutName = 2;
+	required string rolloutNamespace = 3;
+	required int64 rolloutRevision = 4;
 }
 
 
@@ -418,6 +430,14 @@ service ApplicationService {
 		option (google.api.http) = {
 			post: "/api/v1/applications/{name}/resource/actions"
 			body: "action"
+		};
+	}
+
+	// Rollback application rollout
+	rpc RollbackApplicationRollout(ApplicationRolloutRollbackRequest) returns (ApplicationRolloutRollbackResponse) {
+		option (google.api.http) = {
+			post: "/api/v1/applications/{name}/rollout-rollback"
+			body: "*"
 		};
 	}
 

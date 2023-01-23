@@ -760,6 +760,10 @@ spec:
                           (default: false)'
                         type: boolean
                     type: object
+                  createNamespaceLabels:
+                    additionalProperties:
+                      type: string
+                    type: object
                   retry:
                     description: Retry controls failed sync retry behavior
                     properties:
@@ -1858,10 +1862,6 @@ spec:
                   reconciled using the latest git version
                 format: date-time
                 type: string
-              resourceHealthSource:
-                description: 'ResourceHealthSource indicates where the resource health
-                  status is stored: inline if not set or appTree'
-                type: string
               resources:
                 description: Resources is a list of Kubernetes resources managed by
                   this application
@@ -1898,9 +1898,6 @@ spec:
                       description: SyncStatusCode is a type which represents possible
                         comparison results
                       type: string
-                    syncWave:
-                      format: int64
-                      type: integer
                     version:
                       type: string
                   type: object
@@ -2225,7 +2222,6 @@ kind: CustomResourceDefinition
 metadata:
   labels:
     app.kubernetes.io/name: applicationsets.argoproj.io
-    app.kubernetes.io/part-of: argocd
   name: applicationsets.argoproj.io
 spec:
   group: argoproj.io
@@ -2516,6 +2512,10 @@ spec:
                                           type: boolean
                                         selfHeal:
                                           type: boolean
+                                      type: object
+                                    createNamespaceLabels:
+                                      additionalProperties:
+                                        type: string
                                       type: object
                                     retry:
                                       properties:
@@ -2809,6 +2809,10 @@ spec:
                                           type: boolean
                                         selfHeal:
                                           type: boolean
+                                      type: object
+                                    createNamespaceLabels:
+                                      additionalProperties:
+                                        type: string
                                       type: object
                                     retry:
                                       properties:
@@ -3105,6 +3109,10 @@ spec:
                                         selfHeal:
                                           type: boolean
                                       type: object
+                                    createNamespaceLabels:
+                                      additionalProperties:
+                                        type: string
+                                      type: object
                                     retry:
                                       properties:
                                         backoff:
@@ -3375,6 +3383,10 @@ spec:
                                           type: boolean
                                         selfHeal:
                                           type: boolean
+                                      type: object
+                                    createNamespaceLabels:
+                                      additionalProperties:
+                                        type: string
                                       type: object
                                     retry:
                                       properties:
@@ -3677,6 +3689,10 @@ spec:
                                                   selfHeal:
                                                     type: boolean
                                                 type: object
+                                              createNamespaceLabels:
+                                                additionalProperties:
+                                                  type: string
+                                                type: object
                                               retry:
                                                 properties:
                                                   backoff:
@@ -3969,6 +3985,10 @@ spec:
                                                     type: boolean
                                                   selfHeal:
                                                     type: boolean
+                                                type: object
+                                              createNamespaceLabels:
+                                                additionalProperties:
+                                                  type: string
                                                 type: object
                                               retry:
                                                 properties:
@@ -4265,6 +4285,10 @@ spec:
                                                   selfHeal:
                                                     type: boolean
                                                 type: object
+                                              createNamespaceLabels:
+                                                additionalProperties:
+                                                  type: string
+                                                type: object
                                               retry:
                                                 properties:
                                                   backoff:
@@ -4536,6 +4560,10 @@ spec:
                                                   selfHeal:
                                                     type: boolean
                                                 type: object
+                                              createNamespaceLabels:
+                                                additionalProperties:
+                                                  type: string
+                                                type: object
                                               retry:
                                                 properties:
                                                   backoff:
@@ -4642,8 +4670,6 @@ spec:
                                     properties:
                                       api:
                                         type: string
-                                      appSecretName:
-                                        type: string
                                       labels:
                                         items:
                                           type: string
@@ -4665,31 +4691,6 @@ spec:
                                     required:
                                     - owner
                                     - repo
-                                    type: object
-                                  gitlab:
-                                    properties:
-                                      api:
-                                        type: string
-                                      labels:
-                                        items:
-                                          type: string
-                                        type: array
-                                      project:
-                                        type: string
-                                      pullRequestState:
-                                        type: string
-                                      tokenRef:
-                                        properties:
-                                          key:
-                                            type: string
-                                          secretName:
-                                            type: string
-                                        required:
-                                        - key
-                                        - secretName
-                                        type: object
-                                    required:
-                                    - project
                                     type: object
                                   requeueAfterSeconds:
                                     format: int64
@@ -4925,6 +4926,10 @@ spec:
                                                   selfHeal:
                                                     type: boolean
                                                 type: object
+                                              createNamespaceLabels:
+                                                additionalProperties:
+                                                  type: string
+                                                type: object
                                               retry:
                                                 properties:
                                                   backoff:
@@ -4958,31 +4963,6 @@ spec:
                                 type: object
                               scmProvider:
                                 properties:
-                                  azureDevOps:
-                                    properties:
-                                      accessTokenRef:
-                                        properties:
-                                          key:
-                                            type: string
-                                          secretName:
-                                            type: string
-                                        required:
-                                        - key
-                                        - secretName
-                                        type: object
-                                      allBranches:
-                                        type: boolean
-                                      api:
-                                        type: string
-                                      organization:
-                                        type: string
-                                      teamProject:
-                                        type: string
-                                    required:
-                                    - accessTokenRef
-                                    - organization
-                                    - teamProject
-                                    type: object
                                   bitbucket:
                                     properties:
                                       allBranches:
@@ -5086,8 +5066,6 @@ spec:
                                       allBranches:
                                         type: boolean
                                       api:
-                                        type: string
-                                      appSecretName:
                                         type: string
                                       organization:
                                         type: string
@@ -5361,6 +5339,10 @@ spec:
                                                   selfHeal:
                                                     type: boolean
                                                 type: object
+                                              createNamespaceLabels:
+                                                additionalProperties:
+                                                  type: string
+                                                type: object
                                               retry:
                                                 properties:
                                                   backoff:
@@ -5390,29 +5372,6 @@ spec:
                                     required:
                                     - metadata
                                     - spec
-                                    type: object
-                                type: object
-                              selector:
-                                properties:
-                                  matchExpressions:
-                                    items:
-                                      properties:
-                                        key:
-                                          type: string
-                                        operator:
-                                          type: string
-                                        values:
-                                          items:
-                                            type: string
-                                          type: array
-                                      required:
-                                      - key
-                                      - operator
-                                      type: object
-                                    type: array
-                                  matchLabels:
-                                    additionalProperties:
-                                      type: string
                                     type: object
                                 type: object
                             type: object
@@ -5647,6 +5606,10 @@ spec:
                                           type: boolean
                                         selfHeal:
                                           type: boolean
+                                      type: object
+                                    createNamespaceLabels:
+                                      additionalProperties:
+                                        type: string
                                       type: object
                                     retry:
                                       properties:
@@ -5949,6 +5912,10 @@ spec:
                                                   selfHeal:
                                                     type: boolean
                                                 type: object
+                                              createNamespaceLabels:
+                                                additionalProperties:
+                                                  type: string
+                                                type: object
                                               retry:
                                                 properties:
                                                   backoff:
@@ -6241,6 +6208,10 @@ spec:
                                                     type: boolean
                                                   selfHeal:
                                                     type: boolean
+                                                type: object
+                                              createNamespaceLabels:
+                                                additionalProperties:
+                                                  type: string
                                                 type: object
                                               retry:
                                                 properties:
@@ -6537,6 +6508,10 @@ spec:
                                                   selfHeal:
                                                     type: boolean
                                                 type: object
+                                              createNamespaceLabels:
+                                                additionalProperties:
+                                                  type: string
+                                                type: object
                                               retry:
                                                 properties:
                                                   backoff:
@@ -6808,6 +6783,10 @@ spec:
                                                   selfHeal:
                                                     type: boolean
                                                 type: object
+                                              createNamespaceLabels:
+                                                additionalProperties:
+                                                  type: string
+                                                type: object
                                               retry:
                                                 properties:
                                                   backoff:
@@ -6914,8 +6893,6 @@ spec:
                                     properties:
                                       api:
                                         type: string
-                                      appSecretName:
-                                        type: string
                                       labels:
                                         items:
                                           type: string
@@ -6937,31 +6914,6 @@ spec:
                                     required:
                                     - owner
                                     - repo
-                                    type: object
-                                  gitlab:
-                                    properties:
-                                      api:
-                                        type: string
-                                      labels:
-                                        items:
-                                          type: string
-                                        type: array
-                                      project:
-                                        type: string
-                                      pullRequestState:
-                                        type: string
-                                      tokenRef:
-                                        properties:
-                                          key:
-                                            type: string
-                                          secretName:
-                                            type: string
-                                        required:
-                                        - key
-                                        - secretName
-                                        type: object
-                                    required:
-                                    - project
                                     type: object
                                   requeueAfterSeconds:
                                     format: int64
@@ -7197,6 +7149,10 @@ spec:
                                                   selfHeal:
                                                     type: boolean
                                                 type: object
+                                              createNamespaceLabels:
+                                                additionalProperties:
+                                                  type: string
+                                                type: object
                                               retry:
                                                 properties:
                                                   backoff:
@@ -7230,31 +7186,6 @@ spec:
                                 type: object
                               scmProvider:
                                 properties:
-                                  azureDevOps:
-                                    properties:
-                                      accessTokenRef:
-                                        properties:
-                                          key:
-                                            type: string
-                                          secretName:
-                                            type: string
-                                        required:
-                                        - key
-                                        - secretName
-                                        type: object
-                                      allBranches:
-                                        type: boolean
-                                      api:
-                                        type: string
-                                      organization:
-                                        type: string
-                                      teamProject:
-                                        type: string
-                                    required:
-                                    - accessTokenRef
-                                    - organization
-                                    - teamProject
-                                    type: object
                                   bitbucket:
                                     properties:
                                       allBranches:
@@ -7358,8 +7289,6 @@ spec:
                                       allBranches:
                                         type: boolean
                                       api:
-                                        type: string
-                                      appSecretName:
                                         type: string
                                       organization:
                                         type: string
@@ -7633,6 +7562,10 @@ spec:
                                                   selfHeal:
                                                     type: boolean
                                                 type: object
+                                              createNamespaceLabels:
+                                                additionalProperties:
+                                                  type: string
+                                                type: object
                                               retry:
                                                 properties:
                                                   backoff:
@@ -7662,29 +7595,6 @@ spec:
                                     required:
                                     - metadata
                                     - spec
-                                    type: object
-                                type: object
-                              selector:
-                                properties:
-                                  matchExpressions:
-                                    items:
-                                      properties:
-                                        key:
-                                          type: string
-                                        operator:
-                                          type: string
-                                        values:
-                                          items:
-                                            type: string
-                                          type: array
-                                      required:
-                                      - key
-                                      - operator
-                                      type: object
-                                    type: array
-                                  matchLabels:
-                                    additionalProperties:
-                                      type: string
                                     type: object
                                 type: object
                             type: object
@@ -7924,6 +7834,10 @@ spec:
                                         selfHeal:
                                           type: boolean
                                       type: object
+                                    createNamespaceLabels:
+                                      additionalProperties:
+                                        type: string
+                                      type: object
                                     retry:
                                       properties:
                                         backoff:
@@ -8027,8 +7941,6 @@ spec:
                           properties:
                             api:
                               type: string
-                            appSecretName:
-                              type: string
                             labels:
                               items:
                                 type: string
@@ -8050,31 +7962,6 @@ spec:
                           required:
                           - owner
                           - repo
-                          type: object
-                        gitlab:
-                          properties:
-                            api:
-                              type: string
-                            labels:
-                              items:
-                                type: string
-                              type: array
-                            project:
-                              type: string
-                            pullRequestState:
-                              type: string
-                            tokenRef:
-                              properties:
-                                key:
-                                  type: string
-                                secretName:
-                                  type: string
-                              required:
-                              - key
-                              - secretName
-                              type: object
-                          required:
-                          - project
                           type: object
                         requeueAfterSeconds:
                           format: int64
@@ -8310,6 +8197,10 @@ spec:
                                         selfHeal:
                                           type: boolean
                                       type: object
+                                    createNamespaceLabels:
+                                      additionalProperties:
+                                        type: string
+                                      type: object
                                     retry:
                                       properties:
                                         backoff:
@@ -8343,31 +8234,6 @@ spec:
                       type: object
                     scmProvider:
                       properties:
-                        azureDevOps:
-                          properties:
-                            accessTokenRef:
-                              properties:
-                                key:
-                                  type: string
-                                secretName:
-                                  type: string
-                              required:
-                              - key
-                              - secretName
-                              type: object
-                            allBranches:
-                              type: boolean
-                            api:
-                              type: string
-                            organization:
-                              type: string
-                            teamProject:
-                              type: string
-                          required:
-                          - accessTokenRef
-                          - organization
-                          - teamProject
-                          type: object
                         bitbucket:
                           properties:
                             allBranches:
@@ -8471,8 +8337,6 @@ spec:
                             allBranches:
                               type: boolean
                             api:
-                              type: string
-                            appSecretName:
                               type: string
                             organization:
                               type: string
@@ -8746,6 +8610,10 @@ spec:
                                         selfHeal:
                                           type: boolean
                                       type: object
+                                    createNamespaceLabels:
+                                      additionalProperties:
+                                        type: string
+                                      type: object
                                     retry:
                                       properties:
                                         backoff:
@@ -8777,33 +8645,8 @@ spec:
                           - spec
                           type: object
                       type: object
-                    selector:
-                      properties:
-                        matchExpressions:
-                          items:
-                            properties:
-                              key:
-                                type: string
-                              operator:
-                                type: string
-                              values:
-                                items:
-                                  type: string
-                                type: array
-                            required:
-                            - key
-                            - operator
-                            type: object
-                          type: array
-                        matchLabels:
-                          additionalProperties:
-                            type: string
-                          type: object
-                      type: object
                   type: object
                 type: array
-              goTemplate:
-                type: boolean
               syncPolicy:
                 properties:
                   preserveResourcesOnDeletion:
@@ -9040,6 +8883,10 @@ spec:
                               selfHeal:
                                 type: boolean
                             type: object
+                          createNamespaceLabels:
+                            additionalProperties:
+                              type: string
+                            type: object
                           retry:
                             properties:
                               backoff:
@@ -9268,10 +9115,6 @@ spec:
                       for apps which have orphaned resources
                     type: boolean
                 type: object
-              permitOnlyProjectScopedClusters:
-                description: PermitOnlyProjectScopedClusters determines whether destinations
-                  can only reference clusters which are project-scoped
-                type: boolean
               roles:
                 description: Roles are user defined RBAC roles associated with this
                   project
@@ -9333,12 +9176,6 @@ spec:
                   required:
                   - keyID
                   type: object
-                type: array
-              sourceNamespaces:
-                description: SourceNamespaces defines the namespaces application resources
-                  are allowed to be created in
-                items:
-                  type: string
                 type: array
               sourceRepos:
                 description: SourceRepos contains list of repository URLs which can
@@ -9676,7 +9513,6 @@ rules:
   resources:
   - applications
   - appprojects
-  - applicationsets
   verbs:
   - create
   - get
@@ -9743,14 +9579,6 @@ rules:
   - pods/log
   verbs:
   - get
-- apiGroups:
-  - argoproj.io
-  resources:
-  - applications
-  verbs:
-  - get
-  - list
-  - watch
 ---
 apiVersion: rbac.authorization.k8s.io/v1
 kind: RoleBinding
@@ -9916,294 +9744,6 @@ metadata:
 ---
 apiVersion: v1
 data:
-  fix-split-brain.sh: |
-    HOSTNAME="$(hostname)"
-    INDEX="${HOSTNAME##*-}"
-    SENTINEL_PORT=26379
-    ANNOUNCE_IP=''
-    MASTER=''
-    MASTER_GROUP="argocd"
-    QUORUM="2"
-    REDIS_CONF=/data/conf/redis.conf
-    REDIS_PORT=6379
-    REDIS_TLS_PORT=
-    SENTINEL_CONF=/data/conf/sentinel.conf
-    SENTINEL_TLS_PORT=
-    SERVICE=argocd-redis-ha
-    SENTINEL_TLS_REPLICATION_ENABLED=false
-    REDIS_TLS_REPLICATION_ENABLED=false
-
-    ROLE=''
-    REDIS_MASTER=''
-
-    set -eu
-    sentinel_get_master() {
-    set +e
-        if [ "$SENTINEL_PORT" -eq 0 ]; then
-            redis-cli -h "${SERVICE}" -p "${SENTINEL_TLS_PORT}"   --tls --cacert /tls-certs/ca.crt --cert /tls-certs/redis.crt --key /tls-certs/redis.key sentinel get-master-addr-by-name "${MASTER_GROUP}" |\
-            grep -E '((^\s*((([0-9]|[1-9][0-9]|1[0-9]{2}|2[0-4][0-9]|25[0-5])\.){3}([0-9]|[1-9][0-9]|1[0-9]{2}|2[0-4][0-9]|25[0-5]))\s*$)|(^\s*((([0-9A-Fa-f]{1,4}:){7}([0-9A-Fa-f]{1,4}|:))|(([0-9A-Fa-f]{1,4}:){6}(:[0-9A-Fa-f]{1,4}|((25[0-5]|2[0-4]\d|1\d\d|[1-9]?\d)(\.(25[0-5]|2[0-4]\d|1\d\d|[1-9]?\d)){3})|:))|(([0-9A-Fa-f]{1,4}:){5}(((:[0-9A-Fa-f]{1,4}){1,2})|:((25[0-5]|2[0-4]\d|1\d\d|[1-9]?\d)(\.(25[0-5]|2[0-4]\d|1\d\d|[1-9]?\d)){3})|:))|(([0-9A-Fa-f]{1,4}:){4}(((:[0-9A-Fa-f]{1,4}){1,3})|((:[0-9A-Fa-f]{1,4})?:((25[0-5]|2[0-4]\d|1\d\d|[1-9]?\d)(\.(25[0-5]|2[0-4]\d|1\d\d|[1-9]?\d)){3}))|:))|(([0-9A-Fa-f]{1,4}:){3}(((:[0-9A-Fa-f]{1,4}){1,4})|((:[0-9A-Fa-f]{1,4}){0,2}:((25[0-5]|2[0-4]\d|1\d\d|[1-9]?\d)(\.(25[0-5]|2[0-4]\d|1\d\d|[1-9]?\d)){3}))|:))|(([0-9A-Fa-f]{1,4}:){2}(((:[0-9A-Fa-f]{1,4}){1,5})|((:[0-9A-Fa-f]{1,4}){0,3}:((25[0-5]|2[0-4]\d|1\d\d|[1-9]?\d)(\.(25[0-5]|2[0-4]\d|1\d\d|[1-9]?\d)){3}))|:))|(([0-9A-Fa-f]{1,4}:){1}(((:[0-9A-Fa-f]{1,4}){1,6})|((:[0-9A-Fa-f]{1,4}){0,4}:((25[0-5]|2[0-4]\d|1\d\d|[1-9]?\d)(\.(25[0-5]|2[0-4]\d|1\d\d|[1-9]?\d)){3}))|:))|(:(((:[0-9A-Fa-f]{1,4}){1,7})|((:[0-9A-Fa-f]{1,4}){0,5}:((25[0-5]|2[0-4]\d|1\d\d|[1-9]?\d)(\.(25[0-5]|2[0-4]\d|1\d\d|[1-9]?\d)){3}))|:)))(%.+)?s*$))'
-        else
-            redis-cli -h "${SERVICE}" -p "${SENTINEL_PORT}"  sentinel get-master-addr-by-name "${MASTER_GROUP}" |\
-            grep -E '((^\s*((([0-9]|[1-9][0-9]|1[0-9]{2}|2[0-4][0-9]|25[0-5])\.){3}([0-9]|[1-9][0-9]|1[0-9]{2}|2[0-4][0-9]|25[0-5]))\s*$)|(^\s*((([0-9A-Fa-f]{1,4}:){7}([0-9A-Fa-f]{1,4}|:))|(([0-9A-Fa-f]{1,4}:){6}(:[0-9A-Fa-f]{1,4}|((25[0-5]|2[0-4]\d|1\d\d|[1-9]?\d)(\.(25[0-5]|2[0-4]\d|1\d\d|[1-9]?\d)){3})|:))|(([0-9A-Fa-f]{1,4}:){5}(((:[0-9A-Fa-f]{1,4}){1,2})|:((25[0-5]|2[0-4]\d|1\d\d|[1-9]?\d)(\.(25[0-5]|2[0-4]\d|1\d\d|[1-9]?\d)){3})|:))|(([0-9A-Fa-f]{1,4}:){4}(((:[0-9A-Fa-f]{1,4}){1,3})|((:[0-9A-Fa-f]{1,4})?:((25[0-5]|2[0-4]\d|1\d\d|[1-9]?\d)(\.(25[0-5]|2[0-4]\d|1\d\d|[1-9]?\d)){3}))|:))|(([0-9A-Fa-f]{1,4}:){3}(((:[0-9A-Fa-f]{1,4}){1,4})|((:[0-9A-Fa-f]{1,4}){0,2}:((25[0-5]|2[0-4]\d|1\d\d|[1-9]?\d)(\.(25[0-5]|2[0-4]\d|1\d\d|[1-9]?\d)){3}))|:))|(([0-9A-Fa-f]{1,4}:){2}(((:[0-9A-Fa-f]{1,4}){1,5})|((:[0-9A-Fa-f]{1,4}){0,3}:((25[0-5]|2[0-4]\d|1\d\d|[1-9]?\d)(\.(25[0-5]|2[0-4]\d|1\d\d|[1-9]?\d)){3}))|:))|(([0-9A-Fa-f]{1,4}:){1}(((:[0-9A-Fa-f]{1,4}){1,6})|((:[0-9A-Fa-f]{1,4}){0,4}:((25[0-5]|2[0-4]\d|1\d\d|[1-9]?\d)(\.(25[0-5]|2[0-4]\d|1\d\d|[1-9]?\d)){3}))|:))|(:(((:[0-9A-Fa-f]{1,4}){1,7})|((:[0-9A-Fa-f]{1,4}){0,5}:((25[0-5]|2[0-4]\d|1\d\d|[1-9]?\d)(\.(25[0-5]|2[0-4]\d|1\d\d|[1-9]?\d)){3}))|:)))(%.+)?s*$))'
-        fi
-    set -e
-    }
-
-    sentinel_get_master_retry() {
-        master=''
-        retry=${1}
-        sleep=3
-        for i in $(seq 1 "${retry}"); do
-            master=$(sentinel_get_master)
-            if [ -n "${master}" ]; then
-                break
-            fi
-            sleep $((sleep + i))
-        done
-        echo "${master}"
-    }
-
-    identify_master() {
-        echo "Identifying redis master (get-master-addr-by-name).."
-        echo "  using sentinel (argocd-redis-ha), sentinel group name (argocd)"
-        MASTER="$(sentinel_get_master_retry 3)"
-        if [ -n "${MASTER}" ]; then
-            echo "  $(date) Found redis master (${MASTER})"
-        else
-            echo "  $(date) Did not find redis master (${MASTER})"
-        fi
-    }
-
-    sentinel_update() {
-        echo "Updating sentinel config.."
-        echo "  evaluating sentinel id (\${SENTINEL_ID_${INDEX}})"
-        eval MY_SENTINEL_ID="\$SENTINEL_ID_${INDEX}"
-        echo "  sentinel id (${MY_SENTINEL_ID}), sentinel grp (${MASTER_GROUP}), quorum (${QUORUM})"
-        sed -i "1s/^/sentinel myid ${MY_SENTINEL_ID}\\n/" "${SENTINEL_CONF}"
-        if [ "$SENTINEL_TLS_REPLICATION_ENABLED" = true ]; then
-            echo "  redis master (${1}:${REDIS_TLS_PORT})"
-            sed -i "2s/^/sentinel monitor ${MASTER_GROUP} ${1} ${REDIS_TLS_PORT} ${QUORUM} \\n/" "${SENTINEL_CONF}"
-        else
-            echo "  redis master (${1}:${REDIS_PORT})"
-            sed -i "2s/^/sentinel monitor ${MASTER_GROUP} ${1} ${REDIS_PORT} ${QUORUM} \\n/" "${SENTINEL_CONF}"
-        fi
-        echo "sentinel announce-ip ${ANNOUNCE_IP}" >> ${SENTINEL_CONF}
-        if [ "$SENTINEL_PORT" -eq 0 ]; then
-            echo "  announce (${ANNOUNCE_IP}:${SENTINEL_TLS_PORT})"
-            echo "sentinel announce-port ${SENTINEL_TLS_PORT}" >> ${SENTINEL_CONF}
-        else
-            echo "  announce (${ANNOUNCE_IP}:${SENTINEL_PORT})"
-            echo "sentinel announce-port ${SENTINEL_PORT}" >> ${SENTINEL_CONF}
-        fi
-    }
-
-    redis_update() {
-        echo "Updating redis config.."
-        if [ "$REDIS_TLS_REPLICATION_ENABLED" = true ]; then
-            echo "  we are slave of redis master (${1}:${REDIS_TLS_PORT})"
-            echo "slaveof ${1} ${REDIS_TLS_PORT}" >> "${REDIS_CONF}"
-            echo "slave-announce-port ${REDIS_TLS_PORT}" >> ${REDIS_CONF}
-        else
-            echo "  we are slave of redis master (${1}:${REDIS_PORT})"
-            echo "slaveof ${1} ${REDIS_PORT}" >> "${REDIS_CONF}"
-            echo "slave-announce-port ${REDIS_PORT}" >> ${REDIS_CONF}
-        fi
-        echo "slave-announce-ip ${ANNOUNCE_IP}" >> ${REDIS_CONF}
-    }
-
-    copy_config() {
-        echo "Copying default redis config.."
-        echo "  to '${REDIS_CONF}'"
-        cp /readonly-config/redis.conf "${REDIS_CONF}"
-        echo "Copying default sentinel config.."
-        echo "  to '${SENTINEL_CONF}'"
-        cp /readonly-config/sentinel.conf "${SENTINEL_CONF}"
-    }
-
-    setup_defaults() {
-        echo "Setting up defaults.."
-        echo "  using statefulset index (${INDEX})"
-        if [ "${INDEX}" = "0" ]; then
-            echo "Setting this pod as master for redis and sentinel.."
-            echo "  using announce (${ANNOUNCE_IP})"
-            redis_update "${ANNOUNCE_IP}"
-            sentinel_update "${ANNOUNCE_IP}"
-            echo "  make sure ${ANNOUNCE_IP} is not a slave (slaveof no one)"
-            sed -i "s/^.*slaveof.*//" "${REDIS_CONF}"
-        else
-            echo "Getting redis master ip.."
-            echo "  blindly assuming (${SERVICE}-announce-0) or (${SERVICE}-server-0) are master"
-            DEFAULT_MASTER="$(getent_hosts 0 | awk '{ print $1 }')"
-            if [ -z "${DEFAULT_MASTER}" ]; then
-                echo "Error: Unable to resolve redis master (getent hosts)."
-                exit 1
-            fi
-            echo "  identified redis (may be redis master) ip (${DEFAULT_MASTER})"
-            echo "Setting default slave config for redis and sentinel.."
-            echo "  using master ip (${DEFAULT_MASTER})"
-            redis_update "${DEFAULT_MASTER}"
-            sentinel_update "${DEFAULT_MASTER}"
-        fi
-    }
-
-    redis_ping() {
-    set +e
-        if [ "$REDIS_PORT" -eq 0 ]; then
-            redis-cli -h "${MASTER}" -p "${REDIS_TLS_PORT}"  --tls --cacert /tls-certs/ca.crt --cert /tls-certs/redis.crt --key /tls-certs/redis.key ping
-        else
-            redis-cli -h "${MASTER}" -p "${REDIS_PORT}" ping
-        fi
-    set -e
-    }
-
-    redis_ping_retry() {
-        ping=''
-        retry=${1}
-        sleep=3
-        for i in $(seq 1 "${retry}"); do
-            if [ "$(redis_ping)" = "PONG" ]; then
-               ping='PONG'
-               break
-            fi
-            sleep $((sleep + i))
-            MASTER=$(sentinel_get_master)
-        done
-        echo "${ping}"
-    }
-
-    find_master() {
-        echo "Verifying redis master.."
-        if [ "$REDIS_PORT" -eq 0 ]; then
-            echo "  ping (${MASTER}:${REDIS_TLS_PORT})"
-        else
-            echo "  ping (${MASTER}:${REDIS_PORT})"
-        fi
-        if [ "$(redis_ping_retry 3)" != "PONG" ]; then
-            echo "  $(date) Can't ping redis master (${MASTER})"
-            echo "Attempting to force failover (sentinel failover).."
-
-            if [ "$SENTINEL_PORT" -eq 0 ]; then
-                echo "  on sentinel (${SERVICE}:${SENTINEL_TLS_PORT}), sentinel grp (${MASTER_GROUP})"
-                if redis-cli -h "${SERVICE}" -p "${SENTINEL_TLS_PORT}"   --tls --cacert /tls-certs/ca.crt --cert /tls-certs/redis.crt --key /tls-certs/redis.key sentinel failover "${MASTER_GROUP}" | grep -q 'NOGOODSLAVE' ; then
-                    echo "  $(date) Failover returned with 'NOGOODSLAVE'"
-                    echo "Setting defaults for this pod.."
-                    setup_defaults
-                    return 0
-                fi
-            else
-                echo "  on sentinel (${SERVICE}:${SENTINEL_PORT}), sentinel grp (${MASTER_GROUP})"
-                if redis-cli -h "${SERVICE}" -p "${SENTINEL_PORT}"  sentinel failover "${MASTER_GROUP}" | grep -q 'NOGOODSLAVE' ; then
-                    echo "  $(date) Failover returned with 'NOGOODSLAVE'"
-                    echo "Setting defaults for this pod.."
-                    setup_defaults
-                    return 0
-                fi
-            fi
-
-            echo "Hold on for 10sec"
-            sleep 10
-            echo "We should get redis master's ip now. Asking (get-master-addr-by-name).."
-            if [ "$SENTINEL_PORT" -eq 0 ]; then
-                echo "  sentinel (${SERVICE}:${SENTINEL_TLS_PORT}), sentinel grp (${MASTER_GROUP})"
-            else
-                echo "  sentinel (${SERVICE}:${SENTINEL_PORT}), sentinel grp (${MASTER_GROUP})"
-            fi
-            MASTER="$(sentinel_get_master)"
-            if [ "${MASTER}" ]; then
-                echo "  $(date) Found redis master (${MASTER})"
-                echo "Updating redis and sentinel config.."
-                sentinel_update "${MASTER}"
-                redis_update "${MASTER}"
-            else
-                echo "$(date) Error: Could not failover, exiting..."
-                exit 1
-            fi
-        else
-            echo "  $(date) Found reachable redis master (${MASTER})"
-            echo "Updating redis and sentinel config.."
-            sentinel_update "${MASTER}"
-            redis_update "${MASTER}"
-        fi
-    }
-
-    redis_ro_update() {
-        echo "Updating read-only redis config.."
-        echo "  redis.conf set 'replica-priority 0'"
-        echo "replica-priority 0" >> ${REDIS_CONF}
-    }
-
-    getent_hosts() {
-        index=${1:-${INDEX}}
-        service="${SERVICE}-announce-${index}"
-        host=$(getent hosts "${service}")
-        echo "${host}"
-    }
-
-    identify_announce_ip() {
-        echo "Identify announce ip for this pod.."
-        echo "  using (${SERVICE}-announce-${INDEX}) or (${SERVICE}-server-${INDEX})"
-        ANNOUNCE_IP=$(getent_hosts | awk '{ print $1 }')
-        echo "  identified announce (${ANNOUNCE_IP})"
-    }
-
-    redis_role() {
-    set +e
-        if [ "$REDIS_PORT" -eq 0 ]; then
-            ROLE=$(redis-cli  -p "${REDIS_TLS_PORT}"  --tls --cacert /tls-certs/ca.crt --cert /tls-certs/redis.crt --key /tls-certs/redis.key info | grep role | sed 's/role://' | sed 's/\r//')
-        else
-            ROLE=$(redis-cli  -p "${REDIS_PORT}" info | grep role | sed 's/role://' | sed 's/\r//')
-        fi
-    set -e
-    }
-
-    identify_redis_master() {
-    set +e
-        if [ "$REDIS_PORT" -eq 0 ]; then
-            REDIS_MASTER=$(redis-cli  -p "${REDIS_TLS_PORT}"  --tls --cacert /tls-certs/ca.crt --cert /tls-certs/redis.crt --key /tls-certs/redis.key info | grep master_host | sed 's/master_host://' | sed 's/\r//')
-        else
-            REDIS_MASTER=$(redis-cli  -p "${REDIS_PORT}" info | grep master_host | sed 's/master_host://' | sed 's/\r//')
-        fi
-    set -e
-    }
-
-    reinit() {
-    set +e
-        sh /readonly-config/init.sh
-
-        if [ "$REDIS_PORT" -eq 0 ]; then
-            echo "shutdown" | redis-cli  -p "${REDIS_TLS_PORT}"  --tls --cacert /tls-certs/ca.crt --cert /tls-certs/redis.crt --key /tls-certs/redis.key
-        else
-            echo "shutdown" | redis-cli  -p "${REDIS_PORT}"
-        fi
-    set -e
-    }
-
-    identify_announce_ip
-
-    while [ -z "${ANNOUNCE_IP}" ]; do
-        echo "Error: Could not resolve the announce ip for this pod."
-        sleep 30
-        identify_announce_ip
-    done
-
-    while true; do
-        sleep 60
-
-        # where is redis master
-        identify_master
-
-        if [ "$MASTER" = "$ANNOUNCE_IP" ]; then
-            redis_role
-            if [ "$ROLE" != "master" ]; then
-                reinit
-            fi
-        elif [ "${MASTER}" ]; then
-            identify_redis_master
-            if [ "$REDIS_MASTER" != "$MASTER" ]; then
-                reinit
-            fi
-        fi
-    done
   haproxy.cfg: |
     defaults REDIS
       mode tcp
@@ -10213,7 +9753,7 @@ data:
       timeout check 2s
 
     listen health_check_http_url
-      bind [::]:8888  v4v6
+      bind :8888
       mode http
       monitor-uri /healthz
       option      dontlognull
@@ -10227,6 +9767,7 @@ data:
       tcp-check send SENTINEL\ get-master-addr-by-name\ argocd\r\n
       tcp-check expect string REPLACE_ANNOUNCE0
       tcp-check send QUIT\r\n
+      tcp-check expect string +OK
       server R0 argocd-redis-ha-announce-0:26379 check inter 3s
       server R1 argocd-redis-ha-announce-1:26379 check inter 3s
       server R2 argocd-redis-ha-announce-2:26379 check inter 3s
@@ -10240,6 +9781,7 @@ data:
       tcp-check send SENTINEL\ get-master-addr-by-name\ argocd\r\n
       tcp-check expect string REPLACE_ANNOUNCE1
       tcp-check send QUIT\r\n
+      tcp-check expect string +OK
       server R0 argocd-redis-ha-announce-0:26379 check inter 3s
       server R1 argocd-redis-ha-announce-1:26379 check inter 3s
       server R2 argocd-redis-ha-announce-2:26379 check inter 3s
@@ -10253,6 +9795,7 @@ data:
       tcp-check send SENTINEL\ get-master-addr-by-name\ argocd\r\n
       tcp-check expect string REPLACE_ANNOUNCE2
       tcp-check send QUIT\r\n
+      tcp-check expect string +OK
       server R0 argocd-redis-ha-announce-0:26379 check inter 3s
       server R1 argocd-redis-ha-announce-1:26379 check inter 3s
       server R2 argocd-redis-ha-announce-2:26379 check inter 3s
@@ -10260,7 +9803,7 @@ data:
     # decide redis backend to use
     #master
     frontend ft_redis_master
-      bind [::]:6379 v4v6
+      bind *:6379
       use_backend bk_redis_master
     # Check all redis servers to see if they think they are master
     backend bk_redis_master
@@ -10292,6 +9835,12 @@ data:
       exit 1
     fi
     sed -i "s/REPLACE_ANNOUNCE0/$ANNOUNCE_IP0/" "$HAPROXY_CONF"
+
+    if [ "${AUTH:-}" ]; then
+        echo "Setting auth values"
+        ESCAPED_AUTH=$(echo "$AUTH" | sed -e 's/[\/&]/\\&/g');
+        sed -i "s/REPLACE_AUTH_SECRET/${ESCAPED_AUTH}/" "$HAPROXY_CONF"
+    fi
     for loop in $(seq 1 10); do
       getent hosts argocd-redis-ha-announce-1 && break
       echo "Waiting for service argocd-redis-ha-announce-1 to be ready ($loop) ..." && sleep 1
@@ -10302,6 +9851,12 @@ data:
       exit 1
     fi
     sed -i "s/REPLACE_ANNOUNCE1/$ANNOUNCE_IP1/" "$HAPROXY_CONF"
+
+    if [ "${AUTH:-}" ]; then
+        echo "Setting auth values"
+        ESCAPED_AUTH=$(echo "$AUTH" | sed -e 's/[\/&]/\\&/g');
+        sed -i "s/REPLACE_AUTH_SECRET/${ESCAPED_AUTH}/" "$HAPROXY_CONF"
+    fi
     for loop in $(seq 1 10); do
       getent hosts argocd-redis-ha-announce-2 && break
       echo "Waiting for service argocd-redis-ha-announce-2 to be ready ($loop) ..." && sleep 1
@@ -10312,12 +9867,17 @@ data:
       exit 1
     fi
     sed -i "s/REPLACE_ANNOUNCE2/$ANNOUNCE_IP2/" "$HAPROXY_CONF"
+
+    if [ "${AUTH:-}" ]; then
+        echo "Setting auth values"
+        ESCAPED_AUTH=$(echo "$AUTH" | sed -e 's/[\/&]/\\&/g');
+        sed -i "s/REPLACE_AUTH_SECRET/${ESCAPED_AUTH}/" "$HAPROXY_CONF"
+    fi
   init.sh: |
     echo "$(date) Start..."
     HOSTNAME="$(hostname)"
     INDEX="${HOSTNAME##*-}"
     SENTINEL_PORT=26379
-    ANNOUNCE_IP=''
     MASTER=''
     MASTER_GROUP="argocd"
     QUORUM="2"
@@ -10329,16 +9889,16 @@ data:
     SERVICE=argocd-redis-ha
     SENTINEL_TLS_REPLICATION_ENABLED=false
     REDIS_TLS_REPLICATION_ENABLED=false
-
     set -eu
+
     sentinel_get_master() {
     set +e
         if [ "$SENTINEL_PORT" -eq 0 ]; then
             redis-cli -h "${SERVICE}" -p "${SENTINEL_TLS_PORT}"   --tls --cacert /tls-certs/ca.crt --cert /tls-certs/redis.crt --key /tls-certs/redis.key sentinel get-master-addr-by-name "${MASTER_GROUP}" |\
-            grep -E '((^\s*((([0-9]|[1-9][0-9]|1[0-9]{2}|2[0-4][0-9]|25[0-5])\.){3}([0-9]|[1-9][0-9]|1[0-9]{2}|2[0-4][0-9]|25[0-5]))\s*$)|(^\s*((([0-9A-Fa-f]{1,4}:){7}([0-9A-Fa-f]{1,4}|:))|(([0-9A-Fa-f]{1,4}:){6}(:[0-9A-Fa-f]{1,4}|((25[0-5]|2[0-4]\d|1\d\d|[1-9]?\d)(\.(25[0-5]|2[0-4]\d|1\d\d|[1-9]?\d)){3})|:))|(([0-9A-Fa-f]{1,4}:){5}(((:[0-9A-Fa-f]{1,4}){1,2})|:((25[0-5]|2[0-4]\d|1\d\d|[1-9]?\d)(\.(25[0-5]|2[0-4]\d|1\d\d|[1-9]?\d)){3})|:))|(([0-9A-Fa-f]{1,4}:){4}(((:[0-9A-Fa-f]{1,4}){1,3})|((:[0-9A-Fa-f]{1,4})?:((25[0-5]|2[0-4]\d|1\d\d|[1-9]?\d)(\.(25[0-5]|2[0-4]\d|1\d\d|[1-9]?\d)){3}))|:))|(([0-9A-Fa-f]{1,4}:){3}(((:[0-9A-Fa-f]{1,4}){1,4})|((:[0-9A-Fa-f]{1,4}){0,2}:((25[0-5]|2[0-4]\d|1\d\d|[1-9]?\d)(\.(25[0-5]|2[0-4]\d|1\d\d|[1-9]?\d)){3}))|:))|(([0-9A-Fa-f]{1,4}:){2}(((:[0-9A-Fa-f]{1,4}){1,5})|((:[0-9A-Fa-f]{1,4}){0,3}:((25[0-5]|2[0-4]\d|1\d\d|[1-9]?\d)(\.(25[0-5]|2[0-4]\d|1\d\d|[1-9]?\d)){3}))|:))|(([0-9A-Fa-f]{1,4}:){1}(((:[0-9A-Fa-f]{1,4}){1,6})|((:[0-9A-Fa-f]{1,4}){0,4}:((25[0-5]|2[0-4]\d|1\d\d|[1-9]?\d)(\.(25[0-5]|2[0-4]\d|1\d\d|[1-9]?\d)){3}))|:))|(:(((:[0-9A-Fa-f]{1,4}){1,7})|((:[0-9A-Fa-f]{1,4}){0,5}:((25[0-5]|2[0-4]\d|1\d\d|[1-9]?\d)(\.(25[0-5]|2[0-4]\d|1\d\d|[1-9]?\d)){3}))|:)))(%.+)?s*$))'
+            grep -E '[0-9]{1,3}\.[0-9]{1,3}\.[0-9]{1,3}\.[0-9]{1,3}'
         else
             redis-cli -h "${SERVICE}" -p "${SENTINEL_PORT}"  sentinel get-master-addr-by-name "${MASTER_GROUP}" |\
-            grep -E '((^\s*((([0-9]|[1-9][0-9]|1[0-9]{2}|2[0-4][0-9]|25[0-5])\.){3}([0-9]|[1-9][0-9]|1[0-9]{2}|2[0-4][0-9]|25[0-5]))\s*$)|(^\s*((([0-9A-Fa-f]{1,4}:){7}([0-9A-Fa-f]{1,4}|:))|(([0-9A-Fa-f]{1,4}:){6}(:[0-9A-Fa-f]{1,4}|((25[0-5]|2[0-4]\d|1\d\d|[1-9]?\d)(\.(25[0-5]|2[0-4]\d|1\d\d|[1-9]?\d)){3})|:))|(([0-9A-Fa-f]{1,4}:){5}(((:[0-9A-Fa-f]{1,4}){1,2})|:((25[0-5]|2[0-4]\d|1\d\d|[1-9]?\d)(\.(25[0-5]|2[0-4]\d|1\d\d|[1-9]?\d)){3})|:))|(([0-9A-Fa-f]{1,4}:){4}(((:[0-9A-Fa-f]{1,4}){1,3})|((:[0-9A-Fa-f]{1,4})?:((25[0-5]|2[0-4]\d|1\d\d|[1-9]?\d)(\.(25[0-5]|2[0-4]\d|1\d\d|[1-9]?\d)){3}))|:))|(([0-9A-Fa-f]{1,4}:){3}(((:[0-9A-Fa-f]{1,4}){1,4})|((:[0-9A-Fa-f]{1,4}){0,2}:((25[0-5]|2[0-4]\d|1\d\d|[1-9]?\d)(\.(25[0-5]|2[0-4]\d|1\d\d|[1-9]?\d)){3}))|:))|(([0-9A-Fa-f]{1,4}:){2}(((:[0-9A-Fa-f]{1,4}){1,5})|((:[0-9A-Fa-f]{1,4}){0,3}:((25[0-5]|2[0-4]\d|1\d\d|[1-9]?\d)(\.(25[0-5]|2[0-4]\d|1\d\d|[1-9]?\d)){3}))|:))|(([0-9A-Fa-f]{1,4}:){1}(((:[0-9A-Fa-f]{1,4}){1,6})|((:[0-9A-Fa-f]{1,4}){0,4}:((25[0-5]|2[0-4]\d|1\d\d|[1-9]?\d)(\.(25[0-5]|2[0-4]\d|1\d\d|[1-9]?\d)){3}))|:))|(:(((:[0-9A-Fa-f]{1,4}){1,7})|((:[0-9A-Fa-f]{1,4}){0,5}:((25[0-5]|2[0-4]\d|1\d\d|[1-9]?\d)(\.(25[0-5]|2[0-4]\d|1\d\d|[1-9]?\d)){3}))|:)))(%.+)?s*$))'
+            grep -E '[0-9]{1,3}\.[0-9]{1,3}\.[0-9]{1,3}\.[0-9]{1,3}'
         fi
     set -e
     }
@@ -10360,6 +9920,7 @@ data:
     identify_master() {
         echo "Identifying redis master (get-master-addr-by-name).."
         echo "  using sentinel (argocd-redis-ha), sentinel group name (argocd)"
+        echo "  $(date).."
         MASTER="$(sentinel_get_master_retry 3)"
         if [ -n "${MASTER}" ]; then
             echo "  $(date) Found redis master (${MASTER})"
@@ -10428,11 +9989,11 @@ data:
             echo "Getting redis master ip.."
             echo "  blindly assuming (${SERVICE}-announce-0) or (${SERVICE}-server-0) are master"
             DEFAULT_MASTER="$(getent_hosts 0 | awk '{ print $1 }')"
+            echo "  identified redis (may be redis master) ip (${DEFAULT_MASTER})"
             if [ -z "${DEFAULT_MASTER}" ]; then
                 echo "Error: Unable to resolve redis master (getent hosts)."
                 exit 1
             fi
-            echo "  identified redis (may be redis master) ip (${DEFAULT_MASTER})"
             echo "Setting default slave config for redis and sentinel.."
             echo "  using master ip (${DEFAULT_MASTER})"
             redis_update "${DEFAULT_MASTER}"
@@ -10472,12 +10033,14 @@ data:
         else
             echo "  ping (${MASTER}:${REDIS_PORT})"
         fi
+        echo "  $(date).."
         if [ "$(redis_ping_retry 3)" != "PONG" ]; then
             echo "  $(date) Can't ping redis master (${MASTER})"
             echo "Attempting to force failover (sentinel failover).."
 
             if [ "$SENTINEL_PORT" -eq 0 ]; then
                 echo "  on sentinel (${SERVICE}:${SENTINEL_TLS_PORT}), sentinel grp (${MASTER_GROUP})"
+                echo "  $(date).."
                 if redis-cli -h "${SERVICE}" -p "${SENTINEL_TLS_PORT}"   --tls --cacert /tls-certs/ca.crt --cert /tls-certs/redis.crt --key /tls-certs/redis.key sentinel failover "${MASTER_GROUP}" | grep -q 'NOGOODSLAVE' ; then
                     echo "  $(date) Failover returned with 'NOGOODSLAVE'"
                     echo "Setting defaults for this pod.."
@@ -10486,6 +10049,7 @@ data:
                 fi
             else
                 echo "  on sentinel (${SERVICE}:${SENTINEL_PORT}), sentinel grp (${MASTER_GROUP})"
+                echo "  $(date).."
                 if redis-cli -h "${SERVICE}" -p "${SENTINEL_PORT}"  sentinel failover "${MASTER_GROUP}" | grep -q 'NOGOODSLAVE' ; then
                     echo "  $(date) Failover returned with 'NOGOODSLAVE'"
                     echo "Setting defaults for this pod.."
@@ -10502,6 +10066,7 @@ data:
             else
                 echo "  sentinel (${SERVICE}:${SENTINEL_PORT}), sentinel grp (${MASTER_GROUP})"
             fi
+            echo "  $(date).."
             MASTER="$(sentinel_get_master)"
             if [ "${MASTER}" ]; then
                 echo "  $(date) Found redis master (${MASTER})"
@@ -10529,15 +10094,12 @@ data:
     getent_hosts() {
         index=${1:-${INDEX}}
         service="${SERVICE}-announce-${index}"
+        pod="${SERVICE}-server-${index}"
         host=$(getent hosts "${service}")
+        if [ -z "${host}" ]; then
+            host=$(getent hosts "${pod}")
+        fi
         echo "${host}"
-    }
-
-    identify_announce_ip() {
-        echo "Identify announce ip for this pod.."
-        echo "  using (${SERVICE}-announce-${INDEX}) or (${SERVICE}-server-${INDEX})"
-        ANNOUNCE_IP=$(getent_hosts | awk '{ print $1 }')
-        echo "  identified announce (${ANNOUNCE_IP})"
     }
 
     mkdir -p /data/conf/
@@ -10548,8 +10110,10 @@ data:
     # where is redis master
     identify_master
 
-    identify_announce_ip
-
+    echo "Identify announce ip for this pod.."
+    echo "  using (${SERVICE}-announce-${INDEX}) or (${SERVICE}-server-${INDEX})"
+    ANNOUNCE_IP=$(getent_hosts | awk '{ print $1 }')
+    echo "  identified announce (${ANNOUNCE_IP})"
     if [ -z "${ANNOUNCE_IP}" ]; then
         "Error: Could not resolve the announce ip for this pod."
         exit 1
@@ -10575,8 +10139,7 @@ data:
   redis.conf: |
     dir "/data"
     port 6379
-    rename-command FLUSHDB ""
-    rename-command FLUSHALL ""
+    bind 0.0.0.0
     maxmemory 0
     maxmemory-policy volatile-lru
     min-replicas-max-lag 5
@@ -10588,40 +10151,11 @@ data:
   sentinel.conf: |
     dir "/data"
     port 26379
+    bind 0.0.0.0
         sentinel down-after-milliseconds argocd 10000
         sentinel failover-timeout argocd 180000
         maxclients 10000
         sentinel parallel-syncs argocd 5
-  trigger-failover-if-master.sh: |
-    get_redis_role() {
-      is_master=$(
-        redis-cli \
-          -h localhost \
-          -p 6379 \
-          info | grep -c 'role:master' || true
-      )
-    }
-    get_redis_role
-    if [[ "$is_master" -eq 1 ]]; then
-      echo "This node is currently master, we trigger a failover."
-      response=$(
-        redis-cli \
-          -h localhost \
-          -p 26379 \
-          SENTINEL failover argocd
-      )
-      if [[ "$response" != "OK" ]] ; then
-        echo "$response"
-        exit 1
-      fi
-      timeout=30
-      while [[ "$is_master" -eq 1 && $timeout -gt 0 ]]; do
-        sleep 1
-        get_redis_role
-        timeout=$((timeout - 1))
-      done
-      echo "Failover successful"
-    fi
 kind: ConfigMap
 metadata:
   labels:
@@ -10973,13 +10507,13 @@ spec:
       containers:
       - command:
         - entrypoint.sh
-        - argocd-applicationset-controller
+        - applicationset-controller
         env:
         - name: NAMESPACE
           valueFrom:
             fieldRef:
               fieldPath: metadata.namespace
-        image: quay.io/codefresh/argocd:v2.5.5-cap-CR-15658-sync-result-message
+        image: quay.io/codefresh/applicationset:latest
         imagePullPolicy: Always
         name: argocd-applicationset-controller
         ports:
@@ -10987,15 +10521,6 @@ spec:
           name: webhook
         - containerPort: 8080
           name: metrics
-        securityContext:
-          allowPrivilegeEscalation: false
-          capabilities:
-            drop:
-            - ALL
-          readOnlyRootFilesystem: true
-          runAsNonRoot: true
-          seccompProfile:
-            type: RuntimeDefault
         volumeMounts:
         - mountPath: /app/config/ssh
           name: ssh-known-hosts
@@ -11053,14 +10578,7 @@ spec:
       - command:
         - /shared/argocd-dex
         - rundex
-        env:
-        - name: ARGOCD_DEX_SERVER_DISABLE_TLS
-          valueFrom:
-            configMapKeyRef:
-              key: dexserver.disable.tls
-              name: argocd-cmd-params-cm
-              optional: true
-        image: ghcr.io/dexidp/dex:v2.35.3
+        image: ghcr.io/dexidp/dex:v2.35.3-distroless
         imagePullPolicy: Always
         name: dex
         ports:
@@ -11074,22 +10592,18 @@ spec:
             - ALL
           readOnlyRootFilesystem: true
           runAsNonRoot: true
-          seccompProfile:
-            type: RuntimeDefault
         volumeMounts:
         - mountPath: /shared
           name: static-files
         - mountPath: /tmp
           name: dexconfig
-        - mountPath: /tls
-          name: argocd-dex-server-tls
       initContainers:
       - command:
         - cp
         - -n
         - /usr/local/bin/argocd
         - /shared/argocd-dex
-        image: quay.io/codefresh/argocd:v2.5.5-cap-CR-15658-sync-result-message
+        image: quay.io/codefresh/argocd:latest
         imagePullPolicy: Always
         name: copyutil
         securityContext:
@@ -11099,8 +10613,6 @@ spec:
             - ALL
           readOnlyRootFilesystem: true
           runAsNonRoot: true
-          seccompProfile:
-            type: RuntimeDefault
         volumeMounts:
         - mountPath: /shared
           name: static-files
@@ -11112,17 +10624,6 @@ spec:
         name: static-files
       - emptyDir: {}
         name: dexconfig
-      - name: argocd-dex-server-tls
-        secret:
-          items:
-          - key: tls.crt
-            path: tls.crt
-          - key: tls.key
-            path: tls.key
-          - key: ca.crt
-            path: ca.crt
-          optional: true
-          secretName: argocd-dex-server-tls
 ---
 apiVersion: apps/v1
 kind: Deployment
@@ -11143,7 +10644,7 @@ spec:
   template:
     metadata:
       annotations:
-        checksum/config: 1f7a9ffcacb3871ceb9b0741c0714e3f7fa656d426a398c1f727fffb01073f35
+        checksum/config: c55502ce732f78a70658dc77f00c02444cd6b6bede4b270f56d082fdaed1dc5f
       labels:
         app.kubernetes.io/name: argocd-redis-ha-haproxy
       name: argocd-redis-ha-haproxy
@@ -11156,7 +10657,7 @@ spec:
                 app.kubernetes.io/name: argocd-redis-ha-haproxy
             topologyKey: kubernetes.io/hostname
       containers:
-      - image: quay.io/codefresh/haproxy:2.6.2-alpine
+      - image: quay.io/codefresh/haproxy:2.0.29-alpine
         imagePullPolicy: IfNotPresent
         lifecycle: {}
         livenessProbe:
@@ -11175,13 +10676,6 @@ spec:
             port: 8888
           initialDelaySeconds: 5
           periodSeconds: 3
-        securityContext:
-          allowPrivilegeEscalation: false
-          capabilities:
-            drop:
-            - ALL
-          seccompProfile:
-            type: RuntimeDefault
         volumeMounts:
         - mountPath: /usr/local/etc/haproxy
           name: data
@@ -11192,16 +10686,9 @@ spec:
         - /readonly/haproxy_init.sh
         command:
         - sh
-        image: quay.io/codefresh/haproxy:2.6.2-alpine
+        image: quay.io/codefresh/haproxy:2.0.29-alpine
         imagePullPolicy: IfNotPresent
         name: config-init
-        securityContext:
-          allowPrivilegeEscalation: false
-          capabilities:
-            drop:
-            - ALL
-          seccompProfile:
-            type: RuntimeDefault
         volumeMounts:
         - mountPath: /readonly
           name: config-volume
@@ -11209,9 +10696,9 @@ spec:
         - mountPath: /data
           name: data
       securityContext:
-        fsGroup: 99
+        fsGroup: 1000
         runAsNonRoot: true
-        runAsUser: 99
+        runAsUser: 1000
       serviceAccountName: argocd-redis-ha-haproxy
       volumes:
       - configMap:
@@ -11388,7 +10875,7 @@ spec:
           value: /helm-working-dir
         - name: HELM_DATA_HOME
           value: /helm-working-dir
-        image: quay.io/codefresh/argocd:v2.5.5-cap-CR-15658-sync-result-message
+        image: quay.io/codefresh/argocd:latest
         imagePullPolicy: Always
         livenessProbe:
           failureThreshold: 3
@@ -11396,7 +10883,8 @@ spec:
             path: /healthz?full=true
             port: 8084
           initialDelaySeconds: 30
-          periodSeconds: 5
+          periodSeconds: 30
+          timeoutSeconds: 5
         name: argocd-repo-server
         ports:
         - containerPort: 8081
@@ -11439,7 +10927,7 @@ spec:
         - -n
         - /usr/local/bin/argocd
         - /var/run/argocd/argocd-cmp-server
-        image: quay.io/codefresh/argocd:v2.5.5-cap-CR-15658-sync-result-message
+        image: quay.io/codefresh/argocd:latest
         name: copyutil
         securityContext:
           allowPrivilegeEscalation: false
@@ -11453,7 +10941,6 @@ spec:
         volumeMounts:
         - mountPath: /var/run/argocd
           name: var-files
-      serviceAccountName: argocd-repo-server
       volumes:
       - configMap:
           name: argocd-ssh-known-hosts-cm
@@ -11550,7 +11037,7 @@ spec:
               key: server.log.format
               name: argocd-cmd-params-cm
               optional: true
-        - name: ARGOCD_SERVER_LOG_LEVEL
+        - name: ARGOCD_REPO_SERVER_LOGLEVEL
           valueFrom:
             configMapKeyRef:
               key: server.log.level
@@ -11610,18 +11097,6 @@ spec:
               key: server.repo.server.strict.tls
               name: argocd-cmd-params-cm
               optional: true
-        - name: ARGOCD_SERVER_DEX_SERVER_PLAINTEXT
-          valueFrom:
-            configMapKeyRef:
-              key: server.dex.server.plaintext
-              name: argocd-cmd-params-cm
-              optional: true
-        - name: ARGOCD_SERVER_DEX_SERVER_STRICT_TLS
-          valueFrom:
-            configMapKeyRef:
-              key: server.dex.server.strict.tls
-              name: argocd-cmd-params-cm
-              optional: true
         - name: ARGOCD_TLS_MIN_VERSION
           valueFrom:
             configMapKeyRef:
@@ -11676,12 +11151,6 @@ spec:
               key: redis.server
               name: argocd-cmd-params-cm
               optional: true
-        - name: REDIS_COMPRESSION
-          valueFrom:
-            configMapKeyRef:
-              key: redis.compression
-              name: argocd-cmd-params-cm
-              optional: true
         - name: REDISDB
           valueFrom:
             configMapKeyRef:
@@ -11706,13 +11175,7 @@ spec:
               key: otlp.address
               name: argocd-cmd-params-cm
               optional: true
-        - name: ARGOCD_APPLICATION_NAMESPACES
-          valueFrom:
-            configMapKeyRef:
-              key: application.namespaces
-              name: argocd-cmd-params-cm
-              optional: true
-        image: quay.io/codefresh/argocd:v2.5.5-cap-CR-15658-sync-result-message
+        image: quay.io/codefresh/argocd:latest
         imagePullPolicy: Always
         livenessProbe:
           httpGet:
@@ -11734,11 +11197,9 @@ spec:
           allowPrivilegeEscalation: false
           capabilities:
             drop:
-            - ALL
+            - all
           readOnlyRootFilesystem: true
           runAsNonRoot: true
-          seccompProfile:
-            type: RuntimeDefault
         volumeMounts:
         - mountPath: /app/config/ssh
           name: ssh-known-hosts
@@ -11746,8 +11207,6 @@ spec:
           name: tls-certs
         - mountPath: /app/config/server/tls
           name: argocd-repo-server-tls
-        - mountPath: /app/config/dex/tls
-          name: argocd-dex-server-tls
         - mountPath: /home/argocd
           name: plugins-home
         - mountPath: /tmp
@@ -11775,15 +11234,6 @@ spec:
             path: ca.crt
           optional: true
           secretName: argocd-repo-server-tls
-      - name: argocd-dex-server-tls
-        secret:
-          items:
-          - key: tls.crt
-            path: tls.crt
-          - key: ca.crt
-            path: ca.crt
-          optional: true
-          secretName: argocd-dex-server-tls
 ---
 apiVersion: apps/v1
 kind: StatefulSet
@@ -11822,6 +11272,10 @@ spec:
       containers:
       - command:
         - argocd-application-controller
+        - --status-processors
+        - "20"
+        - --operation-processors
+        - "10"
         - --redis
         - argocd-redis-ha-haproxy:6379
         env:
@@ -11899,12 +11353,6 @@ spec:
               key: controller.repo.server.strict.tls
               name: argocd-cmd-params-cm
               optional: true
-        - name: ARGOCD_APPLICATION_CONTROLLER_PERSIST_RESOURCE_HEALTH
-          valueFrom:
-            configMapKeyRef:
-              key: controller.resource.health.persist
-              name: argocd-cmd-params-cm
-              optional: true
         - name: ARGOCD_APP_STATE_CACHE_EXPIRATION
           valueFrom:
             configMapKeyRef:
@@ -11915,12 +11363,6 @@ spec:
           valueFrom:
             configMapKeyRef:
               key: redis.server
-              name: argocd-cmd-params-cm
-              optional: true
-        - name: REDIS_COMPRESSION
-          valueFrom:
-            configMapKeyRef:
-              key: redis.compression
               name: argocd-cmd-params-cm
               optional: true
         - name: REDISDB
@@ -11941,14 +11383,14 @@ spec:
               key: otlp.address
               name: argocd-cmd-params-cm
               optional: true
-        - name: ARGOCD_APPLICATION_NAMESPACES
-          valueFrom:
-            configMapKeyRef:
-              key: application.namespaces
-              name: argocd-cmd-params-cm
-              optional: true
-        image: quay.io/codefresh/argocd:v2.5.5-cap-CR-15658-sync-result-message
+        image: quay.io/codefresh/argocd:latest
         imagePullPolicy: Always
+        livenessProbe:
+          httpGet:
+            path: /healthz
+            port: 8082
+          initialDelaySeconds: 5
+          periodSeconds: 10
         name: argocd-application-controller
         ports:
         - containerPort: 8082
@@ -11962,11 +11404,9 @@ spec:
           allowPrivilegeEscalation: false
           capabilities:
             drop:
-            - ALL
+            - all
           readOnlyRootFilesystem: true
           runAsNonRoot: true
-          seccompProfile:
-            type: RuntimeDefault
         volumeMounts:
         - mountPath: /app/config/controller/tls
           name: argocd-repo-server-tls
@@ -12007,7 +11447,7 @@ spec:
   template:
     metadata:
       annotations:
-        checksum/init-config: 84ccf6a9b8a7fa3ae5b62a8f17d6c65a5197e9605da9b2761179bf942828eefe
+        checksum/init-config: 7128bfbb51eafaffe3c33b1b463e15f0cf6514cec570f9d9c4f2396f28c724ac
       labels:
         app.kubernetes.io/name: argocd-redis-ha
     spec:
@@ -12024,14 +11464,9 @@ spec:
         - /data/conf/redis.conf
         command:
         - redis-server
-        image: quay.io/codefresh/haproxy:7.0.5-alpine
+        image: quay.io/codefresh/redis:7.0.4-alpine
         imagePullPolicy: IfNotPresent
-        lifecycle:
-          preStop:
-            exec:
-              command:
-              - /bin/sh
-              - /readonly-config/trigger-failover-if-master.sh
+        lifecycle: {}
         livenessProbe:
           exec:
             command:
@@ -12058,17 +11493,7 @@ spec:
           periodSeconds: 15
           successThreshold: 1
           timeoutSeconds: 15
-        securityContext:
-          allowPrivilegeEscalation: false
-          capabilities:
-            drop:
-            - ALL
-          seccompProfile:
-            type: RuntimeDefault
         volumeMounts:
-        - mountPath: /readonly-config
-          name: config
-          readOnly: true
         - mountPath: /data
           name: data
         - mountPath: /health
@@ -12077,7 +11502,7 @@ spec:
         - /data/conf/sentinel.conf
         command:
         - redis-sentinel
-        image: quay.io/codefresh/haproxy:7.0.5-alpine
+        image: quay.io/codefresh/redis:7.0.4-alpine
         imagePullPolicy: IfNotPresent
         lifecycle: {}
         livenessProbe:
@@ -12106,46 +11531,11 @@ spec:
           periodSeconds: 15
           successThreshold: 3
           timeoutSeconds: 15
-        securityContext:
-          allowPrivilegeEscalation: false
-          capabilities:
-            drop:
-            - ALL
-          seccompProfile:
-            type: RuntimeDefault
         volumeMounts:
         - mountPath: /data
           name: data
         - mountPath: /health
           name: health
-      - args:
-        - /readonly-config/fix-split-brain.sh
-        command:
-        - sh
-        env:
-        - name: SENTINEL_ID_0
-          value: 3c0d9c0320bb34888c2df5757c718ce6ca992ce6
-        - name: SENTINEL_ID_1
-          value: 40000915ab58c3fa8fd888fb8b24711944e6cbb4
-        - name: SENTINEL_ID_2
-          value: 2bbec7894d954a8af3bb54d13eaec53cb024e2ca
-        image: quay.io/codefresh/haproxy:7.0.5-alpine
-        imagePullPolicy: IfNotPresent
-        name: split-brain-fix
-        resources: {}
-        securityContext:
-          allowPrivilegeEscalation: false
-          capabilities:
-            drop:
-            - ALL
-          seccompProfile:
-            type: RuntimeDefault
-        volumeMounts:
-        - mountPath: /readonly-config
-          name: config
-          readOnly: true
-        - mountPath: /data
-          name: data
       initContainers:
       - args:
         - /readonly-config/init.sh
@@ -12158,16 +11548,9 @@ spec:
           value: 40000915ab58c3fa8fd888fb8b24711944e6cbb4
         - name: SENTINEL_ID_2
           value: 2bbec7894d954a8af3bb54d13eaec53cb024e2ca
-        image: quay.io/codefresh/haproxy:7.0.5-alpine
+        image: quay.io/codefresh/redis:7.0.4-alpine
         imagePullPolicy: IfNotPresent
         name: config-init
-        securityContext:
-          allowPrivilegeEscalation: false
-          capabilities:
-            drop:
-            - ALL
-          seccompProfile:
-            type: RuntimeDefault
         volumeMounts:
         - mountPath: /readonly-config
           name: config
@@ -12212,25 +11595,6 @@ spec:
 apiVersion: networking.k8s.io/v1
 kind: NetworkPolicy
 metadata:
-  name: argocd-applicationset-controller-network-policy
-spec:
-  ingress:
-  - from:
-    - namespaceSelector: {}
-    ports:
-    - port: 7000
-      protocol: TCP
-    - port: 8080
-      protocol: TCP
-  podSelector:
-    matchLabels:
-      app.kubernetes.io/name: argocd-applicationset-controller
-  policyTypes:
-  - Ingress
----
-apiVersion: networking.k8s.io/v1
-kind: NetworkPolicy
-metadata:
   name: argocd-dex-server-network-policy
 spec:
   ingress:
@@ -12259,21 +11623,6 @@ kind: NetworkPolicy
 metadata:
   name: argocd-redis-ha-proxy-network-policy
 spec:
-  egress:
-  - ports:
-    - port: 6379
-      protocol: TCP
-    - port: 26379
-      protocol: TCP
-    to:
-    - podSelector:
-        matchLabels:
-          app.kubernetes.io/name: argocd-redis-ha
-  - ports:
-    - port: 53
-      protocol: UDP
-    - port: 53
-      protocol: TCP
   ingress:
   - from:
     - podSelector:
@@ -12285,38 +11634,20 @@ spec:
     - podSelector:
         matchLabels:
           app.kubernetes.io/name: argocd-application-controller
-    ports:
-    - port: 6379
-      protocol: TCP
-    - port: 26379
-      protocol: TCP
+    - podSelector:
+        matchLabels:
+          app.kubernetes.io/name: argocd-redis-ha
   podSelector:
     matchLabels:
       app.kubernetes.io/name: argocd-redis-ha-haproxy
   policyTypes:
   - Ingress
-  - Egress
 ---
 apiVersion: networking.k8s.io/v1
 kind: NetworkPolicy
 metadata:
   name: argocd-redis-ha-server-network-policy
 spec:
-  egress:
-  - ports:
-    - port: 6379
-      protocol: TCP
-    - port: 26379
-      protocol: TCP
-    to:
-    - podSelector:
-        matchLabels:
-          app.kubernetes.io/name: argocd-redis-ha
-  - ports:
-    - port: 53
-      protocol: UDP
-    - port: 53
-      protocol: TCP
   ingress:
   - from:
     - podSelector:
@@ -12325,17 +11656,11 @@ spec:
     - podSelector:
         matchLabels:
           app.kubernetes.io/name: argocd-redis-ha
-    ports:
-    - port: 6379
-      protocol: TCP
-    - port: 26379
-      protocol: TCP
   podSelector:
     matchLabels:
       app.kubernetes.io/name: argocd-redis-ha
   policyTypes:
   - Ingress
-  - Egress
 ---
 apiVersion: networking.k8s.io/v1
 kind: NetworkPolicy
