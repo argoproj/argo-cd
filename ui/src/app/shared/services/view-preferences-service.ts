@@ -14,7 +14,7 @@ export enum AppsDetailsViewKey {
 
 export interface AppDetailsPreferences {
     resourceFilter: string[];
-    view: AppsDetailsViewType;
+    view: AppsDetailsViewType | string;
     resourceView: 'manifest' | 'diff' | 'desiredManifest';
     inlineDiff: boolean;
     compactDiff: boolean;
