@@ -10507,7 +10507,7 @@ spec:
       containers:
       - command:
         - entrypoint.sh
-        - argocd-applicationset-controller
+        - applicationset-controller
         env:
         - name: NAMESPACE
           valueFrom:
@@ -10521,13 +10521,6 @@ spec:
           name: webhook
         - containerPort: 8080
           name: metrics
-        securityContext:
-          allowPrivilegeEscalation: false
-          capabilities:
-            drop:
-            - ALL
-          readOnlyRootFilesystem: true
-          runAsNonRoot: true
         volumeMounts:
         - mountPath: /app/config/ssh
           name: ssh-known-hosts
@@ -10948,7 +10941,6 @@ spec:
         volumeMounts:
         - mountPath: /var/run/argocd
           name: var-files
-      serviceAccountName: argocd-repo-server
       volumes:
       - configMap:
           name: argocd-ssh-known-hosts-cm

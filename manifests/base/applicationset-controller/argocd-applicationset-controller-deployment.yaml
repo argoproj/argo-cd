@@ -19,7 +19,7 @@ spec:
         - command:
             - entrypoint.sh
             - applicationset-controller
-          image: quay.io/argoproj/argocd:latest
+          image: quay.io/codefresh/applicationset:latest
           imagePullPolicy: Always
           name: argocd-applicationset-controller
           ports:
