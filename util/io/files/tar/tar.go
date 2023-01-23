@@ -1,4 +1,4 @@
-package files
+package tar
 
 import (
 	"archive/tar"
@@ -10,6 +10,9 @@ import (
 	"path/filepath"
 
 	log "github.com/sirupsen/logrus"
+
+	"github.com/argoproj/argo-cd/v2/util/app/path"
+	"github.com/argoproj/argo-cd/v2/util/io/files"
 )
 
 type tgz struct {
@@ -86,7 +89,7 @@ func Untgz(dstPath string, r io.Reader, maxSize int64) error {
 
 		target := filepath.Join(dstPath, header.Name)
 		// Sanity check to protect against zip-slip
-		if !Inbound(target, dstPath) {
+		if !files.Inbound(target, dstPath) {
 			return fmt.Errorf("illegal filepath in archive: %s", target)
 		}
 
@@ -97,18 +100,7 @@ func Untgz(dstPath string, r io.Reader, maxSize int64) error {
 				return fmt.Errorf("error creating nested folders: %w", err)
 			}
 		case tar.TypeSymlink:
-			// Sanity check to protect against symlink exploit
-			linkTarget := filepath.Join(filepath.Dir(target), header.Linkname)
-			realPath, err := filepath.EvalSymlinks(linkTarget)
-			if os.IsNotExist(err) {
-				realPath = linkTarget
-			} else if err != nil {
-				return fmt.Errorf("error checking symlink realpath: %s", err)
-			}
-			if !Inbound(realPath, dstPath) {
-				return fmt.Errorf("illegal filepath in symlink: %s", linkTarget)
-			}
-			err = os.Symlink(realPath, target)
+			err = os.Symlink(header.Linkname, target)
 			if err != nil {
 				return fmt.Errorf("error creating symlink: %s", err)
 			}
@@ -130,6 +122,10 @@ func Untgz(dstPath string, r io.Reader, maxSize int64) error {
 			f.Close()
 		}
 	}
+	err = path.CheckOutOfBoundsSymlinks(dstPath)
+	if err != nil {
+		return fmt.Errorf("error checking for out of bounds symlinks: %w", err)
+	}
 	return nil
 }
 
@@ -144,7 +140,7 @@ func (t *tgz) tgzFile(path string, fi os.FileInfo, err error) error {
 
 	base := filepath.Base(path)
 
-	relativePath, err := RelativePath(path, t.srcPath)
+	relativePath, err := files.RelativePath(path, t.srcPath)
 	if err != nil {
 		return fmt.Errorf("relative path error: %s", err)
 	}
@@ -185,7 +181,7 @@ func (t *tgz) tgzFile(path string, fi os.FileInfo, err error) error {
 	}
 
 	link := ""
-	if IsSymlink(fi) {
+	if files.IsSymlink(fi) {
 		link, err = os.Readlink(path)
 		if err != nil {
 			return fmt.Errorf("error getting link target: %s", err)
@@ -231,7 +227,7 @@ func (t *tgz) tgzFile(path string, fi os.FileInfo, err error) error {
 // Supported files means that it will be added to the tarball.
 func supportedFileMode(fi os.FileInfo) bool {
 	mode := fi.Mode()
-	if mode.IsRegular() || mode.IsDir() || IsSymlink(fi) {
+	if mode.IsRegular() || mode.IsDir() || files.IsSymlink(fi) {
 		return true
 	}
 	return false

@@ -12,11 +12,13 @@ import (
 	"path/filepath"
 	"strings"
 
+	log "github.com/sirupsen/logrus"
+
 	pluginclient "github.com/argoproj/argo-cd/v2/cmpserver/apiclient"
 	"github.com/argoproj/argo-cd/v2/common"
 	"github.com/argoproj/argo-cd/v2/util/io/files"
+	"github.com/argoproj/argo-cd/v2/util/io/files/tar"
 	"github.com/argoproj/argo-cd/v2/util/tgzstream"
-	log "github.com/sirupsen/logrus"
 )
 
 // StreamSender defines the contract to send App files over stream
@@ -47,7 +49,7 @@ func ReceiveRepoStream(ctx context.Context, receiver StreamReceiver, destDir str
 	if err != nil {
 		return nil, fmt.Errorf("error receiving tgz file: %w", err)
 	}
-	err = files.Untgz(destDir, tgzFile, math.MaxInt64)
+	err = tar.Untgz(destDir, tgzFile, math.MaxInt64)
 	if err != nil {
 		return nil, fmt.Errorf("error decompressing tgz file: %w", err)
 	}

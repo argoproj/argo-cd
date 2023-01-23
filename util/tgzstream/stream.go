@@ -9,6 +9,8 @@ import (
 	"path/filepath"
 
 	"github.com/argoproj/argo-cd/v2/util/io/files"
+	"github.com/argoproj/argo-cd/v2/util/io/files/tar"
+
 	log "github.com/sirupsen/logrus"
 )
 
@@ -39,7 +41,7 @@ func CompressFiles(appPath string, included []string, excluded []string) (*os.Fi
 		return nil, 0, "", fmt.Errorf("error creating app temp tgz file: %w", err)
 	}
 	hasher := sha256.New()
-	filesWritten, err := files.Tgz(appPath, included, excluded, tgzFile, hasher)
+	filesWritten, err := tar.Tgz(appPath, included, excluded, tgzFile, hasher)
 	if err != nil {
 		CloseAndDelete(tgzFile)
 		return nil, 0, "", fmt.Errorf("error creating app tgz file: %w", err)

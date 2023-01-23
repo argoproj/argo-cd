@@ -1,4 +1,4 @@
-package files_test
+package tar
 
 import (
 	"archive/tar"
@@ -47,7 +47,7 @@ func TestTgz(t *testing.T) {
 		defer teardown(f)
 
 		// when
-		filesWritten, err := files.Tgz(getTestAppDir(t), nil, exclusions, f.file)
+		filesWritten, err := Tgz(getTestAppDir(t), nil, exclusions, f.file)
 
 		// then
 		assert.Equal(t, 3, filesWritten)
@@ -70,7 +70,7 @@ func TestTgz(t *testing.T) {
 		defer teardown(f)
 
 		// when
-		filesWritten, err := files.Tgz(getTestAppDir(t), nil, exclusions, f.file)
+		filesWritten, err := Tgz(getTestAppDir(t), nil, exclusions, f.file)
 
 		// then
 		assert.Equal(t, 2, filesWritten)
@@ -90,7 +90,7 @@ func TestTgz(t *testing.T) {
 		defer teardown(f)
 
 		// when
-		filesWritten, err := files.Tgz(getTestAppDir(t), nil, exclusions, f.file)
+		filesWritten, err := Tgz(getTestAppDir(t), nil, exclusions, f.file)
 
 		// then
 		assert.Equal(t, 1, filesWritten)
@@ -125,7 +125,7 @@ func TestUntgz(t *testing.T) {
 		if err != nil {
 			t.Fatalf("error creating tmpFile in %q: %s", destDir, err)
 		}
-		_, err = files.Tgz(fromDir, nil, nil, f)
+		_, err = Tgz(fromDir, nil, nil, f)
 		if err != nil {
 			t.Fatalf("error during Tgz: %s", err)
 		}
@@ -168,7 +168,7 @@ func TestUntgz(t *testing.T) {
 		destDir := filepath.Join(tmpDir, "untgz1")
 
 		// when
-		err := files.Untgz(destDir, tgzFile, math.MaxInt64)
+		err := Untgz(destDir, tgzFile, math.MaxInt64)
 
 		// then
 		require.NoError(t, err)
@@ -180,7 +180,7 @@ func TestUntgz(t *testing.T) {
 		assert.Contains(t, names, "applicationset/readme-symlink")
 		assert.Equal(t, filepath.Join(destDir, "README.md"), names["applicationset/readme-symlink"])
 	})
-	t.Run("will protect agains symlink exploit", func(t *testing.T) {
+	t.Run("will protect against symlink exploit", func(t *testing.T) {
 		// given
 		tmpDir := createTmpDir(t)
 		defer deleteTmpDir(t, tmpDir)
@@ -189,13 +189,15 @@ func TestUntgz(t *testing.T) {
 		defer tgzFile.Close()
 
 		destDir := filepath.Join(tmpDir, "untgz2")
+		err := os.MkdirAll(destDir, 0755)
+		require.NoError(t, err)
 
 		// when
-		err := files.Untgz(destDir, tgzFile, math.MaxInt64)
+		err = Untgz(destDir, tgzFile, math.MaxInt64)
 
 		// then
 		assert.Error(t, err)
-		assert.Contains(t, err.Error(), "illegal filepath in symlink")
+		assert.Contains(t, err.Error(), "out of bounds symlink found")
 	})
 }
 
