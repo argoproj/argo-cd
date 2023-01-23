@@ -16119,11 +16119,24 @@ spec:
         name: redis
         ports:
         - containerPort: 6379
+          name: redis
+          protocol: TCP
         securityContext:
           allowPrivilegeEscalation: false
           capabilities:
             drop:
             - ALL
+      - env:
+        - name: REDIS_ADDR
+          value: redis://localhost:6379
+        - name: REDIS_EXPORTER_WEB_LISTEN_ADDRESS
+          value: 0.0.0.0:9121
+        image: public.ecr.aws/bitnami/redis-exporter:1.45.0
+        name: metrics
+        ports:
+        - containerPort: 9121
+          name: metrics
+          protocol: TCP
       securityContext:
         runAsNonRoot: true
         runAsUser: 999

@@ -20,7 +20,7 @@ spec:
         runAsUser: 999
         seccompProfile:
           type: RuntimeDefault
-      serviceAccountName: argocd-redis        
+      serviceAccountName: argocd-redis
       containers:
       - name: redis
         image: redis:7.0.7-alpine
@@ -31,12 +31,25 @@ spec:
         - "--appendonly"
         - "no"
         ports:
-        - containerPort: 6379
+        - name: redis
+          containerPort: 6379
+          protocol: TCP
         securityContext:
           allowPrivilegeEscalation: false
           capabilities:
             drop:
             - ALL
+      - name: metrics
+        image: public.ecr.aws/bitnami/redis-exporter:1.45.0
+        ports:
+          - name: metrics
+            containerPort: 9121
+            protocol: TCP
+        env:
+          - name: REDIS_ADDR
+            value: redis://localhost:6379
+          - name: REDIS_EXPORTER_WEB_LISTEN_ADDRESS
+            value: 0.0.0.0:9121
       affinity:
         podAntiAffinity:
           preferredDuringSchedulingIgnoredDuringExecution:
