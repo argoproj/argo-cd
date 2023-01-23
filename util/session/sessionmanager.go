@@ -467,14 +467,20 @@ func (mgr *SessionManager) VerifyUsernamePassword(username string, password stri
 // authentication middleware for HTTP requests.
 func (mgr *SessionManager) AuthMiddlewareFunc(disabled bool) func(http.Handler) http.Handler {
 	return func(h http.Handler) http.Handler {
-		return mgr.WithAuthMiddleware(disabled, h)
+		return WithAuthMiddleware(disabled, mgr, h)
 	}
+}
+
+// TokenVerifier defines the contract to invoke token
+// verification logic
+type TokenVerifier interface {
+	VerifyToken(token string) (jwt.Claims, string, error)
 }
 
 // WithAuthMiddleware is an HTTP middleware used to ensure incoming
 // requests are authenticated before invoking the target handler. If
 // disabled is true, it will just invoke the next handler in the chain.
-func (mgr *SessionManager) WithAuthMiddleware(disabled bool, next http.Handler) http.Handler {
+func WithAuthMiddleware(disabled bool, authn TokenVerifier, next http.Handler) http.Handler {
 	return http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
 		if !disabled {
 			cookies := r.Cookies()
@@ -483,12 +489,12 @@ func (mgr *SessionManager) WithAuthMiddleware(disabled bool, next http.Handler) 
 				http.Error(w, "Auth cookie not found", http.StatusBadRequest)
 				return
 			}
-			claims, _, err := mgr.VerifyToken(tokenString)
+			claims, _, err := authn.VerifyToken(tokenString)
 			if err != nil {
 				http.Error(w, "Invalid token", http.StatusUnauthorized)
 				return
 			}
-			if claims == nil {
+			if claims != nil && claims.Valid() != nil {
 				http.Error(w, "Invalid token", http.StatusUnauthorized)
 				return
 			}

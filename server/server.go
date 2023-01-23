@@ -906,8 +906,8 @@ func (a *ArgoCDServer) newHTTPServer(ctx context.Context, port int, grpcWebHandl
 	mux.Handle("/api/", handler)
 
 	terminal := application.NewHandler(a.appLister, a.Namespace, a.ApplicationNamespaces, a.db, a.enf, a.Cache, appResourceTreeFn, a.settings.ExecShells)
-	th := a.sessionMgr.WithAuthMiddleware(a.DisableAuth,
-		terminal.WithFeatureFlagMiddleware(a.settingsMgr.GetSettings, terminal))
+	terminalFF := terminal.WithFeatureFlagMiddleware(a.settingsMgr.GetSettings, terminal)
+	th := util_session.WithAuthMiddleware(a.DisableAuth, a.sessionMgr, terminalFF)
 	mux.Handle("/terminal", th)
 
 	// Dead code for now
