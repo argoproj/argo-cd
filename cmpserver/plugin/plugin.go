@@ -95,6 +95,9 @@ func runCommand(ctx context.Context, command Command, path string, env []string)
 		<-ctx.Done()
 		// Kill by group ID to make sure child processes are killed. The - tells `kill` that it's a group ID.
 		// Since we didn't set Pgid in SysProcAttr, the group ID is the same as the process ID. https://pkg.go.dev/syscall#SysProcAttr
+		_ = sysCallTerm(-cmd.Process.Pid)
+		// Sending a TERM signal first to allow any potential cleanup if needed, and then sending a KILL signal
+		time.Sleep(5 * time.Second)
 		_ = sysCallKill(-cmd.Process.Pid)
 	}()
 
