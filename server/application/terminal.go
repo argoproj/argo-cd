@@ -105,7 +105,8 @@ func (s *terminalHandler) WithFeatureFlagMiddleware(getSettings GetSettingsFunc,
 	return http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
 		argocdSettings, err := getSettings()
 		if err != nil {
-			http.Error(w, fmt.Sprintf("Failed to get settings: %v", err), http.StatusBadRequest)
+			log.Errorf("error executing WithFeatureFlagMiddleware: error getting settings: %s", err)
+			http.Error(w, "Failed to get settings", http.StatusBadRequest)
 			return
 		}
 		if !argocdSettings.ExecEnabled {
