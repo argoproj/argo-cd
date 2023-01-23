@@ -252,9 +252,13 @@ func strPointer(str string) *string {
 func TestSessionManager_WithAuthMiddleware(t *testing.T) {
 	handlerFunc := func() func(http.ResponseWriter, *http.Request) {
 		return func(w http.ResponseWriter, r *http.Request) {
+			t.Helper()
 			w.WriteHeader(http.StatusOK)
 			w.Header().Set("Content-Type", "application/text")
-			w.Write([]byte("Ok"))
+			_, err := w.Write([]byte("Ok"))
+			if err != nil {
+				t.Fatalf("error writing response: %s", err)
+			}
 			return
 		}
 	}
