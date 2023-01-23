@@ -288,6 +288,7 @@ func (s *Service) matchRepositoryGeneric(stream MatchRepositoryStream) error {
 
 func (s *Service) matchRepository(ctx context.Context, workdir string, envEntries []*apiclient.EnvEntry) (bool, error) {
 	config := s.initConstants.PluginConfig
+
 	if config.Spec.Discover.FileName != "" {
 		log.Debugf("config.Spec.Discover.FileName is provided")
 		pattern := filepath.Join(workdir, config.Spec.Discover.FileName)
@@ -318,17 +319,20 @@ func (s *Service) matchRepository(ctx context.Context, workdir string, envEntrie
 		return false, nil
 	}
 
-	log.Debugf("Going to try runCommand.")
-	env := append(os.Environ(), environ(envEntries)...)
+	if len(config.Spec.Discover.Find.Command.Command) > 0 {
+		log.Debugf("Going to try runCommand.")
+		env := append(os.Environ(), environ(envEntries)...)
 
-	find, err := runCommand(ctx, config.Spec.Discover.Find.Command, workdir, env)
-	if err != nil {
-		return false, fmt.Errorf("error running find command: %w", err)
+		find, err := runCommand(ctx, config.Spec.Discover.Find.Command, workdir, env)
+		if err != nil {
+			return false, fmt.Errorf("error running find command: %w", err)
+		}
+
+		if find != "" {
+			return true, nil
+		}
 	}
 
-	if find != "" {
-		return true, nil
-	}
 	return false, nil
 }
 

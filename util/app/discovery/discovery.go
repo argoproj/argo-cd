@@ -97,9 +97,14 @@ func DetectConfigManagementPlugin(ctx context.Context, repoPath, pluginName stri
 	}).Debugf("pluginSockFilePath is: %s", pluginSockFilePath)
 
 	if pluginName != "" {
-		// check if the given plugin supports the repo
-		conn, cmpClient, connFound = cmpSupports(ctx, pluginSockFilePath, repoPath, fmt.Sprintf("%v.sock", pluginName), env, tarExcludedGlobs)
-		if !connFound {
+		var err error
+		// skipping discovery check as name is explicitly specified
+		conn, cmpClient, err = getCMPClient(pluginSockFilePath, fmt.Sprintf("%v.sock", pluginName))
+		if err != nil {
+			log.WithFields(log.Fields{
+				common.SecurityField:    common.SecurityMedium,
+				common.SecurityCWEField: 775,
+			}).Errorf("error dialing to cmp-server for plugin %s, %v", pluginName, err)
 			return nil, nil, fmt.Errorf("couldn't find cmp-server plugin with name %v supporting the given repository", pluginName)
 		}
 	} else {
@@ -142,16 +147,23 @@ func matchRepositoryCMP(ctx context.Context, repoPath string, client pluginclien
 	return resp.GetIsSupported(), nil
 }
 
-func cmpSupports(ctx context.Context, pluginSockFilePath, repoPath, fileName string, env []string, tarExcludedGlobs []string) (io.Closer, pluginclient.ConfigManagementPluginServiceClient, bool) {
+func getCMPClient(pluginSockFilePath, fileName string) (io.Closer, pluginclient.ConfigManagementPluginServiceClient, error) {
 	address := filepath.Join(pluginSockFilePath, fileName)
 	if !files.Inbound(address, pluginSockFilePath) {
-		log.Errorf("invalid socket file path, %v is outside plugin socket dir %v", fileName, pluginSockFilePath)
-		return nil, nil, false
+		return nil, nil, fmt.Errorf("invalid socket file path, %v is outside plugin socket dir %v", fileName, pluginSockFilePath)
 	}
 
 	cmpclientset := pluginclient.NewConfigManagementPluginClientSet(address)
 
 	conn, cmpClient, err := cmpclientset.NewConfigManagementPluginClient()
+	if err != nil {
+		return nil, nil, fmt.Errorf("error dialing to cmp-server for plugin %s, %v", fileName, err)
+	}
+	return conn, cmpClient, nil
+}
+
+func cmpSupports(ctx context.Context, pluginSockFilePath, repoPath, fileName string, env []string, tarExcludedGlobs []string) (io.Closer, pluginclient.ConfigManagementPluginServiceClient, bool) {
+	conn, cmpClient, err := getCMPClient(pluginSockFilePath, fileName)
 	if err != nil {
 		log.WithFields(log.Fields{
 			common.SecurityField:    common.SecurityMedium,
