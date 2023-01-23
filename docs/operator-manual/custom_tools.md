@@ -7,7 +7,7 @@ other than what Argo CD bundles. Some reasons to do this might be:
 * To upgrade/downgrade to a specific version of a tool due to bugs or bug fixes.
 * To install additional dependencies to be used by kustomize's configmap/secret generators.
   (e.g. curl, vault, gpg, AWS CLI)
-* To install a [config management plugin](../user-guide/config-management-plugins.md).
+* To install a [config management plugin](config-management-plugins.md).
 
 As the Argo CD repo-server is the single service responsible for generating Kubernetes manifests, it
 can be customized to use alternative toolchain required by your environment.
@@ -69,5 +69,5 @@ RUN apt-get update && \
     chmod +x /usr/local/bin/sops
 
 # Switch back to non-root user
-USER 999
+USER $ARGOCD_USER_ID
 ```
