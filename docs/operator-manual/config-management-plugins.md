@@ -92,7 +92,8 @@ spec:
       - |
         echo "{\"kind\": \"ConfigMap\", \"apiVersion\": \"v1\", \"metadata\": { \"name\": \"$ARGOCD_APP_NAME\", \"namespace\": \"$ARGOCD_APP_NAMESPACE\", \"annotations\": {\"Foo\": \"$ARGOCD_ENV_FOO\", \"KubeVersion\": \"$KUBE_VERSION\", \"KubeApiVersion\": \"$KUBE_API_VERSIONS\",\"Bar\": \"baz\"}}}"
   # The discovery config is applied to a repository. If every configured discovery tool matches, then the plugin may be
-  # used to generate manifests for Applications using the repository. 
+  # used to generate manifests for Applications using the repository. If the discovery config is omitted then the plugin 
+  # will not match any application but can still be invoked explicitly by specifying the plugin name in the app spec. 
   # Only one of fileName, find.glob, or find.command should be specified. If multiple are specified then only the 
   # first (in that order) is evaluated.
   discover:
@@ -337,7 +338,7 @@ argocd app create <appName> --config-management-plugin <pluginName>
 If your CMP is defined as a sidecar, you must manually define the Application manifest. You may leave the `name` field
 empty in the `plugin` section for the plugin to be automatically matched with the Application based on its discovery rules. If you do mention the name make sure 
 it is either `<metadata.name>-<spec.version>` if version is mentioned in the `ConfigManagementPlugin` spec or else just `<metadata.name>`. When name is explicitly 
-specified only that particular plugin will be used iff it's discovery pattern/command matches the provided application repo.
+specified only that particular plugin will be used irrespective of whether it's discovery pattern/command matches the provided application repo.
 
 ```yaml
 apiVersion: argoproj.io/v1alpha1
@@ -452,7 +453,8 @@ spec:
 
 ### 2. Write discovery rules for your plugin
 
-Sidecar plugins use discovery rules instead of a plugin name to match Applications to plugins.
+Sidecar plugins can use both discovery rules or a plugin name to match Applications to plugins. If the discovery rule is omitted 
+then you have to explicitly specify the plugin by name in the app spec or else that particular plugin will not match any app.
 
 Write rules applicable to your plugin [using the instructions above](#1-write-the-plugin-configuration-file) and add
 them to your configuration file.
