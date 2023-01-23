@@ -306,15 +306,17 @@ func TestSessionManager_WithAuthMiddleware(t *testing.T) {
 			expectedResponseBody: nil,
 		},
 		{
-			name:         "will return 401 if claims are invalid",
+			// claims validity should be already be checked as part of the
+			// VerifyToken logic.
+			name:         "will not check if claims are valid",
 			authDisabled: false,
 			cookieHeader: true,
 			verifiedClaims: &claimsMock{
 				err: stderrors.New("invalid"),
 			},
 			verifyTokenErr:       nil,
-			expectedStatusCode:   401,
-			expectedResponseBody: nil,
+			expectedStatusCode:   200,
+			expectedResponseBody: strPointer("Ok"),
 		},
 		{
 			name:                 "will return 200 if claims are nil",

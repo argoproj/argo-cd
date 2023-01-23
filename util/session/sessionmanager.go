@@ -494,10 +494,6 @@ func WithAuthMiddleware(disabled bool, authn TokenVerifier, next http.Handler) h
 				http.Error(w, "Invalid token", http.StatusUnauthorized)
 				return
 			}
-			if claims != nil && claims.Valid() != nil {
-				http.Error(w, "Invalid token", http.StatusUnauthorized)
-				return
-			}
 			ctx := r.Context()
 			// Add claims to the context to inspect for RBAC
 			// nolint:staticcheck
