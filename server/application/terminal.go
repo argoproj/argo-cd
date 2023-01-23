@@ -100,7 +100,7 @@ type GetSettingsFunc func() (*settings.ArgoCDSettings, error)
 
 // WithFeatureFlagMiddleware is an HTTP middleware to verify if the terminal
 // feature is enabled before invoking the main handler
-func (s *terminalHandler) WithFeatureFlagMiddleware(getSettings GetSettingsFunc, next http.Handler) http.Handler {
+func (s *terminalHandler) WithFeatureFlagMiddleware(getSettings GetSettingsFunc) http.Handler {
 	return http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
 		argocdSettings, err := getSettings()
 		if err != nil {
@@ -112,7 +112,7 @@ func (s *terminalHandler) WithFeatureFlagMiddleware(getSettings GetSettingsFunc,
 			w.WriteHeader(http.StatusNotFound)
 			return
 		}
-		next.ServeHTTP(w, r)
+		s.ServeHTTP(w, r)
 	})
 }
 
