@@ -16,7 +16,6 @@ import {
     ComparisonStatusIcon,
     deletePodAction,
     getAppOverridesCount,
-    getExternalUrls,
     HealthStatusIcon,
     isAppNode,
     isYoungerThanXMinutes,
@@ -376,10 +375,7 @@ function renderPodGroup(props: ApplicationResourceTreeProps, id: string, node: R
     }
     const appNode = isAppNode(node);
     const rootNode = !node.root;
-    let extLinks: string[] = props.app.status.summary.externalURLs;
-    if (rootNode) {
-        extLinks = getExternalUrls(props.app.metadata.annotations, props.app.status.summary.externalURLs);
-    }
+    const extLinks: string[] = props.app.status.summary.externalURLs;
     const podGroupChildren = childMap.get(treeNodeKey(node));
     const nonPodChildren = podGroupChildren?.reduce((acc, child) => {
         if (child.kind !== 'Pod') {
@@ -605,11 +601,8 @@ function renderResourceNode(props: ApplicationResourceTreeProps, id: string, nod
     }
     const appNode = isAppNode(node);
     const rootNode = !node.root;
-    let extLinks: string[] = props.app.status.summary.externalURLs;
+    const extLinks: string[] = props.app.status.summary.externalURLs;
     const childCount = nodesHavingChildren.get(node.uid);
-    if (rootNode) {
-        extLinks = getExternalUrls(props.app.metadata.annotations, props.app.status.summary.externalURLs);
-    }
     return (
         <div
             onClick={() => props.onNodeClick && props.onNodeClick(fullName)}

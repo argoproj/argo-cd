@@ -1,4 +1,4 @@
-import {DropDownMenu, NotificationType, SlidingPanel} from 'argo-ui';
+import {DropDownMenu, NotificationType, SlidingPanel, Tooltip} from 'argo-ui';
 import * as classNames from 'classnames';
 import * as PropTypes from 'prop-types';
 import * as React from 'react';
@@ -24,12 +24,13 @@ import {ResourceDetails} from '../resource-details/resource-details';
 import * as AppUtils from '../utils';
 import {ApplicationResourceList} from './application-resource-list';
 import {Filters, FiltersProps} from './application-resource-filter';
-import {urlPattern} from '../utils';
+import {getAppDefaultSource, urlPattern, helpTip} from '../utils';
 import {ResourceStatus} from '../../../shared/models';
 import {ApplicationsDetailsAppDropdown} from './application-details-app-dropdown';
 import {useSidebarTarget} from '../../../sidebar/sidebar';
 
 import './application-details.scss';
+import {AppViewExtension, ExtensionComponentProps} from '../../../shared/services/extensions-service';
 
 interface ApplicationDetailsState {
     page: number;
@@ -39,6 +40,8 @@ interface ApplicationDetailsState {
     filteredGraph?: any[];
     truncateNameOnRight?: boolean;
     collapsedNodes?: string[];
+    extensions?: AppViewExtension[];
+    extensionsMap?: {[key: string]: AppViewExtension};
 }
 
 interface FilterInput {
@@ -79,7 +82,13 @@ export class ApplicationDetails extends React.Component<RouteComponentProps<{app
 
     constructor(props: RouteComponentProps<{appnamespace: string; name: string}>) {
         super(props);
-        this.state = {page: 0, groupedResources: [], slidingPanelPage: 0, filteredGraph: [], truncateNameOnRight: false, collapsedNodes: []};
+        const extensions = services.extensions.getAppViewExtensions();
+        const extensionsMap: {[key: string]: AppViewExtension} = {};
+        extensions.forEach(ext => {
+            extensionsMap[ext.title] = ext;
+        });
+
+        this.state = {page: 0, groupedResources: [], slidingPanelPage: 0, filteredGraph: [], truncateNameOnRight: false, collapsedNodes: [], extensions, extensionsMap};
         if (typeof this.props.match.params.appnamespace === 'undefined') {
             this.appNamespace = '';
         } else {
@@ -195,7 +204,7 @@ export class ApplicationDetails extends React.Component<RouteComponentProps<{app
                             const conditions = application.status.conditions || [];
                             const syncResourceKey = new URLSearchParams(this.props.history.location.search).get('deploy');
                             const tab = new URLSearchParams(this.props.history.location.search).get('tab');
-
+                            const source = getAppDefaultSource(application);
                             const resourceNodes = (): any[] => {
                                 const statusByKey = new Map<string, models.ResourceStatus>();
                                 application.status.resources.forEach(res => statusByKey.set(AppUtils.nodeKey(res), res));
@@ -346,6 +355,18 @@ export class ApplicationDetails extends React.Component<RouteComponentProps<{app
                                                                 services.viewPreferences.updatePreferences({appDetails: {...pref, view: List}});
                                                             }}
                                                         />
+                                                        {this.state.extensions &&
+                                                            (this.state.extensions || []).map(ext => (
+                                                                <i
+                                                                    key={ext.title}
+                                                                    className={classNames(`fa ${ext.icon}`, {selected: pref.view === ext.title})}
+                                                                    title={ext.title}
+                                                                    onClick={() => {
+                                                                        this.appContext.apis.navigation.goto('.', {view: ext.title});
+                                                                        services.viewPreferences.updatePreferences({appDetails: {...pref, view: ext.title}});
+                                                                    }}
+                                                                />
+                                                            ))}
                                                     </div>
                                                 </React.Fragment>
                                             )
@@ -450,6 +471,9 @@ export class ApplicationDetails extends React.Component<RouteComponentProps<{app
                                                         }
                                                         quickStarts={node => AppUtils.renderResourceButtons(node, application, tree, this.appContext, this.appChanged)}
                                                     />
+                                                )) ||
+                                                (this.state.extensionsMap[pref.view] != null && (
+                                                    <ExtensionView extension={this.state.extensionsMap[pref.view]} application={application} tree={tree} />
                                                 )) || (
                                                     <div>
                                                         <DataLoader load={() => services.viewPreferences.getPreferences()}>
@@ -560,7 +584,7 @@ export class ApplicationDetails extends React.Component<RouteComponentProps<{app
                                                                 <div className='row white-box__details-row'>
                                                                     <div className='columns small-3'>SHA:</div>
                                                                     <div className='columns small-9'>
-                                                                        <Revision repoUrl={application.spec.source.repoURL} revision={this.state.revision} />
+                                                                        <Revision repoUrl={source.repoURL} revision={this.state.revision} />
                                                                     </div>
                                                                 </div>
                                                             </div>
@@ -613,6 +637,7 @@ export class ApplicationDetails extends React.Component<RouteComponentProps<{app
         const refreshing = app.metadata.annotations && app.metadata.annotations[appModels.AnnotationRefreshKey];
         const fullName = AppUtils.nodeKey({group: 'argoproj.io', kind: app.kind, name: app.metadata.name, namespace: app.metadata.namespace});
         const ActionMenuItem = (prop: {actionLabel: string}) => <span className={needOverlapLabelOnNarrowScreen ? 'show-for-large' : ''}>{prop.actionLabel}</span>;
+        const hasMultipleSources = app.spec.sources && app.spec.sources.length > 0;
         return [
             {
                 iconClassName: 'fa fa-info-circle',
@@ -638,9 +663,18 @@ export class ApplicationDetails extends React.Component<RouteComponentProps<{app
             },
             {
                 iconClassName: 'fa fa-history',
-                title: <ActionMenuItem actionLabel='History and rollback' />,
-                action: () => this.setRollbackPanelVisible(0),
-                disabled: !app.status.operationState
+                title: hasMultipleSources ? (
+                    <React.Fragment>
+                        <ActionMenuItem actionLabel=' History and rollback' />
+                        {helpTip('Rollback is not supported for apps with multiple sources')}
+                    </React.Fragment>
+                ) : (
+                    <ActionMenuItem actionLabel='History and rollback' />
+                ),
+                action: () => {
+                    this.setRollbackPanelVisible(0);
+                },
+                disabled: !app.status.operationState || hasMultipleSources
             },
             {
                 iconClassName: 'fa fa-times-circle',
@@ -845,3 +879,8 @@ Are you sure you want to disable auto-sync and rollback application '${this.prop
         await AppUtils.deleteApplication(this.props.match.params.name, this.appNamespace, this.appContext.apis);
     }
 }
+
+const ExtensionView = (props: {extension: AppViewExtension; application: models.Application; tree: models.ApplicationTree}) => {
+    const {extension, application, tree} = props;
+    return <extension.component application={application} tree={tree} />;
+};
