@@ -15,7 +15,6 @@ import (
 	applisters "github.com/argoproj/argo-cd/v2/pkg/client/listers/application/v1alpha1"
 	"github.com/argoproj/argo-cd/v2/server/rbacpolicy"
 	"github.com/argoproj/argo-cd/v2/util/security"
-	"github.com/argoproj/argo-cd/v2/util/session"
 	"github.com/argoproj/argo-cd/v2/util/settings"
 	"github.com/ghodss/yaml"
 	"github.com/gorilla/mux"
@@ -417,11 +416,11 @@ func (m *Manager) authorize(ctx context.Context, rr *RequestResources, extName s
 		return nil, fmt.Errorf("rbac enforcer not set in extension manager")
 	}
 	appRBACName := security.AppRBACName(rr.ApplicationNamespace, rr.ProjectName, rr.ApplicationNamespace, rr.ApplicationName)
-	if err := m.rbac.EnforceErr(ctx.Value(session.CtxKeyClaims), rbacpolicy.ResourceApplications, rbacpolicy.ActionGet, appRBACName); err != nil {
+	if err := m.rbac.EnforceErr(ctx.Value("claims"), rbacpolicy.ResourceApplications, rbacpolicy.ActionGet, appRBACName); err != nil {
 		return nil, fmt.Errorf("application authorization error: %s", err)
 	}
 
-	if err := m.rbac.EnforceErr(ctx.Value(session.CtxKeyClaims), rbacpolicy.ResourceExtensions, rbacpolicy.ActionInvoke, extName); err != nil {
+	if err := m.rbac.EnforceErr(ctx.Value("claims"), rbacpolicy.ResourceExtensions, rbacpolicy.ActionInvoke, extName); err != nil {
 		return nil, fmt.Errorf("unauthorized to invoke extension %q: %s", extName, err)
 	}
 
