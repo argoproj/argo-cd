@@ -83,13 +83,13 @@ outside the `dev-project` project.
 
 #### The `extensions` resource
 
-With extensions resources it is possible configure permissions to
+With the `extensions` resource it is possible configure permissions to
 invoke [proxy
 extensions](../developer-guide/extensions/proxy-extensions.md). The
 `extensions` RBAC validation works in conjunction with the
-`applications` resource. A user logged in Argo CD UI, needs to have
-at least read permission on the project, namespace and application where
-the request is originated from.
+`applications` resource. A user logged in Argo CD (UI or CLI), needs
+to have at least read permission on the project, namespace and
+application where the request is originated from.
 
 Consider the example below:
 
@@ -99,11 +99,17 @@ p, role:extension, applications, get, default/httpbin-app, allow
 p, role:extension, extensions, invoke, httpbin, allow
 ```
 
-The example above defines the group `role:extension` associated with
-the subject `ext`. It the next line it defines a policy allowing this
-role to read (`get`) the `httpbin-app` application from the `default`
-project. Finaly in the third line it defines another policy allowing
-this role to invoke the `httpbin` extension.
+Explanation:
+
+- *line1*: defines the group `role:extension` associated with the
+  subject `ext`.
+- *line2*: defines a policy allowing this role to read (`get`) the
+  `httpbin-app` application in the `default` project.
+- *line3*: defines another policy allowing this role to invoke the
+  `httpbin` extension.
+
+Note that for extensions requests to be allowed, the policy defined in
+the *line2* is also required.
 
 ## Tying It All Together
 

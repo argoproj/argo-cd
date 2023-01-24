@@ -217,8 +217,14 @@ request to.
 When a request to `/extensions/*` reaches the API Server, it will
 first verify if it is authenticated with a valid token. It does so by
 inspecting if the `Cookie` header is properly sent from Argo CD UI
-extension. Once the request is authenticated it is then verified if the
-user has permission to invoke this extension. 
+extension.
+
+Once the request is authenticated it is then verified if the
+user has permission to invoke this extension. The permission is
+enforced by Argo CD RBAC configuration. The details about how to
+configure the RBAC for proxy-extensions can be found in the [RBAC
+documentation][3].
 
 [1]: https://github.com/argoproj/argoproj/blob/master/community/feature-status.md
 [2]: https://argo-cd.readthedocs.io/en/stable/operator-manual/argocd-cm.yaml
+[3]: ../../operator-manual/rbac.md#the-extensions-resource
