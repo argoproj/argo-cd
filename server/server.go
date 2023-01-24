@@ -2,6 +2,7 @@ package server
 
 import (
 	"context"
+	netCtx "context"
 	"crypto/tls"
 	"fmt"
 	goio "io"
@@ -23,8 +24,6 @@ import (
 
 	// nolint:staticcheck
 	golang_proto "github.com/golang/protobuf/proto"
-
-	netCtx "context"
 
 	"github.com/argoproj/pkg/sync"
 	"github.com/go-redis/redis/v8"
@@ -54,6 +53,8 @@ import (
 	"k8s.io/apimachinery/pkg/util/wait"
 	"k8s.io/client-go/kubernetes"
 	"k8s.io/client-go/tools/cache"
+
+	"github.com/pkg/errors"
 
 	"github.com/argoproj/argo-cd/v2/common"
 	"github.com/argoproj/argo-cd/v2/pkg/apiclient"
@@ -112,7 +113,6 @@ import (
 	"github.com/argoproj/argo-cd/v2/util/swagger"
 	tlsutil "github.com/argoproj/argo-cd/v2/util/tls"
 	"github.com/argoproj/argo-cd/v2/util/webhook"
-	"github.com/pkg/errors"
 )
 
 const maxConcurrentLoginRequestsCountEnv = "ARGOCD_MAX_CONCURRENT_LOGIN_REQUESTS_COUNT"
@@ -812,40 +812,10 @@ func (a *ArgoCDServer) newHTTPServer(ctx context.Context, port int, grpcWebHandl
 	}
 	mux.Handle("/api/", handler)
 
-	terminalHandler := application.NewHandler(a.appLister, a.db, a.enf, a.Cache, appResourceTreeFn, a.settings.ExecShells)
-	mux.HandleFunc("/terminal", func(writer http.ResponseWriter, request *http.Request) {
-		argocdSettings, err := a.settingsMgr.GetSettings()
-		if err != nil {
-			http.Error(writer, fmt.Sprintf("Failed to get settings: %v", err), http.StatusBadRequest)
-			return
-		}
-		if !argocdSettings.ExecEnabled {
-			writer.WriteHeader(http.StatusNotFound)
-			return
-		}
-
-		if !a.DisableAuth {
-			ctx := request.Context()
-			cookies := request.Cookies()
-			tokenString, err := httputil.JoinCookies(common.AuthCookieName, cookies)
-			if err == nil && jwtutil.IsValid(tokenString) {
-				claims, _, err := a.sessionMgr.VerifyToken(tokenString)
-				if err != nil {
-					// nolint:staticcheck
-					ctx = context.WithValue(ctx, util_session.AuthErrorCtxKey, err)
-				} else if claims != nil {
-					// Add claims to the context to inspect for RBAC
-					// nolint:staticcheck
-					ctx = context.WithValue(ctx, "claims", claims)
-				}
-				request = request.WithContext(ctx)
-			} else {
-				writer.WriteHeader(http.StatusUnauthorized)
-				return
-			}
-		}
-		terminalHandler.ServeHTTP(writer, request)
-	})
+	terminal := application.NewHandler(a.appLister, a.db, a.enf, a.Cache, appResourceTreeFn, a.settings.ExecShells).
+		WithFeatureFlagMiddleware(a.settingsMgr.GetSettings)
+	th := util_session.WithAuthMiddleware(a.DisableAuth, a.sessionMgr, terminal)
+	mux.Handle("/terminal", th)
 
 	mustRegisterGWHandler(versionpkg.RegisterVersionServiceHandler, ctx, gwmux, conn)
 	mustRegisterGWHandler(clusterpkg.RegisterClusterServiceHandler, ctx, gwmux, conn)
