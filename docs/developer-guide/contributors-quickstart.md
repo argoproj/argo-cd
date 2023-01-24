@@ -28,9 +28,9 @@ cd src/github.com/argoproj &&
 git clone https://github.com/argoproj/argo-cd.git
 ```
 
-### Install Docker
+### Install Rancher Desktop
 
-<https://docs.docker.com/engine/install/>
+<https://docs.rancherdesktop.io/getting-started/installation//>
 
 ### Install or Upgrade `kind` (Optional - Should work with any local cluster)
 
