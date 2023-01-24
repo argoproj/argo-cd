@@ -105,11 +105,15 @@ Explanation:
   subject `ext`.
 - *line2*: defines a policy allowing this role to read (`get`) the
   `httpbin-app` application in the `default` project.
-- *line3*: defines another policy allowing this role to invoke the
+- *line3*: defines another policy allowing this role to `invoke` the
   `httpbin` extension.
 
-Note that for extensions requests to be allowed, the policy defined in
-the *line2* is also required.
+**Note 1**: that for extensions requests to be allowed, the policy defined
+in the *line2* is also required. 
+
+**Note 2**: `invoke` is a new action introduced specifically to be used
+with the `extensions` resource. The current actions for `extensions`
+are `*` or `invoke`. 
 
 ## Tying It All Together
 

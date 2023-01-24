@@ -13,8 +13,24 @@ requests before forwarding to the backend service.
 
 ## Configuration
 
-Proxy extensions are configured in the main Argo CD configmap
-([argocd-cm][2]).
+As proxy extension is in [Alpha][1] phase, the feature is disabled by
+default. To enable it, it is necessary to configure the feature flag
+in Argo CD command parameters. The easiest way to to properly enable
+this feature flag is by adding the `server.enable.proxy.extension` key
+in the existing `argocd-cmd-params-cm`. For example:
+
+```yaml
+apiVersion: v1
+kind: ConfigMap
+metadata:
+  name: argocd-cmd-params-cm
+  namespace: argocd
+data:
+  server.enable.proxy.extension: "true"
+```
+
+Once the proxy extension is enabled, it can be configured in the main
+Argo CD configmap ([argocd-cm][2]).
 
 The example below demonstrate all possible configurations available
 for proxy extensions:
