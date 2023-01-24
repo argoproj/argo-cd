@@ -95,7 +95,11 @@ Is the address where the extension backend must be available.
 
 If provided, will have to match the application destination name to
 have requests properly forwarded to this service URL. If there are
-multiple backends for the same extension this field is required.
+multiple backends for the same extension this field is required. The
+value can be the cluster name (priority) or the cluster server URL. It
+will be matched with the value from
+`Application.Spec.Destination.Name` and if that is not available it
+will match if the value from `Application.Spec.Destination.Server`.
 
 ## Usage
 
