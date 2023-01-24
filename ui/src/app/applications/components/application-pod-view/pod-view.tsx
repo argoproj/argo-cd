@@ -285,6 +285,7 @@ export class PodView extends React.Component<PodViewProps> {
                 </React.Fragment>
             ),
             action: () => {
+                this.appContext.apis.navigation.goto('.', {podSortMode: mode});
                 services.viewPreferences.updatePreferences({appDetails: {...prefs.appDetails, podView: {...podPrefs, sortMode: mode}}});
             }
         }));

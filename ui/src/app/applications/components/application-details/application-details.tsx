@@ -16,7 +16,7 @@ import {AppDetailsPreferences, AppsDetailsViewKey, AppsDetailsViewType, services
 import {ApplicationConditions} from '../application-conditions/application-conditions';
 import {ApplicationDeploymentHistory} from '../application-deployment-history/application-deployment-history';
 import {ApplicationOperationState} from '../application-operation-state/application-operation-state';
-import {PodView} from '../application-pod-view/pod-view';
+import {PodGroupType, PodView} from '../application-pod-view/pod-view';
 import {ApplicationResourceTree, ResourceTreeNode} from '../application-resource-tree/application-resource-tree';
 import {ApplicationStatusPanel} from '../application-status-panel/application-status-panel';
 import {ApplicationSyncPanel} from '../application-sync-panel/application-sync-panel';
@@ -169,6 +169,7 @@ export class ApplicationDetails extends React.Component<RouteComponentProps<{app
                         load={name =>
                             combineLatest([this.loadAppInfo(name, this.appNamespace), services.viewPreferences.getPreferences(), q]).pipe(
                                 map(items => {
+                                    const application = items[0].application;
                                     const pref = items[1].appDetails;
                                     const params = items[2];
                                     if (params.get('resource') != null) {
@@ -179,9 +180,26 @@ export class ApplicationDetails extends React.Component<RouteComponentProps<{app
                                     }
                                     if (params.get('view') != null) {
                                         pref.view = params.get('view') as AppsDetailsViewType;
+                                    } else {
+                                        const appDefaultView = (application.metadata &&
+                                            application.metadata.annotations &&
+                                            application.metadata.annotations[appModels.AnnotationDefaultView]) as AppsDetailsViewType;
+                                        if (appDefaultView != null) {
+                                            pref.view = appDefaultView;
+                                        }
                                     }
                                     if (params.get('orphaned') != null) {
                                         pref.orphanedResources = params.get('orphaned') === 'true';
+                                    }
+                                    if (params.get('podSortMode') != null) {
+                                        pref.podView.sortMode = params.get('podSortMode') as PodGroupType;
+                                    } else {
+                                        const appDefaultPodSort = (application.metadata &&
+                                            application.metadata.annotations &&
+                                            application.metadata.annotations[appModels.AnnotationDefaultPodSort]) as PodGroupType;
+                                        if (appDefaultPodSort != null) {
+                                            pref.podView.sortMode = appDefaultPodSort;
+                                        }
                                     }
                                     return {...items[0], pref};
                                 })
