@@ -12,3 +12,4 @@ resources:
 - ./server
 - ./config
 - ./redis
+- ./applicationset-controller

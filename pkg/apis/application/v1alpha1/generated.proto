@@ -1446,6 +1446,12 @@ message ResourceNode {
   optional HealthStatus health = 7;
 
   optional k8s.io.apimachinery.pkg.apis.meta.v1.Time createdAt = 8;
+
+  // available for managed resource
+  map<string, string> labels = 9;
+
+  // available for managed resource without k8s-last-applied-configuration
+  map<string, string> annotations = 10;
 }
 
 // ResourceOverride holds configuration to customize resource diffing and health assessment

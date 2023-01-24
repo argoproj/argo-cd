@@ -3439,6 +3439,20 @@
         },
         "createdAt": {
           "$ref": "#/definitions/v1Time"
+        },
+        "labels": {
+          "type": "object",
+          "additionalProperties": {
+            "type": "string"
+          },
+          "title": "available for managed resource"
+        },
+        "annotations": {
+          "type": "object",
+          "additionalProperties": {
+            "type": "string"
+          },
+          "title": "available for managed resource without k8s-last-applied-configuration"
         }
       },
       "title": "ResourceNode contains information about live resource and its children\nTODO: describe members of this type"
