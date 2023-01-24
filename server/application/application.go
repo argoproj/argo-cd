@@ -101,11 +101,6 @@ type Server struct {
 	applicationEventReporter *applicationEventReporter
 }
 
-func (s *Server) RollbackApplicationRollout(ctx context.Context, request *application.ApplicationRolloutRollbackRequest) (*application.ApplicationRolloutRollbackResponse, error) {
-	//TODO implement me
-	panic("implement me")
-}
-
 // NewServer returns a new instance of the Application service
 func NewServer(
 	namespace string,
