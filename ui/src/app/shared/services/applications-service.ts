@@ -288,10 +288,11 @@ export class ApplicationsService {
             .then(res => JSON.parse(res.manifest) as models.State);
     }
 
-    public getResourceActions(name: string, appNamspace: string, resource: models.ResourceNode): Promise<models.ResourceAction[]> {
+    public getResourceActions(name: string, appNamespace: string, resource: models.ResourceNode): Promise<models.ResourceAction[]> {
         return requests
             .get(`/applications/${name}/resource/actions`)
             .query({
+                appNamespace,
                 namespace: resource.namespace,
                 resourceName: resource.name,
                 version: resource.version,
@@ -301,10 +302,11 @@ export class ApplicationsService {
             .then(res => (res.body.actions as models.ResourceAction[]) || []);
     }
 
-    public runResourceAction(name: string, appNamspace: string, resource: models.ResourceNode, action: string): Promise<models.ResourceAction[]> {
+    public runResourceAction(name: string, appNamespace: string, resource: models.ResourceNode, action: string): Promise<models.ResourceAction[]> {
         return requests
             .post(`/applications/${name}/resource/actions`)
             .query({
+                appNamespace,
                 namespace: resource.namespace,
                 resourceName: resource.name,
                 version: resource.version,
