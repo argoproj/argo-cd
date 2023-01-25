@@ -596,3 +596,52 @@ snyk-non-container-tests:
 .PHONY: snyk-report
 snyk-report:
 	./hack/snyk-report.sh $(target_branch)
+
+.PHONY: help
+help:
+	@echo 'Note: Generally an item w/ (-local) will run inside docker unless you use the -local variant'
+	@echo
+	@echo 'Common targets'
+	@echo
+	@echo 'all -- make cli and image'
+	@echo
+	@echo 'components:'
+	@echo '  applicationset-controller -- applicationset controller'
+	@echo '  cli(-local)               -- argocd cli program'
+	@echo '  controller                -- controller (orchestrator)'
+	@echo '  repo-server               -- repo server (manage repository instances)'
+	@echo '  server                    -- argocd web application'
+	@echo
+	@echo 'build:'
+	@echo '  image                     -- make image of the following items'
+	@echo '  build(-local)             -- compile go'
+	@echo '  build-docs(-local)        -- build docs'
+	@echo '  build-ui                  -- compile typescript'
+	@echo
+	@echo 'run:'
+	@echo '  run                       -- run the components locally'
+	@echo '  serve-docs(-local)        -- expose the documents for viewing in a browser'
+	@echo
+	@echo 'release:'
+	@echo '  release-cli'
+	@echo '  release-precheck'
+	@echo '  checksums'
+	@echo
+	@echo 'docs:'
+	@echo '  build-docs(-local)'
+	@echo '  serve-docs(-local)'
+	@echo '  notification-docs'
+	@echo '  clidocsgen'
+	@echo
+	@echo 'testing:'
+	@echo '  test(-local)'
+	@echo '  start-e2e(-local)'
+	@echo '  test-e2e(-local)'
+	@echo '  test-race(-local)'
+	@echo
+	@echo 'debug:'
+	@echo '  list -- list all make targets'
+	@echo '  install-tools-local -- install all the tools below'
+	@echo '  install-codegen-tools-local --'
+	@echo '  install-go-tools-local'
+	@echo '  install-lint-tools(-local)'
