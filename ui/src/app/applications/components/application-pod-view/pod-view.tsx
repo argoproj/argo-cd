@@ -164,13 +164,20 @@ export class PodView extends React.Component<PodViewProps> {
                                                                                 <div>
                                                                                     {pod.metadata.name}
                                                                                     <div>Health: {pod.health}</div>
+                                                                                    <div>
+                                                                                        {(pod.info || []).map(i => (
+                                                                                            <div key={i.name}>
+                                                                                                {i.name}: {i.value}
+                                                                                            </div>
+                                                                                        ))}
+                                                                                    </div>
                                                                                     {pod.createdAt && (
                                                                                         <span>
                                                                                             <span>Created: </span>
                                                                                             <Moment fromNow={true} ago={true}>
                                                                                                 {pod.createdAt}
                                                                                             </Moment>
-                                                                                            <span> ago ({<Moment local={true}>{pod.createdAt}</Moment>})</span>
+                                                                                            <span> ago</span>
                                                                                             <div>
                                                                                                 {isYoungerThanXMinutes(pod, 30) && (
                                                                                                     <span>
