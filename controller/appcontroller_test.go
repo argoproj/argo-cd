@@ -1373,3 +1373,31 @@ func TestToAppKey(t *testing.T) {
 		})
 	}
 }
+
+func Test_canProcessApp(t *testing.T) {
+	app := newFakeApp()
+	ctrl := newFakeController(&fakeData{apps: []runtime.Object{app}})
+	ctrl.applicationNamespaces = []string{"good"}
+	t.Run("without cluster filter, good namespace", func(t *testing.T) {
+		app.Namespace = "good"
+		canProcess := ctrl.canProcessApp(app)
+		assert.True(t, canProcess)
+	})
+	t.Run("without cluster filter, bad namespace", func(t *testing.T) {
+		app.Namespace = "bad"
+		canProcess := ctrl.canProcessApp(app)
+		assert.False(t, canProcess)
+	})
+	t.Run("with cluster filter, good namespace", func(t *testing.T) {
+		app.Namespace = "good"
+		ctrl.clusterFilter = func(_ *argoappv1.Cluster) bool { return true }
+		canProcess := ctrl.canProcessApp(app)
+		assert.True(t, canProcess)
+	})
+	t.Run("with cluster filter, bad namespace", func(t *testing.T) {
+		app.Namespace = "bad"
+		ctrl.clusterFilter = func(_ *argoappv1.Cluster) bool { return true }
+		canProcess := ctrl.canProcessApp(app)
+		assert.False(t, canProcess)
+	})
+}
