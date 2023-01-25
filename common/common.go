@@ -1,6 +1,7 @@
 package common
 
 import (
+	"errors"
 	"os"
 	"path/filepath"
 	"strconv"
@@ -293,3 +294,8 @@ const (
 	// Keep alive is 2x enforcement minimum to ensure network jitter does not introduce ENHANCE_YOUR_CALM errors
 	GRPCKeepAliveTime = 2 * GRPCKeepAliveEnforcementMinimum
 )
+
+// Common error messages
+const TokenVerificationError = "failed to verify the token"
+
+var TokenVerificationErr = errors.New(TokenVerificationError)
