@@ -1,6 +1,7 @@
 package common
 
 import (
+	"errors"
 	"os"
 	"time"
 )
@@ -241,3 +242,8 @@ func GetPluginSockFilePath() string {
 		return pluginSockFilePath
 	}
 }
+
+// Common error messages
+const TokenVerificationError = "failed to verify the token"
+
+var TokenVerificationErr = errors.New(TokenVerificationError)
