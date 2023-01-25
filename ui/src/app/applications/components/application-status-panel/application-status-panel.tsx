@@ -82,7 +82,7 @@ export const ApplicationStatusPanel = ({application, showOperation, showConditio
                             title: 'CURRENT SYNC STATUS',
                             helpContent: 'Whether or not the version of your app is up to date with your repo. You may wish to sync your app if it is out-of-sync.'
                         },
-                        application.spec.source.chart ? null : () => showMetadataInfo(application.status.sync ? application.status.sync.revision : '')
+                        () => showMetadataInfo(application.status.sync ? application.status.sync.revision : '')
                     )}
                     <div className='application-status-panel__item-value'>
                         <div>
@@ -114,7 +114,7 @@ export const ApplicationStatusPanel = ({application, showOperation, showConditio
                                     daysSinceLastSynchronized +
                                     ' days since last sync. Click for the status of that sync.'
                             },
-                            application.spec.source.chart ? null : () => showMetadataInfo(appOperationState.syncResult ? appOperationState.syncResult.revision : '')
+                            () => showMetadataInfo(appOperationState.syncResult ? appOperationState.syncResult.revision : '')
                         )}
                         <div className={`application-status-panel__item-value application-status-panel__item-value--${appOperationState.phase}`}>
                             <a onClick={() => showOperation && showOperation()}>
