@@ -29,10 +29,10 @@ jobs:
     env:
       GOPATH: /home/runner/work/argo-cd/argo-cd
     steps:
-      - uses: actions/setup-go@d0a58c1c4d2b25278816e339b944508c875f3613 # v3.4.0
+      - uses: actions/setup-go@6edd4406fa81c3da01a34fa6f6343087c207a568 # v3.5.0
         with:
           go-version: ${{ env.GOLANG_VERSION }}
-      - uses: actions/checkout@755da8c3cf115ac066823e79a1e1788f8940201b # v3.2.0
+      - uses: actions/checkout@ac593985615ec2ede58e132d2e21d2b1cbd6127c # v3.3.0
         with:
           path: src/github.com/argoproj/argo-cd
 
@@ -62,7 +62,7 @@ jobs:
             IMAGE_PLATFORMS=linux/amd64,linux/arm64,linux/s390x,linux/ppc64le
           fi
           echo "Building image for platforms: $IMAGE_PLATFORMS"
-          docker buildx build --platform $IMAGE_PLATFORMS --push="${{ github.event_name == 'push' }}" \
+          docker buildx build --platform $IMAGE_PLATFORMS --sbom=false --provenance=false --push="${{ github.event_name == 'push' }}" \
             -t ghcr.io/argoproj/argo-cd/argocd:${{ steps.image.outputs.tag }} \
             -t quay.io/argoproj/argocd:latest .
         working-directory: ./src/github.com/argoproj/argo-cd
@@ -76,9 +76,12 @@ jobs:
       - name: Install crane to get digest of image
         uses: imjasonh/setup-crane@e82f1b9a8007d399333baba4d75915558e9fb6a4
 
-      - name: Sign Argo CD latest image
+      - name: Get digest of image
         run: |
           echo "IMAGE_DIGEST=$(crane digest quay.io/argoproj/argocd:latest)" >> $GITHUB_ENV
+
+      - name: Sign Argo CD latest image
+        run: |
           cosign sign --key env://COSIGN_PRIVATE_KEY quay.io/argoproj/argocd@${{ env.IMAGE_DIGEST }}
           # Displays the public key to share.
           cosign public-key --key env://COSIGN_PRIVATE_KEY
