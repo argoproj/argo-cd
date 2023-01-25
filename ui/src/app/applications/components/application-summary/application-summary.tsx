@@ -3,6 +3,7 @@ import * as React from 'react';
 import {FormApi, Text} from 'react-form';
 import {
     ARGO_WARNING_COLOR,
+    ClipboardText,
     Cluster,
     DataLoader,
     EditablePanel,
@@ -149,7 +150,7 @@ export const ApplicationSummary = (props: ApplicationSummaryProps) => {
         },
         {
             title: 'NAMESPACE',
-            view: app.spec.destination.namespace,
+            view: <ClipboardText text={app.spec.destination.namespace} />,
             edit: (formApi: FormApi) => <FormField formApi={formApi} field='spec.destination.namespace' component={Text} />
         },
         {
