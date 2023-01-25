@@ -13,6 +13,7 @@ import './application-status-panel.scss';
 
 interface Props {
     application: models.Application;
+    showDiff?: () => any;
     showOperation?: () => any;
     showConditions?: () => any;
     showMetadataInfo?: (revision: string) => any;
@@ -43,7 +44,7 @@ const sectionHeader = (info: SectionInfo, onClick?: () => any) => {
     );
 };
 
-export const ApplicationStatusPanel = ({application, showOperation, showConditions, showMetadataInfo}: Props) => {
+export const ApplicationStatusPanel = ({application, showDiff, showOperation, showConditions, showMetadataInfo}: Props) => {
     const today = new Date();
 
     let daysSinceLastSynchronized = 0;
@@ -87,7 +88,13 @@ export const ApplicationStatusPanel = ({application, showOperation, showConditio
                     )}
                     <div className='application-status-panel__item-value'>
                         <div>
-                            <ComparisonStatusIcon status={application.status.sync.status} label={true} />
+                            {application.status.sync.status === models.SyncStatuses.OutOfSync ? (
+                                <a onClick={() => showDiff && showDiff()}>
+                                    <ComparisonStatusIcon status={application.status.sync.status} label={true} />
+                                </a>
+                            ) : (
+                                <ComparisonStatusIcon status={application.status.sync.status} label={true} />
+                            )}
                         </div>
                         <div className='application-status-panel__item-value__revision show-for-large'>{syncStatusMessage(application)}</div>
                     </div>
