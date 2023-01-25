@@ -335,7 +335,7 @@ func (ctrl *ApplicationController) handleObjectUpdated(managedByApp map[string]b
 		}
 
 		if !ctrl.canProcessApp(obj) {
-			// Don't force refresh app if app belongs to a different controller shard
+			// Don't force refresh app if app belongs to a different controller shard or is outside the allowed namespaces.
 			continue
 		}
 
@@ -1773,18 +1773,19 @@ func (ctrl *ApplicationController) canProcessApp(obj interface{}) bool {
 	if !ok {
 		return false
 	}
+
+	// Only process given app if it exists in a watched namespace, or in the
+	// control plane's namespace.
+	if app.Namespace != ctrl.namespace && !glob.MatchStringInList(ctrl.applicationNamespaces, app.Namespace, false) {
+		return false
+	}
+
 	if ctrl.clusterFilter != nil {
 		cluster, err := ctrl.db.GetCluster(context.Background(), app.Spec.Destination.Server)
 		if err != nil {
 			return ctrl.clusterFilter(nil)
 		}
 		return ctrl.clusterFilter(cluster)
-	}
-
-	// Only process given app if it exists in a watched namespace, or in the
-	// control plane's namespace.
-	if app.Namespace != ctrl.namespace && !glob.MatchStringInList(ctrl.applicationNamespaces, app.Namespace, false) {
-		return false
 	}
 
 	return true
