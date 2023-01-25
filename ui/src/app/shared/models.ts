@@ -129,6 +129,8 @@ export interface ResourceResult {
 export const AnnotationRefreshKey = 'argocd.argoproj.io/refresh';
 export const AnnotationHookKey = 'argocd.argoproj.io/hook';
 export const AnnotationSyncWaveKey = 'argocd.argoproj.io/sync-wave';
+export const AnnotationDefaultView = 'pref.argocd.argoproj.io/default-view';
+export const AnnotationDefaultPodSort = 'pref.argocd.argoproj.io/default-pod-sort';
 
 export interface Application {
     apiVersion?: string;
@@ -265,6 +267,7 @@ export interface Info {
 export interface ApplicationSpec {
     project: string;
     source: ApplicationSource;
+    sources: ApplicationSource[];
     destination: ApplicationDestination;
     syncPolicy?: SyncPolicy;
     ignoreDifferences?: ResourceIgnoreDifferences[];
@@ -288,6 +291,8 @@ export interface RevisionHistory {
     id: number;
     revision: string;
     source: ApplicationSource;
+    revisions: string[];
+    sources: ApplicationSource[];
     deployStartedAt: models.Time;
     deployedAt: models.Time;
 }
@@ -393,6 +398,7 @@ export interface SyncStatus {
     comparedTo: ApplicationSource;
     status: SyncStatusCode;
     revision: string;
+    revisions: string[];
 }
 
 export interface ApplicationCondition {
@@ -926,4 +932,15 @@ export enum PodPhase {
 
 export interface NotificationChunk {
     name: string;
+}
+
+export interface LinkInfo {
+    title: string;
+    url: string;
+    description?: string;
+    iconClass?: string;
+}
+
+export interface LinksResponse {
+    items: LinkInfo[];
 }

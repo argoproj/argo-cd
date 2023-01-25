@@ -4,6 +4,7 @@ option go_package = "github.com/argoproj/argo-cd/v2/reposerver/apiclient";
 package repository;
 
 import "github.com/argoproj/argo-cd/v2/pkg/apis/application/v1alpha1/generated.proto";
+import "google/protobuf/empty.proto";
 
 // ManifestRequest is a query for manifest generation.
 message ManifestRequest {
@@ -28,6 +29,8 @@ message ManifestRequest {
     string trackingMethod = 19;
     map<string, bool> enabledSourceTypes = 20;
     github.com.argoproj.argo_cd.v2.pkg.apis.application.v1alpha1.HelmOptions helmOptions = 21;
+    bool hasMultipleSources = 22;
+    map<string, github.com.argoproj.argo_cd.v2.pkg.apis.application.v1alpha1.RefTarget> refSources = 23;
 }
 
 message ManifestRequestWithFiles {
@@ -107,6 +110,15 @@ message AppList {
     map<string, string> apps = 1;
 }
 
+message PluginInfo {
+    string name = 1;
+}
+
+// PluginList returns the list of all cmp v2 plugins running as sidecars
+message PluginList {
+    repeated PluginInfo items = 1;
+}
+
 // RepoServerAppDetailsQuery contains query information for app details request
 message RepoServerAppDetailsQuery {
     github.com.argoproj.argo_cd.v2.pkg.apis.application.v1alpha1.Repository repo = 1;
@@ -119,6 +131,7 @@ message RepoServerAppDetailsQuery {
     string trackingMethod = 8;
     map<string, bool> enabledSourceTypes = 9;
     github.com.argoproj.argo_cd.v2.pkg.apis.application.v1alpha1.HelmOptions helmOptions = 10;
+    map<string, github.com.argoproj.argo_cd.v2.pkg.apis.application.v1alpha1.RefTarget> refSources = 11;
 }
 
 // RepoAppDetailsResponse application details
@@ -237,6 +250,10 @@ service RepoServerService {
 
     // ListApps returns a list of apps in the repo
     rpc ListApps(ListAppsRequest) returns (AppList) {
+    }
+
+    // ListPlugins returns a list of cmp v2 plugins running as sidecar to reposerver
+    rpc ListPlugins(google.protobuf.Empty) returns (PluginList) {
     }
 
     // Generate manifest for application in specified repo name and revision
