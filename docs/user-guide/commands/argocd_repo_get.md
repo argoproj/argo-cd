@@ -10,8 +10,8 @@ argocd repo get [flags]
 
 ```
   -h, --help             help for get
-  -o, --output string    Output format. One of: json|yaml|wide|url (default "wide")
-      --refresh string   Force a cache refresh on connection status , must be one of: 'hard'
+  -o, --output string    Output format. Supported formats: yaml|json|url|wide (default "wide")
+      --refresh string   Force a cache refresh on connection status. Supported kinds: hard
 ```
 
 ### Options inherited from parent commands
