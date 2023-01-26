@@ -122,7 +122,7 @@ To terminate the sync, click on the "synchronisation" then "terminate":
 
 ![Synchronization](assets/synchronization-button.png) ![Terminate](assets/terminate-button.png)
 
-## Why Is My App Out Of Sync Even After Syncing?
+## Why Is My App `Out Of Sync` Even After Syncing?
 
 Is some cases, the tool you use may conflict with Argo CD by adding the `app.kubernetes.io/instance` label. E.g. using
 Kustomize common labels feature.
@@ -142,7 +142,7 @@ The default polling interval is 3 minutes (180 seconds).
 You can change the setting by updating the `timeout.reconciliation` value in the [argocd-cm](https://github.com/argoproj/argo-cd/blob/2d6ce088acd4fb29271ffb6f6023dbb27594d59b/docs/operator-manual/argocd-cm.yaml#L279-L282) config map. If there are any Git changes, ArgoCD will only update applications with the [auto-sync setting](user-guide/auto_sync.md) enabled. If you set it to `0` then Argo CD will stop polling Git repositories automatically and you can only use alternative methods such as [webhooks](operator-manual/webhook.md) and/or manual syncs for deploying applications.
 
 
-## Why Are My Resource Limits Out Of Sync?
+## Why Are My Resource Limits `Out Of Sync`?
 
 Kubernetes has normalized your resource limits when they are applied, and then Argo CD has then compared the version in
 your generated manifests to the normalized one is Kubernetes - they won't match.
@@ -157,7 +157,7 @@ E.g.
 To fix this use diffing
 customizations [settings](./user-guide/diffing.md#known-kubernetes-types-in-crds-resource-limits-volume-mounts-etc).
 
-## How Do I Fix "invalid cookie, longer than max length 4093"?
+## How Do I Fix `invalid cookie, longer than max length 4093`?
 
 Argo CD uses a JWT as the auth token. You likely are part of many groups and have gone over the 4KB limit which is set
 for cookies. You can get the list of groups by opening "developer tools -> network"
