@@ -92,7 +92,7 @@ COPY ./test/container/entrypoint.sh /usr/local/bin
 ARG UID
 
 # Prepare user configuration & build environments
-RUN useradd -l -u ${UID} -d /home/user -s /bin/bash user && \
+RUN useradd -l -o -u ${UID} -d /home/user -s /bin/bash user && \
     echo "user ALL=(ALL) NOPASSWD:ALL" > /etc/sudoers.d/user && \
     mkdir -p /home/user/.kube && \
     chown -R user /home/user && \
