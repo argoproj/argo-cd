@@ -459,7 +459,6 @@ export interface AuthSettings {
         chatText: string;
         binaryUrls: Record<string, string>;
     };
-    plugins: Plugin[];
     userLoginsDisabled: boolean;
     kustomizeVersions: string[];
     uiCssURL: string;
