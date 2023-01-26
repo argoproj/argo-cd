@@ -348,9 +348,9 @@ func GetRefSources(ctx context.Context, spec argoappv1.ApplicationSpec, db db.Ar
 		refKeys := make(map[string]bool)
 		for _, source := range spec.Sources {
 			if source.Ref != "" {
-				isValidRefKey := regexp.MustCompile(`^[a-zA-Z0-9]+$`).MatchString
+				isValidRefKey := regexp.MustCompile(`^[a-zA-Z0-9_-]+$`).MatchString
 				if !isValidRefKey(source.Ref) {
-					return nil, fmt.Errorf("source.ref %s cannot contain any special characters except '_' and '-'", source.Ref)
+					return nil, fmt.Errorf("sources.ref %s cannot contain any special characters except '_' and '-'", source.Ref)
 				}
 				refKey := "$" + source.Ref
 				if _, ok := refKeys[refKey]; ok {
@@ -726,6 +726,21 @@ func SetAppOperation(appIf v1alpha1.ApplicationInterface, appName string, op *ar
 func ContainsSyncResource(name string, namespace string, gvk schema.GroupVersionKind, rr []argoappv1.SyncOperationResource) bool {
 	for _, r := range rr {
 		if r.HasIdentity(name, namespace, gvk) {
+			return true
+		}
+	}
+	return false
+}
+
+// IncludeResource checks if an app resource matches atleast one of the filters, then it returns true.
+func IncludeResource(resourceName string, resourceNamespace string, gvk schema.GroupVersionKind,
+	syncOperationResources []*argoappv1.SyncOperationResource) bool {
+	for _, syncOperationResource := range syncOperationResources {
+		includeResource := syncOperationResource.Compare(resourceName, resourceNamespace, gvk)
+		if syncOperationResource.Exclude {
+			includeResource = !includeResource
+		}
+		if includeResource {
 			return true
 		}
 	}

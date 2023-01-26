@@ -27,7 +27,7 @@ spec:
   sources:
     - chart: elasticsearch
       repoURL: https://helm.elastic.co
-      targetRevision: 7.6.0
+      targetRevision: 8.5.1
     - repoURL: https://github.com/argoproj/argocd-example-apps.git
       path: guestbook
       targetRevision: HEAD

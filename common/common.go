@@ -1,6 +1,7 @@
 package common
 
 import (
+	"errors"
 	"os"
 	"path/filepath"
 	"strconv"
@@ -317,3 +318,8 @@ const (
 	SecurityMedium    = 2 // Could indicate malicious events, but has a high likelihood of being user/system error (i.e. access denied)
 	SecurityLow       = 1 // Unexceptional entries (i.e. successful access logs)
 )
+
+// Common error messages
+const TokenVerificationError = "failed to verify the token"
+
+var TokenVerificationErr = errors.New(TokenVerificationError)
