@@ -225,3 +225,7 @@ resource.customizations.health.bitnami.com_SealedSecret: |
   hs.message = "Controller doesn't report resource status"
   return hs
 ```
+
+## My syncs are failing with a ComparisonError `The order in patch list … doesn't match $setElementOrder list: …`
+The YAML file from where this error comes from has a duplicate key, value pair
+
