@@ -3,7 +3,7 @@ package v1alpha1
 import (
 	"encoding/json"
 	"errors"
-	fmt "fmt"
+	"fmt"
 	"os"
 	"path"
 	"reflect"
@@ -11,9 +11,10 @@ import (
 	"testing"
 	"time"
 
-	argocdcommon "github.com/argoproj/argo-cd/v2/common"
 	"github.com/stretchr/testify/require"
 	"k8s.io/utils/pointer"
+
+	argocdcommon "github.com/argoproj/argo-cd/v2/common"
 
 	"github.com/argoproj/gitops-engine/pkg/sync/common"
 	"github.com/stretchr/testify/assert"
@@ -3261,8 +3262,8 @@ func TestApplicationSourcePluginParameters_Environ_string(t *testing.T) {
 func TestApplicationSourcePluginParameters_Environ_array(t *testing.T) {
 	params := ApplicationSourcePluginParameters{
 		{
-			Name:  "dependencies",
-			Array: []string{"redis", "minio"},
+			Name:          "dependencies",
+			OptionalArray: &OptionalArray{Array: []string{"redis", "minio"}},
 		},
 	}
 	environ, err := params.Environ()
@@ -3279,9 +3280,11 @@ func TestApplicationSourcePluginParameters_Environ_map(t *testing.T) {
 	params := ApplicationSourcePluginParameters{
 		{
 			Name: "helm-parameters",
-			Map: map[string]string{
-				"image.repo": "quay.io/argoproj/argo-cd",
-				"image.tag":  "v2.4.0",
+			OptionalMap: &OptionalMap{
+				Map: map[string]string{
+					"image.repo": "quay.io/argoproj/argo-cd",
+					"image.tag":  "v2.4.0",
+				},
 			},
 		},
 	}
@@ -3302,10 +3305,14 @@ func TestApplicationSourcePluginParameters_Environ_all(t *testing.T) {
 		{
 			Name:    "some-name",
 			String_: pointer.String("1.2.3"),
-			Array:   []string{"redis", "minio"},
-			Map: map[string]string{
-				"image.repo": "quay.io/argoproj/argo-cd",
-				"image.tag":  "v2.4.0",
+			OptionalArray: &OptionalArray{
+				Array: []string{"redis", "minio"},
+			},
+			OptionalMap: &OptionalMap{
+				Map: map[string]string{
+					"image.repo": "quay.io/argoproj/argo-cd",
+					"image.tag":  "v2.4.0",
+				},
 			},
 		},
 	}
