@@ -513,15 +513,71 @@ func (d *ApplicationSourceDirectory) IsZero() bool {
 	return d == nil || !d.Recurse && d.Jsonnet.IsZero()
 }
 
+type OptionalMap struct {
+	// Map is the value of a map type parameter.
+	// +optional
+	Map map[string]string `json:"map" protobuf:"bytes,1,rep,name=map"`
+	// We need the explicit +optional so that kube-builder generates the CRD without marking this as required.
+}
+
+type OptionalArray struct {
+	// Array is the value of an array type parameter.
+	// +optional
+	Array []string `json:"array" protobuf:"bytes,1,rep,name=array"`
+	// We need the explicit +optional so that kube-builder generates the CRD without marking this as required.
+}
+
 type ApplicationSourcePluginParameter struct {
+	// We use pointers to structs because go-to-protobuf represents pointers to arrays/maps as repeated fields.
+	// These repeated fields have no way to represent "present but empty." So we would have no way to distinguish
+	// {name: parameters, array: []} from {name: parameter}
+	// By wrapping the array/map in a struct, we can use a pointer to the struct to represent "present but empty."
+
 	// Name is the name identifying a parameter.
 	Name string `json:"name,omitempty" protobuf:"bytes,1,opt,name=name"`
 	// String_ is the value of a string type parameter.
 	String_ *string `json:"string,omitempty" protobuf:"bytes,5,opt,name=string"`
 	// Map is the value of a map type parameter.
-	Map map[string]string `json:"map,omitempty" protobuf:"bytes,3,rep,name=map"`
+	*OptionalMap `json:",omitempty" protobuf:"bytes,3,rep,name=map"`
 	// Array is the value of an array type parameter.
-	Array []string `json:"array,omitempty" protobuf:"bytes,4,rep,name=array"`
+	*OptionalArray `json:",omitempty" protobuf:"bytes,4,rep,name=array"`
+}
+
+// MarshalJSON is a custom JSON marshaller for ApplicationSourcePluginParameter. We need this custom marshaler because,
+// when ApplicationSourcePluginParameter is unmarshaled, either from JSON or protobufs, the fields inside OptionalMap and
+// OptionalArray are not set. The default JSON marshaler marshals these as "null." But really what we want to represent
+// is an empty map or array.
+//
+// There are efforts to change things upstream, but nothing has been merged yet. See https://github.com/golang/go/issues/37711
+func (p ApplicationSourcePluginParameter) MarshalJSON() ([]byte, error) {
+	out := map[string]interface{}{}
+	out["name"] = p.Name
+	if p.String_ != nil {
+		out["string"] = p.String_
+	}
+	if p.OptionalMap != nil {
+		if p.OptionalMap.Map == nil {
+			// Nil is not the same as a nil map. Nil means the field was not set, while a nil map means the field was set to an empty map.
+			// Either way, we want to marshal it as "{}".
+			out["map"] = map[string]string{}
+		} else {
+			out["map"] = p.OptionalMap.Map
+		}
+	}
+	if p.OptionalArray != nil {
+		if p.OptionalArray.Array == nil {
+			// Nil is not the same as a nil array. Nil means the field was not set, while a nil array means the field was set to an empty array.
+			// Either way, we want to marshal it as "[]".
+			out["array"] = []string{}
+		} else {
+			out["array"] = p.OptionalArray.Array
+		}
+	}
+	bytes, err := json.Marshal(out)
+	if err != nil {
+		return nil, err
+	}
+	return bytes, nil
 }
 
 type ApplicationSourcePluginParameters []ApplicationSourcePluginParameter
@@ -544,13 +600,13 @@ func (p ApplicationSourcePluginParameters) Environ() ([]string, error) {
 		if param.String_ != nil {
 			env = append(env, fmt.Sprintf("%s=%s", envBaseName, *param.String_))
 		}
-		if param.Map != nil {
-			for key, value := range param.Map {
+		if param.OptionalMap != nil {
+			for key, value := range param.OptionalMap.Map {
 				env = append(env, fmt.Sprintf("%s_%s=%s", envBaseName, escaped(key), value))
 			}
 		}
-		if param.Array != nil {
-			for i, value := range param.Array {
+		if param.OptionalArray != nil {
+			for i, value := range param.OptionalArray.Array {
 				env = append(env, fmt.Sprintf("%s_%d=%s", envBaseName, i, value))
 			}
 		}

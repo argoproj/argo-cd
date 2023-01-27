@@ -6118,18 +6118,10 @@
       "type": "object",
       "properties": {
         "array": {
-          "description": "Array is the value of an array type parameter.",
-          "type": "array",
-          "items": {
-            "type": "string"
-          }
+          "$ref": "#/definitions/v1alpha1OptionalArray"
         },
         "map": {
-          "description": "Map is the value of a map type parameter.",
-          "type": "object",
-          "additionalProperties": {
-            "type": "string"
-          }
+          "$ref": "#/definitions/v1alpha1OptionalMap"
         },
         "name": {
           "description": "Name is the name identifying a parameter.",
@@ -7051,6 +7043,30 @@
         },
         "syncResult": {
           "$ref": "#/definitions/v1alpha1SyncOperationResult"
+        }
+      }
+    },
+    "v1alpha1OptionalArray": {
+      "type": "object",
+      "properties": {
+        "array": {
+          "type": "array",
+          "title": "Array is the value of an array type parameter.\n+optional",
+          "items": {
+            "type": "string"
+          }
+        }
+      }
+    },
+    "v1alpha1OptionalMap": {
+      "type": "object",
+      "properties": {
+        "map": {
+          "type": "object",
+          "title": "Map is the value of a map type parameter.\n+optional",
+          "additionalProperties": {
+            "type": "string"
+          }
         }
       }
     },
