@@ -109,6 +109,12 @@ func (p *providerImpl) Verify(tokenString string, argoSettings *settings.ArgoCDS
 		// Token must be verified for at least one allowed audience
 		for _, aud := range allowedAudiences {
 			idToken, err = p.verify(aud, tokenString, false)
+			if err != nil && strings.HasPrefix(err.Error(), "oidc: token is expired") {
+				// If the token is expired, we won't bother checking other audiences. It's important to return a
+				// ErrTokenExpired instead of an error related to an incorrect audience, because the caller may
+				// have specific behavior to handle expired tokens.
+				break
+			}
 			if err == nil {
 				break
 			}
