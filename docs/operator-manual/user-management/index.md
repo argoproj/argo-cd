@@ -301,8 +301,9 @@ data:
     clientID: aaaabbbbccccddddeee
     clientSecret: $oidc.okta.clientSecret
     
-    # Optional list of allowed aud claims. If omitted or empty, defaults to the clientID value above. If you specify a 
-    # list and want the clientD to be allowed, you must explicitly include it in the list.
+    # Optional list of allowed aud claims. If omitted or empty, defaults to the clientID value above (and the 
+    # cliCientID, if that is also specified). If you specify a list and want the clientID to be allowed, you must 
+    # explicitly include it in the list.
     # Token verification will pass if any of the token's audiences matches any of the audiences in this list.
     allowedAudiences:
     - aaaabbbbccccddddeee

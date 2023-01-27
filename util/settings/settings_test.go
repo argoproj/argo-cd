@@ -1173,3 +1173,68 @@ rootCA: "invalid"`},
 		})
 	}
 }
+
+func Test_OAuth2AllowedAudiences(t *testing.T) {
+	testCases := []struct {
+		name     string
+		settings *ArgoCDSettings
+		expected []string
+	}{
+		{
+			name:     "Empty",
+			settings: &ArgoCDSettings{},
+			expected: []string{},
+		},
+		{
+			name: "OIDC configured, no audiences specified, clientID used",
+			settings: &ArgoCDSettings{OIDCConfigRAW: `name: Test
+issuer: aaa
+clientID: xxx
+clientSecret: yyy
+requestedScopes: ["oidc"]`},
+			expected: []string{"xxx"},
+		},
+		{
+			name: "OIDC configured, no audiences specified, clientID and cliClientID used",
+			settings: &ArgoCDSettings{OIDCConfigRAW: `name: Test
+issuer: aaa
+clientID: xxx
+cliClientID: cli-xxx
+clientSecret: yyy
+requestedScopes: ["oidc"]`},
+			expected: []string{"xxx", "cli-xxx"},
+		},
+		{
+			name: "OIDC configured, audiences specified",
+			settings: &ArgoCDSettings{OIDCConfigRAW: `name: Test
+issuer: aaa
+clientID: xxx
+clientSecret: yyy
+requestedScopes: ["oidc"]
+allowedAudiences: ["aud1", "aud2"]`},
+			expected: []string{"aud1", "aud2"},
+		},
+		{
+			name: "Dex configured",
+			settings: &ArgoCDSettings{DexConfig: `connectors:
+  - type: github
+    id: github
+    name: GitHub
+    config:
+      clientID: aabbccddeeff00112233
+      clientSecret: $dex.github.clientSecret
+      orgs:
+      - name: your-github-org
+`},
+			expected: []string{common.ArgoCDClientAppID, common.ArgoCDCLIClientAppID},
+		},
+	}
+
+	for _, tc := range testCases {
+		tcc := tc
+		t.Run(tcc.name, func(t *testing.T) {
+			t.Parallel()
+			assert.ElementsMatch(t, tcc.expected, tcc.settings.OAuth2AllowedAudiences())
+		})
+	}
+}
