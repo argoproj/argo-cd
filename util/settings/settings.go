@@ -1758,7 +1758,7 @@ func (a *ArgoCDSettings) SkipAudienceCheckWhenTokenHasNoAudience() bool {
 		if config.SkipAudienceCheckWhenTokenHasNoAudience != nil {
 			return *config.SkipAudienceCheckWhenTokenHasNoAudience
 		}
-		return true
+		return false
 	}
 	// When using the bundled Dex, the audience check is required. Dex will always send JWTs with an audience.
 	return false
