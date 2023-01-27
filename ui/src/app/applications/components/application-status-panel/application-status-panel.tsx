@@ -6,7 +6,7 @@ import {Timestamp} from '../../../shared/components/timestamp';
 import * as models from '../../../shared/models';
 import {services} from '../../../shared/services';
 import {ApplicationSyncWindowStatusIcon, ComparisonStatusIcon, getAppDefaultSource, getAppOperationState} from '../utils';
-import {getConditionCategory, HealthStatusIcon, OperationState, syncStatusMessage} from '../utils';
+import {getConditionCategory, HealthStatusIcon, OperationState, syncStatusMessage, helpTip} from '../utils';
 import {RevisionMetadataPanel} from './revision-metadata-panel';
 
 import './application-status-panel.scss';
@@ -30,13 +30,14 @@ const sectionLabel = (info: SectionInfo) => (
     </label>
 );
 
-const sectionHeader = (info: SectionInfo, onClick?: () => any) => {
+const sectionHeader = (info: SectionInfo, hasMultipleSources: boolean, onClick?: () => any) => {
     return (
         <div style={{display: 'flex', alignItems: 'center'}}>
             {sectionLabel(info)}
             {onClick && (
-                <button className='argo-button argo-button--base-o argo-button--sm application-status-panel__more-button' onClick={onClick}>
-                    MORE
+                <button className='argo-button argo-button--base-o argo-button--sm application-status-panel__more-button' onClick={onClick} disabled={hasMultipleSources}>
+                    {hasMultipleSources && helpTip('More details are not supported for apps with multiple sources')}
+                    &nbsp; MORE
                 </button>
             )}
         </div>
@@ -65,6 +66,7 @@ export const ApplicationStatusPanel = ({application, showOperation, showConditio
     const warnings = cntByCategory.get('warning');
     const errors = cntByCategory.get('error');
     const source = getAppDefaultSource(application);
+    const hasMultipleSources = application.spec.sources && application.spec.sources.length > 0;
     return (
         <div className='application-status-panel row'>
             <div className='application-status-panel__item'>
@@ -83,6 +85,7 @@ export const ApplicationStatusPanel = ({application, showOperation, showConditio
                             title: 'CURRENT SYNC STATUS',
                             helpContent: 'Whether or not the version of your app is up to date with your repo. You may wish to sync your app if it is out-of-sync.'
                         },
+                        hasMultipleSources,
                         source.chart ? null : () => showMetadataInfo(application.status.sync ? application.status.sync.revision : '')
                     )}
                     <div className='application-status-panel__item-value'>
@@ -115,6 +118,7 @@ export const ApplicationStatusPanel = ({application, showOperation, showConditio
                                     daysSinceLastSynchronized +
                                     ' days since last sync. Click for the status of that sync.'
                             },
+                            hasMultipleSources,
                             source.chart ? null : () => showMetadataInfo(appOperationState.syncResult ? appOperationState.syncResult.revision : '')
                         )}
                         <div className={`application-status-panel__item-value application-status-panel__item-value--${appOperationState.phase}`}>
