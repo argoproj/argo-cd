@@ -215,7 +215,6 @@ func TestMatchRepository(t *testing.T) {
 
 		// when
 		match, discovery, err := f.service.matchRepository(context.Background(), f.path, f.env)
-
 		// then
 		assert.NoError(t, err)
 		assert.False(t, match)
@@ -288,7 +287,7 @@ func TestMatchRepository(t *testing.T) {
 		match, discovery, err := f.service.matchRepository(context.Background(), f.path, f.env)
 
 		// then
-		assert.Error(t, err)
+		assert.NoError(t, err)
 		assert.False(t, match)
 		assert.False(t, discovery)
 	})

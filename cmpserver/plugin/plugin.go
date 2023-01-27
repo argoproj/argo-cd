@@ -322,15 +322,14 @@ func (s *Service) matchRepository(ctx context.Context, workdir string, envEntrie
 	if len(config.Spec.Discover.Find.Command.Command) > 0 {
 		log.Debugf("Going to try runCommand.")
 		env := append(os.Environ(), environ(envEntries)...)
-
 		find, err := runCommand(ctx, config.Spec.Discover.Find.Command, workdir, env)
 		if err != nil {
 			return false, true, fmt.Errorf("error running find command: %w", err)
 		}
-
 		if find != "" {
 			return true, true, nil
 		}
+		return false, true, nil
 	}
 
 	return false, false, nil
