@@ -272,6 +272,10 @@ func TestIsRetryableError(t *testing.T) {
 }
 
 func Test_asResourceNode_owner_refs(t *testing.T) {
+
+	clusterCache := &mocks.ClusterCache{}
+	clusterCache.On("IsNamespaced", mock.Anything).Return(true, nil)
+
 	resNode := asResourceNode(&cache.Resource{
 		ResourceVersion: "",
 		Ref: v1.ObjectReference{
@@ -292,7 +296,7 @@ func Test_asResourceNode_owner_refs(t *testing.T) {
 		CreationTimestamp: nil,
 		Info:              nil,
 		Resource:          nil,
-	})
+	}, clusterCache)
 	expected := appv1.ResourceNode{
 		ResourceRef: appv1.ResourceRef{
 			Version: "v1",

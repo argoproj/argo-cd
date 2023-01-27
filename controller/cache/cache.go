@@ -66,6 +66,10 @@ const (
 
 	// EnvClusterCacheRetryUseBackoff is the env variable to control whether to use a backoff strategy with the retry during cluster cache sync
 	EnvClusterCacheRetryUseBackoff = "ARGOCD_CLUSTER_CACHE_RETRY_USE_BACKOFF"
+
+	// EnvClusterCacheShowNamespacedChildren is the env variable to control whether to show namespace scoped
+	// resources owned by cluster scoped resources.
+	EnvClusterCacheShowNamespacedChildren = "ARGOCD_SHOW_CLUSTER_RESOURCE_NAMESPACED_CHILDREN"
 )
 
 // GitOps engine cluster cache tuning options
@@ -97,6 +101,10 @@ var (
 
 	// clusterCacheRetryUseBackoff specifies whether to use a backoff strategy on cluster cache sync, if retry is enabled
 	clusterCacheRetryUseBackoff bool = false
+
+	// clusterCacheShowNamespacedResources specifies whether to show namespace scoped resources owned
+	// by cluster level resources. By default, this option is disabled due to performance implications.
+	clusterCacheShowNamespacedResources bool = false
 )
 
 func init() {
@@ -108,6 +116,7 @@ func init() {
 	clusterCacheListSemaphoreSize = env.ParseInt64FromEnv(EnvClusterCacheListSemaphore, clusterCacheListSemaphoreSize, 0, math.MaxInt64)
 	clusterCacheAttemptLimit = int32(env.ParseNumFromEnv(EnvClusterCacheAttemptLimit, int(clusterCacheAttemptLimit), 1, math.MaxInt32))
 	clusterCacheRetryUseBackoff = env.ParseBoolFromEnv(EnvClusterCacheRetryUseBackoff, false)
+	clusterCacheShowNamespacedResources = env.ParseBoolFromEnv(EnvClusterCacheShowNamespacedChildren, false)
 }
 
 type LiveStateCache interface {
@@ -515,6 +524,7 @@ func (c *liveStateCache) getCluster(server string) (clustercache.ClusterCache, e
 		clustercache.SetLogr(logutils.NewLogrusLogger(log.WithField("server", cluster.Server))),
 		clustercache.SetRetryOptions(clusterCacheAttemptLimit, clusterCacheRetryUseBackoff, isRetryableError),
 		clustercache.SetRespectRBAC(respectRBAC),
+		clustercache.SetClusterResourcedNamespacedChildren(clusterCacheShowNamespacedResources),
 	}
 
 	clusterCache = clustercache.NewClusterCache(clusterCacheConfig, clusterCacheOpts...)
@@ -612,8 +622,9 @@ func (c *liveStateCache) IterateHierarchy(server string, key kube.ResourceKey, a
 	if err != nil {
 		return err
 	}
-	clusterInfo.IterateHierarchy(key, func(resource *clustercache.Resource, namespaceResources map[kube.ResourceKey]*clustercache.Resource) {
-		action(asResourceNode(resource, clusterInfo), getApp(resource, namespaceResources))
+
+	clusterInfo.IterateHierarchy(key, func(resource *clustercache.Resource, namespaceResources map[kube.ResourceKey]*clustercache.Resource) bool {
+		return action(asResourceNode(resource, clusterInfo), getApp(resource, namespaceResources))
 	})
 	return nil
 }
