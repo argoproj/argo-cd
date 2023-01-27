@@ -287,10 +287,11 @@ func (s *Service) runRepoOperation(
 	repo *v1alpha1.Repository,
 	source *v1alpha1.ApplicationSource,
 	verifyCommit bool,
-	cacheFn func(cacheKey string, firstInvocation bool) (bool, error),
+	cacheFn func(cacheKey string, repoRefs map[string]string, firstInvocation bool) (bool, error),
 	operation func(repoRoot, commitSHA, cacheKey string, ctxSrc operationContextSrc) error,
 	settings operationSettings,
-	hasMultipleSources bool) error {
+	hasMultipleSources bool,
+	refSources map[string]*v1alpha1.RefTarget) error {
 
 	if sanitizer, ok := grpc.SanitizerFromContext(ctx); ok {
 		// make sure randomized path replaced with '.' in the error message
@@ -313,8 +314,13 @@ func (s *Service) runRepoOperation(
 		}
 	}
 
+	repoRefs, err := resolveReferencedSources(hasMultipleSources, source.Helm, refSources, s.newClientResolveRevision)
+	if err != nil {
+		return err
+	}
+
 	if !settings.noCache {
-		if ok, err := cacheFn(revision, true); ok {
+		if ok, err := cacheFn(revision, repoRefs, true); ok {
 			return err
 		}
 	}
@@ -410,7 +416,7 @@ func (s *Service) runRepoOperation(
 
 		// double-check locking
 		if !settings.noCache {
-			if ok, err := cacheFn(revision, false); ok {
+			if ok, err := cacheFn(revision, repoRefs, false); ok {
 				return err
 			}
 		}
@@ -434,11 +440,55 @@ func (s *Service) runRepoOperation(
 	}
 }
 
+type gitClientGetter func(repo *v1alpha1.Repository, revision string, opts ...git.ClientOpts) (git.Client, string, error)
+
+// resolveReferencedSources resolves the revisions for the given referenced sources. This lets us invalidate the cached
+// when one or more referenced sources change.
+func resolveReferencedSources(hasMultipleSources bool, source *v1alpha1.ApplicationSourceHelm, refSources map[string]*v1alpha1.RefTarget, newClientResolveRevision gitClientGetter) (map[string]string, error) {
+	repoRefs := make(map[string]string)
+	if hasMultipleSources {
+		if source != nil {
+			// Checkout every one of the referenced sources to the target revision before generating Manifests
+			for _, valueFile := range source.ValueFiles {
+				if strings.HasPrefix(valueFile, "$") {
+					refVar := strings.Split(valueFile, "/")[0]
+
+					refSourceMapping, ok := refSources[refVar]
+					if !ok {
+						if len(refSources) == 0 {
+							return nil, fmt.Errorf("source referenced %q, but no source has a 'ref' field defined", refVar)
+						}
+						refKeys := make([]string, 0)
+						for refKey := range refSources {
+							refKeys = append(refKeys, refKey)
+						}
+						return nil, fmt.Errorf("source referenced %q, which is not one of the available sources (%s)", refVar, strings.Join(refKeys, ", "))
+					}
+					if refSourceMapping.Chart != "" {
+						return nil, fmt.Errorf("source has a 'chart' field defined, but Helm charts are not yet not supported for 'ref' sources")
+					}
+					normalizedRepoURL := git.NormalizeGitURL(refSourceMapping.Repo.Repo)
+					_, ok = repoRefs[normalizedRepoURL]
+					if !ok {
+						_, referencedCommitSHA, err := newClientResolveRevision(&refSourceMapping.Repo, refSourceMapping.TargetRevision)
+						if err != nil {
+							return nil, fmt.Errorf("failed to get git client for repo %s", refSourceMapping.Repo.Repo)
+						}
+
+						repoRefs[normalizedRepoURL] = referencedCommitSHA
+					}
+				}
+			}
+		}
+	}
+	return repoRefs, nil
+}
+
 func (s *Service) GenerateManifest(ctx context.Context, q *apiclient.ManifestRequest) (*apiclient.ManifestResponse, error) {
 	var res *apiclient.ManifestResponse
 	var err error
-	cacheFn := func(cacheKey string, firstInvocation bool) (bool, error) {
-		ok, resp, err := s.getManifestCacheEntry(cacheKey, q, firstInvocation)
+	cacheFn := func(cacheKey string, repoRefs map[string]string, firstInvocation bool) (bool, error) {
+		ok, resp, err := s.getManifestCacheEntry(cacheKey, q, repoRefs, firstInvocation)
 		res = resp
 		return ok, err
 	}
@@ -465,7 +515,7 @@ func (s *Service) GenerateManifest(ctx context.Context, q *apiclient.ManifestReq
 	}
 
 	settings := operationSettings{sem: s.parallelismLimitSemaphore, noCache: q.NoCache, noRevisionCache: q.NoRevisionCache, allowConcurrent: q.ApplicationSource.AllowsConcurrentProcessing()}
-	err = s.runRepoOperation(ctx, q.Revision, q.Repo, q.ApplicationSource, q.VerifySignature, cacheFn, operation, settings, q.HasMultipleSources)
+	err = s.runRepoOperation(ctx, q.Revision, q.Repo, q.ApplicationSource, q.VerifySignature, cacheFn, operation, settings, q.HasMultipleSources, q.RefSources)
 
 	// if the tarDoneCh message is sent it means that the manifest
 	// generation is being managed by the cmp-server. In this case
@@ -596,9 +646,12 @@ func (s *Service) runManifestGen(ctx context.Context, repoRoot, commitSHA, cache
 }
 
 type repoRef struct {
-	revision  string
+	// revision is the git revision - can be any valid revision like a branch, tag, or commit SHA.
+	revision string
+	// commitSHA is the actual commit to which revision refers.
 	commitSHA string
-	key       string
+	// key is the name of the key which was used to reference this repo.
+	key string
 }
 
 func (s *Service) runManifestGenAsync(ctx context.Context, repoRoot, commitSHA, cacheKey string, opContextSrc operationContextSrc, q *apiclient.ManifestRequest, ch *generateManifestCh) {
@@ -610,13 +663,13 @@ func (s *Service) runManifestGenAsync(ctx context.Context, repoRoot, commitSHA, 
 	// GenerateManifests mutates the source (applies overrides). Those overrides shouldn't be reflected in the cache
 	// key. Overrides will break the cache anyway, because changes to overrides will change the revision.
 	appSourceCopy := q.ApplicationSource.DeepCopy()
+	repoRefs := make(map[string]repoRef)
 
 	var manifestGenResult *apiclient.ManifestResponse
 	opContext, err := opContextSrc()
 	if err == nil {
 		if q.HasMultipleSources {
 			if q.ApplicationSource.Helm != nil {
-				repoRefs := make(map[string]repoRef)
 
 				// Checkout every one of the referenced sources to the target revision before generating Manifests
 				for _, valueFile := range q.ApplicationSource.Helm.ValueFiles {
@@ -649,7 +702,7 @@ func (s *Service) runManifestGenAsync(ctx context.Context, repoRoot, commitSHA, 
 						} else {
 							gitClient, referencedCommitSHA, err := s.newClientResolveRevision(&refSourceMapping.Repo, refSourceMapping.TargetRevision)
 							if err != nil {
-								ch.errCh <- fmt.Errorf("failed to get git client for repo %s", q.Repo.Repo)
+								ch.errCh <- fmt.Errorf("failed to get git client for repo %s", refSourceMapping.Repo.Repo)
 								return
 							}
 
@@ -702,15 +755,21 @@ func (s *Service) runManifestGenAsync(ctx context.Context, repoRoot, commitSHA, 
 
 		manifestGenResult, err = GenerateManifests(ctx, opContext.appPath, repoRoot, commitSHA, q, false, s.gitCredsStore, s.initConstants.MaxCombinedDirectoryManifestsSize, s.gitRepoPaths, WithCMPTarDoneChannel(ch.tarDoneCh), WithCMPTarExcludedGlobs(s.initConstants.CMPTarExcludedGlobs))
 	}
+	refSourceResolvedRevisions := make(map[string]string)
+	if len(repoRefs) > 0 {
+		for normalizedURL, repoRef := range repoRefs {
+			refSourceResolvedRevisions[normalizedURL] = repoRef.commitSHA
+		}
+	}
 	if err != nil {
 		// If manifest generation error caching is enabled
 		if s.initConstants.PauseGenerationAfterFailedGenerationAttempts > 0 {
-			cache.LogDebugManifestCacheKeyFields("getting manifests cache", "GenerateManifests error", cacheKey, q.ApplicationSource, q.RefSources, q, q.Namespace, q.TrackingMethod, q.AppLabelKey, q.AppName)
+			cache.LogDebugManifestCacheKeyFields("getting manifests cache", "GenerateManifests error", cacheKey, q.ApplicationSource, q.RefSources, q, q.Namespace, q.TrackingMethod, q.AppLabelKey, q.AppName, refSourceResolvedRevisions)
 
 			// Retrieve a new copy (if available) of the cached response: this ensures we are updating the latest copy of the cache,
 			// rather than a copy of the cache that occurred before (a potentially lengthy) manifest generation.
 			innerRes := &cache.CachedManifestResponse{}
-			cacheErr := s.cache.GetManifests(cacheKey, appSourceCopy, q.RefSources, q, q.Namespace, q.TrackingMethod, q.AppLabelKey, q.AppName, innerRes)
+			cacheErr := s.cache.GetManifests(cacheKey, appSourceCopy, q.RefSources, q, q.Namespace, q.TrackingMethod, q.AppLabelKey, q.AppName, innerRes, refSourceResolvedRevisions)
 			if cacheErr != nil && cacheErr != reposervercache.ErrCacheMiss {
 				log.Warnf("manifest cache set error %s: %v", appSourceCopy.String(), cacheErr)
 				ch.errCh <- cacheErr
@@ -723,12 +782,12 @@ func (s *Service) runManifestGenAsync(ctx context.Context, repoRoot, commitSHA, 
 				innerRes.FirstFailureTimestamp = s.now().Unix()
 			}
 
-			cache.LogDebugManifestCacheKeyFields("setting manifests cache", "GenerateManifests error", cacheKey, q.ApplicationSource, q.RefSources, q, q.Namespace, q.TrackingMethod, q.AppLabelKey, q.AppName)
+			cache.LogDebugManifestCacheKeyFields("setting manifests cache", "GenerateManifests error", cacheKey, q.ApplicationSource, q.RefSources, q, q.Namespace, q.TrackingMethod, q.AppLabelKey, q.AppName, refSourceResolvedRevisions)
 
 			// Update the cache to include failure information
 			innerRes.NumberOfConsecutiveFailures++
 			innerRes.MostRecentError = err.Error()
-			cacheErr = s.cache.SetManifests(cacheKey, appSourceCopy, q.RefSources, q, q.Namespace, q.TrackingMethod, q.AppLabelKey, q.AppName, innerRes)
+			cacheErr = s.cache.SetManifests(cacheKey, appSourceCopy, q.RefSources, q, q.Namespace, q.TrackingMethod, q.AppLabelKey, q.AppName, innerRes, refSourceResolvedRevisions)
 			if cacheErr != nil {
 				log.Warnf("manifest cache set error %s: %v", appSourceCopy.String(), cacheErr)
 				ch.errCh <- cacheErr
@@ -740,7 +799,7 @@ func (s *Service) runManifestGenAsync(ctx context.Context, repoRoot, commitSHA, 
 		return
 	}
 
-	cache.LogDebugManifestCacheKeyFields("setting manifests cache", "fresh GenerateManifests response", cacheKey, q.ApplicationSource, q.RefSources, q, q.Namespace, q.TrackingMethod, q.AppLabelKey, q.AppName)
+	cache.LogDebugManifestCacheKeyFields("setting manifests cache", "fresh GenerateManifests response", cacheKey, q.ApplicationSource, q.RefSources, q, q.Namespace, q.TrackingMethod, q.AppLabelKey, q.AppName, refSourceResolvedRevisions)
 
 	// Otherwise, no error occurred, so ensure the manifest generation error data in the cache entry is reset before we cache the value
 	manifestGenCacheEntry := cache.CachedManifestResponse{
@@ -752,7 +811,7 @@ func (s *Service) runManifestGenAsync(ctx context.Context, repoRoot, commitSHA, 
 	}
 	manifestGenResult.Revision = commitSHA
 	manifestGenResult.VerifyResult = opContext.verificationResult
-	err = s.cache.SetManifests(cacheKey, appSourceCopy, q.RefSources, q, q.Namespace, q.TrackingMethod, q.AppLabelKey, q.AppName, &manifestGenCacheEntry)
+	err = s.cache.SetManifests(cacheKey, appSourceCopy, q.RefSources, q, q.Namespace, q.TrackingMethod, q.AppLabelKey, q.AppName, &manifestGenCacheEntry, refSourceResolvedRevisions)
 	if err != nil {
 		log.Warnf("manifest cache set error %s/%s: %v", appSourceCopy.String(), cacheKey, err)
 	}
@@ -765,11 +824,11 @@ func (s *Service) runManifestGenAsync(ctx context.Context, repoRoot, commitSHA, 
 // - If the cache is not empty, but the cache value is an error AND that generation error has expired
 // and returns true otherwise.
 // If true is returned, either the second or third parameter (but not both) will contain a value from the cache (a ManifestResponse, or error, respectively)
-func (s *Service) getManifestCacheEntry(cacheKey string, q *apiclient.ManifestRequest, firstInvocation bool) (bool, *apiclient.ManifestResponse, error) {
-	cache.LogDebugManifestCacheKeyFields("getting manifests cache", "GenerateManifest API call", cacheKey, q.ApplicationSource, q.RefSources, q, q.Namespace, q.TrackingMethod, q.AppLabelKey, q.AppName)
+func (s *Service) getManifestCacheEntry(cacheKey string, q *apiclient.ManifestRequest, repoRefs map[string]string, firstInvocation bool) (bool, *apiclient.ManifestResponse, error) {
+	cache.LogDebugManifestCacheKeyFields("getting manifests cache", "GenerateManifest API call", cacheKey, q.ApplicationSource, q.RefSources, q, q.Namespace, q.TrackingMethod, q.AppLabelKey, q.AppName, repoRefs)
 
 	res := cache.CachedManifestResponse{}
-	err := s.cache.GetManifests(cacheKey, q.ApplicationSource, q.RefSources, q, q.Namespace, q.TrackingMethod, q.AppLabelKey, q.AppName, &res)
+	err := s.cache.GetManifests(cacheKey, q.ApplicationSource, q.RefSources, q, q.Namespace, q.TrackingMethod, q.AppLabelKey, q.AppName, &res, repoRefs)
 	if err == nil {
 
 		// The cache contains an existing value
@@ -787,10 +846,10 @@ func (s *Service) getManifestCacheEntry(cacheKey string, q *apiclient.ManifestRe
 
 					// After X minutes, reset the cache and retry the operation (e.g. perhaps the error is ephemeral and has passed)
 					if elapsedTimeInMinutes >= s.initConstants.PauseGenerationOnFailureForMinutes {
-						cache.LogDebugManifestCacheKeyFields("deleting manifests cache", "manifest hash did not match or cached response is empty", cacheKey, q.ApplicationSource, q.RefSources, q, q.Namespace, q.TrackingMethod, q.AppLabelKey, q.AppName)
+						cache.LogDebugManifestCacheKeyFields("deleting manifests cache", "manifest hash did not match or cached response is empty", cacheKey, q.ApplicationSource, q.RefSources, q, q.Namespace, q.TrackingMethod, q.AppLabelKey, q.AppName, repoRefs)
 
 						// We can now try again, so reset the cache state and run the operation below
-						err = s.cache.DeleteManifests(cacheKey, q.ApplicationSource, q.RefSources, q, q.Namespace, q.TrackingMethod, q.AppLabelKey, q.AppName)
+						err = s.cache.DeleteManifests(cacheKey, q.ApplicationSource, q.RefSources, q, q.Namespace, q.TrackingMethod, q.AppLabelKey, q.AppName, repoRefs)
 						if err != nil {
 							log.Warnf("manifest cache set error %s/%s: %v", q.ApplicationSource.String(), cacheKey, err)
 						}
@@ -803,10 +862,10 @@ func (s *Service) getManifestCacheEntry(cacheKey string, q *apiclient.ManifestRe
 				if s.initConstants.PauseGenerationOnFailureForRequests > 0 && res.NumberOfCachedResponsesReturned > 0 {
 
 					if res.NumberOfCachedResponsesReturned >= s.initConstants.PauseGenerationOnFailureForRequests {
-						cache.LogDebugManifestCacheKeyFields("deleting manifests cache", "reset after paused generation count", cacheKey, q.ApplicationSource, q.RefSources, q, q.Namespace, q.TrackingMethod, q.AppLabelKey, q.AppName)
+						cache.LogDebugManifestCacheKeyFields("deleting manifests cache", "reset after paused generation count", cacheKey, q.ApplicationSource, q.RefSources, q, q.Namespace, q.TrackingMethod, q.AppLabelKey, q.AppName, repoRefs)
 
 						// We can now try again, so reset the error cache state and run the operation below
-						err = s.cache.DeleteManifests(cacheKey, q.ApplicationSource, q.RefSources, q, q.Namespace, q.TrackingMethod, q.AppLabelKey, q.AppName)
+						err = s.cache.DeleteManifests(cacheKey, q.ApplicationSource, q.RefSources, q, q.Namespace, q.TrackingMethod, q.AppLabelKey, q.AppName, repoRefs)
 						if err != nil {
 							log.Warnf("manifest cache set error %s/%s: %v", q.ApplicationSource.String(), cacheKey, err)
 						}
@@ -821,12 +880,12 @@ func (s *Service) getManifestCacheEntry(cacheKey string, q *apiclient.ManifestRe
 				cachedErrorResponse := fmt.Errorf(cachedManifestGenerationPrefix+": %s", res.MostRecentError)
 
 				if firstInvocation {
-					cache.LogDebugManifestCacheKeyFields("setting manifests cache", "update error count", cacheKey, q.ApplicationSource, q.RefSources, q, q.Namespace, q.TrackingMethod, q.AppLabelKey, q.AppName)
+					cache.LogDebugManifestCacheKeyFields("setting manifests cache", "update error count", cacheKey, q.ApplicationSource, q.RefSources, q, q.Namespace, q.TrackingMethod, q.AppLabelKey, q.AppName, repoRefs)
 
 					// Increment the number of returned cached responses and push that new value to the cache
 					// (if we have not already done so previously in this function)
 					res.NumberOfCachedResponsesReturned++
-					err = s.cache.SetManifests(cacheKey, q.ApplicationSource, q.RefSources, q, q.Namespace, q.TrackingMethod, q.AppLabelKey, q.AppName, &res)
+					err = s.cache.SetManifests(cacheKey, q.ApplicationSource, q.RefSources, q, q.Namespace, q.TrackingMethod, q.AppLabelKey, q.AppName, &res, repoRefs)
 					if err != nil {
 						log.Warnf("manifest cache set error %s/%s: %v", q.ApplicationSource.String(), cacheKey, err)
 					}
@@ -1921,19 +1980,19 @@ func (s *Service) GetAppDetails(ctx context.Context, q *apiclient.RepoServerAppD
 				return fmt.Errorf("failed to populate plugin app details: %w", err)
 			}
 		}
-		_ = s.cache.SetAppDetails(revision, q.Source, q.RefSources, res, v1alpha1.TrackingMethod(q.TrackingMethod))
+		_ = s.cache.SetAppDetails(revision, q.Source, q.RefSources, res, v1alpha1.TrackingMethod(q.TrackingMethod), nil)
 		return nil
 	}
 
 	settings := operationSettings{allowConcurrent: q.Source.AllowsConcurrentProcessing(), noCache: q.NoCache, noRevisionCache: q.NoCache || q.NoRevisionCache}
-	err := s.runRepoOperation(ctx, q.Source.TargetRevision, q.Repo, q.Source, false, cacheFn, operation, settings, false)
+	err := s.runRepoOperation(ctx, q.Source.TargetRevision, q.Repo, q.Source, false, cacheFn, operation, settings, false, nil)
 
 	return res, err
 }
 
-func (s *Service) createGetAppDetailsCacheHandler(res *apiclient.RepoAppDetailsResponse, q *apiclient.RepoServerAppDetailsQuery) func(revision string, _ bool) (bool, error) {
-	return func(revision string, _ bool) (bool, error) {
-		err := s.cache.GetAppDetails(revision, q.Source, q.RefSources, res, v1alpha1.TrackingMethod(q.TrackingMethod))
+func (s *Service) createGetAppDetailsCacheHandler(res *apiclient.RepoAppDetailsResponse, q *apiclient.RepoServerAppDetailsQuery) func(revision string, _ map[string]string, _ bool) (bool, error) {
+	return func(revision string, _ map[string]string, _ bool) (bool, error) {
+		err := s.cache.GetAppDetails(revision, q.Source, q.RefSources, res, v1alpha1.TrackingMethod(q.TrackingMethod), nil)
 		if err == nil {
 			log.Infof("app details cache hit: %s/%s", revision, q.Source.Path)
 			return true, nil
