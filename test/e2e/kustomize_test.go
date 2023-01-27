@@ -175,7 +175,7 @@ func TestKustomizeImages(t *testing.T) {
 		AppSet("--kustomize-image", "alpine:foo", "--kustomize-image", "alpine:bar").
 		Then().
 		And(func(app *Application) {
-			assert.Contains(t, app.Spec.Source.Kustomize.Images, KustomizeImage("alpine:bar"))
+			assert.Contains(t, app.Spec.GetSource().Kustomize.Images, KustomizeImage("alpine:bar"))
 		})
 }
 
@@ -188,7 +188,7 @@ func TestKustomizeNameSuffix(t *testing.T) {
 		AppSet("--namesuffix", "-suf").
 		Then().
 		And(func(app *Application) {
-			assert.Contains(t, app.Spec.Source.Kustomize.NameSuffix, "-suf")
+			assert.Contains(t, app.Spec.GetSource().Kustomize.NameSuffix, "-suf")
 		})
 }
 
@@ -201,25 +201,25 @@ func TestKustomizeUnsetOverride(t *testing.T) {
 		AppSet("--namesuffix", "-suf").
 		Then().
 		And(func(app *Application) {
-			assert.Contains(t, app.Spec.Source.Kustomize.NameSuffix, "-suf")
+			assert.Contains(t, app.Spec.GetSource().Kustomize.NameSuffix, "-suf")
 		}).
 		When().
 		AppUnSet("--namesuffix").
 		Then().
 		And(func(app *Application) {
-			assert.Nil(t, app.Spec.Source.Kustomize)
+			assert.Nil(t, app.Spec.GetSource().Kustomize)
 		}).
 		When().
 		AppSet("--kustomize-image", "alpine:foo", "--kustomize-image", "alpine:bar").
 		Then().
 		And(func(app *Application) {
-			assert.Contains(t, app.Spec.Source.Kustomize.Images, KustomizeImage("alpine:bar"))
+			assert.Contains(t, app.Spec.GetSource().Kustomize.Images, KustomizeImage("alpine:bar"))
 		}).
 		When().
 		//AppUnSet("--kustomize-image=alpine").
 		AppUnSet("--kustomize-image", "alpine", "--kustomize-image", "alpine").
 		Then().
 		And(func(app *Application) {
-			assert.Nil(t, app.Spec.Source.Kustomize)
+			assert.Nil(t, app.Spec.GetSource().Kustomize)
 		})
 }

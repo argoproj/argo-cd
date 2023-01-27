@@ -12,7 +12,7 @@ import (
 	"strings"
 	"testing"
 
-	gooidc "github.com/coreos/go-oidc"
+	gooidc "github.com/coreos/go-oidc/v3/oidc"
 	"github.com/stretchr/testify/assert"
 	"github.com/stretchr/testify/require"
 	"golang.org/x/oauth2"
@@ -90,7 +90,7 @@ func (p *fakeProvider) ParseConfig() (*OIDCConfiguration, error) {
 	return nil, nil
 }
 
-func (p *fakeProvider) Verify(_, _ string) (*gooidc.IDToken, error) {
+func (p *fakeProvider) Verify(_ string, _ *settings.ArgoCDSettings) (*gooidc.IDToken, error) {
 	return nil, nil
 }
 
