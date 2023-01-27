@@ -182,6 +182,7 @@ func cmpSupports(ctx context.Context, pluginSockFilePath, repoPath, fileName str
 			common.SecurityField:    common.SecurityLow,
 			common.SecurityCWEField: 775,
 		}).Debugf("Reponse from socket file %s does not support %v", fileName, repoPath)
+		io.Close(conn)
 		return nil, nil, false
 	}
 	return conn, cmpClient, true
