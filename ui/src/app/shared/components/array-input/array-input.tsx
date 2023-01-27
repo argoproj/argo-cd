@@ -2,7 +2,6 @@ import * as React from 'react';
 import * as ReactForm from 'react-form';
 import {FormValue} from 'react-form';
 
-
 /*
     This provide a way to may a form field to an array of items. It allows you to
 
@@ -28,9 +27,8 @@ export interface NameValue {
     value: string;
 }
 
-
-export const NameValueEditor = (item: NameValue, onChange?: (item: NameValue) => any) =>
-    (
+export const NameValueEditor = (item: NameValue, onChange?: (item: NameValue) => any) => {
+    return (
         <React.Fragment>
             <input
                 // disable chrome autocomplete
@@ -38,9 +36,9 @@ export const NameValueEditor = (item: NameValue, onChange?: (item: NameValue) =>
                 className='argo-field'
                 style={{width: '40%', borderColor: !onChange ? '#eff3f5' : undefined}}
                 placeholder='Name'
-                value={item.name.split(' ')[0] || ''}
-                id="key"
-                onChange={e=>onChange({...item, name: e.target.value})}
+                value={item.name}
+                onChange={e => onChange({...item, name: e.target.value})}
+                // onBlur={e=>onChange({...item, name: e.target.value})}
                 title='Name'
                 readOnly={!onChange}
             />
@@ -59,6 +57,40 @@ export const NameValueEditor = (item: NameValue, onChange?: (item: NameValue) =>
             &nbsp;
         </React.Fragment>
     );
+};
+
+export const NameValueEditor1 = (item: NameValue, onChange?: (item: NameValue) => any) => {
+    const [val, setVal] = React.useState(item.name);
+    return (
+        <React.Fragment>
+            <input
+                // disable chrome autocomplete
+                autoComplete='fake'
+                className='argo-field'
+                style={{width: '40%', borderColor: !onChange ? '#eff3f5' : undefined}}
+                placeholder='Name'
+                value={val}
+                onChange={e => setVal(e.target.value)}
+                onBlur={e => onChange({...item, name: e.target.value})}
+                title='Name'
+                readOnly={!onChange}
+            />
+            &nbsp; = &nbsp;
+            <input
+                // disable chrome autocomplete
+                autoComplete='fake'
+                className='argo-field'
+                style={{width: '40%', borderColor: !onChange ? '#eff3f5' : undefined}}
+                placeholder='Value'
+                value={item.value || ''}
+                onChange={e => onChange({...item, value: e.target.value})}
+                title='Value'
+                readOnly={!onChange}
+            />
+            &nbsp;
+        </React.Fragment>
+    );
+};
 
 export const ValueEditor = (item: string, onChange: (item: string) => any) => {
     return (
@@ -120,11 +152,59 @@ export function ArrayInput<T>(props: Props<T>) {
     );
 }
 
-export const ResetOrDeleteButton = (props: {isPluginPar: boolean; getValue: FormValue;name:string;emptyValue:any ;index: number; setValue: (value: FormValue) => void}) => {
+// export const ResetOrDeleteButton = (props: {isPluginPar: boolean; getValue: FormValue; name: string; emptyValue: any; index: number; setValue: (value: FormValue) => void}) => {
+//     const handleResetChange = () => {
+//         if (props.index >= 0) {
+//             props.getValue.splice(props.index, 1);
+//             props.setValue([...props.getValue]);
+//         }
+//     };
+//
+//     let disabled = props.index === -1;
+//
+//     let content = props.isPluginPar ? 'Reset' : 'Delete';
+//     let tooltip = '';
+//     if (content === 'Reset' && !disabled) {
+//         tooltip = 'Resets the parameter to the value provided by the plugin. This removes the parameter override from the application manifest';
+//     } else if (content === 'Delete' && !disabled) {
+//         tooltip = 'Deletes this parameter values from the application manifest.';
+//     }
+//
+//     return (
+//         <button
+//             className='argo-button argo-button--base'
+//             disabled={disabled}
+//             title={tooltip}
+//             style={{fontSize: '12px', display: 'flex', marginLeft: 'auto', marginTop: '8px'}}
+//             onClick={handleResetChange}>
+//             {content}
+//         </button>
+//     );
+// };
+
+export const ResetOrDeleteButton = (props: {
+    isPluginPar: boolean;
+    getValue: FormValue;
+    name: string;
+    index: number;
+    setValue: (value: FormValue) => void;
+    spec: any;
+    setPluginState: any;
+}) => {
     const handleResetChange = () => {
+
         if (props.index >= 0) {
             props.getValue.splice(props.index, 1);
+
+            // const ind = props.spec.findIndex((x:any)=>x.name===props.name);
+            // console.log("ind  is   ",ind);
+            // if(ind>-1){
+            //     props.spec.splice(ind,1);
+            // }
             props.setValue([...props.getValue]);
+            props.setPluginState(true);
+            console.log("getValue is", props.getValue);
+
         }
     };
 
@@ -157,7 +237,7 @@ export const ArrayInputField = ReactForm.FormField((props: {fieldApi: ReactForm.
     return <ArrayInput editor={NameValueEditor} items={getValue() || []} onChange={setValue} />;
 });
 
-export const ArrayValueField = ReactForm.FormField((props: {fieldApi: ReactForm.FieldApi; name: string; defaultVal: string[]; isPluginPar: boolean}) => {
+export const ArrayValueField = ReactForm.FormField((props: {fieldApi: ReactForm.FieldApi; name: string; defaultVal: string[]; isPluginPar: boolean;spec:any;setPluginState:any}) => {
     const {
         fieldApi: {getValue, setValue}
     } = props;
@@ -168,11 +248,11 @@ export const ArrayValueField = ReactForm.FormField((props: {fieldApi: ReactForm.
         liveParamArray = liveParam?.array ?? [];
     }
     const index = getValue()?.findIndex((val: {name: String; array: Object}) => val.name === props.name) ?? -1;
-    let values = liveParamArray ?? props.defaultVal??[];
+    let values = liveParamArray ?? props.defaultVal ?? [];
 
     return (
         <React.Fragment>
-            <ResetOrDeleteButton isPluginPar={props.isPluginPar} getValue={getValue()} name={props.name} emptyValue={[]} index={index} setValue={setValue} />
+            <ResetOrDeleteButton isPluginPar={props.isPluginPar} getValue={getValue()} name={props.name} index={index} setValue={setValue} spec={props.spec} setPluginState={props.setPluginState}/>
             <ArrayInput
                 editor={ValueEditor}
                 items={values || []}
@@ -181,8 +261,10 @@ export const ArrayValueField = ReactForm.FormField((props: {fieldApi: ReactForm.
                     if (index >= 0) {
                         getValue()[index].array = update;
                         setValue([...getValue()]);
+                        // console.log("spec in array is ",props.spec);
                     } else {
                         setValue([...(getValue() || []), {name: props.name, array: update}]);
+                        // console.log("spec in array is ",props.spec);
                     }
                 }}
             />
@@ -190,21 +272,21 @@ export const ArrayValueField = ReactForm.FormField((props: {fieldApi: ReactForm.
     );
 });
 
-export const StringValueField = ReactForm.FormField((props: {fieldApi: ReactForm.FieldApi; name: string; defaultVal: string; isPluginPar: boolean}) => {
+export const StringValueField = ReactForm.FormField((props: {fieldApi: ReactForm.FieldApi; name: string; defaultVal: string; isPluginPar: boolean; spec: any; setPluginState: any}) => {
     const {
         fieldApi: {getValue, setValue}
     } = props;
     let liveParamString;
     const liveParam = getValue()?.find((val: {name: String; string: Object}) => val.name === props.name);
     if (liveParam) {
-        liveParamString = (liveParam?.string)? liveParam?.string :'';
+        liveParamString = liveParam?.string ? liveParam?.string : '';
     }
-    let values = liveParamString ?? props.defaultVal??'';
+    let values = liveParamString ?? props.defaultVal ?? '';
     const index = getValue()?.findIndex((val: {name: string; string: string}) => val.name === props.name) ?? -1;
 
     return (
         <React.Fragment>
-            <ResetOrDeleteButton isPluginPar={props.isPluginPar} getValue={getValue()} name={props.name} emptyValue={''} index={index} setValue={setValue} />
+            <ResetOrDeleteButton isPluginPar={props.isPluginPar} getValue={getValue()} name={props.name}  index={index} setValue={setValue} spec={props.spec} setPluginState={props.setPluginState}/>
             <div>
                 <input
                     // disable chrome autocomplete
@@ -220,6 +302,7 @@ export const StringValueField = ReactForm.FormField((props: {fieldApi: ReactForm
                         } else {
                             setValue([...(getValue() || []), {name: props.name, string: e.target.value}]);
                         }
+                        console.log("spec in string is ",props.spec);
                     }}
                     title='Value'
                 />
@@ -228,42 +311,42 @@ export const StringValueField = ReactForm.FormField((props: {fieldApi: ReactForm
     );
 });
 
-export const MapValueField = ReactForm.FormField((props: {fieldApi: ReactForm.FieldApi; name: string; defaultVal: Map<string, string>; isPluginPar: boolean}) => {
-    const {
-        fieldApi: {getValue, setValue}
-    } = props;
-    const items = new Array<NameValue>();
-    let liveParamMap;
-    const liveParam = getValue()?.find((val: {name: String; map: Object}) => val.name === props.name);
-    if (liveParam) {
-         liveParamMap = liveParam.map? liveParam.map:new Map<string, string>();
-    }
-    const map = liveParamMap ?? props.defaultVal ?? new Map<string, string>();
-    Object.keys(map).forEach(item => items.push({name: item, value: map[item]}));
-
-    const index = getValue()?.findIndex((val: {name: string; map: Object}) => val.name === props.name) ?? -1;
-
-    return (
-        <React.Fragment>
-            <ResetOrDeleteButton isPluginPar={props.isPluginPar} getValue={getValue()} name={props.name} emptyValue={{}} index={index} setValue={setValue} />
-            <ArrayInput
-                editor={NameValueEditor}
-                items={items}
-                onChange={array => {
-                    const newMap = {} as any;
-                    array.forEach(item => (newMap[(item.name||'') ] = item.value || ''));
-                    const index = getValue()?.findIndex((val: {name: String; map: Object}) => val.name === props.name) ?? -1;
-                    if (index >= 0) {
-                        getValue()[index].map = newMap;
-                        setValue([...getValue()]);
-                    } else {
-                        setValue([...(getValue() || []), {name: props.name, map: newMap}]);
-                    }
-                }}
-            />
-        </React.Fragment>
-    );
-});
+// export const MapValueField = ReactForm.FormField((props: {fieldApi: ReactForm.FieldApi; name: string; defaultVal: Map<string, string>; isPluginPar: boolean}) => {
+//     const {
+//         fieldApi: {getValue, setValue}
+//     } = props;
+//     const items = new Array<NameValue>();
+//     let liveParamMap;
+//     const liveParam = getValue()?.find((val: {name: String; map: Object}) => val.name === props.name);
+//     if (liveParam) {
+//         liveParamMap = liveParam.map ? liveParam.map : new Map<string, string>();
+//     }
+//     const map = liveParamMap ?? props.defaultVal ?? new Map<string, string>();
+//     Object.keys(map).forEach(item => items.push({name: item, value: map[item]}));
+//
+//     const index = getValue()?.findIndex((val: {name: string; map: Object}) => val.name === props.name) ?? -1;
+//
+//     return (
+//         <React.Fragment>
+//             <ResetOrDeleteButton isPluginPar={props.isPluginPar} getValue={getValue()} name={props.name} emptyValue={{}} index={index} setValue={setValue} />
+//             <ArrayInput
+//                 editor={NameValueEditor}
+//                 items={items}
+//                 onChange={array => {
+//                     const newMap = {} as any;
+//                     array.forEach(item => (newMap[item.name || ''] = item.value || ''));
+//                     const index = getValue()?.findIndex((val: {name: String; map: Object}) => val.name === props.name) ?? -1;
+//                     if (index >= 0) {
+//                         getValue()[index].map = newMap;
+//                         setValue([...getValue()]);
+//                     } else {
+//                         setValue([...(getValue() || []), {name: props.name, map: newMap}]);
+//                     }
+//                 }}
+//             />
+//         </React.Fragment>
+//     );
+// });
 
 export const MapInputField = ReactForm.FormField((props: {fieldApi: ReactForm.FieldApi}) => {
     const {
@@ -285,3 +368,92 @@ export const MapInputField = ReactForm.FormField((props: {fieldApi: ReactForm.Fi
     );
 });
 
+export const MapValueField = ReactForm.FormField(
+    (props: {fieldApi: ReactForm.FieldApi; name: string; defaultVal: Map<string, string>; isPluginPar: boolean; spec: any; setPluginState: any}) => {
+        const {
+            fieldApi: {getValue, setValue}
+        } = props;
+        let items = new Array<NameValue>();
+        const liveParam = getValue()?.find((val: {name: string; map: Object}) => val.name === props.name);
+        const index = getValue()?.findIndex((val: {name: string; map: Object}) => val.name === props.name) ?? -1;
+        if (liveParam) {
+            liveParam.map = liveParam.map ? liveParam.map : new Map<string, string>();
+        }
+        if (liveParam?.array) {
+            items.push(...liveParam.array);
+        } else {
+            const map = liveParam?.map ?? props.defaultVal ?? new Map<string, string>();
+            Object.keys(map).forEach(item => items.push({name: item || '', value: map[item] || ''}));
+            if (liveParam?.map) {
+                getValue()[index].array = items;
+            }
+        }
+
+        const removeItem = (i: number) => {
+            const locitems = items.slice();
+            locitems.splice(i, 1);
+            items = locitems;
+            if (index >= 0) {
+                getValue()[index].array = locitems;
+            } else {
+                getValue().push({name: props.name, array: []});
+            }
+            setValue([...getValue()]);
+        };
+
+        return (
+            <React.Fragment>
+                <ResetOrDeleteButton
+                    isPluginPar={props.isPluginPar}
+                    getValue={getValue()}
+                    name={props.name}
+                    index={index}
+                    setValue={setValue}
+                    spec={props.spec}
+                    setPluginState={props.setPluginState}
+                />
+                {items.length === 0 && <label>No items</label>}
+                {items.map((item, i) => {
+                    return (
+                        <React.Fragment key={i}>
+                            {NameValueEditor(item, (item: NameValue) => {
+                                items[i] = item;
+                                if (index === -1) {
+                                    getValue().push({
+                                        name: props.name,
+                                        array: items
+                                    });
+                                } else {
+                                    const currentValue = getValue()[index];
+                                    getValue()[index].array = currentValue?.array ? [...currentValue.array.slice(0, i), item, ...currentValue.array.slice(i + 1)] : items;
+                                }
+                                setValue([...getValue()]);
+                            })}
+                            <button>
+                                <i className='fa fa-times' style={{cursor: 'pointer'}} onClick={() => removeItem(i)} />
+                            </button>{' '}
+                        </React.Fragment>
+                    );
+                })}
+                <br />
+                <button
+                    className='argo-button argo-button--base argo-button--short'
+                    onClick={() => {
+                        if (index === -1) {
+                            items.push({name: '', value: ''});
+                            getValue().push({
+                                name: props.name,
+                                array: items
+                            });
+                        } else {
+                            const currentValue = getValue()[index];
+                            currentValue.array = currentValue.array ? currentValue.array.concat({name: '', value: ''}) : [{name: '', value: ''}];
+                        }
+                        setValue([...getValue()]);
+                    }}>
+                    <i style={{cursor: 'pointer'}} className='fa fa-plus' />
+                </button>
+            </React.Fragment>
+        );
+    }
+);
