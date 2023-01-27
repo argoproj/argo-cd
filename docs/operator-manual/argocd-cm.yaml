@@ -47,7 +47,7 @@ data:
   help.download.windows-amd64: "path-or-url-to-download"
 
   # A dex connector configuration (optional). See SSO configuration documentation:
-  # https://github.com/argoproj/argo-cd/blob/master/docs/operator-manual/sso
+  # https://github.com/argoproj/argo-cd/blob/master/docs/operator-manual/user-management/index.md#sso
   # https://dexidp.io/docs/connectors/
   dex.config: |
     connectors:
@@ -190,6 +190,9 @@ data:
       clusters:
       - "*.local"
 
+  # An optional comma-separated list of metadata.labels to observe in the UI.
+  resource.customLabels: tier
+
   resource.compareoptions: |
     # if ignoreAggregatedRoles set to true then differences caused by aggregated roles in RBAC resources are ignored.
     ignoreAggregatedRoles: true
@@ -302,3 +305,29 @@ data:
   # token verification to pass despite the OIDC provider having an invalid certificate. Only set to "true" if you
   # understand the risks.
   oidc.tls.insecure.skip.verify: "false"
+
+  # Add Deep Links to ArgoCD UI
+  # sample project level links
+  project.links: |
+    - url: https://myaudit-system.com?project={{.metadata.name}}
+      title: Audit
+      description: system audit logs
+      icon.class: "fa-book"
+  # sample application level links
+  application.links: |
+    # pkg.go.dev/text/template is used for evaluating url templates
+    - url: https://mycompany.splunk.com?search={{.spec.destination.namespace}}
+      title: Splunk
+    # conditionally show link e.g. for specific project
+    # github.com/antonmedv/expr is used for evaluation of conditions
+    - url: https://mycompany.splunk.com?search={{.spec.destination.namespace}}
+      title: Splunk
+      if: spec.project == "default"
+    - url: https://{{.metadata.annotations.splunkhost}}?search={{.spec.destination.namespace}}
+      title: Splunk
+      if: metadata.annotations.splunkhost
+  # sample resource level links
+  resource.links: |
+    - url: https://mycompany.splunk.com?search={{.metadata.namespace}}
+      title: Splunk
+      if: kind == "Pod" || kind == "Deployment"

@@ -70,6 +70,9 @@ func NewRepoAddCommand(clientOpts *argocdclient.ClientOptions) *cobra.Command {
 
   # Add a private Git repository on GitHub Enterprise via GitHub App
   argocd repo add https://ghe.example.com/repos/repo --github-app-id 1 --github-app-installation-id 2 --github-app-private-key-path test.private-key.pem --github-app-enterprise-base-url https://ghe.example.com/api/v3
+
+  # Add a private Git repository on Google Cloud Sources via GCP service account credentials
+  argocd repo add https://source.developers.google.com/p/my-google-cloud-project/r/my-repo --gcp-service-account-key-path service-account-key.json
 `
 
 	var command = &cobra.Command{
@@ -135,6 +138,17 @@ func NewRepoAddCommand(clientOpts *argocdclient.ClientOptions) *cobra.Command {
 				}
 			}
 
+			if repoOpts.GCPServiceAccountKeyPath != "" {
+				if git.IsHTTPSURL(repoOpts.Repo.Repo) {
+					gcpServiceAccountKey, err := os.ReadFile(repoOpts.GCPServiceAccountKeyPath)
+					errors.CheckError(err)
+					repoOpts.Repo.GCPServiceAccountKey = string(gcpServiceAccountKey)
+				} else {
+					err := fmt.Errorf("--gcp-service-account-key-path is only supported for HTTPS repositories")
+					errors.CheckError(err)
+				}
+			}
+
 			// Set repository connection properties only when creating repository, not
 			// when creating repository credentials.
 			// InsecureIgnoreHostKey is deprecated and only here for backwards compat
@@ -184,6 +198,7 @@ func NewRepoAddCommand(clientOpts *argocdclient.ClientOptions) *cobra.Command {
 				GithubAppEnterpriseBaseUrl: repoOpts.Repo.GitHubAppEnterpriseBaseURL,
 				Proxy:                      repoOpts.Proxy,
 				Project:                    repoOpts.Repo.Project,
+				GcpServiceAccountKey:       repoOpts.Repo.GCPServiceAccountKey,
 			}
 			_, err := repoIf.ValidateAccess(ctx, &repoAccessReq)
 			errors.CheckError(err)
@@ -294,7 +309,7 @@ func NewRepoListCommand(clientOpts *argocdclient.ClientOptions) *cobra.Command {
 		},
 	}
 	command.Flags().StringVarP(&output, "output", "o", "wide", "Output format. One of: json|yaml|wide|url")
-	command.Flags().StringVar(&refresh, "refresh", "", "Force a cache refresh on connection status")
+	command.Flags().StringVar(&refresh, "refresh", "", "Force a cache refresh on connection status , must be one of: 'hard'")
 	return command
 }
 
@@ -345,6 +360,6 @@ func NewRepoGetCommand(clientOpts *argocdclient.ClientOptions) *cobra.Command {
 		},
 	}
 	command.Flags().StringVarP(&output, "output", "o", "wide", "Output format. One of: json|yaml|wide|url")
-	command.Flags().StringVar(&refresh, "refresh", "", "Force a cache refresh on connection status")
+	command.Flags().StringVar(&refresh, "refresh", "", "Force a cache refresh on connection status , must be one of: 'hard'")
 	return command
 }

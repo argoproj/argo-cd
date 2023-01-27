@@ -2,7 +2,6 @@ package application
 
 import (
 	"context"
-	"fmt"
 	"io"
 	"net/http"
 
@@ -24,7 +23,9 @@ import (
 	"github.com/argoproj/argo-cd/v2/util/argo"
 	"github.com/argoproj/argo-cd/v2/util/db"
 	"github.com/argoproj/argo-cd/v2/util/rbac"
+	"github.com/argoproj/argo-cd/v2/util/security"
 	sessionmgr "github.com/argoproj/argo-cd/v2/util/session"
+	"github.com/argoproj/argo-cd/v2/util/settings"
 )
 
 type terminalHandler struct {
@@ -35,10 +36,11 @@ type terminalHandler struct {
 	appResourceTreeFn func(ctx context.Context, app *appv1.Application) (*appv1.ApplicationTree, error)
 	allowedShells     []string
 	namespace         string
+	enabledNamespaces []string
 }
 
 // NewHandler returns a new terminal handler.
-func NewHandler(appLister applisters.ApplicationLister, namespace string, db db.ArgoDB, enf *rbac.Enforcer, cache *servercache.Cache,
+func NewHandler(appLister applisters.ApplicationLister, namespace string, enabledNamespaces []string, db db.ArgoDB, enf *rbac.Enforcer, cache *servercache.Cache,
 	appResourceTree AppResourceTreeFn, allowedShells []string) *terminalHandler {
 	return &terminalHandler{
 		appLister:         appLister,
@@ -48,6 +50,7 @@ func NewHandler(appLister applisters.ApplicationLister, namespace string, db db.
 		appResourceTreeFn: appResourceTree,
 		allowedShells:     allowedShells,
 		namespace:         namespace,
+		enabledNamespaces: enabledNamespaces,
 	}
 }
 
@@ -93,6 +96,26 @@ func isValidContainerName(name string) bool {
 	return len(validationErrors) == 0
 }
 
+type GetSettingsFunc func() (*settings.ArgoCDSettings, error)
+
+// WithFeatureFlagMiddleware is an HTTP middleware to verify if the terminal
+// feature is enabled before invoking the main handler
+func (s *terminalHandler) WithFeatureFlagMiddleware(getSettings GetSettingsFunc) http.Handler {
+	return http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+		argocdSettings, err := getSettings()
+		if err != nil {
+			log.Errorf("error executing WithFeatureFlagMiddleware: error getting settings: %s", err)
+			http.Error(w, "Failed to get settings", http.StatusBadRequest)
+			return
+		}
+		if !argocdSettings.ExecEnabled {
+			w.WriteHeader(http.StatusNotFound)
+			return
+		}
+		s.ServeHTTP(w, r)
+	})
+}
+
 func (s *terminalHandler) ServeHTTP(w http.ResponseWriter, r *http.Request) {
 	q := r.URL.Query()
 
@@ -106,6 +129,8 @@ func (s *terminalHandler) ServeHTTP(w http.ResponseWriter, r *http.Request) {
 		http.Error(w, "Missing required parameters", http.StatusBadRequest)
 		return
 	}
+
+	appNamespace := q.Get("appNamespace")
 
 	if !isValidPodName(podName) {
 		http.Error(w, "Pod name is not valid", http.StatusBadRequest)
@@ -127,11 +152,26 @@ func (s *terminalHandler) ServeHTTP(w http.ResponseWriter, r *http.Request) {
 		http.Error(w, "Namespace name is not valid", http.StatusBadRequest)
 		return
 	}
+	if !isValidNamespaceName(appNamespace) {
+		http.Error(w, "App namespace name is not valid", http.StatusBadRequest)
+		return
+	}
+
+	ns := appNamespace
+	if ns == "" {
+		ns = s.namespace
+	}
+
+	if !security.IsNamespaceEnabled(ns, s.namespace, s.enabledNamespaces) {
+		http.Error(w, security.NamespaceNotPermittedError(ns).Error(), http.StatusForbidden)
+		return
+	}
+
 	shell := q.Get("shell") // No need to validate. Will only be used if it's in the allow-list.
 
 	ctx := r.Context()
 
-	appRBACName := fmt.Sprintf("%s/%s", project, app)
+	appRBACName := security.AppRBACName(s.namespace, project, appNamespace, app)
 	if err := s.enf.EnforceErr(ctx.Value("claims"), rbacpolicy.ResourceApplications, rbacpolicy.ActionGet, appRBACName); err != nil {
 		http.Error(w, err.Error(), http.StatusUnauthorized)
 		return
@@ -143,9 +183,9 @@ func (s *terminalHandler) ServeHTTP(w http.ResponseWriter, r *http.Request) {
 	}
 
 	fieldLog := log.WithFields(log.Fields{"application": app, "userName": sessionmgr.Username(ctx), "container": container,
-		"podName": podName, "namespace": namespace, "cluster": project})
+		"podName": podName, "namespace": namespace, "project": project, "appNamespace": appNamespace})
 
-	a, err := s.appLister.Applications(s.namespace).Get(app)
+	a, err := s.appLister.Applications(ns).Get(app)
 	if err != nil {
 		if apierr.IsNotFound(err) {
 			http.Error(w, "App not found", http.StatusNotFound)
