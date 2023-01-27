@@ -300,8 +300,8 @@ func TestRepositoryServer(t *testing.T) {
 		db.On("GetRepository", context.TODO(), url).Return(nil, nil)
 		db.On("ListHelmRepositories", context.TODO(), mock.Anything).Return(nil, nil)
 		db.On("ListRepositories", context.TODO()).Return([]*appsv1.Repository{&fakeRepo, &fakeRepo}, nil)
-		appLister, projLister := newAppAndProjLister(defaultProj)
-		s := NewServer(&repoServerClientset, db, enforcer, newFixtures().Cache, appLister, projLister, settingsMgr)
+
+		s := NewServer(&repoServerClientset, db, enforcer, newFixtures().Cache, appLister, projInformer, testNamespace, settingsMgr)
 		resp, err := s.ListRepositories(context.TODO(), &repository.RepoQuery{})
 		assert.NoError(t, err)
 		assert.Equal(t, 2, len(resp.Items))
