@@ -1743,7 +1743,11 @@ func (a *ArgoCDSettings) OAuth2ClientID() string {
 func (a *ArgoCDSettings) OAuth2AllowedAudiences() []string {
 	if config := a.oidcConfig(); config != nil {
 		if len(config.AllowedAudiences) == 0 {
-			return []string{config.ClientID}
+			allowedAudiences := []string{config.ClientID}
+			if config.CLIClientID != "" {
+				allowedAudiences = append(allowedAudiences, config.CLIClientID)
+			}
+			return allowedAudiences
 		}
 		return config.AllowedAudiences
 	}
