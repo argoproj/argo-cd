@@ -422,11 +422,9 @@ export const PodsLogsViewer = (props: PodLogsProps & {fullscreen?: boolean}) => 
                                                             items={[
                                                                 {
                                                                     title: (
-                                                                        <Tooltip content='Copy'>
-                                                                            <span>
-                                                                                <i className='fa fa-clipboard' />
-                                                                            </span>
-                                                                        </Tooltip>
+                                                                        <span>
+                                                                            <i className='fa fa-clipboard' /> Copy Line
+                                                                        </span>
                                                                     ),
                                                                     action: async () => {
                                                                         await navigator.clipboard.writeText(l);
