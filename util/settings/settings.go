@@ -1752,7 +1752,7 @@ func (a *ArgoCDSettings) OAuth2AllowedAudiences() []string {
 		return config.AllowedAudiences
 	}
 	if a.DexConfig != "" {
-		return []string{common.ArgoCDClientAppID}
+		return []string{common.ArgoCDClientAppID, common.ArgoCDCLIClientAppID}
 	}
 	return nil
 }
