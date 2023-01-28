@@ -69,6 +69,16 @@
         padding-left: 10px;
         .nav-container {
             display: flex;
+        .page-info {
+            margin-left: auto;
+            margin-right: auto;
+            padding: 3px 8px;
+            text-overflow: clip;
+            white-space: nowrap;
+        }
+        .nav-container {
+            display: flex;
+            align-self: flex-start; 
             padding: 3px 8px;
             cursor: pointer;
             border-radius: 7px;
