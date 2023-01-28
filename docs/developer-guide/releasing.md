@@ -78,8 +78,8 @@ The `<version>` identifier needs to be specified **without** the `release-`
 prefix, so just specify it as `v1.6.0-rc2` for example. The `<remote name>`
 specifies the name of the remote used to push to the GitHub repository. 
 
-If you omit the `<release notes path>`, an editor will pop-up asking you to
-enter the tag's annotation so you can paste the release notes, save, and exit.
+If you omit the `<release notes path>`, an editor will pop up asking you to
+enter the tag's annotation, so you can paste the release notes, save, and exit.
 It will also take care of temporarily configuring the `core.commentChar` and
 setting it back to its original state.
 

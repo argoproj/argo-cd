@@ -71,7 +71,7 @@ cd argo-cd
 make start-local ARGOCD_GPG_ENABLED=false
 ```
 
-- Navigate to <localhost:4000> to the ArgoCD UI on browser
+- Navigate to [localhost:4000](http://localhost:4000) in your browser to load the Argo CD UI
 - It may take a few minutes for the UI to be responsive
 
 !!! note
