@@ -531,7 +531,7 @@ const logNavigators = (actions: NavActions, darkMode: boolean, info?: PageInfo) 
             <NavButton onClick={actions.top || (() => null)}>
                 Top <i className='fa fa-angle-up' />
             </NavButton>
-            <div style={{marginLeft: 'auto', marginRight: 'auto'}}>
+            <div className={`page-info`}>
                 {info && (
                     <React.Fragment>
                         Page {info.curPage + 1} (Lines {info.firstLine} to {info.lastLine})
