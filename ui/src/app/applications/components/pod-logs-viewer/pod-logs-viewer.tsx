@@ -267,7 +267,7 @@ export const PodsLogsViewer = (props: PodLogsProps & {fullscreen?: boolean}) => 
                         )}
 
                         <div className='pod-logs-viewer__filter'>
-                            <Tooltip content={`Show lines that ${!filter.inverse ? '' : 'do not'} match filter`}>
+                            <Tooltip content={`Show lines that ${!filter.inverse ? 'do not' : ''} match filter`}>
                                 <button
                                     className={`argo-button argo-button--base-o`}
                                     onClick={() => setFilter({...filter, inverse: !filter.inverse})}
