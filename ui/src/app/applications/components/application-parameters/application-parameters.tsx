@@ -309,7 +309,7 @@ export const ApplicationParameters = (props: {
             for (const key of appParamsDeletedState) {
                 parametersSet.delete(key);
             }
-            parametersSet.forEach((name, dupName, parametersSet) => {
+            parametersSet.forEach(name => {
                 const announcement = props.details.plugin.parametersAnnouncement?.find(param => param.name === name);
                 const liveParam = app.spec.source.plugin.parameters?.find(param => param.name === name);
                 const pluginIcon = 'This parameter is provided by the plugin.';
@@ -347,8 +347,8 @@ export const ApplicationParameters = (props: {
                                 componentProps={{
                                     name: announcement?.title ?? announcement?.name ?? name,
                                     defaultVal: announcement?.map,
-                                    isPluginPar: isPluginPar,
-                                    setAppParamsDeletedState: setAppParamsDeletedState
+                                    isPluginPar,
+                                    setAppParamsDeletedState
                                 }}
                                 formApi={formApi}
                                 component={MapValueField}
@@ -384,8 +384,8 @@ export const ApplicationParameters = (props: {
                                 componentProps={{
                                     name: announcement?.title ?? announcement?.name ?? name,
                                     defaultVal: announcement?.array,
-                                    isPluginPar: isPluginPar,
-                                    setAppParamsDeletedState: setAppParamsDeletedState
+                                    isPluginPar,
+                                    setAppParamsDeletedState
                                 }}
                                 formApi={formApi}
                                 component={ArrayValueField}
@@ -417,8 +417,8 @@ export const ApplicationParameters = (props: {
                                 componentProps={{
                                     name: announcement?.title ?? announcement?.name ?? name,
                                     defaultVal: announcement?.string,
-                                    isPluginPar: isPluginPar,
-                                    setAppParamsDeletedState: setAppParamsDeletedState
+                                    isPluginPar,
+                                    setAppParamsDeletedState
                                 }}
                                 formApi={formApi}
                                 component={StringValueField}

@@ -182,7 +182,7 @@ export const ArrayValueField = ReactForm.FormField(
             liveParamArray = liveParam?.array ?? [];
         }
         const index = getValue()?.findIndex((val: {name: string; array: object}) => val.name === props.name) ?? -1;
-        let values = liveParamArray ?? props.defaultVal ?? [];
+        const values = liveParamArray ?? props.defaultVal ?? [];
 
         return (
             <React.Fragment>
@@ -218,11 +218,11 @@ export const StringValueField = ReactForm.FormField(
             fieldApi: {getValue, setValue}
         } = props;
         let liveParamString;
-        const liveParam = getValue()?.find((val: {name: String; string: Object}) => val.name === props.name);
+        const liveParam = getValue()?.find((val: {name: String; string: string}) => val.name === props.name);
         if (liveParam) {
             liveParamString = liveParam?.string ? liveParam?.string : '';
         }
-        let values = liveParamString ?? props.defaultVal ?? '';
+        const values = liveParamString ?? props.defaultVal ?? '';
         const index = getValue()?.findIndex((val: {name: string; string: string}) => val.name === props.name) ?? -1;
 
         return (
