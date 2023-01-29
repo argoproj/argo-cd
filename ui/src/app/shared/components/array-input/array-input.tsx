@@ -119,7 +119,6 @@ export function ArrayInput<T>(props: Props<T>) {
     );
 }
 
-
 export const ResetOrDeleteButton = (props: {
     isPluginPar: boolean;
     getValue: () => FormValue;
@@ -135,18 +134,16 @@ export const ResetOrDeleteButton = (props: {
     };
 
     const handleResetChange = () => {
-
         if (props.index >= 0) {
-            const items =[...props.getValue()];
+            const items = [...props.getValue()];
             items.splice(props.index, 1);
             props.setValue(items);
         }
+    };
 
-    }
+    const disabled = props.index === -1;
 
-    let disabled = props.index === -1;
-
-    let content = props.isPluginPar ? 'Reset' : 'Delete';
+    const content = props.isPluginPar ? 'Reset' : 'Delete';
     let tooltip = '';
     if (content === 'Reset' && !disabled) {
         tooltip = 'Resets the parameter to the value provided by the plugin. This removes the parameter override from the application manifest';
@@ -160,7 +157,7 @@ export const ResetOrDeleteButton = (props: {
             disabled={disabled}
             title={tooltip}
             style={{fontSize: '12px', display: 'flex', marginLeft: 'auto', marginTop: '8px'}}
-            onClick={props.isPluginPar?handleResetChange:handleDeleteChange}>
+            onClick={props.isPluginPar ? handleResetChange : handleDeleteChange}>
             {content}
         </button>
     );
@@ -179,13 +176,12 @@ export const ArrayValueField = ReactForm.FormField(
             fieldApi: {getValue, setValue}
         } = props;
 
-        console.log("getValue is ",getValue());
         let liveParamArray;
-        const liveParam = getValue()?.find((val: {name: String; array: Object}) => val.name === props.name);
+        const liveParam = getValue()?.find((val: {name: string; array: object}) => val.name === props.name);
         if (liveParam) {
             liveParamArray = liveParam?.array ?? [];
         }
-        const index = getValue()?.findIndex((val: {name: String; array: Object}) => val.name === props.name) ?? -1;
+        const index = getValue()?.findIndex((val: {name: string; array: object}) => val.name === props.name) ?? -1;
         let values = liveParamArray ?? props.defaultVal ?? [];
 
         return (
@@ -202,14 +198,13 @@ export const ArrayValueField = ReactForm.FormField(
                     editor={ValueEditor}
                     items={values || []}
                     onChange={change => {
-                        const update = change.map((val: string | Object) => (typeof val != 'string' ? '' : val));
+                        const update = change.map((val: string | object) => (typeof val !== 'string' ? '' : val));
                         if (index >= 0) {
                             getValue()[index].array = update;
                             setValue([...getValue()]);
                         } else {
                             setValue([...(getValue() || []), {name: props.name, array: update}]);
                         }
-
                     }}
                 />
             </React.Fragment>
@@ -264,7 +259,6 @@ export const StringValueField = ReactForm.FormField(
     }
 );
 
-
 export const MapInputField = ReactForm.FormField((props: {fieldApi: ReactForm.FieldApi}) => {
     const {
         fieldApi: {getValue, setValue}
@@ -291,8 +285,8 @@ export const MapValueField = ReactForm.FormField(
             fieldApi: {getValue, setValue}
         } = props;
         let items = new Array<NameValue>();
-        const liveParam = getValue()?.find((val: {name: string; map: Object}) => val.name === props.name);
-        const index = getValue()?.findIndex((val: {name: string; map: Object}) => val.name === props.name) ?? -1;
+        const liveParam = getValue()?.find((val: {name: string; map: object}) => val.name === props.name);
+        const index = getValue()?.findIndex((val: {name: string; map: object}) => val.name === props.name) ?? -1;
         if (liveParam) {
             liveParam.map = liveParam.map ? liveParam.map : new Map<string, string>();
         }
@@ -332,8 +326,8 @@ export const MapValueField = ReactForm.FormField(
                 {items.map((item, i) => {
                     return (
                         <React.Fragment key={i}>
-                            {NameValueEditor(item, (item: NameValue) => {
-                                items[i] = item;
+                            {NameValueEditor(item, (val: NameValue) => {
+                                items[i] = val;
                                 if (index === -1) {
                                     getValue().push({
                                         name: props.name,
@@ -341,7 +335,7 @@ export const MapValueField = ReactForm.FormField(
                                     });
                                 } else {
                                     const currentValue = getValue()[index];
-                                    getValue()[index].array = currentValue?.array ? [...currentValue.array.slice(0, i), item, ...currentValue.array.slice(i + 1)] : items;
+                                    getValue()[index].array = currentValue?.array ? [...currentValue.array.slice(0, i), val, ...currentValue.array.slice(i + 1)] : items;
                                 }
                                 setValue([...getValue()]);
                             })}

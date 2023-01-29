@@ -127,12 +127,12 @@ export const ApplicationParameters = (props: {
     noReadonlyMode?: boolean;
 }) => {
     const app = props.application;
-    const [initialAppState,setInitialAppState] = React.useState(cloneDeep(app));
+    // const [initialAppState,setInitialAppState] = React.useState(cloneDeep(app));
     const source = getAppDefaultSource(app);
     const [removedOverrides, setRemovedOverrides] = React.useState(new Array<boolean>());
 
     let attributes: EditablePanelItem[] = [];
-    let [appParamsDeletedState, setAppParamsDeletedState] = React.useState([]);
+    const [appParamsDeletedState, setAppParamsDeletedState] = React.useState([]);
 
     if (props.details.type === 'Kustomize' && props.details.kustomize) {
         attributes.push({
@@ -296,7 +296,7 @@ export const ApplicationParameters = (props: {
             edit: (formApi: FormApi) => <FormField field='spec.source.plugin.env' formApi={formApi} component={ArrayInputField} />
         });
         if (props.details.plugin.parametersAnnouncement) {
-            let parametersSet = new Set<string>();
+            const parametersSet = new Set<string>();
             for (const announcement of props.details.plugin.parametersAnnouncement) {
                 parametersSet.add(announcement.name);
             }
@@ -306,7 +306,7 @@ export const ApplicationParameters = (props: {
                 }
             }
 
-            for (let key of appParamsDeletedState) {
+            for (const key of appParamsDeletedState) {
                 parametersSet.delete(key);
             }
             parametersSet.forEach((name, dupName, parametersSet) => {
@@ -322,18 +322,18 @@ export const ApplicationParameters = (props: {
                     const map = concatMaps(liveParamMap ?? announcement?.map, new Map<string, string>());
                     const entries = map.entries();
                     const items = new Array<NameValue>();
-                    Array.from(entries).forEach(([key, value]) => items.push({name: key, value: value}));
+                    Array.from(entries).forEach(([key, value]) => items.push({name: key, value: `${value}`}));
                     attributes.push({
                         title: announcement?.title ?? announcement?.name ?? name,
                         customTitle: (
                             <span>
-                                {isPluginPar && <i className='fa solid fa-puzzle-piece' title={pluginIcon} style={{marginRight: 5}}></i>}
+                                {isPluginPar && <i className='fa solid fa-puzzle-piece' title={pluginIcon} style={{marginRight: 5}} />}
                                 {announcement?.title ?? announcement?.name ?? name}
                             </span>
                         ),
                         view: (
                             <div style={{marginTop: 15, marginBottom: 5}}>
-                                {items.length == 0 && <span style={{color: 'dimgray'}}>-- NO ITEMS --</span>}
+                                {items.length === 0 && <span style={{color: 'dimgray'}}>-- NO ITEMS --</span>}
                                 {items.map(val => (
                                     <span key={val.name} style={{display: 'block', marginBottom: 5}}>
                                         {NameValueEditor(val)}
@@ -364,7 +364,7 @@ export const ApplicationParameters = (props: {
                         title: announcement?.title ?? announcement?.name ?? name,
                         customTitle: (
                             <span>
-                                {isPluginPar && <i className='fa-solid fa-puzzle-piece' title={pluginIcon} style={{marginRight: 5}}></i>}
+                                {isPluginPar && <i className='fa-solid fa-puzzle-piece' title={pluginIcon} style={{marginRight: 5}} />}
                                 {announcement?.title ?? announcement?.name ?? name}
                             </span>
                         ),
@@ -406,7 +406,7 @@ export const ApplicationParameters = (props: {
                         title: announcement?.title ?? announcement?.name ?? name,
                         customTitle: (
                             <span>
-                                {isPluginPar && <i className='fa-solid fa-puzzle-piece' title={pluginIcon} style={{marginRight: 5}}></i>}
+                                {isPluginPar && <i className='fa-solid fa-puzzle-piece' title={pluginIcon} style={{marginRight: 5}} />}
                                 {announcement?.title ?? announcement?.name ?? name}
                             </span>
                         ),
@@ -506,14 +506,14 @@ export const ApplicationParameters = (props: {
 
                         params = params.filter(param => !appParamsDeletedState.includes(param.name));
                         input.spec.source.plugin.parameters = params;
-                        setInitialAppState(cloneDeep(input));
+                        // setInitialAppState(cloneDeep(input));
                     }
 
                     await props.save(input, {});
                     setRemovedOverrides(new Array<boolean>());
                 })
             }
-            values={initialAppState}
+            values={cloneDeep(app)}
             validate={updatedApp => {
                 const errors = {} as any;
 
@@ -524,7 +524,12 @@ export const ApplicationParameters = (props: {
 
                 return errors;
             }}
-            onModeSwitch={props.details.plugin && (() => setAppParamsDeletedState([]))}
+            onModeSwitch={
+                props.details.plugin &&
+                (() => {
+                    setAppParamsDeletedState([]);
+                })
+            }
             title={props.details.type.toLocaleUpperCase()}
             items={attributes}
             noReadonlyMode={props.noReadonlyMode}
