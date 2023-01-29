@@ -1,7 +1,7 @@
 import {AutocompleteField, DataLoader, FormField, FormSelect, getNestedField} from 'argo-ui';
 import * as React from 'react';
 import {FieldApi, FormApi, FormField as ReactFormField, Text, TextArea} from 'react-form';
-
+import {cloneDeep} from 'lodash-es';
 import {
     ArrayInputField,
     ArrayValueField,
@@ -127,12 +127,12 @@ export const ApplicationParameters = (props: {
     noReadonlyMode?: boolean;
 }) => {
     const app = props.application;
+    const [initialAppState,setInitialAppState] = React.useState(cloneDeep(app));
     const source = getAppDefaultSource(app);
     const [removedOverrides, setRemovedOverrides] = React.useState(new Array<boolean>());
 
     let attributes: EditablePanelItem[] = [];
-    let [pluginState, setPluginState] = React.useState(false);
-    console.log('pluginState is', pluginState);
+    let [appParamsDeletedState, setAppParamsDeletedState] = React.useState([]);
 
     if (props.details.type === 'Kustomize' && props.details.kustomize) {
         attributes.push({
@@ -305,12 +305,15 @@ export const ApplicationParameters = (props: {
                     parametersSet.add(appParameter.name);
                 }
             }
+
+            for (let key of appParamsDeletedState) {
+                parametersSet.delete(key);
+            }
             parametersSet.forEach((name, dupName, parametersSet) => {
                 const announcement = props.details.plugin.parametersAnnouncement?.find(param => param.name === name);
                 const liveParam = app.spec.source.plugin.parameters?.find(param => param.name === name);
                 const pluginIcon = 'This parameter is provided by the plugin.';
                 const isPluginPar = announcement ? true : false;
-                // console.log("app.spec.source.plugin.parameters is   ",app.spec.source.plugin.parameters);
                 if ((announcement?.collectionType === undefined && liveParam?.map) || announcement?.collectionType === 'map') {
                     let liveParamMap;
                     if (liveParam) {
@@ -345,8 +348,7 @@ export const ApplicationParameters = (props: {
                                     name: announcement?.title ?? announcement?.name ?? name,
                                     defaultVal: announcement?.map,
                                     isPluginPar: isPluginPar,
-                                    spec: app.spec.source.plugin?.parameters,
-                                    setPluginState: setPluginState
+                                    setAppParamsDeletedState: setAppParamsDeletedState
                                 }}
                                 formApi={formApi}
                                 component={MapValueField}
@@ -383,8 +385,7 @@ export const ApplicationParameters = (props: {
                                     name: announcement?.title ?? announcement?.name ?? name,
                                     defaultVal: announcement?.array,
                                     isPluginPar: isPluginPar,
-                                    spec: app.spec.source.plugin?.parameters,
-                                    setPluginState: setPluginState
+                                    setAppParamsDeletedState: setAppParamsDeletedState
                                 }}
                                 formApi={formApi}
                                 component={ArrayValueField}
@@ -417,8 +418,7 @@ export const ApplicationParameters = (props: {
                                     name: announcement?.title ?? announcement?.name ?? name,
                                     defaultVal: announcement?.string,
                                     isPluginPar: isPluginPar,
-                                    spec: app.spec.source.plugin?.parameters,
-                                    setPluginState: setPluginState
+                                    setAppParamsDeletedState: setAppParamsDeletedState
                                 }}
                                 formApi={formApi}
                                 component={StringValueField}
@@ -428,7 +428,6 @@ export const ApplicationParameters = (props: {
                 }
             });
         }
-        if (pluginState) setPluginState(false);
     } else if (props.details.type === 'Directory') {
         const directory = source.directory || ({} as ApplicationSourceDirectory);
         attributes.push({
@@ -468,10 +467,7 @@ export const ApplicationParameters = (props: {
         });
     }
 
-    // if(attributeList.length==0){
-    //     setAttributeList(attributes);
-    // }
-    // console.log("attributeList befor rendering is ",attributes)
+    // console.log("input is ",input);
     return (
         <EditablePanel
             save={
@@ -493,7 +489,7 @@ export const ApplicationParameters = (props: {
                         src.kustomize.images = src.kustomize.images.filter(isDefinedWithVersion);
                     }
 
-                    const params = input.spec?.source?.plugin?.parameters;
+                    let params = input.spec?.source?.plugin?.parameters;
                     if (params) {
                         for (const param of params) {
                             if (param.array && (param.map || typeof param.array[0] !== 'string')) {
@@ -507,13 +503,17 @@ export const ApplicationParameters = (props: {
                                 delete param.array;
                             }
                         }
+
+                        params = params.filter(param => !appParamsDeletedState.includes(param.name));
+                        input.spec.source.plugin.parameters = params;
+                        setInitialAppState(cloneDeep(input));
                     }
 
                     await props.save(input, {});
                     setRemovedOverrides(new Array<boolean>());
                 })
             }
-            values={app}
+            values={initialAppState}
             validate={updatedApp => {
                 const errors = {} as any;
 
@@ -524,6 +524,7 @@ export const ApplicationParameters = (props: {
 
                 return errors;
             }}
+            onModeSwitch={props.details.plugin && (() => setAppParamsDeletedState([]))}
             title={props.details.type.toLocaleUpperCase()}
             items={attributes}
             noReadonlyMode={props.noReadonlyMode}
