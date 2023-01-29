@@ -614,8 +614,8 @@ func (a *ArgoCDServer) watchSettings() {
 				newCert, newCertKey = tlsutil.EncodeX509KeyPairString(*a.settings.Certificate)
 			}
 			if newCert != prevCert || newCertKey != prevCertKey {
-				log.Infof("tls certificate modified. restarting")
-				break
+				log.Infof("tls certificate modified. reloading certificate")
+				// No need to break out of this loop since TlsConfig.GetCertificate will automagically reload the cert.
 			}
 		}
 	}
