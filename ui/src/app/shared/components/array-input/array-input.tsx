@@ -218,7 +218,7 @@ export const StringValueField = ReactForm.FormField(
             fieldApi: {getValue, setValue}
         } = props;
         let liveParamString;
-        const liveParam = getValue()?.find((val: {name: String; string: string}) => val.name === props.name);
+        const liveParam = getValue()?.find((val: {name: string; string: string}) => val.name === props.name);
         if (liveParam) {
             liveParamString = liveParam?.string ? liveParam?.string : '';
         }
