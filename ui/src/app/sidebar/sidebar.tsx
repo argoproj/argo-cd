@@ -34,10 +34,10 @@ export const Sidebar = (props: SidebarProps) => {
     const locationPath = context.history.location.pathname;
 
     const tooltipProps = {
-        onShow: (instance: any) =>{
+        onShow: (instance: any) => {
             instance.set({
-                maxWidth: window.innerWidth - 590 > 0? 350 : window.innerWidth - 240
-            })
+                maxWidth: window.innerWidth - 590 > 0 ? 350 : window.innerWidth - 240
+            });
         },
         placement: 'right',
         popperOptions: {
