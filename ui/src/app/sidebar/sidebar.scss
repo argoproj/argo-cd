@@ -31,11 +31,12 @@ $deselected-text: #818d94;
     &__logo {
         width: 100%;
         display: flex;
+        flex-direction: row-reverse;
         align-items: center;
         font-size: 24px;
         font-weight: 500;
         margin: 1em 0;
-        margin-left: -7px;
+        margin-left: 7px;
 
         &__character {
             width: 42px;
@@ -104,7 +105,8 @@ $deselected-text: #818d94;
         .sidebar__logo {
             margin-left: 0;
             flex-direction: column;
-            margin-bottom: 0;
+            margin-bottom: 18px;
+            margin-top: -7px;
             justify-content: center;
         }
 

@@ -48,7 +48,9 @@ export const Sidebar = (props: SidebarProps) => {
         <div className={`sidebar ${props.pref.hideSidebar ? 'sidebar--collapsed' : ''}`}>
             <div className='sidebar__container'>
                 <div className='sidebar__logo'>
-                    <img src='assets/images/logo.png' alt='Argo' className='sidebar__logo__character' />{' '}
+                    <div onClick={() => services.viewPreferences.updatePreferences({...props.pref, hideSidebar: !props.pref.hideSidebar})} className='sidebar__collapse-button'>
+                        <i className={`fas fa-arrow-${props.pref.hideSidebar ? 'right' : 'left'}`} />
+                    </div>
                     {!props.pref.hideSidebar && (
                         <div className='sidebar__logo-container'>
                             <img src='assets/images/argologo.svg' alt='Argo' className='sidebar__logo__text-logo' />
@@ -57,9 +59,7 @@ export const Sidebar = (props: SidebarProps) => {
                             </div>
                         </div>
                     )}
-                    <div onClick={() => services.viewPreferences.updatePreferences({...props.pref, hideSidebar: !props.pref.hideSidebar})} className='sidebar__collapse-button'>
-                        <i className={`fas fa-arrow-${props.pref.hideSidebar ? 'right' : 'left'}`} />
-                    </div>
+                    <img src='assets/images/logo.png' alt='Argo' className='sidebar__logo__character' />{' '}
                 </div>
 
                 {(props.navItems || []).map(item => (
