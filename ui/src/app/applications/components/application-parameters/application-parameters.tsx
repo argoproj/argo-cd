@@ -4,7 +4,7 @@ import {FieldApi, FormApi, FormField as ReactFormField, Text, TextArea} from 're
 
 import {ArrayInputField, CheckboxField, EditablePanel, EditablePanelItem, Expandable, TagsInputField} from '../../../shared/components';
 import * as models from '../../../shared/models';
-import {ApplicationSourceDirectory, AuthSettings} from '../../../shared/models';
+import {ApplicationSourceDirectory, Plugin} from '../../../shared/models';
 import {services} from '../../../shared/services';
 import {ImageTagFieldEditor} from './kustomize';
 import * as kustomize from './kustomize-image';
@@ -192,31 +192,21 @@ export const ApplicationParameters = (props: {
                 />
             )
         });
-        if (source?.helm?.values) {
-            attributes.push({
-                title: 'VALUES',
-                view: source.helm && (
-                    <Expandable>
-                        <pre>{source.helm.values}</pre>
-                    </Expandable>
-                ),
-                edit: (formApi: FormApi) => (
-                    <div>
-                        <pre>
-                            <FormField formApi={formApi} field='spec.source.helm.values' component={TextArea} />
-                        </pre>
-                        {props.details.helm.values && (
-                            <div>
-                                <label>values.yaml</label>
-                                <Expandable>
-                                    <pre>{props.details.helm.values}</pre>
-                                </Expandable>
-                            </div>
-                        )}
-                    </div>
-                )
-            });
-        }
+        attributes.push({
+            title: 'VALUES',
+            view: source.helm && (
+                <Expandable>
+                    <pre>{source.helm.values}</pre>
+                </Expandable>
+            ),
+            edit: (formApi: FormApi) => (
+                <div>
+                    <pre>
+                        <FormField formApi={formApi} field='spec.source.helm.values' component={TextArea} />
+                    </pre>
+                </div>
+            )
+        });
         const paramsByName = new Map<string, models.HelmParameter>();
         (props.details.helm.parameters || []).forEach(param => paramsByName.set(param.name, param));
         const overridesByName = new Map<string, number>();
@@ -268,9 +258,9 @@ export const ApplicationParameters = (props: {
             title: 'NAME',
             view: source.plugin && source.plugin.name,
             edit: (formApi: FormApi) => (
-                <DataLoader load={() => services.authService.settings()}>
-                    {(settings: AuthSettings) => (
-                        <FormField formApi={formApi} field='spec.source.plugin.name' component={FormSelect} componentProps={{options: (settings.plugins || []).map(p => p.name)}} />
+                <DataLoader load={() => services.authService.plugins()}>
+                    {(plugins: Plugin[]) => (
+                        <FormField formApi={formApi} field='spec.source.plugin.name' component={FormSelect} componentProps={{options: plugins.map(p => p.name)}} />
                     )}
                 </DataLoader>
             )

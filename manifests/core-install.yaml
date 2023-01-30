@@ -5476,7 +5476,6 @@ spec:
                           - spec
                           type: object
                       required:
-                      - pathParamPrefix
                       - repoURL
                       - revision
                       type: object
@@ -7367,7 +7366,6 @@ spec:
                                     - spec
                                     type: object
                                 required:
-                                - pathParamPrefix
                                 - repoURL
                                 - revision
                                 type: object
@@ -10916,7 +10914,6 @@ spec:
                                     - spec
                                     type: object
                                 required:
-                                - pathParamPrefix
                                 - repoURL
                                 - revision
                                 type: object
@@ -15639,7 +15636,7 @@ spec:
         - ""
         - --appendonly
         - "no"
-        image: redis:7.0.5-alpine
+        image: redis:7.0.7-alpine
         imagePullPolicy: Always
         name: redis
         ports:
