@@ -9,22 +9,24 @@
     padding-left: 5px;
     color: black;
 
-    
     &--inverted {
         background-color: black;
         color: white;
     }
-    
+
     &__settings {
         display: flex;
-        
-        .argo-checkbox, .argo-checkbox input, .argo-checkbox input:focus {
+
+        .argo-checkbox,
+        .argo-checkbox input,
+        .argo-checkbox input:focus {
             outline: none !important;
             border: none !important;
             width: 12px;
             margin-right: 8px;
-            input:checked + span, input + span {
-                border:  none;
+            input:checked + span,
+            input + span {
+                border: none;
                 width: 12px !important;
                 background-color: transparent;
             }
@@ -34,7 +36,7 @@
         }
 
         margin-bottom: 1em;
-        
+
         > * {
             display: flex;
             align-items: center;
@@ -65,13 +67,19 @@
         display: flex;
         margin-bottom: 1em;
         padding-left: 10px;
-        i {
+        .page-info {
+            margin-left: auto;
+            margin-right: auto;
+            padding: 3px 8px;
+            text-overflow: clip;
+            white-space: nowrap;
+        }
+        .nav-container {
+            display: flex;
+            align-self: flex-start;
+            padding: 3px 8px;
             cursor: pointer;
             border-radius: 7px;
-            $size: 25px;
-            width: $size;
-            height: $size;
-            display: flex;
             align-items: center;
             justify-content: center;
             border: 1px solid black;
@@ -84,6 +92,9 @@
                 opacity: 0.5;
                 cursor: not-allowed;
             }
+        }
+        i {
+            margin-left: 5px;
         }
 
         &--inverted {
