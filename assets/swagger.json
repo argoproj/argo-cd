@@ -3588,6 +3588,29 @@
         }
       }
     },
+    "/api/v1/settings/plugins": {
+      "get": {
+        "tags": [
+          "SettingsService"
+        ],
+        "summary": "Get returns Argo CD plugins",
+        "operationId": "SettingsService_GetPlugins",
+        "responses": {
+          "200": {
+            "description": "A successful response.",
+            "schema": {
+              "$ref": "#/definitions/clusterSettingsPluginsResponse"
+            }
+          },
+          "default": {
+            "description": "An unexpected error response.",
+            "schema": {
+              "$ref": "#/definitions/runtimeError"
+            }
+          }
+        }
+      }
+    },
     "/api/v1/stream/applications": {
       "get": {
         "tags": [
@@ -4339,6 +4362,17 @@
         },
         "userLoginsDisabled": {
           "type": "boolean"
+        }
+      }
+    },
+    "clusterSettingsPluginsResponse": {
+      "type": "object",
+      "properties": {
+        "plugins": {
+          "type": "array",
+          "items": {
+            "$ref": "#/definitions/clusterPlugin"
+          }
         }
       }
     },
