@@ -201,7 +201,7 @@ jobs:
         if: ${{ env.DRY_RUN != 'true' }}
 
       - uses: docker/setup-qemu-action@e81a89b1732b9c48d79cd809d8d81d79c4647a18 # v2.1.0
-      - uses: docker/setup-buildx-action@8c0edbc76e98fa90f69d9a2c020dcb50019dc325 # v2.2.1
+      - uses: docker/setup-buildx-action@5e716dcfd653738c2d1db099bfba194a84158be4 # v2.3.0
       - name: Build and push Docker image for release
         run: |
           set -ue
