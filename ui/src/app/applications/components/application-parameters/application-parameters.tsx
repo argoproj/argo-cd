@@ -10,7 +10,6 @@ import {
     EditablePanelItem,
     Expandable,
     MapValueField,
-    // MapValueField1,
     NameValueEditor,
     StringValueField,
     NameValue,
@@ -127,7 +126,6 @@ export const ApplicationParameters = (props: {
     noReadonlyMode?: boolean;
 }) => {
     const app = props.application;
-    // const [initialAppState,setInitialAppState] = React.useState(cloneDeep(app));
     const source = getAppDefaultSource(app);
     const [removedOverrides, setRemovedOverrides] = React.useState(new Array<boolean>());
 
@@ -493,7 +491,6 @@ export const ApplicationParameters = (props: {
                     if (params) {
                         for (const param of params) {
                             if (param.array && (param.map || typeof param.array[0] !== 'string')) {
-                                //     if(param.array && (param.map)) {
                                 // @ts-ignore
                                 param.map = param.array.reduce((acc, {name, value}) => {
                                     // @ts-ignore
@@ -506,14 +503,13 @@ export const ApplicationParameters = (props: {
 
                         params = params.filter(param => !appParamsDeletedState.includes(param.name));
                         input.spec.source.plugin.parameters = params;
-                        // setInitialAppState(cloneDeep(input));
                     }
 
                     await props.save(input, {});
                     setRemovedOverrides(new Array<boolean>());
                 })
             }
-            values={cloneDeep(app)}
+            values={(props.details.plugin && cloneDeep(app)) || app}
             validate={updatedApp => {
                 const errors = {} as any;
 
