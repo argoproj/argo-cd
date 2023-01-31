@@ -1336,7 +1336,7 @@ func updateSettingsFromConfigMap(settings *ArgoCDSettings, argoCDCM *apiv1.Confi
 	if err := validateExternalURL(argoCDCM.Data[settingURLKey]); err != nil {
 		log.Warnf("Failed to validate URL in configmap: %v", err)
 	}
-	settings.URL = argoCDCM.Data[settingURLKey]
+	settings.URL = strings.TrimSuffix(argoCDCM.Data[settingURLKey], "/")
 	if err := validateExternalURL(argoCDCM.Data[settingUiBannerURLKey]); err != nil {
 		log.Warnf("Failed to validate UI banner URL in configmap: %v", err)
 	}
@@ -1722,8 +1722,7 @@ func (a *ArgoCDSettings) IssuerURL() string {
 		return oidcConfig.Issuer
 	}
 	if a.DexConfig != "" {
-		baseUrl := strings.TrimSuffix(a.URL, "/")
-		return baseUrl + common.DexAPIEndpoint
+		return a.URL + common.DexAPIEndpoint
 	}
 	return ""
 }
@@ -1820,8 +1819,7 @@ func (a *ArgoCDSettings) RedirectURL() (string, error) {
 }
 
 func (a *ArgoCDSettings) DexRedirectURL() (string, error) {
-	baseUrl := strings.TrimSuffix(a.URL, "/")
-	return appendURLPath(baseUrl, common.DexCallbackEndpoint)
+	return appendURLPath(a.URL, common.DexCallbackEndpoint)
 }
 
 // DexOAuth2ClientSecret calculates an arbitrary, but predictable OAuth2 client secret string derived
