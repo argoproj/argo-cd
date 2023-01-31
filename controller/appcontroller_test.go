@@ -865,7 +865,7 @@ func TestNeedRefreshAppStatus(t *testing.T) {
 	app.Status.Sync = argoappv1.SyncStatus{
 		Status: argoappv1.SyncStatusCodeSynced,
 		ComparedTo: argoappv1.ComparedTo{
-			Source:      app.Spec.Source,
+			Source:      app.Spec.GetSource(),
 			Destination: app.Spec.Destination,
 		},
 	}
@@ -909,7 +909,7 @@ func TestNeedRefreshAppStatus(t *testing.T) {
 		app.Status.Sync = argoappv1.SyncStatus{
 			Status: argoappv1.SyncStatusCodeSynced,
 			ComparedTo: argoappv1.ComparedTo{
-				Source:      app.Spec.Source,
+				Source:      app.Spec.GetSource(),
 				Destination: app.Spec.Destination,
 			},
 		}
@@ -1012,7 +1012,7 @@ func TestUpdateReconciledAt(t *testing.T) {
 	app := newFakeApp()
 	reconciledAt := metav1.NewTime(time.Now().Add(-1 * time.Second))
 	app.Status = argoappv1.ApplicationStatus{ReconciledAt: &reconciledAt}
-	app.Status.Sync = argoappv1.SyncStatus{ComparedTo: argoappv1.ComparedTo{Source: app.Spec.Source, Destination: app.Spec.Destination}}
+	app.Status.Sync = argoappv1.SyncStatus{ComparedTo: argoappv1.ComparedTo{Source: app.Spec.GetSource(), Destination: app.Spec.Destination}}
 	ctrl := newFakeController(&fakeData{
 		apps: []runtime.Object{app, &defaultProj},
 		manifestResponse: &apiclient.ManifestResponse{
@@ -1372,4 +1372,32 @@ func TestToAppKey(t *testing.T) {
 			assert.Equal(t, tt.expected, ctrl.toAppKey(tt.input))
 		})
 	}
+}
+
+func Test_canProcessApp(t *testing.T) {
+	app := newFakeApp()
+	ctrl := newFakeController(&fakeData{apps: []runtime.Object{app}})
+	ctrl.applicationNamespaces = []string{"good"}
+	t.Run("without cluster filter, good namespace", func(t *testing.T) {
+		app.Namespace = "good"
+		canProcess := ctrl.canProcessApp(app)
+		assert.True(t, canProcess)
+	})
+	t.Run("without cluster filter, bad namespace", func(t *testing.T) {
+		app.Namespace = "bad"
+		canProcess := ctrl.canProcessApp(app)
+		assert.False(t, canProcess)
+	})
+	t.Run("with cluster filter, good namespace", func(t *testing.T) {
+		app.Namespace = "good"
+		ctrl.clusterFilter = func(_ *argoappv1.Cluster) bool { return true }
+		canProcess := ctrl.canProcessApp(app)
+		assert.True(t, canProcess)
+	})
+	t.Run("with cluster filter, bad namespace", func(t *testing.T) {
+		app.Namespace = "bad"
+		ctrl.clusterFilter = func(_ *argoappv1.Cluster) bool { return true }
+		canProcess := ctrl.canProcessApp(app)
+		assert.False(t, canProcess)
+	})
 }

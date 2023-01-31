@@ -45,6 +45,9 @@ spec:
       valueFiles:
       - values-prod.yaml
 
+      # Ignore locally missing valueFiles when installing Helm chart. Defaults to false
+      ignoreMissingValueFiles: false
+
       # Values file as block file
       values: |
         ingress:
@@ -60,6 +63,9 @@ spec:
             - secretName: mydomain-tls
               hosts:
                 - mydomain.example.com
+
+      # Skip custom resource definition installation if chart contains custom resource definitions. Defaults to false
+      skipCrds: false
 
       # Optional Helm version to template with. If omitted it will fall back to look at the 'apiVersion' in Chart.yaml
       # and decide which Helm binary to use automatically. This field can be either 'v2' or 'v3'.
@@ -126,6 +132,13 @@ spec:
         - name: map-param
           map:
             param-name: param-value
+  
+  # Sources field specifies the list of sources for the application
+  sources:
+    - repoURL: https://github.com/argoproj/argocd-example-apps.git  # Can point to either a Helm chart repo or a git repo.
+      targetRevision: HEAD  # For Helm, this refers to the chart version.
+      path: guestbook  # This has no meaning for Helm charts pulled directly from a Helm repo instead of git.
+      ref: my-repo  # For Helm, acts as a reference to this source for fetching values files from this source. Has no meaning when under `source` field
 
   # Destination cluster and namespace to deploy the application
   destination:

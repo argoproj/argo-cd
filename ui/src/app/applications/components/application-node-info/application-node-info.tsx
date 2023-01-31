@@ -3,6 +3,7 @@ import * as deepMerge from 'deepmerge';
 import * as React from 'react';
 
 import {YamlEditor, ClipboardText} from '../../../shared/components';
+import {DeepLinks} from '../../../shared/components/deep-links';
 import * as models from '../../../shared/models';
 import {HealthStatusCode} from '../../../shared/models';
 import {services} from '../../../shared/services';
@@ -16,6 +17,7 @@ export const ApplicationNodeInfo = (props: {
     application: models.Application;
     node: models.ResourceNode;
     live: models.State;
+    links: models.LinksResponse;
     controlled: {summary: models.ResourceStatus; state: models.ResourceDiff};
 }) => {
     const attributes: {title: string; value: any}[] = [
@@ -130,6 +132,13 @@ export const ApplicationNodeInfo = (props: {
                 )
             } as any);
         }
+    }
+
+    if (props.links) {
+        attributes.push({
+            title: 'LINKS',
+            value: <DeepLinks links={props.links.items} />
+        });
     }
 
     const tabs: Tab[] = [
