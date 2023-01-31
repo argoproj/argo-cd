@@ -36,6 +36,13 @@
         margin-bottom: 1em;
     }
 
+    &__tooltip {
+        max-width: 300px;
+        @media screen and (max-width: 590px) {
+            max-width: 250px;
+        }
+    }
+
     &__nav-item {
         cursor: pointer;
         display: flex;

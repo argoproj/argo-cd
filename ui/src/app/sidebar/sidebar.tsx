@@ -34,11 +34,6 @@ export const Sidebar = (props: SidebarProps) => {
     const locationPath = context.history.location.pathname;
 
     const tooltipProps = {
-        onShow: (instance: any) =>{
-            instance.set({
-                maxWidth: window.innerWidth - 590 > 0? 350 : window.innerWidth - 240
-            })
-        },
         placement: 'right',
         popperOptions: {
             modifiers: {
@@ -58,7 +53,7 @@ export const Sidebar = (props: SidebarProps) => {
                 {loading ? 'Loading...' : error?.state ? 'Unknown' : version?.Version || 'Unknown'}
             </div>
             {(props.navItems || []).map(item => (
-                <Tooltip key={item.path} content={item?.tooltip || item.title} {...tooltipProps}>
+                <Tooltip key={item.path} content={<div className='sidebar__tooltip'>{item?.tooltip || item.title}</div>} {...tooltipProps}>
                     <div
                         key={item.title}
                         className={`sidebar__nav-item ${locationPath === item.path || locationPath.startsWith(`${item.path}/`) ? 'sidebar__nav-item--active' : ''}`}
