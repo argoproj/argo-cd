@@ -2,6 +2,7 @@ package extension
 
 import (
 	"context"
+	"errors"
 	"fmt"
 	"net"
 	"net/http"
@@ -14,6 +15,7 @@ import (
 	v1alpha1 "github.com/argoproj/argo-cd/v2/pkg/apis/application/v1alpha1"
 	applisters "github.com/argoproj/argo-cd/v2/pkg/client/listers/application/v1alpha1"
 	"github.com/argoproj/argo-cd/v2/server/rbacpolicy"
+	"github.com/argoproj/argo-cd/v2/util/argo"
 	"github.com/argoproj/argo-cd/v2/util/security"
 	"github.com/argoproj/argo-cd/v2/util/settings"
 	"github.com/ghodss/yaml"
@@ -93,9 +95,19 @@ func ValidateHeaders(r *http.Request) (*RequestResources, error) {
 	if err != nil {
 		return nil, fmt.Errorf("error getting app details: %s", err)
 	}
+	if !argo.IsValidNamespaceName(appNamespace) {
+		return nil, errors.New("invalid value for namespace")
+	}
+	if !argo.IsValidAppName(appName) {
+		return nil, errors.New("invalid value for application name")
+	}
+
 	projName := r.Header.Get(HeaderArgoCDProjectName)
 	if projName == "" {
 		return nil, fmt.Errorf("header %q must be provided", HeaderArgoCDProjectName)
+	}
+	if !argo.IsValidProjectName(projName) {
+		return nil, errors.New("invalid value for project name")
 	}
 	resources := []Resource{}
 	resourcesHeader := r.Header.Get(HeaderArgoCDResourceGVKName)

@@ -122,6 +122,57 @@ func TestValidateHeaders(t *testing.T) {
 		assert.Error(t, err)
 		assert.Nil(t, rr)
 	})
+	t.Run("will return error if invalid namespace", func(t *testing.T) {
+		// given
+		r, err := http.NewRequest("Get", "http://null", nil)
+		if err != nil {
+			t.Fatalf("error initializing request: %s", err)
+		}
+		r.Header.Add(extension.HeaderArgoCDApplicationName, "bad%namespace:app-name")
+		r.Header.Add(extension.HeaderArgoCDProjectName, "project-name")
+		r.Header.Add(extension.HeaderArgoCDResourceGVKName, "apps/v1:Pod:some-pod, argoproj.io/v1alpha1:Application:app-name, v1:Service:some-svc")
+
+		// when
+		rr, err := extension.ValidateHeaders(r)
+
+		// then
+		assert.Error(t, err)
+		assert.Nil(t, rr)
+	})
+	t.Run("will return error if invalid app name", func(t *testing.T) {
+		// given
+		r, err := http.NewRequest("Get", "http://null", nil)
+		if err != nil {
+			t.Fatalf("error initializing request: %s", err)
+		}
+		r.Header.Add(extension.HeaderArgoCDApplicationName, "namespace:bad@app")
+		r.Header.Add(extension.HeaderArgoCDProjectName, "project-name")
+		r.Header.Add(extension.HeaderArgoCDResourceGVKName, "apps/v1:Pod:some-pod, argoproj.io/v1alpha1:Application:app-name, v1:Service:some-svc")
+
+		// when
+		rr, err := extension.ValidateHeaders(r)
+
+		// then
+		assert.Error(t, err)
+		assert.Nil(t, rr)
+	})
+	t.Run("will return error if invalid project name", func(t *testing.T) {
+		// given
+		r, err := http.NewRequest("Get", "http://null", nil)
+		if err != nil {
+			t.Fatalf("error initializing request: %s", err)
+		}
+		r.Header.Add(extension.HeaderArgoCDApplicationName, "namespace:app")
+		r.Header.Add(extension.HeaderArgoCDProjectName, "bad^project")
+		r.Header.Add(extension.HeaderArgoCDResourceGVKName, "apps/v1:Pod:some-pod, argoproj.io/v1alpha1:Application:app-name, v1:Service:some-svc")
+
+		// when
+		rr, err := extension.ValidateHeaders(r)
+
+		// then
+		assert.Error(t, err)
+		assert.Nil(t, rr)
+	})
 }
 
 func TestRegisterHandlers(t *testing.T) {

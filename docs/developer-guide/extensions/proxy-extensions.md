@@ -239,7 +239,12 @@ Once the request is authenticated it is then verified if the
 user has permission to invoke this extension. The permission is
 enforced by Argo CD RBAC configuration. The details about how to
 configure the RBAC for proxy-extensions can be found in the [RBAC
-documentation][3].
+documentation][3] page.
+
+Once the request is authenticated and authorized by the API server, it
+is then sanitized before being sent to the backend service. The
+request sanitization will remove sensitive information from the
+request like the `Cookie` and `Authorization` headers.
 
 [1]: https://github.com/argoproj/argoproj/blob/master/community/feature-status.md
 [2]: https://argo-cd.readthedocs.io/en/stable/operator-manual/argocd-cm.yaml
