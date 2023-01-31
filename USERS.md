@@ -203,6 +203,7 @@ Currently, the following organizations are **officially** using Argo CD:
 1. [Skit](https://skit.ai/)
 1. [Skyscanner](https://www.skyscanner.net/)
 1. [Smilee.io](https://smilee.io)
+1. [Smood.ch](https://www.smood.ch/)
 1. [Snapp](https://snapp.ir/)
 1. [Snyk](https://snyk.io/)
 1. [Softway Medical](https://www.softwaymedical.fr/)
