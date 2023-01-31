@@ -184,6 +184,18 @@ func (redisHook) AfterProcessPipeline(_ context.Context, _ []redis.Cmder) error 
 	return nil
 }
 
+func (redisHook) DialHook(next redis.DialHook) redis.DialHook {
+	return nil
+}
+
+func (redisHook) ProcessHook(next redis.ProcessHook) redis.ProcessHook {
+	return nil
+}
+
+func (redisHook) ProcessPipelineHook(next redis.ProcessPipelineHook) redis.ProcessPipelineHook {
+	return nil
+}
+
 // CollectMetrics add transport wrapper that pushes metrics into the specified metrics registry
 func CollectMetrics(client *redis.Client, registry MetricsRegistry) {
 	client.AddHook(&redisHook{registry: registry})
