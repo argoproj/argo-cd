@@ -95,7 +95,7 @@ func appSourceKey(appSrc *appv1.ApplicationSource, srcRefs appv1.RefTargetRevisi
 type appSourceKeyStruct struct {
 	AppSrc            *appv1.ApplicationSource            `json:"appSrc"`
 	SrcRefs           refTargetRevisionMappingForCacheKey `json:"srcRefs"`
-	ResolvedRevisions map[string]string                   `json:"resolvedRevisions"`
+	ResolvedRevisions map[string]string                   `json:"resolvedRevisions,omitempty"`
 }
 
 func appSourceKeyJSON(appSrc *appv1.ApplicationSource, srcRefs appv1.RefTargetRevisionMapping, refSourceResolvedRevisions map[string]string) string {
