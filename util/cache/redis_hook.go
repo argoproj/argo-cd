@@ -37,3 +37,15 @@ func (hook *argoRedisHooks) BeforeProcessPipeline(ctx context.Context, cmds []re
 func (hook *argoRedisHooks) AfterProcessPipeline(ctx context.Context, cmds []redis.Cmder) error {
 	return nil
 }
+
+func (hook *argoRedisHooks) DialHook(next redis.DialHook) redis.DialHook {
+	return nil
+}
+
+func (hook *argoRedisHooks) ProcessHook(next redis.ProcessHook) redis.ProcessHook {
+	return nil
+}
+
+func (hook *argoRedisHooks) ProcessPipelineHook(next redis.ProcessPipelineHook) redis.ProcessPipelineHook {
+	return nil
+}
