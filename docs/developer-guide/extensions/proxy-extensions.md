@@ -204,6 +204,13 @@ Example:
 It is also possible to send multiple values in this header separated
 by commas.
 
+Argo CD API Server will ensure that the logged in user has the
+permission to access the resources provided by the headers above. The
+validation is based on pre-configured [Argo CD RBAC rules][3]. The
+same headers are also sent to the backend service. The backend service
+must also validate if the validated headers are compatible with the
+rest of the incoming request.
+
 ### Multi Backend Use-Case
 
 In some cases when Argo CD is configured to sync with multiple remote
