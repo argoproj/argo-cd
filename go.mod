@@ -249,7 +249,6 @@ require (
 )
 
 replace (
-
 	// Address CVE-2021-4238
 	github.com/Masterminds/goutils => github.com/Masterminds/goutils v1.1.1
 	// https://github.com/golang/go/issues/33546#issuecomment-519656923
