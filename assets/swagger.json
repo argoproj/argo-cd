@@ -735,6 +735,42 @@
         }
       }
     },
+    "/api/v1/applications/{name}/links": {
+      "get": {
+        "tags": [
+          "ApplicationService"
+        ],
+        "summary": "ListLinks returns the list of all application deep links",
+        "operationId": "ApplicationService_ListLinks",
+        "parameters": [
+          {
+            "type": "string",
+            "name": "name",
+            "in": "path",
+            "required": true
+          },
+          {
+            "type": "string",
+            "name": "namespace",
+            "in": "query"
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "A successful response.",
+            "schema": {
+              "$ref": "#/definitions/applicationLinksResponse"
+            }
+          },
+          "default": {
+            "description": "An unexpected error response.",
+            "schema": {
+              "$ref": "#/definitions/runtimeError"
+            }
+          }
+        }
+      }
+    },
     "/api/v1/applications/{name}/logs": {
       "get": {
         "tags": [
@@ -1374,6 +1410,67 @@
             "description": "A successful response.",
             "schema": {
               "$ref": "#/definitions/applicationApplicationResponse"
+            }
+          },
+          "default": {
+            "description": "An unexpected error response.",
+            "schema": {
+              "$ref": "#/definitions/runtimeError"
+            }
+          }
+        }
+      }
+    },
+    "/api/v1/applications/{name}/resource/links": {
+      "get": {
+        "tags": [
+          "ApplicationService"
+        ],
+        "summary": "ListResourceLinks returns the list of all resource deep links",
+        "operationId": "ApplicationService_ListResourceLinks",
+        "parameters": [
+          {
+            "type": "string",
+            "name": "name",
+            "in": "path",
+            "required": true
+          },
+          {
+            "type": "string",
+            "name": "namespace",
+            "in": "query"
+          },
+          {
+            "type": "string",
+            "name": "resourceName",
+            "in": "query"
+          },
+          {
+            "type": "string",
+            "name": "version",
+            "in": "query"
+          },
+          {
+            "type": "string",
+            "name": "group",
+            "in": "query"
+          },
+          {
+            "type": "string",
+            "name": "kind",
+            "in": "query"
+          },
+          {
+            "type": "string",
+            "name": "appNamespace",
+            "in": "query"
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "A successful response.",
+            "schema": {
+              "$ref": "#/definitions/applicationLinksResponse"
             }
           },
           "default": {
@@ -2560,6 +2657,37 @@
         }
       }
     },
+    "/api/v1/projects/{name}/links": {
+      "get": {
+        "tags": [
+          "ProjectService"
+        ],
+        "summary": "ListLinks returns all deep links for the particular project",
+        "operationId": "ProjectService_ListLinks",
+        "parameters": [
+          {
+            "type": "string",
+            "name": "name",
+            "in": "path",
+            "required": true
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "A successful response.",
+            "schema": {
+              "$ref": "#/definitions/applicationLinksResponse"
+            }
+          },
+          "default": {
+            "description": "An unexpected error response.",
+            "schema": {
+              "$ref": "#/definitions/runtimeError"
+            }
+          }
+        }
+      }
+    },
     "/api/v1/projects/{name}/syncwindows": {
       "get": {
         "tags": [
@@ -3296,6 +3424,12 @@
             "description": "Reference between project and repository that allow you automatically to be added as item inside SourceRepos project entity.",
             "name": "project",
             "in": "query"
+          },
+          {
+            "type": "string",
+            "description": "Google Cloud Platform service account key.",
+            "name": "gcpServiceAccountKey",
+            "in": "query"
           }
         ],
         "responses": {
@@ -3443,6 +3577,29 @@
             "description": "A successful response.",
             "schema": {
               "$ref": "#/definitions/clusterSettings"
+            }
+          },
+          "default": {
+            "description": "An unexpected error response.",
+            "schema": {
+              "$ref": "#/definitions/runtimeError"
+            }
+          }
+        }
+      }
+    },
+    "/api/v1/settings/plugins": {
+      "get": {
+        "tags": [
+          "SettingsService"
+        ],
+        "summary": "Get returns Argo CD plugins",
+        "operationId": "SettingsService_GetPlugins",
+        "responses": {
+          "200": {
+            "description": "A successful response.",
+            "schema": {
+              "$ref": "#/definitions/clusterSettingsPluginsResponse"
             }
           },
           "default": {
@@ -3900,6 +4057,34 @@
         }
       }
     },
+    "applicationLinkInfo": {
+      "type": "object",
+      "properties": {
+        "description": {
+          "type": "string"
+        },
+        "iconClass": {
+          "type": "string"
+        },
+        "title": {
+          "type": "string"
+        },
+        "url": {
+          "type": "string"
+        }
+      }
+    },
+    "applicationLinksResponse": {
+      "type": "object",
+      "properties": {
+        "items": {
+          "type": "array",
+          "items": {
+            "$ref": "#/definitions/applicationLinkInfo"
+          }
+        }
+      }
+    },
     "applicationLogEntry": {
       "type": "object",
       "properties": {
@@ -4097,6 +4282,9 @@
         "appLabelKey": {
           "type": "string"
         },
+        "appsInAnyNamespaceEnabled": {
+          "type": "boolean"
+        },
         "configManagementPlugins": {
           "type": "array",
           "items": {
@@ -4177,6 +4365,17 @@
         }
       }
     },
+    "clusterSettingsPluginsResponse": {
+      "type": "object",
+      "properties": {
+        "plugins": {
+          "type": "array",
+          "items": {
+            "$ref": "#/definitions/clusterPlugin"
+          }
+        }
+      }
+    },
     "gpgkeyGnuPGPublicKeyCreateResponse": {
       "type": "object",
       "title": "Response to a public key creation request",
@@ -4196,6 +4395,24 @@
     "gpgkeyGnuPGPublicKeyResponse": {
       "type": "object",
       "title": "Generic (empty) response for GPG public key CRUD requests"
+    },
+    "intstrIntOrString": {
+      "description": "+protobuf=true\n+protobuf.options.(gogoproto.goproto_stringer)=false\n+k8s:openapi-gen=true",
+      "type": "object",
+      "title": "IntOrString is a type that can hold an int32 or a string.  When used in\nJSON or YAML marshalling and unmarshalling, it produces or consumes the\ninner type.  This allows you to have, for example, a JSON field that can\naccept a name or number.\nTODO: Rename to Int32OrString",
+      "properties": {
+        "intVal": {
+          "type": "integer",
+          "format": "int32"
+        },
+        "strVal": {
+          "type": "string"
+        },
+        "type": {
+          "type": "string",
+          "format": "int64"
+        }
+      }
     },
     "notificationService": {
       "type": "object",
@@ -4505,6 +4722,65 @@
         }
       }
     },
+    "repositoryParameterAnnouncement": {
+      "type": "object",
+      "properties": {
+        "array": {
+          "description": "array is the default value of the parameter if the parameter is an array.",
+          "type": "array",
+          "items": {
+            "type": "string"
+          }
+        },
+        "collectionType": {
+          "description": "collectionType is the type of value this parameter holds - either a single value (a string) or a collection\n(array or map). If collectionType is set, only the field with that type will be used. If collectionType is not\nset, `string` is the default. If collectionType is set to an invalid value, a validation error is thrown.",
+          "type": "string"
+        },
+        "itemType": {
+          "description": "itemType determines the primitive data type represented by the parameter. Parameters are always encoded as\nstrings, but this field lets them be interpreted as other primitive types.",
+          "type": "string"
+        },
+        "map": {
+          "description": "map is the default value of the parameter if the parameter is a map.",
+          "type": "object",
+          "additionalProperties": {
+            "type": "string"
+          }
+        },
+        "name": {
+          "description": "name is the name identifying a parameter.",
+          "type": "string"
+        },
+        "required": {
+          "description": "required defines if this given parameter is mandatory.",
+          "type": "boolean"
+        },
+        "string": {
+          "description": "string is the default value of the parameter if the parameter is a string.",
+          "type": "string"
+        },
+        "title": {
+          "description": "title is a human-readable text of the parameter name.",
+          "type": "string"
+        },
+        "tooltip": {
+          "description": "tooltip is a human-readable description of the parameter.",
+          "type": "string"
+        }
+      }
+    },
+    "repositoryPluginAppSpec": {
+      "type": "object",
+      "title": "PluginAppSpec contains details about a plugin-type Application",
+      "properties": {
+        "parametersAnnouncement": {
+          "type": "array",
+          "items": {
+            "$ref": "#/definitions/repositoryParameterAnnouncement"
+          }
+        }
+      }
+    },
     "repositoryRefs": {
       "type": "object",
       "title": "A subset of the repository's named refs",
@@ -4550,6 +4826,9 @@
         },
         "kustomize": {
           "$ref": "#/definitions/repositoryKustomizeAppSpec"
+        },
+        "plugin": {
+          "$ref": "#/definitions/repositoryPluginAppSpec"
         },
         "type": {
           "type": "string"
@@ -5373,6 +5652,23 @@
         }
       }
     },
+    "v1alpha1ApplicationMatchExpression": {
+      "type": "object",
+      "properties": {
+        "key": {
+          "type": "string"
+        },
+        "operator": {
+          "type": "string"
+        },
+        "values": {
+          "type": "array",
+          "items": {
+            "type": "string"
+          }
+        }
+      }
+    },
     "v1alpha1ApplicationSet": {
       "type": "object",
       "title": "ApplicationSet is a set of Application resources\n+genclient\n+genclient:noStatus\n+k8s:deepcopy-gen:interfaces=k8s.io/apimachinery/pkg/runtime.Object\n+kubebuilder:resource:path=applicationsets,shortName=appset;appsets\n+kubebuilder:subresource:status",
@@ -5385,6 +5681,27 @@
         },
         "status": {
           "$ref": "#/definitions/v1alpha1ApplicationSetStatus"
+        }
+      }
+    },
+    "v1alpha1ApplicationSetApplicationStatus": {
+      "type": "object",
+      "title": "ApplicationSetApplicationStatus contains details about each Application managed by the ApplicationSet",
+      "properties": {
+        "application": {
+          "type": "string",
+          "title": "Application contains the name of the Application resource"
+        },
+        "lastTransitionTime": {
+          "$ref": "#/definitions/v1Time"
+        },
+        "message": {
+          "type": "string",
+          "title": "Message contains human-readable message indicating details about the status"
+        },
+        "status": {
+          "type": "string",
+          "title": "Status contains the AppSet's perceived status of the managed Application resource: (Waiting, Pending, Progressing, Healthy)"
         }
       }
     },
@@ -5494,6 +5811,31 @@
         }
       }
     },
+    "v1alpha1ApplicationSetRolloutStep": {
+      "type": "object",
+      "properties": {
+        "matchExpressions": {
+          "type": "array",
+          "items": {
+            "$ref": "#/definitions/v1alpha1ApplicationMatchExpression"
+          }
+        },
+        "maxUpdate": {
+          "$ref": "#/definitions/intstrIntOrString"
+        }
+      }
+    },
+    "v1alpha1ApplicationSetRolloutStrategy": {
+      "type": "object",
+      "properties": {
+        "steps": {
+          "type": "array",
+          "items": {
+            "$ref": "#/definitions/v1alpha1ApplicationSetRolloutStep"
+          }
+        }
+      }
+    },
     "v1alpha1ApplicationSetSpec": {
       "description": "ApplicationSetSpec represents a class of application set state.",
       "type": "object",
@@ -5507,6 +5849,9 @@
         "goTemplate": {
           "type": "boolean"
         },
+        "strategy": {
+          "$ref": "#/definitions/v1alpha1ApplicationSetStrategy"
+        },
         "syncPolicy": {
           "$ref": "#/definitions/v1alpha1ApplicationSetSyncPolicy"
         },
@@ -5519,12 +5864,30 @@
       "type": "object",
       "title": "ApplicationSetStatus defines the observed state of ApplicationSet",
       "properties": {
+        "applicationStatus": {
+          "type": "array",
+          "items": {
+            "$ref": "#/definitions/v1alpha1ApplicationSetApplicationStatus"
+          }
+        },
         "conditions": {
           "type": "array",
           "title": "INSERT ADDITIONAL STATUS FIELD - define observed state of cluster\nImportant: Run \"make\" to regenerate code after modifying this file",
           "items": {
             "$ref": "#/definitions/v1alpha1ApplicationSetCondition"
           }
+        }
+      }
+    },
+    "v1alpha1ApplicationSetStrategy": {
+      "description": "ApplicationSetStrategy configures how generated Applications are updated in sequence.",
+      "type": "object",
+      "properties": {
+        "rollingSync": {
+          "$ref": "#/definitions/v1alpha1ApplicationSetRolloutStrategy"
+        },
+        "type": {
+          "type": "string"
         }
       }
     },
@@ -5603,6 +5966,10 @@
         },
         "plugin": {
           "$ref": "#/definitions/v1alpha1ApplicationSourcePlugin"
+        },
+        "ref": {
+          "description": "Ref is reference to another source within sources field. This field will not be used if used with a `source` tag.",
+          "type": "string"
         },
         "repoURL": {
           "type": "string",
@@ -5772,6 +6139,39 @@
         },
         "name": {
           "type": "string"
+        },
+        "parameters": {
+          "type": "array",
+          "items": {
+            "$ref": "#/definitions/v1alpha1ApplicationSourcePluginParameter"
+          }
+        }
+      }
+    },
+    "v1alpha1ApplicationSourcePluginParameter": {
+      "type": "object",
+      "properties": {
+        "array": {
+          "description": "Array is the value of an array type parameter.",
+          "type": "array",
+          "items": {
+            "type": "string"
+          }
+        },
+        "map": {
+          "description": "Map is the value of a map type parameter.",
+          "type": "object",
+          "additionalProperties": {
+            "type": "string"
+          }
+        },
+        "name": {
+          "description": "Name is the name identifying a parameter.",
+          "type": "string"
+        },
+        "string": {
+          "description": "String_ is the value of a string type parameter.",
+          "type": "string"
         }
       }
     },
@@ -5807,6 +6207,13 @@
         },
         "source": {
           "$ref": "#/definitions/v1alpha1ApplicationSource"
+        },
+        "sources": {
+          "type": "array",
+          "title": "Sources is a reference to the location of the application's manifests or chart",
+          "items": {
+            "$ref": "#/definitions/v1alpha1ApplicationSource"
+          }
         },
         "syncPolicy": {
           "$ref": "#/definitions/v1alpha1SyncPolicy"
@@ -5857,6 +6264,13 @@
         "sourceType": {
           "type": "string",
           "title": "SourceType specifies the type of this application"
+        },
+        "sourceTypes": {
+          "type": "array",
+          "title": "SourceTypes specifies the type of the sources included in the application",
+          "items": {
+            "type": "string"
+          }
         },
         "summary": {
           "$ref": "#/definitions/v1alpha1ApplicationSummary"
@@ -6155,6 +6569,13 @@
         },
         "source": {
           "$ref": "#/definitions/v1alpha1ApplicationSource"
+        },
+        "sources": {
+          "type": "array",
+          "title": "Sources is a reference to the application's multiple sources used for comparison",
+          "items": {
+            "$ref": "#/definitions/v1alpha1ApplicationSource"
+          }
         }
       }
     },
@@ -6288,6 +6709,9 @@
           "items": {
             "$ref": "#/definitions/v1alpha1GitFileGeneratorItem"
           }
+        },
+        "pathParamPrefix": {
+          "type": "string"
         },
         "repoURL": {
           "type": "string"
@@ -6541,6 +6965,23 @@
         },
         "template": {
           "$ref": "#/definitions/v1alpha1ApplicationSetTemplate"
+        }
+      }
+    },
+    "v1alpha1ManagedNamespaceMetadata": {
+      "type": "object",
+      "properties": {
+        "annotations": {
+          "type": "object",
+          "additionalProperties": {
+            "type": "string"
+          }
+        },
+        "labels": {
+          "type": "object",
+          "additionalProperties": {
+            "type": "string"
+          }
         }
       }
     },
@@ -6897,6 +7338,10 @@
           "type": "boolean",
           "title": "EnableOCI specifies whether helm-oci support should be enabled for this repo"
         },
+        "gcpServiceAccountKey": {
+          "type": "string",
+          "title": "GCPServiceAccountKey specifies the service account key in JSON format to be used for getting credentials to Google Cloud Source repos"
+        },
         "githubAppEnterpriseBaseUrl": {
           "type": "string",
           "title": "GithubAppEnterpriseBaseURL specifies the GitHub API URL for GitHub app authentication. If empty will default to https://api.github.com"
@@ -6918,6 +7363,10 @@
         "password": {
           "type": "string",
           "title": "Password for authenticating at the repo server"
+        },
+        "proxy": {
+          "type": "string",
+          "title": "Proxy specifies the HTTP/HTTPS proxy used to access repos at the repo server"
         },
         "sshPrivateKey": {
           "type": "string",
@@ -6974,6 +7423,10 @@
         "enableOCI": {
           "type": "boolean",
           "title": "EnableOCI specifies whether helm-oci support should be enabled for this repo"
+        },
+        "gcpServiceAccountKey": {
+          "type": "string",
+          "title": "GCPServiceAccountKey specifies the service account key in JSON format to be used for getting credentials to Google Cloud Source repos"
         },
         "githubAppEnterpriseBaseUrl": {
           "type": "string",
@@ -7423,6 +7876,10 @@
         "status": {
           "type": "string"
         },
+        "syncWave": {
+          "type": "string",
+          "format": "int64"
+        },
         "version": {
           "type": "string"
         }
@@ -7461,8 +7918,22 @@
           "type": "string",
           "title": "Revision holds the revision the sync was performed against"
         },
+        "revisions": {
+          "type": "array",
+          "title": "Revisions holds the revision of each source in sources field the sync was performed against",
+          "items": {
+            "type": "string"
+          }
+        },
         "source": {
           "$ref": "#/definitions/v1alpha1ApplicationSource"
+        },
+        "sources": {
+          "type": "array",
+          "title": "Sources is a reference to the application sources used for the sync operation",
+          "items": {
+            "$ref": "#/definitions/v1alpha1ApplicationSource"
+          }
         }
       }
     },
@@ -7478,8 +7949,8 @@
           "$ref": "#/definitions/v1Time"
         },
         "message": {
-          "type": "string",
-          "title": "Message contains the message associated with the revision, most likely the commit message.\nThe message is truncated to the first newline or 64 characters (which ever comes first)"
+          "description": "Message contains the message associated with the revision, most likely the commit message.",
+          "type": "string"
         },
         "signatureInfo": {
           "description": "SignatureInfo contains a hint on the signer if the revision was signed with GPG, and signature verification is enabled.",
@@ -7763,8 +8234,22 @@
           "description": "Revision is the revision (Git) or chart version (Helm) which to sync the application to\nIf omitted, will use the revision specified in app spec.",
           "type": "string"
         },
+        "revisions": {
+          "description": "Revisions is the list of revision (Git) or chart version (Helm) which to sync each source in sources field for the application to\nIf omitted, will use the revision specified in app spec.",
+          "type": "array",
+          "items": {
+            "type": "string"
+          }
+        },
         "source": {
           "$ref": "#/definitions/v1alpha1ApplicationSource"
+        },
+        "sources": {
+          "type": "array",
+          "title": "Sources overrides the source definition set in the application.\nThis is typically set in a Rollback operation and is nil during a Sync operation",
+          "items": {
+            "$ref": "#/definitions/v1alpha1ApplicationSource"
+          }
         },
         "syncOptions": {
           "type": "array",
@@ -7811,8 +8296,22 @@
           "type": "string",
           "title": "Revision holds the revision this sync operation was performed to"
         },
+        "revisions": {
+          "type": "array",
+          "title": "Revisions holds the revision this sync operation was performed for respective indexed source in sources field",
+          "items": {
+            "type": "string"
+          }
+        },
         "source": {
           "$ref": "#/definitions/v1alpha1ApplicationSource"
+        },
+        "sources": {
+          "type": "array",
+          "title": "Source records the application source information of the sync, used for comparing auto-sync",
+          "items": {
+            "$ref": "#/definitions/v1alpha1ApplicationSource"
+          }
         }
       }
     },
@@ -7822,6 +8321,9 @@
       "properties": {
         "automated": {
           "$ref": "#/definitions/v1alpha1SyncPolicyAutomated"
+        },
+        "managedNamespaceMetadata": {
+          "$ref": "#/definitions/v1alpha1ManagedNamespaceMetadata"
         },
         "retry": {
           "$ref": "#/definitions/v1alpha1RetryStrategy"
@@ -7863,6 +8365,13 @@
         "revision": {
           "type": "string",
           "title": "Revision contains information about the revision the comparison has been performed to"
+        },
+        "revisions": {
+          "type": "array",
+          "title": "Revisions contains information about the revisions of multiple sources the comparison has been performed to",
+          "items": {
+            "type": "string"
+          }
         },
         "status": {
           "type": "string",

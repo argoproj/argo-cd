@@ -10,10 +10,10 @@ import {ApplicationRetryOptions} from '../application-retry-options/application-
 import {ApplicationSyncOptionsField} from '../application-sync-options/application-sync-options';
 import {RevisionFormField} from '../revision-form-field/revision-form-field';
 import {SetFinalizerOnApplication} from './set-finalizer-on-application';
+import './application-create-panel.scss';
+import {getAppDefaultSource} from '../utils';
 
 const jsonMergePatch = require('json-merge-patch');
-
-require('./application-create-panel.scss');
 
 const appTypes = new Array<{field: string; type: models.AppSourceType}>(
     {type: 'Helm', field: 'helm'},
@@ -39,6 +39,7 @@ const DEFAULT_APP: Partial<models.Application> = {
             repoURL: '',
             targetRevision: 'HEAD'
         },
+        sources: [],
         project: ''
     }
 };
@@ -80,16 +81,17 @@ const AutoSyncFormField = ReactFormField((props: {fieldApi: FieldApi; className:
 });
 
 function normalizeAppSource(app: models.Application, type: string): boolean {
-    const repoType = (app.spec.source.hasOwnProperty('chart') && 'helm') || 'git';
+    const source = getAppDefaultSource(app);
+    const repoType = (source.hasOwnProperty('chart') && 'helm') || 'git';
     if (repoType !== type) {
         if (type === 'git') {
-            app.spec.source.path = app.spec.source.chart;
-            delete app.spec.source.chart;
-            app.spec.source.targetRevision = 'HEAD';
+            source.path = source.chart;
+            delete source.chart;
+            source.targetRevision = 'HEAD';
         } else {
-            app.spec.source.chart = app.spec.source.path;
-            delete app.spec.source.path;
-            app.spec.source.targetRevision = '';
+            source.chart = source.path;
+            delete source.path;
+            source.targetRevision = '';
         }
         return true;
     }
@@ -134,6 +136,11 @@ export const ApplicationCreatePanel = (props: {
                     const repoInfo = reposInfo.find(info => info.repo === app.spec.source.repoURL);
                     if (repoInfo) {
                         normalizeAppSource(app, repoInfo.type || 'git');
+                    }
+                    if (app?.spec?.destination?.name && app.spec.destination.name !== '') {
+                        setDestFormat('NAME');
+                    } else {
+                        setDestFormat('URL');
                     }
                     return (
                         <div className='application-create-panel'>
