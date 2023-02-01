@@ -40,7 +40,7 @@ type IndividualActionTest struct {
 }
 
 func TestLuaResourceActionsScript(t *testing.T) {
-	err := filepath.Walk(".", func(path string, f os.FileInfo, err error) error {
+	err := filepath.Walk("../../resource_customizations", func(path string, f os.FileInfo, err error) error {
 		if !strings.Contains(path, "action_test.yaml") {
 			return nil
 		}
@@ -84,18 +84,34 @@ func TestLuaResourceActionsScript(t *testing.T) {
 				assert.NoError(t, err)
 
 				assert.NoError(t, err)
-				result, err := vm.ExecuteResourceAction(obj, action.ActionLua)
+				results, err := vm.ExecuteResourceAction(obj, action.ActionLua)
 				assert.NoError(t, err)
 
-				expectedObj := getObj(filepath.Join(dir, test.ExpectedOutputPath))
-				// Ideally, we would use a assert.Equal to detect the difference, but the Lua VM returns a object with float64 instead of the original int32.  As a result, the assert.Equal is never true despite that the change has been applied.
-				diffResult, err := diff.Diff(expectedObj, result, diff.WithNormalizer(testNormalizer{}))
-				assert.NoError(t, err)
-				if diffResult.Modified {
-					t.Error("Output does not match input:")
-					err = cli.PrintDiff(test.Action, expectedObj, result)
-					assert.NoError(t, err)
+				for _, impactedResource := range results {
+					result := impactedResource.UnstructuredObj
+					if impactedResource.K8SOperation == "patch" {
+						// Patching is only allowed for the source resource, so the result must have exactly 1 resource
+						assert.EqualValues(t, 1, len(results))
+						// Patching is only allowed for the source resource, so the kind must be the same
+						assert.EqualValues(t, obj.GetKind(), impactedResource.UnstructuredObj.GetKind())
+
+						expectedObj := getObj(filepath.Join(dir, test.ExpectedOutputPath))
+						// Ideally, we would use a assert.Equal to detect the difference, but the Lua VM returns a object with float64 instead of the original int32.  As a result, the assert.Equal is never true despite that the change has been applied.
+						diffResult, err := diff.Diff(expectedObj, result, diff.WithNormalizer(testNormalizer{}))
+						assert.NoError(t, err)
+						if diffResult.Modified {
+							t.Error("Output does not match input:")
+							err = cli.PrintDiff(test.Action, expectedObj, result)
+							assert.NoError(t, err)
+						}
+					} else {
+						if impactedResource.K8SOperation == "create" {
+							t.Error("There is a create action - hooray! But I don't know ho to test it yet")
+						}
+
+					}
 				}
+
 			})
 		}
 

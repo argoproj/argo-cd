@@ -3,7 +3,6 @@ package lua
 import (
 	"context"
 	"encoding/json"
-	"errors"
 	"fmt"
 	"os"
 	"path/filepath"
@@ -55,6 +54,15 @@ type VM struct {
 	ResourceOverrides map[string]appv1.ResourceOverride
 	// UseOpenLibs flag to enable open libraries. Libraries are disabled by default while running, but enabled during testing to allow the use of print statements
 	UseOpenLibs bool
+}
+
+// This struct represents a resource, that is returned from Lua custom action script, along with a k8s verb
+// that will need to be performed on this returned resource.
+// This replaces the traditional architecture of "Lua action returns a resource that ArgoCD will patch".
+// This enables ArgoCD to create NEW resources upon custom actions.
+type ImpactedResource struct {
+	UnstructuredObj *unstructured.Unstructured
+	K8SOperation    string
 }
 
 func (vm VM) runLua(obj *unstructured.Unstructured, script string) (*lua.LState, error) {
@@ -147,7 +155,7 @@ func (vm VM) GetHealthScript(obj *unstructured.Unstructured) (string, bool, erro
 	return builtInScript, true, err
 }
 
-func (vm VM) ExecuteResourceAction(obj *unstructured.Unstructured, script string) (*unstructured.Unstructured, error) {
+func (vm VM) ExecuteResourceAction(obj *unstructured.Unstructured, script string) ([]ImpactedResource, error) {
 	l, err := vm.runLua(obj, script)
 	if err != nil {
 		return nil, err
@@ -164,7 +172,17 @@ func (vm VM) ExecuteResourceAction(obj *unstructured.Unstructured, script string
 		}
 		cleanedNewObj := cleanReturnedObj(newObj.Object, obj.Object)
 		newObj.Object = cleanedNewObj
-		return newObj, nil
+
+		// TODO: delete this hard coded thingie when Lua script returns an array of objects along with corresponding actions.
+		// Meanwhile, just wrapping Job resource with a "create" operation, and wrapping everything else with a "patch" operation.
+		// The "everything else" are traditional outputs from a ResourceAction - the update to the same resource the action is invoked on.
+		impactedResources := make([]ImpactedResource, 0)
+		if newObj.GetKind() == "Job" {
+			impactedResources = append(impactedResources, ImpactedResource{newObj, "create"})
+		} else {
+			impactedResources = append(impactedResources, ImpactedResource{newObj, "patch"})
+		}
+		return impactedResources, nil
 	}
 	return nil, fmt.Errorf(incorrectReturnType, "table", returnValue.Type().String())
 }

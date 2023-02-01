@@ -2651,6 +2651,19 @@ func UnmarshalToUnstructured(resource string) (*unstructured.Unstructured, error
 	return &obj, nil
 }
 
+// UnmarshalToUnstructuredList unmarshals a resource list representation in JSON to unstructured data list
+func UnmarshalToUnstructuredList(listResource string) (*unstructured.UnstructuredList, error) {
+	if listResource == "" || listResource == "null" {
+		return nil, nil
+	}
+	var obj unstructured.UnstructuredList
+	err := json.Unmarshal([]byte(listResource), &obj)
+	if err != nil {
+		return nil, err
+	}
+	return &obj, nil
+}
+
 // TODO: document this method
 func (r ResourceDiff) LiveObject() (*unstructured.Unstructured, error) {
 	return UnmarshalToUnstructured(r.LiveState)

@@ -2151,58 +2151,61 @@ func (s *Server) RunResourceAction(ctx context.Context, q *application.ResourceA
 		return nil, fmt.Errorf("error getting Lua resource action: %w", err)
 	}
 
-	newObj, err := luaVM.ExecuteResourceAction(liveObj, action.ActionLua)
+	newObjects, err := luaVM.ExecuteResourceAction(liveObj, action.ActionLua)
 	if err != nil {
 		return nil, fmt.Errorf("error executing Lua resource action: %w", err)
 	}
 
-	newObjBytes, err := json.Marshal(newObj)
-	if err != nil {
-		return nil, fmt.Errorf("error marshaling new object: %w", err)
-	}
-
-	liveObjBytes, err := json.Marshal(liveObj)
-	if err != nil {
-		return nil, fmt.Errorf("error marshaling live object: %w", err)
-	}
-
-	diffBytes, err := jsonpatch.CreateMergePatch(liveObjBytes, newObjBytes)
-	if err != nil {
-		return nil, fmt.Errorf("error calculating merge patch: %w", err)
-	}
-	if string(diffBytes) == "{}" {
-		return &application.ApplicationResponse{}, nil
-	}
-
-	// The following logic detects if the resource action makes a modification to status and/or spec.
-	// If status was modified, we attempt to patch the status using status subresource, in case the
-	// CRD is configured using the status subresource feature. See:
-	// https://kubernetes.io/docs/tasks/extend-kubernetes/custom-resources/custom-resource-definitions/#status-subresource
-	// If status subresource is in use, the patch has to be split into two:
-	// * one to update spec (and other non-status fields)
-	// * the other to update only status.
-	nonStatusPatch, statusPatch, err := splitStatusPatch(diffBytes)
-	if err != nil {
-		return nil, fmt.Errorf("error splitting status patch: %w", err)
-	}
-	if statusPatch != nil {
-		_, err = s.kubectl.PatchResource(ctx, config, newObj.GroupVersionKind(), newObj.GetName(), newObj.GetNamespace(), types.MergePatchType, diffBytes, "status")
+	for _, impactedResource := range newObjects {
+		newObj := impactedResource.UnstructuredObj
+		newObjBytes, err := json.Marshal(newObj)
 		if err != nil {
-			if !apierr.IsNotFound(err) {
+			return nil, fmt.Errorf("error marshaling new object: %w", err)
+		}
+
+		liveObjBytes, err := json.Marshal(liveObj)
+		if err != nil {
+			return nil, fmt.Errorf("error marshaling live object: %w", err)
+		}
+
+		diffBytes, err := jsonpatch.CreateMergePatch(liveObjBytes, newObjBytes)
+		if err != nil {
+			return nil, fmt.Errorf("error calculating merge patch: %w", err)
+		}
+		if string(diffBytes) == "{}" {
+			return &application.ApplicationResponse{}, nil
+		}
+
+		// The following logic detects if the resource action makes a modification to status and/or spec.
+		// If status was modified, we attempt to patch the status using status subresource, in case the
+		// CRD is configured using the status subresource feature. See:
+		// https://kubernetes.io/docs/tasks/extend-kubernetes/custom-resources/custom-resource-definitions/#status-subresource
+		// If status subresource is in use, the patch has to be split into two:
+		// * one to update spec (and other non-status fields)
+		// * the other to update only status.
+		nonStatusPatch, statusPatch, err := splitStatusPatch(diffBytes)
+		if err != nil {
+			return nil, fmt.Errorf("error splitting status patch: %w", err)
+		}
+		if statusPatch != nil {
+			_, err = s.kubectl.PatchResource(ctx, config, newObj.GroupVersionKind(), newObj.GetName(), newObj.GetNamespace(), types.MergePatchType, diffBytes, "status")
+			if err != nil {
+				if !apierr.IsNotFound(err) {
+					return nil, fmt.Errorf("error patching resource: %w", err)
+				}
+				// K8s API server returns 404 NotFound when the CRD does not support the status subresource
+				// if we get here, the CRD does not use the status subresource. We will fall back to a normal patch
+			} else {
+				// If we get here, the CRD does use the status subresource, so we must patch status and
+				// spec separately. update the diffBytes to the spec-only patch and fall through.
+				diffBytes = nonStatusPatch
+			}
+		}
+		if diffBytes != nil {
+			_, err = s.kubectl.PatchResource(ctx, config, newObj.GroupVersionKind(), newObj.GetName(), newObj.GetNamespace(), types.MergePatchType, diffBytes)
+			if err != nil {
 				return nil, fmt.Errorf("error patching resource: %w", err)
 			}
-			// K8s API server returns 404 NotFound when the CRD does not support the status subresource
-			// if we get here, the CRD does not use the status subresource. We will fall back to a normal patch
-		} else {
-			// If we get here, the CRD does use the status subresource, so we must patch status and
-			// spec separately. update the diffBytes to the spec-only patch and fall through.
-			diffBytes = nonStatusPatch
-		}
-	}
-	if diffBytes != nil {
-		_, err = s.kubectl.PatchResource(ctx, config, newObj.GroupVersionKind(), newObj.GetName(), newObj.GetNamespace(), types.MergePatchType, diffBytes)
-		if err != nil {
-			return nil, fmt.Errorf("error patching resource: %w", err)
 		}
 	}
 
