@@ -13,8 +13,10 @@ import (
 	"sort"
 	"strconv"
 	"strings"
+	"syscall"
 	"time"
 
+	argoexec "github.com/argoproj/pkg/exec"
 	"github.com/go-git/go-git/v5"
 	"github.com/go-git/go-git/v5/config"
 	"github.com/go-git/go-git/v5/plumbing"
@@ -675,6 +677,11 @@ func (m *nativeGitClient) runCmdOutput(cmd *exec.Cmd) (string, error) {
 	}
 
 	cmd.Env = proxy.UpsertEnv(cmd, m.proxy)
-
-	return executil.Run(cmd)
+	opts := executil.ExecRunOpts{
+		TimeoutBehavior: argoexec.TimeoutBehavior{
+			Signal:     syscall.SIGTERM,
+			ShouldWait: true,
+		},
+	}
+	return executil.RunWithExecRunOpts(cmd, opts)
 }
