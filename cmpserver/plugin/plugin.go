@@ -286,7 +286,7 @@ func (s *Service) matchRepositoryGeneric(stream MatchRepositoryStream) error {
 	return nil
 }
 
-func (s *Service) matchRepository(ctx context.Context, workdir string, envEntries []*apiclient.EnvEntry) (bool, bool, error) {
+func (s *Service) matchRepository(ctx context.Context, workdir string, envEntries []*apiclient.EnvEntry) (isSupported bool, isDiscoveryEnabled bool, err error) {
 	config := s.initConstants.PluginConfig
 
 	if config.Spec.Discover.FileName != "" {
