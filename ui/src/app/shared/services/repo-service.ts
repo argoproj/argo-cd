@@ -27,7 +27,8 @@ export class RepositoriesService {
         insecure,
         enableLfs,
         proxy,
-        project
+        project,
+        forceHttpBasicAuth
     }: {
         type: string;
         name: string;
@@ -40,10 +41,11 @@ export class RepositoriesService {
         enableLfs: boolean;
         proxy: string;
         project?: string;
+        forceHttpBasicAuth: boolean;
     }): Promise<models.Repository> {
         return requests
             .post('/repositories')
-            .send({type, name, repo: url, username, password, tlsClientCertData, tlsClientCertKey, insecure, enableLfs, proxy, project})
+            .send({type, name, repo: url, username, password, tlsClientCertData, tlsClientCertKey, insecure, enableLfs, proxy, project, forceHttpBasicAuth})
             .then(res => res.body as models.Repository);
     }
 
