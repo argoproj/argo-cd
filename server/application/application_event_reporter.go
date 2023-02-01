@@ -113,6 +113,9 @@ func (s *applicationEventReporter) streamApplicationEvents(
 
 	appTree, err := s.server.getAppResources(ctx, a)
 	if err != nil {
+		if strings.Contains(err.Error(), "context deadline exceeded") {
+			return fmt.Errorf("failed to get application tree: %w", err)
+		}
 		// we still need process app even without tree, it is in case if app yaml originally contain error,
 		// we still want show it on codefresh ui and erors that related to it
 		logCtx.WithError(err).Error("failed to get application tree")
@@ -136,7 +139,10 @@ func (s *applicationEventReporter) streamApplicationEvents(
 		// TODO: add check if it helm application
 		revisionMetadata, _ := s.getApplicationRevisionDetails(ctx, parentApplicationEntity, getOperationRevision(parentApplicationEntity))
 
-		s.processResource(ctx, *rs, parentApplicationEntity, logCtx, ts, desiredManifests, stream, appTree, es, manifestGenErr, a, revisionMetadata, true)
+		err = s.processResource(ctx, *rs, parentApplicationEntity, logCtx, ts, desiredManifests, stream, appTree, es, manifestGenErr, a, revisionMetadata, true)
+		if err != nil {
+			return err
+		}
 	} else {
 		// application events for child apps would be sent by its parent app
 		// as resource event
@@ -168,7 +174,10 @@ func (s *applicationEventReporter) streamApplicationEvents(
 		if isApp(rs) {
 			continue
 		}
-		s.processResource(ctx, rs, a, logCtx, ts, desiredManifests, stream, appTree, es, manifestGenErr, nil, revisionMetadata, ignoreResourceCache)
+		err := s.processResource(ctx, rs, a, logCtx, ts, desiredManifests, stream, appTree, es, manifestGenErr, nil, revisionMetadata, ignoreResourceCache)
+		if err != nil {
+			return err
+		}
 	}
 	return nil
 }
@@ -187,7 +196,7 @@ func (s *applicationEventReporter) processResource(
 	originalApplication *appv1.Application,
 	revisionMetadata *appv1.RevisionMetadata,
 	ignoreResourceCache bool,
-) {
+) error {
 	logCtx = logCtx.WithFields(log.Fields{
 		"gvk":      fmt.Sprintf("%s/%s/%s", rs.Group, rs.Version, rs.Kind),
 		"resource": fmt.Sprintf("%s/%s", rs.Namespace, rs.Name),
@@ -203,7 +212,7 @@ func (s *applicationEventReporter) processResource(
 	}
 
 	if !ignoreResourceCache && !s.shouldSendResourceEvent(parentApplication, rs) {
-		return
+		return nil
 	}
 
 	// get resource desired state
@@ -220,8 +229,14 @@ func (s *applicationEventReporter) processResource(
 	})
 	if err != nil {
 		if !strings.Contains(err.Error(), "not found") {
+			// only return error if there is no point in trying to send the
+			// next resource. For example if the shared context has exceeded
+			// its deadline
+			if strings.Contains(err.Error(), "context deadline exceeded") {
+				return fmt.Errorf("failed to get actual state: %w", err)
+			}
 			logCtx.WithError(err).Error("failed to get actual state")
-			return
+			return nil
 		}
 		manifest := ""
 		// empty actual state
@@ -237,7 +252,7 @@ func (s *applicationEventReporter) processResource(
 	ev, err := getResourceEventPayload(parentApplication, &rs, es, actualState, desiredState, appTree, manifestGenErr, ts, originalApplication, revisionMetadata, originalAppRevisionMetadata)
 	if err != nil {
 		logCtx.WithError(err).Error("failed to get event payload")
-		return
+		return nil
 	}
 
 	appRes := appv1.Application{}
@@ -248,13 +263,17 @@ func (s *applicationEventReporter) processResource(
 	}
 
 	if err := stream.Send(ev); err != nil {
+		if strings.Contains(err.Error(), "context deadline exceeded") {
+			return fmt.Errorf("failed to send event: %w", err)
+		}
 		logCtx.WithError(err).Error("failed to send event")
-		return
+		return nil
 	}
 
 	if err := s.server.cache.SetLastResourceEvent(parentApplication, rs, resourceEventCacheExpiration, getApplicationLatestRevision(parentApplication)); err != nil {
 		logCtx.WithError(err).Error("failed to cache resource event")
 	}
+	return nil
 }
 
 func (s *applicationEventReporter) shouldSendApplicationEvent(ae *appv1.ApplicationWatchEvent) (shouldSend bool, syncStatusChanged bool) {

@@ -1017,37 +1017,37 @@ func (s *Server) StartEventSource(es *events.EventSource, stream events.Eventing
 
 	// sendIfPermitted is a helper to send the application to the client's streaming channel if the
 	// caller has RBAC privileges permissions to view it
-	sendIfPermitted := func(a appv1.Application, eventType watch.EventType, ts string, ignoreResourceCache bool) {
+	sendIfPermitted := func(ctx context.Context, a appv1.Application, eventType watch.EventType, ts string, ignoreResourceCache bool) error {
 		if eventType == watch.Bookmark {
-			return // ignore this event
+			return nil // ignore this event
 		}
 
 		if appVersion, err := strconv.Atoi(a.ResourceVersion); err == nil && appVersion < minVersion {
-			return
+			return nil
 		}
 
 		if selector != nil {
 			matchedEvent := (q.GetName() == "" || a.Name == q.GetName()) && selector.Matches(labels.Set(a.Labels))
 			if !matchedEvent {
-				return
+				return nil
 			}
 		}
 
 		if !s.enf.Enforce(claims, rbacpolicy.ResourceApplications, rbacpolicy.ActionGet, a.RBACName(s.ns)) {
 			// do not emit apps user does not have accessing
-			return
+			return nil
 		}
 
-		err := s.applicationEventReporter.streamApplicationEvents(stream.Context(), &a, es, stream, ts, ignoreResourceCache)
+		err := s.applicationEventReporter.streamApplicationEvents(ctx, &a, es, stream, ts, ignoreResourceCache)
 		if err != nil {
-			logCtx.WithError(err).Error("failed to stream application events")
-			return
+			return err
 		}
 
 		if err := s.cache.SetLastApplicationEvent(&a, applicationEventCacheExpiration); err != nil {
 			logCtx.WithError(err).Error("failed to cache last sent application event")
-			return
+			return err
 		}
+		return nil
 	}
 
 	eventsChannel := make(chan *appv1.ApplicationWatchEvent, watchAPIBufferSize)
@@ -1063,7 +1063,17 @@ func (s *Server) StartEventSource(es *events.EventSource, stream events.Eventing
 				continue
 			}
 			ts := time.Now().Format("2006-01-02T15:04:05.000Z")
-			sendIfPermitted(event.Application, event.Type, ts, ignoreResourceCache)
+			ctx, cancel := context.WithTimeout(stream.Context(), 2*time.Minute)
+			err := sendIfPermitted(ctx, event.Application, event.Type, ts, ignoreResourceCache)
+			if err != nil {
+				logCtx.WithError(err).Error("failed to stream application events")
+				if strings.Contains(err.Error(), "context deadline exceeded") {
+					logCtx.Info("Closing event-source connection")
+					cancel()
+					return err
+				}
+			}
+			cancel()
 		case <-ticker.C:
 			var err error
 			ts := time.Now().Format("2006-01-02T15:04:05.000Z")
