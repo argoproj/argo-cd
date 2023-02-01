@@ -1743,12 +1743,16 @@ func (a *ArgoCDSettings) OAuth2ClientID() string {
 func (a *ArgoCDSettings) OAuth2AllowedAudiences() []string {
 	if config := a.oidcConfig(); config != nil {
 		if len(config.AllowedAudiences) == 0 {
-			return []string{config.ClientID}
+			allowedAudiences := []string{config.ClientID}
+			if config.CLIClientID != "" {
+				allowedAudiences = append(allowedAudiences, config.CLIClientID)
+			}
+			return allowedAudiences
 		}
 		return config.AllowedAudiences
 	}
 	if a.DexConfig != "" {
-		return []string{common.ArgoCDClientAppID}
+		return []string{common.ArgoCDClientAppID, common.ArgoCDCLIClientAppID}
 	}
 	return nil
 }
@@ -1758,7 +1762,7 @@ func (a *ArgoCDSettings) SkipAudienceCheckWhenTokenHasNoAudience() bool {
 		if config.SkipAudienceCheckWhenTokenHasNoAudience != nil {
 			return *config.SkipAudienceCheckWhenTokenHasNoAudience
 		}
-		return true
+		return false
 	}
 	// When using the bundled Dex, the audience check is required. Dex will always send JWTs with an audience.
 	return false
