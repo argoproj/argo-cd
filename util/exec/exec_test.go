@@ -43,8 +43,7 @@ func TestHideUsernamePassword(t *testing.T) {
 }
 
 func TestRunWithExecRunOpts(t *testing.T) {
-	defer func() { _ = os.Unsetenv("ARGOCD_EXEC_TIMEOUT") }()
-	_ = os.Setenv("ARGOCD_EXEC_TIMEOUT", "200ms")
+	t.Setenv("ARGOCD_EXEC_TIMEOUT", "200ms")
 	initTimeout()
 
 	opts := ExecRunOpts{
