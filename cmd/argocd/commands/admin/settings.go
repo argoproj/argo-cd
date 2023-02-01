@@ -545,13 +545,23 @@ argocd admin settings resource-overrides action run /tmp/deploy.yaml restart --a
 				modifiedRes, err := luaVM.ExecuteResourceAction(&res, action.ActionLua)
 				errors.CheckError(err)
 
-				if reflect.DeepEqual(&res, modifiedRes) {
-					_, _ = fmt.Printf("No fields had been changed by action: \n%s\n", action.Name)
-					return
-				}
+				for _, impactedResource := range modifiedRes {
+					result := impactedResource.UnstructuredObj
+					if impactedResource.K8SOperation == "patch" {
+						if reflect.DeepEqual(&res, modifiedRes) {
+							_, _ = fmt.Printf("No fields had been changed by action: \n%s\n", action.Name)
+							return
+						}
 
-				_, _ = fmt.Printf("Following fields have been changed:\n\n")
-				_ = cli.PrintDiff(res.GetName(), &res, modifiedRes)
+						_, _ = fmt.Printf("Following fields have been changed:\n\n")
+						_ = cli.PrintDiff(res.GetName(), &res, result)
+					} else {
+						if impactedResource.K8SOperation == "create" {
+							_, _ = fmt.Printf("Create action detected. Don't know what to print yet")
+						}
+					}
+
+				}
 			})
 		},
 	}
