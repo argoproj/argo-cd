@@ -126,7 +126,7 @@ export const ApplicationSyncPanel = ({application, selectedResource, hide}: {app
                                     hide();
                                 } catch (e) {
                                     ctx.notifications.show({
-                                        content: <ErrorNotification title='Unable to deploy revision' e={e} />,
+                                        content: <ErrorNotification title='Unable to sync' e={e} />,
                                         type: NotificationType.Error
                                     });
                                 } finally {
