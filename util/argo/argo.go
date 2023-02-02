@@ -773,6 +773,7 @@ func verifyGenerateManifests(
 			NoRevisionCache:    true,
 			HasMultipleSources: hasMultipleSources,
 			RefSources:         refSources,
+			// TODO: Add permitted sources
 		}
 		req.Repo.CopyCredentialsFromRepo(repoRes)
 		req.Repo.CopySettingsFrom(repoRes)

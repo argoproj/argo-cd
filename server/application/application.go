@@ -437,6 +437,7 @@ func (s *Server) GetManifests(ctx context.Context, q *application.ApplicationMan
 			HelmOptions:        helmOptions,
 			TrackingMethod:     string(argoutil.GetTrackingMethod(s.settingsMgr)),
 			EnabledSourceTypes: enableGenerateManifests,
+			// TODO: Add permitted sources
 		})
 		if err != nil {
 			return fmt.Errorf("error generating manifests: %w", err)
@@ -516,6 +517,7 @@ func (s *Server) GetManifestsWithFiles(stream application.ApplicationService_Get
 		}
 
 		source := a.Spec.GetSource()
+
 		req := &apiclient.ManifestRequest{
 			Repo:               repo,
 			Revision:           source.TargetRevision,
@@ -532,6 +534,7 @@ func (s *Server) GetManifestsWithFiles(stream application.ApplicationService_Get
 			HelmOptions:        helmOptions,
 			TrackingMethod:     string(argoutil.GetTrackingMethod(s.settingsMgr)),
 			EnabledSourceTypes: enableGenerateManifests,
+			//
 		}
 
 		repoStreamClient, err := client.GenerateManifestWithFiles(stream.Context())

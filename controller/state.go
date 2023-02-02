@@ -210,6 +210,7 @@ func (m *appStateManager) getRepoObjs(app *v1alpha1.Application, sources []v1alp
 			HelmOptions:        helmOptions,
 			HasMultipleSources: app.Spec.HasMultipleSources(),
 			RefSources:         refSources,
+			ProjectSourceRepos: proj.Spec.SourceRepos,
 		})
 		if err != nil {
 			return nil, nil, err
