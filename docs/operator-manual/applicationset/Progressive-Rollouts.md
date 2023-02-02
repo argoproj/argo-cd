@@ -1,21 +1,21 @@
-# Progressive Rollouts
+# Progressive Syncs
 
 !!! warning "Alpha Feature"
     This is an experimental, alpha-quality feature that allows you to control the order in which the ApplicationSet controller will create or update the Applications owned by an ApplicationSet resource. It may be removed in future releases or modified in backwards-incompatible ways.
 
 ## Use Cases
-The Progressive Rollouts feature set is intended to be light and flexible. The feature only interacts with the health of managed Applications. It is not intended to support direct integrations with other Rollout controllers (such as the native ReplicaSet controller or Argo Rollouts).
+The Progressive Syncs feature set is intended to be light and flexible. The feature only interacts with the health of managed Applications. It is not intended to support direct integrations with other Rollout controllers (such as the native ReplicaSet controller or Argo Rollouts).
 
-* Progressive Rollouts watch for the managed Application resources to become "Healthy" before proceeding to the next stage.
+* Progressive Syncs watch for the managed Application resources to become "Healthy" before proceeding to the next stage.
 * Deployments, DaemonSets, StatefulSets, and [Argo Rollouts](https://argoproj.github.io/argo-rollouts/) are all supported, because the Application enters a "Progressing" state while pods are being rolled out. In fact, any resource with a health check that can report a "Progressing" status is supported.
 * [Argo CD Resource Hooks](../../user-guide/resource_hooks.md) are supported. We recommend this approach for users that need advanced functionality when an Argo Rollout cannot be used, such as smoke testing after a DaemonSet change.
 
-## Enabling Progressive Rollouts
-As an experimental feature, progressive rollouts must be explicitly enabled, in one of these ways.
+## Enabling Progressive Syncs
+As an experimental feature, progressive syncs must be explicitly enabled, in one of these ways.
 
-1. Pass `--enable-progressive-rollouts` to the ApplicationSet controller args.
-1. Set `ARGOCD_APPLICATIONSET_CONTROLLER_ENABLE_PROGRESSIVE_ROLLOUTS=true` in the ApplicationSet controller environment variables.
-1. Set `applicationsetcontroller.enable.progressive.rollouts: true` in the ArgoCD ConfigMap.
+1. Pass `--enable-progressive-syncs` to the ApplicationSet controller args.
+1. Set `ARGOCD_APPLICATIONSET_CONTROLLER_ENABLE_PROGRESSIVE_SYNCS=true` in the ApplicationSet controller environment variables.
+1. Set `applicationsetcontroller.enable.progressive.syncs: true` in the Argo CD ConfigMap.
 
 ## Strategies
 
@@ -44,7 +44,7 @@ When the ApplicationSet changes, the changes will be applied to each group of Ap
 * If an Application is considered "Pending" for `applicationsetcontroller.default.application.progressing.timeout` seconds, the Application is automatically moved to Healthy status (default 300).
 
 #### Example
-The following example illustrates how to stage a progressive rollout over Applications with explicitly configured environment labels.
+The following example illustrates how to stage a progressive sync over Applications with explicitly configured environment labels.
 
 Once a change is pushed, the following will happen in order.
 
