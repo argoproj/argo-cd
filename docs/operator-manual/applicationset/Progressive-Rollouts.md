@@ -31,7 +31,7 @@ All Applications managed by the ApplicationSet resource are updated simultaneous
 This update strategy allows you to group Applications by labels present on the generated Application resources.
 When the ApplicationSet changes, the changes will be applied to each group of Application resources sequentially.
 
-* Application groups are selected by `matchExpressions`.
+* Application groups are selected using their labels and `matchExpressions`.
 * All `matchExpressions` must be true for an Application to be selected (multiple expressions match with AND behavior).
 * The `In` and `NotIn` operators must match at least one value to be considered true (OR behavior).
 * The `NotIn` operatorn has priority in the event that both a `NotIn` and `In` operator produce a match.
@@ -76,19 +76,19 @@ spec:
     rollingSync:
       steps:
         - matchExpressions:
-            - key: env
+            - key: envLabel
               operator: In
               values:
                 - env-dev
           #maxUpdate: 100%  # if undefined, all applications matched are updated together (default is 100%)
         - matchExpressions:
-            - key: env
+            - key: envLabel
               operator: In
               values:
                 - env-qa
           maxUpdate: 0      # if 0, no matched applications will be updated
         - matchExpressions:
-            - key: env
+            - key: envLabel
               operator: In
               values:
                 - env-prod
@@ -98,7 +98,7 @@ spec:
     metadata:
       name: '{{.cluster}}-guestbook'
       labels:
-        env: '{{.env}}'
+        envLabel: '{{.env}}'
     spec:
       project: my-project
       source:
