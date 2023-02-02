@@ -199,6 +199,7 @@ Currently, the following organizations are **officially** using Argo CD:
 1. [Saildrone](https://www.saildrone.com/)
 1. [Saloodo! GmbH](https://www.saloodo.com)
 1. [Sap Labs](http://sap.com)
+1. [Sauce Labs](https://saucelabs.com/)
 1. [Schwarz IT](https://jobs.schwarz/it-mission)
 1. [SI Analytics](https://si-analytics.ai)
 1. [Skit](https://skit.ai/)
