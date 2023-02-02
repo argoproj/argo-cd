@@ -116,7 +116,11 @@ spec:
 
   # Destination cluster and namespace to deploy the application
   destination:
+    # cluster API URL
     server: https://kubernetes.default.svc
+    # or cluster name
+    # name: in-cluster
+    # The namespace will only be set for namespace-scoped resources that have not set a value for .metadata.namespace
     namespace: guestbook
 
   # Sync policy
