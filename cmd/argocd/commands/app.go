@@ -1345,6 +1345,7 @@ const (
 	resourceFieldCount                  = 3
 	resourceFieldNamespaceDelimiter     = "/"
 	resourceFieldNameWithNamespaceCount = 2
+	resourceExcludeIndicator            = "!"
 )
 
 // resource is GROUP:KIND:NAMESPACE/NAME or GROUP:KIND:NAME
@@ -1369,6 +1370,12 @@ func parseSelectedResources(resources []string) ([]*argoappv1.SyncOperationResou
 	}
 
 	for _, resource := range resources {
+		isExcluded := false
+		// check if the resource flag starts with a '!'
+		if strings.HasPrefix(resource, resourceExcludeIndicator) {
+			resource = strings.TrimPrefix(resource, resourceExcludeIndicator)
+			isExcluded = true
+		}
 		fields := strings.Split(resource, resourceFieldDelimiter)
 		if len(fields) != resourceFieldCount {
 			return nil, fmt.Errorf("Resource should have GROUP%sKIND%sNAME, but instead got: %s", resourceFieldDelimiter, resourceFieldDelimiter, resource)
@@ -1382,6 +1389,7 @@ func parseSelectedResources(resources []string) ([]*argoappv1.SyncOperationResou
 			Kind:      fields[1],
 			Name:      name,
 			Namespace: namespace,
+			Exclude:   isExcluded,
 		})
 	}
 	return selectedResources, nil
@@ -1415,6 +1423,16 @@ func NewApplicationWaitCommand(clientOpts *argocdclient.ClientOptions) *cobra.Co
 
   # Wait for multiple apps
   argocd app wait my-app other-app
+
+  # Wait for apps by resource
+  # Resource should be formatted as GROUP:KIND:NAME. If no GROUP is specified then :KIND:NAME.
+  argocd app wait my-app --resource :Service:my-service
+  argocd app wait my-app --resource argoproj.io:Rollout:my-rollout
+  argocd app wait my-app --resource '!apps:Deployment:my-service'
+  argocd app wait my-app --resource apps:Deployment:my-service --resource :Service:my-service
+  argocd app wait my-app --resource '!*:Service:*'
+  # Specify namespace if the application has resources with the same name in different namespaces
+  argocd app wait my-app --resource argoproj.io:Rollout:my-namespace/my-rollout
 
   # Wait for apps by label, in this example we waiting for apps that are children of another app (aka app-of-apps)
   argocd app wait -l app.kubernetes.io/instance=my-app
@@ -1454,7 +1472,7 @@ func NewApplicationWaitCommand(clientOpts *argocdclient.ClientOptions) *cobra.Co
 	command.Flags().BoolVar(&watch.suspended, "suspended", false, "Wait for suspended")
 	command.Flags().BoolVar(&watch.degraded, "degraded", false, "Wait for degraded")
 	command.Flags().StringVarP(&selector, "selector", "l", "", "Wait for apps by label. Supports '=', '==', '!=', in, notin, exists & not exists. Matching apps must satisfy all of the specified label constraints.")
-	command.Flags().StringArrayVar(&resources, "resource", []string{}, fmt.Sprintf("Sync only specific resources as GROUP%sKIND%sNAME. Fields may be blank. This option may be specified repeatedly", resourceFieldDelimiter, resourceFieldDelimiter))
+	command.Flags().StringArrayVar(&resources, "resource", []string{}, fmt.Sprintf("Sync only specific resources as GROUP%[1]sKIND%[1]sNAME or %[2]sGROUP%[1]sKIND%[1]sNAME. Fields may be blank and '*' can be used. This option may be specified repeatedly", resourceFieldDelimiter, resourceExcludeIndicator))
 	command.Flags().BoolVar(&watch.operation, "operation", false, "Wait for pending operations")
 	command.Flags().UintVar(&timeout, "timeout", defaultCheckTimeoutSeconds, "Time out after this many seconds")
 	return command
@@ -1514,6 +1532,9 @@ func NewApplicationSyncCommand(clientOpts *argocdclient.ClientOptions) *cobra.Co
   # Resource should be formatted as GROUP:KIND:NAME. If no GROUP is specified then :KIND:NAME
   argocd app sync my-app --resource :Service:my-service
   argocd app sync my-app --resource argoproj.io:Rollout:my-rollout
+  argocd app sync my-app --resource '!apps:Deployment:my-service'
+  argocd app sync my-app --resource apps:Deployment:my-service --resource :Service:my-service
+  argocd app sync my-app --resource '!*:Service:*'
   # Specify namespace if the application has resources with the same name in different namespaces
   argocd app sync my-app --resource argoproj.io:Rollout:my-namespace/my-rollout`,
 		Run: func(c *cobra.Command, args []string) {
@@ -1609,6 +1630,14 @@ func NewApplicationSyncCommand(clientOpts *argocdclient.ClientOptions) *cobra.Co
 					return
 				}
 
+				// filters out only those resources that needs to be synced
+				filteredResources := filterAppResources(app, selectedResources)
+
+				// if resources are provided and no app resources match, then return error
+				if len(resources) > 0 && len(filteredResources) == 0 {
+					log.Fatalf("No matching app resources found for resource filter: %v", strings.Join(resources, ", "))
+				}
+
 				if local != "" {
 					if app.Spec.SyncPolicy != nil && app.Spec.SyncPolicy.Automated != nil && !dryRun {
 						log.Fatal("Cannot use local sync when Automatic Sync Policy is enabled except with --dry-run")
@@ -1655,7 +1684,7 @@ func NewApplicationSyncCommand(clientOpts *argocdclient.ClientOptions) *cobra.Co
 					AppNamespace: &appNs,
 					DryRun:       &dryRun,
 					Revision:     &revision,
-					Resources:    selectedResources,
+					Resources:    filteredResources,
 					Prune:        &prune,
 					Manifests:    localObjsStrings,
 					Infos:        getInfos(infos),
@@ -1731,7 +1760,7 @@ func NewApplicationSyncCommand(clientOpts *argocdclient.ClientOptions) *cobra.Co
 	command.Flags().BoolVar(&dryRun, "dry-run", false, "Preview apply without affecting cluster")
 	command.Flags().BoolVar(&prune, "prune", false, "Allow deleting unexpected resources")
 	command.Flags().StringVar(&revision, "revision", "", "Sync to a specific revision. Preserves parameter overrides")
-	command.Flags().StringArrayVar(&resources, "resource", []string{}, fmt.Sprintf("Sync only specific resources as GROUP%sKIND%sNAME. Fields may be blank. This option may be specified repeatedly", resourceFieldDelimiter, resourceFieldDelimiter))
+	command.Flags().StringArrayVar(&resources, "resource", []string{}, fmt.Sprintf("Sync only specific resources as GROUP%[1]sKIND%[1]sNAME or %[2]sGROUP%[1]sKIND%[1]sNAME. Fields may be blank and '*' can be used. This option may be specified repeatedly", resourceFieldDelimiter, resourceExcludeIndicator))
 	command.Flags().StringVarP(&selector, "selector", "l", "", "Sync apps that match this label. Supports '=', '==', '!=', in, notin, exists & not exists. Matching apps must satisfy all of the specified label constraints.")
 	command.Flags().StringArrayVar(&labels, "label", []string{}, "Sync only specific resources with a label. This option may be specified repeatedly.")
 	command.Flags().UintVar(&timeout, "timeout", defaultCheckTimeoutSeconds, "Time out after this many seconds")
@@ -1856,20 +1885,34 @@ func getResourceStates(app *argoappv1.Application, selectedResources []*argoappv
 	}
 	// filter out not selected resources
 	if len(selectedResources) > 0 {
-		r := []argoappv1.SyncOperationResource{}
-		for _, res := range selectedResources {
-			if res != nil {
-				r = append(r, *res)
-			}
-		}
 		for i := len(states) - 1; i >= 0; i-- {
 			res := states[i]
-			if !argo.ContainsSyncResource(res.Name, res.Namespace, schema.GroupVersionKind{Group: res.Group, Kind: res.Kind}, r) {
+			if !argo.IncludeResource(res.Name, res.Namespace, schema.GroupVersionKind{Group: res.Group, Kind: res.Kind}, selectedResources) {
 				states = append(states[:i], states[i+1:]...)
 			}
 		}
 	}
 	return states
+}
+
+// filterAppResources selects the app resources that match atleast one of the resource filters.
+func filterAppResources(app *argoappv1.Application, selectedResources []*argoappv1.SyncOperationResource) []*argoappv1.SyncOperationResource {
+	var filteredResources []*argoappv1.SyncOperationResource
+	if app != nil && len(selectedResources) > 0 {
+		for i := range app.Status.Resources {
+			appResource := app.Status.Resources[i]
+			if (argo.IncludeResource(appResource.Name, appResource.Namespace,
+				schema.GroupVersionKind{Group: appResource.Group, Kind: appResource.Kind}, selectedResources)) {
+				filteredResources = append(filteredResources, &argoappv1.SyncOperationResource{
+					Group:     appResource.Group,
+					Kind:      appResource.Kind,
+					Name:      appResource.Name,
+					Namespace: appResource.Namespace,
+				})
+			}
+		}
+	}
+	return filteredResources
 }
 
 func groupResourceStates(app *argoappv1.Application, selectedResources []*argoappv1.SyncOperationResource) map[string]*resourceState {

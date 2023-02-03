@@ -48,8 +48,11 @@ nav:
   - operator-manual/resource_actions.md
   - operator-manual/custom_tools.md
   - operator-manual/custom-styles.md
+  - operator-manual/ui-customization.md
   - operator-manual/metrics.md
   - operator-manual/web_based_terminal.md
+  - operator-manual/config-management-plugins.md
+  - operator-manual/deep_links.md
   - Notification:
     - Overview: operator-manual/notifications/index.md
     - operator-manual/notifications/triggers.md
@@ -101,6 +104,7 @@ nav:
       - operator-manual/applicationset/GoTemplate.md
     - Controlling Resource Modification: operator-manual/applicationset/Controlling-Resource-Modification.md
     - Application Pruning & Resource Deletion: operator-manual/applicationset/Application-Deletion.md
+    - Progressive Rollouts: operator-manual/applicationset/Progressive-Rollouts.md
   - Server Configuration Parameters:
     - operator-manual/server-commands/argocd-server.md
     - operator-manual/server-commands/argocd-application-controller.md
@@ -131,7 +135,6 @@ nav:
   - user-guide/import.md
   - user-guide/jsonnet.md
   - user-guide/directory.md
-  - user-guide/config-management-plugins.md
   - user-guide/tool_detection.md
   - user-guide/projects.md
   - user-guide/private-repositories.md
@@ -161,6 +164,8 @@ nav:
   - Command Reference: user-guide/commands/argocd.md
 - Developer Guide:
   - developer-guide/index.md
+  - Architecture:
+    - developer-guide/architecture/authz-authn.md
   - Code Contribution Guide: developer-guide/code-contributions.md
   - Toolchain Guide: developer-guide/toolchain-guide.md
   - developer-guide/contributors-quickstart.md

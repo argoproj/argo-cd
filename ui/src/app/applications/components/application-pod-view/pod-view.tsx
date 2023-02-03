@@ -51,6 +51,7 @@ export class PodView extends React.Component<PodViewProps> {
                 {prefs => {
                     const podPrefs = prefs.appDetails.podView || ({} as PodViewPreferences);
                     const groups = this.processTree(podPrefs.sortMode, this.props.tree.hosts || []) || [];
+
                     return (
                         <React.Fragment>
                             <div className='pod-view__settings'>
@@ -106,7 +107,9 @@ export class PodView extends React.Component<PodViewProps> {
                                                                 <div>
                                                                     {group.resourceStatus.health && <HealthStatusIcon state={group.resourceStatus.health} />}
                                                                     &nbsp;
-                                                                    {group.resourceStatus.status && <ComparisonStatusIcon status={group.resourceStatus.status} />}
+                                                                    {group.resourceStatus.status && (
+                                                                        <ComparisonStatusIcon status={group.resourceStatus.status} resource={group.resourceStatus} />
+                                                                    )}
                                                                 </div>
                                                             )}
                                                         </div>
@@ -282,6 +285,7 @@ export class PodView extends React.Component<PodViewProps> {
                 </React.Fragment>
             ),
             action: () => {
+                this.appContext.apis.navigation.goto('.', {podSortMode: mode});
                 services.viewPreferences.updatePreferences({appDetails: {...prefs.appDetails, podView: {...podPrefs, sortMode: mode}}});
             }
         }));
@@ -315,6 +319,7 @@ export class PodView extends React.Component<PodViewProps> {
 
         const statusByKey = new Map<string, ResourceStatus>();
         this.props.app.status?.resources?.forEach(res => statusByKey.set(nodeKey(res), res));
+
         (tree.nodes || []).forEach((rnode: ResourceTreeNode) => {
             // make sure each node has not null/undefined parentRefs field
             rnode.parentRefs = rnode.parentRefs || [];
@@ -323,6 +328,7 @@ export class PodView extends React.Component<PodViewProps> {
                 parentsFor[rnode.uid] = rnode.parentRefs as PodGroup[];
                 const fullName = nodeKey(rnode);
                 const status = statusByKey.get(fullName);
+
                 if ((rnode.parentRefs || []).length === 0) {
                     rnode.root = rnode;
                 }
@@ -333,7 +339,7 @@ export class PodView extends React.Component<PodViewProps> {
                     ...rnode,
                     info: (rnode.info || []).filter(i => !i.name.includes('Resource.')),
                     createdAt: rnode.createdAt,
-                    resourceStatus: {health: rnode.health, status: status ? status.status : null},
+                    resourceStatus: {health: rnode.health, status: status ? status.status : null, requiresPruning: status && status.requiresPruning ? true : false},
                     renderMenu: () => this.props.nodeMenu(rnode),
                     renderQuickStarts: () => this.props.quickStarts(rnode)
                 };

@@ -742,6 +742,17 @@ func TestResourceDiffing(t *testing.T) {
 		}).
 		Given().
 		When().
+		// Now we migrate from client-side apply to server-side apply
+		// This is necessary, as starting with kubectl 1.26, all previously
+		// client-side owned fields have ownership migrated to the manager from
+		// the first ssa.
+		// More details: https://github.com/kubernetes/kubectl/issues/1337
+		PatchApp(`[{
+			"op": "add",
+			"path": "/spec/syncPolicy",
+			"value": { "syncOptions": ["ServerSideApply=true"] }
+			}]`).
+		Sync().
 		And(func() {
 			output, err := RunWithStdin(testdata.SSARevisionHistoryDeployment, "", "kubectl", "apply", "-n", DeploymentNamespace(), "--server-side=true", "--field-manager=revision-history-manager", "--validate=false", "--force-conflicts", "-f", "-")
 			assert.NoError(t, err)
@@ -1347,8 +1358,8 @@ func TestSyncOptionValidateFalse(t *testing.T) {
 		IgnoreErrors().
 		Sync().
 		Then().
-		// client error
-		Expect(Error("error validating data", "")).
+		// client error. K8s API changed error message w/ 1.25, so for now, we need to check both
+		Expect(ErrorRegex("error validating data|of type int32", "")).
 		When().
 		PatchFile("deployment.yaml", `[{"op": "add", "path": "/metadata/annotations", "value": {"argocd.argoproj.io/sync-options": "Validate=false"}}]`).
 		Sync().
