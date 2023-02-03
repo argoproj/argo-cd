@@ -183,7 +183,10 @@ message ApplicationSetApplicationStatus {
   optional string message = 3;
 
   // Status contains the AppSet's perceived status of the managed Application resource: (Waiting, Pending, Progressing, Healthy)
-  optional string status = 5;
+  optional string status = 4;
+
+  // Step tracks which step this Application should be updated in
+  optional string step = 5;
 }
 
 // ApplicationSetCondition contains details about an applicationset condition, which is usally an error or warning
