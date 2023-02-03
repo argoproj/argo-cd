@@ -258,7 +258,7 @@ func TestInterpolateGenerator(t *testing.T) {
 	clusterGeneratorParams := map[string]interface{}{
 		"name": "production_01/west", "server": "https://production-01.example.com",
 	}
-	interpolatedGenerator, err = InterpolateGenerator(requestedGenerator, clusterGeneratorParams, true)
+	interpolatedGenerator, err = InterpolateGenerator(requestedGenerator, clusterGeneratorParams, false)
 	if err != nil {
 		log.WithError(err).WithField("requestedGenerator", requestedGenerator).Error("error interpolating Generator")
 		return
