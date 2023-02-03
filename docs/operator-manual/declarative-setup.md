@@ -489,7 +489,6 @@ The secret data must include following fields:
 * `namespaces` - optional comma-separated list of namespaces which are accessible in that cluster. Cluster level resources would be ignored if namespace list is not empty.
 * `clusterResources` - optional boolean string (`"true"` or `"false"`) determining whether Argo CD can manage cluster-level resources on this cluster. This setting is used only if the list of managed namespaces is not empty.
 * `project` - optional string to designate this as a project-scoped cluster.
-* `shard` - optional integer to specify which application-controller shard will handle this cluster. If not specified, the shard is calculated by the controller. See [the High Availability section](./high_availability.md#argocd-application-controller) for more information on sharding.
 * `config` - JSON representation of following data structure:
 
 ```yaml
