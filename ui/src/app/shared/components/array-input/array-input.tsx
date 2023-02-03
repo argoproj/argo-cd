@@ -279,6 +279,8 @@ export const MapInputField = ReactForm.FormField((props: {fieldApi: ReactForm.Fi
     );
 });
 
+
+
 export const MapValueField = ReactForm.FormField(
     (props: {fieldApi: ReactForm.FieldApi; name: string; defaultVal: Map<string, string>; isPluginPar: boolean; setAppParamsDeletedState: any}) => {
         const {
@@ -300,18 +302,6 @@ export const MapValueField = ReactForm.FormField(
             }
         }
 
-        const removeItem = (i: number) => {
-            const locitems = items.slice();
-            locitems.splice(i, 1);
-            items = locitems;
-            if (index >= 0) {
-                getValue()[index].array = locitems;
-            } else {
-                getValue().push({name: props.name, array: []});
-            }
-            setValue([...getValue()]);
-        };
-
         return (
             <React.Fragment>
                 <ResetOrDeleteButton
@@ -322,47 +312,22 @@ export const MapValueField = ReactForm.FormField(
                     setValue={setValue}
                     setAppParamsDeletedState={props.setAppParamsDeletedState}
                 />
-                {items.length === 0 && <label>No items</label>}
-                {items.map((item, i) => {
-                    return (
-                        <React.Fragment key={i}>
-                            {NameValueEditor(item, (val: NameValue) => {
-                                items[i] = val;
-                                if (index === -1) {
-                                    getValue().push({
-                                        name: props.name,
-                                        array: items
-                                    });
-                                } else {
-                                    const currentValue = getValue()[index];
-                                    getValue()[index].array = currentValue?.array ? [...currentValue.array.slice(0, i), val, ...currentValue.array.slice(i + 1)] : items;
-                                }
-                                setValue([...getValue()]);
-                            })}
-                            <button>
-                                <i className='fa fa-times' style={{cursor: 'pointer'}} onClick={() => removeItem(i)} />
-                            </button>{' '}
-                        </React.Fragment>
-                    );
-                })}
-                <br />
-                <button
-                    className='argo-button argo-button--base argo-button--short'
-                    onClick={() => {
+
+                <ArrayInput
+                    editor={NameValueEditor}
+                    items={items || []}
+                    onChange={change => {
                         if (index === -1) {
-                            items.push({name: '', value: ''});
                             getValue().push({
                                 name: props.name,
-                                array: items
+                                array: change
                             });
                         } else {
-                            const currentValue = getValue()[index];
-                            currentValue.array = currentValue.array ? currentValue.array.concat({name: '', value: ''}) : [{name: '', value: ''}];
+                            getValue()[index].array = change;
                         }
                         setValue([...getValue()]);
-                    }}>
-                    <i style={{cursor: 'pointer'}} className='fa fa-plus' />
-                </button>
+                    }}
+                />
             </React.Fragment>
         );
     }

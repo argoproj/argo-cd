@@ -309,7 +309,7 @@ export const ApplicationParameters = (props: {
             }
             parametersSet.forEach(name => {
                 const announcement = props.details.plugin.parametersAnnouncement?.find(param => param.name === name);
-                const liveParam = app.spec.source.plugin.parameters?.find(param => param.name === name);
+                const liveParam = app.spec.source.plugin?.parameters?.find(param => param.name === name);
                 const pluginIcon = 'This parameter is provided by the plugin.';
                 const isPluginPar = announcement ? true : false;
                 if ((announcement?.collectionType === undefined && liveParam?.map) || announcement?.collectionType === 'map') {
@@ -509,7 +509,7 @@ export const ApplicationParameters = (props: {
                     setRemovedOverrides(new Array<boolean>());
                 })
             }
-            values={(props.details.plugin && cloneDeep(app)) || app}
+            values={((props.details.plugin || app?.spec?.source?.plugin) && cloneDeep(app)) || app}
             validate={updatedApp => {
                 const errors = {} as any;
 
