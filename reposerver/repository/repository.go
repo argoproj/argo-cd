@@ -444,11 +444,13 @@ type gitClientGetter func(repo *v1alpha1.Repository, revision string, opts ...gi
 
 // resolveReferencedSources resolves the revisions for the given referenced sources. This lets us invalidate the cached
 // when one or more referenced sources change.
+//
+// Much of this logic is duplicated in runManifestGenAsync. If making changes here, check whether runManifestGenAsync
+// should be updated.
 func resolveReferencedSources(hasMultipleSources bool, source *v1alpha1.ApplicationSourceHelm, refSources map[string]*v1alpha1.RefTarget, newClientResolveRevision gitClientGetter) (map[string]string, error) {
 	repoRefs := make(map[string]string)
 	if hasMultipleSources {
 		if source != nil {
-			// Checkout every one of the referenced sources to the target revision before generating Manifests
 			for _, valueFile := range source.ValueFiles {
 				if strings.HasPrefix(valueFile, "$") {
 					refVar := strings.Split(valueFile, "/")[0]
@@ -668,6 +670,8 @@ func (s *Service) runManifestGenAsync(ctx context.Context, repoRoot, commitSHA, 
 	var manifestGenResult *apiclient.ManifestResponse
 	opContext, err := opContextSrc()
 	if err == nil {
+		// Much of the multi-source handling logic is duplicated in resolveReferencedSources. If making changes here,
+		// check whether they should be replicated in resolveReferencedSources.
 		if q.HasMultipleSources {
 			if q.ApplicationSource.Helm != nil {
 
