@@ -10725,10 +10725,13 @@ spec:
                       type: string
                     status:
                       type: string
+                    step:
+                      type: string
                   required:
                   - application
                   - message
                   - status
+                  - step
                   type: object
                 type: array
               conditions:
