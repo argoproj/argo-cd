@@ -293,7 +293,7 @@ Helm, [starting with v3.6.1](https://github.com/helm/helm/releases/tag/v3.6.1),
 prevents sending repository credentials to download charts that are being served
 from a different domain than the repository.
 
-If needed, it is possible to specifically set the Helm version to template with by setting the `helm-pass-credentials` flag on the cli:
+If needed, it is possible to opt into passing credentials for all domains by setting the `helm-pass-credentials` flag on the cli:
 
 ```bash
 argocd app set helm-guestbook --helm-pass-credentials
