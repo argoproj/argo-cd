@@ -233,7 +233,7 @@ const FavoriteFilter = (props: AppFilterProps) => {
     return (
         <div
             className={`filter filter__item ${props.pref.showFavorites ? 'filter__item--selected' : ''}`}
-            style={{margin: '0.5em 0', marginTop: '-1em'}}
+            style={{margin: '0.5em 0', marginTop: '0.5em'}}
             onClick={() => onChange(!props.pref.showFavorites)}>
             <Checkbox
                 value={!!props.pref.showFavorites}
