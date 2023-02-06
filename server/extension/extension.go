@@ -335,8 +335,15 @@ func NewProxy(targetURL string, config ProxyConfig) (*httputil.ReverseProxy, err
 	if err != nil {
 		return nil, fmt.Errorf("failed to parse proxy URL: %s", err)
 	}
-	proxy := httputil.NewSingleHostReverseProxy(url)
-	proxy.Transport = newTransport(config)
+	proxy := &httputil.ReverseProxy{
+		Transport: newTransport(config),
+		Director: func(req *http.Request) {
+			req.Host = url.Host
+			req.URL.Scheme = url.Scheme
+			req.URL.Host = url.Host
+			req.Header.Set("Host", url.Host)
+		},
+	}
 	return proxy, nil
 }
 
