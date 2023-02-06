@@ -201,13 +201,13 @@ jobs:
         if: ${{ env.DRY_RUN != 'true' }}
 
       - uses: docker/setup-qemu-action@e81a89b1732b9c48d79cd809d8d81d79c4647a18 # v2.1.0
-      - uses: docker/setup-buildx-action@8c0edbc76e98fa90f69d9a2c020dcb50019dc325 # v2.2.1
+      - uses: docker/setup-buildx-action@15c905b16b06416d2086efa066dd8e3a35cc7f98 # v2.4.0
       - name: Build and push Docker image for release
         run: |
           set -ue
           git clean -fd
           mkdir -p dist/
-          docker buildx build --platform linux/amd64,linux/arm64,linux/s390x,linux/ppc64le --push -t ${IMAGE_NAMESPACE}/argocd:v${TARGET_VERSION} -t argoproj/argocd:v${TARGET_VERSION} .
+          docker buildx build --platform linux/amd64,linux/arm64,linux/s390x,linux/ppc64le --sbom=false --provenance=false --push -t ${IMAGE_NAMESPACE}/argocd:v${TARGET_VERSION} -t argoproj/argocd:v${TARGET_VERSION} .
           make release-cli
           make checksums
           chmod +x ./dist/argocd-linux-amd64

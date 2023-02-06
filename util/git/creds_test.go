@@ -1,6 +1,7 @@
 package git
 
 import (
+	"encoding/base64"
 	"fmt"
 	"os"
 	"path"
@@ -42,7 +43,7 @@ func (s *memoryCredsStore) Remove(id string) {
 
 func TestHTTPSCreds_Environ_no_cert_cleanup(t *testing.T) {
 	store := &memoryCredsStore{creds: make(map[string]cred)}
-	creds := NewHTTPSCreds("", "", "", "", true, "", store)
+	creds := NewHTTPSCreds("", "", "", "", true, "", store, false)
 	closer, env, err := creds.Environ()
 	require.NoError(t, err)
 	var nonce string
@@ -58,7 +59,7 @@ func TestHTTPSCreds_Environ_no_cert_cleanup(t *testing.T) {
 }
 
 func TestHTTPSCreds_Environ_insecure_true(t *testing.T) {
-	creds := NewHTTPSCreds("", "", "", "", true, "", &NoopCredsStore{})
+	creds := NewHTTPSCreds("", "", "", "", true, "", &NoopCredsStore{}, false)
 	closer, env, err := creds.Environ()
 	t.Cleanup(func() {
 		io.Close(closer)
@@ -75,7 +76,7 @@ func TestHTTPSCreds_Environ_insecure_true(t *testing.T) {
 }
 
 func TestHTTPSCreds_Environ_insecure_false(t *testing.T) {
-	creds := NewHTTPSCreds("", "", "", "", false, "", &NoopCredsStore{})
+	creds := NewHTTPSCreds("", "", "", "", false, "", &NoopCredsStore{}, false)
 	closer, env, err := creds.Environ()
 	t.Cleanup(func() {
 		io.Close(closer)
@@ -91,9 +92,82 @@ func TestHTTPSCreds_Environ_insecure_false(t *testing.T) {
 	assert.False(t, found)
 }
 
+func TestHTTPSCreds_Environ_forceBasicAuth(t *testing.T) {
+	t.Run("Enabled and credentials set", func(t *testing.T) {
+		store := &memoryCredsStore{creds: make(map[string]cred)}
+		creds := NewHTTPSCreds("username", "password", "", "", false, "", store, true)
+		closer, env, err := creds.Environ()
+		require.NoError(t, err)
+		defer closer.Close()
+		var header string
+		for _, envVar := range env {
+			if strings.HasPrefix(envVar, fmt.Sprintf("%s=", forceBasicAuthHeaderEnv)) {
+				header = envVar[len(forceBasicAuthHeaderEnv)+1:]
+			}
+			if header != "" {
+				break
+			}
+		}
+		b64enc := base64.StdEncoding.EncodeToString([]byte("username:password"))
+		assert.Equal(t, "Authorization: Basic "+b64enc, header)
+	})
+	t.Run("Enabled but credentials not set", func(t *testing.T) {
+		store := &memoryCredsStore{creds: make(map[string]cred)}
+		creds := NewHTTPSCreds("", "", "", "", false, "", store, true)
+		closer, env, err := creds.Environ()
+		require.NoError(t, err)
+		defer closer.Close()
+		var header string
+		for _, envVar := range env {
+			if strings.HasPrefix(envVar, fmt.Sprintf("%s=", forceBasicAuthHeaderEnv)) {
+				header = envVar[len(forceBasicAuthHeaderEnv)+1:]
+			}
+			if header != "" {
+				break
+			}
+		}
+		assert.Empty(t, header)
+	})
+	t.Run("Disabled with credentials set", func(t *testing.T) {
+		store := &memoryCredsStore{creds: make(map[string]cred)}
+		creds := NewHTTPSCreds("username", "password", "", "", false, "", store, false)
+		closer, env, err := creds.Environ()
+		require.NoError(t, err)
+		defer closer.Close()
+		var header string
+		for _, envVar := range env {
+			if strings.HasPrefix(envVar, fmt.Sprintf("%s=", forceBasicAuthHeaderEnv)) {
+				header = envVar[len(forceBasicAuthHeaderEnv)+1:]
+			}
+			if header != "" {
+				break
+			}
+		}
+		assert.Empty(t, header)
+	})
+
+	t.Run("Disabled with credentials not set", func(t *testing.T) {
+		store := &memoryCredsStore{creds: make(map[string]cred)}
+		creds := NewHTTPSCreds("", "", "", "", false, "", store, false)
+		closer, env, err := creds.Environ()
+		require.NoError(t, err)
+		defer closer.Close()
+		var header string
+		for _, envVar := range env {
+			if strings.HasPrefix(envVar, fmt.Sprintf("%s=", forceBasicAuthHeaderEnv)) {
+				header = envVar[len(forceBasicAuthHeaderEnv)+1:]
+			}
+			if header != "" {
+				break
+			}
+		}
+		assert.Empty(t, header)
+	})
+}
+
 func TestHTTPSCreds_Environ_clientCert(t *testing.T) {
 	store := &memoryCredsStore{creds: make(map[string]cred)}
-	creds := NewHTTPSCreds("", "", "clientCertData", "clientCertKey", false, "", store)
+	creds := NewHTTPSCreds("", "", "clientCertData", "clientCertKey", false, "", store, false)
 	closer, env, err := creds.Environ()
 	require.NoError(t, err)
 	var cert, key string
