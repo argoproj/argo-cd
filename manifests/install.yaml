@@ -5476,7 +5476,6 @@ spec:
                           - spec
                           type: object
                       required:
-                      - pathParamPrefix
                       - repoURL
                       - revision
                       type: object
@@ -7367,7 +7366,6 @@ spec:
                                     - spec
                                     type: object
                                 required:
-                                - pathParamPrefix
                                 - repoURL
                                 - revision
                                 type: object
@@ -10916,7 +10914,6 @@ spec:
                                     - spec
                                     type: object
                                 required:
-                                - pathParamPrefix
                                 - repoURL
                                 - revision
                                 type: object
@@ -14742,10 +14739,13 @@ spec:
                       type: string
                     status:
                       type: string
+                    step:
+                      type: string
                   required:
                   - application
                   - message
                   - status
+                  - step
                   type: object
                 type: array
               conditions:
@@ -15871,10 +15871,10 @@ spec:
               key: applicationsetcontroller.enable.git.submodule
               name: argocd-cmd-params-cm
               optional: true
-        - name: ARGOCD_APPLICATIONSET_CONTROLLER_ENABLE_PROGRESSIVE_ROLLOUTS
+        - name: ARGOCD_APPLICATIONSET_CONTROLLER_ENABLE_PROGRESSIVE_SYNCS
           valueFrom:
             configMapKeyRef:
-              key: applicationsetcontroller.enable.progressive.rollouts
+              key: applicationsetcontroller.enable.progressive.syncs
               name: argocd-cmd-params-cm
               optional: true
         image: quay.io/argoproj/argocd:latest
@@ -16117,7 +16117,7 @@ spec:
         - ""
         - --appendonly
         - "no"
-        image: redis:7.0.5-alpine
+        image: redis:7.0.7-alpine
         imagePullPolicy: Always
         name: redis
         ports:

@@ -83,6 +83,129 @@ func TestGetAppProjectWithNoProjDefined(t *testing.T) {
 	assert.Equal(t, proj.Name, projName)
 }
 
+func TestIncludeResource(t *testing.T) {
+	//Resource filters format - GROUP:KIND:NAMESPACE/NAME or GROUP:KIND:NAME
+	var (
+		blankValues = argoappv1.SyncOperationResource{Group: "", Kind: "", Name: "", Namespace: "", Exclude: false}
+		// *:*:*
+		includeAllResources = argoappv1.SyncOperationResource{Group: "*", Kind: "*", Name: "*", Namespace: "", Exclude: false}
+		// !*:*:*
+		excludeAllResources = argoappv1.SyncOperationResource{Group: "*", Kind: "*", Name: "*", Namespace: "", Exclude: true}
+		// *:Service:*
+		includeAllServiceResources = argoappv1.SyncOperationResource{Group: "*", Kind: "Service", Name: "*", Namespace: "", Exclude: false}
+		// !*:Service:*
+		excludeAllServiceResources = argoappv1.SyncOperationResource{Group: "*", Kind: "Service", Name: "*", Namespace: "", Exclude: true}
+		// apps:ReplicaSet:backend
+		includeReplicaSetResource = argoappv1.SyncOperationResource{Group: "apps", Kind: "ReplicaSet", Name: "backend", Namespace: "", Exclude: false}
+		// !apps:ReplicaSet:backend
+		excludeReplicaSetResource = argoappv1.SyncOperationResource{Group: "apps", Kind: "ReplicaSet", Name: "backend", Namespace: "", Exclude: true}
+	)
+	tests := []struct {
+		testName              string
+		name                  string
+		namespace             string
+		gvk                   schema.GroupVersionKind
+		syncOperationResource []*argoappv1.SyncOperationResource
+		expectedResult        bool
+	}{
+		//--resource apps:ReplicaSet:backend --resource *:Service:*
+		{testName: "Include ReplicaSet backend resouce and all service resources",
+			name:                  "backend",
+			namespace:             "default",
+			gvk:                   schema.GroupVersionKind{Group: "apps", Kind: "ReplicaSet"},
+			syncOperationResource: []*argoappv1.SyncOperationResource{&includeAllServiceResources, &includeReplicaSetResource},
+			expectedResult:        true,
+		},
+		//--resource apps:ReplicaSet:backend --resource *:Service:*
+		{testName: "Include ReplicaSet backend resouce and all service resources",
+			name:                  "main-page-down",
+			namespace:             "default",
+			gvk:                   schema.GroupVersionKind{Group: "batch", Kind: "Job"},
+			syncOperationResource: []*argoappv1.SyncOperationResource{&includeAllServiceResources, &includeReplicaSetResource},
+			expectedResult:        false,
+		},
+		//--resource apps:ReplicaSet:backend --resource !*:Service:*
+		{testName: "Include ReplicaSet backend resouce and exclude all service resources",
+			name:                  "main-page-down",
+			namespace:             "default",
+			gvk:                   schema.GroupVersionKind{Group: "batch", Kind: "Job"},
+			syncOperationResource: []*argoappv1.SyncOperationResource{&excludeAllServiceResources, &includeReplicaSetResource},
+			expectedResult:        true,
+		},
+		// --resource !apps:ReplicaSet:backend --resource !*:Service:*
+		{testName: "Exclude ReplicaSet backend resouce and all service resources",
+			name:                  "main-page-down",
+			namespace:             "default",
+			gvk:                   schema.GroupVersionKind{Group: "batch", Kind: "Job"},
+			syncOperationResource: []*argoappv1.SyncOperationResource{&excludeReplicaSetResource, &excludeAllServiceResources},
+			expectedResult:        true,
+		},
+		// --resource !apps:ReplicaSet:backend
+		{testName: "Exclude ReplicaSet backend resouce",
+			name:                  "backend",
+			namespace:             "default",
+			gvk:                   schema.GroupVersionKind{Group: "apps", Kind: "ReplicaSet"},
+			syncOperationResource: []*argoappv1.SyncOperationResource{&excludeReplicaSetResource},
+			expectedResult:        false,
+		},
+		// --resource apps:ReplicaSet:backend
+		{testName: "Include ReplicaSet backend resouce",
+			name:                  "backend",
+			namespace:             "default",
+			gvk:                   schema.GroupVersionKind{Group: "apps", Kind: "ReplicaSet"},
+			syncOperationResource: []*argoappv1.SyncOperationResource{&includeReplicaSetResource},
+			expectedResult:        true,
+		},
+		// --resource !*:Service:*
+		{testName: "Exclude Service resouces",
+			name:                  "backend",
+			namespace:             "default",
+			gvk:                   schema.GroupVersionKind{Group: "", Kind: "Service"},
+			syncOperationResource: []*argoappv1.SyncOperationResource{&excludeAllServiceResources},
+			expectedResult:        false,
+		},
+		// --resource *:Service:*
+		{testName: "Include Service resouces",
+			name:                  "backend",
+			namespace:             "default",
+			gvk:                   schema.GroupVersionKind{Group: "", Kind: "Service"},
+			syncOperationResource: []*argoappv1.SyncOperationResource{&includeAllServiceResources},
+			expectedResult:        true,
+		},
+		// --resource !*:*:*
+		{testName: "Exclude all resouces",
+			name:                  "backend",
+			namespace:             "default",
+			gvk:                   schema.GroupVersionKind{Group: "", Kind: "Service"},
+			syncOperationResource: []*argoappv1.SyncOperationResource{&excludeAllResources},
+			expectedResult:        false,
+		},
+		// --resource *:*:*
+		{testName: "Include all resouces",
+			name:                  "backend",
+			namespace:             "default",
+			gvk:                   schema.GroupVersionKind{Group: "", Kind: "Service"},
+			syncOperationResource: []*argoappv1.SyncOperationResource{&includeAllResources},
+			expectedResult:        true,
+		},
+		{testName: "No Filters",
+			name:                  "backend",
+			namespace:             "default",
+			gvk:                   schema.GroupVersionKind{Group: "", Kind: "Service"},
+			syncOperationResource: []*argoappv1.SyncOperationResource{&blankValues},
+			expectedResult:        false,
+		},
+		{testName: "Default values"},
+	}
+
+	for _, test := range tests {
+		t.Run(test.testName, func(t *testing.T) {
+			isResourceIncluded := IncludeResource(test.name, test.namespace, test.gvk, test.syncOperationResource)
+			assert.Equal(t, test.expectedResult, isResourceIncluded)
+		})
+	}
+}
+
 func TestContainsSyncResource(t *testing.T) {
 	var (
 		blankUnstructured unstructured.Unstructured
