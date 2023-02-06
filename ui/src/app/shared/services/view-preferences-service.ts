@@ -91,6 +91,7 @@ export interface ViewPreferences {
     appDetails: AppDetailsPreferences;
     appList: AppsListPreferences;
     pageSizes: {[key: string]: number};
+    sortOptions: {[key: string]: string};
     hideBannerContent: string;
     hideSidebar: boolean;
     position: string;
