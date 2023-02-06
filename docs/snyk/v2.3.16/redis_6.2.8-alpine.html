@@ -456,24 +456,33 @@
               <div class="header-wrap">
                   <h1 class="project__header__title">Snyk test report</h1>
     
-                <p class="timestamp">February 5th 2023, 12:15:49 am</p>
+                <p class="timestamp">February 5th 2023, 12:25:18 am</p>
               </div>
               <div class="source-panel">
-                <span>Scanned the following paths:</span>
+                <span>Scanned the following path:</span>
                 <ul>
-                  <li class="paths">/argo-cd/argoproj/argo-cd/v2 (gomodules)</li><li class="paths">/argo-cd (yarn)</li>
+                  <li class="paths">redis:6.2.8-alpine (apk)</li>
                 </ul>
               </div>
     
               <div class="meta-counts">
                 <div class="meta-count"><span>0</span> <span>known vulnerabilities</span></div>
                 <div class="meta-count"><span>0 vulnerable dependency paths</span></div>
-                <div class="meta-count"><span>1728</span> <span>dependencies</span></div>
+                <div class="meta-count"><span>18</span> <span>dependencies</span></div>
               </div><!-- .meta-counts -->
             </div><!-- .layout-container--short -->
           </header><!-- .project__header -->
         </div><!-- .layout-stacked__header -->
-
+      <section class="layout-container">
+          <table class="metatable">
+              <tbody>
+              <tr class="meta-row"><th class="meta-row-label">Project</th> <td class="meta-row-value">docker-image|redis</td></tr>
+              <tr class="meta-row"><th class="meta-row-label">Path</th> <td class="meta-row-value">redis:6.2.8-alpine</td></tr>
+              <tr class="meta-row"><th class="meta-row-label">Package Manager</th> <td class="meta-row-value">apk</td></tr>
+              
+              </tbody>
+          </table>
+      </section>
     <div class="layout-container" style="padding-top: 35px;">
       No known vulnerabilities detected.
     </div>
