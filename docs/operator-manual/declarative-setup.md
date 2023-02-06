@@ -77,7 +77,7 @@ spec:
 ```
 
 !!! warning
-    By default, deleting an application will not perform a cascade delete, which would delete its resources. If you prefer a cascade delete of its resource, you must add the finalizer:
+    Without the `resources-finalizer.argocd.argoproj.io` finalizer, deleting an application will not delete the resources it manages. To perform a cascading delete, you must add the finalizer. See [App Deletion](../user-guide/app_deletion.md#about-the-deletion-finalizer).
 
 ```yaml
 metadata:
