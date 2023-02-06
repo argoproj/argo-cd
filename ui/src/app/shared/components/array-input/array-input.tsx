@@ -279,14 +279,12 @@ export const MapInputField = ReactForm.FormField((props: {fieldApi: ReactForm.Fi
     );
 });
 
-
-
 export const MapValueField = ReactForm.FormField(
     (props: {fieldApi: ReactForm.FieldApi; name: string; defaultVal: Map<string, string>; isPluginPar: boolean; setAppParamsDeletedState: any}) => {
         const {
             fieldApi: {getValue, setValue}
         } = props;
-        let items = new Array<NameValue>();
+        const items = new Array<NameValue>();
         const liveParam = getValue()?.find((val: {name: string; map: object}) => val.name === props.name);
         const index = getValue()?.findIndex((val: {name: string; map: object}) => val.name === props.name) ?? -1;
         if (liveParam) {
