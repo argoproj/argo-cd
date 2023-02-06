@@ -158,6 +158,7 @@ Currently, the following organizations are **officially** using Argo CD:
 1. [OCCMundial](https://occ.com.mx)
 1. [Octadesk](https://octadesk.com)
 1. [omegaUp](https://omegaUp.com)
+1. [Omni](https://omni.se/)
 1. [openEuler](https://openeuler.org)
 1. [openGauss](https://opengauss.org/)
 1. [openLooKeng](https://openlookeng.io)
