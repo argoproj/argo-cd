@@ -71,7 +71,7 @@ type ApplicationSetReconciler struct {
 	utils.Policy
 	utils.Renderer
 
-	EnableProgressiveRollouts bool
+	EnableProgressiveSyncs bool
 }
 
 // +kubebuilder:rbac:groups=argoproj.io,resources=applicationsets,verbs=get;list;watch;create;update;patch;delete
@@ -142,7 +142,7 @@ func (r *ApplicationSetReconciler) Reconcile(ctx context.Context, req ctrl.Reque
 	// appSyncMap tracks which apps will be synced during this reconciliation.
 	appSyncMap := map[string]bool{}
 
-	if r.EnableProgressiveRollouts && applicationSetInfo.Spec.Strategy != nil {
+	if r.EnableProgressiveSyncs && applicationSetInfo.Spec.Strategy != nil {
 		applications, err := r.getCurrentApplications(ctx, applicationSetInfo)
 		if err != nil {
 			return ctrl.Result{}, fmt.Errorf("failed to get current applications for application set: %w", err)
@@ -152,9 +152,9 @@ func (r *ApplicationSetReconciler) Reconcile(ctx context.Context, req ctrl.Reque
 			appMap[app.Name] = app
 		}
 
-		appSyncMap, err = r.performProgressiveRollouts(ctx, applicationSetInfo, applications, desiredApplications, appMap)
+		appSyncMap, err = r.performProgressiveSyncs(ctx, applicationSetInfo, applications, desiredApplications, appMap)
 		if err != nil {
-			return ctrl.Result{}, fmt.Errorf("failed to perform progressive rollouts reconciliation for application set: %w", err)
+			return ctrl.Result{}, fmt.Errorf("failed to perform progressive sync reconciliation for application set: %w", err)
 		}
 	}
 
@@ -186,9 +186,9 @@ func (r *ApplicationSetReconciler) Reconcile(ctx context.Context, req ctrl.Reque
 		)
 	}
 
-	if r.EnableProgressiveRollouts {
+	if r.EnableProgressiveSyncs {
 		// trigger appropriate application syncs if RollingSync strategy is enabled
-		if progressiveRolloutStrategyEnabled(&applicationSetInfo, "RollingSync") {
+		if progressiveSyncsStrategyEnabled(&applicationSetInfo, "RollingSync") {
 			validApps, err = r.syncValidApplications(ctx, &applicationSetInfo, appSyncMap, appMap, validApps)
 
 			if err != nil {
@@ -775,7 +775,7 @@ func (r *ApplicationSetReconciler) removeFinalizerOnInvalidDestination(ctx conte
 	return nil
 }
 
-func (r *ApplicationSetReconciler) performProgressiveRollouts(ctx context.Context, appset argov1alpha1.ApplicationSet, applications []argov1alpha1.Application, desiredApplications []argov1alpha1.Application, appMap map[string]argov1alpha1.Application) (map[string]bool, error) {
+func (r *ApplicationSetReconciler) performProgressiveSyncs(ctx context.Context, appset argov1alpha1.ApplicationSet, applications []argov1alpha1.Application, desiredApplications []argov1alpha1.Application, appMap map[string]argov1alpha1.Application) (map[string]bool, error) {
 
 	appDependencyList, appStepMap, err := r.buildAppDependencyList(ctx, appset, desiredApplications)
 	if err != nil {
@@ -820,7 +820,7 @@ func (r *ApplicationSetReconciler) buildAppDependencyList(ctx context.Context, a
 	}
 
 	steps := []argov1alpha1.ApplicationSetRolloutStep{}
-	if progressiveRolloutStrategyEnabled(&applicationSet, "RollingSync") {
+	if progressiveSyncsStrategyEnabled(&applicationSet, "RollingSync") {
 		steps = applicationSet.Spec.Strategy.RollingSync.Steps
 	}
 
@@ -946,7 +946,7 @@ func (r *ApplicationSetReconciler) buildAppSyncMap(ctx context.Context, applicat
 
 func appSyncEnabledForNextStep(appset *argov1alpha1.ApplicationSet, app argov1alpha1.Application, appStatus argov1alpha1.ApplicationSetApplicationStatus) bool {
 
-	if progressiveRolloutStrategyEnabled(appset, "RollingSync") {
+	if progressiveSyncsStrategyEnabled(appset, "RollingSync") {
 		// we still need to complete the current step if the Application is not yet Healthy or there are still pending Application changes
 		return isApplicationHealthy(app) && appStatus.Status == "Healthy"
 	}
@@ -954,7 +954,7 @@ func appSyncEnabledForNextStep(appset *argov1alpha1.ApplicationSet, app argov1al
 	return true
 }
 
-func progressiveRolloutStrategyEnabled(appset *argov1alpha1.ApplicationSet, strategyType string) bool {
+func progressiveSyncsStrategyEnabled(appset *argov1alpha1.ApplicationSet, strategyType string) bool {
 	if appset.Spec.Strategy == nil || appset.Spec.Strategy.Type != strategyType {
 		return false
 	}
@@ -1015,7 +1015,7 @@ func (r *ApplicationSetReconciler) updateApplicationSetApplicationStatus(ctx con
 		}
 
 		appOutdated := false
-		if progressiveRolloutStrategyEnabled(applicationSet, "RollingSync") {
+		if progressiveSyncsStrategyEnabled(applicationSet, "RollingSync") {
 			appOutdated = syncStatusString == "OutOfSync"
 		}
 
@@ -1082,7 +1082,7 @@ func (r *ApplicationSetReconciler) updateApplicationSetApplicationStatusProgress
 		totalCountMap := []int{}
 
 		length := 0
-		if progressiveRolloutStrategyEnabled(applicationSet, "RollingSync") {
+		if progressiveSyncsStrategyEnabled(applicationSet, "RollingSync") {
 			length = len(applicationSet.Spec.Strategy.RollingSync.Steps)
 		}
 		for s := 0; s < length; s++ {
@@ -1094,7 +1094,7 @@ func (r *ApplicationSetReconciler) updateApplicationSetApplicationStatusProgress
 		for _, appStatus := range applicationSet.Status.ApplicationStatus {
 			totalCountMap[appStepMap[appStatus.Application]] += 1
 
-			if progressiveRolloutStrategyEnabled(applicationSet, "RollingSync") {
+			if progressiveSyncsStrategyEnabled(applicationSet, "RollingSync") {
 				if appStatus.Status == "Pending" || appStatus.Status == "Progressing" {
 					updateCountMap[appStepMap[appStatus.Application]] += 1
 				}
@@ -1105,7 +1105,7 @@ func (r *ApplicationSetReconciler) updateApplicationSetApplicationStatusProgress
 
 			maxUpdateAllowed := true
 			maxUpdate := &intstr.IntOrString{}
-			if progressiveRolloutStrategyEnabled(applicationSet, "RollingSync") {
+			if progressiveSyncsStrategyEnabled(applicationSet, "RollingSync") {
 				maxUpdate = applicationSet.Spec.Strategy.RollingSync.Steps[appStepMap[appStatus.Application]].MaxUpdate
 			}
 
@@ -1281,7 +1281,7 @@ func (r *ApplicationSetReconciler) syncValidApplications(ctx context.Context, ap
 	return rolloutApps, nil
 }
 
-// used by the RollingSync Progressive Rollout strategy to trigger a sync of a particular Application resource
+// used by the RollingSync Progressive Sync strategy to trigger a sync of a particular Application resource
 func syncApplication(application argov1alpha1.Application, prune bool) (argov1alpha1.Application, error) {
 
 	operation := argov1alpha1.Operation{
