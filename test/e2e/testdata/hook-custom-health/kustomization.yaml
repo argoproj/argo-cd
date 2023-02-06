@@ -3,6 +3,4 @@ kind: Kustomization
 
 resources:
   - ../guestbook
-
-resources:
   - config-map.yaml
