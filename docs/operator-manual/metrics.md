@@ -67,8 +67,7 @@ Scraped at the `argocd-server-metrics:8083/metrics` endpoint.
 | Metric | Type | Description |
 |--------|:----:|-------------|
 | `argocd_redis_request_duration` | histogram | Redis requests duration. |
-| `argocd_redis_request_total` | counter | Number of kubernetes requests executed during application
-reconciliation. |
+| `argocd_redis_request_total` | counter | Number of kubernetes requests executed during application reconciliation. |
 | `grpc_server_handled_total` | counter | Total number of RPCs completed on the server, regardless of success or failure. |
 | `grpc_server_msg_sent_total` | counter | Total number of gRPC stream messages sent by the server. |
 

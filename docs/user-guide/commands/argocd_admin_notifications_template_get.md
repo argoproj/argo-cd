@@ -11,9 +11,9 @@ argocd admin notifications template get [flags]
 ```
 
 # prints all templates
-notifications template get
+argocd admin notifications template get
 # print YAML formatted app-sync-succeeded template definition
-notifications template get app-sync-succeeded -o=yaml
+argocd admin notifications template get app-sync-succeeded -o=yaml
 
 ```
 
