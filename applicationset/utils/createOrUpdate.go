@@ -88,7 +88,7 @@ func CreateOrUpdate(ctx context.Context, c client.Client, obj client.Object, f c
 // mutate wraps a MutateFn and applies validation to its result
 func mutate(f controllerutil.MutateFn, key client.ObjectKey, obj client.Object) error {
 	if err := f(); err != nil {
-		return err
+		return fmt.Errorf("error while wrapping using MutateFn: %w", err)
 	}
 	if newKey := client.ObjectKeyFromObject(obj); key != newKey {
 		return fmt.Errorf("MutateFn cannot mutate object name and/or object namespace")

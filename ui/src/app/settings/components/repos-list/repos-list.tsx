@@ -35,6 +35,7 @@ export interface NewHTTPSRepoParams {
     enableLfs: boolean;
     proxy: string;
     project?: string;
+    forceHttpBasicAuth: boolean;
 }
 
 interface NewGitHubAppRepoParams {
@@ -53,6 +54,15 @@ interface NewGitHubAppRepoParams {
     project?: string;
 }
 
+interface NewGoogleCloudSourceRepoParams {
+    type: string;
+    name: string;
+    url: string;
+    gcpServiceAccountKey: string;
+    proxy: string;
+    project?: string;
+}
+
 interface NewSSHRepoCredsParams {
     url: string;
     sshPrivateKey: string;
@@ -64,6 +74,8 @@ interface NewHTTPSRepoCredsParams {
     password: string;
     tlsClientCertData: string;
     tlsClientCertKey: string;
+    proxy: string;
+    forceHttpBasicAuth: boolean;
 }
 
 interface NewGitHubAppRepoCredsParams {
@@ -74,12 +86,19 @@ interface NewGitHubAppRepoCredsParams {
     githubAppEnterpriseBaseURL: string;
     tlsClientCertData: string;
     tlsClientCertKey: string;
+    proxy: string;
+}
+
+interface NewGoogleCloudSourceRepoCredsParams {
+    url: string;
+    gcpServiceAccountKey: string;
 }
 
 export enum ConnectionMethod {
     SSH = 'via SSH',
     HTTPS = 'via HTTPS',
-    GITHUBAPP = 'via GitHub App'
+    GITHUBAPP = 'via GitHub App',
+    GOOGLECLOUD = 'via Google Cloud'
 }
 
 export class ReposList extends React.Component<
@@ -122,8 +141,8 @@ export class ReposList extends React.Component<
                             {method.toUpperCase()} <i className='fa fa-caret-down' />
                         </p>
                     )}
-                    items={[ConnectionMethod.SSH, ConnectionMethod.HTTPS, ConnectionMethod.GITHUBAPP].map(
-                        (connectMethod: ConnectionMethod.SSH | ConnectionMethod.HTTPS | ConnectionMethod.GITHUBAPP) => ({
+                    items={[ConnectionMethod.SSH, ConnectionMethod.HTTPS, ConnectionMethod.GITHUBAPP, ConnectionMethod.GOOGLECLOUD].map(
+                        (connectMethod: ConnectionMethod.SSH | ConnectionMethod.HTTPS | ConnectionMethod.GITHUBAPP | ConnectionMethod.GOOGLECLOUD) => ({
                             title: connectMethod.toUpperCase(),
                             action: () => {
                                 onSelection(connectMethod);
@@ -167,6 +186,12 @@ export class ReposList extends React.Component<
                     githubAppId: !githubAppValues.githubAppId && 'GitHub App ID is required',
                     githubAppInstallationId: !githubAppValues.githubAppInstallationId && 'GitHub App installation ID is required',
                     githubAppPrivateKey: !githubAppValues.githubAppPrivateKey && 'GitHub App private Key is required'
+                };
+            case ConnectionMethod.GOOGLECLOUD:
+                const googleCloudValues = params as NewGoogleCloudSourceRepoParams;
+                return {
+                    url: (!googleCloudValues.url && 'Repo URL is required') || (this.credsTemplate && !this.isHTTPSUrl(googleCloudValues.url) && 'Not a valid HTTPS URL'),
+                    gcpServiceAccountKey: !googleCloudValues.gcpServiceAccountKey && 'GCP service account key is required'
                 };
         }
     }
@@ -215,6 +240,8 @@ export class ReposList extends React.Component<
                 return (params: FormValues) => this.connectHTTPSRepo(params as NewHTTPSRepoParams);
             case ConnectionMethod.GITHUBAPP:
                 return (params: FormValues) => this.connectGitHubAppRepo(params as NewGitHubAppRepoParams);
+            case ConnectionMethod.GOOGLECLOUD:
+                return (params: FormValues) => this.connectGoogleCloudSourceRepo(params as NewGoogleCloudSourceRepoParams);
         }
     }
 
@@ -459,6 +486,9 @@ export class ReposList extends React.Component<
                                                                 <HelpIcon title='This setting is ignored when creating as credential template.' />
                                                             </div>
                                                             <div className='argo-form-row'>
+                                                                <FormField formApi={formApi} label='Force HTTP basic auth' field='forceHttpBasicAuth' component={CheckboxField} />
+                                                            </div>
+                                                            <div className='argo-form-row'>
                                                                 <FormField formApi={formApi} label='Enable LFS support (Git only)' field='enableLfs' component={CheckboxField} />
                                                                 <HelpIcon title='This setting is ignored when creating as credential template.' />
                                                             </div>
@@ -547,6 +577,29 @@ export class ReposList extends React.Component<
                                                     </div>
                                                 </div>
                                             )}
+                                            {this.state.method === ConnectionMethod.GOOGLECLOUD && (
+                                                <div className='white-box'>
+                                                    <p>CONNECT REPO USING GOOGLE CLOUD</p>
+                                                    <div className='argo-form-row'>
+                                                        <FormField
+                                                            formApi={formApi}
+                                                            label='Project'
+                                                            field='project'
+                                                            component={AutocompleteField}
+                                                            componentProps={{items: projects}}
+                                                        />
+                                                    </div>
+                                                    <div className='argo-form-row'>
+                                                        <FormField formApi={formApi} label='Repository URL' field='url' component={Text} />
+                                                    </div>
+                                                    <div className='argo-form-row'>
+                                                        <FormField formApi={formApi} label='GCP service account key' field='gcpServiceAccountKey' component={TextArea} />
+                                                    </div>
+                                                    <div className='argo-form-row'>
+                                                        <FormField formApi={formApi} label='Proxy (optional)' field='proxy' component={Text} />
+                                                    </div>
+                                                </div>
+                                            )}
                                         </form>
                                     )}
                                 </Form>
@@ -630,7 +683,9 @@ export class ReposList extends React.Component<
                 username: params.username,
                 password: params.password,
                 tlsClientCertData: params.tlsClientCertData,
-                tlsClientCertKey: params.tlsClientCertKey
+                tlsClientCertKey: params.tlsClientCertKey,
+                proxy: params.proxy,
+                forceHttpBasicAuth: params.forceHttpBasicAuth
             });
         } else {
             this.setState({connecting: true});
@@ -676,7 +731,8 @@ export class ReposList extends React.Component<
                 githubAppInstallationId: params.githubAppInstallationId,
                 githubAppEnterpriseBaseURL: params.githubAppEnterpriseBaseURL,
                 tlsClientCertData: params.tlsClientCertData,
-                tlsClientCertKey: params.tlsClientCertKey
+                tlsClientCertKey: params.tlsClientCertKey,
+                proxy: params.proxy
             });
         } else {
             this.setState({connecting: true});
@@ -687,6 +743,30 @@ export class ReposList extends React.Component<
             } catch (e) {
                 this.appContext.apis.notifications.show({
                     content: <ErrorNotification title='Unable to connect GitHub App repository' e={e} />,
+                    type: NotificationType.Error
+                });
+            } finally {
+                this.setState({connecting: false});
+            }
+        }
+    }
+
+    // Connect a new repository or create a repository credentials for GitHub App repositories
+    private async connectGoogleCloudSourceRepo(params: NewGoogleCloudSourceRepoParams) {
+        if (this.credsTemplate) {
+            this.createGoogleCloudSourceCreds({
+                url: params.url,
+                gcpServiceAccountKey: params.gcpServiceAccountKey
+            });
+        } else {
+            this.setState({connecting: true});
+            try {
+                await services.repos.createGoogleCloudSource(params);
+                this.repoLoader.reload();
+                this.showConnectRepo = false;
+            } catch (e) {
+                this.appContext.apis.notifications.show({
+                    content: <ErrorNotification title='Unable to connect Google Cloud Source repository' e={e} />,
                     type: NotificationType.Error
                 });
             } finally {
@@ -729,6 +809,19 @@ export class ReposList extends React.Component<
         } catch (e) {
             this.appContext.apis.notifications.show({
                 content: <ErrorNotification title='Unable to create GitHub App credentials' e={e} />,
+                type: NotificationType.Error
+            });
+        }
+    }
+
+    private async createGoogleCloudSourceCreds(params: NewGoogleCloudSourceRepoCredsParams) {
+        try {
+            await services.repocreds.createGoogleCloudSource(params);
+            this.credsLoader.reload();
+            this.showConnectRepo = false;
+        } catch (e) {
+            this.appContext.apis.notifications.show({
+                content: <ErrorNotification title='Unable to create Google Cloud Source credentials' e={e} />,
                 type: NotificationType.Error
             });
         }

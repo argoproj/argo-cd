@@ -3,7 +3,7 @@ package generator
 import (
 	"context"
 	"log"
-
+	"fmt"
 	v1 "k8s.io/apimachinery/pkg/apis/meta/v1"
 
 	"github.com/argoproj/argo-cd/v2/hack/gen-resources/util"
@@ -35,7 +35,7 @@ func (pg *ProjectGenerator) Generate(opts *util.GenerateOpts) error {
 		}, v1.CreateOptions{})
 		if err != nil {
 			log.Printf("Project #%v failed to generate", i)
-			return err
+			return fmt.Errorf("error in generated-project: %w", err)
 		}
 	}
 	return nil
