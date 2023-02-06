@@ -1044,6 +1044,11 @@ func runHelmBuild(appPath string, h helm.Helm) error {
 	return os.WriteFile(markerFile, []byte("marker"), 0644)
 }
 
+func isSourcePermitted(url string, repos []string) bool {
+	p := v1alpha1.AppProject{Spec: v1alpha1.AppProjectSpec{SourceRepos: repos}}
+	return p.IsSourcePermitted(v1alpha1.ApplicationSource{RepoURL: url})
+}
+
 func helmTemplate(appPath string, repoRoot string, env *v1alpha1.Env, q *apiclient.ManifestRequest, isLocal bool, gitRepoPaths io.TempPaths) ([]*unstructured.Unstructured, error) {
 	concurrencyAllowed := isConcurrencyAllowed(appPath)
 	if !concurrencyAllowed {
@@ -1136,10 +1141,21 @@ func helmTemplate(appPath string, repoRoot string, env *v1alpha1.Env, q *apiclie
 		proxy = q.Repo.Proxy
 	}
 
+	// We do a sanity check here to give a nicer error message in case any of the Helm repositories are not permitted by
+	// the AppProject which the application is a part of
+	for _, repo := range q.Repos {
+		if !isSourcePermitted(repo.Repo, q.ProjectSourceRepos) {
+			return nil, status.Errorf(codes.PermissionDenied, "helm repository '%s' not permitted in project '%s'", repo.Repo, q.ProjectName)
+		}
+	}
+
 	helmRepos, err := getHelmRepos(appPath, q.Repos, q.HelmRepoCreds)
 	if err != nil {
 		return nil, err
 	}
+
+
+
 	h, err := helm.NewHelmApp(appPath, helmRepos, isLocal, version, proxy, passCredentials)
 	if err != nil {
 		return nil, err

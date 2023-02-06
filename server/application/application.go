@@ -421,6 +421,11 @@ func (s *Server) GetManifests(ctx context.Context, q *application.ApplicationMan
 			return fmt.Errorf("error getting API resources: %w", err)
 		}
 
+		proj, err := argo.GetAppProject(a, applisters.NewAppProjectLister(s.projInformer.GetIndexer()), s.ns, s.settingsMgr, s.db, ctx)
+		if err != nil {
+			return fmt.Errorf("error getting app project: %w", err)
+		}
+
 		manifestInfo, err = client.GenerateManifest(ctx, &apiclient.ManifestRequest{
 			Repo:               repo,
 			Revision:           revision,
@@ -437,7 +442,8 @@ func (s *Server) GetManifests(ctx context.Context, q *application.ApplicationMan
 			HelmOptions:        helmOptions,
 			TrackingMethod:     string(argoutil.GetTrackingMethod(s.settingsMgr)),
 			EnabledSourceTypes: enableGenerateManifests,
-			// TODO: Add permitted sources
+			ProjectName:        proj.Name,
+			ProjectSourceRepos: proj.Spec.SourceRepos,
 		})
 		if err != nil {
 			return fmt.Errorf("error generating manifests: %w", err)
