@@ -193,6 +193,10 @@ func (c *Cache) GetGitReferences(repo string, references *[]*plumbing.Reference)
 // refSourceCommitSHAs is a list of resolved revisions for each ref source. This allows us to invalidate the cache
 // when someone pushes a commit to a source which is referenced from the main source (the one referred to by `revision`).
 func manifestCacheKey(revision string, appSrc *appv1.ApplicationSource, srcRefs appv1.RefTargetRevisionMapping, namespace string, trackingMethod string, appLabelKey string, appName string, info ClusterRuntimeInfo, refSourceCommitSHAs ResolvedRevisions) string {
+	// TODO: this function is getting unwieldy. We should probably consolidate some of this stuff into a struct. For
+	//       example, revision could be part of ResolvedRevisions. And srcRefs is probably redundant now that
+	//       refSourceCommitSHAs has been added. We don't need to know the _target_ revisions of the referenced sources
+	//       when the _resolved_ revisions are already part of the key.
 	trackingKey := trackingKey(appLabelKey, trackingMethod)
 	return fmt.Sprintf("mfst|%s|%s|%s|%s|%d", trackingKey, appName, revision, namespace, appSourceKey(appSrc, srcRefs, refSourceCommitSHAs)+clusterRuntimeInfoKey(info))
 }
