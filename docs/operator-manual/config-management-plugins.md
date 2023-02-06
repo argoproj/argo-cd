@@ -20,19 +20,21 @@ The following sections will describe how to create, install, and use plugins. Ch
 
 There are two ways to install a Config Management Plugin:
 
-1. Add the plugin as a sidecar to the repo-server Pod.
-   This is a good option for a more complex plugin that would clutter the Argo CD ConfigMap. A copy of the repository is
-   sent to the sidecar container as a tarball and processed individually per application, which makes it a good option
-   for [concurrent processing of monorepos](../operator-manual/high_availability.md#enable-concurrent-processing).
-2. Add the plugin config to the Argo CD ConfigMap (**this method is deprecated and will be removed in a future 
-   version**). The repo-server container will run your plugin's commands. This is a good option for a simple plugin that
-   requires only a few lines of code that fit nicely in the Argo CD ConfigMap.
+ * **Sidecar plugin**
+   
+    This is a good option for a more complex plugin that would clutter the Argo CD ConfigMap. A copy of the repository is
+    sent to the sidecar container as a tarball and processed individually per application.
 
-### Option 1: Configure plugin via sidecar
+ * **ConfigMap plugin** (**this method is deprecated and will be removed in a future 
+   version**)
+   
+    The repo-server container will run your plugin's commands.
+
+### Sidecar plugin
 
 An operator can configure a plugin tool via a sidecar to repo-server. The following changes are required to configure a new plugin:
 
-#### 1. Write the plugin configuration file
+#### Write the plugin configuration file
 
 Plugins will be configured via a ConfigManagementPlugin manifest located inside the plugin container.
 
@@ -136,7 +138,7 @@ If `discover.fileName` is not provided, the `discover.find.command` is executed 
 application repository is supported by the plugin or not. The `find` command should return a non-error exit code
 and produce output to stdout when the application source type is supported.
 
-#### 2. Place the plugin configuration file in the sidecar
+#### Place the plugin configuration file in the sidecar
 
 Argo CD expects the plugin configuration file to be located at `/home/argocd/cmp-server/config/plugin.yaml` in the sidecar.
 
@@ -171,7 +173,7 @@ data:
         fileName: "./subdir/s*.yaml"
 ```
 
-#### 3. Register the plugin sidecar
+#### Register the plugin sidecar
 
 To install a plugin, patch argocd-repo-server to run the plugin container as a sidecar, with argocd-cmp-server as its 
 entrypoint. You can use either off-the-shelf or custom-built plugin image as sidecar image. For example:
@@ -210,7 +212,10 @@ volumes:
     2. Make sure that sidecar container is running as user 999.
     3. Make sure that plugin configuration file is present at `/home/argocd/cmp-server/config/plugin.yaml`. It can either be volume mapped via configmap or baked into image.
 
-### Option 2: Configure plugins via Argo CD configmap (deprecated)
+### ConfigMap plugin
+
+!!! warning "Deprecated"
+    ConfigMap plugins are deprecated and will no longer be supported in 2.7.
 
 The following changes are required to configure a new plugin:
 
@@ -404,7 +409,7 @@ a future release.
 
 The following will show how to convert an argocd-cm plugin to a sidecar plugin.
 
-### 1. Convert the ConfigMap entry into a config file
+### Convert the ConfigMap entry into a config file
 
 First, copy the plugin's configuration into its own YAML file. Take for example the following ConfigMap entry:
 
@@ -441,7 +446,7 @@ spec:
     The `lockRepo` key is not relevant for sidecar plugins, because sidecar plugins do not share a single source repo
     directory when generating manifests.
 
-### 2. Write discovery rules for your plugin, or use the plugin name
+### Write discovery rules for your plugin
 
 Sidecar plugins can use either discovery rules or a plugin name to match Applications to plugins. If the discovery rule is omitted 
 then you have to explicitly specify the plugin by name in the app spec or else that particular plugin will not match any app.
@@ -464,7 +469,7 @@ spec:
       name: pluginName  # Delete this for auto-discovery (and set `plugin: {}` if `name` was the only value) or use proper sidecar plugin name
 ```
 
-### 3. Make sure the plugin has access to the tools it needs
+### Make sure the plugin has access to the tools it needs
 
 Plugins configured with argocd-cm ran on the Argo CD image. This gave it access to all the tools installed on that
 image by default (see the [Dockerfile](https://github.com/argoproj/argo-cd/blob/master/Dockerfile) for base image and
@@ -473,7 +478,7 @@ installed tools).
 You can either use a stock image (like busybox) or design your own base image with the tools your plugin needs. For
 security, avoid using image with more binaries installed than what your plugin actually needs.
 
-### 4. Test the plugin
+### Test the plugin
 
 After installing the plugin as a sidecar [according to the directions above](#installing-a-config-management-plugin),
 test it out on a few Applications before migrating all of them to the sidecar plugin.
