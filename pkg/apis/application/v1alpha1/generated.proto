@@ -183,7 +183,10 @@ message ApplicationSetApplicationStatus {
   optional string message = 3;
 
   // Status contains the AppSet's perceived status of the managed Application resource: (Waiting, Pending, Progressing, Healthy)
-  optional string status = 5;
+  optional string status = 4;
+
+  // Step tracks which step this Application should be updated in
+  optional string step = 5;
 }
 
 // ApplicationSetCondition contains details about an applicationset condition, which is usally an error or warning
@@ -1317,6 +1320,9 @@ message RepoCreds {
 
   // Proxy specifies the HTTP/HTTPS proxy used to access repos at the repo server
   optional string proxy = 19;
+
+  // ForceHttpBasicAuth specifies whether Argo CD should attempt to force basic auth for HTTP connections
+  optional bool forceHttpBasicAuth = 20;
 }
 
 // RepositoryList is a collection of Repositories.
@@ -1391,6 +1397,9 @@ message Repository {
 
   // GCPServiceAccountKey specifies the service account key in JSON format to be used for getting credentials to Google Cloud Source repos
   optional string gcpServiceAccountKey = 21;
+
+  // ForceHttpBasicAuth specifies whether Argo CD should attempt to force basic auth for HTTP connections
+  optional bool forceHttpBasicAuth = 22;
 }
 
 // A RepositoryCertificate is either SSH known hosts entry or TLS certificate

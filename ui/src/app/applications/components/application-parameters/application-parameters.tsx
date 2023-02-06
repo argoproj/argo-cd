@@ -17,7 +17,7 @@ import {
     ValueEditor
 } from '../../../shared/components';
 import * as models from '../../../shared/models';
-import {ApplicationSourceDirectory, AuthSettings} from '../../../shared/models';
+import {ApplicationSourceDirectory, Plugin} from '../../../shared/models';
 import {services} from '../../../shared/services';
 import {ImageTagFieldEditor} from './kustomize';
 import * as kustomize from './kustomize-image';
@@ -272,9 +272,9 @@ export const ApplicationParameters = (props: {
             title: 'NAME',
             view: <div style={{marginTop: 15, marginBottom: 5}}>{ValueEditor(app.spec.source.plugin && app.spec.source.plugin.name, null)}</div>,
             edit: (formApi: FormApi) => (
-                <DataLoader load={() => services.authService.settings()}>
-                    {(settings: AuthSettings) => (
-                        <FormField formApi={formApi} field='spec.source.plugin.name' component={FormSelect} componentProps={{options: (settings.plugins || []).map(p => p.name)}} />
+                <DataLoader load={() => services.authService.plugins()}>
+                    {(plugins: Plugin[]) => (
+                        <FormField formApi={formApi} field='spec.source.plugin.name' component={FormSelect} componentProps={{options: plugins.map(p => p.name)}} />
                     )}
                 </DataLoader>
             )
@@ -536,6 +536,7 @@ export const ApplicationParameters = (props: {
             title={props.details.type.toLocaleUpperCase()}
             items={attributes}
             noReadonlyMode={props.noReadonlyMode}
+            hasMultipleSources={app.spec.sources && app.spec.sources.length > 0}
         />
     );
 };

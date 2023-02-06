@@ -3,6 +3,7 @@ package git
 import (
 	"context"
 	"crypto/sha256"
+	"encoding/base64"
 	"encoding/json"
 	"errors"
 	"fmt"
@@ -39,6 +40,7 @@ const (
 	ASKPASS_NONCE_ENV = "ARGOCD_GIT_ASKPASS_NONCE"
 	// githubAccessTokenUsername is a username that is used to with the github access token
 	githubAccessTokenUsername = "x-access-token"
+	forceBasicAuthHeaderEnv   = "ARGOCD_GIT_AUTH_HEADER"
 )
 
 func init() {
@@ -126,9 +128,11 @@ type HTTPSCreds struct {
 	proxy string
 	// temporal credentials store
 	store CredsStore
+	// whether to force usage of basic auth
+	forceBasicAuth bool
 }
 
-func NewHTTPSCreds(username string, password string, clientCertData string, clientCertKey string, insecure bool, proxy string, store CredsStore) GenericHTTPSCreds {
+func NewHTTPSCreds(username string, password string, clientCertData string, clientCertKey string, insecure bool, proxy string, store CredsStore, forceBasicAuth bool) GenericHTTPSCreds {
 	return HTTPSCreds{
 		username,
 		password,
@@ -137,7 +141,15 @@ func NewHTTPSCreds(username string, password string, clientCertData string, clie
 		clientCertKey,
 		proxy,
 		store,
+		forceBasicAuth,
 	}
+}
+
+func (c HTTPSCreds) BasicAuthHeader() string {
+	h := "Authorization: Basic "
+	t := c.username + ":" + c.password
+	h += base64.StdEncoding.EncodeToString([]byte(t))
+	return h
 }
 
 // Get additional required environment variables for executing git client to
@@ -196,6 +208,12 @@ func (c HTTPSCreds) Environ() (io.Closer, []string, error) {
 		}
 		// GIT_SSL_KEY is the full path to a client certificate's key to be used
 		env = append(env, fmt.Sprintf("GIT_SSL_KEY=%s", keyFile.Name()))
+	}
+	// If at least password is set, we will set ARGOCD_BASIC_AUTH_HEADER to
+	// hold the HTTP authorization header, so auth mechanism negotiation is
+	// skipped. This is insecure, but some environments may need it.
+	if c.password != "" && c.forceBasicAuth {
+		env = append(env, fmt.Sprintf("%s=%s", forceBasicAuthHeaderEnv, c.BasicAuthHeader()))
 	}
 	nonce := c.store.Add(text.FirstNonEmpty(c.username, githubAccessTokenUsername), c.password)
 	env = append(env, getGitAskPassEnv(nonce)...)
