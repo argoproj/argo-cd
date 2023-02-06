@@ -16117,6 +16117,9 @@ spec:
         - ""
         - --appendonly
         - "no"
+        env:
+        - name: ARGOCD_REDIS_SERVICE
+          value: argocd-redis
         image: redis:7.0.7-alpine
         imagePullPolicy: Always
         name: redis
@@ -16171,7 +16174,7 @@ spec:
       - command:
         - sh
         - -c
-        - entrypoint.sh argocd-repo-server --redis argocd-redis:6379
+        - entrypoint.sh argocd-repo-server --redis $(ARGOCD_REDIS_SERVICE):6379
         env:
         - name: ARGOCD_RECONCILIATION_TIMEOUT
           valueFrom:
