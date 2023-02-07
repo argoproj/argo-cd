@@ -82,11 +82,38 @@ type ApplicationMatchExpression struct {
 	Values   []string `json:"values,omitempty" protobuf:"bytes,3,opt,name=values"`
 }
 
+// ApplicationsSyncPolicy representation
+// "create-only" means applications are only created. If the generator's result contains update, applications won't be updated
+// "create-update" means applications are only created/Updated. If the generator's result contains update, applications will be updated, but not deleted
+// "create-delete" means applications are only created/deleted. If the generator's result contains update, applications won't be updated, if it results in deleted applications, the applications will be deleted
+// "sync" means create/update/deleted. If the generator's result contains update, applications will be updated, if it results in deleted applications, the applications will be deleted
+type ApplicationsSyncPolicy string
+
+//sync / create-only / create-update / create-delete
+const (
+	ApplicationsSyncPolicyPolicyCreateOnly   ApplicationsSyncPolicy = "create-only"
+	ApplicationsSyncPolicyPolicyCreateUpdate ApplicationsSyncPolicy = "create-update"
+	ApplicationsSyncPolicyPolicyCreateDelete ApplicationsSyncPolicy = "create-delete"
+	ApplicationsSyncPolicyPolicySync         ApplicationsSyncPolicy = "sync"
+)
+
+func (s ApplicationsSyncPolicy) Update() bool {
+	return s == ApplicationsSyncPolicyPolicyCreateUpdate || s == ApplicationsSyncPolicyPolicySync
+}
+
+func (s ApplicationsSyncPolicy) Delete() bool {
+	return s == ApplicationsSyncPolicyPolicySync || s == ApplicationsSyncPolicyPolicyCreateDelete
+}
+
 // ApplicationSetSyncPolicy configures how generated Applications will relate to their
 // ApplicationSet.
 type ApplicationSetSyncPolicy struct {
 	// PreserveResourcesOnDeletion will preserve resources on deletion. If PreserveResourcesOnDeletion is set to true, these Applications will not be deleted.
 	PreserveResourcesOnDeletion bool `json:"preserveResourcesOnDeletion,omitempty" protobuf:"bytes,1,name=syncPolicy"`
+	// ApplicationsSync represents the policy applied on the generated applications. Possible values are create-only, create-update, sync
+	// +kubebuilder:validation:Optional
+	// +kubebuilder:validation:Enum=create-only;create-update;create-delete;sync
+	ApplicationsSync *ApplicationsSyncPolicy `json:"applicationsSync,omitempty" protobuf:"bytes,2,opt,name=applicationsSync,casttype=ApplicationsSyncPolicy"`
 }
 
 // ApplicationSetTemplate represents argocd ApplicationSpec

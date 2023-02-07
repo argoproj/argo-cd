@@ -38,6 +38,17 @@ func newTestAppSet(name, namespace, repo string) *ApplicationSet {
 	return a
 }
 
+func TestApplicationsSyncPolicy(t *testing.T) {
+	assert.False(t, ApplicationsSyncPolicyPolicyCreateOnly.Delete())
+	assert.False(t, ApplicationsSyncPolicyPolicyCreateOnly.Update())
+
+	assert.False(t, ApplicationsSyncPolicyPolicyCreateUpdate.Delete())
+	assert.True(t, ApplicationsSyncPolicyPolicyCreateUpdate.Update())
+
+	assert.True(t, ApplicationsSyncPolicyPolicySync.Delete())
+	assert.True(t, ApplicationsSyncPolicyPolicySync.Update())
+}
+
 func TestApplicationSetSetConditions(t *testing.T) {
 	fiveMinsAgo := &metav1.Time{Time: time.Now().Add(-5 * time.Minute)}
 	tenMinsAgo := &metav1.Time{Time: time.Now().Add(-10 * time.Minute)}
