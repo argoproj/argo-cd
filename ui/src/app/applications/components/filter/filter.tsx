@@ -59,7 +59,7 @@ export const FiltersGroup = (props: {children?: React.ReactNode; content: React.
                 {props.appliedFilter?.length > 0 && props.onClearFilter && (
                     <div className='filters-group__header'>
                         <button onClick={() => props.onClearFilter()} className='argo-button argo-button--base argo-button--sm'>
-                            CLEAR ALL
+                            <i className='fa fa-times-circle' /> CLEAR ALL
                         </button>
                     </div>
                 )}

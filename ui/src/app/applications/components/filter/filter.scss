@@ -25,6 +25,12 @@ $slate: #191826;
         .argo-button {
             margin-left: auto;
             background: $slate;
+            font-size: 10px;
+            font-weight: bold;
+
+            i {
+                margin-right: 2px;
+            }
 
             &:hover {
                 background: $sidebar-color !important;
@@ -92,7 +98,7 @@ $slate: #191826;
 .filters-group {
     display: flex;
     flex-wrap: wrap;
-    margin-top: 1.5em;
+    margin-top: 2em;
     &__toggle {
         display: none;
         cursor: pointer;
@@ -116,12 +122,18 @@ $slate: #191826;
         display: flex;
         align-items: center;
         height: 1.5em;
-        margin-bottom: 0.5em;
-        margin-top: 0.5em;
+        margin-bottom: 0em;
+        margin-top: -1.5em;
 
         .argo-button {
             margin-left: auto;
             background: $slate;
+            font-size: 10px;
+            font-weight: bold;
+
+            i {
+                margin-right: 2px;
+            }
 
             &:hover {
                 background: $sidebar-color !important;
