@@ -4,7 +4,7 @@ kind: Kustomization
 images:
 - name: quay.io/argoproj/argocd
   newName: quay.io/codefresh/argocd
-  newTag: v2.5.5-cap-CR-15658-sync-result-message
+  newTag: latest
 resources:
 - ./application-controller
 - ./dex
