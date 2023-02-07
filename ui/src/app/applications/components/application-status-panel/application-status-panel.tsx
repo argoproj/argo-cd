@@ -32,7 +32,7 @@ const sectionLabel = (info: SectionInfo) => (
 
 const sectionHeader = (info: SectionInfo, hasMultipleSources: boolean, onClick?: () => any) => {
     return (
-        <div style={{display: 'flex', alignItems: 'center', marginBottom: '1em'}}>
+        <div style={{display: 'flex', alignItems: 'center', marginBottom: '0.5em'}}>
             {sectionLabel(info)}
             {onClick && (
                 <button className='application-status-panel__more-button' onClick={onClick} disabled={hasMultipleSources}>
@@ -94,6 +94,9 @@ export const ApplicationStatusPanel = ({application, showOperation, showConditio
                         </div>
                         <div className='application-status-panel__item-value__revision show-for-large'>{syncStatusMessage(application)}</div>
                     </div>
+                    <div className='application-status-panel__item-name' style={{marginBottom: '0.5em'}}>
+                        {application.spec.syncPolicy?.automated ? 'Auto sync is enabled.' : 'Auto sync is not enabled.'}
+                    </div>
                     {application.status && application.status.sync && application.status.sync.revision && !application.spec.source.chart && (
                         <div className='application-status-panel__item-name'>
                             <RevisionMetadataPanel
@@ -104,7 +107,6 @@ export const ApplicationStatusPanel = ({application, showOperation, showConditio
                             />
                         </div>
                     )}
-                    <div className='application-status-panel__item-name'>{application.spec.syncPolicy?.automated ? 'Auto sync is enabled.' : 'Auto sync is not enabled.'}</div>
                 </React.Fragment>
             </div>
             {appOperationState && (
@@ -132,7 +134,7 @@ export const ApplicationStatusPanel = ({application, showOperation, showConditio
                             )}
                         </div>
 
-                        <div className='application-status-panel__item-name'>
+                        <div className='application-status-panel__item-name' style={{marginBottom: '0.5em'}}>
                             {appOperationState.phase} <Timestamp date={appOperationState.finishedAt || appOperationState.startedAt} />
                         </div>
                         {(appOperationState.syncResult && appOperationState.syncResult.revision && (
