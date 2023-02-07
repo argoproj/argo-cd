@@ -608,7 +608,9 @@ type ApplicationSetApplicationStatus struct {
 	// Message contains human-readable message indicating details about the status
 	Message string `json:"message" protobuf:"bytes,3,opt,name=message"`
 	// Status contains the AppSet's perceived status of the managed Application resource: (Waiting, Pending, Progressing, Healthy)
-	Status string `json:"status" protobuf:"bytes,5,opt,name=status"`
+	Status string `json:"status" protobuf:"bytes,4,opt,name=status"`
+	// Step tracks which step this Application should be updated in
+	Step string `json:"step" protobuf:"bytes,5,opt,name=step"`
 }
 
 // ApplicationSetList contains a list of ApplicationSet

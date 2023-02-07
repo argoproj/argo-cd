@@ -43,6 +43,7 @@ const APP_FIELDS = [
     'status.sync.revision',
     'status.health',
     'status.operationState.phase',
+    'status.operationState.finishedAt',
     'status.operationState.operation.sync',
     'status.summary',
     'status.resources'
@@ -516,6 +517,18 @@ export const ApplicationsList = (props: RouteComponentProps<{}>) => {
                                                                                 </h5>
                                                                             </EmptyState>
                                                                         )}
+                                                                        sortOptions={[
+                                                                            {title: 'Name', compare: (a, b) => a.metadata.name.localeCompare(b.metadata.name)},
+                                                                            {
+                                                                                title: 'Created At',
+                                                                                compare: (a, b) => a.metadata.creationTimestamp.localeCompare(b.metadata.creationTimestamp)
+                                                                            },
+                                                                            {
+                                                                                title: 'Synchronized',
+                                                                                compare: (a, b) =>
+                                                                                    a.status.operationState?.finishedAt?.localeCompare(b.status.operationState?.finishedAt)
+                                                                            }
+                                                                        ]}
                                                                         data={filteredApps}
                                                                         onPageChange={page => ctx.navigation.goto('.', {page})}>
                                                                         {data =>

@@ -779,8 +779,16 @@ func schema_pkg_apis_application_v1alpha1_ApplicationSetApplicationStatus(ref co
 							Format:      "",
 						},
 					},
+					"step": {
+						SchemaProps: spec.SchemaProps{
+							Description: "Step tracks which step this Application should be updated in",
+							Default:     "",
+							Type:        []string{"string"},
+							Format:      "",
+						},
+					},
 				},
-				Required: []string{"application", "message", "status"},
+				Required: []string{"application", "message", "status", "step"},
 			},
 		},
 		Dependencies: []string{
@@ -4588,6 +4596,13 @@ func schema_pkg_apis_application_v1alpha1_RepoCreds(ref common.ReferenceCallback
 							Format:      "",
 						},
 					},
+					"forceHttpBasicAuth": {
+						SchemaProps: spec.SchemaProps{
+							Description: "ForceHttpBasicAuth specifies whether Argo CD should attempt to force basic auth for HTTP connections",
+							Type:        []string{"boolean"},
+							Format:      "",
+						},
+					},
 				},
 				Required: []string{"url"},
 			},
@@ -4782,6 +4797,13 @@ func schema_pkg_apis_application_v1alpha1_Repository(ref common.ReferenceCallbac
 						SchemaProps: spec.SchemaProps{
 							Description: "GCPServiceAccountKey specifies the service account key in JSON format to be used for getting credentials to Google Cloud Source repos",
 							Type:        []string{"string"},
+							Format:      "",
+						},
+					},
+					"forceHttpBasicAuth": {
+						SchemaProps: spec.SchemaProps{
+							Description: "ForceHttpBasicAuth specifies whether Argo CD should attempt to force basic auth for HTTP connections",
+							Type:        []string{"boolean"},
 							Format:      "",
 						},
 					},
