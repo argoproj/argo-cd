@@ -9,6 +9,8 @@ $slate: #191826;
     border-radius: 5px;
     margin-bottom: 1em;
     width: 100%;
+    color: #818d94;
+    font-weight: 500;
 
     &__header {
         font-size: 13px;
@@ -23,6 +25,12 @@ $slate: #191826;
         .argo-button {
             margin-left: auto;
             background: $slate;
+            font-size: 10px;
+            font-weight: bold;
+
+            i {
+                margin-right: 2px;
+            }
 
             &:hover {
                 background: $sidebar-color !important;
@@ -63,11 +71,14 @@ $slate: #191826;
         border-radius: 5px;
         display: flex;
         align-items: center;
-        background-color: $sidebar-color;
-        transition: background-color 200ms ease;
-        margin: 0.25em 0;
+        margin: 0.15em 0;
         cursor: pointer;
         flex-wrap: nowrap;
+
+        i.fa {
+            width: 25px;
+            text-align: center;
+        }
 
         &__label {
             text-overflow: ellipsis;
@@ -87,7 +98,7 @@ $slate: #191826;
 .filters-group {
     display: flex;
     flex-wrap: wrap;
-    margin-top: 1em;
+    margin-top: 2em;
     &__toggle {
         display: none;
         cursor: pointer;
@@ -111,11 +122,18 @@ $slate: #191826;
         display: flex;
         align-items: center;
         height: 1.5em;
-        margin-bottom: 0.5em;
+        margin-bottom: 0em;
+        margin-top: -1.5em;
 
         .argo-button {
             margin-left: auto;
             background: $slate;
+            font-size: 10px;
+            font-weight: bold;
+
+            i {
+                margin-right: 2px;
+            }
 
             &:hover {
                 background: $sidebar-color !important;
