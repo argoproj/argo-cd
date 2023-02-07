@@ -266,6 +266,7 @@ func (m *Repository) CopySettingsFrom(source *Repository) {
 	}
 }
 
+// StringForLogging gets a string representation of the Repository which is safe to log or return to the user.
 func (m *Repository) StringForLogging() string {
 	if m == nil {
 		return ""
