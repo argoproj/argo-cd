@@ -288,8 +288,7 @@ func validateRepo(ctx context.Context,
 			return nil, err
 		}
 		if err := TestRepoWithKnownType(ctx, repoClient, repo, source.IsHelm(), source.IsHelmOci()); err != nil {
-			sanitizedRepo := sanitizeRepoForLogging(repo)
-			errMessage = fmt.Sprintf("repositories not accessible: %v", sanitizedRepo)
+			errMessage = fmt.Sprintf("repositories not accessible: %v", repo.StringForLogging())
 		}
 		repoAccessible := false
 
@@ -337,19 +336,6 @@ func validateRepo(ctx context.Context,
 		refSources)...)
 
 	return conditions, nil
-}
-
-func sanitizeRepoForLogging(repo *argoappv1.Repository) *argoappv1.Repository {
-	if repo == nil {
-		return nil
-	}
-	sanitizedRepo := &argoappv1.Repository{
-		Repo:    repo.Repo,
-		Type:    repo.Type,
-		Name:    repo.Name,
-		Project: repo.Project,
-	}
-	return sanitizedRepo
 }
 
 // GetRefSources creates a map of ref keys (from the sources' 'ref' fields) to information about the referenced source.
