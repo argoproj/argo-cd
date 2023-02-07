@@ -653,7 +653,7 @@ func TestSettingsManager_GetHelp(t *testing.T) {
 		h, err := settingsManager.GetHelp()
 		assert.NoError(t, err)
 		assert.Empty(t, h.ChatURL)
-		assert.Equal(t, "Chat now!", h.ChatText)
+		assert.Empty(t, h.ChatText)
 
 	})
 	t.Run("Set", func(t *testing.T) {
@@ -665,6 +665,24 @@ func TestSettingsManager_GetHelp(t *testing.T) {
 		assert.NoError(t, err)
 		assert.Equal(t, "foo", h.ChatURL)
 		assert.Equal(t, "bar", h.ChatText)
+	})
+	t.Run("SetOnlyChatUrl", func(t *testing.T) {
+		_, settingManager := fixtures(map[string]string{
+			"help.chatUrl": "foo",
+		})
+		h, err := settingManager.GetHelp()
+		assert.NoError(t, err)
+		assert.Equal(t, "foo", h.ChatURL)
+		assert.Equal(t, "Chat now!", h.ChatText)
+	})
+	t.Run("SetOnlyChatText", func(t *testing.T) {
+		_, settingManager := fixtures(map[string]string{
+			"help.chatText": "bar",
+		})
+		h, err := settingManager.GetHelp()
+		assert.NoError(t, err)
+		assert.Empty(t, h.ChatURL)
+		assert.Empty(t, h.ChatText)
 	})
 	t.Run("GetBinaryUrls", func(t *testing.T) {
 		_, settingsManager := fixtures(map[string]string{
