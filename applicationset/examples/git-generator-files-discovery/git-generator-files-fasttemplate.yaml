@@ -15,8 +15,8 @@ spec:
     spec:
       project: default
       source:
-        repoURL: https://github.com/argoproj/argo-cd.git
-        targetRevision: HEAD
+        repoURL: '{{repoURL}}'
+        targetRevision: '{{revision}}'
         path: "applicationset/examples/git-generator-files-discovery/apps/guestbook"
       destination:
         server: https://kubernetes.default.svc

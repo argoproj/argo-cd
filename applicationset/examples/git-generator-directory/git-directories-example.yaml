@@ -17,8 +17,8 @@ spec:
     spec:
       project: "my-project"
       source:
-        repoURL: https://github.com/argoproj/argo-cd.git
-        targetRevision: HEAD
+        repoURL: '{{.repoURL}}'
+        targetRevision: '{{.revision}}'
         path: '{{.path.path}}'
       destination:
         server: https://kubernetes.default.svc

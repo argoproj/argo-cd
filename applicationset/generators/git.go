@@ -122,7 +122,7 @@ func (g *GitGenerator) generateParamsForGitFiles(appSetGenerator *argoprojiov1al
 	for _, path := range allPaths {
 
 		// A JSON / YAML file path can contain multiple sets of parameters (ie it is an array)
-		paramsArray, err := g.generateParamsFromGitFile(path, allFiles[path], useGoTemplate, appSetGenerator.Git.PathParamPrefix)
+		paramsArray, err := g.generateParamsFromGitFile(path, allFiles[path], appSetGenerator.Git, useGoTemplate)
 		if err != nil {
 			return nil, fmt.Errorf("unable to process file '%s': %v", path, err)
 		}
@@ -134,7 +134,7 @@ func (g *GitGenerator) generateParamsForGitFiles(appSetGenerator *argoprojiov1al
 	return res, nil
 }
 
-func (g *GitGenerator) generateParamsFromGitFile(filePath string, fileContent []byte, useGoTemplate bool, pathParamPrefix string) ([]map[string]interface{}, error) {
+func (g *GitGenerator) generateParamsFromGitFile(filePath string, fileContent []byte, gitGenerator *argoprojiov1alpha1.GitGenerator, useGoTemplate bool) ([]map[string]interface{}, error) {
 	objectsFound := []map[string]interface{}{}
 
 	// First, we attempt to parse as an array
@@ -168,8 +168,8 @@ func (g *GitGenerator) generateParamsFromGitFile(filePath string, fileContent []
 			paramPath["basenameNormalized"] = utils.SanitizeName(path.Base(paramPath["path"].(string)))
 			paramPath["filenameNormalized"] = utils.SanitizeName(path.Base(paramPath["filename"].(string)))
 			paramPath["segments"] = strings.Split(paramPath["path"].(string), "/")
-			if pathParamPrefix != "" {
-				params[pathParamPrefix] = map[string]interface{}{"path": paramPath}
+			if gitGenerator.PathParamPrefix != "" {
+				params[gitGenerator.PathParamPrefix] = map[string]interface{}{"path": paramPath}
 			} else {
 				params["path"] = paramPath
 			}
@@ -182,8 +182,8 @@ func (g *GitGenerator) generateParamsFromGitFile(filePath string, fileContent []
 				params[k] = fmt.Sprintf("%v", v)
 			}
 			pathParamName := "path"
-			if pathParamPrefix != "" {
-				pathParamName = pathParamPrefix+"."+pathParamName
+			if gitGenerator.PathParamPrefix != "" {
+				pathParamName = gitGenerator.PathParamPrefix + "." + pathParamName
 			}
 			params[pathParamName] = path.Dir(filePath)
 			params[pathParamName+".basename"] = path.Base(params[pathParamName].(string))
@@ -196,6 +196,8 @@ func (g *GitGenerator) generateParamsFromGitFile(filePath string, fileContent []
 				}
 			}
 		}
+		params["repoURL"] = gitGenerator.RepoURL
+		params["revision"] = gitGenerator.Revision
 
 		res = append(res, params)
 	}
@@ -235,7 +237,7 @@ func (g *GitGenerator) generateParamsFromApps(requestedApps []string, appSetGene
 	res := make([]map[string]interface{}, len(requestedApps))
 	for i, a := range requestedApps {
 
-		params := make(map[string]interface{}, 5)
+		params := make(map[string]interface{}, 7)
 
 		if useGoTemplate {
 			paramPath := map[string]interface{}{}
@@ -262,7 +264,8 @@ func (g *GitGenerator) generateParamsFromApps(requestedApps []string, appSetGene
 				}
 			}
 		}
-
+		params["repoURL"] = appSetGenerator.Git.RepoURL
+		params["revision"] = appSetGenerator.Git.Revision
 		res[i] = params
 	}
 

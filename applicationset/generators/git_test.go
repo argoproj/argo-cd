@@ -48,10 +48,15 @@ func (a argoCDServiceMock) GetDirectories(ctx context.Context, repoURL string, r
 }
 
 func Test_generateParamsFromGitFile(t *testing.T) {
+	gitGenerator := &argoprojiov1alpha1.GitGenerator{
+		RepoURL:         "RepoURL",
+		Revision:        "Revision",
+		PathParamPrefix: "",
+	}
 	params, err := (*GitGenerator)(nil).generateParamsFromGitFile("path/dir/file_name.yaml", []byte(`
 foo:
   bar: baz
-`), false, "")
+`), gitGenerator, false)
 	if err != nil {
 		t.Fatal(err)
 	}
@@ -65,15 +70,22 @@ foo:
 			"path.filenameNormalized": "file-name.yaml",
 			"path[0]":                 "path",
 			"path[1]":                 "dir",
+			"repoURL":                 "RepoURL",
+			"revision":                "Revision",
 		},
 	}, params)
 }
 
 func Test_generatePrefixedParamsFromGitFile(t *testing.T) {
+	gitGenerator := &argoprojiov1alpha1.GitGenerator{
+		RepoURL:         "RepoURL",
+		Revision:        "Revision",
+		PathParamPrefix: "myRepo",
+	}
 	params, err := (*GitGenerator)(nil).generateParamsFromGitFile("path/dir/file_name.yaml", []byte(`
 foo:
   bar: baz
-`), false, "myRepo")
+`), gitGenerator, false)
 	if err != nil {
 		t.Fatal(err)
 	}
@@ -87,15 +99,22 @@ foo:
 			"myRepo.path.filenameNormalized": "file-name.yaml",
 			"myRepo.path[0]":                 "path",
 			"myRepo.path[1]":                 "dir",
+			"repoURL":                        "RepoURL",
+			"revision":                       "Revision",
 		},
 	}, params)
 }
 
 func Test_generateParamsFromGitFileGoTemplate(t *testing.T) {
+	gitGenerator := &argoprojiov1alpha1.GitGenerator{
+		RepoURL:         "RepoURL",
+		Revision:        "Revision",
+		PathParamPrefix: "",
+	}
 	params, err := (*GitGenerator)(nil).generateParamsFromGitFile("path/dir/file_name.yaml", []byte(`
 foo:
   bar: baz
-`), true, "")
+`), gitGenerator, true)
 	if err != nil {
 		t.Fatal(err)
 	}
@@ -115,15 +134,22 @@ foo:
 					"dir",
 				},
 			},
+			"repoURL":  "RepoURL",
+			"revision": "Revision",
 		},
 	}, params)
 }
 
 func Test_generatePrefixedParamsFromGitFileGoTemplate(t *testing.T) {
+	gitGenerator := &argoprojiov1alpha1.GitGenerator{
+		RepoURL:         "RepoURL",
+		Revision:        "Revision",
+		PathParamPrefix: "myRepo",
+	}
 	params, err := (*GitGenerator)(nil).generateParamsFromGitFile("path/dir/file_name.yaml", []byte(`
 foo:
   bar: baz
-`), true, "myRepo")
+`), gitGenerator, true)
 	if err != nil {
 		t.Fatal(err)
 	}
@@ -145,6 +171,8 @@ foo:
 					},
 				},
 			},
+			"repoURL":  "RepoURL",
+			"revision": "Revision",
 		},
 	}, params)
 }
@@ -171,9 +199,12 @@ func TestGitGenerateParamsFromDirectories(t *testing.T) {
 			},
 			repoError: nil,
 			expected: []map[string]interface{}{
-				{"path": "app1", "path.basename": "app1", "path.basenameNormalized": "app1", "path[0]": "app1"},
-				{"path": "app2", "path.basename": "app2", "path.basenameNormalized": "app2", "path[0]": "app2"},
-				{"path": "app_3", "path.basename": "app_3", "path.basenameNormalized": "app-3", "path[0]": "app_3"},
+				{"path": "app1", "path.basename": "app1", "path.basenameNormalized": "app1", "path[0]": "app1",
+					"repoURL": "RepoURL", "revision": "Revision"},
+				{"path": "app2", "path.basename": "app2", "path.basenameNormalized": "app2", "path[0]": "app2",
+					"repoURL": "RepoURL", "revision": "Revision"},
+				{"path": "app_3", "path.basename": "app_3", "path.basenameNormalized": "app-3", "path[0]": "app_3",
+					"repoURL": "RepoURL", "revision": "Revision"},
 			},
 			expectedError: nil,
 		},
@@ -189,9 +220,12 @@ func TestGitGenerateParamsFromDirectories(t *testing.T) {
 			},
 			repoError: nil,
 			expected: []map[string]interface{}{
-				{"myRepo.path": "app1", "myRepo.path.basename": "app1", "myRepo.path.basenameNormalized": "app1", "myRepo.path[0]": "app1"},
-				{"myRepo.path": "app2", "myRepo.path.basename": "app2", "myRepo.path.basenameNormalized": "app2", "myRepo.path[0]": "app2"},
-				{"myRepo.path": "app_3", "myRepo.path.basename": "app_3", "myRepo.path.basenameNormalized": "app-3", "myRepo.path[0]": "app_3"},
+				{"myRepo.path": "app1", "myRepo.path.basename": "app1", "myRepo.path.basenameNormalized": "app1", "myRepo.path[0]": "app1",
+					"repoURL": "RepoURL", "revision": "Revision"},
+				{"myRepo.path": "app2", "myRepo.path.basename": "app2", "myRepo.path.basenameNormalized": "app2", "myRepo.path[0]": "app2",
+					"repoURL": "RepoURL", "revision": "Revision"},
+				{"myRepo.path": "app_3", "myRepo.path.basename": "app_3", "myRepo.path.basenameNormalized": "app-3", "myRepo.path[0]": "app_3",
+					"repoURL": "RepoURL", "revision": "Revision"},
 			},
 			expectedError: nil,
 		},
@@ -206,8 +240,10 @@ func TestGitGenerateParamsFromDirectories(t *testing.T) {
 			},
 			repoError: nil,
 			expected: []map[string]interface{}{
-				{"path": "p1/app2", "path.basename": "app2", "path[0]": "p1", "path[1]": "app2", "path.basenameNormalized": "app2"},
-				{"path": "p1/p2/app3", "path.basename": "app3", "path[0]": "p1", "path[1]": "p2", "path[2]": "app3", "path.basenameNormalized": "app3"},
+				{"path": "p1/app2", "path.basename": "app2", "path[0]": "p1", "path[1]": "app2", "path.basenameNormalized": "app2",
+					"repoURL": "RepoURL", "revision": "Revision"},
+				{"path": "p1/p2/app3", "path.basename": "app3", "path[0]": "p1", "path[1]": "p2", "path[2]": "app3", "path.basenameNormalized": "app3",
+					"repoURL": "RepoURL", "revision": "Revision"},
 			},
 			expectedError: nil,
 		},
@@ -223,9 +259,12 @@ func TestGitGenerateParamsFromDirectories(t *testing.T) {
 			},
 			repoError: nil,
 			expected: []map[string]interface{}{
-				{"path": "app1", "path.basename": "app1", "path[0]": "app1", "path.basenameNormalized": "app1"},
-				{"path": "app2", "path.basename": "app2", "path[0]": "app2", "path.basenameNormalized": "app2"},
-				{"path": "p2/app3", "path.basename": "app3", "path[0]": "p2", "path[1]": "app3", "path.basenameNormalized": "app3"},
+				{"path": "app1", "path.basename": "app1", "path[0]": "app1", "path.basenameNormalized": "app1",
+					"repoURL": "RepoURL", "revision": "Revision"},
+				{"path": "app2", "path.basename": "app2", "path[0]": "app2", "path.basenameNormalized": "app2",
+					"repoURL": "RepoURL", "revision": "Revision"},
+				{"path": "p2/app3", "path.basename": "app3", "path[0]": "p2", "path[1]": "app3", "path.basenameNormalized": "app3",
+					"repoURL": "RepoURL", "revision": "Revision"},
 			},
 			expectedError: nil,
 		},
@@ -241,9 +280,12 @@ func TestGitGenerateParamsFromDirectories(t *testing.T) {
 			},
 			repoError: nil,
 			expected: []map[string]interface{}{
-				{"path": "app1", "path.basename": "app1", "path[0]": "app1", "path.basenameNormalized": "app1"},
-				{"path": "app2", "path.basename": "app2", "path[0]": "app2", "path.basenameNormalized": "app2"},
-				{"path": "p2/app3", "path.basename": "app3", "path[0]": "p2", "path[1]": "app3", "path.basenameNormalized": "app3"},
+				{"path": "app1", "path.basename": "app1", "path[0]": "app1", "path.basenameNormalized": "app1",
+					"repoURL": "RepoURL", "revision": "Revision"},
+				{"path": "app2", "path.basename": "app2", "path[0]": "app2", "path.basenameNormalized": "app2",
+					"repoURL": "RepoURL", "revision": "Revision"},
+				{"path": "p2/app3", "path.basename": "app3", "path[0]": "p2", "path[1]": "app3", "path.basenameNormalized": "app3",
+					"repoURL": "RepoURL", "revision": "Revision"},
 			},
 			expectedError: nil,
 		},
@@ -337,6 +379,8 @@ func TestGitGenerateParamsFromDirectoriesGoTemplate(t *testing.T) {
 							"app1",
 						},
 					},
+					"repoURL":  "RepoURL",
+					"revision": "Revision",
 				},
 				{
 					"path": map[string]interface{}{
@@ -347,6 +391,8 @@ func TestGitGenerateParamsFromDirectoriesGoTemplate(t *testing.T) {
 							"app2",
 						},
 					},
+					"repoURL":  "RepoURL",
+					"revision": "Revision",
 				},
 				{
 					"path": map[string]interface{}{
@@ -357,6 +403,8 @@ func TestGitGenerateParamsFromDirectoriesGoTemplate(t *testing.T) {
 							"app_3",
 						},
 					},
+					"repoURL":  "RepoURL",
+					"revision": "Revision",
 				},
 			},
 			expectedError: nil,
@@ -384,6 +432,8 @@ func TestGitGenerateParamsFromDirectoriesGoTemplate(t *testing.T) {
 							},
 						},
 					},
+					"repoURL":  "RepoURL",
+					"revision": "Revision",
 				},
 				{
 					"myRepo": map[string]interface{}{
@@ -396,6 +446,8 @@ func TestGitGenerateParamsFromDirectoriesGoTemplate(t *testing.T) {
 							},
 						},
 					},
+					"repoURL":  "RepoURL",
+					"revision": "Revision",
 				},
 				{
 					"myRepo": map[string]interface{}{
@@ -408,6 +460,8 @@ func TestGitGenerateParamsFromDirectoriesGoTemplate(t *testing.T) {
 							},
 						},
 					},
+					"repoURL":  "RepoURL",
+					"revision": "Revision",
 				},
 			},
 			expectedError: nil,
@@ -433,6 +487,8 @@ func TestGitGenerateParamsFromDirectoriesGoTemplate(t *testing.T) {
 							"app2",
 						},
 					},
+					"repoURL":  "RepoURL",
+					"revision": "Revision",
 				},
 				{
 					"path": map[string]interface{}{
@@ -445,6 +501,8 @@ func TestGitGenerateParamsFromDirectoriesGoTemplate(t *testing.T) {
 							"app3",
 						},
 					},
+					"repoURL":  "RepoURL",
+					"revision": "Revision",
 				},
 			},
 			expectedError: nil,
@@ -470,6 +528,8 @@ func TestGitGenerateParamsFromDirectoriesGoTemplate(t *testing.T) {
 							"app1",
 						},
 					},
+					"repoURL":  "RepoURL",
+					"revision": "Revision",
 				},
 				{
 					"path": map[string]interface{}{
@@ -480,6 +540,8 @@ func TestGitGenerateParamsFromDirectoriesGoTemplate(t *testing.T) {
 							"app2",
 						},
 					},
+					"repoURL":  "RepoURL",
+					"revision": "Revision",
 				},
 				{
 					"path": map[string]interface{}{
@@ -491,6 +553,8 @@ func TestGitGenerateParamsFromDirectoriesGoTemplate(t *testing.T) {
 							"app3",
 						},
 					},
+					"repoURL":  "RepoURL",
+					"revision": "Revision",
 				},
 			},
 			expectedError: nil,
@@ -517,6 +581,8 @@ func TestGitGenerateParamsFromDirectoriesGoTemplate(t *testing.T) {
 							"app1",
 						},
 					},
+					"repoURL":  "RepoURL",
+					"revision": "Revision",
 				},
 				{
 					"path": map[string]interface{}{
@@ -527,6 +593,8 @@ func TestGitGenerateParamsFromDirectoriesGoTemplate(t *testing.T) {
 							"app2",
 						},
 					},
+					"repoURL":  "RepoURL",
+					"revision": "Revision",
 				},
 				{
 					"path": map[string]interface{}{
@@ -538,6 +606,8 @@ func TestGitGenerateParamsFromDirectoriesGoTemplate(t *testing.T) {
 							"app3",
 						},
 					},
+					"repoURL":  "RepoURL",
+					"revision": "Revision",
 				},
 			},
 			expectedError: nil,
@@ -660,6 +730,8 @@ func TestGitGenerateParamsFromFiles(t *testing.T) {
 					"path.basenameNormalized": "production",
 					"path.filename":           "config.json",
 					"path.filenameNormalized": "config.json",
+					"repoURL":                 "RepoURL",
+					"revision":                "Revision",
 				},
 				{
 					"cluster.owner":           "foo.bar@example.com",
@@ -672,6 +744,8 @@ func TestGitGenerateParamsFromFiles(t *testing.T) {
 					"path.basenameNormalized": "staging",
 					"path.filename":           "config.json",
 					"path.filenameNormalized": "config.json",
+					"repoURL":                 "RepoURL",
+					"revision":                "Revision",
 				},
 			},
 			expectedError: nil,
@@ -733,6 +807,8 @@ func TestGitGenerateParamsFromFiles(t *testing.T) {
 					"path.basenameNormalized": "production",
 					"path.filename":           "config.json",
 					"path.filenameNormalized": "config.json",
+					"repoURL":                 "RepoURL",
+					"revision":                "Revision",
 				},
 				{
 					"cluster.owner":           "john.doe@example.com",
@@ -745,6 +821,8 @@ func TestGitGenerateParamsFromFiles(t *testing.T) {
 					"path.basenameNormalized": "production",
 					"path.filename":           "config.json",
 					"path.filenameNormalized": "config.json",
+					"repoURL":                 "RepoURL",
+					"revision":                "Revision",
 				},
 			},
 			expectedError: nil,
@@ -787,6 +865,8 @@ cluster:
 					"path.basenameNormalized": "production",
 					"path.filename":           "config.yaml",
 					"path.filenameNormalized": "config.yaml",
+					"repoURL":                 "RepoURL",
+					"revision":                "Revision",
 				},
 				{
 					"cluster.owner":           "foo.bar@example.com",
@@ -799,6 +879,8 @@ cluster:
 					"path.basenameNormalized": "staging",
 					"path.filename":           "config.yaml",
 					"path.filenameNormalized": "config.yaml",
+					"repoURL":                 "RepoURL",
+					"revision":                "Revision",
 				},
 			},
 			expectedError: nil,
@@ -833,6 +915,8 @@ cluster:
 					"path.basenameNormalized": "production",
 					"path.filename":           "config.yaml",
 					"path.filenameNormalized": "config.yaml",
+					"repoURL":                 "RepoURL",
+					"revision":                "Revision",
 				},
 				{
 					"cluster.owner":           "john.doe@example.com",
@@ -845,6 +929,8 @@ cluster:
 					"path.basenameNormalized": "production",
 					"path.filename":           "config.yaml",
 					"path.filenameNormalized": "config.yaml",
+					"repoURL":                 "RepoURL",
+					"revision":                "Revision",
 				},
 			},
 			expectedError: nil,
@@ -959,6 +1045,8 @@ func TestGitGenerateParamsFromFilesGoTemplate(t *testing.T) {
 							"production",
 						},
 					},
+					"repoURL":  "RepoURL",
+					"revision": "Revision",
 				},
 				{
 					"cluster": map[string]interface{}{
@@ -977,6 +1065,8 @@ func TestGitGenerateParamsFromFilesGoTemplate(t *testing.T) {
 							"staging",
 						},
 					},
+					"repoURL":  "RepoURL",
+					"revision": "Revision",
 				},
 			},
 			expectedError: nil,
@@ -1046,6 +1136,8 @@ func TestGitGenerateParamsFromFilesGoTemplate(t *testing.T) {
 							"production",
 						},
 					},
+					"repoURL":  "RepoURL",
+					"revision": "Revision",
 				},
 				{
 					"cluster": map[string]interface{}{
@@ -1064,6 +1156,8 @@ func TestGitGenerateParamsFromFilesGoTemplate(t *testing.T) {
 							"production",
 						},
 					},
+					"repoURL":  "RepoURL",
+					"revision": "Revision",
 				},
 			},
 			expectedError: nil,
@@ -1116,6 +1210,8 @@ cluster:
 							"production",
 						},
 					},
+					"repoURL":  "RepoURL",
+					"revision": "Revision",
 				},
 				{
 					"cluster": map[string]interface{}{
@@ -1134,6 +1230,8 @@ cluster:
 							"staging",
 						},
 					},
+					"repoURL":  "RepoURL",
+					"revision": "Revision",
 				},
 			},
 			expectedError: nil,
@@ -1176,6 +1274,8 @@ cluster:
 							"production",
 						},
 					},
+					"repoURL":  "RepoURL",
+					"revision": "Revision",
 				},
 				{
 					"cluster": map[string]interface{}{
@@ -1194,6 +1294,8 @@ cluster:
 							"production",
 						},
 					},
+					"repoURL":  "RepoURL",
+					"revision": "Revision",
 				},
 			},
 			expectedError: nil,
