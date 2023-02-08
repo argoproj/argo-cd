@@ -7,6 +7,7 @@ import (
 	hookutil "github.com/argoproj/gitops-engine/pkg/sync/hook"
 	"github.com/argoproj/gitops-engine/pkg/sync/ignore"
 	kubeutil "github.com/argoproj/gitops-engine/pkg/utils/kube"
+	log "github.com/sirupsen/logrus"
 	"k8s.io/apimachinery/pkg/runtime/schema"
 
 	"github.com/argoproj/argo-cd/v2/pkg/apis/application"
@@ -43,6 +44,8 @@ func setApplicationHealth(resources []managedResource, statuses []appv1.Resource
 			if err != nil && savedErr == nil {
 				errCount++
 				savedErr = fmt.Errorf("failed to get resource health for %q with name %q in namespace %q: %w", res.Live.GetKind(), res.Live.GetName(), res.Live.GetNamespace(), err)
+				// also log so we don't lose the message
+				log.WithField("application", app.QualifiedName()).Error(savedErr)
 			}
 		}
 
