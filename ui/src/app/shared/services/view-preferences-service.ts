@@ -27,6 +27,7 @@ export interface AppDetailsPreferences {
     wrapLines: boolean;
     groupNodes?: boolean;
     zoom: number;
+    podGroupCount: number;
 }
 
 export interface PodViewPreferences {
@@ -120,7 +121,8 @@ const DEFAULT_PREFERENCES: ViewPreferences = {
         darkMode: false,
         followLogs: false,
         wrapLines: false,
-        zoom: 1.0
+        zoom: 1.0,
+        podGroupCount: 15.0,
     },
     appList: {
         view: 'tiles' as AppsListViewType,

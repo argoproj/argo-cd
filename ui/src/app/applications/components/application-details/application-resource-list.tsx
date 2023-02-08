@@ -1,12 +1,13 @@
 import {DropDown} from 'argo-ui';
 import * as React from 'react';
-
 import * as models from '../../../shared/models';
 import {ResourceIcon} from '../resource-icon';
 import {ResourceLabel} from '../resource-label';
 import {ComparisonStatusIcon, HealthStatusIcon, nodeKey, createdOrNodeKey} from '../utils';
 import {Consumer} from '../../../shared/context';
 import * as _ from 'lodash';
+import Moment from 'react-moment';
+import {format} from 'date-fns';
 
 export const ApplicationResourceList = ({
     resources,
@@ -20,11 +21,12 @@ export const ApplicationResourceList = ({
     <div className='argo-table-list argo-table-list--clickable'>
         <div className='argo-table-list__head'>
             <div className='row'>
-                <div className='columns small-1 xxxlarge-1' />
+                <div className='columns small-1 xxxlarge-2' />
                 <div className='columns small-2 xxxlarge-2'>NAME</div>
                 <div className='columns small-2 xxxlarge-2'>GROUP/KIND</div>
                 <div className='columns small-1 xxxlarge-2'>SYNC ORDER</div>
                 <div className='columns small-2 xxxlarge-2'>NAMESPACE</div>
+                {resources.length > 0 && resources[0].kind === 'ReplicaSet' && <div className='columns small-1 xxxlarge-2'>Revision</div>}
                 <div className='columns small-2 xxxlarge-2'>CREATED AT</div>
                 <div className='columns small-1 xxxlarge-1'>STATUS</div>
             </div>
@@ -58,7 +60,21 @@ export const ApplicationResourceList = ({
                         <div className='columns small-2 xxxlarge-2'>{[res.group, res.kind].filter(item => !!item).join('/')}</div>
                         <div className='columns small-1 xxxlarge-2'>{res.syncWave || '-'}</div>
                         <div className='columns small-2 xxxlarge-2'>{res.namespace}</div>
-                        <div className='columns small-2 xxxlarge-2'>{res.createdAt}</div>
+                        { res.kind === 'ReplicaSet' && (
+                            <div className='columns small-1 xxxlarge-2'>
+                            {(res.resources || []).find((item: InfoItem)  => item.name === "Revision")?.value.split(':')[1]}
+                        </div>
+                        )}
+                        <div className='columns small-2 xxxlarge-2'>
+                            {res.createdAt && (
+                                <span>
+                                    <Moment fromNow={true} ago={true}>
+                                        {res.createdAt}
+                                    </Moment>
+                                    &nbsp;ago &nbsp; {format(new Date(res.createdAt), 'dd/mm/yyyy')}
+                                </span>
+                            )}
+                        </div>
                         <div className='columns small-1 xxxlarge-1'>
                             {res.health && (
                                 <React.Fragment>

@@ -258,19 +258,21 @@ $header: 120px;
             padding-bottom: 6px;
         }
 
-        .zoom-value {
+        .panel-options-text {
             user-select: none;
             margin-top: 3px;
             margin-right: 6px;
             margin-left: 4px;
             font-size: 14px;
             text-align-last: right;
-            float: right;
             width: 40px;
             border: 1px $argo-color-gray-5 solid;
             background-color: $argo-color-gray-3;
             padding: 2px;
             color: $argo-color-gray-7;
+            &.pod-group-count {
+                text-align-last: center;
+            }
         }
     }
 }

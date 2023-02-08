@@ -87,8 +87,16 @@ export class ApplicationDetails extends React.Component<RouteComponentProps<{app
         extensions.forEach(ext => {
             extensionsMap[ext.title] = ext;
         });
-
-        this.state = {page: 0, groupedResources: [], slidingPanelPage: 0, filteredGraph: [], truncateNameOnRight: false, collapsedNodes: [], extensions, extensionsMap};
+        this.state = {
+            page: 0,
+            groupedResources: [],
+            slidingPanelPage: 0,
+            filteredGraph: [],
+            truncateNameOnRight: false,
+            collapsedNodes: [],
+            extensions,
+            extensionsMap
+        };
         if (typeof this.props.match.params.appnamespace === 'undefined') {
             this.appNamespace = '';
         } else {
@@ -157,6 +165,8 @@ export class ApplicationDetails extends React.Component<RouteComponentProps<{app
         }
         return '';
     }
+
+
 
     public render() {
         return (
@@ -284,6 +294,9 @@ export class ApplicationDetails extends React.Component<RouteComponentProps<{app
                             };
                             const setFilterGraph = (filterGraph: any[]) => {
                                 this.setState({filteredGraph: filterGraph});
+                            };
+                            const setShowCompactNodes = (showCompactView: boolean) => {
+                                services.viewPreferences.updatePreferences({appDetails: {...pref, groupNodes: showCompactView}});
                             };
                             const toggleNameDirection = () => {
                                 this.setState({truncateNameOnRight: !this.state.truncateNameOnRight});
@@ -443,13 +456,15 @@ export class ApplicationDetails extends React.Component<RouteComponentProps<{app
                                                             <i className='fa fa-minus fa-fw' />
                                                         </a>
                                                         <span className={`separator`} />
-                                                        <a className={`group-nodes-button`} onClick={() => setZoom(0.1)} title='Zoom in'>
-                                                            <i className='fa fa-search-plus fa-fw' />
-                                                        </a>
-                                                        <a className={`group-nodes-button`} onClick={() => setZoom(-0.1)} title='Zoom out'>
-                                                            <i className='fa fa-search-minus fa-fw' />
-                                                        </a>
-                                                        <div className={`zoom-value`}>{zoomNum}%</div>
+                                                        <span>
+                                                            <a className={`group-nodes-button`} onClick={() => setZoom(0.1)} title='Zoom in'>
+                                                                <i className='fa fa-search-plus fa-fw' />
+                                                            </a>
+                                                            <a className={`group-nodes-button`} onClick={() => setZoom(-0.1)} title='Zoom out'>
+                                                                <i className='fa fa-search-minus fa-fw' />
+                                                            </a>
+                                                            <span className={`panel-options-text`}>{zoomNum}%</span>
+                                                        </span>
                                                     </div>
                                                     <ApplicationResourceTree
                                                         nodeFilter={node => this.filterTreeNode(node, treeFilter)}
@@ -468,10 +483,12 @@ export class ApplicationDetails extends React.Component<RouteComponentProps<{app
                                                         onClearFilter={clearFilter}
                                                         onGroupdNodeClick={groupdedNodeIds => openGroupNodeDetails(groupdedNodeIds)}
                                                         zoom={pref.zoom}
+                                                        podGroupCount={pref.podGroupCount}
                                                         appContext={this.appContext}
                                                         nameDirection={this.state.truncateNameOnRight}
                                                         filters={pref.resourceFilter}
                                                         setTreeFilterGraph={setFilterGraph}
+                                                        setShowCompactNodes={setShowCompactNodes}
                                                         setNodeExpansion={(node, isExpanded) => this.setNodeExpansion(node, isExpanded)}
                                                         getNodeExpansion={node => this.getNodeExpansion(node)}
                                                     />
