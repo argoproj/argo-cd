@@ -21,11 +21,15 @@ var (
 type MatrixGenerator struct {
 	// The inner generators supported by the matrix generator (cluster, git, list...)
 	supportedGenerators map[string]Generator
+	templateLeftDelim   string
+	templateRightDelim  string
 }
 
-func NewMatrixGenerator(supportedGenerators map[string]Generator) Generator {
+func NewMatrixGenerator(supportedGenerators map[string]Generator, templateLeftDelim string, templateRightDelim string) Generator {
 	m := &MatrixGenerator{
 		supportedGenerators: supportedGenerators,
+		templateLeftDelim:   templateLeftDelim,
+		templateRightDelim:  templateRightDelim,
 	}
 	return m
 }
@@ -119,7 +123,8 @@ func (m *MatrixGenerator) getParams(appSetBaseGenerator argoprojiov1alpha1.Appli
 		m.supportedGenerators,
 		argoprojiov1alpha1.ApplicationSetTemplate{},
 		appSet,
-		params)
+		params,
+		m.templateLeftDelim, m.templateRightDelim)
 
 	if err != nil {
 		return nil, fmt.Errorf("child generator returned an error on parameter generation: %v", err)

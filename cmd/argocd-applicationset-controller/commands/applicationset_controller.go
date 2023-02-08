@@ -57,6 +57,8 @@ func NewCommand() *cobra.Command {
 		debugLog               bool
 		dryRun                 bool
 		enableProgressiveSyncs bool
+		templateLeftDelimiter  string
+		templateRightDelimiter string
 	)
 	scheme := runtime.NewScheme()
 	_ = clientgoscheme.AddToScheme(scheme)
@@ -129,7 +131,7 @@ func NewCommand() *cobra.Command {
 			}
 			terminalGenerators := map[string]generators.Generator{
 				"List":                    generators.NewListGenerator(),
-				"Clusters":                generators.NewClusterGenerator(mgr.GetClient(), ctx, k8sClient, namespace),
+				"Clusters":                generators.NewClusterGenerator(mgr.GetClient(), ctx, k8sClient, namespace, templateLeftDelimiter, templateRightDelimiter),
 				"Git":                     generators.NewGitGenerator(services.NewArgoCDService(argoCDDB, askPassServer, getSubmoduleEnabled())),
 				"SCMProvider":             generators.NewSCMProviderGenerator(mgr.GetClient(), scmAuth),
 				"ClusterDecisionResource": generators.NewDuckTypeGenerator(ctx, dynamicClient, k8sClient, namespace),
@@ -143,8 +145,8 @@ func NewCommand() *cobra.Command {
 				"SCMProvider":             terminalGenerators["SCMProvider"],
 				"ClusterDecisionResource": terminalGenerators["ClusterDecisionResource"],
 				"PullRequest":             terminalGenerators["PullRequest"],
-				"Matrix":                  generators.NewMatrixGenerator(terminalGenerators),
-				"Merge":                   generators.NewMergeGenerator(terminalGenerators),
+				"Matrix":                  generators.NewMatrixGenerator(terminalGenerators, templateLeftDelimiter, templateRightDelimiter),
+				"Merge":                   generators.NewMergeGenerator(terminalGenerators, templateLeftDelimiter, templateRightDelimiter),
 			}
 
 			topLevelGenerators := map[string]generators.Generator{
@@ -154,12 +156,12 @@ func NewCommand() *cobra.Command {
 				"SCMProvider":             terminalGenerators["SCMProvider"],
 				"ClusterDecisionResource": terminalGenerators["ClusterDecisionResource"],
 				"PullRequest":             terminalGenerators["PullRequest"],
-				"Matrix":                  generators.NewMatrixGenerator(nestedGenerators),
-				"Merge":                   generators.NewMergeGenerator(nestedGenerators),
+				"Matrix":                  generators.NewMatrixGenerator(nestedGenerators, templateLeftDelimiter, templateRightDelimiter),
+				"Merge":                   generators.NewMergeGenerator(nestedGenerators, templateLeftDelimiter, templateRightDelimiter),
 			}
 
 			// start a webhook server that listens to incoming webhook payloads
-			webhookHandler, err := webhook.NewWebhookHandler(namespace, argoSettingsMgr, mgr.GetClient(), topLevelGenerators)
+			webhookHandler, err := webhook.NewWebhookHandler(namespace, argoSettingsMgr, mgr.GetClient(), topLevelGenerators, templateLeftDelimiter, templateRightDelimiter)
 			if err != nil {
 				log.Error(err, "failed to create webhook handler")
 			}
@@ -179,6 +181,8 @@ func NewCommand() *cobra.Command {
 				KubeClientset:          k8sClient,
 				ArgoDB:                 argoCDDB,
 				EnableProgressiveSyncs: enableProgressiveSyncs,
+				TemplateLeftDelimiter:  templateLeftDelimiter,
+				TemplateRightDelimiter: templateRightDelimiter,
 			}).SetupWithManager(mgr); err != nil {
 				log.Error(err, "unable to create controller", "controller", "ApplicationSet")
 				os.Exit(1)
@@ -208,6 +212,9 @@ func NewCommand() *cobra.Command {
 	command.Flags().StringVar(&cmdutil.LogLevel, "loglevel", env.StringFromEnv("ARGOCD_APPLICATIONSET_CONTROLLER_LOGLEVEL", "info"), "Set the logging level. One of: debug|info|warn|error")
 	command.Flags().BoolVar(&dryRun, "dry-run", env.ParseBoolFromEnv("ARGOCD_APPLICATIONSET_CONTROLLER_DRY_RUN", false), "Enable dry run mode")
 	command.Flags().BoolVar(&enableProgressiveSyncs, "enable-progressive-syncs", env.ParseBoolFromEnv("ARGOCD_APPLICATIONSET_CONTROLLER_ENABLE_PROGRESSIVE_SYNCS", false), "Enable use of the experimental progressive syncs feature.")
+	command.Flags().StringVar(&templateLeftDelimiter, "template-left-delimiter", env.StringFromEnv("ARGOCD_APPLICATIONSET_CONTROLLER_TEMPLATE_LEFT_DELIMITER", "{{"), "Defines the left delimiters used when rendering an Application template")
+	command.Flags().StringVar(&templateRightDelimiter, "template-right-delimiter", env.StringFromEnv("ARGOCD_APPLICATIONSET_CONTROLLER_TEMPLATE_RIGHT_DELIMITER", "{{"), "Defines the right delimiters used when rendering an Application template")
+
 	return &command
 }
 

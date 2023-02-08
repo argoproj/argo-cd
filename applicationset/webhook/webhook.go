@@ -25,11 +25,13 @@ import (
 )
 
 type WebhookHandler struct {
-	namespace  string
-	github     *github.Webhook
-	gitlab     *gitlab.Webhook
-	client     client.Client
-	generators map[string]generators.Generator
+	namespace          string
+	github             *github.Webhook
+	gitlab             *gitlab.Webhook
+	client             client.Client
+	generators         map[string]generators.Generator
+	templateLeftDelim  string
+	templateRightDelim string
 }
 
 type gitGeneratorInfo struct {
@@ -54,7 +56,7 @@ type prGeneratorGitlabInfo struct {
 	APIHostname string
 }
 
-func NewWebhookHandler(namespace string, argocdSettingsMgr *argosettings.SettingsManager, client client.Client, generators map[string]generators.Generator) (*WebhookHandler, error) {
+func NewWebhookHandler(namespace string, argocdSettingsMgr *argosettings.SettingsManager, client client.Client, generators map[string]generators.Generator, templateLeftDelim string, templateRightDelim string) (*WebhookHandler, error) {
 	// register the webhook secrets stored under "argocd-secret" for verifying incoming payloads
 	argocdSettings, err := argocdSettingsMgr.GetSettings()
 	if err != nil {
@@ -70,11 +72,13 @@ func NewWebhookHandler(namespace string, argocdSettingsMgr *argosettings.Setting
 	}
 
 	return &WebhookHandler{
-		namespace:  namespace,
-		github:     githubHandler,
-		gitlab:     gitlabHandler,
-		client:     client,
-		generators: generators,
+		namespace:          namespace,
+		github:             githubHandler,
+		gitlab:             gitlabHandler,
+		client:             client,
+		generators:         generators,
+		templateLeftDelim:  templateLeftDelim,
+		templateRightDelim: templateRightDelim,
 	}, nil
 }
 
@@ -478,7 +482,7 @@ func (h *WebhookHandler) shouldRefreshMatrixGenerator(gen *v1alpha1.MatrixGenera
 	// Interpolate second child generator with params from first child generator, if there are any params
 	if len(params) != 0 {
 		for _, p := range params {
-			tempInterpolatedGenerator, err := generators.InterpolateGenerator(requestedGenerator1, p, appSet.Spec.GoTemplate)
+			tempInterpolatedGenerator, err := generators.InterpolateGenerator(requestedGenerator1, p, appSet.Spec.GoTemplate, h.templateLeftDelim, h.templateRightDelim)
 			interpolatedGenerator := &tempInterpolatedGenerator
 			if err != nil {
 				log.Error(err)

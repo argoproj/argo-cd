@@ -84,7 +84,7 @@ func TestMatchValues(t *testing.T) {
 				}},
 				data,
 				emptyTemplate(),
-				&applicationSetInfo, nil)
+				&applicationSetInfo, nil, "{{", "}}")
 
 			assert.NoError(t, err)
 			assert.ElementsMatch(t, testCase.expected, results[0].Params)
@@ -155,7 +155,7 @@ func getMockClusterGenerator() Generator {
 	appClientset := kubefake.NewSimpleClientset(runtimeClusters...)
 
 	fakeClient := fake.NewClientBuilder().WithObjects(clusters...).Build()
-	return NewClusterGenerator(fakeClient, context.Background(), appClientset, "namespace")
+	return NewClusterGenerator(fakeClient, context.Background(), appClientset, "namespace", "{{", "}}")
 }
 
 func getMockGitGenerator() Generator {
@@ -172,8 +172,8 @@ func TestGetRelevantGenerators(t *testing.T) {
 		"Git":      getMockGitGenerator(),
 	}
 
-	testGenerators["Matrix"] = NewMatrixGenerator(testGenerators)
-	testGenerators["Merge"] = NewMergeGenerator(testGenerators)
+	testGenerators["Matrix"] = NewMatrixGenerator(testGenerators, "{{", "}}")
+	testGenerators["Merge"] = NewMergeGenerator(testGenerators, "{{", "}}")
 	testGenerators["List"] = NewListGenerator()
 
 	requestedGenerator := &argoprojiov1alpha1.ApplicationSetGenerator{
@@ -232,7 +232,7 @@ func TestInterpolateGenerator(t *testing.T) {
 		"path[1]":                 "p2",
 		"path.basenameNormalized": "app3",
 	}
-	interpolatedGenerator, err := InterpolateGenerator(requestedGenerator, gitGeneratorParams, false)
+	interpolatedGenerator, err := InterpolateGenerator(requestedGenerator, gitGeneratorParams, false, "{{", "}}")
 	if err != nil {
 		log.WithError(err).WithField("requestedGenerator", requestedGenerator).Error("error interpolating Generator")
 		return
@@ -257,7 +257,7 @@ func TestInterpolateGenerator(t *testing.T) {
 	clusterGeneratorParams := map[string]interface{}{
 		"name": "production_01/west", "server": "https://production-01.example.com",
 	}
-	interpolatedGenerator, err = InterpolateGenerator(requestedGenerator, clusterGeneratorParams, true)
+	interpolatedGenerator, err = InterpolateGenerator(requestedGenerator, clusterGeneratorParams, true, "{{", "}}")
 	if err != nil {
 		log.WithError(err).WithField("requestedGenerator", requestedGenerator).Error("error interpolating Generator")
 		return

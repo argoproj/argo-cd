@@ -1,8 +1,8 @@
 package generators
 
 import (
-	"fmt"
 	"encoding/json"
+	"fmt"
 	"reflect"
 
 	"github.com/argoproj/argo-cd/v2/applicationset/utils"
@@ -25,8 +25,8 @@ type TransformResult struct {
 	Template argoprojiov1alpha1.ApplicationSetTemplate
 }
 
-//Transform a spec generator to list of paramSets and a template
-func Transform(requestedGenerator argoprojiov1alpha1.ApplicationSetGenerator, allGenerators map[string]Generator, baseTemplate argoprojiov1alpha1.ApplicationSetTemplate, appSet *argoprojiov1alpha1.ApplicationSet, genParams map[string]interface{}) ([]TransformResult, error) {
+// Transform a spec generator to list of paramSets and a template
+func Transform(requestedGenerator argoprojiov1alpha1.ApplicationSetGenerator, allGenerators map[string]Generator, baseTemplate argoprojiov1alpha1.ApplicationSetTemplate, appSet *argoprojiov1alpha1.ApplicationSet, genParams map[string]interface{}, templateLeftDelim string, templateRightDelim string) ([]TransformResult, error) {
 	selector, err := metav1.LabelSelectorAsSelector(requestedGenerator.Selector)
 	if err != nil {
 		return nil, fmt.Errorf("error parsing label selector: %w", err)
@@ -50,7 +50,7 @@ func Transform(requestedGenerator argoprojiov1alpha1.ApplicationSetGenerator, al
 		}
 		var params []map[string]interface{}
 		if len(genParams) != 0 {
-			tempInterpolatedGenerator, err := InterpolateGenerator(&requestedGenerator, genParams, appSet.Spec.GoTemplate)
+			tempInterpolatedGenerator, err := InterpolateGenerator(&requestedGenerator, genParams, appSet.Spec.GoTemplate, templateLeftDelim, templateRightDelim)
 			interpolatedGenerator = &tempInterpolatedGenerator
 			if err != nil {
 				log.WithError(err).WithField("genParams", genParams).
@@ -134,7 +134,7 @@ func mergeGeneratorTemplate(g Generator, requestedGenerator *argoprojiov1alpha1.
 
 // Currently for Matrix Generator. Allows interpolating the matrix's 2nd child generator with values from the 1st child generator
 // "params" parameter is an array, where each index corresponds to a generator. Each index contains a map w/ that generator's parameters.
-func InterpolateGenerator(requestedGenerator *argoprojiov1alpha1.ApplicationSetGenerator, params map[string]interface{}, useGoTemplate bool) (argoprojiov1alpha1.ApplicationSetGenerator, error) {
+func InterpolateGenerator(requestedGenerator *argoprojiov1alpha1.ApplicationSetGenerator, params map[string]interface{}, useGoTemplate bool, templateLeftDelim string, templateRightDelim string) (argoprojiov1alpha1.ApplicationSetGenerator, error) {
 	interpolatedGenerator := requestedGenerator.DeepCopy()
 	tmplBytes, err := json.Marshal(interpolatedGenerator)
 	if err != nil {
@@ -143,7 +143,7 @@ func InterpolateGenerator(requestedGenerator *argoprojiov1alpha1.ApplicationSetG
 	}
 
 	render := utils.Render{}
-	replacedTmplStr, err := render.Replace(string(tmplBytes), params, useGoTemplate)
+	replacedTmplStr, err := render.Replace(string(tmplBytes), params, useGoTemplate, templateLeftDelim, templateRightDelim)
 	if err != nil {
 		log.WithError(err).WithField("interpolatedGeneratorString", replacedTmplStr).Error("error interpolating generator with other generator's parameter")
 		return *interpolatedGenerator, err

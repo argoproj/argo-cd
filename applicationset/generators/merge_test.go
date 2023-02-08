@@ -170,6 +170,8 @@ func TestMergeGenerate(t *testing.T) {
 						},
 					},
 				},
+				"{{",
+				"}}",
 			)
 
 			got, err := mergeGenerator.GenerateParams(&argoprojiov1alpha1.ApplicationSetGenerator{

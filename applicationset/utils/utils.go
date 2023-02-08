@@ -31,7 +31,7 @@ func init() {
 }
 
 type Renderer interface {
-	RenderTemplateParams(tmpl *argoappsv1.Application, syncPolicy *argoappsv1.ApplicationSetSyncPolicy, params map[string]interface{}, useGoTemplate bool) (*argoappsv1.Application, error)
+	RenderTemplateParams(tmpl *argoappsv1.Application, syncPolicy *argoappsv1.ApplicationSetSyncPolicy, params map[string]interface{}, useGoTemplate bool, templateLeftDelim string, templateRightDelim string) (*argoappsv1.Application, error)
 }
 
 type Render struct {
@@ -50,7 +50,7 @@ func copyUnexported(copy, original reflect.Value) {
 
 // This function is in charge of searching all String fields of the object recursively and apply templating
 // thanks to https://gist.github.com/randallmlough/1fd78ec8a1034916ca52281e3b886dc7
-func (r *Render) deeplyReplace(copy, original reflect.Value, replaceMap map[string]interface{}, useGoTemplate bool) error {
+func (r *Render) deeplyReplace(copy, original reflect.Value, replaceMap map[string]interface{}, useGoTemplate bool, templateLeftDelim string, templateRightDelim string) error {
 	switch original.Kind() {
 	// The first cases handle nested structures and translate them recursively
 	// If it is a pointer we need to unwrap and call once again
@@ -70,7 +70,7 @@ func (r *Render) deeplyReplace(copy, original reflect.Value, replaceMap map[stri
 			copyUnexported(copy, original)
 		}
 		// Unwrap the newly created pointer
-		if err := r.deeplyReplace(copy.Elem(), originalValue, replaceMap, useGoTemplate); err != nil {
+		if err := r.deeplyReplace(copy.Elem(), originalValue, replaceMap, useGoTemplate, templateLeftDelim, templateRightDelim); err != nil {
 			return err
 		}
 
@@ -84,7 +84,7 @@ func (r *Render) deeplyReplace(copy, original reflect.Value, replaceMap map[stri
 		// Create a new object. Now new gives us a pointer, but we want the value it
 		// points to, so we have to call Elem() to unwrap it
 		copyValue := reflect.New(originalValue.Type()).Elem()
-		if err := r.deeplyReplace(copyValue, originalValue, replaceMap, useGoTemplate); err != nil {
+		if err := r.deeplyReplace(copyValue, originalValue, replaceMap, useGoTemplate, templateLeftDelim, templateRightDelim); err != nil {
 			return err
 		}
 		copy.Set(copyValue)
@@ -96,7 +96,7 @@ func (r *Render) deeplyReplace(copy, original reflect.Value, replaceMap map[stri
 			// specific case time
 			if currentType == "time.Time" {
 				copy.Field(i).Set(original.Field(i))
-			} else if err := r.deeplyReplace(copy.Field(i), original.Field(i), replaceMap, useGoTemplate); err != nil {
+			} else if err := r.deeplyReplace(copy.Field(i), original.Field(i), replaceMap, useGoTemplate, templateLeftDelim, templateRightDelim); err != nil {
 				return err
 			}
 		}
@@ -110,7 +110,7 @@ func (r *Render) deeplyReplace(copy, original reflect.Value, replaceMap map[stri
 		}
 
 		for i := 0; i < original.Len(); i += 1 {
-			if err := r.deeplyReplace(copy.Index(i), original.Index(i), replaceMap, useGoTemplate); err != nil {
+			if err := r.deeplyReplace(copy.Index(i), original.Index(i), replaceMap, useGoTemplate, templateLeftDelim, templateRightDelim); err != nil {
 				return err
 			}
 		}
@@ -130,13 +130,13 @@ func (r *Render) deeplyReplace(copy, original reflect.Value, replaceMap map[stri
 			// New gives us a pointer, but again we want the value
 			copyValue := reflect.New(originalValue.Type()).Elem()
 
-			if err := r.deeplyReplace(copyValue, originalValue, replaceMap, useGoTemplate); err != nil {
+			if err := r.deeplyReplace(copyValue, originalValue, replaceMap, useGoTemplate, templateLeftDelim, templateRightDelim); err != nil {
 				return err
 			}
 
 			// Keys can be templated as well as values (e.g. to template something into an annotation).
 			if key.Kind() == reflect.String {
-				templatedKey, err := r.Replace(key.String(), replaceMap, useGoTemplate)
+				templatedKey, err := r.Replace(key.String(), replaceMap, useGoTemplate, templateLeftDelim, templateRightDelim)
 				if err != nil {
 					return err
 				}
@@ -150,7 +150,7 @@ func (r *Render) deeplyReplace(copy, original reflect.Value, replaceMap map[stri
 	// If it is a string translate it (yay finally we're doing what we came for)
 	case reflect.String:
 		strToTemplate := original.String()
-		templated, err := r.Replace(strToTemplate, replaceMap, useGoTemplate)
+		templated, err := r.Replace(strToTemplate, replaceMap, useGoTemplate, templateLeftDelim, templateRightDelim)
 		if err != nil {
 			return err
 		}
@@ -172,7 +172,7 @@ func (r *Render) deeplyReplace(copy, original reflect.Value, replaceMap map[stri
 	return nil
 }
 
-func (r *Render) RenderTemplateParams(tmpl *argoappsv1.Application, syncPolicy *argoappsv1.ApplicationSetSyncPolicy, params map[string]interface{}, useGoTemplate bool) (*argoappsv1.Application, error) {
+func (r *Render) RenderTemplateParams(tmpl *argoappsv1.Application, syncPolicy *argoappsv1.ApplicationSetSyncPolicy, params map[string]interface{}, useGoTemplate bool, templateLeftDelim string, templateRightDelim string) (*argoappsv1.Application, error) {
 	if tmpl == nil {
 		return nil, fmt.Errorf("application template is empty ")
 	}
@@ -184,7 +184,7 @@ func (r *Render) RenderTemplateParams(tmpl *argoappsv1.Application, syncPolicy *
 	original := reflect.ValueOf(tmpl)
 	copy := reflect.New(original.Type()).Elem()
 
-	if err := r.deeplyReplace(copy, original, params, useGoTemplate); err != nil {
+	if err := r.deeplyReplace(copy, original, params, useGoTemplate, templateLeftDelim, templateRightDelim); err != nil {
 		return nil, err
 	}
 
@@ -208,9 +208,9 @@ var isTemplatedRegex = regexp.MustCompile(".*{{.*}}.*")
 
 // Replace executes basic string substitution of a template with replacement values.
 // remaining in the substituted template.
-func (r *Render) Replace(tmpl string, replaceMap map[string]interface{}, useGoTemplate bool) (string, error) {
+func (r *Render) Replace(tmpl string, replaceMap map[string]interface{}, useGoTemplate bool, templateLeftDelim string, templateRightDelim string) (string, error) {
 	if useGoTemplate {
-		template, err := template.New("").Funcs(sprigFuncMap).Parse(tmpl)
+		template, err := template.New("").Delims(templateLeftDelim, templateRightDelim).Funcs(sprigFuncMap).Parse(tmpl)
 		if err != nil {
 			return "", fmt.Errorf("failed to parse template %s: %w", tmpl, err)
 		}
@@ -227,12 +227,12 @@ func (r *Render) Replace(tmpl string, replaceMap map[string]interface{}, useGoTe
 		return tmpl, nil
 	}
 
-	fstTmpl := fasttemplate.New(tmpl, "{{", "}}")
+	fstTmpl := fasttemplate.New(tmpl, templateLeftDelim, templateRightDelim)
 	replacedTmpl := fstTmpl.ExecuteFuncString(func(w io.Writer, tag string) (int, error) {
 		trimmedTag := strings.TrimSpace(tag)
 		replacement, ok := replaceMap[trimmedTag].(string)
 		if len(trimmedTag) == 0 || !ok {
-			return w.Write([]byte(fmt.Sprintf("{{%s}}", tag)))
+			return w.Write([]byte(fmt.Sprintf("%s%s%s", templateLeftDelim, tag, templateRightDelim)))
 		}
 		return w.Write([]byte(replacement))
 	})

@@ -174,7 +174,7 @@ func TestRenderTemplateParams(t *testing.T) {
 
 				// Render the cloned application, into a new application
 				render := Render{}
-				newApplication, err := render.RenderTemplateParams(application, nil, test.params, false)
+				newApplication, err := render.RenderTemplateParams(application, nil, test.params, false, "{{", "}}")
 
 				// Retrieve the value of the target field from the newApplication, then verify that
 				// the target field has been templated into the expected value
@@ -439,7 +439,7 @@ func TestRenderTemplateParamsGoTemplate(t *testing.T) {
 
 				// Render the cloned application, into a new application
 				render := Render{}
-				newApplication, err := render.RenderTemplateParams(application, nil, test.params, true)
+				newApplication, err := render.RenderTemplateParams(application, nil, test.params, true, "{{", "}}")
 
 				// Retrieve the value of the target field from the newApplication, then verify that
 				// the target field has been templated into the expected value
@@ -480,7 +480,7 @@ func TestRenderTemplateKeys(t *testing.T) {
 		}
 
 		render := Render{}
-		newApplication, err := render.RenderTemplateParams(application, nil, params, false)
+		newApplication, err := render.RenderTemplateParams(application, nil, params, false, "{{", "}}")
 		require.NoError(t, err)
 		require.Contains(t, newApplication.ObjectMeta.Annotations, "annotation-some-key")
 		assert.Equal(t, newApplication.ObjectMeta.Annotations["annotation-some-key"], "annotation-some-value")
@@ -500,7 +500,7 @@ func TestRenderTemplateKeys(t *testing.T) {
 		}
 
 		render := Render{}
-		newApplication, err := render.RenderTemplateParams(application, nil, params, true)
+		newApplication, err := render.RenderTemplateParams(application, nil, params, true, "{{", "}}")
 		require.NoError(t, err)
 		require.Contains(t, newApplication.ObjectMeta.Annotations, "annotation-some-key")
 		assert.Equal(t, newApplication.ObjectMeta.Annotations["annotation-some-key"], "annotation-some-value")
@@ -601,7 +601,7 @@ func TestRenderTemplateParamsFinalizers(t *testing.T) {
 			// Render the cloned application, into a new application
 			render := Render{}
 
-			res, err := render.RenderTemplateParams(application, c.syncPolicy, params, true)
+			res, err := render.RenderTemplateParams(application, c.syncPolicy, params, true, "{{", "}}")
 			assert.Nil(t, err)
 
 			assert.ElementsMatch(t, res.Finalizers, c.expectedFinalizers)
