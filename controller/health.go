@@ -1,6 +1,8 @@
 package controller
 
 import (
+	"fmt"
+
 	"github.com/argoproj/gitops-engine/pkg/health"
 	hookutil "github.com/argoproj/gitops-engine/pkg/sync/hook"
 	"github.com/argoproj/gitops-engine/pkg/sync/ignore"
@@ -15,6 +17,7 @@ import (
 // setApplicationHealth updates the health statuses of all resources performed in the comparison
 func setApplicationHealth(resources []managedResource, statuses []appv1.ResourceStatus, resourceOverrides map[string]appv1.ResourceOverride, app *appv1.Application, persistResourceHealth bool) (*appv1.HealthStatus, error) {
 	var savedErr error
+	var errCount uint
 	appHealth := appv1.HealthStatus{Status: health.HealthStatusHealthy}
 	for i, res := range resources {
 		if res.Target != nil && hookutil.Skip(res.Target) {
@@ -38,7 +41,8 @@ func setApplicationHealth(resources []managedResource, statuses []appv1.Resource
 			}
 			healthStatus, err = health.GetResourceHealth(res.Live, healthOverrides)
 			if err != nil && savedErr == nil {
-				savedErr = err
+				errCount++
+				savedErr = fmt.Errorf("failed to get resource health for %q with name %q in namespace %q: %w", res.Live.GetKind(), res.Live.GetName(), res.Live.GetNamespace(), err)
 			}
 		}
 
@@ -71,6 +75,9 @@ func setApplicationHealth(resources []managedResource, statuses []appv1.Resource
 		app.Status.ResourceHealthSource = appv1.ResourceHealthLocationInline
 	} else {
 		app.Status.ResourceHealthSource = appv1.ResourceHealthLocationAppTree
+	}
+	if savedErr != nil && errCount > 1 {
+		savedErr = fmt.Errorf("encountered this and %d other errors: %w", errCount-1, savedErr)
 	}
 	return &appHealth, savedErr
 }
