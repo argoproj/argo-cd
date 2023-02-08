@@ -482,6 +482,8 @@ type PullRequestGeneratorGithub struct {
 	AppSecretName string `json:"appSecretName,omitempty" protobuf:"bytes,5,opt,name=appSecretName"`
 	// Labels is used to filter the PRs that you want to target
 	Labels []string `json:"labels,omitempty" protobuf:"bytes,6,rep,name=labels"`
+	// Labels is used to filter out the PRs that you don't want to target
+	NotLabels []string `json:"notLabels,omitempty" protobuf:"bytes,6,rep,name=notLabels"`
 }
 
 // PullRequestGeneratorGitLab defines connection info specific to GitLab.
@@ -494,6 +496,8 @@ type PullRequestGeneratorGitLab struct {
 	TokenRef *SecretRef `json:"tokenRef,omitempty" protobuf:"bytes,3,opt,name=tokenRef"`
 	// Labels is used to filter the MRs that you want to target
 	Labels []string `json:"labels,omitempty" protobuf:"bytes,4,rep,name=labels"`
+	// Labels is used to filter out the PRs that you don't want to target
+	NotLabels []string `json:"notLabels,omitempty" protobuf:"bytes,4,rep,name=notLabels"`
 	// PullRequestState is an additional MRs filter to get only those with a certain state. Default: "" (all states)
 	PullRequestState string `json:"pullRequestState,omitempty" protobuf:"bytes,5,rep,name=pullRequestState"`
 }

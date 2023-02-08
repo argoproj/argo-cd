@@ -10,15 +10,16 @@ import (
 )
 
 type GithubService struct {
-	client *github.Client
-	owner  string
-	repo   string
-	labels []string
+	client    *github.Client
+	owner     string
+	repo      string
+	labels    []string
+	notLabels []string
 }
 
 var _ PullRequestService = (*GithubService)(nil)
 
-func NewGithubService(ctx context.Context, token, url, owner, repo string, labels []string) (PullRequestService, error) {
+func NewGithubService(ctx context.Context, token, url, owner, repo string, labels []string, notLabels []string) (PullRequestService, error) {
 	var ts oauth2.TokenSource
 	// Undocumented environment variable to set a default token, to be used in testing to dodge anonymous rate limits.
 	if token == "" {
@@ -41,10 +42,11 @@ func NewGithubService(ctx context.Context, token, url, owner, repo string, label
 		}
 	}
 	return &GithubService{
-		client: client,
-		owner:  owner,
-		repo:   repo,
-		labels: labels,
+		client:    client,
+		owner:     owner,
+		repo:      repo,
+		labels:    labels,
+		notLabels: notLabels,
 	}, nil
 }
 
@@ -62,6 +64,9 @@ func (g *GithubService) List(ctx context.Context) ([]*PullRequest, error) {
 		}
 		for _, pull := range pulls {
 			if !containLabels(g.labels, pull.Labels) {
+				continue
+			}
+			if !notContainLabels(g.notLabels, pull.Labels) {
 				continue
 			}
 			pullRequests = append(pullRequests, &PullRequest{
@@ -106,4 +111,24 @@ func getGithubPRLabelNames(gitHubLabels []*github.Label) []string {
 		labelNames = append(labelNames, *gitHubLabel.Name)
 	}
 	return labelNames
+}
+
+// notContainLabels returns true if gotLabels not contain exceptLabels
+func notContainLabels(notLabels []string, gotLabels []*github.Label) bool {
+	for _, except := range notLabels {
+		found := false
+		for _, got := range gotLabels {
+			if got.Name == nil {
+				continue
+			}
+			if except == *got.Name {
+				found = true
+				break
+			}
+		}
+		if found {
+			return false
+		}
+	}
+	return true
 }
