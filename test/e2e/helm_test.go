@@ -19,6 +19,7 @@ import (
 	"github.com/argoproj/argo-cd/v2/test/e2e/fixture"
 	. "github.com/argoproj/argo-cd/v2/test/e2e/fixture"
 	. "github.com/argoproj/argo-cd/v2/test/e2e/fixture/app"
+	projectFixture "github.com/argoproj/argo-cd/v2/test/e2e/fixture/project"
 	"github.com/argoproj/argo-cd/v2/test/e2e/fixture/repos"
 	. "github.com/argoproj/argo-cd/v2/util/errors"
 	"github.com/argoproj/argo-cd/v2/util/settings"
@@ -397,6 +398,32 @@ func TestHelmWithMultipleDependencies(t *testing.T) {
 		Sync().
 		Then().
 		Expect(SyncStatusIs(SyncStatusCodeSynced))
+}
+
+func TestHelmWithMultipleDependenciesPermissionDenied(t *testing.T) {
+	SkipOnEnv(t, "HELM")
+
+	projName := "argo-helm-project-denied"
+	projectFixture.
+		Given(t).
+		Name(projName).
+		Destination("*,*").
+		When().
+		Create().
+		AddSource(RepoURL(RepoURLTypeFile))
+
+	expectedErr := fmt.Sprintf("helm repo https://localhost:9444/argo-e2e/testdata.git/helm-repo/local is not permitted in project '%s'", projName)
+	GivenWithSameState(t).
+		Project(projName).
+		Path("helm-with-multiple-dependencies").
+		CustomCACertAdded().
+		HelmHTTPSCredentialsUserPassAdded().
+		HelmPassCredentials().
+		When().
+		IgnoreErrors().
+		CreateApp().
+		Then().
+		Expect(Error("", expectedErr))
 }
 
 func TestHelmWithDependenciesLegacyRepo(t *testing.T) {
