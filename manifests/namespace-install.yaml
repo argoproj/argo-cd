@@ -617,7 +617,7 @@ spec:
         - entrypoint.sh
         - argocd-applicationset-controller
         env:
-    app.kubernetes.io/component: applicationset-controller
+        - name: NAMESPACE
           valueFrom:
             fieldRef:
               fieldPath: metadata.namespace
