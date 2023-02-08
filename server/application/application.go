@@ -524,6 +524,11 @@ func (s *Server) GetManifestsWithFiles(stream application.ApplicationService_Get
 
 		source := a.Spec.GetSource()
 
+		proj, err := argo.GetAppProject(a, applisters.NewAppProjectLister(s.projInformer.GetIndexer()), s.ns, s.settingsMgr, s.db, ctx)
+		if err != nil {
+			return fmt.Errorf("error getting app project: %w", err)
+		}
+
 		req := &apiclient.ManifestRequest{
 			Repo:               repo,
 			Revision:           source.TargetRevision,
@@ -540,7 +545,8 @@ func (s *Server) GetManifestsWithFiles(stream application.ApplicationService_Get
 			HelmOptions:        helmOptions,
 			TrackingMethod:     string(argoutil.GetTrackingMethod(s.settingsMgr)),
 			EnabledSourceTypes: enableGenerateManifests,
-			//
+			ProjectName:        proj.Name,
+			ProjectSourceRepos: proj.Spec.SourceRepos,
 		}
 
 		repoStreamClient, err := client.GenerateManifestWithFiles(stream.Context())
