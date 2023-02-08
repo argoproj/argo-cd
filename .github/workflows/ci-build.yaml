@@ -127,6 +127,9 @@ jobs:
         run: |
           git config --global user.name "John Doe"
           git config --global user.email "john.doe@example.com"
+      - name: echo PATH
+        run: |
+          echo $PATH
       - name: Download and vendor all required packages
         run: |
           go mod download
