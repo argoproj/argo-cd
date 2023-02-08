@@ -62,6 +62,18 @@ func FilterByProjects(apps []argoappv1.Application, projects []string) []argoapp
 
 }
 
+// AppSetRBACName returns the applicationSet RBAC full name in format project/name
+func AppSetRBACName(appSet *argoappv1.ApplicationSet) (string, error) {
+
+	projectName, err := GetAppSetProject(*appSet)
+
+	if err != nil {
+		return "", err
+	}
+
+	return fmt.Sprintf("%s/%s", projectName, appSet.ObjectMeta.Name), nil
+}
+
 // FilterAppSetsByProjects returns applications which belongs to the specified project
 func FilterAppSetsByProjects(appsets []argoappv1.ApplicationSet, projects []string) []argoappv1.ApplicationSet {
 	if len(projects) == 0 {
@@ -74,11 +86,35 @@ func FilterAppSetsByProjects(appsets []argoappv1.ApplicationSet, projects []stri
 	items := make([]argoappv1.ApplicationSet, 0)
 	for i := 0; i < len(appsets); i++ {
 		a := appsets[i]
-		if _, ok := projectsMap[a.Spec.Template.Spec.GetProject()]; ok {
+
+		project, err := GetAppSetProject(a)
+
+		if err != nil {
+			log.Error(err.Error())
+			continue
+		}
+
+		if _, ok := projectsMap[project]; ok {
 			items = append(items, a)
 		}
 	}
 	return items
+}
+
+// GetAppSetProject returns the AppSet Project if available
+func GetAppSetProject(a argoappv1.ApplicationSet) (string, error) {
+	var template map[string]interface{}
+	err := json.Unmarshal(a.Spec.Template.Raw, &template)
+
+	if err != nil {
+		return "", err
+	}
+
+	if project, ok := template["project"].(string); ok {
+		return project, nil
+	}
+
+	return "", fmt.Errorf("no project found in ApplicationSet '%s/%s'", a.Namespace, a.Name)
 }
 
 // FilterByRepo returns an application

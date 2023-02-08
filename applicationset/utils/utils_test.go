@@ -2,58 +2,55 @@ package utils
 
 import (
 	"testing"
-	"time"
 
+	testutils "github.com/argoproj/argo-cd/v2/test"
 	"github.com/sirupsen/logrus"
 	logtest "github.com/sirupsen/logrus/hooks/test"
 	"github.com/stretchr/testify/assert"
 	"github.com/stretchr/testify/require"
 	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
 	"k8s.io/apimachinery/pkg/runtime"
-	"k8s.io/apimachinery/pkg/types"
 
 	argoappsetv1 "github.com/argoproj/argo-cd/v2/pkg/apis/application/v1alpha1"
 	argoappsv1 "github.com/argoproj/argo-cd/v2/pkg/apis/application/v1alpha1"
 )
 
+func emptyApplication() map[string]interface{} {
+	// Clone the template application
+	return map[string]interface{}{
+		"metadata": map[string]interface{}{
+			"annotations": map[string]string{"annotation-key": "annotation-value", "annotation-key2": "annotation-value2"},
+			"labels":      map[string]string{"label-key": "label-value", "label-key2": "label-value2"},
+			"name":        "application-one",
+			"namespace":   "default",
+		},
+		"spec": map[string]interface{}{
+			"source": map[string]interface{}{
+				"path":           "",
+				"repoURL":        "",
+				"targetRevision": "",
+				"chart":          "",
+			},
+			"destination": map[string]interface{}{
+				"server":    "",
+				"namespace": "",
+				"name":      "",
+			},
+		},
+	}
+}
+
 func TestRenderTemplateParams(t *testing.T) {
 
-	// Believe it or not, this is actually less complex than the equivalent solution using reflection
-	fieldMap := map[string]func(app *argoappsv1.Application) *string{}
-	fieldMap["Path"] = func(app *argoappsv1.Application) *string { return &app.Spec.Source.Path }
-	fieldMap["RepoURL"] = func(app *argoappsv1.Application) *string { return &app.Spec.Source.RepoURL }
-	fieldMap["TargetRevision"] = func(app *argoappsv1.Application) *string { return &app.Spec.Source.TargetRevision }
-	fieldMap["Chart"] = func(app *argoappsv1.Application) *string { return &app.Spec.Source.Chart }
-
-	fieldMap["Server"] = func(app *argoappsv1.Application) *string { return &app.Spec.Destination.Server }
-	fieldMap["Namespace"] = func(app *argoappsv1.Application) *string { return &app.Spec.Destination.Namespace }
-	fieldMap["Name"] = func(app *argoappsv1.Application) *string { return &app.Spec.Destination.Name }
-
-	fieldMap["Project"] = func(app *argoappsv1.Application) *string { return &app.Spec.Project }
-
-	emptyApplication := &argoappsv1.Application{
-		ObjectMeta: metav1.ObjectMeta{
-			Annotations:       map[string]string{"annotation-key": "annotation-value", "annotation-key2": "annotation-value2"},
-			Labels:            map[string]string{"label-key": "label-value", "label-key2": "label-value2"},
-			CreationTimestamp: metav1.NewTime(time.Now()),
-			UID:               types.UID("d546da12-06b7-4f9a-8ea2-3adb16a20e2b"),
-			Name:              "application-one",
-			Namespace:         "default",
-		},
-		Spec: argoappsv1.ApplicationSpec{
-			Source: &argoappsv1.ApplicationSource{
-				Path:           "",
-				RepoURL:        "",
-				TargetRevision: "",
-				Chart:          "",
-			},
-			Destination: argoappsv1.ApplicationDestination{
-				Server:    "",
-				Namespace: "",
-				Name:      "",
-			},
-			Project: "",
-		},
+	pointers := []string{
+		"/spec/source/path",
+		"/spec/source/repoURL",
+		"/spec/source/targetRevision",
+		"/spec/source/chart",
+		"/spec/destination/server",
+		"/spec/destination/namespace",
+		"/spec/destination/name",
+		"/spec/project",
 	}
 
 	tests := []struct {
@@ -164,30 +161,24 @@ func TestRenderTemplateParams(t *testing.T) {
 
 		t.Run(test.name, func(t *testing.T) {
 
-			for fieldName, getPtrFunc := range fieldMap {
+			for _, pointer := range pointers {
 
-				// Clone the template application
-				application := emptyApplication.DeepCopy()
-
-				// Set the value of the target field, to the test value
-				*getPtrFunc(application) = test.fieldVal
+				application := testutils.UpdateData(emptyApplication(), pointer, test.fieldVal)
 
 				// Render the cloned application, into a new application
 				render := Render{}
-				newApplication, err := render.RenderTemplateParams(application, nil, test.params, false)
+				newApplication, err := render.RenderTemplateParams(application.(map[string]interface{}), nil, test.params, false)
 
 				// Retrieve the value of the target field from the newApplication, then verify that
 				// the target field has been templated into the expected value
-				actualValue := *getPtrFunc(newApplication)
-				assert.Equal(t, test.expectedVal, actualValue, "Field '%s' had an unexpected value. expected: '%s' value: '%s'", fieldName, test.expectedVal, actualValue)
+				actualValue := testutils.GetData(newApplication, pointer)
+				assert.Equal(t, test.expectedVal, actualValue, "Field '%s' had an unexpected value. expected: '%s' value: '%s'", pointer, test.expectedVal, actualValue)
 				assert.Equal(t, newApplication.ObjectMeta.Annotations["annotation-key"], "annotation-value")
 				assert.Equal(t, newApplication.ObjectMeta.Annotations["annotation-key2"], "annotation-value2")
 				assert.Equal(t, newApplication.ObjectMeta.Labels["label-key"], "label-value")
 				assert.Equal(t, newApplication.ObjectMeta.Labels["label-key2"], "label-value2")
 				assert.Equal(t, newApplication.ObjectMeta.Name, "application-one")
 				assert.Equal(t, newApplication.ObjectMeta.Namespace, "default")
-				assert.Equal(t, newApplication.ObjectMeta.UID, types.UID("d546da12-06b7-4f9a-8ea2-3adb16a20e2b"))
-				assert.Equal(t, newApplication.ObjectMeta.CreationTimestamp, application.ObjectMeta.CreationTimestamp)
 				assert.NoError(t, err)
 			}
 		})
@@ -198,41 +189,15 @@ func TestRenderTemplateParams(t *testing.T) {
 func TestRenderTemplateParamsGoTemplate(t *testing.T) {
 
 	// Believe it or not, this is actually less complex than the equivalent solution using reflection
-	fieldMap := map[string]func(app *argoappsv1.Application) *string{}
-	fieldMap["Path"] = func(app *argoappsv1.Application) *string { return &app.Spec.Source.Path }
-	fieldMap["RepoURL"] = func(app *argoappsv1.Application) *string { return &app.Spec.Source.RepoURL }
-	fieldMap["TargetRevision"] = func(app *argoappsv1.Application) *string { return &app.Spec.Source.TargetRevision }
-	fieldMap["Chart"] = func(app *argoappsv1.Application) *string { return &app.Spec.Source.Chart }
-
-	fieldMap["Server"] = func(app *argoappsv1.Application) *string { return &app.Spec.Destination.Server }
-	fieldMap["Namespace"] = func(app *argoappsv1.Application) *string { return &app.Spec.Destination.Namespace }
-	fieldMap["Name"] = func(app *argoappsv1.Application) *string { return &app.Spec.Destination.Name }
-
-	fieldMap["Project"] = func(app *argoappsv1.Application) *string { return &app.Spec.Project }
-
-	emptyApplication := &argoappsv1.Application{
-		ObjectMeta: metav1.ObjectMeta{
-			Annotations:       map[string]string{"annotation-key": "annotation-value", "annotation-key2": "annotation-value2"},
-			Labels:            map[string]string{"label-key": "label-value", "label-key2": "label-value2"},
-			CreationTimestamp: metav1.NewTime(time.Now()),
-			UID:               types.UID("d546da12-06b7-4f9a-8ea2-3adb16a20e2b"),
-			Name:              "application-one",
-			Namespace:         "default",
-		},
-		Spec: argoappsv1.ApplicationSpec{
-			Source: &argoappsv1.ApplicationSource{
-				Path:           "",
-				RepoURL:        "",
-				TargetRevision: "",
-				Chart:          "",
-			},
-			Destination: argoappsv1.ApplicationDestination{
-				Server:    "",
-				Namespace: "",
-				Name:      "",
-			},
-			Project: "",
-		},
+	pointers := []string{
+		"/spec/source/path",
+		"/spec/source/repoURL",
+		"/spec/source/targetRevision",
+		"/spec/source/chart",
+		"/spec/destination/server",
+		"/spec/destination/namespace",
+		"/spec/destination/name",
+		"/spec/project",
 	}
 
 	tests := []struct {
@@ -429,17 +394,13 @@ func TestRenderTemplateParamsGoTemplate(t *testing.T) {
 
 		t.Run(test.name, func(t *testing.T) {
 
-			for fieldName, getPtrFunc := range fieldMap {
+			for _, pointer := range pointers {
 
-				// Clone the template application
-				application := emptyApplication.DeepCopy()
-
-				// Set the value of the target field, to the test value
-				*getPtrFunc(application) = test.fieldVal
+				application := testutils.UpdateData(emptyApplication(), pointer, test.fieldVal)
 
 				// Render the cloned application, into a new application
 				render := Render{}
-				newApplication, err := render.RenderTemplateParams(application, nil, test.params, true)
+				newApplication, err := render.RenderTemplateParams(application.(map[string]interface{}), nil, test.params, true)
 
 				// Retrieve the value of the target field from the newApplication, then verify that
 				// the target field has been templated into the expected value
@@ -448,16 +409,15 @@ func TestRenderTemplateParamsGoTemplate(t *testing.T) {
 					assert.Equal(t, test.errorMessage, err.Error())
 				} else {
 					assert.NoError(t, err)
-					actualValue := *getPtrFunc(newApplication)
-					assert.Equal(t, test.expectedVal, actualValue, "Field '%s' had an unexpected value. expected: '%s' value: '%s'", fieldName, test.expectedVal, actualValue)
+					// Retrieve the value of the target field from the newApplication, then verify that
+					actualValue := testutils.GetData(newApplication, pointer)
+					assert.Equal(t, test.expectedVal, actualValue, "Field '%s' had an unexpected value. expected: '%s' value: '%s'", pointer, test.expectedVal, actualValue)
 					assert.Equal(t, newApplication.ObjectMeta.Annotations["annotation-key"], "annotation-value")
 					assert.Equal(t, newApplication.ObjectMeta.Annotations["annotation-key2"], "annotation-value2")
 					assert.Equal(t, newApplication.ObjectMeta.Labels["label-key"], "label-value")
 					assert.Equal(t, newApplication.ObjectMeta.Labels["label-key2"], "label-value2")
 					assert.Equal(t, newApplication.ObjectMeta.Name, "application-one")
 					assert.Equal(t, newApplication.ObjectMeta.Namespace, "default")
-					assert.Equal(t, newApplication.ObjectMeta.UID, types.UID("d546da12-06b7-4f9a-8ea2-3adb16a20e2b"))
-					assert.Equal(t, newApplication.ObjectMeta.CreationTimestamp, application.ObjectMeta.CreationTimestamp)
 				}
 			}
 		})
@@ -466,9 +426,9 @@ func TestRenderTemplateParamsGoTemplate(t *testing.T) {
 
 func TestRenderTemplateKeys(t *testing.T) {
 	t.Run("fasttemplate", func(t *testing.T) {
-		application := &argoappsv1.Application{
-			ObjectMeta: metav1.ObjectMeta{
-				Annotations: map[string]string{
+		application := map[string]interface{}{
+			"metadata": map[string]interface{}{
+				"annotations": map[string]string{
 					"annotation-{{key}}": "annotation-{{value}}",
 				},
 			},
@@ -486,9 +446,9 @@ func TestRenderTemplateKeys(t *testing.T) {
 		assert.Equal(t, newApplication.ObjectMeta.Annotations["annotation-some-key"], "annotation-some-value")
 	})
 	t.Run("gotemplate", func(t *testing.T) {
-		application := &argoappsv1.Application{
-			ObjectMeta: metav1.ObjectMeta{
-				Annotations: map[string]string{
+		application := map[string]interface{}{
+			"metadata": map[string]interface{}{
+				"annotations": map[string]string{
 					"annotation-{{ .key }}": "annotation-{{ .value }}",
 				},
 			},
@@ -508,23 +468,6 @@ func TestRenderTemplateKeys(t *testing.T) {
 }
 
 func TestRenderTemplateParamsFinalizers(t *testing.T) {
-
-	emptyApplication := &argoappsv1.Application{
-		Spec: argoappsv1.ApplicationSpec{
-			Source: &argoappsv1.ApplicationSource{
-				Path:           "",
-				RepoURL:        "",
-				TargetRevision: "",
-				Chart:          "",
-			},
-			Destination: argoappsv1.ApplicationDestination{
-				Server:    "",
-				Namespace: "",
-				Name:      "",
-			},
-			Project: "",
-		},
-	}
 
 	for _, c := range []struct {
 		testName           string
@@ -591,8 +534,7 @@ func TestRenderTemplateParamsFinalizers(t *testing.T) {
 		t.Run(c.testName, func(t *testing.T) {
 
 			// Clone the template application
-			application := emptyApplication.DeepCopy()
-			application.Finalizers = c.existingFinalizers
+			application := testutils.UpdateData(emptyApplication(), "/metadata/finalizers", c.existingFinalizers)
 
 			params := map[string]interface{}{
 				"one": "two",
@@ -601,7 +543,7 @@ func TestRenderTemplateParamsFinalizers(t *testing.T) {
 			// Render the cloned application, into a new application
 			render := Render{}
 
-			res, err := render.RenderTemplateParams(application, c.syncPolicy, params, true)
+			res, err := render.RenderTemplateParams(application.(map[string]interface{}), c.syncPolicy, params, true)
 			assert.Nil(t, err)
 
 			assert.ElementsMatch(t, res.Finalizers, c.expectedFinalizers)

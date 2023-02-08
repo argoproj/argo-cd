@@ -1,10 +1,12 @@
 package commands
 
 import (
+	"encoding/json"
 	"fmt"
 	"io"
 	"os"
 	"reflect"
+	"strings"
 	"text/tabwriter"
 
 	"github.com/mattn/go-isatty"
@@ -22,6 +24,8 @@ import (
 	argoio "github.com/argoproj/argo-cd/v2/util/io"
 	"github.com/argoproj/argo-cd/v2/util/templates"
 )
+
+const Templated = "Templated"
 
 var (
 	appSetExample = templates.Examples(`
@@ -60,8 +64,9 @@ func NewAppSetCommand(clientOpts *argocdclient.ClientOptions) *cobra.Command {
 // NewApplicationSetGetCommand returns a new instance of an `argocd appset get` command
 func NewApplicationSetGetCommand(clientOpts *argocdclient.ClientOptions) *cobra.Command {
 	var (
-		output     string
-		showParams bool
+		output       string
+		showParams   bool
+		showTemplate bool
 	)
 	var command = &cobra.Command{
 		Use:   "get APPSETNAME",
@@ -85,7 +90,11 @@ func NewApplicationSetGetCommand(clientOpts *argocdclient.ClientOptions) *cobra.
 				err := PrintResource(appSet, output)
 				errors.CheckError(err)
 			case "wide", "":
-				printAppSetSummaryTable(appSet)
+				var template map[string]interface{}
+				err := json.Unmarshal(appSet.Spec.Template.Raw, &template)
+				errors.CheckError(err)
+
+				printAppSetSummaryTable(appSet, template)
 
 				if len(appSet.Status.Conditions) > 0 {
 					fmt.Println()
@@ -94,8 +103,19 @@ func NewApplicationSetGetCommand(clientOpts *argocdclient.ClientOptions) *cobra.
 					_ = w.Flush()
 					fmt.Println()
 				}
+
+				if showTemplate {
+					showAppSetTemplate(template)
+				}
+
 				if showParams {
-					printHelmParams(appSet.Spec.Template.Spec.GetSource().Helm)
+					if source, ok := template["source"].(map[string]interface{}); ok {
+						if helm, ok := source["helm"].(map[string]interface{}); ok {
+							if parameters, ok := helm["parameters"].([]map[string]interface{}); ok {
+								printHelmParamsAsMapStringInterface(parameters)
+							}
+						}
+					}
 				}
 			default:
 				errors.CheckError(fmt.Errorf("unknown output format: %s", output))
@@ -104,7 +124,28 @@ func NewApplicationSetGetCommand(clientOpts *argocdclient.ClientOptions) *cobra.
 	}
 	command.Flags().StringVarP(&output, "output", "o", "wide", "Output format. One of: json|yaml|wide")
 	command.Flags().BoolVar(&showParams, "show-params", false, "Show ApplicationSet parameters and overrides")
+	command.Flags().BoolVar(&showTemplate, "show-template", false, "Show ApplicationSet template as yaml")
 	return command
+}
+
+func showAppSetTemplate(template map[string]interface{}) {
+	fmt.Println("Template:")
+	err := PrintResource(template, "yaml")
+	errors.CheckError(err)
+}
+
+func printHelmParamsAsMapStringInterface(parameters []map[string]interface{}) {
+	paramLenLimit := 80
+	fmt.Println()
+	w := tabwriter.NewWriter(os.Stdout, 0, 0, 2, ' ', 0)
+	if len(parameters) > 0 {
+		fmt.Println()
+		_, _ = fmt.Fprintf(w, "NAME\tVALUE\n")
+		for _, p := range parameters {
+			_, _ = fmt.Fprintf(w, "%s\t%s\n", p["name"].(string), truncateString(p["value"].(string), paramLenLimit))
+		}
+	}
+	_ = w.Flush()
 }
 
 // NewApplicationSetCreateCommand returns a new instance of an `argocd appset create` command
@@ -136,7 +177,7 @@ func NewApplicationSetCreateCommand(clientOpts *argocdclient.ClientOptions) *cob
 
 			for _, appset := range appsets {
 				if appset.Name == "" {
-					err := fmt.Errorf("Error creating ApplicationSet %s. ApplicationSet does not have Name field set", appset)
+					err := fmt.Errorf("error creating ApplicationSet %s. ApplicationSet does not have Name field set", appset)
 					errors.CheckError(err)
 				}
 
@@ -309,51 +350,108 @@ func printApplicationSetTable(apps []arogappsetv1.ApplicationSet, output *string
 				conditions = append(conditions, condition)
 			}
 		}
+
+		var template map[string]interface{}
+		err := json.Unmarshal(app.Spec.Template.Raw, &template)
+		errors.CheckError(err)
+
+		project, ok := template["spec"].(map[string]interface{})["project"].(string)
+
+		if !ok {
+			errors.Fatal(errors.ErrorGeneric, fmt.Errorf("unable to get project"))
+		}
+
 		vals := []interface{}{
 			app.ObjectMeta.Name,
 			app.ObjectMeta.Namespace,
-			app.Spec.Template.Spec.Project,
+			project,
 			app.Spec.SyncPolicy,
 			conditions,
 		}
 		if *output == "wide" {
-			vals = append(vals, app.Spec.Template.Spec.GetSource().RepoURL, app.Spec.Template.Spec.GetSource().Path, app.Spec.Template.Spec.GetSource().TargetRevision)
+			source, ok := template["spec"].(map[string]interface{})["source"].(map[string]interface{})
+
+			if !ok {
+				vals = append(vals, Templated, Templated, Templated)
+			} else {
+				vals = append(vals, source["repoURL"].(string), source["path"].(string), source["targetRevision"].(string))
+			}
 		}
 		_, _ = fmt.Fprintf(w, fmtStr, vals...)
 	}
 	_ = w.Flush()
 }
 
-func getServerForAppSet(appSet *arogappsetv1.ApplicationSet) string {
-	if appSet.Spec.Template.Spec.Destination.Server == "" {
-		return appSet.Spec.Template.Spec.Destination.Name
+func getServerForAppSet(destination map[string]interface{}) string {
+	if repoURL, ok := destination["server"].(string); ok {
+		return repoURL
 	}
 
-	return appSet.Spec.Template.Spec.Destination.Server
+	name, _ := destination["name"].(string)
+
+	return name
 }
 
-func printAppSetSummaryTable(appSet *arogappsetv1.ApplicationSet) {
-	source := appSet.Spec.Template.Spec.GetSource()
+func printAppSetSummaryTable(appSet *arogappsetv1.ApplicationSet, template map[string]interface{}) {
 	fmt.Printf(printOpFmtStr, "Name:", appSet.Name)
-	fmt.Printf(printOpFmtStr, "Project:", appSet.Spec.Template.Spec.GetProject())
-	fmt.Printf(printOpFmtStr, "Server:", getServerForAppSet(appSet))
-	fmt.Printf(printOpFmtStr, "Namespace:", appSet.Spec.Template.Spec.Destination.Namespace)
-	fmt.Printf(printOpFmtStr, "Repo:", source.RepoURL)
-	fmt.Printf(printOpFmtStr, "Target:", source.TargetRevision)
-	fmt.Printf(printOpFmtStr, "Path:", source.Path)
-	printAppSourceDetails(&source)
+
+	project, ok := template["spec"].(map[string]interface{})["project"].(string)
+
+	if !ok {
+		errors.Fatal(errors.ErrorGeneric, fmt.Errorf("unable to get project"))
+	}
+
+	fmt.Printf(printOpFmtStr, "Project:", project)
+
+	destination, ok := template["spec"].(map[string]interface{})["destination"].(map[string]interface{})
+
+	if ok {
+		fmt.Printf(printOpFmtStr, "Server:", getServerForAppSet(destination))
+		if namespace, ok := destination["namespace"].(string); ok {
+			fmt.Printf(printOpFmtStr, "Namespace:", namespace)
+		}
+	}
+
+	if source, ok := template["spec"].(map[string]interface{})["source"].(map[string]interface{}); ok {
+		fmt.Printf(printOpFmtStr, "Repo:", source["repoURL"].(string))
+		fmt.Printf(printOpFmtStr, "Path:", source["path"].(string))
+		fmt.Printf(printOpFmtStr, "TargeTRevision:", source["targetRevision"].(string))
+		printAppSourceDetailsAsMapStringInterface(source)
+	}
 
 	var syncPolicy string
-	if appSet.Spec.SyncPolicy != nil && appSet.Spec.Template.Spec.SyncPolicy.Automated != nil {
-		syncPolicy = "Automated"
-		if appSet.Spec.Template.Spec.SyncPolicy.Automated.Prune {
-			syncPolicy += " (Prune)"
+	if syncPolicyModel, ok := template["spec"].(map[string]interface{})["syncPolicy"].(map[string]interface{}); ok {
+		if automated, ok := syncPolicyModel["automated"].(map[string]interface{}); ok {
+
+			syncPolicy = "Automated"
+
+			if _, ok := automated["prune"].(map[string]interface{}); ok {
+				syncPolicy += " (Prune)"
+			}
+		} else {
+			syncPolicy = "Automated"
 		}
 	} else {
 		syncPolicy = "<none>"
 	}
+
 	fmt.Printf(printOpFmtStr, "SyncPolicy:", syncPolicy)
 
+}
+
+func printAppSourceDetailsAsMapStringInterface(source map[string]interface{}) {
+
+	if helm, ok := source["helm"].(map[string]interface{}); ok {
+		if valueFiles, ok := helm["valueFiles"].([]string); ok {
+			fmt.Printf(printOpFmtStr, "Helm Values:", strings.Join(valueFiles, ","))
+		}
+	}
+
+	if kustomize, ok := source["kustomize"].(map[string]interface{}); ok {
+		if namePrefix, ok := kustomize["namePrefix"].([]string); ok {
+			fmt.Printf(printOpFmtStr, "Name Prefix:", namePrefix)
+		}
+	}
 }
 
 func printAppSetConditions(w io.Writer, appSet *arogappsetv1.ApplicationSet) {

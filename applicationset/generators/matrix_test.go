@@ -163,7 +163,7 @@ func TestMatrixGenerate(t *testing.T) {
 				}, nil)
 
 				genMock.On("GetTemplate", &gitGeneratorSpec).
-					Return(&argoprojiov1alpha1.ApplicationSetTemplate{})
+					Return(&apiextensionsv1.JSON{Raw: []byte("{}")})
 			}
 
 			var matrixGenerator = NewMatrixGenerator(
@@ -176,7 +176,7 @@ func TestMatrixGenerate(t *testing.T) {
 			got, err := matrixGenerator.GenerateParams(&argoprojiov1alpha1.ApplicationSetGenerator{
 				Matrix: &argoprojiov1alpha1.MatrixGenerator{
 					Generators: testCaseCopy.baseGenerators,
-					Template:   argoprojiov1alpha1.ApplicationSetTemplate{},
+					Template:   &apiextensionsv1.JSON{Raw: []byte("{}")},
 				},
 			}, appSet)
 
@@ -358,7 +358,7 @@ func TestMatrixGenerateGoTemplate(t *testing.T) {
 				}, nil)
 
 				genMock.On("GetTemplate", &gitGeneratorSpec).
-					Return(&argoprojiov1alpha1.ApplicationSetTemplate{})
+					Return(&apiextensionsv1.JSON{Raw: []byte("{}")})
 			}
 
 			var matrixGenerator = NewMatrixGenerator(
@@ -371,7 +371,7 @@ func TestMatrixGenerateGoTemplate(t *testing.T) {
 			got, err := matrixGenerator.GenerateParams(&argoprojiov1alpha1.ApplicationSetGenerator{
 				Matrix: &argoprojiov1alpha1.MatrixGenerator{
 					Generators: testCaseCopy.baseGenerators,
-					Template:   argoprojiov1alpha1.ApplicationSetTemplate{},
+					Template:   &apiextensionsv1.JSON{Raw: []byte("{}")},
 				},
 			}, appSet)
 
@@ -486,7 +486,7 @@ func TestMatrixGetRequeueAfter(t *testing.T) {
 			got := matrixGenerator.GetRequeueAfter(&argoprojiov1alpha1.ApplicationSetGenerator{
 				Matrix: &argoprojiov1alpha1.MatrixGenerator{
 					Generators: testCaseCopy.baseGenerators,
-					Template:   argoprojiov1alpha1.ApplicationSetTemplate{},
+					Template:   &apiextensionsv1.JSON{Raw: []byte("{}")},
 				},
 			})
 
@@ -619,7 +619,7 @@ func TestInterpolatedMatrixGenerate(t *testing.T) {
 					},
 				}, nil)
 				genMock.On("GetTemplate", &gitGeneratorSpec).
-					Return(&argoprojiov1alpha1.ApplicationSetTemplate{})
+					Return(&apiextensionsv1.JSON{Raw: []byte("{}")})
 			}
 			var matrixGenerator = NewMatrixGenerator(
 				map[string]Generator{
@@ -631,7 +631,7 @@ func TestInterpolatedMatrixGenerate(t *testing.T) {
 			got, err := matrixGenerator.GenerateParams(&argoprojiov1alpha1.ApplicationSetGenerator{
 				Matrix: &argoprojiov1alpha1.MatrixGenerator{
 					Generators: testCaseCopy.baseGenerators,
-					Template:   argoprojiov1alpha1.ApplicationSetTemplate{},
+					Template:   &apiextensionsv1.JSON{Raw: []byte("{}")},
 				},
 			}, appSet)
 
@@ -807,7 +807,7 @@ func TestInterpolatedMatrixGenerateGoTemplate(t *testing.T) {
 					},
 				}, nil)
 				genMock.On("GetTemplate", &gitGeneratorSpec).
-					Return(&argoprojiov1alpha1.ApplicationSetTemplate{})
+					Return(&apiextensionsv1.JSON{Raw: []byte("{}")})
 			}
 			var matrixGenerator = NewMatrixGenerator(
 				map[string]Generator{
@@ -819,7 +819,7 @@ func TestInterpolatedMatrixGenerateGoTemplate(t *testing.T) {
 			got, err := matrixGenerator.GenerateParams(&argoprojiov1alpha1.ApplicationSetGenerator{
 				Matrix: &argoprojiov1alpha1.MatrixGenerator{
 					Generators: testCaseCopy.baseGenerators,
-					Template:   argoprojiov1alpha1.ApplicationSetTemplate{},
+					Template:   &apiextensionsv1.JSON{Raw: []byte("{}")},
 				},
 			}, appSet)
 
@@ -839,10 +839,10 @@ type generatorMock struct {
 	mock.Mock
 }
 
-func (g *generatorMock) GetTemplate(appSetGenerator *argoprojiov1alpha1.ApplicationSetGenerator) *argoprojiov1alpha1.ApplicationSetTemplate {
+func (g *generatorMock) GetTemplate(appSetGenerator *argoprojiov1alpha1.ApplicationSetGenerator) *apiextensionsv1.JSON {
 	args := g.Called(appSetGenerator)
 
-	return args.Get(0).(*argoprojiov1alpha1.ApplicationSetTemplate)
+	return args.Get(0).(*apiextensionsv1.JSON)
 }
 
 func (g *generatorMock) GenerateParams(appSetGenerator *argoprojiov1alpha1.ApplicationSetGenerator, appSet *argoprojiov1alpha1.ApplicationSet) ([]map[string]interface{}, error) {

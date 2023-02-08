@@ -176,7 +176,7 @@ func TestMergeGenerate(t *testing.T) {
 				Merge: &argoprojiov1alpha1.MergeGenerator{
 					Generators: testCaseCopy.baseGenerators,
 					MergeKeys:  testCaseCopy.mergeKeys,
-					Template:   argoprojiov1alpha1.ApplicationSetTemplate{},
+					Template:   &apiextensionsv1.JSON{Raw: []byte("{}")},
 				},
 			}, appSet)
 

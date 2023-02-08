@@ -25,6 +25,8 @@ import (
 	"sigs.k8s.io/controller-runtime/pkg/client/fake"
 	"sigs.k8s.io/controller-runtime/pkg/controller/controllerutil"
 
+	testutils "github.com/argoproj/argo-cd/v2/test"
+
 	"github.com/argoproj/argo-cd/v2/applicationset/generators"
 	"github.com/argoproj/argo-cd/v2/applicationset/utils"
 	"github.com/argoproj/gitops-engine/pkg/health"
@@ -41,10 +43,10 @@ type generatorMock struct {
 	mock.Mock
 }
 
-func (g *generatorMock) GetTemplate(appSetGenerator *argov1alpha1.ApplicationSetGenerator) *argov1alpha1.ApplicationSetTemplate {
+func (g *generatorMock) GetTemplate(appSetGenerator *argov1alpha1.ApplicationSetGenerator) *apiextensionsv1.JSON {
 	args := g.Called(appSetGenerator)
 
-	return args.Get(0).(*argov1alpha1.ApplicationSetTemplate)
+	return args.Get(0).(*apiextensionsv1.JSON)
 }
 
 func (g *generatorMock) GenerateParams(appSetGenerator *argov1alpha1.ApplicationSetGenerator, _ *argov1alpha1.ApplicationSet) ([]map[string]interface{}, error) {
@@ -63,15 +65,26 @@ func (g *generatorMock) GetRequeueAfter(appSetGenerator *argov1alpha1.Applicatio
 	return args.Get(0).(time.Duration)
 }
 
-func (r *rendererMock) RenderTemplateParams(tmpl *argov1alpha1.Application, syncPolicy *argov1alpha1.ApplicationSetSyncPolicy, params map[string]interface{}, useGoTemplate bool) (*argov1alpha1.Application, error) {
+func (r *rendererMock) RenderTemplateParams(tmpl map[string]interface{}, syncPolicy *argov1alpha1.ApplicationSetSyncPolicy, params map[string]interface{}, useGoTemplate bool) (*argov1alpha1.Application, error) {
 	args := r.Called(tmpl, params, useGoTemplate)
 
 	if args.Error(1) != nil {
 		return nil, args.Error(1)
 	}
 
-	return args.Get(0).(*argov1alpha1.Application), args.Error(1)
+	b, err := json.Marshal(tmpl)
 
+	if err != nil {
+		return nil, err
+	}
+
+	app := argov1alpha1.Application{}
+
+	if err := json.Unmarshal(b, &app); err != nil {
+		return nil, err
+	}
+
+	return &app, args.Error(1)
 }
 
 func TestExtractApplications(t *testing.T) {
@@ -85,24 +98,41 @@ func TestExtractApplications(t *testing.T) {
 	for _, c := range []struct {
 		name                string
 		params              []map[string]interface{}
-		template            argov1alpha1.ApplicationSetTemplate
+		template            map[string]interface{}
 		generateParamsError error
 		rendererError       error
 		expectErr           bool
 		expectedReason      v1alpha1.ApplicationSetReasonType
+		expectedApps        []argov1alpha1.Application
 	}{
 		{
 			name:   "Generate two applications",
 			params: []map[string]interface{}{{"name": "app1"}, {"name": "app2"}},
-			template: argov1alpha1.ApplicationSetTemplate{
-				ApplicationSetTemplateMeta: argov1alpha1.ApplicationSetTemplateMeta{
-					Name:      "name",
-					Namespace: "namespace",
-					Labels:    map[string]string{"label_name": "label_value"},
+			template: map[string]interface{}{
+				"metadata": map[string]interface{}{
+					"namespace": "namespace",
+					"name":      "name",
+					"labels":    map[string]interface{}{"label_name": "label_value"},
 				},
-				Spec: argov1alpha1.ApplicationSpec{},
+				"spec": map[string]interface{}{},
 			},
 			expectedReason: "",
+			expectedApps: []argov1alpha1.Application{
+				{
+					ObjectMeta: metav1.ObjectMeta{
+						Name:      "name",
+						Namespace: "namespace",
+						Labels:    map[string]string{"label_name": "label_value"},
+					},
+				},
+				{
+					ObjectMeta: metav1.ObjectMeta{
+						Name:      "name",
+						Namespace: "namespace",
+						Labels:    map[string]string{"label_name": "label_value"},
+					},
+				},
+			},
 		},
 		{
 			name:                "Handles error from the generator",
@@ -113,13 +143,13 @@ func TestExtractApplications(t *testing.T) {
 		{
 			name:   "Handles error from the render",
 			params: []map[string]interface{}{{"name": "app1"}, {"name": "app2"}},
-			template: argov1alpha1.ApplicationSetTemplate{
-				ApplicationSetTemplateMeta: argov1alpha1.ApplicationSetTemplateMeta{
-					Name:      "name",
-					Namespace: "namespace",
-					Labels:    map[string]string{"label_name": "label_value"},
+			template: map[string]interface{}{
+				"metadata": map[string]interface{}{
+					"namespace": "namespace",
+					"name":      "name",
+					"labels":    map[string]interface{}{"label_name": "label_value"},
 				},
-				Spec: argov1alpha1.ApplicationSpec{},
+				"spec": map[string]interface{}{},
 			},
 			rendererError:  fmt.Errorf("error"),
 			expectErr:      true,
@@ -127,11 +157,6 @@ func TestExtractApplications(t *testing.T) {
 		},
 	} {
 		cc := c
-		app := argov1alpha1.Application{
-			ObjectMeta: metav1.ObjectMeta{
-				Name: "test",
-			},
-		}
 
 		t.Run(cc.name, func(t *testing.T) {
 
@@ -153,22 +178,20 @@ func TestExtractApplications(t *testing.T) {
 				Return(cc.params, cc.generateParamsError)
 
 			generatorMock.On("GetTemplate", &generator).
-				Return(&argov1alpha1.ApplicationSetTemplate{})
+				Return(&apiextensionsv1.JSON{Raw: []byte("{}")})
 
 			rendererMock := rendererMock{}
 
-			var expectedApps []argov1alpha1.Application
-
 			if cc.generateParamsError == nil {
-				for _, p := range cc.params {
+				for i, p := range cc.params {
 
 					if cc.rendererError != nil {
-						rendererMock.On("RenderTemplateParams", getTempApplication(cc.template), p, false).
+						rendererMock.On("RenderTemplateParams", cc.template, p, false).
 							Return(nil, cc.rendererError)
 					} else {
-						rendererMock.On("RenderTemplateParams", getTempApplication(cc.template), p, false).
+						app := cc.expectedApps[i]
+						rendererMock.On("RenderTemplateParams", cc.template, p, false).
 							Return(&app, nil)
-						expectedApps = append(expectedApps, app)
 					}
 				}
 			}
@@ -191,7 +214,7 @@ func TestExtractApplications(t *testing.T) {
 				},
 				Spec: argov1alpha1.ApplicationSetSpec{
 					Generators: []argov1alpha1.ApplicationSetGenerator{generator},
-					Template:   cc.template,
+					Template:   testutils.ToApiExtenstionsJSON(cc.template),
 				},
 			})
 
@@ -200,7 +223,7 @@ func TestExtractApplications(t *testing.T) {
 			} else {
 				assert.NoError(t, err)
 			}
-			assert.Equal(t, expectedApps, got)
+			assert.Equal(t, cc.expectedApps, got)
 			assert.Equal(t, cc.expectedReason, reason)
 			generatorMock.AssertNumberOfCalls(t, "GenerateParams", 1)
 
@@ -223,43 +246,43 @@ func TestMergeTemplateApplications(t *testing.T) {
 	for _, c := range []struct {
 		name             string
 		params           []map[string]interface{}
-		template         argov1alpha1.ApplicationSetTemplate
-		overrideTemplate argov1alpha1.ApplicationSetTemplate
-		expectedMerged   argov1alpha1.ApplicationSetTemplate
+		template         map[string]interface{}
+		overrideTemplate map[string]interface{}
+		expectedMerged   map[string]interface{}
 		expectedApps     []argov1alpha1.Application
 	}{
 		{
 			name:   "Generate app",
 			params: []map[string]interface{}{{"name": "app1"}},
-			template: argov1alpha1.ApplicationSetTemplate{
-				ApplicationSetTemplateMeta: argov1alpha1.ApplicationSetTemplateMeta{
-					Name:      "name",
-					Namespace: "namespace",
-					Labels:    map[string]string{"label_name": "label_value"},
+			template: map[string]interface{}{
+				"metadata": map[string]interface{}{
+					"name":      "name",
+					"namespace": "namespace",
+					"labels":    map[string]interface{}{"label_name": "label_value"},
 				},
-				Spec: argov1alpha1.ApplicationSpec{},
+				"spec": map[string]interface{}{},
 			},
-			overrideTemplate: argov1alpha1.ApplicationSetTemplate{
-				ApplicationSetTemplateMeta: argov1alpha1.ApplicationSetTemplateMeta{
-					Name:   "test",
-					Labels: map[string]string{"foo": "bar"},
+			overrideTemplate: map[string]interface{}{
+				"metadata": map[string]interface{}{
+					"name":   "test",
+					"labels": map[string]interface{}{"foo": "bar"},
 				},
-				Spec: argov1alpha1.ApplicationSpec{},
+				"spec": map[string]interface{}{},
 			},
-			expectedMerged: argov1alpha1.ApplicationSetTemplate{
-				ApplicationSetTemplateMeta: argov1alpha1.ApplicationSetTemplateMeta{
-					Name:      "test",
-					Namespace: "namespace",
-					Labels:    map[string]string{"label_name": "label_value", "foo": "bar"},
+			expectedMerged: map[string]interface{}{
+				"metadata": map[string]interface{}{
+					"name":      "test",
+					"namespace": "namespace",
+					"labels":    map[string]interface{}{"label_name": "label_value", "foo": "bar"},
 				},
-				Spec: argov1alpha1.ApplicationSpec{},
+				"spec": map[string]interface{}{},
 			},
 			expectedApps: []argov1alpha1.Application{
 				{
 					ObjectMeta: metav1.ObjectMeta{
 						Name:      "test",
-						Namespace: "test",
-						Labels:    map[string]string{"foo": "bar"},
+						Namespace: "namespace",
+						Labels:    map[string]string{"label_name": "label_value", "foo": "bar"},
 					},
 					Spec: argov1alpha1.ApplicationSpec{},
 				},
@@ -278,12 +301,14 @@ func TestMergeTemplateApplications(t *testing.T) {
 			generatorMock.On("GenerateParams", &generator).
 				Return(cc.params, nil)
 
+			overrideTmpl := testutils.ToApiExtenstionsJSON(cc.overrideTemplate)
+
 			generatorMock.On("GetTemplate", &generator).
-				Return(&cc.overrideTemplate)
+				Return(&overrideTmpl)
 
 			rendererMock := rendererMock{}
 
-			rendererMock.On("RenderTemplateParams", getTempApplication(cc.expectedMerged), cc.params[0], false).
+			rendererMock.On("RenderTemplateParams", cc.expectedMerged, cc.params[0], false).
 				Return(&cc.expectedApps[0], nil)
 
 			r := ApplicationSetReconciler{
@@ -304,7 +329,7 @@ func TestMergeTemplateApplications(t *testing.T) {
 				},
 				Spec: argov1alpha1.ApplicationSetSpec{
 					Generators: []argov1alpha1.ApplicationSetGenerator{generator},
-					Template:   cc.template,
+					Template:   testutils.ToApiExtenstionsJSON(cc.template),
 				},
 			},
 			)
@@ -374,11 +399,7 @@ func TestCreateOrUpdateInCluster(t *testing.T) {
 					Namespace: "namespace",
 				},
 				Spec: argov1alpha1.ApplicationSetSpec{
-					Template: argov1alpha1.ApplicationSetTemplate{
-						Spec: argov1alpha1.ApplicationSpec{
-							Project: "project",
-						},
-					},
+					Template: apiextensionsv1.JSON{Raw: []byte(`{"project":"project"}`)},
 				},
 			},
 			existingApps: []argov1alpha1.Application{
@@ -432,11 +453,7 @@ func TestCreateOrUpdateInCluster(t *testing.T) {
 					Namespace: "namespace",
 				},
 				Spec: argov1alpha1.ApplicationSetSpec{
-					Template: argov1alpha1.ApplicationSetTemplate{
-						Spec: argov1alpha1.ApplicationSpec{
-							Project: "project",
-						},
-					},
+					Template: apiextensionsv1.JSON{Raw: []byte(`{"project":"project"}`)},
 				},
 			},
 			existingApps: []argov1alpha1.Application{
@@ -490,11 +507,7 @@ func TestCreateOrUpdateInCluster(t *testing.T) {
 					Namespace: "namespace",
 				},
 				Spec: argov1alpha1.ApplicationSetSpec{
-					Template: argov1alpha1.ApplicationSetTemplate{
-						Spec: argov1alpha1.ApplicationSpec{
-							Project: "project",
-						},
-					},
+					Template: apiextensionsv1.JSON{Raw: []byte(`{"project":"project"}`)},
 				},
 			},
 			existingApps: []argov1alpha1.Application{
@@ -552,11 +565,7 @@ func TestCreateOrUpdateInCluster(t *testing.T) {
 					Namespace: "namespace",
 				},
 				Spec: argov1alpha1.ApplicationSetSpec{
-					Template: argov1alpha1.ApplicationSetTemplate{
-						Spec: argov1alpha1.ApplicationSpec{
-							Project: "project",
-						},
-					},
+					Template: apiextensionsv1.JSON{Raw: []byte(`{"project":"project"}`)},
 				},
 			},
 			existingApps: []argov1alpha1.Application{
@@ -612,11 +621,7 @@ func TestCreateOrUpdateInCluster(t *testing.T) {
 					Namespace: "namespace",
 				},
 				Spec: argov1alpha1.ApplicationSetSpec{
-					Template: argov1alpha1.ApplicationSetTemplate{
-						Spec: argov1alpha1.ApplicationSpec{
-							Project: "project",
-						},
-					},
+					Template: apiextensionsv1.JSON{Raw: []byte(`{"project":"project"}`)},
 				},
 			},
 			existingApps: []argov1alpha1.Application{
@@ -684,13 +689,7 @@ func TestCreateOrUpdateInCluster(t *testing.T) {
 					Namespace: "namespace",
 				},
 				Spec: argov1alpha1.ApplicationSetSpec{
-					Template: argov1alpha1.ApplicationSetTemplate{
-						Spec: argov1alpha1.ApplicationSpec{
-							Project:     "project",
-							Source:      &argov1alpha1.ApplicationSource{Path: "path", TargetRevision: "revision", RepoURL: "repoURL"},
-							Destination: argov1alpha1.ApplicationDestination{Server: "server", Namespace: "namespace"},
-						},
-					},
+					Template: apiextensionsv1.JSON{Raw: []byte(`{"project":"project","source":{"path":"path","revision":"revision","repoURL":"repoURL"},"destination":{"server":"server","namespace":"namespace"}}`)},
 				},
 			},
 			existingApps: []argov1alpha1.Application{
@@ -764,11 +763,7 @@ func TestCreateOrUpdateInCluster(t *testing.T) {
 					Namespace: "namespace",
 				},
 				Spec: argov1alpha1.ApplicationSetSpec{
-					Template: argov1alpha1.ApplicationSetTemplate{
-						Spec: argov1alpha1.ApplicationSpec{
-							Project: "project",
-						},
-					},
+					Template: apiextensionsv1.JSON{Raw: []byte(`{"project":"project"}`)},
 				},
 			},
 			existingApps: []argov1alpha1.Application{
@@ -906,11 +901,7 @@ func TestRemoveFinalizerOnInvalidDestination_FinalizerTypes(t *testing.T) {
 					Namespace: "namespace",
 				},
 				Spec: argov1alpha1.ApplicationSetSpec{
-					Template: argov1alpha1.ApplicationSetTemplate{
-						Spec: argov1alpha1.ApplicationSpec{
-							Project: "project",
-						},
-					},
+					Template: apiextensionsv1.JSON{Raw: []byte(`{"project":"project"}`)},
 				},
 			}
 
@@ -1068,11 +1059,7 @@ func TestRemoveFinalizerOnInvalidDestination_DestinationTypes(t *testing.T) {
 					Namespace: "namespace",
 				},
 				Spec: argov1alpha1.ApplicationSetSpec{
-					Template: argov1alpha1.ApplicationSetTemplate{
-						Spec: argov1alpha1.ApplicationSpec{
-							Project: "project",
-						},
-					},
+					Template: apiextensionsv1.JSON{Raw: []byte(`{"project":"project"}`)},
 				},
 			}
 
@@ -1196,11 +1183,7 @@ func TestCreateApplications(t *testing.T) {
 					Namespace: "namespace",
 				},
 				Spec: argov1alpha1.ApplicationSetSpec{
-					Template: argov1alpha1.ApplicationSetTemplate{
-						Spec: argov1alpha1.ApplicationSpec{
-							Project: "project",
-						},
-					},
+					Template: apiextensionsv1.JSON{Raw: []byte(`{"project":"project"}`)},
 				},
 			},
 			existsApps: []argov1alpha1.Application{
@@ -1253,11 +1236,7 @@ func TestCreateApplications(t *testing.T) {
 					Namespace: "namespace",
 				},
 				Spec: argov1alpha1.ApplicationSetSpec{
-					Template: argov1alpha1.ApplicationSetTemplate{
-						Spec: argov1alpha1.ApplicationSpec{
-							Project: "project",
-						},
-					},
+					Template: apiextensionsv1.JSON{Raw: []byte(`{"project":"project"}`)},
 				},
 			},
 			existsApps: []argov1alpha1.Application{
@@ -1365,11 +1344,7 @@ func TestDeleteInCluster(t *testing.T) {
 					Namespace: "namespace",
 				},
 				Spec: argov1alpha1.ApplicationSetSpec{
-					Template: argov1alpha1.ApplicationSetTemplate{
-						Spec: argov1alpha1.ApplicationSpec{
-							Project: "project",
-						},
-					},
+					Template: apiextensionsv1.JSON{Raw: []byte(`{"project":"project"}`)},
 				},
 			},
 			existingApps: []argov1alpha1.Application{
@@ -1790,6 +1765,24 @@ func TestReconcilerValidationErrorBehaviour(t *testing.T) {
 		ObjectMeta: metav1.ObjectMeta{Name: "default", Namespace: "argocd"},
 		Spec:       argov1alpha1.AppProjectSpec{SourceRepos: []string{"*"}, Destinations: []argov1alpha1.ApplicationDestination{{Namespace: "*", Server: "https://good-cluster"}}},
 	}
+
+	appSetTemplate := testutils.ToApiExtenstionsJSON(map[string]interface{}{
+		"metadata": map[string]interface{}{
+			"name":      "{{.cluster}}",
+			"namespace": "argocd",
+		},
+		"spec": map[string]interface{}{
+			"source": map[string]interface{}{
+				"repoURL": "https://github.com/argoproj/argocd-example-apps",
+				"path":    "guestbook",
+			},
+			"project": "default",
+			"destination": map[string]interface{}{
+				"server": "{{.url}}",
+			},
+		},
+	})
+
 	appSet := argov1alpha1.ApplicationSet{
 		ObjectMeta: metav1.ObjectMeta{
 			Name:      "name",
@@ -1808,17 +1801,7 @@ func TestReconcilerValidationErrorBehaviour(t *testing.T) {
 					},
 				},
 			},
-			Template: argov1alpha1.ApplicationSetTemplate{
-				ApplicationSetTemplateMeta: argov1alpha1.ApplicationSetTemplateMeta{
-					Name:      "{{.cluster}}",
-					Namespace: "argocd",
-				},
-				Spec: argov1alpha1.ApplicationSpec{
-					Source:      &argov1alpha1.ApplicationSource{RepoURL: "https://github.com/argoproj/argocd-example-apps", Path: "guestbook"},
-					Project:     "default",
-					Destination: argov1alpha1.ApplicationDestination{Server: "{{.url}}"},
-				},
-			},
+			Template: appSetTemplate,
 		},
 	}
 
@@ -1893,7 +1876,7 @@ func TestSetApplicationSetStatusCondition(t *testing.T) {
 					}},
 				}},
 			},
-			Template: argov1alpha1.ApplicationSetTemplate{},
+			Template: apiextensionsv1.JSON{Raw: []byte("{}")},
 		},
 	}
 
@@ -1934,10 +1917,30 @@ func TestGenerateAppsUsingPullRequestGenerator(t *testing.T) {
 	scheme := runtime.NewScheme()
 	client := fake.NewClientBuilder().WithScheme(scheme).Build()
 
+	appSetTemplate := testutils.ToApiExtenstionsJSON(map[string]interface{}{
+		"metadata": map[string]interface{}{
+			"name": "AppSet-{{.branch}}-{{.number}}",
+			"labels": map[string]string{
+				"app1": "{{index .labels 0}}",
+			},
+		},
+		"spec": map[string]interface{}{
+			"source": map[string]interface{}{
+				"repoURL":        "https://testurl/testRepo",
+				"targetRevision": "{{.head_short_sha}}",
+			},
+			"project": "default",
+			"destination": map[string]interface{}{
+				"server":    "https://kubernetes.default.svc",
+				"namespace": "AppSet-{{.branch_slug}}-{{.head_sha}}",
+			},
+		},
+	})
+
 	for _, cases := range []struct {
 		name        string
 		params      []map[string]interface{}
-		template    argov1alpha1.ApplicationSetTemplate
+		template    apiextensionsv1.JSON
 		expectedApp []argov1alpha1.Application
 	}{
 		{
@@ -1949,24 +1952,7 @@ func TestGenerateAppsUsingPullRequestGenerator(t *testing.T) {
 				"head_sha":       "089d92cbf9ff857a39e6feccd32798ca700fb958",
 				"head_short_sha": "089d92cb",
 				"labels":         []string{"label1"}}},
-			template: argov1alpha1.ApplicationSetTemplate{
-				ApplicationSetTemplateMeta: argov1alpha1.ApplicationSetTemplateMeta{
-					Name: "AppSet-{{.branch}}-{{.number}}",
-					Labels: map[string]string{
-						"app1": "{{index .labels 0}}",
-					},
-				},
-				Spec: argov1alpha1.ApplicationSpec{
-					Source: &argov1alpha1.ApplicationSource{
-						RepoURL:        "https://testurl/testRepo",
-						TargetRevision: "{{.head_short_sha}}",
-					},
-					Destination: argov1alpha1.ApplicationDestination{
-						Server:    "https://kubernetes.default.svc",
-						Namespace: "AppSet-{{.branch_slug}}-{{.head_sha}}",
-					},
-				},
-			},
+			template: appSetTemplate,
 			expectedApp: []argov1alpha1.Application{
 				{
 					ObjectMeta: metav1.ObjectMeta{
@@ -2089,6 +2075,26 @@ func TestPolicies(t *testing.T) {
 			policy := utils.Policies[c.policyName]
 			assert.NotNil(t, policy)
 
+			appSetTemplate := testutils.ToApiExtenstionsJSON(map[string]interface{}{
+				"metadata": map[string]interface{}{
+					"name":      "{{.name}}",
+					"namespace": "argocd",
+					"annotations": map[string]string{
+						"key": "value",
+					},
+				},
+				"spec": map[string]interface{}{
+					"source": map[string]interface{}{
+						"repoURL": "https://github.com/argoproj/argocd-example-apps",
+						"path":    "guestbook",
+					},
+					"project": "default",
+					"destination": map[string]interface{}{
+						"server": "https://kubernetes.default.svc",
+					},
+				},
+			})
+
 			appSet := argov1alpha1.ApplicationSet{
 				ObjectMeta: metav1.ObjectMeta{
 					Name:      "name",
@@ -2107,20 +2113,7 @@ func TestPolicies(t *testing.T) {
 							},
 						},
 					},
-					Template: argov1alpha1.ApplicationSetTemplate{
-						ApplicationSetTemplateMeta: argov1alpha1.ApplicationSetTemplateMeta{
-							Name:      "{{.name}}",
-							Namespace: "argocd",
-							Annotations: map[string]string{
-								"key": "value",
-							},
-						},
-						Spec: argov1alpha1.ApplicationSpec{
-							Source:      &argov1alpha1.ApplicationSource{RepoURL: "https://github.com/argoproj/argocd-example-apps", Path: "guestbook"},
-							Project:     "default",
-							Destination: argov1alpha1.ApplicationDestination{Server: "https://kubernetes.default.svc"},
-						},
-					},
+					Template: appSetTemplate,
 				},
 			}
 
@@ -2221,7 +2214,7 @@ func TestSetApplicationSetApplicationStatus(t *testing.T) {
 					}},
 				}},
 			},
-			Template: argov1alpha1.ApplicationSetTemplate{},
+			Template: apiextensionsv1.JSON{Raw: []byte("{}")},
 		},
 	}
 

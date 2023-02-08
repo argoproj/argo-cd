@@ -11,8 +11,11 @@ import (
 	"time"
 
 	"github.com/ghodss/yaml"
+	"github.com/go-openapi/jsonpointer"
 	"k8s.io/apimachinery/pkg/apis/meta/v1/unstructured"
 	"k8s.io/client-go/tools/cache"
+
+	apiextensionsv1 "k8s.io/apiextensions-apiserver/pkg/apis/apiextensions/v1"
 )
 
 // StartInformer is a helper to start an informer, wait for its cache to sync and return a cancel func
@@ -106,4 +109,79 @@ func GetTestDir(t *testing.T) string {
 		t.Fatal(err)
 	}
 	return cwd
+}
+
+// Convert an object into apiextensionsv1.JSON Panic if not possible
+func ToApiExtenstionsJSON(object interface{}) apiextensionsv1.JSON {
+	return apiextensionsv1.JSON{
+		Raw: []byte(ToJSON(object)),
+	}
+}
+
+// Convert an object into string representation Json. Panic if not possible
+func ToJSON(object interface{}) string {
+	output, err := json.Marshal(object)
+
+	if err != nil {
+		panic(err)
+	}
+
+	return string(output)
+}
+
+// Update object in apiextensionsv1.JSON string using json pointer
+func UpdateDataAsJson(jsonString apiextensionsv1.JSON, jsonPointer string, value interface{}) apiextensionsv1.JSON {
+	return apiextensionsv1.JSON{
+		Raw: []byte(UpdateDataAsJsonString(string(jsonString.Raw), jsonPointer, value)),
+	}
+}
+
+// Update object in json string using json pointer
+func UpdateDataAsJsonString(jsonString string, jsonPointer string, value interface{}) string {
+	var object map[string]interface{}
+
+	err := json.Unmarshal([]byte(jsonString), &object)
+
+	if err != nil {
+		panic(err)
+	}
+
+	data := UpdateData(object, jsonPointer, value)
+	return ToJSON(data)
+}
+
+// Update object field using json pointer
+func UpdateData(object interface{}, jsonPointer string, value interface{}) interface{} {
+
+	pointer, err := jsonpointer.New(jsonPointer)
+
+	if err != nil {
+		panic(err)
+	}
+
+	output, err := pointer.Set(object, value)
+
+	if err != nil {
+		panic(err)
+	}
+
+	return output
+}
+
+// Get object field using json pointer
+func GetData(object interface{}, jsonPointer string) interface{} {
+
+	pointer, err := jsonpointer.New(jsonPointer)
+
+	if err != nil {
+		panic(err)
+	}
+
+	output, _, err := pointer.Get(object)
+
+	if err != nil {
+		panic(err)
+	}
+
+	return output
 }

@@ -206,6 +206,12 @@ func filterFields(input argov1alpha1.Application) argov1alpha1.Application {
 		},
 	}
 
+	if spec.SyncPolicy != nil && spec.SyncPolicy.SyncOptions != nil {
+		output.Spec.SyncPolicy = &argov1alpha1.SyncPolicy{
+			SyncOptions: spec.SyncPolicy.SyncOptions,
+		}
+	}
+
 	return output
 }
 

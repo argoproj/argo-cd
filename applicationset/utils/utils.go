@@ -31,7 +31,7 @@ func init() {
 }
 
 type Renderer interface {
-	RenderTemplateParams(tmpl *argoappsv1.Application, syncPolicy *argoappsv1.ApplicationSetSyncPolicy, params map[string]interface{}, useGoTemplate bool) (*argoappsv1.Application, error)
+	RenderTemplateParams(tmpl map[string]interface{}, syncPolicy *argoappsv1.ApplicationSetSyncPolicy, params map[string]interface{}, useGoTemplate bool) (*argoappsv1.Application, error)
 }
 
 type Render struct {
@@ -92,9 +92,9 @@ func (r *Render) deeplyReplace(copy, original reflect.Value, replaceMap map[stri
 	// If it is a struct we translate each field
 	case reflect.Struct:
 		for i := 0; i < original.NumField(); i += 1 {
-			var currentType = fmt.Sprintf("%s.%s", original.Type().Field(i).Name, original.Type().PkgPath())
+			var currentType = fmt.Sprintf("%s/%s", original.Type().PkgPath(), original.Type().Field(i).Name)
 			// specific case time
-			if currentType == "time.Time" {
+			if currentType == "k8s.io/apimachinery/pkg/apis/meta/v1/Time" {
 				copy.Field(i).Set(original.Field(i))
 			} else if err := r.deeplyReplace(copy.Field(i), original.Field(i), replaceMap, useGoTemplate); err != nil {
 				return err
@@ -127,6 +127,7 @@ func (r *Render) deeplyReplace(copy, original reflect.Value, replaceMap map[stri
 			if originalValue.Kind() != reflect.String && originalValue.IsNil() {
 				continue
 			}
+
 			// New gives us a pointer, but again we want the value
 			copyValue := reflect.New(originalValue.Type()).Elem()
 
@@ -172,13 +173,48 @@ func (r *Render) deeplyReplace(copy, original reflect.Value, replaceMap map[stri
 	return nil
 }
 
-func (r *Render) RenderTemplateParams(tmpl *argoappsv1.Application, syncPolicy *argoappsv1.ApplicationSetSyncPolicy, params map[string]interface{}, useGoTemplate bool) (*argoappsv1.Application, error) {
+// Add the 'resources-finalizer' finalizer if:
+// The template application doesn't have any finalizers, and:
+// a) there is no syncPolicy, or
+// b) there IS a syncPolicy, but preserveResourcesOnDeletion is set to false
+// See TestRenderTemplateParamsFinalizers in util_test.go for test-based definition of behaviour
+func (r *Render) preserveResourcesOnDeletion(replacedTmpl *argoappsv1.Application, syncPolicy *argoappsv1.ApplicationSetSyncPolicy) *argoappsv1.Application {
+	if (syncPolicy == nil || !syncPolicy.PreserveResourcesOnDeletion) &&
+		((*replacedTmpl).ObjectMeta.Finalizers == nil || len((*replacedTmpl).ObjectMeta.Finalizers) == 0) {
+
+		(*replacedTmpl).ObjectMeta.Finalizers = []string{"resources-finalizer.argocd.argoproj.io"}
+	}
+	return replacedTmpl
+}
+
+func (r *Render) toApplication(tmpl map[string]interface{}) (*argoappsv1.Application, error) {
+	result, err := json.Marshal(&tmpl)
+
+	if err != nil {
+		return nil, err
+	}
+
+	app := argoappsv1.Application{}
+	if err := json.Unmarshal(result, &app); err != nil {
+		return nil, err
+	}
+
+	return &app, nil
+}
+
+func (r *Render) RenderTemplateParams(tmpl map[string]interface{}, syncPolicy *argoappsv1.ApplicationSetSyncPolicy, params map[string]interface{}, useGoTemplate bool) (*argoappsv1.Application, error) {
 	if tmpl == nil {
 		return nil, fmt.Errorf("application template is empty ")
 	}
 
 	if len(params) == 0 {
-		return tmpl, nil
+		app, err := r.toApplication(tmpl)
+
+		if err != nil {
+			return nil, err
+		}
+
+		return r.preserveResourcesOnDeletion(app, syncPolicy), nil
 	}
 
 	original := reflect.ValueOf(tmpl)
@@ -188,20 +224,15 @@ func (r *Render) RenderTemplateParams(tmpl *argoappsv1.Application, syncPolicy *
 		return nil, err
 	}
 
-	replacedTmpl := copy.Interface().(*argoappsv1.Application)
+	replacedTmpl := copy.Interface().(map[string]interface{})
 
-	// Add the 'resources-finalizer' finalizer if:
-	// The template application doesn't have any finalizers, and:
-	// a) there is no syncPolicy, or
-	// b) there IS a syncPolicy, but preserveResourcesOnDeletion is set to false
-	// See TestRenderTemplateParamsFinalizers in util_test.go for test-based definition of behaviour
-	if (syncPolicy == nil || !syncPolicy.PreserveResourcesOnDeletion) &&
-		((*replacedTmpl).ObjectMeta.Finalizers == nil || len((*replacedTmpl).ObjectMeta.Finalizers) == 0) {
+	app, err := r.toApplication(replacedTmpl)
 
-		(*replacedTmpl).ObjectMeta.Finalizers = []string{"resources-finalizer.argocd.argoproj.io"}
+	if err != nil {
+		return nil, err
 	}
 
-	return replacedTmpl, nil
+	return r.preserveResourcesOnDeletion(app, syncPolicy), nil
 }
 
 var isTemplatedRegex = regexp.MustCompile(".*{{.*}}.*")
@@ -291,7 +322,7 @@ func invalidGenerators(applicationSetInfo *argoappsv1.ApplicationSet) (bool, map
 func addInvalidGeneratorNames(names map[string]bool, applicationSetInfo *argoappsv1.ApplicationSet, index int) {
 	// The generator names are stored in the "kubectl.kubernetes.io/last-applied-configuration" annotation
 	config := applicationSetInfo.ObjectMeta.Annotations["kubectl.kubernetes.io/last-applied-configuration"]
-	var values map[string]interface{}
+	values := map[string]interface{}{}
 	err := json.Unmarshal([]byte(config), &values)
 	if err != nil {
 		log.Warnf("couldn't unmarshal kubectl.kubernetes.io/last-applied-configuration: %+v", config)

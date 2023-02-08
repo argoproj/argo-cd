@@ -12,6 +12,7 @@ argocd appset get APPSETNAME [flags]
   -h, --help            help for get
   -o, --output string   Output format. One of: json|yaml|wide (default "wide")
       --show-params     Show ApplicationSet parameters and overrides
+      --show-template   Show ApplicationSet template as yaml
 ```
 
 ### Options inherited from parent commands

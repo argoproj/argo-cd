@@ -5866,7 +5866,7 @@
           "$ref": "#/definitions/v1alpha1ApplicationSetSyncPolicy"
         },
         "template": {
-          "$ref": "#/definitions/v1alpha1ApplicationSetTemplate"
+          "$ref": "#/definitions/v1JSON"
         }
       }
     },
@@ -5908,48 +5908,6 @@
         "preserveResourcesOnDeletion": {
           "description": "PreserveResourcesOnDeletion will preserve resources on deletion. If PreserveResourcesOnDeletion is set to true, these Applications will not be deleted.",
           "type": "boolean"
-        }
-      }
-    },
-    "v1alpha1ApplicationSetTemplate": {
-      "type": "object",
-      "title": "ApplicationSetTemplate represents argocd ApplicationSpec",
-      "properties": {
-        "metadata": {
-          "$ref": "#/definitions/v1alpha1ApplicationSetTemplateMeta"
-        },
-        "spec": {
-          "$ref": "#/definitions/v1alpha1ApplicationSpec"
-        }
-      }
-    },
-    "v1alpha1ApplicationSetTemplateMeta": {
-      "type": "object",
-      "title": "ApplicationSetTemplateMeta represents the Argo CD application fields that may\nbe used for Applications generated from the ApplicationSet (based on metav1.ObjectMeta)",
-      "properties": {
-        "annotations": {
-          "type": "object",
-          "additionalProperties": {
-            "type": "string"
-          }
-        },
-        "finalizers": {
-          "type": "array",
-          "items": {
-            "type": "string"
-          }
-        },
-        "labels": {
-          "type": "object",
-          "additionalProperties": {
-            "type": "string"
-          }
-        },
-        "name": {
-          "type": "string"
-        },
-        "namespace": {
-          "type": "string"
         }
       }
     },
@@ -6498,7 +6456,7 @@
           "$ref": "#/definitions/v1LabelSelector"
         },
         "template": {
-          "$ref": "#/definitions/v1alpha1ApplicationSetTemplate"
+          "$ref": "#/definitions/v1JSON"
         },
         "values": {
           "type": "object",
@@ -6643,7 +6601,7 @@
           "format": "int64"
         },
         "template": {
-          "$ref": "#/definitions/v1alpha1ApplicationSetTemplate"
+          "$ref": "#/definitions/v1JSON"
         },
         "values": {
           "type": "object",
@@ -6734,7 +6692,7 @@
           "type": "string"
         },
         "template": {
-          "$ref": "#/definitions/v1alpha1ApplicationSetTemplate"
+          "$ref": "#/definitions/v1JSON"
         }
       }
     },
@@ -6974,7 +6932,7 @@
           }
         },
         "template": {
-          "$ref": "#/definitions/v1alpha1ApplicationSetTemplate"
+          "$ref": "#/definitions/v1JSON"
         }
       }
     },
@@ -7006,7 +6964,7 @@
           }
         },
         "template": {
-          "$ref": "#/definitions/v1alpha1ApplicationSetTemplate"
+          "$ref": "#/definitions/v1JSON"
         }
       }
     },
@@ -7027,7 +6985,7 @@
           }
         },
         "template": {
-          "$ref": "#/definitions/v1alpha1ApplicationSetTemplate"
+          "$ref": "#/definitions/v1JSON"
         }
       }
     },
@@ -7221,7 +7179,7 @@
           "format": "int64"
         },
         "template": {
-          "$ref": "#/definitions/v1alpha1ApplicationSetTemplate"
+          "$ref": "#/definitions/v1JSON"
         }
       }
     },
@@ -8022,7 +7980,7 @@
           "format": "int64"
         },
         "template": {
-          "$ref": "#/definitions/v1alpha1ApplicationSetTemplate"
+          "$ref": "#/definitions/v1JSON"
         }
       }
     },

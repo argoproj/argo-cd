@@ -456,18 +456,6 @@ func (r *ApplicationSetReconciler) getMinRequeueAfter(applicationSetInfo *argov1
 	return res
 }
 
-func getTempApplication(applicationSetTemplate argov1alpha1.ApplicationSetTemplate) *argov1alpha1.Application {
-	var tmplApplication argov1alpha1.Application
-	tmplApplication.Annotations = applicationSetTemplate.Annotations
-	tmplApplication.Labels = applicationSetTemplate.Labels
-	tmplApplication.Namespace = applicationSetTemplate.Namespace
-	tmplApplication.Name = applicationSetTemplate.Name
-	tmplApplication.Spec = applicationSetTemplate.Spec
-	tmplApplication.Finalizers = applicationSetTemplate.Finalizers
-
-	return &tmplApplication
-}
-
 func (r *ApplicationSetReconciler) generateApplications(applicationSetInfo argov1alpha1.ApplicationSet) ([]argov1alpha1.Application, argov1alpha1.ApplicationSetReasonType, error) {
 	var res []argov1alpha1.Application
 
@@ -475,7 +463,7 @@ func (r *ApplicationSetReconciler) generateApplications(applicationSetInfo argov
 	var applicationSetReason argov1alpha1.ApplicationSetReasonType
 
 	for _, requestedGenerator := range applicationSetInfo.Spec.Generators {
-		t, err := generators.Transform(requestedGenerator, r.Generators, applicationSetInfo.Spec.Template, &applicationSetInfo, map[string]interface{}{})
+		t, err := generators.Transform(requestedGenerator, r.Generators, &applicationSetInfo.Spec.Template, &applicationSetInfo, map[string]interface{}{})
 		if err != nil {
 			log.WithError(err).WithField("generator", requestedGenerator).
 				Error("error generating application from params")
@@ -487,10 +475,9 @@ func (r *ApplicationSetReconciler) generateApplications(applicationSetInfo argov
 		}
 
 		for _, a := range t {
-			tmplApplication := getTempApplication(a.Template)
 
 			for _, p := range a.Params {
-				app, err := r.Renderer.RenderTemplateParams(tmplApplication, applicationSetInfo.Spec.SyncPolicy, p, applicationSetInfo.Spec.GoTemplate)
+				app, err := r.Renderer.RenderTemplateParams(a.Template, applicationSetInfo.Spec.SyncPolicy, p, applicationSetInfo.Spec.GoTemplate)
 				if err != nil {
 					log.WithError(err).WithField("params", a.Params).WithField("generator", requestedGenerator).
 						Error("error generating application from params")

@@ -16,6 +16,7 @@ import (
 
 	"github.com/argoproj/argo-cd/v2/applicationset/utils"
 	argoappsetv1alpha1 "github.com/argoproj/argo-cd/v2/pkg/apis/application/v1alpha1"
+	apiextensionsv1 "k8s.io/apiextensions-apiserver/pkg/apis/apiextensions/v1"
 )
 
 const (
@@ -55,8 +56,8 @@ func (g *ClusterGenerator) GetRequeueAfter(appSetGenerator *argoappsetv1alpha1.A
 	return NoRequeueAfter
 }
 
-func (g *ClusterGenerator) GetTemplate(appSetGenerator *argoappsetv1alpha1.ApplicationSetGenerator) *argoappsetv1alpha1.ApplicationSetTemplate {
-	return &appSetGenerator.Clusters.Template
+func (g *ClusterGenerator) GetTemplate(appSetGenerator *argoappsetv1alpha1.ApplicationSetGenerator) *apiextensionsv1.JSON {
+	return appSetGenerator.Clusters.Template
 }
 
 func (g *ClusterGenerator) GenerateParams(

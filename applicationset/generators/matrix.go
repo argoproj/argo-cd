@@ -5,6 +5,7 @@ import (
 	"time"
 
 	"github.com/imdario/mergo"
+	apiextensionsv1 "k8s.io/apiextensions-apiserver/pkg/apis/apiextensions/v1"
 
 	"github.com/argoproj/argo-cd/v2/applicationset/utils"
 	argoprojiov1alpha1 "github.com/argoproj/argo-cd/v2/pkg/apis/application/v1alpha1"
@@ -117,7 +118,7 @@ func (m *MatrixGenerator) getParams(appSetBaseGenerator argoprojiov1alpha1.Appli
 			Selector:                appSetBaseGenerator.Selector,
 		},
 		m.supportedGenerators,
-		argoprojiov1alpha1.ApplicationSetTemplate{},
+		&apiextensionsv1.JSON{Raw: []byte("{}")},
 		appSet,
 		params)
 
@@ -168,6 +169,6 @@ func (m *MatrixGenerator) GetRequeueAfter(appSetGenerator *argoprojiov1alpha1.Ap
 
 }
 
-func (m *MatrixGenerator) GetTemplate(appSetGenerator *argoprojiov1alpha1.ApplicationSetGenerator) *argoprojiov1alpha1.ApplicationSetTemplate {
-	return &appSetGenerator.Matrix.Template
+func (m *MatrixGenerator) GetTemplate(appSetGenerator *argoprojiov1alpha1.ApplicationSetGenerator) *apiextensionsv1.JSON {
+	return appSetGenerator.Matrix.Template
 }

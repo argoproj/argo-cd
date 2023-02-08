@@ -9,6 +9,7 @@ import (
 
 	"github.com/argoproj/argo-cd/v2/pkg/apis/application/v1alpha1"
 	argov1alpha1 "github.com/argoproj/argo-cd/v2/pkg/apis/application/v1alpha1"
+	testutils "github.com/argoproj/argo-cd/v2/test"
 	. "github.com/argoproj/argo-cd/v2/test/e2e/fixture/applicationsets"
 	"github.com/argoproj/argo-cd/v2/test/e2e/fixture/applicationsets/utils"
 )
@@ -60,8 +61,8 @@ func TestListMatrixGenerator(t *testing.T) {
 			Name: "matrix-generator",
 		},
 			Spec: v1alpha1.ApplicationSetSpec{
-				Template: v1alpha1.ApplicationSetTemplate{
-					ApplicationSetTemplateMeta: v1alpha1.ApplicationSetTemplateMeta{Name: "{{values.name}}-{{path.basename}}"},
+				Template: testutils.ToApiExtenstionsJSON(v1alpha1.Application{
+					ObjectMeta: metav1.ObjectMeta{Name: "{{values.name}}-{{path.basename}}"},
 					Spec: argov1alpha1.ApplicationSpec{
 						Project: "default",
 						Source: &argov1alpha1.ApplicationSource{
@@ -74,7 +75,7 @@ func TestListMatrixGenerator(t *testing.T) {
 							Namespace: "{{path.basename}}",
 						},
 					},
-				},
+				}),
 				Generators: []v1alpha1.ApplicationSetGenerator{
 					{
 						Matrix: &v1alpha1.MatrixGenerator{
@@ -114,7 +115,7 @@ func TestListMatrixGenerator(t *testing.T) {
 			}
 		}).
 		Update(func(appset *v1alpha1.ApplicationSet) {
-			appset.Spec.Template.Spec.Destination.Namespace = "guestbook2"
+			appset.Spec.Template = testutils.UpdateDataAsJson(appset.Spec.Template, "/spec/destination/namespace", "guestbook2")
 		}).Then().Expect(ApplicationsExist(expectedAppsNewNamespace)).
 
 		// Update the metadata fields in the appset template, and make sure it propagates to the apps
@@ -128,8 +129,8 @@ func TestListMatrixGenerator(t *testing.T) {
 			}
 		}).
 		Update(func(appset *v1alpha1.ApplicationSet) {
-			appset.Spec.Template.Annotations = map[string]string{"annotation-key": "annotation-value"}
-			appset.Spec.Template.Labels = map[string]string{"label-key": "label-value"}
+			appset.Spec.Template = testutils.UpdateDataAsJson(appset.Spec.Template, "/metadata/annotations", map[string]string{"annotation-key": "annotation-value"})
+			appset.Spec.Template = testutils.UpdateDataAsJson(appset.Spec.Template, "/metadata/labels", map[string]string{"label-key": "label-value"})
 		}).Then().Expect(ApplicationsExist(expectedAppsNewMetadata)).
 
 		// Delete the ApplicationSet, and verify it deletes the Applications
@@ -186,8 +187,8 @@ func TestClusterMatrixGenerator(t *testing.T) {
 			Name: "matrix-generator",
 		},
 			Spec: v1alpha1.ApplicationSetSpec{
-				Template: v1alpha1.ApplicationSetTemplate{
-					ApplicationSetTemplateMeta: v1alpha1.ApplicationSetTemplateMeta{Name: "{{name}}-{{path.basename}}"},
+				Template: testutils.ToApiExtenstionsJSON(v1alpha1.Application{
+					ObjectMeta: metav1.ObjectMeta{Name: "{{name}}-{{path.basename}}"},
 					Spec: argov1alpha1.ApplicationSpec{
 						Project: "default",
 						Source: &argov1alpha1.ApplicationSource{
@@ -200,7 +201,7 @@ func TestClusterMatrixGenerator(t *testing.T) {
 							Namespace: "{{path.basename}}",
 						},
 					},
-				},
+				}),
 				Generators: []v1alpha1.ApplicationSetGenerator{
 					{
 						Matrix: &v1alpha1.MatrixGenerator{
@@ -241,7 +242,7 @@ func TestClusterMatrixGenerator(t *testing.T) {
 			}
 		}).
 		Update(func(appset *v1alpha1.ApplicationSet) {
-			appset.Spec.Template.Spec.Destination.Namespace = "guestbook2"
+			appset.Spec.Template = testutils.UpdateDataAsJson(appset.Spec.Template, "/spec/destination/namespace", "guestbook2")
 		}).Then().Expect(ApplicationsExist(expectedAppsNewNamespace)).
 
 		// Update the metadata fields in the appset template, and make sure it propagates to the apps
@@ -255,8 +256,8 @@ func TestClusterMatrixGenerator(t *testing.T) {
 			}
 		}).
 		Update(func(appset *v1alpha1.ApplicationSet) {
-			appset.Spec.Template.Annotations = map[string]string{"annotation-key": "annotation-value"}
-			appset.Spec.Template.Labels = map[string]string{"label-key": "label-value"}
+			appset.Spec.Template = testutils.UpdateDataAsJson(appset.Spec.Template, "/metadata/annotations", map[string]string{"annotation-key": "annotation-value"})
+			appset.Spec.Template = testutils.UpdateDataAsJson(appset.Spec.Template, "/metadata/labels", map[string]string{"label-key": "label-value"})
 		}).Then().Expect(ApplicationsExist(expectedAppsNewMetadata)).
 
 		// Delete the ApplicationSet, and verify it deletes the Applications

@@ -5,6 +5,7 @@ import (
 	"time"
 
 	argoprojiov1alpha1 "github.com/argoproj/argo-cd/v2/pkg/apis/application/v1alpha1"
+	apiextensionsv1 "k8s.io/apiextensions-apiserver/pkg/apis/apiextensions/v1"
 )
 
 // Generator defines the interface implemented by all ApplicationSet generators.
@@ -20,7 +21,7 @@ type Generator interface {
 	GetRequeueAfter(appSetGenerator *argoprojiov1alpha1.ApplicationSetGenerator) time.Duration
 
 	// GetTemplate returns the inline template from the spec if there is any, or an empty object otherwise
-	GetTemplate(appSetGenerator *argoprojiov1alpha1.ApplicationSetGenerator) *argoprojiov1alpha1.ApplicationSetTemplate
+	GetTemplate(appSetGenerator *argoprojiov1alpha1.ApplicationSetGenerator) *apiextensionsv1.JSON
 }
 
 var EmptyAppSetGeneratorError = fmt.Errorf("ApplicationSet is empty")

@@ -2,7 +2,7 @@
 
 The template fields of the ApplicationSet `spec` are used to generate Argo CD `Application` resources.
 
-ApplicationSet is using [fasttemplate](https://github.com/valyala/fasttemplate) but will be soon deprecated in favor of Go Template. 
+ApplicationSet is using [fasttemplate](https://github.com/valyala/fasttemplate) but will be soon deprecated in favor of [Go Template](./GoTemplate.md). 
 
 ## Template fields
 
@@ -24,17 +24,19 @@ Here is the template subfield from a Cluster generator:
        namespace: guestbook
 ```
 
-The template subfields correspond directly to [the spec of an Argo CD `Application` resource](../../declarative-setup/#applications):
+The template subfields corresponds to:
 
-- `project` refers to the [Argo CD Project](../../user-guide/projects.md) in use (`default` may be used here to utilize the default Argo CD Project)
-- `source` defines from which Git repository to extract the desired Application manifests
-    - **repoURL**: URL of the repository (eg `https://github.com/argoproj/argocd-example-apps.git`)
-    - **targetRevision**: Revision (tag/branch/commit) of the repository (eg `HEAD`)
-    - **path**: Path within the repository where Kubernetes manifests (and/or Helm, Kustomize, Jsonnet resources) are located
-- `destination`: Defines which Kubernetes cluster/namespace to deploy to
-    - **name**: Name of the cluster (within Argo CD) to deploy to
-    - **server**: API Server URL for the cluster (Example: `https://kubernetes.default.svc`)
-    - **namespace**: Target namespace in which to deploy the manifests from `source` (Example: `my-app-namespace`)
+- a K8s Object Metadata (name, labels, annotations...) 
+- a spec field in Key/Value (string/any) format. After templating, the applicationset controller will only retain the fields which are part of [an Argo CD `Application` resource Spec](../../declarative-setup/#applications):
+  - `project` refers to the [Argo CD Project](../../user-guide/projects.md) in use (`default` may be used here to utilize the default Argo CD Project)
+  - `source` defines from which Git repository to extract the desired Application manifests
+      - **repoURL**: URL of the repository (eg `https://github.com/argoproj/argocd-example-apps.git`)
+      - **targetRevision**: Revision (tag/branch/commit) of the repository (eg `HEAD`)
+      - **path**: Path within the repository where Kubernetes manifests (and/or Helm, Kustomize, Jsonnet resources) are located
+  - `destination`: Defines which Kubernetes cluster/namespace to deploy to
+      - **name**: Name of the cluster (within Argo CD) to deploy to
+      - **server**: API Server URL for the cluster (Example: `https://kubernetes.default.svc`)
+      - **namespace**: Target namespace in which to deploy the manifests from `source` (Example: `my-app-namespace`)
 
 Note:
 

@@ -14,57 +14,37 @@ names.
 
 ## Motivation
 
-Go Template is the Go Standard for string templating. It is also more powerful than fasttemplate (the default templating 
-engine) as it allows doing complex templating logic.
+Go Template is the Go Standard for string templating. It is also more powerful than [fasttemplate](./Template.md) (the default templating engine) as it allows doing complex templating logic.
+
+As the [ApplicationSet Template Spec](./Template.md#template-fields) is in a Key/Value (string/any) format GoTemplate allows you to add complex logic on the key and the value of the ApplicationSet Template Spec to control the generation of your Application.
 
 ## Limitations
 
 Go templates are applied on a per-field basis, and only on string fields. Here are some examples of what is **not** 
 possible with Go text templates:
 
-- Templating a boolean field.
-
-        ::yaml
-        apiVersion: argoproj.io/v1alpha1
-        kind: ApplicationSet
-        spec:
-          goTemplate: true
-          template:
-            spec:
-              source:
-                helm:
-                  useCredentials: "{{.useCredentials}}"  # This field may NOT be templated, because it is a boolean field.
-
-- Templating an object field:
-
-        ::yaml
-        apiVersion: argoproj.io/v1alpha1
-        kind: ApplicationSet
-        spec:
-          goTemplate: true
-          template:
-            spec:
-              syncPolicy: "{{.syncPolicy}}"  # This field may NOT be templated, because it is an object field.
+Go templates are applied on a per-field basis, and only on string keys and values. Here are some examples of what is **not** 
+possible with Go text templates:
 
 - Using control keywords across fields:
 
-        ::yaml
-        apiVersion: argoproj.io/v1alpha1
-        kind: ApplicationSet
-        spec:
-          goTemplate: true
-          template:
-            spec:
-              source:
-                helm:
-                  parameters:
-                  # Each of these fields is evaluated as an independent template, so the first one will fail with an error.
-                  - name: "{{range .parameters}}"
-                  - name: "{{.name}}"
-                    value: "{{.value}}"
-                  - name: throw-away
-                    value: "{{end}}"
-
+```yaml
+apiVersion: argoproj.io/v1alpha1
+kind: ApplicationSet
+spec:
+  goTemplate: true
+  template:
+    spec:
+      source:
+        helm:
+          parameters:
+          # Each of these fields is evaluated as an independent template, so the first one will fail with an error.
+          - name: "{{range .parameters}}"
+          - name: "{{.name}}"
+            value: "{{.value}}"
+          - name: throw-away
+            value: "{{end}}"
+```
 
 ## Migration guide
 
@@ -229,3 +209,75 @@ spec:
 
 This ApplicationSet will produce an Application called `engineering-dev` and another called 
 `engineering-prod-my-name-suffix`.
+
+### Template Keys
+
+While this is feasible with both templating features, as `fasttemplate` does not offer conditions, the key templating is discouraged.
+
+Here is an example with the `syncPolicy` (This is useful to have a per environment sync policy strategy or you want to temporarily deactivate sync for debugging purpose):
+
+```yaml
+apiVersion: argoproj.io/v1alpha1
+kind: ApplicationSet
+metadata:
+  name: guestbook
+spec:
+  goTemplate: true
+  generators:
+  - list:
+      elements:
+      - cluster: engineering-dev
+        url: https://kubernetes.default.svc
+        automated: true
+        prune: true
+      - cluster: engineering-prod
+        url: https://kubernetes.default.svc
+        automated: true
+        prune: false
+      - cluster: engineering-debug
+        url: https://kubernetes.default.svc
+        automated: false
+        prune: false
+  template:
+    metadata:
+      name: '{{.cluster}}'
+    spec:
+      project: default
+      source:
+        repoURL: https://github.com/argoproj/argo-cd.git
+        targetRevision: HEAD
+        path: applicationset/examples/list-generator/guestbook/{{.cluster}}
+      destination:
+        server: '{{.url}}'
+        namespace: guestbook
+      syncPolicy:
+        # If automated == true, it will generate a key 'automated' which is part of the Application Spec model. It will then be retained
+        # If automated == false, it will generate a key 'noAuto' which is not part of the Application Spec model. It will then be ignored
+        '{{ ternary "automated" "noAuto" .automated }}':
+          # If prune == true, it will generate a key 'prune' which is part of the Application Spec model. It will then be retained
+          # If prune == false, it will generate a key 'noprune' which is not part of the Application Spec model. It will then be ignored
+          '{{ ternary "prune" "noprune" .prune }}': true
+```
+
+This will generate 3 applications with their associated sync Policies:
+
+- `engineering-dev`
+
+```yaml
+syncPolicy:
+  automated:
+    prune: true
+```
+
+- `engineering-prod`
+
+```yaml
+syncPolicy:
+  automated:
+```
+
+- `engineering-debug`
+
+```yaml
+syncPolicy:
+```

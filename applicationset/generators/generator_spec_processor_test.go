@@ -9,8 +9,6 @@ import (
 	apiextensionsv1 "k8s.io/apiextensions-apiserver/pkg/apis/apiextensions/v1"
 	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
 
-	argov1alpha1 "github.com/argoproj/argo-cd/v2/pkg/apis/application/v1alpha1"
-
 	"github.com/stretchr/testify/mock"
 	corev1 "k8s.io/api/core/v1"
 	"k8s.io/apimachinery/pkg/runtime"
@@ -80,23 +78,15 @@ func TestMatchValues(t *testing.T) {
 				Selector: testCase.selector,
 				List: &argoprojiov1alpha1.ListGenerator{
 					Elements: testCase.elements,
-					Template: emptyTemplate(),
+					Template: &apiextensionsv1.JSON{Raw: []byte("{}")},
 				}},
 				data,
-				emptyTemplate(),
+				&apiextensionsv1.JSON{Raw: []byte("{}")},
 				&applicationSetInfo, nil)
 
 			assert.NoError(t, err)
 			assert.ElementsMatch(t, testCase.expected, results[0].Params)
 		})
-	}
-}
-
-func emptyTemplate() argoprojiov1alpha1.ApplicationSetTemplate {
-	return argoprojiov1alpha1.ApplicationSetTemplate{
-		Spec: argov1alpha1.ApplicationSpec{
-			Project: "project",
-		},
 	}
 }
 
@@ -188,7 +178,7 @@ func TestGetRelevantGenerators(t *testing.T) {
 	requestedGenerator = &argoprojiov1alpha1.ApplicationSetGenerator{
 		Clusters: &argoprojiov1alpha1.ClusterGenerator{
 			Selector: metav1.LabelSelector{},
-			Template: argoprojiov1alpha1.ApplicationSetTemplate{},
+			Template: &apiextensionsv1.JSON{Raw: []byte("{}")},
 			Values:   nil,
 		},
 	}
@@ -204,7 +194,7 @@ func TestGetRelevantGenerators(t *testing.T) {
 			Files:               nil,
 			Revision:            "",
 			RequeueAfterSeconds: nil,
-			Template:            argoprojiov1alpha1.ApplicationSetTemplate{},
+			Template:            &apiextensionsv1.JSON{Raw: []byte("{}")},
 		},
 	}
 
@@ -251,7 +241,7 @@ func TestInterpolateGenerator(t *testing.T) {
 	requestedGenerator = &argoprojiov1alpha1.ApplicationSetGenerator{
 		Git: &argoprojiov1alpha1.GitGenerator{
 			Files:    append([]argoprojiov1alpha1.GitFileGeneratorItem{}, fileNamePath, fileServerPath),
-			Template: argoprojiov1alpha1.ApplicationSetTemplate{},
+			Template: &apiextensionsv1.JSON{Raw: []byte("{}")},
 		},
 	}
 	clusterGeneratorParams := map[string]interface{}{

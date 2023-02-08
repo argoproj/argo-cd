@@ -279,7 +279,7 @@ message ApplicationSetSpec {
 
   repeated ApplicationSetGenerator generators = 2;
 
-  optional ApplicationSetTemplate template = 3;
+  optional k8s.io.apiextensions_apiserver.pkg.apis.apiextensions.v1.JSON template = 3;
 
   optional ApplicationSetSyncPolicy syncPolicy = 4;
 
@@ -307,27 +307,6 @@ message ApplicationSetStrategy {
 message ApplicationSetSyncPolicy {
   // PreserveResourcesOnDeletion will preserve resources on deletion. If PreserveResourcesOnDeletion is set to true, these Applications will not be deleted.
   optional bool preserveResourcesOnDeletion = 1;
-}
-
-// ApplicationSetTemplate represents argocd ApplicationSpec
-message ApplicationSetTemplate {
-  optional ApplicationSetTemplateMeta metadata = 1;
-
-  optional ApplicationSpec spec = 2;
-}
-
-// ApplicationSetTemplateMeta represents the Argo CD application fields that may
-// be used for Applications generated from the ApplicationSet (based on metav1.ObjectMeta)
-message ApplicationSetTemplateMeta {
-  optional string name = 1;
-
-  optional string namespace = 2;
-
-  map<string, string> labels = 3;
-
-  map<string, string> annotations = 4;
-
-  repeated string finalizers = 5;
 }
 
 // ApplicationSetTerminalGenerator represents a generator nested within a nested generator (for example, a list within
@@ -700,7 +679,7 @@ message ClusterGenerator {
   // for matching the selector.
   optional k8s.io.apimachinery.pkg.apis.meta.v1.LabelSelector selector = 1;
 
-  optional ApplicationSetTemplate template = 2;
+  optional k8s.io.apiextensions_apiserver.pkg.apis.apiextensions.v1.JSON template = 2;
 
   // Values contains key/value pairs which are passed directly as parameters to the template
   map<string, string> values = 3;
@@ -796,7 +775,7 @@ message DuckTypeGenerator {
 
   optional k8s.io.apimachinery.pkg.apis.meta.v1.LabelSelector labelSelector = 4;
 
-  optional ApplicationSetTemplate template = 5;
+  optional k8s.io.apiextensions_apiserver.pkg.apis.apiextensions.v1.JSON template = 5;
 
   // Values contains key/value pairs which are passed directly as parameters to the template
   map<string, string> values = 6;
@@ -851,7 +830,7 @@ message GitGenerator {
 
   optional int64 requeueAfterSeconds = 5;
 
-  optional ApplicationSetTemplate template = 6;
+  optional k8s.io.apiextensions_apiserver.pkg.apis.apiextensions.v1.JSON template = 6;
 
   optional string pathParamPrefix = 7;
 }
@@ -1001,7 +980,7 @@ message KustomizeOptions {
 message ListGenerator {
   repeated k8s.io.apiextensions_apiserver.pkg.apis.apiextensions.v1.JSON elements = 1;
 
-  optional ApplicationSetTemplate template = 2;
+  optional k8s.io.apiextensions_apiserver.pkg.apis.apiextensions.v1.JSON template = 2;
 }
 
 message ManagedNamespaceMetadata {
@@ -1015,7 +994,7 @@ message ManagedNamespaceMetadata {
 message MatrixGenerator {
   repeated ApplicationSetNestedGenerator generators = 1;
 
-  optional ApplicationSetTemplate template = 2;
+  optional k8s.io.apiextensions_apiserver.pkg.apis.apiextensions.v1.JSON template = 2;
 }
 
 // MergeGenerator merges the output of two or more generators. Where the values for all specified merge keys are equal
@@ -1033,7 +1012,7 @@ message MergeGenerator {
 
   repeated string mergeKeys = 2;
 
-  optional ApplicationSetTemplate template = 3;
+  optional k8s.io.apiextensions_apiserver.pkg.apis.apiextensions.v1.JSON template = 3;
 }
 
 // NestedMatrixGenerator is a MatrixGenerator nested under another combination-type generator (MatrixGenerator or
@@ -1175,7 +1154,7 @@ message PullRequestGenerator {
   // Standard parameters.
   optional int64 requeueAfterSeconds = 6;
 
-  optional ApplicationSetTemplate template = 7;
+  optional k8s.io.apiextensions_apiserver.pkg.apis.apiextensions.v1.JSON template = 7;
 }
 
 // PullRequestGenerator defines connection info specific to BitbucketServer.
@@ -1715,7 +1694,7 @@ message SCMProviderGenerator {
   // Standard parameters.
   optional int64 requeueAfterSeconds = 9;
 
-  optional ApplicationSetTemplate template = 10;
+  optional k8s.io.apiextensions_apiserver.pkg.apis.apiextensions.v1.JSON template = 10;
 }
 
 // SCMProviderGeneratorAzureDevOps defines connection info specific to Azure DevOps.

@@ -11,6 +11,7 @@ import (
 
 	"github.com/jeremywohl/flatten"
 	log "github.com/sirupsen/logrus"
+	apiextensionsv1 "k8s.io/apiextensions-apiserver/pkg/apis/apiextensions/v1"
 	"sigs.k8s.io/yaml"
 
 	"github.com/argoproj/argo-cd/v2/applicationset/services"
@@ -31,8 +32,8 @@ func NewGitGenerator(repos services.Repos) Generator {
 	return g
 }
 
-func (g *GitGenerator) GetTemplate(appSetGenerator *argoprojiov1alpha1.ApplicationSetGenerator) *argoprojiov1alpha1.ApplicationSetTemplate {
-	return &appSetGenerator.Git.Template
+func (g *GitGenerator) GetTemplate(appSetGenerator *argoprojiov1alpha1.ApplicationSetGenerator) *apiextensionsv1.JSON {
+	return appSetGenerator.Git.Template
 }
 
 func (g *GitGenerator) GetRequeueAfter(appSetGenerator *argoprojiov1alpha1.ApplicationSetGenerator) time.Duration {
@@ -81,10 +82,10 @@ func (g *GitGenerator) generateParamsForGitDirectories(appSetGenerator *argoproj
 	}
 
 	log.WithFields(log.Fields{
-		"allPaths": allPaths,
-		"total":    len(allPaths),
-		"repoURL":  appSetGenerator.Git.RepoURL,
-		"revision": appSetGenerator.Git.Revision,
+		"allPaths":        allPaths,
+		"total":           len(allPaths),
+		"repoURL":         appSetGenerator.Git.RepoURL,
+		"revision":        appSetGenerator.Git.Revision,
 		"pathParamPrefix": appSetGenerator.Git.PathParamPrefix,
 	}).Info("applications result from the repo service")
 
@@ -183,7 +184,7 @@ func (g *GitGenerator) generateParamsFromGitFile(filePath string, fileContent []
 			}
 			pathParamName := "path"
 			if pathParamPrefix != "" {
-				pathParamName = pathParamPrefix+"."+pathParamName
+				pathParamName = pathParamPrefix + "." + pathParamName
 			}
 			params[pathParamName] = path.Dir(filePath)
 			params[pathParamName+".basename"] = path.Base(params[pathParamName].(string))
@@ -251,7 +252,7 @@ func (g *GitGenerator) generateParamsFromApps(requestedApps []string, appSetGene
 		} else {
 			pathParamName := "path"
 			if appSetGenerator.Git.PathParamPrefix != "" {
-				pathParamName = appSetGenerator.Git.PathParamPrefix+"."+pathParamName
+				pathParamName = appSetGenerator.Git.PathParamPrefix + "." + pathParamName
 			}
 			params[pathParamName] = a
 			params[pathParamName+".basename"] = path.Base(a)

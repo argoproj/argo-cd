@@ -47,16 +47,11 @@ type ApplicationSet struct {
 	Status            ApplicationSetStatus `json:"status,omitempty" protobuf:"bytes,3,opt,name=status"`
 }
 
-// RBACName formats fully qualified application name for RBAC check.
-func (a *ApplicationSet) RBACName() string {
-	return fmt.Sprintf("%s/%s", a.Spec.Template.Spec.GetProject(), a.ObjectMeta.Name)
-}
-
 // ApplicationSetSpec represents a class of application set state.
 type ApplicationSetSpec struct {
 	GoTemplate bool                      `json:"goTemplate,omitempty" protobuf:"bytes,1,name=goTemplate"`
 	Generators []ApplicationSetGenerator `json:"generators" protobuf:"bytes,2,name=generators"`
-	Template   ApplicationSetTemplate    `json:"template" protobuf:"bytes,3,name=template"`
+	Template   apiextensionsv1.JSON      `json:"template" protobuf:"bytes,3,name=template"`
 	SyncPolicy *ApplicationSetSyncPolicy `json:"syncPolicy,omitempty" protobuf:"bytes,4,name=syncPolicy"`
 	Strategy   *ApplicationSetStrategy   `json:"strategy,omitempty" protobuf:"bytes,5,opt,name=strategy"`
 }
@@ -87,22 +82,6 @@ type ApplicationMatchExpression struct {
 type ApplicationSetSyncPolicy struct {
 	// PreserveResourcesOnDeletion will preserve resources on deletion. If PreserveResourcesOnDeletion is set to true, these Applications will not be deleted.
 	PreserveResourcesOnDeletion bool `json:"preserveResourcesOnDeletion,omitempty" protobuf:"bytes,1,name=syncPolicy"`
-}
-
-// ApplicationSetTemplate represents argocd ApplicationSpec
-type ApplicationSetTemplate struct {
-	ApplicationSetTemplateMeta `json:"metadata" protobuf:"bytes,1,name=metadata"`
-	Spec                       ApplicationSpec `json:"spec" protobuf:"bytes,2,name=spec"`
-}
-
-// ApplicationSetTemplateMeta represents the Argo CD application fields that may
-// be used for Applications generated from the ApplicationSet (based on metav1.ObjectMeta)
-type ApplicationSetTemplateMeta struct {
-	Name        string            `json:"name,omitempty" protobuf:"bytes,1,name=name"`
-	Namespace   string            `json:"namespace,omitempty" protobuf:"bytes,2,name=namespace"`
-	Labels      map[string]string `json:"labels,omitempty" protobuf:"bytes,3,name=labels"`
-	Annotations map[string]string `json:"annotations,omitempty" protobuf:"bytes,4,name=annotations"`
-	Finalizers  []string          `json:"finalizers,omitempty" protobuf:"bytes,5,name=finalizers"`
 }
 
 // ApplicationSetGenerator represents a generator at the top level of an ApplicationSet.
@@ -178,14 +157,14 @@ func (g ApplicationSetTerminalGenerators) toApplicationSetNestedGenerators() []A
 // ListGenerator include items info
 type ListGenerator struct {
 	Elements []apiextensionsv1.JSON `json:"elements" protobuf:"bytes,1,name=elements"`
-	Template ApplicationSetTemplate `json:"template,omitempty" protobuf:"bytes,2,name=template"`
+	Template *apiextensionsv1.JSON  `json:"template,omitempty" protobuf:"bytes,2,name=template"`
 }
 
 // MatrixGenerator generates the cartesian product of two sets of parameters. The parameters are defined by two nested
 // generators.
 type MatrixGenerator struct {
 	Generators []ApplicationSetNestedGenerator `json:"generators" protobuf:"bytes,1,name=generators"`
-	Template   ApplicationSetTemplate          `json:"template,omitempty" protobuf:"bytes,2,name=template"`
+	Template   *apiextensionsv1.JSON           `json:"template,omitempty" protobuf:"bytes,2,name=template"`
 }
 
 // NestedMatrixGenerator is a MatrixGenerator nested under another combination-type generator (MatrixGenerator or
@@ -237,7 +216,7 @@ func (g NestedMatrixGenerator) ToMatrixGenerator() *MatrixGenerator {
 type MergeGenerator struct {
 	Generators []ApplicationSetNestedGenerator `json:"generators" protobuf:"bytes,1,name=generators"`
 	MergeKeys  []string                        `json:"mergeKeys" protobuf:"bytes,2,name=mergeKeys"`
-	Template   ApplicationSetTemplate          `json:"template,omitempty" protobuf:"bytes,3,name=template"`
+	Template   *apiextensionsv1.JSON           `json:"template,omitempty" protobuf:"bytes,3,name=template"`
 }
 
 // NestedMergeGenerator is a MergeGenerator nested under another combination-type generator (MatrixGenerator or
@@ -283,8 +262,8 @@ type ClusterGenerator struct {
 	// Selector defines a label selector to match against all clusters registered with ArgoCD.
 	// Clusters today are stored as Kubernetes Secrets, thus the Secret labels will be used
 	// for matching the selector.
-	Selector metav1.LabelSelector   `json:"selector,omitempty" protobuf:"bytes,1,name=selector"`
-	Template ApplicationSetTemplate `json:"template,omitempty" protobuf:"bytes,2,name=template"`
+	Selector metav1.LabelSelector  `json:"selector,omitempty" protobuf:"bytes,1,name=selector"`
+	Template *apiextensionsv1.JSON `json:"template,omitempty" protobuf:"bytes,2,name=template"`
 
 	// Values contains key/value pairs which are passed directly as parameters to the template
 	Values map[string]string `json:"values,omitempty" protobuf:"bytes,3,name=values"`
@@ -301,7 +280,7 @@ type DuckTypeGenerator struct {
 	RequeueAfterSeconds *int64               `json:"requeueAfterSeconds,omitempty" protobuf:"bytes,3,name=requeueAfterSeconds"`
 	LabelSelector       metav1.LabelSelector `json:"labelSelector,omitempty" protobuf:"bytes,4,name=labelSelector"`
 
-	Template ApplicationSetTemplate `json:"template,omitempty" protobuf:"bytes,5,name=template"`
+	Template *apiextensionsv1.JSON `json:"template,omitempty" protobuf:"bytes,5,name=template"`
 	// Values contains key/value pairs which are passed directly as parameters to the template
 	Values map[string]string `json:"values,omitempty" protobuf:"bytes,6,name=values"`
 }
@@ -312,7 +291,7 @@ type GitGenerator struct {
 	Files               []GitFileGeneratorItem      `json:"files,omitempty" protobuf:"bytes,3,name=files"`
 	Revision            string                      `json:"revision" protobuf:"bytes,4,name=revision"`
 	RequeueAfterSeconds *int64                      `json:"requeueAfterSeconds,omitempty" protobuf:"bytes,5,name=requeueAfterSeconds"`
-	Template            ApplicationSetTemplate      `json:"template,omitempty" protobuf:"bytes,6,name=template"`
+	Template            *apiextensionsv1.JSON       `json:"template,omitempty" protobuf:"bytes,6,name=template"`
 	PathParamPrefix     string                      `json:"pathParamPrefix,omitempty" protobuf:"bytes,7,name=pathParamPrefix"`
 }
 
@@ -340,8 +319,8 @@ type SCMProviderGenerator struct {
 	// necessarily support all protocols.
 	CloneProtocol string `json:"cloneProtocol,omitempty" protobuf:"bytes,8,opt,name=cloneProtocol"`
 	// Standard parameters.
-	RequeueAfterSeconds *int64                 `json:"requeueAfterSeconds,omitempty" protobuf:"varint,9,opt,name=requeueAfterSeconds"`
-	Template            ApplicationSetTemplate `json:"template,omitempty" protobuf:"bytes,10,opt,name=template"`
+	RequeueAfterSeconds *int64                `json:"requeueAfterSeconds,omitempty" protobuf:"varint,9,opt,name=requeueAfterSeconds"`
+	Template            *apiextensionsv1.JSON `json:"template,omitempty" protobuf:"bytes,10,name=template"`
 }
 
 // SCMProviderGeneratorGitea defines a connection info specific to Gitea.
@@ -450,8 +429,8 @@ type PullRequestGenerator struct {
 	// Filters for which pull requests should be considered.
 	Filters []PullRequestGeneratorFilter `json:"filters,omitempty" protobuf:"bytes,5,rep,name=filters"`
 	// Standard parameters.
-	RequeueAfterSeconds *int64                 `json:"requeueAfterSeconds,omitempty" protobuf:"varint,6,opt,name=requeueAfterSeconds"`
-	Template            ApplicationSetTemplate `json:"template,omitempty" protobuf:"bytes,7,opt,name=template"`
+	RequeueAfterSeconds *int64                `json:"requeueAfterSeconds,omitempty" protobuf:"varint,6,opt,name=requeueAfterSeconds"`
+	Template            *apiextensionsv1.JSON `json:"template,omitempty" protobuf:"bytes,7,name=template"`
 }
 
 // PullRequestGenerator defines connection info specific to Gitea.
