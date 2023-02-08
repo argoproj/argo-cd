@@ -4319,6 +4319,21 @@ func schema_pkg_apis_application_v1alpha1_PullRequestGeneratorGitLab(ref common.
 							},
 						},
 					},
+					"notLabels": {
+						SchemaProps: spec.SchemaProps{
+							Description: "Labels is used to filter out the PRs that you don't want to target",
+							Type:        []string{"array"},
+							Items: &spec.SchemaOrArray{
+								Schema: &spec.Schema{
+									SchemaProps: spec.SchemaProps{
+										Default: "",
+										Type:    []string{"string"},
+										Format:  "",
+									},
+								},
+							},
+						},
+					},
 					"pullRequestState": {
 						SchemaProps: spec.SchemaProps{
 							Description: "PullRequestState is an additional MRs filter to get only those with a certain state. Default: \"\" (all states)",
@@ -4434,6 +4449,21 @@ func schema_pkg_apis_application_v1alpha1_PullRequestGeneratorGithub(ref common.
 					"labels": {
 						SchemaProps: spec.SchemaProps{
 							Description: "Labels is used to filter the PRs that you want to target",
+							Type:        []string{"array"},
+							Items: &spec.SchemaOrArray{
+								Schema: &spec.Schema{
+									SchemaProps: spec.SchemaProps{
+										Default: "",
+										Type:    []string{"string"},
+										Format:  "",
+									},
+								},
+							},
+						},
+					},
+					"notLabels": {
+						SchemaProps: spec.SchemaProps{
+							Description: "Labels is used to filter out the PRs that you don't want to target",
 							Type:        []string{"array"},
 							Items: &spec.SchemaOrArray{
 								Schema: &spec.Schema{

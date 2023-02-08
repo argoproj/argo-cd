@@ -3886,6 +3886,10 @@ spec:
                                         items:
                                           type: string
                                         type: array
+                                      notLabels:
+                                        items:
+                                          type: string
+                                        type: array
                                       owner:
                                         type: string
                                       repo:
@@ -3909,6 +3913,10 @@ spec:
                                       api:
                                         type: string
                                       labels:
+                                        items:
+                                          type: string
+                                        type: array
+                                      notLabels:
                                         items:
                                           type: string
                                         type: array
@@ -7434,6 +7442,10 @@ spec:
                                         items:
                                           type: string
                                         type: array
+                                      notLabels:
+                                        items:
+                                          type: string
+                                        type: array
                                       owner:
                                         type: string
                                       repo:
@@ -7457,6 +7469,10 @@ spec:
                                       api:
                                         type: string
                                       labels:
+                                        items:
+                                          type: string
+                                        type: array
+                                      notLabels:
                                         items:
                                           type: string
                                         type: array
@@ -9093,6 +9109,10 @@ spec:
                               items:
                                 type: string
                               type: array
+                            notLabels:
+                              items:
+                                type: string
+                              type: array
                             owner:
                               type: string
                             repo:
@@ -9116,6 +9136,10 @@ spec:
                             api:
                               type: string
                             labels:
+                              items:
+                                type: string
+                              type: array
+                            notLabels:
                               items:
                                 type: string
                               type: array
