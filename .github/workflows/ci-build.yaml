@@ -123,6 +123,8 @@ jobs:
       - name: Install all tools required for building & testing
         run: |
           make install-test-tools-local
+          # We install kustomize in the dist directory
+          echo "/home/runner/go/src/github.com/argoproj/argo-cd/dist" >> $GITHUB_PATH
       - name: Setup git username and email
         run: |
           git config --global user.name "John Doe"
