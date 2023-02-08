@@ -1145,7 +1145,7 @@ func helmTemplate(appPath string, repoRoot string, env *v1alpha1.Env, q *apiclie
 	// the AppProject which the application is a part of
 	for _, repo := range q.Repos {
 		if !isSourcePermitted(repo.Repo, q.ProjectSourceRepos) {
-			return nil, status.Errorf(codes.PermissionDenied, "helm repository '%s' not permitted in project '%s'", repo.Repo, q.ProjectName)
+			return nil, status.Errorf(codes.PermissionDenied, "helm repo %s is not permitted in project '%s'", repo.Repo, q.ProjectName)
 		}
 	}
 

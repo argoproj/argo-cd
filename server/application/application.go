@@ -1115,6 +1115,15 @@ func (s *Server) validateAndNormalizeApp(ctx context.Context, app *appv1.Applica
 	}
 
 	var conditions []appv1.ApplicationCondition
+
+	conditions, err = argo.ValidatePermissions(ctx, &app.Spec, proj, s.db)
+	if err != nil {
+		return fmt.Errorf("error validating project permissions: %w", err)
+	}
+	if len(conditions) > 0 {
+		return status.Errorf(codes.InvalidArgument, "application spec for %s is invalid: %s", app.Name, argo.FormatAppConditions(conditions))
+	}
+
 	if validate {
 		conditions := make([]appv1.ApplicationCondition, 0)
 		condition, err := argo.ValidateRepo(ctx, app, s.repoClientset, s.db, plugins, s.kubectl, proj, s.settingsMgr)
@@ -1125,14 +1134,6 @@ func (s *Server) validateAndNormalizeApp(ctx context.Context, app *appv1.Applica
 		if len(conditions) > 0 {
 			return status.Errorf(codes.InvalidArgument, "application spec for %s is invalid: %s", app.Name, argo.FormatAppConditions(conditions))
 		}
-	}
-
-	conditions, err = argo.ValidatePermissions(ctx, &app.Spec, proj, s.db)
-	if err != nil {
-		return fmt.Errorf("error validating project permissions: %w", err)
-	}
-	if len(conditions) > 0 {
-		return status.Errorf(codes.InvalidArgument, "application spec for %s is invalid: %s", app.Name, argo.FormatAppConditions(conditions))
 	}
 
 	app.Spec = *argo.NormalizeApplicationSpec(&app.Spec)
