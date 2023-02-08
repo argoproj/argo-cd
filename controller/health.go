@@ -45,7 +45,7 @@ func setApplicationHealth(resources []managedResource, statuses []appv1.Resource
 				errCount++
 				savedErr = fmt.Errorf("failed to get resource health for %q with name %q in namespace %q: %w", res.Live.GetKind(), res.Live.GetName(), res.Live.GetNamespace(), err)
 				// also log so we don't lose the message
-				log.WithField("application", app.QualifiedName()).Error(savedErr)
+				log.WithField("application", app.QualifiedName()).Warn(savedErr)
 			}
 		}
 
@@ -80,7 +80,7 @@ func setApplicationHealth(resources []managedResource, statuses []appv1.Resource
 		app.Status.ResourceHealthSource = appv1.ResourceHealthLocationAppTree
 	}
 	if savedErr != nil && errCount > 1 {
-		savedErr = fmt.Errorf("encountered this and %d other errors: %w", errCount-1, savedErr)
+		savedErr = fmt.Errorf("see applicaton-controller logs for %d other errors; most recent error was: %w", errCount-1, savedErr)
 	}
 	return &appHealth, savedErr
 }
