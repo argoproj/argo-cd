@@ -37,7 +37,7 @@ const sectionHeader = (info: SectionInfo, hasMultipleSources: boolean, onClick?:
             {onClick && (
                 <button className='application-status-panel__more-button' onClick={onClick} disabled={hasMultipleSources}>
                     {hasMultipleSources && helpTip('More details are not supported for apps with multiple sources')}
-                    <i className='fa fa-ellipsis-v' />
+                    <i className='fa fa-ellipsis-h' />
                 </button>
             )}
         </div>
