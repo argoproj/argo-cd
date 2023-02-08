@@ -1,6 +1,7 @@
 package db
 
 import (
+	"context"
 	"fmt"
 	"hash/fnv"
 	"net/url"
@@ -8,7 +9,6 @@ import (
 	"strings"
 	"time"
 
-	"context"
 	log "github.com/sirupsen/logrus"
 	apiv1 "k8s.io/api/core/v1"
 	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"

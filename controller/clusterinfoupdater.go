@@ -3,8 +3,8 @@ package controller
 import (
 	"context"
 	"fmt"
-	"github.com/argoproj/gitops-engine/pkg/cache"
-	"github.com/argoproj/gitops-engine/pkg/utils/kube"
+	"time"
+
 	log "github.com/sirupsen/logrus"
 	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
 	"k8s.io/apimachinery/pkg/labels"
@@ -16,6 +16,8 @@ import (
 	"github.com/argoproj/argo-cd/v2/util/argo"
 	appstatecache "github.com/argoproj/argo-cd/v2/util/cache/appstate"
 	"github.com/argoproj/argo-cd/v2/util/db"
+	"github.com/argoproj/gitops-engine/pkg/cache"
+	"github.com/argoproj/gitops-engine/pkg/utils/kube"
 )
 
 const (

@@ -2,6 +2,7 @@ package version
 
 import (
 	"context"
+
 	"github.com/golang/protobuf/ptypes/empty"
 	"github.com/google/go-jsonnet"
 
