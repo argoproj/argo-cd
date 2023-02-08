@@ -15,6 +15,7 @@ import (
 func TestKustomizeVersion(t *testing.T) {
 	test.CIOnly(t)
 	out, err := argoexec.RunCommand("kustomize", argoexec.CmdOpts{}, "version")
+	fmt.Println(os.Getenv("PATH"))
 	assert.NoError(t, err)
 	assert.Contains(t, out, "Version:kustomize/v4", "kustomize should be version 4")
 }
