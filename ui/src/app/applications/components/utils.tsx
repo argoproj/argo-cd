@@ -642,7 +642,7 @@ export function syncStatusMessage(app: appModels.Application) {
         case appModels.SyncStatuses.Synced:
             return (
                 <span>
-                    To{' '}
+                    to{' '}
                     <Revision repoUrl={source.repoURL} revision={rev}>
                         {message}
                     </Revision>{' '}
@@ -651,7 +651,7 @@ export function syncStatusMessage(app: appModels.Application) {
         case appModels.SyncStatuses.OutOfSync:
             return (
                 <span>
-                    From{' '}
+                    from{' '}
                     <Revision repoUrl={source.repoURL} revision={rev}>
                         {message}
                     </Revision>{' '}
