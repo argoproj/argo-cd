@@ -123,7 +123,9 @@ jobs:
       - name: Install all tools required for building & testing
         run: |
           make install-test-tools-local
-          # We install kustomize in the dist directory
+        # We install kustomize in the dist directory
+      - name: Add dist to PATH
+        run: |
           echo "/home/runner/work/argo-cd/argo-cd/dist" >> $GITHUB_PATH
       - name: Setup git username and email
         run: |
@@ -188,6 +190,10 @@ jobs:
       - name: Install all tools required for building & testing
         run: |
           make install-test-tools-local
+        # We install kustomize in the dist directory
+      - name: Add dist to PATH
+        run: |
+          echo "/home/runner/work/argo-cd/argo-cd/dist" >> $GITHUB_PATH
       - name: Setup git username and email
         run: |
           git config --global user.name "John Doe"
@@ -234,6 +240,10 @@ jobs:
           make install-codegen-tools-local
           make install-go-tools-local
         working-directory: /home/runner/go/src/github.com/argoproj/argo-cd
+        # We install kustomize in the dist directory
+      - name: Add dist to PATH
+        run: |
+          echo "/home/runner/work/argo-cd/argo-cd/dist" >> $GITHUB_PATH
       - name: Run codegen
         run: |
           set -x
