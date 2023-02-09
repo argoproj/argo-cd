@@ -148,7 +148,7 @@ func (s *Server) List(ctx context.Context, q *application.ApplicationQuery) (*ap
 	}
 	newItems := make([]appv1.Application, 0)
 	for _, a := range apps {
-		// Skip any application that is neither in the conrol plane's namespace
+		// Skip any application that is neither in the control plane's namespace
 		// nor in the list of enabled namespaces.
 		if a.Namespace != s.ns && !glob.MatchStringInList(s.enabledNamespaces, a.Namespace, false) {
 			continue
