@@ -1,6 +1,7 @@
 package v1alpha1
 
 import (
+	"fmt"
 	"net/url"
 
 	"github.com/argoproj/argo-cd/v2/util/cert"
@@ -263,6 +264,14 @@ func (m *Repository) CopySettingsFrom(source *Repository) {
 		m.Insecure = source.Insecure
 		m.InheritedCreds = source.InheritedCreds
 	}
+}
+
+// StringForLogging gets a string representation of the Repository which is safe to log or return to the user.
+func (m *Repository) StringForLogging() string {
+	if m == nil {
+		return ""
+	}
+	return fmt.Sprintf("&Repository{Repo: %q, Type: %q, Name: %q, Project: %q}", m.Repo, m.Type, m.Name, m.Project)
 }
 
 // Repositories defines a list of Repository configurations

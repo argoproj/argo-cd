@@ -5708,6 +5708,10 @@
         "status": {
           "type": "string",
           "title": "Status contains the AppSet's perceived status of the managed Application resource: (Waiting, Pending, Progressing, Healthy)"
+        },
+        "step": {
+          "type": "string",
+          "title": "Step tracks which step this Application should be updated in"
         }
       }
     },

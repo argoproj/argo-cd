@@ -779,8 +779,16 @@ func schema_pkg_apis_application_v1alpha1_ApplicationSetApplicationStatus(ref co
 							Format:      "",
 						},
 					},
+					"step": {
+						SchemaProps: spec.SchemaProps{
+							Description: "Step tracks which step this Application should be updated in",
+							Default:     "",
+							Type:        []string{"string"},
+							Format:      "",
+						},
+					},
 				},
-				Required: []string{"application", "message", "status"},
+				Required: []string{"application", "message", "status", "step"},
 			},
 		},
 		Dependencies: []string{
