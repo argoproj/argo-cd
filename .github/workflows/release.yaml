@@ -178,6 +178,10 @@ jobs:
           set -ue
           make install-codegen-tools-local
           helm2 init --client-only
+          
+          # We install kustomize in the dist directory
+          echo "/home/runner/work/argo-cd/argo-cd/dist" >> $GITHUB_PATH
+          
           make manifests-local VERSION=${TARGET_VERSION}
           git diff
           git commit manifests/ -m "Bump version to ${TARGET_VERSION}"
