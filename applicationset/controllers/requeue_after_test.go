@@ -2,7 +2,6 @@ package controllers
 
 import (
 	"context"
-	"os"
 	"testing"
 	"time"
 
@@ -18,7 +17,6 @@ import (
 	kubefake "k8s.io/client-go/kubernetes/fake"
 	"k8s.io/client-go/tools/record"
 	"sigs.k8s.io/controller-runtime/pkg/client/fake"
-	"sigs.k8s.io/yaml"
 )
 
 func TestRequeueAfter(t *testing.T) {
@@ -153,19 +151,6 @@ func TestRequeueAfter(t *testing.T) {
 			assert.Equalf(t, tt.want, r.getMinRequeueAfter(tt.args.appset), "getMinRequeueAfter(%v)", tt.args.appset)
 		})
 	}
-}
-
-func getAppsetFromFile(path string, t *testing.T) *argov1alpha1.ApplicationSet {
-	file, err := os.ReadFile(path)
-	if err != nil {
-		t.Fatal(err)
-	}
-	var appset argov1alpha1.ApplicationSet
-	err = yaml.Unmarshal(file, &appset)
-	if err != nil {
-		t.Fatal(err)
-	}
-	return &appset
 }
 
 type argoCDServiceMock struct {
