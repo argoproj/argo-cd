@@ -36,6 +36,8 @@ RUN ./install.sh helm-linux && \
 ####################################################################################################
 FROM $BASE_IMAGE AS argocd-base
 
+LABEL org.opencontainers.image.source="https://github.com/argoproj/argo-cd"
+
 USER root
 
 ENV ARGOCD_USER_ID=999

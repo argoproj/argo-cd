@@ -1,0 +1,84 @@
+apiVersion: work.karmada.io/v1alpha2
+kind: ResourceBinding
+metadata:
+  finalizers:
+    - karmada.io/binding-controller
+  generation: 7
+  labels:
+    propagationpolicy.karmada.io/name: test1-57dcd6489f
+    propagationpolicy.karmada.io/namespace: default
+  name: test1-deployment
+  namespace: default
+  ownerReferences:
+    - apiVersion: apps/v1
+      blockOwnerDeletion: true
+      controller: true
+      kind: Deployment
+      name: test1
+      uid: 58ccb955-4da6-4167-9b65-dddadcef569e
+  resourceVersion: "3903091"
+  uid: a46f5454-f8c5-4c9e-9119-3022aa5943b1
+spec:
+  clusters:
+    - name: member1
+    - name: member2
+    - name: member3
+  replicaRequirements:
+    nodeClaim:
+      tolerations:
+        - effect: NoExecute
+          key: node.kubernetes.io/not-ready
+          operator: Exists
+          tolerationSeconds: 300
+        - effect: NoExecute
+          key: node.kubernetes.io/unreachable
+          operator: Exists
+          tolerationSeconds: 300
+    resourceRequest:
+      cpu: 250m
+      memory: 512Mi
+  replicas: 1
+  resource:
+    apiVersion: apps/v1
+    kind: Deployment
+    name: test1
+    namespace: default
+    resourceVersion: "3663243"
+    uid: 58ccb955-4da6-4167-9b65-dddadcef569e
+status:
+  aggregatedStatus:
+    - applied: true
+      clusterName: member1
+      health: Healthy
+      status:
+        availableReplicas: 1
+        readyReplicas: 1
+        replicas: 1
+        updatedReplicas: 1
+    - applied: true
+      clusterName: member2
+      health: Healthy
+      status:
+        replicas: 1
+        unavailableReplicas: 1
+        updatedReplicas: 1
+    - applied: true
+      clusterName: member3
+      health: Healthy
+      status:
+        availableReplicas: 1
+        readyReplicas: 1
+        replicas: 1
+        updatedReplicas: 1
+  conditions:
+    - lastTransitionTime: "2022-11-02T02:49:06Z"
+      message: All works have been successfully applied
+      reason: FullyAppliedSuccess
+      status: "True"
+      type: FullyApplied
+    - lastTransitionTime: "2022-10-28T09:56:31Z"
+      message: Binding has been scheduled
+      reason: BindingScheduled
+      status: "True"
+      type: Scheduled
+  schedulerObservedGeneration: 7
