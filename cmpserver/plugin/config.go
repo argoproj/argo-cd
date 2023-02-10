@@ -29,7 +29,7 @@ type PluginConfigSpec struct {
 	Parameters Parameters `yaml:"parameters"`
 }
 
-//Discover holds find and fileName
+// Discover holds find and fileName
 type Discover struct {
 	Find     Find   `json:"find"`
 	FileName string `json:"fileName"`
