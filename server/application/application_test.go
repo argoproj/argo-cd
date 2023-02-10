@@ -1145,3 +1145,40 @@ func TestInferResourcesStatusHealth(t *testing.T) {
 	assert.Equal(t, health.HealthStatusDegraded, testApp.Status.Resources[0].Health.Status)
 	assert.Nil(t, testApp.Status.Resources[1].Health)
 }
+
+func TestRunResourceAction_WithCreateOperationPermitted(t *testing.T) {
+	testApp := newTestApp()
+	appServer := newTestAppServer(testApp)
+
+	group := "batch"
+	kind := "CronJob"
+	version := "v1"
+	resourceName := "my-cron-job"
+	namespace := "kuku"
+	action := "create-from"
+
+	_, err := appServer.RunResourceAction(context.Background(), &application.ResourceActionRunRequest{
+		Name:         &testApp.Name,
+		Namespace:    &namespace,
+		Action:       &action,
+		AppNamespace: &testApp.Namespace,
+		ResourceName: &resourceName,
+		Version:      &version,
+		Group:        &group,
+		Kind:         &kind,
+	})
+
+	assert.NoError(t, err)
+}
+
+func TestRunResourceAction_WithCreateOperationDenied(t *testing.T) {
+
+}
+
+func TestRunResourceAction_WithUpdateOperationPermitted(t *testing.T) {
+
+}
+
+func TestRunResourceAction_WithUpdateOperationDenied(t *testing.T) {
+
+}

@@ -28,6 +28,7 @@ import (
 	"k8s.io/apimachinery/pkg/apis/meta/v1/unstructured"
 	"k8s.io/apimachinery/pkg/fields"
 	"k8s.io/apimachinery/pkg/labels"
+	"k8s.io/apimachinery/pkg/runtime/schema"
 	"k8s.io/apimachinery/pkg/types"
 	"k8s.io/apimachinery/pkg/watch"
 	"k8s.io/client-go/kubernetes"
@@ -2123,6 +2124,12 @@ func (s *Server) getAvailableActions(resourceOverrides map[string]appv1.Resource
 }
 
 func (s *Server) RunResourceAction(ctx context.Context, q *application.ResourceActionRunRequest) (*application.ApplicationResponse, error) {
+	appName := q.GetName()
+	appNs := s.appNamespaceOrDefault(q.GetAppNamespace())
+	app, err := s.appLister.Applications(appNs).Get(appName)
+	if err != nil {
+		return nil, fmt.Errorf("error getting application: %w", err)
+	}
 	resourceRequest := &application.ApplicationResourceRequest{
 		Name:         q.Name,
 		AppNamespace: q.AppNamespace,
@@ -2168,43 +2175,69 @@ func (s *Server) RunResourceAction(ctx context.Context, q *application.ResourceA
 			return nil, fmt.Errorf("error marshaling live object: %w", err)
 		}
 
-		diffBytes, err := jsonpatch.CreateMergePatch(liveObjBytes, newObjBytes)
-		if err != nil {
-			return nil, fmt.Errorf("error calculating merge patch: %w", err)
-		}
-		if string(diffBytes) == "{}" {
-			return &application.ApplicationResponse{}, nil
-		}
+		if impactedResource.K8SOperation == "patch" {
 
-		// The following logic detects if the resource action makes a modification to status and/or spec.
-		// If status was modified, we attempt to patch the status using status subresource, in case the
-		// CRD is configured using the status subresource feature. See:
-		// https://kubernetes.io/docs/tasks/extend-kubernetes/custom-resources/custom-resource-definitions/#status-subresource
-		// If status subresource is in use, the patch has to be split into two:
-		// * one to update spec (and other non-status fields)
-		// * the other to update only status.
-		nonStatusPatch, statusPatch, err := splitStatusPatch(diffBytes)
-		if err != nil {
-			return nil, fmt.Errorf("error splitting status patch: %w", err)
-		}
-		if statusPatch != nil {
-			_, err = s.kubectl.PatchResource(ctx, config, newObj.GroupVersionKind(), newObj.GetName(), newObj.GetNamespace(), types.MergePatchType, diffBytes, "status")
+			diffBytes, err := jsonpatch.CreateMergePatch(liveObjBytes, newObjBytes)
 			if err != nil {
-				if !apierr.IsNotFound(err) {
+				return nil, fmt.Errorf("error calculating merge patch: %w", err)
+			}
+			if string(diffBytes) == "{}" {
+				return &application.ApplicationResponse{}, nil
+			}
+
+			// The following logic detects if the resource action makes a modification to status and/or spec.
+			// If status was modified, we attempt to patch the status using status subresource, in case the
+			// CRD is configured using the status subresource feature. See:
+			// https://kubernetes.io/docs/tasks/extend-kubernetes/custom-resources/custom-resource-definitions/#status-subresource
+			// If status subresource is in use, the patch has to be split into two:
+			// * one to update spec (and other non-status fields)
+			// * the other to update only status.
+			nonStatusPatch, statusPatch, err := splitStatusPatch(diffBytes)
+			if err != nil {
+				return nil, fmt.Errorf("error splitting status patch: %w", err)
+			}
+			if statusPatch != nil {
+				_, err = s.kubectl.PatchResource(ctx, config, newObj.GroupVersionKind(), newObj.GetName(), newObj.GetNamespace(), types.MergePatchType, diffBytes, "status")
+				if err != nil {
+					if !apierr.IsNotFound(err) {
+						return nil, fmt.Errorf("error patching resource: %w", err)
+					}
+					// K8s API server returns 404 NotFound when the CRD does not support the status subresource
+					// if we get here, the CRD does not use the status subresource. We will fall back to a normal patch
+				} else {
+					// If we get here, the CRD does use the status subresource, so we must patch status and
+					// spec separately. update the diffBytes to the spec-only patch and fall through.
+					diffBytes = nonStatusPatch
+				}
+			}
+			if diffBytes != nil {
+				_, err = s.kubectl.PatchResource(ctx, config, newObj.GroupVersionKind(), newObj.GetName(), newObj.GetNamespace(), types.MergePatchType, diffBytes)
+				if err != nil {
 					return nil, fmt.Errorf("error patching resource: %w", err)
 				}
-				// K8s API server returns 404 NotFound when the CRD does not support the status subresource
-				// if we get here, the CRD does not use the status subresource. We will fall back to a normal patch
-			} else {
-				// If we get here, the CRD does use the status subresource, so we must patch status and
-				// spec separately. update the diffBytes to the spec-only patch and fall through.
-				diffBytes = nonStatusPatch
 			}
-		}
-		if diffBytes != nil {
-			_, err = s.kubectl.PatchResource(ctx, config, newObj.GroupVersionKind(), newObj.GetName(), newObj.GetNamespace(), types.MergePatchType, diffBytes)
-			if err != nil {
-				return nil, fmt.Errorf("error patching resource: %w", err)
+		} else {
+			if impactedResource.K8SOperation == "create" {
+				proj, err := argo.GetAppProject(app, applisters.NewAppProjectLister(s.projInformer.GetIndexer()), s.ns, s.settingsMgr, s.db, ctx)
+				if err != nil {
+					if apierr.IsNotFound(err) {
+						return nil, fmt.Errorf("application references project %s which does not exist", app.Spec.Project)
+					}
+				}
+				permitted, err := proj.IsResourcePermitted(schema.GroupKind{Group: newObj.GroupVersionKind().Group, Kind: newObj.GroupVersionKind().Kind}, newObj.GetNamespace(), app.Spec.Destination, func(project string) ([]*appv1.Cluster, error) {
+					clusters, err := s.db.GetProjectClusters(context.TODO(), project)
+					if err != nil {
+						return nil, fmt.Errorf("failed to get project clusters: %w", err)
+					}
+					return clusters, nil
+				})
+				if err != nil {
+					return nil, fmt.Errorf("error checking resource permissions: %w", err)
+				}
+				if !permitted {
+					return nil, fmt.Errorf("%s named %s's creation not permitted in project: %s", newObj.GetKind(), newObj.GetName(), proj.Name)
+				}
+				// Create the resource
 			}
 		}
 	}
