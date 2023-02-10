@@ -3,7 +3,6 @@ package e2e
 import (
 	"context"
 	"fmt"
-	"math/rand"
 	"os"
 	"reflect"
 	"regexp"

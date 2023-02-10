@@ -393,7 +393,7 @@ func TestCompareAppStateManagedNamespaceMetadataWithLiveNs(t *testing.T) {
 		},
 	}
 	ctrl := newFakeController(&data)
-	compRes := ctrl.appStateManager.CompareAppState(app, &defaultProj, "", app.Spec.Source, false, false, nil)
+	compRes := ctrl.appStateManager.CompareAppState(app, &defaultProj, []string{}, app.Spec.Sources, false, false, nil, false)
 
 	assert.NotNil(t, compRes)
 	assert.Equal(t, 0, len(app.Status.Conditions))
