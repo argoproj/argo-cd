@@ -198,9 +198,12 @@ func (m *MergeGenerator) GetRequeueAfter(appSetGenerator *argoprojiov1alpha1.App
 
 	for _, r := range appSetGenerator.Merge.Generators {
 		base := &argoprojiov1alpha1.ApplicationSetGenerator{
-			List:     r.List,
-			Clusters: r.Clusters,
-			Git:      r.Git,
+			List:        r.List,
+			Clusters:    r.Clusters,
+			Git:         r.Git,
+			PullRequest: r.PullRequest,
+			Matrix:      getMatrixGenerator(r),
+			Merge:       getMergeGenerator(r),
 		}
 		generators := GetRelevantGenerators(base, m.supportedGenerators)
 
@@ -219,6 +222,28 @@ func (m *MergeGenerator) GetRequeueAfter(appSetGenerator *argoprojiov1alpha1.App
 		return NoRequeueAfter
 	}
 
+}
+
+func getMergeGenerator(r argoprojiov1alpha1.ApplicationSetNestedGenerator) *argoprojiov1alpha1.MergeGenerator {
+	if r.Merge == nil {
+		return nil
+	}
+	merge, err := argoprojiov1alpha1.ToNestedMergeGenerator(r.Merge)
+	if err != nil {
+		return nil
+	}
+	return merge.ToMergeGenerator()
+}
+
+func getMatrixGenerator(r argoprojiov1alpha1.ApplicationSetNestedGenerator) *argoprojiov1alpha1.MatrixGenerator {
+	if r.Matrix == nil {
+		return nil
+	}
+	matrix, err := argoprojiov1alpha1.ToNestedMatrixGenerator(r.Matrix)
+	if err != nil {
+		return nil
+	}
+	return matrix.ToMatrixGenerator()
 }
 
 // GetTemplate gets the Template field for the MergeGenerator.

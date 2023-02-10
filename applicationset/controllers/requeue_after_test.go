@@ -98,10 +98,6 @@ func TestRequeueAfter(t *testing.T) {
 		Generators: topLevelGenerators,
 	}
 
-	brokenCluster := getAppsetFromFile("testData/broken-cluster-appset.yaml", t)
-	brokenNested := getAppsetFromFile("testData/broken-nested-appset.yaml", t)
-	worksNested := getAppsetFromFile("testData/works-nested-appset.yaml", t)
-
 	type args struct {
 		appset *argov1alpha1.ApplicationSet
 	}
@@ -111,9 +107,46 @@ func TestRequeueAfter(t *testing.T) {
 		want    time.Duration
 		wantErr assert.ErrorAssertionFunc
 	}{
-		{name: "BrokenCluster", args: args{appset: brokenCluster}, want: generators.DefaultRequeueAfterSeconds, wantErr: assert.NoError},
-		{name: "BrokenNested", args: args{appset: brokenNested}, want: generators.DefaultRequeueAfterSeconds, wantErr: assert.NoError},
-		{name: "WorksNested", args: args{appset: worksNested}, want: generators.DefaultRequeueAfterSeconds, wantErr: assert.NoError},
+		{name: "Cluster", args: args{appset: &argov1alpha1.ApplicationSet{
+			Spec: argov1alpha1.ApplicationSetSpec{
+				Generators: []argov1alpha1.ApplicationSetGenerator{{Clusters: &argov1alpha1.ClusterGenerator{}}},
+			},
+		}}, want: generators.NoRequeueAfter, wantErr: assert.NoError},
+		{name: "ClusterMergeNested", args: args{&argov1alpha1.ApplicationSet{
+			Spec: argov1alpha1.ApplicationSetSpec{
+				Generators: []argov1alpha1.ApplicationSetGenerator{
+					{Clusters: &argov1alpha1.ClusterGenerator{}},
+					{Merge: &argov1alpha1.MergeGenerator{
+						Generators: []argov1alpha1.ApplicationSetNestedGenerator{
+							{
+								Clusters: &argov1alpha1.ClusterGenerator{},
+								Git:      &argov1alpha1.GitGenerator{},
+							},
+						},
+					}},
+				},
+			},
+		}}, want: generators.DefaultRequeueAfterSeconds, wantErr: assert.NoError},
+		{name: "ClusterMatrixNested", args: args{&argov1alpha1.ApplicationSet{
+			Spec: argov1alpha1.ApplicationSetSpec{
+				Generators: []argov1alpha1.ApplicationSetGenerator{
+					{Clusters: &argov1alpha1.ClusterGenerator{}},
+					{Matrix: &argov1alpha1.MatrixGenerator{
+						Generators: []argov1alpha1.ApplicationSetNestedGenerator{
+							{
+								Clusters: &argov1alpha1.ClusterGenerator{},
+								Git:      &argov1alpha1.GitGenerator{},
+							},
+						},
+					}},
+				},
+			},
+		}}, want: generators.DefaultRequeueAfterSeconds, wantErr: assert.NoError},
+		{name: "ListGenerator", args: args{appset: &argov1alpha1.ApplicationSet{
+			Spec: argov1alpha1.ApplicationSetSpec{
+				Generators: []argov1alpha1.ApplicationSetGenerator{{List: &argov1alpha1.ListGenerator{}}},
+			},
+		}}, want: generators.NoRequeueAfter, wantErr: assert.NoError},
 	}
 	for _, tt := range tests {
 		t.Run(tt.name, func(t *testing.T) {

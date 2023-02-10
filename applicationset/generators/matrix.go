@@ -148,6 +148,8 @@ func (m *MatrixGenerator) GetRequeueAfter(appSetGenerator *argoprojiov1alpha1.Ap
 			Clusters:    r.Clusters,
 			Git:         r.Git,
 			PullRequest: r.PullRequest,
+			Matrix:      getMatrixGenerator(r),
+			Merge:       getMergeGenerator(r),
 		}
 		generators := GetRelevantGenerators(base, m.supportedGenerators)
 
