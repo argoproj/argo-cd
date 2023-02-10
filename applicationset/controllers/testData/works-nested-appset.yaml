@@ -1,0 +1,40 @@
+apiVersion: argoproj.io/v1alpha1
+kind: ApplicationSet
+metadata:
+  name: app-appset
+spec:
+  generators:
+    - merge:
+        mergeKeys: [ name ]
+        generators:
+          - git:
+              repoURL: foo.bar.com/app.git
+              revision: HEAD
+              files:
+                - path: "preprod/*/*.yaml"
+          - matrix:
+              generators:
+                - clusters:
+                    selector:
+                      matchExpressions:
+                        - { key: foo, operator: Exists }
+                - git:
+                    repoURL: foo.bar.com/app.git
+                    revision: HEAD
+                    files:
+                      - path: "config/config.yaml"
+  template:
+    metadata:
+      name: 'app-{{name}}'
+    spec:
+      project: project
+      source:
+        path: 'app'
+        repoURL: foo.bar.com/app.git
+        targetRevision: HEAD
+      destination:
+        namespace: not-argocd
+        server: '{{server}}'
+      syncPolicy:
+        automated:
+          prune: true
