@@ -51,8 +51,11 @@ $deselected-text: #818d94;
 
     &__version {
         cursor: pointer;
-        width: 100%;
+        width: 110px;
         text-align: left;
+        white-space: nowrap;
+        overflow: hidden;
+        text-overflow: ellipsis;
     }
 
     &__nav-item {
