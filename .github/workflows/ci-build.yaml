@@ -75,10 +75,11 @@ jobs:
         with:
           go-version: ${{ env.GOLANG_VERSION }}
       - name: Run golangci-lint
-        uses: golangci/golangci-lint-action@0ad9a0988b3973e851ab0a07adf248ec2e100376 # v3.3.1
+        uses: golangci/golangci-lint-action@08e2f20817b15149a52b5b3ebe7de50aff2ba8c5 # v3.4.0
         with:
-          version: v1.46.2
-          args: --timeout 10m --exclude SA5011 --verbose
+          version: v1.51.1
+          args: --verbose --out-${NO_FUTURE}format colored-line-number --timeout 5m
+          skip-cache: true
 
   test-go:
     name: Run unit tests for Go packages
