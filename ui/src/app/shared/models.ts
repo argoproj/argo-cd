@@ -467,7 +467,6 @@ export interface AuthSettings {
         chatText: string;
         binaryUrls: Record<string, string>;
     };
-    plugins: Plugin[];
     userLoginsDisabled: boolean;
     kustomizeVersions: string[];
     uiCssURL: string;
@@ -524,6 +523,7 @@ export interface Repository {
     insecure?: boolean;
     enableLfs?: boolean;
     githubAppId?: string;
+    forceHttpBasicAuth?: boolean;
 }
 
 export interface RepositoryList extends ItemsList<Repository> {}

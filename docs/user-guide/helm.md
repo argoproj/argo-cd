@@ -2,7 +2,9 @@
 
 ## Declarative
 
-You can install Helm charts through the UI, or in the declarative GitOps way. Here is an example:
+You can install Helm charts through the UI, or in the declarative GitOps way.  
+Helm is [only used to inflate charts with `helm template`](../../faq#after-deploying-my-helm-application-with-argo-cd-i-cannot-see-it-with-helm-ls-and-other-helm-commands). The lifecycle of the application is handled by Argo CD instead of Helm.
+Here is an example:
 
 ```yaml
 apiVersion: argoproj.io/v1alpha1
@@ -291,7 +293,7 @@ Helm, [starting with v3.6.1](https://github.com/helm/helm/releases/tag/v3.6.1),
 prevents sending repository credentials to download charts that are being served
 from a different domain than the repository.
 
-If needed, it is possible to specifically set the Helm version to template with by setting the `helm-pass-credentials` flag on the cli:
+If needed, it is possible to opt into passing credentials for all domains by setting the `helm-pass-credentials` flag on the cli:
 
 ```bash
 argocd app set helm-guestbook --helm-pass-credentials
