@@ -55,6 +55,10 @@ data:
           cluster: https://some-cluster
 ```
 
+If a the configuration is changed, Argo CD Server will need to be
+restarted as the proxy handlers are only registered once during the
+initialization of the server.
+
 Every configuration entry is explained below:
 
 #### `extensions` (*list*)
@@ -81,8 +85,7 @@ for a connect to complete.
 (optional. Default: 15s)
 
 Specifies the interval between keep-alive probes for an active network
-connection between the API server and the extension server. Optional
-field.
+connection between the API server and the extension server.
 
 #### `extensions.backend.idleConnectionTimeout` (*duration string*)
 (optional. Default: 60s)
@@ -109,13 +112,16 @@ Is the address where the extension backend must be available.
 #### `extensions.backend.services.cluster` (*string*)
 (optional)
 
-If provided, will have to match the application destination name to
-have requests properly forwarded to this service URL. If there are
-multiple backends for the same extension this field is required. The
-value can be the cluster name (priority) or the cluster server URL. It
-will be matched with the value from
-`Application.Spec.Destination.Name` and if that is not available it
-will match if the value from `Application.Spec.Destination.Server`.
+If provided, and multiple services are configured, will have to match
+the application destination name to have requests properly forwarded
+to this service URL. If there are multiple backends for the same
+extension this field is required. The value can be the cluster name
+(priority) or the cluster server URL. It will be matched with the
+value from `Application.Spec.Destination.Name` and if that is not
+available it will match if the value from
+`Application.Spec.Destination.Server`. If only one backend service is
+configured, this field is ignored, and all requests are forwarded to
+the configured backend service.
 
 ## Usage
 
@@ -143,7 +149,7 @@ configuration:
                                                    │  │
                                                    ▼  │
                                              ┌────────┴────────┐
-                                             │Backend Extension│
+                                             │ Backend Service │
                                              └─────────────────┘
 ```
 
@@ -151,7 +157,7 @@ configuration:
 
 Note that Argo CD API Server requires additional HTTP headers to be
 sent in order to enforce if the incoming request is authenticated and
-authorized before being proxied to the Backend Extension. The headers
+authorized before being proxied to the backend service. The headers
 are documented below:
 
 #### `Cookie` (*mandatory*)
@@ -162,20 +168,20 @@ so the API server can validate its authenticity.
 
 Example: 
 
-    Cookie: "argocd.token=eyJhbGciOiJIUzI1Ni..."
+    Cookie: argocd.token=eyJhbGciOiJIUzI1Ni...
 
 The entire Argo CD cookie list can also be sent. The API server will
-filter out the `argocd.token` automatically in this case.
+only use the `argocd.token` attribute in this case.
 
 #### `Argocd-Application-Name` (mandatory)
 
-The logged in user must have read permission in this application name
-in order to be authorized. The header value must follow the format:
+This is the name of the project for the application for which the
+extension is being invoked. The header value must follow the format:
 `"<namespace>:<app-name>"`.
 
 Example:
 
-    Argocd-Application-Name: "namespace:app-name"
+    Argocd-Application-Name: namespace:app-name
 
 #### `Argocd-Project-Name` (mandatory)
 
@@ -184,25 +190,7 @@ authorized.
 
 Example:
 
-    Argocd-Project-Name: "default"
-
-#### `Argocd-Resource-GVK-Name` (optional)
-
-To provide additional level of validation, the requested resource can
-be sent in this header. In this case the API server will validate that
-this specific resource belongs to the application identified by the
-`Argocd-Application-Name` header.
-
-The value must follow the format:
-
-    "<apiVersion>:<kind>:<metadata.name>"
-
-Example:
-
-    Argocd-Resource-GVK-Name: "apps/v1:Pod:some-pod"
-
-It is also possible to send multiple values in this header separated
-by commas.
+    Argocd-Project-Name: default
 
 Argo CD API Server will ensure that the logged in user has the
 permission to access the resources provided by the headers above. The

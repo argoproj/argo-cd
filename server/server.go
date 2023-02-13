@@ -969,7 +969,8 @@ func (a *ArgoCDServer) newHTTPServer(ctx context.Context, port int, grpcWebHandl
 func registerExtensions(mux *http.ServeMux, a *ArgoCDServer) {
 	sg := extension.NewDefaultSettingsGetter(a.settingsMgr)
 	ag := extension.NewDefaultApplicationGetter(a.appLister)
-	em := extension.NewManager(a.log, sg, ag, a.enf)
+	pg := extension.NewDefaultProjectGetter(a.projLister, a.db)
+	em := extension.NewManager(a.log, sg, ag, pg, a.enf)
 	r := gmux.NewRouter()
 	// register an Auth middleware to ensure all requests to
 	// extensions are authenticated first.

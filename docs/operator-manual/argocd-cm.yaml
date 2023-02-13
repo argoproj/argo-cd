@@ -369,5 +369,5 @@ data:
               # Cluster if provided, will have to match the application
               # destination name to have requests properly forwarded to this
               # service URL.
-              # Optional field
+              # Optional field if only one service is specified. Mandatory if multiple services are specified.
               cluster: https://some-cluster

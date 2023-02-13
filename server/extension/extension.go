@@ -16,6 +16,7 @@ import (
 	applisters "github.com/argoproj/argo-cd/v2/pkg/client/listers/application/v1alpha1"
 	"github.com/argoproj/argo-cd/v2/server/rbacpolicy"
 	"github.com/argoproj/argo-cd/v2/util/argo"
+	"github.com/argoproj/argo-cd/v2/util/db"
 	"github.com/argoproj/argo-cd/v2/util/security"
 	"github.com/argoproj/argo-cd/v2/util/settings"
 	"github.com/ghodss/yaml"
@@ -44,14 +45,6 @@ const (
 	// Example:
 	//     Argocd-Project-Name: "default"
 	HeaderArgoCDProjectName = "Argocd-Project-Name"
-
-	// HeaderArgoCDResourceGVKName defines the name of the
-	// expected GVK name header to be passed to the extension
-	// handler. The header value must follow the format:
-	//     "<apiVersion>:<kind>:<metadata.name>"
-	// Example:
-	//     Argocd-Resource-GVK-Name: "apps/v1:Pod:some-pod"
-	HeaderArgoCDResourceGVKName = "Argocd-Resource-GVK-Name"
 )
 
 // RequestResources defines the authorization scope for
@@ -61,7 +54,6 @@ type RequestResources struct {
 	ApplicationName      string
 	ApplicationNamespace string
 	ProjectName          string
-	Resources            []Resource
 }
 
 // Resource defines the Kubernetes resource used for checking
@@ -109,21 +101,10 @@ func ValidateHeaders(r *http.Request) (*RequestResources, error) {
 	if !argo.IsValidProjectName(projName) {
 		return nil, errors.New("invalid value for project name")
 	}
-	resources := []Resource{}
-	resourcesHeader := r.Header.Get(HeaderArgoCDResourceGVKName)
-	if resourcesHeader != "" {
-		resourceList, err := getResourceList(resourcesHeader)
-		if err != nil {
-			return nil, fmt.Errorf("error getting resource: %s", err)
-		}
-		resources = append(resources, resourceList...)
-	}
-
 	return &RequestResources{
 		ApplicationName:      appName,
 		ApplicationNamespace: appNamespace,
 		ProjectName:          projName,
-		Resources:            resources,
 	}, nil
 }
 
@@ -133,34 +114,6 @@ func getAppName(appHeader string) (string, string, error) {
 		return "", "", fmt.Errorf("invalid value for %q header: expected format: <namespace>:<app-name>", HeaderArgoCDApplicationName)
 	}
 	return parts[0], parts[1], nil
-}
-
-func getResourceList(resourcesHeader string) ([]Resource, error) {
-	resources := []Resource{}
-	parts := strings.Split(resourcesHeader, ",")
-	for _, part := range parts {
-		resource, err := getResource(part)
-		if err != nil {
-			return nil, fmt.Errorf("resource error: %s", err)
-		}
-		if resource != nil {
-			resources = append(resources, *resource)
-		}
-	}
-
-	return resources, nil
-}
-
-func getResource(resourceString string) (*Resource, error) {
-	parts := strings.Split(resourceString, ":")
-	if len(parts) != 3 {
-		return nil, fmt.Errorf("invalid value for %q header: expected format: <apiVersion>:<kind>:<metadata.name>", HeaderArgoCDResourceGVKName)
-	}
-	gvk := schema.FromAPIVersionAndKind(strings.TrimSpace(parts[0]), strings.TrimSpace(parts[1]))
-	return &Resource{
-		Gvk:  gvk,
-		Name: strings.TrimSpace(parts[2]),
-	}, nil
 }
 
 // ExtensionConfigs defines the configurations for all extensions
@@ -247,6 +200,36 @@ func (s *DefaultSettingsGetter) Get() (*settings.ArgoCDSettings, error) {
 	return s.settingsMgr.GetSettings()
 }
 
+// ProjectGetter defines the contract to retrieve Argo CD Project.
+type ProjectGetter interface {
+	Get(name string) (*v1alpha1.AppProject, error)
+	GetClusters(project string) ([]*v1alpha1.Cluster, error)
+}
+
+// DefaultProjectGetter is the real ProjectGetter implementation.
+type DefaultProjectGetter struct {
+	projLister applisters.AppProjectNamespaceLister
+	db         db.ArgoDB
+}
+
+// NewDefaultProjectGetter returns a new default project getter
+func NewDefaultProjectGetter(lister applisters.AppProjectNamespaceLister, db db.ArgoDB) *DefaultProjectGetter {
+	return &DefaultProjectGetter{
+		projLister: lister,
+		db:         db,
+	}
+}
+
+// Get will retrieve the live AppProject state.
+func (p *DefaultProjectGetter) Get(name string) (*v1alpha1.AppProject, error) {
+	return p.projLister.Get(name)
+}
+
+// GetClusters will retrieve the clusters configured by a project.
+func (p *DefaultProjectGetter) GetClusters(project string) ([]*v1alpha1.Cluster, error) {
+	return p.db.GetProjectClusters(context.TODO(), project)
+}
+
 // ApplicationGetter defines the contract to retrieve the application resource.
 type ApplicationGetter interface {
 	Get(ns, name string) (*v1alpha1.Application, error)
@@ -280,15 +263,17 @@ type Manager struct {
 	log         *log.Entry
 	settings    SettingsGetter
 	application ApplicationGetter
+	project     ProjectGetter
 	rbac        RbacEnforcer
 }
 
 // NewManager will initialize a new manager.
-func NewManager(log *log.Entry, sg SettingsGetter, ag ApplicationGetter, rbac RbacEnforcer) *Manager {
+func NewManager(log *log.Entry, sg SettingsGetter, ag ApplicationGetter, pg ProjectGetter, rbac RbacEnforcer) *Manager {
 	return &Manager{
 		log:         log,
 		settings:    sg,
 		application: ag,
+		project:     pg,
 		rbac:        rbac,
 	}
 }
@@ -452,19 +437,24 @@ func (m *Manager) authorize(ctx context.Context, rr *RequestResources, extName s
 		return nil, fmt.Errorf("invalid Application provided in the %q header", HeaderArgoCDApplicationName)
 	}
 
-	// if resources are provided in the HeaderArgoCDResourceGVKName
-	// it will validate if it belongs to the application
-	for _, resource := range rr.Resources {
-		found := false
-		for _, child := range app.Status.Resources {
-			if child.GroupVersionKind() == resource.Gvk &&
-				child.Name == resource.Name {
-				found = true
-				break
-			}
+	if app.Spec.GetProject() != rr.ProjectName {
+		return nil, fmt.Errorf("project mismatch provided in the %q header", HeaderArgoCDProjectName)
+	}
+
+	if app.Spec.GetProject() != v1alpha1.DefaultAppProjectName {
+		proj, err := m.project.Get(app.Spec.GetProject())
+		if err != nil {
+			return nil, fmt.Errorf("error getting project: %s", err)
 		}
-		if !found {
-			return nil, fmt.Errorf("resource from header %q does not belong to the application", HeaderArgoCDResourceGVKName)
+		if proj == nil {
+			return nil, fmt.Errorf("invalid project provided in the %q header", HeaderArgoCDProjectName)
+		}
+		permitted, err := proj.IsDestinationPermitted(app.Spec.Destination, m.project.GetClusters)
+		if err != nil {
+			return nil, fmt.Errorf("error validating project destinations: %s", err)
+		}
+		if !permitted {
+			return nil, fmt.Errorf("the provided project is not allowed to access the cluster configured in the Application destination")
 		}
 	}
 
