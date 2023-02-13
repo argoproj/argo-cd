@@ -76,7 +76,7 @@ func TestMatchValues(t *testing.T) {
 				Spec: argoprojiov1alpha1.ApplicationSetSpec{},
 			}
 
-			results, err := Transform(argoprojiov1alpha1.ApplicationSetGenerator{
+			results, err := Transform(context.Background(), argoprojiov1alpha1.ApplicationSetGenerator{
 				Selector: testCase.selector,
 				List: &argoprojiov1alpha1.ListGenerator{
 					Elements: testCase.elements,

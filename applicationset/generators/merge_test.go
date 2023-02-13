@@ -1,6 +1,7 @@
 package generators
 
 import (
+	"context"
 	"encoding/json"
 	"fmt"
 	"testing"
@@ -172,7 +173,7 @@ func TestMergeGenerate(t *testing.T) {
 				},
 			)
 
-			got, err := mergeGenerator.GenerateParams(&argoprojiov1alpha1.ApplicationSetGenerator{
+			got, err := mergeGenerator.GenerateParams(context.Background(), &argoprojiov1alpha1.ApplicationSetGenerator{
 				Merge: &argoprojiov1alpha1.MergeGenerator{
 					Generators: testCaseCopy.baseGenerators,
 					MergeKeys:  testCaseCopy.mergeKeys,

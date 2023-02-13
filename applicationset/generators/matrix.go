@@ -1,6 +1,7 @@
 package generators
 
 import (
+	"context"
 	"fmt"
 	"time"
 
@@ -30,7 +31,7 @@ func NewMatrixGenerator(supportedGenerators map[string]Generator) Generator {
 	return m
 }
 
-func (m *MatrixGenerator) GenerateParams(appSetGenerator *argoprojiov1alpha1.ApplicationSetGenerator, appSet *argoprojiov1alpha1.ApplicationSet) ([]map[string]interface{}, error) {
+func (m *MatrixGenerator) GenerateParams(ctx context.Context, appSetGenerator *argoprojiov1alpha1.ApplicationSetGenerator, appSet *argoprojiov1alpha1.ApplicationSet) ([]map[string]interface{}, error) {
 
 	if appSetGenerator.Matrix == nil {
 		return nil, EmptyAppSetGeneratorError
@@ -46,12 +47,12 @@ func (m *MatrixGenerator) GenerateParams(appSetGenerator *argoprojiov1alpha1.App
 
 	res := []map[string]interface{}{}
 
-	g0, err := m.getParams(appSetGenerator.Matrix.Generators[0], appSet, nil)
+	g0, err := m.getParams(ctx, appSetGenerator.Matrix.Generators[0], appSet, nil)
 	if err != nil {
 		return nil, err
 	}
 	for _, a := range g0 {
-		g1, err := m.getParams(appSetGenerator.Matrix.Generators[1], appSet, a)
+		g1, err := m.getParams(ctx, appSetGenerator.Matrix.Generators[1], appSet, a)
 		if err != nil {
 			return nil, fmt.Errorf("failed to get params for second generator in the matrix generator: %w", err)
 		}
@@ -79,7 +80,7 @@ func (m *MatrixGenerator) GenerateParams(appSetGenerator *argoprojiov1alpha1.App
 	return res, nil
 }
 
-func (m *MatrixGenerator) getParams(appSetBaseGenerator argoprojiov1alpha1.ApplicationSetNestedGenerator, appSet *argoprojiov1alpha1.ApplicationSet, params map[string]interface{}) ([]map[string]interface{}, error) {
+func (m *MatrixGenerator) getParams(ctx context.Context, appSetBaseGenerator argoprojiov1alpha1.ApplicationSetNestedGenerator, appSet *argoprojiov1alpha1.ApplicationSet, params map[string]interface{}) ([]map[string]interface{}, error) {
 	var matrix *argoprojiov1alpha1.MatrixGenerator
 	if appSetBaseGenerator.Matrix != nil {
 		// Since nested matrix generator is represented as a JSON object in the CRD, we unmarshall it back to a Go struct here.
@@ -105,6 +106,7 @@ func (m *MatrixGenerator) getParams(appSetBaseGenerator argoprojiov1alpha1.Appli
 	}
 
 	t, err := Transform(
+		ctx,
 		argoprojiov1alpha1.ApplicationSetGenerator{
 			List:                    appSetBaseGenerator.List,
 			Clusters:                appSetBaseGenerator.Clusters,

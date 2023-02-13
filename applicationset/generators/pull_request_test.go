@@ -183,7 +183,7 @@ func TestPullRequestGithubGenerateParams(t *testing.T) {
 			PullRequest: &argoprojiov1alpha1.PullRequestGenerator{},
 		}
 
-		got, gotErr := gen.GenerateParams(&generatorConfig, &c.applicationSet)
+		got, gotErr := gen.GenerateParams(context.Background(), &generatorConfig, &c.applicationSet)
 		assert.Equal(t, c.expectedErr, gotErr)
 		assert.ElementsMatch(t, c.expected, got)
 	}

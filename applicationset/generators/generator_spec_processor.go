@@ -1,8 +1,9 @@
 package generators
 
 import (
-	"fmt"
+	"context"
 	"encoding/json"
+	"fmt"
 	"reflect"
 
 	"github.com/argoproj/argo-cd/v2/applicationset/utils"
@@ -26,7 +27,7 @@ type TransformResult struct {
 }
 
 //Transform a spec generator to list of paramSets and a template
-func Transform(requestedGenerator argoprojiov1alpha1.ApplicationSetGenerator, allGenerators map[string]Generator, baseTemplate argoprojiov1alpha1.ApplicationSetTemplate, appSet *argoprojiov1alpha1.ApplicationSet, genParams map[string]interface{}) ([]TransformResult, error) {
+func Transform(ctx context.Context, requestedGenerator argoprojiov1alpha1.ApplicationSetGenerator, allGenerators map[string]Generator, baseTemplate argoprojiov1alpha1.ApplicationSetTemplate, appSet *argoprojiov1alpha1.ApplicationSet, genParams map[string]interface{}) ([]TransformResult, error) {
 	selector, err := metav1.LabelSelectorAsSelector(requestedGenerator.Selector)
 	if err != nil {
 		return nil, fmt.Errorf("error parsing label selector: %w", err)
@@ -61,7 +62,7 @@ func Transform(requestedGenerator argoprojiov1alpha1.ApplicationSetGenerator, al
 				continue
 			}
 		}
-		params, err = g.GenerateParams(interpolatedGenerator, appSet)
+		params, err = g.GenerateParams(ctx, interpolatedGenerator, appSet)
 		if err != nil {
 			log.WithError(err).WithField("generator", g).
 				Error("error generating params")

@@ -1,6 +1,7 @@
 package generators
 
 import (
+	"context"
 	"testing"
 
 	"github.com/stretchr/testify/assert"
@@ -35,7 +36,7 @@ func TestGenerateListParams(t *testing.T) {
 			Spec: argoprojiov1alpha1.ApplicationSetSpec{},
 		}
 
-		got, err := listGenerator.GenerateParams(&argoprojiov1alpha1.ApplicationSetGenerator{
+		got, err := listGenerator.GenerateParams(context.Background(), &argoprojiov1alpha1.ApplicationSetGenerator{
 			List: &argoprojiov1alpha1.ListGenerator{
 				Elements: testCase.elements,
 			}}, &applicationSetInfo)
@@ -73,7 +74,7 @@ func TestGenerateListParamsGoTemplate(t *testing.T) {
 			},
 		}
 
-		got, err := listGenerator.GenerateParams(&argoprojiov1alpha1.ApplicationSetGenerator{
+		got, err := listGenerator.GenerateParams(context.Background(), &argoprojiov1alpha1.ApplicationSetGenerator{
 			List: &argoprojiov1alpha1.ListGenerator{
 				Elements: testCase.elements,
 			}}, &applicationSetInfo)

@@ -292,7 +292,7 @@ func TestGitGenerateParamsFromDirectories(t *testing.T) {
 				},
 			}
 
-			got, err := gitGenerator.GenerateParams(&applicationSetInfo.Spec.Generators[0], &applicationSetInfo)
+			got, err := gitGenerator.GenerateParams(context.Background(), &applicationSetInfo.Spec.Generators[0], &applicationSetInfo)
 
 			if testCaseCopy.expectedError != nil {
 				assert.EqualError(t, err, testCaseCopy.expectedError.Error())
@@ -588,7 +588,7 @@ func TestGitGenerateParamsFromDirectoriesGoTemplate(t *testing.T) {
 				},
 			}
 
-			got, err := gitGenerator.GenerateParams(&applicationSetInfo.Spec.Generators[0], &applicationSetInfo)
+			got, err := gitGenerator.GenerateParams(context.Background(), &applicationSetInfo.Spec.Generators[0], &applicationSetInfo)
 
 			if testCaseCopy.expectedError != nil {
 				assert.EqualError(t, err, testCaseCopy.expectedError.Error())
@@ -877,7 +877,7 @@ cluster:
 				},
 			}
 
-			got, err := gitGenerator.GenerateParams(&applicationSetInfo.Spec.Generators[0], &applicationSetInfo)
+			got, err := gitGenerator.GenerateParams(context.Background(), &applicationSetInfo.Spec.Generators[0], &applicationSetInfo)
 			fmt.Println(got, err)
 
 			if testCaseCopy.expectedError != nil {
@@ -1227,7 +1227,7 @@ cluster:
 				},
 			}
 
-			got, err := gitGenerator.GenerateParams(&applicationSetInfo.Spec.Generators[0], &applicationSetInfo)
+			got, err := gitGenerator.GenerateParams(context.Background(), &applicationSetInfo.Spec.Generators[0], &applicationSetInfo)
 			fmt.Println(got, err)
 
 			if testCaseCopy.expectedError != nil {

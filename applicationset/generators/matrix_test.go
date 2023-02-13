@@ -173,7 +173,7 @@ func TestMatrixGenerate(t *testing.T) {
 				},
 			)
 
-			got, err := matrixGenerator.GenerateParams(&argoprojiov1alpha1.ApplicationSetGenerator{
+			got, err := matrixGenerator.GenerateParams(context.Background(), &argoprojiov1alpha1.ApplicationSetGenerator{
 				Matrix: &argoprojiov1alpha1.MatrixGenerator{
 					Generators: testCaseCopy.baseGenerators,
 					Template:   argoprojiov1alpha1.ApplicationSetTemplate{},
@@ -368,7 +368,7 @@ func TestMatrixGenerateGoTemplate(t *testing.T) {
 				},
 			)
 
-			got, err := matrixGenerator.GenerateParams(&argoprojiov1alpha1.ApplicationSetGenerator{
+			got, err := matrixGenerator.GenerateParams(context.Background(), &argoprojiov1alpha1.ApplicationSetGenerator{
 				Matrix: &argoprojiov1alpha1.MatrixGenerator{
 					Generators: testCaseCopy.baseGenerators,
 					Template:   argoprojiov1alpha1.ApplicationSetTemplate{},
@@ -628,7 +628,7 @@ func TestInterpolatedMatrixGenerate(t *testing.T) {
 				},
 			)
 
-			got, err := matrixGenerator.GenerateParams(&argoprojiov1alpha1.ApplicationSetGenerator{
+			got, err := matrixGenerator.GenerateParams(context.Background(), &argoprojiov1alpha1.ApplicationSetGenerator{
 				Matrix: &argoprojiov1alpha1.MatrixGenerator{
 					Generators: testCaseCopy.baseGenerators,
 					Template:   argoprojiov1alpha1.ApplicationSetTemplate{},
@@ -816,7 +816,7 @@ func TestInterpolatedMatrixGenerateGoTemplate(t *testing.T) {
 				},
 			)
 
-			got, err := matrixGenerator.GenerateParams(&argoprojiov1alpha1.ApplicationSetGenerator{
+			got, err := matrixGenerator.GenerateParams(context.Background(), &argoprojiov1alpha1.ApplicationSetGenerator{
 				Matrix: &argoprojiov1alpha1.MatrixGenerator{
 					Generators: testCaseCopy.baseGenerators,
 					Template:   argoprojiov1alpha1.ApplicationSetTemplate{},
@@ -845,7 +845,7 @@ func (g *generatorMock) GetTemplate(appSetGenerator *argoprojiov1alpha1.Applicat
 	return args.Get(0).(*argoprojiov1alpha1.ApplicationSetTemplate)
 }
 
-func (g *generatorMock) GenerateParams(appSetGenerator *argoprojiov1alpha1.ApplicationSetGenerator, appSet *argoprojiov1alpha1.ApplicationSet) ([]map[string]interface{}, error) {
+func (g *generatorMock) GenerateParams(ctx context.Context, appSetGenerator *argoprojiov1alpha1.ApplicationSetGenerator, appSet *argoprojiov1alpha1.ApplicationSet) ([]map[string]interface{}, error) {
 	args := g.Called(appSetGenerator, appSet)
 
 	return args.Get(0).([]map[string]interface{}), args.Error(1)

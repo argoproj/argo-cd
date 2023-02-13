@@ -302,7 +302,7 @@ func TestGenerateParamsForDuckType(t *testing.T) {
 				Spec: argoprojiov1alpha1.ApplicationSetSpec{},
 			}
 
-			got, err := duckTypeGenerator.GenerateParams(&argoprojiov1alpha1.ApplicationSetGenerator{
+			got, err := duckTypeGenerator.GenerateParams(context.Background(), &argoprojiov1alpha1.ApplicationSetGenerator{
 				ClusterDecisionResource: &argoprojiov1alpha1.DuckTypeGenerator{
 					ConfigMapRef:  "my-configmap",
 					Name:          testCase.resourceName,
@@ -602,7 +602,7 @@ func TestGenerateParamsForDuckTypeGoTemplate(t *testing.T) {
 				},
 			}
 
-			got, err := duckTypeGenerator.GenerateParams(&argoprojiov1alpha1.ApplicationSetGenerator{
+			got, err := duckTypeGenerator.GenerateParams(context.Background(), &argoprojiov1alpha1.ApplicationSetGenerator{
 				ClusterDecisionResource: &argoprojiov1alpha1.DuckTypeGenerator{
 					ConfigMapRef:  "my-configmap",
 					Name:          testCase.resourceName,

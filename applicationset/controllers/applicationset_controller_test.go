@@ -47,7 +47,7 @@ func (g *generatorMock) GetTemplate(appSetGenerator *argov1alpha1.ApplicationSet
 	return args.Get(0).(*argov1alpha1.ApplicationSetTemplate)
 }
 
-func (g *generatorMock) GenerateParams(appSetGenerator *argov1alpha1.ApplicationSetGenerator, _ *argov1alpha1.ApplicationSet) ([]map[string]interface{}, error) {
+func (g *generatorMock) GenerateParams(ctx context.Context, appSetGenerator *argov1alpha1.ApplicationSetGenerator, _ *argov1alpha1.ApplicationSet) ([]map[string]interface{}, error) {
 	args := g.Called(appSetGenerator)
 
 	return args.Get(0).([]map[string]interface{}), args.Error(1)
@@ -184,7 +184,7 @@ func TestExtractApplications(t *testing.T) {
 				KubeClientset: kubefake.NewSimpleClientset(),
 			}
 
-			got, reason, err := r.generateApplications(argov1alpha1.ApplicationSet{
+			got, reason, err := r.generateApplications(context.Background(), argov1alpha1.ApplicationSet{
 				ObjectMeta: metav1.ObjectMeta{
 					Name:      "name",
 					Namespace: "namespace",
@@ -297,7 +297,7 @@ func TestMergeTemplateApplications(t *testing.T) {
 				KubeClientset: kubefake.NewSimpleClientset(),
 			}
 
-			got, _, _ := r.generateApplications(argov1alpha1.ApplicationSet{
+			got, _, _ := r.generateApplications(context.Background(), argov1alpha1.ApplicationSet{
 				ObjectMeta: metav1.ObjectMeta{
 					Name:      "name",
 					Namespace: "namespace",
@@ -2014,7 +2014,7 @@ func TestGenerateAppsUsingPullRequestGenerator(t *testing.T) {
 				KubeClientset: kubefake.NewSimpleClientset(),
 			}
 
-			gotApp, _, _ := appSetReconciler.generateApplications(argov1alpha1.ApplicationSet{
+			gotApp, _, _ := appSetReconciler.generateApplications(context.Background(), argov1alpha1.ApplicationSet{
 				Spec: argov1alpha1.ApplicationSetSpec{
 					GoTemplate: true,
 					Generators: []argov1alpha1.ApplicationSetGenerator{{

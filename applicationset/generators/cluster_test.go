@@ -240,7 +240,7 @@ func TestGenerateParams(t *testing.T) {
 				Spec: argoprojiov1alpha1.ApplicationSetSpec{},
 			}
 
-			got, err := clusterGenerator.GenerateParams(&argoprojiov1alpha1.ApplicationSetGenerator{
+			got, err := clusterGenerator.GenerateParams(context.Background(), &argoprojiov1alpha1.ApplicationSetGenerator{
 				Clusters: &argoprojiov1alpha1.ClusterGenerator{
 					Selector: testCase.selector,
 					Values:   testCase.values,
@@ -616,7 +616,7 @@ func TestGenerateParamsGoTemplate(t *testing.T) {
 				},
 			}
 
-			got, err := clusterGenerator.GenerateParams(&argoprojiov1alpha1.ApplicationSetGenerator{
+			got, err := clusterGenerator.GenerateParams(context.Background(), &argoprojiov1alpha1.ApplicationSetGenerator{
 				Clusters: &argoprojiov1alpha1.ClusterGenerator{
 					Selector: testCase.selector,
 					Values:   testCase.values,
