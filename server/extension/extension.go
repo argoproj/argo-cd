@@ -469,8 +469,8 @@ func (m *Manager) CallExtension(extName string, proxyByCluster map[string]*httpu
 		// This is the case where there is only one proxy configured
 		// for this extension.
 		if len(proxyByCluster) == 1 {
-			for _, proxy := range proxyByCluster {
-				m.log.Debugf("proxing request to %s", html.EscapeString(r.URL.String()))
+			for cName, proxy := range proxyByCluster {
+				m.log.Debugf("proxing request to cluster %q", cName)
 				// in this case we just forward the request to the single
 				// proxy and return
 				proxy.ServeHTTP(w, r)
@@ -491,6 +491,7 @@ func (m *Manager) CallExtension(extName string, proxyByCluster map[string]*httpu
 			http.Error(w, msg, http.StatusBadRequest)
 			return
 		}
+		m.log.Debugf("proxing request to cluster %q", clusterName)
 		proxy.ServeHTTP(w, r)
 	}
 }
