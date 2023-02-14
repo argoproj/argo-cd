@@ -471,6 +471,9 @@ message ApplicationSourceKustomize {
 
   // Namespace sets the namespace that Kustomize adds to all resources
   optional string namespace = 9;
+
+  // CommonAnnotationsEnvsubst specifies whether to apply env variables substitution for annotation values
+  optional bool commonAnnotationsEnvsubst = 10;
 }
 
 // ApplicationSourcePlugin holds options specific to config management plugins

@@ -6115,6 +6115,10 @@
             "type": "string"
           }
         },
+        "commonAnnotationsEnvsubst": {
+          "type": "boolean",
+          "title": "CommonAnnotationsEnvsubst specifies whether to apply env variables substitution for annotation values"
+        },
         "commonLabels": {
           "type": "object",
           "title": "CommonLabels is a list of additional labels to add to rendered manifests",

@@ -36,21 +36,25 @@ func TestKustomizeBuild(t *testing.T) {
 	nameSuffix := "-nameSuffix"
 	namespace := "custom-namespace"
 	kustomize := NewKustomizeApp(appPath, git.NopCreds{}, "", "")
+	env := &v1alpha1.Env{
+		&v1alpha1.EnvEntry{Name: "ARGOCD_APP_NAME", Value: "argo-cd-tests"},
+	}
 	kustomizeSource := v1alpha1.ApplicationSourceKustomize{
 		NamePrefix: namePrefix,
 		NameSuffix: nameSuffix,
 		Images:     v1alpha1.KustomizeImages{"nginx:1.15.5"},
 		CommonLabels: map[string]string{
 			"app.kubernetes.io/managed-by": "argo-cd",
-			"app.kubernetes.io/part-of":    "argo-cd-tests",
+			"app.kubernetes.io/part-of":    "${ARGOCD_APP_NAME}",
 		},
 		CommonAnnotations: map[string]string{
 			"app.kubernetes.io/managed-by": "argo-cd",
-			"app.kubernetes.io/part-of":    "argo-cd-tests",
+			"app.kubernetes.io/part-of":    "${ARGOCD_APP_NAME}",
 		},
-		Namespace: namespace,
+		Namespace:                 namespace,
+		CommonAnnotationsEnvsubst: true,
 	}
-	objs, images, err := kustomize.Build(&kustomizeSource, nil, nil)
+	objs, images, err := kustomize.Build(&kustomizeSource, nil, env)
 	assert.Nil(t, err)
 	if err != nil {
 		assert.Equal(t, len(objs), 2)
@@ -135,6 +139,7 @@ func TestKustomizeBuildForceCommonLabels(t *testing.T) {
 		KustomizeSource v1alpha1.ApplicationSourceKustomize
 		ExpectedLabels  map[string]string
 		ExpectErr       bool
+		Env             *v1alpha1.Env
 	}
 	testCases := []testCase{
 		{
@@ -142,12 +147,20 @@ func TestKustomizeBuildForceCommonLabels(t *testing.T) {
 			KustomizeSource: v1alpha1.ApplicationSourceKustomize{
 				ForceCommonLabels: true,
 				CommonLabels: map[string]string{
-					"foo": "edited",
+					"foo":  "edited",
+					"test": "${ARGOCD_APP_NAME}",
 				},
 			},
 			ExpectedLabels: map[string]string{
-				"app": "nginx",
-				"foo": "edited",
+				"app":  "nginx",
+				"foo":  "edited",
+				"test": "argo-cd-tests",
+			},
+			Env: &v1alpha1.Env{
+				&v1alpha1.EnvEntry{
+					Name:  "ARGOCD_APP_NAME",
+					Value: "argo-cd-tests",
+				},
 			},
 		},
 		{
@@ -159,13 +172,19 @@ func TestKustomizeBuildForceCommonLabels(t *testing.T) {
 				},
 			},
 			ExpectErr: true,
+			Env: &v1alpha1.Env{
+				&v1alpha1.EnvEntry{
+					Name:  "ARGOCD_APP_NAME",
+					Value: "argo-cd-tests",
+				},
+			},
 		},
 	}
 	for _, tc := range testCases {
 		appPath, err := testDataDir(t, tc.TestData)
 		assert.Nil(t, err)
 		kustomize := NewKustomizeApp(appPath, git.NopCreds{}, "", "")
-		objs, _, err := kustomize.Build(&tc.KustomizeSource, nil, nil)
+		objs, _, err := kustomize.Build(&tc.KustomizeSource, nil, tc.Env)
 		switch tc.ExpectErr {
 		case true:
 			assert.Error(t, err)
@@ -184,6 +203,7 @@ func TestKustomizeBuildForceCommonAnnotations(t *testing.T) {
 		KustomizeSource     v1alpha1.ApplicationSourceKustomize
 		ExpectedAnnotations map[string]string
 		ExpectErr           bool
+		Env                 *v1alpha1.Env
 	}
 	testCases := []testCase{
 		{
@@ -191,12 +211,47 @@ func TestKustomizeBuildForceCommonAnnotations(t *testing.T) {
 			KustomizeSource: v1alpha1.ApplicationSourceKustomize{
 				ForceCommonAnnotations: true,
 				CommonAnnotations: map[string]string{
-					"one": "edited",
+					"one":   "edited",
+					"two":   "${test}",
+					"three": "$ARGOCD_APP_NAME",
 				},
+				CommonAnnotationsEnvsubst: false,
 			},
 			ExpectedAnnotations: map[string]string{
-				"baz": "quux",
-				"one": "edited",
+				"baz":   "quux",
+				"one":   "edited",
+				"two":   "${test}",
+				"three": "$ARGOCD_APP_NAME",
+			},
+			Env: &v1alpha1.Env{
+				&v1alpha1.EnvEntry{
+					Name:  "ARGOCD_APP_NAME",
+					Value: "argo-cd-tests",
+				},
+			},
+		},
+		{
+			TestData: kustomization3,
+			KustomizeSource: v1alpha1.ApplicationSourceKustomize{
+				ForceCommonAnnotations: true,
+				CommonAnnotations: map[string]string{
+					"one":   "edited",
+					"two":   "${test}",
+					"three": "$ARGOCD_APP_NAME",
+				},
+				CommonAnnotationsEnvsubst: true,
+			},
+			ExpectedAnnotations: map[string]string{
+				"baz":   "quux",
+				"one":   "edited",
+				"two":   "",
+				"three": "argo-cd-tests",
+			},
+			Env: &v1alpha1.Env{
+				&v1alpha1.EnvEntry{
+					Name:  "ARGOCD_APP_NAME",
+					Value: "argo-cd-tests",
+				},
 			},
 		},
 		{
@@ -206,15 +261,22 @@ func TestKustomizeBuildForceCommonAnnotations(t *testing.T) {
 				CommonAnnotations: map[string]string{
 					"one": "edited",
 				},
+				CommonAnnotationsEnvsubst: true,
 			},
 			ExpectErr: true,
+			Env: &v1alpha1.Env{
+				&v1alpha1.EnvEntry{
+					Name:  "ARGOCD_APP_NAME",
+					Value: "argo-cd-tests",
+				},
+			},
 		},
 	}
 	for _, tc := range testCases {
 		appPath, err := testDataDir(t, tc.TestData)
 		assert.Nil(t, err)
 		kustomize := NewKustomizeApp(appPath, git.NopCreds{}, "", "")
-		objs, _, err := kustomize.Build(&tc.KustomizeSource, nil, nil)
+		objs, _, err := kustomize.Build(&tc.KustomizeSource, nil, tc.Env)
 		switch tc.ExpectErr {
 		case true:
 			assert.Error(t, err)

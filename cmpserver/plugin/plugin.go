@@ -112,7 +112,7 @@ func runCommand(ctx context.Context, command Command, path string, env []string)
 	}
 	if len(output) == 0 {
 		log.WithFields(log.Fields{
-			"stderr": stderr,
+			"stderr":  stderr,
 			"command": command,
 		}).Warn("Plugin command returned zero output")
 	}
