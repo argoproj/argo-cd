@@ -43,6 +43,7 @@ func TestPullRequestGithubGenerateParams(t *testing.T) {
 					"branch_slug":    "branch1",
 					"head_sha":       "089d92cbf9ff857a39e6feccd32798ca700fb958",
 					"head_short_sha": "089d92cb",
+					"head_short_sha_7": "089d92c",
 				},
 			},
 			expectedErr: nil,

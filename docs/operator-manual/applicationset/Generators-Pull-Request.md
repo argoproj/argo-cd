@@ -274,6 +274,7 @@ spec:
 * `branch_slug`: The branch name will be cleaned to be conform to the DNS label standard as defined in [RFC 1123](https://kubernetes.io/docs/concepts/overview/working-with-objects/names/#dns-label-names), and truncated to 50 characters to give room to append/suffix-ing it with 13 more characters.
 * `head_sha`: This is the SHA of the head of the pull request.
 * `head_short_sha`: This is the short SHA of the head of the pull request (8 characters long or the length of the head SHA if it's shorter).
+* `head_short_sha_7`: This is the 7 characters long short SHA of the head of the pull request.
 * `labels`: The array of pull request labels. (Supported only for Go Template ApplicationSet manifests.)
 
 ## Webhook Configuration
