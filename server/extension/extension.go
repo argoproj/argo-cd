@@ -4,7 +4,6 @@ import (
 	"context"
 	"errors"
 	"fmt"
-	"html"
 	"net"
 	"net/http"
 	"net/http/httputil"
