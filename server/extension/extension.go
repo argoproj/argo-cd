@@ -4,6 +4,7 @@ import (
 	"context"
 	"errors"
 	"fmt"
+	"html"
 	"net"
 	"net/http"
 	"net/http/httputil"
@@ -472,7 +473,8 @@ func (m *Manager) CallExtension(extName string, proxyByCluster map[string]*httpu
 		}
 		app, err := m.authorize(r.Context(), reqResources, extName)
 		if err != nil {
-			http.Error(w, fmt.Sprintf("Unauthorized extension request: %s", err), http.StatusUnauthorized)
+			m.log.Infof("unauthorized extension requets: %s", err)
+			http.Error(w, "Unauthorized extension request", http.StatusUnauthorized)
 			return
 		}
 
@@ -482,7 +484,7 @@ func (m *Manager) CallExtension(extName string, proxyByCluster map[string]*httpu
 		// for this extension.
 		if len(proxyByCluster) == 1 {
 			for _, proxy := range proxyByCluster {
-				m.log.Infof("proxing request to %s", r.URL)
+				m.log.Debugf("proxing request to %s", html.EscapeString(r.URL.String()))
 				// in this case we just forward the request to the single
 				// proxy and return
 				proxy.ServeHTTP(w, r)
