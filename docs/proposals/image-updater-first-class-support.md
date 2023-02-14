@@ -11,7 +11,7 @@ approvers:
   - TBD
 
 creation-date: 2022-12-01
-last-updated: 2023-01-19
+last-updated: 2023-02-13
 ---
 
 # Provide first class status to Image Updater within Argo CD
@@ -57,6 +57,22 @@ For users wanting to use Image Updater in production, it is common to have a str
 #### Use case 3:
 As a user of Argo CD and Argo CD Image Updater, I would like to have image-updater honor rollbacks to my applications by leveraging status information stored in my application.
 
+
+### Image Updater functionality constraints and behaviors
+
+This section highlights some of the key aspects of Image Updater's present design constraints and behaviors in order to provide context for the upcoming sections of the proposal to people who may not be familiar with the project. Full details may be found in the Image Updater documentation (https://argocd-image-updater.readthedocs.io/en/stable/)  
+
+- Image Updater can only update container images for applications whose manifests are rendered using either Kustomize or Helm and - especially in the case of Helm - the templates need to support specifying the image's tag (and possibly name) using a parameter (i.e. image.tag).
+- Image Updater only considers those applications that specify a certain set of annotations as candidates for image updates
+- Image Updater never manipulates live cluster resources directly. It only determines which images are suitable upgrade targets, finds the appropriate updated image version, and injects the changes into the application's source manifest, allowing Argo CD to take over and pull the new image into the live workloads. It supports 2 kinds of write back methods (Details can be found at https://argocd-image-updater.readthedocs.io/en/stable/basics/update-methods/):
+  - Argo CD method: Pseudo persistent. Updates are written into application manifest stored in application controller cache and then applied during the next sync cycle. Invalidation of application controller cache will cause loss of all changes
+  - Git method: Persistent. Updates are committed directly into the git repo branch specified in configuration. Changes are applied to the cluster by Argo CD on next sync cycle. 
+- When performing git write-back, Image Updater does not duplicate all the git handling done by repo-server or write back to any manifests directly. By default it simply creates a file titled 
+  `.argocd-source-<appName>.yaml` containing the updated information. As such, information written back is minimal. 
+- When Image Updater is configured to write back to a different branch than the one being tracked by the application, it is the user's responsibility to make sure changes are propogated to the tracked branch in order for Argo CD to pick up the changes and deploy them on the cluster
+- Image Updater currently stores no state for actions performed, and is therefore incapable of honoring rollbacks  
+
+
 ### Implementation Details/Notes/Constraints [optional]
 
 
@@ -78,7 +94,7 @@ As a user of Argo CD and Argo CD Image Updater, I would like to have image-updat
 At present, users of Image Updater must add a host of specific annotations to their applications in order to configure automatic image updates on them. As the user base of the Image Updater project has grown, the use cases and requirements have also gotten more complex and demanding. As these features have been implemented and delivered to the users, the ways to use annotations to leverage these features have become more complicated, involving somewhat convoluted mechanisms to express references to resources like secrets, and setting up templates for branch names. Using annotations also opens up the possibility of misconfigurations by means of usage of "random" annotation names (containing typos) which make it cumbersome to troubleshoot issues.
 Aside from providing strict type validation, converting these fields to first class fields in the CR would simplify the expression and usage of these fields and make them more intuitive for users to understand and leverage. 
 
-Example of proposed additions to Application CR spec and status to accomodate image update configuration:
+Example of proposed additions to Application CR spec and status to accomodate image update configuration is provided below:
 
 ```
 apiVersion: argoproj.io/v1alpha1
@@ -90,59 +106,101 @@ spec:
 ...
 
   image:
+    
     # updates contains all the fields to configure exactly which images should be considered for automatic updates and how they should be updated
     updates:
-      # ImageList specifies the image specific configuration for each image that is to be considered as a candidate for updation 
+
+      # ImageList contains list of image specific configuration for each image that is to be considered as a candidate for updation 
       imageList:
-        - path: quay.io/some/image 
+        - image: quay.io/some/image 
+          
+          # (optional) specify alias for helm/kustomize parameter names
           alias: someImage
-          allowTags: regexp
+
+          # (optional) specify list of regex/wildcard patterns to dictate which tags should be considered for updates
+          allowTags: 
+            matchType: regex/wildcard
+            matchList:
+            - <pattern 1>
+            - <pattern 2>
+
+          # (optional) specify list of regex/wildcard patterns to dictate which tags should be ignored for updates
           ignoreTags: 
-          - <pattern 1>
-          - <pattern 2>
-          forceUpdate: true
-          updateStrategy: semver
+            matchType: regex/wildcard
+            matchList:
+            - <pattern 1>
+            - <pattern 2>
+
+          # (optional) force updates to images that don't appear in the status of an Argo CD application. Default is false   
+          forceUpdate: true/false
+
+          # specify strategy to be followed when determining which images have qualifying updates 
+          updateStrategy: semver/digest/lexical/most-recently-built
+
+          # specify list of architectures to be considered for a specific image if application is to be run across multiple clusters of differing architectures
           imagePlatforms:
           - linux/amd64
-          - linux/arm64 
+          - linux/arm64
+
+          # (optional) pull secret for image 
           pullSecret: 
-            namespace: <ns-name>
-            secretName: <secret_name>
-            field: <secret_field>
-            env: <VARIABLE_NAME>
+            namespace: argocd
+            secretName: image-updater-pull-secret
+            field: pull-secret-creds
+            
+            # alternatively, if using an env var instead of secrets
+            env: DOCKER_HUB_CREDDS
+
+            # or use an external script mounted to image-updater FS to generate credentials
             ext: <path/to/script>
+
+          # (optional) specify helm parameter names/locations to be used for image update write back
           helm:
-            imageName: <name of helm parameter to set for the image name>  # for git write back
-            imageTag: <name of helm parameter to set for the image tag>
-            imageSpec: <name of helm parameter to set for canonical name of image>
+            imageName: alias.Name  
+            imageTag: alias.Tag
+            imageSpec: alias.Spec
+          
+          # (optional) specify kustomize parameter name to override 
+          # see https://argocd-image-updater.readthedocs.io/en/stable/configuration/images/#custom-images-with-kustomize for details
           kustomize:
-            imageName: <original_image_name> # for git write back
+            imageName: alias.Name
       
-      # Application wide configuration
-      allowTags: regexp
+      # (optional) Application wide configuration
+      allowTags: 
+            matchType: regex/wildcard
+            matchList:
+            - <pattern 1>
+            - <pattern 2>
       ignoreTags: 
-      - <pattern 1>
-      - <pattern 2>
-      forceUpdate: true
-      updateStrategy: semver
+            matchType: regex/wildcard
+            matchList:
+            - <pattern 1>
+            - <pattern 2>
+      forceUpdate: true/false
+      updateStrategy: semver/digest/lexical/most-recently-built      
       pullSecret: 
         namespace: <ns_name>
         secretName: <secret_name>
         field: <secret_field>
         env: <VARIABLE_NAME>
         ext: <path/to/script>
+      
+      # (optional) configuration for application-wide write-back strategy. Default write back method is argocd 
       writeBack:
-        method: git
+        method: git/argocd
         target: kustomization
         kustomization:
           path: "../../base"
 
-        # baseBranch and targetBranch can contrinue supporting existing features like specifying templates for new branch creation & usage of SHA
-        # identifiers the same way as currently used, for e.g:   
-        # argocd-image-updater.argoproj.io/git-branch: main:image-updater{{range .Images}}-{{.Name}}-{{.NewTag}}{{end}}
-        # see https://argocd-image-updater.readthedocs.io/en/stable/basics/update-methods/#specifying-a-separate-base-and-commit-branch for details 
+        # (optional) specify branch to checkout/commit to if different from revision tracked in application spec (when protected, for e.g.)
         baseBranch: <base_branch_name>
+
+        # (optional) specify target branch for commits if there is need for separate read/write branches
+        # supports templating if there is need for non-static target branch names
+        # see https://argocd-image-updater.readthedocs.io/en/stable/basics/update-methods/#specifying-a-separate-base-and-commit-branch for details
         targetBranch: <target_branch_name>
+        
+        # (optional) credentials for git write-back
         secret:
           namespace: argocd
           name: git-creds
@@ -151,15 +209,18 @@ status:
 ...
   # imageUpdate stores the history of image updates that have been
   # conducted, and contains information about which image was last 
-  # updated, its version and update timestamp, in order to respect 
+  # updated, its old and new versions and update timestamp, in order to respect 
   # application rollbacks and avoid repeat update attempts
   imageUpdates:
-  - path: quay.io/some/image
+  - image: quay.io/some/image
     alias:  someImage
-    updatedAt: <update_timestamp>
-    updatedTo: v1.1.0
+    lastTransitionTime: <update_timestamp>
+    oldTag: v1.0.0
+    newTag: v1.1.0
      
 ```
+
+**NOTE:** The ApplicationSet CRD would similarly need to be updated to accommodate these fields in order to allow users to automate image updates across all their applications that may be managed by applicationSets. 
 
 There is a need to introduce state by tracking the status of image Updates in the application CR. This is mainly important to honor application rollbacks, avoid repeated image updates in case of failure, as well as to support future use cases such as enabling image-updater to create pull requests against the source repositories. The above detailed `.status.imageUpdates` field could be extended to store metadata regarding pull request creation that would serve to avoid duplicate/excessive number of pull requests being opened, for example.
 
@@ -232,7 +293,7 @@ Drawbacks:
 
 At present there are some initiatives that are being considered which could enhance the usability and adoption of Image Updater with users in the future, some of which have been mentioned in this proposal already:
 
-1. Support for opening pull requests to source repositories and honoring rollbacks - At present Image Updater directly commits manifest updates to the target branch when git write-back is configured. However, if status information about the last conducted update and version updated to is available, Image Updater could use that information to potentially support creating pull requests (and not spam pull requests) and also not continuously try to upgrade to a new image version if an application has been rolled back.
+1. Support for opening pull requests to source repositories and honoring rollbacks - At present Image Updater directly commits manifest updates to the target branch when git write-back is configured. However, if status information about the last conducted update and version updated to is available, Image Updater could use that information to potentially support creating pull requests (and not spam pull requests) and also not continuously try to upgrade to a new image version if an application has been rolled back. This is a feature that has been requested by users of the Image Updater. There are a number of use cases that would benefit from Pull request support in Image Updater, such as ones needing all changes to go through PRs as opposed to direct commits, requirments to run CI checks on PRs before merging image updates, rejecting PRs that try to pull in faulty images etc, among others. There are already some ideas for how this could be implemented. This would make for a great value-add as a future enhancement to the Image Updater's functionality.
 
 2. Change Image updater operational model to become webhook aware - At present the updater polls the configured image registries periodically to detect new available versions of images. In the future Image Updater would need to be able to support webhooks so that it can move to a pub/sub model and updates can be triggered as soon as a qualifying image version is found.
 
