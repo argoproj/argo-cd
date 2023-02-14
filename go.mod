@@ -8,7 +8,7 @@ require (
 	github.com/Masterminds/semver/v3 v3.2.0
 	github.com/TomOnTime/utfutil v0.0.0-20180511104225-09c41003ee1d
 	github.com/alicebob/miniredis/v2 v2.23.1
-	github.com/argoproj/gitops-engine v0.7.1-0.20221208230615-917f5a0f16d5
+	github.com/argoproj/gitops-engine v0.7.1-0.20230214165351-ed70eac8b7bd
 	github.com/argoproj/notifications-engine v0.3.1-0.20221203221941-490d98afd1d6
 	github.com/argoproj/pkg v0.13.7-0.20221221191914-44694015343d
 	github.com/aws/aws-sdk-go v1.44.164
@@ -256,7 +256,6 @@ require (
 )
 
 replace (
-	github.com/argoproj/gitops-engine => github.com/gdsoumya/gitops-engine v0.0.0-20230213130857-26f153a15602
 	// https://github.com/golang/go/issues/33546#issuecomment-519656923
 	github.com/go-check/check => github.com/go-check/check v0.0.0-20180628173108-788fd7840127
 
