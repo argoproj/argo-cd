@@ -459,7 +459,7 @@ func (m *Manager) CallExtension(extName string, proxyByCluster map[string]*httpu
 		}
 		app, err := m.authorize(r.Context(), reqResources, extName)
 		if err != nil {
-			m.log.Infof("unauthorized extension requets: %s", err)
+			m.log.Infof("unauthorized extension request: %s", err)
 			http.Error(w, "Unauthorized extension request", http.StatusUnauthorized)
 			return
 		}
