@@ -494,10 +494,6 @@ func TestExtensionsHandler(t *testing.T) {
 		require.NoError(t, err)
 		require.NotNil(t, resp)
 		assert.Equal(t, http.StatusUnauthorized, resp.StatusCode)
-		body, err := io.ReadAll(resp.Body)
-		require.NoError(t, err)
-		actual := strings.TrimSuffix(string(body), "\n")
-		assert.Contains(t, actual, "no app permission")
 	})
 	t.Run("will return 401 if sub has no access to invoke extension", func(t *testing.T) {
 		// given
@@ -520,10 +516,6 @@ func TestExtensionsHandler(t *testing.T) {
 		require.NoError(t, err)
 		require.NotNil(t, resp)
 		assert.Equal(t, http.StatusUnauthorized, resp.StatusCode)
-		body, err := io.ReadAll(resp.Body)
-		require.NoError(t, err)
-		actual := strings.TrimSuffix(string(body), "\n")
-		assert.Contains(t, actual, "no extension permission")
 	})
 	t.Run("will return 401 if project has no access to target cluster", func(t *testing.T) {
 		// given

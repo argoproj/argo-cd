@@ -23,7 +23,6 @@ import (
 	"github.com/ghodss/yaml"
 	"github.com/gorilla/mux"
 	log "github.com/sirupsen/logrus"
-	"k8s.io/apimachinery/pkg/runtime/schema"
 )
 
 const (
@@ -55,17 +54,6 @@ type RequestResources struct {
 	ApplicationName      string
 	ApplicationNamespace string
 	ProjectName          string
-}
-
-// Resource defines the Kubernetes resource used for checking
-// the authorization scope.
-type Resource struct {
-	Gvk  schema.GroupVersionKind
-	Name string
-}
-
-func (r Resource) String() string {
-	return fmt.Sprintf("%s, Name=%s", r.Gvk.String(), r.Name)
 }
 
 // ValidateHeaders will validate the pre-defined Argo CD
@@ -442,21 +430,19 @@ func (m *Manager) authorize(ctx context.Context, rr *RequestResources, extName s
 		return nil, fmt.Errorf("project mismatch provided in the %q header", HeaderArgoCDProjectName)
 	}
 
-	if app.Spec.GetProject() != v1alpha1.DefaultAppProjectName {
-		proj, err := m.project.Get(app.Spec.GetProject())
-		if err != nil {
-			return nil, fmt.Errorf("error getting project: %s", err)
-		}
-		if proj == nil {
-			return nil, fmt.Errorf("invalid project provided in the %q header", HeaderArgoCDProjectName)
-		}
-		permitted, err := proj.IsDestinationPermitted(app.Spec.Destination, m.project.GetClusters)
-		if err != nil {
-			return nil, fmt.Errorf("error validating project destinations: %s", err)
-		}
-		if !permitted {
-			return nil, fmt.Errorf("the provided project is not allowed to access the cluster configured in the Application destination")
-		}
+	proj, err := m.project.Get(app.Spec.GetProject())
+	if err != nil {
+		return nil, fmt.Errorf("error getting project: %s", err)
+	}
+	if proj == nil {
+		return nil, fmt.Errorf("invalid project provided in the %q header", HeaderArgoCDProjectName)
+	}
+	permitted, err := proj.IsDestinationPermitted(app.Spec.Destination, m.project.GetClusters)
+	if err != nil {
+		return nil, fmt.Errorf("error validating project destinations: %s", err)
+	}
+	if !permitted {
+		return nil, fmt.Errorf("the provided project is not allowed to access the cluster configured in the Application destination")
 	}
 
 	return app, nil
