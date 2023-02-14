@@ -1401,3 +1401,20 @@ func Test_canProcessApp(t *testing.T) {
 		assert.False(t, canProcess)
 	})
 }
+
+func Test_syncDeleteOption(t *testing.T) {
+	app := newFakeApp()
+	ctrl := newFakeController(&fakeData{apps: []runtime.Object{app}})
+	cm := newFakeCM()
+	t.Run("without delete option object is deleted", func(t *testing.T) {
+		cmObj := kube.MustToUnstructured(&cm)
+		delete := ctrl.shouldBeDeleted(app, cmObj)
+		assert.True(t, delete)
+	})
+	t.Run("with delete set to false object is retained", func(t *testing.T) {
+		cmObj := kube.MustToUnstructured(&cm)
+		cmObj.SetAnnotations(map[string]string{"argocd.argoproj.io/sync-options": "Delete=false"})
+		delete := ctrl.shouldBeDeleted(app, cmObj)
+		assert.False(t, delete)
+	})
+}
