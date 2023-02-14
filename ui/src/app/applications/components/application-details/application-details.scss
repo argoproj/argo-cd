@@ -48,7 +48,7 @@ $header: 120px;
     &__refreshing-label {
         color: $white-color;
         position: fixed;
-        top: $header + 100px;
+        margin-top: -20px;
         left: 50%;
         background-color: $argo-color-gray-7;
         border: 1px solid $argo-color-gray-5;
