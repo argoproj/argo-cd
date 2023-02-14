@@ -81,7 +81,7 @@ func (g *ClusterGenerator) GenerateParams(ctx context.Context, appSetGenerator *
 		return nil, nil
 	}
 
-	clusterSecrets, err := g.getSecretsByClusterName(appSetGenerator)
+	clusterSecrets, err := g.getSecretsByClusterName(ctx, appSetGenerator)
 	if err != nil {
 		return nil, err
 	}
@@ -195,7 +195,7 @@ func replaceTemplatedString(value string, params map[string]interface{}, appSet 
 	return replacedTmplStr, nil
 }
 
-func (g *ClusterGenerator) getSecretsByClusterName(appSetGenerator *argoappsetv1alpha1.ApplicationSetGenerator) (map[string]corev1.Secret, error) {
+func (g *ClusterGenerator) getSecretsByClusterName(ctx context.Context, appSetGenerator *argoappsetv1alpha1.ApplicationSetGenerator) (map[string]corev1.Secret, error) {
 	// List all Clusters:
 	clusterSecretList := &corev1.SecretList{}
 
@@ -205,7 +205,7 @@ func (g *ClusterGenerator) getSecretsByClusterName(appSetGenerator *argoappsetv1
 		return nil, err
 	}
 
-	if err := g.Client.List(context.Background(), clusterSecretList, client.MatchingLabelsSelector{Selector: secretSelector}); err != nil {
+	if err = g.Client.List(ctx, clusterSecretList, client.MatchingLabelsSelector{Selector: secretSelector}); err != nil {
 		return nil, err
 	}
 	log.Debug("clusters matching labels", "count", len(clusterSecretList.Items))
