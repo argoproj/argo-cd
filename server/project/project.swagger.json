@@ -227,6 +227,37 @@
         ]
       }
     },
+    "/api/v1/projects/{name}/links": {
+      "get": {
+        "summary": "ListLinks returns all deep links for the particular project",
+        "operationId": "ProjectService_ListLinks",
+        "responses": {
+          "200": {
+            "description": "A successful response.",
+            "schema": {
+              "$ref": "#/definitions/applicationLinksResponse"
+            }
+          },
+          "default": {
+            "description": "An unexpected error response.",
+            "schema": {
+              "$ref": "#/definitions/runtimeError"
+            }
+          }
+        },
+        "parameters": [
+          {
+            "name": "name",
+            "in": "path",
+            "required": true,
+            "type": "string"
+          }
+        ],
+        "tags": [
+          "ProjectService"
+        ]
+      }
+    },
     "/api/v1/projects/{name}/syncwindows": {
       "get": {
         "summary": "GetSchedulesState returns true if there are any active sync syncWindows",
@@ -395,6 +426,34 @@
     }
   },
   "definitions": {
+    "applicationLinkInfo": {
+      "type": "object",
+      "properties": {
+        "title": {
+          "type": "string"
+        },
+        "url": {
+          "type": "string"
+        },
+        "description": {
+          "type": "string"
+        },
+        "iconClass": {
+          "type": "string"
+        }
+      }
+    },
+    "applicationLinksResponse": {
+      "type": "object",
+      "properties": {
+        "items": {
+          "type": "array",
+          "items": {
+            "$ref": "#/definitions/applicationLinkInfo"
+          }
+        }
+      }
+    },
     "projectDetailedProjectsResponse": {
       "type": "object",
       "properties": {
@@ -1448,6 +1507,14 @@
         "project": {
           "type": "string",
           "title": "Reference between project and repository that allow you automatically to be added as item inside SourceRepos project entity"
+        },
+        "gcpServiceAccountKey": {
+          "type": "string",
+          "title": "GCPServiceAccountKey specifies the service account key in JSON format to be used for getting credentials to Google Cloud Source repos"
+        },
+        "forceHttpBasicAuth": {
+          "type": "boolean",
+          "title": "ForceHttpBasicAuth specifies whether Argo CD should attempt to force basic auth for HTTP connections"
         }
       },
       "title": "Repository is a repository holding application configurations"

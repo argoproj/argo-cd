@@ -79,10 +79,10 @@ const (
 
 	// ArgoCDAdminUsername is the username of the 'admin' user
 	ArgoCDAdminUsername = "admin"
-	// ArgoCDSSAManager is the default argocd manager name used by server-side apply syncs
-	ArgoCDSSAManager = "argocd-controller"
 	// ArgoCDUserAgentName is the default user-agent name used by the gRPC API client library and grpc-gateway
 	ArgoCDUserAgentName = "argocd-client"
+	// ArgoCDSSAManager is the default argocd manager name used by server-side apply syncs
+	ArgoCDSSAManager = "argocd-controller"
 	// AuthCookieName is the HTTP cookie name where we store our auth token
 	AuthCookieName = "argocd.token"
 	// StateCookieName is the HTTP cookie name that holds temporary nonce tokens for CSRF protection
@@ -209,10 +209,6 @@ const (
 	EnvMaxCookieNumber = "ARGOCD_MAX_COOKIE_NUMBER"
 	// EnvPluginSockFilePath allows to override the pluginSockFilePath for repo server and cmp server
 	EnvPluginSockFilePath = "ARGOCD_PLUGINSOCKFILEPATH"
-	// EnvApplicationEventCacheDuration controls the expiration of application events cache
-	EnvApplicationEventCacheDuration = "ARGOCD_APP_EVENTS_CACHE_DURATION"
-	// EnvResourceEventCacheDuration controls the expiration of resource events cache
-	EnvResourceEventCacheDuration = "ARGOCD_RESOURCE_EVENTS_CACHE_DURATION"
 	// EnvCMPChunkSize defines the chunk size in bytes used when sending files to the cmp server
 	EnvCMPChunkSize = "ARGOCD_CMP_CHUNK_SIZE"
 	// EnvCMPWorkDir defines the full path of the work directory used by the CMP server
@@ -227,7 +223,7 @@ const (
 	// DefaultCMPWorkDirName defines the work directory name used by the cmp-server
 	DefaultCMPWorkDirName = "_cmp_server"
 
-	ConfigMapPluginDeprecationWarning = "argocd-cm plugins are deprecated, and support will be removed in v2.6. Upgrade your plugin to be installed via sidecar. https://argo-cd.readthedocs.io/en/stable/user-guide/config-management-plugins/"
+	ConfigMapPluginDeprecationWarning = "argocd-cm plugins are deprecated, and support will be removed in v2.7. Upgrade your plugin to be installed via sidecar. https://argo-cd.readthedocs.io/en/stable/user-guide/config-management-plugins/"
 )
 
 const (
@@ -294,7 +290,7 @@ func GetCMPWorkDir() string {
 }
 
 const (
-	// AnnotationApplicationRefresh is an annotation that is added when an ApplicationSet is requested to be refreshed by a webhook. The ApplicationSet controller will remove this annotation at the end of reconcilation.
+	// AnnotationApplicationRefresh is an annotation that is added when an ApplicationSet is requested to be refreshed by a webhook. The ApplicationSet controller will remove this annotation at the end of reconciliation.
 	AnnotationApplicationSetRefresh = "argocd.argoproj.io/application-set-refresh"
 )
 
@@ -307,11 +303,13 @@ const (
 
 // Security severity logging
 const (
-	SecurityField    = "security"
-	SecurityCWEField = "CWE"
-	SecurityHigh     = 3 // Indicates likely malicious events but one that had no side effects or was blocked (i.e. out of bounds symlinks in repos)
-	SecurityMedium   = 2 // Could indicate malicious events, but has a high likelihood of being user/system error (i.e. access denied)
-	SecurityLow      = 1 // Unexceptional entries (i.e. successful access logs)
+	SecurityField     = "security"
+	SecurityCWEField  = "CWE"
+	SecurityEmergency = 5 // Indicates unmistakably malicious events that should NEVER occur accidentally and indicates an active attack (i.e. brute forcing, DoS)
+	SecurityCritical  = 4 // Indicates any malicious or exploitable event that had a side effect (i.e. secrets being left behind on the filesystem)
+	SecurityHigh      = 3 // Indicates likely malicious events but one that had no side effects or was blocked (i.e. out of bounds symlinks in repos)
+	SecurityMedium    = 2 // Could indicate malicious events, but has a high likelihood of being user/system error (i.e. access denied)
+	SecurityLow       = 1 // Unexceptional entries (i.e. successful access logs)
 )
 
 // Common error messages

@@ -1,4 +1,4 @@
-import {DataLoader, FormField, MenuItem, NotificationType, Tooltip} from 'argo-ui';
+import {models, DataLoader, FormField, MenuItem, NotificationType, Tooltip} from 'argo-ui';
 import {ActionButton} from 'argo-ui/v2';
 import * as classNames from 'classnames';
 import * as React from 'react';
@@ -21,14 +21,19 @@ export interface NodeId {
     namespace: string;
     name: string;
     group: string;
+    createdAt?: appModels.Time;
 }
 
 export const ExternalLinkAnnotation = 'link.argocd.argoproj.io/external-link';
 
-type ActionMenuItem = MenuItem & {disabled?: boolean};
+type ActionMenuItem = MenuItem & {disabled?: boolean; tooltip?: string};
 
 export function nodeKey(node: NodeId) {
     return [node.group, node.kind, node.namespace, node.name].join('/');
+}
+
+export function createdOrNodeKey(node: NodeId) {
+    return node?.createdAt || nodeKey(node);
 }
 
 export function isSameNode(first: NodeId, second: NodeId) {
@@ -392,6 +397,37 @@ export const deletePopup = async (ctx: ContextApis, resource: ResourceTreeNode, 
     );
 };
 
+function getResourceActionsMenuItems(resource: ResourceTreeNode, metadata: models.Metadata, appContext: AppContext): Observable<ActionMenuItem[]> {
+    return services.applications
+        .getResourceActions(metadata.name, metadata.namespace, resource)
+        .then(actions => {
+            return actions.map(
+                action =>
+                    ({
+                        title: action.name,
+                        disabled: !!action.disabled,
+                        action: async () => {
+                            try {
+                                const confirmed = await appContext.apis.popup.confirm(
+                                    `Execute '${action.name}' action?`,
+                                    `Are you sure you want to execute '${action.name}' action?`
+                                );
+                                if (confirmed) {
+                                    await services.applications.runResourceAction(metadata.name, metadata.namespace, resource, action.name);
+                                }
+                            } catch (e) {
+                                appContext.apis.notifications.show({
+                                    content: <ErrorNotification title='Unable to execute resource action' e={e} />,
+                                    type: NotificationType.Error
+                                });
+                            }
+                        }
+                    } as MenuItem)
+            );
+        })
+        .catch(() => [] as MenuItem[]);
+}
+
 function getActionItems(
     resource: ResourceTreeNode,
     application: appModels.Application,
@@ -455,38 +491,25 @@ function getActionItems(
         })
         .catch(() => [] as MenuItem[]);
 
-    const resourceActions = services.applications
-        .getResourceActions(application.metadata.name, application.metadata.namespace, resource)
-        .then(actions => {
-            return actions.map(
-                action =>
-                    ({
-                        title: action.name,
-                        disabled: !!action.disabled,
-                        action: async () => {
-                            try {
-                                const confirmed = await appContext.apis.popup.confirm(
-                                    `Execute '${action.name}' action?`,
-                                    `Are you sure you want to execute '${action.name}' action?`
-                                );
-                                if (confirmed) {
-                                    await services.applications.runResourceAction(application.metadata.name, application.metadata.namespace, resource, action.name);
-                                }
-                            } catch (e) {
-                                appContext.apis.notifications.show({
-                                    content: <ErrorNotification title='Unable to execute resource action' e={e} />,
-                                    type: NotificationType.Error
-                                });
-                            }
-                        }
-                    } as MenuItem)
-            );
-        })
-        .catch(() => [] as MenuItem[]);
+    const resourceActions = getResourceActionsMenuItems(resource, application.metadata, appContext);
+
+    const links = services.applications.getResourceLinks(application.metadata.name, application.metadata.namespace, resource).then(data => {
+        return (data.items || []).map(
+            link =>
+                ({
+                    title: link.title,
+                    iconClassName: `fa ${link.iconClass ? link.iconClass : 'fa-external-link'}`,
+                    action: () => window.open(link.url, '_blank'),
+                    tooltip: link.description
+                } as MenuItem)
+        );
+    });
+
     return combineLatest(
         from([items]), // this resolves immediately
         concat([[] as MenuItem[]], resourceActions), // this resolves at first to [] and then whatever the API returns
-        concat([[] as MenuItem[]], execAction) // this resolves at first to [] and then whatever the API returns
+        concat([[] as MenuItem[]], execAction), // this resolves at first to [] and then whatever the API returns
+        concat([[] as MenuItem[]], links) // this resolves at first to [] and then whatever the API returns
     ).pipe(map(res => ([] as MenuItem[]).concat(...res)));
 }
 
@@ -505,6 +528,43 @@ export function renderResourceMenu(
     } else {
         menuItems = getActionItems(resource, application, tree, appContext, appChanged, false);
     }
+    return (
+        <DataLoader load={() => menuItems}>
+            {items => (
+                <ul>
+                    {items.map((item, i) => (
+                        <li
+                            className={classNames('application-details__action-menu', {disabled: item.disabled})}
+                            key={i}
+                            onClick={e => {
+                                e.stopPropagation();
+                                if (!item.disabled) {
+                                    item.action();
+                                    document.body.click();
+                                }
+                            }}>
+                            {item.tooltip ? (
+                                <Tooltip content={item.tooltip || ''}>
+                                    <div>
+                                        {item.iconClassName && <i className={item.iconClassName} />} {item.title}
+                                    </div>
+                                </Tooltip>
+                            ) : (
+                                <>
+                                    {item.iconClassName && <i className={item.iconClassName} />} {item.title}
+                                </>
+                            )}
+                        </li>
+                    ))}
+                </ul>
+            )}
+        </DataLoader>
+    );
+}
+
+export function renderResourceActionMenu(resource: ResourceTreeNode, application: appModels.Application, tree: appModels.ApplicationTree, appContext: AppContext): React.ReactNode {
+    const menuItems = getResourceActionsMenuItems(resource, application.metadata, appContext);
+
     return (
         <DataLoader load={() => menuItems}>
             {items => (
@@ -569,12 +629,14 @@ export function renderResourceButtons(
 }
 
 export function syncStatusMessage(app: appModels.Application) {
-    const rev = app.status.sync.revision || app.spec.source.targetRevision || 'HEAD';
-    let message = app.spec.source.targetRevision || 'HEAD';
+    const source = getAppDefaultSource(app);
+    const rev = app.status.sync.revision || source.targetRevision || 'HEAD';
+    let message = source.targetRevision || 'HEAD';
+
     if (app.status.sync.revision) {
-        if (app.spec.source.chart) {
+        if (source.chart) {
             message += ' (' + app.status.sync.revision + ')';
-        } else if (app.status.sync.revision.length >= 7 && !app.status.sync.revision.startsWith(app.spec.source.targetRevision)) {
+        } else if (app.status.sync.revision.length >= 7 && !app.status.sync.revision.startsWith(source.targetRevision)) {
             message += ' (' + app.status.sync.revision.substr(0, 7) + ')';
         }
     }
@@ -583,7 +645,7 @@ export function syncStatusMessage(app: appModels.Application) {
             return (
                 <span>
                     To{' '}
-                    <Revision repoUrl={app.spec.source.repoURL} revision={rev}>
+                    <Revision repoUrl={source.repoURL} revision={rev}>
                         {message}
                     </Revision>{' '}
                 </span>
@@ -592,7 +654,7 @@ export function syncStatusMessage(app: appModels.Application) {
             return (
                 <span>
                     From{' '}
-                    <Revision repoUrl={app.spec.source.repoURL} revision={rev}>
+                    <Revision repoUrl={source.repoURL} revision={rev}>
                         {message}
                     </Revision>{' '}
                 </span>
@@ -911,13 +973,27 @@ export function isAppNode(node: appModels.ResourceNode) {
 }
 
 export function getAppOverridesCount(app: appModels.Application) {
-    if (app.spec.source.kustomize && app.spec.source.kustomize.images) {
-        return app.spec.source.kustomize.images.length;
+    const source = getAppDefaultSource(app);
+    if (source.kustomize && source.kustomize.images) {
+        return source.kustomize.images.length;
     }
-    if (app.spec.source.helm && app.spec.source.helm.parameters) {
-        return app.spec.source.helm.parameters.length;
+    if (source.helm && source.helm.parameters) {
+        return source.helm.parameters.length;
     }
     return 0;
+}
+
+// getAppDefaultSource gets the first app source from `sources` or, if that list is missing or empty, the `source`
+// field.
+export function getAppDefaultSource(app?: appModels.Application) {
+    if (!app) {
+        return null;
+    }
+    return app.spec.sources && app.spec.sources.length > 0 ? app.spec.sources[0] : app.spec.source;
+}
+
+export function getAppSpecDefaultSource(spec: appModels.ApplicationSpec) {
+    return spec.sources && spec.sources.length > 0 ? spec.sources[0] : spec.source;
 }
 
 export function isAppRefreshing(app: appModels.Application) {

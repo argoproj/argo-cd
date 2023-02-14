@@ -597,6 +597,43 @@
         ]
       }
     },
+    "/api/v1/applications/{name}/links": {
+      "get": {
+        "summary": "ListLinks returns the list of all application deep links",
+        "operationId": "ApplicationService_ListLinks",
+        "responses": {
+          "200": {
+            "description": "A successful response.",
+            "schema": {
+              "$ref": "#/definitions/applicationLinksResponse"
+            }
+          },
+          "default": {
+            "description": "An unexpected error response.",
+            "schema": {
+              "$ref": "#/definitions/runtimeError"
+            }
+          }
+        },
+        "parameters": [
+          {
+            "name": "name",
+            "in": "path",
+            "required": true,
+            "type": "string"
+          },
+          {
+            "name": "namespace",
+            "in": "query",
+            "required": false,
+            "type": "string"
+          }
+        ],
+        "tags": [
+          "ApplicationService"
+        ]
+      }
+    },
     "/api/v1/applications/{name}/logs": {
       "get": {
         "summary": "PodLogs returns stream of log entries for the specified pod. Pod",
@@ -1312,6 +1349,73 @@
         ]
       }
     },
+    "/api/v1/applications/{name}/resource/links": {
+      "get": {
+        "summary": "ListResourceLinks returns the list of all resource deep links",
+        "operationId": "ApplicationService_ListResourceLinks",
+        "responses": {
+          "200": {
+            "description": "A successful response.",
+            "schema": {
+              "$ref": "#/definitions/applicationLinksResponse"
+            }
+          },
+          "default": {
+            "description": "An unexpected error response.",
+            "schema": {
+              "$ref": "#/definitions/runtimeError"
+            }
+          }
+        },
+        "parameters": [
+          {
+            "name": "name",
+            "in": "path",
+            "required": true,
+            "type": "string"
+          },
+          {
+            "name": "namespace",
+            "in": "query",
+            "required": false,
+            "type": "string"
+          },
+          {
+            "name": "resourceName",
+            "in": "query",
+            "required": false,
+            "type": "string"
+          },
+          {
+            "name": "version",
+            "in": "query",
+            "required": false,
+            "type": "string"
+          },
+          {
+            "name": "group",
+            "in": "query",
+            "required": false,
+            "type": "string"
+          },
+          {
+            "name": "kind",
+            "in": "query",
+            "required": false,
+            "type": "string"
+          },
+          {
+            "name": "appNamespace",
+            "in": "query",
+            "required": false,
+            "type": "string"
+          }
+        ],
+        "tags": [
+          "ApplicationService"
+        ]
+      }
+    },
     "/api/v1/applications/{name}/revisions/{revision}/metadata": {
       "get": {
         "summary": "Get the meta-data (author, date, tags, message) for a specific revision of the application",
@@ -1935,6 +2039,34 @@
         "chunk": {
           "type": "string",
           "format": "byte"
+        }
+      }
+    },
+    "applicationLinkInfo": {
+      "type": "object",
+      "properties": {
+        "title": {
+          "type": "string"
+        },
+        "url": {
+          "type": "string"
+        },
+        "description": {
+          "type": "string"
+        },
+        "iconClass": {
+          "type": "string"
+        }
+      }
+    },
+    "applicationLinksResponse": {
+      "type": "object",
+      "properties": {
+        "items": {
+          "type": "array",
+          "items": {
+            "$ref": "#/definitions/applicationLinkInfo"
+          }
         }
       }
     },
@@ -2678,6 +2810,10 @@
         "chart": {
           "type": "string",
           "description": "Chart is a Helm chart name, and must be specified for applications sourced from a Helm repo."
+        },
+        "ref": {
+          "type": "string",
+          "description": "Ref is reference to another source within sources field. This field will not be used if used with a `source` tag."
         }
       },
       "title": "ApplicationSource contains all required information about the source of an application"
@@ -2851,9 +2987,42 @@
           "items": {
             "$ref": "#/definitions/applicationv1alpha1EnvEntry"
           }
+        },
+        "parameters": {
+          "type": "array",
+          "items": {
+            "$ref": "#/definitions/v1alpha1ApplicationSourcePluginParameter"
+          }
         }
       },
       "title": "ApplicationSourcePlugin holds options specific to config management plugins"
+    },
+    "v1alpha1ApplicationSourcePluginParameter": {
+      "type": "object",
+      "properties": {
+        "name": {
+          "type": "string",
+          "description": "Name is the name identifying a parameter."
+        },
+        "string": {
+          "type": "string",
+          "description": "String_ is the value of a string type parameter."
+        },
+        "map": {
+          "type": "object",
+          "additionalProperties": {
+            "type": "string"
+          },
+          "description": "Map is the value of a map type parameter."
+        },
+        "array": {
+          "type": "array",
+          "items": {
+            "type": "string"
+          },
+          "description": "Array is the value of an array type parameter."
+        }
+      }
     },
     "v1alpha1ApplicationSpec": {
       "type": "object",
@@ -2892,6 +3061,13 @@
           "type": "string",
           "format": "int64",
           "description": "RevisionHistoryLimit limits the number of items kept in the application's revision history, which is used for informational purposes as well as for rollbacks to previous versions.\nThis should only be changed in exceptional circumstances.\nSetting to zero will store no history. This will reduce storage used.\nIncreasing will increase the space used to store the history, so we do not recommend increasing it.\nDefault is 10."
+        },
+        "sources": {
+          "type": "array",
+          "items": {
+            "$ref": "#/definitions/v1alpha1ApplicationSource"
+          },
+          "title": "Sources is a reference to the location of the application's manifests or chart"
         }
       },
       "description": "ApplicationSpec represents desired application state. Contains link to repository with application definition and additional parameters link definition revision."
@@ -2951,6 +3127,13 @@
         "resourceHealthSource": {
           "type": "string",
           "title": "ResourceHealthSource indicates where the resource health status is stored: inline if not set or appTree"
+        },
+        "sourceTypes": {
+          "type": "array",
+          "items": {
+            "type": "string"
+          },
+          "title": "SourceTypes specifies the type of the sources included in the application"
         }
       },
       "title": "ApplicationStatus contains status information for the application"
@@ -3044,6 +3227,13 @@
         "destination": {
           "$ref": "#/definitions/v1alpha1ApplicationDestination",
           "title": "Destination is a reference to the application's destination used for comparison"
+        },
+        "sources": {
+          "type": "array",
+          "items": {
+            "$ref": "#/definitions/v1alpha1ApplicationSource"
+          },
+          "title": "Sources is a reference to the application's multiple sources used for comparison"
         }
       },
       "title": "ComparedTo contains application source and target which was used for resources comparison"
@@ -3172,6 +3362,23 @@
         }
       },
       "title": "JsonnetVar represents a variable to be passed to jsonnet during manifest generation"
+    },
+    "v1alpha1ManagedNamespaceMetadata": {
+      "type": "object",
+      "properties": {
+        "labels": {
+          "type": "object",
+          "additionalProperties": {
+            "type": "string"
+          }
+        },
+        "annotations": {
+          "type": "object",
+          "additionalProperties": {
+            "type": "string"
+          }
+        }
+      }
     },
     "v1alpha1Operation": {
       "type": "object",
@@ -3602,6 +3809,20 @@
         "deployStartedAt": {
           "$ref": "#/definitions/v1Time",
           "title": "DeployStartedAt holds the time the sync operation started"
+        },
+        "sources": {
+          "type": "array",
+          "items": {
+            "$ref": "#/definitions/v1alpha1ApplicationSource"
+          },
+          "title": "Sources is a reference to the application sources used for the sync operation"
+        },
+        "revisions": {
+          "type": "array",
+          "items": {
+            "type": "string"
+          },
+          "title": "Revisions holds the revision of each source in sources field the sync was performed against"
         }
       },
       "title": "RevisionHistory contains history information about a previous sync"
@@ -3626,7 +3847,7 @@
         },
         "message": {
           "type": "string",
-          "title": "Message contains the message associated with the revision, most likely the commit message.\nThe message is truncated to the first newline or 64 characters (which ever comes first)"
+          "description": "Message contains the message associated with the revision, most likely the commit message."
         },
         "signatureInfo": {
           "type": "string",
@@ -3678,6 +3899,20 @@
             "type": "string"
           },
           "title": "SyncOptions provide per-sync sync-options, e.g. Validate=false"
+        },
+        "sources": {
+          "type": "array",
+          "items": {
+            "$ref": "#/definitions/v1alpha1ApplicationSource"
+          },
+          "title": "Sources overrides the source definition set in the application.\nThis is typically set in a Rollback operation and is nil during a Sync operation"
+        },
+        "revisions": {
+          "type": "array",
+          "items": {
+            "type": "string"
+          },
+          "description": "Revisions is the list of revision (Git) or chart version (Helm) which to sync each source in sources field for the application to\nIf omitted, will use the revision specified in app spec."
         }
       },
       "description": "SyncOperation contains details about a sync operation."
@@ -3717,6 +3952,20 @@
         "source": {
           "$ref": "#/definitions/v1alpha1ApplicationSource",
           "title": "Source records the application source information of the sync, used for comparing auto-sync"
+        },
+        "sources": {
+          "type": "array",
+          "items": {
+            "$ref": "#/definitions/v1alpha1ApplicationSource"
+          },
+          "title": "Source records the application source information of the sync, used for comparing auto-sync"
+        },
+        "revisions": {
+          "type": "array",
+          "items": {
+            "type": "string"
+          },
+          "title": "Revisions holds the revision this sync operation was performed for respective indexed source in sources field"
         }
       },
       "title": "SyncOperationResult represent result of sync operation"
@@ -3738,6 +3987,10 @@
         "retry": {
           "$ref": "#/definitions/v1alpha1RetryStrategy",
           "title": "Retry controls failed sync retry behavior"
+        },
+        "managedNamespaceMetadata": {
+          "$ref": "#/definitions/v1alpha1ManagedNamespaceMetadata",
+          "title": "ManagedNamespaceMetadata controls metadata in the given namespace (if CreateNamespace=true)"
         }
       },
       "title": "SyncPolicy controls when a sync will be performed in response to updates in git"
@@ -3774,6 +4027,13 @@
         "revision": {
           "type": "string",
           "title": "Revision contains information about the revision the comparison has been performed to"
+        },
+        "revisions": {
+          "type": "array",
+          "items": {
+            "type": "string"
+          },
+          "title": "Revisions contains information about the revisions of multiple sources the comparison has been performed to"
         }
       },
       "title": "SyncStatus contains information about the currently observed live and desired states of an application"

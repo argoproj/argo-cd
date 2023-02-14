@@ -180,6 +180,24 @@
       },
       "title": "EnvEntry represents an entry in the application's environment"
     },
+    "intstrIntOrString": {
+      "type": "object",
+      "properties": {
+        "type": {
+          "type": "string",
+          "format": "int64"
+        },
+        "intVal": {
+          "type": "integer",
+          "format": "int32"
+        },
+        "strVal": {
+          "type": "string"
+        }
+      },
+      "description": "+protobuf=true\n+protobuf.options.(gogoproto.goproto_stringer)=false\n+k8s:openapi-gen=true",
+      "title": "IntOrString is a type that can hold an int32 or a string.  When used in\nJSON or YAML marshalling and unmarshalling, it produces or consumes the\ninner type.  This allows you to have, for example, a JSON field that can\naccept a name or number.\nTODO: Rename to Int32OrString"
+    },
     "protobufAny": {
       "type": "object",
       "properties": {
@@ -483,6 +501,23 @@
       },
       "title": "ApplicationDestination holds information about the application's destination"
     },
+    "v1alpha1ApplicationMatchExpression": {
+      "type": "object",
+      "properties": {
+        "key": {
+          "type": "string"
+        },
+        "operator": {
+          "type": "string"
+        },
+        "values": {
+          "type": "array",
+          "items": {
+            "type": "string"
+          }
+        }
+      }
+    },
     "v1alpha1ApplicationSet": {
       "type": "object",
       "properties": {
@@ -497,6 +532,32 @@
         }
       },
       "title": "ApplicationSet is a set of Application resources\n+genclient\n+genclient:noStatus\n+k8s:deepcopy-gen:interfaces=k8s.io/apimachinery/pkg/runtime.Object\n+kubebuilder:resource:path=applicationsets,shortName=appset;appsets\n+kubebuilder:subresource:status"
+    },
+    "v1alpha1ApplicationSetApplicationStatus": {
+      "type": "object",
+      "properties": {
+        "application": {
+          "type": "string",
+          "title": "Application contains the name of the Application resource"
+        },
+        "lastTransitionTime": {
+          "$ref": "#/definitions/v1Time",
+          "title": "LastTransitionTime is the time the status was last updated"
+        },
+        "message": {
+          "type": "string",
+          "title": "Message contains human-readable message indicating details about the status"
+        },
+        "status": {
+          "type": "string",
+          "title": "Status contains the AppSet's perceived status of the managed Application resource: (Waiting, Pending, Progressing, Healthy)"
+        },
+        "step": {
+          "type": "string",
+          "title": "Step tracks which step this Application should be updated in"
+        }
+      },
+      "title": "ApplicationSetApplicationStatus contains details about each Application managed by the ApplicationSet"
     },
     "v1alpha1ApplicationSetCondition": {
       "type": "object",
@@ -609,6 +670,31 @@
       },
       "description": "ApplicationSetNestedGenerator represents a generator nested within a combination-type generator (MatrixGenerator or\nMergeGenerator)."
     },
+    "v1alpha1ApplicationSetRolloutStep": {
+      "type": "object",
+      "properties": {
+        "matchExpressions": {
+          "type": "array",
+          "items": {
+            "$ref": "#/definitions/v1alpha1ApplicationMatchExpression"
+          }
+        },
+        "maxUpdate": {
+          "$ref": "#/definitions/intstrIntOrString"
+        }
+      }
+    },
+    "v1alpha1ApplicationSetRolloutStrategy": {
+      "type": "object",
+      "properties": {
+        "steps": {
+          "type": "array",
+          "items": {
+            "$ref": "#/definitions/v1alpha1ApplicationSetRolloutStep"
+          }
+        }
+      }
+    },
     "v1alpha1ApplicationSetSpec": {
       "type": "object",
       "properties": {
@@ -626,6 +712,9 @@
         },
         "syncPolicy": {
           "$ref": "#/definitions/v1alpha1ApplicationSetSyncPolicy"
+        },
+        "strategy": {
+          "$ref": "#/definitions/v1alpha1ApplicationSetStrategy"
         }
       },
       "description": "ApplicationSetSpec represents a class of application set state."
@@ -639,9 +728,27 @@
             "$ref": "#/definitions/v1alpha1ApplicationSetCondition"
           },
           "title": "INSERT ADDITIONAL STATUS FIELD - define observed state of cluster\nImportant: Run \"make\" to regenerate code after modifying this file"
+        },
+        "applicationStatus": {
+          "type": "array",
+          "items": {
+            "$ref": "#/definitions/v1alpha1ApplicationSetApplicationStatus"
+          }
         }
       },
       "title": "ApplicationSetStatus defines the observed state of ApplicationSet"
+    },
+    "v1alpha1ApplicationSetStrategy": {
+      "type": "object",
+      "properties": {
+        "type": {
+          "type": "string"
+        },
+        "rollingSync": {
+          "$ref": "#/definitions/v1alpha1ApplicationSetRolloutStrategy"
+        }
+      },
+      "description": "ApplicationSetStrategy configures how generated Applications are updated in sequence."
     },
     "v1alpha1ApplicationSetSyncPolicy": {
       "type": "object",
@@ -729,6 +836,10 @@
         "chart": {
           "type": "string",
           "description": "Chart is a Helm chart name, and must be specified for applications sourced from a Helm repo."
+        },
+        "ref": {
+          "type": "string",
+          "description": "Ref is reference to another source within sources field. This field will not be used if used with a `source` tag."
         }
       },
       "title": "ApplicationSource contains all required information about the source of an application"
@@ -902,9 +1013,42 @@
           "items": {
             "$ref": "#/definitions/applicationv1alpha1EnvEntry"
           }
+        },
+        "parameters": {
+          "type": "array",
+          "items": {
+            "$ref": "#/definitions/v1alpha1ApplicationSourcePluginParameter"
+          }
         }
       },
       "title": "ApplicationSourcePlugin holds options specific to config management plugins"
+    },
+    "v1alpha1ApplicationSourcePluginParameter": {
+      "type": "object",
+      "properties": {
+        "name": {
+          "type": "string",
+          "description": "Name is the name identifying a parameter."
+        },
+        "string": {
+          "type": "string",
+          "description": "String_ is the value of a string type parameter."
+        },
+        "map": {
+          "type": "object",
+          "additionalProperties": {
+            "type": "string"
+          },
+          "description": "Map is the value of a map type parameter."
+        },
+        "array": {
+          "type": "array",
+          "items": {
+            "type": "string"
+          },
+          "description": "Array is the value of an array type parameter."
+        }
+      }
     },
     "v1alpha1ApplicationSpec": {
       "type": "object",
@@ -943,6 +1087,13 @@
           "type": "string",
           "format": "int64",
           "description": "RevisionHistoryLimit limits the number of items kept in the application's revision history, which is used for informational purposes as well as for rollbacks to previous versions.\nThis should only be changed in exceptional circumstances.\nSetting to zero will store no history. This will reduce storage used.\nIncreasing will increase the space used to store the history, so we do not recommend increasing it.\nDefault is 10."
+        },
+        "sources": {
+          "type": "array",
+          "items": {
+            "$ref": "#/definitions/v1alpha1ApplicationSource"
+          },
+          "title": "Sources is a reference to the location of the application's manifests or chart"
         }
       },
       "description": "ApplicationSpec represents desired application state. Contains link to repository with application definition and additional parameters link definition revision."
@@ -1076,6 +1227,9 @@
         },
         "template": {
           "$ref": "#/definitions/v1alpha1ApplicationSetTemplate"
+        },
+        "pathParamPrefix": {
+          "type": "string"
         }
       }
     },
@@ -1151,6 +1305,23 @@
         }
       },
       "title": "ListGenerator include items info"
+    },
+    "v1alpha1ManagedNamespaceMetadata": {
+      "type": "object",
+      "properties": {
+        "labels": {
+          "type": "object",
+          "additionalProperties": {
+            "type": "string"
+          }
+        },
+        "annotations": {
+          "type": "object",
+          "additionalProperties": {
+            "type": "string"
+          }
+        }
+      }
     },
     "v1alpha1MatrixGenerator": {
       "type": "object",
@@ -1646,6 +1817,10 @@
         "retry": {
           "$ref": "#/definitions/v1alpha1RetryStrategy",
           "title": "Retry controls failed sync retry behavior"
+        },
+        "managedNamespaceMetadata": {
+          "$ref": "#/definitions/v1alpha1ManagedNamespaceMetadata",
+          "title": "ManagedNamespaceMetadata controls metadata in the given namespace (if CreateNamespace=true)"
         }
       },
       "title": "SyncPolicy controls when a sync will be performed in response to updates in git"

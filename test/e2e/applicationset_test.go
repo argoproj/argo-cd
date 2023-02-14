@@ -57,7 +57,7 @@ func TestSimpleListGenerator(t *testing.T) {
 		},
 		Spec: argov1alpha1.ApplicationSpec{
 			Project: "default",
-			Source: argov1alpha1.ApplicationSource{
+			Source: &argov1alpha1.ApplicationSource{
 				RepoURL:        "https://github.com/argoproj/argocd-example-apps.git",
 				TargetRevision: "HEAD",
 				Path:           "guestbook",
@@ -81,7 +81,7 @@ func TestSimpleListGenerator(t *testing.T) {
 				ApplicationSetTemplateMeta: v1alpha1.ApplicationSetTemplateMeta{Name: "{{cluster}}-guestbook"},
 				Spec: argov1alpha1.ApplicationSpec{
 					Project: "default",
-					Source: argov1alpha1.ApplicationSource{
+					Source: &argov1alpha1.ApplicationSource{
 						RepoURL:        "https://github.com/argoproj/argocd-example-apps.git",
 						TargetRevision: "HEAD",
 						Path:           "guestbook",
@@ -149,7 +149,7 @@ func TestSimpleListGeneratorGoTemplate(t *testing.T) {
 		},
 		Spec: argov1alpha1.ApplicationSpec{
 			Project: "default",
-			Source: argov1alpha1.ApplicationSource{
+			Source: &argov1alpha1.ApplicationSource{
 				RepoURL:        "https://github.com/argoproj/argocd-example-apps.git",
 				TargetRevision: "HEAD",
 				Path:           "guestbook",
@@ -174,7 +174,7 @@ func TestSimpleListGeneratorGoTemplate(t *testing.T) {
 				ApplicationSetTemplateMeta: v1alpha1.ApplicationSetTemplateMeta{Name: "{{.cluster}}-guestbook"},
 				Spec: argov1alpha1.ApplicationSpec{
 					Project: "default",
-					Source: argov1alpha1.ApplicationSource{
+					Source: &argov1alpha1.ApplicationSource{
 						RepoURL:        "https://github.com/argoproj/argocd-example-apps.git",
 						TargetRevision: "HEAD",
 						Path:           "guestbook",
@@ -242,7 +242,7 @@ func TestSimpleGitDirectoryGenerator(t *testing.T) {
 			},
 			Spec: argov1alpha1.ApplicationSpec{
 				Project: "default",
-				Source: argov1alpha1.ApplicationSource{
+				Source: &argov1alpha1.ApplicationSource{
 					RepoURL:        "https://github.com/argoproj/argocd-example-apps.git",
 					TargetRevision: "HEAD",
 					Path:           name,
@@ -275,7 +275,7 @@ func TestSimpleGitDirectoryGenerator(t *testing.T) {
 					ApplicationSetTemplateMeta: v1alpha1.ApplicationSetTemplateMeta{Name: "{{path.basename}}"},
 					Spec: argov1alpha1.ApplicationSpec{
 						Project: "default",
-						Source: argov1alpha1.ApplicationSource{
+						Source: &argov1alpha1.ApplicationSource{
 							RepoURL:        "https://github.com/argoproj/argocd-example-apps.git",
 							TargetRevision: "HEAD",
 							Path:           "{{path}}",
@@ -351,7 +351,7 @@ func TestSimpleGitDirectoryGeneratorGoTemplate(t *testing.T) {
 			},
 			Spec: argov1alpha1.ApplicationSpec{
 				Project: "default",
-				Source: argov1alpha1.ApplicationSource{
+				Source: &argov1alpha1.ApplicationSource{
 					RepoURL:        "https://github.com/argoproj/argocd-example-apps.git",
 					TargetRevision: "HEAD",
 					Path:           name,
@@ -385,7 +385,7 @@ func TestSimpleGitDirectoryGeneratorGoTemplate(t *testing.T) {
 					ApplicationSetTemplateMeta: v1alpha1.ApplicationSetTemplateMeta{Name: "{{.path.basename}}"},
 					Spec: argov1alpha1.ApplicationSpec{
 						Project: "default",
-						Source: argov1alpha1.ApplicationSource{
+						Source: &argov1alpha1.ApplicationSource{
 							RepoURL:        "https://github.com/argoproj/argocd-example-apps.git",
 							TargetRevision: "HEAD",
 							Path:           "{{.path.path}}",
@@ -462,7 +462,7 @@ func TestSimpleGitFilesGenerator(t *testing.T) {
 			},
 			Spec: argov1alpha1.ApplicationSpec{
 				Project: "default",
-				Source: argov1alpha1.ApplicationSource{
+				Source: &argov1alpha1.ApplicationSource{
 					RepoURL:        "https://github.com/argoproj/argocd-example-apps.git",
 					TargetRevision: "HEAD",
 					Path:           "guestbook",
@@ -494,7 +494,7 @@ func TestSimpleGitFilesGenerator(t *testing.T) {
 					ApplicationSetTemplateMeta: v1alpha1.ApplicationSetTemplateMeta{Name: "{{cluster.name}}-guestbook"},
 					Spec: argov1alpha1.ApplicationSpec{
 						Project: "default",
-						Source: argov1alpha1.ApplicationSource{
+						Source: &argov1alpha1.ApplicationSource{
 							RepoURL:        "https://github.com/argoproj/argocd-example-apps.git",
 							TargetRevision: "HEAD",
 							Path:           "guestbook",
@@ -571,7 +571,7 @@ func TestSimpleGitFilesGeneratorGoTemplate(t *testing.T) {
 			},
 			Spec: argov1alpha1.ApplicationSpec{
 				Project: "default",
-				Source: argov1alpha1.ApplicationSource{
+				Source: &argov1alpha1.ApplicationSource{
 					RepoURL:        "https://github.com/argoproj/argocd-example-apps.git",
 					TargetRevision: "HEAD",
 					Path:           "guestbook",
@@ -604,7 +604,7 @@ func TestSimpleGitFilesGeneratorGoTemplate(t *testing.T) {
 					ApplicationSetTemplateMeta: v1alpha1.ApplicationSetTemplateMeta{Name: "{{.cluster.name}}-guestbook"},
 					Spec: argov1alpha1.ApplicationSpec{
 						Project: "default",
-						Source: argov1alpha1.ApplicationSource{
+						Source: &argov1alpha1.ApplicationSource{
 							RepoURL:        "https://github.com/argoproj/argocd-example-apps.git",
 							TargetRevision: "HEAD",
 							Path:           "guestbook",
@@ -680,7 +680,7 @@ func TestSimpleGitFilesPreserveResourcesOnDeletion(t *testing.T) {
 					ApplicationSetTemplateMeta: v1alpha1.ApplicationSetTemplateMeta{Name: "{{cluster.name}}-guestbook"},
 					Spec: argov1alpha1.ApplicationSpec{
 						Project: "default",
-						Source: argov1alpha1.ApplicationSource{
+						Source: &argov1alpha1.ApplicationSource{
 							RepoURL:        "https://github.com/argoproj/argocd-example-apps.git",
 							TargetRevision: "HEAD",
 							Path:           "guestbook",
@@ -741,7 +741,7 @@ func TestSimpleGitFilesPreserveResourcesOnDeletionGoTemplate(t *testing.T) {
 					ApplicationSetTemplateMeta: v1alpha1.ApplicationSetTemplateMeta{Name: "{{.cluster.name}}-guestbook"},
 					Spec: argov1alpha1.ApplicationSpec{
 						Project: "default",
-						Source: argov1alpha1.ApplicationSource{
+						Source: &argov1alpha1.ApplicationSource{
 							RepoURL:        "https://github.com/argoproj/argocd-example-apps.git",
 							TargetRevision: "HEAD",
 							Path:           "guestbook",
@@ -994,7 +994,7 @@ func TestSimpleSCMProviderGenerator(t *testing.T) {
 		},
 		Spec: argov1alpha1.ApplicationSpec{
 			Project: "default",
-			Source: argov1alpha1.ApplicationSource{
+			Source: &argov1alpha1.ApplicationSource{
 				RepoURL:        "git@github.com:argoproj/argo-cd.git",
 				TargetRevision: "master",
 				Path:           "guestbook",
@@ -1019,7 +1019,7 @@ func TestSimpleSCMProviderGenerator(t *testing.T) {
 				ApplicationSetTemplateMeta: v1alpha1.ApplicationSetTemplateMeta{Name: "{{ repository }}-guestbook"},
 				Spec: argov1alpha1.ApplicationSpec{
 					Project: "default",
-					Source: argov1alpha1.ApplicationSource{
+					Source: &argov1alpha1.ApplicationSource{
 						RepoURL:        "{{ url }}",
 						TargetRevision: "{{ branch }}",
 						Path:           "guestbook",
@@ -1067,7 +1067,7 @@ func TestSimpleSCMProviderGeneratorGoTemplate(t *testing.T) {
 		},
 		Spec: argov1alpha1.ApplicationSpec{
 			Project: "default",
-			Source: argov1alpha1.ApplicationSource{
+			Source: &argov1alpha1.ApplicationSource{
 				RepoURL:        "git@github.com:argoproj/argo-cd.git",
 				TargetRevision: "master",
 				Path:           "guestbook",
@@ -1093,7 +1093,7 @@ func TestSimpleSCMProviderGeneratorGoTemplate(t *testing.T) {
 				ApplicationSetTemplateMeta: v1alpha1.ApplicationSetTemplateMeta{Name: "{{ .repository }}-guestbook"},
 				Spec: argov1alpha1.ApplicationSpec{
 					Project: "default",
-					Source: argov1alpha1.ApplicationSource{
+					Source: &argov1alpha1.ApplicationSource{
 						RepoURL:        "{{ .url }}",
 						TargetRevision: "{{ .branch }}",
 						Path:           "guestbook",
@@ -1136,7 +1136,7 @@ func TestCustomApplicationFinalizers(t *testing.T) {
 		},
 		Spec: argov1alpha1.ApplicationSpec{
 			Project: "default",
-			Source: argov1alpha1.ApplicationSource{
+			Source: &argov1alpha1.ApplicationSource{
 				RepoURL:        "https://github.com/argoproj/argocd-example-apps.git",
 				TargetRevision: "HEAD",
 				Path:           "guestbook",
@@ -1161,7 +1161,7 @@ func TestCustomApplicationFinalizers(t *testing.T) {
 				},
 				Spec: argov1alpha1.ApplicationSpec{
 					Project: "default",
-					Source: argov1alpha1.ApplicationSource{
+					Source: &argov1alpha1.ApplicationSource{
 						RepoURL:        "https://github.com/argoproj/argocd-example-apps.git",
 						TargetRevision: "HEAD",
 						Path:           "guestbook",
@@ -1202,7 +1202,7 @@ func TestCustomApplicationFinalizersGoTemplate(t *testing.T) {
 		},
 		Spec: argov1alpha1.ApplicationSpec{
 			Project: "default",
-			Source: argov1alpha1.ApplicationSource{
+			Source: &argov1alpha1.ApplicationSource{
 				RepoURL:        "https://github.com/argoproj/argocd-example-apps.git",
 				TargetRevision: "HEAD",
 				Path:           "guestbook",
@@ -1228,7 +1228,7 @@ func TestCustomApplicationFinalizersGoTemplate(t *testing.T) {
 				},
 				Spec: argov1alpha1.ApplicationSpec{
 					Project: "default",
-					Source: argov1alpha1.ApplicationSource{
+					Source: &argov1alpha1.ApplicationSource{
 						RepoURL:        "https://github.com/argoproj/argocd-example-apps.git",
 						TargetRevision: "HEAD",
 						Path:           "guestbook",
@@ -1302,7 +1302,7 @@ func TestSimplePullRequestGenerator(t *testing.T) {
 		},
 		Spec: argov1alpha1.ApplicationSpec{
 			Project: "default",
-			Source: argov1alpha1.ApplicationSource{
+			Source: &argov1alpha1.ApplicationSource{
 				RepoURL:        "git@github.com:applicationset-test-org/argocd-example-apps.git",
 				TargetRevision: "824a5c987fdfb2b0629e9dbf5f31636c69ba4772",
 				Path:           "kustomize-guestbook",
@@ -1327,7 +1327,7 @@ func TestSimplePullRequestGenerator(t *testing.T) {
 				ApplicationSetTemplateMeta: v1alpha1.ApplicationSetTemplateMeta{Name: "guestbook-{{ number }}"},
 				Spec: argov1alpha1.ApplicationSpec{
 					Project: "default",
-					Source: argov1alpha1.ApplicationSource{
+					Source: &argov1alpha1.ApplicationSource{
 						RepoURL:        "git@github.com:applicationset-test-org/argocd-example-apps.git",
 						TargetRevision: "{{ head_sha }}",
 						Path:           "kustomize-guestbook",
@@ -1374,10 +1374,11 @@ func TestSimplePullRequestGeneratorGoTemplate(t *testing.T) {
 			Name:       "guestbook-1",
 			Namespace:  utils.ArgoCDNamespace,
 			Finalizers: []string{"resources-finalizer.argocd.argoproj.io"},
+			Labels:     map[string]string{"app": "preview"},
 		},
 		Spec: argov1alpha1.ApplicationSpec{
 			Project: "default",
-			Source: argov1alpha1.ApplicationSource{
+			Source: &argov1alpha1.ApplicationSource{
 				RepoURL:        "git@github.com:applicationset-test-org/argocd-example-apps.git",
 				TargetRevision: "824a5c987fdfb2b0629e9dbf5f31636c69ba4772",
 				Path:           "kustomize-guestbook",
@@ -1400,10 +1401,12 @@ func TestSimplePullRequestGeneratorGoTemplate(t *testing.T) {
 		Spec: v1alpha1.ApplicationSetSpec{
 			GoTemplate: true,
 			Template: v1alpha1.ApplicationSetTemplate{
-				ApplicationSetTemplateMeta: v1alpha1.ApplicationSetTemplateMeta{Name: "guestbook-{{ .number }}"},
+				ApplicationSetTemplateMeta: v1alpha1.ApplicationSetTemplateMeta{
+					Name:   "guestbook-{{ .number }}",
+					Labels: map[string]string{"app": "{{index .labels 0}}"}},
 				Spec: argov1alpha1.ApplicationSpec{
 					Project: "default",
-					Source: argov1alpha1.ApplicationSource{
+					Source: &argov1alpha1.ApplicationSource{
 						RepoURL:        "git@github.com:applicationset-test-org/argocd-example-apps.git",
 						TargetRevision: "{{ .head_sha }}",
 						Path:           "kustomize-guestbook",
@@ -1450,7 +1453,7 @@ func TestGitGeneratorPrivateRepo(t *testing.T) {
 			},
 			Spec: argov1alpha1.ApplicationSpec{
 				Project: "default",
-				Source: argov1alpha1.ApplicationSource{
+				Source: &argov1alpha1.ApplicationSource{
 					RepoURL:        fixture.RepoURL(fixture.RepoURLTypeHTTPS),
 					TargetRevision: "HEAD",
 					Path:           name,
@@ -1480,7 +1483,7 @@ func TestGitGeneratorPrivateRepo(t *testing.T) {
 					ApplicationSetTemplateMeta: v1alpha1.ApplicationSetTemplateMeta{Name: "{{path.basename}}"},
 					Spec: argov1alpha1.ApplicationSpec{
 						Project: "default",
-						Source: argov1alpha1.ApplicationSource{
+						Source: &argov1alpha1.ApplicationSource{
 							RepoURL:        fixture.RepoURL(fixture.RepoURLTypeHTTPS),
 							TargetRevision: "HEAD",
 							Path:           "{{path}}",
@@ -1525,7 +1528,7 @@ func TestGitGeneratorPrivateRepoGoTemplate(t *testing.T) {
 			},
 			Spec: argov1alpha1.ApplicationSpec{
 				Project: "default",
-				Source: argov1alpha1.ApplicationSource{
+				Source: &argov1alpha1.ApplicationSource{
 					RepoURL:        fixture.RepoURL(fixture.RepoURLTypeHTTPS),
 					TargetRevision: "HEAD",
 					Path:           name,
@@ -1556,7 +1559,7 @@ func TestGitGeneratorPrivateRepoGoTemplate(t *testing.T) {
 					ApplicationSetTemplateMeta: v1alpha1.ApplicationSetTemplateMeta{Name: "{{.path.basename}}"},
 					Spec: argov1alpha1.ApplicationSpec{
 						Project: "default",
-						Source: argov1alpha1.ApplicationSource{
+						Source: &argov1alpha1.ApplicationSource{
 							RepoURL:        fixture.RepoURL(fixture.RepoURLTypeHTTPS),
 							TargetRevision: "HEAD",
 							Path:           "{{.path.path}}",

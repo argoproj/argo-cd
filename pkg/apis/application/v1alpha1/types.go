@@ -14,11 +14,12 @@ import (
 	"strconv"
 	"strings"
 	"time"
+	"unicode"
 
 	"github.com/argoproj/gitops-engine/pkg/health"
 	synccommon "github.com/argoproj/gitops-engine/pkg/sync/common"
 	"github.com/ghodss/yaml"
-	"github.com/robfig/cron"
+	"github.com/robfig/cron/v3"
 	log "github.com/sirupsen/logrus"
 	"google.golang.org/grpc/codes"
 	"google.golang.org/grpc/status"
@@ -34,6 +35,7 @@ import (
 
 	"github.com/argoproj/argo-cd/v2/util/collections"
 	"github.com/argoproj/argo-cd/v2/util/helm"
+	"github.com/argoproj/argo-cd/v2/util/security"
 )
 
 // Application is a definition of Application resource.
@@ -55,7 +57,7 @@ type Application struct {
 // ApplicationSpec represents desired application state. Contains link to repository with application definition and additional parameters link definition revision.
 type ApplicationSpec struct {
 	// Source is a reference to the location of the application's manifests or chart
-	Source ApplicationSource `json:"source" protobuf:"bytes,1,opt,name=source"`
+	Source *ApplicationSource `json:"source,omitempty" protobuf:"bytes,1,opt,name=source"`
 	// Destination is a reference to the target Kubernetes server and namespace
 	Destination ApplicationDestination `json:"destination" protobuf:"bytes,2,name=destination"`
 	// Project is a reference to the project this application belongs to.
@@ -73,6 +75,9 @@ type ApplicationSpec struct {
 	// Increasing will increase the space used to store the history, so we do not recommend increasing it.
 	// Default is 10.
 	RevisionHistoryLimit *int64 `json:"revisionHistoryLimit,omitempty" protobuf:"bytes,7,name=revisionHistoryLimit"`
+
+	// Sources is a reference to the location of the application's manifests or chart
+	Sources ApplicationSources `json:"sources,omitempty" protobuf:"bytes,8,opt,name=sources"`
 }
 
 type TrackingMethod string
@@ -170,6 +175,44 @@ type ApplicationSource struct {
 	Plugin *ApplicationSourcePlugin `json:"plugin,omitempty" protobuf:"bytes,11,opt,name=plugin"`
 	// Chart is a Helm chart name, and must be specified for applications sourced from a Helm repo.
 	Chart string `json:"chart,omitempty" protobuf:"bytes,12,opt,name=chart"`
+	// Ref is reference to another source within sources field. This field will not be used if used with a `source` tag.
+	Ref string `json:"ref,omitempty" protobuf:"bytes,13,opt,name=ref"`
+}
+
+// ApplicationSources contains list of required information about the sources of an application
+type ApplicationSources []ApplicationSource
+
+func (a *ApplicationSpec) GetSource() ApplicationSource {
+	// if Application has multiple sources, return the first source in sources
+	if a.HasMultipleSources() {
+		return a.Sources[0]
+	}
+	if a.Source != nil {
+		return *a.Source
+	}
+	return ApplicationSource{}
+}
+
+func (a *ApplicationSpec) GetSources() ApplicationSources {
+	if a.HasMultipleSources() {
+		return a.Sources
+	}
+	if a.Source != nil {
+		return ApplicationSources{*a.Source}
+	}
+	return ApplicationSources{}
+}
+
+func (a *ApplicationSpec) HasMultipleSources() bool {
+	return a.Sources != nil && len(a.Sources) > 0
+}
+
+func (a *ApplicationSpec) GetSourcePtr() *ApplicationSource {
+	// if Application has multiple sources, return the first source in sources
+	if a.HasMultipleSources() {
+		return &a.Sources[0]
+	}
+	return a.Source
 }
 
 // AllowsConcurrentProcessing returns true if given application source can be processed concurrently
@@ -224,6 +267,14 @@ const (
 	RefreshTypeNormal RefreshType = "normal"
 	RefreshTypeHard   RefreshType = "hard"
 )
+
+type RefTarget struct {
+	Repo           Repository `protobuf:"bytes,1,opt,name=repo"`
+	TargetRevision string     `protobuf:"bytes,2,opt,name=targetRevision"`
+	Chart          string     `protobuf:"bytes,3,opt,name=chart"`
+}
+
+type RefTargetRevisionMapping map[string]*RefTarget
 
 // ApplicationSourceHelm holds helm specific options
 type ApplicationSourceHelm struct {
@@ -468,10 +519,63 @@ func (d *ApplicationSourceDirectory) IsZero() bool {
 	return d == nil || !d.Recurse && d.Jsonnet.IsZero()
 }
 
+type ApplicationSourcePluginParameter struct {
+	// Name is the name identifying a parameter.
+	Name string `json:"name,omitempty" protobuf:"bytes,1,opt,name=name"`
+	// String_ is the value of a string type parameter.
+	String_ *string `json:"string,omitempty" protobuf:"bytes,5,opt,name=string"`
+	// Map is the value of a map type parameter.
+	Map map[string]string `json:"map,omitempty" protobuf:"bytes,3,rep,name=map"`
+	// Array is the value of an array type parameter.
+	Array []string `json:"array,omitempty" protobuf:"bytes,4,rep,name=array"`
+}
+
+type ApplicationSourcePluginParameters []ApplicationSourcePluginParameter
+
+// Environ builds a list of environment variables to represent parameters sent to a plugin from the Application
+// manifest. Parameters are represented as one large stringified JSON array (under `ARGOCD_APP_PARAMETERS`). They're
+// also represented as individual environment variables, each variable's key being an escaped version of the parameter's
+// name.
+func (p ApplicationSourcePluginParameters) Environ() ([]string, error) {
+	out, err := json.Marshal(p)
+	if err != nil {
+		return nil, fmt.Errorf("failed to marshal plugin parameters: %w", err)
+	}
+	jsonParam := fmt.Sprintf("ARGOCD_APP_PARAMETERS=%s", string(out))
+
+	env := []string{jsonParam}
+
+	for _, param := range p {
+		envBaseName := fmt.Sprintf("PARAM_%s", escaped(param.Name))
+		if param.String_ != nil {
+			env = append(env, fmt.Sprintf("%s=%s", envBaseName, *param.String_))
+		}
+		if param.Map != nil {
+			for key, value := range param.Map {
+				env = append(env, fmt.Sprintf("%s_%s=%s", envBaseName, escaped(key), value))
+			}
+		}
+		if param.Array != nil {
+			for i, value := range param.Array {
+				env = append(env, fmt.Sprintf("%s_%d=%s", envBaseName, i, value))
+			}
+		}
+	}
+
+	return env, nil
+}
+
+func escaped(paramName string) string {
+	newParamName := strings.ToUpper(paramName)
+	invalidParamCharRegex := regexp.MustCompile("[^A-Z0-9_]")
+	return invalidParamCharRegex.ReplaceAllString(newParamName, "_")
+}
+
 // ApplicationSourcePlugin holds options specific to config management plugins
 type ApplicationSourcePlugin struct {
-	Name string `json:"name,omitempty" protobuf:"bytes,1,opt,name=name"`
-	Env  `json:"env,omitempty" protobuf:"bytes,2,opt,name=env"`
+	Name       string `json:"name,omitempty" protobuf:"bytes,1,opt,name=name"`
+	Env        `json:"env,omitempty" protobuf:"bytes,2,opt,name=env"`
+	Parameters ApplicationSourcePluginParameters `json:"parameters,omitempty" protobuf:"bytes,3,opt,name=parameters"`
 }
 
 // IsZero returns true if the ApplicationSourcePlugin is considered empty
@@ -553,6 +657,8 @@ type ApplicationStatus struct {
 	Summary ApplicationSummary `json:"summary,omitempty" protobuf:"bytes,10,opt,name=summary"`
 	// ResourceHealthSource indicates where the resource health status is stored: inline if not set or appTree
 	ResourceHealthSource ResourceHealthLocation `json:"resourceHealthSource,omitempty" protobuf:"bytes,11,opt,name=resourceHealthSource"`
+	// SourceTypes specifies the type of the sources included in the application
+	SourceTypes []ApplicationSourceType `json:"sourceTypes,omitempty" protobuf:"bytes,12,opt,name=sourceTypes"`
 }
 
 // JWTTokens represents a list of JWT tokens
@@ -641,6 +747,12 @@ type SyncOperation struct {
 	Manifests []string `json:"manifests,omitempty" protobuf:"bytes,8,opt,name=manifests"`
 	// SyncOptions provide per-sync sync-options, e.g. Validate=false
 	SyncOptions SyncOptions `json:"syncOptions,omitempty" protobuf:"bytes,9,opt,name=syncOptions"`
+	// Sources overrides the source definition set in the application.
+	// This is typically set in a Rollback operation and is nil during a Sync operation
+	Sources ApplicationSources `json:"sources,omitempty" protobuf:"bytes,10,opt,name=sources"`
+	// Revisions is the list of revision (Git) or chart version (Helm) which to sync each source in sources field for the application to
+	// If omitted, will use the revision specified in app spec.
+	Revisions []string `json:"revisions,omitempty" protobuf:"bytes,11,opt,name=revisions"`
 }
 
 // IsApplyStrategy returns true if the sync strategy is "apply"
@@ -705,6 +817,11 @@ func (o SyncOptions) HasOption(option string) bool {
 	return false
 }
 
+type ManagedNamespaceMetadata struct {
+	Labels      map[string]string `json:"labels,omitempty" protobuf:"bytes,1,opt,name=labels"`
+	Annotations map[string]string `json:"annotations,omitempty" protobuf:"bytes,2,opt,name=annotations"`
+}
+
 // SyncPolicy controls when a sync will be performed in response to updates in git
 type SyncPolicy struct {
 	// Automated will keep an application synced to the target revision
@@ -713,6 +830,8 @@ type SyncPolicy struct {
 	SyncOptions SyncOptions `json:"syncOptions,omitempty" protobuf:"bytes,2,opt,name=syncOptions"`
 	// Retry controls failed sync retry behavior
 	Retry *RetryStrategy `json:"retry,omitempty" protobuf:"bytes,3,opt,name=retry"`
+	// ManagedNamespaceMetadata controls metadata in the given namespace (if CreateNamespace=true)
+	ManagedNamespaceMetadata *ManagedNamespaceMetadata `json:"managedNamespaceMetadata,omitempty" protobuf:"bytes,4,opt,name=managedNamespaceMetadata"`
 }
 
 // IsZero returns true if the sync policy is empty
@@ -842,7 +961,6 @@ type RevisionMetadata struct {
 	// Floating tags can move from one revision to another
 	Tags []string `json:"tags,omitempty" protobuf:"bytes,3,opt,name=tags"`
 	// Message contains the message associated with the revision, most likely the commit message.
-	// The message is truncated to the first newline or 64 characters (which ever comes first)
 	Message string `json:"message,omitempty" protobuf:"bytes,4,opt,name=message"`
 	// SignatureInfo contains a hint on the signer if the revision was signed with GPG, and signature verification is enabled.
 	SignatureInfo string `json:"signatureInfo,omitempty" protobuf:"bytes,5,opt,name=signatureInfo"`
@@ -856,6 +974,10 @@ type SyncOperationResult struct {
 	Revision string `json:"revision" protobuf:"bytes,2,opt,name=revision"`
 	// Source records the application source information of the sync, used for comparing auto-sync
 	Source ApplicationSource `json:"source,omitempty" protobuf:"bytes,3,opt,name=source"`
+	// Source records the application source information of the sync, used for comparing auto-sync
+	Sources ApplicationSources `json:"sources,omitempty" protobuf:"bytes,4,opt,name=sources"`
+	// Revisions holds the revision this sync operation was performed for respective indexed source in sources field
+	Revisions []string `json:"revisions,omitempty" protobuf:"bytes,5,opt,name=revisions"`
 }
 
 // ResourceResult holds the operation result details of a specific resource
@@ -918,7 +1040,7 @@ func (r ResourceResults) PruningRequired() (num int) {
 // RevisionHistory contains history information about a previous sync
 type RevisionHistory struct {
 	// Revision holds the revision the sync was performed against
-	Revision string `json:"revision" protobuf:"bytes,2,opt,name=revision"`
+	Revision string `json:"revision,omitempty" protobuf:"bytes,2,opt,name=revision"`
 	// DeployedAt holds the time the sync operation completed
 	DeployedAt metav1.Time `json:"deployedAt" protobuf:"bytes,4,opt,name=deployedAt"`
 	// ID is an auto incrementing identifier of the RevisionHistory
@@ -927,6 +1049,10 @@ type RevisionHistory struct {
 	Source ApplicationSource `json:"source,omitempty" protobuf:"bytes,6,opt,name=source"`
 	// DeployStartedAt holds the time the sync operation started
 	DeployStartedAt *metav1.Time `json:"deployStartedAt,omitempty" protobuf:"bytes,7,opt,name=deployStartedAt"`
+	// Sources is a reference to the application sources used for the sync operation
+	Sources ApplicationSources `json:"sources,omitempty" protobuf:"bytes,8,opt,name=sources"`
+	// Revisions holds the revision of each source in sources field the sync was performed against
+	Revisions []string `json:"revisions,omitempty" protobuf:"bytes,9,opt,name=revisions"`
 }
 
 // ApplicationWatchEvent contains information about application change.
@@ -1009,9 +1135,11 @@ type ApplicationCondition struct {
 // ComparedTo contains application source and target which was used for resources comparison
 type ComparedTo struct {
 	// Source is a reference to the application's source used for comparison
-	Source ApplicationSource `json:"source" protobuf:"bytes,1,opt,name=source"`
+	Source ApplicationSource `json:"source,omitempty" protobuf:"bytes,1,opt,name=source"`
 	// Destination is a reference to the application's destination used for comparison
 	Destination ApplicationDestination `json:"destination" protobuf:"bytes,2,opt,name=destination"`
+	// Sources is a reference to the application's multiple sources used for comparison
+	Sources ApplicationSources `json:"sources,omitempty" protobuf:"bytes,3,opt,name=sources"`
 }
 
 // SyncStatus contains information about the currently observed live and desired states of an application
@@ -1022,6 +1150,8 @@ type SyncStatus struct {
 	ComparedTo ComparedTo `json:"comparedTo,omitempty" protobuf:"bytes,2,opt,name=comparedTo"`
 	// Revision contains information about the revision the comparison has been performed to
 	Revision string `json:"revision,omitempty" protobuf:"bytes,3,opt,name=revision"`
+	// Revisions contains information about the revisions of multiple sources the comparison has been performed to
+	Revisions []string `json:"revisions,omitempty" protobuf:"bytes,4,opt,name=revisions"`
 }
 
 // HealthStatus contains information about the currently observed health state of an application or resource
@@ -1668,6 +1798,7 @@ func validateRoleName(name string) error {
 var invalidChars = regexp.MustCompile("[\"\n\r\t]")
 
 func validateGroupName(name string) error {
+	n := []rune(name)
 	name = strings.TrimSpace(name)
 	if len(name) > 1 && strings.HasPrefix(name, "\"") && strings.HasSuffix(name, "\"") {
 		// Remove surrounding quotes for further inspection of the group name
@@ -1675,12 +1806,17 @@ func validateGroupName(name string) error {
 	} else if strings.Contains(name, ",") {
 		return status.Errorf(codes.InvalidArgument, "group '%s' must be quoted", name)
 	}
-
 	if name == "" {
 		return status.Errorf(codes.InvalidArgument, "group '%s' is empty", name)
 	}
 	if invalidChars.MatchString(name) {
 		return status.Errorf(codes.InvalidArgument, "group '%s' contains invalid characters", name)
+	}
+	if len(n) > 1 && unicode.IsSpace(n[0]) {
+		return status.Errorf(codes.InvalidArgument, "group '%s' contains a leading space", name)
+	}
+	if len(n) > 1 && unicode.IsSpace(n[len(n)-1]) {
+		return status.Errorf(codes.InvalidArgument, "group '%s' contains a trailing space", name)
 	}
 	return nil
 }
@@ -2177,7 +2313,6 @@ func (app *Application) IsRefreshRequested() (RefreshType, bool) {
 	if annotations == nil {
 		return refreshType, false
 	}
-
 	typeStr, ok := annotations[AnnotationKeyRefresh]
 	if !ok {
 		return refreshType, false
@@ -2186,7 +2321,6 @@ func (app *Application) IsRefreshRequested() (RefreshType, bool) {
 	if typeStr == string(RefreshTypeHard) {
 		refreshType = RefreshTypeHard
 	}
-
 	return refreshType, true
 }
 
@@ -2618,9 +2752,5 @@ func (a *Application) QualifiedName() string {
 // RBACName returns the full qualified RBAC resource name for the application
 // in a backwards-compatible way.
 func (a *Application) RBACName(defaultNS string) string {
-	if defaultNS != "" && a.Namespace != defaultNS && a.Namespace != "" {
-		return fmt.Sprintf("%s/%s/%s", a.Spec.GetProject(), a.Namespace, a.Name)
-	} else {
-		return fmt.Sprintf("%s/%s", a.Spec.GetProject(), a.Name)
-	}
+	return security.AppRBACName(defaultNS, a.Spec.GetProject(), a.Namespace, a.Name)
 }

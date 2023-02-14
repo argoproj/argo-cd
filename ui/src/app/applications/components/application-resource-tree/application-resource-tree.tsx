@@ -27,14 +27,13 @@ import {
 import {NodeUpdateAnimation} from './node-update-animation';
 import {PodGroup} from '../application-pod-view/pod-view';
 import {ArrowConnector} from './arrow-connector';
+import './application-resource-tree.scss';
 
 function treeNodeKey(node: NodeId & {uid?: string}) {
     return node.uid || nodeKey(node);
 }
 
 const color = require('color');
-
-require('./application-resource-tree.scss');
 
 export interface ResourceTreeNode extends models.ResourceNode {
     status?: models.SyncStatusCode;
@@ -433,7 +432,7 @@ function renderPodGroup(props: ApplicationResourceTreeProps, id: string, node: R
                         {appNode && !rootNode && (
                             <Consumer>
                                 {ctx => (
-                                    <a href={ctx.baseHref + 'applications/' + node.name} title='Open application'>
+                                    <a href={ctx.baseHref + 'applications/' + node.namespace + '/' + node.name} title='Open application'>
                                         <i className='fa fa-external-link-alt' />
                                     </a>
                                 )}
@@ -652,7 +651,7 @@ function renderResourceNode(props: ApplicationResourceTreeProps, id: string, nod
                     {appNode && !rootNode && (
                         <Consumer>
                             {ctx => (
-                                <a href={ctx.baseHref + 'applications/' + node.name} title='Open application'>
+                                <a href={ctx.baseHref + 'applications/' + node.namespace + '/' + node.name} title='Open application'>
                                     <i className='fa fa-external-link-alt' />
                                 </a>
                             )}

@@ -22,11 +22,14 @@ import {ApplicationTiles} from './applications-tiles';
 import {ApplicationsRefreshPanel} from '../applications-refresh-panel/applications-refresh-panel';
 import {useSidebarTarget} from '../../../sidebar/sidebar';
 
-require('./applications-list.scss');
-require('./flex-top-bar.scss');
+import './applications-list.scss';
+import './flex-top-bar.scss';
 
 const EVENTS_BUFFER_TIMEOUT = 500;
 const WATCH_RETRY_TIMEOUT = 500;
+
+// The applications list/watch API supports only selected set of fields.
+// Make sure to register any new fields in the `appFields` map of `pkg/apiclient/application/forwarder_overwrite.go`.
 const APP_FIELDS = [
     'metadata.name',
     'metadata.namespace',
@@ -37,6 +40,7 @@ const APP_FIELDS = [
     'spec',
     'operation.sync',
     'status.sync.status',
+    'status.sync.revision',
     'status.health',
     'status.operationState.phase',
     'status.operationState.operation.sync',
@@ -105,6 +109,12 @@ const ViewPref = ({children}: {children: (pref: AppsListPreferences & {page: num
                             if (params.get('sync') != null) {
                                 viewPref.syncFilter = params
                                     .get('sync')
+                                    .split(',')
+                                    .filter(item => !!item);
+                            }
+                            if (params.get('autoSync') != null) {
+                                viewPref.autosyncFilter = params
+                                    .get('autoSync')
                                     .split(',')
                                     .filter(item => !!item);
                             }
@@ -282,7 +292,7 @@ const FlexTopBar = (props: {toolbar: Toolbar | Observable<Toolbar>}) => {
                                                 style={{marginRight: 2}}
                                                 key={i}>
                                                 {item.iconClassName && <i className={item.iconClassName} style={{marginLeft: '-5px', marginRight: '5px'}} />}
-                                                {item.title}
+                                                <span className='show-for-large'>{item.title}</span>
                                             </button>
                                         ))}
                                     </React.Fragment>
@@ -330,6 +340,7 @@ export const ApplicationsList = (props: RouteComponentProps<{}>) => {
             {
                 proj: newPref.projectsFilter.join(','),
                 sync: newPref.syncFilter.join(','),
+                autoSync: newPref.autoSyncFilter.join(','),
                 health: newPref.healthFilter.join(','),
                 namespace: newPref.namespacesFilter.join(','),
                 cluster: newPref.clustersFilter.join(','),
@@ -459,7 +470,7 @@ export const ApplicationsList = (props: RouteComponentProps<{}>) => {
                                                     <div className='applications-list'>
                                                         {applications.length === 0 && pref.projectsFilter?.length === 0 && (pref.labelsFilter || []).length === 0 ? (
                                                             <EmptyState icon='argo-icon-application'>
-                                                                <h4>No applications yet</h4>
+                                                                <h4>No applications available to you just yet</h4>
                                                                 <h5>Create new application to start managing resources in your cluster</h5>
                                                                 <button
                                                                     qe-id='applications-list-button-create-application'

@@ -480,6 +480,20 @@
             "in": "query",
             "required": false,
             "type": "string"
+          },
+          {
+            "name": "gcpServiceAccountKey",
+            "description": "Google Cloud Platform service account key.",
+            "in": "query",
+            "required": false,
+            "type": "string"
+          },
+          {
+            "name": "forceHttpBasicAuth",
+            "description": "Whether to force HTTP basic auth.",
+            "in": "query",
+            "required": false,
+            "type": "boolean"
           }
         ],
         "tags": [
@@ -642,6 +656,65 @@
       },
       "title": "KustomizeAppSpec contains kustomize images"
     },
+    "repositoryParameterAnnouncement": {
+      "type": "object",
+      "properties": {
+        "name": {
+          "type": "string",
+          "description": "name is the name identifying a parameter."
+        },
+        "title": {
+          "type": "string",
+          "description": "title is a human-readable text of the parameter name."
+        },
+        "tooltip": {
+          "type": "string",
+          "description": "tooltip is a human-readable description of the parameter."
+        },
+        "required": {
+          "type": "boolean",
+          "description": "required defines if this given parameter is mandatory."
+        },
+        "itemType": {
+          "type": "string",
+          "description": "itemType determines the primitive data type represented by the parameter. Parameters are always encoded as\nstrings, but this field lets them be interpreted as other primitive types."
+        },
+        "collectionType": {
+          "type": "string",
+          "description": "collectionType is the type of value this parameter holds - either a single value (a string) or a collection\n(array or map). If collectionType is set, only the field with that type will be used. If collectionType is not\nset, `string` is the default. If collectionType is set to an invalid value, a validation error is thrown."
+        },
+        "string": {
+          "type": "string",
+          "description": "string is the default value of the parameter if the parameter is a string."
+        },
+        "array": {
+          "type": "array",
+          "items": {
+            "type": "string"
+          },
+          "description": "array is the default value of the parameter if the parameter is an array."
+        },
+        "map": {
+          "type": "object",
+          "additionalProperties": {
+            "type": "string"
+          },
+          "description": "map is the default value of the parameter if the parameter is a map."
+        }
+      }
+    },
+    "repositoryPluginAppSpec": {
+      "type": "object",
+      "properties": {
+        "parametersAnnouncement": {
+          "type": "array",
+          "items": {
+            "$ref": "#/definitions/repositoryParameterAnnouncement"
+          }
+        }
+      },
+      "title": "PluginAppSpec contains details about a plugin-type Application"
+    },
     "repositoryRefs": {
       "type": "object",
       "properties": {
@@ -689,6 +762,9 @@
         },
         "directory": {
           "$ref": "#/definitions/repositoryDirectoryAppSpec"
+        },
+        "plugin": {
+          "$ref": "#/definitions/repositoryPluginAppSpec"
         }
       },
       "title": "RepoAppDetailsResponse application details"
@@ -802,6 +878,10 @@
         "chart": {
           "type": "string",
           "description": "Chart is a Helm chart name, and must be specified for applications sourced from a Helm repo."
+        },
+        "ref": {
+          "type": "string",
+          "description": "Ref is reference to another source within sources field. This field will not be used if used with a `source` tag."
         }
       },
       "title": "ApplicationSource contains all required information about the source of an application"
@@ -975,9 +1055,42 @@
           "items": {
             "$ref": "#/definitions/applicationv1alpha1EnvEntry"
           }
+        },
+        "parameters": {
+          "type": "array",
+          "items": {
+            "$ref": "#/definitions/v1alpha1ApplicationSourcePluginParameter"
+          }
         }
       },
       "title": "ApplicationSourcePlugin holds options specific to config management plugins"
+    },
+    "v1alpha1ApplicationSourcePluginParameter": {
+      "type": "object",
+      "properties": {
+        "name": {
+          "type": "string",
+          "description": "Name is the name identifying a parameter."
+        },
+        "string": {
+          "type": "string",
+          "description": "String_ is the value of a string type parameter."
+        },
+        "map": {
+          "type": "object",
+          "additionalProperties": {
+            "type": "string"
+          },
+          "description": "Map is the value of a map type parameter."
+        },
+        "array": {
+          "type": "array",
+          "items": {
+            "type": "string"
+          },
+          "description": "Array is the value of an array type parameter."
+        }
+      }
     },
     "v1alpha1ConnectionState": {
       "type": "object",
@@ -1128,6 +1241,14 @@
         "project": {
           "type": "string",
           "title": "Reference between project and repository that allow you automatically to be added as item inside SourceRepos project entity"
+        },
+        "gcpServiceAccountKey": {
+          "type": "string",
+          "title": "GCPServiceAccountKey specifies the service account key in JSON format to be used for getting credentials to Google Cloud Source repos"
+        },
+        "forceHttpBasicAuth": {
+          "type": "boolean",
+          "title": "ForceHttpBasicAuth specifies whether Argo CD should attempt to force basic auth for HTTP connections"
         }
       },
       "title": "Repository is a repository holding application configurations"

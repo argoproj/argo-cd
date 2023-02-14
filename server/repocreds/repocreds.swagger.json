@@ -268,6 +268,18 @@
         "type": {
           "type": "string",
           "description": "Type specifies the type of the repoCreds. Can be either \"git\" or \"helm. \"git\" is assumed if empty or absent."
+        },
+        "gcpServiceAccountKey": {
+          "type": "string",
+          "title": "GCPServiceAccountKey specifies the service account key in JSON format to be used for getting credentials to Google Cloud Source repos"
+        },
+        "proxy": {
+          "type": "string",
+          "title": "Proxy specifies the HTTP/HTTPS proxy used to access repos at the repo server"
+        },
+        "forceHttpBasicAuth": {
+          "type": "boolean",
+          "title": "ForceHttpBasicAuth specifies whether Argo CD should attempt to force basic auth for HTTP connections"
         }
       },
       "title": "RepoCreds holds the definition for repository credentials"

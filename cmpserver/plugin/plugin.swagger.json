@@ -79,10 +79,25 @@
         }
       }
     },
+    "pluginParametersAnnouncementResponse": {
+      "type": "object",
+      "properties": {
+        "parameterAnnouncements": {
+          "type": "array",
+          "items": {
+            "$ref": "#/definitions/repositoryParameterAnnouncement"
+          }
+        }
+      },
+      "description": "ParametersAnnouncementResponse contains a list of announcements. This list represents all the parameters which a CMP\nis able to accept."
+    },
     "pluginRepositoryResponse": {
       "type": "object",
       "properties": {
         "isSupported": {
+          "type": "boolean"
+        },
+        "isDiscoveryEnabled": {
           "type": "boolean"
         }
       }
@@ -96,6 +111,53 @@
         "value": {
           "type": "string",
           "format": "byte"
+        }
+      }
+    },
+    "repositoryParameterAnnouncement": {
+      "type": "object",
+      "properties": {
+        "name": {
+          "type": "string",
+          "description": "name is the name identifying a parameter."
+        },
+        "title": {
+          "type": "string",
+          "description": "title is a human-readable text of the parameter name."
+        },
+        "tooltip": {
+          "type": "string",
+          "description": "tooltip is a human-readable description of the parameter."
+        },
+        "required": {
+          "type": "boolean",
+          "description": "required defines if this given parameter is mandatory."
+        },
+        "itemType": {
+          "type": "string",
+          "description": "itemType determines the primitive data type represented by the parameter. Parameters are always encoded as\nstrings, but this field lets them be interpreted as other primitive types."
+        },
+        "collectionType": {
+          "type": "string",
+          "description": "collectionType is the type of value this parameter holds - either a single value (a string) or a collection\n(array or map). If collectionType is set, only the field with that type will be used. If collectionType is not\nset, `string` is the default. If collectionType is set to an invalid value, a validation error is thrown."
+        },
+        "string": {
+          "type": "string",
+          "description": "string is the default value of the parameter if the parameter is a string."
+        },
+        "array": {
+          "type": "array",
+          "items": {
+            "type": "string"
+          },
+          "description": "array is the default value of the parameter if the parameter is an array."
+        },
+        "map": {
+          "type": "object",
+          "additionalProperties": {
+            "type": "string"
+          },
+          "description": "map is the default value of the parameter if the parameter is a map."
         }
       }
     },

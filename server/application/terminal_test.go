@@ -10,6 +10,7 @@ import (
 	"github.com/stretchr/testify/assert"
 
 	appv1 "github.com/argoproj/argo-cd/v2/pkg/apis/application/v1alpha1"
+	"github.com/argoproj/argo-cd/v2/util/security"
 )
 
 func TestPodExists(t *testing.T) {
@@ -220,4 +221,14 @@ func TestTerminalHandler_ServeHTTP_empty_params(t *testing.T) {
 			})
 		}
 	}
+}
+
+func TestTerminalHandler_ServeHTTP_disallowed_namespace(t *testing.T) {
+	handler := terminalHandler{namespace: "argocd", enabledNamespaces: []string{"allowed"}}
+	request := httptest.NewRequest("GET", "https://argocd.example.com/api/v1/terminal?pod=valid&container=valid&appName=valid&projectName=valid&namespace=test&appNamespace=disallowed", nil)
+	recorder := httptest.NewRecorder()
+	handler.ServeHTTP(recorder, request)
+	response := recorder.Result()
+	assert.Equal(t, http.StatusForbidden, response.StatusCode)
+	assert.Equal(t, security.NamespaceNotPermittedError("disallowed").Error()+"\n", recorder.Body.String())
 }

@@ -34,6 +34,29 @@
           "SettingsService"
         ]
       }
+    },
+    "/api/v1/settings/plugins": {
+      "get": {
+        "summary": "Get returns Argo CD plugins",
+        "operationId": "SettingsService_GetPlugins",
+        "responses": {
+          "200": {
+            "description": "A successful response.",
+            "schema": {
+              "$ref": "#/definitions/clusterSettingsPluginsResponse"
+            }
+          },
+          "default": {
+            "description": "An unexpected error response.",
+            "schema": {
+              "$ref": "#/definitions/runtimeError"
+            }
+          }
+        },
+        "tags": [
+          "SettingsService"
+        ]
+      }
     }
   },
   "definitions": {
@@ -217,6 +240,17 @@
         },
         "appsInAnyNamespaceEnabled": {
           "type": "boolean"
+        }
+      }
+    },
+    "clusterSettingsPluginsResponse": {
+      "type": "object",
+      "properties": {
+        "plugins": {
+          "type": "array",
+          "items": {
+            "$ref": "#/definitions/clusterPlugin"
+          }
         }
       }
     },

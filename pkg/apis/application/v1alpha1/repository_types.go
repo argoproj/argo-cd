@@ -37,6 +37,12 @@ type RepoCreds struct {
 	EnableOCI bool `json:"enableOCI,omitempty" protobuf:"bytes,11,opt,name=enableOCI"`
 	// Type specifies the type of the repoCreds. Can be either "git" or "helm. "git" is assumed if empty or absent.
 	Type string `json:"type,omitempty" protobuf:"bytes,12,opt,name=type"`
+	// GCPServiceAccountKey specifies the service account key in JSON format to be used for getting credentials to Google Cloud Source repos
+	GCPServiceAccountKey string `json:"gcpServiceAccountKey,omitempty" protobuf:"bytes,13,opt,name=gcpServiceAccountKey"`
+	// Proxy specifies the HTTP/HTTPS proxy used to access repos at the repo server
+	Proxy string `json:"proxy,omitempty" protobuf:"bytes,19,opt,name=proxy"`
+	// ForceHttpBasicAuth specifies whether Argo CD should attempt to force basic auth for HTTP connections
+	ForceHttpBasicAuth bool `json:"forceHttpBasicAuth,omitempty" protobuf:"bytes,20,opt,name=forceHttpBasicAuth"`
 }
 
 // Repository is a repository holding application configurations
@@ -82,6 +88,10 @@ type Repository struct {
 	Proxy string `json:"proxy,omitempty" protobuf:"bytes,19,opt,name=proxy"`
 	// Reference between project and repository that allow you automatically to be added as item inside SourceRepos project entity
 	Project string `json:"project,omitempty" protobuf:"bytes,20,opt,name=project"`
+	// GCPServiceAccountKey specifies the service account key in JSON format to be used for getting credentials to Google Cloud Source repos
+	GCPServiceAccountKey string `json:"gcpServiceAccountKey,omitempty" protobuf:"bytes,21,opt,name=gcpServiceAccountKey"`
+	// ForceHttpBasicAuth specifies whether Argo CD should attempt to force basic auth for HTTP connections
+	ForceHttpBasicAuth bool `json:"forceHttpBasicAuth,omitempty" protobuf:"bytes,22,opt,name=forceHttpBasicAuth"`
 }
 
 // IsInsecure returns true if the repository has been configured to skip server verification
@@ -129,6 +139,10 @@ func (repo *Repository) CopyCredentialsFromRepo(source *Repository) {
 		if repo.GitHubAppEnterpriseBaseURL == "" {
 			repo.GitHubAppEnterpriseBaseURL = source.GitHubAppEnterpriseBaseURL
 		}
+		if repo.GCPServiceAccountKey == "" {
+			repo.GCPServiceAccountKey = source.GCPServiceAccountKey
+		}
+		repo.ForceHttpBasicAuth = source.ForceHttpBasicAuth
 	}
 }
 
@@ -162,6 +176,13 @@ func (repo *Repository) CopyCredentialsFrom(source *RepoCreds) {
 		if repo.GitHubAppEnterpriseBaseURL == "" {
 			repo.GitHubAppEnterpriseBaseURL = source.GitHubAppEnterpriseBaseURL
 		}
+		if repo.GCPServiceAccountKey == "" {
+			repo.GCPServiceAccountKey = source.GCPServiceAccountKey
+		}
+		if repo.Proxy == "" {
+			repo.Proxy = source.Proxy
+		}
+		repo.ForceHttpBasicAuth = source.ForceHttpBasicAuth
 	}
 }
 
@@ -171,13 +192,16 @@ func (repo *Repository) GetGitCreds(store git.CredsStore) git.Creds {
 		return git.NopCreds{}
 	}
 	if repo.Password != "" {
-		return git.NewHTTPSCreds(repo.Username, repo.Password, repo.TLSClientCertData, repo.TLSClientCertKey, repo.IsInsecure(), repo.Proxy, store)
+		return git.NewHTTPSCreds(repo.Username, repo.Password, repo.TLSClientCertData, repo.TLSClientCertKey, repo.IsInsecure(), repo.Proxy, store, repo.ForceHttpBasicAuth)
 	}
 	if repo.SSHPrivateKey != "" {
 		return git.NewSSHCreds(repo.SSHPrivateKey, getCAPath(repo.Repo), repo.IsInsecure(), store)
 	}
 	if repo.GithubAppPrivateKey != "" && repo.GithubAppId != 0 && repo.GithubAppInstallationId != 0 {
 		return git.NewGitHubAppCreds(repo.GithubAppId, repo.GithubAppInstallationId, repo.GithubAppPrivateKey, repo.GitHubAppEnterpriseBaseURL, repo.Repo, repo.TLSClientCertData, repo.TLSClientCertKey, repo.IsInsecure(), repo.Proxy, store)
+	}
+	if repo.GCPServiceAccountKey != "" {
+		return git.NewGoogleCloudCreds(repo.GCPServiceAccountKey)
 	}
 	return git.NopCreds{}
 }

@@ -244,6 +244,15 @@
         },
         "helmOptions": {
           "$ref": "#/definitions/v1alpha1HelmOptions"
+        },
+        "hasMultipleSources": {
+          "type": "boolean"
+        },
+        "refSources": {
+          "type": "object",
+          "additionalProperties": {
+            "$ref": "#/definitions/v1alpha1RefTarget"
+          }
         }
       },
       "description": "ManifestRequest is a query for manifest generation."
@@ -285,6 +294,85 @@
         }
       }
     },
+    "repositoryParameterAnnouncement": {
+      "type": "object",
+      "properties": {
+        "name": {
+          "type": "string",
+          "description": "name is the name identifying a parameter."
+        },
+        "title": {
+          "type": "string",
+          "description": "title is a human-readable text of the parameter name."
+        },
+        "tooltip": {
+          "type": "string",
+          "description": "tooltip is a human-readable description of the parameter."
+        },
+        "required": {
+          "type": "boolean",
+          "description": "required defines if this given parameter is mandatory."
+        },
+        "itemType": {
+          "type": "string",
+          "description": "itemType determines the primitive data type represented by the parameter. Parameters are always encoded as\nstrings, but this field lets them be interpreted as other primitive types."
+        },
+        "collectionType": {
+          "type": "string",
+          "description": "collectionType is the type of value this parameter holds - either a single value (a string) or a collection\n(array or map). If collectionType is set, only the field with that type will be used. If collectionType is not\nset, `string` is the default. If collectionType is set to an invalid value, a validation error is thrown."
+        },
+        "string": {
+          "type": "string",
+          "description": "string is the default value of the parameter if the parameter is a string."
+        },
+        "array": {
+          "type": "array",
+          "items": {
+            "type": "string"
+          },
+          "description": "array is the default value of the parameter if the parameter is an array."
+        },
+        "map": {
+          "type": "object",
+          "additionalProperties": {
+            "type": "string"
+          },
+          "description": "map is the default value of the parameter if the parameter is a map."
+        }
+      }
+    },
+    "repositoryPluginAppSpec": {
+      "type": "object",
+      "properties": {
+        "parametersAnnouncement": {
+          "type": "array",
+          "items": {
+            "$ref": "#/definitions/repositoryParameterAnnouncement"
+          }
+        }
+      },
+      "title": "PluginAppSpec contains details about a plugin-type Application"
+    },
+    "repositoryPluginInfo": {
+      "type": "object",
+      "properties": {
+        "name": {
+          "type": "string"
+        }
+      }
+    },
+    "repositoryPluginList": {
+      "type": "object",
+      "properties": {
+        "items": {
+          "type": "array",
+          "items": {
+            "$ref": "#/definitions/repositoryPluginInfo"
+          }
+        }
+      },
+      "title": "PluginList returns the list of all cmp v2 plugins running as sidecars"
+    },
     "repositoryRefs": {
       "type": "object",
       "properties": {
@@ -317,6 +405,9 @@
         },
         "directory": {
           "$ref": "#/definitions/repositoryDirectoryAppSpec"
+        },
+        "plugin": {
+          "$ref": "#/definitions/repositoryPluginAppSpec"
         }
       },
       "title": "RepoAppDetailsResponse application details"
@@ -631,6 +722,10 @@
         "chart": {
           "type": "string",
           "description": "Chart is a Helm chart name, and must be specified for applications sourced from a Helm repo."
+        },
+        "ref": {
+          "type": "string",
+          "description": "Ref is reference to another source within sources field. This field will not be used if used with a `source` tag."
         }
       },
       "title": "ApplicationSource contains all required information about the source of an application"
@@ -804,9 +899,42 @@
           "items": {
             "$ref": "#/definitions/applicationv1alpha1EnvEntry"
           }
+        },
+        "parameters": {
+          "type": "array",
+          "items": {
+            "$ref": "#/definitions/v1alpha1ApplicationSourcePluginParameter"
+          }
         }
       },
       "title": "ApplicationSourcePlugin holds options specific to config management plugins"
+    },
+    "v1alpha1ApplicationSourcePluginParameter": {
+      "type": "object",
+      "properties": {
+        "name": {
+          "type": "string",
+          "description": "Name is the name identifying a parameter."
+        },
+        "string": {
+          "type": "string",
+          "description": "String_ is the value of a string type parameter."
+        },
+        "map": {
+          "type": "object",
+          "additionalProperties": {
+            "type": "string"
+          },
+          "description": "Map is the value of a map type parameter."
+        },
+        "array": {
+          "type": "array",
+          "items": {
+            "type": "string"
+          },
+          "description": "Array is the value of an array type parameter."
+        }
+      }
     },
     "v1alpha1ApplicationSpec": {
       "type": "object",
@@ -845,6 +973,13 @@
           "type": "string",
           "format": "int64",
           "description": "RevisionHistoryLimit limits the number of items kept in the application's revision history, which is used for informational purposes as well as for rollbacks to previous versions.\nThis should only be changed in exceptional circumstances.\nSetting to zero will store no history. This will reduce storage used.\nIncreasing will increase the space used to store the history, so we do not recommend increasing it.\nDefault is 10."
+        },
+        "sources": {
+          "type": "array",
+          "items": {
+            "$ref": "#/definitions/v1alpha1ApplicationSource"
+          },
+          "title": "Sources is a reference to the location of the application's manifests or chart"
         }
       },
       "description": "ApplicationSpec represents desired application state. Contains link to repository with application definition and additional parameters link definition revision."
@@ -904,6 +1039,13 @@
         "resourceHealthSource": {
           "type": "string",
           "title": "ResourceHealthSource indicates where the resource health status is stored: inline if not set or appTree"
+        },
+        "sourceTypes": {
+          "type": "array",
+          "items": {
+            "type": "string"
+          },
+          "title": "SourceTypes specifies the type of the sources included in the application"
         }
       },
       "title": "ApplicationStatus contains status information for the application"
@@ -975,6 +1117,13 @@
         "destination": {
           "$ref": "#/definitions/v1alpha1ApplicationDestination",
           "title": "Destination is a reference to the application's destination used for comparison"
+        },
+        "sources": {
+          "type": "array",
+          "items": {
+            "$ref": "#/definitions/v1alpha1ApplicationSource"
+          },
+          "title": "Sources is a reference to the application's multiple sources used for comparison"
         }
       },
       "title": "ComparedTo contains application source and target which was used for resources comparison"
@@ -1113,6 +1262,23 @@
       },
       "title": "KustomizeOptions are options for kustomize to use when building manifests"
     },
+    "v1alpha1ManagedNamespaceMetadata": {
+      "type": "object",
+      "properties": {
+        "labels": {
+          "type": "object",
+          "additionalProperties": {
+            "type": "string"
+          }
+        },
+        "annotations": {
+          "type": "object",
+          "additionalProperties": {
+            "type": "string"
+          }
+        }
+      }
+    },
     "v1alpha1Operation": {
       "type": "object",
       "properties": {
@@ -1187,6 +1353,20 @@
       },
       "title": "OperationState contains information about state of a running operation"
     },
+    "v1alpha1RefTarget": {
+      "type": "object",
+      "properties": {
+        "repo": {
+          "$ref": "#/definitions/v1alpha1Repository"
+        },
+        "targetRevision": {
+          "type": "string"
+        },
+        "chart": {
+          "type": "string"
+        }
+      }
+    },
     "v1alpha1RepoCreds": {
       "type": "object",
       "properties": {
@@ -1239,6 +1419,18 @@
         "type": {
           "type": "string",
           "description": "Type specifies the type of the repoCreds. Can be either \"git\" or \"helm. \"git\" is assumed if empty or absent."
+        },
+        "gcpServiceAccountKey": {
+          "type": "string",
+          "title": "GCPServiceAccountKey specifies the service account key in JSON format to be used for getting credentials to Google Cloud Source repos"
+        },
+        "proxy": {
+          "type": "string",
+          "title": "Proxy specifies the HTTP/HTTPS proxy used to access repos at the repo server"
+        },
+        "forceHttpBasicAuth": {
+          "type": "boolean",
+          "title": "ForceHttpBasicAuth specifies whether Argo CD should attempt to force basic auth for HTTP connections"
         }
       },
       "title": "RepoCreds holds the definition for repository credentials"
@@ -1327,6 +1519,14 @@
         "project": {
           "type": "string",
           "title": "Reference between project and repository that allow you automatically to be added as item inside SourceRepos project entity"
+        },
+        "gcpServiceAccountKey": {
+          "type": "string",
+          "title": "GCPServiceAccountKey specifies the service account key in JSON format to be used for getting credentials to Google Cloud Source repos"
+        },
+        "forceHttpBasicAuth": {
+          "type": "boolean",
+          "title": "ForceHttpBasicAuth specifies whether Argo CD should attempt to force basic auth for HTTP connections"
         }
       },
       "title": "Repository is a repository holding application configurations"
@@ -1489,6 +1689,20 @@
         "deployStartedAt": {
           "$ref": "#/definitions/v1Time",
           "title": "DeployStartedAt holds the time the sync operation started"
+        },
+        "sources": {
+          "type": "array",
+          "items": {
+            "$ref": "#/definitions/v1alpha1ApplicationSource"
+          },
+          "title": "Sources is a reference to the application sources used for the sync operation"
+        },
+        "revisions": {
+          "type": "array",
+          "items": {
+            "type": "string"
+          },
+          "title": "Revisions holds the revision of each source in sources field the sync was performed against"
         }
       },
       "title": "RevisionHistory contains history information about a previous sync"
@@ -1513,7 +1727,7 @@
         },
         "message": {
           "type": "string",
-          "title": "Message contains the message associated with the revision, most likely the commit message.\nThe message is truncated to the first newline or 64 characters (which ever comes first)"
+          "description": "Message contains the message associated with the revision, most likely the commit message."
         },
         "signatureInfo": {
           "type": "string",
@@ -1565,6 +1779,20 @@
             "type": "string"
           },
           "title": "SyncOptions provide per-sync sync-options, e.g. Validate=false"
+        },
+        "sources": {
+          "type": "array",
+          "items": {
+            "$ref": "#/definitions/v1alpha1ApplicationSource"
+          },
+          "title": "Sources overrides the source definition set in the application.\nThis is typically set in a Rollback operation and is nil during a Sync operation"
+        },
+        "revisions": {
+          "type": "array",
+          "items": {
+            "type": "string"
+          },
+          "description": "Revisions is the list of revision (Git) or chart version (Helm) which to sync each source in sources field for the application to\nIf omitted, will use the revision specified in app spec."
         }
       },
       "description": "SyncOperation contains details about a sync operation."
@@ -1604,6 +1832,20 @@
         "source": {
           "$ref": "#/definitions/v1alpha1ApplicationSource",
           "title": "Source records the application source information of the sync, used for comparing auto-sync"
+        },
+        "sources": {
+          "type": "array",
+          "items": {
+            "$ref": "#/definitions/v1alpha1ApplicationSource"
+          },
+          "title": "Source records the application source information of the sync, used for comparing auto-sync"
+        },
+        "revisions": {
+          "type": "array",
+          "items": {
+            "type": "string"
+          },
+          "title": "Revisions holds the revision this sync operation was performed for respective indexed source in sources field"
         }
       },
       "title": "SyncOperationResult represent result of sync operation"
@@ -1625,6 +1867,10 @@
         "retry": {
           "$ref": "#/definitions/v1alpha1RetryStrategy",
           "title": "Retry controls failed sync retry behavior"
+        },
+        "managedNamespaceMetadata": {
+          "$ref": "#/definitions/v1alpha1ManagedNamespaceMetadata",
+          "title": "ManagedNamespaceMetadata controls metadata in the given namespace (if CreateNamespace=true)"
         }
       },
       "title": "SyncPolicy controls when a sync will be performed in response to updates in git"
@@ -1661,6 +1907,13 @@
         "revision": {
           "type": "string",
           "title": "Revision contains information about the revision the comparison has been performed to"
+        },
+        "revisions": {
+          "type": "array",
+          "items": {
+            "type": "string"
+          },
+          "title": "Revisions contains information about the revisions of multiple sources the comparison has been performed to"
         }
       },
       "title": "SyncStatus contains information about the currently observed live and desired states of an application"
