@@ -62,7 +62,6 @@ type RequestResources struct {
 // The pre-defined headers are:
 // - Argocd-Application-Name
 // - Argocd-Project-Name
-// - Argocd-Resource-GVK-Name
 //
 // The headers expected format is documented in each of the constant
 // types defined for them.
@@ -128,6 +127,26 @@ type BackendConfig struct {
 	Services []ServiceConfig `json:"services"`
 }
 
+// ServiceConfig provides the configuration for a backend service.
+type ServiceConfig struct {
+	// URL is the address where the extension backend must be available.
+	// Mandatory field.
+	URL string `json:"url"`
+
+	// Cluster if provided, will have to match the application
+	// destination name to have requests properly forwarded to this
+	// service URL.
+	Cluster *ClusterConfig `json:"cluster,omitempty"`
+}
+
+type ClusterConfig struct {
+	// Server specifies the URL of the target cluster and must be set to the Kubernetes control plane API
+	Server string `json:"server,omitempty"`
+
+	// Name is an alternate way of specifying the target cluster by its symbolic name
+	Name string `json:"name,omitempty"`
+}
+
 // ProxyConfig allows configuring connection behaviour between Argo CD
 // API Server and the backend service.
 type ProxyConfig struct {
@@ -152,18 +171,6 @@ type ProxyConfig struct {
 	// connections between the API server and the extension server.
 	// Default: 30
 	MaxIdleConnections int `json:"maxIdleConnections"`
-}
-
-// ServiceConfig provides the configuration for a backend service.
-type ServiceConfig struct {
-	// URL is the address where the extension backend must be available.
-	// Mandatory field.
-	URL string `json:"url"`
-
-	// Cluster if provided, will have to match the application
-	// destination name to have requests properly forwarded to this
-	// service URL.
-	Cluster string `json:"cluster"`
 }
 
 // SettingsGetter defines the contract to retrieve Argo CD Settings.
@@ -281,6 +288,7 @@ func parseAndValidateConfig(config string) (*ExtensionConfigs, error) {
 
 func validateConfigs(configs *ExtensionConfigs) error {
 	nameSafeRegex := regexp.MustCompile(`^[A-Za-z0-9-_]+$`)
+	exts := make(map[string]struct{})
 	for _, ext := range configs.Extensions {
 		if ext.Name == "" {
 			return fmt.Errorf("extensions.name must be configured")
@@ -288,13 +296,22 @@ func validateConfigs(configs *ExtensionConfigs) error {
 		if !nameSafeRegex.MatchString(ext.Name) {
 			return fmt.Errorf("invalid extensions.name: only alphanumeric characters, hyphens, and underscores are allowed")
 		}
+		if _, found := exts[ext.Name]; found {
+			return fmt.Errorf("duplicated extension found in the configs for %q", ext.Name)
+		}
+		exts[ext.Name] = struct{}{}
 		svcTotal := len(ext.Backend.Services)
 		for _, svc := range ext.Backend.Services {
 			if svc.URL == "" {
 				return fmt.Errorf("extensions.backend.services.url must be configured")
 			}
-			if svcTotal > 1 && svc.Cluster == "" {
+			if svcTotal > 1 && svc.Cluster == nil {
 				return fmt.Errorf("extensions.backend.services.cluster must be configured when defining more than one service per extension")
+			}
+			if svc.Cluster != nil {
+				if svc.Cluster.Name == "" && svc.Cluster.Server == "" {
+					return fmt.Errorf("cluster.name or cluster.server must be defined when cluster is provided in the configuration")
+				}
 			}
 		}
 	}
@@ -372,6 +389,52 @@ func (m *Manager) RegisterHandlers(r *mux.Router) error {
 	return m.registerExtensions(r, extConfigs)
 }
 
+// proxyByClusterKey will build the key to be used in the proxyByCluster
+// map
+func proxyByClusterKey(prefix, sufix string) string {
+	return fmt.Sprintf("%s:%s", prefix, sufix)
+}
+
+// appendProxy will append the given proxy in the given proxyByCluster map.
+// Will use the provided extName and service to determine the map key. The
+// key must be unique in the map. If the map already has the key and error
+// is returned.
+func appendProxy(proxyByCluster map[string]*httputil.ReverseProxy,
+	extName string,
+	service ServiceConfig,
+	proxy *httputil.ReverseProxy,
+	singleBackend bool) error {
+
+	if singleBackend {
+		key := proxyByClusterKey(extName, "")
+		if _, exist := proxyByCluster[key]; exist {
+			return fmt.Errorf("duplicated proxy configuration found for extension key %q", key)
+		}
+		proxyByCluster[key] = proxy
+		return nil
+	}
+
+	// This is the case where there are more than one backend configured
+	// for this extension. In this case we need to add the provided cluster
+	// configurations for proper correlation to find which proxy to use
+	// while handling requests.
+	if service.Cluster.Name != "" {
+		key := proxyByClusterKey(extName, service.Cluster.Name)
+		if _, exist := proxyByCluster[key]; exist {
+			return fmt.Errorf("duplicated proxy configuration found for extension key %q", key)
+		}
+		proxyByCluster[key] = proxy
+	}
+	if service.Cluster.Server != "" {
+		key := proxyByClusterKey(extName, service.Cluster.Server)
+		if _, exist := proxyByCluster[key]; exist {
+			return fmt.Errorf("duplicated proxy configuration found for extension key %q", key)
+		}
+		proxyByCluster[key] = proxy
+	}
+	return nil
+}
+
 // registerExtensions will iterate over the given extConfigs and register
 // http handlers for every extension. It also registers a list extensions
 // handler under the "/extensions/" endpoint.
@@ -379,12 +442,16 @@ func (m *Manager) registerExtensions(r *mux.Router, extConfigs *ExtensionConfigs
 	extRouter := r.PathPrefix(fmt.Sprintf("%s/", URLPrefix)).Subrouter()
 	for _, ext := range extConfigs.Extensions {
 		proxyByCluster := make(map[string]*httputil.ReverseProxy)
+		singleBackend := len(ext.Backend.Services) == 1
 		for _, service := range ext.Backend.Services {
 			proxy, err := NewProxy(service.URL, ext.Backend.ProxyConfig)
 			if err != nil {
 				return fmt.Errorf("error creating proxy: %s", err)
 			}
-			proxyByCluster[service.Cluster] = proxy
+			err = appendProxy(proxyByCluster, ext.Name, service, proxy, singleBackend)
+			if err != nil {
+				return fmt.Errorf("error appending proxy: %s", err)
+			}
 		}
 		m.log.Infof("Registering handler for %s/%s...", URLPrefix, ext.Name)
 		extRouter.PathPrefix(fmt.Sprintf("/%s/", ext.Name)).
@@ -399,8 +466,7 @@ func (m *Manager) registerExtensions(r *mux.Router, extConfigs *ExtensionConfigs
 //     in HeaderArgoCDApplicationName and HeaderArgoCDProjectName.
 //   - enforce the subject has permission to invoke the extension identified by
 //     extName.
-//   - enforce that all resources provided in the HeaderArgoCDResourceGVKName belong
-//     to the application identified by HeaderArgoCDApplicationName.
+//   - enforce that the project has permission to access the destination cluster.
 //
 // If all validations are satified it will return the Application resource
 func (m *Manager) authorize(ctx context.Context, rr *RequestResources, extName string) (*v1alpha1.Application, error) {
@@ -447,6 +513,32 @@ func (m *Manager) authorize(ctx context.Context, rr *RequestResources, extName s
 	return app, nil
 }
 
+func findProxy(proxyByCluster map[string]*httputil.ReverseProxy, extName string, dest v1alpha1.ApplicationDestination) (*httputil.ReverseProxy, error) {
+
+	key := proxyByClusterKey(extName, "")
+	if proxy, found := proxyByCluster[key]; found {
+		return proxy, nil
+	}
+
+	if dest.Name != "" && dest.Server != "" {
+		return nil, fmt.Errorf("invalid application: both destination name and destination server are provided")
+	}
+	if dest.Name != "" {
+		key = proxyByClusterKey(extName, dest.Name)
+		if proxy, found := proxyByCluster[key]; found {
+			return proxy, nil
+		}
+	}
+
+	if dest.Server != "" {
+		key = proxyByClusterKey(extName, dest.Server)
+		if proxy, found := proxyByCluster[key]; found {
+			return proxy, nil
+		}
+	}
+	return nil, fmt.Errorf("no proxy found for extension %q", extName)
+}
+
 // CallExtension returns a handler func responsible for forwarding requests to the
 // extension service. The request will be sanitized by removing sensitive headers.
 func (m *Manager) CallExtension(extName string, proxyByCluster map[string]*httputil.ReverseProxy) func(http.ResponseWriter, *http.Request) {
@@ -463,34 +555,15 @@ func (m *Manager) CallExtension(extName string, proxyByCluster map[string]*httpu
 			return
 		}
 
-		sanitizeRequest(r, extName)
-
-		// This is the case where there is only one proxy configured
-		// for this extension.
-		if len(proxyByCluster) == 1 {
-			for cName, proxy := range proxyByCluster {
-				m.log.Debugf("proxing request to cluster %q", cName)
-				// in this case we just forward the request to the single
-				// proxy and return
-				proxy.ServeHTTP(w, r)
-				return
-			}
-		}
-		clusterName := app.Spec.Destination.Name
-		if clusterName == "" {
-			clusterName = app.Spec.Destination.Server
-		}
-
-		// This is the case where there are more than one proxy configured
-		// for this extension. In this case we need to get the proper proxy
-		// instance configured for the target cluster.
-		proxy, ok := proxyByCluster[clusterName]
-		if !ok {
-			msg := fmt.Sprintf("No extension configured for cluster %q", clusterName)
-			http.Error(w, msg, http.StatusBadRequest)
+		proxy, err := findProxy(proxyByCluster, extName, app.Spec.Destination)
+		if err != nil {
+			m.log.Errorf("findProxy error: %s", err)
+			http.Error(w, "invalid extension", http.StatusBadRequest)
 			return
 		}
-		m.log.Debugf("proxing request to cluster %q", clusterName)
+
+		sanitizeRequest(r, extName)
+		m.log.Debugf("proxing request for extension %q", extName)
 		proxy.ServeHTTP(w, r)
 	}
 }
