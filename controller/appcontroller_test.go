@@ -865,7 +865,7 @@ func TestNeedRefreshAppStatus(t *testing.T) {
 	app.Status.Sync = argoappv1.SyncStatus{
 		Status: argoappv1.SyncStatusCodeSynced,
 		ComparedTo: argoappv1.ComparedTo{
-			Source:      app.Spec.Source,
+			Source:      app.Spec.GetSource(),
 			Destination: app.Spec.Destination,
 		},
 	}
@@ -909,7 +909,7 @@ func TestNeedRefreshAppStatus(t *testing.T) {
 		app.Status.Sync = argoappv1.SyncStatus{
 			Status: argoappv1.SyncStatusCodeSynced,
 			ComparedTo: argoappv1.ComparedTo{
-				Source:      app.Spec.Source,
+				Source:      app.Spec.GetSource(),
 				Destination: app.Spec.Destination,
 			},
 		}

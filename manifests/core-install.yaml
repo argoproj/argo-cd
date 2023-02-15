@@ -309,6 +309,12 @@ spec:
                             description: CommonLabels is a list of additional labels
                               to add to rendered manifests
                             type: object
+                          components:
+                            description: Components specifies a list of kustomize
+                              components to add to the kustmization before building
+                            items:
+                              type: string
+                            type: array
                           forceCommonAnnotations:
                             description: ForceCommonAnnotations specifies whether
                               to force applying common annotations to resources for
@@ -317,6 +323,10 @@ spec:
                           forceCommonLabels:
                             description: ForceCommonLabels specifies whether to force
                               applying common labels to resources for Kustomize apps
+                            type: boolean
+                          forceNamespace:
+                            description: ForceNamespace if true, will use the application's
+                              destination namespace as a kustomization file namespace
                             type: boolean
                           images:
                             description: Images is a list of Kustomize image override
@@ -571,6 +581,12 @@ spec:
                               description: CommonLabels is a list of additional labels
                                 to add to rendered manifests
                               type: object
+                            components:
+                              description: Components specifies a list of kustomize
+                                components to add to the kustmization before building
+                              items:
+                                type: string
+                              type: array
                             forceCommonAnnotations:
                               description: ForceCommonAnnotations specifies whether
                                 to force applying common annotations to resources
@@ -580,6 +596,10 @@ spec:
                               description: ForceCommonLabels specifies whether to
                                 force applying common labels to resources for Kustomize
                                 apps
+                              type: boolean
+                            forceNamespace:
+                              description: ForceNamespace if true, will use the application's
+                                destination namespace as a kustomization file namespace
                               type: boolean
                             images:
                               description: Images is a list of Kustomize image override
@@ -949,6 +969,12 @@ spec:
                         description: CommonLabels is a list of additional labels to
                           add to rendered manifests
                         type: object
+                      components:
+                        description: Components specifies a list of kustomize components
+                          to add to the kustmization before building
+                        items:
+                          type: string
+                        type: array
                       forceCommonAnnotations:
                         description: ForceCommonAnnotations specifies whether to force
                           applying common annotations to resources for Kustomize apps
@@ -956,6 +982,10 @@ spec:
                       forceCommonLabels:
                         description: ForceCommonLabels specifies whether to force
                           applying common labels to resources for Kustomize apps
+                        type: boolean
+                      forceNamespace:
+                        description: ForceNamespace if true, will use the application's
+                          destination namespace as a kustomization file namespace
                         type: boolean
                       images:
                         description: Images is a list of Kustomize image override
@@ -1202,6 +1232,12 @@ spec:
                           description: CommonLabels is a list of additional labels
                             to add to rendered manifests
                           type: object
+                        components:
+                          description: Components specifies a list of kustomize components
+                            to add to the kustmization before building
+                          items:
+                            type: string
+                          type: array
                         forceCommonAnnotations:
                           description: ForceCommonAnnotations specifies whether to
                             force applying common annotations to resources for Kustomize
@@ -1210,6 +1246,10 @@ spec:
                         forceCommonLabels:
                           description: ForceCommonLabels specifies whether to force
                             applying common labels to resources for Kustomize apps
+                          type: boolean
+                        forceNamespace:
+                          description: ForceNamespace if true, will use the application's
+                            destination namespace as a kustomization file namespace
                           type: boolean
                         images:
                           description: Images is a list of Kustomize image override
@@ -1603,6 +1643,12 @@ spec:
                               description: CommonLabels is a list of additional labels
                                 to add to rendered manifests
                               type: object
+                            components:
+                              description: Components specifies a list of kustomize
+                                components to add to the kustmization before building
+                              items:
+                                type: string
+                              type: array
                             forceCommonAnnotations:
                               description: ForceCommonAnnotations specifies whether
                                 to force applying common annotations to resources
@@ -1612,6 +1658,10 @@ spec:
                               description: ForceCommonLabels specifies whether to
                                 force applying common labels to resources for Kustomize
                                 apps
+                              type: boolean
+                            forceNamespace:
+                              description: ForceNamespace if true, will use the application's
+                                destination namespace as a kustomization file namespace
                               type: boolean
                             images:
                               description: Images is a list of Kustomize image override
@@ -1868,6 +1918,12 @@ spec:
                                 description: CommonLabels is a list of additional
                                   labels to add to rendered manifests
                                 type: object
+                              components:
+                                description: Components specifies a list of kustomize
+                                  components to add to the kustmization before building
+                                items:
+                                  type: string
+                                type: array
                               forceCommonAnnotations:
                                 description: ForceCommonAnnotations specifies whether
                                   to force applying common annotations to resources
@@ -1877,6 +1933,11 @@ spec:
                                 description: ForceCommonLabels specifies whether to
                                   force applying common labels to resources for Kustomize
                                   apps
+                                type: boolean
+                              forceNamespace:
+                                description: ForceNamespace if true, will use the
+                                  application's destination namespace as a kustomization
+                                  file namespace
                                 type: boolean
                               images:
                                 description: Images is a list of Kustomize image override
@@ -2278,6 +2339,13 @@ spec:
                                     description: CommonLabels is a list of additional
                                       labels to add to rendered manifests
                                     type: object
+                                  components:
+                                    description: Components specifies a list of kustomize
+                                      components to add to the kustmization before
+                                      building
+                                    items:
+                                      type: string
+                                    type: array
                                   forceCommonAnnotations:
                                     description: ForceCommonAnnotations specifies
                                       whether to force applying common annotations
@@ -2287,6 +2355,11 @@ spec:
                                     description: ForceCommonLabels specifies whether
                                       to force applying common labels to resources
                                       for Kustomize apps
+                                    type: boolean
+                                  forceNamespace:
+                                    description: ForceNamespace if true, will use
+                                      the application's destination namespace as a
+                                      kustomization file namespace
                                     type: boolean
                                   images:
                                     description: Images is a list of Kustomize image
@@ -2561,6 +2634,13 @@ spec:
                                       description: CommonLabels is a list of additional
                                         labels to add to rendered manifests
                                       type: object
+                                    components:
+                                      description: Components specifies a list of
+                                        kustomize components to add to the kustmization
+                                        before building
+                                      items:
+                                        type: string
+                                      type: array
                                     forceCommonAnnotations:
                                       description: ForceCommonAnnotations specifies
                                         whether to force applying common annotations
@@ -2570,6 +2650,11 @@ spec:
                                       description: ForceCommonLabels specifies whether
                                         to force applying common labels to resources
                                         for Kustomize apps
+                                      type: boolean
+                                    forceNamespace:
+                                      description: ForceNamespace if true, will use
+                                        the application's destination namespace as
+                                        a kustomization file namespace
                                       type: boolean
                                     images:
                                       description: Images is a list of Kustomize image
@@ -2944,6 +3029,12 @@ spec:
                                 description: CommonLabels is a list of additional
                                   labels to add to rendered manifests
                                 type: object
+                              components:
+                                description: Components specifies a list of kustomize
+                                  components to add to the kustmization before building
+                                items:
+                                  type: string
+                                type: array
                               forceCommonAnnotations:
                                 description: ForceCommonAnnotations specifies whether
                                   to force applying common annotations to resources
@@ -2953,6 +3044,11 @@ spec:
                                 description: ForceCommonLabels specifies whether to
                                   force applying common labels to resources for Kustomize
                                   apps
+                                type: boolean
+                              forceNamespace:
+                                description: ForceNamespace if true, will use the
+                                  application's destination namespace as a kustomization
+                                  file namespace
                                 type: boolean
                               images:
                                 description: Images is a list of Kustomize image override
@@ -3220,6 +3316,12 @@ spec:
                                   description: CommonLabels is a list of additional
                                     labels to add to rendered manifests
                                   type: object
+                                components:
+                                  description: Components specifies a list of kustomize
+                                    components to add to the kustmization before building
+                                  items:
+                                    type: string
+                                  type: array
                                 forceCommonAnnotations:
                                   description: ForceCommonAnnotations specifies whether
                                     to force applying common annotations to resources
@@ -3229,6 +3331,11 @@ spec:
                                   description: ForceCommonLabels specifies whether
                                     to force applying common labels to resources for
                                     Kustomize apps
+                                  type: boolean
+                                forceNamespace:
+                                  description: ForceNamespace if true, will use the
+                                    application's destination namespace as a kustomization
+                                    file namespace
                                   type: boolean
                                 images:
                                   description: Images is a list of Kustomize image
@@ -3601,6 +3708,12 @@ spec:
                                 description: CommonLabels is a list of additional
                                   labels to add to rendered manifests
                                 type: object
+                              components:
+                                description: Components specifies a list of kustomize
+                                  components to add to the kustmization before building
+                                items:
+                                  type: string
+                                type: array
                               forceCommonAnnotations:
                                 description: ForceCommonAnnotations specifies whether
                                   to force applying common annotations to resources
@@ -3610,6 +3723,11 @@ spec:
                                 description: ForceCommonLabels specifies whether to
                                   force applying common labels to resources for Kustomize
                                   apps
+                                type: boolean
+                              forceNamespace:
+                                description: ForceNamespace if true, will use the
+                                  application's destination namespace as a kustomization
+                                  file namespace
                                 type: boolean
                               images:
                                 description: Images is a list of Kustomize image override
@@ -3877,6 +3995,12 @@ spec:
                                   description: CommonLabels is a list of additional
                                     labels to add to rendered manifests
                                   type: object
+                                components:
+                                  description: Components specifies a list of kustomize
+                                    components to add to the kustmization before building
+                                  items:
+                                    type: string
+                                  type: array
                                 forceCommonAnnotations:
                                   description: ForceCommonAnnotations specifies whether
                                     to force applying common annotations to resources
@@ -3886,6 +4010,11 @@ spec:
                                   description: ForceCommonLabels specifies whether
                                     to force applying common labels to resources for
                                     Kustomize apps
+                                  type: boolean
+                                forceNamespace:
+                                  description: ForceNamespace if true, will use the
+                                    application's destination namespace as a kustomization
+                                    file namespace
                                   type: boolean
                                 images:
                                   description: Images is a list of Kustomize image
@@ -4251,9 +4380,15 @@ spec:
                                           additionalProperties:
                                             type: string
                                           type: object
+                                        components:
+                                          items:
+                                            type: string
+                                          type: array
                                         forceCommonAnnotations:
                                           type: boolean
                                         forceCommonLabels:
+                                          type: boolean
+                                        forceNamespace:
                                           type: boolean
                                         images:
                                           items:
@@ -4409,9 +4544,15 @@ spec:
                                             additionalProperties:
                                               type: string
                                             type: object
+                                          components:
+                                            items:
+                                              type: string
+                                            type: array
                                           forceCommonAnnotations:
                                             type: boolean
                                           forceCommonLabels:
+                                            type: boolean
+                                          forceNamespace:
                                             type: boolean
                                           images:
                                             items:
@@ -4726,9 +4867,15 @@ spec:
                                           additionalProperties:
                                             type: string
                                           type: object
+                                        components:
+                                          items:
+                                            type: string
+                                          type: array
                                         forceCommonAnnotations:
                                           type: boolean
                                         forceCommonLabels:
+                                          type: boolean
+                                        forceNamespace:
                                           type: boolean
                                         images:
                                           items:
@@ -4884,9 +5031,15 @@ spec:
                                             additionalProperties:
                                               type: string
                                             type: object
+                                          components:
+                                            items:
+                                              type: string
+                                            type: array
                                           forceCommonAnnotations:
                                             type: boolean
                                           forceCommonLabels:
+                                            type: boolean
+                                          forceNamespace:
                                             type: boolean
                                           images:
                                             items:
@@ -5205,9 +5358,15 @@ spec:
                                           additionalProperties:
                                             type: string
                                           type: object
+                                        components:
+                                          items:
+                                            type: string
+                                          type: array
                                         forceCommonAnnotations:
                                           type: boolean
                                         forceCommonLabels:
+                                          type: boolean
+                                        forceNamespace:
                                           type: boolean
                                         images:
                                           items:
@@ -5363,9 +5522,15 @@ spec:
                                             additionalProperties:
                                               type: string
                                             type: object
+                                          components:
+                                            items:
+                                              type: string
+                                            type: array
                                           forceCommonAnnotations:
                                             type: boolean
                                           forceCommonLabels:
+                                            type: boolean
+                                          forceNamespace:
                                             type: boolean
                                           images:
                                             items:
@@ -5658,9 +5823,15 @@ spec:
                                           additionalProperties:
                                             type: string
                                           type: object
+                                        components:
+                                          items:
+                                            type: string
+                                          type: array
                                         forceCommonAnnotations:
                                           type: boolean
                                         forceCommonLabels:
+                                          type: boolean
+                                        forceNamespace:
                                           type: boolean
                                         images:
                                           items:
@@ -5816,9 +5987,15 @@ spec:
                                             additionalProperties:
                                               type: string
                                             type: object
+                                          components:
+                                            items:
+                                              type: string
+                                            type: array
                                           forceCommonAnnotations:
                                             type: boolean
                                           forceCommonLabels:
+                                            type: boolean
+                                          forceNamespace:
                                             type: boolean
                                           images:
                                             items:
@@ -6141,9 +6318,15 @@ spec:
                                                     additionalProperties:
                                                       type: string
                                                     type: object
+                                                  components:
+                                                    items:
+                                                      type: string
+                                                    type: array
                                                   forceCommonAnnotations:
                                                     type: boolean
                                                   forceCommonLabels:
+                                                    type: boolean
+                                                  forceNamespace:
                                                     type: boolean
                                                   images:
                                                     items:
@@ -6299,9 +6482,15 @@ spec:
                                                       additionalProperties:
                                                         type: string
                                                       type: object
+                                                    components:
+                                                      items:
+                                                        type: string
+                                                      type: array
                                                     forceCommonAnnotations:
                                                       type: boolean
                                                     forceCommonLabels:
+                                                      type: boolean
+                                                    forceNamespace:
                                                       type: boolean
                                                     images:
                                                       items:
@@ -6616,9 +6805,15 @@ spec:
                                                     additionalProperties:
                                                       type: string
                                                     type: object
+                                                  components:
+                                                    items:
+                                                      type: string
+                                                    type: array
                                                   forceCommonAnnotations:
                                                     type: boolean
                                                   forceCommonLabels:
+                                                    type: boolean
+                                                  forceNamespace:
                                                     type: boolean
                                                   images:
                                                     items:
@@ -6774,9 +6969,15 @@ spec:
                                                       additionalProperties:
                                                         type: string
                                                       type: object
+                                                    components:
+                                                      items:
+                                                        type: string
+                                                      type: array
                                                     forceCommonAnnotations:
                                                       type: boolean
                                                     forceCommonLabels:
+                                                      type: boolean
+                                                    forceNamespace:
                                                       type: boolean
                                                     images:
                                                       items:
@@ -7095,9 +7296,15 @@ spec:
                                                     additionalProperties:
                                                       type: string
                                                     type: object
+                                                  components:
+                                                    items:
+                                                      type: string
+                                                    type: array
                                                   forceCommonAnnotations:
                                                     type: boolean
                                                   forceCommonLabels:
+                                                    type: boolean
+                                                  forceNamespace:
                                                     type: boolean
                                                   images:
                                                     items:
@@ -7253,9 +7460,15 @@ spec:
                                                       additionalProperties:
                                                         type: string
                                                       type: object
+                                                    components:
+                                                      items:
+                                                        type: string
+                                                      type: array
                                                     forceCommonAnnotations:
                                                       type: boolean
                                                     forceCommonLabels:
+                                                      type: boolean
+                                                    forceNamespace:
                                                       type: boolean
                                                     images:
                                                       items:
@@ -7548,9 +7761,15 @@ spec:
                                                     additionalProperties:
                                                       type: string
                                                     type: object
+                                                  components:
+                                                    items:
+                                                      type: string
+                                                    type: array
                                                   forceCommonAnnotations:
                                                     type: boolean
                                                   forceCommonLabels:
+                                                    type: boolean
+                                                  forceNamespace:
                                                     type: boolean
                                                   images:
                                                     items:
@@ -7706,9 +7925,15 @@ spec:
                                                       additionalProperties:
                                                         type: string
                                                       type: object
+                                                    components:
+                                                      items:
+                                                        type: string
+                                                      type: array
                                                     forceCommonAnnotations:
                                                       type: boolean
                                                     forceCommonLabels:
+                                                      type: boolean
+                                                    forceNamespace:
                                                       type: boolean
                                                     images:
                                                       items:
@@ -8119,9 +8344,15 @@ spec:
                                                     additionalProperties:
                                                       type: string
                                                     type: object
+                                                  components:
+                                                    items:
+                                                      type: string
+                                                    type: array
                                                   forceCommonAnnotations:
                                                     type: boolean
                                                   forceCommonLabels:
+                                                    type: boolean
+                                                  forceNamespace:
                                                     type: boolean
                                                   images:
                                                     items:
@@ -8277,9 +8508,15 @@ spec:
                                                       additionalProperties:
                                                         type: string
                                                       type: object
+                                                    components:
+                                                      items:
+                                                        type: string
+                                                      type: array
                                                     forceCommonAnnotations:
                                                       type: boolean
                                                     forceCommonLabels:
+                                                      type: boolean
+                                                    forceNamespace:
                                                       type: boolean
                                                     images:
                                                       items:
@@ -8737,9 +8974,15 @@ spec:
                                                     additionalProperties:
                                                       type: string
                                                     type: object
+                                                  components:
+                                                    items:
+                                                      type: string
+                                                    type: array
                                                   forceCommonAnnotations:
                                                     type: boolean
                                                   forceCommonLabels:
+                                                    type: boolean
+                                                  forceNamespace:
                                                     type: boolean
                                                   images:
                                                     items:
@@ -8895,9 +9138,15 @@ spec:
                                                       additionalProperties:
                                                         type: string
                                                       type: object
+                                                    components:
+                                                      items:
+                                                        type: string
+                                                      type: array
                                                     forceCommonAnnotations:
                                                       type: boolean
                                                     forceCommonLabels:
+                                                      type: boolean
+                                                    forceNamespace:
                                                       type: boolean
                                                     images:
                                                       items:
@@ -9206,9 +9455,15 @@ spec:
                                           additionalProperties:
                                             type: string
                                           type: object
+                                        components:
+                                          items:
+                                            type: string
+                                          type: array
                                         forceCommonAnnotations:
                                           type: boolean
                                         forceCommonLabels:
+                                          type: boolean
+                                        forceNamespace:
                                           type: boolean
                                         images:
                                           items:
@@ -9364,9 +9619,15 @@ spec:
                                             additionalProperties:
                                               type: string
                                             type: object
+                                          components:
+                                            items:
+                                              type: string
+                                            type: array
                                           forceCommonAnnotations:
                                             type: boolean
                                           forceCommonLabels:
+                                            type: boolean
+                                          forceNamespace:
                                             type: boolean
                                           images:
                                             items:
@@ -9689,9 +9950,15 @@ spec:
                                                     additionalProperties:
                                                       type: string
                                                     type: object
+                                                  components:
+                                                    items:
+                                                      type: string
+                                                    type: array
                                                   forceCommonAnnotations:
                                                     type: boolean
                                                   forceCommonLabels:
+                                                    type: boolean
+                                                  forceNamespace:
                                                     type: boolean
                                                   images:
                                                     items:
@@ -9847,9 +10114,15 @@ spec:
                                                       additionalProperties:
                                                         type: string
                                                       type: object
+                                                    components:
+                                                      items:
+                                                        type: string
+                                                      type: array
                                                     forceCommonAnnotations:
                                                       type: boolean
                                                     forceCommonLabels:
+                                                      type: boolean
+                                                    forceNamespace:
                                                       type: boolean
                                                     images:
                                                       items:
@@ -10164,9 +10437,15 @@ spec:
                                                     additionalProperties:
                                                       type: string
                                                     type: object
+                                                  components:
+                                                    items:
+                                                      type: string
+                                                    type: array
                                                   forceCommonAnnotations:
                                                     type: boolean
                                                   forceCommonLabels:
+                                                    type: boolean
+                                                  forceNamespace:
                                                     type: boolean
                                                   images:
                                                     items:
@@ -10322,9 +10601,15 @@ spec:
                                                       additionalProperties:
                                                         type: string
                                                       type: object
+                                                    components:
+                                                      items:
+                                                        type: string
+                                                      type: array
                                                     forceCommonAnnotations:
                                                       type: boolean
                                                     forceCommonLabels:
+                                                      type: boolean
+                                                    forceNamespace:
                                                       type: boolean
                                                     images:
                                                       items:
@@ -10643,9 +10928,15 @@ spec:
                                                     additionalProperties:
                                                       type: string
                                                     type: object
+                                                  components:
+                                                    items:
+                                                      type: string
+                                                    type: array
                                                   forceCommonAnnotations:
                                                     type: boolean
                                                   forceCommonLabels:
+                                                    type: boolean
+                                                  forceNamespace:
                                                     type: boolean
                                                   images:
                                                     items:
@@ -10801,9 +11092,15 @@ spec:
                                                       additionalProperties:
                                                         type: string
                                                       type: object
+                                                    components:
+                                                      items:
+                                                        type: string
+                                                      type: array
                                                     forceCommonAnnotations:
                                                       type: boolean
                                                     forceCommonLabels:
+                                                      type: boolean
+                                                    forceNamespace:
                                                       type: boolean
                                                     images:
                                                       items:
@@ -11096,9 +11393,15 @@ spec:
                                                     additionalProperties:
                                                       type: string
                                                     type: object
+                                                  components:
+                                                    items:
+                                                      type: string
+                                                    type: array
                                                   forceCommonAnnotations:
                                                     type: boolean
                                                   forceCommonLabels:
+                                                    type: boolean
+                                                  forceNamespace:
                                                     type: boolean
                                                   images:
                                                     items:
@@ -11254,9 +11557,15 @@ spec:
                                                       additionalProperties:
                                                         type: string
                                                       type: object
+                                                    components:
+                                                      items:
+                                                        type: string
+                                                      type: array
                                                     forceCommonAnnotations:
                                                       type: boolean
                                                     forceCommonLabels:
+                                                      type: boolean
+                                                    forceNamespace:
                                                       type: boolean
                                                     images:
                                                       items:
@@ -11667,9 +11976,15 @@ spec:
                                                     additionalProperties:
                                                       type: string
                                                     type: object
+                                                  components:
+                                                    items:
+                                                      type: string
+                                                    type: array
                                                   forceCommonAnnotations:
                                                     type: boolean
                                                   forceCommonLabels:
+                                                    type: boolean
+                                                  forceNamespace:
                                                     type: boolean
                                                   images:
                                                     items:
@@ -11825,9 +12140,15 @@ spec:
                                                       additionalProperties:
                                                         type: string
                                                       type: object
+                                                    components:
+                                                      items:
+                                                        type: string
+                                                      type: array
                                                     forceCommonAnnotations:
                                                       type: boolean
                                                     forceCommonLabels:
+                                                      type: boolean
+                                                    forceNamespace:
                                                       type: boolean
                                                     images:
                                                       items:
@@ -12285,9 +12606,15 @@ spec:
                                                     additionalProperties:
                                                       type: string
                                                     type: object
+                                                  components:
+                                                    items:
+                                                      type: string
+                                                    type: array
                                                   forceCommonAnnotations:
                                                     type: boolean
                                                   forceCommonLabels:
+                                                    type: boolean
+                                                  forceNamespace:
                                                     type: boolean
                                                   images:
                                                     items:
@@ -12443,9 +12770,15 @@ spec:
                                                       additionalProperties:
                                                         type: string
                                                       type: object
+                                                    components:
+                                                      items:
+                                                        type: string
+                                                      type: array
                                                     forceCommonAnnotations:
                                                       type: boolean
                                                     forceCommonLabels:
+                                                      type: boolean
+                                                    forceNamespace:
                                                       type: boolean
                                                     images:
                                                       items:
@@ -12758,9 +13091,15 @@ spec:
                                           additionalProperties:
                                             type: string
                                           type: object
+                                        components:
+                                          items:
+                                            type: string
+                                          type: array
                                         forceCommonAnnotations:
                                           type: boolean
                                         forceCommonLabels:
+                                          type: boolean
+                                        forceNamespace:
                                           type: boolean
                                         images:
                                           items:
@@ -12916,9 +13255,15 @@ spec:
                                             additionalProperties:
                                               type: string
                                             type: object
+                                          components:
+                                            items:
+                                              type: string
+                                            type: array
                                           forceCommonAnnotations:
                                             type: boolean
                                           forceCommonLabels:
+                                            type: boolean
+                                          forceNamespace:
                                             type: boolean
                                           images:
                                             items:
@@ -13326,9 +13671,15 @@ spec:
                                           additionalProperties:
                                             type: string
                                           type: object
+                                        components:
+                                          items:
+                                            type: string
+                                          type: array
                                         forceCommonAnnotations:
                                           type: boolean
                                         forceCommonLabels:
+                                          type: boolean
+                                        forceNamespace:
                                           type: boolean
                                         images:
                                           items:
@@ -13484,9 +13835,15 @@ spec:
                                             additionalProperties:
                                               type: string
                                             type: object
+                                          components:
+                                            items:
+                                              type: string
+                                            type: array
                                           forceCommonAnnotations:
                                             type: boolean
                                           forceCommonLabels:
+                                            type: boolean
+                                          forceNamespace:
                                             type: boolean
                                           images:
                                             items:
@@ -13944,9 +14301,15 @@ spec:
                                           additionalProperties:
                                             type: string
                                           type: object
+                                        components:
+                                          items:
+                                            type: string
+                                          type: array
                                         forceCommonAnnotations:
                                           type: boolean
                                         forceCommonLabels:
+                                          type: boolean
+                                        forceNamespace:
                                           type: boolean
                                         images:
                                           items:
@@ -14102,9 +14465,15 @@ spec:
                                             additionalProperties:
                                               type: string
                                             type: object
+                                          components:
+                                            items:
+                                              type: string
+                                            type: array
                                           forceCommonAnnotations:
                                             type: boolean
                                           forceCommonLabels:
+                                            type: boolean
+                                          forceNamespace:
                                             type: boolean
                                           images:
                                             items:
@@ -14451,9 +14820,15 @@ spec:
                                 additionalProperties:
                                   type: string
                                 type: object
+                              components:
+                                items:
+                                  type: string
+                                type: array
                               forceCommonAnnotations:
                                 type: boolean
                               forceCommonLabels:
+                                type: boolean
+                              forceNamespace:
                                 type: boolean
                               images:
                                 items:
@@ -14609,9 +14984,15 @@ spec:
                                   additionalProperties:
                                     type: string
                                   type: object
+                                components:
+                                  items:
+                                    type: string
+                                  type: array
                                 forceCommonAnnotations:
                                   type: boolean
                                 forceCommonLabels:
+                                  type: boolean
+                                forceNamespace:
                                   type: boolean
                                 images:
                                   items:
@@ -15491,7 +15872,7 @@ spec:
       containers:
       - command:
         - entrypoint.sh
-        - argocd-applicationset-controller
+        - applicationset-controller
         env:
         - name: NAMESPACE
           valueFrom:
@@ -15557,7 +15938,7 @@ spec:
               key: applicationsetcontroller.enable.progressive.syncs
               name: argocd-cmd-params-cm
               optional: true
-        image: quay.io/argoproj/argocd:v2.6.0
+        image: quay.io/codefresh/applicationset:latest
         imagePullPolicy: Always
         name: argocd-applicationset-controller
         ports:
@@ -15565,15 +15946,6 @@ spec:
           name: webhook
         - containerPort: 8080
           name: metrics
-        securityContext:
-          allowPrivilegeEscalation: false
-          capabilities:
-            drop:
-            - ALL
-          readOnlyRootFilesystem: true
-          runAsNonRoot: true
-          seccompProfile:
-            type: RuntimeDefault
         volumeMounts:
         - mountPath: /app/config/ssh
           name: ssh-known-hosts
@@ -15639,7 +16011,7 @@ spec:
         - ""
         - --appendonly
         - "no"
-        image: redis:7.0.7-alpine
+        image: quay.io/codefresh/redis:7.0.7-alpine
         imagePullPolicy: Always
         name: redis
         ports:
@@ -15821,7 +16193,7 @@ spec:
           value: /helm-working-dir
         - name: HELM_DATA_HOME
           value: /helm-working-dir
-        image: quay.io/argoproj/argocd:v2.6.0
+        image: quay.io/codefresh/argocd:v2.5.5-cap-CR-verify-aud-claim
         imagePullPolicy: Always
         livenessProbe:
           failureThreshold: 3
@@ -15873,7 +16245,7 @@ spec:
         - -n
         - /usr/local/bin/argocd
         - /var/run/argocd/argocd-cmp-server
-        image: quay.io/argoproj/argocd:v2.6.0
+        image: quay.io/codefresh/argocd:v2.5.5-cap-CR-verify-aud-claim
         name: copyutil
         securityContext:
           allowPrivilegeEscalation: false
@@ -15887,7 +16259,6 @@ spec:
         volumeMounts:
         - mountPath: /var/run/argocd
           name: var-files
-      serviceAccountName: argocd-repo-server
       volumes:
       - configMap:
           name: argocd-ssh-known-hosts-cm
@@ -16080,7 +16451,7 @@ spec:
               key: application.namespaces
               name: argocd-cmd-params-cm
               optional: true
-        image: quay.io/argoproj/argocd:v2.6.0
+        image: quay.io/codefresh/argocd:v2.5.5-cap-CR-verify-aud-claim
         imagePullPolicy: Always
         name: argocd-application-controller
         ports:

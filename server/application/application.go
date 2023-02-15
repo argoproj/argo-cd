@@ -39,7 +39,6 @@ import (
 	argocommon "github.com/argoproj/argo-cd/v2/common"
 	"github.com/argoproj/argo-cd/v2/pkg/apiclient/application"
 	"github.com/argoproj/argo-cd/v2/pkg/apiclient/events"
-	"github.com/argoproj/argo-cd/v2/pkg/apis/application/v1alpha1"
 	appv1 "github.com/argoproj/argo-cd/v2/pkg/apis/application/v1alpha1"
 	appclientset "github.com/argoproj/argo-cd/v2/pkg/client/clientset/versioned"
 	applisters "github.com/argoproj/argo-cd/v2/pkg/client/listers/application/v1alpha1"
@@ -1071,26 +1070,6 @@ func (s *Server) ValidateSrcAndDst(ctx context.Context, requset *application.App
 			Entity: &entity,
 		}, nil
 	}
-
-	// If source is Kustomize add build options
-	kustomizeSettings, err := s.settingsMgr.GetKustomizeSettings()
-	if err != nil {
-		entity := sourceEntity
-		errMsg := err.Error()
-		return &application.ApplicationValidateResponse{
-			Error:  &errMsg,
-			Entity: &entity,
-		}, nil
-	}
-	kustomizeOptions, err := kustomizeSettings.GetOptions(app.Spec.Source)
-	if err != nil {
-		entity := sourceEntity
-		errMsg := err.Error()
-		return &application.ApplicationValidateResponse{
-			Error:  &errMsg,
-			Entity: &entity,
-		}, nil
-	}
 	plugins, err := s.plugins()
 	if err != nil {
 		entity := sourceEntity
@@ -1102,7 +1081,7 @@ func (s *Server) ValidateSrcAndDst(ctx context.Context, requset *application.App
 	}
 
 	var conditions []appv1.ApplicationCondition
-	conditions, err = argo.ValidateRepo(ctx, app, s.repoClientset, s.db, kustomizeOptions, plugins, s.kubectl, proj, s.settingsMgr)
+	conditions, err = argo.ValidateRepo(ctx, app, s.repoClientset, s.db, plugins, s.kubectl, proj, s.settingsMgr)
 	if err != nil {
 		entity := sourceEntity
 		errMsg := err.Error()

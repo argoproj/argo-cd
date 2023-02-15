@@ -5,6 +5,7 @@ import (
 	netCtx "context"
 	"crypto/tls"
 	"fmt"
+	notificationpkg "github.com/argoproj/argo-cd/v2/pkg/apiclient/notification"
 	"github.com/argoproj/argo-cd/v2/util/io/files"
 	goio "io"
 	"io/fs"
@@ -68,7 +69,6 @@ import (
 	applicationsetpkg "github.com/argoproj/argo-cd/v2/pkg/apiclient/applicationset"
 	certificatepkg "github.com/argoproj/argo-cd/v2/pkg/apiclient/certificate"
 	clusterpkg "github.com/argoproj/argo-cd/v2/pkg/apiclient/cluster"
-	eventspkg "github.com/argoproj/argo-cd/v2/pkg/apiclient/events"
 	gpgkeypkg "github.com/argoproj/argo-cd/v2/pkg/apiclient/gpgkey"
 	projectpkg "github.com/argoproj/argo-cd/v2/pkg/apiclient/project"
 	repocredspkg "github.com/argoproj/argo-cd/v2/pkg/apiclient/repocreds"
@@ -796,20 +796,18 @@ func newArgoCDServiceSet(a *ArgoCDServer) *ArgoCDServiceSet {
 	})
 
 	return &ArgoCDServiceSet{
-		ClusterService:        clusterService,
-		RepoService:           repoService,
-		RepoCredsService:      repoCredsService,
-		SessionService:        sessionService,
-		ApplicationService:    applicationService,
-		AppResourceTreeFn:     appResourceTreeFn,
-		ApplicationSetService: applicationSetService,
-		ProjectService:        projectService,
-		SettingsService:       settingsService,
-		AccountService:        accountService,
-		NotificationService:   notificationService,
-		CertificateService:    certificateService,
-		GpgkeyService:         gpgkeyService,
-		VersionService:        versionService,
+		ClusterService:     clusterService,
+		RepoService:        repoService,
+		RepoCredsService:   repoCredsService,
+		SessionService:     sessionService,
+		ApplicationService: applicationService,
+		AppResourceTreeFn:  appResourceTreeFn,
+		ProjectService:     projectService,
+		SettingsService:    settingsService,
+		AccountService:     accountService,
+		CertificateService: certificateService,
+		GpgkeyService:      gpgkeyService,
+		VersionService:     versionService,
 	}
 }
 
@@ -923,7 +921,6 @@ func (a *ArgoCDServer) newHTTPServer(ctx context.Context, port int, grpcWebHandl
 	mustRegisterGWHandler(clusterpkg.RegisterClusterServiceHandler, ctx, gwmux, conn)
 	mustRegisterGWHandler(applicationpkg.RegisterApplicationServiceHandler, ctx, gwmux, conn)
 	mustRegisterGWHandler(applicationsetpkg.RegisterApplicationSetServiceHandler, ctx, gwmux, conn)
-	mustRegisterGWHandler(notificationpkg.RegisterNotificationServiceHandler, ctx, gwmux, conn)
 	mustRegisterGWHandler(repositorypkg.RegisterRepositoryServiceHandler, ctx, gwmux, conn)
 	mustRegisterGWHandler(repocredspkg.RegisterRepoCredsServiceHandler, ctx, gwmux, conn)
 	mustRegisterGWHandler(sessionpkg.RegisterSessionServiceHandler, ctx, gwmux, conn)

@@ -783,7 +783,7 @@ func (s *Service) runManifestGenAsync(ctx context.Context, repoRoot, commitSHA, 
 			}
 		}
 
-		manifestGenResult, err = GenerateManifests(ctx, opContext.appPath, repoRoot, commitSHA, q, false, s.gitCredsStore, s.initConstants.MaxCombinedDirectoryManifestsSize, s.gitRepoPaths, WithCMPTarDoneChannel(ch.tarDoneCh), WithCMPTarExcludedGlobs(s.initConstants.CMPTarExcludedGlobs))
+		manifestGenResult, err = GenerateManifests(ctx, opContext.appPath, repoRoot, commitSHA, q, false, s.gitCredsStore, gitClient, s.initConstants.MaxCombinedDirectoryManifestsSize, s.gitRepoPaths, WithCMPTarDoneChannel(ch.tarDoneCh), WithCMPTarExcludedGlobs(s.initConstants.CMPTarExcludedGlobs))
 	}
 	refSourceCommitSHAs := make(map[string]string)
 	if len(repoRefs) > 0 {
@@ -1060,7 +1060,7 @@ func populateRequestRepos(appPath string, q *apiclient.ManifestRequest) error {
 	return nil
 }
 
-func helmTemplate(appPath string, repoRoot string, env *v1alpha1.Env, q *apiclient.ManifestRequest, isLocal bool, gitRepoPaths io.TempPaths) ([]*unstructured.Unstructured, error) {
+func helmTemplate(appPath string, repoRoot string, env *v1alpha1.Env, q *apiclient.ManifestRequest, isLocal bool, gitRepoPaths io.TempPaths) ([]manifest, error) {
 	concurrencyAllowed := isConcurrencyAllowed(appPath)
 	if !concurrencyAllowed {
 		manifestGenerateLock.Lock(appPath)
@@ -1312,7 +1312,7 @@ func getRepoCredential(repoCredentials []*v1alpha1.RepoCreds, repoURL string) *v
 }
 
 // GenerateManifests generates manifests from a path
-func GenerateManifests(ctx context.Context, appPath, repoRoot, revision string, q *apiclient.ManifestRequest, isLocal bool, gitCredsStore git.CredsStore, gitClient git.Client, maxCombinedManifestQuantity resource.Quantity, opts ...GenerateManifestOpt) (*apiclient.ManifestResponse, error) {
+func GenerateManifests(ctx context.Context, appPath, repoRoot, revision string, q *apiclient.ManifestRequest, isLocal bool, gitCredsStore git.CredsStore, gitClient git.Client, maxCombinedManifestQuantity resource.Quantity, gitRepoPaths io.TempPaths, opts ...GenerateManifestOpt) (*apiclient.ManifestResponse, error) {
 	opt := newGenerateManifestOpt(opts...)
 
 	var (
@@ -1335,14 +1335,29 @@ func GenerateManifests(ctx context.Context, appPath, repoRoot, revision string, 
 
 	switch appSourceType {
 	case v1alpha1.ApplicationSourceTypeHelm:
-		manifests, err = helmTemplate(appPath, repoRoot, env, q, isLocal)
+		manifests, err = helmTemplate(appPath, repoRoot, env, q, isLocal, gitRepoPaths)
 	case v1alpha1.ApplicationSourceTypeKustomize:
 		manifests, err = kustomizeBuild(repoURL, repoRoot, appPath, q.Repo.GetGitCreds(gitCredsStore), q.ApplicationSource.Kustomize, q.KustomizeOptions, env, q.Namespace)
 	case v1alpha1.ApplicationSourceTypePlugin:
+		var plugin *v1alpha1.ConfigManagementPlugin
 		if q.ApplicationSource.Plugin != nil && q.ApplicationSource.Plugin.Name != "" {
-			manifests, err = runConfigManagementPlugin(appPath, repoRoot, env, q, q.Repo.GetGitCreds(gitCredsStore))
+			plugin = findPlugin(q.Plugins, q.ApplicationSource.Plugin.Name)
+		}
+		if plugin != nil {
+			// argocd-cm deprecated plugin is being used
+			manifests, err = runConfigManagementPlugin(appPath, repoRoot, env, q, q.Repo.GetGitCreds(gitCredsStore), plugin)
+			log.WithFields(map[string]interface{}{
+				"application": q.AppName,
+				"plugin":      q.ApplicationSource.Plugin.Name,
+			}).Warnf(common.ConfigMapPluginDeprecationWarning)
 		} else {
-			manifests, err = runConfigManagementPluginSidecars(ctx, appPath, repoRoot, env, q, q.Repo.GetGitCreds(gitCredsStore), opt.cmpTarDoneCh, opt.cmpTarExcludedGlobs)
+			// if the named plugin was not found in argocd-cm try sidecar plugin
+			pluginName := ""
+			if q.ApplicationSource.Plugin != nil {
+				pluginName = q.ApplicationSource.Plugin.Name
+			}
+			// if pluginName is provided it has to be `<metadata.name>-<spec.version>` or just `<metadata.name>` if plugin version is empty
+			manifests, err = runConfigManagementPluginSidecars(ctx, appPath, repoRoot, pluginName, env, q, q.Repo.GetGitCreds(gitCredsStore), opt.cmpTarDoneCh, opt.cmpTarExcludedGlobs)
 			if err != nil {
 				err = fmt.Errorf("plugin sidecar failed. %s", err.Error())
 			}
@@ -1931,7 +1946,7 @@ func findPlugin(plugins []*v1alpha1.ConfigManagementPlugin, name string) *v1alph
 	return nil
 }
 
-func runConfigManagementPlugin(appPath, repoRoot string, envVars *v1alpha1.Env, q *apiclient.ManifestRequest, creds git.Creds, plugin *v1alpha1.ConfigManagementPlugin) ([]*unstructured.Unstructured, error) {
+func runConfigManagementPlugin(appPath, repoRoot string, envVars *v1alpha1.Env, q *apiclient.ManifestRequest, creds git.Creds, plugin *v1alpha1.ConfigManagementPlugin) ([]manifest, error) {
 	// Plugins can request to lock the complete repository when they need to
 	// use git client operations.
 	if plugin.LockRepo {

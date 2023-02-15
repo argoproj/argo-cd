@@ -30,15 +30,6 @@ apiVersion: v1
 kind: ServiceAccount
 metadata:
   labels:
-    app.kubernetes.io/component: notifications-controller
-    app.kubernetes.io/name: argocd-notifications-controller
-    app.kubernetes.io/part-of: argocd
-  name: argocd-notifications-controller
----
-apiVersion: v1
-kind: ServiceAccount
-metadata:
-  labels:
     app.kubernetes.io/component: redis
     app.kubernetes.io/name: argocd-redis
     app.kubernetes.io/part-of: argocd
@@ -189,47 +180,6 @@ rules:
 apiVersion: rbac.authorization.k8s.io/v1
 kind: Role
 metadata:
-  name: argocd-notifications-controller
-rules:
-- apiGroups:
-  - argoproj.io
-  resources:
-  - applications
-  - appprojects
-  verbs:
-  - get
-  - list
-  - watch
-  - update
-  - patch
-- apiGroups:
-  - ""
-  resources:
-  - configmaps
-  - secrets
-  verbs:
-  - list
-  - watch
-- apiGroups:
-  - ""
-  resourceNames:
-  - argocd-notifications-cm
-  resources:
-  - configmaps
-  verbs:
-  - get
-- apiGroups:
-  - ""
-  resourceNames:
-  - argocd-notifications-secret
-  resources:
-  - secrets
-  verbs:
-  - get
----
-apiVersion: rbac.authorization.k8s.io/v1
-kind: Role
-metadata:
   labels:
     app.kubernetes.io/component: server
     app.kubernetes.io/name: argocd-server
@@ -322,18 +272,6 @@ subjects:
 apiVersion: rbac.authorization.k8s.io/v1
 kind: RoleBinding
 metadata:
-  name: argocd-notifications-controller
-roleRef:
-  apiGroup: rbac.authorization.k8s.io
-  kind: Role
-  name: argocd-notifications-controller
-subjects:
-- kind: ServiceAccount
-  name: argocd-notifications-controller
----
-apiVersion: rbac.authorization.k8s.io/v1
-kind: RoleBinding
-metadata:
   labels:
     app.kubernetes.io/component: redis
     app.kubernetes.io/name: argocd-redis
@@ -390,11 +328,6 @@ metadata:
 apiVersion: v1
 kind: ConfigMap
 metadata:
-  name: argocd-notifications-cm
----
-apiVersion: v1
-kind: ConfigMap
-metadata:
   labels:
     app.kubernetes.io/name: argocd-rbac-cm
     app.kubernetes.io/part-of: argocd
@@ -426,12 +359,6 @@ metadata:
     app.kubernetes.io/name: argocd-tls-certs-cm
     app.kubernetes.io/part-of: argocd
   name: argocd-tls-certs-cm
----
-apiVersion: v1
-kind: Secret
-metadata:
-  name: argocd-notifications-secret
-type: Opaque
 ---
 apiVersion: v1
 kind: Secret
@@ -504,21 +431,6 @@ spec:
     targetPort: 8082
   selector:
     app.kubernetes.io/name: argocd-application-controller
----
-apiVersion: v1
-kind: Service
-metadata:
-  labels:
-    app.kubernetes.io/name: argocd-notifications-controller-metrics
-  name: argocd-notifications-controller-metrics
-spec:
-  ports:
-  - name: metrics
-    port: 9001
-    protocol: TCP
-    targetPort: 9001
-  selector:
-    app.kubernetes.io/name: argocd-notifications-controller
 ---
 apiVersion: v1
 kind: Service
@@ -615,7 +527,7 @@ spec:
       containers:
       - command:
         - entrypoint.sh
-        - argocd-applicationset-controller
+        - applicationset-controller
         env:
         - name: NAMESPACE
           valueFrom:
@@ -681,7 +593,7 @@ spec:
               key: applicationsetcontroller.enable.progressive.syncs
               name: argocd-cmd-params-cm
               optional: true
-        image: quay.io/argoproj/argocd:v2.6.0
+        image: quay.io/codefresh/applicationset:latest
         imagePullPolicy: Always
         name: argocd-applicationset-controller
         ports:
@@ -689,15 +601,6 @@ spec:
           name: webhook
         - containerPort: 8080
           name: metrics
-        securityContext:
-          allowPrivilegeEscalation: false
-          capabilities:
-            drop:
-            - ALL
-          readOnlyRootFilesystem: true
-          runAsNonRoot: true
-          seccompProfile:
-            type: RuntimeDefault
         volumeMounts:
         - mountPath: /app/config/ssh
           name: ssh-known-hosts
@@ -791,7 +694,7 @@ spec:
         - -n
         - /usr/local/bin/argocd
         - /shared/argocd-dex
-        image: quay.io/argoproj/argocd:v2.6.0
+        image: quay.io/codefresh/argocd:v2.5.5-cap-CR-verify-aud-claim
         imagePullPolicy: Always
         name: copyutil
         securityContext:
@@ -825,63 +728,6 @@ spec:
             path: ca.crt
           optional: true
           secretName: argocd-dex-server-tls
----
-apiVersion: apps/v1
-kind: Deployment
-metadata:
-  name: argocd-notifications-controller
-spec:
-  selector:
-    matchLabels:
-      app.kubernetes.io/name: argocd-notifications-controller
-  strategy:
-    type: Recreate
-  template:
-    metadata:
-      labels:
-        app.kubernetes.io/name: argocd-notifications-controller
-    spec:
-      containers:
-      - command:
-        - argocd-notifications
-        image: quay.io/argoproj/argocd:v2.6.0
-        imagePullPolicy: Always
-        livenessProbe:
-          tcpSocket:
-            port: 9001
-        name: argocd-notifications-controller
-        securityContext:
-          allowPrivilegeEscalation: false
-          capabilities:
-            drop:
-            - ALL
-          readOnlyRootFilesystem: true
-        volumeMounts:
-        - mountPath: /app/config/tls
-          name: tls-certs
-        - mountPath: /app/config/reposerver/tls
-          name: argocd-repo-server-tls
-        workingDir: /app
-      securityContext:
-        runAsNonRoot: true
-        seccompProfile:
-          type: RuntimeDefault
-      serviceAccountName: argocd-notifications-controller
-      volumes:
-      - configMap:
-          name: argocd-tls-certs-cm
-        name: tls-certs
-      - name: argocd-repo-server-tls
-        secret:
-          items:
-          - key: tls.crt
-            path: tls.crt
-          - key: tls.key
-            path: tls.key
-          - key: ca.crt
-            path: ca.crt
-          optional: true
-          secretName: argocd-repo-server-tls
 ---
 apiVersion: apps/v1
 kind: Deployment
@@ -921,7 +767,7 @@ spec:
         - ""
         - --appendonly
         - "no"
-        image: redis:7.0.7-alpine
+        image: quay.io/codefresh/redis:7.0.7-alpine
         imagePullPolicy: Always
         name: redis
         ports:
@@ -1103,7 +949,7 @@ spec:
           value: /helm-working-dir
         - name: HELM_DATA_HOME
           value: /helm-working-dir
-        image: quay.io/argoproj/argocd:v2.6.0
+        image: quay.io/codefresh/argocd:v2.5.5-cap-CR-verify-aud-claim
         imagePullPolicy: Always
         livenessProbe:
           failureThreshold: 3
@@ -1155,7 +1001,7 @@ spec:
         - -n
         - /usr/local/bin/argocd
         - /var/run/argocd/argocd-cmp-server
-        image: quay.io/argoproj/argocd:v2.6.0
+        image: quay.io/codefresh/argocd:v2.5.5-cap-CR-verify-aud-claim
         name: copyutil
         securityContext:
           allowPrivilegeEscalation: false
@@ -1169,7 +1015,6 @@ spec:
         volumeMounts:
         - mountPath: /var/run/argocd
           name: var-files
-      serviceAccountName: argocd-repo-server
       volumes:
       - configMap:
           name: argocd-ssh-known-hosts-cm
@@ -1430,7 +1275,7 @@ spec:
               key: server.enable.proxy.extension
               name: argocd-cmd-params-cm
               optional: true
-        image: quay.io/argoproj/argocd:v2.6.0
+        image: quay.io/codefresh/argocd:v2.5.5-cap-CR-verify-aud-claim
         imagePullPolicy: Always
         livenessProbe:
           httpGet:
@@ -1664,7 +1509,7 @@ spec:
               key: application.namespaces
               name: argocd-cmd-params-cm
               optional: true
-        image: quay.io/argoproj/argocd:v2.6.0
+        image: quay.io/codefresh/argocd:v2.5.5-cap-CR-verify-aud-claim
         imagePullPolicy: Always
         name: argocd-application-controller
         ports:
@@ -1764,23 +1609,6 @@ spec:
   podSelector:
     matchLabels:
       app.kubernetes.io/name: argocd-dex-server
-  policyTypes:
-  - Ingress
----
-apiVersion: networking.k8s.io/v1
-kind: NetworkPolicy
-metadata:
-  name: argocd-notifications-controller-network-policy
-spec:
-  ingress:
-  - from:
-    - namespaceSelector: {}
-    ports:
-    - port: 9001
-      protocol: TCP
-  podSelector:
-    matchLabels:
-      app.kubernetes.io/name: argocd-notifications-controller
   policyTypes:
   - Ingress
 ---
