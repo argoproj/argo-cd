@@ -2,6 +2,7 @@ package command
 
 import (
 	"fmt"
+	"go.opentelemetry.io/contrib/instrumentation/net/http/otelhttp"
 	"net/http"
 	"os"
 	"time"
@@ -87,6 +88,9 @@ func NewCommand() *cobra.Command {
 			}
 
 			restConfig.UserAgent = fmt.Sprintf("argocd-applicationset-controller/%s (%s)", vers.Version, vers.Platform)
+			restConfig.Wrap(func(rt http.RoundTripper) http.RoundTripper {
+				return otelhttp.NewTransport(rt)
+			})
 
 			policyObj, exists := utils.Policies[policy]
 			if !exists {
@@ -94,7 +98,11 @@ func NewCommand() *cobra.Command {
 				os.Exit(1)
 			}
 
-			mgr, err := ctrl.NewManager(ctrl.GetConfigOrDie(), ctrl.Options{
+			ctrlConfig := ctrl.GetConfigOrDie()
+			ctrlConfig.Wrap(func(rt http.RoundTripper) http.RoundTripper {
+				return otelhttp.NewTransport(rt)
+			})
+			mgr, err := ctrl.NewManager(ctrlConfig, ctrl.Options{
 				Scheme:             scheme,
 				MetricsBindAddress: metricsAddr,
 				// Our cache and thus watches and client queries are restricted to the namespace we're running in. This assumes
