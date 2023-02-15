@@ -367,7 +367,10 @@ data:
             - url: http://httpbin.org
 
               # Cluster if provided, will have to match the application
-              # destination name to have requests properly forwarded to this
-              # service URL.
-              # Optional field if only one service is specified. Mandatory if multiple services are specified.
-              cluster: https://some-cluster
+              # destination name or the destination server to have requests
+              # properly forwarded to this service URL.
+              # Optional field if only one service is specified.
+              # Mandatory if multiple services are specified.
+              cluster:
+                name: some-cluster
+                server: https://some-cluster

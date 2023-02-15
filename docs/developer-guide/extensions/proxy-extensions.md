@@ -227,9 +227,11 @@ extension.config: |
     backend:
       services:
       - url: http://extension-name.com:8080
-        clusterName: kubernetes.local
+        cluster
+          name: kubernetes.local
       - url: https://extension-name.ppd.cluster.k8s.local:8080
-        clusterName: user@ppd.cluster.k8s.local
+        cluster
+          server: user@ppd.cluster.k8s.local
 ```
 
 In the example above, the API server will inspect the Application
