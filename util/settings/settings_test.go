@@ -1367,6 +1367,7 @@ func Test_OAuth2AllowedAudiences(t *testing.T) {
 		name     string
 		settings *ArgoCDSettings
 		expected []string
+		secrets  map[string]string
 	}{
 		{
 			name:     "Empty",
@@ -1403,6 +1404,20 @@ allowedAudiences: ["aud1", "aud2"]`},
 			expected: []string{"aud1", "aud2"},
 		},
 		{
+			name: "OIDC configured, audiences specified as secret references",
+			settings: &ArgoCDSettings{OIDCConfigRAW: `name: Test
+issuer: aaa
+clientID: xxx
+clientSecret: yyy
+requestedScopes: ["oidc"]
+allowedAudiences: ["$test-secret-a:clientID", "$test-secret-b:clientID"]`},
+			expected: []string{"aud1", "aud2"},
+			secrets: map[string]string{
+				"test-secret-a:clientID": "aud1",
+				"test-secret-b:clientID": "aud2",
+			},
+		},
+		{
 			name: "Dex configured",
 			settings: &ArgoCDSettings{DexConfig: `connectors:
   - type: github
@@ -1422,6 +1437,9 @@ allowedAudiences: ["aud1", "aud2"]`},
 		tcc := tc
 		t.Run(tcc.name, func(t *testing.T) {
 			t.Parallel()
+			if len(tcc.secrets) > 0 {
+				tcc.settings.Secrets = tcc.secrets
+			}
 			assert.ElementsMatch(t, tcc.expected, tcc.settings.OAuth2AllowedAudiences())
 		})
 	}

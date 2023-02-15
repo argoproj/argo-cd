@@ -1757,6 +1757,15 @@ func (a *ArgoCDSettings) OAuth2AllowedAudiences() []string {
 			}
 			return allowedAudiences
 		}
+
+		// If list of allowed audiences contains references to secrets instead of the clientIDs themselves
+		// we should substitute them to get the actual clientIDs
+		resolvedAudience := []string{}
+		for _, audience := range config.AllowedAudiences {
+			resolvedAudience = append(resolvedAudience, ReplaceStringSecret(audience, a.Secrets))
+		}
+
+		config.AllowedAudiences = resolvedAudience
 		return config.AllowedAudiences
 	}
 	if a.DexConfig != "" {
