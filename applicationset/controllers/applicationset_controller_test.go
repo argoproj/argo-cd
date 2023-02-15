@@ -1675,6 +1675,34 @@ func TestValidateGeneratedApplications(t *testing.T) {
 			expectedErrors:   []string{"there are no clusters with this name: nonexistent-cluster"},
 			validationErrors: map[int]error{0: fmt.Errorf("application destination spec is invalid: unable to find destination server: there are no clusters with this name: nonexistent-cluster")},
 		},
+		{
+			name: "status update is forbidden",
+			apps: []argov1alpha1.Application{
+				{
+					TypeMeta:   metav1.TypeMeta{},
+					ObjectMeta: metav1.ObjectMeta{},
+					Spec: argov1alpha1.ApplicationSpec{
+						Project: "default",
+						Source: &argov1alpha1.ApplicationSource{
+							RepoURL:        "https://url",
+							Path:           "/",
+							TargetRevision: "HEAD",
+						},
+						Destination: argov1alpha1.ApplicationDestination{
+							Namespace: "namespace",
+							Name:      "my-cluster",
+						},
+					},
+					Status: argov1alpha1.ApplicationStatus{
+						Sync: argov1alpha1.SyncStatus{
+							Status: argov1alpha1.SyncStatusCodeSynced,
+						},
+					},
+				},
+			},
+			expectedErrors:   []string{"application contains status updates"},
+			validationErrors: map[int]error{0: fmt.Errorf("application contains status updates")},
+		},
 	} {
 
 		t.Run(cc.name, func(t *testing.T) {

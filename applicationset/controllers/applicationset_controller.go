@@ -17,6 +17,7 @@ package controllers
 import (
 	"context"
 	"fmt"
+	"reflect"
 	"time"
 
 	log "github.com/sirupsen/logrus"
@@ -405,6 +406,11 @@ func (r *ApplicationSetReconciler) validateGeneratedApplications(ctx context.Con
 			namesSet[app.Name] = true
 		} else {
 			errorsByIndex[i] = fmt.Errorf("ApplicationSet %s contains applications with duplicate name: %s", applicationSetInfo.Name, app.Name)
+			continue
+		}
+
+		if !reflect.DeepEqual(app.Status, argov1alpha1.ApplicationStatus{}) {
+			errorsByIndex[i] = fmt.Errorf("application contains status updates")
 			continue
 		}
 
