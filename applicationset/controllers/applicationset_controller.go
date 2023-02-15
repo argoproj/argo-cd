@@ -17,6 +17,7 @@ package controllers
 import (
 	"context"
 	"fmt"
+	"reflect"
 	"time"
 
 	log "github.com/sirupsen/logrus"
@@ -29,9 +30,12 @@ import (
 	"k8s.io/client-go/kubernetes"
 	"k8s.io/client-go/tools/record"
 	ctrl "sigs.k8s.io/controller-runtime"
+	"sigs.k8s.io/controller-runtime/pkg/builder"
 	"sigs.k8s.io/controller-runtime/pkg/client"
 	"sigs.k8s.io/controller-runtime/pkg/controller/controllerutil"
+	"sigs.k8s.io/controller-runtime/pkg/event"
 	"sigs.k8s.io/controller-runtime/pkg/handler"
+	"sigs.k8s.io/controller-runtime/pkg/predicate"
 	"sigs.k8s.io/controller-runtime/pkg/source"
 
 	"github.com/argoproj/argo-cd/v2/applicationset/generators"
@@ -533,7 +537,7 @@ func (r *ApplicationSetReconciler) SetupWithManager(mgr ctrl.Manager) error {
 
 	return ctrl.NewControllerManagedBy(mgr).
 		For(&argov1alpha1.ApplicationSet{}).
-		Owns(&argov1alpha1.Application{}).
+		Owns(&argov1alpha1.Application{}, ownsOptions()).
 		Watches(
 			&source.Kind{Type: &corev1.Secret{}},
 			&clusterSecretEventHandler{
@@ -1310,6 +1314,44 @@ func syncApplication(application argov1alpha1.Application, prune bool) (argov1al
 	application.Operation = &operation
 
 	return application, nil
+}
+
+func ownsOptions() builder.Predicates {
+	funcs := predicate.Funcs{
+		CreateFunc: func(e event.CreateEvent) bool {
+			// if we are the owner and there is a create event, we most likely created it and do not need to
+			// re-reconcile
+			log.Debugln("received create event from owning an application")
+			return false
+		},
+		DeleteFunc: func(e event.DeleteEvent) bool {
+			log.Debugln("received delete event from owning an application")
+			return true
+		},
+		UpdateFunc: func(e event.UpdateEvent) bool {
+			log.Debugln("received update event from owning an application")
+			appOld, isApp := e.ObjectOld.(*argov1alpha1.Application)
+			if !isApp {
+				return false
+			}
+			appNew, isApp := e.ObjectNew.(*argov1alpha1.Application)
+			if !isApp {
+				return false
+			}
+			// the applicationset controller only owns Application.Spec. we do not need to re-reconcile if parts of the
+			// application changes outside the applicationset's control. an example being, Application.ApplicationStatus.ReconciledAt
+			// which gets updated by the application controller.
+			requeue := !reflect.DeepEqual(appOld.Spec, appNew.Spec)
+			log.Debugf("requeue: %t caused by application %s\n", requeue, appNew.Name)
+			return requeue
+		},
+		GenericFunc: func(e event.GenericEvent) bool {
+			log.Debugln("received generic event from owning an application")
+			return true
+		},
+	}
+
+	return builder.WithPredicates(funcs)
 }
 
 var _ handler.EventHandler = &clusterSecretEventHandler{}
