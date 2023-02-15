@@ -328,6 +328,7 @@ func PrintDiff(name string, live *unstructured.Unstructured, target *unstructure
 		cmdBinary = parts[0]
 		args = parts[1:]
 	}
+	args = append(args, "-C", "3")
 	cmd := exec.Command(cmdBinary, append(args, liveFile, targetFile)...)
 	cmd.Stderr = os.Stderr
 	cmd.Stdout = os.Stdout
