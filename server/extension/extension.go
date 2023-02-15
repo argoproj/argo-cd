@@ -141,10 +141,10 @@ type ServiceConfig struct {
 
 type ClusterConfig struct {
 	// Server specifies the URL of the target cluster and must be set to the Kubernetes control plane API
-	Server string `json:"server,omitempty"`
+	Server string `json:"server"`
 
 	// Name is an alternate way of specifying the target cluster by its symbolic name
-	Name string `json:"name,omitempty"`
+	Name string `json:"name"`
 }
 
 // ProxyConfig allows configuring connection behaviour between Argo CD
@@ -273,6 +273,36 @@ func NewManager(log *log.Entry, sg SettingsGetter, ag ApplicationGetter, pg Proj
 	}
 }
 
+// ProxyRegistry is an in memory registry that contains all proxies for a
+// given extension. Different extensions will have independent proxy registries.
+// This is required to address the use case when one extension is configured with
+// multiple backend services in different clusters.
+type ProxyRegistry map[ProxyKey]*httputil.ReverseProxy
+
+// NewProxyRegistry will instantiate a new in memory registry for proxies.
+func NewProxyRegistry() ProxyRegistry {
+	r := make(map[ProxyKey]*httputil.ReverseProxy)
+	return r
+}
+
+// ProxyKey defines the struct used as a key in the proxy registry
+// map (ProxyRegistry).
+type ProxyKey struct {
+	extensionName string
+	clusterName   string
+	clusterServer string
+}
+
+// proxyKey will build the key to be used in the proxyByCluster
+// map.
+func proxyKey(extName, cName, cServer string) ProxyKey {
+	return ProxyKey{
+		extensionName: extName,
+		clusterName:   cName,
+		clusterServer: cServer,
+	}
+}
+
 func parseAndValidateConfig(config string) (*ExtensionConfigs, error) {
 	configs := ExtensionConfigs{}
 	err := yaml.Unmarshal([]byte(config), &configs)
@@ -389,28 +419,21 @@ func (m *Manager) RegisterHandlers(r *mux.Router) error {
 	return m.registerExtensions(r, extConfigs)
 }
 
-// proxyByClusterKey will build the key to be used in the proxyByCluster
-// map
-func proxyByClusterKey(prefix, sufix string) string {
-	return fmt.Sprintf("%s:%s", prefix, sufix)
-}
-
-// appendProxy will append the given proxy in the given proxyByCluster map.
-// Will use the provided extName and service to determine the map key. The
-// key must be unique in the map. If the map already has the key and error
-// is returned.
-func appendProxy(proxyByCluster map[string]*httputil.ReverseProxy,
+// appendProxy will append the given proxy in the given registry. Will use
+// the provided extName and service to determine the map key. The key must
+// be unique in the map. If the map already has the key and error is returned.
+func appendProxy(registry ProxyRegistry,
 	extName string,
 	service ServiceConfig,
 	proxy *httputil.ReverseProxy,
 	singleBackend bool) error {
 
 	if singleBackend {
-		key := proxyByClusterKey(extName, "")
-		if _, exist := proxyByCluster[key]; exist {
+		key := proxyKey(extName, "", "")
+		if _, exist := registry[key]; exist {
 			return fmt.Errorf("duplicated proxy configuration found for extension key %q", key)
 		}
-		proxyByCluster[key] = proxy
+		registry[key] = proxy
 		return nil
 	}
 
@@ -419,18 +442,18 @@ func appendProxy(proxyByCluster map[string]*httputil.ReverseProxy,
 	// configurations for proper correlation to find which proxy to use
 	// while handling requests.
 	if service.Cluster.Name != "" {
-		key := proxyByClusterKey(extName, service.Cluster.Name)
-		if _, exist := proxyByCluster[key]; exist {
+		key := proxyKey(extName, service.Cluster.Name, "")
+		if _, exist := registry[key]; exist {
 			return fmt.Errorf("duplicated proxy configuration found for extension key %q", key)
 		}
-		proxyByCluster[key] = proxy
+		registry[key] = proxy
 	}
 	if service.Cluster.Server != "" {
-		key := proxyByClusterKey(extName, service.Cluster.Server)
-		if _, exist := proxyByCluster[key]; exist {
+		key := proxyKey(extName, "", service.Cluster.Server)
+		if _, exist := registry[key]; exist {
 			return fmt.Errorf("duplicated proxy configuration found for extension key %q", key)
 		}
-		proxyByCluster[key] = proxy
+		registry[key] = proxy
 	}
 	return nil
 }
@@ -441,21 +464,21 @@ func appendProxy(proxyByCluster map[string]*httputil.ReverseProxy,
 func (m *Manager) registerExtensions(r *mux.Router, extConfigs *ExtensionConfigs) error {
 	extRouter := r.PathPrefix(fmt.Sprintf("%s/", URLPrefix)).Subrouter()
 	for _, ext := range extConfigs.Extensions {
-		proxyByCluster := make(map[string]*httputil.ReverseProxy)
+		registry := NewProxyRegistry()
 		singleBackend := len(ext.Backend.Services) == 1
 		for _, service := range ext.Backend.Services {
 			proxy, err := NewProxy(service.URL, ext.Backend.ProxyConfig)
 			if err != nil {
 				return fmt.Errorf("error creating proxy: %s", err)
 			}
-			err = appendProxy(proxyByCluster, ext.Name, service, proxy, singleBackend)
+			err = appendProxy(registry, ext.Name, service, proxy, singleBackend)
 			if err != nil {
 				return fmt.Errorf("error appending proxy: %s", err)
 			}
 		}
 		m.log.Infof("Registering handler for %s/%s...", URLPrefix, ext.Name)
 		extRouter.PathPrefix(fmt.Sprintf("/%s/", ext.Name)).
-			HandlerFunc(m.CallExtension(ext.Name, proxyByCluster))
+			HandlerFunc(m.CallExtension(ext.Name, registry))
 	}
 	return nil
 }
@@ -513,35 +536,30 @@ func (m *Manager) authorize(ctx context.Context, rr *RequestResources, extName s
 	return app, nil
 }
 
-func findProxy(proxyByCluster map[string]*httputil.ReverseProxy, extName string, dest v1alpha1.ApplicationDestination) (*httputil.ReverseProxy, error) {
+// findProxy will search the given registry to find the correct proxy to use
+// based on the given extName and dest.
+func findProxy(registry ProxyRegistry, extName string, dest v1alpha1.ApplicationDestination) (*httputil.ReverseProxy, error) {
 
-	key := proxyByClusterKey(extName, "")
-	if proxy, found := proxyByCluster[key]; found {
+	// First try to find the proxy in the registry just by the extension name.
+	// This is the simple case for extensions with only one backend service.
+	key := proxyKey(extName, "", "")
+	if proxy, found := registry[key]; found {
 		return proxy, nil
 	}
 
-	if dest.Name != "" && dest.Server != "" {
-		return nil, fmt.Errorf("invalid application: both destination name and destination server are provided")
-	}
-	if dest.Name != "" {
-		key = proxyByClusterKey(extName, dest.Name)
-		if proxy, found := proxyByCluster[key]; found {
-			return proxy, nil
-		}
+	// If extension has multiple backend services configured, the correct proxy
+	// needs to be searched by the ApplicationDestination.
+	key = proxyKey(extName, dest.Name, dest.Server)
+	if proxy, found := registry[key]; found {
+		return proxy, nil
 	}
 
-	if dest.Server != "" {
-		key = proxyByClusterKey(extName, dest.Server)
-		if proxy, found := proxyByCluster[key]; found {
-			return proxy, nil
-		}
-	}
 	return nil, fmt.Errorf("no proxy found for extension %q", extName)
 }
 
 // CallExtension returns a handler func responsible for forwarding requests to the
 // extension service. The request will be sanitized by removing sensitive headers.
-func (m *Manager) CallExtension(extName string, proxyByCluster map[string]*httputil.ReverseProxy) func(http.ResponseWriter, *http.Request) {
+func (m *Manager) CallExtension(extName string, registry ProxyRegistry) func(http.ResponseWriter, *http.Request) {
 	return func(w http.ResponseWriter, r *http.Request) {
 		reqResources, err := ValidateHeaders(r)
 		if err != nil {
@@ -555,7 +573,7 @@ func (m *Manager) CallExtension(extName string, proxyByCluster map[string]*httpu
 			return
 		}
 
-		proxy, err := findProxy(proxyByCluster, extName, app.Spec.Destination)
+		proxy, err := findProxy(registry, extName, app.Spec.Destination)
 		if err != nil {
 			m.log.Errorf("findProxy error: %s", err)
 			http.Error(w, "invalid extension", http.StatusBadRequest)
