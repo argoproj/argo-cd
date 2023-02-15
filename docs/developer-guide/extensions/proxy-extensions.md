@@ -52,7 +52,9 @@ data:
         maxIdleConnections: 30
         services:
         - url: http://httpbin.org
-          cluster: https://some-cluster
+          cluster:
+            name: some-cluster
+            server: https://some-cluster
 ```
 
 If a the configuration is changed, Argo CD Server will need to be
@@ -109,19 +111,30 @@ Defines a list with backend url by cluster.
 
 Is the address where the extension backend must be available.
 
-#### `extensions.backend.services.cluster` (*string*)
+#### `extensions.backend.services.cluster` (*object*)
 (optional)
 
 If provided, and multiple services are configured, will have to match
-the application destination name to have requests properly forwarded
-to this service URL. If there are multiple backends for the same
-extension this field is required. The value can be the cluster name
-(priority) or the cluster server URL. It will be matched with the
-value from `Application.Spec.Destination.Name` and if that is not
-available it will match if the value from
-`Application.Spec.Destination.Server`. If only one backend service is
+the application destination name or server to have requests properly
+forwarded to this service URL. If there are multiple backends for the
+same extension this field is required. In this case at least one of
+the two will be required: name or server. It is better to provide both
+values to avoid problems with applications unable to send requests to
+the proper backend service. If only one backend service is
 configured, this field is ignored, and all requests are forwarded to
-the configured backend service.
+the configured one.
+
+#### `extensions.backend.services.cluster.name` (*string*)
+(optional)
+
+It will be matched with the value from
+`Application.Spec.Destination.Name`
+
+#### `extensions.backend.services.cluster.server` (*string*)
+(optional)
+
+It will be matched with the value from
+`Application.Spec.Destination.Server`. 
 
 ## Usage
 
