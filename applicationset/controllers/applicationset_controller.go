@@ -1338,10 +1338,16 @@ func ownsOptions() builder.Predicates {
 			if !isApp {
 				return false
 			}
-			// the applicationset controller only owns Application.Spec. we do not need to re-reconcile if parts of the
-			// application changes outside the applicationset's control. an example being, Application.ApplicationStatus.ReconciledAt
-			// which gets updated by the application controller.
-			requeue := !reflect.DeepEqual(appOld.Spec, appNew.Spec)
+			// the applicationset controller only owns Application.Spec and Application.Metadata.
+			// we do not need to re-reconcile if parts of the application changes outside the applicationset's control.
+			// an example being, Application.ApplicationStatus.ReconciledAt which gets updated by the application controller.
+			// Application.ObjectMeta.ResourceVersion and Application.ObjectMeta.Generation are set by K8s.
+			appOld.ObjectMeta.ResourceVersion = ""
+			appOld.ObjectMeta.Generation = 0
+			appNew.ObjectMeta.ResourceVersion = ""
+			appNew.ObjectMeta.Generation = 0
+			requeue := !reflect.DeepEqual(appOld.Spec, appNew.Spec) ||
+				!reflect.DeepEqual(appOld.ObjectMeta, appNew.ObjectMeta)
 			log.Debugf("requeue: %t caused by application %s\n", requeue, appNew.Name)
 			return requeue
 		},
