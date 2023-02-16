@@ -1337,6 +1337,9 @@ var ownsHandler = predicate.Funcs{
 		if !isApp {
 			return false
 		}
+		// don't change the event objects
+		appOld = appOld.DeepCopy()
+		appNew = appNew.DeepCopy()
 		// the applicationset controller only owns Application.Spec and Application.Metadata.
 		// we do not need to re-reconcile if parts of the application changes outside the applicationset's control.
 		// an example being, Application.ApplicationStatus.ReconciledAt which gets updated by the application controller.
