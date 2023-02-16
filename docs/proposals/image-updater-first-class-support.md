@@ -80,11 +80,11 @@ This section highlights some of the key aspects of Image Updater's present desig
 
 - Image Updater controller code will need to be updated to watch and react to changes in newly defined application CR fields, and code to parse and react to annotations will need to be removed. 
 
-- Image Updater git write back code will need to be modified to figure out the correct set of manifest updates to be written back to each source repository in case the application has multiple source repositories. 
+- If application is configured with multiple source repositories, users will have to explicitly specify which source should be used for git write back. Care would need to be taken to ensure image updates are not accidentally overwritten when the application is being compiled together from all the different source repositories.  
 
 - Image Updater controller would need to be able to modify fields in the status of the Application CR in order to maintain state, as described in the following section. This would also mean there would be fields in the Application CR that would not be used by Argo CD itself, but by a different component (Image Updater). 
 
-- There could be a case made for separating Image Updater configuration into its own dedicated CRD, however since the application resource is so central to the image update configurations, it would be a lot more intuitive for this configuration to belong within the application CR itself. Secondly, having a dedicated CR would mean that the number of required resources on the cluster would double since we would need to have a dedicated image update CR for each application.
+- There could be a case made for separating Image Updater configuration into its own dedicated CRD, however since the application resource is central to the image update configurations, it would be a lot more intuitive for this configuration to belong within the application CR itself. Secondly, having a dedicated CR would mean that the number of required resources on the cluster would double since we would need to have a dedicated image update CR for each application.
 
 - In terms of the actual merging of the codebases, the ideal approach would likely be to pull the image-updater code into the core Argo CD codebase, but keep it largely isolated as its own controller. This would seem logical since there is sufficient distinction between the purpose of the Image Updater's controller code and the tasks rest of the core components (like application-controller) perform that we can maintain a clean separation of concerns. It would also be easier to maintain in the long run. There is also a case that can be made to keep the code completely de-coupled in its own repository in the argoproj org since there is not as much inter-dependency between the 2 projects, however this may send mixed signals to the community regarding the capacity in which Image Updater has been granted "first class" status within Argo CD. 
 
@@ -96,7 +96,7 @@ Aside from providing strict type validation, converting these fields to first cl
 
 Example of proposed additions to Application CR spec and status to accomodate image update configuration is provided below:
 
-```
+```yaml
 apiVersion: argoproj.io/v1alpha1
 kind: Application
 metadata:
@@ -106,10 +106,8 @@ spec:
 ...
 
   image:
-    
     # updates contains all the fields to configure exactly which images should be considered for automatic updates and how they should be updated
     updates:
-
       # ImageList contains list of image specific configuration for each image that is to be considered as a candidate for updation 
       imageList:
         - image: quay.io/some/image 
@@ -188,17 +186,27 @@ spec:
       # (optional) configuration for application-wide write-back strategy. Default write back method is argocd 
       writeBack:
         method: git/argocd
-        target: kustomization
-        kustomization:
-          path: "../../base"
+
+        # (optional) in case application is configured with multiple sources, specify the repoURL and path for the source 
+        # that should be used for git write back
+        repoURL: https://github.com/source/repo
+        path: some/path
 
         # (optional) specify branch to checkout/commit to if different from revision tracked in application spec (when protected, for e.g.)
-        baseBranch: <base_branch_name>
+        baseBranch: <base_branch>
 
-        # (optional) specify target branch for commits if there is need for separate read/write branches
-        # supports templating if there is need for non-static target branch names
+        # (optional) specify commit branch for commits if there is need for separate read/write branches
+        # supports templating if there is need for non-static commit branch names
         # see https://argocd-image-updater.readthedocs.io/en/stable/basics/update-methods/#specifying-a-separate-base-and-commit-branch for details
-        targetBranch: <target_branch_name>
+        commitBranch: <commit_branch>
+
+
+        # (optional) By default, git write-back will create or update .argocd-source-<appName>.yaml
+        # setting target to kustomization will have a similar effect to running `kustomize edit set image`
+        target: kustomization
+        # (optional) Specify the kustomization directory (not file path) to edit with relative or absolute path
+        kustomization:
+          path: "../../base"
         
         # (optional) credentials for git write-back
         secret:
