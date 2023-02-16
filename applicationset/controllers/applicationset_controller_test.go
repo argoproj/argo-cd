@@ -4882,6 +4882,14 @@ func TestOwnsHandler(t *testing.T) {
 			ObjectOld: &argov1alpha1.Application{ObjectMeta: metav1.ObjectMeta{Labels: map[string]string{"foo": "bar"}}},
 			ObjectNew: &argov1alpha1.Application{ObjectMeta: metav1.ObjectMeta{Labels: map[string]string{"bar": "foo"}}},
 		}}, want: true},
+		{name: "NotAnAppOld", args: args{e: event.UpdateEvent{
+			ObjectOld: &argov1alpha1.AppProject{},
+			ObjectNew: &argov1alpha1.Application{ObjectMeta: metav1.ObjectMeta{Labels: map[string]string{"bar": "foo"}}},
+		}}, want: false},
+		{name: "NotAnAppNew", args: args{e: event.UpdateEvent{
+			ObjectOld: &argov1alpha1.Application{ObjectMeta: metav1.ObjectMeta{Labels: map[string]string{"foo": "bar"}}},
+			ObjectNew: &argov1alpha1.AppProject{},
+		}}, want: false},
 	}
 	for _, tt := range tests {
 		t.Run(tt.name, func(t *testing.T) {
