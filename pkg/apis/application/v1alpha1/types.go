@@ -179,7 +179,7 @@ type ApplicationSource struct {
 	// Ref is reference to another source within sources field. This field will not be used if used with a `source` tag.
 	Ref string `json:"ref,omitempty" protobuf:"bytes,13,opt,name=ref"`
 	// From is a list of filesystem objects that is to be copied into this source's tree. Only used within a `sources` tag.
-	From []CopyFromSpec `json:"from,omitempty protobuf:"bytes,14,opt,name=from""`
+	From []CopyFromSpec `json:"from,omitempty protobuf:" protobuf:"bytes,14,rep,name=from"`
 }
 
 // ApplicationSources contains list of required information about the sources of an application
