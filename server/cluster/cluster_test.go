@@ -2,6 +2,7 @@ package cluster
 
 import (
 	"context"
+	"fmt"
 	"testing"
 	"time"
 
@@ -46,6 +47,117 @@ func newNoopEnforcer() *rbac.Enforcer {
 	enf := rbac.NewEnforcer(fake.NewSimpleClientset(test.NewFakeConfigMap()), test.FakeArgoCDNamespace, common.ArgoCDConfigMapName, nil)
 	enf.EnableEnforce(false)
 	return enf
+}
+
+func TestUpdateCluster_RejectInvalidParams(t *testing.T) {
+	testCases := []struct {
+		name    string
+		request clusterapi.ClusterUpdateRequest
+	}{
+		{
+			name:    "allowed cluster URL in body, disallowed cluster URL in query",
+			request: clusterapi.ClusterUpdateRequest{Cluster: &v1alpha1.Cluster{Name: "", Server: "https://127.0.0.1", Project: "", ClusterResources: true}, Id: &clusterapi.ClusterID{Type: "", Value: "https://127.0.0.2"}, UpdatedFields: []string{"clusterResources", "project"}},
+		},
+		{
+			name:    "allowed cluster URL in body, disallowed cluster name in query",
+			request: clusterapi.ClusterUpdateRequest{Cluster: &v1alpha1.Cluster{Name: "", Server: "https://127.0.0.1", Project: "", ClusterResources: true}, Id: &clusterapi.ClusterID{Type: "name", Value: "disallowed-unscoped"}, UpdatedFields: []string{"clusterResources", "project"}},
+		},
+		{
+			name:    "allowed cluster URL in body, disallowed cluster name in query, changing unscoped to scoped",
+			request: clusterapi.ClusterUpdateRequest{Cluster: &v1alpha1.Cluster{Name: "", Server: "https://127.0.0.1", Project: "allowed-project", ClusterResources: true}, Id: &clusterapi.ClusterID{Type: "", Value: "https://127.0.0.2"}, UpdatedFields: []string{"clusterResources", "project"}},
+		},
+		{
+			name:    "allowed cluster URL in body, disallowed cluster URL in query, changing unscoped to scoped",
+			request: clusterapi.ClusterUpdateRequest{Cluster: &v1alpha1.Cluster{Name: "", Server: "https://127.0.0.1", Project: "allowed-project", ClusterResources: true}, Id: &clusterapi.ClusterID{Type: "name", Value: "disallowed-unscoped"}, UpdatedFields: []string{"clusterResources", "project"}},
+		},
+	}
+
+	db := &dbmocks.ArgoDB{}
+
+	clusters := []v1alpha1.Cluster{
+		{
+			Name:   "allowed-unscoped",
+			Server: "https://127.0.0.1",
+		},
+		{
+			Name:   "disallowed-unscoped",
+			Server: "https://127.0.0.2",
+		},
+		{
+			Name:    "allowed-scoped",
+			Server:  "https://127.0.0.3",
+			Project: "allowed-project",
+		},
+		{
+			Name:    "disallowed-scoped",
+			Server:  "https://127.0.0.4",
+			Project: "disallowed-project",
+		},
+	}
+
+	db.On("ListClusters", mock.Anything).Return(
+		func(ctx context.Context) *v1alpha1.ClusterList {
+			return &v1alpha1.ClusterList{
+				ListMeta: v1.ListMeta{},
+				Items:    clusters,
+			}
+		},
+		func(ctx context.Context) error {
+			return nil
+		},
+	)
+	db.On("UpdateCluster", mock.Anything, mock.Anything).Return(
+		func(ctx context.Context, c *v1alpha1.Cluster) *v1alpha1.Cluster {
+			for _, cluster := range clusters {
+				if c.Server == cluster.Server {
+					return c
+				}
+			}
+			return nil
+		},
+		func(ctx context.Context, c *v1alpha1.Cluster) error {
+			for _, cluster := range clusters {
+				if c.Server == cluster.Server {
+					return nil
+				}
+			}
+			return fmt.Errorf("cluster '%s' not found", c.Server)
+		},
+	)
+	db.On("GetCluster", mock.Anything, mock.Anything).Return(
+		func(ctx context.Context, server string) *v1alpha1.Cluster {
+			for _, cluster := range clusters {
+				if server == cluster.Server {
+					return &cluster
+				}
+			}
+			return nil
+		},
+		func(ctx context.Context, server string) error {
+			for _, cluster := range clusters {
+				if server == cluster.Server {
+					return nil
+				}
+			}
+			return fmt.Errorf("cluster '%s' not found", server)
+		},
+	)
+
+	enf := rbac.NewEnforcer(fake.NewSimpleClientset(test.NewFakeConfigMap()), test.FakeArgoCDNamespace, common.ArgoCDConfigMapName, nil)
+	_ = enf.SetBuiltinPolicy(`p, role:test, clusters, *, https://127.0.0.1, allow
+p, role:test, clusters, *, allowed-project/*, allow`)
+	enf.SetDefaultRole("role:test")
+	server := NewServer(db, enf, newServerInMemoryCache(), &kubetest.MockKubectlCmd{})
+
+	for _, c := range testCases {
+		cc := c
+		t.Run(cc.name, func(t *testing.T) {
+			t.Parallel()
+			out, err := server.Update(context.Background(), &cc.request)
+			require.Nil(t, out)
+			assert.ErrorIs(t, err, common.PermissionDeniedAPIError)
+		})
+	}
 }
 
 func TestGetCluster_UrlEncodedName(t *testing.T) {
