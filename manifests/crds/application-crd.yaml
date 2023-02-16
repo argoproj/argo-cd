@@ -222,6 +222,33 @@ spec:
                               recursively for manifests
                             type: boolean
                         type: object
+                      from:
+                        description: From is a list of filesystem objects that is
+                          to be copied into this source's tree. Only used within a
+                          `sources` tag.
+                        items:
+                          description: CopyFromSpec defines a copy declaration from
+                            another source into this one
+                          properties:
+                            destinationPath:
+                              description: DestinationPath is the destination directory
+                                at the current repository where the object will be
+                                copied to.
+                              type: string
+                            ref:
+                              description: Ref specifies the ref of the source to
+                                copy from.
+                              type: string
+                            sourcePath:
+                              description: SourcePath is the path from the Ref'd repository,
+                                the source of the copy operation.
+                              type: string
+                          required:
+                          - destinationPath
+                          - ref
+                          - sourcePath
+                          type: object
+                        type: array
                       helm:
                         description: Helm holds helm specific options
                         properties:
@@ -406,6 +433,7 @@ spec:
                           In case of Helm, this is a semver tag for the Chart's version.
                         type: string
                     required:
+                    - from
                     - repoURL
                     type: object
                   sources:
@@ -483,6 +511,33 @@ spec:
                                 recursively for manifests
                               type: boolean
                           type: object
+                        from:
+                          description: From is a list of filesystem objects that is
+                            to be copied into this source's tree. Only used within
+                            a `sources` tag.
+                          items:
+                            description: CopyFromSpec defines a copy declaration from
+                              another source into this one
+                            properties:
+                              destinationPath:
+                                description: DestinationPath is the destination directory
+                                  at the current repository where the object will
+                                  be copied to.
+                                type: string
+                              ref:
+                                description: Ref specifies the ref of the source to
+                                  copy from.
+                                type: string
+                              sourcePath:
+                                description: SourcePath is the path from the Ref'd
+                                  repository, the source of the copy operation.
+                                type: string
+                            required:
+                            - destinationPath
+                            - ref
+                            - sourcePath
+                            type: object
+                          type: array
                         helm:
                           description: Helm holds helm specific options
                           properties:
@@ -670,6 +725,7 @@ spec:
                             Chart's version.
                           type: string
                       required:
+                      - from
                       - repoURL
                       type: object
                     type: array
@@ -863,6 +919,33 @@ spec:
                           recursively for manifests
                         type: boolean
                     type: object
+                  from:
+                    description: From is a list of filesystem objects that is to be
+                      copied into this source's tree. Only used within a `sources`
+                      tag.
+                    items:
+                      description: CopyFromSpec defines a copy declaration from another
+                        source into this one
+                      properties:
+                        destinationPath:
+                          description: DestinationPath is the destination directory
+                            at the current repository where the object will be copied
+                            to.
+                          type: string
+                        ref:
+                          description: Ref specifies the ref of the source to copy
+                            from.
+                          type: string
+                        sourcePath:
+                          description: SourcePath is the path from the Ref'd repository,
+                            the source of the copy operation.
+                          type: string
+                      required:
+                      - destinationPath
+                      - ref
+                      - sourcePath
+                      type: object
+                    type: array
                   helm:
                     description: Helm holds helm specific options
                     properties:
@@ -1041,6 +1124,7 @@ spec:
                       this is a semver tag for the Chart's version.
                     type: string
                 required:
+                - from
                 - repoURL
                 type: object
               sources:
@@ -1115,6 +1199,33 @@ spec:
                             recursively for manifests
                           type: boolean
                       type: object
+                    from:
+                      description: From is a list of filesystem objects that is to
+                        be copied into this source's tree. Only used within a `sources`
+                        tag.
+                      items:
+                        description: CopyFromSpec defines a copy declaration from
+                          another source into this one
+                        properties:
+                          destinationPath:
+                            description: DestinationPath is the destination directory
+                              at the current repository where the object will be copied
+                              to.
+                            type: string
+                          ref:
+                            description: Ref specifies the ref of the source to copy
+                              from.
+                            type: string
+                          sourcePath:
+                            description: SourcePath is the path from the Ref'd repository,
+                              the source of the copy operation.
+                            type: string
+                        required:
+                        - destinationPath
+                        - ref
+                        - sourcePath
+                        type: object
+                      type: array
                     helm:
                       description: Helm holds helm specific options
                       properties:
@@ -1298,6 +1409,7 @@ spec:
                         Helm, this is a semver tag for the Chart's version.
                       type: string
                   required:
+                  - from
                   - repoURL
                   type: object
                 type: array
@@ -1515,6 +1627,33 @@ spec:
                                 recursively for manifests
                               type: boolean
                           type: object
+                        from:
+                          description: From is a list of filesystem objects that is
+                            to be copied into this source's tree. Only used within
+                            a `sources` tag.
+                          items:
+                            description: CopyFromSpec defines a copy declaration from
+                              another source into this one
+                            properties:
+                              destinationPath:
+                                description: DestinationPath is the destination directory
+                                  at the current repository where the object will
+                                  be copied to.
+                                type: string
+                              ref:
+                                description: Ref specifies the ref of the source to
+                                  copy from.
+                                type: string
+                              sourcePath:
+                                description: SourcePath is the path from the Ref'd
+                                  repository, the source of the copy operation.
+                                type: string
+                            required:
+                            - destinationPath
+                            - ref
+                            - sourcePath
+                            type: object
+                          type: array
                         helm:
                           description: Helm holds helm specific options
                           properties:
@@ -1702,6 +1841,7 @@ spec:
                             Chart's version.
                           type: string
                       required:
+                      - from
                       - repoURL
                       type: object
                     sources:
@@ -1778,6 +1918,33 @@ spec:
                                   recursively for manifests
                                 type: boolean
                             type: object
+                          from:
+                            description: From is a list of filesystem objects that
+                              is to be copied into this source's tree. Only used within
+                              a `sources` tag.
+                            items:
+                              description: CopyFromSpec defines a copy declaration
+                                from another source into this one
+                              properties:
+                                destinationPath:
+                                  description: DestinationPath is the destination
+                                    directory at the current repository where the
+                                    object will be copied to.
+                                  type: string
+                                ref:
+                                  description: Ref specifies the ref of the source
+                                    to copy from.
+                                  type: string
+                                sourcePath:
+                                  description: SourcePath is the path from the Ref'd
+                                    repository, the source of the copy operation.
+                                  type: string
+                              required:
+                              - destinationPath
+                              - ref
+                              - sourcePath
+                              type: object
+                            type: array
                           helm:
                             description: Helm holds helm specific options
                             properties:
@@ -1970,6 +2137,7 @@ spec:
                               Chart's version.
                             type: string
                         required:
+                        - from
                         - repoURL
                         type: object
                       type: array
@@ -2183,6 +2351,33 @@ spec:
                                       a directory recursively for manifests
                                     type: boolean
                                 type: object
+                              from:
+                                description: From is a list of filesystem objects
+                                  that is to be copied into this source's tree. Only
+                                  used within a `sources` tag.
+                                items:
+                                  description: CopyFromSpec defines a copy declaration
+                                    from another source into this one
+                                  properties:
+                                    destinationPath:
+                                      description: DestinationPath is the destination
+                                        directory at the current repository where
+                                        the object will be copied to.
+                                      type: string
+                                    ref:
+                                      description: Ref specifies the ref of the source
+                                        to copy from.
+                                      type: string
+                                    sourcePath:
+                                      description: SourcePath is the path from the
+                                        Ref'd repository, the source of the copy operation.
+                                      type: string
+                                  required:
+                                  - destinationPath
+                                  - ref
+                                  - sourcePath
+                                  type: object
+                                type: array
                               helm:
                                 description: Helm holds helm specific options
                                 properties:
@@ -2381,6 +2576,7 @@ spec:
                                   tag for the Chart's version.
                                 type: string
                             required:
+                            - from
                             - repoURL
                             type: object
                           sources:
@@ -2463,6 +2659,34 @@ spec:
                                         a directory recursively for manifests
                                       type: boolean
                                   type: object
+                                from:
+                                  description: From is a list of filesystem objects
+                                    that is to be copied into this source's tree.
+                                    Only used within a `sources` tag.
+                                  items:
+                                    description: CopyFromSpec defines a copy declaration
+                                      from another source into this one
+                                    properties:
+                                      destinationPath:
+                                        description: DestinationPath is the destination
+                                          directory at the current repository where
+                                          the object will be copied to.
+                                        type: string
+                                      ref:
+                                        description: Ref specifies the ref of the
+                                          source to copy from.
+                                        type: string
+                                      sourcePath:
+                                        description: SourcePath is the path from the
+                                          Ref'd repository, the source of the copy
+                                          operation.
+                                        type: string
+                                    required:
+                                    - destinationPath
+                                    - ref
+                                    - sourcePath
+                                    type: object
+                                  type: array
                                 helm:
                                   description: Helm holds helm specific options
                                   properties:
@@ -2665,6 +2889,7 @@ spec:
                                     this is a semver tag for the Chart's version.
                                   type: string
                               required:
+                              - from
                               - repoURL
                               type: object
                             type: array
@@ -2854,6 +3079,33 @@ spec:
                                   recursively for manifests
                                 type: boolean
                             type: object
+                          from:
+                            description: From is a list of filesystem objects that
+                              is to be copied into this source's tree. Only used within
+                              a `sources` tag.
+                            items:
+                              description: CopyFromSpec defines a copy declaration
+                                from another source into this one
+                              properties:
+                                destinationPath:
+                                  description: DestinationPath is the destination
+                                    directory at the current repository where the
+                                    object will be copied to.
+                                  type: string
+                                ref:
+                                  description: Ref specifies the ref of the source
+                                    to copy from.
+                                  type: string
+                                sourcePath:
+                                  description: SourcePath is the path from the Ref'd
+                                    repository, the source of the copy operation.
+                                  type: string
+                              required:
+                              - destinationPath
+                              - ref
+                              - sourcePath
+                              type: object
+                            type: array
                           helm:
                             description: Helm holds helm specific options
                             properties:
@@ -3046,6 +3298,7 @@ spec:
                               Chart's version.
                             type: string
                         required:
+                        - from
                         - repoURL
                         type: object
                       sources:
@@ -3125,6 +3378,33 @@ spec:
                                     directory recursively for manifests
                                   type: boolean
                               type: object
+                            from:
+                              description: From is a list of filesystem objects that
+                                is to be copied into this source's tree. Only used
+                                within a `sources` tag.
+                              items:
+                                description: CopyFromSpec defines a copy declaration
+                                  from another source into this one
+                                properties:
+                                  destinationPath:
+                                    description: DestinationPath is the destination
+                                      directory at the current repository where the
+                                      object will be copied to.
+                                    type: string
+                                  ref:
+                                    description: Ref specifies the ref of the source
+                                      to copy from.
+                                    type: string
+                                  sourcePath:
+                                    description: SourcePath is the path from the Ref'd
+                                      repository, the source of the copy operation.
+                                    type: string
+                                required:
+                                - destinationPath
+                                - ref
+                                - sourcePath
+                                type: object
+                              type: array
                             helm:
                               description: Helm holds helm specific options
                               properties:
@@ -3323,6 +3603,7 @@ spec:
                                 tag for the Chart's version.
                               type: string
                           required:
+                          - from
                           - repoURL
                           type: object
                         type: array
@@ -3511,6 +3792,33 @@ spec:
                                   recursively for manifests
                                 type: boolean
                             type: object
+                          from:
+                            description: From is a list of filesystem objects that
+                              is to be copied into this source's tree. Only used within
+                              a `sources` tag.
+                            items:
+                              description: CopyFromSpec defines a copy declaration
+                                from another source into this one
+                              properties:
+                                destinationPath:
+                                  description: DestinationPath is the destination
+                                    directory at the current repository where the
+                                    object will be copied to.
+                                  type: string
+                                ref:
+                                  description: Ref specifies the ref of the source
+                                    to copy from.
+                                  type: string
+                                sourcePath:
+                                  description: SourcePath is the path from the Ref'd
+                                    repository, the source of the copy operation.
+                                  type: string
+                              required:
+                              - destinationPath
+                              - ref
+                              - sourcePath
+                              type: object
+                            type: array
                           helm:
                             description: Helm holds helm specific options
                             properties:
@@ -3703,6 +4011,7 @@ spec:
                               Chart's version.
                             type: string
                         required:
+                        - from
                         - repoURL
                         type: object
                       sources:
@@ -3782,6 +4091,33 @@ spec:
                                     directory recursively for manifests
                                   type: boolean
                               type: object
+                            from:
+                              description: From is a list of filesystem objects that
+                                is to be copied into this source's tree. Only used
+                                within a `sources` tag.
+                              items:
+                                description: CopyFromSpec defines a copy declaration
+                                  from another source into this one
+                                properties:
+                                  destinationPath:
+                                    description: DestinationPath is the destination
+                                      directory at the current repository where the
+                                      object will be copied to.
+                                    type: string
+                                  ref:
+                                    description: Ref specifies the ref of the source
+                                      to copy from.
+                                    type: string
+                                  sourcePath:
+                                    description: SourcePath is the path from the Ref'd
+                                      repository, the source of the copy operation.
+                                    type: string
+                                required:
+                                - destinationPath
+                                - ref
+                                - sourcePath
+                                type: object
+                              type: array
                             helm:
                               description: Helm holds helm specific options
                               properties:
@@ -3980,6 +4316,7 @@ spec:
                                 tag for the Chart's version.
                               type: string
                           required:
+                          - from
                           - repoURL
                           type: object
                         type: array

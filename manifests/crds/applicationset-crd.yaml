@@ -188,6 +188,21 @@ spec:
                                         recurse:
                                           type: boolean
                                       type: object
+                                    from:
+                                      items:
+                                        properties:
+                                          destinationPath:
+                                            type: string
+                                          ref:
+                                            type: string
+                                          sourcePath:
+                                            type: string
+                                        required:
+                                        - destinationPath
+                                        - ref
+                                        - sourcePath
+                                        type: object
+                                      type: array
                                     helm:
                                       properties:
                                         fileParameters:
@@ -295,6 +310,7 @@ spec:
                                     targetRevision:
                                       type: string
                                   required:
+                                  - from
                                   - repoURL
                                   type: object
                                 sources:
@@ -346,6 +362,21 @@ spec:
                                           recurse:
                                             type: boolean
                                         type: object
+                                      from:
+                                        items:
+                                          properties:
+                                            destinationPath:
+                                              type: string
+                                            ref:
+                                              type: string
+                                            sourcePath:
+                                              type: string
+                                          required:
+                                          - destinationPath
+                                          - ref
+                                          - sourcePath
+                                          type: object
+                                        type: array
                                       helm:
                                         properties:
                                           fileParameters:
@@ -453,6 +484,7 @@ spec:
                                       targetRevision:
                                         type: string
                                     required:
+                                    - from
                                     - repoURL
                                     type: object
                                   type: array
@@ -663,6 +695,21 @@ spec:
                                         recurse:
                                           type: boolean
                                       type: object
+                                    from:
+                                      items:
+                                        properties:
+                                          destinationPath:
+                                            type: string
+                                          ref:
+                                            type: string
+                                          sourcePath:
+                                            type: string
+                                        required:
+                                        - destinationPath
+                                        - ref
+                                        - sourcePath
+                                        type: object
+                                      type: array
                                     helm:
                                       properties:
                                         fileParameters:
@@ -770,6 +817,7 @@ spec:
                                     targetRevision:
                                       type: string
                                   required:
+                                  - from
                                   - repoURL
                                   type: object
                                 sources:
@@ -821,6 +869,21 @@ spec:
                                           recurse:
                                             type: boolean
                                         type: object
+                                      from:
+                                        items:
+                                          properties:
+                                            destinationPath:
+                                              type: string
+                                            ref:
+                                              type: string
+                                            sourcePath:
+                                              type: string
+                                          required:
+                                          - destinationPath
+                                          - ref
+                                          - sourcePath
+                                          type: object
+                                        type: array
                                       helm:
                                         properties:
                                           fileParameters:
@@ -928,6 +991,7 @@ spec:
                                       targetRevision:
                                         type: string
                                     required:
+                                    - from
                                     - repoURL
                                     type: object
                                   type: array
@@ -1142,6 +1206,21 @@ spec:
                                         recurse:
                                           type: boolean
                                       type: object
+                                    from:
+                                      items:
+                                        properties:
+                                          destinationPath:
+                                            type: string
+                                          ref:
+                                            type: string
+                                          sourcePath:
+                                            type: string
+                                        required:
+                                        - destinationPath
+                                        - ref
+                                        - sourcePath
+                                        type: object
+                                      type: array
                                     helm:
                                       properties:
                                         fileParameters:
@@ -1249,6 +1328,7 @@ spec:
                                     targetRevision:
                                       type: string
                                   required:
+                                  - from
                                   - repoURL
                                   type: object
                                 sources:
@@ -1300,6 +1380,21 @@ spec:
                                           recurse:
                                             type: boolean
                                         type: object
+                                      from:
+                                        items:
+                                          properties:
+                                            destinationPath:
+                                              type: string
+                                            ref:
+                                              type: string
+                                            sourcePath:
+                                              type: string
+                                          required:
+                                          - destinationPath
+                                          - ref
+                                          - sourcePath
+                                          type: object
+                                        type: array
                                       helm:
                                         properties:
                                           fileParameters:
@@ -1407,6 +1502,7 @@ spec:
                                       targetRevision:
                                         type: string
                                     required:
+                                    - from
                                     - repoURL
                                     type: object
                                   type: array
@@ -1595,6 +1691,21 @@ spec:
                                         recurse:
                                           type: boolean
                                       type: object
+                                    from:
+                                      items:
+                                        properties:
+                                          destinationPath:
+                                            type: string
+                                          ref:
+                                            type: string
+                                          sourcePath:
+                                            type: string
+                                        required:
+                                        - destinationPath
+                                        - ref
+                                        - sourcePath
+                                        type: object
+                                      type: array
                                     helm:
                                       properties:
                                         fileParameters:
@@ -1702,6 +1813,7 @@ spec:
                                     targetRevision:
                                       type: string
                                   required:
+                                  - from
                                   - repoURL
                                   type: object
                                 sources:
@@ -1753,6 +1865,21 @@ spec:
                                           recurse:
                                             type: boolean
                                         type: object
+                                      from:
+                                        items:
+                                          properties:
+                                            destinationPath:
+                                              type: string
+                                            ref:
+                                              type: string
+                                            sourcePath:
+                                              type: string
+                                          required:
+                                          - destinationPath
+                                          - ref
+                                          - sourcePath
+                                          type: object
+                                        type: array
                                       helm:
                                         properties:
                                           fileParameters:
@@ -1860,6 +1987,7 @@ spec:
                                       targetRevision:
                                         type: string
                                     required:
+                                    - from
                                     - repoURL
                                     type: object
                                   type: array
@@ -2078,6 +2206,21 @@ spec:
                                                   recurse:
                                                     type: boolean
                                                 type: object
+                                              from:
+                                                items:
+                                                  properties:
+                                                    destinationPath:
+                                                      type: string
+                                                    ref:
+                                                      type: string
+                                                    sourcePath:
+                                                      type: string
+                                                  required:
+                                                  - destinationPath
+                                                  - ref
+                                                  - sourcePath
+                                                  type: object
+                                                type: array
                                               helm:
                                                 properties:
                                                   fileParameters:
@@ -2185,6 +2328,7 @@ spec:
                                               targetRevision:
                                                 type: string
                                             required:
+                                            - from
                                             - repoURL
                                             type: object
                                           sources:
@@ -2236,6 +2380,21 @@ spec:
                                                     recurse:
                                                       type: boolean
                                                   type: object
+                                                from:
+                                                  items:
+                                                    properties:
+                                                      destinationPath:
+                                                        type: string
+                                                      ref:
+                                                        type: string
+                                                      sourcePath:
+                                                        type: string
+                                                    required:
+                                                    - destinationPath
+                                                    - ref
+                                                    - sourcePath
+                                                    type: object
+                                                  type: array
                                                 helm:
                                                   properties:
                                                     fileParameters:
@@ -2343,6 +2502,7 @@ spec:
                                                 targetRevision:
                                                   type: string
                                               required:
+                                              - from
                                               - repoURL
                                               type: object
                                             type: array
@@ -2553,6 +2713,21 @@ spec:
                                                   recurse:
                                                     type: boolean
                                                 type: object
+                                              from:
+                                                items:
+                                                  properties:
+                                                    destinationPath:
+                                                      type: string
+                                                    ref:
+                                                      type: string
+                                                    sourcePath:
+                                                      type: string
+                                                  required:
+                                                  - destinationPath
+                                                  - ref
+                                                  - sourcePath
+                                                  type: object
+                                                type: array
                                               helm:
                                                 properties:
                                                   fileParameters:
@@ -2660,6 +2835,7 @@ spec:
                                               targetRevision:
                                                 type: string
                                             required:
+                                            - from
                                             - repoURL
                                             type: object
                                           sources:
@@ -2711,6 +2887,21 @@ spec:
                                                     recurse:
                                                       type: boolean
                                                   type: object
+                                                from:
+                                                  items:
+                                                    properties:
+                                                      destinationPath:
+                                                        type: string
+                                                      ref:
+                                                        type: string
+                                                      sourcePath:
+                                                        type: string
+                                                    required:
+                                                    - destinationPath
+                                                    - ref
+                                                    - sourcePath
+                                                    type: object
+                                                  type: array
                                                 helm:
                                                   properties:
                                                     fileParameters:
@@ -2818,6 +3009,7 @@ spec:
                                                 targetRevision:
                                                   type: string
                                               required:
+                                              - from
                                               - repoURL
                                               type: object
                                             type: array
@@ -3032,6 +3224,21 @@ spec:
                                                   recurse:
                                                     type: boolean
                                                 type: object
+                                              from:
+                                                items:
+                                                  properties:
+                                                    destinationPath:
+                                                      type: string
+                                                    ref:
+                                                      type: string
+                                                    sourcePath:
+                                                      type: string
+                                                  required:
+                                                  - destinationPath
+                                                  - ref
+                                                  - sourcePath
+                                                  type: object
+                                                type: array
                                               helm:
                                                 properties:
                                                   fileParameters:
@@ -3139,6 +3346,7 @@ spec:
                                               targetRevision:
                                                 type: string
                                             required:
+                                            - from
                                             - repoURL
                                             type: object
                                           sources:
@@ -3190,6 +3398,21 @@ spec:
                                                     recurse:
                                                       type: boolean
                                                   type: object
+                                                from:
+                                                  items:
+                                                    properties:
+                                                      destinationPath:
+                                                        type: string
+                                                      ref:
+                                                        type: string
+                                                      sourcePath:
+                                                        type: string
+                                                    required:
+                                                    - destinationPath
+                                                    - ref
+                                                    - sourcePath
+                                                    type: object
+                                                  type: array
                                                 helm:
                                                   properties:
                                                     fileParameters:
@@ -3297,6 +3520,7 @@ spec:
                                                 targetRevision:
                                                   type: string
                                               required:
+                                              - from
                                               - repoURL
                                               type: object
                                             type: array
@@ -3485,6 +3709,21 @@ spec:
                                                   recurse:
                                                     type: boolean
                                                 type: object
+                                              from:
+                                                items:
+                                                  properties:
+                                                    destinationPath:
+                                                      type: string
+                                                    ref:
+                                                      type: string
+                                                    sourcePath:
+                                                      type: string
+                                                  required:
+                                                  - destinationPath
+                                                  - ref
+                                                  - sourcePath
+                                                  type: object
+                                                type: array
                                               helm:
                                                 properties:
                                                   fileParameters:
@@ -3592,6 +3831,7 @@ spec:
                                               targetRevision:
                                                 type: string
                                             required:
+                                            - from
                                             - repoURL
                                             type: object
                                           sources:
@@ -3643,6 +3883,21 @@ spec:
                                                     recurse:
                                                       type: boolean
                                                   type: object
+                                                from:
+                                                  items:
+                                                    properties:
+                                                      destinationPath:
+                                                        type: string
+                                                      ref:
+                                                        type: string
+                                                      sourcePath:
+                                                        type: string
+                                                    required:
+                                                    - destinationPath
+                                                    - ref
+                                                    - sourcePath
+                                                    type: object
+                                                  type: array
                                                 helm:
                                                   properties:
                                                     fileParameters:
@@ -3750,6 +4005,7 @@ spec:
                                                 targetRevision:
                                                   type: string
                                               required:
+                                              - from
                                               - repoURL
                                               type: object
                                             type: array
@@ -4056,6 +4312,21 @@ spec:
                                                   recurse:
                                                     type: boolean
                                                 type: object
+                                              from:
+                                                items:
+                                                  properties:
+                                                    destinationPath:
+                                                      type: string
+                                                    ref:
+                                                      type: string
+                                                    sourcePath:
+                                                      type: string
+                                                  required:
+                                                  - destinationPath
+                                                  - ref
+                                                  - sourcePath
+                                                  type: object
+                                                type: array
                                               helm:
                                                 properties:
                                                   fileParameters:
@@ -4163,6 +4434,7 @@ spec:
                                               targetRevision:
                                                 type: string
                                             required:
+                                            - from
                                             - repoURL
                                             type: object
                                           sources:
@@ -4214,6 +4486,21 @@ spec:
                                                     recurse:
                                                       type: boolean
                                                   type: object
+                                                from:
+                                                  items:
+                                                    properties:
+                                                      destinationPath:
+                                                        type: string
+                                                      ref:
+                                                        type: string
+                                                      sourcePath:
+                                                        type: string
+                                                    required:
+                                                    - destinationPath
+                                                    - ref
+                                                    - sourcePath
+                                                    type: object
+                                                  type: array
                                                 helm:
                                                   properties:
                                                     fileParameters:
@@ -4321,6 +4608,7 @@ spec:
                                                 targetRevision:
                                                   type: string
                                               required:
+                                              - from
                                               - repoURL
                                               type: object
                                             type: array
@@ -4674,6 +4962,21 @@ spec:
                                                   recurse:
                                                     type: boolean
                                                 type: object
+                                              from:
+                                                items:
+                                                  properties:
+                                                    destinationPath:
+                                                      type: string
+                                                    ref:
+                                                      type: string
+                                                    sourcePath:
+                                                      type: string
+                                                  required:
+                                                  - destinationPath
+                                                  - ref
+                                                  - sourcePath
+                                                  type: object
+                                                type: array
                                               helm:
                                                 properties:
                                                   fileParameters:
@@ -4781,6 +5084,7 @@ spec:
                                               targetRevision:
                                                 type: string
                                             required:
+                                            - from
                                             - repoURL
                                             type: object
                                           sources:
@@ -4832,6 +5136,21 @@ spec:
                                                     recurse:
                                                       type: boolean
                                                   type: object
+                                                from:
+                                                  items:
+                                                    properties:
+                                                      destinationPath:
+                                                        type: string
+                                                      ref:
+                                                        type: string
+                                                      sourcePath:
+                                                        type: string
+                                                    required:
+                                                    - destinationPath
+                                                    - ref
+                                                    - sourcePath
+                                                    type: object
+                                                  type: array
                                                 helm:
                                                   properties:
                                                     fileParameters:
@@ -4939,6 +5258,7 @@ spec:
                                                 targetRevision:
                                                   type: string
                                               required:
+                                              - from
                                               - repoURL
                                               type: object
                                             type: array
@@ -5143,6 +5463,21 @@ spec:
                                         recurse:
                                           type: boolean
                                       type: object
+                                    from:
+                                      items:
+                                        properties:
+                                          destinationPath:
+                                            type: string
+                                          ref:
+                                            type: string
+                                          sourcePath:
+                                            type: string
+                                        required:
+                                        - destinationPath
+                                        - ref
+                                        - sourcePath
+                                        type: object
+                                      type: array
                                     helm:
                                       properties:
                                         fileParameters:
@@ -5250,6 +5585,7 @@ spec:
                                     targetRevision:
                                       type: string
                                   required:
+                                  - from
                                   - repoURL
                                   type: object
                                 sources:
@@ -5301,6 +5637,21 @@ spec:
                                           recurse:
                                             type: boolean
                                         type: object
+                                      from:
+                                        items:
+                                          properties:
+                                            destinationPath:
+                                              type: string
+                                            ref:
+                                              type: string
+                                            sourcePath:
+                                              type: string
+                                          required:
+                                          - destinationPath
+                                          - ref
+                                          - sourcePath
+                                          type: object
+                                        type: array
                                       helm:
                                         properties:
                                           fileParameters:
@@ -5408,6 +5759,7 @@ spec:
                                       targetRevision:
                                         type: string
                                     required:
+                                    - from
                                     - repoURL
                                     type: object
                                   type: array
@@ -5626,6 +5978,21 @@ spec:
                                                   recurse:
                                                     type: boolean
                                                 type: object
+                                              from:
+                                                items:
+                                                  properties:
+                                                    destinationPath:
+                                                      type: string
+                                                    ref:
+                                                      type: string
+                                                    sourcePath:
+                                                      type: string
+                                                  required:
+                                                  - destinationPath
+                                                  - ref
+                                                  - sourcePath
+                                                  type: object
+                                                type: array
                                               helm:
                                                 properties:
                                                   fileParameters:
@@ -5733,6 +6100,7 @@ spec:
                                               targetRevision:
                                                 type: string
                                             required:
+                                            - from
                                             - repoURL
                                             type: object
                                           sources:
@@ -5784,6 +6152,21 @@ spec:
                                                     recurse:
                                                       type: boolean
                                                   type: object
+                                                from:
+                                                  items:
+                                                    properties:
+                                                      destinationPath:
+                                                        type: string
+                                                      ref:
+                                                        type: string
+                                                      sourcePath:
+                                                        type: string
+                                                    required:
+                                                    - destinationPath
+                                                    - ref
+                                                    - sourcePath
+                                                    type: object
+                                                  type: array
                                                 helm:
                                                   properties:
                                                     fileParameters:
@@ -5891,6 +6274,7 @@ spec:
                                                 targetRevision:
                                                   type: string
                                               required:
+                                              - from
                                               - repoURL
                                               type: object
                                             type: array
@@ -6101,6 +6485,21 @@ spec:
                                                   recurse:
                                                     type: boolean
                                                 type: object
+                                              from:
+                                                items:
+                                                  properties:
+                                                    destinationPath:
+                                                      type: string
+                                                    ref:
+                                                      type: string
+                                                    sourcePath:
+                                                      type: string
+                                                  required:
+                                                  - destinationPath
+                                                  - ref
+                                                  - sourcePath
+                                                  type: object
+                                                type: array
                                               helm:
                                                 properties:
                                                   fileParameters:
@@ -6208,6 +6607,7 @@ spec:
                                               targetRevision:
                                                 type: string
                                             required:
+                                            - from
                                             - repoURL
                                             type: object
                                           sources:
@@ -6259,6 +6659,21 @@ spec:
                                                     recurse:
                                                       type: boolean
                                                   type: object
+                                                from:
+                                                  items:
+                                                    properties:
+                                                      destinationPath:
+                                                        type: string
+                                                      ref:
+                                                        type: string
+                                                      sourcePath:
+                                                        type: string
+                                                    required:
+                                                    - destinationPath
+                                                    - ref
+                                                    - sourcePath
+                                                    type: object
+                                                  type: array
                                                 helm:
                                                   properties:
                                                     fileParameters:
@@ -6366,6 +6781,7 @@ spec:
                                                 targetRevision:
                                                   type: string
                                               required:
+                                              - from
                                               - repoURL
                                               type: object
                                             type: array
@@ -6580,6 +6996,21 @@ spec:
                                                   recurse:
                                                     type: boolean
                                                 type: object
+                                              from:
+                                                items:
+                                                  properties:
+                                                    destinationPath:
+                                                      type: string
+                                                    ref:
+                                                      type: string
+                                                    sourcePath:
+                                                      type: string
+                                                  required:
+                                                  - destinationPath
+                                                  - ref
+                                                  - sourcePath
+                                                  type: object
+                                                type: array
                                               helm:
                                                 properties:
                                                   fileParameters:
@@ -6687,6 +7118,7 @@ spec:
                                               targetRevision:
                                                 type: string
                                             required:
+                                            - from
                                             - repoURL
                                             type: object
                                           sources:
@@ -6738,6 +7170,21 @@ spec:
                                                     recurse:
                                                       type: boolean
                                                   type: object
+                                                from:
+                                                  items:
+                                                    properties:
+                                                      destinationPath:
+                                                        type: string
+                                                      ref:
+                                                        type: string
+                                                      sourcePath:
+                                                        type: string
+                                                    required:
+                                                    - destinationPath
+                                                    - ref
+                                                    - sourcePath
+                                                    type: object
+                                                  type: array
                                                 helm:
                                                   properties:
                                                     fileParameters:
@@ -6845,6 +7292,7 @@ spec:
                                                 targetRevision:
                                                   type: string
                                               required:
+                                              - from
                                               - repoURL
                                               type: object
                                             type: array
@@ -7033,6 +7481,21 @@ spec:
                                                   recurse:
                                                     type: boolean
                                                 type: object
+                                              from:
+                                                items:
+                                                  properties:
+                                                    destinationPath:
+                                                      type: string
+                                                    ref:
+                                                      type: string
+                                                    sourcePath:
+                                                      type: string
+                                                  required:
+                                                  - destinationPath
+                                                  - ref
+                                                  - sourcePath
+                                                  type: object
+                                                type: array
                                               helm:
                                                 properties:
                                                   fileParameters:
@@ -7140,6 +7603,7 @@ spec:
                                               targetRevision:
                                                 type: string
                                             required:
+                                            - from
                                             - repoURL
                                             type: object
                                           sources:
@@ -7191,6 +7655,21 @@ spec:
                                                     recurse:
                                                       type: boolean
                                                   type: object
+                                                from:
+                                                  items:
+                                                    properties:
+                                                      destinationPath:
+                                                        type: string
+                                                      ref:
+                                                        type: string
+                                                      sourcePath:
+                                                        type: string
+                                                    required:
+                                                    - destinationPath
+                                                    - ref
+                                                    - sourcePath
+                                                    type: object
+                                                  type: array
                                                 helm:
                                                   properties:
                                                     fileParameters:
@@ -7298,6 +7777,7 @@ spec:
                                                 targetRevision:
                                                   type: string
                                               required:
+                                              - from
                                               - repoURL
                                               type: object
                                             type: array
@@ -7604,6 +8084,21 @@ spec:
                                                   recurse:
                                                     type: boolean
                                                 type: object
+                                              from:
+                                                items:
+                                                  properties:
+                                                    destinationPath:
+                                                      type: string
+                                                    ref:
+                                                      type: string
+                                                    sourcePath:
+                                                      type: string
+                                                  required:
+                                                  - destinationPath
+                                                  - ref
+                                                  - sourcePath
+                                                  type: object
+                                                type: array
                                               helm:
                                                 properties:
                                                   fileParameters:
@@ -7711,6 +8206,7 @@ spec:
                                               targetRevision:
                                                 type: string
                                             required:
+                                            - from
                                             - repoURL
                                             type: object
                                           sources:
@@ -7762,6 +8258,21 @@ spec:
                                                     recurse:
                                                       type: boolean
                                                   type: object
+                                                from:
+                                                  items:
+                                                    properties:
+                                                      destinationPath:
+                                                        type: string
+                                                      ref:
+                                                        type: string
+                                                      sourcePath:
+                                                        type: string
+                                                    required:
+                                                    - destinationPath
+                                                    - ref
+                                                    - sourcePath
+                                                    type: object
+                                                  type: array
                                                 helm:
                                                   properties:
                                                     fileParameters:
@@ -7869,6 +8380,7 @@ spec:
                                                 targetRevision:
                                                   type: string
                                               required:
+                                              - from
                                               - repoURL
                                               type: object
                                             type: array
@@ -8222,6 +8734,21 @@ spec:
                                                   recurse:
                                                     type: boolean
                                                 type: object
+                                              from:
+                                                items:
+                                                  properties:
+                                                    destinationPath:
+                                                      type: string
+                                                    ref:
+                                                      type: string
+                                                    sourcePath:
+                                                      type: string
+                                                  required:
+                                                  - destinationPath
+                                                  - ref
+                                                  - sourcePath
+                                                  type: object
+                                                type: array
                                               helm:
                                                 properties:
                                                   fileParameters:
@@ -8329,6 +8856,7 @@ spec:
                                               targetRevision:
                                                 type: string
                                             required:
+                                            - from
                                             - repoURL
                                             type: object
                                           sources:
@@ -8380,6 +8908,21 @@ spec:
                                                     recurse:
                                                       type: boolean
                                                   type: object
+                                                from:
+                                                  items:
+                                                    properties:
+                                                      destinationPath:
+                                                        type: string
+                                                      ref:
+                                                        type: string
+                                                      sourcePath:
+                                                        type: string
+                                                    required:
+                                                    - destinationPath
+                                                    - ref
+                                                    - sourcePath
+                                                    type: object
+                                                  type: array
                                                 helm:
                                                   properties:
                                                     fileParameters:
@@ -8487,6 +9030,7 @@ spec:
                                                 targetRevision:
                                                   type: string
                                               required:
+                                              - from
                                               - repoURL
                                               type: object
                                             type: array
@@ -8695,6 +9239,21 @@ spec:
                                         recurse:
                                           type: boolean
                                       type: object
+                                    from:
+                                      items:
+                                        properties:
+                                          destinationPath:
+                                            type: string
+                                          ref:
+                                            type: string
+                                          sourcePath:
+                                            type: string
+                                        required:
+                                        - destinationPath
+                                        - ref
+                                        - sourcePath
+                                        type: object
+                                      type: array
                                     helm:
                                       properties:
                                         fileParameters:
@@ -8802,6 +9361,7 @@ spec:
                                     targetRevision:
                                       type: string
                                   required:
+                                  - from
                                   - repoURL
                                   type: object
                                 sources:
@@ -8853,6 +9413,21 @@ spec:
                                           recurse:
                                             type: boolean
                                         type: object
+                                      from:
+                                        items:
+                                          properties:
+                                            destinationPath:
+                                              type: string
+                                            ref:
+                                              type: string
+                                            sourcePath:
+                                              type: string
+                                          required:
+                                          - destinationPath
+                                          - ref
+                                          - sourcePath
+                                          type: object
+                                        type: array
                                       helm:
                                         properties:
                                           fileParameters:
@@ -8960,6 +9535,7 @@ spec:
                                       targetRevision:
                                         type: string
                                     required:
+                                    - from
                                     - repoURL
                                     type: object
                                   type: array
@@ -9263,6 +9839,21 @@ spec:
                                         recurse:
                                           type: boolean
                                       type: object
+                                    from:
+                                      items:
+                                        properties:
+                                          destinationPath:
+                                            type: string
+                                          ref:
+                                            type: string
+                                          sourcePath:
+                                            type: string
+                                        required:
+                                        - destinationPath
+                                        - ref
+                                        - sourcePath
+                                        type: object
+                                      type: array
                                     helm:
                                       properties:
                                         fileParameters:
@@ -9370,6 +9961,7 @@ spec:
                                     targetRevision:
                                       type: string
                                   required:
+                                  - from
                                   - repoURL
                                   type: object
                                 sources:
@@ -9421,6 +10013,21 @@ spec:
                                           recurse:
                                             type: boolean
                                         type: object
+                                      from:
+                                        items:
+                                          properties:
+                                            destinationPath:
+                                              type: string
+                                            ref:
+                                              type: string
+                                            sourcePath:
+                                              type: string
+                                          required:
+                                          - destinationPath
+                                          - ref
+                                          - sourcePath
+                                          type: object
+                                        type: array
                                       helm:
                                         properties:
                                           fileParameters:
@@ -9528,6 +10135,7 @@ spec:
                                       targetRevision:
                                         type: string
                                     required:
+                                    - from
                                     - repoURL
                                     type: object
                                   type: array
@@ -9881,6 +10489,21 @@ spec:
                                         recurse:
                                           type: boolean
                                       type: object
+                                    from:
+                                      items:
+                                        properties:
+                                          destinationPath:
+                                            type: string
+                                          ref:
+                                            type: string
+                                          sourcePath:
+                                            type: string
+                                        required:
+                                        - destinationPath
+                                        - ref
+                                        - sourcePath
+                                        type: object
+                                      type: array
                                     helm:
                                       properties:
                                         fileParameters:
@@ -9988,6 +10611,7 @@ spec:
                                     targetRevision:
                                       type: string
                                   required:
+                                  - from
                                   - repoURL
                                   type: object
                                 sources:
@@ -10039,6 +10663,21 @@ spec:
                                           recurse:
                                             type: boolean
                                         type: object
+                                      from:
+                                        items:
+                                          properties:
+                                            destinationPath:
+                                              type: string
+                                            ref:
+                                              type: string
+                                            sourcePath:
+                                              type: string
+                                          required:
+                                          - destinationPath
+                                          - ref
+                                          - sourcePath
+                                          type: object
+                                        type: array
                                       helm:
                                         properties:
                                           fileParameters:
@@ -10146,6 +10785,7 @@ spec:
                                       targetRevision:
                                         type: string
                                     required:
+                                    - from
                                     - repoURL
                                     type: object
                                   type: array
@@ -10388,6 +11028,21 @@ spec:
                               recurse:
                                 type: boolean
                             type: object
+                          from:
+                            items:
+                              properties:
+                                destinationPath:
+                                  type: string
+                                ref:
+                                  type: string
+                                sourcePath:
+                                  type: string
+                              required:
+                              - destinationPath
+                              - ref
+                              - sourcePath
+                              type: object
+                            type: array
                           helm:
                             properties:
                               fileParameters:
@@ -10495,6 +11150,7 @@ spec:
                           targetRevision:
                             type: string
                         required:
+                        - from
                         - repoURL
                         type: object
                       sources:
@@ -10546,6 +11202,21 @@ spec:
                                 recurse:
                                   type: boolean
                               type: object
+                            from:
+                              items:
+                                properties:
+                                  destinationPath:
+                                    type: string
+                                  ref:
+                                    type: string
+                                  sourcePath:
+                                    type: string
+                                required:
+                                - destinationPath
+                                - ref
+                                - sourcePath
+                                type: object
+                              type: array
                             helm:
                               properties:
                                 fileParameters:
@@ -10653,6 +11324,7 @@ spec:
                             targetRevision:
                               type: string
                           required:
+                          - from
                           - repoURL
                           type: object
                         type: array

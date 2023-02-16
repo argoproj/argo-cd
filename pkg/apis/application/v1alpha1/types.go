@@ -178,6 +178,8 @@ type ApplicationSource struct {
 	Chart string `json:"chart,omitempty" protobuf:"bytes,12,opt,name=chart"`
 	// Ref is reference to another source within sources field. This field will not be used if used with a `source` tag.
 	Ref string `json:"ref,omitempty" protobuf:"bytes,13,opt,name=ref"`
+	// From is a list of filesystem objects that is to be copied into this source's tree. Only used within a `sources` tag.
+	From []CopyFromSpec `json:"from,omitempty protobuf:"bytes,14,opt,name=from""`
 }
 
 // ApplicationSources contains list of required information about the sources of an application
@@ -603,6 +605,16 @@ func (c *ApplicationSourcePlugin) RemoveEnvEntry(key string) error {
 		}
 	}
 	return fmt.Errorf("unable to find env variable with key %q for plugin %q", key, c.Name)
+}
+
+// CopyFromSpec defines a copy declaration from another source into this one
+type CopyFromSpec struct {
+	// Ref specifies the ref of the source to copy from.
+	Ref string `json:"ref" protobuf:"bytes,1,name=ref"`
+	// SourcePath is the path from the Ref'd repository, the source of the copy operation.
+	SourcePath string `json:"sourcePath" protobuf:"bytes,2,name=sourcePath"`
+	// DestinationPath is the destination directory at the current repository where the object will be copied to.
+	DestinationPath string `json:"destinationPath" protobuf:"bytes,3,name=destinationPath"`
 }
 
 // ApplicationDestination holds information about the application's destination
