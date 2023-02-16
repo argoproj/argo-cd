@@ -537,7 +537,7 @@ func (r *ApplicationSetReconciler) SetupWithManager(mgr ctrl.Manager) error {
 
 	return ctrl.NewControllerManagedBy(mgr).
 		For(&argov1alpha1.ApplicationSet{}).
-		Owns(&argov1alpha1.Application{}, ownsOptions()).
+		Owns(&argov1alpha1.Application{}, builder.WithPredicates(ownsHandler)).
 		Watches(
 			&source.Kind{Type: &corev1.Secret{}},
 			&clusterSecretEventHandler{
@@ -1316,48 +1316,44 @@ func syncApplication(application argov1alpha1.Application, prune bool) (argov1al
 	return application, nil
 }
 
-func ownsOptions() builder.Predicates {
-	funcs := predicate.Funcs{
-		CreateFunc: func(e event.CreateEvent) bool {
-			// if we are the owner and there is a create event, we most likely created it and do not need to
-			// re-reconcile
-			log.Debugln("received create event from owning an application")
+var ownsHandler = predicate.Funcs{
+	CreateFunc: func(e event.CreateEvent) bool {
+		// if we are the owner and there is a create event, we most likely created it and do not need to
+		// re-reconcile
+		log.Debugln("received create event from owning an application")
+		return false
+	},
+	DeleteFunc: func(e event.DeleteEvent) bool {
+		log.Debugln("received delete event from owning an application")
+		return true
+	},
+	UpdateFunc: func(e event.UpdateEvent) bool {
+		log.Debugln("received update event from owning an application")
+		appOld, isApp := e.ObjectOld.(*argov1alpha1.Application)
+		if !isApp {
 			return false
-		},
-		DeleteFunc: func(e event.DeleteEvent) bool {
-			log.Debugln("received delete event from owning an application")
-			return true
-		},
-		UpdateFunc: func(e event.UpdateEvent) bool {
-			log.Debugln("received update event from owning an application")
-			appOld, isApp := e.ObjectOld.(*argov1alpha1.Application)
-			if !isApp {
-				return false
-			}
-			appNew, isApp := e.ObjectNew.(*argov1alpha1.Application)
-			if !isApp {
-				return false
-			}
-			// the applicationset controller only owns Application.Spec and Application.Metadata.
-			// we do not need to re-reconcile if parts of the application changes outside the applicationset's control.
-			// an example being, Application.ApplicationStatus.ReconciledAt which gets updated by the application controller.
-			// Application.ObjectMeta.ResourceVersion and Application.ObjectMeta.Generation are set by K8s.
-			appOld.ObjectMeta.ResourceVersion = ""
-			appOld.ObjectMeta.Generation = 0
-			appNew.ObjectMeta.ResourceVersion = ""
-			appNew.ObjectMeta.Generation = 0
-			requeue := !reflect.DeepEqual(appOld.Spec, appNew.Spec) ||
-				!reflect.DeepEqual(appOld.ObjectMeta, appNew.ObjectMeta)
-			log.Debugf("requeue: %t caused by application %s\n", requeue, appNew.Name)
-			return requeue
-		},
-		GenericFunc: func(e event.GenericEvent) bool {
-			log.Debugln("received generic event from owning an application")
-			return true
-		},
-	}
-
-	return builder.WithPredicates(funcs)
+		}
+		appNew, isApp := e.ObjectNew.(*argov1alpha1.Application)
+		if !isApp {
+			return false
+		}
+		// the applicationset controller only owns Application.Spec and Application.Metadata.
+		// we do not need to re-reconcile if parts of the application changes outside the applicationset's control.
+		// an example being, Application.ApplicationStatus.ReconciledAt which gets updated by the application controller.
+		// Application.ObjectMeta.ResourceVersion and Application.ObjectMeta.Generation are set by K8s.
+		appOld.ObjectMeta.ResourceVersion = ""
+		appOld.ObjectMeta.Generation = 0
+		appNew.ObjectMeta.ResourceVersion = ""
+		appNew.ObjectMeta.Generation = 0
+		requeue := !reflect.DeepEqual(appOld.Spec, appNew.Spec) ||
+			!reflect.DeepEqual(appOld.ObjectMeta, appNew.ObjectMeta)
+		log.Debugf("requeue: %t caused by application %s\n", requeue, appNew.Name)
+		return requeue
+	},
+	GenericFunc: func(e event.GenericEvent) bool {
+		log.Debugln("received generic event from owning an application")
+		return true
+	},
 }
 
 var _ handler.EventHandler = &clusterSecretEventHandler{}
