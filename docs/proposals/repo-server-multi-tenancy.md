@@ -45,7 +45,7 @@ There have been some changes made recently to increase the difficulty for any to
 ### Non-Goals
 
 * There is no intention to replace CMP v2, but rather allow it to be leveraged in non-trusting multi-tenancy environments.
-* There are no intentions for architectural changes to the repository server itself, or the gRPC API for communication with 
+* There are no intentions for architectural changes to the repository server itself, or the gRPC API for communication with the repository server
 
 ## Proposal
 
