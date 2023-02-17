@@ -1,5 +1,4 @@
 import {Autocomplete, Checkbox} from 'argo-ui/v2';
-import * as classNames from 'classnames';
 import * as React from 'react';
 
 import './filter.scss';
@@ -16,6 +15,7 @@ interface FilterProps {
     retry?: () => void;
     loading?: boolean;
     radio?: boolean;
+    collapsed?: boolean;
 }
 
 export interface CheckboxOption {
@@ -52,31 +52,21 @@ export const CheckboxRow = (props: {value: boolean; onChange?: (value: boolean) 
     );
 };
 
-export const FiltersGroup = (props: {
-    children?: React.ReactNode;
-    content: React.ReactNode;
-    appliedFilter?: string[];
-    expanded: boolean;
-    setShown: (val: boolean) => void;
-    onClearFilter?: () => void;
-}) => {
+export const FiltersGroup = (props: {children?: React.ReactNode; content: React.ReactNode; appliedFilter?: string[]; onClearFilter?: () => void; collapsed?: boolean}) => {
     return (
-        <div className={classNames('filters-group', {'filters-group--expanded': props.expanded})}>
-            <div className='filters-group__panel'>
-                <i className='fa fa-filter' />
-                <div className='filters-group__panel__title'>
-                    FILTERS{' '}
-                    {props.appliedFilter?.length > 0 && props.onClearFilter && (
+        !props.collapsed && (
+            <div className='filters-group'>
+                {props.appliedFilter?.length > 0 && props.onClearFilter && (
+                    <div className='filters-group__header'>
                         <button onClick={() => props.onClearFilter()} className='argo-button argo-button--base argo-button--sm'>
-                            CLEAR ALL
+                            <i className='fa fa-times-circle' /> CLEAR ALL
                         </button>
-                    )}
-                    <i className='fa fa-thumbtack filters-group__toggle' onClick={() => props.setShown(!props.expanded)} />
-                </div>
+                    </div>
+                )}
                 <>{props.children}</>
+                <div className='filters-group__content'>{props.content}</div>
             </div>
-            <div className='filters-group__content'>{props.content}</div>
-        </div>
+        )
     );
 };
 
@@ -87,7 +77,7 @@ export const Filter = (props: FilterProps) => {
     const [values, setValues] = React.useState(init);
     const [tags, setTags] = React.useState([]);
     const [input, setInput] = React.useState('');
-    const [collapsed, setCollapsed] = React.useState(false);
+    const [collapsed, setCollapsed] = React.useState(props.collapsed || false);
     const [options, setOptions] = React.useState(props.options);
 
     React.useEffect(() => {
@@ -158,7 +148,7 @@ export const Filter = (props: FilterProps) => {
                                     setValues(update);
                                 }}
                                 style={{width: '100%'}}
-                                inputStyle={{marginBottom: '0.5em', backgroundColor: 'white'}}
+                                inputStyle={{marginBottom: '0.5em', backgroundColor: 'black', border: 'none'}}
                             />
                         )}
                         {((props.field ? tags : options) || []).map((opt, i) => (

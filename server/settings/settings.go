@@ -2,7 +2,13 @@ package settings
 
 import (
 	"context"
+	"fmt"
+
 	"github.com/ghodss/yaml"
+	"github.com/golang/protobuf/ptypes/empty"
+
+	"github.com/argoproj/argo-cd/v2/reposerver/apiclient"
+	ioutil "github.com/argoproj/argo-cd/v2/util/io"
 
 	sessionmgr "github.com/argoproj/argo-cd/v2/util/session"
 
@@ -13,9 +19,11 @@ import (
 
 // Server provides a Settings service
 type Server struct {
-	mgr           *settings.SettingsManager
-	authenticator Authenticator
-	disableAuth   bool
+	mgr                       *settings.SettingsManager
+	repoClient                apiclient.Clientset
+	authenticator             Authenticator
+	disableAuth               bool
+	appsInAnyNamespaceEnabled bool
 }
 
 type Authenticator interface {
@@ -23,8 +31,8 @@ type Authenticator interface {
 }
 
 // NewServer returns a new instance of the Settings service
-func NewServer(mgr *settings.SettingsManager, authenticator Authenticator, disableAuth bool) *Server {
-	return &Server{mgr: mgr, authenticator: authenticator, disableAuth: disableAuth}
+func NewServer(mgr *settings.SettingsManager, repoClient apiclient.Clientset, authenticator Authenticator, disableAuth, appsInAnyNamespaceEnabled bool) *Server {
+	return &Server{mgr: mgr, repoClient: repoClient, authenticator: authenticator, disableAuth: disableAuth, appsInAnyNamespaceEnabled: appsInAnyNamespaceEnabled}
 }
 
 // Get returns Argo CD settings
@@ -54,7 +62,7 @@ func (s *Server) Get(ctx context.Context, q *settingspkg.SettingsQuery) (*settin
 	if err != nil {
 		return nil, err
 	}
-	plugins, err := s.plugins()
+	plugins, err := s.plugins(ctx, false)
 	if err != nil {
 		return nil, err
 	}
@@ -102,13 +110,14 @@ func (s *Server) Get(ctx context.Context, q *settingspkg.SettingsQuery) (*settin
 			ChatText:   help.ChatText,
 			BinaryUrls: help.BinaryURLs,
 		},
-		Plugins:            plugins,
-		UserLoginsDisabled: userLoginsDisabled,
-		KustomizeVersions:  kustomizeVersions,
-		UiCssURL:           argoCDSettings.UiCssURL,
-		PasswordPattern:    argoCDSettings.PasswordPattern,
-		TrackingMethod:     trackingMethod,
-		ExecEnabled:        argoCDSettings.ExecEnabled,
+		Plugins:                   plugins,
+		UserLoginsDisabled:        userLoginsDisabled,
+		KustomizeVersions:         kustomizeVersions,
+		UiCssURL:                  argoCDSettings.UiCssURL,
+		PasswordPattern:           argoCDSettings.PasswordPattern,
+		TrackingMethod:            trackingMethod,
+		ExecEnabled:               argoCDSettings.ExecEnabled,
+		AppsInAnyNamespaceEnabled: s.appsInAnyNamespaceEnabled,
 	}
 
 	if sessionmgr.LoggedIn(ctx) || s.disableAuth {
@@ -125,6 +134,7 @@ func (s *Server) Get(ctx context.Context, q *settingspkg.SettingsQuery) (*settin
 		set.UiBannerURL = argoCDSettings.UiBannerURL
 		set.UiBannerPermanent = argoCDSettings.UiBannerPermanent
 		set.UiBannerPosition = argoCDSettings.UiBannerPosition
+		set.ControllerNamespace = s.mgr.GetNamespace()
 	}
 	if argoCDSettings.DexConfig != "" {
 		var cfg settingspkg.DexConfig
@@ -148,22 +158,54 @@ func (s *Server) Get(ctx context.Context, q *settingspkg.SettingsQuery) (*settin
 	return &set, nil
 }
 
-func (s *Server) plugins() ([]*settingspkg.Plugin, error) {
+// GetPlugins returns a list of plugins
+func (s *Server) GetPlugins(ctx context.Context, q *settingspkg.SettingsQuery) (*settingspkg.SettingsPluginsResponse, error) {
+	plugins, err := s.plugins(ctx, true)
+	if err != nil {
+		return nil, err
+	}
+	return &settingspkg.SettingsPluginsResponse{Plugins: plugins}, nil
+}
+
+func (s *Server) plugins(ctx context.Context, includeV2Plugins bool) ([]*settingspkg.Plugin, error) {
 	in, err := s.mgr.GetConfigManagementPlugins()
 	if err != nil {
 		return nil, err
 	}
-	out := make([]*settingspkg.Plugin, len(in))
-	for i, p := range in {
-		out[i] = &settingspkg.Plugin{Name: p.Name}
-
+	var out []*settingspkg.Plugin
+	for _, p := range in {
+		out = append(out, &settingspkg.Plugin{Name: p.Name})
 	}
+
+	if includeV2Plugins {
+		closer, client, err := s.repoClient.NewRepoServerClient()
+		if err != nil {
+			return nil, fmt.Errorf("error creating repo server client: %w", err)
+		}
+		defer ioutil.Close(closer)
+
+		pluginList, err := client.ListPlugins(ctx, &empty.Empty{})
+		if err != nil {
+			return nil, fmt.Errorf("failed to list sidecar plugins from reposerver: %w", err)
+		}
+
+		if pluginList != nil && len(pluginList.Items) > 0 {
+			for _, p := range pluginList.Items {
+				out = append(out, &settingspkg.Plugin{Name: p.Name})
+			}
+		}
+	}
+
 	return out, nil
 }
 
 // AuthFuncOverride disables authentication for settings service
 func (s *Server) AuthFuncOverride(ctx context.Context, fullMethodName string) (context.Context, error) {
-	// this authenticates the user, but ignores any error, so that we have claims populated
-	ctx, _ = s.authenticator.Authenticate(ctx)
-	return ctx, nil
+	ctx, err := s.authenticator.Authenticate(ctx)
+	if fullMethodName == "/cluster.SettingsService/Get" {
+		// SettingsService/Get API is used by login page.
+		// This authenticates the user, but ignores any error, so that we have claims populated
+		err = nil
+	}
+	return ctx, err
 }

@@ -32,7 +32,7 @@ Not recommended for production use. This type of installation is typically used 
   > Note: Argo CD CRDs are not included into [namespace-install.yaml](https://github.com/argoproj/argo-cd/blob/master/manifests/namespace-install.yaml).
   > and have to be installed separately. The CRD manifests are located in the [manifests/crds](https://github.com/argoproj/argo-cd/blob/master/manifests/crds) directory.
   > Use the following command to install them:
-  > ```bash
+  > ```
   > kubectl apply -k https://github.com/argoproj/argo-cd/manifests/crds\?ref\=stable
   > ```
 
@@ -80,7 +80,7 @@ resources:
 ## Helm
 
 The Argo CD can be installed using [Helm](https://helm.sh/). The Helm chart is currently community maintained and available at
-[argo-helm/charts/argo-cd](https://github.com/argoproj/argo-helm/tree/master/charts/argo-cd).
+[argo-helm/charts/argo-cd](https://github.com/argoproj/argo-helm/tree/main/charts/argo-cd).
 
 ## Supported versions
 

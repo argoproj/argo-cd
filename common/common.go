@@ -1,12 +1,15 @@
 package common
 
 import (
+	"errors"
 	"os"
 	"path/filepath"
 	"strconv"
 	"time"
 
 	"github.com/sirupsen/logrus"
+	"google.golang.org/grpc/codes"
+	"google.golang.org/grpc/status"
 )
 
 // Default service addresses and URLS of Argo CD internal services
@@ -21,9 +24,11 @@ const (
 
 // Kubernetes ConfigMap and Secret resource names which hold Argo CD settings
 const (
-	ArgoCDConfigMapName     = "argocd-cm"
-	ArgoCDSecretName        = "argocd-secret"
-	ArgoCDRBACConfigMapName = "argocd-rbac-cm"
+	ArgoCDConfigMapName              = "argocd-cm"
+	ArgoCDSecretName                 = "argocd-secret"
+	ArgoCDNotificationsConfigMapName = "argocd-notifications-cm"
+	ArgoCDNotificationsSecretName    = "argocd-notifications-secret"
+	ArgoCDRBACConfigMapName          = "argocd-rbac-cm"
 	// Contains SSH known hosts data for connecting repositories. Will get mounted as volume to pods
 	ArgoCDKnownHostsConfigMapName = "argocd-ssh-known-hosts-cm"
 	// Contains TLS certificate data for connecting repositories. Will get mounted as volume to pods
@@ -78,6 +83,8 @@ const (
 	ArgoCDAdminUsername = "admin"
 	// ArgoCDUserAgentName is the default user-agent name used by the gRPC API client library and grpc-gateway
 	ArgoCDUserAgentName = "argocd-client"
+	// ArgoCDSSAManager is the default argocd manager name used by server-side apply syncs
+	ArgoCDSSAManager = "argocd-controller"
 	// AuthCookieName is the HTTP cookie name where we store our auth token
 	AuthCookieName = "argocd.token"
 	// StateCookieName is the HTTP cookie name that holds temporary nonce tokens for CSRF protection
@@ -217,6 +224,8 @@ const (
 
 	// DefaultCMPWorkDirName defines the work directory name used by the cmp-server
 	DefaultCMPWorkDirName = "_cmp_server"
+
+	ConfigMapPluginDeprecationWarning = "argocd-cm plugins are deprecated, and support will be removed in v2.7. Upgrade your plugin to be installed via sidecar. https://argo-cd.readthedocs.io/en/stable/user-guide/config-management-plugins/"
 )
 
 const (
@@ -283,7 +292,7 @@ func GetCMPWorkDir() string {
 }
 
 const (
-	// AnnotationApplicationRefresh is an annotation that is added when an ApplicationSet is requested to be refreshed by a webhook. The ApplicationSet controller will remove this annotation at the end of reconcilation.
+	// AnnotationApplicationRefresh is an annotation that is added when an ApplicationSet is requested to be refreshed by a webhook. The ApplicationSet controller will remove this annotation at the end of reconciliation.
 	AnnotationApplicationSetRefresh = "argocd.argoproj.io/application-set-refresh"
 )
 
@@ -293,3 +302,21 @@ const (
 	// Keep alive is 2x enforcement minimum to ensure network jitter does not introduce ENHANCE_YOUR_CALM errors
 	GRPCKeepAliveTime = 2 * GRPCKeepAliveEnforcementMinimum
 )
+
+// Security severity logging
+const (
+	SecurityField     = "security"
+	SecurityCWEField  = "CWE"
+	SecurityEmergency = 5 // Indicates unmistakably malicious events that should NEVER occur accidentally and indicates an active attack (i.e. brute forcing, DoS)
+	SecurityCritical  = 4 // Indicates any malicious or exploitable event that had a side effect (i.e. secrets being left behind on the filesystem)
+	SecurityHigh      = 3 // Indicates likely malicious events but one that had no side effects or was blocked (i.e. out of bounds symlinks in repos)
+	SecurityMedium    = 2 // Could indicate malicious events, but has a high likelihood of being user/system error (i.e. access denied)
+	SecurityLow       = 1 // Unexceptional entries (i.e. successful access logs)
+)
+
+// Common error messages
+const TokenVerificationError = "failed to verify the token"
+
+var TokenVerificationErr = errors.New(TokenVerificationError)
+
+var PermissionDeniedAPIError = status.Error(codes.PermissionDenied, "permission denied")

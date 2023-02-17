@@ -8,7 +8,7 @@ import {services} from '../../../shared/services';
 import {ApplicationRetryOptions} from '../application-retry-options/application-retry-options';
 import {ApplicationManualSyncFlags, ApplicationSyncOptions, FORCE_WARNING, SyncFlags} from '../application-sync-options/application-sync-options';
 import {ApplicationSelector} from '../../../shared/components';
-import {confirmSyncingAppOfApps} from '../utils';
+import {confirmSyncingAppOfApps, getAppDefaultSource} from '../utils';
 
 interface Progress {
     percentage: number;
@@ -98,7 +98,8 @@ export const ApplicationsSyncPanel = ({show, apps, hide}: {show: boolean; apps: 
                                 await services.applications
                                     .sync(
                                         app.metadata.name,
-                                        app.spec.source.targetRevision,
+                                        app.metadata.namespace,
+                                        getAppDefaultSource(app).targetRevision,
                                         syncFlags.Prune || false,
                                         syncFlags.DryRun || false,
                                         syncStrategy,
@@ -140,10 +141,11 @@ export const ApplicationsSyncPanel = ({show, apps, hide}: {show: boolean; apps: 
                                                 formApi.setTouched('syncOptions', true);
                                                 formApi.setValue('syncOptions', opts);
                                             }}
+                                            id='applications-sync-panel'
                                         />
                                     </div>
 
-                                    <ApplicationRetryOptions formApi={formApi} />
+                                    <ApplicationRetryOptions id='applications-sync-panel' formApi={formApi} />
 
                                     <ApplicationSelector apps={apps} formApi={formApi} />
                                 </div>

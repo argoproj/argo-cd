@@ -14,7 +14,7 @@ import (
 	"strings"
 	"time"
 
-	gooidc "github.com/coreos/go-oidc"
+	gooidc "github.com/coreos/go-oidc/v3/oidc"
 	"github.com/golang-jwt/jwt/v4"
 	log "github.com/sirupsen/logrus"
 	"golang.org/x/oauth2"
@@ -195,7 +195,7 @@ func (a *ClientApp) verifyAppState(r *http.Request, w http.ResponseWriter, state
 	redirectURL := a.baseHRef
 	parts := strings.SplitN(cookieVal, ":", 2)
 	if len(parts) == 2 && parts[1] != "" {
-		if !isValidRedirectURL(parts[1], []string{a.settings.URL}) {
+		if !isValidRedirectURL(parts[1], []string{a.settings.URL, a.baseHRef}) {
 			sanitizedUrl := parts[1]
 			if len(sanitizedUrl) > 100 {
 				sanitizedUrl = sanitizedUrl[:100]
@@ -353,9 +353,12 @@ func (a *ClientApp) HandleCallback(w http.ResponseWriter, r *http.Request) {
 		http.Error(w, "no id_token in token response", http.StatusInternalServerError)
 		return
 	}
-	idToken, err := a.provider.Verify(a.clientID, idTokenRAW)
+
+	idToken, err := a.provider.Verify(idTokenRAW, a.settings)
+
 	if err != nil {
-		http.Error(w, fmt.Sprintf("invalid session token: %v", err), http.StatusInternalServerError)
+		log.Warnf("Failed to verify token: %s", err)
+		http.Error(w, common.TokenVerificationError, http.StatusInternalServerError)
 		return
 	}
 	path := "/"

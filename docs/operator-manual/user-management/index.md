@@ -231,7 +231,7 @@ data:
 
 ### Requesting additional ID token claims
 
-By default Dex only retrieves the profile and email scopes. In order to retrieve more more claims you
+By default Dex only retrieves the profile and email scopes. In order to retrieve more claims you
 can add them under the `scopes` entry in the Dex configuration. To enable group claims through Dex,
 `insecureEnableGroups` also needs to enabled. Group information is currently only refreshed at authentication
 time and support to refresh group information more dynamically can be tracked here: [dexidp/dex#1065](https://github.com/dexidp/dex/issues/1065).
@@ -289,7 +289,7 @@ data:
 
 ## Existing OIDC Provider
 
-To configure Argo CD to delegate authenticate to your existing OIDC provider, add the OAuth2
+To configure Argo CD to delegate authentication to your existing OIDC provider, add the OAuth2
 configuration to the `argocd-cm` ConfigMap under the `oidc.config` key:
 
 ```yaml
@@ -301,6 +301,19 @@ data:
     issuer: https://dev-123456.oktapreview.com
     clientID: aaaabbbbccccddddeee
     clientSecret: $oidc.okta.clientSecret
+    
+    # Optional list of allowed aud claims. If omitted or empty, defaults to the clientID value above (and the 
+    # cliClientID, if that is also specified). If you specify a list and want the clientID to be allowed, you must 
+    # explicitly include it in the list.
+    # Token verification will pass if any of the token's audiences matches any of the audiences in this list.
+    allowedAudiences:
+    - aaaabbbbccccddddeee
+    - qqqqwwwweeeerrrrttt
+
+    # Optional. If false, tokens without an audience will always fail validation. If true, tokens without an audience 
+    # will always pass validation.
+    # Defaults to true for Argo CD < 2.6.0. Defaults to false for Argo CD >= 2.6.0.
+    skipAudienceCheckWhenTokenHasNoAudience: true
 
     # Optional set of OIDC scopes to request. If omitted, defaults to: ["openid", "profile", "email", "groups"]
     requestedScopes: ["openid", "profile", "email", "groups"]

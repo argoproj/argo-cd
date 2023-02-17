@@ -41,9 +41,10 @@ func NewCommand() *cobra.Command {
 	}
 
 	command.AddCommand(NewCompletionCommand())
-	command.AddCommand(initialize.InitCommand(NewVersionCmd(&clientOpts)))
+	command.AddCommand(initialize.InitCommand(NewVersionCmd(&clientOpts, nil)))
 	command.AddCommand(initialize.InitCommand(NewClusterCommand(&clientOpts, pathOpts)))
 	command.AddCommand(initialize.InitCommand(NewApplicationCommand(&clientOpts)))
+	command.AddCommand(initialize.InitCommand(NewAppSetCommand(&clientOpts)))
 	command.AddCommand(NewLoginCommand(&clientOpts))
 	command.AddCommand(NewReloginCommand(&clientOpts))
 	command.AddCommand(initialize.InitCommand(NewRepoCommand(&clientOpts)))

@@ -8,6 +8,9 @@ import (
 	"path/filepath"
 	"regexp"
 
+	log "github.com/sirupsen/logrus"
+
+	"github.com/argoproj/argo-cd/v2/common"
 	executil "github.com/argoproj/argo-cd/v2/util/exec"
 	argoio "github.com/argoproj/argo-cd/v2/util/io"
 	pathutil "github.com/argoproj/argo-cd/v2/util/io/path"
@@ -55,7 +58,7 @@ func (c Cmd) run(args ...string) (string, error) {
 			fmt.Sprintf("XDG_CACHE_HOME=%s/cache", c.helmHome),
 			fmt.Sprintf("XDG_CONFIG_HOME=%s/config", c.helmHome),
 			fmt.Sprintf("XDG_DATA_HOME=%s/data", c.helmHome),
-			fmt.Sprintf("HELM_HOME=%s", c.helmHome))
+			fmt.Sprintf("HELM_CONFIG_HOME=%s/config", c.helmHome))
 	}
 
 	if c.IsHelmOci {
@@ -86,26 +89,6 @@ func (c *Cmd) RegistryLogin(repo string, creds Creds) (string, error) {
 		args = append(args, "--password", creds.Password)
 	}
 
-	if creds.CAPath != "" {
-		args = append(args, "--ca-file", creds.CAPath)
-	}
-	if len(creds.CertData) > 0 {
-		filePath, closer, err := writeToTmp(creds.CertData)
-		if err != nil {
-			return "", err
-		}
-		defer argoio.Close(closer)
-		args = append(args, "--cert-file", filePath)
-	}
-	if len(creds.KeyData) > 0 {
-		filePath, closer, err := writeToTmp(creds.KeyData)
-		if err != nil {
-			return "", err
-		}
-		defer argoio.Close(closer)
-		args = append(args, "--key-file", filePath)
-	}
-
 	if creds.InsecureSkipVerify {
 		args = append(args, "--insecure")
 	}
@@ -115,26 +98,6 @@ func (c *Cmd) RegistryLogin(repo string, creds Creds) (string, error) {
 func (c *Cmd) RegistryLogout(repo string, creds Creds) (string, error) {
 	args := []string{"registry", "logout"}
 	args = append(args, repo)
-
-	if creds.CAPath != "" {
-		args = append(args, "--ca-file", creds.CAPath)
-	}
-	if len(creds.CertData) > 0 {
-		filePath, closer, err := writeToTmp(creds.CertData)
-		if err != nil {
-			return "", err
-		}
-		defer argoio.Close(closer)
-		args = append(args, "--cert-file", filePath)
-	}
-	if len(creds.KeyData) > 0 {
-		filePath, closer, err := writeToTmp(creds.KeyData)
-		if err != nil {
-			return "", err
-		}
-		defer argoio.Close(closer)
-		args = append(args, "--key-file", filePath)
-	}
 
 	return c.run(args...)
 }
@@ -209,7 +172,14 @@ func writeToTmp(data []byte) (string, argoio.Closer, error) {
 		_ = os.RemoveAll(file.Name())
 		return "", nil, err
 	}
-	defer file.Close()
+	defer func() {
+		if err = file.Close(); err != nil {
+			log.WithFields(log.Fields{
+				common.SecurityField:    common.SecurityMedium,
+				common.SecurityCWEField: 775,
+			}).Errorf("error closing file %q: %v", file.Name(), err)
+		}
+	}()
 	return file.Name(), argoio.NewCloser(func() error {
 		return os.RemoveAll(file.Name())
 	}), nil

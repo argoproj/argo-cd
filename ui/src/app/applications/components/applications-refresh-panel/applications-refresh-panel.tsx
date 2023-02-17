@@ -48,7 +48,7 @@ export const ApplicationsRefreshPanel = ({show, apps, hide}: {show: boolean; app
                             setProgress({percentage: 0, title: 'Starting...'});
                             let i = 0;
                             for (const app of selectedApps) {
-                                await services.applications.get(app.metadata.name, params.refreshType).catch(e => {
+                                await services.applications.get(app.metadata.name, app.metadata.namespace, params.refreshType).catch(e => {
                                     ctx.notifications.show({
                                         content: <ErrorNotification title={`Unable to refresh ${app.metadata.name}`} e={e} />,
                                         type: NotificationType.Error

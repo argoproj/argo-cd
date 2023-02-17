@@ -147,7 +147,7 @@ func TestCustomHTTPClient(t *testing.T) {
 	assert.NotEqual(t, "", string(keyData))
 
 	// Get HTTPSCreds with client cert creds specified, and insecure connection
-	creds := NewHTTPSCreds("test", "test", string(certData), string(keyData), false, "http://proxy:5000", &NoopCredsStore{})
+	creds := NewHTTPSCreds("test", "test", string(certData), string(keyData), false, "http://proxy:5000", &NoopCredsStore{}, false)
 	client := GetRepoHTTPClient("https://localhost:9443/foo/bar", false, creds, "http://proxy:5000")
 	assert.NotNil(t, client)
 	assert.NotNil(t, client.Transport)
@@ -178,7 +178,7 @@ func TestCustomHTTPClient(t *testing.T) {
 	}()
 
 	// Get HTTPSCreds without client cert creds, but insecure connection
-	creds = NewHTTPSCreds("test", "test", "", "", true, "", &NoopCredsStore{})
+	creds = NewHTTPSCreds("test", "test", "", "", true, "", &NoopCredsStore{}, false)
 	client = GetRepoHTTPClient("https://localhost:9443/foo/bar", true, creds, "")
 	assert.NotNil(t, client)
 	assert.NotNil(t, client.Transport)
@@ -198,7 +198,7 @@ func TestCustomHTTPClient(t *testing.T) {
 				assert.Nil(t, cert.PrivateKey)
 			}
 		}
-		req, err := http.NewRequest("GET", "http://proxy-from-env:7878", nil)
+		req, err := http.NewRequest(http.MethodGet, "http://proxy-from-env:7878", nil)
 		assert.Nil(t, err)
 		proxy, err := transport.Proxy(req)
 		assert.Nil(t, err)
@@ -289,7 +289,11 @@ func TestLFSClient(t *testing.T) {
 	fileHandle, err := os.Open(fmt.Sprintf("%s/test3.yaml", tempDir))
 	assert.NoError(t, err)
 	if err == nil {
-		defer fileHandle.Close()
+		defer func() {
+			if err = fileHandle.Close(); err != nil {
+				assert.NoError(t, err)
+			}
+		}()
 		text, err := io.ReadAll(fileHandle)
 		assert.NoError(t, err)
 		if err == nil {

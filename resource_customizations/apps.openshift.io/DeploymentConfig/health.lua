@@ -3,7 +3,7 @@ if obj.status ~= nil then
   if obj.status.conditions ~= nil and obj.status.replicas ~= nil then
     numTrue = 0
     for i, condition in pairs(obj.status.conditions) do
-      if (condition.type == "Available" or condition.type == "Progressing") and condition.status == "True" then
+      if (condition.type == "Available" or (condition.type == "Progressing" and condition.reason == "NewReplicationControllerAvailable")) and condition.status == "True" then
         numTrue = numTrue + 1
       end
     end

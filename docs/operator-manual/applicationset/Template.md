@@ -2,6 +2,8 @@
 
 The template fields of the ApplicationSet `spec` are used to generate Argo CD `Application` resources.
 
+ApplicationSet is using [fasttemplate](https://github.com/valyala/fasttemplate) but will be soon deprecated in favor of Go Template. 
+
 ## Template fields
 
 An Argo CD Application is created by combining the parameters from the generator with fields of the template (via `{{values}}`), and from that a concrete `Application` resource is produced and applied to the cluster.
@@ -51,7 +53,7 @@ template as a Helm string literal. For example:
 
 ```yaml
     metadata:
-      name: '{{`{{cluster}}`}}-guestbook'
+      name: '{{`{{.cluster}}`}}-guestbook'
 ```
 
 This _only_ applies if you use Helm to deploy your ApplicationSet resources.

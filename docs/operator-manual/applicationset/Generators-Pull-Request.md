@@ -10,6 +10,8 @@ metadata:
 spec:
   generators:
   - pullRequest:
+      # When using a Pull Request generator, the ApplicationSet controller polls every `requeueAfterSeconds` interval (defaulting to every 30 minutes) to detect changes.
+      requeueAfterSeconds: 1800
       # See below for provider specific options.
       github:
         # ...
@@ -44,10 +46,12 @@ spec:
         tokenRef:
           secretName: github-token
           key: token
+        # (optional) use a GitHub App to access the API instead of a PAT.
+        appSecretName: github-app-repo-creds
         # Labels is used to filter the PRs that you want to target. (optional)
         labels:
         - preview
-  requeueAfterSeconds: 1800
+      requeueAfterSeconds: 1800
   template:
   # ...
 ```
@@ -56,7 +60,10 @@ spec:
 * `repo`: Required name of the GitHub repository.
 * `api`: If using GitHub Enterprise, the URL to access it. (Optional)
 * `tokenRef`: A `Secret` name and key containing the GitHub access token to use for requests. If not specified, will make anonymous requests which have a lower rate limit and can only see public repositories. (Optional)
-* `labels`: Labels is used to filter the PRs that you want to target. (Optional)
+* `labels`: Filter the PRs to those containing **all** of the labels listed. (Optional)
+* `appSecretName`: A `Secret` name containing a GitHub App secret in [repo-creds format][repo-creds].
+
+[repo-creds]: ../declarative-setup.md#repository-credentials
 
 ## GitLab
 
@@ -84,7 +91,7 @@ spec:
         - preview
         # MR state is used to filter MRs only with a certain state. (optional)
         pullRequestState: opened
-  requeueAfterSeconds: 1800
+      requeueAfterSeconds: 1800
   template:
   # ...
 ```
@@ -120,7 +127,7 @@ spec:
           key: token
         # many gitea deployments use TLS, but many are self-hosted and self-signed certificates
         insecure: true
-  requeueAfterSeconds: 1800
+      requeueAfterSeconds: 1800
   template:
   # ...
 ```
@@ -176,7 +183,7 @@ If you want to access a private repository, you must also provide the credential
 ## Filters
 
 Filters allow selecting which pull requests to generate for. Each filter can declare one or more conditions, all of which must pass. If multiple filters are present, any can match for a repository to be included. If no filters are specified, all pull requests will be processed.
-Currently, only a subset of filters is available when comparing with SCM provider filters.
+Currently, only a subset of filters is available when comparing with [SCM provider](Generators-SCM-Provider.md) filters.
 
 ```yaml
 apiVersion: argoproj.io/v1alpha1
@@ -185,7 +192,7 @@ metadata:
   name: myapps
 spec:
   generators:
-  - scmProvider:
+  - pullRequest:
       # ...
       # Include any pull request ending with "argocd". (optional)
       filters:
@@ -196,6 +203,7 @@ spec:
 
 * `branchMatch`: A regexp matched against source branch names.
 
+[GitHub](#github) and [GitLab](#gitlab) also support a `labels` filter.
 
 ## Template
 
@@ -266,12 +274,15 @@ spec:
 * `branch_slug`: The branch name will be cleaned to be conform to the DNS label standard as defined in [RFC 1123](https://kubernetes.io/docs/concepts/overview/working-with-objects/names/#dns-label-names), and truncated to 50 characters to give room to append/suffix-ing it with 13 more characters.
 * `head_sha`: This is the SHA of the head of the pull request.
 * `head_short_sha`: This is the short SHA of the head of the pull request (8 characters long or the length of the head SHA if it's shorter).
+* `labels`: The array of pull request labels. (Supported only for Go Template ApplicationSet manifests.)
 
 ## Webhook Configuration
 
 When using a Pull Request generator, the ApplicationSet controller polls every `requeueAfterSeconds` interval (defaulting to every 30 minutes) to detect changes. To eliminate this delay from polling, the ApplicationSet webhook server can be configured to receive webhook events, which will trigger Application generation by the Pull Request generator.
 
 The configuration is almost the same as the one described [in the Git generator](Generators-Git.md), but there is one difference: if you want to use the Pull Request Generator as well, additionally configure the following settings.
+
+### Github webhook configuration
 
 In section 1, _"Create the webhook in the Git provider"_, add an event so that a webhook request will be sent when a pull request is created, closed, or label changed.
 
@@ -292,3 +303,23 @@ The Pull Request Generator will requeue when the next action occurs.
 - `synchronized`
 
 For more information about each event, please refer to the [official documentation](https://docs.github.com/en/developers/webhooks-and-events/webhooks/webhook-events-and-payloads).
+
+### Gitlab webhook configuration
+
+Enable checkbox for "Merge request events" in triggers list.
+
+![Add Gitlab Webhook](../../assets/applicationset/webhook-config-merge-request-gitlab.png "Add Gitlab Merge request Webhook")
+
+The Pull Request Generator will requeue when the next action occurs.
+
+- `open`
+- `close`
+- `reopen`
+- `update`
+- `merge`
+
+For more information about each event, please refer to the [official documentation](https://docs.gitlab.com/ee/user/project/integrations/webhook_events.html#merge-request-events).
+
+## Lifecycle
+
+An Application will be generated when a Pull Request is discovered when the configured criteria is met - i.e. for GitHub when a Pull Request matches the specified `labels` and/or `pullRequestState`. Application will be removed when a Pull Request no longer meets the specified criteria.

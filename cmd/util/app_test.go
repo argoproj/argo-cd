@@ -1,7 +1,6 @@
 package util
 
 import (
-	"io/ioutil"
 	"os"
 	"testing"
 
@@ -150,7 +149,9 @@ func (f *appOptionsFixture) SetFlag(key, value string) error {
 
 func newAppOptionsFixture() *appOptionsFixture {
 	fixture := &appOptionsFixture{
-		spec:    &v1alpha1.ApplicationSpec{},
+		spec: &v1alpha1.ApplicationSpec{
+			Source: &v1alpha1.ApplicationSource{},
+		},
 		command: &cobra.Command{},
 		options: &AppOptions{},
 	}
@@ -254,7 +255,7 @@ spec:
         - values.yaml`
 
 func TestReadAppsFromURI(t *testing.T) {
-	file, err := ioutil.TempFile(os.TempDir(), "")
+	file, err := os.CreateTemp(os.TempDir(), "")
 	if err != nil {
 		panic(err)
 	}
@@ -276,7 +277,7 @@ func TestReadAppsFromURI(t *testing.T) {
 }
 
 func TestConstructAppFromStdin(t *testing.T) {
-	file, err := ioutil.TempFile(os.TempDir(), "")
+	file, err := os.CreateTemp(os.TempDir(), "")
 	if err != nil {
 		panic(err)
 	}

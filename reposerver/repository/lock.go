@@ -1,6 +1,7 @@
 package repository
 
 import (
+	"fmt"
 	"io"
 	"sync"
 
@@ -41,7 +42,10 @@ func (r *repositoryLock) Lock(path string, revision string, allowConcurrent bool
 		if notify {
 			state.cond.Broadcast()
 		}
-		return err
+		if err != nil {
+			return fmt.Errorf("init closer failed: %w", err)
+		}
+		return nil
 	})
 
 	for {

@@ -6,8 +6,8 @@ package server
 import (
 	"context"
 	"fmt"
-	"io/ioutil"
 	"net/http"
+	"os"
 	"strings"
 	"testing"
 	"time"
@@ -44,7 +44,7 @@ func TestUserAgent(t *testing.T) {
 		userAgent string
 		errorMsg  string
 	}
-	currentVersionBytes, err := ioutil.ReadFile("../VERSION")
+	currentVersionBytes, err := os.ReadFile("../VERSION")
 	assert.NoError(t, err)
 	currentVersion := strings.TrimSpace(string(currentVersionBytes))
 	var tests = []testData{
@@ -111,7 +111,7 @@ func Test_StaticHeaders(t *testing.T) {
 
 		client := http.Client{}
 		url := fmt.Sprintf("http://127.0.0.1:%d/test.html", s.ListenPort)
-		req, err := http.NewRequest("GET", url, nil)
+		req, err := http.NewRequest(http.MethodGet, url, nil)
 		assert.NoError(t, err)
 		resp, err := client.Do(req)
 		assert.NoError(t, err)
@@ -140,7 +140,7 @@ func Test_StaticHeaders(t *testing.T) {
 
 		client := http.Client{}
 		url := fmt.Sprintf("http://127.0.0.1:%d/test.html", s.ListenPort)
-		req, err := http.NewRequest("GET", url, nil)
+		req, err := http.NewRequest(http.MethodGet, url, nil)
 		assert.NoError(t, err)
 		resp, err := client.Do(req)
 		assert.NoError(t, err)
@@ -172,7 +172,7 @@ func Test_StaticHeaders(t *testing.T) {
 
 		client := http.Client{}
 		url := fmt.Sprintf("http://127.0.0.1:%d/test.html", s.ListenPort)
-		req, err := http.NewRequest("GET", url, nil)
+		req, err := http.NewRequest(http.MethodGet, url, nil)
 		assert.NoError(t, err)
 		resp, err := client.Do(req)
 		assert.NoError(t, err)

@@ -8,6 +8,7 @@ import (
 	"testing"
 	"time"
 
+	"github.com/argoproj/gitops-engine/pkg/health"
 	synccommon "github.com/argoproj/gitops-engine/pkg/sync/common"
 	"github.com/argoproj/gitops-engine/pkg/utils/kube/kubetest"
 	"github.com/argoproj/pkg/sync"
@@ -35,10 +36,14 @@ import (
 	appinformer "github.com/argoproj/argo-cd/v2/pkg/client/informers/externalversions"
 	"github.com/argoproj/argo-cd/v2/reposerver/apiclient"
 	"github.com/argoproj/argo-cd/v2/reposerver/apiclient/mocks"
+	servercache "github.com/argoproj/argo-cd/v2/server/cache"
 	"github.com/argoproj/argo-cd/v2/server/rbacpolicy"
 	"github.com/argoproj/argo-cd/v2/test"
+	"github.com/argoproj/argo-cd/v2/util/argo"
 	"github.com/argoproj/argo-cd/v2/util/assets"
 	"github.com/argoproj/argo-cd/v2/util/cache"
+	cacheutil "github.com/argoproj/argo-cd/v2/util/cache"
+	"github.com/argoproj/argo-cd/v2/util/cache/appstate"
 	"github.com/argoproj/argo-cd/v2/util/db"
 	"github.com/argoproj/argo-cd/v2/util/errors"
 	"github.com/argoproj/argo-cd/v2/util/grpc"
@@ -201,7 +206,7 @@ func newTestAppServerWithEnforcerConfigure(f func(*rbac.Enforcer), objects ...ru
 		testNamespace,
 		kubeclientset,
 		fakeAppsClientset,
-		factory.Argoproj().V1alpha1().Applications().Lister().Applications(testNamespace),
+		factory.Argoproj().V1alpha1().Applications().Lister(),
 		appInformer,
 		mockRepoClient,
 		nil,
@@ -211,6 +216,7 @@ func newTestAppServerWithEnforcerConfigure(f func(*rbac.Enforcer), objects ...ru
 		sync.NewKeyLock(),
 		settingsMgr,
 		projInformer,
+		[]string{},
 	)
 	return server.(*Server)
 }
@@ -293,6 +299,106 @@ func createTestApp(testApp string, opts ...func(app *appsv1.Application)) *appsv
 		opts[i](&app)
 	}
 	return &app
+}
+
+func TestListAppsInNamespaceWithLabels(t *testing.T) {
+	appServer := newTestAppServer(newTestApp(func(app *appsv1.Application) {
+		app.Name = "App1"
+		app.ObjectMeta.Namespace = "test-namespace"
+		app.SetLabels(map[string]string{"key1": "value1", "key2": "value1"})
+	}), newTestApp(func(app *appsv1.Application) {
+		app.Name = "App2"
+		app.ObjectMeta.Namespace = "test-namespace"
+		app.SetLabels(map[string]string{"key1": "value2"})
+	}), newTestApp(func(app *appsv1.Application) {
+		app.Name = "App3"
+		app.ObjectMeta.Namespace = "test-namespace"
+		app.SetLabels(map[string]string{"key1": "value3"})
+	}))
+	appServer.ns = "test-namespace"
+	appQuery := application.ApplicationQuery{}
+	namespace := "test-namespace"
+	appQuery.AppNamespace = &namespace
+	testListAppsWithLabels(t, appQuery, appServer)
+}
+
+func TestListAppsInDefaultNSWithLabels(t *testing.T) {
+	appServer := newTestAppServer(newTestApp(func(app *appsv1.Application) {
+		app.Name = "App1"
+		app.SetLabels(map[string]string{"key1": "value1", "key2": "value1"})
+	}), newTestApp(func(app *appsv1.Application) {
+		app.Name = "App2"
+		app.SetLabels(map[string]string{"key1": "value2"})
+	}), newTestApp(func(app *appsv1.Application) {
+		app.Name = "App3"
+		app.SetLabels(map[string]string{"key1": "value3"})
+	}))
+	appQuery := application.ApplicationQuery{}
+	testListAppsWithLabels(t, appQuery, appServer)
+}
+
+func testListAppsWithLabels(t *testing.T, appQuery application.ApplicationQuery, appServer *Server) {
+	validTests := []struct {
+		testName       string
+		label          string
+		expectedResult []string
+	}{
+		{testName: "Equality based filtering using '=' operator",
+			label:          "key1=value1",
+			expectedResult: []string{"App1"}},
+		{testName: "Equality based filtering using '==' operator",
+			label:          "key1==value1",
+			expectedResult: []string{"App1"}},
+		{testName: "Equality based filtering using '!=' operator",
+			label:          "key1!=value1",
+			expectedResult: []string{"App2", "App3"}},
+		{testName: "Set based filtering using 'in' operator",
+			label:          "key1 in (value1, value3)",
+			expectedResult: []string{"App1", "App3"}},
+		{testName: "Set based filtering using 'notin' operator",
+			label:          "key1 notin (value1, value3)",
+			expectedResult: []string{"App2"}},
+		{testName: "Set based filtering using 'exists' operator",
+			label:          "key1",
+			expectedResult: []string{"App1", "App2", "App3"}},
+		{testName: "Set based filtering using 'not exists' operator",
+			label:          "!key2",
+			expectedResult: []string{"App2", "App3"}},
+	}
+	//test valid scenarios
+	for _, validTest := range validTests {
+		t.Run(validTest.testName, func(t *testing.T) {
+			appQuery.Selector = &validTest.label
+			res, err := appServer.List(context.Background(), &appQuery)
+			assert.NoError(t, err)
+			apps := []string{}
+			for i := range res.Items {
+				apps = append(apps, res.Items[i].Name)
+			}
+			assert.Equal(t, validTest.expectedResult, apps)
+		})
+	}
+
+	invalidTests := []struct {
+		testName    string
+		label       string
+		errorMesage string
+	}{
+		{testName: "Set based filtering using '>' operator",
+			label:       "key1>value1",
+			errorMesage: "error parsing the selector"},
+		{testName: "Set based filtering using '<' operator",
+			label:       "key1<value1",
+			errorMesage: "error parsing the selector"},
+	}
+	//test invalid scenarios
+	for _, invalidTest := range invalidTests {
+		t.Run(invalidTest.testName, func(t *testing.T) {
+			appQuery.Selector = &invalidTest.label
+			_, err := appServer.List(context.Background(), &appQuery)
+			assert.ErrorContains(t, err, invalidTest.errorMesage)
+		})
+	}
 }
 
 func TestListApps(t *testing.T) {
@@ -433,6 +539,9 @@ func TestDeleteApp(t *testing.T) {
 	fakeAppCs.AddReactor("delete", "applications", func(action kubetesting.Action) (handled bool, ret runtime.Object, err error) {
 		deleted = true
 		return true, nil, nil
+	})
+	fakeAppCs.AddReactor("get", "applications", func(action kubetesting.Action) (handled bool, ret runtime.Object, err error) {
+		return true, &appsv1.Application{Spec: appsv1.ApplicationSpec{Source: &appsv1.ApplicationSource{}}}, nil
 	})
 	appServer.appclientset = fakeAppCs
 
@@ -749,9 +858,18 @@ func TestServer_GetApplicationSyncWindowsState(t *testing.T) {
 func TestGetCachedAppState(t *testing.T) {
 	testApp := newTestApp()
 	testApp.ObjectMeta.ResourceVersion = "1"
-	testApp.Spec.Project = "none"
-	appServer := newTestAppServer(testApp)
+	testApp.Spec.Project = "test-proj"
+	testProj := &appsv1.AppProject{
+		ObjectMeta: metav1.ObjectMeta{
+			Name:      "test-proj",
+			Namespace: testNamespace,
+		},
+	}
+	appServer := newTestAppServer(testApp, testProj)
 	fakeClientSet := appServer.appclientset.(*apps.Clientset)
+	fakeClientSet.AddReactor("get", "applications", func(action kubetesting.Action) (handled bool, ret runtime.Object, err error) {
+		return true, &appsv1.Application{Spec: appsv1.ApplicationSpec{Source: &appsv1.ApplicationSource{}}}, nil
+	})
 	t.Run("NoError", func(t *testing.T) {
 		err := appServer.getCachedAppState(context.Background(), testApp, func() error {
 			return nil
@@ -774,6 +892,9 @@ func TestGetCachedAppState(t *testing.T) {
 				updated.ResourceVersion = "2"
 				appServer.appBroadcaster.OnUpdate(testApp, updated)
 				return true, testApp, nil
+			})
+			fakeClientSet.AddReactor("get", "applications", func(action kubetesting.Action) (handled bool, ret runtime.Object, err error) {
+				return true, &appsv1.Application{Spec: appsv1.ApplicationSpec{Source: &appsv1.ApplicationSource{}}}, nil
 			})
 			fakeClientSet.Unlock()
 			fakeClientSet.AddWatchReactor("applications", func(action kubetesting.Action) (handled bool, ret watch.Interface, err error) {
@@ -901,7 +1022,8 @@ func TestLogsGetSelectedPod(t *testing.T) {
 // refreshAnnotationRemover runs an infinite loop until it detects and removes refresh annotation or given context is done
 func refreshAnnotationRemover(t *testing.T, ctx context.Context, patched *int32, appServer *Server, appName string, ch chan string) {
 	for ctx.Err() == nil {
-		a, err := appServer.appLister.Get(appName)
+		aName, appNs := argo.ParseAppQualifiedName(appName, appServer.ns)
+		a, err := appServer.appLister.Applications(appNs).Get(aName)
 		require.NoError(t, err)
 		a = a.DeepCopy()
 		if a.GetAnnotations() != nil && a.GetAnnotations()[appsv1.AnnotationKeyRefresh] != "" {
@@ -973,7 +1095,7 @@ func TestGetAppRefresh_HardRefresh(t *testing.T) {
 	assert.NoError(t, err)
 	require.NotNil(t, getAppDetailsQuery)
 	assert.True(t, getAppDetailsQuery.NoCache)
-	assert.Equal(t, &testApp.Spec.Source, getAppDetailsQuery.Source)
+	assert.Equal(t, testApp.Spec.Source, getAppDetailsQuery.Source)
 
 	assert.NoError(t, err)
 	select {
@@ -982,4 +1104,44 @@ func TestGetAppRefresh_HardRefresh(t *testing.T) {
 	case <-time.After(10 * time.Second):
 		assert.Fail(t, "Out of time ( 10 seconds )")
 	}
+}
+
+func TestInferResourcesStatusHealth(t *testing.T) {
+	cacheClient := cacheutil.NewCache(cacheutil.NewInMemoryCache(1 * time.Hour))
+
+	testApp := newTestApp()
+	testApp.Status.ResourceHealthSource = appsv1.ResourceHealthLocationAppTree
+	testApp.Status.Resources = []appsv1.ResourceStatus{{
+		Group:     "apps",
+		Kind:      "Deployment",
+		Name:      "guestbook",
+		Namespace: "default",
+	}, {
+		Group:     "apps",
+		Kind:      "StatefulSet",
+		Name:      "guestbook-stateful",
+		Namespace: "default",
+	}}
+	appServer := newTestAppServer(testApp)
+	appStateCache := appstate.NewCache(cacheClient, time.Minute)
+	err := appStateCache.SetAppResourcesTree(testApp.Name, &appsv1.ApplicationTree{Nodes: []appsv1.ResourceNode{{
+		ResourceRef: appsv1.ResourceRef{
+			Group:     "apps",
+			Kind:      "Deployment",
+			Name:      "guestbook",
+			Namespace: "default",
+		},
+		Health: &appsv1.HealthStatus{
+			Status: health.HealthStatusDegraded,
+		},
+	}}})
+
+	require.NoError(t, err)
+
+	appServer.cache = servercache.NewCache(appStateCache, time.Minute, time.Minute, time.Minute)
+
+	appServer.inferResourcesStatusHealth(testApp)
+
+	assert.Equal(t, health.HealthStatusDegraded, testApp.Status.Resources[0].Health.Status)
+	assert.Nil(t, testApp.Status.Resources[1].Health)
 }

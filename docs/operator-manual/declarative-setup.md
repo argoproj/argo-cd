@@ -77,7 +77,7 @@ spec:
 ```
 
 !!! warning
-    By default, deleting an application will not perform a cascade delete, which would delete its resources. You must add the finalizer if you want this behaviour - which you may well not want.
+    Without the `resources-finalizer.argocd.argoproj.io` finalizer, deleting an application will not delete the resources it manages. To perform a cascading delete, you must add the finalizer. See [App Deletion](../user-guide/app_deletion.md#about-the-deletion-finalizer).
 
 ```yaml
 metadata:
@@ -178,7 +178,7 @@ Consider using [bitnami-labs/sealed-secrets](https://github.com/bitnami-labs/sea
 Each repository must have a `url` field and, depending on whether you connect using HTTPS, SSH, or GitHub App, `username` and `password` (for HTTPS), `sshPrivateKey` (for SSH), or `githubAppPrivateKey` (for GitHub App).
 
 !!!warning
-    When using [bitnami-labs/sealed-secrets](https://github.com/bitnami-labs/sealed-secrets) the labels will be removed and have to be readded as descibed here: https://github.com/bitnami-labs/sealed-secrets#sealedsecrets-as-templates-for-secrets
+    When using [bitnami-labs/sealed-secrets](https://github.com/bitnami-labs/sealed-secrets) the labels will be removed and have to be readded as described here: https://github.com/bitnami-labs/sealed-secrets#sealedsecrets-as-templates-for-secrets
 
 Example for HTTPS:
 
@@ -255,6 +255,33 @@ stringData:
     -----END OPENSSH PRIVATE KEY-----
 ```
 
+Example for Google Cloud Source repositories:
+
+```yaml
+kind: Secret
+metadata:
+  name: github-repo
+  namespace: argocd
+  labels:
+    argocd.argoproj.io/secret-type: repository
+stringData:
+  type: git
+  repo: https://source.developers.google.com/p/my-google-project/r/my-repo
+  gcpServiceAccountKey: |
+    {
+      "type": "service_account",
+      "project_id": "my-google-project",
+      "private_key_id": "REDACTED",
+      "private_key": "-----BEGIN PRIVATE KEY-----\nREDACTED\n-----END PRIVATE KEY-----\n",
+      "client_email": "argocd-service-account@my-google-project.iam.gserviceaccount.com",
+      "client_id": "REDACTED",
+      "auth_uri": "https://accounts.google.com/o/oauth2/auth",
+      "token_uri": "https://oauth2.googleapis.com/token",
+      "auth_provider_x509_cert_url": "https://www.googleapis.com/oauth2/v1/certs",
+      "client_x509_cert_url": "https://www.googleapis.com/robot/v1/metadata/x509/argocd-service-account%40my-google-project.iam.gserviceaccount.com"
+    }
+```
+
 !!! tip
     The Kubernetes documentation has [instructions for creating a secret containing a private key](https://kubernetes.io/docs/concepts/configuration/secret/#use-case-pod-with-ssh-keys).
 
@@ -329,8 +356,6 @@ The following keys are valid to refer to credential secrets:
 * `tlsClientCertData` and `tlsClientCertKey` refer to secrets where a TLS client certificate (`tlsClientCertData`) and the corresponding private key `tlsClientCertKey` are stored for accessing GitHub Enterprise if custom certificates are used.
 
 ### Repositories using self-signed TLS certificates (or are signed by custom CA)
-
-> v1.2 or later
 
 You can manage the TLS certificates used to verify the authenticity of your repository servers in a ConfigMap object named `argocd-tls-certs-cm`. The data section should contain a map, with the repository server's hostname part (not the complete URL) as key, and the certificate(s) in PEM format as data. So, if you connect to a repository with the URL `https://server.example.com/repos/my-repo`, you should use `server.example.com` as key. The certificate data should be either the server's certificate (in case of self-signed certificate) or the certificate of the CA that was used to sign the server's certificate. You can configure multiple certificates for each server, e.g. if you are having a certificate roll-over planned.
 
@@ -489,6 +514,7 @@ The secret data must include following fields:
 * `name` - cluster name
 * `server` - cluster api server url
 * `namespaces` - optional comma-separated list of namespaces which are accessible in that cluster. Cluster level resources would be ignored if namespace list is not empty.
+* `clusterResources` - optional boolean string (`"true"` or `"false"`) determining whether Argo CD can manage cluster-level resources on this cluster. This setting is used only if the list of managed namespaces is not empty.
 * `config` - JSON representation of following data structure:
 
 ```yaml
@@ -682,6 +708,10 @@ Notes:
 * Quote globs in your YAML to avoid parsing errors.
 * Invalid globs result in the whole rule being ignored.
 * If you add a rule that matches existing resources, these will appear in the interface as `OutOfSync`.
+
+## Resource Custom Labels
+
+Custom Labels configured with `resource.customLabels` (comma separated string) will be displayed in the UI (for any resource that defines them).
 
 ## SSO & RBAC
 

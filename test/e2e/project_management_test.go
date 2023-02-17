@@ -166,6 +166,20 @@ func TestAddProjectDestination(t *testing.T) {
 	assert.Error(t, err)
 	assert.True(t, strings.Contains(err.Error(), "already defined"))
 
+	_, err = fixture.RunCli("proj", "add-destination", projectName,
+		"!*",
+		"test1",
+	)
+	assert.Error(t, err)
+	assert.True(t, strings.Contains(err.Error(), "server has an invalid format, '!*'"))
+
+	_, err = fixture.RunCli("proj", "add-destination", projectName,
+		"https://192.168.99.100:8443",
+		"!*",
+	)
+	assert.Error(t, err)
+	assert.True(t, strings.Contains(err.Error(), "namespace has an invalid format, '!*'"))
+
 	proj, err := fixture.AppClientset.ArgoprojV1alpha1().AppProjects(fixture.ArgoCDNamespace).Get(context.Background(), projectName, metav1.GetOptions{})
 	assert.NoError(t, err)
 	assert.Equal(t, projectName, proj.Name)
@@ -315,7 +329,7 @@ func TestUseJWTToken(t *testing.T) {
 			Name: appName,
 		},
 		Spec: v1alpha1.ApplicationSpec{
-			Source: v1alpha1.ApplicationSource{
+			Source: &v1alpha1.ApplicationSource{
 				RepoURL: fixture.RepoURL(fixture.RepoURLTypeFile),
 				Path:    "guestbook",
 			},
@@ -363,9 +377,9 @@ func TestUseJWTToken(t *testing.T) {
 
 	roleGetResult, err = fixture.RunCli("proj", "role", "get", projectName, roleName)
 	assert.NoError(t, err)
-	assert.True(t, strings.Contains(roleGetResult, strconv.FormatInt((newProj.Status.JWTTokensByRole[roleName].Items[0].IssuedAt), 10)))
+	assert.True(t, strings.Contains(roleGetResult, strconv.FormatInt(newProj.Status.JWTTokensByRole[roleName].Items[0].IssuedAt, 10)))
 
-	_, err = fixture.RunCli("proj", "role", "delete-token", projectName, roleName, strconv.FormatInt((newProj.Status.JWTTokensByRole[roleName].Items[0].IssuedAt), 10))
+	_, err = fixture.RunCli("proj", "role", "delete-token", projectName, roleName, strconv.FormatInt(newProj.Status.JWTTokensByRole[roleName].Items[0].IssuedAt, 10))
 	assert.NoError(t, err)
 	newProj, err = fixture.AppClientset.ArgoprojV1alpha1().AppProjects(fixture.ArgoCDNamespace).Get(context.Background(), projectName, metav1.GetOptions{})
 	assert.NoError(t, err)
@@ -550,6 +564,10 @@ func TestGetVirtualProjectNoMatch(t *testing.T) {
 		"--path", guestbookPath, "--project", proj.Name, "--dest-server", v1alpha1.KubernetesInternalAPIServerAddr, "--dest-namespace", fixture.DeploymentNamespace())
 	assert.NoError(t, err)
 
+	// Waiting for the app to be successfully created.
+	// Else the sync would fail to retrieve the app resources.
+	time.Sleep(time.Second * 2)
+
 	//App trying to sync a resource which is not blacked listed anywhere
 	_, err = fixture.RunCli("app", "sync", fixture.Name(), "--resource", "apps:Deployment:guestbook-ui", "--timeout", fmt.Sprintf("%v", 10))
 	assert.NoError(t, err)
@@ -586,6 +604,10 @@ func TestGetVirtualProjectMatch(t *testing.T) {
 	_, err = fixture.RunCli("app", "create", fixture.Name(), "--repo", fixture.RepoURL(fixture.RepoURLTypeFile),
 		"--path", guestbookPath, "--project", proj.Name, "--dest-server", v1alpha1.KubernetesInternalAPIServerAddr, "--dest-namespace", fixture.DeploymentNamespace())
 	assert.NoError(t, err)
+
+	// Waiting for the app to be successfully created.
+	// Else the sync would fail to retrieve the app resources.
+	time.Sleep(time.Second * 2)
 
 	//App trying to sync a resource which is not blacked listed anywhere
 	_, err = fixture.RunCli("app", "sync", fixture.Name(), "--resource", "apps:Deployment:guestbook-ui", "--timeout", fmt.Sprintf("%v", 10))

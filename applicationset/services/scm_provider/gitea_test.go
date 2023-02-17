@@ -8,8 +8,10 @@ import (
 	"testing"
 
 	"github.com/stretchr/testify/assert"
+	"github.com/stretchr/testify/require"
 
-	"github.com/argoproj/argo-cd/v2/pkg/apis/applicationset/v1alpha1"
+	"github.com/argoproj/argo-cd/v2/applicationset/services/scm_provider/testdata"
+	"github.com/argoproj/argo-cd/v2/pkg/apis/application/v1alpha1"
 )
 
 func giteaMockHandler(t *testing.T) func(http.ResponseWriter, *http.Request) {
@@ -217,6 +219,37 @@ func giteaMockHandler(t *testing.T) func(http.ResponseWriter, *http.Request) {
 			if err != nil {
 				t.Fail()
 			}
+		case "/api/v1/repos/gitea/go-sdk/contents/README.md?ref=master":
+			_, err := io.WriteString(w, `{
+  "name": "README.md",
+  "path": "README.md",
+  "sha": "3605625ef3f80dc092167b54e3f55eb0663d729f",
+  "last_commit_sha": "6b6fdd91ce769bb4641084e15f76554fb841bf27",
+  "type": "file",
+  "size": 1673,
+  "encoding": "base64",
+  "content": "IyBHaXRlYSBTREsgZm9yIEdvCgpbIVtMaWNlbnNlOiBNSVRdKGh0dHBzOi8vaW1nLnNoaWVsZHMuaW8vYmFkZ2UvTGljZW5zZS1NSVQtYmx1ZS5zdmcpXShodHRwczovL29wZW5zb3VyY2Uub3JnL2xpY2Vuc2VzL01JVCkgWyFbUmVsZWFzZV0oaHR0cHM6Ly9yYXN0ZXIuc2hpZWxkcy5pby9iYWRnZS9keW5hbWljL2pzb24uc3ZnP2xhYmVsPXJlbGVhc2UmdXJsPWh0dHBzOi8vZ2l0ZWEuY29tL2FwaS92MS9yZXBvcy9naXRlYS9nby1zZGsvcmVsZWFzZXMmcXVlcnk9JFswXS50YWdfbmFtZSldKGh0dHBzOi8vZ2l0ZWEuY29tL2dpdGVhL2dvLXNkay9yZWxlYXNlcykgWyFbQnVpbGQgU3RhdHVzXShodHRwczovL2Ryb25lLmdpdGVhLmNvbS9hcGkvYmFkZ2VzL2dpdGVhL2dvLXNkay9zdGF0dXMuc3ZnKV0oaHR0cHM6Ly9kcm9uZS5naXRlYS5jb20vZ2l0ZWEvZ28tc2RrKSBbIVtKb2luIHRoZSBjaGF0IGF0IGh0dHBzOi8vaW1nLnNoaWVsZHMuaW8vZGlzY29yZC8zMjI1Mzg5NTQxMTkxODQzODQuc3ZnXShodHRwczovL2ltZy5zaGllbGRzLmlvL2Rpc2NvcmQvMzIyNTM4OTU0MTE5MTg0Mzg0LnN2ZyldKGh0dHBzOi8vZGlzY29yZC5nZy9HaXRlYSkgWyFbXShodHRwczovL2ltYWdlcy5taWNyb2JhZGdlci5jb20vYmFkZ2VzL2ltYWdlL2dpdGVhL2dpdGVhLnN2ZyldKGh0dHA6Ly9taWNyb2JhZGdlci5jb20vaW1hZ2VzL2dpdGVhL2dpdGVhICJHZXQgeW91ciBvd24gaW1hZ2UgYmFkZ2Ugb24gbWljcm9iYWRnZXIuY29tIikgWyFbR28gUmVwb3J0IENhcmRdKGh0dHBzOi8vZ29yZXBvcnRjYXJkLmNvbS9iYWRnZS9jb2RlLmdpdGVhLmlvL3NkayldKGh0dHBzOi8vZ29yZXBvcnRjYXJkLmNvbS9yZXBvcnQvY29kZS5naXRlYS5pby9zZGspIFshW0dvRG9jXShodHRwczovL2dvZG9jLm9yZy9jb2RlLmdpdGVhLmlvL3Nkay9naXRlYT9zdGF0dXMuc3ZnKV0oaHR0cHM6Ly9nb2RvYy5vcmcvY29kZS5naXRlYS5pby9zZGsvZ2l0ZWEpCgpUaGlzIHByb2plY3QgYWN0cyBhcyBhIGNsaWVudCBTREsgaW1wbGVtZW50YXRpb24gd3JpdHRlbiBpbiBHbyB0byBpbnRlcmFjdCB3aXRoIHRoZSBHaXRlYSBBUEkgaW1wbGVtZW50YXRpb24uIEZvciBmdXJ0aGVyIGluZm9ybWF0aW9ucyB0YWtlIGEgbG9vayBhdCB0aGUgY3VycmVudCBbZG9jdW1lbnRhdGlvbl0oaHR0cHM6Ly9nb2RvYy5vcmcvY29kZS5naXRlYS5pby9zZGsvZ2l0ZWEpLgoKTm90ZTogZnVuY3Rpb24gYXJndW1lbnRzIGFyZSBlc2NhcGVkIGJ5IHRoZSBTREsuCgojIyBVc2UgaXQKCmBgYGdvCmltcG9ydCAiY29kZS5naXRlYS5pby9zZGsvZ2l0ZWEiCmBgYAoKIyMgVmVyc2lvbiBSZXF1aXJlbWVudHMKICogZ28gPj0gMS4xMwogKiBnaXRlYSA+PSAxLjExCgojIyBDb250cmlidXRpbmcKCkZvcmsgLT4gUGF0Y2ggLT4gUHVzaCAtPiBQdWxsIFJlcXVlc3QKCiMjIEF1dGhvcnMKCiogW01haW50YWluZXJzXShodHRwczovL2dpdGh1Yi5jb20vb3Jncy9nby1naXRlYS9wZW9wbGUpCiogW0NvbnRyaWJ1dG9yc10oaHR0cHM6Ly9naXRodWIuY29tL2dvLWdpdGVhL2dvLXNkay9ncmFwaHMvY29udHJpYnV0b3JzKQoKIyMgTGljZW5zZQoKVGhpcyBwcm9qZWN0IGlzIHVuZGVyIHRoZSBNSVQgTGljZW5zZS4gU2VlIHRoZSBbTElDRU5TRV0oTElDRU5TRSkgZmlsZSBmb3IgdGhlIGZ1bGwgbGljZW5zZSB0ZXh0Lgo=",
+  "target": null,
+  "url": "https://gitea.com/api/v1/repos/gitea/go-sdk/contents/README.md?ref=master",
+  "html_url": "https://gitea.com/gitea/go-sdk/src/branch/master/README.md",
+  "git_url": "https://gitea.com/api/v1/repos/gitea/go-sdk/git/blobs/3605625ef3f80dc092167b54e3f55eb0663d729f",
+  "download_url": "https://gitea.com/gitea/go-sdk/raw/branch/master/README.md",
+  "submodule_git_url": null,
+  "_links": {
+    "self": "https://gitea.com/api/v1/repos/gitea/go-sdk/contents/README.md?ref=master",
+    "git": "https://gitea.com/api/v1/repos/gitea/go-sdk/git/blobs/3605625ef3f80dc092167b54e3f55eb0663d729f",
+    "html": "https://gitea.com/gitea/go-sdk/src/branch/master/README.md"
+  }
+}
+`)
+			require.NoError(t, err)
+		case "/api/v1/repos/gitea/go-sdk/contents/gitea?ref=master":
+			_, err := io.WriteString(w, testdata.ReposGiteaGoSdkContentsGiteaResponse)
+			require.NoError(t, err)
+		case "/api/v1/repos/gitea/go-sdk/contents/notathing?ref=master":
+			w.WriteHeader(http.StatusNotFound)
+			_, err := io.WriteString(w, `{"errors":["object does not exist [id: , rel_path: notathing]"],"message":"GetContentsOrList","url":"https://gitea.com/api/swagger"}`)
+			require.NoError(t, err)
 		default:
 			_, err := io.WriteString(w, `[]`)
 			if err != nil {
@@ -295,22 +328,32 @@ func TestGiteaListRepos(t *testing.T) {
 }
 
 func TestGiteaHasPath(t *testing.T) {
-	host, _ := NewGiteaProvider(context.Background(), "gitea", "", "https://gitea.com/", false, false)
+	ts := httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+		giteaMockHandler(t)(w, r)
+	}))
+	defer ts.Close()
+	host, _ := NewGiteaProvider(context.Background(), "gitea", "", ts.URL, false, false)
 	repo := &Repository{
 		Organization: "gitea",
 		Repository:   "go-sdk",
 		Branch:       "master",
 	}
-	ok, err := host.RepoHasPath(context.Background(), repo, "README.md")
-	assert.Nil(t, err)
-	assert.True(t, ok)
 
-	// directory
-	ok, err = host.RepoHasPath(context.Background(), repo, "gitea")
-	assert.Nil(t, err)
-	assert.True(t, ok)
+	t.Run("file exists", func(t *testing.T) {
+		ok, err := host.RepoHasPath(context.Background(), repo, "README.md")
+		assert.Nil(t, err)
+		assert.True(t, ok)
+	})
 
-	ok, err = host.RepoHasPath(context.Background(), repo, "notathing")
-	assert.Nil(t, err)
-	assert.False(t, ok)
+	t.Run("directory exists", func(t *testing.T) {
+		ok, err := host.RepoHasPath(context.Background(), repo, "gitea")
+		assert.Nil(t, err)
+		assert.True(t, ok)
+	})
+
+	t.Run("does not exists", func(t *testing.T) {
+		ok, err := host.RepoHasPath(context.Background(), repo, "notathing")
+		assert.Nil(t, err)
+		assert.False(t, ok)
+	})
 }
