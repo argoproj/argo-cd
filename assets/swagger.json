@@ -6973,6 +6973,9 @@
             "$ref": "#/definitions/v1JSON"
           }
         },
+        "elementsjson": {
+          "type": "string"
+        },
         "template": {
           "$ref": "#/definitions/v1alpha1ApplicationSetTemplate"
         }
