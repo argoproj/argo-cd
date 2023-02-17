@@ -23,4 +23,4 @@ report() {
 
 trap 'report' EXIT
 
-go test $TEST_FLAGS -failfast $* 2>&1 | tee $TEST_RESULTS/test.out
+GODEBUG="tarinsecurepath=0,zipinsecurepath=0" go test $TEST_FLAGS -failfast $* 2>&1 | tee $TEST_RESULTS/test.out

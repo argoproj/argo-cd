@@ -13,7 +13,7 @@ on:
 
 env:
   # Golang version to use across CI steps
-  GOLANG_VERSION: '1.19.10'
+  GOLANG_VERSION: '1.20'
 
 concurrency:
   group: ${{ github.workflow }}-${{ github.ref }}
@@ -78,7 +78,7 @@ jobs:
       - name: Run golangci-lint
         uses: golangci/golangci-lint-action@0ad9a0988b3973e851ab0a07adf248ec2e100376 # v3.3.1
         with:
-          version: v1.46.2
+          version: v1.51.0
           args: --timeout 10m --exclude SA5011 --verbose
 
   test-go:

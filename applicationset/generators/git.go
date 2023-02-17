@@ -81,10 +81,10 @@ func (g *GitGenerator) generateParamsForGitDirectories(appSetGenerator *argoproj
 	}
 
 	log.WithFields(log.Fields{
-		"allPaths": allPaths,
-		"total":    len(allPaths),
-		"repoURL":  appSetGenerator.Git.RepoURL,
-		"revision": appSetGenerator.Git.Revision,
+		"allPaths":        allPaths,
+		"total":           len(allPaths),
+		"repoURL":         appSetGenerator.Git.RepoURL,
+		"revision":        appSetGenerator.Git.Revision,
 		"pathParamPrefix": appSetGenerator.Git.PathParamPrefix,
 	}).Info("applications result from the repo service")
 
@@ -127,9 +127,7 @@ func (g *GitGenerator) generateParamsForGitFiles(appSetGenerator *argoprojiov1al
 			return nil, fmt.Errorf("unable to process file '%s': %v", path, err)
 		}
 
-		for index := range paramsArray {
-			res = append(res, paramsArray[index])
-		}
+		res = append(res, paramsArray...)
 	}
 	return res, nil
 }
@@ -183,7 +181,7 @@ func (g *GitGenerator) generateParamsFromGitFile(filePath string, fileContent []
 			}
 			pathParamName := "path"
 			if pathParamPrefix != "" {
-				pathParamName = pathParamPrefix+"."+pathParamName
+				pathParamName = pathParamPrefix + "." + pathParamName
 			}
 			params[pathParamName] = path.Dir(filePath)
 			params[pathParamName+".basename"] = path.Base(params[pathParamName].(string))
@@ -251,7 +249,7 @@ func (g *GitGenerator) generateParamsFromApps(requestedApps []string, appSetGene
 		} else {
 			pathParamName := "path"
 			if appSetGenerator.Git.PathParamPrefix != "" {
-				pathParamName = appSetGenerator.Git.PathParamPrefix+"."+pathParamName
+				pathParamName = appSetGenerator.Git.PathParamPrefix + "." + pathParamName
 			}
 			params[pathParamName] = a
 			params[pathParamName+".basename"] = path.Base(a)
