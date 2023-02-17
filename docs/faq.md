@@ -124,7 +124,7 @@ To terminate the sync, click on the "synchronisation" then "terminate":
 
 ## Why Is My App Out Of Sync Even After Syncing?
 
-Is some cases, the tool you use may conflict with Argo CD by adding the `app.kubernetes.io/instance` label. E.g. using
+In some cases, the tool you use may conflict with Argo CD by adding the `app.kubernetes.io/instance` label. E.g. using
 Kustomize common labels feature.
 
 Argo CD automatically sets the `app.kubernetes.io/instance` label and uses it to determine which resources form the app.
