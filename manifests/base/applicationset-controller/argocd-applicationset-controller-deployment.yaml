@@ -86,6 +86,12 @@ spec:
                 key: applicationsetcontroller.enable.git.submodule
                 name: argocd-cmd-params-cm
                 optional: true
+          - name: ARGOCD_APPLICATIONSET_CONTROLLER_ENABLE_PROGRESSIVE_SYNCS
+            valueFrom:
+              configMapKeyRef:
+                key: applicationsetcontroller.enable.progressive.syncs
+                name: argocd-cmd-params-cm
+                optional: true
           volumeMounts:
           - mountPath: /app/config/ssh
             name: ssh-known-hosts

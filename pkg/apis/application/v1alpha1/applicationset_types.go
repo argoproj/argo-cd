@@ -25,6 +25,7 @@ import (
 
 	apiextensionsv1 "k8s.io/apiextensions-apiserver/pkg/apis/apiextensions/v1"
 	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
+	"k8s.io/apimachinery/pkg/util/intstr"
 )
 
 // Utility struct for a reference to a secret key.
@@ -46,12 +47,39 @@ type ApplicationSet struct {
 	Status            ApplicationSetStatus `json:"status,omitempty" protobuf:"bytes,3,opt,name=status"`
 }
 
+// RBACName formats fully qualified application name for RBAC check.
+func (a *ApplicationSet) RBACName() string {
+	return fmt.Sprintf("%s/%s", a.Spec.Template.Spec.GetProject(), a.ObjectMeta.Name)
+}
+
 // ApplicationSetSpec represents a class of application set state.
 type ApplicationSetSpec struct {
 	GoTemplate bool                      `json:"goTemplate,omitempty" protobuf:"bytes,1,name=goTemplate"`
 	Generators []ApplicationSetGenerator `json:"generators" protobuf:"bytes,2,name=generators"`
 	Template   ApplicationSetTemplate    `json:"template" protobuf:"bytes,3,name=template"`
 	SyncPolicy *ApplicationSetSyncPolicy `json:"syncPolicy,omitempty" protobuf:"bytes,4,name=syncPolicy"`
+	Strategy   *ApplicationSetStrategy   `json:"strategy,omitempty" protobuf:"bytes,5,opt,name=strategy"`
+}
+
+// ApplicationSetStrategy configures how generated Applications are updated in sequence.
+type ApplicationSetStrategy struct {
+	Type        string                         `json:"type,omitempty" protobuf:"bytes,1,opt,name=type"`
+	RollingSync *ApplicationSetRolloutStrategy `json:"rollingSync,omitempty" protobuf:"bytes,2,opt,name=rollingSync"`
+	// RollingUpdate *ApplicationSetRolloutStrategy `json:"rollingUpdate,omitempty" protobuf:"bytes,3,opt,name=rollingUpdate"`
+}
+type ApplicationSetRolloutStrategy struct {
+	Steps []ApplicationSetRolloutStep `json:"steps,omitempty" protobuf:"bytes,1,opt,name=steps"`
+}
+
+type ApplicationSetRolloutStep struct {
+	MatchExpressions []ApplicationMatchExpression `json:"matchExpressions,omitempty" protobuf:"bytes,1,opt,name=matchExpressions"`
+	MaxUpdate        *intstr.IntOrString          `json:"maxUpdate,omitempty" protobuf:"bytes,2,opt,name=maxUpdate"`
+}
+
+type ApplicationMatchExpression struct {
+	Key      string   `json:"key,omitempty" protobuf:"bytes,1,opt,name=key"`
+	Operator string   `json:"operator,omitempty" protobuf:"bytes,2,opt,name=operator"`
+	Values   []string `json:"values,omitempty" protobuf:"bytes,3,opt,name=values"`
 }
 
 // ApplicationSetSyncPolicy configures how generated Applications will relate to their
@@ -285,6 +313,7 @@ type GitGenerator struct {
 	Revision            string                      `json:"revision" protobuf:"bytes,4,name=revision"`
 	RequeueAfterSeconds *int64                      `json:"requeueAfterSeconds,omitempty" protobuf:"bytes,5,name=requeueAfterSeconds"`
 	Template            ApplicationSetTemplate      `json:"template,omitempty" protobuf:"bytes,6,name=template"`
+	PathParamPrefix     string                      `json:"pathParamPrefix,omitempty" protobuf:"bytes,7,name=pathParamPrefix"`
 }
 
 type GitDirectoryGeneratorItem struct {
@@ -500,7 +529,8 @@ type PullRequestGeneratorFilter struct {
 type ApplicationSetStatus struct {
 	// INSERT ADDITIONAL STATUS FIELD - define observed state of cluster
 	// Important: Run "make" to regenerate code after modifying this file
-	Conditions []ApplicationSetCondition `json:"conditions,omitempty" protobuf:"bytes,1,name=conditions"`
+	Conditions        []ApplicationSetCondition         `json:"conditions,omitempty" protobuf:"bytes,1,name=conditions"`
+	ApplicationStatus []ApplicationSetApplicationStatus `json:"applicationStatus,omitempty" protobuf:"bytes,2,name=applicationStatus"`
 }
 
 // ApplicationSetCondition contains details about an applicationset condition, which is usally an error or warning
@@ -536,11 +566,12 @@ const (
 // prefix "Info" means informational condition
 type ApplicationSetConditionType string
 
-//ErrorOccurred / ParametersGenerated / TemplateRendered / ResourcesUpToDate
+// ErrorOccurred / ParametersGenerated / TemplateRendered / ResourcesUpToDate
 const (
 	ApplicationSetConditionErrorOccurred       ApplicationSetConditionType = "ErrorOccurred"
 	ApplicationSetConditionParametersGenerated ApplicationSetConditionType = "ParametersGenerated"
 	ApplicationSetConditionResourcesUpToDate   ApplicationSetConditionType = "ResourcesUpToDate"
+	ApplicationSetConditionRolloutProgressing  ApplicationSetConditionType = "RolloutProgressing"
 )
 
 type ApplicationSetReasonType string
@@ -557,7 +588,24 @@ const (
 	ApplicationSetReasonDeleteApplicationError           = "DeleteApplicationError"
 	ApplicationSetReasonRefreshApplicationError          = "RefreshApplicationError"
 	ApplicationSetReasonApplicationValidationError       = "ApplicationValidationError"
+	ApplicationSetReasonApplicationSetModified           = "ApplicationSetModified"
+	ApplicationSetReasonApplicationSetRolloutComplete    = "ApplicationSetRolloutComplete"
+	ApplicationSetReasonSyncApplicationError             = "SyncApplicationError"
 )
+
+// ApplicationSetApplicationStatus contains details about each Application managed by the ApplicationSet
+type ApplicationSetApplicationStatus struct {
+	// Application contains the name of the Application resource
+	Application string `json:"application" protobuf:"bytes,1,opt,name=application"`
+	// LastTransitionTime is the time the status was last updated
+	LastTransitionTime *metav1.Time `json:"lastTransitionTime,omitempty" protobuf:"bytes,2,opt,name=lastTransitionTime"`
+	// Message contains human-readable message indicating details about the status
+	Message string `json:"message" protobuf:"bytes,3,opt,name=message"`
+	// Status contains the AppSet's perceived status of the managed Application resource: (Waiting, Pending, Progressing, Healthy)
+	Status string `json:"status" protobuf:"bytes,4,opt,name=status"`
+	// Step tracks which step this Application should be updated in
+	Step string `json:"step" protobuf:"bytes,5,opt,name=step"`
+}
 
 // ApplicationSetList contains a list of ApplicationSet
 // +k8s:deepcopy-gen:interfaces=k8s.io/apimachinery/pkg/runtime.Object
@@ -615,4 +663,15 @@ func findConditionIndex(conditions []ApplicationSetCondition, t ApplicationSetCo
 		}
 	}
 	return -1
+}
+
+func (status *ApplicationSetStatus) SetApplicationStatus(newStatus ApplicationSetApplicationStatus) {
+	for i := range status.ApplicationStatus {
+		appStatus := status.ApplicationStatus[i]
+		if appStatus.Application == newStatus.Application {
+			status.ApplicationStatus[i] = newStatus
+			return
+		}
+	}
+	status.ApplicationStatus = append(status.ApplicationStatus, newStatus)
 }

@@ -17,6 +17,7 @@ import (
 	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
 	"k8s.io/apimachinery/pkg/runtime"
 	"k8s.io/apimachinery/pkg/types"
+	"k8s.io/apimachinery/pkg/util/intstr"
 	kubefake "k8s.io/client-go/kubernetes/fake"
 	"k8s.io/client-go/tools/record"
 	ctrl "sigs.k8s.io/controller-runtime"
@@ -26,10 +27,13 @@ import (
 
 	"github.com/argoproj/argo-cd/v2/applicationset/generators"
 	"github.com/argoproj/argo-cd/v2/applicationset/utils"
+	"github.com/argoproj/gitops-engine/pkg/health"
+	"github.com/argoproj/gitops-engine/pkg/sync/common"
 
 	"github.com/argoproj/argo-cd/v2/pkg/apis/application/v1alpha1"
 	argov1alpha1 "github.com/argoproj/argo-cd/v2/pkg/apis/application/v1alpha1"
 	appclientset "github.com/argoproj/argo-cd/v2/pkg/client/clientset/versioned/fake"
+	"github.com/argoproj/argo-cd/v2/util/collections"
 	dbmocks "github.com/argoproj/argo-cd/v2/util/db/mocks"
 )
 
@@ -683,7 +687,7 @@ func TestCreateOrUpdateInCluster(t *testing.T) {
 					Template: argov1alpha1.ApplicationSetTemplate{
 						Spec: argov1alpha1.ApplicationSpec{
 							Project:     "project",
-							Source:      argov1alpha1.ApplicationSource{Path: "path", TargetRevision: "revision", RepoURL: "repoURL"},
+							Source:      &argov1alpha1.ApplicationSource{Path: "path", TargetRevision: "revision", RepoURL: "repoURL"},
 							Destination: argov1alpha1.ApplicationDestination{Server: "server", Namespace: "namespace"},
 						},
 					},
@@ -720,7 +724,7 @@ func TestCreateOrUpdateInCluster(t *testing.T) {
 					},
 					Spec: argov1alpha1.ApplicationSpec{
 						Project:     "project",
-						Source:      argov1alpha1.ApplicationSource{Path: "path", TargetRevision: "revision", RepoURL: "repoURL"},
+						Source:      &argov1alpha1.ApplicationSource{Path: "path", TargetRevision: "revision", RepoURL: "repoURL"},
 						Destination: argov1alpha1.ApplicationDestination{Server: "server", Namespace: "namespace"},
 					},
 				},
@@ -740,7 +744,7 @@ func TestCreateOrUpdateInCluster(t *testing.T) {
 					},
 					Spec: argov1alpha1.ApplicationSpec{
 						Project:     "project",
-						Source:      argov1alpha1.ApplicationSource{Path: "path", TargetRevision: "revision", RepoURL: "repoURL"},
+						Source:      &argov1alpha1.ApplicationSource{Path: "path", TargetRevision: "revision", RepoURL: "repoURL"},
 						Destination: argov1alpha1.ApplicationDestination{Server: "server", Namespace: "namespace"},
 					},
 					Status: argov1alpha1.ApplicationStatus{
@@ -917,7 +921,7 @@ func TestRemoveFinalizerOnInvalidDestination_FinalizerTypes(t *testing.T) {
 				},
 				Spec: argov1alpha1.ApplicationSpec{
 					Project: "project",
-					Source:  argov1alpha1.ApplicationSource{Path: "path", TargetRevision: "revision", RepoURL: "repoURL"},
+					Source:  &argov1alpha1.ApplicationSource{Path: "path", TargetRevision: "revision", RepoURL: "repoURL"},
 					// Destination is always invalid, for this test:
 					Destination: argov1alpha1.ApplicationDestination{Name: "my-cluster", Namespace: "namespace"},
 				},
@@ -1079,7 +1083,7 @@ func TestRemoveFinalizerOnInvalidDestination_DestinationTypes(t *testing.T) {
 				},
 				Spec: argov1alpha1.ApplicationSpec{
 					Project:     "project",
-					Source:      argov1alpha1.ApplicationSource{Path: "path", TargetRevision: "revision", RepoURL: "repoURL"},
+					Source:      &argov1alpha1.ApplicationSource{Path: "path", TargetRevision: "revision", RepoURL: "repoURL"},
 					Destination: c.destinationField,
 				},
 			}
@@ -1588,7 +1592,7 @@ func TestValidateGeneratedApplications(t *testing.T) {
 					ObjectMeta: metav1.ObjectMeta{},
 					Spec: argov1alpha1.ApplicationSpec{
 						Project: "default",
-						Source: argov1alpha1.ApplicationSource{
+						Source: &argov1alpha1.ApplicationSource{
 							RepoURL:        "https://url",
 							Path:           "/",
 							TargetRevision: "HEAD",
@@ -1611,7 +1615,7 @@ func TestValidateGeneratedApplications(t *testing.T) {
 					ObjectMeta: metav1.ObjectMeta{},
 					Spec: argov1alpha1.ApplicationSpec{
 						Project: "default",
-						Source: argov1alpha1.ApplicationSource{
+						Source: &argov1alpha1.ApplicationSource{
 							RepoURL:        "https://url",
 							Path:           "/",
 							TargetRevision: "HEAD",
@@ -1635,7 +1639,7 @@ func TestValidateGeneratedApplications(t *testing.T) {
 					ObjectMeta: metav1.ObjectMeta{},
 					Spec: argov1alpha1.ApplicationSpec{
 						Project: "DOES-NOT-EXIST",
-						Source: argov1alpha1.ApplicationSource{
+						Source: &argov1alpha1.ApplicationSource{
 							RepoURL:        "https://url",
 							Path:           "/",
 							TargetRevision: "HEAD",
@@ -1658,7 +1662,7 @@ func TestValidateGeneratedApplications(t *testing.T) {
 					ObjectMeta: metav1.ObjectMeta{},
 					Spec: argov1alpha1.ApplicationSpec{
 						Project: "default",
-						Source: argov1alpha1.ApplicationSource{
+						Source: &argov1alpha1.ApplicationSource{
 							RepoURL:        "https://url",
 							Path:           "/",
 							TargetRevision: "HEAD",
@@ -1681,7 +1685,7 @@ func TestValidateGeneratedApplications(t *testing.T) {
 					ObjectMeta: metav1.ObjectMeta{},
 					Spec: argov1alpha1.ApplicationSpec{
 						Project: "default",
-						Source: argov1alpha1.ApplicationSource{
+						Source: &argov1alpha1.ApplicationSource{
 							RepoURL:        "https://url",
 							Path:           "/",
 							TargetRevision: "HEAD",
@@ -1810,7 +1814,7 @@ func TestReconcilerValidationErrorBehaviour(t *testing.T) {
 					Namespace: "argocd",
 				},
 				Spec: argov1alpha1.ApplicationSpec{
-					Source:      argov1alpha1.ApplicationSource{RepoURL: "https://github.com/argoproj/argocd-example-apps", Path: "guestbook"},
+					Source:      &argov1alpha1.ApplicationSource{RepoURL: "https://github.com/argoproj/argocd-example-apps", Path: "guestbook"},
 					Project:     "default",
 					Destination: argov1alpha1.ApplicationDestination{Server: "{{.url}}"},
 				},
@@ -1923,4 +1927,2914 @@ func TestSetApplicationSetStatusCondition(t *testing.T) {
 	assert.Nil(t, err)
 
 	assert.Len(t, appSet.Status.Conditions, 3)
+}
+
+// Test app generation from a go template application set using a pull request generator
+func TestGenerateAppsUsingPullRequestGenerator(t *testing.T) {
+	scheme := runtime.NewScheme()
+	client := fake.NewClientBuilder().WithScheme(scheme).Build()
+
+	for _, cases := range []struct {
+		name        string
+		params      []map[string]interface{}
+		template    argov1alpha1.ApplicationSetTemplate
+		expectedApp []argov1alpha1.Application
+	}{
+		{
+			name: "Generate an application from a go template application set manifest using a pull request generator",
+			params: []map[string]interface{}{{
+				"number":         "1",
+				"branch":         "branch1",
+				"branch_slug":    "branchSlug1",
+				"head_sha":       "089d92cbf9ff857a39e6feccd32798ca700fb958",
+				"head_short_sha": "089d92cb",
+				"labels":         []string{"label1"}}},
+			template: argov1alpha1.ApplicationSetTemplate{
+				ApplicationSetTemplateMeta: argov1alpha1.ApplicationSetTemplateMeta{
+					Name: "AppSet-{{.branch}}-{{.number}}",
+					Labels: map[string]string{
+						"app1": "{{index .labels 0}}",
+					},
+				},
+				Spec: argov1alpha1.ApplicationSpec{
+					Source: &argov1alpha1.ApplicationSource{
+						RepoURL:        "https://testurl/testRepo",
+						TargetRevision: "{{.head_short_sha}}",
+					},
+					Destination: argov1alpha1.ApplicationDestination{
+						Server:    "https://kubernetes.default.svc",
+						Namespace: "AppSet-{{.branch_slug}}-{{.head_sha}}",
+					},
+				},
+			},
+			expectedApp: []argov1alpha1.Application{
+				{
+					ObjectMeta: metav1.ObjectMeta{
+						Name: "AppSet-branch1-1",
+						Labels: map[string]string{
+							"app1": "label1",
+						},
+					},
+					Spec: v1alpha1.ApplicationSpec{
+						Source: &v1alpha1.ApplicationSource{
+							RepoURL:        "https://testurl/testRepo",
+							TargetRevision: "089d92cb",
+						},
+						Destination: v1alpha1.ApplicationDestination{
+							Server:    "https://kubernetes.default.svc",
+							Namespace: "AppSet-branchSlug1-089d92cbf9ff857a39e6feccd32798ca700fb958",
+						},
+					},
+				},
+			},
+		},
+	} {
+
+		t.Run(cases.name, func(t *testing.T) {
+
+			generatorMock := generatorMock{}
+			generator := argov1alpha1.ApplicationSetGenerator{
+				PullRequest: &argov1alpha1.PullRequestGenerator{},
+			}
+
+			generatorMock.On("GenerateParams", &generator).
+				Return(cases.params, nil)
+
+			generatorMock.On("GetTemplate", &generator).
+				Return(&cases.template, nil)
+
+			appSetReconciler := ApplicationSetReconciler{
+				Client:   client,
+				Scheme:   scheme,
+				Recorder: record.NewFakeRecorder(1),
+				Generators: map[string]generators.Generator{
+					"PullRequest": &generatorMock,
+				},
+				Renderer:      &utils.Render{},
+				KubeClientset: kubefake.NewSimpleClientset(),
+			}
+
+			gotApp, _, _ := appSetReconciler.generateApplications(argov1alpha1.ApplicationSet{
+				Spec: argov1alpha1.ApplicationSetSpec{
+					GoTemplate: true,
+					Generators: []argov1alpha1.ApplicationSetGenerator{{
+						PullRequest: &argov1alpha1.PullRequestGenerator{},
+					}},
+					Template: cases.template,
+				},
+			},
+			)
+			assert.EqualValues(t, cases.expectedApp[0].ObjectMeta.Name, gotApp[0].ObjectMeta.Name)
+			assert.EqualValues(t, cases.expectedApp[0].Spec.Source.TargetRevision, gotApp[0].Spec.Source.TargetRevision)
+			assert.EqualValues(t, cases.expectedApp[0].Spec.Destination.Namespace, gotApp[0].Spec.Destination.Namespace)
+			assert.True(t, collections.StringMapsEqual(cases.expectedApp[0].ObjectMeta.Labels, gotApp[0].ObjectMeta.Labels))
+		})
+	}
+}
+
+func TestPolicies(t *testing.T) {
+	scheme := runtime.NewScheme()
+	err := argov1alpha1.AddToScheme(scheme)
+	assert.Nil(t, err)
+
+	err = argov1alpha1.AddToScheme(scheme)
+	assert.Nil(t, err)
+
+	defaultProject := argov1alpha1.AppProject{
+		ObjectMeta: metav1.ObjectMeta{Name: "default", Namespace: "argocd"},
+		Spec:       argov1alpha1.AppProjectSpec{SourceRepos: []string{"*"}, Destinations: []argov1alpha1.ApplicationDestination{{Namespace: "*", Server: "https://kubernetes.default.svc"}}},
+	}
+	myCluster := argov1alpha1.Cluster{
+		Server: "https://kubernetes.default.svc",
+		Name:   "my-cluster",
+	}
+
+	kubeclientset := kubefake.NewSimpleClientset()
+	argoDBMock := dbmocks.ArgoDB{}
+	argoDBMock.On("GetCluster", mock.Anything, "https://kubernetes.default.svc").Return(&myCluster, nil)
+	argoObjs := []runtime.Object{&defaultProject}
+
+	for _, c := range []struct {
+		name          string
+		policyName    string
+		allowedUpdate bool
+		allowedDelete bool
+	}{
+		{
+			name:          "Apps are allowed to update and delete",
+			policyName:    "sync",
+			allowedUpdate: true,
+			allowedDelete: true,
+		},
+		{
+			name:          "Apps are not allowed to update and delete",
+			policyName:    "create-only",
+			allowedUpdate: false,
+			allowedDelete: false,
+		},
+		{
+			name:          "Apps are allowed to update, not allowed to delete",
+			policyName:    "create-update",
+			allowedUpdate: true,
+			allowedDelete: false,
+		},
+		{
+			name:          "Apps are allowed to delete, not allowed to update",
+			policyName:    "create-delete",
+			allowedUpdate: false,
+			allowedDelete: true,
+		},
+	} {
+		t.Run(c.name, func(t *testing.T) {
+			policy := utils.Policies[c.policyName]
+			assert.NotNil(t, policy)
+
+			appSet := argov1alpha1.ApplicationSet{
+				ObjectMeta: metav1.ObjectMeta{
+					Name:      "name",
+					Namespace: "argocd",
+				},
+				Spec: argov1alpha1.ApplicationSetSpec{
+					GoTemplate: true,
+					Generators: []argov1alpha1.ApplicationSetGenerator{
+						{
+							List: &argov1alpha1.ListGenerator{
+								Elements: []apiextensionsv1.JSON{
+									{
+										Raw: []byte(`{"name": "my-app"}`),
+									},
+								},
+							},
+						},
+					},
+					Template: argov1alpha1.ApplicationSetTemplate{
+						ApplicationSetTemplateMeta: argov1alpha1.ApplicationSetTemplateMeta{
+							Name:      "{{.name}}",
+							Namespace: "argocd",
+							Annotations: map[string]string{
+								"key": "value",
+							},
+						},
+						Spec: argov1alpha1.ApplicationSpec{
+							Source:      &argov1alpha1.ApplicationSource{RepoURL: "https://github.com/argoproj/argocd-example-apps", Path: "guestbook"},
+							Project:     "default",
+							Destination: argov1alpha1.ApplicationDestination{Server: "https://kubernetes.default.svc"},
+						},
+					},
+				},
+			}
+
+			client := fake.NewClientBuilder().WithScheme(scheme).WithObjects(&appSet).Build()
+
+			r := ApplicationSetReconciler{
+				Client:   client,
+				Scheme:   scheme,
+				Renderer: &utils.Render{},
+				Recorder: record.NewFakeRecorder(10),
+				Generators: map[string]generators.Generator{
+					"List": generators.NewListGenerator(),
+				},
+				ArgoDB:           &argoDBMock,
+				ArgoAppClientset: appclientset.NewSimpleClientset(argoObjs...),
+				KubeClientset:    kubeclientset,
+				Policy:           policy,
+			}
+
+			req := ctrl.Request{
+				NamespacedName: types.NamespacedName{
+					Namespace: "argocd",
+					Name:      "name",
+				},
+			}
+
+			// Check if Application is created
+			res, err := r.Reconcile(context.Background(), req)
+			assert.Nil(t, err)
+			assert.True(t, res.RequeueAfter == 0)
+
+			var app argov1alpha1.Application
+			err = r.Client.Get(context.TODO(), crtclient.ObjectKey{Namespace: "argocd", Name: "my-app"}, &app)
+			assert.NoError(t, err)
+			assert.Equal(t, app.Annotations["key"], "value")
+
+			// Check if Application is updated
+			app.Annotations["key"] = "edited"
+			err = r.Client.Update(context.TODO(), &app)
+			assert.NoError(t, err)
+
+			res, err = r.Reconcile(context.Background(), req)
+			assert.Nil(t, err)
+			assert.True(t, res.RequeueAfter == 0)
+
+			err = r.Client.Get(context.TODO(), crtclient.ObjectKey{Namespace: "argocd", Name: "my-app"}, &app)
+			assert.NoError(t, err)
+
+			if c.allowedUpdate {
+				assert.Equal(t, app.Annotations["key"], "value")
+			} else {
+				assert.Equal(t, app.Annotations["key"], "edited")
+			}
+
+			// Check if Application is deleted
+			err = r.Client.Get(context.TODO(), crtclient.ObjectKey{Namespace: "argocd", Name: "name"}, &appSet)
+			assert.NoError(t, err)
+			appSet.Spec.Generators[0] = argov1alpha1.ApplicationSetGenerator{
+				List: &argov1alpha1.ListGenerator{
+					Elements: []apiextensionsv1.JSON{},
+				},
+			}
+			err = r.Client.Update(context.TODO(), &appSet)
+			assert.NoError(t, err)
+
+			res, err = r.Reconcile(context.Background(), req)
+			assert.Nil(t, err)
+			assert.True(t, res.RequeueAfter == 0)
+
+			err = r.Client.Get(context.TODO(), crtclient.ObjectKey{Namespace: "argocd", Name: "my-app"}, &app)
+			assert.NoError(t, err)
+			if c.allowedDelete {
+				assert.NotNil(t, app.DeletionTimestamp)
+			} else {
+				assert.Nil(t, app.DeletionTimestamp)
+			}
+		})
+	}
+}
+
+func TestSetApplicationSetApplicationStatus(t *testing.T) {
+	scheme := runtime.NewScheme()
+	err := argov1alpha1.AddToScheme(scheme)
+	assert.Nil(t, err)
+	err = argov1alpha1.AddToScheme(scheme)
+	assert.Nil(t, err)
+
+	appSet := argov1alpha1.ApplicationSet{
+		ObjectMeta: metav1.ObjectMeta{
+			Name:      "name",
+			Namespace: "argocd",
+		},
+		Spec: argov1alpha1.ApplicationSetSpec{
+			Generators: []argov1alpha1.ApplicationSetGenerator{
+				{List: &argov1alpha1.ListGenerator{
+					Elements: []apiextensionsv1.JSON{{
+						Raw: []byte(`{"cluster": "my-cluster","url": "https://kubernetes.default.svc"}`),
+					}},
+				}},
+			},
+			Template: argov1alpha1.ApplicationSetTemplate{},
+		},
+	}
+
+	appStatuses := []argov1alpha1.ApplicationSetApplicationStatus{
+		{
+			Application:        "my-application",
+			LastTransitionTime: &metav1.Time{},
+			Message:            "testing SetApplicationSetApplicationStatus to Healthy",
+			Status:             "Healthy",
+		},
+	}
+
+	kubeclientset := kubefake.NewSimpleClientset([]runtime.Object{}...)
+	argoDBMock := dbmocks.ArgoDB{}
+	argoObjs := []runtime.Object{}
+
+	client := fake.NewClientBuilder().WithScheme(scheme).WithObjects(&appSet).Build()
+
+	r := ApplicationSetReconciler{
+		Client:   client,
+		Scheme:   scheme,
+		Renderer: &utils.Render{},
+		Recorder: record.NewFakeRecorder(1),
+		Generators: map[string]generators.Generator{
+			"List": generators.NewListGenerator(),
+		},
+		ArgoDB:           &argoDBMock,
+		ArgoAppClientset: appclientset.NewSimpleClientset(argoObjs...),
+		KubeClientset:    kubeclientset,
+	}
+
+	err = r.setAppSetApplicationStatus(context.TODO(), &appSet, appStatuses)
+	assert.Nil(t, err)
+
+	assert.Len(t, appSet.Status.ApplicationStatus, 1)
+}
+
+func TestBuildAppDependencyList(t *testing.T) {
+
+	scheme := runtime.NewScheme()
+	err := argov1alpha1.AddToScheme(scheme)
+	assert.Nil(t, err)
+
+	err = argov1alpha1.AddToScheme(scheme)
+	assert.Nil(t, err)
+
+	client := fake.NewClientBuilder().WithScheme(scheme).Build()
+
+	for _, cc := range []struct {
+		name            string
+		appSet          argov1alpha1.ApplicationSet
+		apps            []argov1alpha1.Application
+		expectedList    [][]string
+		expectedStepMap map[string]int
+	}{
+		{
+			name: "handles an empty set of applications and no strategy",
+			appSet: argov1alpha1.ApplicationSet{
+				ObjectMeta: metav1.ObjectMeta{
+					Name:      "name",
+					Namespace: "argocd",
+				},
+				Spec: argov1alpha1.ApplicationSetSpec{},
+			},
+			apps:            []argov1alpha1.Application{},
+			expectedList:    [][]string{},
+			expectedStepMap: map[string]int{},
+		},
+		{
+			name: "handles an empty set of applications and ignores AllAtOnce strategy",
+			appSet: argov1alpha1.ApplicationSet{
+				ObjectMeta: metav1.ObjectMeta{
+					Name:      "name",
+					Namespace: "argocd",
+				},
+				Spec: argov1alpha1.ApplicationSetSpec{
+					Strategy: &argov1alpha1.ApplicationSetStrategy{
+						Type: "AllAtOnce",
+					},
+				},
+			},
+			apps:            []argov1alpha1.Application{},
+			expectedList:    [][]string{},
+			expectedStepMap: map[string]int{},
+		},
+		{
+			name: "handles an empty set of applications with good 'In' selectors",
+			appSet: argov1alpha1.ApplicationSet{
+				ObjectMeta: metav1.ObjectMeta{
+					Name:      "name",
+					Namespace: "argocd",
+				},
+				Spec: argov1alpha1.ApplicationSetSpec{
+					Strategy: &argov1alpha1.ApplicationSetStrategy{
+						Type: "RollingSync",
+						RollingSync: &argov1alpha1.ApplicationSetRolloutStrategy{
+							Steps: []argov1alpha1.ApplicationSetRolloutStep{
+								{
+									MatchExpressions: []argov1alpha1.ApplicationMatchExpression{
+										{
+											Key:      "env",
+											Operator: "In",
+											Values: []string{
+												"dev",
+											},
+										},
+									},
+								},
+							},
+						},
+					},
+				},
+			},
+			apps: []argov1alpha1.Application{},
+			expectedList: [][]string{
+				{},
+			},
+			expectedStepMap: map[string]int{},
+		},
+		{
+			name: "handles selecting 1 application with 1 'In' selector",
+			appSet: argov1alpha1.ApplicationSet{
+				ObjectMeta: metav1.ObjectMeta{
+					Name:      "name",
+					Namespace: "argocd",
+				},
+				Spec: argov1alpha1.ApplicationSetSpec{
+					Strategy: &argov1alpha1.ApplicationSetStrategy{
+						Type: "RollingSync",
+						RollingSync: &argov1alpha1.ApplicationSetRolloutStrategy{
+							Steps: []argov1alpha1.ApplicationSetRolloutStep{
+								{
+									MatchExpressions: []argov1alpha1.ApplicationMatchExpression{
+										{
+											Key:      "env",
+											Operator: "In",
+											Values: []string{
+												"dev",
+											},
+										},
+									},
+								},
+							},
+						},
+					},
+				},
+			},
+			apps: []argov1alpha1.Application{
+				{
+					ObjectMeta: metav1.ObjectMeta{
+						Name: "app-dev",
+						Labels: map[string]string{
+							"env": "dev",
+						},
+					},
+				},
+			},
+			expectedList: [][]string{
+				{"app-dev"},
+			},
+			expectedStepMap: map[string]int{
+				"app-dev": 0,
+			},
+		},
+		{
+			name: "handles 'In' selectors that select no applications",
+			appSet: argov1alpha1.ApplicationSet{
+				ObjectMeta: metav1.ObjectMeta{
+					Name:      "name",
+					Namespace: "argocd",
+				},
+				Spec: argov1alpha1.ApplicationSetSpec{
+					Strategy: &argov1alpha1.ApplicationSetStrategy{
+						Type: "RollingSync",
+						RollingSync: &argov1alpha1.ApplicationSetRolloutStrategy{
+							Steps: []argov1alpha1.ApplicationSetRolloutStep{
+								{
+									MatchExpressions: []argov1alpha1.ApplicationMatchExpression{
+										{
+											Key:      "env",
+											Operator: "In",
+											Values: []string{
+												"dev",
+											},
+										},
+									},
+								},
+								{
+									MatchExpressions: []argov1alpha1.ApplicationMatchExpression{
+										{
+											Key:      "env",
+											Operator: "In",
+											Values: []string{
+												"qa",
+											},
+										},
+									},
+								},
+								{
+									MatchExpressions: []argov1alpha1.ApplicationMatchExpression{
+										{
+											Key:      "env",
+											Operator: "In",
+											Values: []string{
+												"prod",
+											},
+										},
+									},
+								},
+							},
+						},
+					},
+				},
+			},
+			apps: []argov1alpha1.Application{
+				{
+					ObjectMeta: metav1.ObjectMeta{
+						Name: "app-qa",
+						Labels: map[string]string{
+							"env": "qa",
+						},
+					},
+				},
+				{
+					ObjectMeta: metav1.ObjectMeta{
+						Name: "app-prod",
+						Labels: map[string]string{
+							"env": "prod",
+						},
+					},
+				},
+			},
+			expectedList: [][]string{
+				{},
+				{"app-qa"},
+				{"app-prod"},
+			},
+			expectedStepMap: map[string]int{
+				"app-qa":   1,
+				"app-prod": 2,
+			},
+		},
+		{
+			name: "multiple 'In' selectors in the same matchExpression only select Applications that match all selectors",
+			appSet: argov1alpha1.ApplicationSet{
+				ObjectMeta: metav1.ObjectMeta{
+					Name:      "name",
+					Namespace: "argocd",
+				},
+				Spec: argov1alpha1.ApplicationSetSpec{
+					Strategy: &argov1alpha1.ApplicationSetStrategy{
+						Type: "RollingSync",
+						RollingSync: &argov1alpha1.ApplicationSetRolloutStrategy{
+							Steps: []argov1alpha1.ApplicationSetRolloutStep{
+								{
+									MatchExpressions: []argov1alpha1.ApplicationMatchExpression{
+										{
+											Key:      "region",
+											Operator: "In",
+											Values: []string{
+												"us-east-2",
+											},
+										},
+										{
+											Key:      "env",
+											Operator: "In",
+											Values: []string{
+												"qa",
+											},
+										},
+									},
+								},
+							},
+						},
+					},
+				},
+			},
+			apps: []argov1alpha1.Application{
+				{
+					ObjectMeta: metav1.ObjectMeta{
+						Name: "app-qa1",
+						Labels: map[string]string{
+							"env": "qa",
+						},
+					},
+				},
+				{
+					ObjectMeta: metav1.ObjectMeta{
+						Name: "app-qa2",
+						Labels: map[string]string{
+							"env":    "qa",
+							"region": "us-east-2",
+						},
+					},
+				},
+			},
+			expectedList: [][]string{
+				{"app-qa2"},
+			},
+			expectedStepMap: map[string]int{
+				"app-qa2": 0,
+			},
+		},
+		{
+			name: "multiple values in the same 'In' matchExpression can match on any value",
+			appSet: argov1alpha1.ApplicationSet{
+				ObjectMeta: metav1.ObjectMeta{
+					Name:      "name",
+					Namespace: "argocd",
+				},
+				Spec: argov1alpha1.ApplicationSetSpec{
+					Strategy: &argov1alpha1.ApplicationSetStrategy{
+						Type: "RollingSync",
+						RollingSync: &argov1alpha1.ApplicationSetRolloutStrategy{
+							Steps: []argov1alpha1.ApplicationSetRolloutStep{
+								{
+									MatchExpressions: []argov1alpha1.ApplicationMatchExpression{
+										{
+											Key:      "env",
+											Operator: "In",
+											Values: []string{
+												"qa",
+												"prod",
+											},
+										},
+									},
+								},
+							},
+						},
+					},
+				},
+			},
+			apps: []argov1alpha1.Application{
+				{
+					ObjectMeta: metav1.ObjectMeta{
+						Name: "app-dev",
+						Labels: map[string]string{
+							"env": "dev",
+						},
+					},
+				},
+				{
+					ObjectMeta: metav1.ObjectMeta{
+						Name: "app-qa",
+						Labels: map[string]string{
+							"env": "qa",
+						},
+					},
+				},
+				{
+					ObjectMeta: metav1.ObjectMeta{
+						Name: "app-prod",
+						Labels: map[string]string{
+							"env":    "prod",
+							"region": "us-east-2",
+						},
+					},
+				},
+			},
+			expectedList: [][]string{
+				{"app-qa", "app-prod"},
+			},
+			expectedStepMap: map[string]int{
+				"app-qa":   0,
+				"app-prod": 0,
+			},
+		},
+		{
+			name: "handles an empty set of applications with good 'NotIn' selectors",
+			appSet: argov1alpha1.ApplicationSet{
+				ObjectMeta: metav1.ObjectMeta{
+					Name:      "name",
+					Namespace: "argocd",
+				},
+				Spec: argov1alpha1.ApplicationSetSpec{
+					Strategy: &argov1alpha1.ApplicationSetStrategy{
+						Type: "RollingSync",
+						RollingSync: &argov1alpha1.ApplicationSetRolloutStrategy{
+							Steps: []argov1alpha1.ApplicationSetRolloutStep{
+								{
+									MatchExpressions: []argov1alpha1.ApplicationMatchExpression{
+										{
+											Key:      "env",
+											Operator: "In",
+											Values: []string{
+												"dev",
+											},
+										},
+									},
+								},
+							},
+						},
+					},
+				},
+			},
+			apps: []argov1alpha1.Application{},
+			expectedList: [][]string{
+				{},
+			},
+			expectedStepMap: map[string]int{},
+		},
+		{
+			name: "selects 1 application with 1 'NotIn' selector",
+			appSet: argov1alpha1.ApplicationSet{
+				ObjectMeta: metav1.ObjectMeta{
+					Name:      "name",
+					Namespace: "argocd",
+				},
+				Spec: argov1alpha1.ApplicationSetSpec{
+					Strategy: &argov1alpha1.ApplicationSetStrategy{
+						Type: "RollingSync",
+						RollingSync: &argov1alpha1.ApplicationSetRolloutStrategy{
+							Steps: []argov1alpha1.ApplicationSetRolloutStep{
+								{
+									MatchExpressions: []argov1alpha1.ApplicationMatchExpression{
+										{
+											Key:      "env",
+											Operator: "NotIn",
+											Values: []string{
+												"qa",
+											},
+										},
+									},
+								},
+							},
+						},
+					},
+				},
+			},
+			apps: []argov1alpha1.Application{
+				{
+					ObjectMeta: metav1.ObjectMeta{
+						Name: "app-dev",
+						Labels: map[string]string{
+							"env": "dev",
+						},
+					},
+				},
+			},
+			expectedList: [][]string{
+				{"app-dev"},
+			},
+			expectedStepMap: map[string]int{
+				"app-dev": 0,
+			},
+		},
+		{
+			name: "'NotIn' selectors that select no applications",
+			appSet: argov1alpha1.ApplicationSet{
+				ObjectMeta: metav1.ObjectMeta{
+					Name:      "name",
+					Namespace: "argocd",
+				},
+				Spec: argov1alpha1.ApplicationSetSpec{
+					Strategy: &argov1alpha1.ApplicationSetStrategy{
+						Type: "RollingSync",
+						RollingSync: &argov1alpha1.ApplicationSetRolloutStrategy{
+							Steps: []argov1alpha1.ApplicationSetRolloutStep{
+								{
+									MatchExpressions: []argov1alpha1.ApplicationMatchExpression{
+										{
+											Key:      "env",
+											Operator: "NotIn",
+											Values: []string{
+												"dev",
+											},
+										},
+									},
+								},
+							},
+						},
+					},
+				},
+			},
+			apps: []argov1alpha1.Application{
+				{
+					ObjectMeta: metav1.ObjectMeta{
+						Name: "app-qa",
+						Labels: map[string]string{
+							"env": "qa",
+						},
+					},
+				},
+				{
+					ObjectMeta: metav1.ObjectMeta{
+						Name: "app-prod",
+						Labels: map[string]string{
+							"env": "prod",
+						},
+					},
+				},
+			},
+			expectedList: [][]string{
+				{"app-qa", "app-prod"},
+			},
+			expectedStepMap: map[string]int{
+				"app-qa":   0,
+				"app-prod": 0,
+			},
+		},
+		{
+			name: "multiple 'NotIn' selectors only match Applications with all labels",
+			appSet: argov1alpha1.ApplicationSet{
+				ObjectMeta: metav1.ObjectMeta{
+					Name:      "name",
+					Namespace: "argocd",
+				},
+				Spec: argov1alpha1.ApplicationSetSpec{
+					Strategy: &argov1alpha1.ApplicationSetStrategy{
+						Type: "RollingSync",
+						RollingSync: &argov1alpha1.ApplicationSetRolloutStrategy{
+							Steps: []argov1alpha1.ApplicationSetRolloutStep{
+								{
+									MatchExpressions: []argov1alpha1.ApplicationMatchExpression{
+										{
+											Key:      "region",
+											Operator: "NotIn",
+											Values: []string{
+												"us-east-2",
+											},
+										},
+										{
+											Key:      "env",
+											Operator: "NotIn",
+											Values: []string{
+												"qa",
+											},
+										},
+									},
+								},
+							},
+						},
+					},
+				},
+			},
+			apps: []argov1alpha1.Application{
+				{
+					ObjectMeta: metav1.ObjectMeta{
+						Name: "app-qa1",
+						Labels: map[string]string{
+							"env": "qa",
+						},
+					},
+				},
+				{
+					ObjectMeta: metav1.ObjectMeta{
+						Name: "app-qa2",
+						Labels: map[string]string{
+							"env":    "qa",
+							"region": "us-east-2",
+						},
+					},
+				},
+			},
+			expectedList: [][]string{
+				{"app-qa1"},
+			},
+			expectedStepMap: map[string]int{
+				"app-qa1": 0,
+			},
+		},
+		{
+			name: "multiple values in the same 'NotIn' matchExpression exclude a match from any value",
+			appSet: argov1alpha1.ApplicationSet{
+				ObjectMeta: metav1.ObjectMeta{
+					Name:      "name",
+					Namespace: "argocd",
+				},
+				Spec: argov1alpha1.ApplicationSetSpec{
+					Strategy: &argov1alpha1.ApplicationSetStrategy{
+						Type: "RollingSync",
+						RollingSync: &argov1alpha1.ApplicationSetRolloutStrategy{
+							Steps: []argov1alpha1.ApplicationSetRolloutStep{
+								{
+									MatchExpressions: []argov1alpha1.ApplicationMatchExpression{
+										{
+											Key:      "env",
+											Operator: "NotIn",
+											Values: []string{
+												"qa",
+												"prod",
+											},
+										},
+									},
+								},
+							},
+						},
+					},
+				},
+			},
+			apps: []argov1alpha1.Application{
+				{
+					ObjectMeta: metav1.ObjectMeta{
+						Name: "app-dev",
+						Labels: map[string]string{
+							"env": "dev",
+						},
+					},
+				},
+				{
+					ObjectMeta: metav1.ObjectMeta{
+						Name: "app-qa",
+						Labels: map[string]string{
+							"env": "qa",
+						},
+					},
+				},
+				{
+					ObjectMeta: metav1.ObjectMeta{
+						Name: "app-prod",
+						Labels: map[string]string{
+							"env":    "prod",
+							"region": "us-east-2",
+						},
+					},
+				},
+			},
+			expectedList: [][]string{
+				{"app-dev"},
+			},
+			expectedStepMap: map[string]int{
+				"app-dev": 0,
+			},
+		},
+		{
+			name: "in a mix of 'In' and 'NotIn' selectors, 'NotIn' takes precedence",
+			appSet: argov1alpha1.ApplicationSet{
+				ObjectMeta: metav1.ObjectMeta{
+					Name:      "name",
+					Namespace: "argocd",
+				},
+				Spec: argov1alpha1.ApplicationSetSpec{
+					Strategy: &argov1alpha1.ApplicationSetStrategy{
+						Type: "RollingSync",
+						RollingSync: &argov1alpha1.ApplicationSetRolloutStrategy{
+							Steps: []argov1alpha1.ApplicationSetRolloutStep{
+								{
+									MatchExpressions: []argov1alpha1.ApplicationMatchExpression{
+										{
+											Key:      "env",
+											Operator: "In",
+											Values: []string{
+												"qa",
+												"prod",
+											},
+										},
+										{
+											Key:      "region",
+											Operator: "NotIn",
+											Values: []string{
+												"us-west-2",
+											},
+										},
+									},
+								},
+							},
+						},
+					},
+				},
+			},
+			apps: []argov1alpha1.Application{
+				{
+					ObjectMeta: metav1.ObjectMeta{
+						Name: "app-dev",
+						Labels: map[string]string{
+							"env": "dev",
+						},
+					},
+				},
+				{
+					ObjectMeta: metav1.ObjectMeta{
+						Name: "app-qa1",
+						Labels: map[string]string{
+							"env":    "qa",
+							"region": "us-west-2",
+						},
+					},
+				},
+				{
+					ObjectMeta: metav1.ObjectMeta{
+						Name: "app-qa2",
+						Labels: map[string]string{
+							"env":    "qa",
+							"region": "us-east-2",
+						},
+					},
+				},
+			},
+			expectedList: [][]string{
+				{"app-qa2"},
+			},
+			expectedStepMap: map[string]int{
+				"app-qa2": 0,
+			},
+		},
+	} {
+
+		t.Run(cc.name, func(t *testing.T) {
+
+			kubeclientset := kubefake.NewSimpleClientset([]runtime.Object{}...)
+			argoDBMock := dbmocks.ArgoDB{}
+			argoObjs := []runtime.Object{}
+
+			r := ApplicationSetReconciler{
+				Client:           client,
+				Scheme:           scheme,
+				Recorder:         record.NewFakeRecorder(1),
+				Generators:       map[string]generators.Generator{},
+				ArgoDB:           &argoDBMock,
+				ArgoAppClientset: appclientset.NewSimpleClientset(argoObjs...),
+				KubeClientset:    kubeclientset,
+			}
+
+			appDependencyList, appStepMap, err := r.buildAppDependencyList(context.TODO(), cc.appSet, cc.apps)
+			assert.Equal(t, err, nil, "expected no errors, but errors occured")
+			assert.Equal(t, cc.expectedList, appDependencyList, "expected appDependencyList did not match actual")
+			assert.Equal(t, cc.expectedStepMap, appStepMap, "expected appStepMap did not match actual")
+		})
+	}
+}
+
+func TestBuildAppSyncMap(t *testing.T) {
+
+	scheme := runtime.NewScheme()
+	err := argov1alpha1.AddToScheme(scheme)
+	assert.Nil(t, err)
+
+	err = argov1alpha1.AddToScheme(scheme)
+	assert.Nil(t, err)
+
+	client := fake.NewClientBuilder().WithScheme(scheme).Build()
+
+	for _, cc := range []struct {
+		name              string
+		appSet            argov1alpha1.ApplicationSet
+		appMap            map[string]argov1alpha1.Application
+		appDependencyList [][]string
+		expectedMap       map[string]bool
+	}{
+		{
+			name: "handles an empty app dependency list",
+			appSet: argov1alpha1.ApplicationSet{
+				ObjectMeta: metav1.ObjectMeta{
+					Name:      "name",
+					Namespace: "argocd",
+				},
+				Spec: argov1alpha1.ApplicationSetSpec{
+					Strategy: &argov1alpha1.ApplicationSetStrategy{
+						Type:        "RollingSync",
+						RollingSync: &argov1alpha1.ApplicationSetRolloutStrategy{},
+					},
+				},
+			},
+			appDependencyList: [][]string{},
+			expectedMap:       map[string]bool{},
+		},
+		{
+			name: "handles two applications with no statuses",
+			appSet: argov1alpha1.ApplicationSet{
+				ObjectMeta: metav1.ObjectMeta{
+					Name:      "name",
+					Namespace: "argocd",
+				},
+				Spec: argov1alpha1.ApplicationSetSpec{
+					Strategy: &argov1alpha1.ApplicationSetStrategy{
+						Type:        "RollingSync",
+						RollingSync: &argov1alpha1.ApplicationSetRolloutStrategy{},
+					},
+				},
+			},
+			appDependencyList: [][]string{
+				{"app1"},
+				{"app2"},
+			},
+			expectedMap: map[string]bool{
+				"app1": true,
+				"app2": false,
+			},
+		},
+		{
+			name: "handles applications after an empty selection",
+			appSet: argov1alpha1.ApplicationSet{
+				ObjectMeta: metav1.ObjectMeta{
+					Name:      "name",
+					Namespace: "argocd",
+				},
+				Spec: argov1alpha1.ApplicationSetSpec{
+					Strategy: &argov1alpha1.ApplicationSetStrategy{
+						Type:        "RollingSync",
+						RollingSync: &argov1alpha1.ApplicationSetRolloutStrategy{},
+					},
+				},
+			},
+			appDependencyList: [][]string{
+				{},
+				{"app1", "app2"},
+			},
+			expectedMap: map[string]bool{
+				"app1": true,
+				"app2": true,
+			},
+		},
+		{
+			name: "handles RollingSync applications that are healthy and have no changes",
+			appSet: argov1alpha1.ApplicationSet{
+				ObjectMeta: metav1.ObjectMeta{
+					Name:      "name",
+					Namespace: "argocd",
+				},
+				Spec: argov1alpha1.ApplicationSetSpec{
+					Strategy: &argov1alpha1.ApplicationSetStrategy{
+						Type:        "RollingSync",
+						RollingSync: &argov1alpha1.ApplicationSetRolloutStrategy{},
+					},
+				},
+				Status: argov1alpha1.ApplicationSetStatus{
+					ApplicationStatus: []argov1alpha1.ApplicationSetApplicationStatus{
+						{
+							Application: "app1",
+							Status:      "Healthy",
+						},
+						{
+							Application: "app2",
+							Status:      "Healthy",
+						},
+					},
+				},
+			},
+			appMap: map[string]argov1alpha1.Application{
+				"app1": {
+					ObjectMeta: metav1.ObjectMeta{
+						Name: "app1",
+					},
+					Status: argov1alpha1.ApplicationStatus{
+						Health: argov1alpha1.HealthStatus{
+							Status: health.HealthStatusHealthy,
+						},
+						OperationState: &argov1alpha1.OperationState{
+							Phase: common.OperationSucceeded,
+						},
+						Sync: argov1alpha1.SyncStatus{
+							Status: argov1alpha1.SyncStatusCodeSynced,
+						},
+					},
+				},
+				"app2": {
+					ObjectMeta: metav1.ObjectMeta{
+						Name: "app2",
+					},
+					Status: argov1alpha1.ApplicationStatus{
+						Health: argov1alpha1.HealthStatus{
+							Status: health.HealthStatusHealthy,
+						},
+						OperationState: &argov1alpha1.OperationState{
+							Phase: common.OperationSucceeded,
+						},
+						Sync: argov1alpha1.SyncStatus{
+							Status: argov1alpha1.SyncStatusCodeSynced,
+						},
+					},
+				},
+			},
+			appDependencyList: [][]string{
+				{"app1"},
+				{"app2"},
+			},
+			expectedMap: map[string]bool{
+				"app1": true,
+				"app2": true,
+			},
+		},
+		{
+			name: "blocks RollingSync applications that are healthy and have no changes, but are still pending",
+			appSet: argov1alpha1.ApplicationSet{
+				ObjectMeta: metav1.ObjectMeta{
+					Name:      "name",
+					Namespace: "argocd",
+				},
+				Spec: argov1alpha1.ApplicationSetSpec{
+					Strategy: &argov1alpha1.ApplicationSetStrategy{
+						Type:        "RollingSync",
+						RollingSync: &argov1alpha1.ApplicationSetRolloutStrategy{},
+					},
+				},
+				Status: argov1alpha1.ApplicationSetStatus{
+					ApplicationStatus: []argov1alpha1.ApplicationSetApplicationStatus{
+						{
+							Application: "app1",
+							Status:      "Pending",
+						},
+						{
+							Application: "app2",
+							Status:      "Healthy",
+						},
+					},
+				},
+			},
+			appMap: map[string]argov1alpha1.Application{
+				"app1": {
+					ObjectMeta: metav1.ObjectMeta{
+						Name: "app1",
+					},
+					Status: argov1alpha1.ApplicationStatus{
+						Health: argov1alpha1.HealthStatus{
+							Status: health.HealthStatusHealthy,
+						},
+						OperationState: &argov1alpha1.OperationState{
+							Phase: common.OperationSucceeded,
+						},
+						Sync: argov1alpha1.SyncStatus{
+							Status: argov1alpha1.SyncStatusCodeSynced,
+						},
+					},
+				},
+				"app2": {
+					ObjectMeta: metav1.ObjectMeta{
+						Name: "app2",
+					},
+					Status: argov1alpha1.ApplicationStatus{
+						Health: argov1alpha1.HealthStatus{
+							Status: health.HealthStatusHealthy,
+						},
+						OperationState: &argov1alpha1.OperationState{
+							Phase: common.OperationSucceeded,
+						},
+						Sync: argov1alpha1.SyncStatus{
+							Status: argov1alpha1.SyncStatusCodeSynced,
+						},
+					},
+				},
+			},
+			appDependencyList: [][]string{
+				{"app1"},
+				{"app2"},
+			},
+			expectedMap: map[string]bool{
+				"app1": true,
+				"app2": false,
+			},
+		},
+		{
+			name: "handles RollingSync applications that are up to date and healthy, but still syncing",
+			appSet: argov1alpha1.ApplicationSet{
+				ObjectMeta: metav1.ObjectMeta{
+					Name:      "name",
+					Namespace: "argocd",
+				},
+				Spec: argov1alpha1.ApplicationSetSpec{
+					Strategy: &argov1alpha1.ApplicationSetStrategy{
+						Type:        "RollingSync",
+						RollingSync: &argov1alpha1.ApplicationSetRolloutStrategy{},
+					},
+				},
+				Status: argov1alpha1.ApplicationSetStatus{
+					ApplicationStatus: []argov1alpha1.ApplicationSetApplicationStatus{
+						{
+							Application: "app1",
+							Status:      "Progressing",
+						},
+						{
+							Application: "app2",
+							Status:      "Progressing",
+						},
+					},
+				},
+			},
+			appMap: map[string]argov1alpha1.Application{
+				"app1": {
+					ObjectMeta: metav1.ObjectMeta{
+						Name: "app1",
+					},
+					Status: argov1alpha1.ApplicationStatus{
+						Health: argov1alpha1.HealthStatus{
+							Status: health.HealthStatusHealthy,
+						},
+						OperationState: &argov1alpha1.OperationState{
+							Phase: common.OperationRunning,
+						},
+						Sync: argov1alpha1.SyncStatus{
+							Status: argov1alpha1.SyncStatusCodeSynced,
+						},
+					},
+				},
+				"app2": {
+					ObjectMeta: metav1.ObjectMeta{
+						Name: "app2",
+					},
+					Status: argov1alpha1.ApplicationStatus{
+						Health: argov1alpha1.HealthStatus{
+							Status: health.HealthStatusHealthy,
+						},
+						OperationState: &argov1alpha1.OperationState{
+							Phase: common.OperationRunning,
+						},
+						Sync: argov1alpha1.SyncStatus{
+							Status: argov1alpha1.SyncStatusCodeSynced,
+						},
+					},
+				},
+			},
+			appDependencyList: [][]string{
+				{"app1"},
+				{"app2"},
+			},
+			expectedMap: map[string]bool{
+				"app1": true,
+				"app2": false,
+			},
+		},
+		{
+			name: "handles RollingSync applications that are up to date and synced, but degraded",
+			appSet: argov1alpha1.ApplicationSet{
+				ObjectMeta: metav1.ObjectMeta{
+					Name:      "name",
+					Namespace: "argocd",
+				},
+				Spec: argov1alpha1.ApplicationSetSpec{
+					Strategy: &argov1alpha1.ApplicationSetStrategy{
+						Type:        "RollingSync",
+						RollingSync: &argov1alpha1.ApplicationSetRolloutStrategy{},
+					},
+				},
+				Status: argov1alpha1.ApplicationSetStatus{
+					ApplicationStatus: []argov1alpha1.ApplicationSetApplicationStatus{
+						{
+							Application: "app1",
+							Status:      "Progressing",
+						},
+						{
+							Application: "app2",
+							Status:      "Progressing",
+						},
+					},
+				},
+			},
+			appMap: map[string]argov1alpha1.Application{
+				"app1": {
+					ObjectMeta: metav1.ObjectMeta{
+						Name: "app1",
+					},
+					Status: argov1alpha1.ApplicationStatus{
+						Health: argov1alpha1.HealthStatus{
+							Status: health.HealthStatusDegraded,
+						},
+						OperationState: &argov1alpha1.OperationState{
+							Phase: common.OperationRunning,
+						},
+						Sync: argov1alpha1.SyncStatus{
+							Status: argov1alpha1.SyncStatusCodeSynced,
+						},
+					},
+				},
+				"app2": {
+					ObjectMeta: metav1.ObjectMeta{
+						Name: "app2",
+					},
+					Status: argov1alpha1.ApplicationStatus{
+						Health: argov1alpha1.HealthStatus{
+							Status: health.HealthStatusDegraded,
+						},
+						OperationState: &argov1alpha1.OperationState{
+							Phase: common.OperationRunning,
+						},
+						Sync: argov1alpha1.SyncStatus{
+							Status: argov1alpha1.SyncStatusCodeSynced,
+						},
+					},
+				},
+			},
+			appDependencyList: [][]string{
+				{"app1"},
+				{"app2"},
+			},
+			expectedMap: map[string]bool{
+				"app1": true,
+				"app2": false,
+			},
+		},
+		{
+			name: "handles RollingSync applications that are OutOfSync and healthy",
+			appSet: argov1alpha1.ApplicationSet{
+				ObjectMeta: metav1.ObjectMeta{
+					Name:      "name",
+					Namespace: "argocd",
+				},
+				Spec: argov1alpha1.ApplicationSetSpec{
+					Strategy: &argov1alpha1.ApplicationSetStrategy{
+						Type:        "RollingSync",
+						RollingSync: &argov1alpha1.ApplicationSetRolloutStrategy{},
+					},
+				},
+				Status: argov1alpha1.ApplicationSetStatus{
+					ApplicationStatus: []argov1alpha1.ApplicationSetApplicationStatus{
+						{
+							Application: "app1",
+							Status:      "Healthy",
+						},
+						{
+							Application: "app2",
+							Status:      "Healthy",
+						},
+					},
+				},
+			},
+			appDependencyList: [][]string{
+				{"app1"},
+				{"app2"},
+			},
+			appMap: map[string]argov1alpha1.Application{
+				"app1": {
+					ObjectMeta: metav1.ObjectMeta{
+						Name: "app1",
+					},
+					Status: argov1alpha1.ApplicationStatus{
+						Health: argov1alpha1.HealthStatus{
+							Status: health.HealthStatusHealthy,
+						},
+						OperationState: &argov1alpha1.OperationState{
+							Phase: common.OperationSucceeded,
+						},
+						Sync: argov1alpha1.SyncStatus{
+							Status: argov1alpha1.SyncStatusCodeOutOfSync,
+						},
+					},
+				},
+				"app2": {
+					ObjectMeta: metav1.ObjectMeta{
+						Name: "app2",
+					},
+					Status: argov1alpha1.ApplicationStatus{
+						Health: argov1alpha1.HealthStatus{
+							Status: health.HealthStatusHealthy,
+						},
+						OperationState: &argov1alpha1.OperationState{
+							Phase: common.OperationSucceeded,
+						},
+						Sync: argov1alpha1.SyncStatus{
+							Status: argov1alpha1.SyncStatusCodeOutOfSync,
+						},
+					},
+				},
+			},
+			expectedMap: map[string]bool{
+				"app1": true,
+				"app2": false,
+			},
+		},
+		{
+			name: "handles a lot of applications",
+			appSet: argov1alpha1.ApplicationSet{
+				ObjectMeta: metav1.ObjectMeta{
+					Name:      "name",
+					Namespace: "argocd",
+				},
+				Spec: argov1alpha1.ApplicationSetSpec{
+					Strategy: &argov1alpha1.ApplicationSetStrategy{
+						Type:        "RollingSync",
+						RollingSync: &argov1alpha1.ApplicationSetRolloutStrategy{},
+					},
+				},
+				Status: argov1alpha1.ApplicationSetStatus{
+					ApplicationStatus: []argov1alpha1.ApplicationSetApplicationStatus{
+						{
+							Application: "app1",
+							Status:      "Healthy",
+						},
+						{
+							Application: "app2",
+							Status:      "Healthy",
+						},
+						{
+							Application: "app3",
+							Status:      "Healthy",
+						},
+						{
+							Application: "app4",
+							Status:      "Healthy",
+						},
+						{
+							Application: "app5",
+							Status:      "Healthy",
+						},
+						{
+							Application: "app7",
+							Status:      "Healthy",
+						},
+					},
+				},
+			},
+			appMap: map[string]argov1alpha1.Application{
+				"app1": {
+					ObjectMeta: metav1.ObjectMeta{
+						Name: "app1",
+					},
+					Status: argov1alpha1.ApplicationStatus{
+						Health: argov1alpha1.HealthStatus{
+							Status: health.HealthStatusHealthy,
+						},
+						OperationState: &argov1alpha1.OperationState{
+							Phase: common.OperationSucceeded,
+						},
+						Sync: argov1alpha1.SyncStatus{
+							Status: argov1alpha1.SyncStatusCodeSynced,
+						},
+					},
+				},
+				"app2": {
+					ObjectMeta: metav1.ObjectMeta{
+						Name: "app2",
+					},
+					Status: argov1alpha1.ApplicationStatus{
+						Health: argov1alpha1.HealthStatus{
+							Status: health.HealthStatusHealthy,
+						},
+						OperationState: &argov1alpha1.OperationState{
+							Phase: common.OperationSucceeded,
+						},
+						Sync: argov1alpha1.SyncStatus{
+							Status: argov1alpha1.SyncStatusCodeSynced,
+						},
+					},
+				},
+				"app3": {
+					ObjectMeta: metav1.ObjectMeta{
+						Name: "app3",
+					},
+					Status: argov1alpha1.ApplicationStatus{
+						Health: argov1alpha1.HealthStatus{
+							Status: health.HealthStatusHealthy,
+						},
+						OperationState: &argov1alpha1.OperationState{
+							Phase: common.OperationSucceeded,
+						},
+						Sync: argov1alpha1.SyncStatus{
+							Status: argov1alpha1.SyncStatusCodeSynced,
+						},
+					},
+				},
+				"app5": {
+					ObjectMeta: metav1.ObjectMeta{
+						Name: "app5",
+					},
+					Status: argov1alpha1.ApplicationStatus{
+						Health: argov1alpha1.HealthStatus{
+							Status: health.HealthStatusHealthy,
+						},
+						OperationState: &argov1alpha1.OperationState{
+							Phase: common.OperationSucceeded,
+						},
+						Sync: argov1alpha1.SyncStatus{
+							Status: argov1alpha1.SyncStatusCodeSynced,
+						},
+					},
+				},
+				"app6": {
+					ObjectMeta: metav1.ObjectMeta{
+						Name: "app6",
+					},
+					Status: argov1alpha1.ApplicationStatus{
+						Health: argov1alpha1.HealthStatus{
+							Status: health.HealthStatusDegraded,
+						},
+						OperationState: &argov1alpha1.OperationState{
+							Phase: common.OperationSucceeded,
+						},
+						Sync: argov1alpha1.SyncStatus{
+							Status: argov1alpha1.SyncStatusCodeSynced,
+						},
+					},
+				},
+			},
+			appDependencyList: [][]string{
+				{"app1", "app2", "app3"},
+				{"app4", "app5", "app6"},
+				{"app7", "app8", "app9"},
+			},
+			expectedMap: map[string]bool{
+				"app1": true,
+				"app2": true,
+				"app3": true,
+				"app4": true,
+				"app5": true,
+				"app6": true,
+				"app7": false,
+				"app8": false,
+				"app9": false,
+			},
+		},
+	} {
+
+		t.Run(cc.name, func(t *testing.T) {
+
+			kubeclientset := kubefake.NewSimpleClientset([]runtime.Object{}...)
+			argoDBMock := dbmocks.ArgoDB{}
+			argoObjs := []runtime.Object{}
+
+			r := ApplicationSetReconciler{
+				Client:           client,
+				Scheme:           scheme,
+				Recorder:         record.NewFakeRecorder(1),
+				Generators:       map[string]generators.Generator{},
+				ArgoDB:           &argoDBMock,
+				ArgoAppClientset: appclientset.NewSimpleClientset(argoObjs...),
+				KubeClientset:    kubeclientset,
+			}
+
+			appSyncMap, err := r.buildAppSyncMap(context.TODO(), cc.appSet, cc.appDependencyList, cc.appMap)
+			assert.Equal(t, err, nil, "expected no errors, but errors occured")
+			assert.Equal(t, cc.expectedMap, appSyncMap, "expected appSyncMap did not match actual")
+		})
+	}
+}
+
+func TestUpdateApplicationSetApplicationStatus(t *testing.T) {
+
+	scheme := runtime.NewScheme()
+	err := argov1alpha1.AddToScheme(scheme)
+	assert.Nil(t, err)
+
+	err = argov1alpha1.AddToScheme(scheme)
+	assert.Nil(t, err)
+
+	for _, cc := range []struct {
+		name              string
+		appSet            argov1alpha1.ApplicationSet
+		apps              []argov1alpha1.Application
+		appStepMap        map[string]int
+		expectedAppStatus []argov1alpha1.ApplicationSetApplicationStatus
+	}{
+		{
+			name: "handles a nil list of statuses and no applications",
+			appSet: argov1alpha1.ApplicationSet{
+				ObjectMeta: metav1.ObjectMeta{
+					Name:      "name",
+					Namespace: "argocd",
+				},
+				Spec: argov1alpha1.ApplicationSetSpec{
+					Strategy: &argov1alpha1.ApplicationSetStrategy{
+						Type:        "RollingSync",
+						RollingSync: &argov1alpha1.ApplicationSetRolloutStrategy{},
+					},
+				},
+			},
+			apps:              []argov1alpha1.Application{},
+			expectedAppStatus: []argov1alpha1.ApplicationSetApplicationStatus{},
+		},
+		{
+			name: "handles a nil list of statuses with a healthy application",
+			appSet: argov1alpha1.ApplicationSet{
+				ObjectMeta: metav1.ObjectMeta{
+					Name:      "name",
+					Namespace: "argocd",
+				},
+				Spec: argov1alpha1.ApplicationSetSpec{
+					Strategy: &argov1alpha1.ApplicationSetStrategy{
+						Type:        "RollingSync",
+						RollingSync: &argov1alpha1.ApplicationSetRolloutStrategy{},
+					},
+				},
+			},
+			apps: []argov1alpha1.Application{
+				{
+					ObjectMeta: metav1.ObjectMeta{
+						Name: "app1",
+					},
+					Status: argov1alpha1.ApplicationStatus{
+						Health: argov1alpha1.HealthStatus{
+							Status: health.HealthStatusHealthy,
+						},
+						OperationState: &argov1alpha1.OperationState{
+							Phase: common.OperationSucceeded,
+						},
+						Sync: argov1alpha1.SyncStatus{
+							Status: argov1alpha1.SyncStatusCodeSynced,
+						},
+					},
+				},
+			},
+			expectedAppStatus: []argov1alpha1.ApplicationSetApplicationStatus{
+				{
+					Application: "app1",
+					Message:     "Application resource is already Healthy, updating status from Waiting to Healthy.",
+					Status:      "Healthy",
+					Step:        "1",
+				},
+			},
+		},
+		{
+			name: "handles an empty list of statuses with a healthy application",
+			appSet: argov1alpha1.ApplicationSet{
+				ObjectMeta: metav1.ObjectMeta{
+					Name:      "name",
+					Namespace: "argocd",
+				},
+				Spec: argov1alpha1.ApplicationSetSpec{
+					Strategy: &argov1alpha1.ApplicationSetStrategy{
+						Type:        "RollingSync",
+						RollingSync: &argov1alpha1.ApplicationSetRolloutStrategy{},
+					},
+				},
+				Status: argov1alpha1.ApplicationSetStatus{},
+			},
+			apps: []argov1alpha1.Application{
+				{
+					ObjectMeta: metav1.ObjectMeta{
+						Name: "app1",
+					},
+					Status: argov1alpha1.ApplicationStatus{
+						Health: argov1alpha1.HealthStatus{
+							Status: health.HealthStatusHealthy,
+						},
+						OperationState: &argov1alpha1.OperationState{
+							Phase: common.OperationSucceeded,
+						},
+						Sync: argov1alpha1.SyncStatus{
+							Status: argov1alpha1.SyncStatusCodeSynced,
+						},
+					},
+				},
+			},
+			expectedAppStatus: []argov1alpha1.ApplicationSetApplicationStatus{
+				{
+					Application: "app1",
+					Message:     "Application resource is already Healthy, updating status from Waiting to Healthy.",
+					Status:      "Healthy",
+					Step:        "1",
+				},
+			},
+		},
+		{
+			name: "progresses an OutOfSync RollingSync application to waiting",
+			appSet: argov1alpha1.ApplicationSet{
+				ObjectMeta: metav1.ObjectMeta{
+					Name:      "name",
+					Namespace: "argocd",
+				},
+				Spec: argov1alpha1.ApplicationSetSpec{
+					Strategy: &argov1alpha1.ApplicationSetStrategy{
+						Type:        "RollingSync",
+						RollingSync: &argov1alpha1.ApplicationSetRolloutStrategy{},
+					},
+				},
+				Status: argov1alpha1.ApplicationSetStatus{
+					ApplicationStatus: []argov1alpha1.ApplicationSetApplicationStatus{
+						{
+							Application: "app1",
+							Message:     "",
+							Status:      "Healthy",
+							Step:        "1",
+						},
+					},
+				},
+			},
+			apps: []argov1alpha1.Application{
+				{
+					ObjectMeta: metav1.ObjectMeta{
+						Name: "app1",
+					},
+					Status: argov1alpha1.ApplicationStatus{
+						Sync: argov1alpha1.SyncStatus{
+							Status: argov1alpha1.SyncStatusCodeOutOfSync,
+						},
+					},
+				},
+			},
+			expectedAppStatus: []argov1alpha1.ApplicationSetApplicationStatus{
+				{
+					Application: "app1",
+					Message:     "Application has pending changes, setting status to Waiting.",
+					Status:      "Waiting",
+					Step:        "1",
+				},
+			},
+		},
+		{
+			name: "progresses a pending progressing application to progressing",
+			appSet: argov1alpha1.ApplicationSet{
+				ObjectMeta: metav1.ObjectMeta{
+					Name:      "name",
+					Namespace: "argocd",
+				},
+				Spec: argov1alpha1.ApplicationSetSpec{
+					Strategy: &argov1alpha1.ApplicationSetStrategy{
+						Type:        "RollingSync",
+						RollingSync: &argov1alpha1.ApplicationSetRolloutStrategy{},
+					},
+				},
+				Status: argov1alpha1.ApplicationSetStatus{
+					ApplicationStatus: []argov1alpha1.ApplicationSetApplicationStatus{
+						{
+							Application: "app1",
+							Message:     "",
+							Status:      "Pending",
+							Step:        "1",
+						},
+					},
+				},
+			},
+			apps: []argov1alpha1.Application{
+				{
+					ObjectMeta: metav1.ObjectMeta{
+						Name: "app1",
+					},
+					Status: argov1alpha1.ApplicationStatus{
+						Health: argov1alpha1.HealthStatus{
+							Status: health.HealthStatusProgressing,
+						},
+					},
+				},
+			},
+			expectedAppStatus: []argov1alpha1.ApplicationSetApplicationStatus{
+				{
+					Application: "app1",
+					Message:     "Application resource became Progressing, updating status from Pending to Progressing.",
+					Status:      "Progressing",
+					Step:        "1",
+				},
+			},
+		},
+		{
+			name: "progresses a pending syncing application to progressing",
+			appSet: argov1alpha1.ApplicationSet{
+				ObjectMeta: metav1.ObjectMeta{
+					Name:      "name",
+					Namespace: "argocd",
+				},
+				Spec: argov1alpha1.ApplicationSetSpec{
+					Strategy: &argov1alpha1.ApplicationSetStrategy{
+						Type:        "RollingSync",
+						RollingSync: &argov1alpha1.ApplicationSetRolloutStrategy{},
+					},
+				},
+				Status: argov1alpha1.ApplicationSetStatus{
+					ApplicationStatus: []argov1alpha1.ApplicationSetApplicationStatus{
+						{
+							Application: "app1",
+							Message:     "",
+							Status:      "Pending",
+							Step:        "1",
+						},
+					},
+				},
+			},
+			apps: []argov1alpha1.Application{
+				{
+					ObjectMeta: metav1.ObjectMeta{
+						Name: "app1",
+					},
+					Status: argov1alpha1.ApplicationStatus{
+						Health: argov1alpha1.HealthStatus{
+							Status: health.HealthStatusHealthy,
+						},
+						OperationState: &argov1alpha1.OperationState{
+							Phase: common.OperationRunning,
+						},
+						Sync: argov1alpha1.SyncStatus{
+							Status: argov1alpha1.SyncStatusCodeSynced,
+						},
+					},
+				},
+			},
+			expectedAppStatus: []argov1alpha1.ApplicationSetApplicationStatus{
+				{
+					Application: "app1",
+					Message:     "Application resource became Progressing, updating status from Pending to Progressing.",
+					Status:      "Progressing",
+					Step:        "1",
+				},
+			},
+		},
+		{
+			name: "progresses a progressing application to healthy",
+			appSet: argov1alpha1.ApplicationSet{
+				ObjectMeta: metav1.ObjectMeta{
+					Name:      "name",
+					Namespace: "argocd",
+				},
+				Spec: argov1alpha1.ApplicationSetSpec{
+					Strategy: &argov1alpha1.ApplicationSetStrategy{
+						Type:        "RollingSync",
+						RollingSync: &argov1alpha1.ApplicationSetRolloutStrategy{},
+					},
+				},
+				Status: argov1alpha1.ApplicationSetStatus{
+					ApplicationStatus: []argov1alpha1.ApplicationSetApplicationStatus{
+						{
+							Application: "app1",
+							Message:     "",
+							Status:      "Progressing",
+							Step:        "1",
+						},
+					},
+				},
+			},
+			apps: []argov1alpha1.Application{
+				{
+					ObjectMeta: metav1.ObjectMeta{
+						Name: "app1",
+					},
+					Status: argov1alpha1.ApplicationStatus{
+						Health: argov1alpha1.HealthStatus{
+							Status: health.HealthStatusHealthy,
+						},
+						OperationState: &argov1alpha1.OperationState{
+							Phase: common.OperationSucceeded,
+						},
+						Sync: argov1alpha1.SyncStatus{
+							Status: argov1alpha1.SyncStatusCodeSynced,
+						},
+					},
+				},
+			},
+			expectedAppStatus: []argov1alpha1.ApplicationSetApplicationStatus{
+				{
+					Application: "app1",
+					Message:     "Application resource became Healthy, updating status from Progressing to Healthy.",
+					Status:      "Healthy",
+					Step:        "1",
+				},
+			},
+		},
+		{
+			name: "progresses a waiting healthy application to healthy",
+			appSet: argov1alpha1.ApplicationSet{
+				ObjectMeta: metav1.ObjectMeta{
+					Name:      "name",
+					Namespace: "argocd",
+				},
+				Spec: argov1alpha1.ApplicationSetSpec{
+					Strategy: &argov1alpha1.ApplicationSetStrategy{
+						Type:        "RollingSync",
+						RollingSync: &argov1alpha1.ApplicationSetRolloutStrategy{},
+					},
+				},
+				Status: argov1alpha1.ApplicationSetStatus{
+					ApplicationStatus: []argov1alpha1.ApplicationSetApplicationStatus{
+						{
+							Application: "app1",
+							Message:     "",
+							Status:      "Waiting",
+							Step:        "1",
+						},
+					},
+				},
+			},
+			apps: []argov1alpha1.Application{
+				{
+					ObjectMeta: metav1.ObjectMeta{
+						Name: "app1",
+					},
+					Status: argov1alpha1.ApplicationStatus{
+						Health: argov1alpha1.HealthStatus{
+							Status: health.HealthStatusHealthy,
+						},
+						OperationState: &argov1alpha1.OperationState{
+							Phase: common.OperationSucceeded,
+						},
+						Sync: argov1alpha1.SyncStatus{
+							Status: argov1alpha1.SyncStatusCodeSynced,
+						},
+					},
+				},
+			},
+			expectedAppStatus: []argov1alpha1.ApplicationSetApplicationStatus{
+				{
+					Application: "app1",
+					Message:     "Application resource is already Healthy, updating status from Waiting to Healthy.",
+					Status:      "Healthy",
+					Step:        "1",
+				},
+			},
+		},
+		{
+			name: "progresses a new outofsync application in a later step to waiting",
+			appSet: argov1alpha1.ApplicationSet{
+				ObjectMeta: metav1.ObjectMeta{
+					Name:      "name",
+					Namespace: "argocd",
+				},
+				Spec: argov1alpha1.ApplicationSetSpec{
+					Strategy: &argov1alpha1.ApplicationSetStrategy{
+						Type:        "RollingSync",
+						RollingSync: &argov1alpha1.ApplicationSetRolloutStrategy{},
+					},
+				},
+			},
+			apps: []argov1alpha1.Application{
+				{
+					ObjectMeta: metav1.ObjectMeta{
+						Name: "app1",
+					},
+					Status: argov1alpha1.ApplicationStatus{
+						Health: argov1alpha1.HealthStatus{
+							Status: health.HealthStatusHealthy,
+						},
+						OperationState: &argov1alpha1.OperationState{
+							Phase: common.OperationSucceeded,
+						},
+						Sync: argov1alpha1.SyncStatus{
+							Status: argov1alpha1.SyncStatusCodeOutOfSync,
+						},
+					},
+				},
+			},
+			appStepMap: map[string]int{
+				"app1": 1,
+				"app2": 0,
+			},
+			expectedAppStatus: []argov1alpha1.ApplicationSetApplicationStatus{
+				{
+					Application: "app1",
+					Message:     "No Application status found, defaulting status to Waiting.",
+					Status:      "Waiting",
+					Step:        "2",
+				},
+			},
+		},
+		{
+			name: "progresses a pending application with a successful sync to progressing",
+			appSet: argov1alpha1.ApplicationSet{
+				ObjectMeta: metav1.ObjectMeta{
+					Name:      "name",
+					Namespace: "argocd",
+				},
+				Spec: argov1alpha1.ApplicationSetSpec{
+					Strategy: &argov1alpha1.ApplicationSetStrategy{
+						Type:        "RollingSync",
+						RollingSync: &argov1alpha1.ApplicationSetRolloutStrategy{},
+					},
+				},
+				Status: argov1alpha1.ApplicationSetStatus{
+					ApplicationStatus: []argov1alpha1.ApplicationSetApplicationStatus{
+						{
+							Application: "app1",
+							LastTransitionTime: &metav1.Time{
+								Time: time.Now().Add(time.Duration(-1) * time.Minute),
+							},
+							Message: "",
+							Status:  "Pending",
+							Step:    "1",
+						},
+					},
+				},
+			},
+			apps: []argov1alpha1.Application{
+				{
+					ObjectMeta: metav1.ObjectMeta{
+						Name: "app1",
+					},
+					Status: argov1alpha1.ApplicationStatus{
+						Health: argov1alpha1.HealthStatus{
+							Status: health.HealthStatusDegraded,
+						},
+						OperationState: &argov1alpha1.OperationState{
+							Phase: common.OperationSucceeded,
+							StartedAt: metav1.Time{
+								Time: time.Now(),
+							},
+						},
+						Sync: argov1alpha1.SyncStatus{
+							Status: argov1alpha1.SyncStatusCodeSynced,
+						},
+					},
+				},
+			},
+			expectedAppStatus: []argov1alpha1.ApplicationSetApplicationStatus{
+				{
+					Application: "app1",
+					Message:     "Application resource completed a sync successfully, updating status from Pending to Progressing.",
+					Status:      "Progressing",
+					Step:        "1",
+				},
+			},
+		},
+		{
+			name: "does not progresses a pending application with an old successful sync to progressing",
+			appSet: argov1alpha1.ApplicationSet{
+				ObjectMeta: metav1.ObjectMeta{
+					Name:      "name",
+					Namespace: "argocd",
+				},
+				Spec: argov1alpha1.ApplicationSetSpec{
+					Strategy: &argov1alpha1.ApplicationSetStrategy{
+						Type:        "RollingSync",
+						RollingSync: &argov1alpha1.ApplicationSetRolloutStrategy{},
+					},
+				},
+				Status: argov1alpha1.ApplicationSetStatus{
+					ApplicationStatus: []argov1alpha1.ApplicationSetApplicationStatus{
+						{
+							Application: "app1",
+							LastTransitionTime: &metav1.Time{
+								Time: time.Now().Add(time.Duration(-1) * time.Minute),
+							},
+							Message: "Application moved to Pending status, watching for the Application resource to start Progressing.",
+							Status:  "Pending",
+							Step:    "1",
+						},
+					},
+				},
+			},
+			apps: []argov1alpha1.Application{
+				{
+					ObjectMeta: metav1.ObjectMeta{
+						Name: "app1",
+					},
+					Status: argov1alpha1.ApplicationStatus{
+						Health: argov1alpha1.HealthStatus{
+							Status: health.HealthStatusDegraded,
+						},
+						OperationState: &argov1alpha1.OperationState{
+							Phase: common.OperationSucceeded,
+							StartedAt: metav1.Time{
+								Time: time.Now().Add(time.Duration(-2) * time.Minute),
+							},
+						},
+						Sync: argov1alpha1.SyncStatus{
+							Status: argov1alpha1.SyncStatusCodeSynced,
+						},
+					},
+				},
+			},
+			expectedAppStatus: []argov1alpha1.ApplicationSetApplicationStatus{
+				{
+					Application: "app1",
+					Message:     "Application moved to Pending status, watching for the Application resource to start Progressing.",
+					Status:      "Pending",
+					Step:        "1",
+				},
+			},
+		},
+	} {
+
+		t.Run(cc.name, func(t *testing.T) {
+
+			kubeclientset := kubefake.NewSimpleClientset([]runtime.Object{}...)
+			argoDBMock := dbmocks.ArgoDB{}
+			argoObjs := []runtime.Object{}
+
+			client := fake.NewClientBuilder().WithScheme(scheme).WithObjects(&cc.appSet).Build()
+
+			r := ApplicationSetReconciler{
+				Client:           client,
+				Scheme:           scheme,
+				Recorder:         record.NewFakeRecorder(1),
+				Generators:       map[string]generators.Generator{},
+				ArgoDB:           &argoDBMock,
+				ArgoAppClientset: appclientset.NewSimpleClientset(argoObjs...),
+				KubeClientset:    kubeclientset,
+			}
+
+			appStatuses, err := r.updateApplicationSetApplicationStatus(context.TODO(), &cc.appSet, cc.apps, cc.appStepMap)
+
+			// opt out of testing the LastTransitionTime is accurate
+			for i := range appStatuses {
+				appStatuses[i].LastTransitionTime = nil
+			}
+
+			assert.Equal(t, err, nil, "expected no errors, but errors occured")
+			assert.Equal(t, cc.expectedAppStatus, appStatuses, "expected appStatuses did not match actual")
+		})
+	}
+}
+
+func TestUpdateApplicationSetApplicationStatusProgress(t *testing.T) {
+
+	scheme := runtime.NewScheme()
+	err := argov1alpha1.AddToScheme(scheme)
+	assert.Nil(t, err)
+
+	err = argov1alpha1.AddToScheme(scheme)
+	assert.Nil(t, err)
+
+	for _, cc := range []struct {
+		name              string
+		appSet            argov1alpha1.ApplicationSet
+		appSyncMap        map[string]bool
+		appStepMap        map[string]int
+		appMap            map[string]argov1alpha1.Application
+		expectedAppStatus []argov1alpha1.ApplicationSetApplicationStatus
+	}{
+		{
+			name: "handles an empty appSync and appStepMap",
+			appSet: argov1alpha1.ApplicationSet{
+				ObjectMeta: metav1.ObjectMeta{
+					Name:      "name",
+					Namespace: "argocd",
+				},
+				Spec: argov1alpha1.ApplicationSetSpec{
+					Strategy: &argov1alpha1.ApplicationSetStrategy{
+						Type: "RollingSync",
+						RollingSync: &argov1alpha1.ApplicationSetRolloutStrategy{
+							Steps: []argov1alpha1.ApplicationSetRolloutStep{
+								{
+									MatchExpressions: []argov1alpha1.ApplicationMatchExpression{},
+								},
+								{
+									MatchExpressions: []argov1alpha1.ApplicationMatchExpression{},
+								},
+							},
+						},
+					},
+				},
+				Status: argov1alpha1.ApplicationSetStatus{
+					ApplicationStatus: []argov1alpha1.ApplicationSetApplicationStatus{},
+				},
+			},
+			appSyncMap:        map[string]bool{},
+			appStepMap:        map[string]int{},
+			expectedAppStatus: []argov1alpha1.ApplicationSetApplicationStatus{},
+		},
+		{
+			name: "handles an empty strategy",
+			appSet: argov1alpha1.ApplicationSet{
+				ObjectMeta: metav1.ObjectMeta{
+					Name:      "name",
+					Namespace: "argocd",
+				},
+				Spec: argov1alpha1.ApplicationSetSpec{},
+				Status: argov1alpha1.ApplicationSetStatus{
+					ApplicationStatus: []argov1alpha1.ApplicationSetApplicationStatus{},
+				},
+			},
+			appSyncMap:        map[string]bool{},
+			appStepMap:        map[string]int{},
+			expectedAppStatus: []argov1alpha1.ApplicationSetApplicationStatus{},
+		},
+		{
+			name: "handles an empty applicationset strategy",
+			appSet: argov1alpha1.ApplicationSet{
+				ObjectMeta: metav1.ObjectMeta{
+					Name:      "name",
+					Namespace: "argocd",
+				},
+				Spec: argov1alpha1.ApplicationSetSpec{
+					Strategy: &argov1alpha1.ApplicationSetStrategy{},
+				},
+				Status: argov1alpha1.ApplicationSetStatus{
+					ApplicationStatus: []argov1alpha1.ApplicationSetApplicationStatus{},
+				},
+			},
+			appSyncMap:        map[string]bool{},
+			appStepMap:        map[string]int{},
+			expectedAppStatus: []argov1alpha1.ApplicationSetApplicationStatus{},
+		},
+		{
+			name: "handles an appSyncMap with no existing statuses",
+			appSet: argov1alpha1.ApplicationSet{
+				ObjectMeta: metav1.ObjectMeta{
+					Name:      "name",
+					Namespace: "argocd",
+				},
+				Status: argov1alpha1.ApplicationSetStatus{
+					ApplicationStatus: []argov1alpha1.ApplicationSetApplicationStatus{},
+				},
+			},
+			appSyncMap: map[string]bool{
+				"app1": true,
+				"app2": false,
+			},
+			appStepMap: map[string]int{
+				"app1": 0,
+				"app2": 1,
+			},
+			expectedAppStatus: []argov1alpha1.ApplicationSetApplicationStatus{},
+		},
+		{
+			name: "handles updating a RollingSync status from Waiting to Pending",
+			appSet: argov1alpha1.ApplicationSet{
+				ObjectMeta: metav1.ObjectMeta{
+					Name:      "name",
+					Namespace: "argocd",
+				},
+				Spec: argov1alpha1.ApplicationSetSpec{
+					Strategy: &argov1alpha1.ApplicationSetStrategy{
+						Type: "RollingSync",
+						RollingSync: &argov1alpha1.ApplicationSetRolloutStrategy{
+							Steps: []argov1alpha1.ApplicationSetRolloutStep{
+								{
+									MatchExpressions: []argov1alpha1.ApplicationMatchExpression{},
+								},
+								{
+									MatchExpressions: []argov1alpha1.ApplicationMatchExpression{},
+								},
+							},
+						},
+					},
+				},
+				Status: argov1alpha1.ApplicationSetStatus{
+					ApplicationStatus: []argov1alpha1.ApplicationSetApplicationStatus{
+						{
+							Application: "app1",
+							Message:     "Application is out of date with the current AppSet generation, setting status to Waiting.",
+							Status:      "Waiting",
+						},
+					},
+				},
+			},
+			appSyncMap: map[string]bool{
+				"app1": true,
+			},
+			appStepMap: map[string]int{
+				"app1": 0,
+			},
+			expectedAppStatus: []argov1alpha1.ApplicationSetApplicationStatus{
+				{
+					Application:        "app1",
+					LastTransitionTime: nil,
+					Message:            "Application moved to Pending status, watching for the Application resource to start Progressing.",
+					Status:             "Pending",
+					Step:               "1",
+				},
+			},
+		},
+		{
+			name: "does not update a RollingSync status if appSyncMap is false",
+			appSet: argov1alpha1.ApplicationSet{
+				ObjectMeta: metav1.ObjectMeta{
+					Name:      "name",
+					Namespace: "argocd",
+				},
+				Spec: argov1alpha1.ApplicationSetSpec{
+					Strategy: &argov1alpha1.ApplicationSetStrategy{
+						Type: "RollingSync",
+						RollingSync: &argov1alpha1.ApplicationSetRolloutStrategy{
+							Steps: []argov1alpha1.ApplicationSetRolloutStep{
+								{
+									MatchExpressions: []argov1alpha1.ApplicationMatchExpression{},
+								},
+								{
+									MatchExpressions: []argov1alpha1.ApplicationMatchExpression{},
+								},
+							},
+						},
+					},
+				},
+				Status: argov1alpha1.ApplicationSetStatus{
+					ApplicationStatus: []argov1alpha1.ApplicationSetApplicationStatus{
+						{
+							Application: "app1",
+							Message:     "Application is out of date with the current AppSet generation, setting status to Waiting.",
+							Status:      "Waiting",
+							Step:        "1",
+						},
+					},
+				},
+			},
+			appSyncMap: map[string]bool{
+				"app1": false,
+			},
+			appStepMap: map[string]int{
+				"app1": 0,
+			},
+			expectedAppStatus: []argov1alpha1.ApplicationSetApplicationStatus{
+				{
+					Application:        "app1",
+					LastTransitionTime: nil,
+					Message:            "Application is out of date with the current AppSet generation, setting status to Waiting.",
+					Status:             "Waiting",
+					Step:               "1",
+				},
+			},
+		},
+		{
+			name: "does not update a status if status is not pending",
+			appSet: argov1alpha1.ApplicationSet{
+				ObjectMeta: metav1.ObjectMeta{
+					Name:      "name",
+					Namespace: "argocd",
+				},
+				Spec: argov1alpha1.ApplicationSetSpec{
+					Strategy: &argov1alpha1.ApplicationSetStrategy{
+						Type: "RollingSync",
+						RollingSync: &argov1alpha1.ApplicationSetRolloutStrategy{
+							Steps: []argov1alpha1.ApplicationSetRolloutStep{
+								{
+									MatchExpressions: []argov1alpha1.ApplicationMatchExpression{},
+								},
+								{
+									MatchExpressions: []argov1alpha1.ApplicationMatchExpression{},
+								},
+							},
+						},
+					},
+				},
+				Status: argov1alpha1.ApplicationSetStatus{
+					ApplicationStatus: []argov1alpha1.ApplicationSetApplicationStatus{
+						{
+							Application: "app1",
+							Message:     "Application Pending status timed out while waiting to become Progressing, reset status to Healthy.",
+							Status:      "Healthy",
+							Step:        "1",
+						},
+					},
+				},
+			},
+			appSyncMap: map[string]bool{
+				"app1": true,
+			},
+			appStepMap: map[string]int{
+				"app1": 0,
+			},
+			expectedAppStatus: []argov1alpha1.ApplicationSetApplicationStatus{
+				{
+					Application:        "app1",
+					LastTransitionTime: nil,
+					Message:            "Application Pending status timed out while waiting to become Progressing, reset status to Healthy.",
+					Status:             "Healthy",
+					Step:               "1",
+				},
+			},
+		},
+		{
+			name: "does not update a status if maxUpdate has already been reached with RollingSync",
+			appSet: argov1alpha1.ApplicationSet{
+				ObjectMeta: metav1.ObjectMeta{
+					Name:      "name",
+					Namespace: "argocd",
+				},
+				Spec: argov1alpha1.ApplicationSetSpec{
+					Strategy: &argov1alpha1.ApplicationSetStrategy{
+						Type: "RollingSync",
+						RollingSync: &argov1alpha1.ApplicationSetRolloutStrategy{
+							Steps: []argov1alpha1.ApplicationSetRolloutStep{
+								{
+									MatchExpressions: []argov1alpha1.ApplicationMatchExpression{},
+									MaxUpdate: &intstr.IntOrString{
+										Type:   intstr.Int,
+										IntVal: 3,
+									},
+								},
+								{
+									MatchExpressions: []argov1alpha1.ApplicationMatchExpression{},
+								},
+							},
+						},
+					},
+				},
+				Status: argov1alpha1.ApplicationSetStatus{
+					ApplicationStatus: []argov1alpha1.ApplicationSetApplicationStatus{
+						{
+							Application: "app1",
+							Message:     "Application resource became Progressing, updating status from Pending to Progressing.",
+							Status:      "Progressing",
+							Step:        "1",
+						},
+						{
+							Application: "app2",
+							Message:     "Application is out of date with the current AppSet generation, setting status to Waiting.",
+							Status:      "Waiting",
+							Step:        "1",
+						},
+						{
+							Application: "app3",
+							Message:     "Application is out of date with the current AppSet generation, setting status to Waiting.",
+							Status:      "Waiting",
+							Step:        "1",
+						},
+						{
+							Application: "app4",
+							Message:     "Application moved to Pending status, watching for the Application resource to start Progressing.",
+							Status:      "Pending",
+							Step:        "1",
+						},
+					},
+				},
+			},
+			appSyncMap: map[string]bool{
+				"app1": true,
+				"app2": true,
+				"app3": true,
+				"app4": true,
+			},
+			appStepMap: map[string]int{
+				"app1": 0,
+				"app2": 0,
+				"app3": 0,
+				"app4": 0,
+			},
+			appMap: map[string]argov1alpha1.Application{
+				"app1": {
+					ObjectMeta: metav1.ObjectMeta{
+						Name: "app1",
+					},
+					Status: argov1alpha1.ApplicationStatus{
+						Sync: argov1alpha1.SyncStatus{
+							Status: argov1alpha1.SyncStatusCodeOutOfSync,
+						},
+					},
+				},
+				"app2": {
+					ObjectMeta: metav1.ObjectMeta{
+						Name: "app2",
+					},
+					Status: argov1alpha1.ApplicationStatus{
+						Sync: argov1alpha1.SyncStatus{
+							Status: argov1alpha1.SyncStatusCodeOutOfSync,
+						},
+					},
+				},
+				"app3": {
+					ObjectMeta: metav1.ObjectMeta{
+						Name: "app3",
+					},
+					Status: argov1alpha1.ApplicationStatus{
+						Sync: argov1alpha1.SyncStatus{
+							Status: argov1alpha1.SyncStatusCodeOutOfSync,
+						},
+					},
+				},
+				"app4": {
+					ObjectMeta: metav1.ObjectMeta{
+						Name: "app4",
+					},
+					Status: argov1alpha1.ApplicationStatus{
+						Sync: argov1alpha1.SyncStatus{
+							Status: argov1alpha1.SyncStatusCodeOutOfSync,
+						},
+					},
+				},
+			},
+			expectedAppStatus: []argov1alpha1.ApplicationSetApplicationStatus{
+				{
+					Application:        "app1",
+					LastTransitionTime: nil,
+					Message:            "Application resource became Progressing, updating status from Pending to Progressing.",
+					Status:             "Progressing",
+					Step:               "1",
+				},
+				{
+					Application:        "app2",
+					LastTransitionTime: nil,
+					Message:            "Application moved to Pending status, watching for the Application resource to start Progressing.",
+					Status:             "Pending",
+					Step:               "1",
+				},
+				{
+					Application:        "app3",
+					LastTransitionTime: nil,
+					Message:            "Application is out of date with the current AppSet generation, setting status to Waiting.",
+					Status:             "Waiting",
+					Step:               "1",
+				},
+				{
+					Application:        "app4",
+					LastTransitionTime: nil,
+					Message:            "Application moved to Pending status, watching for the Application resource to start Progressing.",
+					Status:             "Pending",
+					Step:               "1",
+				},
+			},
+		},
+		{
+			name: "rounds down for maxUpdate set to percentage string",
+			appSet: argov1alpha1.ApplicationSet{
+				ObjectMeta: metav1.ObjectMeta{
+					Name:      "name",
+					Namespace: "argocd",
+				},
+				Spec: argov1alpha1.ApplicationSetSpec{
+					Strategy: &argov1alpha1.ApplicationSetStrategy{
+						Type: "RollingSync",
+						RollingSync: &argov1alpha1.ApplicationSetRolloutStrategy{
+							Steps: []argov1alpha1.ApplicationSetRolloutStep{
+								{
+									MatchExpressions: []argov1alpha1.ApplicationMatchExpression{},
+									MaxUpdate: &intstr.IntOrString{
+										Type:   intstr.String,
+										StrVal: "50%",
+									},
+								},
+								{
+									MatchExpressions: []argov1alpha1.ApplicationMatchExpression{},
+								},
+							},
+						},
+					},
+				},
+				Status: argov1alpha1.ApplicationSetStatus{
+					ApplicationStatus: []argov1alpha1.ApplicationSetApplicationStatus{
+						{
+							Application: "app1",
+							Message:     "Application is out of date with the current AppSet generation, setting status to Waiting.",
+							Status:      "Waiting",
+							Step:        "1",
+						},
+						{
+							Application: "app2",
+							Message:     "Application is out of date with the current AppSet generation, setting status to Waiting.",
+							Status:      "Waiting",
+							Step:        "1",
+						},
+						{
+							Application: "app3",
+							Message:     "Application is out of date with the current AppSet generation, setting status to Waiting.",
+							Status:      "Waiting",
+							Step:        "1",
+						},
+					},
+				},
+			},
+			appSyncMap: map[string]bool{
+				"app1": true,
+				"app2": true,
+				"app3": true,
+			},
+			appStepMap: map[string]int{
+				"app1": 0,
+				"app2": 0,
+				"app3": 0,
+			},
+			expectedAppStatus: []argov1alpha1.ApplicationSetApplicationStatus{
+				{
+					Application:        "app1",
+					LastTransitionTime: nil,
+					Message:            "Application moved to Pending status, watching for the Application resource to start Progressing.",
+					Status:             "Pending",
+					Step:               "1",
+				},
+				{
+					Application:        "app2",
+					LastTransitionTime: nil,
+					Message:            "Application is out of date with the current AppSet generation, setting status to Waiting.",
+					Status:             "Waiting",
+					Step:               "1",
+				},
+				{
+					Application:        "app3",
+					LastTransitionTime: nil,
+					Message:            "Application is out of date with the current AppSet generation, setting status to Waiting.",
+					Status:             "Waiting",
+					Step:               "1",
+				},
+			},
+		},
+		{
+			name: "does not update any applications with maxUpdate set to 0",
+			appSet: argov1alpha1.ApplicationSet{
+				ObjectMeta: metav1.ObjectMeta{
+					Name:      "name",
+					Namespace: "argocd",
+				},
+				Spec: argov1alpha1.ApplicationSetSpec{
+					Strategy: &argov1alpha1.ApplicationSetStrategy{
+						Type: "RollingSync",
+						RollingSync: &argov1alpha1.ApplicationSetRolloutStrategy{
+							Steps: []argov1alpha1.ApplicationSetRolloutStep{
+								{
+									MatchExpressions: []argov1alpha1.ApplicationMatchExpression{},
+									MaxUpdate: &intstr.IntOrString{
+										Type:   intstr.Int,
+										IntVal: 0,
+									},
+								},
+								{
+									MatchExpressions: []argov1alpha1.ApplicationMatchExpression{},
+								},
+							},
+						},
+					},
+				},
+				Status: argov1alpha1.ApplicationSetStatus{
+					ApplicationStatus: []argov1alpha1.ApplicationSetApplicationStatus{
+						{
+							Application: "app1",
+							Message:     "Application is out of date with the current AppSet generation, setting status to Waiting.",
+							Status:      "Waiting",
+							Step:        "1",
+						},
+						{
+							Application: "app2",
+							Message:     "Application is out of date with the current AppSet generation, setting status to Waiting.",
+							Status:      "Waiting",
+							Step:        "1",
+						},
+						{
+							Application: "app3",
+							Message:     "Application is out of date with the current AppSet generation, setting status to Waiting.",
+							Status:      "Waiting",
+							Step:        "1",
+						},
+					},
+				},
+			},
+			appSyncMap: map[string]bool{
+				"app1": true,
+				"app2": true,
+				"app3": true,
+			},
+			appStepMap: map[string]int{
+				"app1": 0,
+				"app2": 0,
+				"app3": 0,
+			},
+			expectedAppStatus: []argov1alpha1.ApplicationSetApplicationStatus{
+				{
+					Application:        "app1",
+					LastTransitionTime: nil,
+					Message:            "Application is out of date with the current AppSet generation, setting status to Waiting.",
+					Status:             "Waiting",
+					Step:               "1",
+				},
+				{
+					Application:        "app2",
+					LastTransitionTime: nil,
+					Message:            "Application is out of date with the current AppSet generation, setting status to Waiting.",
+					Status:             "Waiting",
+					Step:               "1",
+				},
+				{
+					Application:        "app3",
+					LastTransitionTime: nil,
+					Message:            "Application is out of date with the current AppSet generation, setting status to Waiting.",
+					Status:             "Waiting",
+					Step:               "1",
+				},
+			},
+		},
+		{
+			name: "updates all applications with maxUpdate set to 100%",
+			appSet: argov1alpha1.ApplicationSet{
+				ObjectMeta: metav1.ObjectMeta{
+					Name:      "name",
+					Namespace: "argocd",
+				},
+				Spec: argov1alpha1.ApplicationSetSpec{
+					Strategy: &argov1alpha1.ApplicationSetStrategy{
+						Type: "RollingSync",
+						RollingSync: &argov1alpha1.ApplicationSetRolloutStrategy{
+							Steps: []argov1alpha1.ApplicationSetRolloutStep{
+								{
+									MatchExpressions: []argov1alpha1.ApplicationMatchExpression{},
+									MaxUpdate: &intstr.IntOrString{
+										Type:   intstr.String,
+										StrVal: "100%",
+									},
+								},
+								{
+									MatchExpressions: []argov1alpha1.ApplicationMatchExpression{},
+								},
+							},
+						},
+					},
+				},
+				Status: argov1alpha1.ApplicationSetStatus{
+					ApplicationStatus: []argov1alpha1.ApplicationSetApplicationStatus{
+						{
+							Application: "app1",
+							Message:     "Application is out of date with the current AppSet generation, setting status to Waiting.",
+							Status:      "Waiting",
+							Step:        "1",
+						},
+						{
+							Application: "app2",
+							Message:     "Application is out of date with the current AppSet generation, setting status to Waiting.",
+							Status:      "Waiting",
+							Step:        "1",
+						},
+						{
+							Application: "app3",
+							Message:     "Application is out of date with the current AppSet generation, setting status to Waiting.",
+							Status:      "Waiting",
+							Step:        "1",
+						},
+					},
+				},
+			},
+			appSyncMap: map[string]bool{
+				"app1": true,
+				"app2": true,
+				"app3": true,
+			},
+			appStepMap: map[string]int{
+				"app1": 0,
+				"app2": 0,
+				"app3": 0,
+			},
+			expectedAppStatus: []argov1alpha1.ApplicationSetApplicationStatus{
+				{
+					Application:        "app1",
+					LastTransitionTime: nil,
+					Message:            "Application moved to Pending status, watching for the Application resource to start Progressing.",
+					Status:             "Pending",
+					Step:               "1",
+				},
+				{
+					Application:        "app2",
+					LastTransitionTime: nil,
+					Message:            "Application moved to Pending status, watching for the Application resource to start Progressing.",
+					Status:             "Pending",
+					Step:               "1",
+				},
+				{
+					Application:        "app3",
+					LastTransitionTime: nil,
+					Message:            "Application moved to Pending status, watching for the Application resource to start Progressing.",
+					Status:             "Pending",
+					Step:               "1",
+				},
+			},
+		},
+		{
+			name: "updates at least 1 application with maxUpdate >0%",
+			appSet: argov1alpha1.ApplicationSet{
+				ObjectMeta: metav1.ObjectMeta{
+					Name:      "name",
+					Namespace: "argocd",
+				},
+				Spec: argov1alpha1.ApplicationSetSpec{
+					Strategy: &argov1alpha1.ApplicationSetStrategy{
+						Type: "RollingSync",
+						RollingSync: &argov1alpha1.ApplicationSetRolloutStrategy{
+							Steps: []argov1alpha1.ApplicationSetRolloutStep{
+								{
+									MatchExpressions: []argov1alpha1.ApplicationMatchExpression{},
+									MaxUpdate: &intstr.IntOrString{
+										Type:   intstr.String,
+										StrVal: "1%",
+									},
+								},
+								{
+									MatchExpressions: []argov1alpha1.ApplicationMatchExpression{},
+								},
+							},
+						},
+					},
+				},
+				Status: argov1alpha1.ApplicationSetStatus{
+					ApplicationStatus: []argov1alpha1.ApplicationSetApplicationStatus{
+						{
+							Application: "app1",
+							Message:     "Application is out of date with the current AppSet generation, setting status to Waiting.",
+							Status:      "Waiting",
+							Step:        "1",
+						},
+						{
+							Application: "app2",
+							Message:     "Application is out of date with the current AppSet generation, setting status to Waiting.",
+							Status:      "Waiting",
+							Step:        "1",
+						},
+						{
+							Application: "app3",
+							Message:     "Application is out of date with the current AppSet generation, setting status to Waiting.",
+							Status:      "Waiting",
+							Step:        "1",
+						},
+					},
+				},
+			},
+			appSyncMap: map[string]bool{
+				"app1": true,
+				"app2": true,
+				"app3": true,
+			},
+			appStepMap: map[string]int{
+				"app1": 0,
+				"app2": 0,
+				"app3": 0,
+			},
+			expectedAppStatus: []argov1alpha1.ApplicationSetApplicationStatus{
+				{
+					Application:        "app1",
+					LastTransitionTime: nil,
+					Message:            "Application moved to Pending status, watching for the Application resource to start Progressing.",
+					Status:             "Pending",
+					Step:               "1",
+				},
+				{
+					Application:        "app2",
+					LastTransitionTime: nil,
+					Message:            "Application is out of date with the current AppSet generation, setting status to Waiting.",
+					Status:             "Waiting",
+					Step:               "1",
+				},
+				{
+					Application:        "app3",
+					LastTransitionTime: nil,
+					Message:            "Application is out of date with the current AppSet generation, setting status to Waiting.",
+					Status:             "Waiting",
+					Step:               "1",
+				},
+			},
+		},
+	} {
+
+		t.Run(cc.name, func(t *testing.T) {
+
+			kubeclientset := kubefake.NewSimpleClientset([]runtime.Object{}...)
+			argoDBMock := dbmocks.ArgoDB{}
+			argoObjs := []runtime.Object{}
+
+			client := fake.NewClientBuilder().WithScheme(scheme).WithObjects(&cc.appSet).Build()
+
+			r := ApplicationSetReconciler{
+				Client:           client,
+				Scheme:           scheme,
+				Recorder:         record.NewFakeRecorder(1),
+				Generators:       map[string]generators.Generator{},
+				ArgoDB:           &argoDBMock,
+				ArgoAppClientset: appclientset.NewSimpleClientset(argoObjs...),
+				KubeClientset:    kubeclientset,
+			}
+
+			appStatuses, err := r.updateApplicationSetApplicationStatusProgress(context.TODO(), &cc.appSet, cc.appSyncMap, cc.appStepMap, cc.appMap)
+
+			// opt out of testing the LastTransitionTime is accurate
+			for i := range appStatuses {
+				appStatuses[i].LastTransitionTime = nil
+			}
+
+			assert.Equal(t, err, nil, "expected no errors, but errors occured")
+			assert.Equal(t, cc.expectedAppStatus, appStatuses, "expected appStatuses did not match actual")
+		})
+	}
 }
