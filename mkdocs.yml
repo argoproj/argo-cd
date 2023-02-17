@@ -105,6 +105,7 @@ nav:
     - Controlling Resource Modification: operator-manual/applicationset/Controlling-Resource-Modification.md
     - Application Pruning & Resource Deletion: operator-manual/applicationset/Application-Deletion.md
     - Progressive Syncs: operator-manual/applicationset/Progressive-Syncs.md
+    - ApplicationSet in any namespace: operator-manual/applicationset/Appset-Any-Namespace.md
   - Server Configuration Parameters:
     - operator-manual/server-commands/argocd-server.md
     - operator-manual/server-commands/argocd-application-controller.md

@@ -456,6 +456,7 @@ start-e2e-local: mod-vendor-local dep-ui-local cli-local
 	ARGOCD_IN_CI=$(ARGOCD_IN_CI) \
 	BIN_MODE=$(ARGOCD_BIN_MODE) \
 	ARGOCD_APPLICATION_NAMESPACES=argocd-e2e-external \
+	ARGOCD_APPLICATIONSET_NAMESPACES=argocd-e2e-external \
 	ARGOCD_E2E_TEST=true \
 		goreman -f $(ARGOCD_PROCFILE) start ${ARGOCD_START}
 

@@ -919,8 +919,8 @@ func GetDifferentPathsBetweenStructs(a, b interface{}) ([]string, error) {
 	return difference, nil
 }
 
-// parseAppName will
-func parseAppName(appName string, defaultNs string, delim string) (string, string) {
+// parseName will
+func parseName(appName string, defaultNs string, delim string) (string, string) {
 	var ns string
 	var name string
 	t := strings.SplitN(appName, delim, 2)
@@ -937,15 +937,15 @@ func parseAppName(appName string, defaultNs string, delim string) (string, strin
 // ParseAppNamespacedName parses a namespaced name in the format namespace/name
 // and returns the components. If name wasn't namespaced, defaultNs will be
 // returned as namespace component.
-func ParseAppQualifiedName(appName string, defaultNs string) (string, string) {
-	return parseAppName(appName, defaultNs, "/")
+func ParseFromQualifiedName(appName string, defaultNs string) (string, string) {
+	return parseName(appName, defaultNs, "/")
 }
 
-// ParseAppInstanceName parses a namespaced name in the format namespace_name
+// ParseInstanceName parses a namespaced name in the format namespace_name
 // and returns the components. If name wasn't namespaced, defaultNs will be
 // returned as namespace component.
-func ParseAppInstanceName(appName string, defaultNs string) (string, string) {
-	return parseAppName(appName, defaultNs, "_")
+func ParseInstanceName(appName string, defaultNs string) (string, string) {
+	return parseName(appName, defaultNs, "_")
 }
 
 // AppInstanceName returns the value to be used for app instance labels from
@@ -958,9 +958,9 @@ func AppInstanceName(appName, appNs, defaultNs string) string {
 	}
 }
 
-// AppInstanceNameFromQualified returns the value to be used for app
-func AppInstanceNameFromQualified(name string, defaultNs string) string {
-	appName, appNs := ParseAppQualifiedName(name, defaultNs)
+// InstanceNameFromQualified returns the value to be used for app
+func InstanceNameFromQualified(name string, defaultNs string) string {
+	appName, appNs := ParseFromQualifiedName(name, defaultNs)
 	return AppInstanceName(appName, appNs, defaultNs)
 }
 

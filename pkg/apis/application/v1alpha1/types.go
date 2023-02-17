@@ -2716,5 +2716,5 @@ func (a *Application) QualifiedName() string {
 // RBACName returns the full qualified RBAC resource name for the application
 // in a backwards-compatible way.
 func (a *Application) RBACName(defaultNS string) string {
-	return security.AppRBACName(defaultNS, a.Spec.GetProject(), a.Namespace, a.Name)
+	return security.RBACName(defaultNS, a.Spec.GetProject(), a.Namespace, a.Name)
 }

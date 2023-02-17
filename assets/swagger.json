@@ -1713,6 +1713,12 @@
             "description": "the selector to restrict returned list to applications only with matched labels.",
             "name": "selector",
             "in": "query"
+          },
+          {
+            "type": "string",
+            "description": "The application set namespace. Default empty is argocd control plane namespace.",
+            "name": "appsetNamespace",
+            "in": "query"
           }
         ],
         "responses": {
@@ -1781,6 +1787,12 @@
             "name": "name",
             "in": "path",
             "required": true
+          },
+          {
+            "type": "string",
+            "description": "The application set namespace. Default empty is argocd control plane namespace.",
+            "name": "appsetNamespace",
+            "in": "query"
           }
         ],
         "responses": {
@@ -1810,6 +1822,12 @@
             "name": "name",
             "in": "path",
             "required": true
+          },
+          {
+            "type": "string",
+            "description": "The application set namespace. Default empty is argocd control plane namespace.",
+            "name": "appsetNamespace",
+            "in": "query"
           }
         ],
         "responses": {

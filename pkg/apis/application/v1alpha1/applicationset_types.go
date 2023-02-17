@@ -22,6 +22,7 @@ import (
 	"sort"
 
 	"github.com/argoproj/argo-cd/v2/common"
+	"github.com/argoproj/argo-cd/v2/util/security"
 
 	apiextensionsv1 "k8s.io/apiextensions-apiserver/pkg/apis/apiextensions/v1"
 	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
@@ -48,8 +49,8 @@ type ApplicationSet struct {
 }
 
 // RBACName formats fully qualified application name for RBAC check.
-func (a *ApplicationSet) RBACName() string {
-	return fmt.Sprintf("%s/%s", a.Spec.Template.Spec.GetProject(), a.ObjectMeta.Name)
+func (a *ApplicationSet) RBACName(defaultNS string) string {
+	return security.RBACName(defaultNS, a.Spec.Template.Spec.GetProject(), a.Namespace, a.Name)
 }
 
 // ApplicationSetSpec represents a class of application set state.
@@ -674,4 +675,15 @@ func (status *ApplicationSetStatus) SetApplicationStatus(newStatus ApplicationSe
 		}
 	}
 	status.ApplicationStatus = append(status.ApplicationStatus, newStatus)
+}
+
+// QualifiedName returns the full qualified name of the applicationset, including
+// the name of the namespace it is created in delimited by a forward slash,
+// i.e. <namespace>/<appname>
+func (a *ApplicationSet) QualifiedName() string {
+	if a.Namespace == "" {
+		return a.Name
+	} else {
+		return a.Namespace + "/" + a.Name
+	}
 }

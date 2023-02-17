@@ -12,7 +12,9 @@ type Context struct {
 	t *testing.T
 
 	// name is the ApplicationSet's name, created by a Create action
-	name string
+	name                 string
+	namespace            string
+	useExternalNamespace bool
 }
 
 func Given(t *testing.T) *Context {

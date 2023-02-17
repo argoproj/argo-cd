@@ -64,7 +64,7 @@ func ApplicationsExist(expectedApps []argov1alpha1.Application) Expectation {
 		for _, expectedApp := range expectedApps {
 			foundApp := c.app(expectedApp.Name)
 			if foundApp == nil {
-				return pending, fmt.Sprintf("missing app '%s'", expectedApp.Name)
+				return pending, fmt.Sprintf("missing app '%s'", expectedApp.QualifiedName())
 			}
 
 			if !appsAreEqual(expectedApp, *foundApp) {
@@ -74,7 +74,7 @@ func ApplicationsExist(expectedApps []argov1alpha1.Application) Expectation {
 					return failed, err.Error()
 				}
 
-				return pending, fmt.Sprintf("apps are not equal: '%s', diff: %s\n", expectedApp.Name, diff)
+				return pending, fmt.Sprintf("apps are not equal: '%s', diff: %s\n", expectedApp.QualifiedName(), diff)
 
 			}
 
@@ -113,7 +113,7 @@ func ApplicationsDoNotExist(expectedApps []argov1alpha1.Application) Expectation
 		for _, expectedApp := range expectedApps {
 			foundApp := c.app(expectedApp.Name)
 			if foundApp != nil {
-				return pending, fmt.Sprintf("app '%s' should no longer exist", expectedApp.Name)
+				return pending, fmt.Sprintf("app '%s' should no longer exist", expectedApp.QualifiedName())
 			}
 		}
 
@@ -124,7 +124,7 @@ func ApplicationsDoNotExist(expectedApps []argov1alpha1.Application) Expectation
 // Pod checks whether a specified condition is true for any of the pods in the namespace
 func Pod(predicate func(p corev1.Pod) bool) Expectation {
 	return func(c *Consequences) (state, string) {
-		pods, err := pods(utils.ApplicationSetNamespace)
+		pods, err := pods(utils.ApplicationsResourcesNamespace)
 		if err != nil {
 			return failed, err.Error()
 		}

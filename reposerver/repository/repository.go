@@ -1045,7 +1045,7 @@ func helmTemplate(appPath string, repoRoot string, env *v1alpha1.Env, q *apiclie
 	// contain any underscore characters and must not exceed 53 characters.
 	// We are not interested in the fully qualified application name while
 	// templating, thus, we just use the name part of the identifier.
-	appName, _ := argo.ParseAppInstanceName(q.AppName, "")
+	appName, _ := argo.ParseInstanceName(q.AppName, "")
 
 	templateOpts := &helm.TemplateOpts{
 		Name:        appName,

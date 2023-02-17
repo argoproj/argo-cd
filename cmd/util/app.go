@@ -576,7 +576,7 @@ func constructAppsBaseOnName(appName string, labels, annotations, args []string,
 		}
 		appName = args[0]
 	}
-	appName, appNs := argo.ParseAppQualifiedName(appName, "")
+	appName, appNs := argo.ParseFromQualifiedName(appName, "")
 	app = &argoappv1.Application{
 		TypeMeta: v1.TypeMeta{
 			Kind:       application.ApplicationKind,
