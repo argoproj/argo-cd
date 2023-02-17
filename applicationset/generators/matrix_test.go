@@ -835,6 +835,174 @@ func TestInterpolatedMatrixGenerateGoTemplate(t *testing.T) {
 	}
 }
 
+func TestMatrixGenerateListElementsJsonBase64(t *testing.T) {
+
+	gitGenerator := &argoprojiov1alpha1.GitGenerator{
+		RepoURL:  "RepoURL",
+		Revision: "Revision",
+		Files: []argoprojiov1alpha1.GitFileGeneratorItem{
+			{Path: "config.yaml"},
+		},
+	}
+
+	listGenerator := &argoprojiov1alpha1.ListGenerator{
+		Elements: []apiextensionsv1.JSON{},
+		ElementsJsonBase64: "{{ .foo.bar | toJson | b64enc }}",
+	}
+
+	testCases := []struct {
+		name           string
+		baseGenerators []argoprojiov1alpha1.ApplicationSetNestedGenerator
+		expectedErr    error
+		expected       []map[string]interface{}
+	}{
+		{
+			name: "happy flow - generate params",
+			baseGenerators: []argoprojiov1alpha1.ApplicationSetNestedGenerator{
+				{
+					Git: gitGenerator,
+				},
+				{
+					List: listGenerator,
+				},
+			},
+			expected: []map[string]interface{}{
+				{
+					"chart":         "a",
+					"version":         "1",
+					"foo": map[string]interface{}{
+						"bar": []interface{}{
+							map[string]interface{}{
+								"chart": "a",
+								"version": "1",
+							},
+							map[string]interface{}{
+								"chart": "b",
+								"version": "2",
+							},
+						},
+					},
+					"path": map[string]interface{}{
+						"basename": "dir",
+						"basenameNormalized": "dir",
+						"filename": "file_name.yaml",
+						"filenameNormalized": "file-name.yaml",
+						"path": "path/dir",
+						"segments": []string {
+							"path",
+							"dir",
+						},
+					},
+				},
+				{
+					"chart":         "b",
+					"version":         "2",
+					"foo": map[string]interface{}{
+						"bar": []interface{}{
+							map[string]interface{}{
+								"chart": "a",
+								"version": "1",
+							},
+							map[string]interface{}{
+								"chart": "b",
+								"version": "2",
+							},
+						},
+					},
+					"path": map[string]interface{}{
+						"basename": "dir",
+						"basenameNormalized": "dir",
+						"filename": "file_name.yaml",
+						"filenameNormalized": "file-name.yaml",
+						"path": "path/dir",
+						"segments": []string {
+							"path",
+							"dir",
+						},
+					},
+				},
+
+			},
+		},
+	}
+
+	for _, testCase := range testCases {
+		testCaseCopy := testCase // Since tests may run in parallel
+
+		t.Run(testCaseCopy.name, func(t *testing.T) {
+			genMock := &generatorMock{}
+			appSet := &argoprojiov1alpha1.ApplicationSet{
+				ObjectMeta: metav1.ObjectMeta{
+					Name: "set",
+				},
+				Spec: argoprojiov1alpha1.ApplicationSetSpec{
+					GoTemplate: true,
+				},
+			}
+
+			for _, g := range testCaseCopy.baseGenerators {
+
+				gitGeneratorSpec := argoprojiov1alpha1.ApplicationSetGenerator{
+					Git:  g.Git,
+					List: g.List,
+				}
+				genMock.On("GenerateParams", mock.AnythingOfType("*v1alpha1.ApplicationSetGenerator"), appSet).Return([]map[string]any{{
+					"foo": map[string]interface{}{
+						"bar": []interface{}{
+							map[string]interface{}{
+								"chart": "a",
+								"version": "1",
+							},
+							map[string]interface{}{
+								"chart": "b",
+								"version": "2",
+							},
+						},
+					},
+					"path": map[string]interface{}{
+						"basename": "dir",
+						"basenameNormalized": "dir",
+						"filename": "file_name.yaml",
+						"filenameNormalized": "file-name.yaml",
+						"path": "path/dir",
+						"segments": []string {
+							"path",
+							"dir",
+						},
+					},
+
+				}}, nil)
+				genMock.On("GetTemplate", &gitGeneratorSpec).
+					Return(&argoprojiov1alpha1.ApplicationSetTemplate{})
+
+			}
+
+			var matrixGenerator = NewMatrixGenerator(
+				map[string]Generator{
+					"Git":  genMock,
+					"List": &ListGenerator{},
+				},
+			)
+
+			got, err := matrixGenerator.GenerateParams(&argoprojiov1alpha1.ApplicationSetGenerator{
+				Matrix: &argoprojiov1alpha1.MatrixGenerator{
+					Generators: testCaseCopy.baseGenerators,
+					Template:   argoprojiov1alpha1.ApplicationSetTemplate{},
+				},
+			}, appSet)
+
+			if testCaseCopy.expectedErr != nil {
+				assert.ErrorIs(t, err, testCaseCopy.expectedErr)
+			} else {
+				assert.NoError(t, err)
+				assert.Equal(t, testCaseCopy.expected, got)
+			}
+
+		})
+
+	}
+}
+
 type generatorMock struct {
 	mock.Mock
 }
