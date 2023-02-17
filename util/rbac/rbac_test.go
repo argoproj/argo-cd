@@ -72,8 +72,8 @@ func TestPolicyCSV(t *testing.T) {
 		data := make(map[string]string)
 		data[ConfigMapPolicyCSVKey] = "policy1"
 		data["UnrelatedKey"] = "unrelated value"
-		data[fmt.Sprintf("%s.add1", ConfigMapPolicyCSVKey)] = "policy2"
-		data[fmt.Sprintf("%s.add2", ConfigMapPolicyCSVKey)] = "policy3"
+		data["policy.overlay1.csv"] = "policy2"
+		data["policy.overlay2.csv"] = "policy3"
 
 		// when
 		policy := PolicyCSV(data)

@@ -5,7 +5,6 @@ import (
 	"encoding/csv"
 	"errors"
 	"fmt"
-	"regexp"
 	"strings"
 	"sync"
 	"time"
@@ -402,14 +401,16 @@ func PolicyCSV(data map[string]string) string {
 		strBuilder.WriteString(p)
 	}
 	// append additional policies at the end of the csv
-	csvRegex := regexp.MustCompile(fmt.Sprintf("^%s.+$", ConfigMapPolicyCSVKey))
 	for key, value := range data {
-		if csvRegex.MatchString(key) {
+		if strings.HasPrefix(key, "policy.") &&
+			strings.HasSuffix(key, ".csv") &&
+			key != ConfigMapPolicyCSVKey {
+
 			strBuilder.WriteString("\n")
 			strBuilder.WriteString(value)
 		}
 	}
-	return strings.Trim(strBuilder.String(), "\n")
+	return strBuilder.String()
 }
 
 // syncUpdate updates the enforcer
