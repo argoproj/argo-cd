@@ -5,6 +5,7 @@ import (
 	"encoding/csv"
 	"errors"
 	"fmt"
+	"regexp"
 	"strings"
 	"sync"
 	"time"
@@ -394,14 +395,28 @@ func (e *Enforcer) runInformer(ctx context.Context, onUpdated func(cm *apiv1.Con
 	log.Info("rbac configmap informer cancelled")
 }
 
+func PolicyCSV(data map[string]string) string {
+	var strBuilder strings.Builder
+	// add the main policy first
+	if p, ok := data[ConfigMapPolicyCSVKey]; ok {
+		strBuilder.WriteString(p)
+	}
+	// append additional policies at the end of the csv
+	csvRegex := regexp.MustCompile(fmt.Sprintf("^%s.+$", ConfigMapPolicyCSVKey))
+	for key, value := range data {
+		if csvRegex.MatchString(key) {
+			strBuilder.WriteString("\n")
+			strBuilder.WriteString(value)
+		}
+	}
+	return strings.Trim(strBuilder.String(), "\n")
+}
+
 // syncUpdate updates the enforcer
 func (e *Enforcer) syncUpdate(cm *apiv1.ConfigMap, onUpdated func(cm *apiv1.ConfigMap) error) error {
 	e.SetDefaultRole(cm.Data[ConfigMapPolicyDefaultKey])
 	e.SetMatchMode(cm.Data[ConfigMapMatchModeKey])
-	policyCSV, ok := cm.Data[ConfigMapPolicyCSVKey]
-	if !ok {
-		policyCSV = ""
-	}
+	policyCSV := PolicyCSV(cm.Data)
 	if err := onUpdated(cm); err != nil {
 		return err
 	}

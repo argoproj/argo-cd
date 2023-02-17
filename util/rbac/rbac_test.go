@@ -43,6 +43,49 @@ func fakeConfigMap() *apiv1.ConfigMap {
 	return &cm
 }
 
+func TestPolicyCSV(t *testing.T) {
+	t.Run("will return empty string if data has no csv entries", func(t *testing.T) {
+		// given
+		data := make(map[string]string)
+
+		// when
+		policy := PolicyCSV(data)
+
+		// then
+		assert.Equal(t, "", policy)
+	})
+	t.Run("will return just policy defined with default key", func(t *testing.T) {
+		// given
+		data := make(map[string]string)
+		expectedPolicy := "policy1\npolicy2"
+		data[ConfigMapPolicyCSVKey] = expectedPolicy
+		data["UnrelatedKey"] = "unrelated value"
+
+		// when
+		policy := PolicyCSV(data)
+
+		// then
+		assert.Equal(t, expectedPolicy, policy)
+	})
+	t.Run("will return composed policy provided by multiple policy keys", func(t *testing.T) {
+		// given
+		data := make(map[string]string)
+		data[ConfigMapPolicyCSVKey] = "policy1"
+		data["UnrelatedKey"] = "unrelated value"
+		data[fmt.Sprintf("%s.add1", ConfigMapPolicyCSVKey)] = "policy2"
+		data[fmt.Sprintf("%s.add2", ConfigMapPolicyCSVKey)] = "policy3"
+
+		// when
+		policy := PolicyCSV(data)
+
+		// then
+		assert.Regexp(t, "^policy1", policy)
+		assert.Contains(t, policy, "policy2")
+		assert.Contains(t, policy, "policy3")
+	})
+
+}
+
 // TestBuiltinPolicyEnforcer tests the builtin policy rules
 func TestBuiltinPolicyEnforcer(t *testing.T) {
 	kubeclientset := fake.NewSimpleClientset()
