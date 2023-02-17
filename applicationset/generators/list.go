@@ -80,7 +80,7 @@ func (g *ListGenerator) GenerateParams(appSetGenerator *argoprojiov1alpha1.Appli
 		jsonData, err := base64.StdEncoding.DecodeString(appSetGenerator.List.ElementsJsonBase64)
 
 		if err != nil {
-				return nil, fmt.Errorf("error decoding ElementsJsonBase64 %v", err)
+			return nil, fmt.Errorf("error decoding ElementsJsonBase64 %v", err)
 		}
 
 		var jsonElements []map[string]interface{}
