@@ -1,6 +1,6 @@
 module github.com/argoproj/argo-cd/v2
 
-go 1.18
+go 1.20
 
 require (
 	code.gitea.io/sdk/gitea v0.15.1
@@ -104,16 +104,19 @@ require (
 )
 
 require (
-	github.com/Masterminds/sprig/v3 v3.2.2
-	github.com/antonmedv/expr v1.9.0
-	github.com/coreos/go-oidc/v3 v3.4.0
 	github.com/gosimple/slug v1.13.1
 	github.com/microsoft/azure-devops-go-api/azuredevops v1.0.0-b5
-	github.com/robfig/cron/v3 v3.0.1
 	go.opentelemetry.io/contrib/instrumentation/google.golang.org/grpc/otelgrpc v0.31.0
 	go.opentelemetry.io/otel v1.11.1
 	go.opentelemetry.io/otel/exporters/otlp/otlptrace/otlptracegrpc v1.11.1
 	go.opentelemetry.io/otel/sdk v1.11.1
+)
+
+require (
+	github.com/Masterminds/sprig/v3 v3.2.2
+	github.com/antonmedv/expr v1.9.0
+	github.com/coreos/go-oidc/v3 v3.4.0
+	github.com/robfig/cron/v3 v3.0.1
 )
 
 require (
