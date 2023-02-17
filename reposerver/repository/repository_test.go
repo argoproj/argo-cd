@@ -1328,7 +1328,7 @@ func TestGetAppDetailsKustomize(t *testing.T) {
 
 	assert.Equal(t, "Kustomize", res.Type)
 	assert.NotNil(t, res.Kustomize)
-	assert.EqualValues(t, []string{"nginx:1.15.4", "k8s.gcr.io/nginx-slim:0.8"}, res.Kustomize.Images)
+	assert.EqualValues(t, []string{"nginx:1.15.4", "registry.k8s.io/nginx-slim:0.8"}, res.Kustomize.Images)
 }
 
 func TestGetHelmCharts(t *testing.T) {
