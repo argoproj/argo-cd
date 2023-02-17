@@ -178,7 +178,7 @@ func (g ApplicationSetTerminalGenerators) toApplicationSetNestedGenerators() []A
 // ListGenerator include items info
 type ListGenerator struct {
 	Elements []apiextensionsv1.JSON `json:"elements" protobuf:"bytes,1,name=elements"`
-	ElementsJsonBase64 string `json:"elementsjsonbase64,omitempty" protobuf:"bytes,2,opt,name=elementsjsonbase64"`
+	ElementsJson string `json:"elementsjson,omitempty" protobuf:"bytes,2,opt,name=elementsjson"`
 	Template ApplicationSetTemplate `json:"template,omitempty" protobuf:"bytes,3,name=template"`
 }
 

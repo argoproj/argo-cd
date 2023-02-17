@@ -1,7 +1,6 @@
 package generators
 
 import (
-	"encoding/base64"
 	"encoding/json"
 	"fmt"
 	"time"
@@ -74,19 +73,13 @@ func (g *ListGenerator) GenerateParams(appSetGenerator *argoprojiov1alpha1.Appli
 		}
 	}
 
-	// Append elements from ElementsJsonBase64 to the response
-	if len(appSetGenerator.List.ElementsJsonBase64) > 0 {
-
-		jsonData, err := base64.StdEncoding.DecodeString(appSetGenerator.List.ElementsJsonBase64)
-
-		if err != nil {
-			return nil, fmt.Errorf("error decoding ElementsJsonBase64 %v", err)
-		}
+	// Append elements from ElementsJson to the response
+	if len(appSetGenerator.List.ElementsJson) > 0 {
 
 		var jsonElements []map[string]interface{}
-		err = json.Unmarshal(jsonData, &jsonElements)
+		err := json.Unmarshal([]byte(appSetGenerator.List.ElementsJson), &jsonElements)
 		if err != nil {
-			return nil, fmt.Errorf("error unmarshling decoded ElementsJsonBase64 %v", err)
+			return nil, fmt.Errorf("error unmarshling decoded ElementsJson %v", err)
 		}
 		res = append(res, jsonElements...)	
 	}
