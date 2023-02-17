@@ -28,7 +28,7 @@ $header: 120px;
         padding: 1em;
         overflow-x: auto;
         overflow-y: auto;
-        margin-top: 115px;
+        margin-top: 150px;
         height: calc(100vh - 2 * 50px - 115px);
         @media screen and (max-width: map-get($breakpoints, xlarge)) {
             margin-top: 165px;
@@ -48,7 +48,7 @@ $header: 120px;
     &__refreshing-label {
         color: $white-color;
         position: fixed;
-        top: $header + 100px;
+        margin-top: -20px;
         left: 50%;
         background-color: $argo-color-gray-7;
         border: 1px solid $argo-color-gray-5;

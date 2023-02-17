@@ -41,7 +41,7 @@ func TestRenderTemplateParams(t *testing.T) {
 			Namespace:         "default",
 		},
 		Spec: argoappsv1.ApplicationSpec{
-			Source: argoappsv1.ApplicationSource{
+			Source: &argoappsv1.ApplicationSource{
 				Path:           "",
 				RepoURL:        "",
 				TargetRevision: "",
@@ -220,7 +220,7 @@ func TestRenderTemplateParamsGoTemplate(t *testing.T) {
 			Namespace:         "default",
 		},
 		Spec: argoappsv1.ApplicationSpec{
-			Source: argoappsv1.ApplicationSource{
+			Source: &argoappsv1.ApplicationSource{
 				Path:           "",
 				RepoURL:        "",
 				TargetRevision: "",
@@ -511,7 +511,7 @@ func TestRenderTemplateParamsFinalizers(t *testing.T) {
 
 	emptyApplication := &argoappsv1.Application{
 		Spec: argoappsv1.ApplicationSpec{
-			Source: argoappsv1.ApplicationSource{
+			Source: &argoappsv1.ApplicationSource{
 				Path:           "",
 				RepoURL:        "",
 				TargetRevision: "",

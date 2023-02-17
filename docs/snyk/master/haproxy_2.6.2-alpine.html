@@ -7,7 +7,7 @@
   <meta name="viewport" content="width=device-width, initial-scale=1.0">
   <meta http-equiv="X-UA-Compatible" content="IE=edge">
   <title>Snyk test report</title>
-  <meta name="description" content="0 known vulnerabilities found in 0 vulnerable dependency paths.">
+  <meta name="description" content="4 known vulnerabilities found in 36 vulnerable dependency paths.">
   <base target="_blank">
   <link rel="icon" type="image/png" href="https://res.cloudinary.com/snyk/image/upload/v1468845142/favicon/favicon.png"
     sizes="194x194">
@@ -456,7 +456,7 @@
               <div class="header-wrap">
                   <h1 class="project__header__title">Snyk test report</h1>
     
-                <p class="timestamp">November 13th 2022, 12:16:05 am</p>
+                <p class="timestamp">February 12th 2023, 12:15:44 am</p>
               </div>
               <div class="source-panel">
                 <span>Scanned the following path:</span>
@@ -466,8 +466,8 @@
               </div>
     
               <div class="meta-counts">
-                <div class="meta-count"><span>0</span> <span>known vulnerabilities</span></div>
-                <div class="meta-count"><span>0 vulnerable dependency paths</span></div>
+                <div class="meta-count"><span>4</span> <span>known vulnerabilities</span></div>
+                <div class="meta-count"><span>36 vulnerable dependency paths</span></div>
                 <div class="meta-count"><span>17</span> <span>dependencies</span></div>
               </div><!-- .meta-counts -->
             </div><!-- .layout-container--short -->
@@ -484,7 +484,592 @@
           </table>
       </section>
     <div class="layout-container" style="padding-top: 35px;">
-      No known vulnerabilities detected.
+      <div class="cards--vuln filter--patch filter--ignore">
+        <div class="card card--vuln  disclosure--not-new severity--low" data-snyk-test="low">
+            <h2 class="card__title">CVE-2022-4304</h2>
+            <div class="card__section">
+        
+                <div class="label label--low">
+                    <span class="label__text">low severity</span>
+                </div>
+        
+                <hr/>
+        
+                <ul class="card__meta">
+                    <li class="card__meta__item">
+                        Package Manager: alpine:3.16
+                    </li>
+                    <li class="card__meta__item">
+                            Vulnerable module:
+        
+                            openssl/libcrypto1.1
+                    </li>
+        
+                    <li class="card__meta__item">Introduced through:
+        
+                                docker-image|haproxy@2.6.2-alpine and openssl/libcrypto1.1@1.1.1q-r0
+        
+                    </li>
+                </ul>
+        
+                <hr/>
+        
+        
+                        <h3 class="card__section__title">Detailed paths</h3>
+        
+                    <ul class="card__meta__paths">
+                                <li>
+                                <span class="list-paths__item__introduced"><em>Introduced through</em>:
+                                        docker-image|haproxy@2.6.2-alpine
+                                         <span class="list-paths__item__arrow">›</span> 
+                                        openssl/libcrypto1.1@1.1.1q-r0
+                                        
+                                </span>
+        
+                            </li>
+                                <li>
+                                <span class="list-paths__item__introduced"><em>Introduced through</em>:
+                                        docker-image|haproxy@2.6.2-alpine
+                                         <span class="list-paths__item__arrow">›</span> 
+                                        openssl/libssl1.1@1.1.1q-r0
+                                         <span class="list-paths__item__arrow">›</span> 
+                                        openssl/libcrypto1.1@1.1.1q-r0
+                                        
+                                </span>
+        
+                            </li>
+                                <li>
+                                <span class="list-paths__item__introduced"><em>Introduced through</em>:
+                                        docker-image|haproxy@2.6.2-alpine
+                                         <span class="list-paths__item__arrow">›</span> 
+                                        .haproxy-rundeps@20220809.192310
+                                         <span class="list-paths__item__arrow">›</span> 
+                                        openssl/libcrypto1.1@1.1.1q-r0
+                                        
+                                </span>
+        
+                            </li>
+                                <li>
+                                <span class="list-paths__item__introduced"><em>Introduced through</em>:
+                                        docker-image|haproxy@2.6.2-alpine
+                                         <span class="list-paths__item__arrow">›</span> 
+                                        apk-tools/apk-tools@2.12.9-r3
+                                         <span class="list-paths__item__arrow">›</span> 
+                                        openssl/libcrypto1.1@1.1.1q-r0
+                                        
+                                </span>
+        
+                            </li>
+                                <li>
+                                <span class="list-paths__item__introduced"><em>Introduced through</em>:
+                                        docker-image|haproxy@2.6.2-alpine
+                                         <span class="list-paths__item__arrow">›</span> 
+                                        busybox/ssl_client@1.35.0-r17
+                                         <span class="list-paths__item__arrow">›</span> 
+                                        openssl/libcrypto1.1@1.1.1q-r0
+                                        
+                                </span>
+        
+                            </li>
+                                <li>
+                                <span class="list-paths__item__introduced"><em>Introduced through</em>:
+                                        docker-image|haproxy@2.6.2-alpine
+                                         <span class="list-paths__item__arrow">›</span> 
+                                        openssl/libssl1.1@1.1.1q-r0
+                                        
+                                </span>
+        
+                            </li>
+                                <li>
+                                <span class="list-paths__item__introduced"><em>Introduced through</em>:
+                                        docker-image|haproxy@2.6.2-alpine
+                                         <span class="list-paths__item__arrow">›</span> 
+                                        .haproxy-rundeps@20220809.192310
+                                         <span class="list-paths__item__arrow">›</span> 
+                                        openssl/libssl1.1@1.1.1q-r0
+                                        
+                                </span>
+        
+                            </li>
+                                <li>
+                                <span class="list-paths__item__introduced"><em>Introduced through</em>:
+                                        docker-image|haproxy@2.6.2-alpine
+                                         <span class="list-paths__item__arrow">›</span> 
+                                        apk-tools/apk-tools@2.12.9-r3
+                                         <span class="list-paths__item__arrow">›</span> 
+                                        openssl/libssl1.1@1.1.1q-r0
+                                        
+                                </span>
+        
+                            </li>
+                                <li>
+                                <span class="list-paths__item__introduced"><em>Introduced through</em>:
+                                        docker-image|haproxy@2.6.2-alpine
+                                         <span class="list-paths__item__arrow">›</span> 
+                                        busybox/ssl_client@1.35.0-r17
+                                         <span class="list-paths__item__arrow">›</span> 
+                                        openssl/libssl1.1@1.1.1q-r0
+                                        
+                                </span>
+        
+                            </li>
+                    </ul><!-- .list-paths -->
+        
+            </div><!-- .card__section -->
+        
+              <hr/>
+              <!-- Overview -->
+              <h2 id="nvd-description">NVD Description</h2>
+        <p><em>This vulnerability has not been analyzed by NVD yet.</em></p>
+        <h2 id="remediation">Remediation</h2>
+        <p>Upgrade <code>Alpine:3.16</code> <code>openssl</code> to version 1.1.1t-r0 or higher.</p>
+        
+              <hr/>
+        
+            <div class="cta card__cta">
+                <p><a href="https://snyk.io/vuln/SNYK-ALPINE316-OPENSSL-3314623">More about this vulnerability</a></p>
+            </div>
+        
+        </div><!-- .card -->
+        <div class="card card--vuln  disclosure--not-new severity--low" data-snyk-test="low">
+            <h2 class="card__title">CVE-2022-4450</h2>
+            <div class="card__section">
+        
+                <div class="label label--low">
+                    <span class="label__text">low severity</span>
+                </div>
+        
+                <hr/>
+        
+                <ul class="card__meta">
+                    <li class="card__meta__item">
+                        Package Manager: alpine:3.16
+                    </li>
+                    <li class="card__meta__item">
+                            Vulnerable module:
+        
+                            openssl/libcrypto1.1
+                    </li>
+        
+                    <li class="card__meta__item">Introduced through:
+        
+                                docker-image|haproxy@2.6.2-alpine and openssl/libcrypto1.1@1.1.1q-r0
+        
+                    </li>
+                </ul>
+        
+                <hr/>
+        
+        
+                        <h3 class="card__section__title">Detailed paths</h3>
+        
+                    <ul class="card__meta__paths">
+                                <li>
+                                <span class="list-paths__item__introduced"><em>Introduced through</em>:
+                                        docker-image|haproxy@2.6.2-alpine
+                                         <span class="list-paths__item__arrow">›</span> 
+                                        openssl/libcrypto1.1@1.1.1q-r0
+                                        
+                                </span>
+        
+                            </li>
+                                <li>
+                                <span class="list-paths__item__introduced"><em>Introduced through</em>:
+                                        docker-image|haproxy@2.6.2-alpine
+                                         <span class="list-paths__item__arrow">›</span> 
+                                        openssl/libssl1.1@1.1.1q-r0
+                                         <span class="list-paths__item__arrow">›</span> 
+                                        openssl/libcrypto1.1@1.1.1q-r0
+                                        
+                                </span>
+        
+                            </li>
+                                <li>
+                                <span class="list-paths__item__introduced"><em>Introduced through</em>:
+                                        docker-image|haproxy@2.6.2-alpine
+                                         <span class="list-paths__item__arrow">›</span> 
+                                        .haproxy-rundeps@20220809.192310
+                                         <span class="list-paths__item__arrow">›</span> 
+                                        openssl/libcrypto1.1@1.1.1q-r0
+                                        
+                                </span>
+        
+                            </li>
+                                <li>
+                                <span class="list-paths__item__introduced"><em>Introduced through</em>:
+                                        docker-image|haproxy@2.6.2-alpine
+                                         <span class="list-paths__item__arrow">›</span> 
+                                        apk-tools/apk-tools@2.12.9-r3
+                                         <span class="list-paths__item__arrow">›</span> 
+                                        openssl/libcrypto1.1@1.1.1q-r0
+                                        
+                                </span>
+        
+                            </li>
+                                <li>
+                                <span class="list-paths__item__introduced"><em>Introduced through</em>:
+                                        docker-image|haproxy@2.6.2-alpine
+                                         <span class="list-paths__item__arrow">›</span> 
+                                        busybox/ssl_client@1.35.0-r17
+                                         <span class="list-paths__item__arrow">›</span> 
+                                        openssl/libcrypto1.1@1.1.1q-r0
+                                        
+                                </span>
+        
+                            </li>
+                                <li>
+                                <span class="list-paths__item__introduced"><em>Introduced through</em>:
+                                        docker-image|haproxy@2.6.2-alpine
+                                         <span class="list-paths__item__arrow">›</span> 
+                                        openssl/libssl1.1@1.1.1q-r0
+                                        
+                                </span>
+        
+                            </li>
+                                <li>
+                                <span class="list-paths__item__introduced"><em>Introduced through</em>:
+                                        docker-image|haproxy@2.6.2-alpine
+                                         <span class="list-paths__item__arrow">›</span> 
+                                        .haproxy-rundeps@20220809.192310
+                                         <span class="list-paths__item__arrow">›</span> 
+                                        openssl/libssl1.1@1.1.1q-r0
+                                        
+                                </span>
+        
+                            </li>
+                                <li>
+                                <span class="list-paths__item__introduced"><em>Introduced through</em>:
+                                        docker-image|haproxy@2.6.2-alpine
+                                         <span class="list-paths__item__arrow">›</span> 
+                                        apk-tools/apk-tools@2.12.9-r3
+                                         <span class="list-paths__item__arrow">›</span> 
+                                        openssl/libssl1.1@1.1.1q-r0
+                                        
+                                </span>
+        
+                            </li>
+                                <li>
+                                <span class="list-paths__item__introduced"><em>Introduced through</em>:
+                                        docker-image|haproxy@2.6.2-alpine
+                                         <span class="list-paths__item__arrow">›</span> 
+                                        busybox/ssl_client@1.35.0-r17
+                                         <span class="list-paths__item__arrow">›</span> 
+                                        openssl/libssl1.1@1.1.1q-r0
+                                        
+                                </span>
+        
+                            </li>
+                    </ul><!-- .list-paths -->
+        
+            </div><!-- .card__section -->
+        
+              <hr/>
+              <!-- Overview -->
+              <h2 id="nvd-description">NVD Description</h2>
+        <p><em>This vulnerability has not been analyzed by NVD yet.</em></p>
+        <h2 id="remediation">Remediation</h2>
+        <p>Upgrade <code>Alpine:3.16</code> <code>openssl</code> to version 1.1.1t-r0 or higher.</p>
+        
+              <hr/>
+        
+            <div class="cta card__cta">
+                <p><a href="https://snyk.io/vuln/SNYK-ALPINE316-OPENSSL-3314624">More about this vulnerability</a></p>
+            </div>
+        
+        </div><!-- .card -->
+        <div class="card card--vuln  disclosure--not-new severity--low" data-snyk-test="low">
+            <h2 class="card__title">CVE-2023-0286</h2>
+            <div class="card__section">
+        
+                <div class="label label--low">
+                    <span class="label__text">low severity</span>
+                </div>
+        
+                <hr/>
+        
+                <ul class="card__meta">
+                    <li class="card__meta__item">
+                        Package Manager: alpine:3.16
+                    </li>
+                    <li class="card__meta__item">
+                            Vulnerable module:
+        
+                            openssl/libcrypto1.1
+                    </li>
+        
+                    <li class="card__meta__item">Introduced through:
+        
+                                docker-image|haproxy@2.6.2-alpine and openssl/libcrypto1.1@1.1.1q-r0
+        
+                    </li>
+                </ul>
+        
+                <hr/>
+        
+        
+                        <h3 class="card__section__title">Detailed paths</h3>
+        
+                    <ul class="card__meta__paths">
+                                <li>
+                                <span class="list-paths__item__introduced"><em>Introduced through</em>:
+                                        docker-image|haproxy@2.6.2-alpine
+                                         <span class="list-paths__item__arrow">›</span> 
+                                        openssl/libcrypto1.1@1.1.1q-r0
+                                        
+                                </span>
+        
+                            </li>
+                                <li>
+                                <span class="list-paths__item__introduced"><em>Introduced through</em>:
+                                        docker-image|haproxy@2.6.2-alpine
+                                         <span class="list-paths__item__arrow">›</span> 
+                                        openssl/libssl1.1@1.1.1q-r0
+                                         <span class="list-paths__item__arrow">›</span> 
+                                        openssl/libcrypto1.1@1.1.1q-r0
+                                        
+                                </span>
+        
+                            </li>
+                                <li>
+                                <span class="list-paths__item__introduced"><em>Introduced through</em>:
+                                        docker-image|haproxy@2.6.2-alpine
+                                         <span class="list-paths__item__arrow">›</span> 
+                                        .haproxy-rundeps@20220809.192310
+                                         <span class="list-paths__item__arrow">›</span> 
+                                        openssl/libcrypto1.1@1.1.1q-r0
+                                        
+                                </span>
+        
+                            </li>
+                                <li>
+                                <span class="list-paths__item__introduced"><em>Introduced through</em>:
+                                        docker-image|haproxy@2.6.2-alpine
+                                         <span class="list-paths__item__arrow">›</span> 
+                                        apk-tools/apk-tools@2.12.9-r3
+                                         <span class="list-paths__item__arrow">›</span> 
+                                        openssl/libcrypto1.1@1.1.1q-r0
+                                        
+                                </span>
+        
+                            </li>
+                                <li>
+                                <span class="list-paths__item__introduced"><em>Introduced through</em>:
+                                        docker-image|haproxy@2.6.2-alpine
+                                         <span class="list-paths__item__arrow">›</span> 
+                                        busybox/ssl_client@1.35.0-r17
+                                         <span class="list-paths__item__arrow">›</span> 
+                                        openssl/libcrypto1.1@1.1.1q-r0
+                                        
+                                </span>
+        
+                            </li>
+                                <li>
+                                <span class="list-paths__item__introduced"><em>Introduced through</em>:
+                                        docker-image|haproxy@2.6.2-alpine
+                                         <span class="list-paths__item__arrow">›</span> 
+                                        openssl/libssl1.1@1.1.1q-r0
+                                        
+                                </span>
+        
+                            </li>
+                                <li>
+                                <span class="list-paths__item__introduced"><em>Introduced through</em>:
+                                        docker-image|haproxy@2.6.2-alpine
+                                         <span class="list-paths__item__arrow">›</span> 
+                                        .haproxy-rundeps@20220809.192310
+                                         <span class="list-paths__item__arrow">›</span> 
+                                        openssl/libssl1.1@1.1.1q-r0
+                                        
+                                </span>
+        
+                            </li>
+                                <li>
+                                <span class="list-paths__item__introduced"><em>Introduced through</em>:
+                                        docker-image|haproxy@2.6.2-alpine
+                                         <span class="list-paths__item__arrow">›</span> 
+                                        apk-tools/apk-tools@2.12.9-r3
+                                         <span class="list-paths__item__arrow">›</span> 
+                                        openssl/libssl1.1@1.1.1q-r0
+                                        
+                                </span>
+        
+                            </li>
+                                <li>
+                                <span class="list-paths__item__introduced"><em>Introduced through</em>:
+                                        docker-image|haproxy@2.6.2-alpine
+                                         <span class="list-paths__item__arrow">›</span> 
+                                        busybox/ssl_client@1.35.0-r17
+                                         <span class="list-paths__item__arrow">›</span> 
+                                        openssl/libssl1.1@1.1.1q-r0
+                                        
+                                </span>
+        
+                            </li>
+                    </ul><!-- .list-paths -->
+        
+            </div><!-- .card__section -->
+        
+              <hr/>
+              <!-- Overview -->
+              <h2 id="nvd-description">NVD Description</h2>
+        <p><em>This vulnerability has not been analyzed by NVD yet.</em></p>
+        <h2 id="remediation">Remediation</h2>
+        <p>Upgrade <code>Alpine:3.16</code> <code>openssl</code> to version 1.1.1t-r0 or higher.</p>
+        
+              <hr/>
+        
+            <div class="cta card__cta">
+                <p><a href="https://snyk.io/vuln/SNYK-ALPINE316-OPENSSL-3314641">More about this vulnerability</a></p>
+            </div>
+        
+        </div><!-- .card -->
+        <div class="card card--vuln  disclosure--not-new severity--low" data-snyk-test="low">
+            <h2 class="card__title">CVE-2023-0215</h2>
+            <div class="card__section">
+        
+                <div class="label label--low">
+                    <span class="label__text">low severity</span>
+                </div>
+        
+                <hr/>
+        
+                <ul class="card__meta">
+                    <li class="card__meta__item">
+                        Package Manager: alpine:3.16
+                    </li>
+                    <li class="card__meta__item">
+                            Vulnerable module:
+        
+                            openssl/libcrypto1.1
+                    </li>
+        
+                    <li class="card__meta__item">Introduced through:
+        
+                                docker-image|haproxy@2.6.2-alpine and openssl/libcrypto1.1@1.1.1q-r0
+        
+                    </li>
+                </ul>
+        
+                <hr/>
+        
+        
+                        <h3 class="card__section__title">Detailed paths</h3>
+        
+                    <ul class="card__meta__paths">
+                                <li>
+                                <span class="list-paths__item__introduced"><em>Introduced through</em>:
+                                        docker-image|haproxy@2.6.2-alpine
+                                         <span class="list-paths__item__arrow">›</span> 
+                                        openssl/libcrypto1.1@1.1.1q-r0
+                                        
+                                </span>
+        
+                            </li>
+                                <li>
+                                <span class="list-paths__item__introduced"><em>Introduced through</em>:
+                                        docker-image|haproxy@2.6.2-alpine
+                                         <span class="list-paths__item__arrow">›</span> 
+                                        openssl/libssl1.1@1.1.1q-r0
+                                         <span class="list-paths__item__arrow">›</span> 
+                                        openssl/libcrypto1.1@1.1.1q-r0
+                                        
+                                </span>
+        
+                            </li>
+                                <li>
+                                <span class="list-paths__item__introduced"><em>Introduced through</em>:
+                                        docker-image|haproxy@2.6.2-alpine
+                                         <span class="list-paths__item__arrow">›</span> 
+                                        .haproxy-rundeps@20220809.192310
+                                         <span class="list-paths__item__arrow">›</span> 
+                                        openssl/libcrypto1.1@1.1.1q-r0
+                                        
+                                </span>
+        
+                            </li>
+                                <li>
+                                <span class="list-paths__item__introduced"><em>Introduced through</em>:
+                                        docker-image|haproxy@2.6.2-alpine
+                                         <span class="list-paths__item__arrow">›</span> 
+                                        apk-tools/apk-tools@2.12.9-r3
+                                         <span class="list-paths__item__arrow">›</span> 
+                                        openssl/libcrypto1.1@1.1.1q-r0
+                                        
+                                </span>
+        
+                            </li>
+                                <li>
+                                <span class="list-paths__item__introduced"><em>Introduced through</em>:
+                                        docker-image|haproxy@2.6.2-alpine
+                                         <span class="list-paths__item__arrow">›</span> 
+                                        busybox/ssl_client@1.35.0-r17
+                                         <span class="list-paths__item__arrow">›</span> 
+                                        openssl/libcrypto1.1@1.1.1q-r0
+                                        
+                                </span>
+        
+                            </li>
+                                <li>
+                                <span class="list-paths__item__introduced"><em>Introduced through</em>:
+                                        docker-image|haproxy@2.6.2-alpine
+                                         <span class="list-paths__item__arrow">›</span> 
+                                        openssl/libssl1.1@1.1.1q-r0
+                                        
+                                </span>
+        
+                            </li>
+                                <li>
+                                <span class="list-paths__item__introduced"><em>Introduced through</em>:
+                                        docker-image|haproxy@2.6.2-alpine
+                                         <span class="list-paths__item__arrow">›</span> 
+                                        .haproxy-rundeps@20220809.192310
+                                         <span class="list-paths__item__arrow">›</span> 
+                                        openssl/libssl1.1@1.1.1q-r0
+                                        
+                                </span>
+        
+                            </li>
+                                <li>
+                                <span class="list-paths__item__introduced"><em>Introduced through</em>:
+                                        docker-image|haproxy@2.6.2-alpine
+                                         <span class="list-paths__item__arrow">›</span> 
+                                        apk-tools/apk-tools@2.12.9-r3
+                                         <span class="list-paths__item__arrow">›</span> 
+                                        openssl/libssl1.1@1.1.1q-r0
+                                        
+                                </span>
+        
+                            </li>
+                                <li>
+                                <span class="list-paths__item__introduced"><em>Introduced through</em>:
+                                        docker-image|haproxy@2.6.2-alpine
+                                         <span class="list-paths__item__arrow">›</span> 
+                                        busybox/ssl_client@1.35.0-r17
+                                         <span class="list-paths__item__arrow">›</span> 
+                                        openssl/libssl1.1@1.1.1q-r0
+                                        
+                                </span>
+        
+                            </li>
+                    </ul><!-- .list-paths -->
+        
+            </div><!-- .card__section -->
+        
+              <hr/>
+              <!-- Overview -->
+              <h2 id="nvd-description">NVD Description</h2>
+        <p><em>This vulnerability has not been analyzed by NVD yet.</em></p>
+        <h2 id="remediation">Remediation</h2>
+        <p>Upgrade <code>Alpine:3.16</code> <code>openssl</code> to version 1.1.1t-r0 or higher.</p>
+        
+              <hr/>
+        
+            <div class="cta card__cta">
+                <p><a href="https://snyk.io/vuln/SNYK-ALPINE316-OPENSSL-3314643">More about this vulnerability</a></p>
+            </div>
+        
+        </div><!-- .card -->
+      </div><!-- cards -->
     </div>
   </main><!-- .layout-stacked__content -->
 </body>

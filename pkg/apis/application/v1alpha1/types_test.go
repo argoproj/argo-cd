@@ -64,6 +64,47 @@ func TestAppProject_IsSourcePermitted(t *testing.T) {
 	}
 }
 
+func TestAppProject_IsNegatedSourcePermitted(t *testing.T) {
+	testData := []struct {
+		projSources []string
+		appSource   string
+		isPermitted bool
+	}{{
+		projSources: []string{"!https://github.com/argoproj/test.git"}, appSource: "https://github.com/argoproj/test.git", isPermitted: false,
+	}, {
+		projSources: []string{"!ssh://git@GITHUB.com:argoproj/test"}, appSource: "ssh://git@github.com:argoproj/test", isPermitted: false,
+	}, {
+		projSources: []string{"!https://github.com/argoproj/*"}, appSource: "https://github.com/argoproj/argoproj.git", isPermitted: false,
+	}, {
+		projSources: []string{"https://github.com/test1/test.git", "!https://github.com/test2/test.git"}, appSource: "https://github.com/test2/test.git", isPermitted: false,
+	}, {
+		projSources: []string{"!https://github.com/argoproj/foo*"}, appSource: "https://github.com/argoproj/foo1", isPermitted: false,
+	}, {
+		projSources: []string{"!https://gitlab.com/group/*/*"}, appSource: "https://gitlab.com/group/repo/owner", isPermitted: false,
+	}, {
+		projSources: []string{"!https://gitlab.com/group/*/*/*"}, appSource: "https://gitlab.com/group/sub-group/repo/owner", isPermitted: false,
+	}, {
+		projSources: []string{"!https://gitlab.com/group/**"}, appSource: "https://gitlab.com/group/sub-group/repo/owner", isPermitted: false,
+	}, {
+		projSources: []string{"*"}, appSource: "https://github.com/argoproj/test.git", isPermitted: true,
+	}, {
+		projSources: []string{"https://github.com/argoproj/test1.git", "*"}, appSource: "https://github.com/argoproj/test2.git", isPermitted: true,
+	}, {
+		projSources: []string{"!https://github.com/argoproj/*.git", "*"}, appSource: "https://github.com/argoproj1/test2.git", isPermitted: true,
+	}}
+
+	for _, data := range testData {
+		proj := AppProject{
+			Spec: AppProjectSpec{
+				SourceRepos: data.projSources,
+			},
+		}
+		assert.Equal(t, proj.IsSourcePermitted(ApplicationSource{
+			RepoURL: data.appSource,
+		}), data.isPermitted)
+	}
+}
+
 func TestAppProject_IsDestinationPermitted(t *testing.T) {
 	testData := []struct {
 		projDest    []ApplicationDestination
@@ -507,6 +548,29 @@ func newTestProject() *AppProject {
 		Spec:       AppProjectSpec{Roles: []ProjectRole{{Name: "my-role"}}, Destinations: []ApplicationDestination{{}}},
 	}
 	return &p
+}
+
+// TestAppProject_ValidateSources tests for an invalid source
+func TestAppProject_ValidateSources(t *testing.T) {
+	p := newTestProject()
+	err := p.ValidateProject()
+	assert.NoError(t, err)
+	badSources := []string{
+		"!*",
+	}
+	for _, badName := range badSources {
+		p.Spec.SourceRepos = []string{badName}
+		err = p.ValidateProject()
+		assert.Error(t, err)
+	}
+
+	duplicateSources := []string{
+		"foo",
+		"foo",
+	}
+	p.Spec.SourceRepos = duplicateSources
+	err = p.ValidateProject()
+	assert.Error(t, err)
 }
 
 // TestAppProject_ValidateDestinations tests for an invalid destination
@@ -3161,10 +3225,27 @@ func Test_RBACName(t *testing.T) {
 	})
 }
 
+func TestGetSummary(t *testing.T) {
+	tree := ApplicationTree{}
+	app := newTestApp()
+
+	summary := tree.GetSummary(app)
+	assert.Equal(t, len(summary.ExternalURLs), 0)
+
+	const annotationName = argocdcommon.AnnotationKeyLinkPrefix + "/my-link"
+	const url = "https://example.com"
+	app.Annotations = make(map[string]string)
+	app.Annotations[annotationName] = url
+
+	summary = tree.GetSummary(app)
+	assert.Equal(t, len(summary.ExternalURLs), 1)
+	assert.Equal(t, summary.ExternalURLs[0], url)
+}
+
 func TestApplicationSourcePluginParameters_Environ_string(t *testing.T) {
 	params := ApplicationSourcePluginParameters{
 		{
-			Name: "version",
+			Name:    "version",
 			String_: pointer.String("1.2.3"),
 		},
 	}
@@ -3180,7 +3261,7 @@ func TestApplicationSourcePluginParameters_Environ_string(t *testing.T) {
 func TestApplicationSourcePluginParameters_Environ_array(t *testing.T) {
 	params := ApplicationSourcePluginParameters{
 		{
-			Name: "dependencies",
+			Name:  "dependencies",
 			Array: []string{"redis", "minio"},
 		},
 	}
@@ -3200,7 +3281,7 @@ func TestApplicationSourcePluginParameters_Environ_map(t *testing.T) {
 			Name: "helm-parameters",
 			Map: map[string]string{
 				"image.repo": "quay.io/argoproj/argo-cd",
-				"image.tag": "v2.4.0",
+				"image.tag":  "v2.4.0",
 			},
 		},
 	}
@@ -3219,12 +3300,12 @@ func TestApplicationSourcePluginParameters_Environ_all(t *testing.T) {
 	// Name collisions can happen for the convenience env vars. When in doubt, CMP authors should use the JSON env var.
 	params := ApplicationSourcePluginParameters{
 		{
-			Name: "some-name",
+			Name:    "some-name",
 			String_: pointer.String("1.2.3"),
-			Array: []string{"redis", "minio"},
+			Array:   []string{"redis", "minio"},
 			Map: map[string]string{
 				"image.repo": "quay.io/argoproj/argo-cd",
-				"image.tag": "v2.4.0",
+				"image.tag":  "v2.4.0",
 			},
 		},
 	}
@@ -3241,3 +3322,82 @@ func TestApplicationSourcePluginParameters_Environ_all(t *testing.T) {
 	assert.Contains(t, environ, fmt.Sprintf("ARGOCD_APP_PARAMETERS=%s", paramsJson))
 }
 
+func getApplicationSpec() *ApplicationSpec {
+	return &ApplicationSpec{
+		Source: &ApplicationSource{
+			Path: "source",
+		}, Sources: ApplicationSources{
+			{
+				Path: "sources/source1",
+			}, {
+				Path: "sources/source2",
+			},
+		},
+	}
+}
+
+func TestGetSource(t *testing.T) {
+	tests := []struct {
+		name           string
+		hasSources     bool
+		hasSource      bool
+		appSpec        *ApplicationSpec
+		expectedSource ApplicationSource
+	}{
+		{"GetSource with Source and Sources field present", true, true, getApplicationSpec(), ApplicationSource{Path: "sources/source1"}},
+		{"GetSource with only Sources field", true, false, getApplicationSpec(), ApplicationSource{Path: "sources/source1"}},
+		{"GetSource with only Source field", false, true, getApplicationSpec(), ApplicationSource{Path: "source"}},
+		{"GetSource with no Source and Sources field", false, false, getApplicationSpec(), ApplicationSource{}},
+	}
+	for _, testCase := range tests {
+		testCopy := testCase
+		t.Run(testCopy.name, func(t *testing.T) {
+			t.Parallel()
+			if !testCopy.hasSources {
+				testCopy.appSpec.Sources = nil
+			}
+			if !testCopy.hasSource {
+				testCopy.appSpec.Source = nil
+			}
+			source := testCopy.appSpec.GetSource()
+			assert.Equal(t, testCopy.expectedSource, source)
+		})
+	}
+}
+
+func TestGetSources(t *testing.T) {
+	tests := []struct {
+		name            string
+		hasSources      bool
+		hasSource       bool
+		appSpec         *ApplicationSpec
+		expectedSources ApplicationSources
+	}{
+		{"GetSources with Source and Sources field present", true, true, getApplicationSpec(), ApplicationSources{
+			{Path: "sources/source1"},
+			{Path: "sources/source2"},
+		}},
+		{"GetSources with only Sources field", true, false, getApplicationSpec(), ApplicationSources{
+			{Path: "sources/source1"},
+			{Path: "sources/source2"},
+		}},
+		{"GetSources with only Source field", false, true, getApplicationSpec(), ApplicationSources{
+			{Path: "source"},
+		}},
+		{"GetSources with no Source and Sources field", false, false, getApplicationSpec(), ApplicationSources{}},
+	}
+	for _, testCase := range tests {
+		testCopy := testCase
+		t.Run(testCopy.name, func(t *testing.T) {
+			t.Parallel()
+			if !testCopy.hasSources {
+				testCopy.appSpec.Sources = nil
+			}
+			if !testCopy.hasSource {
+				testCopy.appSpec.Source = nil
+			}
+			sources := testCopy.appSpec.GetSources()
+			assert.Equal(t, testCopy.expectedSources, sources)
+		})
+	}
+}

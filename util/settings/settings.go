@@ -135,6 +135,33 @@ type Help struct {
 	BinaryURLs map[string]string `json:"binaryUrl,omitempty"`
 }
 
+// oidcConfig is the same as the public OIDCConfig, except the public one excludes the AllowedAudiences and the
+// SkipAudienceCheckWhenTokenHasNoAudience fields.
+// AllowedAudiences should be accessed via ArgoCDSettings.OAuth2AllowedAudiences.
+// SkipAudienceCheckWhenTokenHasNoAudience should be accessed via ArgoCDSettings.SkipAudienceCheckWhenTokenHasNoAudience.
+type oidcConfig struct {
+	OIDCConfig
+	AllowedAudiences                        []string `json:"allowedAudiences,omitempty"`
+	SkipAudienceCheckWhenTokenHasNoAudience *bool    `json:"skipAudienceCheckWhenTokenHasNoAudience,omitempty"`
+}
+
+func (o *oidcConfig) toExported() *OIDCConfig {
+	if o == nil {
+		return nil
+	}
+	return &OIDCConfig{
+		Name:                   o.Name,
+		Issuer:                 o.Issuer,
+		ClientID:               o.ClientID,
+		ClientSecret:           o.ClientSecret,
+		CLIClientID:            o.CLIClientID,
+		RequestedScopes:        o.RequestedScopes,
+		RequestedIDTokenClaims: o.RequestedIDTokenClaims,
+		LogoutURL:              o.LogoutURL,
+		RootCA:                 o.RootCA,
+	}
+}
+
 type OIDCConfig struct {
 	Name                   string                 `json:"name,omitempty"`
 	Issuer                 string                 `json:"issuer,omitempty"`
@@ -291,6 +318,10 @@ type Repository struct {
 	GithubAppEnterpriseBaseURL string `json:"githubAppEnterpriseBaseUrl,omitempty"`
 	// Proxy specifies the HTTP/HTTPS proxy used to access the repo
 	Proxy string `json:"proxy,omitempty"`
+	// GCPServiceAccountKey specifies the service account key in JSON format to be used for getting credentials to Google Cloud Source repos
+	GCPServiceAccountKey *apiv1.SecretKeySelector `json:"gcpServiceAccountKey,omitempty"`
+	// ForceHttpBasicAuth determines whether Argo CD should force use of basic auth for HTTP connected repositories
+	ForceHttpBasicAuth bool `json:"forceHttpBasicAuth,omitempty"`
 }
 
 // Credential template for accessing repositories
@@ -319,6 +350,10 @@ type RepositoryCredentials struct {
 	EnableOCI bool `json:"enableOCI,omitempty"`
 	// the type of the repositoryCredentials, "git" or "helm", assumed to be "git" if empty or absent
 	Type string `json:"type,omitempty"`
+	// GCPServiceAccountKey specifies the service account key in JSON format to be used for getting credentials to Google Cloud Source repos
+	GCPServiceAccountKey *apiv1.SecretKeySelector `json:"gcpServiceAccountKey,omitempty"`
+	// ForceHttpBasicAuth determines whether Argo CD should force use of basic auth for HTTP connected repositories
+	ForceHttpBasicAuth bool `json:"forceHttpBasicAuth,omitempty"`
 }
 
 // DeepLink structure
@@ -1133,8 +1168,12 @@ func (mgr *SettingsManager) GetHelp() (*Help, error) {
 	if !ok {
 		chatText = "Chat now!"
 	}
+	chatURL, ok := argoCDCM.Data[helpChatURL]
+	if !ok {
+		chatText = ""
+	}
 	return &Help{
-		ChatURL:    argoCDCM.Data[helpChatURL],
+		ChatURL:    chatURL,
 		ChatText:   chatText,
 		BinaryURLs: getDownloadBinaryUrlsFromConfigMap(argoCDCM),
 	}, nil
@@ -1637,24 +1676,37 @@ func UnmarshalDexConfig(config string) (map[string]interface{}, error) {
 	return dexCfg, err
 }
 
-func (a *ArgoCDSettings) OIDCConfig() *OIDCConfig {
+func (a *ArgoCDSettings) oidcConfig() *oidcConfig {
 	if a.OIDCConfigRAW == "" {
 		return nil
 	}
-	oidcConfig, err := UnmarshalOIDCConfig(a.OIDCConfigRAW)
+	config, err := unmarshalOIDCConfig(a.OIDCConfigRAW)
 	if err != nil {
 		log.Warnf("invalid oidc config: %v", err)
 		return nil
 	}
-	oidcConfig.ClientSecret = ReplaceStringSecret(oidcConfig.ClientSecret, a.Secrets)
-	oidcConfig.ClientID = ReplaceStringSecret(oidcConfig.ClientID, a.Secrets)
-	return &oidcConfig
+	config.ClientSecret = ReplaceStringSecret(config.ClientSecret, a.Secrets)
+	config.ClientID = ReplaceStringSecret(config.ClientID, a.Secrets)
+	return &config
 }
 
-func UnmarshalOIDCConfig(config string) (OIDCConfig, error) {
-	var oidcConfig OIDCConfig
-	err := yaml.Unmarshal([]byte(config), &oidcConfig)
-	return oidcConfig, err
+func (a *ArgoCDSettings) OIDCConfig() *OIDCConfig {
+	config := a.oidcConfig()
+	if config == nil {
+		return nil
+	}
+	return config.toExported()
+}
+
+func unmarshalOIDCConfig(configStr string) (oidcConfig, error) {
+	var config oidcConfig
+	err := yaml.Unmarshal([]byte(configStr), &config)
+	return config, err
+}
+
+func ValidateOIDCConfig(configStr string) error {
+	_, err := unmarshalOIDCConfig(configStr)
+	return err
 }
 
 // TLSConfig returns a tls.Config with the configured certificates
@@ -1691,6 +1743,37 @@ func (a *ArgoCDSettings) OAuth2ClientID() string {
 		return common.ArgoCDClientAppID
 	}
 	return ""
+}
+
+// OAuth2AllowedAudiences returns a list of audiences that are allowed for the OAuth2 client. If the user has not
+// explicitly configured the list of audiences (or has configured an empty list), then the OAuth2 client ID is returned
+// as the only allowed audience. When using the bundled Dex, that client ID is always "argo-cd".
+func (a *ArgoCDSettings) OAuth2AllowedAudiences() []string {
+	if config := a.oidcConfig(); config != nil {
+		if len(config.AllowedAudiences) == 0 {
+			allowedAudiences := []string{config.ClientID}
+			if config.CLIClientID != "" {
+				allowedAudiences = append(allowedAudiences, config.CLIClientID)
+			}
+			return allowedAudiences
+		}
+		return config.AllowedAudiences
+	}
+	if a.DexConfig != "" {
+		return []string{common.ArgoCDClientAppID, common.ArgoCDCLIClientAppID}
+	}
+	return nil
+}
+
+func (a *ArgoCDSettings) SkipAudienceCheckWhenTokenHasNoAudience() bool {
+	if config := a.oidcConfig(); config != nil {
+		if config.SkipAudienceCheckWhenTokenHasNoAudience != nil {
+			return *config.SkipAudienceCheckWhenTokenHasNoAudience
+		}
+		return false
+	}
+	// When using the bundled Dex, the audience check is required. Dex will always send JWTs with an audience.
+	return false
 }
 
 func (a *ArgoCDSettings) OAuth2ClientSecret() string {
