@@ -104,7 +104,7 @@ nav:
       - operator-manual/applicationset/GoTemplate.md
     - Controlling Resource Modification: operator-manual/applicationset/Controlling-Resource-Modification.md
     - Application Pruning & Resource Deletion: operator-manual/applicationset/Application-Deletion.md
-    - Progressive Rollouts: operator-manual/applicationset/Progressive-Rollouts.md
+    - Progressive Syncs: operator-manual/applicationset/Progressive-Syncs.md
   - Server Configuration Parameters:
     - operator-manual/server-commands/argocd-server.md
     - operator-manual/server-commands/argocd-application-controller.md
@@ -180,7 +180,9 @@ nav:
   - developer-guide/releasing.md
   - developer-guide/site.md
   - developer-guide/static-code-analysis.md
-  - developer-guide/ui-extensions.md
+  - Extensions:
+    - developer-guide/extensions/ui-extensions.md
+    - developer-guide/extensions/proxy-extensions.md
   - developer-guide/faq.md
 - faq.md
 - security_considerations.md
