@@ -224,7 +224,7 @@ jobs:
           cosign-release: 'v1.13.1'
 
       - name: Install crane to get digest of image
-        uses: imjasonh/setup-crane@e82f1b9a8007d399333baba4d75915558e9fb6a4
+        uses: imjasonh/setup-crane@00c9e93efa4e1138c9a7a5c594acd6c75a2fbf0c
 
       - name: Get digest of image
         run: |
