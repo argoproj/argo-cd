@@ -11,7 +11,7 @@ FROM docker.io/library/golang:1.18 as golang
 
 FROM docker.io/library/registry:2.8 as registry
 
-FROM docker.io/bitnami/kubectl:1.23.6 as kubectl
+FROM docker.io/bitnami/kubectl:1.24.8 as kubectl
 
 FROM ubuntu:22.04
 
