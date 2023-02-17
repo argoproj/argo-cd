@@ -1471,6 +1471,8 @@ spec:
                           items:
                             x-kubernetes-preserve-unknown-fields: true
                           type: array
+                        elementsjsonbase64:
+                          type: string
                         template:
                           properties:
                             metadata:
@@ -3361,6 +3363,8 @@ spec:
                                     items:
                                       x-kubernetes-preserve-unknown-fields: true
                                     type: array
+                                  elementsjsonbase64:
+                                    type: string
                                   template:
                                     properties:
                                       metadata:
@@ -6909,6 +6913,8 @@ spec:
                                     items:
                                       x-kubernetes-preserve-unknown-fields: true
                                     type: array
+                                  elementsjsonbase64:
+                                    type: string
                                   template:
                                     properties:
                                       metadata:
