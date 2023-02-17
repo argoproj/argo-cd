@@ -491,17 +491,20 @@ function getActionItems(
 
     const resourceActions = getResourceActionsMenuItems(resource, application.metadata, appContext);
 
-    const links = services.applications.getResourceLinks(application.metadata.name, application.metadata.namespace, resource).then(data => {
-        return (data.items || []).map(
-            link =>
-                ({
-                    title: link.title,
-                    iconClassName: `fa ${link.iconClass ? link.iconClass : 'fa-external-link'}`,
-                    action: () => window.open(link.url, '_blank'),
-                    tooltip: link.description
-                } as MenuItem)
-        );
-    });
+    const links = services.applications
+        .getResourceLinks(application.metadata.name, application.metadata.namespace, resource)
+        .then(data => {
+            return (data.items || []).map(
+                link =>
+                    ({
+                        title: link.title,
+                        iconClassName: `fa ${link.iconClass ? link.iconClass : 'fa-external-link'}`,
+                        action: () => window.open(link.url, '_blank'),
+                        tooltip: link.description
+                    } as MenuItem)
+            );
+        })
+        .catch(() => [] as MenuItem[]);
 
     return combineLatest(
         from([items]), // this resolves immediately
@@ -642,7 +645,7 @@ export function syncStatusMessage(app: appModels.Application) {
         case appModels.SyncStatuses.Synced:
             return (
                 <span>
-                    To{' '}
+                    to{' '}
                     <Revision repoUrl={source.repoURL} revision={rev}>
                         {message}
                     </Revision>{' '}
@@ -651,7 +654,7 @@ export function syncStatusMessage(app: appModels.Application) {
         case appModels.SyncStatuses.OutOfSync:
             return (
                 <span>
-                    From{' '}
+                    from{' '}
                     <Revision repoUrl={source.repoURL} revision={rev}>
                         {message}
                     </Revision>{' '}
