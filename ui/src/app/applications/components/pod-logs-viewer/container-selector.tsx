@@ -25,7 +25,7 @@ export const ContainerSelector = ({
                     <div className='d-inline-block'>
                         {container.name === containerName && <i className='fa fa-angle-right' />}
                         <span title={container.name} className='container-item'>
-                            {container.name.toUpperCase()}
+                            {container.name}
                         </span>
                     </div>
                 );
@@ -41,7 +41,7 @@ export const ContainerSelector = ({
             <DropDownMenu
                 anchor={() => (
                     <Button icon='stream' title='Containers'>
-                        {containerName.padEnd(4, ' ').substr(0, 3)}...
+                        {containerName.padEnd(5, ' ').substr(0, 4)}...
                     </Button>
                 )}
                 items={containerItems}

@@ -1,12 +1,11 @@
 import * as React from 'react';
-import {Group} from '../../../shared/components/group';
 import {Spacer} from '../../../shared/components/spacer';
 import {Select} from 'argo-ui';
 
 export type Option = 'min' | '1m' | '5m' | '30m' | '1h' | '4h';
 
 export const TimeRangeSelector = ({since, setSince}: {since: Option; setSince: (value: Option) => void}) => (
-    <Group>
+    <>
         <label>from</label>
         <Spacer />
         <Select
@@ -23,5 +22,5 @@ export const TimeRangeSelector = ({since, setSince}: {since: Option; setSince: (
                 setSince(option.value as Option);
             }}
         />
-    </Group>
+    </>
 );

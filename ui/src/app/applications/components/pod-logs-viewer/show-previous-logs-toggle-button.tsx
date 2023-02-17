@@ -12,7 +12,7 @@ export const ShowPreviousLogsToggleButton = ({
     loader: LogLoader;
 }) => (
     <ToggleButton
-        title='Show previous logs'
+        title='Show previous logs, i.e. logs from previous container restarts'
         onToggle={() => {
             setPreviousLogs(!showPreviousLogs);
             loader.reload();

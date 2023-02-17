@@ -12,7 +12,7 @@ import {BASE_COLORS} from '../utils';
 import './pod-logs-viewer.scss';
 import {CopyLogsButton} from './copy-logs-button';
 import {DownloadLogsButton} from './download-logs-button';
-import {ContainerSelector} from './container-selector';
+import {ContainerGroup, ContainerSelector} from './container-selector';
 import {FollowToggleButton} from './follow-toggle-button';
 import {WrapLinesToggleButton} from './wrap-lines-toggle-button';
 import {LogLoader} from './log-loader';
@@ -24,7 +24,6 @@ import {Spacer} from '../../../shared/components/spacer';
 import {Filter} from './filter';
 import {Option, TimeRangeSelector} from './time-range-selector';
 import {TailSelector} from './tail-selector';
-import {Group} from '../../../shared/components/group';
 
 export interface PodLogsProps {
     namespace: string;
@@ -37,6 +36,7 @@ export interface PodLogsProps {
     name?: string;
     timestamp?: string;
     containerGroups?: any[];
+    containerStates: models.PodSpec[];
     onClickContainer?: (group: any, i: number, tab: string) => void;
 }
 
@@ -100,7 +100,7 @@ export const PodsLogsViewer = (props: PodLogsProps) => {
                 return (
                     <React.Fragment>
                         <div className='pod-logs-viewer__settings'>
-                            <Group>
+                            <span>
                                 <ContainerSelector containerGroups={containerGroups} containerName={containerName} onClickContainer={onClickContainer} />
                                 <Spacer />
                                 <TailSelector tail={tail} setTail={setTail} />
@@ -111,9 +111,9 @@ export const PodsLogsViewer = (props: PodLogsProps) => {
                                 <Spacer />
                                 <ShowPreviousLogsToggleButton loader={loader} setPreviousLogs={setPreviousLogs} showPreviousLogs={previous} />
                                 <FollowToggleButton follow={follow} setFollow={setFollow} />
-                            </Group>
+                            </span>
                             <Spacer />
-                            <Group>
+                            <span>
                                 <TimestampsToggleButton
                                     setViewPodNames={setViewPodNames}
                                     viewPodNames={viewPodNames}
@@ -123,13 +123,13 @@ export const PodsLogsViewer = (props: PodLogsProps) => {
                                 />
                                 <WrapLinesToggleButton prefs={prefs} />
                                 <DarkModeToggleButton prefs={prefs} />
-                            </Group>
+                            </span>
                             <Spacer />
-                            <Group>
+                            <span>
                                 <CopyLogsButton loader={loader} />
                                 <DownloadLogsButton {...props} />
                                 <FullscreenButton {...props} />
-                            </Group>
+                            </span>
                         </div>
                         <DataLoader
                             ref={loaderRef}
