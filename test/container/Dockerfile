@@ -1,19 +1,19 @@
-FROM docker.io/library/redis:7.0.5 as redis
+FROM docker.io/library/redis:7.0.5@sha256:dfeb5451fce377ab47c5bb6b6826592eea534279354bbfc3890c0b5e9b57c763 as redis
 
 # There are libraries we will want to copy from here in the final stage of the
 # build, but the COPY directive does not have a way to determine system
 # architecture, so we create a symlink here to facilitate copying.
 RUN ln -s /usr/lib/$(uname -m)-linux-gnu /usr/lib/linux-gnu 
 
-FROM docker.io/library/node:12.18.4-buster as node
+FROM docker.io/library/node:12.18.4-buster@sha256:7f4090a3fea631e703f4afe5cc5504143970d669a2c13b4e5edf3f830c9b4c96 as node
 
-FROM docker.io/library/golang:1.20 as golang
+FROM docker.io/library/golang:1.20@sha256:2edf6aab2d57644f3fe7407132a0d1770846867465a39c2083770cf62734b05d as golang
 
-FROM docker.io/library/registry:2.8 as registry
+FROM docker.io/library/registry:2.8@sha256:3f71055ad7c41728e381190fee5c4cf9b8f7725839dcf5c0fe3e5e20dc5db1fa as registry
 
-FROM docker.io/bitnami/kubectl:1.24.8 as kubectl
+FROM docker.io/bitnami/kubectl:1.24.8@sha256:9c1bd1fe7bf4a0c19b4b38e596f355c5172805e14e6a3f71433472e3456e86d8 as kubectl
 
-FROM ubuntu:22.04
+FROM ubuntu@sha256:9a0bdde4188b896a372804be2384015e90e3f84906b750c1a53539b585fbbe7f
 
 ENV DEBIAN_FRONTEND=noninteractive
 RUN  apt-get update && apt-get install --fix-missing -y \
