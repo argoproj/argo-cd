@@ -214,7 +214,7 @@ func TestTerminalHandler_ServeHTTP_empty_params(t *testing.T) {
 					paramsArray = append(paramsArray, key+"="+value)
 				}
 				paramsString := strings.Join(paramsArray, "&")
-				request := httptest.NewRequest("GET", "https://argocd.example.com/api/v1/terminal?"+paramsString, nil)
+				request := httptest.NewRequest(http.MethodGet, "https://argocd.example.com/api/v1/terminal?"+paramsString, nil)
 				recorder := httptest.NewRecorder()
 				handler.ServeHTTP(recorder, request)
 				response := recorder.Result()
@@ -226,7 +226,7 @@ func TestTerminalHandler_ServeHTTP_empty_params(t *testing.T) {
 
 func TestTerminalHandler_ServeHTTP_disallowed_namespace(t *testing.T) {
 	handler := terminalHandler{namespace: "argocd", enabledNamespaces: []string{"allowed"}}
-	request := httptest.NewRequest("GET", "https://argocd.example.com/api/v1/terminal?pod=valid&container=valid&appName=valid&projectName=valid&namespace=test&appNamespace=disallowed", nil)
+	request := httptest.NewRequest(http.MethodGet, "https://argocd.example.com/api/v1/terminal?pod=valid&container=valid&appName=valid&projectName=valid&namespace=test&appNamespace=disallowed", nil)
 	recorder := httptest.NewRecorder()
 	handler.ServeHTTP(recorder, request)
 	response := recorder.Result()

@@ -19,7 +19,7 @@ spec:
               labelSelector:
                 matchLabels:
                   app.kubernetes.io/name: argocd-repo-server
-              topologyKey: failure-domain.beta.kubernetes.io/zone
+              topologyKey: topology.kubernetes.io/zone
       containers:
       - name: argocd-repo-server
         command:
