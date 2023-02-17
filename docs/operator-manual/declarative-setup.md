@@ -77,7 +77,7 @@ spec:
 ```
 
 !!! warning
-    By default, deleting an application will not perform a cascade delete, which would delete its resources. You must add the finalizer if you want this behaviour - which you may well not want.
+    Without the `resources-finalizer.argocd.argoproj.io` finalizer, deleting an application will not delete the resources it manages. To perform a cascading delete, you must add the finalizer. See [App Deletion](../user-guide/app_deletion.md#about-the-deletion-finalizer).
 
 ```yaml
 metadata:
@@ -253,6 +253,33 @@ stringData:
     -----BEGIN OPENSSH PRIVATE KEY-----
     ...
     -----END OPENSSH PRIVATE KEY-----
+```
+
+Example for Google Cloud Source repositories:
+
+```yaml
+kind: Secret
+metadata:
+  name: github-repo
+  namespace: argocd
+  labels:
+    argocd.argoproj.io/secret-type: repository
+stringData:
+  type: git
+  repo: https://source.developers.google.com/p/my-google-project/r/my-repo
+  gcpServiceAccountKey: |
+    {
+      "type": "service_account",
+      "project_id": "my-google-project",
+      "private_key_id": "REDACTED",
+      "private_key": "-----BEGIN PRIVATE KEY-----\nREDACTED\n-----END PRIVATE KEY-----\n",
+      "client_email": "argocd-service-account@my-google-project.iam.gserviceaccount.com",
+      "client_id": "REDACTED",
+      "auth_uri": "https://accounts.google.com/o/oauth2/auth",
+      "token_uri": "https://oauth2.googleapis.com/token",
+      "auth_provider_x509_cert_url": "https://www.googleapis.com/oauth2/v1/certs",
+      "client_x509_cert_url": "https://www.googleapis.com/robot/v1/metadata/x509/argocd-service-account%40my-google-project.iam.gserviceaccount.com"
+    }
 ```
 
 !!! tip
@@ -681,6 +708,10 @@ Notes:
 * Quote globs in your YAML to avoid parsing errors.
 * Invalid globs result in the whole rule being ignored.
 * If you add a rule that matches existing resources, these will appear in the interface as `OutOfSync`.
+
+## Resource Custom Labels
+
+Custom Labels configured with `resource.customLabels` (comma separated string) will be displayed in the UI (for any resource that defines them).
 
 ## SSO & RBAC
 
