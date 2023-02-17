@@ -217,9 +217,9 @@ export const PodsLogsViewer = (props: PodLogsProps) => {
                                                                 items={[
                                                                     {
                                                                         title: (
-                                                                                <span>
-                                                                            <i className='fa fa-clipboard' /> Copy Line
-                                                                                </span>
+                                                                            <span>
+                                                                                <i className='fa fa-clipboard' /> Copy Line
+                                                                            </span>
                                                                         ),
                                                                         action: async () => {
                                                                             await navigator.clipboard.writeText(l);
