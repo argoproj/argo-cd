@@ -29,5 +29,13 @@ export default {
     'applications-list.sort-options.name': 'name',
     'applications-list.sort-options.created-at': 'Created At',
     'applications-list.sort-options.synchronized': 'Synchronized',
-    'applications-list.unable-to-create-application': 'Unable to create application'
+    'applications-list.unable-to-create-application': 'Unable to create application',
+    'applications-filter.favorites-only': 'Favorites Only',
+    'applications-filter.labels': 'LABELS',
+    'applications-filter.projects': 'PROJECTS',
+    'applications-filter.clusters': 'CLUSTERS',
+    'applications-filter.namespaces': 'NAMESPACES',
+    'applications-filter.auto-sync': 'Auto Sync',
+    'applications-filter.auto-sync.enabled': 'Enabled',
+    'applications-filter.auto-sync.disabled': 'Disabled'
 };
