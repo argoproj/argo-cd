@@ -12,7 +12,7 @@ import {BASE_COLORS} from '../utils';
 import './pod-logs-viewer.scss';
 import {CopyLogsButton} from './copy-logs-button';
 import {DownloadLogsButton} from './download-logs-button';
-import {ContainerGroup, ContainerSelector} from './container-selector';
+import {ContainerSelector} from './container-selector';
 import {FollowToggleButton} from './follow-toggle-button';
 import {WrapLinesToggleButton} from './wrap-lines-toggle-button';
 import {LogLoader} from './log-loader';
@@ -22,8 +22,9 @@ import {DarkModeToggleButton} from './dark-mode-toggle-button';
 import {FullscreenButton} from './fullscreen-button';
 import {Spacer} from '../../../shared/components/spacer';
 import {Filter} from './filter';
-import {Option, TimeRangeSelector} from './time-range-selector';
+import {TimeRangeSelector} from './time-range-selector';
 import {TailSelector} from './tail-selector';
+import {Since} from '../../../shared/services/applications-service';
 
 export interface PodLogsProps {
     namespace: string;
@@ -53,27 +54,16 @@ export const PodsLogsViewer = (props: PodLogsProps) => {
     const [viewTimestamps, setViewTimestamps] = useState(queryParams.get('viewTimestamps') === 'true');
     const [previous, setPreviousLogs] = useState(queryParams.get('showPreviousLogs') === 'true');
     const [tail, setTail] = useState<number>(parseInt(queryParams.get('tail'), 10) || 100);
-    const [since, setSince] = useState<Option>('1m');
+    const [since, setSince] = useState<Since>('1m');
     const [filter, setFilter] = useState(queryParams.get('filterText') || '');
+    const [highlight, setHighlight] = useState('');
 
     const bottom = useRef<HTMLInputElement>(null);
     const loaderRef = useRef();
 
     const loader: LogLoader = loaderRef.current;
-    const grep = filter.replace(/[-\/\\^$*+?.()|[\]{}]/g, '\\$&'); // https://stackoverflow.com/questions/3561493/is-there-a-regexp-escape-function-in-javascript
 
-    const scrollToBottom = () => bottom.current?.scrollIntoView({behavior: 'smooth'});
-
-    const optionToTime = (value: Option) => {
-        switch (value) {
-            case 'min':
-                return new Date(0);
-            default:
-                return new Date(new Date().getTime() - 5 * 60 * 1000);
-        }
-    };
-
-    const sinceSeconds = optionToTime(since).getTime() / 1000;
+    const scrollToBottom = () => bottom.current?.scrollIntoView({behavior: 'auto'});
 
     const query = {
         applicationName,
@@ -84,15 +74,18 @@ export const PodsLogsViewer = (props: PodLogsProps) => {
         containerName,
         tail,
         follow,
-        sinceSeconds,
+        since,
         filter,
         previous
     };
 
     useEffect(() => {
-        const to = setTimeout(() => loader?.reload(), 100);
+        const to = setTimeout(() => {
+            loader?.reload();
+            setHighlight(filter.replace(/[-\/\\^$*+?.()|[\]{}]/g, '\\$&')); // https://stackoverflow.com/questions/3561493/is-there-a-regexp-escape-function-in-javascript
+        }, 250);
         return () => clearTimeout(to);
-    }, [query]);
+    }, [applicationName, applicationNamespace, namespace, podName, group, kind, name, containerName, tail, follow, since, filter, previous]);
 
     return (
         <DataLoader load={() => services.viewPreferences.getPreferences()}>
@@ -265,7 +258,7 @@ export const PodsLogsViewer = (props: PodLogsProps) => {
                                                         )}
                                                         <div className='pod-logs-viewer__line__number'>{lineNum}</div>
                                                         <div className={`pod-logs-viewer__line ${selectedLine === i ? 'pod-logs-viewer__line--selected' : ''}`}>
-                                                            <Ansi>{l.replace(new RegExp(grep, 'g'), (y: string) => '\u001b[1m\u001b[43;1m\u001b[37m' + y + '\u001b[0m')}</Ansi>
+                                                            <Ansi>{l.replace(new RegExp(highlight, 'g'), (y: string) => '\u001b[1m\u001b[43;1m\u001b[37m' + y + '\u001b[0m')}</Ansi>
                                                         </div>
                                                     </div>
                                                 );

@@ -5,6 +5,7 @@ import {map, repeat, retry} from 'rxjs/operators';
 import * as models from '../models';
 import {isValidURL} from '../utils';
 import requests from './requests';
+import {Since, sinceSeconds} from './since';
 
 interface QueryOptions {
     fields: string[];
@@ -241,7 +242,7 @@ export class ApplicationsService {
         containerName: string;
         tail?: number;
         follow?: boolean;
-        sinceSeconds?: number;
+        since?: Since;
         untilTime?: string;
         filter?: string;
         previous?: boolean;
@@ -437,12 +438,12 @@ export class ApplicationsService {
         containerName: string;
         tail?: number;
         follow?: boolean;
-        sinceSeconds?: number;
+        since?: Since;
         untilTime?: string;
         filter?: string;
         previous?: boolean;
     }): URLSearchParams {
-        const {appNamespace, containerName, namespace, podName, resource, tail, sinceSeconds, untilTime, filter, previous} = query;
+        const {appNamespace, containerName, namespace, podName, resource, tail, since, untilTime, filter, previous} = query;
         let {follow} = query;
         if (follow === undefined || follow === null) {
             follow = true;
@@ -462,8 +463,8 @@ export class ApplicationsService {
         if (tail) {
             search.set('tailLines', tail.toString());
         }
-        if (sinceSeconds) {
-            search.set('sinceSeconds', sinceSeconds.toString());
+        if (since) {
+            search.set('sinceSeconds', sinceSeconds(since).toString());
         }
         if (untilTime) {
             search.set('untilTime', untilTime);

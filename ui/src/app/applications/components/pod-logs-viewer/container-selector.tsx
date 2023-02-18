@@ -1,51 +1,33 @@
-import {DropDownMenu} from 'argo-ui';
+import {Select} from 'argo-ui';
 import * as React from 'react';
-import {Button} from '../../../shared/components/button';
+import {Spacer} from '../../../shared/components/spacer';
 
-type ContainerGroup = {offset: number; containers: string[]};
+export type ContainerGroup = {offset: number; containers: string[]};
 export const ContainerSelector = ({
     containerGroups,
     containerName,
     onClickContainer
 }: {
-    containerGroups: ContainerGroup[];
+    containerGroups?: ContainerGroup[];
     containerName: string;
     onClickContainer: (group: ContainerGroup, index: number, logs: string) => void;
 }) => {
-    const containerItems: {title: any; action: () => any}[] = [];
-    if (containerGroups?.length > 0) {
-        containerGroups.forEach(group => {
-            containerItems.push({
-                title: group.offset === 0 ? 'CONTAINER' : 'INIT CONTAINER',
-                action: null
-            });
-
-            group.containers.forEach((container: any, index: number) => {
-                const title = (
-                    <div className='d-inline-block'>
-                        {container.name === containerName && <i className='fa fa-angle-right' />}
-                        <span title={container.name} className='container-item'>
-                            {container.name}
-                        </span>
-                    </div>
-                );
-                containerItems.push({
-                    title,
-                    action: () => (container.name === containerName ? {} : onClickContainer(group, index, 'logs'))
-                });
-            });
-        });
+    if (!containerGroups) {
+        return <></>;
     }
+    const containers = containerGroups?.reduce((acc, group) => acc.concat(group.containers), []);
+    const containerNames = containers?.map(container => container.name);
+    const containerGroup = (n: string) => {
+        return containerGroups.find(group => group.containers.find(container => container === n));
+    };
+    const containerIndex = (n: string) => {
+        return containerGroup(n).containers.findIndex(container => container === n);
+    };
     return (
-        containerGroups?.length > 0 && (
-            <DropDownMenu
-                anchor={() => (
-                    <Button icon='stream' title='Containers'>
-                        {containerName.padEnd(5, ' ').substr(0, 4)}...
-                    </Button>
-                )}
-                items={containerItems}
-            />
-        )
+        <>
+            <label>For</label>
+            <Spacer />
+            <Select value={containerName} onChange={option => onClickContainer(containerGroup(option.value), containerIndex(option.value), 'logs')} options={containerNames} />
+        </>
     );
 };

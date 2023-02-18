@@ -1,10 +1,9 @@
 import * as React from 'react';
 import {Spacer} from '../../../shared/components/spacer';
 import {Select} from 'argo-ui';
+import {Since} from '../../../shared/services/applications-service';
 
-export type Option = 'min' | '1m' | '5m' | '30m' | '1h' | '4h';
-
-export const TimeRangeSelector = ({since, setSince}: {since: Option; setSince: (value: Option) => void}) => (
+export const TimeRangeSelector = ({since, setSince}: {since: Since; setSince: (value: Since) => void}) => (
     <>
         <label>from</label>
         <Spacer />
@@ -19,7 +18,7 @@ export const TimeRangeSelector = ({since, setSince}: {since: Option; setSince: (
                 {title: 'forever', value: 'min'}
             ]}
             onChange={option => {
-                setSince(option.value as Option);
+                setSince(option.value as Since);
             }}
         />
     </>
