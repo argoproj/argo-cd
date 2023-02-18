@@ -4,6 +4,7 @@ import * as PropTypes from 'prop-types';
 import * as React from 'react';
 import {Helmet} from 'react-helmet';
 import {Redirect, Route, RouteComponentProps, Router, Switch} from 'react-router';
+import {t} from 'i18next';
 import applications from './applications';
 import help from './help';
 import login from './login';
@@ -17,6 +18,7 @@ import {hashCode} from './shared/utils';
 import {Banner} from './ui-banner/ui-banner';
 import userInfo from './user-info';
 import {AuthSettings} from './shared/models';
+import './i18n';
 
 services.viewPreferences.init();
 const bases = document.getElementsByTagName('base');
@@ -43,24 +45,24 @@ interface NavItem {
 
 const navItems: NavItem[] = [
     {
-        title: 'Applications',
+        title: t('nav.applications'),
         tooltip: 'Manage your applications, and diagnose health problems.',
         path: '/applications',
         iconClassName: 'argo-icon argo-icon-application'
     },
     {
-        title: 'Settings',
+        title: t('nav.settings'),
         tooltip: 'Manage your repositories, projects, settings',
         path: '/settings',
         iconClassName: 'argo-icon argo-icon-settings'
     },
     {
-        title: 'User Info',
+        title: t('nav.user-info'),
         path: '/user-info',
         iconClassName: 'fa fa-user-circle'
     },
     {
-        title: 'Documentation',
+        title: t('nav.documentation'),
         tooltip: 'Read the documentation, and get help and assistance.',
         path: '/help',
         iconClassName: 'argo-icon argo-icon-docs'
