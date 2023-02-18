@@ -24,7 +24,7 @@ import {Spacer} from '../../../shared/components/spacer';
 import {Filter} from './filter';
 import {TimeRangeSelector} from './time-range-selector';
 import {TailSelector} from './tail-selector';
-import {Since} from '../../../shared/services/applications-service';
+import {Since} from "../../../shared/services/since";
 
 export interface PodLogsProps {
     namespace: string;
