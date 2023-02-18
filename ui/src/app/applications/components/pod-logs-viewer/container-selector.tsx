@@ -3,6 +3,8 @@ import * as React from 'react';
 import {Spacer} from '../../../shared/components/spacer';
 
 export type ContainerGroup = {offset: number; containers: string[]};
+
+// ContainerSelector is a component that renders a dropdown menu of containers
 export const ContainerSelector = ({
     containerGroups,
     containerName,

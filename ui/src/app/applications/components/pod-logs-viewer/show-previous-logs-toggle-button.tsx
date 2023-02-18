@@ -2,6 +2,7 @@ import * as React from 'react';
 import {LogLoader} from './log-loader';
 import {ToggleButton} from '../../../shared/components/toggle-button';
 
+// ShowPreviousLogsToggleButton is a component that renders a toggle button that toggles previous logs.
 export const ShowPreviousLogsToggleButton = ({
     setPreviousLogs,
     showPreviousLogs,
@@ -17,7 +18,7 @@ export const ShowPreviousLogsToggleButton = ({
             setPreviousLogs(!showPreviousLogs);
             loader.reload();
         }}
-        icon='backward'
+        icon='angle-left'
         toggled={showPreviousLogs}
     />
 );

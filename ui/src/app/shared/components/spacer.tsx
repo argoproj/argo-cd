@@ -1,3 +1,3 @@
 import * as React from 'react';
 
-export const Spacer = () => <>&nbsp;&nbsp;</>;
+export const Spacer = () => <span style={{width: 16}} />;

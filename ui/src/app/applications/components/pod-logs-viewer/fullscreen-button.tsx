@@ -19,7 +19,7 @@ export const FullscreenButton = ({
     return (
         !fullscreen && (
             <Link to={fullscreenURL} target='_blank'>
-                <Button title='Fullscreen View' icon='external-link-alt' />
+                <Button title='Show logs in fullscreen in a new window' icon='external-link-alt' />
             </Link>
         )
     );

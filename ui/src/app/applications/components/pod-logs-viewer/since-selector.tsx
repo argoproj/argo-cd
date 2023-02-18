@@ -3,7 +3,8 @@ import {Spacer} from '../../../shared/components/spacer';
 import {Select} from 'argo-ui';
 import {Since} from '../../../shared/services/since';
 
-export const TimeRangeSelector = ({since, setSince}: {since: Since; setSince: (value: Since) => void}) => (
+// TimeRangeSelector is a component that renders a dropdown menu of time ranges
+export const SinceSelector = ({since, setSince}: {since: Since; setSince: (value: Since) => void}) => (
     <>
         <label>from</label>
         <Spacer />

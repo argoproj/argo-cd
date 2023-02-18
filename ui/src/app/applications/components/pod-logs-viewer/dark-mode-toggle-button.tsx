@@ -2,6 +2,7 @@ import {services, ViewPreferences} from '../../../shared/services';
 import * as React from 'react';
 import {ToggleButton} from '../../../shared/components/toggle-button';
 
+// DarkModeToggleButton is a component that renders a toggle button that toggles dark mode.
 export const DarkModeToggleButton = ({prefs}: {prefs: ViewPreferences}) => (
     <ToggleButton
         title='Dark Mode'
