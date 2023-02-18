@@ -3,7 +3,9 @@ import * as classNames from 'classnames';
 import * as React from 'react';
 import {useEffect, useRef, useState} from 'react';
 import {bufferTime, delay, filter as rxfilter, map, retryWhen, scan} from 'rxjs/operators';
-import Ansi from 'ansi-to-react';
+import {Terminal} from 'xterm';
+import {FitAddon} from 'xterm-addon-fit';
+
 import * as models from '../../../shared/models';
 import {services, ViewPreferences} from '../../../shared/services';
 
@@ -24,7 +26,9 @@ import {Spacer} from '../../../shared/components/spacer';
 import {Filter} from './filter';
 import {TimeRangeSelector} from './time-range-selector';
 import {TailSelector} from './tail-selector';
-import {Since} from "../../../shared/services/since";
+import {Since} from '../../../shared/services/since';
+import {PodNamesToggleButton} from './pod-names-toggle-button';
+import Ansi from 'ansi-to-react';
 
 export interface PodLogsProps {
     namespace: string;
@@ -41,6 +45,31 @@ export interface PodLogsProps {
     onClickContainer?: (group: any, i: number, tab: string) => void;
 }
 
+// ansi colors, see https://en.wikipedia.org/wiki/ANSI_escape_code#Colors
+const gray = '\u001b[90m';
+const red = '\u001b[31m';
+const green = '\u001b[32m';
+const yellow = '\u001b[33m';
+const blue = '\u001b[34m';
+const magenta = '\u001b[35m';
+const cyan = '\u001b[36m';
+const colors = [red, green, yellow, blue, magenta, cyan];
+const reset = '\u001b[0m';
+const whiteOnYellow = '\u001b[1m\u001b[43;1m\u001b[37m';
+
+// cheap string hash function
+function stringHashCode(str: string) {
+    let hash = 0;
+    for (let i = 0; i < str.length; i++) {
+        // tslint:disable-next-line:no-bitwise
+        hash = str.charCodeAt(i) + ((hash << 5) - hash);
+    }
+    return hash;
+}
+// ansi color for pod name
+function podColor(podName: string) {
+    return colors[stringHashCode(podName) % colors.length];
+}
 export const PodsLogsViewer = (props: PodLogsProps) => {
     const {containerName, onClickContainer, timestamp, containerGroups, applicationName, applicationNamespace, namespace, podName, group, kind, name} = props;
     if (!containerName || containerName === '') {
@@ -48,7 +77,6 @@ export const PodsLogsViewer = (props: PodLogsProps) => {
     }
 
     const queryParams = new URLSearchParams(location.search);
-    const [selectedLine, setSelectedLine] = useState(parseInt(queryParams.get('selectedLine'), 10) || -1);
     const [viewPodNames, setViewPodNames] = useState(queryParams.get('viewPodNames') === 'true');
     const [follow, setFollow] = useState(queryParams.get('follow') === 'true');
     const [viewTimestamps, setViewTimestamps] = useState(queryParams.get('viewTimestamps') === 'true');
@@ -80,6 +108,12 @@ export const PodsLogsViewer = (props: PodLogsProps) => {
     };
 
     useEffect(() => {
+        if (viewPodNames) {
+            setViewTimestamps(false);
+        }
+    }, [viewPodNames]);
+
+    useEffect(() => {
         const to = setTimeout(() => {
             loader?.reload();
             setHighlight(filter.replace(/[-\/\\^$*+?.()|[\]{}]/g, '\\$&')); // https://stackoverflow.com/questions/3561493/is-there-a-regexp-escape-function-in-javascript
@@ -107,13 +141,8 @@ export const PodsLogsViewer = (props: PodLogsProps) => {
                             </span>
                             <Spacer />
                             <span>
-                                <TimestampsToggleButton
-                                    setViewPodNames={setViewPodNames}
-                                    viewPodNames={viewPodNames}
-                                    setViewTimestamps={setViewTimestamps}
-                                    viewTimestamps={viewTimestamps}
-                                    timestamp={timestamp}
-                                />
+                                <PodNamesToggleButton viewPodNames={viewPodNames} setViewPodNames={setViewPodNames} />
+                                <TimestampsToggleButton setViewTimestamps={setViewTimestamps} viewTimestamps={viewTimestamps} timestamp={timestamp} />
                                 <WrapLinesToggleButton prefs={prefs} />
                                 <DarkModeToggleButton prefs={prefs} />
                             </span>
@@ -124,151 +153,86 @@ export const PodsLogsViewer = (props: PodLogsProps) => {
                                 <FullscreenButton {...props} />
                             </span>
                         </div>
-                        <DataLoader
-                            ref={loaderRef}
-                            loadingRenderer={() => (
-                                <div className={`pod-logs-viewer ${prefs.appDetails.darkMode ? 'pod-logs-viewer--inverted' : ''}`}>
-                                    <pre style={{height: '95%', textAlign: 'center'}}>Loading...</pre>
-                                </div>
-                            )}
-                            input={containerName}
-                            load={() => {
-                                let logsSource = services.applications
-                                    .getContainerLogs(query)
-                                    // show only current page lines
-                                    .pipe(
-                                        scan((lines, logEntry) => {
-                                            // first equal true means retry attempt so we should clear accumulated log entries
-                                            if (logEntry.first) {
-                                                lines = [logEntry];
-                                            } else {
-                                                lines.push(logEntry);
-                                            }
-                                            if (lines.length > tail) {
-                                                lines.splice(0, lines.length - tail);
-                                            }
-                                            return lines;
-                                        }, new Array<models.LogEntry>())
-                                    )
-                                    // accumulate log changes and render only once every 100ms to reduce CPU usage
-                                    .pipe(bufferTime(100))
-                                    .pipe(rxfilter(batch => batch.length > 0))
-                                    .pipe(map(batch => batch[batch.length - 1]));
-                                if (follow) {
-                                    logsSource = logsSource.pipe(retryWhen(errors => errors.pipe(delay(500))));
-                                }
-                                return logsSource;
-                            }}>
-                            {(logs: any[]) => {
-                                logs = logs || [];
-                                setTimeout(() => {
-                                    scrollToBottom();
-                                });
-                                const pods = Array.from(new Set(logs.map(log => log.podName)));
-                                const podColors = pods.reduce((colors, pod, i) => colors.set(pod, BASE_COLORS[i % BASE_COLORS.length]), new Map<string, string>());
-                                const lines = logs.map(item => item.content);
-                                return (
-                                    <div
-                                        className={classNames('pod-logs-viewer', {
-                                            'pod-logs-viewer--inverted': prefs.appDetails.darkMode,
-                                            'pod-logs-viewer--pod-name-visible': viewPodNames,
-                                            'pod-logs-viewer--pod-timestamp-visible': viewTimestamps
-                                        })}>
-                                        {!podName && (
-                                            <Tooltip content={viewPodNames ? 'Hide pod names' : 'Show pod names'}>
-                                                <i
-                                                    className={classNames('fa pod-logs-viewer__pod-name-toggle', {
-                                                        'fa-chevron-left': viewPodNames,
-                                                        'fa-chevron-right': !viewPodNames
-                                                    })}
-                                                    onClick={() => {
-                                                        setViewPodNames(!viewPodNames);
-                                                        if (viewTimestamps) {
-                                                            setViewTimestamps(false);
-                                                        }
-                                                    }}
-                                                />
-                                            </Tooltip>
-                                        )}
-                                        <pre
-                                            style={{
-                                                height: '95%',
-                                                whiteSpace: prefs.appDetails.wrapLines ? 'normal' : 'pre'
-                                            }}>
-                                            {lines.map((l, i) => {
-                                                const lineNum = i;
-                                                return (
-                                                    <div
-                                                        key={lineNum}
-                                                        style={{display: 'flex', cursor: 'pointer'}}
-                                                        onClick={() => {
-                                                            setSelectedLine(selectedLine === i ? -1 : i);
-                                                        }}>
-                                                        <div className={`pod-logs-viewer__line__menu ${selectedLine === i ? 'pod-logs-viewer__line__menu--visible' : ''}`}>
-                                                            <DropDownMenu
-                                                                anchor={() => <i className='fas fa-ellipsis-h' />}
-                                                                items={[
-                                                                    {
-                                                                        title: (
-                                                                            <span>
-                                                                                <i className='fa fa-clipboard' /> Copy Line
-                                                                            </span>
-                                                                        ),
-                                                                        action: async () => {
-                                                                            await navigator.clipboard.writeText(l);
-                                                                        }
-                                                                    },
-                                                                    {
-                                                                        title: (
-                                                                            <span>
-                                                                                <i className='fa fa-list-ol' /> Copy Line Number
-                                                                            </span>
-                                                                        ),
-                                                                        action: async () => {
-                                                                            await navigator.clipboard.writeText(JSON.stringify(lineNum));
-                                                                        }
-                                                                    }
-                                                                ]}
-                                                            />
-                                                        </div>
-                                                        {!podName && (
-                                                            <div className='pod-logs-viewer__line__pod' style={{color: podColors.get(logs[i].podName)}}>
-                                                                {(i === 0 || logs[i - 1].podName !== logs[i].podName) && (
-                                                                    <React.Fragment>
-                                                                        <Tooltip content={logs[i].podName}>
-                                                                            <span>{logs[i].podName}</span>
-                                                                        </Tooltip>
-                                                                        <Tooltip content={logs[i].podName}>
-                                                                            <i className='fa fa-circle' />
-                                                                        </Tooltip>
-                                                                    </React.Fragment>
-                                                                )}
-                                                            </div>
-                                                        )}
-                                                        {viewTimestamps && (
-                                                            <div className='pod-logs-viewer__line__timestamp'>
-                                                                {(i === 0 || logs[i - 1].timeStamp !== logs[i].timeStamp) && (
-                                                                    <React.Fragment>
-                                                                        <Tooltip content={logs[i].timeStampStr}>
-                                                                            <span>{logs[i].timeStampStr}</span>
-                                                                        </Tooltip>
-                                                                    </React.Fragment>
-                                                                )}
-                                                            </div>
-                                                        )}
-                                                        <div className='pod-logs-viewer__line__number'>{lineNum}</div>
-                                                        <div className={`pod-logs-viewer__line ${selectedLine === i ? 'pod-logs-viewer__line--selected' : ''}`}>
-                                                            <Ansi>{l.replace(new RegExp(highlight, 'g'), (y: string) => '\u001b[1m\u001b[43;1m\u001b[37m' + y + '\u001b[0m')}</Ansi>
-                                                        </div>
-                                                    </div>
-                                                );
-                                            })}
-                                            <div ref={bottom} style={{height: '1px'}} />
-                                        </pre>
-                                    </div>
-                                );
-                            }}
-                        </DataLoader>
+
+                        <div
+                            className={classNames('pod-logs-viewer', {
+                                'pod-logs-viewer--inverted': prefs.appDetails.darkMode
+                            })}>
+                            <pre
+                                style={{
+                                    height: '100%',
+                                    whiteSpace: prefs.appDetails.wrapLines ? 'normal' : 'pre'
+                                }}>
+                                <DataLoader
+                                    ref={loaderRef}
+                                    loadingRenderer={() => <>Loading...</>}
+                                    input={containerName}
+                                    load={() => {
+                                        let logsSource = services.applications
+                                            .getContainerLogs(query)
+                                            // show only current page lines
+                                            .pipe(
+                                                scan((lines, logEntry) => {
+                                                    // first equal true means retry attempt so we should clear accumulated log entries
+                                                    if (logEntry.first) {
+                                                        lines = [logEntry];
+                                                    } else {
+                                                        lines.push(logEntry);
+                                                    }
+                                                    if (lines.length > tail) {
+                                                        lines.splice(0, lines.length - tail);
+                                                    }
+                                                    return lines;
+                                                }, new Array<models.LogEntry>())
+                                            )
+                                            // accumulate log changes and render only once every 100ms to reduce CPU usage
+                                            .pipe(bufferTime(100))
+                                            .pipe(rxfilter(batch => batch.length > 0))
+                                            .pipe(map(batch => batch[batch.length - 1]));
+                                        if (follow) {
+                                            logsSource = logsSource.pipe(retryWhen(errors => errors.pipe(delay(500))));
+                                        }
+                                        return logsSource;
+                                    }}>
+                                    {(logs: any[]) => {
+                                        logs = logs || [];
+                                        setTimeout(() => {
+                                            scrollToBottom();
+                                        });
+                                        const lineNumberWidth = String(tail).length;
+                                        const lineNumberLeftPadding = ' '.repeat(lineNumberWidth);
+                                        return (
+                                            <Ansi>
+                                                {logs
+                                                    .map(
+                                                        (log, lineNum) =>
+                                                            // show the pod name if there are multiple pods, pad with spaces to align
+                                                            (viewPodNames
+                                                                ? (lineNum === 0 || logs[lineNum - 1].podName !== log.podName
+                                                                      ? podColor(podName) + log.podName + reset
+                                                                      : ' '.repeat(log.podName.length)) + ' '
+                                                                : '') +
+                                                            // show the timestamp if requested, pad with spaces to align
+                                                            (viewTimestamps
+                                                                ? lineNum === 0 || logs[lineNum - 1].timeStamp !== log.timeStamp
+                                                                    ? log.timeStampStr
+                                                                    : ' '.repeat(log.timeStampStr)
+                                                                : '') +
+                                                            // show the line number, in gray
+                                                            (gray + (lineNumberLeftPadding + lineNum).slice(-lineNumberWidth) + reset) +
+                                                            ' ' +
+                                                            // show the log content, highlight the filter text
+                                                            log.content.replace(new RegExp(highlight, 'g'), (substring: string) => whiteOnYellow + substring + reset)
+                                                    )
+                                                    .join('\n')}
+                                            </Ansi>
+                                        );
+                                    }}
+                                </DataLoader>
+
+                                <div ref={bottom} style={{height: '1px'}} />
+                            </pre>
+                        </div>
                     </React.Fragment>
                 );
             }}

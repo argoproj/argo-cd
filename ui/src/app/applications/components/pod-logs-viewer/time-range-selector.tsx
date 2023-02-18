@@ -1,7 +1,7 @@
 import * as React from 'react';
 import {Spacer} from '../../../shared/components/spacer';
 import {Select} from 'argo-ui';
-import {Since} from '../../../shared/services/applications-service';
+import {Since} from '../../../shared/services/since';
 
 export const TimeRangeSelector = ({since, setSince}: {since: Since; setSince: (value: Since) => void}) => (
     <>
