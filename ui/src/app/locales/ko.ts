@@ -29,5 +29,13 @@ export default {
     'applications-list.sort-options.name': '이름',
     'applications-list.sort-options.created-at': '생성일',
     'applications-list.sort-options.synchronized': '싱크 됨',
-    'applications-list.unable-to-create-application': '애플리케이션을 생성할 수 없습니다.'
+    'applications-list.unable-to-create-application': '애플리케이션을 생성할 수 없습니다.',
+    'applications-filter.favorites-only': '즐겨찾기만',
+    'applications-filter.labels': '라벨',
+    'applications-filter.projects': '프로젝트',
+    'applications-filter.clusters': '클러스터',
+    'applications-filter.namespaces': '네임스페이스',
+    'applications-filter.auto-sync': '자동 싱크',
+    'applications-filter.auto-sync.enabled': '활성화',
+    'applications-filter.auto-sync.disabled': '비활성화'
 };
