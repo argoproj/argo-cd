@@ -45,25 +45,25 @@ interface NavItem {
 
 const navItems: NavItem[] = [
     {
-        title: t('nav.applications'),
-        tooltip: 'Manage your applications, and diagnose health problems.',
+        title: t('nav.applications.title'),
+        tooltip: t('nav.applications.tooltip'),
         path: '/applications',
         iconClassName: 'argo-icon argo-icon-application'
     },
     {
-        title: t('nav.settings'),
-        tooltip: 'Manage your repositories, projects, settings',
+        title: t('nav.settings.title'),
+        tooltip: t('nav.settings.tooltip'),
         path: '/settings',
         iconClassName: 'argo-icon argo-icon-settings'
     },
     {
-        title: t('nav.user-info'),
+        title: t('nav.user-info.title'),
         path: '/user-info',
         iconClassName: 'fa fa-user-circle'
     },
     {
-        title: t('nav.documentation'),
-        tooltip: 'Read the documentation, and get help and assistance.',
+        title: t('nav.documentation.title'),
+        tooltip: t('nav.documentation.tooltip'),
         path: '/help',
         iconClassName: 'argo-icon argo-icon-docs'
     }
